@@ -13,6 +13,12 @@ Light arithmetic lives as free functions over the views: BLAS-1/2 (`dot`, `axpy`
 `invertSpd`). Their inner loops route through an `expect`/`actual` primitive seam that uses SIMD
 (`jdk.incubator.vector`) on the JVM and scalar loops elsewhere.
 
+Sparse linear algebra is a first-class peer: a CSC [SparseMatrix][com.eignex.koblas.SparseMatrix] with
+matrix–vector products, a Markowitz-pivoting [SparseLu][com.eignex.koblas.SparseLu] factorization with
+`O(nnz)` FTRAN/BTRAN solves, and an [EtaBasis][com.eignex.koblas.EtaBasis] product-form-of-the-inverse
+for `O(m)` rank-1 basis updates between refactorizations — the kernels a sparse simplex or Newton solver
+builds on.
+
 The heavier level-2/3 and factorization work — [gemv][com.eignex.koblas.LinearAlgebra.gemv],
 [gemm][com.eignex.koblas.LinearAlgebra.gemm] and a general LU
 [factor][com.eignex.koblas.LinearAlgebra.factor] / [solve][com.eignex.koblas.LinearAlgebra.solve] — sits
