@@ -48,14 +48,14 @@ sealed interface VectorView {
  *
  * Construction goes through the [Companion] factories: [DenseVector.of]
  * (copy a `DoubleArray`) or [DenseVector.zero] (allocate a zero vector
- * of given size). Direct constructors are restricted to keep the
- * mutable backing array out of caller hands; `DenseVector` is intended
- * to be effectively immutable after the factory call, even though
- * internal code may mutate it for in-place updates.
+ * of given size). Unlike the read-only [VectorView] contract, the concrete
+ * vector exposes its [data] backing and elementwise [set] for in-place updates.
+ *
+ * @property data the flat backing array.
  */
 @Serializable
 @SerialName("DenseVector")
-class DenseVector internal constructor(@PublishedApi internal val data: DoubleArray) : VectorView {
+class DenseVector internal constructor(val data: DoubleArray) : VectorView {
 
     constructor(size: Int) : this(DoubleArray(size))
 
@@ -63,7 +63,8 @@ class DenseVector internal constructor(@PublishedApi internal val data: DoubleAr
     override fun get(i: Int): Double = data[i]
     override fun toDoubleArray(): DoubleArray = data.copyOf()
 
-    internal operator fun set(i: Int, v: Double) {
+    /** Set entry [i]. */
+    operator fun set(i: Int, v: Double) {
         data[i] = v
     }
 
@@ -98,14 +99,15 @@ class DenseVector internal constructor(@PublishedApi internal val data: DoubleAr
  *
  * Indices are not required to be sorted; the constructor only checks the parallel-
  * array invariant.
+ *
+ * @property size the logical length (including stored zeros).
+ * @property indices the positions of the stored entries.
+ * @property values the stored entry values, parallel to [indices].
  */
 @Serializable
 @SerialName("SparseVector")
-class SparseVector internal constructor(
-    override val size: Int,
-    @PublishedApi internal val indices: IntArray,
-    @PublishedApi internal val values: DoubleArray,
-) : VectorView {
+class SparseVector internal constructor(override val size: Int, val indices: IntArray, val values: DoubleArray) :
+    VectorView {
 
     init {
         require(indices.size == values.size) {

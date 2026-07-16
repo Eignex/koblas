@@ -52,16 +52,17 @@ sealed interface MatrixView {
  * [DenseMatrixSerializer] bridges the two; encoding writes a 2D array,
  * decoding reads one back and packs it into the flat backing.
  *
- * Mutation is `internal`; `DenseMatrix` is effectively immutable from
- * outside the module.
+ * Unlike the read-only [MatrixView] contract, the concrete matrix exposes its flat [data] backing and
+ * elementwise [set] so in-place algorithms (factorizations, updates) can work without reallocating.
+ *
+ * @property rows the number of rows.
+ * @property cols the number of columns.
+ * @property data the flat row-major backing, length `rows * cols`.
  */
 @Serializable(with = DenseMatrixSerializer::class)
 @SerialName("DenseMatrix")
-class DenseMatrix internal constructor(
-    override val rows: Int,
-    override val cols: Int,
-    internal val data: DoubleArray,
-) : MatrixView {
+class DenseMatrix internal constructor(override val rows: Int, override val cols: Int, val data: DoubleArray) :
+    MatrixView {
 
     constructor(rows: Int, cols: Int = rows) : this(rows, cols, DoubleArray(rows * cols))
 
@@ -77,7 +78,8 @@ class DenseMatrix internal constructor(
         DoubleArray(cols) { j -> data[i * cols + j] }
     }
 
-    internal operator fun set(i: Int, j: Int, v: Double) {
+    /** Set entry `(i, j)`. */
+    operator fun set(i: Int, j: Int, v: Double) {
         data[i * cols + j] = v
     }
 
