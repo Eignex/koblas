@@ -65,7 +65,3 @@ implementation("com.eignex:koblas:<version>")
 ## Status
 
 Early. The operation set is intentionally minimal — the pieces its consumers need — and grows on demand.
-
-## License
-
-See [LICENSE](LICENSE).
