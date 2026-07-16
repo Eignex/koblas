@@ -17,7 +17,6 @@ kotlin {
     }
 
     jvm()
-    linuxX64()
 
     sourceSets {
         commonMain.dependencies {
@@ -40,7 +39,6 @@ allOpen {
 benchmark {
     targets {
         register("jvm")
-        register("linuxX64")
     }
     configurations {
         named("main") {

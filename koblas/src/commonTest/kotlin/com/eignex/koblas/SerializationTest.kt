@@ -2,6 +2,9 @@ package com.eignex.koblas
 
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.double
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -26,9 +29,14 @@ class SerializationTest {
     }
 
     @Test
-    fun `DenseMatrix wire form is a 2D array`() {
+    fun `DenseMatrix wire form is a nested 2D array`() {
+        // Assert the structure (rows of numbers), not the literal string — double formatting is
+        // platform-specific (JS vs JVM), but the 2D-array shape is the stable contract.
         val m = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
-        assertEquals("[[1.0,2.0],[3.0,4.0]]", json.encodeToString(m))
+        val rows = json.parseToJsonElement(json.encodeToString(m)).jsonArray
+        assertEquals(2, rows.size)
+        assertEquals(listOf(1.0, 2.0), rows[0].jsonArray.map { it.jsonPrimitive.double })
+        assertEquals(listOf(3.0, 4.0), rows[1].jsonArray.map { it.jsonPrimitive.double })
     }
 
     @Test
