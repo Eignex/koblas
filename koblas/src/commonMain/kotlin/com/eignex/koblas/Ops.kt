@@ -103,20 +103,18 @@ fun addOuter(M: DenseMatrix, alpha: Double, x: VectorView, y: VectorView) {
 /** Matrix-vector product `A * x` into a fresh dense result. */
 fun matVec(A: MatrixView, x: VectorView): DenseVector {
     require(A.cols == x.size) { "matVec shape mismatch: A is ${A.rows}x${A.cols}, x size ${x.size}" }
+    // Dense·dense routes through the backend's gemv (the single dense matrix-vector implementation).
+    if (A is DenseMatrix && x is DenseVector) return DenseVector.wrap(koblas.gemv(A, x.data))
     val out = DenseVector(A.rows)
     val od = out.data
     if (A is DenseMatrix) {
         val ad = A.data
         val cols = A.cols
-        if (x is DenseVector) {
-            for (i in 0 until A.rows) od[i] = denseDot(ad, i * cols, x.data, 0, cols)
-        } else {
-            for (i in 0 until A.rows) {
-                val row = i * cols
-                var s = 0.0
-                x.forEachStored { j, v -> s += ad[row + j] * v }
-                od[i] = s
-            }
+        for (i in 0 until A.rows) {
+            val row = i * cols
+            var s = 0.0
+            x.forEachStored { j, v -> s += ad[row + j] * v }
+            od[i] = s
         }
     } else {
         for (i in 0 until A.rows) {
