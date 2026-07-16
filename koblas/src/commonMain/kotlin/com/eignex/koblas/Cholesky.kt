@@ -67,6 +67,7 @@ fun MatrixView.cholesky(regularizeNonPD: Boolean = true): DenseMatrix {
 fun DenseMatrix.choleskyDowndateInPlace(x: VectorView): Double {
     require(rows == cols) { "choleskyDowndateInPlace requires a square matrix; got ${rows}x$cols" }
     require(rows == x.size) { "x size ${x.size} must match matrix dim $rows" }
+    if (rows == 0) return 0.0 // an empty downdate stays in the cone trivially
     val L = data
     val n = rows
     val s = DoubleArray(n)

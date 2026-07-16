@@ -122,8 +122,10 @@ class DenseMatrix internal constructor(override val rows: Int, override val cols
     }
 }
 
-/** Serialises [DenseMatrix] as a 2D `Array<DoubleArray>`. The flat in-memory backing
- *  is an implementation detail; the wire shape stays stable across layout changes. */
+/** Serialises [DenseMatrix] as a 2D `Array<DoubleArray>`. The flat in-memory backing is an
+ *  implementation detail; the wire shape stays stable across layout changes. A zero-row matrix encodes
+ *  to `[]`, so its column count is not recoverable — a `0×N` matrix decodes as `0×0` (a degenerate case
+ *  the format does not distinguish). */
 @OptIn(ExperimentalSerializationApi::class)
 internal object DenseMatrixSerializer : KSerializer<DenseMatrix> {
     private val inner = ArraySerializer(DoubleArraySerializer())

@@ -137,6 +137,9 @@ class SparseLu private constructor(
          * Factorize the matrix whose rows are [rows] (`rows[i][col] = B[i][col]`, dense per-row maps),
          * size [m]. Returns null if no numerically acceptable pivot remains (singular matrix).
          *
+         * **Consumes [rows]:** the maps are eliminated in place (and rescaled when [equilibrate]), so the
+         * caller must not reuse them afterward. The [SparseMatrix] overload hands over fresh maps.
+         *
          * With [equilibrate], each row is first scaled by a power of two `eᵢ ≈ 1/max|rowᵢ|` (exact in
          * floating point) so pivoting is better conditioned; the scale is undone transparently in the
          * solves and [determinant].

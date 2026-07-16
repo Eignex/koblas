@@ -15,9 +15,13 @@ package com.eignex.koblas
  */
 class SparseMatrix(val rows: Int, val cols: Int, val colPtr: IntArray, val rowIdx: IntArray, val values: DoubleArray) {
     init {
+        require(rows >= 0 && cols >= 0) { "negative shape: ${rows}x$cols" }
         require(colPtr.size == cols + 1) { "colPtr length ${colPtr.size} != cols+1 ${cols + 1}" }
         require(rowIdx.size == values.size) { "rowIdx/values length mismatch: ${rowIdx.size} vs ${values.size}" }
+        require(colPtr[0] == 0) { "colPtr[0] ${colPtr[0]} != 0" }
         require(colPtr[cols] == values.size) { "colPtr[cols] ${colPtr[cols]} != nnz ${values.size}" }
+        for (j in 0 until cols) require(colPtr[j] <= colPtr[j + 1]) { "colPtr not monotonic at $j" }
+        for (k in rowIdx.indices) require(rowIdx[k] in 0 until rows) { "rowIdx[$k]=${rowIdx[k]} out of [0,$rows)" }
     }
 
     /** Number of stored nonzeros. */

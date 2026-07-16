@@ -1,0 +1,155 @@
+package com.eignex.koblas
+
+import kotlin.math.abs
+import kotlin.random.Random
+import kotlin.test.Test
+import kotlin.test.assertTrue
+
+/**
+ * BLAS/LAPACK conformance in the reference-suite style: run each operation on a battery of standard test
+ * matrices (identity, diagonal, Hilbert — the classic ill-conditioned case — random well-conditioned,
+ * and symmetric positive-definite) and check the result against a constructed reference within a
+ * theoretically-informed error bound (residual norm scaled by size and unit roundoff), rather than an
+ * exact equality. This mirrors how the netlib `dblat`/LAPACK tests validate an implementation.
+ */
+class BlasConformanceTest {
+
+    private val eps = 2.220446049250313e-16
+
+    private fun infNorm(v: DoubleArray): Double {
+        var m = 0.0
+        for (x in v) m = maxOf(m, abs(x))
+        return m
+    }
+
+    private fun infNorm(a: DenseMatrix): Double {
+        var m = 0.0
+        for (i in 0 until a.rows) {
+            var r = 0.0
+            for (j in 0 until a.cols) r += abs(a[i, j])
+            m = maxOf(m, r)
+        }
+        return m
+    }
+
+    private fun hilbert(n: Int): DenseMatrix =
+        DenseMatrix(n, n).also { for (i in 0 until n) for (j in 0 until n) it[i, j] = 1.0 / (i + j + 1.0) }
+
+    private fun diagonal(n: Int, rng: Random): DenseMatrix =
+        DenseMatrix(n, n).also { for (i in 0 until n) it[i, i] = rng.nextDouble(1.0, 5.0) }
+
+    private fun randomWellConditioned(n: Int, rng: Random): DenseMatrix =
+        DenseMatrix(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
+            .also { for (i in 0 until n) it[i, i] = it[i, i] + n } // diagonally dominant
+
+    // symmetric positive-definite: M = AᵀA + n·I.
+    private fun spd(n: Int, rng: Random): DenseMatrix {
+        val a = DenseMatrix(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
+        val m = DenseMatrix(n, n)
+        for (i in 0 until n) {
+            for (j in 0 until n) {
+                var s = 0.0
+                for (k in 0 until n) s += a[k, i] * a[k, j]
+                m[i, j] = s + if (i == j) n.toDouble() else 0.0
+            }
+        }
+        return m
+    }
+
+    // Residual ‖A x − b‖∞ scaled by ‖A‖∞‖x‖∞ and the condition-independent bound c·n·eps·cond, relaxed
+    // for Hilbert by its huge condition number — we check the *residual* (always small for a stable
+    // solve), not the forward error (which Hilbert inflates).
+    private fun assertSolveResidual(a: DenseMatrix, x: DoubleArray, b: DoubleArray, name: String) {
+        val ax = koblas.gemv(a, x)
+        val residual = DoubleArray(a.rows) { ax[it] - b[it] }
+        val bound = 100.0 * a.rows * eps * (infNorm(a) * infNorm(x) + infNorm(b))
+        assertTrue(infNorm(residual) <= bound + 1e-12, "$name: residual ${infNorm(residual)} > bound $bound")
+    }
+
+    @Test
+    fun `dense LU solve has a small residual on the standard test matrices`() {
+        val rng = Random(20260716)
+        for (n in intArrayOf(1, 2, 5, 12, 40)) {
+            val matrices = listOf(
+                "identity" to DenseMatrix.diagonal(n),
+                "diagonal" to diagonal(n, rng),
+                "hilbert" to hilbert(n),
+                "random" to randomWellConditioned(n, rng),
+                "spd" to spd(n, rng),
+            )
+            for ((label, a) in matrices) {
+                val xTrue = DoubleArray(n) { rng.nextDouble(-2.0, 2.0) }
+                val b = koblas.gemv(a, xTrue)
+                val lu = a.lu()
+                if (lu.singular) continue
+                val x = lu.solve(b)
+                assertSolveResidual(a, x, b, "LU/$label/n=$n")
+            }
+        }
+    }
+
+    @Test
+    fun `dense LU transpose-solve has a small residual`() {
+        val rng = Random(99)
+        for (n in intArrayOf(2, 7, 25)) {
+            val a = randomWellConditioned(n, rng)
+            val xTrue = DoubleArray(n) { rng.nextDouble(-2.0, 2.0) }
+            val b = koblas.gemv(a, xTrue, transpose = true)
+            val x = a.lu().solve(b, transpose = true)
+            val atx = koblas.gemv(a, x, transpose = true)
+            val residual = DoubleArray(n) { atx[it] - b[it] }
+            val bound = 100.0 * n * eps * (infNorm(a) * infNorm(x) + infNorm(b))
+            assertTrue(infNorm(residual) <= bound + 1e-12, "transpose-solve n=$n: ${infNorm(residual)} > $bound")
+        }
+    }
+
+    @Test
+    fun `cholesky solve has a small residual on SPD matrices`() {
+        val rng = Random(7)
+        for (n in intArrayOf(1, 3, 10, 30)) {
+            val a = spd(n, rng)
+            val xTrue = DoubleArray(n) { rng.nextDouble(-2.0, 2.0) }
+            val b = koblas.gemv(a, xTrue)
+            val l = a.cholesky(regularizeNonPD = false)
+            val x = solveSpd(l, b)
+            assertSolveResidual(a, x, b, "cholesky/n=$n")
+        }
+    }
+
+    @Test
+    fun `gemm reproduces the identity and is associative within tolerance`() {
+        val rng = Random(3)
+        for (n in intArrayOf(1, 4, 16)) {
+            val a = randomWellConditioned(n, rng)
+            val id = DenseMatrix.diagonal(n)
+            // A · I == A exactly (identity has 0/1 entries).
+            assertTrue(a.matMul(id) == a, "A·I != A at n=$n")
+            // (A·B)·C ≈ A·(B·C).
+            val b = DenseMatrix(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
+            val c = DenseMatrix(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
+            val left = a.matMul(b).matMul(c)
+            val right = a.matMul(b.matMul(c))
+            val bound = 100.0 * n * eps * infNorm(a) * infNorm(b) * infNorm(c)
+            var maxDiff = 0.0
+            for (k in left.data.indices) maxDiff = maxOf(maxDiff, abs(left.data[k] - right.data[k]))
+            assertTrue(maxDiff <= bound + 1e-9, "gemm associativity n=$n: $maxDiff > $bound")
+        }
+    }
+
+    @Test
+    fun `sparse LU solve has a small residual on standard matrices`() {
+        val rng = Random(20260101)
+        for (n in intArrayOf(2, 8, 30)) {
+            val dense = randomWellConditioned(n, rng)
+            val cols = List(n) { j ->
+                (0 until n).mapNotNull { i -> if (dense[i, j] != 0.0) i to dense[i, j] else null }
+            }
+            val sparse = SparseMatrix.ofColumns(n, n, cols)
+            val lu = SparseLu.factorize(sparse, equilibrate = true) ?: continue
+            val xTrue = DoubleArray(n) { rng.nextDouble(-2.0, 2.0) }
+            val b = sparse.gemv(xTrue)
+            val x = lu.ftran(b)
+            assertSolveResidual(dense, x, b, "sparseLU/n=$n")
+        }
+    }
+}
