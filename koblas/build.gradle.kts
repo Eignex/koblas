@@ -1,9 +1,11 @@
 @file:OptIn(ExperimentalWasmDsl::class)
 
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 plugins {
     id("com.eignex.kmp") version "1.2.7"
+    kotlin("plugin.serialization") version "2.3.20"
 }
 
 eignexPublish {
@@ -36,6 +38,14 @@ kotlin {
         linuxMain.get().dependsOn(posixMain)
         webMain.get().dependsOn(nonJvmMain)
         wasmWasiMain.get().dependsOn(webMain.get())
+
+        commonMain.dependencies {
+            compileOnly("org.jetbrains.kotlinx:kotlinx-serialization-core:1.10.0")
+        }
+        commonTest.dependencies {
+            implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.10.0")
+            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.10.0")
+        }
     }
 }
 
@@ -57,5 +67,16 @@ dokka {
             "module.md",
             "src/commonMain/kotlin/com/eignex/koblas/package.md",
         )
+    }
+}
+
+// JVM SIMD primitives in Primitives.kt use the incubator Vector API. Make the module visible to the
+// Kotlin compiler and at test runtime; downstream JVM consumers need the same flag.
+tasks.withType<KotlinJvmCompile>().configureEach {
+    compilerOptions.freeCompilerArgs.add("-Xadd-modules=jdk.incubator.vector")
+}
+tasks.withType<Test>().configureEach {
+    if (project.findProperty("koblas.noSimd") != "true") {
+        jvmArgs("--add-modules=jdk.incubator.vector")
     }
 }
