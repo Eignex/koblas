@@ -63,7 +63,14 @@ class RcondTest {
         val rng = Random(20260902)
         val n = 6
         val a = DenseMatrix(n)
-        for (i in 0 until n) for (j in 0 until n) a[i, j] = rng.nextDouble(-1.0, 1.0) + if (i == j) n.toDouble() else 0.0
+        for (i in 0 until n) {
+            for (j in 0 until n) {
+                a[i, j] = rng.nextDouble(
+                    -1.0,
+                    1.0,
+                ) + if (i == j) n.toDouble() else 0.0
+            }
+        }
         val scaled = DenseMatrix(n)
         for (i in 0 until n) for (j in 0 until n) scaled[i, j] = 8.0 * a[i, j]
         val rc = koblas.rcond(a.lu(), norm1(a))

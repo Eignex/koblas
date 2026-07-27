@@ -94,15 +94,20 @@ against reference results on every target.
 | dgecon, dlange (condition estimate) | LinearAlgebra.rcond, norm1 |
 | dpotrf, dpotrs, dpotri (Cholesky) | cholesky, solveSpd, invertSpd |
 | dgeqrf, dormqr, dgels (QR, least squares) | LinearAlgebra.qr, applyQ, solveLeastSquares |
+| dsytrf, dsytrs (symmetric indefinite LDLᵀ) | LinearAlgebra.ldl, solve |
 | Cholesky rank-one update/downdate | choleskyUpdateInPlace, choleskyDowndateInPlace |
 
 Deviations from the standard are small and documented on each function: syrk
-has no uplo parameter and always produces the full symmetric matrix, trsm
-solves from the left only, LU solve takes a single right-hand side (use
-trsm for blocks), cholesky regularizes non-positive-definite pivots unless
-asked to be strict, and norm2 skips the overflow rescale so components must
-stay within roughly 1e150. Every alpha/beta form follows the BLAS convention
-that beta equal to zero overwrites the output without reading it.
+has no uplo parameter and always produces the full symmetric matrix, symv,
+symm, and ldl likewise drop uplo and read the lower triangle only, trsm, trmm,
+and symm operate from the left only, solves take a single right-hand side (use
+trsm for blocks), least squares requires at least as many rows as columns,
+cholesky regularizes non-positive-definite pivots unless asked to be strict,
+rcond is an estimate that never understates the conditioning, and norm2 skips
+the overflow rescale so components must stay within roughly 1e150. Every
+alpha/beta form follows the BLAS convention that beta equal to zero overwrites
+the output without reading it. Factorizations use the LAPACK packed formats,
+so a decomposition produced by one backend solves correctly on any other.
 
 **Out of scope:** single precision, complex numbers, banded and packed storage
 layouts, right-side trsm and trmm, SVD, and eigendecompositions. Nothing is

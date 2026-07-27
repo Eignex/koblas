@@ -1,6 +1,7 @@
 package com.eignex.koblas.openblas
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.LdlDecomposition
 import com.eignex.koblas.LinearAlgebra
 import com.eignex.koblas.LuDecomposition
 import com.eignex.koblas.QrDecomposition
@@ -16,6 +17,8 @@ import org.bytedeco.openblas.global.openblas.LAPACKE_dgecon
 import org.bytedeco.openblas.global.openblas.LAPACKE_dgeqrf
 import org.bytedeco.openblas.global.openblas.LAPACKE_dgetrf
 import org.bytedeco.openblas.global.openblas.LAPACKE_dormqr
+import org.bytedeco.openblas.global.openblas.LAPACKE_dsytrf
+import org.bytedeco.openblas.global.openblas.LAPACKE_dsytrs
 import org.bytedeco.openblas.global.openblas.LAPACK_ROW_MAJOR
 import org.bytedeco.openblas.global.openblas.cblas_daxpy
 import org.bytedeco.openblas.global.openblas.cblas_dgemm
@@ -211,6 +214,27 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
             cblas_dtrsv(CblasRowMajor, CblasUpper, CblasNoTrans, CblasNonUnit, n, f, n, x, 1)
             x
         }
+    }
+
+    override fun ldl(a: DenseMatrix): LdlDecomposition {
+        require(a.rows == a.cols) { "ldl: matrix must be square, got ${a.rows}x${a.cols}" }
+        val n = a.rows
+        val buf = a.data.copyOf()
+        val ipiv = IntArray(n)
+        if (n == 0) return LdlDecomposition(0, buf, ipiv, singular = false)
+        val info = LAPACKE_dsytrf(LAPACK_ROW_MAJOR, 'L'.code.toByte(), n, buf, n, ipiv)
+        check(info >= 0) { "dsytrf: illegal argument ${-info}" }
+        return LdlDecomposition(n, buf, ipiv, singular = info > 0)
+    }
+
+    override fun solve(ldl: LdlDecomposition, b: DoubleArray): DoubleArray {
+        val n = ldl.n
+        require(b.size == n) { "solve: b length ${b.size} != $n" }
+        if (n == 0) return DoubleArray(0)
+        val x = b.copyOf()
+        val info = LAPACKE_dsytrs(LAPACK_ROW_MAJOR, 'L'.code.toByte(), n, 1, ldl.ldl, n, ldl.ipiv, x, 1)
+        check(info == 0) { "dsytrs: illegal argument ${-info}" }
+        return x
     }
 
     override fun qr(a: DenseMatrix): QrDecomposition {
