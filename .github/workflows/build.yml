@@ -60,6 +60,8 @@ jobs:
           path: |
             koblas/build/reports/tests/
             koblas/build/test-results/
+            koblas-openblas/build/reports/tests/
+            koblas-openblas/build/test-results/
           if-no-files-found: ignore
 
       - name: Upload results to Codecov (main only)

@@ -83,17 +83,22 @@ interface LinearAlgebra {
  * hit; [LinearAlgebra.solve] on a singular factorization is not meaningful. Produced by
  * [LinearAlgebra.factor].
  *
+ * The constructor and the factor buffers are public so that out-of-repo [LinearAlgebra] backends can
+ * produce and consume factorizations in the shared format; every backend packs identically, so a
+ * decomposition from one backend solves correctly on another. [lu] and [piv] are live buffers, not
+ * copies — treat them as read-only.
+ *
  * @property n the matrix dimension.
  * @property lu the packed `L`\`U` factors, row-major, length `n * n`.
  * @property piv the row permutation.
  * @property singular whether a zero pivot was encountered.
  */
-class LuDecomposition internal constructor(
-    val n: Int,
-    internal val lu: DoubleArray,
-    internal val piv: IntArray,
-    val singular: Boolean,
-)
+class LuDecomposition(val n: Int, val lu: DoubleArray, val piv: IntArray, val singular: Boolean) {
+    init {
+        require(lu.size == n * n) { "lu length ${lu.size} != ${n * n}" }
+        require(piv.size == n) { "piv length ${piv.size} != $n" }
+    }
+}
 
 /** `det(A)` from the factorization: `sign(P) · ∏ U[k][k]`, or exactly `0.0` when [LuDecomposition.singular].
  *  The floating-point counterpart of [SparseLu.determinant]. */
@@ -325,8 +330,9 @@ object ReferenceLinearAlgebra : LinearAlgebra {
 
 /**
  * The best backend the current platform provides, or null when only the portable reference is available.
- * A platform's `actual` returns a native BLAS/LAPACK-backed [LinearAlgebra] once one is wired; today every
- * target returns null, so [koblas] resolves to [ReferenceLinearAlgebra].
+ * On the JVM this discovers providers via `ServiceLoader`, so an optional backend artifact (such as
+ * koblas-openblas) activates itself when present on the classpath; all other targets return null today,
+ * resolving [koblas] to [ReferenceLinearAlgebra].
  */
 expect fun platformLinearAlgebra(): LinearAlgebra?
 
