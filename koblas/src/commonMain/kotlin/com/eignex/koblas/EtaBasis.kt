@@ -24,27 +24,31 @@ class EtaBasis private constructor(private val m: Int, private val base: SparseL
     /** Number of updates folded into the chain since the base factorization. */
     val etaCount: Int get() = etaRow.size
 
-    /** Solve `B x = b` (FTRAN): base LU solve, then forward through the eta chain in update order. */
+    /** Solve `B x = b` (FTRAN): base LU solve, then forward through the eta chain in update order.
+     *  Each eta applies over the two contiguous runs around the pivot via [denseAxpy]. */
     fun ftran(b: DoubleArray): DoubleArray {
         val x = base.ftran(b)
         for (j in etaSpike.indices) {
             val p = etaRow[j]
             val eta = etaSpike[j]
             val xp = x[p] / eta[p]
-            for (i in 0 until m) if (i != p) x[i] -= eta[i] * xp
+            if (xp != 0.0) {
+                denseAxpy(x, 0, -xp, eta, 0, p)
+                denseAxpy(x, p + 1, -xp, eta, p + 1, m - p - 1)
+            }
             x[p] = xp
         }
         return x
     }
 
-    /** Solve `Bᵀ x = b` (BTRAN): the eta chain transposed in reverse update order, then the base LU. */
+    /** Solve `Bᵀ x = b` (BTRAN): the eta chain transposed in reverse update order, then the base LU.
+     *  Each eta gathers over the two contiguous runs around the pivot via [denseDot]. */
     fun btran(b: DoubleArray): DoubleArray {
         val z = b.copyOf()
         for (j in etaSpike.indices.reversed()) {
             val p = etaRow[j]
             val eta = etaSpike[j]
-            var s = z[p]
-            for (i in 0 until m) if (i != p) s -= eta[i] * z[i]
+            val s = z[p] - denseDot(eta, 0, z, 0, p) - denseDot(eta, p + 1, z, p + 1, m - p - 1)
             z[p] = s / eta[p]
         }
         return base.btran(z)
