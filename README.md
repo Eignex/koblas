@@ -89,6 +89,7 @@ against reference results on every target.
 | dgemm (full form, transpose flags) | LinearAlgebra.gemm |
 | dsyrk (symmetric rank-k update) | LinearAlgebra.syrk |
 | dgetrf, dgetrs (LU) | factor, solve, plus determinant |
+| dgecon, dlange (condition estimate) | LinearAlgebra.rcond, norm1 |
 | dpotrf, dpotrs, dpotri (Cholesky) | cholesky, solveSpd, invertSpd |
 | Cholesky rank-one update/downdate | choleskyUpdateInPlace, choleskyDowndateInPlace |
 

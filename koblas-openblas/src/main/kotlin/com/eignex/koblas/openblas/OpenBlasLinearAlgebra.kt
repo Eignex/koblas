@@ -10,6 +10,7 @@ import org.bytedeco.openblas.global.openblas.CblasRowMajor
 import org.bytedeco.openblas.global.openblas.CblasTrans
 import org.bytedeco.openblas.global.openblas.CblasUnit
 import org.bytedeco.openblas.global.openblas.CblasUpper
+import org.bytedeco.openblas.global.openblas.LAPACKE_dgecon
 import org.bytedeco.openblas.global.openblas.LAPACKE_dgetrf
 import org.bytedeco.openblas.global.openblas.LAPACK_ROW_MAJOR
 import org.bytedeco.openblas.global.openblas.cblas_daxpy
@@ -177,6 +178,16 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
             cblas_dtrsv(CblasRowMajor, CblasUpper, CblasNoTrans, CblasNonUnit, n, f, n, x, 1)
             x
         }
+    }
+
+    override fun rcond(lu: LuDecomposition, anorm: Double): Double {
+        val n = lu.n
+        if (n == 0) return 1.0
+        if (lu.singular || anorm == 0.0) return 0.0
+        val out = DoubleArray(1)
+        val info = LAPACKE_dgecon(LAPACK_ROW_MAJOR, '1'.code.toByte(), n, lu.lu, n, anorm, out)
+        check(info == 0) { "dgecon: illegal argument ${-info}" }
+        return out[0]
     }
 
     /** `v = beta * v` honoring the BLAS convention that `beta == 0` overwrites without reading. */

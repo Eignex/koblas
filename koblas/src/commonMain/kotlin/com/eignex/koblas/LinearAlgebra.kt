@@ -74,7 +74,63 @@ interface LinearAlgebra {
     /** Solve `A · x = b` (or `Aᵀ · x = b` when [transpose]) for the factorization [lu] (LAPACK `dgetrs`);
      *  returns a fresh `x`. [transpose] serves the simplex's BTRAN (`Bᵀ y = c`) against a factored basis. */
     fun solve(lu: LuDecomposition, b: DoubleArray, transpose: Boolean = false): DoubleArray
+
+    /**
+     * Reciprocal condition number estimate `1 / (anorm · est(‖A⁻¹‖₁))` from a factorization (LAPACK
+     * `dgecon`). [anorm] is the 1-norm of the original, unfactored matrix (see [norm1]), which the
+     * caller computes before factoring. Returns `1.0` for the empty factorization and exactly `0.0`
+     * when [lu] is singular or [anorm] is zero.
+     *
+     * This is an order-of-magnitude estimate, not an exact condition number: the estimator never
+     * exceeds the true `‖A⁻¹‖₁`, so the returned value never understates the conditioning. It is the
+     * cheap signal a revised simplex uses to decide when to refactorize. The default implementation is
+     * a Hager-style 1-norm estimator over [solve]; backends may substitute a native estimator, so the
+     * exact value can differ between backends while agreeing in magnitude.
+     */
+    fun rcond(lu: LuDecomposition, anorm: Double): Double {
+        val n = lu.n
+        if (n == 0) return 1.0
+        if (lu.singular || anorm == 0.0) return 0.0
+        // Hager's power iteration on the 1-norm of A⁻¹: follow sign vectors through A⁻¹ and A⁻ᵀ,
+        // restarting from the unit vector of the strongest coordinate until it stops improving.
+        var x = DoubleArray(n) { 1.0 / n }
+        var estimate = 0.0
+        var lastPivot = -1
+        var sweep = 0
+        while (sweep < RCOND_MAX_SWEEPS) {
+            val y = solve(lu, x)
+            var e = 0.0
+            for (v in y) e += abs(v)
+            if (e > estimate) estimate = e
+            val signs = DoubleArray(n) { i -> if (y[i] >= 0.0) 1.0 else -1.0 }
+            val z = solve(lu, signs, transpose = true)
+            var j = 0
+            for (i in 1 until n) if (abs(z[i]) > abs(z[j])) j = i
+            var zx = 0.0
+            for (i in 0 until n) zx += z[i] * x[i]
+            if (j == lastPivot || abs(z[j]) <= zx) break
+            x = DoubleArray(n)
+            x[j] = 1.0
+            lastPivot = j
+            sweep++
+        }
+        // The alternating-sign safeguard from LAPACK's dlacn2 catches matrices the power step misses;
+        // its probe vector has 1-norm 3n/2, hence the 2/(3n) normalization.
+        val probe = DoubleArray(n) { i ->
+            (if (i % 2 == 0) 1.0 else -1.0) * (1.0 + i.toDouble() / maxOf(1, n - 1))
+        }
+        val alt = solve(lu, probe)
+        var e = 0.0
+        for (v in alt) e += abs(v)
+        e = 2.0 * e / (3.0 * n)
+        if (e > estimate) estimate = e
+        val denominator = estimate * anorm
+        return if (denominator.isFinite() && denominator > 0.0) 1.0 / denominator else 0.0
+    }
 }
+
+/** Sweep cap for the [LinearAlgebra.rcond] estimator; Hager's iteration almost always converges in 2. */
+private const val RCOND_MAX_SWEEPS = 5
 
 /**
  * A general LU factorization with partial pivoting: `P·A = L·U`, the unit-lower `L` and upper `U` packed

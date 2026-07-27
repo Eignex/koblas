@@ -145,6 +145,23 @@ class OpenBlasConformanceTest {
     }
 
     @Test
+    fun `rcond agrees with the reference estimator in magnitude`() {
+        val rng = Random(20260905)
+        for (n in intArrayOf(1, 6, 24)) {
+            val a = randomMatrix(rng, n, n)
+            for (i in 0 until n) a[i, i] = a[i, i] + n
+            val anorm = com.eignex.koblas.norm1(a)
+            val ref = reference.rcond(reference.factor(a), anorm)
+            val open = openblas.rcond(openblas.factor(a), anorm)
+            assertTrue(open in ref / 10.0..ref * 10.0, "n=$n: openblas $open vs reference $ref")
+        }
+        // Conventions match the contract exactly.
+        val singular = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 4.0)))
+        assertEquals(0.0, openblas.rcond(openblas.factor(singular), com.eignex.koblas.norm1(singular)))
+        assertEquals(1.0, openblas.rcond(openblas.factor(DenseMatrix(0, 0)), 0.0))
+    }
+
+    @Test
     fun `singular matrix sets the flag and zero determinant`() {
         val a = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 4.0)))
         val lu = openblas.factor(a)
