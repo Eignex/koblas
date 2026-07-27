@@ -215,6 +215,45 @@ class BlasConformanceTest {
     }
 
     @Test
+    fun `syrk matches gemm with a transposed operand and stays symmetric`() {
+        val rng = Random(20260731)
+        for ((n, k) in listOf(1 to 1, 4 to 7, 9 to 3)) {
+            for (transpose in booleanArrayOf(false, true)) {
+                val a = if (transpose) DenseMatrix(k, n) else DenseMatrix(n, k)
+                for (idx in a.data.indices) a.data[idx] = rng.nextDouble(-1.0, 1.0)
+                for (alpha in doubleArrayOf(0.0, 1.0, -1.5)) {
+                    for (beta in doubleArrayOf(0.0, 1.0, 0.5)) {
+                        // Deliberately asymmetric C (NaN-poisoned when beta == 0): syrk's beta term is
+                        // per-entry, only the alpha term is symmetric.
+                        val c0 = DenseMatrix(n, n)
+                        for (idx in c0.data.indices) {
+                            c0.data[idx] = if (beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0)
+                        }
+                        val expected = DenseMatrix(n, n, if (beta == 0.0) DoubleArray(n * n) else c0.data.copyOf())
+                        koblas.gemm(alpha, a, transpose, a, !transpose, if (beta == 0.0) 0.0 else beta, expected)
+                        val c = DenseMatrix(n, n, c0.data.copyOf())
+                        koblas.syrk(alpha, a, transpose, beta, c)
+                        val bound = 100.0 * k * eps * (infNorm(a) * infNorm(a) + infNorm(expected)) + 1e-12
+                        for (idx in c.data.indices) {
+                            assertTrue(
+                                abs(c.data[idx] - expected.data[idx]) <= bound,
+                                "syrk n=$n k=$k t=$transpose a=$alpha b=$beta at $idx",
+                            )
+                        }
+                        if (beta == 0.0 && alpha != 0.0) { // pure alpha term must be exactly symmetric
+                            for (i in 0 until n) {
+                                for (j in 0 until i) {
+                                    assertTrue(c[i, j] == c[j, i], "syrk asymmetry at ($i,$j)")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
     fun `sparse LU solve has a small residual on standard matrices`() {
         val rng = Random(20260101)
         for (n in intArrayOf(2, 8, 30)) {
