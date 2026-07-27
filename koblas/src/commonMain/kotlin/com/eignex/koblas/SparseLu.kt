@@ -7,9 +7,10 @@ import kotlin.math.pow
 
 /**
  * Sparse LU factorization `P·B·Q = L·U` of an `m × m` matrix, with **Markowitz threshold pivoting**: at
- * each step the pivot minimises fill (the Markowitz count `(rowNnz−1)·(colNnz−1)` over the active
- * submatrix) among entries that are numerically acceptable (`|a| ≥ τ·max|column|`), so the factors stay
- * sparse instead of filling toward `O(m²)`. Both a row permutation `P` and a column permutation `Q` are
+ * each step the pivot (near-)minimises fill (the Markowitz count `(rowNnz−1)·(colNnz−1)` over the active
+ * submatrix, searched over a bounded set of lowest-count candidate columns à la Suhl & Suhl) among
+ * entries that are numerically acceptable (`|a| ≥ τ·max|column|`), so the factors stay sparse instead of
+ * filling toward `O(m²)`. Both a row permutation `P` and a column permutation `Q` are
  * produced; only the nonzeros of `L`/`U` are stored, so memory is `O(nnz)`.
  *
  * Right-looking Gaussian elimination over per-row hash maps; the factors are frozen into sparse arrays
@@ -121,11 +122,6 @@ class SparseLu private constructor(
 
     /** Factorization entrypoints for [SparseLu]. */
     companion object {
-        private const val TOL = 1e-9
-
-        /** Markowitz stability threshold: a pivot must be at least this fraction of its column's largest
-         *  magnitude, so fill-reducing choices never sacrifice numerical stability. */
-        private const val PIVOT_THRESHOLD = 0.1
 
         /** Factorize the `m × m` matrix [a] (CSC); convenience over [factorize] taking per-row maps. */
         fun factorize(a: SparseMatrix, equilibrate: Boolean = false): SparseLu? {
@@ -160,7 +156,6 @@ class SparseLu private constructor(
          * floating point) so pivoting is better conditioned; the scale is undone transparently in the
          * solves and [determinant].
          */
-        @Suppress("NestedBlockDepth", "CyclomaticComplexMethod")
         internal fun factorize(rows: Array<MutableIntDoubleMap>, m: Int, equilibrate: Boolean = false): SparseLu? {
             val rowScale = DoubleArray(m) { 1.0 }
             if (equilibrate) {
@@ -182,74 +177,12 @@ class SparseLu private constructor(
             val lAtStep = Array(m) { MutableIntDoubleMap() }
             val perm = IntArray(m) { -1 }
             val colPerm = IntArray(m) { -1 }
-            val rowActive = BooleanArray(m) { true }
-            val colActive = BooleanArray(m) { true }
-            val colCount = IntArray(m)
-            val rowCount = IntArray(m)
-            val colMax = DoubleArray(m)
+            val state = MarkowitzState(u, m)
             for (k in 0 until m) {
-                // Active-submatrix degree counts + per-column max magnitude (for the pivot threshold).
-                for (c in 0 until m) {
-                    colCount[c] = 0
-                    colMax[c] = 0.0
-                }
-                for (i in 0 until m) {
-                    if (!rowActive[i]) continue
-                    var rc = 0
-                    u[i].forEach { c, value ->
-                        if (colActive[c]) {
-                            rc++
-                            colCount[c]++
-                            val a = abs(value)
-                            if (a > colMax[c]) colMax[c] = a
-                        }
-                    }
-                    rowCount[i] = rc
-                }
-                // Pivot: minimum Markowitz count among entries passing the stability threshold.
-                var pRow = -1
-                var pCol = -1
-                var bestMark = Long.MAX_VALUE
-                var bestAbs = 0.0
-                for (i in 0 until m) {
-                    if (!rowActive[i]) continue
-                    u[i].forEach { c, value ->
-                        if (colActive[c]) {
-                            val a = abs(value)
-                            if (a >= TOL && a >= PIVOT_THRESHOLD * colMax[c]) {
-                                val mark = (rowCount[i] - 1).toLong() * (colCount[c] - 1).toLong()
-                                if (mark < bestMark || (mark == bestMark && a > bestAbs)) {
-                                    bestMark = mark
-                                    bestAbs = a
-                                    pRow = i
-                                    pCol = c
-                                }
-                            }
-                        }
-                    }
-                }
-                if (pRow == -1) return null // singular
-                perm[k] = pRow
-                colPerm[k] = pCol
-                rowActive[pRow] = false
-                colActive[pCol] = false
-                val pivot = u[pRow].getOrDefault(pCol, 0.0)
-                // Eliminate the pivot column from the remaining active rows.
-                for (i in 0 until m) {
-                    if (!rowActive[i]) continue
-                    val slot = u[i].slotOf(pCol)
-                    if (slot < 0) continue
-                    val f = u[i].valueAt(slot) / pivot
-                    lAtStep[k].put(i, f)
-                    u[i].remove(pCol)
-                    val target = u[i]
-                    u[pRow].forEach { col, value ->
-                        if (colActive[col]) { // skips the pivot column and already-pivoted columns
-                            val nv = target.getOrDefault(col, 0.0) - f * value
-                            if (abs(nv) < TOL) target.remove(col) else target.put(col, nv)
-                        }
-                    }
-                }
+                if (!state.selectPivot()) return null // singular
+                perm[k] = state.pivotRow
+                colPerm[k] = state.pivotCol
+                state.eliminate(lAtStep[k])
             }
             return freeze(u, lAtStep, perm, colPerm, m, rowScale)
         }
@@ -323,6 +256,173 @@ class SparseLu private constructor(
                 Array(m) { uColB[it].toIntArray() }, Array(m) { uColBv[it].toDoubleArray() },
                 uDiag, rowScale, nnz,
             )
+        }
+    }
+}
+
+private const val TOL = 1e-9
+
+/** Markowitz stability threshold: a pivot must be at least this fraction of its column's largest
+ *  magnitude, so fill-reducing choices never sacrifice numerical stability. */
+private const val PIVOT_THRESHOLD = 0.1
+
+/** Candidate-bearing columns to examine before settling for the best pivot found (Suhl & Suhl). */
+private const val MAX_CANDIDATE_COLS = 4
+
+/**
+ * Incrementally-maintained elimination state for the Markowitz factorization: active row/column flags,
+ * per-row/per-column nonzero counts over the active submatrix, and a column → active-rows index
+ * ([colRows]) so pivot search and elimination touch only the rows that actually hold an entry.
+ *
+ * [selectPivot] buckets active columns by count and scans count classes in ascending order, computing
+ * each candidate column's max magnitude on demand for the stability threshold. The scan stops at a
+ * class boundary once either bound holds:
+ *
+ * - exactness: any entry in an unscanned column has Markowitz count `≥ r · (minRowCount − 1)`, so a
+ *   best-so-far at or below that is a true global minimum;
+ * - bounded search (Suhl & Suhl): at least [MAX_CANDIDATE_COLS] candidate-bearing columns have been
+ *   examined — the best of the lowest count classes is kept even if a marginally better pivot might
+ *   exist in a higher class. This caps per-step search work; fill in practice grows only a couple of
+ *   percent over the exact minimum, versus a full active-submatrix rescan per step.
+ *
+ * [eliminate] keeps every count and index exact as entries are created and cancelled.
+ */
+private class MarkowitzState(private val u: Array<MutableIntDoubleMap>, private val m: Int) {
+    private val rowActive = BooleanArray(m) { true }
+    private val colActive = BooleanArray(m) { true }
+    private val rowCount = IntArray(m)
+    private val colCount = IntArray(m)
+
+    /** Per column: the set of active rows holding a nonzero in it (values unused). */
+    private val colRows = Array(m) { MutableIntDoubleMap() }
+
+    // Per-step buckets of active columns keyed by colCount (linked lists over these arrays).
+    private val bucketHead = IntArray(m + 1)
+    private val bucketNext = IntArray(m)
+
+    /** The pivot chosen by the last successful [selectPivot]. */
+    var pivotRow = -1
+        private set
+    var pivotCol = -1
+        private set
+
+    init {
+        for (i in 0 until m) {
+            rowCount[i] = u[i].size
+            u[i].forEach { c, _ ->
+                colCount[c]++
+                colRows[c].put(i, 0.0)
+            }
+        }
+    }
+
+    /** Pick the minimum-Markowitz-count numerically acceptable pivot; false if none exists (singular). */
+    @Suppress("CyclomaticComplexMethod", "NestedBlockDepth")
+    fun selectPivot(): Boolean {
+        pivotRow = -1
+        pivotCol = -1
+        var bestMark = Long.MAX_VALUE
+        var bestAbs = 0.0
+        var minRow = Int.MAX_VALUE
+        for (i in 0 until m) {
+            if (rowActive[i] && rowCount[i] in 1 until minRow) minRow = rowCount[i]
+        }
+        var maxCount = 0
+        bucketHead.fill(-1)
+        for (c in 0 until m) {
+            val r = colCount[c]
+            if (colActive[c] && r > 0) {
+                bucketNext[c] = bucketHead[r]
+                bucketHead[r] = c
+                if (r > maxCount) maxCount = r
+            }
+        }
+        var candidateCols = 0
+        for (r in 1..maxCount) {
+            var c = bucketHead[r]
+            while (c != -1) {
+                var colMax = 0.0
+                colRows[c].forEach { i, _ ->
+                    val a = abs(u[i].getOrDefault(c, 0.0))
+                    if (a > colMax) colMax = a
+                }
+                if (colMax >= TOL) {
+                    val threshold = PIVOT_THRESHOLD * colMax
+                    colRows[c].forEach { i, _ ->
+                        val a = abs(u[i].getOrDefault(c, 0.0))
+                        if (a >= TOL && a >= threshold) {
+                            val mark = (rowCount[i] - 1).toLong() * (r - 1).toLong()
+                            if (mark < bestMark || (mark == bestMark && a > bestAbs)) {
+                                bestMark = mark
+                                bestAbs = a
+                                pivotRow = i
+                                pivotCol = c
+                            }
+                        }
+                    }
+                }
+                if (colMax >= TOL) candidateCols++
+                c = bucketNext[c]
+            }
+            if (pivotRow != -1 &&
+                (candidateCols >= MAX_CANDIDATE_COLS || bestMark <= r.toLong() * (minRow - 1).toLong())
+            ) {
+                return true
+            }
+        }
+        return pivotRow != -1
+    }
+
+    /** Eliminate the selected pivot, recording the column's multipliers into [l] and keeping all
+     *  counts and the [colRows] index exact as fill-in appears and entries cancel. */
+    @Suppress("NestedBlockDepth")
+    fun eliminate(l: MutableIntDoubleMap) {
+        val pRow = pivotRow
+        val pCol = pivotCol
+        rowActive[pRow] = false
+        colActive[pCol] = false
+        val pivotRowMap = u[pRow]
+        // The pivot row leaves the active submatrix: unindex it from its still-active columns.
+        pivotRowMap.forEach { c, _ ->
+            if (colActive[c]) {
+                colRows[c].remove(pRow)
+                colCount[c]--
+            }
+        }
+        val pivot = pivotRowMap.getOrDefault(pCol, 0.0)
+        // Only rows indexed under the pivot column carry an entry to eliminate.
+        colRows[pCol].forEach { i, _ ->
+            if (i != pRow) {
+                val target = u[i]
+                val f = target.getOrDefault(pCol, 0.0) / pivot
+                l.put(i, f)
+                target.remove(pCol)
+                rowCount[i]--
+                pivotRowMap.forEach { col, value ->
+                    if (colActive[col]) { // skips the pivot column and already-pivoted columns
+                        val slot = target.slotOf(col)
+                        if (slot >= 0) {
+                            val nv = target.valueAt(slot) - f * value
+                            if (abs(nv) < TOL) {
+                                target.remove(col)
+                                rowCount[i]--
+                                colCount[col]--
+                                colRows[col].remove(i)
+                            } else {
+                                target.put(col, nv)
+                            }
+                        } else {
+                            val nv = -f * value
+                            if (abs(nv) >= TOL) {
+                                target.put(col, nv)
+                                rowCount[i]++
+                                colCount[col]++
+                                colRows[col].put(i, 0.0)
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
