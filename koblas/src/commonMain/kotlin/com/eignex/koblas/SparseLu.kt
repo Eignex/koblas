@@ -104,22 +104,6 @@ class SparseLu private constructor(
         return d
     }
 
-    /** Sign of the permutation [p] (`p[k]` = original index at position `k`): `(-1)^(m − cycles)`. */
-    private fun permutationSign(p: IntArray): Double {
-        val seen = BooleanArray(p.size)
-        var cycles = 0
-        for (s in p.indices) {
-            if (seen[s]) continue
-            cycles++
-            var i = s
-            while (!seen[i]) {
-                seen[i] = true
-                i = p[i]
-            }
-        }
-        return if ((p.size - cycles) % 2 == 0) 1.0 else -1.0
-    }
-
     /** Factorization entrypoints for [SparseLu]. */
     companion object {
 
