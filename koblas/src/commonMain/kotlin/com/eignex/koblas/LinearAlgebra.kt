@@ -19,8 +19,20 @@ interface LinearAlgebra {
     /** A short backend identifier for diagnostics (e.g. `"reference"`). */
     val name: String
 
-    /** Matrix-vector product `A · x`, or `Aᵀ · x` when [transpose] (BLAS `dgemv`). */
-    fun gemv(a: DenseMatrix, x: DoubleArray, transpose: Boolean = false): DoubleArray
+    /**
+     * In-place matrix-vector accumulate `y = alpha · op(A) · x + beta · y` (full BLAS `dgemv`),
+     * where `op(A)` is `Aᵀ` when [transpose]. Per BLAS convention, `beta == 0.0` overwrites [y]
+     * without reading it (it may be uninitialized), and `alpha == 0.0` reduces to the `beta` scale.
+     */
+    fun gemv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, transpose: Boolean = false)
+
+    /** Matrix-vector product `A · x`, or `Aᵀ · x` when [transpose], into a fresh result (restricted
+     *  [gemv] with `alpha = 1, beta = 0`). */
+    fun gemv(a: DenseMatrix, x: DoubleArray, transpose: Boolean = false): DoubleArray {
+        val y = DoubleArray(if (transpose) a.cols else a.rows)
+        gemv(1.0, a, x, 0.0, y, transpose)
+        return y
+    }
 
     /** Matrix-matrix product `A · B` (BLAS `dgemm`); `A.cols` must equal `B.rows`. */
     fun gemm(a: DenseMatrix, b: DenseMatrix): DenseMatrix
@@ -60,19 +72,29 @@ class LuDecomposition internal constructor(
 object ReferenceLinearAlgebra : LinearAlgebra {
     override val name: String get() = "reference"
 
-    override fun gemv(a: DenseMatrix, x: DoubleArray, transpose: Boolean): DoubleArray {
-        val ad = a.data
-        if (transpose) {
-            require(x.size == a.rows) { "gemvᵀ: x length ${x.size} != rows ${a.rows}" }
-            val out = DoubleArray(a.cols)
-            for (i in 0 until a.rows) {
-                val xi = x[i]
-                if (xi != 0.0) denseAxpy(out, 0, xi, ad, i * a.cols, a.cols)
-            }
-            return out
+    override fun gemv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, transpose: Boolean) {
+        val xLen = if (transpose) a.rows else a.cols
+        val yLen = if (transpose) a.cols else a.rows
+        require(x.size == xLen) { "gemv: x length ${x.size} != $xLen" }
+        require(y.size == yLen) { "gemv: y length ${y.size} != $yLen" }
+        if (beta == 0.0) {
+            y.fill(0.0)
+        } else if (beta != 1.0) {
+            denseScale(y, 0, beta, y.size)
         }
-        require(x.size == a.cols) { "gemv: x length ${x.size} != cols ${a.cols}" }
-        return DoubleArray(a.rows) { i -> denseDot(ad, i * a.cols, x, 0, a.cols) }
+        if (alpha == 0.0) return
+        val ad = a.data
+        val cols = a.cols
+        if (transpose) {
+            for (i in 0 until a.rows) {
+                val xi = alpha * x[i]
+                if (xi != 0.0) denseAxpy(y, 0, xi, ad, i * cols, cols)
+            }
+        } else {
+            for (i in 0 until a.rows) {
+                y[i] += alpha * denseDot(ad, i * cols, x, 0, cols)
+            }
+        }
     }
 
     override fun gemm(a: DenseMatrix, b: DenseMatrix): DenseMatrix {
