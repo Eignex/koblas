@@ -18,6 +18,29 @@ class SparseLuExtraTest {
     }
 
     @Test
+    fun `bounded pivot search stays accurate and sparse on a larger random system`() {
+        val rng = Random(20260727)
+        val n = 300
+        val columns = List(n) { j ->
+            buildList {
+                add(j to (rng.nextDouble(-1.0, 1.0) + n)) // dominant diagonal
+                for (i in 0 until n) if (i != j && rng.nextDouble() < 0.02) add(i to rng.nextDouble(-1.0, 1.0))
+            }
+        }
+        val a = SparseMatrix.ofColumns(n, n, columns)
+        val lu = assertNotNull(SparseLu.factorize(a, equilibrate = true))
+        val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
+        val x = lu.ftran(b)
+        val ax = a.gemv(x)
+        for (i in 0 until n) assertTrue(abs(ax[i] - b[i]) < 1e-8, "ftran residual at $i: ${ax[i] - b[i]}")
+        val y = lu.btran(b)
+        val aty = a.gemv(y, transpose = true)
+        for (i in 0 until n) assertTrue(abs(aty[i] - b[i]) < 1e-8, "btran residual at $i: ${aty[i] - b[i]}")
+        // The bounded candidate search must keep fill near the input's sparsity, far from dense.
+        assertTrue(lu.nnz < 6 * a.nnz, "fill blew up: factor nnz=${lu.nnz} vs input nnz=${a.nnz}")
+    }
+
+    @Test
     fun `determinant matches the hand value and tracks sign under row order`() {
         // [[2, 1], [1, 3]] → det 5.
         val det = assertNotNull(
