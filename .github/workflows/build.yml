@@ -46,6 +46,10 @@ jobs:
       - name: Grant execute permission for Gradle
         run: chmod +x gradlew
 
+      # koblas-cblas links the system OpenBLAS rather than bundling natives.
+      - name: Install OpenBLAS
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libopenblas-dev
+
       - name: Run linter
         run: ./gradlew lintDocs
 
@@ -62,6 +66,8 @@ jobs:
             koblas/build/test-results/
             koblas-openblas/build/reports/tests/
             koblas-openblas/build/test-results/
+            koblas-cblas/build/reports/tests/
+            koblas-cblas/build/test-results/
           if-no-files-found: ignore
 
       - name: Upload results to Codecov (main only)
