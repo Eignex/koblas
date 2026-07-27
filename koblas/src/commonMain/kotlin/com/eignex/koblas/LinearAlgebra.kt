@@ -226,34 +226,18 @@ object ReferenceLinearAlgebra : LinearAlgebra {
     }
 
     // A x = b, with P A = L U: permute b by P, forward-solve unit-lower L, back-solve U.
-    // Both substitutions read contiguous row runs of the packed factors, so they reduce to [denseDot].
     private fun solveNormal(n: Int, a: DoubleArray, piv: IntArray, b: DoubleArray): DoubleArray {
         val x = DoubleArray(n) { b[piv[it]] }
-        for (i in 0 until n) {
-            x[i] -= denseDot(a, i * n, x, 0, i)
-        }
-        for (i in n - 1 downTo 0) {
-            val base = i * n
-            x[i] = (x[i] - denseDot(a, base + i + 1, x, i + 1, n - i - 1)) / a[base + i]
-        }
+        trsvCore(a, n, x, lower = true, transpose = false, unitDiag = true)
+        trsvCore(a, n, x, lower = false, transpose = false, unitDiag = false)
         return x
     }
 
     // Aᵀ x = b, with Aᵀ = Uᵀ Lᵀ P: forward-solve Uᵀ (lower), back-solve unit-upper Lᵀ, then un-permute.
-    // The transposed factors are columns of the row-major packing, so the row-oriented form would walk
-    // strided; instead each substitution is column-oriented — once y[i] is final, its contribution is
-    // subtracted from the remaining right-hand side along contiguous row i via [denseAxpy].
     private fun solveTranspose(n: Int, a: DoubleArray, piv: IntArray, b: DoubleArray): DoubleArray {
         val y = b.copyOf()
-        for (i in 0 until n) { // Uᵀ y = b (Uᵀ lower-triangular, diagonal from U)
-            val yi = y[i] / a[i * n + i]
-            y[i] = yi
-            if (yi != 0.0) denseAxpy(y, i + 1, -yi, a, i * n + i + 1, n - i - 1)
-        }
-        for (i in n - 1 downTo 0) { // Lᵀ z = y (Lᵀ unit-upper)
-            val zi = y[i]
-            if (zi != 0.0) denseAxpy(y, 0, -zi, a, i * n, i)
-        }
+        trsvCore(a, n, y, lower = false, transpose = true, unitDiag = false)
+        trsvCore(a, n, y, lower = true, transpose = true, unitDiag = true)
         val x = DoubleArray(n) // undo the row permutation: x[piv[i]] = z[i]
         for (i in 0 until n) x[piv[i]] = y[i]
         return x
