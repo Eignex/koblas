@@ -87,6 +87,7 @@ against reference results on every target.
 | dger (rank-one update) | addOuter |
 | dsymv, dsymm (symmetric multiply) | LinearAlgebra.symv, symm |
 | dtrsv, dtrsm (triangular solves) | trsv, trsm |
+| dtrmv, dtrmm (triangular multiply) | trmv, trmm |
 | dgemm (full form, transpose flags) | LinearAlgebra.gemm |
 | dsyrk (symmetric rank-k update) | LinearAlgebra.syrk |
 | dgetrf, dgetrs (LU) | factor, solve, plus determinant |
