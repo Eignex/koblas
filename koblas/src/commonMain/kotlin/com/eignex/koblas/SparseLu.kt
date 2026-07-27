@@ -130,27 +130,43 @@ class SparseLu private constructor(
         /** Factorize the `m × m` matrix [a] (CSC); convenience over [factorize] taking per-row maps. */
         fun factorize(a: SparseMatrix, equilibrate: Boolean = false): SparseLu? {
             require(a.rows == a.cols) { "SparseLu requires a square matrix; got ${a.rows}x${a.cols}" }
-            return factorize(a.toRowMaps(), a.rows, equilibrate)
+            val rows = Array(a.rows) { MutableIntDoubleMap() }
+            for (j in 0 until a.cols) a.forEachInColumn(j) { i, v -> rows[i].put(j, v) }
+            return factorize(rows, a.rows, equilibrate)
         }
 
         /**
          * Factorize the matrix whose rows are [rows] (`rows[i][col] = B[i][col]`, dense per-row maps),
          * size [m]. Returns null if no numerically acceptable pivot remains (singular matrix).
+         * Convenience over the internal primitive-map path; the boxed maps are copied, not consumed.
+         */
+        fun factorize(rows: Array<HashMap<Int, Double>>, m: Int, equilibrate: Boolean = false): SparseLu? {
+            val prim = Array(m) { i ->
+                val map = MutableIntDoubleMap(rows[i].size)
+                for ((c, v) in rows[i]) map.put(c, v)
+                map
+            }
+            return factorize(prim, m, equilibrate)
+        }
+
+        /**
+         * Factorize the matrix whose rows are [rows] (`rows[i][col] = B[i][col]`, primitive per-row
+         * maps), size [m]. Returns null if no numerically acceptable pivot remains (singular matrix).
          *
          * **Consumes [rows]:** the maps are eliminated in place (and rescaled when [equilibrate]), so the
-         * caller must not reuse them afterward. The [SparseMatrix] overload hands over fresh maps.
+         * caller must not reuse them afterward.
          *
          * With [equilibrate], each row is first scaled by a power of two `eᵢ ≈ 1/max|rowᵢ|` (exact in
          * floating point) so pivoting is better conditioned; the scale is undone transparently in the
          * solves and [determinant].
          */
         @Suppress("NestedBlockDepth", "CyclomaticComplexMethod")
-        fun factorize(rows: Array<HashMap<Int, Double>>, m: Int, equilibrate: Boolean = false): SparseLu? {
+        internal fun factorize(rows: Array<MutableIntDoubleMap>, m: Int, equilibrate: Boolean = false): SparseLu? {
             val rowScale = DoubleArray(m) { 1.0 }
             if (equilibrate) {
                 for (i in 0 until m) {
                     var maxAbs = 0.0
-                    for ((_, value) in rows[i]) {
+                    rows[i].forEach { _, value ->
                         val a = abs(value)
                         if (a > maxAbs) maxAbs = a
                     }
@@ -158,12 +174,12 @@ class SparseLu private constructor(
                     val e = 2.0.pow(-floor(log2(maxAbs)).toInt())
                     if (e == 1.0) continue
                     rowScale[i] = e
-                    for ((c, value) in HashMap(rows[i])) rows[i][c] = value * e
+                    rows[i].scaleValues(e)
                 }
             }
             val u = rows // eliminated in place; u[perm[k]] ends as U's pivot row k (pivot cols ≥ k)
             // L multipliers recorded per elimination step, keyed by the eliminated original row.
-            val lAtStep = Array(m) { HashMap<Int, Double>() }
+            val lAtStep = Array(m) { MutableIntDoubleMap() }
             val perm = IntArray(m) { -1 }
             val colPerm = IntArray(m) { -1 }
             val rowActive = BooleanArray(m) { true }
@@ -180,12 +196,13 @@ class SparseLu private constructor(
                 for (i in 0 until m) {
                     if (!rowActive[i]) continue
                     var rc = 0
-                    for ((c, value) in u[i]) {
-                        if (!colActive[c]) continue
-                        rc++
-                        colCount[c]++
-                        val a = abs(value)
-                        if (a > colMax[c]) colMax[c] = a
+                    u[i].forEach { c, value ->
+                        if (colActive[c]) {
+                            rc++
+                            colCount[c]++
+                            val a = abs(value)
+                            if (a > colMax[c]) colMax[c] = a
+                        }
                     }
                     rowCount[i] = rc
                 }
@@ -196,16 +213,18 @@ class SparseLu private constructor(
                 var bestAbs = 0.0
                 for (i in 0 until m) {
                     if (!rowActive[i]) continue
-                    for ((c, value) in u[i]) {
-                        if (!colActive[c]) continue
-                        val a = abs(value)
-                        if (a < TOL || a < PIVOT_THRESHOLD * colMax[c]) continue
-                        val mark = (rowCount[i] - 1).toLong() * (colCount[c] - 1).toLong()
-                        if (mark < bestMark || (mark == bestMark && a > bestAbs)) {
-                            bestMark = mark
-                            bestAbs = a
-                            pRow = i
-                            pCol = c
+                    u[i].forEach { c, value ->
+                        if (colActive[c]) {
+                            val a = abs(value)
+                            if (a >= TOL && a >= PIVOT_THRESHOLD * colMax[c]) {
+                                val mark = (rowCount[i] - 1).toLong() * (colCount[c] - 1).toLong()
+                                if (mark < bestMark || (mark == bestMark && a > bestAbs)) {
+                                    bestMark = mark
+                                    bestAbs = a
+                                    pRow = i
+                                    pCol = c
+                                }
+                            }
                         }
                     }
                 }
@@ -214,28 +233,40 @@ class SparseLu private constructor(
                 colPerm[k] = pCol
                 rowActive[pRow] = false
                 colActive[pCol] = false
-                val pivot = u[pRow].getValue(pCol)
+                val pivot = u[pRow].getOrDefault(pCol, 0.0)
                 // Eliminate the pivot column from the remaining active rows.
                 for (i in 0 until m) {
                     if (!rowActive[i]) continue
-                    val aic = u[i][pCol] ?: continue
-                    val f = aic / pivot
-                    lAtStep[k][i] = f
+                    val slot = u[i].slotOf(pCol)
+                    if (slot < 0) continue
+                    val f = u[i].valueAt(slot) / pivot
+                    lAtStep[k].put(i, f)
                     u[i].remove(pCol)
-                    for ((col, value) in u[pRow]) {
-                        if (!colActive[col]) continue // skips the pivot column and already-pivoted columns
-                        val nv = (u[i][col] ?: 0.0) - f * value
-                        if (abs(nv) < TOL) u[i].remove(col) else u[i][col] = nv
+                    val target = u[i]
+                    u[pRow].forEach { col, value ->
+                        if (colActive[col]) { // skips the pivot column and already-pivoted columns
+                            val nv = target.getOrDefault(col, 0.0) - f * value
+                            if (abs(nv) < TOL) target.remove(col) else target.put(col, nv)
+                        }
                     }
                 }
             }
             return freeze(u, lAtStep, perm, colPerm, m, rowScale)
         }
 
+        /** The keys of [map] passed through [transform], sorted ascending. */
+        private inline fun sortedKeysOf(map: MutableIntDoubleMap, transform: (Int) -> Int): IntArray {
+            val out = IntArray(map.size)
+            var t = 0
+            map.forEach { key, _ -> out[t++] = transform(key) }
+            out.sort()
+            return out
+        }
+
         @Suppress("LongMethod", "LongParameterList")
         private fun freeze(
-            u: Array<HashMap<Int, Double>>,
-            lAtStep: Array<HashMap<Int, Double>>,
+            u: Array<MutableIntDoubleMap>,
+            lAtStep: Array<MutableIntDoubleMap>,
             perm: IntArray,
             colPerm: IntArray,
             m: Int,
@@ -243,22 +274,22 @@ class SparseLu private constructor(
         ): SparseLu {
             val invPerm = IntArray(m).also { for (k in 0 until m) it[perm[k]] = k }
             val invColPerm = IntArray(m).also { for (k in 0 until m) it[colPerm[k]] = k }
-            val uDiag = DoubleArray(m) { k -> u[perm[k]].getValue(colPerm[k]) }
+            val uDiag = DoubleArray(m) { k -> u[perm[k]].getOrDefault(colPerm[k], 0.0) }
             // U row k (pivot space): the pivot row's entries, original col → pivot position (all ≥ k),
             // diagonal (k) first then ascending.
-            val uRowIdx = Array(m) { k -> u[perm[k]].keys.map { invColPerm[it] }.sorted().toIntArray() }
+            val uRowIdx = Array(m) { k -> sortedKeysOf(u[perm[k]]) { invColPerm[it] } }
             val uRowVal = Array(m) { k ->
                 val row = u[perm[k]]
-                DoubleArray(uRowIdx[k].size) { t -> row.getValue(colPerm[uRowIdx[k][t]]) }
+                DoubleArray(uRowIdx[k].size) { t -> row.getOrDefault(colPerm[uRowIdx[k][t]], 0.0) }
             }
             // L row k' (pivot space): multipliers from each step j < k' that eliminated row perm[k'].
-            val lRowMap = Array(m) { HashMap<Int, Double>() }
+            val lRowMap = Array(m) { MutableIntDoubleMap() }
             for (j in 0 until m) {
-                lAtStep[j].forEach { (origRow, f) -> lRowMap[invPerm[origRow]][j] = f }
+                lAtStep[j].forEach { origRow, f -> lRowMap[invPerm[origRow]].put(j, f) }
             }
-            val lRowIdx = Array(m) { k -> lRowMap[k].keys.sorted().toIntArray() }
+            val lRowIdx = Array(m) { k -> sortedKeysOf(lRowMap[k]) { it } }
             val lRowVal = Array(m) { k ->
-                DoubleArray(lRowIdx[k].size) { t -> lRowMap[k].getValue(lRowIdx[k][t]) }
+                DoubleArray(lRowIdx[k].size) { t -> lRowMap[k].getOrDefault(lRowIdx[k][t], 0.0) }
             }
             // Column orientations (pivot space): U strictly-upper by column, L by column.
             val uColB = Array(m) { ArrayList<Int>() }
