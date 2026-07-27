@@ -3,6 +3,7 @@
 package com.eignex.koblas
 
 import kotlin.math.abs
+import kotlin.math.sqrt
 
 /**
  * The swappable compute backend for the heavier dense operations — level-2/3 BLAS ([gemv], [gemm]) and a
@@ -94,6 +95,18 @@ interface LinearAlgebra {
     fun solve(lu: LuDecomposition, b: DoubleArray, transpose: Boolean = false): DoubleArray
 
     /**
+     * Symmetric indefinite factorization `A = L·D·Lᵀ` with Bunch–Kaufman partial pivoting (LAPACK
+     * `dsytrf`, lower). As with [symv], only the lower triangle of [a] is read — the strictly upper
+     * triangle may hold anything — and [a] is not modified. Use this where the matrix is symmetric but
+     * not positive definite (KKT systems); for SPD matrices [cholesky] is cheaper.
+     */
+    fun ldl(a: DenseMatrix): LdlDecomposition
+
+    /** Solve `A · x = b` for a symmetric indefinite factorization [ldl] (LAPACK `dsytrs`); returns a
+     *  fresh `x`. Symmetry makes the transposed solve identical, so there is no `transpose` flag. */
+    fun solve(ldl: LdlDecomposition, b: DoubleArray): DoubleArray
+
+    /**
      * QR factorization `A = Q·R` of an `m×n` [a] via Householder reflections (LAPACK `dgeqrf`); [a] is
      * not modified and any shape is accepted. Rank deficiency is not detected — zero diagonal entries
      * of `R` surface in [solveLeastSquares] as infinities/NaNs, following the triangular-solve
@@ -177,6 +190,9 @@ interface LinearAlgebra {
 
 /** Sweep cap for the [LinearAlgebra.rcond] estimator; Hager's iteration almost always converges in 2. */
 private const val RCOND_MAX_SWEEPS = 5
+
+/** Bunch–Kaufman pivot threshold `(1 + √17) / 8`, the value minimizing element growth (netlib dsytf2). */
+private const val BUNCH_KAUFMAN_ALPHA = 0.6403882032022076
 
 /**
  * A general LU factorization with partial pivoting: `P·A = L·U`, the unit-lower `L` and upper `U` packed
@@ -412,6 +428,195 @@ object ReferenceLinearAlgebra : LinearAlgebra {
         }
     }
 
+    @Suppress("CyclomaticComplexMethod", "LongMethod") // netlib dsytf2's control flow, kept recognizable
+    override fun ldl(a: DenseMatrix): LdlDecomposition {
+        require(a.rows == a.cols) { "ldl: matrix must be square, got ${a.rows}x${a.cols}" }
+        val n = a.rows
+        val w = a.data.copyOf()
+        val ipiv = IntArray(n)
+        var singular = false
+        val colK = DoubleArray(n)
+        val colK1 = DoubleArray(n)
+        var k = 0
+        while (k < n) {
+            var kstep = 1
+            val absakk = abs(w[k * n + k])
+            var imax = k
+            var colmax = 0.0
+            for (i in k + 1 until n) {
+                val v = abs(w[i * n + k])
+                if (v > colmax) {
+                    colmax = v
+                    imax = i
+                }
+            }
+            if (maxOf(absakk, colmax) == 0.0) {
+                // Zero pivot column: record and move on without eliminating, as dsytf2 does.
+                singular = true
+                ipiv[k] = k + 1
+                k += 1
+                continue
+            }
+            val kp: Int
+            if (absakk >= BUNCH_KAUFMAN_ALPHA * colmax) {
+                kp = k
+            } else {
+                var rowmax = 0.0
+                for (j in k until imax) rowmax = maxOf(rowmax, abs(w[imax * n + j]))
+                for (j in imax + 1 until n) rowmax = maxOf(rowmax, abs(w[j * n + imax]))
+                if (absakk * rowmax >= BUNCH_KAUFMAN_ALPHA * colmax * colmax) {
+                    kp = k
+                } else if (abs(w[imax * n + imax]) >= BUNCH_KAUFMAN_ALPHA * rowmax) {
+                    kp = imax
+                } else {
+                    kp = imax
+                    kstep = 2
+                }
+            }
+            val kk = k + kstep - 1
+            if (kp != kk) {
+                // Interchange rows/columns kk and kp of the trailing submatrix, dsytf2-style: the
+                // already-computed L columns to the left stay put; solve replays ipiv instead.
+                for (i in kp + 1 until n) {
+                    val t = w[i * n + kk]
+                    w[i * n + kk] = w[i * n + kp]
+                    w[i * n + kp] = t
+                }
+                for (j in kk + 1 until kp) {
+                    val t = w[j * n + kk]
+                    w[j * n + kk] = w[kp * n + j]
+                    w[kp * n + j] = t
+                }
+                val t = w[kk * n + kk]
+                w[kk * n + kk] = w[kp * n + kp]
+                w[kp * n + kp] = t
+                if (kstep == 2) {
+                    val s = w[(k + 1) * n + k]
+                    w[(k + 1) * n + k] = w[kp * n + k]
+                    w[kp * n + k] = s
+                }
+            }
+            if (kstep == 1) {
+                // A[k+1.., k+1..] -= d11·col·colᵀ with col the raw pivot column, then scale the column
+                // into multipliers. A contiguous copy of the column turns every row update into an axpy.
+                val d11 = 1.0 / w[k * n + k]
+                for (i in k + 1 until n) colK[i] = w[i * n + k]
+                for (i in k + 1 until n) {
+                    val f = -d11 * colK[i]
+                    if (f != 0.0) denseAxpy(w, i * n + k + 1, f, colK, k + 1, i - k)
+                }
+                for (i in k + 1 until n) w[i * n + k] = colK[i] * d11
+                ipiv[k] = kp + 1
+            } else {
+                if (k < n - 2) {
+                    // 2×2 pivot block: netlib's d21-scaled inverse, applied row-wise via two axpys.
+                    val d21 = w[(k + 1) * n + k]
+                    val d11 = w[(k + 1) * n + k + 1] / d21
+                    val d22 = w[k * n + k] / d21
+                    val t = 1.0 / (d11 * d22 - 1.0)
+                    val d21inv = t / d21
+                    for (j in k + 2 until n) {
+                        val cj = w[j * n + k]
+                        val cj1 = w[j * n + k + 1]
+                        colK[j] = d21inv * (d11 * cj - cj1)
+                        colK1[j] = d21inv * (d22 * cj1 - cj)
+                    }
+                    for (i in k + 2 until n) {
+                        val ci = w[i * n + k]
+                        val ci1 = w[i * n + k + 1]
+                        if (ci != 0.0) denseAxpy(w, i * n + k + 2, -ci, colK, k + 2, i - k - 1)
+                        if (ci1 != 0.0) denseAxpy(w, i * n + k + 2, -ci1, colK1, k + 2, i - k - 1)
+                    }
+                    for (i in k + 2 until n) {
+                        w[i * n + k] = colK[i]
+                        w[i * n + k + 1] = colK1[i]
+                    }
+                }
+                ipiv[k] = -(kp + 1)
+                ipiv[k + 1] = -(kp + 1)
+            }
+            k += kstep
+        }
+        return LdlDecomposition(n, w, ipiv, singular)
+    }
+
+    override fun solve(ldl: LdlDecomposition, b: DoubleArray): DoubleArray {
+        val n = ldl.n
+        require(b.size == n) { "solve: b length ${b.size} != $n" }
+        val w = ldl.ldl
+        val ipiv = ldl.ipiv
+        val x = b.copyOf()
+        // Forward: replay interchanges, apply L block columns, divide by the D blocks (dsytrs lower).
+        var k = 0
+        while (k < n) {
+            if (ipiv[k] > 0) {
+                val kp = ipiv[k] - 1
+                if (kp != k) {
+                    val t = x[k]
+                    x[k] = x[kp]
+                    x[kp] = t
+                }
+                val xk = x[k]
+                if (xk != 0.0) for (i in k + 1 until n) x[i] -= w[i * n + k] * xk
+                x[k] = xk / w[k * n + k]
+                k += 1
+            } else {
+                val kp = -ipiv[k] - 1
+                if (kp != k + 1) {
+                    val t = x[k + 1]
+                    x[k + 1] = x[kp]
+                    x[kp] = t
+                }
+                val xk = x[k]
+                val xk1 = x[k + 1]
+                for (i in k + 2 until n) x[i] -= w[i * n + k] * xk + w[i * n + k + 1] * xk1
+                val akm1k = w[(k + 1) * n + k]
+                val akm1 = w[k * n + k] / akm1k
+                val ak = w[(k + 1) * n + k + 1] / akm1k
+                val denom = akm1 * ak - 1.0
+                val bkm1 = xk / akm1k
+                val bk = xk1 / akm1k
+                x[k] = (ak * bkm1 - bk) / denom
+                x[k + 1] = (akm1 * bk - bkm1) / denom
+                k += 2
+            }
+        }
+        // Backward: apply Lᵀ block rows and undo the interchanges in reverse.
+        k = n - 1
+        while (k >= 0) {
+            if (ipiv[k] > 0) {
+                var s = x[k]
+                for (i in k + 1 until n) s -= w[i * n + k] * x[i]
+                x[k] = s
+                val kp = ipiv[k] - 1
+                if (kp != k) {
+                    val t = x[k]
+                    x[k] = x[kp]
+                    x[kp] = t
+                }
+                k -= 1
+            } else {
+                val k0 = k - 1
+                var s0 = x[k0]
+                var s1 = x[k]
+                for (i in k + 1 until n) {
+                    s0 -= w[i * n + k0] * x[i]
+                    s1 -= w[i * n + k] * x[i]
+                }
+                x[k0] = s0
+                x[k] = s1
+                val kp = -ipiv[k] - 1
+                if (kp != k) {
+                    val t = x[k]
+                    x[k] = x[kp]
+                    x[kp] = t
+                }
+                k -= 2
+            }
+        }
+        return x
+    }
+
     override fun qr(a: DenseMatrix): QrDecomposition {
         val m = a.rows
         val n = a.cols
@@ -451,7 +656,7 @@ object ReferenceLinearAlgebra : LinearAlgebra {
         }
         if (normSq == 0.0) return 0.0
         val alpha = buf[col * n + col]
-        val norm = kotlin.math.sqrt(normSq)
+        val norm = sqrt(normSq)
         val beta = if (alpha >= 0.0) -norm else norm
         val v0 = alpha - beta
         for (i in col + 1 until m) buf[i * n + col] /= v0

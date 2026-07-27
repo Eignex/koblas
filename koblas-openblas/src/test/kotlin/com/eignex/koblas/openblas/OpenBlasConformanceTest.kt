@@ -4,6 +4,7 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.ReferenceLinearAlgebra
 import com.eignex.koblas.determinant
 import com.eignex.koblas.koblas
+import com.eignex.koblas.norm1
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.Test
@@ -178,14 +179,14 @@ class OpenBlasConformanceTest {
         for (n in intArrayOf(1, 6, 24)) {
             val a = randomMatrix(rng, n, n)
             for (i in 0 until n) a[i, i] = a[i, i] + n
-            val anorm = com.eignex.koblas.norm1(a)
+            val anorm = norm1(a)
             val ref = reference.rcond(reference.factor(a), anorm)
             val open = openblas.rcond(openblas.factor(a), anorm)
             assertTrue(open in ref / 10.0..ref * 10.0, "n=$n: openblas $open vs reference $ref")
         }
         // Conventions match the contract exactly.
         val singular = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 4.0)))
-        assertEquals(0.0, openblas.rcond(openblas.factor(singular), com.eignex.koblas.norm1(singular)))
+        assertEquals(0.0, openblas.rcond(openblas.factor(singular), norm1(singular)))
         assertEquals(1.0, openblas.rcond(openblas.factor(DenseMatrix(0, 0)), 0.0))
     }
 
@@ -222,6 +223,37 @@ class OpenBlasConformanceTest {
                 context = "applyQ on reference factors ${m}x$n",
             )
         }
+    }
+
+    @Test
+    fun `ldl factorizations match and interchange between backends`() {
+        val rng = Random(20260932)
+        for (n in intArrayOf(1, 2, 5, 14, 33)) {
+            val a = DenseMatrix(n, n)
+            for (i in 0 until n) {
+                for (j in 0..i) {
+                    var v = rng.nextDouble(-1.0, 1.0)
+                    if (i == j) v += if (i % 2 == 0) 2.0 else -2.0
+                    a[i, j] = v
+                    if (j != i) a[j, i] = Double.NaN
+                }
+            }
+            val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
+            val fRef = reference.ldl(a)
+            val fOpen = openblas.ldl(a)
+            val xs = listOf(
+                reference.solve(fRef, b),
+                reference.solve(fOpen, b),
+                openblas.solve(fRef, b),
+                openblas.solve(fOpen, b),
+            )
+            for ((i, x) in xs.withIndex()) {
+                assertClose(xs[0], x, tol = 1e-9, context = "ldl interchange n=$n variant $i")
+            }
+        }
+        // Conventions.
+        assertTrue(openblas.ldl(DenseMatrix(3, 3)).singular)
+        assertTrue(openblas.solve(openblas.ldl(DenseMatrix(0, 0)), DoubleArray(0)).isEmpty())
     }
 
     @Test

@@ -12,7 +12,12 @@ class TriangularMultiplyTest {
      * values, the opposite triangle (and, with unitDiag, the diagonal) holds NaN that trmv/trmm must
      * never read, and the dense twin holds zeros/ones there instead.
      */
-    private fun poisonedTriangle(rng: Random, n: Int, lower: Boolean, unitDiag: Boolean): Pair<DenseMatrix, DenseMatrix> {
+    private fun poisonedTriangle(
+        rng: Random,
+        n: Int,
+        lower: Boolean,
+        unitDiag: Boolean,
+    ): Pair<DenseMatrix, DenseMatrix> {
         val poisoned = DenseMatrix(n)
         val dense = DenseMatrix(n)
         for (i in 0 until n) {
