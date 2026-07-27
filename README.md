@@ -50,7 +50,8 @@ runtime; the library itself has no other dependencies.
 Solve a general dense system via LU:
 
 ```kotlin
-val a = DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0)))
+val rows = arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0))
+val a = DenseMatrix.of(rows)
 val x = a.lu().solve(doubleArrayOf(3.0, 5.0))
 ```
 
@@ -60,13 +61,15 @@ change without refactorizing:
 ```kotlin
 val l = a.cholesky() // A = L·Lᵀ
 val xs = solveSpd(l, doubleArrayOf(3.0, 5.0))
-l.choleskyUpdateInPlace(DenseVector.of(doubleArrayOf(0.5, 1.0))) // now factors A + v·vᵀ
+// The factor now tracks A + v·vᵀ.
+l.choleskyUpdateInPlace(DenseVector.of(doubleArrayOf(0.5, 1.0)))
 ```
 
 Factorize a sparse basis and solve both directions:
 
 ```kotlin
-val s = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0, 1 to 1.0), listOf(0 to 1.0, 1 to 3.0)))
+val cols = listOf(listOf(0 to 2.0, 1 to 1.0), listOf(0 to 1.0, 1 to 3.0))
+val s = SparseMatrix.ofColumns(2, 2, cols)
 val lu = SparseLu.factorize(s)!!
 val forward = lu.ftran(doubleArrayOf(3.0, 5.0)) // B x = b
 val backward = lu.btran(doubleArrayOf(3.0, 5.0)) // Bᵀ x = b
@@ -94,9 +97,9 @@ against reference results on every target.
 | dgetrf, dgetrs (LU) | factor, solve, plus determinant |
 | dgecon, dlange (condition estimate) | LinearAlgebra.rcond, norm1 |
 | dpotrf, dpotrs, dpotri (Cholesky) | cholesky, solveSpd, invertSpd |
-| dgeqrf, dormqr, dgels (QR, least squares) | LinearAlgebra.qr, applyQ, solveLeastSquares |
+| dgeqrf, dormqr, dgels (QR) | LinearAlgebra.qr, applyQ, solveLeastSquares |
 | dsytrf, dsytrs (symmetric indefinite LDLᵀ) | LinearAlgebra.ldl, solve |
-| Cholesky rank-one update/downdate | choleskyUpdateInPlace, choleskyDowndateInPlace |
+| Cholesky update/downdate | choleskyUpdateInPlace, choleskyDowndateInPlace |
 
 Deviations from the standard are small and documented on each function: syrk
 has no uplo parameter and always produces the full symmetric matrix, symv,
@@ -137,8 +140,9 @@ with `--add-modules=jdk.incubator.vector` and scalar loops otherwise; all
 other targets are scalar. mathBackend reports which kernel was resolved.
 
 The heavier operations sit behind the runtime LinearAlgebra interface: the
-level 2 and 3 multiplies and the factorization families with their solves. On the JVM backends are discovered through the
-service loader, so adding one to the classpath activates it without code
+level 2 and 3 multiplies and the factorization families with their solves. On
+the JVM backends are discovered through the service loader, so adding one to
+the classpath activates it without code
 changes; all other targets use the portable reference implementation. Storage
 is flat, contiguous, row-major DoubleArray, so a native backend receives raw
 buffers with no repacking, and every backend must match the reference on the
@@ -153,6 +157,6 @@ runtimeOnly("com.eignex:koblas-openblas:<version>")
 
 It speeds up matrix products and dense LU factorization by roughly an order of
 magnitude at dimension 1000. OpenBLAS runs single-threaded by default, which
-is both the fast and the safe configuration under the JVM; the koblas.openblas.threads
-system property opts into its threading. Setting koblas.backend to reference
+is both the fast and the safe configuration under the JVM; the
+koblas.openblas.threads system property opts into its threading. Setting koblas.backend to reference
 forces the portable implementation regardless of what is on the classpath.
