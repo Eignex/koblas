@@ -128,7 +128,7 @@ object ReferenceLinearAlgebra : LinearAlgebra {
             for (i in k + 1 until n) {
                 val f = lu[i * n + k] / pivot
                 lu[i * n + k] = f
-                for (j in k + 1 until n) lu[i * n + j] -= f * lu[k * n + j]
+                denseAxpy(lu, i * n + k + 1, -f, lu, k * n + k + 1, n - k - 1)
             }
         }
         return LuDecomposition(n, lu, piv, singular)
