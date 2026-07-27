@@ -77,3 +77,55 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: koblas/build/reports/kover/report.xml
           fail_ci_if_error: false
+
+  # The Linux job cross-compiles the macOS klibs but cannot link or run them; this job exercises
+  # the native tests on Apple Silicon, including koblas-cblas against Homebrew's OpenBLAS.
+  test-macos:
+    name: Run native tests on macOS
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: false
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+
+      - name: Cache Kotlin/Native toolchain
+        uses: actions/cache@v5
+        with:
+          path: ~/.konan
+          key: ${{ runner.os }}-konan-${{ hashFiles('**/*.gradle.kts') }}
+          restore-keys: ${{ runner.os }}-konan-
+
+      - name: Grant execute permission for Gradle
+        run: chmod +x gradlew
+
+      - name: Install OpenBLAS
+        run: brew install openblas
+
+      - name: Run native tests
+        run: ./gradlew :koblas:macosArm64Test :koblas-cblas:macosArm64Test
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports-macos
+          path: |
+            koblas/build/reports/tests/
+            koblas/build/test-results/
+            koblas-cblas/build/reports/tests/
+            koblas-cblas/build/test-results/
+          if-no-files-found: ignore
