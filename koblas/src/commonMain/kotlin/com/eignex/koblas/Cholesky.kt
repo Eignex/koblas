@@ -13,10 +13,9 @@ import kotlin.math.sqrt
 // `k <= i` lives at `data[i * cols + k]`; entries above the diagonal are neither
 // read nor written.
 //
-// Inner loops reduce to [denseDot] on contiguous row runs (SIMD on JVM). The
-// Givens rotation step in [choleskyDowndateInPlace] has a loop-carried dependency
-// and stays scalar. [solveSpd]'s back substitution walks a strided column and
-// also stays scalar; the forward half uses SIMD.
+// Inner loops reduce to [denseDot] / [denseAxpy] on contiguous row runs (SIMD on
+// JVM). The Givens rotation step in [choleskyDowndateInPlace] has a loop-carried
+// dependency and stays scalar.
 
 /**
  * Lower-triangular Cholesky decomposition `A = L * LT`, returned as a fresh matrix.
@@ -117,7 +116,8 @@ fun DenseMatrix.choleskyDowndateInPlace(x: VectorView): Double {
  * Allocates a fresh result vector; [b] is not modified.
  *
  * Forward substitution `L * y = b` runs over contiguous row data and uses [denseDot].
- * Back substitution `LT * x = y` walks a strided column and stays scalar.
+ * Back substitution `LT * x = y` is column-oriented: once `x[i]` is final, its contribution
+ * is subtracted from the remaining right-hand side along contiguous row `i` via [denseAxpy].
  */
 fun solveSpd(L: DenseMatrix, b: DoubleArray): DoubleArray {
     val n = L.rows
@@ -129,14 +129,12 @@ fun solveSpd(L: DenseMatrix, b: DoubleArray): DoubleArray {
         val sum = denseDot(Ld, rowI, y, 0, i)
         y[i] = (b[i] - sum) / Ld[rowI + i]
     }
-    val x = DoubleArray(n)
-    for (ii in 0 until n) {
-        val i = n - 1 - ii
-        var sum = y[i]
-        for (k in i + 1 until n) sum -= Ld[k * n + i] * x[k]
-        x[i] = sum / Ld[i * n + i]
+    for (i in n - 1 downTo 0) {
+        val xi = y[i] / Ld[i * n + i]
+        y[i] = xi
+        if (xi != 0.0) denseAxpy(y, 0, -xi, Ld, i * n, i)
     }
-    return x
+    return y
 }
 
 /** Invert an SPD matrix from its Cholesky factor: returns `A^-1` given `L = chol(A)`. */
