@@ -190,6 +190,41 @@ class OpenBlasConformanceTest {
     }
 
     @Test
+    fun `qr factorizations interchange between backends`() {
+        val rng = Random(20260925)
+        for ((m, n) in listOf(6 to 6, 10 to 4)) {
+            val a = randomMatrix(rng, m, n)
+            val b = DoubleArray(m) { rng.nextDouble(-1.0, 1.0) }
+            val fRef = reference.qr(a)
+            val fOpen = openblas.qr(a)
+            // Same b through either factorization on either backend gives the same least-squares x.
+            val xs = listOf(
+                reference.solveLeastSquares(fRef, b),
+                reference.solveLeastSquares(fOpen, b),
+                openblas.solveLeastSquares(fRef, b),
+                openblas.solveLeastSquares(fOpen, b),
+            )
+            for ((i, x) in xs.withIndex()) {
+                assertClose(xs[0], x, tol = 1e-10, context = "qr interchange ${m}x$n variant $i")
+            }
+            // Q from one backend's packed form applies identically on the other.
+            val y = DoubleArray(m) { rng.nextDouble(-1.0, 1.0) }
+            assertClose(
+                reference.applyQ(fOpen, y),
+                openblas.applyQ(fOpen, y),
+                tol = 1e-11,
+                context = "applyQ on openblas factors ${m}x$n",
+            )
+            assertClose(
+                reference.applyQ(fRef, y),
+                openblas.applyQ(fRef, y),
+                tol = 1e-11,
+                context = "applyQ on reference factors ${m}x$n",
+            )
+        }
+    }
+
+    @Test
     fun `singular matrix sets the flag and zero determinant`() {
         val a = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 4.0)))
         val lu = openblas.factor(a)

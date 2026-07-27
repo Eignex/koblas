@@ -93,6 +93,7 @@ against reference results on every target.
 | dgetrf, dgetrs (LU) | factor, solve, plus determinant |
 | dgecon, dlange (condition estimate) | LinearAlgebra.rcond, norm1 |
 | dpotrf, dpotrs, dpotri (Cholesky) | cholesky, solveSpd, invertSpd |
+| dgeqrf, dormqr, dgels (QR, least squares) | LinearAlgebra.qr, applyQ, solveLeastSquares |
 | Cholesky rank-one update/downdate | choleskyUpdateInPlace, choleskyDowndateInPlace |
 
 Deviations from the standard are small and documented on each function: syrk
@@ -104,8 +105,7 @@ stay within roughly 1e150. Every alpha/beta form follows the BLAS convention
 that beta equal to zero overwrites the output without reading it.
 
 **Out of scope:** single precision, complex numbers, banded and packed storage
-layouts, right-side trsm, QR, SVD, and eigendecompositions. Level 2 routines
-with no consumer here, such as symv and trmv, are also out. Nothing is
+layouts, right-side trsm and trmm, SVD, and eigendecompositions. Nothing is
 supported silently: when a workload needs a new routine it gets implemented,
 tested, and added to the table above.
 

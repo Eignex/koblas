@@ -3,6 +3,7 @@ package com.eignex.koblas.openblas
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.LinearAlgebra
 import com.eignex.koblas.LuDecomposition
+import com.eignex.koblas.QrDecomposition
 import org.bytedeco.openblas.global.openblas.CblasLeft
 import org.bytedeco.openblas.global.openblas.CblasLower
 import org.bytedeco.openblas.global.openblas.CblasNoTrans
@@ -12,7 +13,9 @@ import org.bytedeco.openblas.global.openblas.CblasTrans
 import org.bytedeco.openblas.global.openblas.CblasUnit
 import org.bytedeco.openblas.global.openblas.CblasUpper
 import org.bytedeco.openblas.global.openblas.LAPACKE_dgecon
+import org.bytedeco.openblas.global.openblas.LAPACKE_dgeqrf
 import org.bytedeco.openblas.global.openblas.LAPACKE_dgetrf
+import org.bytedeco.openblas.global.openblas.LAPACKE_dormqr
 import org.bytedeco.openblas.global.openblas.LAPACK_ROW_MAJOR
 import org.bytedeco.openblas.global.openblas.cblas_daxpy
 import org.bytedeco.openblas.global.openblas.cblas_dgemm
@@ -208,6 +211,29 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
             cblas_dtrsv(CblasRowMajor, CblasUpper, CblasNoTrans, CblasNonUnit, n, f, n, x, 1)
             x
         }
+    }
+
+    override fun qr(a: DenseMatrix): QrDecomposition {
+        val m = a.rows
+        val n = a.cols
+        val buf = a.data.copyOf()
+        val tau = DoubleArray(minOf(m, n))
+        if (m > 0 && n > 0) {
+            val info = LAPACKE_dgeqrf(LAPACK_ROW_MAJOR, m, n, buf, n, tau)
+            check(info == 0) { "dgeqrf: illegal argument ${-info}" }
+        }
+        return QrDecomposition(m, n, buf, tau)
+    }
+
+    override fun applyQ(qr: QrDecomposition, y: DoubleArray, transpose: Boolean): DoubleArray {
+        require(y.size == qr.m) { "applyQ: y length ${y.size} != ${qr.m}" }
+        val c = y.copyOf()
+        if (qr.tau.isEmpty()) return c
+        val side = 'L'.code.toByte()
+        val trans = (if (transpose) 'T' else 'N').code.toByte()
+        val info = LAPACKE_dormqr(LAPACK_ROW_MAJOR, side, trans, qr.m, 1, qr.tau.size, qr.qr, qr.n, qr.tau, c, 1)
+        check(info == 0) { "dormqr: illegal argument ${-info}" }
+        return c
     }
 
     override fun rcond(lu: LuDecomposition, anorm: Double): Double {

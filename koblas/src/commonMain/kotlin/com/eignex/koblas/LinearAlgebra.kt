@@ -94,6 +94,34 @@ interface LinearAlgebra {
     fun solve(lu: LuDecomposition, b: DoubleArray, transpose: Boolean = false): DoubleArray
 
     /**
+     * QR factorization `A = Q·R` of an `m×n` [a] via Householder reflections (LAPACK `dgeqrf`); [a] is
+     * not modified and any shape is accepted. Rank deficiency is not detected — zero diagonal entries
+     * of `R` surface in [solveLeastSquares] as infinities/NaNs, following the triangular-solve
+     * convention.
+     */
+    fun qr(a: DenseMatrix): QrDecomposition
+
+    /** Apply `Q` (or `Qᵀ` when [transpose]) from [qr] to a length-`m` [y], into a fresh result
+     *  (LAPACK `dormqr` restricted to a single column). */
+    fun applyQ(qr: QrDecomposition, y: DoubleArray, transpose: Boolean = false): DoubleArray
+
+    /**
+     * Least-squares solve `min ‖A·x − b‖₂` from the factorization (the `dgels` shape): requires
+     * `m ≥ n` and full column rank, returns the length-`n` solution `x = R⁻¹·(Qᵀb)[0..n)`. This is
+     * the kernel square-root/array filters build on; it composes with [cholesky] rank-one updates for
+     * sliding-window problems.
+     */
+    fun solveLeastSquares(qr: QrDecomposition, b: DoubleArray): DoubleArray {
+        require(qr.m >= qr.n) { "solveLeastSquares requires m >= n, got ${qr.m}x${qr.n}" }
+        require(b.size == qr.m) { "solveLeastSquares: b length ${b.size} != ${qr.m}" }
+        val y = applyQ(qr, b, transpose = true)
+        val x = y.copyOf(qr.n)
+        // The top n rows of the packed buffer are exactly an n×n row-major block holding R.
+        trsvCore(qr.qr, qr.n, x, lower = false, transpose = false, unitDiag = false)
+        return x
+    }
+
+    /**
      * Reciprocal condition number estimate `1 / (anorm · est(‖A⁻¹‖₁))` from a factorization (LAPACK
      * `dgecon`). [anorm] is the 1-norm of the original, unfactored matrix (see [norm1]), which the
      * caller computes before factoring. Returns `1.0` for the empty factorization and exactly `0.0`
@@ -382,6 +410,75 @@ object ReferenceLinearAlgebra : LinearAlgebra {
                 }
             }
         }
+    }
+
+    override fun qr(a: DenseMatrix): QrDecomposition {
+        val m = a.rows
+        val n = a.cols
+        val k = minOf(m, n)
+        val buf = a.data.copyOf()
+        val tau = DoubleArray(k)
+        val w = DoubleArray(if (n > 0) n - 1 else 0)
+        for (col in 0 until k) {
+            tau[col] = householderColumn(buf, m, n, col)
+            if (tau[col] == 0.0) continue
+            // Apply H = I − tau·v·vᵀ to the trailing columns, row-oriented so every run is contiguous:
+            // w = vᵀ·A(sub) accumulates scaled row segments, then each row gets a −tau·v_i·w update.
+            val width = n - col - 1
+            if (width == 0) continue
+            w.fill(0.0, 0, width)
+            for (i in col until m) {
+                val vi = if (i == col) 1.0 else buf[i * n + col]
+                if (vi != 0.0) denseAxpy(w, 0, vi, buf, i * n + col + 1, width)
+            }
+            for (i in col until m) {
+                val vi = if (i == col) 1.0 else buf[i * n + col]
+                val f = -tau[col] * vi
+                if (f != 0.0) denseAxpy(buf, i * n + col + 1, f, w, 0, width)
+            }
+        }
+        return QrDecomposition(m, n, buf, tau)
+    }
+
+    /** Build the Householder reflector for [col] in place (LAPACK `dlarfg`): returns `tau`, stores the
+     *  scaled vector below the diagonal and `beta` (the new `R` diagonal) on it. `tau == 0` means the
+     *  column was already zero below the diagonal position and `H = I`. */
+    private fun householderColumn(buf: DoubleArray, m: Int, n: Int, col: Int): Double {
+        var normSq = 0.0
+        for (i in col until m) {
+            val v = buf[i * n + col]
+            normSq += v * v
+        }
+        if (normSq == 0.0) return 0.0
+        val alpha = buf[col * n + col]
+        val norm = kotlin.math.sqrt(normSq)
+        val beta = if (alpha >= 0.0) -norm else norm
+        val v0 = alpha - beta
+        for (i in col + 1 until m) buf[i * n + col] /= v0
+        buf[col * n + col] = beta
+        return (beta - alpha) / beta
+    }
+
+    override fun applyQ(qr: QrDecomposition, y: DoubleArray, transpose: Boolean): DoubleArray {
+        val m = qr.m
+        val n = qr.n
+        require(y.size == m) { "applyQ: y length ${y.size} != $m" }
+        val x = y.copyOf()
+        val k = qr.tau.size
+        val buf = qr.qr
+        // Q = H_0·H_1···H_{k−1} and each H is symmetric, so Qᵀ applies them in ascending order and
+        // Q in descending.
+        val order = if (transpose) 0 until k else k - 1 downTo 0
+        for (col in order) {
+            val t = qr.tau[col]
+            if (t == 0.0) continue
+            var s = x[col]
+            for (i in col + 1 until m) s += buf[i * n + col] * x[i]
+            val f = t * s
+            x[col] -= f
+            for (i in col + 1 until m) x[i] -= f * buf[i * n + col]
+        }
+        return x
     }
 
     override fun factor(a: DenseMatrix): LuDecomposition {
