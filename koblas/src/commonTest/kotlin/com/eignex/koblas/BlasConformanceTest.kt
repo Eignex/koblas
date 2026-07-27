@@ -171,6 +171,50 @@ class BlasConformanceTest {
     }
 
     @Test
+    fun `full gemm matches the naive reference across transpose flags, alpha, and beta`() {
+        val rng = Random(20260728)
+        val m = 5
+        val k = 7
+        val n = 4
+        for (tA in booleanArrayOf(false, true)) {
+            for (tB in booleanArrayOf(false, true)) {
+                val a = if (tA) DenseMatrix(k, m) else DenseMatrix(m, k)
+                val b = if (tB) DenseMatrix(n, k) else DenseMatrix(k, n)
+                for (idx in a.data.indices) a.data[idx] = rng.nextDouble(-1.0, 1.0)
+                for (idx in b.data.indices) b.data[idx] = rng.nextDouble(-1.0, 1.0)
+                for (alpha in doubleArrayOf(0.0, 1.0, -2.0)) {
+                    for (beta in doubleArrayOf(0.0, 1.0, 0.5)) {
+                        // beta == 0 must overwrite without reading: poison C with NaN.
+                        val c0 = DenseMatrix(m, n)
+                        for (idx in c0.data.indices) {
+                            c0.data[idx] = if (beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0)
+                        }
+                        val expected = DenseMatrix(m, n)
+                        for (i in 0 until m) {
+                            for (j in 0 until n) {
+                                var s = 0.0
+                                for (p in 0 until k) {
+                                    s += (if (tA) a[p, i] else a[i, p]) * (if (tB) b[j, p] else b[p, j])
+                                }
+                                expected[i, j] = alpha * s + (if (beta == 0.0) 0.0 else beta * c0[i, j])
+                            }
+                        }
+                        val c = DenseMatrix(m, n, c0.data.copyOf())
+                        koblas.gemm(alpha, a, tA, b, tB, beta, c)
+                        val bound = 100.0 * k * eps * (infNorm(a) * infNorm(b) + infNorm(expected))
+                        for (idx in c.data.indices) {
+                            assertTrue(
+                                abs(c.data[idx] - expected.data[idx]) <= bound + 1e-12,
+                                "gemm tA=$tA tB=$tB a=$alpha b=$beta at $idx: ${c.data[idx]} vs ${expected.data[idx]}",
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
     fun `sparse LU solve has a small residual on standard matrices`() {
         val rng = Random(20260101)
         for (n in intArrayOf(2, 8, 30)) {
