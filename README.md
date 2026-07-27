@@ -158,5 +158,6 @@ runtimeOnly("com.eignex:koblas-openblas:<version>")
 It speeds up matrix products and dense LU factorization by roughly an order of
 magnitude at dimension 1000. OpenBLAS runs single-threaded by default, which
 is both the fast and the safe configuration under the JVM; the
-koblas.openblas.threads system property opts into its threading. Setting koblas.backend to reference
-forces the portable implementation regardless of what is on the classpath.
+koblas.openblas.threads system property opts into its threading. Setting
+koblas.backend to reference forces the portable implementation regardless of
+what is on the classpath.
