@@ -78,12 +78,3 @@ row major DoubleArray, so a native backend receives raw buffers with no repackin
 ## Coordinates
 
     implementation("com.eignex:koblas:<version>")
-
-## Building
-
-    ./gradlew check lintDocs
-
-## Status
-
-Early. The operation set grows on demand, and native BLAS and GPU backends are planned behind the
-LinearAlgebra seam.
