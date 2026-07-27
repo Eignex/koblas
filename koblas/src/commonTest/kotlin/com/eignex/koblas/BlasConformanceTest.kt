@@ -117,6 +117,40 @@ class BlasConformanceTest {
     }
 
     @Test
+    fun `full gemv matches the naive reference across alpha, beta, and transpose`() {
+        val rng = Random(20260727)
+        for (n in intArrayOf(1, 4, 17)) {
+            val m = n + 3 // non-square to catch row/col mixups
+            val a = DenseMatrix(m, n, DoubleArray(m * n) { rng.nextDouble(-1.0, 1.0) })
+            for (transpose in booleanArrayOf(false, true)) {
+                val xLen = if (transpose) m else n
+                val yLen = if (transpose) n else m
+                for (alpha in doubleArrayOf(0.0, 1.0, -1.5)) {
+                    for (beta in doubleArrayOf(0.0, 1.0, 0.5)) {
+                        val x = DoubleArray(xLen) { rng.nextDouble(-2.0, 2.0) }
+                        // beta == 0 must overwrite without reading: poison y with NaN.
+                        val y0 = DoubleArray(yLen) { if (beta == 0.0) Double.NaN else rng.nextDouble(-2.0, 2.0) }
+                        val expected = DoubleArray(yLen) { i ->
+                            var s = 0.0
+                            for (k in 0 until xLen) s += (if (transpose) a[k, i] else a[i, k]) * x[k]
+                            alpha * s + (if (beta == 0.0) 0.0 else beta * y0[i])
+                        }
+                        val y = y0.copyOf()
+                        koblas.gemv(alpha, a, x, beta, y, transpose)
+                        val bound = 100.0 * maxOf(m, n) * eps * (infNorm(a) * infNorm(x) + infNorm(expected))
+                        for (i in 0 until yLen) {
+                            assertTrue(
+                                abs(y[i] - expected[i]) <= bound + 1e-12,
+                                "gemv n=$n t=$transpose a=$alpha b=$beta at $i: ${y[i]} vs ${expected[i]}",
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
     fun `gemm reproduces the identity and is associative within tolerance`() {
         val rng = Random(3)
         for (n in intArrayOf(1, 4, 16)) {
