@@ -2,6 +2,7 @@
 
 package com.eignex.koblas
 
+import kotlin.concurrent.Volatile
 import kotlin.math.abs
 import kotlin.math.sqrt
 
@@ -756,14 +757,31 @@ object ReferenceLinearAlgebra : LinearAlgebra {
 /**
  * The best backend the current platform provides, or null when only the portable reference is available.
  * On the JVM this discovers providers via `ServiceLoader`, so an optional backend artifact (such as
- * koblas-openblas) activates itself when present on the classpath; all other targets return null today,
- * resolving [koblas] to [ReferenceLinearAlgebra].
+ * koblas-openblas) activates itself when present on the classpath. Other targets have no runtime
+ * discovery and return null; a backend artifact there is activated explicitly through
+ * [installLinearAlgebra].
  */
 expect fun platformLinearAlgebra(): LinearAlgebra?
 
-/** The active linear-algebra backend: the [platformLinearAlgebra] native backend when present, else the
- *  portable [ReferenceLinearAlgebra]. */
-val koblas: LinearAlgebra = platformLinearAlgebra() ?: ReferenceLinearAlgebra
+private val platformDefault: LinearAlgebra by lazy { platformLinearAlgebra() ?: ReferenceLinearAlgebra }
+
+@Volatile
+private var installed: LinearAlgebra? = null
+
+/** The active linear-algebra backend: an [installLinearAlgebra] override when set, else the
+ *  [platformLinearAlgebra] backend when present, else the portable [ReferenceLinearAlgebra]. */
+val koblas: LinearAlgebra get() = installed ?: platformDefault
+
+/**
+ * Overrides the backend [koblas] resolves to. Platforms without runtime discovery (everything except
+ * the JVM) activate an optional backend artifact — such as koblas-cblas on Linux/macOS native — by
+ * calling this once at startup, before any linear algebra runs. Passing null restores platform
+ * resolution. The switch is visible to subsequent [koblas] reads but is not synchronized with
+ * operations already in flight.
+ */
+fun installLinearAlgebra(backend: LinearAlgebra?) {
+    installed = backend
+}
 
 /** LU-factorize this square matrix with the active backend ([koblas]). */
 fun DenseMatrix.lu(): LuDecomposition = koblas.factor(this)
