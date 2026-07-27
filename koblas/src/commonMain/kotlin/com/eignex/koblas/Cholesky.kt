@@ -137,16 +137,37 @@ fun solveSpd(L: DenseMatrix, b: DoubleArray): DoubleArray {
     return y
 }
 
-/** Invert an SPD matrix from its Cholesky factor: returns `A^-1` given `L = chol(A)`. */
+/**
+ * Invert an SPD matrix from its Cholesky factor: returns `A^-1` given `L = chol(A)`.
+ *
+ * Solves `A * x = e_j` column by column, exploiting the unit-vector right-hand side: forward
+ * substitution starts at row `j` (the leading entries are provably zero) and back substitution
+ * only produces rows `>= j` — the strictly-upper entries of the symmetric `A^-1` come from
+ * mirroring the lower triangle.
+ */
 fun invertSpd(L: DenseMatrix): DenseMatrix {
     val n = L.rows
+    val Ld = L.data
     val inv = DenseMatrix(n, n)
-    val e = DoubleArray(n)
+    val invd = inv.data
+    val y = DoubleArray(n)
     for (j in 0 until n) {
-        for (k in 0 until n) e[k] = 0.0
-        e[j] = 1.0
-        val col = solveSpd(L, e)
-        for (i in 0 until n) inv[i, j] = col[i]
+        // L y = e_j: rows before j stay zero.
+        y[j] = 1.0 / Ld[j * n + j]
+        for (i in j + 1 until n) {
+            val rowI = i * n
+            y[i] = -denseDot(Ld, rowI + j, y, j, i - j) / Ld[rowI + i]
+        }
+        // LT x = y, column-oriented, restricted to rows >= j.
+        for (i in n - 1 downTo j) {
+            val xi = y[i] / Ld[i * n + i]
+            y[i] = xi
+            if (xi != 0.0) denseAxpy(y, j, -xi, Ld, i * n + j, i - j)
+        }
+        for (i in j until n) {
+            invd[i * n + j] = y[i]
+            invd[j * n + i] = y[i]
+        }
     }
     return inv
 }
