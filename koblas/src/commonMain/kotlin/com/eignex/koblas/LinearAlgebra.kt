@@ -7,7 +7,7 @@ import kotlin.math.sqrt
 
 /**
  * The swappable compute backend for the heavier dense operations — level-2/3 BLAS ([gemv], [gemm]) and a
- * general LU [factor]/[solve] — where a native BLAS/LAPACK or GPU implementation is worth dispatching to.
+ * general LU [factor]/[solve] — where a native BLAS/LAPACK implementation is worth dispatching to.
  * Everything is over flat, contiguous [DenseMatrix.data] / [DoubleArray] buffers, so a native backend
  * passes them across the FFI boundary without repacking.
  *

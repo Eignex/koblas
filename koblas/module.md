@@ -23,7 +23,7 @@ The heavier level-2/3 and factorization work — [gemv][com.eignex.koblas.Linear
 [gemm][com.eignex.koblas.LinearAlgebra.gemm] and a general LU
 [factor][com.eignex.koblas.LinearAlgebra.factor] / [solve][com.eignex.koblas.LinearAlgebra.solve] — sits
 behind the runtime-swappable [LinearAlgebra][com.eignex.koblas.LinearAlgebra] backend so a native
-BLAS/LAPACK or GPU implementation can replace it without changing callers. [koblas][com.eignex.koblas.koblas]
+BLAS/LAPACK implementation can replace it without changing callers. [koblas][com.eignex.koblas.koblas]
 resolves to the platform backend when present, else the pure-Kotlin
 [ReferenceLinearAlgebra][com.eignex.koblas.ReferenceLinearAlgebra]. Ergonomic entry points
 [lu][com.eignex.koblas.lu] / [LuDecomposition.solve][com.eignex.koblas.solve] / [matMul][com.eignex.koblas.matMul]
