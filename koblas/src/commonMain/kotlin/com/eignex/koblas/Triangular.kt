@@ -37,6 +37,121 @@ fun trsm(A: DenseMatrix, B: DenseMatrix, lower: Boolean, transpose: Boolean = fa
     trsmCore(A.data, A.rows, B.data, B.cols, lower, transpose, unitDiag)
 }
 
+/**
+ * Multiply `x = op(T) · x` in place (BLAS `dtrmv`), the product counterpart of [trsv]. `T` is the
+ * [lower] or upper triangle of the square [A]; `op` transposes when [transpose]; with [unitDiag] the
+ * diagonal is taken as 1 and never read. Only the selected triangle is read.
+ */
+fun trmv(A: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean = false, unitDiag: Boolean = false) {
+    require(A.rows == A.cols) { "trmv requires a square matrix; got ${A.rows}x${A.cols}" }
+    require(x.size == A.rows) { "trmv: x length ${x.size} != ${A.rows}" }
+    trmvCore(A.data, A.rows, x, lower, transpose, unitDiag)
+}
+
+/**
+ * Multiply `B = op(T) · B` in place for [nrhs][DenseMatrix.cols] columns (BLAS `dtrmm`, left side
+ * only), the product counterpart of [trsm]. `T` is the [lower] or upper triangle of the square [A];
+ * `op` transposes when [transpose]; with [unitDiag] the diagonal is taken as 1 and never read. BLAS
+ * `side = R` (`B · op(T)`) is out of the supported subset.
+ */
+fun trmm(A: DenseMatrix, B: DenseMatrix, lower: Boolean, transpose: Boolean = false, unitDiag: Boolean = false) {
+    require(A.rows == A.cols) { "trmm requires a square matrix; got ${A.rows}x${A.cols}" }
+    require(B.rows == A.rows) { "trmm: B has ${B.rows} rows, expected ${A.rows}" }
+    trmmCore(A.data, A.rows, B.data, B.cols, lower, transpose, unitDiag)
+}
+
+/** [trmv] over a flat row-major `n×n` buffer. Traversal order keeps every read of `x` an original
+ *  value: the non-transposed directions consume finalized entries only behind the frontier, the
+ *  transposed directions push a row's contribution before its own entry is overwritten. */
+internal fun trmvCore(a: DoubleArray, n: Int, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
+    if (!transpose) {
+        if (lower) { // x_i = Σ_{j≤i} T[i,j] x_j; descending keeps x[0..i-1] original
+            for (i in n - 1 downTo 0) {
+                val base = i * n
+                val diag = if (unitDiag) x[i] else a[base + i] * x[i]
+                x[i] = diag + denseDot(a, base, x, 0, i)
+            }
+        } else { // x_i = Σ_{j≥i} T[i,j] x_j; ascending keeps x[i+1..] original
+            for (i in 0 until n) {
+                val base = i * n
+                val diag = if (unitDiag) x[i] else a[base + i] * x[i]
+                x[i] = diag + denseDot(a, base + i + 1, x, i + 1, n - i - 1)
+            }
+        }
+    } else {
+        if (lower) { // Tᵀ is upper: push row i's contribution into x[0..i-1] while x[i] is original
+            for (i in 0 until n) {
+                val base = i * n
+                val xi = x[i]
+                x[i] = if (unitDiag) xi else a[base + i] * xi
+                if (xi != 0.0) denseAxpy(x, 0, xi, a, base, i)
+            }
+        } else { // Tᵀ is lower: push row i's contribution into x[i+1..] while x[i] is original
+            for (i in n - 1 downTo 0) {
+                val base = i * n
+                val xi = x[i]
+                x[i] = if (unitDiag) xi else a[base + i] * xi
+                if (xi != 0.0) denseAxpy(x, i + 1, xi, a, base + i + 1, n - i - 1)
+            }
+        }
+    }
+}
+
+/** [trmm] over flat row-major buffers (`a`: `n×n`, `b`: `n×nrhs`); every update runs along a
+ *  contiguous row of `b`, with the same original-value traversal orders as [trmvCore]. */
+@Suppress("CyclomaticComplexMethod", "LongParameterList")
+internal fun trmmCore(
+    a: DoubleArray,
+    n: Int,
+    b: DoubleArray,
+    nrhs: Int,
+    lower: Boolean,
+    transpose: Boolean,
+    unitDiag: Boolean,
+) {
+    if (!transpose) {
+        if (lower) {
+            for (i in n - 1 downTo 0) {
+                val base = i * n
+                if (!unitDiag) denseScale(b, i * nrhs, a[base + i], nrhs)
+                for (j in 0 until i) {
+                    val f = a[base + j]
+                    if (f != 0.0) denseAxpy(b, i * nrhs, f, b, j * nrhs, nrhs)
+                }
+            }
+        } else {
+            for (i in 0 until n) {
+                val base = i * n
+                if (!unitDiag) denseScale(b, i * nrhs, a[base + i], nrhs)
+                for (j in i + 1 until n) {
+                    val f = a[base + j]
+                    if (f != 0.0) denseAxpy(b, i * nrhs, f, b, j * nrhs, nrhs)
+                }
+            }
+        }
+    } else {
+        if (lower) { // Tᵀ upper: push row i upward, then apply its diagonal
+            for (i in 0 until n) {
+                val base = i * n
+                for (j in 0 until i) {
+                    val f = a[base + j]
+                    if (f != 0.0) denseAxpy(b, j * nrhs, f, b, i * nrhs, nrhs)
+                }
+                if (!unitDiag) denseScale(b, i * nrhs, a[base + i], nrhs)
+            }
+        } else { // Tᵀ lower: push row i downward, then apply its diagonal
+            for (i in n - 1 downTo 0) {
+                val base = i * n
+                for (j in i + 1 until n) {
+                    val f = a[base + j]
+                    if (f != 0.0) denseAxpy(b, j * nrhs, f, b, i * nrhs, nrhs)
+                }
+                if (!unitDiag) denseScale(b, i * nrhs, a[base + i], nrhs)
+            }
+        }
+    }
+}
+
 /** [trsv] over a flat row-major `n×n` buffer; shared with the LU and Cholesky solve internals. */
 internal fun trsvCore(a: DoubleArray, n: Int, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
     if (!transpose) {
