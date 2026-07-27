@@ -109,7 +109,6 @@ Deviations from the standard are small and documented on each function:
   rank.
 - cholesky regularizes non-positive-definite pivots unless asked to be
   strict.
-- rcond is an estimate that never understates the conditioning.
 - norm2 skips the overflow rescale, so components must stay within roughly
   1e150.
 
