@@ -18,10 +18,15 @@ Containers — a read-only `View` contract; concrete backings also expose their 
 Dense arithmetic — free functions over the views (BLAS-1/2) plus the swappable backend (BLAS-2/3 +
 factorizations):
 
-- BLAS-1/2 free functions: `dot`, `axpy`, `scale`, `addOuter` (rank-1 update), `matVec`, `forEachStored`.
-- `LinearAlgebra` backend: `gemv`, `gemm`, general LU `factor` / `solve` (with a transpose flag for BTRAN).
+- BLAS-1/2 free functions: `dot`, `axpy`, `scale`, `norm2`, `asum`, `iamax`, `copy`, `swap`,
+  `addOuter` (rank-1 update), `matVec`, `transpose`, `forEachStored`.
+- Triangular solves: `trsv` / `trsm` over either triangle, with transpose and unit-diagonal flags.
+- `LinearAlgebra` backend: `gemv` / `gemm` (full BLAS alpha/beta/transpose forms plus fresh-result
+  conveniences), `syrk`, and general LU `factor` / `solve` (with a transpose flag for BTRAN) with a
+  `determinant`.
 - Ergonomic entry points: `DenseMatrix.lu()`, `LuDecomposition.solve(b, transpose)`, `DenseMatrix.matMul(other)`.
-- Symmetric positive-definite: `cholesky`, `choleskyDowndateInPlace`, `solveSpd`, `invertSpd`.
+- Symmetric positive-definite: `cholesky`, `choleskyUpdateInPlace` / `choleskyDowndateInPlace`,
+  `solveSpd`, `invertSpd`.
 
 Sparse linear algebra:
 
@@ -54,6 +59,46 @@ val xs = solveSpd(l, doubleArrayOf(3.0, 5.0))
 val sparse = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0, 1 to 1.0), listOf(0 to 1.0, 1 to 3.0)))
 val xsp = SparseLu.factorize(sparse)!!.ftran(doubleArrayOf(3.0, 5.0))
 ```
+
+## BLAS coverage
+
+koblas implements a **well-defined subset** of double-precision BLAS/LAPACK — the kernels a revised
+simplex or Bayesian-filtering workload needs — rather than "whatever the first consumer used". The
+mapping, including deliberate deviations:
+
+| BLAS / LAPACK | koblas | Notes |
+|---|---|---|
+| ddot | `dot` | sparse-aware |
+| daxpy | `axpy` | sparse-aware x |
+| dscal | `scale` | |
+| dnrm2 | `norm2` | no overflow rescale: components within ~1e±150 |
+| dasum | `asum` | |
+| idamax | `iamax` | `-1` for zero length; storage-order ties for sparse |
+| dcopy / dswap | `copy` / `swap` | |
+| dgemv | `LinearAlgebra.gemv` | full alpha/beta/transpose form + fresh-result convenience |
+| dger | `addOuter` | sparse-aware |
+| dtrsv / dtrsm | `trsv` / `trsm` | trsm is left-side only; diagonal unchecked (as BLAS) |
+| dgemm | `LinearAlgebra.gemm` | full alpha/beta + both transpose flags |
+| dsyrk | `LinearAlgebra.syrk` | no `uplo`: full symmetric result, alpha term exactly symmetric |
+| dgetrf / dgetrs | `factor` / `solve` | single right-hand side (use `trsm` for blocks) |
+| — | `LuDecomposition.determinant` | 0.0 when singular; pairs with `SparseLu.determinant` |
+| dpotrf | `cholesky` | non-standard `regularizeNonPD = true` default; pass `false` for strict |
+| dpotrs / dpotri | `solveSpd` / `invertSpd` | |
+| dchud / dchdd (LINPACK) | `choleskyUpdateInPlace` / `choleskyDowndateInPlace` | downdate reports cone exit instead of throwing |
+
+Per BLAS convention, every alpha/beta form treats `beta == 0.0` as overwrite-without-reading (the
+output may be uninitialized) and `alpha == 0.0` as the beta scale alone.
+
+**Out of scope** (deliberately): banded/packed/triangular-packed layouts, single precision, complex,
+`side = R` trsm, QR/SVD/eigendecompositions, and level-2 routines without a consumer here (symv,
+trmv, ger2, …). If a workload needs one of these, it gets added to the table — nothing is supported
+silently.
+
+**Native backend contract:** any `platformLinearAlgebra()` implementation must match
+`ReferenceLinearAlgebra` on the `BlasConformanceTest` suite, which validates every backend operation
+(gemv, gemm, syrk, factor/solve, and the Cholesky family) against constructed references on standard
+test matrices (identity, diagonal, Hilbert, random well-conditioned, SPD) within
+theoretically-informed error bounds.
 
 ## Backends
 
