@@ -104,7 +104,9 @@ class IntDoubleMapTest {
                     m.put(key, v)
                     ref[key] = v
                 }
+
                 1 -> assertEquals(ref.remove(key) != null, m.remove(key))
+
                 else -> assertEquals(ref[key] ?: Double.NaN, m.getOrDefault(key, Double.NaN))
             }
             assertEquals(ref.size, m.size)

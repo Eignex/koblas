@@ -272,7 +272,7 @@ private const val MAX_CANDIDATE_COLS = 4
 /**
  * Incrementally-maintained elimination state for the Markowitz factorization: active row/column flags,
  * per-row/per-column nonzero counts over the active submatrix, and a column → active-rows index
- * ([colRows]) so pivot search and elimination touch only the rows that actually hold an entry.
+ * (`colRows`) so pivot search and elimination touch only the rows that actually hold an entry.
  *
  * [selectPivot] buckets active columns by count and scans count classes in ascending order, computing
  * each candidate column's max magnitude on demand for the stability threshold. The scan stops at a
@@ -280,7 +280,7 @@ private const val MAX_CANDIDATE_COLS = 4
  *
  * - exactness: any entry in an unscanned column has Markowitz count `≥ r · (minRowCount − 1)`, so a
  *   best-so-far at or below that is a true global minimum;
- * - bounded search (Suhl & Suhl): at least [MAX_CANDIDATE_COLS] candidate-bearing columns have been
+ * - bounded search (Suhl & Suhl): at least `MAX_CANDIDATE_COLS` candidate-bearing columns have been
  *   examined — the best of the lowest count classes is kept even if a marginally better pivot might
  *   exist in a higher class. This caps per-step search work; fill in practice grows only a couple of
  *   percent over the exact minimum, versus a full active-submatrix rescan per step.
@@ -374,7 +374,7 @@ private class MarkowitzState(private val u: Array<MutableIntDoubleMap>, private 
     }
 
     /** Eliminate the selected pivot, recording the column's multipliers into [l] and keeping all
-     *  counts and the [colRows] index exact as fill-in appears and entries cancel. */
+     *  counts and the `colRows` index exact as fill-in appears and entries cancel. */
     @Suppress("NestedBlockDepth")
     fun eliminate(l: MutableIntDoubleMap) {
         val pRow = pivotRow
