@@ -164,6 +164,20 @@ fun addOuter(M: DenseMatrix, alpha: Double, x: VectorView, y: VectorView) {
     }
 }
 
+/**
+ * Fresh transposed matrix `Aᵀ`. Always materializes; for products against a transposed operand,
+ * prefer the `transpose` flags on [LinearAlgebra.gemv] / [LinearAlgebra.gemm], which read the
+ * original storage without copying.
+ */
+fun DenseMatrix.transpose(): DenseMatrix {
+    val t = DenseMatrix(cols, rows)
+    val td = t.data
+    for (i in 0 until rows) {
+        for (j in 0 until cols) td[j * rows + i] = data[i * cols + j]
+    }
+    return t
+}
+
 /** Matrix-vector product `A * x` into a fresh dense result. */
 fun matVec(A: MatrixView, x: VectorView): DenseVector {
     require(A.cols == x.size) { "matVec shape mismatch: A is ${A.rows}x${A.cols}, x size ${x.size}" }
