@@ -128,19 +128,10 @@ fun DenseMatrix.choleskyDowndateInPlace(x: VectorView): Double {
 fun solveSpd(L: DenseMatrix, b: DoubleArray): DoubleArray {
     val n = L.rows
     require(b.size == n) { "solveSpd: b size ${b.size}, expected $n" }
-    val Ld = L.data
-    val y = DoubleArray(n)
-    for (i in 0 until n) {
-        val rowI = i * n
-        val sum = denseDot(Ld, rowI, y, 0, i)
-        y[i] = (b[i] - sum) / Ld[rowI + i]
-    }
-    for (i in n - 1 downTo 0) {
-        val xi = y[i] / Ld[i * n + i]
-        y[i] = xi
-        if (xi != 0.0) denseAxpy(y, 0, -xi, Ld, i * n, i)
-    }
-    return y
+    val x = b.copyOf()
+    trsvCore(L.data, n, x, lower = true, transpose = false, unitDiag = false)
+    trsvCore(L.data, n, x, lower = true, transpose = true, unitDiag = false)
+    return x
 }
 
 /**
