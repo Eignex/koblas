@@ -164,6 +164,20 @@ fun addOuter(M: DenseMatrix, alpha: Double, x: VectorView, y: VectorView) {
     }
 }
 
+/** Matrix 1-norm: the maximum absolute column sum (LAPACK `dlange` with norm `1`). This is the
+ *  `anorm` input [LinearAlgebra.rcond] expects, computed on the matrix before factoring. */
+fun norm1(a: DenseMatrix): Double {
+    val sums = DoubleArray(a.cols)
+    val ad = a.data
+    for (i in 0 until a.rows) {
+        val base = i * a.cols
+        for (j in 0 until a.cols) sums[j] += abs(ad[base + j])
+    }
+    var m = 0.0
+    for (s in sums) if (s > m) m = s
+    return m
+}
+
 /**
  * Fresh transposed matrix `Aᵀ`. Always materializes; for products against a transposed operand,
  * prefer the `transpose` flags on [LinearAlgebra.gemv] / [LinearAlgebra.gemm], which read the
