@@ -17,8 +17,8 @@
 
 Koblas provides dense and sparse linear algebra for Kotlin Multiplatform: a
 well-defined subset of double-precision BLAS and LAPACK, sparse LU
-factorization, and a swappable backend seam for native BLAS or GPU
-implementations.
+factorization, and a swappable compute backend with an optional
+OpenBLAS-backed implementation for the JVM.
 
 ## Overview
 
@@ -30,8 +30,9 @@ heavier dense operations sit behind a runtime-swappable LinearAlgebra
 interface.
 
 The operation set is the subset a revised simplex or Bayesian-filtering
-workload needs: level 1 through 3 BLAS kernels, LU and Cholesky solver
-families, and sparse basis factorization with rank-one updates. See
+workload needs: level 1 through 3 BLAS kernels, the LU, Cholesky, QR, and
+symmetric indefinite solver families with condition estimation, and sparse
+basis factorization with rank-one updates. See
 [BLAS Coverage](#blas-coverage) for the exact contract, including what is
 deliberately out of scope.
 
@@ -135,8 +136,8 @@ dispatch at compile time: the JVM uses the incubator Vector API when started
 with `--add-modules=jdk.incubator.vector` and scalar loops otherwise; all
 other targets are scalar. mathBackend reports which kernel was resolved.
 
-The heavier operations (gemv, gemm, syrk, LU) sit behind the runtime
-LinearAlgebra interface. On the JVM backends are discovered through the
+The heavier operations sit behind the runtime LinearAlgebra interface: the
+level 2 and 3 multiplies and the factorization families with their solves. On the JVM backends are discovered through the
 service loader, so adding one to the classpath activates it without code
 changes; all other targets use the portable reference implementation. Storage
 is flat, contiguous, row-major DoubleArray, so a native backend receives raw
