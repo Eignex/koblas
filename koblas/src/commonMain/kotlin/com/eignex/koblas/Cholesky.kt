@@ -61,6 +61,41 @@ fun MatrixView.cholesky(regularizeNonPD: Boolean = true): DenseMatrix {
 }
 
 /**
+ * In-place Cholesky rank-1 update of a lower-triangular factor: modifies [this] so that the
+ * matrix `A = L * LT` it represents becomes `A + x * xT`. The pair of [choleskyDowndateInPlace];
+ * unlike the downdate, an update of a valid SPD factor always stays in the positive-definite
+ * cone, so there is no failure mode to report.
+ *
+ * Algorithm: sweep the rows of L in order, carrying the Givens rotations generated so far.
+ * Row `i` is rotated against the transformed `x` (contiguous row access, loop-carried in `wi` -
+ * stays scalar, like the downdate's rotation loop), then rotation `i` is generated to zero the
+ * transformed `x[i]` into the diagonal.
+ */
+fun DenseMatrix.choleskyUpdateInPlace(x: VectorView) {
+    require(rows == cols) { "choleskyUpdateInPlace requires a square matrix; got ${rows}x$cols" }
+    require(rows == x.size) { "x size ${x.size} must match matrix dim $rows" }
+    val L = data
+    val n = rows
+    val w = x.toDoubleArray()
+    val c = DoubleArray(n)
+    val s = DoubleArray(n)
+    for (i in 0 until n) {
+        val rowI = i * n
+        var wi = w[i]
+        for (k in 0 until i) {
+            val lik = L[rowI + k]
+            L[rowI + k] = c[k] * lik + s[k] * wi
+            wi = c[k] * wi - s[k] * lik
+        }
+        val lii = L[rowI + i]
+        val r = sqrt(lii * lii + wi * wi)
+        c[i] = lii / r
+        s[i] = wi / r
+        L[rowI + i] = r
+    }
+}
+
+/**
  * In-place Cholesky downdate of a lower-triangular factor: modifies [this] so that
  * the matrix `A = L * LT` it represents becomes `A - x * xT`. Returns `0.0` on
  * success, or a positive "norm" value when the downdate would leave the matrix
