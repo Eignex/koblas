@@ -117,7 +117,7 @@ class BlasConformanceTest {
     }
 
     @Test
-    fun `full gemv matches the naive reference across alpha, beta, and transpose`() {
+    fun `full gemv matches the naive reference across alpha beta and transpose`() {
         val rng = Random(20260727)
         for (n in intArrayOf(1, 4, 17)) {
             val m = n + 3 // non-square to catch row/col mixups
@@ -189,7 +189,7 @@ class BlasConformanceTest {
     }
 
     @Test
-    fun `full gemm matches the naive reference across transpose flags, alpha, and beta`() {
+    fun `full gemm matches the naive reference across transpose flags alpha and beta`() {
         val rng = Random(20260728)
         val m = 5
         val k = 7
