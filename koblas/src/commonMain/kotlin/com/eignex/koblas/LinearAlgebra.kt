@@ -34,8 +34,30 @@ interface LinearAlgebra {
         return y
     }
 
-    /** Matrix-matrix product `A · B` (BLAS `dgemm`); `A.cols` must equal `B.rows`. */
-    fun gemm(a: DenseMatrix, b: DenseMatrix): DenseMatrix
+    /**
+     * In-place matrix-matrix accumulate `C = alpha · op(A) · op(B) + beta · C` (full BLAS `dgemm`),
+     * where `op` transposes its operand when [transposeA] / [transposeB] is set. Shapes must satisfy
+     * `op(A): m×k`, `op(B): k×n`, `C: m×n`. Per BLAS convention, `beta == 0.0` overwrites [c] without
+     * reading it, and `alpha == 0.0` reduces to the `beta` scale.
+     */
+    @Suppress("LongParameterList") // the BLAS dgemm signature
+    fun gemm(
+        alpha: Double,
+        a: DenseMatrix,
+        transposeA: Boolean,
+        b: DenseMatrix,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+    )
+
+    /** Matrix-matrix product `A · B` into a fresh matrix (restricted [gemm] with `alpha = 1, beta = 0`);
+     *  `A.cols` must equal `B.rows`. */
+    fun gemm(a: DenseMatrix, b: DenseMatrix): DenseMatrix {
+        val c = DenseMatrix(a.rows, b.cols)
+        gemm(1.0, a, transposeA = false, b, transposeB = false, beta = 0.0, c = c)
+        return c
+    }
 
     /** LU factorization with partial pivoting of a square [a] (LAPACK `dgetrf`); [a] is not modified. */
     fun factor(a: DenseMatrix): LuDecomposition
@@ -97,23 +119,62 @@ object ReferenceLinearAlgebra : LinearAlgebra {
         }
     }
 
-    override fun gemm(a: DenseMatrix, b: DenseMatrix): DenseMatrix {
-        require(a.cols == b.rows) { "gemm: ${a.rows}x${a.cols} · ${b.rows}x${b.cols}" }
-        val m = a.rows
-        val k = a.cols
-        val n = b.cols
-        val c = DoubleArray(m * n)
+    @Suppress("LongParameterList", "CyclomaticComplexMethod")
+    override fun gemm(
+        alpha: Double,
+        a: DenseMatrix,
+        transposeA: Boolean,
+        b: DenseMatrix,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+    ) {
+        val m = if (transposeA) a.cols else a.rows
+        val k = if (transposeA) a.rows else a.cols
+        val kB = if (transposeB) b.cols else b.rows
+        val n = if (transposeB) b.rows else b.cols
+        require(k == kB) { "gemm: op(A) is ${m}x$k but op(B) is ${kB}x$n" }
+        require(c.rows == m && c.cols == n) { "gemm: C is ${c.rows}x${c.cols}, expected ${m}x$n" }
+        val cd = c.data
+        if (beta == 0.0) {
+            cd.fill(0.0)
+        } else if (beta != 1.0) {
+            denseScale(cd, 0, beta, cd.size)
+        }
+        if (alpha == 0.0 || m == 0 || n == 0 || k == 0) return
+        if (transposeA && transposeB) {
+            // C = alpha·Aᵀ·Bᵀ + C: materialize Aᵀ once, then reuse the (noT, T) row-dot kernel.
+            val at = DenseMatrix(m, k)
+            for (i in 0 until m) for (p in 0 until k) at[i, p] = a[p, i]
+            gemm(alpha, at, transposeA = false, b, transposeB = true, beta = 1.0, c = c)
+            return
+        }
         val ad = a.data
         val bd = b.data
-        for (i in 0 until m) {
-            val aBase = i * k
-            val cBase = i * n
-            for (p in 0 until k) {
-                val aip = ad[aBase + p]
-                if (aip != 0.0) denseAxpy(c, cBase, aip, bd, p * n, n)
+        when {
+            // C += alpha·A·B: rank-1 axpy sweeps, all runs contiguous.
+            !transposeA && !transposeB -> for (i in 0 until m) {
+                for (p in 0 until k) {
+                    val aip = alpha * ad[i * k + p]
+                    if (aip != 0.0) denseAxpy(cd, i * n, aip, bd, p * n, n)
+                }
+            }
+
+            // C += alpha·A·Bᵀ: entry (i, j) is the dot of two contiguous rows.
+            !transposeA -> for (i in 0 until m) {
+                for (j in 0 until n) {
+                    cd[i * n + j] += alpha * denseDot(ad, i * k, bd, j * k, k)
+                }
+            }
+
+            // C += alpha·Aᵀ·B: p outer keeps both the A read row and the B axpy row contiguous.
+            else -> for (p in 0 until k) {
+                for (i in 0 until m) {
+                    val api = alpha * ad[p * m + i]
+                    if (api != 0.0) denseAxpy(cd, i * n, api, bd, p * n, n)
+                }
             }
         }
-        return DenseMatrix(m, n, c)
     }
 
     override fun factor(a: DenseMatrix): LuDecomposition {
