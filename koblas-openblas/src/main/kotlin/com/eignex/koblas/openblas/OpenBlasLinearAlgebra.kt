@@ -3,6 +3,7 @@ package com.eignex.koblas.openblas
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.LinearAlgebra
 import com.eignex.koblas.LuDecomposition
+import org.bytedeco.openblas.global.openblas.CblasLeft
 import org.bytedeco.openblas.global.openblas.CblasLower
 import org.bytedeco.openblas.global.openblas.CblasNoTrans
 import org.bytedeco.openblas.global.openblas.CblasNonUnit
@@ -17,6 +18,8 @@ import org.bytedeco.openblas.global.openblas.cblas_daxpy
 import org.bytedeco.openblas.global.openblas.cblas_dgemm
 import org.bytedeco.openblas.global.openblas.cblas_dgemv
 import org.bytedeco.openblas.global.openblas.cblas_dscal
+import org.bytedeco.openblas.global.openblas.cblas_dsymm
+import org.bytedeco.openblas.global.openblas.cblas_dsymv
 import org.bytedeco.openblas.global.openblas.cblas_dsyrk
 import org.bytedeco.openblas.global.openblas.cblas_dtrsv
 import org.bytedeco.openblas.presets.openblas_nolapack.blas_set_num_threads
@@ -134,6 +137,33 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
                 cblas_daxpy(cd.size, 1.0, w, 1, cd, 1)
             }
         }
+    }
+
+    override fun symv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray) {
+        require(a.rows == a.cols) { "symv: matrix must be square, got ${a.rows}x${a.cols}" }
+        val n = a.rows
+        require(x.size == n) { "symv: x length ${x.size} != $n" }
+        require(y.size == n) { "symv: y length ${y.size} != $n" }
+        if (alpha == 0.0) {
+            scaleInPlace(y, beta)
+            return
+        }
+        if (n == 0) return
+        cblas_dsymv(CblasRowMajor, CblasLower, n, alpha, a.data, n, x, 1, beta, y, 1)
+    }
+
+    override fun symm(alpha: Double, a: DenseMatrix, b: DenseMatrix, beta: Double, c: DenseMatrix) {
+        require(a.rows == a.cols) { "symm: matrix must be square, got ${a.rows}x${a.cols}" }
+        val m = a.rows
+        val p = b.cols
+        require(b.rows == m) { "symm: B has ${b.rows} rows, expected $m" }
+        require(c.rows == m && c.cols == p) { "symm: C is ${c.rows}x${c.cols}, expected ${m}x$p" }
+        if (alpha == 0.0) {
+            scaleInPlace(c.data, beta)
+            return
+        }
+        if (m == 0 || p == 0) return
+        cblas_dsymm(CblasRowMajor, CblasLeft, CblasLower, m, p, alpha, a.data, m, b.data, p, beta, c.data, p)
     }
 
     override fun factor(a: DenseMatrix): LuDecomposition {
