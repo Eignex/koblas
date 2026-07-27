@@ -23,10 +23,10 @@ implementations.
 ## Overview
 
 Kotlin has no standard multiplatform linear algebra library. Koblas is a small
-one built around serializable containers: `DenseMatrix` (flat, row-major),
-`DenseVector` and `SparseVector` behind a shared view contract, and a CSC
-`SparseMatrix`. Arithmetic lives as free functions over the views, and the
-heavier dense operations sit behind a runtime-swappable `LinearAlgebra`
+one built around serializable containers: DenseMatrix (flat, row-major),
+DenseVector and SparseVector behind a shared view contract, and a CSC
+SparseMatrix. Arithmetic lives as free functions over the views, and the
+heavier dense operations sit behind a runtime-swappable LinearAlgebra
 interface.
 
 The operation set is the subset a revised simplex or Bayesian-filtering
@@ -80,28 +80,28 @@ against reference results on every target.
 
 | Standard routine | Koblas |
 |------------------|--------|
-| ddot, daxpy, dscal | `dot`, `axpy`, `scale` (sparse-aware) |
-| dnrm2, dasum, idamax | `norm2`, `asum`, `iamax` |
-| dcopy, dswap | `copy`, `swap` |
-| dgemv (full alpha/beta form) | `LinearAlgebra.gemv` |
-| dger (rank-one update) | `addOuter` |
-| dtrsv, dtrsm (triangular solves) | `trsv`, `trsm` |
-| dgemm (full form, transpose flags) | `LinearAlgebra.gemm` |
-| dsyrk (symmetric rank-k update) | `LinearAlgebra.syrk` |
-| dgetrf, dgetrs (LU) | `factor`, `solve`, plus `determinant` |
-| dpotrf, dpotrs, dpotri (Cholesky) | `cholesky`, `solveSpd`, `invertSpd` |
-| Cholesky rank-one update/downdate | `choleskyUpdateInPlace`, `choleskyDowndateInPlace` |
+| ddot, daxpy, dscal | dot, axpy, scale (sparse-aware) |
+| dnrm2, dasum, idamax | norm2, asum, iamax |
+| dcopy, dswap | copy, swap |
+| dgemv (full alpha/beta form) | LinearAlgebra.gemv |
+| dger (rank-one update) | addOuter |
+| dtrsv, dtrsm (triangular solves) | trsv, trsm |
+| dgemm (full form, transpose flags) | LinearAlgebra.gemm |
+| dsyrk (symmetric rank-k update) | LinearAlgebra.syrk |
+| dgetrf, dgetrs (LU) | factor, solve, plus determinant |
+| dpotrf, dpotrs, dpotri (Cholesky) | cholesky, solveSpd, invertSpd |
+| Cholesky rank-one update/downdate | choleskyUpdateInPlace, choleskyDowndateInPlace |
 
-Deviations from the standard are small and documented on each function: `syrk`
-has no uplo parameter and always produces the full symmetric matrix, `trsm`
-solves from the left only, LU `solve` takes a single right-hand side (use
-`trsm` for blocks), `cholesky` regularizes non-positive-definite pivots unless
-asked to be strict, and `norm2` skips the overflow rescale so components must
+Deviations from the standard are small and documented on each function: syrk
+has no uplo parameter and always produces the full symmetric matrix, trsm
+solves from the left only, LU solve takes a single right-hand side (use
+trsm for blocks), cholesky regularizes non-positive-definite pivots unless
+asked to be strict, and norm2 skips the overflow rescale so components must
 stay within roughly 1e150. Every alpha/beta form follows the BLAS convention
 that beta equal to zero overwrites the output without reading it.
 
 **Out of scope:** single precision, complex numbers, banded and packed storage
-layouts, right-side `trsm`, QR, SVD, and eigendecompositions. Level 2 routines
+layouts, right-side trsm, QR, SVD, and eigendecompositions. Level 2 routines
 with no consumer here, such as symv and trmv, are also out. Nothing is
 supported silently: when a workload needs a new routine it gets implemented,
 tested, and added to the table above.
@@ -110,26 +110,26 @@ tested, and added to the table above.
 
 ## Sparse Linear Algebra
 
-`SparseLu` factorizes a CSC matrix with Markowitz threshold pivoting (bounded
-Suhl and Suhl candidate search), keeping the factors sparse, and solves `B x = b`
-(FTRAN) and `Bᵀ x = b` (BTRAN) in `O(nnz)`. `EtaBasis` maintains the
+SparseLu factorizes a CSC matrix with Markowitz threshold pivoting (bounded
+Suhl and Suhl candidate search), keeping the factors sparse, and solves B x = b
+(FTRAN) and Bᵀ x = b (BTRAN) in O(nnz). EtaBasis maintains the
 factorization across rank-one basis changes using the product form of the
-inverse, so an update costs `O(m)` instead of a refactorization. Together they
+inverse, so an update costs O(m) instead of a refactorization. Together they
 are the kernel a sparse simplex builds on.
 
 ---
 
 ## Backends
 
-There are two performance seams. The level 1 kernels (`dot`, `axpy`, `scale`)
+There are two performance seams. The level 1 kernels (dot, axpy, scale)
 dispatch at compile time: the JVM uses the incubator Vector API when started
-with `--add-modules=jdk.incubator.vector` and scalar loops otherwise; all
-other targets are scalar. `mathBackend` reports which kernel was resolved.
+with --add-modules=jdk.incubator.vector and scalar loops otherwise; all
+other targets are scalar. mathBackend reports which kernel was resolved.
 
-The heavier operations (`gemv`, `gemm`, `syrk`, LU) sit behind the runtime
-`LinearAlgebra` interface. Today every platform uses the portable reference
+The heavier operations (gemv, gemm, syrk, LU) sit behind the runtime
+LinearAlgebra interface. Today every platform uses the portable reference
 implementation; a native BLAS or GPU backend can replace it via
-`platformLinearAlgebra()` without changing callers, and any replacement must
-match the reference on the `BlasConformanceTest` suite. Storage is flat,
-contiguous, row-major `DoubleArray`, so a native backend receives raw buffers
+platformLinearAlgebra() without changing callers, and any replacement must
+match the reference on the BlasConformanceTest suite. Storage is flat,
+contiguous, row-major DoubleArray, so a native backend receives raw buffers
 with no repacking.
