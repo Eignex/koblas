@@ -31,15 +31,23 @@ fun MatrixView.cholesky(regularizeNonPD: Boolean = true): DenseMatrix {
     val n = rows
     val L = DenseMatrix(n, n)
     val Ld = L.data
+    // Seed L's lower triangle with A's entries (bulk row copies for a dense source), then eliminate
+    // in place: each seeded A[i,j] is consumed exactly when that slot is overwritten with L[i,j].
+    // Keeps the hot loop free of per-element MatrixView dispatch.
+    if (this is DenseMatrix) {
+        for (i in 0 until n) data.copyInto(Ld, i * n, i * n, i * n + i + 1)
+    } else {
+        for (i in 0 until n) for (j in 0..i) Ld[i * n + j] = this[i, j]
+    }
     for (i in 0 until n) {
         val rowI = i * n
         for (j in 0..i) {
             val rowJ = j * n
             val sum = denseDot(Ld, rowI, Ld, rowJ, j)
             if (i == j) {
-                Ld[rowI + i] = sqrt(this[i, i] - sum)
+                Ld[rowI + i] = sqrt(Ld[rowI + i] - sum)
             } else {
-                Ld[rowI + j] = (this[i, j] - sum) / Ld[rowJ + j]
+                Ld[rowI + j] = (Ld[rowI + j] - sum) / Ld[rowJ + j]
             }
         }
         if (Ld[rowI + i] <= 0.0 || Ld[rowI + i].isNaN()) {
