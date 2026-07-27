@@ -111,11 +111,12 @@ tested, and added to the table above.
 ## Sparse Linear Algebra
 
 SparseLu factorizes a CSC matrix with Markowitz threshold pivoting (bounded
-Suhl and Suhl candidate search), keeping the factors sparse, and solves B x = b
-(FTRAN) and Bᵀ x = b (BTRAN) in O(nnz). EtaBasis maintains the
-factorization across rank-one basis changes using the product form of the
-inverse, so an update costs O(m) instead of a refactorization. Together they
-are the kernel a sparse simplex builds on.
+Suhl and Suhl candidate search), keeping the factors sparse. It solves the
+forward system (FTRAN) and the transposed system (BTRAN) in time proportional
+to the nonzeros of the factors. EtaBasis maintains the factorization across
+rank-one basis changes using the product form of the inverse, so each update
+costs a single pass over the basis dimension instead of a refactorization.
+Together they are the kernel a sparse simplex builds on.
 
 ---
 
@@ -123,7 +124,7 @@ are the kernel a sparse simplex builds on.
 
 There are two performance seams. The level 1 kernels (dot, axpy, scale)
 dispatch at compile time: the JVM uses the incubator Vector API when started
-with --add-modules=jdk.incubator.vector and scalar loops otherwise; all
+with `--add-modules=jdk.incubator.vector` and scalar loops otherwise; all
 other targets are scalar. mathBackend reports which kernel was resolved.
 
 The heavier operations (gemv, gemm, syrk, LU) sit behind the runtime
