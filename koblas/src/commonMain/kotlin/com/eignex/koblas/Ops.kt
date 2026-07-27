@@ -2,6 +2,9 @@
 
 package com.eignex.koblas
 
+import kotlin.math.abs
+import kotlin.math.sqrt
+
 // Arithmetic over [VectorView] / [MatrixView] as free functions; the view types stay read-only.
 //
 // Iteration goes through [forEachStored], which dispatches dense to all-indices
@@ -48,6 +51,67 @@ infix fun VectorView.dot(other: VectorView): Double {
         var s = 0.0
         other.forEachStored { i, v -> s += v * this[i] }
         s
+    }
+}
+
+/**
+ * Euclidean norm `||v||₂` (BLAS `dnrm2`). Sparse vectors sum over stored entries only.
+ *
+ * Computed as `sqrt(sum of squares)` without netlib's overflow-guarding rescale: components must stay
+ * within roughly `1e±150` for the squares not to overflow/underflow — ample for the intended workloads.
+ */
+fun norm2(v: VectorView): Double {
+    var s = 0.0
+    v.forEachStored { _, x -> s += x * x }
+    return sqrt(s)
+}
+
+/** Sum of absolute values `Sum |v_i|` (BLAS `dasum`). Sparse vectors sum over stored entries only. */
+fun asum(v: VectorView): Double {
+    var s = 0.0
+    v.forEachStored { _, x -> s += abs(x) }
+    return s
+}
+
+/**
+ * Index of the first entry with maximal `|v_i|` (BLAS `idamax`), or `-1` for a zero-length vector.
+ * For [DenseVector] "first" is by index; for [SparseVector] ties resolve in storage order, and an
+ * all-unstored (zero) vector returns index 0, matching the dense zero vector.
+ */
+fun iamax(v: VectorView): Int {
+    if (v.size == 0) return -1
+    var best = -1
+    var bestAbs = -1.0
+    v.forEachStored { i, x ->
+        val a = abs(x)
+        if (a > bestAbs) {
+            bestAbs = a
+            best = i
+        }
+    }
+    return if (best == -1) 0 else best // no stored entries: the zero vector's max is its first element
+}
+
+/** `dst = src` (BLAS `dcopy`). Dense sources bulk-copy; sparse sources zero-fill then scatter. */
+fun copy(src: VectorView, dst: DenseVector) {
+    require(src.size == dst.size) { "size mismatch: ${src.size} vs ${dst.size}" }
+    if (src is DenseVector) {
+        src.data.copyInto(dst.data)
+    } else {
+        dst.data.fill(0.0)
+        src.forEachStored { i, x -> dst.data[i] = x }
+    }
+}
+
+/** Exchange the contents of [a] and [b] (BLAS `dswap`). */
+fun swap(a: DenseVector, b: DenseVector) {
+    require(a.size == b.size) { "size mismatch: ${a.size} vs ${b.size}" }
+    val ad = a.data
+    val bd = b.data
+    for (i in ad.indices) {
+        val t = ad[i]
+        ad[i] = bd[i]
+        bd[i] = t
     }
 }
 

@@ -88,9 +88,7 @@ fun DenseMatrix.choleskyDowndateInPlace(x: VectorView): Double {
         s[i] = (x[i] - sum) / L[rowI + i]
     }
 
-    var norm = 0.0
-    for (v in s) norm += v * v
-    norm = sqrt(norm)
+    val norm = norm2(DenseVector.wrap(s))
     if (norm <= 0.0 || norm >= 1.0) return norm
 
     var alpha = sqrt(1.0 - norm * norm)
