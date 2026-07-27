@@ -95,6 +95,31 @@ class LuDecomposition internal constructor(
     val singular: Boolean,
 )
 
+/** `det(A)` from the factorization: `sign(P) · ∏ U[k][k]`, or exactly `0.0` when [LuDecomposition.singular].
+ *  The floating-point counterpart of [SparseLu.determinant]. */
+fun LuDecomposition.determinant(): Double {
+    if (singular) return 0.0
+    var d = permutationSign(piv)
+    for (k in 0 until n) d *= lu[k * n + k]
+    return d
+}
+
+/** Sign of the permutation [p] (`p[k]` = original index at position `k`): `(-1)^(size − cycles)`. */
+internal fun permutationSign(p: IntArray): Double {
+    val seen = BooleanArray(p.size)
+    var cycles = 0
+    for (s in p.indices) {
+        if (seen[s]) continue
+        cycles++
+        var i = s
+        while (!seen[i]) {
+            seen[i] = true
+            i = p[i]
+        }
+    }
+    return if ((p.size - cycles) % 2 == 0) 1.0 else -1.0
+}
+
 /**
  * Portable pure-Kotlin backend — correct on every target, no native dependency, and the semantic
  * reference a native backend is validated against. Textbook Doolittle LU with partial pivoting and naive
