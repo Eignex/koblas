@@ -151,6 +151,24 @@ class BlasConformanceTest {
     }
 
     @Test
+    fun `invertSpd produces an inverse with a small identity residual`() {
+        val rng = Random(20260805)
+        for (n in intArrayOf(1, 3, 10, 30)) {
+            val a = spd(n, rng)
+            val inv = invertSpd(a.cholesky(regularizeNonPD = false))
+            val prod = a.matMul(inv)
+            var maxOffIdentity = 0.0
+            for (i in 0 until n) {
+                for (j in 0 until n) {
+                    maxOffIdentity = maxOf(maxOffIdentity, abs(prod[i, j] - if (i == j) 1.0 else 0.0))
+                }
+            }
+            val bound = 100.0 * n * eps * infNorm(a) * infNorm(inv)
+            assertTrue(maxOffIdentity <= bound + 1e-12, "invertSpd n=$n: $maxOffIdentity > $bound")
+        }
+    }
+
+    @Test
     fun `gemm reproduces the identity and is associative within tolerance`() {
         val rng = Random(3)
         for (n in intArrayOf(1, 4, 16)) {
