@@ -38,8 +38,8 @@ private const val LEFT = 141
 /**
  * [LinearAlgebra] backed by the system-installed OpenBLAS through its C interfaces (CBLAS and
  * LAPACKE), for the Linux and macOS native targets. Unlike koblas-openblas on the JVM, nothing is
- * bundled: the library links `libopenblas` from the host — `libopenblas-dev` on Debian/Ubuntu,
- * `brew install openblas` on macOS.
+ * bundled: the library links `libopenblas` (and, on Linux, `liblapacke`) from the host —
+ * `libopenblas-dev` and `liblapacke-dev` on Debian/Ubuntu, `brew install openblas` on macOS.
  *
  * Koblas storage is row-major, which CBLAS and LAPACKE support directly, so buffers cross the FFI
  * boundary without repacking. Semantics match [com.eignex.koblas.ReferenceLinearAlgebra] exactly as

@@ -6,7 +6,10 @@
 # build.
 package = com.eignex.koblas.cblas.capi
 
-linkerOpts.linux = -lopenblas
+# Debian/Ubuntu ship OpenBLAS without the LAPACKE C interface; it comes from the separate
+# liblapacke package and dispatches to the active LAPACK alternative. Homebrew's OpenBLAS
+# bundles LAPACKE, so macOS links libopenblas alone.
+linkerOpts.linux = -L/usr/lib/x86_64-linux-gnu -L/usr/lib/aarch64-linux-gnu -L/usr/lib64 -llapacke -lopenblas
 linkerOpts.osx = -L/opt/homebrew/opt/openblas/lib -L/usr/local/opt/openblas/lib -lopenblas
 
 ---

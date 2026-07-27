@@ -166,8 +166,9 @@ koblas.backend to reference forces the portable implementation.
 
 On the Linux and macOS native targets the optional koblas-cblas artifact
 provides the same operations through the system-installed OpenBLAS. It needs
-the library at link time (libopenblas-dev on Debian/Ubuntu, brew install
-openblas on macOS) and is activated once at startup:
+the libraries at link time (libopenblas-dev and liblapacke-dev on
+Debian/Ubuntu, brew install openblas on macOS) and is activated once at
+startup:
 
 ```kotlin
 implementation("com.eignex:koblas-cblas:<version>")
