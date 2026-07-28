@@ -165,3 +165,10 @@ implementation("com.eignex:koblas-cblas:<version>")
 
 It also keeps OpenBLAS single-threaded by default; set OPENBLAS_NUM_THREADS
 to opt into its threading.
+
+To check what a runtime actually resolved, print the two seams:
+
+```kotlin
+println(koblas.name) // "openblas", "cblas", or "reference"
+println(mathBackend) // level 1 kernels: "simd(8 lanes)" or "scalar"
+```
