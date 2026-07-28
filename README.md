@@ -99,17 +99,15 @@ against reference results on every target.
 | dsytrf, dsytrs (symmetric indefinite LDLᵀ) | LinearAlgebra.ldl, solve |
 | Cholesky update/downdate | choleskyUpdateInPlace, choleskyDowndateInPlace |
 
-Deviations from the standard are small and documented on each function:
-
-- syrk defaults to writing the full, exactly symmetric matrix; the standard
-  one-triangle dsyrk behavior is available through its uplo argument.
-- ldl reads the lower triangle only (there is no upper variant).
-- Least squares requires full rank. solveLeastSquares covers systems with at
-  least as many rows as columns, and solveMinimumNorm returns the
-  minimum-norm solution of a wide system from the QR of its transpose; rank
-  deficiency is not detected and surfaces as infinities or NaNs.
-- cholesky regularizes non-positive-definite pivots unless asked to be
-  strict.
+The one remaining deviation, documented on the function: ldl reads the lower
+triangle only (there is no upper variant). A few extensions carry defaults on
+top of the standard behavior: syrk writes the full, exactly symmetric matrix
+unless its uplo argument selects a single triangle, and cholesky regularizes
+non-positive-definite pivots unless asked to be strict. The least-squares
+solvers assume full rank as dgels does: solveLeastSquares covers systems with
+at least as many rows as columns, and solveMinimumNorm gives the minimum-norm
+solution of a wide system from the QR of its transpose, with rank deficiency
+surfacing as infinities or NaNs rather than being detected.
 
 Every alpha/beta form follows the BLAS convention that beta equal to zero
 overwrites the output without reading it. Factorizations use the LAPACK
