@@ -126,23 +126,19 @@ refactorization. Together they are the kernel a sparse simplex builds on.
 There are two performance seams, split by how much work a call does.
 
 The level 1 kernels (dot, axpy, scale) do nanoseconds of work per call, so
-runtime dispatch or an FFI crossing would cost more than the kernel itself.
-They are specialized at compile time and reported by mathBackend: the JVM
-uses the incubator Vector API when started with
+dispatch would cost more than the kernel. They are specialized at compile
+time: the JVM uses the incubator Vector API when started with
 `--add-modules=jdk.incubator.vector`; everything else is scalar. Every inner
-loop runs on this seam, including the sparse kernels and the reference
-backend itself.
+loop runs on this seam, including the sparse kernels.
 
-The level 2 and 3 multiplies and the factorization families do enough work
-per call that dispatch cost is noise, so they sit behind the runtime
-LinearAlgebra interface, reported by koblas.name. On the JVM a backend on
-the classpath activates itself through the service loader; on other targets
-backend artifacts register themselves at program start. When several
-backends are available the highest priority wins: OpenBLAS's bundled
-natives, then the dlopen cblas backend, then the reference.
-installLinearAlgebra overrides the selection. Storage is flat, row-major
-DoubleArray, so a native backend receives raw buffers with no repacking, and
-every backend must match the reference on the conformance suite.
+The level 2 and 3 multiplies and the factorizations amortize dispatch, so
+they sit behind the runtime LinearAlgebra interface. Backends activate
+themselves: through the classpath on the JVM, by registration at program
+start elsewhere. The highest priority wins (OpenBLAS's bundled natives, the
+dlopen cblas backend, then the reference); installLinearAlgebra overrides.
+Storage is flat, row-major DoubleArray, so a native backend receives raw
+buffers with no repacking, and every backend must match the reference on the
+conformance suite.
 
 The optional koblas-openblas artifact provides a JVM backend built on OpenBLAS
 through the Bytedeco presets, with natives bundled for all major platforms:
