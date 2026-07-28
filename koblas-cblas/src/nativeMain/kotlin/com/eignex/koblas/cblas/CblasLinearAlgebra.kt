@@ -56,6 +56,9 @@ class CblasLinearAlgebra : LinearAlgebra {
 
     override val name: String get() = "cblas"
 
+    /** Above the reference (0), below koblas-openblas's bundled natives (100). */
+    override val priority: Int get() = 90
+
     override fun gemv(
         alpha: Double,
         a: DenseMatrix,

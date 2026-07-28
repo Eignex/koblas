@@ -2,15 +2,15 @@ package com.eignex.koblas.cblas
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.LinearAlgebra
-import com.eignex.koblas.installLinearAlgebra
+import com.eignex.koblas.registerLinearAlgebra
 
 /**
- * Installs [CblasLinearAlgebra] as the active backend at program start when the host provides
+ * Registers [CblasLinearAlgebra] for automatic selection at program start when the host provides
  * OpenBLAS — depending on the koblas-cblas artifact activates it, mirroring the JVM's classpath
- * discovery. On hosts without the libraries nothing is installed and [com.eignex.koblas.koblas]
- * stays on the portable reference. Call [installLinearAlgebra] to override either way; if the
- * linker drops this unreferenced property, `installLinearAlgebra(CblasLinearAlgebra())` remains
- * the explicit activation path.
+ * discovery, while priority ranking keeps any stronger registered backend in front. On hosts
+ * without the libraries nothing is registered and [com.eignex.koblas.koblas] stays on the portable
+ * reference. `installLinearAlgebra` overrides either way; if the linker drops this unreferenced
+ * property, `installLinearAlgebra(CblasLinearAlgebra())` remains the explicit activation path.
  */
 @Suppress("unused")
 @OptIn(ExperimentalStdlibApi::class)
@@ -21,7 +21,7 @@ private fun autoInstall() {
     if (!CblasLinearAlgebra.isAvailable()) return
     val backend = CblasLinearAlgebra()
     // The same guard the JVM discovery applies: a tiny computation must come back correct.
-    if (probe(backend)) installLinearAlgebra(backend)
+    if (probe(backend)) registerLinearAlgebra(backend)
 }
 
 @Suppress("TooGenericExceptionCaught", "SwallowedException") // a broken installation must not crash startup
