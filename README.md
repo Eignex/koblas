@@ -99,25 +99,20 @@ against reference results on every target.
 | dsytrf, dsytrs (symmetric indefinite LDLᵀ) | LinearAlgebra.ldl, solve |
 | Cholesky update/downdate | choleskyUpdateInPlace, choleskyDowndateInPlace |
 
-The one remaining deviation, documented on the function: ldl reads the lower
-triangle only (there is no upper variant). A few extensions carry defaults on
-top of the standard behavior: syrk writes the full, exactly symmetric matrix
-unless its uplo argument selects a single triangle, and cholesky regularizes
-non-positive-definite pivots unless asked to be strict. The least-squares
-solvers assume full rank as dgels does: solveLeastSquares covers systems with
-at least as many rows as columns, and solveMinimumNorm gives the minimum-norm
-solution of a wide system from the QR of its transpose, with rank deficiency
-surfacing as infinities or NaNs rather than being detected.
-
-Every alpha/beta form follows the BLAS convention that beta equal to zero
-overwrites the output without reading it. Factorizations use the LAPACK
-packed formats, so a decomposition from one backend solves correctly on any
-other.
+Semantics follow the standard: uplo, side, and transpose flags, single and
+block right-hand sides, the beta equal to zero overwrite convention, and the
+full-rank assumption in the least-squares solvers (dgels split into
+solveLeastSquares for tall systems and solveMinimumNorm for wide ones).
+Differences are documented on each function; the notable ones are that ldl is
+lower-triangle only, syrk writes the full symmetric matrix unless uplo picks
+a triangle, and cholesky regularizes non-positive-definite pivots unless
+asked to be strict. Factorizations use the LAPACK packed formats, so a
+decomposition from one backend solves correctly on any other.
 
 **Out of scope:** single precision, complex numbers, banded and packed storage
-layouts, right-side trsm and trmm, SVD, and eigendecompositions. Nothing is
-supported silently: new routines are implemented, tested, and added to the
-table when a workload needs them.
+layouts, SVD, and eigendecompositions. Nothing is supported silently: new
+routines are implemented, tested, and added to the table when a workload
+needs them.
 
 ---
 
