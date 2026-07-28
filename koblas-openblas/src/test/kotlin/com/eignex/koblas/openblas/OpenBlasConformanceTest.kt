@@ -295,6 +295,14 @@ class OpenBlasConformanceTest {
                 tol = 1e-11,
                 context = "applyQ on reference factors ${m}x$n",
             )
+            // The same tall factorization drives the minimum-norm solve of the wide transpose.
+            val bWide = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
+            assertClose(
+                reference.solveMinimumNorm(fRef, bWide),
+                openblas.solveMinimumNorm(fOpen, bWide),
+                tol = 1e-10,
+                context = "solveMinimumNorm ${n}x$m",
+            )
         }
     }
 
