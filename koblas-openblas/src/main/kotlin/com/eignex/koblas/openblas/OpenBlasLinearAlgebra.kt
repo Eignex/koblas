@@ -67,6 +67,9 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
 
     override val name: String get() = "openblas"
 
+    /** The bundled-natives backend outranks every other automatic candidate. */
+    override val priority: Int get() = 100
+
     override fun gemv(
         alpha: Double,
         a: DenseMatrix,

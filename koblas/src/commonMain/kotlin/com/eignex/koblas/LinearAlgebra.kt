@@ -22,6 +22,14 @@ interface LinearAlgebra {
     val name: String
 
     /**
+     * Relative preference among simultaneously available backends: automatic selection — JVM
+     * classpath discovery and native [registerLinearAlgebra] — picks the highest. The portable
+     * reference is 0; native-accelerated backends rank above it (koblas-openblas 100, koblas-cblas
+     * 90).
+     */
+    val priority: Int get() = 0
+
+    /**
      * In-place matrix-vector accumulate `y = alpha · op(A) · x + beta · y` (full BLAS `dgemv`),
      * where `op(A)` is `Aᵀ` when [transpose]. Per BLAS convention, `beta == 0.0` overwrites [y]
      * without reading it (it may be uninitialized), and `alpha == 0.0` reduces to the `beta` scale.
@@ -975,19 +983,38 @@ private val platformDefault: LinearAlgebra by lazy { platformLinearAlgebra() ?: 
 @Volatile
 private var installed: LinearAlgebra? = null
 
+@Volatile
+private var registered: LinearAlgebra? = null
+
 /** The active linear-algebra backend: an [installLinearAlgebra] override when set, else the
- *  [platformLinearAlgebra] backend when present, else the portable [ReferenceLinearAlgebra]. */
-val koblas: LinearAlgebra get() = installed ?: platformDefault
+ *  best [registerLinearAlgebra] candidate, else the [platformLinearAlgebra] backend when present,
+ *  else the portable [ReferenceLinearAlgebra]. */
+val koblas: LinearAlgebra get() = installed ?: registered ?: platformDefault
 
 /**
- * Overrides the backend [koblas] resolves to. Platforms without runtime discovery (everything except
- * the JVM) activate an optional backend artifact — such as koblas-cblas on Linux/macOS native — by
- * calling this once at startup, before any linear algebra runs. Passing null restores platform
- * resolution. The switch is visible to subsequent [koblas] reads but is not synchronized with
- * operations already in flight.
+ * Overrides the backend [koblas] resolves to, taking precedence over every automatic mechanism —
+ * registration and platform discovery alike. Passing null restores automatic selection. The switch
+ * is visible to subsequent [koblas] reads but is not synchronized with operations in flight.
  */
 fun installLinearAlgebra(backend: LinearAlgebra?) {
     installed = backend
+}
+
+/**
+ * Offers [backend] for automatic selection: it becomes active only while no [installLinearAlgebra]
+ * override is set and no previously registered backend has a higher [LinearAlgebra.priority]. This
+ * is how backend artifacts activate themselves on platforms without classpath discovery — the
+ * koblas-cblas startup registration goes through here — and it keeps the strongest of several
+ * candidates: openblas over cblas over the reference.
+ */
+fun registerLinearAlgebra(backend: LinearAlgebra) {
+    val current = registered
+    if (current == null || backend.priority > current.priority) registered = backend
+}
+
+/** Test hook: clears [registerLinearAlgebra] state so selection tests are order-independent. */
+internal fun resetRegisteredLinearAlgebra() {
+    registered = null
 }
 
 /** LU-factorize this square matrix with the active backend ([koblas]). */

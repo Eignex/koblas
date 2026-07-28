@@ -8,6 +8,9 @@ import java.util.ServiceLoader
  * with a tiny computation before being accepted, so a provider whose native library fails to load on the
  * current platform is skipped rather than crashing startup.
  *
+ * When several providers are on the classpath the highest [LinearAlgebra.priority] that passes the
+ * probe wins.
+ *
  * The `koblas.backend` system property overrides discovery: `reference` forces the portable
  * [ReferenceLinearAlgebra]; any other value selects the provider whose [LinearAlgebra.name] matches,
  * falling back to the reference when none does. The property is read once, when [koblas] initializes.
@@ -15,7 +18,7 @@ import java.util.ServiceLoader
 actual fun platformLinearAlgebra(): LinearAlgebra? {
     val requested = System.getProperty("koblas.backend")
     if (requested == "reference") return null
-    for (provider in loadProviders()) {
+    for (provider in loadProviders().sortedByDescending { it.priority }) {
         if (requested != null && provider.name != requested) continue
         if (probe(provider)) return provider
     }

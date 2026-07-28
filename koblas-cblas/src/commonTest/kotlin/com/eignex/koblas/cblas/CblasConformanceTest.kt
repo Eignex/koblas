@@ -33,15 +33,15 @@ class CblasConformanceTest {
     }
 
     @Test
-    fun `the backend installs itself eagerly and install overrides either way`() {
+    fun `the backend registers itself eagerly and install overrides it`() {
         assertTrue(CblasLinearAlgebra.isAvailable(), "host OpenBLAS expected in the test environment")
         // Eager initialization ran before main: depending on the artifact alone activated it.
         assertEquals("cblas", koblas.name)
         try {
-            installLinearAlgebra(null)
+            installLinearAlgebra(ReferenceLinearAlgebra)
             assertEquals("reference", koblas.name)
         } finally {
-            installLinearAlgebra(CblasLinearAlgebra())
+            installLinearAlgebra(null) // restores automatic selection, i.e. the registered backend
         }
         assertEquals("cblas", koblas.name)
     }

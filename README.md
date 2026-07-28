@@ -131,8 +131,11 @@ mathBackend reports which kernel was resolved.
 The heavier operations, the level 2 and 3 multiplies and the factorization
 families with their solves, sit behind the runtime LinearAlgebra interface.
 On the JVM a backend on the classpath activates itself through the service
-loader; other targets default to the portable reference implementation and
-activate a backend with installLinearAlgebra. Storage is flat, row-major
+loader; on other targets backend artifacts register themselves at program
+start. When several backends are available the highest priority wins:
+OpenBLAS's bundled natives, then the dlopen cblas backend, then the
+reference (SIMD-assisted where the JVM Vector API is enabled).
+installLinearAlgebra overrides the selection. Storage is flat, row-major
 DoubleArray, so a native backend receives raw buffers with no repacking, and
 every backend must match the reference on the conformance suite.
 
