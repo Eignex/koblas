@@ -149,7 +149,8 @@ class CblasLinearAlgebra : LinearAlgebra {
         }
     }
 
-    override fun symv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray) {
+    @Suppress("LongParameterList") // the BLAS dsymv signature
+    override fun symv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) {
         require(a.rows == a.cols) { "symv: matrix must be square, got ${a.rows}x${a.cols}" }
         val n = a.rows
         require(x.size == n) { "symv: x length ${x.size} != $n" }
@@ -159,10 +160,12 @@ class CblasLinearAlgebra : LinearAlgebra {
             return
         }
         if (n == 0) return
-        cblas_dsymv(ROW_MAJOR, LOWER, n, alpha, a.data.refTo(0), n, x.refTo(0), 1, beta, y.refTo(0), 1)
+        val uplo = if (lower) LOWER else UPPER
+        cblas_dsymv(ROW_MAJOR, uplo, n, alpha, a.data.refTo(0), n, x.refTo(0), 1, beta, y.refTo(0), 1)
     }
 
-    override fun symm(alpha: Double, a: DenseMatrix, b: DenseMatrix, beta: Double, c: DenseMatrix) {
+    @Suppress("LongParameterList") // the BLAS dsymm signature
+    override fun symm(alpha: Double, a: DenseMatrix, b: DenseMatrix, beta: Double, c: DenseMatrix, lower: Boolean) {
         require(a.rows == a.cols) { "symm: matrix must be square, got ${a.rows}x${a.cols}" }
         val m = a.rows
         val p = b.cols
@@ -173,8 +176,9 @@ class CblasLinearAlgebra : LinearAlgebra {
             return
         }
         if (m == 0 || p == 0) return
+        val uplo = if (lower) LOWER else UPPER
         cblas_dsymm(
-            ROW_MAJOR, LEFT, LOWER, m, p, alpha,
+            ROW_MAJOR, LEFT, uplo, m, p, alpha,
             a.data.refTo(0), m, b.data.refTo(0), p, beta, c.data.refTo(0), p,
         )
     }

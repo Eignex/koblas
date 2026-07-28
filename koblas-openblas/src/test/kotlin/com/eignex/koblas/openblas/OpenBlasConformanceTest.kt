@@ -111,30 +111,32 @@ class OpenBlasConformanceTest {
     }
 
     @Test
-    fun `symv and symm match reference with poisoned upper triangle`() {
+    fun `symv and symm match reference with the unselected triangle poisoned`() {
         val rng = Random(20260912)
-        for (n in intArrayOf(1, 6, 13)) {
-            val a = DenseMatrix(n, n)
-            for (i in 0 until n) {
-                for (j in 0..i) {
-                    a[i, j] = rng.nextDouble(-1.0, 1.0)
-                    if (j != i) a[j, i] = Double.NaN
+        for (lower in booleanArrayOf(true, false)) {
+            for (n in intArrayOf(1, 6, 13)) {
+                val a = DenseMatrix(n, n)
+                for (i in 0 until n) {
+                    for (j in 0..i) {
+                        a[if (lower) i else j, if (lower) j else i] = rng.nextDouble(-1.0, 1.0)
+                        if (j != i) a[if (lower) j else i, if (lower) i else j] = Double.NaN
+                    }
                 }
+                val x = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
+                val yRef = DoubleArray(n) { Double.NaN }
+                val yOpen = DoubleArray(n) { Double.NaN }
+                reference.symv(0.75, a, x, 0.0, yRef, lower)
+                openblas.symv(0.75, a, x, 0.0, yOpen, lower)
+                assertClose(yRef, yOpen, context = "symv n=$n lower=$lower")
+                val p = 3
+                val b = DenseMatrix(n, p)
+                for (i in 0 until n) for (j in 0 until p) b[i, j] = rng.nextDouble(-1.0, 1.0)
+                val cRef = DenseMatrix(n, p)
+                val cOpen = DenseMatrix(n, p)
+                reference.symm(0.75, a, b, 0.0, cRef, lower)
+                openblas.symm(0.75, a, b, 0.0, cOpen, lower)
+                assertClose(cRef.data, cOpen.data, context = "symm n=$n lower=$lower")
             }
-            val x = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
-            val yRef = DoubleArray(n) { Double.NaN }
-            val yOpen = DoubleArray(n) { Double.NaN }
-            reference.symv(0.75, a, x, 0.0, yRef)
-            openblas.symv(0.75, a, x, 0.0, yOpen)
-            assertClose(yRef, yOpen, context = "symv n=$n")
-            val p = 3
-            val b = DenseMatrix(n, p)
-            for (i in 0 until n) for (j in 0 until p) b[i, j] = rng.nextDouble(-1.0, 1.0)
-            val cRef = DenseMatrix(n, p)
-            val cOpen = DenseMatrix(n, p)
-            reference.symm(0.75, a, b, 0.0, cRef)
-            openblas.symm(0.75, a, b, 0.0, cOpen)
-            assertClose(cRef.data, cOpen.data, context = "symm n=$n")
         }
     }
 

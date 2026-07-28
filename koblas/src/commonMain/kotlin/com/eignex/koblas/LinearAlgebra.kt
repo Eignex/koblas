@@ -72,21 +72,23 @@ interface LinearAlgebra {
 
     /**
      * In-place symmetric matrix-vector accumulate `y = alpha · A · x + beta · y` for a symmetric [a]
-     * (BLAS `dsymv`). Deviation from BLAS: there is no `uplo` parameter — only the lower triangle of
-     * [a] (diagonal included) is read, and the strictly upper triangle may hold anything. Exploits
-     * symmetry for roughly half the memory traffic of [gemv]. Per BLAS convention, `beta == 0.0`
-     * overwrites [y] without reading it, and `alpha == 0.0` reduces to the `beta` scale.
+     * (BLAS `dsymv`). Only the triangle selected by [lower] (diagonal included) is read; the opposite
+     * strict triangle may hold anything. Exploits symmetry for roughly half the memory traffic of
+     * [gemv]. Per BLAS convention, `beta == 0.0` overwrites [y] without reading it, and `alpha == 0.0`
+     * reduces to the `beta` scale.
      */
-    fun symv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray)
+    @Suppress("LongParameterList") // the BLAS dsymv signature
+    fun symv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean = true)
 
     /**
      * In-place symmetric matrix-matrix accumulate `C = alpha · A · B + beta · C` where the symmetric
      * [a] multiplies from the left (BLAS `dsymm` with `side = L`; the right side is out of the
-     * supported subset). As with [symv] there is no `uplo`: only the lower triangle of [a] is read.
-     * Shapes: `A: m×m`, `B: m×n`, `C: m×n`. Per BLAS convention, `beta == 0.0` overwrites [c] without
-     * reading it, and `alpha == 0.0` reduces to the `beta` scale.
+     * supported subset). As with [symv], only the triangle selected by [lower] is read. Shapes:
+     * `A: m×m`, `B: m×n`, `C: m×n`. Per BLAS convention, `beta == 0.0` overwrites [c] without reading
+     * it, and `alpha == 0.0` reduces to the `beta` scale.
      */
-    fun symm(alpha: Double, a: DenseMatrix, b: DenseMatrix, beta: Double, c: DenseMatrix)
+    @Suppress("LongParameterList") // the BLAS dsymm signature
+    fun symm(alpha: Double, a: DenseMatrix, b: DenseMatrix, beta: Double, c: DenseMatrix, lower: Boolean = true)
 
     /** LU factorization with partial pivoting of a square [a] (LAPACK `dgetrf`); [a] is not modified. */
     fun factor(a: DenseMatrix): LuDecomposition
@@ -380,7 +382,8 @@ object ReferenceLinearAlgebra : LinearAlgebra {
         }
     }
 
-    override fun symv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray) {
+    @Suppress("LongParameterList") // the BLAS dsymv signature
+    override fun symv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) {
         require(a.rows == a.cols) { "symv: matrix must be square, got ${a.rows}x${a.cols}" }
         val n = a.rows
         require(x.size == n) { "symv: x length ${x.size} != $n" }
@@ -392,17 +395,23 @@ object ReferenceLinearAlgebra : LinearAlgebra {
         }
         if (alpha == 0.0) return
         val ad = a.data
-        // Row i of the stored lower triangle serves both A[i, j<i] (a contiguous dot) and its mirror
-        // A[j<i, i] (a contiguous axpy), so symmetry never forces a strided column walk.
+        // Row i of the stored triangle serves both A[i, j] (a contiguous dot) and its mirror A[j, i]
+        // (a contiguous axpy), so symmetry never forces a strided column walk.
         for (i in 0 until n) {
             val base = i * n
             val xi = alpha * x[i]
-            y[i] += alpha * denseDot(ad, base, x, 0, i) + xi * ad[base + i]
-            if (xi != 0.0) denseAxpy(y, 0, xi, ad, base, i)
+            if (lower) {
+                y[i] += alpha * denseDot(ad, base, x, 0, i) + xi * ad[base + i]
+                if (xi != 0.0) denseAxpy(y, 0, xi, ad, base, i)
+            } else {
+                y[i] += alpha * denseDot(ad, base + i + 1, x, i + 1, n - i - 1) + xi * ad[base + i]
+                if (xi != 0.0) denseAxpy(y, i + 1, xi, ad, base + i + 1, n - i - 1)
+            }
         }
     }
 
-    override fun symm(alpha: Double, a: DenseMatrix, b: DenseMatrix, beta: Double, c: DenseMatrix) {
+    @Suppress("LongParameterList") // the BLAS dsymm signature
+    override fun symm(alpha: Double, a: DenseMatrix, b: DenseMatrix, beta: Double, c: DenseMatrix, lower: Boolean) {
         require(a.rows == a.cols) { "symm: matrix must be square, got ${a.rows}x${a.cols}" }
         val m = a.rows
         val p = b.cols
@@ -419,7 +428,8 @@ object ReferenceLinearAlgebra : LinearAlgebra {
         val bd = b.data
         for (i in 0 until m) {
             val base = i * m
-            for (j in 0..i) {
+            val js = if (lower) 0..i else i until m
+            for (j in js) {
                 val aij = alpha * ad[base + j]
                 if (aij != 0.0) {
                     denseAxpy(cd, i * p, aij, bd, j * p, p)
