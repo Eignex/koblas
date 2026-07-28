@@ -95,22 +95,21 @@ against reference results on every target.
 | dgetrf, dgetrs (LU) | factor, solve, plus determinant |
 | dgecon, dlange (condition estimate) | LinearAlgebra.rcond, norm1 |
 | dpotrf, dpotrs, dpotri (Cholesky) | cholesky, solveSpd, invertSpd |
-| dgeqrf, dormqr, dgels (QR) | LinearAlgebra.qr, applyQ, solveLeastSquares |
+| dgeqrf, dormqr, dgels (QR) | qr, applyQ, solveLeastSquares, solveMinimumNorm |
 | dsytrf, dsytrs (symmetric indefinite LDLᵀ) | LinearAlgebra.ldl, solve |
 | Cholesky update/downdate | choleskyUpdateInPlace, choleskyDowndateInPlace |
 
 Deviations from the standard are small and documented on each function:
 
-- syrk, symv, symm, and ldl have no uplo parameter: syrk writes the full
-  symmetric matrix, the others read the lower triangle only.
-- trsm, trmm, and symm operate from the left only.
-- Solves take a single right-hand side; use trsm for blocks.
-- Least squares requires at least as many rows as columns and full column
-  rank.
+- syrk defaults to writing the full, exactly symmetric matrix; the standard
+  one-triangle dsyrk behavior is available through its uplo argument.
+- ldl reads the lower triangle only (there is no upper variant).
+- Least squares requires full rank. solveLeastSquares covers systems with at
+  least as many rows as columns, and solveMinimumNorm returns the
+  minimum-norm solution of a wide system from the QR of its transpose; rank
+  deficiency is not detected and surfaces as infinities or NaNs.
 - cholesky regularizes non-positive-definite pivots unless asked to be
   strict.
-- norm2 skips the overflow rescale, so components must stay within roughly
-  1e150.
 
 Every alpha/beta form follows the BLAS convention that beta equal to zero
 overwrites the output without reading it. Factorizations use the LAPACK
