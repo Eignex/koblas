@@ -29,6 +29,7 @@ import org.bytedeco.openblas.global.openblas.cblas_dscal
 import org.bytedeco.openblas.global.openblas.cblas_dsymm
 import org.bytedeco.openblas.global.openblas.cblas_dsymv
 import org.bytedeco.openblas.global.openblas.cblas_dsyrk
+import org.bytedeco.openblas.global.openblas.cblas_dtrsm
 import org.bytedeco.openblas.global.openblas.cblas_dtrsv
 import org.bytedeco.openblas.presets.openblas_nolapack.blas_set_num_threads
 
@@ -239,6 +240,41 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
             cblas_dtrsv(CblasRowMajor, CblasUpper, CblasNoTrans, CblasNonUnit, n, f, n, x, 1)
             x
         }
+    }
+
+    override fun solve(lu: LuDecomposition, b: DenseMatrix, transpose: Boolean): DenseMatrix {
+        val n = lu.n
+        val nrhs = b.cols
+        require(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
+        if (n == 0 || nrhs == 0) return DenseMatrix.wrap(n, nrhs, DoubleArray(n * nrhs))
+        val f = lu.lu
+        // Same permute + two block triangular solves as the vector path; dtrsm is row-major native,
+        // so no LAPACKE transposition tax scales with nrhs.
+        return if (transpose) {
+            val y = b.data.copyOf()
+            cblas_dtrsm(CblasRowMajor, CblasLeft, CblasUpper, CblasTrans, CblasNonUnit, n, nrhs, 1.0, f, n, y, nrhs)
+            cblas_dtrsm(CblasRowMajor, CblasLeft, CblasLower, CblasTrans, CblasUnit, n, nrhs, 1.0, f, n, y, nrhs)
+            val x = DoubleArray(n * nrhs)
+            for (i in 0 until n) y.copyInto(x, lu.piv[i] * nrhs, i * nrhs, (i + 1) * nrhs)
+            DenseMatrix.wrap(n, nrhs, x)
+        } else {
+            val x = DoubleArray(n * nrhs)
+            for (i in 0 until n) b.data.copyInto(x, i * nrhs, lu.piv[i] * nrhs, (lu.piv[i] + 1) * nrhs)
+            cblas_dtrsm(CblasRowMajor, CblasLeft, CblasLower, CblasNoTrans, CblasUnit, n, nrhs, 1.0, f, n, x, nrhs)
+            cblas_dtrsm(CblasRowMajor, CblasLeft, CblasUpper, CblasNoTrans, CblasNonUnit, n, nrhs, 1.0, f, n, x, nrhs)
+            DenseMatrix.wrap(n, nrhs, x)
+        }
+    }
+
+    override fun solve(ldl: LdlDecomposition, b: DenseMatrix): DenseMatrix {
+        val n = ldl.n
+        val nrhs = b.cols
+        require(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
+        val x = b.data.copyOf()
+        if (n == 0 || nrhs == 0) return DenseMatrix.wrap(n, nrhs, x)
+        val info = LAPACKE_dsytrs(LAPACK_ROW_MAJOR, 'L'.code.toByte(), n, nrhs, ldl.ldl, n, ldl.ipiv, x, nrhs)
+        check(info == 0) { "dsytrs: illegal argument ${-info}" }
+        return DenseMatrix.wrap(n, nrhs, x)
     }
 
     override fun ldl(a: DenseMatrix): LdlDecomposition {
