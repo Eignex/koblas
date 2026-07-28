@@ -150,17 +150,14 @@ koblas.openblas.threads system property opts into its threading. Setting
 koblas.backend to reference forces the portable implementation.
 
 On the Linux and macOS native targets the optional koblas-cblas artifact
-provides the same operations through the system-installed OpenBLAS. It needs
-the libraries at link time (libopenblas-dev and liblapacke-dev on
-Debian/Ubuntu, brew install openblas on macOS) and is activated once at
-startup:
+provides the same operations through the host's OpenBLAS, located with dlopen
+at program start (libopenblas and liblapacke on Debian/Ubuntu, brew install
+openblas on macOS). Depending on the artifact activates it; a host without
+the libraries runs on the reference implementation instead, so shipped
+binaries work either way. installLinearAlgebra overrides the selection.
 
 ```kotlin
 implementation("com.eignex:koblas-cblas:<version>")
-```
-
-```kotlin
-installLinearAlgebra(CblasLinearAlgebra())
 ```
 
 It also keeps OpenBLAS single-threaded by default; set OPENBLAS_NUM_THREADS

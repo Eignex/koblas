@@ -46,9 +46,9 @@ jobs:
       - name: Grant execute permission for Gradle
         run: chmod +x gradlew
 
-      # koblas-cblas links the system OpenBLAS rather than bundling natives.
+      # koblas-cblas dlopens the system OpenBLAS at runtime; only the shared libraries are needed.
       - name: Install OpenBLAS
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libopenblas-dev liblapacke-dev
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libopenblas0 liblapacke
 
       - name: Run linter
         run: ./gradlew lintDocs

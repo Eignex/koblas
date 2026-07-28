@@ -33,14 +33,17 @@ class CblasConformanceTest {
     }
 
     @Test
-    fun `install activates the cblas backend and null restores platform resolution`() {
+    fun `the backend installs itself eagerly and install overrides either way`() {
+        assertTrue(CblasLinearAlgebra.isAvailable(), "host OpenBLAS expected in the test environment")
+        // Eager initialization ran before main: depending on the artifact alone activated it.
+        assertEquals("cblas", koblas.name)
         try {
-            installLinearAlgebra(cblas)
-            assertEquals("cblas", koblas.name)
-        } finally {
             installLinearAlgebra(null)
+            assertEquals("reference", koblas.name)
+        } finally {
+            installLinearAlgebra(CblasLinearAlgebra())
         }
-        assertEquals("reference", koblas.name)
+        assertEquals("cblas", koblas.name)
     }
 
     @Test

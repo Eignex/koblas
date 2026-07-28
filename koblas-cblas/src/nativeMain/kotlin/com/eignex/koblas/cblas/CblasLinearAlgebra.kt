@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalForeignApi::class)
+
 package com.eignex.koblas.cblas
 
 import com.eignex.koblas.DenseMatrix
@@ -6,28 +8,13 @@ import com.eignex.koblas.LinearAlgebra
 import com.eignex.koblas.LuDecomposition
 import com.eignex.koblas.QrDecomposition
 import com.eignex.koblas.Uplo
-import com.eignex.koblas.cblas.capi.LAPACKE_dgecon
-import com.eignex.koblas.cblas.capi.LAPACKE_dgeqrf
-import com.eignex.koblas.cblas.capi.LAPACKE_dgetrf
-import com.eignex.koblas.cblas.capi.LAPACKE_dormqr
-import com.eignex.koblas.cblas.capi.LAPACKE_dsytrf
-import com.eignex.koblas.cblas.capi.LAPACKE_dsytrs
-import com.eignex.koblas.cblas.capi.cblas_daxpy
-import com.eignex.koblas.cblas.capi.cblas_dgemm
-import com.eignex.koblas.cblas.capi.cblas_dgemv
-import com.eignex.koblas.cblas.capi.cblas_dscal
-import com.eignex.koblas.cblas.capi.cblas_dsymm
-import com.eignex.koblas.cblas.capi.cblas_dsymv
-import com.eignex.koblas.cblas.capi.cblas_dsyrk
-import com.eignex.koblas.cblas.capi.cblas_dtrsm
-import com.eignex.koblas.cblas.capi.cblas_dtrsv
-import com.eignex.koblas.cblas.capi.openblas_set_num_threads
 import kotlinx.cinterop.ExperimentalForeignApi
-import kotlinx.cinterop.refTo
-import platform.posix.getenv
+import kotlinx.cinterop.addressOf
+import kotlinx.cinterop.invoke
+import kotlinx.cinterop.usePinned
 
-// The CBLAS enums and LAPACKE layout macro, by their ABI integer values (the cinterop declares the
-// parameters as plain int; see cblas.def).
+// The CBLAS enums and LAPACKE layout macro, by their ABI integer values (the resolved function
+// pointers declare the parameters as plain int; see OpenBlasBindings.kt).
 private const val ROW_MAJOR = 101
 private const val NO_TRANS = 111
 private const val TRANS = 112
@@ -39,31 +26,32 @@ private const val LEFT = 141
 private const val RIGHT = 142
 
 /**
- * [LinearAlgebra] backed by the system-installed OpenBLAS through its C interfaces (CBLAS and
- * LAPACKE), for the Linux and macOS native targets. Unlike koblas-openblas on the JVM, nothing is
- * bundled: the library links `libopenblas` (and, on Linux, `liblapacke`) from the host —
- * `libopenblas-dev` and `liblapacke-dev` on Debian/Ubuntu, `brew install openblas` on macOS.
+ * [LinearAlgebra] backed by the host's OpenBLAS through its C interfaces (CBLAS and LAPACKE), for
+ * the Linux and macOS native targets. Nothing is linked: the libraries are resolved with `dlopen`
+ * at program start, so the dependency is optional at runtime — `libopenblas` plus `liblapacke` on
+ * Debian/Ubuntu, `brew install openblas` on macOS. When they are present, depending on the
+ * koblas-cblas artifact installs this backend eagerly before `main`; when they are missing the
+ * program still runs on [com.eignex.koblas.ReferenceLinearAlgebra], and constructing this class
+ * throws. [isAvailable] reports which case the host is.
  *
  * Koblas storage is row-major, which CBLAS and LAPACKE support directly, so buffers cross the FFI
  * boundary without repacking. Semantics match [com.eignex.koblas.ReferenceLinearAlgebra] exactly as
  * specified by the [LinearAlgebra] contract: `beta == 0` overwrites without reading, `alpha == 0`
- * reduces to the `beta` scale, [syrk] produces the full, exactly symmetric result, and the
- * factorizations use the shared packed formats so they interchange between backends.
+ * reduces to the `beta` scale, [syrk] produces the full, exactly symmetric result by default, and
+ * the factorizations use the shared packed formats so they interchange between backends.
  *
  * OpenBLAS runs single-threaded by default here, which is the faster configuration at koblas
  * workload sizes; set the `OPENBLAS_NUM_THREADS` environment variable to opt into its threading.
- *
- * Native targets have no runtime discovery, so activate the backend explicitly once at startup:
- * `installLinearAlgebra(CblasLinearAlgebra())`.
  */
-@OptIn(ExperimentalForeignApi::class)
 class CblasLinearAlgebra : LinearAlgebra {
-    /** Applies the threading default once, when the first instance loads the class. */
+    /** Host-availability check for the backend. */
     companion object {
-        init {
-            // An explicit environment override is honored by OpenBLAS itself.
-            if (getenv("OPENBLAS_NUM_THREADS") == null) openblas_set_num_threads(1)
-        }
+        /** Whether the host provides the OpenBLAS (and LAPACKE) symbols this backend needs. */
+        fun isAvailable(): Boolean = OpenBlasLoader.functions != null
+    }
+
+    private val f = requireNotNull(OpenBlasLoader.functions) {
+        "OpenBLAS is not available on this host; koblas falls back to the reference backend"
     }
 
     override val name: String get() = "cblas"
@@ -88,10 +76,16 @@ class CblasLinearAlgebra : LinearAlgebra {
         }
         if (yLen == 0) return
         val trans = if (transpose) TRANS else NO_TRANS
-        cblas_dgemv(
-            ROW_MAJOR, trans, a.rows, a.cols, alpha,
-            a.data.refTo(0), a.cols, x.refTo(0), 1, beta, y.refTo(0), 1,
-        )
+        a.data.usePinned { ap ->
+            x.usePinned { xp ->
+                y.usePinned { yp ->
+                    f.dgemv(
+                        ROW_MAJOR, trans, a.rows, a.cols, alpha,
+                        ap.addressOf(0), a.cols, xp.addressOf(0), 1, beta, yp.addressOf(0), 1,
+                    )
+                }
+            }
+        }
     }
 
     @Suppress("LongParameterList") // the BLAS dgemm signature
@@ -117,10 +111,16 @@ class CblasLinearAlgebra : LinearAlgebra {
         if (m == 0 || n == 0) return
         val transA = if (transposeA) TRANS else NO_TRANS
         val transB = if (transposeB) TRANS else NO_TRANS
-        cblas_dgemm(
-            ROW_MAJOR, transA, transB, m, n, k,
-            alpha, a.data.refTo(0), a.cols, b.data.refTo(0), b.cols, beta, c.data.refTo(0), c.cols,
-        )
+        a.data.usePinned { ap ->
+            b.data.usePinned { bp ->
+                c.data.usePinned { cp ->
+                    f.dgemm(
+                        ROW_MAJOR, transA, transB, m, n, k, alpha,
+                        ap.addressOf(0), a.cols, bp.addressOf(0), b.cols, beta, cp.addressOf(0), c.cols,
+                    )
+                }
+            }
+        }
     }
 
     @Suppress("LongParameterList", "ReturnCount") // the BLAS dsyrk signature; guard-clause style
@@ -137,14 +137,22 @@ class CblasLinearAlgebra : LinearAlgebra {
         if (uplo != Uplo.FULL) {
             // Strict dsyrk semantics: one triangle written and beta-scaled, the other untouched.
             val u = if (uplo == Uplo.LOWER) LOWER else UPPER
-            cblas_dsyrk(ROW_MAJOR, u, trans, n, k, alpha, a.data.refTo(0), a.cols, beta, c.data.refTo(0), n)
+            a.data.usePinned { ap ->
+                c.data.usePinned { cp ->
+                    f.dsyrk(ROW_MAJOR, u, trans, n, k, alpha, ap.addressOf(0), a.cols, beta, cp.addressOf(0), n)
+                }
+            }
             return
         }
         // dsyrk touches one triangle only, while the FULL contract promises the full, exactly
         // symmetric alpha term on top of a beta scale of all of C. Compute the alpha term into a
         // scratch lower triangle, mirror it, then combine.
         val w = DoubleArray(n * n)
-        cblas_dsyrk(ROW_MAJOR, LOWER, trans, n, k, alpha, a.data.refTo(0), a.cols, 0.0, w.refTo(0), n)
+        a.data.usePinned { ap ->
+            w.usePinned { wp ->
+                f.dsyrk(ROW_MAJOR, LOWER, trans, n, k, alpha, ap.addressOf(0), a.cols, 0.0, wp.addressOf(0), n)
+            }
+        }
         for (i in 0 until n) {
             for (j in 0 until i) w[j * n + i] = w[i * n + j]
         }
@@ -153,8 +161,10 @@ class CblasLinearAlgebra : LinearAlgebra {
             0.0 -> w.copyInto(cd)
 
             else -> {
-                if (beta != 1.0) cblas_dscal(cd.size, beta, cd.refTo(0), 1)
-                cblas_daxpy(cd.size, 1.0, w.refTo(0), 1, cd.refTo(0), 1)
+                if (beta != 1.0) cd.usePinned { cp -> f.dscal(cd.size, beta, cp.addressOf(0), 1) }
+                w.usePinned { wp ->
+                    cd.usePinned { cp -> f.daxpy(cd.size, 1.0, wp.addressOf(0), 1, cp.addressOf(0), 1) }
+                }
             }
         }
     }
@@ -171,7 +181,16 @@ class CblasLinearAlgebra : LinearAlgebra {
         }
         if (n == 0) return
         val uplo = if (lower) LOWER else UPPER
-        cblas_dsymv(ROW_MAJOR, uplo, n, alpha, a.data.refTo(0), n, x.refTo(0), 1, beta, y.refTo(0), 1)
+        a.data.usePinned { ap ->
+            x.usePinned { xp ->
+                y.usePinned { yp ->
+                    f.dsymv(
+                        ROW_MAJOR, uplo, n, alpha,
+                        ap.addressOf(0), n, xp.addressOf(0), 1, beta, yp.addressOf(0), 1,
+                    )
+                }
+            }
+        }
     }
 
     @Suppress("LongParameterList") // the BLAS dsymm signature
@@ -199,10 +218,16 @@ class CblasLinearAlgebra : LinearAlgebra {
         if (c.rows == 0 || c.cols == 0) return
         val uplo = if (lower) LOWER else UPPER
         val side = if (right) RIGHT else LEFT
-        cblas_dsymm(
-            ROW_MAJOR, side, uplo, c.rows, c.cols, alpha,
-            a.data.refTo(0), m, b.data.refTo(0), c.cols, beta, c.data.refTo(0), c.cols,
-        )
+        a.data.usePinned { ap ->
+            b.data.usePinned { bp ->
+                c.data.usePinned { cp ->
+                    f.dsymm(
+                        ROW_MAJOR, side, uplo, c.rows, c.cols, alpha,
+                        ap.addressOf(0), m, bp.addressOf(0), c.cols, beta, cp.addressOf(0), c.cols,
+                    )
+                }
+            }
+        }
     }
 
     override fun factor(a: DenseMatrix): LuDecomposition {
@@ -212,7 +237,9 @@ class CblasLinearAlgebra : LinearAlgebra {
         val piv = IntArray(n) { it }
         if (n == 0) return LuDecomposition(0, lu, piv, singular = false)
         val ipiv = IntArray(n)
-        val info = LAPACKE_dgetrf(ROW_MAJOR, n, n, lu.refTo(0), n, ipiv.refTo(0))
+        val info = lu.usePinned { lp ->
+            ipiv.usePinned { pp -> f.dgetrf(ROW_MAJOR, n, n, lp.addressOf(0), n, pp.addressOf(0)) }
+        }
         check(info >= 0) { "dgetrf: illegal argument ${-info}" }
         // dgetrf reports successive row swaps (1-based); replay them to get the permutation form
         // LuDecomposition uses (piv[k] = original row now at position k).
@@ -231,20 +258,19 @@ class CblasLinearAlgebra : LinearAlgebra {
         val n = lu.n
         require(b.size == n) { "solve: b length ${b.size} != $n" }
         if (n == 0) return DoubleArray(0)
-        val f = lu.lu
         return if (transpose) {
             // Aᵀ x = b, with Aᵀ = Uᵀ Lᵀ P: forward-solve Uᵀ, back-solve unit Lᵀ, un-permute.
             val y = b.copyOf()
-            cblas_dtrsv(ROW_MAJOR, UPPER, TRANS, NON_UNIT, n, f.refTo(0), n, y.refTo(0), 1)
-            cblas_dtrsv(ROW_MAJOR, LOWER, TRANS, UNIT, n, f.refTo(0), n, y.refTo(0), 1)
+            trsv(lu.lu, n, y, UPPER, TRANS, NON_UNIT)
+            trsv(lu.lu, n, y, LOWER, TRANS, UNIT)
             val x = DoubleArray(n)
             for (i in 0 until n) x[lu.piv[i]] = y[i]
             x
         } else {
             // A x = b, with P A = L U: permute b, forward-solve unit L, back-solve U.
             val x = DoubleArray(n) { b[lu.piv[it]] }
-            cblas_dtrsv(ROW_MAJOR, LOWER, NO_TRANS, UNIT, n, f.refTo(0), n, x.refTo(0), 1)
-            cblas_dtrsv(ROW_MAJOR, UPPER, NO_TRANS, NON_UNIT, n, f.refTo(0), n, x.refTo(0), 1)
+            trsv(lu.lu, n, x, LOWER, NO_TRANS, UNIT)
+            trsv(lu.lu, n, x, UPPER, NO_TRANS, NON_UNIT)
             x
         }
     }
@@ -254,37 +280,22 @@ class CblasLinearAlgebra : LinearAlgebra {
         val nrhs = b.cols
         require(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
         if (n == 0 || nrhs == 0) return DenseMatrix.wrap(n, nrhs, DoubleArray(n * nrhs))
-        val f = lu.lu
         // Same permute + two block triangular solves as the vector path; dtrsm is row-major native,
         // so no LAPACKE transposition tax scales with nrhs.
         return if (transpose) {
             val y = b.data.copyOf()
-            cblas_dtrsm(ROW_MAJOR, LEFT, UPPER, TRANS, NON_UNIT, n, nrhs, 1.0, f.refTo(0), n, y.refTo(0), nrhs)
-            cblas_dtrsm(ROW_MAJOR, LEFT, LOWER, TRANS, UNIT, n, nrhs, 1.0, f.refTo(0), n, y.refTo(0), nrhs)
+            trsmLeft(lu.lu, n, y, nrhs, UPPER, TRANS, NON_UNIT)
+            trsmLeft(lu.lu, n, y, nrhs, LOWER, TRANS, UNIT)
             val x = DoubleArray(n * nrhs)
             for (i in 0 until n) y.copyInto(x, lu.piv[i] * nrhs, i * nrhs, (i + 1) * nrhs)
             DenseMatrix.wrap(n, nrhs, x)
         } else {
             val x = DoubleArray(n * nrhs)
             for (i in 0 until n) b.data.copyInto(x, i * nrhs, lu.piv[i] * nrhs, (lu.piv[i] + 1) * nrhs)
-            cblas_dtrsm(ROW_MAJOR, LEFT, LOWER, NO_TRANS, UNIT, n, nrhs, 1.0, f.refTo(0), n, x.refTo(0), nrhs)
-            cblas_dtrsm(ROW_MAJOR, LEFT, UPPER, NO_TRANS, NON_UNIT, n, nrhs, 1.0, f.refTo(0), n, x.refTo(0), nrhs)
+            trsmLeft(lu.lu, n, x, nrhs, LOWER, NO_TRANS, UNIT)
+            trsmLeft(lu.lu, n, x, nrhs, UPPER, NO_TRANS, NON_UNIT)
             DenseMatrix.wrap(n, nrhs, x)
         }
-    }
-
-    override fun solve(ldl: LdlDecomposition, b: DenseMatrix): DenseMatrix {
-        val n = ldl.n
-        val nrhs = b.cols
-        require(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
-        val x = b.data.copyOf()
-        if (n == 0 || nrhs == 0) return DenseMatrix.wrap(n, nrhs, x)
-        val info = LAPACKE_dsytrs(
-            ROW_MAJOR, 'L'.code.toByte(), n, nrhs,
-            ldl.ldl.refTo(0), n, ldl.ipiv.refTo(0), x.refTo(0), nrhs,
-        )
-        check(info == 0) { "dsytrs: illegal argument ${-info}" }
-        return DenseMatrix.wrap(n, nrhs, x)
     }
 
     override fun ldl(a: DenseMatrix): LdlDecomposition {
@@ -293,7 +304,11 @@ class CblasLinearAlgebra : LinearAlgebra {
         val buf = a.data.copyOf()
         val ipiv = IntArray(n)
         if (n == 0) return LdlDecomposition(0, buf, ipiv, singular = false)
-        val info = LAPACKE_dsytrf(ROW_MAJOR, 'L'.code.toByte(), n, buf.refTo(0), n, ipiv.refTo(0))
+        val info = buf.usePinned { bp ->
+            ipiv.usePinned { pp ->
+                f.dsytrf(ROW_MAJOR, 'L'.code.toByte(), n, bp.addressOf(0), n, pp.addressOf(0))
+            }
+        }
         check(info >= 0) { "dsytrf: illegal argument ${-info}" }
         return LdlDecomposition(n, buf, ipiv, singular = info > 0)
     }
@@ -302,13 +317,16 @@ class CblasLinearAlgebra : LinearAlgebra {
         val n = ldl.n
         require(b.size == n) { "solve: b length ${b.size} != $n" }
         if (n == 0) return DoubleArray(0)
-        val x = b.copyOf()
-        val info = LAPACKE_dsytrs(
-            ROW_MAJOR, 'L'.code.toByte(), n, 1,
-            ldl.ldl.refTo(0), n, ldl.ipiv.refTo(0), x.refTo(0), 1,
-        )
-        check(info == 0) { "dsytrs: illegal argument ${-info}" }
-        return x
+        return solveSytrs(ldl, b.copyOf(), 1)
+    }
+
+    override fun solve(ldl: LdlDecomposition, b: DenseMatrix): DenseMatrix {
+        val n = ldl.n
+        val nrhs = b.cols
+        require(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
+        val x = b.data.copyOf()
+        if (n == 0 || nrhs == 0) return DenseMatrix.wrap(n, nrhs, x)
+        return DenseMatrix.wrap(n, nrhs, solveSytrs(ldl, x, nrhs))
     }
 
     override fun qr(a: DenseMatrix): QrDecomposition {
@@ -317,7 +335,9 @@ class CblasLinearAlgebra : LinearAlgebra {
         val buf = a.data.copyOf()
         val tau = DoubleArray(minOf(m, n))
         if (m > 0 && n > 0) {
-            val info = LAPACKE_dgeqrf(ROW_MAJOR, m, n, buf.refTo(0), n, tau.refTo(0))
+            val info = buf.usePinned { bp ->
+                tau.usePinned { tp -> f.dgeqrf(ROW_MAJOR, m, n, bp.addressOf(0), n, tp.addressOf(0)) }
+            }
             check(info == 0) { "dgeqrf: illegal argument ${-info}" }
         }
         return QrDecomposition(m, n, buf, tau)
@@ -329,10 +349,16 @@ class CblasLinearAlgebra : LinearAlgebra {
         if (qr.tau.isEmpty()) return c
         val side = 'L'.code.toByte()
         val trans = (if (transpose) 'T' else 'N').code.toByte()
-        val info = LAPACKE_dormqr(
-            ROW_MAJOR, side, trans, qr.m, 1, qr.tau.size,
-            qr.qr.refTo(0), qr.n, qr.tau.refTo(0), c.refTo(0), 1,
-        )
+        val info = qr.qr.usePinned { qp ->
+            qr.tau.usePinned { tp ->
+                c.usePinned { cp ->
+                    f.dormqr(
+                        ROW_MAJOR, side, trans, qr.m, 1, qr.tau.size,
+                        qp.addressOf(0), qr.n, tp.addressOf(0), cp.addressOf(0), 1,
+                    )
+                }
+            }
+        }
         check(info == 0) { "dormqr: illegal argument ${-info}" }
         return c
     }
@@ -342,16 +368,57 @@ class CblasLinearAlgebra : LinearAlgebra {
         if (n == 0) return 1.0
         if (lu.singular || anorm == 0.0) return 0.0
         val out = DoubleArray(1)
-        val info = LAPACKE_dgecon(ROW_MAJOR, '1'.code.toByte(), n, lu.lu.refTo(0), n, anorm, out.refTo(0))
+        val info = lu.lu.usePinned { lp ->
+            out.usePinned { op ->
+                f.dgecon(ROW_MAJOR, '1'.code.toByte(), n, lp.addressOf(0), n, anorm, op.addressOf(0))
+            }
+        }
         check(info == 0) { "dgecon: illegal argument ${-info}" }
         return out[0]
+    }
+
+    /** LAPACKE_dsytrs on [x] in place (lower, 1-based block ipiv); returns [x]. */
+    private fun solveSytrs(ldl: LdlDecomposition, x: DoubleArray, nrhs: Int): DoubleArray {
+        val n = ldl.n
+        val info = ldl.ldl.usePinned { lp ->
+            ldl.ipiv.usePinned { pp ->
+                x.usePinned { xp ->
+                    f.dsytrs(
+                        ROW_MAJOR, 'L'.code.toByte(), n, nrhs,
+                        lp.addressOf(0), n, pp.addressOf(0), xp.addressOf(0), nrhs,
+                    )
+                }
+            }
+        }
+        check(info == 0) { "dsytrs: illegal argument ${-info}" }
+        return x
+    }
+
+    /** cblas_dtrsv over the packed factor buffer. */
+    @Suppress("LongParameterList")
+    private fun trsv(a: DoubleArray, n: Int, x: DoubleArray, uplo: Int, trans: Int, diag: Int) {
+        a.usePinned { ap ->
+            x.usePinned { xp ->
+                f.dtrsv(ROW_MAJOR, uplo, trans, diag, n, ap.addressOf(0), n, xp.addressOf(0), 1)
+            }
+        }
+    }
+
+    /** Left-side cblas_dtrsm over the packed factor buffer. */
+    @Suppress("LongParameterList")
+    private fun trsmLeft(a: DoubleArray, n: Int, b: DoubleArray, nrhs: Int, uplo: Int, trans: Int, diag: Int) {
+        a.usePinned { ap ->
+            b.usePinned { bp ->
+                f.dtrsm(ROW_MAJOR, LEFT, uplo, trans, diag, n, nrhs, 1.0, ap.addressOf(0), n, bp.addressOf(0), nrhs)
+            }
+        }
     }
 
     /** `v = beta * v` honoring the BLAS convention that `beta == 0` overwrites without reading. */
     private fun scaleInPlace(v: DoubleArray, beta: Double) {
         when {
             beta == 0.0 -> v.fill(0.0)
-            beta != 1.0 && v.isNotEmpty() -> cblas_dscal(v.size, beta, v.refTo(0), 1)
+            beta != 1.0 && v.isNotEmpty() -> v.usePinned { vp -> f.dscal(v.size, beta, vp.addressOf(0), 1) }
         }
     }
 
