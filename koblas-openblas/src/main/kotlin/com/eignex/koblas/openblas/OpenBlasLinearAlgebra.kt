@@ -10,6 +10,7 @@ import org.bytedeco.openblas.global.openblas.CblasLeft
 import org.bytedeco.openblas.global.openblas.CblasLower
 import org.bytedeco.openblas.global.openblas.CblasNoTrans
 import org.bytedeco.openblas.global.openblas.CblasNonUnit
+import org.bytedeco.openblas.global.openblas.CblasRight
 import org.bytedeco.openblas.global.openblas.CblasRowMajor
 import org.bytedeco.openblas.global.openblas.CblasTrans
 import org.bytedeco.openblas.global.openblas.CblasUnit
@@ -169,19 +170,31 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
     }
 
     @Suppress("LongParameterList") // the BLAS dsymm signature
-    override fun symm(alpha: Double, a: DenseMatrix, b: DenseMatrix, beta: Double, c: DenseMatrix, lower: Boolean) {
+    override fun symm(
+        alpha: Double,
+        a: DenseMatrix,
+        b: DenseMatrix,
+        beta: Double,
+        c: DenseMatrix,
+        lower: Boolean,
+        right: Boolean,
+    ) {
         require(a.rows == a.cols) { "symm: matrix must be square, got ${a.rows}x${a.cols}" }
         val m = a.rows
-        val p = b.cols
-        require(b.rows == m) { "symm: B has ${b.rows} rows, expected $m" }
-        require(c.rows == m && c.cols == p) { "symm: C is ${c.rows}x${c.cols}, expected ${m}x$p" }
+        require(c.rows == b.rows && c.cols == b.cols) {
+            "symm: C is ${c.rows}x${c.cols} but B is ${b.rows}x${b.cols}"
+        }
+        require((if (right) b.cols else b.rows) == m) {
+            "symm: B is ${b.rows}x${b.cols}, expected dimension $m on the ${if (right) "cols" else "rows"} side"
+        }
         if (alpha == 0.0) {
             scaleInPlace(c.data, beta)
             return
         }
-        if (m == 0 || p == 0) return
+        if (c.rows == 0 || c.cols == 0) return
         val uplo = if (lower) CblasLower else CblasUpper
-        cblas_dsymm(CblasRowMajor, CblasLeft, uplo, m, p, alpha, a.data, m, b.data, p, beta, c.data, p)
+        val side = if (right) CblasRight else CblasLeft
+        cblas_dsymm(CblasRowMajor, side, uplo, c.rows, c.cols, alpha, a.data, m, b.data, c.cols, beta, c.data, c.cols)
     }
 
     override fun factor(a: DenseMatrix): LuDecomposition {

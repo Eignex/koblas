@@ -173,6 +173,13 @@ class OpenBlasConformanceTest {
                 reference.symm(0.75, a, b, 0.0, cRef, lower)
                 openblas.symm(0.75, a, b, 0.0, cOpen, lower)
                 assertClose(cRef.data, cOpen.data, context = "symm n=$n lower=$lower")
+                val br = DenseMatrix(p, n)
+                for (i in 0 until p) for (j in 0 until n) br[i, j] = rng.nextDouble(-1.0, 1.0)
+                val crRef = DenseMatrix(p, n)
+                val crOpen = DenseMatrix(p, n)
+                reference.symm(0.75, a, br, 0.0, crRef, lower, right = true)
+                openblas.symm(0.75, a, br, 0.0, crOpen, lower, right = true)
+                assertClose(crRef.data, crOpen.data, context = "symm right n=$n lower=$lower")
             }
         }
     }
