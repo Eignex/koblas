@@ -31,6 +31,7 @@ class RightSideOpsTest {
                 val selected = if (lower) j <= i else j >= i
                 when {
                     !selected -> t[i, j] = Double.NaN
+
                     i == j -> {
                         val v = rng.nextDouble(1.0, 2.0)
                         t[i, j] = v

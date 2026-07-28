@@ -48,7 +48,14 @@ class MinimumNormTest {
         val rng = Random(20260961)
         val n = 6
         val a = DenseMatrix(n)
-        for (i in 0 until n) for (j in 0 until n) a[i, j] = rng.nextDouble(-1.0, 1.0) + if (i == j) n.toDouble() else 0.0
+        for (i in 0 until n) {
+            for (j in 0 until n) {
+                a[i, j] = rng.nextDouble(
+                    -1.0,
+                    1.0,
+                ) + if (i == j) n.toDouble() else 0.0
+            }
+        }
         val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
         val viaLu = koblas.solve(koblas.factor(a), b)
         val viaMinNorm = koblas.solveMinimumNorm(koblas.qr(transposed(a)), b)
