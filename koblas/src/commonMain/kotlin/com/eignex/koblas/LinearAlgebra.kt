@@ -63,12 +63,15 @@ interface LinearAlgebra {
 
     /**
      * In-place symmetric rank-k accumulate `C = alpha · A·Aᵀ + beta · C`, or `alpha · Aᵀ·A + beta · C`
-     * when [transpose] (BLAS `dsyrk`). Deviation from BLAS: there is no `uplo` parameter — the full
-     * symmetric result is produced (the alpha term is applied to both triangles). [c] must be square
-     * with dimension `op(A).rows`. Per BLAS convention, `beta == 0.0` overwrites [c] without reading
-     * it, and `alpha == 0.0` reduces to the `beta` scale.
+     * when [transpose] (BLAS `dsyrk`). With the default [Uplo.FULL] the full symmetric result is
+     * produced (the alpha term is applied to both triangles, and beta scales all of [c]); with
+     * [Uplo.LOWER] / [Uplo.UPPER] the standard `dsyrk` semantics apply — only the selected triangle is
+     * written and beta-scaled, the opposite strict triangle untouched. [c] must be square with
+     * dimension `op(A).rows`. Per BLAS convention, `beta == 0.0` overwrites without reading (within
+     * the written region), and `alpha == 0.0` reduces to the `beta` scale.
      */
-    fun syrk(alpha: Double, a: DenseMatrix, transpose: Boolean, beta: Double, c: DenseMatrix)
+    @Suppress("LongParameterList") // the BLAS dsyrk signature
+    fun syrk(alpha: Double, a: DenseMatrix, transpose: Boolean, beta: Double, c: DenseMatrix, uplo: Uplo = Uplo.FULL)
 
     /**
      * In-place symmetric matrix-vector accumulate `y = alpha · A · x + beta · y` for a symmetric [a]
@@ -337,33 +340,29 @@ object ReferenceLinearAlgebra : LinearAlgebra {
         }
     }
 
-    override fun syrk(alpha: Double, a: DenseMatrix, transpose: Boolean, beta: Double, c: DenseMatrix) {
+    @Suppress("LongParameterList") // the BLAS dsyrk signature
+    override fun syrk(alpha: Double, a: DenseMatrix, transpose: Boolean, beta: Double, c: DenseMatrix, uplo: Uplo) {
         val n = if (transpose) a.cols else a.rows
         val k = if (transpose) a.rows else a.cols
         require(c.rows == n && c.cols == n) { "syrk: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
         val cd = c.data
-        if (beta == 0.0) {
-            cd.fill(0.0)
-        } else if (beta != 1.0) {
-            denseScale(cd, 0, beta, cd.size)
-        }
+        scaleUplo(cd, n, beta, uplo)
         if (alpha == 0.0 || n == 0 || k == 0) return
         val ad = a.data
         if (!transpose) {
-            // C += alpha·A·Aᵀ: entry (i, j) is the dot of contiguous rows i and j; computed once for
-            // the lower triangle and added to both mirror slots.
+            // C += alpha·A·Aᵀ: entry (i, j) is the dot of contiguous rows i and j; computed once per
+            // pair, then written to the selected triangle(s).
             for (i in 0 until n) {
                 for (j in 0..i) {
                     val v = alpha * denseDot(ad, i * k, ad, j * k, k)
-                    cd[i * n + j] += v
-                    if (i != j) cd[j * n + i] += v
+                    addUplo(cd, n, i, j, v, uplo)
                 }
             }
         } else {
             // C += alpha·Aᵀ·A = alpha·Σₚ A[p,:]ᵀ·A[p,:]: rank-1 sweeps over contiguous rows of A into
-            // a scratch buffer, whose lower triangle is then mirrored into C — the sweeps alone are
-            // not bit-symmetric ((alpha·x)·y and (alpha·y)·x round differently), and the contract
-            // promises an exactly symmetric alpha term.
+            // a scratch buffer, then written per triangle — the sweeps alone are not bit-symmetric
+            // ((alpha·x)·y and (alpha·y)·x round differently), and the contract promises an exactly
+            // symmetric alpha term.
             val w = DoubleArray(n * n)
             for (p in 0 until k) {
                 val base = p * n
@@ -374,11 +373,38 @@ object ReferenceLinearAlgebra : LinearAlgebra {
             }
             for (i in 0 until n) {
                 for (j in 0..i) {
-                    val v = w[i * n + j]
-                    cd[i * n + j] += v
-                    if (i != j) cd[j * n + i] += v
+                    addUplo(cd, n, i, j, w[i * n + j], uplo)
                 }
             }
+        }
+    }
+
+    /** Add the symmetric term `v` for the pair `(i, j)`, `j <= i`, into the triangle(s) [uplo] selects. */
+    @Suppress("LongParameterList")
+    private fun addUplo(cd: DoubleArray, n: Int, i: Int, j: Int, v: Double, uplo: Uplo) {
+        if (uplo != Uplo.UPPER) {
+            cd[i * n + j] += v
+        } else if (i == j) {
+            cd[i * n + i] += v // the diagonal belongs to both triangles
+        }
+        if (uplo != Uplo.LOWER && i != j) cd[j * n + i] += v
+    }
+
+    /** `beta` scale of the region [uplo] selects, honoring the `beta == 0` overwrite convention. */
+    private fun scaleUplo(cd: DoubleArray, n: Int, beta: Double, uplo: Uplo) {
+        if (uplo == Uplo.FULL) {
+            if (beta == 0.0) {
+                cd.fill(0.0)
+            } else if (beta != 1.0) {
+                denseScale(cd, 0, beta, cd.size)
+            }
+            return
+        }
+        if (beta == 1.0) return
+        for (i in 0 until n) {
+            val from = if (uplo == Uplo.LOWER) i * n else i * n + i
+            val len = if (uplo == Uplo.LOWER) i + 1 else n - i
+            if (beta == 0.0) cd.fill(0.0, from, from + len) else denseScale(cd, from, beta, len)
         }
     }
 
