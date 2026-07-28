@@ -23,6 +23,22 @@ class Level1OpsTest {
     }
 
     @Test
+    fun `norm2 survives overflow and underflow via the rescale fallback`() {
+        // Squares of 1e200 overflow a plain sum; the rescale recovers the exact 3-4-5 triangle.
+        assertEquals(5.0e200, norm2(DenseVector.of(doubleArrayOf(3.0e200, 0.0, -4.0e200))), 1e186)
+        // Squares of 1e-200 underflow to zero; the rescale recovers them.
+        assertEquals(5.0e-200, norm2(DenseVector.of(doubleArrayOf(3.0e-200, 4.0e-200))), 1e-214)
+        assertEquals(1.0e-300, norm2(DenseVector.of(doubleArrayOf(1.0e-300))), 1e-314)
+        // Sparse vectors take the same fallback.
+        val sparseHuge = SparseVector.of(5, intArrayOf(0, 3), doubleArrayOf(3.0e200, 4.0e200))
+        assertEquals(5.0e200, norm2(sparseHuge), 1e186)
+        // Non-finite inputs propagate: NaN stays NaN, an infinite component gives an infinite norm.
+        assertTrue(norm2(DenseVector.of(doubleArrayOf(1.0, Double.NaN))).isNaN())
+        assertTrue(norm2(DenseVector.of(doubleArrayOf(1.0e200, Double.NaN))).isNaN())
+        assertEquals(Double.POSITIVE_INFINITY, norm2(DenseVector.of(doubleArrayOf(1.0, Double.NEGATIVE_INFINITY))))
+    }
+
+    @Test
     fun `asum matches the hand value on dense and sparse`() {
         assertEquals(7.0, asum(DenseVector.of(doubleArrayOf(3.0, 0.0, -4.0))))
         assertEquals(5.0, asum(sparse))
