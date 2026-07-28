@@ -26,15 +26,32 @@ internal val simdAvailable: Boolean = try {
     false
 }
 
+/**
+ * Lane width of the vector path, or 0 when it is unavailable. Runs below one lane execute no vector
+ * body at all — `loopBound` is zero, so the work falls to the scalar tail after paying the vector
+ * prologue (a horizontal reduce for [denseDot], a broadcast for the others). Short runs therefore
+ * route straight to the scalar kernels; triangular solves and small factorizations issue many of
+ * them.
+ */
+private val simdLanes: Int = if (simdAvailable) Simd.lanes() else 0
+
 internal actual fun denseDot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
-    if (simdAvailable) Simd.dot(a, aOff, b, bOff, len) else scalarDot(a, aOff, b, bOff, len)
+    if (simdAvailable && len >= simdLanes) Simd.dot(a, aOff, b, bOff, len) else scalarDot(a, aOff, b, bOff, len)
 
 internal actual fun denseAxpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
-    if (simdAvailable) Simd.axpy(y, yOff, alpha, x, xOff, len) else scalarAxpy(y, yOff, alpha, x, xOff, len)
+    if (simdAvailable && len >= simdLanes) {
+        Simd.axpy(y, yOff, alpha, x, xOff, len)
+    } else {
+        scalarAxpy(y, yOff, alpha, x, xOff, len)
+    }
 }
 
 internal actual fun denseScale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
-    if (simdAvailable) Simd.scale(v, vOff, alpha, len) else scalarScale(v, vOff, alpha, len)
+    if (simdAvailable && len >= simdLanes) {
+        Simd.scale(v, vOff, alpha, len)
+    } else {
+        scalarScale(v, vOff, alpha, len)
+    }
 }
 
 private fun scalarDot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
