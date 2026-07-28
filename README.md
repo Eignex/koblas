@@ -99,12 +99,9 @@ against reference results on every target.
 | dsytrf, dsytrs (symmetric indefinite LDLᵀ) | LinearAlgebra.ldl, solve |
 | Cholesky update/downdate | choleskyUpdateInPlace, choleskyDowndateInPlace |
 
-Semantics follow the standard, including all flags, block right-hand sides,
-and the beta equal to zero overwrite convention. The exceptions, documented
-on each function: ldl is lower-triangle only, syrk writes the full symmetric
-matrix unless uplo picks a triangle, and cholesky regularizes
-non-positive-definite pivots unless asked to be strict. Factorizations use
-the LAPACK packed formats, so they interchange between backends.
+Semantics follow the standard; the exceptions are documented on each
+function. Factorizations use the LAPACK packed formats, so they interchange
+between backends.
 
 **Out of scope:** single precision, complex numbers, banded and packed storage
 layouts, SVD, and eigendecompositions. Nothing is supported silently: new
