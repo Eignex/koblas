@@ -109,6 +109,35 @@ interface LinearAlgebra {
     fun solve(lu: LuDecomposition, b: DoubleArray, transpose: Boolean = false): DoubleArray
 
     /**
+     * Solve `A · X = B` (or `Aᵀ · X = B` when [transpose]) for the [b].cols right-hand-side columns of
+     * [b] at once (LAPACK `dgetrs` with `nrhs`); returns a fresh `X`. The default runs the permutation
+     * and the two triangular block solves directly on the shared packed format; backends may
+     * substitute a native block solve.
+     */
+    fun solve(lu: LuDecomposition, b: DenseMatrix, transpose: Boolean = false): DenseMatrix {
+        val n = lu.n
+        val nrhs = b.cols
+        require(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
+        val f = lu.lu
+        return if (transpose) {
+            // Aᵀ X = B, with Aᵀ = Uᵀ Lᵀ P: forward-solve Uᵀ, back-solve unit Lᵀ, un-permute rows.
+            val y = b.data.copyOf()
+            trsmCore(f, n, y, nrhs, lower = false, transpose = true, unitDiag = false)
+            trsmCore(f, n, y, nrhs, lower = true, transpose = true, unitDiag = true)
+            val x = DoubleArray(n * nrhs)
+            for (i in 0 until n) y.copyInto(x, lu.piv[i] * nrhs, i * nrhs, (i + 1) * nrhs)
+            DenseMatrix.wrap(n, nrhs, x)
+        } else {
+            // A X = B, with P A = L U: permute the rows of B, forward-solve unit L, back-solve U.
+            val x = DoubleArray(n * nrhs)
+            for (i in 0 until n) b.data.copyInto(x, i * nrhs, lu.piv[i] * nrhs, (lu.piv[i] + 1) * nrhs)
+            trsmCore(f, n, x, nrhs, lower = true, transpose = false, unitDiag = true)
+            trsmCore(f, n, x, nrhs, lower = false, transpose = false, unitDiag = false)
+            DenseMatrix.wrap(n, nrhs, x)
+        }
+    }
+
+    /**
      * Symmetric indefinite factorization `A = L·D·Lᵀ` with Bunch–Kaufman partial pivoting (LAPACK
      * `dsytrf`, lower). As with [symv], only the lower triangle of [a] is read — the strictly upper
      * triangle may hold anything — and [a] is not modified. Use this where the matrix is symmetric but
@@ -119,6 +148,82 @@ interface LinearAlgebra {
     /** Solve `A · x = b` for a symmetric indefinite factorization [ldl] (LAPACK `dsytrs`); returns a
      *  fresh `x`. Symmetry makes the transposed solve identical, so there is no `transpose` flag. */
     fun solve(ldl: LdlDecomposition, b: DoubleArray): DoubleArray
+
+    /**
+     * Solve `A · X = B` for the [b].cols right-hand-side columns of [b] at once against a symmetric
+     * indefinite factorization (LAPACK `dsytrs` with `nrhs`); returns a fresh `X`. The default is the
+     * two-pass `dsytrs` replay over the shared packed format with every scalar step widened to a row;
+     * backends may substitute a native block solve.
+     */
+    @Suppress("CyclomaticComplexMethod", "LongMethod") // dsytrs's control flow, kept recognizable
+    fun solve(ldl: LdlDecomposition, b: DenseMatrix): DenseMatrix {
+        val n = ldl.n
+        val nrhs = b.cols
+        require(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
+        val w = ldl.ldl
+        val ipiv = ldl.ipiv
+        val x = b.data.copyOf()
+        if (nrhs == 0) return DenseMatrix.wrap(n, nrhs, x)
+        // Forward: replay interchanges, apply L block columns, divide by the D blocks (dsytrs lower).
+        var k = 0
+        while (k < n) {
+            if (ipiv[k] > 0) {
+                val kp = ipiv[k] - 1
+                if (kp != k) swapSolveRows(x, nrhs, k, kp)
+                for (i in k + 1 until n) {
+                    val f = w[i * n + k]
+                    if (f != 0.0) denseAxpy(x, i * nrhs, -f, x, k * nrhs, nrhs)
+                }
+                denseScale(x, k * nrhs, 1.0 / w[k * n + k], nrhs)
+                k += 1
+            } else {
+                val kp = -ipiv[k] - 1
+                if (kp != k + 1) swapSolveRows(x, nrhs, k + 1, kp)
+                for (i in k + 2 until n) {
+                    val f = w[i * n + k]
+                    val f1 = w[i * n + k + 1]
+                    if (f != 0.0) denseAxpy(x, i * nrhs, -f, x, k * nrhs, nrhs)
+                    if (f1 != 0.0) denseAxpy(x, i * nrhs, -f1, x, (k + 1) * nrhs, nrhs)
+                }
+                val akm1k = w[(k + 1) * n + k]
+                val akm1 = w[k * n + k] / akm1k
+                val ak = w[(k + 1) * n + k + 1] / akm1k
+                val denom = akm1 * ak - 1.0
+                for (c in 0 until nrhs) {
+                    val bkm1 = x[k * nrhs + c] / akm1k
+                    val bk = x[(k + 1) * nrhs + c] / akm1k
+                    x[k * nrhs + c] = (ak * bkm1 - bk) / denom
+                    x[(k + 1) * nrhs + c] = (akm1 * bk - bkm1) / denom
+                }
+                k += 2
+            }
+        }
+        // Backward: apply Lᵀ block rows and undo the interchanges in reverse.
+        k = n - 1
+        while (k >= 0) {
+            if (ipiv[k] > 0) {
+                for (i in k + 1 until n) {
+                    val f = w[i * n + k]
+                    if (f != 0.0) denseAxpy(x, k * nrhs, -f, x, i * nrhs, nrhs)
+                }
+                val kp = ipiv[k] - 1
+                if (kp != k) swapSolveRows(x, nrhs, k, kp)
+                k -= 1
+            } else {
+                val k0 = k - 1
+                for (i in k + 1 until n) {
+                    val f0 = w[i * n + k0]
+                    val f1 = w[i * n + k]
+                    if (f0 != 0.0) denseAxpy(x, k0 * nrhs, -f0, x, i * nrhs, nrhs)
+                    if (f1 != 0.0) denseAxpy(x, k * nrhs, -f1, x, i * nrhs, nrhs)
+                }
+                val kp = -ipiv[k] - 1
+                if (kp != k) swapSolveRows(x, nrhs, k, kp)
+                k -= 2
+            }
+        }
+        return DenseMatrix.wrap(n, nrhs, x)
+    }
 
     /**
      * QR factorization `A = Q·R` of an `m×n` [a] via Householder reflections (LAPACK `dgeqrf`); [a] is
@@ -204,6 +309,15 @@ interface LinearAlgebra {
 
 /** Sweep cap for the [LinearAlgebra.rcond] estimator; Hager's iteration almost always converges in 2. */
 private const val RCOND_MAX_SWEEPS = 5
+
+/** Swap rows [r1] and [r2] of a flat row-major solve buffer with [nrhs] columns. */
+private fun swapSolveRows(x: DoubleArray, nrhs: Int, r1: Int, r2: Int) {
+    for (c in 0 until nrhs) {
+        val t = x[r1 * nrhs + c]
+        x[r1 * nrhs + c] = x[r2 * nrhs + c]
+        x[r2 * nrhs + c] = t
+    }
+}
 
 /** Bunch–Kaufman pivot threshold `(1 + √17) / 8`, the value minimizing element growth (netlib dsytf2). */
 private const val BUNCH_KAUFMAN_ALPHA = 0.6403882032022076

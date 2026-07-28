@@ -206,6 +206,33 @@ class OpenBlasConformanceTest {
     }
 
     @Test
+    fun `block solves match reference for lu and ldl`() {
+        val rng = Random(20260952)
+        val n = 9
+        val nrhs = 4
+        val a = randomMatrix(rng, n, n)
+        for (i in 0 until n) a[i, i] = a[i, i] + n
+        val b = randomMatrix(rng, n, nrhs)
+        for (transpose in booleanArrayOf(false, true)) {
+            val xRef = reference.solve(reference.factor(a), b, transpose)
+            val xOpen = openblas.solve(openblas.factor(a), b, transpose)
+            assertClose(xRef.data, xOpen.data, tol = 1e-10, context = "lu block t=$transpose")
+        }
+        val sym = DenseMatrix(n, n)
+        for (i in 0 until n) {
+            for (j in 0..i) {
+                var v = rng.nextDouble(-1.0, 1.0)
+                if (i == j) v += if (i % 2 == 0) 2.0 else -2.0
+                sym[i, j] = v
+                if (j != i) sym[j, i] = Double.NaN
+            }
+        }
+        val xRef = reference.solve(reference.ldl(sym), b)
+        val xOpen = openblas.solve(openblas.ldl(sym), b)
+        assertClose(xRef.data, xOpen.data, tol = 1e-9, context = "ldl block")
+    }
+
+    @Test
     fun `factorizations interchange between backends`() {
         val rng = Random(20260731)
         val n = 12

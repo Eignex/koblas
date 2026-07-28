@@ -32,6 +32,8 @@ void cblas_dsymm(int order, int side, int uplo, int m, int n, double alpha,
                  double *c, int ldc);
 void cblas_dtrsv(int order, int uplo, int transa, int diag, int n,
                  const double *a, int lda, double *x, int incx);
+void cblas_dtrsm(int order, int side, int uplo, int transa, int diag, int m, int n,
+                 double alpha, const double *a, int lda, double *b, int ldb);
 
 int LAPACKE_dgetrf(int matrix_layout, int m, int n, double *a, int lda, int *ipiv);
 int LAPACKE_dgecon(int matrix_layout, char norm, int n, const double *a, int lda,
