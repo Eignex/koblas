@@ -254,6 +254,25 @@ interface LinearAlgebra {
     }
 
     /**
+     * Minimum-norm solution of the underdetermined consistent system `A · x = b` for a wide `m×n` A
+     * with `m <= n` and full row rank (LAPACK `dgels`'s underdetermined shape, via QR of the transpose
+     * instead of LQ): pass the factorization `qr(Aᵀ)`. With `Aᵀ = Q·R` we have `A = Rᵀ·Qᵀ`, so a
+     * forward solve `Rᵀ·w = b` followed by `x = Q·(w padded with zeros)` gives the solution of
+     * smallest 2-norm. [b] has length `m`; the result has length `n`. Rank deficiency is not detected
+     * and surfaces as infinities/NaNs, following the triangular-solve convention.
+     */
+    fun solveMinimumNorm(qr: QrDecomposition, b: DoubleArray): DoubleArray {
+        require(qr.m >= qr.n) { "solveMinimumNorm expects the QR of the transpose (tall), got ${qr.m}x${qr.n}" }
+        require(b.size == qr.n) { "solveMinimumNorm: b length ${b.size} != ${qr.n}" }
+        val w = b.copyOf()
+        // The top n rows of the packed buffer are exactly an n×n row-major block holding R.
+        trsvCore(qr.qr, qr.n, w, lower = false, transpose = true, unitDiag = false)
+        val y = DoubleArray(qr.m)
+        w.copyInto(y)
+        return applyQ(qr, y)
+    }
+
+    /**
      * Reciprocal condition number estimate `1 / (anorm · est(‖A⁻¹‖₁))` from a factorization (LAPACK
      * `dgecon`). [anorm] is the 1-norm of the original, unfactored matrix (see [norm1]), which the
      * caller computes before factoring. Returns `1.0` for the empty factorization and exactly `0.0`
