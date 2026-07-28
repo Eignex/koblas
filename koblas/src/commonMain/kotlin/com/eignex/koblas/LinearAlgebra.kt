@@ -84,14 +84,22 @@ interface LinearAlgebra {
     fun symv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean = true)
 
     /**
-     * In-place symmetric matrix-matrix accumulate `C = alpha · A · B + beta · C` where the symmetric
-     * [a] multiplies from the left (BLAS `dsymm` with `side = L`; the right side is out of the
-     * supported subset). As with [symv], only the triangle selected by [lower] is read. Shapes:
-     * `A: m×m`, `B: m×n`, `C: m×n`. Per BLAS convention, `beta == 0.0` overwrites [c] without reading
-     * it, and `alpha == 0.0` reduces to the `beta` scale.
+     * In-place symmetric matrix-matrix accumulate `C = alpha · A · B + beta · C`, or
+     * `C = alpha · B · A + beta · C` when [right] (BLAS `dsymm`). As with [symv], only the triangle of
+     * the symmetric [a] selected by [lower] is read. Shapes: [b] and [c] agree, and [a] is square with
+     * dimension `B.rows` (left) or `B.cols` (right). Per BLAS convention, `beta == 0.0` overwrites [c]
+     * without reading it, and `alpha == 0.0` reduces to the `beta` scale.
      */
     @Suppress("LongParameterList") // the BLAS dsymm signature
-    fun symm(alpha: Double, a: DenseMatrix, b: DenseMatrix, beta: Double, c: DenseMatrix, lower: Boolean = true)
+    fun symm(
+        alpha: Double,
+        a: DenseMatrix,
+        b: DenseMatrix,
+        beta: Double,
+        c: DenseMatrix,
+        lower: Boolean = true,
+        right: Boolean = false,
+    )
 
     /** LU factorization with partial pivoting of a square [a] (LAPACK `dgetrf`); [a] is not modified. */
     fun factor(a: DenseMatrix): LuDecomposition
@@ -436,13 +444,43 @@ object ReferenceLinearAlgebra : LinearAlgebra {
         }
     }
 
-    @Suppress("LongParameterList") // the BLAS dsymm signature
-    override fun symm(alpha: Double, a: DenseMatrix, b: DenseMatrix, beta: Double, c: DenseMatrix, lower: Boolean) {
+    @Suppress("LongParameterList", "CyclomaticComplexMethod") // the BLAS dsymm signature
+    override fun symm(
+        alpha: Double,
+        a: DenseMatrix,
+        b: DenseMatrix,
+        beta: Double,
+        c: DenseMatrix,
+        lower: Boolean,
+        right: Boolean,
+    ) {
         require(a.rows == a.cols) { "symm: matrix must be square, got ${a.rows}x${a.cols}" }
         val m = a.rows
+        require(c.rows == b.rows && c.cols == b.cols) {
+            "symm: C is ${c.rows}x${c.cols} but B is ${b.rows}x${b.cols}"
+        }
+        if (right) {
+            require(b.cols == m) { "symm right: B has ${b.cols} cols, expected $m" }
+            val cd = c.data
+            if (beta == 0.0) {
+                cd.fill(0.0)
+            } else if (beta != 1.0) {
+                denseScale(cd, 0, beta, cd.size)
+            }
+            if (alpha == 0.0 || m == 0 || b.rows == 0) return
+            // Row r of the product is (A · B[r,:]ᵀ)ᵀ by symmetry: a contiguous per-row symv.
+            val x = DoubleArray(m)
+            val y = DoubleArray(m)
+            for (r in 0 until b.rows) {
+                b.data.copyInto(x, 0, r * m, (r + 1) * m)
+                y.fill(0.0)
+                symv(alpha, a, x, 0.0, y, lower)
+                denseAxpy(cd, r * m, 1.0, y, 0, m)
+            }
+            return
+        }
         val p = b.cols
         require(b.rows == m) { "symm: B has ${b.rows} rows, expected $m" }
-        require(c.rows == m && c.cols == p) { "symm: C is ${c.rows}x${c.cols}, expected ${m}x$p" }
         val cd = c.data
         if (beta == 0.0) {
             cd.fill(0.0)

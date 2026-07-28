@@ -180,6 +180,13 @@ class CblasConformanceTest {
                 reference.symm(0.75, a, b, 0.0, cRef, lower)
                 cblas.symm(0.75, a, b, 0.0, cCblas, lower)
                 assertClose(cRef.data, cCblas.data, context = "symm n=$n lower=$lower")
+                val br = DenseMatrix(p, n)
+                for (i in 0 until p) for (j in 0 until n) br[i, j] = rng.nextDouble(-1.0, 1.0)
+                val crRef = DenseMatrix(p, n)
+                val crCblas = DenseMatrix(p, n)
+                reference.symm(0.75, a, br, 0.0, crRef, lower, right = true)
+                cblas.symm(0.75, a, br, 0.0, crCblas, lower, right = true)
+                assertClose(crRef.data, crCblas.data, context = "symm right n=$n lower=$lower")
             }
         }
     }

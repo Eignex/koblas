@@ -35,6 +35,7 @@ private const val LOWER = 122
 private const val NON_UNIT = 131
 private const val UNIT = 132
 private const val LEFT = 141
+private const val RIGHT = 142
 
 /**
  * [LinearAlgebra] backed by the system-installed OpenBLAS through its C interfaces (CBLAS and
@@ -173,21 +174,33 @@ class CblasLinearAlgebra : LinearAlgebra {
     }
 
     @Suppress("LongParameterList") // the BLAS dsymm signature
-    override fun symm(alpha: Double, a: DenseMatrix, b: DenseMatrix, beta: Double, c: DenseMatrix, lower: Boolean) {
+    override fun symm(
+        alpha: Double,
+        a: DenseMatrix,
+        b: DenseMatrix,
+        beta: Double,
+        c: DenseMatrix,
+        lower: Boolean,
+        right: Boolean,
+    ) {
         require(a.rows == a.cols) { "symm: matrix must be square, got ${a.rows}x${a.cols}" }
         val m = a.rows
-        val p = b.cols
-        require(b.rows == m) { "symm: B has ${b.rows} rows, expected $m" }
-        require(c.rows == m && c.cols == p) { "symm: C is ${c.rows}x${c.cols}, expected ${m}x$p" }
+        require(c.rows == b.rows && c.cols == b.cols) {
+            "symm: C is ${c.rows}x${c.cols} but B is ${b.rows}x${b.cols}"
+        }
+        require((if (right) b.cols else b.rows) == m) {
+            "symm: B is ${b.rows}x${b.cols}, expected dimension $m on the ${if (right) "cols" else "rows"} side"
+        }
         if (alpha == 0.0) {
             scaleInPlace(c.data, beta)
             return
         }
-        if (m == 0 || p == 0) return
+        if (c.rows == 0 || c.cols == 0) return
         val uplo = if (lower) LOWER else UPPER
+        val side = if (right) RIGHT else LEFT
         cblas_dsymm(
-            ROW_MAJOR, LEFT, uplo, m, p, alpha,
-            a.data.refTo(0), m, b.data.refTo(0), p, beta, c.data.refTo(0), p,
+            ROW_MAJOR, side, uplo, c.rows, c.cols, alpha,
+            a.data.refTo(0), m, b.data.refTo(0), c.cols, beta, c.data.refTo(0), c.cols,
         )
     }
 
