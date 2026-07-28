@@ -991,6 +991,10 @@ private var registered: LinearAlgebra? = null
  *  else the portable [ReferenceLinearAlgebra]. */
 val koblas: LinearAlgebra get() = installed ?: registered ?: platformDefault
 
+/** What this runtime resolved on both performance seams, for startup logging — e.g.
+ *  `"backend=openblas, primitives=simd(8 lanes)"` ([koblas].name and [mathBackend]). */
+val koblasInfo: String get() = "backend=${koblas.name}, primitives=$mathBackend"
+
 /**
  * Overrides the backend [koblas] resolves to, taking precedence over every automatic mechanism —
  * registration and platform discovery alike. Passing null restores automatic selection. The switch

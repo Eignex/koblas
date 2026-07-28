@@ -27,4 +27,9 @@ class BackendSelectionTest {
         }
         assertEquals("reference", koblas.name)
     }
+
+    @Test
+    fun `koblasInfo reports both seams`() {
+        assertEquals("backend=${koblas.name}, primitives=$mathBackend", koblasInfo)
+    }
 }

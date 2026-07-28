@@ -123,17 +123,23 @@ refactorization. Together they are the kernel a sparse simplex builds on.
 
 ## Backends
 
-There are two performance seams. The level 1 kernels (dot, axpy, scale)
-dispatch at compile time: the JVM uses the incubator Vector API when started
-with `--add-modules=jdk.incubator.vector`; everything else is scalar.
+There are two performance seams, split by how much work a call does.
 
-The heavier operations, the level 2 and 3 multiplies and the factorization
-families with their solves, sit behind the runtime LinearAlgebra interface.
-On the JVM a backend on the classpath activates itself through the service
-loader; on other targets backend artifacts register themselves at program
-start. When several backends are available the highest priority wins:
-OpenBLAS's bundled natives, then the dlopen cblas backend, then the
-reference (SIMD-assisted where the JVM Vector API is enabled).
+The level 1 kernels (dot, axpy, scale) do nanoseconds of work per call, so
+runtime dispatch or an FFI crossing would cost more than the kernel itself.
+They are specialized at compile time and reported by mathBackend: the JVM
+uses the incubator Vector API when started with
+`--add-modules=jdk.incubator.vector`; everything else is scalar. Every inner
+loop runs on this seam, including the sparse kernels and the reference
+backend itself.
+
+The level 2 and 3 multiplies and the factorization families do enough work
+per call that dispatch cost is noise, so they sit behind the runtime
+LinearAlgebra interface, reported by koblas.name. On the JVM a backend on
+the classpath activates itself through the service loader; on other targets
+backend artifacts register themselves at program start. When several
+backends are available the highest priority wins: OpenBLAS's bundled
+natives, then the dlopen cblas backend, then the reference.
 installLinearAlgebra overrides the selection. Storage is flat, row-major
 DoubleArray, so a native backend receives raw buffers with no repacking, and
 every backend must match the reference on the conformance suite.
@@ -165,9 +171,9 @@ implementation("com.eignex:koblas-cblas:<version>")
 It also keeps OpenBLAS single-threaded by default; set OPENBLAS_NUM_THREADS
 to opt into its threading.
 
-To check what a runtime actually resolved, print the two seams:
+The seams are independent (openblas + simd, reference + scalar, and so on);
+print what a runtime resolved with:
 
 ```kotlin
-println(koblas.name) // "openblas", "cblas", or "reference"
-println(mathBackend) // level 1 kernels: "simd(8 lanes)" or "scalar"
+println(koblasInfo) // backend=openblas, primitives=simd(8 lanes)
 ```
