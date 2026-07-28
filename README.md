@@ -126,7 +126,6 @@ refactorization. Together they are the kernel a sparse simplex builds on.
 There are two performance seams. The level 1 kernels (dot, axpy, scale)
 dispatch at compile time: the JVM uses the incubator Vector API when started
 with `--add-modules=jdk.incubator.vector`; everything else is scalar.
-mathBackend reports which kernel was resolved.
 
 The heavier operations, the level 2 and 3 multiplies and the factorization
 families with their solves, sit behind the runtime LinearAlgebra interface.
