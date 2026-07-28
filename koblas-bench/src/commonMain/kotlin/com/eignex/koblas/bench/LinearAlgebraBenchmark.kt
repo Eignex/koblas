@@ -7,6 +7,7 @@ import com.eignex.koblas.SparseLu
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Uplo
 import com.eignex.koblas.installLinearAlgebra
+import com.eignex.koblas.koblasInfo
 import com.eignex.koblas.koblas
 import com.eignex.koblas.lu
 import com.eignex.koblas.matMul
@@ -49,6 +50,7 @@ class DenseBenchmark {
     @Setup
     fun setup() {
         installLinearAlgebra(if (backend == "reference") ReferenceLinearAlgebra else null)
+        println("resolved: $koblasInfo")
         val rng = Random(20260716)
         a = DenseMatrix.wrap(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
         for (i in 0 until n) a[i, i] = a[i, i] + n // diagonally dominant ⇒ well-conditioned

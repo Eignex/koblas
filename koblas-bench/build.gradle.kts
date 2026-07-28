@@ -45,6 +45,14 @@ benchmark {
         register("jvm")
     }
     configurations {
+        register("probe") {
+            include("DenseBenchmark.gemv")
+            warmups = 1
+            iterations = 1
+            iterationTime = 200
+            iterationTimeUnit = "ms"
+            advanced("jvmForks", "1")
+        }
         named("main") {
             warmups = 3
             iterations = 5
@@ -59,5 +67,10 @@ tasks.withType<KotlinJvmCompile>().configureEach {
     compilerOptions.freeCompilerArgs.add("-Xadd-modules=jdk.incubator.vector")
 }
 tasks.withType<Test>().configureEach {
+    jvmArgs("--add-modules=jdk.incubator.vector")
+}
+// The benchmark runner is a JavaExec whose JVM args the JMH forks inherit; without this the
+// reference backend benchmarks silently run the scalar kernels (verify via the setup println).
+tasks.withType<JavaExec>().configureEach {
     jvmArgs("--add-modules=jdk.incubator.vector")
 }
