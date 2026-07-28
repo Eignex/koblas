@@ -57,14 +57,32 @@ infix fun VectorView.dot(other: VectorView): Double {
 /**
  * Euclidean norm `||v||₂` (BLAS `dnrm2`). Sparse vectors sum over stored entries only.
  *
- * Computed as `sqrt(sum of squares)` without netlib's overflow-guarding rescale: components must stay
- * within roughly `1e±150` for the squares not to overflow/underflow — ample for the intended workloads.
+ * The fast path is a plain `sqrt(sum of squares)`; when that sum overflows or drowns in underflow
+ * (components beyond roughly `1e±150`), a rescaled two-pass recovers the netlib-accurate result, so
+ * any finite input yields the correct norm.
  */
 fun norm2(v: VectorView): Double {
     var s = 0.0
     v.forEachStored { _, x -> s += x * x }
-    return sqrt(s)
+    if (s.isFinite() && s >= MIN_NORMAL) return sqrt(s)
+    // Rescale pass: factor out the largest magnitude so the squares stay in range.
+    var amax = 0.0
+    v.forEachStored { _, x ->
+        val a = abs(x)
+        if (a > amax) amax = a
+    }
+    // All-zero (0.0), NaN anywhere (NaN), or an infinite component (Inf) resolve through the raw sum.
+    if (amax == 0.0 || amax.isInfinite()) return sqrt(s)
+    var t = 0.0
+    v.forEachStored { _, x ->
+        val r = x / amax
+        t += r * r
+    }
+    return amax * sqrt(t)
 }
+
+/** Smallest normal double; a squares-sum below this has lost precision to underflow. */
+private const val MIN_NORMAL = 2.2250738585072014e-308
 
 /** Sum of absolute values `Sum |v_i|` (BLAS `dasum`). Sparse vectors sum over stored entries only. */
 fun asum(v: VectorView): Double {
