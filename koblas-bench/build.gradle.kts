@@ -45,6 +45,15 @@ benchmark {
         register("jvm")
     }
     configurations {
+        // Level-1 crossover sweep: run once as-is and once with -Pkoblas.noSimd=true.
+        register("level1") {
+            include("Level1Benchmark")
+            warmups = 3
+            iterations = 5
+            iterationTime = 500
+            iterationTimeUnit = "ms"
+            advanced("jvmForks", "1")
+        }
         register("probe") {
             include("DenseBenchmark.gemv")
             warmups = 1
@@ -71,6 +80,9 @@ tasks.withType<Test>().configureEach {
 }
 // The benchmark runner is a JavaExec whose JVM args the JMH forks inherit; without this the
 // reference backend benchmarks silently run the scalar kernels (verify via the setup println).
+// -Pkoblas.noSimd=true withholds the module to measure the scalar kernels deliberately.
 tasks.withType<JavaExec>().configureEach {
-    jvmArgs("--add-modules=jdk.incubator.vector")
+    if (project.findProperty("koblas.noSimd") != "true") {
+        jvmArgs("--add-modules=jdk.incubator.vector")
+    }
 }
