@@ -23,6 +23,10 @@ kotlin {
             implementation(project(":koblas"))
             implementation("org.jetbrains.kotlinx:kotlinx-benchmark-runtime:0.4.13")
         }
+        jvmMain.dependencies {
+            // Lets the benchmarks compare the discovered OpenBLAS backend against the reference.
+            runtimeOnly(project(":koblas-openblas"))
+        }
         commonTest.dependencies {
             implementation(kotlin("test"))
         }
@@ -46,6 +50,7 @@ benchmark {
             iterations = 5
             iterationTime = 1
             iterationTimeUnit = "s"
+            advanced("jvmForks", "1")
         }
     }
 }

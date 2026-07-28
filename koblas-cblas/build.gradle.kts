@@ -9,7 +9,12 @@ eignexPublish {
 
 kotlin {
     applyDefaultHierarchyTemplate()
-    linuxX64(); linuxArm64()
+    // The extra release test binary serves the opt-in microbench (KOBLAS_MICROBENCH=1): debug-binary
+    // timings understate the pure-Kotlin reference. Linked only on demand, not by check.
+    linuxX64 {
+        binaries.test("release", listOf(org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType.RELEASE))
+    }
+    linuxArm64()
     macosX64(); macosArm64()
 
     sourceSets {

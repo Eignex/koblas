@@ -1,8 +1,12 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.LuDecomposition
+import com.eignex.koblas.ReferenceLinearAlgebra
 import com.eignex.koblas.SparseLu
 import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.Uplo
+import com.eignex.koblas.installLinearAlgebra
 import com.eignex.koblas.koblas
 import com.eignex.koblas.lu
 import com.eignex.koblas.matMul
@@ -29,28 +33,70 @@ class DenseBenchmark {
     @Param("16", "64", "256")
     var n: Int = 0
 
+    /** `auto` is whatever the platform resolves (OpenBLAS on the benchmark classpath). */
+    @Param("auto", "reference")
+    var backend: String = "auto"
+
+    private val nrhs = 8
+
     private lateinit var a: DenseMatrix
     private lateinit var b: DenseMatrix
     private lateinit var rhs: DoubleArray
+    private lateinit var block: DenseMatrix
+    private lateinit var w: DenseMatrix
+    private lateinit var factored: LuDecomposition
 
     @Setup
     fun setup() {
+        installLinearAlgebra(if (backend == "reference") ReferenceLinearAlgebra else null)
         val rng = Random(20260716)
         a = DenseMatrix.wrap(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
         for (i in 0 until n) a[i, i] = a[i, i] + n // diagonally dominant ⇒ well-conditioned
         b = DenseMatrix.wrap(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
         rhs = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
+        block = DenseMatrix.wrap(n, nrhs, DoubleArray(n * nrhs) { rng.nextDouble(-1.0, 1.0) })
+        w = DenseMatrix(n, n)
+        factored = a.lu()
     }
 
     /** LINPACK-style dense solve: LU factorize then back/forward solve. */
     @Benchmark
     fun luSolve(): DoubleArray = a.lu().solve(rhs)
 
+    /** All right-hand sides in one block solve against a prefactored basis. */
+    @Benchmark
+    fun luSolveBlock(): DenseMatrix = koblas.solve(factored, block)
+
+    /** The pre-block alternative: one vector solve per column, extraction included. */
+    @Benchmark
+    fun luSolveColumns(): DoubleArray {
+        var last = rhs
+        for (c in 0 until nrhs) {
+            val col = DoubleArray(n) { block[it, c] }
+            last = koblas.solve(factored, col)
+        }
+        return last
+    }
+
     @Benchmark
     fun gemm(): DenseMatrix = a.matMul(b)
 
     @Benchmark
     fun gemv(): DoubleArray = koblas.gemv(a, rhs)
+
+    /** The full-symmetric extension: both triangles written, exactly symmetric. */
+    @Benchmark
+    fun syrkFull(): DenseMatrix {
+        koblas.syrk(1.0, a, transpose = false, beta = 0.0, c = w)
+        return w
+    }
+
+    /** Strict BLAS dsyrk: one triangle only, no scratch mirror in the native backends. */
+    @Benchmark
+    fun syrkLower(): DenseMatrix {
+        koblas.syrk(1.0, a, transpose = false, beta = 0.0, c = w, uplo = Uplo.LOWER)
+        return w
+    }
 }
 
 /**
