@@ -2,6 +2,7 @@ package com.eignex.koblas.cblas
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.ReferenceLinearAlgebra
+import com.eignex.koblas.Uplo
 import com.eignex.koblas.determinant
 import com.eignex.koblas.installLinearAlgebra
 import com.eignex.koblas.koblas
@@ -109,6 +110,42 @@ class CblasConformanceTest {
                         for (i in 0 until n) {
                             for (j in 0 until i) {
                                 assertEquals(cCblas.data[i * n + j], cCblas.data[j * n + i], "asymmetric at ($i;$j)")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `syrk triangle modes match reference and leave the other triangle untouched`() {
+        val rng = Random(20260934)
+        for (uplo in listOf(Uplo.LOWER, Uplo.UPPER)) {
+            for (transpose in booleanArrayOf(false, true)) {
+                for (beta in doubleArrayOf(0.0, -0.5)) {
+                    val a = randomMatrix(rng, 6, 4)
+                    val n = if (transpose) 4 else 6
+                    val c0 = DoubleArray(n * n) { idx ->
+                        val i = idx / n
+                        val j = idx % n
+                        val selected = if (uplo == Uplo.LOWER) j <= i else j >= i
+                        if (!selected || beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0)
+                    }
+                    val cRef = DenseMatrix.wrap(n, n, c0.copyOf())
+                    val cCblas = DenseMatrix.wrap(n, n, c0.copyOf())
+                    reference.syrk(0.75, a, transpose, beta, cRef, uplo)
+                    cblas.syrk(0.75, a, transpose, beta, cCblas, uplo)
+                    for (i in 0 until n) {
+                        for (j in 0 until n) {
+                            val selected = if (uplo == Uplo.LOWER) j <= i else j >= i
+                            val ctx = "syrk $uplo t=$transpose b=$beta ($i;$j)"
+                            if (selected) {
+                                val e = cRef.data[i * n + j]
+                                val v = cCblas.data[i * n + j]
+                                assertTrue(abs(e - v) <= 1e-12 * maxOf(1.0, abs(e)), "$ctx: $e vs $v")
+                            } else {
+                                assertTrue(cCblas.data[i * n + j].isNaN(), "$ctx: untouched triangle written")
                             }
                         }
                     }

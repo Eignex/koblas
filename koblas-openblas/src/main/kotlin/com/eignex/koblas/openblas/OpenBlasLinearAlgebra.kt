@@ -5,6 +5,7 @@ import com.eignex.koblas.LdlDecomposition
 import com.eignex.koblas.LinearAlgebra
 import com.eignex.koblas.LuDecomposition
 import com.eignex.koblas.QrDecomposition
+import com.eignex.koblas.Uplo
 import org.bytedeco.openblas.global.openblas.CblasLeft
 import org.bytedeco.openblas.global.openblas.CblasLower
 import org.bytedeco.openblas.global.openblas.CblasNoTrans
@@ -116,20 +117,27 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
         )
     }
 
-    override fun syrk(alpha: Double, a: DenseMatrix, transpose: Boolean, beta: Double, c: DenseMatrix) {
+    @Suppress("LongParameterList", "ReturnCount") // the BLAS dsyrk signature; guard-clause style
+    override fun syrk(alpha: Double, a: DenseMatrix, transpose: Boolean, beta: Double, c: DenseMatrix, uplo: Uplo) {
         val n = if (transpose) a.cols else a.rows
         val k = if (transpose) a.rows else a.cols
         require(c.rows == n && c.cols == n) { "syrk: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
         if (alpha == 0.0 || k == 0) {
-            scaleInPlace(c.data, beta)
+            scaleUplo(c.data, n, beta, uplo)
             return
         }
         if (n == 0) return
-        // dsyrk touches one triangle only, while the contract promises the full, exactly symmetric
-        // alpha term on top of a beta scale of all of C. Compute the alpha term into a scratch lower
-        // triangle, mirror it, then combine.
-        val w = DoubleArray(n * n)
         val trans = if (transpose) CblasTrans else CblasNoTrans
+        if (uplo != Uplo.FULL) {
+            // Strict dsyrk semantics: one triangle written and beta-scaled, the other untouched.
+            val u = if (uplo == Uplo.LOWER) CblasLower else CblasUpper
+            cblas_dsyrk(CblasRowMajor, u, trans, n, k, alpha, a.data, a.cols, beta, c.data, n)
+            return
+        }
+        // dsyrk touches one triangle only, while the FULL contract promises the full, exactly
+        // symmetric alpha term on top of a beta scale of all of C. Compute the alpha term into a
+        // scratch lower triangle, mirror it, then combine.
+        val w = DoubleArray(n * n)
         cblas_dsyrk(CblasRowMajor, CblasLower, trans, n, k, alpha, a.data, a.cols, 0.0, w, n)
         for (i in 0 until n) {
             for (j in 0 until i) w[j * n + i] = w[i * n + j]
@@ -279,6 +287,24 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
         when {
             beta == 0.0 -> v.fill(0.0)
             beta != 1.0 && v.isNotEmpty() -> cblas_dscal(v.size, beta, v, 1)
+        }
+    }
+
+    /** `beta` scale of the region [uplo] selects, honoring the `beta == 0` overwrite convention. */
+    private fun scaleUplo(v: DoubleArray, n: Int, beta: Double, uplo: Uplo) {
+        if (uplo == Uplo.FULL) {
+            scaleInPlace(v, beta)
+            return
+        }
+        if (beta == 1.0) return
+        for (i in 0 until n) {
+            val from = if (uplo == Uplo.LOWER) i * n else i * n + i
+            val until = if (uplo == Uplo.LOWER) i * n + i + 1 else (i + 1) * n
+            if (beta == 0.0) {
+                v.fill(0.0, from, until)
+            } else {
+                for (idx in from until until) v[idx] *= beta
+            }
         }
     }
 }
