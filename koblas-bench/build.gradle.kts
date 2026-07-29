@@ -45,6 +45,24 @@ benchmark {
         register("jvm")
     }
     configurations {
+        // Block-versus-column solve crossover across right-hand-side counts.
+        register("blockSolve") {
+            include("BlockSolveBenchmark")
+            warmups = 3
+            iterations = 5
+            iterationTime = 300
+            iterationTimeUnit = "ms"
+            advanced("jvmForks", "1")
+        }
+        // Level-2 sweep out to sizes where bandwidth, not dispatch, decides.
+        register("gemv") {
+            include("GemvBenchmark")
+            warmups = 3
+            iterations = 5
+            iterationTime = 500
+            iterationTimeUnit = "ms"
+            advanced("jvmForks", "1")
+        }
         // Level-1 crossover sweep: run once as-is and once with -Pkoblas.noSimd=true.
         register("level1") {
             include("Level1Benchmark")

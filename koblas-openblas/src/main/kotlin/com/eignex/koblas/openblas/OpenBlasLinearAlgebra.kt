@@ -5,6 +5,7 @@ import com.eignex.koblas.LdlDecomposition
 import com.eignex.koblas.LinearAlgebra
 import com.eignex.koblas.LuDecomposition
 import com.eignex.koblas.QrDecomposition
+import com.eignex.koblas.ReferenceLinearAlgebra
 import com.eignex.koblas.Uplo
 import org.bytedeco.openblas.global.openblas.CblasLeft
 import org.bytedeco.openblas.global.openblas.CblasLower
@@ -24,18 +25,20 @@ import org.bytedeco.openblas.global.openblas.LAPACKE_dsytrs
 import org.bytedeco.openblas.global.openblas.LAPACK_ROW_MAJOR
 import org.bytedeco.openblas.global.openblas.cblas_daxpy
 import org.bytedeco.openblas.global.openblas.cblas_dgemm
-import org.bytedeco.openblas.global.openblas.cblas_dgemv
 import org.bytedeco.openblas.global.openblas.cblas_dscal
 import org.bytedeco.openblas.global.openblas.cblas_dsymm
-import org.bytedeco.openblas.global.openblas.cblas_dsymv
 import org.bytedeco.openblas.global.openblas.cblas_dsyrk
 import org.bytedeco.openblas.global.openblas.cblas_dtrsm
-import org.bytedeco.openblas.global.openblas.cblas_dtrsv
 import org.bytedeco.openblas.presets.openblas_nolapack.blas_set_num_threads
 
 /**
  * [LinearAlgebra] backed by OpenBLAS through the Bytedeco JavaCPP presets. The natives ship in the
  * org.bytedeco:openblas artifacts and load on first use; no system BLAS installation is required.
+ *
+ * Not every routine goes native. Handing a `double[]` to the native side costs per call, which `O(n³)`
+ * work amortizes and `O(n²)` work does not, so the level-2 products ([gemv], [symv]) delegate to
+ * [ReferenceLinearAlgebra]'s SIMD kernels while level 3 and the factorizations dispatch to OpenBLAS.
+ * Each routine's KDoc says which it is, with the measurement behind it.
  *
  * Koblas storage is row-major, which CBLAS and LAPACKE support directly, so buffers cross the FFI
  * boundary without repacking. Semantics match [com.eignex.koblas.ReferenceLinearAlgebra] exactly as
@@ -70,6 +73,14 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
     /** The bundled-natives backend outranks every other automatic candidate. */
     override val priority: Int get() = 100
 
+    /**
+     * Delegated to [ReferenceLinearAlgebra]'s SIMD kernels rather than `cblas_dgemv`: level 2 does
+     * `O(n²)` work over `O(n²)` data, so the per-call cost of handing a `double[]` to the native side
+     * dominates and never amortizes. Measured across `n` 16..2048 the portable path wins everywhere,
+     * by 3-4x at `n` 256 and an order of magnitude at 2048, where the native call manages about
+     * 2 GB/s against the SIMD kernel's 20+. Level 3 and the factorizations amortize the same cost over
+     * `O(n³)` work and stay native.
+     */
     override fun gemv(
         alpha: Double,
         a: DenseMatrix,
@@ -77,21 +88,7 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
         beta: Double,
         y: DoubleArray,
         transpose: Boolean,
-    ) {
-        val xLen = if (transpose) a.rows else a.cols
-        val yLen = if (transpose) a.cols else a.rows
-        require(x.size == xLen) { "gemv: x length ${x.size} != $xLen" }
-        require(y.size == yLen) { "gemv: y length ${y.size} != $yLen" }
-        // Degenerate cases short-circuit in Kotlin: the BLAS quick-return paths do not honor the
-        // beta == 0 overwrite when a dimension is zero.
-        if (alpha == 0.0 || xLen == 0) {
-            scaleInPlace(y, beta)
-            return
-        }
-        if (yLen == 0) return
-        val trans = if (transpose) CblasTrans else CblasNoTrans
-        cblas_dgemv(CblasRowMajor, trans, a.rows, a.cols, alpha, a.data, a.cols, x, 1, beta, y, 1)
-    }
+    ) = ReferenceLinearAlgebra.gemv(alpha, a, x, beta, y, transpose)
 
     @Suppress("LongParameterList") // the BLAS dgemm signature
     override fun gemm(
@@ -158,20 +155,11 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
         }
     }
 
+    /** Delegated to the SIMD kernels for the same reason as [gemv]; measured 1.5-2x faster up to
+     *  `n` 1024 and 10x at 2048. */
     @Suppress("LongParameterList") // the BLAS dsymv signature
-    override fun symv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) {
-        require(a.rows == a.cols) { "symv: matrix must be square, got ${a.rows}x${a.cols}" }
-        val n = a.rows
-        require(x.size == n) { "symv: x length ${x.size} != $n" }
-        require(y.size == n) { "symv: y length ${y.size} != $n" }
-        if (alpha == 0.0) {
-            scaleInPlace(y, beta)
-            return
-        }
-        if (n == 0) return
-        val uplo = if (lower) CblasLower else CblasUpper
-        cblas_dsymv(CblasRowMajor, uplo, n, alpha, a.data, n, x, 1, beta, y, 1)
-    }
+    override fun symv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) =
+        ReferenceLinearAlgebra.symv(alpha, a, x, beta, y, lower)
 
     @Suppress("LongParameterList") // the BLAS dsymm signature
     override fun symm(
@@ -223,36 +211,35 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
         return LuDecomposition(n, lu, piv, singular = info > 0)
     }
 
-    override fun solve(lu: LuDecomposition, b: DoubleArray, transpose: Boolean): DoubleArray {
-        val n = lu.n
-        require(b.size == n) { "solve: b length ${b.size} != $n" }
-        if (n == 0) return DoubleArray(0)
-        val f = lu.lu
-        return if (transpose) {
-            // Aᵀ x = b, with Aᵀ = Uᵀ Lᵀ P: forward-solve Uᵀ, back-solve unit Lᵀ, un-permute.
-            val y = b.copyOf()
-            cblas_dtrsv(CblasRowMajor, CblasUpper, CblasTrans, CblasNonUnit, n, f, n, y, 1)
-            cblas_dtrsv(CblasRowMajor, CblasLower, CblasTrans, CblasUnit, n, f, n, y, 1)
-            val x = DoubleArray(n)
-            for (i in 0 until n) x[lu.piv[i]] = y[i]
-            x
-        } else {
-            // A x = b, with P A = L U: permute b, forward-solve unit L, back-solve U.
-            val x = DoubleArray(n) { b[lu.piv[it]] }
-            cblas_dtrsv(CblasRowMajor, CblasLower, CblasNoTrans, CblasUnit, n, f, n, x, 1)
-            cblas_dtrsv(CblasRowMajor, CblasUpper, CblasNoTrans, CblasNonUnit, n, f, n, x, 1)
-            x
-        }
-    }
+    /**
+     * Delegated to [ReferenceLinearAlgebra] for the same reason as [gemv]: two triangular solves over
+     * the `n²` factor are `O(n²)` work on `O(n²)` data, so the per-call cost dominates. Measured at
+     * `n` 256 the portable path takes 25 us against 65-136 us through `cblas_dtrsv`. The blocked
+     * [solve] below keeps `dtrsm`, which amortizes the same cost across many right-hand sides.
+     */
+    override fun solve(lu: LuDecomposition, b: DoubleArray, transpose: Boolean): DoubleArray =
+        ReferenceLinearAlgebra.solve(lu, b, transpose)
 
     override fun solve(lu: LuDecomposition, b: DenseMatrix, transpose: Boolean): DenseMatrix {
         val n = lu.n
         val nrhs = b.cols
         require(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
         if (n == 0 || nrhs == 0) return DenseMatrix.wrap(n, nrhs, DoubleArray(n * nrhs))
+        // One or two columns do not cover the native call's cost: at n 256 dtrsm needs 100-140 us for a
+        // single column against the delegated path's 25 us. From four columns on, dtrsm is ahead.
+        if (nrhs < NATIVE_TRSM_MIN_RHS) {
+            val out = DoubleArray(n * nrhs)
+            val col = DoubleArray(n)
+            for (c in 0 until nrhs) {
+                for (i in 0 until n) col[i] = b.data[i * nrhs + c]
+                val x = solve(lu, col, transpose)
+                for (i in 0 until n) out[i * nrhs + c] = x[i]
+            }
+            return DenseMatrix.wrap(n, nrhs, out)
+        }
         val f = lu.lu
-        // Same permute + two block triangular solves as the vector path; dtrsm is row-major native,
-        // so no LAPACKE transposition tax scales with nrhs.
+        // Permute plus two block triangular solves; dtrsm is row-major native, so no LAPACKE
+        // transposition tax scales with nrhs.
         return if (transpose) {
             val y = b.data.copyOf()
             cblas_dtrsm(CblasRowMajor, CblasLeft, CblasUpper, CblasTrans, CblasNonUnit, n, nrhs, 1.0, f, n, y, nrhs)
@@ -360,3 +347,6 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
         }
     }
 }
+
+/** Right-hand-side count from which `dtrsm` beats the delegated per-column solves. */
+private const val NATIVE_TRSM_MIN_RHS = 4
