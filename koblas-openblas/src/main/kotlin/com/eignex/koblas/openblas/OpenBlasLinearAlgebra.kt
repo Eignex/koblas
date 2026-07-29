@@ -7,6 +7,7 @@ import com.eignex.koblas.LuDecomposition
 import com.eignex.koblas.QrDecomposition
 import com.eignex.koblas.ReferenceLinearAlgebra
 import com.eignex.koblas.Uplo
+import com.eignex.koblas.Workspace
 import com.eignex.koblas.openblas.OpenBlasCalls.LEFT
 import com.eignex.koblas.openblas.OpenBlasCalls.LOWER
 import com.eignex.koblas.openblas.OpenBlasCalls.NON_UNIT
@@ -230,8 +231,14 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
      * `n` 256 the portable path takes 25 us against 65-136 us through `cblas_dtrsv`. The blocked
      * [solve] below keeps `dtrsm`, which amortizes the same cost across many right-hand sides.
      */
-    override fun solve(lu: LuDecomposition, b: DoubleArray, transpose: Boolean): DoubleArray =
-        ReferenceLinearAlgebra.solve(lu, b, transpose)
+    @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
+    override fun solveInto(
+        lu: LuDecomposition,
+        b: DoubleArray,
+        out: DoubleArray,
+        transpose: Boolean,
+        workspace: Workspace?,
+    ): DoubleArray = ReferenceLinearAlgebra.solveInto(lu, b, out, transpose, workspace)
 
     override fun solve(lu: LuDecomposition, b: DenseMatrix, transpose: Boolean): DenseMatrix {
         val n = lu.n
@@ -313,11 +320,13 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
         return LdlDecomposition(n, buf, ipiv, singular = info > 0)
     }
 
-    override fun solve(ldl: LdlDecomposition, b: DoubleArray): DoubleArray {
+    override fun solveInto(ldl: LdlDecomposition, b: DoubleArray, out: DoubleArray): DoubleArray {
         val n = ldl.n
         require(b.size == n) { "solve: b length ${b.size} != $n" }
-        if (n == 0) return DoubleArray(0)
-        val x = b.copyOf()
+        require(out.size == n) { "solve: out length ${out.size} != $n" }
+        if (n == 0) return out
+        val x = out
+        if (out !== b) b.copyInto(out)
         val info = OpenBlasCalls.dsytrs.invokeWithArguments(
             ROW_MAJOR, 'L'.code.toByte(), n, 1,
             OpenBlasCalls.seg(ldl.ldl), n, OpenBlasCalls.seg(ldl.ipiv), OpenBlasCalls.seg(x), 1,
@@ -359,7 +368,7 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
         return c
     }
 
-    override fun rcond(lu: LuDecomposition, anorm: Double): Double {
+    override fun rcond(lu: LuDecomposition, anorm: Double, workspace: Workspace?): Double {
         val n = lu.n
         if (n == 0) return 1.0
         if (lu.singular || anorm == 0.0) return 0.0

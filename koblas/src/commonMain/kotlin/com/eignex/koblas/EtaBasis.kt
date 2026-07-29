@@ -26,8 +26,14 @@ class EtaBasis private constructor(private val m: Int, private val base: SparseL
 
     /** Solve `B x = b` (FTRAN): base LU solve, then forward through the eta chain in update order.
      *  Each eta applies over the two contiguous runs around the pivot via [denseAxpy]. */
-    fun ftran(b: DoubleArray): DoubleArray {
-        val x = base.ftran(b)
+    fun ftran(b: DoubleArray): DoubleArray = ftranInto(b, DoubleArray(m))
+
+    /**
+     * Solve `B x = b` (FTRAN) into [out], which is returned. With a [workspace] the base solve's
+     * intermediates are reused as well, so a simplex iteration allocates nothing. [out] may be [b].
+     */
+    fun ftranInto(b: DoubleArray, out: DoubleArray, workspace: Workspace? = null): DoubleArray {
+        val x = base.ftranInto(b, out, workspace)
         for (j in etaSpike.indices) {
             val p = etaRow[j]
             val eta = etaSpike[j]
@@ -43,15 +49,21 @@ class EtaBasis private constructor(private val m: Int, private val base: SparseL
 
     /** Solve `Bᵀ x = b` (BTRAN): the eta chain transposed in reverse update order, then the base LU.
      *  Each eta gathers over the two contiguous runs around the pivot via [denseDot]. */
-    fun btran(b: DoubleArray): DoubleArray {
-        val z = b.copyOf()
+    fun btran(b: DoubleArray): DoubleArray = btranInto(b, DoubleArray(m))
+
+    /** Solve `Bᵀ x = b` (BTRAN) into [out], which is returned. [out] may be [b]. */
+    fun btranInto(b: DoubleArray, out: DoubleArray, workspace: Workspace? = null): DoubleArray {
+        require(b.size == m) { "btran: b size ${b.size} != $m" }
+        // The eta chain transposed, applied to a working copy, then the base solve into out.
+        val z = workspace?.doubles(Workspace.ETA_WORK, m) ?: DoubleArray(m)
+        b.copyInto(z)
         for (j in etaSpike.indices.reversed()) {
             val p = etaRow[j]
             val eta = etaSpike[j]
             val s = z[p] - denseDot(eta, 0, z, 0, p) - denseDot(eta, p + 1, z, p + 1, m - p - 1)
             z[p] = s / eta[p]
         }
-        return base.btran(z)
+        return base.btranInto(z, out, workspace)
     }
 
     /** Append the eta for an update replacing basis slot [pivotRow]; [spike] must be this object's

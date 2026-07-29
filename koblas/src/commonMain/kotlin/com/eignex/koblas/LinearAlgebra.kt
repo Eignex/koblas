@@ -109,12 +109,50 @@ interface LinearAlgebra {
         right: Boolean = false,
     )
 
-    /** LU factorization with partial pivoting of a square [a] (LAPACK `dgetrf`); [a] is not modified. */
+    /** LU factorization with partial pivoting of a square [a] (LAPACK `dgetrf`); [a] is not modified.
+     *  Allocates the factor buffers; [factorInto] refactorizes into existing ones. */
     fun factor(a: DenseMatrix): LuDecomposition
 
+    /**
+     * Refactorize [a] into [out]'s existing buffers, returning [out]. A periodic refactorization — the
+     * simplex rebuilding its basis, a filter re-decomposing a covariance — otherwise allocates an `n²`
+     * copy and a pivot array each time; this reuses both. [out] must have the same dimension as [a], and
+     * its previous contents are discarded.
+     */
+    fun factorInto(a: DenseMatrix, out: LuDecomposition): LuDecomposition {
+        require(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
+        require(out.n == a.rows) { "factorInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}" }
+        // The default has no way to reuse a backend's internals, so it factors and copies the result in.
+        val fresh = factor(a)
+        fresh.lu.copyInto(out.lu)
+        fresh.piv.copyInto(out.piv)
+        out.singular = fresh.singular
+        return out
+    }
+
     /** Solve `A · x = b` (or `Aᵀ · x = b` when [transpose]) for the factorization [lu] (LAPACK `dgetrs`);
-     *  returns a fresh `x`. [transpose] serves the simplex's BTRAN (`Bᵀ y = c`) against a factored basis. */
-    fun solve(lu: LuDecomposition, b: DoubleArray, transpose: Boolean = false): DoubleArray
+     *  returns a fresh `x`. [transpose] serves the simplex's BTRAN (`Bᵀ y = c`) against a factored basis.
+     *  Allocates the result; [solveInto] writes into a caller-owned destination instead. */
+    fun solve(lu: LuDecomposition, b: DoubleArray, transpose: Boolean = false): DoubleArray =
+        solveInto(lu, b, DoubleArray(lu.n), transpose)
+
+    /**
+     * Solve `A · x = b` (or `Aᵀ · x = b` when [transpose]) into [out], which is returned. Nothing is
+     * allocated, so a loop that owns its destination — a simplex FTRAN/BTRAN against a factored basis, a
+     * filter update — runs without touching the collector. [out] may be the same array as [b].
+     *
+     * The transposed direction has to stage the solved vector before scattering it through the
+     * permutation, so pass a [workspace] to make that staging buffer reusable as well; without one it is
+     * the single allocation this routine still makes.
+     */
+    @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
+    fun solveInto(
+        lu: LuDecomposition,
+        b: DoubleArray,
+        out: DoubleArray,
+        transpose: Boolean = false,
+        workspace: Workspace? = null,
+    ): DoubleArray
 
     /**
      * Solve `A · X = B` (or `Aᵀ · X = B` when [transpose]) for the [b].cols right-hand-side columns of
@@ -158,8 +196,12 @@ interface LinearAlgebra {
     fun ldl(a: DenseMatrix): LdlDecomposition
 
     /** Solve `A · x = b` for a symmetric indefinite factorization [ldl] (LAPACK `dsytrs`); returns a
-     *  fresh `x`. Symmetry makes the transposed solve identical, so there is no `transpose` flag. */
-    fun solve(ldl: LdlDecomposition, b: DoubleArray): DoubleArray
+     *  fresh `x`. Symmetry makes the transposed solve identical, so there is no `transpose` flag.
+     *  Allocates the result; [solveInto] writes into a caller-owned destination instead. */
+    fun solve(ldl: LdlDecomposition, b: DoubleArray): DoubleArray = solveInto(ldl, b, DoubleArray(ldl.n))
+
+    /** Solve `A · x = b` into [out], which is returned; allocates nothing. [out] may be [b]. */
+    fun solveInto(ldl: LdlDecomposition, b: DoubleArray, out: DoubleArray): DoubleArray
 
     /**
      * Solve `A · X = B` for the [b].cols right-hand-side columns of [b] at once against a symmetric
@@ -295,44 +337,53 @@ interface LinearAlgebra {
      * This is an order-of-magnitude estimate, not an exact condition number: the estimator never
      * exceeds the true `‖A⁻¹‖₁`, so the returned value never understates the conditioning. It is the
      * cheap signal a revised simplex uses to decide when to refactorize. The default implementation is
-     * a Hager-style 1-norm estimator over [solve]; backends may substitute a native estimator, so the
+     * a Hager-style 1-norm estimator over [solveInto]; backends may substitute a native estimator, so the
      * exact value can differ between backends while agreeing in magnitude.
+     *
+     * The estimator needs four vectors and runs several sweeps, so it is the allocation-heaviest routine
+     * here — which matters because a simplex calls it to decide when to refactorize. Passing a
+     * [workspace] reuses those buffers across calls and makes it allocation-free.
      */
-    fun rcond(lu: LuDecomposition, anorm: Double): Double {
+    fun rcond(lu: LuDecomposition, anorm: Double, workspace: Workspace? = null): Double {
         val n = lu.n
         if (n == 0) return 1.0
         if (lu.singular || anorm == 0.0) return 0.0
         // Hager's power iteration on the 1-norm of A⁻¹: follow sign vectors through A⁻¹ and A⁻ᵀ,
         // restarting from the unit vector of the strongest coordinate until it stops improving.
-        var x = DoubleArray(n) { 1.0 / n }
+        val x = workspace?.doubles(Workspace.RCOND_X, n) ?: DoubleArray(n)
+        val y = workspace?.doubles(Workspace.RCOND_Y, n) ?: DoubleArray(n)
+        val signs = workspace?.doubles(Workspace.RCOND_SIGNS, n) ?: DoubleArray(n)
+        for (i in 0 until n) x[i] = 1.0 / n
         var estimate = 0.0
         var lastPivot = -1
         var sweep = 0
         while (sweep < RCOND_MAX_SWEEPS) {
-            val y = solve(lu, x)
+            solveInto(lu, x, y, workspace = workspace)
             var e = 0.0
-            for (v in y) e += abs(v)
+            for (i in 0 until n) e += abs(y[i])
             if (e > estimate) estimate = e
-            val signs = DoubleArray(n) { i -> if (y[i] >= 0.0) 1.0 else -1.0 }
-            val z = solve(lu, signs, transpose = true)
+            for (i in 0 until n) signs[i] = if (y[i] >= 0.0) 1.0 else -1.0
+            // z reuses y: the sign vector is already read out of it.
+            val z = solveInto(lu, signs, y, transpose = true, workspace = workspace)
             var j = 0
             for (i in 1 until n) if (abs(z[i]) > abs(z[j])) j = i
             var zx = 0.0
             for (i in 0 until n) zx += z[i] * x[i]
             if (j == lastPivot || abs(z[j]) <= zx) break
-            x = DoubleArray(n)
+            x.fill(0.0)
             x[j] = 1.0
             lastPivot = j
             sweep++
         }
         // The alternating-sign safeguard from LAPACK's dlacn2 catches matrices the power step misses;
         // its probe vector has 1-norm 3n/2, hence the 2/(3n) normalization.
-        val probe = DoubleArray(n) { i ->
-            (if (i % 2 == 0) 1.0 else -1.0) * (1.0 + i.toDouble() / maxOf(1, n - 1))
+        val probe = workspace?.doubles(Workspace.RCOND_PROBE, n) ?: DoubleArray(n)
+        for (i in 0 until n) {
+            probe[i] = (if (i % 2 == 0) 1.0 else -1.0) * (1.0 + i.toDouble() / maxOf(1, n - 1))
         }
-        val alt = solve(lu, probe)
+        val alt = solveInto(lu, probe, y, workspace = workspace)
         var e = 0.0
-        for (v in alt) e += abs(v)
+        for (i in 0 until n) e += abs(alt[i])
         e = 2.0 * e / (3.0 * n)
         if (e > estimate) estimate = e
         val denominator = estimate * anorm
@@ -390,14 +441,20 @@ private const val BUNCH_KAUFMAN_ALPHA = 0.6403882032022076
  * The constructor and the factor buffers are public so that out-of-repo [LinearAlgebra] backends can
  * produce and consume factorizations in the shared format; every backend packs identically, so a
  * decomposition from one backend solves correctly on another. [lu] and [piv] are live buffers, not
- * copies — treat them as read-only.
+ * copies: treat them as read-only, and note that [LinearAlgebra.factorInto] rewrites them in place so a
+ * periodic refactorization need not allocate new ones.
  *
  * @property n the matrix dimension.
  * @property lu the packed `L`\`U` factors, row-major, length `n * n`.
  * @property piv the row permutation.
- * @property singular whether a zero pivot was encountered.
+ * @param singular whether a zero pivot was encountered; readable afterwards through [singular].
  */
-class LuDecomposition(val n: Int, val lu: DoubleArray, val piv: IntArray, val singular: Boolean) {
+class LuDecomposition(val n: Int, val lu: DoubleArray, val piv: IntArray, singular: Boolean) {
+    /** Whether a zero pivot was encountered. Refactorizing in place via [LinearAlgebra.factorInto]
+     *  updates it along with the buffers. */
+    var singular: Boolean = singular
+        internal set
+
     init {
         require(lu.size == n * n) { "lu length ${lu.size} != ${n * n}" }
         require(piv.size == n) { "piv length ${piv.size} != $n" }
@@ -815,12 +872,14 @@ object ReferenceLinearAlgebra : LinearAlgebra {
         return LdlDecomposition(n, w, ipiv, singular)
     }
 
-    override fun solve(ldl: LdlDecomposition, b: DoubleArray): DoubleArray {
+    override fun solveInto(ldl: LdlDecomposition, b: DoubleArray, out: DoubleArray): DoubleArray {
         val n = ldl.n
         require(b.size == n) { "solve: b length ${b.size} != $n" }
+        require(out.size == n) { "solve: out length ${out.size} != $n" }
         val w = ldl.ldl
         val ipiv = ldl.ipiv
-        val x = b.copyOf()
+        val x = out
+        if (out !== b) b.copyInto(out)
         // Forward: replay interchanges, apply L block columns, divide by the D blocks (dsytrs lower).
         var k = 0
         while (k < n) {
@@ -964,8 +1023,22 @@ object ReferenceLinearAlgebra : LinearAlgebra {
     override fun factor(a: DenseMatrix): LuDecomposition {
         require(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
         val n = a.rows
-        val lu = a.data.copyOf()
-        val piv = IntArray(n) { it }
+        return factorCore(a, LuDecomposition(n, DoubleArray(n * n), IntArray(n), singular = false))
+    }
+
+    override fun factorInto(a: DenseMatrix, out: LuDecomposition): LuDecomposition {
+        require(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
+        require(out.n == a.rows) { "factorInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}" }
+        return factorCore(a, out)
+    }
+
+    /** Doolittle LU with partial pivoting, writing into [out]'s buffers. */
+    private fun factorCore(a: DenseMatrix, out: LuDecomposition): LuDecomposition {
+        val n = out.n
+        val lu = out.lu
+        a.data.copyInto(lu)
+        val piv = out.piv
+        for (i in 0 until n) piv[i] = i
         var singular = false
         for (k in 0 until n) {
             var p = k
@@ -998,33 +1071,71 @@ object ReferenceLinearAlgebra : LinearAlgebra {
                 denseAxpy(lu, i * n + k + 1, -f, lu, k * n + k + 1, n - k - 1)
             }
         }
-        return LuDecomposition(n, lu, piv, singular)
+        out.singular = singular
+        return out
     }
 
-    override fun solve(lu: LuDecomposition, b: DoubleArray, transpose: Boolean): DoubleArray {
+    @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
+    override fun solveInto(
+        lu: LuDecomposition,
+        b: DoubleArray,
+        out: DoubleArray,
+        transpose: Boolean,
+        workspace: Workspace?,
+    ): DoubleArray {
         val n = lu.n
         require(b.size == n) { "solve: b length ${b.size} != $n" }
+        require(out.size == n) { "solve: out length ${out.size} != $n" }
         val a = lu.lu
         val piv = lu.piv
-        return if (transpose) solveTranspose(n, a, piv, b) else solveNormal(n, a, piv, b)
+        return if (transpose) {
+            solveTranspose(n, a, piv, b, out, workspace)
+        } else {
+            solveNormal(n, a, piv, b, out, workspace)
+        }
     }
 
     // A x = b, with P A = L U: permute b by P, forward-solve unit-lower L, back-solve U.
-    private fun solveNormal(n: Int, a: DoubleArray, piv: IntArray, b: DoubleArray): DoubleArray {
-        val x = DoubleArray(n) { b[piv[it]] }
-        trsvCore(a, n, x, lower = true, transpose = false, unitDiag = true)
-        trsvCore(a, n, x, lower = false, transpose = false, unitDiag = false)
-        return x
+    @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
+    private fun solveNormal(
+        n: Int,
+        a: DoubleArray,
+        piv: IntArray,
+        b: DoubleArray,
+        out: DoubleArray,
+        workspace: Workspace?,
+    ): DoubleArray {
+        // The permutation may read a slot of b that has already been written when out aliases b, so the
+        // gather goes through a staging pass only in that case.
+        if (out === b) {
+            val staged = workspace?.doubles(Workspace.SOLVE_STAGE, n) ?: DoubleArray(n)
+            for (i in 0 until n) staged[i] = b[piv[i]]
+            staged.copyInto(out)
+        } else {
+            for (i in 0 until n) out[i] = b[piv[i]]
+        }
+        trsvCore(a, n, out, lower = true, transpose = false, unitDiag = true)
+        trsvCore(a, n, out, lower = false, transpose = false, unitDiag = false)
+        return out
     }
 
     // Aᵀ x = b, with Aᵀ = Uᵀ Lᵀ P: forward-solve Uᵀ (lower), back-solve unit-upper Lᵀ, then un-permute.
-    private fun solveTranspose(n: Int, a: DoubleArray, piv: IntArray, b: DoubleArray): DoubleArray {
-        val y = b.copyOf()
+    @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
+    private fun solveTranspose(
+        n: Int,
+        a: DoubleArray,
+        piv: IntArray,
+        b: DoubleArray,
+        out: DoubleArray,
+        workspace: Workspace?,
+    ): DoubleArray {
+        // The triangular solves run on a staged copy; the scatter that follows cannot be done in place.
+        val y = workspace?.doubles(Workspace.SOLVE_STAGE, n) ?: DoubleArray(n)
+        b.copyInto(y)
         trsvCore(a, n, y, lower = false, transpose = true, unitDiag = false)
         trsvCore(a, n, y, lower = true, transpose = true, unitDiag = true)
-        val x = DoubleArray(n) // undo the row permutation: x[piv[i]] = z[i]
-        for (i in 0 until n) x[piv[i]] = y[i]
-        return x
+        for (i in 0 until n) out[piv[i]] = y[i] // undo the row permutation
+        return out
     }
 }
 

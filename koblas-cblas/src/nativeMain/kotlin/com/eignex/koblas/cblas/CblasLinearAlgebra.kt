@@ -8,6 +8,7 @@ import com.eignex.koblas.LinearAlgebra
 import com.eignex.koblas.LuDecomposition
 import com.eignex.koblas.QrDecomposition
 import com.eignex.koblas.Uplo
+import com.eignex.koblas.Workspace
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.invoke
@@ -257,25 +258,39 @@ class CblasLinearAlgebra : LinearAlgebra {
         return LuDecomposition(n, lu, piv, singular = info > 0)
     }
 
-    override fun solve(lu: LuDecomposition, b: DoubleArray, transpose: Boolean): DoubleArray {
+    @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
+    override fun solveInto(
+        lu: LuDecomposition,
+        b: DoubleArray,
+        out: DoubleArray,
+        transpose: Boolean,
+        workspace: Workspace?,
+    ): DoubleArray {
         val n = lu.n
         require(b.size == n) { "solve: b length ${b.size} != $n" }
-        if (n == 0) return DoubleArray(0)
-        return if (transpose) {
-            // Aᵀ x = b, with Aᵀ = Uᵀ Lᵀ P: forward-solve Uᵀ, back-solve unit Lᵀ, un-permute.
-            val y = b.copyOf()
+        require(out.size == n) { "solve: out length ${out.size} != $n" }
+        if (n == 0) return out
+        if (transpose) {
+            // Aᵀ x = b, with Aᵀ = Uᵀ Lᵀ P: forward-solve Uᵀ, back-solve unit Lᵀ, un-permute. The scatter
+            // cannot run in place, so the solved vector is staged.
+            val y = workspace?.backendVector(n) ?: DoubleArray(n)
+            b.copyInto(y)
             trsv(lu.lu, n, y, UPPER, TRANS, NON_UNIT)
             trsv(lu.lu, n, y, LOWER, TRANS, UNIT)
-            val x = DoubleArray(n)
-            for (i in 0 until n) x[lu.piv[i]] = y[i]
-            x
+            for (i in 0 until n) out[lu.piv[i]] = y[i]
         } else {
             // A x = b, with P A = L U: permute b, forward-solve unit L, back-solve U.
-            val x = DoubleArray(n) { b[lu.piv[it]] }
-            trsv(lu.lu, n, x, LOWER, NO_TRANS, UNIT)
-            trsv(lu.lu, n, x, UPPER, NO_TRANS, NON_UNIT)
-            x
+            if (out === b) {
+                val staged = workspace?.backendVector(n) ?: DoubleArray(n)
+                for (i in 0 until n) staged[i] = b[lu.piv[i]]
+                staged.copyInto(out)
+            } else {
+                for (i in 0 until n) out[i] = b[lu.piv[i]]
+            }
+            trsv(lu.lu, n, out, LOWER, NO_TRANS, UNIT)
+            trsv(lu.lu, n, out, UPPER, NO_TRANS, NON_UNIT)
         }
+        return out
     }
 
     override fun solve(lu: LuDecomposition, b: DenseMatrix, transpose: Boolean): DenseMatrix {
@@ -316,11 +331,13 @@ class CblasLinearAlgebra : LinearAlgebra {
         return LdlDecomposition(n, buf, ipiv, singular = info > 0)
     }
 
-    override fun solve(ldl: LdlDecomposition, b: DoubleArray): DoubleArray {
+    override fun solveInto(ldl: LdlDecomposition, b: DoubleArray, out: DoubleArray): DoubleArray {
         val n = ldl.n
         require(b.size == n) { "solve: b length ${b.size} != $n" }
-        if (n == 0) return DoubleArray(0)
-        return solveSytrs(ldl, b.copyOf(), 1)
+        require(out.size == n) { "solve: out length ${out.size} != $n" }
+        if (n == 0) return out
+        if (out !== b) b.copyInto(out)
+        return solveSytrs(ldl, out, 1)
     }
 
     override fun solve(ldl: LdlDecomposition, b: DenseMatrix): DenseMatrix {
@@ -366,7 +383,7 @@ class CblasLinearAlgebra : LinearAlgebra {
         return c
     }
 
-    override fun rcond(lu: LuDecomposition, anorm: Double): Double {
+    override fun rcond(lu: LuDecomposition, anorm: Double, workspace: Workspace?): Double {
         val n = lu.n
         if (n == 0) return 1.0
         if (lu.singular || anorm == 0.0) return 0.0
