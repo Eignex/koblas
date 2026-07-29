@@ -117,10 +117,12 @@ A few routines also need scratch of their own, and those take an optional
 Workspace: a pool of vectors keyed by width, which you create and hand over.
 Operations borrow and return buffers, so nesting is safe and one workspace
 serves whatever dimensions a caller mixes; pools grow on demand, and reserve
-pays that cost up front. rcond benefits most, since a simplex calls it to
-decide when to refactorize and it runs several sweeps over four vectors. An
-EtaBasis owns its scratch instead, being mutable already, so its solves need
-no workspace at all.
+pays that cost up front. It is accepted wherever a routine
+needs temporaries: rcond and norm1 (a simplex calls both to decide when to
+refactorize), the syrk mirror buffer (an n² scratch, the largest in the
+library), ldl, qr, the Cholesky rank-one update and downdate, invertSpd, and
+the triangular solves' staging. An EtaBasis owns its scratch instead, being
+mutable already, so its solves need no workspace at all.
 
 ```kotlin
 val ws = Workspace().apply { reserve(n, count = 5) }

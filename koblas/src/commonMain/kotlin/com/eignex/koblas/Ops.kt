@@ -183,16 +183,19 @@ fun addOuter(M: DenseMatrix, alpha: Double, x: VectorView, y: VectorView) {
 }
 
 /** Matrix 1-norm: the maximum absolute column sum (LAPACK `dlange` with norm `1`). This is the
- *  `anorm` input [LinearAlgebra.rcond] expects, computed on the matrix before factoring. */
-fun norm1(a: DenseMatrix): Double {
-    val sums = DoubleArray(a.cols)
+ *  `anorm` input [LinearAlgebra.rcond] expects, computed on the matrix before factoring, so a solver
+ *  that estimates conditioning each refactorization calls both — pass the same [workspace] to each. */
+fun norm1(a: DenseMatrix, workspace: Workspace? = null): Double {
+    val sums = workspace?.take(a.cols) ?: DoubleArray(a.cols)
+    sums.fill(0.0)
     val ad = a.data
     for (i in 0 until a.rows) {
         val base = i * a.cols
         for (j in 0 until a.cols) sums[j] += abs(ad[base + j])
     }
     var m = 0.0
-    for (s in sums) if (s > m) m = s
+    for (j in 0 until a.cols) if (sums[j] > m) m = sums[j]
+    workspace?.release(sums)
     return m
 }
 

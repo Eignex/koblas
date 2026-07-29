@@ -109,8 +109,16 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
         )
     }
 
-    @Suppress("LongParameterList", "ReturnCount") // the BLAS dsyrk signature; guard-clause style
-    override fun syrk(alpha: Double, a: DenseMatrix, transpose: Boolean, beta: Double, c: DenseMatrix, uplo: Uplo) {
+    @Suppress("LongParameterList", "ReturnCount") // dsyrk's arguments plus scratch; guard-clause style
+    override fun syrk(
+        alpha: Double,
+        a: DenseMatrix,
+        transpose: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        uplo: Uplo,
+        workspace: Workspace?,
+    ) {
         val n = if (transpose) a.cols else a.rows
         val k = if (transpose) a.rows else a.cols
         require(c.rows == n && c.cols == n) { "syrk: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
@@ -132,7 +140,7 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
         // dsyrk touches one triangle only, while the FULL contract promises the full, exactly
         // symmetric alpha term on top of a beta scale of all of C. Compute the alpha term into a
         // scratch lower triangle, mirror it, then combine.
-        val w = DoubleArray(n * n)
+        val w = workspace?.take(n * n) ?: DoubleArray(n * n)
         OpenBlasCalls.dsyrk.invokeWithArguments(
             ROW_MAJOR, LOWER, trans, n, k, alpha,
             OpenBlasCalls.seg(a.data), a.cols, 0.0, OpenBlasCalls.seg(w), n,
@@ -302,7 +310,7 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
         return DenseMatrix.wrap(n, nrhs, x)
     }
 
-    override fun ldl(a: DenseMatrix): LdlDecomposition {
+    override fun ldl(a: DenseMatrix, workspace: Workspace?): LdlDecomposition {
         require(a.rows == a.cols) { "ldl: matrix must be square, got ${a.rows}x${a.cols}" }
         val n = a.rows
         val buf = a.data.copyOf()
@@ -335,7 +343,7 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
         return x
     }
 
-    override fun qr(a: DenseMatrix): QrDecomposition {
+    override fun qr(a: DenseMatrix, workspace: Workspace?): QrDecomposition {
         val m = a.rows
         val n = a.cols
         val buf = a.data.copyOf()
