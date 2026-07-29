@@ -25,3 +25,13 @@ dependencies {
 tasks.withType<Test>().configureEach {
     jvmArgs("--enable-native-access=ALL-UNNAMED")
 }
+
+// A stable module name so consumers can scope the native-access grant to this artifact:
+// --enable-native-access=com.eignex.koblas.openblas, rather than opening the whole class path.
+// A full module-info is not possible yet: the Bytedeco openblas artifact declares no module name, so
+// requiring it would mean depending on a name derived from its jar file.
+tasks.named<Jar>("jar") {
+    manifest {
+        attributes("Automatic-Module-Name" to "com.eignex.koblas.openblas")
+    }
+}
