@@ -111,10 +111,14 @@ needs them.
 Every routine that returns a result also has a destination-passing form, so a
 loop that owns its buffers allocates nothing: solveInto for the dense and
 symmetric indefinite solves, ftranInto and btranInto for the sparse basis and
-the eta chain, factorInto to refactorize into existing factor buffers. The
-routines that need internal scratch take an optional Workspace, a set of
-reusable buffers the caller owns; rcond is the one that benefits most, since a
-simplex calls it to decide when to refactorize and it runs several sweeps.
+the eta chain, factorInto to refactorize into existing factor buffers.
+
+A few routines also need scratch of their own, and those take an optional
+Workspace: an opaque handle to reusable buffers that you create and hand over,
+never fill yourself. rcond benefits most, since a simplex calls it to decide
+when to refactorize and it runs several sweeps over four vectors. An EtaBasis
+owns its scratch instead, being mutable already, so its solves need no
+workspace at all.
 
 ```kotlin
 val ws = Workspace()

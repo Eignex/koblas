@@ -143,9 +143,9 @@ class DestinationPassingTest {
         val eta = EtaBasis.of(lu, m)
         val spike = eta.ftran(DoubleArray(m) { rng.nextDouble(-1.0, 1.0) })
         eta.update(pivotRow = 3, spike = spike)
-        assertClose(eta.ftran(b), eta.ftranInto(b, DoubleArray(m), ws), "eta ftran")
-        assertClose(eta.btran(b), eta.btranInto(b, DoubleArray(m), ws), "eta btran")
+        assertClose(eta.ftran(b), eta.ftranInto(b, DoubleArray(m)), "eta ftran")
+        assertClose(eta.btran(b), eta.btranInto(b, DoubleArray(m)), "eta btran")
         val aliased = b.copyOf()
-        assertClose(eta.ftran(b), eta.ftranInto(aliased, aliased, ws), "eta ftran aliased")
+        assertClose(eta.ftran(b), eta.ftranInto(aliased, aliased), "eta ftran aliased")
     }
 }
