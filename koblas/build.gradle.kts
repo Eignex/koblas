@@ -80,3 +80,11 @@ tasks.withType<Test>().configureEach {
         jvmArgs("--add-modules=jdk.incubator.vector")
     }
 }
+
+// A stable module name, so a modular consumer sees a named module rather than one named after the jar
+// file. That is what lets native access be granted per module instead of blanket ALL-UNNAMED.
+tasks.named<Jar>("jvmJar") {
+    manifest {
+        attributes("Automatic-Module-Name" to "com.eignex.koblas")
+    }
+}

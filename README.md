@@ -156,7 +156,13 @@ JDK 25 and the flag that permits native access:
 --enable-native-access=ALL-UNNAMED
 ```
 
-Core koblas has no such requirement. The level 2 products and single-vector
+The artifact declares the module name com.eignex.koblas.openblas, so a modular
+consumer can grant that instead of opening the whole class path. Applications
+launched with java -jar can carry Enable-Native-Access in their manifest
+rather than a flag. Any route to a native library needs this, JNI included, so
+it is not a cost of the FFM binding. Core koblas needs none of it: the
+portable backend, and with it level 1, level 2 and the single-vector solves,
+never calls native code. The level 2 products and single-vector
 solves stay on the portable kernels even with this backend active, because
 their work is proportional to their data and no native call can win that.
 OpenBLAS runs single-threaded by default, which is both the fast and the safe
