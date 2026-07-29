@@ -126,6 +126,10 @@ interface LinearAlgebra {
         val n = lu.n
         val nrhs = b.cols
         require(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
+        // A narrow block updates rows in `nrhs`-length runs, too short for the vectorized primitives to
+        // pay off — at `nrhs` 1 that is one length-1 axpy per matrix element, measured 10x slower than
+        // solving column by column. Wide blocks amortize the factor traversal and win from ~32 columns.
+        if (nrhs < BLOCK_SOLVE_MIN_RHS) return solveByColumn(b, n, nrhs) { solve(lu, it, transpose) }
         val f = lu.lu
         return if (transpose) {
             // Aᵀ X = B, with Aᵀ = Uᵀ Lᵀ P: forward-solve Uᵀ, back-solve unit Lᵀ, un-permute rows.
@@ -168,6 +172,8 @@ interface LinearAlgebra {
         val n = ldl.n
         val nrhs = b.cols
         require(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
+        // Narrow blocks solve column by column, as in the LU case above.
+        if (nrhs in 1 until BLOCK_SOLVE_MIN_RHS) return solveByColumn(b, n, nrhs) { solve(ldl, it) }
         val w = ldl.ldl
         val ipiv = ldl.ipiv
         val x = b.data.copyOf()
@@ -336,6 +342,31 @@ interface LinearAlgebra {
 
 /** Sweep cap for the [LinearAlgebra.rcond] estimator; Hager's iteration almost always converges in 2. */
 private const val RCOND_MAX_SWEEPS = 5
+
+/**
+ * Right-hand-side count from which a block solve beats solving column by column. Below it the block
+ * traversal updates rows in runs too short to vectorize; above it the single pass over the factor pays
+ * for itself. Measured crossover at `n` 64 and 256: column solves win through 16 columns, the block
+ * wins from 32.
+ */
+private const val BLOCK_SOLVE_MIN_RHS = 32
+
+/** Run [solveOne] over each column of [b], reassembling the results into an `n × nrhs` matrix. */
+private inline fun solveByColumn(
+    b: DenseMatrix,
+    n: Int,
+    nrhs: Int,
+    solveOne: (DoubleArray) -> DoubleArray,
+): DenseMatrix {
+    val out = DoubleArray(n * nrhs)
+    val col = DoubleArray(n)
+    for (c in 0 until nrhs) {
+        for (i in 0 until n) col[i] = b.data[i * nrhs + c]
+        val x = solveOne(col)
+        for (i in 0 until n) out[i * nrhs + c] = x[i]
+    }
+    return DenseMatrix.wrap(n, nrhs, out)
+}
 
 /** Swap rows [r1] and [r2] of a flat row-major solve buffer with [nrhs] columns. */
 private fun swapSolveRows(x: DoubleArray, nrhs: Int, r1: Int, r2: Int) {
