@@ -66,15 +66,11 @@ class Workspace {
         const val RCOND_Y = 1
         const val RCOND_SIGNS = 2
         const val RCOND_PROBE = 3
-        const val LDL_COL_K = 4
-        const val LDL_COL_K1 = 5
-        const val QR_W = 6
-        const val SYRK_MIRROR = 7
-        const val SOLVE_STAGE = 8
-        const val SPARSE_WORK = 9
-        const val SPARSE_WORK_2 = 10
-        const val ETA_WORK = 11
-        const val BACKEND = 12
-        const val SLOT_COUNT = 13
+        const val SOLVE_STAGE = 4
+        const val SPARSE_WORK = 5
+        const val SPARSE_WORK_2 = 6
+        const val ETA_WORK = 7
+        const val BACKEND = 8
+        const val SLOT_COUNT = 9
     }
 }
