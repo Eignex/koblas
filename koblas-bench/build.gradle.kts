@@ -56,6 +56,17 @@ benchmark {
             iterationTimeUnit = "ms"
             advanced("jvmForks", "1")
         }
+        // Level 3 and factorization only: the routines a native backend still handles.
+        register("level3") {
+            include("DenseBenchmark.gemm")
+            include("DenseBenchmark.luSolve")
+            include("DenseBenchmark.syrkFull")
+            warmups = 2
+            iterations = 4
+            iterationTime = 500
+            iterationTimeUnit = "ms"
+            advanced("jvmForks", "1")
+        }
         // Level-2 sweep out to sizes where bandwidth, not dispatch, decides.
         register("gemv") {
             include("GemvBenchmark")

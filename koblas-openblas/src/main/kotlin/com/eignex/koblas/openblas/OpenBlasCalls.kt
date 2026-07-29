@@ -30,6 +30,11 @@ import java.nio.file.Path
  *
  * Pinning blocks relocation of the array while the call runs, which is the trade for zero copy. koblas's
  * calls are leaf work of bounded duration, and level-2 shapes do not reach here at all.
+ *
+ * Calls go through `invokeWithArguments` rather than `invokeExact`: the latter is signature-polymorphic,
+ * which Kotlin cannot emit — it boxes the arguments instead, and the native side then reads garbage
+ * (observed as a SIGSEGV at any realistic size). The boxing `invokeWithArguments` does costs on the order
+ * of 100 ns against calls that do `O(n³)` work, so it is not measurable here.
  */
 internal object OpenBlasCalls {
 
@@ -70,6 +75,17 @@ internal object OpenBlasCalls {
         } catch (_: Throwable) { // a missing native for this platform must not crash startup
             false
         }
+    }
+
+    /**
+     * Threads must be configured on *this* instance. The library is resolved by path here, which is not
+     * necessarily the handle the JNI presets configured, and an unconfigured OpenBLAS runs multithreaded:
+     * its parallel LAPACK path overflows default JVM thread stacks and crashes the process at any
+     * realistic size. Single-threaded is also the faster configuration at koblas workload sizes.
+     */
+    fun setThreads(count: Int) {
+        val setter = lookup.find("openblas_set_num_threads").orElse(null) ?: return
+        linker.downcallHandle(setter, FunctionDescriptor.ofVoid(JAVA_INT)).invokeWithArguments(count)
     }
 
     private fun handle(name: String, descriptor: FunctionDescriptor): MethodHandle =

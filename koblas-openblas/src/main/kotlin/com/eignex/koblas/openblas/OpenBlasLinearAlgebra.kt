@@ -16,7 +16,6 @@ import com.eignex.koblas.openblas.OpenBlasCalls.ROW_MAJOR
 import com.eignex.koblas.openblas.OpenBlasCalls.TRANS
 import com.eignex.koblas.openblas.OpenBlasCalls.UNIT
 import com.eignex.koblas.openblas.OpenBlasCalls.UPPER
-import org.bytedeco.openblas.presets.openblas_nolapack.blas_set_num_threads
 
 /**
  * [LinearAlgebra] backed by OpenBLAS through the Bytedeco JavaCPP presets. The natives ship in the
@@ -49,10 +48,10 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
         init {
             val requested = System.getProperty("koblas.openblas.threads")?.toIntOrNull()
             when {
-                requested != null -> blas_set_num_threads(requested)
+                requested != null -> OpenBlasCalls.setThreads(requested)
 
                 // An explicit environment override is already honored by OpenBLAS itself.
-                System.getenv("OPENBLAS_NUM_THREADS") == null -> blas_set_num_threads(1)
+                System.getenv("OPENBLAS_NUM_THREADS") == null -> OpenBlasCalls.setThreads(1)
             }
         }
     }
@@ -102,7 +101,7 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
         if (m == 0 || n == 0) return
         val transA = if (transposeA) TRANS else NO_TRANS
         val transB = if (transposeB) TRANS else NO_TRANS
-        OpenBlasCalls.dgemm.invokeExact(
+        OpenBlasCalls.dgemm.invokeWithArguments(
             ROW_MAJOR, transA, transB, m, n, k, alpha,
             OpenBlasCalls.seg(a.data), a.cols, OpenBlasCalls.seg(b.data), b.cols,
             beta, OpenBlasCalls.seg(c.data), c.cols,
@@ -123,7 +122,7 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
         if (uplo != Uplo.FULL) {
             // Strict dsyrk semantics: one triangle written and beta-scaled, the other untouched.
             val u = if (uplo == Uplo.LOWER) LOWER else UPPER
-            OpenBlasCalls.dsyrk.invokeExact(
+            OpenBlasCalls.dsyrk.invokeWithArguments(
                 ROW_MAJOR, u, trans, n, k, alpha,
                 OpenBlasCalls.seg(a.data), a.cols, beta, OpenBlasCalls.seg(c.data), n,
             )
@@ -133,7 +132,7 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
         // symmetric alpha term on top of a beta scale of all of C. Compute the alpha term into a
         // scratch lower triangle, mirror it, then combine.
         val w = DoubleArray(n * n)
-        OpenBlasCalls.dsyrk.invokeExact(
+        OpenBlasCalls.dsyrk.invokeWithArguments(
             ROW_MAJOR, LOWER, trans, n, k, alpha,
             OpenBlasCalls.seg(a.data), a.cols, 0.0, OpenBlasCalls.seg(w), n,
         )
@@ -145,8 +144,8 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
             0.0 -> w.copyInto(cd)
 
             else -> {
-                if (beta != 1.0) OpenBlasCalls.dscal.invokeExact(cd.size, beta, OpenBlasCalls.seg(cd), 1)
-                OpenBlasCalls.daxpy.invokeExact(
+                if (beta != 1.0) OpenBlasCalls.dscal.invokeWithArguments(cd.size, beta, OpenBlasCalls.seg(cd), 1)
+                OpenBlasCalls.daxpy.invokeWithArguments(
                     cd.size,
                     1.0,
                     OpenBlasCalls.seg(w),
@@ -189,7 +188,7 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
         if (c.rows == 0 || c.cols == 0) return
         val uplo = if (lower) LOWER else UPPER
         val side = if (right) RIGHT else LEFT
-        OpenBlasCalls.dsymm.invokeExact(
+        OpenBlasCalls.dsymm.invokeWithArguments(
             ROW_MAJOR, side, uplo, c.rows, c.cols, alpha,
             OpenBlasCalls.seg(a.data), m, OpenBlasCalls.seg(b.data), c.cols,
             beta, OpenBlasCalls.seg(c.data), c.cols,
@@ -203,7 +202,7 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
         val piv = IntArray(n) { it }
         if (n == 0) return LuDecomposition(0, lu, piv, singular = false)
         val ipiv = IntArray(n)
-        val info = OpenBlasCalls.dgetrf.invokeExact(
+        val info = OpenBlasCalls.dgetrf.invokeWithArguments(
             ROW_MAJOR,
             n,
             n,
@@ -256,11 +255,11 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
         // transposition tax scales with nrhs.
         return if (transpose) {
             val y = b.data.copyOf()
-            OpenBlasCalls.dtrsm.invokeExact(
+            OpenBlasCalls.dtrsm.invokeWithArguments(
                 ROW_MAJOR, LEFT, UPPER, TRANS, NON_UNIT, n, nrhs, 1.0,
                 OpenBlasCalls.seg(f), n, OpenBlasCalls.seg(y), nrhs,
             )
-            OpenBlasCalls.dtrsm.invokeExact(
+            OpenBlasCalls.dtrsm.invokeWithArguments(
                 ROW_MAJOR, LEFT, LOWER, TRANS, UNIT, n, nrhs, 1.0,
                 OpenBlasCalls.seg(f), n, OpenBlasCalls.seg(y), nrhs,
             )
@@ -270,11 +269,11 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
         } else {
             val x = DoubleArray(n * nrhs)
             for (i in 0 until n) b.data.copyInto(x, i * nrhs, lu.piv[i] * nrhs, (lu.piv[i] + 1) * nrhs)
-            OpenBlasCalls.dtrsm.invokeExact(
+            OpenBlasCalls.dtrsm.invokeWithArguments(
                 ROW_MAJOR, LEFT, LOWER, NO_TRANS, UNIT, n, nrhs, 1.0,
                 OpenBlasCalls.seg(f), n, OpenBlasCalls.seg(x), nrhs,
             )
-            OpenBlasCalls.dtrsm.invokeExact(
+            OpenBlasCalls.dtrsm.invokeWithArguments(
                 ROW_MAJOR, LEFT, UPPER, NO_TRANS, NON_UNIT, n, nrhs, 1.0,
                 OpenBlasCalls.seg(f), n, OpenBlasCalls.seg(x), nrhs,
             )
@@ -288,7 +287,7 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
         require(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
         val x = b.data.copyOf()
         if (n == 0 || nrhs == 0) return DenseMatrix.wrap(n, nrhs, x)
-        val info = OpenBlasCalls.dsytrs.invokeExact(
+        val info = OpenBlasCalls.dsytrs.invokeWithArguments(
             ROW_MAJOR, 'L'.code.toByte(), n, nrhs,
             OpenBlasCalls.seg(ldl.ldl), n, OpenBlasCalls.seg(ldl.ipiv), OpenBlasCalls.seg(x), nrhs,
         ) as Int
@@ -302,7 +301,7 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
         val buf = a.data.copyOf()
         val ipiv = IntArray(n)
         if (n == 0) return LdlDecomposition(0, buf, ipiv, singular = false)
-        val info = OpenBlasCalls.dsytrf.invokeExact(
+        val info = OpenBlasCalls.dsytrf.invokeWithArguments(
             ROW_MAJOR,
             'L'.code.toByte(),
             n,
@@ -319,7 +318,7 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
         require(b.size == n) { "solve: b length ${b.size} != $n" }
         if (n == 0) return DoubleArray(0)
         val x = b.copyOf()
-        val info = OpenBlasCalls.dsytrs.invokeExact(
+        val info = OpenBlasCalls.dsytrs.invokeWithArguments(
             ROW_MAJOR, 'L'.code.toByte(), n, 1,
             OpenBlasCalls.seg(ldl.ldl), n, OpenBlasCalls.seg(ldl.ipiv), OpenBlasCalls.seg(x), 1,
         ) as Int
@@ -333,7 +332,7 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
         val buf = a.data.copyOf()
         val tau = DoubleArray(minOf(m, n))
         if (m > 0 && n > 0) {
-            val info = OpenBlasCalls.dgeqrf.invokeExact(
+            val info = OpenBlasCalls.dgeqrf.invokeWithArguments(
                 ROW_MAJOR,
                 m,
                 n,
@@ -352,7 +351,7 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
         if (qr.tau.isEmpty()) return c
         val side = 'L'.code.toByte()
         val trans = (if (transpose) 'T' else 'N').code.toByte()
-        val info = OpenBlasCalls.dormqr.invokeExact(
+        val info = OpenBlasCalls.dormqr.invokeWithArguments(
             ROW_MAJOR, side, trans, qr.m, 1, qr.tau.size,
             OpenBlasCalls.seg(qr.qr), qr.n, OpenBlasCalls.seg(qr.tau), OpenBlasCalls.seg(c), 1,
         ) as Int
@@ -365,7 +364,7 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
         if (n == 0) return 1.0
         if (lu.singular || anorm == 0.0) return 0.0
         val out = DoubleArray(1)
-        val info = OpenBlasCalls.dgecon.invokeExact(
+        val info = OpenBlasCalls.dgecon.invokeWithArguments(
             ROW_MAJOR,
             '1'.code.toByte(),
             n,
@@ -382,7 +381,13 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
     private fun scaleInPlace(v: DoubleArray, beta: Double) {
         when {
             beta == 0.0 -> v.fill(0.0)
-            beta != 1.0 && v.isNotEmpty() -> OpenBlasCalls.dscal.invokeExact(v.size, beta, OpenBlasCalls.seg(v), 1)
+
+            beta != 1.0 && v.isNotEmpty() -> OpenBlasCalls.dscal.invokeWithArguments(
+                v.size,
+                beta,
+                OpenBlasCalls.seg(v),
+                1,
+            )
         }
     }
 
