@@ -54,6 +54,24 @@ internal actual fun denseScale(v: DoubleArray, vOff: Int, alpha: Double, len: In
     }
 }
 
+@Suppress("LongParameterList") // four row offsets plus the shared operand
+internal actual fun denseDot4(
+    a: DoubleArray,
+    aOff: Int,
+    stride: Int,
+    b: DoubleArray,
+    bOff: Int,
+    len: Int,
+    out: DoubleArray,
+    outOff: Int,
+) {
+    if (simdAvailable && len >= simdLanes) {
+        Simd.dot4(a, aOff, stride, b, bOff, len, out, outOff)
+    } else {
+        for (r in 0 until 4) out[outOff + r] = scalarDot(a, aOff + r * stride, b, bOff, len)
+    }
+}
+
 private fun scalarDot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
     var s = 0.0
     for (i in 0 until len) s += a[aOff + i] * b[bOff + i]
@@ -76,6 +94,12 @@ internal object Simd {
 
     fun lanes(): Int = LANE
 
+    /**
+     * One accumulator, deliberately: multiple independent accumulators would break the FMA latency
+     * chain, but measured against this loop they cost 20% at `len` 4-8 (the method grows past what the
+     * JIT will inline, and triangular solves issue mostly short runs) and showed no gain at 256 beyond
+     * run-to-run drift. [dot4] is where the chain gets broken, on the shapes that can amortize it.
+     */
     fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
         var i = 0
         val bound = SPECIES.loopBound(len)
@@ -92,6 +116,58 @@ internal object Simd {
             i++
         }
         return s
+    }
+
+    /**
+     * Four rows against one shared vector. Each `b` segment is loaded once and fused into four
+     * independent accumulators, so load traffic drops from two vectors per FMA to five per four and
+     * the accumulator chains are independent by construction — the reason [LinearAlgebra.gemv] wants
+     * this over four separate [dot] calls, which would also pay four horizontal reductions.
+     */
+    @Suppress("LongParameterList") // four row offsets plus the shared operand
+    fun dot4(
+        a: DoubleArray,
+        aOff: Int,
+        stride: Int,
+        b: DoubleArray,
+        bOff: Int,
+        len: Int,
+        out: DoubleArray,
+        outOff: Int,
+    ) {
+        var s0 = DoubleVector.zero(SPECIES)
+        var s1 = DoubleVector.zero(SPECIES)
+        var s2 = DoubleVector.zero(SPECIES)
+        var s3 = DoubleVector.zero(SPECIES)
+        val o1 = aOff + stride
+        val o2 = aOff + 2 * stride
+        val o3 = aOff + 3 * stride
+        var i = 0
+        val bound = SPECIES.loopBound(len)
+        while (i < bound) {
+            val vb = DoubleVector.fromArray(SPECIES, b, bOff + i)
+            s0 = DoubleVector.fromArray(SPECIES, a, aOff + i).fma(vb, s0)
+            s1 = DoubleVector.fromArray(SPECIES, a, o1 + i).fma(vb, s1)
+            s2 = DoubleVector.fromArray(SPECIES, a, o2 + i).fma(vb, s2)
+            s3 = DoubleVector.fromArray(SPECIES, a, o3 + i).fma(vb, s3)
+            i += LANE
+        }
+        var r0 = s0.reduceLanes(VectorOperators.ADD)
+        var r1 = s1.reduceLanes(VectorOperators.ADD)
+        var r2 = s2.reduceLanes(VectorOperators.ADD)
+        var r3 = s3.reduceLanes(VectorOperators.ADD)
+        while (i < len) {
+            val bi = b[bOff + i]
+            r0 += a[aOff + i] * bi
+            r1 += a[o1 + i] * bi
+            r2 += a[o2 + i] * bi
+            r3 += a[o3 + i] * bi
+            i++
+        }
+        out[outOff] = r0
+        out[outOff + 1] = r1
+        out[outOff + 2] = r2
+        out[outOff + 3] = r3
     }
 
     fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {

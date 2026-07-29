@@ -23,3 +23,37 @@ internal actual fun denseScale(v: DoubleArray, vOff: Int, alpha: Double, len: In
     if (alpha == 1.0) return
     for (i in 0 until len) v[vOff + i] *= alpha
 }
+
+// Four accumulators over one pass: the shared `b` element is read once per column and the four chains
+// are independent, which is the same structural win the JVM kernel gets explicitly and which the
+// platform compilers can vectorize here.
+@Suppress("LongParameterList") // four row offsets plus the shared operand
+internal actual fun denseDot4(
+    a: DoubleArray,
+    aOff: Int,
+    stride: Int,
+    b: DoubleArray,
+    bOff: Int,
+    len: Int,
+    out: DoubleArray,
+    outOff: Int,
+) {
+    val o1 = aOff + stride
+    val o2 = aOff + 2 * stride
+    val o3 = aOff + 3 * stride
+    var r0 = 0.0
+    var r1 = 0.0
+    var r2 = 0.0
+    var r3 = 0.0
+    for (i in 0 until len) {
+        val bi = b[bOff + i]
+        r0 += a[aOff + i] * bi
+        r1 += a[o1 + i] * bi
+        r2 += a[o2 + i] * bi
+        r3 += a[o3 + i] * bi
+    }
+    out[outOff] = r0
+    out[outOff + 1] = r1
+    out[outOff + 2] = r2
+    out[outOff + 3] = r3
+}

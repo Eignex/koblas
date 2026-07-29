@@ -425,8 +425,21 @@ object ReferenceLinearAlgebra : LinearAlgebra {
                 if (xi != 0.0) denseAxpy(y, 0, xi, ad, i * cols, cols)
             }
         } else {
-            for (i in 0 until a.rows) {
+            // Four rows at a time: one shared load of x per segment, four independent accumulators.
+            val quads = DoubleArray(4)
+            var i = 0
+            val bound = a.rows - 3
+            while (i < bound) {
+                denseDot4(ad, i * cols, cols, x, 0, cols, quads, 0)
+                y[i] += alpha * quads[0]
+                y[i + 1] += alpha * quads[1]
+                y[i + 2] += alpha * quads[2]
+                y[i + 3] += alpha * quads[3]
+                i += 4
+            }
+            while (i < a.rows) {
                 y[i] += alpha * denseDot(ad, i * cols, x, 0, cols)
+                i++
             }
         }
     }
@@ -472,10 +485,25 @@ object ReferenceLinearAlgebra : LinearAlgebra {
                 }
             }
 
-            // C += alpha·A·Bᵀ: entry (i, j) is the dot of two contiguous rows.
-            !transposeA -> for (i in 0 until m) {
-                for (j in 0 until n) {
-                    cd[i * n + j] += alpha * denseDot(ad, i * k, bd, j * k, k)
+            // C += alpha·A·Bᵀ: entry (i, j) is the dot of two contiguous rows. Four B rows share each
+            // load of the A row, the same shape gemv exploits.
+            !transposeA -> {
+                val quads = DoubleArray(4)
+                for (i in 0 until m) {
+                    var j = 0
+                    val bound = n - 3
+                    while (j < bound) {
+                        denseDot4(bd, j * k, k, ad, i * k, k, quads, 0)
+                        cd[i * n + j] += alpha * quads[0]
+                        cd[i * n + j + 1] += alpha * quads[1]
+                        cd[i * n + j + 2] += alpha * quads[2]
+                        cd[i * n + j + 3] += alpha * quads[3]
+                        j += 4
+                    }
+                    while (j < n) {
+                        cd[i * n + j] += alpha * denseDot(ad, i * k, bd, j * k, k)
+                        j++
+                    }
                 }
             }
 

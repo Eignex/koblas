@@ -17,3 +17,23 @@ internal expect fun denseAxpy(y: DoubleArray, yOff: Int, alpha: Double, x: Doubl
 
 /** `v[vOff..vOff+len-1] = alpha * v[..]`. */
 internal expect fun denseScale(v: DoubleArray, vOff: Int, alpha: Double, len: Int)
+
+/**
+ * Four dots against a shared right operand: `out[outOff + r] = Sum a[aOff + r*stride + i] * b[bOff + i]`
+ * for `r` in `0..3`. The rows of a row-major matrix against one vector, which is the shape
+ * [LinearAlgebra.gemv] and the `A·Bᵀ` [LinearAlgebra.gemm] branch need. A vectorized implementation
+ * loads each `b` segment once for all four rows and keeps four independent accumulators, so it cuts
+ * load traffic and breaks the accumulator dependency chain that limits a single [denseDot]; the
+ * scalar fallback just runs four dots.
+ */
+@Suppress("LongParameterList") // four row offsets plus the shared operand
+internal expect fun denseDot4(
+    a: DoubleArray,
+    aOff: Int,
+    stride: Int,
+    b: DoubleArray,
+    bOff: Int,
+    len: Int,
+    out: DoubleArray,
+    outOff: Int,
+)
