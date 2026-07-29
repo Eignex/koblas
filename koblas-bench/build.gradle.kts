@@ -12,6 +12,8 @@ repositories {
 
 kotlin {
     applyDefaultHierarchyTemplate()
+    // Matches koblas-openblas, whose FFM bindings need 25; this module is dev-only.
+    jvmToolchain(25)
     compilerOptions {
         freeCompilerArgs.add("-Xexpect-actual-classes")
     }
