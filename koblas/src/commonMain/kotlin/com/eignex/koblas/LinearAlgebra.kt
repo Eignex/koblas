@@ -350,9 +350,32 @@ interface LinearAlgebra {
         if (lu.singular || anorm == 0.0) return 0.0
         // Hager's power iteration on the 1-norm of A⁻¹: follow sign vectors through A⁻¹ and A⁻ᵀ,
         // restarting from the unit vector of the strongest coordinate until it stops improving.
-        val x = workspace?.doubles(Workspace.RCOND_X, n) ?: DoubleArray(n)
-        val y = workspace?.doubles(Workspace.RCOND_Y, n) ?: DoubleArray(n)
-        val signs = workspace?.doubles(Workspace.RCOND_SIGNS, n) ?: DoubleArray(n)
+        val x = workspace?.take(n) ?: DoubleArray(n)
+        val y = workspace?.take(n) ?: DoubleArray(n)
+        val signs = workspace?.take(n) ?: DoubleArray(n)
+        val probe = workspace?.take(n) ?: DoubleArray(n)
+        try {
+            return hagerEstimate(lu, anorm, n, x, y, signs, probe, workspace)
+        } finally {
+            workspace?.release(x)
+            workspace?.release(y)
+            workspace?.release(signs)
+            workspace?.release(probe)
+        }
+    }
+
+    /** The estimator body, over caller-supplied vectors so [rcond] can pool them. */
+    @Suppress("LongParameterList") // four scratch vectors the caller owns
+    private fun hagerEstimate(
+        lu: LuDecomposition,
+        anorm: Double,
+        n: Int,
+        x: DoubleArray,
+        y: DoubleArray,
+        signs: DoubleArray,
+        probe: DoubleArray,
+        workspace: Workspace?,
+    ): Double {
         for (i in 0 until n) x[i] = 1.0 / n
         var estimate = 0.0
         var lastPivot = -1
@@ -377,7 +400,6 @@ interface LinearAlgebra {
         }
         // The alternating-sign safeguard from LAPACK's dlacn2 catches matrices the power step misses;
         // its probe vector has 1-norm 3n/2, hence the 2/(3n) normalization.
-        val probe = workspace?.doubles(Workspace.RCOND_PROBE, n) ?: DoubleArray(n)
         for (i in 0 until n) {
             probe[i] = (if (i % 2 == 0) 1.0 else -1.0) * (1.0 + i.toDouble() / maxOf(1, n - 1))
         }
@@ -1108,9 +1130,10 @@ object ReferenceLinearAlgebra : LinearAlgebra {
         // The permutation may read a slot of b that has already been written when out aliases b, so the
         // gather goes through a staging pass only in that case.
         if (out === b) {
-            val staged = workspace?.doubles(Workspace.SOLVE_STAGE, n) ?: DoubleArray(n)
+            val staged = workspace?.take(n) ?: DoubleArray(n)
             for (i in 0 until n) staged[i] = b[piv[i]]
             staged.copyInto(out)
+            workspace?.release(staged)
         } else {
             for (i in 0 until n) out[i] = b[piv[i]]
         }
@@ -1130,11 +1153,12 @@ object ReferenceLinearAlgebra : LinearAlgebra {
         workspace: Workspace?,
     ): DoubleArray {
         // The triangular solves run on a staged copy; the scatter that follows cannot be done in place.
-        val y = workspace?.doubles(Workspace.SOLVE_STAGE, n) ?: DoubleArray(n)
+        val y = workspace?.take(n) ?: DoubleArray(n)
         b.copyInto(y)
         trsvCore(a, n, y, lower = false, transpose = true, unitDiag = false)
         trsvCore(a, n, y, lower = true, transpose = true, unitDiag = true)
         for (i in 0 until n) out[piv[i]] = y[i] // undo the row permutation
+        workspace?.release(y)
         return out
     }
 }

@@ -24,7 +24,7 @@ class EtaBasis private constructor(private val m: Int, private val base: SparseL
     // This object is already mutable — update() appends to the chain — so it owns its solve scratch
     // rather than asking callers for a workspace. One basis is therefore driven by one thread, which is
     // how a simplex uses it; the underlying [SparseLu] stays free of mutable state and shareable.
-    private val scratch = Workspace()
+    private val scratch = Workspace().apply { reserve(m, count = 3) }
 
     /** Number of updates folded into the chain since the base factorization. */
     val etaCount: Int get() = etaRow.size
@@ -60,7 +60,7 @@ class EtaBasis private constructor(private val m: Int, private val base: SparseL
     fun btranInto(b: DoubleArray, out: DoubleArray): DoubleArray {
         require(b.size == m) { "btran: b size ${b.size} != $m" }
         // The eta chain transposed, applied to a working copy, then the base solve into out.
-        val z = scratch.doubles(Workspace.ETA_WORK, m)
+        val z = scratch.take(m)
         b.copyInto(z)
         for (j in etaSpike.indices.reversed()) {
             val p = etaRow[j]
@@ -68,7 +68,9 @@ class EtaBasis private constructor(private val m: Int, private val base: SparseL
             val s = z[p] - denseDot(eta, 0, z, 0, p) - denseDot(eta, p + 1, z, p + 1, m - p - 1)
             z[p] = s / eta[p]
         }
-        return base.btranInto(z, out, scratch)
+        val result = base.btranInto(z, out, scratch)
+        scratch.release(z)
+        return result
     }
 
     /** Append the eta for an update replacing basis slot [pivotRow]; [spike] must be this object's

@@ -49,8 +49,8 @@ class SparseLu private constructor(
     fun ftranInto(b: DoubleArray, out: DoubleArray, workspace: Workspace? = null): DoubleArray {
         require(b.size == m) { "ftran: b size ${b.size} != $m" }
         require(out.size == m) { "ftran: out size ${out.size} != $m" }
-        val y = workspace?.doubles(Workspace.SPARSE_WORK, m) ?: DoubleArray(m)
-        val xp = workspace?.doubles(Workspace.SPARSE_WORK_2, m) ?: DoubleArray(m)
+        val y = workspace?.take(m) ?: DoubleArray(m)
+        val xp = workspace?.take(m) ?: DoubleArray(m)
         y.fill(0.0)
         xp.fill(0.0)
         // L y = P (E b) (forward); rows/cols are in pivot-position space.
@@ -71,6 +71,8 @@ class SparseLu private constructor(
         }
         // x = Q x'  ⇒  x[colPerm[k]] = x'[k]. Safe in place: xp is separate storage from out.
         for (k in 0 until m) out[colPerm[k]] = xp[k]
+        workspace?.release(xp)
+        workspace?.release(y)
         return out
     }
 
@@ -82,8 +84,8 @@ class SparseLu private constructor(
     fun btranInto(b: DoubleArray, out: DoubleArray, workspace: Workspace? = null): DoubleArray {
         require(b.size == m) { "btran: b size ${b.size} != $m" }
         require(out.size == m) { "btran: out size ${out.size} != $m" }
-        val z = workspace?.doubles(Workspace.SPARSE_WORK, m) ?: DoubleArray(m)
-        val w = workspace?.doubles(Workspace.SPARSE_WORK_2, m) ?: DoubleArray(m)
+        val z = workspace?.take(m) ?: DoubleArray(m)
+        val w = workspace?.take(m) ?: DoubleArray(m)
         z.fill(0.0)
         w.fill(0.0)
         // Uᵀ z = Qᵀ b (forward, lower).
@@ -104,6 +106,8 @@ class SparseLu private constructor(
         }
         // x = E·x' with x[perm[k]] = w[k]·e_{perm[k]}.
         for (k in 0 until m) out[perm[k]] = w[k] * rowScale[perm[k]]
+        workspace?.release(w)
+        workspace?.release(z)
         return out
     }
 

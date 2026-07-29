@@ -114,17 +114,19 @@ symmetric indefinite solves, ftranInto and btranInto for the sparse basis and
 the eta chain, factorInto to refactorize into existing factor buffers.
 
 A few routines also need scratch of their own, and those take an optional
-Workspace: an opaque handle to reusable buffers that you create and hand over,
-never fill yourself. rcond benefits most, since a simplex calls it to decide
-when to refactorize and it runs several sweeps over four vectors. An EtaBasis
-owns its scratch instead, being mutable already, so its solves need no
-workspace at all.
+Workspace: a pool of vectors keyed by width, which you create and hand over.
+Operations borrow and return buffers, so nesting is safe and one workspace
+serves whatever dimensions a caller mixes; pools grow on demand, and reserve
+pays that cost up front. rcond benefits most, since a simplex calls it to
+decide when to refactorize and it runs several sweeps over four vectors. An
+EtaBasis owns its scratch instead, being mutable already, so its solves need
+no workspace at all.
 
 ```kotlin
-val ws = Workspace()
+val ws = Workspace().apply { reserve(n, count = 5) }
 val x = DoubleArray(n)
 repeat(iterations) {
-    basis.ftranInto(b, x, ws) // no allocation
+    basis.ftranInto(b, x) // no allocation
     if (koblas.rcond(lu, anorm, ws) < threshold) koblas.factorInto(a, lu)
 }
 ```

@@ -273,17 +273,19 @@ class CblasLinearAlgebra : LinearAlgebra {
         if (transpose) {
             // Aᵀ x = b, with Aᵀ = Uᵀ Lᵀ P: forward-solve Uᵀ, back-solve unit Lᵀ, un-permute. The scatter
             // cannot run in place, so the solved vector is staged.
-            val y = workspace?.backendVector(n) ?: DoubleArray(n)
+            val y = workspace?.take(n) ?: DoubleArray(n)
             b.copyInto(y)
             trsv(lu.lu, n, y, UPPER, TRANS, NON_UNIT)
             trsv(lu.lu, n, y, LOWER, TRANS, UNIT)
             for (i in 0 until n) out[lu.piv[i]] = y[i]
+            workspace?.release(y)
         } else {
             // A x = b, with P A = L U: permute b, forward-solve unit L, back-solve U.
             if (out === b) {
-                val staged = workspace?.backendVector(n) ?: DoubleArray(n)
+                val staged = workspace?.take(n) ?: DoubleArray(n)
                 for (i in 0 until n) staged[i] = b[lu.piv[i]]
                 staged.copyInto(out)
+                workspace?.release(staged)
             } else {
                 for (i in 0 until n) out[i] = b[lu.piv[i]]
             }

@@ -3,74 +3,123 @@ package com.eignex.koblas
 /**
  * Reusable scratch for operations that would otherwise allocate their temporaries on every call.
  *
- * It is a set of named buffers, not a general allocator: each internal use site owns a distinct slot, so
- * one workspace can serve nested operations (a condition estimate driving triangular solves, say)
- * without two of them writing the same array. A buffer is cached per slot and reused whenever the
- * requested size matches, which is the case in the loops this exists for — a simplex iteration or a
- * filter update asks for the same shapes every time, so after the first call there are no allocations at
- * all. A changed size simply reallocates that slot.
+ * Buffers are pooled by width: an operation borrows a vector of the length it needs and returns it, and
+ * the workspace hands out a different buffer for every borrow that is outstanding at the same time. That
+ * is what makes nesting safe without any central registry — a condition estimate borrowing four vectors
+ * and then calling a triangular solve that borrows a fifth simply grows that width's pool to five. One
+ * workspace can therefore serve several dimensions at once, and no two call sites can collide by
+ * accident.
  *
- * Buffer contents are undefined on entry: an operation that needs zeros clears what it uses.
+ * A pool grows on demand and never shrinks, so a loop allocates during its first iterations and nothing
+ * afterwards. Use [reserve] to pay that cost up front instead.
+ *
+ * Borrowed contents are undefined: an operation that needs zeros clears what it uses.
  *
  * **Not thread-safe, deliberately.** A workspace is caller-owned state, so give each solver instance (or
  * each thread) its own; sharing one across concurrent operations corrupts results. Passing none keeps the
  * allocating behaviour, which is always correct.
  *
  * ```
- * val ws = Workspace()
+ * val ws = Workspace().apply { reserve(n, count = 5) }
+ * val x = DoubleArray(n)
  * repeat(iterations) {
- *     koblas.solveInto(lu, b, x)          // writes x, allocates nothing
- *     val rc = koblas.rcond(lu, anorm, ws) // reuses ws's buffers, allocates nothing
+ *     koblas.solveInto(lu, b, x, workspace = ws)
+ *     if (koblas.rcond(lu, anorm, ws) < threshold) koblas.factorInto(a, lu)
  * }
  * ```
  */
 class Workspace {
-    private val doubles = arrayOfNulls<DoubleArray>(SLOT_COUNT)
-    private val ints = arrayOfNulls<IntArray>(SLOT_COUNT)
-
-    /** The buffer for [slot], sized exactly [size]. Contents are undefined. */
-    internal fun doubles(slot: Int, size: Int): DoubleArray {
-        val cached = doubles[slot]
-        if (cached != null && cached.size == size) return cached
-        val fresh = DoubleArray(size)
-        doubles[slot] = fresh
-        return fresh
-    }
-
-    /** The int buffer for [slot], sized exactly [size]. Contents are undefined. */
-    internal fun ints(slot: Int, size: Int): IntArray {
-        val cached = ints[slot]
-        if (cached != null && cached.size == size) return cached
-        val fresh = IntArray(size)
-        ints[slot] = fresh
-        return fresh
-    }
+    // Few widths in practice (one or two), so a linear scan beats hashing.
+    private var pools = arrayOfNulls<Pool>(INITIAL_WIDTHS)
+    private var poolCount = 0
 
     /**
-     * A buffer reserved for [LinearAlgebra] backends outside this module, sized exactly [size]. Koblas's
-     * own routines never touch this slot, so a backend can stage in it without coordinating with them —
-     * a backend's staging is always a leaf within one call, so one buffer is enough.
+     * Borrows a vector of [size], which must be [release]d. Prefer [borrow], which returns it for you.
+     * Contents are undefined.
      */
-    fun backendVector(size: Int): DoubleArray = doubles(BACKEND, size)
-
-    /** Releases the cached buffers. Only useful when a workspace outlives the shapes it served. */
-    fun clear() {
-        doubles.fill(null)
-        ints.fill(null)
+    fun take(size: Int): DoubleArray {
+        require(size >= 0) { "buffer size must not be negative, got $size" }
+        return pool(size).take()
     }
 
-    internal companion object {
-        // One slot per use site. Operations that call each other must not share a slot; the condition
-        // estimator calls the triangular solves, which take a destination and need no scratch of their own.
-        const val RCOND_X = 0
-        const val RCOND_Y = 1
-        const val RCOND_SIGNS = 2
-        const val RCOND_PROBE = 3
-        const val SOLVE_STAGE = 4
-        const val SPARSE_WORK = 5
-        const val SPARSE_WORK_2 = 6
-        const val ETA_WORK = 7
-        const val BACKEND = 8
-        const val SLOT_COUNT = 9
+    /** Returns a buffer from [take] to its pool. */
+    fun release(buffer: DoubleArray) {
+        pool(buffer.size).release(buffer)
+    }
+
+    /** Pre-allocates [count] buffers of [size], so a loop does not allocate even on its first pass. */
+    fun reserve(size: Int, count: Int) {
+        require(count >= 0) { "reserve count must not be negative, got $count" }
+        pool(size).reserve(count)
+    }
+
+    private fun pool(size: Int): Pool {
+        for (i in 0 until poolCount) {
+            val existing = pools[i]
+            if (existing != null && existing.size == size) return existing
+        }
+        if (poolCount == pools.size) {
+            pools = pools.copyOf(pools.size * 2)
+        }
+        val fresh = Pool(size)
+        pools[poolCount++] = fresh
+        return fresh
+    }
+
+    /** Buffers of one width, plus which of them are currently lent out. */
+    private class Pool(val size: Int) {
+        private var buffers = arrayOfNulls<DoubleArray>(INITIAL_DEPTH)
+        private var lent = BooleanArray(INITIAL_DEPTH)
+
+        fun take(): DoubleArray {
+            for (i in buffers.indices) {
+                if (!lent[i]) {
+                    lent[i] = true
+                    return buffers[i] ?: DoubleArray(size).also { buffers[i] = it }
+                }
+            }
+            // Everything is lent out: deepen the pool. Happens during warm-up, then never.
+            val grown = buffers.size * 2
+            buffers = buffers.copyOf(grown)
+            lent = lent.copyOf(grown)
+            val next = buffers.size / 2
+            lent[next] = true
+            return DoubleArray(size).also { buffers[next] = it }
+        }
+
+        fun release(buffer: DoubleArray) {
+            for (i in buffers.indices) {
+                if (buffers[i] === buffer) {
+                    lent[i] = false
+                    return
+                }
+            }
+            // A buffer this pool never lent out: nothing to reclaim, and silently accepting it would hide
+            // a mismatched borrow.
+            error("released a buffer of size ${buffer.size} that this workspace did not lend")
+        }
+
+        fun reserve(count: Int) {
+            if (count > buffers.size) {
+                buffers = buffers.copyOf(count)
+                lent = lent.copyOf(count)
+            }
+            for (i in 0 until count) if (buffers[i] == null) buffers[i] = DoubleArray(size)
+        }
+    }
+
+    private companion object {
+        const val INITIAL_WIDTHS = 2
+        const val INITIAL_DEPTH = 4
+    }
+}
+
+/** Borrows a vector of [size] for the duration of [block], returning it to [this] afterwards. */
+inline fun <T> Workspace.borrow(size: Int, block: (DoubleArray) -> T): T {
+    val buffer = take(size)
+    try {
+        return block(buffer)
+    } finally {
+        release(buffer)
     }
 }
