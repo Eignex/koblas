@@ -17,15 +17,30 @@ import kotlin.test.assertTrue
  */
 class AllocationFreeTest {
 
+    private companion object {
+        const val WINDOWS = 5
+    }
+
     private val bean = ManagementFactory.getThreadMXBean() as ThreadMXBean
 
+    /**
+     * Best of several measurement windows. A single window is fragile: one unrelated event inside it — a
+     * class load, a JIT recompilation — is divided by the iteration count and can exceed a per-iteration
+     * budget on its own, which is how this first failed on CI while passing locally. An allocation-free
+     * loop produces a zero window given enough tries; an allocating one cannot.
+     */
     private fun bytesPerIteration(iterations: Int, warmup: Int = 200, block: (Int) -> Unit): Double {
         repeat(warmup) { block(it) } // let the JIT settle; first calls allocate profiling data
         val id = Thread.currentThread().threadId()
-        val before = bean.getThreadAllocatedBytes(id)
-        repeat(iterations) { block(it) }
-        val after = bean.getThreadAllocatedBytes(id)
-        return (after - before).toDouble() / iterations
+        var best = Double.MAX_VALUE
+        repeat(WINDOWS) {
+            val before = bean.getThreadAllocatedBytes(id)
+            repeat(iterations) { i -> block(i) }
+            val after = bean.getThreadAllocatedBytes(id)
+            val perIteration = (after - before).toDouble() / iterations
+            if (perIteration < best) best = perIteration
+        }
+        return best
     }
 
     private fun wellConditioned(n: Int, rng: Random): DenseMatrix {
