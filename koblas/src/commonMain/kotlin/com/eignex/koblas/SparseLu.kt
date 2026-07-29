@@ -38,11 +38,22 @@ class SparseLu private constructor(
     val nnz: Int,
 ) {
 
-    /** Solve `B x = b` (FTRAN). `b` is indexed by original row; the result by original column. */
-    fun ftran(b: DoubleArray): DoubleArray {
-        // B x = b ⟺ (E B) x = E b, so feeding the scaled rhs into the L·U = E·B factors yields the same x.
+    /** Solve `B x = b` (FTRAN). `b` is indexed by original row; the result by original column.
+     *  Allocates the result and two intermediates; [ftranInto] reuses caller-owned buffers instead. */
+    fun ftran(b: DoubleArray): DoubleArray = ftranInto(b, DoubleArray(m))
+
+    /**
+     * Solve `B x = b` (FTRAN) into [out], which is returned. With a [workspace] the two pivot-space
+     * intermediates are reused too, so a simplex iteration allocates nothing at all. [out] may be [b].
+     */
+    fun ftranInto(b: DoubleArray, out: DoubleArray, workspace: Workspace? = null): DoubleArray {
+        require(b.size == m) { "ftran: b size ${b.size} != $m" }
+        require(out.size == m) { "ftran: out size ${out.size} != $m" }
+        val y = workspace?.doubles(Workspace.SPARSE_WORK, m) ?: DoubleArray(m)
+        val xp = workspace?.doubles(Workspace.SPARSE_WORK_2, m) ?: DoubleArray(m)
+        y.fill(0.0)
+        xp.fill(0.0)
         // L y = P (E b) (forward); rows/cols are in pivot-position space.
-        val y = DoubleArray(m)
         for (k in 0 until m) {
             var s = b[perm[k]] * rowScale[perm[k]]
             val idx = lRowIdx[k]
@@ -51,7 +62,6 @@ class SparseLu private constructor(
             y[k] = s
         }
         // U x' = y (back); x' is in pivot-column space.
-        val xp = DoubleArray(m)
         for (k in m - 1 downTo 0) {
             var s = y[k]
             val idx = uRowIdx[k]
@@ -59,16 +69,24 @@ class SparseLu private constructor(
             for (t in 1 until idx.size) s -= v[t] * xp[idx[t]] // skip [0] = diagonal
             xp[k] = s / uDiag[k]
         }
-        // x = Q x'  ⇒  x[colPerm[k]] = x'[k].
-        val x = DoubleArray(m)
-        for (k in 0 until m) x[colPerm[k]] = xp[k]
-        return x
+        // x = Q x'  ⇒  x[colPerm[k]] = x'[k]. Safe in place: xp is separate storage from out.
+        for (k in 0 until m) out[colPerm[k]] = xp[k]
+        return out
     }
 
-    /** Solve `Bᵀ x = b` (BTRAN). `b` is indexed by original column; the result by original row. */
-    fun btran(b: DoubleArray): DoubleArray {
-        // Uᵀ z = Qᵀ b (forward, lower): z[k] = (b[colPerm[k]] − Σ_{j<k} U[j][k] z[j]) / U[k][k].
-        val z = DoubleArray(m)
+    /** Solve `Bᵀ x = b` (BTRAN). `b` is indexed by original column; the result by original row.
+     *  Allocates; [btranInto] writes into a caller-owned destination. */
+    fun btran(b: DoubleArray): DoubleArray = btranInto(b, DoubleArray(m))
+
+    /** Solve `Bᵀ x = b` (BTRAN) into [out], which is returned. [out] may be [b]. */
+    fun btranInto(b: DoubleArray, out: DoubleArray, workspace: Workspace? = null): DoubleArray {
+        require(b.size == m) { "btran: b size ${b.size} != $m" }
+        require(out.size == m) { "btran: out size ${out.size} != $m" }
+        val z = workspace?.doubles(Workspace.SPARSE_WORK, m) ?: DoubleArray(m)
+        val w = workspace?.doubles(Workspace.SPARSE_WORK_2, m) ?: DoubleArray(m)
+        z.fill(0.0)
+        w.fill(0.0)
+        // Uᵀ z = Qᵀ b (forward, lower).
         for (k in 0 until m) {
             var s = b[colPerm[k]]
             val idx = uColIdx[k]
@@ -76,8 +94,7 @@ class SparseLu private constructor(
             for (t in idx.indices) s -= v[t] * z[idx[t]]
             z[k] = s / uDiag[k]
         }
-        // Lᵀ w = z (back, upper, unit diagonal): w[k] = z[k] − Σ_{j>k} L[j][k] w[j].
-        val w = DoubleArray(m)
+        // Lᵀ w = z (back, upper, unit diagonal).
         for (k in m - 1 downTo 0) {
             var s = z[k]
             val idx = lColIdx[k]
@@ -85,11 +102,9 @@ class SparseLu private constructor(
             for (t in idx.indices) s -= v[t] * w[idx[t]]
             w[k] = s
         }
-        // P x' = w gives x' = innerBtran(b); the true solution of Bᵀx = b is x = E·x', so scale the
-        // result by the row factors.  x[perm[k]] = w[k]·e_{perm[k]}.
-        val x = DoubleArray(m)
-        for (k in 0 until m) x[perm[k]] = w[k] * rowScale[perm[k]]
-        return x
+        // x = E·x' with x[perm[k]] = w[k]·e_{perm[k]}.
+        for (k in 0 until m) out[perm[k]] = w[k] * rowScale[perm[k]]
+        return out
     }
 
     /**

@@ -108,6 +108,26 @@ layouts, SVD, and eigendecompositions. Nothing is supported silently: new
 routines are implemented, tested, and added to the table when a workload
 needs them.
 
+Every routine that returns a result also has a destination-passing form, so a
+loop that owns its buffers allocates nothing: solveInto for the dense and
+symmetric indefinite solves, ftranInto and btranInto for the sparse basis and
+the eta chain, factorInto to refactorize into existing factor buffers. The
+routines that need internal scratch take an optional Workspace, a set of
+reusable buffers the caller owns; rcond is the one that benefits most, since a
+simplex calls it to decide when to refactorize and it runs several sweeps.
+
+```kotlin
+val ws = Workspace()
+val x = DoubleArray(n)
+repeat(iterations) {
+    basis.ftranInto(b, x, ws) // no allocation
+    if (koblas.rcond(lu, anorm, ws) < threshold) koblas.factorInto(a, lu)
+}
+```
+
+A Workspace is caller-owned and not thread-safe: give each solver its own.
+Passing none keeps the allocating behaviour, which is always correct.
+
 ---
 
 ## Sparse Linear Algebra
