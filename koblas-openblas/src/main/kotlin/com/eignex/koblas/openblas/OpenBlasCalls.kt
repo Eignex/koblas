@@ -19,13 +19,13 @@ import java.nio.file.Path
  * The CBLAS/LAPACKE subset this backend dispatches to, bound with `java.lang.foreign` downcalls rather
  * than JNI.
  *
- * The point is [Linker.Option.critical] with heap access: a Kotlin `DoubleArray` can be handed over as
+ * The point is `Linker.Option.critical` with heap access: a Kotlin `DoubleArray` can be handed over as
  * `MemorySegment.ofArray(...)` and is *pinned* for the duration of the call, so nothing is copied. The
  * JNI-based bindings instead materialize a native buffer per call, which is why level-2 routines lost by
  * 3-16x to the portable SIMD kernels — `O(n²)` work cannot amortize an `O(n²)` copy. Level 3 and the
  * factorizations amortize it over `O(n³)` work, but with this binding they do not pay it at all.
  *
- * The natives still ship in the Bytedeco artifacts: [Loader] extracts them on first use and this looks the
+ * The natives still ship in the Bytedeco artifacts: `Loader` extracts them on first use and this looks the
  * library up by that path, so no system OpenBLAS installation is required.
  *
  * Pinning blocks relocation of the array while the call runs, which is the trade for zero copy. koblas's
