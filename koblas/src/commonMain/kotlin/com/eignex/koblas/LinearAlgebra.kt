@@ -78,8 +78,16 @@ interface LinearAlgebra {
      * dimension `op(A).rows`. Per BLAS convention, `beta == 0.0` overwrites without reading (within
      * the written region), and `alpha == 0.0` reduces to the `beta` scale.
      */
-    @Suppress("LongParameterList") // the BLAS dsyrk signature
-    fun syrk(alpha: Double, a: DenseMatrix, transpose: Boolean, beta: Double, c: DenseMatrix, uplo: Uplo = Uplo.FULL)
+    @Suppress("LongParameterList") // the BLAS dsyrk signature plus optional scratch
+    fun syrk(
+        alpha: Double,
+        a: DenseMatrix,
+        transpose: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        uplo: Uplo = Uplo.FULL,
+        workspace: Workspace? = null,
+    )
 
     /**
      * In-place symmetric matrix-vector accumulate `y = alpha · A · x + beta · y` for a symmetric [a]
@@ -193,7 +201,7 @@ interface LinearAlgebra {
      * triangle may hold anything — and [a] is not modified. Use this where the matrix is symmetric but
      * not positive definite (KKT systems); for SPD matrices [cholesky] is cheaper.
      */
-    fun ldl(a: DenseMatrix): LdlDecomposition
+    fun ldl(a: DenseMatrix, workspace: Workspace? = null): LdlDecomposition
 
     /** Solve `A · x = b` for a symmetric indefinite factorization [ldl] (LAPACK `dsytrs`); returns a
      *  fresh `x`. Symmetry makes the transposed solve identical, so there is no `transpose` flag.
@@ -287,7 +295,7 @@ interface LinearAlgebra {
      * of `R` surface in [solveLeastSquares] as infinities/NaNs, following the triangular-solve
      * convention.
      */
-    fun qr(a: DenseMatrix): QrDecomposition
+    fun qr(a: DenseMatrix, workspace: Workspace? = null): QrDecomposition
 
     /** Apply `Q` (or `Qᵀ` when [transpose]) from [qr] to a length-`m` [y], into a fresh result
      *  (LAPACK `dormqr` restricted to a single column). */
@@ -627,8 +635,16 @@ object ReferenceLinearAlgebra : LinearAlgebra {
         }
     }
 
-    @Suppress("LongParameterList") // the BLAS dsyrk signature
-    override fun syrk(alpha: Double, a: DenseMatrix, transpose: Boolean, beta: Double, c: DenseMatrix, uplo: Uplo) {
+    @Suppress("LongParameterList") // the BLAS dsyrk signature plus optional scratch
+    override fun syrk(
+        alpha: Double,
+        a: DenseMatrix,
+        transpose: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        uplo: Uplo,
+        workspace: Workspace?,
+    ) {
         val n = if (transpose) a.cols else a.rows
         val k = if (transpose) a.rows else a.cols
         require(c.rows == n && c.cols == n) { "syrk: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
@@ -650,7 +666,9 @@ object ReferenceLinearAlgebra : LinearAlgebra {
             // a scratch buffer, then written per triangle — the sweeps alone are not bit-symmetric
             // ((alpha·x)·y and (alpha·y)·x round differently), and the contract promises an exactly
             // symmetric alpha term.
-            val w = DoubleArray(n * n)
+            // The n² mirror is the largest scratch in the library, so the one most worth lending; pools
+            // key by width, so this just borrows an n²-wide vector.
+            val w = workspace?.take(n * n) ?: DoubleArray(n * n)
             for (p in 0 until k) {
                 val base = p * n
                 for (i in 0 until n) {
@@ -663,6 +681,7 @@ object ReferenceLinearAlgebra : LinearAlgebra {
                     addUplo(cd, n, i, j, w[i * n + j], uplo)
                 }
             }
+            workspace?.release(w)
         }
     }
 
@@ -783,14 +802,14 @@ object ReferenceLinearAlgebra : LinearAlgebra {
     }
 
     @Suppress("CyclomaticComplexMethod", "LongMethod") // netlib dsytf2's control flow, kept recognizable
-    override fun ldl(a: DenseMatrix): LdlDecomposition {
+    override fun ldl(a: DenseMatrix, workspace: Workspace?): LdlDecomposition {
         require(a.rows == a.cols) { "ldl: matrix must be square, got ${a.rows}x${a.cols}" }
         val n = a.rows
         val w = a.data.copyOf()
         val ipiv = IntArray(n)
         var singular = false
-        val colK = DoubleArray(n)
-        val colK1 = DoubleArray(n)
+        val colK = workspace?.take(n) ?: DoubleArray(n)
+        val colK1 = workspace?.take(n) ?: DoubleArray(n)
         var k = 0
         while (k < n) {
             var kstep = 1
@@ -891,6 +910,10 @@ object ReferenceLinearAlgebra : LinearAlgebra {
             }
             k += kstep
         }
+        if (workspace != null) {
+            workspace.release(colK1)
+            workspace.release(colK)
+        }
         return LdlDecomposition(n, w, ipiv, singular)
     }
 
@@ -973,13 +996,14 @@ object ReferenceLinearAlgebra : LinearAlgebra {
         return x
     }
 
-    override fun qr(a: DenseMatrix): QrDecomposition {
+    override fun qr(a: DenseMatrix, workspace: Workspace?): QrDecomposition {
         val m = a.rows
         val n = a.cols
         val k = minOf(m, n)
         val buf = a.data.copyOf()
         val tau = DoubleArray(k)
-        val w = DoubleArray(if (n > 0) n - 1 else 0)
+        val wWidth = if (n > 0) n - 1 else 0
+        val w = workspace?.take(wWidth) ?: DoubleArray(wWidth)
         for (col in 0 until k) {
             tau[col] = householderColumn(buf, m, n, col)
             if (tau[col] == 0.0) continue
@@ -998,6 +1022,7 @@ object ReferenceLinearAlgebra : LinearAlgebra {
                 if (f != 0.0) denseAxpy(buf, i * n + col + 1, f, w, 0, width)
             }
         }
+        workspace?.release(w)
         return QrDecomposition(m, n, buf, tau)
     }
 

@@ -85,6 +85,54 @@ class AllocationFreeTest {
     }
 
     @Test
+    fun `a filter-shaped Cholesky update loop allocates nothing`() {
+        val n = 48
+        val rng = Random(20260740)
+        val spd = wellConditioned(n, rng).let { a ->
+            val m = DenseMatrix(n, n)
+            koblas.syrk(1.0, a, transpose = true, beta = 0.0, c = m)
+            for (i in 0 until n) m[i, i] = m[i, i] + n
+            m
+        }
+        val l = spd.cholesky()
+        val x = DenseVector.of(DoubleArray(n) { rng.nextDouble(-0.01, 0.01) })
+        val ws = Workspace().apply { reserve(n, count = 3) }
+
+        val allocating = bytesPerIteration(500) { l.choleskyUpdateInPlace(x) }
+        val pooled = bytesPerIteration(500) { l.choleskyUpdateInPlace(x, ws) }
+        assertTrue(allocating > n * Double.SIZE_BYTES * 2.0, "expected allocation, saw $allocating B")
+        assertTrue(pooled < 64.0, "cholesky update allocated $pooled B per iteration (plain: $allocating B)")
+    }
+
+    @Test
+    fun `the symmetric rank-k mirror buffer is lent rather than allocated`() {
+        val n = 64
+        val rng = Random(20260741)
+        val a = wellConditioned(n, rng)
+        val c = DenseMatrix(n, n)
+        // syrk's FULL mode needs an n² scratch, the largest single allocation in the library.
+        val ws = Workspace().apply { reserve(n * n, count = 1) }
+
+        val allocating = bytesPerIteration(200) { koblas.syrk(1.0, a, transpose = true, beta = 0.0, c = c) }
+        val pooled = bytesPerIteration(200) {
+            koblas.syrk(1.0, a, transpose = true, beta = 0.0, c = c, workspace = ws)
+        }
+        assertTrue(allocating > n * n * Double.SIZE_BYTES * 0.5, "expected an n² scratch, saw $allocating B")
+        assertTrue(pooled < 64.0, "syrk allocated $pooled B per iteration (plain: $allocating B)")
+    }
+
+    @Test
+    fun `norm1 with a workspace allocates nothing`() {
+        val n = 64
+        val a = wellConditioned(n, Random(20260742))
+        val ws = Workspace().apply { reserve(n, count = 1) }
+        val allocating = bytesPerIteration(2000) { norm1(a) }
+        val pooled = bytesPerIteration(2000) { norm1(a, ws) }
+        assertTrue(allocating > n * Double.SIZE_BYTES * 0.5, "expected allocation, saw $allocating B")
+        assertTrue(pooled < 64.0, "norm1 allocated $pooled B per iteration (plain: $allocating B)")
+    }
+
+    @Test
     fun `a sparse simplex-shaped iteration allocates nothing`() {
         val m = 64
         val rng = Random(20260739)

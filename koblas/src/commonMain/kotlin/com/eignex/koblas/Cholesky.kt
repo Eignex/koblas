@@ -71,14 +71,19 @@ fun MatrixView.cholesky(regularizeNonPD: Boolean = true): DenseMatrix {
  * stays scalar, like the downdate's rotation loop), then rotation `i` is generated to zero the
  * transformed `x[i]` into the diagonal.
  */
-fun DenseMatrix.choleskyUpdateInPlace(x: VectorView) {
+fun DenseMatrix.choleskyUpdateInPlace(x: VectorView, workspace: Workspace? = null) {
     require(rows == cols) { "choleskyUpdateInPlace requires a square matrix; got ${rows}x$cols" }
     require(rows == x.size) { "x size ${x.size} must match matrix dim $rows" }
     val L = data
     val n = rows
-    val w = x.toDoubleArray()
-    val c = DoubleArray(n)
-    val s = DoubleArray(n)
+    // Three vectors per call, which a filter pays on every update; a workspace lends them instead.
+    val w = workspace?.take(n) ?: DoubleArray(n)
+    val c = workspace?.take(n) ?: DoubleArray(n)
+    val s = workspace?.take(n) ?: DoubleArray(n)
+    // Scatter rather than index x: SparseVector.get is a linear scan, so a per-element read would be
+    // quadratic in its nonzeros.
+    w.fill(0.0)
+    x.forEachStored { i, v -> w[i] = v }
     for (i in 0 until n) {
         val rowI = i * n
         var wi = w[i]
@@ -93,6 +98,11 @@ fun DenseMatrix.choleskyUpdateInPlace(x: VectorView) {
         s[i] = wi / r
         L[rowI + i] = r
     }
+    if (workspace != null) {
+        workspace.release(s)
+        workspace.release(c)
+        workspace.release(w)
+    }
 }
 
 /**
@@ -106,14 +116,22 @@ fun DenseMatrix.choleskyUpdateInPlace(x: VectorView) {
  * stays SPD. Then apply Givens rotations to the rows of L (the natural direction
  * for lower-triangular storage) to absorb `s` without breaking triangularity.
  */
-fun DenseMatrix.choleskyDowndateInPlace(x: VectorView): Double {
+fun DenseMatrix.choleskyDowndateInPlace(x: VectorView, workspace: Workspace? = null): Double {
     require(rows == cols) { "choleskyDowndateInPlace requires a square matrix; got ${rows}x$cols" }
     require(rows == x.size) { "x size ${x.size} must match matrix dim $rows" }
     if (rows == 0) return 0.0 // an empty downdate stays in the cone trivially
     val L = data
     val n = rows
-    val s = DoubleArray(n)
-    val c = DoubleArray(n)
+    val s = workspace?.take(n) ?: DoubleArray(n)
+    val c = workspace?.take(n) ?: DoubleArray(n)
+
+    // The cone check below returns early, so both exits hand the buffers back.
+    fun recycle() {
+        if (workspace != null) {
+            workspace.release(c)
+            workspace.release(s)
+        }
+    }
 
     // Solve L * s = x by forward substitution. Inner sum is a contiguous dot product.
     s[0] = x[0] / L[0]
@@ -124,7 +142,10 @@ fun DenseMatrix.choleskyDowndateInPlace(x: VectorView): Double {
     }
 
     val norm = norm2(DenseVector.wrap(s))
-    if (norm <= 0.0 || norm >= 1.0) return norm
+    if (norm <= 0.0 || norm >= 1.0) {
+        recycle()
+        return norm
+    }
 
     var alpha = sqrt(1.0 - norm * norm)
     for (ii in 0 until n) {
@@ -149,6 +170,7 @@ fun DenseMatrix.choleskyDowndateInPlace(x: VectorView): Double {
             xx = t
         }
     }
+    recycle()
     return 0.0
 }
 
@@ -177,12 +199,12 @@ fun solveSpd(L: DenseMatrix, b: DoubleArray): DoubleArray {
  * only produces rows `>= j` — the strictly-upper entries of the symmetric `A^-1` come from
  * mirroring the lower triangle.
  */
-fun invertSpd(L: DenseMatrix): DenseMatrix {
+fun invertSpd(L: DenseMatrix, workspace: Workspace? = null): DenseMatrix {
     val n = L.rows
     val Ld = L.data
     val inv = DenseMatrix(n, n)
     val invd = inv.data
-    val y = DoubleArray(n)
+    val y = workspace?.take(n) ?: DoubleArray(n)
     for (j in 0 until n) {
         // L y = e_j: rows before j stay zero.
         y[j] = 1.0 / Ld[j * n + j]
@@ -201,5 +223,6 @@ fun invertSpd(L: DenseMatrix): DenseMatrix {
             invd[j * n + i] = y[i]
         }
     }
+    workspace?.release(y)
     return inv
 }
