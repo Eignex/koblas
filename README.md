@@ -147,11 +147,22 @@ through the Bytedeco presets, with natives bundled for all major platforms:
 runtimeOnly("com.eignex:koblas-openblas:<version>")
 ```
 
-It speeds up matrix products and dense LU factorization by roughly an order of
-magnitude at dimension 1000. OpenBLAS runs single-threaded by default, which
-is both the fast and the safe configuration under the JVM; the
-koblas.openblas.threads system property opts into its threading. Setting
-koblas.backend to reference forces the portable implementation.
+It speeds up matrix products and dense factorizations several-fold at
+dimension 256 and more as sizes grow. Calls go through java.lang.foreign
+downcalls that pin the array rather than copying it, so the artifact needs
+JDK 25 and the flag that permits native access:
+
+```
+--enable-native-access=ALL-UNNAMED
+```
+
+Core koblas has no such requirement. The level 2 products and single-vector
+solves stay on the portable kernels even with this backend active, because
+their work is proportional to their data and no native call can win that.
+OpenBLAS runs single-threaded by default, which is both the fast and the safe
+configuration under the JVM; the koblas.openblas.threads system property opts
+into its threading. Setting koblas.backend to reference forces the portable
+implementation.
 
 On the Linux and macOS native targets the optional koblas-cblas artifact
 provides the same operations through the host's OpenBLAS, located with dlopen
