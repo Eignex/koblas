@@ -303,27 +303,45 @@ class CblasLinearAlgebra : LinearAlgebra {
         return out
     }
 
-    override fun solve(lu: LuDecomposition, b: DenseMatrix, transpose: Boolean): DenseMatrix {
+    @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
+    override fun solveInto(
+        lu: LuDecomposition,
+        b: DenseMatrix,
+        out: DenseMatrix,
+        transpose: Boolean,
+        workspace: Workspace?,
+    ): DenseMatrix {
         val n = lu.n
         val nrhs = b.cols
         require(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
-        if (n == 0 || nrhs == 0) return DenseMatrix.wrap(n, nrhs, DoubleArray(n * nrhs))
+        require(out.rows == n && out.cols == nrhs) {
+            "solve: out is ${out.rows}x${out.cols}, expected ${n}x$nrhs"
+        }
+        if (n == 0 || nrhs == 0) return out
         // Same permute + two block triangular solves as the vector path; dtrsm is row-major native,
         // so no LAPACKE transposition tax scales with nrhs.
-        return if (transpose) {
-            val y = b.data.copyOf()
+        if (transpose) {
+            val y = workspace?.take(n * nrhs) ?: DoubleArray(n * nrhs)
+            b.data.copyInto(y)
             trsmLeft(lu.lu, n, y, nrhs, UPPER, TRANS, NON_UNIT)
             trsmLeft(lu.lu, n, y, nrhs, LOWER, TRANS, UNIT)
-            val x = DoubleArray(n * nrhs)
-            for (i in 0 until n) y.copyInto(x, lu.piv[i] * nrhs, i * nrhs, (i + 1) * nrhs)
-            DenseMatrix.wrap(n, nrhs, x)
+            for (i in 0 until n) y.copyInto(out.data, lu.piv[i] * nrhs, i * nrhs, (i + 1) * nrhs)
+            workspace?.release(y)
         } else {
-            val x = DoubleArray(n * nrhs)
-            for (i in 0 until n) b.data.copyInto(x, i * nrhs, lu.piv[i] * nrhs, (lu.piv[i] + 1) * nrhs)
-            trsmLeft(lu.lu, n, x, nrhs, LOWER, NO_TRANS, UNIT)
-            trsmLeft(lu.lu, n, x, nrhs, UPPER, NO_TRANS, NON_UNIT)
-            DenseMatrix.wrap(n, nrhs, x)
+            if (out === b) {
+                val staged = workspace?.take(n * nrhs) ?: DoubleArray(n * nrhs)
+                for (i in 0 until n) b.data.copyInto(staged, i * nrhs, lu.piv[i] * nrhs, (lu.piv[i] + 1) * nrhs)
+                staged.copyInto(out.data)
+                workspace?.release(staged)
+            } else {
+                for (i in 0 until n) {
+                    b.data.copyInto(out.data, i * nrhs, lu.piv[i] * nrhs, (lu.piv[i] + 1) * nrhs)
+                }
+            }
+            trsmLeft(lu.lu, n, out.data, nrhs, LOWER, NO_TRANS, UNIT)
+            trsmLeft(lu.lu, n, out.data, nrhs, UPPER, NO_TRANS, NON_UNIT)
         }
+        return out
     }
 
     override fun ldl(a: DenseMatrix, workspace: Workspace?): LdlDecomposition {
@@ -350,13 +368,22 @@ class CblasLinearAlgebra : LinearAlgebra {
         return solveSytrs(ldl, out, 1)
     }
 
-    override fun solve(ldl: LdlDecomposition, b: DenseMatrix): DenseMatrix {
+    override fun solveInto(
+        ldl: LdlDecomposition,
+        b: DenseMatrix,
+        out: DenseMatrix,
+        workspace: Workspace?,
+    ): DenseMatrix {
         val n = ldl.n
         val nrhs = b.cols
         require(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
-        val x = b.data.copyOf()
-        if (n == 0 || nrhs == 0) return DenseMatrix.wrap(n, nrhs, x)
-        return DenseMatrix.wrap(n, nrhs, solveSytrs(ldl, x, nrhs))
+        require(out.rows == n && out.cols == nrhs) {
+            "solve: out is ${out.rows}x${out.cols}, expected ${n}x$nrhs"
+        }
+        if (out !== b) b.data.copyInto(out.data)
+        if (n == 0 || nrhs == 0) return out
+        solveSytrs(ldl, out.data, nrhs)
+        return out
     }
 
     override fun qr(a: DenseMatrix, workspace: Workspace?): QrDecomposition {
@@ -373,9 +400,11 @@ class CblasLinearAlgebra : LinearAlgebra {
         return QrDecomposition(m, n, buf, tau)
     }
 
-    override fun applyQ(qr: QrDecomposition, y: DoubleArray, transpose: Boolean): DoubleArray {
+    override fun applyQInto(qr: QrDecomposition, y: DoubleArray, out: DoubleArray, transpose: Boolean): DoubleArray {
         require(y.size == qr.m) { "applyQ: y length ${y.size} != ${qr.m}" }
-        val c = y.copyOf()
+        require(out.size == qr.m) { "applyQ: out length ${out.size} != ${qr.m}" }
+        val c = out
+        if (out !== y) y.copyInto(out)
         if (qr.tau.isEmpty()) return c
         val side = 'L'.code.toByte()
         val trans = (if (transpose) 'T' else 'N').code.toByte()

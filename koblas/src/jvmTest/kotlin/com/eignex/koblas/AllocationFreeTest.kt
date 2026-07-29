@@ -122,6 +122,41 @@ class AllocationFreeTest {
     }
 
     @Test
+    fun `a block solve loop allocates nothing per iteration`() {
+        val n = 48
+        val nrhs = 40 // above the crossover, so the blocked path runs rather than column-by-column
+        val rng = Random(20260743)
+        val lu = wellConditioned(n, rng).lu()
+        val b = DenseMatrix(n, nrhs)
+        for (i in 0 until n) for (j in 0 until nrhs) b[i, j] = rng.nextDouble(-1.0, 1.0)
+        val out = DenseMatrix(n, nrhs)
+        val ws = Workspace().apply { reserve(n * nrhs, count = 1) }
+
+        val allocating = bytesPerIteration(200) { koblas.solve(lu, b) }
+        val into = bytesPerIteration(200) { koblas.solveInto(lu, b, out, workspace = ws) }
+        assertTrue(allocating > n * nrhs * Double.SIZE_BYTES * 0.5, "expected allocation, saw $allocating B")
+        assertTrue(into < 64.0, "block solveInto allocated $into B per iteration (plain: $allocating B)")
+    }
+
+    @Test
+    fun `a least-squares loop allocates nothing per iteration`() {
+        val m = 64
+        val n = 16
+        val rng = Random(20260744)
+        val a = DenseMatrix(m, n)
+        for (i in 0 until m) for (j in 0 until n) a[i, j] = rng.nextDouble(-1.0, 1.0)
+        val f = koblas.qr(a)
+        val b = DoubleArray(m) { rng.nextDouble(-1.0, 1.0) }
+        val x = DoubleArray(n)
+        val ws = Workspace().apply { reserve(m, count = 1) }
+
+        val allocating = bytesPerIteration(500) { koblas.solveLeastSquares(f, b) }
+        val into = bytesPerIteration(500) { koblas.solveLeastSquaresInto(f, b, x, ws) }
+        assertTrue(allocating > m * Double.SIZE_BYTES * 0.5, "expected allocation, saw $allocating B")
+        assertTrue(into < 64.0, "least squares allocated $into B per iteration (plain: $allocating B)")
+    }
+
+    @Test
     fun `norm1 with a workspace allocates nothing`() {
         val n = 64
         val a = wellConditioned(n, Random(20260742))
