@@ -122,6 +122,82 @@ class DestinationPassingTest {
     }
 
     @Test
+    fun `block solves into a destination match the allocating forms`() {
+        val rng = Random(20260750)
+        val ws = Workspace()
+        for (n in intArrayOf(2, 9)) {
+            // Both sides of the narrow/wide dispatch: column-by-column below the threshold, blocked above.
+            for (nrhs in intArrayOf(1, 3, 40)) {
+                val lu = wellConditioned(n, rng).lu()
+                val b = DenseMatrix(n, nrhs)
+                for (i in 0 until n) for (j in 0 until nrhs) b[i, j] = rng.nextDouble(-1.0, 1.0)
+                for (transpose in booleanArrayOf(false, true)) {
+                    val expected = koblas.solve(lu, b, transpose)
+                    val out = DenseMatrix(n, nrhs)
+                    val returned = koblas.solveInto(lu, b, out, transpose, ws)
+                    assertSame(out, returned, "solveInto must return its destination")
+                    assertClose(expected.data, out.data, "block n=$n nrhs=$nrhs t=$transpose")
+                    // Aliased: solving in place over the caller's own matrix.
+                    val aliased = DenseMatrix(n, nrhs, b.data.copyOf())
+                    koblas.solveInto(lu, aliased, aliased, transpose, ws)
+                    assertClose(expected.data, aliased.data, "block aliased n=$n nrhs=$nrhs t=$transpose")
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `ldl block solves into a destination match the allocating form`() {
+        val rng = Random(20260751)
+        val n = 8
+        val a = DenseMatrix(n, n)
+        for (i in 0 until n) {
+            for (j in 0..i) {
+                var v = rng.nextDouble(-1.0, 1.0)
+                if (i == j) v += if (i % 2 == 0) 2.0 else -2.0
+                a[i, j] = v
+                a[j, i] = v
+            }
+        }
+        val f = koblas.ldl(a)
+        for (nrhs in intArrayOf(1, 3, 40)) {
+            val b = DenseMatrix(n, nrhs)
+            for (i in 0 until n) for (j in 0 until nrhs) b[i, j] = rng.nextDouble(-1.0, 1.0)
+            val expected = koblas.solve(f, b)
+            val out = DenseMatrix(n, nrhs)
+            assertClose(expected.data, koblas.solveInto(f, b, out).data, "ldl block nrhs=$nrhs")
+            val aliased = DenseMatrix(n, nrhs, b.data.copyOf())
+            koblas.solveInto(f, aliased, aliased)
+            assertClose(expected.data, aliased.data, "ldl block aliased nrhs=$nrhs")
+        }
+    }
+
+    @Test
+    fun `the QR family writes into destinations`() {
+        val rng = Random(20260752)
+        val ws = Workspace()
+        for ((m, n) in listOf(7 to 4, 6 to 6)) {
+            val a = DenseMatrix(m, n)
+            for (i in 0 until m) for (j in 0 until n) a[i, j] = rng.nextDouble(-1.0, 1.0)
+            val f = koblas.qr(a, ws)
+            val y = DoubleArray(m) { rng.nextDouble(-1.0, 1.0) }
+            for (transpose in booleanArrayOf(false, true)) {
+                val expected = koblas.applyQ(f, y, transpose)
+                assertClose(expected, koblas.applyQInto(f, y, DoubleArray(m), transpose), "applyQ t=$transpose")
+                val aliased = y.copyOf()
+                koblas.applyQInto(f, aliased, aliased, transpose)
+                assertClose(expected, aliased, "applyQ aliased t=$transpose")
+            }
+            val ls = koblas.solveLeastSquares(f, y)
+            assertClose(ls, koblas.solveLeastSquaresInto(f, y, DoubleArray(n), ws), "least squares ${m}x$n")
+            // The minimum-norm solve reads the QR of a transpose, so it consumes a length-n right side.
+            val bWide = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
+            val mn = koblas.solveMinimumNorm(f, bWide)
+            assertClose(mn, koblas.solveMinimumNormInto(f, bWide, DoubleArray(m), ws), "min norm ${m}x$n")
+        }
+    }
+
+    @Test
     fun `sparse solves into a destination match the allocating forms`() {
         val rng = Random(20260735)
         val m = 14

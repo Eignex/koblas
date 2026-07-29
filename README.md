@@ -110,8 +110,10 @@ needs them.
 
 Every routine that returns a result also has a destination-passing form, so a
 loop that owns its buffers allocates nothing: solveInto for the dense and
-symmetric indefinite solves, ftranInto and btranInto for the sparse basis and
-the eta chain, factorInto to refactorize into existing factor buffers.
+symmetric indefinite solves, single or blocked, applyQInto and the two
+least-squares solves for the QR family, ftranInto and btranInto for the sparse
+basis and the eta chain, and factorInto to refactorize into existing factor
+buffers.
 
 A few routines also need scratch of their own, and those take an optional
 Workspace: a pool of vectors keyed by width, which you create and hand over.

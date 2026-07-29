@@ -248,66 +248,94 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
         workspace: Workspace?,
     ): DoubleArray = ReferenceLinearAlgebra.solveInto(lu, b, out, transpose, workspace)
 
-    override fun solve(lu: LuDecomposition, b: DenseMatrix, transpose: Boolean): DenseMatrix {
+    @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
+    override fun solveInto(
+        lu: LuDecomposition,
+        b: DenseMatrix,
+        out: DenseMatrix,
+        transpose: Boolean,
+        workspace: Workspace?,
+    ): DenseMatrix {
         val n = lu.n
         val nrhs = b.cols
         require(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
-        if (n == 0 || nrhs == 0) return DenseMatrix.wrap(n, nrhs, DoubleArray(n * nrhs))
+        require(out.rows == n && out.cols == nrhs) {
+            "solve: out is ${out.rows}x${out.cols}, expected ${n}x$nrhs"
+        }
+        if (n == 0 || nrhs == 0) return out
         // One or two columns do not cover the native call's cost: at n 256 dtrsm needs 100-140 us for a
         // single column against the delegated path's 25 us. From four columns on, dtrsm is ahead.
         if (nrhs < NATIVE_TRSM_MIN_RHS) {
-            val out = DoubleArray(n * nrhs)
-            val col = DoubleArray(n)
+            val col = workspace?.take(n) ?: DoubleArray(n)
+            val solved = workspace?.take(n) ?: DoubleArray(n)
             for (c in 0 until nrhs) {
                 for (i in 0 until n) col[i] = b.data[i * nrhs + c]
-                val x = solve(lu, col, transpose)
-                for (i in 0 until n) out[i * nrhs + c] = x[i]
+                solveInto(lu, col, solved, transpose, workspace)
+                for (i in 0 until n) out.data[i * nrhs + c] = solved[i]
             }
-            return DenseMatrix.wrap(n, nrhs, out)
+            if (workspace != null) {
+                workspace.release(solved)
+                workspace.release(col)
+            }
+            return out
         }
         val f = lu.lu
         // Permute plus two block triangular solves; dtrsm is row-major native, so no LAPACKE
         // transposition tax scales with nrhs.
-        return if (transpose) {
-            val y = b.data.copyOf()
-            OpenBlasCalls.dtrsm.invokeWithArguments(
-                ROW_MAJOR, LEFT, UPPER, TRANS, NON_UNIT, n, nrhs, 1.0,
-                OpenBlasCalls.seg(f), n, OpenBlasCalls.seg(y), nrhs,
-            )
-            OpenBlasCalls.dtrsm.invokeWithArguments(
-                ROW_MAJOR, LEFT, LOWER, TRANS, UNIT, n, nrhs, 1.0,
-                OpenBlasCalls.seg(f), n, OpenBlasCalls.seg(y), nrhs,
-            )
-            val x = DoubleArray(n * nrhs)
-            for (i in 0 until n) y.copyInto(x, lu.piv[i] * nrhs, i * nrhs, (i + 1) * nrhs)
-            DenseMatrix.wrap(n, nrhs, x)
+        if (transpose) {
+            val y = workspace?.take(n * nrhs) ?: DoubleArray(n * nrhs)
+            b.data.copyInto(y)
+            trsmLeft(f, n, y, nrhs, UPPER, TRANS, NON_UNIT)
+            trsmLeft(f, n, y, nrhs, LOWER, TRANS, UNIT)
+            for (i in 0 until n) y.copyInto(out.data, lu.piv[i] * nrhs, i * nrhs, (i + 1) * nrhs)
+            workspace?.release(y)
         } else {
-            val x = DoubleArray(n * nrhs)
-            for (i in 0 until n) b.data.copyInto(x, i * nrhs, lu.piv[i] * nrhs, (lu.piv[i] + 1) * nrhs)
-            OpenBlasCalls.dtrsm.invokeWithArguments(
-                ROW_MAJOR, LEFT, LOWER, NO_TRANS, UNIT, n, nrhs, 1.0,
-                OpenBlasCalls.seg(f), n, OpenBlasCalls.seg(x), nrhs,
-            )
-            OpenBlasCalls.dtrsm.invokeWithArguments(
-                ROW_MAJOR, LEFT, UPPER, NO_TRANS, NON_UNIT, n, nrhs, 1.0,
-                OpenBlasCalls.seg(f), n, OpenBlasCalls.seg(x), nrhs,
-            )
-            DenseMatrix.wrap(n, nrhs, x)
+            if (out === b) {
+                val staged = workspace?.take(n * nrhs) ?: DoubleArray(n * nrhs)
+                for (i in 0 until n) b.data.copyInto(staged, i * nrhs, lu.piv[i] * nrhs, (lu.piv[i] + 1) * nrhs)
+                staged.copyInto(out.data)
+                workspace?.release(staged)
+            } else {
+                for (i in 0 until n) {
+                    b.data.copyInto(out.data, i * nrhs, lu.piv[i] * nrhs, (lu.piv[i] + 1) * nrhs)
+                }
+            }
+            trsmLeft(f, n, out.data, nrhs, LOWER, NO_TRANS, UNIT)
+            trsmLeft(f, n, out.data, nrhs, UPPER, NO_TRANS, NON_UNIT)
         }
+        return out
     }
 
-    override fun solve(ldl: LdlDecomposition, b: DenseMatrix): DenseMatrix {
+    /** Left-side dtrsm over a packed factor buffer. */
+    @Suppress("LongParameterList")
+    private fun trsmLeft(f: DoubleArray, n: Int, x: DoubleArray, nrhs: Int, uplo: Int, trans: Int, diag: Int) {
+        OpenBlasCalls.dtrsm.invokeWithArguments(
+            ROW_MAJOR, LEFT, uplo, trans, diag, n, nrhs, 1.0,
+            OpenBlasCalls.seg(f), n, OpenBlasCalls.seg(x), nrhs,
+        )
+    }
+
+    override fun solveInto(
+        ldl: LdlDecomposition,
+        b: DenseMatrix,
+        out: DenseMatrix,
+        workspace: Workspace?,
+    ): DenseMatrix {
         val n = ldl.n
         val nrhs = b.cols
         require(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
-        val x = b.data.copyOf()
-        if (n == 0 || nrhs == 0) return DenseMatrix.wrap(n, nrhs, x)
+        require(out.rows == n && out.cols == nrhs) {
+            "solve: out is ${out.rows}x${out.cols}, expected ${n}x$nrhs"
+        }
+        val x = out.data
+        if (out !== b) b.data.copyInto(x)
+        if (n == 0 || nrhs == 0) return out
         val info = OpenBlasCalls.dsytrs.invokeWithArguments(
             ROW_MAJOR, 'L'.code.toByte(), n, nrhs,
             OpenBlasCalls.seg(ldl.ldl), n, OpenBlasCalls.seg(ldl.ipiv), OpenBlasCalls.seg(x), nrhs,
         ) as Int
         check(info == 0) { "dsytrs: illegal argument ${-info}" }
-        return DenseMatrix.wrap(n, nrhs, x)
+        return out
     }
 
     override fun ldl(a: DenseMatrix, workspace: Workspace?): LdlDecomposition {
@@ -362,9 +390,11 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
         return QrDecomposition(m, n, buf, tau)
     }
 
-    override fun applyQ(qr: QrDecomposition, y: DoubleArray, transpose: Boolean): DoubleArray {
+    override fun applyQInto(qr: QrDecomposition, y: DoubleArray, out: DoubleArray, transpose: Boolean): DoubleArray {
         require(y.size == qr.m) { "applyQ: y length ${y.size} != ${qr.m}" }
-        val c = y.copyOf()
+        require(out.size == qr.m) { "applyQ: out length ${out.size} != ${qr.m}" }
+        val c = out
+        if (out !== y) y.copyInto(out)
         if (qr.tau.isEmpty()) return c
         val side = 'L'.code.toByte()
         val trans = (if (transpose) 'T' else 'N').code.toByte()

@@ -168,30 +168,60 @@ interface LinearAlgebra {
      * and the two triangular block solves directly on the shared packed format; backends may
      * substitute a native block solve.
      */
-    fun solve(lu: LuDecomposition, b: DenseMatrix, transpose: Boolean = false): DenseMatrix {
+    fun solve(lu: LuDecomposition, b: DenseMatrix, transpose: Boolean = false): DenseMatrix =
+        solveInto(lu, b, DenseMatrix(b.rows, b.cols), transpose)
+
+    /**
+     * Solve `A · X = B` (or `Aᵀ · X = B` when [transpose]) into [out], which is returned. [out] may be
+     * [b]. The transposed direction stages a block before scattering its rows through the permutation,
+     * so pass a [workspace] to lend that `n·nrhs` buffer.
+     */
+    @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
+    fun solveInto(
+        lu: LuDecomposition,
+        b: DenseMatrix,
+        out: DenseMatrix,
+        transpose: Boolean = false,
+        workspace: Workspace? = null,
+    ): DenseMatrix {
         val n = lu.n
         val nrhs = b.cols
         require(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
+        require(out.rows == n && out.cols == nrhs) {
+            "solve: out is ${out.rows}x${out.cols}, expected ${n}x$nrhs"
+        }
         // A narrow block updates rows in `nrhs`-length runs, too short for the vectorized primitives to
         // pay off — at `nrhs` 1 that is one length-1 axpy per matrix element, measured 10x slower than
         // solving column by column. Wide blocks amortize the factor traversal and win from ~32 columns.
-        if (nrhs < BLOCK_SOLVE_MIN_RHS) return solveByColumn(b, n, nrhs) { solve(lu, it, transpose) }
+        if (nrhs < BLOCK_SOLVE_MIN_RHS) {
+            return solveColumnwise(b, out, n, nrhs, workspace) { col, dst ->
+                solveInto(lu, col, dst, transpose, workspace)
+            }
+        }
         val f = lu.lu
         return if (transpose) {
             // Aᵀ X = B, with Aᵀ = Uᵀ Lᵀ P: forward-solve Uᵀ, back-solve unit Lᵀ, un-permute rows.
-            val y = b.data.copyOf()
+            val y = workspace?.take(n * nrhs) ?: DoubleArray(n * nrhs)
+            b.data.copyInto(y)
             trsmCore(f, n, y, nrhs, lower = false, transpose = true, unitDiag = false)
             trsmCore(f, n, y, nrhs, lower = true, transpose = true, unitDiag = true)
-            val x = DoubleArray(n * nrhs)
-            for (i in 0 until n) y.copyInto(x, lu.piv[i] * nrhs, i * nrhs, (i + 1) * nrhs)
-            DenseMatrix.wrap(n, nrhs, x)
+            for (i in 0 until n) y.copyInto(out.data, lu.piv[i] * nrhs, i * nrhs, (i + 1) * nrhs)
+            workspace?.release(y)
+            out
         } else {
-            // A X = B, with P A = L U: permute the rows of B, forward-solve unit L, back-solve U.
-            val x = DoubleArray(n * nrhs)
-            for (i in 0 until n) b.data.copyInto(x, i * nrhs, lu.piv[i] * nrhs, (lu.piv[i] + 1) * nrhs)
-            trsmCore(f, n, x, nrhs, lower = true, transpose = false, unitDiag = true)
-            trsmCore(f, n, x, nrhs, lower = false, transpose = false, unitDiag = false)
-            DenseMatrix.wrap(n, nrhs, x)
+            // A X = B, with P A = L U: permute the rows of B, forward-solve unit L, back-solve U. The
+            // gather cannot read B in place once out aliases it, so that case stages.
+            if (out === b) {
+                val staged = workspace?.take(n * nrhs) ?: DoubleArray(n * nrhs)
+                for (i in 0 until n) b.data.copyInto(staged, i * nrhs, lu.piv[i] * nrhs, (lu.piv[i] + 1) * nrhs)
+                staged.copyInto(out.data)
+                workspace?.release(staged)
+            } else {
+                for (i in 0 until n) b.data.copyInto(out.data, i * nrhs, lu.piv[i] * nrhs, (lu.piv[i] + 1) * nrhs)
+            }
+            trsmCore(f, n, out.data, nrhs, lower = true, transpose = false, unitDiag = true)
+            trsmCore(f, n, out.data, nrhs, lower = false, transpose = false, unitDiag = false)
+            out
         }
     }
 
@@ -218,16 +248,25 @@ interface LinearAlgebra {
      * backends may substitute a native block solve.
      */
     @Suppress("CyclomaticComplexMethod", "LongMethod") // dsytrs's control flow, kept recognizable
-    fun solve(ldl: LdlDecomposition, b: DenseMatrix): DenseMatrix {
+    fun solve(ldl: LdlDecomposition, b: DenseMatrix): DenseMatrix = solveInto(ldl, b, DenseMatrix(b.rows, b.cols))
+
+    /** Solve `A · X = B` into [out], which is returned. [out] may be [b]. */
+    fun solveInto(ldl: LdlDecomposition, b: DenseMatrix, out: DenseMatrix, workspace: Workspace? = null): DenseMatrix {
         val n = ldl.n
         val nrhs = b.cols
         require(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
         // Narrow blocks solve column by column, as in the LU case above.
-        if (nrhs in 1 until BLOCK_SOLVE_MIN_RHS) return solveByColumn(b, n, nrhs) { solve(ldl, it) }
+        require(out.rows == n && out.cols == nrhs) {
+            "solve: out is ${out.rows}x${out.cols}, expected ${n}x$nrhs"
+        }
+        if (nrhs in 1 until BLOCK_SOLVE_MIN_RHS) {
+            return solveColumnwise(b, out, n, nrhs, workspace) { col, dst -> solveInto(ldl, col, dst) }
+        }
         val w = ldl.ldl
         val ipiv = ldl.ipiv
-        val x = b.data.copyOf()
-        if (nrhs == 0) return DenseMatrix.wrap(n, nrhs, x)
+        val x = out.data
+        if (out !== b) b.data.copyInto(x)
+        if (nrhs == 0) return out
         // Forward: replay interchanges, apply L block columns, divide by the D blocks (dsytrs lower).
         var k = 0
         while (k < n) {
@@ -286,7 +325,7 @@ interface LinearAlgebra {
                 k -= 2
             }
         }
-        return DenseMatrix.wrap(n, nrhs, x)
+        return out
     }
 
     /**
@@ -298,8 +337,13 @@ interface LinearAlgebra {
     fun qr(a: DenseMatrix, workspace: Workspace? = null): QrDecomposition
 
     /** Apply `Q` (or `Qᵀ` when [transpose]) from [qr] to a length-`m` [y], into a fresh result
-     *  (LAPACK `dormqr` restricted to a single column). */
-    fun applyQ(qr: QrDecomposition, y: DoubleArray, transpose: Boolean = false): DoubleArray
+     *  (LAPACK `dormqr` restricted to a single column). Allocates; [applyQInto] does not. */
+    fun applyQ(qr: QrDecomposition, y: DoubleArray, transpose: Boolean = false): DoubleArray =
+        applyQInto(qr, y, DoubleArray(qr.m), transpose)
+
+    /** Apply `Q` (or `Qᵀ` when [transpose]) from [qr] to [y] into [out], which is returned. [out] may
+     *  be [y]. */
+    fun applyQInto(qr: QrDecomposition, y: DoubleArray, out: DoubleArray, transpose: Boolean = false): DoubleArray
 
     /**
      * Least-squares solve `min ‖A·x − b‖₂` from the factorization (the `dgels` shape): requires
@@ -307,14 +351,29 @@ interface LinearAlgebra {
      * the kernel square-root/array filters build on; it composes with [cholesky] rank-one updates for
      * sliding-window problems.
      */
-    fun solveLeastSquares(qr: QrDecomposition, b: DoubleArray): DoubleArray {
+    fun solveLeastSquares(qr: QrDecomposition, b: DoubleArray, workspace: Workspace? = null): DoubleArray =
+        solveLeastSquaresInto(qr, b, DoubleArray(qr.n), workspace)
+
+    /**
+     * Least-squares solve into [out], which has length `n` and is returned. The `Qᵀb` product needs a
+     * length-`m` intermediate, so pass a [workspace] to make the call allocation-free.
+     */
+    fun solveLeastSquaresInto(
+        qr: QrDecomposition,
+        b: DoubleArray,
+        out: DoubleArray,
+        workspace: Workspace? = null,
+    ): DoubleArray {
         require(qr.m >= qr.n) { "solveLeastSquares requires m >= n, got ${qr.m}x${qr.n}" }
         require(b.size == qr.m) { "solveLeastSquares: b length ${b.size} != ${qr.m}" }
-        val y = applyQ(qr, b, transpose = true)
-        val x = y.copyOf(qr.n)
+        require(out.size == qr.n) { "solveLeastSquares: out length ${out.size} != ${qr.n}" }
+        val y = workspace?.take(qr.m) ?: DoubleArray(qr.m)
+        applyQInto(qr, b, y, transpose = true)
+        y.copyInto(out, 0, 0, qr.n)
         // The top n rows of the packed buffer are exactly an n×n row-major block holding R.
-        trsvCore(qr.qr, qr.n, x, lower = false, transpose = false, unitDiag = false)
-        return x
+        trsvCore(qr.qr, qr.n, out, lower = false, transpose = false, unitDiag = false)
+        workspace?.release(y)
+        return out
     }
 
     /**
@@ -325,15 +384,32 @@ interface LinearAlgebra {
      * smallest 2-norm. [b] has length `m`; the result has length `n`. Rank deficiency is not detected
      * and surfaces as infinities/NaNs, following the triangular-solve convention.
      */
-    fun solveMinimumNorm(qr: QrDecomposition, b: DoubleArray): DoubleArray {
+    fun solveMinimumNorm(qr: QrDecomposition, b: DoubleArray, workspace: Workspace? = null): DoubleArray =
+        solveMinimumNormInto(qr, b, DoubleArray(qr.m), workspace)
+
+    /**
+     * Minimum-norm solve into [out], which has length `m` (the wide system's column count) and is
+     * returned. A length-`n` intermediate holds the forward solve, so pass a [workspace] to make the
+     * call allocation-free.
+     */
+    fun solveMinimumNormInto(
+        qr: QrDecomposition,
+        b: DoubleArray,
+        out: DoubleArray,
+        workspace: Workspace? = null,
+    ): DoubleArray {
         require(qr.m >= qr.n) { "solveMinimumNorm expects the QR of the transpose (tall), got ${qr.m}x${qr.n}" }
         require(b.size == qr.n) { "solveMinimumNorm: b length ${b.size} != ${qr.n}" }
-        val w = b.copyOf()
+        require(out.size == qr.m) { "solveMinimumNorm: out length ${out.size} != ${qr.m}" }
+        val w = workspace?.take(qr.n) ?: DoubleArray(qr.n)
+        b.copyInto(w)
         // The top n rows of the packed buffer are exactly an n×n row-major block holding R.
         trsvCore(qr.qr, qr.n, w, lower = false, transpose = true, unitDiag = false)
-        val y = DoubleArray(qr.m)
-        w.copyInto(y)
-        return applyQ(qr, y)
+        // Pad to length m with zeros, then apply Q in place.
+        out.fill(0.0)
+        w.copyInto(out)
+        workspace?.release(w)
+        return applyQInto(qr, out, out)
     }
 
     /**
@@ -433,20 +509,28 @@ private const val RCOND_MAX_SWEEPS = 5
 private const val BLOCK_SOLVE_MIN_RHS = 32
 
 /** Run [solveOne] over each column of [b], reassembling the results into an `n × nrhs` matrix. */
-private inline fun solveByColumn(
+@Suppress("LongParameterList") // shape, destination and scratch alongside the per-column solve
+private inline fun solveColumnwise(
     b: DenseMatrix,
+    out: DenseMatrix,
     n: Int,
     nrhs: Int,
-    solveOne: (DoubleArray) -> DoubleArray,
+    workspace: Workspace?,
+    solveOne: (column: DoubleArray, destination: DoubleArray) -> DoubleArray,
 ): DenseMatrix {
-    val out = DoubleArray(n * nrhs)
-    val col = DoubleArray(n)
+    // One column in, one column out: two n-vectors serve every right-hand side.
+    val col = workspace?.take(n) ?: DoubleArray(n)
+    val solved = workspace?.take(n) ?: DoubleArray(n)
     for (c in 0 until nrhs) {
         for (i in 0 until n) col[i] = b.data[i * nrhs + c]
-        val x = solveOne(col)
-        for (i in 0 until n) out[i * nrhs + c] = x[i]
+        val x = solveOne(col, solved)
+        for (i in 0 until n) out.data[i * nrhs + c] = x[i]
     }
-    return DenseMatrix.wrap(n, nrhs, out)
+    if (workspace != null) {
+        workspace.release(solved)
+        workspace.release(col)
+    }
+    return out
 }
 
 /** Swap rows [r1] and [r2] of a flat row-major solve buffer with [nrhs] columns. */
@@ -1045,11 +1129,13 @@ object ReferenceLinearAlgebra : LinearAlgebra {
         return (beta - alpha) / beta
     }
 
-    override fun applyQ(qr: QrDecomposition, y: DoubleArray, transpose: Boolean): DoubleArray {
+    override fun applyQInto(qr: QrDecomposition, y: DoubleArray, out: DoubleArray, transpose: Boolean): DoubleArray {
         val m = qr.m
         val n = qr.n
         require(y.size == m) { "applyQ: y length ${y.size} != $m" }
-        val x = y.copyOf()
+        require(out.size == m) { "applyQ: out length ${out.size} != $m" }
+        val x = out
+        if (out !== y) y.copyInto(out)
         val k = qr.tau.size
         val buf = qr.qr
         // Q = H_0·H_1···H_{k−1} and each H is symmetric, so Qᵀ applies them in ascending order and
