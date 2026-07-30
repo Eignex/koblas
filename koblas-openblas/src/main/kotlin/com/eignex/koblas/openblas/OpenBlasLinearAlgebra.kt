@@ -356,20 +356,15 @@ class OpenBlasLinearAlgebra : LinearAlgebra {
         return LdlDecomposition(n, buf, ipiv, singular = info > 0)
     }
 
-    override fun solveInto(ldl: LdlDecomposition, b: DoubleArray, out: DoubleArray): DoubleArray {
-        val n = ldl.n
-        require(b.size == n) { "solve: b length ${b.size} != $n" }
-        require(out.size == n) { "solve: out length ${out.size} != $n" }
-        if (n == 0) return out
-        val x = out
-        if (out !== b) b.copyInto(out)
-        val info = OpenBlasCalls.dsytrs.invokeWithArguments(
-            ROW_MAJOR, 'L'.code.toByte(), n, 1,
-            OpenBlasCalls.seg(ldl.ldl), n, OpenBlasCalls.seg(ldl.ipiv), OpenBlasCalls.seg(x), 1,
-        ) as Int
-        check(info == 0) { "dsytrs: illegal argument ${-info}" }
-        return x
-    }
+    /**
+     * Delegated to [ReferenceLinearAlgebra], like [gemv] and the LU vector solve: `dsytrs` on one
+     * right-hand side is `O(n²)` work over the `O(n²)` factor, so the per-call cost cannot be amortized.
+     * Measured at `n` 64 the portable path takes 3 us against 6, at 256 it is 51 against 141, and by 1024
+     * the two converge as both become memory-bound — so delegating wins below and costs nothing above.
+     * The blocked [solveInto] below stays native, where many right-hand sides amortize the same cost.
+     */
+    override fun solveInto(ldl: LdlDecomposition, b: DoubleArray, out: DoubleArray): DoubleArray =
+        ReferenceLinearAlgebra.solveInto(ldl, b, out)
 
     override fun qr(a: DenseMatrix, workspace: Workspace?): QrDecomposition {
         val m = a.rows
