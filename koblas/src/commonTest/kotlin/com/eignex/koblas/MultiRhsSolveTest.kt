@@ -1,21 +1,11 @@
 package com.eignex.koblas
 
-import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class MultiRhsSolveTest {
-
-    private fun assertClose(expected: DoubleArray, actual: DoubleArray, context: String) {
-        for (i in expected.indices) {
-            assertTrue(
-                abs(expected[i] - actual[i]) <= 1e-11 * maxOf(1.0, abs(expected[i])),
-                "$context index $i: expected ${expected[i]} actual ${actual[i]}",
-            )
-        }
-    }
 
     @Test
     fun `lu block solve matches column-by-column vector solves`() {
@@ -37,7 +27,12 @@ class MultiRhsSolveTest {
                     val col = DoubleArray(n) { b[it, c] }
                     val x = koblas.solve(lu, col, transpose)
                     for (i in 0 until n) {
-                        assertClose(doubleArrayOf(x[i]), doubleArrayOf(block[i, c]), "lu n=$n t=$transpose col=$c")
+                        assertClose(
+                            doubleArrayOf(x[i]),
+                            doubleArrayOf(block[i, c]),
+                            "lu n=$n t=$transpose col=$c",
+                            tolerance = 1e-11,
+                        )
                     }
                 }
             }
@@ -67,7 +62,7 @@ class MultiRhsSolveTest {
                 val col = DoubleArray(n) { b[it, c] }
                 val x = koblas.solve(f, col)
                 for (i in 0 until n) {
-                    assertClose(doubleArrayOf(x[i]), doubleArrayOf(block[i, c]), "ldl n=$n col=$c")
+                    assertClose(doubleArrayOf(x[i]), doubleArrayOf(block[i, c]), "ldl n=$n col=$c", tolerance = 1e-11)
                 }
             }
         }
@@ -82,7 +77,7 @@ class MultiRhsSolveTest {
         // A = [[0,1],[1,0]] swaps the rows: columns (2,3) and (1,-1) map to (3,2) and (-1,1).
         val b = DenseMatrix.wrap(2, 2, doubleArrayOf(2.0, 1.0, 3.0, -1.0))
         val x = koblas.solve(f, b)
-        assertClose(doubleArrayOf(3.0, -1.0, 2.0, 1.0), x.data, "antidiagonal block")
+        assertClose(doubleArrayOf(3.0, -1.0, 2.0, 1.0), x.data, "antidiagonal block", tolerance = 1e-11)
     }
 
     @Test

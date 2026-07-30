@@ -1,13 +1,20 @@
 package com.eignex.koblas
 
-import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-class DeterminantTransposeTest {
+/**
+ * The determinant read off an LU factorization, dense and sparse.
+ *
+ * A determinant is the product of the pivots times the sign of the row permutation, so the sign is the
+ * part worth pinning down: it comes from counting swaps, and a miscount produces a correct magnitude
+ * with the wrong sign. The hand-computed values below include a swapped pair for exactly that reason,
+ * and the two factorizations are compared against each other because they count swaps differently.
+ */
+class DeterminantTest {
 
     @Test
     fun `dense LU determinant matches hand values and tracks row-swap sign`() {
@@ -43,48 +50,10 @@ class DeterminantTransposeTest {
     fun `dense and sparse determinants agree on random matrices`() {
         val rng = Random(20260803)
         for (n in intArrayOf(1, 3, 7, 15)) {
-            val a = DenseMatrix(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
-            for (i in 0 until n) a[i, i] = a[i, i] + n
+            val a = wellConditioned(n, rng)
             val cols = List(n) { j -> (0 until n).map { i -> i to a[i, j] } }
             val sparseDet = assertNotNull(SparseLu.factorize(SparseMatrix.ofColumns(n, n, cols))).determinant()
-            val denseDet = a.lu().determinant()
-            assertTrue(
-                abs(denseDet - sparseDet) <= 1e-9 * maxOf(1.0, abs(denseDet)),
-                "n=$n: dense $denseDet vs sparse $sparseDet",
-            )
-        }
-    }
-
-    @Test
-    fun `transpose round-trips and maps entries`() {
-        val a = DenseMatrix.of(
-            arrayOf(
-                doubleArrayOf(1.0, 2.0, 3.0),
-                doubleArrayOf(4.0, 5.0, 6.0),
-            ),
-        )
-        val t = a.transpose()
-        assertEquals(3, t.rows)
-        assertEquals(2, t.cols)
-        for (i in 0 until a.rows) for (j in 0 until a.cols) assertEquals(a[i, j], t[j, i])
-        assertEquals(a, t.transpose())
-        // Degenerate shapes.
-        assertEquals(DenseMatrix(0, 0), DenseMatrix(0, 0).transpose())
-        assertEquals(0, DenseMatrix(0, 5).transpose().cols)
-        assertEquals(5, DenseMatrix(0, 5).transpose().rows)
-    }
-
-    @Test
-    fun `transpose agrees with the gemm transpose flag`() {
-        val rng = Random(20260804)
-        val a = DenseMatrix(4, 6, DoubleArray(24) { rng.nextDouble(-1.0, 1.0) })
-        val b = DenseMatrix(4, 3, DoubleArray(12) { rng.nextDouble(-1.0, 1.0) })
-        // Aᵀ·B via materialized transpose vs the flag.
-        val viaMaterialized = a.transpose().matMul(b)
-        val viaFlag = DenseMatrix(6, 3)
-        koblas.gemm(1.0, a, true, b, false, 0.0, viaFlag)
-        for (idx in viaFlag.data.indices) {
-            assertTrue(abs(viaMaterialized.data[idx] - viaFlag.data[idx]) < 1e-12)
+            assertClose(a.lu().determinant(), sparseDet, "n=$n dense vs sparse determinant", tolerance = 1e-9)
         }
     }
 }

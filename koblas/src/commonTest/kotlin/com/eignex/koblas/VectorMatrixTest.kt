@@ -161,6 +161,17 @@ class VectorMatrixTest {
     }
 
     @Test
+    fun `wrap aliases the backing array without copying`() {
+        val data = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
+        val m = DenseMatrix.wrap(2, 2, data)
+        data[0] = 99.0 // mutating the source is visible through the view (ownership relinquished)
+        assertEquals(99.0, m[0, 0], 0.0)
+        val v = DenseVector.wrap(data)
+        data[1] = 42.0
+        assertEquals(42.0, v[1], 0.0)
+    }
+
+    @Test
     fun `axpy with alpha zero is a no-op`() {
         val y = DenseVector.of(doubleArrayOf(1.0, 2.0, 3.0))
         axpy(y, 0.0, DenseVector.of(doubleArrayOf(9.0, 9.0, 9.0)))

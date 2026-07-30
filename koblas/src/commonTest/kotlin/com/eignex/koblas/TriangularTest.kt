@@ -6,52 +6,23 @@ import kotlin.test.Test
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
+/**
+ * The triangular routines: `trsv` and `trsm` solves, `trmv` and `trmm` products, each over all eight
+ * combinations of triangle, transpose and unit diagonal, and on both sides for the matrix forms.
+ *
+ * Operands come from [poisonedTriangle], so every entry outside the documented triangle is NaN and a
+ * routine that reads one produces NaN rather than a plausible number. The solves are checked against a
+ * naive product written out here rather than against `gemv`, which keeps the reference independent of
+ * the library; the products are checked against `gemv` and `gemm` on the explicit twin.
+ */
 class TriangularTest {
 
-    // A well-conditioned matrix with distinct lower and upper triangles; the untouched triangle is
-    // filled with garbage to verify only the selected triangle is read.
-    private fun triangularTestMatrix(n: Int, lower: Boolean, unitDiag: Boolean, rng: Random): DenseMatrix {
-        val t = DenseMatrix(n, n)
-        for (i in 0 until n) {
-            for (j in 0 until n) {
-                val inTriangle = if (lower) j < i else j > i
-                t[i, j] = when {
-                    i == j -> if (unitDiag) Double.NaN else rng.nextDouble(2.0, 4.0)
-
-                    // NaN diag must be ignored
-                    inTriangle -> rng.nextDouble(-1.0, 1.0)
-
-                    else -> Double.NaN // opposite triangle must never be read
-                }
-            }
-        }
-        return t
-    }
-
-    // Naive reference: materialize the effective triangle (unit/actual diagonal, zeros outside),
-    // then apply op(T)·x with a plain double loop.
-    private fun opT(
-        t: DenseMatrix,
-        lower: Boolean,
-        transpose: Boolean,
-        unitDiag: Boolean,
-        x: DoubleArray,
-    ): DoubleArray {
-        val n = t.rows
-        val e = DenseMatrix(n, n)
-        for (i in 0 until n) {
-            for (j in 0 until n) {
-                val stored = if (lower) j < i else j > i
-                e[i, j] = when {
-                    i == j -> if (unitDiag) 1.0 else t[i, i]
-                    stored -> t[i, j]
-                    else -> 0.0
-                }
-            }
-        }
+    /** `op(explicit) x` by definition, so the solve checks do not depend on the library's own kernels. */
+    private fun naiveMultiply(explicit: DenseMatrix, transpose: Boolean, x: DoubleArray): DoubleArray {
+        val n = explicit.rows
         val y = DoubleArray(n)
         for (i in 0 until n) {
-            for (j in 0 until n) y[i] += (if (transpose) e[j, i] else e[i, j]) * x[j]
+            for (j in 0 until n) y[i] += (if (transpose) explicit[j, i] else explicit[i, j]) * x[j]
         }
         return y
     }
@@ -63,17 +34,16 @@ class TriangularTest {
             for (lower in booleanArrayOf(true, false)) {
                 for (transpose in booleanArrayOf(true, false)) {
                     for (unitDiag in booleanArrayOf(true, false)) {
-                        val t = triangularTestMatrix(n, lower, unitDiag, rng)
+                        val (t, explicit) = poisonedTriangle(rng, n, lower, unitDiag)
                         val xTrue = DoubleArray(n) { rng.nextDouble(-2.0, 2.0) }
-                        val b = opT(t, lower, transpose, unitDiag, xTrue)
-                        val x = b.copyOf()
+                        val x = naiveMultiply(explicit, transpose, xTrue)
                         trsv(t, x, lower, transpose, unitDiag)
-                        for (i in 0 until n) {
-                            assertTrue(
-                                abs(x[i] - xTrue[i]) < 1e-9,
-                                "trsv n=$n lower=$lower t=$transpose unit=$unitDiag at $i: ${x[i]} vs ${xTrue[i]}",
-                            )
-                        }
+                        assertClose(
+                            xTrue,
+                            x,
+                            "trsv n=$n lower=$lower t=$transpose unit=$unitDiag",
+                            tolerance = 1e-9,
+                        )
                     }
                 }
             }
@@ -88,8 +58,8 @@ class TriangularTest {
         for (lower in booleanArrayOf(true, false)) {
             for (transpose in booleanArrayOf(true, false)) {
                 for (unitDiag in booleanArrayOf(true, false)) {
-                    val t = triangularTestMatrix(n, lower, unitDiag, rng)
-                    val b = DenseMatrix(n, nrhs, DoubleArray(n * nrhs) { rng.nextDouble(-2.0, 2.0) })
+                    val (t, _) = poisonedTriangle(rng, n, lower, unitDiag)
+                    val b = randomMatrix(n, nrhs, rng)
                     val viaTrsm = DenseMatrix(n, nrhs, b.data.copyOf())
                     trsm(t, viaTrsm, lower, transpose, unitDiag)
                     for (c in 0 until nrhs) {
@@ -112,14 +82,105 @@ class TriangularTest {
         val rng = Random(20260730)
         val n = 10
         val nrhs = 3
-        val t = triangularTestMatrix(n, lower = true, unitDiag = false, rng = rng)
-        // Zero the NaN garbage so gemm can verify T·X = B.
-        for (i in 0 until n) for (j in i + 1 until n) t[i, j] = 0.0
-        val xTrue = DenseMatrix(n, nrhs, DoubleArray(n * nrhs) { rng.nextDouble(-2.0, 2.0) })
-        val b = t.matMul(xTrue)
+        val (t, explicit) = poisonedTriangle(rng, n, lower = true, unitDiag = false)
+        val xTrue = randomMatrix(n, nrhs, rng)
+        val b = explicit.matMul(xTrue)
         trsm(t, b, lower = true)
-        for (idx in b.data.indices) {
-            assertTrue(abs(b.data[idx] - xTrue.data[idx]) < 1e-9, "trsm multi-RHS at $idx")
+        assertClose(xTrue, b, "trsm multi-RHS", tolerance = 1e-9)
+    }
+
+    @Test
+    fun `trmv matches gemv on the explicit triangle for all flag combos`() {
+        val rng = Random(20260915)
+        for (n in intArrayOf(1, 2, 7, 16)) {
+            for (lower in booleanArrayOf(true, false)) {
+                for (transpose in booleanArrayOf(false, true)) {
+                    for (unitDiag in booleanArrayOf(false, true)) {
+                        val (t, explicit) = poisonedTriangle(rng, n, lower, unitDiag)
+                        val x = randomVector(n, rng)
+                        val expected = koblas.gemv(explicit, x, transpose)
+                        val actual = x.copyOf()
+                        trmv(t, actual, lower, transpose, unitDiag)
+                        assertClose(expected, actual, "trmv n=$n lower=$lower t=$transpose unit=$unitDiag")
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `trmm matches gemm on the explicit triangle for all flag combos`() {
+        val rng = Random(20260916)
+        for (n in intArrayOf(1, 5, 12)) {
+            val p = 3
+            for (lower in booleanArrayOf(true, false)) {
+                for (transpose in booleanArrayOf(false, true)) {
+                    for (unitDiag in booleanArrayOf(false, true)) {
+                        val (t, explicit) = poisonedTriangle(rng, n, lower, unitDiag)
+                        val b = randomMatrix(n, p, rng)
+                        val expected = DenseMatrix(n, p)
+                        koblas.gemm(1.0, explicit, transpose, b, false, 0.0, expected)
+                        val actual = DenseMatrix(n, p, b.data.copyOf())
+                        trmm(t, actual, lower, transpose, unitDiag)
+                        assertClose(expected, actual, "trmm n=$n lower=$lower t=$transpose unit=$unitDiag")
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `trmm right multiplies from the right and matches gemm`() {
+        val rng = Random(20260940)
+        val n = 5
+        val rows = 4
+        for (lower in booleanArrayOf(true, false)) {
+            for (transpose in booleanArrayOf(true, false)) {
+                for (unitDiag in booleanArrayOf(true, false)) {
+                    val (t, explicit) = poisonedTriangle(rng, n, lower, unitDiag)
+                    val b = randomMatrix(rows, n, rng)
+                    val expected = DenseMatrix(rows, n)
+                    koblas.gemm(1.0, b, false, explicit, transpose, 0.0, expected)
+                    val actual = DenseMatrix.wrap(rows, n, b.data.copyOf())
+                    trmm(t, actual, lower, transpose, unitDiag, right = true)
+                    assertClose(expected, actual, "trmm right l=$lower t=$transpose u=$unitDiag", tolerance = 1e-11)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `trsm right inverts trmm right`() {
+        val rng = Random(20260941)
+        val n = 6
+        val rows = 3
+        for (lower in booleanArrayOf(true, false)) {
+            for (transpose in booleanArrayOf(true, false)) {
+                for (unitDiag in booleanArrayOf(true, false)) {
+                    val (t, _) = poisonedTriangle(rng, n, lower, unitDiag)
+                    val x = randomMatrix(rows, n, rng)
+                    val b = DenseMatrix.wrap(rows, n, x.data.copyOf())
+                    trmm(t, b, lower, transpose, unitDiag, right = true)
+                    trsm(t, b, lower, transpose, unitDiag, right = true)
+                    assertClose(x, b, "trsm right l=$lower t=$transpose u=$unitDiag", tolerance = 1e-11)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `trmv round-trips with trsv`() {
+        val rng = Random(20260917)
+        val n = 9
+        for (lower in booleanArrayOf(true, false)) {
+            for (transpose in booleanArrayOf(false, true)) {
+                val (t, _) = poisonedTriangle(rng, n, lower, unitDiag = false)
+                val x0 = randomVector(n, rng)
+                val x = x0.copyOf()
+                trmv(t, x, lower, transpose)
+                trsv(t, x, lower, transpose)
+                assertClose(x0, x, "roundtrip lower=$lower t=$transpose")
+            }
         }
     }
 

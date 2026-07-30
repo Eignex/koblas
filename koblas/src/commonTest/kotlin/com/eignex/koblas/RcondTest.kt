@@ -6,6 +6,12 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
+/**
+ * The reciprocal condition estimate, which is a Hager 1-norm estimate of the inverse rather than an
+ * exact quantity. It is therefore checked as a bound: never below the truth, never more than a magnitude
+ * above it, and unchanged when the matrix is scaled, since conditioning is a property of the mapping and
+ * not of its units. The exact answers are hand-computed on diagonal matrices, where the inverse is known.
+ */
 class RcondTest {
 
     @Test
@@ -38,8 +44,7 @@ class RcondTest {
     fun `estimate never understates and stays within a magnitude of the truth`() {
         val rng = Random(20260901)
         for (n in intArrayOf(3, 8, 20)) {
-            val a = DenseMatrix(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
-            for (i in 0 until n) a[i, i] = a[i, i] + n
+            val a = wellConditioned(n, rng)
             val lu = a.lu()
             // Exact inverse 1-norm: solve every unit vector and take the max column sum.
             var exactInvNorm = 0.0
@@ -62,32 +67,11 @@ class RcondTest {
     fun `rcond is invariant under matrix scaling`() {
         val rng = Random(20260902)
         val n = 6
-        val a = DenseMatrix(n)
-        for (i in 0 until n) {
-            for (j in 0 until n) {
-                a[i, j] = rng.nextDouble(
-                    -1.0,
-                    1.0,
-                ) + if (i == j) n.toDouble() else 0.0
-            }
-        }
+        val a = wellConditioned(n, rng)
         val scaled = DenseMatrix(n)
         for (i in 0 until n) for (j in 0 until n) scaled[i, j] = 8.0 * a[i, j]
         val rc = koblas.rcond(a.lu(), norm1(a))
         val rcScaled = koblas.rcond(scaled.lu(), norm1(scaled))
         assertEquals(rc, rcScaled, 1e-12 * rc)
-    }
-
-    @Test
-    fun `norm1 is the maximum absolute column sum`() {
-        val a = DenseMatrix.of(
-            arrayOf(
-                doubleArrayOf(1.0, -2.0, 3.0),
-                doubleArrayOf(-4.0, 5.0, -6.0),
-            ),
-        )
-        assertEquals(9.0, norm1(a)) // columns sum to 5, 7, 9
-        assertEquals(0.0, norm1(DenseMatrix(0, 3)))
-        assertEquals(0.0, norm1(DenseMatrix(3, 0)))
     }
 }

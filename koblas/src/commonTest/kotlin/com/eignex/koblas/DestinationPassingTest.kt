@@ -1,6 +1,5 @@
 package com.eignex.koblas
 
-import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -14,24 +13,6 @@ import kotlin.test.assertTrue
  * wrote would show up here as a wrong answer on the second call.
  */
 class DestinationPassingTest {
-
-    private fun wellConditioned(n: Int, rng: Random): DenseMatrix {
-        val a = DenseMatrix(n, n)
-        for (i in 0 until n) {
-            for (j in 0 until n) a[i, j] = rng.nextDouble(-1.0, 1.0) + if (i == j) n.toDouble() else 0.0
-        }
-        return a
-    }
-
-    private fun assertClose(expected: DoubleArray, actual: DoubleArray, context: String) {
-        assertEquals(expected.size, actual.size, context)
-        for (i in expected.indices) {
-            assertTrue(
-                abs(expected[i] - actual[i]) <= 1e-12 * maxOf(1.0, abs(expected[i])),
-                "$context index $i: expected ${expected[i]} actual ${actual[i]}",
-            )
-        }
-    }
 
     @Test
     fun `lu solveInto matches solve and returns its destination`() {
