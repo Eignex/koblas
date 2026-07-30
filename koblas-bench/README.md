@@ -1,14 +1,20 @@
 # koblas-bench
 
-JMH benchmarks for koblas, via kotlinx-benchmark. Development only: this module
-is not published and nothing depends on it.
+Benchmarks for koblas, via kotlinx-benchmark: JMH on the JVM, kotlinx-benchmark's
+own harness on native. Development only: this module is not published and nothing
+depends on it.
 
 ## Running
 
 ```bash
-./gradlew :koblas-bench:jvmLevel3Benchmark   # one suite
-./gradlew :koblas-bench:jvmBenchmark         # every suite
+./gradlew :koblas-bench:jvmLevel3Benchmark       # one suite, JVM
+./gradlew :koblas-bench:linuxX64Level3Benchmark  # the same suite, native
+./gradlew :koblas-bench:jvmBenchmark             # every suite
 ```
+
+Prefix a suite with the target: `jvm`, `linuxX64` or `macosArm64`. Only the host's
+own target can run, so macOS numbers come from a macOS checkout. Native binaries
+link in release mode, so the portable side is optimized Kotlin.
 
 One suite per benchmark class, named after it:
 
@@ -36,6 +42,12 @@ native library changes what was measured without failing anything.
 `level1` has no such parameter: those kernels sit below the seam. Run it twice,
 once as-is and once with `-Pkoblas.noSimd=true` to withhold the incubator
 vector module, to compare SIMD against scalar.
+
+**Do not carry a conclusion from one platform to the other.** The JVM's portable
+kernels are SIMD and its FFI is expensive, so it keeps level 2 and the vector
+solves in Kotlin. Native's portable kernels are scalar and its FFI is cheap, so
+the host BLAS wins those same routines by 2x to 15x. Whichever platform a routing
+decision is about, measure it there.
 
 Fixtures live in `BenchmarkFixtures.kt` and derive from one seed, so a re-run
 measures the same operands rather than similar ones.

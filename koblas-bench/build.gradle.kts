@@ -19,15 +19,28 @@ kotlin {
     }
 
     jvm()
+    // Native is where the portable kernels are scalar (no Vector API) and an FFI call is cheap, so the
+    // JVM crossovers do not transfer and have to be measured separately. Only the host's own target can
+    // run; macOS numbers come from a macOS checkout.
+    linuxX64()
+    macosArm64()
 
     sourceSets {
         commonMain.dependencies {
             implementation(project(":koblas"))
             implementation("org.jetbrains.kotlinx:kotlinx-benchmark-runtime:0.4.13")
+            // koblas keeps serialization compileOnly, which the JVM tolerates but the native klib
+            // resolver does not: it needs every transitive klib present to generate the harness.
+            implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.10.0")
         }
         jvmMain.dependencies {
             // Lets the benchmarks compare the discovered OpenBLAS backend against the reference.
             runtimeOnly(project(":koblas-openblas"))
+        }
+        nativeMain.dependencies {
+            // Needs to be a compile dependency, not runtimeOnly: the native fixtures install the backend
+            // explicitly rather than relying on the eager-initialization hook surviving the linker.
+            implementation(project(":koblas-cblas"))
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
@@ -45,6 +58,8 @@ allOpen {
 benchmark {
     targets {
         register("jvm")
+        register("linuxX64")
+        register("macosArm64")
     }
     configurations {
         // One suite per benchmark class, so `benchmark` runs everything and `<name>Benchmark` runs one
@@ -58,12 +73,14 @@ benchmark {
             // JMH defaults to several forks; one is enough here and keeps a sweep to a coffee break.
             advanced("jvmForks", "1")
         }
-        register("level1") { include("Level1Benchmark") }
-        register("level2") { include("Level2Benchmark") }
-        register("level3") { include("Level3Benchmark") }
-        register("solve") { include("SolveBenchmark") }
-        register("blockSolve") { include("BlockSolveBenchmark") }
-        register("sparse") { include("SparseBenchmark") }
+        // Patterns are regexes over the fully qualified name, so they are anchored on the leading dot:
+        // a bare "SolveBenchmark" also matches BlockSolveBenchmark and silently runs both suites.
+        register("level1") { include("\\.Level1Benchmark\\.") }
+        register("level2") { include("\\.Level2Benchmark\\.") }
+        register("level3") { include("\\.Level3Benchmark\\.") }
+        register("solve") { include("\\.SolveBenchmark\\.") }
+        register("blockSolve") { include("\\.BlockSolveBenchmark\\.") }
+        register("sparse") { include("\\.SparseBenchmark\\.") }
     }
 }
 

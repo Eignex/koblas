@@ -7,6 +7,7 @@ import com.eignex.koblas.LdlDecomposition
 import com.eignex.koblas.LinearAlgebra
 import com.eignex.koblas.LuDecomposition
 import com.eignex.koblas.QrDecomposition
+import com.eignex.koblas.ReferenceLinearAlgebra
 import com.eignex.koblas.Uplo
 import com.eignex.koblas.Workspace
 import kotlinx.cinterop.ExperimentalForeignApi
@@ -359,14 +360,19 @@ class CblasLinearAlgebra : LinearAlgebra {
         return LdlDecomposition(n, buf, ipiv, singular = info > 0)
     }
 
-    override fun solveInto(ldl: LdlDecomposition, b: DoubleArray, out: DoubleArray): DoubleArray {
-        val n = ldl.n
-        require(b.size == n) { "solve: b length ${b.size} != $n" }
-        require(out.size == n) { "solve: out length ${out.size} != $n" }
-        if (n == 0) return out
-        if (out !== b) b.copyInto(out)
-        return solveSytrs(ldl, out, 1)
-    }
+    /**
+     * Delegates to the portable kernels, which are faster here at every size that fits in cache.
+     *
+     * Measured on this backend against the scalar kernels (us/op, linuxX64): n=64 5.3 versus 3.3, n=256
+     * 107 versus 45, n=1024 1978 versus 2094. `dsytrs` only reaches parity at n=1024, and the routine is
+     * `O(n^2)` work over `O(n^2)` data, so there is nothing to amortize the pivot-block bookkeeping
+     * against. This is the one routine where the native library loses on this platform — every other
+     * level-2 routine and the LU solves win by 2x to 15x, unlike on the JVM, whose SIMD kernels beat the
+     * native library at level 2 outright. The blocked multi-RHS solve below stays native: there the work
+     * grows with the right-hand-side count while the factor is read once.
+     */
+    override fun solveInto(ldl: LdlDecomposition, b: DoubleArray, out: DoubleArray): DoubleArray =
+        ReferenceLinearAlgebra.solveInto(ldl, b, out)
 
     override fun solveInto(
         ldl: LdlDecomposition,
