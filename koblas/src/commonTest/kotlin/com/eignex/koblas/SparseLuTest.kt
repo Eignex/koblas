@@ -9,15 +9,16 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * The CSC matrix and its sparse LU: products, solves in both directions, the determinant, and the
- * singular and malformed cases.
+ * The sparse LU: factorization, the FTRAN and BTRAN solves, the determinant, and the singular and
+ * malformed cases.
  *
- * Sparse factorization is judged on two axes at once. Accuracy is checked by residual, since the
- * factorization is not exact: pivots come from a bounded candidate list chosen to limit fill rather than
- * purely for stability. Fill itself is checked too, because a factorization that quietly densifies is
- * correct and useless — the sparsity is what makes a simplex basis update cheap.
+ * This factorization is judged on two axes at once. Accuracy is checked by residual, since pivots come
+ * from a bounded candidate list chosen to limit fill rather than purely for stability. Fill itself is
+ * checked too, because a factorization that quietly densifies is correct and useless — the sparsity is
+ * what makes a simplex basis update cheap. Equilibration must not change the answer, only the arithmetic
+ * getting there, so the determinant is compared across both settings.
  */
-class SparseTest {
+class SparseLuTest {
 
     /** A square CSC matrix from dense rows, dropping the zeros. */
     private fun square(vararg rows: DoubleArray): SparseMatrix {
@@ -41,23 +42,7 @@ class SparseTest {
     }
 
     @Test
-    fun `CSC mat-vec multiplies a matrix and its transpose`() {
-        // [[1, 0, 2], [0, 3, 0]]  (2x3), CSC by column.
-        val a = SparseMatrix.ofColumns(
-            rows = 2,
-            cols = 3,
-            columns = listOf(
-                listOf(0 to 1.0),
-                listOf(1 to 3.0),
-                listOf(0 to 2.0),
-            ),
-        )
-        assertTrue(doubleArrayOf(7.0, 9.0).contentEquals(a.gemv(doubleArrayOf(1.0, 3.0, 3.0))))
-        assertTrue(doubleArrayOf(1.0, 6.0, 2.0).contentEquals(a.gemv(doubleArrayOf(1.0, 2.0), transpose = true)))
-    }
-
-    @Test
-    fun `SparseLu ftran and btran solve a random sparse system`() {
+    fun `ftran and btran solve a random sparse system`() {
         val rng = Random(20260716)
         repeat(150) {
             val n = rng.nextInt(1, 10)
@@ -121,7 +106,7 @@ class SparseTest {
     }
 
     @Test
-    fun `SparseLu reports a singular matrix`() {
+    fun `factorize reports a singular matrix`() {
         // A column of zeros ⇒ singular.
         assertNull(SparseLu.factorize(SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf()))))
         // So is a duplicated column.
@@ -132,24 +117,5 @@ class SparseTest {
     fun `factorize rejects a non-square matrix`() {
         val a = SparseMatrix.ofColumns(2, 3, listOf(listOf(0 to 1.0), listOf(1 to 1.0), listOf(0 to 1.0)))
         assertFailsWith<IllegalArgumentException> { SparseLu.factorize(a) }
-    }
-
-    @Test
-    fun `SparseMatrix rejects structurally invalid CSC`() {
-        // colPtr must have cols + 1 entries.
-        assertFailsWith<IllegalArgumentException> {
-            SparseMatrix(2, 2, intArrayOf(0, 1), intArrayOf(0), doubleArrayOf(1.0))
-        }
-        // rowIdx out of range.
-        assertFailsWith<IllegalArgumentException> {
-            SparseMatrix(2, 1, intArrayOf(0, 1), intArrayOf(5), doubleArrayOf(1.0))
-        }
-    }
-
-    @Test
-    fun `ofColumns sums duplicate entries and sorts rows`() {
-        val a = SparseMatrix.ofColumns(3, 1, listOf(listOf(2 to 1.0, 0 to 2.0, 2 to 3.0)))
-        assertTrue(intArrayOf(0, 2).contentEquals(a.rowIdx)) // ascending
-        assertTrue(doubleArrayOf(2.0, 4.0).contentEquals(a.values)) // 1.0 + 3.0 summed at row 2
     }
 }

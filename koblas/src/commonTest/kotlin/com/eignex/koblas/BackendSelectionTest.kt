@@ -2,6 +2,7 @@ package com.eignex.koblas
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * Backend resolution: what [koblas] points at, and how registration, priority and an explicit install
@@ -41,5 +42,11 @@ class BackendSelectionTest {
     @Test
     fun `koblasInfo reports both seams`() {
         assertEquals("backend=${koblas.name}, primitives=$mathBackend", koblasInfo)
+    }
+
+    @Test
+    fun `mathBackend identifies the primitive kernels`() {
+        // The other seam: which level-1 kernels the platform resolved, independent of the backend.
+        assertTrue(mathBackend.isNotEmpty())
     }
 }
