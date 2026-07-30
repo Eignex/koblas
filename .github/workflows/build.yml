@@ -46,7 +46,7 @@ jobs:
       - name: Grant execute permission for Gradle
         run: chmod +x gradlew
 
-      # koblas-cblas dlopens the system OpenBLAS at runtime; only the shared libraries are needed.
+      # koblas dlopens the system OpenBLAS at runtime; only the shared libraries are needed.
       - name: Install OpenBLAS
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libopenblas0 liblapacke
 
@@ -64,8 +64,6 @@ jobs:
           path: |
             koblas/build/reports/tests/
             koblas/build/test-results/
-            koblas-cblas/build/reports/tests/
-            koblas-cblas/build/test-results/
           if-no-files-found: ignore
 
       - name: Upload results to Codecov (main only)
@@ -77,7 +75,7 @@ jobs:
           fail_ci_if_error: false
 
   # The Linux job cross-compiles the macOS klibs but cannot link or run them; this job exercises
-  # the native tests on Apple Silicon, including koblas-cblas against Homebrew's OpenBLAS.
+  # the native tests on Apple Silicon, including the host-BLAS backend against Homebrew's OpenBLAS.
   test-macos:
     name: Run native tests on macOS
     runs-on: macos-latest
@@ -114,7 +112,7 @@ jobs:
         run: brew install openblas
 
       - name: Run native tests
-        run: ./gradlew :koblas:macosArm64Test :koblas-cblas:macosArm64Test
+        run: ./gradlew :koblas:macosArm64Test
 
       - name: Upload test reports
         if: always()
@@ -124,6 +122,4 @@ jobs:
           path: |
             koblas/build/reports/tests/
             koblas/build/test-results/
-            koblas-cblas/build/reports/tests/
-            koblas-cblas/build/test-results/
           if-no-files-found: ignore
