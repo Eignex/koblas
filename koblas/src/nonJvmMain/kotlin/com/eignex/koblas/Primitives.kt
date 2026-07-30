@@ -1,11 +1,16 @@
 package com.eignex.koblas
 
 /**
- * Scalar fallback for the dense primitives. The JVM target overrides these with a
- * SIMD-backed implementation using `jdk.incubator.vector`; non-JVM targets
- * (native, JS, Wasm) use the loops below - competitive with hand-written code
- * once the platform's compiler vectorises the inner loop, but without the
- * guaranteed lane-width win that the Vector API delivers on JVM.
+ * Scalar fallback for the dense primitives, used by the native, JS and Wasm targets. The JVM target
+ * overrides them with `jdk.incubator.vector` kernels.
+ *
+ * These loops are written to be vectorizable, but do not assume they are vectorized. Measured on
+ * linuxX64 in a release binary against the JVM's SIMD kernels on the same machine, they run 4x to 7x
+ * slower: `dot` at length 256 takes 165ns versus 34ns, `axpy` 178ns versus 31ns, and the gap holds
+ * down to length 16. So on Kotlin/Native the host BLAS wins level 2 outright (2x to 15x, see
+ * `CblasLinearAlgebra`) — the opposite of the JVM, where these operations stay on the SIMD kernels.
+ * Narrowing that gap needs real vector kernels for native, not a better BLAS: the sparse traversals
+ * these primitives do not cover are unaffected by either.
  */
 
 internal actual fun denseDot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {

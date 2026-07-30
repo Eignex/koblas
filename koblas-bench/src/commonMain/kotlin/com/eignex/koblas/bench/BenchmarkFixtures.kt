@@ -1,6 +1,7 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.LinearAlgebra
 import com.eignex.koblas.ReferenceLinearAlgebra
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.installLinearAlgebra
@@ -23,15 +24,26 @@ internal const val BENCH_SEED = 20260730
 internal const val REFERENCE_BACKEND = "reference"
 
 /**
+ * The platform's native backend, or `null` to leave resolution to discovery.
+ *
+ * The JVM returns `null` because its ServiceLoader discovery already installs OpenBLAS from the runtime
+ * classpath. Native returns the CBLAS backend explicitly instead of trusting its eager-initialization
+ * hook: that hook is an unreferenced top-level property, which the linker is free to drop from a
+ * benchmark binary, and a silently unregistered backend would make this compare the reference against
+ * itself.
+ */
+internal expect fun nativeBackend(): LinearAlgebra?
+
+/**
  * Installs the backend named by a `backend` parameter and prints what resolved.
  *
- * [REFERENCE_BACKEND] forces the portable kernels; anything else (`auto`) takes whatever the platform
- * discovers, which is OpenBLAS on this module's runtime classpath. The print is not decoration: a
- * missing native library or a withheld `jdk.incubator.vector` silently changes what is being measured,
- * and the resolved line is the only place that shows up.
+ * [REFERENCE_BACKEND] forces the portable kernels; anything else (`auto`) takes the platform's native
+ * backend if it has one. The print is not decoration: a missing native library or a withheld
+ * `jdk.incubator.vector` silently changes what is being measured, and the resolved line is the only
+ * place that shows up.
  */
 internal fun installBackend(backend: String) {
-    installLinearAlgebra(if (backend == REFERENCE_BACKEND) ReferenceLinearAlgebra else null)
+    installLinearAlgebra(if (backend == REFERENCE_BACKEND) ReferenceLinearAlgebra else nativeBackend())
     println("resolved: $koblasInfo")
 }
 
