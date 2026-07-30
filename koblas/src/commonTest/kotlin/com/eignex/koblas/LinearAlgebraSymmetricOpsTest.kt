@@ -12,7 +12,7 @@ import kotlin.test.assertTrue
  * [poisonedSymmetric]) proves the unselected triangle is never read, and a NaN-filled destination
  * proves `beta == 0` overwrites rather than reading what was there.
  */
-class SymmetricOpsTest {
+class LinearAlgebraSymmetricOpsTest {
 
     @Test
     fun `symv matches gemv on the full matrix and reads only the selected triangle`() {

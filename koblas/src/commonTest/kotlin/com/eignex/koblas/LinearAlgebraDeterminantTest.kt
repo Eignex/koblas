@@ -14,7 +14,7 @@ import kotlin.test.assertTrue
  * with the wrong sign. The hand-computed values below include a swapped pair for exactly that reason,
  * and the two factorizations are compared against each other because they count swaps differently.
  */
-class DeterminantTest {
+class LinearAlgebraDeterminantTest {
 
     @Test
     fun `dense LU determinant matches hand values and tracks row-swap sign`() {

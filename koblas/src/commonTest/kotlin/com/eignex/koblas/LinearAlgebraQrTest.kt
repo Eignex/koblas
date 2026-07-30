@@ -16,7 +16,7 @@ import kotlin.test.assertTrue
  * defining properties — an orthogonal residual for least squares, the pseudoinverse for minimum norm —
  * since a wrong implementation can still return a plausible-looking vector that is not the optimal one.
  */
-class QrTest {
+class LinearAlgebraQrTest {
 
     /** Column j of R (rows 0 until min(j+1, k)) padded to length m. */
     private fun rColumn(qr: QrDecomposition, j: Int): DoubleArray {

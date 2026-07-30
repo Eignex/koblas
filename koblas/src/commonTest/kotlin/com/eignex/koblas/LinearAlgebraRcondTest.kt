@@ -12,7 +12,7 @@ import kotlin.test.assertTrue
  * above it, and unchanged when the matrix is scaled, since conditioning is a property of the mapping and
  * not of its units. The exact answers are hand-computed on diagonal matrices, where the inverse is known.
  */
-class RcondTest {
+class LinearAlgebraRcondTest {
 
     @Test
     fun `identity has rcond one and norm1 one`() {
