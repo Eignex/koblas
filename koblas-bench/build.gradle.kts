@@ -56,6 +56,15 @@ benchmark {
             iterationTimeUnit = "ms"
             advanced("jvmForks", "1")
         }
+        // The symmetric indefinite solve, the last unmeasured native-versus-portable question.
+        register("ldl") {
+            include("LdlSolveBenchmark")
+            warmups = 3
+            iterations = 5
+            iterationTime = 500
+            iterationTimeUnit = "ms"
+            advanced("jvmForks", "1")
+        }
         // Level 3 and factorization only: the routines a native backend still handles.
         register("level3") {
             include("DenseBenchmark.gemm")
