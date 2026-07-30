@@ -1,6 +1,5 @@
 package com.eignex.koblas
 
-import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -25,15 +24,6 @@ class LdlTest {
         return full to poisoned
     }
 
-    private fun assertClose(expected: DoubleArray, actual: DoubleArray, tol: Double, context: String) {
-        for (i in expected.indices) {
-            assertTrue(
-                abs(expected[i] - actual[i]) <= tol * maxOf(1.0, abs(expected[i])),
-                "$context index $i: expected ${expected[i]} actual ${actual[i]}",
-            )
-        }
-    }
-
     @Test
     fun `ldl solve matches LU solve on indefinite matrices and reads only the lower triangle`() {
         val rng = Random(20260930)
@@ -44,7 +34,7 @@ class LdlTest {
             val f = koblas.ldl(poisoned)
             assertTrue(!f.singular, "n=$n flagged singular")
             val viaLdl = koblas.solve(f, b)
-            assertClose(viaLu, viaLdl, 1e-9, "ldl n=$n")
+            assertClose(viaLu, viaLdl, "ldl n=$n", tolerance = 1e-9)
         }
     }
 
@@ -59,7 +49,7 @@ class LdlTest {
         assertTrue(f.ipiv[0] < 0 && f.ipiv[1] == f.ipiv[0], "expected a 2x2 block, got ${f.ipiv.toList()}")
         // A · x = (2, 3) has the exact solution (3, 2).
         val x = koblas.solve(f, doubleArrayOf(2.0, 3.0))
-        assertClose(doubleArrayOf(3.0, 2.0), x, 1e-14, "antidiagonal solve")
+        assertClose(doubleArrayOf(3.0, 2.0), x, "antidiagonal solve", tolerance = 1e-14)
     }
 
     @Test
@@ -77,7 +67,7 @@ class LdlTest {
         val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
         val viaCholesky = solveSpd(a.cholesky(), b)
         val viaLdl = koblas.solve(koblas.ldl(a), b)
-        assertClose(viaCholesky, viaLdl, 1e-10, "spd")
+        assertClose(viaCholesky, viaLdl, "spd", tolerance = 1e-10)
     }
 
     @Test

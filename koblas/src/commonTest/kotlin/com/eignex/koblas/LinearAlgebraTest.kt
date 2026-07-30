@@ -1,17 +1,20 @@
 package com.eignex.koblas
 
-import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
+/**
+ * The general dense routines: `gemv`, `gemm`, and the LU factorization with its solve in both directions.
+ *
+ * Small products are checked against hand-computed values, and the solves against randomly generated
+ * systems with a known answer, which reaches the pivoting paths a fixed example would miss. The degenerate
+ * and rejected shapes are here too: an empty or 1x1 matrix exercises loop bounds that never run in the
+ * general case, and the argument checks are part of the contract callers rely on.
+ */
 class LinearAlgebraTest {
-
-    @Test
-    fun `koblas resolves to the reference backend when no native one is present`() {
-        assertEquals(platformLinearAlgebra() ?: ReferenceLinearAlgebra, koblas)
-    }
 
     @Test
     fun `gemv multiplies a matrix and its transpose by a vector`() {
@@ -34,12 +37,10 @@ class LinearAlgebraTest {
         val rng = Random(20260716)
         repeat(200) {
             val n = rng.nextInt(1, 9)
-            val a = DenseMatrix(n, n, DoubleArray(n * n) { rng.nextDouble(-5.0, 5.0) })
-            for (i in 0 until n) a[i, i] = a[i, i] + n * 10.0 // diagonally dominant ⇒ well-conditioned
+            val a = wellConditioned(n, rng)
             val x = DoubleArray(n) { rng.nextDouble(-3.0, 3.0) }
             val b = koblas.gemv(a, x)
-            val solved = a.lu().solve(b)
-            for (i in 0 until n) assertTrue(abs(solved[i] - x[i]) < 1e-9, "component $i: ${solved[i]} != ${x[i]}")
+            assertClose(x, a.lu().solve(b), "solve n=$n", tolerance = 1e-9)
         }
     }
 
@@ -48,12 +49,11 @@ class LinearAlgebraTest {
         val rng = Random(4242)
         repeat(100) {
             val n = rng.nextInt(1, 8)
-            val a = DenseMatrix(n, n, DoubleArray(n * n) { rng.nextDouble(-5.0, 5.0) })
-            for (i in 0 until n) a[i, i] = a[i, i] + n * 10.0
+            val a = wellConditioned(n, rng)
             val x = DoubleArray(n) { rng.nextDouble(-3.0, 3.0) }
             val b = koblas.gemv(a, x, transpose = true) // b = Aᵀ x
-            val solved = a.lu().solve(b, transpose = true) // solve Aᵀ y = b ⇒ y == x
-            for (i in 0 until n) assertTrue(abs(solved[i] - x[i]) < 1e-9, "component $i: ${solved[i]} != ${x[i]}")
+            // Solve Aᵀ y = b, so y == x.
+            assertClose(x, a.lu().solve(b, transpose = true), "transpose-solve n=$n", tolerance = 1e-9)
         }
     }
 
@@ -61,5 +61,29 @@ class LinearAlgebraTest {
     fun `factor flags a singular matrix`() {
         val a = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 4.0))) // rank 1
         assertTrue(a.lu().singular)
+        assertTrue(DenseMatrix.of(arrayOf(doubleArrayOf(0.0))).lu().singular)
+    }
+
+    @Test
+    fun `1x1 solve and transpose-solve`() {
+        val a = DenseMatrix.of(arrayOf(doubleArrayOf(4.0)))
+        assertEquals(0.5, a.lu().solve(doubleArrayOf(2.0))[0], 1e-12)
+        assertEquals(0.5, a.lu().solve(doubleArrayOf(2.0), transpose = true)[0], 1e-12)
+    }
+
+    @Test
+    fun `gemm with zero inner dimension yields a zero matrix`() {
+        val a = DenseMatrix(2, 0)
+        val b = DenseMatrix(0, 3)
+        assertEquals(DenseMatrix(2, 3), a.matMul(b))
+    }
+
+    @Test
+    fun `the dense routines reject mismatched shapes`() {
+        assertFailsWith<IllegalArgumentException> { DenseMatrix(2, 3).lu() }
+        assertFailsWith<IllegalArgumentException> { DenseMatrix(2, 3).matMul(DenseMatrix(2, 2)) }
+        assertFailsWith<IllegalArgumentException> { koblas.gemv(DenseMatrix(2, 3), DoubleArray(2)) }
+        assertFailsWith<IllegalArgumentException> { koblas.gemv(DenseMatrix(2, 3), DoubleArray(3), transpose = true) }
+        assertFailsWith<IllegalArgumentException> { DenseMatrix.diagonal(3).lu().solve(DoubleArray(2)) }
     }
 }

@@ -6,10 +6,18 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
+/**
+ * The open-addressed int-to-double map backing the sparse kernels' scatter buffers.
+ *
+ * Linear probing with backward-shift deletion is the part that repays testing: removing an entry from
+ * the middle of a probe chain must not strand the entries that probed past it, and a table that grows
+ * has to rehash every key. The randomized comparison against a HashMap covers the interleavings that
+ * hand-written cases do not reach.
+ */
 class IntDoubleMapTest {
 
     @Test
-    fun putGetOverwrite() {
+    fun `put overwrites an existing key without growing the map`() {
         val m = MutableIntDoubleMap()
         assertEquals(0, m.size)
         assertEquals(-1.0, m.getOrDefault(3, -1.0))
@@ -22,7 +30,7 @@ class IntDoubleMapTest {
     }
 
     @Test
-    fun slotOfAndValueAt() {
+    fun `slotOf locates a key and valueAt reads it back`() {
         val m = MutableIntDoubleMap()
         m.put(7, 4.25)
         val slot = m.slotOf(7)
@@ -32,7 +40,7 @@ class IntDoubleMapTest {
     }
 
     @Test
-    fun negativeAndBoundaryKeysAreStorable() {
+    fun `negative and boundary keys are storable`() {
         val m = MutableIntDoubleMap()
         val keys = intArrayOf(Int.MIN_VALUE, -1, 0, 1, Int.MAX_VALUE)
         for ((i, k) in keys.withIndex()) m.put(k, i.toDouble())
@@ -41,7 +49,7 @@ class IntDoubleMapTest {
     }
 
     @Test
-    fun removeReturnsPresenceAndDeletes() {
+    fun `remove reports whether the key was present and deletes it`() {
         val m = MutableIntDoubleMap()
         m.put(1, 1.0)
         m.put(2, 2.0)
@@ -53,7 +61,7 @@ class IntDoubleMapTest {
     }
 
     @Test
-    fun growthPreservesEntries() {
+    fun `growth preserves every entry`() {
         val m = MutableIntDoubleMap()
         for (k in 0 until 1000) m.put(k * 3, k.toDouble())
         assertEquals(1000, m.size)
@@ -62,7 +70,7 @@ class IntDoubleMapTest {
     }
 
     @Test
-    fun backwardShiftDeletionKeepsCollidingKeysReachable() {
+    fun `backward-shift deletion keeps colliding keys reachable`() {
         // Sequential keys with a small table force probe chains; deleting from the middle of a
         // chain must not strand the entries that probed past the deleted slot.
         val m = MutableIntDoubleMap(4)
@@ -74,7 +82,7 @@ class IntDoubleMapTest {
     }
 
     @Test
-    fun forEachVisitsEveryEntryOnce() {
+    fun `forEach visits every entry exactly once`() {
         val m = MutableIntDoubleMap()
         for (k in 0 until 100) m.put(k * 7 - 50, k.toDouble())
         val seen = HashMap<Int, Double>()
@@ -84,7 +92,7 @@ class IntDoubleMapTest {
     }
 
     @Test
-    fun scaleValuesMultipliesInPlace() {
+    fun `scaleValues multiplies every value in place`() {
         val m = MutableIntDoubleMap()
         for (k in 0 until 10) m.put(k, k.toDouble())
         m.scaleValues(0.5)
@@ -92,7 +100,7 @@ class IntDoubleMapTest {
     }
 
     @Test
-    fun randomizedAgainstHashMapReference() {
+    fun `randomized operations agree with a HashMap reference`() {
         val rng = Random(20260727)
         val m = MutableIntDoubleMap()
         val ref = HashMap<Int, Double>()

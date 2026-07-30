@@ -16,11 +16,13 @@ import kotlinx.benchmark.State
 import kotlin.random.Random
 
 /**
- * Level-1 kernel cost across vector lengths, for locating the SIMD-versus-scalar crossover: the
- * vector path pays a fixed setup (lane broadcast, horizontal reduce) and does no vector work at all
- * below one lane width. Run the same sweep twice, once with the incubator module on the fork and
- * once without (`-Pkoblas.noSimd=true`), and compare; [mathBackend] is printed to confirm which
- * kernel each run measured.
+ * Level-1 kernel cost across vector lengths, which locates the SIMD-versus-scalar crossover: the vector
+ * path pays a fixed setup (lane broadcast, horizontal reduce) and does no vector work at all below one
+ * lane width.
+ *
+ * These kernels sit below the backend seam, so there is no `backend` parameter here. Run the sweep twice
+ * instead, once as-is and once with `-Pkoblas.noSimd=true` to withhold the incubator module;
+ * [mathBackend] is printed to confirm which kernel each run measured.
  */
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
@@ -35,9 +37,9 @@ class Level1Benchmark {
     @Setup
     fun setup() {
         println("resolved: primitives=$mathBackend")
-        val rng = Random(20260728)
-        x = DenseVector.of(DoubleArray(len) { rng.nextDouble(-1.0, 1.0) })
-        y = DenseVector.of(DoubleArray(len) { rng.nextDouble(-1.0, 1.0) })
+        val rng = Random(BENCH_SEED)
+        x = DenseVector.of(randomVector(len, rng))
+        y = DenseVector.of(randomVector(len, rng))
     }
 
     @Benchmark

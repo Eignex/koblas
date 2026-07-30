@@ -1,10 +1,7 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.ReferenceLinearAlgebra
-import com.eignex.koblas.installLinearAlgebra
 import com.eignex.koblas.koblas
-import com.eignex.koblas.koblasInfo
 import kotlinx.benchmark.Benchmark
 import kotlinx.benchmark.BenchmarkMode
 import kotlinx.benchmark.BenchmarkTimeUnit
@@ -17,14 +14,17 @@ import kotlinx.benchmark.State
 import kotlin.random.Random
 
 /**
- * Level-2 products across a wide size range, isolated from the level-3 and factorization work so the
- * sweep can reach sizes where memory bandwidth rather than dispatch decides. These are the shapes
- * where a native backend's per-call cost competes against the portable SIMD kernels.
+ * Matrix-vector products across a wide size range, out to sizes where memory bandwidth rather than call
+ * dispatch decides.
+ *
+ * These are `O(n^2)` work over `O(n^2)` data, so a native backend cannot amortize its per-call
+ * marshalling: this sweep is what established that `gemv` and `symv` belong on the portable kernels at
+ * every size measured, and it guards that conclusion against changes on either side of the seam.
  */
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(BenchmarkTimeUnit.MICROSECONDS)
-class GemvBenchmark {
+class Level2Benchmark {
     @Param("16", "64", "256", "1024", "2048")
     var n: Int = 0
 
@@ -38,13 +38,11 @@ class GemvBenchmark {
 
     @Setup
     fun setup() {
-        installLinearAlgebra(if (backend == "reference") ReferenceLinearAlgebra else null)
-        println("resolved: $koblasInfo")
-        val rng = Random(20260729)
-        a = DenseMatrix.wrap(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
-        sym = DenseMatrix(n, n)
-        for (i in 0 until n) for (j in 0..i) sym[i, j] = rng.nextDouble(-1.0, 1.0)
-        x = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
+        installBackend(backend)
+        val rng = Random(BENCH_SEED)
+        a = randomMatrix(n, n, rng)
+        sym = lowerSymmetricMatrix(n, rng)
+        x = randomVector(n, rng)
         y = DoubleArray(n)
     }
 

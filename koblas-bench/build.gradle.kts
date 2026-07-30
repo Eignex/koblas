@@ -47,68 +47,23 @@ benchmark {
         register("jvm")
     }
     configurations {
-        // Block-versus-column solve crossover across right-hand-side counts.
-        register("blockSolve") {
-            include("BlockSolveBenchmark")
-            warmups = 3
-            iterations = 5
-            iterationTime = 300
-            iterationTimeUnit = "ms"
-            advanced("jvmForks", "1")
-        }
-        // The symmetric indefinite solve, the last unmeasured native-versus-portable question.
-        register("ldl") {
-            include("LdlSolveBenchmark")
+        // One suite per benchmark class, so `benchmark` runs everything and `<name>Benchmark` runs one
+        // class. Settings are shared below rather than repeated per suite: comparing two runs is only
+        // meaningful when both spent the same warmup and iteration time.
+        configureEach {
             warmups = 3
             iterations = 5
             iterationTime = 500
             iterationTimeUnit = "ms"
+            // JMH defaults to several forks; one is enough here and keeps a sweep to a coffee break.
             advanced("jvmForks", "1")
         }
-        // Level 3 and factorization only: the routines a native backend still handles.
-        register("level3") {
-            include("DenseBenchmark.gemm")
-            include("DenseBenchmark.luSolve")
-            include("DenseBenchmark.syrkFull")
-            warmups = 2
-            iterations = 4
-            iterationTime = 500
-            iterationTimeUnit = "ms"
-            advanced("jvmForks", "1")
-        }
-        // Level-2 sweep out to sizes where bandwidth, not dispatch, decides.
-        register("gemv") {
-            include("GemvBenchmark")
-            warmups = 3
-            iterations = 5
-            iterationTime = 500
-            iterationTimeUnit = "ms"
-            advanced("jvmForks", "1")
-        }
-        // Level-1 crossover sweep: run once as-is and once with -Pkoblas.noSimd=true.
-        register("level1") {
-            include("Level1Benchmark")
-            warmups = 3
-            iterations = 5
-            iterationTime = 500
-            iterationTimeUnit = "ms"
-            advanced("jvmForks", "1")
-        }
-        register("probe") {
-            include("DenseBenchmark.gemv")
-            warmups = 1
-            iterations = 1
-            iterationTime = 200
-            iterationTimeUnit = "ms"
-            advanced("jvmForks", "1")
-        }
-        named("main") {
-            warmups = 3
-            iterations = 5
-            iterationTime = 1
-            iterationTimeUnit = "s"
-            advanced("jvmForks", "1")
-        }
+        register("level1") { include("Level1Benchmark") }
+        register("level2") { include("Level2Benchmark") }
+        register("level3") { include("Level3Benchmark") }
+        register("solve") { include("SolveBenchmark") }
+        register("blockSolve") { include("BlockSolveBenchmark") }
+        register("sparse") { include("SparseBenchmark") }
     }
 }
 

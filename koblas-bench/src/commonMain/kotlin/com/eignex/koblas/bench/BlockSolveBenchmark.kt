@@ -2,10 +2,7 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.LuDecomposition
-import com.eignex.koblas.ReferenceLinearAlgebra
-import com.eignex.koblas.installLinearAlgebra
 import com.eignex.koblas.koblas
-import com.eignex.koblas.koblasInfo
 import com.eignex.koblas.lu
 import kotlinx.benchmark.Benchmark
 import kotlinx.benchmark.BenchmarkMode
@@ -19,10 +16,13 @@ import kotlinx.benchmark.State
 import kotlin.random.Random
 
 /**
- * Block solve against a loop of vector solves as the right-hand-side count grows, which is where the
+ * A block solve against a loop of vector solves as the right-hand-side count grows, which is where the
  * two strategies trade places: a block solve reads the factor once but updates rows in `nrhs`-length
- * runs, while per-column solves re-read the factor once per column and get full-length contiguous
- * runs. Locates the crossover the block-solve dispatch should use.
+ * runs, while per-column solves re-read the factor once per column and get full-length contiguous runs.
+ *
+ * This is the sweep behind the right-hand-side count at which the multi-RHS solve switches strategy, so
+ * it is the one to re-run when either solve path changes. Sweeping `nrhs` is what separates it from
+ * [SolveBenchmark], whose single right-hand side is the `nrhs = 1` corner.
  */
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
@@ -42,13 +42,10 @@ class BlockSolveBenchmark {
 
     @Setup
     fun setup() {
-        installLinearAlgebra(if (backend == "reference") ReferenceLinearAlgebra else null)
-        println("resolved: $koblasInfo")
-        val rng = Random(20260729)
-        val a = DenseMatrix.wrap(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
-        for (i in 0 until n) a[i, i] = a[i, i] + n
-        factored = a.lu()
-        block = DenseMatrix.wrap(n, nrhs, DoubleArray(n * nrhs) { rng.nextDouble(-1.0, 1.0) })
+        installBackend(backend)
+        val rng = Random(BENCH_SEED)
+        factored = dominantMatrix(n, rng).lu()
+        block = randomMatrix(n, nrhs, rng)
     }
 
     @Benchmark

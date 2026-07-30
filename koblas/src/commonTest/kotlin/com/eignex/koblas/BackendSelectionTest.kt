@@ -3,9 +3,19 @@ package com.eignex.koblas
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
+/**
+ * Backend resolution: what [koblas] points at, and how registration, priority and an explicit install
+ * interact. A backend registers itself when its module is on the classpath, so the rules that decide
+ * between two of them are the ones worth pinning down.
+ */
 class BackendSelectionTest {
 
     private class Fake(override val name: String, override val priority: Int) : LinearAlgebra by ReferenceLinearAlgebra
+
+    @Test
+    fun `koblas resolves to the platform backend or the reference one`() {
+        assertEquals(platformLinearAlgebra() ?: ReferenceLinearAlgebra, koblas)
+    }
 
     @Test
     fun `registration keeps the highest priority and install overrides everything`() {
