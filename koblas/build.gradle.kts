@@ -36,6 +36,23 @@ kotlin {
         val posixMain by creating { dependsOn(nativeMain.get()) }
         appleMain.get().dependsOn(posixMain)
         linuxMain.get().dependsOn(posixMain)
+
+        // The host-BLAS backend: Linux and macOS only. It resolves libopenblas with dlopen, which iOS
+        // has no use for (no host library to find, and an App Store binary should not carry the call),
+        // and mingw does not provide at all. Both keep the portable kernels.
+        val hostBlasMain by creating { dependsOn(posixMain) }
+        linuxMain.get().dependsOn(hostBlasMain)
+        macosMain.get().dependsOn(hostBlasMain)
+        // Everything else non-JVM: no host library to reach, so the primitives call the scalar loops
+        // directly and pay nothing for a dispatch they can never use.
+        val scalarOnlyMain by creating { dependsOn(nonJvmMain) }
+        iosMain.get().dependsOn(scalarOnlyMain)
+        mingwMain.get().dependsOn(scalarOnlyMain)
+        webMain.get().dependsOn(scalarOnlyMain)
+
+        val hostBlasTest by creating { dependsOn(nativeTest.get()) }
+        linuxTest.get().dependsOn(hostBlasTest)
+        macosTest.get().dependsOn(hostBlasTest)
         webMain.get().dependsOn(nonJvmMain)
         wasmWasiMain.get().dependsOn(webMain.get())
 

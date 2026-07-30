@@ -1,4 +1,12 @@
 package com.eignex.koblas
 
-/** Identifies the runtime math backend powering the SIMD-like primitives. */
-public actual val mathBackend: String = "scalar"
+/**
+ * Identifies the runtime math backend powering the SIMD-like primitives.
+ *
+ * `scalar` is the built-in loops; `scalar+host` means [Level1Kernels] are installed, so runs of at least
+ * [HOST_LEVEL1_MIN_LENGTH] elements go to a host BLAS while shorter ones stay on the loops. The read is
+ * dynamic because that install happens at program start, and a run that silently kept the scalar kernels
+ * is exactly the failure this is here to report.
+ */
+public actual val mathBackend: String
+    get() = if (installedLevel1Kernels() != null) "scalar+host" else "scalar"

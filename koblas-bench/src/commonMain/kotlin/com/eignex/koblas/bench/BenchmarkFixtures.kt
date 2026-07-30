@@ -35,6 +35,14 @@ internal const val REFERENCE_BACKEND = "reference"
 internal expect fun nativeBackend(): LinearAlgebra?
 
 /**
+ * Turns the platform's host level-1 kernels on or off, reporting whether any are now installed.
+ *
+ * The level-1 primitives sit below the [LinearAlgebra] seam, so the `backend` parameter does not reach
+ * them and they need their own switch. The JVM has no such seam and always reports `false`.
+ */
+internal expect fun useHostLevel1(enabled: Boolean): Boolean
+
+/**
  * Installs the backend named by a `backend` parameter and prints what resolved.
  *
  * [REFERENCE_BACKEND] forces the portable kernels; anything else (`auto`) takes the platform's native

@@ -4,3 +4,6 @@ import com.eignex.koblas.LinearAlgebra
 
 /** The JVM discovers OpenBLAS through the ServiceLoader, so `auto` needs no explicit install. */
 internal actual fun nativeBackend(): LinearAlgebra? = null
+
+/** The JVM's level-1 kernels are its SIMD ones; there is nothing to swap in. */
+internal actual fun useHostLevel1(enabled: Boolean): Boolean = false
