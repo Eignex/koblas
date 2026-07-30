@@ -12,6 +12,15 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
+/**
+ * Every routine the OpenBLAS backend implements, against the portable reference on identical inputs,
+ * over the alpha and beta values BLAS treats specially and the degenerate shapes.
+ *
+ * Sizes run from tiny up to 256. The large end is not redundant: below roughly n=50 OpenBLAS stays on its
+ * serial path, and above it spawns threads whose parallel LAPACK overflows a default JVM thread stack and
+ * takes the process down. A gap here once let exactly that reach a benchmark run, so the larger sizes
+ * guard the backend's threading configuration as much as its arithmetic.
+ */
 class OpenBlasConformanceTest {
 
     private val openblas = OpenBlasLinearAlgebra()
@@ -362,5 +371,28 @@ class OpenBlasConformanceTest {
         val s = DenseMatrix.wrap(2, 2, doubleArrayOf(1.0, 2.0, 3.0, 4.0))
         openblas.syrk(0.0, DenseMatrix(2, 5), transpose = false, beta = 2.0, c = s)
         assertClose(doubleArrayOf(2.0, 4.0, 6.0, 8.0), s.data, context = "syrk alpha=0")
+    }
+
+    @Test
+    fun `level 3 and factorization agree with the reference at threaded sizes`() {
+        val rng = Random(20260729)
+        for (n in intArrayOf(64, 256)) {
+            val a = randomMatrix(rng, n, n)
+            for (i in 0 until n) a[i, i] = a[i, i] + n // diagonally dominant, so the solve is stable
+            val b = randomMatrix(rng, n, n)
+            assertClose(
+                reference.gemm(a, b).data,
+                openblas.gemm(a, b).data,
+                tol = 1e-9 * n,
+                context = "gemm n=$n",
+            )
+            val rhs = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
+            assertClose(
+                reference.solve(reference.factor(a), rhs),
+                openblas.solve(openblas.factor(a), rhs),
+                tol = 1e-9,
+                context = "solve n=$n",
+            )
+        }
     }
 }

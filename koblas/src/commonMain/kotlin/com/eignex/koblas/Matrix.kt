@@ -64,7 +64,7 @@ sealed interface MatrixView {
 class DenseMatrix internal constructor(override val rows: Int, override val cols: Int, val data: DoubleArray) :
     MatrixView {
 
-    constructor(rows: Int, cols: Int = rows) : this(rows, cols, DoubleArray(rows * cols))
+    constructor(rows: Int, cols: Int = rows) : this(rows, cols, DoubleArray(entryCount(rows, cols)))
 
     init {
         require(rows >= 0 && cols >= 0) { "negative shape: ${rows}x$cols" }
@@ -119,6 +119,16 @@ class DenseMatrix internal constructor(override val rows: Int, override val cols
 
         /** Wrap an existing flat `DoubleArray` of length `rows * cols` without copying. */
         fun wrap(rows: Int, cols: Int, data: DoubleArray): DenseMatrix = DenseMatrix(rows, cols, data)
+
+        /**
+         * Entry count for a shape, validated first: computing `rows * cols` for the backing would
+         * otherwise allocate a negative-length array and fail with `NegativeArraySizeException` before
+         * the constructor's own shape check could report the problem.
+         */
+        private fun entryCount(rows: Int, cols: Int): Int {
+            require(rows >= 0 && cols >= 0) { "negative shape: ${rows}x$cols" }
+            return rows * cols
+        }
     }
 }
 

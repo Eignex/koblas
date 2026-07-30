@@ -221,6 +221,46 @@ class OpsTest {
     }
 
     @Test
+    fun `alpha zero makes axpy and addOuter no-ops`() {
+        val y = DenseVector.of(doubleArrayOf(1.0, 2.0, 3.0))
+        axpy(y, 0.0, DenseVector.of(doubleArrayOf(9.0, 9.0, 9.0)))
+        assertTrue(y.toDoubleArray().contentEquals(doubleArrayOf(1.0, 2.0, 3.0)))
+        val M = DenseMatrix.diagonal(2, 1.0)
+        addOuter(M, 0.0, DenseVector.of(doubleArrayOf(1.0, 1.0)), DenseVector.of(doubleArrayOf(1.0, 1.0)))
+        for (i in 0 until 2) {
+            for (j in 0 until 2) assertEquals(if (i == j) 1.0 else 0.0, M[i, j])
+        }
+    }
+
+    @Test
+    fun `addOuter skips zero entries on both carriers`() {
+        // Dense: a zero in x leaves that whole row untouched.
+        val dense = DenseMatrix.diagonal(3, 0.0)
+        addOuter(dense, 1.0, dense(0.0, 2.0, 0.0), dense(1.0, 1.0, 1.0))
+        for (i in 0 until 3) {
+            for (j in 0 until 3) assertEquals(if (i == 1) 2.0 else 0.0, dense[i, j], 1e-12, "dense[$i,$j]")
+        }
+        // Sparse: a stored zero counts as a zero, not as a stored entry to scatter.
+        val sparse = DenseMatrix.diagonal(3, 0.0)
+        addOuter(sparse, 1.0, sparse(3, 0 to 0.0, 1 to 1.0), sparse(3, 2 to 5.0))
+        for (i in 0 until 3) {
+            for (j in 0 until 3) {
+                assertEquals(if (i == 1 && j == 2) 5.0 else 0.0, sparse[i, j], "sparse[$i,$j]")
+            }
+        }
+    }
+
+    @Test
+    fun `the ops reject mismatched sizes and shapes`() {
+        assertFailsWith<IllegalArgumentException> { dense(1.0) dot dense(1.0, 2.0) }
+        assertFailsWith<IllegalArgumentException> { axpy(dense(1.0), 1.0, dense(1.0, 2.0)) }
+        assertFailsWith<IllegalArgumentException> {
+            addOuter(DenseMatrix(2, 2), 1.0, dense(1.0, 2.0, 3.0), dense(1.0, 2.0))
+        }
+        assertFailsWith<IllegalArgumentException> { matVec(DenseMatrix(2, 3), dense(1.0, 2.0)) }
+    }
+
+    @Test
     fun `transpose round-trips and maps entries`() {
         val a = DenseMatrix.of(
             arrayOf(

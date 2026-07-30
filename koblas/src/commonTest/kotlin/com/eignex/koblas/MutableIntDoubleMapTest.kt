@@ -14,7 +14,7 @@ import kotlin.test.assertTrue
  * has to rehash every key. The randomized comparison against a HashMap covers the interleavings that
  * hand-written cases do not reach.
  */
-class IntDoubleMapTest {
+class MutableIntDoubleMapTest {
 
     @Test
     fun `put overwrites an existing key without growing the map`() {
