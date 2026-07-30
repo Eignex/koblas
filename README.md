@@ -17,8 +17,8 @@
 
 Koblas provides dense and sparse linear algebra for Kotlin Multiplatform: a
 well-defined subset of double-precision BLAS and LAPACK, sparse LU
-factorization, and a swappable compute backend with optional OpenBLAS-backed
-implementations for the JVM and native targets.
+factorization, and a swappable compute backend that uses the host OpenBLAS on
+the Linux and macOS native targets when it is installed.
 
 ## Overview
 
@@ -163,60 +163,30 @@ loop runs on this seam, including the sparse kernels.
 
 The level 2 and 3 multiplies and the factorizations amortize dispatch, so
 they sit behind the runtime LinearAlgebra interface. Backends activate
-themselves: through the classpath on the JVM, by registration at program
-start elsewhere. The highest priority wins (OpenBLAS's bundled natives, the
-dlopen cblas backend, then the reference); installLinearAlgebra overrides.
-Storage is flat, row-major DoubleArray, so a native backend receives raw
-buffers with no repacking, and every backend must match the reference on the
-conformance suite.
+themselves: through the classpath on the JVM, by registration at program start
+elsewhere. The highest priority wins; installLinearAlgebra overrides. Storage
+is flat, row-major DoubleArray, so a native backend receives raw buffers with
+no repacking, and every backend must match the reference on the conformance
+suite.
 
-The optional koblas-openblas artifact provides a JVM backend built on OpenBLAS
-through the Bytedeco presets, with natives bundled for all major platforms:
+On the Linux and macOS native targets koblas resolves the host OpenBLAS with
+dlopen at program start (libopenblas and liblapacke on Debian/Ubuntu, brew
+install openblas on macOS) and uses it for the level 2 and 3 routines, the
+factorizations, and level-1 runs long enough to cover a foreign call. Nothing
+is bundled and nothing is linked: a host without the libraries runs the
+portable kernels, so a shipped binary works either way. It matters most here,
+because these targets have no vector kernels — measured on linuxX64 the host
+library wins level 2 by 2x to 15x and dense factorization by up to 13x.
+OPENBLAS_NUM_THREADS opts into threading; the default is single-threaded.
 
-```kotlin
-runtimeOnly("com.eignex:koblas-openblas:<version>")
-```
+The JVM has no native backend and needs no native access. Its portable kernels
+are Vector API SIMD, which beat a foreign call at level 1, level 2 and the
+single-vector solves outright, and the remaining gap on large dense products
+and factorizations was not worth an FFI surface, a JDK floor and a launch flag.
+The ServiceLoader seam is still there for a consumer who wants to supply one.
 
-It speeds up matrix products and dense factorizations several-fold at
-dimension 256 and more as sizes grow. Calls go through java.lang.foreign
-downcalls that pin the array rather than copying it, so the artifact needs
-JDK 25 and the flag that permits native access:
-
-```
---enable-native-access=ALL-UNNAMED
-```
-
-The artifact declares the module name com.eignex.koblas.openblas, so a modular
-consumer can grant that instead of opening the whole class path. Applications
-launched with java -jar can carry Enable-Native-Access in their manifest
-rather than a flag. Any route to a native library needs this, JNI included, so
-it is not a cost of the FFM binding. Core koblas needs none of it: the
-portable backend, and with it level 1, level 2 and the single-vector solves,
-never calls native code. The level 2 products and single-vector
-solves stay on the portable kernels even with this backend active, because
-their work is proportional to their data and no native call can win that.
-OpenBLAS runs single-threaded by default, which is both the fast and the safe
-configuration under the JVM; the koblas.openblas.threads system property opts
-into its threading. Setting koblas.backend to reference forces the portable
-implementation.
-
-On the Linux and macOS native targets the optional koblas-cblas artifact
-provides the same operations through the host's OpenBLAS, located with dlopen
-at program start (libopenblas and liblapacke on Debian/Ubuntu, brew install
-openblas on macOS). Depending on the artifact activates it; a host without
-the libraries runs on the reference implementation instead, so shipped
-binaries work either way. installLinearAlgebra overrides the selection.
+The seams are independent; print what a runtime resolved with:
 
 ```kotlin
-implementation("com.eignex:koblas-cblas:<version>")
-```
-
-It also keeps OpenBLAS single-threaded by default; set OPENBLAS_NUM_THREADS
-to opt into its threading.
-
-The seams are independent (openblas + simd, reference + scalar, and so on);
-print what a runtime resolved with:
-
-```kotlin
-println(koblasInfo) // backend=openblas, primitives=simd(8 lanes)
+println(koblasInfo) // backend=cblas, primitives=scalar+host
 ```

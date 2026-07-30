@@ -12,7 +12,7 @@ repositories {
 
 kotlin {
     applyDefaultHierarchyTemplate()
-    // Matches koblas-openblas, whose FFM bindings need 25; this module is dev-only.
+    // Dev-only module; the incubator vector API the JVM kernels use needs a recent JDK.
     jvmToolchain(25)
     compilerOptions {
         freeCompilerArgs.add("-Xexpect-actual-classes")
@@ -32,15 +32,6 @@ kotlin {
             // koblas keeps serialization compileOnly, which the JVM tolerates but the native klib
             // resolver does not: it needs every transitive klib present to generate the harness.
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.10.0")
-        }
-        jvmMain.dependencies {
-            // Lets the benchmarks compare the discovered OpenBLAS backend against the reference.
-            runtimeOnly(project(":koblas-openblas"))
-        }
-        nativeMain.dependencies {
-            // Needs to be a compile dependency, not runtimeOnly: the native fixtures install the backend
-            // explicitly rather than relying on the eager-initialization hook surviving the linker.
-            implementation(project(":koblas-cblas"))
         }
         commonTest.dependencies {
             implementation(kotlin("test"))

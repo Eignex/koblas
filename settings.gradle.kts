@@ -7,4 +7,4 @@ pluginManagement {
     }
 }
 
-include(":koblas", ":koblas-openblas", ":koblas-cblas", ":koblas-bench")
+include(":koblas", ":koblas-bench")
