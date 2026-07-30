@@ -4,7 +4,7 @@ import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
-class LdlTest {
+class LinearAlgebraLdlTest {
 
     /** Random symmetric indefinite matrix (mixed-sign diagonal shifts force 2×2 pivots) with the
      *  strictly upper triangle NaN-poisoned, plus its clean full-symmetric twin. */

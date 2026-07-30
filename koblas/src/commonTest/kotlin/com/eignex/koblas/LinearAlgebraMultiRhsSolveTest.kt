@@ -5,7 +5,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-class MultiRhsSolveTest {
+class LinearAlgebraMultiRhsSolveTest {
 
     @Test
     fun `lu block solve matches column-by-column vector solves`() {
