@@ -28,11 +28,10 @@ DenseVector and SparseVector behind a shared view contract, and a CSC
 SparseMatrix. Arithmetic lives as free functions over the views; the heavier
 dense operations sit behind the swappable LinearAlgebra interface.
 
-The operation set is what a revised simplex or Bayesian-filtering workload
-needs: level 1 through 3 BLAS kernels, the LU, Cholesky, QR, and symmetric
-indefinite solver families with condition estimation, and sparse basis
-factorization with rank-one updates. See [BLAS Coverage](#blas-coverage) for
-the exact contract and what is out of scope.
+The operation set covers level 1 through 3 BLAS kernels, the LU, Cholesky, QR,
+and symmetric indefinite solver families with condition estimation, and sparse
+factorization with rank-one basis updates. See [BLAS Coverage](#blas-coverage)
+for the exact contract and what is out of scope.
 
 ### Installation
 
@@ -119,12 +118,12 @@ A few routines also need scratch of their own, and those take an optional
 Workspace: a pool of vectors keyed by width, which you create and hand over.
 Operations borrow and return buffers, so nesting is safe and one workspace
 serves whatever dimensions a caller mixes; pools grow on demand, and reserve
-pays that cost up front. It is accepted wherever a routine
-needs temporaries: rcond and norm1 (a simplex calls both to decide when to
-refactorize), the syrk mirror buffer (an n² scratch, the largest in the
-library), ldl, qr, the Cholesky rank-one update and downdate, invertSpd, and
-the triangular solves' staging. An EtaBasis owns its scratch instead, being
-mutable already, so its solves need no workspace at all.
+pays that cost up front. It is accepted wherever a routine needs temporaries:
+rcond and norm1, which are called together to decide whether a factorization
+is still accurate enough to reuse, the syrk mirror buffer (an n² scratch, the
+largest in the library), ldl, qr, the Cholesky rank-one update and downdate,
+invertSpd, and the triangular solves' staging. An EtaBasis owns its scratch
+instead, being mutable already, so its solves need no workspace at all.
 
 ```kotlin
 val ws = Workspace().apply { reserve(n, count = 5) }
@@ -146,8 +145,8 @@ SparseLu factorizes a CSC matrix with Markowitz threshold pivoting, keeping
 the factors sparse, and solves the forward (FTRAN) and transposed (BTRAN)
 systems in time proportional to the nonzeros of the factors. EtaBasis carries
 the factorization across rank-one basis changes with the product form of the
-inverse, so an update costs one pass over the basis dimension instead of a
-refactorization. Together they are the kernel a sparse simplex builds on.
+inverse, so replacing a column costs one pass over the basis dimension instead
+of a refactorization.
 
 ---
 
@@ -175,7 +174,7 @@ install openblas on macOS) and uses it for the level 2 and 3 routines, the
 factorizations, and level-1 runs long enough to cover a foreign call. Nothing
 is bundled and nothing is linked: a host without the libraries runs the
 portable kernels, so a shipped binary works either way. It matters most here,
-because these targets have no vector kernels — measured on linuxX64 the host
+because these targets have no vector kernels: measured on linuxX64 the host
 library wins level 2 by 2x to 15x and dense factorization by up to 13x.
 OPENBLAS_NUM_THREADS opts into threading; the default is single-threaded.
 
