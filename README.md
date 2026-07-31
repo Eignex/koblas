@@ -81,21 +81,29 @@ against reference results on every target.
 
 | Standard routine | Koblas |
 |------------------|--------|
+| **Level 1** (vector) | |
 | ddot, daxpy, dscal | dot, axpy, scale (sparse-aware) |
 | dnrm2, dasum, idamax | norm2, asum, iamax |
 | dcopy, dswap | copy, swap |
+| **Level 2** (matrix-vector) | |
 | dgemv (full alpha/beta form) | LinearAlgebra.gemv |
 | dger (rank-one update) | addOuter |
-| dsymv, dsymm (symmetric multiply) | LinearAlgebra.symv, symm |
-| dtrsv, dtrsm (triangular solves) | trsv, trsm |
-| dtrmv, dtrmm (triangular multiply) | trmv, trmm |
+| dsymv (symmetric multiply) | LinearAlgebra.symv |
+| dtrsv (triangular solve) | trsv |
+| dtrmv (triangular multiply) | trmv |
+| **Level 3** (matrix-matrix) | |
 | dgemm (full form, transpose flags) | LinearAlgebra.gemm |
+| dsymm (symmetric multiply) | LinearAlgebra.symm |
 | dsyrk (symmetric rank-k update) | LinearAlgebra.syrk |
+| dtrsm (triangular solve, multi-RHS) | trsm |
+| dtrmm (triangular multiply, multi-RHS) | trmm |
+| **LAPACK** (factorizations) | |
 | dgetrf, dgetrs (LU) | factor, solve, plus determinant |
 | dgecon, dlange (condition estimate) | LinearAlgebra.rcond, norm1 |
 | dpotrf, dpotrs, dpotri (Cholesky) | cholesky, solveSpd, invertSpd |
 | dgeqrf, dormqr, dgels (QR) | qr, applyQ, solveLeastSquares, solveMinimumNorm |
 | dsytrf, dsytrs (symmetric indefinite LDLᵀ) | LinearAlgebra.ldl, solve |
+| **Beyond the standard libraries** | |
 | Cholesky update/downdate | choleskyUpdateInPlace, choleskyDowndateInPlace |
 
 Semantics follow the standard; the exceptions are documented on each
