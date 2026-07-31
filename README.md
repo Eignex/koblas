@@ -139,17 +139,6 @@ Passing none keeps the allocating behaviour, which is always correct.
 
 ---
 
-## Sparse Linear Algebra
-
-SparseLu factorizes a CSC matrix with Markowitz threshold pivoting, keeping
-the factors sparse, and solves the forward (FTRAN) and transposed (BTRAN)
-systems in time proportional to the nonzeros of the factors. EtaBasis carries
-the factorization across rank-one basis changes with the product form of the
-inverse, so replacing a column costs one pass over the basis dimension instead
-of a refactorization.
-
----
-
 ## Backends
 
 There are two performance seams, split by how much work a call does.
