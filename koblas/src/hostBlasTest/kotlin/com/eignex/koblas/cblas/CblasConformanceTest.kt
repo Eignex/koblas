@@ -6,6 +6,7 @@
 package com.eignex.koblas.cblas
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.LinearAlgebra
 import com.eignex.koblas.ReferenceLinearAlgebra
 import com.eignex.koblas.Uplo
 import com.eignex.koblas.determinant
@@ -415,6 +416,80 @@ class CblasConformanceTest {
                 tol = 1e-9,
                 context = "solve n=$n",
             )
+        }
+    }
+
+    /**
+     * The triangular routines and ger only started dispatching when they moved onto the interface, so
+     * these compare the native implementations against the portable ones over every flag combination.
+     * The operand's unselected triangle is NaN, which fails the comparison if the library reads outside
+     * the triangle koblas promised it would.
+     */
+    @Test
+    fun `triangular routines match reference across all flag combinations`() {
+        val rng = Random(20260801)
+        for (n in intArrayOf(1, 5, 12)) {
+            for (lower in booleanArrayOf(true, false)) {
+                for (transpose in booleanArrayOf(true, false)) {
+                    for (unitDiag in booleanArrayOf(true, false)) {
+                        checkTriangular(rng, n, lower, transpose, unitDiag)
+                    }
+                }
+            }
+        }
+    }
+
+    @Suppress("LongParameterList") // the flag combination under test
+    private fun checkTriangular(rng: Random, n: Int, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
+        val t = DenseMatrix(n, n)
+        for (i in 0 until n) {
+            for (j in 0 until n) {
+                val selected = if (lower) j < i else j > i
+                t[i, j] = when {
+                    selected -> rng.nextDouble(-1.0, 1.0)
+                    i == j -> if (unitDiag) Double.NaN else rng.nextDouble(2.0, 4.0)
+                    else -> Double.NaN
+                }
+            }
+        }
+        val flags = "n=$n lower=$lower t=$transpose unit=$unitDiag"
+        val x = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
+        for (vectorOp in listOf<Pair<String, (LinearAlgebra, DoubleArray) -> Unit>>(
+            "trsv" to { la, v -> la.trsv(t, v, lower, transpose, unitDiag) },
+            "trmv" to { la, v -> la.trmv(t, v, lower, transpose, unitDiag) },
+        )) {
+            val expected = x.copyOf().also { vectorOp.second(reference, it) }
+            val actual = x.copyOf().also { vectorOp.second(cblas, it) }
+            assertClose(expected, actual, tol = 1e-9, context = "${vectorOp.first} $flags")
+        }
+        val nrhs = 3
+        for (right in booleanArrayOf(false, true)) {
+            val b = if (right) randomMatrix(rng, nrhs, n) else randomMatrix(rng, n, nrhs)
+            for (matrixOp in listOf<Pair<String, (LinearAlgebra, DenseMatrix) -> Unit>>(
+                "trsm" to { la, m -> la.trsm(t, m, lower, transpose, unitDiag, right) },
+                "trmm" to { la, m -> la.trmm(t, m, lower, transpose, unitDiag, right) },
+            )) {
+                val expected = DenseMatrix(b.rows, b.cols, b.data.copyOf()).also { matrixOp.second(reference, it) }
+                val actual = DenseMatrix(b.rows, b.cols, b.data.copyOf()).also { matrixOp.second(cblas, it) }
+                assertClose(expected.data, actual.data, tol = 1e-9, context = "${matrixOp.first} right=$right $flags")
+            }
+        }
+    }
+
+    @Test
+    fun `ger matches reference`() {
+        val rng = Random(20260802)
+        for ((rows, cols) in listOf(1 to 1, 4 to 7, 9 to 3)) {
+            for (alpha in doubleArrayOf(0.0, 1.0, -0.75)) {
+                val x = DoubleArray(rows) { rng.nextDouble(-1.0, 1.0) }
+                val y = DoubleArray(cols) { rng.nextDouble(-1.0, 1.0) }
+                val a0 = randomMatrix(rng, rows, cols)
+                val expected = DenseMatrix(rows, cols, a0.data.copyOf())
+                reference.ger(alpha, x, y, expected)
+                val actual = DenseMatrix(rows, cols, a0.data.copyOf())
+                cblas.ger(alpha, x, y, actual)
+                assertClose(expected.data, actual.data, context = "ger ${rows}x$cols alpha=$alpha")
+            }
         }
     }
 

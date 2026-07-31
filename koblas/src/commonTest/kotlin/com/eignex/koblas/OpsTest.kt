@@ -13,7 +13,7 @@ import kotlin.test.assertTrue
 
 /**
  * The standalone vector and matrix operations: the level-1 kernels, the norms, `matVec`, the rank-1
- * `addOuter` update, and `transpose`.
+ * `ger` update, and `transpose`.
  *
  * Every operation that accepts a [VectorView] is checked on both a dense and a sparse carrier of the
  * same vector, because the sparse path is a separate loop that skips unstored slots and is where a
@@ -193,10 +193,10 @@ class OpsTest {
     }
 
     @Test
-    fun `addOuter updates a matrix with alpha x y_transpose`() {
+    fun `ger updates a matrix with alpha x y_transpose`() {
         // M starts as identity 2x2; add 0.5 * [1,2] * [3,4]^T = 0.5 * [[3,4],[6,8]]
         val M = DenseMatrix.diagonal(2, 1.0)
-        addOuter(M, 0.5, dense(1.0, 2.0), dense(3.0, 4.0))
+        ger(0.5, dense(1.0, 2.0), dense(3.0, 4.0), M)
         assertEquals(1.0 + 0.5 * 3, M[0, 0], 1e-12)
         assertEquals(0.5 * 4, M[0, 1], 1e-12)
         assertEquals(0.5 * 6, M[1, 0], 1e-12)
@@ -204,9 +204,9 @@ class OpsTest {
     }
 
     @Test
-    fun `addOuter with sparse operands only touches nonzero rows and cols`() {
+    fun `ger with sparse operands only touches nonzero rows and cols`() {
         val M = DenseMatrix.diagonal(3, 0.0)
-        addOuter(M, 1.0, sparse(3, 1 to 2.0), sparse(3, 0 to 3.0, 2 to 4.0))
+        ger(1.0, sparse(3, 1 to 2.0), sparse(3, 0 to 3.0, 2 to 4.0), M)
         // Only row 1 should be nonzero; cols 0 and 2 in that row get 2*3=6 and 2*4=8.
         for (i in 0 until 3) {
             for (j in 0 until 3) {
@@ -221,28 +221,28 @@ class OpsTest {
     }
 
     @Test
-    fun `alpha zero makes axpy and addOuter no-ops`() {
+    fun `alpha zero makes axpy and ger no-ops`() {
         val y = DenseVector.of(doubleArrayOf(1.0, 2.0, 3.0))
         axpy(y, 0.0, DenseVector.of(doubleArrayOf(9.0, 9.0, 9.0)))
         assertTrue(y.toDoubleArray().contentEquals(doubleArrayOf(1.0, 2.0, 3.0)))
         val M = DenseMatrix.diagonal(2, 1.0)
-        addOuter(M, 0.0, DenseVector.of(doubleArrayOf(1.0, 1.0)), DenseVector.of(doubleArrayOf(1.0, 1.0)))
+        ger(0.0, DenseVector.of(doubleArrayOf(1.0, 1.0)), DenseVector.of(doubleArrayOf(1.0, 1.0)), M)
         for (i in 0 until 2) {
             for (j in 0 until 2) assertEquals(if (i == j) 1.0 else 0.0, M[i, j])
         }
     }
 
     @Test
-    fun `addOuter skips zero entries on both carriers`() {
+    fun `ger skips zero entries on both carriers`() {
         // Dense: a zero in x leaves that whole row untouched.
         val dense = DenseMatrix.diagonal(3, 0.0)
-        addOuter(dense, 1.0, dense(0.0, 2.0, 0.0), dense(1.0, 1.0, 1.0))
+        ger(1.0, dense(0.0, 2.0, 0.0), dense(1.0, 1.0, 1.0), dense)
         for (i in 0 until 3) {
             for (j in 0 until 3) assertEquals(if (i == 1) 2.0 else 0.0, dense[i, j], 1e-12, "dense[$i,$j]")
         }
         // Sparse: a stored zero counts as a zero, not as a stored entry to scatter.
         val sparse = DenseMatrix.diagonal(3, 0.0)
-        addOuter(sparse, 1.0, sparse(3, 0 to 0.0, 1 to 1.0), sparse(3, 2 to 5.0))
+        ger(1.0, sparse(3, 0 to 0.0, 1 to 1.0), sparse(3, 2 to 5.0), sparse)
         for (i in 0 until 3) {
             for (j in 0 until 3) {
                 assertEquals(if (i == 1 && j == 2) 5.0 else 0.0, sparse[i, j], "sparse[$i,$j]")
@@ -255,7 +255,7 @@ class OpsTest {
         assertFailsWith<IllegalArgumentException> { dense(1.0) dot dense(1.0, 2.0) }
         assertFailsWith<IllegalArgumentException> { axpy(dense(1.0), 1.0, dense(1.0, 2.0)) }
         assertFailsWith<IllegalArgumentException> {
-            addOuter(DenseMatrix(2, 2), 1.0, dense(1.0, 2.0, 3.0), dense(1.0, 2.0))
+            ger(1.0, dense(1.0, 2.0, 3.0), dense(1.0, 2.0), DenseMatrix(2, 2))
         }
         assertFailsWith<IllegalArgumentException> { matVec(DenseMatrix(2, 3), dense(1.0, 2.0)) }
     }

@@ -13,92 +13,54 @@ package com.eignex.koblas
 // Following BLAS, the diagonal is not checked: a zero (or, with `unitDiag`, implicit-one) diagonal
 // is the caller's responsibility, and a singular triangle yields infinities/NaNs, not an exception.
 
-/**
- * Solve `op(T) · x = b` in place (BLAS `dtrsv`): [x] holds `b` on entry and the solution on return.
- * `T` is the [lower] or upper triangle of the square [A]; `op` transposes when [transpose]; with
- * [unitDiag] the diagonal is taken as 1 and never read.
- */
-fun trsv(A: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean = false, unitDiag: Boolean = false) {
-    require(A.rows == A.cols) { "trsv requires a square matrix; got ${A.rows}x${A.cols}" }
-    require(x.size == A.rows) { "trsv: x length ${x.size} != ${A.rows}" }
-    trsvCore(A.data, A.rows, x, lower, transpose, unitDiag)
-}
+// The triangular routines below dispatch to the installed backend, which is what makes them fast on a
+// target with a host BLAS. Each is the free-function spelling of the LinearAlgebra member of the same
+// name; call either. In all of them T is the lower or upper triangle of the square first argument, op
+// transposes when `transpose`, and with `unitDiag` the diagonal is taken as 1 and never read, so the
+// rest of the matrix may hold anything.
 
-/**
- * Solve `op(T) · X = B` in place, or `X · op(T) = B` when [right] (BLAS `dtrsm`): [B] holds the
- * right-hand sides on entry and the solutions on return. `T` is the [lower] or upper triangle of the
- * square [A]; `op` transposes when [transpose]; with [unitDiag] the diagonal is taken as 1 and never
- * read. From the left the right-hand sides are the columns of [B]; from the right, its rows.
- */
-@Suppress("LongParameterList") // the BLAS dtrsm flag set
+/** Solve `op(T) · x = b` in place (BLAS `dtrsv`); see [LinearAlgebra.trsv]. */
+fun trsv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean = false, unitDiag: Boolean = false) =
+    koblas.trsv(a, x, lower, transpose, unitDiag)
+
+/** Solve `op(T) · X = B`, or `X · op(T) = B` when [right] (BLAS `dtrsm`); see [LinearAlgebra.trsm]. */
+@Suppress("LongParameterList") // the BLAS dtrsm signature
 fun trsm(
-    A: DenseMatrix,
-    B: DenseMatrix,
+    a: DenseMatrix,
+    b: DenseMatrix,
     lower: Boolean,
     transpose: Boolean = false,
     unitDiag: Boolean = false,
     right: Boolean = false,
-) {
-    require(A.rows == A.cols) { "trsm requires a square matrix; got ${A.rows}x${A.cols}" }
-    if (right) {
-        require(B.cols == A.rows) { "trsm right: B has ${B.cols} cols, expected ${A.rows}" }
-        // Row i of X satisfies op(T)ᵀ · X[i,:]ᵀ = B[i,:]ᵀ, a plain trsv with the transpose flipped;
-        // rows are contiguous in the row-major backing, staged through a scratch row.
-        val n = A.rows
-        if (n == 0) return
-        val row = DoubleArray(n)
-        for (i in 0 until B.rows) {
-            B.data.copyInto(row, 0, i * n, (i + 1) * n)
-            trsvCore(A.data, n, row, lower, !transpose, unitDiag)
-            row.copyInto(B.data, i * n)
-        }
-    } else {
-        require(B.rows == A.rows) { "trsm: B has ${B.rows} rows, expected ${A.rows}" }
-        trsmCore(A.data, A.rows, B.data, B.cols, lower, transpose, unitDiag)
-    }
-}
+) = koblas.trsm(a, b, lower, transpose, unitDiag, right)
 
-/**
- * Multiply `x = op(T) · x` in place (BLAS `dtrmv`), the product counterpart of [trsv]. `T` is the
- * [lower] or upper triangle of the square [A]; `op` transposes when [transpose]; with [unitDiag] the
- * diagonal is taken as 1 and never read. Only the selected triangle is read.
- */
-fun trmv(A: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean = false, unitDiag: Boolean = false) {
-    require(A.rows == A.cols) { "trmv requires a square matrix; got ${A.rows}x${A.cols}" }
-    require(x.size == A.rows) { "trmv: x length ${x.size} != ${A.rows}" }
-    trmvCore(A.data, A.rows, x, lower, transpose, unitDiag)
-}
+/** Multiply `x = op(T) · x` in place (BLAS `dtrmv`); see [LinearAlgebra.trmv]. */
+fun trmv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean = false, unitDiag: Boolean = false) =
+    koblas.trmv(a, x, lower, transpose, unitDiag)
 
-/**
- * Multiply `B = op(T) · B` in place, or `B = B · op(T)` when [right] (BLAS `dtrmm`), the product
- * counterpart of [trsm]. `T` is the [lower] or upper triangle of the square [A]; `op` transposes
- * when [transpose]; with [unitDiag] the diagonal is taken as 1 and never read. Only the selected
- * triangle is read.
- */
-@Suppress("LongParameterList") // the BLAS dtrmm flag set
+/** Multiply `B = op(T) · B`, or `B = B · op(T)` when [right] (BLAS `dtrmm`); see [LinearAlgebra.trmm]. */
+@Suppress("LongParameterList") // the BLAS dtrmm signature
 fun trmm(
-    A: DenseMatrix,
-    B: DenseMatrix,
+    a: DenseMatrix,
+    b: DenseMatrix,
     lower: Boolean,
     transpose: Boolean = false,
     unitDiag: Boolean = false,
     right: Boolean = false,
-) {
-    require(A.rows == A.cols) { "trmm requires a square matrix; got ${A.rows}x${A.cols}" }
-    if (right) {
-        require(B.cols == A.rows) { "trmm right: B has ${B.cols} cols, expected ${A.rows}" }
-        // Row i of the product is (op(T)ᵀ · B[i,:]ᵀ)ᵀ, a plain trmv with the transpose flipped.
-        val n = A.rows
-        if (n == 0) return
-        val row = DoubleArray(n)
-        for (i in 0 until B.rows) {
-            B.data.copyInto(row, 0, i * n, (i + 1) * n)
-            trmvCore(A.data, n, row, lower, !transpose, unitDiag)
-            row.copyInto(B.data, i * n)
-        }
-    } else {
-        require(B.rows == A.rows) { "trmm: B has ${B.rows} rows, expected ${A.rows}" }
-        trmmCore(A.data, A.rows, B.data, B.cols, lower, transpose, unitDiag)
+) = koblas.trmm(a, b, lower, transpose, unitDiag, right)
+
+/**
+ * Stages each row of [b] through a scratch vector and applies [op] to it, which is how the right-side
+ * forms reuse the vector kernels: row `i` of the result is `(op(T)ᵀ · B[i,:]ᵀ)ᵀ`, a vector call with the
+ * transpose flag flipped. Rows are contiguous in the row-major backing, so staging is two copies.
+ */
+internal inline fun forEachRow(n: Int, b: DenseMatrix, op: (DoubleArray) -> Unit) {
+    if (n == 0) return
+    val row = DoubleArray(n)
+    for (i in 0 until b.rows) {
+        b.data.copyInto(row, 0, i * n, (i + 1) * n)
+        op(row)
+        row.copyInto(b.data, i * n)
     }
 }
 

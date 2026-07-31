@@ -87,16 +87,16 @@ against reference results on every target.
 | dcopy, dswap | copy, swap |
 | **Level 2** (matrix-vector) | |
 | dgemv (full alpha/beta form) | LinearAlgebra.gemv |
-| dger (rank-one update) | addOuter |
+| dger (rank-one update) | LinearAlgebra.ger |
 | dsymv (symmetric multiply) | LinearAlgebra.symv |
-| dtrsv (triangular solve) | trsv |
-| dtrmv (triangular multiply) | trmv |
+| dtrsv (triangular solve) | LinearAlgebra.trsv |
+| dtrmv (triangular multiply) | LinearAlgebra.trmv |
 | **Level 3** (matrix-matrix) | |
 | dgemm (full form, transpose flags) | LinearAlgebra.gemm |
 | dsymm (symmetric multiply) | LinearAlgebra.symm |
 | dsyrk (symmetric rank-k update) | LinearAlgebra.syrk |
-| dtrsm (triangular solve, multi-RHS) | trsm |
-| dtrmm (triangular multiply, multi-RHS) | trmm |
+| dtrsm (triangular solve, multi-RHS) | LinearAlgebra.trsm |
+| dtrmm (triangular multiply, multi-RHS) | LinearAlgebra.trmm |
 | **LAPACK** (factorizations) | |
 | dgetrf, dgetrs (LU) | factor, solve, plus determinant |
 | dgecon, dlange (condition estimate) | LinearAlgebra.rcond, norm1 |
@@ -109,6 +109,13 @@ against reference results on every target.
 Semantics follow the standard; the exceptions are documented on each
 function. Factorizations use the LAPACK packed formats, so they interchange
 between backends.
+
+Every BLAS level 2 and 3 routine is a member of LinearAlgebra, so it reaches
+the installed backend. Each also has a free-function spelling of the same name
+(trsv, trsm, ger, ...) that forwards to the member, so a call site may use
+whichever reads better. Level 1 stays outside the interface deliberately: those
+kernels do nanoseconds of work, so a virtual call would cost more than the
+kernel, and they are specialized at compile time instead.
 
 **Out of scope:** single precision, complex numbers, banded and packed storage
 layouts, SVD, and eigendecompositions. Nothing is supported silently: new
