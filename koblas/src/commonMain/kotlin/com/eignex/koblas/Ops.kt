@@ -12,7 +12,7 @@ import kotlin.math.sqrt
 // [denseAxpy] / [denseScale] in `Primitives.kt` (SIMD on JVM, scalar elsewhere).
 //
 // Naming: mutating functions take the destination first and return [Unit] (`scale`,
-// `axpy`, `addOuter`); allocating functions return a fresh result (`matVec`,
+// `axpy`, `ger`); allocating functions return a fresh result (`matVec`,
 // infix `dot`).
 
 /**
@@ -152,27 +152,25 @@ fun scale(v: DenseVector, alpha: Double) {
 }
 
 /**
- * `M = M + alpha * x * yT` (rank-1 update). Subtract by passing `alpha = -1.0`.
+ * Rank-one update `A = A + alpha · x · yᵀ` (BLAS `dger`). Subtract by passing `alpha = -1.0`.
  *
- * Densexdense routes each row's update through [denseAxpy] (SIMD). Sparse paths
- * only visit the rows/cols where `x_i * y_j` could be non-zero.
+ * Two dense operands dispatch to the installed backend through [LinearAlgebra.ger]. A sparse or mixed
+ * pair has no BLAS counterpart and stays here, visiting only the rows and columns where `x_i · y_j`
+ * can be non-zero.
  */
-fun addOuter(M: DenseMatrix, alpha: Double, x: VectorView, y: VectorView) {
-    require(M.rows == x.size && M.cols == y.size) {
-        "addOuter shape mismatch: M is ${M.rows}x${M.cols}, x ${x.size}, y ${y.size}"
+fun ger(alpha: Double, x: VectorView, y: VectorView, a: DenseMatrix) {
+    require(a.rows == x.size && a.cols == y.size) {
+        "ger shape mismatch: A is ${a.rows}x${a.cols}, x ${x.size}, y ${y.size}"
     }
     if (alpha == 0.0) return
-    val md = M.data
-    val cols = M.cols
     if (x is DenseVector && y is DenseVector) {
-        val xd = x.data
-        for (i in 0 until M.rows) {
-            val xi = xd[i]
-            if (xi != 0.0) denseAxpy(md, i * cols, alpha * xi, y.data, 0, cols)
-        }
+        koblas.ger(alpha, x.data, y.data, a)
         return
     }
-    // Mixed or sparse - fall back to per-stored-entry updates.
+    // Mixed or sparse: no BLAS routine takes these, so walk the stored entries. Skipping a zero row
+    // skips the whole row of updates, which is the point of accepting a sparse x at all.
+    val md = a.data
+    val cols = a.cols
     x.forEachStored { i, xi ->
         if (xi != 0.0) {
             val row = i * cols

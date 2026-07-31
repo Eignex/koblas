@@ -459,6 +459,116 @@ class CblasLinearAlgebra : LinearAlgebra {
         return x
     }
 
+    override fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix) {
+        require(a.rows == x.size && a.cols == y.size) {
+            "ger shape mismatch: A is ${a.rows}x${a.cols}, x ${x.size}, y ${y.size}"
+        }
+        if (alpha == 0.0 || a.rows == 0 || a.cols == 0) return
+        x.usePinned { xp ->
+            y.usePinned { yp ->
+                a.data.usePinned { ap ->
+                    f.dger(
+                        ROW_MAJOR, a.rows, a.cols, alpha,
+                        xp.addressOf(0), 1, yp.addressOf(0), 1, ap.addressOf(0), a.cols,
+                    )
+                }
+            }
+        }
+    }
+
+    override fun trsv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
+        require(a.rows == a.cols) { "trsv requires a square matrix; got ${a.rows}x${a.cols}" }
+        require(x.size == a.rows) { "trsv: x length ${x.size} != ${a.rows}" }
+        if (a.rows == 0) return
+        a.data.usePinned { ap ->
+            x.usePinned { xp ->
+                f.dtrsv(
+                    ROW_MAJOR, uploOf(lower), transOf(transpose), diagOf(unitDiag), a.rows,
+                    ap.addressOf(0), a.cols, xp.addressOf(0), 1,
+                )
+            }
+        }
+    }
+
+    override fun trmv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
+        require(a.rows == a.cols) { "trmv requires a square matrix; got ${a.rows}x${a.cols}" }
+        require(x.size == a.rows) { "trmv: x length ${x.size} != ${a.rows}" }
+        if (a.rows == 0) return
+        a.data.usePinned { ap ->
+            x.usePinned { xp ->
+                f.dtrmv(
+                    ROW_MAJOR, uploOf(lower), transOf(transpose), diagOf(unitDiag), a.rows,
+                    ap.addressOf(0), a.cols, xp.addressOf(0), 1,
+                )
+            }
+        }
+    }
+
+    @Suppress("LongParameterList") // the BLAS dtrsm signature
+    override fun trsm(
+        a: DenseMatrix,
+        b: DenseMatrix,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+        right: Boolean,
+    ) = triangularMultiply(a, b, lower, transpose, unitDiag, right, solve = true)
+
+    @Suppress("LongParameterList") // the BLAS dtrmm signature
+    override fun trmm(
+        a: DenseMatrix,
+        b: DenseMatrix,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+        right: Boolean,
+    ) = triangularMultiply(a, b, lower, transpose, unitDiag, right, solve = false)
+
+    /**
+     * dtrsm and dtrmm share every argument but the entry point, and koblas fixes alpha at 1: the side
+     * flag maps straight through, since both libraries mean "T on this side of B" by it.
+     */
+    @Suppress("LongParameterList") // the shared BLAS signature plus the entry-point flag
+    private fun triangularMultiply(
+        a: DenseMatrix,
+        b: DenseMatrix,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+        right: Boolean,
+        solve: Boolean,
+    ) {
+        val what = if (solve) "trsm" else "trmm"
+        require(a.rows == a.cols) { "$what requires a square matrix; got ${a.rows}x${a.cols}" }
+        if (right) {
+            require(b.cols == a.rows) { "$what right: B has ${b.cols} cols, expected ${a.rows}" }
+        } else {
+            require(b.rows == a.rows) { "$what: B has ${b.rows} rows, expected ${a.rows}" }
+        }
+        if (a.rows == 0 || b.rows == 0 || b.cols == 0) return
+        val side = if (right) RIGHT else LEFT
+        a.data.usePinned { ap ->
+            b.data.usePinned { bp ->
+                val args = arrayOf(ap.addressOf(0), bp.addressOf(0))
+                if (solve) {
+                    f.dtrsm(
+                        ROW_MAJOR, side, uploOf(lower), transOf(transpose), diagOf(unitDiag),
+                        b.rows, b.cols, 1.0, args[0], a.cols, args[1], b.cols,
+                    )
+                } else {
+                    f.dtrmm(
+                        ROW_MAJOR, side, uploOf(lower), transOf(transpose), diagOf(unitDiag),
+                        b.rows, b.cols, 1.0, args[0], a.cols, args[1], b.cols,
+                    )
+                }
+            }
+        }
+    }
+
+    private fun uploOf(lower: Boolean) = if (lower) LOWER else UPPER
+    private fun transOf(transpose: Boolean) = if (transpose) TRANS else NO_TRANS
+    private fun diagOf(unitDiag: Boolean) = if (unitDiag) UNIT else NON_UNIT
+
     /** cblas_dtrsv over the packed factor buffer. */
     @Suppress("LongParameterList")
     private fun trsv(a: DoubleArray, n: Int, x: DoubleArray, uplo: Int, trans: Int, diag: Int) {

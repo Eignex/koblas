@@ -117,6 +117,87 @@ interface LinearAlgebra {
         right: Boolean = false,
     )
 
+    /**
+     * Rank-one update `A = A + alpha · x · yᵀ` (BLAS `dger`).
+     *
+     * The free `ger` accepts [VectorView] operands and takes a sparse fast path; this form is the dense
+     * one a backend can dispatch.
+     */
+    fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix) {
+        require(a.rows == x.size && a.cols == y.size) {
+            "ger shape mismatch: A is ${a.rows}x${a.cols}, x ${x.size}, y ${y.size}"
+        }
+        if (alpha == 0.0) return
+        for (i in 0 until a.rows) {
+            val scaled = alpha * x[i]
+            if (scaled != 0.0) denseAxpy(a.data, a.rowOffset(i), scaled, y, 0, a.cols)
+        }
+    }
+
+    /**
+     * Solve `op(T) · x = b` in place (BLAS `dtrsv`), where `T` is the [lower] or upper triangle of the
+     * square [a], `op` transposes when [transpose], and [unitDiag] takes the diagonal as 1 without
+     * reading it. [x] holds the right-hand side on entry and the solution on return. Only the selected
+     * triangle is read, so the rest of [a] may hold anything.
+     */
+    fun trsv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean = false, unitDiag: Boolean = false) {
+        require(a.rows == a.cols) { "trsv requires a square matrix; got ${a.rows}x${a.cols}" }
+        require(x.size == a.rows) { "trsv: x length ${x.size} != ${a.rows}" }
+        trsvCore(a.data, a.rows, x, lower, transpose, unitDiag)
+    }
+
+    /**
+     * Solve `op(T) · X = B` in place, or `X · op(T) = B` when [right] (BLAS `dtrsm`): [b] holds the
+     * right-hand sides on entry and the solutions on return. Flags follow [trsv]. From the left the
+     * right-hand sides are the columns of [b]; from the right, its rows.
+     */
+    @Suppress("LongParameterList") // the BLAS dtrsm signature
+    fun trsm(
+        a: DenseMatrix,
+        b: DenseMatrix,
+        lower: Boolean,
+        transpose: Boolean = false,
+        unitDiag: Boolean = false,
+        right: Boolean = false,
+    ) {
+        require(a.rows == a.cols) { "trsm requires a square matrix; got ${a.rows}x${a.cols}" }
+        if (right) {
+            require(b.cols == a.rows) { "trsm right: B has ${b.cols} cols, expected ${a.rows}" }
+            forEachRow(a.rows, b) { row -> trsvCore(a.data, a.rows, row, lower, !transpose, unitDiag) }
+        } else {
+            require(b.rows == a.rows) { "trsm: B has ${b.rows} rows, expected ${a.rows}" }
+            trsmCore(a.data, a.rows, b.data, b.cols, lower, transpose, unitDiag)
+        }
+    }
+
+    /** Multiply `x = op(T) · x` in place (BLAS `dtrmv`), the product counterpart of [trsv]. */
+    fun trmv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean = false, unitDiag: Boolean = false) {
+        require(a.rows == a.cols) { "trmv requires a square matrix; got ${a.rows}x${a.cols}" }
+        require(x.size == a.rows) { "trmv: x length ${x.size} != ${a.rows}" }
+        trmvCore(a.data, a.rows, x, lower, transpose, unitDiag)
+    }
+
+    /** Multiply `B = op(T) · B`, or `B = B · op(T)` when [right] (BLAS `dtrmm`), the counterpart of
+     *  [trsm]. */
+    @Suppress("LongParameterList") // the BLAS dtrmm signature
+    fun trmm(
+        a: DenseMatrix,
+        b: DenseMatrix,
+        lower: Boolean,
+        transpose: Boolean = false,
+        unitDiag: Boolean = false,
+        right: Boolean = false,
+    ) {
+        require(a.rows == a.cols) { "trmm requires a square matrix; got ${a.rows}x${a.cols}" }
+        if (right) {
+            require(b.cols == a.rows) { "trmm right: B has ${b.cols} cols, expected ${a.rows}" }
+            forEachRow(a.rows, b) { row -> trmvCore(a.data, a.rows, row, lower, !transpose, unitDiag) }
+        } else {
+            require(b.rows == a.rows) { "trmm: B has ${b.rows} rows, expected ${a.rows}" }
+            trmmCore(a.data, a.rows, b.data, b.cols, lower, transpose, unitDiag)
+        }
+    }
+
     /** LU factorization with partial pivoting of a square [a] (LAPACK `dgetrf`); [a] is not modified.
      *  Allocates the factor buffers; [factorInto] refactorizes into existing ones. */
     fun factor(a: DenseMatrix): LuDecomposition
