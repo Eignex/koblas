@@ -2,6 +2,7 @@ package com.eignex.koblas
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -16,6 +17,10 @@ import kotlin.test.assertTrue
 class BackendSelectionTest {
 
     private class Fake(override val name: String, override val priority: Int) : LinearAlgebra by ReferenceLinearAlgebra
+
+    private class FakeBlas(override val name: String, override val priority: Int) : Blas by ReferenceLinearAlgebra
+
+    private class FakeLapack(override val name: String, override val priority: Int) : Lapack by ReferenceLinearAlgebra
 
     /**
      * Runs [block] against an empty registry and no install, then restores whatever backend was resolved
@@ -64,6 +69,33 @@ class BackendSelectionTest {
         val before = koblas
         withCleanRegistry { assertTrue(koblas === platformLinearAlgebra() || koblas === ReferenceLinearAlgebra) }
         assertEquals(before, koblas)
+    }
+
+    @Test
+    fun `the halves are selected independently and composed`() {
+        withCleanRegistry {
+            registerBlas(FakeBlas("fastblas", 50))
+            assertEquals("fastblas+reference", koblas.name)
+            // The LAPACK half still answers, from the portable implementation.
+            assertEquals(2, koblas.factor(DenseMatrix.diagonal(2)).n)
+            registerLapack(FakeLapack("fastlapack", 10))
+            assertEquals("fastblas+fastlapack", koblas.name)
+            // Each half keeps its own ranking: a weaker BLAS does not displace the stronger one.
+            registerBlas(FakeBlas("slowblas", 5))
+            assertEquals("fastblas+fastlapack", koblas.name)
+        }
+    }
+
+    @Test
+    fun `a backend providing both halves is used directly`() {
+        withCleanRegistry {
+            val both = Fake("whole", 30)
+            registerLinearAlgebra(both)
+            // Not wrapped in a composite: one object won both, so the name is its own and calls reach it
+            // without a second hop.
+            assertSame(both, koblas)
+            assertEquals("whole", koblas.name)
+        }
     }
 
     @Test

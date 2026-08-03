@@ -110,7 +110,12 @@ Semantics follow the standard; the exceptions are documented on each
 function. Factorizations use the LAPACK packed formats, so they interchange
 between backends.
 
-Every BLAS level 2 and 3 routine is a member of LinearAlgebra, so it reaches
+The seam is two interfaces: Blas holds the level 2 and 3 routines, Lapack the
+factorizations built on them, and LinearAlgebra is both. They are ranked and
+selected independently, so a host providing one library and not the other still
+accelerates what it can, and koblas composes the winning halves.
+
+Every BLAS level 2 and 3 routine is a member of Blas, so it reaches
 the installed backend. Each also has a free-function spelling of the same name
 (trsv, trsm, ger, ...) that forwards to the member, so a call site may use
 whichever reads better. Level 1 stays outside the interface deliberately: those
