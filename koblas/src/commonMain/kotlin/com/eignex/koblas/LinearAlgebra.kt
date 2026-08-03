@@ -780,26 +780,18 @@ object ReferenceLinearAlgebra : LinearAlgebra {
 }
 
 /**
- * The best backend the current platform provides, or null when only the portable reference is available.
- * On the JVM this discovers providers via `ServiceLoader`, so an optional backend artifact (such as
- * koblas-openblas) activates itself when present on the classpath. Other targets have no runtime
- * discovery and return null; a backend artifact there is activated explicitly through
- * [installLinearAlgebra].
- */
-expect fun platformLinearAlgebra(): LinearAlgebra?
-
-/**
- * Registers the backends koblas ships for this platform, once, on the first [koblas] read.
+ * Makes this platform's backends known, once, on the first [koblas] read.
  *
- * The JVM half-registers its host-OpenBLAS backend here; the native targets do it eagerly before `main`
- * instead, and the web targets have nothing to register.
+ * The single discovery hook. The JVM's actual scans the classpath with `ServiceLoader` and registers its
+ * host-OpenBLAS halves; the native targets register eagerly before `main` instead (see the cblas
+ * AutoInstall), which is earlier than this would run, so theirs is a no-op; the web targets have nothing
+ * to reach. Whatever it finds goes through [registerBlas] / [registerLapack] / [registerLevel1] like any
+ * other backend, so there is one ranking and one fallback rather than a parallel path.
  */
 internal expect fun registerPlatformBackends()
 
 /** Runs [registerPlatformBackends] exactly once, on the first [koblas] read. */
 private val platformRegistration: Unit by lazy { registerPlatformBackends() }
-
-private val platformDefault: LinearAlgebra by lazy { platformLinearAlgebra() ?: ReferenceLinearAlgebra }
 
 @Volatile
 private var installed: LinearAlgebra? = null
@@ -819,15 +811,15 @@ private var registeredLapack: Lapack? = null
 @Volatile
 private var resolved: LinearAlgebra? = null
 
-/** The active backend: an [installLinearAlgebra] override when set, else the strongest registered half
- *  of each kind, else the [platformLinearAlgebra] backend, else the portable [ReferenceLinearAlgebra]. */
+/** The active backend: an [installLinearAlgebra] override when set, else the strongest registered half of
+ *  each kind, else the portable [ReferenceLinearAlgebra]. */
 val koblas: LinearAlgebra
     get() {
-        // One volatile read to make sure the platform's own backends had their chance to register. Doing
-        // it here rather than inside platformDefault keeps that value meaning "what discovery found", so
-        // clearing the registry still falls back to it rather than to a frozen composite.
+        // One volatile read to make sure the platform's own backends had their chance to register. It runs
+        // exactly once, so a test that clears the registry stays cleared rather than having discovery
+        // silently repopulate it.
         platformRegistration
-        return installed ?: resolved ?: platformDefault
+        return installed ?: resolved ?: ReferenceLinearAlgebra
     }
 
 /**
@@ -844,14 +836,14 @@ private class ComposedBackend(private val blas: Blas, private val lapack: Lapack
     override val priority: Int get() = maxOf(blas.priority, lapack.priority)
 }
 
-/** Recomputes [resolved] from the registered halves, falling back to the platform backend for either. */
+/** Recomputes [resolved] from the registered halves, falling back to the reference for either. */
 private fun recompose() {
     val blas = registeredBlas
     val lapack = registeredLapack
     resolved = when {
         blas == null && lapack == null -> null
         blas === lapack && blas is LinearAlgebra -> blas
-        else -> ComposedBackend(blas ?: platformDefault, lapack ?: platformDefault)
+        else -> ComposedBackend(blas ?: ReferenceLinearAlgebra, lapack ?: ReferenceLinearAlgebra)
     }
 }
 
