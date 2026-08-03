@@ -1,12 +1,16 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.hostblas.HostBlas
+import com.eignex.koblas.hostblas.HostBlasCalls
+import com.eignex.koblas.hostblas.HostLapack
 import java.util.ServiceLoader
 
 /**
- * JVM backend seam: discovers [LinearAlgebra] providers via [ServiceLoader]. Adding a backend artifact
- * (such as koblas-openblas) to the classpath activates it with no code changes. Each candidate is probed
- * with a tiny computation before being accepted, so a provider whose native library fails to load on the
- * current platform is skipped rather than crashing startup.
+ * JVM backend seam. koblas's own host-OpenBLAS backend comes first when the machine has the library
+ * installed; after that, [LinearAlgebra] providers discovered via [ServiceLoader], so a third-party
+ * backend artifact on the classpath activates with no code changes. Each candidate is probed with a tiny
+ * computation before being accepted, so one whose native library fails to load on the current platform is
+ * skipped rather than crashing startup.
  *
  * When several providers are on the classpath the highest [LinearAlgebra.priority] that passes the
  * probe wins.
@@ -23,6 +27,21 @@ actual fun platformLinearAlgebra(): LinearAlgebra? {
         if (probe(provider)) return provider
     }
     return null
+}
+
+/**
+ * Registers koblas's built-in host-BLAS halves when the machine provides them.
+ *
+ * Called from [koblas]'s initialization, not from [platformLinearAlgebra], because the two halves are
+ * registered separately: a host with CBLAS and no LAPACKE keeps the native level-3 routines and the
+ * portable factorizations. A ServiceLoader provider with a higher priority still wins on either half.
+ */
+internal actual fun registerPlatformBackends() {
+    if (!HostBlasCalls.blasAvailable) return
+    val blas = HostBlas()
+    if (!probe(blas)) return
+    registerBlas(blas)
+    if (HostBlasCalls.lapackAvailable) registerLapack(HostLapack())
 }
 
 /** Instantiate all registered providers, dropping any whose construction fails. */
@@ -42,7 +61,7 @@ private fun loadProviders(): List<LinearAlgebra> {
 }
 
 /** A 1x1 gemv forces the provider's native path to actually load and produce a correct result. */
-private fun probe(backend: LinearAlgebra): Boolean {
+private fun probe(backend: Blas): Boolean {
     @Suppress("TooGenericExceptionCaught") // native load failures surface as UnsatisfiedLinkError
     return try {
         val y = backend.gemv(DenseMatrix(1, 1, doubleArrayOf(2.0)), doubleArrayOf(3.0))
