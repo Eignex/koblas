@@ -20,7 +20,7 @@ class DispatchThresholdsTest {
         val t = dispatchThresholds
         assertTrue(t.level2 >= 0 && t.level3 >= 0 && t.lapack >= 0, "negative threshold: $t")
         // Level 2 does O(n^2) work over O(n^2) data, so it can never amortize a call earlier than level 3
-        // does; on a platform where the portable kernels win outright it is NEVER_NATIVE.
+        // does; on a platform where the portable kernels win outright it is Int.MAX_VALUE.
         assertTrue(t.level2 >= t.level3, "level 2 (${t.level2}) should not dispatch before level 3 (${t.level3})")
     }
 
@@ -30,7 +30,7 @@ class DispatchThresholdsTest {
         // Off the JVM the portable kernels are scalar loops and lose from the smallest size measured; on
         // the JVM they are SIMD and win level 2 at every size, so the two platforms differ by design.
         if (mathBackend.startsWith("simd")) {
-            assertTrue(defaults.level2 == NEVER_NATIVE, "JVM level 2 should stay portable, got ${defaults.level2}")
+            assertTrue(defaults.level2 == Int.MAX_VALUE, "JVM level 2 should stay portable, got ${defaults.level2}")
             assertTrue(defaults.level3 in 1..1024, "JVM level 3 threshold looks wrong: ${defaults.level3}")
             assertTrue(defaults.lapack in 1..1024, "JVM lapack threshold looks wrong: ${defaults.lapack}")
         } else {

@@ -166,6 +166,49 @@ internal object HostBlasCalls {
         )
     }
 
+    val dger: MethodHandle by lazy {
+        handle(
+            "cblas_dger",
+            voidOf(JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT),
+        )
+    }
+
+    val dtrsv: MethodHandle by lazy {
+        handle(
+            "cblas_dtrsv",
+            voidOf(JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT),
+        )
+    }
+
+    val dtrmv: MethodHandle by lazy {
+        handle(
+            "cblas_dtrmv",
+            voidOf(JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT),
+        )
+    }
+
+    val dtrmm: MethodHandle by lazy {
+        handle(
+            "cblas_dtrmm",
+            voidOf(
+                JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT,
+                JAVA_DOUBLE, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT,
+            ),
+        )
+    }
+
+    val dpotrf: MethodHandle by lazy {
+        handle("LAPACKE_dpotrf", intOf(JAVA_INT, JAVA_BYTE, JAVA_INT, ADDRESS, JAVA_INT))
+    }
+
+    val dpotrs: MethodHandle by lazy {
+        handle("LAPACKE_dpotrs", intOf(JAVA_INT, JAVA_BYTE, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT))
+    }
+
+    val dpotri: MethodHandle by lazy {
+        handle("LAPACKE_dpotri", intOf(JAVA_INT, JAVA_BYTE, JAVA_INT, ADDRESS, JAVA_INT))
+    }
+
     val dgemm: MethodHandle by lazy {
         handle(
             "cblas_dgemm",
