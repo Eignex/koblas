@@ -3,12 +3,14 @@ package com.eignex.koblas
 /**
  * JVM defaults.
  *
- * Level 2 never dispatches: the Vector API kernels beat a foreign call at every size measured, by 3x to
- * 15x, because `O(n²)` work cannot amortize the call. The level-3 and factorization values are the
+ * Level 2 is [Int.MAX_VALUE], so nothing reaches it: the Vector API kernels beat a foreign call at every
+ * size measured — 1.8x at n=256 widening to 15.7x at 2048 — because `O(n²)` work over `O(n²)` data cannot
+ * amortize the call. Measurement stops at 2048, so this is the largest size checked and not a proof; the
+ * value is a size like the others, and an override can lower it. The level-3 and factorization values are the
  * measured crossovers against the host OpenBLAS; `Level3Benchmark` and `SolveBenchmark` reproduce them.
  */
 internal actual val platformDispatchThresholds: DispatchThresholds =
-    DispatchThresholds(level2 = NEVER_NATIVE, level3 = JVM_LEVEL3_MIN, lapack = JVM_LAPACK_MIN)
+    DispatchThresholds(level2 = Int.MAX_VALUE, level3 = JVM_LEVEL3_MIN, lapack = JVM_LAPACK_MIN)
 
 /**
  * Level 3 crosses over between n=4 and n=64, depending on the routine (us/op, native against SIMD):

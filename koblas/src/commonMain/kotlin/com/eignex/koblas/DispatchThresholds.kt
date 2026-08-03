@@ -15,6 +15,9 @@ package com.eignex.koblas
  * and beat a foreign call at level 2 outright, while on Kotlin/Native the same kernels are scalar loops
  * and lose to it from the smallest sizes measured.
  *
+ * A threshold larger than any problem a caller will pose keeps a level portable; [Int.MAX_VALUE] is the
+ * blunt way to say that, and it needs no name of its own.
+ *
  * @property level2 dimension from which the level-2 routines dispatch natively.
  * @property level3 dimension from which the level-3 routines dispatch natively.
  * @property lapack dimension from which the factorizations dispatch natively.
@@ -42,6 +45,3 @@ internal val dispatchThresholds: DispatchThresholds by lazy {
         lapack = dispatchOverride("lapack") ?: defaults.lapack,
     )
 }
-
-/** Never dispatch: what a level whose portable kernels always win is set to. */
-internal const val NEVER_NATIVE = Int.MAX_VALUE
