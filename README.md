@@ -85,24 +85,24 @@ against reference results on every target.
 | ddot, daxpy, dscal | dot, axpy, scale (sparse-aware) |
 | dnrm2, dasum, idamax | norm2, asum, iamax |
 | dcopy, dswap | copy, swap |
-| **Level 2** (matrix-vector) | |
-| dgemv (full alpha/beta form) | LinearAlgebra.gemv |
-| dger (rank-one update) | LinearAlgebra.ger |
-| dsymv (symmetric multiply) | LinearAlgebra.symv |
-| dtrsv (triangular solve) | LinearAlgebra.trsv |
-| dtrmv (triangular multiply) | LinearAlgebra.trmv |
-| **Level 3** (matrix-matrix) | |
-| dgemm (full form, transpose flags) | LinearAlgebra.gemm |
-| dsymm (symmetric multiply) | LinearAlgebra.symm |
-| dsyrk (symmetric rank-k update) | LinearAlgebra.syrk |
-| dtrsm (triangular solve, multi-RHS) | LinearAlgebra.trsm |
-| dtrmm (triangular multiply, multi-RHS) | LinearAlgebra.trmm |
-| **LAPACK** (factorizations) | |
-| dgetrf, dgetrs (LU) | factor, solve, plus determinant |
-| dgecon, dlange (condition estimate) | LinearAlgebra.rcond, norm1 |
-| dpotrf, dpotrs, dpotri (Cholesky) | cholesky, solveSpd, invertSpd |
+| **Level 2** (matrix-vector, on Blas) | |
+| dgemv (full alpha/beta form) | gemv |
+| dger (rank-one update) | ger |
+| dsymv (symmetric multiply) | symv |
+| dtrsv (triangular solve) | trsv |
+| dtrmv (triangular multiply) | trmv |
+| **Level 3** (matrix-matrix, on Blas) | |
+| dgemm (full form, transpose flags) | gemm |
+| dsymm (symmetric multiply) | symm |
+| dsyrk (symmetric rank-k update) | syrk |
+| dtrsm (triangular solve, multi-RHS) | trsm |
+| dtrmm (triangular multiply, multi-RHS) | trmm |
+| **LAPACK** (factorizations, on Lapack) | |
+| dgetrf, dgetrs (LU) | factor, solve; determinant is free |
+| dgecon, dlange (condition estimate) | rcond; norm1 is free |
+| dpotrf, dpotrs, dpotri (Cholesky) | cholesky, solveSpd, invertSpd (free) |
 | dgeqrf, dormqr, dgels (QR) | qr, applyQ, solveLeastSquares, solveMinimumNorm |
-| dsytrf, dsytrs (symmetric indefinite LDLᵀ) | LinearAlgebra.ldl, solve |
+| dsytrf, dsytrs (symmetric indefinite LDLᵀ) | ldl, solve |
 | **Beyond the standard libraries** | |
 | Cholesky update/downdate | choleskyUpdateInPlace, choleskyDowndateInPlace |
 
@@ -115,11 +115,12 @@ factorizations built on them, and LinearAlgebra is both. They are ranked and
 selected independently, so a host providing one library and not the other still
 accelerates what it can, and koblas composes the winning halves.
 
-Every BLAS level 2 and 3 routine is a member of Blas, so it reaches
-the installed backend. Each also has a free-function spelling of the same name
-(trsv, trsm, ger, ...) that forwards to the member, so a call site may use
-whichever reads better. Level 1 stays outside the interface deliberately: those
-kernels do nanoseconds of work, so a virtual call would cost more than the
+Each group above names the interface its routines belong to, and a member
+reaches the installed backend. The ones marked free are plain functions and run
+the portable implementation. Members also have a free-function spelling of the
+same name (trsv, trsm, ger, ...) that forwards to the member, so a call site may
+use whichever reads better. Level 1 stays outside the interfaces deliberately:
+those kernels do nanoseconds of work, so a virtual call would cost more than the
 kernel, and they are specialized at compile time instead.
 
 **Out of scope:** single precision, complex numbers, banded and packed storage
