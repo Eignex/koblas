@@ -5,6 +5,7 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.Lapack
 import com.eignex.koblas.LdlDecomposition
 import com.eignex.koblas.LuDecomposition
+import com.eignex.koblas.MatrixView
 import com.eignex.koblas.QrDecomposition
 import com.eignex.koblas.ReferenceLinearAlgebra
 import com.eignex.koblas.Workspace
@@ -267,6 +268,86 @@ class HostLapack internal constructor() : Lapack {
         check(info == 0) { "dgecon: illegal argument ${-info}" }
         return out[0]
     }
+
+    /**
+     * `dpotrf` above [JVM_CHOLESKY_MIN], portable below it, with three adjustments to match the contract.
+     *
+     * LAPACK factorizes in place and leaves the strict upper triangle exactly as the input had it, while
+     * koblas returns a factor whose upper triangle is zero, so it is cleared. LAPACK has no equivalent of
+     * [regularizeNonPD]: it reports the failing leading minor instead of clamping the pivot, so `info > 0`
+     * falls back to the portable path, which is what applies the clamp or throws per the flag. And only the
+     * lower triangle of the input is read, matching what koblas promises its callers.
+     *
+     * The threshold is where the measurement puts it, not at the LAPACK default: SIMD won 2.19x at n=256,
+     * tied at 1024, and lost 1.95x at 2048, so this gate opens late.
+     */
+    override fun cholesky(a: MatrixView, regularizeNonPD: Boolean): DenseMatrix {
+        if (a.rows < JVM_CHOLESKY_MIN) return super.cholesky(a, regularizeNonPD)
+        require(a.rows == a.cols) { "cholesky requires a square matrix; got ${a.rows}x${a.cols}" }
+        val n = a.rows
+        if (n == 0) return DenseMatrix(0, 0)
+        val l = DenseMatrix(n, n)
+        for (i in 0 until n) for (j in 0..i) l[i, j] = a[i, j]
+        val info = HostBlasCalls.dpotrf.invokeWithArguments(
+            ROW_MAJOR,
+            'L'.code.toByte(),
+            n,
+            HostBlasCalls.seg(l.data),
+            n,
+        ) as Int
+        check(info >= 0) { "dpotrf: illegal argument ${-info}" }
+        if (info > 0) return super.cholesky(a, regularizeNonPD)
+        for (i in 0 until n) for (j in i + 1 until n) l[i, j] = 0.0
+        return l
+    }
+
+    /**
+     * Gated by [JVM_SOLVE_SPD_MIN], which shuts it: `dpotrs` lost to the SIMD kernels by 3x at n=256 and
+     * 12x at 2048. It is `O(n^2)` work over `O(n^2)` data, so there is nothing to amortize a call against,
+     * and LAPACKE's row-major entry points transpose into a column-major temporary on top of that.
+     */
+    override fun solveSpd(L: DenseMatrix, b: DoubleArray): DoubleArray {
+        if (L.rows < JVM_SOLVE_SPD_MIN) return super.solveSpd(L, b)
+        val n = L.rows
+        require(b.size == n) { "solveSpd: b size ${b.size}, expected $n" }
+        val x = b.copyOf()
+        if (n == 0) return x
+        val info = HostBlasCalls.dpotrs.invokeWithArguments(
+            ROW_MAJOR,
+            'L'.code.toByte(),
+            n,
+            1,
+            HostBlasCalls.seg(L.data),
+            n,
+            HostBlasCalls.seg(x),
+            1,
+        ) as Int
+        check(info == 0) { "dpotrs: illegal argument ${-info}" }
+        return x
+    }
+
+    /**
+     * `dpotri` above [JVM_INVERT_SPD_MIN]. It writes only the triangle it is given, where koblas returns the
+     * full symmetric inverse, so the result is mirrored; and it overwrites the factor with the inverse, so
+     * the factor is copied first rather than destroyed.
+     */
+    override fun invertSpd(L: DenseMatrix, workspace: Workspace?): DenseMatrix {
+        if (L.rows < JVM_INVERT_SPD_MIN) return super.invertSpd(L, workspace)
+        val n = L.rows
+        if (n == 0) return DenseMatrix(0, 0)
+        val inv = DenseMatrix(n, n, L.data.copyOf())
+        val info = HostBlasCalls.dpotri.invokeWithArguments(
+            ROW_MAJOR,
+            'L'.code.toByte(),
+            n,
+            HostBlasCalls.seg(inv.data),
+            n,
+        ) as Int
+        check(info >= 0) { "dpotri: illegal argument ${-info}" }
+        check(info == 0) { "dpotri: zero diagonal at $info, the factor is singular" }
+        for (i in 0 until n) for (j in 0 until i) inv[j, i] = inv[i, j]
+        return inv
+    }
 }
 
 private const val NATIVE_TRSM_MIN_RHS = 4
@@ -276,3 +357,21 @@ private const val NATIVE_TRSM_MIN_RHS = 4
  * finite bound, because the claim rests on measurements that stop at n=256 rather than on a proof.
  */
 private const val JVM_LDL_SOLVE_MIN = 1 shl 20
+
+/**
+ * Cholesky crosses over late (us/op, native against SIMD): 1524 vs 696 at n=256, 51372 vs 49234 at 1024,
+ * 325547 vs 635219 at 2048. The portable factorization is a tight `denseDot` loop that vectorizes cleanly,
+ * which is why it holds its own far longer than the LU factorization does.
+ */
+private const val JVM_CHOLESKY_MIN = 2048
+
+/**
+ * The explicit inverse crosses earlier than the factorization: SIMD won 1.79x at n=256, then native took
+ * 1.23x at 1024 and 1.09x at 2048. Both of those are close to the 1.20x noise floor that the delegated
+ * routines established in the same sweep, so this value is the least certain of the three — worth
+ * re-measuring before relying on it.
+ */
+private const val JVM_INVERT_SPD_MIN = 1024
+
+/** The SPD solve stays portable at every size: see [HostLapack.solveSpd]. */
+private const val JVM_SOLVE_SPD_MIN = 1 shl 20

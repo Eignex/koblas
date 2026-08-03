@@ -29,12 +29,16 @@ class DispatchThresholdsTest {
         val defaults = platformDispatchThresholds
         // Off the JVM the portable kernels are scalar loops and lose from the smallest size measured; on
         // the JVM they are SIMD and win level 2 at every size, so the two platforms differ by design.
+        // The signal is which kernels are in force, not which platform: a JVM launched without the
+        // incubator vector module runs the same scalar loops the native targets do, and inherits their
+        // thresholds rather than the SIMD-derived ones.
         if (mathBackend.startsWith("simd")) {
-            assertTrue(defaults.level2 == Int.MAX_VALUE, "JVM level 2 should stay portable, got ${defaults.level2}")
-            assertTrue(defaults.level3 in 1..1024, "JVM level 3 threshold looks wrong: ${defaults.level3}")
-            assertTrue(defaults.lapack in 1..1024, "JVM lapack threshold looks wrong: ${defaults.lapack}")
+            assertTrue(defaults.level2 == Int.MAX_VALUE, "SIMD level 2 should stay portable, got ${defaults.level2}")
+            assertTrue(defaults.level3 in 1..1024, "SIMD level 3 threshold looks wrong: ${defaults.level3}")
+            assertTrue(defaults.lapack in 1..1024, "SIMD lapack threshold looks wrong: ${defaults.lapack}")
         } else {
-            assertTrue(defaults.level3 == 0, "native should dispatch level 3 from the start")
+            assertTrue(defaults.level3 == 0, "scalar kernels should dispatch level 3 from the start")
+            assertTrue(defaults.level2 == 0, "scalar kernels should dispatch level 2 from the start")
         }
     }
 }
