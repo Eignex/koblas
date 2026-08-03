@@ -7,11 +7,12 @@ package com.eignex.koblas
 // Operates on the flat DoubleArray backing of [DenseMatrix].
 //
 // Convention: lower-triangular factor `L` with `A = L * LT`. Entry `(i, k)` for
-// `k <= i` lives at `data[i * cols + k]`; entries above the diagonal are neither
-// read nor written.
+// `k <= i` lives at `data[i + k * rows]`; entries above the diagonal are neither
+// read nor written. Column `k` of the factor is therefore the contiguous run
+// `data[k + k * rows until (k + 1) * rows]`.
 //
-// Inner loops reduce to [denseDot] / [denseAxpy] on contiguous row runs (SIMD on
-// JVM).
+// Inner loops reduce to [denseDot] / [denseAxpy] on contiguous column runs (SIMD
+// on JVM).
 
 /**
  * Lower-triangular Cholesky decomposition `A = L * LT`, returned as a fresh matrix, from the installed

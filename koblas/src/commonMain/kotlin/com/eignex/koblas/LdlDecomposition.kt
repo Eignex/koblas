@@ -2,7 +2,7 @@ package com.eignex.koblas
 
 /**
  * A symmetric indefinite factorization `A = L·D·Lᵀ` with Bunch–Kaufman partial pivoting in LAPACK
- * `dsytrf` (lower) packed form: [ldl] is the `n×n` row-major buffer whose lower triangle holds the
+ * `dsytrf` (lower) packed form: [ldl] is the `n×n` column-major buffer whose lower triangle holds the
  * unit-lower `L` columns and the 1×1/2×2 diagonal blocks of `D` (the strictly upper triangle is
  * untouched input), and [ipiv] uses the LAPACK convention — `ipiv[k] > 0` marks a 1×1 block with row
  * interchange `k ↔ ipiv[k]−1`, while `ipiv[k] == ipiv[k+1] < 0` marks a 2×2 block at `(k, k+1)` with
@@ -14,7 +14,7 @@ package com.eignex.koblas
  * [ldl] and [ipiv] are live buffers, not copies — treat them as read-only.
  *
  * @property n the matrix dimension.
- * @property ldl the packed factors, row-major, length `n * n`; only the lower triangle is meaningful.
+ * @property ldl the packed factors, column-major, length `n * n`; only the lower triangle is meaningful.
  * @property ipiv the pivot record, LAPACK `dsytrf` convention, 1-based entries.
  * @property singular whether a zero pivot was encountered; solving a singular factorization is not
  *   meaningful.

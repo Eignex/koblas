@@ -7,11 +7,11 @@ import com.eignex.koblas.ReferenceLinearAlgebra
 import com.eignex.koblas.Uplo
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.dispatchThresholds
+import com.eignex.koblas.hostblas.HostBlasCalls.COL_MAJOR
 import com.eignex.koblas.hostblas.HostBlasCalls.LEFT
 import com.eignex.koblas.hostblas.HostBlasCalls.LOWER
 import com.eignex.koblas.hostblas.HostBlasCalls.NO_TRANS
 import com.eignex.koblas.hostblas.HostBlasCalls.RIGHT
-import com.eignex.koblas.hostblas.HostBlasCalls.ROW_MAJOR
 import com.eignex.koblas.hostblas.HostBlasCalls.TRANS
 import com.eignex.koblas.hostblas.HostBlasCalls.UPPER
 import com.eignex.koblas.hostblas.HostBlasCalls.seg
@@ -39,7 +39,7 @@ class HostBlas internal constructor() : Blas {
         }
         if (alpha == 0.0 || a.rows == 0 || a.cols == 0) return
         HostBlasCalls.dger.invokeWithArguments(
-            ROW_MAJOR, a.rows, a.cols, alpha, seg(x), 1, seg(y), 1, seg(a.data), a.cols,
+            COL_MAJOR, a.rows, a.cols, alpha, seg(x), 1, seg(y), 1, seg(a.data), a.rows,
         )
     }
 
@@ -50,8 +50,8 @@ class HostBlas internal constructor() : Blas {
         require(x.size == a.rows) { "trsv: x length ${x.size} != ${a.rows}" }
         if (a.rows == 0) return
         HostBlasCalls.dtrsv.invokeWithArguments(
-            ROW_MAJOR, uploOf(lower), transOf(transpose), diagOf(unitDiag), a.rows,
-            seg(a.data), a.cols, seg(x), 1,
+            COL_MAJOR, uploOf(lower), transOf(transpose), diagOf(unitDiag), a.rows,
+            seg(a.data), a.rows, seg(x), 1,
         )
     }
 
@@ -62,8 +62,8 @@ class HostBlas internal constructor() : Blas {
         require(x.size == a.rows) { "trmv: x length ${x.size} != ${a.rows}" }
         if (a.rows == 0) return
         HostBlasCalls.dtrmv.invokeWithArguments(
-            ROW_MAJOR, uploOf(lower), transOf(transpose), diagOf(unitDiag), a.rows,
-            seg(a.data), a.cols, seg(x), 1,
+            COL_MAJOR, uploOf(lower), transOf(transpose), diagOf(unitDiag), a.rows,
+            seg(a.data), a.rows, seg(x), 1,
         )
     }
 
@@ -120,8 +120,8 @@ class HostBlas internal constructor() : Blas {
         if (a.rows == 0 || b.rows == 0 || b.cols == 0) return
         val handle = if (solve) HostBlasCalls.dtrsm else HostBlasCalls.dtrmm
         handle.invokeWithArguments(
-            ROW_MAJOR, if (right) RIGHT else LEFT, uploOf(lower), transOf(transpose), diagOf(unitDiag),
-            b.rows, b.cols, 1.0, seg(a.data), a.cols, seg(b.data), b.cols,
+            COL_MAJOR, if (right) RIGHT else LEFT, uploOf(lower), transOf(transpose), diagOf(unitDiag),
+            b.rows, b.cols, 1.0, seg(a.data), a.rows, seg(b.data), b.rows,
         )
     }
 
@@ -159,8 +159,8 @@ class HostBlas internal constructor() : Blas {
         }
         if (yLen == 0) return
         HostBlasCalls.dgemv.invokeWithArguments(
-            ROW_MAJOR, trans, a.rows, a.cols, alpha,
-            seg(a.data), a.cols, seg(x), 1, beta, seg(y), 1,
+            COL_MAJOR, trans, a.rows, a.cols, alpha,
+            seg(a.data), a.rows, seg(x), 1, beta, seg(y), 1,
         )
     }
 
@@ -191,9 +191,9 @@ class HostBlas internal constructor() : Blas {
         val transA = if (transposeA) TRANS else NO_TRANS
         val transB = if (transposeB) TRANS else NO_TRANS
         HostBlasCalls.dgemm.invokeWithArguments(
-            ROW_MAJOR, transA, transB, m, n, k, alpha,
-            HostBlasCalls.seg(a.data), a.cols, HostBlasCalls.seg(b.data), b.cols,
-            beta, HostBlasCalls.seg(c.data), c.cols,
+            COL_MAJOR, transA, transB, m, n, k, alpha,
+            HostBlasCalls.seg(a.data), a.rows, HostBlasCalls.seg(b.data), b.rows,
+            beta, HostBlasCalls.seg(c.data), c.rows,
         )
     }
 
@@ -224,8 +224,8 @@ class HostBlas internal constructor() : Blas {
             // Strict dsyrk semantics: one triangle written and beta-scaled, the other untouched.
             val u = if (uplo == Uplo.LOWER) LOWER else UPPER
             HostBlasCalls.dsyrk.invokeWithArguments(
-                ROW_MAJOR, u, trans, n, k, alpha,
-                HostBlasCalls.seg(a.data), a.cols, beta, HostBlasCalls.seg(c.data), n,
+                COL_MAJOR, u, trans, n, k, alpha,
+                HostBlasCalls.seg(a.data), a.rows, beta, HostBlasCalls.seg(c.data), n,
             )
             return
         }
@@ -234,11 +234,11 @@ class HostBlas internal constructor() : Blas {
         // scratch lower triangle, mirror it, then combine.
         val w = workspace?.take(n * n) ?: DoubleArray(n * n)
         HostBlasCalls.dsyrk.invokeWithArguments(
-            ROW_MAJOR, LOWER, trans, n, k, alpha,
-            HostBlasCalls.seg(a.data), a.cols, 0.0, HostBlasCalls.seg(w), n,
+            COL_MAJOR, LOWER, trans, n, k, alpha,
+            HostBlasCalls.seg(a.data), a.rows, 0.0, HostBlasCalls.seg(w), n,
         )
-        for (i in 0 until n) {
-            for (j in 0 until i) w[j * n + i] = w[i * n + j]
+        for (j in 0 until n) {
+            for (i in j + 1 until n) w[j + i * n] = w[i + j * n]
         }
         val cd = c.data
         when (beta) {
@@ -272,7 +272,7 @@ class HostBlas internal constructor() : Blas {
             return
         }
         HostBlasCalls.dsymv.invokeWithArguments(
-            ROW_MAJOR, if (lower) LOWER else UPPER, n, alpha,
+            COL_MAJOR, if (lower) LOWER else UPPER, n, alpha,
             seg(a.data), n, seg(x), 1, beta, seg(y), 1,
         )
     }
@@ -306,9 +306,9 @@ class HostBlas internal constructor() : Blas {
         val uplo = if (lower) LOWER else UPPER
         val side = if (right) RIGHT else LEFT
         HostBlasCalls.dsymm.invokeWithArguments(
-            ROW_MAJOR, side, uplo, c.rows, c.cols, alpha,
-            HostBlasCalls.seg(a.data), m, HostBlasCalls.seg(b.data), c.cols,
-            beta, HostBlasCalls.seg(c.data), c.cols,
+            COL_MAJOR, side, uplo, c.rows, c.cols, alpha,
+            HostBlasCalls.seg(a.data), m, HostBlasCalls.seg(b.data), b.rows,
+            beta, HostBlasCalls.seg(c.data), c.rows,
         )
     }
 
@@ -333,9 +333,10 @@ class HostBlas internal constructor() : Blas {
             return
         }
         if (beta == 1.0) return
-        for (i in 0 until n) {
-            val from = if (uplo == Uplo.LOWER) i * n else i * n + i
-            val until = if (uplo == Uplo.LOWER) i * n + i + 1 else (i + 1) * n
+        // Column j holds its lower triangle at rows j..n-1 and its upper triangle at rows 0..j.
+        for (j in 0 until n) {
+            val from = if (uplo == Uplo.LOWER) j + j * n else j * n
+            val until = if (uplo == Uplo.LOWER) (j + 1) * n else j + j * n + 1
             if (beta == 0.0) {
                 v.fill(0.0, from, until)
             } else {

@@ -17,7 +17,7 @@ import kotlinx.cinterop.usePinned
 
 // The CBLAS enums and LAPACKE layout macro, by their ABI integer values (the resolved function
 // pointers declare the parameters as plain int; see OpenBlasBindings.kt).
-private const val ROW_MAJOR = 101
+private const val COL_MAJOR = 102
 private const val NO_TRANS = 111
 private const val TRANS = 112
 private const val UPPER = 121
@@ -48,7 +48,7 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
         if (n == 0) return LuDecomposition(0, lu, piv, singular = false)
         val ipiv = IntArray(n)
         val info = lu.usePinned { lp ->
-            ipiv.usePinned { pp -> f.dgetrf(ROW_MAJOR, n, n, lp.addressOf(0), n, pp.addressOf(0)) }
+            ipiv.usePinned { pp -> f.dgetrf(COL_MAJOR, n, n, lp.addressOf(0), n, pp.addressOf(0)) }
         }
         check(info >= 0) { "dgetrf: illegal argument ${-info}" }
         // dgetrf reports successive row swaps (1-based); replay them to get the permutation form
@@ -116,30 +116,42 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
             "solve: out is ${out.rows}x${out.cols}, expected ${n}x$nrhs"
         }
         if (n == 0 || nrhs == 0) return out
-        // Same permute + two block triangular solves as the vector path; dtrsm is row-major native,
-        // so no LAPACKE transposition tax scales with nrhs.
+        // Same permute + two block triangular solves as the vector path. dtrsm reads the buffers in their
+        // native order, so nothing is transposed on the way in; the permutation is the strided step, one
+        // element per column rather than a contiguous run per row.
         if (transpose) {
             val y = workspace?.take(n * nrhs) ?: DoubleArray(n * nrhs)
             b.data.copyInto(y)
             trsmLeft(lu.lu, n, y, nrhs, UPPER, TRANS, NON_UNIT)
             trsmLeft(lu.lu, n, y, nrhs, LOWER, TRANS, UNIT)
-            for (i in 0 until n) y.copyInto(out.data, lu.piv[i] * nrhs, i * nrhs, (i + 1) * nrhs)
+            permuteRows(y, out.data, n, nrhs, lu.piv, gather = false)
             workspace?.release(y)
         } else {
             if (out === b) {
                 val staged = workspace?.take(n * nrhs) ?: DoubleArray(n * nrhs)
-                for (i in 0 until n) b.data.copyInto(staged, i * nrhs, lu.piv[i] * nrhs, (lu.piv[i] + 1) * nrhs)
+                permuteRows(b.data, staged, n, nrhs, lu.piv, gather = true)
                 staged.copyInto(out.data)
                 workspace?.release(staged)
             } else {
-                for (i in 0 until n) {
-                    b.data.copyInto(out.data, i * nrhs, lu.piv[i] * nrhs, (lu.piv[i] + 1) * nrhs)
-                }
+                permuteRows(b.data, out.data, n, nrhs, lu.piv, gather = true)
             }
             trsmLeft(lu.lu, n, out.data, nrhs, LOWER, NO_TRANS, UNIT)
             trsmLeft(lu.lu, n, out.data, nrhs, UPPER, NO_TRANS, NON_UNIT)
         }
         return out
+    }
+
+    /** `dst[i, c] = src[piv[i], c]` when [gather], its inverse otherwise, over an `n × nrhs` pair. */
+    @Suppress("LongParameterList")
+    private fun permuteRows(src: DoubleArray, dst: DoubleArray, n: Int, nrhs: Int, piv: IntArray, gather: Boolean) {
+        for (c in 0 until nrhs) {
+            val base = c * n
+            if (gather) {
+                for (i in 0 until n) dst[base + i] = src[base + piv[i]]
+            } else {
+                for (i in 0 until n) dst[base + piv[i]] = src[base + i]
+            }
+        }
     }
 
     override fun ldl(a: DenseMatrix, workspace: Workspace?): LdlDecomposition {
@@ -150,7 +162,7 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
         if (n == 0) return LdlDecomposition(0, buf, ipiv, singular = false)
         val info = buf.usePinned { bp ->
             ipiv.usePinned { pp ->
-                f.dsytrf(ROW_MAJOR, 'L'.code.toByte(), n, bp.addressOf(0), n, pp.addressOf(0))
+                f.dsytrf(COL_MAJOR, 'L'.code.toByte(), n, bp.addressOf(0), n, pp.addressOf(0))
             }
         }
         check(info >= 0) { "dsytrf: illegal argument ${-info}" }
@@ -196,7 +208,7 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
         val tau = DoubleArray(minOf(m, n))
         if (m > 0 && n > 0) {
             val info = buf.usePinned { bp ->
-                tau.usePinned { tp -> f.dgeqrf(ROW_MAJOR, m, n, bp.addressOf(0), n, tp.addressOf(0)) }
+                tau.usePinned { tp -> f.dgeqrf(COL_MAJOR, m, n, bp.addressOf(0), m, tp.addressOf(0)) }
             }
             check(info == 0) { "dgeqrf: illegal argument ${-info}" }
         }
@@ -215,8 +227,8 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
             qr.tau.usePinned { tp ->
                 c.usePinned { cp ->
                     f.dormqr(
-                        ROW_MAJOR, side, trans, qr.m, 1, qr.tau.size,
-                        qp.addressOf(0), qr.n, tp.addressOf(0), cp.addressOf(0), 1,
+                        COL_MAJOR, side, trans, qr.m, 1, qr.tau.size,
+                        qp.addressOf(0), qr.m, tp.addressOf(0), cp.addressOf(0), qr.m,
                     )
                 }
             }
@@ -232,7 +244,7 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
         val out = DoubleArray(1)
         val info = lu.lu.usePinned { lp ->
             out.usePinned { op ->
-                f.dgecon(ROW_MAJOR, '1'.code.toByte(), n, lp.addressOf(0), n, anorm, op.addressOf(0))
+                f.dgecon(COL_MAJOR, '1'.code.toByte(), n, lp.addressOf(0), n, anorm, op.addressOf(0))
             }
         }
         check(info == 0) { "dgecon: illegal argument ${-info}" }
@@ -246,8 +258,8 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
             ldl.ipiv.usePinned { pp ->
                 x.usePinned { xp ->
                     f.dsytrs(
-                        ROW_MAJOR, 'L'.code.toByte(), n, nrhs,
-                        lp.addressOf(0), n, pp.addressOf(0), xp.addressOf(0), nrhs,
+                        COL_MAJOR, 'L'.code.toByte(), n, nrhs,
+                        lp.addressOf(0), n, pp.addressOf(0), xp.addressOf(0), n,
                     )
                 }
             }
@@ -270,7 +282,7 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
         if (n == 0) return DenseMatrix(0, 0)
         val l = DenseMatrix(n, n)
         for (i in 0 until n) for (j in 0..i) l[i, j] = a[i, j]
-        val info = l.data.usePinned { lp -> f.dpotrf(ROW_MAJOR, 'L'.code.toByte(), n, lp.addressOf(0), n) }
+        val info = l.data.usePinned { lp -> f.dpotrf(COL_MAJOR, 'L'.code.toByte(), n, lp.addressOf(0), n) }
         check(info >= 0) { "dpotrf: illegal argument ${-info}" }
         // info > 0 marks the leading minor that is not positive definite: redo it portably, which either
         // clamps the pivot or throws, per the flag.
@@ -284,11 +296,13 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
      * linuxX64 (us/op, native against portable) 207 versus 66 at n=256, 6579 versus 740 at 1024, and
      * 64711 versus 5320 at 2048.
      *
-     * Two causes compound. The routine is `O(n^2)` work over `O(n^2)` data, so there is nothing to
-     * amortize a call against — the same reason the LU and LDL vector solves delegate. On top of that,
-     * LAPACKE's row-major entry points transpose the matrix into a column-major temporary before calling
-     * LAPACK, which at n=2048 copies 32 MB per solve. `dpotrf` and `dpotri` pay that tax too, but their
-     * `O(n^3)` work still dominates it, so they stay native.
+     * The routine is `O(n^2)` work over `O(n^2)` data, so there is nothing to amortize a call against —
+     * the same reason the LU and LDL vector solves delegate.
+     *
+     * A second cause used to compound it: under row-major storage LAPACKE transposed the matrix into a
+     * column-major temporary before calling LAPACK, copying 32 MB per solve at n=2048. That is gone, so
+     * the margins above overstate the native side's disadvantage and this delegation is due a
+     * re-measurement rather than settled.
      */
     override fun solveSpd(L: DenseMatrix, b: DoubleArray): DoubleArray = ReferenceLinearAlgebra.solveSpd(L, b)
 
@@ -300,7 +314,7 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
         val n = L.rows
         if (n == 0) return DenseMatrix(0, 0)
         val inv = DenseMatrix(n, n, L.data.copyOf())
-        val info = inv.data.usePinned { ip -> f.dpotri(ROW_MAJOR, 'L'.code.toByte(), n, ip.addressOf(0), n) }
+        val info = inv.data.usePinned { ip -> f.dpotri(COL_MAJOR, 'L'.code.toByte(), n, ip.addressOf(0), n) }
         check(info >= 0) { "dpotri: illegal argument ${-info}" }
         check(info == 0) { "dpotri: zero diagonal at $info, factor is singular" }
         for (i in 0 until n) for (j in 0 until i) inv[j, i] = inv[i, j]
@@ -312,7 +326,7 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
     private fun trsv(a: DoubleArray, n: Int, x: DoubleArray, uplo: Int, trans: Int, diag: Int) {
         a.usePinned { ap ->
             x.usePinned { xp ->
-                blas.dtrsv(ROW_MAJOR, uplo, trans, diag, n, ap.addressOf(0), n, xp.addressOf(0), 1)
+                blas.dtrsv(COL_MAJOR, uplo, trans, diag, n, ap.addressOf(0), n, xp.addressOf(0), 1)
             }
         }
     }
@@ -322,7 +336,7 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
     private fun trsmLeft(a: DoubleArray, n: Int, b: DoubleArray, nrhs: Int, uplo: Int, trans: Int, diag: Int) {
         a.usePinned { ap ->
             b.usePinned { bp ->
-                blas.dtrsm(ROW_MAJOR, LEFT, uplo, trans, diag, n, nrhs, 1.0, ap.addressOf(0), n, bp.addressOf(0), nrhs)
+                blas.dtrsm(COL_MAJOR, LEFT, uplo, trans, diag, n, nrhs, 1.0, ap.addressOf(0), n, bp.addressOf(0), n)
             }
         }
     }

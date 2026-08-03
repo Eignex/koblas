@@ -10,11 +10,11 @@ import com.eignex.koblas.QrDecomposition
 import com.eignex.koblas.ReferenceLinearAlgebra
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.dispatchThresholds
+import com.eignex.koblas.hostblas.HostBlasCalls.COL_MAJOR
 import com.eignex.koblas.hostblas.HostBlasCalls.LEFT
 import com.eignex.koblas.hostblas.HostBlasCalls.LOWER
 import com.eignex.koblas.hostblas.HostBlasCalls.NON_UNIT
 import com.eignex.koblas.hostblas.HostBlasCalls.NO_TRANS
-import com.eignex.koblas.hostblas.HostBlasCalls.ROW_MAJOR
 import com.eignex.koblas.hostblas.HostBlasCalls.TRANS
 import com.eignex.koblas.hostblas.HostBlasCalls.UNIT
 import com.eignex.koblas.hostblas.HostBlasCalls.UPPER
@@ -46,7 +46,7 @@ class HostLapack internal constructor() : Lapack {
         if (n == 0) return LuDecomposition(0, lu, piv, singular = false)
         val ipiv = IntArray(n)
         val info = HostBlasCalls.dgetrf.invokeWithArguments(
-            ROW_MAJOR,
+            COL_MAJOR,
             n,
             n,
             HostBlasCalls.seg(lu),
@@ -103,9 +103,9 @@ class HostLapack internal constructor() : Lapack {
             val col = workspace?.take(n) ?: DoubleArray(n)
             val solved = workspace?.take(n) ?: DoubleArray(n)
             for (c in 0 until nrhs) {
-                for (i in 0 until n) col[i] = b.data[i * nrhs + c]
+                b.data.copyInto(col, 0, c * n, (c + 1) * n)
                 solveInto(lu, col, solved, transpose, workspace)
-                for (i in 0 until n) out.data[i * nrhs + c] = solved[i]
+                solved.copyInto(out.data, c * n, 0, n)
             }
             if (workspace != null) {
                 workspace.release(solved)
@@ -114,25 +114,23 @@ class HostLapack internal constructor() : Lapack {
             return out
         }
         val f = lu.lu
-        // Permute plus two block triangular solves; dtrsm is row-major native, so no LAPACKE
-        // transposition tax scales with nrhs.
+        // Permute plus two block triangular solves. The row permutation is the strided step now: it moves
+        // one element per column instead of a contiguous run per row.
         if (transpose) {
             val y = workspace?.take(n * nrhs) ?: DoubleArray(n * nrhs)
             b.data.copyInto(y)
             trsmLeft(f, n, y, nrhs, UPPER, TRANS, NON_UNIT)
             trsmLeft(f, n, y, nrhs, LOWER, TRANS, UNIT)
-            for (i in 0 until n) y.copyInto(out.data, lu.piv[i] * nrhs, i * nrhs, (i + 1) * nrhs)
+            permuteRows(y, out.data, n, nrhs, lu.piv, gather = false)
             workspace?.release(y)
         } else {
             if (out === b) {
                 val staged = workspace?.take(n * nrhs) ?: DoubleArray(n * nrhs)
-                for (i in 0 until n) b.data.copyInto(staged, i * nrhs, lu.piv[i] * nrhs, (lu.piv[i] + 1) * nrhs)
+                permuteRows(b.data, staged, n, nrhs, lu.piv, gather = true)
                 staged.copyInto(out.data)
                 workspace?.release(staged)
             } else {
-                for (i in 0 until n) {
-                    b.data.copyInto(out.data, i * nrhs, lu.piv[i] * nrhs, (lu.piv[i] + 1) * nrhs)
-                }
+                permuteRows(b.data, out.data, n, nrhs, lu.piv, gather = true)
             }
             trsmLeft(f, n, out.data, nrhs, LOWER, NO_TRANS, UNIT)
             trsmLeft(f, n, out.data, nrhs, UPPER, NO_TRANS, NON_UNIT)
@@ -140,12 +138,25 @@ class HostLapack internal constructor() : Lapack {
         return out
     }
 
+    /** `dst[i, c] = src[piv[i], c]` when [gather], its inverse otherwise, over an `n × nrhs` pair. */
+    @Suppress("LongParameterList")
+    private fun permuteRows(src: DoubleArray, dst: DoubleArray, n: Int, nrhs: Int, piv: IntArray, gather: Boolean) {
+        for (c in 0 until nrhs) {
+            val base = c * n
+            if (gather) {
+                for (i in 0 until n) dst[base + i] = src[base + piv[i]]
+            } else {
+                for (i in 0 until n) dst[base + piv[i]] = src[base + i]
+            }
+        }
+    }
+
     /** Left-side dtrsm over a packed factor buffer. */
     @Suppress("LongParameterList")
     private fun trsmLeft(f: DoubleArray, n: Int, x: DoubleArray, nrhs: Int, uplo: Int, trans: Int, diag: Int) {
         HostBlasCalls.dtrsm.invokeWithArguments(
-            ROW_MAJOR, LEFT, uplo, trans, diag, n, nrhs, 1.0,
-            HostBlasCalls.seg(f), n, HostBlasCalls.seg(x), nrhs,
+            COL_MAJOR, LEFT, uplo, trans, diag, n, nrhs, 1.0,
+            HostBlasCalls.seg(f), n, HostBlasCalls.seg(x), n,
         )
     }
 
@@ -165,8 +176,8 @@ class HostLapack internal constructor() : Lapack {
         if (out !== b) b.data.copyInto(x)
         if (n == 0 || nrhs == 0) return out
         val info = HostBlasCalls.dsytrs.invokeWithArguments(
-            ROW_MAJOR, 'L'.code.toByte(), n, nrhs,
-            HostBlasCalls.seg(ldl.ldl), n, HostBlasCalls.seg(ldl.ipiv), HostBlasCalls.seg(x), nrhs,
+            COL_MAJOR, 'L'.code.toByte(), n, nrhs,
+            HostBlasCalls.seg(ldl.ldl), n, HostBlasCalls.seg(ldl.ipiv), HostBlasCalls.seg(x), n,
         ) as Int
         check(info == 0) { "dsytrs: illegal argument ${-info}" }
         return out
@@ -180,7 +191,7 @@ class HostLapack internal constructor() : Lapack {
         val ipiv = IntArray(n)
         if (n == 0) return LdlDecomposition(0, buf, ipiv, singular = false)
         val info = HostBlasCalls.dsytrf.invokeWithArguments(
-            ROW_MAJOR,
+            COL_MAJOR,
             'L'.code.toByte(),
             n,
             HostBlasCalls.seg(buf),
@@ -207,8 +218,8 @@ class HostLapack internal constructor() : Lapack {
         if (out !== b) b.copyInto(out)
         if (n == 0) return out
         val info = HostBlasCalls.dsytrs.invokeWithArguments(
-            ROW_MAJOR, 'L'.code.toByte(), n, 1,
-            HostBlasCalls.seg(ldl.ldl), n, HostBlasCalls.seg(ldl.ipiv), HostBlasCalls.seg(out), 1,
+            COL_MAJOR, 'L'.code.toByte(), n, 1,
+            HostBlasCalls.seg(ldl.ldl), n, HostBlasCalls.seg(ldl.ipiv), HostBlasCalls.seg(out), n,
         ) as Int
         check(info == 0) { "dsytrs: illegal argument ${-info}" }
         return out
@@ -222,11 +233,11 @@ class HostLapack internal constructor() : Lapack {
         val tau = DoubleArray(minOf(m, n))
         if (m > 0 && n > 0) {
             val info = HostBlasCalls.dgeqrf.invokeWithArguments(
-                ROW_MAJOR,
+                COL_MAJOR,
                 m,
                 n,
                 HostBlasCalls.seg(buf),
-                n,
+                m,
                 HostBlasCalls.seg(tau),
             ) as Int
             check(info == 0) { "dgeqrf: illegal argument ${-info}" }
@@ -243,8 +254,8 @@ class HostLapack internal constructor() : Lapack {
         val side = 'L'.code.toByte()
         val trans = (if (transpose) 'T' else 'N').code.toByte()
         val info = HostBlasCalls.dormqr.invokeWithArguments(
-            ROW_MAJOR, side, trans, qr.m, 1, qr.tau.size,
-            HostBlasCalls.seg(qr.qr), qr.n, HostBlasCalls.seg(qr.tau), HostBlasCalls.seg(c), 1,
+            COL_MAJOR, side, trans, qr.m, 1, qr.tau.size,
+            HostBlasCalls.seg(qr.qr), qr.m, HostBlasCalls.seg(qr.tau), HostBlasCalls.seg(c), qr.m,
         ) as Int
         check(info == 0) { "dormqr: illegal argument ${-info}" }
         return c
@@ -257,7 +268,7 @@ class HostLapack internal constructor() : Lapack {
         if (lu.singular || anorm == 0.0) return 0.0
         val out = DoubleArray(1)
         val info = HostBlasCalls.dgecon.invokeWithArguments(
-            ROW_MAJOR,
+            COL_MAJOR,
             '1'.code.toByte(),
             n,
             HostBlasCalls.seg(lu.lu),
@@ -289,7 +300,7 @@ class HostLapack internal constructor() : Lapack {
         val l = DenseMatrix(n, n)
         for (i in 0 until n) for (j in 0..i) l[i, j] = a[i, j]
         val info = HostBlasCalls.dpotrf.invokeWithArguments(
-            ROW_MAJOR,
+            COL_MAJOR,
             'L'.code.toByte(),
             n,
             HostBlasCalls.seg(l.data),
@@ -303,8 +314,12 @@ class HostLapack internal constructor() : Lapack {
 
     /**
      * Gated by [JVM_SOLVE_SPD_MIN], which shuts it: `dpotrs` lost to the SIMD kernels by 3x at n=256 and
-     * 12x at 2048. It is `O(n^2)` work over `O(n^2)` data, so there is nothing to amortize a call against,
-     * and LAPACKE's row-major entry points transpose into a column-major temporary on top of that.
+     * 12x at 2048. It is `O(n^2)` work over `O(n^2)` data, so there is nothing to amortize a call against.
+     *
+     * Those numbers were taken under row-major storage, when a second cause compounded the first:
+     * LAPACKE transposed the matrix into a column-major temporary on every call. That cost is gone now
+     * that koblas stores what LAPACK wants, so the margin here is narrower than measured and the gate is
+     * a stale upper bound rather than a current answer; see the note above the constants below.
      */
     override fun solveSpd(L: DenseMatrix, b: DoubleArray): DoubleArray {
         if (L.rows < JVM_SOLVE_SPD_MIN) return super.solveSpd(L, b)
@@ -313,14 +328,14 @@ class HostLapack internal constructor() : Lapack {
         val x = b.copyOf()
         if (n == 0) return x
         val info = HostBlasCalls.dpotrs.invokeWithArguments(
-            ROW_MAJOR,
+            COL_MAJOR,
             'L'.code.toByte(),
             n,
             1,
             HostBlasCalls.seg(L.data),
             n,
             HostBlasCalls.seg(x),
-            1,
+            n,
         ) as Int
         check(info == 0) { "dpotrs: illegal argument ${-info}" }
         return x
@@ -337,7 +352,7 @@ class HostLapack internal constructor() : Lapack {
         if (n == 0) return DenseMatrix(0, 0)
         val inv = DenseMatrix(n, n, L.data.copyOf())
         val info = HostBlasCalls.dpotri.invokeWithArguments(
-            ROW_MAJOR,
+            COL_MAJOR,
             'L'.code.toByte(),
             n,
             HostBlasCalls.seg(inv.data),
@@ -351,6 +366,19 @@ class HostLapack internal constructor() : Lapack {
 }
 
 private const val NATIVE_TRSM_MIN_RHS = 4
+
+// Every threshold below, and the level defaults in DispatchThresholds.jvm.kt, was measured while koblas
+// stored matrices row-major.
+//
+// Two things changed underneath those numbers. The native side got cheaper: LAPACKE's row-major entry
+// points used to transpose each matrix into a column-major temporary before calling LAPACK — 32 MB of
+// copying per call at n=2048 — and now nothing is transposed. The portable side changed shape too, since
+// the kernels were rewritten to sweep columns rather than rows. Both effects move the crossovers, and not
+// necessarily in the same direction.
+//
+// So these are the last measured answers under the old layout, kept because a stale measurement beats a
+// guess, and every one of them is a candidate to move. The gates exist precisely so that re-measuring
+// changes a constant rather than a method.
 
 /**
  * The LDL vector solve stays portable at every size: see [HostLapack.solveInto]. Not the never-dispatch sentinel but a

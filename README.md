@@ -23,7 +23,7 @@ the Linux and macOS native targets when it is installed.
 ## Overview
 
 Kotlin has no standard multiplatform linear algebra library. Koblas is a small
-one built around serializable containers: DenseMatrix (flat, row-major),
+one built around serializable containers: DenseMatrix (flat, column-major),
 DenseVector and SparseVector behind a shared view contract, and a CSC
 SparseMatrix. Arithmetic lives as free functions over the views; the heavier
 dense operations sit behind the swappable Blas and Lapack interfaces.
@@ -173,9 +173,9 @@ they sit behind the runtime LinearAlgebra interface. Backends activate
 themselves: through the classpath on the JVM, by registration at program start
 elsewhere. The highest priority wins for each half; installLinearAlgebra
 overrides both. Storage
-is flat, row-major DoubleArray, so a native backend receives raw buffers with
-no repacking, and every backend must match the reference on the conformance
-suite.
+is a flat, column-major DoubleArray -- the order LAPACK and Fortran define -- so
+a native backend receives raw buffers with no repacking and no row-major wrapper
+layer, and every backend must match the reference on the conformance suite.
 
 On the Linux and macOS native targets koblas resolves the host OpenBLAS with
 dlopen at program start (libopenblas and liblapacke on Debian/Ubuntu, brew

@@ -38,7 +38,7 @@ import java.lang.invoke.MethodHandle
 internal object HostBlasCalls {
 
     // The CBLAS enums and the LAPACKE layout macro, by their ABI integer values.
-    const val ROW_MAJOR = 101
+    const val COL_MAJOR = 102
     const val NO_TRANS = 111
     const val TRANS = 112
     const val UPPER = 121

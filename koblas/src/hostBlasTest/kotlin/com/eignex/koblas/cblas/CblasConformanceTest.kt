@@ -130,7 +130,7 @@ class CblasConformanceTest {
                         // With no prior C the result is the alpha term alone, which must be bit-symmetric.
                         for (i in 0 until n) {
                             for (j in 0 until i) {
-                                assertEquals(cCblas.data[i * n + j], cCblas.data[j * n + i], "asymmetric at ($i;$j)")
+                                assertEquals(cCblas.data[i + j * n], cCblas.data[j + i * n], "asymmetric at ($i;$j)")
                             }
                         }
                     }
@@ -148,8 +148,9 @@ class CblasConformanceTest {
                     val a = randomMatrix(rng, 6, 4)
                     val n = if (transpose) 4 else 6
                     val c0 = DoubleArray(n * n) { idx ->
-                        val i = idx / n
-                        val j = idx % n
+                        // Column-major: the flat index runs down a column before moving to the next.
+                        val i = idx % n
+                        val j = idx / n
                         val selected = if (uplo == Uplo.LOWER) j <= i else j >= i
                         if (!selected || beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0)
                     }
@@ -162,11 +163,11 @@ class CblasConformanceTest {
                             val selected = if (uplo == Uplo.LOWER) j <= i else j >= i
                             val ctx = "syrk $uplo t=$transpose b=$beta ($i;$j)"
                             if (selected) {
-                                val e = cRef.data[i * n + j]
-                                val v = cCblas.data[i * n + j]
+                                val e = cRef.data[i + j * n]
+                                val v = cCblas.data[i + j * n]
                                 assertTrue(abs(e - v) <= 1e-12 * maxOf(1.0, abs(e)), "$ctx: $e vs $v")
                             } else {
-                                assertTrue(cCblas.data[i * n + j].isNaN(), "$ctx: untouched triangle written")
+                                assertTrue(cCblas.data[i + j * n].isNaN(), "$ctx: untouched triangle written")
                             }
                         }
                     }

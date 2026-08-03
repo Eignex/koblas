@@ -92,14 +92,11 @@ interface Lapack : Backend {
         require(out.rows == n && out.cols == nrhs) {
             "solve: out is ${out.rows}x${out.cols}, expected ${n}x$nrhs"
         }
-        // A narrow block updates rows in `nrhs`-length runs, too short for the vectorized primitives to
-        // pay off — at `nrhs` 1 that is one length-1 axpy per matrix element, measured 10x slower than
-        // solving column by column. Wide blocks amortize the factor traversal and win from ~32 columns.
-        if (nrhs < BLOCK_SOLVE_MIN_RHS) {
-            return solveColumnwise(b, out, n, nrhs, workspace) { col, dst ->
-                solveInto(lu, col, dst, transpose, workspace)
-            }
-        }
+        if (nrhs == 0) return out
+        // One code path for every `nrhs`. Under row-major storage a narrow block updated rows in
+        // `nrhs`-length runs, too short to vectorize, so anything below 32 columns had to be solved
+        // column by column instead; here the right-hand sides *are* the contiguous columns, so the block
+        // form is already the column form and the split has nothing left to choose between.
         val f = lu.lu
         return if (transpose) {
             // Aᵀ X = B, with Aᵀ = Uᵀ Lᵀ P: forward-solve Uᵀ, back-solve unit Lᵀ, un-permute rows.
@@ -107,7 +104,7 @@ interface Lapack : Backend {
             b.data.copyInto(y)
             trsmCore(f, n, y, nrhs, lower = false, transpose = true, unitDiag = false)
             trsmCore(f, n, y, nrhs, lower = true, transpose = true, unitDiag = true)
-            for (i in 0 until n) y.copyInto(out.data, lu.piv[i] * nrhs, i * nrhs, (i + 1) * nrhs)
+            scatterRows(y, out.data, n, nrhs, lu.piv)
             workspace?.release(y)
             out
         } else {
@@ -115,11 +112,11 @@ interface Lapack : Backend {
             // gather cannot read B in place once out aliases it, so that case stages.
             if (out === b) {
                 val staged = workspace?.take(n * nrhs) ?: DoubleArray(n * nrhs)
-                for (i in 0 until n) b.data.copyInto(staged, i * nrhs, lu.piv[i] * nrhs, (lu.piv[i] + 1) * nrhs)
+                gatherRows(b.data, staged, n, nrhs, lu.piv)
                 staged.copyInto(out.data)
                 workspace?.release(staged)
             } else {
-                for (i in 0 until n) b.data.copyInto(out.data, i * nrhs, lu.piv[i] * nrhs, (lu.piv[i] + 1) * nrhs)
+                gatherRows(b.data, out.data, n, nrhs, lu.piv)
             }
             trsmCore(f, n, out.data, nrhs, lower = true, transpose = false, unitDiag = true)
             trsmCore(f, n, out.data, nrhs, lower = false, transpose = false, unitDiag = false)
@@ -145,89 +142,27 @@ interface Lapack : Backend {
 
     /**
      * Solve `A · X = B` for the [b].cols right-hand-side columns of [b] at once against a symmetric
-     * indefinite factorization (LAPACK `dsytrs` with `nrhs`); returns a fresh `X`. The default is the
-     * two-pass `dsytrs` replay over the shared packed format with every scalar step widened to a row;
-     * backends may substitute a native block solve.
+     * indefinite factorization (LAPACK `dsytrs` with `nrhs`); returns a fresh `X`. Backends may
+     * substitute a native block solve.
      */
-    @Suppress("CyclomaticComplexMethod", "LongMethod") // dsytrs's control flow, kept recognizable
     fun solve(ldl: LdlDecomposition, b: DenseMatrix): DenseMatrix = solveInto(ldl, b, DenseMatrix(b.rows, b.cols))
 
-    /** Solve `A · X = B` into [out], which is returned. [out] may be [b]. */
+    /**
+     * Solve `A · X = B` into [out], which is returned. [out] may be [b].
+     *
+     * One `dsytrs` replay per right-hand side, over the contiguous column it occupies. Under row-major
+     * storage this was a single widened pass, because extracting a column meant a strided gather; here a
+     * column is already a contiguous run, so reusing the tuned vector solve costs nothing but re-reading
+     * the factor and keeps the pivot-block bookkeeping in one place instead of two.
+     */
     fun solveInto(ldl: LdlDecomposition, b: DenseMatrix, out: DenseMatrix, workspace: Workspace? = null): DenseMatrix {
         val n = ldl.n
         val nrhs = b.cols
         require(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
-        // Narrow blocks solve column by column, as in the LU case above.
         require(out.rows == n && out.cols == nrhs) {
             "solve: out is ${out.rows}x${out.cols}, expected ${n}x$nrhs"
         }
-        if (nrhs in 1 until BLOCK_SOLVE_MIN_RHS) {
-            return solveColumnwise(b, out, n, nrhs, workspace) { col, dst -> solveInto(ldl, col, dst) }
-        }
-        val w = ldl.ldl
-        val ipiv = ldl.ipiv
-        val x = out.data
-        if (out !== b) b.data.copyInto(x)
-        if (nrhs == 0) return out
-        // Forward: replay interchanges, apply L block columns, divide by the D blocks (dsytrs lower).
-        var k = 0
-        while (k < n) {
-            if (ipiv[k] > 0) {
-                val kp = ipiv[k] - 1
-                if (kp != k) swapSolveRows(x, nrhs, k, kp)
-                for (i in k + 1 until n) {
-                    val f = w[i * n + k]
-                    if (f != 0.0) denseAxpy(x, i * nrhs, -f, x, k * nrhs, nrhs)
-                }
-                denseScale(x, k * nrhs, 1.0 / w[k * n + k], nrhs)
-                k += 1
-            } else {
-                val kp = -ipiv[k] - 1
-                if (kp != k + 1) swapSolveRows(x, nrhs, k + 1, kp)
-                for (i in k + 2 until n) {
-                    val f = w[i * n + k]
-                    val f1 = w[i * n + k + 1]
-                    if (f != 0.0) denseAxpy(x, i * nrhs, -f, x, k * nrhs, nrhs)
-                    if (f1 != 0.0) denseAxpy(x, i * nrhs, -f1, x, (k + 1) * nrhs, nrhs)
-                }
-                val akm1k = w[(k + 1) * n + k]
-                val akm1 = w[k * n + k] / akm1k
-                val ak = w[(k + 1) * n + k + 1] / akm1k
-                val denom = akm1 * ak - 1.0
-                for (c in 0 until nrhs) {
-                    val bkm1 = x[k * nrhs + c] / akm1k
-                    val bk = x[(k + 1) * nrhs + c] / akm1k
-                    x[k * nrhs + c] = (ak * bkm1 - bk) / denom
-                    x[(k + 1) * nrhs + c] = (akm1 * bk - bkm1) / denom
-                }
-                k += 2
-            }
-        }
-        // Backward: apply Lᵀ block rows and undo the interchanges in reverse.
-        k = n - 1
-        while (k >= 0) {
-            if (ipiv[k] > 0) {
-                for (i in k + 1 until n) {
-                    val f = w[i * n + k]
-                    if (f != 0.0) denseAxpy(x, k * nrhs, -f, x, i * nrhs, nrhs)
-                }
-                val kp = ipiv[k] - 1
-                if (kp != k) swapSolveRows(x, nrhs, k, kp)
-                k -= 1
-            } else {
-                val k0 = k - 1
-                for (i in k + 1 until n) {
-                    val f0 = w[i * n + k0]
-                    val f1 = w[i * n + k]
-                    if (f0 != 0.0) denseAxpy(x, k0 * nrhs, -f0, x, i * nrhs, nrhs)
-                    if (f1 != 0.0) denseAxpy(x, k * nrhs, -f1, x, i * nrhs, nrhs)
-                }
-                val kp = -ipiv[k] - 1
-                if (kp != k) swapSolveRows(x, nrhs, k, kp)
-                k -= 2
-            }
-        }
-        return out
+        return solveColumnwise(b, out, n, nrhs, workspace) { col, dst -> solveInto(ldl, col, dst) }
     }
 
     /**
@@ -272,8 +207,9 @@ interface Lapack : Backend {
         val y = workspace?.take(qr.m) ?: DoubleArray(qr.m)
         applyQInto(qr, b, y, transpose = true)
         y.copyInto(out, 0, 0, qr.n)
-        // The top n rows of the packed buffer are exactly an n×n row-major block holding R.
-        trsvCore(qr.qr, qr.n, out, lower = false, transpose = false, unitDiag = false)
+        // R is the leading n×n triangle of the packed m×n buffer, so it is read at the buffer's own
+        // leading dimension rather than as a standalone n×n block.
+        trsvCore(qr.qr, qr.n, out, lda = qr.m, lower = false, transpose = false, unitDiag = false)
         workspace?.release(y)
         return out
     }
@@ -305,8 +241,8 @@ interface Lapack : Backend {
         require(out.size == qr.m) { "solveMinimumNorm: out length ${out.size} != ${qr.m}" }
         val w = workspace?.take(qr.n) ?: DoubleArray(qr.n)
         b.copyInto(w)
-        // The top n rows of the packed buffer are exactly an n×n row-major block holding R.
-        trsvCore(qr.qr, qr.n, w, lower = false, transpose = true, unitDiag = false)
+        // R is the leading n×n triangle of the packed m×n buffer; see [solveLeastSquaresInto].
+        trsvCore(qr.qr, qr.n, w, lda = qr.m, lower = false, transpose = true, unitDiag = false)
         // Pad to length m with zeros, then apply Q in place.
         out.fill(0.0)
         w.copyInto(out)
@@ -412,31 +348,34 @@ interface Lapack : Backend {
         val n = a.rows
         val l = DenseMatrix(n, n)
         val ld = l.data
-        // Seed l's lower triangle with A's entries (bulk row copies for a dense source), then eliminate
-        // in place: each seeded A[i,j] is consumed exactly when that slot is overwritten with l[i,j].
-        // Keeps the hot loop free of per-element MatrixView dispatch.
+        // Seed l's lower triangle with A's entries (bulk column copies for a dense source), then
+        // eliminate in place: each seeded A[i,j] is consumed exactly when that slot is overwritten with
+        // l[i,j]. Keeps the hot loop free of per-element MatrixView dispatch.
         if (a is DenseMatrix) {
-            for (i in 0 until n) a.data.copyInto(ld, i * n, i * n, i * n + i + 1)
+            for (j in 0 until n) a.data.copyInto(ld, j + j * n, j + j * n, (j + 1) * n)
         } else {
-            for (i in 0 until n) for (j in 0..i) ld[i * n + j] = a[i, j]
+            for (j in 0 until n) for (i in j until n) ld[i + j * n] = a[i, j]
         }
-        for (i in 0 until n) {
-            val rowI = i * n
-            for (j in 0..i) {
-                val rowJ = j * n
-                val sum = denseDot(ld, rowI, ld, rowJ, j)
-                if (i == j) {
-                    ld[rowI + i] = sqrt(ld[rowI + i] - sum)
-                } else {
-                    ld[rowI + j] = (ld[rowI + j] - sum) / ld[rowJ + j]
-                }
+        // Right-looking column Cholesky: subtract the already-computed columns from column j, take the
+        // pivot, then scale. Every run is the contiguous tail of a column.
+        for (j in 0 until n) {
+            val base = j + j * n
+            val len = n - j
+            for (p in 0 until j) {
+                val f = ld[j + p * n]
+                if (f != 0.0) denseAxpy(ld, base, -f, ld, j + p * n, len)
             }
-            if (ld[rowI + i] <= 0.0 || ld[rowI + i].isNaN()) {
+            val pivot = ld[base]
+            if (pivot <= 0.0 || pivot.isNaN()) {
                 require(regularizeNonPD) {
-                    "matrix is not positive-definite at pivot $i (diagonal=${ld[rowI + i]})"
+                    "matrix is not positive-definite at pivot $j (diagonal=$pivot)"
                 }
-                ld[rowI + i] = 1e-5
+                ld[base] = 1e-5
+            } else {
+                ld[base] = sqrt(pivot)
             }
+            val diag = ld[base]
+            for (i in base + 1 until base + len) ld[i] = ld[i] / diag
         }
         return l
     }
@@ -445,9 +384,10 @@ interface Lapack : Backend {
      * Solve `A * x = b` for `x`, given `L = chol(A)` (lower-triangular, `A = L * LT`).
      * Allocates a fresh result vector; [b] is not modified.
      *
-     * Forward substitution `L * y = b` runs over contiguous row data and uses [denseDot].
-     * Back substitution `LT * x = y` is column-oriented: once `x[i]` is final, its contribution
-     * is subtracted from the remaining right-hand side along contiguous row `i` via [denseAxpy].
+     * Forward substitution `L * y = b` is column-oriented: once `y[j]` is final, its contribution is
+     * subtracted from the remaining right-hand side down contiguous column `j` via [denseAxpy]. Back
+     * substitution `LT * x = y` reads row `i` of `LT`, which is column `i` of `L`, so it uses [denseDot]
+     * on the same contiguous runs.
      */
     fun solveSpd(L: DenseMatrix, b: DoubleArray): DoubleArray {
         val n = L.rows
@@ -473,21 +413,24 @@ interface Lapack : Backend {
         val invd = inv.data
         val y = workspace?.take(n) ?: DoubleArray(n)
         for (j in 0 until n) {
-            // L y = e_j: rows before j stay zero.
-            y[j] = 1.0 / ld[j * n + j]
-            for (i in j + 1 until n) {
-                val rowI = i * n
-                y[i] = -denseDot(ld, rowI + j, y, j, i - j) / ld[rowI + i]
+            // L y = e_j: rows before j stay zero, so the forward sweep starts at column j.
+            y.fill(0.0, j, n)
+            y[j] = 1.0
+            for (c in j until n) {
+                val base = c + c * n
+                val yc = y[c] / ld[base]
+                y[c] = yc
+                if (yc != 0.0) denseAxpy(y, c + 1, -yc, ld, base + 1, n - c - 1)
             }
-            // LT x = y, column-oriented, restricted to rows >= j.
+            // Lᵀ x = y, restricted to rows >= j; column i of L is row i of Lᵀ, so this dots behind the
+            // frontier.
             for (i in n - 1 downTo j) {
-                val xi = y[i] / ld[i * n + i]
-                y[i] = xi
-                if (xi != 0.0) denseAxpy(y, j, -xi, ld, i * n + j, i - j)
+                val base = i + i * n
+                y[i] = (y[i] - denseDot(ld, base + 1, y, i + 1, n - i - 1)) / ld[base]
             }
             for (i in j until n) {
-                invd[i * n + j] = y[i]
-                invd[j * n + i] = y[i]
+                invd[i + j * n] = y[i]
+                invd[j + i * n] = y[i]
             }
         }
         workspace?.release(y)
@@ -497,14 +440,6 @@ interface Lapack : Backend {
 
 /** Sweep cap for the [Lapack.rcond] estimator; Hager's iteration almost always converges in 2. */
 private const val RCOND_MAX_SWEEPS = 5
-
-/**
- * Right-hand-side count from which a block solve beats solving column by column. Below it the block
- * traversal updates rows in runs too short to vectorize; above it the single pass over the factor pays
- * for itself. Measured crossover at `n` 64 and 256: column solves win through 16 columns, the block
- * wins from 32.
- */
-private const val BLOCK_SOLVE_MIN_RHS = 32
 
 /** Run [solveOne] over each column of [b], reassembling the results into an `n × nrhs` matrix. */
 @Suppress("LongParameterList") // shape, destination and scratch alongside the per-column solve
@@ -516,13 +451,15 @@ private inline fun solveColumnwise(
     workspace: Workspace?,
     solveOne: (column: DoubleArray, destination: DoubleArray) -> DoubleArray,
 ): DenseMatrix {
-    // One column in, one column out: two n-vectors serve every right-hand side.
+    if (nrhs == 0) return out
+    // One column in, one column out: two n-vectors serve every right-hand side, and staging a column is
+    // a bulk copy rather than a strided gather.
     val col = workspace?.take(n) ?: DoubleArray(n)
     val solved = workspace?.take(n) ?: DoubleArray(n)
     for (c in 0 until nrhs) {
-        for (i in 0 until n) col[i] = b.data[i * nrhs + c]
+        b.data.copyInto(col, 0, c * n, (c + 1) * n)
         val x = solveOne(col, solved)
-        for (i in 0 until n) out.data[i * nrhs + c] = x[i]
+        x.copyInto(out.data, c * n, 0, n)
     }
     if (workspace != null) {
         workspace.release(solved)
@@ -531,11 +468,18 @@ private inline fun solveColumnwise(
     return out
 }
 
-/** Swap rows [r1] and [r2] of a flat row-major solve buffer with [nrhs] columns. */
-private fun swapSolveRows(x: DoubleArray, nrhs: Int, r1: Int, r2: Int) {
+/** `dst[i, c] = src[piv[i], c]` over an `n × nrhs` column-major pair; [dst] must not alias [src]. */
+private fun gatherRows(src: DoubleArray, dst: DoubleArray, n: Int, nrhs: Int, piv: IntArray) {
     for (c in 0 until nrhs) {
-        val t = x[r1 * nrhs + c]
-        x[r1 * nrhs + c] = x[r2 * nrhs + c]
-        x[r2 * nrhs + c] = t
+        val base = c * n
+        for (i in 0 until n) dst[base + i] = src[base + piv[i]]
+    }
+}
+
+/** `dst[piv[i], c] = src[i, c]`, the inverse of [gatherRows]. */
+private fun scatterRows(src: DoubleArray, dst: DoubleArray, n: Int, nrhs: Int, piv: IntArray) {
+    for (c in 0 until nrhs) {
+        val base = c * n
+        for (i in 0 until n) dst[base + piv[i]] = src[base + i]
     }
 }

@@ -2,13 +2,18 @@
 
 package com.eignex.koblas
 
-// Triangular solves (BLAS dtrsv / dtrsm) over the row-major flat backing of [DenseMatrix].
+// Triangular solves (BLAS dtrsv / dtrsm) over the column-major flat backing of [DenseMatrix].
 //
 // Only the triangle selected by `lower` is ever read — the opposite triangle may hold anything, so
 // the packed LU buffer (unit-lower L below the diagonal, U on and above) and a Cholesky factor both
-// work as inputs directly. Row-oriented substitutions reduce to [denseDot] on contiguous row runs;
-// the transposed direction is column-oriented — once an unknown is final, its contribution is
-// subtracted from the remaining right-hand side along a contiguous row via [denseAxpy].
+// work as inputs directly. Column `j` of the stored triangle is a contiguous run: rows `j..n-1` for a
+// lower triangle, rows `0..j` for an upper one.
+//
+// The non-transposed directions are column-oriented — once an unknown is final, its contribution is
+// subtracted from the remaining right-hand side along a contiguous column via [denseAxpy]. The
+// transposed directions read a row of `op(T)`, which is a column of `T`, so they reduce to [denseDot].
+// Both shapes are contiguous, which is why the matrix forms below are just a loop over the columns of
+// `B` rather than a separate kernel.
 //
 // Following BLAS, the diagonal is not checked: a zero (or, with `unitDiag`, implicit-one) diagonal
 // is the caller's responsibility, and a singular triangle yields infinities/NaNs, not an exception.
@@ -52,58 +57,81 @@ fun trmm(
 /**
  * Stages each row of [b] through a scratch vector and applies [op] to it, which is how the right-side
  * forms reuse the vector kernels: row `i` of the result is `(op(T)ᵀ · B[i,:]ᵀ)ᵀ`, a vector call with the
- * transpose flag flipped. Rows are contiguous in the row-major backing, so staging is two copies.
+ * transpose flag flipped.
+ *
+ * Rows are strided in this layout, so staging is a gather and a scatter rather than two bulk copies.
+ * That is the cost of reusing one kernel for a path that is otherwise four more branches; the right-side
+ * forms are the least-used ones in the library, and both host backends dispatch them natively above
+ * their gates.
  */
 internal inline fun forEachRow(n: Int, b: DenseMatrix, op: (DoubleArray) -> Unit) {
     if (n == 0) return
+    val rows = b.rows
+    val bd = b.data
     val row = DoubleArray(n)
-    for (i in 0 until b.rows) {
-        b.data.copyInto(row, 0, i * n, (i + 1) * n)
+    for (i in 0 until rows) {
+        for (j in 0 until n) row[j] = bd[i + j * rows]
         op(row)
-        row.copyInto(b.data, i * n)
+        for (j in 0 until n) bd[i + j * rows] = row[j]
     }
 }
 
-/** [trmv] over a flat row-major `n×n` buffer. Traversal order keeps every read of `x` an original
- *  value: the non-transposed directions consume finalized entries only behind the frontier, the
- *  transposed directions push a row's contribution before its own entry is overwritten. */
-internal fun trmvCore(a: DoubleArray, n: Int, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
+/**
+ * [trmv] over the leading `n×n` triangle of a column-major [a] whose columns are [lda] apart, applied to
+ * `x[xOff until xOff + n]`.
+ *
+ * [lda] defaults to [n] for a buffer that holds nothing but the triangle, and is the BLAS `lda`
+ * otherwise: the `R` of an `m×n` QR sits in the leading `n` rows of an `m`-strided buffer, which under
+ * row-major storage happened to be contiguous and here is not.
+ *
+ * Traversal order keeps every read of `x` an original value: the non-transposed directions push a
+ * column's contribution before its own entry is overwritten, the transposed directions consume finalized
+ * entries only behind the frontier.
+ */
+@Suppress("LongParameterList") // the shape, the leading dimension and the three BLAS flags
+internal fun trmvCore(
+    a: DoubleArray,
+    n: Int,
+    x: DoubleArray,
+    xOff: Int = 0,
+    lda: Int = n,
+    lower: Boolean,
+    transpose: Boolean,
+    unitDiag: Boolean,
+) {
     if (!transpose) {
-        if (lower) { // x_i = Σ_{j≤i} T[i,j] x_j; descending keeps x[0..i-1] original
-            for (i in n - 1 downTo 0) {
-                val base = i * n
-                val diag = if (unitDiag) x[i] else a[base + i] * x[i]
-                x[i] = diag + denseDot(a, base, x, 0, i)
+        if (lower) { // column j contributes to x[j..]; descending keeps x[j] original
+            for (j in n - 1 downTo 0) {
+                val base = j + j * lda
+                val xj = x[xOff + j]
+                x[xOff + j] = if (unitDiag) xj else a[base] * xj
+                if (xj != 0.0) denseAxpy(x, xOff + j + 1, xj, a, base + 1, n - j - 1)
             }
-        } else { // x_i = Σ_{j≥i} T[i,j] x_j; ascending keeps x[i+1..] original
-            for (i in 0 until n) {
-                val base = i * n
-                val diag = if (unitDiag) x[i] else a[base + i] * x[i]
-                x[i] = diag + denseDot(a, base + i + 1, x, i + 1, n - i - 1)
+        } else { // column j contributes to x[0..j]; ascending keeps x[j] original
+            for (j in 0 until n) {
+                val xj = x[xOff + j]
+                x[xOff + j] = if (unitDiag) xj else a[j + j * lda] * xj
+                if (xj != 0.0) denseAxpy(x, xOff, xj, a, j * lda, j)
             }
         }
     } else {
-        if (lower) { // Tᵀ is upper: push row i's contribution into x[0..i-1] while x[i] is original
+        if (lower) { // Tᵀ is upper: row i of Tᵀ is column i of T, read forward from the diagonal
             for (i in 0 until n) {
-                val base = i * n
-                val xi = x[i]
-                x[i] = if (unitDiag) xi else a[base + i] * xi
-                if (xi != 0.0) denseAxpy(x, 0, xi, a, base, i)
+                val base = i + i * lda
+                val diag = if (unitDiag) x[xOff + i] else a[base] * x[xOff + i]
+                x[xOff + i] = diag + denseDot(a, base + 1, x, xOff + i + 1, n - i - 1)
             }
-        } else { // Tᵀ is lower: push row i's contribution into x[i+1..] while x[i] is original
+        } else { // Tᵀ is lower: row i of Tᵀ is column i of T, read up to the diagonal
             for (i in n - 1 downTo 0) {
-                val base = i * n
-                val xi = x[i]
-                x[i] = if (unitDiag) xi else a[base + i] * xi
-                if (xi != 0.0) denseAxpy(x, i + 1, xi, a, base + i + 1, n - i - 1)
+                val diag = if (unitDiag) x[xOff + i] else a[i + i * lda] * x[xOff + i]
+                x[xOff + i] = diag + denseDot(a, i * lda, x, xOff, i)
             }
         }
     }
 }
 
-/** [trmm] over flat row-major buffers (`a`: `n×n`, `b`: `n×nrhs`); every update runs along a
- *  contiguous row of `b`, with the same original-value traversal orders as [trmvCore]. */
-@Suppress("CyclomaticComplexMethod", "LongParameterList")
+/** [trmv] applied to each of the [nrhs] contiguous columns of a flat column-major `n×nrhs` [b]. */
+@Suppress("LongParameterList")
 internal fun trmmCore(
     a: DoubleArray,
     n: Int,
@@ -113,85 +141,58 @@ internal fun trmmCore(
     transpose: Boolean,
     unitDiag: Boolean,
 ) {
+    for (c in 0 until nrhs) {
+        trmvCore(a, n, b, c * n, lower = lower, transpose = transpose, unitDiag = unitDiag)
+    }
+}
+
+/** [trsv] over the leading `n×n` triangle of a column-major [a] with leading dimension [lda], applied to
+ *  `x[xOff until xOff + n]`; shared with the LU, QR and Cholesky solve internals. See [trmvCore] for
+ *  what [lda] is for. */
+@Suppress("LongParameterList") // the shape, the leading dimension and the three BLAS flags
+internal fun trsvCore(
+    a: DoubleArray,
+    n: Int,
+    x: DoubleArray,
+    xOff: Int = 0,
+    lda: Int = n,
+    lower: Boolean,
+    transpose: Boolean,
+    unitDiag: Boolean,
+) {
     if (!transpose) {
-        if (lower) {
-            for (i in n - 1 downTo 0) {
-                val base = i * n
-                if (!unitDiag) denseScale(b, i * nrhs, a[base + i], nrhs)
-                for (j in 0 until i) {
-                    val f = a[base + j]
-                    if (f != 0.0) denseAxpy(b, i * nrhs, f, b, j * nrhs, nrhs)
-                }
+        if (lower) { // forward substitution: finalize x[j], then push it down column j
+            for (j in 0 until n) {
+                val base = j + j * lda
+                val xj = if (unitDiag) x[xOff + j] else x[xOff + j] / a[base]
+                x[xOff + j] = xj
+                if (xj != 0.0) denseAxpy(x, xOff + j + 1, -xj, a, base + 1, n - j - 1)
             }
-        } else {
-            for (i in 0 until n) {
-                val base = i * n
-                if (!unitDiag) denseScale(b, i * nrhs, a[base + i], nrhs)
-                for (j in i + 1 until n) {
-                    val f = a[base + j]
-                    if (f != 0.0) denseAxpy(b, i * nrhs, f, b, j * nrhs, nrhs)
-                }
+        } else { // back substitution: finalize x[j], then push it up column j
+            for (j in n - 1 downTo 0) {
+                val xj = if (unitDiag) x[xOff + j] else x[xOff + j] / a[j + j * lda]
+                x[xOff + j] = xj
+                if (xj != 0.0) denseAxpy(x, xOff, -xj, a, j * lda, j)
             }
         }
     } else {
-        if (lower) { // Tᵀ upper: push row i upward, then apply its diagonal
-            for (i in 0 until n) {
-                val base = i * n
-                for (j in 0 until i) {
-                    val f = a[base + j]
-                    if (f != 0.0) denseAxpy(b, j * nrhs, f, b, i * nrhs, nrhs)
-                }
-                if (!unitDiag) denseScale(b, i * nrhs, a[base + i], nrhs)
-            }
-        } else { // Tᵀ lower: push row i downward, then apply its diagonal
+        if (lower) { // Tᵀ is upper: back substitution, dotting column i of T behind the frontier
             for (i in n - 1 downTo 0) {
-                val base = i * n
-                for (j in i + 1 until n) {
-                    val f = a[base + j]
-                    if (f != 0.0) denseAxpy(b, j * nrhs, f, b, i * nrhs, nrhs)
-                }
-                if (!unitDiag) denseScale(b, i * nrhs, a[base + i], nrhs)
+                val base = i + i * lda
+                val s = x[xOff + i] - denseDot(a, base + 1, x, xOff + i + 1, n - i - 1)
+                x[xOff + i] = if (unitDiag) s else s / a[base]
+            }
+        } else { // Tᵀ is lower: forward substitution, dotting column i of T behind the frontier
+            for (i in 0 until n) {
+                val s = x[xOff + i] - denseDot(a, i * lda, x, xOff, i)
+                x[xOff + i] = if (unitDiag) s else s / a[i + i * lda]
             }
         }
     }
 }
 
-/** [trsv] over a flat row-major `n×n` buffer; shared with the LU and Cholesky solve internals. */
-internal fun trsvCore(a: DoubleArray, n: Int, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
-    if (!transpose) {
-        if (lower) { // forward substitution; row runs are contiguous
-            for (i in 0 until n) {
-                val s = x[i] - denseDot(a, i * n, x, 0, i)
-                x[i] = if (unitDiag) s else s / a[i * n + i]
-            }
-        } else { // back substitution
-            for (i in n - 1 downTo 0) {
-                val base = i * n
-                val s = x[i] - denseDot(a, base + i + 1, x, i + 1, n - i - 1)
-                x[i] = if (unitDiag) s else s / a[base + i]
-            }
-        }
-    } else {
-        if (lower) { // Tᵀ is upper: back substitution, column-oriented over rows of T
-            for (i in n - 1 downTo 0) {
-                val xi = if (unitDiag) x[i] else x[i] / a[i * n + i]
-                x[i] = xi
-                if (xi != 0.0) denseAxpy(x, 0, -xi, a, i * n, i)
-            }
-        } else { // Tᵀ is lower: forward substitution, column-oriented over rows of T
-            for (i in 0 until n) {
-                val base = i * n
-                val xi = if (unitDiag) x[i] else x[i] / a[base + i]
-                x[i] = xi
-                if (xi != 0.0) denseAxpy(x, i + 1, -xi, a, base + i + 1, n - i - 1)
-            }
-        }
-    }
-}
-
-/** [trsm] over flat row-major buffers (`a`: `n×n`, `b`: `n×nrhs`); every update runs along a
- *  contiguous row of `b`. */
-@Suppress("CyclomaticComplexMethod", "LongParameterList")
+/** [trsv] applied to each of the [nrhs] contiguous columns of a flat column-major `n×nrhs` [b]. */
+@Suppress("LongParameterList")
 internal fun trsmCore(
     a: DoubleArray,
     n: Int,
@@ -201,45 +202,7 @@ internal fun trsmCore(
     transpose: Boolean,
     unitDiag: Boolean,
 ) {
-    if (!transpose) {
-        if (lower) {
-            for (i in 0 until n) {
-                val base = i * n
-                for (j in 0 until i) {
-                    val f = a[base + j]
-                    if (f != 0.0) denseAxpy(b, i * nrhs, -f, b, j * nrhs, nrhs)
-                }
-                if (!unitDiag) denseScale(b, i * nrhs, 1.0 / a[base + i], nrhs)
-            }
-        } else {
-            for (i in n - 1 downTo 0) {
-                val base = i * n
-                for (j in i + 1 until n) {
-                    val f = a[base + j]
-                    if (f != 0.0) denseAxpy(b, i * nrhs, -f, b, j * nrhs, nrhs)
-                }
-                if (!unitDiag) denseScale(b, i * nrhs, 1.0 / a[base + i], nrhs)
-            }
-        }
-    } else {
-        if (lower) { // Tᵀ upper: finalize row i, then push its contribution up along T's row i
-            for (i in n - 1 downTo 0) {
-                val base = i * n
-                if (!unitDiag) denseScale(b, i * nrhs, 1.0 / a[base + i], nrhs)
-                for (j in 0 until i) {
-                    val f = a[base + j]
-                    if (f != 0.0) denseAxpy(b, j * nrhs, -f, b, i * nrhs, nrhs)
-                }
-            }
-        } else { // Tᵀ lower: finalize row i, then push its contribution down along T's row i
-            for (i in 0 until n) {
-                val base = i * n
-                if (!unitDiag) denseScale(b, i * nrhs, 1.0 / a[base + i], nrhs)
-                for (j in i + 1 until n) {
-                    val f = a[base + j]
-                    if (f != 0.0) denseAxpy(b, j * nrhs, -f, b, i * nrhs, nrhs)
-                }
-            }
-        }
+    for (c in 0 until nrhs) {
+        trsvCore(a, n, b, c * n, lower = lower, transpose = transpose, unitDiag = unitDiag)
     }
 }

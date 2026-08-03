@@ -20,7 +20,7 @@ internal expect fun denseScale(v: DoubleArray, vOff: Int, alpha: Double, len: In
 
 /**
  * Four dots against a shared right operand: `out[outOff + r] = Sum a[aOff + r*stride + i] * b[bOff + i]`
- * for `r` in `0..3`. The rows of a row-major matrix against one vector, which is the shape
+ * for `r` in `0..3`. Four columns of a column-major matrix against one vector, which is the shape
  * [LinearAlgebra.gemv] and the `A·Bᵀ` [LinearAlgebra.gemm] branch need. A vectorized implementation
  * loads each `b` segment once for all four rows and keeps four independent accumulators, so it cuts
  * load traffic and breaks the accumulator dependency chain that limits a single [denseDot]; the
