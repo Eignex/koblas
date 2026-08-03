@@ -41,9 +41,11 @@ class BackendSelectionTest {
     }
 
     @Test
-    fun `an empty registry resolves to the platform backend or the reference one`() {
+    fun `an empty registry resolves to the reference backend`() {
+        // There is one discovery path now: whatever a platform provides arrives through registration, so an
+        // empty registry means the reference exactly, not "the reference or whatever discovery returned".
         withCleanRegistry {
-            assertEquals(platformLinearAlgebra() ?: ReferenceLinearAlgebra, koblas)
+            assertEquals(ReferenceLinearAlgebra, koblas)
         }
     }
 
@@ -67,7 +69,7 @@ class BackendSelectionTest {
     fun `the incumbent backend survives a cleared registry`() {
         // The restore path above is what keeps the host-BLAS suites valid whatever order tests run in.
         val before = koblas
-        withCleanRegistry { assertTrue(koblas === platformLinearAlgebra() || koblas === ReferenceLinearAlgebra) }
+        withCleanRegistry { assertTrue(koblas === ReferenceLinearAlgebra) }
         assertEquals(before, koblas)
     }
 

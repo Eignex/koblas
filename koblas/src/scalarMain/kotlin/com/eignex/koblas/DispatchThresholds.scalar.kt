@@ -17,9 +17,3 @@ internal actual val platformDispatchThresholds: DispatchThresholds =
     DispatchThresholds(level1 = NATIVE_LEVEL1_MIN, level2 = 0, level3 = 0, lapack = 0)
 
 private const val NATIVE_LEVEL1_MIN = 64
-
-/** Environment only; there are no system properties outside the JVM. */
-internal actual fun dispatchOverride(name: String): Int? = readEnv("KOBLAS_DISPATCH_${name.uppercase()}")?.toIntOrNull()
-
-/** An environment variable, or null where the target has no environment to read. */
-internal expect fun readEnv(name: String): String?
