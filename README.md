@@ -105,9 +105,9 @@ Semantics follow the standard; the exceptions are documented on each
 function. Factorizations use the LAPACK packed formats, so they interchange
 between backends.
 
-The seam is three interfaces: Level1 holds the vector kernels, Blas the level 2
-and 3 routines, Lapack the factorizations built on them, and LinearAlgebra is
-the Blas and Lapack pair. All three are ranked and selected independently, so a
+The seam is three interfaces, each named for what it covers: VectorKernels holds
+the vector-vector routines, Blas the matrix ones, Lapack the factorizations built
+on them, and LinearAlgebra is the Blas and Lapack pair. All three are ranked and selected independently, so a
 host providing one library and not the other still accelerates what it can, and
 koblas composes the winning halves.
 
@@ -119,7 +119,7 @@ use whichever reads better.
 
 Level 1 is reached differently from the other two, because those kernels do
 nanoseconds of work and a virtual call per invocation would cost more than the
-kernel. They are specialized at compile time, and consult the Level1 interface
+kernel. They are specialized at compile time, and consult the VectorKernels interface
 only once a run is long enough to cover a foreign call. Three of the level 1
 routines stay off that seam on purpose: iamax because its tie-breaking and NaN
 ranking are koblas's own contract and idamax implementations disagree about the
@@ -167,7 +167,7 @@ Passing none keeps the allocating behaviour, which is always correct.
 
 Backends register themselves and are ranked by priority, one ranking per
 interface: whatever the platform provides arrives through registration, and
-installLinearAlgebra or installLevel1 overrides it. On the JVM discovery scans
+installLinearAlgebra or installVectorKernels overrides it. On the JVM discovery scans
 the classpath; elsewhere it happens at program start.
 
 What differs between the interfaces is not how a backend is selected but when it
@@ -175,7 +175,7 @@ is consulted. The level 2 and 3 multiplies and the factorizations amortize a
 virtual call, so every invocation goes through the interface. The level 1
 kernels do not, so they are specialized at compile time -- the JVM uses the
 incubator Vector API when started with `--add-modules=jdk.incubator.vector`, and
-the other targets use scalar loops -- and reach a registered Level1 backend only
+the other targets use scalar loops -- and reach a registered VectorKernels backend only
 for runs at least as long as the level 1 threshold, 64 elements on the native
 targets. Every inner loop bottoms out here, including the sparse kernels.
 

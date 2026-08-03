@@ -4,7 +4,7 @@ import com.eignex.koblas.Blas
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.registerBlas
 import com.eignex.koblas.registerLapack
-import com.eignex.koblas.registerLevel1
+import com.eignex.koblas.registerVectorKernels
 
 /**
  * Registers [CblasLinearAlgebra] for automatic selection at program start when the host provides
@@ -27,7 +27,7 @@ private fun autoInstall() {
     registerBlas(blas)
     // The level-1 primitives sit below the Blas seam and are scalar on this platform, so they register as
     // their own half; koblas routes only runs long enough to cover the call.
-    registerLevel1(CblasLevel1Kernels())
+    registerVectorKernels(CblasVectorKernels())
     // LAPACKE is a separate package on Debian and Ubuntu. Without it the factorizations stay portable
     // while everything above keeps the host BLAS, rather than the whole backend dropping out.
     val lapacke = OpenBlasLoader.lapacke ?: return

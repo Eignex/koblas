@@ -20,7 +20,7 @@ package com.eignex.koblas
  * A threshold larger than any problem a caller will pose keeps a level portable; [Int.MAX_VALUE] is the
  * blunt way to say that, and it needs no name of its own.
  *
- * @property level1 run length from which the level-1 primitives dispatch to a registered [Level1].
+ * @property level1 run length from which the level-1 primitives dispatch to a registered [VectorKernels].
  * @property level2 dimension from which the level-2 routines dispatch natively.
  * @property level3 dimension from which the level-3 routines dispatch natively.
  * @property lapack dimension from which the factorizations dispatch natively.
