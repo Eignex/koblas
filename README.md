@@ -105,18 +105,25 @@ Semantics follow the standard; the exceptions are documented on each
 function. Factorizations use the LAPACK packed formats, so they interchange
 between backends.
 
-The seam is two interfaces: Blas holds the level 2 and 3 routines, Lapack the
-factorizations built on them, and LinearAlgebra is both. They are ranked and
-selected independently, so a host providing one library and not the other still
-accelerates what it can, and koblas composes the winning halves.
+The seam is three interfaces: Level1 holds the vector kernels, Blas the level 2
+and 3 routines, Lapack the factorizations built on them, and LinearAlgebra is
+the Blas and Lapack pair. All three are ranked and selected independently, so a
+host providing one library and not the other still accelerates what it can, and
+koblas composes the winning halves.
 
 Each group above names the interface its routines belong to, and a member
 reaches the installed backend; determinant and norm1 are the two plain functions
 here, marked as such. Members also have a free-function spelling of the
 same name (trsv, trsm, ger, ...) that forwards to the member, so a call site may
-use whichever reads better. Level 1 stays outside the interfaces deliberately:
-those kernels do nanoseconds of work, so a virtual call would cost more than the
-kernel, and they are specialized at compile time instead.
+use whichever reads better.
+
+Level 1 is reached differently from the other two, because those kernels do
+nanoseconds of work and a virtual call per invocation would cost more than the
+kernel. They are specialized at compile time, and consult the Level1 interface
+only once a run is long enough to cover a foreign call. Three of the level 1
+routines stay off that seam on purpose: iamax because its tie-breaking and NaN
+ranking are koblas's own contract and idamax implementations disagree about the
+latter, copy and swap because copyInto already beats a foreign call.
 
 **Out of scope:** single precision, complex numbers, banded and packed storage
 layouts, SVD, and eigendecompositions. Nothing is supported silently: new
@@ -158,21 +165,23 @@ Passing none keeps the allocating behaviour, which is always correct.
 
 ## Backends
 
-There are two performance seams, split by how much work a call does.
+Backends register themselves and are ranked by priority, one ranking per
+interface: whatever the platform provides arrives through registration, and
+installLinearAlgebra or installLevel1 overrides it. On the JVM discovery scans
+the classpath; elsewhere it happens at program start.
 
-The level 1 kernels (dot, axpy, scale) do nanoseconds of work per call, so
-dispatch would cost more than the kernel. They are specialized at compile
-time: the JVM uses the incubator Vector API when started with
-`--add-modules=jdk.incubator.vector`, and the other targets use scalar loops,
-except that Linux and macOS hand runs of 64 elements or more to the host BLAS
-when one is installed. Every inner loop runs on this seam, including the sparse
-kernels.
+What differs between the interfaces is not how a backend is selected but when it
+is consulted. The level 2 and 3 multiplies and the factorizations amortize a
+virtual call, so every invocation goes through the interface. The level 1
+kernels do not, so they are specialized at compile time -- the JVM uses the
+incubator Vector API when started with `--add-modules=jdk.incubator.vector`, and
+the other targets use scalar loops -- and reach a registered Level1 backend only
+for runs at least as long as the level 1 threshold, 64 elements on the native
+targets. Every inner loop bottoms out here, including the sparse kernels.
 
-The level 2 and 3 multiplies and the factorizations amortize dispatch, so
-they sit behind the runtime LinearAlgebra interface. Backends activate
-themselves: through the classpath on the JVM, by registration at program start
-elsewhere. The highest priority wins for each half; installLinearAlgebra
-overrides both. Storage
+Each threshold has a name and an override: `koblas.dispatch.level1` and its
+level2, level3 and lapack counterparts, as a JVM system property or as
+`KOBLAS_DISPATCH_LEVEL1` in the environment elsewhere. Storage
 is a flat, column-major DoubleArray -- the order LAPACK and Fortran define -- so
 a native backend receives raw buffers with no repacking and no row-major wrapper
 layer, and every backend must match the reference on the conformance suite.
