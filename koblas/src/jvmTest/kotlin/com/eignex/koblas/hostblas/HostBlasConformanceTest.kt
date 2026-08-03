@@ -40,6 +40,29 @@ class HostBlasConformanceTest {
         assertTrue(koblasInfo.contains("openblas"), koblasInfo)
     }
 
+    /**
+     * A factorization at a size that engages OpenBLAS's parallel path.
+     *
+     * Unconfigured, that path overflows a default JVM thread stack and takes the process down with
+     * SIGSEGV — no exception, nothing to catch, and every test in the run reported as passing before the
+     * crash. That is exactly how it reached CI once: the threading setup was dropped when this backend was
+     * assembled. This runs the shape that crashes, so a regression fails here instead of in someone's
+     * application.
+     */
+    @Test
+    fun `a large factorization does not take the process down`() {
+        if (!HostBlasCalls.lapackAvailable) return
+        val n = 512
+        val rng = Random(20260807)
+        val a = DenseMatrix.wrap(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
+        for (i in 0 until n) a[i, i] = a[i, i] + n
+        val host = HostLapack()
+        repeat(4) {
+            val lu = host.factor(a)
+            assertEquals(n, lu.n)
+        }
+    }
+
     @Test
     fun `level 3 matches reference at blocked sizes`() {
         if (!HostBlasCalls.blasAvailable) return
