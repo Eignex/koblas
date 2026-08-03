@@ -23,6 +23,9 @@ import kotlin.test.assertTrue
  */
 class HostBlasConformanceTest {
 
+    private fun randomMatrix(rng: Random, rows: Int, cols: Int) =
+        DenseMatrix.wrap(rows, cols, DoubleArray(rows * cols) { rng.nextDouble(-1.0, 1.0) })
+
     private fun assertClose(expected: DoubleArray, actual: DoubleArray, tol: Double, context: String) {
         assertEquals(expected.size, actual.size, context)
         for (i in expected.indices) {
@@ -60,6 +63,81 @@ class HostBlasConformanceTest {
         repeat(4) {
             val lu = host.factor(a)
             assertEquals(n, lu.n)
+        }
+    }
+
+    /**
+     * The routines whose gates are shut by default, exercised anyway.
+     *
+     * `ger`, `trsv`, `trmv`, `trsm` and `trmm` stay portable at the shipped thresholds, so nothing else in
+     * the suite would ever execute their native paths — the bindings would be dead code that compiles.
+     * Overriding the gates through the documented properties runs them, which is also a check that the
+     * override plumbing works.
+     */
+    @Test
+    fun `the gated level 2 and 3 routines match reference when their gates are opened`() {
+        if (!HostBlasCalls.blasAvailable) return
+        val host = HostBlas()
+        val rng = Random(20260808)
+        val n = 24
+        val nrhs = 5
+        for (lower in booleanArrayOf(true, false)) {
+            for (transpose in booleanArrayOf(true, false)) {
+                for (unitDiag in booleanArrayOf(true, false)) {
+                    val t = DenseMatrix(n, n)
+                    for (i in 0 until n) {
+                        for (j in 0 until n) {
+                            val strict = if (lower) j < i else j > i
+                            t[i, j] = when {
+                                strict -> rng.nextDouble(-1.0, 1.0)
+                                i == j -> rng.nextDouble(2.0, 4.0)
+                                else -> 0.0
+                            }
+                        }
+                    }
+                    val flags = "lower=$lower t=$transpose unit=$unitDiag"
+                    val x = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
+                    val portableTrsv = x.copyOf().also {
+                        ReferenceLinearAlgebra.trsv(t, it, lower, transpose, unitDiag)
+                    }
+                    val nativeTrsv = x.copyOf().also { host.trsv(t, it, lower, transpose, unitDiag) }
+                    assertClose(portableTrsv, nativeTrsv, tol = 1e-9, context = "trsv $flags")
+                    val portableTrmv = x.copyOf().also {
+                        ReferenceLinearAlgebra.trmv(t, it, lower, transpose, unitDiag)
+                    }
+                    val nativeTrmv = x.copyOf().also { host.trmv(t, it, lower, transpose, unitDiag) }
+                    assertClose(portableTrmv, nativeTrmv, tol = 1e-9, context = "trmv $flags")
+                    for (right in booleanArrayOf(false, true)) {
+                        val b = if (right) randomMatrix(rng, nrhs, n) else randomMatrix(rng, n, nrhs)
+                        for (solve in booleanArrayOf(true, false)) {
+                            val expected = DenseMatrix(b.rows, b.cols, b.data.copyOf())
+                            val actual = DenseMatrix(b.rows, b.cols, b.data.copyOf())
+                            if (solve) {
+                                ReferenceLinearAlgebra.trsm(t, expected, lower, transpose, unitDiag, right)
+                                host.trsm(t, actual, lower, transpose, unitDiag, right)
+                            } else {
+                                ReferenceLinearAlgebra.trmm(t, expected, lower, transpose, unitDiag, right)
+                                host.trmm(t, actual, lower, transpose, unitDiag, right)
+                            }
+                            val label = if (solve) "trsm" else "trmm"
+                            assertClose(expected.data, actual.data, tol = 1e-9, context = "$label right=$right $flags")
+                        }
+                    }
+                }
+            }
+        }
+        // ger, over shapes and the alpha BLAS treats specially.
+        for ((rows, cols) in listOf(24 to 24, 30 to 9)) {
+            for (alpha in doubleArrayOf(0.0, -0.75)) {
+                val xv = DoubleArray(rows) { rng.nextDouble(-1.0, 1.0) }
+                val yv = DoubleArray(cols) { rng.nextDouble(-1.0, 1.0) }
+                val a0 = randomMatrix(rng, rows, cols)
+                val expected = DenseMatrix(rows, cols, a0.data.copyOf())
+                val actual = DenseMatrix(rows, cols, a0.data.copyOf())
+                ReferenceLinearAlgebra.ger(alpha, xv, yv, expected)
+                host.ger(alpha, xv, yv, actual)
+                assertClose(expected.data, actual.data, context = "ger ${rows}x$cols alpha=$alpha", tol = 1e-12)
+            }
         }
     }
 

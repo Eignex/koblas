@@ -31,6 +31,104 @@ class HostBlas internal constructor() : Blas {
     /** Above the reference (0) and the native dlopen backend (90), being the strongest JVM option. */
     override val priority: Int get() = 100
 
+    /** Portable below the level-2 gate, `cblas_dger` above it. */
+    override fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix) {
+        if (minOf(a.rows, a.cols) < dispatchThresholds.level2) return super.ger(alpha, x, y, a)
+        require(a.rows == x.size && a.cols == y.size) {
+            "ger shape mismatch: A is ${a.rows}x${a.cols}, x ${x.size}, y ${y.size}"
+        }
+        if (alpha == 0.0 || a.rows == 0 || a.cols == 0) return
+        HostBlasCalls.dger.invokeWithArguments(
+            ROW_MAJOR, a.rows, a.cols, alpha, seg(x), 1, seg(y), 1, seg(a.data), a.cols,
+        )
+    }
+
+    /** Portable below the level-2 gate, `cblas_dtrsv` above it. */
+    override fun trsv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
+        if (a.rows < dispatchThresholds.level2) return super.trsv(a, x, lower, transpose, unitDiag)
+        require(a.rows == a.cols) { "trsv requires a square matrix; got ${a.rows}x${a.cols}" }
+        require(x.size == a.rows) { "trsv: x length ${x.size} != ${a.rows}" }
+        if (a.rows == 0) return
+        HostBlasCalls.dtrsv.invokeWithArguments(
+            ROW_MAJOR, uploOf(lower), transOf(transpose), diagOf(unitDiag), a.rows,
+            seg(a.data), a.cols, seg(x), 1,
+        )
+    }
+
+    /** Portable below the level-2 gate, `cblas_dtrmv` above it. */
+    override fun trmv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
+        if (a.rows < dispatchThresholds.level2) return super.trmv(a, x, lower, transpose, unitDiag)
+        require(a.rows == a.cols) { "trmv requires a square matrix; got ${a.rows}x${a.cols}" }
+        require(x.size == a.rows) { "trmv: x length ${x.size} != ${a.rows}" }
+        if (a.rows == 0) return
+        HostBlasCalls.dtrmv.invokeWithArguments(
+            ROW_MAJOR, uploOf(lower), transOf(transpose), diagOf(unitDiag), a.rows,
+            seg(a.data), a.cols, seg(x), 1,
+        )
+    }
+
+    /** Portable below the level-3 gate, `cblas_dtrsm` above it. */
+    @Suppress("LongParameterList") // the BLAS dtrsm signature
+    override fun trsm(
+        a: DenseMatrix,
+        b: DenseMatrix,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+        right: Boolean,
+    ) {
+        if (minOf(a.rows, b.rows, b.cols) < dispatchThresholds.level3) {
+            return super.trsm(a, b, lower, transpose, unitDiag, right)
+        }
+        triangularSolveOrMultiply(a, b, lower, transpose, unitDiag, right, solve = true)
+    }
+
+    /** Portable below the level-3 gate, `cblas_dtrmm` above it. */
+    @Suppress("LongParameterList") // the BLAS dtrmm signature
+    override fun trmm(
+        a: DenseMatrix,
+        b: DenseMatrix,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+        right: Boolean,
+    ) {
+        if (minOf(a.rows, b.rows, b.cols) < dispatchThresholds.level3) {
+            return super.trmm(a, b, lower, transpose, unitDiag, right)
+        }
+        triangularSolveOrMultiply(a, b, lower, transpose, unitDiag, right, solve = false)
+    }
+
+    /** dtrsm and dtrmm take the same arguments and differ only in the entry point; koblas fixes alpha at 1. */
+    @Suppress("LongParameterList") // the shared BLAS signature plus the entry-point flag
+    private fun triangularSolveOrMultiply(
+        a: DenseMatrix,
+        b: DenseMatrix,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+        right: Boolean,
+        solve: Boolean,
+    ) {
+        val what = if (solve) "trsm" else "trmm"
+        require(a.rows == a.cols) { "$what requires a square matrix; got ${a.rows}x${a.cols}" }
+        if (right) {
+            require(b.cols == a.rows) { "$what right: B has ${b.cols} cols, expected ${a.rows}" }
+        } else {
+            require(b.rows == a.rows) { "$what: B has ${b.rows} rows, expected ${a.rows}" }
+        }
+        if (a.rows == 0 || b.rows == 0 || b.cols == 0) return
+        val handle = if (solve) HostBlasCalls.dtrsm else HostBlasCalls.dtrmm
+        handle.invokeWithArguments(
+            ROW_MAJOR, if (right) RIGHT else LEFT, uploOf(lower), transOf(transpose), diagOf(unitDiag),
+            b.rows, b.cols, 1.0, seg(a.data), a.cols, seg(b.data), b.cols,
+        )
+    }
+
+    private fun uploOf(lower: Boolean) = if (lower) LOWER else UPPER
+    private fun transOf(transpose: Boolean) = if (transpose) TRANS else NO_TRANS
+    private fun diagOf(unitDiag: Boolean) = if (unitDiag) HostBlasCalls.UNIT else HostBlasCalls.NON_UNIT
+
     /**
      * Portable below [DispatchThresholds.level2], native above it.
      *
