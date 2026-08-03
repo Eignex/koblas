@@ -126,6 +126,40 @@ class LinearAlgebraSymmetricOpsTest {
         }
     }
 
+    /**
+     * syrk gives the same answer on its second call with a reused workspace as on its first.
+     *
+     * The rank-1-sweep branch accumulates the alpha term into an n² scratch buffer. [Workspace.take]
+     * documents its contents as undefined and hands back whatever the last borrower left there, so the
+     * buffer has to be cleared before the sweeps begin — accumulating into it was correct only by
+     * accident, because a freshly allocated `DoubleArray` is zero and nothing reused one. Two calls
+     * through the same workspace is the shape that catches it.
+     */
+    @Test
+    fun `syrk through a reused workspace does not accumulate the previous call`() {
+        val rng = Random(20260946)
+        val n = 8
+        val k = 5
+        val ws = Workspace()
+        for (uplo in listOf(Uplo.FULL, Uplo.LOWER, Uplo.UPPER)) {
+            val a = randomMatrix(n, k, rng)
+            val first = DenseMatrix(n, n)
+            koblas.syrk(0.75, a, transpose = false, beta = 0.0, c = first, uplo = uplo, workspace = ws)
+            val second = DenseMatrix(n, n)
+            koblas.syrk(0.75, a, transpose = false, beta = 0.0, c = second, uplo = uplo, workspace = ws)
+            val fresh = DenseMatrix(n, n)
+            koblas.syrk(0.75, a, transpose = false, beta = 0.0, c = fresh, uplo = uplo)
+            for (i in 0 until n) {
+                for (j in 0 until n) {
+                    val f = first[i, j]
+                    if (f.isNaN()) continue // an untouched triangle stays untouched; checked elsewhere
+                    assertClose(f, second[i, j], "syrk $uplo reused workspace ($i;$j)")
+                    assertClose(f, fresh[i, j], "syrk $uplo against no workspace ($i;$j)")
+                }
+            }
+        }
+    }
+
     @Test
     fun `symmetric ops handle empty shapes`() {
         koblas.symm(1.0, DenseMatrix(0, 0), DenseMatrix(0, 3), 0.0, DenseMatrix(0, 3))

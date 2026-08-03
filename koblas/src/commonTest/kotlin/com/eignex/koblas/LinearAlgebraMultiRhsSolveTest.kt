@@ -74,10 +74,11 @@ class LinearAlgebraMultiRhsSolveTest {
         a[1, 0] = 1.0
         a[0, 1] = Double.NaN
         val f = koblas.ldl(a)
-        // A = [[0,1],[1,0]] swaps the rows: columns (2,3) and (1,-1) map to (3,2) and (-1,1).
-        val b = DenseMatrix.wrap(2, 2, doubleArrayOf(2.0, 1.0, 3.0, -1.0))
+        // A = [[0,1],[1,0]] swaps the rows: columns (2,3) and (1,-1) map to (3,2) and (-1,1). The flat
+        // arrays are column-major, so each pair of entries is one column.
+        val b = DenseMatrix.wrap(2, 2, doubleArrayOf(2.0, 3.0, 1.0, -1.0))
         val x = koblas.solve(f, b)
-        assertClose(doubleArrayOf(3.0, -1.0, 2.0, 1.0), x.data, "antidiagonal block", tolerance = 1e-11)
+        assertClose(doubleArrayOf(3.0, 2.0, -1.0, 1.0), x.data, "antidiagonal block", tolerance = 1e-11)
     }
 
     @Test

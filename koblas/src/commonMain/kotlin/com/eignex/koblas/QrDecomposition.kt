@@ -1,7 +1,7 @@
 package com.eignex.koblas
 
 /**
- * A QR factorization `A = Q·R` in LAPACK `dgeqrf` packed form: [qr] is the `m×n` row-major buffer with
+ * A QR factorization `A = Q·R` in LAPACK `dgeqrf` packed form: [qr] is the `m×n` column-major buffer with
  * `R` on and above the diagonal and the Householder vectors below it (each vector's implicit leading 1
  * is not stored), and [tau] holds the `min(m, n)` reflector coefficients of `H_k = I − tau_k·v_k·v_kᵀ`
  * with `Q = H_0·H_1···H_{k−1}`. Produced by [LinearAlgebra.qr]; consumed by [LinearAlgebra.applyQ] and
@@ -13,7 +13,7 @@ package com.eignex.koblas
  *
  * @property m the row count of the factored matrix.
  * @property n the column count of the factored matrix.
- * @property qr the packed `R` and Householder vectors, row-major, length `m * n`.
+ * @property qr the packed `R` and Householder vectors, column-major, length `m * n`.
  * @property tau the reflector coefficients, length `min(m, n)`.
  */
 class QrDecomposition(val m: Int, val n: Int, val qr: DoubleArray, val tau: DoubleArray) {

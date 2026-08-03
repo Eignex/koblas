@@ -23,7 +23,7 @@ private const val BUNCH_KAUFMAN_ALPHA = 0.6403882032022076
 
 /**
  * A general LU factorization with partial pivoting: `P·A = L·U`, the unit-lower `L` and upper `U` packed
- * into one flat row-major [lu] buffer (`L` below the diagonal, `U` on and above) and the row permutation
+ * into one flat column-major [lu] buffer (`L` below the diagonal, `U` on and above) and the row permutation
  * in [piv] (`piv[k]` is the original row now at position `k`). [singular] is set when a zero pivot was
  * hit; [LinearAlgebra.solve] on a singular factorization is not meaningful. Produced by
  * [LinearAlgebra.factor].
@@ -35,7 +35,7 @@ private const val BUNCH_KAUFMAN_ALPHA = 0.6403882032022076
  * periodic refactorization need not allocate new ones.
  *
  * @property n the matrix dimension.
- * @property lu the packed `L`\`U` factors, row-major, length `n * n`.
+ * @property lu the packed `L`\`U` factors, column-major, length `n * n`.
  * @property piv the row permutation.
  * @param singular whether a zero pivot was encountered; readable afterwards through [singular].
  */
@@ -96,28 +96,30 @@ object ReferenceLinearAlgebra : LinearAlgebra {
         }
         if (alpha == 0.0) return
         val ad = a.data
-        val cols = a.cols
-        if (transpose) {
-            for (i in 0 until a.rows) {
-                val xi = alpha * x[i]
-                if (xi != 0.0) denseAxpy(y, 0, xi, ad, i * cols, cols)
+        val rows = a.rows
+        if (!transpose) {
+            // y += alpha·Σ_j x_j·A[:,j]: one axpy per column, every run contiguous and no reduction.
+            for (j in 0 until a.cols) {
+                val xj = alpha * x[j]
+                if (xj != 0.0) denseAxpy(y, 0, xj, ad, j * rows, rows)
             }
         } else {
-            // Four rows at a time: one shared load of x per segment, four independent accumulators.
+            // y_j = alpha·A[:,j]ᵀ·x, the dot of a contiguous column with x. Four columns at a time: one
+            // shared load of x per segment, four independent accumulators.
             val quads = DoubleArray(4)
-            var i = 0
-            val bound = a.rows - 3
-            while (i < bound) {
-                denseDot4(ad, i * cols, cols, x, 0, cols, quads, 0)
-                y[i] += alpha * quads[0]
-                y[i + 1] += alpha * quads[1]
-                y[i + 2] += alpha * quads[2]
-                y[i + 3] += alpha * quads[3]
-                i += 4
+            var j = 0
+            val bound = a.cols - 3
+            while (j < bound) {
+                denseDot4(ad, j * rows, rows, x, 0, rows, quads, 0)
+                y[j] += alpha * quads[0]
+                y[j + 1] += alpha * quads[1]
+                y[j + 2] += alpha * quads[2]
+                y[j + 3] += alpha * quads[3]
+                j += 4
             }
-            while (i < a.rows) {
-                y[i] += alpha * denseDot(ad, i * cols, x, 0, cols)
-                i++
+            while (j < a.cols) {
+                y[j] += alpha * denseDot(ad, j * rows, x, 0, rows)
+                j++
             }
         }
     }
@@ -146,50 +148,52 @@ object ReferenceLinearAlgebra : LinearAlgebra {
         }
         if (alpha == 0.0 || m == 0 || n == 0 || k == 0) return
         if (transposeA && transposeB) {
-            // C = alpha·Aᵀ·Bᵀ + C: materialize Aᵀ once, then reuse the (noT, T) row-dot kernel.
-            val at = DenseMatrix(m, k)
-            for (i in 0 until m) for (p in 0 until k) at[i, p] = a[p, i]
-            gemm(alpha, at, transposeA = false, b, transposeB = true, beta = 1.0, c = c)
+            // C = alpha·Aᵀ·Bᵀ + C: the only combination that has a contiguous run on neither side of the
+            // inner product — A's columns line up, but Bᵀ needs B's rows. Materialize Bᵀ once, then reuse
+            // the (T, noT) column-dot kernel.
+            val bt = DenseMatrix(k, n)
+            for (j in 0 until n) for (p in 0 until k) bt[p, j] = b[j, p]
+            gemm(alpha, a, transposeA = true, bt, transposeB = false, beta = 1.0, c = c)
             return
         }
         val ad = a.data
         val bd = b.data
         when {
-            // C += alpha·A·B: rank-1 axpy sweeps, all runs contiguous.
-            !transposeA && !transposeB -> for (i in 0 until m) {
-                for (p in 0 until k) {
-                    val aip = alpha * ad[i * k + p]
-                    if (aip != 0.0) denseAxpy(cd, i * n, aip, bd, p * n, n)
-                }
-            }
-
-            // C += alpha·A·Bᵀ: entry (i, j) is the dot of two contiguous rows. Four B rows share each
-            // load of the A row, the same shape gemv exploits.
-            !transposeA -> {
+            // C += alpha·Aᵀ·B: entry (i, j) is the dot of column i of A with column j of B, both
+            // contiguous. Four A columns share each load of the B column, the shape gemv exploits.
+            transposeA -> {
                 val quads = DoubleArray(4)
-                for (i in 0 until m) {
-                    var j = 0
-                    val bound = n - 3
-                    while (j < bound) {
-                        denseDot4(bd, j * k, k, ad, i * k, k, quads, 0)
-                        cd[i * n + j] += alpha * quads[0]
-                        cd[i * n + j + 1] += alpha * quads[1]
-                        cd[i * n + j + 2] += alpha * quads[2]
-                        cd[i * n + j + 3] += alpha * quads[3]
-                        j += 4
+                for (j in 0 until n) {
+                    var i = 0
+                    val bound = m - 3
+                    while (i < bound) {
+                        denseDot4(ad, i * k, k, bd, j * k, k, quads, 0)
+                        cd[i + j * m] += alpha * quads[0]
+                        cd[i + 1 + j * m] += alpha * quads[1]
+                        cd[i + 2 + j * m] += alpha * quads[2]
+                        cd[i + 3 + j * m] += alpha * quads[3]
+                        i += 4
                     }
-                    while (j < n) {
-                        cd[i * n + j] += alpha * denseDot(ad, i * k, bd, j * k, k)
-                        j++
+                    while (i < m) {
+                        cd[i + j * m] += alpha * denseDot(ad, i * k, bd, j * k, k)
+                        i++
                     }
                 }
             }
 
-            // C += alpha·Aᵀ·B: p outer keeps both the A read row and the B axpy row contiguous.
-            else -> for (p in 0 until k) {
-                for (i in 0 until m) {
-                    val api = alpha * ad[p * m + i]
-                    if (api != 0.0) denseAxpy(cd, i * n, api, bd, p * n, n)
+            // C += alpha·A·B: C[:,j] = Σ_p B[p,j]·A[:,p], rank-1 axpy sweeps down contiguous columns.
+            !transposeB -> for (j in 0 until n) {
+                for (p in 0 until k) {
+                    val bpj = alpha * bd[p + j * k]
+                    if (bpj != 0.0) denseAxpy(cd, j * m, bpj, ad, p * m, m)
+                }
+            }
+
+            // C += alpha·A·Bᵀ: same column sweeps, but the B scalar comes from row j of the n×k B.
+            else -> for (j in 0 until n) {
+                for (p in 0 until k) {
+                    val bjp = alpha * bd[j + p * n]
+                    if (bjp != 0.0) denseAxpy(cd, j * m, bjp, ad, p * m, m)
                 }
             }
         }
@@ -212,33 +216,35 @@ object ReferenceLinearAlgebra : LinearAlgebra {
         scaleUplo(cd, n, beta, uplo)
         if (alpha == 0.0 || n == 0 || k == 0) return
         val ad = a.data
-        if (!transpose) {
-            // C += alpha·A·Aᵀ: entry (i, j) is the dot of contiguous rows i and j; computed once per
-            // pair, then written to the selected triangle(s).
-            for (i in 0 until n) {
-                for (j in 0..i) {
+        if (transpose) {
+            // C += alpha·Aᵀ·A: entry (i, j) is the dot of contiguous columns i and j of the k×n A;
+            // computed once per pair, then written to the selected triangle(s).
+            for (j in 0 until n) {
+                for (i in j until n) {
                     val v = alpha * denseDot(ad, i * k, ad, j * k, k)
                     addUplo(cd, n, i, j, v, uplo)
                 }
             }
         } else {
-            // C += alpha·Aᵀ·A = alpha·Σₚ A[p,:]ᵀ·A[p,:]: rank-1 sweeps over contiguous rows of A into
-            // a scratch buffer, then written per triangle — the sweeps alone are not bit-symmetric
-            // ((alpha·x)·y and (alpha·y)·x round differently), and the contract promises an exactly
-            // symmetric alpha term.
+            // C += alpha·A·Aᵀ = alpha·Σₚ A[:,p]·A[:,p]ᵀ: rank-1 sweeps over contiguous columns of the
+            // n×k A into a scratch buffer, then written per triangle — the sweeps alone are not
+            // bit-symmetric ((alpha·x)·y and (alpha·y)·x round differently), and the contract promises an
+            // exactly symmetric alpha term.
             // The n² mirror is the largest scratch in the library, so the one most worth lending; pools
             // key by width, so this just borrows an n²-wide vector.
+            // Cleared first: take() promises nothing about the contents, and the sweeps below accumulate.
             val w = workspace?.take(n * n) ?: DoubleArray(n * n)
+            w.fill(0.0, 0, n * n)
             for (p in 0 until k) {
                 val base = p * n
-                for (i in 0 until n) {
-                    val f = alpha * ad[base + i]
-                    if (f != 0.0) denseAxpy(w, i * n, f, ad, base, n)
+                for (j in 0 until n) {
+                    val f = alpha * ad[base + j]
+                    if (f != 0.0) denseAxpy(w, j * n, f, ad, base, n)
                 }
             }
-            for (i in 0 until n) {
-                for (j in 0..i) {
-                    addUplo(cd, n, i, j, w[i * n + j], uplo)
+            for (j in 0 until n) {
+                for (i in j until n) {
+                    addUplo(cd, n, i, j, w[i + j * n], uplo)
                 }
             }
             workspace?.release(w)
@@ -249,11 +255,11 @@ object ReferenceLinearAlgebra : LinearAlgebra {
     @Suppress("LongParameterList")
     private fun addUplo(cd: DoubleArray, n: Int, i: Int, j: Int, v: Double, uplo: Uplo) {
         if (uplo != Uplo.UPPER) {
-            cd[i * n + j] += v
+            cd[i + j * n] += v
         } else if (i == j) {
-            cd[i * n + i] += v // the diagonal belongs to both triangles
+            cd[i + i * n] += v // the diagonal belongs to both triangles
         }
-        if (uplo != Uplo.LOWER && i != j) cd[j * n + i] += v
+        if (uplo != Uplo.LOWER && i != j) cd[j + i * n] += v
     }
 
     /** `beta` scale of the region [uplo] selects, honoring the `beta == 0` overwrite convention. */
@@ -267,9 +273,10 @@ object ReferenceLinearAlgebra : LinearAlgebra {
             return
         }
         if (beta == 1.0) return
-        for (i in 0 until n) {
-            val from = if (uplo == Uplo.LOWER) i * n else i * n + i
-            val len = if (uplo == Uplo.LOWER) i + 1 else n - i
+        // Column j holds its lower triangle at rows j..n-1 and its upper triangle at rows 0..j.
+        for (j in 0 until n) {
+            val from = if (uplo == Uplo.LOWER) j + j * n else j * n
+            val len = if (uplo == Uplo.LOWER) n - j else j + 1
             if (beta == 0.0) cd.fill(0.0, from, from + len) else denseScale(cd, from, beta, len)
         }
     }
@@ -286,20 +293,47 @@ object ReferenceLinearAlgebra : LinearAlgebra {
             denseScale(y, 0, beta, n)
         }
         if (alpha == 0.0) return
-        val ad = a.data
-        // Row i of the stored triangle serves both A[i, j] (a contiguous dot) and its mirror A[j, i]
-        // (a contiguous axpy), so symmetry never forces a strided column walk.
-        for (i in 0 until n) {
-            val base = i * n
-            val xi = alpha * x[i]
+        symvAccumulate(alpha, a.data, n, x, 0, y, 0, lower)
+    }
+
+    /**
+     * `y[yOff..] += alpha · A · x[xOff..]` for the symmetric `n×n` [ad], reading only the [lower] (or
+     * upper) triangle.
+     *
+     * Column `j` of the stored triangle serves both `A[i, j]` (a contiguous dot) and its mirror
+     * `A[j, i]` (a contiguous axpy), so symmetry never forces a strided walk. The offsets let [symm]
+     * apply this straight to a column of its operands, which are contiguous runs in this layout.
+     */
+    @Suppress("LongParameterList") // two buffers with offsets plus the triangle flag
+    private fun symvAccumulate(
+        alpha: Double,
+        ad: DoubleArray,
+        n: Int,
+        x: DoubleArray,
+        xOff: Int,
+        y: DoubleArray,
+        yOff: Int,
+        lower: Boolean,
+    ) {
+        for (j in 0 until n) {
+            val base = j + j * n
+            val xj = alpha * x[xOff + j]
             if (lower) {
-                y[i] += alpha * denseDot(ad, base, x, 0, i) + xi * ad[base + i]
-                if (xi != 0.0) denseAxpy(y, 0, xi, ad, base, i)
+                val len = n - j - 1
+                y[yOff + j] += alpha * denseDot(ad, base + 1, x, xOff + j + 1, len) + xj * ad[base]
+                if (xj != 0.0) denseAxpy(y, yOff + j + 1, xj, ad, base + 1, len)
             } else {
-                y[i] += alpha * denseDot(ad, base + i + 1, x, i + 1, n - i - 1) + xi * ad[base + i]
-                if (xi != 0.0) denseAxpy(y, i + 1, xi, ad, base + i + 1, n - i - 1)
+                y[yOff + j] += alpha * denseDot(ad, j * n, x, xOff, j) + xj * ad[base]
+                if (xj != 0.0) denseAxpy(y, yOff, xj, ad, j * n, j)
             }
         }
+    }
+
+    /** `A[i, j]` of a symmetric `n×n` matrix stored in its [lower] (or upper) triangle only. */
+    private fun symEntry(ad: DoubleArray, n: Int, i: Int, j: Int, lower: Boolean): Double {
+        val hi = if (i > j) i else j
+        val lo = if (i > j) j else i
+        return if (lower) ad[hi + lo * n] else ad[lo + hi * n]
     }
 
     @Suppress("LongParameterList", "CyclomaticComplexMethod") // the BLAS dsymm signature
@@ -317,47 +351,34 @@ object ReferenceLinearAlgebra : LinearAlgebra {
         require(c.rows == b.rows && c.cols == b.cols) {
             "symm: C is ${c.rows}x${c.cols} but B is ${b.rows}x${b.cols}"
         }
-        if (right) {
-            require(b.cols == m) { "symm right: B has ${b.cols} cols, expected $m" }
-            val cd = c.data
-            if (beta == 0.0) {
-                cd.fill(0.0)
-            } else if (beta != 1.0) {
-                denseScale(cd, 0, beta, cd.size)
-            }
-            if (alpha == 0.0 || m == 0 || b.rows == 0) return
-            // Row r of the product is (A · B[r,:]ᵀ)ᵀ by symmetry: a contiguous per-row symv.
-            val x = DoubleArray(m)
-            val y = DoubleArray(m)
-            for (r in 0 until b.rows) {
-                b.data.copyInto(x, 0, r * m, (r + 1) * m)
-                y.fill(0.0)
-                symv(alpha, a, x, 0.0, y, lower)
-                denseAxpy(cd, r * m, 1.0, y, 0, m)
-            }
-            return
-        }
-        val p = b.cols
-        require(b.rows == m) { "symm: B has ${b.rows} rows, expected $m" }
         val cd = c.data
         if (beta == 0.0) {
             cd.fill(0.0)
         } else if (beta != 1.0) {
             denseScale(cd, 0, beta, cd.size)
         }
-        if (alpha == 0.0 || m == 0 || p == 0) return
-        val ad = a.data
-        val bd = b.data
-        for (i in 0 until m) {
-            val base = i * m
-            val js = if (lower) 0..i else i until m
-            for (j in js) {
-                val aij = alpha * ad[base + j]
-                if (aij != 0.0) {
-                    denseAxpy(cd, i * p, aij, bd, j * p, p)
-                    if (j != i) denseAxpy(cd, j * p, aij, bd, i * p, p)
+        if (right) {
+            require(b.cols == m) { "symm right: B has ${b.cols} cols, expected $m" }
+            if (alpha == 0.0 || m == 0 || b.rows == 0) return
+            // C = alpha·B·A: column j of the product is alpha·Σₚ B[:,p]·A[p,j], so every run is a
+            // contiguous column of B and C and the symmetric entry is a scalar read.
+            val rows = b.rows
+            val ad = a.data
+            val bd = b.data
+            for (j in 0 until m) {
+                for (p in 0 until m) {
+                    val apj = alpha * symEntry(ad, m, p, j, lower)
+                    if (apj != 0.0) denseAxpy(cd, j * rows, apj, bd, p * rows, rows)
                 }
             }
+            return
+        }
+        require(b.rows == m) { "symm: B has ${b.rows} rows, expected $m" }
+        if (alpha == 0.0 || m == 0 || b.cols == 0) return
+        // C = alpha·A·B: column j of the product is alpha·A·B[:,j], a symv applied straight to the
+        // contiguous columns of B and C.
+        for (j in 0 until b.cols) {
+            symvAccumulate(alpha, a.data, m, b.data, j * m, cd, j * m, lower)
         }
     }
 
@@ -373,11 +394,12 @@ object ReferenceLinearAlgebra : LinearAlgebra {
         var k = 0
         while (k < n) {
             var kstep = 1
-            val absakk = abs(w[k * n + k])
+            val absakk = abs(w[k + k * n])
             var imax = k
             var colmax = 0.0
+            // The pivot column is a contiguous run in this layout, so the search sweeps it linearly.
             for (i in k + 1 until n) {
-                val v = abs(w[i * n + k])
+                val v = abs(w[i + k * n])
                 if (v > colmax) {
                     colmax = v
                     imax = i
@@ -395,11 +417,11 @@ object ReferenceLinearAlgebra : LinearAlgebra {
                 kp = k
             } else {
                 var rowmax = 0.0
-                for (j in k until imax) rowmax = maxOf(rowmax, abs(w[imax * n + j]))
-                for (j in imax + 1 until n) rowmax = maxOf(rowmax, abs(w[j * n + imax]))
+                for (j in k until imax) rowmax = maxOf(rowmax, abs(w[imax + j * n]))
+                for (j in imax + 1 until n) rowmax = maxOf(rowmax, abs(w[j + imax * n]))
                 if (absakk * rowmax >= BUNCH_KAUFMAN_ALPHA * colmax * colmax) {
                     kp = k
-                } else if (abs(w[imax * n + imax]) >= BUNCH_KAUFMAN_ALPHA * rowmax) {
+                } else if (abs(w[imax + imax * n]) >= BUNCH_KAUFMAN_ALPHA * rowmax) {
                     kp = imax
                 } else {
                     kp = imax
@@ -411,58 +433,60 @@ object ReferenceLinearAlgebra : LinearAlgebra {
                 // Interchange rows/columns kk and kp of the trailing submatrix, dsytf2-style: the
                 // already-computed L columns to the left stay put; solve replays ipiv instead.
                 for (i in kp + 1 until n) {
-                    val t = w[i * n + kk]
-                    w[i * n + kk] = w[i * n + kp]
-                    w[i * n + kp] = t
+                    val t = w[i + kk * n]
+                    w[i + kk * n] = w[i + kp * n]
+                    w[i + kp * n] = t
                 }
                 for (j in kk + 1 until kp) {
-                    val t = w[j * n + kk]
-                    w[j * n + kk] = w[kp * n + j]
-                    w[kp * n + j] = t
+                    val t = w[j + kk * n]
+                    w[j + kk * n] = w[kp + j * n]
+                    w[kp + j * n] = t
                 }
-                val t = w[kk * n + kk]
-                w[kk * n + kk] = w[kp * n + kp]
-                w[kp * n + kp] = t
+                val t = w[kk + kk * n]
+                w[kk + kk * n] = w[kp + kp * n]
+                w[kp + kp * n] = t
                 if (kstep == 2) {
-                    val s = w[(k + 1) * n + k]
-                    w[(k + 1) * n + k] = w[kp * n + k]
-                    w[kp * n + k] = s
+                    val s = w[(k + 1) + k * n]
+                    w[(k + 1) + k * n] = w[kp + k * n]
+                    w[kp + k * n] = s
                 }
             }
             if (kstep == 1) {
-                // A[k+1.., k+1..] -= d11·col·colᵀ with col the raw pivot column, then scale the column
-                // into multipliers. A contiguous copy of the column turns every row update into an axpy.
-                val d11 = 1.0 / w[k * n + k]
-                for (i in k + 1 until n) colK[i] = w[i * n + k]
-                for (i in k + 1 until n) {
-                    val f = -d11 * colK[i]
-                    if (f != 0.0) denseAxpy(w, i * n + k + 1, f, colK, k + 1, i - k)
+                // A[k+1.., k+1..] -= d11·col·colᵀ with col the raw pivot column, then scale that column
+                // into multipliers. Column j of the update reads the pivot column and writes its own,
+                // both contiguous, so no staging copy is needed and the scaling is one denseScale.
+                val d11 = 1.0 / w[k + k * n]
+                for (j in k + 1 until n) {
+                    val f = -d11 * w[j + k * n]
+                    if (f != 0.0) denseAxpy(w, j + j * n, f, w, j + k * n, n - j)
                 }
-                for (i in k + 1 until n) w[i * n + k] = colK[i] * d11
+                denseScale(w, k + 1 + k * n, d11, n - k - 1)
                 ipiv[k] = kp + 1
             } else {
                 if (k < n - 2) {
-                    // 2×2 pivot block: netlib's d21-scaled inverse, applied row-wise via two axpys.
-                    val d21 = w[(k + 1) * n + k]
-                    val d11 = w[(k + 1) * n + k + 1] / d21
-                    val d22 = w[k * n + k] / d21
+                    // 2×2 pivot block: netlib's d21-scaled inverse, applied column-wise via two axpys.
+                    // The transformed multipliers have to be staged, because the update still reads the
+                    // raw columns k and k+1 that they will replace.
+                    val d21 = w[(k + 1) + k * n]
+                    val d11 = w[(k + 1) + (k + 1) * n] / d21
+                    val d22 = w[k + k * n] / d21
                     val t = 1.0 / (d11 * d22 - 1.0)
                     val d21inv = t / d21
                     for (j in k + 2 until n) {
-                        val cj = w[j * n + k]
-                        val cj1 = w[j * n + k + 1]
+                        val cj = w[j + k * n]
+                        val cj1 = w[j + (k + 1) * n]
                         colK[j] = d21inv * (d11 * cj - cj1)
                         colK1[j] = d21inv * (d22 * cj1 - cj)
                     }
-                    for (i in k + 2 until n) {
-                        val ci = w[i * n + k]
-                        val ci1 = w[i * n + k + 1]
-                        if (ci != 0.0) denseAxpy(w, i * n + k + 2, -ci, colK, k + 2, i - k - 1)
-                        if (ci1 != 0.0) denseAxpy(w, i * n + k + 2, -ci1, colK1, k + 2, i - k - 1)
+                    for (j in k + 2 until n) {
+                        val fj = colK[j]
+                        val fj1 = colK1[j]
+                        if (fj != 0.0) denseAxpy(w, j + j * n, -fj, w, j + k * n, n - j)
+                        if (fj1 != 0.0) denseAxpy(w, j + j * n, -fj1, w, j + (k + 1) * n, n - j)
                     }
                     for (i in k + 2 until n) {
-                        w[i * n + k] = colK[i]
-                        w[i * n + k + 1] = colK1[i]
+                        w[i + k * n] = colK[i]
+                        w[i + (k + 1) * n] = colK1[i]
                     }
                 }
                 ipiv[k] = -(kp + 1)
@@ -496,8 +520,8 @@ object ReferenceLinearAlgebra : LinearAlgebra {
                     x[kp] = t
                 }
                 val xk = x[k]
-                if (xk != 0.0) for (i in k + 1 until n) x[i] -= w[i * n + k] * xk
-                x[k] = xk / w[k * n + k]
+                if (xk != 0.0) denseAxpy(x, k + 1, -xk, w, k + 1 + k * n, n - k - 1)
+                x[k] = xk / w[k + k * n]
                 k += 1
             } else {
                 val kp = -ipiv[k] - 1
@@ -508,10 +532,12 @@ object ReferenceLinearAlgebra : LinearAlgebra {
                 }
                 val xk = x[k]
                 val xk1 = x[k + 1]
-                for (i in k + 2 until n) x[i] -= w[i * n + k] * xk + w[i * n + k + 1] * xk1
-                val akm1k = w[(k + 1) * n + k]
-                val akm1 = w[k * n + k] / akm1k
-                val ak = w[(k + 1) * n + k + 1] / akm1k
+                val len = n - k - 2
+                if (xk != 0.0) denseAxpy(x, k + 2, -xk, w, k + 2 + k * n, len)
+                if (xk1 != 0.0) denseAxpy(x, k + 2, -xk1, w, k + 2 + (k + 1) * n, len)
+                val akm1k = w[(k + 1) + k * n]
+                val akm1 = w[k + k * n] / akm1k
+                val ak = w[(k + 1) + (k + 1) * n] / akm1k
                 val denom = akm1 * ak - 1.0
                 val bkm1 = xk / akm1k
                 val bk = xk1 / akm1k
@@ -524,9 +550,7 @@ object ReferenceLinearAlgebra : LinearAlgebra {
         k = n - 1
         while (k >= 0) {
             if (ipiv[k] > 0) {
-                var s = x[k]
-                for (i in k + 1 until n) s -= w[i * n + k] * x[i]
-                x[k] = s
+                x[k] -= denseDot(w, k + 1 + k * n, x, k + 1, n - k - 1)
                 val kp = ipiv[k] - 1
                 if (kp != k) {
                     val t = x[k]
@@ -536,12 +560,9 @@ object ReferenceLinearAlgebra : LinearAlgebra {
                 k -= 1
             } else {
                 val k0 = k - 1
-                var s0 = x[k0]
-                var s1 = x[k]
-                for (i in k + 1 until n) {
-                    s0 -= w[i * n + k0] * x[i]
-                    s1 -= w[i * n + k] * x[i]
-                }
+                val len = n - k - 1
+                val s0 = x[k0] - denseDot(w, k + 1 + k0 * n, x, k + 1, len)
+                val s1 = x[k] - denseDot(w, k + 1 + k * n, x, k + 1, len)
                 x[k0] = s0
                 x[k] = s1
                 val kp = -ipiv[k] - 1
@@ -562,52 +583,51 @@ object ReferenceLinearAlgebra : LinearAlgebra {
         val k = minOf(m, n)
         val buf = a.data.copyOf()
         val tau = DoubleArray(k)
-        val wWidth = if (n > 0) n - 1 else 0
-        val w = workspace?.take(wWidth) ?: DoubleArray(wWidth)
         for (col in 0 until k) {
-            tau[col] = householderColumn(buf, m, n, col)
-            if (tau[col] == 0.0) continue
-            // Apply H = I − tau·v·vᵀ to the trailing columns, row-oriented so every run is contiguous:
-            // w = vᵀ·A(sub) accumulates scaled row segments, then each row gets a −tau·v_i·w update.
-            val width = n - col - 1
-            if (width == 0) continue
-            w.fill(0.0, 0, width)
-            for (i in col until m) {
-                val vi = if (i == col) 1.0 else buf[i * n + col]
-                if (vi != 0.0) denseAxpy(w, 0, vi, buf, i * n + col + 1, width)
-            }
-            for (i in col until m) {
-                val vi = if (i == col) 1.0 else buf[i * n + col]
-                val f = -tau[col] * vi
-                if (f != 0.0) denseAxpy(buf, i * n + col + 1, f, w, 0, width)
+            tau[col] = householderColumn(buf, m, col)
+            val t = tau[col]
+            if (t == 0.0) continue
+            // Apply H = I − tau·v·vᵀ to each trailing column independently: the reflector and the column
+            // it updates are both contiguous runs, so this is one dot for vᵀ·A[:,c] and one axpy back.
+            // The row-major form needed an n-wide accumulator here; this needs none, so the workspace
+            // argument is accepted for signature compatibility and left unused.
+            val len = m - col - 1
+            val vBase = col + 1 + col * m
+            for (c in col + 1 until n) {
+                val head = col + c * m
+                val s = buf[head] + denseDot(buf, vBase, buf, head + 1, len)
+                val f = -t * s
+                if (f != 0.0) {
+                    buf[head] += f
+                    denseAxpy(buf, head + 1, f, buf, vBase, len)
+                }
             }
         }
-        workspace?.release(w)
         return QrDecomposition(m, n, buf, tau)
     }
 
     /** Build the Householder reflector for [col] in place (LAPACK `dlarfg`): returns `tau`, stores the
      *  scaled vector below the diagonal and `beta` (the new `R` diagonal) on it. `tau == 0` means the
-     *  column was already zero below the diagonal position and `H = I`. */
-    private fun householderColumn(buf: DoubleArray, m: Int, n: Int, col: Int): Double {
-        var normSq = 0.0
-        for (i in col until m) {
-            val v = buf[i * n + col]
-            normSq += v * v
-        }
+     *  column was already zero below the diagonal position and `H = I`. The column is contiguous, so the
+     *  norm is a self-dot over it. */
+    private fun householderColumn(buf: DoubleArray, m: Int, col: Int): Double {
+        val base = col + col * m
+        val len = m - col
+        val normSq = denseDot(buf, base, buf, base, len)
         if (normSq == 0.0) return 0.0
-        val alpha = buf[col * n + col]
+        val alpha = buf[base]
         val norm = sqrt(normSq)
         val beta = if (alpha >= 0.0) -norm else norm
+        // Divided rather than scaled by a reciprocal: a subnormal v0 would make 1/v0 overflow, where the
+        // division stays finite.
         val v0 = alpha - beta
-        for (i in col + 1 until m) buf[i * n + col] /= v0
-        buf[col * n + col] = beta
+        for (i in base + 1 until base + len) buf[i] /= v0
+        buf[base] = beta
         return (beta - alpha) / beta
     }
 
     override fun applyQInto(qr: QrDecomposition, y: DoubleArray, out: DoubleArray, transpose: Boolean): DoubleArray {
         val m = qr.m
-        val n = qr.n
         require(y.size == m) { "applyQ: y length ${y.size} != $m" }
         require(out.size == m) { "applyQ: out length ${out.size} != $m" }
         val x = out
@@ -615,16 +635,17 @@ object ReferenceLinearAlgebra : LinearAlgebra {
         val k = qr.tau.size
         val buf = qr.qr
         // Q = H_0·H_1···H_{k−1} and each H is symmetric, so Qᵀ applies them in ascending order and
-        // Q in descending.
+        // Q in descending. Each reflector is a contiguous run, so both halves vectorize.
         val order = if (transpose) 0 until k else k - 1 downTo 0
         for (col in order) {
             val t = qr.tau[col]
             if (t == 0.0) continue
-            var s = x[col]
-            for (i in col + 1 until m) s += buf[i * n + col] * x[i]
+            val len = m - col - 1
+            val vBase = col + 1 + col * m
+            val s = x[col] + denseDot(buf, vBase, x, col + 1, len)
             val f = t * s
             x[col] -= f
-            for (i in col + 1 until m) x[i] -= f * buf[i * n + col]
+            if (f != 0.0) denseAxpy(x, col + 1, -f, buf, vBase, len)
         }
         return x
     }
@@ -650,10 +671,11 @@ object ReferenceLinearAlgebra : LinearAlgebra {
         for (i in 0 until n) piv[i] = i
         var singular = false
         for (k in 0 until n) {
+            // The pivot column is contiguous, so the search is a linear sweep.
             var p = k
-            var max = abs(lu[k * n + k])
+            var max = abs(lu[k + k * n])
             for (i in k + 1 until n) {
-                val v = abs(lu[i * n + k])
+                val v = abs(lu[i + k * n])
                 if (v > max) {
                     max = v
                     p = i
@@ -664,20 +686,27 @@ object ReferenceLinearAlgebra : LinearAlgebra {
                 continue
             }
             if (p != k) {
+                // The one strided step in this layout, and the one dgetrf pays too: a row interchange
+                // touches one element per column.
                 for (j in 0 until n) {
-                    val t = lu[k * n + j]
-                    lu[k * n + j] = lu[p * n + j]
-                    lu[p * n + j] = t
+                    val t = lu[k + j * n]
+                    lu[k + j * n] = lu[p + j * n]
+                    lu[p + j * n] = t
                 }
                 val tp = piv[k]
                 piv[k] = piv[p]
                 piv[p] = tp
             }
-            val pivot = lu[k * n + k]
-            for (i in k + 1 until n) {
-                val f = lu[i * n + k] / pivot
-                lu[i * n + k] = f
-                denseAxpy(lu, i * n + k + 1, -f, lu, k * n + k + 1, n - k - 1)
+            // Multipliers first, into the pivot column; then one axpy per trailing column, each reading
+            // that column and writing its own. Divided rather than reciprocal-scaled so a subnormal pivot
+            // cannot turn into an infinity.
+            val pivot = lu[k + k * n]
+            val len = n - k - 1
+            val colBase = k + 1 + k * n
+            for (i in k + 1 until n) lu[i + k * n] = lu[i + k * n] / pivot
+            for (j in k + 1 until n) {
+                val ukj = lu[k + j * n]
+                if (ukj != 0.0) denseAxpy(lu, k + 1 + j * n, -ukj, lu, colBase, len)
             }
         }
         out.singular = singular

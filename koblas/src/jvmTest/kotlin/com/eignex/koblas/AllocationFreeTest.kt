@@ -157,12 +157,14 @@ class AllocationFreeTest {
         val rng = Random(20260741)
         val a = wellConditioned(n, rng)
         val c = DenseMatrix(n, n)
-        // syrk's FULL mode needs an n² scratch, the largest single allocation in the library.
+        // syrk's FULL mode needs an n² scratch, the largest single allocation in the library. It is the
+        // rank-1-sweep branch that needs it, which under column-major storage is the non-transposed
+        // direction: C = A·Aᵀ sweeps columns of A, where C = Aᵀ·A is a plain dot per entry.
         val ws = Workspace().apply { reserve(n * n, count = 1) }
 
-        val allocating = bytesPerIteration(200) { koblas.syrk(1.0, a, transpose = true, beta = 0.0, c = c) }
+        val allocating = bytesPerIteration(200) { koblas.syrk(1.0, a, transpose = false, beta = 0.0, c = c) }
         val pooled = bytesPerIteration(200) {
-            koblas.syrk(1.0, a, transpose = true, beta = 0.0, c = c, workspace = ws)
+            koblas.syrk(1.0, a, transpose = false, beta = 0.0, c = c, workspace = ws)
         }
         assertTrue(allocating > n * n * Double.SIZE_BYTES * 0.5, "expected an n² scratch, saw $allocating B")
         assertPooled(pooled, allocating, "syrk")
@@ -203,15 +205,20 @@ class AllocationFreeTest {
         assertPooled(into, allocating, "least squares")
     }
 
+    /**
+     * norm1 allocates nothing at all, and takes no workspace to manage.
+     *
+     * Under row-major storage it accumulated one running total per column while sweeping rows, so it
+     * needed an `n`-wide array and a workspace was the way to avoid allocating one. A column is
+     * contiguous here, so each column sum completes before the next begins and a single scalar suffices.
+     * The parameter is gone; this asserts the stronger property that replaced it.
+     */
     @Test
-    fun `norm1 with a workspace allocates nothing`() {
+    fun `norm1 allocates nothing`() {
         val n = 64
         val a = wellConditioned(n, Random(20260742))
-        val ws = Workspace().apply { reserve(n, count = 1) }
-        val allocating = bytesPerIteration(2000) { norm1(a) }
-        val pooled = bytesPerIteration(2000) { norm1(a, ws) }
-        assertTrue(allocating > n * Double.SIZE_BYTES * 0.5, "expected allocation, saw $allocating B")
-        assertPooled(pooled, allocating, "norm1")
+        val bytes = bytesPerIteration(2000) { norm1(a) }
+        assertTrue(bytes <= FLOOR_BYTES, "norm1 allocated $bytes B")
     }
 
     @Test

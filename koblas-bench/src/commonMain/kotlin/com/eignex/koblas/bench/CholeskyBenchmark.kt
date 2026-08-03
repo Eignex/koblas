@@ -46,9 +46,11 @@ import kotlin.random.Random
  * Three things worth carrying forward. The SIMD factorization matches single-threaded OpenBLAS up to
  * n=1024 and only falls behind by 2x at 2048, so the JVM having no native LAPACK costs far less here
  * than the LU ratios suggested — this loop vectorizes well, where LU's pivoting and row swaps do not.
- * `solveSpd` is `O(n^2)` over `O(n^2)` data and loses natively, so it delegates. And LAPACKE's row-major
- * entry points transpose into a column-major temporary, which taxes every native call and is why the
- * `O(n^2)` routine loses so heavily; enabling OpenBLAS threading would move the large sizes the other way.
+ * `solveSpd` is `O(n^2)` over `O(n^2)` data and loses natively, so it delegates. Two caveats on these
+ * numbers: they were taken while koblas stored matrices row-major, so every native call also paid for
+ * LAPACKE transposing the matrix into a column-major temporary — a tax that no longer exists and that
+ * explains much of why the `O(n^2)` routine lost so heavily. And OpenBLAS ran single-threaded; enabling
+ * its threading would move the large sizes the other way.
  */
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)

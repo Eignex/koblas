@@ -173,33 +173,40 @@ fun ger(alpha: Double, x: VectorView, y: VectorView, a: DenseMatrix) {
         koblas.ger(alpha, x.data, y.data, a)
         return
     }
-    // Mixed or sparse: no BLAS routine takes these, so walk the stored entries. Skipping a zero row
-    // skips the whole row of updates, which is the point of accepting a sparse x at all.
+    // Mixed or sparse: no BLAS routine takes these, so walk the stored entries. Skipping a zero entry of
+    // y skips a whole column of updates, which is the point of accepting a sparse operand at all. The
+    // column is the outer loop because columns are the contiguous axis.
     val md = a.data
-    val cols = a.cols
-    x.forEachStored { i, xi ->
-        if (xi != 0.0) {
-            val row = i * cols
-            val scaled = alpha * xi
-            y.forEachStored { j, yj -> md[row + j] += scaled * yj }
+    val rows = a.rows
+    y.forEachStored { j, yj ->
+        if (yj != 0.0) {
+            val col = j * rows
+            val scaled = alpha * yj
+            x.forEachStored { i, xi -> md[col + i] += scaled * xi }
         }
     }
 }
 
-/** Matrix 1-norm: the maximum absolute column sum (LAPACK `dlange` with norm `1`). This is the
- *  `anorm` input [LinearAlgebra.rcond] expects, computed on the matrix before factoring, so a solver
- *  that estimates conditioning each refactorization calls both — pass the same [workspace] to each. */
-fun norm1(a: DenseMatrix, workspace: Workspace? = null): Double {
-    val sums = workspace?.take(a.cols) ?: DoubleArray(a.cols)
-    sums.fill(0.0)
+/**
+ * Matrix 1-norm: the maximum absolute column sum (LAPACK `dlange` with norm `1`). This is the `anorm`
+ * input [LinearAlgebra.rcond] expects, computed on the matrix before factoring, so a solver that
+ * estimates conditioning each refactorization calls both.
+ *
+ * Takes no workspace, unlike [LinearAlgebra.rcond], because it needs no scratch: a column is contiguous,
+ * so each column sum completes before the next begins and one accumulator suffices. Row-major storage
+ * forced a running total per column and therefore an `n`-wide array; that is what the workspace argument
+ * used to be for.
+ */
+fun norm1(a: DenseMatrix): Double {
     val ad = a.data
-    for (i in 0 until a.rows) {
-        val base = i * a.cols
-        for (j in 0 until a.cols) sums[j] += abs(ad[base + j])
-    }
+    val rows = a.rows
     var m = 0.0
-    for (j in 0 until a.cols) if (sums[j] > m) m = sums[j]
-    workspace?.release(sums)
+    for (j in 0 until a.cols) {
+        val base = j * rows
+        var s = 0.0
+        for (i in 0 until rows) s += abs(ad[base + i])
+        if (s > m) m = s
+    }
     return m
 }
 
@@ -211,8 +218,10 @@ fun norm1(a: DenseMatrix, workspace: Workspace? = null): Double {
 fun DenseMatrix.transpose(): DenseMatrix {
     val t = DenseMatrix(cols, rows)
     val td = t.data
-    for (i in 0 until rows) {
-        for (j in 0 until cols) td[j * rows + i] = data[i * cols + j]
+    // Reads down a contiguous source column and writes across a stride in the destination.
+    for (j in 0 until cols) {
+        val base = j * rows
+        for (i in 0 until rows) td[j + i * cols] = data[base + i]
     }
     return t
 }
@@ -232,13 +241,12 @@ fun gemv(A: MatrixView, x: VectorView): DenseVector {
     val out = DenseVector(A.rows)
     val od = out.data
     if (A is DenseMatrix) {
+        // One axpy per stored entry of x, down a contiguous column — so a sparse x touches only the
+        // columns it has entries in, which is the reason this overload exists.
         val ad = A.data
-        val cols = A.cols
-        for (i in 0 until A.rows) {
-            val row = i * cols
-            var s = 0.0
-            x.forEachStored { j, v -> s += ad[row + j] * v }
-            od[i] = s
+        val rows = A.rows
+        x.forEachStored { j, v ->
+            if (v != 0.0) denseAxpy(od, 0, v, ad, j * rows, rows)
         }
     } else {
         for (i in 0 until A.rows) {

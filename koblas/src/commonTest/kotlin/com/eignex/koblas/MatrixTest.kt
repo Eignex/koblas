@@ -10,7 +10,7 @@ import kotlin.test.assertTrue
  * The [DenseMatrix] carrier and the [MatrixView] surface: factories, entry access, equality and shape
  * reporting.
  *
- * The storage is a single flat row-major array, so the factories are where a shape and its backing can
+ * The storage is a single flat column-major array, so the factories are where a shape and its backing can
  * drift apart — a ragged input, an empty row set, or a `wrap` that aliases the caller's array. `toArray`
  * materializes a fresh copy in the other direction and is checked for that independence.
  */

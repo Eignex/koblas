@@ -13,7 +13,7 @@ import kotlinx.cinterop.usePinned
 
 // The CBLAS enums and LAPACKE layout macro, by their ABI integer values (the resolved function
 // pointers declare the parameters as plain int; see OpenBlasBindings.kt).
-private const val ROW_MAJOR = 101
+private const val COL_MAJOR = 102
 private const val NO_TRANS = 111
 private const val TRANS = 112
 private const val UPPER = 121
@@ -24,7 +24,7 @@ private const val LEFT = 141
 private const val RIGHT = 142
 
 /**
- * The host CBLAS as koblas's [Blas] half: the level-2 and level-3 routines, over row-major buffers that
+ * The host CBLAS as koblas's [Blas] half: the level-2 and level-3 routines, over column-major buffers that
  * cross the FFI boundary without repacking.
  *
  * Constructible whenever the host has OpenBLAS, independently of LAPACKE — which is the point, since a
@@ -60,8 +60,8 @@ internal class CblasBlas(private val f: CblasFunctions) : Blas {
             x.usePinned { xp ->
                 y.usePinned { yp ->
                     f.dgemv(
-                        ROW_MAJOR, trans, a.rows, a.cols, alpha,
-                        ap.addressOf(0), a.cols, xp.addressOf(0), 1, beta, yp.addressOf(0), 1,
+                        COL_MAJOR, trans, a.rows, a.cols, alpha,
+                        ap.addressOf(0), a.rows, xp.addressOf(0), 1, beta, yp.addressOf(0), 1,
                     )
                 }
             }
@@ -95,8 +95,8 @@ internal class CblasBlas(private val f: CblasFunctions) : Blas {
             b.data.usePinned { bp ->
                 c.data.usePinned { cp ->
                     f.dgemm(
-                        ROW_MAJOR, transA, transB, m, n, k, alpha,
-                        ap.addressOf(0), a.cols, bp.addressOf(0), b.cols, beta, cp.addressOf(0), c.cols,
+                        COL_MAJOR, transA, transB, m, n, k, alpha,
+                        ap.addressOf(0), a.rows, bp.addressOf(0), b.rows, beta, cp.addressOf(0), c.rows,
                     )
                 }
             }
@@ -127,7 +127,7 @@ internal class CblasBlas(private val f: CblasFunctions) : Blas {
             val u = if (uplo == Uplo.LOWER) LOWER else UPPER
             a.data.usePinned { ap ->
                 c.data.usePinned { cp ->
-                    f.dsyrk(ROW_MAJOR, u, trans, n, k, alpha, ap.addressOf(0), a.cols, beta, cp.addressOf(0), n)
+                    f.dsyrk(COL_MAJOR, u, trans, n, k, alpha, ap.addressOf(0), a.rows, beta, cp.addressOf(0), n)
                 }
             }
             return
@@ -138,11 +138,11 @@ internal class CblasBlas(private val f: CblasFunctions) : Blas {
         val w = workspace?.take(n * n) ?: DoubleArray(n * n)
         a.data.usePinned { ap ->
             w.usePinned { wp ->
-                f.dsyrk(ROW_MAJOR, LOWER, trans, n, k, alpha, ap.addressOf(0), a.cols, 0.0, wp.addressOf(0), n)
+                f.dsyrk(COL_MAJOR, LOWER, trans, n, k, alpha, ap.addressOf(0), a.rows, 0.0, wp.addressOf(0), n)
             }
         }
-        for (i in 0 until n) {
-            for (j in 0 until i) w[j * n + i] = w[i * n + j]
+        for (j in 0 until n) {
+            for (i in j + 1 until n) w[j + i * n] = w[i + j * n]
         }
         val cd = c.data
         when (beta) {
@@ -173,7 +173,7 @@ internal class CblasBlas(private val f: CblasFunctions) : Blas {
             x.usePinned { xp ->
                 y.usePinned { yp ->
                     f.dsymv(
-                        ROW_MAJOR, uplo, n, alpha,
+                        COL_MAJOR, uplo, n, alpha,
                         ap.addressOf(0), n, xp.addressOf(0), 1, beta, yp.addressOf(0), 1,
                     )
                 }
@@ -210,8 +210,8 @@ internal class CblasBlas(private val f: CblasFunctions) : Blas {
             b.data.usePinned { bp ->
                 c.data.usePinned { cp ->
                     f.dsymm(
-                        ROW_MAJOR, side, uplo, c.rows, c.cols, alpha,
-                        ap.addressOf(0), m, bp.addressOf(0), c.cols, beta, cp.addressOf(0), c.cols,
+                        COL_MAJOR, side, uplo, c.rows, c.cols, alpha,
+                        ap.addressOf(0), m, bp.addressOf(0), b.rows, beta, cp.addressOf(0), c.rows,
                     )
                 }
             }
@@ -227,8 +227,8 @@ internal class CblasBlas(private val f: CblasFunctions) : Blas {
             y.usePinned { yp ->
                 a.data.usePinned { ap ->
                     f.dger(
-                        ROW_MAJOR, a.rows, a.cols, alpha,
-                        xp.addressOf(0), 1, yp.addressOf(0), 1, ap.addressOf(0), a.cols,
+                        COL_MAJOR, a.rows, a.cols, alpha,
+                        xp.addressOf(0), 1, yp.addressOf(0), 1, ap.addressOf(0), a.rows,
                     )
                 }
             }
@@ -242,8 +242,8 @@ internal class CblasBlas(private val f: CblasFunctions) : Blas {
         a.data.usePinned { ap ->
             x.usePinned { xp ->
                 f.dtrsv(
-                    ROW_MAJOR, uploOf(lower), transOf(transpose), diagOf(unitDiag), a.rows,
-                    ap.addressOf(0), a.cols, xp.addressOf(0), 1,
+                    COL_MAJOR, uploOf(lower), transOf(transpose), diagOf(unitDiag), a.rows,
+                    ap.addressOf(0), a.rows, xp.addressOf(0), 1,
                 )
             }
         }
@@ -256,8 +256,8 @@ internal class CblasBlas(private val f: CblasFunctions) : Blas {
         a.data.usePinned { ap ->
             x.usePinned { xp ->
                 f.dtrmv(
-                    ROW_MAJOR, uploOf(lower), transOf(transpose), diagOf(unitDiag), a.rows,
-                    ap.addressOf(0), a.cols, xp.addressOf(0), 1,
+                    COL_MAJOR, uploOf(lower), transOf(transpose), diagOf(unitDiag), a.rows,
+                    ap.addressOf(0), a.rows, xp.addressOf(0), 1,
                 )
             }
         }
@@ -311,13 +311,13 @@ internal class CblasBlas(private val f: CblasFunctions) : Blas {
                 val args = arrayOf(ap.addressOf(0), bp.addressOf(0))
                 if (solve) {
                     f.dtrsm(
-                        ROW_MAJOR, side, uploOf(lower), transOf(transpose), diagOf(unitDiag),
-                        b.rows, b.cols, 1.0, args[0], a.cols, args[1], b.cols,
+                        COL_MAJOR, side, uploOf(lower), transOf(transpose), diagOf(unitDiag),
+                        b.rows, b.cols, 1.0, args[0], a.rows, args[1], b.rows,
                     )
                 } else {
                     f.dtrmm(
-                        ROW_MAJOR, side, uploOf(lower), transOf(transpose), diagOf(unitDiag),
-                        b.rows, b.cols, 1.0, args[0], a.cols, args[1], b.cols,
+                        COL_MAJOR, side, uploOf(lower), transOf(transpose), diagOf(unitDiag),
+                        b.rows, b.cols, 1.0, args[0], a.rows, args[1], b.rows,
                     )
                 }
             }
@@ -343,9 +343,10 @@ internal class CblasBlas(private val f: CblasFunctions) : Blas {
             return
         }
         if (beta == 1.0) return
-        for (i in 0 until n) {
-            val from = if (uplo == Uplo.LOWER) i * n else i * n + i
-            val until = if (uplo == Uplo.LOWER) i * n + i + 1 else (i + 1) * n
+        // Column j holds its lower triangle at rows j..n-1 and its upper triangle at rows 0..j.
+        for (j in 0 until n) {
+            val from = if (uplo == Uplo.LOWER) j + j * n else j * n
+            val until = if (uplo == Uplo.LOWER) (j + 1) * n else j + j * n + 1
             if (beta == 0.0) {
                 v.fill(0.0, from, until)
             } else {

@@ -13,7 +13,7 @@ import com.eignex.koblas.LinearAlgebra
  * [com.eignex.koblas.ReferenceLinearAlgebra], and constructing this class throws. [isAvailable] and
  * [isBlasAvailable] report which case the host is, since the two halves resolve independently.
  *
- * Koblas storage is row-major, which CBLAS and LAPACKE support directly, so buffers cross the FFI
+ * Koblas storage is column-major, the order LAPACK defines, so buffers cross the FFI
  * boundary without repacking. Semantics match [com.eignex.koblas.ReferenceLinearAlgebra] exactly as
  * specified by the [LinearAlgebra] contract: `beta == 0` overwrites without reading, `alpha == 0`
  * reduces to the `beta` scale, [syrk] produces the full, exactly symmetric result by default, and

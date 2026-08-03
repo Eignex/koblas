@@ -21,7 +21,7 @@ class LinearAlgebraQrTest {
     /** Column j of R (rows 0 until min(j+1, k)) padded to length m. */
     private fun rColumn(qr: QrDecomposition, j: Int): DoubleArray {
         val col = DoubleArray(qr.m)
-        for (i in 0 until minOf(j + 1, qr.tau.size)) col[i] = qr.qr[i * qr.n + j]
+        for (i in 0 until minOf(j + 1, qr.tau.size)) col[i] = qr.qr[i + j * qr.m]
         return col
     }
 
