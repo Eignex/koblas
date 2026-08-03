@@ -2,7 +2,6 @@
 
 package com.eignex.koblas
 
-import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -28,14 +27,6 @@ class CholeskyTest {
             doubleArrayOf(0.0, 1.0, 3.0),
         ),
     )
-
-    /** A random SPD matrix built by symmetrizing and then dominating the diagonal. */
-    private fun randomSpd(n: Int, rng: Random): DenseMatrix {
-        val a = DenseMatrix(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
-        for (i in 0 until n) for (j in 0 until i) a[j, i] = a[i, j]
-        for (i in 0 until n) a[i, i] = a[i, i] + n
-        return a
-    }
 
     /** `(L Lt)[i, j]`, summing only the stored part of a lower-triangular factor. */
     private fun reconstruct(l: DenseMatrix, i: Int, j: Int): Double {
@@ -83,88 +74,6 @@ class CholeskyTest {
                 assertEquals(if (i == j) 1.0 else 0.0, s, 1e-9, "A*Ainv mismatch at [$i,$j]")
             }
         }
-    }
-
-    @Test
-    fun `cholesky update then reconstruct equals A plus x xt`() {
-        val rng = Random(20260801)
-        for (n in intArrayOf(1, 3, 8, 20)) {
-            val a = randomSpd(n, rng)
-            val l = a.cholesky(regularizeNonPD = false)
-            val x = DoubleArray(n) { rng.nextDouble(-2.0, 2.0) }
-            l.choleskyUpdateInPlace(DenseVector.of(x))
-            for (i in 0 until n) {
-                for (j in 0 until n) {
-                    assertEquals(a[i, j] + x[i] * x[j], reconstruct(l, i, j), 1e-9, "update at [$i,$j] n=$n")
-                }
-            }
-            // The factor must stay a valid lower-triangular Cholesky: positive diagonal.
-            for (i in 0 until n) assertTrue(l[i, i] > 0.0, "non-positive diagonal at $i")
-        }
-    }
-
-    @Test
-    fun `cholesky update then downdate round-trips to the original factor`() {
-        val rng = Random(20260802)
-        val n = 10
-        val l = randomSpd(n, rng).cholesky(regularizeNonPD = false)
-        val original = l.data.copyOf()
-        val x = DenseVector.of(DoubleArray(n) { rng.nextDouble(-2.0, 2.0) })
-        l.choleskyUpdateInPlace(x)
-        assertEquals(0.0, l.choleskyDowndateInPlace(x), "downdating a just-updated factor must succeed")
-        for (idx in l.data.indices) {
-            assertEquals(original[idx], l.data[idx], 1e-9, "round-trip mismatch at $idx")
-        }
-    }
-
-    @Test
-    fun `cholesky update with the zero vector is a no-op`() {
-        val a = DenseMatrix.of(
-            arrayOf(
-                doubleArrayOf(4.0, 1.0),
-                doubleArrayOf(1.0, 3.0),
-            ),
-        )
-        val l = a.cholesky()
-        val before = l.data.copyOf()
-        l.choleskyUpdateInPlace(DenseVector.zero(2))
-        for (idx in before.indices) assertEquals(before[idx], l.data[idx], 0.0)
-        l.choleskyUpdateInPlace(SparseVector.of(2, IntArray(0), DoubleArray(0)))
-        for (idx in before.indices) assertEquals(before[idx], l.data[idx], 0.0)
-    }
-
-    @Test
-    fun `cholesky downdate then reconstruct equals A minus x xt`() {
-        // Build an SPD A with enough headroom to absorb the downdate.
-        val A = DenseMatrix.of(
-            arrayOf(
-                doubleArrayOf(10.0, 2.0, 1.0),
-                doubleArrayOf(2.0, 8.0, 3.0),
-                doubleArrayOf(1.0, 3.0, 7.0),
-            ),
-        )
-        val L = A.cholesky()
-        val x = doubleArrayOf(0.5, 1.0, -0.5)
-        assertEquals(0.0, L.choleskyDowndateInPlace(DenseVector.of(x)), "downdate should stay in the SPD cone")
-        for (i in 0 until 3) {
-            for (j in 0 until 3) {
-                assertEquals(A[i, j] - x[i] * x[j], reconstruct(L, i, j), 1e-9, "downdate at [$i,$j]")
-            }
-        }
-    }
-
-    @Test
-    fun `cholesky downdate refuses to exit the SPD cone`() {
-        val A = DenseMatrix.of(
-            arrayOf(
-                doubleArrayOf(2.0, 0.0),
-                doubleArrayOf(0.0, 2.0),
-            ),
-        )
-        val L = A.cholesky()
-        // x with ||L^-1 x|| >= 1 - pick x so that x*xT swamps A.
-        val norm = L.choleskyDowndateInPlace(DenseVector.of(doubleArrayOf(3.0, 0.0)))
-        assertTrue(norm >= 1.0, "expected norm >= 1 for an infeasible downdate, got $norm")
     }
 
     @Test

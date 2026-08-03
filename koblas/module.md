@@ -9,7 +9,7 @@ koblas provides read-only matrix/vector containers with sealed dense and sparse 
 `kotlinx.serialization` with their concrete storage preserved.
 
 Light arithmetic lives as free functions over the views: BLAS-1/2 (`dot`, `axpy`, `scale`, `ger`,
-`matVec`, `forEachStored`) and an SPD suite (`cholesky`, `choleskyDowndateInPlace`, `solveSpd`,
+`matVec`, `forEachStored`) and an SPD suite (`cholesky`, `solveSpd`,
 `invertSpd`). Their inner loops route through an `expect`/`actual` primitive seam that uses SIMD
 (`jdk.incubator.vector`) on the JVM and scalar loops elsewhere.
 
