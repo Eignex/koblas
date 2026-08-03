@@ -10,8 +10,10 @@ import kotlin.math.sqrt
  *
  * These carry English names rather than LAPACK's mnemonics: `factor` and `cholesky` read better than
  * `getrf` and `potrf`, and unlike the BLAS mnemonics those abbreviations are opaque even to people who
- * know the libraries. The packed formats are LAPACK's, so a factorization produced by one backend
- * solves correctly on another.
+ * know the libraries. That applies to the most-used entry points too — [factor] and [solve] stay English
+ * rather than becoming `getrf` and `getrs` — so the rule holds without exception on this side of the
+ * seam. The packed formats are LAPACK's, so a factorization produced by one backend solves correctly on
+ * another.
  *
  * Ranked and selected separately from [Blas], because a host can provide one and not the other.
  * Defaults implement every routine in portable Kotlin, so a backend overrides only what it accelerates.

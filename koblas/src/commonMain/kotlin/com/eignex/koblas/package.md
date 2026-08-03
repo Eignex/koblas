@@ -6,7 +6,7 @@ The koblas linear-algebra API — a well-defined subset of double-precision BLAS
 - Containers: [MatrixView] / [DenseMatrix] and [VectorView] / [DenseVector] / [SparseVector] (all
   `@Serializable`).
 - Free-function arithmetic over the views: [dot], [axpy], [scale], [norm2], [asum], [iamax], [copy],
-  [swap], [ger], [matVec], [transpose], [forEachStored]; the triangular solves [trsv] / [trsm];
+  [swap], [ger], [gemv], [transpose], [forEachStored]; the triangular solves [trsv] / [trsm];
   and the SPD suite [cholesky], [solveSpd],
   [invertSpd].
 - The swappable [LinearAlgebra] backend for the heavier dense ops (`gemv` / `gemm` in full BLAS
