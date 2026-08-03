@@ -187,11 +187,22 @@ because these targets have no vector kernels: measured on linuxX64 the host
 library wins level 2 by 2x to 15x and dense factorization by up to 13x.
 OPENBLAS_NUM_THREADS opts into threading; the default is single-threaded.
 
-The JVM has no native backend and needs no native access. Its portable kernels
-are Vector API SIMD, which beat a foreign call at level 1, level 2 and the
-single-vector solves outright, and the remaining gap on large dense products
-and factorizations was not worth an FFI surface, a JDK floor and a launch flag.
-The ServiceLoader seam is still there for a consumer who wants to supply one.
+The JVM resolves the same host OpenBLAS through `java.lang.foreign`, binding it
+with `Linker.Option.critical` so a DoubleArray is pinned rather than copied.
+Only the routines that win go native: the level-3 products, the LU, LDL and QR
+factorizations, the blocked multi-RHS solve, and the condition estimate. The
+level-2 routines, the single-vector solves and the whole Cholesky family stay on
+the Vector API kernels, which beat a foreign call there — measured, SIMD
+Cholesky matches single-threaded OpenBLAS to n=1024 and wins outright at 256.
+
+This is why the JVM artifact targets Java 25: FFM was finalized in 22, and the
+backend ships inside koblas rather than as a separate artifact. Native access is
+a restricted operation, so pass `--enable-native-access=ALL-UNNAMED` to silence
+the warning; without it the backend still works on 25. A machine with no
+OpenBLAS runs the portable kernels, as everywhere else.
+
+The ServiceLoader seam remains for a consumer who wants to supply their own
+backend, and it outranks the built-in one when its priority is higher.
 
 The seams are independent; print what a runtime resolved with:
 

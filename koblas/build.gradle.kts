@@ -18,7 +18,14 @@ kotlin {
     compilerOptions {
         freeCompilerArgs.add("-Xexpect-actual-classes")
     }
-    jvm()
+    // The JVM host-BLAS backend binds through java.lang.foreign, finalized in 22 and used here with
+    // Linker.Option.critical. 25 is the current LTS-track release; this is the floor for JVM consumers.
+    jvmToolchain(25)
+    jvm {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_25)
+        }
+    }
     js(IR) { browser(); nodejs() }
     wasmJs { browser(); nodejs() }
     wasmWasi { nodejs() }
@@ -92,7 +99,10 @@ dokka {
 tasks.withType<KotlinJvmCompile>().configureEach {
     compilerOptions.freeCompilerArgs.add("-Xadd-modules=jdk.incubator.vector")
 }
+// FFM downcalls are restricted methods: a warning on 25, an error later. Consumers pass the same flag
+// when they want the host-BLAS backend; core koblas needs it only because the backend now ships inside.
 tasks.withType<Test>().configureEach {
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
     if (project.findProperty("koblas.noSimd") != "true") {
         jvmArgs("--add-modules=jdk.incubator.vector")
     }

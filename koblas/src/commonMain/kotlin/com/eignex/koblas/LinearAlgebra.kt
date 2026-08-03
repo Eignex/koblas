@@ -759,6 +759,17 @@ object ReferenceLinearAlgebra : LinearAlgebra {
  */
 expect fun platformLinearAlgebra(): LinearAlgebra?
 
+/**
+ * Registers the backends koblas ships for this platform, once, on the first [koblas] read.
+ *
+ * The JVM half-registers its host-OpenBLAS backend here; the native targets do it eagerly before `main`
+ * instead, and the web targets have nothing to register.
+ */
+internal expect fun registerPlatformBackends()
+
+/** Runs [registerPlatformBackends] exactly once, on the first [koblas] read. */
+private val platformRegistration: Unit by lazy { registerPlatformBackends() }
+
 private val platformDefault: LinearAlgebra by lazy { platformLinearAlgebra() ?: ReferenceLinearAlgebra }
 
 @Volatile
@@ -781,7 +792,14 @@ private var resolved: LinearAlgebra? = null
 
 /** The active backend: an [installLinearAlgebra] override when set, else the strongest registered half
  *  of each kind, else the [platformLinearAlgebra] backend, else the portable [ReferenceLinearAlgebra]. */
-val koblas: LinearAlgebra get() = installed ?: resolved ?: platformDefault
+val koblas: LinearAlgebra
+    get() {
+        // One volatile read to make sure the platform's own backends had their chance to register. Doing
+        // it here rather than inside platformDefault keeps that value meaning "what discovery found", so
+        // clearing the registry still falls back to it rather than to a frozen composite.
+        platformRegistration
+        return installed ?: resolved ?: platformDefault
+    }
 
 /**
  * Pairs a [Blas] and a [Lapack] into one backend.

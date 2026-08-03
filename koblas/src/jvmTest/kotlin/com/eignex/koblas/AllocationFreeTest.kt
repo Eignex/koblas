@@ -3,6 +3,8 @@ package com.eignex.koblas
 import com.sun.management.ThreadMXBean
 import java.lang.management.ManagementFactory
 import kotlin.random.Random
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
@@ -22,6 +24,25 @@ class AllocationFreeTest {
     }
 
     private val bean = ManagementFactory.getThreadMXBean() as ThreadMXBean
+
+    /**
+     * Pins the portable backend for the whole suite.
+     *
+     * What is under test is koblas's own scratch handling — that a [Workspace] replaces the temporaries
+     * these routines would otherwise allocate. A host BLAS has its own allocation profile (the FFM
+     * binding wraps each array in a `MemorySegment` per call, and its `syrk` needs no `n²` scratch at
+     * all), so leaving it installed would measure the wrong thing and, on a machine that happens to have
+     * OpenBLAS, fail for the wrong reason.
+     */
+    @BeforeTest
+    fun usePortableKernels() {
+        installLinearAlgebra(ReferenceLinearAlgebra)
+    }
+
+    @AfterTest
+    fun restoreSelection() {
+        installLinearAlgebra(null)
+    }
 
     /**
      * Best of several measurement windows. A single window is fragile: one unrelated event inside it — a
