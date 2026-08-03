@@ -11,7 +11,7 @@ package com.eignex.koblas
  *
  * Level-1 kernels (`dot`, `axpy`, `scale`) are deliberately absent. They do nanoseconds of work, so a
  * per-call virtual dispatch would cost more than the kernel; they are specialized at compile time
- * instead, and reach a host BLAS through `Level1Kernels` where that pays.
+ * instead, and reach a host BLAS through the [Level1] half where that pays.
  *
  * Defaults implement every routine in portable Kotlin, so a backend overrides only what it accelerates.
  */

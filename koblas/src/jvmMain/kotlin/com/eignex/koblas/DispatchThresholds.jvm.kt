@@ -16,6 +16,7 @@ internal actual val platformDispatchThresholds: DispatchThresholds
 
 /** Measured on this platform with the Vector API kernels; see [JVM_LEVEL3_MIN] and [JVM_LAPACK_MIN]. */
 private val SIMD_THRESHOLDS = DispatchThresholds(
+    level1 = Int.MAX_VALUE,
     level2 = Int.MAX_VALUE,
     level3 = JVM_LEVEL3_MIN,
     lapack = JVM_LAPACK_MIN,
@@ -30,7 +31,7 @@ private val SIMD_THRESHOLDS = DispatchThresholds(
  * so the numbers will differ in detail, but not in which side wins — and the alternative, applying
  * SIMD-derived thresholds to a runtime that has no SIMD, is wrong by a much wider margin.
  */
-private val SCALAR_THRESHOLDS = DispatchThresholds(level2 = 0, level3 = 0, lapack = 0)
+private val SCALAR_THRESHOLDS = DispatchThresholds(level1 = 64, level2 = 0, level3 = 0, lapack = 0)
 
 private const val JVM_LEVEL3_MIN = 32
 

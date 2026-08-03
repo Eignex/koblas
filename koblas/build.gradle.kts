@@ -50,12 +50,10 @@ kotlin {
         val hostBlasMain by creating { dependsOn(posixMain) }
         linuxMain.get().dependsOn(hostBlasMain)
         macosMain.get().dependsOn(hostBlasMain)
-        // Everything else non-JVM: no host library to reach, so the primitives call the scalar loops
-        // directly and pay nothing for a dispatch they can never use.
-        val scalarOnlyMain by creating { dependsOn(nonJvmMain) }
-        iosMain.get().dependsOn(scalarOnlyMain)
-        mingwMain.get().dependsOn(scalarOnlyMain)
-        webMain.get().dependsOn(scalarOnlyMain)
+        // iOS, Windows and the web targets reach no host library, but they need no source set of their
+        // own for that: the level-1 routing lives in commonMain and resolves to null for them.
+        iosMain.get().dependsOn(nonJvmMain)
+        mingwMain.get().dependsOn(nonJvmMain)
 
         val hostBlasTest by creating { dependsOn(nativeTest.get()) }
         linuxTest.get().dependsOn(hostBlasTest)
