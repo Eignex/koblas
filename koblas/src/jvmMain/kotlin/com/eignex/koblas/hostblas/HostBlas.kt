@@ -2,6 +2,7 @@ package com.eignex.koblas.hostblas
 
 import com.eignex.koblas.Blas
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DispatchThresholds
 import com.eignex.koblas.ReferenceLinearAlgebra
 import com.eignex.koblas.Uplo
 import com.eignex.koblas.Workspace
@@ -13,6 +14,7 @@ import com.eignex.koblas.hostblas.HostBlasCalls.RIGHT
 import com.eignex.koblas.hostblas.HostBlasCalls.ROW_MAJOR
 import com.eignex.koblas.hostblas.HostBlasCalls.TRANS
 import com.eignex.koblas.hostblas.HostBlasCalls.UPPER
+import com.eignex.koblas.hostblas.HostBlasCalls.seg
 
 /**
  * The host OpenBLAS as the JVM's [Blas] half, bound with `java.lang.foreign`.
@@ -30,12 +32,11 @@ class HostBlas internal constructor() : Blas {
     override val priority: Int get() = 100
 
     /**
-     * Delegated to [ReferenceLinearAlgebra]'s SIMD kernels rather than `cblas_dgemv`: level 2 does
-     * `O(n²)` work over `O(n²)` data, so the per-call cost of handing a `double[]` to the native side
-     * dominates and never amortizes. Measured across `n` 16..2048 the portable path wins everywhere,
-     * by 3-4x at `n` 256 and an order of magnitude at 2048, where the native call manages about
-     * 2 GB/s against the SIMD kernel's 20+. Level 3 and the factorizations amortize the same cost over
-     * `O(n³)` work and stay native.
+     * Portable below [DispatchThresholds.level2], native above it.
+     *
+     * The default threshold makes that "always portable" on this platform, and the numbers behind it are
+     * on the constant: the point of routing through the gate rather than hardcoding the delegation is that
+     * the decision is one measured value, visible and overridable, instead of a choice buried in a method.
      */
     override fun gemv(
         alpha: Double,
@@ -44,9 +45,27 @@ class HostBlas internal constructor() : Blas {
         beta: Double,
         y: DoubleArray,
         transpose: Boolean,
-    ) = ReferenceLinearAlgebra.gemv(alpha, a, x, beta, y, transpose)
+    ) {
+        if (minOf(a.rows, a.cols) < dispatchThresholds.level2) {
+            ReferenceLinearAlgebra.gemv(alpha, a, x, beta, y, transpose)
+            return
+        }
+        val trans = if (transpose) TRANS else NO_TRANS
+        val xLen = if (transpose) a.rows else a.cols
+        val yLen = if (transpose) a.cols else a.rows
+        require(x.size == xLen) { "gemv: x length ${x.size} != $xLen" }
+        require(y.size == yLen) { "gemv: y length ${y.size} != $yLen" }
+        if (alpha == 0.0 || xLen == 0) {
+            scaleInPlace(y, beta)
+            return
+        }
+        if (yLen == 0) return
+        HostBlasCalls.dgemv.invokeWithArguments(
+            ROW_MAJOR, trans, a.rows, a.cols, alpha,
+            seg(a.data), a.cols, seg(x), 1, beta, seg(y), 1,
+        )
+    }
 
-    @Suppress("LongParameterList") // the BLAS dgemm signature
     override fun gemm(
         alpha: Double,
         a: DenseMatrix,
@@ -141,13 +160,25 @@ class HostBlas internal constructor() : Blas {
         }
     }
 
-    /** Delegated to the SIMD kernels for the same reason as [gemv]; measured 1.5-2x faster up to
-     *  `n` 1024 and 10x at 2048. */
-    @Suppress("LongParameterList") // the BLAS dsymv signature
-    override fun symv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) =
-        ReferenceLinearAlgebra.symv(alpha, a, x, beta, y, lower)
+    /** Portable below [DispatchThresholds.level2], native above it; see [gemv]. */
+    override fun symv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) {
+        if (a.rows < dispatchThresholds.level2) {
+            ReferenceLinearAlgebra.symv(alpha, a, x, beta, y, lower)
+            return
+        }
+        val n = a.rows
+        require(x.size == n) { "symv: x length ${x.size} != $n" }
+        require(y.size == n) { "symv: y length ${y.size} != $n" }
+        if (alpha == 0.0 || n == 0) {
+            scaleInPlace(y, beta)
+            return
+        }
+        HostBlasCalls.dsymv.invokeWithArguments(
+            ROW_MAJOR, if (lower) LOWER else UPPER, n, alpha,
+            seg(a.data), n, seg(x), 1, beta, seg(y), 1,
+        )
+    }
 
-    @Suppress("LongParameterList") // the BLAS dsymm signature
     override fun symm(
         alpha: Double,
         a: DenseMatrix,

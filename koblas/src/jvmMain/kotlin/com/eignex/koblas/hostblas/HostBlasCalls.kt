@@ -144,6 +144,28 @@ internal object HostBlasCalls {
 
     // Level 3 and the factorization family. Enum arguments are int, their C ABI; lapack_int is 32-bit,
     // matching the default (non-INTERFACE64) OpenBLAS build.
+    // Level 2. Bound because the routing is a threshold now, not a hardcoded delegation: the portable
+    // kernels win at every size measured, but the gate has to be able to choose otherwise.
+    val dgemv: MethodHandle by lazy {
+        handle(
+            "cblas_dgemv",
+            voidOf(
+                JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE,
+                ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
+            ),
+        )
+    }
+
+    val dsymv: MethodHandle by lazy {
+        handle(
+            "cblas_dsymv",
+            voidOf(
+                JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE,
+                ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
+            ),
+        )
+    }
+
     val dgemm: MethodHandle by lazy {
         handle(
             "cblas_dgemm",

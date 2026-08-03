@@ -191,14 +191,27 @@ class HostLapack internal constructor() : Lapack {
     }
 
     /**
-     * Delegated to [ReferenceLinearAlgebra], like [Blas.gemv] and the LU vector solve: `dsytrs` on one
-     * right-hand side is `O(n²)` work over the `O(n²)` factor, so the per-call cost cannot be amortized.
-     * Measured at `n` 64 the portable path takes 3 us against 6, at 256 it is 51 against 141, and by 1024
-     * the two converge as both become memory-bound — so delegating wins below and costs nothing above.
-     * The blocked [solveInto] below stays native, where many right-hand sides amortize the same cost.
+     * Gated by [JVM_LDL_SOLVE_MIN] rather than by the LAPACK threshold, and disabled by it.
+     *
+     * A vector solve is `O(n^2)` work over `O(n^2)` data, so it behaves like level 2 and not like the
+     * factorization it belongs to. Measured against SIMD it stayed inside the noise band at every size —
+     * 1.10x, 1.02x, 1.08x, 1.02x at n=16..128, and SIMD ahead 1.08x at 256 — so there is nothing to win.
+     * The gate exists so that is a value someone can change and re-measure, not a decision welded shut.
      */
-    override fun solveInto(ldl: LdlDecomposition, b: DoubleArray, out: DoubleArray): DoubleArray =
-        ReferenceLinearAlgebra.solveInto(ldl, b, out)
+    override fun solveInto(ldl: LdlDecomposition, b: DoubleArray, out: DoubleArray): DoubleArray {
+        if (ldl.n < JVM_LDL_SOLVE_MIN) return ReferenceLinearAlgebra.solveInto(ldl, b, out)
+        val n = ldl.n
+        require(b.size == n) { "solve: b length ${b.size} != $n" }
+        require(out.size == n) { "solve: out length ${out.size} != $n" }
+        if (out !== b) b.copyInto(out)
+        if (n == 0) return out
+        val info = HostBlasCalls.dsytrs.invokeWithArguments(
+            ROW_MAJOR, 'L'.code.toByte(), n, 1,
+            HostBlasCalls.seg(ldl.ldl), n, HostBlasCalls.seg(ldl.ipiv), HostBlasCalls.seg(out), 1,
+        ) as Int
+        check(info == 0) { "dsytrs: illegal argument ${-info}" }
+        return out
+    }
 
     override fun qr(a: DenseMatrix, workspace: Workspace?): QrDecomposition {
         if (minOf(a.rows, a.cols) < dispatchThresholds.lapack) return ReferenceLinearAlgebra.qr(a, workspace)
@@ -257,3 +270,9 @@ class HostLapack internal constructor() : Lapack {
 }
 
 private const val NATIVE_TRSM_MIN_RHS = 4
+
+/**
+ * The LDL vector solve stays portable at every size: see [HostLapack.solveInto]. Not the never-dispatch sentinel but a
+ * finite bound, because the claim rests on measurements that stop at n=256 rather than on a proof.
+ */
+private const val JVM_LDL_SOLVE_MIN = 1 shl 20
