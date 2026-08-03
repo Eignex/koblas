@@ -27,7 +27,7 @@ import kotlin.random.Random
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(BenchmarkTimeUnit.MICROSECONDS)
 class Level3Benchmark {
-    @Param("16", "64", "256")
+    @Param("4", "16", "32", "64", "128", "256")
     var n: Int = 0
 
     @Param("auto", "reference")

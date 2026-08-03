@@ -30,7 +30,7 @@ import kotlin.random.Random
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(BenchmarkTimeUnit.MICROSECONDS)
 class SolveBenchmark {
-    @Param("64", "256", "1024")
+    @Param("16", "32", "64", "128", "256")
     var n: Int = 0
 
     @Param("auto", "reference")

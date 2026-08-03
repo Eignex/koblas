@@ -5,6 +5,7 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.ReferenceLinearAlgebra
 import com.eignex.koblas.Uplo
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.dispatchThresholds
 import com.eignex.koblas.hostblas.HostBlasCalls.LEFT
 import com.eignex.koblas.hostblas.HostBlasCalls.LOWER
 import com.eignex.koblas.hostblas.HostBlasCalls.NO_TRANS
@@ -66,6 +67,10 @@ class HostBlas internal constructor() : Blas {
             return
         }
         if (m == 0 || n == 0) return
+        if (minOf(m, n, k) < dispatchThresholds.level3) {
+            ReferenceLinearAlgebra.gemm(alpha, a, transposeA, b, transposeB, beta, c)
+            return
+        }
         val transA = if (transposeA) TRANS else NO_TRANS
         val transB = if (transposeB) TRANS else NO_TRANS
         HostBlasCalls.dgemm.invokeWithArguments(
@@ -88,6 +93,10 @@ class HostBlas internal constructor() : Blas {
         val n = if (transpose) a.cols else a.rows
         val k = if (transpose) a.rows else a.cols
         require(c.rows == n && c.cols == n) { "syrk: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
+        if (minOf(n, k) < dispatchThresholds.level3) {
+            ReferenceLinearAlgebra.syrk(alpha, a, transpose, beta, c, uplo, workspace)
+            return
+        }
         if (alpha == 0.0 || k == 0) {
             scaleUplo(c.data, n, beta, uplo)
             return
@@ -149,6 +158,10 @@ class HostBlas internal constructor() : Blas {
         right: Boolean,
     ) {
         require(a.rows == a.cols) { "symm: matrix must be square, got ${a.rows}x${a.cols}" }
+        if (minOf(a.rows, b.rows, b.cols) < dispatchThresholds.level3) {
+            ReferenceLinearAlgebra.symm(alpha, a, b, beta, c, lower, right)
+            return
+        }
         val m = a.rows
         require(c.rows == b.rows && c.cols == b.cols) {
             "symm: C is ${c.rows}x${c.cols} but B is ${b.rows}x${b.cols}"

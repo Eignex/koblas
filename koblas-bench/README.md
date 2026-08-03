@@ -51,3 +51,18 @@ decision is about, measure it there.
 
 Fixtures live in `BenchmarkFixtures.kt` and derive from one seed, so a re-run
 measures the same operands rather than similar ones.
+
+## Check that it ran
+
+A benchmark task reports `BUILD SUCCESSFUL` even when JMH refused to start — a
+killed run leaves `/tmp/jmh.lock` behind, and the next invocation prints
+`Failure: Unable to acquire the JMH lock` and still exits zero. The report
+directory is the only reliable evidence:
+
+```bash
+ls -t koblas-bench/build/reports/benchmarks/<suite>/
+```
+
+If the newest timestamp predates your run, nothing was measured and any numbers
+you are reading are from a previous one. Remove the lock and check for a stray
+`ForkedMain` process before re-running.

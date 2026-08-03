@@ -8,6 +8,7 @@ import com.eignex.koblas.LuDecomposition
 import com.eignex.koblas.QrDecomposition
 import com.eignex.koblas.ReferenceLinearAlgebra
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.dispatchThresholds
 import com.eignex.koblas.hostblas.HostBlasCalls.LEFT
 import com.eignex.koblas.hostblas.HostBlasCalls.LOWER
 import com.eignex.koblas.hostblas.HostBlasCalls.NON_UNIT
@@ -36,6 +37,7 @@ class HostLapack internal constructor() : Lapack {
     override val priority: Int get() = 100
 
     override fun factor(a: DenseMatrix): LuDecomposition {
+        if (a.rows < dispatchThresholds.lapack) return ReferenceLinearAlgebra.factor(a)
         require(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
         val n = a.rows
         val lu = a.data.copyOf()
@@ -170,6 +172,7 @@ class HostLapack internal constructor() : Lapack {
     }
 
     override fun ldl(a: DenseMatrix, workspace: Workspace?): LdlDecomposition {
+        if (a.rows < dispatchThresholds.lapack) return ReferenceLinearAlgebra.ldl(a, workspace)
         require(a.rows == a.cols) { "ldl: matrix must be square, got ${a.rows}x${a.cols}" }
         val n = a.rows
         val buf = a.data.copyOf()
@@ -198,6 +201,7 @@ class HostLapack internal constructor() : Lapack {
         ReferenceLinearAlgebra.solveInto(ldl, b, out)
 
     override fun qr(a: DenseMatrix, workspace: Workspace?): QrDecomposition {
+        if (minOf(a.rows, a.cols) < dispatchThresholds.lapack) return ReferenceLinearAlgebra.qr(a, workspace)
         val m = a.rows
         val n = a.cols
         val buf = a.data.copyOf()
@@ -233,6 +237,7 @@ class HostLapack internal constructor() : Lapack {
     }
 
     override fun rcond(lu: LuDecomposition, anorm: Double, workspace: Workspace?): Double {
+        if (lu.n < dispatchThresholds.lapack) return ReferenceLinearAlgebra.rcond(lu, anorm, workspace)
         val n = lu.n
         if (n == 0) return 1.0
         if (lu.singular || anorm == 0.0) return 0.0
