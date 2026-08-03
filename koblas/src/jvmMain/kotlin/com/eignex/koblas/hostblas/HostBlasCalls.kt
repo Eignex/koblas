@@ -91,6 +91,26 @@ internal object HostBlasCalls {
         val extra = if (blasAvailable && !lapackeInBlas) openLibrary(LAPACKE_SONAMES) else null
         lapackeLookup = extra
         lapackAvailable = lapackeInBlas || extra?.find("LAPACKE_dgetrf")?.isPresent == true
+        // Before any routine can run. An unconfigured OpenBLAS is multithreaded, and its parallel LAPACK
+        // overflows a default JVM thread stack: the process dies with SIGSEGV rather than an exception,
+        // so this is not something a caller could catch. Configuring at resolution covers both halves,
+        // whichever is constructed first.
+        if (blasAvailable) configureThreads()
+    }
+
+    /**
+     * Pins OpenBLAS to one thread unless told otherwise.
+     *
+     * `koblas.openblas.threads` opts into a specific count; an explicit `OPENBLAS_NUM_THREADS` is honored
+     * by the library itself and left alone. Single-threaded is also the faster configuration at koblas
+     * workload sizes, so the safe default costs nothing here.
+     */
+    private fun configureThreads() {
+        val requested = System.getProperty("koblas.openblas.threads")?.toIntOrNull()
+        when {
+            requested != null -> setThreads(requested)
+            System.getenv("OPENBLAS_NUM_THREADS") == null -> setThreads(1)
+        }
     }
 
     /** Opens the first of [names] the platform loader can find, or null when none resolves. */
