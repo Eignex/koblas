@@ -52,14 +52,11 @@ val a = DenseMatrix.of(rows)
 val x = a.lu().solve(doubleArrayOf(3.0, 5.0))
 ```
 
-Solve a symmetric positive-definite system via Cholesky, then track a rank-one
-change without refactorizing:
+Solve a symmetric positive-definite system via Cholesky:
 
 ```kotlin
 val l = a.cholesky() // A = L·Lᵀ
 val xs = solveSpd(l, doubleArrayOf(3.0, 5.0))
-// The factor now tracks A + v·vᵀ.
-l.choleskyUpdateInPlace(DenseVector.of(doubleArrayOf(0.5, 1.0)))
 ```
 
 Factorize a sparse basis and solve both directions:
@@ -103,8 +100,6 @@ against reference results on every target.
 | dpotrf, dpotrs, dpotri (Cholesky) | cholesky, solveSpd, invertSpd (free) |
 | dgeqrf, dormqr, dgels (QR) | qr, applyQ, solveLeastSquares, solveMinimumNorm |
 | dsytrf, dsytrs (symmetric indefinite LDLᵀ) | ldl, solve |
-| **Beyond the standard libraries** | |
-| Cholesky update/downdate | choleskyUpdateInPlace, choleskyDowndateInPlace |
 
 Semantics follow the standard; the exceptions are documented on each
 function. Factorizations use the LAPACK packed formats, so they interchange
@@ -142,8 +137,8 @@ serves whatever dimensions a caller mixes; pools grow on demand, and reserve
 pays that cost up front. It is accepted wherever a routine needs temporaries:
 rcond and norm1, which are called together to decide whether a factorization
 is still accurate enough to reuse, the syrk mirror buffer (an n² scratch, the
-largest in the library), ldl, qr, the Cholesky rank-one update and downdate,
-invertSpd, and the blocked multi-RHS solves' staging. An EtaBasis owns its
+largest in the library), ldl, qr, invertSpd, and the blocked multi-RHS solves'
+staging. An EtaBasis owns its
 scratch
 instead, being mutable already, so its solves need no workspace at all.
 

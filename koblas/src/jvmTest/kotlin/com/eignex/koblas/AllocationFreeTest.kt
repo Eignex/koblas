@@ -100,26 +100,6 @@ class AllocationFreeTest {
     }
 
     @Test
-    fun `a filter-shaped Cholesky update loop allocates nothing`() {
-        val n = 48
-        val rng = Random(20260740)
-        val spd = wellConditioned(n, rng).let { a ->
-            val m = DenseMatrix(n, n)
-            koblas.syrk(1.0, a, transpose = true, beta = 0.0, c = m)
-            for (i in 0 until n) m[i, i] = m[i, i] + n
-            m
-        }
-        val l = spd.cholesky()
-        val x = DenseVector.of(DoubleArray(n) { rng.nextDouble(-0.01, 0.01) })
-        val ws = Workspace().apply { reserve(n, count = 3) }
-
-        val allocating = bytesPerIteration(500) { l.choleskyUpdateInPlace(x) }
-        val pooled = bytesPerIteration(500) { l.choleskyUpdateInPlace(x, ws) }
-        assertTrue(allocating > n * Double.SIZE_BYTES * 2.0, "expected allocation, saw $allocating B")
-        assertTrue(pooled < 64.0, "cholesky update allocated $pooled B per iteration (plain: $allocating B)")
-    }
-
-    @Test
     fun `the symmetric rank-k mirror buffer is lent rather than allocated`() {
         val n = 64
         val rng = Random(20260741)

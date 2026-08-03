@@ -3,7 +3,6 @@
 
 package com.eignex.koblas
 
-import kotlin.math.absoluteValue
 import kotlin.math.sqrt
 
 // Cholesky helpers operating on the flat-`DoubleArray` backing of [DenseMatrix].
@@ -14,8 +13,7 @@ import kotlin.math.sqrt
 // read nor written.
 //
 // Inner loops reduce to [denseDot] / [denseAxpy] on contiguous row runs (SIMD on
-// JVM). The Givens rotation step in [choleskyDowndateInPlace] has a loop-carried
-// dependency and stays scalar.
+// JVM).
 
 /**
  * Lower-triangular Cholesky decomposition `A = L * LT`, returned as a fresh matrix.
@@ -58,120 +56,6 @@ fun MatrixView.cholesky(regularizeNonPD: Boolean = true): DenseMatrix {
         }
     }
     return L
-}
-
-/**
- * In-place Cholesky rank-1 update of a lower-triangular factor: modifies [this] so that the
- * matrix `A = L * LT` it represents becomes `A + x * xT`. The pair of [choleskyDowndateInPlace];
- * unlike the downdate, an update of a valid SPD factor always stays in the positive-definite
- * cone, so there is no failure mode to report.
- *
- * Algorithm: sweep the rows of L in order, carrying the Givens rotations generated so far.
- * Row `i` is rotated against the transformed `x` (contiguous row access, loop-carried in `wi` -
- * stays scalar, like the downdate's rotation loop), then rotation `i` is generated to zero the
- * transformed `x[i]` into the diagonal.
- */
-fun DenseMatrix.choleskyUpdateInPlace(x: VectorView, workspace: Workspace? = null) {
-    require(rows == cols) { "choleskyUpdateInPlace requires a square matrix; got ${rows}x$cols" }
-    require(rows == x.size) { "x size ${x.size} must match matrix dim $rows" }
-    val L = data
-    val n = rows
-    // Three vectors per call, which a filter pays on every update; a workspace lends them instead.
-    val w = workspace?.take(n) ?: DoubleArray(n)
-    val c = workspace?.take(n) ?: DoubleArray(n)
-    val s = workspace?.take(n) ?: DoubleArray(n)
-    // Scatter rather than index x: SparseVector.get is a linear scan, so a per-element read would be
-    // quadratic in its nonzeros.
-    w.fill(0.0)
-    x.forEachStored { i, v -> w[i] = v }
-    for (i in 0 until n) {
-        val rowI = i * n
-        var wi = w[i]
-        for (k in 0 until i) {
-            val lik = L[rowI + k]
-            L[rowI + k] = c[k] * lik + s[k] * wi
-            wi = c[k] * wi - s[k] * lik
-        }
-        val lii = L[rowI + i]
-        val r = sqrt(lii * lii + wi * wi)
-        c[i] = lii / r
-        s[i] = wi / r
-        L[rowI + i] = r
-    }
-    if (workspace != null) {
-        workspace.release(s)
-        workspace.release(c)
-        workspace.release(w)
-    }
-}
-
-/**
- * In-place Cholesky downdate of a lower-triangular factor: modifies [this] so that
- * the matrix `A = L * LT` it represents becomes `A - x * xT`. Returns `0.0` on
- * success, or a positive "norm" value when the downdate would leave the matrix
- * outside the positive-definite cone. The caller then has to repair via a fresh
- * decomposition or take a smaller step.
- *
- * Algorithm: solve `L * s = x` by forward substitution; if `||s|| < 1` the downdate
- * stays SPD. Then apply Givens rotations to the rows of L (the natural direction
- * for lower-triangular storage) to absorb `s` without breaking triangularity.
- */
-fun DenseMatrix.choleskyDowndateInPlace(x: VectorView, workspace: Workspace? = null): Double {
-    require(rows == cols) { "choleskyDowndateInPlace requires a square matrix; got ${rows}x$cols" }
-    require(rows == x.size) { "x size ${x.size} must match matrix dim $rows" }
-    if (rows == 0) return 0.0 // an empty downdate stays in the cone trivially
-    val L = data
-    val n = rows
-    val s = workspace?.take(n) ?: DoubleArray(n)
-    val c = workspace?.take(n) ?: DoubleArray(n)
-
-    // The cone check below returns early, so both exits hand the buffers back.
-    fun recycle() {
-        if (workspace != null) {
-            workspace.release(c)
-            workspace.release(s)
-        }
-    }
-
-    // Solve L * s = x by forward substitution. Inner sum is a contiguous dot product.
-    s[0] = x[0] / L[0]
-    for (i in 1 until n) {
-        val rowI = i * n
-        val sum = denseDot(L, rowI, s, 0, i)
-        s[i] = (x[i] - sum) / L[rowI + i]
-    }
-
-    val norm = norm2(DenseVector.wrap(s))
-    if (norm <= 0.0 || norm >= 1.0) {
-        recycle()
-        return norm
-    }
-
-    var alpha = sqrt(1.0 - norm * norm)
-    for (ii in 0 until n) {
-        val i = n - ii - 1
-        val scale = alpha + s[i].absoluteValue
-        val a = alpha / scale
-        val b = s[i] / scale
-        val nrm = sqrt(a * a + b * b)
-        c[i] = a / nrm
-        s[i] = b / nrm
-        alpha = scale * nrm
-    }
-    // Apply rotations along rows of L. Loop-carried in xx - stays scalar.
-    for (j in 0 until n) {
-        val rowJ = j * n
-        var xx = 0.0
-        for (ii in 0..j) {
-            val i = j - ii
-            val idx = rowJ + i
-            val t = c[i] * xx + s[i] * L[idx]
-            L[idx] = c[i] * L[idx] - s[i] * xx
-            xx = t
-        }
-    }
-    recycle()
-    return 0.0
 }
 
 /**

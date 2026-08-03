@@ -23,14 +23,11 @@ class ReadmeSamplesTest {
     }
 
     @Test
-    fun `the Cholesky sample factors and solves and updates`() {
+    fun `the Cholesky sample factors and solves`() {
         val a = DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0)))
         val l = a.cholesky() // A = L·Lᵀ
         val xs = solveSpd(l, doubleArrayOf(3.0, 5.0))
         assertClose(doubleArrayOf(0.8, 1.4), xs, "README Cholesky sample", tolerance = 1e-12)
-        // The factor now tracks A + v·vᵀ.
-        l.choleskyUpdateInPlace(DenseVector.of(doubleArrayOf(0.5, 1.0)))
-        assertTrue(l[0, 0] > 0.0 && l[1, 1] > 0.0, "updated factor should stay positive definite")
     }
 
     @Test
