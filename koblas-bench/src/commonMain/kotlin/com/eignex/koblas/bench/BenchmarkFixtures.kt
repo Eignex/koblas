@@ -98,6 +98,25 @@ internal fun indefiniteMatrix(n: Int, rng: Random): DenseMatrix {
     return a
 }
 
+/**
+ * A symmetric positive-definite matrix, built by symmetrizing and then dominating the diagonal.
+ *
+ * Deliberately not `A·Aᵀ`: that is a level-3 product, and at these sizes the portable path would spend
+ * longer building the operand than the benchmark spends factorizing it.
+ */
+internal fun spdMatrix(n: Int, rng: Random): DenseMatrix {
+    val a = DenseMatrix(n, n)
+    for (i in 0 until n) {
+        for (j in 0..i) {
+            val v = rng.nextDouble(-1.0, 1.0)
+            a[i, j] = v
+            a[j, i] = v
+        }
+        a[i, i] = a[i, i] + n
+    }
+    return a
+}
+
 /** A vector with entries in `[-1, 1)`. */
 internal fun randomVector(n: Int, rng: Random): DoubleArray = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
 

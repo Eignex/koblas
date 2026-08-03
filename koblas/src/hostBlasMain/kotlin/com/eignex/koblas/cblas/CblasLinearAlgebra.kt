@@ -6,6 +6,7 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.LdlDecomposition
 import com.eignex.koblas.LinearAlgebra
 import com.eignex.koblas.LuDecomposition
+import com.eignex.koblas.MatrixView
 import com.eignex.koblas.QrDecomposition
 import com.eignex.koblas.ReferenceLinearAlgebra
 import com.eignex.koblas.Uplo
@@ -568,6 +569,57 @@ class CblasLinearAlgebra : LinearAlgebra {
     private fun uploOf(lower: Boolean) = if (lower) LOWER else UPPER
     private fun transOf(transpose: Boolean) = if (transpose) TRANS else NO_TRANS
     private fun diagOf(unitDiag: Boolean) = if (unitDiag) UNIT else NON_UNIT
+
+    /**
+     * `dpotrf`, with two adjustments to match the koblas contract.
+     *
+     * LAPACK factorizes in place and leaves the strict upper triangle exactly as the input had it, while
+     * koblas returns a factor whose upper triangle is zero, so it is cleared afterwards. And LAPACK has
+     * no equivalent of [regularizeNonPD]: it reports the failing pivot instead of clamping it, so a
+     * non-positive-definite input falls back to the portable path, which is what applies the clamp.
+     */
+    override fun cholesky(a: MatrixView, regularizeNonPD: Boolean): DenseMatrix {
+        require(a.rows == a.cols) { "cholesky requires a square matrix; got ${a.rows}x${a.cols}" }
+        val n = a.rows
+        if (n == 0) return DenseMatrix(0, 0)
+        val l = DenseMatrix(n, n)
+        for (i in 0 until n) for (j in 0..i) l[i, j] = a[i, j]
+        val info = l.data.usePinned { lp -> f.dpotrf(ROW_MAJOR, 'L'.code.toByte(), n, lp.addressOf(0), n) }
+        check(info >= 0) { "dpotrf: illegal argument ${-info}" }
+        // info > 0 marks the leading minor that is not positive definite: redo it portably, which either
+        // clamps the pivot or throws, per the flag.
+        if (info > 0) return super.cholesky(a, regularizeNonPD)
+        for (i in 0 until n) for (j in i + 1 until n) l[i, j] = 0.0
+        return l
+    }
+
+    /**
+     * Delegates to the portable kernels, which win here by a wide and widening margin: measured on
+     * linuxX64 (us/op, native against portable) 207 versus 66 at n=256, 6579 versus 740 at 1024, and
+     * 64711 versus 5320 at 2048.
+     *
+     * Two causes compound. The routine is `O(n^2)` work over `O(n^2)` data, so there is nothing to
+     * amortize a call against — the same reason the LU and LDL vector solves delegate. On top of that,
+     * LAPACKE's row-major entry points transpose the matrix into a column-major temporary before calling
+     * LAPACK, which at n=2048 copies 32 MB per solve. `dpotrf` and `dpotri` pay that tax too, but their
+     * `O(n^3)` work still dominates it, so they stay native.
+     */
+    override fun solveSpd(L: DenseMatrix, b: DoubleArray): DoubleArray = ReferenceLinearAlgebra.solveSpd(L, b)
+
+    /**
+     * `dpotri`, which writes only the triangle it is given; koblas returns the full symmetric inverse,
+     * so the result is mirrored. The factor is copied first, since dpotri overwrites it with the inverse.
+     */
+    override fun invertSpd(L: DenseMatrix, workspace: Workspace?): DenseMatrix {
+        val n = L.rows
+        if (n == 0) return DenseMatrix(0, 0)
+        val inv = DenseMatrix(n, n, L.data.copyOf())
+        val info = inv.data.usePinned { ip -> f.dpotri(ROW_MAJOR, 'L'.code.toByte(), n, ip.addressOf(0), n) }
+        check(info >= 0) { "dpotri: illegal argument ${-info}" }
+        check(info == 0) { "dpotri: zero diagonal at $info, factor is singular" }
+        for (i in 0 until n) for (j in 0 until i) inv[j, i] = inv[i, j]
+        return inv
+    }
 
     /** cblas_dtrsv over the packed factor buffer. */
     @Suppress("LongParameterList")

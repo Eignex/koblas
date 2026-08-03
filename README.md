@@ -97,7 +97,7 @@ against reference results on every target.
 | **LAPACK** (factorizations, on Lapack) | |
 | dgetrf, dgetrs (LU) | factor, solve; determinant is free |
 | dgecon, dlange (condition estimate) | rcond; norm1 is free |
-| dpotrf, dpotrs, dpotri (Cholesky) | cholesky, solveSpd, invertSpd (free) |
+| dpotrf, dpotrs, dpotri (Cholesky) | cholesky, solveSpd, invertSpd |
 | dgeqrf, dormqr, dgels (QR) | qr, applyQ, solveLeastSquares, solveMinimumNorm |
 | dsytrf, dsytrs (symmetric indefinite LDLᵀ) | ldl, solve |
 
@@ -111,8 +111,8 @@ selected independently, so a host providing one library and not the other still
 accelerates what it can, and koblas composes the winning halves.
 
 Each group above names the interface its routines belong to, and a member
-reaches the installed backend. The ones marked free are plain functions and run
-the portable implementation. Members also have a free-function spelling of the
+reaches the installed backend; determinant and norm1 are the two plain functions
+here, marked as such. Members also have a free-function spelling of the
 same name (trsv, trsm, ger, ...) that forwards to the member, so a call site may
 use whichever reads better. Level 1 stays outside the interfaces deliberately:
 those kernels do nanoseconds of work, so a virtual call would cost more than the
