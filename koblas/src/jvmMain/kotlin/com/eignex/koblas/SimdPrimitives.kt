@@ -35,10 +35,10 @@ internal val simdAvailable: Boolean = try {
  */
 private val simdLanes: Int = if (simdAvailable) Simd.lanes() else 0
 
-internal actual fun denseDot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
+internal actual fun platformDot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
     if (simdAvailable && len >= simdLanes) Simd.dot(a, aOff, b, bOff, len) else scalarDot(a, aOff, b, bOff, len)
 
-internal actual fun denseAxpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
+internal actual fun platformAxpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
     if (simdAvailable && len >= simdLanes) {
         Simd.axpy(y, yOff, alpha, x, xOff, len)
     } else {
@@ -46,7 +46,7 @@ internal actual fun denseAxpy(y: DoubleArray, yOff: Int, alpha: Double, x: Doubl
     }
 }
 
-internal actual fun denseScale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
+internal actual fun platformScale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
     if (simdAvailable && len >= simdLanes) {
         Simd.scale(v, vOff, alpha, len)
     } else {

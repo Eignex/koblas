@@ -2,7 +2,7 @@
 
 package com.eignex.koblas.cblas
 
-import com.eignex.koblas.Level1Kernels
+import com.eignex.koblas.Level1
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.invoke
@@ -12,15 +12,20 @@ import kotlinx.cinterop.usePinned
  * The host OpenBLAS behind koblas's level-1 primitives, for the runs long enough to be worth a call.
  *
  * The [com.eignex.koblas.LinearAlgebra] seam does not reach `dot`, `axpy` and `scale`: those compile per
- * target and, on native, are scalar loops measured 4x to 7x slower than the JVM's SIMD ones. Installing
- * this closes that gap for long vectors, which is where a simplex or a Cholesky update spends its
- * level-1 time. koblas applies the length threshold, so these methods only ever see runs worth
- * dispatching.
+ * target and, on native, are scalar loops measured 4x to 7x slower than the JVM's SIMD ones. Registering
+ * this closes that gap for long vectors, which is where a simplex spends its level-1 time — the public
+ * `dot`/`axpy`/`scale` and the eta-file ftran/btran both bottom out in these calls with no other seam
+ * above them. koblas applies [com.eignex.koblas.DispatchThresholds.level1], so these methods only ever
+ * see runs worth dispatching.
  *
  * Offsets are handled by pinning and taking the address of the element, so no repacking happens at the
  * boundary — the same zero-copy property the rest of this backend relies on.
  */
-class CblasLevel1Kernels : Level1Kernels {
+class CblasLevel1Kernels : Level1 {
+    override val name: String get() = "cblas"
+
+    /** Above the reference (0), matching the other cblas halves. */
+    override val priority: Int get() = 90
 
     private val f = requireNotNull(OpenBlasLoader.cblas) {
         "OpenBLAS is not available on this host; koblas keeps its built-in level-1 kernels"

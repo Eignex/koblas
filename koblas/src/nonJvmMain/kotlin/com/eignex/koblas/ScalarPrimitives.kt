@@ -1,9 +1,9 @@
 package com.eignex.koblas
 
 /**
- * Scalar implementations of the dense primitives, used directly by the JS, Wasm, iOS and Windows targets
- * and as the short-run path on Linux and macOS. The JVM target
- * overrides them with `jdk.incubator.vector` kernels.
+ * The compile-time primitive leaves for every non-JVM target: JS, Wasm, iOS, Windows, Linux and macOS.
+ * The JVM supplies `jdk.incubator.vector` kernels instead. Routing to a registered [Level1] backend for
+ * long runs happens above these, in `Primitives.kt`, so these are pure loops with no dispatch.
  *
  * These loops are written to be vectorizable, but do not assume they are vectorized. Measured on
  * linuxX64 in a release binary against the JVM's SIMD kernels on the same machine, they run 4x to 7x
@@ -14,18 +14,18 @@ package com.eignex.koblas
  * these primitives do not cover are unaffected by either.
  */
 
-internal fun scalarDot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
+internal actual fun platformDot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
     var s = 0.0
     for (i in 0 until len) s += a[aOff + i] * b[bOff + i]
     return s
 }
 
-internal fun scalarAxpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
+internal actual fun platformAxpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
     if (alpha == 0.0) return
     for (i in 0 until len) y[yOff + i] += alpha * x[xOff + i]
 }
 
-internal fun scalarScale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
+internal actual fun platformScale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
     if (alpha == 1.0) return
     for (i in 0 until len) v[vOff + i] *= alpha
 }

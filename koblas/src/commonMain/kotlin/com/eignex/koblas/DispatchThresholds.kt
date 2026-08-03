@@ -4,7 +4,9 @@ package com.eignex.koblas
  * The smallest problem size at which dispatching to a native backend beats staying in Kotlin.
  *
  * One threshold per BLAS level rather than per routine, because the crossover is a property of the level:
- * it follows the ratio of work to data. Level 2 does `O(n²)` work over `O(n²)` data, so there is nothing
+ * it follows the ratio of work to data. Level 1 is a run length rather than a dimension, and is the one
+ * that used to be a compile-time constant with no override — which meant retuning it for a machine with a
+ * different vector width took a recompile. Level 2 does `O(n²)` work over `O(n²)` data, so there is nothing
  * to amortize a foreign call against and the answer barely depends on which routine it is; level 3 and the
  * factorizations do `O(n³)` work over the same data and cross over once the cube outgrows the call.
  *
@@ -18,11 +20,12 @@ package com.eignex.koblas
  * A threshold larger than any problem a caller will pose keeps a level portable; [Int.MAX_VALUE] is the
  * blunt way to say that, and it needs no name of its own.
  *
+ * @property level1 run length from which the level-1 primitives dispatch to a registered [Level1].
  * @property level2 dimension from which the level-2 routines dispatch natively.
  * @property level3 dimension from which the level-3 routines dispatch natively.
  * @property lapack dimension from which the factorizations dispatch natively.
  */
-internal class DispatchThresholds(val level2: Int, val level3: Int, val lapack: Int)
+internal class DispatchThresholds(val level1: Int, val level2: Int, val level3: Int, val lapack: Int)
 
 /** What this platform uses absent an override; see [DispatchThresholds]. */
 internal expect val platformDispatchThresholds: DispatchThresholds
@@ -40,6 +43,7 @@ internal expect fun dispatchOverride(name: String): Int?
 internal val dispatchThresholds: DispatchThresholds by lazy {
     val defaults = platformDispatchThresholds
     DispatchThresholds(
+        level1 = dispatchOverride("level1") ?: defaults.level1,
         level2 = dispatchOverride("level2") ?: defaults.level2,
         level3 = dispatchOverride("level3") ?: defaults.level3,
         lapack = dispatchOverride("lapack") ?: defaults.lapack,
