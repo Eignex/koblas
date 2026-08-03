@@ -22,7 +22,7 @@ import kotlinx.cinterop.usePinned
  */
 class CblasLevel1Kernels : Level1Kernels {
 
-    private val f = requireNotNull(OpenBlasLoader.functions) {
+    private val f = requireNotNull(OpenBlasLoader.cblas) {
         "OpenBLAS is not available on this host; koblas keeps its built-in level-1 kernels"
     }
 

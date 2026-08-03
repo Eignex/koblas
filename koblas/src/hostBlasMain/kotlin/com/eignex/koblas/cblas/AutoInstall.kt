@@ -1,9 +1,10 @@
 package com.eignex.koblas.cblas
 
+import com.eignex.koblas.Blas
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.LinearAlgebra
 import com.eignex.koblas.installLevel1Kernels
-import com.eignex.koblas.registerLinearAlgebra
+import com.eignex.koblas.registerBlas
+import com.eignex.koblas.registerLapack
 
 /**
  * Registers [CblasLinearAlgebra] for automatic selection at program start when the host provides
@@ -19,18 +20,22 @@ import com.eignex.koblas.registerLinearAlgebra
 val cblasAutoInstall: Unit = autoInstall()
 
 private fun autoInstall() {
-    if (!CblasLinearAlgebra.isAvailable()) return
-    val backend = CblasLinearAlgebra()
+    val cblas = OpenBlasLoader.cblas ?: return
+    val blas = CblasBlas(cblas)
     // The same guard the JVM discovery applies: a tiny computation must come back correct.
-    if (!probe(backend)) return
-    registerLinearAlgebra(backend)
+    if (!probe(blas)) return
+    registerBlas(blas)
     // The level-1 primitives sit below the backend seam and are scalar on this platform, so they need a
     // separate install; koblas routes only runs long enough to cover the call.
     installLevel1Kernels(CblasLevel1Kernels())
+    // LAPACKE is a separate package on Debian and Ubuntu. Without it the factorizations stay portable
+    // while everything above keeps the host BLAS, rather than the whole backend dropping out.
+    val lapacke = OpenBlasLoader.lapacke ?: return
+    registerLapack(CblasLapack(lapacke, cblas))
 }
 
 @Suppress("TooGenericExceptionCaught", "SwallowedException") // a broken installation must not crash startup
-private fun probe(backend: LinearAlgebra): Boolean = try {
+private fun probe(backend: Blas): Boolean = try {
     val y = backend.gemv(DenseMatrix.wrap(1, 1, doubleArrayOf(2.0)), doubleArrayOf(3.0))
     y.size == 1 && y[0] == 6.0
 } catch (e: Throwable) {

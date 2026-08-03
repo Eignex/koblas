@@ -1,0 +1,356 @@
+@file:OptIn(ExperimentalForeignApi::class)
+
+package com.eignex.koblas.cblas
+
+import com.eignex.koblas.Blas
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.Uplo
+import com.eignex.koblas.Workspace
+import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.addressOf
+import kotlinx.cinterop.invoke
+import kotlinx.cinterop.usePinned
+
+// The CBLAS enums and LAPACKE layout macro, by their ABI integer values (the resolved function
+// pointers declare the parameters as plain int; see OpenBlasBindings.kt).
+private const val ROW_MAJOR = 101
+private const val NO_TRANS = 111
+private const val TRANS = 112
+private const val UPPER = 121
+private const val LOWER = 122
+private const val NON_UNIT = 131
+private const val UNIT = 132
+private const val LEFT = 141
+private const val RIGHT = 142
+
+/**
+ * The host CBLAS as koblas's [Blas] half: the level-2 and level-3 routines, over row-major buffers that
+ * cross the FFI boundary without repacking.
+ *
+ * Constructible whenever the host has OpenBLAS, independently of LAPACKE — which is the point, since a
+ * Debian or Ubuntu box without liblapacke still gets every routine here.
+ */
+internal class CblasBlas(private val f: CblasFunctions) : Blas {
+    override val name: String get() = "cblas"
+
+    /** Above the reference (0). */
+    override val priority: Int get() = 90
+
+    override fun gemv(
+        alpha: Double,
+        a: DenseMatrix,
+        x: DoubleArray,
+        beta: Double,
+        y: DoubleArray,
+        transpose: Boolean,
+    ) {
+        val xLen = if (transpose) a.rows else a.cols
+        val yLen = if (transpose) a.cols else a.rows
+        require(x.size == xLen) { "gemv: x length ${x.size} != $xLen" }
+        require(y.size == yLen) { "gemv: y length ${y.size} != $yLen" }
+        // Degenerate cases short-circuit in Kotlin: the BLAS quick-return paths do not honor the
+        // beta == 0 overwrite when a dimension is zero.
+        if (alpha == 0.0 || xLen == 0) {
+            scaleInPlace(y, beta)
+            return
+        }
+        if (yLen == 0) return
+        val trans = if (transpose) TRANS else NO_TRANS
+        a.data.usePinned { ap ->
+            x.usePinned { xp ->
+                y.usePinned { yp ->
+                    f.dgemv(
+                        ROW_MAJOR, trans, a.rows, a.cols, alpha,
+                        ap.addressOf(0), a.cols, xp.addressOf(0), 1, beta, yp.addressOf(0), 1,
+                    )
+                }
+            }
+        }
+    }
+
+    @Suppress("LongParameterList") // the BLAS dgemm signature
+    override fun gemm(
+        alpha: Double,
+        a: DenseMatrix,
+        transposeA: Boolean,
+        b: DenseMatrix,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+    ) {
+        val m = if (transposeA) a.cols else a.rows
+        val k = if (transposeA) a.rows else a.cols
+        val kB = if (transposeB) b.cols else b.rows
+        val n = if (transposeB) b.rows else b.cols
+        require(k == kB) { "gemm: op(A) is ${m}x$k but op(B) is ${kB}x$n" }
+        require(c.rows == m && c.cols == n) { "gemm: C is ${c.rows}x${c.cols}, expected ${m}x$n" }
+        if (alpha == 0.0 || k == 0) {
+            scaleInPlace(c.data, beta)
+            return
+        }
+        if (m == 0 || n == 0) return
+        val transA = if (transposeA) TRANS else NO_TRANS
+        val transB = if (transposeB) TRANS else NO_TRANS
+        a.data.usePinned { ap ->
+            b.data.usePinned { bp ->
+                c.data.usePinned { cp ->
+                    f.dgemm(
+                        ROW_MAJOR, transA, transB, m, n, k, alpha,
+                        ap.addressOf(0), a.cols, bp.addressOf(0), b.cols, beta, cp.addressOf(0), c.cols,
+                    )
+                }
+            }
+        }
+    }
+
+    @Suppress("LongParameterList", "ReturnCount") // dsyrk's arguments plus scratch; guard-clause style
+    override fun syrk(
+        alpha: Double,
+        a: DenseMatrix,
+        transpose: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        uplo: Uplo,
+        workspace: Workspace?,
+    ) {
+        val n = if (transpose) a.cols else a.rows
+        val k = if (transpose) a.rows else a.cols
+        require(c.rows == n && c.cols == n) { "syrk: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
+        if (alpha == 0.0 || k == 0) {
+            scaleUplo(c.data, n, beta, uplo)
+            return
+        }
+        if (n == 0) return
+        val trans = if (transpose) TRANS else NO_TRANS
+        if (uplo != Uplo.FULL) {
+            // Strict dsyrk semantics: one triangle written and beta-scaled, the other untouched.
+            val u = if (uplo == Uplo.LOWER) LOWER else UPPER
+            a.data.usePinned { ap ->
+                c.data.usePinned { cp ->
+                    f.dsyrk(ROW_MAJOR, u, trans, n, k, alpha, ap.addressOf(0), a.cols, beta, cp.addressOf(0), n)
+                }
+            }
+            return
+        }
+        // dsyrk touches one triangle only, while the FULL contract promises the full, exactly
+        // symmetric alpha term on top of a beta scale of all of C. Compute the alpha term into a
+        // scratch lower triangle, mirror it, then combine.
+        val w = workspace?.take(n * n) ?: DoubleArray(n * n)
+        a.data.usePinned { ap ->
+            w.usePinned { wp ->
+                f.dsyrk(ROW_MAJOR, LOWER, trans, n, k, alpha, ap.addressOf(0), a.cols, 0.0, wp.addressOf(0), n)
+            }
+        }
+        for (i in 0 until n) {
+            for (j in 0 until i) w[j * n + i] = w[i * n + j]
+        }
+        val cd = c.data
+        when (beta) {
+            0.0 -> w.copyInto(cd)
+
+            else -> {
+                if (beta != 1.0) cd.usePinned { cp -> f.dscal(cd.size, beta, cp.addressOf(0), 1) }
+                w.usePinned { wp ->
+                    cd.usePinned { cp -> f.daxpy(cd.size, 1.0, wp.addressOf(0), 1, cp.addressOf(0), 1) }
+                }
+            }
+        }
+    }
+
+    @Suppress("LongParameterList") // the BLAS dsymv signature
+    override fun symv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) {
+        require(a.rows == a.cols) { "symv: matrix must be square, got ${a.rows}x${a.cols}" }
+        val n = a.rows
+        require(x.size == n) { "symv: x length ${x.size} != $n" }
+        require(y.size == n) { "symv: y length ${y.size} != $n" }
+        if (alpha == 0.0) {
+            scaleInPlace(y, beta)
+            return
+        }
+        if (n == 0) return
+        val uplo = if (lower) LOWER else UPPER
+        a.data.usePinned { ap ->
+            x.usePinned { xp ->
+                y.usePinned { yp ->
+                    f.dsymv(
+                        ROW_MAJOR, uplo, n, alpha,
+                        ap.addressOf(0), n, xp.addressOf(0), 1, beta, yp.addressOf(0), 1,
+                    )
+                }
+            }
+        }
+    }
+
+    @Suppress("LongParameterList") // the BLAS dsymm signature
+    override fun symm(
+        alpha: Double,
+        a: DenseMatrix,
+        b: DenseMatrix,
+        beta: Double,
+        c: DenseMatrix,
+        lower: Boolean,
+        right: Boolean,
+    ) {
+        require(a.rows == a.cols) { "symm: matrix must be square, got ${a.rows}x${a.cols}" }
+        val m = a.rows
+        require(c.rows == b.rows && c.cols == b.cols) {
+            "symm: C is ${c.rows}x${c.cols} but B is ${b.rows}x${b.cols}"
+        }
+        require((if (right) b.cols else b.rows) == m) {
+            "symm: B is ${b.rows}x${b.cols}, expected dimension $m on the ${if (right) "cols" else "rows"} side"
+        }
+        if (alpha == 0.0) {
+            scaleInPlace(c.data, beta)
+            return
+        }
+        if (c.rows == 0 || c.cols == 0) return
+        val uplo = if (lower) LOWER else UPPER
+        val side = if (right) RIGHT else LEFT
+        a.data.usePinned { ap ->
+            b.data.usePinned { bp ->
+                c.data.usePinned { cp ->
+                    f.dsymm(
+                        ROW_MAJOR, side, uplo, c.rows, c.cols, alpha,
+                        ap.addressOf(0), m, bp.addressOf(0), c.cols, beta, cp.addressOf(0), c.cols,
+                    )
+                }
+            }
+        }
+    }
+
+    override fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix) {
+        require(a.rows == x.size && a.cols == y.size) {
+            "ger shape mismatch: A is ${a.rows}x${a.cols}, x ${x.size}, y ${y.size}"
+        }
+        if (alpha == 0.0 || a.rows == 0 || a.cols == 0) return
+        x.usePinned { xp ->
+            y.usePinned { yp ->
+                a.data.usePinned { ap ->
+                    f.dger(
+                        ROW_MAJOR, a.rows, a.cols, alpha,
+                        xp.addressOf(0), 1, yp.addressOf(0), 1, ap.addressOf(0), a.cols,
+                    )
+                }
+            }
+        }
+    }
+
+    override fun trsv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
+        require(a.rows == a.cols) { "trsv requires a square matrix; got ${a.rows}x${a.cols}" }
+        require(x.size == a.rows) { "trsv: x length ${x.size} != ${a.rows}" }
+        if (a.rows == 0) return
+        a.data.usePinned { ap ->
+            x.usePinned { xp ->
+                f.dtrsv(
+                    ROW_MAJOR, uploOf(lower), transOf(transpose), diagOf(unitDiag), a.rows,
+                    ap.addressOf(0), a.cols, xp.addressOf(0), 1,
+                )
+            }
+        }
+    }
+
+    override fun trmv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
+        require(a.rows == a.cols) { "trmv requires a square matrix; got ${a.rows}x${a.cols}" }
+        require(x.size == a.rows) { "trmv: x length ${x.size} != ${a.rows}" }
+        if (a.rows == 0) return
+        a.data.usePinned { ap ->
+            x.usePinned { xp ->
+                f.dtrmv(
+                    ROW_MAJOR, uploOf(lower), transOf(transpose), diagOf(unitDiag), a.rows,
+                    ap.addressOf(0), a.cols, xp.addressOf(0), 1,
+                )
+            }
+        }
+    }
+
+    @Suppress("LongParameterList") // the BLAS dtrsm signature
+    override fun trsm(
+        a: DenseMatrix,
+        b: DenseMatrix,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+        right: Boolean,
+    ) = triangularMultiply(a, b, lower, transpose, unitDiag, right, solve = true)
+
+    @Suppress("LongParameterList") // the BLAS dtrmm signature
+    override fun trmm(
+        a: DenseMatrix,
+        b: DenseMatrix,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+        right: Boolean,
+    ) = triangularMultiply(a, b, lower, transpose, unitDiag, right, solve = false)
+
+    /**
+     * dtrsm and dtrmm share every argument but the entry point, and koblas fixes alpha at 1: the side
+     * flag maps straight through, since both libraries mean "T on this side of B" by it.
+     */
+    @Suppress("LongParameterList") // the shared BLAS signature plus the entry-point flag
+    private fun triangularMultiply(
+        a: DenseMatrix,
+        b: DenseMatrix,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+        right: Boolean,
+        solve: Boolean,
+    ) {
+        val what = if (solve) "trsm" else "trmm"
+        require(a.rows == a.cols) { "$what requires a square matrix; got ${a.rows}x${a.cols}" }
+        if (right) {
+            require(b.cols == a.rows) { "$what right: B has ${b.cols} cols, expected ${a.rows}" }
+        } else {
+            require(b.rows == a.rows) { "$what: B has ${b.rows} rows, expected ${a.rows}" }
+        }
+        if (a.rows == 0 || b.rows == 0 || b.cols == 0) return
+        val side = if (right) RIGHT else LEFT
+        a.data.usePinned { ap ->
+            b.data.usePinned { bp ->
+                val args = arrayOf(ap.addressOf(0), bp.addressOf(0))
+                if (solve) {
+                    f.dtrsm(
+                        ROW_MAJOR, side, uploOf(lower), transOf(transpose), diagOf(unitDiag),
+                        b.rows, b.cols, 1.0, args[0], a.cols, args[1], b.cols,
+                    )
+                } else {
+                    f.dtrmm(
+                        ROW_MAJOR, side, uploOf(lower), transOf(transpose), diagOf(unitDiag),
+                        b.rows, b.cols, 1.0, args[0], a.cols, args[1], b.cols,
+                    )
+                }
+            }
+        }
+    }
+
+    private fun uploOf(lower: Boolean) = if (lower) LOWER else UPPER
+    private fun transOf(transpose: Boolean) = if (transpose) TRANS else NO_TRANS
+    private fun diagOf(unitDiag: Boolean) = if (unitDiag) UNIT else NON_UNIT
+
+    /** `v = beta * v` honoring the BLAS convention that `beta == 0` overwrites without reading. */
+    private fun scaleInPlace(v: DoubleArray, beta: Double) {
+        when {
+            beta == 0.0 -> v.fill(0.0)
+            beta != 1.0 && v.isNotEmpty() -> v.usePinned { vp -> f.dscal(v.size, beta, vp.addressOf(0), 1) }
+        }
+    }
+
+    /** `beta` scale of the region [uplo] selects, honoring the `beta == 0` overwrite convention. */
+    private fun scaleUplo(v: DoubleArray, n: Int, beta: Double, uplo: Uplo) {
+        if (uplo == Uplo.FULL) {
+            scaleInPlace(v, beta)
+            return
+        }
+        if (beta == 1.0) return
+        for (i in 0 until n) {
+            val from = if (uplo == Uplo.LOWER) i * n else i * n + i
+            val until = if (uplo == Uplo.LOWER) i * n + i + 1 else (i + 1) * n
+            if (beta == 0.0) {
+                v.fill(0.0, from, until)
+            } else {
+                for (idx in from until until) v[idx] *= beta
+            }
+        }
+    }
+}

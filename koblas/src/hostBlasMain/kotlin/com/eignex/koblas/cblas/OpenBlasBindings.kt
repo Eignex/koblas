@@ -19,22 +19,19 @@ private typealias Dp = CPointer<DoubleVar>?
 private typealias Ip = CPointer<IntVar>?
 
 /**
- * The double-precision CBLAS/LAPACKE subset koblas dispatches to, resolved from the host libraries
- * with `dlopen`/`dlsym` at first use rather than linked: the OpenBLAS dependency stays a runtime
- * option, so a binary that carries this backend still starts (and falls back to the reference
- * implementation) on hosts without it. Enum parameters are declared `int`, their C ABI, and all
- * integer widths are LP64 (32-bit `lapack_int`) — the default OpenBLAS build, not INTERFACE64.
+ * The CBLAS subset koblas dispatches to, resolved from the host library with `dlopen`/`dlsym` rather
+ * than linked: the OpenBLAS dependency stays a runtime option, so a binary carrying this backend still
+ * starts, and falls back to the portable kernels, on hosts without it. Enum parameters are declared
+ * `int`, their C ABI, and all integer widths are LP64 — the default OpenBLAS build, not INTERFACE64.
  */
 @Suppress("MagicNumber") // the prototypes' arities are ABI facts
-internal class OpenBlasFunctions(private val blas: COpaquePointer, private val lapacke: COpaquePointer?) {
+internal class CblasFunctions(private val blas: COpaquePointer) {
     private fun required(name: String): COpaquePointer = dlsym(blas, name)
-        ?: lapacke?.let { dlsym(it, name) }
         ?: error("libopenblas is present but lacks $name")
 
     /** Absent from some builds; threading setup is best-effort. */
     val setNumThreads =
         dlsym(blas, "openblas_set_num_threads")?.reinterpret<CFunction<(Int) -> Unit>>()
-
     val ddot = required("cblas_ddot")
         .reinterpret<CFunction<(Int, Dp, Int, Dp, Int) -> Double>>()
     val dscal = required("cblas_dscal")
@@ -61,6 +58,21 @@ internal class OpenBlasFunctions(private val blas: COpaquePointer, private val l
         .reinterpret<CFunction<(Int, Int, Int, Int, Int, Dp, Int, Dp, Int) -> Unit>>()
     val dtrsm = required("cblas_dtrsm")
         .reinterpret<CFunction<(Int, Int, Int, Int, Int, Int, Int, Double, Dp, Int, Dp, Int) -> Unit>>()
+}
+
+/**
+ * The LAPACKE subset, resolved separately because it is optional.
+ *
+ * Debian and Ubuntu strip LAPACKE out of their OpenBLAS build and ship it as liblapacke, a package that
+ * libopenblas0 does not pull in. A host with CBLAS and no LAPACKE therefore gets the BLAS half of the
+ * backend and the portable LAPACK half, rather than losing native acceleration entirely.
+ */
+@Suppress("MagicNumber") // the prototypes' arities are ABI facts
+internal class LapackeFunctions(private val blas: COpaquePointer, private val lapacke: COpaquePointer?) {
+    private fun required(name: String): COpaquePointer = dlsym(blas, name)
+        ?: lapacke?.let { dlsym(it, name) }
+        ?: error("LAPACKE is present but lacks $name")
+
     val dgetrf = required("LAPACKE_dgetrf")
         .reinterpret<CFunction<(Int, Int, Int, Dp, Int, Ip) -> Int>>()
     val dgecon = required("LAPACKE_dgecon")
@@ -81,34 +93,45 @@ internal class OpenBlasFunctions(private val blas: COpaquePointer, private val l
         .reinterpret<CFunction<(Int, Byte, Int, Int, Dp, Int, Ip, Dp, Int) -> Int>>()
 }
 
-/** Locates the host OpenBLAS once; [functions] is null when the host has no usable installation. */
+/**
+ * Locates the host OpenBLAS once, resolving the two libraries independently.
+ *
+ * [cblas] is null when there is no usable OpenBLAS at all, in which case koblas stays fully portable.
+ * [lapacke] is null when the host has CBLAS but no LAPACKE — the Debian and Ubuntu default, since
+ * liblapacke is a separate package. That case keeps the native BLAS half and takes the portable LAPACK
+ * half, which is the whole reason the two are resolved apart.
+ */
 internal object OpenBlasLoader {
-    val functions: OpenBlasFunctions? = load()
+    private val handle: COpaquePointer? = open(
+        "libopenblas.so.0", // Linux runtime package
+        "libopenblas.so",
+        "libopenblas.dylib",
+        "/opt/homebrew/opt/openblas/lib/libopenblas.dylib", // Homebrew is keg-only
+        "/usr/local/opt/openblas/lib/libopenblas.dylib",
+    )
 
-    private fun load(): OpenBlasFunctions? {
-        val blas = open(
-            "libopenblas.so.0", // Linux runtime package
-            "libopenblas.so",
-            "libopenblas.dylib",
-            "/opt/homebrew/opt/openblas/lib/libopenblas.dylib", // Homebrew is keg-only
-            "/usr/local/opt/openblas/lib/libopenblas.dylib",
-        ) ?: return null
-        // Debian/Ubuntu strip LAPACKE out of their OpenBLAS build; it ships as liblapacke, which
-        // dispatches to the distribution's active LAPACK alternative.
-        val lapacke = if (dlsym(blas, "LAPACKE_dgetrf") != null) {
-            null
-        } else {
-            open("liblapacke.so.3", "liblapacke.so") ?: return null
-        }
+    val cblas: CblasFunctions? = handle?.let { blas ->
         val fns = try {
-            OpenBlasFunctions(blas, lapacke)
+            CblasFunctions(blas)
         } catch (_: IllegalStateException) { // a required symbol is missing: treat as not installed
-            return null
+            return@let null
         }
         // Single-threaded default, the faster configuration at koblas workload sizes; an explicit
         // OPENBLAS_NUM_THREADS is honored by OpenBLAS itself.
         if (getenv("OPENBLAS_NUM_THREADS") == null) fns.setNumThreads?.invoke(1)
-        return fns
+        fns
+    }
+
+    val lapacke: LapackeFunctions? = handle?.takeIf { cblas != null }?.let { blas ->
+        // LAPACKE either lives in the OpenBLAS build or in a separate library; absent both, this half
+        // simply is not available.
+        val extra = if (dlsym(blas, "LAPACKE_dgetrf") != null) null else open("liblapacke.so.3", "liblapacke.so")
+        if (dlsym(blas, "LAPACKE_dgetrf") == null && extra == null) return@let null
+        try {
+            LapackeFunctions(blas, extra)
+        } catch (_: IllegalStateException) {
+            null
+        }
     }
 
     private fun open(vararg names: String): COpaquePointer? {
