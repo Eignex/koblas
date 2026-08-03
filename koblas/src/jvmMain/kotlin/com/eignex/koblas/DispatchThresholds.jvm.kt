@@ -3,7 +3,7 @@ package com.eignex.koblas
 /**
  * JVM defaults.
  *
- * Level 2 is [NEVER_NATIVE]: the Vector API kernels beat a foreign call at every size measured, by 3x to
+ * Level 2 never dispatches: the Vector API kernels beat a foreign call at every size measured, by 3x to
  * 15x, because `O(n²)` work cannot amortize the call. The level-3 and factorization values are the
  * measured crossovers against the host OpenBLAS; `Level3Benchmark` and `SolveBenchmark` reproduce them.
  */
