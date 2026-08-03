@@ -17,6 +17,7 @@ import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
@@ -474,6 +475,64 @@ class CblasConformanceTest {
                 assertClose(expected.data, actual.data, tol = 1e-9, context = "${matrixOp.first} right=$right $flags")
             }
         }
+    }
+
+    /**
+     * The SPD suite, where the native routines differ from koblas's contract in two ways that a value
+     * comparison alone would miss: dpotrf leaves the strict upper triangle as the input had it, while
+     * koblas promises zeros there, and dpotri writes one triangle where koblas returns the full
+     * symmetric inverse. Both are asserted directly.
+     */
+    @Test
+    fun `the SPD suite matches reference`() {
+        val rng = Random(20260803)
+        for (n in intArrayOf(1, 4, 9, 33)) {
+            // A·Aᵀ plus a dominant diagonal is symmetric positive definite.
+            val seed = randomMatrix(rng, n, n)
+            val a = DenseMatrix(n, n)
+            reference.syrk(1.0, seed, transpose = false, beta = 0.0, c = a)
+            for (i in 0 until n) a[i, i] = a[i, i] + n
+            // Poison the strict upper triangle: only the lower one may be read.
+            for (i in 0 until n) for (j in i + 1 until n) a[i, j] = Double.NaN
+
+            val expected = reference.cholesky(a)
+            val actual = cblas.cholesky(a)
+            assertClose(expected.data, actual.data, tol = 1e-9, context = "cholesky n=$n")
+            for (i in 0 until n) {
+                for (j in i + 1 until n) {
+                    assertEquals(0.0, actual[i, j], "cholesky n=$n left ${actual[i, j]} above the diagonal")
+                }
+            }
+
+            val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
+            assertClose(
+                reference.solveSpd(expected, b),
+                cblas.solveSpd(actual, b),
+                tol = 1e-9,
+                context = "solveSpd n=$n",
+            )
+
+            val inverse = cblas.invertSpd(actual)
+            assertClose(
+                reference.invertSpd(expected).data,
+                inverse.data,
+                tol = 1e-8,
+                context = "invertSpd n=$n",
+            )
+            for (i in 0 until n) {
+                for (j in 0 until n) {
+                    assertEquals(inverse[i, j], inverse[j, i], 1e-12, "invertSpd n=$n is not symmetric")
+                }
+            }
+        }
+    }
+
+    /** A non-positive-definite input has no LAPACK equivalent, so it must fall back to the clamping path. */
+    @Test
+    fun `a non positive definite input falls back to the portable clamp`() {
+        val bad = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 0.0), doubleArrayOf(0.0, -0.5)))
+        assertEquals(reference.cholesky(bad)[1, 1], cblas.cholesky(bad)[1, 1], 1e-15)
+        assertFailsWith<IllegalArgumentException> { cblas.cholesky(bad, regularizeNonPD = false) }
     }
 
     @Test
