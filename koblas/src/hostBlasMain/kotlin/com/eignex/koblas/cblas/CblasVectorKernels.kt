@@ -2,7 +2,7 @@
 
 package com.eignex.koblas.cblas
 
-import com.eignex.koblas.Level1
+import com.eignex.koblas.VectorKernels
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.invoke
@@ -21,7 +21,7 @@ import kotlinx.cinterop.usePinned
  * Offsets are handled by pinning and taking the address of the element, so no repacking happens at the
  * boundary — the same zero-copy property the rest of this backend relies on.
  */
-class CblasLevel1Kernels : Level1 {
+class CblasVectorKernels : VectorKernels {
     override val name: String get() = "cblas"
 
     /** Above the reference (0), matching the other cblas halves. */

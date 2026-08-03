@@ -1,12 +1,14 @@
 package com.eignex.koblas
 
+import kotlin.math.abs
+import kotlin.math.sqrt
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * The level-1 seam: that a registered [Level1] is reached for long runs, is not reached for short ones,
+ * The level-1 seam: that a registered [VectorKernels] is reached for long runs, is not reached for short ones,
  * and that ranking and overriding behave like the other two halves.
  *
  * This lives in `commonTest` because the seam itself now lives in `commonMain`. It could not before: the
@@ -17,10 +19,10 @@ import kotlin.test.assertTrue
  * because the threshold is a per-platform value and is [Int.MAX_VALUE] on a SIMD JVM — where the correct
  * behaviour is that nothing routes at any length.
  */
-class Level1Test {
+class VectorKernelsTest {
 
     /** Records what it was asked to do and delegates the arithmetic to a plain loop. */
-    private class Recording(override val priority: Int = 90) : Level1 {
+    private class Recording(override val priority: Int = 90) : VectorKernels {
         override val name: String get() = "recording"
         var dots = 0
         var axpys = 0
@@ -50,28 +52,28 @@ class Level1Test {
             nrm2s++
             var s = 0.0
             for (i in 0 until len) s += v[vOff + i] * v[vOff + i]
-            return kotlin.math.sqrt(s)
+            return sqrt(s)
         }
 
         override fun asum(v: DoubleArray, vOff: Int, len: Int): Double {
             asums++
             var s = 0.0
-            for (i in 0 until len) s += kotlin.math.abs(v[vOff + i])
+            for (i in 0 until len) s += abs(v[vOff + i])
             return s
         }
     }
 
     @AfterTest
     fun restore() {
-        resetRegisteredLevel1()
+        resetRegisteredVectorKernels()
         registerPlatformBackends()
     }
 
     @Test
     fun `a registered backend is reached exactly above the level-1 threshold`() {
-        resetRegisteredLevel1()
+        resetRegisteredVectorKernels()
         val recording = Recording()
-        registerLevel1(recording)
+        registerVectorKernels(recording)
         val threshold = dispatchThresholds.level1
         val long = if (threshold == Int.MAX_VALUE) 4096 else threshold
         val x = DenseVector.of(DoubleArray(long) { 1.0 })
@@ -92,9 +94,9 @@ class Level1Test {
 
     @Test
     fun `axpy and scale route on the same threshold as dot`() {
-        resetRegisteredLevel1()
+        resetRegisteredVectorKernels()
         val recording = Recording()
-        registerLevel1(recording)
+        registerVectorKernels(recording)
         val threshold = dispatchThresholds.level1
         if (threshold == Int.MAX_VALUE) return
         val v = DenseVector.of(DoubleArray(threshold) { 1.0 })
@@ -108,9 +110,9 @@ class Level1Test {
 
     @Test
     fun `the dense reductions route but the sparse ones cannot`() {
-        resetRegisteredLevel1()
+        resetRegisteredVectorKernels()
         val recording = Recording()
-        registerLevel1(recording)
+        registerVectorKernels(recording)
         val threshold = dispatchThresholds.level1
         if (threshold == Int.MAX_VALUE) return
         val dense = DenseVector.of(DoubleArray(threshold) { 3.0 })
@@ -127,15 +129,15 @@ class Level1Test {
     }
 
     /**
-     * iamax stays off the seam by design; see [Level1]. Its tie-breaking and NaN ranking are koblas's own
+     * iamax stays off the seam by design; see [VectorKernels]. Its tie-breaking and NaN ranking are koblas's own
      * contract, and `idamax` implementations disagree about the latter, so routing it would make the answer
      * depend on whether a host library happened to be installed.
      */
     @Test
     fun `iamax does not route`() {
-        resetRegisteredLevel1()
+        resetRegisteredVectorKernels()
         val recording = Recording()
-        registerLevel1(recording)
+        registerVectorKernels(recording)
         val threshold = dispatchThresholds.level1
         val len = if (threshold == Int.MAX_VALUE) 4096 else threshold
         val v = DenseVector.of(DoubleArray(len) { if (it == 7) -9.0 else 1.0 })
@@ -145,18 +147,18 @@ class Level1Test {
 
     @Test
     fun `registration keeps the highest priority and install overrides both`() {
-        resetRegisteredLevel1()
+        resetRegisteredVectorKernels()
         val weak = Recording(priority = 10)
         val strong = Recording(priority = 200)
-        registerLevel1(strong)
-        registerLevel1(weak)
-        assertEquals(strong, activeLevel1, "a weaker registration displaced a stronger one")
+        registerVectorKernels(strong)
+        registerVectorKernels(weak)
+        assertEquals(strong, activeVectorKernels, "a weaker registration displaced a stronger one")
         val override = Recording(priority = 0)
-        installLevel1(override)
-        assertEquals(override, activeLevel1, "install must win regardless of priority")
-        installLevel1(null)
-        assertEquals(strong, activeLevel1, "clearing the override should fall back to registration")
-        resetRegisteredLevel1()
-        assertEquals(null, activeLevel1, "a cleared registry must fall back to the built-in kernels")
+        installVectorKernels(override)
+        assertEquals(override, activeVectorKernels, "install must win regardless of priority")
+        installVectorKernels(null)
+        assertEquals(strong, activeVectorKernels, "clearing the override should fall back to registration")
+        resetRegisteredVectorKernels()
+        assertEquals(null, activeVectorKernels, "a cleared registry must fall back to the built-in kernels")
     }
 }

@@ -2,7 +2,7 @@ package com.eignex.koblas
 
 /**
  * The compile-time primitive leaves for every non-JVM target: JS, Wasm, iOS, Windows, Linux and macOS.
- * The JVM supplies `jdk.incubator.vector` kernels instead. Routing to a registered [Level1] backend for
+ * The JVM supplies `jdk.incubator.vector` kernels instead. Routing to a registered [VectorKernels] backend for
  * long runs happens above these, in `Primitives.kt`, so these are pure loops with no dispatch.
  *
  * These loops are written to be vectorizable, but do not assume they are vectorized. Measured on

@@ -36,7 +36,7 @@ import kotlin.concurrent.Volatile
  * already call `dot`. Passing kernels that disagree with the built-in ones silently changes results
  * everywhere in the library, since `gemv`, the factorizations and the eta updates all bottom out here.
  */
-interface Level1 : Backend {
+interface VectorKernels : Backend {
     /** `Sum a[aOff..aOff+len-1] * b[bOff..bOff+len-1]`, with `len >= 1`. */
     fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double
 
@@ -68,27 +68,27 @@ interface Level1 : Backend {
  * would be. See [denseDot] for the ordering.
  */
 @Volatile
-internal var activeLevel1: Level1? = null
+internal var activeVectorKernels: VectorKernels? = null
     private set
 
 @Volatile
-private var installedLevel1: Level1? = null
+private var installedLevel1: VectorKernels? = null
 
 @Volatile
-private var registeredLevel1: Level1? = null
+private var registeredLevel1: VectorKernels? = null
 
 private fun recomposeLevel1() {
-    activeLevel1 = installedLevel1 ?: registeredLevel1
+    activeVectorKernels = installedLevel1 ?: registeredLevel1
 }
 
 /**
- * Overrides which [Level1] the primitives use, taking precedence over [registerLevel1]. Passing null
+ * Overrides which [VectorKernels] the primitives use, taking precedence over [registerVectorKernels]. Passing null
  * restores automatic selection, and clearing both restores the built-in kernels.
  *
  * The counterpart of [installLinearAlgebra] for this half. Not thread-safe against concurrent level-1
  * calls: install during startup, before other threads run.
  */
-fun installLevel1(backend: Level1?) {
+fun installVectorKernels(backend: VectorKernels?) {
     installedLevel1 = backend
     recomposeLevel1()
 }
@@ -98,7 +98,7 @@ fun installLevel1(backend: Level1?) {
  * backends. This is how koblas activates the host kernels on the targets that can reach a host BLAS; see
  * [registerBlas] for the same mechanism on the other halves.
  */
-fun registerLevel1(backend: Level1) {
+fun registerVectorKernels(backend: VectorKernels) {
     val current = registeredLevel1
     if (current == null || backend.priority > current.priority) {
         registeredLevel1 = backend
@@ -107,7 +107,7 @@ fun registerLevel1(backend: Level1) {
 }
 
 /** Test hook: clears level-1 registration so selection tests are order-independent. */
-internal fun resetRegisteredLevel1() {
+internal fun resetRegisteredVectorKernels() {
     installedLevel1 = null
     registeredLevel1 = null
     recomposeLevel1()

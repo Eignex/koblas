@@ -1,9 +1,9 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.LinearAlgebra
-import com.eignex.koblas.cblas.CblasLevel1Kernels
+import com.eignex.koblas.cblas.CblasVectorKernels
 import com.eignex.koblas.cblas.CblasLinearAlgebra
-import com.eignex.koblas.installLevel1
+import com.eignex.koblas.installVectorKernels
 
 /**
  * The host's CBLAS/LAPACKE backend when its libraries are present, otherwise `null`.
@@ -17,7 +17,7 @@ internal actual fun nativeBackend(): LinearAlgebra? =
 
 /** Installs or clears the host CBLAS level-1 kernels, if the host has them at all. */
 internal actual fun useHostLevel1(enabled: Boolean): Boolean {
-    val kernels = if (enabled && CblasLinearAlgebra.isAvailable()) CblasLevel1Kernels() else null
-    installLevel1(kernels)
+    val kernels = if (enabled && CblasLinearAlgebra.isAvailable()) CblasVectorKernels() else null
+    installVectorKernels(kernels)
     return kernels != null
 }

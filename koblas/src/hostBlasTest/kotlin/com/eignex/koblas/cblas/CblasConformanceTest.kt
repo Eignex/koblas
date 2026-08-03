@@ -561,7 +561,7 @@ class CblasConformanceTest {
      */
     @Test
     fun `installed level-1 kernels agree with the scalar ones`() {
-        val kernels = CblasLevel1Kernels()
+        val kernels = CblasVectorKernels()
         val rng = Random(20260731)
         for (len in intArrayOf(1, 7, 63, 64, 65, 200)) {
             val pad = 3 // a non-zero offset, so an implementation that ignores it fails
@@ -599,7 +599,7 @@ class CblasConformanceTest {
      */
     @Test
     fun `the routed reductions agree with the built-in ones`() {
-        val kernels = CblasLevel1Kernels()
+        val kernels = CblasVectorKernels()
         val rng = Random(20260951)
         for (scale in doubleArrayOf(1.0, 1e200, 1e-200)) {
             for (len in intArrayOf(1, 63, 64, 200)) {
