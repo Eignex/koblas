@@ -1,5 +1,8 @@
 package com.eignex.koblas
 
+import kotlin.math.abs
+import kotlin.math.sqrt
+
 // Dense-vector primitives - `internal` building blocks that higher-level ops (`dot`, `axpy`, `gemv`,
 // `cholesky`, the eta updates) call on contiguous `DoubleArray` runs.
 //
@@ -50,6 +53,53 @@ internal fun denseScale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
         return
     }
     platformScale(v, vOff, alpha, len)
+}
+
+/**
+ * Euclidean norm of `v[vOff..vOff+len-1]` (BLAS `dnrm2`).
+ *
+ * The fast path is a plain `sqrt(sum of squares)`; when that sum overflows or drowns in underflow
+ * (components beyond roughly `1e±150`), a rescaled two-pass recovers the netlib-accurate result, so any
+ * finite input yields the correct norm.
+ *
+ * No compile-time leaf: there is no SIMD counterpart to specialize against, so the loop below serves every
+ * target and only the runtime route differs.
+ */
+internal fun denseNrm2(v: DoubleArray, vOff: Int, len: Int): Double {
+    val l1 = activeLevel1
+    if (l1 != null && len >= dispatchThresholds.level1) return l1.nrm2(v, vOff, len)
+    var s = 0.0
+    for (i in 0 until len) {
+        val x = v[vOff + i]
+        s += x * x
+    }
+    if (s.isFinite() && s >= MIN_NORMAL) return sqrt(s)
+    // Rescale pass: factor out the largest magnitude so the squares stay in range.
+    var amax = 0.0
+    for (i in 0 until len) {
+        val a = abs(v[vOff + i])
+        if (a > amax) amax = a
+    }
+    // All-zero (0.0), NaN anywhere (NaN), or an infinite component (Inf) resolve through the raw sum.
+    if (amax == 0.0 || amax.isInfinite()) return sqrt(s)
+    var t = 0.0
+    for (i in 0 until len) {
+        val r = v[vOff + i] / amax
+        t += r * r
+    }
+    return amax * sqrt(t)
+}
+
+/** Smallest normal double; a squares-sum below this has lost precision to underflow. */
+private const val MIN_NORMAL = 2.2250738585072014e-308
+
+/** `Sum |v[vOff..vOff+len-1]|` (BLAS `dasum`). No compile-time leaf, for the reason [denseNrm2] gives. */
+internal fun denseAsum(v: DoubleArray, vOff: Int, len: Int): Double {
+    val l1 = activeLevel1
+    if (l1 != null && len >= dispatchThresholds.level1) return l1.asum(v, vOff, len)
+    var s = 0.0
+    for (i in 0 until len) s += abs(v[vOff + i])
+    return s
 }
 
 /** The compile-time [denseDot] kernel for this target, with no routing. */

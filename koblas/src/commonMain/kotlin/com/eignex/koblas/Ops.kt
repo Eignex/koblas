@@ -68,10 +68,12 @@ infix fun VectorView.dot(other: VectorView): Double {
  * any finite input yields the correct norm.
  */
 fun norm2(v: VectorView): Double {
+    // Dense operands route through the level-1 seam; a sparse one sums its stored entries, which no BLAS
+    // routine can do, so it keeps the same rescaling logic inline.
+    if (v is DenseVector) return denseNrm2(v.data, 0, v.size)
     var s = 0.0
     v.forEachStored { _, x -> s += x * x }
     if (s.isFinite() && s >= MIN_NORMAL) return sqrt(s)
-    // Rescale pass: factor out the largest magnitude so the squares stay in range.
     var amax = 0.0
     v.forEachStored { _, x ->
         val a = abs(x)
@@ -92,6 +94,7 @@ private const val MIN_NORMAL = 2.2250738585072014e-308
 
 /** Sum of absolute values `Sum |v_i|` (BLAS `dasum`). Sparse vectors sum over stored entries only. */
 fun asum(v: VectorView): Double {
+    if (v is DenseVector) return denseAsum(v.data, 0, v.size)
     var s = 0.0
     v.forEachStored { _, x -> s += abs(x) }
     return s

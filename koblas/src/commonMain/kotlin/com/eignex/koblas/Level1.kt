@@ -20,12 +20,16 @@ import kotlin.concurrent.Volatile
  * recursion rather than a fallback. So the three halves share the registration verb, the priority
  * ranking, the threshold table and the diagnostics, while level 1 keeps a `null`-means-built-in default.
  *
- * ### What is not here
+ * ### What is not here, and why
  *
- * `norm2`, `asum`, `iamax`, `copy` and `swap` are absent for two different reasons. The first three could
- * route — a host BLAS has `dnrm2`, `dasum` and `idamax` — and do not yet; that is a gap, not a decision.
- * `copy` and `swap` are a decision: `copyInto` and an element exchange are already the best available, so
- * a foreign call could only lose.
+ * `iamax` is excluded on a contract question rather than a performance one. koblas documents its
+ * tie-breaking — first by index for a dense vector, storage order for a sparse one — and its behaviour for
+ * an all-unstored vector. `idamax` implementations do not agree with each other on where a `NaN` ranks, so
+ * routing it would make the answer depend on whether a host library happened to be installed. It could
+ * join once that behaviour has been checked against the libraries koblas actually dispatches to.
+ *
+ * `copy` and `swap` are excluded on the arithmetic: `copyInto` and an element exchange are already the
+ * best available, so a foreign call could only lose.
  *
  * Implementations must match the built-in kernels' contract exactly — same result for the same
  * `(offset, length)` window, no reads outside it — and must be safe to call from any thread that can
@@ -41,6 +45,18 @@ interface Level1 : Backend {
 
     /** `v[vOff..vOff+len-1] *= alpha`, with `len >= 1`. */
     fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int)
+
+    /**
+     * Euclidean norm of `v[vOff..vOff+len-1]`, with `len >= 1` (BLAS `dnrm2`).
+     *
+     * Must be accurate for components whose squares overflow or underflow — koblas's built-in kernel
+     * rescales to stay in range, and netlib `dnrm2` does the same, so a plain `sqrt(sum of squares)` is
+     * not a valid implementation.
+     */
+    fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double
+
+    /** `Sum |v[vOff..vOff+len-1]|`, with `len >= 1` (BLAS `dasum`). */
+    fun asum(v: DoubleArray, vOff: Int, len: Int): Double
 }
 
 /**

@@ -14,6 +14,7 @@ import com.eignex.koblas.installLinearAlgebra
 import com.eignex.koblas.koblas
 import com.eignex.koblas.norm1
 import kotlin.math.abs
+import kotlin.math.sqrt
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -584,5 +585,60 @@ class CblasConformanceTest {
             kernels.scale(actualScale, pad, -0.5, len)
             assertClose(expectedScale, actualScale, context = "scale len=$len")
         }
+    }
+
+    /**
+     * The routed reductions against the built-in ones, over the magnitudes that separate a correct `nrm2`
+     * from a naive one.
+     *
+     * `dnrm2` has to rescale: at `1e200` the squares overflow to infinity and at `1e-200` they vanish into
+     * zero, so a plain `sqrt(sum of squares)` gives `Inf` and `0` where the true norms are finite and
+     * non-zero. koblas's built-in kernel rescales, and this is the check that whatever the host library
+     * does agrees with it — a divergence here would make the answer depend on whether OpenBLAS happened to
+     * be installed.
+     */
+    @Test
+    fun `the routed reductions agree with the built-in ones`() {
+        val kernels = CblasLevel1Kernels()
+        val rng = Random(20260951)
+        for (scale in doubleArrayOf(1.0, 1e200, 1e-200)) {
+            for (len in intArrayOf(1, 63, 64, 200)) {
+                val pad = 3 // a non-zero offset, so an implementation that ignores it fails
+                val v = DoubleArray(len + pad) { rng.nextDouble(-1.0, 1.0) * scale }
+                val ctx = "len=$len scale=$scale"
+                assertClose(
+                    doubleArrayOf(referenceNrm2(v, pad, len)),
+                    doubleArrayOf(kernels.nrm2(v, pad, len)),
+                    context = "nrm2 $ctx",
+                )
+                var expectedAsum = 0.0
+                for (i in 0 until len) expectedAsum += abs(v[pad + i])
+                assertClose(
+                    doubleArrayOf(expectedAsum),
+                    doubleArrayOf(kernels.asum(v, pad, len)),
+                    context = "asum $ctx",
+                )
+            }
+        }
+        // A zero vector, where the rescaling path has no maximum to factor out.
+        val zeros = DoubleArray(80)
+        assertEquals(0.0, kernels.nrm2(zeros, 0, 80), "nrm2 of zeros")
+        assertEquals(0.0, kernels.asum(zeros, 0, 80), "asum of zeros")
+    }
+
+    /** The rescaled two-pass norm, independent of the implementation under test. */
+    private fun referenceNrm2(v: DoubleArray, off: Int, len: Int): Double {
+        var amax = 0.0
+        for (i in 0 until len) {
+            val a = abs(v[off + i])
+            if (a > amax) amax = a
+        }
+        if (amax == 0.0) return 0.0
+        var t = 0.0
+        for (i in 0 until len) {
+            val r = v[off + i] / amax
+            t += r * r
+        }
+        return amax * sqrt(t)
     }
 }

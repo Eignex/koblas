@@ -42,6 +42,23 @@ class Level1Test {
             scales++
             for (i in 0 until len) v[vOff + i] *= alpha
         }
+
+        var nrm2s = 0
+        var asums = 0
+
+        override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double {
+            nrm2s++
+            var s = 0.0
+            for (i in 0 until len) s += v[vOff + i] * v[vOff + i]
+            return kotlin.math.sqrt(s)
+        }
+
+        override fun asum(v: DoubleArray, vOff: Int, len: Int): Double {
+            asums++
+            var s = 0.0
+            for (i in 0 until len) s += kotlin.math.abs(v[vOff + i])
+            return s
+        }
     }
 
     @AfterTest
@@ -87,6 +104,43 @@ class Level1Test {
         assertEquals(1, recording.axpys, "axpy did not route")
         assertEquals(1, recording.scales, "scale did not route")
         assertTrue(v.data.all { it == 3.5 }, "routed arithmetic is wrong: ${v.data[0]}")
+    }
+
+    @Test
+    fun `the dense reductions route but the sparse ones cannot`() {
+        resetRegisteredLevel1()
+        val recording = Recording()
+        registerLevel1(recording)
+        val threshold = dispatchThresholds.level1
+        if (threshold == Int.MAX_VALUE) return
+        val dense = DenseVector.of(DoubleArray(threshold) { 3.0 })
+        norm2(dense)
+        asum(dense)
+        assertEquals(1, recording.nrm2s, "norm2 on a dense vector did not route")
+        assertEquals(1, recording.asums, "asum on a dense vector did not route")
+        // A sparse vector has no BLAS counterpart: it must stay on the stored-entry walk.
+        val sparse = SparseVector(threshold, IntArray(threshold) { it }, DoubleArray(threshold) { 3.0 })
+        norm2(sparse)
+        asum(sparse)
+        assertEquals(1, recording.nrm2s, "norm2 routed a sparse vector")
+        assertEquals(1, recording.asums, "asum routed a sparse vector")
+    }
+
+    /**
+     * iamax stays off the seam by design; see [Level1]. Its tie-breaking and NaN ranking are koblas's own
+     * contract, and `idamax` implementations disagree about the latter, so routing it would make the answer
+     * depend on whether a host library happened to be installed.
+     */
+    @Test
+    fun `iamax does not route`() {
+        resetRegisteredLevel1()
+        val recording = Recording()
+        registerLevel1(recording)
+        val threshold = dispatchThresholds.level1
+        val len = if (threshold == Int.MAX_VALUE) 4096 else threshold
+        val v = DenseVector.of(DoubleArray(len) { if (it == 7) -9.0 else 1.0 })
+        assertEquals(7, iamax(v))
+        assertEquals(0, recording.dots + recording.nrm2s + recording.asums, "iamax reached the seam")
     }
 
     @Test

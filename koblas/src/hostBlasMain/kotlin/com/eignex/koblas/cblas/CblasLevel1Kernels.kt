@@ -48,4 +48,10 @@ class CblasLevel1Kernels : Level1 {
     override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
         v.usePinned { vp -> f.dscal(len, alpha, vp.addressOf(vOff), 1) }
     }
+
+    override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double =
+        v.usePinned { vp -> f.dnrm2(len, vp.addressOf(vOff), 1) }
+
+    override fun asum(v: DoubleArray, vOff: Int, len: Int): Double =
+        v.usePinned { vp -> f.dasum(len, vp.addressOf(vOff), 1) }
 }
