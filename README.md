@@ -26,7 +26,7 @@ Kotlin has no standard multiplatform linear algebra library. Koblas is a small
 one built around serializable containers: DenseMatrix (flat, row-major),
 DenseVector and SparseVector behind a shared view contract, and a CSC
 SparseMatrix. Arithmetic lives as free functions over the views; the heavier
-dense operations sit behind the swappable LinearAlgebra interface.
+dense operations sit behind the swappable Blas and Lapack interfaces.
 
 The operation set covers level 1 through 3 BLAS kernels, the LU, Cholesky, QR,
 and symmetric indefinite solver families with condition estimation, and sparse
@@ -128,7 +128,7 @@ layouts, SVD, and eigendecompositions. Nothing is supported silently: new
 routines are implemented, tested, and added to the table when a workload
 needs them.
 
-Every routine that returns a result also has a destination-passing form, so a
+The routines a steady-state loop repeats have a destination-passing form, so a
 loop that owns its buffers allocates nothing: solveInto for the dense and
 symmetric indefinite solves, single or blocked, applyQInto and the two
 least-squares solves for the QR family, ftranInto and btranInto for the sparse
@@ -143,7 +143,8 @@ pays that cost up front. It is accepted wherever a routine needs temporaries:
 rcond and norm1, which are called together to decide whether a factorization
 is still accurate enough to reuse, the syrk mirror buffer (an n² scratch, the
 largest in the library), ldl, qr, the Cholesky rank-one update and downdate,
-invertSpd, and the triangular solves' staging. An EtaBasis owns its scratch
+invertSpd, and the blocked multi-RHS solves' staging. An EtaBasis owns its
+scratch
 instead, being mutable already, so its solves need no workspace at all.
 
 ```kotlin
@@ -167,13 +168,16 @@ There are two performance seams, split by how much work a call does.
 The level 1 kernels (dot, axpy, scale) do nanoseconds of work per call, so
 dispatch would cost more than the kernel. They are specialized at compile
 time: the JVM uses the incubator Vector API when started with
-`--add-modules=jdk.incubator.vector`; everything else is scalar. Every inner
-loop runs on this seam, including the sparse kernels.
+`--add-modules=jdk.incubator.vector`, and the other targets use scalar loops,
+except that Linux and macOS hand runs of 64 elements or more to the host BLAS
+when one is installed. Every inner loop runs on this seam, including the sparse
+kernels.
 
 The level 2 and 3 multiplies and the factorizations amortize dispatch, so
 they sit behind the runtime LinearAlgebra interface. Backends activate
 themselves: through the classpath on the JVM, by registration at program start
-elsewhere. The highest priority wins; installLinearAlgebra overrides. Storage
+elsewhere. The highest priority wins for each half; installLinearAlgebra
+overrides both. Storage
 is flat, row-major DoubleArray, so a native backend receives raw buffers with
 no repacking, and every backend must match the reference on the conformance
 suite.
