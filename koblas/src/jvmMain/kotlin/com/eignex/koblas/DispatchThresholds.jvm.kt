@@ -1,32 +1,37 @@
 package com.eignex.koblas
 
 /**
- * JVM defaults.
+ * JVM defaults, which depend on which primitive kernels this runtime actually got.
  *
- * Level 2 is [Int.MAX_VALUE], so nothing reaches it: the Vector API kernels beat a foreign call at every
- * size measured — 1.8x at n=256 widening to 15.7x at 2048 — because `O(n²)` work over `O(n²)` data cannot
- * amortize the call. Measurement stops at 2048, so this is the largest size checked and not a proof; the
- * value is a size like the others, and an override can lower it. The level-3 and factorization values are the
- * measured crossovers against the host OpenBLAS; `Level3Benchmark` and `SolveBenchmark` reproduce them.
+ * Every JVM number behind these thresholds was measured with the Vector API kernels active, and they only
+ * hold while those kernels are there. The incubator module is opt-in: a consumer who launches without
+ * `--add-modules=jdk.incubator.vector` runs the scalar loops instead, which are 4x to 7x slower, and the
+ * crossovers move down accordingly — keeping `level2` at [Int.MAX_VALUE] in that case would pin them to
+ * scalar arithmetic where a foreign call wins comfortably.
+ *
+ * So the choice is made from [mathBackend], the same seam that decides which kernels ran.
  */
-internal actual val platformDispatchThresholds: DispatchThresholds =
-    DispatchThresholds(level2 = Int.MAX_VALUE, level3 = JVM_LEVEL3_MIN, lapack = JVM_LAPACK_MIN)
+internal actual val platformDispatchThresholds: DispatchThresholds
+    get() = if (mathBackend.startsWith("simd")) SIMD_THRESHOLDS else SCALAR_THRESHOLDS
+
+/** Measured on this platform with the Vector API kernels; see [JVM_LEVEL3_MIN] and [JVM_LAPACK_MIN]. */
+private val SIMD_THRESHOLDS = DispatchThresholds(
+    level2 = Int.MAX_VALUE,
+    level3 = JVM_LEVEL3_MIN,
+    lapack = JVM_LAPACK_MIN,
+)
 
 /**
- * Level 3 crosses over between n=4 and n=64, depending on the routine (us/op, native against SIMD):
+ * For a JVM running the scalar loops, where the portable side is the same Kotlin the native targets compile
+ * and the host library wins from the smallest sizes.
  *
- *     n            4      16      32      64     128      256
- *     gemm     0.252   0.535   2.206  13.001  83.606  552.960
- *     simd     0.055   0.900   4.949  35.773 263.871 2171.467
- *     syrk     0.369   0.739   2.424  10.780  82.338  502.246
- *     simd     0.035   0.407   2.000  13.331 115.968 1147.993
- *
- * The routines inside the level disagree: `gemm` is ahead from 16, `syrk` only from 64, and `syrk` with a
- * single triangle later still. 32 is the value that minimizes total absolute regret across the sweep
- * (3.0us/call against 3.2 at 16 and 4.1 at 64), which is the honest way to pick one number for a level
- * whose members differ. At n=4 the foreign call costs 4x to 10x the arithmetic, so any threshold at or
- * above 16 covers the case that matters most.
+ * Inherited from the linuxX64 measurements rather than measured on a scalar JVM: there, against scalar
+ * kernels, the host BLAS won level 2 by 1.6x to 15x from n=16 and level 3 by 8x to 20x. The JIT is not LLVM,
+ * so the numbers will differ in detail, but not in which side wins — and the alternative, applying
+ * SIMD-derived thresholds to a runtime that has no SIMD, is wrong by a much wider margin.
  */
+private val SCALAR_THRESHOLDS = DispatchThresholds(level2 = 0, level3 = 0, lapack = 0)
+
 private const val JVM_LEVEL3_MIN = 32
 
 /**
