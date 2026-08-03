@@ -12,7 +12,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * The standalone vector and matrix operations: the level-1 kernels, the norms, `matVec`, the rank-1
+ * The standalone vector and matrix operations: the level-1 kernels, the norms, `gemv`, the rank-1
  * `ger` update, and `transpose`.
  *
  * Every operation that accepts a [VectorView] is checked on both a dense and a sparse carrier of the
@@ -163,7 +163,7 @@ class OpsTest {
     }
 
     @Test
-    fun `matVec computes A x for dense and sparse x`() {
+    fun `the gemv overload computes A x for dense and sparse x`() {
         // A = [[1, 2], [3, 4], [5, 6]]
         val A = DenseMatrix.of(
             arrayOf(
@@ -175,12 +175,12 @@ class OpsTest {
         val xDense = dense(1.0, -1.0)
         val xSparse = sparse(2, 0 to 1.0, 1 to -1.0)
         val expected = dense(1.0 * 1 + 2 * -1, 3.0 * 1 + 4 * -1, 5.0 * 1 + 6 * -1)
-        assertEquals(expected, matVec(A, xDense))
-        assertEquals(expected, matVec(A, xSparse))
+        assertEquals(expected, gemv(A, xDense))
+        assertEquals(expected, gemv(A, xSparse))
     }
 
     @Test
-    fun `sparse and dense matVec agree on a random example`() {
+    fun `sparse and dense gemv agree on a random example`() {
         val rng = Random(7)
         val n = 8
         val A = randomMatrix(n, n, rng)
@@ -189,7 +189,7 @@ class OpsTest {
         val xv = DoubleArray(n)
         for (i in nz) xv[i] = rng.nextDouble(-1.0, 1.0)
         val xSparse = SparseVector.of(n, nz.toIntArray(), nz.map { xv[it] }.toDoubleArray())
-        assertClose(matVec(A, DenseVector.of(xv)).data, matVec(A, xSparse).data, "matVec dense vs sparse")
+        assertClose(gemv(A, DenseVector.of(xv)).data, gemv(A, xSparse).data, "gemv dense vs sparse")
     }
 
     @Test
@@ -257,7 +257,7 @@ class OpsTest {
         assertFailsWith<IllegalArgumentException> {
             ger(1.0, dense(1.0, 2.0, 3.0), dense(1.0, 2.0), DenseMatrix(2, 2))
         }
-        assertFailsWith<IllegalArgumentException> { matVec(DenseMatrix(2, 3), dense(1.0, 2.0)) }
+        assertFailsWith<IllegalArgumentException> { gemv(DenseMatrix(2, 3), dense(1.0, 2.0)) }
     }
 
     @Test

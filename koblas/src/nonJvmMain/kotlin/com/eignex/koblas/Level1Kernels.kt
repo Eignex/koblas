@@ -54,7 +54,7 @@ private var installedLevel1Kernels: Level1Kernels? = null
  *
  * Not thread-safe against concurrent level-1 calls: install during startup, before other threads run.
  * Passing kernels that disagree with the built-in ones silently changes results everywhere in the
- * library, since `matVec`, the factorizations and the Cholesky updates all bottom out in these calls.
+ * library, since `gemv`, the factorizations and the Cholesky updates all bottom out in these calls.
  */
 fun installLevel1Kernels(kernels: Level1Kernels?) {
     installedLevel1Kernels = kernels

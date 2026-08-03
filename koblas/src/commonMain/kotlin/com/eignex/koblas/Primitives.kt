@@ -1,7 +1,7 @@
 package com.eignex.koblas
 
 // Platform-dispatched dense-vector primitives - `internal` building blocks that
-// higher-level ops (`dot`, `axpy`, `matVec`, `cholesky`) call on contiguous
+// higher-level ops (`dot`, `axpy`, `gemv`, `cholesky`) call on contiguous
 // `DoubleArray` runs. JVM provides a SIMD implementation via the incubator
 // `jdk.incubator.vector` API; every other target uses a scalar fallback in
 // `nonJvmMain`.

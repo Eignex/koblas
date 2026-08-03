@@ -12,8 +12,14 @@ import kotlin.math.sqrt
 // [denseAxpy] / [denseScale] in `Primitives.kt` (SIMD on JVM, scalar elsewhere).
 //
 // Naming: mutating functions take the destination first and return [Unit] (`scale`,
-// `axpy`, `ger`); allocating functions return a fresh result (`matVec`,
+// `axpy`, `ger`); allocating functions return a fresh result (`gemv`,
 // infix `dot`).
+//
+// Naming follows the library-wide rule: BLAS routines keep their standard mnemonics, LAPACK routines get
+// English names. Two deliberate exceptions live here. `norm2` and `asum` spell out what BLAS calls
+// `nrm2` and `asum`, because `norm2` pairs with `norm1` (which is LAPACK `dlange`, not BLAS) and reading
+// them side by side matters more than matching four characters exactly. And `iamax` keeps its mnemonic
+// rather than becoming `indexOfMaxAbs`, since it is unambiguous to anyone who has met BLAS.
 
 /**
  * Visit each stored entry of [this] as `(index, value)`. For [DenseVector] that's
@@ -211,10 +217,17 @@ fun DenseMatrix.transpose(): DenseMatrix {
     return t
 }
 
-/** Matrix-vector product `A * x` into a fresh dense result. */
-fun matVec(A: MatrixView, x: VectorView): DenseVector {
-    require(A.cols == x.size) { "matVec shape mismatch: A is ${A.rows}x${A.cols}, x size ${x.size}" }
-    // Dense·dense routes through the backend's gemv (the single dense matrix-vector implementation).
+/**
+ * Matrix-vector product `A · x` into a fresh dense result (BLAS `dgemv` with `alpha = 1`, `beta = 0`).
+ *
+ * The view-taking overload of [Blas.gemv], for the same reason [ger] has one: a [SparseVector] operand
+ * has no BLAS counterpart, and walking only its stored entries is the point of passing one. Two dense
+ * operands dispatch to the backend, so this is a shape adapter rather than a second implementation.
+ *
+ * No `transpose` flag: for a sparse matrix use [SparseMatrix.gemv], which takes one.
+ */
+fun gemv(A: MatrixView, x: VectorView): DenseVector {
+    require(A.cols == x.size) { "gemv shape mismatch: A is ${A.rows}x${A.cols}, x size ${x.size}" }
     if (A is DenseMatrix && x is DenseVector) return DenseVector.wrap(koblas.gemv(A, x.data))
     val out = DenseVector(A.rows)
     val od = out.data

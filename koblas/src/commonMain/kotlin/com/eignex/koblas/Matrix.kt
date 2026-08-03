@@ -14,7 +14,7 @@ import kotlinx.serialization.encoding.Encoder
  * Read-only N-by-M matrix. Sealed alongside [VectorView] so snapshots
  * round-trip through `kotlinx.serialization` with their concrete storage
  * preserved. Public surface is read-only; shape, entry access, materialise
- * to `Array<DoubleArray>`. Arithmetic (`matVec`, `ger`, the Cholesky
+ * to `Array<DoubleArray>`. Arithmetic (`gemv`, `ger`, the Cholesky
  * suite, …) lives as free functions over the views; mutation is `internal`.
  *
  * Only [DenseMatrix] today. A CSR/CSC sparse matrix can land here when a
