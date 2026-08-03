@@ -45,18 +45,28 @@ class AllocationFreeTest {
     }
 
     /**
+     * Holds each block's result so escape analysis cannot delete the allocation being measured.
+     *
+     * Without this the baseline halves of these tests are unreliable: a result that is computed and
+     * discarded is a candidate for scalar replacement, and a `solve` whose fresh matrix never escapes can
+     * be optimized into no allocation at all. That is not hypothetical — it passed here and failed on CI
+     * after the JVM target moved to 25, which is exactly the shape of a JIT-dependent flake.
+     */
+    private var sink: Any? = null
+
+    /**
      * Best of several measurement windows. A single window is fragile: one unrelated event inside it — a
      * class load, a JIT recompilation — is divided by the iteration count and can exceed a per-iteration
      * budget on its own, which is how this first failed on CI while passing locally. An allocation-free
      * loop produces a zero window given enough tries; an allocating one cannot.
      */
-    private fun bytesPerIteration(iterations: Int, warmup: Int = 200, block: (Int) -> Unit): Double {
-        repeat(warmup) { block(it) } // let the JIT settle; first calls allocate profiling data
+    private fun bytesPerIteration(iterations: Int, warmup: Int = 200, block: (Int) -> Any?): Double {
+        repeat(warmup) { sink = block(it) } // let the JIT settle; first calls allocate profiling data
         val id = Thread.currentThread().threadId()
         var best = Double.MAX_VALUE
         repeat(WINDOWS) {
             val before = bean.getThreadAllocatedBytes(id)
-            repeat(iterations) { i -> block(i) }
+            repeat(iterations) { i -> sink = block(i) }
             val after = bean.getThreadAllocatedBytes(id)
             val perIteration = (after - before).toDouble() / iterations
             if (perIteration < best) best = perIteration
