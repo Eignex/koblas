@@ -1,5 +1,10 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.dense.ReferenceLinearAlgebra
+import com.eignex.koblas.dense.installLinearAlgebra
+import com.eignex.koblas.dense.koblas
+import com.eignex.koblas.dense.lu
+import com.eignex.koblas.sparse.SparseLu
 import com.sun.management.ThreadMXBean
 import java.lang.management.ManagementFactory
 import kotlin.random.Random

@@ -1,16 +1,16 @@
 package com.eignex.koblas.cblas
 
-import com.eignex.koblas.Blas
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.registerBlas
-import com.eignex.koblas.registerLapack
-import com.eignex.koblas.registerVectorKernels
+import com.eignex.koblas.dense.Blas
+import com.eignex.koblas.dense.registerBlas
+import com.eignex.koblas.dense.registerLapack
+import com.eignex.koblas.dense.registerVectorKernels
 
 /**
  * Registers [CblasLinearAlgebra] for automatic selection at program start when the host provides
  * OpenBLAS — depending on the koblas-cblas artifact activates it, mirroring the JVM's classpath
  * discovery, while priority ranking keeps any stronger registered backend in front. On hosts
- * without the libraries nothing is registered and [com.eignex.koblas.koblas] stays on the portable
+ * without the libraries nothing is registered and [com.eignex.koblas.dense.koblas] stays on the portable
  * reference. `installLinearAlgebra` overrides either way; if the linker drops this unreferenced
  * property, `installLinearAlgebra(CblasLinearAlgebra())` remains the explicit activation path.
  */

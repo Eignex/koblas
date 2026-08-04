@@ -1,12 +1,17 @@
 package com.eignex.koblas.hostblas
 
-import com.eignex.koblas.Blas
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DispatchThresholds
-import com.eignex.koblas.ReferenceLinearAlgebra
-import com.eignex.koblas.Uplo
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.dense.Blas
+import com.eignex.koblas.dense.ReferenceLinearAlgebra
+import com.eignex.koblas.dense.Uplo
+import com.eignex.koblas.dense.trmm
+import com.eignex.koblas.dense.trmv
+import com.eignex.koblas.dense.trsm
+import com.eignex.koblas.dense.trsv
 import com.eignex.koblas.dispatchThresholds
+import com.eignex.koblas.gemv
 import com.eignex.koblas.hostblas.HostBlasCalls.COL_MAJOR
 import com.eignex.koblas.hostblas.HostBlasCalls.LEFT
 import com.eignex.koblas.hostblas.HostBlasCalls.LOWER

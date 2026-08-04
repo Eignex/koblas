@@ -1,8 +1,8 @@
 package com.eignex.koblas.cblas
 
-import com.eignex.koblas.Blas
-import com.eignex.koblas.Lapack
-import com.eignex.koblas.LinearAlgebra
+import com.eignex.koblas.dense.Blas
+import com.eignex.koblas.dense.Lapack
+import com.eignex.koblas.dense.LinearAlgebra
 
 /**
  * [LinearAlgebra] backed by the host's OpenBLAS through its C interfaces (CBLAS and LAPACKE), for
@@ -10,11 +10,11 @@ import com.eignex.koblas.LinearAlgebra
  * at program start, so the dependency is optional at runtime — `libopenblas` plus `liblapacke` on
  * Debian/Ubuntu, `brew install openblas` on macOS. When they are present koblas installs this backend
  * eagerly before `main`; when they are missing the program still runs on
- * [com.eignex.koblas.ReferenceLinearAlgebra], and constructing this class throws. [isAvailable] and
+ * [com.eignex.koblas.dense.ReferenceLinearAlgebra], and constructing this class throws. [isAvailable] and
  * [isBlasAvailable] report which case the host is, since the two halves resolve independently.
  *
  * Koblas storage is column-major, the order LAPACK defines, so buffers cross the FFI
- * boundary without repacking. Semantics match [com.eignex.koblas.ReferenceLinearAlgebra] exactly as
+ * boundary without repacking. Semantics match [com.eignex.koblas.dense.ReferenceLinearAlgebra] exactly as
  * specified by the [LinearAlgebra] contract: `beta == 0` overwrites without reading, `alpha == 0`
  * reduces to the `beta` scale, [syrk] produces the full, exactly symmetric result by default, and
  * the factorizations use the shared packed formats so they interchange between backends.

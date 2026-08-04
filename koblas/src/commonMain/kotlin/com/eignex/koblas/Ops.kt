@@ -2,6 +2,14 @@
 
 package com.eignex.koblas
 
+import com.eignex.koblas.dense.Blas
+import com.eignex.koblas.dense.LinearAlgebra
+import com.eignex.koblas.dense.denseAsum
+import com.eignex.koblas.dense.denseAxpy
+import com.eignex.koblas.dense.denseDot
+import com.eignex.koblas.dense.denseNrm2
+import com.eignex.koblas.dense.denseScale
+import com.eignex.koblas.dense.koblas
 import kotlin.math.abs
 import kotlin.math.sqrt
 

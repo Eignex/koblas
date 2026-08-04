@@ -1,11 +1,12 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.LdlDecomposition
-import com.eignex.koblas.LuDecomposition
-import com.eignex.koblas.koblas
-import com.eignex.koblas.lu
-import com.eignex.koblas.solve
+import com.eignex.koblas.dense.LdlDecomposition
+import com.eignex.koblas.dense.LuDecomposition
+import com.eignex.koblas.dense.koblas
+import com.eignex.koblas.dense.lu
+import com.eignex.koblas.dense.solve
+import kotlin.random.Random
 import kotlinx.benchmark.Benchmark
 import kotlinx.benchmark.BenchmarkMode
 import kotlinx.benchmark.BenchmarkTimeUnit
@@ -15,7 +16,6 @@ import kotlinx.benchmark.Param
 import kotlinx.benchmark.Scope
 import kotlinx.benchmark.Setup
 import kotlinx.benchmark.State
-import kotlin.random.Random
 
 /**
  * Factorization and single right-hand-side solves, dense general and symmetric indefinite.

@@ -1,22 +1,16 @@
 # Package com.eignex.koblas
 
-The koblas linear-algebra API — a well-defined subset of double-precision BLAS/LAPACK (see the README's
-"BLAS coverage" table for the routine-by-routine mapping and deliberate deviations):
+The containers every part of koblas speaks, and the free-function arithmetic over them. The routines
+themselves live one package down, split by storage: `com.eignex.koblas.dense` and
+`com.eignex.koblas.sparse`. See the README's "BLAS coverage" table for the routine-by-routine mapping to
+BLAS/LAPACK and the deliberate deviations.
 
-- Containers: [MatrixView] / [DenseMatrix] and [VectorView] / [DenseVector] / [SparseVector] (all
-  `@Serializable`).
-- Free-function arithmetic over the views: [dot], [axpy], [scale], [norm2], [asum], [iamax], [copy],
-  [swap], [ger], [gemv], [transpose], [forEachStored]; the triangular solves [trsv] / [trsm];
-  and the SPD suite [cholesky], [solveSpd],
-  [invertSpd].
-- The swappable [LinearAlgebra] backend for the heavier dense ops (`gemv` / `gemm` in full BLAS
-  alpha/beta/transpose forms, `syrk`, LU [factor][LinearAlgebra.factor] / [solve][LinearAlgebra.solve]
-  with [determinant]) with the portable [ReferenceLinearAlgebra], the resolved default [koblas], the
-  [LuDecomposition] result, and the ergonomic [lu] / [LuDecomposition.solve][solve] / [matMul] entry
-  points. Backends are offered through [registerBlas] / [registerLapack], or forced with
-  [installLinearAlgebra].
-- The [VectorKernels] half, for the level-1 kernels that sit below that seam: offered through
-  [registerVectorKernels], forced with [installVectorKernels].
-- Sparse linear algebra: the CSC [SparseMatrix], the [SparseLu] Markowitz factorization with FTRAN/BTRAN
-  solves, and the [EtaBasis] product-form-of-the-inverse for rank-1 basis updates.
-- The platform backend id [mathBackend].
+- Containers: [MatrixView] / [DenseMatrix] and [VectorView] / [DenseVector] / [SparseVector], all
+  `@Serializable`, plus the CSC [SparseMatrix]. The view roots are sealed, which is what gives the
+  concrete storage a closed set and lets a snapshot round-trip with its type preserved — and is why the
+  containers stay in one package rather than splitting with the operations that consume them.
+- Free-function arithmetic over the views, dispatching dense or sparse by operand type: [dot], [axpy],
+  [scale], [norm2], [asum], [iamax], [copy], [swap], [ger], [gemv], [transpose], [forEachStored], and
+  the matrix 1-norm [norm1].
+- Shared machinery: [Backend] (what every backend of every tier reports about itself), the [Workspace]
+  buffer pool, [DispatchThresholds] and the [mathBackend] identifier.

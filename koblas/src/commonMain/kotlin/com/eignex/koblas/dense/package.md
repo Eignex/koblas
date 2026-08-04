@@ -1,0 +1,19 @@
+# Package com.eignex.koblas.dense
+
+Dense linear algebra: the three swappable seams and the routines behind them.
+
+- [VectorKernels] — the level-1 kernels (`dot`, `axpy`, `scale`, `nrm2`, `asum`). These are specialized
+  at compile time rather than dispatched per call, and consult a registered backend only above
+  [com.eignex.koblas.DispatchThresholds.level1]; offered through [registerVectorKernels], forced with
+  [installVectorKernels].
+- [Blas] — the level-2 and level-3 routines in full BLAS alpha/beta/transpose form, plus the triangular
+  solves [trsv] / [trsm] and their multiply counterparts.
+- [Lapack] — the factorizations and the solves built on them: LU ([Lapack.factor] / [Lapack.solve],
+  with [LuDecomposition] and [determinant]), symmetric indefinite [LdlDecomposition], [QrDecomposition]
+  with the least-squares and minimum-norm solves, the condition estimate, and the SPD suite
+  [cholesky] / [solveSpd] / [invertSpd].
+- [LinearAlgebra] pairs [Blas] and [Lapack]; the two are ranked and selected independently, so a host
+  providing one library and not the other still accelerates what it can. Offered through [registerBlas]
+  / [registerLapack], forced with [installLinearAlgebra], resolved as [koblas]. [ReferenceLinearAlgebra]
+  is the portable implementation every backend is validated against.
+- Ergonomic entry points: [lu], [matMul].

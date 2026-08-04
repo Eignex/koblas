@@ -1,5 +1,7 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.dense.VectorKernels
+
 /**
  * The smallest problem size at which dispatching to a native backend beats staying in Kotlin.
  *

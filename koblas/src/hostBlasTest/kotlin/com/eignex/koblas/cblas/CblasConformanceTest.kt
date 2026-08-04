@@ -6,12 +6,12 @@
 package com.eignex.koblas.cblas
 
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.LinearAlgebra
-import com.eignex.koblas.ReferenceLinearAlgebra
-import com.eignex.koblas.Uplo
-import com.eignex.koblas.determinant
-import com.eignex.koblas.installLinearAlgebra
-import com.eignex.koblas.koblas
+import com.eignex.koblas.dense.LinearAlgebra
+import com.eignex.koblas.dense.ReferenceLinearAlgebra
+import com.eignex.koblas.dense.Uplo
+import com.eignex.koblas.dense.determinant
+import com.eignex.koblas.dense.installLinearAlgebra
+import com.eignex.koblas.dense.koblas
 import com.eignex.koblas.norm1
 import kotlin.math.abs
 import kotlin.math.sqrt

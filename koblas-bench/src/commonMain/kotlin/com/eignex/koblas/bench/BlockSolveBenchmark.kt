@@ -1,9 +1,10 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.LuDecomposition
-import com.eignex.koblas.koblas
-import com.eignex.koblas.lu
+import com.eignex.koblas.dense.LuDecomposition
+import com.eignex.koblas.dense.koblas
+import com.eignex.koblas.dense.lu
+import kotlin.random.Random
 import kotlinx.benchmark.Benchmark
 import kotlinx.benchmark.BenchmarkMode
 import kotlinx.benchmark.BenchmarkTimeUnit
@@ -13,7 +14,6 @@ import kotlinx.benchmark.Param
 import kotlinx.benchmark.Scope
 import kotlinx.benchmark.Setup
 import kotlinx.benchmark.State
-import kotlin.random.Random
 
 /**
  * A block solve against a loop of vector solves as the right-hand-side count grows, which is where the

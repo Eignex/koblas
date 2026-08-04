@@ -1,5 +1,8 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.dense.VectorKernels
+import com.eignex.koblas.dense.activeVectorKernels
+
 /**
  * Identifies the runtime math backend powering the SIMD-like primitives.
  *

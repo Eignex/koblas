@@ -1,5 +1,7 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.sparse.SparseLu
+
 /**
  * A sparse matrix in compressed-sparse-column (CSC) form: column `j` occupies
  * `rowIdx[colPtr[j] until colPtr[j + 1]]` with the parallel nonzero values in [values], row indices

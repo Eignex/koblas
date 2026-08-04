@@ -105,9 +105,15 @@ Semantics follow the standard; the exceptions are documented on each
 function. Factorizations use the LAPACK packed formats, so they interchange
 between backends.
 
-The seam is three interfaces, each named for what it covers: VectorKernels holds
-the vector-vector routines, Blas the matrix ones, Lapack the factorizations built
-on them, and LinearAlgebra is the Blas and Lapack pair. All three are ranked and selected independently, so a
+The API is split by storage. `com.eignex.koblas` holds the containers and the
+free-function arithmetic over them; `com.eignex.koblas.dense` holds the dense
+seams and routines, `com.eignex.koblas.sparse` the sparse ones. The containers
+stay together in the parent package because the view roots are sealed, which is
+what gives a serialized snapshot a closed set of concrete storage types.
+
+The dense seam is three interfaces, each named for what it covers: VectorKernels
+holds the vector-vector routines, Blas the matrix ones, Lapack the factorizations
+built on them, and LinearAlgebra is the Blas and Lapack pair. All three are ranked and selected independently, so a
 host providing one library and not the other still accelerates what it can, and
 koblas composes the winning halves.
 

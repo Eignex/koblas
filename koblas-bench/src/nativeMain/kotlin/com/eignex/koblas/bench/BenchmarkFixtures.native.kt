@@ -1,9 +1,9 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.LinearAlgebra
-import com.eignex.koblas.cblas.CblasVectorKernels
 import com.eignex.koblas.cblas.CblasLinearAlgebra
-import com.eignex.koblas.installVectorKernels
+import com.eignex.koblas.cblas.CblasVectorKernels
+import com.eignex.koblas.dense.LinearAlgebra
+import com.eignex.koblas.dense.installVectorKernels
 
 /**
  * The host's CBLAS/LAPACKE backend when its libraries are present, otherwise `null`.

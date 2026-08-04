@@ -1,5 +1,13 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.dense.cholesky
+import com.eignex.koblas.dense.koblas
+import com.eignex.koblas.dense.koblasInfo
+import com.eignex.koblas.dense.lu
+import com.eignex.koblas.dense.solve
+import com.eignex.koblas.dense.solveSpd
+import com.eignex.koblas.sparse.EtaBasis
+import com.eignex.koblas.sparse.SparseLu
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertNotNull

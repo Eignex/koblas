@@ -85,6 +85,8 @@ dokka {
         includes.from(
             "module.md",
             "src/commonMain/kotlin/com/eignex/koblas/package.md",
+            "src/commonMain/kotlin/com/eignex/koblas/dense/package.md",
+            "src/commonMain/kotlin/com/eignex/koblas/sparse/package.md",
         )
     }
 }

@@ -1,10 +1,11 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.cholesky
-import com.eignex.koblas.invertSpd
-import com.eignex.koblas.koblas
-import com.eignex.koblas.solveSpd
+import com.eignex.koblas.dense.cholesky
+import com.eignex.koblas.dense.invertSpd
+import com.eignex.koblas.dense.koblas
+import com.eignex.koblas.dense.solveSpd
+import kotlin.random.Random
 import kotlinx.benchmark.Benchmark
 import kotlinx.benchmark.BenchmarkMode
 import kotlinx.benchmark.BenchmarkTimeUnit
@@ -14,7 +15,6 @@ import kotlinx.benchmark.Param
 import kotlinx.benchmark.Scope
 import kotlinx.benchmark.Setup
 import kotlinx.benchmark.State
-import kotlin.random.Random
 
 /**
  * The symmetric positive-definite family: factorization, the solve against a factor, and the explicit
