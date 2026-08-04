@@ -2,7 +2,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.sparse.SparseLu
+import com.eignex.koblas.sparse.lu
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.Test
@@ -283,10 +283,11 @@ class BlasConformanceTest {
                 (0 until n).mapNotNull { i -> if (dense[i, j] != 0.0) i to dense[i, j] else null }
             }
             val sparse = SparseMatrix.ofColumns(n, n, cols)
-            val lu = SparseLu.factorize(sparse, equilibrate = true) ?: continue
+            val lu = sparse.lu(equilibrate = true)
+            if (lu.singular) continue
             val xTrue = DoubleArray(n) { rng.nextDouble(-2.0, 2.0) }
             val b = sparse.gemv(xTrue)
-            val x = lu.ftran(b)
+            val x = lu.solve(b)
             assertSolveResidual(dense, x, b, "sparseLU/n=$n")
         }
     }

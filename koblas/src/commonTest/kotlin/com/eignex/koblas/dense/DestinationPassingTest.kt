@@ -6,7 +6,7 @@ import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.norm1
 import com.eignex.koblas.sparse.EtaBasis
-import com.eignex.koblas.sparse.SparseLu
+import com.eignex.koblas.sparse.lu
 import com.eignex.koblas.wellConditioned
 import kotlin.random.Random
 import kotlin.test.Test
@@ -197,20 +197,32 @@ class DestinationPassingTest {
             entries
         }
         val sparse = SparseMatrix.ofColumns(m, m, columns)
-        val lu = SparseLu.factorize(sparse)!!
+        val lu = sparse.lu()
         val b = DoubleArray(m) { rng.nextDouble(-1.0, 1.0) }
         val ws = Workspace()
-        assertClose(lu.ftran(b), lu.ftranInto(b, DoubleArray(m), ws), "sparse ftran")
-        assertClose(lu.btran(b), lu.btranInto(b, DoubleArray(m), ws), "sparse btran")
+        assertClose(lu.solve(b), lu.solveInto(b, DoubleArray(m), workspace = ws), "sparse forward solve")
+        assertClose(
+            lu.solve(b, transpose = true),
+            lu.solveInto(b, DoubleArray(m), transpose = true, workspace = ws),
+            "sparse transposed solve",
+        )
         // Reusing the same workspace must not carry state between the two directions.
-        assertClose(lu.ftran(b), lu.ftranInto(b, DoubleArray(m), ws), "sparse ftran after btran")
+        assertClose(
+            lu.solve(b),
+            lu.solveInto(b, DoubleArray(m), workspace = ws),
+            "sparse forward solve after a transposed one",
+        )
 
-        val eta = EtaBasis.of(lu, m)
-        val spike = eta.ftran(DoubleArray(m) { rng.nextDouble(-1.0, 1.0) })
+        val eta = EtaBasis.of(lu)
+        val spike = eta.solve(DoubleArray(m) { rng.nextDouble(-1.0, 1.0) })
         eta.update(pivotRow = 3, spike = spike)
-        assertClose(eta.ftran(b), eta.ftranInto(b, DoubleArray(m)), "eta ftran")
-        assertClose(eta.btran(b), eta.btranInto(b, DoubleArray(m)), "eta btran")
+        assertClose(eta.solve(b), eta.solveInto(b, DoubleArray(m)), "eta forward solve")
+        assertClose(
+            eta.solve(b, transpose = true),
+            eta.solveInto(b, DoubleArray(m), transpose = true),
+            "eta transposed solve",
+        )
         val aliased = b.copyOf()
-        assertClose(eta.ftran(b), eta.ftranInto(aliased, aliased), "eta ftran aliased")
+        assertClose(eta.solve(b), eta.solveInto(aliased, aliased), "eta forward solve aliased")
     }
 }

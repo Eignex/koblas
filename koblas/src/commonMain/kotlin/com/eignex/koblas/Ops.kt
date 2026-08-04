@@ -10,8 +10,9 @@ import com.eignex.koblas.dense.denseDot
 import com.eignex.koblas.dense.denseNrm2
 import com.eignex.koblas.dense.denseScale
 import com.eignex.koblas.dense.koblas
+import com.eignex.koblas.sparse.SparseVectorKernels
+import com.eignex.koblas.sparse.sparseVectorKernels
 import kotlin.math.abs
-import kotlin.math.sqrt
 
 // Arithmetic over [VectorView] / [MatrixView] as free functions; the view types stay read-only.
 //
@@ -53,46 +54,20 @@ inline fun VectorView.forEachStored(block: (i: Int, v: Double) -> Unit) {
  * `aT * b`. Dense×dense routes through [denseDot] (SIMD on JVM); a mixed pair walks the sparse side and
  * gathers from the dense one.
  *
- * Sparse×sparse merges the two ascending index lists in a single pass, `O(nnz_a + nnz_b)`. Gathering
- * instead — looking each stored position up in the other vector — would be `O(nnz_a · log nnz_b)`, and was
- * `O(nnz_a · nnz_b)` before the indices were required to be sorted.
+ * Every combination involving a sparse operand goes through [SparseVectorKernels], where a host sparse
+ * BLAS could replace it: `usdot` against a dense vector, and a single-pass merge of the two ascending
+ * index lists when both are sparse.
  */
 infix fun VectorView.dot(other: VectorView): Double {
     require(size == other.size) { "size mismatch: $size vs ${other.size}" }
     if (this is DenseVector && other is DenseVector) {
         return denseDot(data, 0, other.data, 0, size)
     }
-    if (this is SparseVector && other is SparseVector) {
-        var s = 0.0
-        var a = 0
-        var b = 0
-        while (a < indices.size && b < other.indices.size) {
-            val ia = indices[a]
-            val ib = other.indices[b]
-            when {
-                ia < ib -> a++
-
-                ia > ib -> b++
-
-                else -> {
-                    s += values[a] * other.values[b]
-                    a++
-                    b++
-                }
-            }
-        }
-        return s
-    }
-    // One sparse, one dense - iterate the sparse side, gather from the other.
-    return if (this is SparseVector) {
-        var s = 0.0
-        this.forEachStored { i, v -> s += v * other[i] }
-        s
-    } else {
-        var s = 0.0
-        other.forEachStored { i, v -> s += v * this[i] }
-        s
-    }
+    if (this is SparseVector && other is SparseVector) return sparseVectorKernels.dot(this, other)
+    if (this is SparseVector && other is DenseVector) return sparseVectorKernels.dot(this, other.data)
+    if (this is DenseVector && other is SparseVector) return sparseVectorKernels.dot(other, data)
+    // No other combination exists: both views are sealed over exactly these two storages.
+    error("unreachable: dot over ${this::class} and ${other::class}")
 }
 
 /**
@@ -102,38 +77,12 @@ infix fun VectorView.dot(other: VectorView): Double {
  * (components beyond roughly `1e±150`), a rescaled two-pass recovers the netlib-accurate result, so
  * any finite input yields the correct norm.
  */
-fun norm2(v: VectorView): Double {
-    // Dense operands route through the level-1 seam; a sparse one sums its stored entries, which no BLAS
-    // routine can do, so it keeps the same rescaling logic inline.
-    if (v is DenseVector) return denseNrm2(v.data, 0, v.size)
-    var s = 0.0
-    v.forEachStored { _, x -> s += x * x }
-    if (s.isFinite() && s >= MIN_NORMAL) return sqrt(s)
-    var amax = 0.0
-    v.forEachStored { _, x ->
-        val a = abs(x)
-        if (a > amax) amax = a
-    }
-    // All-zero (0.0), NaN anywhere (NaN), or an infinite component (Inf) resolve through the raw sum.
-    if (amax == 0.0 || amax.isInfinite()) return sqrt(s)
-    var t = 0.0
-    v.forEachStored { _, x ->
-        val r = x / amax
-        t += r * r
-    }
-    return amax * sqrt(t)
-}
-
-/** Smallest normal double; a squares-sum below this has lost precision to underflow. */
-private const val MIN_NORMAL = 2.2250738585072014e-308
+fun norm2(v: VectorView): Double =
+    if (v is DenseVector) denseNrm2(v.data, 0, v.size) else sparseVectorKernels.nrm2(v as SparseVector)
 
 /** Sum of absolute values `Sum |v_i|` (BLAS `dasum`). Sparse vectors sum over stored entries only. */
-fun asum(v: VectorView): Double {
-    if (v is DenseVector) return denseAsum(v.data, 0, v.size)
-    var s = 0.0
-    v.forEachStored { _, x -> s += abs(x) }
-    return s
-}
+fun asum(v: VectorView): Double =
+    if (v is DenseVector) denseAsum(v.data, 0, v.size) else sparseVectorKernels.asum(v as SparseVector)
 
 /**
  * Index of the first entry with maximal `|v_i|` (BLAS `idamax`), or `-1` for a zero-length vector.
@@ -162,7 +111,7 @@ fun copy(src: VectorView, dst: DenseVector) {
         src.data.copyInto(dst.data)
     } else {
         dst.data.fill(0.0)
-        src.forEachStored { i, x -> dst.data[i] = x }
+        sparseVectorKernels.scatter(src as SparseVector, dst.data)
     }
 }
 
@@ -185,8 +134,7 @@ fun axpy(y: DenseVector, alpha: Double, x: VectorView) {
     if (x is DenseVector) {
         denseAxpy(y.data, 0, alpha, x.data, 0, y.size)
     } else {
-        val yd = y.data
-        x.forEachStored { i, v -> yd[i] += alpha * v }
+        sparseVectorKernels.axpy(y.data, alpha, x as SparseVector)
     }
 }
 

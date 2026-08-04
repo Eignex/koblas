@@ -2,6 +2,7 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.sparse.SparseLu
+import com.eignex.koblas.sparse.lu
 import kotlin.random.Random
 import kotlinx.benchmark.Benchmark
 import kotlinx.benchmark.BenchmarkMode
@@ -39,8 +40,8 @@ class SparseBenchmark {
     /** Sparse LU factorize plus an FTRAN solve, the pair a simplex iteration pays on refactorization. */
     @Benchmark
     fun sparseLuSolve(): DoubleArray {
-        val lu = SparseLu.factorize(a, equilibrate = true) ?: return rhs
-        return lu.ftran(rhs)
+        val lu = a.lu(equilibrate = true) ?: return rhs
+        return lu.solve(rhs)
     }
 
     @Benchmark

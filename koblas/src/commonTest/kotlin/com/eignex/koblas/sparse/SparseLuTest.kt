@@ -7,9 +7,9 @@ import com.eignex.koblas.randomVector
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -51,10 +51,15 @@ class SparseLuTest {
         repeat(150) {
             val n = rng.nextInt(1, 10)
             val a = randomSparseSquare(n, rng)
-            val lu = assertNotNull(SparseLu.factorize(a, equilibrate = true))
+            val lu = assertNotNull(a.lu(equilibrate = true))
             val x = DoubleArray(n) { rng.nextDouble(-3.0, 3.0) }
-            assertClose(x, lu.ftran(a.gemv(x)), "ftran n=$n", tolerance = 1e-7)
-            assertClose(x, lu.btran(a.gemv(x, transpose = true)), "btran n=$n", tolerance = 1e-7)
+            assertClose(x, lu.solve(a.gemv(x)), "forward solve n=$n", tolerance = 1e-7)
+            assertClose(
+                x,
+                lu.solve(a.gemv(x, transpose = true), transpose = true),
+                "transposed solve n=$n",
+                tolerance = 1e-7,
+            )
         }
     }
 
@@ -63,10 +68,10 @@ class SparseLuTest {
         val rng = Random(20260727)
         val n = 300
         val a = randomSparseSquare(n, rng, density = 0.02, dominance = 1.0)
-        val lu = assertNotNull(SparseLu.factorize(a, equilibrate = true))
+        val lu = assertNotNull(a.lu(equilibrate = true))
         val b = randomVector(n, rng)
-        assertClose(b, a.gemv(lu.ftran(b)), "ftran residual", tolerance = 1e-8)
-        assertClose(b, a.gemv(lu.btran(b), transpose = true), "btran residual", tolerance = 1e-8)
+        assertClose(b, a.gemv(lu.solve(b)), "ftran residual", tolerance = 1e-8)
+        assertClose(b, a.gemv(lu.solve(b, transpose = true), transpose = true), "btran residual", tolerance = 1e-8)
         // The bounded candidate search must keep fill near the input's sparsity, far from dense.
         assertTrue(lu.nnz < 6 * a.nnz, "fill blew up: factor nnz=${lu.nnz} vs input nnz=${a.nnz}")
     }
@@ -77,23 +82,19 @@ class SparseLuTest {
         repeat(60) {
             val n = rng.nextInt(1, 8)
             val a = randomSparseSquare(n, rng, density = 1.0)
-            val lu = assertNotNull(SparseLu.factorize(a, equilibrate = false))
+            val lu = assertNotNull(a.lu(equilibrate = false))
             val x = DoubleArray(n) { rng.nextDouble(-3.0, 3.0) }
-            assertClose(x, lu.ftran(a.gemv(x)), "unequilibrated n=$n", tolerance = 1e-7)
+            assertClose(x, lu.solve(a.gemv(x)), "unequilibrated n=$n", tolerance = 1e-7)
         }
     }
 
     @Test
     fun `determinant matches the hand value and tracks sign under row order`() {
         // [[2, 1], [1, 3]] → det 5.
-        val det = assertNotNull(
-            SparseLu.factorize(square(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0))),
-        ).determinant()
+        val det = square(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0)).lu().determinant()
         assertClose(5.0, det, "det", tolerance = 1e-9)
         // A row swap negates the determinant: [[1,3],[2,1]] → det = 1 - 6 = -5.
-        val det2 = assertNotNull(
-            SparseLu.factorize(square(doubleArrayOf(1.0, 3.0), doubleArrayOf(2.0, 1.0))),
-        ).determinant()
+        val det2 = square(doubleArrayOf(1.0, 3.0), doubleArrayOf(2.0, 1.0)).lu().determinant()
         assertClose(-5.0, det2, "det after row swap", tolerance = 1e-9)
     }
 
@@ -103,23 +104,43 @@ class SparseLuTest {
         repeat(30) {
             val n = rng.nextInt(2, 6)
             val a = randomSparseSquare(n, rng, density = 1.0, dominance = 4.0)
-            val d0 = assertNotNull(SparseLu.factorize(a, equilibrate = false)).determinant()
-            val d1 = assertNotNull(SparseLu.factorize(a, equilibrate = true)).determinant()
+            val d0 = assertNotNull(a.lu(equilibrate = false)).determinant()
+            val d1 = assertNotNull(a.lu(equilibrate = true)).determinant()
             assertTrue(abs(d0 - d1) <= 1e-6 * (abs(d0) + 1.0), "det differs: $d0 vs $d1")
         }
     }
 
+    /**
+     * A singular matrix comes back as a factorization reporting `singular`, not as null.
+     *
+     * The nullable result this replaced forced an unwrap for a condition the dense side reports with a
+     * flag, and discarded the one useful fact — which pivot position had no candidate. Solving against it
+     * throws rather than returning nonsense, because Markowitz aborts with no factors at all; a dense
+     * `getrf` leaves partial ones behind, so there the garbage is at least LAPACK's own.
+     */
     @Test
-    fun `factorize reports a singular matrix`() {
-        // A column of zeros ⇒ singular.
-        assertNull(SparseLu.factorize(SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf()))))
-        // So is a duplicated column.
-        assertNull(SparseLu.factorize(square(doubleArrayOf(1.0, 1.0), doubleArrayOf(2.0, 2.0))))
+    fun `a singular matrix factors to a singular factorization`() {
+        // A column of zeros, and a duplicated column: neither has a full set of acceptable pivots.
+        for (a in listOf(
+            SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf())),
+            square(doubleArrayOf(1.0, 1.0), doubleArrayOf(2.0, 2.0)),
+        )) {
+            val f = a.lu()
+            assertTrue(f.singular, "expected singular for $a")
+            assertEquals(2, f.n)
+            assertEquals(0, f.nnz, "a singular factorization has no fill")
+            assertEquals(0.0, f.determinant())
+            assertFailsWith<IllegalStateException> { f.solve(doubleArrayOf(1.0, 2.0)) }
+        }
+        // The failing pivot position is reported, which a null result could not do.
+        val singular = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf())).lu()
+        assertTrue(singular is SingularSparseFactorization)
+        assertEquals(1, singular.failedAt, "the second pivot is the one with no candidate")
     }
 
     @Test
     fun `factorize rejects a non-square matrix`() {
         val a = SparseMatrix.ofColumns(2, 3, listOf(listOf(0 to 1.0), listOf(1 to 1.0), listOf(0 to 1.0)))
-        assertFailsWith<IllegalArgumentException> { SparseLu.factorize(a) }
+        assertFailsWith<IllegalArgumentException> { a.lu() }
     }
 }

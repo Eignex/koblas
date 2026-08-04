@@ -3,12 +3,11 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.sparse.SparseLu
+import com.eignex.koblas.sparse.lu
 import com.eignex.koblas.wellConditioned
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
@@ -57,7 +56,7 @@ class LinearAlgebraDeterminantTest {
         for (n in intArrayOf(1, 3, 7, 15)) {
             val a = wellConditioned(n, rng)
             val cols = List(n) { j -> (0 until n).map { i -> i to a[i, j] } }
-            val sparseDet = assertNotNull(SparseLu.factorize(SparseMatrix.ofColumns(n, n, cols))).determinant()
+            val sparseDet = SparseMatrix.ofColumns(n, n, cols).lu().determinant()
             assertClose(a.lu().determinant(), sparseDet, "n=$n dense vs sparse determinant", tolerance = 1e-9)
         }
     }

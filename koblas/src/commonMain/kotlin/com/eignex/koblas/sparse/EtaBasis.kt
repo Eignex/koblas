@@ -3,14 +3,13 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.dense.denseAxpy
 import com.eignex.koblas.dense.denseDot
-import com.eignex.koblas.dense.lu
 
 /**
  * Maintains a basis factorization across rank-1 basis updates using the **product-form of the inverse**
  * (PFI): a base sparse LU [SparseLu] of the basis `B₀` at the last refactorization, plus a chain of
- * elementary "eta" transforms — one appended per update. [ftran] (`B x = b`) and [btran] (`Bᵀ x = b`)
- * apply the base LU solve and then walk the eta chain, so an update costs one `O(m)` [update] instead of
- * a full `O(nnz)` refactorization.
+ * elementary "eta" transforms — one appended per update. [solve] applies the base LU solve and then walks
+ * the eta chain in either direction, so an update costs one `O(m)` [update] instead of a full `O(nnz)`
+ * refactorization.
  *
  * Each eta records the pivot position `p` (a basis slot) and the spike `η = B⁻¹ A_q` — the entering
  * column transformed by the factorization in effect *just before* the update, i.e. the FTRAN result the
@@ -22,7 +21,9 @@ import com.eignex.koblas.dense.lu
  * reaches its limit (rebuilding `B₀` and dropping the chain). Spikes are stored densely (length `m`);
  * index spaces match [SparseLu]'s (basis-slot in, original-row out).
  */
-class EtaBasis private constructor(private val m: Int, private val base: SparseLu) {
+class EtaBasis private constructor(private val base: SparseFactorization) {
+    private val m: Int = base.n
+
     private val etaRow = ArrayList<Int>()
     private val etaSpike = ArrayList<DoubleArray>()
 
@@ -34,16 +35,27 @@ class EtaBasis private constructor(private val m: Int, private val base: SparseL
     /** Number of updates folded into the chain since the base factorization. */
     val etaCount: Int get() = etaRow.size
 
-    /** Solve `B x = b` (FTRAN): base LU solve, then forward through the eta chain in update order.
-     *  Each eta applies over the two contiguous runs around the pivot via [denseAxpy]. */
-    fun ftran(b: DoubleArray): DoubleArray = ftranInto(b, DoubleArray(m))
+    /**
+     * Solve `B x = b`, or `Bᵀ x = b` when [transpose], into a fresh result.
+     *
+     * Spelled `solve` rather than `ftran`/`btran` so the sparse and dense halves share one vocabulary:
+     * this is what `Lapack.solve` and [SparseFactorization.solve] do, with the same transpose flag. The
+     * FTRAN and BTRAN names survive on the private halves below, where they name which sweep runs rather
+     * than standing in for "solve".
+     */
+    fun solve(b: DoubleArray, transpose: Boolean = false): DoubleArray = solveInto(b, DoubleArray(m), transpose)
 
     /**
-     * Solve `B x = b` (FTRAN) into [out], which is returned, reusing this basis's own scratch: a simplex
-     * iteration allocates nothing and needs no workspace of its own. [out] may be [b].
+     * Solve into [out], which is returned, reusing this basis's own scratch: a simplex iteration allocates
+     * nothing and needs no workspace of its own. [out] may be [b].
      */
-    fun ftranInto(b: DoubleArray, out: DoubleArray): DoubleArray {
-        val x = base.ftranInto(b, out, scratch)
+    fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean = false): DoubleArray =
+        if (transpose) btranInto(b, out) else ftranInto(b, out)
+
+    /** The forward sweep: base LU solve, then forward through the eta chain in update order. Each eta
+     *  applies over the two contiguous runs around the pivot via [denseAxpy]. */
+    private fun ftranInto(b: DoubleArray, out: DoubleArray): DoubleArray {
+        val x = base.solveInto(b, out, transpose = false, workspace = scratch)
         for (j in etaSpike.indices) {
             val p = etaRow[j]
             val eta = etaSpike[j]
@@ -57,13 +69,10 @@ class EtaBasis private constructor(private val m: Int, private val base: SparseL
         return x
     }
 
-    /** Solve `Bᵀ x = b` (BTRAN): the eta chain transposed in reverse update order, then the base LU.
-     *  Each eta gathers over the two contiguous runs around the pivot via [denseDot]. */
-    fun btran(b: DoubleArray): DoubleArray = btranInto(b, DoubleArray(m))
-
-    /** Solve `Bᵀ x = b` (BTRAN) into [out], which is returned. [out] may be [b]. */
-    fun btranInto(b: DoubleArray, out: DoubleArray): DoubleArray {
-        require(b.size == m) { "btran: b size ${b.size} != $m" }
+    /** The transposed sweep: the eta chain transposed in reverse update order, then the base LU. Each eta
+     *  gathers over the two contiguous runs around the pivot via [denseDot]. */
+    private fun btranInto(b: DoubleArray, out: DoubleArray): DoubleArray {
+        require(b.size == m) { "solve: b size ${b.size} != $m" }
         // The eta chain transposed, applied to a working copy, then the base solve into out.
         val z = scratch.take(m)
         b.copyInto(z)
@@ -73,13 +82,14 @@ class EtaBasis private constructor(private val m: Int, private val base: SparseL
             val s = z[p] - denseDot(eta, 0, z, 0, p) - denseDot(eta, p + 1, z, p + 1, m - p - 1)
             z[p] = s / eta[p]
         }
-        val result = base.btranInto(z, out, scratch)
+        val result = base.solveInto(z, out, transpose = true, workspace = scratch)
         scratch.release(z)
         return result
     }
 
     /** Append the eta for an update replacing basis slot [pivotRow]; [spike] must be this object's
-     *  [ftran] of the entering column, computed *before* this call (pivot magnitude already checked). */
+     *  forward [solve] of the entering column, computed *before* this call (pivot magnitude already
+     *  checked). */
     fun update(pivotRow: Int, spike: DoubleArray) {
         etaRow.add(pivotRow)
         etaSpike.add(spike.copyOf())
@@ -87,7 +97,13 @@ class EtaBasis private constructor(private val m: Int, private val base: SparseL
 
     /** Factory for an [EtaBasis]. */
     companion object {
-        /** Wrap an already-factorized basis [lu] (`m × m`) as a fresh, empty eta chain. */
-        fun of(lu: SparseLu, m: Int): EtaBasis = EtaBasis(m, lu)
+        /**
+         * Wrap an already-factorized basis as a fresh, empty eta chain.
+         *
+         * Takes any [SparseFactorization], not just a [SparseLu]: the chain only ever asks its base to
+         * solve, so a host solver's factors work here too. The dimension comes from the factorization
+         * rather than being passed alongside it, which removes a way for the two to disagree.
+         */
+        fun of(base: SparseFactorization): EtaBasis = EtaBasis(base)
     }
 }

@@ -4,7 +4,8 @@ import com.eignex.koblas.dense.ReferenceLinearAlgebra
 import com.eignex.koblas.dense.installLinearAlgebra
 import com.eignex.koblas.dense.koblas
 import com.eignex.koblas.dense.lu
-import com.eignex.koblas.sparse.SparseLu
+import com.eignex.koblas.dense.solve
+import com.eignex.koblas.sparse.lu
 import com.sun.management.ThreadMXBean
 import java.lang.management.ManagementFactory
 import kotlin.random.Random
@@ -236,21 +237,21 @@ class AllocationFreeTest {
             for (i in 0 until m) if (i != j && rng.nextDouble() < 0.05) entries.add(i to rng.nextDouble(-1.0, 1.0))
             entries
         }
-        val basis = SparseLu.factorize(SparseMatrix.ofColumns(m, m, columns))!!
+        val basis = SparseMatrix.ofColumns(m, m, columns).lu()
         val b = DoubleArray(m) { rng.nextDouble(-1.0, 1.0) }
         val x = DoubleArray(m)
         val y = DoubleArray(m)
         val ws = Workspace()
 
         val allocating = bytesPerIteration(500) {
-            basis.ftran(b)
-            basis.btran(b)
+            basis.solve(b)
+            basis.solve(b, transpose = true)
         }
         val into = bytesPerIteration(500) {
-            basis.ftranInto(b, x, ws)
-            basis.btranInto(b, y, ws)
+            basis.solveInto(b, x, workspace = ws)
+            basis.solveInto(b, y, transpose = true, workspace = ws)
         }
         assertTrue(allocating > m * Double.SIZE_BYTES * 2.0, "expected allocation, saw $allocating B")
-        assertPooled(into, allocating, "sparse FTRAN+BTRAN")
+        assertPooled(into, allocating, "sparse solve both directions")
     }
 }
