@@ -12,6 +12,14 @@ package com.eignex.koblas
  * `CblasLinearAlgebra`) — the opposite of the JVM, where these operations stay on the SIMD kernels.
  * Narrowing that gap needs real vector kernels for native, not a better BLAS: the sparse traversals
  * these primitives do not cover are unaffected by either.
+ *
+ * One thing that does not work, tried and measured: replacing the indexed access with `usePinned` and
+ * `CPointer` arithmetic, on the theory that bounds checks and aliasing were stopping LLVM from vectorizing.
+ * It is 3x to 5x *slower* at every length from 16 to 4096 — the regression scales with the element count, so
+ * every `p[i]` through the interop layer costs more than the bounded array access it replaced. The indexed
+ * form is an intrinsic the compiler handles well; the pointer form is not. It also fails outright on
+ * zero-length windows, since `addressOf` rejects them where the indexed loops tolerate them. Whatever closes
+ * this gap, it is not that.
  */
 
 internal actual fun platformDot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
