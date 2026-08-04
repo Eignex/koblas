@@ -2,10 +2,10 @@
 
 package com.eignex.koblas.cblas
 
-import com.eignex.koblas.Blas
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.Uplo
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.dense.Blas
+import com.eignex.koblas.dense.Uplo
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.invoke

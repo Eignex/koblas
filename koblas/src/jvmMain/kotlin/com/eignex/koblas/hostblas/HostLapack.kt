@@ -1,14 +1,18 @@
 package com.eignex.koblas.hostblas
 
-import com.eignex.koblas.Blas
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.Lapack
-import com.eignex.koblas.LdlDecomposition
-import com.eignex.koblas.LuDecomposition
 import com.eignex.koblas.MatrixView
-import com.eignex.koblas.QrDecomposition
-import com.eignex.koblas.ReferenceLinearAlgebra
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.dense.Blas
+import com.eignex.koblas.dense.Lapack
+import com.eignex.koblas.dense.LdlDecomposition
+import com.eignex.koblas.dense.LuDecomposition
+import com.eignex.koblas.dense.QrDecomposition
+import com.eignex.koblas.dense.ReferenceLinearAlgebra
+import com.eignex.koblas.dense.cholesky
+import com.eignex.koblas.dense.invertSpd
+import com.eignex.koblas.dense.lu
+import com.eignex.koblas.dense.solveSpd
 import com.eignex.koblas.dispatchThresholds
 import com.eignex.koblas.hostblas.HostBlasCalls.COL_MAJOR
 import com.eignex.koblas.hostblas.HostBlasCalls.LEFT

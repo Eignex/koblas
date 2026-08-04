@@ -1,7 +1,8 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.koblas
+import com.eignex.koblas.dense.koblas
+import kotlin.random.Random
 import kotlinx.benchmark.Benchmark
 import kotlinx.benchmark.BenchmarkMode
 import kotlinx.benchmark.BenchmarkTimeUnit
@@ -11,7 +12,6 @@ import kotlinx.benchmark.Param
 import kotlinx.benchmark.Scope
 import kotlinx.benchmark.Setup
 import kotlinx.benchmark.State
-import kotlin.random.Random
 
 /**
  * Matrix-vector products across a wide size range, out to sizes where memory bandwidth rather than call

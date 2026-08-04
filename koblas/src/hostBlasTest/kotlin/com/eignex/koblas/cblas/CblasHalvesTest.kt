@@ -4,17 +4,17 @@
 
 package com.eignex.koblas.cblas
 
-import com.eignex.koblas.Blas
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.Lapack
-import com.eignex.koblas.LinearAlgebra
-import com.eignex.koblas.ReferenceLinearAlgebra
-import com.eignex.koblas.installLinearAlgebra
-import com.eignex.koblas.koblas
-import com.eignex.koblas.koblasInfo
-import com.eignex.koblas.registerBlas
-import com.eignex.koblas.registerLapack
-import com.eignex.koblas.resetRegisteredLinearAlgebra
+import com.eignex.koblas.dense.Blas
+import com.eignex.koblas.dense.Lapack
+import com.eignex.koblas.dense.LinearAlgebra
+import com.eignex.koblas.dense.ReferenceLinearAlgebra
+import com.eignex.koblas.dense.installLinearAlgebra
+import com.eignex.koblas.dense.koblas
+import com.eignex.koblas.dense.koblasInfo
+import com.eignex.koblas.dense.registerBlas
+import com.eignex.koblas.dense.registerLapack
+import com.eignex.koblas.dense.resetRegisteredLinearAlgebra
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

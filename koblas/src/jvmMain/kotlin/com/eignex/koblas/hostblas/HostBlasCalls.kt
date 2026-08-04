@@ -48,7 +48,7 @@ internal object HostBlasCalls {
     const val LEFT = 141
     const val RIGHT = 142
 
-    /** Whether the host's CBLAS resolved, which is all the [com.eignex.koblas.Blas] half needs. */
+    /** Whether the host's CBLAS resolved, which is all the [com.eignex.koblas.dense.Blas] half needs. */
     val blasAvailable: Boolean
 
     /** Whether LAPACKE resolved as well; false on a host that ships CBLAS only. */

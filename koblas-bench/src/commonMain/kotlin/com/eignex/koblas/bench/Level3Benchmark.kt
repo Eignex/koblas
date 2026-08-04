@@ -1,9 +1,10 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.Uplo
-import com.eignex.koblas.koblas
-import com.eignex.koblas.matMul
+import com.eignex.koblas.dense.Uplo
+import com.eignex.koblas.dense.koblas
+import com.eignex.koblas.dense.matMul
+import kotlin.random.Random
 import kotlinx.benchmark.Benchmark
 import kotlinx.benchmark.BenchmarkMode
 import kotlinx.benchmark.BenchmarkTimeUnit
@@ -13,7 +14,6 @@ import kotlinx.benchmark.Param
 import kotlinx.benchmark.Scope
 import kotlinx.benchmark.Setup
 import kotlinx.benchmark.State
-import kotlin.random.Random
 
 /**
  * Matrix-matrix products, the routines where a native backend earns its keep: `O(n^3)` work over `O(n^2)`

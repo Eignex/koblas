@@ -1,5 +1,9 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.dense.Blas
+import com.eignex.koblas.dense.Lapack
+import com.eignex.koblas.dense.registerLinearAlgebra
+
 /**
  * What every backend reports about itself, whichever half of the seam it implements.
  *

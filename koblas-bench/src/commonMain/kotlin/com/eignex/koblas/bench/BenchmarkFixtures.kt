@@ -1,11 +1,11 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.LinearAlgebra
-import com.eignex.koblas.ReferenceLinearAlgebra
 import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.installLinearAlgebra
-import com.eignex.koblas.koblasInfo
+import com.eignex.koblas.dense.LinearAlgebra
+import com.eignex.koblas.dense.ReferenceLinearAlgebra
+import com.eignex.koblas.dense.installLinearAlgebra
+import com.eignex.koblas.dense.koblasInfo
 import kotlin.random.Random
 
 /**

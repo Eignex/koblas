@@ -4,6 +4,7 @@ import com.eignex.koblas.DenseVector
 import com.eignex.koblas.axpy
 import com.eignex.koblas.dot
 import com.eignex.koblas.mathBackend
+import kotlin.random.Random
 import kotlinx.benchmark.Benchmark
 import kotlinx.benchmark.BenchmarkMode
 import kotlinx.benchmark.BenchmarkTimeUnit
@@ -13,14 +14,13 @@ import kotlinx.benchmark.Param
 import kotlinx.benchmark.Scope
 import kotlinx.benchmark.Setup
 import kotlinx.benchmark.State
-import kotlin.random.Random
 
 /**
  * Level-1 kernel cost across vector lengths, which locates the SIMD-versus-scalar crossover: the vector
  * path pays a fixed setup (lane broadcast, horizontal reduce) and does no vector work at all below one
  * lane width.
  *
- * These kernels sit below the [com.eignex.koblas.LinearAlgebra] seam, so the `backend` parameter used by
+ * These kernels sit below the [com.eignex.koblas.dense.LinearAlgebra] seam, so the `backend` parameter used by
  * the other suites does not reach them. Two switches do. On the JVM, run the sweep twice, once as-is and
  * once with `-Pkoblas.noSimd=true` to withhold the incubator module, to compare SIMD against scalar. On
  * the other targets the `kernels` parameter installs or clears host level-1 kernels, which is how the

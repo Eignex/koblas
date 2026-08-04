@@ -3,13 +3,13 @@
 package com.eignex.koblas.cblas
 
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.Lapack
-import com.eignex.koblas.LdlDecomposition
-import com.eignex.koblas.LuDecomposition
 import com.eignex.koblas.MatrixView
-import com.eignex.koblas.QrDecomposition
-import com.eignex.koblas.ReferenceLinearAlgebra
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.dense.Lapack
+import com.eignex.koblas.dense.LdlDecomposition
+import com.eignex.koblas.dense.LuDecomposition
+import com.eignex.koblas.dense.QrDecomposition
+import com.eignex.koblas.dense.ReferenceLinearAlgebra
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.invoke

@@ -1,7 +1,8 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.SparseLu
 import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.sparse.SparseLu
+import kotlin.random.Random
 import kotlinx.benchmark.Benchmark
 import kotlinx.benchmark.BenchmarkMode
 import kotlinx.benchmark.BenchmarkTimeUnit
@@ -11,7 +12,6 @@ import kotlinx.benchmark.Param
 import kotlinx.benchmark.Scope
 import kotlinx.benchmark.Setup
 import kotlinx.benchmark.State
-import kotlin.random.Random
 
 /**
  * Sparse factorization and solve at a fixed off-diagonal density.

@@ -2,7 +2,7 @@
 
 package com.eignex.koblas.cblas
 
-import com.eignex.koblas.VectorKernels
+import com.eignex.koblas.dense.VectorKernels
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.invoke
@@ -11,7 +11,7 @@ import kotlinx.cinterop.usePinned
 /**
  * The host OpenBLAS behind koblas's level-1 primitives, for the runs long enough to be worth a call.
  *
- * The [com.eignex.koblas.LinearAlgebra] seam does not reach `dot`, `axpy` and `scale`: those compile per
+ * The [com.eignex.koblas.dense.LinearAlgebra] seam does not reach `dot`, `axpy` and `scale`: those compile per
  * target and, on native, are scalar loops measured 4x to 7x slower than the JVM's SIMD ones. Registering
  * this closes that gap for long vectors, which is where a simplex spends its level-1 time — the public
  * `dot`/`axpy`/`scale` and the eta-file ftran/btran both bottom out in these calls with no other seam
