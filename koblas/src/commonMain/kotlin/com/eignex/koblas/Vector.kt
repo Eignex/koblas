@@ -27,9 +27,9 @@ sealed interface VectorView {
     val size: Int
 
     /**
-     * Read entry at [i]. O(1) for [DenseVector], O(nnz) linear scan for
-     * [SparseVector]. Use the internal `forEachStored` extension when you
-     * want to walk the populated entries without per-index lookup cost.
+     * Read entry at [i]. O(1) for [DenseVector], `O(log nnz)` for [SparseVector], which binary-searches
+     * its ascending indices. Use the internal `forEachStored` extension when you want to walk the
+     * populated entries without per-index lookup cost.
      */
     operator fun get(i: Int): Double
 
@@ -90,12 +90,6 @@ class DenseVector internal constructor(val data: DoubleArray) : VectorView {
  * Compressed sparse vector: parallel [indices]/[values] arrays of equal length, each
  * holding one nonzero entry. Immutable from the caller's perspective; to change the
  * sparsity pattern, rebuild.
- *
- * [get] is a linear scan rather than a binary search on purpose. Typical `nnz` is
- * small (handful to a few hundred for sparse feature vectors from nominal-heavy
- * CSPs), and at that scale a tight `IntArray` loop beats binary search's
- * mispredicted branches and indirect indexing. Internal ops iterate via
- * [forEachStored] and skip [get] entirely.
  *
  * Indices are strictly ascending and in range, validated by the constructor. Three things depend on it:
  * [get] binary-searches rather than scanning, a sparse-against-sparse `dot` merges the two index lists in
