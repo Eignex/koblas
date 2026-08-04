@@ -5,6 +5,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.Backend
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.MatrixView
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.norm1
 import com.eignex.koblas.transpose
@@ -359,6 +360,12 @@ interface Lapack : Backend {
         // l[i,j]. Keeps the hot loop free of per-element MatrixView dispatch.
         if (a is DenseMatrix) {
             for (j in 0 until n) a.data.copyInto(ld, j + j * n, j + j * n, (j + 1) * n)
+        } else if (a is SparseMatrix) {
+            // Walk the stored entries rather than probing every position: the seeding would otherwise be
+            // n²/2 column searches. The factor itself is dense either way — a Cholesky factor fills in,
+            // so a sparse input is a convenience here, not a saving. Use the sparse factorizations when
+            // the sparsity has to survive.
+            for (j in 0 until n) a.forEachInColumn(j) { i, v -> if (i >= j) ld[i + j * n] = v }
         } else {
             for (j in 0 until n) for (i in j until n) ld[i + j * n] = a[i, j]
         }

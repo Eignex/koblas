@@ -17,8 +17,15 @@ import kotlinx.serialization.encoding.Encoder
  * to `Array<DoubleArray>`. Arithmetic (`gemv`, `ger`, the Cholesky
  * suite, …) lives as free functions over the views; mutation is `internal`.
  *
- * Only [DenseMatrix] today. A CSR/CSC sparse matrix can land here when a
- * consumer needs it; the current callers have intrinsically dense state.
+ * [DenseMatrix] and [SparseMatrix] are the two storages. Being sealed is why
+ * both live in this package rather than moving with the operations that consume
+ * them: a sealed subtype has to be declared alongside its root, and the closed
+ * set is what makes the polymorphic serialization work without a consumer
+ * registering anything.
+ *
+ * [get] is `O(1)` on the dense storage and a search within a column on the
+ * sparse one, so an algorithm that sweeps every entry through [get] is the wrong
+ * shape for a sparse operand — walk the stored entries instead.
  */
 @Serializable
 sealed interface MatrixView {

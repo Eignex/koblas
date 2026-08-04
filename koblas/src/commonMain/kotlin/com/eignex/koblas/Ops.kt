@@ -244,6 +244,11 @@ fun DenseMatrix.transpose(): DenseMatrix {
  * has no BLAS counterpart, and walking only its stored entries is the point of passing one. Two dense
  * operands dispatch to the backend, so this is a shape adapter rather than a second implementation.
  *
+ * Every combination of the two storages resolves to a loop over stored entries only. That matters most
+ * for a [SparseMatrix] operand: the generic fallback below reads through [MatrixView.get], which on CSC
+ * is a search per entry, so a sparse matrix taking that path would cost `rows × cols` searches instead of
+ * the `nnz` the representation exists to deliver.
+ *
  * No `transpose` flag: for a sparse matrix use [SparseMatrix.gemv], which takes one.
  */
 fun gemv(A: MatrixView, x: VectorView): DenseVector {
@@ -258,6 +263,12 @@ fun gemv(A: MatrixView, x: VectorView): DenseVector {
         val rows = A.rows
         x.forEachStored { j, v ->
             if (v != 0.0) denseAxpy(od, 0, v, ad, j * rows, rows)
+        }
+    } else if (A is SparseMatrix) {
+        // Column j of A scaled by x_j, accumulated: only the stored entries of both operands are read,
+        // whichever storage x has.
+        x.forEachStored { j, v ->
+            if (v != 0.0) A.forEachInColumn(j) { i, aij -> od[i] += aij * v }
         }
     } else {
         for (i in 0 until A.rows) {
