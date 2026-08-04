@@ -18,9 +18,14 @@ import kotlin.math.pow
  * produced; only the nonzeros of `L`/`U` are stored, so memory is `O(nnz)`.
  *
  * Right-looking Gaussian elimination over per-row hash maps; the factors are frozen into sparse arrays
- * in both orientations (indexed by **pivot position**) so [ftran] (`B x = b`) and [btran] (`Bᵀ x = b`)
- * are `O(nnz)` triangular solves. [ftran]'s result is scattered back to original-column order by `Q`;
- * [btran]'s right-hand side is gathered by `Q`. [factorize] returns null on a (near-)singular matrix.
+ * in both orientations (indexed by **pivot position**) so both solve directions are `O(nnz)` triangular
+ * solves. The forward direction's result is scattered back to original-column order by `Q`; the
+ * transposed direction's right-hand side is gathered by `Q`.
+ *
+ * The portable [SparseFactorization]. Produced by [SparseLapack.factor] rather than constructed directly,
+ * so a caller that holds the interface can be handed a host solver's factors instead without changing.
+ * A singular matrix yields [SingularSparseFactorization], never an instance of this class — every
+ * `SparseLu` is a complete factorization, which is why [singular] is constantly false.
  */
 class SparseLu private constructor(
     private val m: Int,
@@ -36,21 +41,35 @@ class SparseLu private constructor(
     private val uColVal: Array<DoubleArray>,
     private val uDiag: DoubleArray,
     /** Per-original-row equilibration factor `eᵢ` applied before factorization (`L·U = E·B`); all 1.0
-     *  when equilibration is off. [ftran]/[btran]/[determinant] correct for it transparently. */
+     *  when equilibration is off. the forward sweep/the transposed sweep/[determinant] correct for it transparently. */
     private val rowScale: DoubleArray,
     /** Total nonzeros in `L` + `U` (incl. diagonal) — the factorization's fill. */
-    val nnz: Int,
-) {
+    override val nnz: Int,
+) : SparseFactorization {
 
-    /** Solve `B x = b` (FTRAN). `b` is indexed by original row; the result by original column.
-     *  Allocates the result and two intermediates; [ftranInto] reuses caller-owned buffers instead. */
-    fun ftran(b: DoubleArray): DoubleArray = ftranInto(b, DoubleArray(m))
+    override val n: Int get() = m
+
+    /** Always false: a [SparseLu] only exists for a matrix that factored completely. */
+    override val singular: Boolean get() = false
 
     /**
-     * Solve `B x = b` (FTRAN) into [out], which is returned. With a [workspace] the two pivot-space
-     * intermediates are reused too, so a simplex iteration allocates nothing at all. [out] may be [b].
+     * Solve `B x = b`, or `Bᵀ x = b` when [transpose], into [out].
+     *
+     * The two directions are a simplex's FTRAN and BTRAN, and were spelled `ftran`/`btran` here until the
+     * sparse and dense halves were made to agree on one vocabulary: this is the same operation the dense
+     * `Lapack.solve` performs, so it carries the same name and the same transpose flag rather than a
+     * private one. `b` is indexed by original row and the result by original column.
      */
-    fun ftranInto(b: DoubleArray, out: DoubleArray, workspace: Workspace? = null): DoubleArray {
+    override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray =
+        if (transpose) btranInto(b, out, workspace) else ftranInto(b, out, workspace)
+
+    /**
+     * The forward direction of [solveInto]: `L U (Qᵀ x) = P (E b)`.
+     *
+     * Private because the seam speaks `solve`; the FTRAN name survives here, where it describes which of
+     * the two triangular sweeps this is rather than standing in for "solve".
+     */
+    private fun ftranInto(b: DoubleArray, out: DoubleArray, workspace: Workspace? = null): DoubleArray {
         require(b.size == m) { "ftran: b size ${b.size} != $m" }
         require(out.size == m) { "ftran: out size ${out.size} != $m" }
         val y = workspace?.take(m) ?: DoubleArray(m)
@@ -80,14 +99,11 @@ class SparseLu private constructor(
         return out
     }
 
-    /** Solve `Bᵀ x = b` (BTRAN). `b` is indexed by original column; the result by original row.
-     *  Allocates; [btranInto] writes into a caller-owned destination. */
-    fun btran(b: DoubleArray): DoubleArray = btranInto(b, DoubleArray(m))
-
-    /** Solve `Bᵀ x = b` (BTRAN) into [out], which is returned. [out] may be [b]. */
-    fun btranInto(b: DoubleArray, out: DoubleArray, workspace: Workspace? = null): DoubleArray {
-        require(b.size == m) { "btran: b size ${b.size} != $m" }
-        require(out.size == m) { "btran: out size ${out.size} != $m" }
+    /** The transposed sweep of [solveInto]: `Uᵀ Lᵀ (P x) = Q b`. `b` is indexed by original column, the
+     *  result by original row. Private for the reason [ftranInto] is. */
+    private fun btranInto(b: DoubleArray, out: DoubleArray, workspace: Workspace? = null): DoubleArray {
+        require(b.size == m) { "solve: b size ${b.size} != $m" }
+        require(out.size == m) { "solve: out size ${out.size} != $m" }
         val z = workspace?.take(m) ?: DoubleArray(m)
         val w = workspace?.take(m) ?: DoubleArray(m)
         z.fill(0.0)
@@ -120,7 +136,7 @@ class SparseLu private constructor(
      * row-equilibration product is divided back out (a no-op when equilibration is off). For an integer
      * matrix the true determinant is an integer; this float value is only a *guess* of it.
      */
-    fun determinant(): Double {
+    override fun determinant(): Double {
         var d = permutationSign(perm) * permutationSign(colPerm)
         for (k in 0 until m) d *= uDiag[k]
         for (i in 0 until m) d /= rowScale[i] // undo the row equilibration (rowScale all 1.0 when off)
@@ -130,8 +146,14 @@ class SparseLu private constructor(
     /** Factorization entrypoints for [SparseLu]. */
     companion object {
 
-        /** Factorize the `m × m` matrix [a] (CSC); convenience over [factorize] taking per-row maps. */
-        fun factorize(a: SparseMatrix, equilibrate: Boolean = false): SparseLu? {
+        /**
+         * Factorize the square [a], the implementation behind [SparseLapack.factor].
+         *
+         * Returns a [SingularSparseFactorization] rather than null when no acceptable pivot remains. The
+         * nullable result it replaced forced every caller into an unwrap for a condition the dense side
+         * reports with a flag, and threw away the one fact worth having: which pivot position failed.
+         */
+        internal fun factorCsc(a: SparseMatrix, equilibrate: Boolean = false): SparseFactorization {
             require(a.rows == a.cols) { "SparseLu requires a square matrix; got ${a.rows}x${a.cols}" }
             val rows = Array(a.rows) { MutableIntDoubleMap() }
             for (j in 0 until a.cols) a.forEachInColumn(j) { i, v -> rows[i].put(j, v) }
@@ -139,22 +161,12 @@ class SparseLu private constructor(
         }
 
         /**
-         * Factorize the matrix whose rows are [rows] (`rows[i][col] = B[i][col]`, dense per-row maps),
-         * size [m]. Returns null if no numerically acceptable pivot remains (singular matrix).
-         * Convenience over the internal primitive-map path; the boxed maps are copied, not consumed.
-         */
-        fun factorize(rows: Array<HashMap<Int, Double>>, m: Int, equilibrate: Boolean = false): SparseLu? {
-            val prim = Array(m) { i ->
-                val map = MutableIntDoubleMap(rows[i].size)
-                for ((c, v) in rows[i]) map.put(c, v)
-                map
-            }
-            return factorize(prim, m, equilibrate)
-        }
-
-        /**
-         * Factorize the matrix whose rows are [rows] (`rows[i][col] = B[i][col]`, primitive per-row
-         * maps), size [m]. Returns null if no numerically acceptable pivot remains (singular matrix).
+         * Factorize the matrix whose rows are [rows] (`rows[i][col] = B[i][col]`, primitive per-row maps),
+         * size [m].
+         *
+         * Internal, and the boxed `HashMap<Int, Double>` entry point that used to sit beside it is gone:
+         * it handed callers the representation [MutableIntDoubleMap] exists to avoid, boxing on every
+         * `put` and `get`. Build a [SparseMatrix] and use [factorCsc].
          *
          * **Consumes [rows]:** the maps are eliminated in place (and rescaled when [equilibrate]), so the
          * caller must not reuse them afterward.
@@ -163,7 +175,11 @@ class SparseLu private constructor(
          * floating point) so pivoting is better conditioned; the scale is undone transparently in the
          * solves and [determinant].
          */
-        internal fun factorize(rows: Array<MutableIntDoubleMap>, m: Int, equilibrate: Boolean = false): SparseLu? {
+        internal fun factorize(
+            rows: Array<MutableIntDoubleMap>,
+            m: Int,
+            equilibrate: Boolean = false,
+        ): SparseFactorization {
             val rowScale = DoubleArray(m) { 1.0 }
             if (equilibrate) {
                 for (i in 0 until m) {
@@ -186,7 +202,7 @@ class SparseLu private constructor(
             val colPerm = IntArray(m) { -1 }
             val state = MarkowitzState(u, m)
             for (k in 0 until m) {
-                if (!state.selectPivot()) return null // singular
+                if (!state.selectPivot()) return SingularSparseFactorization(m, failedAt = k)
                 perm[k] = state.pivotRow
                 colPerm[k] = state.pivotCol
                 state.eliminate(lAtStep[k])

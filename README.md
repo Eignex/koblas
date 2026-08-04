@@ -64,9 +64,9 @@ Factorize a sparse basis and solve both directions:
 ```kotlin
 val cols = listOf(listOf(0 to 2.0, 1 to 1.0), listOf(0 to 1.0, 1 to 3.0))
 val s = SparseMatrix.ofColumns(2, 2, cols)
-val lu = SparseLu.factorize(s)!!
-val forward = lu.ftran(doubleArrayOf(3.0, 5.0)) // B x = b
-val backward = lu.btran(doubleArrayOf(3.0, 5.0)) // Bᵀ x = b
+val lu = s.lu()
+val forward = lu.solve(doubleArrayOf(3.0, 5.0)) // B x = b
+val backward = lu.solve(doubleArrayOf(3.0, 5.0), transpose = true) // Bᵀ x = b
 ```
 
 ---
@@ -139,7 +139,7 @@ needs them.
 The routines a steady-state loop repeats have a destination-passing form, so a
 loop that owns its buffers allocates nothing: solveInto for the dense and
 symmetric indefinite solves, single or blocked, applyQInto and the two
-least-squares solves for the QR family, ftranInto and btranInto for the sparse
+least-squares solves for the QR family, solveInto for the sparse
 basis and the eta chain, and factorInto to refactorize into existing factor
 buffers.
 
@@ -159,7 +159,7 @@ instead, being mutable already, so its solves need no workspace at all.
 val ws = Workspace().apply { reserve(n, count = 5) }
 val x = DoubleArray(n)
 repeat(iterations) {
-    basis.ftranInto(b, x) // no allocation
+    basis.solveInto(b, x) // no allocation
     if (koblas.rcond(lu, anorm, ws) < threshold) koblas.factorInto(a, lu)
 }
 ```

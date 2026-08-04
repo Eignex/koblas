@@ -1,6 +1,7 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.sparse.SparseLu
+import com.eignex.koblas.sparse.SparseBlas
+import com.eignex.koblas.sparse.sparseKoblas
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -137,35 +138,14 @@ class SparseMatrix(
 
     override fun toString(): String = "SparseMatrix(${rows}x$cols, nnz=$nnz)"
 
-    /** Matrix-vector product `A · x` (length [rows]), or `Aᵀ · x` (length [cols]) when [transpose]. */
-    fun gemv(x: DoubleArray, transpose: Boolean = false): DoubleArray {
-        if (transpose) {
-            require(x.size == rows) { "gemvᵀ: x length ${x.size} != rows $rows" }
-            val out = DoubleArray(cols)
-            for (j in 0 until cols) {
-                var s = 0.0
-                for (k in colPtr[j] until colPtr[j + 1]) s += values[k] * x[rowIdx[k]]
-                out[j] = s
-            }
-            return out
-        }
-        require(x.size == cols) { "gemv: x length ${x.size} != cols $cols" }
-        val out = DoubleArray(rows)
-        for (j in 0 until cols) {
-            val xj = x[j]
-            if (xj != 0.0) for (k in colPtr[j] until colPtr[j + 1]) out[rowIdx[k]] += values[k] * xj
-        }
-        return out
-    }
-
-    /** Build the dense per-row maps [SparseLu.factorize] consumes (row → column → value). */
-    fun toRowMaps(): Array<HashMap<Int, Double>> {
-        val out = Array(rows) { HashMap<Int, Double>() }
-        for (j in 0 until cols) {
-            for (k in colPtr[j] until colPtr[j + 1]) out[rowIdx[k]][j] = values[k]
-        }
-        return out
-    }
+    /**
+     * Matrix-vector product `A · x` (length [rows]), or `Aᵀ · x` (length [cols]) when [transpose].
+     *
+     * The member spelling of [SparseBlas.gemv], forwarding to the active backend — the same arrangement
+     * the dense side uses, where `trsv` and friends exist as both interface members and free functions so
+     * a call site can read whichever way suits it. The arithmetic lives on the seam, not here.
+     */
+    fun gemv(x: DoubleArray, transpose: Boolean = false): DoubleArray = sparseKoblas.gemv(this, x, transpose)
 
     /** Factories for CSC matrices. */
     companion object {

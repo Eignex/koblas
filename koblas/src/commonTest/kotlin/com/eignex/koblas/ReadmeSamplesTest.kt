@@ -7,10 +7,9 @@ import com.eignex.koblas.dense.lu
 import com.eignex.koblas.dense.solve
 import com.eignex.koblas.dense.solveSpd
 import com.eignex.koblas.sparse.EtaBasis
-import com.eignex.koblas.sparse.SparseLu
+import com.eignex.koblas.sparse.lu
 import kotlin.random.Random
 import kotlin.test.Test
-import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
@@ -42,9 +41,9 @@ class ReadmeSamplesTest {
     fun `the sparse sample factorizes and solves both directions`() {
         val cols = listOf(listOf(0 to 2.0, 1 to 1.0), listOf(0 to 1.0, 1 to 3.0))
         val s = SparseMatrix.ofColumns(2, 2, cols)
-        val lu = assertNotNull(SparseLu.factorize(s))
-        val forward = lu.ftran(doubleArrayOf(3.0, 5.0)) // B x = b
-        val backward = lu.btran(doubleArrayOf(3.0, 5.0)) // Bᵀ x = b
+        val lu = s.lu()
+        val forward = lu.solve(doubleArrayOf(3.0, 5.0)) // B x = b
+        val backward = lu.solve(doubleArrayOf(3.0, 5.0), transpose = true) // Bᵀ x = b
         assertClose(doubleArrayOf(0.8, 1.4), forward, "README ftran sample", tolerance = 1e-9)
         assertClose(s.gemv(backward, transpose = true), doubleArrayOf(3.0, 5.0), "README btran", 1e-9)
     }
@@ -56,7 +55,7 @@ class ReadmeSamplesTest {
         val a = wellConditioned(n, rng)
         val b = randomVector(n, rng)
         val identity = SparseMatrix.ofColumns(n, n, List(n) { j -> listOf(j to 1.0) })
-        val basis = EtaBasis.of(assertNotNull(SparseLu.factorize(identity)), n)
+        val basis = EtaBasis.of(identity.lu())
         val lu = a.lu()
         val anorm = norm1(a)
         val threshold = 1e-12
@@ -65,7 +64,7 @@ class ReadmeSamplesTest {
         val ws = Workspace().apply { reserve(n, count = 5) }
         val x = DoubleArray(n)
         repeat(iterations) {
-            basis.ftranInto(b, x) // no allocation
+            basis.solveInto(b, x) // no allocation
             if (koblas.rcond(lu, anorm, ws) < threshold) koblas.factorInto(a, lu)
         }
         // The basis is the identity, so the solve returns b itself.
