@@ -125,7 +125,7 @@ interface Blas : Backend {
         // One axpy per column of A, each writing a contiguous run: A[:,j] += (alpha·y_j)·x.
         for (j in 0 until a.cols) {
             val scaled = alpha * y[j]
-            if (scaled != 0.0) denseAxpy(a.data, a.colOffset(j), scaled, x, 0, a.rows)
+            if (scaled != 0.0) denseKernels.axpy(a.data, a.colOffset(j), scaled, x, 0, a.rows)
         }
     }
 

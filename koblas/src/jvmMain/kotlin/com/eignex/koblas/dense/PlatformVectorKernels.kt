@@ -1,6 +1,7 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.dot
+import com.eignex.koblas.absoluteSum
+import com.eignex.koblas.euclideanNorm
 import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
 
@@ -30,46 +31,66 @@ internal val simdAvailable: Boolean = try {
 /**
  * Lane width of the vector path, or 0 when it is unavailable. Runs below one lane execute no vector
  * body at all — `loopBound` is zero, so the work falls to the scalar tail after paying the vector
- * prologue (a horizontal reduce for [denseDot], a broadcast for the others). Short runs therefore
+ * prologue (a horizontal reduce for [VectorKernels.dot], a broadcast for the others). Short runs therefore
  * route straight to the scalar kernels; triangular solves and small factorizations issue many of
  * them.
  */
 private val simdLanes: Int = if (simdAvailable) Simd.lanes() else 0
 
-internal actual fun platformDot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
-    if (simdAvailable && len >= simdLanes) Simd.dot(a, aOff, b, bOff, len) else scalarDot(a, aOff, b, bOff, len)
+/**
+ * The JVM's compiled-in kernels: SIMD when the incubator module resolved, scalar loops otherwise.
+ *
+ * The `simdAvailable && len >= simdLanes` guard on each routine is the same one the free functions used to
+ * carry. A run shorter than one lane executes no vector body at all, so it would pay the vector prologue
+ * for nothing.
+ */
+internal actual object PlatformVectorKernels : VectorKernels {
+    actual override val name: String get() = if (simdAvailable) "simd($simdLanes lanes)" else "scalar"
 
-internal actual fun platformAxpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
-    if (simdAvailable && len >= simdLanes) {
-        Simd.axpy(y, yOff, alpha, x, xOff, len)
-    } else {
-        scalarAxpy(y, yOff, alpha, x, xOff, len)
+    private fun vectorizes(len: Int): Boolean = simdAvailable && len >= simdLanes
+
+    actual override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
+        if (vectorizes(len)) Simd.dot(a, aOff, b, bOff, len) else scalarDot(a, aOff, b, bOff, len)
+
+    actual override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
+        if (vectorizes(len)) {
+            Simd.axpy(y, yOff, alpha, x, xOff, len)
+        } else {
+            scalarAxpy(y, yOff, alpha, x, xOff, len)
+        }
     }
-}
 
-internal actual fun platformScale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
-    if (simdAvailable && len >= simdLanes) {
-        Simd.scale(v, vOff, alpha, len)
-    } else {
-        scalarScale(v, vOff, alpha, len)
+    actual override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
+        if (vectorizes(len)) {
+            Simd.scale(v, vOff, alpha, len)
+        } else {
+            scalarScale(v, vOff, alpha, len)
+        }
     }
-}
 
-@Suppress("LongParameterList") // four row offsets plus the shared operand
-internal actual fun denseDot4(
-    a: DoubleArray,
-    aOff: Int,
-    stride: Int,
-    b: DoubleArray,
-    bOff: Int,
-    len: Int,
-    out: DoubleArray,
-    outOff: Int,
-) {
-    if (simdAvailable && len >= simdLanes) {
-        Simd.dot4(a, aOff, stride, b, bOff, len, out, outOff)
-    } else {
-        for (r in 0 until 4) out[outOff + r] = scalarDot(a, aOff + r * stride, b, bOff, len)
+    /** No SIMD counterpart worth writing, so the shared common implementation serves the JVM too. */
+    actual override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double = euclideanNorm(v, vOff, len)
+
+    /** See [nrm2]. */
+    actual override fun asum(v: DoubleArray, vOff: Int, len: Int): Double = absoluteSum(v, vOff, len)
+
+    /** Overridden rather than inherited: [Simd.dot4] loads each `b` segment once for all four columns. */
+    @Suppress("LongParameterList") // four column offsets plus the shared operand
+    actual override fun dot4(
+        a: DoubleArray,
+        aOff: Int,
+        stride: Int,
+        b: DoubleArray,
+        bOff: Int,
+        len: Int,
+        out: DoubleArray,
+        outOff: Int,
+    ) {
+        if (vectorizes(len)) {
+            Simd.dot4(a, aOff, stride, b, bOff, len, out, outOff)
+        } else {
+            for (r in 0 until 4) out[outOff + r] = scalarDot(a, aOff + r * stride, b, bOff, len)
+        }
     }
 }
 

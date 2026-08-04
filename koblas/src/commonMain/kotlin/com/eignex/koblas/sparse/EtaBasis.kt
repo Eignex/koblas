@@ -1,8 +1,7 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.Workspace
-import com.eignex.koblas.dense.denseAxpy
-import com.eignex.koblas.dense.denseDot
+import com.eignex.koblas.dense.denseKernels
 
 /**
  * Maintains a basis factorization across rank-1 basis updates using the **product-form of the inverse**
@@ -53,7 +52,7 @@ class EtaBasis private constructor(private val base: SparseFactorization) {
         if (transpose) btranInto(b, out) else ftranInto(b, out)
 
     /** The forward sweep: base LU solve, then forward through the eta chain in update order. Each eta
-     *  applies over the two contiguous runs around the pivot via [denseAxpy]. */
+     *  applies over the two contiguous runs around the pivot via [com.eignex.koblas.dense.VectorKernels.axpy]. */
     private fun ftranInto(b: DoubleArray, out: DoubleArray): DoubleArray {
         val x = base.solveInto(b, out, transpose = false, workspace = scratch)
         for (j in etaSpike.indices) {
@@ -61,8 +60,8 @@ class EtaBasis private constructor(private val base: SparseFactorization) {
             val eta = etaSpike[j]
             val xp = x[p] / eta[p]
             if (xp != 0.0) {
-                denseAxpy(x, 0, -xp, eta, 0, p)
-                denseAxpy(x, p + 1, -xp, eta, p + 1, m - p - 1)
+                denseKernels.axpy(x, 0, -xp, eta, 0, p)
+                denseKernels.axpy(x, p + 1, -xp, eta, p + 1, m - p - 1)
             }
             x[p] = xp
         }
@@ -70,7 +69,7 @@ class EtaBasis private constructor(private val base: SparseFactorization) {
     }
 
     /** The transposed sweep: the eta chain transposed in reverse update order, then the base LU. Each eta
-     *  gathers over the two contiguous runs around the pivot via [denseDot]. */
+     *  gathers over the two contiguous runs around the pivot via [com.eignex.koblas.dense.VectorKernels.dot]. */
     private fun btranInto(b: DoubleArray, out: DoubleArray): DoubleArray {
         require(b.size == m) { "solve: b size ${b.size} != $m" }
         // The eta chain transposed, applied to a working copy, then the base solve into out.
@@ -79,7 +78,7 @@ class EtaBasis private constructor(private val base: SparseFactorization) {
         for (j in etaSpike.indices.reversed()) {
             val p = etaRow[j]
             val eta = etaSpike[j]
-            val s = z[p] - denseDot(eta, 0, z, 0, p) - denseDot(eta, p + 1, z, p + 1, m - p - 1)
+            val s = z[p] - denseKernels.dot(eta, 0, z, 0, p) - denseKernels.dot(eta, p + 1, z, p + 1, m - p - 1)
             z[p] = s / eta[p]
         }
         val result = base.solveInto(z, out, transpose = true, workspace = scratch)

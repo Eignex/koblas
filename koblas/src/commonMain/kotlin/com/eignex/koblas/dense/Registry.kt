@@ -5,6 +5,7 @@ import com.eignex.koblas.ComposedSeam
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.Seam
 import com.eignex.koblas.mathBackend
+import kotlin.concurrent.Volatile
 
 // Which dense backend is active, and how it got there. The sparse counterpart is `sparse/Registry.kt`, and
 // the two are deliberately the same file in two packages: same seams, same verbs, same fallback rule.
@@ -29,13 +30,27 @@ private val blasSeam = Seam<Blas>(::recompose)
 private val lapackSeam = Seam<Lapack>(::recompose)
 
 /**
- * The dense level-1 seam.
+ * The vector kernels every dense inner loop calls: the compiled-in [PlatformVectorKernels] plus whatever
+ * host backend is registered, wrapped in the length-based [RoutedVectorKernels].
  *
- * Internal, and read directly by `Primitives.kt` rather than through an accessor, because every `dot` in
- * the library goes through it. Its [Seam.active] is nullable and null means the compiled-in kernel — see
- * [VectorKernels] for why this one half cannot have an object fallback.
+ * A plain field rather than a computed property because every `dot` in the library reads it, and one
+ * volatile read is the floor for something another thread can change. Rebuilt only when registration
+ * changes, so the routing decision costs nothing per call beyond the length comparison.
+ *
+ * Never null — that is the change the [VectorKernels] interface bought. It used to be a nullable
+ * `VectorKernels?` where null meant "call the compiled-in function instead", because the compiled kernels
+ * were not `VectorKernels` at all.
  */
-internal val vectorKernelSeam = Seam<VectorKernels>()
+@Volatile
+internal var denseKernels: VectorKernels = RoutedVectorKernels(null)
+    private set
+
+/** The registered host half, if any. [denseKernels] is rebuilt from it. */
+internal val vectorKernelSeam = Seam<VectorKernels>(::recomposeKernels)
+
+private fun recomposeKernels() {
+    denseKernels = RoutedVectorKernels(vectorKernelSeam.active)
+}
 
 private val denseSeam = ComposedSeam<LinearAlgebra>(
     default = ReferenceLinearAlgebra,

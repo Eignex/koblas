@@ -14,10 +14,10 @@ private const val MIN_NORMAL = 2.2250738585072014e-308
  * finite input therefore yields the correct norm, which netlib `dnrm2` also guarantees and a bare
  * `sqrt(sum)` does not.
  *
- * Shared by the dense and sparse level-1 kernels, which need exactly the same three passes over a
- * contiguous run: for a `SparseVector` that run is its value array, since the unstored entries contribute
- * nothing to a sum of squares. Having it once means the two cannot drift apart on the rescaling threshold
- * or on which of `0.0`, `NaN` and `Inf` fall through the fast path.
+ * Shared by every kernel koblas ships, dense and sparse, because none of them specializes it per target and
+ * all of them need the same three passes over a contiguous run: for a `SparseVector` that run is its value
+ * array, since the unstored entries contribute nothing to a sum of squares. Having it once means they cannot
+ * drift apart on the rescaling threshold or on which of `0.0`, `NaN` and `Inf` fall through the fast path.
  */
 internal fun euclideanNorm(v: DoubleArray, off: Int, len: Int): Double {
     var s = 0.0
@@ -39,4 +39,16 @@ internal fun euclideanNorm(v: DoubleArray, off: Int, len: Int): Double {
         t += r * r
     }
     return amax * sqrt(t)
+}
+
+/**
+ * `Sum |v[off..off+len-1]|` (BLAS `dasum`).
+ *
+ * Here for the same reason as [euclideanNorm]: no target specializes it — there is no SIMD counterpart worth
+ * writing — so every `VectorKernels` koblas ships forwards here rather than carrying a copy of the loop.
+ */
+internal fun absoluteSum(v: DoubleArray, off: Int, len: Int): Double {
+    var s = 0.0
+    for (i in 0 until len) s += abs(v[off + i])
+    return s
 }
