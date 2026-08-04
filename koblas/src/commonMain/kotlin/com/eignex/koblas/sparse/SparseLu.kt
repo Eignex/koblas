@@ -1,5 +1,6 @@
 package com.eignex.koblas.sparse
 
+import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.dense.determinant
@@ -25,7 +26,7 @@ import kotlin.math.pow
  * The portable [SparseFactorization]. Produced by [SparseLapack.factor] rather than constructed directly,
  * so a caller that holds the interface can be handed a host solver's factors instead without changing.
  * A singular matrix yields [SingularSparseFactorization], never an instance of this class — every
- * `SparseLu` is a complete factorization, which is why [singular] is constantly false.
+ * `SparseLu` is a complete factorization, which is why [failedAt] is constantly [NOT_SINGULAR].
  */
 class SparseLu private constructor(
     private val m: Int,
@@ -50,7 +51,7 @@ class SparseLu private constructor(
     override val n: Int get() = m
 
     /** Always false: a [SparseLu] only exists for a matrix that factored completely. */
-    override val singular: Boolean get() = false
+    override val failedAt: Int get() = NOT_SINGULAR
 
     /**
      * Solve `B x = b`, or `Bᵀ x = b` when [transpose], into [out].

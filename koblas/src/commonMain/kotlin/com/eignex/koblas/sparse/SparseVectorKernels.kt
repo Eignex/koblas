@@ -2,8 +2,8 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.Backend
 import com.eignex.koblas.SparseVector
+import com.eignex.koblas.euclideanNorm
 import kotlin.math.abs
-import kotlin.math.sqrt
 
 /**
  * The sparse level-1 kernels: a sparse vector against a dense one, or against another sparse one.
@@ -84,27 +84,11 @@ interface SparseVectorKernels : Backend {
     /**
      * Euclidean norm over the stored entries.
      *
-     * Rescales when the plain sum of squares overflows or underflows, as the dense kernel does — a stored
-     * entry near `1e±150` is no less likely for being sparse.
+     * The unstored entries are zero and contribute nothing to a sum of squares, so this is the dense
+     * [euclideanNorm] of the value array — the same kernel, rescaling included, because a stored entry near
+     * `1e±150` is no less likely for being sparse.
      */
-    fun nrm2(x: SparseVector): Double {
-        val vals = x.values
-        var s = 0.0
-        for (v in vals) s += v * v
-        if (s.isFinite() && s >= MIN_NORMAL) return sqrt(s)
-        var amax = 0.0
-        for (v in vals) {
-            val a = abs(v)
-            if (a > amax) amax = a
-        }
-        if (amax == 0.0 || amax.isInfinite()) return sqrt(s)
-        var t = 0.0
-        for (v in vals) {
-            val r = v / amax
-            t += r * r
-        }
-        return amax * sqrt(t)
-    }
+    fun nrm2(x: SparseVector): Double = euclideanNorm(x.values, 0, x.values.size)
 
     /** `Sum |x_i|` over the stored entries. */
     fun asum(x: SparseVector): Double {
@@ -113,6 +97,3 @@ interface SparseVectorKernels : Backend {
         return s
     }
 }
-
-/** Smallest normal double; a squares-sum below this has lost precision to underflow. */
-private const val MIN_NORMAL = 2.2250738585072014e-308

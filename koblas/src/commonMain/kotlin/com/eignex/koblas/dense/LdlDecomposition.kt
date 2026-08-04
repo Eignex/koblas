@@ -1,5 +1,7 @@
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.NOT_SINGULAR
+
 /**
  * A symmetric indefinite factorization `A = L·D·Lᵀ` with Bunch–Kaufman partial pivoting in LAPACK
  * `dsytrf` (lower) packed form: [ldl] is the `n×n` column-major buffer whose lower triangle holds the
@@ -16,10 +18,14 @@ package com.eignex.koblas.dense
  * @property n the matrix dimension.
  * @property ldl the packed factors, column-major, length `n * n`; only the lower triangle is meaningful.
  * @property ipiv the pivot record, LAPACK `dsytrf` convention, 1-based entries.
- * @property singular whether a zero pivot was encountered; solving a singular factorization is not
- *   meaningful.
+ * @property failedAt the position of the zero pivot, or [NOT_SINGULAR] — `dsytrf`'s positive `info` made
+ *   0-based, and the same convention [LuDecomposition] and the sparse factorizations report.
  */
-class LdlDecomposition(val n: Int, val ldl: DoubleArray, val ipiv: IntArray, val singular: Boolean) {
+class LdlDecomposition(val n: Int, val ldl: DoubleArray, val ipiv: IntArray, val failedAt: Int = NOT_SINGULAR) {
+    /** Whether a zero pivot was encountered; solving a singular factorization is not meaningful. Derived
+     *  from [failedAt], for the reason [LuDecomposition.singular] gives. */
+    val singular: Boolean get() = failedAt != NOT_SINGULAR
+
     init {
         require(ldl.size == n * n) { "ldl length ${ldl.size} != ${n * n}" }
         require(ipiv.size == n) { "ipiv length ${ipiv.size} != $n" }

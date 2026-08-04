@@ -1,7 +1,7 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.dense.VectorKernels
-import com.eignex.koblas.dense.activeVectorKernels
+import com.eignex.koblas.dense.vectorKernelSeam
 
 /**
  * Identifies the runtime math backend powering the SIMD-like primitives.
@@ -12,4 +12,4 @@ import com.eignex.koblas.dense.activeVectorKernels
  * scalar kernels is exactly the failure this is here to report.
  */
 public actual val mathBackend: String
-    get() = if (activeVectorKernels != null) "scalar+host" else "scalar"
+    get() = if (vectorKernelSeam.active != null) "scalar+host" else "scalar"

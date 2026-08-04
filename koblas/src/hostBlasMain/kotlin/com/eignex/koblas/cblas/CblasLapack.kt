@@ -10,6 +10,7 @@ import com.eignex.koblas.dense.LdlDecomposition
 import com.eignex.koblas.dense.LuDecomposition
 import com.eignex.koblas.dense.QrDecomposition
 import com.eignex.koblas.dense.ReferenceLinearAlgebra
+import com.eignex.koblas.lapackFailedAt
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.invoke
@@ -45,7 +46,7 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
         val n = a.rows
         val lu = a.data.copyOf()
         val piv = IntArray(n) { it }
-        if (n == 0) return LuDecomposition(0, lu, piv, singular = false)
+        if (n == 0) return LuDecomposition(0, lu, piv)
         val ipiv = IntArray(n)
         val info = lu.usePinned { lp ->
             ipiv.usePinned { pp -> f.dgetrf(COL_MAJOR, n, n, lp.addressOf(0), n, pp.addressOf(0)) }
@@ -61,7 +62,7 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
                 piv[p] = t
             }
         }
-        return LuDecomposition(n, lu, piv, singular = info > 0)
+        return LuDecomposition(n, lu, piv, lapackFailedAt(info))
     }
 
     @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
@@ -159,14 +160,14 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
         val n = a.rows
         val buf = a.data.copyOf()
         val ipiv = IntArray(n)
-        if (n == 0) return LdlDecomposition(0, buf, ipiv, singular = false)
+        if (n == 0) return LdlDecomposition(0, buf, ipiv)
         val info = buf.usePinned { bp ->
             ipiv.usePinned { pp ->
                 f.dsytrf(COL_MAJOR, 'L'.code.toByte(), n, bp.addressOf(0), n, pp.addressOf(0))
             }
         }
         check(info >= 0) { "dsytrf: illegal argument ${-info}" }
-        return LdlDecomposition(n, buf, ipiv, singular = info > 0)
+        return LdlDecomposition(n, buf, ipiv, lapackFailedAt(info))
     }
 
     /**

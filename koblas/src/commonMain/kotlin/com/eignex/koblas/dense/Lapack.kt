@@ -43,7 +43,7 @@ interface Lapack : Backend {
         val fresh = factor(a)
         fresh.lu.copyInto(out.lu)
         fresh.piv.copyInto(out.piv)
-        out.singular = fresh.singular
+        out.failedAt = fresh.failedAt
         return out
     }
 

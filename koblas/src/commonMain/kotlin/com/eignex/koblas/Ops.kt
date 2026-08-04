@@ -225,7 +225,7 @@ fun DenseMatrix.transpose(): DenseMatrix {
  * is a search per entry, so a sparse matrix taking that path would cost `rows × cols` searches instead of
  * the `nnz` the representation exists to deliver.
  *
- * No `transpose` flag: for a sparse matrix use [SparseMatrix.gemv], which takes one.
+ * No `transpose` flag: for a sparse matrix use [com.eignex.koblas.sparse.gemv], which takes one.
  */
 fun gemv(A: MatrixView, x: VectorView): DenseVector {
     require(A.cols == x.size) { "gemv shape mismatch: A is ${A.rows}x${A.cols}, x size ${x.size}" }

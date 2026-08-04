@@ -22,6 +22,7 @@ import com.eignex.koblas.hostblas.HostBlasCalls.NO_TRANS
 import com.eignex.koblas.hostblas.HostBlasCalls.TRANS
 import com.eignex.koblas.hostblas.HostBlasCalls.UNIT
 import com.eignex.koblas.hostblas.HostBlasCalls.UPPER
+import com.eignex.koblas.lapackFailedAt
 
 /**
  * The host LAPACKE as the JVM's [Lapack] half.
@@ -47,7 +48,7 @@ class HostLapack internal constructor() : Lapack {
         val n = a.rows
         val lu = a.data.copyOf()
         val piv = IntArray(n) { it }
-        if (n == 0) return LuDecomposition(0, lu, piv, singular = false)
+        if (n == 0) return LuDecomposition(0, lu, piv)
         val ipiv = IntArray(n)
         val info = HostBlasCalls.dgetrf.invokeWithArguments(
             COL_MAJOR,
@@ -68,7 +69,7 @@ class HostLapack internal constructor() : Lapack {
                 piv[p] = t
             }
         }
-        return LuDecomposition(n, lu, piv, singular = info > 0)
+        return LuDecomposition(n, lu, piv, lapackFailedAt(info))
     }
 
     /**
@@ -193,7 +194,7 @@ class HostLapack internal constructor() : Lapack {
         val n = a.rows
         val buf = a.data.copyOf()
         val ipiv = IntArray(n)
-        if (n == 0) return LdlDecomposition(0, buf, ipiv, singular = false)
+        if (n == 0) return LdlDecomposition(0, buf, ipiv)
         val info = HostBlasCalls.dsytrf.invokeWithArguments(
             COL_MAJOR,
             'L'.code.toByte(),
@@ -203,7 +204,7 @@ class HostLapack internal constructor() : Lapack {
             HostBlasCalls.seg(ipiv),
         ) as Int
         check(info >= 0) { "dsytrf: illegal argument ${-info}" }
-        return LdlDecomposition(n, buf, ipiv, singular = info > 0)
+        return LdlDecomposition(n, buf, ipiv, lapackFailedAt(info))
     }
 
     /**

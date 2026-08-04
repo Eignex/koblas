@@ -1,9 +1,11 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.assertClose
 import kotlin.random.Random
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class LinearAlgebraLdlTest {
@@ -78,5 +80,9 @@ class LinearAlgebraLdlTest {
         val empty = koblas.ldl(DenseMatrix(0, 0))
         assertTrue(!empty.singular)
         assertTrue(koblas.solve(empty, DoubleArray(0)).isEmpty())
+        // The position too, on the same convention as the LU and the sparse factorizations: the first zero
+        // pivot, or NOT_SINGULAR.
+        assertEquals(0, koblas.ldl(DenseMatrix(3, 3)).failedAt, "the first of three zero pivots")
+        assertEquals(NOT_SINGULAR, empty.failedAt)
     }
 }
