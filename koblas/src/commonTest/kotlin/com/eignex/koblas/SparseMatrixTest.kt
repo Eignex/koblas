@@ -124,4 +124,26 @@ class SparseMatrixTest {
             a.gemv(doubleArrayOf(2.0, -1.0)).contentEquals(gemv(a, DenseVector.of(doubleArrayOf(2.0, -1.0))).data),
         )
     }
+
+    /**
+     * Unsorted or duplicated rows within a column are rejected at construction.
+     *
+     * Not a style rule: [get] binary-searches the column, so a descending pair would not throw, it would
+     * report a stored entry as absent — and duplicate rows would make [get] and `forEachInColumn`
+     * disagree about the value at a position. The format documented ascending rows long before anything
+     * checked them.
+     */
+    @Test
+    fun `SparseMatrix rejects unsorted or duplicated rows within a column`() {
+        assertFailsWith<IllegalArgumentException> {
+            SparseMatrix(2, 1, intArrayOf(0, 2), intArrayOf(1, 0), doubleArrayOf(5.0, 7.0))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            SparseMatrix(2, 1, intArrayOf(0, 2), intArrayOf(1, 1), doubleArrayOf(5.0, 7.0))
+        }
+        // Across a column boundary the indices restart, so descending there is legitimate.
+        val ok = SparseMatrix(2, 2, intArrayOf(0, 1, 2), intArrayOf(1, 0), doubleArrayOf(5.0, 7.0))
+        assertEquals(5.0, ok[1, 0])
+        assertEquals(7.0, ok[0, 1])
+    }
 }

@@ -51,9 +51,9 @@ class SerializationTest {
     }
 
     @Test
-    fun `SparseVector round-trips including empty and unsorted indices`() {
+    fun `SparseVector round-trips including empty and stored-zero cases`() {
         for (v in listOf(
-            SparseVector.of(5, intArrayOf(2, 0), doubleArrayOf(3.0, 1.0)),
+            SparseVector.of(5, intArrayOf(2, 0), doubleArrayOf(3.0, 1.0)), // of sorts these on the way in
             SparseVector.of(4, IntArray(0), DoubleArray(0)),
             SparseVector.of(3, intArrayOf(1), doubleArrayOf(0.0)), // a stored explicit zero
         )) {

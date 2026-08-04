@@ -292,4 +292,39 @@ class OpsTest {
         koblas.gemm(1.0, a, true, b, false, 0.0, viaFlag)
         assertClose(viaMaterialized, viaFlag, "transpose flag vs materialized")
     }
+
+    /**
+     * The sparse-against-sparse dot merges two index lists rather than gathering, so it needs the cases a
+     * merge can get wrong: patterns that interleave, that are disjoint, that nest, and that run off one
+     * side before the other. Each is checked against the dense answer.
+     */
+    @Test
+    fun `sparse against sparse dot matches the dense answer over merge shapes`() {
+        val n = 8
+        val patterns = listOf(
+            intArrayOf(0, 2, 4, 6) to intArrayOf(1, 3, 5, 7), // disjoint, fully interleaved
+            intArrayOf(0, 1, 2) to intArrayOf(0, 1, 2), // identical
+            intArrayOf(0, 7) to intArrayOf(3, 4), // disjoint, nested inside the first span
+            intArrayOf(0, 1, 2, 3) to intArrayOf(3), // one side exhausts early
+            intArrayOf(5) to intArrayOf(0, 1, 2, 3, 4), // the other side does
+            IntArray(0) to intArrayOf(0, 4), // empty against non-empty
+            IntArray(0) to IntArray(0),
+        )
+        for ((ia, ib) in patterns) {
+            val a = SparseVector.of(n, ia, DoubleArray(ia.size) { it + 1.5 })
+            val b = SparseVector.of(n, ib, DoubleArray(ib.size) { it + 2.5 })
+            val expected = DenseVector.of(a.toDoubleArray()) dot DenseVector.of(b.toDoubleArray())
+            assertEquals(expected, a dot b, "pattern ${ia.toList()} vs ${ib.toList()}")
+            assertEquals(expected, b dot a, "dot should be symmetric for ${ia.toList()} vs ${ib.toList()}")
+        }
+    }
+
+    @Test
+    fun `mixed sparse and dense dot agrees in both operand orders`() {
+        val sparse = SparseVector.of(6, intArrayOf(1, 4), doubleArrayOf(2.0, -3.0))
+        val dense = DenseVector.of(doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0))
+        val expected = 2.0 * 2.0 + -3.0 * 5.0
+        assertEquals(expected, sparse dot dense)
+        assertEquals(expected, dense dot sparse)
+    }
 }
