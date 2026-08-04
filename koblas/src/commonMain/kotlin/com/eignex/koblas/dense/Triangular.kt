@@ -12,8 +12,8 @@ import com.eignex.koblas.DenseMatrix
 // lower triangle, rows `0..j` for an upper one.
 //
 // The non-transposed directions are column-oriented — once an unknown is final, its contribution is
-// subtracted from the remaining right-hand side along a contiguous column via [denseAxpy]. The
-// transposed directions read a row of `op(T)`, which is a column of `T`, so they reduce to [denseDot].
+// subtracted from the remaining right-hand side along a contiguous column via [VectorKernels.axpy]. The
+// transposed directions read a row of `op(T)`, which is a column of `T`, so they reduce to [VectorKernels.dot].
 // Both shapes are contiguous, which is why the matrix forms below are just a loop over the columns of
 // `B` rather than a separate kernel.
 //
@@ -107,13 +107,13 @@ internal fun trmvCore(
                 val base = j + j * lda
                 val xj = x[xOff + j]
                 x[xOff + j] = if (unitDiag) xj else a[base] * xj
-                if (xj != 0.0) denseAxpy(x, xOff + j + 1, xj, a, base + 1, n - j - 1)
+                if (xj != 0.0) denseKernels.axpy(x, xOff + j + 1, xj, a, base + 1, n - j - 1)
             }
         } else { // column j contributes to x[0..j]; ascending keeps x[j] original
             for (j in 0 until n) {
                 val xj = x[xOff + j]
                 x[xOff + j] = if (unitDiag) xj else a[j + j * lda] * xj
-                if (xj != 0.0) denseAxpy(x, xOff, xj, a, j * lda, j)
+                if (xj != 0.0) denseKernels.axpy(x, xOff, xj, a, j * lda, j)
             }
         }
     } else {
@@ -121,12 +121,12 @@ internal fun trmvCore(
             for (i in 0 until n) {
                 val base = i + i * lda
                 val diag = if (unitDiag) x[xOff + i] else a[base] * x[xOff + i]
-                x[xOff + i] = diag + denseDot(a, base + 1, x, xOff + i + 1, n - i - 1)
+                x[xOff + i] = diag + denseKernels.dot(a, base + 1, x, xOff + i + 1, n - i - 1)
             }
         } else { // Tᵀ is lower: row i of Tᵀ is column i of T, read up to the diagonal
             for (i in n - 1 downTo 0) {
                 val diag = if (unitDiag) x[xOff + i] else a[i + i * lda] * x[xOff + i]
-                x[xOff + i] = diag + denseDot(a, i * lda, x, xOff, i)
+                x[xOff + i] = diag + denseKernels.dot(a, i * lda, x, xOff, i)
             }
         }
     }
@@ -168,25 +168,25 @@ internal fun trsvCore(
                 val base = j + j * lda
                 val xj = if (unitDiag) x[xOff + j] else x[xOff + j] / a[base]
                 x[xOff + j] = xj
-                if (xj != 0.0) denseAxpy(x, xOff + j + 1, -xj, a, base + 1, n - j - 1)
+                if (xj != 0.0) denseKernels.axpy(x, xOff + j + 1, -xj, a, base + 1, n - j - 1)
             }
         } else { // back substitution: finalize x[j], then push it up column j
             for (j in n - 1 downTo 0) {
                 val xj = if (unitDiag) x[xOff + j] else x[xOff + j] / a[j + j * lda]
                 x[xOff + j] = xj
-                if (xj != 0.0) denseAxpy(x, xOff, -xj, a, j * lda, j)
+                if (xj != 0.0) denseKernels.axpy(x, xOff, -xj, a, j * lda, j)
             }
         }
     } else {
         if (lower) { // Tᵀ is upper: back substitution, dotting column i of T behind the frontier
             for (i in n - 1 downTo 0) {
                 val base = i + i * lda
-                val s = x[xOff + i] - denseDot(a, base + 1, x, xOff + i + 1, n - i - 1)
+                val s = x[xOff + i] - denseKernels.dot(a, base + 1, x, xOff + i + 1, n - i - 1)
                 x[xOff + i] = if (unitDiag) s else s / a[base]
             }
         } else { // Tᵀ is lower: forward substitution, dotting column i of T behind the frontier
             for (i in 0 until n) {
-                val s = x[xOff + i] - denseDot(a, i * lda, x, xOff, i)
+                val s = x[xOff + i] - denseKernels.dot(a, i * lda, x, xOff, i)
                 x[xOff + i] = if (unitDiag) s else s / a[i + i * lda]
             }
         }

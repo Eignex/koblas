@@ -376,7 +376,7 @@ interface Lapack : Backend {
             val len = n - j
             for (p in 0 until j) {
                 val f = ld[j + p * n]
-                if (f != 0.0) denseAxpy(ld, base, -f, ld, j + p * n, len)
+                if (f != 0.0) denseKernels.axpy(ld, base, -f, ld, j + p * n, len)
             }
             val pivot = ld[base]
             if (pivot <= 0.0 || pivot.isNaN()) {
@@ -398,8 +398,8 @@ interface Lapack : Backend {
      * Allocates a fresh result vector; [b] is not modified.
      *
      * Forward substitution `L * y = b` is column-oriented: once `y[j]` is final, its contribution is
-     * subtracted from the remaining right-hand side down contiguous column `j` via [denseAxpy]. Back
-     * substitution `LT * x = y` reads row `i` of `LT`, which is column `i` of `L`, so it uses [denseDot]
+     * subtracted from the remaining right-hand side down contiguous column `j` via [VectorKernels.axpy]. Back
+     * substitution `LT * x = y` reads row `i` of `LT`, which is column `i` of `L`, so it uses [VectorKernels.dot]
      * on the same contiguous runs.
      */
     fun solveSpd(L: DenseMatrix, b: DoubleArray): DoubleArray {
@@ -433,13 +433,13 @@ interface Lapack : Backend {
                 val base = c + c * n
                 val yc = y[c] / ld[base]
                 y[c] = yc
-                if (yc != 0.0) denseAxpy(y, c + 1, -yc, ld, base + 1, n - c - 1)
+                if (yc != 0.0) denseKernels.axpy(y, c + 1, -yc, ld, base + 1, n - c - 1)
             }
             // Lᵀ x = y, restricted to rows >= j; column i of L is row i of Lᵀ, so this dots behind the
             // frontier.
             for (i in n - 1 downTo j) {
                 val base = i + i * n
-                y[i] = (y[i] - denseDot(ld, base + 1, y, i + 1, n - i - 1)) / ld[base]
+                y[i] = (y[i] - denseKernels.dot(ld, base + 1, y, i + 1, n - i - 1)) / ld[base]
             }
             for (i in j until n) {
                 invd[i + j * n] = y[i]

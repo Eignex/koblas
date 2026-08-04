@@ -15,7 +15,7 @@ import com.eignex.koblas.Workspace
 // read nor written. Column `k` of the factor is therefore the contiguous run
 // `data[k + k * rows until (k + 1) * rows]`.
 //
-// Inner loops reduce to [denseDot] / [denseAxpy] on contiguous column runs (SIMD
+// Inner loops reduce to [VectorKernels.dot] / [VectorKernels.axpy] on contiguous column runs (SIMD
 // on JVM).
 
 /**

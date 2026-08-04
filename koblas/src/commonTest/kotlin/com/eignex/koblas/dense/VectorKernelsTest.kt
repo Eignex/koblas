@@ -8,6 +8,7 @@ import com.eignex.koblas.axpy
 import com.eignex.koblas.dispatchThresholds
 import com.eignex.koblas.dot
 import com.eignex.koblas.iamax
+import com.eignex.koblas.mathBackend
 import com.eignex.koblas.norm2
 import com.eignex.koblas.scale
 import kotlin.math.abs
@@ -170,6 +171,109 @@ class VectorKernelsTest {
         assertEquals(strong, vectorKernelSeam.active, "clearing the override should fall back to registration")
         resetRegisteredVectorKernels()
         assertEquals(null, vectorKernelSeam.active, "a cleared registry must fall back to the built-in kernels")
+    }
+
+    /**
+     * The compiled-in kernels satisfy the interface, which is the whole point of the change and could not
+     * be asserted before: they were loose `expect fun`s, so there was no object to hand to a conformance
+     * check and no way to state that they and a host backend are the same kind of thing.
+     *
+     * Everything runs over an offset window rather than a whole array, because the `(offset, length)`
+     * contract is the part an implementation gets wrong.
+     */
+    @Test
+    fun `the compiled-in kernels satisfy the VectorKernels contract`() {
+        val k: VectorKernels = PlatformVectorKernels
+        assertTrue(k.name.isNotEmpty(), "the kernels must name themselves; mathBackend reports it")
+
+        val a = DoubleArray(40) { it * 0.5 - 3.0 }
+        val b = DoubleArray(40) { 1.0 / (it + 1) }
+        val off = 5
+        val len = 21 // deliberately not a lane multiple, so the scalar tail runs too
+
+        var dot = 0.0
+        for (i in off until off + len) dot += a[i] * b[i]
+        assertEquals(dot, k.dot(a, off, b, off, len), absoluteTolerance = 1e-12)
+
+        var asum = 0.0
+        for (i in off until off + len) asum += abs(a[i])
+        assertEquals(asum, k.asum(a, off, len), absoluteTolerance = 1e-12)
+
+        var sq = 0.0
+        for (i in off until off + len) sq += a[i] * a[i]
+        assertEquals(sqrt(sq), k.nrm2(a, off, len), absoluteTolerance = 1e-12)
+
+        val y = a.copyOf()
+        k.axpy(y, off, 2.0, b, off, len)
+        for (i in a.indices) {
+            val want = if (i in off until off + len) a[i] + 2.0 * b[i] else a[i]
+            assertEquals(want, y[i], absoluteTolerance = 1e-12, message = "axpy touched outside its window at $i")
+        }
+
+        val v = a.copyOf()
+        k.scale(v, off, 3.0, len)
+        for (i in a.indices) {
+            val want = if (i in off until off + len) a[i] * 3.0 else a[i]
+            assertEquals(want, v[i], absoluteTolerance = 1e-12, message = "scale touched outside its window at $i")
+        }
+    }
+
+    /**
+     * `dot4` is the one member with a default, so both halves of that need pinning: the default (four [dot]
+     * calls, which is what a host backend inherits) and the platform override (one pass sharing the `b`
+     * loads) must agree, and both must agree with four hand-written dots.
+     */
+    @Test
+    fun `the dot4 default and the platform override agree`() {
+        val a = DoubleArray(4 * 30) { it * 0.25 - 5.0 }
+        val b = DoubleArray(30) { 2.0 - it * 0.1 }
+        val stride = 30
+        val len = 23 // shorter than the stride, so a correct implementation reads only part of each column
+
+        val expected = DoubleArray(4)
+        for (r in 0 until 4) {
+            var s = 0.0
+            for (i in 0 until len) s += a[r * stride + i] * b[i]
+            expected[r] = s
+        }
+
+        // The interface default. Recording implements the five required members and not dot4, so it
+        // inherits it -- and being a counter, it also proves the default is four `dot` calls rather than
+        // some other route. Delegating with `by PlatformVectorKernels` would NOT work here: delegation
+        // forwards every member including the defaulted one, so it would silently test the override twice.
+        val inherited = Recording()
+        val viaDefault = DoubleArray(4)
+        inherited.dot4(a, 0, stride, b, 0, len, viaDefault, 0)
+        assertEquals(4, inherited.dots, "the default must reach dot once per column")
+
+        val viaPlatform = DoubleArray(4)
+        PlatformVectorKernels.dot4(a, 0, stride, b, 0, len, viaPlatform, 0)
+
+        for (r in 0 until 4) {
+            assertEquals(expected[r], viaDefault[r], absoluteTolerance = 1e-12, message = "default row $r")
+            assertEquals(expected[r], viaPlatform[r], absoluteTolerance = 1e-12, message = "platform row $r")
+        }
+    }
+
+    /** The rescaling contract the interface states: a plain sum of squares would overflow here. */
+    @Test
+    fun `the compiled-in nrm2 survives components that square out of range`() {
+        val big = doubleArrayOf(3e200, 4e200)
+        assertEquals(5e200, PlatformVectorKernels.nrm2(big, 0, 2), absoluteTolerance = 1e188)
+        val tiny = doubleArrayOf(3e-200, 4e-200)
+        assertEquals(5e-200, PlatformVectorKernels.nrm2(tiny, 0, 2), absoluteTolerance = 1e-212)
+    }
+
+    /** With nothing registered the routed kernels are the platform ones, and mathBackend says so. */
+    @Test
+    fun `the routed kernels report the platform name and gain a suffix for a host`() {
+        resetRegisteredVectorKernels()
+        assertEquals(PlatformVectorKernels.name, denseKernels.name)
+        assertEquals(denseKernels.name, mathBackend, "mathBackend is the routed kernels' name")
+        registerVectorKernels(Recording(priority = 90))
+        assertEquals("${PlatformVectorKernels.name}+recording", denseKernels.name)
+        resetRegisteredVectorKernels()
+        assertEquals(PlatformVectorKernels.name, denseKernels.name)
     }
 
     /** The reset hook clears the override too, not only the registration — the same contract the matrix
