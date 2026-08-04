@@ -62,8 +62,10 @@ class SerializationTest {
     }
 
     // Note: DenseMatrix serializes to a bare 2D JSON array (the readable, stable wire form), which cannot
-    // carry a polymorphic type discriminator — so MatrixView is serialized via its concrete DenseMatrix
-    // type (above), not polymorphically. VectorView's object subtypes do support polymorphism (below).
+    // carry a polymorphic type discriminator — so a DenseMatrix must be serialized via its concrete type
+    // (above), not through MatrixView. SparseMatrix encodes as an object and does not share the
+    // limitation, which makes MatrixView polymorphism work for one subtype and not the other; VectorView
+    // has no such split, since both its subtypes encode as objects.
 
     @Test
     fun `VectorView round-trips polymorphically preserving dense and sparse types`() {
@@ -79,5 +81,56 @@ class SerializationTest {
         assertTrue(backSparse is SparseVector)
         assertEquals(dense, backDense)
         assertEquals(sparse, backSparse)
+    }
+
+    @Test
+    fun `SparseMatrix round-trips through its CSC arrays`() {
+        for (a in listOf(
+            SparseMatrix.ofColumns(3, 2, listOf(listOf(0 to 1.0, 2 to 3.0), listOf(1 to 2.0))),
+            SparseMatrix(2, 1, intArrayOf(0, 1), intArrayOf(1), doubleArrayOf(0.0)), // a stored zero
+            SparseMatrix(0, 0, intArrayOf(0), IntArray(0), DoubleArray(0)),
+            SparseMatrix(4, 3, intArrayOf(0, 0, 0, 0), IntArray(0), DoubleArray(0)), // all-empty columns
+        )) {
+            val back = json.decodeFromString(
+                SparseMatrix.serializer(),
+                json.encodeToString(SparseMatrix.serializer(), a),
+            )
+            assertEquals(a, back, "round-trip changed $a")
+        }
+    }
+
+    /**
+     * The shape a sparse matrix takes on the wire is its CSC arrays, not a densified grid.
+     *
+     * Worth pinning: encoding it like DenseMatrix does — as rows — would cost `rows × cols` for a matrix
+     * whose whole purpose is to avoid that, and would silently lose which zeros were stored.
+     */
+    @Test
+    fun `SparseMatrix encodes its structure rather than a dense grid`() {
+        val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(1 to 5.0), emptyList()))
+        val encoded = json.encodeToString(SparseMatrix.serializer(), a)
+        assertTrue(encoded.contains("colPtr"), "expected the CSC arrays in $encoded")
+        assertTrue(encoded.contains("rowIdx"), "expected the CSC arrays in $encoded")
+        assertTrue("0.0" !in encoded, "a structural zero leaked into the payload: $encoded")
+    }
+
+    /**
+     * A [SparseMatrix] round-trips through the sealed [MatrixView] root, discriminator and all.
+     *
+     * A [DenseMatrix] does not, and that asymmetry is a known limitation rather than an oversight here:
+     * its wire form is a bare 2D array chosen for readability, and a bare array has nowhere to put the
+     * type tag a polymorphic decode needs. So [MatrixView] polymorphism works for the storage whose wire
+     * form is an object and fails for the one whose form is an array. Fixing it means changing
+     * DenseMatrix's payload shape, which is a wire-format decision, not a serialization bug — see the note
+     * above. [VectorView] has no such split, since both its subtypes encode as objects.
+     */
+    @Test
+    fun `SparseMatrix round-trips polymorphically through MatrixView`() {
+        val sparse: MatrixView = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 2.0)))
+        val encoded = json.encodeToString(MatrixView.serializer(), sparse)
+        assertTrue(encoded.contains("SparseMatrix"), "expected a type discriminator in $encoded")
+        val back = json.decodeFromString(MatrixView.serializer(), encoded)
+        assertTrue(back is SparseMatrix, "sparse storage was not preserved")
+        assertEquals(sparse, back)
     }
 }
