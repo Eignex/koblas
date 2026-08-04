@@ -157,12 +157,13 @@ Workspace: a pool of vectors keyed by width, which you create and hand over.
 Operations borrow and return buffers, so nesting is safe and one workspace
 serves whatever dimensions a caller mixes; pools grow on demand, and reserve
 pays that cost up front. It is accepted wherever a routine needs temporaries:
-rcond and norm1, which are called together to decide whether a factorization
-is still accurate enough to reuse, the syrk mirror buffer (an n² scratch, the
-largest in the library), ldl, qr, invertSpd, and the blocked multi-RHS solves'
-staging. An EtaBasis owns its
-scratch
-instead, being mutable already, so its solves need no workspace at all.
+rcond, the syrk mirror buffer (an n² scratch, the largest in the library), ldl,
+qr, invertSpd, and the blocked multi-RHS solves' staging. norm1 is the routine
+you call alongside rcond to decide whether a factorization is still accurate
+enough to reuse, but it takes no workspace and needs none: a column is
+contiguous under column-major storage, so each column sum finishes before the
+next begins and one accumulator suffices. An EtaBasis owns its scratch instead,
+being mutable already, so its solves need no workspace at all.
 
 ```kotlin
 val ws = Workspace().apply { reserve(n, count = 5) }
