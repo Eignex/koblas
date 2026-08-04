@@ -13,6 +13,18 @@ import kotlinx.serialization.Serializable
  * (matrix–vector products, LU factorization) consume directly — and, since [DenseMatrix] became
  * column-major, the axis both storages agree is contiguous.
  *
+ * The invariants are not arbitrary: they are what a host sparse solver requires. UMFPACK states them
+ * verbatim — `Ap[0]` zero, `Ap[j] <= Ap[j+1]`, row indices ascending within a column with no duplicates,
+ * 0-based and in range — so this backing passes to `umfpack_di_*` with no repacking. KLU takes the same
+ * `(n, Ap, Ai)` with `int32_t` arrays. CHOLMOD wraps it as a `cholmod_sparse` with `packed = 1`,
+ * `sorted = 1`, `stype = 0` (both triangles stored, which is what koblas does) and `itype = CHOLMOD_INT`.
+ * Checked against the 7.x headers rather than remembered.
+ *
+ * Two mismatches remain for a future binding, neither structural. A library built for 64-bit indices
+ * wants the `umfpack_dl_*` family and a widening copy, the sparse counterpart of the LP64/ILP64 split the
+ * dense backend already documents. And an explicitly stored zero is part of the value here — equality
+ * distinguishes it — where a host library may drop it, so a round-trip through one can lose pattern.
+ *
  * A [MatrixView] like the dense one, so anything written against the view contract accepts either. The
  * two access costs differ though, and the difference is not small: [get] searches a column rather than
  * indexing, and [toArray] densifies. Code that wants the sparsity should reach for [forEachInColumn].
