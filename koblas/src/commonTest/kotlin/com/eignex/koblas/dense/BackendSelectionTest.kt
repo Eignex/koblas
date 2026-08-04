@@ -31,12 +31,10 @@ class BackendSelectionTest {
      */
     private fun withCleanRegistry(block: () -> Unit) {
         val incumbent = koblas.takeIf { it !== ReferenceLinearAlgebra }
-        installLinearAlgebra(null)
         resetRegisteredLinearAlgebra()
         try {
             block()
         } finally {
-            installLinearAlgebra(null)
             resetRegisteredLinearAlgebra()
             incumbent?.let { registerLinearAlgebra(it) }
         }
@@ -99,6 +97,20 @@ class BackendSelectionTest {
             // without a second hop.
             assertSame(both, koblas)
             assertEquals("whole", koblas.name)
+        }
+    }
+
+    /**
+     * The reset hook clears the install override as well as the registration. It did not always: the dense
+     * one left an install in place while the sparse one cleared it, so the same call meant two different
+     * things depending on which seam you were testing. `VectorKernelsTest` pins the level-1 half.
+     */
+    @Test
+    fun `the reset hook clears the install override too`() {
+        withCleanRegistry {
+            installLinearAlgebra(Fake("manual", -1))
+            resetRegisteredLinearAlgebra()
+            assertTrue(koblas === ReferenceLinearAlgebra, "reset must clear the override, not just registration")
         }
     }
 

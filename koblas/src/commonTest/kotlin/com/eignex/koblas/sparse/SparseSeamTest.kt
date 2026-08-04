@@ -91,13 +91,19 @@ class SparseSeamTest {
     }
 
     @AfterTest
-    fun restore() = resetRegisteredSparse()
+    fun restore() = resetAll()
+
+    /** Both sparse seams at once. Two hooks rather than one, mirroring the dense side exactly. */
+    private fun resetAll() {
+        resetRegisteredSparseLinearAlgebra()
+        resetRegisteredSparseVectorKernels()
+    }
 
     private fun sparse() = SparseVector.of(6, intArrayOf(1, 4), doubleArrayOf(2.0, -3.0))
 
     @Test
     fun `every public sparse vector operation reaches the registered kernels`() {
-        resetRegisteredSparse()
+        resetAll()
         val kernels = CountingVectorKernels()
         registerSparseVectorKernels(kernels)
         val x = sparse()
@@ -122,7 +128,7 @@ class SparseSeamTest {
 
     @Test
     fun `a dense-only operation does not reach the sparse kernels`() {
-        resetRegisteredSparse()
+        resetAll()
         val kernels = CountingVectorKernels()
         registerSparseVectorKernels(kernels)
         val a = DenseVector.of(doubleArrayOf(1.0, 2.0))
@@ -135,7 +141,7 @@ class SparseSeamTest {
 
     @Test
     fun `the matrix product and the factorization reach their halves`() {
-        resetRegisteredSparse()
+        resetAll()
         val blas = CountingSparseBlas()
         val lapack = CountingSparseLapack()
         registerSparseBlas(blas)
@@ -153,12 +159,12 @@ class SparseSeamTest {
 
     @Test
     fun `the halves compose and report both names`() {
-        resetRegisteredSparse()
+        resetAll()
         registerSparseBlas(CountingSparseBlas())
         registerSparseLapack(CountingSparseLapack())
         assertEquals("counting-blas+counting-lapack", sparseKoblas.name)
         // One object registered as both is used directly rather than wrapped.
-        resetRegisteredSparse()
+        resetAll()
         registerSparseLinearAlgebra(ReferenceSparseLinearAlgebra)
         assertEquals("reference", sparseKoblas.name)
         assertTrue(sparseKoblas === ReferenceSparseLinearAlgebra, "a single backend should not be composed")
@@ -166,7 +172,7 @@ class SparseSeamTest {
 
     @Test
     fun `registration keeps the highest priority and install overrides both`() {
-        resetRegisteredSparse()
+        resetAll()
         val weak = CountingVectorKernels(priority = 10)
         val strong = CountingVectorKernels(priority = 200)
         registerSparseVectorKernels(strong)
@@ -177,13 +183,13 @@ class SparseSeamTest {
         assertTrue(sparseVectorKernels === override, "install must win regardless of priority")
         installSparseVectorKernels(null)
         assertTrue(sparseVectorKernels === strong, "clearing the override falls back to registration")
-        resetRegisteredSparse()
+        resetAll()
         assertTrue(sparseVectorKernels === ReferenceSparseLinearAlgebra, "an empty registry means the reference")
     }
 
     @Test
     fun `an empty registry resolves to the reference on both seams`() {
-        resetRegisteredSparse()
+        resetAll()
         assertTrue(sparseKoblas === ReferenceSparseLinearAlgebra)
         assertTrue(sparseVectorKernels === ReferenceSparseLinearAlgebra)
         assertEquals("sparse=reference, sparseVector=reference", sparseKoblasInfo)

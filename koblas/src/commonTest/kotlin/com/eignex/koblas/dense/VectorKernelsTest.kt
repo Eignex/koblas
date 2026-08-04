@@ -162,13 +162,23 @@ class VectorKernelsTest {
         val strong = Recording(priority = 200)
         registerVectorKernels(strong)
         registerVectorKernels(weak)
-        assertEquals(strong, activeVectorKernels, "a weaker registration displaced a stronger one")
+        assertEquals(strong, vectorKernelSeam.active, "a weaker registration displaced a stronger one")
         val override = Recording(priority = 0)
         installVectorKernels(override)
-        assertEquals(override, activeVectorKernels, "install must win regardless of priority")
+        assertEquals(override, vectorKernelSeam.active, "install must win regardless of priority")
         installVectorKernels(null)
-        assertEquals(strong, activeVectorKernels, "clearing the override should fall back to registration")
+        assertEquals(strong, vectorKernelSeam.active, "clearing the override should fall back to registration")
         resetRegisteredVectorKernels()
-        assertEquals(null, activeVectorKernels, "a cleared registry must fall back to the built-in kernels")
+        assertEquals(null, vectorKernelSeam.active, "a cleared registry must fall back to the built-in kernels")
+    }
+
+    /** The reset hook clears the override too, not only the registration — the same contract the matrix
+     *  seams have, which the two sides used to disagree on. */
+    @Test
+    fun `the reset hook clears the install override too`() {
+        resetRegisteredVectorKernels()
+        installVectorKernels(Recording(priority = 0))
+        resetRegisteredVectorKernels()
+        assertEquals(null, vectorKernelSeam.active, "reset must clear the level-1 override, not just registration")
     }
 }

@@ -7,6 +7,7 @@ import com.eignex.koblas.dense.lu
 import com.eignex.koblas.dense.solve
 import com.eignex.koblas.dense.solveSpd
 import com.eignex.koblas.sparse.EtaBasis
+import com.eignex.koblas.sparse.gemv
 import com.eignex.koblas.sparse.lu
 import kotlin.random.Random
 import kotlin.test.Test

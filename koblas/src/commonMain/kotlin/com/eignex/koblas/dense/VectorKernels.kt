@@ -2,7 +2,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.Backend
 import com.eignex.koblas.DispatchThresholds
-import kotlin.concurrent.Volatile
+import com.eignex.koblas.Seam
 
 /**
  * The level-1 kernels — `dot`, `axpy`, `scale` — as a registered backend half, alongside [Blas] and
@@ -19,8 +19,9 @@ import kotlin.concurrent.Volatile
  * reference supplies a default for each. Level 1 cannot join them: the default *is* the compiled-in
  * primitive, not an object, and [ReferenceLinearAlgebra] deliberately does not implement this interface.
  * If it did, `dot` would resolve to a reference implementation that itself calls `dot`, which is a
- * recursion rather than a fallback. So the three halves share the registration verb, the priority
- * ranking, the threshold table and the diagnostics, while level 1 keeps a `null`-means-built-in default.
+ * recursion rather than a fallback. So all three halves share one [Seam] — the same registration verb, the
+ * same priority ranking, the same threshold table and diagnostics — and level 1 differs only in reading
+ * that seam's nullable [Seam.active] directly, where `null` means the built-in kernel.
  *
  * ### What is not here, and why
  *
@@ -59,58 +60,4 @@ interface VectorKernels : Backend {
 
     /** `Sum |v[vOff..vOff+len-1]|`, with `len >= 1` (BLAS `dasum`). */
     fun asum(v: DoubleArray, vOff: Int, len: Int): Double
-}
-
-/**
- * The level-1 backend the primitives route to, or null when the built-in kernels are in use.
- *
- * A plain field rather than a function or a lazy value, because every `dot` in the library reads it. The
- * primitives test it *before* comparing lengths: on a target where nothing is ever registered — the JVM,
- * iOS, Wasm — that makes the whole seam one always-null field read, cheaper than resolving a threshold
- * would be. See [denseDot] for the ordering.
- */
-@Volatile
-internal var activeVectorKernels: VectorKernels? = null
-    private set
-
-@Volatile
-private var installedLevel1: VectorKernels? = null
-
-@Volatile
-private var registeredLevel1: VectorKernels? = null
-
-private fun recomposeLevel1() {
-    activeVectorKernels = installedLevel1 ?: registeredLevel1
-}
-
-/**
- * Overrides which [VectorKernels] the primitives use, taking precedence over [registerVectorKernels]. Passing null
- * restores automatic selection, and clearing both restores the built-in kernels.
- *
- * The counterpart of [installLinearAlgebra] for this half. Not thread-safe against concurrent level-1
- * calls: install during startup, before other threads run.
- */
-fun installVectorKernels(backend: VectorKernels?) {
-    installedLevel1 = backend
-    recomposeLevel1()
-}
-
-/**
- * Offers [backend] for automatic selection, ranked by [Backend.priority] against other registered level-1
- * backends. This is how koblas activates the host kernels on the targets that can reach a host BLAS; see
- * [registerBlas] for the same mechanism on the other halves.
- */
-fun registerVectorKernels(backend: VectorKernels) {
-    val current = registeredLevel1
-    if (current == null || backend.priority > current.priority) {
-        registeredLevel1 = backend
-        recomposeLevel1()
-    }
-}
-
-/** Test hook: clears level-1 registration so selection tests are order-independent. */
-internal fun resetRegisteredVectorKernels() {
-    installedLevel1 = null
-    registeredLevel1 = null
-    recomposeLevel1()
 }

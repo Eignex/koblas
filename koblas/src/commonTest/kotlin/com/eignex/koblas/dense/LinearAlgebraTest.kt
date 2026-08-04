@@ -1,7 +1,9 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.lapackFailedAt
 import com.eignex.koblas.wellConditioned
 import kotlin.random.Random
 import kotlin.test.Test
@@ -65,6 +67,32 @@ class LinearAlgebraTest {
         val a = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 4.0))) // rank 1
         assertTrue(a.lu().singular)
         assertTrue(DenseMatrix.of(arrayOf(doubleArrayOf(0.0))).lu().singular)
+    }
+
+    /**
+     * `failedAt` reports *where* the factorization broke down, which the sparse side has always carried and
+     * the dense side used to compute and discard. The position is the first zero pivot, matching what
+     * `dgetrf` returns in `info`: an all-zero matrix has several, and picking the last one would be just as
+     * easy to implement and wrong.
+     */
+    @Test
+    fun `factor reports the first zero pivot position`() {
+        assertEquals(NOT_SINGULAR, DenseMatrix.diagonal(3).lu().failedAt, "a good factorization has no position")
+        // Rank 1: after the row swap the second pivot cancels to exactly zero.
+        val rank1 = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 4.0)))
+        assertEquals(1, rank1.lu().failedAt)
+        assertEquals(0, DenseMatrix.of(arrayOf(doubleArrayOf(0.0))).lu().failedAt)
+        assertEquals(0, DenseMatrix(3, 3).lu().failedAt, "the first of three zero pivots, not the last")
+    }
+
+    /** The `info`-to-position translation every LAPACK-backed backend shares: `info` is 1-based, and
+     *  non-positive means no singularity to report. */
+    @Test
+    fun `lapackFailedAt converts an info return`() {
+        assertEquals(NOT_SINGULAR, lapackFailedAt(0))
+        assertEquals(0, lapackFailedAt(1))
+        assertEquals(4, lapackFailedAt(5))
+        assertEquals(NOT_SINGULAR, lapackFailedAt(-3), "an illegal-argument report is not a singularity")
     }
 
     @Test

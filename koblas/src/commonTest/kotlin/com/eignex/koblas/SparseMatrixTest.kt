@@ -1,5 +1,6 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.sparse.gemv
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith

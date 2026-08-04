@@ -1,8 +1,8 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.dispatchThresholds
+import com.eignex.koblas.euclideanNorm
 import kotlin.math.abs
-import kotlin.math.sqrt
 
 // Dense-vector primitives - `internal` building blocks that higher-level ops (`dot`, `axpy`, `gemv`,
 // `cholesky`, the eta updates) call on contiguous `DoubleArray` runs.
@@ -19,7 +19,7 @@ import kotlin.math.sqrt
 // BLAS - which is what it used to be, at the cost of two extra source sets and a `denseDot` that meant
 // something structurally different per target.
 //
-// Ordering matters. The [activeVectorKernels] field is tested first and the length second, so a target where
+// Ordering matters. The [vectorKernelSeam] backend is tested first and the length second, so a target where
 // nothing is ever registered pays one always-null field read and no threshold resolution at all. Reading
 // the threshold first would be worse: it lives behind a `lazy`, so it would cost an initialization check
 // on a path where the whole kernel is a few nanoseconds.
@@ -29,7 +29,7 @@ import kotlin.math.sqrt
 
 /** `Sum a[aOff..aOff+len-1] * b[bOff..bOff+len-1]`. */
 internal fun denseDot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
-    val l1 = activeVectorKernels
+    val l1 = vectorKernelSeam.active
     if (l1 != null && len >= dispatchThresholds.level1) return l1.dot(a, aOff, b, bOff, len)
     return platformDot(a, aOff, b, bOff, len)
 }
@@ -37,7 +37,7 @@ internal fun denseDot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len:
 /** `y[yOff..] = y[yOff..] + alpha * x[xOff..]`. */
 internal fun denseAxpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
     if (alpha == 0.0) return
-    val l1 = activeVectorKernels
+    val l1 = vectorKernelSeam.active
     if (l1 != null && len >= dispatchThresholds.level1) {
         l1.axpy(y, yOff, alpha, x, xOff, len)
         return
@@ -48,7 +48,7 @@ internal fun denseAxpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray,
 /** `v[vOff..vOff+len-1] = alpha * v[..]`. */
 internal fun denseScale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
     if (alpha == 1.0) return
-    val l1 = activeVectorKernels
+    val l1 = vectorKernelSeam.active
     if (l1 != null && len >= dispatchThresholds.level1) {
         l1.scale(v, vOff, alpha, len)
         return
@@ -67,36 +67,14 @@ internal fun denseScale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
  * target and only the runtime route differs.
  */
 internal fun denseNrm2(v: DoubleArray, vOff: Int, len: Int): Double {
-    val l1 = activeVectorKernels
+    val l1 = vectorKernelSeam.active
     if (l1 != null && len >= dispatchThresholds.level1) return l1.nrm2(v, vOff, len)
-    var s = 0.0
-    for (i in 0 until len) {
-        val x = v[vOff + i]
-        s += x * x
-    }
-    if (s.isFinite() && s >= MIN_NORMAL) return sqrt(s)
-    // Rescale pass: factor out the largest magnitude so the squares stay in range.
-    var amax = 0.0
-    for (i in 0 until len) {
-        val a = abs(v[vOff + i])
-        if (a > amax) amax = a
-    }
-    // All-zero (0.0), NaN anywhere (NaN), or an infinite component (Inf) resolve through the raw sum.
-    if (amax == 0.0 || amax.isInfinite()) return sqrt(s)
-    var t = 0.0
-    for (i in 0 until len) {
-        val r = v[vOff + i] / amax
-        t += r * r
-    }
-    return amax * sqrt(t)
+    return euclideanNorm(v, vOff, len)
 }
-
-/** Smallest normal double; a squares-sum below this has lost precision to underflow. */
-private const val MIN_NORMAL = 2.2250738585072014e-308
 
 /** `Sum |v[vOff..vOff+len-1]|` (BLAS `dasum`). No compile-time leaf, for the reason [denseNrm2] gives. */
 internal fun denseAsum(v: DoubleArray, vOff: Int, len: Int): Double {
-    val l1 = activeVectorKernels
+    val l1 = vectorKernelSeam.active
     if (l1 != null && len >= dispatchThresholds.level1) return l1.asum(v, vOff, len)
     var s = 0.0
     for (i in 0 until len) s += abs(v[vOff + i])

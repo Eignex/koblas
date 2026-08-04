@@ -2,6 +2,7 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.sparse.SparseLu
+import com.eignex.koblas.sparse.gemv
 import com.eignex.koblas.sparse.lu
 import kotlin.random.Random
 import kotlinx.benchmark.Benchmark

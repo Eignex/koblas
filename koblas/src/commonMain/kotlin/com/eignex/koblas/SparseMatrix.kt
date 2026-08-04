@@ -1,7 +1,5 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.sparse.SparseBlas
-import com.eignex.koblas.sparse.sparseKoblas
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -25,6 +23,10 @@ import kotlinx.serialization.Serializable
  * wants the `umfpack_dl_*` family and a widening copy, the sparse counterpart of the LP64/ILP64 split the
  * dense backend already documents. And an explicitly stored zero is part of the value here — equality
  * distinguishes it — where a host library may drop it, so a round-trip through one can lose pattern.
+ *
+ * Arithmetic lives on the sparse seam rather than here, as it does for [DenseMatrix]: the products are
+ * `com.eignex.koblas.sparse.SparseBlas` methods, reachable as `gemv`/`lu` extensions, so a container stays
+ * storage and does not depend on which backend is installed.
  *
  * A [MatrixView] like the dense one, so anything written against the view contract accepts either. The
  * two access costs differ though, and the difference is not small: [get] searches a column rather than
@@ -137,15 +139,6 @@ class SparseMatrix(
     }
 
     override fun toString(): String = "SparseMatrix(${rows}x$cols, nnz=$nnz)"
-
-    /**
-     * Matrix-vector product `A · x` (length [rows]), or `Aᵀ · x` (length [cols]) when [transpose].
-     *
-     * The member spelling of [SparseBlas.gemv], forwarding to the active backend — the same arrangement
-     * the dense side uses, where `trsv` and friends exist as both interface members and free functions so
-     * a call site can read whichever way suits it. The arithmetic lives on the seam, not here.
-     */
-    fun gemv(x: DoubleArray, transpose: Boolean = false): DoubleArray = sparseKoblas.gemv(this, x, transpose)
 
     /** Factories for CSC matrices. */
     companion object {

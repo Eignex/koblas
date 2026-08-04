@@ -117,6 +117,15 @@ built on them, and LinearAlgebra is the Blas and Lapack pair. All three are rank
 host providing one library and not the other still accelerates what it can, and
 koblas composes the winning halves.
 
+The sparse seam mirrors it one for one -- SparseVectorKernels, SparseBlas,
+SparseLapack, SparseLinearAlgebra -- with the same verbs (registerSparseBlas,
+installSparseLinearAlgebra), the same priority ranking, and the same fallback to
+a portable reference. Knowing one side is knowing the other, and the two
+registries are the same file in two packages over one shared Seam type. Where
+they genuinely differ is documented at the declaration: the sparse level-1
+kernels have no length threshold, and a sparse factorization is an interface
+rather than a class because no host solver will describe its factors.
+
 Each group above names the interface its routines belong to, and a member
 reaches the installed backend; determinant and norm1 are the two plain functions
 here, marked as such. Members also have a free-function spelling of the
@@ -183,7 +192,9 @@ kernels do not, so they are specialized at compile time -- the JVM uses the
 incubator Vector API when started with `--add-modules=jdk.incubator.vector`, and
 the other targets use scalar loops -- and reach a registered VectorKernels backend only
 for runs at least as long as the level 1 threshold, 64 elements on the native
-targets. Every inner loop bottoms out here, including the sparse kernels.
+targets. Every dense inner loop bottoms out here. The sparse kernels have their
+own seam and their own reference, and consult it unconditionally -- there is no
+compiled-in sparse primitive for a foreign call to have to beat.
 
 Each threshold has a name and an override: `koblas.dispatch.level1` and its
 level2, level3 and lapack counterparts, as a JVM system property or as
