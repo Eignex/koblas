@@ -1,9 +1,9 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 plugins {
-    kotlin("multiplatform") version "2.3.20"
-    kotlin("plugin.allopen") version "2.3.20"
-    id("org.jetbrains.kotlinx.benchmark") version "0.4.13"
+    kotlin("multiplatform") version "2.4.10"
+    kotlin("plugin.allopen") version "2.4.10"
+    id("org.jetbrains.kotlinx.benchmark") version "0.4.17"
 }
 
 repositories {
@@ -28,10 +28,10 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(project(":koblas"))
-            implementation("org.jetbrains.kotlinx:kotlinx-benchmark-runtime:0.4.13")
+            implementation("org.jetbrains.kotlinx:kotlinx-benchmark-runtime:0.4.17")
             // koblas keeps serialization compileOnly, which the JVM tolerates but the native klib
             // resolver does not: it needs every transitive klib present to generate the harness.
-            implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.10.0")
+            implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0")
         }
         commonTest.dependencies {
             implementation(kotlin("test"))

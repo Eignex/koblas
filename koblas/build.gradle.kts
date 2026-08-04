@@ -5,7 +5,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 plugins {
     id("com.eignex.kmp") version "1.2.7"
-    kotlin("plugin.serialization") version "2.3.20"
+    kotlin("plugin.serialization") version "2.4.10"
 }
 
 eignexPublish {
@@ -26,7 +26,7 @@ kotlin {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_25)
         }
     }
-    js(IR) { browser(); nodejs() }
+    js { browser(); nodejs() }
     wasmJs { browser(); nodejs() }
     wasmWasi { nodejs() }
     linuxX64(); linuxArm64()
@@ -59,11 +59,11 @@ kotlin {
         wasmWasiMain.get().dependsOn(webMain.get())
 
         commonMain.dependencies {
-            compileOnly("org.jetbrains.kotlinx:kotlinx-serialization-core:1.10.0")
+            compileOnly("org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0")
         }
         commonTest.dependencies {
-            implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.10.0")
-            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.10.0")
+            implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0")
+            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
         }
     }
 }
