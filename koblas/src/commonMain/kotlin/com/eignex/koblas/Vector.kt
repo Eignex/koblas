@@ -97,8 +97,14 @@ class DenseVector internal constructor(val data: DoubleArray) : VectorView {
  * mispredicted branches and indirect indexing. Internal ops iterate via
  * [forEachStored] and skip [get] entirely.
  *
- * Indices are not required to be sorted; the constructor only checks the parallel-
- * array invariant.
+ * Indices are strictly ascending and in range, validated by the constructor. Three things depend on it:
+ * [get] binary-searches rather than scanning, a sparse-against-sparse `dot` merges the two index lists in
+ * one pass instead of looking each position up, and the storage order that `forEachStored` and `iamax`
+ * expose becomes index order — so a tie in `iamax` resolves to the lowest index, the same rule the dense
+ * vector follows. Strict ascent also rules out duplicate indices, which would otherwise leave [get] and
+ * `forEachStored` disagreeing about the value at a position.
+ *
+ * [of] is the forgiving entry point: it sorts and sums duplicates, mirroring `SparseMatrix.ofColumns`.
  *
  * @property size the logical length (including stored zeros).
  * @property indices the positions of the stored entries.
@@ -113,10 +119,27 @@ class SparseVector internal constructor(override val size: Int, val indices: Int
         require(indices.size == values.size) {
             "indices/values must align: ${indices.size} vs ${values.size}"
         }
+        for (k in indices.indices) {
+            require(indices[k] in 0 until size) { "indices[$k]=${indices[k]} out of [0,$size)" }
+            require(k == 0 || indices[k - 1] < indices[k]) {
+                "indices must be strictly ascending; found ${indices[k - 1]} then ${indices[k]} at $k"
+            }
+        }
     }
 
+    /** The stored value at [i], or `0.0`. A binary search over the ascending indices, so `O(log nnz)`. */
     override fun get(i: Int): Double {
-        for (k in indices.indices) if (indices[k] == i) return values[k]
+        var lo = 0
+        var hi = indices.size - 1
+        while (lo <= hi) {
+            val mid = (lo + hi) ushr 1
+            val idx = indices[mid]
+            when {
+                idx < i -> lo = mid + 1
+                idx > i -> hi = mid - 1
+                else -> return values[mid]
+            }
+        }
         return 0.0
     }
 
@@ -141,8 +164,32 @@ class SparseVector internal constructor(override val size: Int, val indices: Int
 
     /** Factory entrypoints for [SparseVector]. */
     companion object {
-        /** Build a sparse vector. Copies inputs so the caller can reuse the arrays. */
-        fun of(size: Int, indices: IntArray, values: DoubleArray): SparseVector =
-            SparseVector(size, indices.copyOf(), values.copyOf())
+        /**
+         * Build a sparse vector, sorting by index and summing duplicates. Copies its inputs, so the
+         * caller can reuse the arrays.
+         *
+         * The forgiving counterpart to the constructor, which requires the ordering it relies on. Entries
+         * may arrive in any order; a repeated index contributes the sum of its values, which is what a
+         * scatter of accumulated contributions means.
+         */
+        fun of(size: Int, indices: IntArray, values: DoubleArray): SparseVector {
+            require(indices.size == values.size) {
+                "indices/values must align: ${indices.size} vs ${values.size}"
+            }
+            val order = indices.indices.sortedBy { indices[it] }
+            val idx = IntArray(indices.size)
+            val vals = DoubleArray(values.size)
+            var n = 0
+            for (k in order) {
+                if (n > 0 && idx[n - 1] == indices[k]) {
+                    vals[n - 1] += values[k]
+                } else {
+                    idx[n] = indices[k]
+                    vals[n] = values[k]
+                    n++
+                }
+            }
+            return SparseVector(size, idx.copyOf(n), vals.copyOf(n))
+        }
     }
 }

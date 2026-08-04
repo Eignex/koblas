@@ -116,4 +116,47 @@ class VectorTest {
         val s = SparseVector.of(4, intArrayOf(0, 3), doubleArrayOf(1.0, 1.0)).toString()
         assertTrue("nnz=2" in s)
     }
+
+    /**
+     * The constructor requires strictly ascending, in-range indices.
+     *
+     * [SparseVector.get] binary-searches them, so an unsorted pair would report a stored entry as absent
+     * rather than throwing, and duplicates would leave `get` and `forEachStored` disagreeing about the
+     * value at a position. Decoding a payload runs the same check, so a hand-written one cannot smuggle a
+     * broken vector in.
+     */
+    @Test
+    fun `SparseVector rejects unsorted duplicated or out-of-range indices`() {
+        assertFailsWith<IllegalArgumentException> {
+            SparseVector(4, intArrayOf(2, 0), doubleArrayOf(1.0, 2.0))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            SparseVector(4, intArrayOf(1, 1), doubleArrayOf(1.0, 2.0))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            SparseVector(4, intArrayOf(0, 9), doubleArrayOf(1.0, 2.0))
+        }
+    }
+
+    @Test
+    fun `of sorts by index and sums duplicates`() {
+        val v = SparseVector.of(5, intArrayOf(3, 0, 3), doubleArrayOf(1.0, 2.0, 0.5))
+        assertTrue(intArrayOf(0, 3).contentEquals(v.indices), "indices should be ascending: ${v.indices.toList()}")
+        assertTrue(doubleArrayOf(2.0, 1.5).contentEquals(v.values), "duplicate at 3 should sum to 1.5")
+        assertEquals(2.0, v[0])
+        assertEquals(1.5, v[3])
+        assertEquals(0.0, v[1])
+        // Ascending storage means forEachStored and iamax see index order.
+        val seen = ArrayList<Int>()
+        v.forEachStored { i, _ -> seen.add(i) }
+        assertEquals(listOf(0, 3), seen)
+    }
+
+    @Test
+    fun `get finds every stored entry by binary search`() {
+        val idx = intArrayOf(0, 1, 4, 7, 8, 15)
+        val v = SparseVector.of(16, idx, DoubleArray(idx.size) { it + 1.0 })
+        for ((k, i) in idx.withIndex()) assertEquals(k + 1.0, v[i], "missed stored index $i")
+        for (i in 0 until 16) if (i !in idx) assertEquals(0.0, v[i], "index $i should be absent")
+    }
 }

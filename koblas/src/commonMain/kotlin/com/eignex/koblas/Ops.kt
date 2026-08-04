@@ -30,9 +30,9 @@ import kotlin.math.sqrt
 // rather than becoming `indexOfMaxAbs`, since it is unambiguous to anyone who has met BLAS.
 
 /**
- * Visit each stored entry of [this] as `(index, value)`. For [DenseVector] that's
- * every index in `0 until size`; for [SparseVector] that's the entries present in
- * the parallel index/value arrays (which may include numerical zeros).
+ * Visit each stored entry of [this] as `(index, value)`, in ascending index order for either storage.
+ * For [DenseVector] that's every index in `0 until size`; for [SparseVector] that's the entries present
+ * in the parallel index/value arrays (which may include numerical zeros).
  */
 inline fun VectorView.forEachStored(block: (i: Int, v: Double) -> Unit) {
     when (this) {
@@ -49,15 +49,42 @@ inline fun VectorView.forEachStored(block: (i: Int, v: Double) -> Unit) {
     }
 }
 
-/** `aT * b`. Densexdense routes through [denseDot] (SIMD on JVM); sparse paths
- *  iterate the cheaper operand's stored entries. */
+/**
+ * `aT * b`. Dense×dense routes through [denseDot] (SIMD on JVM); a mixed pair walks the sparse side and
+ * gathers from the dense one.
+ *
+ * Sparse×sparse merges the two ascending index lists in a single pass, `O(nnz_a + nnz_b)`. Gathering
+ * instead — looking each stored position up in the other vector — would be `O(nnz_a · log nnz_b)`, and was
+ * `O(nnz_a · nnz_b)` before the indices were required to be sorted.
+ */
 infix fun VectorView.dot(other: VectorView): Double {
     require(size == other.size) { "size mismatch: $size vs ${other.size}" }
     if (this is DenseVector && other is DenseVector) {
         return denseDot(data, 0, other.data, 0, size)
     }
-    // At least one sparse - iterate that side, gather from the other.
-    return if (this is SparseVector || other !is SparseVector) {
+    if (this is SparseVector && other is SparseVector) {
+        var s = 0.0
+        var a = 0
+        var b = 0
+        while (a < indices.size && b < other.indices.size) {
+            val ia = indices[a]
+            val ib = other.indices[b]
+            when {
+                ia < ib -> a++
+
+                ia > ib -> b++
+
+                else -> {
+                    s += values[a] * other.values[b]
+                    a++
+                    b++
+                }
+            }
+        }
+        return s
+    }
+    // One sparse, one dense - iterate the sparse side, gather from the other.
+    return if (this is SparseVector) {
         var s = 0.0
         this.forEachStored { i, v -> s += v * other[i] }
         s
@@ -110,8 +137,9 @@ fun asum(v: VectorView): Double {
 
 /**
  * Index of the first entry with maximal `|v_i|` (BLAS `idamax`), or `-1` for a zero-length vector.
- * For [DenseVector] "first" is by index; for [SparseVector] ties resolve in storage order, and an
- * all-unstored (zero) vector returns index 0, matching the dense zero vector.
+ * "First" is by index for either storage: a [SparseVector]'s stored entries are ascending, so its
+ * storage order *is* index order and the two contracts agree. An all-unstored (zero) vector returns index
+ * 0, matching the dense zero vector.
  */
 fun iamax(v: VectorView): Int {
     if (v.size == 0) return -1

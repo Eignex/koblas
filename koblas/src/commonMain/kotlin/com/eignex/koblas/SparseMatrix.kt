@@ -7,7 +7,8 @@ import kotlinx.serialization.Serializable
 /**
  * A sparse matrix in compressed-sparse-column (CSC) form: column `j` occupies
  * `rowIdx[colPtr[j] until colPtr[j + 1]]` with the parallel nonzero values in [values], row indices
- * ascending within a column. `colPtr` has length `cols + 1` with `colPtr[0] == 0` and
+ * strictly ascending within a column — validated by the constructor, since [get] relies on the
+ * ordering. `colPtr` has length `cols + 1` with `colPtr[0] == 0` and
  * `colPtr[cols] == values.size`. CSC is the layout sparse solvers and column-oriented sweeps
  * (matrix–vector products, LU factorization) consume directly — and, since [DenseMatrix] became
  * column-major, the axis both storages agree is contiguous.
@@ -43,6 +44,19 @@ class SparseMatrix(
         require(colPtr[cols] == values.size) { "colPtr[cols] ${colPtr[cols]} != nnz ${values.size}" }
         for (j in 0 until cols) require(colPtr[j] <= colPtr[j + 1]) { "colPtr not monotonic at $j" }
         for (k in rowIdx.indices) require(rowIdx[k] in 0 until rows) { "rowIdx[$k]=${rowIdx[k]} out of [0,$rows)" }
+        // Rows strictly ascending within each column. The format has always documented this and the
+        // factories have always produced it, but it went unchecked — and [get] binary-searches the column,
+        // so an unsorted one would not throw, it would quietly report a stored entry as absent. Strict
+        // ascent also rules out duplicate rows, which would otherwise make [get] and [forEachInColumn]
+        // disagree about the value at a position.
+        for (j in 0 until cols) {
+            for (k in colPtr[j] + 1 until colPtr[j + 1]) {
+                require(rowIdx[k - 1] < rowIdx[k]) {
+                    "rows must be strictly ascending within a column; column $j has " +
+                        "${rowIdx[k - 1]} then ${rowIdx[k]}"
+                }
+            }
+        }
     }
 
     /** Number of stored nonzeros. */
