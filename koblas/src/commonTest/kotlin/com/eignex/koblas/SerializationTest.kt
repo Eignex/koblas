@@ -3,7 +3,9 @@ package com.eignex.koblas
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.double
+import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -28,15 +30,29 @@ class SerializationTest {
         }
     }
 
+    /**
+     * The wire form is the shape plus the flat backing, as named fields.
+     *
+     * It used to be a nested `Array<DoubleArray>` of rows, chosen for readability. Two things were wrong
+     * with that: a bracket pair per row is not compact, and a bare array has nowhere to put a type
+     * discriminator, so a `DenseMatrix` could not decode through [MatrixView] while a [SparseMatrix] could.
+     * Named fields fix both and leave room to add fields later without breaking existing readers, which the
+     * array form did not.
+     *
+     * The structure is asserted rather than the literal string: double formatting differs between JS and
+     * the JVM, and the field names and flat layout are the contract.
+     */
     @Test
-    fun `DenseMatrix wire form is a nested 2D array`() {
-        // Assert the structure (rows of numbers), not the literal string — double formatting is
-        // platform-specific (JS vs JVM), but the 2D-array shape is the stable contract.
+    fun `DenseMatrix wire form is its shape and a flat array`() {
         val m = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
-        val rows = json.parseToJsonElement(json.encodeToString(m)).jsonArray
-        assertEquals(2, rows.size)
-        assertEquals(listOf(1.0, 2.0), rows[0].jsonArray.map { it.jsonPrimitive.double })
-        assertEquals(listOf(3.0, 4.0), rows[1].jsonArray.map { it.jsonPrimitive.double })
+        val obj = json.parseToJsonElement(json.encodeToString(m)).jsonObject
+        assertEquals(2, obj.getValue("rows").jsonPrimitive.int)
+        assertEquals(2, obj.getValue("cols").jsonPrimitive.int)
+        // Column-major, so the flat order is the storage order rather than row order.
+        assertEquals(
+            listOf(1.0, 3.0, 2.0, 4.0),
+            obj.getValue("data").jsonArray.map { it.jsonPrimitive.double },
+        )
     }
 
     @Test
@@ -115,22 +131,25 @@ class SerializationTest {
     }
 
     /**
-     * A [SparseMatrix] round-trips through the sealed [MatrixView] root, discriminator and all.
+     * Both storages round-trip through the sealed [MatrixView] root, discriminator and all.
      *
-     * A [DenseMatrix] does not, and that asymmetry is a known limitation rather than an oversight here:
-     * its wire form is a bare 2D array chosen for readability, and a bare array has nowhere to put the
-     * type tag a polymorphic decode needs. So [MatrixView] polymorphism works for the storage whose wire
-     * form is an object and fails for the one whose form is an array. Fixing it means changing
-     * DenseMatrix's payload shape, which is a wire-format decision, not a serialization bug — see the note
-     * above. [VectorView] has no such split, since both its subtypes encode as objects.
+     * The dense half is new. Its wire form was a bare 2D array, and a bare array has nowhere to put the
+     * type tag a polymorphic decode needs, so `MatrixView` polymorphism worked for one subtype and threw
+     * for the other. Symmetry with [VectorView], whose subtypes always encoded as objects, is the point.
      */
     @Test
-    fun `SparseMatrix round-trips polymorphically through MatrixView`() {
-        val sparse: MatrixView = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 2.0)))
-        val encoded = json.encodeToString(MatrixView.serializer(), sparse)
-        assertTrue(encoded.contains("SparseMatrix"), "expected a type discriminator in $encoded")
-        val back = json.decodeFromString(MatrixView.serializer(), encoded)
-        assertTrue(back is SparseMatrix, "sparse storage was not preserved")
-        assertEquals(sparse, back)
+    fun `both matrix storages round-trip polymorphically through MatrixView`() {
+        val views: List<MatrixView> = listOf(
+            SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 2.0))),
+            DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0))),
+            DenseMatrix(0, 0),
+        )
+        for (v in views) {
+            val encoded = json.encodeToString(MatrixView.serializer(), v)
+            assertTrue(v::class.simpleName!! in encoded, "expected a type discriminator in $encoded")
+            val back = json.decodeFromString(MatrixView.serializer(), encoded)
+            assertEquals(v::class, back::class, "storage was not preserved for $encoded")
+            assertEquals(v, back)
+        }
     }
 }

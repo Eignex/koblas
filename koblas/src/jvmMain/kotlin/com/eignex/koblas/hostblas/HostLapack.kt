@@ -1,7 +1,7 @@
 package com.eignex.koblas.hostblas
 
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.MatrixView
+import com.eignex.koblas.MatrixLike
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.dense.Blas
 import com.eignex.koblas.dense.CholeskyPolicy
@@ -298,7 +298,7 @@ class HostLapack internal constructor() : Lapack {
      * The threshold is where the measurement puts it, not at the LAPACK default: SIMD won 2.19x at n=256,
      * tied at 1024, and lost 1.95x at 2048, so this gate opens late.
      */
-    override fun cholesky(a: MatrixView, policy: CholeskyPolicy): DenseMatrix {
+    override fun cholesky(a: MatrixLike, policy: CholeskyPolicy): DenseMatrix {
         if (a.rows < JVM_CHOLESKY_MIN) return super.cholesky(a, policy)
         require(a.rows == a.cols) { "cholesky requires a square matrix; got ${a.rows}x${a.cols}" }
         val n = a.rows

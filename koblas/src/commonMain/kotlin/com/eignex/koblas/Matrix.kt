@@ -1,34 +1,25 @@
 package com.eignex.koblas
 
-import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.builtins.ArraySerializer
-import kotlinx.serialization.builtins.DoubleArraySerializer
-import kotlinx.serialization.descriptors.SerialDescriptor
-import kotlinx.serialization.encoding.Decoder
-import kotlinx.serialization.encoding.Encoder
 
 /**
- * Read-only N-by-M matrix. Sealed alongside [VectorView] so snapshots
- * round-trip through `kotlinx.serialization` with their concrete storage
- * preserved. Public surface is read-only; shape, entry access, materialise
- * to `Array<DoubleArray>`. Arithmetic (`gemv`, `ger`, the Cholesky
- * suite, …) lives as free functions over the views; mutation is `internal`.
+ * Read-only matrix contract: shape, entry access, materialisation. Anything that only reads a matrix should
+ * take this.
  *
- * [DenseMatrix] and [SparseMatrix] are the two storages. Being sealed is why
- * both live in this package rather than moving with the operations that consume
- * them: a sealed subtype has to be declared alongside its root, and the closed
- * set is what makes the polymorphic serialization work without a consumer
- * registering anything.
+ * Open, deliberately, and that is the difference from [MatrixView]. koblas cannot know every shape a caller
+ * already has — a row-major buffer from another library, a banded or blocked structure, a lazily generated
+ * kernel matrix — and requiring a copy into [DenseMatrix] to use any of koblas's routines was a tax on
+ * exactly the callers with the most data. Implement this and the read-only routines accept it.
  *
- * [get] is `O(1)` on the dense storage and a search within a column on the
- * sparse one, so an algorithm that sweeps every entry through [get] is the wrong
- * shape for a sparse operand — walk the stored entries instead.
+ * The cost of an adapter is that koblas can only reach it through [get]. Its own storages are recognised by
+ * type and swept along their contiguous axis; a foreign implementation takes the generic path, which visits
+ * `rows × cols` entries through a virtual call. That is the right trade for correctness-with-any-input, and
+ * the reason to hand koblas a [DenseMatrix] when the data is dense and hot.
+ *
+ * @see MatrixView the closed, serializable subset.
  */
-@Serializable
-sealed interface MatrixView {
+interface MatrixLike {
     /** Number of rows. */
     val rows: Int
 
@@ -44,6 +35,23 @@ sealed interface MatrixView {
      */
     fun toArray(): Array<DoubleArray>
 }
+
+/**
+ * The matrix storages koblas itself defines: [DenseMatrix] and [SparseMatrix], and nothing else ever.
+ *
+ * Sealed for one reason — serialization. A snapshot has to decode back into the concrete storage it was
+ * written from, and a closed set is what lets `kotlinx.serialization` do that without a consumer
+ * registering anything. It is also why both storages live in this package: a sealed subtype must be
+ * declared alongside its root.
+ *
+ * Take [MatrixLike] instead unless you genuinely need the closed set. This exists so serialization and
+ * exhaustive dispatch work, not to restrict what callers can pass.
+ *
+ * [get] is `O(1)` on the dense storage and a search within a column on the sparse one, so an algorithm that
+ * sweeps every entry through [get] is the wrong shape for a sparse operand — walk the stored entries instead.
+ */
+@Serializable
+sealed interface MatrixView : MatrixLike
 
 /**
  * Dense column-major matrix backed by a single contiguous `DoubleArray` of
@@ -63,10 +71,11 @@ sealed interface MatrixView {
  * boundaries; the SIMD primitives in the internal `Primitives.kt` can stream
  * long runs without re-fetching column references on each iteration.
  *
- * The on-the-wire form is a 2D `Array<DoubleArray>` of rows, for readability
- * when inspecting JSON / CBOR payloads, and is unaffected by the storage
- * order. The custom [DenseMatrixSerializer] bridges the two; encoding writes
- * rows, decoding reads them back and packs them into the flat backing.
+ * Serializes as its shape plus the flat backing — `{"rows":2,"cols":2,"data":[…]}` — which is both the
+ * compact form and the extensible one. It used to encode as a nested `Array<DoubleArray>` of rows, chosen
+ * for readability; that cost a bracket pair per row and, more importantly, could not carry a polymorphic
+ * type discriminator, so a `DenseMatrix` could not decode through [MatrixView] while a [SparseMatrix]
+ * could. A named-field object fixes both and leaves room to add fields later without breaking readers.
  *
  * Unlike the read-only [MatrixView] contract, the concrete matrix exposes its flat [data] backing and
  * elementwise [set] so in-place algorithms (factorizations, updates) can work without reallocating.
@@ -75,7 +84,7 @@ sealed interface MatrixView {
  * @property cols the number of columns.
  * @property data the flat column-major backing, length `rows * cols`.
  */
-@Serializable(with = DenseMatrixSerializer::class)
+@Serializable
 @SerialName("DenseMatrix")
 class DenseMatrix internal constructor(override val rows: Int, override val cols: Int, val data: DoubleArray) :
     MatrixView {
@@ -151,18 +160,4 @@ class DenseMatrix internal constructor(override val rows: Int, override val cols
             return rows * cols
         }
     }
-}
-
-/** Serialises [DenseMatrix] as a 2D `Array<DoubleArray>` of rows. The flat in-memory backing is an
- *  implementation detail; the wire shape stays stable across layout changes, so payloads written before
- *  the move to column-major storage still decode correctly. A zero-row matrix encodes
- *  to `[]`, so its column count is not recoverable — a `0×N` matrix decodes as `0×0` (a degenerate case
- *  the format does not distinguish). */
-@OptIn(ExperimentalSerializationApi::class)
-internal object DenseMatrixSerializer : KSerializer<DenseMatrix> {
-    private val inner = ArraySerializer(DoubleArraySerializer())
-    override val descriptor: SerialDescriptor get() = inner.descriptor
-    override fun serialize(encoder: Encoder, value: DenseMatrix) =
-        encoder.encodeSerializableValue(inner, value.toArray())
-    override fun deserialize(decoder: Decoder): DenseMatrix = DenseMatrix.of(decoder.decodeSerializableValue(inner))
 }

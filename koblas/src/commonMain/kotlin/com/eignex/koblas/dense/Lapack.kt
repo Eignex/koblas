@@ -4,7 +4,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.Backend
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.MatrixView
+import com.eignex.koblas.MatrixLike
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.koblas
@@ -348,7 +348,7 @@ interface Lapack : Backend {
      * Throws [IllegalArgumentException] at the first non-positive pivot unless [policy] says otherwise; see
      * [CholeskyPolicy] for why that is the default and what asking for [CholeskyPolicy.Regularize] means.
      */
-    fun cholesky(a: MatrixView, policy: CholeskyPolicy = CholeskyPolicy.Strict): DenseMatrix {
+    fun cholesky(a: MatrixLike, policy: CholeskyPolicy = CholeskyPolicy.Strict): DenseMatrix {
         require(a.rows == a.cols) { "cholesky requires a square matrix; got ${a.rows}x${a.cols}" }
         val n = a.rows
         val l = DenseMatrix(n, n)
