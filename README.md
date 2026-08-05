@@ -228,6 +228,21 @@ because these targets have no vector kernels: measured on linuxX64 the host
 library wins level 2 by 2x to 15x and dense factorization by up to 13x.
 OPENBLAS_NUM_THREADS opts into threading; the default is single-threaded.
 
+That fallback is silent, which is the right default and a bad thing to discover
+in production. Ask, when it matters:
+
+```kotlin
+koblas.requireAccelerated(BackendSlot.Blas, BackendSlot.Lapack) // throws, naming what fell back
+println(koblas.portableSlots)                                   // or just look
+```
+
+Accelerated means a registered backend is being consulted. The compiled-in SIMD
+kernels do not count, however fast they are -- they are what you get with no host
+library, so mathBackend reporting simd is not evidence that one was found. The
+slots are named explicitly because which ones can be accelerated depends on the
+target and on what koblas ships: there is no host sparse backend yet, so the
+three sparse slots are portable everywhere today.
+
 The JVM resolves the same host OpenBLAS through `java.lang.foreign`, binding it
 with `Linker.Option.critical` so a DoubleArray is pinned rather than copied.
 Only the routines that win go native: the level-3 products, the LU, LDL and QR
