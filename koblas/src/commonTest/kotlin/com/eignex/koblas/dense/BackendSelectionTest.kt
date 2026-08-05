@@ -1,20 +1,32 @@
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.Backend
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.installBackends
+import com.eignex.koblas.koblas
+import com.eignex.koblas.koblasInfo
 import com.eignex.koblas.mathBackend
+import com.eignex.koblas.registerBackend
+import com.eignex.koblas.resetBackends
+import com.eignex.koblas.withCleanBackends
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
- * Backend resolution: what [koblas] points at, and how registration, priority and an explicit install
+ * Backend resolution: what [koblas] resolves to, and how registration, priority and an explicit install
  * interact.
  *
  * The registry is global process state, and on the targets where koblas ships a host-BLAS backend it is
  * already populated before any test runs. So these tests clear it and put the incumbent back rather than
  * assuming it is empty — without that, clearing it here would break every later test that expects the
  * platform's backend to be active.
+ *
+ * Identity assertions changed shape with the context: [koblas] is a `KoblasContext`, so what used to be
+ * `koblas === ReferenceLinearAlgebra` is now a claim about the half — `koblas.blas === …`. That is a better
+ * question anyway, since the halves are what get selected.
  */
 class BackendSelectionTest {
 
@@ -24,104 +36,109 @@ class BackendSelectionTest {
 
     private class FakeLapack(override val name: String, override val priority: Int) : Lapack by ReferenceLinearAlgebra
 
-    /**
-     * Runs [block] against an empty registry and no install, then restores whatever backend was resolved
-     * before. Anything other than the reference must have been registered, since no test leaves an
-     * install behind.
-     */
-    private fun withCleanRegistry(block: () -> Unit) {
-        val incumbent = koblas.takeIf { it !== ReferenceLinearAlgebra }
-        resetRegisteredLinearAlgebra()
-        try {
-            block()
-        } finally {
-            resetRegisteredLinearAlgebra()
-            incumbent?.let { registerLinearAlgebra(it) }
-        }
-    }
+    /** Implements no half at all, so registering it is a mistake worth reporting. */
+    private class NotABackend(override val name: String = "nothing") : Backend
 
     @Test
     fun `an empty registry resolves to the reference backend`() {
-        // There is one discovery path now: whatever a platform provides arrives through registration, so an
+        // There is one discovery path: whatever a platform provides arrives through registration, so an
         // empty registry means the reference exactly, not "the reference or whatever discovery returned".
-        withCleanRegistry {
-            assertEquals(ReferenceLinearAlgebra, koblas)
+        withCleanBackends {
+            assertSame(ReferenceLinearAlgebra, koblas.blas)
+            assertSame(ReferenceLinearAlgebra, koblas.lapack)
+            assertEquals("reference", koblas.name)
         }
     }
 
     @Test
     fun `registration keeps the highest priority and install overrides everything`() {
-        withCleanRegistry {
-            registerLinearAlgebra(Fake("low", 5))
-            assertEquals("low", koblas.name)
-            registerLinearAlgebra(Fake("high", 50))
-            assertEquals("high", koblas.name)
-            registerLinearAlgebra(Fake("mid", 20)) // weaker than the incumbent: ignored
-            assertEquals("high", koblas.name)
-            installLinearAlgebra(Fake("manual", -1)) // an explicit install beats any priority
-            assertEquals("manual", koblas.name)
-            installLinearAlgebra(null)
-            assertEquals("high", koblas.name)
+        withCleanBackends {
+            // The sparse halves stay on the reference, and the name says so -- a dense-only backend does
+            // not silently claim the whole context.
+            registerBackend(Fake("low", 5))
+            assertEquals("low+reference", koblas.name)
+            registerBackend(Fake("high", 50))
+            assertEquals("high+reference", koblas.name)
+            registerBackend(Fake("mid", 20)) // weaker than the incumbent: ignored
+            assertEquals("high+reference", koblas.name)
+            // An explicit install beats any priority. `with` starts from what resolved and replaces halves.
+            val manual = Fake("manual", -1)
+            installBackends(koblas.with(blas = manual, lapack = manual))
+            assertEquals("manual+reference", koblas.name)
+            installBackends(null)
+            assertEquals("high+reference", koblas.name)
         }
     }
 
     @Test
     fun `the incumbent backend survives a cleared registry`() {
         // The restore path above is what keeps the host-BLAS suites valid whatever order tests run in.
-        val before = koblas
-        withCleanRegistry { assertTrue(koblas === ReferenceLinearAlgebra) }
-        assertEquals(before, koblas)
+        val before = koblas.blas
+        withCleanBackends { assertSame(ReferenceLinearAlgebra, koblas.blas) }
+        assertSame(before, koblas.blas)
     }
 
     @Test
-    fun `the halves are selected independently and composed`() {
-        withCleanRegistry {
-            registerBlas(FakeBlas("fastblas", 50))
+    fun `the halves are selected independently`() {
+        withCleanBackends {
+            registerBackend(FakeBlas("fastblas", 50))
             assertEquals("fastblas+reference", koblas.name)
             // The LAPACK half still answers, from the portable implementation.
             assertEquals(2, koblas.factor(DenseMatrix.diagonal(2)).n)
-            registerLapack(FakeLapack("fastlapack", 10))
-            assertEquals("fastblas+fastlapack", koblas.name)
+            registerBackend(FakeLapack("fastlapack", 10))
+            assertEquals("fastblas+fastlapack+reference", koblas.name)
             // Each half keeps its own ranking: a weaker BLAS does not displace the stronger one.
-            registerBlas(FakeBlas("slowblas", 5))
-            assertEquals("fastblas+fastlapack", koblas.name)
-        }
-    }
-
-    @Test
-    fun `a backend providing both halves is used directly`() {
-        withCleanRegistry {
-            val both = Fake("whole", 30)
-            registerLinearAlgebra(both)
-            // Not wrapped in a composite: one object won both, so the name is its own and calls reach it
-            // without a second hop.
-            assertSame(both, koblas)
-            assertEquals("whole", koblas.name)
+            registerBackend(FakeBlas("slowblas", 5))
+            assertEquals("fastblas+fastlapack+reference", koblas.name)
         }
     }
 
     /**
-     * The reset hook clears the install override as well as the registration. It did not always: the dense
-     * one left an install in place while the sparse one cleared it, so the same call meant two different
-     * things depending on which seam you were testing. `VectorKernelsTest` pins the level-1 half.
+     * One object registered for several halves lands in each of them.
+     *
+     * This used to assert that the winner was *not* wrapped in a composite, because pairing two halves
+     * allocated a delegating object. There is no composite any more — the context is the pairing — so the
+     * question became whether both halves point at the same instance.
      */
     @Test
+    fun `a backend providing both halves is used for both`() {
+        withCleanBackends {
+            val both = Fake("whole", 30)
+            registerBackend(both)
+            assertSame(both, koblas.blas)
+            assertSame(both, koblas.lapack)
+            assertEquals("whole+reference", koblas.name, "the dense halves are its; the sparse ones are not")
+        }
+    }
+
+    /** Registering something that implements no half is a mistake, not a silent no-op. */
+    @Test
+    fun `registering a backend that implements no half fails loudly`() {
+        withCleanBackends {
+            val failure = assertFailsWith<IllegalArgumentException> { registerBackend(NotABackend()) }
+            assertTrue(failure.message!!.contains("nothing"), "the message should name the backend")
+        }
+    }
+
+    /** The reset hook clears the install override as well as the registration. */
+    @Test
     fun `the reset hook clears the install override too`() {
-        withCleanRegistry {
-            installLinearAlgebra(Fake("manual", -1))
-            resetRegisteredLinearAlgebra()
-            assertTrue(koblas === ReferenceLinearAlgebra, "reset must clear the override, not just registration")
+        withCleanBackends {
+            val manual = Fake("manual", -1)
+            installBackends(koblas.with(blas = manual, lapack = manual))
+            resetBackends()
+            assertSame(ReferenceLinearAlgebra, koblas.blas, "reset must clear the override, not just registration")
         }
     }
 
     @Test
-    fun `koblasInfo reports both seams`() {
-        assertEquals("backend=${koblas.name}, primitives=$mathBackend", koblasInfo)
+    fun `koblasInfo reports the backend and the kernels`() {
+        assertEquals("backend=${koblas.name}, kernels=${koblas.vectorKernels.name}", koblasInfo)
     }
 
     @Test
-    fun `mathBackend identifies the primitive kernels`() {
-        // The other seam: which level-1 kernels the platform resolved, independent of the backend.
+    fun `mathBackend identifies the vector kernels`() {
         assertTrue(mathBackend.isNotEmpty())
+        assertEquals(koblas.vectorKernels.name, mathBackend)
     }
 }

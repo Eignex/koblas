@@ -118,13 +118,12 @@ host providing one library and not the other still accelerates what it can, and
 koblas composes the winning halves.
 
 The sparse seam mirrors it one for one -- SparseVectorKernels, SparseBlas,
-SparseLapack, SparseLinearAlgebra -- with the same verbs (registerSparseBlas,
-installSparseLinearAlgebra), the same priority ranking, and the same fallback to
-a portable reference. Knowing one side is knowing the other, and the two
-registries are the same file in two packages over one shared Seam type. Where
-they genuinely differ is documented at the declaration: the sparse level-1
-kernels have no length threshold, and a sparse factorization is an interface
-rather than a class because no host solver will describe its factors.
+SparseLapack, SparseLinearAlgebra -- and shares its machinery rather than
+paralleling it: one registerBackend, one priority ranking per half, one registry,
+one KoblasContext holding all six. Knowing one side is knowing the other. Where
+they genuinely differ is documented at the declaration: the sparse vector kernels
+have no length threshold, and a sparse factorization is an interface rather than a
+class because no host solver will describe its factors.
 
 Each group above names the interface its routines belong to, and a member
 reaches the installed backend; determinant and norm1 are the two plain functions
@@ -181,10 +180,17 @@ Passing none keeps the allocating behaviour, which is always correct.
 
 ## Backends
 
-Backends register themselves and are ranked by priority, one ranking per
+Backends register themselves through registerBackend, which offers one object as
+every half it implements, and are ranked by priority, one ranking per
 interface: whatever the platform provides arrives through registration, and
-installLinearAlgebra or installVectorKernels overrides it. On the JVM discovery scans
-the classpath; elsewhere it happens at program start.
+installBackends overrides it with a KoblasContext of your own. On the JVM discovery
+scans the classpath; elsewhere it happens at program start.
+
+Selection is global by default but does not have to be. A KoblasContext holds all
+six halves -- the three dense and three sparse -- and is itself a backend, so
+`context.gemv(...)` works wherever `koblas.gemv(...)` does. koblas.with(blas =
+mine) copies the default and replaces one half, which is what tests, benchmarks
+and reproducible runs want instead of mutating process state.
 
 What differs between the interfaces is not how a backend is selected but when it
 is consulted. The level 2 and 3 multiplies and the factorizations amortize a
@@ -234,5 +240,5 @@ backend, and it outranks the built-in one when its priority is higher.
 The seams are independent; print what a runtime resolved with:
 
 ```kotlin
-println(koblasInfo) // backend=cblas, primitives=scalar+host
+println(koblasInfo) // backend=cblas, kernels=scalar+host
 ```

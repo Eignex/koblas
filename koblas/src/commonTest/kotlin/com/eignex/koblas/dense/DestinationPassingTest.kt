@@ -4,6 +4,7 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.koblas
 import com.eignex.koblas.norm1
 import com.eignex.koblas.sparse.EtaBasis
 import com.eignex.koblas.sparse.lu

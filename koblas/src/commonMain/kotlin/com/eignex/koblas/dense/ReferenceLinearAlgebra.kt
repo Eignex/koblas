@@ -3,8 +3,10 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.KoblasContext
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.koblas
 import kotlin.math.abs
 import kotlin.math.sqrt
 
@@ -14,10 +16,25 @@ private const val BUNCH_KAUFMAN_ALPHA = 0.6403882032022076
 /**
  * Portable pure-Kotlin backend — correct on every target, no native dependency, and the semantic
  * reference a native backend is validated against. Textbook Doolittle LU with partial pivoting and naive
- * (SIMD-assisted where the level-1 primitives kick in) level-2/3 loops.
+ * (SIMD-assisted where the vector kernels kick in) level-2/3 loops.
+ *
+ * A class rather than an object because its inner loops need vector kernels, and which kernels those are is
+ * a property of the [KoblasContext] it belongs to. Passing null — which [ReferenceLinearAlgebra], the shared
+ * instance, does — follows the process default instead, so the singleton stays a stable identity while still
+ * picking up a registered host BLAS for long runs.
+ *
+ * @param kernels the vector kernels the inner loops use, or null to follow the process default.
  */
-object ReferenceLinearAlgebra : LinearAlgebra {
+class ReferenceBackend(private val kernels: VectorKernels? = null) : LinearAlgebra {
     override val name: String get() = "reference"
+
+    /**
+     * This backend's kernels, or the process default when it was given none.
+     *
+     * Spelled out rather than shortened: `k` is taken many times over in this file as the inner dimension of
+     * a product, and a one-letter kernels property silently resolved to those `Int`s instead.
+     */
+    private val vectorKernels: VectorKernels get() = kernels ?: koblas.vectorKernels
 
     override fun gemv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, transpose: Boolean) {
         val xLen = if (transpose) a.rows else a.cols
@@ -27,7 +44,7 @@ object ReferenceLinearAlgebra : LinearAlgebra {
         if (beta == 0.0) {
             y.fill(0.0)
         } else if (beta != 1.0) {
-            denseKernels.scale(y, 0, beta, y.size)
+            vectorKernels.scale(y, 0, beta, y.size)
         }
         if (alpha == 0.0) return
         val ad = a.data
@@ -36,7 +53,7 @@ object ReferenceLinearAlgebra : LinearAlgebra {
             // y += alpha·Σ_j x_j·A[:,j]: one axpy per column, every run contiguous and no reduction.
             for (j in 0 until a.cols) {
                 val xj = alpha * x[j]
-                if (xj != 0.0) denseKernels.axpy(y, 0, xj, ad, j * rows, rows)
+                if (xj != 0.0) vectorKernels.axpy(y, 0, xj, ad, j * rows, rows)
             }
         } else {
             // y_j = alpha·A[:,j]ᵀ·x, the dot of a contiguous column with x. Four columns at a time: one
@@ -45,7 +62,7 @@ object ReferenceLinearAlgebra : LinearAlgebra {
             var j = 0
             val bound = a.cols - 3
             while (j < bound) {
-                denseKernels.dot4(ad, j * rows, rows, x, 0, rows, quads, 0)
+                vectorKernels.dot4(ad, j * rows, rows, x, 0, rows, quads, 0)
                 y[j] += alpha * quads[0]
                 y[j + 1] += alpha * quads[1]
                 y[j + 2] += alpha * quads[2]
@@ -53,7 +70,7 @@ object ReferenceLinearAlgebra : LinearAlgebra {
                 j += 4
             }
             while (j < a.cols) {
-                y[j] += alpha * denseKernels.dot(ad, j * rows, x, 0, rows)
+                y[j] += alpha * vectorKernels.dot(ad, j * rows, x, 0, rows)
                 j++
             }
         }
@@ -79,7 +96,7 @@ object ReferenceLinearAlgebra : LinearAlgebra {
         if (beta == 0.0) {
             cd.fill(0.0)
         } else if (beta != 1.0) {
-            denseKernels.scale(cd, 0, beta, cd.size)
+            vectorKernels.scale(cd, 0, beta, cd.size)
         }
         if (alpha == 0.0 || m == 0 || n == 0 || k == 0) return
         if (transposeA && transposeB) {
@@ -102,7 +119,7 @@ object ReferenceLinearAlgebra : LinearAlgebra {
                     var i = 0
                     val bound = m - 3
                     while (i < bound) {
-                        denseKernels.dot4(ad, i * k, k, bd, j * k, k, quads, 0)
+                        vectorKernels.dot4(ad, i * k, k, bd, j * k, k, quads, 0)
                         cd[i + j * m] += alpha * quads[0]
                         cd[i + 1 + j * m] += alpha * quads[1]
                         cd[i + 2 + j * m] += alpha * quads[2]
@@ -110,7 +127,7 @@ object ReferenceLinearAlgebra : LinearAlgebra {
                         i += 4
                     }
                     while (i < m) {
-                        cd[i + j * m] += alpha * denseKernels.dot(ad, i * k, bd, j * k, k)
+                        cd[i + j * m] += alpha * vectorKernels.dot(ad, i * k, bd, j * k, k)
                         i++
                     }
                 }
@@ -120,7 +137,7 @@ object ReferenceLinearAlgebra : LinearAlgebra {
             !transposeB -> for (j in 0 until n) {
                 for (p in 0 until k) {
                     val bpj = alpha * bd[p + j * k]
-                    if (bpj != 0.0) denseKernels.axpy(cd, j * m, bpj, ad, p * m, m)
+                    if (bpj != 0.0) vectorKernels.axpy(cd, j * m, bpj, ad, p * m, m)
                 }
             }
 
@@ -128,7 +145,7 @@ object ReferenceLinearAlgebra : LinearAlgebra {
             else -> for (j in 0 until n) {
                 for (p in 0 until k) {
                     val bjp = alpha * bd[j + p * n]
-                    if (bjp != 0.0) denseKernels.axpy(cd, j * m, bjp, ad, p * m, m)
+                    if (bjp != 0.0) vectorKernels.axpy(cd, j * m, bjp, ad, p * m, m)
                 }
             }
         }
@@ -156,7 +173,7 @@ object ReferenceLinearAlgebra : LinearAlgebra {
             // computed once per pair, then written to the selected triangle(s).
             for (j in 0 until n) {
                 for (i in j until n) {
-                    val v = alpha * denseKernels.dot(ad, i * k, ad, j * k, k)
+                    val v = alpha * vectorKernels.dot(ad, i * k, ad, j * k, k)
                     addUplo(cd, n, i, j, v, uplo)
                 }
             }
@@ -174,7 +191,7 @@ object ReferenceLinearAlgebra : LinearAlgebra {
                 val base = p * n
                 for (j in 0 until n) {
                     val f = alpha * ad[base + j]
-                    if (f != 0.0) denseKernels.axpy(w, j * n, f, ad, base, n)
+                    if (f != 0.0) vectorKernels.axpy(w, j * n, f, ad, base, n)
                 }
             }
             for (j in 0 until n) {
@@ -203,7 +220,7 @@ object ReferenceLinearAlgebra : LinearAlgebra {
             if (beta == 0.0) {
                 cd.fill(0.0)
             } else if (beta != 1.0) {
-                denseKernels.scale(cd, 0, beta, cd.size)
+                vectorKernels.scale(cd, 0, beta, cd.size)
             }
             return
         }
@@ -212,7 +229,7 @@ object ReferenceLinearAlgebra : LinearAlgebra {
         for (j in 0 until n) {
             val from = if (uplo == Uplo.LOWER) j + j * n else j * n
             val len = if (uplo == Uplo.LOWER) n - j else j + 1
-            if (beta == 0.0) cd.fill(0.0, from, from + len) else denseKernels.scale(cd, from, beta, len)
+            if (beta == 0.0) cd.fill(0.0, from, from + len) else vectorKernels.scale(cd, from, beta, len)
         }
     }
 
@@ -225,7 +242,7 @@ object ReferenceLinearAlgebra : LinearAlgebra {
         if (beta == 0.0) {
             y.fill(0.0)
         } else if (beta != 1.0) {
-            denseKernels.scale(y, 0, beta, n)
+            vectorKernels.scale(y, 0, beta, n)
         }
         if (alpha == 0.0) return
         symvAccumulate(alpha, a.data, n, x, 0, y, 0, lower)
@@ -255,11 +272,11 @@ object ReferenceLinearAlgebra : LinearAlgebra {
             val xj = alpha * x[xOff + j]
             if (lower) {
                 val len = n - j - 1
-                y[yOff + j] += alpha * denseKernels.dot(ad, base + 1, x, xOff + j + 1, len) + xj * ad[base]
-                if (xj != 0.0) denseKernels.axpy(y, yOff + j + 1, xj, ad, base + 1, len)
+                y[yOff + j] += alpha * vectorKernels.dot(ad, base + 1, x, xOff + j + 1, len) + xj * ad[base]
+                if (xj != 0.0) vectorKernels.axpy(y, yOff + j + 1, xj, ad, base + 1, len)
             } else {
-                y[yOff + j] += alpha * denseKernels.dot(ad, j * n, x, xOff, j) + xj * ad[base]
-                if (xj != 0.0) denseKernels.axpy(y, yOff, xj, ad, j * n, j)
+                y[yOff + j] += alpha * vectorKernels.dot(ad, j * n, x, xOff, j) + xj * ad[base]
+                if (xj != 0.0) vectorKernels.axpy(y, yOff, xj, ad, j * n, j)
             }
         }
     }
@@ -290,7 +307,7 @@ object ReferenceLinearAlgebra : LinearAlgebra {
         if (beta == 0.0) {
             cd.fill(0.0)
         } else if (beta != 1.0) {
-            denseKernels.scale(cd, 0, beta, cd.size)
+            vectorKernels.scale(cd, 0, beta, cd.size)
         }
         if (right) {
             require(b.cols == m) { "symm right: B has ${b.cols} cols, expected $m" }
@@ -303,7 +320,7 @@ object ReferenceLinearAlgebra : LinearAlgebra {
             for (j in 0 until m) {
                 for (p in 0 until m) {
                     val apj = alpha * symEntry(ad, m, p, j, lower)
-                    if (apj != 0.0) denseKernels.axpy(cd, j * rows, apj, bd, p * rows, rows)
+                    if (apj != 0.0) vectorKernels.axpy(cd, j * rows, apj, bd, p * rows, rows)
                 }
             }
             return
@@ -394,9 +411,9 @@ object ReferenceLinearAlgebra : LinearAlgebra {
                 val d11 = 1.0 / w[k + k * n]
                 for (j in k + 1 until n) {
                     val f = -d11 * w[j + k * n]
-                    if (f != 0.0) denseKernels.axpy(w, j + j * n, f, w, j + k * n, n - j)
+                    if (f != 0.0) vectorKernels.axpy(w, j + j * n, f, w, j + k * n, n - j)
                 }
-                denseKernels.scale(w, k + 1 + k * n, d11, n - k - 1)
+                vectorKernels.scale(w, k + 1 + k * n, d11, n - k - 1)
                 ipiv[k] = kp + 1
             } else {
                 if (k < n - 2) {
@@ -417,8 +434,8 @@ object ReferenceLinearAlgebra : LinearAlgebra {
                     for (j in k + 2 until n) {
                         val fj = colK[j]
                         val fj1 = colK1[j]
-                        if (fj != 0.0) denseKernels.axpy(w, j + j * n, -fj, w, j + k * n, n - j)
-                        if (fj1 != 0.0) denseKernels.axpy(w, j + j * n, -fj1, w, j + (k + 1) * n, n - j)
+                        if (fj != 0.0) vectorKernels.axpy(w, j + j * n, -fj, w, j + k * n, n - j)
+                        if (fj1 != 0.0) vectorKernels.axpy(w, j + j * n, -fj1, w, j + (k + 1) * n, n - j)
                     }
                     for (i in k + 2 until n) {
                         w[i + k * n] = colK[i]
@@ -456,7 +473,7 @@ object ReferenceLinearAlgebra : LinearAlgebra {
                     x[kp] = t
                 }
                 val xk = x[k]
-                if (xk != 0.0) denseKernels.axpy(x, k + 1, -xk, w, k + 1 + k * n, n - k - 1)
+                if (xk != 0.0) vectorKernels.axpy(x, k + 1, -xk, w, k + 1 + k * n, n - k - 1)
                 x[k] = xk / w[k + k * n]
                 k += 1
             } else {
@@ -469,8 +486,8 @@ object ReferenceLinearAlgebra : LinearAlgebra {
                 val xk = x[k]
                 val xk1 = x[k + 1]
                 val len = n - k - 2
-                if (xk != 0.0) denseKernels.axpy(x, k + 2, -xk, w, k + 2 + k * n, len)
-                if (xk1 != 0.0) denseKernels.axpy(x, k + 2, -xk1, w, k + 2 + (k + 1) * n, len)
+                if (xk != 0.0) vectorKernels.axpy(x, k + 2, -xk, w, k + 2 + k * n, len)
+                if (xk1 != 0.0) vectorKernels.axpy(x, k + 2, -xk1, w, k + 2 + (k + 1) * n, len)
                 val akm1k = w[(k + 1) + k * n]
                 val akm1 = w[k + k * n] / akm1k
                 val ak = w[(k + 1) + (k + 1) * n] / akm1k
@@ -486,7 +503,7 @@ object ReferenceLinearAlgebra : LinearAlgebra {
         k = n - 1
         while (k >= 0) {
             if (ipiv[k] > 0) {
-                x[k] -= denseKernels.dot(w, k + 1 + k * n, x, k + 1, n - k - 1)
+                x[k] -= vectorKernels.dot(w, k + 1 + k * n, x, k + 1, n - k - 1)
                 val kp = ipiv[k] - 1
                 if (kp != k) {
                     val t = x[k]
@@ -497,8 +514,8 @@ object ReferenceLinearAlgebra : LinearAlgebra {
             } else {
                 val k0 = k - 1
                 val len = n - k - 1
-                val s0 = x[k0] - denseKernels.dot(w, k + 1 + k0 * n, x, k + 1, len)
-                val s1 = x[k] - denseKernels.dot(w, k + 1 + k * n, x, k + 1, len)
+                val s0 = x[k0] - vectorKernels.dot(w, k + 1 + k0 * n, x, k + 1, len)
+                val s1 = x[k] - vectorKernels.dot(w, k + 1 + k * n, x, k + 1, len)
                 x[k0] = s0
                 x[k] = s1
                 val kp = -ipiv[k] - 1
@@ -531,11 +548,11 @@ object ReferenceLinearAlgebra : LinearAlgebra {
             val vBase = col + 1 + col * m
             for (c in col + 1 until n) {
                 val head = col + c * m
-                val s = buf[head] + denseKernels.dot(buf, vBase, buf, head + 1, len)
+                val s = buf[head] + vectorKernels.dot(buf, vBase, buf, head + 1, len)
                 val f = -t * s
                 if (f != 0.0) {
                     buf[head] += f
-                    denseKernels.axpy(buf, head + 1, f, buf, vBase, len)
+                    vectorKernels.axpy(buf, head + 1, f, buf, vBase, len)
                 }
             }
         }
@@ -549,7 +566,7 @@ object ReferenceLinearAlgebra : LinearAlgebra {
     private fun householderColumn(buf: DoubleArray, m: Int, col: Int): Double {
         val base = col + col * m
         val len = m - col
-        val normSq = denseKernels.dot(buf, base, buf, base, len)
+        val normSq = vectorKernels.dot(buf, base, buf, base, len)
         if (normSq == 0.0) return 0.0
         val alpha = buf[base]
         val norm = sqrt(normSq)
@@ -578,10 +595,10 @@ object ReferenceLinearAlgebra : LinearAlgebra {
             if (t == 0.0) continue
             val len = m - col - 1
             val vBase = col + 1 + col * m
-            val s = x[col] + denseKernels.dot(buf, vBase, x, col + 1, len)
+            val s = x[col] + vectorKernels.dot(buf, vBase, x, col + 1, len)
             val f = t * s
             x[col] -= f
-            if (f != 0.0) denseKernels.axpy(x, col + 1, -f, buf, vBase, len)
+            if (f != 0.0) vectorKernels.axpy(x, col + 1, -f, buf, vBase, len)
         }
         return x
     }
@@ -643,7 +660,7 @@ object ReferenceLinearAlgebra : LinearAlgebra {
             for (i in k + 1 until n) lu[i + k * n] = lu[i + k * n] / pivot
             for (j in k + 1 until n) {
                 val ukj = lu[k + j * n]
-                if (ukj != 0.0) denseKernels.axpy(lu, k + 1 + j * n, -ukj, lu, colBase, len)
+                if (ukj != 0.0) vectorKernels.axpy(lu, k + 1 + j * n, -ukj, lu, colBase, len)
             }
         }
         out.failedAt = failedAt
@@ -690,8 +707,8 @@ object ReferenceLinearAlgebra : LinearAlgebra {
         } else {
             for (i in 0 until n) out[i] = b[piv[i]]
         }
-        trsvCore(a, n, out, lower = true, transpose = false, unitDiag = true)
-        trsvCore(a, n, out, lower = false, transpose = false, unitDiag = false)
+        trsvCore(vectorKernels, a, n, out, lower = true, transpose = false, unitDiag = true)
+        trsvCore(vectorKernels, a, n, out, lower = false, transpose = false, unitDiag = false)
         return out
     }
 
@@ -708,10 +725,19 @@ object ReferenceLinearAlgebra : LinearAlgebra {
         // The triangular solves run on a staged copy; the scatter that follows cannot be done in place.
         val y = workspace?.take(n) ?: DoubleArray(n)
         b.copyInto(y)
-        trsvCore(a, n, y, lower = false, transpose = true, unitDiag = false)
-        trsvCore(a, n, y, lower = true, transpose = true, unitDiag = true)
+        trsvCore(vectorKernels, a, n, y, lower = false, transpose = true, unitDiag = false)
+        trsvCore(vectorKernels, a, n, y, lower = true, transpose = true, unitDiag = true)
         for (i in 0 until n) out[piv[i]] = y[i] // undo the row permutation
         workspace?.release(y)
         return out
     }
 }
+
+/**
+ * The shared portable backend: a [ReferenceBackend] following the process-default vector kernels.
+ *
+ * The fallback every seam resolves to when nothing else is registered, and the object a conformance test
+ * compares a native backend against. A stable instance, so `koblas.blas === ReferenceLinearAlgebra` is a
+ * meaningful check.
+ */
+val ReferenceLinearAlgebra: ReferenceBackend = ReferenceBackend()

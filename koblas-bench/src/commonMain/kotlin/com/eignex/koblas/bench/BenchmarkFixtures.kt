@@ -4,8 +4,9 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.dense.LinearAlgebra
 import com.eignex.koblas.dense.ReferenceLinearAlgebra
-import com.eignex.koblas.dense.installLinearAlgebra
-import com.eignex.koblas.dense.koblasInfo
+import com.eignex.koblas.installBackends
+import com.eignex.koblas.koblas
+import com.eignex.koblas.koblasInfo
 import kotlin.random.Random
 
 /**
@@ -51,7 +52,8 @@ internal expect fun useHostLevel1(enabled: Boolean): Boolean
  * place that shows up.
  */
 internal fun installBackend(backend: String) {
-    installLinearAlgebra(if (backend == REFERENCE_BACKEND) ReferenceLinearAlgebra else nativeBackend())
+    val chosen = if (backend == REFERENCE_BACKEND) ReferenceLinearAlgebra else nativeBackend()
+    installBackends(chosen?.let { koblas.with(blas = it, lapack = it) })
     println("resolved: $koblasInfo")
 }
 

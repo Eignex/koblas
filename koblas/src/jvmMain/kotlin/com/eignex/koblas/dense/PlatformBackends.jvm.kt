@@ -5,25 +5,26 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.hostblas.HostBlas
 import com.eignex.koblas.hostblas.HostBlasCalls
 import com.eignex.koblas.hostblas.HostLapack
+import com.eignex.koblas.registerBackend
 import java.util.ServiceLoader
 
 /**
- * The JVM's backend discovery, run once on the first [koblas] read.
+ * The JVM's backend discovery, run once on the first [com.eignex.koblas.koblas] read.
  *
  * Two sources, in order. koblas's own host-OpenBLAS halves come first when the machine has the library
  * installed, registered separately so a host with CBLAS and no LAPACKE keeps the native level-3 routines
  * and the portable factorizations. Then [LinearAlgebra] providers found via [ServiceLoader], so a
  * third-party backend artifact on the classpath activates with no code changes.
  *
- * Order does not decide the winner — [registerBlas] and [registerLapack] rank by [Backend.priority], so a
- * provider that outranks the built-in one still wins, on either half independently.
+ * Order does not decide the winner — [com.eignex.koblas.registerBackend] ranks by [Backend.priority], so
+ * a provider that outranks the built-in one still wins, on either half independently.
  *
  * Each candidate is probed with a tiny computation before being registered, so one whose native library
  * fails to load on the current platform is skipped rather than crashing startup.
  *
  * The `koblas.backend` system property overrides discovery: `reference` registers nothing, leaving the
  * portable [ReferenceLinearAlgebra]; any other value registers only the backend whose [Backend.name]
- * matches. Read once, when [koblas] initializes.
+ * matches. Read once, when [com.eignex.koblas.koblas] initializes.
  */
 internal actual fun registerPlatformBackends() {
     val requested = System.getProperty("koblas.backend")
@@ -32,8 +33,8 @@ internal actual fun registerPlatformBackends() {
     for (provider in loadProviders().sortedByDescending { it.priority }) {
         if (requested != null && provider.name != requested) continue
         if (!probe(provider)) continue
-        registerBlas(provider)
-        registerLapack(provider)
+        registerBackend(provider)
+        registerBackend(provider)
     }
 }
 
@@ -43,8 +44,8 @@ private fun registerHostBlas(requested: String?) {
     val blas = HostBlas()
     if (requested != null && blas.name != requested) return
     if (!probe(blas)) return
-    registerBlas(blas)
-    if (HostBlasCalls.lapackAvailable) registerLapack(HostLapack())
+    registerBackend(blas)
+    if (HostBlasCalls.lapackAvailable) registerBackend(HostLapack())
 }
 
 /** The reserved `koblas.backend` value that means "register nothing". */

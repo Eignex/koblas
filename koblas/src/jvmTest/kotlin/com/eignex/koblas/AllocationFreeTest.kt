@@ -1,8 +1,6 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.dense.ReferenceLinearAlgebra
-import com.eignex.koblas.dense.installLinearAlgebra
-import com.eignex.koblas.dense.koblas
 import com.eignex.koblas.dense.lu
 import com.eignex.koblas.dense.solve
 import com.eignex.koblas.sparse.lu
@@ -48,12 +46,12 @@ class AllocationFreeTest {
      */
     @BeforeTest
     fun usePortableKernels() {
-        installLinearAlgebra(ReferenceLinearAlgebra)
+        installBackends(koblas.with(blas = ReferenceLinearAlgebra, lapack = ReferenceLinearAlgebra))
     }
 
     @AfterTest
     fun restoreSelection() {
-        installLinearAlgebra(null)
+        installBackends(null)
     }
 
     /**

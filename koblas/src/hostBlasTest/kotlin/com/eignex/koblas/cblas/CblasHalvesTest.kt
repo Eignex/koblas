@@ -5,18 +5,15 @@
 package com.eignex.koblas.cblas
 
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.dense.Blas
-import com.eignex.koblas.dense.Lapack
 import com.eignex.koblas.dense.LinearAlgebra
 import com.eignex.koblas.dense.ReferenceLinearAlgebra
-import com.eignex.koblas.dense.installLinearAlgebra
-import com.eignex.koblas.dense.koblas
-import com.eignex.koblas.dense.koblasInfo
-import com.eignex.koblas.dense.registerBlas
-import com.eignex.koblas.dense.registerLapack
-import com.eignex.koblas.dense.resetRegisteredLinearAlgebra
+import com.eignex.koblas.koblas
+import com.eignex.koblas.koblasInfo
+import com.eignex.koblas.registerBackend
+import com.eignex.koblas.withCleanBackends
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -31,25 +28,11 @@ import kotlin.test.assertTrue
  */
 class CblasHalvesTest {
 
-    private fun withRegistry(block: () -> Unit) {
-        val incumbent = koblas.takeIf { it !== ReferenceLinearAlgebra }
-        installLinearAlgebra(null)
-        resetRegisteredLinearAlgebra()
-        try {
-            block()
-        } finally {
-            installLinearAlgebra(null)
-            resetRegisteredLinearAlgebra()
-            incumbent?.let { if (it is LinearAlgebra) registerBlas(it) }
-            incumbent?.let { if (it is LinearAlgebra) registerLapack(it) }
-        }
-    }
-
     @Test
     fun `the BLAS half stands alone when LAPACKE is missing`() {
         val cblas = requireNotNull(OpenBlasLoader.cblas) { "host OpenBLAS expected in the test environment" }
-        withRegistry {
-            registerBlas(CblasBlas(cblas))
+        withCleanBackends {
+            registerBackend(CblasBlas(cblas))
             assertEquals("cblas+reference", koblas.name, koblasInfo)
 
             // Level 3 reaches the host library.
@@ -73,21 +56,23 @@ class CblasHalvesTest {
     fun `the LAPACK half stands alone too`() {
         val cblas = requireNotNull(OpenBlasLoader.cblas)
         val lapacke = requireNotNull(OpenBlasLoader.lapacke) { "host LAPACKE expected in the test environment" }
-        withRegistry {
-            registerLapack(CblasLapack(lapacke, cblas))
+        withCleanBackends {
+            registerBackend(CblasLapack(lapacke, cblas))
             assertEquals("reference+cblas", koblas.name, koblasInfo)
             assertEquals(4, koblas.factor(DenseMatrix.diagonal(4, 2.0)).n)
         }
     }
 
     @Test
-    fun `both halves together resolve to the backend itself`() {
-        withRegistry {
+    fun `both halves together land in both slots of the context`() {
+        withCleanBackends {
             val whole: LinearAlgebra = CblasLinearAlgebra()
-            registerBlas(whole)
-            registerLapack(whole)
-            assertEquals("cblas", koblas.name)
-            assertTrue(koblas is Blas && koblas is Lapack)
+            registerBackend(whole)
+            // One object, offered as every half it implements: both dense slots point at it, and the sparse
+            // ones stay on the reference, which the name reports.
+            assertSame(whole, koblas.blas)
+            assertSame(whole, koblas.lapack)
+            assertEquals("cblas+reference", koblas.name)
         }
     }
 }

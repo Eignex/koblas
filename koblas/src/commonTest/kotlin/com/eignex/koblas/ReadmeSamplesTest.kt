@@ -1,8 +1,6 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.dense.cholesky
-import com.eignex.koblas.dense.koblas
-import com.eignex.koblas.dense.koblasInfo
 import com.eignex.koblas.dense.lu
 import com.eignex.koblas.dense.solve
 import com.eignex.koblas.dense.solveSpd
@@ -74,8 +72,8 @@ class ReadmeSamplesTest {
 
     @Test
     fun `koblasInfo has the shape the sample shows`() {
-        // e.g. "backend=cblas, primitives=scalar+host"
+        // e.g. "backend=cblas, kernels=scalar+host"
         assertTrue(koblasInfo.startsWith("backend="), koblasInfo)
-        assertTrue(", primitives=" in koblasInfo, koblasInfo)
+        assertTrue(", kernels=" in koblasInfo, koblasInfo)
     }
 }

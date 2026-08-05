@@ -1,7 +1,6 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.dense.PlatformVectorKernels
-import com.eignex.koblas.dense.denseKernels
 
 /**
  * Short human-readable identifier for the vector kernels the current process resolved: `"scalar"` on any
@@ -10,7 +9,7 @@ import com.eignex.koblas.dense.denseKernels
  * registered for long runs. Print at startup to verify your runtime picked up what you expected.
  *
  * Common rather than per-target now that [PlatformVectorKernels] names itself: it is just
- * `denseKernels.name`. The two `actual`s it replaces had drifted — the JVM's was an eagerly computed `val`
+ * `koblas.vectorKernels.name`. The two `actual`s it replaces had drifted — the JVM's was an eagerly computed `val`
  * that never mentioned a registered host backend, while the other reported one.
  */
-public val mathBackend: String get() = denseKernels.name
+public val mathBackend: String get() = koblas.vectorKernels.name

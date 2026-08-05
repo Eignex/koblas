@@ -7,6 +7,7 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.VectorView
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.gemv
+import com.eignex.koblas.koblas
 import com.eignex.koblas.transpose
 
 /**
@@ -125,7 +126,7 @@ interface Blas : Backend {
         // One axpy per column of A, each writing a contiguous run: A[:,j] += (alpha·y_j)·x.
         for (j in 0 until a.cols) {
             val scaled = alpha * y[j]
-            if (scaled != 0.0) denseKernels.axpy(a.data, a.colOffset(j), scaled, x, 0, a.rows)
+            if (scaled != 0.0) koblas.vectorKernels.axpy(a.data, a.colOffset(j), scaled, x, 0, a.rows)
         }
     }
 
@@ -138,7 +139,7 @@ interface Blas : Backend {
     fun trsv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean = false, unitDiag: Boolean = false) {
         require(a.rows == a.cols) { "trsv requires a square matrix; got ${a.rows}x${a.cols}" }
         require(x.size == a.rows) { "trsv: x length ${x.size} != ${a.rows}" }
-        trsvCore(a.data, a.rows, x, lower = lower, transpose = transpose, unitDiag = unitDiag)
+        trsvCore(koblas.vectorKernels, a.data, a.rows, x, lower = lower, transpose = transpose, unitDiag = unitDiag)
     }
 
     /**
@@ -159,11 +160,19 @@ interface Blas : Backend {
         if (right) {
             require(b.cols == a.rows) { "trsm right: B has ${b.cols} cols, expected ${a.rows}" }
             forEachRow(a.rows, b) { row ->
-                trsvCore(a.data, a.rows, row, lower = lower, transpose = !transpose, unitDiag = unitDiag)
+                trsvCore(
+                    koblas.vectorKernels,
+                    a.data,
+                    a.rows,
+                    row,
+                    lower = lower,
+                    transpose = !transpose,
+                    unitDiag = unitDiag,
+                )
             }
         } else {
             require(b.rows == a.rows) { "trsm: B has ${b.rows} rows, expected ${a.rows}" }
-            trsmCore(a.data, a.rows, b.data, b.cols, lower, transpose, unitDiag)
+            trsmCore(koblas.vectorKernels, a.data, a.rows, b.data, b.cols, lower, transpose, unitDiag)
         }
     }
 
@@ -171,7 +180,7 @@ interface Blas : Backend {
     fun trmv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean = false, unitDiag: Boolean = false) {
         require(a.rows == a.cols) { "trmv requires a square matrix; got ${a.rows}x${a.cols}" }
         require(x.size == a.rows) { "trmv: x length ${x.size} != ${a.rows}" }
-        trmvCore(a.data, a.rows, x, lower = lower, transpose = transpose, unitDiag = unitDiag)
+        trmvCore(koblas.vectorKernels, a.data, a.rows, x, lower = lower, transpose = transpose, unitDiag = unitDiag)
     }
 
     /** Multiply `B = op(T) · B`, or `B = B · op(T)` when [right] (BLAS `dtrmm`), the counterpart of
@@ -189,11 +198,19 @@ interface Blas : Backend {
         if (right) {
             require(b.cols == a.rows) { "trmm right: B has ${b.cols} cols, expected ${a.rows}" }
             forEachRow(a.rows, b) { row ->
-                trmvCore(a.data, a.rows, row, lower = lower, transpose = !transpose, unitDiag = unitDiag)
+                trmvCore(
+                    koblas.vectorKernels,
+                    a.data,
+                    a.rows,
+                    row,
+                    lower = lower,
+                    transpose = !transpose,
+                    unitDiag = unitDiag,
+                )
             }
         } else {
             require(b.rows == a.rows) { "trmm: B has ${b.rows} rows, expected ${a.rows}" }
-            trmmCore(a.data, a.rows, b.data, b.cols, lower, transpose, unitDiag)
+            trmmCore(koblas.vectorKernels, a.data, a.rows, b.data, b.cols, lower, transpose, unitDiag)
         }
     }
 }

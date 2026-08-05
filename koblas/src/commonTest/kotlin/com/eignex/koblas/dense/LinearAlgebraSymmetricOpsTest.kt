@@ -3,6 +3,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.koblas
 import com.eignex.koblas.poisonedSymmetric
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.randomVector

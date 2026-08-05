@@ -7,6 +7,7 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.MatrixView
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.koblas
 import com.eignex.koblas.norm1
 import com.eignex.koblas.transpose
 import kotlin.math.abs
@@ -109,8 +110,8 @@ interface Lapack : Backend {
             // Aᵀ X = B, with Aᵀ = Uᵀ Lᵀ P: forward-solve Uᵀ, back-solve unit Lᵀ, un-permute rows.
             val y = workspace?.take(n * nrhs) ?: DoubleArray(n * nrhs)
             b.data.copyInto(y)
-            trsmCore(f, n, y, nrhs, lower = false, transpose = true, unitDiag = false)
-            trsmCore(f, n, y, nrhs, lower = true, transpose = true, unitDiag = true)
+            trsmCore(koblas.vectorKernels, f, n, y, nrhs, lower = false, transpose = true, unitDiag = false)
+            trsmCore(koblas.vectorKernels, f, n, y, nrhs, lower = true, transpose = true, unitDiag = true)
             scatterRows(y, out.data, n, nrhs, lu.piv)
             workspace?.release(y)
             out
@@ -125,8 +126,8 @@ interface Lapack : Backend {
             } else {
                 gatherRows(b.data, out.data, n, nrhs, lu.piv)
             }
-            trsmCore(f, n, out.data, nrhs, lower = true, transpose = false, unitDiag = true)
-            trsmCore(f, n, out.data, nrhs, lower = false, transpose = false, unitDiag = false)
+            trsmCore(koblas.vectorKernels, f, n, out.data, nrhs, lower = true, transpose = false, unitDiag = true)
+            trsmCore(koblas.vectorKernels, f, n, out.data, nrhs, lower = false, transpose = false, unitDiag = false)
             out
         }
     }
@@ -216,7 +217,7 @@ interface Lapack : Backend {
         y.copyInto(out, 0, 0, qr.n)
         // R is the leading n×n triangle of the packed m×n buffer, so it is read at the buffer's own
         // leading dimension rather than as a standalone n×n block.
-        trsvCore(qr.qr, qr.n, out, lda = qr.m, lower = false, transpose = false, unitDiag = false)
+        trsvCore(koblas.vectorKernels, qr.qr, qr.n, out, lda = qr.m, lower = false, transpose = false, unitDiag = false)
         workspace?.release(y)
         return out
     }
@@ -249,7 +250,7 @@ interface Lapack : Backend {
         val w = workspace?.take(qr.n) ?: DoubleArray(qr.n)
         b.copyInto(w)
         // R is the leading n×n triangle of the packed m×n buffer; see [solveLeastSquaresInto].
-        trsvCore(qr.qr, qr.n, w, lda = qr.m, lower = false, transpose = true, unitDiag = false)
+        trsvCore(koblas.vectorKernels, qr.qr, qr.n, w, lda = qr.m, lower = false, transpose = true, unitDiag = false)
         // Pad to length m with zeros, then apply Q in place.
         out.fill(0.0)
         w.copyInto(out)
@@ -376,7 +377,7 @@ interface Lapack : Backend {
             val len = n - j
             for (p in 0 until j) {
                 val f = ld[j + p * n]
-                if (f != 0.0) denseKernels.axpy(ld, base, -f, ld, j + p * n, len)
+                if (f != 0.0) koblas.vectorKernels.axpy(ld, base, -f, ld, j + p * n, len)
             }
             val pivot = ld[base]
             if (pivot <= 0.0 || pivot.isNaN()) {
@@ -406,8 +407,8 @@ interface Lapack : Backend {
         val n = L.rows
         require(b.size == n) { "solveSpd: b size ${b.size}, expected $n" }
         val x = b.copyOf()
-        trsvCore(L.data, n, x, lower = true, transpose = false, unitDiag = false)
-        trsvCore(L.data, n, x, lower = true, transpose = true, unitDiag = false)
+        trsvCore(koblas.vectorKernels, L.data, n, x, lower = true, transpose = false, unitDiag = false)
+        trsvCore(koblas.vectorKernels, L.data, n, x, lower = true, transpose = true, unitDiag = false)
         return x
     }
 
@@ -433,13 +434,13 @@ interface Lapack : Backend {
                 val base = c + c * n
                 val yc = y[c] / ld[base]
                 y[c] = yc
-                if (yc != 0.0) denseKernels.axpy(y, c + 1, -yc, ld, base + 1, n - c - 1)
+                if (yc != 0.0) koblas.vectorKernels.axpy(y, c + 1, -yc, ld, base + 1, n - c - 1)
             }
             // Lᵀ x = y, restricted to rows >= j; column i of L is row i of Lᵀ, so this dots behind the
             // frontier.
             for (i in n - 1 downTo j) {
                 val base = i + i * n
-                y[i] = (y[i] - denseKernels.dot(ld, base + 1, y, i + 1, n - i - 1)) / ld[base]
+                y[i] = (y[i] - koblas.vectorKernels.dot(ld, base + 1, y, i + 1, n - i - 1)) / ld[base]
             }
             for (i in j until n) {
                 invd[i + j * n] = y[i]

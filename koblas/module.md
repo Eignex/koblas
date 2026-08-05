@@ -23,8 +23,8 @@ The heavier level-2/3 and factorization work — [gemv][com.eignex.koblas.dense.
 [gemm][com.eignex.koblas.dense.LinearAlgebra.gemm] and a general LU
 [factor][com.eignex.koblas.dense.LinearAlgebra.factor] / [solve][com.eignex.koblas.dense.LinearAlgebra.solve] — sits
 behind the runtime-swappable [LinearAlgebra][com.eignex.koblas.dense.LinearAlgebra] backend so a native
-BLAS/LAPACK implementation can replace it without changing callers. [koblas][com.eignex.koblas.dense.koblas]
-resolves to an [installLinearAlgebra][com.eignex.koblas.dense.installLinearAlgebra] override when set, else
+BLAS/LAPACK implementation can replace it without changing callers. [koblas][com.eignex.koblas.koblas]
+resolves to an [installBackends][com.eignex.koblas.installBackends] override when set, else
 the platform backend when present, else the pure-Kotlin
 [ReferenceLinearAlgebra][com.eignex.koblas.dense.ReferenceLinearAlgebra]. Ergonomic entry points
 [lu][com.eignex.koblas.dense.lu] / [LuDecomposition.solve][com.eignex.koblas.dense.solve] / [matMul][com.eignex.koblas.dense.matMul]

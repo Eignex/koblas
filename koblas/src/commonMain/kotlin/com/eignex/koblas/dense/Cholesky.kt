@@ -6,6 +6,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.MatrixView
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.koblas
 
 // Cholesky helpers operating on the flat-`DoubleArray` backing of [DenseMatrix].
 // Operates on the flat DoubleArray backing of [DenseMatrix].
