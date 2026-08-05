@@ -6,6 +6,7 @@
 package com.eignex.koblas.cblas
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.dense.CholeskyPolicy
 import com.eignex.koblas.dense.LinearAlgebra
 import com.eignex.koblas.dense.ReferenceLinearAlgebra
 import com.eignex.koblas.dense.Uplo
@@ -529,12 +530,17 @@ class CblasConformanceTest {
         }
     }
 
-    /** A non-positive-definite input has no LAPACK equivalent, so it must fall back to the clamping path. */
+    /**
+     * A non-positive-definite input has no LAPACK equivalent — `dpotrf` reports the failing minor rather
+     * than clamping — so the host backend has to hand the whole factorization back to the portable path.
+     * Both policies must therefore behave identically on the two backends.
+     */
     @Test
-    fun `a non positive definite input falls back to the portable clamp`() {
+    fun `a non positive definite input falls back to the portable path`() {
         val bad = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 0.0), doubleArrayOf(0.0, -0.5)))
-        assertEquals(reference.cholesky(bad)[1, 1], cblas.cholesky(bad)[1, 1], 1e-15)
-        assertFailsWith<IllegalArgumentException> { cblas.cholesky(bad, regularizeNonPD = false) }
+        val policy = CholeskyPolicy.Regularize()
+        assertEquals(reference.cholesky(bad, policy)[1, 1], cblas.cholesky(bad, policy)[1, 1], 1e-15)
+        assertFailsWith<IllegalArgumentException> { cblas.cholesky(bad) }
     }
 
     @Test

@@ -23,11 +23,14 @@ import com.eignex.koblas.koblas
  * Lower-triangular Cholesky decomposition `A = L * LT`, returned as a fresh matrix, from the installed
  * backend; see [Lapack.cholesky].
  *
- * With [regularizeNonPD] true (default), non-positive-definite inputs get a small positive diagonal
+ * Throws at the first non-positive pivot unless [policy] says otherwise; see [CholeskyPolicy]. The old
+ * default regularized silently, which returned a factor of a matrix that was not the one passed in.
+ *
+ * Historic note: what used to be `cholesky(regularizeNonPD = true)` is now
  * entry instead of a crash. Pass `false` for strict validation: the call then throws
  * [IllegalArgumentException] at the first non-PD pivot.
  */
-fun MatrixView.cholesky(regularizeNonPD: Boolean = true): DenseMatrix = koblas.cholesky(this, regularizeNonPD)
+fun MatrixView.cholesky(policy: CholeskyPolicy = CholeskyPolicy.Strict): DenseMatrix = koblas.cholesky(this, policy)
 
 /** Solve `A * x = b` given `L = chol(A)`; see [Lapack.solveSpd]. */
 fun solveSpd(L: DenseMatrix, b: DoubleArray): DoubleArray = koblas.solveSpd(L, b)

@@ -345,13 +345,10 @@ interface Lapack : Backend {
     /**
      * Lower-triangular Cholesky decomposition `A = L * LT`, returned as a fresh matrix.
      *
-     * With [regularizeNonPD] true (default), non-positive-definite inputs get a small
-     * positive diagonal entry instead of a crash - suitable for the online stats that
-     * call this on drifting precision matrices. Pass `false` for strict
-     * positive-definiteness validation (e.g. user-supplied prior covariance); the
-     * function throws [IllegalArgumentException] at the first non-PD pivot.
+     * Throws [IllegalArgumentException] at the first non-positive pivot unless [policy] says otherwise; see
+     * [CholeskyPolicy] for why that is the default and what asking for [CholeskyPolicy.Regularize] means.
      */
-    fun cholesky(a: MatrixView, regularizeNonPD: Boolean = true): DenseMatrix {
+    fun cholesky(a: MatrixView, policy: CholeskyPolicy = CholeskyPolicy.Strict): DenseMatrix {
         require(a.rows == a.cols) { "cholesky requires a square matrix; got ${a.rows}x${a.cols}" }
         val n = a.rows
         val l = DenseMatrix(n, n)
@@ -381,10 +378,11 @@ interface Lapack : Backend {
             }
             val pivot = ld[base]
             if (pivot <= 0.0 || pivot.isNaN()) {
-                require(regularizeNonPD) {
-                    "matrix is not positive-definite at pivot $j (diagonal=$pivot)"
+                require(policy is CholeskyPolicy.Regularize) {
+                    "matrix is not positive-definite at pivot $j (diagonal=$pivot); pass " +
+                        "CholeskyPolicy.Regularize to factor a nearby matrix instead"
                 }
-                ld[base] = 1e-5
+                ld[base] = sqrt(policy.minimumPivot)
             } else {
                 ld[base] = sqrt(pivot)
             }

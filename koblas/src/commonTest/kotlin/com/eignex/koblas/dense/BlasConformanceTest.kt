@@ -115,7 +115,7 @@ class BlasConformanceTest {
             val a = spd(n, rng)
             val xTrue = DoubleArray(n) { rng.nextDouble(-2.0, 2.0) }
             val b = koblas.gemv(a, xTrue)
-            val l = a.cholesky(regularizeNonPD = false)
+            val l = a.cholesky()
             val x = solveSpd(l, b)
             assertSolveResidual(a, x, b, "cholesky/n=$n")
         }
@@ -160,7 +160,7 @@ class BlasConformanceTest {
         val rng = Random(20260805)
         for (n in intArrayOf(1, 3, 10, 30)) {
             val a = spd(n, rng)
-            val inv = invertSpd(a.cholesky(regularizeNonPD = false))
+            val inv = invertSpd(a.cholesky())
             val prod = a.matMul(inv)
             var maxOffIdentity = 0.0
             for (i in 0 until n) {

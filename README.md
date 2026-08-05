@@ -55,8 +55,16 @@ val x = a.lu().solve(doubleArrayOf(3.0, 5.0))
 Solve a symmetric positive-definite system via Cholesky:
 
 ```kotlin
-val l = a.cholesky() // A = L·Lᵀ
+val l = a.cholesky() // A = L·Lᵀ; throws if A is not positive-definite
 val xs = solveSpd(l, doubleArrayOf(3.0, 5.0))
+```
+
+An estimate that has drifted slightly indefinite can ask for the nearby factor
+instead of an exception, which is a decision the caller makes rather than a
+default:
+
+```kotlin
+val l = a.cholesky(CholeskyPolicy.Regularize()) // floors non-positive pivots
 ```
 
 Factorize a sparse basis and solve both directions:
