@@ -29,3 +29,10 @@ fun SparseMatrix.lu(equilibrate: Boolean = false): SparseFactorization = koblas.
  * package depend on this one.
  */
 fun SparseMatrix.gemv(x: DoubleArray, transpose: Boolean = false): DoubleArray = koblas.gemv(this, x, transpose)
+
+/**
+ * Solve `op(T) · x = b` in place against this matrix's [lower] or upper triangle, with the active backend
+ * ([koblas]) — the sparse counterpart of the dense `trsv` free function. See [SparseBlas.trsv].
+ */
+fun SparseMatrix.trsv(x: DoubleArray, lower: Boolean, transpose: Boolean = false) =
+    koblas.trsv(this, x, lower, transpose)
