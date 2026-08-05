@@ -5,6 +5,7 @@ package com.eignex.koblas.cblas
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.MatrixView
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.dense.CholeskyPolicy
 import com.eignex.koblas.dense.Lapack
 import com.eignex.koblas.dense.LdlDecomposition
 import com.eignex.koblas.dense.LuDecomposition
@@ -274,10 +275,10 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
      *
      * LAPACK factorizes in place and leaves the strict upper triangle exactly as the input had it, while
      * koblas returns a factor whose upper triangle is zero, so it is cleared afterwards. And LAPACK has
-     * no equivalent of [regularizeNonPD]: it reports the failing pivot instead of clamping it, so a
+     * no equivalent of [CholeskyPolicy.Regularize]: it reports the failing pivot instead of clamping it, so a
      * non-positive-definite input falls back to the portable path, which is what applies the clamp.
      */
-    override fun cholesky(a: MatrixView, regularizeNonPD: Boolean): DenseMatrix {
+    override fun cholesky(a: MatrixView, policy: CholeskyPolicy): DenseMatrix {
         require(a.rows == a.cols) { "cholesky requires a square matrix; got ${a.rows}x${a.cols}" }
         val n = a.rows
         if (n == 0) return DenseMatrix(0, 0)
@@ -287,7 +288,7 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
         check(info >= 0) { "dpotrf: illegal argument ${-info}" }
         // info > 0 marks the leading minor that is not positive definite: redo it portably, which either
         // clamps the pivot or throws, per the flag.
-        if (info > 0) return super.cholesky(a, regularizeNonPD)
+        if (info > 0) return super.cholesky(a, policy)
         for (i in 0 until n) for (j in i + 1 until n) l[i, j] = 0.0
         return l
     }

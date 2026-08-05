@@ -4,6 +4,7 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.MatrixView
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.dense.Blas
+import com.eignex.koblas.dense.CholeskyPolicy
 import com.eignex.koblas.dense.Lapack
 import com.eignex.koblas.dense.LdlDecomposition
 import com.eignex.koblas.dense.LuDecomposition
@@ -290,15 +291,15 @@ class HostLapack internal constructor() : Lapack {
      *
      * LAPACK factorizes in place and leaves the strict upper triangle exactly as the input had it, while
      * koblas returns a factor whose upper triangle is zero, so it is cleared. LAPACK has no equivalent of
-     * [regularizeNonPD]: it reports the failing leading minor instead of clamping the pivot, so `info > 0`
+     * [CholeskyPolicy.Regularize]: it reports the failing leading minor instead of clamping the pivot, so `info > 0`
      * falls back to the portable path, which is what applies the clamp or throws per the flag. And only the
      * lower triangle of the input is read, matching what koblas promises its callers.
      *
      * The threshold is where the measurement puts it, not at the LAPACK default: SIMD won 2.19x at n=256,
      * tied at 1024, and lost 1.95x at 2048, so this gate opens late.
      */
-    override fun cholesky(a: MatrixView, regularizeNonPD: Boolean): DenseMatrix {
-        if (a.rows < JVM_CHOLESKY_MIN) return super.cholesky(a, regularizeNonPD)
+    override fun cholesky(a: MatrixView, policy: CholeskyPolicy): DenseMatrix {
+        if (a.rows < JVM_CHOLESKY_MIN) return super.cholesky(a, policy)
         require(a.rows == a.cols) { "cholesky requires a square matrix; got ${a.rows}x${a.cols}" }
         val n = a.rows
         if (n == 0) return DenseMatrix(0, 0)
@@ -312,7 +313,7 @@ class HostLapack internal constructor() : Lapack {
             n,
         ) as Int
         check(info >= 0) { "dpotrf: illegal argument ${-info}" }
-        if (info > 0) return super.cholesky(a, regularizeNonPD)
+        if (info > 0) return super.cholesky(a, policy)
         for (i in 0 until n) for (j in i + 1 until n) l[i, j] = 0.0
         return l
     }

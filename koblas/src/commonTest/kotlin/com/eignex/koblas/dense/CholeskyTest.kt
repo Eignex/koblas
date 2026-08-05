@@ -3,6 +3,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.koblas
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -77,18 +78,58 @@ class CholeskyTest {
         }
     }
 
+    /**
+     * A negative diagonal pivot is a failure by default, which it did not used to be.
+     *
+     * Both spellings are checked because both declare the default separately — the [MatrixView.cholesky]
+     * extension and the [Lapack.cholesky] member each carry their own default value, so pinning one leaves
+     * the other free to drift. Mutation-checking found exactly that: flipping the member's default back to
+     * regularizing passed a suite that only exercised the extension.
+     */
     @Test
-    fun `cholesky strict mode throws on a non positive definite pivot`() {
-        // Negative diagonal pivot - immediately rejected with regularizeNonPD=false.
-        val bad = DenseMatrix.of(
-            arrayOf(
-                doubleArrayOf(1.0, 0.0),
-                doubleArrayOf(0.0, -0.5),
-            ),
-        )
-        assertFailsWith<IllegalArgumentException> { bad.cholesky(regularizeNonPD = false) }
-        // Default regularising path still succeeds (clamps the pivot to 1e-5).
-        val L = bad.cholesky()
-        assertTrue(L[1, 1] > 0.0)
+    fun `cholesky rejects a non positive definite pivot by default`() {
+        val failure = assertFailsWith<IllegalArgumentException> { notPositiveDefinite().cholesky() }
+        val message = failure.message!!
+        assertTrue("pivot 1" in message, "the message should name the position: $message")
+        assertTrue("Regularize" in message, "the message should name the way out: $message")
+        assertFailsWith<IllegalArgumentException> { koblas.cholesky(notPositiveDefinite()) }
     }
+
+    /**
+     * Regularizing is available, but only when asked for, and it factors a *nearby* matrix.
+     *
+     * `minimumPivot` is in the matrix's units, so `L`'s diagonal is its square root. The default reproduces
+     * what the old `regularizeNonPD = true` did, when the value was a bare `1e-5` inside the loop.
+     */
+    @Test
+    fun `cholesky regularizes when the policy asks for it`() {
+        val l = notPositiveDefinite().cholesky(CholeskyPolicy.Regularize())
+        assertEquals(1e-5, l[1, 1], 1e-18, "the default floor is the historical 1e-5 on L")
+
+        val loose = notPositiveDefinite().cholesky(CholeskyPolicy.Regularize(minimumPivot = 4e-4))
+        assertEquals(2e-2, loose[1, 1], 1e-12, "L's diagonal is the square root of the pivot floor")
+
+        // A positive-definite matrix is untouched by the policy: the same factor either way.
+        val good = DenseMatrix.of(arrayOf(doubleArrayOf(4.0, 2.0), doubleArrayOf(2.0, 5.0)))
+        val strict = good.cholesky()
+        val regularized = good.cholesky(CholeskyPolicy.Regularize())
+        for (i in 0 until 2) {
+            for (j in 0 until 2) assertEquals(strict[i, j], regularized[i, j], 1e-15, "[$i,$j]")
+        }
+    }
+
+    /** A non-positive floor would produce a NaN or a zero diagonal, so it is rejected at construction. */
+    @Test
+    fun `the regularization floor must be positive`() {
+        assertFailsWith<IllegalArgumentException> { CholeskyPolicy.Regularize(minimumPivot = 0.0) }
+        assertFailsWith<IllegalArgumentException> { CholeskyPolicy.Regularize(minimumPivot = -1.0) }
+        assertFailsWith<IllegalArgumentException> { CholeskyPolicy.Regularize(minimumPivot = Double.NaN) }
+    }
+
+    private fun notPositiveDefinite() = DenseMatrix.of(
+        arrayOf(
+            doubleArrayOf(1.0, 0.0),
+            doubleArrayOf(0.0, -0.5),
+        ),
+    )
 }
