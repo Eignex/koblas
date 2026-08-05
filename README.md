@@ -25,8 +25,9 @@ the Linux and macOS native targets when it is installed.
 Kotlin has no standard multiplatform linear algebra library. Koblas is a small
 one built around serializable containers: DenseMatrix (flat, column-major),
 DenseVector and SparseVector behind a shared view contract, and a CSC
-SparseMatrix. Arithmetic lives as free functions over the views; the heavier
-dense operations sit behind the swappable Blas and Lapack interfaces.
+SparseMatrix, transposable in place of a CSR conversion. Arithmetic lives as
+free functions over the views; the heavier dense operations sit behind the
+swappable Blas and Lapack interfaces.
 
 The operation set covers level 1 through 3 BLAS kernels, the LU, Cholesky, QR,
 and symmetric indefinite solver families with condition estimation, and sparse
@@ -90,9 +91,11 @@ against reference results on every target.
 | ddot, daxpy, dscal | dot, axpy, scale (sparse-aware) |
 | dnrm2, dasum, idamax | norm2, asum, iamax |
 | dcopy, dswap | copy, swap |
+| drotg, drot (Givens rotation) | rotg, rot |
 | **Level 2** (matrix-vector, on Blas) | |
 | dgemv (full alpha/beta form) | gemv |
 | dger (rank-one update) | ger |
+| dsyr, dsyr2 (symmetric rank-1/2 update) | syr, syr2 |
 | dsymv (symmetric multiply) | symv |
 | dtrsv (triangular solve) | trsv |
 | dtrmv (triangular multiply) | trmv |
@@ -100,11 +103,13 @@ against reference results on every target.
 | dgemm (full form, transpose flags) | gemm |
 | dsymm (symmetric multiply) | symm |
 | dsyrk (symmetric rank-k update) | syrk |
+| dsyr2k (symmetric rank-2k update) | syr2k |
 | dtrsm (triangular solve, multi-RHS) | trsm |
 | dtrmm (triangular multiply, multi-RHS) | trmm |
 | **LAPACK** (factorizations, on Lapack) | |
-| dgetrf, dgetrs (LU) | factor, solve; determinant is free |
-| dgecon, dlange (condition estimate) | rcond; norm1 is free |
+| dgetrf, dgetrs, dgetri (LU) | factor, solve, invert; determinant is free |
+| dgecon, dlange (condition estimate, norms) | rcond; norm1, normInf, normFro are free |
+| dtrtri (triangular inverse) | trtri |
 | dpotrf, dpotrs, dpotri (Cholesky) | cholesky, solveSpd, invertSpd |
 | dgeqrf, dormqr, dgels (QR) | qr, applyQ, solveLeastSquares, solveMinimumNorm |
 | dsytrf, dsytrs (symmetric indefinite LDLᵀ) | ldl, solve |

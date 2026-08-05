@@ -4,6 +4,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.Backend
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.VectorLike
 import com.eignex.koblas.VectorView
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.gemv
@@ -127,6 +128,97 @@ interface Blas : Backend {
         for (j in 0 until a.cols) {
             val scaled = alpha * y[j]
             if (scaled != 0.0) koblas.vectorKernels.axpy(a.data, a.colOffset(j), scaled, x, 0, a.rows)
+        }
+    }
+
+    /**
+     * Symmetric rank-1 update `A += alpha · x · xᵀ` (BLAS `dsyr`), writing the triangle(s) [uplo] selects.
+     *
+     * The simplest of the three symmetric updates, and the one koblas was missing while shipping the
+     * hardest: [syrk] is the rank-k form. A covariance or precision matrix accumulated one observation at a
+     * time is exactly this call.
+     *
+     * Exactly symmetric under [Uplo.FULL] by construction, since each pair `(i, j)` is computed once and
+     * written to both positions — a sweep that filled the two triangles independently would not be, because
+     * `(alpha·x_i)·x_j` and `(alpha·x_j)·x_i` round differently.
+     */
+    fun syr(alpha: Double, x: VectorLike, a: DenseMatrix, uplo: Uplo = Uplo.FULL) {
+        require(a.rows == a.cols) { "syr: matrix must be square, got ${a.rows}x${a.cols}" }
+        require(x.size == a.rows) { "syr: x length ${x.size} != ${a.rows}" }
+        if (alpha == 0.0) return
+        val n = a.rows
+        val ad = a.data
+        val xs = x.toDoubleArray()
+        for (j in 0 until n) {
+            val xj = alpha * xs[j]
+            if (xj == 0.0) continue
+            for (i in j until n) addUplo(ad, n, i, j, xj * xs[i], uplo)
+        }
+    }
+
+    /**
+     * Symmetric rank-2 update `A += alpha · (x · yᵀ + y · xᵀ)` (BLAS `dsyr2`), writing the triangle(s)
+     * [uplo] selects.
+     *
+     * Symmetric by the same construction [syr] uses: the term for a pair is formed once, as
+     * `alpha·(x_i·y_j + y_i·x_j)`, and written to both positions.
+     */
+    fun syr2(alpha: Double, x: VectorLike, y: VectorLike, a: DenseMatrix, uplo: Uplo = Uplo.FULL) {
+        require(a.rows == a.cols) { "syr2: matrix must be square, got ${a.rows}x${a.cols}" }
+        require(x.size == a.rows && y.size == a.rows) {
+            "syr2: operand lengths ${x.size} and ${y.size} must both be ${a.rows}"
+        }
+        if (alpha == 0.0) return
+        val n = a.rows
+        val ad = a.data
+        val xs = x.toDoubleArray()
+        val ys = y.toDoubleArray()
+        for (j in 0 until n) {
+            for (i in j until n) {
+                val v = alpha * (xs[i] * ys[j] + ys[i] * xs[j])
+                if (v != 0.0) addUplo(ad, n, i, j, v, uplo)
+            }
+        }
+    }
+
+    /**
+     * Symmetric rank-2k update `C = alpha · (op(A) · op(B)ᵀ + op(B) · op(A)ᵀ) + beta · C` (BLAS `dsyr2k`),
+     * where `op` transposes when [transpose].
+     *
+     * Completes level 3: [syrk], [symm], [gemm], [trsm] and [trmm] were all present and this was not.
+     *
+     * Each `(i, j)` term is the pair of dots `A[i]·B[j] + B[i]·A[j]`, formed once and written to both
+     * positions, so the result is exactly symmetric under [Uplo.FULL] for the reason [syr] explains.
+     */
+    @Suppress("LongParameterList") // the BLAS dsyr2k signature
+    fun syr2k(
+        alpha: Double,
+        a: DenseMatrix,
+        b: DenseMatrix,
+        transpose: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        uplo: Uplo = Uplo.FULL,
+    ) {
+        val n = if (transpose) a.cols else a.rows
+        val k = if (transpose) a.rows else a.cols
+        require(b.rows == a.rows && b.cols == a.cols) {
+            "syr2k: B is ${b.rows}x${b.cols}, expected ${a.rows}x${a.cols} to match A"
+        }
+        require(c.rows == n && c.cols == n) { "syr2k: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
+        scaleUplo(koblas.vectorKernels, c.data, n, beta, uplo)
+        if (alpha == 0.0 || n == 0 || k == 0) return
+        val cd = c.data
+        for (j in 0 until n) {
+            for (i in j until n) {
+                var s = 0.0
+                if (transpose) {
+                    for (p in 0 until k) s += a[p, i] * b[p, j] + b[p, i] * a[p, j]
+                } else {
+                    for (p in 0 until k) s += a[i, p] * b[j, p] + b[i, p] * a[j, p]
+                }
+                if (s != 0.0) addUplo(cd, n, i, j, alpha * s, uplo)
+            }
         }
     }
 
