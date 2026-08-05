@@ -13,12 +13,10 @@ mirror the dense ones.
 - [SparseLapack] — the factorizations. [SparseLapack.factor] returns [SparseFactorization], never null: a
   singular matrix yields a factorization reporting `singular`, matching the dense contract.
 - [SparseLinearAlgebra] pairs the two matrix seams. All three are offered through `registerSparseBlas` /
-  `registerSparseLapack` / `registerSparseVectorKernels` and forced with `installSparseLinearAlgebra` /
-  a [com.eignex.koblas.KoblasContext], resolving as [com.eignex.koblas.koblas] and its
-  `sparseVectorKernels`.
-- Implementations: [SparseLu], a Markowitz threshold-pivoting `P·B·Q = L·U` that keeps the factors sparse
-  instead of filling toward `O(m²)`; and [EtaBasis], the product-form-of-the-inverse that lets a revised
-  simplex fold a rank-one basis change into an existing factorization instead of redoing it.
+  [com.eignex.koblas.registerBackend] and forced with [com.eignex.koblas.installBackends], resolving as
+  [com.eignex.koblas.koblas] and its `sparseVectorKernels`.
+- Implementation: [SparseLu], a Markowitz threshold-pivoting `P·B·Q = L·U` that keeps the factors sparse
+  instead of filling toward `O(m²)`.
 
 [SparseFactorization] is an interface rather than a class, which is the one place this deviates from the
 dense shape. LAPACK's packed formats are a standard, so a dense [com.eignex.koblas.dense.LuDecomposition]

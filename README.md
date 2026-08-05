@@ -30,7 +30,7 @@ dense operations sit behind the swappable Blas and Lapack interfaces.
 
 The operation set covers level 1 through 3 BLAS kernels, the LU, Cholesky, QR,
 and symmetric indefinite solver families with condition estimation, and sparse
-factorization with rank-one basis updates. See [BLAS Coverage](#blas-coverage)
+LU factorization. See [BLAS Coverage](#blas-coverage)
 for the exact contract and what is out of scope.
 
 ### Installation
@@ -156,8 +156,7 @@ The routines a steady-state loop repeats have a destination-passing form, so a
 loop that owns its buffers allocates nothing: solveInto for the dense and
 symmetric indefinite solves, single or blocked, applyQInto and the two
 least-squares solves for the QR family, solveInto for the sparse
-basis and the eta chain, and factorInto to refactorize into existing factor
-buffers.
+factorization, and factorInto to refactorize into existing factor buffers.
 
 A few routines also need scratch of their own, and those take an optional
 Workspace: a pool of vectors keyed by width, which you create and hand over.
@@ -169,14 +168,13 @@ qr, invertSpd, and the blocked multi-RHS solves' staging. norm1 is the routine
 you call alongside rcond to decide whether a factorization is still accurate
 enough to reuse, but it takes no workspace and needs none: a column is
 contiguous under column-major storage, so each column sum finishes before the
-next begins and one accumulator suffices. An EtaBasis owns its scratch instead,
-being mutable already, so its solves need no workspace at all.
+next begins and one accumulator suffices.
 
 ```kotlin
 val ws = Workspace().apply { reserve(n, count = 5) }
 val x = DoubleArray(n)
 repeat(iterations) {
-    basis.solveInto(b, x) // no allocation
+    basis.solveInto(b, x, workspace = ws) // no allocation
     if (koblas.rcond(lu, anorm, ws) < threshold) koblas.factorInto(a, lu)
 }
 ```

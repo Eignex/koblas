@@ -6,7 +6,6 @@ import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.koblas
 import com.eignex.koblas.norm1
-import com.eignex.koblas.sparse.EtaBasis
 import com.eignex.koblas.sparse.lu
 import com.eignex.koblas.wellConditioned
 import kotlin.random.Random
@@ -213,17 +212,5 @@ class DestinationPassingTest {
             lu.solveInto(b, DoubleArray(m), workspace = ws),
             "sparse forward solve after a transposed one",
         )
-
-        val eta = EtaBasis.of(lu)
-        val spike = eta.solve(DoubleArray(m) { rng.nextDouble(-1.0, 1.0) })
-        eta.update(pivotRow = 3, spike = spike)
-        assertClose(eta.solve(b), eta.solveInto(b, DoubleArray(m)), "eta forward solve")
-        assertClose(
-            eta.solve(b, transpose = true),
-            eta.solveInto(b, DoubleArray(m), transpose = true),
-            "eta transposed solve",
-        )
-        val aliased = b.copyOf()
-        assertClose(eta.solve(b), eta.solveInto(aliased, aliased), "eta forward solve aliased")
     }
 }
