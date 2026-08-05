@@ -4,7 +4,6 @@ import com.eignex.koblas.dense.cholesky
 import com.eignex.koblas.dense.lu
 import com.eignex.koblas.dense.solve
 import com.eignex.koblas.dense.solveSpd
-import com.eignex.koblas.sparse.EtaBasis
 import com.eignex.koblas.sparse.gemv
 import com.eignex.koblas.sparse.lu
 import kotlin.random.Random
@@ -54,7 +53,7 @@ class ReadmeSamplesTest {
         val a = wellConditioned(n, rng)
         val b = randomVector(n, rng)
         val identity = SparseMatrix.ofColumns(n, n, List(n) { j -> listOf(j to 1.0) })
-        val basis = EtaBasis.of(identity.lu())
+        val basis = identity.lu()
         val lu = a.lu()
         val anorm = norm1(a)
         val threshold = 1e-12
@@ -63,7 +62,7 @@ class ReadmeSamplesTest {
         val ws = Workspace().apply { reserve(n, count = 5) }
         val x = DoubleArray(n)
         repeat(iterations) {
-            basis.solveInto(b, x) // no allocation
+            basis.solveInto(b, x, workspace = ws) // no allocation
             if (koblas.rcond(lu, anorm, ws) < threshold) koblas.factorInto(a, lu)
         }
         // The basis is the identity, so the solve returns b itself.
