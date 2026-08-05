@@ -1,7 +1,7 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.Workspace
-import com.eignex.koblas.dense.denseKernels
+import com.eignex.koblas.koblas
 
 /**
  * Maintains a basis factorization across rank-1 basis updates using the **product-form of the inverse**
@@ -60,8 +60,8 @@ class EtaBasis private constructor(private val base: SparseFactorization) {
             val eta = etaSpike[j]
             val xp = x[p] / eta[p]
             if (xp != 0.0) {
-                denseKernels.axpy(x, 0, -xp, eta, 0, p)
-                denseKernels.axpy(x, p + 1, -xp, eta, p + 1, m - p - 1)
+                koblas.vectorKernels.axpy(x, 0, -xp, eta, 0, p)
+                koblas.vectorKernels.axpy(x, p + 1, -xp, eta, p + 1, m - p - 1)
             }
             x[p] = xp
         }
@@ -78,7 +78,13 @@ class EtaBasis private constructor(private val base: SparseFactorization) {
         for (j in etaSpike.indices.reversed()) {
             val p = etaRow[j]
             val eta = etaSpike[j]
-            val s = z[p] - denseKernels.dot(eta, 0, z, 0, p) - denseKernels.dot(eta, p + 1, z, p + 1, m - p - 1)
+            val s = z[p] - koblas.vectorKernels.dot(
+                eta,
+                0,
+                z,
+                0,
+                p,
+            ) - koblas.vectorKernels.dot(eta, p + 1, z, p + 1, m - p - 1)
             z[p] = s / eta[p]
         }
         val result = base.solveInto(z, out, transpose = true, workspace = scratch)

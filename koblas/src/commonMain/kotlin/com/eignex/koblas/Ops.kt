@@ -4,16 +4,13 @@ package com.eignex.koblas
 
 import com.eignex.koblas.dense.Blas
 import com.eignex.koblas.dense.LinearAlgebra
-import com.eignex.koblas.dense.denseKernels
-import com.eignex.koblas.dense.koblas
 import com.eignex.koblas.sparse.SparseVectorKernels
-import com.eignex.koblas.sparse.sparseVectorKernels
 import kotlin.math.abs
 
 // Arithmetic over [VectorView] / [MatrixView] as free functions; the view types stay read-only.
 //
 // Iteration goes through [forEachStored], which dispatches dense to all-indices and sparse to stored
-// entries. Dense-by-dense paths call the active `VectorKernels` through `denseKernels` -- the compiled-in
+// entries. Dense-by-dense paths call the active `VectorKernels` through `koblas.vectorKernels` -- the compiled-in
 // SIMD or scalar kernels, or a registered host BLAS for runs long enough to pay for the call.
 //
 // Naming: mutating functions take the destination first and return [Unit] (`scale`,
@@ -57,11 +54,11 @@ inline fun VectorView.forEachStored(block: (i: Int, v: Double) -> Unit) {
 infix fun VectorView.dot(other: VectorView): Double {
     require(size == other.size) { "size mismatch: $size vs ${other.size}" }
     if (this is DenseVector && other is DenseVector) {
-        return denseKernels.dot(data, 0, other.data, 0, size)
+        return koblas.vectorKernels.dot(data, 0, other.data, 0, size)
     }
-    if (this is SparseVector && other is SparseVector) return sparseVectorKernels.dot(this, other)
-    if (this is SparseVector && other is DenseVector) return sparseVectorKernels.dot(this, other.data)
-    if (this is DenseVector && other is SparseVector) return sparseVectorKernels.dot(other, data)
+    if (this is SparseVector && other is SparseVector) return koblas.sparseVectorKernels.dot(this, other)
+    if (this is SparseVector && other is DenseVector) return koblas.sparseVectorKernels.dot(this, other.data)
+    if (this is DenseVector && other is SparseVector) return koblas.sparseVectorKernels.dot(other, data)
     // No other combination exists: both views are sealed over exactly these two storages.
     error("unreachable: dot over ${this::class} and ${other::class}")
 }
@@ -73,12 +70,26 @@ infix fun VectorView.dot(other: VectorView): Double {
  * (components beyond roughly `1e±150`), a rescaled two-pass recovers the netlib-accurate result, so
  * any finite input yields the correct norm.
  */
-fun norm2(v: VectorView): Double =
-    if (v is DenseVector) denseKernels.nrm2(v.data, 0, v.size) else sparseVectorKernels.nrm2(v as SparseVector)
+fun norm2(v: VectorView): Double = if (v is DenseVector) {
+    koblas.vectorKernels.nrm2(
+        v.data,
+        0,
+        v.size,
+    )
+} else {
+    koblas.sparseVectorKernels.nrm2(v as SparseVector)
+}
 
 /** Sum of absolute values `Sum |v_i|` (BLAS `dasum`). Sparse vectors sum over stored entries only. */
-fun asum(v: VectorView): Double =
-    if (v is DenseVector) denseKernels.asum(v.data, 0, v.size) else sparseVectorKernels.asum(v as SparseVector)
+fun asum(v: VectorView): Double = if (v is DenseVector) {
+    koblas.vectorKernels.asum(
+        v.data,
+        0,
+        v.size,
+    )
+} else {
+    koblas.sparseVectorKernels.asum(v as SparseVector)
+}
 
 /**
  * Index of the first entry with maximal `|v_i|` (BLAS `idamax`), or `-1` for a zero-length vector.
@@ -107,7 +118,7 @@ fun copy(src: VectorView, dst: DenseVector) {
         src.data.copyInto(dst.data)
     } else {
         dst.data.fill(0.0)
-        sparseVectorKernels.scatter(src as SparseVector, dst.data)
+        koblas.sparseVectorKernels.scatter(src as SparseVector, dst.data)
     }
 }
 
@@ -128,16 +139,16 @@ fun axpy(y: DenseVector, alpha: Double, x: VectorView) {
     require(y.size == x.size) { "size mismatch: ${y.size} vs ${x.size}" }
     if (alpha == 0.0) return
     if (x is DenseVector) {
-        denseKernels.axpy(y.data, 0, alpha, x.data, 0, y.size)
+        koblas.vectorKernels.axpy(y.data, 0, alpha, x.data, 0, y.size)
     } else {
-        sparseVectorKernels.axpy(y.data, alpha, x as SparseVector)
+        koblas.sparseVectorKernels.axpy(y.data, alpha, x as SparseVector)
     }
 }
 
 /** `v = alpha * v`. */
 fun scale(v: DenseVector, alpha: Double) {
     if (alpha == 1.0) return
-    denseKernels.scale(v.data, 0, alpha, v.size)
+    koblas.vectorKernels.scale(v.data, 0, alpha, v.size)
 }
 
 /**
@@ -234,7 +245,7 @@ fun gemv(A: MatrixView, x: VectorView): DenseVector {
         val ad = A.data
         val rows = A.rows
         x.forEachStored { j, v ->
-            if (v != 0.0) denseKernels.axpy(od, 0, v, ad, j * rows, rows)
+            if (v != 0.0) koblas.vectorKernels.axpy(od, 0, v, ad, j * rows, rows)
         }
     } else if (A is SparseMatrix) {
         // Column j of A scaled by x_j, accumulated: only the stored entries of both operands are read,

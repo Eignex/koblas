@@ -2,7 +2,6 @@
 
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.koblas
 import com.eignex.koblas.dense.matMul
 import kotlin.math.abs
 import kotlin.math.sqrt

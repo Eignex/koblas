@@ -2,21 +2,24 @@ package com.eignex.koblas
 
 import com.eignex.koblas.dense.Blas
 import com.eignex.koblas.dense.Lapack
-import com.eignex.koblas.dense.registerLinearAlgebra
+import com.eignex.koblas.dense.VectorKernels
 
 /**
  * What every backend reports about itself, whichever half of the seam it implements.
  *
- * A backend may implement [Blas], [Lapack] or both: they are ranked and selected independently, so a
- * host that provides one library and not the other still accelerates what it can.
+ * A backend may implement any of the six halves — [Blas], [Lapack], [VectorKernels] and their sparse
+ * counterparts — and [registerBackend] offers it as each one it implements. The halves are ranked and
+ * selected independently, so a host that provides one library and not the other still accelerates what it
+ * can.
  */
 interface Backend {
     /** A short backend identifier for diagnostics (e.g. `"reference"`). */
     val name: String
 
     /**
-     * Relative preference among simultaneously available backends: automatic selection — JVM
-     * classpath discovery and native [registerLinearAlgebra] — picks the highest. The portable
+     * Relative preference among simultaneously available backends: automatic selection through
+     * [registerBackend] — JVM classpath discovery, native startup registration — picks the highest per
+     * half. The portable
      * reference is 0; native-accelerated backends rank above it (koblas-openblas 100, koblas-cblas
      * 90).
      */

@@ -2,8 +2,8 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.dense.LuDecomposition
-import com.eignex.koblas.dense.koblas
 import com.eignex.koblas.dense.lu
+import com.eignex.koblas.koblas
 import kotlin.random.Random
 import kotlinx.benchmark.Benchmark
 import kotlinx.benchmark.BenchmarkMode

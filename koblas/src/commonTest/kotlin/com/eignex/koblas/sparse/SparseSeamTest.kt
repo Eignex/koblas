@@ -7,10 +7,15 @@ import com.eignex.koblas.asum
 import com.eignex.koblas.axpy
 import com.eignex.koblas.copy
 import com.eignex.koblas.dot
+import com.eignex.koblas.installBackends
+import com.eignex.koblas.koblas
 import com.eignex.koblas.norm2
-import kotlin.test.AfterTest
+import com.eignex.koblas.registerBackend
+import com.eignex.koblas.resetBackends
+import com.eignex.koblas.withCleanBackends
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -90,22 +95,14 @@ class SparseSeamTest {
         }
     }
 
-    @AfterTest
-    fun restore() = resetAll()
-
-    /** Both sparse seams at once. Two hooks rather than one, mirroring the dense side exactly. */
-    private fun resetAll() {
-        resetRegisteredSparseLinearAlgebra()
-        resetRegisteredSparseVectorKernels()
-    }
+    // Restoration is withCleanBackends' job, per test, so an eagerly-registered platform backend survives.
 
     private fun sparse() = SparseVector.of(6, intArrayOf(1, 4), doubleArrayOf(2.0, -3.0))
 
     @Test
-    fun `every public sparse vector operation reaches the registered kernels`() {
-        resetAll()
+    fun `every public sparse vector operation reaches the registered kernels`() = withCleanBackends {
         val kernels = CountingVectorKernels()
-        registerSparseVectorKernels(kernels)
+        registerBackend(kernels)
         val x = sparse()
         val dense = DenseVector.of(DoubleArray(6) { it + 1.0 })
 
@@ -127,10 +124,9 @@ class SparseSeamTest {
     }
 
     @Test
-    fun `a dense-only operation does not reach the sparse kernels`() {
-        resetAll()
+    fun `a dense-only operation does not reach the sparse kernels`() = withCleanBackends {
         val kernels = CountingVectorKernels()
-        registerSparseVectorKernels(kernels)
+        registerBackend(kernels)
         val a = DenseVector.of(doubleArrayOf(1.0, 2.0))
         val b = DenseVector.of(doubleArrayOf(3.0, 4.0))
         assertEquals(11.0, a dot b)
@@ -140,12 +136,11 @@ class SparseSeamTest {
     }
 
     @Test
-    fun `the matrix product and the factorization reach their halves`() {
-        resetAll()
+    fun `the matrix product and the factorization reach their halves`() = withCleanBackends {
         val blas = CountingSparseBlas()
         val lapack = CountingSparseLapack()
-        registerSparseBlas(blas)
-        registerSparseLapack(lapack)
+        registerBackend(blas)
+        registerBackend(lapack)
         val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 4.0)))
 
         assertTrue(doubleArrayOf(2.0, 8.0).contentEquals(a.gemv(doubleArrayOf(1.0, 2.0))))
@@ -158,40 +153,42 @@ class SparseSeamTest {
     }
 
     @Test
-    fun `the halves compose and report both names`() {
-        resetAll()
-        registerSparseBlas(CountingSparseBlas())
-        registerSparseLapack(CountingSparseLapack())
-        assertEquals("counting-blas+counting-lapack", sparseKoblas.name)
-        // One object registered as both is used directly rather than wrapped.
-        resetAll()
-        registerSparseLinearAlgebra(ReferenceSparseLinearAlgebra)
-        assertEquals("reference", sparseKoblas.name)
-        assertTrue(sparseKoblas === ReferenceSparseLinearAlgebra, "a single backend should not be composed")
+    fun `the halves land in the context independently`() = withCleanBackends {
+        registerBackend(CountingSparseBlas())
+        registerBackend(CountingSparseLapack())
+        assertEquals("counting-blas", koblas.sparseBlas.name)
+        assertEquals("counting-lapack", koblas.sparseLapack.name)
+        // One object registered for both halves lands in both, with no composite in between.
+        resetBackends()
+        registerBackend(ReferenceSparseLinearAlgebra)
+        assertSame(ReferenceSparseLinearAlgebra, koblas.sparseBlas)
+        assertSame(ReferenceSparseLinearAlgebra, koblas.sparseLapack)
     }
 
     @Test
-    fun `registration keeps the highest priority and install overrides both`() {
-        resetAll()
+    fun `registration keeps the highest priority and install overrides both`() = withCleanBackends {
         val weak = CountingVectorKernels(priority = 10)
         val strong = CountingVectorKernels(priority = 200)
-        registerSparseVectorKernels(strong)
-        registerSparseVectorKernels(weak)
-        assertTrue(sparseVectorKernels === strong, "a weaker registration displaced a stronger one")
+        registerBackend(strong)
+        registerBackend(weak)
+        assertSame(strong, koblas.sparseVectorKernels, "a weaker registration displaced a stronger one")
         val override = CountingVectorKernels(priority = 0)
-        installSparseVectorKernels(override)
-        assertTrue(sparseVectorKernels === override, "install must win regardless of priority")
-        installSparseVectorKernels(null)
-        assertTrue(sparseVectorKernels === strong, "clearing the override falls back to registration")
-        resetAll()
-        assertTrue(sparseVectorKernels === ReferenceSparseLinearAlgebra, "an empty registry means the reference")
+        installBackends(koblas.with(sparseVectorKernels = override))
+        assertSame(override, koblas.sparseVectorKernels, "install must win regardless of priority")
+        installBackends(null)
+        assertSame(strong, koblas.sparseVectorKernels, "clearing the override falls back to registration")
+        resetBackends()
+        assertSame(
+            ReferenceSparseLinearAlgebra,
+            koblas.sparseVectorKernels,
+            "an empty registry means the reference",
+        )
     }
 
     @Test
-    fun `an empty registry resolves to the reference on both seams`() {
-        resetAll()
-        assertTrue(sparseKoblas === ReferenceSparseLinearAlgebra)
-        assertTrue(sparseVectorKernels === ReferenceSparseLinearAlgebra)
-        assertEquals("sparse=reference, sparseVector=reference", sparseKoblasInfo)
+    fun `an empty registry resolves to the reference on all three sparse halves`() = withCleanBackends {
+        assertSame(ReferenceSparseLinearAlgebra, koblas.sparseBlas)
+        assertSame(ReferenceSparseLinearAlgebra, koblas.sparseLapack)
+        assertSame(ReferenceSparseLinearAlgebra, koblas.sparseVectorKernels)
     }
 }

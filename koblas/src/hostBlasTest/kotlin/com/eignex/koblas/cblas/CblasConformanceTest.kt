@@ -10,8 +10,8 @@ import com.eignex.koblas.dense.LinearAlgebra
 import com.eignex.koblas.dense.ReferenceLinearAlgebra
 import com.eignex.koblas.dense.Uplo
 import com.eignex.koblas.dense.determinant
-import com.eignex.koblas.dense.installLinearAlgebra
-import com.eignex.koblas.dense.koblas
+import com.eignex.koblas.installBackends
+import com.eignex.koblas.koblas
 import com.eignex.koblas.norm1
 import kotlin.math.abs
 import kotlin.math.sqrt
@@ -55,14 +55,14 @@ class CblasConformanceTest {
     fun `the backend registers itself eagerly and install overrides it`() {
         assertTrue(CblasLinearAlgebra.isAvailable(), "host OpenBLAS expected in the test environment")
         // Eager initialization ran before main: depending on the artifact alone activated it.
-        assertEquals("cblas", koblas.name)
+        assertEquals("cblas+reference", koblas.name)
         try {
-            installLinearAlgebra(ReferenceLinearAlgebra)
+            installBackends(koblas.with(blas = ReferenceLinearAlgebra, lapack = ReferenceLinearAlgebra))
             assertEquals("reference", koblas.name)
         } finally {
-            installLinearAlgebra(null) // restores automatic selection, i.e. the registered backend
+            installBackends(null) // restores automatic selection, i.e. the registered backend
         }
-        assertEquals("cblas", koblas.name)
+        assertEquals("cblas+reference", koblas.name)
     }
 
     @Test

@@ -140,9 +140,10 @@ internal expect object PlatformVectorKernels : VectorKernels {
  * `scale` by one are no-ops, and skipping them before the length comparison keeps that true whichever
  * kernel would have run.
  *
- * @param host a registered backend, used at or above [DispatchThresholds.level1]; null routes nothing.
+ * @property host a registered backend, used at or above [DispatchThresholds.level1]; null routes
+ *   nothing. Readable so a test can re-register it after clearing the registry.
  */
-internal class RoutedVectorKernels(private val host: VectorKernels?) : VectorKernels {
+internal class RoutedVectorKernels(internal val host: VectorKernels?) : VectorKernels {
     override val name: String
         get() = if (host == null) PlatformVectorKernels.name else "${PlatformVectorKernels.name}+${host.name}"
 

@@ -8,14 +8,19 @@ import com.eignex.koblas.axpy
 import com.eignex.koblas.dispatchThresholds
 import com.eignex.koblas.dot
 import com.eignex.koblas.iamax
+import com.eignex.koblas.installBackends
+import com.eignex.koblas.koblas
 import com.eignex.koblas.mathBackend
 import com.eignex.koblas.norm2
+import com.eignex.koblas.registerBackend
+import com.eignex.koblas.resetBackends
 import com.eignex.koblas.scale
+import com.eignex.koblas.withCleanBackends
 import kotlin.math.abs
 import kotlin.math.sqrt
-import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -34,7 +39,11 @@ class VectorKernelsTest {
 
     /** Records what it was asked to do and delegates the arithmetic to a plain loop. */
     private class Recording(override val priority: Int = 90) : VectorKernels {
-        override val name: String get() = "recording"
+        override var name: String = "recording"
+            private set
+
+        /** Names this instance, so a routed `platform+name` assertion can tell two of them apart. */
+        fun named(n: String): Recording = also { it.name = n }
         var dots = 0
         var axpys = 0
         var scales = 0
@@ -74,17 +83,15 @@ class VectorKernelsTest {
         }
     }
 
-    @AfterTest
-    fun restore() {
-        resetRegisteredVectorKernels()
-        registerPlatformBackends()
-    }
+    // No @AfterTest restore: every test that touches the registry wraps itself in withCleanBackends, which
+    // saves and re-registers the incumbents. Resetting and calling registerPlatformBackends() instead only
+    // worked on the JVM -- the native targets register eagerly before main, so discovery is a no-op there and
+    // the platform's backend was gone for every later test.
 
     @Test
-    fun `a registered backend is reached exactly above the level-1 threshold`() {
-        resetRegisteredVectorKernels()
+    fun `a registered backend is reached exactly above the level-1 threshold`() = withCleanBackends {
         val recording = Recording()
-        registerVectorKernels(recording)
+        registerBackend(recording)
         val threshold = dispatchThresholds.level1
         val long = if (threshold == Int.MAX_VALUE) 4096 else threshold
         val x = DenseVector.of(DoubleArray(long) { 1.0 })
@@ -104,12 +111,11 @@ class VectorKernelsTest {
     }
 
     @Test
-    fun `axpy and scale route on the same threshold as dot`() {
-        resetRegisteredVectorKernels()
+    fun `axpy and scale route on the same threshold as dot`() = withCleanBackends {
         val recording = Recording()
-        registerVectorKernels(recording)
+        registerBackend(recording)
         val threshold = dispatchThresholds.level1
-        if (threshold == Int.MAX_VALUE) return
+        if (threshold == Int.MAX_VALUE) return@withCleanBackends
         val v = DenseVector.of(DoubleArray(threshold) { 1.0 })
         val x = DenseVector.of(DoubleArray(threshold) { 2.0 })
         axpy(v, 3.0, x)
@@ -120,12 +126,11 @@ class VectorKernelsTest {
     }
 
     @Test
-    fun `the dense reductions route but the sparse ones cannot`() {
-        resetRegisteredVectorKernels()
+    fun `the dense reductions route but the sparse ones cannot`() = withCleanBackends {
         val recording = Recording()
-        registerVectorKernels(recording)
+        registerBackend(recording)
         val threshold = dispatchThresholds.level1
-        if (threshold == Int.MAX_VALUE) return
+        if (threshold == Int.MAX_VALUE) return@withCleanBackends
         val dense = DenseVector.of(DoubleArray(threshold) { 3.0 })
         norm2(dense)
         asum(dense)
@@ -145,10 +150,9 @@ class VectorKernelsTest {
      * depend on whether a host library happened to be installed.
      */
     @Test
-    fun `iamax does not route`() {
-        resetRegisteredVectorKernels()
+    fun `iamax does not route`() = withCleanBackends {
         val recording = Recording()
-        registerVectorKernels(recording)
+        registerBackend(recording)
         val threshold = dispatchThresholds.level1
         val len = if (threshold == Int.MAX_VALUE) 4096 else threshold
         val v = DenseVector.of(DoubleArray(len) { if (it == 7) -9.0 else 1.0 })
@@ -156,21 +160,26 @@ class VectorKernelsTest {
         assertEquals(0, recording.dots + recording.nrm2s + recording.asums, "iamax reached the seam")
     }
 
+    /**
+     * Ranking and overriding, read through the context rather than the seam.
+     *
+     * The assertions are about names rather than identity now, because `koblas.vectorKernels` is the routed
+     * pair (compiled-in plus whichever host won) rather than the registered object itself. That is the point
+     * of the routing: a registered backend is *consulted* above a length, not swapped in wholesale.
+     */
     @Test
-    fun `registration keeps the highest priority and install overrides both`() {
-        resetRegisteredVectorKernels()
-        val weak = Recording(priority = 10)
-        val strong = Recording(priority = 200)
-        registerVectorKernels(strong)
-        registerVectorKernels(weak)
-        assertEquals(strong, vectorKernelSeam.active, "a weaker registration displaced a stronger one")
-        val override = Recording(priority = 0)
-        installVectorKernels(override)
-        assertEquals(override, vectorKernelSeam.active, "install must win regardless of priority")
-        installVectorKernels(null)
-        assertEquals(strong, vectorKernelSeam.active, "clearing the override should fall back to registration")
-        resetRegisteredVectorKernels()
-        assertEquals(null, vectorKernelSeam.active, "a cleared registry must fall back to the built-in kernels")
+    fun `registration keeps the highest priority and install overrides both`() = withCleanBackends {
+        val platform = koblas.vectorKernels.name
+        registerBackend(Recording(priority = 200).named("strong"))
+        registerBackend(Recording(priority = 10).named("weak"))
+        assertEquals("$platform+strong", koblas.vectorKernels.name, "a weaker registration displaced a stronger one")
+        val override = Recording(priority = 0).named("override")
+        installBackends(koblas.with(vectorKernels = override))
+        assertSame(override, koblas.vectorKernels, "install must win regardless of priority, and unrouted")
+        installBackends(null)
+        assertEquals("$platform+strong", koblas.vectorKernels.name, "clearing the override falls back to registration")
+        resetBackends()
+        assertEquals(platform, koblas.vectorKernels.name, "a cleared registry leaves the compiled-in kernels")
     }
 
     /**
@@ -266,23 +275,21 @@ class VectorKernelsTest {
 
     /** With nothing registered the routed kernels are the platform ones, and mathBackend says so. */
     @Test
-    fun `the routed kernels report the platform name and gain a suffix for a host`() {
-        resetRegisteredVectorKernels()
-        assertEquals(PlatformVectorKernels.name, denseKernels.name)
-        assertEquals(denseKernels.name, mathBackend, "mathBackend is the routed kernels' name")
-        registerVectorKernels(Recording(priority = 90))
-        assertEquals("${PlatformVectorKernels.name}+recording", denseKernels.name)
-        resetRegisteredVectorKernels()
-        assertEquals(PlatformVectorKernels.name, denseKernels.name)
+    fun `the routed kernels report the platform name and gain a suffix for a host`() = withCleanBackends {
+        assertEquals(PlatformVectorKernels.name, koblas.vectorKernels.name)
+        assertEquals(koblas.vectorKernels.name, mathBackend, "mathBackend is the routed kernels' name")
+        registerBackend(Recording(priority = 90))
+        assertEquals("${PlatformVectorKernels.name}+recording", koblas.vectorKernels.name)
+        resetBackends()
+        assertEquals(PlatformVectorKernels.name, koblas.vectorKernels.name)
     }
 
-    /** The reset hook clears the override too, not only the registration — the same contract the matrix
-     *  seams have, which the two sides used to disagree on. */
+    /** The reset hook clears the override too, not only the registration. */
     @Test
-    fun `the reset hook clears the install override too`() {
-        resetRegisteredVectorKernels()
-        installVectorKernels(Recording(priority = 0))
-        resetRegisteredVectorKernels()
-        assertEquals(null, vectorKernelSeam.active, "reset must clear the level-1 override, not just registration")
+    fun `the reset hook clears the install override too`() = withCleanBackends {
+        val platform = koblas.vectorKernels.name
+        installBackends(koblas.with(vectorKernels = Recording(priority = 0).named("override")))
+        resetBackends()
+        assertEquals(platform, koblas.vectorKernels.name, "reset must clear the override, not just registration")
     }
 }

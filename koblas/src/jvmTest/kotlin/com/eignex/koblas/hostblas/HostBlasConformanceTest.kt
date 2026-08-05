@@ -3,7 +3,7 @@ package com.eignex.koblas.hostblas
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.dense.ReferenceLinearAlgebra
 import com.eignex.koblas.dense.Uplo
-import com.eignex.koblas.dense.koblasInfo
+import com.eignex.koblas.koblasInfo
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.Test

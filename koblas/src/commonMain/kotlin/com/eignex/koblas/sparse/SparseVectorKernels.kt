@@ -15,7 +15,7 @@ import kotlin.math.abs
  * Unlike `VectorKernels` there is no length threshold, and the difference is structural rather than an
  * oversight. Dense level-1 kernels are compiled per target, so consulting a backend has to beat a
  * *compiled-in primitive* and only pays above a length. These have no compile-time leaf to protect: the
- * default is an object either way, so dispatch is unconditional and the [sparseVectorKernels] accessor
+ * default is an object either way, so dispatch is unconditional and the `koblas.sparseVectorKernels` accessor
  * never returns null.
  *
  * Defaults implement every routine over the ascending index arrays, so a backend overrides only what it

@@ -2,15 +2,13 @@ package com.eignex.koblas.cblas
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.dense.Blas
-import com.eignex.koblas.dense.registerBlas
-import com.eignex.koblas.dense.registerLapack
-import com.eignex.koblas.dense.registerVectorKernels
+import com.eignex.koblas.registerBackend
 
 /**
  * Registers [CblasLinearAlgebra] for automatic selection at program start when the host provides
  * OpenBLAS — depending on the koblas-cblas artifact activates it, mirroring the JVM's classpath
  * discovery, while priority ranking keeps any stronger registered backend in front. On hosts
- * without the libraries nothing is registered and [com.eignex.koblas.dense.koblas] stays on the portable
+ * without the libraries nothing is registered and [com.eignex.koblas.koblas] stays on the portable
  * reference. `installLinearAlgebra` overrides either way; if the linker drops this unreferenced
  * property, `installLinearAlgebra(CblasLinearAlgebra())` remains the explicit activation path.
  */
@@ -24,14 +22,14 @@ private fun autoInstall() {
     val blas = CblasBlas(cblas)
     // The same guard the JVM discovery applies: a tiny computation must come back correct.
     if (!probe(blas)) return
-    registerBlas(blas)
+    registerBackend(blas)
     // The level-1 primitives sit below the Blas seam and are scalar on this platform, so they register as
     // their own half; koblas routes only runs long enough to cover the call.
-    registerVectorKernels(CblasVectorKernels())
+    registerBackend(CblasVectorKernels())
     // LAPACKE is a separate package on Debian and Ubuntu. Without it the factorizations stay portable
     // while everything above keeps the host BLAS, rather than the whole backend dropping out.
     val lapacke = OpenBlasLoader.lapacke ?: return
-    registerLapack(CblasLapack(lapacke, cblas))
+    registerBackend(CblasLapack(lapacke, cblas))
 }
 
 @Suppress("TooGenericExceptionCaught", "SwallowedException") // a broken installation must not crash startup

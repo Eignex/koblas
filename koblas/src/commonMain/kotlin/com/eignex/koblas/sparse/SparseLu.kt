@@ -5,6 +5,7 @@ import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.dense.determinant
 import com.eignex.koblas.dense.permutationSign
+import com.eignex.koblas.koblas
 import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.log2

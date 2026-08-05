@@ -14,7 +14,8 @@ mirror the dense ones.
   singular matrix yields a factorization reporting `singular`, matching the dense contract.
 - [SparseLinearAlgebra] pairs the two matrix seams. All three are offered through `registerSparseBlas` /
   `registerSparseLapack` / `registerSparseVectorKernels` and forced with `installSparseLinearAlgebra` /
-  `installSparseVectorKernels`, resolving as [sparseKoblas] and [sparseVectorKernels].
+  a [com.eignex.koblas.KoblasContext], resolving as [com.eignex.koblas.koblas] and its
+  `sparseVectorKernels`.
 - Implementations: [SparseLu], a Markowitz threshold-pivoting `P·B·Q = L·U` that keeps the factors sparse
   instead of filling toward `O(m²)`; and [EtaBasis], the product-form-of-the-inverse that lets a revised
   simplex fold a rank-one basis change into an existing factorization instead of redoing it.

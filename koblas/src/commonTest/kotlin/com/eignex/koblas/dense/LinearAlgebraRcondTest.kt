@@ -1,6 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.koblas
 import com.eignex.koblas.norm1
 import com.eignex.koblas.wellConditioned
 import kotlin.math.abs

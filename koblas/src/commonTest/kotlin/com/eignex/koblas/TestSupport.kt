@@ -1,5 +1,8 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.dense.ReferenceLinearAlgebra
+import com.eignex.koblas.dense.RoutedVectorKernels
+import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.assertTrue
@@ -120,4 +123,37 @@ internal fun poisonedTriangle(rng: Random, n: Int, lower: Boolean, unitDiag: Boo
         }
     }
     return poisoned to explicit
+}
+
+/**
+ * Runs [block] against an empty registry, then puts back whatever was resolved before.
+ *
+ * The registry is global process state, and on the targets that ship a host backend it is already populated
+ * before any test runs — the native ones register eagerly, before `main`, so `registerPlatformBackends` is a
+ * no-op there and discovery cannot be asked to run again. A test that clears the registry and does not
+ * restore it therefore destroys the platform's backend for every test that follows, which is exactly the
+ * failure this exists to prevent: it showed up as a host-BLAS conformance test finding `reference` installed.
+ *
+ * Restoring goes through [registerBackend] rather than an install, so the result is a genuinely resolved
+ * registry rather than a frozen override.
+ */
+internal fun withCleanBackends(block: () -> Unit) {
+    val before = koblas
+    val incumbents = buildList {
+        add(before.blas)
+        add(before.lapack)
+        add(before.sparseBlas)
+        add(before.sparseLapack)
+        add(before.sparseVectorKernels)
+        // The context's vector kernels are the routed pair, not the registered object, so the host half has
+        // to be unwrapped to be re-offered.
+        (before.vectorKernels as? RoutedVectorKernels)?.host?.let { add(it) }
+    }.distinct().filter { it !== ReferenceLinearAlgebra && it !== ReferenceSparseLinearAlgebra }
+    resetBackends()
+    try {
+        block()
+    } finally {
+        resetBackends()
+        incumbents.forEach { registerBackend(it) }
+    }
 }
