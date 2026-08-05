@@ -4,8 +4,10 @@ package com.eignex.koblas
 
 import com.eignex.koblas.dense.Blas
 import com.eignex.koblas.dense.LinearAlgebra
+import com.eignex.koblas.dense.Uplo
 import com.eignex.koblas.sparse.SparseVectorKernels
 import kotlin.math.abs
+import kotlin.math.sqrt
 
 // Arithmetic over [VectorView] / [MatrixView] as free functions; the view types stay read-only.
 //
@@ -151,6 +153,72 @@ fun swap(a: DenseVector, b: DenseVector) {
     }
 }
 
+/**
+ * A plane rotation: the cosine and sine that [rot] applies, plus the length it collapsed a pair to.
+ *
+ * @property c the cosine.
+ * @property s the sine.
+ * @property r the rotated length, `±hypot(a, b)` — what `a` becomes and what `b` becomes zero from.
+ */
+class Givens internal constructor(val c: Double, val s: Double, val r: Double)
+
+/**
+ * Generate the plane rotation that zeroes [b] against [a] (BLAS `drotg`).
+ *
+ * Scales by the larger magnitude before squaring, so a pair whose squares would overflow or vanish still
+ * produces the right rotation — the same reason [norm2] rescales, and not optional: `hypot(1e200, 1e200)`
+ * is representable while `1e200²` is not.
+ *
+ * Follows netlib `drotg`'s sign convention rather than inventing one, since a caller reconstructing the
+ * factorization depends on it: `r` takes the sign of whichever input was larger in magnitude. The
+ * degenerate all-zero pair yields the identity rotation (`c = 1`, `s = 0`, `r = 0`) rather than a `NaN`.
+ *
+ * Together with [rot] this is what a factorization *update* needs — QR or Cholesky update and downdate,
+ * and the Forrest-Tomlin basis update a simplex uses. koblas has none of those yet; this is the primitive
+ * they all require.
+ */
+fun rotg(a: Double, b: Double): Givens {
+    if (b == 0.0 && a == 0.0) return Givens(c = 1.0, s = 0.0, r = 0.0)
+    val absA = abs(a)
+    val absB = abs(b)
+    val scale = maxOf(absA, absB)
+    // Factor the larger out before squaring; both ratios are then at most 1.
+    val ra = a / scale
+    val rb = b / scale
+    val magnitude = scale * sqrt(ra * ra + rb * rb)
+    val r = if (absA > absB) {
+        if (a >= 0.0) magnitude else -magnitude
+    } else {
+        if (b >= 0.0) magnitude else -magnitude
+    }
+    return Givens(c = a / r, s = b / r, r = r)
+}
+
+/**
+ * Apply a plane rotation to a pair of vectors in place (BLAS `drot`): each `(x_i, y_i)` becomes
+ * `(c·x_i + s·y_i, c·y_i − s·x_i)`.
+ *
+ * Deliberately off the [com.eignex.koblas.dense.VectorKernels] seam, for now, and the reason is the same
+ * one that keeps `copy` and `swap` off it: whether a foreign call beats the loop has to be measured, not
+ * assumed. A rotation does more arithmetic per element than a copy, so it plausibly clears the bar where
+ * copy does not — but "plausibly" is not a threshold, and the machine available when this was written
+ * could not resolve a 5 ns operation. Adding it to the seam later is additive; guessing wrong now is not.
+ */
+fun rot(x: DenseVector, y: DenseVector, rotation: Givens) {
+    require(x.size == y.size) { "size mismatch: ${x.size} vs ${y.size}" }
+    val c = rotation.c
+    val s = rotation.s
+    if (c == 1.0 && s == 0.0) return
+    val xd = x.data
+    val yd = y.data
+    for (i in xd.indices) {
+        val xi = xd[i]
+        val yi = yd[i]
+        xd[i] = c * xi + s * yi
+        yd[i] = c * yi - s * xi
+    }
+}
+
 /** `y = y + alpha * x`. Dense `x` uses SIMD; sparse `x` walks stored entries. */
 fun axpy(y: DenseVector, alpha: Double, x: VectorLike) {
     require(y.size == x.size) { "size mismatch: ${y.size} vs ${x.size}" }
@@ -199,6 +267,17 @@ fun ger(alpha: Double, x: VectorLike, y: VectorLike, a: DenseMatrix) {
 }
 
 /**
+ * Symmetric rank-1 update `A += alpha · x · xᵀ` (BLAS `dsyr`); see [Blas.syr].
+ *
+ * The symmetric counterpart of [ger], and what accumulating a covariance one observation at a time is.
+ */
+fun syr(alpha: Double, x: VectorLike, a: DenseMatrix, uplo: Uplo = Uplo.FULL) = koblas.syr(alpha, x, a, uplo)
+
+/** Symmetric rank-2 update `A += alpha · (x · yᵀ + y · xᵀ)` (BLAS `dsyr2`); see [Blas.syr2]. */
+fun syr2(alpha: Double, x: VectorLike, y: VectorLike, a: DenseMatrix, uplo: Uplo = Uplo.FULL) =
+    koblas.syr2(alpha, x, y, a, uplo)
+
+/**
  * Matrix 1-norm: the maximum absolute column sum (LAPACK `dlange` with norm `1`). This is the `anorm`
  * input [LinearAlgebra.rcond] expects, computed on the matrix before factoring, so a solver that
  * estimates conditioning each refactorization calls both.
@@ -222,6 +301,38 @@ fun norm1(a: DenseMatrix): Double {
 }
 
 /**
+ * Matrix infinity-norm: the maximum absolute row sum (LAPACK `dlange` with norm `I`).
+ *
+ * The awkward one under column-major storage, and the reason it takes a workspace where [norm1] does not.
+ * A column is contiguous, so a column sum finishes before the next begins and one accumulator serves;
+ * row sums all advance together, so this needs a `rows`-wide running total. That is exactly the array
+ * `norm1` itself needed back when the storage was row-major.
+ */
+fun normInf(a: DenseMatrix, workspace: Workspace? = null): Double {
+    val rows = a.rows
+    if (rows == 0 || a.cols == 0) return 0.0
+    val sums = workspace?.take(rows) ?: DoubleArray(rows)
+    sums.fill(0.0, 0, rows) // take() promises nothing about the contents
+    val ad = a.data
+    for (j in 0 until a.cols) {
+        val base = j * rows
+        for (i in 0 until rows) sums[i] += abs(ad[base + i])
+    }
+    var m = 0.0
+    for (i in 0 until rows) if (sums[i] > m) m = sums[i]
+    workspace?.release(sums)
+    return m
+}
+
+/**
+ * Frobenius norm: `sqrt(Sum a_ij²)` (LAPACK `dlange` with norm `F`).
+ *
+ * One pass over the flat backing, and it reuses the shared rescaling rather than growing a third copy of
+ * it — a matrix whose entries square out of range is no less likely than a vector's.
+ */
+fun normFro(a: DenseMatrix): Double = euclideanNorm(a.data, 0, a.data.size)
+
+/**
  * Fresh transposed matrix `Aᵀ`. Always materializes; for products against a transposed operand,
  * prefer the `transpose` flags on [LinearAlgebra.gemv] / [LinearAlgebra.gemm], which read the
  * original storage without copying.
@@ -235,6 +346,40 @@ fun DenseMatrix.transpose(): DenseMatrix {
         for (i in 0 until rows) td[j + i * cols] = data[base + i]
     }
     return t
+}
+
+/**
+ * Fresh transposed matrix `Aᵀ`, still CSC — which makes this the CSC-to-CSR conversion as well.
+ *
+ * Worth more than symmetry with [DenseMatrix.transpose]: transposing compressed-sparse-column *is*
+ * compressed-sparse-row of the original, so this is what a host library wanting row-major sparse input
+ * needs (MKL's inspector-executor in CSR mode, some CHOLMOD paths). Groundwork for a host sparse backend
+ * as much as a missing routine.
+ *
+ * Two counting passes, no searching: tally the entries per row of `this` to lay out the result's `colPtr`,
+ * then scatter each entry to its place. `O(nnz + rows + cols)`.
+ *
+ * Explicitly stored zeros survive, because equality on [SparseMatrix] distinguishes them — dropping them
+ * here would make `transpose().transpose()` a different matrix from the original.
+ */
+fun SparseMatrix.transpose(): SparseMatrix {
+    val outPtr = IntArray(rows + 1)
+    // Pass one: outPtr[i + 1] counts the entries in row i, then a prefix sum turns counts into offsets.
+    for (k in rowIdx.indices) outPtr[rowIdx[k] + 1]++
+    for (i in 0 until rows) outPtr[i + 1] += outPtr[i]
+    val outIdx = IntArray(values.size)
+    val outVal = DoubleArray(values.size)
+    // Pass two: walking source columns in order means each destination column receives its row indices
+    // ascending, which is the invariant the constructor requires.
+    val next = outPtr.copyOf()
+    for (j in 0 until cols) {
+        for (k in colPtr[j] until colPtr[j + 1]) {
+            val slot = next[rowIdx[k]]++
+            outIdx[slot] = j
+            outVal[slot] = values[k]
+        }
+    }
+    return SparseMatrix(cols, rows, outPtr, outIdx, outVal)
 }
 
 /**

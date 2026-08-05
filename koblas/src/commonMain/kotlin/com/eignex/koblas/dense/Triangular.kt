@@ -213,3 +213,6 @@ internal fun trsmCore(
         trsvCore(k, a, n, b, c * n, lower = lower, transpose = transpose, unitDiag = unitDiag)
     }
 }
+
+/** Invert the [lower] or upper triangle of [a] (LAPACK `dtrtri`); see [LinearAlgebra.trtri]. */
+fun trtri(a: DenseMatrix, lower: Boolean, unitDiag: Boolean = false): DenseMatrix = koblas.trtri(a, lower, unitDiag)

@@ -165,7 +165,7 @@ class ReferenceBackend(private val kernels: VectorKernels? = null) : LinearAlgeb
         val k = if (transpose) a.rows else a.cols
         require(c.rows == n && c.cols == n) { "syrk: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
         val cd = c.data
-        scaleUplo(cd, n, beta, uplo)
+        scaleUplo(vectorKernels, cd, n, beta, uplo)
         if (alpha == 0.0 || n == 0 || k == 0) return
         val ad = a.data
         if (transpose) {
@@ -200,36 +200,6 @@ class ReferenceBackend(private val kernels: VectorKernels? = null) : LinearAlgeb
                 }
             }
             workspace?.release(w)
-        }
-    }
-
-    /** Add the symmetric term `v` for the pair `(i, j)`, `j <= i`, into the triangle(s) [uplo] selects. */
-    @Suppress("LongParameterList")
-    private fun addUplo(cd: DoubleArray, n: Int, i: Int, j: Int, v: Double, uplo: Uplo) {
-        if (uplo != Uplo.UPPER) {
-            cd[i + j * n] += v
-        } else if (i == j) {
-            cd[i + i * n] += v // the diagonal belongs to both triangles
-        }
-        if (uplo != Uplo.LOWER && i != j) cd[j + i * n] += v
-    }
-
-    /** `beta` scale of the region [uplo] selects, honoring the `beta == 0` overwrite convention. */
-    private fun scaleUplo(cd: DoubleArray, n: Int, beta: Double, uplo: Uplo) {
-        if (uplo == Uplo.FULL) {
-            if (beta == 0.0) {
-                cd.fill(0.0)
-            } else if (beta != 1.0) {
-                vectorKernels.scale(cd, 0, beta, cd.size)
-            }
-            return
-        }
-        if (beta == 1.0) return
-        // Column j holds its lower triangle at rows j..n-1 and its upper triangle at rows 0..j.
-        for (j in 0 until n) {
-            val from = if (uplo == Uplo.LOWER) j + j * n else j * n
-            val len = if (uplo == Uplo.LOWER) n - j else j + 1
-            if (beta == 0.0) cd.fill(0.0, from, from + len) else vectorKernels.scale(cd, from, beta, len)
         }
     }
 

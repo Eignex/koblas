@@ -411,6 +411,78 @@ interface Lapack : Backend {
     }
 
     /**
+     * Invert a general matrix from its LU factorization: returns `A⁻¹` given `P·A = L·U` (LAPACK `dgetri`).
+     *
+     * The counterpart of [invertSpd], which koblas had while this was missing — you could invert an SPD
+     * matrix but not a general one, for no reason beyond nobody having asked.
+     *
+     * `A⁻¹` is `A · X = I`, so this is the multi-RHS [solveInto] against an identity right-hand side. Written
+     * that way deliberately rather than as a per-column loop: it reuses the blocked solve, which means it
+     * also picks up whatever a host backend does for that routine instead of needing its own binding.
+     *
+     * Unlike [invertSpd] there is no symmetry to exploit and no leading-zeros shortcut, because `P` scatters
+     * the unit right-hand sides.
+     *
+     * Prefer [solve] when you want to *apply* `A⁻¹` to something. An explicit inverse costs more and is less
+     * accurate than a solve against the factors — this is for the cases that genuinely need the entries,
+     * such as reading a covariance off a normal-equations matrix.
+     *
+     * @throws IllegalArgumentException if [lu] is singular; the position is [LuDecomposition.failedAt].
+     */
+    fun invert(lu: LuDecomposition, workspace: Workspace? = null): DenseMatrix {
+        require(!lu.singular) {
+            "invert: factorization is singular at pivot ${lu.failedAt}, so the inverse does not exist"
+        }
+        val n = lu.n
+        val inv = DenseMatrix.diagonal(n)
+        return solveInto(lu, inv, inv, transpose = false, workspace = workspace)
+    }
+
+    /**
+     * Invert a triangular matrix in place of a fresh result (LAPACK `dtrtri`): returns `T⁻¹` for the
+     * [lower] or upper triangle of the square [a], taking the diagonal as 1 when [unitDiag].
+     *
+     * koblas could solve against a triangle ([trsv], [trsm]) but not invert one. The result is triangular
+     * with the same orientation, and the opposite strict triangle of the output is zero — the input's is
+     * never read, so it may hold anything.
+     *
+     * Unlike the triangular *solves*, this validates the diagonal. Triangular.kt states that the cores
+     * deliberately do not, leaving a singular triangle to produce infinities, on the grounds that the caller
+     * knows what it passed; an inverse has no such caller-supplied right-hand side to blame, and returning a
+     * matrix of infinities is worse than saying which entry was zero.
+     *
+     * @throws IllegalArgumentException naming the first zero diagonal position.
+     */
+    fun trtri(a: DenseMatrix, lower: Boolean, unitDiag: Boolean = false): DenseMatrix {
+        require(a.rows == a.cols) { "trtri requires a square matrix; got ${a.rows}x${a.cols}" }
+        val n = a.rows
+        if (!unitDiag) {
+            for (i in 0 until n) {
+                require(a[i, i] != 0.0) { "trtri: triangle is singular, diagonal entry $i is zero" }
+            }
+        }
+        // Column j of T⁻¹ solves T · x = e_j, which is one triangular solve against the original.
+        val inv = DenseMatrix(n, n)
+        val invd = inv.data
+        val column = DoubleArray(n)
+        for (j in 0 until n) {
+            column.fill(0.0)
+            column[j] = 1.0
+            trsvCore(
+                koblas.vectorKernels,
+                a.data,
+                n,
+                column,
+                lower = lower,
+                transpose = false,
+                unitDiag = unitDiag,
+            )
+            column.copyInto(invd, n * j)
+        }
+        return inv
+    }
+
+    /**
      * Invert an SPD matrix from its Cholesky factor: returns `A^-1` given `L = chol(A)`.
      *
      * Solves `A * x = e_j` column by column, exploiting the unit-vector right-hand side: forward

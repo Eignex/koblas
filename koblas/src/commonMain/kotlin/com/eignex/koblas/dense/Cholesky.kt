@@ -37,3 +37,6 @@ fun solveSpd(L: DenseMatrix, b: DoubleArray): DoubleArray = koblas.solveSpd(L, b
 
 /** Invert an SPD matrix from its Cholesky factor; see [Lapack.invertSpd]. */
 fun invertSpd(L: DenseMatrix, workspace: Workspace? = null): DenseMatrix = koblas.invertSpd(L, workspace)
+
+/** `A⁻¹` from an LU factorization (LAPACK `dgetri`); see [LinearAlgebra.invert]. */
+fun invert(lu: LuDecomposition, workspace: Workspace? = null): DenseMatrix = koblas.invert(lu, workspace)
