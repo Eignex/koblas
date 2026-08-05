@@ -4,7 +4,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.MatrixView
+import com.eignex.koblas.MatrixLike
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.koblas
 
@@ -30,7 +30,7 @@ import com.eignex.koblas.koblas
  * entry instead of a crash. Pass `false` for strict validation: the call then throws
  * [IllegalArgumentException] at the first non-PD pivot.
  */
-fun MatrixView.cholesky(policy: CholeskyPolicy = CholeskyPolicy.Strict): DenseMatrix = koblas.cholesky(this, policy)
+fun MatrixLike.cholesky(policy: CholeskyPolicy = CholeskyPolicy.Strict): DenseMatrix = koblas.cholesky(this, policy)
 
 /** Solve `A * x = b` given `L = chol(A)`; see [Lapack.solveSpd]. */
 fun solveSpd(L: DenseMatrix, b: DoubleArray): DoubleArray = koblas.solveSpd(L, b)

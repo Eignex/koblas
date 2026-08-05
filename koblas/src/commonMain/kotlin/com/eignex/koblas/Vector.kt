@@ -4,32 +4,24 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * Read-only N-vector with sealed dense / sparse backing. Callers see the
- * same surface either way; query the size, read entries by index,
- * materialise to a `DoubleArray`.
+ * Read-only vector contract: length, entry access, materialisation. Anything that only reads a vector should
+ * take this.
  *
- * The split between [DenseVector] and [SparseVector] is purely a backing-
- * storage choice: dense pays per coordinate, sparse pays per nonzero. Most
- * code iterates via the [forEachStored] extension to walk only the populated
- * entries; sparse callers feed sparse vectors without the cost of dense
- * materialisation, and dense callers walk every index the same way.
+ * Open, for the reasons [MatrixLike] gives: a caller may already have a shape koblas does not define, and
+ * copying into a [DenseVector] to use koblas's routines was a tax on the callers with the most data. koblas
+ * recognises its own storages by type and sweeps them directly; a foreign implementation takes the generic
+ * path through [get].
  *
- * The view surface is read-only; arithmetic (`dot`, `axpy`, `scale`, …) lives
- * as free functions over the views, and mutation is `internal`. For ad-hoc math
- * reach for the `DoubleArray` materialisation via [toDoubleArray].
- *
- * Subtypes are sealed and `@Serializable` so snapshots round-trip through
- * `kotlinx.serialization` with their concrete storage preserved.
+ * @see VectorView the closed, serializable subset.
  */
-@Serializable
-sealed interface VectorView {
+interface VectorLike {
     /** Number of entries (including stored zeros for sparse). */
     val size: Int
 
     /**
      * Read entry at [i]. O(1) for [DenseVector], `O(log nnz)` for [SparseVector], which binary-searches
-     * its ascending indices. Use the internal `forEachStored` extension when you want to walk the
-     * populated entries without per-index lookup cost.
+     * its ascending indices. Use the [forEachStored] extension when you want to walk the populated
+     * entries without per-index lookup cost.
      */
     operator fun get(i: Int): Double
 
@@ -40,6 +32,21 @@ sealed interface VectorView {
      */
     fun toDoubleArray(): DoubleArray
 }
+
+/**
+ * The vector storages koblas itself defines: [DenseVector] and [SparseVector], and nothing else ever.
+ *
+ * Sealed for serialization, exactly as [MatrixView] is — a snapshot decodes back into the storage it was
+ * written from without a consumer registering anything. Take [VectorLike] instead unless you need the
+ * closed set.
+ *
+ * The split between the two storages is a backing-storage choice, not a semantic one: dense pays per
+ * coordinate, sparse pays per nonzero. Most code iterates via [forEachStored] to walk only the populated
+ * entries, so sparse callers feed sparse vectors without the cost of dense materialisation and dense
+ * callers walk every index the same way.
+ */
+@Serializable
+sealed interface VectorView : VectorLike
 
 /**
  * Dense double-precision vector backed by a flat `DoubleArray`. The

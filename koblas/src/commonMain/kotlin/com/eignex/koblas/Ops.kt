@@ -24,11 +24,12 @@ import kotlin.math.abs
 // rather than becoming `indexOfMaxAbs`, since it is unambiguous to anyone who has met BLAS.
 
 /**
- * Visit each stored entry of [this] as `(index, value)`, in ascending index order for either storage.
+ * Visit each stored entry of [this] as `(index, value)`, in ascending index order for any storage.
  * For [DenseVector] that's every index in `0 until size`; for [SparseVector] that's the entries present
- * in the parallel index/value arrays (which may include numerical zeros).
+ * in the parallel index/value arrays (which may include numerical zeros); for any other [VectorLike] it is
+ * every index, read through [VectorLike.get].
  */
-inline fun VectorView.forEachStored(block: (i: Int, v: Double) -> Unit) {
+inline fun VectorLike.forEachStored(block: (i: Int, v: Double) -> Unit) {
     when (this) {
         is DenseVector -> {
             val d = data
@@ -40,18 +41,22 @@ inline fun VectorView.forEachStored(block: (i: Int, v: Double) -> Unit) {
             val vals = values
             for (k in idx.indices) block(idx[k], vals[k])
         }
+
+        // A foreign VectorLike: koblas cannot know which entries it considers stored, so every index is
+        // visited, which is what "stored" means for a dense vector anyway.
+        else -> for (i in 0 until size) block(i, this[i])
     }
 }
 
 /**
  * `aT * b`. Dense×dense routes through the active [com.eignex.koblas.dense.VectorKernels]; a mixed pair
- * walks the sparse side and gathers from the dense one.
+ * walks the sparse side and gathers from the dense one; anything else is read entry by entry.
  *
  * Every combination involving a sparse operand goes through [SparseVectorKernels], where a host sparse
  * BLAS could replace it: `usdot` against a dense vector, and a single-pass merge of the two ascending
  * index lists when both are sparse.
  */
-infix fun VectorView.dot(other: VectorView): Double {
+infix fun VectorLike.dot(other: VectorLike): Double {
     require(size == other.size) { "size mismatch: $size vs ${other.size}" }
     if (this is DenseVector && other is DenseVector) {
         return koblas.vectorKernels.dot(data, 0, other.data, 0, size)
@@ -59,8 +64,11 @@ infix fun VectorView.dot(other: VectorView): Double {
     if (this is SparseVector && other is SparseVector) return koblas.sparseVectorKernels.dot(this, other)
     if (this is SparseVector && other is DenseVector) return koblas.sparseVectorKernels.dot(this, other.data)
     if (this is DenseVector && other is SparseVector) return koblas.sparseVectorKernels.dot(other, data)
-    // No other combination exists: both views are sealed over exactly these two storages.
-    error("unreachable: dot over ${this::class} and ${other::class}")
+    // At least one operand is a foreign VectorLike. This branch used to be an `error("unreachable")`, which
+    // the sealed roots made true; it is now the generic path, reached through `get` on both sides.
+    var s = 0.0
+    for (i in 0 until size) s += this[i] * other[i]
+    return s
 }
 
 /**
@@ -70,25 +78,27 @@ infix fun VectorView.dot(other: VectorView): Double {
  * (components beyond roughly `1e±150`), a rescaled two-pass recovers the netlib-accurate result, so
  * any finite input yields the correct norm.
  */
-fun norm2(v: VectorView): Double = if (v is DenseVector) {
-    koblas.vectorKernels.nrm2(
-        v.data,
-        0,
-        v.size,
-    )
-} else {
-    koblas.sparseVectorKernels.nrm2(v as SparseVector)
+fun norm2(v: VectorLike): Double = when (v) {
+    is DenseVector -> koblas.vectorKernels.nrm2(v.data, 0, v.size)
+
+    is SparseVector -> koblas.sparseVectorKernels.nrm2(v)
+
+    // A foreign vector has no backing to hand a kernel, so it is materialised first. The rescaling this
+    // needs is not worth reimplementing per storage.
+    else -> euclideanNorm(v.toDoubleArray(), 0, v.size)
 }
 
 /** Sum of absolute values `Sum |v_i|` (BLAS `dasum`). Sparse vectors sum over stored entries only. */
-fun asum(v: VectorView): Double = if (v is DenseVector) {
-    koblas.vectorKernels.asum(
-        v.data,
-        0,
-        v.size,
-    )
-} else {
-    koblas.sparseVectorKernels.asum(v as SparseVector)
+fun asum(v: VectorLike): Double = when (v) {
+    is DenseVector -> koblas.vectorKernels.asum(v.data, 0, v.size)
+
+    is SparseVector -> koblas.sparseVectorKernels.asum(v)
+
+    else -> {
+        var s = 0.0
+        v.forEachStored { _, x -> s += abs(x) }
+        s
+    }
 }
 
 /**
@@ -97,7 +107,7 @@ fun asum(v: VectorView): Double = if (v is DenseVector) {
  * storage order *is* index order and the two contracts agree. An all-unstored (zero) vector returns index
  * 0, matching the dense zero vector.
  */
-fun iamax(v: VectorView): Int {
+fun iamax(v: VectorLike): Int {
     if (v.size == 0) return -1
     var best = -1
     var bestAbs = -1.0
@@ -112,13 +122,20 @@ fun iamax(v: VectorView): Int {
 }
 
 /** `dst = src` (BLAS `dcopy`). Dense sources bulk-copy; sparse sources zero-fill then scatter. */
-fun copy(src: VectorView, dst: DenseVector) {
+fun copy(src: VectorLike, dst: DenseVector) {
     require(src.size == dst.size) { "size mismatch: ${src.size} vs ${dst.size}" }
-    if (src is DenseVector) {
-        src.data.copyInto(dst.data)
-    } else {
-        dst.data.fill(0.0)
-        koblas.sparseVectorKernels.scatter(src as SparseVector, dst.data)
+    when (src) {
+        is DenseVector -> src.data.copyInto(dst.data)
+
+        is SparseVector -> {
+            dst.data.fill(0.0)
+            koblas.sparseVectorKernels.scatter(src, dst.data)
+        }
+
+        else -> {
+            dst.data.fill(0.0)
+            src.forEachStored { i, v -> dst.data[i] = v }
+        }
     }
 }
 
@@ -135,13 +152,13 @@ fun swap(a: DenseVector, b: DenseVector) {
 }
 
 /** `y = y + alpha * x`. Dense `x` uses SIMD; sparse `x` walks stored entries. */
-fun axpy(y: DenseVector, alpha: Double, x: VectorView) {
+fun axpy(y: DenseVector, alpha: Double, x: VectorLike) {
     require(y.size == x.size) { "size mismatch: ${y.size} vs ${x.size}" }
     if (alpha == 0.0) return
-    if (x is DenseVector) {
-        koblas.vectorKernels.axpy(y.data, 0, alpha, x.data, 0, y.size)
-    } else {
-        koblas.sparseVectorKernels.axpy(y.data, alpha, x as SparseVector)
+    when (x) {
+        is DenseVector -> koblas.vectorKernels.axpy(y.data, 0, alpha, x.data, 0, y.size)
+        is SparseVector -> koblas.sparseVectorKernels.axpy(y.data, alpha, x)
+        else -> x.forEachStored { i, v -> y.data[i] += alpha * v }
     }
 }
 
@@ -158,7 +175,7 @@ fun scale(v: DenseVector, alpha: Double) {
  * pair has no BLAS counterpart and stays here, visiting only the rows and columns where `x_i · y_j`
  * can be non-zero.
  */
-fun ger(alpha: Double, x: VectorView, y: VectorView, a: DenseMatrix) {
+fun ger(alpha: Double, x: VectorLike, y: VectorLike, a: DenseMatrix) {
     require(a.rows == x.size && a.cols == y.size) {
         "ger shape mismatch: A is ${a.rows}x${a.cols}, x ${x.size}, y ${y.size}"
     }
@@ -234,7 +251,7 @@ fun DenseMatrix.transpose(): DenseMatrix {
  *
  * No `transpose` flag: for a sparse matrix use [com.eignex.koblas.sparse.gemv], which takes one.
  */
-fun gemv(A: MatrixView, x: VectorView): DenseVector {
+fun gemv(A: MatrixLike, x: VectorLike): DenseVector {
     require(A.cols == x.size) { "gemv shape mismatch: A is ${A.rows}x${A.cols}, x size ${x.size}" }
     if (A is DenseMatrix && x is DenseVector) return DenseVector.wrap(koblas.gemv(A, x.data))
     val out = DenseVector(A.rows)
@@ -254,6 +271,8 @@ fun gemv(A: MatrixView, x: VectorView): DenseVector {
             if (v != 0.0) A.forEachInColumn(j) { i, aij -> od[i] += aij * v }
         }
     } else {
+        // A foreign MatrixLike: every entry through `get`, which is why handing koblas its own storage
+        // matters when the data is large.
         for (i in 0 until A.rows) {
             var s = 0.0
             x.forEachStored { j, v -> s += A[i, j] * v }
