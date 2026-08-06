@@ -2,16 +2,13 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.Backend
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.hostblas.HostBlas
 import com.eignex.koblas.hostblas.HostBlasCalls
 import com.eignex.koblas.hostblas.HostLapack
 import com.eignex.koblas.registerBackend
-import com.eignex.koblas.sparse.SparseLapack
 import com.eignex.koblas.umfpack.UmfpackCalls
 import com.eignex.koblas.umfpack.UmfpackSparseLapack
 import java.util.ServiceLoader
-import kotlin.math.abs
 
 /**
  * The JVM's backend discovery, run once on the first [com.eignex.koblas.koblas] read.
@@ -61,31 +58,23 @@ private fun registerHostBlas(requested: String?) {
  * The sparse counterpart of [registerHostBlas], and separate from it because the two libraries are
  * independent: a machine may have OpenBLAS without SuiteSparse or the reverse, and each half should
  * accelerate on its own.
+ *
+ * Deliberately does the *cheapest possible* check here — a `dlopen`, via `libraryPresent` — and does not bind
+ * a single downcall handle or run any probe computation. Discovery runs at whatever stack depth the first
+ * `koblas` read happens to sit at, and creating handles there threw `StackOverflowError` in a full test suite
+ * while working fine when the same code ran alone; because the failure was caught as `Throwable` it was
+ * reported as "SuiteSparse is not installed" and the backend silently never registered. Binding is now the
+ * first real call's business, where the stack is shallow. See `UmfpackCalls` for the whole story.
+ *
+ * The consequence worth knowing: registration now means "the library is installed", not "the library works".
+ * If the symbols turn out not to bind, [UmfpackSparseLapack.factor] falls back to the portable factorization
+ * exactly as it does for any other UMFPACK failure, so a caller still gets a correct answer.
  */
 private fun registerUmfpack(requested: String?) {
-    if (!UmfpackCalls.available) return
+    if (!UmfpackCalls.libraryPresent) return
     val lapack = UmfpackSparseLapack()
     if (requested != null && lapack.name != requested) return
-    if (!probeSparse(lapack)) return
     registerBackend(lapack)
-}
-
-/**
- * A 2x2 diagonal factor-and-solve forces UMFPACK's native path to load and produce a correct answer.
- *
- * The dense probe multiplies; this one factorizes, because a binding can resolve its symbols and still fail
- * on the first real call — a version whose `di` family differs, or a dependent SuiteSparse library missing.
- */
-private fun probeSparse(lapack: SparseLapack): Boolean {
-    @Suppress("TooGenericExceptionCaught") // native load failures surface as UnsatisfiedLinkError
-    return try {
-        val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 4.0)))
-        val f = lapack.factor(a)
-        val x = f.solve(doubleArrayOf(2.0, 8.0))
-        !f.singular && abs(x[0] - 1.0) < 1e-12 && abs(x[1] - 2.0) < 1e-12
-    } catch (_: Throwable) {
-        false
-    }
 }
 
 /** The reserved `koblas.backend` value that means "register nothing". */

@@ -1,9 +1,12 @@
 package com.eignex.koblas.hostblas
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.HostLibraryTest
 import com.eignex.koblas.dense.ReferenceLinearAlgebra
 import com.eignex.koblas.dense.Uplo
 import com.eignex.koblas.koblasInfo
+import org.junit.Assume
+import org.junit.experimental.categories.Category
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.Test
@@ -21,6 +24,7 @@ import kotlin.test.assertTrue
  * kernels never engage, so a suite that stopped short would leave the code that matters untested — a gap
  * that once let a threading crash reach a benchmark run rather than a test.
  */
+@Category(HostLibraryTest::class)
 class HostBlasConformanceTest {
 
     private fun randomMatrix(rng: Random, rows: Int, cols: Int) =
@@ -38,7 +42,7 @@ class HostBlasConformanceTest {
 
     @Test
     fun `the host backend resolves when the machine has OpenBLAS`() {
-        if (!HostBlasCalls.blasAvailable) return
+        Assume.assumeTrue("host CBLAS is not installed", HostBlasCalls.blasAvailable)
         // Either the backend's own name or a composed one, depending on whether LAPACKE resolved too.
         assertTrue(koblasInfo.contains("openblas"), koblasInfo)
     }
@@ -54,7 +58,7 @@ class HostBlasConformanceTest {
      */
     @Test
     fun `a large factorization does not take the process down`() {
-        if (!HostBlasCalls.lapackAvailable) return
+        Assume.assumeTrue("host LAPACKE is not installed", HostBlasCalls.lapackAvailable)
         val n = 512
         val rng = Random(20260807)
         val a = DenseMatrix.wrap(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
@@ -76,7 +80,7 @@ class HostBlasConformanceTest {
      */
     @Test
     fun `the gated level 2 and 3 routines match reference when their gates are opened`() {
-        if (!HostBlasCalls.blasAvailable) return
+        Assume.assumeTrue("host CBLAS is not installed", HostBlasCalls.blasAvailable)
         val host = HostBlas()
         val rng = Random(20260808)
         val n = 24
@@ -143,7 +147,7 @@ class HostBlasConformanceTest {
 
     @Test
     fun `level 3 matches reference at blocked sizes`() {
-        if (!HostBlasCalls.blasAvailable) return
+        Assume.assumeTrue("host CBLAS is not installed", HostBlasCalls.blasAvailable)
         val host = HostBlas()
         val rng = Random(20260805)
         for (n in intArrayOf(7, 64, 256)) {
@@ -167,7 +171,7 @@ class HostBlasConformanceTest {
 
     @Test
     fun `the factorizations match reference at blocked sizes`() {
-        if (!HostBlasCalls.lapackAvailable) return
+        Assume.assumeTrue("host LAPACKE is not installed", HostBlasCalls.lapackAvailable)
         val host = HostLapack()
         val rng = Random(20260806)
         for (n in intArrayOf(7, 64, 256)) {
