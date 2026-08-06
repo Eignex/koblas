@@ -16,6 +16,7 @@ jobs:
   test:
     name: Run tests and collect coverage
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     steps:
       - name: Checkout
@@ -79,6 +80,7 @@ jobs:
   test-macos:
     name: Run native tests on macOS
     runs-on: macos-latest
+    timeout-minutes: 45
 
     steps:
       - name: Checkout
