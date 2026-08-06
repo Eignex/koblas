@@ -3,6 +3,7 @@ package com.eignex.koblas
 import com.eignex.koblas.dense.ReferenceLinearAlgebra
 import com.eignex.koblas.dense.lu
 import com.eignex.koblas.dense.solve
+import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.lu
 import com.sun.management.ThreadMXBean
 import java.lang.management.ManagementFactory
@@ -46,7 +47,19 @@ class AllocationFreeTest {
      */
     @BeforeTest
     fun usePortableKernels() {
-        installBackends(koblas.with(blas = ReferenceLinearAlgebra, lapack = ReferenceLinearAlgebra))
+        // The sparse halves are pinned too, not just the dense ones. The allocation budget here is a promise
+        // about koblas's OWN routines; a host backend cannot make it, since an FFM call allocates a
+        // MemorySegment wrapper per array however carefully the rest is pooled. Before UMFPACK existed this
+        // line only needed the dense halves, and the sparse ones silently stayed portable.
+        installBackends(
+            koblas.with(
+                blas = ReferenceLinearAlgebra,
+                lapack = ReferenceLinearAlgebra,
+                sparseBlas = ReferenceSparseLinearAlgebra,
+                sparseLapack = ReferenceSparseLinearAlgebra,
+                sparseVectorKernels = ReferenceSparseLinearAlgebra,
+            ),
+        )
     }
 
     @AfterTest

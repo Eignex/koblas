@@ -132,8 +132,13 @@ class SparseLuTest {
             assertEquals(0.0, f.determinant())
             assertFailsWith<IllegalStateException> { f.solve(doubleArrayOf(1.0, 2.0)) }
         }
-        // The failing pivot position is reported, which a null result could not do.
-        val singular = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf())).lu()
+        // The failing pivot POSITION is koblas's own to report, so this goes to the portable factorization
+        // directly rather than through the seam. A host backend need not know where it failed — UMFPACK
+        // reports only that the matrix is singular, hence SINGULAR_POSITION_UNKNOWN — and asserting a
+        // position against whichever backend happens to be installed would be asserting the machine.
+        val singular = ReferenceSparseLinearAlgebra.factor(
+            SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf())),
+        )
         assertTrue(singular is SingularSparseFactorization)
         assertEquals(1, singular.failedAt, "the second pivot is the one with no candidate")
     }

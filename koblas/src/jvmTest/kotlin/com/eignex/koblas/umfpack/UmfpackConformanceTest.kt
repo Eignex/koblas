@@ -1,5 +1,6 @@
 package com.eignex.koblas.umfpack
 
+import com.eignex.koblas.HostLibraryTest
 import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.koblas
@@ -7,6 +8,8 @@ import com.eignex.koblas.registerBackend
 import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.gemv
 import com.eignex.koblas.withCleanBackends
+import org.junit.Assume
+import org.junit.experimental.categories.Category
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.Test
@@ -25,11 +28,22 @@ import kotlin.test.assertTrue
  * against koblas's Markowitz pivoting) will not produce the same factors, so the factors are not comparable
  * and the *solutions* are what must agree.
  */
+@Category(HostLibraryTest::class)
 class UmfpackConformanceTest {
 
     private val umfpack = UmfpackSparseLapack()
 
-    private fun available(): Boolean = UmfpackCalls.available
+    /**
+     * Skips the test — genuinely, as a reported skip — when SuiteSparse is absent.
+     *
+     * `Assume` rather than an early `return`, which is what these guards used to be. An early return reports
+     * the test as PASSED, so on a machine without the library the whole suite went green while exercising
+     * nothing, and confirming it had actually run took a manual check. `assumeTrue` reports SKIPPED, which is
+     * the honest signal and needs no verification. JUnit 4 has had this all along.
+     */
+    private fun requireSuiteSparse() {
+        Assume.assumeTrue("SuiteSparse is not installed; umfpack conformance cannot run", UmfpackCalls.available)
+    }
 
     /** A diagonally dominant sparse matrix: well conditioned, and singular for neither backend. */
     private fun sparseSystem(n: Int, rng: Random): SparseMatrix {
@@ -51,18 +65,14 @@ class UmfpackConformanceTest {
 
     @Test
     fun `the binding resolves on a machine with suitesparse`() {
-        if (!available()) {
-            println("suitesparse absent: umfpack conformance skipped")
-            return
-        }
-        assertTrue(UmfpackCalls.available, "libumfpack resolved but availability says otherwise")
+        requireSuiteSparse()
         assertEquals("umfpack", umfpack.name)
         assertEquals(100, umfpack.priority, "should outrank the portable SparseLu")
     }
 
     @Test
     fun `solutions agree with the portable factorization in both directions`() {
-        if (!available()) return
+        requireSuiteSparse()
         val rng = Random(20260815)
         for (n in intArrayOf(1, 2, 7, 23, 60)) {
             val a = sparseSystem(n, rng)
@@ -89,7 +99,7 @@ class UmfpackConformanceTest {
     /** `out === b` must work: umfpack reads B while writing X, so the aliased case needs a copy. */
     @Test
     fun `an aliased destination still solves correctly`() {
-        if (!available()) return
+        requireSuiteSparse()
         val rng = Random(20260816)
         val n = 12
         val a = sparseSystem(n, rng)
@@ -103,7 +113,7 @@ class UmfpackConformanceTest {
 
     @Test
     fun `the determinant agrees with the portable factorization`() {
-        if (!available()) return
+        requireSuiteSparse()
         val rng = Random(20260817)
         for (n in intArrayOf(1, 3, 8)) {
             val a = sparseSystem(n, rng)
@@ -123,7 +133,7 @@ class UmfpackConformanceTest {
      */
     @Test
     fun `a singular matrix is reported singular with an unknown position`() {
-        if (!available()) return
+        requireSuiteSparse()
         // Column 1 is a multiple of column 0, so the matrix is rank 1.
         val rank1 = SparseMatrix.ofColumns(
             2,
@@ -140,7 +150,7 @@ class UmfpackConformanceTest {
     /** `equilibrate` has no UMFPACK equivalent, so it must fall back rather than silently ignore the request. */
     @Test
     fun `equilibrate falls back to the portable factorization`() {
-        if (!available()) return
+        requireSuiteSparse()
         val rng = Random(20260818)
         val a = sparseSystem(6, rng)
         val equilibrated = umfpack.factor(a, equilibrate = true)
@@ -156,7 +166,7 @@ class UmfpackConformanceTest {
 
     @Test
     fun `it registers as the sparse factorization half and reports fill`() {
-        if (!available()) return
+        requireSuiteSparse()
         withCleanBackends {
             registerBackend(umfpack)
             assertEquals("umfpack", koblas.sparseLapack.name, "umfpack should win the sparse lapack half")
@@ -180,7 +190,7 @@ class UmfpackConformanceTest {
      */
     @Test
     fun `repeated factorizations do not exhaust native memory`() {
-        if (!available()) return
+        requireSuiteSparse()
         val rng = Random(20260820)
         val a = sparseSystem(120, rng)
         var checksum = 0.0

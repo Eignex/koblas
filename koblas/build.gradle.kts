@@ -105,6 +105,23 @@ tasks.withType<Test>().configureEach {
     }
 }
 
+// Tests marked @Category(HostLibraryTest) need a real OpenBLAS or SuiteSparse, so they are out of the
+// default run and opted into with -Pkoblas.hostTests=true.
+//
+// Two reasons, either sufficient. They measure the machine as much as the library, so including them makes
+// the everyday result mean different things on a box with SuiteSparse and one without. And they are what
+// makes platform discovery initialize the java.lang.foreign downcall handles, which makes the coverage
+// agent's transformer throw — flooding the log, and taking the test worker down when a test fails. Excluding
+// them and pinning the backend to `reference` removes both; the opt-in run accepts the noise in exchange for
+// exercising the bindings.
+tasks.withType<Test>().configureEach {
+    if (project.findProperty("koblas.hostTests") == "true") return@configureEach
+    systemProperty("koblas.backend", "reference")
+    useJUnit {
+        excludeCategories("com.eignex.koblas.HostLibraryTest")
+    }
+}
+
 // A stable module name, so a modular consumer sees a named module rather than one named after the jar
 // file. That is what lets native access be granted per module instead of blanket ALL-UNNAMED.
 tasks.named<Jar>("jvmJar") {
@@ -112,3 +129,5 @@ tasks.named<Jar>("jvmJar") {
         attributes("Automatic-Module-Name" to "com.eignex.koblas")
     }
 }
+
+kover { currentProject { instrumentation { disabledForAll = true } } }

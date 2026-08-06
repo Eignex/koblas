@@ -3,6 +3,7 @@ package com.eignex.koblas.umfpack
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
 import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.sparse.SingularSparseFactorization
 import com.eignex.koblas.sparse.SparseFactorization
 import com.eignex.koblas.sparse.SparseLapack
 import com.eignex.koblas.sparse.SparseLu
@@ -87,13 +88,17 @@ class UmfpackSparseLapack : SparseLapack {
                 arena.close()
                 return SparseLu.factorCsc(a)
             }
-            val failedAt = if (numericStatus == UmfpackCalls.WARNING_SINGULAR) {
-                SINGULAR_POSITION_UNKNOWN
-            } else {
-                NOT_SINGULAR
+            if (numericStatus == UmfpackCalls.WARNING_SINGULAR) {
+                // UMFPACK does hand back partial factors here, but koblas forbids solving against a singular
+                // factorization, so they can never be used — and keeping them would hold native memory for
+                // nothing. Returning the canonical singular result also keeps `nnz == 0` true of every
+                // singular factorization whatever produced it, which is what SparseFactorization promises.
+                UmfpackCalls.freeNumeric(numericHolder)
+                arena.close()
+                return SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
             }
             val handles = UmfpackFactorization.Handles(arena, numericHolder)
-            val factorization = UmfpackFactorization(a, failedAt, handles)
+            val factorization = UmfpackFactorization(a, NOT_SINGULAR, handles)
             val (lnz, unz) = UmfpackFactorization.fillOf(info)
             factorization.lnz = lnz
             factorization.unz = unz
