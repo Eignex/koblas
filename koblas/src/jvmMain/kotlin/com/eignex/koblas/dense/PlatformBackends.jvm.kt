@@ -21,8 +21,12 @@ import java.util.ServiceLoader
  * Order does not decide the winner — [com.eignex.koblas.registerBackend] ranks by [Backend.priority], so
  * a provider that outranks the built-in one still wins, on either half independently.
  *
- * Each candidate is probed with a tiny computation before being registered, so one whose native library
- * fails to load on the current platform is skipped rather than crashing startup.
+ * A third-party provider is probed with a tiny computation before being registered, so one whose native
+ * library fails to load on the current platform is skipped rather than crashing startup. koblas's own two
+ * bindings are not: each answers "is my library here" with a `dlopen` and a symbol lookup, which is both
+ * cheaper and shallower than a computation — see [registerHostBlas] and [registerUmfpack] for why the depth
+ * matters. External code gets the stricter treatment because it is external code, and because a provider's
+ * `gemv` has no per-call fallback behind it.
  *
  * The `koblas.backend` system property overrides discovery: `reference` registers nothing, leaving the
  * portable [ReferenceLinearAlgebra]; any other value registers only the backend whose [Backend.name]
@@ -36,18 +40,23 @@ internal actual fun registerPlatformBackends() {
     for (provider in loadProviders().sortedByDescending { it.priority }) {
         if (requested != null && provider.name != requested) continue
         if (!probe(provider)) continue
-        // Once, not twice: registerBackend offers the object as every half it implements. The duplicate
-        // this replaces was a leftover from collapsing registerBlas/registerLapack into one verb.
+        // Once, not per half: registerBackend already offers the object as every half it implements.
         registerBackend(provider)
     }
 }
 
-/** koblas's own FFM binding to a host OpenBLAS, when this machine has one. */
+/**
+ * koblas's own FFM binding to a host OpenBLAS, when this machine has one.
+ *
+ * `blasAvailable` is a `dlopen` plus a lookup of `cblas_dgemm`, and that is the whole test. Confirming the
+ * library by running a computation would bind a downcall handle inside the discovery window, where
+ * `Linker.downcallHandle` is stack-hungry enough to throw `StackOverflowError`. A resolved symbol is evidence
+ * enough that the library is the one it claims to be.
+ */
 private fun registerHostBlas(requested: String?) {
     if (!HostBlasCalls.blasAvailable) return
     val blas = HostBlas()
     if (requested != null && blas.name != requested) return
-    if (!probe(blas)) return
     registerBackend(blas)
     if (HostBlasCalls.lapackAvailable) registerBackend(HostLapack())
 }

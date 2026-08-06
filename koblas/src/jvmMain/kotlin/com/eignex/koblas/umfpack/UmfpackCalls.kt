@@ -23,22 +23,12 @@ import java.lang.invoke.MethodHandle
  * `DoubleArray`. The `dl` family takes `int64_t` and would need a widening copy; that is the variant to add
  * if a caller ever has more than 2^31 nonzeros.
  *
- * ### Resolution happens in two stages, and the split is load-bearing
+ * Resolution happens in two stages. [libraryPresent] opens the library and looks up one symbol; [available]
+ * creates the downcall handles, on first call rather than during discovery, because `Linker.downcallHandle`
+ * is stack-hungry and discovery runs at whatever depth the first `koblas` read sits at.
  *
- * [libraryPresent] does nothing but `dlopen`. [available] additionally creates the downcall handles, and only
- * when something first actually calls UMFPACK.
- *
- * They are separate because binding is expensive in a way that bit. `Linker.downcallHandle` generates
- * method-handle forms and is stack-hungry, and doing six of them from inside backend discovery — which runs
- * at whatever depth the first `koblas` read happens to sit at — threw `StackOverflowError` inside a full test
- * suite while succeeding when the same code ran alone. The first version caught `Throwable`, so a blown stack
- * was reported as "SuiteSparse is not installed" and the backend silently never registered, on a machine that
- * had it. Deferring the binds to a call site, where the stack is shallow, removes the cause; narrowing the
- * catch removes the disguise.
- *
- * Hence nothing here catches `Error` broadly. A `StackOverflowError` is not a missing library, and treating
- * the two alike is exactly how that defect hid. Only `IllegalArgumentException` and `UnsatisfiedLinkError`
- * from the `dlopen` count as absence.
+ * Only `IllegalArgumentException` and `UnsatisfiedLinkError` from the `dlopen` count as absence. A
+ * `StackOverflowError` is not a missing library.
  *
  * Nothing is bundled and nothing is linked: `libumfpack` is looked up by soname, so this backend exists
  * exactly on machines that have SuiteSparse and is absent otherwise, with koblas's portable `SparseLu`
@@ -58,6 +48,14 @@ internal object UmfpackCalls {
 
     /** `Info` array length (`UMFPACK_INFO`). */
     const val INFO = 90
+
+    /**
+     * The symbol whose presence stands for "this library is a usable UMFPACK".
+     *
+     * Every routine bound here comes from the same `di` family, so one of them resolving means they all do
+     * short of a corrupt build; the analysis entry point is the one no caller can avoid.
+     */
+    private const val KEY_SYMBOL = "umfpack_di_symbolic"
 
     /** `umfpack_di_*` success. */
     const val OK = 0
@@ -80,7 +78,7 @@ internal object UmfpackCalls {
      * The bound handles, created on first use.
      *
      * `by lazy` rather than an `init` block so the binding happens in whatever frame first *calls* UMFPACK,
-     * not whatever frame first *mentions* this object. That distinction is the whole fix.
+     * not whatever frame first *mentions* this object.
      */
     private val handles: Handles? by lazy { bindAll() }
 
@@ -94,10 +92,14 @@ internal object UmfpackCalls {
     )
 
     /**
-     * Whether `libumfpack` can be opened at all — a `dlopen`, and nothing else.
+     * Whether a `libumfpack` carrying the `di` family could be opened — a `dlopen` and a symbol lookup, and
+     * nothing else.
      *
      * Cheap and shallow enough to call from backend discovery, which is the point: it answers "is SuiteSparse
-     * installed" without creating a single downcall handle.
+     * installed" without creating a single downcall handle. Checking that one symbol *resolves* is what
+     * `HostBlasCalls` does with `cblas_dgemm`, and it is the difference between registering a backend that
+     * works and one that only exists — a `libumfpack` built without the `int32_t` family would otherwise
+     * register here and fall back at the first call instead of never registering.
      */
     val libraryPresent: Boolean get() = lookup != null
 
@@ -118,21 +120,25 @@ internal object UmfpackCalls {
         }
 
     /**
-     * Opens `libumfpack` by soname, newest first.
+     * Opens the first `libumfpack` that both loads and carries [KEY_SYMBOL], by soname, newest first.
      *
      * Versioned sonames lead because a bare `libumfpack.so` is the development symlink and need not exist on
      * a runtime-only machine. The dependent SuiteSparse libraries (amd, colamd, cholmod, suitesparseconfig)
      * arrive through `DT_NEEDED` rather than needing lookups of their own.
+     *
+     * A library that opens but lacks the symbol is skipped rather than accepted, so it cannot shadow a later
+     * soname that would have worked.
      */
     private fun openUmfpack(): SymbolLookup? {
         for (soname in listOf("libumfpack.so.6", "libumfpack.so.5", "libumfpack.so", "libumfpack.dylib")) {
-            try {
-                return SymbolLookup.libraryLookup(soname, Arena.global())
+            val opened = try {
+                SymbolLookup.libraryLookup(soname, Arena.global())
             } catch (_: IllegalArgumentException) {
                 continue // not on this machine
             } catch (_: UnsatisfiedLinkError) {
                 continue // present but unloadable
             }
+            if (opened.find(KEY_SYMBOL).isPresent) return opened
         }
         return null
     }
