@@ -221,6 +221,13 @@ is a flat, column-major DoubleArray -- the order LAPACK and Fortran define -- so
 a native backend receives raw buffers with no repacking and no row-major wrapper
 layer, and every backend must match the reference on the conformance suite.
 
+The sparse factorization has a host backend too: SuiteSparse's UMFPACK, bound on
+the JVM through java.lang.foreign and resolved by soname, so it activates on any
+machine with SuiteSparse installed and is absent otherwise. A SparseMatrix
+crosses to umfpack_di_* with no repacking at all -- koblas's CSC invariant is
+UMFPACK's stated precondition, checked against the headers. Nothing is bundled;
+without the library koblas's own Markowitz SparseLu keeps the seam.
+
 On the Linux and macOS native targets koblas resolves the host OpenBLAS with
 dlopen at program start (libopenblas and liblapacke on Debian/Ubuntu, brew
 install openblas on macOS) and uses it for the level 2 and 3 routines, the

@@ -17,6 +17,20 @@ package com.eignex.koblas
 const val NOT_SINGULAR: Int = -1
 
 /**
+ * A `failedAt` meaning "singular, but this backend cannot say where".
+ *
+ * koblas's own factorizations always know the position: they pick pivots themselves, so the step that ran out
+ * of candidates is exactly where they stopped. A host solver need not tell you. UMFPACK reports
+ * `UMFPACK_WARNING_singular_matrix` and, in `Info`, how many zero pivots there were — but not which, and
+ * recovering it would mean extracting `U` to hunt for a zero diagonal, which is absurd for a diagnostic.
+ *
+ * So this exists rather than having a host backend invent a position or, worse, report [NOT_SINGULAR] for a
+ * matrix it just called singular. `singular` stays true because the value is not [NOT_SINGULAR], and a caller
+ * that switches on the position has one more case to handle honestly.
+ */
+const val SINGULAR_POSITION_UNKNOWN: Int = -2
+
+/**
  * Translates a LAPACK `info` return into a `failedAt` position.
  *
  * A positive `info` from `dgetrf` or `dsytrf` is the 1-based index of the pivot that came out exactly zero,
