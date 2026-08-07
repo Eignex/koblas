@@ -36,23 +36,21 @@ kotlin {
     sourceSets {
         // Everything that is not the JVM: scalar primitive leaves instead of Vector API ones, plus the
         // per-platform threshold defaults and backend reporting that follow from that.
-        val scalarMain by creating {
+        val scalarMain = create("scalarMain") {
             dependsOn(commonMain.get())
         }
         nativeMain.get().dependsOn(scalarMain)
         wasmWasiMain.get().dependsOn(scalarMain)
-        iosMain.get().dependsOn(scalarMain)
-        mingwMain.get().dependsOn(scalarMain)
 
         // The host-BLAS backend: Linux and macOS only. It resolves libopenblas with dlopen, which iOS
         // has no use for (no host library to find, and an App Store binary should not carry the call),
         // and mingw does not provide at all. Both keep the portable kernels, and need no source set of
         // their own to say so - the level-1 routing lives in commonMain and resolves to null for them.
-        val hostBlasMain by creating { dependsOn(nativeMain.get()) }
+        val hostBlasMain = create("hostBlasMain") { dependsOn(nativeMain.get()) }
         linuxMain.get().dependsOn(hostBlasMain)
         macosMain.get().dependsOn(hostBlasMain)
 
-        val hostBlasTest by creating { dependsOn(nativeTest.get()) }
+        val hostBlasTest = create("hostBlasTest") { dependsOn(nativeTest.get()) }
         linuxTest.get().dependsOn(hostBlasTest)
         macosTest.get().dependsOn(hostBlasTest)
         webMain.get().dependsOn(scalarMain)
