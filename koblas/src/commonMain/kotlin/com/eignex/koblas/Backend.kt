@@ -49,8 +49,8 @@ interface Backend {
  *   inside classpath discovery, which is where `Linker.downcallHandle` threw `StackOverflowError` on the JVM
  *   and reported it as a missing library. Third-party backends offered through discovery *are* probed, because
  *   nothing has checked them at all. The gap this leaves is an ABI mismatch: an OpenBLAS built with 64-bit
- *   integers exports the same names, so its symbols resolve and its results are wrong; detecting that
- *   wants `openblas_get_config`, which is a lookup rather than a computation, and is not done yet.
+ *   integers exports the same names, so its symbols resolve and its results are wrong. That one case is
+ *   caught by reading `openblas_get_config`, which is a lookup rather than a computation and so fits here.
  * - **`available` is the question's name**, on every binding, with a second `…Available` beside it when a
  *   binding covers two independent libraries.
  * - **This priority.**
