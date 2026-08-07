@@ -6,6 +6,7 @@ import java.lang.foreign.Linker
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.SymbolLookup
 import java.lang.foreign.ValueLayout.ADDRESS
+import java.lang.foreign.ValueLayout.JAVA_DOUBLE
 import java.lang.foreign.ValueLayout.JAVA_INT
 import java.lang.invoke.MethodHandle
 
@@ -49,6 +50,15 @@ internal object UmfpackCalls {
     /** `Info` array length (`UMFPACK_INFO`). */
     const val INFO = 90
 
+    /** `Control` array length (`UMFPACK_CONTROL`). */
+    private const val CONTROL = 20
+
+    /** `Control` index of the iterative-refinement step count (`UMFPACK_IRSTEP`); UMFPACK defaults it to 2. */
+    private const val IRSTEP = 7
+
+    /** `Control` index of the threshold-pivoting tolerance (`UMFPACK_PIVOT_TOLERANCE`), which defaults to 0.1. */
+    private const val PIVOT_TOLERANCE = 3
+
     /**
      * The symbol whose presence stands for "this library is a usable UMFPACK".
      *
@@ -89,7 +99,51 @@ internal object UmfpackCalls {
         val freeSymbolic: MethodHandle?,
         val freeNumeric: MethodHandle,
         val determinant: MethodHandle?,
+        val defaults: MethodHandle?,
     )
+
+    /**
+     * The `Control` array every solve passes: UMFPACK's own defaults with iterative refinement turned off.
+     *
+     * koblas's `solve` means the triangular solve against the factors, on both storages and every backend.
+     * UMFPACK's default is `UMFPACK_IRSTEP = 2`, which computes a residual against the original matrix and
+     * corrects the solution up to twice — better answers than koblas promises, for two to three times the
+     * arithmetic, and different answers than the portable path gives for the same call. Measured on a
+     * diagonally dominant matrix at 1 per cent density, refinement off against on: 39.5 us and a 5.6e-16
+     * residual against 58.0 us and 2.2e-16 at n 256, and 427.7 us and 2.2e-15 against 1365.2 us and 3.3e-16
+     * at n 1024. So it buys a residual improvement of two to seven times, on a residual that is already at
+     * machine precision, for up to three times the time. #99 reached the same conclusion for the dense path
+     * from the other direction. A caller who needs more than a backward-stable solve wants extended
+     * precision, which neither path offers.
+     *
+     * Built from `umfpack_di_defaults` rather than from a zeroed array, because a zeroed `Control` is not
+     * "no opinion": entry by entry it would override the pivot tolerance, the dense-column heuristics and
+     * the strategy with zeros. If that symbol is missing the array stays null and UMFPACK takes its own
+     * defaults, refinement included — the older, slower, more accurate behaviour, which is a safe thing to
+     * degrade to.
+     */
+    private val solveControl: MemorySegment? by lazy { buildSolveControl() }
+
+    /**
+     * The refinement steps a solve will run, or null when no `Control` array could be built.
+     *
+     * Exists for the test that pins [solveControl] to zero. The setting is deliberate but invisible — it
+     * changes only how long a solve takes and how far past backward stability it lands, so nothing else in
+     * the suite can tell it apart from the default.
+     */
+    val refinementSteps: Double? get() = solveControl?.getAtIndex(JAVA_DOUBLE, IRSTEP.toLong())
+
+    /** `Control[UMFPACK_PIVOT_TOLERANCE]`, for the test that the array holds UMFPACK's defaults and not zeros. */
+    val pivotTolerance: Double? get() = solveControl?.getAtIndex(JAVA_DOUBLE, PIVOT_TOLERANCE.toLong())
+
+    private fun buildSolveControl(): MemorySegment? {
+        val defaults = handles?.defaults ?: return null
+        // Global rather than confined: read-only for UMFPACK, built once, and outlives every solve.
+        val control = Arena.global().allocate(JAVA_DOUBLE, CONTROL.toLong())
+        defaults.invokeWithArguments(control)
+        control.setAtIndex(JAVA_DOUBLE, IRSTEP.toLong(), 0.0)
+        return control
+    }
 
     /**
      * Whether a `libumfpack` carrying the `di` family could be opened — a `dlopen` and a symbol lookup, and
@@ -158,11 +212,13 @@ internal object UmfpackCalls {
         val freeNumeric = bind(found, "umfpack_di_free_numeric", FunctionDescriptor.ofVoid(ADDRESS))
         // int umfpack_di_get_determinant(double *Mx, double *Ex, void *Numeric, double Info[])
         val determinant = bind(found, "umfpack_di_get_determinant", intsThenPointers(ints = 0, pointers = 4))
+        // void umfpack_di_defaults(double Control[UMFPACK_CONTROL])
+        val defaults = bind(found, "umfpack_di_defaults", FunctionDescriptor.ofVoid(ADDRESS))
         if (symbolic == null || numeric == null || solve == null || freeNumeric == null) {
             bindingFailure = "missing one of umfpack_di_symbolic, _numeric, _solve or _free_numeric"
             return null
         }
-        return Handles(symbolic, numeric, solve, freeSymbolic, freeNumeric, determinant)
+        return Handles(symbolic, numeric, solve, freeSymbolic, freeNumeric, determinant, defaults)
     }
 
     /**
@@ -228,9 +284,9 @@ internal object UmfpackCalls {
     /**
      * `umfpack_di_solve`.
      *
-     * Takes the matrix again alongside the factors, which is not redundancy: UMFPACK performs its own
-     * iterative refinement by default and the residual needs the original `A`. That is also why the
-     * factorization keeps its `SparseMatrix` alive.
+     * Takes the matrix again alongside the factors, because the signature is built for the refinement
+     * [solveControl] switches off: the residual it would compute needs the original `A`. The argument is not
+     * optional, so the factorization keeps its `SparseMatrix` alive regardless.
      */
     @Suppress("LongParameterList") // the umfpack_di_solve signature
     fun solve(
@@ -250,7 +306,7 @@ internal object UmfpackCalls {
         x,
         b,
         numeric,
-        MemorySegment.NULL,
+        solveControl ?: MemorySegment.NULL,
         info,
     ) as Int
 

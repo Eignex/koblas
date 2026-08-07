@@ -200,4 +200,32 @@ class UmfpackConformanceTest {
         }
         assertTrue(checksum > 0.0, "the loop should have produced solutions")
     }
+
+    /**
+     * Solves run with iterative refinement off, which is a choice and not a default.
+     *
+     * Asserted on the `Control` array rather than on a result, because there is nothing observable to assert
+     * on: refinement changes only how long a solve takes and how far past backward stability it lands, so
+     * every other test here passes identically either way. Leaving it unpinned would let the setting revert
+     * to UMFPACK's `IRSTEP = 2` unnoticed — three times the solve time at n 1024 for accuracy koblas does
+     * not promise, and answers that differ from the portable path for the same call.
+     */
+    @Test
+    fun `solves run without iterative refinement`() {
+        requireSuiteSparse()
+        assertEquals(0.0, UmfpackCalls.refinementSteps, "umfpack solves must not refine")
+    }
+
+    /**
+     * And the rest of the `Control` array is UMFPACK's, not zeros.
+     *
+     * A zeroed `Control` is not "no opinion" — it would override the pivot tolerance and the dense-column
+     * heuristics with zeros, which is a different factorization rather than a default one. `UMFPACK_PIVOT_TOLERANCE`
+     * defaulting to 0.1 is the cheapest witness that `umfpack_di_defaults` actually ran.
+     */
+    @Test
+    fun `the rest of the control array keeps UMFPACK's defaults`() {
+        requireSuiteSparse()
+        assertEquals(0.1, UmfpackCalls.pivotTolerance, "umfpack_di_defaults did not fill the control array")
+    }
 }
