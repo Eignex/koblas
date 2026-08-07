@@ -52,18 +52,24 @@ class CblasConformanceTest {
         }
     }
 
+    /**
+     * Asserted half by half rather than on `koblas.name`, which is a set of the four halves' names and so
+     * depends on which host libraries the machine has. A UMFPACK installed alongside OpenBLAS adds itself to
+     * that string, and this test is about the dense halves.
+     */
     @Test
     fun `the backend registers itself eagerly and install overrides it`() {
         assertTrue(CblasLinearAlgebra.isAvailable(), "host OpenBLAS expected in the test environment")
         // Eager initialization ran before main: depending on the artifact alone activated it.
-        assertEquals("cblas+reference", koblas.name)
+        assertEquals("cblas", koblas.blas.name)
         try {
             installBackends(koblas.with(blas = ReferenceLinearAlgebra, lapack = ReferenceLinearAlgebra))
-            assertEquals("reference", koblas.name)
+            assertEquals("reference", koblas.blas.name)
+            assertEquals("reference", koblas.lapack.name)
         } finally {
             installBackends(null) // restores automatic selection, i.e. the registered backend
         }
-        assertEquals("cblas+reference", koblas.name)
+        assertEquals("cblas", koblas.blas.name)
     }
 
     @Test

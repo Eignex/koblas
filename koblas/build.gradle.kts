@@ -53,6 +53,17 @@ kotlin {
         val hostBlasTest = create("hostBlasTest") { dependsOn(nativeTest.get()) }
         linuxTest.get().dependsOn(hostBlasTest)
         macosTest.get().dependsOn(hostBlasTest)
+
+        // The host-SuiteSparse backend, on the same targets and for the same reason as hostBlasMain. Its own
+        // source set rather than a package inside that one because the two libraries are independent: a host
+        // may have OpenBLAS without SuiteSparse or the reverse, and a sparse direct solver is not BLAS.
+        val hostSparseMain = create("hostSparseMain") { dependsOn(nativeMain.get()) }
+        linuxMain.get().dependsOn(hostSparseMain)
+        macosMain.get().dependsOn(hostSparseMain)
+
+        val hostSparseTest = create("hostSparseTest") { dependsOn(nativeTest.get()) }
+        linuxTest.get().dependsOn(hostSparseTest)
+        macosTest.get().dependsOn(hostSparseTest)
         webMain.get().dependsOn(scalarMain)
         wasmWasiMain.get().dependsOn(webMain.get())
 
