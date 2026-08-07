@@ -179,16 +179,18 @@ class SparseSeamTest {
         assertSame(strong, koblas.sparseVectorKernels, "clearing the override falls back to registration")
         resetBackends()
         assertSame(
-            ReferenceSparseLinearAlgebra,
+            PlatformSparseVectorKernels,
             koblas.sparseVectorKernels,
-            "an empty registry means the reference",
+            "an empty registry means the compiled-in kernels for this target",
         )
     }
 
     @Test
-    fun `an empty registry resolves to the reference on all three sparse halves`() = withCleanBackends {
+    fun `an empty registry resolves to the portable implementation on all three sparse halves`() = withCleanBackends {
         assertSame(ReferenceSparseLinearAlgebra, koblas.sparseBlas)
         assertSame(ReferenceSparseLinearAlgebra, koblas.sparseLapack)
-        assertSame(ReferenceSparseLinearAlgebra, koblas.sparseVectorKernels)
+        // The kernels differ: they are compiled in per target, so the empty-registry answer is the platform
+        // object rather than the reference, exactly as on the dense side.
+        assertSame(PlatformSparseVectorKernels, koblas.sparseVectorKernels)
     }
 }
