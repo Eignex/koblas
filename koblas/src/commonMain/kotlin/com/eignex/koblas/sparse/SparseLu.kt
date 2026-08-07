@@ -151,24 +151,27 @@ class SparseLu private constructor(
         /**
          * Factorize the square [a], the implementation behind [SparseLapack.factor].
          *
-         * Returns a [SingularSparseFactorization] rather than null when no acceptable pivot remains. The
-         * nullable result it replaced forced every caller into an unwrap for a condition the dense side
-         * reports with a flag, and threw away the one fact worth having: which pivot position failed.
+         * Returns a [SingularSparseFactorization] rather than null when no acceptable pivot remains: a
+         * caller holding the interface gets the failing pivot position, which a null cannot carry, and the
+         * dense side reports the same condition the same way.
          */
-        internal fun factorCsc(a: SparseMatrix, equilibrate: Boolean = false): SparseFactorization {
+        internal fun factorCsc(
+            a: SparseMatrix,
+            equilibrate: Boolean = false,
+            dropTolerance: Double = NO_DROP,
+        ): SparseFactorization {
             require(a.rows == a.cols) { "SparseLu requires a square matrix; got ${a.rows}x${a.cols}" }
             val rows = Array(a.rows) { MutableIntDoubleMap() }
             for (j in 0 until a.cols) a.forEachInColumn(j) { i, v -> rows[i].put(j, v) }
-            return factorize(rows, a.rows, equilibrate)
+            return factorize(rows, a.rows, equilibrate, dropTolerance)
         }
 
         /**
          * Factorize the matrix whose rows are [rows] (`rows[i][col] = B[i][col]`, primitive per-row maps),
          * size [m].
          *
-         * Internal, and the boxed `HashMap<Int, Double>` entry point that used to sit beside it is gone:
-         * it handed callers the representation [MutableIntDoubleMap] exists to avoid, boxing on every
-         * `put` and `get`. Build a [SparseMatrix] and use [factorCsc].
+         * Internal, and takes [MutableIntDoubleMap] rather than a boxed `HashMap<Int, Double>` because the
+         * elimination probes these maps once per entry per step. Build a [SparseMatrix] and use [factorCsc].
          *
          * **Consumes [rows]:** the maps are eliminated in place (and rescaled when [equilibrate]), so the
          * caller must not reuse them afterward.
@@ -176,12 +179,17 @@ class SparseLu private constructor(
          * With [equilibrate], each row is first scaled by a power of two `eᵢ ≈ 1/max|rowᵢ|` (exact in
          * floating point) so pivoting is better conditioned; the scale is undone transparently in the
          * solves and [determinant].
+         *
+         * [dropTolerance] is a fraction of the largest magnitude in the matrix, applied after any
+         * equilibration; see [SparseLapack.factor].
          */
         internal fun factorize(
             rows: Array<MutableIntDoubleMap>,
             m: Int,
             equilibrate: Boolean = false,
+            dropTolerance: Double = NO_DROP,
         ): SparseFactorization {
+            require(dropTolerance >= 0.0) { "dropTolerance must be non-negative; got $dropTolerance" }
             val rowScale = DoubleArray(m) { 1.0 }
             if (equilibrate) {
                 for (i in 0 until m) {
@@ -198,11 +206,14 @@ class SparseLu private constructor(
                 }
             }
             val u = rows // eliminated in place; u[perm[k]] ends as U's pivot row k (pivot cols ≥ k)
+            // Both tolerances are fractions of the largest magnitude present, so a matrix and the same
+            // matrix scaled by 1e-8 factor identically. Measured after equilibration, which changes it.
+            val scale = largestMagnitude(u)
             // L multipliers recorded per elimination step, keyed by the eliminated original row.
             val lAtStep = Array(m) { MutableIntDoubleMap() }
             val perm = IntArray(m) { -1 }
             val colPerm = IntArray(m) { -1 }
-            val state = MarkowitzState(u, m)
+            val state = MarkowitzState(u, m, negligible = NEGLIGIBLE * scale, dropBelow = dropTolerance * scale)
             for (k in 0 until m) {
                 if (!state.selectPivot()) return SingularSparseFactorization(m, failedAt = k)
                 perm[k] = state.pivotRow
@@ -285,7 +296,25 @@ class SparseLu private constructor(
     }
 }
 
-private const val TOL = 1e-9
+/**
+ * A magnitude this far below the matrix's largest is treated as zero rather than as a pivot candidate.
+ *
+ * Relative, not absolute: an absolute floor would declare a perfectly well-conditioned matrix whose entries
+ * all sit near `1e-10` singular at the first step, and would leave a matrix scaled up by `1e10` with no
+ * protection at all. Set near double precision so it rejects only what cannot be told from roundoff — it is
+ * a zero test, and stability is [PIVOT_THRESHOLD]'s job.
+ */
+private const val NEGLIGIBLE = 1e-14
+
+/** The default [SparseLapack.factor] drop tolerance: keep every entry the elimination produces. */
+const val NO_DROP = 0.0
+
+/** The largest magnitude anywhere in [rows], the scale both tolerances are relative to. */
+private fun largestMagnitude(rows: Array<MutableIntDoubleMap>): Double {
+    var largest = 0.0
+    for (row in rows) row.forEach { _, value -> if (abs(value) > largest) largest = abs(value) }
+    return largest
+}
 
 /** Markowitz stability threshold: a pivot must be at least this fraction of its column's largest
  *  magnitude, so fill-reducing choices never sacrifice numerical stability. */
@@ -311,8 +340,18 @@ private const val MAX_CANDIDATE_COLS = 4
  *   percent over the exact minimum, versus a full active-submatrix rescan per step.
  *
  * [eliminate] keeps every count and index exact as entries are created and cancelled.
+ *
+ * The two magnitude limits are separate because they answer different questions. [negligible] is a zero
+ * test: below it a value cannot be told from roundoff, so it is not a pivot candidate and its column may be
+ * structurally singular. [dropBelow] is a fill control: the value is real, and discarding it trades accuracy
+ * for sparsity, which is a caller's decision and defaults to not happening.
  */
-private class MarkowitzState(private val u: Array<MutableIntDoubleMap>, private val m: Int) {
+private class MarkowitzState(
+    private val u: Array<MutableIntDoubleMap>,
+    private val m: Int,
+    private val negligible: Double,
+    private val dropBelow: Double,
+) {
     private val rowActive = BooleanArray(m) { true }
     private val colActive = BooleanArray(m) { true }
     private val rowCount = IntArray(m)
@@ -371,11 +410,11 @@ private class MarkowitzState(private val u: Array<MutableIntDoubleMap>, private 
                     val a = abs(u[i].getOrDefault(c, 0.0))
                     if (a > colMax) colMax = a
                 }
-                if (colMax >= TOL) {
+                if (colMax > negligible) {
                     val threshold = PIVOT_THRESHOLD * colMax
                     colRows[c].forEach { i, _ ->
                         val a = abs(u[i].getOrDefault(c, 0.0))
-                        if (a >= TOL && a >= threshold) {
+                        if (a > negligible && a >= threshold) {
                             val mark = (rowCount[i] - 1).toLong() * (r - 1).toLong()
                             if (mark < bestMark || (mark == bestMark && a > bestAbs)) {
                                 bestMark = mark
@@ -386,7 +425,7 @@ private class MarkowitzState(private val u: Array<MutableIntDoubleMap>, private 
                         }
                     }
                 }
-                if (colMax >= TOL) candidateCols++
+                if (colMax > negligible) candidateCols++
                 c = bucketNext[c]
             }
             if (pivotRow != -1 &&
@@ -428,7 +467,7 @@ private class MarkowitzState(private val u: Array<MutableIntDoubleMap>, private 
                         val slot = target.slotOf(col)
                         if (slot >= 0) {
                             val nv = target.valueAt(slot) - f * value
-                            if (abs(nv) < TOL) {
+                            if (nv == 0.0 || abs(nv) < dropBelow) {
                                 target.remove(col)
                                 rowCount[i]--
                                 colCount[col]--
@@ -438,7 +477,7 @@ private class MarkowitzState(private val u: Array<MutableIntDoubleMap>, private 
                             }
                         } else {
                             val nv = -f * value
-                            if (abs(nv) >= TOL) {
+                            if (nv != 0.0 && abs(nv) >= dropBelow) {
                                 target.put(col, nv)
                                 rowCount[i]++
                                 colCount[col]++

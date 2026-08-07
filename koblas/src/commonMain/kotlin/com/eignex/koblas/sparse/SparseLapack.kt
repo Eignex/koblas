@@ -24,6 +24,15 @@ interface SparseLapack : Backend {
      *
      * With [equilibrate], rows are first scaled by a power of two so pivoting is better conditioned; the
      * scaling is undone transparently in the solves and the determinant.
+     *
+     * [dropTolerance] trades accuracy for sparsity: an entry the elimination produces whose magnitude is
+     * below this fraction of the matrix's largest is discarded rather than stored, so the factors stay
+     * sparser than the true `L·U`. The result is then an *incomplete* factorization — a solve against it is
+     * an approximation, not a solve — which is why it defaults to zero and has to be asked for. It is worth
+     * asking for when fill is the binding constraint and a residual around the tolerance is acceptable; on a
+     * diagonally dominant matrix `1e-9` has been measured cutting fill threefold at a residual of `1e-11`
+     * against `1e-15`. A backend that cannot honor it must fall back rather than ignore it.
      */
-    fun factor(a: SparseMatrix, equilibrate: Boolean = false): SparseFactorization = SparseLu.factorCsc(a, equilibrate)
+    fun factor(a: SparseMatrix, equilibrate: Boolean = false, dropTolerance: Double = NO_DROP): SparseFactorization =
+        SparseLu.factorCsc(a, equilibrate, dropTolerance)
 }

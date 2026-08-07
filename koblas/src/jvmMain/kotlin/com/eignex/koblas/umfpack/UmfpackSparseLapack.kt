@@ -3,6 +3,7 @@ package com.eignex.koblas.umfpack
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
 import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.sparse.NO_DROP
 import com.eignex.koblas.sparse.SingularSparseFactorization
 import com.eignex.koblas.sparse.SparseFactorization
 import com.eignex.koblas.sparse.SparseLapack
@@ -44,15 +45,21 @@ class UmfpackSparseLapack : SparseLapack {
     /**
      * Factorize [a] with UMFPACK: symbolic analysis, then numeric factorization.
      *
-     * [equilibrate] is accepted and ignored, which is the honest mapping rather than a silent lie. koblas's
-     * `SparseLu` takes it to mean "scale rows by a power of two before pivoting"; UMFPACK scales rows by
-     * default as part of its own strategy (`UMFPACK_SCALE_SUM`) and offers no way to ask for koblas's
-     * specific variant. Requesting it therefore falls back to the portable factorization, so a caller who
-     * asked for that scaling gets it rather than something else with the same name.
+     * [equilibrate] falls back to the portable factorization rather than being ignored. koblas's `SparseLu`
+     * takes it to mean "scale rows by a power of two before pivoting"; UMFPACK scales rows by default as
+     * part of its own strategy (`UMFPACK_SCALE_SUM`) and offers no way to ask for koblas's specific variant,
+     * so a caller who asked for that scaling gets it rather than something else with the same name.
+     *
+     * [dropTolerance] falls back for a stronger reason: UMFPACK computes a complete factorization and has no
+     * drop threshold at all, so honoring the request is impossible and ignoring it would return factors of a
+     * different matrix than the caller asked for, silently accurate where they budgeted for approximate.
      */
-    override fun factor(a: SparseMatrix, equilibrate: Boolean): SparseFactorization {
+    override fun factor(a: SparseMatrix, equilibrate: Boolean, dropTolerance: Double): SparseFactorization {
         require(a.rows == a.cols) { "factor requires a square matrix; got ${a.rows}x${a.cols}" }
-        if (equilibrate) return SparseLu.factorCsc(a, equilibrate = true)
+        // Any tolerance but the default goes to the portable path, including a nonsensical negative one:
+        // this backend handles exactly the case it can honor, and the portable factorization owns validating
+        // the rest rather than each backend repeating the check.
+        if (equilibrate || dropTolerance != NO_DROP) return SparseLu.factorCsc(a, equilibrate, dropTolerance)
         if (a.rows == 0) return SparseLu.factorCsc(a)
 
         val colPtr = MemorySegment.ofArray(a.colPtr)
