@@ -1,5 +1,7 @@
 package com.eignex.koblas.dense
 
+import kotlin.math.abs
+
 /**
  * The [LinearAlgebra.qrPivoted] tolerance meaning "derive one from the matrix": `max(m, n) · ε`.
  *
@@ -65,4 +67,29 @@ class PivotedQrDecomposition(val factorization: QrDecomposition, val pivots: Int
         require(pivots.size == n) { "pivots length ${pivots.size} != $n" }
         require(rank in 0..minOf(m, n)) { "rank $rank outside 0..${minOf(m, n)}" }
     }
+}
+
+/**
+ * The numerical rank of a pivoted `R`: the leading run of diagonal entries above `tolerance · |R₀₀|`.
+ *
+ * Shared by every backend that produces a pivoted QR, because the rank is a property of `R` and of the
+ * tolerance rather than of the routine that factorized. LAPACK's `dgeqp3` does not report a rank at all, so
+ * the host binding computes it from the same rule the portable path uses and the two cannot disagree.
+ *
+ * A leading run rather than a count of everything above the bound: column pivoting drives the diagonal
+ * non-increasing in magnitude, so a later entry above the threshold after an earlier one below it would mean
+ * the pivoting had gone wrong, and counting it would claim a rank the factorization cannot support.
+ *
+ * Takes the packed factorization buffer, column-major with `lda == m`, the two dimensions the automatic
+ * tolerance is derived from, and `k = min(m, n)` — the number of diagonal entries there are to walk.
+ */
+internal fun rankOfPivotedR(r: DoubleArray, m: Int, n: Int, k: Int, tolerance: Double): Int {
+    if (k == 0) return 0
+    val largest = abs(r[0])
+    if (largest == 0.0) return 0
+    val effective = if (tolerance > AUTOMATIC_RANK_TOLERANCE) tolerance else maxOf(m, n) * MACHINE_EPSILON
+    val limit = effective * largest
+    var rank = 0
+    while (rank < k && abs(r[rank + rank * m]) > limit) rank++
+    return rank
 }

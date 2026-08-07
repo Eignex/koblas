@@ -534,7 +534,7 @@ class ReferenceBackend(private val kernels: VectorKernels? = null) : LinearAlgeb
             applyReflectorToTrailing(buf, m, n, col, tau[col])
             downdateNorms(buf, m, n, col, current, computed)
         }
-        return PivotedQrDecomposition(QrDecomposition(m, n, buf, tau), pivots, rankOf(buf, m, n, k, tolerance))
+        return PivotedQrDecomposition(QrDecomposition(m, n, buf, tau), pivots, rankOfPivotedR(buf, m, n, k, tolerance))
     }
 
     /** Exchange columns [i] and [j] of [buf] and every per-column quantity that tracks them. */
@@ -602,25 +602,6 @@ class ReferenceBackend(private val kernels: VectorKernels? = null) : LinearAlgeb
                 current[c] *= sqrt(remaining)
             }
         }
-    }
-
-    /**
-     * The count of leading `R` diagonal entries above `tolerance · |R₀₀|`.
-     *
-     * A count of the leading run rather than of every entry above the bound: column pivoting makes the
-     * diagonal non-increasing in magnitude, so a later entry above the threshold after an earlier one below
-     * it would mean the pivoting had gone wrong, and counting it would report a rank the factorization
-     * cannot back up.
-     */
-    private fun rankOf(buf: DoubleArray, m: Int, n: Int, k: Int, tolerance: Double): Int {
-        if (k == 0) return 0
-        val largest = abs(buf[0])
-        if (largest == 0.0) return 0
-        val effective = if (tolerance > AUTOMATIC_RANK_TOLERANCE) tolerance else maxOf(m, n) * MACHINE_EPSILON
-        val limit = effective * largest
-        var rank = 0
-        while (rank < k && abs(buf[rank + rank * m]) > limit) rank++
-        return rank
     }
 
     /** Build the Householder reflector for [col] in place (LAPACK `dlarfg`): returns `tau`, stores the

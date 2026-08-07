@@ -9,11 +9,13 @@ import com.eignex.koblas.dense.CholeskyPolicy
 import com.eignex.koblas.dense.Lapack
 import com.eignex.koblas.dense.LdlDecomposition
 import com.eignex.koblas.dense.LuDecomposition
+import com.eignex.koblas.dense.PivotedQrDecomposition
 import com.eignex.koblas.dense.QrDecomposition
 import com.eignex.koblas.dense.ReferenceLinearAlgebra
 import com.eignex.koblas.dense.cholesky
 import com.eignex.koblas.dense.invertSpd
 import com.eignex.koblas.dense.lu
+import com.eignex.koblas.dense.rankOfPivotedR
 import com.eignex.koblas.dense.solveSpd
 import com.eignex.koblas.dispatchThresholds
 import com.eignex.koblas.hostblas.HostBlasCalls.COL_MAJOR
@@ -250,6 +252,45 @@ class HostLapack internal constructor() : Lapack {
             check(info == 0) { "dgeqrf: illegal argument ${-info}" }
         }
         return QrDecomposition(m, n, buf, tau)
+    }
+
+    /**
+     * `dgeqp3` above the LAPACK threshold, portable below it.
+     *
+     * `jpvt` is zeroed on input, which is LAPACK's "every column is free to move"; a nonzero entry pins a
+     * column to the front, which koblas does not expose. On output it is one-based, hence the shift.
+     *
+     * LAPACK reports no rank, so it comes from [rankOfPivotedR] — the same rule the portable path applies to
+     * its own `R`, rather than a second implementation that could disagree about where the tolerance falls.
+     *
+     * Whether this is worth the call is not settled. `dgeqp3`'s pivoting phase updates column norms between
+     * panels and is level-2 bound, so the level-3 advantage that makes `dgeqrf` worth binding is smaller
+     * here; this reuses the LAPACK threshold rather than claiming a measured one of its own.
+     */
+    override fun qrPivoted(a: DenseMatrix, tolerance: Double, workspace: Workspace?): PivotedQrDecomposition {
+        if (minOf(a.rows, a.cols) < dispatchThresholds.lapack) {
+            return ReferenceLinearAlgebra.qrPivoted(a, tolerance, workspace)
+        }
+        val m = a.rows
+        val n = a.cols
+        val buf = a.data.copyOf()
+        val tau = DoubleArray(minOf(m, n))
+        val jpvt = IntArray(n) // zero: no column is pinned
+        if (m > 0 && n > 0) {
+            val info = HostBlasCalls.dgeqp3.invokeWithArguments(
+                COL_MAJOR,
+                m,
+                n,
+                HostBlasCalls.seg(buf),
+                m,
+                HostBlasCalls.seg(jpvt),
+                HostBlasCalls.seg(tau),
+            ) as Int
+            check(info == 0) { "dgeqp3: illegal argument ${-info}" }
+        }
+        val pivots = IntArray(n) { jpvt[it] - 1 }
+        val rank = rankOfPivotedR(buf, m, n, minOf(m, n), tolerance)
+        return PivotedQrDecomposition(QrDecomposition(m, n, buf, tau), pivots, rank)
     }
 
     override fun applyQInto(qr: QrDecomposition, y: DoubleArray, out: DoubleArray, transpose: Boolean): DoubleArray {
