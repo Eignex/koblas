@@ -3,6 +3,7 @@ package com.eignex.koblas
 import com.eignex.koblas.dense.PlatformVectorKernels
 import com.eignex.koblas.dense.ReferenceBackend
 import com.eignex.koblas.dense.RoutedVectorKernels
+import com.eignex.koblas.sparse.PlatformSparseVectorKernels
 import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
 
 /**
@@ -57,6 +58,10 @@ fun KoblasContext.isAccelerated(slot: BackendSlot): Boolean = when (val backend 
     is RoutedVectorKernels -> backend.host != null
 
     PlatformVectorKernels -> false
+
+    // Compiled in for the target, like the dense kernels above: SIMD where the platform has it, and still
+    // koblas's own portable implementation rather than a host library.
+    PlatformSparseVectorKernels -> false
 
     is ReferenceBackend -> false
 

@@ -7,6 +7,7 @@ import com.eignex.koblas.dense.ReferenceLinearAlgebra
 import com.eignex.koblas.dense.RoutedVectorKernels
 import com.eignex.koblas.dense.VectorKernels
 import com.eignex.koblas.dense.registerPlatformBackends
+import com.eignex.koblas.sparse.PlatformSparseVectorKernels
 import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.SparseBlas
 import com.eignex.koblas.sparse.SparseLapack
@@ -71,7 +72,8 @@ private fun assemble(): KoblasContext = KoblasContext(
     vectorKernels = RoutedVectorKernels(vectorKernelSeam.active),
     blas = blasSeam.active ?: ReferenceLinearAlgebra,
     lapack = lapackSeam.active ?: ReferenceLinearAlgebra,
-    sparseVectorKernels = sparseVectorKernelSeam.active ?: ReferenceSparseLinearAlgebra,
+    // Compiled in for this target, as on the dense side; a registered backend outranks it.
+    sparseVectorKernels = sparseVectorKernelSeam.active ?: PlatformSparseVectorKernels,
     sparseBlas = sparseBlasSeam.active ?: ReferenceSparseLinearAlgebra,
     sparseLapack = sparseLapackSeam.active ?: ReferenceSparseLinearAlgebra,
 )
