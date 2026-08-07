@@ -2,6 +2,7 @@ package com.eignex.koblas.hostblas
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DispatchThresholds
+import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.dense.Blas
 import com.eignex.koblas.dense.ReferenceLinearAlgebra
@@ -34,7 +35,7 @@ class HostBlas internal constructor() : Blas {
     override val name: String get() = "openblas"
 
     /** Above the reference (0) and the native dlopen backend (90), being the strongest JVM option. */
-    override val priority: Int get() = 100
+    override val priority: Int get() = HOST_BACKEND_PRIORITY
 
     /** Portable below the level-2 gate, `cblas_dger` above it. */
     override fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix) {

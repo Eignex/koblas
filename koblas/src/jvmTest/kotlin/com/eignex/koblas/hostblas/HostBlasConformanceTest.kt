@@ -42,7 +42,7 @@ class HostBlasConformanceTest {
 
     @Test
     fun `the host backend resolves when the machine has OpenBLAS`() {
-        Assume.assumeTrue("host CBLAS is not installed", HostBlasCalls.blasAvailable)
+        Assume.assumeTrue("host CBLAS is not installed", HostBlasCalls.available)
         // Either the backend's own name or a composed one, depending on whether LAPACKE resolved too.
         assertTrue(koblasInfo.contains("openblas"), koblasInfo)
     }
@@ -80,7 +80,7 @@ class HostBlasConformanceTest {
      */
     @Test
     fun `the gated level 2 and 3 routines match reference when their gates are opened`() {
-        Assume.assumeTrue("host CBLAS is not installed", HostBlasCalls.blasAvailable)
+        Assume.assumeTrue("host CBLAS is not installed", HostBlasCalls.available)
         val host = HostBlas()
         val rng = Random(20260808)
         val n = 24
@@ -147,7 +147,7 @@ class HostBlasConformanceTest {
 
     @Test
     fun `level 3 matches reference at blocked sizes`() {
-        Assume.assumeTrue("host CBLAS is not installed", HostBlasCalls.blasAvailable)
+        Assume.assumeTrue("host CBLAS is not installed", HostBlasCalls.available)
         val host = HostBlas()
         val rng = Random(20260805)
         for (n in intArrayOf(7, 64, 256)) {

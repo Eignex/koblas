@@ -85,7 +85,7 @@ class VectorKernelsTest {
 
     // No @AfterTest restore: every test that touches the registry wraps itself in withCleanBackends, which
     // saves and re-registers the incumbents. Resetting and calling registerPlatformBackends() instead only
-    // worked on the JVM -- the native targets register eagerly before main, so discovery is a no-op there and
+    // worked on the JVM -- discovery is a `by lazy` that has already run, so it cannot be replayed and
     // the platform's backend was gone for every later test.
 
     @Test

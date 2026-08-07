@@ -3,6 +3,7 @@
 package com.eignex.koblas.cblas
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.MatrixLike
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.dense.CholeskyPolicy
@@ -40,7 +41,7 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
     override val name: String get() = "cblas"
 
     /** Above the reference (0). */
-    override val priority: Int get() = 90
+    override val priority: Int get() = HOST_BACKEND_PRIORITY
 
     override fun factor(a: DenseMatrix): LuDecomposition {
         require(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }

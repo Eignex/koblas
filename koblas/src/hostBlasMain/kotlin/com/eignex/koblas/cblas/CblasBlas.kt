@@ -3,6 +3,7 @@
 package com.eignex.koblas.cblas
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.dense.Blas
 import com.eignex.koblas.dense.Uplo
@@ -34,7 +35,7 @@ internal class CblasBlas(private val f: CblasFunctions) : Blas {
     override val name: String get() = "cblas"
 
     /** Above the reference (0). */
-    override val priority: Int get() = 90
+    override val priority: Int get() = HOST_BACKEND_PRIORITY
 
     override fun gemv(
         alpha: Double,

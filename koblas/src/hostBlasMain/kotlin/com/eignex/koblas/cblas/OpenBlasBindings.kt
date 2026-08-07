@@ -138,6 +138,12 @@ internal object OpenBlasLoader {
         }
     }
 
+    /** Whether the host CBLAS resolved — the name every koblas host binding answers availability with. */
+    val available: Boolean get() = cblas != null
+
+    /** Whether LAPACKE resolved as well; false on a host that ships CBLAS only. */
+    val lapackAvailable: Boolean get() = lapacke != null
+
     private fun open(vararg names: String): COpaquePointer? {
         for (name in names) dlopen(name, RTLD_NOW)?.let { return it }
         return null

@@ -48,13 +48,13 @@ internal actual fun registerPlatformBackends() {
 /**
  * koblas's own FFM binding to a host OpenBLAS, when this machine has one.
  *
- * `blasAvailable` is a `dlopen` plus a lookup of `cblas_dgemm`, and that is the whole test. Confirming the
+ * `available` is a `dlopen` plus a lookup of `cblas_dgemm`, and that is the whole test. Confirming the
  * library by running a computation would bind a downcall handle inside the discovery window, where
  * `Linker.downcallHandle` is stack-hungry enough to throw `StackOverflowError`. A resolved symbol is evidence
  * enough that the library is the one it claims to be.
  */
 private fun registerHostBlas(requested: String?) {
-    if (!HostBlasCalls.blasAvailable) return
+    if (!HostBlasCalls.available) return
     val blas = HostBlas()
     if (requested != null && blas.name != requested) return
     registerBackend(blas)

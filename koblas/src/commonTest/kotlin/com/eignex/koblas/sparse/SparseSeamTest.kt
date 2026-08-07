@@ -95,7 +95,7 @@ class SparseSeamTest {
         }
     }
 
-    // Restoration is withCleanBackends' job, per test, so an eagerly-registered platform backend survives.
+    // Restoration is withCleanBackends' job, per test, so a platform backend found by discovery survives.
 
     private fun sparse() = SparseVector.of(6, intArrayOf(1, 4), doubleArrayOf(2.0, -3.0))
 

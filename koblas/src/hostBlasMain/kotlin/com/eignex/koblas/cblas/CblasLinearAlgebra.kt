@@ -1,5 +1,6 @@
 package com.eignex.koblas.cblas
 
+import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.dense.Blas
 import com.eignex.koblas.dense.Lapack
 import com.eignex.koblas.dense.LinearAlgebra
@@ -7,9 +8,9 @@ import com.eignex.koblas.dense.LinearAlgebra
 /**
  * [LinearAlgebra] backed by the host's OpenBLAS through its C interfaces (CBLAS and LAPACKE), for
  * the Linux and macOS native targets. Nothing is linked: the libraries are resolved with `dlopen`
- * at program start, so the dependency is optional at runtime — `libopenblas` plus `liblapacke` on
- * Debian/Ubuntu, `brew install openblas` on macOS. When they are present koblas installs this backend
- * eagerly before `main`; when they are missing the program still runs on
+ * on first use, so the dependency is optional at runtime — `libopenblas` plus `liblapacke` on
+ * Debian/Ubuntu, `brew install openblas` on macOS. When they are present koblas registers this backend the
+ * first time `koblas` is read; when they are missing the program still runs on
  * [com.eignex.koblas.dense.ReferenceLinearAlgebra], and constructing this class throws. [isAvailable] and
  * [isBlasAvailable] report which case the host is, since the two halves resolve independently.
  *
@@ -36,7 +37,7 @@ class CblasLinearAlgebra private constructor(private val blas: CblasBlas, privat
     override val name: String get() = "cblas"
 
     /** Above the reference (0). */
-    override val priority: Int get() = 90
+    override val priority: Int get() = HOST_BACKEND_PRIORITY
 
     /** Host-availability checks for the two halves. */
     companion object {

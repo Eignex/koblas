@@ -129,10 +129,10 @@ internal fun poisonedTriangle(rng: Random, n: Int, lower: Boolean, unitDiag: Boo
  * Runs [block] against an empty registry, then puts back whatever was resolved before.
  *
  * The registry is global process state, and on the targets that ship a host backend it is already populated
- * before any test runs — the native ones register eagerly, before `main`, so `registerPlatformBackends` is a
- * no-op there and discovery cannot be asked to run again. A test that clears the registry and does not
- * restore it therefore destroys the platform's backend for every test that follows, which is exactly the
- * failure this exists to prevent: it showed up as a host-BLAS conformance test finding `reference` installed.
+ * by the time any test runs, because reading `koblas` once is enough to trigger discovery. Discovery is a
+ * `by lazy`, so it cannot be asked to run a second time. A test that clears the registry and does not restore
+ * it therefore destroys the platform's backend for every test that follows, which is exactly the failure this
+ * exists to prevent: it showed up as a host-BLAS conformance test finding `reference` installed.
  *
  * Restoring goes through [registerBackend] rather than an install, so the result is a genuinely resolved
  * registry rather than a frozen override.
