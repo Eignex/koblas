@@ -72,8 +72,18 @@ class SparseLuTest {
         val b = randomVector(n, rng)
         assertClose(b, a.gemv(lu.solve(b)), "ftran residual", tolerance = 1e-8)
         assertClose(b, a.gemv(lu.solve(b, transpose = true), transpose = true), "btran residual", tolerance = 1e-8)
-        // The bounded candidate search must keep fill near the input's sparsity, far from dense.
-        assertTrue(lu.nnz < 6 * a.nnz, "fill blew up: factor nnz=${lu.nnz} vs input nnz=${a.nnz}")
+        // The bounded candidate search must stay far from dense. Dense here is n² = 90000, roughly 44x the
+        // input; the search holds it near 12x. The bound is generous because random sparsity is the hard
+        // case for any ordering — there is no structure to exploit — so this catches a search that has
+        // stopped reducing fill, not a few per cent of drift.
+        assertTrue(lu.nnz < 15 * a.nnz, "fill blew up: factor nnz=${lu.nnz} vs input nnz=${a.nnz}")
+        // And what the drop tolerance buys on the same matrix, which is the trade a caller is choosing
+        // between: markedly sparser factors for a residual four orders worse.
+        val dropped = a.lu(equilibrate = true, dropTolerance = 1e-9)
+        assertTrue(
+            dropped.nnz < lu.nnz / 2,
+            "the drop tolerance should cut fill sharply here: ${dropped.nnz} against ${lu.nnz}",
+        )
     }
 
     @Test
@@ -148,4 +158,101 @@ class SparseLuTest {
         val a = SparseMatrix.ofColumns(2, 3, listOf(listOf(0 to 1.0), listOf(1 to 1.0), listOf(0 to 1.0)))
         assertFailsWith<IllegalArgumentException> { a.lu() }
     }
+
+    /**
+     * The same matrix at three scales must factor the same way, which an absolute pivot floor cannot do: a
+     * well-conditioned matrix whose entries all sit near `1e-12` is not singular, and one near `1e12` is not
+     * automatically well-pivoted. Both tolerances are fractions of the largest magnitude present for this
+     * reason, so scaling by a power of two — exact in floating point — changes nothing but the scale.
+     */
+    @Test
+    fun `factorization is invariant to the matrix scale`() {
+        val rng = Random(20260807)
+        val base = randomSparseSquare(6, rng, dominance = 1.5)
+        val rhs = randomVector(6, rng)
+        // Through the portable factorization directly: these are koblas's own tolerances, and a machine
+        // with SuiteSparse installed would otherwise be measuring UMFPACK's scale handling instead.
+        val reference = ReferenceSparseLinearAlgebra.factor(base)
+        // Powers of two, so the scaling itself is exact and any difference is the factorization's. Far
+        // enough out that an absolute tolerance would break: at 2^-60 every entry sits below 1e-14, which
+        // an absolute zero test would call singular, and at 2^60 an absolute drop would discard nothing.
+        for (scale in doubleArrayOf(POW_2_MINUS_60, POW_2_60)) {
+            val scaled = SparseMatrix.ofColumns(
+                6,
+                6,
+                List(6) { j -> buildList { base.forEachInColumn(j) { i, v -> add(i to v * scale) } } },
+            )
+            val f = ReferenceSparseLinearAlgebra.factor(scaled)
+            assertTrue(!f.singular, "scaling by $scale must not make a matrix singular")
+            assertEquals(reference.nnz, f.nnz, "scaling by $scale changed the fill")
+            // A·x = b scaled by s solves to x/s, so the scaled solve times the scale is the original.
+            val expected = reference.solve(rhs)
+            val actual = f.solve(rhs).map { it * scale }.toDoubleArray()
+            assertClose(expected, actual, "solve at scale $scale", tolerance = 1e-9)
+        }
+    }
+
+    /**
+     * The drop tolerance is off unless asked for, and asking for it trades accuracy for sparsity.
+     *
+     * Both halves are asserted together because either alone permits a mistake: a drop that does nothing
+     * would pass an accuracy check, and one that fires unconditionally would pass a sparsity check.
+     */
+    @Test
+    fun `the drop tolerance trades fill for accuracy and defaults to off`() {
+        val rng = Random(20260807)
+        val a = randomSparseSquare(40, rng, density = 0.2, dominance = 1.0)
+        val rhs = randomVector(40, rng)
+        // Both through the portable path: a drop tolerance falls back to it, so an installed host backend
+        // would make the baseline a different factorization and the comparison meaningless.
+        val exact = ReferenceSparseLinearAlgebra.factor(a)
+        val dropped = ReferenceSparseLinearAlgebra.factor(a, dropTolerance = 1e-3)
+        assertTrue(
+            dropped.nnz < exact.nnz,
+            "a drop tolerance must discard fill: ${dropped.nnz} against ${exact.nnz}",
+        )
+        assertTrue(residualOf(a, exact, rhs) < 1e-12, "the default factorization is a real one")
+        assertTrue(
+            residualOf(a, dropped, rhs) > residualOf(a, exact, rhs),
+            "an incomplete factorization cannot be as accurate as the complete one",
+        )
+    }
+
+    @Test
+    fun `a negative drop tolerance is rejected`() {
+        assertFailsWith<IllegalArgumentException> { randomSparseSquare(3, Random(1)).lu(dropTolerance = -1e-9) }
+    }
+
+    /**
+     * A value that cancels to exactly zero is dropped from the pattern, with no drop tolerance involved.
+     *
+     * Structural, not numerical: a stored zero contributes nothing to any solve, but it occupies a slot in
+     * the factors, inflates the Markowitz counts that choose later pivots, and can be selected as a pivot
+     * candidate. Nothing else covers it — with the old implicit tolerance in place, exact zeros fell below
+     * it and vanished for the wrong reason.
+     */
+    @Test
+    fun `entries that cancel exactly are not stored`() {
+        // Eliminating row 1 against the column-0 pivot cancels its column-1 entry exactly: 2 - (4/2)·1 = 0.
+        val a = square(
+            doubleArrayOf(2.0, 1.0, 0.0),
+            doubleArrayOf(4.0, 2.0, 1.0),
+            doubleArrayOf(0.0, 1.0, 1.0),
+        )
+        val lu = ReferenceSparseLinearAlgebra.factor(a)
+        assertEquals(6, lu.nnz, "the cancelled entry must not be stored")
+        assertClose(doubleArrayOf(1.0, 2.0, 3.0), lu.solve(a.gemv(doubleArrayOf(1.0, 2.0, 3.0))), "solve")
+    }
+
+    /** `max |A·x − b|` for the solve this factorization gives. */
+    private fun residualOf(a: SparseMatrix, f: SparseFactorization, rhs: DoubleArray): Double {
+        val residual = a.gemv(f.solve(rhs))
+        var worst = 0.0
+        for (i in rhs.indices) worst = maxOf(worst, abs(residual[i] - rhs[i]))
+        return worst
+    }
 }
+
+/** `2^-60` and `2^60`: exact in floating point, and far enough from 1 to expose an absolute tolerance. */
+private const val POW_2_MINUS_60 = 8.673617379884035e-19
+private const val POW_2_60 = 1.152921504606847e18

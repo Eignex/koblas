@@ -19,7 +19,8 @@ interface SparseLinearAlgebra :
  * Factorize this sparse matrix with the active backend ([koblas]) — the sparse counterpart of
  * `DenseMatrix.lu()`, carrying the same name for the same operation on the other storage.
  */
-fun SparseMatrix.lu(equilibrate: Boolean = false): SparseFactorization = koblas.factor(this, equilibrate)
+fun SparseMatrix.lu(equilibrate: Boolean = false, dropTolerance: Double = NO_DROP): SparseFactorization =
+    koblas.factor(this, equilibrate, dropTolerance)
 
 /**
  * `this · x`, or `thisᵀ · x` when [transpose], with the active backend ([koblas]).

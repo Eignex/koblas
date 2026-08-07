@@ -89,9 +89,9 @@ class SparseSeamTest {
         override val name: String get() = "counting-lapack"
         var factors = 0
 
-        override fun factor(a: SparseMatrix, equilibrate: Boolean): SparseFactorization {
+        override fun factor(a: SparseMatrix, equilibrate: Boolean, dropTolerance: Double): SparseFactorization {
             factors++
-            return super.factor(a, equilibrate)
+            return super.factor(a, equilibrate, dropTolerance)
         }
     }
 
