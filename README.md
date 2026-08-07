@@ -31,7 +31,7 @@ swappable Blas and Lapack interfaces.
 
 The operation set covers level 1 through 3 BLAS kernels, the LU, Cholesky, QR,
 and symmetric indefinite solver families with condition estimation, and sparse
-LU factorization. See [BLAS Coverage](#blas-coverage)
+LU and symmetric factorizations. See [BLAS Coverage](#blas-coverage)
 for the exact contract and what is out of scope.
 
 ### Installation
@@ -114,6 +114,11 @@ against reference results on every target.
 | dgeqrf, dormqr, dgels (QR) | qr, applyQ, solveLeastSquares, solveMinimumNorm |
 | dgeqp3 (QR with column pivoting) | qrPivoted, reporting a numerical rank |
 | dsytrf, dsytrs (symmetric indefinite LDLᵀ) | ldl, solve |
+| **Sparse** (on SparseBlas and SparseLapack) | |
+| sparse matrix-vector product, both directions | gemv |
+| sparse triangular solve | trsv |
+| unsymmetric sparse LU (Markowitz pivoting) | lu, solve both directions, determinant |
+| symmetric sparse LDLᵀ and Cholesky | analyze, ldl, cholesky; the analysis is reusable |
 
 Semantics follow the standard; the exceptions are documented on each
 function. Factorizations use the LAPACK packed formats, so they interchange
