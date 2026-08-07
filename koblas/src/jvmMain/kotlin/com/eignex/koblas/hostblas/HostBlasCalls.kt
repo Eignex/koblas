@@ -1,5 +1,6 @@
 package com.eignex.koblas.hostblas
 
+import com.eignex.koblas.dense.isIlp64OpenBlas
 import java.lang.foreign.Arena
 import java.lang.foreign.FunctionDescriptor
 import java.lang.foreign.Linker
@@ -48,11 +49,17 @@ internal object HostBlasCalls {
     const val LEFT = 141
     const val RIGHT = 142
 
-    /** Whether the host's CBLAS resolved, which is all the [com.eignex.koblas.dense.Blas] half needs. */
+    /**
+     * Whether the host's CBLAS resolved *and* takes the integer width koblas binds — which is all the
+     * [com.eignex.koblas.dense.Blas] half needs.
+     */
     val available: Boolean
 
     /** Whether LAPACKE resolved as well; false on a host that ships CBLAS only. */
     val lapackAvailable: Boolean
+
+    /** Why the host BLAS is unusable, or null when it is usable. For diagnostics, not control flow. */
+    val unavailableReason: String?
 
     private val linker = Linker.nativeLinker()
 
@@ -83,7 +90,17 @@ internal object HostBlasCalls {
     init {
         val blas = openLibrary(SONAMES)
         lookup = blas
-        available = blas != null && blas.find("cblas_dgemm").isPresent
+        val resolved = blas != null && blas.find("cblas_dgemm").isPresent
+        // An ILP64 build exports these same names and takes 64-bit integers, so resolution cannot tell it
+        // apart from the LP64 one these bindings declare. The config string can.
+        val ilp64 = resolved && isIlp64OpenBlas(configString(requireNotNull(blas)))
+        available = resolved && !ilp64
+        unavailableReason = when {
+            blas == null -> "libopenblas could not be opened; OpenBLAS does not appear to be installed"
+            !resolved -> "libopenblas opened but lacks cblas_dgemm"
+            ilp64 -> "libopenblas reports a 64-bit integer interface, which koblas does not bind"
+            else -> null
+        }
         val lapackeInBlas = available && requireNotNull(blas).find("LAPACKE_dgetrf").isPresent
         // Debian and Ubuntu strip LAPACKE out of their OpenBLAS build and ship it as liblapacke, a
         // package libopenblas does not pull in. Trying the second library is what keeps the LAPACK half
@@ -96,6 +113,22 @@ internal object HostBlasCalls {
         // so this is not something a caller could catch. Configuring at resolution covers both halves,
         // whichever is constructed first.
         if (available) configureThreads()
+    }
+
+    /**
+     * The library's `openblas_get_config` string, or empty when it does not offer one.
+     *
+     * The one call made during resolution, and it is a string read rather than arithmetic. A build without
+     * the symbol cannot be interrogated, and an empty string reads as "no disqualifying marker" — the
+     * assumption koblas made everywhere before this check existed.
+     */
+    private fun configString(blas: SymbolLookup): String {
+        val symbol = blas.find("openblas_get_config").orElse(null) ?: return ""
+        val handle = linker.downcallHandle(symbol, FunctionDescriptor.of(ADDRESS))
+        val text = handle.invokeWithArguments() as MemorySegment
+        if (text.address() == 0L) return ""
+        // The returned pointer carries no length, so it has to be re-sized before the string can be read.
+        return text.reinterpret(Long.MAX_VALUE).getString(0)
     }
 
     /**

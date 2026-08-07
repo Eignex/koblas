@@ -2,6 +2,8 @@
 
 package com.eignex.koblas.cblas
 
+import com.eignex.koblas.dense.isIlp64OpenBlas
+import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.CFunction
 import kotlinx.cinterop.COpaquePointer
 import kotlinx.cinterop.CPointer
@@ -10,6 +12,7 @@ import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.IntVar
 import kotlinx.cinterop.invoke
 import kotlinx.cinterop.reinterpret
+import kotlinx.cinterop.toKString
 import platform.posix.RTLD_NOW
 import platform.posix.dlopen
 import platform.posix.dlsym
@@ -115,6 +118,9 @@ internal object OpenBlasLoader {
     )
 
     val cblas: CblasFunctions? = handle?.let { blas ->
+        // An ILP64 build exports these same names and takes 64-bit integers, so resolution cannot tell it
+        // apart from the LP64 one these bindings declare. The config string can.
+        if (isIlp64OpenBlas(configString(blas))) return@let null
         val fns = try {
             CblasFunctions(blas)
         } catch (_: IllegalStateException) { // a required symbol is missing: treat as not installed
@@ -143,6 +149,19 @@ internal object OpenBlasLoader {
 
     /** Whether LAPACKE resolved as well; false on a host that ships CBLAS only. */
     val lapackAvailable: Boolean get() = lapacke != null
+
+    /**
+     * The library's `openblas_get_config` string, or empty when it does not offer one.
+     *
+     * A string read rather than arithmetic, which is what lets it run during resolution where the probe it
+     * stands in for could not. A build without the symbol cannot be interrogated, and an empty string reads
+     * as "no disqualifying marker".
+     */
+    private fun configString(blas: COpaquePointer): String {
+        val symbol = dlsym(blas, "openblas_get_config") ?: return ""
+        val text = symbol.reinterpret<CFunction<() -> CPointer<ByteVar>?>>().invoke()
+        return text?.toKString() ?: ""
+    }
 
     private fun open(vararg names: String): COpaquePointer? {
         for (name in names) dlopen(name, RTLD_NOW)?.let { return it }
