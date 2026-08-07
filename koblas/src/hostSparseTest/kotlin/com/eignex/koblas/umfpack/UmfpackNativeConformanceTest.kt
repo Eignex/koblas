@@ -1,0 +1,180 @@
+// detekt's default test exclusions cover the standard source-set names, not a custom one; the same
+// suppression the hostBlasTest source set carries.
+@file:Suppress("UndocumentedPublicFunction", "FunctionNaming")
+
+package com.eignex.koblas.umfpack
+
+import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
+import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.koblas
+import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
+import com.eignex.koblas.sparse.gemv
+import kotlin.math.abs
+import kotlin.random.Random
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
+
+/**
+ * The native UMFPACK binding against koblas's portable sparse LU — the same conformance the JVM binding gets.
+ *
+ * Two different algorithms produce different factors, so the factors are not comparable and the *solutions*
+ * are what must agree. Everything asserted here is a property of the seam rather than of the platform, which
+ * is the point: the two bindings share no code and must be indistinguishable to a caller.
+ *
+ * Every test returns early when SuiteSparse is absent. Kotlin's common test framework has no `Assume`, so
+ * unlike the JVM twin these cannot report a genuine skip — the guard is named and centralized instead, and
+ * `the binding resolves` is the one test that says out loud whether the rest measured anything.
+ */
+class UmfpackNativeConformanceTest {
+
+    private val umfpack: UmfpackSparseLapack? = UmfpackLoader.functions?.let { UmfpackSparseLapack(it) }
+
+    /** A diagonally dominant sparse matrix: well conditioned, and singular for neither backend. */
+    private fun sparseSystem(n: Int, rng: Random): SparseMatrix {
+        val columns = ArrayList<List<Pair<Int, Double>>>(n)
+        for (j in 0 until n) {
+            val column = ArrayList<Pair<Int, Double>>()
+            for (i in 0 until n) {
+                val v = when {
+                    i == j -> n + 10.0
+                    rng.nextDouble() < 0.25 -> rng.nextDouble(-1.0, 1.0)
+                    else -> 0.0
+                }
+                if (v != 0.0) column.add(i to v)
+            }
+            columns.add(column)
+        }
+        return SparseMatrix.ofColumns(n, n, columns)
+    }
+
+    @Test
+    fun `the binding resolves and registers when suitesparse is installed`() {
+        val f = umfpack ?: return
+        assertEquals("umfpack", f.name)
+        assertEquals(90, f.priority, "should outrank the portable SparseLu, at the native hosts' priority")
+        // The eager auto-install has already run by the time any test does, so the context must show it.
+        assertEquals("umfpack", koblas.sparseLapack.name, "the auto-install should have registered the backend")
+    }
+
+    @Test
+    fun `solutions agree with the portable factorization in both directions`() {
+        val umf = umfpack ?: return
+        val rng = Random(20260815)
+        for (n in intArrayOf(1, 2, 7, 23, 60)) {
+            val a = sparseSystem(n, rng)
+            val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
+
+            val host = umf.factor(a)
+            val portable = ReferenceSparseLinearAlgebra.factor(a)
+            assertTrue(!host.singular, "n=$n umfpack called a well-conditioned system singular")
+
+            for (transpose in booleanArrayOf(false, true)) {
+                val fromHost = host.solve(b, transpose)
+                val fromPortable = portable.solve(b, transpose)
+                for (i in 0 until n) {
+                    assertTrue(
+                        abs(fromPortable[i] - fromHost[i]) < 1e-9,
+                        "n=$n transpose=$transpose entry $i: ${fromHost[i]} vs ${fromPortable[i]}",
+                    )
+                }
+                val residual = a.gemv(fromHost, transpose)
+                for (i in 0 until n) {
+                    assertTrue(abs(b[i] - residual[i]) < 1e-9, "n=$n transpose=$transpose residual $i")
+                }
+            }
+        }
+    }
+
+    /** `out === b` must work: umfpack reads B while writing X, so the aliased case needs a copy. */
+    @Test
+    fun `an aliased destination still solves correctly`() {
+        val umf = umfpack ?: return
+        val rng = Random(20260816)
+        val n = 12
+        val a = sparseSystem(n, rng)
+        val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
+        val f = umf.factor(a)
+        val expected = f.solve(b)
+        val aliased = b.copyOf()
+        f.solveInto(aliased, aliased)
+        for (i in 0 until n) assertTrue(abs(expected[i] - aliased[i]) < 1e-12, "entry $i")
+    }
+
+    @Test
+    fun `the determinant agrees with the portable factorization`() {
+        val umf = umfpack ?: return
+        val rng = Random(20260817)
+        for (n in intArrayOf(1, 3, 8)) {
+            val a = sparseSystem(n, rng)
+            val host = umf.factor(a).determinant()
+            val portable = ReferenceSparseLinearAlgebra.factor(a).determinant()
+            assertTrue(abs(host / portable - 1.0) < 1e-9, "n=$n determinant disagreed: $host vs $portable")
+        }
+    }
+
+    @Test
+    fun `a singular matrix is reported singular with an unknown position`() {
+        val umf = umfpack ?: return
+        // Column 1 is a multiple of column 0, so the matrix is rank 1.
+        val rank1 = SparseMatrix.ofColumns(
+            2,
+            2,
+            listOf(listOf(0 to 1.0, 1 to 2.0), listOf(0 to 2.0, 1 to 4.0)),
+        )
+        val f = umf.factor(rank1)
+        assertTrue(f.singular, "umfpack should have called a rank-1 matrix singular")
+        assertEquals(SINGULAR_POSITION_UNKNOWN, f.failedAt, "a host that cannot name the pivot must say so")
+        assertEquals(0, f.nnz, "a singular factorization has no fill")
+        assertEquals(0.0, f.determinant(), "a singular factorization has determinant zero")
+        assertFailsWith<IllegalStateException> { f.solve(doubleArrayOf(1.0, 1.0)) }
+    }
+
+    /** Both requests UMFPACK cannot honor must reach the portable factorization instead of being ignored. */
+    @Test
+    fun `equilibrate and a drop tolerance fall back to the portable factorization`() {
+        val umf = umfpack ?: return
+        val rng = Random(20260818)
+        val a = sparseSystem(6, rng)
+        val b = DoubleArray(6) { rng.nextDouble(-1.0, 1.0) }
+        for (fallback in listOf(umf.factor(a, equilibrate = true), umf.factor(a, dropTolerance = 1e-12))) {
+            assertTrue(fallback !is UmfpackFactorization, "a request umfpack cannot serve must not be ignored")
+            val residual = a.gemv(fallback.solve(b))
+            for (i in 0 until 6) assertTrue(abs(b[i] - residual[i]) < 1e-9, "entry $i")
+        }
+    }
+
+    /**
+     * The degenerate shapes that cannot be pinned: `usePinned` has no address to give for an empty array, so
+     * both go to the portable path rather than reaching UMFPACK at all.
+     */
+    @Test
+    fun `empty and all-zero matrices take the portable path`() {
+        val umf = umfpack ?: return
+        val empty = umf.factor(SparseMatrix.ofColumns(0, 0, emptyList()))
+        assertEquals(0, empty.n)
+        val zeros = umf.factor(SparseMatrix.ofColumns(3, 3, listOf(emptyList(), emptyList(), emptyList())))
+        assertTrue(zeros.singular, "a matrix of zeros is singular")
+    }
+
+    /**
+     * Many factorizations in a loop must not exhaust native memory.
+     *
+     * The factors are UMFPACK's own allocation, released by a cleaner when the factorization becomes
+     * unreachable. This cannot assert *when* that happens — the release is not deterministic — only that
+     * churning through more factorizations than would fit if nothing were freed does not fall over.
+     */
+    @Test
+    fun `repeated factorizations do not exhaust native memory`() {
+        val umf = umfpack ?: return
+        val rng = Random(20260820)
+        val a = sparseSystem(120, rng)
+        var checksum = 0.0
+        repeat(300) {
+            val f = umf.factor(a)
+            checksum += abs(f.solve(DoubleArray(120) { 1.0 })[0])
+        }
+        assertTrue(checksum > 0.0, "the loop should have produced solutions")
+    }
+}
