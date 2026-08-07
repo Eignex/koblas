@@ -112,6 +112,7 @@ against reference results on every target.
 | dtrtri (triangular inverse) | trtri |
 | dpotrf, dpotrs, dpotri (Cholesky) | cholesky, solveSpd, invertSpd |
 | dgeqrf, dormqr, dgels (QR) | qr, applyQ, solveLeastSquares, solveMinimumNorm |
+| dgeqp3 (QR with column pivoting) | qrPivoted, reporting a numerical rank |
 | dsytrf, dsytrs (symmetric indefinite LDLᵀ) | ldl, solve |
 
 Semantics follow the standard; the exceptions are documented on each

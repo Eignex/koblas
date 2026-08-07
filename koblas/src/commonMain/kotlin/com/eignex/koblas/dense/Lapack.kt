@@ -181,6 +181,73 @@ interface Lapack : Backend {
      */
     fun qr(a: DenseMatrix, workspace: Workspace? = null): QrDecomposition
 
+    /**
+     * QR with column pivoting, `A·P = Q·R` (LAPACK `dgeqp3`), which is the factorization that can report a
+     * numerical [PivotedQrDecomposition.rank]. [a] is not modified and any shape is accepted.
+     *
+     * At each step the column with the largest remaining norm is moved into place, so the `R` diagonal comes
+     * out non-increasing in magnitude and dependent columns collect at the end. The rank is then the count of
+     * leading diagonal entries with `|R_kk| > tolerance · |R₀₀|`.
+     *
+     * [tolerance] defaults to `max(m, n) · ε`, the same order LAPACK's driver routines use: it is the level
+     * at which a diagonal entry is indistinguishable from the rounding error of the arithmetic that produced
+     * it. Pass a larger one to treat near-dependence as dependence, which is a modelling decision rather than
+     * a numerical one — a column pair correlated to within `1e-8` is exactly dependent for some callers and
+     * clearly distinct for others.
+     *
+     * Costs roughly what [qr] does plus the column-norm bookkeeping, so prefer [qr] when the rank is known.
+     */
+    fun qrPivoted(
+        a: DenseMatrix,
+        tolerance: Double = AUTOMATIC_RANK_TOLERANCE,
+        workspace: Workspace? = null,
+    ): PivotedQrDecomposition = ReferenceLinearAlgebra.qrPivoted(a, tolerance, workspace)
+
+    /**
+     * Least-squares solve from a pivoted factorization, with the column permutation undone.
+     *
+     * Full column rank behaves as [solveLeastSquares] does, only routed through `A·P` and permuted back.
+     * When the factorization is rank deficient this returns the **basic** solution: the leading
+     * [PivotedQrDecomposition.rank] pivoted columns are solved for and the rest are set to zero, so at most
+     * `rank` entries are nonzero. That is a genuine least-squares minimiser but not the minimum-norm one,
+     * which needs a complete orthogonal factorization (LAPACK's `dgelsy`) rather than this one. The basic
+     * solution is the useful answer when the columns mean something — it names a subset that explains the
+     * data — and the wrong one when the smallest coefficient vector is wanted.
+     */
+    fun solveLeastSquares(qr: PivotedQrDecomposition, b: DoubleArray, workspace: Workspace? = null): DoubleArray =
+        solveLeastSquaresInto(qr, b, DoubleArray(qr.n), workspace)
+
+    /** [solveLeastSquares] into [out], which is returned. */
+    fun solveLeastSquaresInto(
+        qr: PivotedQrDecomposition,
+        b: DoubleArray,
+        out: DoubleArray,
+        workspace: Workspace? = null,
+    ): DoubleArray {
+        require(b.size == qr.m) { "solveLeastSquares: b length ${b.size} != ${qr.m}" }
+        require(out.size == qr.n) { "solveLeastSquares: out length ${out.size} != ${qr.n}" }
+        val rank = qr.rank
+        val y = workspace?.take(qr.m) ?: DoubleArray(qr.m)
+        applyQInto(qr.factorization, b, y, transpose = true)
+        // The leading rank×rank block of R is the only part that is safely invertible; a deficient
+        // factorization's trailing diagonal is at or below the tolerance, and dividing by it is how an
+        // unpivoted solve turns rank deficiency into infinities.
+        trsvCore(
+            koblas.vectorKernels,
+            qr.factorization.qr,
+            rank,
+            y,
+            lda = qr.m,
+            lower = false,
+            transpose = false,
+            unitDiag = false,
+        )
+        out.fill(0.0)
+        for (k in 0 until rank) out[qr.pivots[k]] = y[k]
+        workspace?.release(y)
+        return out
+    }
+
     /** Apply `Q` (or `Qᵀ` when [transpose]) from [qr] to a length-`m` [y], into a fresh result
      *  (LAPACK `dormqr` restricted to a single column). Allocates; [applyQInto] does not. */
     fun applyQ(qr: QrDecomposition, y: DoubleArray, transpose: Boolean = false): DoubleArray =

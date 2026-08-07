@@ -10,7 +10,8 @@ Dense linear algebra: the three swappable seams and the routines behind them.
   solves [trsv] / [trsm] and their multiply counterparts.
 - [Lapack] — the factorizations and the solves built on them: LU ([Lapack.factor] / [Lapack.solve],
   with [LuDecomposition] and [determinant]), symmetric indefinite [LdlDecomposition], [QrDecomposition]
-  with the least-squares and minimum-norm solves, the condition estimate, and the SPD suite
+  with the least-squares and minimum-norm solves, [PivotedQrDecomposition] when the rank is the question
+  rather than the solve, the condition estimate, and the SPD suite
   [cholesky] / [solveSpd] / [invertSpd].
 - [LinearAlgebra] pairs [Blas] and [Lapack]; the two are ranked and selected independently, so a host
   providing one library and not the other still accelerates what it can. Offered through
