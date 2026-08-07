@@ -35,4 +35,44 @@ interface SparseLapack : Backend {
      */
     fun factor(a: SparseMatrix, equilibrate: Boolean = false, dropTolerance: Double = NO_DROP): SparseFactorization =
         SparseLu.factorCsc(a, equilibrate, dropTolerance)
+
+    /**
+     * Analyse a symmetric [a]'s pattern: the elimination tree and the nonzero pattern of `L`, reading no
+     * values at all.
+     *
+     * The half of a symmetric factorization that depends only on the graph, separated because it is the
+     * expensive half and it is reusable — every matrix with this pattern factors against one analysis. This is
+     * the phase [factor] cannot have, since Markowitz pivoting picks its pivots from the values.
+     *
+     * A host backend with its own analysis (CHOLMOD's, say) overrides this and [ldl] together: an analysis is
+     * only meaningful to the numeric phase that produced it.
+     */
+    fun analyze(a: SparseMatrix): SparseSymbolic = SparseSymbolic.analyze(a)
+
+    /**
+     * `A = L·D·Lᵀ` for a symmetric [a], analysing the pattern first.
+     *
+     * Accepts an indefinite matrix by default, which is what separates this from [cholesky]: a KKT system has
+     * negative pivots by construction and they are the answer rather than a failure. An exact zero pivot is
+     * still singular, and comes back reporting the column it stopped at.
+     *
+     * To reuse the analysis across value updates, keep the returned factorization's `symbolic` and call
+     * [SparseSymbolic.factorLdl] for the next set of values; this entry point is for the first factorization.
+     */
+    fun ldl(a: SparseMatrix, policy: SparseLdlPolicy = SparseLdlPolicy.Indefinite): SparseFactorization =
+        numericLdl(a, analyze(a), policy)
+
+    /**
+     * The Cholesky factorization of a symmetric positive-definite [a], as `L·D·Lᵀ` with every pivot positive.
+     *
+     * The same factorization [ldl] produces, held to a stricter contract: `L·√D` is the classical Cholesky
+     * factor, available through `SparseLdl.choleskyFactor`. Keeping `D` rather than folding the square roots
+     * into `L` is what lets one numeric kernel serve both spellings, at one divide per solve.
+     *
+     * A non-positive pivot throws by default, naming the column, as the dense `cholesky` does. Pass
+     * [SparseLdlPolicy.Regularize] for the estimate-has-drifted case where a factorization that exists is
+     * worth more than one that is exact.
+     */
+    fun cholesky(a: SparseMatrix, policy: SparseLdlPolicy = SparseLdlPolicy.Strict): SparseFactorization =
+        numericLdl(a, analyze(a), policy)
 }

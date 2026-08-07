@@ -10,13 +10,18 @@ mirror the dense ones.
 - [SparseBlas] — the sparse matrix routines. `gemv` in both directions, walking columns, which is what CSC
   stores. Deliberately thin: a sparse `gemm` fills in and is a different algorithm with a different result
   type, so it lands here when something needs it.
-- [SparseLapack] — the factorizations. [SparseLapack.factor] returns [SparseFactorization], never null: a
-  singular matrix yields a factorization reporting `singular`, matching the dense contract.
+- [SparseLapack] — the factorizations, unsymmetric and symmetric. [SparseLapack.factor] returns
+  [SparseFactorization], never null: a singular matrix yields a factorization reporting `singular`, matching
+  the dense contract. [SparseLapack.cholesky] and [SparseLapack.ldl] are the symmetric pair, and
+  [SparseLapack.analyze] is their symbolic half — the phase the unsymmetric factorization cannot have,
+  separated because it depends only on the pattern and is therefore reusable across value updates.
 - [SparseLinearAlgebra] pairs the two matrix seams. All three are offered through `registerSparseBlas` /
   [com.eignex.koblas.registerBackend] and forced with [com.eignex.koblas.installBackends], resolving as
   [com.eignex.koblas.koblas] and its `sparseVectorKernels`.
-- Implementation: [SparseLu], a Markowitz threshold-pivoting `P·B·Q = L·U` that keeps the factors sparse
-  instead of filling toward `O(m²)`.
+- Implementations: [SparseLu], a Markowitz threshold-pivoting `P·B·Q = L·U` that keeps the factors sparse
+  instead of filling toward `O(m²)`; and [SparseLdl], an up-looking `A = L·D·Lᵀ` over the elimination tree
+  [SparseSymbolic] computes. The two differ in exactly the way their inputs do: an unsymmetric matrix needs
+  pivots chosen from the values, a symmetric one is eliminated down its diagonal in the order given.
 
 [SparseFactorization] is an interface rather than a class, which is the one place this deviates from the
 dense shape. LAPACK's packed formats are a standard, so a dense [com.eignex.koblas.dense.LuDecomposition]
