@@ -2,6 +2,7 @@ package com.eignex.koblas.hostblas
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.HostLibraryTest
+import com.eignex.koblas.dense.CholeskyPolicy
 import com.eignex.koblas.dense.ReferenceLinearAlgebra
 import com.eignex.koblas.dense.Uplo
 import com.eignex.koblas.koblasInfo
@@ -11,6 +12,7 @@ import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
@@ -167,6 +169,97 @@ class HostBlasConformanceTest {
                 assertClose(expected.data, actual.data, tol = 1e-9 * n, context = "syrk $uplo n=$n")
             }
         }
+    }
+
+    /**
+     * The SPD suite — `dpotrf`, `dpotrs`, `dpotri` — against the portable implementation.
+     *
+     * Sized to reach the host code rather than to be quick. Each of these routines is gated, and the gates
+     * are where measurement put them: `cholesky` opens at 2048, `invertSpd` at 1024, and `solveSpd` is shut
+     * outright (`1 shl 20`), because `dpotrs` lost to the SIMD kernels at every size tried. Testing below a
+     * gate would compare the portable path against itself and prove nothing, which is why the native
+     * conformance test — where nothing is gated — can use `n ≤ 33` and this one cannot.
+     *
+     * The three contract details the host path has to add on top of LAPACK are asserted with the values:
+     * only the lower triangle of the input may be read (the strict upper triangle is poisoned with NaN),
+     * `cholesky` returns a zeroed upper triangle where `dpotrf` leaves the input's, and `invertSpd` returns
+     * the full symmetric inverse where `dpotri` writes one triangle.
+     */
+    @Test
+    fun `the SPD suite matches reference where the gates open`() {
+        Assume.assumeTrue("host LAPACKE is not installed", HostBlasCalls.lapackAvailable)
+        val host = HostLapack()
+        val rng = Random(20260807)
+        // 2048 is cholesky's gate; invertSpd's is 1024 and is reached by the same factor.
+        val n = 2048
+        val a = spdMatrix(n, rng)
+        for (i in 0 until n) for (j in i + 1 until n) a[i, j] = Double.NaN
+
+        val expected = ReferenceLinearAlgebra.cholesky(a)
+        val actual = host.cholesky(a)
+        assertClose(expected.data, actual.data, tol = 1e-9, context = "cholesky n=$n")
+        for (i in 0 until n) {
+            for (j in i + 1 until n) {
+                assertEquals(0.0, actual[i, j], "cholesky n=$n left ${actual[i, j]} above the diagonal")
+            }
+        }
+
+        val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
+        assertClose(
+            ReferenceLinearAlgebra.solveSpd(expected, b),
+            host.solveSpd(actual, b),
+            tol = 1e-9,
+            context = "solveSpd n=$n (portable by its gate, so this pins the fallback)",
+        )
+
+        val inverse = host.invertSpd(actual)
+        assertClose(
+            ReferenceLinearAlgebra.invertSpd(expected).data,
+            inverse.data,
+            tol = 1e-7,
+            context = "invertSpd n=$n",
+        )
+        for (i in 0 until n step 37) {
+            for (j in 0 until n step 41) {
+                assertEquals(inverse[i, j], inverse[j, i], 1e-12, "invertSpd n=$n is not symmetric at ($i,$j)")
+            }
+        }
+    }
+
+    /**
+     * A non-positive-definite input has no LAPACK equivalent: `dpotrf` reports the failing leading minor
+     * rather than clamping it, so the host path hands the whole factorization back to the portable one.
+     * Both policies must therefore behave identically on both backends — asserted at a size above the gate,
+     * since below it the host path is not involved at all.
+     */
+    @Test
+    fun `a non positive definite input falls back to the portable path`() {
+        Assume.assumeTrue("host LAPACKE is not installed", HostBlasCalls.lapackAvailable)
+        val host = HostLapack()
+        val n = 2048
+        val bad = spdMatrix(n, Random(20260808))
+        bad[n - 1, n - 1] = -1.0 // breaks positive definiteness at the last leading minor
+        val policy = CholeskyPolicy.Regularize()
+        assertEquals(
+            ReferenceLinearAlgebra.cholesky(bad, policy)[n - 1, n - 1],
+            host.cholesky(bad, policy)[n - 1, n - 1],
+            1e-15,
+        )
+        assertFailsWith<IllegalArgumentException> { host.cholesky(bad) }
+    }
+
+    /** A symmetric positive-definite matrix: symmetrized noise with a dominant diagonal. */
+    private fun spdMatrix(n: Int, rng: Random): DenseMatrix {
+        val a = DenseMatrix(n, n)
+        for (i in 0 until n) {
+            for (j in 0..i) {
+                val v = rng.nextDouble(-1.0, 1.0)
+                a[i, j] = v
+                a[j, i] = v
+            }
+            a[i, i] = a[i, i] + n
+        }
+        return a
     }
 
     @Test
