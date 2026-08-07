@@ -506,27 +506,121 @@ class ReferenceBackend(private val kernels: VectorKernels? = null) : LinearAlgeb
         val k = minOf(m, n)
         val buf = a.data.copyOf()
         val tau = DoubleArray(k)
+        // No accumulator is needed anywhere here, so the workspace argument is accepted for signature
+        // compatibility and left unused.
         for (col in 0 until k) {
             tau[col] = householderColumn(buf, m, col)
-            val t = tau[col]
-            if (t == 0.0) continue
-            // Apply H = I − tau·v·vᵀ to each trailing column independently: the reflector and the column
-            // it updates are both contiguous runs, so this is one dot for vᵀ·A[:,c] and one axpy back.
-            // The row-major form needed an n-wide accumulator here; this needs none, so the workspace
-            // argument is accepted for signature compatibility and left unused.
-            val len = m - col - 1
-            val vBase = col + 1 + col * m
-            for (c in col + 1 until n) {
-                val head = col + c * m
-                val s = buf[head] + vectorKernels.dot(buf, vBase, buf, head + 1, len)
-                val f = -t * s
-                if (f != 0.0) {
-                    buf[head] += f
-                    vectorKernels.axpy(buf, head + 1, f, buf, vBase, len)
-                }
-            }
+            applyReflectorToTrailing(buf, m, n, col, tau[col])
         }
         return QrDecomposition(m, n, buf, tau)
+    }
+
+    override fun qrPivoted(a: DenseMatrix, tolerance: Double, workspace: Workspace?): PivotedQrDecomposition {
+        val m = a.rows
+        val n = a.cols
+        val k = minOf(m, n)
+        val buf = a.data.copyOf()
+        val tau = DoubleArray(k)
+        val pivots = IntArray(n) { it }
+        // Two norms per column: the current one, downdated cheaply at each step, and the one from the last
+        // full computation, which is the yardstick for deciding the downdated value has drifted.
+        val current = DoubleArray(n) { c -> sqrt(vectorKernels.dot(buf, c * m, buf, c * m, m)) }
+        val computed = current.copyOf()
+        for (col in 0 until k) {
+            var best = col
+            for (c in col + 1 until n) if (current[c] > current[best]) best = c
+            if (best != col) swapColumns(buf, m, pivots, current, computed, col, best)
+            tau[col] = householderColumn(buf, m, col)
+            applyReflectorToTrailing(buf, m, n, col, tau[col])
+            downdateNorms(buf, m, n, col, current, computed)
+        }
+        return PivotedQrDecomposition(QrDecomposition(m, n, buf, tau), pivots, rankOf(buf, m, n, k, tolerance))
+    }
+
+    /** Exchange columns [i] and [j] of [buf] and every per-column quantity that tracks them. */
+    @Suppress("LongParameterList") // one array per tracked quantity; bundling them would allocate per step
+    private fun swapColumns(
+        buf: DoubleArray,
+        m: Int,
+        pivots: IntArray,
+        current: DoubleArray,
+        computed: DoubleArray,
+        i: Int,
+        j: Int,
+    ) {
+        for (r in 0 until m) {
+            val t = buf[r + i * m]
+            buf[r + i * m] = buf[r + j * m]
+            buf[r + j * m] = t
+        }
+        pivots[i] = pivots[j].also { pivots[j] = pivots[i] }
+        current[i] = current[j].also { current[j] = current[i] }
+        computed[i] = computed[j].also { computed[j] = computed[i] }
+    }
+
+    /** Apply `H = I − tau·v·vᵀ` from column [col] to every column after it. Shared with [qr]. */
+    private fun applyReflectorToTrailing(buf: DoubleArray, m: Int, n: Int, col: Int, tau: Double) {
+        if (tau == 0.0) return
+        // The reflector and the column it updates are both contiguous runs, so this is one dot for
+        // vᵀ·A[:,c] and one axpy back, with no accumulator to allocate.
+        val len = m - col - 1
+        val vBase = col + 1 + col * m
+        for (c in col + 1 until n) {
+            val head = col + c * m
+            val s = buf[head] + vectorKernels.dot(buf, vBase, buf, head + 1, len)
+            val f = -tau * s
+            if (f != 0.0) {
+                buf[head] += f
+                vectorKernels.axpy(buf, head + 1, f, buf, vBase, len)
+            }
+        }
+    }
+
+    /**
+     * Shrink each trailing column's norm by the component the reflector just removed, recomputing outright
+     * when the subtraction has eaten too much of the value to trust.
+     *
+     * The cheap update is `‖x‖·√(1 − (r/‖x‖)²)`, which is what makes pivoted QR cost about the same as
+     * plain QR — recomputing every trailing norm at every step would add an `O(m·n²)` pass. It is also
+     * cancellation in its purest form: when the removed component is nearly the whole norm, the difference
+     * is computed from two nearly equal numbers and the result is noise. LAPACK's `dgeqp3` guards it by
+     * comparing the downdated norm against the last honestly computed one and recomputing below `√ε`, which
+     * is what this reproduces.
+     */
+    private fun downdateNorms(buf: DoubleArray, m: Int, n: Int, col: Int, current: DoubleArray, computed: DoubleArray) {
+        for (c in col + 1 until n) {
+            if (current[c] == 0.0) continue
+            val ratio = abs(buf[col + c * m]) / current[c]
+            val remaining = maxOf(0.0, (1.0 - ratio) * (1.0 + ratio))
+            val drift = remaining * (current[c] / computed[c]).let { it * it }
+            if (drift <= NORM_RECOMPUTE_THRESHOLD) {
+                val len = m - col - 1
+                val base = col + 1 + c * m
+                current[c] = if (len > 0) sqrt(vectorKernels.dot(buf, base, buf, base, len)) else 0.0
+                computed[c] = current[c]
+            } else {
+                current[c] *= sqrt(remaining)
+            }
+        }
+    }
+
+    /**
+     * The count of leading `R` diagonal entries above `tolerance · |R₀₀|`.
+     *
+     * A count of the leading run rather than of every entry above the bound: column pivoting makes the
+     * diagonal non-increasing in magnitude, so a later entry above the threshold after an earlier one below
+     * it would mean the pivoting had gone wrong, and counting it would report a rank the factorization
+     * cannot back up.
+     */
+    private fun rankOf(buf: DoubleArray, m: Int, n: Int, k: Int, tolerance: Double): Int {
+        if (k == 0) return 0
+        val largest = abs(buf[0])
+        if (largest == 0.0) return 0
+        val effective = if (tolerance > AUTOMATIC_RANK_TOLERANCE) tolerance else maxOf(m, n) * MACHINE_EPSILON
+        val limit = effective * largest
+        var rank = 0
+        while (rank < k && abs(buf[rank + rank * m]) > limit) rank++
+        return rank
     }
 
     /** Build the Householder reflector for [col] in place (LAPACK `dlarfg`): returns `tau`, stores the
