@@ -248,6 +248,57 @@ class HostBlasConformanceTest {
         assertFailsWith<IllegalArgumentException> { host.cholesky(bad) }
     }
 
+    /**
+     * `dgeqp3` against the portable pivoted QR.
+     *
+     * The pivots themselves are not compared. Both implementations take the largest remaining column, but
+     * they break ties differently and LAPACK updates its norms per panel rather than per column, so the
+     * orders legitimately differ on data with near-equal columns. What must agree is everything a caller can
+     * rely on: the rank, that `A·P = Q·R` for whichever `P` came back, and that the solve lands on the same
+     * least-squares answer.
+     *
+     * Sized above the LAPACK threshold, since below it this is the portable path compared against itself.
+     */
+    @Test
+    fun `pivoted QR matches reference in rank and reconstruction`() {
+        Assume.assumeTrue("host LAPACKE is not installed", HostBlasCalls.lapackAvailable)
+        val host = HostLapack()
+        val rng = Random(20260809)
+        val m = 96
+        for (rank in intArrayOf(64, 40)) {
+            // A rank-deficient matrix as a product of full-rank factors, so the rank is known rather than
+            // inferred: 64 is full column rank here, 40 is deficient.
+            val left = randomMatrix(rng, m, rank)
+            val right = randomMatrix(rng, rank, 64)
+            val a = DenseMatrix(m, 64)
+            ReferenceLinearAlgebra.gemm(1.0, left, false, right, false, 0.0, a)
+
+            val expected = ReferenceLinearAlgebra.qrPivoted(a)
+            val actual = host.qrPivoted(a)
+            assertEquals(expected.rank, actual.rank, "rank of a ${m}x64 matrix built at rank $rank")
+            assertEquals((0 until 64).toList(), actual.pivots.sorted(), "pivots must be a permutation")
+
+            // A·P = Q·R, column by column, which is the only statement about P that holds for both.
+            for (j in 0 until 64) {
+                val rColumn = DoubleArray(m)
+                for (i in 0..minOf(j, actual.factorization.tau.size - 1)) {
+                    rColumn[i] = actual.factorization.qr[i + j * m]
+                }
+                val rebuilt = host.applyQ(actual.factorization, rColumn)
+                val original = DoubleArray(m) { i -> a[i, actual.pivots[j]] }
+                assertClose(original, rebuilt, tol = 1e-8, context = "A·P = Q·R rank=$rank column $j")
+            }
+
+            val b = DoubleArray(m) { rng.nextDouble(-1.0, 1.0) }
+            assertClose(
+                ReferenceLinearAlgebra.solveLeastSquares(expected, b),
+                host.solveLeastSquares(actual, b),
+                tol = 1e-7,
+                context = "pivoted least squares rank=$rank",
+            )
+        }
+    }
+
     /** A symmetric positive-definite matrix: symmetrized noise with a dominant diagonal. */
     private fun spdMatrix(n: Int, rng: Random): DenseMatrix {
         val a = DenseMatrix(n, n)

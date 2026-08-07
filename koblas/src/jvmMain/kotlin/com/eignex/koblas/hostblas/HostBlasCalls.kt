@@ -300,6 +300,11 @@ internal object HostBlasCalls {
         handle("LAPACKE_dgeqrf", intOf(JAVA_INT, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS))
     }
 
+    // int LAPACKE_dgeqp3(int layout, int m, int n, double* a, int lda, int* jpvt, double* tau)
+    val dgeqp3: MethodHandle by lazy {
+        handle("LAPACKE_dgeqp3", intOf(JAVA_INT, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, ADDRESS))
+    }
+
     val dormqr: MethodHandle by lazy {
         handle(
             "LAPACKE_dormqr",
