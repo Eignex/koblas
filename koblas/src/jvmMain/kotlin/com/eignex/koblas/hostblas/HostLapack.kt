@@ -1,6 +1,7 @@
 package com.eignex.koblas.hostblas
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.MatrixLike
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.dense.Blas
@@ -41,7 +42,7 @@ class HostLapack internal constructor() : Lapack {
     override val name: String get() = "openblas"
 
     /** Above the reference (0) and the native dlopen backend (90). */
-    override val priority: Int get() = 100
+    override val priority: Int get() = HOST_BACKEND_PRIORITY
 
     override fun factor(a: DenseMatrix): LuDecomposition {
         if (a.rows < dispatchThresholds.lapack) return ReferenceLinearAlgebra.factor(a)

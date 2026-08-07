@@ -49,7 +49,7 @@ internal object HostBlasCalls {
     const val RIGHT = 142
 
     /** Whether the host's CBLAS resolved, which is all the [com.eignex.koblas.dense.Blas] half needs. */
-    val blasAvailable: Boolean
+    val available: Boolean
 
     /** Whether LAPACKE resolved as well; false on a host that ships CBLAS only. */
     val lapackAvailable: Boolean
@@ -83,19 +83,19 @@ internal object HostBlasCalls {
     init {
         val blas = openLibrary(SONAMES)
         lookup = blas
-        blasAvailable = blas != null && blas.find("cblas_dgemm").isPresent
-        val lapackeInBlas = blasAvailable && requireNotNull(blas).find("LAPACKE_dgetrf").isPresent
+        available = blas != null && blas.find("cblas_dgemm").isPresent
+        val lapackeInBlas = available && requireNotNull(blas).find("LAPACKE_dgetrf").isPresent
         // Debian and Ubuntu strip LAPACKE out of their OpenBLAS build and ship it as liblapacke, a
         // package libopenblas does not pull in. Trying the second library is what keeps the LAPACK half
         // native on the most common Linux setup instead of falling back to the portable factorizations.
-        val extra = if (blasAvailable && !lapackeInBlas) openLibrary(LAPACKE_SONAMES) else null
+        val extra = if (available && !lapackeInBlas) openLibrary(LAPACKE_SONAMES) else null
         lapackeLookup = extra
         lapackAvailable = lapackeInBlas || extra?.find("LAPACKE_dgetrf")?.isPresent == true
         // Before any routine can run. An unconfigured OpenBLAS is multithreaded, and its parallel LAPACK
         // overflows a default JVM thread stack: the process dies with SIGSEGV rather than an exception,
         // so this is not something a caller could catch. Configuring at resolution covers both halves,
         // whichever is constructed first.
-        if (blasAvailable) configureThreads()
+        if (available) configureThreads()
     }
 
     /**

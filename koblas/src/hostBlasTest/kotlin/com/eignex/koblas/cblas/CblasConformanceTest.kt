@@ -58,9 +58,9 @@ class CblasConformanceTest {
      * that string, and this test is about the dense halves.
      */
     @Test
-    fun `the backend registers itself eagerly and install overrides it`() {
+    fun `discovery registers the backend and install overrides it`() {
         assertTrue(CblasLinearAlgebra.isAvailable(), "host OpenBLAS expected in the test environment")
-        // Eager initialization ran before main: depending on the artifact alone activated it.
+        // Discovery ran on the first read of `koblas`: depending on the artifact alone activated it.
         assertEquals("cblas", koblas.blas.name)
         try {
             installBackends(koblas.with(blas = ReferenceLinearAlgebra, lapack = ReferenceLinearAlgebra))

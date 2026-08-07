@@ -64,7 +64,23 @@ kotlin {
         val hostSparseTest = create("hostSparseTest") { dependsOn(nativeTest.get()) }
         linuxTest.get().dependsOn(hostSparseTest)
         macosTest.get().dependsOn(hostSparseTest)
-        webMain.get().dependsOn(scalarMain)
+
+        // Backend discovery has to live where it can see the bindings, and the two host source sets are
+        // siblings, so the platforms that have both get a source set that depends on both. Everything else
+        // takes the no-op from noHostMain. Exactly one of the two reaches each target, which is what
+        // `registerPlatformBackends` being an expect declaration requires.
+        val hostBackendsMain = create("hostBackendsMain") {
+            dependsOn(hostBlasMain)
+            dependsOn(hostSparseMain)
+        }
+        linuxMain.get().dependsOn(hostBackendsMain)
+        macosMain.get().dependsOn(hostBackendsMain)
+
+        val noHostMain = create("noHostMain") { dependsOn(scalarMain) }
+        mingwMain.get().dependsOn(noHostMain)
+        iosMain.get().dependsOn(noHostMain)
+
+        webMain.get().dependsOn(noHostMain)
         wasmWasiMain.get().dependsOn(webMain.get())
 
         commonMain.dependencies {

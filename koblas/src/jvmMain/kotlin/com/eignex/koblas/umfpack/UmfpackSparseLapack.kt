@@ -1,5 +1,6 @@
 package com.eignex.koblas.umfpack
 
+import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
 import com.eignex.koblas.SparseMatrix
@@ -40,7 +41,7 @@ import java.lang.foreign.ValueLayout.JAVA_DOUBLE
 class UmfpackSparseLapack : SparseLapack {
     override val name: String get() = "umfpack"
 
-    override val priority: Int get() = 100
+    override val priority: Int get() = HOST_BACKEND_PRIORITY
 
     /**
      * Factorize [a] with UMFPACK: symbolic analysis, then numeric factorization.

@@ -2,6 +2,7 @@
 
 package com.eignex.koblas.umfpack
 
+import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
 import com.eignex.koblas.SparseMatrix
@@ -37,7 +38,7 @@ import kotlinx.cinterop.value
 class UmfpackSparseLapack internal constructor(private val f: UmfpackFunctions) : SparseLapack {
     override val name: String get() = "umfpack"
 
-    override val priority: Int get() = 90
+    override val priority: Int get() = HOST_BACKEND_PRIORITY
 
     @Suppress("ReturnCount") // one early return per condition UMFPACK cannot serve
     override fun factor(a: SparseMatrix, equilibrate: Boolean, dropTolerance: Double): SparseFactorization {

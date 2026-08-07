@@ -1,5 +1,6 @@
 package com.eignex.koblas.umfpack
 
+import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.HostLibraryTest
 import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
 import com.eignex.koblas.SparseMatrix
@@ -67,7 +68,7 @@ class UmfpackConformanceTest {
     fun `the binding resolves on a machine with suitesparse`() {
         requireSuiteSparse()
         assertEquals("umfpack", umfpack.name)
-        assertEquals(100, umfpack.priority, "should outrank the portable SparseLu")
+        assertEquals(HOST_BACKEND_PRIORITY, umfpack.priority, "every koblas host binding registers at one priority")
     }
 
     @Test

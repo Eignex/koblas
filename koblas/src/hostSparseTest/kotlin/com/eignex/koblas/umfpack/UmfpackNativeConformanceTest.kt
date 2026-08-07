@@ -4,6 +4,7 @@
 
 package com.eignex.koblas.umfpack
 
+import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.koblas
@@ -53,9 +54,9 @@ class UmfpackNativeConformanceTest {
     fun `the binding resolves and registers when suitesparse is installed`() {
         val f = umfpack ?: return
         assertEquals("umfpack", f.name)
-        assertEquals(90, f.priority, "should outrank the portable SparseLu, at the native hosts' priority")
-        // The eager auto-install has already run by the time any test does, so the context must show it.
-        assertEquals("umfpack", koblas.sparseLapack.name, "the auto-install should have registered the backend")
+        assertEquals(HOST_BACKEND_PRIORITY, f.priority, "every koblas host binding registers at one priority")
+        // Reading the context runs discovery if it has not run, so a resolved library must show up here.
+        assertEquals("umfpack", koblas.sparseLapack.name, "discovery should have registered the backend")
     }
 
     @Test

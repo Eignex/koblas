@@ -2,6 +2,7 @@
 
 package com.eignex.koblas.cblas
 
+import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.dense.VectorKernels
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
@@ -25,7 +26,7 @@ class CblasVectorKernels : VectorKernels {
     override val name: String get() = "cblas"
 
     /** Above the reference (0), matching the other cblas halves. */
-    override val priority: Int get() = 90
+    override val priority: Int get() = HOST_BACKEND_PRIORITY
 
     private val f = requireNotNull(OpenBlasLoader.cblas) {
         "OpenBLAS is not available on this host; koblas keeps its built-in level-1 kernels"
