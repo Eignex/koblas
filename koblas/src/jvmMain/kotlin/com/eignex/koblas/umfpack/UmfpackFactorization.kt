@@ -28,8 +28,9 @@ private val cleaner: Cleaner = Cleaner.create()
  * admitted a host solver at all. Here the opaque handle simply *is* the implementation's state.
  *
  * Holds its [matrix] alive on purpose: `umfpack_di_solve` takes `Ap`, `Ai` and `Ax` alongside the factors,
- * because it performs its own iterative refinement and the residual needs the original `A`. Dropping the
- * matrix would leave the factorization unable to solve.
+ * so dropping the matrix would leave the factorization unable to solve. The argument is required whether or
+ * not iterative refinement is enabled — koblas disables it, see `UmfpackCalls.solveControl` — because the
+ * signature has no way to say "no matrix".
  *
  * **Native memory.** The factors are UMFPACK's own allocation, so they outlive the JVM's heap accounting and
  * have to be released explicitly. A [Cleaner] does it when this object becomes unreachable, which keeps
