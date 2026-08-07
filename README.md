@@ -195,8 +195,16 @@ Passing none keeps the allocating behaviour, which is always correct.
 Backends register themselves through registerBackend, which offers one object as
 every half it implements, and are ranked by priority, one ranking per
 interface: whatever the platform provides arrives through registration, and
-installBackends overrides it with a KoblasContext of your own. On the JVM discovery
-scans the classpath; elsewhere it happens at program start.
+installBackends overrides it with a KoblasContext of your own.
+
+Discovery runs once, on the first read of koblas, on every platform. It resolves
+the host libraries this build ships bindings for -- OpenBLAS and SuiteSparse's
+UMFPACK -- by soname, and on the JVM it then scans the classpath for third-party
+LinearAlgebra providers. A library that is not installed simply is not
+registered, and the portable implementation stays in place, so nothing has to be
+configured for either case. On the JVM, `-Dkoblas.backend=reference` registers
+nothing at all, and any other value registers only the backend whose name
+matches.
 
 Selection is global by default but does not have to be. A KoblasContext holds all
 six halves -- the three dense and three sparse -- and is itself a backend, so
