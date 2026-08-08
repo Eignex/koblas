@@ -73,7 +73,7 @@ class AdapterTest {
         assertEquals(asum(dense), asum(x), 1e-12)
         assertEquals(iamax(dense), iamax(x))
         assertEquals(dense dot dense, x dot x, 1e-12)
-        // Mixed: one koblas storage, one adapter. This used to be the `error("unreachable")` branch.
+        // Mixed: one koblas storage, one adapter, which is the generic branch neither storage short-circuits.
         assertEquals(dense dot dense, dense dot x, 1e-12)
         assertEquals(dense dot dense, x dot dense, 1e-12)
     }

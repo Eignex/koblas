@@ -302,10 +302,10 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
      * The routine is `O(n^2)` work over `O(n^2)` data, so there is nothing to amortize a call against —
      * the same reason the LU and LDL vector solves delegate.
      *
-     * A second cause used to compound it: under row-major storage LAPACKE transposed the matrix into a
-     * column-major temporary before calling LAPACK, copying 32 MB per solve at n=2048. That is gone, so
-     * the margins above overstate the native side's disadvantage and this delegation is due a
-     * re-measurement rather than settled.
+     * Those margins were taken under row-major storage, where LAPACKE also transposed the matrix into a
+     * column-major temporary on every call — 32 MB per solve at n=2048. koblas stores what LAPACK wants, so
+     * that cost is not in the current numbers and these overstate the native side's disadvantage. Due a
+     * re-measurement rather than settled; the JVM twin of this routine was re-measured and stayed portable.
      */
     override fun solveSpd(L: DenseMatrix, b: DoubleArray): DoubleArray = ReferenceLinearAlgebra.solveSpd(L, b)
 

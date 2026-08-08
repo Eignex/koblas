@@ -37,10 +37,10 @@ class UmfpackConformanceTest {
     /**
      * Skips the test — genuinely, as a reported skip — when SuiteSparse is absent.
      *
-     * `Assume` rather than an early `return`, which is what these guards used to be. An early return reports
-     * the test as PASSED, so on a machine without the library the whole suite went green while exercising
-     * nothing, and confirming it had actually run took a manual check. `assumeTrue` reports SKIPPED, which is
-     * the honest signal and needs no verification. JUnit 4 has had this all along.
+     * `Assume` rather than an early `return`. An early return reports the test as PASSED, so on a machine
+     * without the library the whole suite goes green while exercising nothing, and confirming it ran at all
+     * takes a manual check. `assumeTrue` reports SKIPPED, which is the honest signal and needs no
+     * verification.
      */
     private fun requireSuiteSparse() {
         Assume.assumeTrue("SuiteSparse is not installed; umfpack conformance cannot run", UmfpackCalls.available)

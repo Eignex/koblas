@@ -79,7 +79,7 @@ class CholeskyTest {
     }
 
     /**
-     * A negative diagonal pivot is a failure by default, which it did not used to be.
+     * A negative diagonal pivot is a failure by default.
      *
      * Both spellings are checked because both declare the default separately — the [MatrixView.cholesky]
      * extension and the [Lapack.cholesky] member each carry their own default value, so pinning one leaves

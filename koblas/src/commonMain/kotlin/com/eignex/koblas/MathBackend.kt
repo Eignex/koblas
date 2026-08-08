@@ -8,8 +8,8 @@ import com.eignex.koblas.dense.PlatformVectorKernels
  * JVM with AVX2, `"simd(8 lanes)"` with AVX-512, and a `"+openblas"` suffix when a host backend is
  * registered for long runs. Print at startup to verify your runtime picked up what you expected.
  *
- * Common rather than per-target now that [PlatformVectorKernels] names itself: it is just
- * `koblas.vectorKernels.name`. The two `actual`s it replaces had drifted — the JVM's was an eagerly computed `val`
- * that never mentioned a registered host backend, while the other reported one.
+ * Common rather than per-target, because [PlatformVectorKernels] names itself and this is just
+ * `koblas.vectorKernels.name`. One expression cannot drift the way an `actual` per target can, where a JVM
+ * one computed eagerly would keep reporting the compiled kernels after a host backend registered.
  */
 public val mathBackend: String get() = koblas.vectorKernels.name

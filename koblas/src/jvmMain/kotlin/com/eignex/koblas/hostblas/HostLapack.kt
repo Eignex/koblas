@@ -419,7 +419,7 @@ private const val NATIVE_TRSM_MIN_RHS = 4
 // stored matrices row-major.
 //
 // Two things changed underneath those numbers. The native side got cheaper: LAPACKE's row-major entry
-// points used to transpose each matrix into a column-major temporary before calling LAPACK — 32 MB of
+// points transposed each matrix into a column-major temporary before calling LAPACK — 32 MB of
 // copying per call at n=2048 — and now nothing is transposed. The portable side changed shape too, since
 // the kernels were rewritten to sweep columns rather than rows. Both effects move the crossovers, and not
 // necessarily in the same direction.
@@ -438,11 +438,10 @@ private const val JVM_LDL_SOLVE_MIN = 1 shl 20
  * Native from 32 up (us/op, native against SIMD): 0.83 vs 0.87 at n=16, 2.79 vs 3.56 at 32, 11.3 vs 15.5 at
  * 64, 73.5 vs 83.6 at 128, 392 vs 564 at 256, 18353 vs 33498 at 1024, 98988 vs 295342 at 2048.
  *
- * This gate used to sit at 2048 on the opposite conclusion — that the portable factorization won until then —
- * and that measurement was taken under row-major storage, when every LAPACKE call transposed the matrix into
- * a column-major temporary first. koblas stores what LAPACK wants now, so the transposes are gone and the
- * ordering reversed. Sixteen is a tie within the error bars and is left to the portable path; below that is
- * not measured, and a matrix that small is not worth a foreign call.
+ * Measured under column-major storage, where a LAPACKE call hands its buffer straight through. An older
+ * measurement taken while koblas stored rows put this gate at 2048 on the opposite conclusion; the transposes
+ * that produced it are gone. Sixteen is a tie within the error bars and is left to the portable path; below
+ * that is not measured, and a matrix that small is not worth a foreign call.
  */
 private const val JVM_CHOLESKY_MIN = 32
 

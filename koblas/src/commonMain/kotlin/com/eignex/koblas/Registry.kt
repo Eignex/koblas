@@ -14,8 +14,8 @@ import com.eignex.koblas.sparse.SparseLapack
 import com.eignex.koblas.sparse.SparseVectorKernels
 import kotlin.concurrent.Volatile
 
-// Which backends are active, and how they got there. One file for both storages, where there used to be a
-// near-identical one per package, because a `KoblasContext` spans both and the verbs no longer need to.
+// Which backends are active, and how they got there. One file for both storages rather than a near-identical
+// one per package, because a `KoblasContext` spans both and the verbs do not need to know which is which.
 //
 // Three things happen here. Six `Seam`s each rank the offers for one half. `koblas` assembles the winners
 // into the default context. And the whole thing is discovered once, lazily, on first read.
@@ -88,7 +88,7 @@ val koblasInfo: String get() = "backend=${koblas.name}, kernels=${koblas.vectorK
 /**
  * Offers [backend] for automatic selection as every half it implements.
  *
- * One verb for what used to be eight. A backend is offered, not imposed: it becomes active only while no
+ * One verb for all six halves. A backend is offered, not imposed: it becomes active only while no
  * [installBackends] override is set and nothing stronger was offered for the same half, ranked by
  * [Backend.priority] — openblas over cblas over the reference. Halves are ranked independently, so a host
  * with CBLAS but no LAPACKE still accelerates what it can, and passing an object that implements several

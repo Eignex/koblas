@@ -48,7 +48,7 @@ import kotlinx.benchmark.State
  * than the LU ratios suggested — this loop vectorizes well, where LU's pivoting and row swaps do not.
  * `solveSpd` is `O(n^2)` over `O(n^2)` data and loses natively, so it delegates. Two caveats on these
  * numbers: they were taken while koblas stored matrices row-major, so every native call also paid for
- * LAPACKE transposing the matrix into a column-major temporary — a tax that no longer exists and that
+ * LAPACKE transposing the matrix into a column-major temporary — a tax that column-major storage removed and
  * explains much of why the `O(n^2)` routine lost so heavily. And OpenBLAS ran single-threaded; enabling
  * its threading would move the large sizes the other way.
  */

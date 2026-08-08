@@ -19,7 +19,7 @@ import com.eignex.koblas.euclideanNorm
  * One thing that does not work, tried and measured: replacing the indexed access with `usePinned` and
  * `CPointer` arithmetic, on the theory that bounds checks and aliasing were stopping LLVM from vectorizing.
  * It is 3x to 5x *slower* at every length from 16 to 4096 — the regression scales with the element count, so
- * every `p[i]` through the interop layer costs more than the bounded array access it replaced. The indexed
+ * every `p[i]` through the interop layer costs more than the bounded array access it stands in for. The indexed
  * form is an intrinsic the compiler handles well; the pointer form is not. It also fails outright on
  * zero-length windows, since `addressOf` rejects them where the indexed loops tolerate them. Whatever closes
  * this gap, it is not that.

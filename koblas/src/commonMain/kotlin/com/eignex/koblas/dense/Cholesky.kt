@@ -23,12 +23,10 @@ import com.eignex.koblas.koblas
  * Lower-triangular Cholesky decomposition `A = L * LT`, returned as a fresh matrix, from the installed
  * backend; see [Lapack.cholesky].
  *
- * Throws at the first non-positive pivot unless [policy] says otherwise; see [CholeskyPolicy]. The old
- * default regularized silently, which returned a factor of a matrix that was not the one passed in.
- *
- * Historic note: what used to be `cholesky(regularizeNonPD = true)` is now
- * entry instead of a crash. Pass `false` for strict validation: the call then throws
- * [IllegalArgumentException] at the first non-PD pivot.
+ * Throws [IllegalArgumentException] at the first non-positive pivot. Pass [CholeskyPolicy.Regularize] for a
+ * factorization that floors such a pivot and continues, which is a factor of a nearby matrix rather than of
+ * the one passed in — useful for an estimate that has drifted slightly indefinite, and a decision the caller
+ * makes rather than a default.
  */
 fun MatrixLike.cholesky(policy: CholeskyPolicy = CholeskyPolicy.Strict): DenseMatrix = koblas.cholesky(this, policy)
 

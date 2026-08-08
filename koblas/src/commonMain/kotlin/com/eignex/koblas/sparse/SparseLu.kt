@@ -68,8 +68,8 @@ class SparseLu private constructor(
     /**
      * The forward direction of [solveInto]: `L U (Qᵀ x) = P (E b)`.
      *
-     * Private because the seam speaks `solve`; the FTRAN name survives here, where it describes which of
-     * the two triangular sweeps this is rather than standing in for "solve".
+     * Private because the seam speaks `solve`; the FTRAN name is kept here, where it names which of the two
+     * triangular sweeps this is rather than standing in for "solve".
      */
     private fun ftranInto(b: DoubleArray, out: DoubleArray, workspace: Workspace? = null): DoubleArray {
         require(b.size == m) { "ftran: b size ${b.size} != $m" }

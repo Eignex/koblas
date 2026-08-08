@@ -33,11 +33,10 @@ class SerializationTest {
     /**
      * The wire form is the shape plus the flat backing, as named fields.
      *
-     * It used to be a nested `Array<DoubleArray>` of rows, chosen for readability. Two things were wrong
-     * with that: a bracket pair per row is not compact, and a bare array has nowhere to put a type
-     * discriminator, so a `DenseMatrix` could not decode through [MatrixView] while a [SparseMatrix] could.
-     * Named fields fix both and leave room to add fields later without breaking existing readers, which the
-     * array form did not.
+     * A nested `Array<DoubleArray>` of rows would read better and is what this is asserted against not
+     * being: a bracket pair per row is not compact, and a bare array has nowhere to put a type discriminator,
+     * so a `DenseMatrix` could not decode through [MatrixView] as a [SparseMatrix] does. Named fields carry
+     * one, and leave room to add fields later without breaking existing readers.
      *
      * The structure is asserted rather than the literal string: double formatting differs between JS and
      * the JVM, and the field names and flat layout are the contract.
