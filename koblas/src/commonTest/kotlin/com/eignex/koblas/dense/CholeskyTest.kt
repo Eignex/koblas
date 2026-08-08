@@ -10,13 +10,8 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * The Cholesky family: factorization, the solve and inverse built on it, and the rank-1 update and
- * downdate that keep a factor current without refactorizing.
- *
- * The worked examples are non-diagonal and asymmetric in their off-diagonal structure, which is where a
- * transposed index or a swapped triangle shows up; a diagonal example would pass either way. Each
- * property is checked by reconstructing `L Lt` and comparing against the matrix it should equal, so a
- * factor that is self-consistent but wrong still fails.
+ * The Cholesky family: factorization, the solve and inverse built on it, and the rank-1 update and downdate that keep
+ * a factor current without refactorizing.
  */
 @Suppress("VariableNaming") // single-letter matrix/vector names track math conventions
 class CholeskyTest {
@@ -78,14 +73,7 @@ class CholeskyTest {
         }
     }
 
-    /**
-     * A negative diagonal pivot is a failure by default.
-     *
-     * Both spellings are checked because both declare the default separately — the [MatrixView.cholesky]
-     * extension and the [Lapack.cholesky] member each carry their own default value, so pinning one leaves
-     * the other free to drift. Mutation-checking found exactly that: flipping the member's default back to
-     * regularizing passed a suite that only exercised the extension.
-     */
+    /** A negative diagonal pivot is a failure by default. */
     @Test
     fun `cholesky rejects a non positive definite pivot by default`() {
         val failure = assertFailsWith<IllegalArgumentException> { notPositiveDefinite().cholesky() }
@@ -95,12 +83,7 @@ class CholeskyTest {
         assertFailsWith<IllegalArgumentException> { koblas.cholesky(notPositiveDefinite()) }
     }
 
-    /**
-     * Regularizing is available, but only when asked for, and it factors a *nearby* matrix.
-     *
-     * `minimumPivot` is in the matrix's units, so `L`'s diagonal is its square root. The default reproduces
-     * what the old `regularizeNonPD = true` did, when the value was a bare `1e-5` inside the loop.
-     */
+    /** Regularizing is available, but only when asked for, and it factors a *nearby* matrix. */
     @Test
     fun `cholesky regularizes when the policy asks for it`() {
         val l = notPositiveDefinite().cholesky(CholeskyPolicy.Regularize())

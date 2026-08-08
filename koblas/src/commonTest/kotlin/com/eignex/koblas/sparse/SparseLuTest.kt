@@ -13,14 +13,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * The sparse LU: factorization, the FTRAN and BTRAN solves, the determinant, and the singular and
- * malformed cases.
- *
- * This factorization is judged on two axes at once. Accuracy is checked by residual, since pivots come
- * from a bounded candidate list chosen to limit fill rather than purely for stability. Fill itself is
- * checked too, because a factorization that quietly densifies is correct and useless — the sparsity is
- * what makes a simplex basis update cheap. Equilibration must not change the answer, only the arithmetic
- * getting there, so the determinant is compared across both settings.
+ * The sparse LU: factorization, the FTRAN and BTRAN solves, the determinant, and the singular and malformed cases.
  */
 class SparseLuTest {
 
@@ -32,8 +25,8 @@ class SparseLuTest {
     }
 
     /**
-     * A random square matrix with [density] fill off the diagonal and a diagonal dominant by a factor of
-     * [dominance], which makes it non-singular. Lower dominance leaves the pivot search more work to do.
+     * A random square matrix with [density] fill off the diagonal and a diagonal dominant by a factor of [dominance],
+     * which makes it non-singular. Lower dominance leaves the pivot search more work to do.
      */
     private fun randomSparseSquare(n: Int, rng: Random, density: Double = 0.3, dominance: Double = 5.0): SparseMatrix {
         val columns = List(n) { j ->
@@ -120,14 +113,7 @@ class SparseLuTest {
         }
     }
 
-    /**
-     * A singular matrix comes back as a factorization reporting `singular`, not as null.
-     *
-     * The nullable result this replaced forced an unwrap for a condition the dense side reports with a
-     * flag, and discarded the one useful fact — which pivot position had no candidate. Solving against it
-     * throws rather than returning nonsense, because Markowitz aborts with no factors at all; a dense
-     * `getrf` leaves partial ones behind, so there the garbage is at least LAPACK's own.
-     */
+    /** A singular matrix comes back as a factorization reporting `singular`, not as null. */
     @Test
     fun `a singular matrix factors to a singular factorization`() {
         // A column of zeros, and a duplicated column: neither has a full set of acceptable pivots.
@@ -162,8 +148,8 @@ class SparseLuTest {
     /**
      * The same matrix at three scales must factor the same way, which an absolute pivot floor cannot do: a
      * well-conditioned matrix whose entries all sit near `1e-12` is not singular, and one near `1e12` is not
-     * automatically well-pivoted. Both tolerances are fractions of the largest magnitude present for this
-     * reason, so scaling by a power of two — exact in floating point — changes nothing but the scale.
+     * automatically well-pivoted. Both tolerances are fractions of the largest magnitude present for this reason, so
+     * scaling by a power of two — exact in floating point — changes nothing but the scale.
      */
     @Test
     fun `factorization is invariant to the matrix scale`() {
@@ -192,12 +178,7 @@ class SparseLuTest {
         }
     }
 
-    /**
-     * The drop tolerance is off unless asked for, and asking for it trades accuracy for sparsity.
-     *
-     * Both halves are asserted together because either alone permits a mistake: a drop that does nothing
-     * would pass an accuracy check, and one that fires unconditionally would pass a sparsity check.
-     */
+    /** The drop tolerance is off unless asked for, and asking for it trades accuracy for sparsity. */
     @Test
     fun `the drop tolerance trades fill for accuracy and defaults to off`() {
         val rng = Random(20260807)
@@ -223,14 +204,7 @@ class SparseLuTest {
         assertFailsWith<IllegalArgumentException> { randomSparseSquare(3, Random(1)).lu(dropTolerance = -1e-9) }
     }
 
-    /**
-     * A value that cancels to exactly zero is dropped from the pattern, with no drop tolerance involved.
-     *
-     * Structural, not numerical: a stored zero contributes nothing to any solve, but it occupies a slot in
-     * the factors, inflates the Markowitz counts that choose later pivots, and can be selected as a pivot
-     * candidate. Nothing else covers it — with the old implicit tolerance in place, exact zeros fell below
-     * it and vanished for the wrong reason.
-     */
+    /** A value that cancels to exactly zero is dropped from the pattern, with no drop tolerance involved. */
     @Test
     fun `entries that cancel exactly are not stored`() {
         // The leading 2x2 block is all ones, so whichever of its four entries the pivot search takes, the

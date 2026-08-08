@@ -4,14 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/**
- * The one part of the ILP64 check that can be tested without an ILP64 OpenBLAS installed.
- *
- * The rest of the check is a symbol lookup and a string read, verified by the host conformance tests
- * continuing to find this machine's LP64 library usable. What is worth pinning here is the predicate, on
- * strings `openblas_get_config` actually returns, because getting it wrong in either direction is silent:
- * too eager and koblas refuses a perfectly good library, too lax and it computes wrong answers.
- */
+/** The one part of the ILP64 check that can be tested without an ILP64 OpenBLAS installed. */
 class OpenBlasConfigTest {
 
     @Test

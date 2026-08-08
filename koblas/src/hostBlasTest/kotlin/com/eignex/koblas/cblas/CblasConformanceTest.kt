@@ -22,17 +22,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * Every routine the host-BLAS backend implements, against the portable reference on identical inputs.
- *
- * The two must agree exactly on the conventions BLAS treats specially, since a backend is swapped in
- * underneath callers who cannot see which one they got: `beta == 0` overwrites without reading,
- * `alpha == 0` reduces to the beta scale, `syrk` produces the full symmetric result by default, and the
- * factorizations use the shared packed formats so a factor from one backend solves on another. The
- * poisoned operands prove the routines stay inside their documented triangle.
- *
- * Requires OpenBLAS on the host, which is what CI installs.
- */
+/** Every routine the host-BLAS backend implements, against the portable reference on identical inputs. */
 class CblasConformanceTest {
 
     private val cblas = CblasLinearAlgebra()
@@ -53,9 +43,9 @@ class CblasConformanceTest {
     }
 
     /**
-     * Asserted half by half rather than on `koblas.name`, which is a set of the four halves' names and so
-     * depends on which host libraries the machine has. A UMFPACK installed alongside OpenBLAS adds itself to
-     * that string, and this test is about the dense halves.
+     * Asserted half by half rather than on `koblas.name`, which is a set of the four halves' names and so depends on
+     * which host libraries the machine has. A UMFPACK installed alongside OpenBLAS adds itself to that string, and
+     * this test is about the dense halves.
      */
     @Test
     fun `discovery registers the backend and install overrides it`() {
@@ -402,9 +392,9 @@ class CblasConformanceTest {
     }
 
     /**
-     * The rest of this suite runs at sizes below roughly 50, where OpenBLAS stays on its serial path and
-     * its blocked kernels never engage. These sizes cross into both, so they cover the threading
-     * configuration and the blocked code paths rather than only the arithmetic.
+     * The rest of this suite runs at sizes below roughly 50, where OpenBLAS stays on its serial path and its blocked
+     * kernels never engage. These sizes cross into both, so they cover the threading configuration and the blocked
+     * code paths rather than only the arithmetic.
      */
     @Test
     fun `level 3 and factorization agree with the reference at blocked sizes`() {
@@ -430,10 +420,9 @@ class CblasConformanceTest {
     }
 
     /**
-     * The triangular routines and ger only started dispatching when they moved onto the interface, so
-     * these compare the native implementations against the portable ones over every flag combination.
-     * The operand's unselected triangle is NaN, which fails the comparison if the library reads outside
-     * the triangle koblas promised it would.
+     * The triangular routines and ger only started dispatching when they moved onto the interface, so these compare
+     * the native implementations against the portable ones over every flag combination. The operand's unselected
+     * triangle is NaN, which fails the comparison if the library reads outside the triangle koblas promised it would.
      */
     @Test
     fun `triangular routines match reference across all flag combinations`() {
@@ -487,10 +476,10 @@ class CblasConformanceTest {
     }
 
     /**
-     * The SPD suite, where the native routines differ from koblas's contract in two ways that a value
-     * comparison alone would miss: dpotrf leaves the strict upper triangle as the input had it, while
-     * koblas promises zeros there, and dpotri writes one triangle where koblas returns the full
-     * symmetric inverse. Both are asserted directly.
+     * The SPD suite, where the native routines differ from koblas's contract in two ways that a value comparison
+     * alone would miss: dpotrf leaves the strict upper triangle as the input had it, while koblas promises zeros
+     * there, and dpotri writes one triangle where koblas returns the full symmetric inverse. Both are asserted
+     * directly.
      */
     @Test
     fun `the SPD suite matches reference`() {
@@ -537,9 +526,9 @@ class CblasConformanceTest {
     }
 
     /**
-     * A non-positive-definite input has no LAPACK equivalent — `dpotrf` reports the failing minor rather
-     * than clamping — so the host backend has to hand the whole factorization back to the portable path.
-     * Both policies must therefore behave identically on the two backends.
+     * A non-positive-definite input has no LAPACK equivalent — `dpotrf` reports the failing minor rather than
+     * clamping — so the host backend has to hand the whole factorization back to the portable path. Both policies
+     * must therefore behave identically on the two backends.
      */
     @Test
     fun `a non positive definite input falls back to the portable path`() {
@@ -567,9 +556,9 @@ class CblasConformanceTest {
     }
 
     /**
-     * The level-1 kernels sit below the backend seam, so they are installed separately and need their own
-     * conformance check: a wrong offset or length here would corrupt every routine that bottoms out in
-     * them. Lengths straddle the routing threshold, so both the host and the scalar path are covered.
+     * The level-1 kernels sit below the backend seam, so they are installed separately and need their own conformance
+     * check: a wrong offset or length here would corrupt every routine that bottoms out in them. Lengths straddle the
+     * routing threshold, so both the host and the scalar path are covered.
      */
     @Test
     fun `installed level-1 kernels agree with the scalar ones`() {
@@ -600,14 +589,8 @@ class CblasConformanceTest {
     }
 
     /**
-     * The routed reductions against the built-in ones, over the magnitudes that separate a correct `nrm2`
-     * from a naive one.
-     *
-     * `dnrm2` has to rescale: at `1e200` the squares overflow to infinity and at `1e-200` they vanish into
-     * zero, so a plain `sqrt(sum of squares)` gives `Inf` and `0` where the true norms are finite and
-     * non-zero. koblas's built-in kernel rescales, and this is the check that whatever the host library
-     * does agrees with it — a divergence here would make the answer depend on whether OpenBLAS happened to
-     * be installed.
+     * The routed reductions against the built-in ones, over the magnitudes that separate a correct `nrm2` from a
+     * naive one.
      */
     @Test
     fun `the routed reductions agree with the built-in ones`() {

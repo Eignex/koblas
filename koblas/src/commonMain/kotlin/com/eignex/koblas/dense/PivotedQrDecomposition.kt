@@ -26,27 +26,18 @@ internal const val NORM_RECOMPUTE_THRESHOLD = 1.4901161193847656e-8
  * A QR factorization with column pivoting, `A·P = Q·R` (LAPACK `dgeqp3`), plus the numerical [rank] the
  * pivoting revealed.
  *
- * A separate type from [QrDecomposition] rather than a nullable pivot array on it, because the two are not
- * interchangeable in the one place it matters: `R` here factorizes `A·P`, so feeding [factorization] to
- * [LinearAlgebra.solveLeastSquares] returns a solution whose entries are in permuted order — a wrong answer
- * that looks entirely plausible. Making it a distinct type means that mistake does not compile; use
- * [LinearAlgebra.solveLeastSquares] with this object instead, which undoes the permutation.
+ * A distinct type rather than a nullable pivot array on [QrDecomposition], because `R` here factorizes `A·P`:
+ * passing [factorization] to the unpivoted [LinearAlgebra.solveLeastSquares] would return a solution in
+ * permuted order, a plausible-looking wrong answer. As a separate type that mistake does not compile. The `Q`
+ * and `R` inside are genuine, so [LinearAlgebra.applyQ] takes them directly and nothing is copied.
  *
- * [factorization] is the genuine `Q` and `R` of the permuted matrix, so [LinearAlgebra.applyQ] takes it
- * directly. Nothing is copied: the buffers are the ones the factorization produced.
+ * Pivoting is what lets QR report rank at all: always taking the largest remaining column drives
+ * `|R₀₀| ≥ |R₁₁| ≥ …`, so the dependent columns collect at the end and [rank] is the leading run above the
+ * tolerance. Unpivoted QR scatters small diagonal entries anywhere and gives nothing to threshold.
  *
- * Column pivoting is what makes QR able to *report* rank at all. Unpivoted Householder QR is stable but it
- * has no reason to put the dependent columns last, so a rank-deficient matrix leaves small `R` diagonal
- * entries scattered anywhere and there is nothing to threshold. Pivoting always takes the largest remaining
- * column, which drives `|R₀₀| ≥ |R₁₁| ≥ …` and pushes the dependence to the trailing entries, so [rank] is
- * the count of leading diagonal entries above the tolerance.
- *
- * The rank is a *numerical* one and the tolerance is a judgement, not a fact — see
- * [LinearAlgebra.qrPivoted]. A matrix with a genuine gap in its singular values reports the same rank across
- * any sensible tolerance; one without a gap reports whatever the tolerance says, and no factorization can do
- * better. Pivoted QR is also not a rank oracle: it is defeated by contrived matrices (the Kahan matrix being
- * the standard example, where every leading submatrix looks well conditioned), for which an SVD is the
- * honest tool.
+ * The rank is numerical and the tolerance a judgement: a matrix with a real gap in its singular values reports
+ * the same rank across any sensible tolerance, one without reports whatever the tolerance says. Contrived
+ * matrices defeat it outright — the Kahan matrix is the standard example — and want an SVD instead.
  *
  * @property factorization the `Q` and `R` of `A·P`, in the packed `dgeqrf` form.
  * @property pivots `pivots[k]` is the column of `A` that sits at position `k` of `A·P`, LAPACK's `jpvt`
@@ -72,16 +63,10 @@ class PivotedQrDecomposition(val factorization: QrDecomposition, val pivots: Int
 /**
  * The numerical rank of a pivoted `R`: the leading run of diagonal entries above `tolerance · |R₀₀|`.
  *
- * Shared by every backend that produces a pivoted QR, because the rank is a property of `R` and of the
- * tolerance rather than of the routine that factorized. LAPACK's `dgeqp3` does not report a rank at all, so
- * the host binding computes it from the same rule the portable path uses and the two cannot disagree.
- *
- * A leading run rather than a count of everything above the bound: column pivoting drives the diagonal
- * non-increasing in magnitude, so a later entry above the threshold after an earlier one below it would mean
- * the pivoting had gone wrong, and counting it would claim a rank the factorization cannot support.
- *
- * Takes the packed factorization buffer, column-major with `lda == m`, the two dimensions the automatic
- * tolerance is derived from, and `k = min(m, n)` — the number of diagonal entries there are to walk.
+ * Shared by every backend, since `dgeqp3` reports no rank and two implementations of one tolerance rule would
+ * eventually disagree. A leading run rather than a count above the bound: the pivoted diagonal is
+ * non-increasing, so an entry above the threshold after one below it would mean the pivoting had gone wrong.
+ * [r] is the packed buffer, column-major with `lda == m`, and `k = min(m, n)`.
  */
 internal fun rankOfPivotedR(r: DoubleArray, m: Int, n: Int, k: Int, tolerance: Double): Int {
     if (k == 0) return 0

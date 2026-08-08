@@ -7,15 +7,7 @@ import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
-/**
- * The compiled-in sparse kernels against the portable interface defaults they may replace.
- *
- * Runs on every target, which is the point: on all but the JVM the two are the same code and this is a cheap
- * tautology, while on the JVM it is the gathered `usdot` being held to the loop's answer. The nonzero counts
- * sweep across the JVM's threshold (128) and across the vector width either side of it, because the shapes
- * that break a vectorized kernel are the tail below one register and a count that is not a whole number of
- * registers.
- */
+/** The compiled-in sparse kernels against the portable interface defaults they may replace. */
 class PlatformSparseVectorKernelsTest {
 
     /** A sparse vector of exactly [nnz] entries over [size] positions, one per evenly spaced block. */

@@ -13,13 +13,8 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * The standalone vector and matrix operations: the level-1 kernels, the norms, `gemv`, the rank-1
- * `ger` update, and `transpose`.
- *
- * Every operation that accepts a [VectorView] is checked on both a dense and a sparse carrier of the
- * same vector, because the sparse path is a separate loop that skips unstored slots and is where a
- * dispatch mistake produces a plausible but wrong answer. Hand-computed expectations are used wherever
- * the example is small enough to write down.
+ * The standalone vector and matrix operations: the level-1 kernels, the norms, `gemv`, the rank-1 `ger` update, and
+ * `transpose`.
  */
 @Suppress("VariableNaming") // single-letter matrix/vector names track math conventions
 class OpsTest {
@@ -293,9 +288,9 @@ class OpsTest {
     }
 
     /**
-     * The sparse-against-sparse dot merges two index lists rather than gathering, so it needs the cases a
-     * merge can get wrong: patterns that interleave, that are disjoint, that nest, and that run off one
-     * side before the other. Each is checked against the dense answer.
+     * The sparse-against-sparse dot merges two index lists rather than gathering, so it needs the cases a merge can
+     * get wrong: patterns that interleave, that are disjoint, that nest, and that run off one side before the other.
+     * Each is checked against the dense answer.
      */
     @Test
     fun `sparse against sparse dot matches the dense answer over merge shapes`() {

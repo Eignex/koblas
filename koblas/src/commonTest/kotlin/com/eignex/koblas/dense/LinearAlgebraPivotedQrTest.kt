@@ -13,14 +13,8 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * QR with column pivoting: that it factorizes the *permuted* matrix, that the rank it reports is the rank,
- * and that the solve undoes the permutation.
- *
- * Rank is checked on matrices whose rank is known by construction, built as products of full-rank factors
- * with a chosen inner dimension, rather than on matrices that merely look dependent. Both the exactly
- * dependent case and the nearly dependent one are covered, because they fail differently: exact dependence
- * leaves a zero on the diagonal, while near dependence leaves something small that only a tolerance can
- * judge.
+ * QR with column pivoting: that it factorizes the *permuted* matrix, that the rank it reports is the rank, and that
+ * the solve undoes the permutation.
  */
 class LinearAlgebraPivotedQrTest {
 
@@ -95,15 +89,7 @@ class LinearAlgebraPivotedQrTest {
         assertEquals(6, koblas.qrPivoted(randomMatrix(8, 6, rng)).rank, "a random tall matrix has full rank")
     }
 
-    /**
-     * Dependence in the *leading* columns, which is the case that separates pivoted QR from plain QR.
-     *
-     * The rank is the leading run of diagonal entries above the tolerance, so a factorization that took the
-     * columns in their given order would stop at position 1 and report rank 1 for a matrix of rank 3. Only
-     * moving the dependent column to the end recovers the real answer, so this is the test that fails if the
-     * pivot search is removed — the rank tests above pass either way, because dependence built from random
-     * factors lands at the end on its own.
-     */
+    /** Dependence in the *leading* columns, which is the case that separates pivoted QR from plain QR. */
     @Test
     fun `dependence among the leading columns is pivoted to the end`() {
         val rng = Random(31337)
@@ -116,21 +102,7 @@ class LinearAlgebraPivotedQrTest {
         assertTrue(f.pivots.last() == 0 || f.pivots.last() == 1, "the dependent column belongs last")
     }
 
-    /**
-     * A column that loses nearly all of its norm in one step, which is what the norm downdating has to
-     * survive.
-     *
-     * Pivoted QR keeps a running norm per column and shrinks it by the component each reflector removes,
-     * because recomputing every trailing norm at every step would cost an extra `O(m·n²)`. When a column is
-     * almost entirely in the direction just eliminated, that subtraction is between two numbers equal to
-     * within rounding and the result collapses to zero — so both columns here would be recorded as exhausted
-     * and the pivot search would take them in the order they arrived, which is the wrong one. LAPACK's guard,
-     * which this reproduces, notices the collapse and recomputes the norm from the column itself.
-     *
-     * The observable consequence is the rank. Taken in the right order the tiny column lands last, below the
-     * tolerance, and the rank is 2; taken in arrival order the `1e-17` column lands second and truncates the
-     * leading run to 1.
-     */
+    /** A column that loses nearly all of its norm in one step, which is what the norm downdating has to survive. */
     @Test
     fun `a column that collapses in one step keeps its true norm`() {
         val a = DenseMatrix(3, 3)

@@ -9,13 +9,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * The fill-reducing ordering: that it is a permutation, that it reduces fill where fill is the problem, and
- * that nothing above it can tell the difference.
- *
- * The shape that matters is the arrow — a matrix whose first row and column are dense. Eliminated in the
- * order given it fills completely, because the first pivot connects every remaining variable to every other;
- * eliminated last it costs nothing at all. Every minimum-degree implementation finds that, and a matrix that
- * merely looks sparse would not distinguish an ordering that works from one that returns the identity.
+ * The fill-reducing ordering: that it is a permutation, that it reduces fill where fill is the problem, and that
+ * nothing above it can tell the difference.
  */
 class SparseOrderingTest {
 
@@ -80,12 +75,7 @@ class SparseOrderingTest {
         }
     }
 
-    /**
-     * A permuted band is the case the ordering exists for.
-     *
-     * A banded matrix has almost no fill in its own order; shuffle its rows and columns and the band is gone,
-     * along with the property that made it cheap. Recovering it is the whole job.
-     */
+    /** A permuted band is the case the ordering exists for. */
     @Test
     fun `a shuffled band is reordered back to something cheap`() {
         val n = 80

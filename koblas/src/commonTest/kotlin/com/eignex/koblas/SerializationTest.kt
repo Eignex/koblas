@@ -30,17 +30,7 @@ class SerializationTest {
         }
     }
 
-    /**
-     * The wire form is the shape plus the flat backing, as named fields.
-     *
-     * A nested `Array<DoubleArray>` of rows would read better and is what this is asserted against not
-     * being: a bracket pair per row is not compact, and a bare array has nowhere to put a type discriminator,
-     * so a `DenseMatrix` could not decode through [MatrixView] as a [SparseMatrix] does. Named fields carry
-     * one, and leave room to add fields later without breaking existing readers.
-     *
-     * The structure is asserted rather than the literal string: double formatting differs between JS and
-     * the JVM, and the field names and flat layout are the contract.
-     */
+    /** The wire form is the shape plus the flat backing, as named fields. */
     @Test
     fun `DenseMatrix wire form is its shape and a flat array`() {
         val m = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
@@ -114,12 +104,7 @@ class SerializationTest {
         }
     }
 
-    /**
-     * The shape a sparse matrix takes on the wire is its CSC arrays, not a densified grid.
-     *
-     * Worth pinning: encoding it like DenseMatrix does — as rows — would cost `rows × cols` for a matrix
-     * whose whole purpose is to avoid that, and would silently lose which zeros were stored.
-     */
+    /** The shape a sparse matrix takes on the wire is its CSC arrays, not a densified grid. */
     @Test
     fun `SparseMatrix encodes its structure rather than a dense grid`() {
         val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(1 to 5.0), emptyList()))
@@ -129,13 +114,7 @@ class SerializationTest {
         assertTrue("0.0" !in encoded, "a structural zero leaked into the payload: $encoded")
     }
 
-    /**
-     * Both storages round-trip through the sealed [MatrixView] root, discriminator and all.
-     *
-     * The dense half is new. Its wire form was a bare 2D array, and a bare array has nowhere to put the
-     * type tag a polymorphic decode needs, so `MatrixView` polymorphism worked for one subtype and threw
-     * for the other. Symmetry with [VectorView], whose subtypes always encoded as objects, is the point.
-     */
+    /** Both storages round-trip through the sealed [MatrixView] root, discriminator and all. */
     @Test
     fun `both matrix storages round-trip polymorphically through MatrixView`() {
         val views: List<MatrixView> = listOf(

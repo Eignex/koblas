@@ -15,10 +15,10 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
- * The destination-passing forms exist so a steady-state loop allocates nothing. They therefore have to
- * agree with the allocating forms exactly, tolerate a destination that aliases the input, and survive
- * being driven repeatedly with one reused [Workspace] — a shared buffer that two nested operations both
- * wrote would show up here as a wrong answer on the second call.
+ * The destination-passing forms exist so a steady-state loop allocates nothing. They therefore have to agree with the
+ * allocating forms exactly, tolerate a destination that aliases the input, and survive being driven repeatedly with
+ * one reused [Workspace] — a shared buffer that two nested operations both wrote would show up here as a wrong answer
+ * on the second call.
  */
 class DestinationPassingTest {
 

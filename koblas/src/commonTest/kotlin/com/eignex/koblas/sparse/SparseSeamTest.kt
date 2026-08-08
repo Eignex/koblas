@@ -19,12 +19,8 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
- * The three sparse seams: that the public sparse operations reach a registered backend, that ranking and
- * overriding work as they do on the dense side, and that the composed pair behaves.
- *
- * The point of a seam is that it can be replaced, so these tests replace it. A counting backend proves the
- * traffic actually arrives — which for the sparse vector tier could not be asserted at all before, because
- * those operations were `forEachStored` loops inlined into `Ops.kt` with nothing to substitute.
+ * The three sparse seams: that the public sparse operations reach a registered backend, that ranking and overriding
+ * work as they do on the dense side, and that the composed pair behaves.
  */
 class SparseSeamTest {
 

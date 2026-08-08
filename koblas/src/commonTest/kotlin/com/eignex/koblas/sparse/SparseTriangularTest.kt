@@ -12,24 +12,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * The sparse triangular solve, checked against the dense one.
- *
- * The dense `trsv` is the reference on purpose: it is already conformance-tested against a host LAPACK, so
- * agreeing with it on the same matrix is a stronger statement than agreeing with a hand-computed answer.
- * Every case here builds one triangle in both storages and compares.
- *
- * The routine existed only inside `SparseLu` before, working in permuted pivot space with its own
- * structures. This one takes a triangular `SparseMatrix` a caller already holds.
- */
+/** The sparse triangular solve, checked against the dense one. */
 class SparseTriangularTest {
 
-    /**
-     * A random triangle in both storages, with a comfortably non-zero diagonal.
-     *
-     * Deliberately not fully populated: [density] leaves structural holes off the diagonal, which is the
-     * whole point of a sparse solve and the case a dense-shaped implementation would get wrong.
-     */
+    /** A random triangle in both storages, with a comfortably non-zero diagonal. */
     private fun triangle(n: Int, lower: Boolean, rng: Random, density: Double = 0.4): Pair<SparseMatrix, DenseMatrix> {
         val dense = DenseMatrix(n, n)
         val columns = ArrayList<List<Pair<Int, Double>>>(n)
@@ -124,8 +110,8 @@ class SparseTriangularTest {
     }
 
     /**
-     * A structurally missing diagonal is the sparse-specific failure: a dense triangle always has the entry
-     * even when it is zero, so the dense cores can leave it to produce infinities. Here it is free to detect.
+     * A structurally missing diagonal is the sparse-specific failure: a dense triangle always has the entry even when
+     * it is zero, so the dense cores can leave it to produce infinities. Here it is free to detect.
      */
     @Test
     fun `a missing or zero diagonal is reported with its position`() {

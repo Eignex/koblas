@@ -13,13 +13,8 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * The triangular routines: `trsv` and `trsm` solves, `trmv` and `trmm` products, each over all eight
- * combinations of triangle, transpose and unit diagonal, and on both sides for the matrix forms.
- *
- * Operands come from [poisonedTriangle], so every entry outside the documented triangle is NaN and a
- * routine that reads one produces NaN rather than a plausible number. The solves are checked against a
- * naive product written out here rather than against `gemv`, which keeps the reference independent of
- * the library; the products are checked against `gemv` and `gemm` on the explicit twin.
+ * The triangular routines: `trsv` and `trsm` solves, `trmv` and `trmm` products, each over all eight combinations of
+ * triangle, transpose and unit diagonal, and on both sides for the matrix forms.
  */
 class TriangularTest {
 

@@ -5,22 +5,7 @@ import com.eignex.koblas.dense.solveSpd
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/**
- * A caller's own [MatrixLike] / [VectorLike] reaching koblas's routines.
- *
- * This is what unsealing bought, and it could not be written before: the view roots were sealed, so the only
- * way to use koblas on data you already had was to copy it into a [DenseMatrix]. That is a real cost for
- * exactly the callers with the most data — a row-major buffer from another library, a banded structure, a
- * lazily generated kernel matrix.
- *
- * The adapters here are deliberately naive, computing entries from their indices. The point is not their
- * shape but that koblas reaches them at all: every routine below sees them only through `get`, takes its
- * generic path, and agrees with the answer computed from koblas's own storage.
- *
- * What an adapter does *not* get is serialization. [MatrixView] and [VectorView] stay sealed for that, so a
- * snapshot still decodes into a known storage without a consumer registering anything — the split between
- * the open and closed halves is the whole design.
- */
+/** A caller's own [MatrixLike] / [VectorLike] reaching koblas's routines. */
 class AdapterTest {
 
     /** A symmetric positive-definite matrix defined by a rule rather than a buffer. */

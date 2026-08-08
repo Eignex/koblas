@@ -4,14 +4,8 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 /**
- * The dispatch thresholds themselves, which are ordinary values and worth the same scrutiny as anything
- * else that decides which code path runs.
- *
- * The routing they gate is verified by the conformance suites: a gated routine has to give the same answer
- * on either side of its threshold, which those suites already check by sweeping sizes that straddle these
- * values. What is checked here is that the numbers are coherent and that the override plumbing exists,
- * since a threshold silently resolving to zero or to nonsense would route everything the wrong way without
- * any test noticing.
+ * The dispatch thresholds themselves, which are ordinary values and worth the same scrutiny as anything else that
+ * decides which code path runs.
  */
 class DispatchThresholdsTest {
 

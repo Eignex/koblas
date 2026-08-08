@@ -15,11 +15,8 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
- * The context as a value you can hold: that it is usable as a backend, that [KoblasContext.with] keeps what
- * you did not name, and that a context's own vector kernels actually reach the inner loops.
- *
- * That last one is the point of the whole exercise and the thing that did not work before. Backend choice
- * was global, so "use these kernels for this piece of work" had nowhere to live.
+ * The context as a value you can hold: that it is usable as a backend, that [KoblasContext.with] keeps what you did
+ * not name, and that a context's own vector kernels actually reach the inner loops.
  */
 class KoblasContextTest {
 
@@ -79,13 +76,7 @@ class KoblasContextTest {
         assertSame(base.vectorKernels, base.vectorKernels, "the original must be untouched; contexts are values")
     }
 
-    /**
-     * A context's kernels reach the reference backend's inner loops.
-     *
-     * `ReferenceBackend` takes the kernels it should use, so a context built around one carries all the way
-     * down into `gemv`. Asserting the count rather than the result is the whole point: the arithmetic would
-     * be right either way, and what is being tested is *which* kernels ran.
-     */
+    /** A context's kernels reach the reference backend's inner loops. */
     @Test
     fun `a contexts own kernels reach the reference inner loops`() {
         val mine = Counting()
@@ -111,8 +102,8 @@ class KoblasContextTest {
     }
 
     /**
-     * The name covers the matrix halves and deduplicates them; the kernels are reported by [mathBackend]
-     * instead, because including them prefixed every name with `"simd(4 lanes)+"`.
+     * The name covers the matrix halves and deduplicates them; the kernels are reported by [mathBackend] instead,
+     * because including them prefixed every name with `"simd(4 lanes)+"`.
      */
     @Test
     fun `the name covers the matrix halves and not the kernels`() {

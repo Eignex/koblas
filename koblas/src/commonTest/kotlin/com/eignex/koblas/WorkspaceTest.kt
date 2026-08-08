@@ -6,16 +6,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/**
- * The scratch pool behind the workspace-taking routines.
- *
- * The property everything else depends on is that two borrows outstanding at the same time never hand out
- * the same buffer, while a borrow made after a release reuses one — that is what lets a condition estimate
- * call a triangular solve that borrows again, with no central registry to coordinate them. Both the width
- * pools and the depth within a pool grow on demand, so the tests push past the initial capacities in each
- * direction. Releasing a foreign buffer is an error rather than a silent no-op, because it means a borrow
- * and a release have been mismatched somewhere.
- */
+/** The scratch pool behind the workspace-taking routines. */
 class WorkspaceTest {
 
     /** Asserts that no two entries of [buffers] are the same object. */

@@ -1,7 +1,6 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseVector
-import com.eignex.koblas.DispatchThresholds
 import com.eignex.koblas.SparseVector
 import com.eignex.koblas.asum
 import com.eignex.koblas.axpy
@@ -24,16 +23,8 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
- * The level-1 seam: that a registered [VectorKernels] is reached for long runs, is not reached for short ones,
- * and that ranking and overriding behave like the other two halves.
- *
- * This lives in `commonTest` because the seam itself now lives in `commonMain`. It could not before: the
- * interface and its install hook were declared in a non-JVM source set, so the mechanism was only
- * testable on the targets that happened to have a host library, and the JVM could not see it at all.
- *
- * The routing assertions are written against [DispatchThresholds.level1] rather than a hardcoded length,
- * because the threshold is a per-platform value and is [Int.MAX_VALUE] on a SIMD JVM — where the correct
- * behaviour is that nothing routes at any length.
+ * The level-1 seam: that a registered [VectorKernels] is reached for long runs, is not reached for short ones, and
+ * that ranking and overriding behave like the other two halves.
  */
 class VectorKernelsTest {
 
@@ -146,8 +137,8 @@ class VectorKernelsTest {
 
     /**
      * iamax stays off the seam by design; see [VectorKernels]. Its tie-breaking and NaN ranking are koblas's own
-     * contract, and `idamax` implementations disagree about the latter, so routing it would make the answer
-     * depend on whether a host library happened to be installed.
+     * contract, and `idamax` implementations disagree about the latter, so routing it would make the answer depend on
+     * whether a host library happened to be installed.
      */
     @Test
     fun `iamax does not route`() = withCleanBackends {
@@ -160,13 +151,7 @@ class VectorKernelsTest {
         assertEquals(0, recording.dots + recording.nrm2s + recording.asums, "iamax reached the seam")
     }
 
-    /**
-     * Ranking and overriding, read through the context rather than the seam.
-     *
-     * The assertions are about names rather than identity now, because `koblas.vectorKernels` is the routed
-     * pair (compiled-in plus whichever host won) rather than the registered object itself. That is the point
-     * of the routing: a registered backend is *consulted* above a length, not swapped in wholesale.
-     */
+    /** Ranking and overriding, read through the context rather than the seam. */
     @Test
     fun `registration keeps the highest priority and install overrides both`() = withCleanBackends {
         val platform = koblas.vectorKernels.name
@@ -183,12 +168,9 @@ class VectorKernelsTest {
     }
 
     /**
-     * The compiled-in kernels satisfy the interface, which is the whole point of the change and could not
-     * be asserted before: they were loose `expect fun`s, so there was no object to hand to a conformance
-     * check and no way to state that they and a host backend are the same kind of thing.
-     *
-     * Everything runs over an offset window rather than a whole array, because the `(offset, length)`
-     * contract is the part an implementation gets wrong.
+     * The compiled-in kernels satisfy the interface, which is the whole point of the change and could not be asserted
+     * before: they were loose `expect fun`s, so there was no object to hand to a conformance check and no way to
+     * state that they and a host backend are the same kind of thing.
      */
     @Test
     fun `the compiled-in kernels satisfy the VectorKernels contract`() {
@@ -228,9 +210,9 @@ class VectorKernelsTest {
     }
 
     /**
-     * `dot4` is the one member with a default, so both halves of that need pinning: the default (four [dot]
-     * calls, which is what a host backend inherits) and the platform override (one pass sharing the `b`
-     * loads) must agree, and both must agree with four hand-written dots.
+     * `dot4` is the one member with a default, so both halves of that need pinning: the default (four [dot] calls,
+     * which is what a host backend inherits) and the platform override (one pass sharing the `b` loads) must agree,
+     * and both must agree with four hand-written dots.
      */
     @Test
     fun `the dot4 default and the platform override agree`() {
