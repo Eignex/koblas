@@ -233,10 +233,13 @@ class SparseLuTest {
      */
     @Test
     fun `entries that cancel exactly are not stored`() {
-        // Eliminating row 1 against the column-0 pivot cancels its column-1 entry exactly: 2 - (4/2)·1 = 0.
+        // The leading 2x2 block is all ones, so whichever of its four entries the pivot search takes, the
+        // update against it drives another of them to exactly zero. Built that way on purpose: a matrix where
+        // the cancellation depends on which pivot is chosen makes this test a hostage to the search's
+        // tie-breaking, which is what it was until the bounded search began exiting earlier.
         val a = square(
-            doubleArrayOf(2.0, 1.0, 0.0),
-            doubleArrayOf(4.0, 2.0, 1.0),
+            doubleArrayOf(1.0, 1.0, 0.0),
+            doubleArrayOf(1.0, 1.0, 1.0),
             doubleArrayOf(0.0, 1.0, 1.0),
         )
         val lu = ReferenceSparseLinearAlgebra.factor(a)

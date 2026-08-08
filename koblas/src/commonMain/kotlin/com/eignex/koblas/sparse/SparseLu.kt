@@ -324,6 +324,64 @@ private const val PIVOT_THRESHOLD = 0.1
 private const val MAX_CANDIDATE_COLS = 4
 
 /**
+ * Items grouped by a small integer count, in doubly linked lists, with the smallest occupied count tracked.
+ *
+ * The Markowitz search needs two questions answered on every one of the `m` elimination steps: which columns
+ * have the fewest entries, and what the smallest row count is. Answered by scanning, each costs `O(m)` per
+ * step and so `O(m²)` over the factorization — which is the whole cost on a matrix that barely fills, where
+ * the elimination itself does almost nothing. Answered by this, each costs constant time per *change*, and the
+ * changes are exactly the count updates the elimination already performs.
+ *
+ * Doubly linked because items leave from the middle: a column whose count drops has to be unlinked from
+ * wherever it sits, not found first. [smallestFrom] advances its hint monotonically within a step, so a search
+ * that walks several count classes pays for each once.
+ */
+private class CountBuckets(private val size: Int) {
+    private val head = IntArray(size + 2) { -1 }
+    private val next = IntArray(size) { -1 }
+    private val previous = IntArray(size) { -1 }
+
+    /** No occupied count is below this. A hint rather than a fact: [add] lowers it, lookups raise it. */
+    private var lowest = size + 1
+
+    fun add(item: Int, count: Int) {
+        val first = head[count]
+        next[item] = first
+        previous[item] = -1
+        if (first != -1) previous[first] = item
+        head[count] = item
+        if (count < lowest) lowest = count
+    }
+
+    fun remove(item: Int, count: Int) {
+        val before = previous[item]
+        val after = next[item]
+        if (before == -1) head[count] = after else next[before] = after
+        if (after != -1) previous[after] = before
+        previous[item] = -1
+        next[item] = -1
+    }
+
+    fun moveTo(item: Int, from: Int, to: Int) {
+        remove(item, from)
+        add(item, to)
+    }
+
+    fun firstAt(count: Int): Int = head[count]
+
+    fun after(item: Int): Int = next[item]
+
+    /** The smallest occupied count at least [from], or -1 when every bucket from there up is empty. */
+    fun smallestFrom(from: Int): Int {
+        var count = if (from > lowest) from else lowest
+        while (count <= size && head[count] == -1) count++
+        if (count > size) return -1
+        if (from <= lowest) lowest = count
+        return count
+    }
+}
+
+/**
  * Incrementally-maintained elimination state for the Markowitz factorization: active row/column flags,
  * per-row/per-column nonzero counts over the active submatrix, and a column → active-rows index
  * (`colRows`) so pivot search and elimination touch only the rows that actually hold an entry.
@@ -360,9 +418,10 @@ private class MarkowitzState(
     /** Per column: the set of active rows holding a nonzero in it (values unused). */
     private val colRows = Array(m) { MutableIntDoubleMap() }
 
-    // Per-step buckets of active columns keyed by colCount (linked lists over these arrays).
-    private val bucketHead = IntArray(m + 1)
-    private val bucketNext = IntArray(m)
+    // Active columns by their count, and active rows by theirs, maintained as the counts change rather
+    // than rebuilt per step. Only items with a positive count are ever in them.
+    private val columnsByCount = CountBuckets(m)
+    private val rowsByCount = CountBuckets(m)
 
     /** The pivot chosen by the last successful [selectPivot]. */
     var pivotRow = -1
@@ -378,6 +437,40 @@ private class MarkowitzState(
                 colRows[c].put(i, 0.0)
             }
         }
+        for (i in 0 until m) if (rowCount[i] > 0) rowsByCount.add(i, rowCount[i])
+        for (c in 0 until m) if (colCount[c] > 0) columnsByCount.add(c, colCount[c])
+    }
+
+    /**
+     * Change a row's count and keep its bucket membership true.
+     *
+     * Every count update in [eliminate] goes through here or [changeColumnCount], which is what lets the
+     * search trust the buckets instead of rescanning. A count of zero is not represented: an empty row is no
+     * longer a pivot candidate, and leaving it in a bucket would mean filtering it out on every lookup.
+     */
+    private fun changeRowCount(i: Int, delta: Int) {
+        val before = rowCount[i]
+        val after = before + delta
+        rowCount[i] = after
+        if (!rowActive[i]) return
+        when {
+            before > 0 && after > 0 -> rowsByCount.moveTo(i, before, after)
+            before > 0 -> rowsByCount.remove(i, before)
+            after > 0 -> rowsByCount.add(i, after)
+        }
+    }
+
+    /** [changeRowCount] for a column. */
+    private fun changeColumnCount(c: Int, delta: Int) {
+        val before = colCount[c]
+        val after = before + delta
+        colCount[c] = after
+        if (!colActive[c]) return
+        when {
+            before > 0 && after > 0 -> columnsByCount.moveTo(c, before, after)
+            before > 0 -> columnsByCount.remove(c, before)
+            after > 0 -> columnsByCount.add(c, after)
+        }
     }
 
     /** Pick the minimum-Markowitz-count numerically acceptable pivot; false if none exists (singular). */
@@ -387,23 +480,14 @@ private class MarkowitzState(
         pivotCol = -1
         var bestMark = Long.MAX_VALUE
         var bestAbs = 0.0
-        var minRow = Int.MAX_VALUE
-        for (i in 0 until m) {
-            if (rowActive[i] && rowCount[i] in 1 until minRow) minRow = rowCount[i]
-        }
-        var maxCount = 0
-        bucketHead.fill(-1)
-        for (c in 0 until m) {
-            val r = colCount[c]
-            if (colActive[c] && r > 0) {
-                bucketNext[c] = bucketHead[r]
-                bucketHead[r] = c
-                if (r > maxCount) maxCount = r
-            }
-        }
+        // Both of these were O(m) scans per step, and on a matrix that hardly fills they were the entire
+        // cost of the factorization: O(m²) of bookkeeping around an elimination doing almost nothing.
+        val smallestRow = rowsByCount.smallestFrom(1)
+        val minRow = if (smallestRow == -1) Int.MAX_VALUE else smallestRow
         var candidateCols = 0
-        for (r in 1..maxCount) {
-            var c = bucketHead[r]
+        var r = columnsByCount.smallestFrom(1)
+        while (r != -1) {
+            var c = columnsByCount.firstAt(r)
             while (c != -1) {
                 var colMax = 0.0
                 colRows[c].forEach { i, _ ->
@@ -426,13 +510,19 @@ private class MarkowitzState(
                     }
                 }
                 if (colMax > negligible) candidateCols++
-                c = bucketNext[c]
+                // Checked inside the walk, not after it. Every unscanned column has a count of at least `r`,
+                // here or in a later class, so both bounds hold as well here as at the class boundary — and
+                // finishing the class first is what left this O(m) per step on a matrix whose columns share
+                // one count. A diagonal is the extreme case: one class holds every column, so the search
+                // walked the whole matrix to choose each of its m pivots.
+                if (pivotRow != -1 &&
+                    (candidateCols >= MAX_CANDIDATE_COLS || bestMark <= r.toLong() * (minRow - 1).toLong())
+                ) {
+                    return true
+                }
+                c = columnsByCount.after(c)
             }
-            if (pivotRow != -1 &&
-                (candidateCols >= MAX_CANDIDATE_COLS || bestMark <= r.toLong() * (minRow - 1).toLong())
-            ) {
-                return true
-            }
+            r = columnsByCount.smallestFrom(r + 1)
         }
         return pivotRow != -1
     }
@@ -443,6 +533,9 @@ private class MarkowitzState(
     fun eliminate(l: MutableIntDoubleMap) {
         val pRow = pivotRow
         val pCol = pivotCol
+        // Unlinked before being marked dead, since the helpers below leave inactive items alone.
+        if (rowCount[pRow] > 0) rowsByCount.remove(pRow, rowCount[pRow])
+        if (colCount[pCol] > 0) columnsByCount.remove(pCol, colCount[pCol])
         rowActive[pRow] = false
         colActive[pCol] = false
         val pivotRowMap = u[pRow]
@@ -450,7 +543,7 @@ private class MarkowitzState(
         pivotRowMap.forEach { c, _ ->
             if (colActive[c]) {
                 colRows[c].remove(pRow)
-                colCount[c]--
+                changeColumnCount(c, -1)
             }
         }
         val pivot = pivotRowMap.getOrDefault(pCol, 0.0)
@@ -461,7 +554,7 @@ private class MarkowitzState(
                 val f = target.getOrDefault(pCol, 0.0) / pivot
                 l.put(i, f)
                 target.remove(pCol)
-                rowCount[i]--
+                changeRowCount(i, -1)
                 pivotRowMap.forEach { col, value ->
                     if (colActive[col]) { // skips the pivot column and already-pivoted columns
                         val slot = target.slotOf(col)
@@ -469,8 +562,8 @@ private class MarkowitzState(
                             val nv = target.valueAt(slot) - f * value
                             if (nv == 0.0 || abs(nv) < dropBelow) {
                                 target.remove(col)
-                                rowCount[i]--
-                                colCount[col]--
+                                changeRowCount(i, -1)
+                                changeColumnCount(col, -1)
                                 colRows[col].remove(i)
                             } else {
                                 target.put(col, nv)
@@ -479,8 +572,8 @@ private class MarkowitzState(
                             val nv = -f * value
                             if (nv != 0.0 && abs(nv) >= dropBelow) {
                                 target.put(col, nv)
-                                rowCount[i]++
-                                colCount[col]++
+                                changeRowCount(i, 1)
+                                changeColumnCount(col, 1)
                                 colRows[col].put(i, 0.0)
                             }
                         }
