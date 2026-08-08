@@ -156,3 +156,9 @@ tasks.named<Jar>("jvmJar") {
 }
 
 kover { currentProject { instrumentation { disabledForAll = true } } }
+
+// detekt 2.0.0-alpha.5, which kbuild 1.2.8 brings, reports OutdatedDocumentation against
+// constructor parameters that are documented; alpha.6 fixes it. Drop this once kbuild ships it.
+detekt {
+    toolVersion = "2.0.0-alpha.6"
+}
