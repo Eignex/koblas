@@ -10,16 +10,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * The sparse symmetric factorization: the symbolic phase, the numeric one, and the three pivot policies.
- *
- * Judged on three axes, because each can be right while the others are wrong. The *pattern* the analysis
- * predicts has to be the pattern the numeric phase fills, or the factorization runs out of room — which it
- * reports rather than corrupting, so a mismatch is a caught error and not a wrong answer. The *values* have to
- * solve the system, checked by residual rather than against a stored factor, since `L` and `D` are not unique
- * to an implementation. And the *fill* has to stay near the input's, because a symmetric factorization that
- * densifies is correct and useless.
- */
+/** The sparse symmetric factorization: the symbolic phase, the numeric one, and the three pivot policies. */
 class SparseLdlTest {
 
     /** A symmetric positive-definite matrix, stored in full, with [density] off-diagonal fill. */
@@ -126,12 +117,7 @@ class SparseLdlTest {
         }
     }
 
-    /**
-     * The point of the split: one analysis, many value sets.
-     *
-     * Two matrices sharing a pattern must factor against one analysis and each solve their own system. If the
-     * analysis leaked any value-dependent state, the second solve is the one that would show it.
-     */
+    /** The point of the split: one analysis, many value sets. */
     @Test
     fun `one analysis factorizes every matrix with its pattern`() {
         val rng = Random(20260812)

@@ -6,14 +6,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/**
- * The open-addressed int-to-double map backing the sparse kernels' scatter buffers.
- *
- * Linear probing with backward-shift deletion is the part that repays testing: removing an entry from
- * the middle of a probe chain must not strand the entries that probed past it, and a table that grows
- * has to rehash every key. The randomized comparison against a HashMap covers the interleavings that
- * hand-written cases do not reach.
- */
+/** The open-addressed int-to-double map backing the sparse kernels' scatter buffers. */
 class MutableIntDoubleMapTest {
 
     @Test

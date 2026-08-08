@@ -10,13 +10,7 @@ import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
-/**
- * The code in README.md, compiled and run.
- *
- * A sample that no longer compiles is a documentation bug that no reader can work around, and renames
- * like `addOuter` to `ger` are exactly what silently breaks them. This is the cheapest guard: if the
- * README drifts from the API, the build fails rather than a reader discovering it.
- */
+/** The code in README.md, compiled and run. */
 class ReadmeSamplesTest {
 
     @Test

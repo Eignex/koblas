@@ -11,11 +11,11 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 /**
- * BLAS/LAPACK conformance in the reference-suite style: run each operation on a battery of standard test
- * matrices (identity, diagonal, Hilbert — the classic ill-conditioned case — random well-conditioned,
- * and symmetric positive-definite) and check the result against a constructed reference within a
- * theoretically-informed error bound (residual norm scaled by size and unit roundoff), rather than an
- * exact equality. This mirrors how the netlib `dblat`/LAPACK tests validate an implementation.
+ * BLAS/LAPACK conformance in the reference-suite style: run each operation on a battery of standard test matrices
+ * (identity, diagonal, Hilbert — the classic ill-conditioned case — random well-conditioned, and symmetric
+ * positive-definite) and check the result against a constructed reference within a theoretically-informed error bound
+ * (residual norm scaled by size and unit roundoff), rather than an exact equality. This mirrors how the netlib
+ * `dblat`/LAPACK tests validate an implementation.
  */
 class BlasConformanceTest {
 

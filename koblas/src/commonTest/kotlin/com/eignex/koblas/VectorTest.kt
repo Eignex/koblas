@@ -6,14 +6,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
-/**
- * The vector carriers: [DenseVector], [SparseVector] and the [VectorView] surface they share.
- *
- * The distinction that matters here is copy versus alias. A factory copies its input so a later mutation
- * of the caller's array cannot reach into the vector, while `wrap` deliberately relinquishes ownership and
- * aliases it; both directions are checked, because getting either wrong produces action at a distance.
- * Equality is by content across both carriers, so it is checked including the negative cases.
- */
+/** The vector carriers: [DenseVector], [SparseVector] and the [VectorView] surface they share. */
 class VectorTest {
 
     @Test
@@ -117,14 +110,7 @@ class VectorTest {
         assertTrue("nnz=2" in s)
     }
 
-    /**
-     * The constructor requires strictly ascending, in-range indices.
-     *
-     * [SparseVector.get] binary-searches them, so an unsorted pair would report a stored entry as absent
-     * rather than throwing, and duplicates would leave `get` and `forEachStored` disagreeing about the
-     * value at a position. Decoding a payload runs the same check, so a hand-written one cannot smuggle a
-     * broken vector in.
-     */
+    /** The constructor requires strictly ascending, in-range indices. */
     @Test
     fun `SparseVector rejects unsorted duplicated or out-of-range indices`() {
         assertFailsWith<IllegalArgumentException> {

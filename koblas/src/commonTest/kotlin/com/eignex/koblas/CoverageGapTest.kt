@@ -15,14 +15,8 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * The routines added to close the Tier 1 coverage gaps: `invert`, `trtri`, `normInf`, `normFro`, `syr`,
- * `syr2`, `syr2k`, `SparseMatrix.transpose`, `rotg` and `rot`.
- *
- * Each one existed as an asymmetry rather than a decision — koblas could invert an SPD matrix but not a
- * general one, could solve against a triangle but not invert it, had the rank-k symmetric update but neither
- * rank-1 nor rank-2, had one of `dlange`'s four norms, and could transpose a dense matrix but not a sparse
- * one. Every test here checks the new routine against something already trusted rather than against a
- * hardcoded expectation.
+ * The routines added to close the Tier 1 coverage gaps: `invert`, `trtri`, `normInf`, `normFro`, `syr`, `syr2`,
+ * `syr2k`, `SparseMatrix.transpose`, `rotg` and `rot`.
  */
 class CoverageGapTest {
 
@@ -82,8 +76,8 @@ class CoverageGapTest {
     }
 
     /**
-     * The triangular *solves* deliberately do not validate the diagonal, leaving a singular triangle to
-     * produce infinities. An inverse has no caller-supplied right-hand side to blame, so it checks.
+     * The triangular *solves* deliberately do not validate the diagonal, leaving a singular triangle to produce
+     * infinities. An inverse has no caller-supplied right-hand side to blame, so it checks.
      */
     @Test
     fun `trtri rejects a zero on the diagonal`() {
@@ -148,13 +142,7 @@ class CoverageGapTest {
         assertClose(viaGer2, viaSyr2, "syr2 against two gers")
     }
 
-    /**
-     * Under FULL the result must be *exactly* symmetric, not symmetric to a tolerance.
-     *
-     * That is why the implementation forms each pair's term once and writes both positions: filling the two
-     * triangles independently would compute `(alpha·x_i)·x_j` and `(alpha·x_j)·x_i`, which round differently.
-     * The same guarantee syrk documents.
-     */
+    /** Under FULL the result must be *exactly* symmetric, not symmetric to a tolerance. */
     @Test
     fun `the symmetric updates are exactly symmetric and honour uplo`() {
         val rng = Random(20260808)

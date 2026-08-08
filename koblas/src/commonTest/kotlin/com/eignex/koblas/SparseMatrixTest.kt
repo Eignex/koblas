@@ -6,14 +6,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * The CSC matrix itself: its product with a vector, and the structural invariants of the format.
- *
- * Compressed-sparse-column storage is three parallel arrays whose consistency is not checkable by the
- * type system, so the constructor validates it and that validation is tested directly. The `ofColumns`
- * factory is the forgiving entry point: it accepts entries in any order and sums duplicates, which is
- * what callers assembling a matrix column by column need.
- */
+/** The CSC matrix itself: its product with a vector, and the structural invariants of the format. */
 class SparseMatrixTest {
 
     @Test
@@ -98,14 +91,8 @@ class SparseMatrixTest {
     }
 
     /**
-     * A sparse operand gives the same answer as its dense twin through the view overload, over both
-     * storages of `x` including an all-empty one.
-     *
-     * What this does *not* check is that the sparse branch is taken. Deleting it would leave the generic
-     * fallback, which reads through [MatrixView.get] and costs `rows × cols` column searches instead of
-     * `nnz` work — and produces bit-identical results, so no assertion here would notice. That property
-     * is a performance contract carried by the comment at the call site, not by this test; the only test
-     * that could catch it would be one slow enough to hang rather than fail.
+     * A sparse operand gives the same answer as its dense twin through the view overload, over both storages of `x`
+     * including an all-empty one.
      */
     @Test
     fun `the MatrixView gemv overload agrees with the dense equivalent`() {
@@ -126,14 +113,7 @@ class SparseMatrixTest {
         )
     }
 
-    /**
-     * Unsorted or duplicated rows within a column are rejected at construction.
-     *
-     * Not a style rule: [get] binary-searches the column, so a descending pair would not throw, it would
-     * report a stored entry as absent — and duplicate rows would make [get] and `forEachInColumn`
-     * disagree about the value at a position. The format documented ascending rows long before anything
-     * checked them.
-     */
+    /** Unsorted or duplicated rows within a column are rejected at construction. */
     @Test
     fun `SparseMatrix rejects unsorted or duplicated rows within a column`() {
         assertFailsWith<IllegalArgumentException> {

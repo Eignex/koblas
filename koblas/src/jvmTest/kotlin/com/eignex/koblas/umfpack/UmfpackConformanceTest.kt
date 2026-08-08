@@ -18,30 +18,13 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * UMFPACK against koblas's portable sparse LU.
- *
- * Skipped wholesale when SuiteSparse is absent, because the point is to exercise the real library — a test
- * that passed by not running would be worse than no test. `UmfpackCalls.available` is the same check
- * discovery uses, so a skip here means the backend would not have registered either.
- *
- * The reference is the assertion target throughout: two different algorithms (UMFPACK's AMD/COLAMD ordering
- * against koblas's Markowitz pivoting) will not produce the same factors, so the factors are not comparable
- * and the *solutions* are what must agree.
- */
+/** UMFPACK against koblas's portable sparse LU. */
 @Category(HostLibraryTest::class)
 class UmfpackConformanceTest {
 
     private val umfpack = UmfpackSparseLapack()
 
-    /**
-     * Skips the test — genuinely, as a reported skip — when SuiteSparse is absent.
-     *
-     * `Assume` rather than an early `return`. An early return reports the test as PASSED, so on a machine
-     * without the library the whole suite goes green while exercising nothing, and confirming it ran at all
-     * takes a manual check. `assumeTrue` reports SKIPPED, which is the honest signal and needs no
-     * verification.
-     */
+    /** Skips the test — genuinely, as a reported skip — when SuiteSparse is absent. */
     private fun requireSuiteSparse() {
         Assume.assumeTrue("SuiteSparse is not installed; umfpack conformance cannot run", UmfpackCalls.available)
     }
@@ -125,13 +108,7 @@ class UmfpackConformanceTest {
         }
     }
 
-    /**
-     * A singular matrix: UMFPACK factors it and warns, so koblas reports singular without a position.
-     *
-     * This is the contract gap the first host backend exposed. koblas's own factorizations always know which
-     * pivot failed, because they choose the pivots; UMFPACK reports only that the matrix is singular, and
-     * recovering the position would mean extracting `U` to hunt for a zero diagonal.
-     */
+    /** A singular matrix: UMFPACK factors it and warns, so koblas reports singular without a position. */
     @Test
     fun `a singular matrix is reported singular with an unknown position`() {
         requireSuiteSparse()
@@ -181,14 +158,7 @@ class UmfpackConformanceTest {
         }
     }
 
-    /**
-     * Many factorizations in a loop must not exhaust native memory.
-     *
-     * The factors are UMFPACK's own allocation, released by a Cleaner when the factorization becomes
-     * unreachable. This does not assert *when* that happens — it cannot, the release is not deterministic —
-     * only that churning through more factorizations than would fit if nothing were ever freed does not fall
-     * over.
-     */
+    /** Many factorizations in a loop must not exhaust native memory. */
     @Test
     fun `repeated factorizations do not exhaust native memory`() {
         requireSuiteSparse()
@@ -202,28 +172,14 @@ class UmfpackConformanceTest {
         assertTrue(checksum > 0.0, "the loop should have produced solutions")
     }
 
-    /**
-     * Solves run with iterative refinement off, which is a choice and not a default.
-     *
-     * Asserted on the `Control` array rather than on a result, because there is nothing observable to assert
-     * on: refinement changes only how long a solve takes and how far past backward stability it lands, so
-     * every other test here passes identically either way. Leaving it unpinned would let the setting revert
-     * to UMFPACK's `IRSTEP = 2` unnoticed — three times the solve time at n 1024 for accuracy koblas does
-     * not promise, and answers that differ from the portable path for the same call.
-     */
+    /** Solves run with iterative refinement off, which is a choice and not a default. */
     @Test
     fun `solves run without iterative refinement`() {
         requireSuiteSparse()
         assertEquals(0.0, UmfpackCalls.refinementSteps, "umfpack solves must not refine")
     }
 
-    /**
-     * And the rest of the `Control` array is UMFPACK's, not zeros.
-     *
-     * A zeroed `Control` is not "no opinion" — it would override the pivot tolerance and the dense-column
-     * heuristics with zeros, which is a different factorization rather than a default one. `UMFPACK_PIVOT_TOLERANCE`
-     * defaulting to 0.1 is the cheapest witness that `umfpack_di_defaults` actually ran.
-     */
+    /** And the rest of the `Control` array is UMFPACK's, not zeros. */
     @Test
     fun `the rest of the control array keeps UMFPACK's defaults`() {
         requireSuiteSparse()

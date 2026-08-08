@@ -17,17 +17,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * The native UMFPACK binding against koblas's portable sparse LU — the same conformance the JVM binding gets.
- *
- * Two different algorithms produce different factors, so the factors are not comparable and the *solutions*
- * are what must agree. Everything asserted here is a property of the seam rather than of the platform, which
- * is the point: the two bindings share no code and must be indistinguishable to a caller.
- *
- * Every test returns early when SuiteSparse is absent. Kotlin's common test framework has no `Assume`, so
- * unlike the JVM twin these cannot report a genuine skip — the guard is named and centralized instead, and
- * `the binding resolves` is the one test that says out loud whether the rest measured anything.
- */
+/** The native UMFPACK binding against koblas's portable sparse LU — the same conformance the JVM binding gets. */
 class UmfpackNativeConformanceTest {
 
     private val umfpack: UmfpackSparseLapack? = UmfpackLoader.functions?.let { UmfpackSparseLapack(it) }
@@ -147,8 +137,8 @@ class UmfpackNativeConformanceTest {
     }
 
     /**
-     * The degenerate shapes that cannot be pinned: `usePinned` has no address to give for an empty array, so
-     * both go to the portable path rather than reaching UMFPACK at all.
+     * The degenerate shapes that cannot be pinned: `usePinned` has no address to give for an empty array, so both go
+     * to the portable path rather than reaching UMFPACK at all.
      */
     @Test
     fun `empty and all-zero matrices take the portable path`() {
@@ -159,13 +149,7 @@ class UmfpackNativeConformanceTest {
         assertTrue(zeros.singular, "a matrix of zeros is singular")
     }
 
-    /**
-     * Many factorizations in a loop must not exhaust native memory.
-     *
-     * The factors are UMFPACK's own allocation, released by a cleaner when the factorization becomes
-     * unreachable. This cannot assert *when* that happens — the release is not deterministic — only that
-     * churning through more factorizations than would fit if nothing were freed does not fall over.
-     */
+    /** Many factorizations in a loop must not exhaust native memory. */
     @Test
     fun `repeated factorizations do not exhaust native memory`() {
         val umf = umfpack ?: return

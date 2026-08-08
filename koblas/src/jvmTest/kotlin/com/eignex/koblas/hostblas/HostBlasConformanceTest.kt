@@ -15,17 +15,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * The JVM host-BLAS backend against the portable reference.
- *
- * Skips itself when the machine has no OpenBLAS, which is a legitimate configuration rather than a
- * failure: resolving by soname is what makes the library optional. CI installs it, so the assertions do
- * run there.
- *
- * Sizes reach 256 deliberately. Below roughly 50 OpenBLAS stays on its serial path and its blocked
- * kernels never engage, so a suite that stopped short would leave the code that matters untested — a gap
- * that once let a threading crash reach a benchmark run rather than a test.
- */
+/** The JVM host-BLAS backend against the portable reference. */
 @Category(HostLibraryTest::class)
 class HostBlasConformanceTest {
 
@@ -49,15 +39,7 @@ class HostBlasConformanceTest {
         assertTrue(koblasInfo.contains("openblas"), koblasInfo)
     }
 
-    /**
-     * A factorization at a size that engages OpenBLAS's parallel path.
-     *
-     * Unconfigured, that path overflows a default JVM thread stack and takes the process down with
-     * SIGSEGV — no exception, nothing to catch, and every test in the run reported as passing before the
-     * crash. That is exactly how it reached CI once: the threading setup was dropped when this backend was
-     * assembled. This runs the shape that crashes, so a regression fails here instead of in someone's
-     * application.
-     */
+    /** A factorization at a size that engages OpenBLAS's parallel path. */
     @Test
     fun `a large factorization does not take the process down`() {
         Assume.assumeTrue("host LAPACKE is not installed", HostBlasCalls.lapackAvailable)
@@ -72,14 +54,7 @@ class HostBlasConformanceTest {
         }
     }
 
-    /**
-     * The routines whose gates are shut by default, exercised anyway.
-     *
-     * `ger`, `trsv`, `trmv`, `trsm` and `trmm` stay portable at the shipped thresholds, so nothing else in
-     * the suite would ever execute their native paths — the bindings would be dead code that compiles.
-     * Overriding the gates through the documented properties runs them, which is also a check that the
-     * override plumbing works.
-     */
+    /** The routines whose gates are shut by default, exercised anyway. */
     @Test
     fun `the gated level 2 and 3 routines match reference when their gates are opened`() {
         Assume.assumeTrue("host CBLAS is not installed", HostBlasCalls.available)
@@ -171,19 +146,7 @@ class HostBlasConformanceTest {
         }
     }
 
-    /**
-     * The SPD suite — `dpotrf`, `dpotrs`, `dpotri` — against the portable implementation.
-     *
-     * Sized to reach the host code rather than to be quick. Each of these routines is gated, and the gates are
-     * where measurement put them: `cholesky` opens at 32 and `invertSpd` at 16, while `solveSpd` is shut
-     * outright because `dpotrs` loses two to three times at every size. Testing below a gate would compare the
-     * portable path against itself and prove nothing, so this is sized from the gates and moves with them.
-     *
-     * The three contract details the host path has to add on top of LAPACK are asserted with the values:
-     * only the lower triangle of the input may be read (the strict upper triangle is poisoned with NaN),
-     * `cholesky` returns a zeroed upper triangle where `dpotrf` leaves the input's, and `invertSpd` returns
-     * the full symmetric inverse where `dpotri` writes one triangle.
-     */
+    /** The SPD suite — `dpotrf`, `dpotrs`, `dpotri` — against the portable implementation. */
     @Test
     fun `the SPD suite matches reference where the gates open`() {
         Assume.assumeTrue("host LAPACKE is not installed", HostBlasCalls.lapackAvailable)
@@ -227,10 +190,10 @@ class HostBlasConformanceTest {
     }
 
     /**
-     * A non-positive-definite input has no LAPACK equivalent: `dpotrf` reports the failing leading minor
-     * rather than clamping it, so the host path hands the whole factorization back to the portable one.
-     * Both policies must therefore behave identically on both backends — asserted at a size above the gate,
-     * since below it the host path is not involved at all.
+     * A non-positive-definite input has no LAPACK equivalent: `dpotrf` reports the failing leading minor rather than
+     * clamping it, so the host path hands the whole factorization back to the portable one. Both policies must
+     * therefore behave identically on both backends — asserted at a size above the gate, since below it the host path
+     * is not involved at all.
      */
     @Test
     fun `a non positive definite input falls back to the portable path`() {
@@ -248,17 +211,7 @@ class HostBlasConformanceTest {
         assertFailsWith<IllegalArgumentException> { host.cholesky(bad) }
     }
 
-    /**
-     * `dgeqp3` against the portable pivoted QR.
-     *
-     * The pivots themselves are not compared. Both implementations take the largest remaining column, but
-     * they break ties differently and LAPACK updates its norms per panel rather than per column, so the
-     * orders legitimately differ on data with near-equal columns. What must agree is everything a caller can
-     * rely on: the rank, that `A·P = Q·R` for whichever `P` came back, and that the solve lands on the same
-     * least-squares answer.
-     *
-     * Sized above the LAPACK threshold, since below it this is the portable path compared against itself.
-     */
+    /** `dgeqp3` against the portable pivoted QR. */
     @Test
     fun `pivoted QR matches reference in rank and reconstruction`() {
         Assume.assumeTrue("host LAPACKE is not installed", HostBlasCalls.lapackAvailable)

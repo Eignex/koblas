@@ -16,16 +16,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/**
- * The two halves of the host backend, installed separately.
- *
- * Debian and Ubuntu ship LAPACKE as a package that libopenblas0 does not pull in, so CBLAS present with
- * LAPACKE absent is a common configuration rather than an edge case. It cannot be produced on a host that
- * has both, so what these tests pin is the mechanism it relies on: that the BLAS half works standalone,
- * that koblas composes it with the portable factorizations, and that level-3 work still reaches the host
- * library in that state. Without this, a regression to all-or-nothing would go unnoticed until someone
- * on such a host wondered why their matrices were slow.
- */
+/** The two halves of the host backend, installed separately. */
 class CblasHalvesTest {
 
     @Test

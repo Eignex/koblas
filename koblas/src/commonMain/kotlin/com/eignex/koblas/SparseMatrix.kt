@@ -5,36 +5,17 @@ import kotlinx.serialization.Serializable
 
 /**
  * A sparse matrix in compressed-sparse-column (CSC) form: column `j` occupies
- * `rowIdx[colPtr[j] until colPtr[j + 1]]` with the parallel nonzero values in [values], row indices
- * strictly ascending within a column — validated by the constructor, since [get] relies on the
- * ordering. `colPtr` has length `cols + 1` with `colPtr[0] == 0` and
- * `colPtr[cols] == values.size`. CSC is the layout sparse solvers and column-oriented sweeps
- * (matrix–vector products, LU factorization) consume directly — and, since [DenseMatrix] became
- * column-major, the axis both storages agree is contiguous.
+ * `rowIdx[colPtr[j] until colPtr[j + 1]]` with the parallel values in [values], row indices strictly
+ * ascending within a column and validated by the constructor, since [get] binary-searches them.
  *
- * The invariants are not arbitrary: they are what a host sparse solver requires. UMFPACK states them
- * verbatim — `Ap[0]` zero, `Ap[j] <= Ap[j+1]`, row indices ascending within a column with no duplicates,
- * 0-based and in range — so this backing passes to `umfpack_di_*` with no repacking. KLU takes the same
- * `(n, Ap, Ai)` with `int32_t` arrays. CHOLMOD wraps it as a `cholmod_sparse` with `packed = 1`,
- * `sorted = 1`, `stype = 0` (both triangles stored, which is what koblas does) and `itype = CHOLMOD_INT`.
- * Checked against the 7.x headers rather than remembered.
+ * The invariants are UMFPACK's preconditions verbatim, checked against the headers, so this backing crosses
+ * to `umfpack_di_*` with no repacking; KLU and CHOLMOD accept the same arrays. A 64-bit-index library would
+ * need the `dl` family and a widening copy, and an explicitly stored zero is part of the value here where a
+ * host may drop it, so a round trip through one can lose pattern.
  *
- * Two mismatches remain for a future binding, neither structural. A library built for 64-bit indices
- * wants the `umfpack_dl_*` family and a widening copy, the sparse counterpart of the LP64/ILP64 split the
- * dense backend already documents. And an explicitly stored zero is part of the value here — equality
- * distinguishes it — where a host library may drop it, so a round-trip through one can lose pattern.
- *
- * Arithmetic lives on the sparse seam rather than here, as it does for [DenseMatrix]: the products are
- * `com.eignex.koblas.sparse.SparseBlas` methods, reachable as `gemv`/`lu` extensions, so a container stays
- * storage and does not depend on which backend is installed.
- *
- * A [MatrixView] like the dense one, so anything written against the view contract accepts either. The
- * two access costs differ though, and the difference is not small: [get] searches a column rather than
- * indexing, and [toArray] densifies. Code that wants the sparsity should reach for [forEachInColumn].
- *
- * Serializes through its CSC arrays rather than a readable 2D form, unlike [DenseMatrix]. The flat dense
- * backing is an implementation detail worth hiding behind a nicer wire shape; CSC is the format, and
- * writing a sparse matrix out densely would cost the `rows × cols` the representation exists to avoid.
+ * A [MatrixView] like the dense one, but the access costs differ sharply: [get] searches a column and
+ * [toArray] densifies, so code that wants the sparsity should use [forEachInColumn]. Serializes as its CSC
+ * arrays, since writing it densely would cost the `rows × cols` the representation exists to avoid.
  *
  * @property rows the number of rows.
  * @property cols the number of columns.

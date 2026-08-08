@@ -11,14 +11,7 @@ import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
-/**
- * The symmetric routines: `symv`, `symm` on either side, and the `syrk` rank-k update.
- *
- * Each is checked against the general routine that computes the same thing from a fully written-out
- * matrix, over the alpha and beta values BLAS treats specially. A poisoned operand (see
- * [poisonedSymmetric]) proves the unselected triangle is never read, and a NaN-filled destination
- * proves `beta == 0` overwrites rather than reading what was there.
- */
+/** The symmetric routines: `symv`, `symm` on either side, and the `syrk` rank-k update. */
 class LinearAlgebraSymmetricOpsTest {
 
     @Test
@@ -133,15 +126,7 @@ class LinearAlgebraSymmetricOpsTest {
         }
     }
 
-    /**
-     * syrk gives the same answer on its second call with a reused workspace as on its first.
-     *
-     * The rank-1-sweep branch accumulates the alpha term into an n² scratch buffer. [Workspace.take]
-     * documents its contents as undefined and hands back whatever the last borrower left there, so the
-     * buffer has to be cleared before the sweeps begin — accumulating into it was correct only by
-     * accident, because a freshly allocated `DoubleArray` is zero and nothing reused one. Two calls
-     * through the same workspace is the shape that catches it.
-     */
+    /** syrk gives the same answer on its second call with a reused workspace as on its first. */
     @Test
     fun `syrk through a reused workspace does not accumulate the previous call`() {
         val rng = Random(20260946)

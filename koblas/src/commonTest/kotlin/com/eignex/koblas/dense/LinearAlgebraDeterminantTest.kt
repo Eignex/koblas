@@ -10,14 +10,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/**
- * The determinant read off an LU factorization, dense and sparse.
- *
- * A determinant is the product of the pivots times the sign of the row permutation, so the sign is the
- * part worth pinning down: it comes from counting swaps, and a miscount produces a correct magnitude
- * with the wrong sign. The hand-computed values below include a swapped pair for exactly that reason,
- * and the two factorizations are compared against each other because they count swaps differently.
- */
+/** The determinant read off an LU factorization, dense and sparse. */
 class LinearAlgebraDeterminantTest {
 
     @Test

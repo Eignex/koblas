@@ -15,18 +15,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/**
- * Backend resolution: what [koblas] resolves to, and how registration, priority and an explicit install
- * interact.
- *
- * The registry is global process state, and on the targets where koblas ships a host-BLAS backend it is
- * already populated before any test runs. So these tests clear it and put the incumbent back rather than
- * assuming it is empty — without that, clearing it here would break every later test that expects the
- * platform's backend to be active.
- *
- * Identity is asserted per half — `koblas.blas === …` rather than `koblas === …` — because [koblas] is a
- * `KoblasContext` holding six of them, and the halves are what selection actually ranks.
- */
+/** Backend resolution: what [koblas] resolves to, and how registration, priority and an explicit install interact. */
 class BackendSelectionTest {
 
     private class Fake(override val name: String, override val priority: Int) : LinearAlgebra by ReferenceLinearAlgebra
@@ -92,13 +81,7 @@ class BackendSelectionTest {
         }
     }
 
-    /**
-     * One object registered for several halves lands in each of them.
-     *
-     * Asserted as identity on both halves rather than as the absence of a wrapper: the context *is* the
-     * pairing, so there is no delegating object to look for, and pointing at the same instance twice is the
-     * whole claim.
-     */
+    /** One object registered for several halves lands in each of them. */
     @Test
     fun `a backend providing both halves is used for both`() {
         withCleanBackends {

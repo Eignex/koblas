@@ -14,14 +14,8 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * The QR factorization and the two solves built on it: least squares for overdetermined systems, and the
- * minimum-norm solve for underdetermined ones.
- *
- * The factorization keeps `Q` implicit as Householder reflectors, so it is verified through what it does
- * rather than by materializing it: reflectors applied to the columns of `R` must rebuild the original
- * matrix, and applying `Q` then `Q-transpose` must be the identity. The solves are checked against their
- * defining properties — an orthogonal residual for least squares, the pseudoinverse for minimum norm —
- * since a wrong implementation can still return a plausible-looking vector that is not the optimal one.
+ * The QR factorization and the two solves built on it: least squares for overdetermined systems, and the minimum-norm
+ * solve for underdetermined ones.
  */
 class LinearAlgebraQrTest {
 

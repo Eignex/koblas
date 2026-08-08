@@ -11,10 +11,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * The reciprocal condition estimate, which is a Hager 1-norm estimate of the inverse rather than an
- * exact quantity. It is therefore checked as a bound: never below the truth, never more than a magnitude
- * above it, and unchanged when the matrix is scaled, since conditioning is a property of the mapping and
- * not of its units. The exact answers are hand-computed on diagonal matrices, where the inverse is known.
+ * The reciprocal condition estimate, which is a Hager 1-norm estimate of the inverse rather than an exact quantity.
+ * It is therefore checked as a bound: never below the truth, never more than a magnitude above it, and unchanged when
+ * the matrix is scaled, since conditioning is a property of the mapping and not of its units. The exact answers are
+ * hand-computed on diagonal matrices, where the inverse is known.
  */
 class LinearAlgebraRcondTest {
 

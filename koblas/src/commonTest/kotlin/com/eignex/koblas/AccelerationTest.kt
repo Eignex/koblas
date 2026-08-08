@@ -10,17 +10,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/**
- * Detecting a silent fallback.
- *
- * koblas resolves backends without complaining: no host library means the portable kernels answer correctly
- * and nothing says so. That is the right default and a bad thing to discover in production, so these tests
- * pin the mechanism that makes it visible.
- *
- * Written against a registry cleared by `withCleanBackends`, because the whole subject is *what resolved* —
- * asserting anything here against whatever the platform happened to install would test the machine rather
- * than the library.
- */
+/** Detecting a silent fallback. */
 class AccelerationTest {
 
     private class FakeHost(override val name: String) :
@@ -72,13 +62,7 @@ class AccelerationTest {
         )
     }
 
-    /**
-     * The compiled-in SIMD kernels are *portable*, however fast they are.
-     *
-     * This is the distinction that makes the check useful: `mathBackend` reporting `simd(8 lanes)` is not
-     * evidence that a host library was found, and a caller who needs the host BLAS wants to know the
-     * difference. Accelerated here means a registered backend is being consulted for long runs.
-     */
+    /** The compiled-in SIMD kernels are *portable*, however fast they are. */
     @Test
     fun `the compiled-in kernels do not count as acceleration`() = withCleanBackends {
         assertTrue(!koblas.isAccelerated(BackendSlot.VectorKernels), "the platform kernels are portable koblas")
@@ -106,12 +90,7 @@ class AccelerationTest {
         assertTrue("backend=" in message, "should include the resolved summary: $message")
     }
 
-    /**
-     * A custom context is answered on its own terms, not the registry's.
-     *
-     * The point of #89 was that backend choice can be a value rather than process state, so the check has to
-     * follow the value.
-     */
+    /** A custom context is answered on its own terms, not the registry's. */
     @Test
     fun `a context reports its own halves rather than the global registry`() = withCleanBackends {
         registerBackend(FakeHost("openblas"))

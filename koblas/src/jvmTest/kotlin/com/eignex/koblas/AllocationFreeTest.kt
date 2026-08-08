@@ -14,13 +14,9 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 /**
- * The point of the destination-passing forms is that a steady-state loop stops allocating, so that is
- * measured rather than asserted. `ThreadMXBean` reports bytes allocated by this thread, which counts
- * every heap allocation the loop makes.
- *
- * The budget is per iteration and generous: the aim is to catch a routine that allocates *per call* — an
- * `n`-vector, an `n²` copy — not to police a few bytes of boxing. A simplex iteration at `n` 64 that
- * allocated one vector per solve would show ~1 KB per iteration and fail immediately.
+ * The point of the destination-passing forms is that a steady-state loop stops allocating, so that is measured rather
+ * than asserted. `ThreadMXBean` reports bytes allocated by this thread, which counts every heap allocation the loop
+ * makes.
  */
 class AllocationFreeTest {
 
@@ -37,13 +33,8 @@ class AllocationFreeTest {
     private val bean = ManagementFactory.getThreadMXBean() as ThreadMXBean
 
     /**
-     * Pins the portable backend for the whole suite.
-     *
-     * What is under test is koblas's own scratch handling — that a [Workspace] replaces the temporaries
-     * these routines would otherwise allocate. A host BLAS has its own allocation profile (the FFM
-     * binding wraps each array in a `MemorySegment` per call, and its `syrk` needs no `n²` scratch at
-     * all), so leaving it installed would measure the wrong thing and, on a machine that happens to have
-     * OpenBLAS, fail for the wrong reason.
+     * Pins the portable backend for the whole suite: a host BLAS has its own allocation profile — the FFM
+     * binding wraps each array per call — so leaving it installed measures the wrong thing.
      */
     @BeforeTest
     fun usePortableKernels() {
@@ -68,20 +59,16 @@ class AllocationFreeTest {
     }
 
     /**
-     * Holds each block's result so escape analysis cannot delete the allocation being measured.
-     *
-     * Without this the baseline halves of these tests are unreliable: a result that is computed and
-     * discarded is a candidate for scalar replacement, and a `solve` whose fresh matrix never escapes can
-     * be optimized into no allocation at all. That is not hypothetical — it passed here and failed on CI
-     * after the JVM target moved to 25, which is exactly the shape of a JIT-dependent flake.
+     * Holds each block's result so escape analysis cannot delete the allocation being measured. Without it a
+     * fresh matrix that never escapes can be optimized away entirely, which passed here and failed on CI.
      */
     private var sink: Any? = null
 
     /**
-     * Best of several measurement windows. A single window is fragile: one unrelated event inside it — a
-     * class load, a JIT recompilation — is divided by the iteration count and can exceed a per-iteration
-     * budget on its own, which is how this first failed on CI while passing locally. An allocation-free
-     * loop produces a zero window given enough tries; an allocating one cannot.
+     * Best of several measurement windows. A single window is fragile: one unrelated event inside it — a class load,
+     * a JIT recompilation — is divided by the iteration count and can exceed a per-iteration budget on its own, which
+     * is how this first failed on CI while passing locally. An allocation-free loop produces a zero window given
+     * enough tries; an allocating one cannot.
      */
     private fun bytesPerIteration(iterations: Int, warmup: Int = 200, block: (Int) -> Any?): Double {
         repeat(warmup) { sink = block(it) } // let the JIT settle; first calls allocate profiling data
@@ -108,12 +95,8 @@ class AllocationFreeTest {
     /**
      * Asserts that the destination-passing or pooled form removed the temporary the allocating form pays.
      *
-     * Bounded as a fraction of the allocating form rather than by an absolute byte count. The temporaries
-     * at stake are `O(n)` to `O(n·nrhs)` arrays — kilobytes — so a regression that stops pooling shows up
-     * as a ratio near 1, while an absolute budget of a few dozen bytes is sensitive to things that have
-     * nothing to do with koblas: coverage instrumentation, boxing of a loop index, and how aggressively a
-     * particular JIT eliminates short-lived objects. That sensitivity is not theoretical — a 64-byte
-     * budget passed here and failed on CI.
+     * A fraction of the allocating form rather than an absolute byte count: a few dozen bytes is sensitive to
+     * instrumentation, boxing and JIT behaviour, and a 64-byte budget passed here while failing on CI.
      */
     private fun assertPooled(pooled: Double, allocating: Double, what: String) {
         val budget = maxOf(FLOOR_BYTES, allocating / POOLED_RATIO)
@@ -222,14 +205,7 @@ class AllocationFreeTest {
         assertPooled(into, allocating, "least squares")
     }
 
-    /**
-     * norm1 allocates nothing at all, and takes no workspace to manage.
-     *
-     * Under row-major storage it accumulated one running total per column while sweeping rows, so it
-     * needed an `n`-wide array and a workspace was the way to avoid allocating one. A column is
-     * contiguous here, so each column sum completes before the next begins and a single scalar suffices.
-     * The parameter is gone; this asserts the stronger property that replaced it.
-     */
+    /** norm1 allocates nothing at all, and takes no workspace to manage. */
     @Test
     fun `norm1 allocates nothing`() {
         val n = 64

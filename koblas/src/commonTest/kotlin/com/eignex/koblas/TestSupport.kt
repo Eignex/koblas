@@ -59,8 +59,8 @@ internal fun randomMatrix(rows: Int, cols: Int, rng: Random): DenseMatrix =
     DenseMatrix.wrap(rows, cols, DoubleArray(rows * cols) { rng.nextDouble(-1.0, 1.0) })
 
 /**
- * A diagonally dominant matrix, which is nonsingular and well enough conditioned that a solve residual
- * reflects the routine rather than the operand.
+ * A diagonally dominant matrix, which is nonsingular and well enough conditioned that a solve residual reflects the
+ * routine rather than the operand.
  */
 internal fun wellConditioned(n: Int, rng: Random): DenseMatrix {
     val a = randomMatrix(n, n, rng)
@@ -69,9 +69,9 @@ internal fun wellConditioned(n: Int, rng: Random): DenseMatrix {
 }
 
 /**
- * A symmetric matrix as `(full, poisoned)`: the full copy holds both triangles, the poisoned copy holds
- * only the triangle selected by [lower] and NaN off it. Routines like `symv` and `symm` take the
- * poisoned copy and must agree with the general routine applied to the full one.
+ * A symmetric matrix as `(full, poisoned)`: the full copy holds both triangles, the poisoned copy holds only the
+ * triangle selected by [lower] and NaN off it. Routines like `symv` and `symm` take the poisoned copy and must agree
+ * with the general routine applied to the full one.
  */
 internal fun poisonedSymmetric(rng: Random, n: Int, lower: Boolean): Pair<DenseMatrix, DenseMatrix> {
     val full = DenseMatrix(n)
@@ -89,9 +89,9 @@ internal fun poisonedSymmetric(rng: Random, n: Int, lower: Boolean): Pair<DenseM
 }
 
 /**
- * A triangular matrix as `(poisoned, explicit)`. The poisoned copy holds the strict triangle selected by
- * [lower], NaN outside it, and NaN on the diagonal when [unitDiag] says the diagonal is implicitly one.
- * The explicit copy is the same matrix written out in full, so a general routine reproduces the result.
+ * A triangular matrix as `(poisoned, explicit)`. The poisoned copy holds the strict triangle selected by [lower], NaN
+ * outside it, and NaN on the diagonal when [unitDiag] says the diagonal is implicitly one. The explicit copy is the
+ * same matrix written out in full, so a general routine reproduces the result.
  */
 internal fun poisonedTriangle(rng: Random, n: Int, lower: Boolean, unitDiag: Boolean): Pair<DenseMatrix, DenseMatrix> {
     val poisoned = DenseMatrix(n)
@@ -128,14 +128,8 @@ internal fun poisonedTriangle(rng: Random, n: Int, lower: Boolean, unitDiag: Boo
 /**
  * Runs [block] against an empty registry, then puts back whatever was resolved before.
  *
- * The registry is global process state, and on the targets that ship a host backend it is already populated
- * by the time any test runs, because reading `koblas` once is enough to trigger discovery. Discovery is a
- * `by lazy`, so it cannot be asked to run a second time. A test that clears the registry and does not restore
- * it therefore destroys the platform's backend for every test that follows, which is exactly the failure this
- * exists to prevent: it showed up as a host-BLAS conformance test finding `reference` installed.
- *
- * Restoring goes through [registerBackend] rather than an install, so the result is a genuinely resolved
- * registry rather than a frozen override.
+ * Restoring matters: discovery is a `by lazy` that cannot be replayed, so a test that clears the registry and
+ * leaves it cleared destroys the platform's backend for every test after it.
  */
 internal fun withCleanBackends(block: () -> Unit) {
     val before = koblas

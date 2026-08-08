@@ -12,14 +12,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * The general dense routines: `gemv`, `gemm`, and the LU factorization with its solve in both directions.
- *
- * Small products are checked against hand-computed values, and the solves against randomly generated
- * systems with a known answer, which reaches the pivoting paths a fixed example would miss. The degenerate
- * and rejected shapes are here too: an empty or 1x1 matrix exercises loop bounds that never run in the
- * general case, and the argument checks are part of the contract callers rely on.
- */
+/** The general dense routines: `gemv`, `gemm`, and the LU factorization with its solve in both directions. */
 class LinearAlgebraTest {
 
     @Test
@@ -71,10 +64,10 @@ class LinearAlgebraTest {
     }
 
     /**
-     * `failedAt` reports *where* the factorization broke down, which both storages carry: the position is
-     * computed either way, and reporting only a flag would throw it away. It is the first zero pivot, matching what
-     * `dgetrf` returns in `info`: an all-zero matrix has several, and picking the last one would be just as
-     * easy to implement and wrong.
+     * `failedAt` reports *where* the factorization broke down, which both storages carry: the position is computed
+     * either way, and reporting only a flag would throw it away. It is the first zero pivot, matching what `dgetrf`
+     * returns in `info`: an all-zero matrix has several, and picking the last one would be just as easy to implement
+     * and wrong.
      */
     @Test
     fun `factor reports the first zero pivot position`() {
