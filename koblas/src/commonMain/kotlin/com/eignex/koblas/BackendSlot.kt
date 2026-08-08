@@ -9,10 +9,9 @@ import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
 /**
  * One replaceable half of a [KoblasContext], named so a caller can ask about it.
  *
- * koblas resolves backends silently and correctly: a machine without the host library runs the portable
- * kernels and gets the right answers, slowly. That is the right default — a program should not fail to
- * start because OpenBLAS is missing — but it makes the failure invisible, and "invisible and 5x slower" is
- * a bad thing to discover in production. These names are what make it checkable.
+ * koblas resolves backends silently: a machine without the host library runs the portable kernels and gets
+ * the right answers, slower. That is the right default — a program should not fail to start because OpenBLAS
+ * is missing — but it makes the difference invisible, and these names are what make it checkable.
  */
 enum class BackendSlot {
     /** Dense vector-vector routines. */

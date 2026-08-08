@@ -116,10 +116,9 @@ internal object Simd {
     fun lanes(): Int = LANE
 
     /**
-     * One accumulator, deliberately: multiple independent accumulators would break the FMA latency
-     * chain, but measured against this loop they cost 20% at `len` 4-8 (the method grows past what the
-     * JIT will inline, and triangular solves issue mostly short runs) and showed no gain at 256 beyond
-     * run-to-run drift. [dot4] is where the chain gets broken, on the shapes that can amortize it.
+     * One accumulator, deliberately. Several independent ones would break the FMA latency chain, but they
+     * also grow the method past what the JIT will inline, and measurement says that costs more on the short
+     * runs a triangular solve issues than the chain does. [dot4] breaks the chain where it can be amortized.
      */
     fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
         var i = 0

@@ -199,11 +199,10 @@ fun rotg(a: Double, b: Double): Givens {
  * Apply a plane rotation to a pair of vectors in place (BLAS `drot`): each `(x_i, y_i)` becomes
  * `(c·x_i + s·y_i, c·y_i − s·x_i)`.
  *
- * Deliberately off the [com.eignex.koblas.dense.VectorKernels] seam, for now, and the reason is the same
- * one that keeps `copy` and `swap` off it: whether a foreign call beats the loop has to be measured, not
- * assumed. A rotation does more arithmetic per element than a copy, so it plausibly clears the bar where
- * copy does not — but "plausibly" is not a threshold, and the machine available when this was written
- * could not resolve a 5 ns operation. Adding it to the seam later is additive; guessing wrong now is not.
+ * Deliberately off the [com.eignex.koblas.dense.VectorKernels] seam, for the reason that keeps `copy` and
+ * `swap` off it: whether a foreign call beats the loop has to be measured, not assumed. A rotation does more
+ * arithmetic per element than a copy, so it plausibly clears the bar where copy does not — but "plausibly" is
+ * not a threshold. Adding it to the seam later is additive; guessing wrong now is not.
  */
 fun rot(x: DenseVector, y: DenseVector, rotation: Givens) {
     require(x.size == y.size) { "size mismatch: ${x.size} vs ${y.size}" }

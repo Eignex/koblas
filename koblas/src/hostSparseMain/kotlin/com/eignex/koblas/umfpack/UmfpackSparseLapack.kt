@@ -31,9 +31,8 @@ import kotlinx.cinterop.value
  * propagating. The conformance test asserts against the portable factorization on both platforms for exactly
  * that reason — a host backend that answered differently would be a bug wherever it ran.
  *
- * Registered at 90, the priority the native host backends use, so it wins over `SparseLu` where SuiteSparse
- * is installed. The JVM bindings use 100 for the same role; the two values only ever compete within one half,
- * so the difference is cosmetic, but the platform's own convention is the one worth matching.
+ * Registered at [com.eignex.koblas.HOST_BACKEND_PRIORITY], so it wins over `SparseLu` wherever SuiteSparse is
+ * installed.
  */
 class UmfpackSparseLapack internal constructor(private val f: UmfpackFunctions) : SparseLapack {
     override val name: String get() = "umfpack"

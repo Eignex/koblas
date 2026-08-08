@@ -33,10 +33,9 @@ import java.lang.foreign.ValueLayout.JAVA_DOUBLE
  * from CXSparse or CHOLMOD, each wanting its own struct built per call. koblas's own `gemv` walks the
  * same arrays with no call overhead at all.
  *
- * It does not gate on size. Every other host binding in koblas consults a dispatch threshold, because
- * for dense work there is a size below which the foreign call costs more than the arithmetic. Here the
- * arithmetic is a whole sparse LU with a fill-reducing ordering, so the crossover is expected to sit at
- * a very small `n`. "Expected" is not measured: see the threshold task before treating it as settled.
+ * It does not gate on size, unlike every other host binding here. The arithmetic behind one call is a whole
+ * sparse LU with a fill-reducing ordering, so any crossover sits at a very small `n` — expected rather than
+ * measured, and not to be treated as settled.
  */
 class UmfpackSparseLapack : SparseLapack {
     override val name: String get() = "umfpack"

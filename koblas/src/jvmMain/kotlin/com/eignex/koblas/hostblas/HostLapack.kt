@@ -77,10 +77,9 @@ class HostLapack internal constructor() : Lapack {
     }
 
     /**
-     * Delegated to [ReferenceLinearAlgebra] for the same reason as [Blas.gemv]: two triangular solves over
-     * the `n²` factor are `O(n²)` work on `O(n²)` data, so the per-call cost dominates. Measured at
-     * `n` 256 the portable path takes 25 us against 65-136 us through `cblas_dtrsv`. The blocked
-     * [solve] below keeps `dtrsm`, which amortizes the same cost across many right-hand sides.
+     * Delegated to [ReferenceLinearAlgebra] for the same reason as [Blas.gemv]: two triangular solves over the
+     * `n²` factor are `O(n²)` work on `O(n²)` data, so the per-call cost dominates, and measurement agrees.
+     * The blocked [solve] below keeps `dtrsm`, which amortizes that cost across many right-hand sides.
      */
     @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
     override fun solveInto(
@@ -214,10 +213,9 @@ class HostLapack internal constructor() : Lapack {
     /**
      * Gated by [JVM_LDL_SOLVE_MIN] rather than by the LAPACK threshold, and disabled by it.
      *
-     * A vector solve is `O(n^2)` work over `O(n^2)` data, so it behaves like level 2 and not like the
-     * factorization it belongs to. Measured against SIMD it stayed inside the noise band at every size —
-     * 1.10x, 1.02x, 1.08x, 1.02x at n=16..128, and SIMD ahead 1.08x at 256 — so there is nothing to win.
-     * The gate exists so that is a value someone can change and re-measure, not a decision welded shut.
+     * A vector solve is `O(n²)` work over `O(n²)` data, so it behaves like level 2 rather than like the
+     * factorization it belongs to, and measurement puts it inside the noise band at every size. The gate is a
+     * value to change and re-measure rather than a decision welded shut; the numbers are with the constant.
      */
     override fun solveInto(ldl: LdlDecomposition, b: DoubleArray, out: DoubleArray): DoubleArray {
         if (ldl.n < JVM_LDL_SOLVE_MIN) return ReferenceLinearAlgebra.solveInto(ldl, b, out)
@@ -336,9 +334,6 @@ class HostLapack internal constructor() : Lapack {
      * [CholeskyPolicy.Regularize]: it reports the failing leading minor instead of clamping the pivot, so `info > 0`
      * falls back to the portable path, which is what applies the clamp or throws per the flag. And only the
      * lower triangle of the input is read, matching what koblas promises its callers.
-     *
-     * The threshold is where the measurement puts it, not at the LAPACK default: SIMD won 2.19x at n=256,
-     * tied at 1024, and lost 1.95x at 2048, so this gate opens late.
      */
     override fun cholesky(a: MatrixLike, policy: CholeskyPolicy): DenseMatrix {
         if (a.rows < JVM_CHOLESKY_MIN) return super.cholesky(a, policy)
@@ -361,13 +356,8 @@ class HostLapack internal constructor() : Lapack {
     }
 
     /**
-     * Gated by [JVM_SOLVE_SPD_MIN], which shuts it: `dpotrs` lost to the SIMD kernels by 3x at n=256 and
-     * 12x at 2048. It is `O(n^2)` work over `O(n^2)` data, so there is nothing to amortize a call against.
-     *
-     * Those numbers were taken under row-major storage, when a second cause compounded the first:
-     * LAPACKE transposed the matrix into a column-major temporary on every call. That cost is gone now
-     * that koblas stores what LAPACK wants, so the margin here is narrower than measured and the gate is
-     * a stale upper bound rather than a current answer; see the note above the constants below.
+     * Gated by [JVM_SOLVE_SPD_MIN], which shuts it: `dpotrs` loses to the SIMD kernels at every size, because
+     * `O(n²)` work over `O(n²)` data has nothing to amortize a foreign call against.
      */
     override fun solveSpd(L: DenseMatrix, b: DoubleArray): DoubleArray {
         if (L.rows < JVM_SOLVE_SPD_MIN) return super.solveSpd(L, b)
