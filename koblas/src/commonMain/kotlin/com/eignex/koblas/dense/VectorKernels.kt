@@ -18,7 +18,7 @@ import com.eignex.koblas.dispatchThresholds
  * They do nanoseconds of work, so a virtual call per invocation would cost more than the kernel. That is why
  * the compiled-in kernels exist at all, and why a registered backend is consulted only once a run is long
  * enough for a foreign call to pay for itself — [DispatchThresholds.level1]. What it is *not* is a reason for
- * the compiled kernels to have a different shape from a registered one: they used to be loose
+ * the compiled kernels to have a different shape from a registered one, as they would if they were loose
  * `expect fun platformDot`-style functions implementing no interface, so "the kernels" meant two unrelated
  * things depending on where you looked, and the seam needed `null` to mean "the other kind". One interface
  * removes both problems.
@@ -136,7 +136,7 @@ internal expect object PlatformVectorKernels : VectorKernels {
  * routing decision is happening. With no [host] every call forwards to the compiled-in kernels, which is
  * the case on every target that cannot reach a host BLAS.
  *
- * The `alpha` guards live here rather than at the call sites that used to carry them: `axpy` by zero and
+ * The `alpha` guards live here rather than at each call site: `axpy` by zero and
  * `scale` by one are no-ops, and skipping them before the length comparison keeps that true whichever
  * kernel would have run.
  *

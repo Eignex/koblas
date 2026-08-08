@@ -72,10 +72,10 @@ sealed interface MatrixView : MatrixLike
  * long runs without re-fetching column references on each iteration.
  *
  * Serializes as its shape plus the flat backing — `{"rows":2,"cols":2,"data":[…]}` — which is both the
- * compact form and the extensible one. It used to encode as a nested `Array<DoubleArray>` of rows, chosen
- * for readability; that cost a bracket pair per row and, more importantly, could not carry a polymorphic
- * type discriminator, so a `DenseMatrix` could not decode through [MatrixView] while a [SparseMatrix]
- * could. A named-field object fixes both and leaves room to add fields later without breaking readers.
+ * compact form and the extensible one. A nested `Array<DoubleArray>` of rows would read better and cost a
+ * bracket pair per row, but the deciding point is that a bare array cannot carry a polymorphic type
+ * discriminator: a `DenseMatrix` has to decode through [MatrixView] as a [SparseMatrix] does. A named-field
+ * object carries one, and leaves room to add fields later without breaking readers.
  *
  * Unlike the read-only [MatrixView] contract, the concrete matrix exposes its flat [data] backing and
  * elementwise [set] so in-place algorithms (factorizations, updates) can work without reallocating.

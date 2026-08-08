@@ -177,8 +177,7 @@ class HostBlasConformanceTest {
      * Sized to reach the host code rather than to be quick. Each of these routines is gated, and the gates are
      * where measurement put them: `cholesky` opens at 32 and `invertSpd` at 16, while `solveSpd` is shut
      * outright because `dpotrs` loses two to three times at every size. Testing below a gate would compare the
-     * portable path against itself and prove nothing — which is why this ran at 2048 while the Cholesky gate
-     * was there, and runs at 256 now that re-measuring moved it.
+     * portable path against itself and prove nothing, so this is sized from the gates and moves with them.
      *
      * The three contract details the host path has to add on top of LAPACK are asserted with the values:
      * only the lower triangle of the input may be read (the strict upper triangle is poisoned with NaN),

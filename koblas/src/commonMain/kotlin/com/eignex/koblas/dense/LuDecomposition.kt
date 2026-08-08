@@ -34,9 +34,9 @@ class LuDecomposition(val n: Int, val lu: DoubleArray, val piv: IntArray, failed
      * Whether a zero pivot was encountered; [LinearAlgebra.solve] on a singular factorization is not
      * meaningful.
      *
-     * Derived from [failedAt] rather than stored, so the two cannot contradict each other. It used to be
-     * the stored flag and every backend set it separately, which left the position — the more useful half,
-     * and the one a caller can act on — computed and then discarded.
+     * Derived from [failedAt] rather than stored, so the two cannot contradict each other and no backend has
+     * to remember to set both. The position is the more useful half anyway: it is the one a caller can act
+     * on, where a flag only says that something went wrong.
      */
     val singular: Boolean get() = failedAt != NOT_SINGULAR
 

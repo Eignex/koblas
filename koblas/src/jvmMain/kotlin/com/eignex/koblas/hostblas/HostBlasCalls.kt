@@ -120,7 +120,7 @@ internal object HostBlasCalls {
      *
      * The one call made during resolution, and it is a string read rather than arithmetic. A build without
      * the symbol cannot be interrogated, and an empty string reads as "no disqualifying marker" — the
-     * assumption koblas made everywhere before this check existed.
+     * assumption koblas makes wherever a library declines to describe itself.
      */
     private fun configString(blas: SymbolLookup): String {
         val symbol = blas.find("openblas_get_config").orElse(null) ?: return ""

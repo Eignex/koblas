@@ -71,8 +71,8 @@ class LinearAlgebraTest {
     }
 
     /**
-     * `failedAt` reports *where* the factorization broke down, which the sparse side has always carried and
-     * the dense side used to compute and discard. The position is the first zero pivot, matching what
+     * `failedAt` reports *where* the factorization broke down, which both storages carry: the position is
+     * computed either way, and reporting only a flag would throw it away. It is the first zero pivot, matching what
      * `dgetrf` returns in `info`: an all-zero matrix has several, and picking the last one would be just as
      * easy to implement and wrong.
      */

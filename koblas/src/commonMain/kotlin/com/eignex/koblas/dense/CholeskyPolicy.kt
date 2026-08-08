@@ -3,18 +3,17 @@ package com.eignex.koblas.dense
 /**
  * What [Lapack.cholesky] does when the matrix turns out not to be positive-definite.
  *
- * A named policy rather than a boolean flag, and [Strict] rather than [Regularize] by default. Both parts
- * are deliberate corrections.
+ * A named policy rather than a boolean flag, and [Strict] rather than [Regularize] by default.
  *
- * koblas used to regularize *by default*: a non-positive pivot was quietly replaced and factorization
- * continued, so `a.cholesky()` returned a factor of a matrix that was not the one you passed. That is
- * genuinely useful for the workload it was written for — online statistics on a drifting precision matrix,
- * where the alternative is an exception every few updates — but it is a surprising default for a general
- * linear algebra library, and it is not what `dpotrf` does. LAPACK reports the failing leading minor.
- * Silently returning something plausible is the worse failure: the caller gets numbers, not a signal.
+ * Regularizing by default would mean `a.cholesky()` returning a factor of a matrix that is not the one you
+ * passed: a non-positive pivot quietly replaced and the factorization continued. That is genuinely useful for
+ * one workload — online statistics on a drifting precision matrix, where the alternative is an exception every
+ * few updates — and a surprising default for a general linear algebra library. It is also not what `dpotrf`
+ * does; LAPACK reports the failing leading minor. Returning something plausible is the worse failure, because
+ * the caller gets numbers instead of a signal.
  *
- * The type also gives the fudge factor a name. It used to be a bare `1e-5` in the middle of the
- * elimination loop, with no way to see it, change it, or find out that it existed.
+ * The type also gives the fudge factor a name and a place to be changed, rather than leaving it a bare
+ * constant in the middle of the elimination loop where nothing reveals that it exists.
  */
 sealed interface CholeskyPolicy {
     /**

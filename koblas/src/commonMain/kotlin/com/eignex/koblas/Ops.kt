@@ -66,8 +66,9 @@ infix fun VectorLike.dot(other: VectorLike): Double {
     if (this is SparseVector && other is SparseVector) return koblas.sparseVectorKernels.dot(this, other)
     if (this is SparseVector && other is DenseVector) return koblas.sparseVectorKernels.dot(this, other.data)
     if (this is DenseVector && other is SparseVector) return koblas.sparseVectorKernels.dot(other, data)
-    // At least one operand is a foreign VectorLike. This branch used to be an `error("unreachable")`, which
-    // the sealed roots made true; it is now the generic path, reached through `get` on both sides.
+    // At least one operand is a foreign VectorLike, so neither storage is known: the generic path, reached
+    // through `get` on both sides. Unreachable while the view roots were sealed, and reachable since they
+    // opened, which is what an adapter from another library arrives as.
     var s = 0.0
     for (i in 0 until size) s += this[i] * other[i]
     return s
@@ -283,9 +284,9 @@ fun syr2(alpha: Double, x: VectorLike, y: VectorLike, a: DenseMatrix, uplo: Uplo
  * estimates conditioning each refactorization calls both.
  *
  * Takes no workspace, unlike [LinearAlgebra.rcond], because it needs no scratch: a column is contiguous,
- * so each column sum completes before the next begins and one accumulator suffices. Row-major storage
- * forced a running total per column and therefore an `n`-wide array; that is what the workspace argument
- * used to be for.
+ * so each column sum completes before the next begins and one accumulator suffices. Row-major storage would
+ * force a running total per column and therefore an `n`-wide array, which is the only reason such a routine
+ * would take a workspace at all.
  */
 fun norm1(a: DenseMatrix): Double {
     val ad = a.data

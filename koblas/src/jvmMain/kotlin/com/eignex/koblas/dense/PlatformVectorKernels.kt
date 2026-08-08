@@ -40,9 +40,8 @@ private val simdLanes: Int = if (simdAvailable) Simd.lanes() else 0
 /**
  * The JVM's compiled-in kernels: SIMD when the incubator module resolved, scalar loops otherwise.
  *
- * The `simdAvailable && len >= simdLanes` guard on each routine is the same one the free functions used to
- * carry. A run shorter than one lane executes no vector body at all, so it would pay the vector prologue
- * for nothing.
+ * Each routine carries a `simdAvailable && len >= simdLanes` guard, because a run shorter than one lane
+ * executes no vector body at all and would pay the vector prologue for nothing.
  */
 internal actual object PlatformVectorKernels : VectorKernels {
     actual override val name: String get() = if (simdAvailable) "simd($simdLanes lanes)" else "scalar"

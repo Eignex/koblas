@@ -24,9 +24,8 @@ import kotlin.test.assertTrue
  * assuming it is empty — without that, clearing it here would break every later test that expects the
  * platform's backend to be active.
  *
- * Identity assertions changed shape with the context: [koblas] is a `KoblasContext`, so what used to be
- * `koblas === ReferenceLinearAlgebra` is now a claim about the half — `koblas.blas === …`. That is a better
- * question anyway, since the halves are what get selected.
+ * Identity is asserted per half — `koblas.blas === …` rather than `koblas === …` — because [koblas] is a
+ * `KoblasContext` holding six of them, and the halves are what selection actually ranks.
  */
 class BackendSelectionTest {
 
@@ -96,9 +95,9 @@ class BackendSelectionTest {
     /**
      * One object registered for several halves lands in each of them.
      *
-     * This used to assert that the winner was *not* wrapped in a composite, because pairing two halves
-     * allocated a delegating object. There is no composite any more — the context is the pairing — so the
-     * question became whether both halves point at the same instance.
+     * Asserted as identity on both halves rather than as the absence of a wrapper: the context *is* the
+     * pairing, so there is no delegating object to look for, and pointing at the same instance twice is the
+     * whole claim.
      */
     @Test
     fun `a backend providing both halves is used for both`() {

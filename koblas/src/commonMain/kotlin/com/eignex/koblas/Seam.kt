@@ -5,7 +5,7 @@ import kotlin.concurrent.Volatile
 // The selection machinery behind every replaceable half of koblas, in one place.
 //
 // koblas has six of them - dense `Blas`, `Lapack` and `VectorKernels`, and the three sparse counterparts -
-// and each used to carry its own copy of the same state machine: two fields, a priority comparison, a
+// and each would otherwise carry its own copy of the same state machine: two fields, a priority comparison, a
 // recompose, a test hook. Six copies of one mechanism is six chances for them to drift apart, and they had
 // already started to: only one of the reset hooks cleared its install override.
 //
