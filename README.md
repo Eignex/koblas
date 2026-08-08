@@ -119,6 +119,7 @@ against reference results on every target.
 | sparse triangular solve | trsv |
 | unsymmetric sparse LU (Markowitz pivoting) | lu, solve both directions, determinant |
 | symmetric sparse LDLᵀ and Cholesky | analyze, ldl, cholesky; the analysis is reusable |
+| fill-reducing ordering (minimum degree) | on by default in analyze; SparseOrdering.Natural opts out |
 
 Semantics follow the standard; the exceptions are documented on each
 function. Factorizations use the LAPACK packed formats, so they interchange

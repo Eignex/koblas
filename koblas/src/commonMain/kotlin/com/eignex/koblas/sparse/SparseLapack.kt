@@ -47,7 +47,8 @@ interface SparseLapack : Backend {
      * A host backend with its own analysis (CHOLMOD's, say) overrides this and [ldl] together: an analysis is
      * only meaningful to the numeric phase that produced it.
      */
-    fun analyze(a: SparseMatrix): SparseSymbolic = SparseSymbolic.analyze(a)
+    fun analyze(a: SparseMatrix, ordering: SparseOrdering = SparseOrdering.MinimumDegree): SparseSymbolic =
+        SparseSymbolic.analyze(a, ordering)
 
     /**
      * `A = L·D·Lᵀ` for a symmetric [a], analysing the pattern first.
@@ -59,8 +60,11 @@ interface SparseLapack : Backend {
      * To reuse the analysis across value updates, keep the returned factorization's `symbolic` and call
      * [SparseSymbolic.factorLdl] for the next set of values; this entry point is for the first factorization.
      */
-    fun ldl(a: SparseMatrix, policy: SparseLdlPolicy = SparseLdlPolicy.Indefinite): SparseFactorization =
-        numericLdl(a, analyze(a), policy)
+    fun ldl(
+        a: SparseMatrix,
+        policy: SparseLdlPolicy = SparseLdlPolicy.Indefinite,
+        ordering: SparseOrdering = SparseOrdering.MinimumDegree,
+    ): SparseFactorization = numericLdl(a, analyze(a, ordering), policy)
 
     /**
      * The Cholesky factorization of a symmetric positive-definite [a], as `L·D·Lᵀ` with every pivot positive.
@@ -73,6 +77,9 @@ interface SparseLapack : Backend {
      * [SparseLdlPolicy.Regularize] for the estimate-has-drifted case where a factorization that exists is
      * worth more than one that is exact.
      */
-    fun cholesky(a: SparseMatrix, policy: SparseLdlPolicy = SparseLdlPolicy.Strict): SparseFactorization =
-        numericLdl(a, analyze(a), policy)
+    fun cholesky(
+        a: SparseMatrix,
+        policy: SparseLdlPolicy = SparseLdlPolicy.Strict,
+        ordering: SparseOrdering = SparseOrdering.MinimumDegree,
+    ): SparseFactorization = numericLdl(a, analyze(a, ordering), policy)
 }

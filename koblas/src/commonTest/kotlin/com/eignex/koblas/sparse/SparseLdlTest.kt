@@ -186,14 +186,17 @@ class SparseLdlTest {
         val a = spd(12, rng)
         val f = a.cholesky() as SparseLdl
         val l = f.choleskyFactor()
-        // L·Lᵀ must be A, checked entrywise from the CSC arrays.
+        val perm = f.symbolic.permutation
+        // L·Lᵀ is P·A·Pᵀ, not A — the factor is of the matrix that was eliminated, which the analysis
+        // reordered. Comparing against A directly is the mistake this asserts against.
         val dense = Array(12) { DoubleArray(12) }
         for (j in 0 until 12) l.forEachInColumn(j) { i, v -> dense[i][j] = v }
         for (i in 0 until 12) {
             for (j in 0 until 12) {
                 var s = 0.0
                 for (p in 0 until 12) s += dense[i][p] * dense[j][p]
-                assertTrue(abs(s - a[i, j]) < 1e-9, "L·Lᵀ differs from A at ($i,$j): $s vs ${a[i, j]}")
+                val expected = a[perm[i], perm[j]]
+                assertTrue(abs(s - expected) < 1e-9, "L·Lᵀ differs from P·A·Pᵀ at ($i,$j): $s vs $expected")
             }
         }
         val indefinite = SparseMatrix.ofColumns(
