@@ -12,12 +12,10 @@ import kotlinx.cinterop.usePinned
 /**
  * The host OpenBLAS behind koblas's level-1 primitives, for the runs long enough to be worth a call.
  *
- * The [com.eignex.koblas.dense.LinearAlgebra] seam does not reach `dot`, `axpy` and `scale`: those compile per
- * target and, on native, are scalar loops measured 4x to 7x slower than the JVM's SIMD ones. Registering
- * this closes that gap for long vectors, which is where a simplex spends its level-1 time — the public
- * `dot`/`axpy`/`scale` and the eta-file ftran/btran both bottom out in these calls with no other seam
- * above them. koblas applies [com.eignex.koblas.DispatchThresholds.level1], so these methods only ever
- * see runs worth dispatching.
+ * The [com.eignex.koblas.dense.LinearAlgebra] seam does not reach `dot`, `axpy` and `scale`: those compile
+ * per target, and on native they are scalar loops with no vector API to reach for. Registering this closes
+ * that gap for long vectors, and koblas applies [com.eignex.koblas.DispatchThresholds.level1], so these
+ * methods only see runs worth dispatching.
  *
  * Offsets are handled by pinning and taking the address of the element, so no repacking happens at the
  * boundary — the same zero-copy property the rest of this backend relies on.

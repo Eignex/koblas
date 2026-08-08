@@ -25,11 +25,9 @@ import com.eignex.koblas.hostblas.HostBlasCalls.seg
 /**
  * The host OpenBLAS as the JVM's [Blas] half, bound with `java.lang.foreign`.
  *
- * Only the level-3 routines are native. `gemv` and `symv` delegate to the portable kernels, which are
- * Vector API SIMD on this platform and beat a foreign call outright: measured, `cblas_dgemv` lost to them
- * by 3x to 15x, because `O(n^2)` work over `O(n^2)` data has nothing to amortize a call against. The
- * triangular routines keep their portable defaults for the same reason — `cblas_dtrsv` at n=256 took
- * 65-136us against 25us portable.
+ * Only the level-3 routines are native. `gemv`, `symv` and the triangular routines delegate to the portable
+ * kernels, which are Vector API SIMD here: `O(n²)` work over `O(n²)` data has nothing to amortize a foreign
+ * call against, and measurement agrees. The thresholds that encode this carry the numbers.
  */
 class HostBlas internal constructor() : Blas {
     override val name: String get() = "openblas"

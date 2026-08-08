@@ -175,11 +175,9 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
     /**
      * Delegates to the portable kernels, which are faster here at every size that fits in cache.
      *
-     * Measured on this backend against the scalar kernels (us/op, linuxX64): n=64 5.3 versus 3.3, n=256
-     * 107 versus 45, n=1024 1978 versus 2094. `dsytrs` only reaches parity at n=1024, and the routine is
-     * `O(n^2)` work over `O(n^2)` data, so there is nothing to amortize the pivot-block bookkeeping
-     * against. This is the one routine where the native library loses on this platform — every other
-     * level-2 routine and the LU solves win by 2x to 15x, unlike on the JVM, whose SIMD kernels beat the
+     * `dsytrs` only reaches parity at the largest size measured, and the routine is `O(n²)` work over `O(n²)`
+     * data, so there is nothing to amortize the pivot-block bookkeeping against. This is the one routine
+     * where the native library loses on this platform, unlike on the JVM, whose SIMD kernels beat the
      * native library at level 2 outright. The blocked multi-RHS solve below stays native: there the work
      * grows with the right-hand-side count while the factor is read once.
      */
@@ -295,17 +293,14 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
     }
 
     /**
-     * Delegates to the portable kernels, which win here by a wide and widening margin: measured on
-     * linuxX64 (us/op, native against portable) 207 versus 66 at n=256, 6579 versus 740 at 1024, and
-     * 64711 versus 5320 at 2048.
+     * Delegates to the portable kernels, which win here by a wide and widening margin.
      *
      * The routine is `O(n^2)` work over `O(n^2)` data, so there is nothing to amortize a call against —
      * the same reason the LU and LDL vector solves delegate.
      *
-     * Those margins were taken under row-major storage, where LAPACKE also transposed the matrix into a
-     * column-major temporary on every call — 32 MB per solve at n=2048. koblas stores what LAPACK wants, so
-     * that cost is not in the current numbers and these overstate the native side's disadvantage. Due a
-     * re-measurement rather than settled; the JVM twin of this routine was re-measured and stayed portable.
+     * Due a re-measurement rather than settled: the margins recorded with the constants were taken under
+     * row-major storage, where every call also paid for a transpose. The JVM twin was re-measured under
+     * column-major storage and stayed portable.
      */
     override fun solveSpd(L: DenseMatrix, b: DoubleArray): DoubleArray = ReferenceLinearAlgebra.solveSpd(L, b)
 
