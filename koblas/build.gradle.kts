@@ -4,7 +4,7 @@ import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 plugins {
-    id("com.eignex.kmp") version "1.2.8"
+    id("com.eignex.kmp") version "1.2.9"
     kotlin("plugin.serialization") version "2.4.10"
 }
 
@@ -156,9 +156,3 @@ tasks.named<Jar>("jvmJar") {
 }
 
 kover { currentProject { instrumentation { disabledForAll = true } } }
-
-// detekt 2.0.0-alpha.5, which kbuild 1.2.8 brings, reports OutdatedDocumentation against
-// constructor parameters that are documented; alpha.6 fixes it. Drop this once kbuild ships it.
-detekt {
-    toolVersion = "2.0.0-alpha.6"
-}
