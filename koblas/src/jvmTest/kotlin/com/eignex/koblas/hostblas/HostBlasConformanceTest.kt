@@ -174,11 +174,11 @@ class HostBlasConformanceTest {
     /**
      * The SPD suite — `dpotrf`, `dpotrs`, `dpotri` — against the portable implementation.
      *
-     * Sized to reach the host code rather than to be quick. Each of these routines is gated, and the gates
-     * are where measurement put them: `cholesky` opens at 2048, `invertSpd` at 1024, and `solveSpd` is shut
-     * outright (`1 shl 20`), because `dpotrs` lost to the SIMD kernels at every size tried. Testing below a
-     * gate would compare the portable path against itself and prove nothing, which is why the native
-     * conformance test — where nothing is gated — can use `n ≤ 33` and this one cannot.
+     * Sized to reach the host code rather than to be quick. Each of these routines is gated, and the gates are
+     * where measurement put them: `cholesky` opens at 32 and `invertSpd` at 16, while `solveSpd` is shut
+     * outright because `dpotrs` loses two to three times at every size. Testing below a gate would compare the
+     * portable path against itself and prove nothing — which is why this ran at 2048 while the Cholesky gate
+     * was there, and runs at 256 now that re-measuring moved it.
      *
      * The three contract details the host path has to add on top of LAPACK are asserted with the values:
      * only the lower triangle of the input may be read (the strict upper triangle is poisoned with NaN),
@@ -190,8 +190,9 @@ class HostBlasConformanceTest {
         Assume.assumeTrue("host LAPACKE is not installed", HostBlasCalls.lapackAvailable)
         val host = HostLapack()
         val rng = Random(20260807)
-        // 2048 is cholesky's gate; invertSpd's is 1024 and is reached by the same factor.
-        val n = 2048
+        // Comfortably above cholesky's gate of 32 and invertSpd's of 16, and small enough that the portable
+        // comparison is not the slow part of the suite.
+        val n = 256
         val a = spdMatrix(n, rng)
         for (i in 0 until n) for (j in i + 1 until n) a[i, j] = Double.NaN
 
@@ -236,7 +237,7 @@ class HostBlasConformanceTest {
     fun `a non positive definite input falls back to the portable path`() {
         Assume.assumeTrue("host LAPACKE is not installed", HostBlasCalls.lapackAvailable)
         val host = HostLapack()
-        val n = 2048
+        val n = 256
         val bad = spdMatrix(n, Random(20260808))
         bad[n - 1, n - 1] = -1.0 // breaks positive definiteness at the last leading minor
         val policy = CholeskyPolicy.Regularize()

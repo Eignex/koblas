@@ -35,10 +35,10 @@ import com.eignex.koblas.lapackFailedAt
  * the condition estimate. The single-vector solves delegate to the portable kernels, as on every other
  * platform.
  *
- * The Cholesky family keeps its portable defaults, which is a measurement rather than an omission: the
- * SIMD factorization beat single-threaded OpenBLAS at n=256 (696us against 1524us), matched it at 1024
- * (49.2ms against 51.4ms), and trailed only at 2048 (635ms against 326ms). Overriding it would make the
- * common sizes slower.
+ * The Cholesky family is native from a small size up, and the solve is not: `dpotrf` and `dpotri` win from
+ * n 32 and n 16 respectively, while `dpotrs` loses two to three times at every size. That split is the whole
+ * argument for per-routine gates — the three routines of one family disagree about where the call is worth
+ * making, and only measuring finds out.
  */
 class HostLapack internal constructor() : Lapack {
     override val name: String get() = "openblas"
@@ -435,19 +435,32 @@ private const val NATIVE_TRSM_MIN_RHS = 4
 private const val JVM_LDL_SOLVE_MIN = 1 shl 20
 
 /**
- * Cholesky crosses over late (us/op, native against SIMD): 1524 vs 696 at n=256, 51372 vs 49234 at 1024,
- * 325547 vs 635219 at 2048. The portable factorization is a tight `denseDot` loop that vectorizes cleanly,
- * which is why it holds its own far longer than the LU factorization does.
+ * Native from 32 up (us/op, native against SIMD): 0.83 vs 0.87 at n=16, 2.79 vs 3.56 at 32, 11.3 vs 15.5 at
+ * 64, 73.5 vs 83.6 at 128, 392 vs 564 at 256, 18353 vs 33498 at 1024, 98988 vs 295342 at 2048.
+ *
+ * This gate used to sit at 2048 on the opposite conclusion — that the portable factorization won until then —
+ * and that measurement was taken under row-major storage, when every LAPACKE call transposed the matrix into
+ * a column-major temporary first. koblas stores what LAPACK wants now, so the transposes are gone and the
+ * ordering reversed. Sixteen is a tie within the error bars and is left to the portable path; below that is
+ * not measured, and a matrix that small is not worth a foreign call.
  */
-private const val JVM_CHOLESKY_MIN = 2048
+private const val JVM_CHOLESKY_MIN = 32
 
 /**
- * The explicit inverse crosses earlier than the factorization: SIMD won 1.79x at n=256, then native took
- * 1.23x at 1024 and 1.09x at 2048. Both of those are close to the 1.20x noise floor that the delegated
- * routines established in the same sweep, so this value is the least certain of the three — worth
- * re-measuring before relying on it.
+ * Native at every size measured, and by the widest margin of the three (us/op, native against SIMD): 1.52 vs
+ * 2.74 at n=16, 5.79 vs 12.0 at 32, 25.6 vs 54.1 at 64, 126 vs 287 at 128, 746 vs 1632 at 256, 20930 vs 81472
+ * at 1024, 132975 vs 674060 at 2048.
+ *
+ * Two-to-five times, consistently, where the old note called this the least certain of the three at close to
+ * the noise floor — the same row-major transposes that moved the Cholesky gate. Sixteen because that is the
+ * smallest size measured, not because a crossover was found there; there is no sign of one.
  */
-private const val JVM_INVERT_SPD_MIN = 1024
+private const val JVM_INVERT_SPD_MIN = 16
 
-/** The SPD solve stays portable at every size: see [HostLapack.solveSpd]. */
+/**
+ * The SPD solve stays portable at every size: see [HostLapack.solveSpd]. Re-measured under column-major
+ * storage rather than inherited — 38.4 us against the portable 15.3 at n=256, 655 against 234 at 1024, 2937
+ * against 1079 at 2048 — so this one keeps its sentinel for the reason it was given, not despite it. Two
+ * triangular solves are `O(n²)` work over `O(n²)` data and there is nothing for a foreign call to amortize.
+ */
 private const val JVM_SOLVE_SPD_MIN = 1 shl 20
