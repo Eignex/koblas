@@ -72,6 +72,7 @@ benchmark {
         register("solve") { include("\\.SolveBenchmark\\.") }
         register("blockSolve") { include("\\.BlockSolveBenchmark\\.") }
         register("sparse") { include("\\.SparseBenchmark\\.") }
+        register("sparseHost") { include("\\.SparseHostBenchmark\\.") }
         register("cholesky") { include("\\.CholeskyBenchmark\\.") }
     }
 }
