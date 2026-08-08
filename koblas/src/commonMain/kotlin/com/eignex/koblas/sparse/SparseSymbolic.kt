@@ -27,17 +27,34 @@ import com.eignex.koblas.SparseMatrix
  * The elimination tree and the up-looking pattern traversal are Davis's, from *Direct Methods for Sparse
  * Linear Systems*; [parent] and the column counts are computed exactly as `ldl_symbolic` computes them.
  *
+ * The analysis reorders by default, because the order is what decides the fill and the naive call should not
+ * be the slow one. [permutation] is the order it chose, and every solve permutes through it without the caller
+ * seeing anything: the factorization is of `P·A·Pᵀ`, and a right-hand side goes in and a solution comes out in
+ * the caller's own numbering. Pass [SparseOrdering.Natural] to eliminate in the order given.
+ *
  * @property n the dimension of the analysed matrix.
- * @property parent the elimination tree: `parent[j]` is the parent of column `j`, or `-1` at a root.
+ * @property parent the elimination tree of the *permuted* matrix: `parent[j]` is the parent of column `j`.
  * @property columnPointers `L`'s column starts, length `n + 1`, so `columnPointers[n]` is the fill.
+ * @property permutation `permutation[k]` is the row and column of `A` eliminated at step `k`. The identity
+ *  under [SparseOrdering.Natural]. Exposed because a caller who assembled the matrix in a meaningful order
+ *  needs to map back to it, and because the fill achieved only means something beside the ordering that
+ *  achieved it.
  */
 class SparseSymbolic internal constructor(
     val n: Int,
     val parent: IntArray,
     val columnPointers: IntArray,
+    val permutation: IntArray,
     private val analysedColumnStarts: IntArray,
     private val analysedRowIndices: IntArray,
 ) {
+    /** Whether the analysis eliminates in the order given, in which case no permuting happens anywhere. */
+    internal val isNatural: Boolean = permutation.indices.all { permutation[it] == it }
+
+    /** `inversePermutation[original] = step`, derived rather than carried: one array, one use, cheap. */
+    internal val inversePermutation: IntArray =
+        IntArray(permutation.size).also { for (k in permutation.indices) it[permutation[k]] = k }
+
     /** Nonzeros in the strictly lower `L`, the fill this pattern will hold. The diagonal is `D`, not `L`. */
     val nnz: Int get() = columnPointers[n]
 
@@ -75,15 +92,24 @@ class SparseSymbolic internal constructor(
          * Costs one pass over the pattern for the tree and one up-looking traversal per column for the
          * counts, with no arithmetic on the values at all — they are not read.
          */
-        fun analyze(a: SparseMatrix): SparseSymbolic {
+        fun analyze(a: SparseMatrix, ordering: SparseOrdering = SparseOrdering.MinimumDegree): SparseSymbolic {
             require(a.rows == a.cols) { "symbolic analysis requires a square matrix; got ${a.rows}x${a.cols}" }
             requireUpperTriangleStored(a)
             val n = a.rows
-            val parent = eliminationTree(a, n)
-            val counts = columnCounts(a, n, parent)
+            val permutation = when (ordering) {
+                SparseOrdering.Natural -> IntArray(n) { it }
+                SparseOrdering.MinimumDegree -> minimumDegreeOrdering(a)
+            }
+            val inverse = IntArray(n)
+            for (k in 0 until n) inverse[permutation[k]] = k
+            // The tree and the counts describe the matrix that will actually be eliminated, which is the
+            // permuted one. Only its pattern matters here, so the values it carries are the caller's.
+            val analysed = if (ordering == SparseOrdering.Natural) a else permutedUpperTriangle(a, inverse)
+            val parent = eliminationTree(analysed, n)
+            val counts = columnCounts(analysed, n, parent)
             val pointers = IntArray(n + 1)
             for (j in 0 until n) pointers[j + 1] = pointers[j] + counts[j]
-            return SparseSymbolic(n, parent, pointers, a.colPtr, a.rowIdx)
+            return SparseSymbolic(n, parent, pointers, permutation, a.colPtr, a.rowIdx)
         }
 
         /**

@@ -14,7 +14,9 @@ mirror the dense ones.
   [SparseFactorization], never null: a singular matrix yields a factorization reporting `singular`, matching
   the dense contract. [SparseLapack.cholesky] and [SparseLapack.ldl] are the symmetric pair, and
   [SparseLapack.analyze] is their symbolic half — the phase the unsymmetric factorization cannot have,
-  separated because it depends only on the pattern and is therefore reusable across value updates.
+  separated because it depends only on the pattern and is therefore reusable across value updates. The
+  analysis reorders to reduce fill by default ([SparseOrdering]), because the elimination order is what
+  decides the fill and the naive call should not be the slow one; solves permute through it invisibly.
 - [SparseLinearAlgebra] pairs the two matrix seams. All three are offered through `registerSparseBlas` /
   [com.eignex.koblas.registerBackend] and forced with [com.eignex.koblas.installBackends], resolving as
   [com.eignex.koblas.koblas] and its `sparseVectorKernels`.

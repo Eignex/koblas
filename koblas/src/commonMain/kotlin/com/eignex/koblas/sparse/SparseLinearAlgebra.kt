@@ -26,21 +26,26 @@ fun SparseMatrix.lu(equilibrate: Boolean = false, dropTolerance: Double = NO_DRO
  * Factorize this symmetric matrix as `L·D·Lᵀ` with the active backend ([koblas]) — the sparse counterpart of
  * `DenseMatrix.ldl()`. Indefinite by default; see [SparseLapack.ldl].
  */
-fun SparseMatrix.ldl(policy: SparseLdlPolicy = SparseLdlPolicy.Indefinite): SparseFactorization =
-    koblas.ldl(this, policy)
+fun SparseMatrix.ldl(
+    policy: SparseLdlPolicy = SparseLdlPolicy.Indefinite,
+    ordering: SparseOrdering = SparseOrdering.MinimumDegree,
+): SparseFactorization = koblas.ldl(this, policy, ordering)
 
 /**
  * Factorize this symmetric positive-definite matrix with the active backend ([koblas]) — the sparse
  * counterpart of `DenseMatrix.cholesky()`. Throws on a non-positive pivot; see [SparseLapack.cholesky].
  */
-fun SparseMatrix.cholesky(policy: SparseLdlPolicy = SparseLdlPolicy.Strict): SparseFactorization =
-    koblas.cholesky(this, policy)
+fun SparseMatrix.cholesky(
+    policy: SparseLdlPolicy = SparseLdlPolicy.Strict,
+    ordering: SparseOrdering = SparseOrdering.MinimumDegree,
+): SparseFactorization = koblas.cholesky(this, policy, ordering)
 
 /**
  * Analyse this symmetric matrix's pattern with the active backend ([koblas]), for factorizing a sequence of
  * matrices that share it. See [SparseLapack.analyze].
  */
-fun SparseMatrix.analyze(): SparseSymbolic = koblas.analyze(this)
+fun SparseMatrix.analyze(ordering: SparseOrdering = SparseOrdering.MinimumDegree): SparseSymbolic =
+    koblas.analyze(this, ordering)
 
 /**
  * `this · x`, or `thisᵀ · x` when [transpose], with the active backend ([koblas]).

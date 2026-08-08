@@ -62,6 +62,8 @@ class SparseLdl internal constructor(
     private val diagonal: DoubleArray,
 ) : SparseFactorization {
 
+    private val permutation: IntArray get() = symbolic.permutation
+
     override val n: Int get() = diagonal.size
 
     /** `L`'s off-diagonal entries plus the `n` of `D`, so it counts what the factorization actually stores. */
@@ -80,20 +82,34 @@ class SparseLdl internal constructor(
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray {
         require(b.size == n) { "solve: b size ${b.size}, expected $n" }
         require(out.size == n) { "solve: out size ${out.size}, expected $n" }
-        if (out !== b) b.copyInto(out)
+        // The factors are of P·A·Pᵀ, so the right-hand side is gathered into elimination order and the
+        // solution scattered back. A caller never sees the permutation; that is the point of it being the
+        // analysis's business rather than theirs.
+        val z = if (symbolic.isNatural) {
+            if (out !== b) b.copyInto(out)
+            out
+        } else {
+            val staged = workspace?.take(n) ?: DoubleArray(n)
+            for (k in 0 until n) staged[k] = b[permutation[k]]
+            staged
+        }
         // L·y = b, sweeping down each column: once y[j] is final it pushes into the rows below it.
         for (j in 0 until n) {
-            val yj = out[j]
+            val yj = z[j]
             if (yj != 0.0) {
-                for (p in columnPointers[j] until columnPointers[j + 1]) out[rowIndices[p]] -= values[p] * yj
+                for (p in columnPointers[j] until columnPointers[j + 1]) z[rowIndices[p]] -= values[p] * yj
             }
         }
-        for (j in 0 until n) out[j] /= diagonal[j]
+        for (j in 0 until n) z[j] /= diagonal[j]
         // Lᵀ·x = z, back up the same columns: column j of L is row j of Lᵀ.
         for (j in n - 1 downTo 0) {
-            var s = out[j]
-            for (p in columnPointers[j] until columnPointers[j + 1]) s -= values[p] * out[rowIndices[p]]
-            out[j] = s
+            var s = z[j]
+            for (p in columnPointers[j] until columnPointers[j + 1]) s -= values[p] * z[rowIndices[p]]
+            z[j] = s
+        }
+        if (z !== out) {
+            for (k in 0 until n) out[permutation[k]] = z[k]
+            workspace?.release(z)
         }
         return out
     }
@@ -112,6 +128,10 @@ class SparseLdl internal constructor(
 
     /**
      * The classical Cholesky factor `L·√D`, materialized as a fresh sparse matrix.
+     *
+     * The factor of `P·A·Pᵀ`, not of `A`, whenever the analysis reordered — `symbolic.permutation` is what
+     * relates them, and for [SparseOrdering.Natural] they are the same matrix. Returning the factor of a
+     * matrix the caller did not hand in would be worse than saying so.
      *
      * Only defined when every pivot is positive, which [SparseLapack.cholesky] guarantees and
      * [SparseLdlPolicy.Indefinite] does not; a negative pivot throws rather than returning a NaN. Provided
@@ -162,6 +182,9 @@ internal fun numericLdl(
         "ldl: this matrix does not have the pattern the analysis was computed from. Analyse it, or keep the " +
             "structural zeros so the pattern matches."
     }
+    // Everything below eliminates in the analysis's order, so a reordered analysis works on the permuted
+    // matrix. Natural skips the materialization entirely rather than permuting by the identity.
+    val work = if (symbolic.isNatural) a else permutedUpperTriangle(a, symbolic.inversePermutation)
     val n = symbolic.n
     val lp = symbolic.columnPointers
     val parent = symbolic.parent
@@ -177,7 +200,7 @@ internal fun numericLdl(
     for (k in 0 until n) {
         var top = n
         flag[k] = k
-        a.forEachInColumn(k) { row, value ->
+        work.forEachInColumn(k) { row, value ->
             if (row <= k) {
                 y[row] += value
                 var length = 0
