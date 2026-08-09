@@ -53,10 +53,11 @@ sealed interface VectorView : VectorLike
  * default carrier when the caller already has a dense array or expects
  * most entries to be populated.
  *
- * Construction goes through the [Companion] factories: [DenseVector.of]
- * (copy a `DoubleArray`) or [DenseVector.zero] (allocate a zero vector
- * of given size). Unlike the read-only [VectorView] contract, the concrete
- * vector exposes its [data] backing and elementwise [set] for in-place updates.
+ * Construction goes through the [Companion] factories, as it does for every
+ * koblas container: [of] copies a `DoubleArray`, [zero] allocates one of a
+ * given size, and [wrap] adopts an existing array without copying. Unlike the
+ * read-only [VectorView] contract, the concrete vector exposes its [data]
+ * backing and elementwise [set] for in-place updates.
  *
  * @property data the flat backing array.
  */
@@ -64,7 +65,7 @@ sealed interface VectorView : VectorLike
 @SerialName("DenseVector")
 class DenseVector internal constructor(val data: DoubleArray) : VectorView {
 
-    constructor(size: Int) : this(DoubleArray(size))
+    internal constructor(size: Int) : this(DoubleArray(size))
 
     override val size: Int get() = data.size
     override fun get(i: Int): Double = data[i]
@@ -192,5 +193,14 @@ class SparseVector internal constructor(override val size: Int, val indices: Int
             }
             return SparseVector(size, idx.copyOf(n), vals.copyOf(n))
         }
+
+        /**
+         * Wrap existing index/value arrays without copying. Caller relinquishes ownership.
+         *
+         * The strict entry point, and the counterpart of [DenseVector.wrap]: [indices] must already be
+         * strictly ascending and in range, which is validated rather than repaired. Use [of] when the
+         * entries need sorting or duplicates need summing.
+         */
+        fun wrap(size: Int, indices: IntArray, values: DoubleArray): SparseVector = SparseVector(size, indices, values)
     }
 }

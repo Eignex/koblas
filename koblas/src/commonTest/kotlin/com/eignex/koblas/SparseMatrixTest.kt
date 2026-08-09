@@ -127,4 +127,75 @@ class SparseMatrixTest {
         assertEquals(5.0, ok[1, 0])
         assertEquals(7.0, ok[0, 1])
     }
+
+    @Test
+    fun `ofTriplets builds the same matrix as ofColumns`() {
+        // [[1, 0, 2], [0, 3, 0]]
+        val viaColumns = SparseMatrix.ofColumns(
+            rows = 2,
+            cols = 3,
+            columns = listOf(listOf(0 to 1.0), listOf(1 to 3.0), listOf(0 to 2.0)),
+        )
+        val viaTriplets = SparseMatrix.ofTriplets(
+            rows = 2,
+            cols = 3,
+            rowIdx = intArrayOf(0, 1, 0),
+            colIdx = intArrayOf(0, 1, 2),
+            values = doubleArrayOf(1.0, 3.0, 2.0),
+        )
+        assertEquals(viaColumns, viaTriplets)
+    }
+
+    @Test
+    fun `ofTriplets orders arbitrary input and sums duplicates`() {
+        // The same matrix, entered back to front with (1,1) split across two triplets.
+        val a = SparseMatrix.ofTriplets(
+            rows = 3,
+            cols = 3,
+            rowIdx = intArrayOf(2, 1, 0, 1, 2),
+            colIdx = intArrayOf(2, 1, 0, 1, 0),
+            values = doubleArrayOf(9.0, 2.0, 1.0, 3.0, 7.0),
+        )
+        assertEquals(1.0, a[0, 0])
+        assertEquals(7.0, a[2, 0])
+        assertEquals(5.0, a[1, 1], "the two (1,1) entries should sum")
+        assertEquals(9.0, a[2, 2])
+        assertEquals(0.0, a[0, 1])
+        assertEquals(4, a.nnz, "the duplicate should be merged, not stored twice")
+        // Rows ascend within every column, which is the invariant `get` binary-searches.
+        for (j in 0 until a.cols) {
+            for (k in a.colPtr[j] + 1 until a.colPtr[j + 1]) {
+                assertTrue(a.rowIdx[k - 1] < a.rowIdx[k], "column $j is not ascending")
+            }
+        }
+    }
+
+    @Test
+    fun `ofTriplets handles an empty entry set and rejects out-of-range positions`() {
+        val empty = SparseMatrix.ofTriplets(2, 2, IntArray(0), IntArray(0), DoubleArray(0))
+        assertEquals(0, empty.nnz)
+        assertEquals(0.0, empty[1, 1])
+        assertEquals(2, empty.rows)
+
+        assertFailsWith<IllegalArgumentException> {
+            SparseMatrix.ofTriplets(2, 2, intArrayOf(2), intArrayOf(0), doubleArrayOf(1.0))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            SparseMatrix.ofTriplets(2, 2, intArrayOf(0), intArrayOf(2), doubleArrayOf(1.0))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            SparseMatrix.ofTriplets(2, 2, intArrayOf(0, 1), intArrayOf(0), doubleArrayOf(1.0))
+        }
+    }
+
+    @Test
+    fun `wrap adopts CSC arrays and validates them`() {
+        val a = SparseMatrix.wrap(2, 2, intArrayOf(0, 1, 2), intArrayOf(1, 0), doubleArrayOf(5.0, 7.0))
+        assertEquals(5.0, a[1, 0])
+        assertEquals(7.0, a[0, 1])
+        // Unlike ofTriplets, wrap repairs nothing: unsorted rows within a column are an error.
+        assertFailsWith<IllegalArgumentException> {
+            SparseMatrix.wrap(2, 1, intArrayOf(0, 2), intArrayOf(1, 0), doubleArrayOf(5.0, 7.0))
+        }
+    }
 }

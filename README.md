@@ -78,6 +78,21 @@ val forward = lu.solve(doubleArrayOf(3.0, 5.0)) // B x = b
 val backward = lu.solve(doubleArrayOf(3.0, 5.0), transpose = true) // Bᵀ x = b
 ```
 
+`ofColumns` is the readable spelling for a matrix written out in place. Data
+arriving from elsewhere is usually coordinate triplets instead — Matrix Market,
+`scipy.sparse`, Eigen — which `ofTriplets` takes in primitive arrays, in any
+order, summing any repeated position:
+
+```kotlin
+val s = SparseMatrix.ofTriplets(
+    rows = 2,
+    cols = 2,
+    rowIdx = intArrayOf(0, 1, 0, 1),
+    colIdx = intArrayOf(0, 0, 1, 1),
+    values = doubleArrayOf(2.0, 1.0, 1.0, 3.0),
+)
+```
+
 ---
 
 ## BLAS Coverage

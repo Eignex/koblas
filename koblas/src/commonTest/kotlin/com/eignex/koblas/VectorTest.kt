@@ -4,6 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotEquals
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /** The vector carriers: [DenseVector], [SparseVector] and the [VectorView] surface they share. */
@@ -144,5 +145,25 @@ class VectorTest {
         val v = SparseVector.of(16, idx, DoubleArray(idx.size) { it + 1.0 })
         for ((k, i) in idx.withIndex()) assertEquals(k + 1.0, v[i], "missed stored index $i")
         for (i in 0 until 16) if (i !in idx) assertEquals(0.0, v[i], "index $i should be absent")
+    }
+
+    @Test
+    fun `SparseVector wrap adopts ascending arrays and validates them`() {
+        val indices = intArrayOf(0, 3)
+        val values = doubleArrayOf(2.0, 1.5)
+        val v = SparseVector.wrap(5, indices, values)
+        assertEquals(2.0, v[0])
+        assertEquals(1.5, v[3])
+        assertEquals(0.0, v[1])
+        // Adopted, not copied — the counterpart of DenseVector.wrap.
+        assertSame(indices, v.indices)
+        assertSame(values, v.values)
+        // Unlike `of`, wrap repairs nothing.
+        assertFailsWith<IllegalArgumentException> {
+            SparseVector.wrap(5, intArrayOf(3, 0), doubleArrayOf(1.0, 2.0))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            SparseVector.wrap(5, intArrayOf(0, 1), doubleArrayOf(1.0))
+        }
     }
 }

@@ -79,4 +79,64 @@ class MatrixTest {
         assertFailsWith<IllegalArgumentException> { DenseMatrix.wrap(2, 3, DoubleArray(5)) }
         assertFailsWith<IllegalArgumentException> { DenseMatrix(-1, 2) }
     }
+
+    @Test
+    fun `DenseMatrix ofColumns reads the outer index as the column`() {
+        // [[1, 3], [2, 4]] given as its two columns.
+        val m = DenseMatrix.ofColumns(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
+        assertEquals(2, m.rows)
+        assertEquals(2, m.cols)
+        assertEquals(1.0, m[0, 0])
+        assertEquals(2.0, m[1, 0])
+        assertEquals(3.0, m[0, 1])
+        assertEquals(4.0, m[1, 1])
+        // A column is contiguous, so ofColumns lands the argument in the backing verbatim.
+        assertTrue(doubleArrayOf(1.0, 2.0, 3.0, 4.0).contentEquals(m.data))
+    }
+
+    @Test
+    fun `DenseMatrix ofColumns is the transpose of of`() {
+        val entries = arrayOf(doubleArrayOf(1.0, 2.0, 3.0), doubleArrayOf(4.0, 5.0, 6.0))
+        val byRows = DenseMatrix.of(entries)
+        val byCols = DenseMatrix.ofColumns(entries)
+        assertEquals(byRows.rows, byCols.cols)
+        assertEquals(byRows.cols, byCols.rows)
+        for (i in 0 until byRows.rows) {
+            for (j in 0 until byRows.cols) assertEquals(byRows[i, j], byCols[j, i], "($i,$j)")
+        }
+    }
+
+    @Test
+    fun `DenseMatrix ofColumns rejects ragged columns and accepts none`() {
+        assertFailsWith<IllegalArgumentException> {
+            DenseMatrix.ofColumns(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0)))
+        }
+        val empty = DenseMatrix.ofColumns(arrayOf())
+        assertEquals(0, empty.rows)
+        assertEquals(0, empty.cols)
+    }
+
+    @Test
+    fun `DenseMatrix zero allocates a zero matrix and defaults to square`() {
+        val m = DenseMatrix.zero(2, 3)
+        assertEquals(2, m.rows)
+        assertEquals(3, m.cols)
+        assertTrue(m.data.all { it == 0.0 })
+        assertEquals(4, DenseMatrix.zero(2).cols * 2)
+    }
+
+    @Test
+    fun `DenseMatrix diagonal from a vector places each entry on the diagonal`() {
+        val m = DenseMatrix.diagonal(doubleArrayOf(1.0, -2.0, 0.5))
+        assertEquals(3, m.rows)
+        assertEquals(3, m.cols)
+        for (i in 0 until 3) {
+            for (j in 0 until 3) {
+                assertEquals(if (i == j) doubleArrayOf(1.0, -2.0, 0.5)[i] else 0.0, m[i, j], "($i,$j)")
+            }
+        }
+        // The scalar form is the special case of a constant diagonal.
+        assertEquals(DenseMatrix.diagonal(3, 2.5), DenseMatrix.diagonal(DoubleArray(3) { 2.5 }))
+        assertEquals(0, DenseMatrix.diagonal(DoubleArray(0)).rows)
+    }
 }
