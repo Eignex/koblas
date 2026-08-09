@@ -54,10 +54,8 @@ sealed interface VectorView : VectorLike
  * most entries to be populated.
  *
  * Construction goes through the [Companion] factories, as it does for every
- * koblas container: [of] copies a `DoubleArray`, [zero] allocates one of a
- * given size, and [wrap] adopts an existing array without copying. Unlike the
- * read-only [VectorView] contract, the concrete vector exposes its [data]
- * backing and elementwise [set] for in-place updates.
+ * koblas container. Unlike the read-only [VectorView] contract, the concrete
+ * vector exposes its [data] backing and elementwise [set] for in-place updates.
  *
  * @property data the flat backing array.
  */
@@ -197,9 +195,8 @@ class SparseVector internal constructor(override val size: Int, val indices: Int
         /**
          * Wrap existing index/value arrays without copying. Caller relinquishes ownership.
          *
-         * The strict entry point, and the counterpart of [DenseVector.wrap]: [indices] must already be
-         * strictly ascending and in range, which is validated rather than repaired. Use [of] when the
-         * entries need sorting or duplicates need summing.
+         * Validates the invariants rather than repairing them, so [indices] must already be strictly
+         * ascending and in range. Use [of] when it is not.
          */
         fun wrap(size: Int, indices: IntArray, values: DoubleArray): SparseVector = SparseVector(size, indices, values)
     }

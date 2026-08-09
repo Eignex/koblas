@@ -80,9 +80,7 @@ sealed interface MatrixView : MatrixLike
  * Unlike the read-only [MatrixView] contract, the concrete matrix exposes its flat [data] backing and
  * elementwise [set] so in-place algorithms (factorizations, updates) can work without reallocating.
  *
- * Construction goes through the [Companion] factories, as it does for every koblas container: [of] and
- * [ofColumns] copy from arrays, [zero] and [diagonal] build from a shape, and [wrap] adopts a flat backing
- * without copying.
+ * Construction goes through the [Companion] factories, as it does for every koblas container.
  *
  * @property rows the number of rows.
  * @property cols the number of columns.
@@ -129,18 +127,14 @@ class DenseMatrix internal constructor(override val rows: Int, override val cols
 
     /** Factory entrypoints for [DenseMatrix]. */
     companion object {
-        /**
-         * Copy an `Array<DoubleArray>` of rows into a fresh dense matrix — `rows[i]` is row `i`.
-         *
-         * The readable spelling for a matrix written out as a literal, and the transposing one: a row of
-         * the argument scatters down the columns of the column-major backing. [ofColumns] takes the same
-         * shape along the stored axis and bulk-copies instead.
-         */
+        /** Copy an `Array<DoubleArray>` of rows into a fresh dense matrix; `rows[i]` is row `i`. */
         fun of(rows: Array<DoubleArray>): DenseMatrix {
             val r = rows.size
             val c = if (r == 0) 0 else rows[0].size
             require(rows.all { it.size == c }) { "all rows must have the same length" }
             val flat = DoubleArray(r * c)
+            // A row of the argument scatters down the columns of the backing, so this transposes as it
+            // copies rather than bulk-copying each row.
             for (i in 0 until r) {
                 val row = rows[i]
                 for (j in 0 until c) flat[i + j * r] = row[j]
@@ -149,15 +143,10 @@ class DenseMatrix internal constructor(override val rows: Int, override val cols
         }
 
         /**
-         * Copy an `Array<DoubleArray>` of columns into a fresh dense matrix — `columns[j]` is column `j`.
+         * Copy an `Array<DoubleArray>` of columns into a fresh dense matrix; `columns[j]` is column `j`.
          *
-         * The counterpart of [of] along the axis the storage actually uses, so each column is one
-         * `copyInto` rather than the element-by-element transpose [of] performs. Prefer it when the data
-         * already arrives per column, which is what a set of observations, basis vectors or right-hand
-         * sides usually is.
-         *
-         * `columns[j]` is column `j` here and `columns[j]` lists column `j`'s entries in
-         * [SparseMatrix.ofColumns], so the outer index means the same thing on both storages.
+         * [of] along the stored axis, so each column is one `copyInto` rather than the elementwise
+         * transpose. Prefer it when the data already arrives per column.
          */
         fun ofColumns(columns: Array<DoubleArray>): DenseMatrix {
             val c = columns.size
@@ -178,12 +167,7 @@ class DenseMatrix internal constructor(override val rows: Int, override val cols
             return m
         }
 
-        /**
-         * Create the square matrix whose diagonal is [values] and whose off-diagonal entries are zero.
-         *
-         * The general form of the scalar [diagonal]: a scaling, a preconditioner or a covariance whose
-         * entries differ per coordinate is this rather than a multiple of the identity.
-         */
+        /** Create the square matrix whose diagonal is [values]; the general form of the scalar [diagonal]. */
         fun diagonal(values: DoubleArray): DenseMatrix {
             val n = values.size
             val m = DenseMatrix(n, n)
