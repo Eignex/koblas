@@ -43,7 +43,7 @@ class Level3Benchmark {
         val rng = Random(BENCH_SEED)
         a = randomMatrix(n, n, rng)
         b = randomMatrix(n, n, rng)
-        c = DenseMatrix(n, n)
+        c = DenseMatrix.zero(n, n)
     }
 
     @Benchmark

@@ -17,6 +17,10 @@ import kotlinx.serialization.Serializable
  * [toArray] densifies, so code that wants the sparsity should use [forEachInColumn]. Serializes as its CSC
  * arrays, since writing it densely would cost the `rows × cols` the representation exists to avoid.
  *
+ * Construction goes through the [Companion] factories, as it does for every koblas container:
+ * [ofColumns] and [ofTriplets] build the CSC arrays from entries in either of the two shapes entries
+ * usually arrive in, and [wrap] adopts arrays that are already in CSC form without copying.
+ *
  * @property rows the number of rows.
  * @property cols the number of columns.
  * @property colPtr column start offsets, length `cols + 1`.
@@ -25,7 +29,7 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 @SerialName("SparseMatrix")
-class SparseMatrix(
+class SparseMatrix internal constructor(
     override val rows: Int,
     override val cols: Int,
     val colPtr: IntArray,
@@ -142,5 +146,97 @@ class SparseMatrix(
             colPtr[cols] = rowIdxList.size
             return SparseMatrix(rows, cols, colPtr, rowIdxList.toIntArray(), valueList.toDoubleArray())
         }
+
+        /**
+         * Build a CSC matrix from parallel coordinate (triplet) arrays: entry `k` is
+         * `values[k]` at `(rowIdx[k], colIdx[k])`. Entries may arrive in any order and a repeated
+         * position contributes the sum of its values, matching [ofColumns] and [SparseVector.of].
+         * Copies its inputs, so the caller can reuse the arrays.
+         *
+         * The interchange format — Matrix Market, `scipy.sparse.coo_matrix`, Eigen's triplet list — and
+         * the reason this exists next to [ofColumns], which is the readable spelling for a literal but
+         * boxes an `Int`, a `Double`, a `Pair` and a list per entry. On the storage that exists for data
+         * too large to hold densely, that is the wrong cost to make unavoidable; these arrays are
+         * primitive throughout.
+         *
+         * Two counting passes, no comparison sort: group by row, then by column walking the rows in
+         * ascending order, which lands each column's entries already ascending by row — the invariant
+         * [get] binary-searches. `O(nnz + rows + cols)`.
+         */
+        fun ofTriplets(rows: Int, cols: Int, rowIdx: IntArray, colIdx: IntArray, values: DoubleArray): SparseMatrix {
+            require(rows >= 0 && cols >= 0) { "negative shape: ${rows}x$cols" }
+            require(rowIdx.size == colIdx.size && colIdx.size == values.size) {
+                "rowIdx/colIdx/values must align: ${rowIdx.size}, ${colIdx.size}, ${values.size}"
+            }
+            val nnz = values.size
+            for (k in 0 until nnz) {
+                require(rowIdx[k] in 0 until rows) { "rowIdx[$k]=${rowIdx[k]} out of [0,$rows)" }
+                require(colIdx[k] in 0 until cols) { "colIdx[$k]=${colIdx[k]} out of [0,$cols)" }
+            }
+
+            // Pass one: group by row. rowStart[i] is where row i's entries begin once scattered.
+            val rowStart = IntArray(rows + 1)
+            for (k in 0 until nnz) rowStart[rowIdx[k] + 1]++
+            for (i in 0 until rows) rowStart[i + 1] += rowStart[i]
+            val byRowCol = IntArray(nnz)
+            val byRowVal = DoubleArray(nnz)
+            val rowCursor = rowStart.copyOf()
+            for (k in 0 until nnz) {
+                val p = rowCursor[rowIdx[k]]++
+                byRowCol[p] = colIdx[k]
+                byRowVal[p] = values[k]
+            }
+
+            // Pass two: group by column, visiting rows in ascending order, so each column comes out
+            // ascending by row without ever comparing two entries.
+            val colPtr = IntArray(cols + 1)
+            for (k in 0 until nnz) colPtr[byRowCol[k] + 1]++
+            for (j in 0 until cols) colPtr[j + 1] += colPtr[j]
+            val outRow = IntArray(nnz)
+            val outVal = DoubleArray(nnz)
+            val colCursor = colPtr.copyOf()
+            for (i in 0 until rows) {
+                for (k in rowStart[i] until rowStart[i + 1]) {
+                    val p = colCursor[byRowCol[k]]++
+                    outRow[p] = i
+                    outVal[p] = byRowVal[k]
+                }
+            }
+
+            // Duplicates are now adjacent within a column, so summing them is one forward pass. It
+            // compacts in place: the write position trails the read position by the number of duplicates
+            // already merged, so it can never overtake it.
+            val outPtr = IntArray(cols + 1)
+            var n = 0
+            for (j in 0 until cols) {
+                outPtr[j] = n
+                var k = colPtr[j]
+                while (k < colPtr[j + 1]) {
+                    val row = outRow[k]
+                    var sum = outVal[k]
+                    k++
+                    while (k < colPtr[j + 1] && outRow[k] == row) {
+                        sum += outVal[k]
+                        k++
+                    }
+                    outRow[n] = row
+                    outVal[n] = sum
+                    n++
+                }
+            }
+            outPtr[cols] = n
+            return SparseMatrix(rows, cols, outPtr, outRow.copyOf(n), outVal.copyOf(n))
+        }
+
+        /**
+         * Wrap arrays that are already in CSC form without copying. Caller relinquishes ownership.
+         *
+         * The strict entry point, and the counterpart of [DenseMatrix.wrap]: the CSC invariants are
+         * validated rather than repaired, so [rowIdx] must already be strictly ascending within each
+         * column. Use [ofColumns] or [ofTriplets] when the entries need ordering or duplicates need
+         * summing.
+         */
+        fun wrap(rows: Int, cols: Int, colPtr: IntArray, rowIdx: IntArray, values: DoubleArray): SparseMatrix =
+            SparseMatrix(rows, cols, colPtr, rowIdx, values)
     }
 }

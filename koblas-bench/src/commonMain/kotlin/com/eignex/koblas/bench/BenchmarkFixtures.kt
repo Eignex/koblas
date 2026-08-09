@@ -78,7 +78,7 @@ internal fun dominantMatrix(n: Int, rng: Random): DenseMatrix {
  * caller of those routines actually passes, and it catches a backend that reads the wrong side.
  */
 internal fun lowerSymmetricMatrix(n: Int, rng: Random): DenseMatrix {
-    val a = DenseMatrix(n, n)
+    val a = DenseMatrix.zero(n, n)
     for (i in 0 until n) for (j in 0..i) a[i, j] = rng.nextDouble(-1.0, 1.0)
     return a
 }
@@ -88,7 +88,7 @@ internal fun lowerSymmetricMatrix(n: Int, rng: Random): DenseMatrix {
  * take the 2x2 Bunch-Kaufman pivots rather than running the diagonal path throughout.
  */
 internal fun indefiniteMatrix(n: Int, rng: Random): DenseMatrix {
-    val a = DenseMatrix(n, n)
+    val a = DenseMatrix.zero(n, n)
     for (i in 0 until n) {
         for (j in 0..i) {
             var v = rng.nextDouble(-1.0, 1.0)
@@ -107,7 +107,7 @@ internal fun indefiniteMatrix(n: Int, rng: Random): DenseMatrix {
  * longer building the operand than the benchmark spends factorizing it.
  */
 internal fun spdMatrix(n: Int, rng: Random): DenseMatrix {
-    val a = DenseMatrix(n, n)
+    val a = DenseMatrix.zero(n, n)
     for (i in 0 until n) {
         for (j in 0..i) {
             val v = rng.nextDouble(-1.0, 1.0)
