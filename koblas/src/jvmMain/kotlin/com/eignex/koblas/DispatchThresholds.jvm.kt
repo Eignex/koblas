@@ -33,18 +33,24 @@ private val SIMD_THRESHOLDS = DispatchThresholds(
  */
 private val SCALAR_THRESHOLDS = DispatchThresholds(level1 = 64, level2 = 0, level3 = 0, lapack = 0)
 
-private const val JVM_LEVEL3_MIN = 32
+/**
+ * Native from 16 up, on all three level-3 routines (us/op, native against SIMD). `gemm`: 0.30 vs 0.24 at
+ * n=8, 0.55 vs 1.07 at 16, 2.33 vs 5.88 at 32, 655 vs 2324 at 256. `syrk` full: 0.40 vs 0.29 at 8, 0.74 vs
+ * 1.32 at 16, 496 vs 2589 at 256. `syrk` lower: 0.31 vs 0.29 at 8, 0.50 vs 1.28 at 16, 366 vs 2509 at 256.
+ *
+ * All three agree on where the crossover is, which is the premise of one threshold per level rather than per
+ * routine. Eight stays portable; below that a foreign call is most of the cost.
+ */
+private const val JVM_LEVEL3_MIN = 16
 
 /**
- * The factorizations cross over between 32 and 64 (`luFactorAndSolve`, us/op): SIMD wins 1.83x at 16 and
- * 1.59x at 32, then native takes 1.02x at 64, 1.41x at 128 and 1.73x at 256.
+ * The factorizations cross over at 64 (`luFactorAndSolve`, us/op, native against SIMD): 0.60 vs 0.33 at n=8,
+ * 1.66 vs 1.14 at 16, 6.61 vs 4.50 at 32, then native takes it at 20.5 vs 22.3 at 64, 79 vs 141 at 128 and
+ * 401 vs 946 at 256.
  *
- * `qr`, `ldl` and `rcond` are covered by analogy rather than measurement — they are the same `O(n^3)` shape
- * over the same data, which is the premise of having one threshold per level. If one of them turns out to
- * behave differently, it earns its own constant and its own numbers.
- *
- * Read alongside the delegated routines in the same sweep: `luSolve` and `ldlSolveInto` run identical code
- * on both sides and still differed by 1.02x to 1.20x, so anything inside that band is noise, not signal.
+ * `qr`, `ldl` and `rcond` are covered by analogy rather than measurement — the same `O(n³)` shape over the
+ * same data, which is the premise of one threshold per level. If one behaves differently it earns its own
+ * constant and its own numbers.
  */
 private const val JVM_LAPACK_MIN = 64
 
