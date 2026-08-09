@@ -166,6 +166,16 @@ here, marked as such. Members also have a free-function spelling of the
 same name (trsv, trsm, ger, ...) that forwards to the member, so a call site may
 use whichever reads better.
 
+The everyday arithmetic also has an operator spelling -- `a * b`, `a * x`,
+`a + b`, `2.0 * v`, `-v` -- for the call sites where the expression reads better
+than the routine. Every one is an alias that forwards to a routine documented
+above and allocates its result, so the in-place forms remain what a loop should
+call; each operator's KDoc names the one to reach for. An operator never
+introduces a kernel of its own, which is what decides the omissions: there is no
+sparse scale and no sparse pattern union, so neither has one. Columns and rows
+come out as vectors with `a.column(j)` and `a.row(i)`, the first a contiguous
+copy and the second a strided gather, which is the storage order showing through.
+
 Level 1 is reached differently from the other two, because those kernels do
 nanoseconds of work and a virtual call per invocation would cost more than the
 kernel. They are specialized at compile time, and consult the VectorKernels interface

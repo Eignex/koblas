@@ -81,6 +81,39 @@ class MatrixTest {
     }
 
     @Test
+    fun `column and row read the two axes of the same matrix`() {
+        // [[1, 2, 3], [4, 5, 6]]
+        val m = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0, 3.0), doubleArrayOf(4.0, 5.0, 6.0)))
+        assertTrue(doubleArrayOf(2.0, 5.0).contentEquals(m.column(1).data), "column 1")
+        assertTrue(doubleArrayOf(4.0, 5.0, 6.0).contentEquals(m.row(1).data), "row 1")
+        for (j in 0 until m.cols) {
+            val col = m.column(j)
+            for (i in 0 until m.rows) assertEquals(m[i, j], col[i], "column $j entry $i")
+        }
+        for (i in 0 until m.rows) {
+            val row = m.row(i)
+            for (j in 0 until m.cols) assertEquals(m[i, j], row[j], "row $i entry $j")
+        }
+    }
+
+    @Test
+    fun `column copies rather than aliasing the backing`() {
+        val m = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
+        val col = m.column(0)
+        col[0] = 99.0
+        assertEquals(1.0, m[0, 0], "writing the copy must not reach the matrix")
+    }
+
+    @Test
+    fun `column and row reject an index outside the shape`() {
+        val m = DenseMatrix.zero(2, 3)
+        assertFailsWith<IllegalArgumentException> { m.column(3) }
+        assertFailsWith<IllegalArgumentException> { m.column(-1) }
+        assertFailsWith<IllegalArgumentException> { m.row(2) }
+        assertFailsWith<IllegalArgumentException> { m.row(-1) }
+    }
+
+    @Test
     fun `DenseMatrix ofColumns reads the outer index as the column`() {
         // [[1, 3], [2, 4]] given as its two columns.
         val m = DenseMatrix.ofColumns(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))

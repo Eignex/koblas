@@ -333,6 +333,33 @@ fun normInf(a: DenseMatrix, workspace: Workspace? = null): Double {
 fun normFro(a: DenseMatrix): Double = euclideanNorm(a.data, 0, a.data.size)
 
 /**
+ * Column [j] as a fresh vector — a contiguous `copyOfRange` of the backing, since a column of a
+ * column-major matrix is exactly the run `data[j * rows until (j + 1) * rows]`.
+ *
+ * A copy rather than a view: [DenseVector] is a bare `DoubleArray` with no offset or stride, so there is
+ * nothing for a view to be. Reach into [DenseMatrix.data] directly when the copy is the cost that matters.
+ */
+fun DenseMatrix.column(j: Int): DenseVector {
+    require(j in 0 until cols) { "column $j outside [0,$cols)" }
+    val start = j * rows
+    return DenseVector.wrap(data.copyOfRange(start, start + rows))
+}
+
+/**
+ * Row [i] as a fresh vector.
+ *
+ * The awkward direction under column-major storage, and the reason to prefer [column] where the algorithm
+ * allows: consecutive entries of a row sit `rows` apart, so this gathers across the whole backing where
+ * [column] copies one contiguous run.
+ */
+fun DenseMatrix.row(i: Int): DenseVector {
+    require(i in 0 until rows) { "row $i outside [0,$rows)" }
+    val out = DoubleArray(cols)
+    for (j in 0 until cols) out[j] = data[i + j * rows]
+    return DenseVector.wrap(out)
+}
+
+/**
  * Fresh transposed matrix `Aᵀ`. Always materializes; for products against a transposed operand,
  * prefer the `transpose` flags on [LinearAlgebra.gemv] / [LinearAlgebra.gemm], which read the
  * original storage without copying.
