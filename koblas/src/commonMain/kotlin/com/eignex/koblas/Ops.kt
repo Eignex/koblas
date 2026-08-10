@@ -333,6 +333,61 @@ fun normInf(a: DenseMatrix, workspace: Workspace? = null): Double {
 fun normFro(a: DenseMatrix): Double = euclideanNorm(a.data, 0, a.data.size)
 
 /**
+ * Scale row `i` of [a] by `d[i]`, in place — the product `D · A` for the diagonal `D` whose entries are [d].
+ *
+ * A diagonal is a vector everywhere it actually turns up, so this takes one: equilibration, a Jacobi
+ * preconditioner and per-feature normalization are all this call, and none of them wants an `n²` matrix
+ * built to hold `n` numbers. The sparse LU keeps its own equilibration scaling as a `DoubleArray` for the
+ * same reason.
+ *
+ * The awkward direction under column-major storage, and the counterpart of [scaleColumns]: a row's entries
+ * sit `rows` apart, so this strides where [scaleColumns] sweeps contiguously. Prefer scaling columns where
+ * the algorithm lets you choose.
+ */
+fun scaleRows(a: DenseMatrix, d: DoubleArray) {
+    requireShape(d.size == a.rows) { "scaleRows: d length ${d.size} != ${a.rows} rows" }
+    val rows = a.rows
+    val ad = a.data
+    for (j in 0 until a.cols) {
+        val base = j * rows
+        for (i in 0 until rows) ad[base + i] *= d[i]
+    }
+}
+
+/**
+ * Scale column `j` of [a] by `d[j]`, in place — the product `A · D` for the diagonal `D` whose entries
+ * are [d].
+ *
+ * The cheap direction: a column is one contiguous run, so each scaling is a single [scale] over it and
+ * reaches the same vector kernels every other contiguous sweep in koblas does.
+ */
+fun scaleColumns(a: DenseMatrix, d: DoubleArray) {
+    requireShape(d.size == a.cols) { "scaleColumns: d length ${d.size} != ${a.cols} columns" }
+    val rows = a.rows
+    for (j in 0 until a.cols) {
+        val f = d[j]
+        if (f != 1.0) koblas.vectorKernels.scale(a.data, j * rows, f, rows)
+    }
+}
+
+/**
+ * Scale column `j` of [a] by `d[j]`, in place, for a CSC matrix.
+ *
+ * The column scaling is the one that stays local on this storage: column `j`'s entries are a contiguous
+ * run of [SparseMatrix.values], and the pattern is untouched. Scaling *rows* has no counterpart here on
+ * purpose — it would reach every stored entry through its row index, which is a different operation with a
+ * different cost, and nothing needs it yet.
+ */
+fun scaleColumns(a: SparseMatrix, d: DoubleArray) {
+    requireShape(d.size == a.cols) { "scaleColumns: d length ${d.size} != ${a.cols} columns" }
+    for (j in 0 until a.cols) {
+        val f = d[j]
+        if (f == 1.0) continue
+        for (k in a.colPtr[j] until a.colPtr[j + 1]) a.values[k] *= f
+    }
+}
+
+/**
  * Column [j] as a fresh vector — a contiguous `copyOfRange` of the backing, since a column of a
  * column-major matrix is exactly the run `data[j * rows until (j + 1) * rows]`.
  *
