@@ -4,7 +4,6 @@ package com.eignex.koblas.cblas
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
-import com.eignex.koblas.MatrixLike
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.dense.CholeskyDecomposition
 import com.eignex.koblas.dense.CholeskyPolicy
@@ -282,12 +281,13 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
      * no equivalent of [CholeskyPolicy.Regularize]: it reports the failing pivot instead of clamping it, so a
      * non-positive-definite input falls back to the portable path, which is what applies the clamp.
      */
-    override fun cholesky(a: MatrixLike, policy: CholeskyPolicy): CholeskyDecomposition {
+    override fun cholesky(a: DenseMatrix, policy: CholeskyPolicy): CholeskyDecomposition {
         requireShape(a.rows == a.cols) { "cholesky requires a square matrix; got ${a.rows}x${a.cols}" }
         val n = a.rows
         if (n == 0) return CholeskyDecomposition(DenseMatrix(0, 0))
         val l = DenseMatrix(n, n)
-        for (i in 0 until n) for (j in 0..i) l[i, j] = a[i, j]
+        // One bulk copy per column of the lower triangle; `dpotrf` reads no further.
+        for (j in 0 until n) a.data.copyInto(l.data, j + j * n, j + j * n, (j + 1) * n)
         val info = l.data.usePinned { lp -> f.dpotrf(COL_MAJOR, 'L'.code.toByte(), n, lp.addressOf(0), n) }
         check(info >= 0) { "dpotrf: illegal argument ${-info}" }
         // info > 0 marks the leading minor that is not positive definite: redo it portably, which either

@@ -5,10 +5,8 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.Backend
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
-import com.eignex.koblas.MatrixLike
 import com.eignex.koblas.NotPositiveDefinite
 import com.eignex.koblas.SingularMatrix
-import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.koblas
 import com.eignex.koblas.norm1
@@ -441,25 +439,16 @@ public interface Lapack : Backend {
      * otherwise; see
      * [CholeskyPolicy] for why that is the default and what asking for [CholeskyPolicy.Regularize] means.
      */
-    public fun cholesky(a: MatrixLike, policy: CholeskyPolicy = CholeskyPolicy.Strict): CholeskyDecomposition {
+    public fun cholesky(a: DenseMatrix, policy: CholeskyPolicy = CholeskyPolicy.Strict): CholeskyDecomposition {
         requireShape(a.rows == a.cols) { "cholesky requires a square matrix; got ${a.rows}x${a.cols}" }
         val n = a.rows
         val l = DenseMatrix(n, n)
         val ld = l.data
-        // Seed l's lower triangle with A's entries (bulk column copies for a dense source), then
-        // eliminate in place: each seeded A[i,j] is consumed exactly when that slot is overwritten with
-        // l[i,j]. Keeps the hot loop free of per-element MatrixView dispatch.
-        if (a is DenseMatrix) {
-            for (j in 0 until n) a.data.copyInto(ld, j + j * n, j + j * n, (j + 1) * n)
-        } else if (a is SparseMatrix) {
-            // Walk the stored entries rather than probing every position: the seeding would otherwise be
-            // n²/2 column searches. The factor itself is dense either way — a Cholesky factor fills in,
-            // so a sparse input is a convenience here, not a saving. Use the sparse factorizations when
-            // the sparsity has to survive.
-            for (j in 0 until n) a.forEachInColumn(j) { i, v -> if (i >= j) ld[i + j * n] = v }
-        } else {
-            for (j in 0 until n) for (i in j until n) ld[i + j * n] = a[i, j]
-        }
+        // Seed l's lower triangle with A's entries, then eliminate in place: each seeded A[i,j] is
+        // consumed exactly when that slot is overwritten with l[i,j]. One bulk copy per column, which is
+        // what taking a DenseMatrix rather than a MatrixLike buys — the alternative reads every entry
+        // through an interface call.
+        for (j in 0 until n) a.data.copyInto(ld, j + j * n, j + j * n, (j + 1) * n)
         // Right-looking column Cholesky: subtract the already-computed columns from column j, take the
         // pivot, then scale. Every run is the contiguous tail of a column.
         for (j in 0 until n) {

@@ -118,7 +118,7 @@ public final class com/eignex/koblas/KoblasContext : com/eignex/koblas/dense/Bla
 	public fun applyQ (Lcom/eignex/koblas/dense/QrDecomposition;Lcom/eignex/koblas/DenseVector;Z)Lcom/eignex/koblas/DenseVector;
 	public fun applyQ (Lcom/eignex/koblas/dense/QrDecomposition;[DZ)[D
 	public fun applyQInto (Lcom/eignex/koblas/dense/QrDecomposition;[D[DZ)[D
-	public fun cholesky (Lcom/eignex/koblas/MatrixLike;Lcom/eignex/koblas/dense/CholeskyPolicy;)Lcom/eignex/koblas/dense/CholeskyDecomposition;
+	public fun cholesky (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/dense/CholeskyPolicy;)Lcom/eignex/koblas/dense/CholeskyDecomposition;
 	public fun cholesky (Lcom/eignex/koblas/SparseMatrix;Lcom/eignex/koblas/sparse/SparseLdlPolicy;Lcom/eignex/koblas/sparse/SparseOrdering;)Lcom/eignex/koblas/sparse/SparseFactorization;
 	public fun factor (Lcom/eignex/koblas/DenseMatrix;)Lcom/eignex/koblas/dense/LuDecomposition;
 	public fun factor (Lcom/eignex/koblas/SparseMatrix;ZD)Lcom/eignex/koblas/sparse/SparseFactorization;
@@ -447,8 +447,8 @@ public final class com/eignex/koblas/dense/CholeskyDecomposition {
 }
 
 public final class com/eignex/koblas/dense/CholeskyKt {
-	public static final fun cholesky (Lcom/eignex/koblas/MatrixLike;Lcom/eignex/koblas/dense/CholeskyPolicy;)Lcom/eignex/koblas/dense/CholeskyDecomposition;
-	public static synthetic fun cholesky$default (Lcom/eignex/koblas/MatrixLike;Lcom/eignex/koblas/dense/CholeskyPolicy;ILjava/lang/Object;)Lcom/eignex/koblas/dense/CholeskyDecomposition;
+	public static final fun cholesky (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/dense/CholeskyPolicy;)Lcom/eignex/koblas/dense/CholeskyDecomposition;
+	public static synthetic fun cholesky$default (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/dense/CholeskyPolicy;ILjava/lang/Object;)Lcom/eignex/koblas/dense/CholeskyDecomposition;
 	public static final fun invert (Lcom/eignex/koblas/dense/CholeskyDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/DenseMatrix;
 	public static synthetic fun invert$default (Lcom/eignex/koblas/dense/CholeskyDecomposition;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/DenseMatrix;
 	public static final fun solve (Lcom/eignex/koblas/dense/CholeskyDecomposition;[D)[D
@@ -484,8 +484,8 @@ public abstract interface class com/eignex/koblas/dense/Lapack : com/eignex/kobl
 	public static synthetic fun applyQ$default (Lcom/eignex/koblas/dense/Lapack;Lcom/eignex/koblas/dense/QrDecomposition;[DZILjava/lang/Object;)[D
 	public abstract fun applyQInto (Lcom/eignex/koblas/dense/QrDecomposition;[D[DZ)[D
 	public static synthetic fun applyQInto$default (Lcom/eignex/koblas/dense/Lapack;Lcom/eignex/koblas/dense/QrDecomposition;[D[DZILjava/lang/Object;)[D
-	public fun cholesky (Lcom/eignex/koblas/MatrixLike;Lcom/eignex/koblas/dense/CholeskyPolicy;)Lcom/eignex/koblas/dense/CholeskyDecomposition;
-	public static synthetic fun cholesky$default (Lcom/eignex/koblas/dense/Lapack;Lcom/eignex/koblas/MatrixLike;Lcom/eignex/koblas/dense/CholeskyPolicy;ILjava/lang/Object;)Lcom/eignex/koblas/dense/CholeskyDecomposition;
+	public fun cholesky (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/dense/CholeskyPolicy;)Lcom/eignex/koblas/dense/CholeskyDecomposition;
+	public static synthetic fun cholesky$default (Lcom/eignex/koblas/dense/Lapack;Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/dense/CholeskyPolicy;ILjava/lang/Object;)Lcom/eignex/koblas/dense/CholeskyDecomposition;
 	public abstract fun factor (Lcom/eignex/koblas/DenseMatrix;)Lcom/eignex/koblas/dense/LuDecomposition;
 	public fun factorInto (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/dense/LuDecomposition;)Lcom/eignex/koblas/dense/LuDecomposition;
 	public fun invert (Lcom/eignex/koblas/dense/CholeskyDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/DenseMatrix;
@@ -549,8 +549,8 @@ public final class com/eignex/koblas/dense/Lapack$DefaultImpls {
 	public static synthetic fun applyQ$default (Lcom/eignex/koblas/dense/Lapack;Lcom/eignex/koblas/dense/QrDecomposition;Lcom/eignex/koblas/DenseVector;ZILjava/lang/Object;)Lcom/eignex/koblas/DenseVector;
 	public static synthetic fun applyQ$default (Lcom/eignex/koblas/dense/Lapack;Lcom/eignex/koblas/dense/QrDecomposition;[DZILjava/lang/Object;)[D
 	public static synthetic fun applyQInto$default (Lcom/eignex/koblas/dense/Lapack;Lcom/eignex/koblas/dense/QrDecomposition;[D[DZILjava/lang/Object;)[D
-	public static fun cholesky (Lcom/eignex/koblas/dense/Lapack;Lcom/eignex/koblas/MatrixLike;Lcom/eignex/koblas/dense/CholeskyPolicy;)Lcom/eignex/koblas/dense/CholeskyDecomposition;
-	public static synthetic fun cholesky$default (Lcom/eignex/koblas/dense/Lapack;Lcom/eignex/koblas/MatrixLike;Lcom/eignex/koblas/dense/CholeskyPolicy;ILjava/lang/Object;)Lcom/eignex/koblas/dense/CholeskyDecomposition;
+	public static fun cholesky (Lcom/eignex/koblas/dense/Lapack;Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/dense/CholeskyPolicy;)Lcom/eignex/koblas/dense/CholeskyDecomposition;
+	public static synthetic fun cholesky$default (Lcom/eignex/koblas/dense/Lapack;Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/dense/CholeskyPolicy;ILjava/lang/Object;)Lcom/eignex/koblas/dense/CholeskyDecomposition;
 	public static fun factorInto (Lcom/eignex/koblas/dense/Lapack;Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/dense/LuDecomposition;)Lcom/eignex/koblas/dense/LuDecomposition;
 	public static fun getPriority (Lcom/eignex/koblas/dense/Lapack;)I
 	public static fun invert (Lcom/eignex/koblas/dense/Lapack;Lcom/eignex/koblas/dense/CholeskyDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/DenseMatrix;
@@ -620,7 +620,7 @@ public abstract interface class com/eignex/koblas/dense/LinearAlgebra : com/eign
 public final class com/eignex/koblas/dense/LinearAlgebra$DefaultImpls {
 	public static fun applyQ (Lcom/eignex/koblas/dense/LinearAlgebra;Lcom/eignex/koblas/dense/QrDecomposition;Lcom/eignex/koblas/DenseVector;Z)Lcom/eignex/koblas/DenseVector;
 	public static fun applyQ (Lcom/eignex/koblas/dense/LinearAlgebra;Lcom/eignex/koblas/dense/QrDecomposition;[DZ)[D
-	public static fun cholesky (Lcom/eignex/koblas/dense/LinearAlgebra;Lcom/eignex/koblas/MatrixLike;Lcom/eignex/koblas/dense/CholeskyPolicy;)Lcom/eignex/koblas/dense/CholeskyDecomposition;
+	public static fun cholesky (Lcom/eignex/koblas/dense/LinearAlgebra;Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/dense/CholeskyPolicy;)Lcom/eignex/koblas/dense/CholeskyDecomposition;
 	public static fun factorInto (Lcom/eignex/koblas/dense/LinearAlgebra;Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/dense/LuDecomposition;)Lcom/eignex/koblas/dense/LuDecomposition;
 	public static fun gemm (Lcom/eignex/koblas/dense/LinearAlgebra;Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseMatrix;)Lcom/eignex/koblas/DenseMatrix;
 	public static fun gemv (Lcom/eignex/koblas/dense/LinearAlgebra;DLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseVector;DLcom/eignex/koblas/DenseVector;Z)V
@@ -737,7 +737,7 @@ public final class com/eignex/koblas/dense/ReferenceBackend : com/eignex/koblas/
 	public fun applyQ (Lcom/eignex/koblas/dense/QrDecomposition;Lcom/eignex/koblas/DenseVector;Z)Lcom/eignex/koblas/DenseVector;
 	public fun applyQ (Lcom/eignex/koblas/dense/QrDecomposition;[DZ)[D
 	public fun applyQInto (Lcom/eignex/koblas/dense/QrDecomposition;[D[DZ)[D
-	public fun cholesky (Lcom/eignex/koblas/MatrixLike;Lcom/eignex/koblas/dense/CholeskyPolicy;)Lcom/eignex/koblas/dense/CholeskyDecomposition;
+	public fun cholesky (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/dense/CholeskyPolicy;)Lcom/eignex/koblas/dense/CholeskyDecomposition;
 	public fun factor (Lcom/eignex/koblas/DenseMatrix;)Lcom/eignex/koblas/dense/LuDecomposition;
 	public fun factorInto (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/dense/LuDecomposition;)Lcom/eignex/koblas/dense/LuDecomposition;
 	public fun gemm (DLcom/eignex/koblas/DenseMatrix;ZLcom/eignex/koblas/DenseMatrix;ZDLcom/eignex/koblas/DenseMatrix;)V
@@ -861,7 +861,7 @@ public final class com/eignex/koblas/hostblas/HostLapack : com/eignex/koblas/den
 	public fun applyQ (Lcom/eignex/koblas/dense/QrDecomposition;Lcom/eignex/koblas/DenseVector;Z)Lcom/eignex/koblas/DenseVector;
 	public fun applyQ (Lcom/eignex/koblas/dense/QrDecomposition;[DZ)[D
 	public fun applyQInto (Lcom/eignex/koblas/dense/QrDecomposition;[D[DZ)[D
-	public fun cholesky (Lcom/eignex/koblas/MatrixLike;Lcom/eignex/koblas/dense/CholeskyPolicy;)Lcom/eignex/koblas/dense/CholeskyDecomposition;
+	public fun cholesky (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/dense/CholeskyPolicy;)Lcom/eignex/koblas/dense/CholeskyDecomposition;
 	public fun factor (Lcom/eignex/koblas/DenseMatrix;)Lcom/eignex/koblas/dense/LuDecomposition;
 	public fun factorInto (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/dense/LuDecomposition;)Lcom/eignex/koblas/dense/LuDecomposition;
 	public fun getName ()Ljava/lang/String;
