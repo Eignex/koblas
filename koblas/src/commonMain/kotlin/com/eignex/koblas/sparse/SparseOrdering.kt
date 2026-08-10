@@ -10,7 +10,7 @@ import com.eignex.koblas.SparseMatrix
  * columns are numbered. That makes the ordering part of the analysis rather than something a caller is left
  * to arrange, which is what CHOLMOD and CSparse both concluded.
  */
-enum class SparseOrdering {
+public enum class SparseOrdering {
     /**
      * Reorder to reduce fill, the default.
      *

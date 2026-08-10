@@ -9,7 +9,7 @@ import kotlin.math.abs
  * meaningful against the size of the arithmetic that produced the entry, and a 1000-row matrix accumulates
  * more rounding than a 3-row one.
  */
-const val AUTOMATIC_RANK_TOLERANCE = 0.0
+public const val AUTOMATIC_RANK_TOLERANCE: Double = 0.0
 
 /** `2⁻⁵²`, the gap between 1.0 and the next double. Kotlin has no `Double.EPSILON`. */
 internal const val MACHINE_EPSILON = 2.220446049250313e-16
@@ -44,15 +44,19 @@ internal const val NORM_RECOMPUTE_THRESHOLD = 1.4901161193847656e-8
  *  content in 0-based form. A permutation of `0 until n`.
  * @property rank the number of `R` diagonal entries above the tolerance, in `0..min(m, n)`.
  */
-class PivotedQrDecomposition(val factorization: QrDecomposition, val pivots: IntArray, val rank: Int) {
+public class PivotedQrDecomposition(
+    public val factorization: QrDecomposition,
+    public val pivots: IntArray,
+    public val rank: Int,
+) {
     /** The row count of the factored matrix. */
-    val m: Int get() = factorization.m
+    public val m: Int get() = factorization.m
 
     /** The column count of the factored matrix. */
-    val n: Int get() = factorization.n
+    public val n: Int get() = factorization.n
 
     /** Whether the pivoting found fewer independent columns than there are columns. */
-    val rankDeficient: Boolean get() = rank < minOf(m, n)
+    public val rankDeficient: Boolean get() = rank < minOf(m, n)
 
     init {
         require(pivots.size == n) { "pivots length ${pivots.size} != $n" }

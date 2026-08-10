@@ -26,11 +26,11 @@ import com.eignex.koblas.requireShape
  * @property permutation `permutation[k]` is the row and column of `A` eliminated at step `k`; the identity
  *  under [SparseOrdering.Natural]. Exposed so a caller can map back to their own numbering.
  */
-class SparseSymbolic internal constructor(
-    val n: Int,
-    val parent: IntArray,
-    val columnPointers: IntArray,
-    val permutation: IntArray,
+public class SparseSymbolic internal constructor(
+    public val n: Int,
+    public val parent: IntArray,
+    public val columnPointers: IntArray,
+    public val permutation: IntArray,
     private val analysedColumnStarts: IntArray,
     private val analysedRowIndices: IntArray,
 ) {
@@ -42,7 +42,7 @@ class SparseSymbolic internal constructor(
         IntArray(permutation.size).also { for (k in permutation.indices) it[permutation[k]] = k }
 
     /** Nonzeros in the strictly lower `L`, the fill this pattern will hold. The diagonal is `D`, not `L`. */
-    val nnz: Int get() = columnPointers[n]
+    public val nnz: Int get() = columnPointers[n]
 
     /**
      * Factorize [a] numerically against this analysis: `A = L·D·Lᵀ` with `L` unit lower triangular.
@@ -51,7 +51,7 @@ class SparseSymbolic internal constructor(
      * walks the analysed elimination tree, so an unseen entry sends that walk off the end of it. A caller
      * whose values cancelled to zero should keep the structural zero rather than rebuild a sparser matrix.
      */
-    fun factorLdl(a: SparseMatrix, policy: SparseLdlPolicy = SparseLdlPolicy.Strict): SparseFactorization =
+    public fun factorLdl(a: SparseMatrix, policy: SparseLdlPolicy = SparseLdlPolicy.Strict): SparseFactorization =
         numericLdl(a, this, policy)
 
     /** Whether [a] carries exactly the analysed pattern. Compares the CSC index arrays, not the values. */
@@ -60,14 +60,14 @@ class SparseSymbolic internal constructor(
         a.rowIdx.contentEquals(analysedRowIndices)
 
     /** Analysis entry points. */
-    companion object {
+    public companion object {
         /**
          * Analyse [a]'s pattern: the elimination tree, then the column counts of `L`.
          *
          * Costs one pass over the pattern for the tree and one up-looking traversal per column for the
          * counts, with no arithmetic on the values at all — they are not read.
          */
-        fun analyze(a: SparseMatrix, ordering: SparseOrdering = SparseOrdering.MinimumDegree): SparseSymbolic {
+        public fun analyze(a: SparseMatrix, ordering: SparseOrdering = SparseOrdering.MinimumDegree): SparseSymbolic {
             requireShape(a.rows == a.cols) { "symbolic analysis requires a square matrix; got ${a.rows}x${a.cols}" }
             requireUpperTriangleStored(a)
             val n = a.rows

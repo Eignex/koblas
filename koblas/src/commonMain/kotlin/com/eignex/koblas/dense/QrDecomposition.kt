@@ -18,7 +18,12 @@ import com.eignex.koblas.requireShape
  * @property qr the packed `R` and Householder vectors, column-major, length `m * n`.
  * @property tau the reflector coefficients, length `min(m, n)`.
  */
-class QrDecomposition(val m: Int, val n: Int, val qr: DoubleArray, val tau: DoubleArray) {
+public class QrDecomposition(
+    public val m: Int,
+    public val n: Int,
+    public val qr: DoubleArray,
+    public val tau: DoubleArray,
+) {
     init {
         requireShape(qr.size == m * n) { "qr length ${qr.size} != ${m * n}" }
         requireShape(tau.size == minOf(m, n)) { "tau length ${tau.size} != ${minOf(m, n)}" }

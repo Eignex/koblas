@@ -39,15 +39,15 @@ import com.eignex.koblas.dispatchThresholds
  * already call `dot`. Kernels that disagree silently change results everywhere in the library, since
  * `gemv`, the factorizations and the eta updates all bottom out here.
  */
-interface VectorKernels : Backend {
+public interface VectorKernels : Backend {
     /** `Sum a[aOff..aOff+len-1] * b[bOff..bOff+len-1]`, with `len >= 1`. */
-    fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double
+    public fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double
 
     /** `y[yOff..yOff+len-1] += alpha * x[xOff..xOff+len-1]`, with `len >= 1`. */
-    fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int)
+    public fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int)
 
     /** `v[vOff..vOff+len-1] *= alpha`, with `len >= 1`. */
-    fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int)
+    public fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int)
 
     /**
      * Euclidean norm of `v[vOff..vOff+len-1]`, with `len >= 1` (BLAS `dnrm2`).
@@ -56,10 +56,10 @@ interface VectorKernels : Backend {
      * rescales to stay in range, and netlib `dnrm2` does the same, so a plain `sqrt(sum of squares)` is
      * not a valid implementation.
      */
-    fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double
+    public fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double
 
     /** `Sum |v[vOff..vOff+len-1]|`, with `len >= 1` (BLAS `dasum`). */
-    fun asum(v: DoubleArray, vOff: Int, len: Int): Double
+    public fun asum(v: DoubleArray, vOff: Int, len: Int): Double
 
     /**
      * Four dots against a shared right operand: `out[outOff + r] = Sum a[aOff + r*stride + i] * b[bOff + i]`
@@ -76,7 +76,7 @@ interface VectorKernels : Backend {
      * that reason.
      */
     @Suppress("LongParameterList") // four column offsets plus the shared operand
-    fun dot4(
+    public fun dot4(
         a: DoubleArray,
         aOff: Int,
         stride: Int,

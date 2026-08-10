@@ -14,23 +14,23 @@ import kotlinx.serialization.Serializable
  *
  * @see VectorView the closed, serializable subset.
  */
-interface VectorLike {
+public interface VectorLike {
     /** Number of entries (including stored zeros for sparse). */
-    val size: Int
+    public val size: Int
 
     /**
      * Read entry at [i]. O(1) for [DenseVector], `O(log nnz)` for [SparseVector], which binary-searches
      * its ascending indices. Use the [forEachStored] extension when you want to walk the populated
      * entries without per-index lookup cost.
      */
-    operator fun get(i: Int): Double
+    public operator fun get(i: Int): Double
 
     /**
      * Materialise into a fresh dense `DoubleArray`. Always allocates;
      * the returned array is independent of any internal storage, so the
      * caller is free to mutate it.
      */
-    fun toDoubleArray(): DoubleArray
+    public fun toDoubleArray(): DoubleArray
 }
 
 /**
@@ -46,7 +46,7 @@ interface VectorLike {
  * callers walk every index the same way.
  */
 @Serializable
-sealed interface VectorView : VectorLike
+public sealed interface VectorView : VectorLike
 
 /**
  * Dense double-precision vector backed by a flat `DoubleArray`. The
@@ -61,7 +61,7 @@ sealed interface VectorView : VectorLike
  */
 @Serializable
 @SerialName("DenseVector")
-class DenseVector internal constructor(val data: DoubleArray) : VectorView {
+public class DenseVector internal constructor(public val data: DoubleArray) : VectorView {
 
     internal constructor(size: Int) : this(DoubleArray(size))
 
@@ -70,7 +70,7 @@ class DenseVector internal constructor(val data: DoubleArray) : VectorView {
     override fun toDoubleArray(): DoubleArray = data.copyOf()
 
     /** Set entry [i]. */
-    operator fun set(i: Int, v: Double) {
+    public operator fun set(i: Int, v: Double) {
         data[i] = v
     }
 
@@ -80,15 +80,15 @@ class DenseVector internal constructor(val data: DoubleArray) : VectorView {
     override fun toString(): String = "DenseVector(size=$size)"
 
     /** Factory entrypoints for [DenseVector]. */
-    companion object {
+    public companion object {
         /** Copy a `DoubleArray` into a fresh dense vector. */
-        fun of(values: DoubleArray): DenseVector = DenseVector(values.copyOf())
+        public fun of(values: DoubleArray): DenseVector = DenseVector(values.copyOf())
 
         /** Create a zero vector of length [size]. */
-        fun zero(size: Int): DenseVector = DenseVector(size)
+        public fun zero(size: Int): DenseVector = DenseVector(size)
 
         /** Wrap an existing `DoubleArray` without copying. Caller relinquishes ownership. */
-        fun wrap(data: DoubleArray): DenseVector = DenseVector(data)
+        public fun wrap(data: DoubleArray): DenseVector = DenseVector(data)
     }
 }
 
@@ -112,8 +112,11 @@ class DenseVector internal constructor(val data: DoubleArray) : VectorView {
  */
 @Serializable
 @SerialName("SparseVector")
-class SparseVector internal constructor(override val size: Int, val indices: IntArray, val values: DoubleArray) :
-    VectorView {
+public class SparseVector internal constructor(
+    override val size: Int,
+    public val indices: IntArray,
+    public val values: DoubleArray,
+) : VectorView {
 
     init {
         require(indices.size == values.size) {
@@ -163,7 +166,7 @@ class SparseVector internal constructor(override val size: Int, val indices: Int
     override fun toString(): String = "SparseVector(size=$size, nnz=${indices.size})"
 
     /** Factory entrypoints for [SparseVector]. */
-    companion object {
+    public companion object {
         /**
          * Build a sparse vector, sorting by index and summing duplicates. Copies its inputs, so the
          * caller can reuse the arrays.
@@ -172,7 +175,7 @@ class SparseVector internal constructor(override val size: Int, val indices: Int
          * may arrive in any order; a repeated index contributes the sum of its values, which is what a
          * scatter of accumulated contributions means.
          */
-        fun of(size: Int, indices: IntArray, values: DoubleArray): SparseVector {
+        public fun of(size: Int, indices: IntArray, values: DoubleArray): SparseVector {
             require(indices.size == values.size) {
                 "indices/values must align: ${indices.size} vs ${values.size}"
             }
@@ -198,6 +201,10 @@ class SparseVector internal constructor(override val size: Int, val indices: Int
          * Validates the invariants rather than repairing them, so [indices] must already be strictly
          * ascending and in range. Use [of] when it is not.
          */
-        fun wrap(size: Int, indices: IntArray, values: DoubleArray): SparseVector = SparseVector(size, indices, values)
+        public fun wrap(size: Int, indices: IntArray, values: DoubleArray): SparseVector = SparseVector(
+            size,
+            indices,
+            values,
+        )
     }
 }

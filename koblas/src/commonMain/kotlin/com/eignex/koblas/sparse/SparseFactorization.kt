@@ -23,9 +23,9 @@ import com.eignex.koblas.singularFailure
  * @see com.eignex.koblas.dense.LuDecomposition the dense counterpart, a class precisely because its
  *   format is shared.
  */
-interface SparseFactorization {
+public interface SparseFactorization {
     /** The dimension of the factored matrix. */
-    val n: Int
+    public val n: Int
 
     /**
      * The pivot position that had no numerically acceptable candidate, or [NOT_SINGULAR] when the
@@ -34,7 +34,7 @@ interface SparseFactorization {
      * The same convention [com.eignex.koblas.dense.LuDecomposition] reports, and the position is the
      * actionable half: a simplex whose basis went singular can use it to choose which column to replace.
      */
-    val failedAt: Int
+    public val failedAt: Int
 
     /**
      * Whether the factorization failed for want of a numerically acceptable pivot. Derived from
@@ -44,10 +44,10 @@ interface SparseFactorization {
      * contract on both storages: a system with no unique solution is reported rather than answered with
      * infinities.
      */
-    val singular: Boolean get() = failedAt != NOT_SINGULAR
+    public val singular: Boolean get() = failedAt != NOT_SINGULAR
 
     /** Nonzeros in the factors — the fill. Zero for a singular factorization, which has none. */
-    val nnz: Int
+    public val nnz: Int
 
     /**
      * Solve `B x = b`, or `Bᵀ x = b` when [transpose], into [out], which is returned.
@@ -55,7 +55,7 @@ interface SparseFactorization {
      * The two directions are a simplex's FTRAN and BTRAN. Allocates nothing when given a [workspace], so
      * an iteration that owns its destination runs without touching the collector. [out] may be [b].
      */
-    fun solveInto(
+    public fun solveInto(
         b: DoubleArray,
         out: DoubleArray,
         transpose: Boolean = false,
@@ -63,10 +63,10 @@ interface SparseFactorization {
     ): DoubleArray
 
     /** Solve `B x = b`, or `Bᵀ x = b` when [transpose], into a fresh result. */
-    fun solve(b: DoubleArray, transpose: Boolean = false): DoubleArray = solveInto(b, DoubleArray(n), transpose)
+    public fun solve(b: DoubleArray, transpose: Boolean = false): DoubleArray = solveInto(b, DoubleArray(n), transpose)
 
     /** `det(B)`, or exactly `0.0` when [singular]. The counterpart of `LuDecomposition.determinant`. */
-    fun determinant(): Double
+    public fun determinant(): Double
 }
 
 /**
@@ -77,7 +77,7 @@ interface SparseFactorization {
  * filled would produce an object that answers `solve` with silent nonsense. This reports what is true
  * instead: singular, no fill, zero determinant, and an exception if solved against.
  */
-class SingularSparseFactorization(override val n: Int, override val failedAt: Int) : SparseFactorization {
+public class SingularSparseFactorization(override val n: Int, override val failedAt: Int) : SparseFactorization {
     override val nnz: Int get() = 0
 
     override fun determinant(): Double = 0.0

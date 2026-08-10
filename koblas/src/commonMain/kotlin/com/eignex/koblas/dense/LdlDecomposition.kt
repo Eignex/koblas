@@ -22,10 +22,15 @@ import com.eignex.koblas.requireShape
  * @property failedAt the position of the zero pivot, or [NOT_SINGULAR] — `dsytrf`'s positive `info` made
  *   0-based, and the same convention [LuDecomposition] and the sparse factorizations report.
  */
-class LdlDecomposition(val n: Int, val ldl: DoubleArray, val ipiv: IntArray, val failedAt: Int = NOT_SINGULAR) {
+public class LdlDecomposition(
+    public val n: Int,
+    public val ldl: DoubleArray,
+    public val ipiv: IntArray,
+    public val failedAt: Int = NOT_SINGULAR,
+) {
     /** Whether a zero pivot was encountered; solving a singular factorization is not meaningful. Derived
      *  from [failedAt], for the reason [LuDecomposition.singular] gives. */
-    val singular: Boolean get() = failedAt != NOT_SINGULAR
+    public val singular: Boolean get() = failedAt != NOT_SINGULAR
 
     init {
         requireShape(ldl.size == n * n) { "ldl length ${ldl.size} != ${n * n}" }

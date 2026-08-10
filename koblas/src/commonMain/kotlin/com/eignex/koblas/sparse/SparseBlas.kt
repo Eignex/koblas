@@ -20,7 +20,7 @@ import com.eignex.koblas.requireShape
  * UMFPACK, KLU and CHOLMOD all consume, and MKL's inspector-executor takes CSC with an index-base flag.
  * See `SparseMatrix` for the verified details and the two remaining mismatches.
  */
-interface SparseBlas : Backend {
+public interface SparseBlas : Backend {
     /**
      * In-place `y = alpha · op(A) · x + beta · y`, where `op(A)` is `Aᵀ` when [transpose] — the sparse
      * `dgemv`. Per BLAS convention `beta == 0.0` overwrites [y] without reading it, so it may arrive
@@ -31,7 +31,7 @@ interface SparseBlas : Backend {
      * touches a structural zero.
      */
     @Suppress("LongParameterList") // the BLAS dgemv signature
-    fun gemv(
+    public fun gemv(
         alpha: Double,
         a: SparseMatrix,
         x: DoubleArray,
@@ -85,7 +85,7 @@ interface SparseBlas : Backend {
      *
      * @throws com.eignex.koblas.SingularMatrix if a diagonal entry is missing or zero, naming its position.
      */
-    fun trsv(a: SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean = false) {
+    public fun trsv(a: SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean = false) {
         requireShape(a.rows == a.cols) { "trsv requires a square matrix; got ${a.rows}x${a.cols}" }
         val n = a.rows
         requireShape(x.size == n) { "trsv: x length ${x.size} != $n" }
@@ -115,7 +115,7 @@ interface SparseBlas : Backend {
 
     /** `A · x`, or `Aᵀ · x` when [transpose], into a fresh result — the restricted [gemv] with
      *  `alpha = 1, beta = 0`. */
-    fun gemv(a: SparseMatrix, x: DoubleArray, transpose: Boolean = false): DoubleArray {
+    public fun gemv(a: SparseMatrix, x: DoubleArray, transpose: Boolean = false): DoubleArray {
         val y = DoubleArray(if (transpose) a.cols else a.rows)
         gemv(1.0, a, x, 0.0, y, transpose)
         return y
@@ -125,21 +125,21 @@ interface SparseBlas : Backend {
     // routines already take, so each forwards without copying.
 
     /** [gemv] over [DenseVector] operands; [y] is written in place. */
-    fun gemv(
+    public fun gemv(
         alpha: Double,
         a: SparseMatrix,
         x: DenseVector,
         beta: Double,
         y: DenseVector,
         transpose: Boolean = false,
-    ) = gemv(alpha, a, x.data, beta, y.data, transpose)
+    ): Unit = gemv(alpha, a, x.data, beta, y.data, transpose)
 
     /** [gemv] over a [DenseVector], into a fresh result. */
-    fun gemv(a: SparseMatrix, x: DenseVector, transpose: Boolean = false): DenseVector =
+    public fun gemv(a: SparseMatrix, x: DenseVector, transpose: Boolean = false): DenseVector =
         DenseVector.wrap(gemv(a, x.data, transpose))
 
     /** [trsv] over a [DenseVector]; [x] holds the right-hand side on entry and the solution on return. */
-    fun trsv(a: SparseMatrix, x: DenseVector, lower: Boolean, transpose: Boolean = false) =
+    public fun trsv(a: SparseMatrix, x: DenseVector, lower: Boolean, transpose: Boolean = false): Unit =
         trsv(a, x.data, lower, transpose)
 }
 

@@ -25,17 +25,24 @@ import com.eignex.koblas.transpose
  *
  * Defaults implement every routine in portable Kotlin, so a backend overrides only what it accelerates.
  */
-interface Blas : Backend {
+public interface Blas : Backend {
     /**
      * In-place matrix-vector accumulate `y = alpha · op(A) · x + beta · y` (full BLAS `dgemv`),
      * where `op(A)` is `Aᵀ` when [transpose]. Per BLAS convention, `beta == 0.0` overwrites [y]
      * without reading it (it may be uninitialized), and `alpha == 0.0` reduces to the `beta` scale.
      */
-    fun gemv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, transpose: Boolean = false)
+    public fun gemv(
+        alpha: Double,
+        a: DenseMatrix,
+        x: DoubleArray,
+        beta: Double,
+        y: DoubleArray,
+        transpose: Boolean = false,
+    )
 
     /** Matrix-vector product `A · x`, or `Aᵀ · x` when [transpose], into a fresh result (restricted
      *  [gemv] with `alpha = 1, beta = 0`). */
-    fun gemv(a: DenseMatrix, x: DoubleArray, transpose: Boolean = false): DoubleArray {
+    public fun gemv(a: DenseMatrix, x: DoubleArray, transpose: Boolean = false): DoubleArray {
         val y = DoubleArray(if (transpose) a.cols else a.rows)
         gemv(1.0, a, x, 0.0, y, transpose)
         return y
@@ -48,7 +55,7 @@ interface Blas : Backend {
      * reading it, and `alpha == 0.0` reduces to the `beta` scale.
      */
     @Suppress("LongParameterList") // the BLAS dgemm signature
-    fun gemm(
+    public fun gemm(
         alpha: Double,
         a: DenseMatrix,
         transposeA: Boolean,
@@ -60,7 +67,7 @@ interface Blas : Backend {
 
     /** Matrix-matrix product `A · B` into a fresh matrix (restricted [gemm] with `alpha = 1, beta = 0`);
      *  `A.cols` must equal `B.rows`. */
-    fun gemm(a: DenseMatrix, b: DenseMatrix): DenseMatrix {
+    public fun gemm(a: DenseMatrix, b: DenseMatrix): DenseMatrix {
         val c = DenseMatrix(a.rows, b.cols)
         gemm(1.0, a, transposeA = false, b, transposeB = false, beta = 0.0, c = c)
         return c
@@ -76,7 +83,7 @@ interface Blas : Backend {
      * the written region), and `alpha == 0.0` reduces to the `beta` scale.
      */
     @Suppress("LongParameterList") // the BLAS dsyrk signature plus optional scratch
-    fun syrk(
+    public fun syrk(
         alpha: Double,
         a: DenseMatrix,
         transpose: Boolean,
@@ -94,7 +101,7 @@ interface Blas : Backend {
      * reduces to the `beta` scale.
      */
     @Suppress("LongParameterList") // the BLAS dsymv signature
-    fun symv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean = true)
+    public fun symv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean = true)
 
     /**
      * In-place symmetric matrix-matrix accumulate `C = alpha · A · B + beta · C`, or
@@ -104,7 +111,7 @@ interface Blas : Backend {
      * without reading it, and `alpha == 0.0` reduces to the `beta` scale.
      */
     @Suppress("LongParameterList") // the BLAS dsymm signature
-    fun symm(
+    public fun symm(
         alpha: Double,
         a: DenseMatrix,
         b: DenseMatrix,
@@ -120,7 +127,7 @@ interface Blas : Backend {
      * The free `ger` accepts [VectorView] operands and takes a sparse fast path; this form is the dense
      * one a backend can dispatch.
      */
-    fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix) {
+    public fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix) {
         requireShape(a.rows == x.size && a.cols == y.size) {
             "ger shape mismatch: A is ${a.rows}x${a.cols}, x ${x.size}, y ${y.size}"
         }
@@ -143,7 +150,7 @@ interface Blas : Backend {
      * written to both positions — a sweep that filled the two triangles independently would not be, because
      * `(alpha·x_i)·x_j` and `(alpha·x_j)·x_i` round differently.
      */
-    fun syr(alpha: Double, x: VectorLike, a: DenseMatrix, uplo: Uplo = Uplo.FULL) {
+    public fun syr(alpha: Double, x: VectorLike, a: DenseMatrix, uplo: Uplo = Uplo.FULL) {
         requireShape(a.rows == a.cols) { "syr: matrix must be square, got ${a.rows}x${a.cols}" }
         requireShape(x.size == a.rows) { "syr: x length ${x.size} != ${a.rows}" }
         if (alpha == 0.0) return
@@ -164,7 +171,7 @@ interface Blas : Backend {
      * Symmetric by the same construction [syr] uses: the term for a pair is formed once, as
      * `alpha·(x_i·y_j + y_i·x_j)`, and written to both positions.
      */
-    fun syr2(alpha: Double, x: VectorLike, y: VectorLike, a: DenseMatrix, uplo: Uplo = Uplo.FULL) {
+    public fun syr2(alpha: Double, x: VectorLike, y: VectorLike, a: DenseMatrix, uplo: Uplo = Uplo.FULL) {
         requireShape(a.rows == a.cols) { "syr2: matrix must be square, got ${a.rows}x${a.cols}" }
         requireShape(x.size == a.rows && y.size == a.rows) {
             "syr2: operand lengths ${x.size} and ${y.size} must both be ${a.rows}"
@@ -192,7 +199,7 @@ interface Blas : Backend {
      * positions, so the result is exactly symmetric under [Uplo.FULL] for the reason [syr] explains.
      */
     @Suppress("LongParameterList") // the BLAS dsyr2k signature
-    fun syr2k(
+    public fun syr2k(
         alpha: Double,
         a: DenseMatrix,
         b: DenseMatrix,
@@ -229,7 +236,13 @@ interface Blas : Backend {
      * reading it. [x] holds the right-hand side on entry and the solution on return. Only the selected
      * triangle is read, so the rest of [a] may hold anything.
      */
-    fun trsv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean = false, unitDiag: Boolean = false) {
+    public fun trsv(
+        a: DenseMatrix,
+        x: DoubleArray,
+        lower: Boolean,
+        transpose: Boolean = false,
+        unitDiag: Boolean = false,
+    ) {
         requireShape(a.rows == a.cols) { "trsv requires a square matrix; got ${a.rows}x${a.cols}" }
         requireShape(x.size == a.rows) { "trsv: x length ${x.size} != ${a.rows}" }
         trsvCore(koblas.vectorKernels, a.data, a.rows, x, lower = lower, transpose = transpose, unitDiag = unitDiag)
@@ -241,7 +254,7 @@ interface Blas : Backend {
      * right-hand sides are the columns of [b]; from the right, its rows.
      */
     @Suppress("LongParameterList") // the BLAS dtrsm signature
-    fun trsm(
+    public fun trsm(
         a: DenseMatrix,
         b: DenseMatrix,
         lower: Boolean,
@@ -270,7 +283,13 @@ interface Blas : Backend {
     }
 
     /** Multiply `x = op(T) · x` in place (BLAS `dtrmv`), the product counterpart of [trsv]. */
-    fun trmv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean = false, unitDiag: Boolean = false) {
+    public fun trmv(
+        a: DenseMatrix,
+        x: DoubleArray,
+        lower: Boolean,
+        transpose: Boolean = false,
+        unitDiag: Boolean = false,
+    ) {
         requireShape(a.rows == a.cols) { "trmv requires a square matrix; got ${a.rows}x${a.cols}" }
         requireShape(x.size == a.rows) { "trmv: x length ${x.size} != ${a.rows}" }
         trmvCore(koblas.vectorKernels, a.data, a.rows, x, lower = lower, transpose = transpose, unitDiag = unitDiag)
@@ -279,7 +298,7 @@ interface Blas : Backend {
     /** Multiply `B = op(T) · B`, or `B = B · op(T)` when [right] (BLAS `dtrmm`), the counterpart of
      *  [trsm]. */
     @Suppress("LongParameterList") // the BLAS dtrmm signature
-    fun trmm(
+    public fun trmm(
         a: DenseMatrix,
         b: DenseMatrix,
         lower: Boolean,
@@ -319,18 +338,34 @@ interface Blas : Backend {
     // pays, and so they appear on the seam a caller already has in hand.
 
     /** [gemv] over [DenseVector] operands; [y] is written in place. */
-    fun gemv(alpha: Double, a: DenseMatrix, x: DenseVector, beta: Double, y: DenseVector, transpose: Boolean = false) =
-        gemv(alpha, a, x.data, beta, y.data, transpose)
+    public fun gemv(
+        alpha: Double,
+        a: DenseMatrix,
+        x: DenseVector,
+        beta: Double,
+        y: DenseVector,
+        transpose: Boolean = false,
+    ): Unit = gemv(alpha, a, x.data, beta, y.data, transpose)
 
     /** [gemv] over a [DenseVector], into a fresh result. */
-    fun gemv(a: DenseMatrix, x: DenseVector, transpose: Boolean = false): DenseVector =
+    public fun gemv(a: DenseMatrix, x: DenseVector, transpose: Boolean = false): DenseVector =
         DenseVector.wrap(gemv(a, x.data, transpose))
 
     /** [trsv] over a [DenseVector]; [x] holds the right-hand side on entry and the solution on return. */
-    fun trsv(a: DenseMatrix, x: DenseVector, lower: Boolean, transpose: Boolean = false, unitDiag: Boolean = false) =
-        trsv(a, x.data, lower, transpose, unitDiag)
+    public fun trsv(
+        a: DenseMatrix,
+        x: DenseVector,
+        lower: Boolean,
+        transpose: Boolean = false,
+        unitDiag: Boolean = false,
+    ): Unit = trsv(a, x.data, lower, transpose, unitDiag)
 
     /** [trmv] over a [DenseVector]; [x] is multiplied in place. */
-    fun trmv(a: DenseMatrix, x: DenseVector, lower: Boolean, transpose: Boolean = false, unitDiag: Boolean = false) =
-        trmv(a, x.data, lower, transpose, unitDiag)
+    public fun trmv(
+        a: DenseMatrix,
+        x: DenseVector,
+        lower: Boolean,
+        transpose: Boolean = false,
+        unitDiag: Boolean = false,
+    ): Unit = trmv(a, x.data, lower, transpose, unitDiag)
 }

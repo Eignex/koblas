@@ -1,6 +1,7 @@
 @file:OptIn(ExperimentalWasmDsl::class)
 
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+import org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 plugins {
@@ -14,6 +15,12 @@ eignexPublish {
 }
 
 kotlin {
+    explicitApi()
+    // The published surface is dumped to koblas/api/ and checked on every build. With six pluggable
+    // backend interfaces and a large free-function layer, an unnoticed change to what consumers see is
+    // the failure this catches; the dump makes it a diff in review instead.
+    @OptIn(ExperimentalAbiValidation::class)
+    abiValidation {}
     applyDefaultHierarchyTemplate()
     compilerOptions {
         freeCompilerArgs.add("-Xexpect-actual-classes")
@@ -156,3 +163,6 @@ tasks.named<Jar>("jvmJar") {
 }
 
 kover { currentProject { instrumentation { disabledForAll = true } } }
+
+// The ABI check is not wired into `check` by the plugin, so CI would never run it.
+tasks.named("check") { dependsOn("checkKotlinAbi") }

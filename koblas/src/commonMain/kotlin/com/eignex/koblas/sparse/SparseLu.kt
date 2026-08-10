@@ -30,7 +30,7 @@ import kotlin.math.pow
  * A singular matrix yields [SingularSparseFactorization], never an instance of this class — every
  * `SparseLu` is a complete factorization, which is why [failedAt] is constantly [NOT_SINGULAR].
  */
-class SparseLu private constructor(
+public class SparseLu private constructor(
     private val m: Int,
     private val perm: IntArray, // perm[k] = original row index now at pivot position k
     private val colPerm: IntArray, // colPerm[k] = original column index now at pivot position k
@@ -147,7 +147,7 @@ class SparseLu private constructor(
     }
 
     /** Factorization entrypoints for [SparseLu]. */
-    companion object {
+    public companion object {
 
         /**
          * Factorize the square [a], the implementation behind [SparseLapack.factor].
@@ -308,7 +308,7 @@ class SparseLu private constructor(
 private const val NEGLIGIBLE = 1e-14
 
 /** The default [SparseLapack.factor] drop tolerance: keep every entry the elimination produces. */
-const val NO_DROP = 0.0
+public const val NO_DROP: Double = 0.0
 
 /** The largest magnitude anywhere in [rows], the scale both tolerances are relative to. */
 private fun largestMagnitude(rows: Array<MutableIntDoubleMap>): Double {

@@ -20,7 +20,12 @@ import com.eignex.koblas.sparse.SparseLu
  * @property piv the row permutation.
  * @param failedAt the position of the zero pivot, or [NOT_SINGULAR]; readable afterwards through [failedAt].
  */
-class LuDecomposition(val n: Int, val lu: DoubleArray, val piv: IntArray, failedAt: Int = NOT_SINGULAR) {
+public class LuDecomposition(
+    public val n: Int,
+    public val lu: DoubleArray,
+    public val piv: IntArray,
+    failedAt: Int = NOT_SINGULAR,
+) {
     /**
      * Where the factorization broke down: the position `k` whose pivot `U[k][k]` was exactly zero, or
      * [NOT_SINGULAR] when it did not. LAPACK reports the same number as `dgetrf`'s positive `info`, one
@@ -28,7 +33,7 @@ class LuDecomposition(val n: Int, val lu: DoubleArray, val piv: IntArray, failed
      *
      * Refactorizing in place via [LinearAlgebra.factorInto] updates it along with the buffers.
      */
-    var failedAt: Int = failedAt
+    public var failedAt: Int = failedAt
         internal set
 
     /**
@@ -40,7 +45,7 @@ class LuDecomposition(val n: Int, val lu: DoubleArray, val piv: IntArray, failed
      * to remember to set both. The position is the more useful half anyway: it is the one a caller can act
      * on, where a flag only says that something went wrong.
      */
-    val singular: Boolean get() = failedAt != NOT_SINGULAR
+    public val singular: Boolean get() = failedAt != NOT_SINGULAR
 
     init {
         requireShape(lu.size == n * n) { "lu length ${lu.size} != ${n * n}" }
@@ -50,7 +55,7 @@ class LuDecomposition(val n: Int, val lu: DoubleArray, val piv: IntArray, failed
 
 /** `det(A)` from the factorization: `sign(P) · ∏ U[k][k]`, or exactly `0.0` when [LuDecomposition.singular].
  *  The floating-point counterpart of [SparseLu.determinant]. */
-fun LuDecomposition.determinant(): Double {
+public fun LuDecomposition.determinant(): Double {
     if (singular) return 0.0
     var d = permutationSign(piv)
     for (k in 0 until n) d *= lu[k * n + k]

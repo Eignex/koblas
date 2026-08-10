@@ -27,12 +27,12 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 @SerialName("SparseMatrix")
-class SparseMatrix internal constructor(
+public class SparseMatrix internal constructor(
     override val rows: Int,
     override val cols: Int,
-    val colPtr: IntArray,
-    val rowIdx: IntArray,
-    val values: DoubleArray,
+    public val colPtr: IntArray,
+    public val rowIdx: IntArray,
+    public val values: DoubleArray,
 ) : MatrixView {
     init {
         require(rows >= 0 && cols >= 0) { "negative shape: ${rows}x$cols" }
@@ -58,10 +58,10 @@ class SparseMatrix internal constructor(
     }
 
     /** Number of stored nonzeros. */
-    val nnz: Int get() = values.size
+    public val nnz: Int get() = values.size
 
     /** Visit the nonzero entries of column [j] as `(row, value)`, rows ascending. */
-    inline fun forEachInColumn(j: Int, action: (row: Int, value: Double) -> Unit) {
+    public inline fun forEachInColumn(j: Int, action: (row: Int, value: Double) -> Unit) {
         for (k in colPtr[j] until colPtr[j + 1]) action(rowIdx[k], values[k])
     }
 
@@ -124,10 +124,10 @@ class SparseMatrix internal constructor(
     override fun toString(): String = "SparseMatrix(${rows}x$cols, nnz=$nnz)"
 
     /** Factories for CSC matrices. */
-    companion object {
+    public companion object {
         /** Build a CSC matrix from column-major `(row, value)` entries: `columns[j]` lists column `j`'s
          *  nonzeros. Entries within a column are sorted by row; duplicates are summed. */
-        fun ofColumns(rows: Int, cols: Int, columns: List<List<Pair<Int, Double>>>): SparseMatrix {
+        public fun ofColumns(rows: Int, cols: Int, columns: List<List<Pair<Int, Double>>>): SparseMatrix {
             require(columns.size == cols) { "expected $cols columns, got ${columns.size}" }
             val colPtr = IntArray(cols + 1)
             val rowIdxList = ArrayList<Int>()
@@ -157,7 +157,13 @@ class SparseMatrix internal constructor(
          *
          * Two counting passes, no comparison sort: `O(nnz + rows + cols)`.
          */
-        fun ofTriplets(rows: Int, cols: Int, rowIdx: IntArray, colIdx: IntArray, values: DoubleArray): SparseMatrix {
+        public fun ofTriplets(
+            rows: Int,
+            cols: Int,
+            rowIdx: IntArray,
+            colIdx: IntArray,
+            values: DoubleArray,
+        ): SparseMatrix {
             require(rows >= 0 && cols >= 0) { "negative shape: ${rows}x$cols" }
             require(rowIdx.size == colIdx.size && colIdx.size == values.size) {
                 "rowIdx/colIdx/values must align: ${rowIdx.size}, ${colIdx.size}, ${values.size}"
@@ -227,7 +233,7 @@ class SparseMatrix internal constructor(
          * Validates the invariants rather than repairing them, so [rowIdx] must already be strictly
          * ascending within each column. Use [ofColumns] or [ofTriplets] when it is not.
          */
-        fun wrap(rows: Int, cols: Int, colPtr: IntArray, rowIdx: IntArray, values: DoubleArray): SparseMatrix =
+        public fun wrap(rows: Int, cols: Int, colPtr: IntArray, rowIdx: IntArray, values: DoubleArray): SparseMatrix =
             SparseMatrix(rows, cols, colPtr, rowIdx, values)
     }
 }

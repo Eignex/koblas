@@ -58,7 +58,7 @@ private val discovery: Unit by lazy { registerPlatformBackends() }
  * Every free function in koblas uses this, so a program that never mentions contexts still gets the host
  * BLAS its platform found. Hold a [KoblasContext] of your own when the choice should be explicit instead.
  */
-val koblas: KoblasContext
+public val koblas: KoblasContext
     get() {
         // One volatile read so the platform's own backends had their chance to register. It runs exactly
         // once, so a test that clears the registry stays cleared rather than having discovery repopulate it.
@@ -83,7 +83,7 @@ private fun recompose() {
 }
 
 /** What this runtime resolved, for startup logging — e.g. `"backend=openblas, kernels=simd(8 lanes)"`. */
-val koblasInfo: String get() = "backend=${koblas.name}, kernels=${koblas.vectorKernels.name}"
+public val koblasInfo: String get() = "backend=${koblas.name}, kernels=${koblas.vectorKernels.name}"
 
 /**
  * Offers [backend] for automatic selection as every half it implements.
@@ -101,7 +101,7 @@ val koblasInfo: String get() = "backend=${koblas.name}, kernels=${koblas.vectorK
  * @throws IllegalArgumentException if [backend] implements none of the six halves, which would otherwise
  *   register nothing and look like it worked.
  */
-fun registerBackend(backend: Backend) {
+public fun registerBackend(backend: Backend) {
     var offered = false
     if (backend is VectorKernels) {
         vectorKernelSeam.register(backend)
@@ -144,7 +144,7 @@ fun registerBackend(backend: Backend) {
  * Visible to subsequent [koblas] reads but not synchronized with operations in flight: install during
  * startup, before other threads run.
  */
-fun installBackends(context: KoblasContext?) {
+public fun installBackends(context: KoblasContext?) {
     installed = context
 }
 

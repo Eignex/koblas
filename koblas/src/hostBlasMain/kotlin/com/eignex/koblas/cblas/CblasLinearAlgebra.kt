@@ -23,13 +23,13 @@ import com.eignex.koblas.dense.LinearAlgebra
  * OpenBLAS runs single-threaded by default here, which is the faster configuration at koblas
  * workload sizes; set the `OPENBLAS_NUM_THREADS` environment variable to opt into its threading.
  */
-class CblasLinearAlgebra private constructor(private val blas: CblasBlas, private val lapack: CblasLapack) :
+public class CblasLinearAlgebra private constructor(private val blas: CblasBlas, private val lapack: CblasLapack) :
     LinearAlgebra,
     Blas by blas,
     Lapack by lapack {
 
     /** Both halves of the host library, for a caller that wants to install it explicitly. */
-    constructor() : this(
+    public constructor() : this(
         CblasBlas(requireNotNull(OpenBlasLoader.cblas) { NO_OPENBLAS }),
         CblasLapack(requireNotNull(OpenBlasLoader.lapacke) { NO_LAPACKE }, requireNotNull(OpenBlasLoader.cblas)),
     )
@@ -40,12 +40,12 @@ class CblasLinearAlgebra private constructor(private val blas: CblasBlas, privat
     override val priority: Int get() = HOST_BACKEND_PRIORITY
 
     /** Host-availability checks for the two halves. */
-    companion object {
+    public companion object {
         /** Whether the host provides both CBLAS and LAPACKE, so the full backend can be constructed. */
-        fun isAvailable(): Boolean = OpenBlasLoader.cblas != null && OpenBlasLoader.lapacke != null
+        public fun isAvailable(): Boolean = OpenBlasLoader.cblas != null && OpenBlasLoader.lapacke != null
 
         /** Whether the host provides CBLAS, which is all the [Blas] half needs. */
-        fun isBlasAvailable(): Boolean = OpenBlasLoader.cblas != null
+        public fun isBlasAvailable(): Boolean = OpenBlasLoader.cblas != null
 
         private const val NO_OPENBLAS =
             "OpenBLAS is not available on this host; koblas falls back to the reference backend"

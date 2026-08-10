@@ -28,34 +28,44 @@ import com.eignex.koblas.koblas
 // rest of the matrix may hold anything.
 
 /** Solve `op(T) · x = b` in place (BLAS `dtrsv`); see [LinearAlgebra.trsv]. */
-fun trsv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean = false, unitDiag: Boolean = false) =
-    koblas.trsv(a, x, lower, transpose, unitDiag)
+public fun trsv(
+    a: DenseMatrix,
+    x: DoubleArray,
+    lower: Boolean,
+    transpose: Boolean = false,
+    unitDiag: Boolean = false,
+): Unit = koblas.trsv(a, x, lower, transpose, unitDiag)
 
 /** Solve `op(T) · X = B`, or `X · op(T) = B` when [right] (BLAS `dtrsm`); see [LinearAlgebra.trsm]. */
 @Suppress("LongParameterList") // the BLAS dtrsm signature
-fun trsm(
+public fun trsm(
     a: DenseMatrix,
     b: DenseMatrix,
     lower: Boolean,
     transpose: Boolean = false,
     unitDiag: Boolean = false,
     right: Boolean = false,
-) = koblas.trsm(a, b, lower, transpose, unitDiag, right)
+): Unit = koblas.trsm(a, b, lower, transpose, unitDiag, right)
 
 /** Multiply `x = op(T) · x` in place (BLAS `dtrmv`); see [LinearAlgebra.trmv]. */
-fun trmv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean = false, unitDiag: Boolean = false) =
-    koblas.trmv(a, x, lower, transpose, unitDiag)
+public fun trmv(
+    a: DenseMatrix,
+    x: DoubleArray,
+    lower: Boolean,
+    transpose: Boolean = false,
+    unitDiag: Boolean = false,
+): Unit = koblas.trmv(a, x, lower, transpose, unitDiag)
 
 /** Multiply `B = op(T) · B`, or `B = B · op(T)` when [right] (BLAS `dtrmm`); see [LinearAlgebra.trmm]. */
 @Suppress("LongParameterList") // the BLAS dtrmm signature
-fun trmm(
+public fun trmm(
     a: DenseMatrix,
     b: DenseMatrix,
     lower: Boolean,
     transpose: Boolean = false,
     unitDiag: Boolean = false,
     right: Boolean = false,
-) = koblas.trmm(a, b, lower, transpose, unitDiag, right)
+): Unit = koblas.trmm(a, b, lower, transpose, unitDiag, right)
 
 /**
  * Stages each row of [b] through a scratch vector and applies [op] to it, which is how the right-side
@@ -215,4 +225,8 @@ internal fun trsmCore(
 }
 
 /** Invert the [lower] or upper triangle of [a] (LAPACK `dtrtri`); see [LinearAlgebra.trtri]. */
-fun trtri(a: DenseMatrix, lower: Boolean, unitDiag: Boolean = false): DenseMatrix = koblas.trtri(a, lower, unitDiag)
+public fun trtri(a: DenseMatrix, lower: Boolean, unitDiag: Boolean = false): DenseMatrix = koblas.trtri(
+    a,
+    lower,
+    unitDiag,
+)

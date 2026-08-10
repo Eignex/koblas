@@ -28,7 +28,7 @@ package com.eignex.koblas
  * }
  * ```
  */
-class Workspace {
+public class Workspace {
     // Few widths in practice (one or two), so a linear scan beats hashing.
     private var pools = arrayOfNulls<Pool>(INITIAL_WIDTHS)
     private var poolCount = 0
@@ -37,18 +37,18 @@ class Workspace {
      * Borrows a vector of [size], which must be [release]d. Prefer [borrow], which returns it for you.
      * Contents are undefined.
      */
-    fun take(size: Int): DoubleArray {
+    public fun take(size: Int): DoubleArray {
         require(size >= 0) { "buffer size must not be negative, got $size" }
         return pool(size).take()
     }
 
     /** Returns a buffer from [take] to its pool. */
-    fun release(buffer: DoubleArray) {
+    public fun release(buffer: DoubleArray) {
         pool(buffer.size).release(buffer)
     }
 
     /** Pre-allocates [count] buffers of [size], so a loop does not allocate even on its first pass. */
-    fun reserve(size: Int, count: Int) {
+    public fun reserve(size: Int, count: Int) {
         require(count >= 0) { "reserve count must not be negative, got $count" }
         pool(size).reserve(count)
     }
@@ -115,7 +115,7 @@ class Workspace {
 }
 
 /** Borrows a vector of [size] for the duration of [block], returning it to [this] afterwards. */
-inline fun <T> Workspace.borrow(size: Int, block: (DoubleArray) -> T): T {
+public inline fun <T> Workspace.borrow(size: Int, block: (DoubleArray) -> T): T {
     val buffer = take(size)
     try {
         return block(buffer)

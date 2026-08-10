@@ -15,12 +15,12 @@ package com.eignex.koblas.dense
  * The type also gives the fudge factor a name and a place to be changed, rather than leaving it a bare
  * constant in the middle of the elimination loop where nothing reveals that it exists.
  */
-sealed interface CholeskyPolicy {
+public sealed interface CholeskyPolicy {
     /**
      * Throw at the first non-positive pivot, naming the position and the value. The default, and what
      * `dpotrf` effectively does.
      */
-    data object Strict : CholeskyPolicy
+    public data object Strict : CholeskyPolicy
 
     /**
      * Continue past a non-positive pivot, treating it as [minimumPivot] instead.
@@ -35,7 +35,7 @@ sealed interface CholeskyPolicy {
      *
      * @property minimumPivot the value a non-positive pivot is raised to; must be positive.
      */
-    data class Regularize(val minimumPivot: Double = 1e-10) : CholeskyPolicy {
+    public data class Regularize(val minimumPivot: Double = 1e-10) : CholeskyPolicy {
         init {
             require(minimumPivot > 0.0 && minimumPivot.isFinite()) {
                 "minimumPivot must be positive and finite, got $minimumPivot"

@@ -19,21 +19,21 @@ import kotlinx.serialization.Serializable
  *
  * @see MatrixView the closed, serializable subset.
  */
-interface MatrixLike {
+public interface MatrixLike {
     /** Number of rows. */
-    val rows: Int
+    public val rows: Int
 
     /** Number of columns. */
-    val cols: Int
+    public val cols: Int
 
     /** Read entry at row [i], column [j]. */
-    operator fun get(i: Int, j: Int): Double
+    public operator fun get(i: Int, j: Int): Double
 
     /**
      * Materialise into a fresh `Array<DoubleArray>` of rows. Always
      * allocates; the result is independent of any internal storage.
      */
-    fun toArray(): Array<DoubleArray>
+    public fun toArray(): Array<DoubleArray>
 }
 
 /**
@@ -51,7 +51,7 @@ interface MatrixLike {
  * sweeps every entry through [get] is the wrong shape for a sparse operand — walk the stored entries instead.
  */
 @Serializable
-sealed interface MatrixView : MatrixLike
+public sealed interface MatrixView : MatrixLike
 
 /**
  * Dense column-major matrix backed by a single contiguous `DoubleArray` of
@@ -88,8 +88,11 @@ sealed interface MatrixView : MatrixLike
  */
 @Serializable
 @SerialName("DenseMatrix")
-class DenseMatrix internal constructor(override val rows: Int, override val cols: Int, val data: DoubleArray) :
-    MatrixView {
+public class DenseMatrix internal constructor(
+    override val rows: Int,
+    override val cols: Int,
+    public val data: DoubleArray,
+) : MatrixView {
 
     internal constructor(rows: Int, cols: Int = rows) : this(rows, cols, DoubleArray(entryCount(rows, cols)))
 
@@ -106,7 +109,7 @@ class DenseMatrix internal constructor(override val rows: Int, override val cols
     }
 
     /** Set entry `(i, j)`. */
-    operator fun set(i: Int, j: Int, v: Double) {
+    public operator fun set(i: Int, j: Int, v: Double) {
         data[i + j * rows] = v
     }
 
@@ -126,9 +129,9 @@ class DenseMatrix internal constructor(override val rows: Int, override val cols
     override fun toString(): String = "DenseMatrix(${rows}x$cols)"
 
     /** Factory entrypoints for [DenseMatrix]. */
-    companion object {
+    public companion object {
         /** Copy an `Array<DoubleArray>` of rows into a fresh dense matrix; `rows[i]` is row `i`. */
-        fun of(rows: Array<DoubleArray>): DenseMatrix {
+        public fun of(rows: Array<DoubleArray>): DenseMatrix {
             val r = rows.size
             val c = if (r == 0) 0 else rows[0].size
             requireShape(rows.all { it.size == c }) { "all rows must have the same length" }
@@ -148,7 +151,7 @@ class DenseMatrix internal constructor(override val rows: Int, override val cols
          * [of] along the stored axis, so each column is one `copyInto` rather than the elementwise
          * transpose. Prefer it when the data already arrives per column.
          */
-        fun ofColumns(columns: Array<DoubleArray>): DenseMatrix {
+        public fun ofColumns(columns: Array<DoubleArray>): DenseMatrix {
             val c = columns.size
             val r = if (c == 0) 0 else columns[0].size
             requireShape(columns.all { it.size == r }) { "all columns must have the same length" }
@@ -158,17 +161,17 @@ class DenseMatrix internal constructor(override val rows: Int, override val cols
         }
 
         /** Create a zero matrix of shape [rows] x [cols], square when [cols] is omitted. */
-        fun zero(rows: Int, cols: Int = rows): DenseMatrix = DenseMatrix(rows, cols)
+        public fun zero(rows: Int, cols: Int = rows): DenseMatrix = DenseMatrix(rows, cols)
 
         /** Create an NxN identity matrix scaled by [diagonal]. */
-        fun diagonal(size: Int, diagonal: Double = 1.0): DenseMatrix {
+        public fun diagonal(size: Int, diagonal: Double = 1.0): DenseMatrix {
             val m = DenseMatrix(size, size)
             for (i in 0 until size) m[i, i] = diagonal
             return m
         }
 
         /** Create the square matrix whose diagonal is [values]; the general form of the scalar [diagonal]. */
-        fun diagonal(values: DoubleArray): DenseMatrix {
+        public fun diagonal(values: DoubleArray): DenseMatrix {
             val n = values.size
             val m = DenseMatrix(n, n)
             for (i in 0 until n) m.data[i + i * n] = values[i]
@@ -177,7 +180,7 @@ class DenseMatrix internal constructor(override val rows: Int, override val cols
 
         /** Wrap an existing flat `DoubleArray` of length `rows * cols` without copying. Caller
          *  relinquishes ownership. */
-        fun wrap(rows: Int, cols: Int, data: DoubleArray): DenseMatrix = DenseMatrix(rows, cols, data)
+        public fun wrap(rows: Int, cols: Int, data: DoubleArray): DenseMatrix = DenseMatrix(rows, cols, data)
 
         /**
          * Entry count for a shape, validated first: computing `rows * cols` for the backing would

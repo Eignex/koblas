@@ -37,7 +37,7 @@ import java.lang.foreign.ValueLayout.JAVA_DOUBLE
  * sparse LU with a fill-reducing ordering, so any crossover sits at a very small `n` — expected rather than
  * measured, and not to be treated as settled.
  */
-class UmfpackSparseLapack : SparseLapack {
+public class UmfpackSparseLapack : SparseLapack {
     override val name: String get() = "umfpack"
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY
