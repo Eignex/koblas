@@ -410,11 +410,15 @@ fun SparseMatrix.transpose(): SparseMatrix {
 }
 
 /**
- * Matrix-vector product `A · x` into a fresh dense result (BLAS `dgemv` with `alpha = 1`, `beta = 0`).
+ * Matrix-vector product `this · x` into a fresh dense result (BLAS `dgemv` with `alpha = 1`, `beta = 0`).
  *
- * The view-taking overload of [Blas.gemv], for the same reason [ger] has one: a [SparseVector] operand
- * has no BLAS counterpart, and walking only its stored entries is the point of passing one. Two dense
- * operands dispatch to the backend, so this is a shape adapter rather than a second implementation.
+ * Named for `DenseMatrix.matMul` rather than `gemv`, because it is not the BLAS routine: it accepts any
+ * [MatrixLike] against any [VectorLike], which is a shape the standard has no counterpart for. Reserving
+ * `gemv` for the seam members keeps one name from meaning three vocabularies across three packages.
+ *
+ * The view-taking form exists for the same reason [ger] has one: a [SparseVector] operand has no BLAS
+ * counterpart, and walking only its stored entries is the point of passing one. Two dense operands
+ * dispatch to the backend, so this is a shape adapter rather than a second implementation.
  *
  * Every combination of the two storages resolves to a loop over stored entries only. That matters most
  * for a [SparseMatrix] operand: the generic fallback below reads through [MatrixView.get], which on CSC
@@ -423,31 +427,32 @@ fun SparseMatrix.transpose(): SparseMatrix {
  *
  * No `transpose` flag: for a sparse matrix use [com.eignex.koblas.sparse.gemv], which takes one.
  */
-fun gemv(A: MatrixLike, x: VectorLike): DenseVector {
-    requireShape(A.cols == x.size) { "gemv shape mismatch: A is ${A.rows}x${A.cols}, x size ${x.size}" }
-    if (A is DenseMatrix && x is DenseVector) return DenseVector.wrap(koblas.gemv(A, x.data))
-    val out = DenseVector(A.rows)
+fun MatrixLike.matVec(x: VectorLike): DenseVector {
+    val a = this
+    requireShape(a.cols == x.size) { "matVec shape mismatch: A is ${a.rows}x${a.cols}, x size ${x.size}" }
+    if (a is DenseMatrix && x is DenseVector) return DenseVector.wrap(koblas.gemv(a, x.data))
+    val out = DenseVector(a.rows)
     val od = out.data
-    if (A is DenseMatrix) {
+    if (a is DenseMatrix) {
         // One axpy per stored entry of x, down a contiguous column — so a sparse x touches only the
         // columns it has entries in, which is the reason this overload exists.
-        val ad = A.data
-        val rows = A.rows
+        val ad = a.data
+        val rows = a.rows
         x.forEachStored { j, v ->
             if (v != 0.0) koblas.vectorKernels.axpy(od, 0, v, ad, j * rows, rows)
         }
-    } else if (A is SparseMatrix) {
+    } else if (a is SparseMatrix) {
         // Column j of A scaled by x_j, accumulated: only the stored entries of both operands are read,
         // whichever storage x has.
         x.forEachStored { j, v ->
-            if (v != 0.0) A.forEachInColumn(j) { i, aij -> od[i] += aij * v }
+            if (v != 0.0) a.forEachInColumn(j) { i, aij -> od[i] += aij * v }
         }
     } else {
         // A foreign MatrixLike: every entry through `get`, which is why handing koblas its own storage
         // matters when the data is large.
-        for (i in 0 until A.rows) {
+        for (i in 0 until a.rows) {
             var s = 0.0
-            x.forEachStored { j, v -> s += A[i, j] * v }
+            x.forEachStored { j, v -> s += a[i, j] * v }
             od[i] = s
         }
     }

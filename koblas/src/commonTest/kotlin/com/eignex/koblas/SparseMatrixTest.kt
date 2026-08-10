@@ -103,13 +103,13 @@ class SparseMatrixTest {
             SparseVector.of(2, intArrayOf(1), doubleArrayOf(-1.0)),
             SparseVector.of(2, IntArray(0), DoubleArray(0)),
         )) {
-            val viaSparse = gemv(a, x)
-            val viaDense = gemv(dense, x)
+            val viaSparse = a.matVec(x)
+            val viaDense = dense.matVec(x)
             assertEquals(viaDense, viaSparse, "gemv disagreed for $x")
         }
         // And against the member form, which takes the transpose flag.
         assertTrue(
-            a.gemv(doubleArrayOf(2.0, -1.0)).contentEquals(gemv(a, DenseVector.of(doubleArrayOf(2.0, -1.0))).data),
+            a.gemv(doubleArrayOf(2.0, -1.0)).contentEquals(a.matVec(DenseVector.of(doubleArrayOf(2.0, -1.0))).data),
         )
     }
 
