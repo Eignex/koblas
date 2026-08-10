@@ -23,7 +23,8 @@ import com.eignex.koblas.koblas
  * Lower-triangular Cholesky decomposition `A = L * LT`, returned as a fresh matrix, from the installed
  * backend; see [Lapack.cholesky].
  *
- * Throws [IllegalArgumentException] at the first non-positive pivot. Pass [CholeskyPolicy.Regularize] for a
+ * Throws [com.eignex.koblas.NotPositiveDefinite] at the first non-positive pivot. Pass
+ * [CholeskyPolicy.Regularize] for a
  * factorization that floors such a pivot and continues, which is a factor of a nearby matrix rather than of
  * the one passed in — useful for an estimate that has drifted slightly indefinite, and a decision the caller
  * makes rather than a default.

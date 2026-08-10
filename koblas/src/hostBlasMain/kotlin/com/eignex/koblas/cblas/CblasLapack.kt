@@ -13,6 +13,7 @@ import com.eignex.koblas.dense.LuDecomposition
 import com.eignex.koblas.dense.QrDecomposition
 import com.eignex.koblas.dense.ReferenceLinearAlgebra
 import com.eignex.koblas.lapackFailedAt
+import com.eignex.koblas.requireShape
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.invoke
@@ -44,7 +45,7 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
     override val priority: Int get() = HOST_BACKEND_PRIORITY
 
     override fun factor(a: DenseMatrix): LuDecomposition {
-        require(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
+        requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
         val n = a.rows
         val lu = a.data.copyOf()
         val piv = IntArray(n) { it }
@@ -76,8 +77,8 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
         workspace: Workspace?,
     ): DoubleArray {
         val n = lu.n
-        require(b.size == n) { "solve: b length ${b.size} != $n" }
-        require(out.size == n) { "solve: out length ${out.size} != $n" }
+        requireShape(b.size == n) { "solve: b length ${b.size} != $n" }
+        requireShape(out.size == n) { "solve: out length ${out.size} != $n" }
         if (n == 0) return out
         if (transpose) {
             // Aᵀ x = b, with Aᵀ = Uᵀ Lᵀ P: forward-solve Uᵀ, back-solve unit Lᵀ, un-permute. The scatter
@@ -114,8 +115,8 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
     ): DenseMatrix {
         val n = lu.n
         val nrhs = b.cols
-        require(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
-        require(out.rows == n && out.cols == nrhs) {
+        requireShape(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
+        requireShape(out.rows == n && out.cols == nrhs) {
             "solve: out is ${out.rows}x${out.cols}, expected ${n}x$nrhs"
         }
         if (n == 0 || nrhs == 0) return out
@@ -158,7 +159,7 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
     }
 
     override fun ldl(a: DenseMatrix, workspace: Workspace?): LdlDecomposition {
-        require(a.rows == a.cols) { "ldl: matrix must be square, got ${a.rows}x${a.cols}" }
+        requireShape(a.rows == a.cols) { "ldl: matrix must be square, got ${a.rows}x${a.cols}" }
         val n = a.rows
         val buf = a.data.copyOf()
         val ipiv = IntArray(n)
@@ -192,8 +193,8 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
     ): DenseMatrix {
         val n = ldl.n
         val nrhs = b.cols
-        require(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
-        require(out.rows == n && out.cols == nrhs) {
+        requireShape(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
+        requireShape(out.rows == n && out.cols == nrhs) {
             "solve: out is ${out.rows}x${out.cols}, expected ${n}x$nrhs"
         }
         if (out !== b) b.data.copyInto(out.data)
@@ -217,8 +218,8 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
     }
 
     override fun applyQInto(qr: QrDecomposition, y: DoubleArray, out: DoubleArray, transpose: Boolean): DoubleArray {
-        require(y.size == qr.m) { "applyQ: y length ${y.size} != ${qr.m}" }
-        require(out.size == qr.m) { "applyQ: out length ${out.size} != ${qr.m}" }
+        requireShape(y.size == qr.m) { "applyQ: y length ${y.size} != ${qr.m}" }
+        requireShape(out.size == qr.m) { "applyQ: out length ${out.size} != ${qr.m}" }
         val c = out
         if (out !== y) y.copyInto(out)
         if (qr.tau.isEmpty()) return c
@@ -278,7 +279,7 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
      * non-positive-definite input falls back to the portable path, which is what applies the clamp.
      */
     override fun cholesky(a: MatrixLike, policy: CholeskyPolicy): DenseMatrix {
-        require(a.rows == a.cols) { "cholesky requires a square matrix; got ${a.rows}x${a.cols}" }
+        requireShape(a.rows == a.cols) { "cholesky requires a square matrix; got ${a.rows}x${a.cols}" }
         val n = a.rows
         if (n == 0) return DenseMatrix(0, 0)
         val l = DenseMatrix(n, n)

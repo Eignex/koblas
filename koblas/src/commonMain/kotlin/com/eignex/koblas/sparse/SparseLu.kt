@@ -6,6 +6,7 @@ import com.eignex.koblas.Workspace
 import com.eignex.koblas.dense.determinant
 import com.eignex.koblas.dense.permutationSign
 import com.eignex.koblas.koblas
+import com.eignex.koblas.requireShape
 import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.log2
@@ -72,8 +73,8 @@ class SparseLu private constructor(
      * triangular sweeps this is rather than standing in for "solve".
      */
     private fun ftranInto(b: DoubleArray, out: DoubleArray, workspace: Workspace? = null): DoubleArray {
-        require(b.size == m) { "ftran: b size ${b.size} != $m" }
-        require(out.size == m) { "ftran: out size ${out.size} != $m" }
+        requireShape(b.size == m) { "ftran: b size ${b.size} != $m" }
+        requireShape(out.size == m) { "ftran: out size ${out.size} != $m" }
         val y = workspace?.take(m) ?: DoubleArray(m)
         val xp = workspace?.take(m) ?: DoubleArray(m)
         y.fill(0.0)
@@ -104,8 +105,8 @@ class SparseLu private constructor(
     /** The transposed sweep of [solveInto]: `Uᵀ Lᵀ (P x) = Q b`. `b` is indexed by original column, the
      *  result by original row. Private for the reason [ftranInto] is. */
     private fun btranInto(b: DoubleArray, out: DoubleArray, workspace: Workspace? = null): DoubleArray {
-        require(b.size == m) { "solve: b size ${b.size} != $m" }
-        require(out.size == m) { "solve: out size ${out.size} != $m" }
+        requireShape(b.size == m) { "solve: b size ${b.size} != $m" }
+        requireShape(out.size == m) { "solve: out size ${out.size} != $m" }
         val z = workspace?.take(m) ?: DoubleArray(m)
         val w = workspace?.take(m) ?: DoubleArray(m)
         z.fill(0.0)
@@ -160,7 +161,7 @@ class SparseLu private constructor(
             equilibrate: Boolean = false,
             dropTolerance: Double = NO_DROP,
         ): SparseFactorization {
-            require(a.rows == a.cols) { "SparseLu requires a square matrix; got ${a.rows}x${a.cols}" }
+            requireShape(a.rows == a.cols) { "SparseLu requires a square matrix; got ${a.rows}x${a.cols}" }
             val rows = Array(a.rows) { MutableIntDoubleMap() }
             for (j in 0 until a.cols) a.forEachInColumn(j) { i, v -> rows[i].put(j, v) }
             return factorize(rows, a.rows, equilibrate, dropTolerance)

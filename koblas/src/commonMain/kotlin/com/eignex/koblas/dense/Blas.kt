@@ -9,6 +9,7 @@ import com.eignex.koblas.VectorView
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.gemv
 import com.eignex.koblas.koblas
+import com.eignex.koblas.requireShape
 import com.eignex.koblas.transpose
 
 /**
@@ -120,7 +121,7 @@ interface Blas : Backend {
      * one a backend can dispatch.
      */
     fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix) {
-        require(a.rows == x.size && a.cols == y.size) {
+        requireShape(a.rows == x.size && a.cols == y.size) {
             "ger shape mismatch: A is ${a.rows}x${a.cols}, x ${x.size}, y ${y.size}"
         }
         if (alpha == 0.0) return
@@ -143,8 +144,8 @@ interface Blas : Backend {
      * `(alpha·x_i)·x_j` and `(alpha·x_j)·x_i` round differently.
      */
     fun syr(alpha: Double, x: VectorLike, a: DenseMatrix, uplo: Uplo = Uplo.FULL) {
-        require(a.rows == a.cols) { "syr: matrix must be square, got ${a.rows}x${a.cols}" }
-        require(x.size == a.rows) { "syr: x length ${x.size} != ${a.rows}" }
+        requireShape(a.rows == a.cols) { "syr: matrix must be square, got ${a.rows}x${a.cols}" }
+        requireShape(x.size == a.rows) { "syr: x length ${x.size} != ${a.rows}" }
         if (alpha == 0.0) return
         val n = a.rows
         val ad = a.data
@@ -164,8 +165,8 @@ interface Blas : Backend {
      * `alpha·(x_i·y_j + y_i·x_j)`, and written to both positions.
      */
     fun syr2(alpha: Double, x: VectorLike, y: VectorLike, a: DenseMatrix, uplo: Uplo = Uplo.FULL) {
-        require(a.rows == a.cols) { "syr2: matrix must be square, got ${a.rows}x${a.cols}" }
-        require(x.size == a.rows && y.size == a.rows) {
+        requireShape(a.rows == a.cols) { "syr2: matrix must be square, got ${a.rows}x${a.cols}" }
+        requireShape(x.size == a.rows && y.size == a.rows) {
             "syr2: operand lengths ${x.size} and ${y.size} must both be ${a.rows}"
         }
         if (alpha == 0.0) return
@@ -202,10 +203,10 @@ interface Blas : Backend {
     ) {
         val n = if (transpose) a.cols else a.rows
         val k = if (transpose) a.rows else a.cols
-        require(b.rows == a.rows && b.cols == a.cols) {
+        requireShape(b.rows == a.rows && b.cols == a.cols) {
             "syr2k: B is ${b.rows}x${b.cols}, expected ${a.rows}x${a.cols} to match A"
         }
-        require(c.rows == n && c.cols == n) { "syr2k: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
+        requireShape(c.rows == n && c.cols == n) { "syr2k: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
         scaleUplo(koblas.vectorKernels, c.data, n, beta, uplo)
         if (alpha == 0.0 || n == 0 || k == 0) return
         val cd = c.data
@@ -229,8 +230,8 @@ interface Blas : Backend {
      * triangle is read, so the rest of [a] may hold anything.
      */
     fun trsv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean = false, unitDiag: Boolean = false) {
-        require(a.rows == a.cols) { "trsv requires a square matrix; got ${a.rows}x${a.cols}" }
-        require(x.size == a.rows) { "trsv: x length ${x.size} != ${a.rows}" }
+        requireShape(a.rows == a.cols) { "trsv requires a square matrix; got ${a.rows}x${a.cols}" }
+        requireShape(x.size == a.rows) { "trsv: x length ${x.size} != ${a.rows}" }
         trsvCore(koblas.vectorKernels, a.data, a.rows, x, lower = lower, transpose = transpose, unitDiag = unitDiag)
     }
 
@@ -248,9 +249,9 @@ interface Blas : Backend {
         unitDiag: Boolean = false,
         right: Boolean = false,
     ) {
-        require(a.rows == a.cols) { "trsm requires a square matrix; got ${a.rows}x${a.cols}" }
+        requireShape(a.rows == a.cols) { "trsm requires a square matrix; got ${a.rows}x${a.cols}" }
         if (right) {
-            require(b.cols == a.rows) { "trsm right: B has ${b.cols} cols, expected ${a.rows}" }
+            requireShape(b.cols == a.rows) { "trsm right: B has ${b.cols} cols, expected ${a.rows}" }
             forEachRow(a.rows, b) { row ->
                 trsvCore(
                     koblas.vectorKernels,
@@ -263,15 +264,15 @@ interface Blas : Backend {
                 )
             }
         } else {
-            require(b.rows == a.rows) { "trsm: B has ${b.rows} rows, expected ${a.rows}" }
+            requireShape(b.rows == a.rows) { "trsm: B has ${b.rows} rows, expected ${a.rows}" }
             trsmCore(koblas.vectorKernels, a.data, a.rows, b.data, b.cols, lower, transpose, unitDiag)
         }
     }
 
     /** Multiply `x = op(T) · x` in place (BLAS `dtrmv`), the product counterpart of [trsv]. */
     fun trmv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean = false, unitDiag: Boolean = false) {
-        require(a.rows == a.cols) { "trmv requires a square matrix; got ${a.rows}x${a.cols}" }
-        require(x.size == a.rows) { "trmv: x length ${x.size} != ${a.rows}" }
+        requireShape(a.rows == a.cols) { "trmv requires a square matrix; got ${a.rows}x${a.cols}" }
+        requireShape(x.size == a.rows) { "trmv: x length ${x.size} != ${a.rows}" }
         trmvCore(koblas.vectorKernels, a.data, a.rows, x, lower = lower, transpose = transpose, unitDiag = unitDiag)
     }
 
@@ -286,9 +287,9 @@ interface Blas : Backend {
         unitDiag: Boolean = false,
         right: Boolean = false,
     ) {
-        require(a.rows == a.cols) { "trmm requires a square matrix; got ${a.rows}x${a.cols}" }
+        requireShape(a.rows == a.cols) { "trmm requires a square matrix; got ${a.rows}x${a.cols}" }
         if (right) {
-            require(b.cols == a.rows) { "trmm right: B has ${b.cols} cols, expected ${a.rows}" }
+            requireShape(b.cols == a.rows) { "trmm right: B has ${b.cols} cols, expected ${a.rows}" }
             forEachRow(a.rows, b) { row ->
                 trmvCore(
                     koblas.vectorKernels,
@@ -301,7 +302,7 @@ interface Blas : Backend {
                 )
             }
         } else {
-            require(b.rows == a.rows) { "trmm: B has ${b.rows} rows, expected ${a.rows}" }
+            requireShape(b.rows == a.rows) { "trmm: B has ${b.rows} rows, expected ${a.rows}" }
             trmmCore(koblas.vectorKernels, a.data, a.rows, b.data, b.cols, lower, transpose, unitDiag)
         }
     }

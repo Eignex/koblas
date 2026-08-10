@@ -21,6 +21,7 @@ import com.eignex.koblas.hostblas.HostBlasCalls.RIGHT
 import com.eignex.koblas.hostblas.HostBlasCalls.TRANS
 import com.eignex.koblas.hostblas.HostBlasCalls.UPPER
 import com.eignex.koblas.hostblas.HostBlasCalls.seg
+import com.eignex.koblas.requireShape
 
 /**
  * The host OpenBLAS as the JVM's [Blas] half, bound with `java.lang.foreign`.
@@ -38,7 +39,7 @@ class HostBlas internal constructor() : Blas {
     /** Portable below the level-2 gate, `cblas_dger` above it. */
     override fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix) {
         if (minOf(a.rows, a.cols) < dispatchThresholds.level2) return super.ger(alpha, x, y, a)
-        require(a.rows == x.size && a.cols == y.size) {
+        requireShape(a.rows == x.size && a.cols == y.size) {
             "ger shape mismatch: A is ${a.rows}x${a.cols}, x ${x.size}, y ${y.size}"
         }
         if (alpha == 0.0 || a.rows == 0 || a.cols == 0) return
@@ -50,8 +51,8 @@ class HostBlas internal constructor() : Blas {
     /** Portable below the level-2 gate, `cblas_dtrsv` above it. */
     override fun trsv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
         if (a.rows < dispatchThresholds.level2) return super.trsv(a, x, lower, transpose, unitDiag)
-        require(a.rows == a.cols) { "trsv requires a square matrix; got ${a.rows}x${a.cols}" }
-        require(x.size == a.rows) { "trsv: x length ${x.size} != ${a.rows}" }
+        requireShape(a.rows == a.cols) { "trsv requires a square matrix; got ${a.rows}x${a.cols}" }
+        requireShape(x.size == a.rows) { "trsv: x length ${x.size} != ${a.rows}" }
         if (a.rows == 0) return
         HostBlasCalls.dtrsv.invokeWithArguments(
             COL_MAJOR, uploOf(lower), transOf(transpose), diagOf(unitDiag), a.rows,
@@ -62,8 +63,8 @@ class HostBlas internal constructor() : Blas {
     /** Portable below the level-2 gate, `cblas_dtrmv` above it. */
     override fun trmv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
         if (a.rows < dispatchThresholds.level2) return super.trmv(a, x, lower, transpose, unitDiag)
-        require(a.rows == a.cols) { "trmv requires a square matrix; got ${a.rows}x${a.cols}" }
-        require(x.size == a.rows) { "trmv: x length ${x.size} != ${a.rows}" }
+        requireShape(a.rows == a.cols) { "trmv requires a square matrix; got ${a.rows}x${a.cols}" }
+        requireShape(x.size == a.rows) { "trmv: x length ${x.size} != ${a.rows}" }
         if (a.rows == 0) return
         HostBlasCalls.dtrmv.invokeWithArguments(
             COL_MAJOR, uploOf(lower), transOf(transpose), diagOf(unitDiag), a.rows,
@@ -115,11 +116,11 @@ class HostBlas internal constructor() : Blas {
         solve: Boolean,
     ) {
         val what = if (solve) "trsm" else "trmm"
-        require(a.rows == a.cols) { "$what requires a square matrix; got ${a.rows}x${a.cols}" }
+        requireShape(a.rows == a.cols) { "$what requires a square matrix; got ${a.rows}x${a.cols}" }
         if (right) {
-            require(b.cols == a.rows) { "$what right: B has ${b.cols} cols, expected ${a.rows}" }
+            requireShape(b.cols == a.rows) { "$what right: B has ${b.cols} cols, expected ${a.rows}" }
         } else {
-            require(b.rows == a.rows) { "$what: B has ${b.rows} rows, expected ${a.rows}" }
+            requireShape(b.rows == a.rows) { "$what: B has ${b.rows} rows, expected ${a.rows}" }
         }
         if (a.rows == 0 || b.rows == 0 || b.cols == 0) return
         val handle = if (solve) HostBlasCalls.dtrsm else HostBlasCalls.dtrmm
@@ -155,8 +156,8 @@ class HostBlas internal constructor() : Blas {
         val trans = if (transpose) TRANS else NO_TRANS
         val xLen = if (transpose) a.rows else a.cols
         val yLen = if (transpose) a.cols else a.rows
-        require(x.size == xLen) { "gemv: x length ${x.size} != $xLen" }
-        require(y.size == yLen) { "gemv: y length ${y.size} != $yLen" }
+        requireShape(x.size == xLen) { "gemv: x length ${x.size} != $xLen" }
+        requireShape(y.size == yLen) { "gemv: y length ${y.size} != $yLen" }
         if (alpha == 0.0 || xLen == 0) {
             scaleInPlace(y, beta)
             return
@@ -181,8 +182,8 @@ class HostBlas internal constructor() : Blas {
         val k = if (transposeA) a.rows else a.cols
         val kB = if (transposeB) b.cols else b.rows
         val n = if (transposeB) b.rows else b.cols
-        require(k == kB) { "gemm: op(A) is ${m}x$k but op(B) is ${kB}x$n" }
-        require(c.rows == m && c.cols == n) { "gemm: C is ${c.rows}x${c.cols}, expected ${m}x$n" }
+        requireShape(k == kB) { "gemm: op(A) is ${m}x$k but op(B) is ${kB}x$n" }
+        requireShape(c.rows == m && c.cols == n) { "gemm: C is ${c.rows}x${c.cols}, expected ${m}x$n" }
         if (alpha == 0.0 || k == 0) {
             scaleInPlace(c.data, beta)
             return
@@ -213,7 +214,7 @@ class HostBlas internal constructor() : Blas {
     ) {
         val n = if (transpose) a.cols else a.rows
         val k = if (transpose) a.rows else a.cols
-        require(c.rows == n && c.cols == n) { "syrk: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
+        requireShape(c.rows == n && c.cols == n) { "syrk: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
         if (minOf(n, k) < dispatchThresholds.level3) {
             ReferenceLinearAlgebra.syrk(alpha, a, transpose, beta, c, uplo, workspace)
             return
@@ -269,8 +270,8 @@ class HostBlas internal constructor() : Blas {
             return
         }
         val n = a.rows
-        require(x.size == n) { "symv: x length ${x.size} != $n" }
-        require(y.size == n) { "symv: y length ${y.size} != $n" }
+        requireShape(x.size == n) { "symv: x length ${x.size} != $n" }
+        requireShape(y.size == n) { "symv: y length ${y.size} != $n" }
         if (alpha == 0.0 || n == 0) {
             scaleInPlace(y, beta)
             return
@@ -290,7 +291,7 @@ class HostBlas internal constructor() : Blas {
         lower: Boolean,
         right: Boolean,
     ) {
-        require(a.rows == a.cols) { "symm: matrix must be square, got ${a.rows}x${a.cols}" }
+        requireShape(a.rows == a.cols) { "symm: matrix must be square, got ${a.rows}x${a.cols}" }
         if (minOf(a.rows, b.rows, b.cols) < dispatchThresholds.level3) {
             ReferenceLinearAlgebra.symm(alpha, a, b, beta, c, lower, right)
             return

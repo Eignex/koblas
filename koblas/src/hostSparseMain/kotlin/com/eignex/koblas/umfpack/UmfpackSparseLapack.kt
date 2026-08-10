@@ -6,6 +6,7 @@ import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
 import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.requireShape
 import com.eignex.koblas.sparse.NO_DROP
 import com.eignex.koblas.sparse.SingularSparseFactorization
 import com.eignex.koblas.sparse.SparseFactorization
@@ -41,7 +42,7 @@ class UmfpackSparseLapack internal constructor(private val f: UmfpackFunctions) 
 
     @Suppress("ReturnCount") // one early return per condition UMFPACK cannot serve
     override fun factor(a: SparseMatrix, equilibrate: Boolean, dropTolerance: Double): SparseFactorization {
-        require(a.rows == a.cols) { "factor requires a square matrix; got ${a.rows}x${a.cols}" }
+        requireShape(a.rows == a.cols) { "factor requires a square matrix; got ${a.rows}x${a.cols}" }
         if (equilibrate || dropTolerance != NO_DROP) return SparseLu.factorCsc(a, equilibrate, dropTolerance)
         // An empty matrix and an all-zero one both have nothing to pin: `usePinned` on an empty array cannot
         // produce an address. The portable path handles both, the second by reporting singular.

@@ -3,6 +3,7 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.Backend
 import com.eignex.koblas.SparseVector
 import com.eignex.koblas.euclideanNorm
+import com.eignex.koblas.requireShape
 import kotlin.math.abs
 
 /**
@@ -24,7 +25,7 @@ import kotlin.math.abs
 interface SparseVectorKernels : Backend {
     /** `xᵀ·y` for a sparse [x] against a dense [y] (Sparse BLAS `usdot`); walks only the stored entries. */
     fun dot(x: SparseVector, y: DoubleArray): Double {
-        require(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
+        requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
         var s = 0.0
         val idx = x.indices
         val vals = x.values
@@ -65,7 +66,7 @@ interface SparseVectorKernels : Backend {
     /** `y += alpha·x` for a sparse [x] into a dense [y] (Sparse BLAS `usaxpy`); touches only `x`'s
      *  positions, which is the reason to pass a sparse operand at all. */
     fun axpy(y: DoubleArray, alpha: Double, x: SparseVector) {
-        require(x.size == y.size) { "axpy: sizes differ, ${x.size} vs ${y.size}" }
+        requireShape(x.size == y.size) { "axpy: sizes differ, ${x.size} vs ${y.size}" }
         if (alpha == 0.0) return
         val idx = x.indices
         val vals = x.values
@@ -75,7 +76,7 @@ interface SparseVectorKernels : Backend {
     /** Write [x]'s stored entries into [out] at their positions, leaving the rest of [out] alone (Sparse
      *  BLAS `ussc`). Zero-fill [out] first for a plain densification. */
     fun scatter(x: SparseVector, out: DoubleArray) {
-        require(x.size == out.size) { "scatter: sizes differ, ${x.size} vs ${out.size}" }
+        requireShape(x.size == out.size) { "scatter: sizes differ, ${x.size} vs ${out.size}" }
         val idx = x.indices
         val vals = x.values
         for (k in idx.indices) out[idx[k]] = vals[k]

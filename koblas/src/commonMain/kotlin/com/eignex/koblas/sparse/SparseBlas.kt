@@ -3,7 +3,9 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.Backend
+import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.requireShape
 
 /**
  * The sparse matrix routines, the seam a host sparse BLAS plugs into.
@@ -38,8 +40,8 @@ interface SparseBlas : Backend {
     ) {
         val xLen = if (transpose) a.rows else a.cols
         val yLen = if (transpose) a.cols else a.rows
-        require(x.size == xLen) { "gemv: x length ${x.size} != $xLen" }
-        require(y.size == yLen) { "gemv: y length ${y.size} != $yLen" }
+        requireShape(x.size == xLen) { "gemv: x length ${x.size} != $xLen" }
+        requireShape(y.size == yLen) { "gemv: y length ${y.size} != $yLen" }
         when {
             beta == 0.0 -> y.fill(0.0)
             beta != 1.0 -> for (i in y.indices) y[i] *= beta
@@ -80,12 +82,12 @@ interface SparseBlas : Backend {
      * missing diagonal entry is detectable for free while walking the column, so reporting it costs nothing
      * and a silent `NaN` would be a worse trade.
      *
-     * @throws IllegalArgumentException if a diagonal entry is missing or zero, naming its position.
+     * @throws com.eignex.koblas.SingularMatrix if a diagonal entry is missing or zero, naming its position.
      */
     fun trsv(a: SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean = false) {
-        require(a.rows == a.cols) { "trsv requires a square matrix; got ${a.rows}x${a.cols}" }
+        requireShape(a.rows == a.cols) { "trsv requires a square matrix; got ${a.rows}x${a.cols}" }
         val n = a.rows
-        require(x.size == n) { "trsv: x length ${x.size} != $n" }
+        requireShape(x.size == n) { "trsv: x length ${x.size} != $n" }
         // Column order: forward when a finished unknown feeds later ones, backward when it feeds earlier.
         val order = if (lower != transpose) 0 until n else n - 1 downTo 0
         for (j in order) {
@@ -129,13 +131,16 @@ interface SparseBlas : Backend {
  */
 private fun diagonalOf(a: SparseMatrix, j: Int): Double {
     val d = a[j, j]
-    require(d != 0.0) {
+    if (d == 0.0) {
         val stored = (a.colPtr[j] until a.colPtr[j + 1]).any { a.rowIdx[it] == j }
-        if (stored) {
-            "trsv: triangle is singular, diagonal entry $j is an explicit zero"
-        } else {
-            "trsv: triangle has no diagonal entry at $j, so it is singular"
-        }
+        throw SingularMatrix(
+            j,
+            if (stored) {
+                "trsv: triangle is singular, diagonal entry $j is an explicit zero"
+            } else {
+                "trsv: triangle has no diagonal entry at $j, so it is singular"
+            },
+        )
     }
     return d
 }

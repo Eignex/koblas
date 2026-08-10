@@ -2,6 +2,7 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.SparseVector
 import com.eignex.koblas.dense.simdAvailable
+import com.eignex.koblas.requireShape
 import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
 
@@ -25,7 +26,7 @@ internal actual object PlatformSparseVectorKernels : SparseVectorKernels {
      * portable implementation is the interface default and this defers to it.
      */
     actual override fun dot(x: SparseVector, y: DoubleArray): Double {
-        require(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
+        requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
         if (!simdAvailable || x.indices.size < SPARSE_DOT_SIMD_MIN) return super.dot(x, y)
         return SparseSimd.dot(x.indices, x.values, y)
     }

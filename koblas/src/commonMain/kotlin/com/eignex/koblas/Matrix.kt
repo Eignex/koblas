@@ -95,7 +95,7 @@ class DenseMatrix internal constructor(override val rows: Int, override val cols
 
     init {
         require(rows >= 0 && cols >= 0) { "negative shape: ${rows}x$cols" }
-        require(data.size == rows * cols) {
+        requireShape(data.size == rows * cols) {
             "data length ${data.size} does not match shape ${rows}x$cols (= ${rows * cols})"
         }
     }
@@ -131,7 +131,7 @@ class DenseMatrix internal constructor(override val rows: Int, override val cols
         fun of(rows: Array<DoubleArray>): DenseMatrix {
             val r = rows.size
             val c = if (r == 0) 0 else rows[0].size
-            require(rows.all { it.size == c }) { "all rows must have the same length" }
+            requireShape(rows.all { it.size == c }) { "all rows must have the same length" }
             val flat = DoubleArray(r * c)
             // A row of the argument scatters down the columns of the backing, so this transposes as it
             // copies rather than bulk-copying each row.
@@ -151,7 +151,7 @@ class DenseMatrix internal constructor(override val rows: Int, override val cols
         fun ofColumns(columns: Array<DoubleArray>): DenseMatrix {
             val c = columns.size
             val r = if (c == 0) 0 else columns[0].size
-            require(columns.all { it.size == r }) { "all columns must have the same length" }
+            requireShape(columns.all { it.size == r }) { "all columns must have the same length" }
             val flat = DoubleArray(entryCount(r, c))
             for (j in 0 until c) columns[j].copyInto(flat, j * r)
             return DenseMatrix(r, c, flat)

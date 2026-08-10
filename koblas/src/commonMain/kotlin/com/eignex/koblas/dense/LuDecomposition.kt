@@ -1,6 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.NOT_SINGULAR
+import com.eignex.koblas.requireShape
 import com.eignex.koblas.sparse.SparseLu
 
 /**
@@ -41,8 +42,8 @@ class LuDecomposition(val n: Int, val lu: DoubleArray, val piv: IntArray, failed
     val singular: Boolean get() = failedAt != NOT_SINGULAR
 
     init {
-        require(lu.size == n * n) { "lu length ${lu.size} != ${n * n}" }
-        require(piv.size == n) { "piv length ${piv.size} != $n" }
+        requireShape(lu.size == n * n) { "lu length ${lu.size} != ${n * n}" }
+        requireShape(piv.size == n) { "piv length ${piv.size} != $n" }
     }
 }
 
