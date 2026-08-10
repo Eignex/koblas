@@ -371,8 +371,7 @@ println(koblasInfo) // backend=cblas, kernels=scalar+host
 
 ## Migrating
 
-This release reshapes the public API. Every removal has a direct replacement,
-and `koblas/api/` records the surface exactly.
+This release reshapes the public API. Every removal has a direct replacement.
 
 | was | now |
 |-----|-----|
@@ -397,8 +396,3 @@ routine that took a `DoubleArray`, `column` / `row`, the operators, and
 The exception types all extend `IllegalArgumentException`, which is what koblas
 threw before, so a `catch` written against the old API still compiles and still
 catches.
-
-The public surface is dumped to `koblas/api/koblas.api` (JVM) and
-`koblas/api/koblas.klib.api` (native, JS, wasm), and `check` fails when the code
-and the dump disagree. Run `./gradlew :koblas:updateKotlinAbi` after an
-intentional change and commit the diff along with it.
