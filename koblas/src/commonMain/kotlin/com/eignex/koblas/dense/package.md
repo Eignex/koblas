@@ -12,7 +12,7 @@ Dense linear algebra: the three swappable seams and the routines behind them.
   with [LuDecomposition] and [determinant]), symmetric indefinite [LdlDecomposition], [QrDecomposition]
   with the least-squares and minimum-norm solves, [PivotedQrDecomposition] when the rank is the question
   rather than the solve, the condition estimate, and the SPD suite
-  [cholesky] / [solveSpd] / [invertSpd].
+  [cholesky] and the [CholeskyDecomposition] solve and invert.
 - [LinearAlgebra] pairs [Blas] and [Lapack]; the two are ranked and selected independently, so a host
   providing one library and not the other still accelerates what it can. Offered through
   [com.eignex.koblas.registerBackend], forced with [com.eignex.koblas.installBackends], resolved as

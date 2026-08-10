@@ -56,8 +56,8 @@ val x = a.lu().solve(doubleArrayOf(3.0, 5.0))
 Solve a symmetric positive-definite system via Cholesky:
 
 ```kotlin
-val l = a.cholesky() // A = L·Lᵀ; throws if A is not positive-definite
-val xs = solveSpd(l, doubleArrayOf(3.0, 5.0))
+val chol = a.cholesky() // A = L·Lᵀ; throws if A is not positive-definite
+val xs = chol.solve(doubleArrayOf(3.0, 5.0))
 ```
 
 An estimate that has drifted slightly indefinite can ask for the nearby factor

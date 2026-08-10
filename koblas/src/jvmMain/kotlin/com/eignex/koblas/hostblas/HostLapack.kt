@@ -5,6 +5,7 @@ import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.MatrixLike
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.dense.Blas
+import com.eignex.koblas.dense.CholeskyDecomposition
 import com.eignex.koblas.dense.CholeskyPolicy
 import com.eignex.koblas.dense.Lapack
 import com.eignex.koblas.dense.LdlDecomposition
@@ -13,10 +14,8 @@ import com.eignex.koblas.dense.PivotedQrDecomposition
 import com.eignex.koblas.dense.QrDecomposition
 import com.eignex.koblas.dense.ReferenceLinearAlgebra
 import com.eignex.koblas.dense.cholesky
-import com.eignex.koblas.dense.invertSpd
 import com.eignex.koblas.dense.lu
 import com.eignex.koblas.dense.rankOfPivotedR
-import com.eignex.koblas.dense.solveSpd
 import com.eignex.koblas.dispatchThresholds
 import com.eignex.koblas.hostblas.HostBlasCalls.COL_MAJOR
 import com.eignex.koblas.hostblas.HostBlasCalls.LEFT
@@ -336,11 +335,11 @@ class HostLapack internal constructor() : Lapack {
      * falls back to the portable path, which is what applies the clamp or throws per the flag. And only the
      * lower triangle of the input is read, matching what koblas promises its callers.
      */
-    override fun cholesky(a: MatrixLike, policy: CholeskyPolicy): DenseMatrix {
+    override fun cholesky(a: MatrixLike, policy: CholeskyPolicy): CholeskyDecomposition {
         if (a.rows < JVM_CHOLESKY_MIN) return super.cholesky(a, policy)
         requireShape(a.rows == a.cols) { "cholesky requires a square matrix; got ${a.rows}x${a.cols}" }
         val n = a.rows
-        if (n == 0) return DenseMatrix(0, 0)
+        if (n == 0) return CholeskyDecomposition(DenseMatrix(0, 0))
         val l = DenseMatrix(n, n)
         for (i in 0 until n) for (j in 0..i) l[i, j] = a[i, j]
         val info = HostBlasCalls.dpotrf.invokeWithArguments(
@@ -353,17 +352,17 @@ class HostLapack internal constructor() : Lapack {
         check(info >= 0) { "dpotrf: illegal argument ${-info}" }
         if (info > 0) return super.cholesky(a, policy)
         for (i in 0 until n) for (j in i + 1 until n) l[i, j] = 0.0
-        return l
+        return CholeskyDecomposition(l)
     }
 
     /**
      * Gated by [JVM_SOLVE_SPD_MIN], which shuts it: `dpotrs` loses to the SIMD kernels at every size, because
      * `O(n²)` work over `O(n²)` data has nothing to amortize a foreign call against.
      */
-    override fun solveSpd(L: DenseMatrix, b: DoubleArray): DoubleArray {
-        if (L.rows < JVM_SOLVE_SPD_MIN) return super.solveSpd(L, b)
-        val n = L.rows
-        requireShape(b.size == n) { "solveSpd: b size ${b.size}, expected $n" }
+    override fun solve(chol: CholeskyDecomposition, b: DoubleArray): DoubleArray {
+        if (chol.n < JVM_SOLVE_SPD_MIN) return super.solve(chol, b)
+        val n = chol.n
+        requireShape(b.size == n) { "solve: b size ${b.size}, expected $n" }
         val x = b.copyOf()
         if (n == 0) return x
         val info = HostBlasCalls.dpotrs.invokeWithArguments(
@@ -371,7 +370,7 @@ class HostLapack internal constructor() : Lapack {
             'L'.code.toByte(),
             n,
             1,
-            HostBlasCalls.seg(L.data),
+            HostBlasCalls.seg(chol.l.data),
             n,
             HostBlasCalls.seg(x),
             n,
@@ -385,11 +384,11 @@ class HostLapack internal constructor() : Lapack {
      * full symmetric inverse, so the result is mirrored; and it overwrites the factor with the inverse, so
      * the factor is copied first rather than destroyed.
      */
-    override fun invertSpd(L: DenseMatrix, workspace: Workspace?): DenseMatrix {
-        if (L.rows < JVM_INVERT_SPD_MIN) return super.invertSpd(L, workspace)
-        val n = L.rows
+    override fun invert(chol: CholeskyDecomposition, workspace: Workspace?): DenseMatrix {
+        if (chol.n < JVM_INVERT_SPD_MIN) return super.invert(chol, workspace)
+        val n = chol.n
         if (n == 0) return DenseMatrix(0, 0)
-        val inv = DenseMatrix(n, n, L.data.copyOf())
+        val inv = DenseMatrix(n, n, chol.l.data.copyOf())
         val info = HostBlasCalls.dpotri.invokeWithArguments(
             COL_MAJOR,
             'L'.code.toByte(),
@@ -448,7 +447,7 @@ private const val JVM_CHOLESKY_MIN = 32
 private const val JVM_INVERT_SPD_MIN = 16
 
 /**
- * The SPD solve stays portable at every size: see [HostLapack.solveSpd]. Re-measured under column-major
+ * The SPD solve stays portable at every size: see [HostLapack.solve]. Re-measured under column-major
  * storage rather than inherited — 38.4 us against the portable 15.3 at n=256, 655 against 234 at 1024, 2937
  * against 1079 at 2048 — so this one keeps its sentinel for the reason it was given, not despite it. Two
  * triangular solves are `O(n²)` work over `O(n²)` data and there is nothing for a foreign call to amortize.

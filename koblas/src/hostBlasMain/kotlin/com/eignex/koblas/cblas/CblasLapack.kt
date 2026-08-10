@@ -6,6 +6,7 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.MatrixLike
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.dense.CholeskyDecomposition
 import com.eignex.koblas.dense.CholeskyPolicy
 import com.eignex.koblas.dense.Lapack
 import com.eignex.koblas.dense.LdlDecomposition
@@ -278,10 +279,10 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
      * no equivalent of [CholeskyPolicy.Regularize]: it reports the failing pivot instead of clamping it, so a
      * non-positive-definite input falls back to the portable path, which is what applies the clamp.
      */
-    override fun cholesky(a: MatrixLike, policy: CholeskyPolicy): DenseMatrix {
+    override fun cholesky(a: MatrixLike, policy: CholeskyPolicy): CholeskyDecomposition {
         requireShape(a.rows == a.cols) { "cholesky requires a square matrix; got ${a.rows}x${a.cols}" }
         val n = a.rows
-        if (n == 0) return DenseMatrix(0, 0)
+        if (n == 0) return CholeskyDecomposition(DenseMatrix(0, 0))
         val l = DenseMatrix(n, n)
         for (i in 0 until n) for (j in 0..i) l[i, j] = a[i, j]
         val info = l.data.usePinned { lp -> f.dpotrf(COL_MAJOR, 'L'.code.toByte(), n, lp.addressOf(0), n) }
@@ -290,7 +291,7 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
         // clamps the pivot or throws, per the flag.
         if (info > 0) return super.cholesky(a, policy)
         for (i in 0 until n) for (j in i + 1 until n) l[i, j] = 0.0
-        return l
+        return CholeskyDecomposition(l)
     }
 
     /**
@@ -303,16 +304,16 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
      * row-major storage, where every call also paid for a transpose. The JVM twin was re-measured under
      * column-major storage and stayed portable.
      */
-    override fun solveSpd(L: DenseMatrix, b: DoubleArray): DoubleArray = ReferenceLinearAlgebra.solveSpd(L, b)
+    override fun solve(chol: CholeskyDecomposition, b: DoubleArray): DoubleArray = ReferenceLinearAlgebra.solve(chol, b)
 
     /**
      * `dpotri`, which writes only the triangle it is given; koblas returns the full symmetric inverse,
      * so the result is mirrored. The factor is copied first, since dpotri overwrites it with the inverse.
      */
-    override fun invertSpd(L: DenseMatrix, workspace: Workspace?): DenseMatrix {
-        val n = L.rows
+    override fun invert(chol: CholeskyDecomposition, workspace: Workspace?): DenseMatrix {
+        val n = chol.n
         if (n == 0) return DenseMatrix(0, 0)
-        val inv = DenseMatrix(n, n, L.data.copyOf())
+        val inv = DenseMatrix(n, n, chol.l.data.copyOf())
         val info = inv.data.usePinned { ip -> f.dpotri(COL_MAJOR, 'L'.code.toByte(), n, ip.addressOf(0), n) }
         check(info >= 0) { "dpotri: illegal argument ${-info}" }
         check(info == 0) { "dpotri: zero diagonal at $info, factor is singular" }

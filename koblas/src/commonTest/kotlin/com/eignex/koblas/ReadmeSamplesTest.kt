@@ -3,7 +3,6 @@ package com.eignex.koblas
 import com.eignex.koblas.dense.cholesky
 import com.eignex.koblas.dense.lu
 import com.eignex.koblas.dense.solve
-import com.eignex.koblas.dense.solveSpd
 import com.eignex.koblas.sparse.gemv
 import com.eignex.koblas.sparse.lu
 import kotlin.random.Random
@@ -24,8 +23,8 @@ class ReadmeSamplesTest {
     @Test
     fun `the Cholesky sample factors and solves`() {
         val a = DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0)))
-        val l = a.cholesky() // A = L·Lᵀ
-        val xs = solveSpd(l, doubleArrayOf(3.0, 5.0))
+        val chol = a.cholesky() // A = L·Lᵀ
+        val xs = chol.solve(doubleArrayOf(3.0, 5.0))
         assertClose(doubleArrayOf(0.8, 1.4), xs, "README Cholesky sample", tolerance = 1e-12)
     }
 

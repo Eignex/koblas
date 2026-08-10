@@ -39,7 +39,7 @@ class CblasHalvesTest {
             // And the factorizations answer from the portable side rather than failing.
             val spd = DenseMatrix.diagonal(4, 2.0)
             assertEquals(4, koblas.factor(spd).n)
-            assertEquals(2.0, koblas.cholesky(spd)[0, 0] * koblas.cholesky(spd)[0, 0], 1e-12)
+            assertEquals(2.0, koblas.cholesky(spd).l[0, 0] * koblas.cholesky(spd).l[0, 0], 1e-12)
         }
     }
 
