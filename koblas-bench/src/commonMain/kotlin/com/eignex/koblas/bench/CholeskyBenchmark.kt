@@ -2,8 +2,9 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.dense.cholesky
-import com.eignex.koblas.dense.invertSpd
-import com.eignex.koblas.dense.solveSpd
+import com.eignex.koblas.dense.CholeskyDecomposition
+import com.eignex.koblas.dense.invert
+import com.eignex.koblas.dense.solve
 import com.eignex.koblas.koblas
 import kotlin.random.Random
 import kotlinx.benchmark.Benchmark
@@ -53,7 +54,7 @@ class CholeskyBenchmark {
     var backend: String = "auto"
 
     private lateinit var a: DenseMatrix
-    private lateinit var factor: DenseMatrix
+    private lateinit var factor: CholeskyDecomposition
     private lateinit var b: DoubleArray
 
     @Setup
@@ -66,11 +67,11 @@ class CholeskyBenchmark {
     }
 
     @Benchmark
-    fun cholesky(): DenseMatrix = a.cholesky()
+    fun cholesky(): CholeskyDecomposition = a.cholesky()
 
     @Benchmark
-    fun solveSpd(): DoubleArray = solveSpd(factor, b)
+    fun solveSpd(): DoubleArray = factor.solve(b)
 
     @Benchmark
-    fun invertSpd(): DenseMatrix = invertSpd(factor)
+    fun invertSpd(): DenseMatrix = factor.invert()
 }

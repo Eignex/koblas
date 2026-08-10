@@ -495,24 +495,24 @@ class CblasConformanceTest {
 
             val expected = reference.cholesky(a)
             val actual = cblas.cholesky(a)
-            assertClose(expected.data, actual.data, tol = 1e-9, context = "cholesky n=$n")
+            assertClose(expected.l.data, actual.l.data, tol = 1e-9, context = "cholesky n=$n")
             for (i in 0 until n) {
                 for (j in i + 1 until n) {
-                    assertEquals(0.0, actual[i, j], "cholesky n=$n left ${actual[i, j]} above the diagonal")
+                    assertEquals(0.0, actual.l[i, j], "cholesky n=$n left ${actual.l[i, j]} above the diagonal")
                 }
             }
 
             val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
             assertClose(
-                reference.solveSpd(expected, b),
-                cblas.solveSpd(actual, b),
+                reference.solve(expected, b),
+                cblas.solve(actual, b),
                 tol = 1e-9,
                 context = "solveSpd n=$n",
             )
 
-            val inverse = cblas.invertSpd(actual)
+            val inverse = cblas.invert(actual)
             assertClose(
-                reference.invertSpd(expected).data,
+                reference.invert(expected).data,
                 inverse.data,
                 tol = 1e-8,
                 context = "invertSpd n=$n",
@@ -534,7 +534,7 @@ class CblasConformanceTest {
     fun `a non positive definite input falls back to the portable path`() {
         val bad = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 0.0), doubleArrayOf(0.0, -0.5)))
         val policy = CholeskyPolicy.Regularize()
-        assertEquals(reference.cholesky(bad, policy)[1, 1], cblas.cholesky(bad, policy)[1, 1], 1e-15)
+        assertEquals(reference.cholesky(bad, policy).l[1, 1], cblas.cholesky(bad, policy).l[1, 1], 1e-15)
         assertFailsWith<IllegalArgumentException> { cblas.cholesky(bad) }
     }
 

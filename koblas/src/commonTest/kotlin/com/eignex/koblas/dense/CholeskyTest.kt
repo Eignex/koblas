@@ -38,11 +38,11 @@ class CholeskyTest {
         val L = A.cholesky()
         for (i in 0 until 3) {
             for (j in 0 until 3) {
-                assertEquals(A[i, j], reconstruct(L, i, j), 1e-10, "L LT mismatch at [$i,$j]")
+                assertEquals(A[i, j], reconstruct(L.l, i, j), 1e-10, "L LT mismatch at [$i,$j]")
             }
         }
         // Strict lower triangular: upper entries zero.
-        for (i in 0 until 3) for (j in i + 1 until 3) assertEquals(0.0, L[i, j], "L[$i,$j] should be zero")
+        for (i in 0 until 3) for (j in i + 1 until 3) assertEquals(0.0, L.l[i, j], "L[$i,$j] should be zero")
     }
 
     @Test
@@ -50,7 +50,7 @@ class CholeskyTest {
         val A = spdExample()
         val L = A.cholesky()
         val b = doubleArrayOf(1.0, 0.5, -1.0)
-        val x = solveSpd(L, b)
+        val x = L.solve(b)
         // A * x should reproduce b.
         for (i in 0 until 3) {
             var s = 0.0
@@ -62,7 +62,7 @@ class CholeskyTest {
     @Test
     fun `invertSpd produces A inverse for a non-diagonal matrix`() {
         val A = spdExample()
-        val Ainv = invertSpd(A.cholesky())
+        val Ainv = A.cholesky().invert()
         // A * Ainv should be identity.
         for (i in 0 until 3) {
             for (j in 0 until 3) {
@@ -87,17 +87,17 @@ class CholeskyTest {
     @Test
     fun `cholesky regularizes when the policy asks for it`() {
         val l = notPositiveDefinite().cholesky(CholeskyPolicy.Regularize())
-        assertEquals(1e-5, l[1, 1], 1e-18, "the default floor is the historical 1e-5 on L")
+        assertEquals(1e-5, l.l[1, 1], 1e-18, "the default floor is the historical 1e-5 on L")
 
         val loose = notPositiveDefinite().cholesky(CholeskyPolicy.Regularize(minimumPivot = 4e-4))
-        assertEquals(2e-2, loose[1, 1], 1e-12, "L's diagonal is the square root of the pivot floor")
+        assertEquals(2e-2, loose.l[1, 1], 1e-12, "L's diagonal is the square root of the pivot floor")
 
         // A positive-definite matrix is untouched by the policy: the same factor either way.
         val good = DenseMatrix.of(arrayOf(doubleArrayOf(4.0, 2.0), doubleArrayOf(2.0, 5.0)))
         val strict = good.cholesky()
         val regularized = good.cholesky(CholeskyPolicy.Regularize())
         for (i in 0 until 2) {
-            for (j in 0 until 2) assertEquals(strict[i, j], regularized[i, j], 1e-15, "[$i,$j]")
+            for (j in 0 until 2) assertEquals(strict.l[i, j], regularized.l[i, j], 1e-15, "[$i,$j]")
         }
     }
 
@@ -115,4 +115,27 @@ class CholeskyTest {
             doubleArrayOf(0.0, -0.5),
         ),
     )
+
+    /**
+     * The reason the type exists: the factor and the matrix it came from are no longer interchangeable.
+     *
+     * `solveSpd(L, b)` took any DenseMatrix, so passing the unfactored A compiled and returned nonsense.
+     * The equivalent mistake is now a type error, which is checked here by confirming the two carry
+     * different types and that the solve reads the factor rather than the input.
+     */
+    @Test
+    fun `the factorization is a distinct type from the matrix it factors`() {
+        val a = spdExample()
+        val chol = a.cholesky()
+        val b = doubleArrayOf(1.0, 2.0, 3.0)
+        val x = chol.solve(b)
+        // A·x = b, so the solve used the factor and not something that merely had the right shape.
+        for (i in 0 until 3) {
+            var s = 0.0
+            for (j in 0 until 3) s += a[i, j] * x[j]
+            assertEquals(b[i], s, 1e-9, "residual at $i")
+        }
+        assertEquals(3, chol.n)
+        assertEquals(a.rows, chol.l.rows, "the factor stays reachable as an ordinary matrix")
+    }
 }

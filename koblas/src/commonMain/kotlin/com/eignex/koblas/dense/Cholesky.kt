@@ -20,22 +20,23 @@ import com.eignex.koblas.koblas
 // on JVM).
 
 /**
- * Lower-triangular Cholesky decomposition `A = L * LT`, returned as a fresh matrix, from the installed
- * backend; see [Lapack.cholesky].
+ * Cholesky factorization `A = L·Lᵀ` with the active backend ([koblas]); see [Lapack.cholesky].
  *
  * Throws [com.eignex.koblas.NotPositiveDefinite] at the first non-positive pivot. Pass
  * [CholeskyPolicy.Regularize] for a
  * factorization that floors such a pivot and continues, which is a factor of a nearby matrix rather than of
  * the one passed in — useful for an estimate that has drifted slightly indefinite, and a decision the caller
- * makes rather than a default.
+ * makes rather than a default. Catching the exception is the other way to make that decision, after the
+ * fact rather than in advance.
  */
-fun MatrixLike.cholesky(policy: CholeskyPolicy = CholeskyPolicy.Strict): DenseMatrix = koblas.cholesky(this, policy)
+fun MatrixLike.cholesky(policy: CholeskyPolicy = CholeskyPolicy.Strict): CholeskyDecomposition =
+    koblas.cholesky(this, policy)
 
-/** Solve `A * x = b` given `L = chol(A)`; see [Lapack.solveSpd]. */
-fun solveSpd(L: DenseMatrix, b: DoubleArray): DoubleArray = koblas.solveSpd(L, b)
+/** Solve `A · x = b` for this factorization with the active backend; see [Lapack.solve]. */
+fun CholeskyDecomposition.solve(b: DoubleArray): DoubleArray = koblas.solve(this, b)
 
-/** Invert an SPD matrix from its Cholesky factor; see [Lapack.invertSpd]. */
-fun invertSpd(L: DenseMatrix, workspace: Workspace? = null): DenseMatrix = koblas.invertSpd(L, workspace)
+/** `A⁻¹` from this factorization with the active backend; see [Lapack.invert]. */
+fun CholeskyDecomposition.invert(workspace: Workspace? = null): DenseMatrix = koblas.invert(this, workspace)
 
 /** `A⁻¹` from an LU factorization (LAPACK `dgetri`); see [LinearAlgebra.invert]. */
 fun invert(lu: LuDecomposition, workspace: Workspace? = null): DenseMatrix = koblas.invert(lu, workspace)

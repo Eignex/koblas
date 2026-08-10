@@ -413,13 +413,14 @@ interface Lapack : Backend {
     }
 
     /**
-     * Lower-triangular Cholesky decomposition `A = L * LT`, returned as a fresh matrix.
+     * Cholesky factorization `A = L·Lᵀ` of a symmetric positive-definite [a], returned as a fresh
+     * [CholeskyDecomposition] holding the lower triangular factor.
      *
      * Throws [com.eignex.koblas.NotPositiveDefinite] at the first non-positive pivot unless [policy] says
      * otherwise; see
      * [CholeskyPolicy] for why that is the default and what asking for [CholeskyPolicy.Regularize] means.
      */
-    fun cholesky(a: MatrixLike, policy: CholeskyPolicy = CholeskyPolicy.Strict): DenseMatrix {
+    fun cholesky(a: MatrixLike, policy: CholeskyPolicy = CholeskyPolicy.Strict): CholeskyDecomposition {
         requireShape(a.rows == a.cols) { "cholesky requires a square matrix; got ${a.rows}x${a.cols}" }
         val n = a.rows
         val l = DenseMatrix(n, n)
@@ -464,39 +465,42 @@ interface Lapack : Backend {
             val diag = ld[base]
             for (i in base + 1 until base + len) ld[i] = ld[i] / diag
         }
-        return l
+        return CholeskyDecomposition(l)
     }
 
     /**
-     * Solve `A * x = b` for `x`, given `L = chol(A)` (lower-triangular, `A = L * LT`).
-     * Allocates a fresh result vector; [b] is not modified.
+     * Solve `A · x = b` for the Cholesky factorization [chol] (LAPACK `dpotrs`); returns a fresh `x` and
+     * does not modify [b].
      *
-     * Forward substitution `L * y = b` is column-oriented: once `y[j]` is final, its contribution is
+     * Spelled `solve` like the LU and LDL solves, because [CholeskyDecomposition] is what distinguishes it
+     * — the name does not have to.
+     *
+     * Forward substitution `L · y = b` is column-oriented: once `y[j]` is final, its contribution is
      * subtracted from the remaining right-hand side down contiguous column `j` via [VectorKernels.axpy]. Back
-     * substitution `LT * x = y` reads row `i` of `LT`, which is column `i` of `L`, so it uses [VectorKernels.dot]
+     * substitution `Lᵀ · x = y` reads row `i` of `Lᵀ`, which is column `i` of `L`, so it uses [VectorKernels.dot]
      * on the same contiguous runs.
      */
-    fun solveSpd(L: DenseMatrix, b: DoubleArray): DoubleArray {
-        val n = L.rows
-        requireShape(b.size == n) { "solveSpd: b size ${b.size}, expected $n" }
+    fun solve(chol: CholeskyDecomposition, b: DoubleArray): DoubleArray {
+        val n = chol.n
+        requireShape(b.size == n) { "solve: b size ${b.size}, expected $n" }
         val x = b.copyOf()
-        trsvCore(koblas.vectorKernels, L.data, n, x, lower = true, transpose = false, unitDiag = false)
-        trsvCore(koblas.vectorKernels, L.data, n, x, lower = true, transpose = true, unitDiag = false)
+        val ld = chol.l.data
+        trsvCore(koblas.vectorKernels, ld, n, x, lower = true, transpose = false, unitDiag = false)
+        trsvCore(koblas.vectorKernels, ld, n, x, lower = true, transpose = true, unitDiag = false)
         return x
     }
 
     /**
      * Invert a general matrix from its LU factorization: returns `A⁻¹` given `P·A = L·U` (LAPACK `dgetri`).
      *
-     * The counterpart of [invertSpd], which koblas had while this was missing — you could invert an SPD
-     * matrix but not a general one, for no reason beyond nobody having asked.
+     * The general counterpart of the [CholeskyDecomposition] overload, which inverts an SPD matrix.
      *
      * `A⁻¹` is `A · X = I`, so this is the multi-RHS [solveInto] against an identity right-hand side. Written
      * that way deliberately rather than as a per-column loop: it reuses the blocked solve, which means it
      * also picks up whatever a host backend does for that routine instead of needing its own binding.
      *
-     * Unlike [invertSpd] there is no symmetry to exploit and no leading-zeros shortcut, because `P` scatters
-     * the unit right-hand sides.
+     * Unlike the SPD overload there is no symmetry to exploit and no leading-zeros shortcut, because `P`
+     * scatters the unit right-hand sides.
      *
      * Prefer [solve] when you want to *apply* `A⁻¹` to something. An explicit inverse costs more and is less
      * accurate than a solve against the factors — this is for the cases that genuinely need the entries,
@@ -563,16 +567,18 @@ interface Lapack : Backend {
     }
 
     /**
-     * Invert an SPD matrix from its Cholesky factor: returns `A^-1` given `L = chol(A)`.
+     * Invert an SPD matrix from its Cholesky factorization: returns `A⁻¹` given [chol] (LAPACK `dpotri`).
      *
-     * Solves `A * x = e_j` column by column, exploiting the unit-vector right-hand side: forward
+     * An overload of [invert], for the reason [solve] gives: the type now says what `Spd` used to.
+     *
+     * Solves `A · x = e_j` column by column, exploiting the unit-vector right-hand side: forward
      * substitution starts at row `j` (the leading entries are provably zero) and back substitution
-     * only produces rows `>= j` — the strictly-upper entries of the symmetric `A^-1` come from
+     * only produces rows `>= j` — the strictly-upper entries of the symmetric `A⁻¹` come from
      * mirroring the lower triangle.
      */
-    fun invertSpd(L: DenseMatrix, workspace: Workspace? = null): DenseMatrix {
-        val n = L.rows
-        val ld = L.data
+    fun invert(chol: CholeskyDecomposition, workspace: Workspace? = null): DenseMatrix {
+        val n = chol.n
+        val ld = chol.l.data
         val inv = DenseMatrix(n, n)
         val invd = inv.data
         val y = workspace?.take(n) ?: DoubleArray(n)

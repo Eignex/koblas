@@ -1,7 +1,7 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.dense.cholesky
-import com.eignex.koblas.dense.solveSpd
+import com.eignex.koblas.dense.solve
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -38,11 +38,11 @@ class AdapterTest {
         val l = a.cholesky()
         val fromStorage = DenseMatrix.of(a.toArray()).cholesky()
         for (i in 0 until 4) {
-            for (j in 0..i) assertEquals(fromStorage[i, j], l[i, j], 1e-12, "[$i,$j]")
+            for (j in 0..i) assertEquals(fromStorage.l[i, j], l.l[i, j], 1e-12, "[$i,$j]")
         }
         // And the factor solves the original system, which is the property that matters.
         val b = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
-        val x = solveSpd(l, b)
+        val x = l.solve(b)
         for (i in 0 until 4) {
             var s = 0.0
             for (j in 0 until 4) s += a[i, j] * x[j]

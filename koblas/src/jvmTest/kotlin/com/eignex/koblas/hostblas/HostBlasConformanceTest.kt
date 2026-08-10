@@ -160,24 +160,24 @@ class HostBlasConformanceTest {
 
         val expected = ReferenceLinearAlgebra.cholesky(a)
         val actual = host.cholesky(a)
-        assertClose(expected.data, actual.data, tol = 1e-9, context = "cholesky n=$n")
+        assertClose(expected.l.data, actual.l.data, tol = 1e-9, context = "cholesky n=$n")
         for (i in 0 until n) {
             for (j in i + 1 until n) {
-                assertEquals(0.0, actual[i, j], "cholesky n=$n left ${actual[i, j]} above the diagonal")
+                assertEquals(0.0, actual.l[i, j], "cholesky n=$n left ${actual.l[i, j]} above the diagonal")
             }
         }
 
         val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
         assertClose(
-            ReferenceLinearAlgebra.solveSpd(expected, b),
-            host.solveSpd(actual, b),
+            ReferenceLinearAlgebra.solve(expected, b),
+            host.solve(actual, b),
             tol = 1e-9,
-            context = "solveSpd n=$n (portable by its gate, so this pins the fallback)",
+            context = "solve(chol) n=$n (portable by its gate, so this pins the fallback)",
         )
 
-        val inverse = host.invertSpd(actual)
+        val inverse = host.invert(actual)
         assertClose(
-            ReferenceLinearAlgebra.invertSpd(expected).data,
+            ReferenceLinearAlgebra.invert(expected).data,
             inverse.data,
             tol = 1e-7,
             context = "invertSpd n=$n",
@@ -204,8 +204,8 @@ class HostBlasConformanceTest {
         bad[n - 1, n - 1] = -1.0 // breaks positive definiteness at the last leading minor
         val policy = CholeskyPolicy.Regularize()
         assertEquals(
-            ReferenceLinearAlgebra.cholesky(bad, policy)[n - 1, n - 1],
-            host.cholesky(bad, policy)[n - 1, n - 1],
+            ReferenceLinearAlgebra.cholesky(bad, policy).l[n - 1, n - 1],
+            host.cholesky(bad, policy).l[n - 1, n - 1],
             1e-15,
         )
         assertFailsWith<IllegalArgumentException> { host.cholesky(bad) }

@@ -70,7 +70,7 @@ class LinearAlgebraLdlTest {
             }
         }
         val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
-        val viaCholesky = solveSpd(a.cholesky(), b)
+        val viaCholesky = a.cholesky().solve(b)
         val viaLdl = koblas.solve(koblas.ldl(a), b)
         assertClose(viaCholesky, viaLdl, "spd", tolerance = 1e-10)
     }
