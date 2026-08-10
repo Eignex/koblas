@@ -3,6 +3,7 @@ package com.eignex.koblas.umfpack
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.HostLibraryTest
 import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
+import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.koblas
 import com.eignex.koblas.registerBackend
@@ -122,7 +123,7 @@ class UmfpackConformanceTest {
         assertTrue(f.singular, "umfpack should have called a rank-1 matrix singular")
         assertEquals(SINGULAR_POSITION_UNKNOWN, f.failedAt, "a host that cannot name the pivot must say so")
         assertEquals(0.0, f.determinant(), "a singular factorization has determinant zero")
-        assertFailsWith<IllegalStateException> { f.solve(doubleArrayOf(1.0, 1.0)) }
+        assertFailsWith<SingularMatrix> { f.solve(doubleArrayOf(1.0, 1.0)) }
     }
 
     /** `equilibrate` has no UMFPACK equivalent, so it must fall back rather than silently ignore the request. */

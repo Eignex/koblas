@@ -7,6 +7,7 @@ import com.eignex.koblas.KoblasContext
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.koblas
+import com.eignex.koblas.requireFactored
 import com.eignex.koblas.requireShape
 import kotlin.math.abs
 import kotlin.math.sqrt
@@ -426,6 +427,7 @@ class ReferenceBackend(private val kernels: VectorKernels? = null) : LinearAlgeb
     }
 
     override fun solveInto(ldl: LdlDecomposition, b: DoubleArray, out: DoubleArray): DoubleArray {
+        requireFactored(ldl.failedAt, "solve")
         val n = ldl.n
         requireShape(b.size == n) { "solve: b length ${b.size} != $n" }
         requireShape(out.size == n) { "solve: out length ${out.size} != $n" }
@@ -721,6 +723,7 @@ class ReferenceBackend(private val kernels: VectorKernels? = null) : LinearAlgeb
         transpose: Boolean,
         workspace: Workspace?,
     ): DoubleArray {
+        requireFactored(lu.failedAt, "solve")
         val n = lu.n
         requireShape(b.size == n) { "solve: b length ${b.size} != $n" }
         requireShape(out.size == n) { "solve: out length ${out.size} != $n" }

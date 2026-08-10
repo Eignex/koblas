@@ -1,5 +1,6 @@
 package com.eignex.koblas.sparse
 
+import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.gemv
@@ -126,7 +127,7 @@ class SparseLuTest {
             assertEquals(2, f.n)
             assertEquals(0, f.nnz, "a singular factorization has no fill")
             assertEquals(0.0, f.determinant())
-            assertFailsWith<IllegalStateException> { f.solve(doubleArrayOf(1.0, 2.0)) }
+            assertFailsWith<SingularMatrix> { f.solve(doubleArrayOf(1.0, 2.0)) }
         }
         // The failing pivot POSITION is koblas's own to report, so this goes to the portable factorization
         // directly rather than through the seam. A host backend need not know where it failed — UMFPACK

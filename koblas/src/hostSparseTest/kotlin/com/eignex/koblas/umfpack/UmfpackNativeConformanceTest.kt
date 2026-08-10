@@ -6,6 +6,7 @@ package com.eignex.koblas.umfpack
 
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
+import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.koblas
 import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
@@ -119,7 +120,7 @@ class UmfpackNativeConformanceTest {
         assertEquals(SINGULAR_POSITION_UNKNOWN, f.failedAt, "a host that cannot name the pivot must say so")
         assertEquals(0, f.nnz, "a singular factorization has no fill")
         assertEquals(0.0, f.determinant(), "a singular factorization has determinant zero")
-        assertFailsWith<IllegalStateException> { f.solve(doubleArrayOf(1.0, 1.0)) }
+        assertFailsWith<SingularMatrix> { f.solve(doubleArrayOf(1.0, 1.0)) }
     }
 
     /** Both requests UMFPACK cannot honor must reach the portable factorization instead of being ignored. */

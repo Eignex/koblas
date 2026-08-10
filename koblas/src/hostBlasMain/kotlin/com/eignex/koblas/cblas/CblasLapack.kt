@@ -14,6 +14,7 @@ import com.eignex.koblas.dense.LuDecomposition
 import com.eignex.koblas.dense.QrDecomposition
 import com.eignex.koblas.dense.ReferenceLinearAlgebra
 import com.eignex.koblas.lapackFailedAt
+import com.eignex.koblas.requireFactored
 import com.eignex.koblas.requireShape
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
@@ -77,6 +78,7 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
         transpose: Boolean,
         workspace: Workspace?,
     ): DoubleArray {
+        requireFactored(lu.failedAt, "solve")
         val n = lu.n
         requireShape(b.size == n) { "solve: b length ${b.size} != $n" }
         requireShape(out.size == n) { "solve: out length ${out.size} != $n" }
@@ -114,6 +116,7 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
         transpose: Boolean,
         workspace: Workspace?,
     ): DenseMatrix {
+        requireFactored(lu.failedAt, "solve")
         val n = lu.n
         val nrhs = b.cols
         requireShape(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }

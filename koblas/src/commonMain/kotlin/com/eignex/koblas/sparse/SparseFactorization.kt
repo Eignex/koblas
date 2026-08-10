@@ -2,6 +2,7 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.singularFailure
 
 /**
  * A factored sparse matrix you can solve against, whoever produced it.
@@ -39,10 +40,9 @@ interface SparseFactorization {
      * Whether the factorization failed for want of a numerically acceptable pivot. Derived from
      * [failedAt], so the two cannot disagree.
      *
-     * Solving against a singular factorization is not meaningful, matching the dense contract. Unlike the
-     * dense case it *throws* rather than returning nonsense: a dense `getrf` completes and leaves partial
-     * factors behind, so garbage is what LAPACK itself would produce, whereas Markowitz pivoting aborts
-     * with nothing to solve with. Returning silence would be a lie about having factors.
+     * Solving against a singular factorization throws [com.eignex.koblas.SingularMatrix], which is the
+     * contract on both storages: a system with no unique solution is reported rather than answered with
+     * infinities.
      */
     val singular: Boolean get() = failedAt != NOT_SINGULAR
 
@@ -83,8 +83,5 @@ class SingularSparseFactorization(override val n: Int, override val failedAt: In
     override fun determinant(): Double = 0.0
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray =
-        error(
-            "cannot solve against a singular factorization: no acceptable pivot at position $failedAt of $n. " +
-                "Check `singular` before solving; repair the matrix and factor again.",
-        )
+        throw singularFailure(failedAt, "solve")
 }

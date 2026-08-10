@@ -5,6 +5,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.MatrixLike
+import com.eignex.koblas.NotPositiveDefinite
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.koblas
 
