@@ -25,7 +25,7 @@ class CoverageGapTest {
         val rng = Random(20260805)
         for (n in intArrayOf(1, 2, 5, 9)) {
             val a = wellConditioned(n, rng)
-            val inv = invert(a.lu())
+            val inv = a.lu().invert()
             // A·A⁻¹ = I is the property; comparing entries to a hardcoded inverse would test arithmetic twice.
             for (i in 0 until n) {
                 for (j in 0 until n) {
@@ -41,7 +41,7 @@ class CoverageGapTest {
     @Test
     fun `invert refuses a singular factorization and names the pivot`() {
         val rank1 = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 4.0)))
-        val failure = assertFailsWith<IllegalArgumentException> { invert(rank1.lu()) }
+        val failure = assertFailsWith<IllegalArgumentException> { rank1.lu().invert() }
         assertTrue("pivot 1" in failure.message!!, "should name the failing pivot: ${failure.message}")
     }
 

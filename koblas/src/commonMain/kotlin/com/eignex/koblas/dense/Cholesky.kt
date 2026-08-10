@@ -37,6 +37,3 @@ fun CholeskyDecomposition.solve(b: DoubleArray): DoubleArray = koblas.solve(this
 
 /** `A⁻¹` from this factorization with the active backend; see [Lapack.invert]. */
 fun CholeskyDecomposition.invert(workspace: Workspace? = null): DenseMatrix = koblas.invert(this, workspace)
-
-/** `A⁻¹` from an LU factorization (LAPACK `dgetri`); see [LinearAlgebra.invert]. */
-fun invert(lu: LuDecomposition, workspace: Workspace? = null): DenseMatrix = koblas.invert(lu, workspace)

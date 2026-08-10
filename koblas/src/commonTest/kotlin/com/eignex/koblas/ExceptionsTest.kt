@@ -31,7 +31,7 @@ class ExceptionsTest {
 
     @Test
     fun `inverting a singular factorization reports the pivot`() {
-        val e = assertFailsWith<SingularMatrix> { invert(singular.lu()) }
+        val e = assertFailsWith<SingularMatrix> { singular.lu().invert() }
         assertEquals(singular.lu().failedAt, e.position, "position should match the factorization's failedAt")
         assertTrue(e.position >= 0)
     }
@@ -77,7 +77,7 @@ class ExceptionsTest {
         // The compatibility guarantee: a caller who wrote this before the types existed keeps working.
         for (block in listOf<() -> Unit>(
             { koblas.factor(DenseMatrix.zero(2, 3)) },
-            { invert(singular.lu()) },
+            { singular.lu().invert() },
             { indefinite.cholesky() },
         )) {
             val e = assertFailsWith<IllegalArgumentException> { block() }
