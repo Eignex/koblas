@@ -26,6 +26,7 @@ import com.eignex.koblas.hostblas.HostBlasCalls.TRANS
 import com.eignex.koblas.hostblas.HostBlasCalls.UNIT
 import com.eignex.koblas.hostblas.HostBlasCalls.UPPER
 import com.eignex.koblas.lapackFailedAt
+import com.eignex.koblas.requireFactored
 import com.eignex.koblas.requireShape
 
 /**
@@ -98,6 +99,7 @@ class HostLapack internal constructor() : Lapack {
         transpose: Boolean,
         workspace: Workspace?,
     ): DenseMatrix {
+        requireFactored(lu.failedAt, "solve")
         val n = lu.n
         val nrhs = b.cols
         requireShape(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
@@ -218,6 +220,7 @@ class HostLapack internal constructor() : Lapack {
      * value to change and re-measure rather than a decision welded shut; the numbers are with the constant.
      */
     override fun solveInto(ldl: LdlDecomposition, b: DoubleArray, out: DoubleArray): DoubleArray {
+        requireFactored(ldl.failedAt, "solve")
         if (ldl.n < JVM_LDL_SOLVE_MIN) return ReferenceLinearAlgebra.solveInto(ldl, b, out)
         val n = ldl.n
         requireShape(b.size == n) { "solve: b length ${b.size} != $n" }

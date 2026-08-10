@@ -43,3 +43,43 @@ const val SINGULAR_POSITION_UNKNOWN: Int = -2
  * rather than a nonsense position.
  */
 fun lapackFailedAt(info: Int): Int = if (info > 0) info - 1 else NOT_SINGULAR
+
+/**
+ * Rejects a solve against a singular factorization, naming the pivot that failed.
+ *
+ * One contract for the whole library: a solve against a factorization that has no inverse throws rather
+ * than producing infinities. The sparse side already refuses, and so does dense `invert`; the dense solves
+ * divided by a zero pivot and returned `Inf`/`NaN`, so a caller who did not consult
+ * [com.eignex.koblas.dense.LuDecomposition.singular] carried the garbage onward instead of finding out
+ * where it came from.
+ *
+ * Shared rather than repeated per backend so the message and the reported position cannot drift; every
+ * `solveInto` calls it before touching the factors. A field read and a branch, against an `O(n²)` solve.
+ *
+ * @param failedAt the position from the factorization, or [NOT_SINGULAR] when it succeeded.
+ * @param routine the routine to name in the message.
+ */
+internal fun requireFactored(failedAt: Int, routine: String) {
+    if (failedAt != NOT_SINGULAR) throw singularFailure(failedAt, routine)
+}
+
+/**
+ * The failure [requireFactored] throws, for the one caller that knows it is singular without checking:
+ * `SingularSparseFactorization` exists only for that case, so it throws this directly rather than
+ * testing a field it already knows the value of. Shared so the wording stays identical either way.
+ */
+internal fun singularFailure(failedAt: Int, routine: String): SingularMatrix = SingularMatrix(
+    failedAt,
+    buildString {
+        append(routine)
+        // A host backend may report singularity without a position; saying "pivot -2" would be worse
+        // than saying nothing, so the two cases are worded apart.
+        if (failedAt == SINGULAR_POSITION_UNKNOWN) {
+            append(": the factorization is singular")
+        } else {
+            append(": the factorization is singular at pivot ").append(failedAt)
+        }
+        append(", so the system has no unique solution. ")
+        append("Check `singular` before solving, or factor a repaired matrix.")
+    },
+)

@@ -32,8 +32,9 @@ class LuDecomposition(val n: Int, val lu: DoubleArray, val piv: IntArray, failed
         internal set
 
     /**
-     * Whether a zero pivot was encountered; [LinearAlgebra.solve] on a singular factorization is not
-     * meaningful.
+     * Whether a zero pivot was encountered. [LinearAlgebra.solve] against a singular factorization throws
+     * [com.eignex.koblas.SingularMatrix] rather than dividing by the zero pivot, so this is what to check
+     * when a singular basis is an expected outcome rather than a bug.
      *
      * Derived from [failedAt] rather than stored, so the two cannot contradict each other and no backend has
      * to remember to set both. The position is the more useful half anyway: it is the one a caller can act

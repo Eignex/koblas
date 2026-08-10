@@ -12,6 +12,7 @@ import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.koblas
 import com.eignex.koblas.norm1
+import com.eignex.koblas.requireFactored
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.transpose
 import kotlin.math.abs
@@ -98,6 +99,7 @@ interface Lapack : Backend {
         transpose: Boolean = false,
         workspace: Workspace? = null,
     ): DenseMatrix {
+        requireFactored(lu.failedAt, "solve")
         val n = lu.n
         val nrhs = b.cols
         requireShape(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
@@ -168,6 +170,7 @@ interface Lapack : Backend {
      * the factor and keeps the pivot-block bookkeeping in one place instead of two.
      */
     fun solveInto(ldl: LdlDecomposition, b: DenseMatrix, out: DenseMatrix, workspace: Workspace? = null): DenseMatrix {
+        requireFactored(ldl.failedAt, "solve")
         val n = ldl.n
         val nrhs = b.cols
         requireShape(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
