@@ -4,7 +4,6 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.MatrixLike
 import com.eignex.koblas.NotPositiveDefinite
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.koblas
@@ -30,7 +29,7 @@ import com.eignex.koblas.koblas
  * makes rather than a default. Catching the exception is the other way to make that decision, after the
  * fact rather than in advance.
  */
-public fun MatrixLike.cholesky(policy: CholeskyPolicy = CholeskyPolicy.Strict): CholeskyDecomposition =
+public fun DenseMatrix.cholesky(policy: CholeskyPolicy = CholeskyPolicy.Strict): CholeskyDecomposition =
     koblas.cholesky(this, policy)
 
 /** Solve `A · x = b` for this factorization with the active backend; see [Lapack.solve]. */

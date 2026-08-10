@@ -32,15 +32,16 @@ class AdapterTest {
         }
     }
 
+    /**
+     * A foreign matrix reaches the dense factorizations by materialising first, which is the same route
+     * `lu`, `ldl` and `qr` have always taken. The densification is the caller's, and explicit: a Cholesky
+     * factor fills in regardless, so nothing is saved by hiding it inside the routine.
+     */
     @Test
-    fun `cholesky and the SPD solve accept a foreign matrix`() {
+    fun `cholesky and the SPD solve accept a foreign matrix once it is materialised`() {
         val a = Spd(4)
-        val l = a.cholesky()
-        val fromStorage = DenseMatrix.of(a.toArray()).cholesky()
-        for (i in 0 until 4) {
-            for (j in 0..i) assertEquals(fromStorage.l[i, j], l.l[i, j], 1e-12, "[$i,$j]")
-        }
-        // And the factor solves the original system, which is the property that matters.
+        val l = DenseMatrix.of(a.toArray()).cholesky()
+        // The factor solves the original system, which is the property that matters.
         val b = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
         val x = l.solve(b)
         for (i in 0 until 4) {

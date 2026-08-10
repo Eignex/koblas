@@ -2,7 +2,6 @@ package com.eignex.koblas.hostblas
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
-import com.eignex.koblas.MatrixLike
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.dense.Blas
 import com.eignex.koblas.dense.CholeskyDecomposition
@@ -338,13 +337,14 @@ public class HostLapack internal constructor() : Lapack {
      * falls back to the portable path, which is what applies the clamp or throws per the flag. And only the
      * lower triangle of the input is read, matching what koblas promises its callers.
      */
-    override fun cholesky(a: MatrixLike, policy: CholeskyPolicy): CholeskyDecomposition {
+    override fun cholesky(a: DenseMatrix, policy: CholeskyPolicy): CholeskyDecomposition {
         if (a.rows < JVM_CHOLESKY_MIN) return super.cholesky(a, policy)
         requireShape(a.rows == a.cols) { "cholesky requires a square matrix; got ${a.rows}x${a.cols}" }
         val n = a.rows
         if (n == 0) return CholeskyDecomposition(DenseMatrix(0, 0))
         val l = DenseMatrix(n, n)
-        for (i in 0 until n) for (j in 0..i) l[i, j] = a[i, j]
+        // One bulk copy per column of the lower triangle; `dpotrf` reads no further.
+        for (j in 0 until n) a.data.copyInto(l.data, j + j * n, j + j * n, (j + 1) * n)
         val info = HostBlasCalls.dpotrf.invokeWithArguments(
             COL_MAJOR,
             'L'.code.toByte(),

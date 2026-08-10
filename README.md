@@ -104,7 +104,10 @@ a.qrPivoted().solveLeastSquares(b) // reports a numerical rank
 ```
 
 Each decomposition is its own type, so a solve will not accept the matrix it
-came from, or the factor of a different one.
+came from, or the factor of a different one. All four take a DenseMatrix; a
+foreign MatrixLike reaches them by materialising first
+(`DenseMatrix.of(a.toArray()).cholesky()`), which is explicit because the copy
+is real.
 
 ### When it fails
 
@@ -381,6 +384,7 @@ and `koblas/api/` records the surface exactly.
 | `invertSpd(l, ws)` | `chol.invert(ws)` |
 | `invert(lu, ws)` | `lu.invert(ws)` |
 | `gemv(a, x)` over views | `a.matVec(x)` |
+| `a.cholesky()` on any `MatrixLike` | takes a `DenseMatrix`; materialise with `DenseMatrix.of(a.toArray())` |
 | `solve` on a singular factorization returning `Inf`/`NaN` | throws `SingularMatrix` |
 | `IllegalStateException` from a singular sparse solve | `SingularMatrix` |
 
