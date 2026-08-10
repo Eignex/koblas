@@ -23,7 +23,7 @@ package com.eignex.koblas
  * those stay plain `require`, because there is nothing to recover from and no second call that would
  * succeed.
  */
-sealed class KoblasException(message: String) : IllegalArgumentException(message)
+public sealed class KoblasException(message: String) : IllegalArgumentException(message)
 
 /**
  * Operands whose shapes do not fit the routine: a vector of the wrong length, a non-square matrix where a
@@ -32,7 +32,7 @@ sealed class KoblasException(message: String) : IllegalArgumentException(message
  * The common case, and the one a caller almost never recovers from — it means the call site is wrong.
  * Typed anyway so that a `catch` meant for a numerical failure does not silently absorb it.
  */
-class DimensionMismatch(message: String) : KoblasException(message)
+public class DimensionMismatch(message: String) : KoblasException(message)
 
 /**
  * A factorization met an exactly zero pivot, so the matrix it came from has no inverse.
@@ -41,7 +41,7 @@ class DimensionMismatch(message: String) : KoblasException(message)
  *   [com.eignex.koblas.dense.LuDecomposition.failedAt] and LAPACK's positive `info` less one.
  * @param message what failed, naming the routine and the position.
  */
-class SingularMatrix(val position: Int, message: String) : KoblasException(message)
+public class SingularMatrix(public val position: Int, message: String) : KoblasException(message)
 
 /**
  * A matrix asserted to be positive definite turned out not to be: a Cholesky or a strict `L·D·Lᵀ` met a
@@ -56,7 +56,10 @@ class SingularMatrix(val position: Int, message: String) : KoblasException(messa
  * @property pivot the offending diagonal value.
  * @param message what failed, naming the position, the pivot and the policy that would continue past it.
  */
-class NotPositiveDefinite(val position: Int, val pivot: Double, message: String) : KoblasException(message)
+public class NotPositiveDefinite(public val position: Int, public val pivot: Double, message: String) :
+    KoblasException(
+        message,
+    )
 
 /**
  * `require` for a shape check: throws [DimensionMismatch] rather than a bare `IllegalArgumentException`.

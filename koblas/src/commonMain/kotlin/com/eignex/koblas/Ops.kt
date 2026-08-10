@@ -31,7 +31,7 @@ import kotlin.math.sqrt
  * in the parallel index/value arrays (which may include numerical zeros); for any other [VectorLike] it is
  * every index, read through [VectorLike.get].
  */
-inline fun VectorLike.forEachStored(block: (i: Int, v: Double) -> Unit) {
+public inline fun VectorLike.forEachStored(block: (i: Int, v: Double) -> Unit) {
     when (this) {
         is DenseVector -> {
             val d = data
@@ -58,7 +58,7 @@ inline fun VectorLike.forEachStored(block: (i: Int, v: Double) -> Unit) {
  * BLAS could replace it: `usdot` against a dense vector, and a single-pass merge of the two ascending
  * index lists when both are sparse.
  */
-infix fun VectorLike.dot(other: VectorLike): Double {
+public infix fun VectorLike.dot(other: VectorLike): Double {
     requireShape(size == other.size) { "size mismatch: $size vs ${other.size}" }
     if (this is DenseVector && other is DenseVector) {
         return koblas.vectorKernels.dot(data, 0, other.data, 0, size)
@@ -81,7 +81,7 @@ infix fun VectorLike.dot(other: VectorLike): Double {
  * (components beyond roughly `1e±150`), a rescaled two-pass recovers the netlib-accurate result, so
  * any finite input yields the correct norm.
  */
-fun norm2(v: VectorLike): Double = when (v) {
+public fun norm2(v: VectorLike): Double = when (v) {
     is DenseVector -> koblas.vectorKernels.nrm2(v.data, 0, v.size)
 
     is SparseVector -> koblas.sparseVectorKernels.nrm2(v)
@@ -92,7 +92,7 @@ fun norm2(v: VectorLike): Double = when (v) {
 }
 
 /** Sum of absolute values `Sum |v_i|` (BLAS `dasum`). Sparse vectors sum over stored entries only. */
-fun asum(v: VectorLike): Double = when (v) {
+public fun asum(v: VectorLike): Double = when (v) {
     is DenseVector -> koblas.vectorKernels.asum(v.data, 0, v.size)
 
     is SparseVector -> koblas.sparseVectorKernels.asum(v)
@@ -110,7 +110,7 @@ fun asum(v: VectorLike): Double = when (v) {
  * storage order *is* index order and the two contracts agree. An all-unstored (zero) vector returns index
  * 0, matching the dense zero vector.
  */
-fun iamax(v: VectorLike): Int {
+public fun iamax(v: VectorLike): Int {
     if (v.size == 0) return -1
     var best = -1
     var bestAbs = -1.0
@@ -125,7 +125,7 @@ fun iamax(v: VectorLike): Int {
 }
 
 /** `dst = src` (BLAS `dcopy`). Dense sources bulk-copy; sparse sources zero-fill then scatter. */
-fun copy(src: VectorLike, dst: DenseVector) {
+public fun copy(src: VectorLike, dst: DenseVector) {
     requireShape(src.size == dst.size) { "size mismatch: ${src.size} vs ${dst.size}" }
     when (src) {
         is DenseVector -> src.data.copyInto(dst.data)
@@ -143,7 +143,7 @@ fun copy(src: VectorLike, dst: DenseVector) {
 }
 
 /** Exchange the contents of [a] and [b] (BLAS `dswap`). */
-fun swap(a: DenseVector, b: DenseVector) {
+public fun swap(a: DenseVector, b: DenseVector) {
     requireShape(a.size == b.size) { "size mismatch: ${a.size} vs ${b.size}" }
     val ad = a.data
     val bd = b.data
@@ -161,7 +161,7 @@ fun swap(a: DenseVector, b: DenseVector) {
  * @property s the sine.
  * @property r the rotated length, `±hypot(a, b)` — what `a` becomes and what `b` becomes zero from.
  */
-class Givens internal constructor(val c: Double, val s: Double, val r: Double)
+public class Givens internal constructor(public val c: Double, public val s: Double, public val r: Double)
 
 /**
  * Generate the plane rotation that zeroes [b] against [a] (BLAS `drotg`).
@@ -178,7 +178,7 @@ class Givens internal constructor(val c: Double, val s: Double, val r: Double)
  * and the Forrest-Tomlin basis update a simplex uses. koblas has none of those yet; this is the primitive
  * they all require.
  */
-fun rotg(a: Double, b: Double): Givens {
+public fun rotg(a: Double, b: Double): Givens {
     if (b == 0.0 && a == 0.0) return Givens(c = 1.0, s = 0.0, r = 0.0)
     val absA = abs(a)
     val absB = abs(b)
@@ -204,7 +204,7 @@ fun rotg(a: Double, b: Double): Givens {
  * arithmetic per element than a copy, so it plausibly clears the bar where copy does not — but "plausibly" is
  * not a threshold. Adding it to the seam later is additive; guessing wrong now is not.
  */
-fun rot(x: DenseVector, y: DenseVector, rotation: Givens) {
+public fun rot(x: DenseVector, y: DenseVector, rotation: Givens) {
     requireShape(x.size == y.size) { "size mismatch: ${x.size} vs ${y.size}" }
     val c = rotation.c
     val s = rotation.s
@@ -220,7 +220,7 @@ fun rot(x: DenseVector, y: DenseVector, rotation: Givens) {
 }
 
 /** `y = y + alpha * x`. Dense `x` uses SIMD; sparse `x` walks stored entries. */
-fun axpy(y: DenseVector, alpha: Double, x: VectorLike) {
+public fun axpy(y: DenseVector, alpha: Double, x: VectorLike) {
     requireShape(y.size == x.size) { "size mismatch: ${y.size} vs ${x.size}" }
     if (alpha == 0.0) return
     when (x) {
@@ -231,7 +231,7 @@ fun axpy(y: DenseVector, alpha: Double, x: VectorLike) {
 }
 
 /** `v = alpha * v`. */
-fun scale(v: DenseVector, alpha: Double) {
+public fun scale(v: DenseVector, alpha: Double) {
     if (alpha == 1.0) return
     koblas.vectorKernels.scale(v.data, 0, alpha, v.size)
 }
@@ -243,7 +243,7 @@ fun scale(v: DenseVector, alpha: Double) {
  * pair has no BLAS counterpart and stays here, visiting only the rows and columns where `x_i · y_j`
  * can be non-zero.
  */
-fun ger(alpha: Double, x: VectorLike, y: VectorLike, a: DenseMatrix) {
+public fun ger(alpha: Double, x: VectorLike, y: VectorLike, a: DenseMatrix) {
     requireShape(a.rows == x.size && a.cols == y.size) {
         "ger shape mismatch: A is ${a.rows}x${a.cols}, x ${x.size}, y ${y.size}"
     }
@@ -271,10 +271,15 @@ fun ger(alpha: Double, x: VectorLike, y: VectorLike, a: DenseMatrix) {
  *
  * The symmetric counterpart of [ger], and what accumulating a covariance one observation at a time is.
  */
-fun syr(alpha: Double, x: VectorLike, a: DenseMatrix, uplo: Uplo = Uplo.FULL) = koblas.syr(alpha, x, a, uplo)
+public fun syr(alpha: Double, x: VectorLike, a: DenseMatrix, uplo: Uplo = Uplo.FULL): Unit = koblas.syr(
+    alpha,
+    x,
+    a,
+    uplo,
+)
 
 /** Symmetric rank-2 update `A += alpha · (x · yᵀ + y · xᵀ)` (BLAS `dsyr2`); see [Blas.syr2]. */
-fun syr2(alpha: Double, x: VectorLike, y: VectorLike, a: DenseMatrix, uplo: Uplo = Uplo.FULL) =
+public fun syr2(alpha: Double, x: VectorLike, y: VectorLike, a: DenseMatrix, uplo: Uplo = Uplo.FULL): Unit =
     koblas.syr2(alpha, x, y, a, uplo)
 
 /**
@@ -287,7 +292,7 @@ fun syr2(alpha: Double, x: VectorLike, y: VectorLike, a: DenseMatrix, uplo: Uplo
  * force a running total per column and therefore an `n`-wide array, which is the only reason such a routine
  * would take a workspace at all.
  */
-fun norm1(a: DenseMatrix): Double {
+public fun norm1(a: DenseMatrix): Double {
     val ad = a.data
     val rows = a.rows
     var m = 0.0
@@ -308,7 +313,7 @@ fun norm1(a: DenseMatrix): Double {
  * row sums all advance together, so this needs a `rows`-wide running total. That is exactly the array
  * `norm1` itself needed back when the storage was row-major.
  */
-fun normInf(a: DenseMatrix, workspace: Workspace? = null): Double {
+public fun normInf(a: DenseMatrix, workspace: Workspace? = null): Double {
     val rows = a.rows
     if (rows == 0 || a.cols == 0) return 0.0
     val sums = workspace?.take(rows) ?: DoubleArray(rows)
@@ -330,7 +335,7 @@ fun normInf(a: DenseMatrix, workspace: Workspace? = null): Double {
  * One pass over the flat backing, and it reuses the shared rescaling rather than growing a third copy of
  * it — a matrix whose entries square out of range is no less likely than a vector's.
  */
-fun normFro(a: DenseMatrix): Double = euclideanNorm(a.data, 0, a.data.size)
+public fun normFro(a: DenseMatrix): Double = euclideanNorm(a.data, 0, a.data.size)
 
 /**
  * Scale row `i` of [a] by `d[i]`, in place — the product `D · A` for the diagonal `D` whose entries are [d].
@@ -344,7 +349,7 @@ fun normFro(a: DenseMatrix): Double = euclideanNorm(a.data, 0, a.data.size)
  * sit `rows` apart, so this strides where [scaleColumns] sweeps contiguously. Prefer scaling columns where
  * the algorithm lets you choose.
  */
-fun scaleRows(a: DenseMatrix, d: DoubleArray) {
+public fun scaleRows(a: DenseMatrix, d: DoubleArray) {
     requireShape(d.size == a.rows) { "scaleRows: d length ${d.size} != ${a.rows} rows" }
     val rows = a.rows
     val ad = a.data
@@ -361,7 +366,7 @@ fun scaleRows(a: DenseMatrix, d: DoubleArray) {
  * The cheap direction: a column is one contiguous run, so each scaling is a single [scale] over it and
  * reaches the same vector kernels every other contiguous sweep in koblas does.
  */
-fun scaleColumns(a: DenseMatrix, d: DoubleArray) {
+public fun scaleColumns(a: DenseMatrix, d: DoubleArray) {
     requireShape(d.size == a.cols) { "scaleColumns: d length ${d.size} != ${a.cols} columns" }
     val rows = a.rows
     for (j in 0 until a.cols) {
@@ -378,7 +383,7 @@ fun scaleColumns(a: DenseMatrix, d: DoubleArray) {
  * purpose — it would reach every stored entry through its row index, which is a different operation with a
  * different cost, and nothing needs it yet.
  */
-fun scaleColumns(a: SparseMatrix, d: DoubleArray) {
+public fun scaleColumns(a: SparseMatrix, d: DoubleArray) {
     requireShape(d.size == a.cols) { "scaleColumns: d length ${d.size} != ${a.cols} columns" }
     for (j in 0 until a.cols) {
         val f = d[j]
@@ -394,7 +399,7 @@ fun scaleColumns(a: SparseMatrix, d: DoubleArray) {
  * A copy rather than a view: [DenseVector] is a bare `DoubleArray` with no offset or stride, so there is
  * nothing for a view to be. Reach into [DenseMatrix.data] directly when the copy is the cost that matters.
  */
-fun DenseMatrix.column(j: Int): DenseVector {
+public fun DenseMatrix.column(j: Int): DenseVector {
     require(j in 0 until cols) { "column $j outside [0,$cols)" }
     val start = j * rows
     return DenseVector.wrap(data.copyOfRange(start, start + rows))
@@ -407,7 +412,7 @@ fun DenseMatrix.column(j: Int): DenseVector {
  * allows: consecutive entries of a row sit `rows` apart, so this gathers across the whole backing where
  * [column] copies one contiguous run.
  */
-fun DenseMatrix.row(i: Int): DenseVector {
+public fun DenseMatrix.row(i: Int): DenseVector {
     require(i in 0 until rows) { "row $i outside [0,$rows)" }
     val out = DoubleArray(cols)
     for (j in 0 until cols) out[j] = data[i + j * rows]
@@ -419,7 +424,7 @@ fun DenseMatrix.row(i: Int): DenseVector {
  * prefer the `transpose` flags on [LinearAlgebra.gemv] / [LinearAlgebra.gemm], which read the
  * original storage without copying.
  */
-fun DenseMatrix.transpose(): DenseMatrix {
+public fun DenseMatrix.transpose(): DenseMatrix {
     val t = DenseMatrix(cols, rows)
     val td = t.data
     // Reads down a contiguous source column and writes across a stride in the destination.
@@ -444,7 +449,7 @@ fun DenseMatrix.transpose(): DenseMatrix {
  * Explicitly stored zeros survive, because equality on [SparseMatrix] distinguishes them — dropping them
  * here would make `transpose().transpose()` a different matrix from the original.
  */
-fun SparseMatrix.transpose(): SparseMatrix {
+public fun SparseMatrix.transpose(): SparseMatrix {
     val outPtr = IntArray(rows + 1)
     // Pass one: outPtr[i + 1] counts the entries in row i, then a prefix sum turns counts into offsets.
     for (k in rowIdx.indices) outPtr[rowIdx[k] + 1]++
@@ -482,7 +487,7 @@ fun SparseMatrix.transpose(): SparseMatrix {
  *
  * No `transpose` flag: for a sparse matrix use [com.eignex.koblas.sparse.gemv], which takes one.
  */
-fun MatrixLike.matVec(x: VectorLike): DenseVector {
+public fun MatrixLike.matVec(x: VectorLike): DenseVector {
     val a = this
     requireShape(a.cols == x.size) { "matVec shape mismatch: A is ${a.rows}x${a.cols}, x size ${x.size}" }
     if (a is DenseMatrix && x is DenseVector) return DenseVector.wrap(koblas.gemv(a, x.data))

@@ -35,7 +35,7 @@ import kotlinx.cinterop.value
  * Registered at [com.eignex.koblas.HOST_BACKEND_PRIORITY], so it wins over `SparseLu` wherever SuiteSparse is
  * installed.
  */
-class UmfpackSparseLapack internal constructor(private val f: UmfpackFunctions) : SparseLapack {
+public class UmfpackSparseLapack internal constructor(private val f: UmfpackFunctions) : SparseLapack {
     override val name: String get() = "umfpack"
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY

@@ -29,7 +29,7 @@ import com.eignex.koblas.requireShape
  * kernels, which are Vector API SIMD here: `O(n²)` work over `O(n²)` data has nothing to amortize a foreign
  * call against, and measurement agrees. The thresholds that encode this carry the numbers.
  */
-class HostBlas internal constructor() : Blas {
+public class HostBlas internal constructor() : Blas {
     override val name: String get() = "openblas"
 
     /** Above the reference (0) and the native dlopen backend (90), being the strongest JVM option. */

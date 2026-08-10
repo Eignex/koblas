@@ -23,11 +23,11 @@ import com.eignex.koblas.requireShape
  *
  * @property l the lower triangular factor `L`, square, with `A = L·Lᵀ`.
  */
-class CholeskyDecomposition(val l: DenseMatrix) {
+public class CholeskyDecomposition(public val l: DenseMatrix) {
     init {
         requireShape(l.rows == l.cols) { "cholesky factor must be square; got ${l.rows}x${l.cols}" }
     }
 
     /** The dimension of the factored matrix. */
-    val n: Int get() = l.rows
+    public val n: Int get() = l.rows
 }

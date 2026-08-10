@@ -31,10 +31,10 @@ import kotlin.math.sqrt
  * Ranked and selected separately from [Blas], because a host can provide one and not the other.
  * Defaults implement every routine in portable Kotlin, so a backend overrides only what it accelerates.
  */
-interface Lapack : Backend {
+public interface Lapack : Backend {
     /** LU factorization with partial pivoting of a square [a] (LAPACK `dgetrf`); [a] is not modified.
      *  Allocates the factor buffers; [factorInto] refactorizes into existing ones. */
-    fun factor(a: DenseMatrix): LuDecomposition
+    public fun factor(a: DenseMatrix): LuDecomposition
 
     /**
      * Refactorize [a] into [out]'s existing buffers, returning [out]. A periodic refactorization — the
@@ -42,7 +42,7 @@ interface Lapack : Backend {
      * copy and a pivot array each time; this reuses both. [out] must have the same dimension as [a], and
      * its previous contents are discarded.
      */
-    fun factorInto(a: DenseMatrix, out: LuDecomposition): LuDecomposition {
+    public fun factorInto(a: DenseMatrix, out: LuDecomposition): LuDecomposition {
         requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
         requireShape(out.n == a.rows) { "factorInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}" }
         // The default has no way to reuse a backend's internals, so it factors and copies the result in.
@@ -56,7 +56,7 @@ interface Lapack : Backend {
     /** Solve `A · x = b` (or `Aᵀ · x = b` when [transpose]) for the factorization [lu] (LAPACK `dgetrs`);
      *  returns a fresh `x`. [transpose] serves the simplex's BTRAN (`Bᵀ y = c`) against a factored basis.
      *  Allocates the result; [solveInto] writes into a caller-owned destination instead. */
-    fun solve(lu: LuDecomposition, b: DoubleArray, transpose: Boolean = false): DoubleArray =
+    public fun solve(lu: LuDecomposition, b: DoubleArray, transpose: Boolean = false): DoubleArray =
         solveInto(lu, b, DoubleArray(lu.n), transpose)
 
     /**
@@ -69,7 +69,7 @@ interface Lapack : Backend {
      * the single allocation this routine still makes.
      */
     @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
-    fun solveInto(
+    public fun solveInto(
         lu: LuDecomposition,
         b: DoubleArray,
         out: DoubleArray,
@@ -83,7 +83,7 @@ interface Lapack : Backend {
      * and the two triangular block solves directly on the shared packed format; backends may
      * substitute a native block solve.
      */
-    fun solve(lu: LuDecomposition, b: DenseMatrix, transpose: Boolean = false): DenseMatrix =
+    public fun solve(lu: LuDecomposition, b: DenseMatrix, transpose: Boolean = false): DenseMatrix =
         solveInto(lu, b, DenseMatrix(b.rows, b.cols), transpose)
 
     /**
@@ -92,7 +92,7 @@ interface Lapack : Backend {
      * so pass a [workspace] to lend that `n·nrhs` buffer.
      */
     @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
-    fun solveInto(
+    public fun solveInto(
         lu: LuDecomposition,
         b: DenseMatrix,
         out: DenseMatrix,
@@ -144,22 +144,26 @@ interface Lapack : Backend {
      * triangle may hold anything — and [a] is not modified. Use this where the matrix is symmetric but
      * not positive definite (KKT systems); for SPD matrices [cholesky] is cheaper.
      */
-    fun ldl(a: DenseMatrix, workspace: Workspace? = null): LdlDecomposition
+    public fun ldl(a: DenseMatrix, workspace: Workspace? = null): LdlDecomposition
 
     /** Solve `A · x = b` for a symmetric indefinite factorization [ldl] (LAPACK `dsytrs`); returns a
      *  fresh `x`. Symmetry makes the transposed solve identical, so there is no `transpose` flag.
      *  Allocates the result; [solveInto] writes into a caller-owned destination instead. */
-    fun solve(ldl: LdlDecomposition, b: DoubleArray): DoubleArray = solveInto(ldl, b, DoubleArray(ldl.n))
+    public fun solve(ldl: LdlDecomposition, b: DoubleArray): DoubleArray = solveInto(ldl, b, DoubleArray(ldl.n))
 
     /** Solve `A · x = b` into [out], which is returned; allocates nothing. [out] may be [b]. */
-    fun solveInto(ldl: LdlDecomposition, b: DoubleArray, out: DoubleArray): DoubleArray
+    public fun solveInto(ldl: LdlDecomposition, b: DoubleArray, out: DoubleArray): DoubleArray
 
     /**
      * Solve `A · X = B` for the [b].cols right-hand-side columns of [b] at once against a symmetric
      * indefinite factorization (LAPACK `dsytrs` with `nrhs`); returns a fresh `X`. Backends may
      * substitute a native block solve.
      */
-    fun solve(ldl: LdlDecomposition, b: DenseMatrix): DenseMatrix = solveInto(ldl, b, DenseMatrix(b.rows, b.cols))
+    public fun solve(ldl: LdlDecomposition, b: DenseMatrix): DenseMatrix = solveInto(
+        ldl,
+        b,
+        DenseMatrix(b.rows, b.cols),
+    )
 
     /**
      * Solve `A · X = B` into [out], which is returned. [out] may be [b].
@@ -169,7 +173,12 @@ interface Lapack : Backend {
      * column is already a contiguous run, so reusing the tuned vector solve costs nothing but re-reading
      * the factor and keeps the pivot-block bookkeeping in one place instead of two.
      */
-    fun solveInto(ldl: LdlDecomposition, b: DenseMatrix, out: DenseMatrix, workspace: Workspace? = null): DenseMatrix {
+    public fun solveInto(
+        ldl: LdlDecomposition,
+        b: DenseMatrix,
+        out: DenseMatrix,
+        workspace: Workspace? = null,
+    ): DenseMatrix {
         requireFactored(ldl.failedAt, "solve")
         val n = ldl.n
         val nrhs = b.cols
@@ -186,7 +195,7 @@ interface Lapack : Backend {
      * of `R` surface in [solveLeastSquares] as infinities/NaNs, following the triangular-solve
      * convention.
      */
-    fun qr(a: DenseMatrix, workspace: Workspace? = null): QrDecomposition
+    public fun qr(a: DenseMatrix, workspace: Workspace? = null): QrDecomposition
 
     /**
      * QR with column pivoting, `A·P = Q·R` (LAPACK `dgeqp3`), which is the factorization that can report a
@@ -204,7 +213,7 @@ interface Lapack : Backend {
      *
      * Costs roughly what [qr] does plus the column-norm bookkeeping, so prefer [qr] when the rank is known.
      */
-    fun qrPivoted(
+    public fun qrPivoted(
         a: DenseMatrix,
         tolerance: Double = AUTOMATIC_RANK_TOLERANCE,
         workspace: Workspace? = null,
@@ -221,11 +230,14 @@ interface Lapack : Backend {
      * solution is the useful answer when the columns mean something — it names a subset that explains the
      * data — and the wrong one when the smallest coefficient vector is wanted.
      */
-    fun solveLeastSquares(qr: PivotedQrDecomposition, b: DoubleArray, workspace: Workspace? = null): DoubleArray =
-        solveLeastSquaresInto(qr, b, DoubleArray(qr.n), workspace)
+    public fun solveLeastSquares(
+        qr: PivotedQrDecomposition,
+        b: DoubleArray,
+        workspace: Workspace? = null,
+    ): DoubleArray = solveLeastSquaresInto(qr, b, DoubleArray(qr.n), workspace)
 
     /** [solveLeastSquares] into [out], which is returned. */
-    fun solveLeastSquaresInto(
+    public fun solveLeastSquaresInto(
         qr: PivotedQrDecomposition,
         b: DoubleArray,
         out: DoubleArray,
@@ -257,12 +269,17 @@ interface Lapack : Backend {
 
     /** Apply `Q` (or `Qᵀ` when [transpose]) from [qr] to a length-`m` [y], into a fresh result
      *  (LAPACK `dormqr` restricted to a single column). Allocates; [applyQInto] does not. */
-    fun applyQ(qr: QrDecomposition, y: DoubleArray, transpose: Boolean = false): DoubleArray =
+    public fun applyQ(qr: QrDecomposition, y: DoubleArray, transpose: Boolean = false): DoubleArray =
         applyQInto(qr, y, DoubleArray(qr.m), transpose)
 
     /** Apply `Q` (or `Qᵀ` when [transpose]) from [qr] to [y] into [out], which is returned. [out] may
      *  be [y]. */
-    fun applyQInto(qr: QrDecomposition, y: DoubleArray, out: DoubleArray, transpose: Boolean = false): DoubleArray
+    public fun applyQInto(
+        qr: QrDecomposition,
+        y: DoubleArray,
+        out: DoubleArray,
+        transpose: Boolean = false,
+    ): DoubleArray
 
     /**
      * Least-squares solve `min ‖A·x − b‖₂` from the factorization (the `dgels` shape): requires
@@ -270,14 +287,14 @@ interface Lapack : Backend {
      * the kernel square-root/array filters build on; it composes with [cholesky] rank-one updates for
      * sliding-window problems.
      */
-    fun solveLeastSquares(qr: QrDecomposition, b: DoubleArray, workspace: Workspace? = null): DoubleArray =
+    public fun solveLeastSquares(qr: QrDecomposition, b: DoubleArray, workspace: Workspace? = null): DoubleArray =
         solveLeastSquaresInto(qr, b, DoubleArray(qr.n), workspace)
 
     /**
      * Least-squares solve into [out], which has length `n` and is returned. The `Qᵀb` product needs a
      * length-`m` intermediate, so pass a [workspace] to make the call allocation-free.
      */
-    fun solveLeastSquaresInto(
+    public fun solveLeastSquaresInto(
         qr: QrDecomposition,
         b: DoubleArray,
         out: DoubleArray,
@@ -304,7 +321,7 @@ interface Lapack : Backend {
      * smallest 2-norm. [b] has length `m`; the result has length `n`. Rank deficiency is not detected
      * and surfaces as infinities/NaNs, following the triangular-solve convention.
      */
-    fun solveMinimumNorm(qr: QrDecomposition, b: DoubleArray, workspace: Workspace? = null): DoubleArray =
+    public fun solveMinimumNorm(qr: QrDecomposition, b: DoubleArray, workspace: Workspace? = null): DoubleArray =
         solveMinimumNormInto(qr, b, DoubleArray(qr.m), workspace)
 
     /**
@@ -312,7 +329,7 @@ interface Lapack : Backend {
      * returned. A length-`n` intermediate holds the forward solve, so pass a [workspace] to make the
      * call allocation-free.
      */
-    fun solveMinimumNormInto(
+    public fun solveMinimumNormInto(
         qr: QrDecomposition,
         b: DoubleArray,
         out: DoubleArray,
@@ -348,7 +365,7 @@ interface Lapack : Backend {
      * here — which matters because a simplex calls it to decide when to refactorize. Passing a
      * [workspace] reuses those buffers across calls and makes it allocation-free.
      */
-    fun rcond(lu: LuDecomposition, anorm: Double, workspace: Workspace? = null): Double {
+    public fun rcond(lu: LuDecomposition, anorm: Double, workspace: Workspace? = null): Double {
         val n = lu.n
         if (n == 0) return 1.0
         if (lu.singular || anorm == 0.0) return 0.0
@@ -424,7 +441,7 @@ interface Lapack : Backend {
      * otherwise; see
      * [CholeskyPolicy] for why that is the default and what asking for [CholeskyPolicy.Regularize] means.
      */
-    fun cholesky(a: MatrixLike, policy: CholeskyPolicy = CholeskyPolicy.Strict): CholeskyDecomposition {
+    public fun cholesky(a: MatrixLike, policy: CholeskyPolicy = CholeskyPolicy.Strict): CholeskyDecomposition {
         requireShape(a.rows == a.cols) { "cholesky requires a square matrix; got ${a.rows}x${a.cols}" }
         val n = a.rows
         val l = DenseMatrix(n, n)
@@ -484,7 +501,7 @@ interface Lapack : Backend {
      * substitution `Lᵀ · x = y` reads row `i` of `Lᵀ`, which is column `i` of `L`, so it uses [VectorKernels.dot]
      * on the same contiguous runs.
      */
-    fun solve(chol: CholeskyDecomposition, b: DoubleArray): DoubleArray {
+    public fun solve(chol: CholeskyDecomposition, b: DoubleArray): DoubleArray {
         val n = chol.n
         requireShape(b.size == n) { "solve: b size ${b.size}, expected $n" }
         val x = b.copyOf()
@@ -512,7 +529,7 @@ interface Lapack : Backend {
      *
      * @throws com.eignex.koblas.SingularMatrix if [lu] is singular; the position is [LuDecomposition.failedAt].
      */
-    fun invert(lu: LuDecomposition, workspace: Workspace? = null): DenseMatrix {
+    public fun invert(lu: LuDecomposition, workspace: Workspace? = null): DenseMatrix {
         if (lu.singular) {
             throw SingularMatrix(
                 lu.failedAt,
@@ -539,7 +556,7 @@ interface Lapack : Backend {
      *
      * @throws com.eignex.koblas.SingularMatrix naming the first zero diagonal position.
      */
-    fun trtri(a: DenseMatrix, lower: Boolean, unitDiag: Boolean = false): DenseMatrix {
+    public fun trtri(a: DenseMatrix, lower: Boolean, unitDiag: Boolean = false): DenseMatrix {
         requireShape(a.rows == a.cols) { "trtri requires a square matrix; got ${a.rows}x${a.cols}" }
         val n = a.rows
         if (!unitDiag) {
@@ -580,7 +597,7 @@ interface Lapack : Backend {
      * only produces rows `>= j` — the strictly-upper entries of the symmetric `A⁻¹` come from
      * mirroring the lower triangle.
      */
-    fun invert(chol: CholeskyDecomposition, workspace: Workspace? = null): DenseMatrix {
+    public fun invert(chol: CholeskyDecomposition, workspace: Workspace? = null): DenseMatrix {
         val n = chol.n
         val ld = chol.l.data
         val inv = DenseMatrix(n, n)
@@ -614,11 +631,11 @@ interface Lapack : Backend {
     // copying, since DenseVector.data is the flat array these routines already take.
 
     /** [solve] over a [DenseVector] right-hand side. */
-    fun solve(lu: LuDecomposition, b: DenseVector, transpose: Boolean = false): DenseVector =
+    public fun solve(lu: LuDecomposition, b: DenseVector, transpose: Boolean = false): DenseVector =
         DenseVector.wrap(solve(lu, b.data, transpose))
 
     /** [solveInto] over [DenseVector] operands; [out] is returned. */
-    fun solveInto(
+    public fun solveInto(
         lu: LuDecomposition,
         b: DenseVector,
         out: DenseVector,
@@ -630,31 +647,34 @@ interface Lapack : Backend {
     }
 
     /** [solve] over a [DenseVector] right-hand side. */
-    fun solve(ldl: LdlDecomposition, b: DenseVector): DenseVector = DenseVector.wrap(solve(ldl, b.data))
+    public fun solve(ldl: LdlDecomposition, b: DenseVector): DenseVector = DenseVector.wrap(solve(ldl, b.data))
 
     /** [solveInto] over [DenseVector] operands; [out] is returned. */
-    fun solveInto(ldl: LdlDecomposition, b: DenseVector, out: DenseVector): DenseVector {
+    public fun solveInto(ldl: LdlDecomposition, b: DenseVector, out: DenseVector): DenseVector {
         solveInto(ldl, b.data, out.data)
         return out
     }
 
     /** [solve] over a [DenseVector] right-hand side. */
-    fun solve(chol: CholeskyDecomposition, b: DenseVector): DenseVector = DenseVector.wrap(solve(chol, b.data))
+    public fun solve(chol: CholeskyDecomposition, b: DenseVector): DenseVector = DenseVector.wrap(solve(chol, b.data))
 
     /** [solveLeastSquares] over a [DenseVector] right-hand side. */
-    fun solveLeastSquares(qr: QrDecomposition, b: DenseVector, workspace: Workspace? = null): DenseVector =
+    public fun solveLeastSquares(qr: QrDecomposition, b: DenseVector, workspace: Workspace? = null): DenseVector =
         DenseVector.wrap(solveLeastSquares(qr, b.data, workspace))
 
     /** [solveLeastSquares] over a [DenseVector] right-hand side. */
-    fun solveLeastSquares(qr: PivotedQrDecomposition, b: DenseVector, workspace: Workspace? = null): DenseVector =
-        DenseVector.wrap(solveLeastSquares(qr, b.data, workspace))
+    public fun solveLeastSquares(
+        qr: PivotedQrDecomposition,
+        b: DenseVector,
+        workspace: Workspace? = null,
+    ): DenseVector = DenseVector.wrap(solveLeastSquares(qr, b.data, workspace))
 
     /** [solveMinimumNorm] over a [DenseVector] right-hand side. */
-    fun solveMinimumNorm(qr: QrDecomposition, b: DenseVector, workspace: Workspace? = null): DenseVector =
+    public fun solveMinimumNorm(qr: QrDecomposition, b: DenseVector, workspace: Workspace? = null): DenseVector =
         DenseVector.wrap(solveMinimumNorm(qr, b.data, workspace))
 
     /** [applyQ] over a [DenseVector]. */
-    fun applyQ(qr: QrDecomposition, y: DenseVector, transpose: Boolean = false): DenseVector =
+    public fun applyQ(qr: QrDecomposition, y: DenseVector, transpose: Boolean = false): DenseVector =
         DenseVector.wrap(applyQ(qr, y.data, transpose))
 }
 

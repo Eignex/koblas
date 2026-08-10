@@ -14,7 +14,7 @@ import kotlin.math.sqrt
  * is the whole reason to want `L·D·Lᵀ` rather than `L·Lᵀ`. A KKT system is symmetric and not positive
  * definite, and its negative pivots are the answer rather than a failure.
  */
-sealed interface SparseLdlPolicy {
+public sealed interface SparseLdlPolicy {
     /**
      * Every pivot must be positive, which makes the factorization a Cholesky in scaled form.
      *
@@ -22,17 +22,17 @@ sealed interface SparseLdlPolicy {
      * supposed to be positive definite and is not is a modelling error, and the useful thing is the column
      * where it stopped being true.
      */
-    data object Strict : SparseLdlPolicy
+    public data object Strict : SparseLdlPolicy
 
     /** Any nonzero pivot is accepted, negatives included. An exact zero is still singular. */
-    data object Indefinite : SparseLdlPolicy
+    public data object Indefinite : SparseLdlPolicy
 
     /**
      * Pivots below [minimumPivot] are raised to it, so a matrix that has drifted slightly indefinite still
      * factors — the caller trading exactness for a factorization that exists. The default matches the dense
      * policy's.
      */
-    data class Regularize(val minimumPivot: Double = 1e-10) : SparseLdlPolicy
+    public data class Regularize(val minimumPivot: Double = 1e-10) : SparseLdlPolicy
 }
 
 /**
@@ -55,9 +55,9 @@ sealed interface SparseLdlPolicy {
  * arbitrary permutation of one it can cost everything, and [SparseSymbolic.nnz] is how a caller finds out
  * before doing the arithmetic.
  */
-class SparseLdl internal constructor(
+public class SparseLdl internal constructor(
     /** The analysis this factorization was built against, reusable for another matrix of the same pattern. */
-    val symbolic: SparseSymbolic,
+    public val symbolic: SparseSymbolic,
     private val columnPointers: IntArray,
     private val rowIndices: IntArray,
     private val values: DoubleArray,
@@ -140,7 +140,7 @@ class SparseLdl internal constructor(
      * because a caller may want the factor itself — to hand to a sampler, or to multiply — rather than a
      * solve, and reconstructing it from `L` and `D` outside this class would mean exposing both.
      */
-    fun choleskyFactor(): SparseMatrix {
+    public fun choleskyFactor(): SparseMatrix {
         val columns = List(n) { j ->
             if (diagonal[j] <= 0.0) {
                 throw NotPositiveDefinite(

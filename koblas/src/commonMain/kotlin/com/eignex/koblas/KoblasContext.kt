@@ -43,13 +43,13 @@ import com.eignex.koblas.sparse.SparseVectorKernels
  * @property sparseBlas sparse matrix routines.
  * @property sparseLapack sparse factorizations.
  */
-class KoblasContext(
-    val vectorKernels: VectorKernels,
-    val blas: Blas,
-    val lapack: Lapack,
-    val sparseVectorKernels: SparseVectorKernels,
-    val sparseBlas: SparseBlas,
-    val sparseLapack: SparseLapack,
+public class KoblasContext(
+    public val vectorKernels: VectorKernels,
+    public val blas: Blas,
+    public val lapack: Lapack,
+    public val sparseVectorKernels: SparseVectorKernels,
+    public val sparseBlas: SparseBlas,
+    public val sparseLapack: SparseLapack,
 ) : LinearAlgebra,
     Blas by blas,
     Lapack by lapack,
@@ -89,7 +89,7 @@ class KoblasContext(
      * constructor makes you name a backend for every half, which is the right default for a type you can
      * install but tedious when you want to change one thing.
      */
-    fun with(
+    public fun with(
         vectorKernels: VectorKernels = this.vectorKernels,
         blas: Blas = this.blas,
         lapack: Lapack = this.lapack,

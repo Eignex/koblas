@@ -20,7 +20,7 @@ import kotlinx.cinterop.usePinned
  * Offsets are handled by pinning and taking the address of the element, so no repacking happens at the
  * boundary — the same zero-copy property the rest of this backend relies on.
  */
-class CblasVectorKernels : VectorKernels {
+public class CblasVectorKernels : VectorKernels {
     override val name: String get() = "cblas"
 
     /** Above the reference (0), matching the other cblas halves. */

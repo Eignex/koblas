@@ -22,9 +22,9 @@ import kotlin.math.abs
  * Defaults implement every routine over the ascending index arrays, so a backend overrides only what it
  * accelerates.
  */
-interface SparseVectorKernels : Backend {
+public interface SparseVectorKernels : Backend {
     /** `xᵀ·y` for a sparse [x] against a dense [y] (Sparse BLAS `usdot`); walks only the stored entries. */
-    fun dot(x: SparseVector, y: DoubleArray): Double {
+    public fun dot(x: SparseVector, y: DoubleArray): Double {
         requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
         var s = 0.0
         val idx = x.indices
@@ -40,7 +40,7 @@ interface SparseVectorKernels : Backend {
      * `O(nnz_x · log nnz_y)`. Both operands are strictly ascending, which is what makes the merge possible;
      * `SparseVector` validates that.
      */
-    fun dot(x: SparseVector, y: SparseVector): Double {
+    public fun dot(x: SparseVector, y: SparseVector): Double {
         require(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
         var s = 0.0
         var a = 0
@@ -65,7 +65,7 @@ interface SparseVectorKernels : Backend {
 
     /** `y += alpha·x` for a sparse [x] into a dense [y] (Sparse BLAS `usaxpy`); touches only `x`'s
      *  positions, which is the reason to pass a sparse operand at all. */
-    fun axpy(y: DoubleArray, alpha: Double, x: SparseVector) {
+    public fun axpy(y: DoubleArray, alpha: Double, x: SparseVector) {
         requireShape(x.size == y.size) { "axpy: sizes differ, ${x.size} vs ${y.size}" }
         if (alpha == 0.0) return
         val idx = x.indices
@@ -75,7 +75,7 @@ interface SparseVectorKernels : Backend {
 
     /** Write [x]'s stored entries into [out] at their positions, leaving the rest of [out] alone (Sparse
      *  BLAS `ussc`). Zero-fill [out] first for a plain densification. */
-    fun scatter(x: SparseVector, out: DoubleArray) {
+    public fun scatter(x: SparseVector, out: DoubleArray) {
         requireShape(x.size == out.size) { "scatter: sizes differ, ${x.size} vs ${out.size}" }
         val idx = x.indices
         val vals = x.values
@@ -89,10 +89,10 @@ interface SparseVectorKernels : Backend {
      * [euclideanNorm] of the value array — the same kernel, rescaling included, because a stored entry near
      * `1e±150` is no less likely for being sparse.
      */
-    fun nrm2(x: SparseVector): Double = euclideanNorm(x.values, 0, x.values.size)
+    public fun nrm2(x: SparseVector): Double = euclideanNorm(x.values, 0, x.values.size)
 
     /** `Sum |x_i|` over the stored entries. */
-    fun asum(x: SparseVector): Double {
+    public fun asum(x: SparseVector): Double {
         var s = 0.0
         for (v in x.values) s += abs(v)
         return s

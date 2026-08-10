@@ -7,7 +7,7 @@ package com.eignex.koblas.dense
  * BLAS. [LOWER] and [UPPER] follow `dsyrk` strictly: only the selected triangle (diagonal included)
  * is written and beta-scaled, and the opposite strict triangle is never read or touched.
  */
-enum class Uplo {
+public enum class Uplo {
     /** Write the complete, exactly symmetric result; beta scales all of `C`. */
     FULL,
 

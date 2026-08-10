@@ -41,7 +41,7 @@ import com.eignex.koblas.requireShape
  * argument for per-routine gates — the three routines of one family disagree about where the call is worth
  * making, and only measuring finds out.
  */
-class HostLapack internal constructor() : Lapack {
+public class HostLapack internal constructor() : Lapack {
     override val name: String get() = "openblas"
 
     /** Above the reference (0) and the native dlopen backend (90). */

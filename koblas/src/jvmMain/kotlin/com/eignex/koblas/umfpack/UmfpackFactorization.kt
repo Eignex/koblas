@@ -40,7 +40,7 @@ private val cleaner: Cleaner = Cleaner.create()
  * loop holds native memory until GC notices. If that ever matters, the answer is an explicit `close` on this
  * class rather than on the interface.
  */
-class UmfpackFactorization internal constructor(
+public class UmfpackFactorization internal constructor(
     private val matrix: SparseMatrix,
     override val failedAt: Int,
     private val handles: Handles,

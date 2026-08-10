@@ -13,7 +13,7 @@ import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
  * the right answers, slower. That is the right default — a program should not fail to start because OpenBLAS
  * is missing — but it makes the difference invisible, and these names are what make it checkable.
  */
-enum class BackendSlot {
+public enum class BackendSlot {
     /** Dense vector-vector routines. */
     VectorKernels,
 
@@ -34,7 +34,7 @@ enum class BackendSlot {
 }
 
 /** The backend currently filling [slot]. */
-fun KoblasContext.backendFor(slot: BackendSlot): Backend = when (slot) {
+public fun KoblasContext.backendFor(slot: BackendSlot): Backend = when (slot) {
     BackendSlot.VectorKernels -> vectorKernels
     BackendSlot.Blas -> blas
     BackendSlot.Lapack -> lapack
@@ -52,7 +52,7 @@ fun KoblasContext.backendFor(slot: BackendSlot): Backend = when (slot) {
  * SIMD kernels are still portable koblas, however fast they are, since they are what you get with no host
  * library present.
  */
-fun KoblasContext.isAccelerated(slot: BackendSlot): Boolean = when (val backend = backendFor(slot)) {
+public fun KoblasContext.isAccelerated(slot: BackendSlot): Boolean = when (val backend = backendFor(slot)) {
     // The routed pair is portable exactly when nothing is registered behind it.
     is RoutedVectorKernels -> backend.host != null
 
@@ -79,7 +79,7 @@ fun KoblasContext.isAccelerated(slot: BackendSlot): Boolean = when (val backend 
  * no host sparse backend behind them yet, so `SparseBlas` and friends being portable is the current state of
  * the library rather than anything wrong with the machine.
  */
-val KoblasContext.portableSlots: Set<BackendSlot>
+public val KoblasContext.portableSlots: Set<BackendSlot>
     get() = BackendSlot.entries.filterNot { isAccelerated(it) }.toSet()
 
 /**
@@ -101,7 +101,7 @@ val KoblasContext.portableSlots: Set<BackendSlot>
  *
  * @throws IllegalStateException naming each unaccelerated slot and what is filling it.
  */
-fun KoblasContext.requireAccelerated(vararg slots: BackendSlot) {
+public fun KoblasContext.requireAccelerated(vararg slots: BackendSlot) {
     val fallen = slots.filterNot { isAccelerated(it) }
     check(fallen.isEmpty()) {
         val detail = fallen.joinToString(", ") { "$it=${backendFor(it).name}" }

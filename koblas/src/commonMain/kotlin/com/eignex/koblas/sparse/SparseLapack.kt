@@ -13,7 +13,7 @@ import com.eignex.koblas.SparseMatrix
  * Returns [SparseFactorization] rather than a concrete [SparseLu], which is the design decision that makes
  * the seam usable at all — see that interface for why no sparse factor format is interchangeable.
  */
-interface SparseLapack : Backend {
+public interface SparseLapack : Backend {
     /**
      * Factorize the square [a] into something solvable, never null.
      *
@@ -33,8 +33,11 @@ interface SparseLapack : Backend {
      * diagonally dominant matrix `1e-9` has been measured cutting fill threefold at a residual of `1e-11`
      * against `1e-15`. A backend that cannot honor it must fall back rather than ignore it.
      */
-    fun factor(a: SparseMatrix, equilibrate: Boolean = false, dropTolerance: Double = NO_DROP): SparseFactorization =
-        SparseLu.factorCsc(a, equilibrate, dropTolerance)
+    public fun factor(
+        a: SparseMatrix,
+        equilibrate: Boolean = false,
+        dropTolerance: Double = NO_DROP,
+    ): SparseFactorization = SparseLu.factorCsc(a, equilibrate, dropTolerance)
 
     /**
      * Analyse a symmetric [a]'s pattern: the elimination tree and the nonzero pattern of `L`, reading no
@@ -47,7 +50,7 @@ interface SparseLapack : Backend {
      * A host backend with its own analysis (CHOLMOD's, say) overrides this and [ldl] together: an analysis is
      * only meaningful to the numeric phase that produced it.
      */
-    fun analyze(a: SparseMatrix, ordering: SparseOrdering = SparseOrdering.MinimumDegree): SparseSymbolic =
+    public fun analyze(a: SparseMatrix, ordering: SparseOrdering = SparseOrdering.MinimumDegree): SparseSymbolic =
         SparseSymbolic.analyze(a, ordering)
 
     /**
@@ -60,7 +63,7 @@ interface SparseLapack : Backend {
      * To reuse the analysis across value updates, keep the returned factorization's `symbolic` and call
      * [SparseSymbolic.factorLdl] for the next set of values; this entry point is for the first factorization.
      */
-    fun ldl(
+    public fun ldl(
         a: SparseMatrix,
         policy: SparseLdlPolicy = SparseLdlPolicy.Indefinite,
         ordering: SparseOrdering = SparseOrdering.MinimumDegree,
@@ -77,7 +80,7 @@ interface SparseLapack : Backend {
      * [SparseLdlPolicy.Regularize] for the estimate-has-drifted case where a factorization that exists is
      * worth more than one that is exact.
      */
-    fun cholesky(
+    public fun cholesky(
         a: SparseMatrix,
         policy: SparseLdlPolicy = SparseLdlPolicy.Strict,
         ordering: SparseOrdering = SparseOrdering.MinimumDegree,

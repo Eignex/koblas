@@ -12,9 +12,9 @@ import com.eignex.koblas.dense.VectorKernels
  * selected independently, so a host that provides one library and not the other still accelerates what it
  * can.
  */
-interface Backend {
+public interface Backend {
     /** A short backend identifier for diagnostics (e.g. `"reference"`). */
-    val name: String
+    public val name: String
 
     /**
      * Relative preference among simultaneously available backends: automatic selection through
@@ -24,7 +24,7 @@ interface Backend {
      * platform. A third-party backend that should win outright registers above that; one that should serve
      * only where no host library is installed registers between the two.
      */
-    val priority: Int get() = 0
+    public val priority: Int get() = 0
 }
 
 /**
@@ -45,4 +45,4 @@ interface Backend {
  * handles generate method-handle forms and are bound lazily, while a native `dlsym` is a hash lookup and the
  * native loaders resolve everything at once.
  */
-const val HOST_BACKEND_PRIORITY = 100
+public const val HOST_BACKEND_PRIORITY: Int = 100

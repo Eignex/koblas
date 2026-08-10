@@ -34,7 +34,7 @@ import kotlin.native.ref.createCleaner
  * Holds its [matrix] alive because `umfpack_di_solve` takes `Ap`, `Ai` and `Ax` alongside the factors and the
  * signature has no way to omit them.
  */
-class UmfpackFactorization internal constructor(
+public class UmfpackFactorization internal constructor(
     private val matrix: SparseMatrix,
     override val failedAt: Int,
     private val handle: NumericHandle,

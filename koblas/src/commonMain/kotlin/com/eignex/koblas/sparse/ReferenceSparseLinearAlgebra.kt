@@ -7,7 +7,7 @@ package com.eignex.koblas.sparse
  * Every operation is an interface default, so this object overrides nothing — the algorithms live on the
  * seams where a backend can replace them one at a time.
  */
-object ReferenceSparseLinearAlgebra :
+public object ReferenceSparseLinearAlgebra :
     SparseLinearAlgebra,
     SparseVectorKernels {
     override val name: String get() = "reference"

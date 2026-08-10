@@ -30,11 +30,11 @@ import com.eignex.koblas.koblas
  * makes rather than a default. Catching the exception is the other way to make that decision, after the
  * fact rather than in advance.
  */
-fun MatrixLike.cholesky(policy: CholeskyPolicy = CholeskyPolicy.Strict): CholeskyDecomposition =
+public fun MatrixLike.cholesky(policy: CholeskyPolicy = CholeskyPolicy.Strict): CholeskyDecomposition =
     koblas.cholesky(this, policy)
 
 /** Solve `A · x = b` for this factorization with the active backend; see [Lapack.solve]. */
-fun CholeskyDecomposition.solve(b: DoubleArray): DoubleArray = koblas.solve(this, b)
+public fun CholeskyDecomposition.solve(b: DoubleArray): DoubleArray = koblas.solve(this, b)
 
 /** `A⁻¹` from this factorization with the active backend; see [Lapack.invert]. */
-fun CholeskyDecomposition.invert(workspace: Workspace? = null): DenseMatrix = koblas.invert(this, workspace)
+public fun CholeskyDecomposition.invert(workspace: Workspace? = null): DenseMatrix = koblas.invert(this, workspace)

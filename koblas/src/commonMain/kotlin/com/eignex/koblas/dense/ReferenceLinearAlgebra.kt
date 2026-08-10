@@ -27,7 +27,7 @@ private const val BUNCH_KAUFMAN_ALPHA = 0.6403882032022076
  *
  * @param kernels the vector kernels the inner loops use, or null to follow the process default.
  */
-class ReferenceBackend(private val kernels: VectorKernels? = null) : LinearAlgebra {
+public class ReferenceBackend(private val kernels: VectorKernels? = null) : LinearAlgebra {
     override val name: String get() = "reference"
 
     /**
@@ -789,4 +789,4 @@ class ReferenceBackend(private val kernels: VectorKernels? = null) : LinearAlgeb
  * compares a native backend against. A stable instance, so `koblas.blas === ReferenceLinearAlgebra` is a
  * meaningful check.
  */
-val ReferenceLinearAlgebra: ReferenceBackend = ReferenceBackend()
+public val ReferenceLinearAlgebra: ReferenceBackend = ReferenceBackend()

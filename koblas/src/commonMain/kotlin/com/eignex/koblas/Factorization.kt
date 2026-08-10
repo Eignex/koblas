@@ -14,7 +14,7 @@ package com.eignex.koblas
  * question, deliberately still open: the sparse factors are opaque handles while the dense ones are a
  * shared LAPACK format, and the two have different reasons to exist.
  */
-const val NOT_SINGULAR: Int = -1
+public const val NOT_SINGULAR: Int = -1
 
 /**
  * A `failedAt` meaning "singular, but this backend cannot say where".
@@ -28,7 +28,7 @@ const val NOT_SINGULAR: Int = -1
  * matrix it just called singular. `singular` stays true because the value is not [NOT_SINGULAR], and a caller
  * that switches on the position has one more case to handle honestly.
  */
-const val SINGULAR_POSITION_UNKNOWN: Int = -2
+public const val SINGULAR_POSITION_UNKNOWN: Int = -2
 
 /**
  * Translates a LAPACK `info` return into a `failedAt` position.
@@ -42,7 +42,7 @@ const val SINGULAR_POSITION_UNKNOWN: Int = -2
  * separately — it maps to [NOT_SINGULAR] here so a backend that forgot the check reports "not singular"
  * rather than a nonsense position.
  */
-fun lapackFailedAt(info: Int): Int = if (info > 0) info - 1 else NOT_SINGULAR
+public fun lapackFailedAt(info: Int): Int = if (info > 0) info - 1 else NOT_SINGULAR
 
 /**
  * Rejects a solve against a singular factorization, naming the pivot that failed.

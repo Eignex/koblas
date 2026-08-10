@@ -11,7 +11,7 @@ import com.eignex.koblas.koblas
  * halves worth ranking separately. The halves are still registered independently, because costing nothing
  * to allow is better than discovering later that something needed it.
  */
-interface SparseLinearAlgebra :
+public interface SparseLinearAlgebra :
     SparseBlas,
     SparseLapack
 
@@ -19,14 +19,14 @@ interface SparseLinearAlgebra :
  * Factorize this sparse matrix with the active backend ([koblas]) — the sparse counterpart of
  * `DenseMatrix.lu()`, carrying the same name for the same operation on the other storage.
  */
-fun SparseMatrix.lu(equilibrate: Boolean = false, dropTolerance: Double = NO_DROP): SparseFactorization =
+public fun SparseMatrix.lu(equilibrate: Boolean = false, dropTolerance: Double = NO_DROP): SparseFactorization =
     koblas.factor(this, equilibrate, dropTolerance)
 
 /**
  * Factorize this symmetric matrix as `L·D·Lᵀ` with the active backend ([koblas]) — the sparse counterpart of
  * `DenseMatrix.ldl()`. Indefinite by default; see [SparseLapack.ldl].
  */
-fun SparseMatrix.ldl(
+public fun SparseMatrix.ldl(
     policy: SparseLdlPolicy = SparseLdlPolicy.Indefinite,
     ordering: SparseOrdering = SparseOrdering.MinimumDegree,
 ): SparseFactorization = koblas.ldl(this, policy, ordering)
@@ -35,7 +35,7 @@ fun SparseMatrix.ldl(
  * Factorize this symmetric positive-definite matrix with the active backend ([koblas]) — the sparse
  * counterpart of `DenseMatrix.cholesky()`. Throws on a non-positive pivot; see [SparseLapack.cholesky].
  */
-fun SparseMatrix.cholesky(
+public fun SparseMatrix.cholesky(
     policy: SparseLdlPolicy = SparseLdlPolicy.Strict,
     ordering: SparseOrdering = SparseOrdering.MinimumDegree,
 ): SparseFactorization = koblas.cholesky(this, policy, ordering)
@@ -44,7 +44,7 @@ fun SparseMatrix.cholesky(
  * Analyse this symmetric matrix's pattern with the active backend ([koblas]), for factorizing a sequence of
  * matrices that share it. See [SparseLapack.analyze].
  */
-fun SparseMatrix.analyze(ordering: SparseOrdering = SparseOrdering.MinimumDegree): SparseSymbolic =
+public fun SparseMatrix.analyze(ordering: SparseOrdering = SparseOrdering.MinimumDegree): SparseSymbolic =
     koblas.analyze(this, ordering)
 
 /**
@@ -54,11 +54,11 @@ fun SparseMatrix.analyze(ordering: SparseOrdering = SparseOrdering.MinimumDegree
  * storage, and which backend multiplies them is a separate concern that would otherwise make the root
  * package depend on this one.
  */
-fun SparseMatrix.gemv(x: DoubleArray, transpose: Boolean = false): DoubleArray = koblas.gemv(this, x, transpose)
+public fun SparseMatrix.gemv(x: DoubleArray, transpose: Boolean = false): DoubleArray = koblas.gemv(this, x, transpose)
 
 /**
  * Solve `op(T) · x = b` in place against this matrix's [lower] or upper triangle, with the active backend
  * ([koblas]) — the sparse counterpart of the dense `trsv` free function. See [SparseBlas.trsv].
  */
-fun SparseMatrix.trsv(x: DoubleArray, lower: Boolean, transpose: Boolean = false) =
+public fun SparseMatrix.trsv(x: DoubleArray, lower: Boolean, transpose: Boolean = false): Unit =
     koblas.trsv(this, x, lower, transpose)
