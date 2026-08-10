@@ -1,5 +1,6 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.dense.CholeskyPolicy
 import com.eignex.koblas.dense.cholesky
 import com.eignex.koblas.dense.lu
 import com.eignex.koblas.dense.solve
@@ -37,6 +38,19 @@ class ReadmeSamplesTest {
         val backward = lu.solve(doubleArrayOf(3.0, 5.0), transpose = true) // Bᵀ x = b
         assertClose(doubleArrayOf(0.8, 1.4), forward, "README ftran sample", tolerance = 1e-9)
         assertClose(s.gemv(backward, transpose = true), doubleArrayOf(3.0, 5.0), "README btran", 1e-9)
+    }
+
+    @Test
+    fun `the README's failure-recovery sample compiles and recovers`() {
+        // Drifted indefinite: the second pivot goes negative.
+        val a = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 1.0)))
+        val chol = try {
+            a.cholesky()
+        } catch (e: NotPositiveDefinite) {
+            assertTrue(e.position >= 0, "the sample relies on the reported position")
+            a.cholesky(CholeskyPolicy.Regularize())
+        }
+        assertTrue(chol.n == 2)
     }
 
     @Test
