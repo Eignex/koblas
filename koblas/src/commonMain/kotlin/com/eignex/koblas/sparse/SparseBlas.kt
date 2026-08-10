@@ -3,6 +3,7 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.Backend
+import com.eignex.koblas.DenseVector
 import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.requireShape
@@ -119,6 +120,27 @@ interface SparseBlas : Backend {
         gemv(1.0, a, x, 0.0, y, transpose)
         return y
     }
+
+    // The DenseVector spellings, mirroring the dense seam: DenseVector.data is the flat array these
+    // routines already take, so each forwards without copying.
+
+    /** [gemv] over [DenseVector] operands; [y] is written in place. */
+    fun gemv(
+        alpha: Double,
+        a: SparseMatrix,
+        x: DenseVector,
+        beta: Double,
+        y: DenseVector,
+        transpose: Boolean = false,
+    ) = gemv(alpha, a, x.data, beta, y.data, transpose)
+
+    /** [gemv] over a [DenseVector], into a fresh result. */
+    fun gemv(a: SparseMatrix, x: DenseVector, transpose: Boolean = false): DenseVector =
+        DenseVector.wrap(gemv(a, x.data, transpose))
+
+    /** [trsv] over a [DenseVector]; [x] holds the right-hand side on entry and the solution on return. */
+    fun trsv(a: SparseMatrix, x: DenseVector, lower: Boolean, transpose: Boolean = false) =
+        trsv(a, x.data, lower, transpose)
 }
 
 /**

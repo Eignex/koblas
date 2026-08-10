@@ -4,6 +4,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.Backend
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DenseVector
 import com.eignex.koblas.VectorLike
 import com.eignex.koblas.VectorView
 import com.eignex.koblas.Workspace
@@ -306,4 +307,31 @@ interface Blas : Backend {
             trmmCore(koblas.vectorKernels, a.data, a.rows, b.data, b.cols, lower, transpose, unitDiag)
         }
     }
+
+    // The DenseVector spellings of the routines above.
+    //
+    // koblas's own level-1 arithmetic speaks VectorLike, while these routines and the factorizations speak
+    // DoubleArray, because that is what crosses the FFI boundary unrepacked. A caller holding a
+    // DenseVector had to round-trip through toDoubleArray -- which copies -- and wrap the result back.
+    // These cost nothing to provide: DenseVector.data *is* the flat array, so each one forwards without
+    // copying anything.
+    //
+    // On the interface rather than as free extensions so a backend can override them where that ever
+    // pays, and so they appear on the seam a caller already has in hand.
+
+    /** [gemv] over [DenseVector] operands; [y] is written in place. */
+    fun gemv(alpha: Double, a: DenseMatrix, x: DenseVector, beta: Double, y: DenseVector, transpose: Boolean = false) =
+        gemv(alpha, a, x.data, beta, y.data, transpose)
+
+    /** [gemv] over a [DenseVector], into a fresh result. */
+    fun gemv(a: DenseMatrix, x: DenseVector, transpose: Boolean = false): DenseVector =
+        DenseVector.wrap(gemv(a, x.data, transpose))
+
+    /** [trsv] over a [DenseVector]; [x] holds the right-hand side on entry and the solution on return. */
+    fun trsv(a: DenseMatrix, x: DenseVector, lower: Boolean, transpose: Boolean = false, unitDiag: Boolean = false) =
+        trsv(a, x.data, lower, transpose, unitDiag)
+
+    /** [trmv] over a [DenseVector]; [x] is multiplied in place. */
+    fun trmv(a: DenseMatrix, x: DenseVector, lower: Boolean, transpose: Boolean = false, unitDiag: Boolean = false) =
+        trmv(a, x.data, lower, transpose, unitDiag)
 }
