@@ -3,7 +3,6 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.gemv
 import com.eignex.koblas.randomVector
 import kotlin.math.abs
 import kotlin.random.Random

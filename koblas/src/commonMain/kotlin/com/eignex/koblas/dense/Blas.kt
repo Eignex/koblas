@@ -8,7 +8,6 @@ import com.eignex.koblas.DenseVector
 import com.eignex.koblas.VectorLike
 import com.eignex.koblas.VectorView
 import com.eignex.koblas.Workspace
-import com.eignex.koblas.gemv
 import com.eignex.koblas.koblas
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.transpose

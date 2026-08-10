@@ -12,7 +12,6 @@ import com.eignex.koblas.dense.trmv
 import com.eignex.koblas.dense.trsm
 import com.eignex.koblas.dense.trsv
 import com.eignex.koblas.dispatchThresholds
-import com.eignex.koblas.gemv
 import com.eignex.koblas.hostblas.HostBlasCalls.COL_MAJOR
 import com.eignex.koblas.hostblas.HostBlasCalls.LEFT
 import com.eignex.koblas.hostblas.HostBlasCalls.LOWER
