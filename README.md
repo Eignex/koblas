@@ -65,7 +65,7 @@ instead of an exception, which is a decision the caller makes rather than a
 default:
 
 ```kotlin
-val l = a.cholesky(CholeskyPolicy.Regularize()) // floors non-positive pivots
+val chol = a.cholesky(CholeskyPolicy.Regularize()) // floors non-positive pivots
 ```
 
 Factorize a sparse basis and solve both directions:
@@ -92,6 +92,47 @@ val s = SparseMatrix.ofTriplets(
     values = doubleArrayOf(2.0, 1.0, 1.0, 3.0),
 )
 ```
+
+Every factorization is reached the same way on both storages: a verb on the
+matrix produces the decomposition, and the solves hang off the decomposition.
+
+```kotlin
+a.lu().solve(b)                    a.lu().invert()      a.lu().rcond(norm1(a))
+a.ldl().solve(b)                   a.cholesky().solve(b)
+a.qr().solveLeastSquares(b)        a.qr().applyQ(y)
+a.qrPivoted().solveLeastSquares(b) // reports a numerical rank
+```
+
+Each decomposition is its own type, so a solve will not accept the matrix it
+came from, or the factor of a different one.
+
+### When it fails
+
+Every failure koblas raises is an `IllegalArgumentException`, so existing
+handlers keep working, and each is also one of three types you can tell apart:
+
+| type | means |
+|------|-------|
+| `DimensionMismatch` | operands do not fit — a call-site bug |
+| `SingularMatrix` | the factorization has no inverse; carries the failing `position` |
+| `NotPositiveDefinite` | a Cholesky or strict LDLᵀ pivot was not positive; carries `position` and `pivot` |
+
+The distinction that matters is between a shape that was wrong when the call was
+made and a matrix that turned out to be numerically unusable. The second kind is
+often recoverable, and catching it is how that decision gets made after the fact
+rather than predicted with a policy up front:
+
+```kotlin
+val chol = try {
+    a.cholesky()
+} catch (e: NotPositiveDefinite) {   // drifted indefinite at column e.position
+    a.cholesky(CholeskyPolicy.Regularize())
+}
+```
+
+Solving against a singular factorization throws rather than returning
+infinities, on both storages. `singular` and `failedAt` are still there for when
+a singular basis is an expected outcome rather than a bug.
 
 ---
 
@@ -125,7 +166,7 @@ against reference results on every target.
 | dgetrf, dgetrs, dgetri (LU) | factor, solve, invert; determinant is free |
 | dgecon, dlange (condition estimate, norms) | rcond; norm1, normInf, normFro are free |
 | dtrtri (triangular inverse) | trtri |
-| dpotrf, dpotrs, dpotri (Cholesky) | cholesky, solveSpd, invertSpd |
+| dpotrf, dpotrs, dpotri (Cholesky) | cholesky, solve, invert on CholeskyDecomposition |
 | dgeqrf, dormqr, dgels (QR) | qr, applyQ, solveLeastSquares, solveMinimumNorm |
 | dgeqp3 (QR with column pivoting) | qrPivoted, reporting a numerical rank |
 | dsytrf, dsytrs (symmetric indefinite LDLᵀ) | ldl, solve |
@@ -176,6 +217,13 @@ sparse scale and no sparse pattern union, so neither has one. Columns and rows
 come out as vectors with `a.column(j)` and `a.row(i)`, the first a contiguous
 copy and the second a strided gather, which is the storage order showing through.
 
+`matVec` is the product that takes any MatrixLike against any VectorLike,
+sparse-aware on both sides; it is named for `matMul` rather than `gemv` so that
+`gemv` means the seam member and nothing else. A diagonal is applied as a
+scaling rather than built as a matrix -- `scaleRows(a, d)` is `D · A` and
+`scaleColumns(a, d)` is `A · D`, the second being the cheap direction under
+column-major storage, and the sparse matrix takes the column form only.
+
 Level 1 is reached differently from the other two, because those kernels do
 nanoseconds of work and a virtual call per invocation would cost more than the
 kernel. They are specialized at compile time, and consult the VectorKernels interface
@@ -201,7 +249,7 @@ Operations borrow and return buffers, so nesting is safe and one workspace
 serves whatever dimensions a caller mixes; pools grow on demand, and reserve
 pays that cost up front. It is accepted wherever a routine needs temporaries:
 rcond, the syrk mirror buffer (an n² scratch, the largest in the library), ldl,
-qr, invertSpd, and the blocked multi-RHS solves' staging. norm1 is the routine
+qr, the SPD invert, and the blocked multi-RHS solves' staging. norm1 is the routine
 you call alongside rcond to decide whether a factorization is still accurate
 enough to reuse, but it takes no workspace and needs none: a column is
 contiguous under column-major storage, so each column sum finishes before the
@@ -315,3 +363,38 @@ The seams are independent; print what a runtime resolved with:
 ```kotlin
 println(koblasInfo) // backend=cblas, kernels=scalar+host
 ```
+
+---
+
+## Migrating
+
+This release reshapes the public API. Every removal has a direct replacement,
+and `koblas/api/` records the surface exactly.
+
+| was | now |
+|-----|-----|
+| `SparseMatrix(rows, cols, colPtr, rowIdx, values)` | `SparseMatrix.wrap(...)` |
+| `DenseMatrix(rows, cols)` | `DenseMatrix.zero(rows, cols)` |
+| `DenseVector(size)` | `DenseVector.zero(size)` |
+| `a.cholesky()` returning `DenseMatrix` | returns `CholeskyDecomposition`; the factor is `.l` |
+| `solveSpd(l, b)` | `chol.solve(b)` |
+| `invertSpd(l, ws)` | `chol.invert(ws)` |
+| `invert(lu, ws)` | `lu.invert(ws)` |
+| `gemv(a, x)` over views | `a.matVec(x)` |
+| `solve` on a singular factorization returning `Inf`/`NaN` | throws `SingularMatrix` |
+| `IllegalStateException` from a singular sparse solve | `SingularMatrix` |
+
+Everything else is additive: the container factories (`ofTriplets`,
+`ofColumns`, `zero`, `diagonal`, `wrap`), the fluent factorizations (`ldl`,
+`qr`, `qrPivoted` and their solves), the `DenseVector` overloads of every
+routine that took a `DoubleArray`, `column` / `row`, the operators, and
+`scaleRows` / `scaleColumns`.
+
+The exception types all extend `IllegalArgumentException`, which is what koblas
+threw before, so a `catch` written against the old API still compiles and still
+catches.
+
+The public surface is dumped to `koblas/api/koblas.api` (JVM) and
+`koblas/api/koblas.klib.api` (native, JS, wasm), and `check` fails when the code
+and the dump disagree. Run `./gradlew :koblas:updateKotlinAbi` after an
+intentional change and commit the diff along with it.
