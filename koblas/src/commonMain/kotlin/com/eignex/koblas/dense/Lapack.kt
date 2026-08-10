@@ -5,10 +5,13 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.Backend
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.MatrixLike
+import com.eignex.koblas.NotPositiveDefinite
+import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.koblas
 import com.eignex.koblas.norm1
+import com.eignex.koblas.requireShape
 import com.eignex.koblas.transpose
 import kotlin.math.abs
 import kotlin.math.sqrt
@@ -38,8 +41,8 @@ interface Lapack : Backend {
      * its previous contents are discarded.
      */
     fun factorInto(a: DenseMatrix, out: LuDecomposition): LuDecomposition {
-        require(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
-        require(out.n == a.rows) { "factorInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}" }
+        requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
+        requireShape(out.n == a.rows) { "factorInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}" }
         // The default has no way to reuse a backend's internals, so it factors and copies the result in.
         val fresh = factor(a)
         fresh.lu.copyInto(out.lu)
@@ -96,8 +99,8 @@ interface Lapack : Backend {
     ): DenseMatrix {
         val n = lu.n
         val nrhs = b.cols
-        require(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
-        require(out.rows == n && out.cols == nrhs) {
+        requireShape(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
+        requireShape(out.rows == n && out.cols == nrhs) {
             "solve: out is ${out.rows}x${out.cols}, expected ${n}x$nrhs"
         }
         if (nrhs == 0) return out
@@ -166,8 +169,8 @@ interface Lapack : Backend {
     fun solveInto(ldl: LdlDecomposition, b: DenseMatrix, out: DenseMatrix, workspace: Workspace? = null): DenseMatrix {
         val n = ldl.n
         val nrhs = b.cols
-        require(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
-        require(out.rows == n && out.cols == nrhs) {
+        requireShape(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
+        requireShape(out.rows == n && out.cols == nrhs) {
             "solve: out is ${out.rows}x${out.cols}, expected ${n}x$nrhs"
         }
         return solveColumnwise(b, out, n, nrhs, workspace) { col, dst -> solveInto(ldl, col, dst) }
@@ -224,8 +227,8 @@ interface Lapack : Backend {
         out: DoubleArray,
         workspace: Workspace? = null,
     ): DoubleArray {
-        require(b.size == qr.m) { "solveLeastSquares: b length ${b.size} != ${qr.m}" }
-        require(out.size == qr.n) { "solveLeastSquares: out length ${out.size} != ${qr.n}" }
+        requireShape(b.size == qr.m) { "solveLeastSquares: b length ${b.size} != ${qr.m}" }
+        requireShape(out.size == qr.n) { "solveLeastSquares: out length ${out.size} != ${qr.n}" }
         val rank = qr.rank
         val y = workspace?.take(qr.m) ?: DoubleArray(qr.m)
         applyQInto(qr.factorization, b, y, transpose = true)
@@ -276,9 +279,9 @@ interface Lapack : Backend {
         out: DoubleArray,
         workspace: Workspace? = null,
     ): DoubleArray {
-        require(qr.m >= qr.n) { "solveLeastSquares requires m >= n, got ${qr.m}x${qr.n}" }
-        require(b.size == qr.m) { "solveLeastSquares: b length ${b.size} != ${qr.m}" }
-        require(out.size == qr.n) { "solveLeastSquares: out length ${out.size} != ${qr.n}" }
+        requireShape(qr.m >= qr.n) { "solveLeastSquares requires m >= n, got ${qr.m}x${qr.n}" }
+        requireShape(b.size == qr.m) { "solveLeastSquares: b length ${b.size} != ${qr.m}" }
+        requireShape(out.size == qr.n) { "solveLeastSquares: out length ${out.size} != ${qr.n}" }
         val y = workspace?.take(qr.m) ?: DoubleArray(qr.m)
         applyQInto(qr, b, y, transpose = true)
         y.copyInto(out, 0, 0, qr.n)
@@ -311,9 +314,9 @@ interface Lapack : Backend {
         out: DoubleArray,
         workspace: Workspace? = null,
     ): DoubleArray {
-        require(qr.m >= qr.n) { "solveMinimumNorm expects the QR of the transpose (tall), got ${qr.m}x${qr.n}" }
-        require(b.size == qr.n) { "solveMinimumNorm: b length ${b.size} != ${qr.n}" }
-        require(out.size == qr.m) { "solveMinimumNorm: out length ${out.size} != ${qr.m}" }
+        requireShape(qr.m >= qr.n) { "solveMinimumNorm expects the QR of the transpose (tall), got ${qr.m}x${qr.n}" }
+        requireShape(b.size == qr.n) { "solveMinimumNorm: b length ${b.size} != ${qr.n}" }
+        requireShape(out.size == qr.m) { "solveMinimumNorm: out length ${out.size} != ${qr.m}" }
         val w = workspace?.take(qr.n) ?: DoubleArray(qr.n)
         b.copyInto(w)
         // R is the leading n×n triangle of the packed m×n buffer; see [solveLeastSquaresInto].
@@ -412,11 +415,12 @@ interface Lapack : Backend {
     /**
      * Lower-triangular Cholesky decomposition `A = L * LT`, returned as a fresh matrix.
      *
-     * Throws [IllegalArgumentException] at the first non-positive pivot unless [policy] says otherwise; see
+     * Throws [com.eignex.koblas.NotPositiveDefinite] at the first non-positive pivot unless [policy] says
+     * otherwise; see
      * [CholeskyPolicy] for why that is the default and what asking for [CholeskyPolicy.Regularize] means.
      */
     fun cholesky(a: MatrixLike, policy: CholeskyPolicy = CholeskyPolicy.Strict): DenseMatrix {
-        require(a.rows == a.cols) { "cholesky requires a square matrix; got ${a.rows}x${a.cols}" }
+        requireShape(a.rows == a.cols) { "cholesky requires a square matrix; got ${a.rows}x${a.cols}" }
         val n = a.rows
         val l = DenseMatrix(n, n)
         val ld = l.data
@@ -445,9 +449,13 @@ interface Lapack : Backend {
             }
             val pivot = ld[base]
             if (pivot <= 0.0 || pivot.isNaN()) {
-                require(policy is CholeskyPolicy.Regularize) {
-                    "matrix is not positive-definite at pivot $j (diagonal=$pivot); pass " +
-                        "CholeskyPolicy.Regularize to factor a nearby matrix instead"
+                if (policy !is CholeskyPolicy.Regularize) {
+                    throw NotPositiveDefinite(
+                        j,
+                        pivot,
+                        "matrix is not positive-definite at pivot $j (diagonal=$pivot); pass " +
+                            "CholeskyPolicy.Regularize to factor a nearby matrix instead",
+                    )
                 }
                 ld[base] = sqrt(policy.minimumPivot)
             } else {
@@ -470,7 +478,7 @@ interface Lapack : Backend {
      */
     fun solveSpd(L: DenseMatrix, b: DoubleArray): DoubleArray {
         val n = L.rows
-        require(b.size == n) { "solveSpd: b size ${b.size}, expected $n" }
+        requireShape(b.size == n) { "solveSpd: b size ${b.size}, expected $n" }
         val x = b.copyOf()
         trsvCore(koblas.vectorKernels, L.data, n, x, lower = true, transpose = false, unitDiag = false)
         trsvCore(koblas.vectorKernels, L.data, n, x, lower = true, transpose = true, unitDiag = false)
@@ -494,11 +502,14 @@ interface Lapack : Backend {
      * accurate than a solve against the factors — this is for the cases that genuinely need the entries,
      * such as reading a covariance off a normal-equations matrix.
      *
-     * @throws IllegalArgumentException if [lu] is singular; the position is [LuDecomposition.failedAt].
+     * @throws com.eignex.koblas.SingularMatrix if [lu] is singular; the position is [LuDecomposition.failedAt].
      */
     fun invert(lu: LuDecomposition, workspace: Workspace? = null): DenseMatrix {
-        require(!lu.singular) {
-            "invert: factorization is singular at pivot ${lu.failedAt}, so the inverse does not exist"
+        if (lu.singular) {
+            throw SingularMatrix(
+                lu.failedAt,
+                "invert: factorization is singular at pivot ${lu.failedAt}, so the inverse does not exist",
+            )
         }
         val n = lu.n
         val inv = DenseMatrix.diagonal(n)
@@ -518,14 +529,16 @@ interface Lapack : Backend {
      * knows what it passed; an inverse has no such caller-supplied right-hand side to blame, and returning a
      * matrix of infinities is worse than saying which entry was zero.
      *
-     * @throws IllegalArgumentException naming the first zero diagonal position.
+     * @throws com.eignex.koblas.SingularMatrix naming the first zero diagonal position.
      */
     fun trtri(a: DenseMatrix, lower: Boolean, unitDiag: Boolean = false): DenseMatrix {
-        require(a.rows == a.cols) { "trtri requires a square matrix; got ${a.rows}x${a.cols}" }
+        requireShape(a.rows == a.cols) { "trtri requires a square matrix; got ${a.rows}x${a.cols}" }
         val n = a.rows
         if (!unitDiag) {
             for (i in 0 until n) {
-                require(a[i, i] != 0.0) { "trtri: triangle is singular, diagonal entry $i is zero" }
+                if (a[i, i] == 0.0) {
+                    throw SingularMatrix(i, "trtri: triangle is singular, diagonal entry $i is zero")
+                }
             }
         }
         // Column j of T⁻¹ solves T · x = e_j, which is one triangular solve against the original.

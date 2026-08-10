@@ -7,6 +7,7 @@ import com.eignex.koblas.KoblasContext
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.koblas
+import com.eignex.koblas.requireShape
 import kotlin.math.abs
 import kotlin.math.sqrt
 
@@ -39,8 +40,8 @@ class ReferenceBackend(private val kernels: VectorKernels? = null) : LinearAlgeb
     override fun gemv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, transpose: Boolean) {
         val xLen = if (transpose) a.rows else a.cols
         val yLen = if (transpose) a.cols else a.rows
-        require(x.size == xLen) { "gemv: x length ${x.size} != $xLen" }
-        require(y.size == yLen) { "gemv: y length ${y.size} != $yLen" }
+        requireShape(x.size == xLen) { "gemv: x length ${x.size} != $xLen" }
+        requireShape(y.size == yLen) { "gemv: y length ${y.size} != $yLen" }
         if (beta == 0.0) {
             y.fill(0.0)
         } else if (beta != 1.0) {
@@ -90,8 +91,8 @@ class ReferenceBackend(private val kernels: VectorKernels? = null) : LinearAlgeb
         val k = if (transposeA) a.rows else a.cols
         val kB = if (transposeB) b.cols else b.rows
         val n = if (transposeB) b.rows else b.cols
-        require(k == kB) { "gemm: op(A) is ${m}x$k but op(B) is ${kB}x$n" }
-        require(c.rows == m && c.cols == n) { "gemm: C is ${c.rows}x${c.cols}, expected ${m}x$n" }
+        requireShape(k == kB) { "gemm: op(A) is ${m}x$k but op(B) is ${kB}x$n" }
+        requireShape(c.rows == m && c.cols == n) { "gemm: C is ${c.rows}x${c.cols}, expected ${m}x$n" }
         val cd = c.data
         if (beta == 0.0) {
             cd.fill(0.0)
@@ -163,7 +164,7 @@ class ReferenceBackend(private val kernels: VectorKernels? = null) : LinearAlgeb
     ) {
         val n = if (transpose) a.cols else a.rows
         val k = if (transpose) a.rows else a.cols
-        require(c.rows == n && c.cols == n) { "syrk: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
+        requireShape(c.rows == n && c.cols == n) { "syrk: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
         val cd = c.data
         scaleUplo(vectorKernels, cd, n, beta, uplo)
         if (alpha == 0.0 || n == 0 || k == 0) return
@@ -205,10 +206,10 @@ class ReferenceBackend(private val kernels: VectorKernels? = null) : LinearAlgeb
 
     @Suppress("LongParameterList") // the BLAS dsymv signature
     override fun symv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) {
-        require(a.rows == a.cols) { "symv: matrix must be square, got ${a.rows}x${a.cols}" }
+        requireShape(a.rows == a.cols) { "symv: matrix must be square, got ${a.rows}x${a.cols}" }
         val n = a.rows
-        require(x.size == n) { "symv: x length ${x.size} != $n" }
-        require(y.size == n) { "symv: y length ${y.size} != $n" }
+        requireShape(x.size == n) { "symv: x length ${x.size} != $n" }
+        requireShape(y.size == n) { "symv: y length ${y.size} != $n" }
         if (beta == 0.0) {
             y.fill(0.0)
         } else if (beta != 1.0) {
@@ -268,9 +269,9 @@ class ReferenceBackend(private val kernels: VectorKernels? = null) : LinearAlgeb
         lower: Boolean,
         right: Boolean,
     ) {
-        require(a.rows == a.cols) { "symm: matrix must be square, got ${a.rows}x${a.cols}" }
+        requireShape(a.rows == a.cols) { "symm: matrix must be square, got ${a.rows}x${a.cols}" }
         val m = a.rows
-        require(c.rows == b.rows && c.cols == b.cols) {
+        requireShape(c.rows == b.rows && c.cols == b.cols) {
             "symm: C is ${c.rows}x${c.cols} but B is ${b.rows}x${b.cols}"
         }
         val cd = c.data
@@ -280,7 +281,7 @@ class ReferenceBackend(private val kernels: VectorKernels? = null) : LinearAlgeb
             vectorKernels.scale(cd, 0, beta, cd.size)
         }
         if (right) {
-            require(b.cols == m) { "symm right: B has ${b.cols} cols, expected $m" }
+            requireShape(b.cols == m) { "symm right: B has ${b.cols} cols, expected $m" }
             if (alpha == 0.0 || m == 0 || b.rows == 0) return
             // C = alpha·B·A: column j of the product is alpha·Σₚ B[:,p]·A[p,j], so every run is a
             // contiguous column of B and C and the symmetric entry is a scalar read.
@@ -295,7 +296,7 @@ class ReferenceBackend(private val kernels: VectorKernels? = null) : LinearAlgeb
             }
             return
         }
-        require(b.rows == m) { "symm: B has ${b.rows} rows, expected $m" }
+        requireShape(b.rows == m) { "symm: B has ${b.rows} rows, expected $m" }
         if (alpha == 0.0 || m == 0 || b.cols == 0) return
         // C = alpha·A·B: column j of the product is alpha·A·B[:,j], a symv applied straight to the
         // contiguous columns of B and C.
@@ -306,7 +307,7 @@ class ReferenceBackend(private val kernels: VectorKernels? = null) : LinearAlgeb
 
     @Suppress("CyclomaticComplexMethod", "LongMethod") // netlib dsytf2's control flow, kept recognizable
     override fun ldl(a: DenseMatrix, workspace: Workspace?): LdlDecomposition {
-        require(a.rows == a.cols) { "ldl: matrix must be square, got ${a.rows}x${a.cols}" }
+        requireShape(a.rows == a.cols) { "ldl: matrix must be square, got ${a.rows}x${a.cols}" }
         val n = a.rows
         val w = a.data.copyOf()
         val ipiv = IntArray(n)
@@ -426,8 +427,8 @@ class ReferenceBackend(private val kernels: VectorKernels? = null) : LinearAlgeb
 
     override fun solveInto(ldl: LdlDecomposition, b: DoubleArray, out: DoubleArray): DoubleArray {
         val n = ldl.n
-        require(b.size == n) { "solve: b length ${b.size} != $n" }
-        require(out.size == n) { "solve: out length ${out.size} != $n" }
+        requireShape(b.size == n) { "solve: b length ${b.size} != $n" }
+        requireShape(out.size == n) { "solve: out length ${out.size} != $n" }
         val w = ldl.ldl
         val ipiv = ldl.ipiv
         val x = out
@@ -626,8 +627,8 @@ class ReferenceBackend(private val kernels: VectorKernels? = null) : LinearAlgeb
 
     override fun applyQInto(qr: QrDecomposition, y: DoubleArray, out: DoubleArray, transpose: Boolean): DoubleArray {
         val m = qr.m
-        require(y.size == m) { "applyQ: y length ${y.size} != $m" }
-        require(out.size == m) { "applyQ: out length ${out.size} != $m" }
+        requireShape(y.size == m) { "applyQ: y length ${y.size} != $m" }
+        requireShape(out.size == m) { "applyQ: out length ${out.size} != $m" }
         val x = out
         if (out !== y) y.copyInto(out)
         val k = qr.tau.size
@@ -649,14 +650,14 @@ class ReferenceBackend(private val kernels: VectorKernels? = null) : LinearAlgeb
     }
 
     override fun factor(a: DenseMatrix): LuDecomposition {
-        require(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
+        requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
         val n = a.rows
         return factorCore(a, LuDecomposition(n, DoubleArray(n * n), IntArray(n)))
     }
 
     override fun factorInto(a: DenseMatrix, out: LuDecomposition): LuDecomposition {
-        require(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
-        require(out.n == a.rows) { "factorInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}" }
+        requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
+        requireShape(out.n == a.rows) { "factorInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}" }
         return factorCore(a, out)
     }
 
@@ -721,8 +722,8 @@ class ReferenceBackend(private val kernels: VectorKernels? = null) : LinearAlgeb
         workspace: Workspace?,
     ): DoubleArray {
         val n = lu.n
-        require(b.size == n) { "solve: b length ${b.size} != $n" }
-        require(out.size == n) { "solve: out length ${out.size} != $n" }
+        requireShape(b.size == n) { "solve: b length ${b.size} != $n" }
+        requireShape(out.size == n) { "solve: out length ${out.size} != $n" }
         val a = lu.lu
         val piv = lu.piv
         return if (transpose) {

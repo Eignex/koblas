@@ -1,6 +1,7 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.requireShape
 
 /**
  * The symbolic analysis of a symmetric sparse matrix: its elimination tree and the nonzero pattern of `L`,
@@ -67,7 +68,7 @@ class SparseSymbolic internal constructor(
          * counts, with no arithmetic on the values at all — they are not read.
          */
         fun analyze(a: SparseMatrix, ordering: SparseOrdering = SparseOrdering.MinimumDegree): SparseSymbolic {
-            require(a.rows == a.cols) { "symbolic analysis requires a square matrix; got ${a.rows}x${a.cols}" }
+            requireShape(a.rows == a.cols) { "symbolic analysis requires a square matrix; got ${a.rows}x${a.cols}" }
             requireUpperTriangleStored(a)
             val n = a.rows
             val permutation = when (ordering) {

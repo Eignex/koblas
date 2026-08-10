@@ -7,6 +7,7 @@ import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.dense.Blas
 import com.eignex.koblas.dense.Uplo
+import com.eignex.koblas.requireShape
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.invoke
@@ -47,8 +48,8 @@ internal class CblasBlas(private val f: CblasFunctions) : Blas {
     ) {
         val xLen = if (transpose) a.rows else a.cols
         val yLen = if (transpose) a.cols else a.rows
-        require(x.size == xLen) { "gemv: x length ${x.size} != $xLen" }
-        require(y.size == yLen) { "gemv: y length ${y.size} != $yLen" }
+        requireShape(x.size == xLen) { "gemv: x length ${x.size} != $xLen" }
+        requireShape(y.size == yLen) { "gemv: y length ${y.size} != $yLen" }
         // Degenerate cases short-circuit in Kotlin: the BLAS quick-return paths do not honor the
         // beta == 0 overwrite when a dimension is zero.
         if (alpha == 0.0 || xLen == 0) {
@@ -83,8 +84,8 @@ internal class CblasBlas(private val f: CblasFunctions) : Blas {
         val k = if (transposeA) a.rows else a.cols
         val kB = if (transposeB) b.cols else b.rows
         val n = if (transposeB) b.rows else b.cols
-        require(k == kB) { "gemm: op(A) is ${m}x$k but op(B) is ${kB}x$n" }
-        require(c.rows == m && c.cols == n) { "gemm: C is ${c.rows}x${c.cols}, expected ${m}x$n" }
+        requireShape(k == kB) { "gemm: op(A) is ${m}x$k but op(B) is ${kB}x$n" }
+        requireShape(c.rows == m && c.cols == n) { "gemm: C is ${c.rows}x${c.cols}, expected ${m}x$n" }
         if (alpha == 0.0 || k == 0) {
             scaleInPlace(c.data, beta)
             return
@@ -116,7 +117,7 @@ internal class CblasBlas(private val f: CblasFunctions) : Blas {
     ) {
         val n = if (transpose) a.cols else a.rows
         val k = if (transpose) a.rows else a.cols
-        require(c.rows == n && c.cols == n) { "syrk: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
+        requireShape(c.rows == n && c.cols == n) { "syrk: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
         if (alpha == 0.0 || k == 0) {
             scaleUplo(c.data, n, beta, uplo)
             return
@@ -160,10 +161,10 @@ internal class CblasBlas(private val f: CblasFunctions) : Blas {
 
     @Suppress("LongParameterList") // the BLAS dsymv signature
     override fun symv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) {
-        require(a.rows == a.cols) { "symv: matrix must be square, got ${a.rows}x${a.cols}" }
+        requireShape(a.rows == a.cols) { "symv: matrix must be square, got ${a.rows}x${a.cols}" }
         val n = a.rows
-        require(x.size == n) { "symv: x length ${x.size} != $n" }
-        require(y.size == n) { "symv: y length ${y.size} != $n" }
+        requireShape(x.size == n) { "symv: x length ${x.size} != $n" }
+        requireShape(y.size == n) { "symv: y length ${y.size} != $n" }
         if (alpha == 0.0) {
             scaleInPlace(y, beta)
             return
@@ -192,7 +193,7 @@ internal class CblasBlas(private val f: CblasFunctions) : Blas {
         lower: Boolean,
         right: Boolean,
     ) {
-        require(a.rows == a.cols) { "symm: matrix must be square, got ${a.rows}x${a.cols}" }
+        requireShape(a.rows == a.cols) { "symm: matrix must be square, got ${a.rows}x${a.cols}" }
         val m = a.rows
         require(c.rows == b.rows && c.cols == b.cols) {
             "symm: C is ${c.rows}x${c.cols} but B is ${b.rows}x${b.cols}"
@@ -220,7 +221,7 @@ internal class CblasBlas(private val f: CblasFunctions) : Blas {
     }
 
     override fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix) {
-        require(a.rows == x.size && a.cols == y.size) {
+        requireShape(a.rows == x.size && a.cols == y.size) {
             "ger shape mismatch: A is ${a.rows}x${a.cols}, x ${x.size}, y ${y.size}"
         }
         if (alpha == 0.0 || a.rows == 0 || a.cols == 0) return
@@ -237,8 +238,8 @@ internal class CblasBlas(private val f: CblasFunctions) : Blas {
     }
 
     override fun trsv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
-        require(a.rows == a.cols) { "trsv requires a square matrix; got ${a.rows}x${a.cols}" }
-        require(x.size == a.rows) { "trsv: x length ${x.size} != ${a.rows}" }
+        requireShape(a.rows == a.cols) { "trsv requires a square matrix; got ${a.rows}x${a.cols}" }
+        requireShape(x.size == a.rows) { "trsv: x length ${x.size} != ${a.rows}" }
         if (a.rows == 0) return
         a.data.usePinned { ap ->
             x.usePinned { xp ->
@@ -251,8 +252,8 @@ internal class CblasBlas(private val f: CblasFunctions) : Blas {
     }
 
     override fun trmv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
-        require(a.rows == a.cols) { "trmv requires a square matrix; got ${a.rows}x${a.cols}" }
-        require(x.size == a.rows) { "trmv: x length ${x.size} != ${a.rows}" }
+        requireShape(a.rows == a.cols) { "trmv requires a square matrix; got ${a.rows}x${a.cols}" }
+        requireShape(x.size == a.rows) { "trmv: x length ${x.size} != ${a.rows}" }
         if (a.rows == 0) return
         a.data.usePinned { ap ->
             x.usePinned { xp ->
@@ -299,11 +300,11 @@ internal class CblasBlas(private val f: CblasFunctions) : Blas {
         solve: Boolean,
     ) {
         val what = if (solve) "trsm" else "trmm"
-        require(a.rows == a.cols) { "$what requires a square matrix; got ${a.rows}x${a.cols}" }
+        requireShape(a.rows == a.cols) { "$what requires a square matrix; got ${a.rows}x${a.cols}" }
         if (right) {
-            require(b.cols == a.rows) { "$what right: B has ${b.cols} cols, expected ${a.rows}" }
+            requireShape(b.cols == a.rows) { "$what right: B has ${b.cols} cols, expected ${a.rows}" }
         } else {
-            require(b.rows == a.rows) { "$what: B has ${b.rows} rows, expected ${a.rows}" }
+            requireShape(b.rows == a.rows) { "$what: B has ${b.rows} rows, expected ${a.rows}" }
         }
         if (a.rows == 0 || b.rows == 0 || b.cols == 0) return
         val side = if (right) RIGHT else LEFT

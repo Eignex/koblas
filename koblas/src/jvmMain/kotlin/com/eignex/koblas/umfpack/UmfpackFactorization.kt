@@ -2,6 +2,7 @@ package com.eignex.koblas.umfpack
 
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.requireShape
 import com.eignex.koblas.sparse.SparseFactorization
 import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
@@ -77,8 +78,8 @@ class UmfpackFactorization internal constructor(
             "cannot solve against a singular factorization: umfpack reported the matrix singular. " +
                 "Check `singular` before solving; repair the matrix and factor again."
         }
-        require(b.size == n) { "solve: b size ${b.size}, expected $n" }
-        require(out.size == n) { "solve: out size ${out.size}, expected $n" }
+        requireShape(b.size == n) { "solve: b size ${b.size}, expected $n" }
+        requireShape(out.size == n) { "solve: out size ${out.size}, expected $n" }
         // umfpack writes X and reads B, so aliasing them would have it read its own partial output.
         val rhs = if (out === b) b.copyOf() else b
         Arena.ofConfined().use { scratch ->

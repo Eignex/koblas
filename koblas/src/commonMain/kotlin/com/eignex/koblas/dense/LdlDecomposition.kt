@@ -1,6 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.NOT_SINGULAR
+import com.eignex.koblas.requireShape
 
 /**
  * A symmetric indefinite factorization `A = L·D·Lᵀ` with Bunch–Kaufman partial pivoting in LAPACK
@@ -27,7 +28,7 @@ class LdlDecomposition(val n: Int, val ldl: DoubleArray, val ipiv: IntArray, val
     val singular: Boolean get() = failedAt != NOT_SINGULAR
 
     init {
-        require(ldl.size == n * n) { "ldl length ${ldl.size} != ${n * n}" }
-        require(ipiv.size == n) { "ipiv length ${ipiv.size} != $n" }
+        requireShape(ldl.size == n * n) { "ldl length ${ldl.size} != ${n * n}" }
+        requireShape(ipiv.size == n) { "ipiv length ${ipiv.size} != $n" }
     }
 }

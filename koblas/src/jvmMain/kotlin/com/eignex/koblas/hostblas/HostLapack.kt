@@ -27,6 +27,7 @@ import com.eignex.koblas.hostblas.HostBlasCalls.TRANS
 import com.eignex.koblas.hostblas.HostBlasCalls.UNIT
 import com.eignex.koblas.hostblas.HostBlasCalls.UPPER
 import com.eignex.koblas.lapackFailedAt
+import com.eignex.koblas.requireShape
 
 /**
  * The host LAPACKE as the JVM's [Lapack] half.
@@ -48,7 +49,7 @@ class HostLapack internal constructor() : Lapack {
 
     override fun factor(a: DenseMatrix): LuDecomposition {
         if (a.rows < dispatchThresholds.lapack) return ReferenceLinearAlgebra.factor(a)
-        require(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
+        requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
         val n = a.rows
         val lu = a.data.copyOf()
         val piv = IntArray(n) { it }
@@ -100,8 +101,8 @@ class HostLapack internal constructor() : Lapack {
     ): DenseMatrix {
         val n = lu.n
         val nrhs = b.cols
-        require(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
-        require(out.rows == n && out.cols == nrhs) {
+        requireShape(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
+        requireShape(out.rows == n && out.cols == nrhs) {
             "solve: out is ${out.rows}x${out.cols}, expected ${n}x$nrhs"
         }
         if (n == 0 || nrhs == 0) return out
@@ -176,8 +177,8 @@ class HostLapack internal constructor() : Lapack {
     ): DenseMatrix {
         val n = ldl.n
         val nrhs = b.cols
-        require(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
-        require(out.rows == n && out.cols == nrhs) {
+        requireShape(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
+        requireShape(out.rows == n && out.cols == nrhs) {
             "solve: out is ${out.rows}x${out.cols}, expected ${n}x$nrhs"
         }
         val x = out.data
@@ -193,7 +194,7 @@ class HostLapack internal constructor() : Lapack {
 
     override fun ldl(a: DenseMatrix, workspace: Workspace?): LdlDecomposition {
         if (a.rows < dispatchThresholds.lapack) return ReferenceLinearAlgebra.ldl(a, workspace)
-        require(a.rows == a.cols) { "ldl: matrix must be square, got ${a.rows}x${a.cols}" }
+        requireShape(a.rows == a.cols) { "ldl: matrix must be square, got ${a.rows}x${a.cols}" }
         val n = a.rows
         val buf = a.data.copyOf()
         val ipiv = IntArray(n)
@@ -220,8 +221,8 @@ class HostLapack internal constructor() : Lapack {
     override fun solveInto(ldl: LdlDecomposition, b: DoubleArray, out: DoubleArray): DoubleArray {
         if (ldl.n < JVM_LDL_SOLVE_MIN) return ReferenceLinearAlgebra.solveInto(ldl, b, out)
         val n = ldl.n
-        require(b.size == n) { "solve: b length ${b.size} != $n" }
-        require(out.size == n) { "solve: out length ${out.size} != $n" }
+        requireShape(b.size == n) { "solve: b length ${b.size} != $n" }
+        requireShape(out.size == n) { "solve: out length ${out.size} != $n" }
         if (out !== b) b.copyInto(out)
         if (n == 0) return out
         val info = HostBlasCalls.dsytrs.invokeWithArguments(
@@ -292,8 +293,8 @@ class HostLapack internal constructor() : Lapack {
     }
 
     override fun applyQInto(qr: QrDecomposition, y: DoubleArray, out: DoubleArray, transpose: Boolean): DoubleArray {
-        require(y.size == qr.m) { "applyQ: y length ${y.size} != ${qr.m}" }
-        require(out.size == qr.m) { "applyQ: out length ${out.size} != ${qr.m}" }
+        requireShape(y.size == qr.m) { "applyQ: y length ${y.size} != ${qr.m}" }
+        requireShape(out.size == qr.m) { "applyQ: out length ${out.size} != ${qr.m}" }
         val c = out
         if (out !== y) y.copyInto(out)
         if (qr.tau.isEmpty()) return c
@@ -337,7 +338,7 @@ class HostLapack internal constructor() : Lapack {
      */
     override fun cholesky(a: MatrixLike, policy: CholeskyPolicy): DenseMatrix {
         if (a.rows < JVM_CHOLESKY_MIN) return super.cholesky(a, policy)
-        require(a.rows == a.cols) { "cholesky requires a square matrix; got ${a.rows}x${a.cols}" }
+        requireShape(a.rows == a.cols) { "cholesky requires a square matrix; got ${a.rows}x${a.cols}" }
         val n = a.rows
         if (n == 0) return DenseMatrix(0, 0)
         val l = DenseMatrix(n, n)
@@ -362,7 +363,7 @@ class HostLapack internal constructor() : Lapack {
     override fun solveSpd(L: DenseMatrix, b: DoubleArray): DoubleArray {
         if (L.rows < JVM_SOLVE_SPD_MIN) return super.solveSpd(L, b)
         val n = L.rows
-        require(b.size == n) { "solveSpd: b size ${b.size}, expected $n" }
+        requireShape(b.size == n) { "solveSpd: b size ${b.size}, expected $n" }
         val x = b.copyOf()
         if (n == 0) return x
         val info = HostBlasCalls.dpotrs.invokeWithArguments(

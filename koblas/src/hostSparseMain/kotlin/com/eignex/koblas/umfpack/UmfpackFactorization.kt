@@ -4,6 +4,7 @@ package com.eignex.koblas.umfpack
 
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.requireShape
 import com.eignex.koblas.sparse.SparseFactorization
 import kotlinx.cinterop.COpaquePointerVar
 import kotlinx.cinterop.CPointer
@@ -73,7 +74,7 @@ class UmfpackFactorization internal constructor(
             "cannot solve against a singular factorization: umfpack reported the matrix singular. " +
                 "Check `singular` before solving; repair the matrix and factor again."
         }
-        require(b.size == n) { "solve: b size ${b.size}, expected $n" }
+        requireShape(b.size == n) { "solve: b size ${b.size}, expected $n" }
         require(out.size == n) { "solve: out size ${out.size}, expected $n" }
         // umfpack_di_solve declares X an output and B an input and says nothing about them overlapping, so
         // handing it one array as both is outside what the library promises. Removing this copy does not

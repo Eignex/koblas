@@ -65,7 +65,7 @@ operator fun DenseVector.unaryMinus(): DenseVector = this * -1.0
  * matrix is one `axpy` rather than one per column.
  */
 private fun DenseMatrix.combine(other: DenseMatrix, alpha: Double, op: String): DenseMatrix {
-    require(rows == other.rows && cols == other.cols) {
+    requireShape(rows == other.rows && cols == other.cols) {
         "$op shape mismatch: ${rows}x$cols and ${other.rows}x${other.cols}"
     }
     val out = data.copyOf()
@@ -75,7 +75,7 @@ private fun DenseMatrix.combine(other: DenseMatrix, alpha: Double, op: String): 
 
 /** `x + alpha · y`. */
 private fun DenseVector.combine(other: DenseVector, alpha: Double, op: String): DenseVector {
-    require(size == other.size) { "$op size mismatch: $size vs ${other.size}" }
+    requireShape(size == other.size) { "$op size mismatch: $size vs ${other.size}" }
     val out = data.copyOf()
     koblas.vectorKernels.axpy(out, 0, alpha, other.data, 0, out.size)
     return DenseVector.wrap(out)

@@ -1,5 +1,7 @@
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.requireShape
+
 /**
  * A QR factorization `A = Q·R` in LAPACK `dgeqrf` packed form: [qr] is the `m×n` column-major buffer with
  * `R` on and above the diagonal and the Householder vectors below it (each vector's implicit leading 1
@@ -18,7 +20,7 @@ package com.eignex.koblas.dense
  */
 class QrDecomposition(val m: Int, val n: Int, val qr: DoubleArray, val tau: DoubleArray) {
     init {
-        require(qr.size == m * n) { "qr length ${qr.size} != ${m * n}" }
-        require(tau.size == minOf(m, n)) { "tau length ${tau.size} != ${minOf(m, n)}" }
+        requireShape(qr.size == m * n) { "qr length ${qr.size} != ${m * n}" }
+        requireShape(tau.size == minOf(m, n)) { "tau length ${tau.size} != ${minOf(m, n)}" }
     }
 }

@@ -1,8 +1,10 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.NOT_SINGULAR
+import com.eignex.koblas.NotPositiveDefinite
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.requireShape
 import kotlin.math.sqrt
 
 /**
@@ -80,8 +82,8 @@ class SparseLdl internal constructor(
      * unsymmetric factorizations that need it.
      */
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray {
-        require(b.size == n) { "solve: b size ${b.size}, expected $n" }
-        require(out.size == n) { "solve: out size ${out.size}, expected $n" }
+        requireShape(b.size == n) { "solve: b size ${b.size}, expected $n" }
+        requireShape(out.size == n) { "solve: out size ${out.size}, expected $n" }
         // The factors are of P·A·Pᵀ, so the right-hand side is gathered into elimination order and the
         // solution scattered back. A caller never sees the permutation; that is the point of it being the
         // analysis's business rather than theirs.
@@ -140,9 +142,13 @@ class SparseLdl internal constructor(
      */
     fun choleskyFactor(): SparseMatrix {
         val columns = List(n) { j ->
-            require(diagonal[j] > 0.0) {
-                "choleskyFactor needs positive pivots; D[$j] is ${diagonal[j]}. This factorization is L·D·Lᵀ " +
-                    "of an indefinite matrix, which has no real Cholesky factor."
+            if (diagonal[j] <= 0.0) {
+                throw NotPositiveDefinite(
+                    j,
+                    diagonal[j],
+                    "choleskyFactor needs positive pivots; D[$j] is ${diagonal[j]}. This factorization is " +
+                        "L·D·Lᵀ of an indefinite matrix, which has no real Cholesky factor.",
+                )
             }
             val scale = sqrt(diagonal[j])
             buildList {
@@ -173,8 +179,10 @@ internal fun numericLdl(
     symbolic: SparseSymbolic,
     policy: SparseLdlPolicy,
 ): SparseFactorization {
-    require(a.rows == a.cols) { "ldl requires a square matrix; got ${a.rows}x${a.cols}" }
-    require(a.rows == symbolic.n) { "ldl: matrix is ${a.rows}x${a.rows} but the analysis is for ${symbolic.n}" }
+    requireShape(a.rows == a.cols) { "ldl requires a square matrix; got ${a.rows}x${a.cols}" }
+    requireShape(a.rows == symbolic.n) {
+        "ldl: matrix is ${a.rows}x${a.rows} but the analysis is for ${symbolic.n}"
+    }
     // Before anything else: the traversal below follows the analysed pattern's elimination tree, so a matrix
     // with an entry outside that pattern would walk off the end of the tree rather than produce a wrong
     // answer. Checked here, once, instead of defended at every step.
@@ -239,7 +247,9 @@ internal fun numericLdl(
         when {
             d[k] == 0.0 -> return SingularSparseFactorization(n, failedAt = k)
 
-            policy is SparseLdlPolicy.Strict && d[k] < 0.0 -> throw IllegalArgumentException(
+            policy is SparseLdlPolicy.Strict && d[k] < 0.0 -> throw NotPositiveDefinite(
+                k,
+                d[k],
                 "ldl: pivot $k is ${d[k]}, so the matrix is not positive definite. Use " +
                     "SparseLdlPolicy.Indefinite to factor it anyway, or Regularize to floor the pivot.",
             )
