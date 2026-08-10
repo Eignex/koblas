@@ -4,6 +4,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.Backend
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DenseVector
 import com.eignex.koblas.MatrixLike
 import com.eignex.koblas.NotPositiveDefinite
 import com.eignex.koblas.SingularMatrix
@@ -606,6 +607,52 @@ interface Lapack : Backend {
         workspace?.release(y)
         return inv
     }
+    // The DenseVector spellings of the solves above; see the note on [Blas]. Each forwards without
+    // copying, since DenseVector.data is the flat array these routines already take.
+
+    /** [solve] over a [DenseVector] right-hand side. */
+    fun solve(lu: LuDecomposition, b: DenseVector, transpose: Boolean = false): DenseVector =
+        DenseVector.wrap(solve(lu, b.data, transpose))
+
+    /** [solveInto] over [DenseVector] operands; [out] is returned. */
+    fun solveInto(
+        lu: LuDecomposition,
+        b: DenseVector,
+        out: DenseVector,
+        transpose: Boolean = false,
+        workspace: Workspace? = null,
+    ): DenseVector {
+        solveInto(lu, b.data, out.data, transpose, workspace)
+        return out
+    }
+
+    /** [solve] over a [DenseVector] right-hand side. */
+    fun solve(ldl: LdlDecomposition, b: DenseVector): DenseVector = DenseVector.wrap(solve(ldl, b.data))
+
+    /** [solveInto] over [DenseVector] operands; [out] is returned. */
+    fun solveInto(ldl: LdlDecomposition, b: DenseVector, out: DenseVector): DenseVector {
+        solveInto(ldl, b.data, out.data)
+        return out
+    }
+
+    /** [solve] over a [DenseVector] right-hand side. */
+    fun solve(chol: CholeskyDecomposition, b: DenseVector): DenseVector = DenseVector.wrap(solve(chol, b.data))
+
+    /** [solveLeastSquares] over a [DenseVector] right-hand side. */
+    fun solveLeastSquares(qr: QrDecomposition, b: DenseVector, workspace: Workspace? = null): DenseVector =
+        DenseVector.wrap(solveLeastSquares(qr, b.data, workspace))
+
+    /** [solveLeastSquares] over a [DenseVector] right-hand side. */
+    fun solveLeastSquares(qr: PivotedQrDecomposition, b: DenseVector, workspace: Workspace? = null): DenseVector =
+        DenseVector.wrap(solveLeastSquares(qr, b.data, workspace))
+
+    /** [solveMinimumNorm] over a [DenseVector] right-hand side. */
+    fun solveMinimumNorm(qr: QrDecomposition, b: DenseVector, workspace: Workspace? = null): DenseVector =
+        DenseVector.wrap(solveMinimumNorm(qr, b.data, workspace))
+
+    /** [applyQ] over a [DenseVector]. */
+    fun applyQ(qr: QrDecomposition, y: DenseVector, transpose: Boolean = false): DenseVector =
+        DenseVector.wrap(applyQ(qr, y.data, transpose))
 }
 
 /** Sweep cap for the [Lapack.rcond] estimator; Hager's iteration almost always converges in 2. */
