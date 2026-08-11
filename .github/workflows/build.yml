@@ -47,9 +47,11 @@ jobs:
       - name: Grant execute permission for Gradle
         run: chmod +x gradlew
 
-      # koblas dlopens the system OpenBLAS at runtime; only the shared libraries are needed.
-      - name: Install OpenBLAS
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libopenblas0 liblapacke
+      # koblas dlopens these at runtime; only the shared libraries are needed. SuiteSparse belongs here
+      # even though the JVM host tests are excluded from this job: `check` runs linuxX64Test, whose
+      # UMFPACK suite requires the library rather than skipping without it, as the OpenBLAS suites do.
+      - name: Install OpenBLAS and SuiteSparse
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libopenblas0 liblapacke libsuitesparse-dev
 
       - name: Run linter
         run: ./gradlew lintDocs
@@ -205,8 +207,10 @@ jobs:
       - name: Grant execute permission for Gradle
         run: chmod +x gradlew
 
-      - name: Install OpenBLAS
-        run: brew install openblas
+      # macosTest depends on hostSparseTest as well as hostBlasTest, so this job runs the UMFPACK suite
+      # too — and that suite requires its library rather than skipping without it.
+      - name: Install OpenBLAS and SuiteSparse
+        run: brew install openblas suite-sparse
 
       - name: Run native tests
         run: ./gradlew :koblas:macosArm64Test
