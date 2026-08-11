@@ -77,8 +77,8 @@ public class SparseLu private constructor(
         requireShape(out.size == m) { "ftran: out size ${out.size} != $m" }
         val y = workspace?.take(m) ?: DoubleArray(m)
         val xp = workspace?.take(m) ?: DoubleArray(m)
-        y.fill(0.0)
-        xp.fill(0.0)
+        // Uncleared, though a borrowed buffer holds anything: each sweep writes every position before a
+        // read reaches it — y ascending reading only idx < k, xp descending reading only idx > k.
         // L y = P (E b) (forward); rows/cols are in pivot-position space.
         for (k in 0 until m) {
             var s = b[perm[k]] * rowScale[perm[k]]
@@ -109,8 +109,7 @@ public class SparseLu private constructor(
         requireShape(out.size == m) { "solve: out size ${out.size} != $m" }
         val z = workspace?.take(m) ?: DoubleArray(m)
         val w = workspace?.take(m) ?: DoubleArray(m)
-        z.fill(0.0)
-        w.fill(0.0)
+        // Uncleared for the reason [ftranInto] gives: z ascending, w descending, each written before read.
         // Uᵀ z = Qᵀ b (forward, lower).
         for (k in 0 until m) {
             var s = b[colPerm[k]]
@@ -262,40 +261,63 @@ public class SparseLu private constructor(
                 DoubleArray(lRowIdx[k].size) { t -> lRowMap[k].getOrDefault(lRowIdx[k][t], 0.0) }
             }
             // Column orientations (pivot space): U strictly-upper by column, L by column.
-            val uColB = Array(m) { ArrayList<Int>() }
-            val uColBv = Array(m) { ArrayList<Double>() }
-            for (k in 0 until m) {
-                val idx = uRowIdx[k]
-                val v = uRowVal[k]
-                for (t in idx.indices) {
-                    val col = idx[t]
-                    if (col > k) {
-                        uColB[col].add(k)
-                        uColBv[col].add(v[t])
-                    }
-                }
-            }
-            val lColB = Array(m) { ArrayList<Int>() }
-            val lColBv = Array(m) { ArrayList<Double>() }
-            for (k in 0 until m) {
-                val idx = lRowIdx[k]
-                val v = lRowVal[k]
-                for (t in idx.indices) {
-                    lColB[idx[t]].add(k)
-                    lColBv[idx[t]].add(v[t])
-                }
-            }
+            val uCol = columnOrientation(m, uRowIdx, uRowVal, strictlyAbovePivot = true)
+            val lCol = columnOrientation(m, lRowIdx, lRowVal, strictlyAbovePivot = false)
             var nnz = 0
             for (k in 0 until m) nnz += uRowIdx[k].size + lRowIdx[k].size
             return SparseLu(
                 m, perm, colPerm, lRowIdx, lRowVal, uRowIdx, uRowVal,
-                Array(m) { lColB[it].toIntArray() }, Array(m) { lColBv[it].toDoubleArray() },
-                Array(m) { uColB[it].toIntArray() }, Array(m) { uColBv[it].toDoubleArray() },
+                lCol.indices, lCol.values, uCol.indices, uCol.values,
                 uDiag, rowScale, nnz,
             )
         }
+
+        /**
+         * Transpose a row-indexed factor into column arrays: count per column, then scatter.
+         *
+         * The shape the CSC `transpose` uses, and for the same reason — gathering
+         * through `ArrayList<Int>`/`ArrayList<Double>` boxed every index and value of `L` and `U`, on the
+         * path a simplex pays per refactorization. Walking `k` ascending leaves each column's rows
+         * ascending, which both solve directions assume.
+         *
+         * [strictlyAbovePivot] selects `U`'s strict upper triangle; `L` keeps every entry.
+         */
+        private fun columnOrientation(
+            m: Int,
+            rowIdx: Array<IntArray>,
+            rowVal: Array<DoubleArray>,
+            strictlyAbovePivot: Boolean,
+        ): ColumnOrientation {
+            val counts = IntArray(m)
+            for (k in 0 until m) {
+                val idx = rowIdx[k]
+                for (t in idx.indices) {
+                    val col = idx[t]
+                    if (!strictlyAbovePivot || col > k) counts[col]++
+                }
+            }
+            val outIdx = Array(m) { IntArray(counts[it]) }
+            val outVal = Array(m) { DoubleArray(counts[it]) }
+            val next = IntArray(m)
+            for (k in 0 until m) {
+                val idx = rowIdx[k]
+                val v = rowVal[k]
+                for (t in idx.indices) {
+                    val col = idx[t]
+                    if (!strictlyAbovePivot || col > k) {
+                        val slot = next[col]++
+                        outIdx[col][slot] = k
+                        outVal[col][slot] = v[t]
+                    }
+                }
+            }
+            return ColumnOrientation(outIdx, outVal)
+        }
     }
 }
+
+/** One factor's entries indexed by column, parallel per column. */
+private class ColumnOrientation(val indices: Array<IntArray>, val values: Array<DoubleArray>)
 
 /**
  * A magnitude this far below the matrix's largest is treated as zero rather than as a pivot candidate.
@@ -416,8 +438,13 @@ private class MarkowitzState(
     private val rowCount = IntArray(m)
     private val colCount = IntArray(m)
 
-    /** Per column: the set of active rows holding a nonzero in it (values unused). */
-    private val colRows = Array(m) { MutableIntDoubleMap() }
+    /** Per column: the active rows holding a nonzero in it. */
+    private val colRows = Array(m) { MutableIntSet() }
+
+    // The candidate column [selectPivot] is scanning, gathered once per column and read twice: the
+    // stability threshold is a fraction of the column max, so it is not known until the scan finishes.
+    private val candidateRows = IntArray(m)
+    private val candidateAbs = DoubleArray(m)
 
     // Active columns by their count, and active rows by theirs, maintained as the counts change rather
     // than rebuilt per step. Only items with a positive count are ever in them.
@@ -435,7 +462,7 @@ private class MarkowitzState(
             rowCount[i] = u[i].size
             u[i].forEach { c, _ ->
                 colCount[c]++
-                colRows[c].put(i, 0.0)
+                colRows[c].add(i)
             }
         }
         for (i in 0 until m) if (rowCount[i] > 0) rowsByCount.add(i, rowCount[i])
@@ -491,15 +518,20 @@ private class MarkowitzState(
             var c = columnsByCount.firstAt(r)
             while (c != -1) {
                 var colMax = 0.0
-                colRows[c].forEach { i, _ ->
+                var candidates = 0
+                colRows[c].forEach { i ->
                     val a = abs(u[i].getOrDefault(c, 0.0))
+                    candidateRows[candidates] = i
+                    candidateAbs[candidates] = a
+                    candidates++
                     if (a > colMax) colMax = a
                 }
                 if (colMax > negligible) {
                     val threshold = PIVOT_THRESHOLD * colMax
-                    colRows[c].forEach { i, _ ->
-                        val a = abs(u[i].getOrDefault(c, 0.0))
+                    for (t in 0 until candidates) {
+                        val a = candidateAbs[t]
                         if (a > negligible && a >= threshold) {
+                            val i = candidateRows[t]
                             val mark = (rowCount[i] - 1).toLong() * (r - 1).toLong()
                             if (mark < bestMark || (mark == bestMark && a > bestAbs)) {
                                 bestMark = mark
@@ -509,8 +541,8 @@ private class MarkowitzState(
                             }
                         }
                     }
+                    candidateCols++
                 }
-                if (colMax > negligible) candidateCols++
                 // Checked inside the walk, not after it. Every unscanned column has a count of at least `r`,
                 // here or in a later class, so both bounds hold as well here as at the class boundary — and
                 // finishing the class first is what left this O(m) per step on a matrix whose columns share
@@ -549,12 +581,14 @@ private class MarkowitzState(
         }
         val pivot = pivotRowMap.getOrDefault(pCol, 0.0)
         // Only rows indexed under the pivot column carry an entry to eliminate.
-        colRows[pCol].forEach { i, _ ->
+        colRows[pCol].forEach { i ->
             if (i != pRow) {
                 val target = u[i]
-                val f = target.getOrDefault(pCol, 0.0) / pivot
+                // One probe for the multiplier and its removal, rather than a lookup and then a search.
+                val pSlot = target.slotOf(pCol)
+                val f = (if (pSlot >= 0) target.valueAt(pSlot) else 0.0) / pivot
                 l.put(i, f)
-                target.remove(pCol)
+                if (pSlot >= 0) target.removeAt(pSlot)
                 changeRowCount(i, -1)
                 pivotRowMap.forEach { col, value ->
                     if (colActive[col]) { // skips the pivot column and already-pivoted columns
@@ -562,12 +596,12 @@ private class MarkowitzState(
                         if (slot >= 0) {
                             val nv = target.valueAt(slot) - f * value
                             if (nv == 0.0 || abs(nv) < dropBelow) {
-                                target.remove(col)
+                                target.removeAt(slot)
                                 changeRowCount(i, -1)
                                 changeColumnCount(col, -1)
                                 colRows[col].remove(i)
                             } else {
-                                target.put(col, nv)
+                                target.setValueAt(slot, nv)
                             }
                         } else {
                             val nv = -f * value
@@ -575,7 +609,7 @@ private class MarkowitzState(
                                 target.put(col, nv)
                                 changeRowCount(i, 1)
                                 changeColumnCount(col, 1)
-                                colRows[col].put(i, 0.0)
+                                colRows[col].add(i)
                             }
                         }
                     }
