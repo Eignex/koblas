@@ -20,7 +20,8 @@ import com.eignex.koblas.koblas
 // on JVM).
 
 /**
- * Cholesky factorization `A = L·Lᵀ` with the active backend ([koblas]); see [Lapack.cholesky].
+ * Cholesky factorization `A = L·Lᵀ` with the active backend ([koblas]); see [Lapack.cholesky], which
+ * documents that only the lower triangle of the receiver is read.
  *
  * Throws [com.eignex.koblas.NotPositiveDefinite] at the first non-positive pivot. Pass
  * [CholeskyPolicy.Regularize] for a

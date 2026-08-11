@@ -138,4 +138,20 @@ class CholeskyTest {
         assertEquals(3, chol.n)
         assertEquals(a.rows, chol.l.rows, "the factor stays reachable as an ordinary matrix")
     }
+
+    @Test
+    fun `cholesky reads only the lower triangle`() {
+        // The documented contract, pinned: garbage above the diagonal must not reach the factor. A
+        // caller holding an upper-only matrix has to mirror it, and this is what says so.
+        val a = spdExample()
+        val defaced = DenseMatrix.of(a.toArray())
+        for (i in 0 until defaced.rows) {
+            for (j in i + 1 until defaced.cols) defaced[i, j] = Double.NaN
+        }
+        val expected = a.cholesky().l
+        val actual = defaced.cholesky().l
+        for (i in 0 until expected.rows) {
+            for (j in 0..i) assertEquals(expected[i, j], actual[i, j], 0.0, "factor differs at ($i,$j)")
+        }
+    }
 }

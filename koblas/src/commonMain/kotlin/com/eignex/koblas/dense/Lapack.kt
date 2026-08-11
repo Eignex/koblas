@@ -435,6 +435,16 @@ public interface Lapack : Backend {
      * Cholesky factorization `A = L·Lᵀ` of a symmetric positive-definite [a], returned as a fresh
      * [CholeskyDecomposition] holding the lower triangular factor.
      *
+     * **Reads only the lower triangle of [a]**, diagonal included; the strict upper triangle is never
+     * touched and may hold anything. That is `dpotrf` with `uplo = 'L'`, which is what every koblas backend
+     * calls, and it means a matrix carrying only its *upper* triangle factors to silent nonsense rather
+     * than failing. [com.eignex.koblas.syr], [com.eignex.koblas.syr2] and [Blas.syrk] default to
+     * [Uplo.FULL] and so produce a matrix this accepts; a caller who asked for [Uplo.UPPER] must mirror
+     * it first.
+     *
+     * There is no `uplo` parameter because on `dpotrf` it also chooses the factor's orientation, and this
+     * returns an `L`.
+     *
      * Throws [com.eignex.koblas.NotPositiveDefinite] at the first non-positive pivot unless [policy] says
      * otherwise; see
      * [CholeskyPolicy] for why that is the default and what asking for [CholeskyPolicy.Regularize] means.
