@@ -75,6 +75,101 @@ jobs:
           files: koblas/build/reports/kover/report.xml
           fail_ci_if_error: false
 
+  # The default job pins `koblas.backend=reference` and filters the HostLibraryTest category out, so the
+  # OpenBLAS and SuiteSparse bindings — which auto-register in any JVM/Linux consumer process — are never
+  # exercised there. This job is the one that runs them.
+  #
+  # Kept separate rather than folded into `test` for the reasons koblas/build.gradle.kts gives: these
+  # measure the machine as much as the library, and they make discovery bind FFM downcall handles, which
+  # the coverage agent's transformer cannot survive. So: no kover here, and coverage stays with `test`.
+  test-host-libraries:
+    name: Run tests against the host BLAS and SuiteSparse
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: false
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+
+      - name: Cache Kotlin/Native toolchain
+        uses: actions/cache@v5
+        with:
+          path: ~/.konan
+          key: ${{ runner.os }}-konan-${{ hashFiles('**/*.gradle.kts') }}
+          restore-keys: ${{ runner.os }}-konan-
+
+      - name: Grant execute permission for Gradle
+        run: chmod +x gradlew
+
+      # Both backends dlopen by soname, so the runtime libraries are what matter. libsuitesparse-dev is
+      # named the same across releases where the versioned runtime package (libumfpack5/6) is not.
+      - name: Install OpenBLAS and SuiteSparse
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libopenblas0 liblapacke libsuitesparse-dev
+
+      # Fail here rather than let the tests pass over an absent library: the native tests return early
+      # when dlopen finds nothing, which is indistinguishable from success in a report.
+      - name: Verify the sonames the bindings look for
+        run: |
+          set -eu
+          for soname in libopenblas.so.0 libumfpack.so; do
+            if ! ldconfig -p | grep -q "$soname"; then
+              echo "::error::$soname is not on the loader path; the bindings would silently fall back"
+              exit 1
+            fi
+            echo "found $soname"
+          done
+
+      - name: Run tests against the host libraries
+        run: ./gradlew :koblas:jvmTest :koblas:linuxX64Test -Pkoblas.hostTests=true
+
+      # The JVM host tests skip themselves via Assume when a library is missing, and a skipped suite is a
+      # green suite. This turns that back into a failure.
+      - name: Fail if the host tests did not actually run
+        if: always()
+        run: |
+          set -eu
+          files=$(find koblas/build/test-results -name 'TEST-*.xml' | grep -Ei 'umfpack|cblas|hostblas' || true)
+          if [ -z "$files" ]; then
+            echo "::error::no host-library test results were produced"
+            exit 1
+          fi
+          status=0
+          for f in $files; do
+            attrs=$(grep -ho 'tests="[0-9]*"[^>]*skipped="[0-9]*"' "$f" | head -1)
+            tests=$(printf '%s' "$attrs" | sed -n 's/.*tests="\([0-9]*\)".*/\1/p')
+            skipped=$(printf '%s' "$attrs" | sed -n 's/.*skipped="\([0-9]*\)".*/\1/p')
+            echo "$(basename "$f"): tests=${tests:-0} skipped=${skipped:-0}"
+            if [ "${tests:-0}" -eq 0 ] || [ "${skipped:-0}" -ne 0 ]; then
+              echo "::error::$(basename "$f") ran nothing or skipped; the host library did not bind"
+              status=1
+            fi
+          done
+          exit $status
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports-host-libraries
+          path: |
+            koblas/build/reports/tests/
+            koblas/build/test-results/
+          if-no-files-found: ignore
+
   # The Linux job cross-compiles the macOS klibs but cannot link or run them; this job exercises
   # the native tests on Apple Silicon, including the host-BLAS backend against Homebrew's OpenBLAS.
   test-macos:
