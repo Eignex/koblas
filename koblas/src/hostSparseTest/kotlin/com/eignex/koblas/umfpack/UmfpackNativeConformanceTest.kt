@@ -21,7 +21,15 @@ import kotlin.test.assertTrue
 /** The native UMFPACK binding against koblas's portable sparse LU — the same conformance the JVM binding gets. */
 class UmfpackNativeConformanceTest {
 
-    private val umfpack: UmfpackSparseLapack? = UmfpackLoader.functions?.let { UmfpackSparseLapack(it) }
+    /**
+     * Required, not skipped. Each test used to open with `umfpack ?: return`, so a machine without
+     * SuiteSparse reported eight passing tests that had exercised nothing — and Kotlin/Native has no
+     * `Assume` to turn that into a visible skip. Demanding the library matches what the OpenBLAS suites
+     * next door already do, and makes an unbound library a failure with a reason on it.
+     */
+    private val umfpack: UmfpackSparseLapack = requireNotNull(
+        UmfpackLoader.functions?.let { UmfpackSparseLapack(it) },
+    ) { "host SuiteSparse expected in the test environment" }
 
     /** A diagonally dominant sparse matrix: well conditioned, and singular for neither backend. */
     private fun sparseSystem(n: Int, rng: Random): SparseMatrix {
@@ -42,23 +50,21 @@ class UmfpackNativeConformanceTest {
     }
 
     @Test
-    fun `the binding resolves and registers when suitesparse is installed`() {
-        val f = umfpack ?: return
-        assertEquals("umfpack", f.name)
-        assertEquals(HOST_BACKEND_PRIORITY, f.priority, "every koblas host binding registers at one priority")
+    fun `the binding resolves and registers`() {
+        assertEquals("umfpack", umfpack.name)
+        assertEquals(HOST_BACKEND_PRIORITY, umfpack.priority, "every koblas host binding registers at one priority")
         // Reading the context runs discovery if it has not run, so a resolved library must show up here.
         assertEquals("umfpack", koblas.sparseLapack.name, "discovery should have registered the backend")
     }
 
     @Test
     fun `solutions agree with the portable factorization in both directions`() {
-        val umf = umfpack ?: return
         val rng = Random(20260815)
         for (n in intArrayOf(1, 2, 7, 23, 60)) {
             val a = sparseSystem(n, rng)
             val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
 
-            val host = umf.factor(a)
+            val host = umfpack.factor(a)
             val portable = ReferenceSparseLinearAlgebra.factor(a)
             assertTrue(!host.singular, "n=$n umfpack called a well-conditioned system singular")
 
@@ -82,12 +88,11 @@ class UmfpackNativeConformanceTest {
     /** `out === b` must work: umfpack reads B while writing X, so the aliased case needs a copy. */
     @Test
     fun `an aliased destination still solves correctly`() {
-        val umf = umfpack ?: return
         val rng = Random(20260816)
         val n = 12
         val a = sparseSystem(n, rng)
         val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
-        val f = umf.factor(a)
+        val f = umfpack.factor(a)
         val expected = f.solve(b)
         val aliased = b.copyOf()
         f.solveInto(aliased, aliased)
@@ -96,11 +101,10 @@ class UmfpackNativeConformanceTest {
 
     @Test
     fun `the determinant agrees with the portable factorization`() {
-        val umf = umfpack ?: return
         val rng = Random(20260817)
         for (n in intArrayOf(1, 3, 8)) {
             val a = sparseSystem(n, rng)
-            val host = umf.factor(a).determinant()
+            val host = umfpack.factor(a).determinant()
             val portable = ReferenceSparseLinearAlgebra.factor(a).determinant()
             assertTrue(abs(host / portable - 1.0) < 1e-9, "n=$n determinant disagreed: $host vs $portable")
         }
@@ -108,14 +112,13 @@ class UmfpackNativeConformanceTest {
 
     @Test
     fun `a singular matrix is reported singular with an unknown position`() {
-        val umf = umfpack ?: return
         // Column 1 is a multiple of column 0, so the matrix is rank 1.
         val rank1 = SparseMatrix.ofColumns(
             2,
             2,
             listOf(listOf(0 to 1.0, 1 to 2.0), listOf(0 to 2.0, 1 to 4.0)),
         )
-        val f = umf.factor(rank1)
+        val f = umfpack.factor(rank1)
         assertTrue(f.singular, "umfpack should have called a rank-1 matrix singular")
         assertEquals(SINGULAR_POSITION_UNKNOWN, f.failedAt, "a host that cannot name the pivot must say so")
         assertEquals(0, f.nnz, "a singular factorization has no fill")
@@ -126,11 +129,10 @@ class UmfpackNativeConformanceTest {
     /** Both requests UMFPACK cannot honor must reach the portable factorization instead of being ignored. */
     @Test
     fun `equilibrate and a drop tolerance fall back to the portable factorization`() {
-        val umf = umfpack ?: return
         val rng = Random(20260818)
         val a = sparseSystem(6, rng)
         val b = DoubleArray(6) { rng.nextDouble(-1.0, 1.0) }
-        for (fallback in listOf(umf.factor(a, equilibrate = true), umf.factor(a, dropTolerance = 1e-12))) {
+        for (fallback in listOf(umfpack.factor(a, equilibrate = true), umfpack.factor(a, dropTolerance = 1e-12))) {
             assertTrue(fallback !is UmfpackFactorization, "a request umfpack cannot serve must not be ignored")
             val residual = a.gemv(fallback.solve(b))
             for (i in 0 until 6) assertTrue(abs(b[i] - residual[i]) < 1e-9, "entry $i")
@@ -143,22 +145,20 @@ class UmfpackNativeConformanceTest {
      */
     @Test
     fun `empty and all-zero matrices take the portable path`() {
-        val umf = umfpack ?: return
-        val empty = umf.factor(SparseMatrix.ofColumns(0, 0, emptyList()))
+        val empty = umfpack.factor(SparseMatrix.ofColumns(0, 0, emptyList()))
         assertEquals(0, empty.n)
-        val zeros = umf.factor(SparseMatrix.ofColumns(3, 3, listOf(emptyList(), emptyList(), emptyList())))
+        val zeros = umfpack.factor(SparseMatrix.ofColumns(3, 3, listOf(emptyList(), emptyList(), emptyList())))
         assertTrue(zeros.singular, "a matrix of zeros is singular")
     }
 
     /** Many factorizations in a loop must not exhaust native memory. */
     @Test
     fun `repeated factorizations do not exhaust native memory`() {
-        val umf = umfpack ?: return
         val rng = Random(20260820)
         val a = sparseSystem(120, rng)
         var checksum = 0.0
         repeat(300) {
-            val f = umf.factor(a)
+            val f = umfpack.factor(a)
             checksum += abs(f.solve(DoubleArray(120) { 1.0 })[0])
         }
         assertTrue(checksum > 0.0, "the loop should have produced solutions")
