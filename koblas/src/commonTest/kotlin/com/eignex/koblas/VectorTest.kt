@@ -7,7 +7,6 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/** The vector carriers: [DenseVector], [SparseVector] and the [VectorView] surface they share. */
 class VectorTest {
 
     @Test
@@ -111,7 +110,6 @@ class VectorTest {
         assertTrue("nnz=2" in s)
     }
 
-    /** The constructor requires strictly ascending, in-range indices. */
     @Test
     fun `SparseVector rejects unsorted duplicated or out-of-range indices`() {
         assertFailsWith<IllegalArgumentException> {
@@ -133,7 +131,6 @@ class VectorTest {
         assertEquals(2.0, v[0])
         assertEquals(1.5, v[3])
         assertEquals(0.0, v[1])
-        // Ascending storage means forEachStored and iamax see index order.
         val seen = ArrayList<Int>()
         v.forEachStored { i, _ -> seen.add(i) }
         assertEquals(listOf(0, 3), seen)
@@ -155,10 +152,8 @@ class VectorTest {
         assertEquals(2.0, v[0])
         assertEquals(1.5, v[3])
         assertEquals(0.0, v[1])
-        // Adopted, not copied — the counterpart of DenseVector.wrap.
         assertSame(indices, v.indices)
         assertSame(values, v.values)
-        // Unlike `of`, wrap repairs nothing.
         assertFailsWith<IllegalArgumentException> {
             SparseVector.wrap(5, intArrayOf(3, 0), doubleArrayOf(1.0, 2.0))
         }

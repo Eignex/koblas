@@ -8,13 +8,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/**
- * The fill-reducing ordering: that it is a permutation, that it reduces fill where fill is the problem, and that
- * nothing above it can tell the difference.
- */
 class SparseOrderingTest {
 
-    /** An arrow matrix: dense first row and column, diagonal elsewhere. Positive definite by dominance. */
     private fun arrow(n: Int): SparseMatrix {
         val columns = List(n) { j ->
             buildList {
@@ -34,7 +29,7 @@ class SparseOrderingTest {
         return SparseMatrix.ofColumns(n, n, columns)
     }
 
-    /** `A·x` from the CSC arrays, so a solve is checked against the matrix rather than against a seam. */
+    /** `A·x` from the CSC arrays, so a solve is checked against the matrix rather than a seam. */
     private fun multiply(a: SparseMatrix, x: DoubleArray): DoubleArray {
         val y = DoubleArray(a.rows)
         for (j in 0 until a.cols) a.forEachInColumn(j) { i, v -> y[i] += v * x[j] }
@@ -56,9 +51,7 @@ class SparseOrderingTest {
         val a = arrow(n)
         val natural = a.analyze(SparseOrdering.Natural).nnz
         val ordered = a.analyze().nnz
-        // Eliminating the hub first makes every remaining pair adjacent: the triangle fills.
         assertEquals((n - 1) * n / 2, natural, "the natural order should fill an arrow completely")
-        // Eliminating it last costs exactly the arrow's own off-diagonal entries.
         assertEquals(n - 1, ordered, "the ordering should leave an arrow with no fill at all")
     }
 
@@ -75,7 +68,6 @@ class SparseOrderingTest {
         }
     }
 
-    /** A permuted band is the case the ordering exists for. */
     @Test
     fun `a shuffled band is reordered back to something cheap`() {
         val n = 80

@@ -6,7 +6,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** The open-addressed int-to-double map backing the sparse kernels' scatter buffers. */
 class MutableIntDoubleMapTest {
 
     @Test
@@ -64,8 +63,7 @@ class MutableIntDoubleMapTest {
 
     @Test
     fun `backward-shift deletion keeps colliding keys reachable`() {
-        // Sequential keys with a small table force probe chains; deleting from the middle of a
-        // chain must not strand the entries that probed past the deleted slot.
+        // Sequential keys in a small table force probe chains, so deleting mid-chain must not strand later entries.
         val m = MutableIntDoubleMap(4)
         for (k in 0 until 64) m.put(k, k.toDouble())
         for (k in 0 until 64 step 2) assertTrue(m.remove(k))

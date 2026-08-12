@@ -12,10 +12,6 @@ import kotlin.test.Test
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * The triangular routines: `trsv` and `trsm` solves, `trmv` and `trmm` products, each over all eight combinations of
- * triangle, transpose and unit diagonal, and on both sides for the matrix forms.
- */
 class TriangularTest {
 
     /** `op(explicit) x` by definition, so the solve checks do not depend on the library's own kernels. */

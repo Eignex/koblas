@@ -14,12 +14,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/**
- * The destination-passing forms exist so a steady-state loop allocates nothing. They therefore have to agree with the
- * allocating forms exactly, tolerate a destination that aliases the input, and survive being driven repeatedly with
- * one reused [Workspace] — a shared buffer that two nested operations both wrote would show up here as a wrong answer
- * on the second call.
- */
 class DestinationPassingTest {
 
     @Test
@@ -81,7 +75,6 @@ class DestinationPassingTest {
         val reused = koblas.factor(first)
         val luBuffer = reused.lu
         val pivBuffer = reused.piv
-        // Refactorize a different matrix into the same decomposition.
         val second = wellConditioned(n, rng)
         val returned = koblas.factorInto(second, reused)
         assertSame(reused, returned, "factorInto must return its destination")
@@ -89,7 +82,6 @@ class DestinationPassingTest {
         assertSame(pivBuffer, reused.piv, "factorInto must not replace the pivot buffer")
         val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
         assertClose(koblas.solve(koblas.factor(second), b), koblas.solve(reused, b), "refactorized solve")
-        // A singular refactorization updates the flag rather than leaving the previous one.
         val singular = DenseMatrix(n, n) // all zeros
         koblas.factorInto(singular, reused)
         assertTrue(reused.singular, "singular flag must follow the refactorization")
@@ -104,7 +96,6 @@ class DestinationPassingTest {
             val anorm = norm1(a)
             val lu = a.lu()
             val plain = koblas.rcond(lu, anorm)
-            // Twice, to catch a workspace that a previous call left in a bad state.
             assertEquals(plain, koblas.rcond(lu, anorm, ws), "rcond n=$n first")
             assertEquals(plain, koblas.rcond(lu, anorm, ws), "rcond n=$n second")
         }
@@ -115,7 +106,7 @@ class DestinationPassingTest {
         val rng = Random(20260750)
         val ws = Workspace()
         for (n in intArrayOf(2, 9)) {
-            // Both sides of the narrow/wide dispatch: column-by-column below the threshold, blocked above.
+            // Both sides of the dispatch, column by column below the threshold and blocked above.
             for (nrhs in intArrayOf(1, 3, 40)) {
                 val lu = wellConditioned(n, rng).lu()
                 val b = DenseMatrix(n, nrhs)
@@ -126,7 +117,6 @@ class DestinationPassingTest {
                     val returned = koblas.solveInto(lu, b, out, transpose, ws)
                     assertSame(out, returned, "solveInto must return its destination")
                     assertClose(expected.data, out.data, "block n=$n nrhs=$nrhs t=$transpose")
-                    // Aliased: solving in place over the caller's own matrix.
                     val aliased = DenseMatrix(n, nrhs, b.data.copyOf())
                     koblas.solveInto(lu, aliased, aliased, transpose, ws)
                     assertClose(expected.data, aliased.data, "block aliased n=$n nrhs=$nrhs t=$transpose")
@@ -179,7 +169,6 @@ class DestinationPassingTest {
             }
             val ls = koblas.solveLeastSquares(f, y)
             assertClose(ls, koblas.solveLeastSquaresInto(f, y, DoubleArray(n), ws), "least squares ${m}x$n")
-            // The minimum-norm solve reads the QR of a transpose, so it consumes a length-n right side.
             val bWide = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
             val mn = koblas.solveMinimumNorm(f, bWide)
             assertClose(mn, koblas.solveMinimumNormInto(f, bWide, DoubleArray(m), ws), "min norm ${m}x$n")
@@ -206,7 +195,6 @@ class DestinationPassingTest {
             lu.solveInto(b, DoubleArray(m), transpose = true, workspace = ws),
             "sparse transposed solve",
         )
-        // Reusing the same workspace must not carry state between the two directions.
         assertClose(
             lu.solve(b),
             lu.solveInto(b, DoubleArray(m), workspace = ws),

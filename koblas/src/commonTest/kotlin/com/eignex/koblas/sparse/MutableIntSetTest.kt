@@ -6,7 +6,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** The compact-entry int set behind the factorization's column index and [MutableIntDoubleMap]. */
 class MutableIntSetTest {
 
     @Test
@@ -22,7 +21,6 @@ class MutableIntSetTest {
 
     @Test
     fun `members occupy the leading slots`() {
-        // What lets MutableIntDoubleMap park its values on the same indices and iterate 0 until size.
         val s = MutableIntSet()
         for (k in 0 until 50) s.add(k * 11)
         val seen = BooleanArray(50)
@@ -40,7 +38,6 @@ class MutableIntSetTest {
         assertEquals(3, moved, "the last member should fill the gap")
         assertEquals(3, s.size)
         assertEquals(-1, s.slotOf(1))
-        // The relocated member is findable at the slot it moved into.
         assertEquals(slot, s.slotOf(s.keyAt(slot)))
     }
 
@@ -116,8 +113,7 @@ class MutableIntSetTest {
 
     @Test
     fun `removal keeps a parallel value array aligned`() {
-        // The invariant MutableIntDoubleMap relies on: after removeAt, slot -> key still agrees with
-        // whatever the caller parked on the same slots.
+        // The invariant MutableIntDoubleMap relies on: after removeAt the slot to key mapping still agrees.
         val rng = Random(4711)
         val s = MutableIntSet()
         var values = DoubleArray(s.entryCapacity)

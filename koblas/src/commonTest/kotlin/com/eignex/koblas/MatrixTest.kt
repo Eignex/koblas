@@ -6,7 +6,6 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
-/** The [DenseMatrix] carrier and the [MatrixView] surface: factories, entry access, equality and shape reporting. */
 class MatrixTest {
 
     @Test
@@ -82,7 +81,6 @@ class MatrixTest {
 
     @Test
     fun `column and row read the two axes of the same matrix`() {
-        // [[1, 2, 3], [4, 5, 6]]
         val m = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0, 3.0), doubleArrayOf(4.0, 5.0, 6.0)))
         assertTrue(doubleArrayOf(2.0, 5.0).contentEquals(m.column(1).data), "column 1")
         assertTrue(doubleArrayOf(4.0, 5.0, 6.0).contentEquals(m.row(1).data), "row 1")
@@ -115,7 +113,6 @@ class MatrixTest {
 
     @Test
     fun `DenseMatrix ofColumns reads the outer index as the column`() {
-        // [[1, 3], [2, 4]] given as its two columns.
         val m = DenseMatrix.ofColumns(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
         assertEquals(2, m.rows)
         assertEquals(2, m.cols)
@@ -123,7 +120,6 @@ class MatrixTest {
         assertEquals(2.0, m[1, 0])
         assertEquals(3.0, m[0, 1])
         assertEquals(4.0, m[1, 1])
-        // A column is contiguous, so ofColumns lands the argument in the backing verbatim.
         assertTrue(doubleArrayOf(1.0, 2.0, 3.0, 4.0).contentEquals(m.data))
     }
 
@@ -168,7 +164,6 @@ class MatrixTest {
                 assertEquals(if (i == j) doubleArrayOf(1.0, -2.0, 0.5)[i] else 0.0, m[i, j], "($i,$j)")
             }
         }
-        // The scalar form is the special case of a constant diagonal.
         assertEquals(DenseMatrix.diagonal(3, 2.5), DenseMatrix.diagonal(DoubleArray(3) { 2.5 }))
         assertEquals(0, DenseMatrix.diagonal(DoubleArray(0)).rows)
     }

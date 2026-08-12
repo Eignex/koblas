@@ -13,13 +13,8 @@ import kotlin.test.Test
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * The QR factorization and the two solves built on it: least squares for overdetermined systems, and the minimum-norm
- * solve for underdetermined ones.
- */
 class LinearAlgebraQrTest {
 
-    /** Column j of R (rows 0 until min(j+1, k)) padded to length m. */
     private fun rColumn(qr: QrDecomposition, j: Int): DoubleArray {
         val col = DoubleArray(qr.m)
         for (i in 0 until minOf(j + 1, qr.tau.size)) col[i] = qr.qr[i + j * qr.m]
@@ -57,7 +52,6 @@ class LinearAlgebraQrTest {
         val a = randomMatrix(m, n, rng)
         val b = randomVector(m, rng)
         val x = koblas.solveLeastSquares(koblas.qr(a), b)
-        // Residual must be orthogonal to the column space: Aᵀ(A·x − b) ≈ 0.
         val ax = koblas.gemv(a, x)
         val residual = DoubleArray(m) { ax[it] - b[it] }
         val normalResidual = koblas.gemv(a, residual, transpose = true)
@@ -94,9 +88,8 @@ class LinearAlgebraQrTest {
             val a = randomMatrix(m, n, rng)
             val b = randomVector(m, rng)
             val x = koblas.solveMinimumNorm(koblas.qr(a.transpose()), b)
-            // Exact solution: A · x = b.
             assertClose(b, koblas.gemv(a, x), "residual ${m}x$n", tolerance = 1e-11)
-            // Minimum norm: x equals the pseudoinverse solution Aᵀ·(A·Aᵀ)⁻¹·b.
+            // The minimum-norm solution is the pseudoinverse solution At (A At)^-1 b.
             val g = DenseMatrix(m, m)
             koblas.syrk(1.0, a, transpose = false, beta = 0.0, c = g)
             val z = koblas.solve(koblas.factor(g), b)
@@ -123,7 +116,6 @@ class LinearAlgebraQrTest {
         assertTrue(koblas.solveLeastSquares(empty, DoubleArray(0)).isEmpty())
         val wide = koblas.qr(DenseMatrix(2, 4))
         assertFailsWith<IllegalArgumentException> { koblas.solveLeastSquares(wide, DoubleArray(2)) }
-        // The minimum-norm solve needs the QR of Aᵀ (tall); the wide QR of A itself is a misuse.
         assertFailsWith<IllegalArgumentException> { koblas.solveMinimumNorm(wide, DoubleArray(4)) }
     }
 }

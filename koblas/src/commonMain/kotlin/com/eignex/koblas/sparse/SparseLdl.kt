@@ -7,20 +7,10 @@ import com.eignex.koblas.Workspace
 import com.eignex.koblas.requireShape
 import kotlin.math.sqrt
 
-/**
- * What the symmetric factorization does about a pivot it cannot use.
- *
- * The sparse counterpart of `CholeskyPolicy`, with one case that has no dense equivalent: [Indefinite], which
- * is the whole reason to want `L·D·Lᵀ` rather than `L·Lᵀ`. A KKT system is symmetric and not positive
- * definite, and its negative pivots are the answer rather than a failure.
- */
 public sealed interface SparseLdlPolicy {
     /**
-     * Every pivot must be positive, which makes the factorization a Cholesky in scaled form.
-     *
-     * A non-positive pivot throws, naming the column, exactly as the dense `cholesky` does: a matrix that was
-     * supposed to be positive definite and is not is a modelling error, and the useful thing is the column
-     * where it stopped being true.
+     * Every pivot must be positive, which makes the factorization a Cholesky in scaled form. A non-positive
+     * pivot throws, naming the column.
      */
     public data object Strict : SparseLdlPolicy
 
@@ -29,31 +19,14 @@ public sealed interface SparseLdlPolicy {
 
     /**
      * Pivots below [minimumPivot] are raised to it, so a matrix that has drifted slightly indefinite still
-     * factors — the caller trading exactness for a factorization that exists. The default matches the dense
-     * policy's.
+     * factors, trading exactness for a factorization that exists.
      */
     public data class Regularize(val minimumPivot: Double = 1e-10) : SparseLdlPolicy
 }
 
 /**
- * A sparse symmetric factorization `A = L·D·Lᵀ`, with `L` unit lower triangular in CSC and `D` a diagonal.
- *
- * One numeric kernel serves both spellings a caller asks for. For a positive-definite matrix this *is* the
- * Cholesky factorization: `L·√D` is the classical `L`, and [SparseLapack.cholesky] is this factorization with
- * [SparseLdlPolicy.Strict] and nothing else. Keeping `D` separate rather than scaling it into `L` costs one
- * multiply per solve and buys the indefinite case, which square roots cannot express.
- *
- * Produced against a [SparseSymbolic] analysis, which is the point of the pair: the pattern is computed once
- * from the graph and reused for as many value updates as the caller has. [symbolic] is exposed so a caller
- * that reached this through [SparseLapack.cholesky] can keep the analysis for the next factorization instead
- * of paying for it again.
- *
- * Unlike [SparseLu] there is no permutation. A symmetric factorization pivots down the diagonal in the order
- * it is given, which is what makes the symbolic phase possible; the price is that a fill-reducing ordering has
- * to be applied by the caller beforehand, and koblas has no AMD to offer yet. On a matrix whose ordering is
- * already reasonable — a banded stiffness matrix, a KKT system assembled in blocks — that costs nothing. On an
- * arbitrary permutation of one it can cost everything, and [SparseSymbolic.nnz] is how a caller finds out
- * before doing the arithmetic.
+ * A sparse symmetric factorization `A = L·D·Lᵀ`, with L unit lower triangular in CSC and D a diagonal.
+ * There is no pivoting: elimination runs down the diagonal in the analysis's order.
  */
 public class SparseLdl internal constructor(
     /** The analysis this factorization was built against, reusable for another matrix of the same pattern. */
@@ -68,25 +41,20 @@ public class SparseLdl internal constructor(
 
     override val n: Int get() = diagonal.size
 
-    /** `L`'s off-diagonal entries plus the `n` of `D`, so it counts what the factorization actually stores. */
+    /** L's off-diagonal entries plus the n of D, so it counts what the factorization actually stores. */
     override val nnz: Int get() = values.size + diagonal.size
 
-    /** Always false: a [SparseLdl] exists only for a matrix that factored completely. */
+    /** Always [NOT_SINGULAR]: a [SparseLdl] exists only for a matrix that factored completely. */
     override val failedAt: Int get() = NOT_SINGULAR
 
     /**
-     * Solve `A·x = b` into [out].
-     *
-     * Three sweeps: `L·y = b` forward, `D·z = y`, then `Lᵀ·x = z` back. [transpose] is accepted and ignored
-     * because `A` is symmetric — `Aᵀ·x = b` is the same system, and the flag exists on the interface for the
-     * unsymmetric factorizations that need it.
+     * Solve `A·x = b` into [out] in three sweeps, `L·y = b` forward, `D·z = y`, then `Lᵀ·x = z` back.
+     * [transpose] is accepted and ignored because A is symmetric.
      */
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray {
         requireShape(b.size == n) { "solve: b size ${b.size}, expected $n" }
         requireShape(out.size == n) { "solve: out size ${out.size}, expected $n" }
-        // The factors are of P·A·Pᵀ, so the right-hand side is gathered into elimination order and the
-        // solution scattered back. A caller never sees the permutation; that is the point of it being the
-        // analysis's business rather than theirs.
+        // The factors are of P·A·Pᵀ, so b is gathered into elimination order and the solution scattered back.
         val z = if (symbolic.isNatural) {
             if (out !== b) b.copyInto(out)
             out
@@ -95,7 +63,7 @@ public class SparseLdl internal constructor(
             for (k in 0 until n) staged[k] = b[permutation[k]]
             staged
         }
-        // L·y = b, sweeping down each column: once y[j] is final it pushes into the rows below it.
+        // L·y = b, sweeping down each column.
         for (j in 0 until n) {
             val yj = z[j]
             if (yj != 0.0) {
@@ -103,7 +71,7 @@ public class SparseLdl internal constructor(
             }
         }
         for (j in 0 until n) z[j] /= diagonal[j]
-        // Lᵀ·x = z, back up the same columns: column j of L is row j of Lᵀ.
+        // Lᵀ·x = z, back up the same columns, since column j of L is row j of Lᵀ.
         for (j in n - 1 downTo 0) {
             var s = z[j]
             for (p in columnPointers[j] until columnPointers[j + 1]) s -= values[p] * z[rowIndices[p]]
@@ -116,12 +84,7 @@ public class SparseLdl internal constructor(
         return out
     }
 
-    /**
-     * `det(A) = ∏ D`, since `L` is unit triangular and contributes 1.
-     *
-     * Exact in the sense that no permutation sign is involved — there is no permutation. It can still overflow
-     * for a large matrix, which is the honest answer for a value that does not fit a double.
-     */
+    /** `det(A) = ∏ D`, since L is unit triangular and contributes 1. Overflows for a large matrix. */
     override fun determinant(): Double {
         var d = 1.0
         for (v in diagonal) d *= v
@@ -129,16 +92,10 @@ public class SparseLdl internal constructor(
     }
 
     /**
-     * The classical Cholesky factor `L·√D`, materialized as a fresh sparse matrix.
+     * The classical Cholesky factor `L·√D`, as a fresh sparse matrix. This is the factor of `P·A·Pᵀ`, not of
+     * A, whenever the analysis reordered; `symbolic.permutation` relates them.
      *
-     * The factor of `P·A·Pᵀ`, not of `A`, whenever the analysis reordered — `symbolic.permutation` is what
-     * relates them, and for [SparseOrdering.Natural] they are the same matrix. Returning the factor of a
-     * matrix the caller did not hand in would be worse than saying so.
-     *
-     * Only defined when every pivot is positive, which [SparseLapack.cholesky] guarantees and
-     * [SparseLdlPolicy.Indefinite] does not; a negative pivot throws rather than returning a NaN. Provided
-     * because a caller may want the factor itself — to hand to a sampler, or to multiply — rather than a
-     * solve, and reconstructing it from `L` and `D` outside this class would mean exposing both.
+     * @throws com.eignex.koblas.NotPositiveDefinite if any pivot is not positive.
      */
     public fun choleskyFactor(): SparseMatrix {
         val columns = List(n) { j ->
@@ -161,17 +118,8 @@ public class SparseLdl internal constructor(
 }
 
 /**
- * The numeric half of the symmetric factorization: up-looking `L·D·Lᵀ`, one row of `L` at a time.
- *
- * Davis's `ldl_numeric`, which is up-looking rather than left-looking because that is what lets it use the
- * pattern the analysis already computed: row `k` of `L` is exactly the elimination-tree path from each `A[i,k]`
- * with `i < k`, walked to the first node this row has already visited. The dense accumulator `y` is scattered
- * with column `k` of `A`, drained down that path, and left at zero for the next row — so it is allocated once
- * for the whole factorization rather than per column.
- *
- * A pivot the [policy] rejects ends the factorization at that column. An exact zero is singular whatever the
- * policy says, and comes back as [SingularSparseFactorization] carrying the column, which is the same contract
- * [SparseLu] reports failure with.
+ * The numeric half of the symmetric factorization, up-looking `L·D·Lᵀ` one row of L at a time. An exact zero
+ * pivot is singular whatever the [policy] says, and comes back as [SingularSparseFactorization].
  */
 @Suppress("NestedBlockDepth", "ReturnCount") // the up-looking traversal, and one exit per pivot verdict
 internal fun numericLdl(
@@ -183,15 +131,12 @@ internal fun numericLdl(
     requireShape(a.rows == symbolic.n) {
         "ldl: matrix is ${a.rows}x${a.rows} but the analysis is for ${symbolic.n}"
     }
-    // Before anything else: the traversal below follows the analysed pattern's elimination tree, so a matrix
-    // with an entry outside that pattern would walk off the end of the tree rather than produce a wrong
-    // answer. Checked here, once, instead of defended at every step.
+    // An entry outside the analysed pattern would walk the traversal below off the end of the tree.
     require(symbolic.describesPatternOf(a)) {
         "ldl: this matrix does not have the pattern the analysis was computed from. Analyse it, or keep the " +
             "structural zeros so the pattern matches."
     }
-    // Everything below eliminates in the analysis's order, so a reordered analysis works on the permuted
-    // matrix. Natural skips the materialization entirely rather than permuting by the identity.
+    // Everything below eliminates in the analysis's order, so a reordered analysis needs the permuted matrix.
     val work = if (symbolic.isNatural) a else permutedUpperTriangle(a, symbolic.inversePermutation)
     val n = symbolic.n
     val lp = symbolic.columnPointers
@@ -202,7 +147,7 @@ internal fun numericLdl(
     val d = DoubleArray(n)
     val y = DoubleArray(n) // dense accumulator, zero between rows by construction
     val path = IntArray(n) // the tree path in topological order, filled from the back
-    val climb = IntArray(n) // one ascent, before it is reversed into `path`
+    val climb = IntArray(n) // one ascent, before it is reversed into path
     val flag = IntArray(n) { -1 }
 
     for (k in 0 until n) {
@@ -218,8 +163,7 @@ internal fun numericLdl(
                     flag[node] = k
                     node = parent[node]
                 }
-                // Reversed into the back of `path`, so the whole row ends up in topological order: a column is
-                // drained only after every column that feeds it.
+                // Reversed into the back of path, so a column is drained only after every column feeding it.
                 while (length > 0) path[--top] = climb[--length]
             }
         }
@@ -234,9 +178,7 @@ internal fun numericLdl(
             val lki = yi / d[i]
             d[k] -= lki * yi
             check(end < lp[i + 1]) {
-                // Not decoration: an analysis that under-counts a column lands here, and writing past the
-                // column would corrupt its neighbour instead of failing. Deliberately breaking the count in
-                // the symbolic phase trips this, which is how it was verified to be reachable.
+                // An under-counted column would be written past, corrupting its neighbour instead of failing.
                 "ldl: column $i needs more room than the analysis reserved it, so the analysis and this " +
                     "matrix disagree about the pattern"
             }

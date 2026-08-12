@@ -5,10 +5,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
-/**
- * Applying a diagonal as a scaling. Each routine is checked against the matrix product it stands for,
- * which is the definition it has to meet — `scaleRows` is `D · A`, `scaleColumns` is `A · D`.
- */
 class ScalingTest {
 
     private fun example() = DenseMatrix.of(
@@ -38,7 +34,6 @@ class ScalingTest {
 
     @Test
     fun `the two directions compose to a two-sided scaling`() {
-        // D₁ · A · D₂, the shape an equilibration produces.
         val rowScale = doubleArrayOf(2.0, 3.0)
         val colScale = doubleArrayOf(1.0, -1.0, 0.5)
         val actual = example()
@@ -66,9 +61,7 @@ class ScalingTest {
         )
         scaleColumns(dense, d)
         for (i in 0 until 2) {
-            // A tolerance rather than exact equality, and for a reason worth stating: scaling a *stored*
-            // zero by a negative yields -0.0, while the sparse matrix has no entry there at all and reads
-            // +0.0. The two are numerically equal and `assertEquals(Double, Double)` does not agree.
+            // A stored zero scaled by a negative gives -0.0 while the sparse side has no entry and reads +0.0.
             for (j in 0 until 3) assertEquals(dense[i, j], s[i, j], 0.0, "($i,$j)")
         }
         assertEquals(nnzBefore, s.nnz, "a scaling must not change the pattern")

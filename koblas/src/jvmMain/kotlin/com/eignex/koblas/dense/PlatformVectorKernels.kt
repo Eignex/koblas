@@ -6,19 +6,8 @@ import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
 
 /**
- * JVM dense primitives. Routes to a SIMD path (`jdk.incubator.vector`) when the
- * incubator module is available at runtime, scalar fallback otherwise.
- *
- * Detection runs once at class load via `Class.forName`. The SIMD code lives in a
- * separate private object ([Simd]) so its static initializer (which references
- * `DoubleVector`) only runs when the probe succeeds. A JVM started without
- * `--add-modules=jdk.incubator.vector` loads this file cleanly and takes the
- * scalar path.
- *
- * Build wiring: koblas compiles with `-Xadd-modules=jdk.incubator.vector` to
- * make the SIMD code resolve at compile time. Tests pass the same flag at runtime
- * to exercise the SIMD path; consumers who pass it get SIMD, consumers who don't
- * get scalar. No extra config required for correctness.
+ * Whether the `jdk.incubator.vector` module resolved at runtime. The SIMD code lives in [Simd] so its
+ * initializer only runs when this probe succeeds, and a JVM without the module takes the scalar path.
  */
 
 internal val simdAvailable: Boolean = try {
@@ -29,20 +18,11 @@ internal val simdAvailable: Boolean = try {
 }
 
 /**
- * Lane width of the vector path, or 0 when it is unavailable. Runs below one lane execute no vector
- * body at all — `loopBound` is zero, so the work falls to the scalar tail after paying the vector
- * prologue (a horizontal reduce for [VectorKernels.dot], a broadcast for the others). Short runs therefore
- * route straight to the scalar kernels; triangular solves and small factorizations issue many of
- * them.
+ * Lane width of the vector path, or 0 when it is unavailable. A run below one lane executes no vector
+ * body at all, so short runs take the scalar kernels rather than pay the vector prologue.
  */
 private val simdLanes: Int = if (simdAvailable) Simd.lanes() else 0
 
-/**
- * The JVM's compiled-in kernels: SIMD when the incubator module resolved, scalar loops otherwise.
- *
- * Each routine carries a `simdAvailable && len >= simdLanes` guard, because a run shorter than one lane
- * executes no vector body at all and would pay the vector prologue for nothing.
- */
 internal actual object PlatformVectorKernels : VectorKernels {
     actual override val name: String get() = if (simdAvailable) "simd($simdLanes lanes)" else "scalar"
 
@@ -73,7 +53,7 @@ internal actual object PlatformVectorKernels : VectorKernels {
     /** See [nrm2]. */
     actual override fun asum(v: DoubleArray, vOff: Int, len: Int): Double = absoluteSum(v, vOff, len)
 
-    /** Overridden rather than inherited: [Simd.dot4] loads each `b` segment once for all four columns. */
+    /** Overridden because [Simd.dot4] loads each b segment once for all four columns. */
     @Suppress("LongParameterList") // four column offsets plus the shared operand
     actual override fun dot4(
         a: DoubleArray,
@@ -115,11 +95,7 @@ internal object Simd {
 
     fun lanes(): Int = LANE
 
-    /**
-     * One accumulator, deliberately. Several independent ones would break the FMA latency chain, but they
-     * also grow the method past what the JIT will inline, and measurement says that costs more on the short
-     * runs a triangular solve issues than the chain does. [dot4] breaks the chain where it can be amortized.
-     */
+    /** One accumulator, since several would grow the method past what the JIT will inline. */
     fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
         var i = 0
         val bound = SPECIES.loopBound(len)
@@ -139,10 +115,8 @@ internal object Simd {
     }
 
     /**
-     * Four rows against one shared vector. Each `b` segment is loaded once and fused into four
-     * independent accumulators, so load traffic drops from two vectors per FMA to five per four and
-     * the accumulator chains are independent by construction — the reason [LinearAlgebra.gemv] wants
-     * this over four separate [dot] calls, which would also pay four horizontal reductions.
+     * Four rows against one shared vector, each b segment loaded once into four independent
+     * accumulators. [LinearAlgebra.gemv] wants this over four [dot] calls and their four reductions.
      */
     @Suppress("LongParameterList") // four row offsets plus the shared operand
     fun dot4(

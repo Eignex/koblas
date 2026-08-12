@@ -2,13 +2,7 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.SparseVector
 
-/**
- * The portable sparse level-1 kernels, which are the interface defaults.
- *
- * Nothing is overridden. There is no vector API on these targets, and the indexed access pattern is what a
- * host sparse BLAS would have to beat — see the JVM actual for why only one of the four routines gains
- * anything even where wide registers exist.
- */
+/** The portable sparse level-1 kernels, which are the interface defaults. */
 internal actual object PlatformSparseVectorKernels : SparseVectorKernels {
     actual override val name: String get() = "reference"
 

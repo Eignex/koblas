@@ -4,20 +4,8 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * A sparse matrix in compressed-sparse-column (CSC) form: column `j` occupies
- * `rowIdx[colPtr[j] until colPtr[j + 1]]` with the parallel values in [values], row indices strictly
- * ascending within a column and validated by the constructor, since [get] binary-searches them.
- *
- * The invariants are UMFPACK's preconditions verbatim, checked against the headers, so this backing crosses
- * to `umfpack_di_*` with no repacking; KLU and CHOLMOD accept the same arrays. A 64-bit-index library would
- * need the `dl` family and a widening copy, and an explicitly stored zero is part of the value here where a
- * host may drop it, so a round trip through one can lose pattern.
- *
- * A [MatrixView] like the dense one, but the access costs differ sharply: [get] searches a column and
- * [toArray] densifies, so code that wants the sparsity should use [forEachInColumn]. Serializes as its CSC
- * arrays, since writing it densely would cost the `rows × cols` the representation exists to avoid.
- *
- * Construction goes through the [Companion] factories, as it does for every koblas container.
+ * Compressed-sparse-column form: column j occupies colPtr(j) until colPtr(j + 1) of [rowIdx] and [values],
+ * rows strictly ascending. A stored zero is preserved, and a 64-bit-index host library needs a widening copy.
  *
  * @property rows the number of rows.
  * @property cols the number of columns.
@@ -42,11 +30,7 @@ public class SparseMatrix internal constructor(
         require(colPtr[cols] == values.size) { "colPtr[cols] ${colPtr[cols]} != nnz ${values.size}" }
         for (j in 0 until cols) require(colPtr[j] <= colPtr[j + 1]) { "colPtr not monotonic at $j" }
         for (k in rowIdx.indices) require(rowIdx[k] in 0 until rows) { "rowIdx[$k]=${rowIdx[k]} out of [0,$rows)" }
-        // Rows strictly ascending within each column. The format has always documented this and the
-        // factories have always produced it, but it went unchecked — and [get] binary-searches the column,
-        // so an unsorted one would not throw, it would quietly report a stored entry as absent. Strict
-        // ascent also rules out duplicate rows, which would otherwise make [get] and [forEachInColumn]
-        // disagree about the value at a position.
+        // Rows must ascend strictly, or the binary search in get reports a stored entry as absent.
         for (j in 0 until cols) {
             for (k in colPtr[j] + 1 until colPtr[j + 1]) {
                 require(rowIdx[k - 1] < rowIdx[k]) {
@@ -60,17 +44,14 @@ public class SparseMatrix internal constructor(
     /** Number of stored nonzeros. */
     public val nnz: Int get() = values.size
 
-    /** Visit the nonzero entries of column [j] as `(row, value)`, rows ascending. */
+    /** Visits the stored entries of column [j] as `(row, value)`, rows ascending. */
     public inline fun forEachInColumn(j: Int, action: (row: Int, value: Double) -> Unit) {
         for (k in colPtr[j] until colPtr[j + 1]) action(rowIdx[k], values[k])
     }
 
     /**
-     * Read entry `(i, j)`, or `0.0` where nothing is stored.
-     *
-     * A binary search over column `j`'s row indices, which are ascending — so this is `O(log nnzⱼ)`, not
-     * the `O(1)` the dense storage gives. Fine for a probe; wrong for a sweep, where [forEachInColumn]
-     * visits the same information in `O(nnzⱼ)` total.
+     * Reads entry (i, j), or `0.0` where nothing is stored. A binary search over the column, so `O(log nnzⱼ)`
+     * and fine for a probe; sweep with [forEachInColumn] instead.
      */
     override fun get(i: Int, j: Int): Double {
         require(i in 0 until rows && j in 0 until cols) { "index ($i;$j) outside ${rows}x$cols" }
@@ -88,8 +69,7 @@ public class SparseMatrix internal constructor(
         return 0.0
     }
 
-    /** Materialise into a fresh `rows × cols` array of rows. Densifies, so the result is as large as the
-     *  representation was avoiding; only the stored entries are written, the rest stay zero. */
+    /** Materialises into a fresh `rows × cols` array of rows; unstored entries stay zero. */
     override fun toArray(): Array<DoubleArray> {
         val out = Array(rows) { DoubleArray(cols) }
         for (j in 0 until cols) forEachInColumn(j) { i, v -> out[i][j] = v }
@@ -97,12 +77,8 @@ public class SparseMatrix internal constructor(
     }
 
     /**
-     * Structural equality over the shape and the stored entries.
-     *
-     * Compares the CSC arrays, which means two matrices that agree everywhere but store a different set
-     * of explicit zeros are *not* equal. That mirrors [SparseVector], where a stored zero is also part of
-     * the value: the pattern is information, and a factorization that reserved a slot for fill differs
-     * from one that never had it.
+     * Structural equality over the shape and the CSC arrays, so two matrices differing only in which
+     * explicit zeros they store are not equal.
      */
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -123,10 +99,11 @@ public class SparseMatrix internal constructor(
 
     override fun toString(): String = "SparseMatrix(${rows}x$cols, nnz=$nnz)"
 
-    /** Factories for CSC matrices. */
     public companion object {
-        /** Build a CSC matrix from column-major `(row, value)` entries: `columns[j]` lists column `j`'s
-         *  nonzeros. Entries within a column are sorted by row; duplicates are summed. */
+        /**
+         * Builds a CSC matrix from column-major `(row, value)` entries, where columns(j) lists column j's
+         * nonzeros in any order. Entries are sorted by row and duplicate positions are summed.
+         */
         public fun ofColumns(rows: Int, cols: Int, columns: List<List<Pair<Int, Double>>>): SparseMatrix {
             require(columns.size == cols) { "expected $cols columns, got ${columns.size}" }
             val colPtr = IntArray(cols + 1)
@@ -146,16 +123,8 @@ public class SparseMatrix internal constructor(
         }
 
         /**
-         * Build a CSC matrix from parallel coordinate (triplet) arrays: entry `k` is `values[k]` at
-         * `(rowIdx[k], colIdx[k])`. Entries may arrive in any order and a repeated position contributes
-         * the sum of its values, matching [ofColumns] and [SparseVector.of]. Copies its inputs, so the
-         * caller can reuse the arrays.
-         *
-         * The interchange format — Matrix Market, `scipy.sparse.coo_matrix`, Eigen's triplet list — and
-         * primitive throughout, where [ofColumns] boxes an `Int`, a `Double`, a `Pair` and a list per
-         * entry.
-         *
-         * Two counting passes, no comparison sort: `O(nnz + rows + cols)`.
+         * Builds a CSC matrix from parallel coordinate (triplet) arrays, where entry k is values(k) at
+         * (rowIdx(k), colIdx(k)). Any order, duplicate positions summed, inputs copied. `O(nnz + rows + cols)`.
          */
         public fun ofTriplets(
             rows: Int,
@@ -174,7 +143,7 @@ public class SparseMatrix internal constructor(
                 require(colIdx[k] in 0 until cols) { "colIdx[$k]=${colIdx[k]} out of [0,$cols)" }
             }
 
-            // Group by row: rowStart[i] is where row i's entries begin once scattered.
+            // Group by row, so that rowStart(i) is where row i's entries begin once scattered.
             val rowStart = IntArray(rows + 1)
             for (k in 0 until nnz) rowStart[rowIdx[k] + 1]++
             for (i in 0 until rows) rowStart[i + 1] += rowStart[i]
@@ -187,8 +156,7 @@ public class SparseMatrix internal constructor(
                 byRowVal[p] = values[k]
             }
 
-            // Then by column, visiting rows in ascending order, so each column comes out ascending by
-            // row without ever comparing two entries.
+            // Then by column, visiting rows in ascending order, so each column comes out ascending by row.
             val colPtr = IntArray(cols + 1)
             for (k in 0 until nnz) colPtr[byRowCol[k] + 1]++
             for (j in 0 until cols) colPtr[j + 1] += colPtr[j]
@@ -203,8 +171,7 @@ public class SparseMatrix internal constructor(
                 }
             }
 
-            // Duplicates are now adjacent within a column, so summing them is one forward pass, in
-            // place: the write position trails the read position by the number already merged.
+            // Duplicates are now adjacent within a column, so summing them is one forward pass in place.
             val outPtr = IntArray(cols + 1)
             var n = 0
             for (j in 0 until cols) {
@@ -228,10 +195,8 @@ public class SparseMatrix internal constructor(
         }
 
         /**
-         * Wrap arrays that are already in CSC form without copying. Caller relinquishes ownership.
-         *
-         * Validates the invariants rather than repairing them, so [rowIdx] must already be strictly
-         * ascending within each column. Use [ofColumns] or [ofTriplets] when it is not.
+         * Wraps arrays already in CSC form without copying; the caller relinquishes ownership. Validates the
+         * invariants rather than repairing them, so use [ofColumns] or [ofTriplets] when they do not hold.
          */
         public fun wrap(rows: Int, cols: Int, colPtr: IntArray, rowIdx: IntArray, values: DoubleArray): SparseMatrix =
             SparseMatrix(rows, cols, colPtr, rowIdx, values)

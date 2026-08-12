@@ -17,22 +17,7 @@ import kotlinx.benchmark.Scope
 import kotlinx.benchmark.Setup
 import kotlinx.benchmark.State
 
-/**
- * The portable sparse LU against UMFPACK, on both the fixture that flatters neither and the one klause
- * actually factorizes.
- *
- * [shape] is the point of this suite. `random` is a matrix at one per cent density, which is where koblas's
- * sparse numbers came from until now and which is close to the worst case for any ordering — no structure,
- * fill toward dense, and a comparison that measures the fixture. `basis` is [simplexBasis], near-triangular
- * with slack columns and a few spikes, which is the shape a revised simplex hands a factorization. A gap that
- * appears on one and not the other is a fact about the input, not about the code, and that distinction is
- * what this exists to make.
- *
- * Factorization and solve are separate because a simplex refactorizes rarely and solves constantly: a backend
- * that factorizes slower and solves faster can still be the right one. JVM-only, since UMFPACK is bound there.
- * The resolved backend is printed from `@Setup`, because without SuiteSparse installed both parameter values
- * measure the same code and only that line says so.
- */
+/** Without SuiteSparse installed both backend values measure the same code, and only the resolved line says so. */
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(BenchmarkTimeUnit.MICROSECONDS)
@@ -43,7 +28,7 @@ class SparseHostBenchmark {
     @Param("basis", "random")
     var shape: String = "basis"
 
-    /** `reference` pins the portable factorization; `auto` takes UMFPACK when discovery found it. */
+    /** reference pins the portable factorization, auto takes UMFPACK when discovery found it. */
     @Param("reference", "auto")
     var backend: String = "reference"
 
@@ -62,15 +47,12 @@ class SparseHostBenchmark {
         println("resolved: sparseLapack=${koblas.sparseLapack.name} shape=$shape nnz(A)=${a.nnz} fill=${factored.nnz}")
     }
 
-    /** The refactorization cost on its own. */
     @Benchmark
     fun factor(): SparseFactorization = a.lu()
 
-    /** One solve against factors built in `@Setup` — what a simplex iteration repeats. */
     @Benchmark
     fun solve(): DoubleArray = factored.solve(rhs)
 
-    /** The transposed solve, a simplex's BTRAN. */
     @Benchmark
     fun solveTransposed(): DoubleArray = factored.solve(rhs, transpose = true)
 }

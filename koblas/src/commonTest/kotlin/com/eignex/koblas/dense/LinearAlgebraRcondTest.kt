@@ -10,12 +10,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/**
- * The reciprocal condition estimate, which is a Hager 1-norm estimate of the inverse rather than an exact quantity.
- * It is therefore checked as a bound: never below the truth, never more than a magnitude above it, and unchanged when
- * the matrix is scaled, since conditioning is a property of the mapping and not of its units. The exact answers are
- * hand-computed on diagonal matrices, where the inverse is known.
- */
 class LinearAlgebraRcondTest {
 
     @Test
@@ -27,7 +21,7 @@ class LinearAlgebraRcondTest {
 
     @Test
     fun `diagonal matrix estimate is exact`() {
-        // diag(1, 1e-6): norm1 = 1, inverse norm1 = 1e6, so rcond = 1e-6.
+        // For diag(1, 1e-6) the 1-norm is 1 and the inverse 1-norm is 1e6, so rcond is 1e-6.
         val a = DenseMatrix(2)
         a[0, 0] = 1.0
         a[1, 1] = 1e-6
@@ -50,7 +44,7 @@ class LinearAlgebraRcondTest {
         for (n in intArrayOf(3, 8, 20)) {
             val a = wellConditioned(n, rng)
             val lu = a.lu()
-            // Exact inverse 1-norm: solve every unit vector and take the max column sum.
+            // The exact inverse 1-norm comes from solving every unit vector and taking the largest column sum.
             var exactInvNorm = 0.0
             for (j in 0 until n) {
                 val e = DoubleArray(n)

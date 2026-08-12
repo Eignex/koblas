@@ -14,10 +14,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * The routines added to close the Tier 1 coverage gaps: `invert`, `trtri`, `normInf`, `normFro`, `syr`, `syr2`,
- * `syr2k`, `SparseMatrix.transpose`, `rotg` and `rot`.
- */
 class CoverageGapTest {
 
     @Test
@@ -26,7 +22,6 @@ class CoverageGapTest {
         for (n in intArrayOf(1, 2, 5, 9)) {
             val a = wellConditioned(n, rng)
             val inv = a.lu().invert()
-            // A·A⁻¹ = I is the property; comparing entries to a hardcoded inverse would test arithmetic twice.
             for (i in 0 until n) {
                 for (j in 0 until n) {
                     var s = 0.0
@@ -37,7 +32,6 @@ class CoverageGapTest {
         }
     }
 
-    /** A singular factorization has no inverse, and saying so beats returning infinities. */
     @Test
     fun `invert refuses a singular factorization and names the pivot`() {
         val rank1 = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 4.0)))
@@ -50,7 +44,6 @@ class CoverageGapTest {
         val rng = Random(20260806)
         for (n in intArrayOf(1, 4, 7)) {
             for (lower in booleanArrayOf(true, false)) {
-                // A well-separated diagonal keeps the triangle comfortably invertible.
                 val t = DenseMatrix(n, n)
                 for (j in 0 until n) {
                     for (i in 0 until n) {
@@ -65,7 +58,6 @@ class CoverageGapTest {
                         for (k in 0 until n) s += t[i, k] * inv[k, j]
                         assertEquals(if (i == j) 1.0 else 0.0, s, 1e-9, "n=$n lower=$lower at [$i,$j]")
                     }
-                    // The result keeps the input's orientation: the opposite strict triangle is zero.
                     for (j in 0 until n) {
                         val outside = if (lower) i < j else i > j
                         if (outside) assertEquals(0.0, inv[i, j], "n=$n lower=$lower leaked at [$i,$j]")
@@ -75,16 +67,11 @@ class CoverageGapTest {
         }
     }
 
-    /**
-     * The triangular *solves* deliberately do not validate the diagonal, leaving a singular triangle to produce
-     * infinities. An inverse has no caller-supplied right-hand side to blame, so it checks.
-     */
     @Test
     fun `trtri rejects a zero on the diagonal`() {
         val singular = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 0.0), doubleArrayOf(3.0, 0.0)))
         val failure = assertFailsWith<IllegalArgumentException> { trtri(singular, lower = true) }
         assertTrue("entry 1" in failure.message!!, "should name the zero position: ${failure.message}")
-        // unitDiag takes the diagonal as 1 without reading it, so the same matrix is fine that way.
         trtri(singular, lower = true, unitDiag = true)
     }
 
@@ -96,15 +83,13 @@ class CoverageGapTest {
                 doubleArrayOf(-4.0, 5.0, -6.0),
             ),
         )
-        // Row sums are 6 and 15; column sums are 5, 7, 9.
+        // Row sums are 6 and 15. Column sums are 5, 7 and 9.
         assertEquals(15.0, normInf(a), 1e-12)
         assertEquals(9.0, norm1(a), 1e-12, "norm1 must be unaffected")
         assertEquals(sqrt(1.0 + 4 + 9 + 16 + 25 + 36), normFro(a), 1e-12)
 
-        // A workspace is optional and must not change the answer.
         val ws = Workspace().apply { reserve(a.rows, count = 2) }
         assertEquals(normInf(a), normInf(a, ws), 1e-12)
-        // Reusing it must not carry state, which take() does not promise.
         assertEquals(normInf(a), normInf(a, ws), 1e-12)
 
         val empty = DenseMatrix(0, 0)
@@ -112,7 +97,6 @@ class CoverageGapTest {
         assertEquals(0.0, normFro(empty))
     }
 
-    /** The rescaling the shared helper provides: a plain sum of squares would overflow here. */
     @Test
     fun `normFro survives entries that square out of range`() {
         val big = DenseMatrix.of(arrayOf(doubleArrayOf(3e200, 4e200)))
@@ -126,14 +110,12 @@ class CoverageGapTest {
         val x = DenseVector.of(randomVector(n, rng))
         val y = DenseVector.of(randomVector(n, rng))
 
-        // syr(alpha, x) is ger(alpha, x, x) for a symmetric result, which is what makes ger the reference.
         val viaSyr = DenseMatrix(n, n)
         syr(1.5, x, viaSyr)
         val viaGer = DenseMatrix(n, n)
         ger(1.5, x, x, viaGer)
         assertClose(viaGer, viaSyr, "syr against ger")
 
-        // syr2(alpha, x, y) is ger(alpha, x, y) plus ger(alpha, y, x).
         val viaSyr2 = DenseMatrix(n, n)
         syr2(-0.75, x, y, viaSyr2)
         val viaGer2 = DenseMatrix(n, n)
@@ -142,7 +124,6 @@ class CoverageGapTest {
         assertClose(viaGer2, viaSyr2, "syr2 against two gers")
     }
 
-    /** Under FULL the result must be *exactly* symmetric, not symmetric to a tolerance. */
     @Test
     fun `the symmetric updates are exactly symmetric and honour uplo`() {
         val rng = Random(20260808)
@@ -158,13 +139,11 @@ class CoverageGapTest {
             }
         }
 
-        // LOWER writes the lower triangle and never touches the strict upper one.
         val lower = DenseMatrix(n, n)
         syr(1.0, x, lower, Uplo.LOWER)
         for (i in 0 until n) {
             for (j in 0 until n) {
                 if (i < j) assertEquals(0.0, lower[i, j], "syr LOWER wrote the upper triangle at [$i,$j]")
-                // alpha is 1, so the lower triangle holds exactly the outer product.
                 if (i >= j) assertEquals(x[i] * x[j], lower[i, j], 1e-12, "[$i,$j]")
             }
         }
@@ -180,7 +159,6 @@ class CoverageGapTest {
             val b = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
             val c = DenseMatrix(n, n)
             koblas.syr2k(0.5, a, b, transpose, 0.0, c)
-            // Expand by hand: alpha·(op(A)·op(B)ᵀ + op(B)·op(A)ᵀ).
             for (i in 0 until n) {
                 for (j in 0 until n) {
                     var s = 0.0
@@ -199,7 +177,6 @@ class CoverageGapTest {
 
     @Test
     fun `the sparse transpose round-trips and preserves stored zeros`() {
-        // A stored zero at (1, 0) is part of this matrix's value, so it must survive both directions.
         val a = SparseMatrix.ofColumns(
             3,
             2,
@@ -236,13 +213,11 @@ class CoverageGapTest {
             val g = rotg(a, b)
             assertEquals(sqrt(a * a + b * b), abs(g.r), 1e-12, "r is not the pair's length for ($a, $b)")
             assertEquals(1.0, g.c * g.c + g.s * g.s, 1e-12, "not a rotation for ($a, $b)")
-            // Applying it must reproduce r and zero the second component, which is the whole contract.
             assertEquals(g.r, g.c * a + g.s * b, 1e-12, "rotation does not produce r for ($a, $b)")
             assertEquals(0.0, g.c * b - g.s * a, 1e-12, "rotation does not zero b for ($a, $b)")
         }
     }
 
-    /** The degenerate pair yields the identity rather than a NaN from dividing by zero. */
     @Test
     fun `rotg on an all-zero pair is the identity rotation`() {
         val g = rotg(0.0, 0.0)
@@ -251,7 +226,6 @@ class CoverageGapTest {
         assertEquals(0.0, g.r)
     }
 
-    /** Rescaling matters: 1e200 squared is not representable, but the rotation is. */
     @Test
     fun `rotg survives components that square out of range`() {
         val g = rotg(3e200, 4e200)
@@ -277,7 +251,6 @@ class CoverageGapTest {
             assertEquals(g.c * x0[i] + g.s * y0[i], x.data[i], 1e-12, "x at $i")
             assertEquals(g.c * y0[i] - g.s * x0[i], y.data[i], 1e-12, "y at $i")
         }
-        // A rotation is orthogonal, so each pair keeps its length.
         for (i in 0 until n) {
             val before = x0[i] * x0[i] + y0[i] * y0[i]
             val after = x.data[i] * x.data[i] + y.data[i] * y.data[i]
@@ -285,7 +258,6 @@ class CoverageGapTest {
         }
     }
 
-    /** Using rotg then rot to zero an entry is the one composition callers actually write. */
     @Test
     fun `rotg and rot together zero the target entry`() {
         val x = DenseVector.of(doubleArrayOf(3.0, 1.0, 2.0))

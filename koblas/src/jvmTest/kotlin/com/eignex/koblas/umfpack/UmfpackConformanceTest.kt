@@ -19,18 +19,15 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/** UMFPACK against koblas's portable sparse LU. */
 @Category(HostLibraryTest::class)
 class UmfpackConformanceTest {
 
     private val umfpack = UmfpackSparseLapack()
 
-    /** Skips the test — genuinely, as a reported skip — when SuiteSparse is absent. */
     private fun requireSuiteSparse() {
         Assume.assumeTrue("SuiteSparse is not installed; umfpack conformance cannot run", UmfpackCalls.available)
     }
 
-    /** A diagonally dominant sparse matrix: well conditioned, and singular for neither backend. */
     private fun sparseSystem(n: Int, rng: Random): SparseMatrix {
         val columns = ArrayList<List<Pair<Int, Double>>>(n)
         for (j in 0 until n) {
@@ -74,14 +71,12 @@ class UmfpackConformanceTest {
                 for (i in 0 until n) {
                     assertEquals(fromPortable[i], fromHost[i], 1e-9, "n=$n transpose=$transpose entry $i")
                 }
-                // And it solves the system, checked independently of either factorization.
                 val residual = a.gemv(fromHost, transpose)
                 for (i in 0 until n) assertEquals(b[i], residual[i], 1e-9, "n=$n transpose=$transpose residual $i")
             }
         }
     }
 
-    /** `out === b` must work: umfpack reads B while writing X, so the aliased case needs a copy. */
     @Test
     fun `an aliased destination still solves correctly`() {
         requireSuiteSparse()
@@ -104,16 +99,14 @@ class UmfpackConformanceTest {
             val a = sparseSystem(n, rng)
             val host = umfpack.factor(a).determinant()
             val portable = ReferenceSparseLinearAlgebra.factor(a).determinant()
-            // Sign and magnitude both matter; a relative comparison because the values grow with n.
+            // The comparison is relative because the values grow with n.
             assertEquals(1.0, host / portable, 1e-9, "n=$n determinant disagreed: $host vs $portable")
         }
     }
 
-    /** A singular matrix: UMFPACK factors it and warns, so koblas reports singular without a position. */
     @Test
     fun `a singular matrix is reported singular with an unknown position`() {
         requireSuiteSparse()
-        // Column 1 is a multiple of column 0, so the matrix is rank 1.
         val rank1 = SparseMatrix.ofColumns(
             2,
             2,
@@ -126,7 +119,6 @@ class UmfpackConformanceTest {
         assertFailsWith<SingularMatrix> { f.solve(doubleArrayOf(1.0, 1.0)) }
     }
 
-    /** `equilibrate` has no UMFPACK equivalent, so it must fall back rather than silently ignore the request. */
     @Test
     fun `equilibrate falls back to the portable factorization`() {
         requireSuiteSparse()
@@ -137,7 +129,6 @@ class UmfpackConformanceTest {
             equilibrated !is UmfpackFactorization,
             "asking for koblas's row scaling must not quietly get umfpack's own",
         )
-        // It still has to be a working factorization.
         val b = DoubleArray(6) { rng.nextDouble(-1.0, 1.0) }
         val residual = a.gemv(equilibrated.solve(b))
         for (i in 0 until 6) assertEquals(b[i], residual[i], 1e-9, "entry $i")
@@ -149,7 +140,6 @@ class UmfpackConformanceTest {
         withCleanBackends {
             registerBackend(umfpack)
             assertEquals("umfpack", koblas.sparseLapack.name, "umfpack should win the sparse lapack half")
-            // The sparse BLAS half is untouched: umfpack has no gemv and does not claim one.
             assertEquals("reference", koblas.sparseBlas.name)
 
             val rng = Random(20260819)
@@ -159,7 +149,6 @@ class UmfpackConformanceTest {
         }
     }
 
-    /** Many factorizations in a loop must not exhaust native memory. */
     @Test
     fun `repeated factorizations do not exhaust native memory`() {
         requireSuiteSparse()
@@ -173,14 +162,12 @@ class UmfpackConformanceTest {
         assertTrue(checksum > 0.0, "the loop should have produced solutions")
     }
 
-    /** Solves run with iterative refinement off, which is a choice and not a default. */
     @Test
     fun `solves run without iterative refinement`() {
         requireSuiteSparse()
         assertEquals(0.0, UmfpackCalls.refinementSteps, "umfpack solves must not refine")
     }
 
-    /** And the rest of the `Control` array is UMFPACK's, not zeros. */
     @Test
     fun `the rest of the control array keeps UMFPACK's defaults`() {
         requireSuiteSparse()

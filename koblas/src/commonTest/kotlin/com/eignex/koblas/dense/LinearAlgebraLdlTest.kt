@@ -11,8 +11,7 @@ import kotlin.test.assertTrue
 
 class LinearAlgebraLdlTest {
 
-    /** Random symmetric indefinite matrix (mixed-sign diagonal shifts force 2×2 pivots) with the
-     *  strictly upper triangle NaN-poisoned, plus its clean full-symmetric twin. */
+    /** A random symmetric indefinite matrix as `(full, poisoned)`, whose mixed-sign pivots force 2x2 blocks. */
     private fun poisonedIndefinite(rng: Random, n: Int): Pair<DenseMatrix, DenseMatrix> {
         val full = DenseMatrix(n)
         val poisoned = DenseMatrix(n)
@@ -45,14 +44,13 @@ class LinearAlgebraLdlTest {
 
     @Test
     fun `zero diagonal forces a two-by-two pivot`() {
-        // [[0, 1], [1, 0]] has no nonzero 1x1 pivot: Bunch-Kaufman must take the 2x2 block.
         val a = DenseMatrix(2)
         a[1, 0] = 1.0
         a[0, 1] = Double.NaN
         val f = koblas.ldl(a)
         assertTrue(!f.singular)
         assertTrue(f.ipiv[0] < 0 && f.ipiv[1] == f.ipiv[0], "expected a 2x2 block, got ${f.ipiv.toList()}")
-        // A · x = (2, 3) has the exact solution (3, 2).
+        // A x = (2, 3) has the exact solution (3, 2).
         val x = koblas.solve(f, doubleArrayOf(2.0, 3.0))
         assertClose(doubleArrayOf(3.0, 2.0), x, "antidiagonal solve", tolerance = 1e-14)
     }
@@ -81,8 +79,6 @@ class LinearAlgebraLdlTest {
         val empty = koblas.ldl(DenseMatrix(0, 0))
         assertTrue(!empty.singular)
         assertTrue(koblas.solve(empty, DoubleArray(0)).isEmpty())
-        // The position too, on the same convention as the LU and the sparse factorizations: the first zero
-        // pivot, or NOT_SINGULAR.
         assertEquals(0, koblas.ldl(DenseMatrix(3, 3)).failedAt, "the first of three zero pivots")
         assertEquals(NOT_SINGULAR, empty.failedAt)
     }

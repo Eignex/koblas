@@ -24,16 +24,8 @@ import kotlinx.cinterop.usePinned
 import kotlinx.cinterop.value
 
 /**
- * The sparse factorization half backed by SuiteSparse's UMFPACK, on the native targets.
- *
- * Behaviourally identical to the JVM binding, down to the fallbacks: `equilibrate` and any non-default
- * `dropTolerance` go to the portable factorization because UMFPACK cannot honor either, a singular result
- * becomes koblas's canonical [SingularSparseFactorization], and any UMFPACK failure falls back rather than
- * propagating. The conformance test asserts against the portable factorization on both platforms for exactly
- * that reason — a host backend that answered differently would be a bug wherever it ran.
- *
- * Registered at [com.eignex.koblas.HOST_BACKEND_PRIORITY], so it wins over `SparseLu` wherever SuiteSparse is
- * installed.
+ * The sparse half backed by SuiteSparse's UMFPACK. Equilibration, a non-default drop tolerance and any
+ * UMFPACK failure fall back to [SparseLu]; a singular result becomes [SingularSparseFactorization].
  */
 public class UmfpackSparseLapack internal constructor(private val f: UmfpackFunctions) : SparseLapack {
     override val name: String get() = "umfpack"
@@ -44,15 +36,14 @@ public class UmfpackSparseLapack internal constructor(private val f: UmfpackFunc
     override fun factor(a: SparseMatrix, equilibrate: Boolean, dropTolerance: Double): SparseFactorization {
         requireShape(a.rows == a.cols) { "factor requires a square matrix; got ${a.rows}x${a.cols}" }
         if (equilibrate || dropTolerance != NO_DROP) return SparseLu.factorCsc(a, equilibrate, dropTolerance)
-        // An empty matrix and an all-zero one both have nothing to pin: `usePinned` on an empty array cannot
-        // produce an address. The portable path handles both, the second by reporting singular.
+        // An empty matrix and an all-zero one have nothing to pin, and `usePinned` yields no address.
         if (a.rows == 0 || a.nnz == 0) return SparseLu.factorCsc(a)
 
         val info = DoubleArray(INFO)
         val symbolicHolder = nativeHeap.alloc<COpaquePointerVar>()
         val handle = UmfpackFactorization.allocateHandle(f)
         val status = analyzeAndFactor(a, symbolicHolder, handle, info)
-        // The symbolic analysis is scratch: UMFPACK keeps what it needs inside Numeric.
+        // The symbolic analysis is scratch, UMFPACK keeps what it needs inside Numeric.
         f.freeSymbolic(symbolicHolder.ptr)
         nativeHeap.free(symbolicHolder.ptr)
 
@@ -61,9 +52,7 @@ public class UmfpackSparseLapack internal constructor(private val f: UmfpackFunc
             return SparseLu.factorCsc(a)
         }
         if (status == WARNING_SINGULAR) {
-            // Solving a singular factorization is forbidden, so UMFPACK's partial factors can never be used
-            // and holding them would leak. The canonical result also keeps `nnz == 0` true of every singular
-            // factorization whatever produced it.
+            // Solving a singular factorization is forbidden, so holding UMFPACK's partial factors leaks.
             handle.release()
             return SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
         }
@@ -74,12 +63,7 @@ public class UmfpackSparseLapack internal constructor(private val f: UmfpackFunc
         return factorization
     }
 
-    /**
-     * The symbolic analysis followed by the numeric factorization, sharing one set of pinned arrays.
-     *
-     * Split out because pinning five arrays around two calls is already four levels of nesting, and because
-     * a symbolic failure has to skip the numeric step while still freeing what was allocated.
-     */
+    /** The symbolic analysis followed by the numeric factorization, sharing one set of pinned arrays. */
     @Suppress("NestedBlockDepth") // one nesting level per pinned array
     private fun analyzeAndFactor(
         a: SparseMatrix,

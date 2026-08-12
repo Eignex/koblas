@@ -1,5 +1,4 @@
-// hostBlasTest is a custom source set, which the shared convention plugin analyses with the config for
-// published API rather than for tests. The suite is documented at class level like the rest.
+// The published-API detekt config for this custom source set wants KDoc everywhere and rejects backticked names.
 @file:Suppress("UndocumentedPublicFunction", "FunctionNaming")
 
 package com.eignex.koblas.cblas
@@ -16,7 +15,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/** The two halves of the host backend, installed separately. */
 class CblasHalvesTest {
 
     @Test
@@ -26,7 +24,6 @@ class CblasHalvesTest {
             registerBackend(CblasBlas(cblas))
             assertEquals("cblas+reference", koblas.name, koblasInfo)
 
-            // Level 3 reaches the host library.
             val rng = kotlin.random.Random(20260804)
             val a = DenseMatrix.wrap(9, 9, DoubleArray(81) { rng.nextDouble(-1.0, 1.0) })
             val b = DenseMatrix.wrap(9, 9, DoubleArray(81) { rng.nextDouble(-1.0, 1.0) })
@@ -36,7 +33,6 @@ class CblasHalvesTest {
                 assertTrue(kotlin.math.abs(expected.data[i] - actual.data[i]) < 1e-12, "gemm entry $i")
             }
 
-            // And the factorizations answer from the portable side rather than failing.
             val spd = DenseMatrix.diagonal(4, 2.0)
             assertEquals(4, koblas.factor(spd).n)
             assertEquals(2.0, koblas.cholesky(spd).l[0, 0] * koblas.cholesky(spd).l[0, 0], 1e-12)
@@ -59,8 +55,6 @@ class CblasHalvesTest {
         withCleanBackends {
             val whole: LinearAlgebra = CblasLinearAlgebra()
             registerBackend(whole)
-            // One object, offered as every half it implements: both dense slots point at it, and the sparse
-            // ones stay on the reference, which the name reports.
             assertSame(whole, koblas.blas)
             assertSame(whole, koblas.lapack)
             assertEquals("cblas+reference", koblas.name)

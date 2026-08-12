@@ -16,26 +16,15 @@ import kotlin.math.sqrt
 private const val BUNCH_KAUFMAN_ALPHA = 0.6403882032022076
 
 /**
- * Portable pure-Kotlin backend — correct on every target, no native dependency, and the semantic
- * reference a native backend is validated against. Textbook Doolittle LU with partial pivoting and naive
- * (SIMD-assisted where the vector kernels kick in) level-2/3 loops.
+ * Portable pure-Kotlin backend, correct on every target with no native dependency, and the semantic
+ * reference a native backend is validated against.
  *
- * A class rather than an object because its inner loops need vector kernels, and which kernels those are is
- * a property of the [KoblasContext] it belongs to. Passing null — which [ReferenceLinearAlgebra], the shared
- * instance, does — follows the process default instead, so the singleton stays a stable identity while still
- * picking up a registered host BLAS for long runs.
- *
- * @param kernels the vector kernels the inner loops use, or null to follow the process default.
+ * @param kernels the vector kernels the inner loops use, or null to follow the [KoblasContext] default.
  */
 public class ReferenceBackend(private val kernels: VectorKernels? = null) : LinearAlgebra {
     override val name: String get() = "reference"
 
-    /**
-     * This backend's kernels, or the process default when it was given none.
-     *
-     * Spelled out rather than shortened: `k` is taken many times over in this file as the inner dimension of
-     * a product, and a one-letter kernels property silently resolved to those `Int`s instead.
-     */
+    /** This backend's kernels, or the process default when it was given none. */
     private val vectorKernels: VectorKernels get() = kernels ?: koblas.vectorKernels
 
     override fun gemv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, transpose: Boolean) {
@@ -52,14 +41,11 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
         val ad = a.data
         val rows = a.rows
         if (!transpose) {
-            // y += alpha·Σ_j x_j·A[:,j]: one axpy per column, every run contiguous and no reduction.
             for (j in 0 until a.cols) {
                 val xj = alpha * x[j]
                 if (xj != 0.0) vectorKernels.axpy(y, 0, xj, ad, j * rows, rows)
             }
         } else {
-            // y_j = alpha·A[:,j]ᵀ·x, the dot of a contiguous column with x. Four columns at a time: one
-            // shared load of x per segment, four independent accumulators.
             val quads = DoubleArray(4)
             var j = 0
             val bound = a.cols - 3
@@ -102,9 +88,6 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
         }
         if (alpha == 0.0 || m == 0 || n == 0 || k == 0) return
         if (transposeA && transposeB) {
-            // C = alpha·Aᵀ·Bᵀ + C: the only combination that has a contiguous run on neither side of the
-            // inner product — A's columns line up, but Bᵀ needs B's rows. Materialize Bᵀ once, then reuse
-            // the (T, noT) column-dot kernel.
             val bt = DenseMatrix(k, n)
             for (j in 0 until n) for (p in 0 until k) bt[p, j] = b[j, p]
             gemm(alpha, a, transposeA = true, bt, transposeB = false, beta = 1.0, c = c)
@@ -113,8 +96,6 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
         val ad = a.data
         val bd = b.data
         when {
-            // C += alpha·Aᵀ·B: entry (i, j) is the dot of column i of A with column j of B, both
-            // contiguous. Four A columns share each load of the B column, the shape gemv exploits.
             transposeA -> {
                 val quads = DoubleArray(4)
                 for (j in 0 until n) {
@@ -135,7 +116,6 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
                 }
             }
 
-            // C += alpha·A·B: C[:,j] = Σ_p B[p,j]·A[:,p], rank-1 axpy sweeps down contiguous columns.
             !transposeB -> for (j in 0 until n) {
                 for (p in 0 until k) {
                     val bpj = alpha * bd[p + j * k]
@@ -143,7 +123,6 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
                 }
             }
 
-            // C += alpha·A·Bᵀ: same column sweeps, but the B scalar comes from row j of the n×k B.
             else -> for (j in 0 until n) {
                 for (p in 0 until k) {
                     val bjp = alpha * bd[j + p * n]
@@ -171,8 +150,6 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
         if (alpha == 0.0 || n == 0 || k == 0) return
         val ad = a.data
         if (transpose) {
-            // C += alpha·Aᵀ·A: entry (i, j) is the dot of contiguous columns i and j of the k×n A;
-            // computed once per pair, then written to the selected triangle(s).
             for (j in 0 until n) {
                 for (i in j until n) {
                     val v = alpha * vectorKernels.dot(ad, i * k, ad, j * k, k)
@@ -180,13 +157,7 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
                 }
             }
         } else {
-            // C += alpha·A·Aᵀ = alpha·Σₚ A[:,p]·A[:,p]ᵀ: rank-1 sweeps over contiguous columns of the
-            // n×k A into a scratch buffer, then written per triangle — the sweeps alone are not
-            // bit-symmetric ((alpha·x)·y and (alpha·y)·x round differently), and the contract promises an
-            // exactly symmetric alpha term.
-            // The n² mirror is the largest scratch in the library, so the one most worth lending; pools
-            // key by width, so this just borrows an n²-wide vector.
-            // Cleared first: take() promises nothing about the contents, and the sweeps below accumulate.
+            // Cleared first because take() promises nothing about the contents it hands back.
             val w = workspace?.take(n * n) ?: DoubleArray(n * n)
             w.fill(0.0, 0, n * n)
             for (p in 0 until k) {
@@ -220,14 +191,8 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
         symvAccumulate(alpha, a.data, n, x, 0, y, 0, lower)
     }
 
-    /**
-     * `y[yOff..] += alpha · A · x[xOff..]` for the symmetric `n×n` [ad], reading only the [lower] (or
-     * upper) triangle.
-     *
-     * Column `j` of the stored triangle serves both `A[i, j]` (a contiguous dot) and its mirror
-     * `A[j, i]` (a contiguous axpy), so symmetry never forces a strided walk. The offsets let [symm]
-     * apply this straight to a column of its operands, which are contiguous runs in this layout.
-     */
+    /** Accumulates alpha times A times x into y for the symmetric `n×n` [ad], reading only the [lower] or
+     *  upper triangle. */
     @Suppress("LongParameterList") // two buffers with offsets plus the triangle flag
     private fun symvAccumulate(
         alpha: Double,
@@ -253,7 +218,7 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
         }
     }
 
-    /** `A[i, j]` of a symmetric `n×n` matrix stored in its [lower] (or upper) triangle only. */
+    /** A(i, j) of a symmetric `n×n` matrix stored in its [lower] or upper triangle only. */
     private fun symEntry(ad: DoubleArray, n: Int, i: Int, j: Int, lower: Boolean): Double {
         val hi = if (i > j) i else j
         val lo = if (i > j) j else i
@@ -284,8 +249,6 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
         if (right) {
             requireShape(b.cols == m) { "symm right: B has ${b.cols} cols, expected $m" }
             if (alpha == 0.0 || m == 0 || b.rows == 0) return
-            // C = alpha·B·A: column j of the product is alpha·Σₚ B[:,p]·A[p,j], so every run is a
-            // contiguous column of B and C and the symmetric entry is a scalar read.
             val rows = b.rows
             val ad = a.data
             val bd = b.data
@@ -299,8 +262,6 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
         }
         requireShape(b.rows == m) { "symm: B has ${b.rows} rows, expected $m" }
         if (alpha == 0.0 || m == 0 || b.cols == 0) return
-        // C = alpha·A·B: column j of the product is alpha·A·B[:,j], a symv applied straight to the
-        // contiguous columns of B and C.
         for (j in 0 until b.cols) {
             symvAccumulate(alpha, a.data, m, b.data, j * m, cd, j * m, lower)
         }
@@ -321,7 +282,6 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
             val absakk = abs(w[k + k * n])
             var imax = k
             var colmax = 0.0
-            // The pivot column is a contiguous run in this layout, so the search sweeps it linearly.
             for (i in k + 1 until n) {
                 val v = abs(w[i + k * n])
                 if (v > colmax) {
@@ -330,8 +290,7 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
                 }
             }
             if (maxOf(absakk, colmax) == 0.0) {
-                // Zero pivot column: record and move on without eliminating, as dsytf2 does. The first
-                // such position is the one kept, which is the position dsytf2 returns in `info`.
+                // The first zero pivot is the one reported, matching dsytf2's info.
                 if (failedAt == NOT_SINGULAR) failedAt = k
                 ipiv[k] = k + 1
                 k += 1
@@ -355,8 +314,6 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
             }
             val kk = k + kstep - 1
             if (kp != kk) {
-                // Interchange rows/columns kk and kp of the trailing submatrix, dsytf2-style: the
-                // already-computed L columns to the left stay put; solve replays ipiv instead.
                 for (i in kp + 1 until n) {
                     val t = w[i + kk * n]
                     w[i + kk * n] = w[i + kp * n]
@@ -377,9 +334,6 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
                 }
             }
             if (kstep == 1) {
-                // A[k+1.., k+1..] -= d11·col·colᵀ with col the raw pivot column, then scale that column
-                // into multipliers. Column j of the update reads the pivot column and writes its own,
-                // both contiguous, so no staging copy is needed and the scaling is one denseScale.
                 val d11 = 1.0 / w[k + k * n]
                 for (j in k + 1 until n) {
                     val f = -d11 * w[j + k * n]
@@ -389,9 +343,6 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
                 ipiv[k] = kp + 1
             } else {
                 if (k < n - 2) {
-                    // 2×2 pivot block: netlib's d21-scaled inverse, applied column-wise via two axpys.
-                    // The transformed multipliers have to be staged, because the update still reads the
-                    // raw columns k and k+1 that they will replace.
                     val d21 = w[(k + 1) + k * n]
                     val d11 = w[(k + 1) + (k + 1) * n] / d21
                     val d22 = w[k + k * n] / d21
@@ -435,7 +386,6 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
         val ipiv = ldl.ipiv
         val x = out
         if (out !== b) b.copyInto(out)
-        // Forward: replay interchanges, apply L block columns, divide by the D blocks (dsytrs lower).
         var k = 0
         while (k < n) {
             if (ipiv[k] > 0) {
@@ -472,7 +422,6 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
                 k += 2
             }
         }
-        // Backward: apply Lᵀ block rows and undo the interchanges in reverse.
         k = n - 1
         while (k >= 0) {
             if (ipiv[k] > 0) {
@@ -509,8 +458,6 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
         val k = minOf(m, n)
         val buf = a.data.copyOf()
         val tau = DoubleArray(k)
-        // No accumulator is needed anywhere here, so the workspace argument is accepted for signature
-        // compatibility and left unused.
         for (col in 0 until k) {
             tau[col] = householderColumn(buf, m, col)
             applyReflectorToTrailing(buf, m, n, col, tau[col])
@@ -525,8 +472,6 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
         val buf = a.data.copyOf()
         val tau = DoubleArray(k)
         val pivots = IntArray(n) { it }
-        // Two norms per column: the current one, downdated cheaply at each step, and the one from the last
-        // full computation, which is the yardstick for deciding the downdated value has drifted.
         val current = DoubleArray(n) { c -> sqrt(vectorKernels.dot(buf, c * m, buf, c * m, m)) }
         val computed = current.copyOf()
         for (col in 0 until k) {
@@ -561,11 +506,9 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
         computed[i] = computed[j].also { computed[j] = computed[i] }
     }
 
-    /** Apply `H = I − tau·v·vᵀ` from column [col] to every column after it. Shared with [qr]. */
+    /** Apply `H = I − tau·v·vᵀ` from column [col] to every column after it. */
     private fun applyReflectorToTrailing(buf: DoubleArray, m: Int, n: Int, col: Int, tau: Double) {
         if (tau == 0.0) return
-        // The reflector and the column it updates are both contiguous runs, so this is one dot for
-        // vᵀ·A[:,c] and one axpy back, with no accumulator to allocate.
         val len = m - col - 1
         val vBase = col + 1 + col * m
         for (c in col + 1 until n) {
@@ -579,17 +522,8 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
         }
     }
 
-    /**
-     * Shrink each trailing column's norm by the component the reflector just removed, recomputing outright
-     * when the subtraction has eaten too much of the value to trust.
-     *
-     * The cheap update is `‖x‖·√(1 − (r/‖x‖)²)`, which is what makes pivoted QR cost about the same as
-     * plain QR — recomputing every trailing norm at every step would add an `O(m·n²)` pass. It is also
-     * cancellation in its purest form: when the removed component is nearly the whole norm, the difference
-     * is computed from two nearly equal numbers and the result is noise. LAPACK's `dgeqp3` guards it by
-     * comparing the downdated norm against the last honestly computed one and recomputing below `√ε`, which
-     * is what this reproduces.
-     */
+    /** Shrink each trailing column's norm by the component the reflector just removed, recomputing from
+     *  the column when the downdate has drifted too far to trust. */
     private fun downdateNorms(buf: DoubleArray, m: Int, n: Int, col: Int, current: DoubleArray, computed: DoubleArray) {
         for (c in col + 1 until n) {
             if (current[c] == 0.0) continue
@@ -607,10 +541,8 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
         }
     }
 
-    /** Build the Householder reflector for [col] in place (LAPACK `dlarfg`): returns `tau`, stores the
-     *  scaled vector below the diagonal and `beta` (the new `R` diagonal) on it. `tau == 0` means the
-     *  column was already zero below the diagonal position and `H = I`. The column is contiguous, so the
-     *  norm is a self-dot over it. */
+    /** Build the Householder reflector for [col] in place (LAPACK `dlarfg`), returning `tau` and storing
+     *  the scaled vector below the diagonal with the new `R` diagonal entry on it. */
     private fun householderColumn(buf: DoubleArray, m: Int, col: Int): Double {
         val base = col + col * m
         val len = m - col
@@ -619,8 +551,7 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
         val alpha = buf[base]
         val norm = sqrt(normSq)
         val beta = if (alpha >= 0.0) -norm else norm
-        // Divided rather than scaled by a reciprocal: a subnormal v0 would make 1/v0 overflow, where the
-        // division stays finite.
+        // Divided rather than scaled by a reciprocal, so a subnormal v0 cannot overflow into an infinity.
         val v0 = alpha - beta
         for (i in base + 1 until base + len) buf[i] /= v0
         buf[base] = beta
@@ -635,8 +566,6 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
         if (out !== y) y.copyInto(out)
         val k = qr.tau.size
         val buf = qr.qr
-        // Q = H_0·H_1···H_{k−1} and each H is symmetric, so Qᵀ applies them in ascending order and
-        // Q in descending. Each reflector is a contiguous run, so both halves vectorize.
         val order = if (transpose) 0 until k else k - 1 downTo 0
         for (col in order) {
             val t = qr.tau[col]
@@ -672,7 +601,6 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
         for (i in 0 until n) piv[i] = i
         var failedAt = NOT_SINGULAR
         for (k in 0 until n) {
-            // The pivot column is contiguous, so the search is a linear sweep.
             var p = k
             var max = abs(lu[k + k * n])
             for (i in k + 1 until n) {
@@ -683,13 +611,10 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
                 }
             }
             if (max == 0.0) {
-                // The first zero pivot is the one reported, matching dgetrf's `info`.
                 if (failedAt == NOT_SINGULAR) failedAt = k
                 continue
             }
             if (p != k) {
-                // The one strided step in this layout, and the one dgetrf pays too: a row interchange
-                // touches one element per column.
                 for (j in 0 until n) {
                     val t = lu[k + j * n]
                     lu[k + j * n] = lu[p + j * n]
@@ -699,9 +624,7 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
                 piv[k] = piv[p]
                 piv[p] = tp
             }
-            // Multipliers first, into the pivot column; then one axpy per trailing column, each reading
-            // that column and writing its own. Divided rather than reciprocal-scaled so a subnormal pivot
-            // cannot turn into an infinity.
+            // Divided rather than reciprocal-scaled, so a subnormal pivot cannot turn into an infinity.
             val pivot = lu[k + k * n]
             val len = n - k - 1
             val colBase = k + 1 + k * n
@@ -736,7 +659,6 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
         }
     }
 
-    // A x = b, with P A = L U: permute b by P, forward-solve unit-lower L, back-solve U.
     @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
     private fun solveNormal(
         n: Int,
@@ -746,8 +668,7 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
         out: DoubleArray,
         workspace: Workspace?,
     ): DoubleArray {
-        // The permutation may read a slot of b that has already been written when out aliases b, so the
-        // gather goes through a staging pass only in that case.
+        // When out aliases b the permutation may read a slot already written, so it stages the gather.
         if (out === b) {
             val staged = workspace?.take(n) ?: DoubleArray(n)
             for (i in 0 until n) staged[i] = b[piv[i]]
@@ -761,7 +682,6 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
         return out
     }
 
-    // Aᵀ x = b, with Aᵀ = Uᵀ Lᵀ P: forward-solve Uᵀ (lower), back-solve unit-upper Lᵀ, then un-permute.
     @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
     private fun solveTranspose(
         n: Int,
@@ -771,7 +691,6 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
         out: DoubleArray,
         workspace: Workspace?,
     ): DoubleArray {
-        // The triangular solves run on a staged copy; the scatter that follows cannot be done in place.
         val y = workspace?.take(n) ?: DoubleArray(n)
         b.copyInto(y)
         trsvCore(vectorKernels, a, n, y, lower = false, transpose = true, unitDiag = false)
@@ -782,11 +701,5 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
     }
 }
 
-/**
- * The shared portable backend: a [ReferenceBackend] following the process-default vector kernels.
- *
- * The fallback every seam resolves to when nothing else is registered, and the object a conformance test
- * compares a native backend against. A stable instance, so `koblas.blas === ReferenceLinearAlgebra` is a
- * meaningful check.
- */
+/** The shared portable backend, the fallback every seam resolves to when nothing else is registered. */
 public val ReferenceLinearAlgebra: ReferenceBackend = ReferenceBackend()

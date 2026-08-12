@@ -17,15 +17,6 @@ import kotlinx.benchmark.Scope
 import kotlinx.benchmark.Setup
 import kotlinx.benchmark.State
 
-/**
- * Factorization and single right-hand-side solves, dense general and symmetric indefinite.
- *
- * Factorization is `O(n^3)` and stays on the native backend, while the triangular solves that follow it
- * are `O(n^2)` and lose to the portable kernels below roughly `n = 1024` — the same shape as level 2.
- * Both are here so a change that moves the crossover shows up against the factorization it is bundled
- * with in practice. The `into` variants measure the same shapes as the allocating ones, which is what
- * makes the destination-passing saving visible rather than inferred.
- */
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(BenchmarkTimeUnit.MICROSECONDS)
@@ -53,7 +44,6 @@ class SolveBenchmark {
         x = DoubleArray(n)
     }
 
-    /** LINPACK-style dense solve: factorize, then forward and back substitute. */
     @Benchmark
     fun luFactorAndSolve(): DoubleArray = a.lu().solve(rhs)
 

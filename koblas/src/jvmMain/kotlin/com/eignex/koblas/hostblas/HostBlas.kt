@@ -22,20 +22,13 @@ import com.eignex.koblas.hostblas.HostBlasCalls.UPPER
 import com.eignex.koblas.hostblas.HostBlasCalls.seg
 import com.eignex.koblas.requireShape
 
-/**
- * The host OpenBLAS as the JVM's [Blas] half, bound with `java.lang.foreign`.
- *
- * Only the level-3 routines are native. `gemv`, `symv` and the triangular routines delegate to the portable
- * kernels, which are Vector API SIMD here: `O(n²)` work over `O(n²)` data has nothing to amortize a foreign
- * call against, and measurement agrees. The thresholds that encode this carry the numbers.
- */
 public class HostBlas internal constructor() : Blas {
     override val name: String get() = "openblas"
 
-    /** Above the reference (0) and the native dlopen backend (90), being the strongest JVM option. */
+    /** Above the reference (0) and the native dlopen backend (90). */
     override val priority: Int get() = HOST_BACKEND_PRIORITY
 
-    /** Portable below the level-2 gate, `cblas_dger` above it. */
+    /** Portable below the level-2 gate, cblas_dger above it. */
     override fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix) {
         if (minOf(a.rows, a.cols) < dispatchThresholds.level2) return super.ger(alpha, x, y, a)
         requireShape(a.rows == x.size && a.cols == y.size) {
@@ -47,7 +40,7 @@ public class HostBlas internal constructor() : Blas {
         )
     }
 
-    /** Portable below the level-2 gate, `cblas_dtrsv` above it. */
+    /** Portable below the level-2 gate, cblas_dtrsv above it. */
     override fun trsv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
         if (a.rows < dispatchThresholds.level2) return super.trsv(a, x, lower, transpose, unitDiag)
         requireShape(a.rows == a.cols) { "trsv requires a square matrix; got ${a.rows}x${a.cols}" }
@@ -59,7 +52,7 @@ public class HostBlas internal constructor() : Blas {
         )
     }
 
-    /** Portable below the level-2 gate, `cblas_dtrmv` above it. */
+    /** Portable below the level-2 gate, cblas_dtrmv above it. */
     override fun trmv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
         if (a.rows < dispatchThresholds.level2) return super.trmv(a, x, lower, transpose, unitDiag)
         requireShape(a.rows == a.cols) { "trmv requires a square matrix; got ${a.rows}x${a.cols}" }
@@ -71,7 +64,7 @@ public class HostBlas internal constructor() : Blas {
         )
     }
 
-    /** Portable below the level-3 gate, `cblas_dtrsm` above it. */
+    /** Portable below the level-3 gate, cblas_dtrsm above it. */
     @Suppress("LongParameterList") // the BLAS dtrsm signature
     override fun trsm(
         a: DenseMatrix,
@@ -87,7 +80,7 @@ public class HostBlas internal constructor() : Blas {
         triangularSolveOrMultiply(a, b, lower, transpose, unitDiag, right, solve = true)
     }
 
-    /** Portable below the level-3 gate, `cblas_dtrmm` above it. */
+    /** Portable below the level-3 gate, cblas_dtrmm above it. */
     @Suppress("LongParameterList") // the BLAS dtrmm signature
     override fun trmm(
         a: DenseMatrix,
@@ -103,7 +96,7 @@ public class HostBlas internal constructor() : Blas {
         triangularSolveOrMultiply(a, b, lower, transpose, unitDiag, right, solve = false)
     }
 
-    /** dtrsm and dtrmm take the same arguments and differ only in the entry point; koblas fixes alpha at 1. */
+    /** dtrsm and dtrmm take the same arguments and differ only in the entry point. koblas fixes alpha at 1. */
     @Suppress("LongParameterList") // the shared BLAS signature plus the entry-point flag
     private fun triangularSolveOrMultiply(
         a: DenseMatrix,
@@ -133,13 +126,7 @@ public class HostBlas internal constructor() : Blas {
     private fun transOf(transpose: Boolean) = if (transpose) TRANS else NO_TRANS
     private fun diagOf(unitDiag: Boolean) = if (unitDiag) HostBlasCalls.UNIT else HostBlasCalls.NON_UNIT
 
-    /**
-     * Portable below [DispatchThresholds.level2], native above it.
-     *
-     * The default threshold makes that "always portable" on this platform, and the numbers behind it are
-     * on the constant: the point of routing through the gate rather than hardcoding the delegation is that
-     * the decision is one measured value, visible and overridable, instead of a choice buried in a method.
-     */
+    /** Portable below [DispatchThresholds.level2], native above it. */
     override fun gemv(
         alpha: Double,
         a: DenseMatrix,
@@ -233,9 +220,8 @@ public class HostBlas internal constructor() : Blas {
             )
             return
         }
-        // dsyrk touches one triangle only, while the FULL contract promises the full, exactly
-        // symmetric alpha term on top of a beta scale of all of C. Compute the alpha term into a
-        // scratch lower triangle, mirror it, then combine.
+        // dsyrk touches one triangle only, so the FULL contract needs the alpha term computed into a
+        // scratch lower triangle, mirrored, then combined with a beta scale of all of C.
         val w = workspace?.take(n * n) ?: DoubleArray(n * n)
         HostBlasCalls.dsyrk.invokeWithArguments(
             COL_MAJOR, LOWER, trans, n, k, alpha,
@@ -262,7 +248,7 @@ public class HostBlas internal constructor() : Blas {
         }
     }
 
-    /** Portable below [DispatchThresholds.level2], native above it; see [gemv]. */
+    /** Portable below [DispatchThresholds.level2], native above it, as for [gemv]. */
     override fun symv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) {
         if (a.rows < dispatchThresholds.level2) {
             ReferenceLinearAlgebra.symv(alpha, a, x, beta, y, lower)

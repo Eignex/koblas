@@ -10,7 +10,6 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/** Detecting a silent fallback. */
 class AccelerationTest {
 
     private class FakeHost(override val name: String) :
@@ -19,7 +18,6 @@ class AccelerationTest {
         override val priority: Int get() = 100
     }
 
-    /** Plausible host kernels: the arithmetic is irrelevant, being registered is the point. */
     private class FakeKernels(override val name: String = "fakeblas") : VectorKernels {
         override val priority: Int get() = 100
         override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
@@ -50,7 +48,6 @@ class AccelerationTest {
         registerBackend(FakeHost("openblas"))
         assertTrue(koblas.isAccelerated(BackendSlot.Blas))
         assertTrue(koblas.isAccelerated(BackendSlot.Lapack))
-        // The vector and sparse slots are untouched by a Blas/Lapack registration.
         assertEquals(
             setOf(
                 BackendSlot.VectorKernels,
@@ -62,7 +59,6 @@ class AccelerationTest {
         )
     }
 
-    /** The compiled-in SIMD kernels are *portable*, however fast they are. */
     @Test
     fun `the compiled-in kernels do not count as acceleration`() = withCleanBackends {
         assertTrue(!koblas.isAccelerated(BackendSlot.VectorKernels), "the platform kernels are portable koblas")
@@ -74,7 +70,6 @@ class AccelerationTest {
     fun `requireAccelerated passes for the slots that are covered`() = withCleanBackends {
         registerBackend(FakeHost("openblas"))
         koblas.requireAccelerated(BackendSlot.Blas, BackendSlot.Lapack)
-        // Naming nothing checks nothing, which is what varargs mean here.
         koblas.requireAccelerated()
     }
 
@@ -90,7 +85,6 @@ class AccelerationTest {
         assertTrue("backend=" in message, "should include the resolved summary: $message")
     }
 
-    /** A custom context is answered on its own terms, not the registry's. */
     @Test
     fun `a context reports its own halves rather than the global registry`() = withCleanBackends {
         registerBackend(FakeHost("openblas"))

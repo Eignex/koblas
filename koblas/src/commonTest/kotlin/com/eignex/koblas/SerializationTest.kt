@@ -30,14 +30,12 @@ class SerializationTest {
         }
     }
 
-    /** The wire form is the shape plus the flat backing, as named fields. */
     @Test
     fun `DenseMatrix wire form is its shape and a flat array`() {
         val m = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
         val obj = json.parseToJsonElement(json.encodeToString(m)).jsonObject
         assertEquals(2, obj.getValue("rows").jsonPrimitive.int)
         assertEquals(2, obj.getValue("cols").jsonPrimitive.int)
-        // Column-major, so the flat order is the storage order rather than row order.
         assertEquals(
             listOf(1.0, 3.0, 2.0, 4.0),
             obj.getValue("data").jsonArray.map { it.jsonPrimitive.double },
@@ -65,12 +63,6 @@ class SerializationTest {
             assertEquals(v, json.decodeFromString(SparseVector.serializer(), json.encodeToString(v)))
         }
     }
-
-    // Note: DenseMatrix serializes to a bare 2D JSON array (the readable, stable wire form), which cannot
-    // carry a polymorphic type discriminator — so a DenseMatrix must be serialized via its concrete type
-    // (above), not through MatrixView. SparseMatrix encodes as an object and does not share the
-    // limitation, which makes MatrixView polymorphism work for one subtype and not the other; VectorView
-    // has no such split, since both its subtypes encode as objects.
 
     @Test
     fun `VectorView round-trips polymorphically preserving dense and sparse types`() {
@@ -104,7 +96,6 @@ class SerializationTest {
         }
     }
 
-    /** The shape a sparse matrix takes on the wire is its CSC arrays, not a densified grid. */
     @Test
     fun `SparseMatrix encodes its structure rather than a dense grid`() {
         val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(1 to 5.0), emptyList()))
@@ -114,7 +105,6 @@ class SerializationTest {
         assertTrue("0.0" !in encoded, "a structural zero leaked into the payload: $encoded")
     }
 
-    /** Both storages round-trip through the sealed [MatrixView] root, discriminator and all. */
     @Test
     fun `both matrix storages round-trip polymorphically through MatrixView`() {
         val views: List<MatrixView> = listOf(

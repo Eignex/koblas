@@ -10,7 +10,6 @@ import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
-/** The code in README.md, compiled and run. */
 class ReadmeSamplesTest {
 
     @Test
@@ -42,7 +41,6 @@ class ReadmeSamplesTest {
 
     @Test
     fun `the README's failure-recovery sample compiles and recovers`() {
-        // Drifted indefinite: the second pivot goes negative.
         val a = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 1.0)))
         val chol = try {
             a.cholesky()
@@ -85,13 +83,11 @@ class ReadmeSamplesTest {
             basis.solveInto(b, x, workspace = ws) // no allocation
             if (koblas.rcond(lu, anorm, ws) < threshold) koblas.factorInto(a, lu)
         }
-        // The basis is the identity, so the solve returns b itself.
         assertClose(b, x, "README workspace sample", tolerance = 1e-12)
     }
 
     @Test
     fun `koblasInfo has the shape the sample shows`() {
-        // e.g. "backend=cblas, kernels=scalar+host"
         assertTrue(koblasInfo.startsWith("backend="), koblasInfo)
         assertTrue(", kernels=" in koblasInfo, koblasInfo)
     }

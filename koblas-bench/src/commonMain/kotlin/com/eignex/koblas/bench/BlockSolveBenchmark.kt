@@ -15,15 +15,6 @@ import kotlinx.benchmark.Scope
 import kotlinx.benchmark.Setup
 import kotlinx.benchmark.State
 
-/**
- * A block solve against a loop of vector solves as the right-hand-side count grows, which is where the
- * two strategies trade places: a block solve reads the factor once but updates rows in `nrhs`-length
- * runs, while per-column solves re-read the factor once per column and get full-length contiguous runs.
- *
- * This is the sweep behind the right-hand-side count at which the multi-RHS solve switches strategy, so
- * it is the one to re-run when either solve path changes. Sweeping `nrhs` is what separates it from
- * [SolveBenchmark], whose single right-hand side is the `nrhs = 1` corner.
- */
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(BenchmarkTimeUnit.MICROSECONDS)

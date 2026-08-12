@@ -12,10 +12,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * The standalone vector and matrix operations: the level-1 kernels, the norms, `gemv`, the rank-1 `ger` update, and
- * `transpose`.
- */
 @Suppress("VariableNaming") // single-letter matrix/vector names track math conventions
 class OpsTest {
 
@@ -36,7 +32,6 @@ class OpsTest {
         assertEquals(expected, b dot a, 1e-12)
         assertEquals(expected, a dot bSparse, 1e-12)
         assertEquals(expected, bSparse dot a, 1e-12)
-        // Same vector twice (sparse x dense form) - exercises the sparse-dispatch path.
         assertEquals(0.5 * 0.5 + 0 + 1 + 4, bSparse dot b, 1e-12)
     }
 
@@ -66,15 +61,11 @@ class OpsTest {
 
     @Test
     fun `norm2 survives overflow and underflow via the rescale fallback`() {
-        // Squares of 1e200 overflow a plain sum; the rescale recovers the exact 3-4-5 triangle.
         assertEquals(5.0e200, norm2(DenseVector.of(doubleArrayOf(3.0e200, 0.0, -4.0e200))), 1e186)
-        // Squares of 1e-200 underflow to zero; the rescale recovers them.
         assertEquals(5.0e-200, norm2(DenseVector.of(doubleArrayOf(3.0e-200, 4.0e-200))), 1e-214)
         assertEquals(1.0e-300, norm2(DenseVector.of(doubleArrayOf(1.0e-300))), 1e-314)
-        // Sparse vectors take the same fallback.
         val sparseHuge = SparseVector.of(5, intArrayOf(0, 3), doubleArrayOf(3.0e200, 4.0e200))
         assertEquals(5.0e200, norm2(sparseHuge), 1e186)
-        // Non-finite inputs propagate: NaN stays NaN, an infinite component gives an infinite norm.
         assertTrue(norm2(DenseVector.of(doubleArrayOf(1.0, Double.NaN))).isNaN())
         assertTrue(norm2(DenseVector.of(doubleArrayOf(1.0e200, Double.NaN))).isNaN())
         assertEquals(Double.POSITIVE_INFINITY, norm2(DenseVector.of(doubleArrayOf(1.0, Double.NEGATIVE_INFINITY))))
@@ -160,7 +151,6 @@ class OpsTest {
 
     @Test
     fun `the gemv overload computes A x for dense and sparse x`() {
-        // A = [[1, 2], [3, 4], [5, 6]]
         val A = DenseMatrix.of(
             arrayOf(
                 doubleArrayOf(1.0, 2.0),
@@ -180,7 +170,6 @@ class OpsTest {
         val rng = Random(7)
         val n = 8
         val A = randomMatrix(n, n, rng)
-        // Build a sparse x that touches half the coords.
         val nz = (0 until n).filter { rng.nextBoolean() }
         val xv = DoubleArray(n)
         for (i in nz) xv[i] = rng.nextDouble(-1.0, 1.0)
@@ -190,7 +179,6 @@ class OpsTest {
 
     @Test
     fun `ger updates a matrix with alpha x y_transpose`() {
-        // M starts as identity 2x2; add 0.5 * [1,2] * [3,4]^T = 0.5 * [[3,4],[6,8]]
         val M = DenseMatrix.diagonal(2, 1.0)
         ger(0.5, dense(1.0, 2.0), dense(3.0, 4.0), M)
         assertEquals(1.0 + 0.5 * 3, M[0, 0], 1e-12)
@@ -203,7 +191,6 @@ class OpsTest {
     fun `ger with sparse operands only touches nonzero rows and cols`() {
         val M = DenseMatrix.diagonal(3, 0.0)
         ger(1.0, sparse(3, 1 to 2.0), sparse(3, 0 to 3.0, 2 to 4.0), M)
-        // Only row 1 should be nonzero; cols 0 and 2 in that row get 2*3=6 and 2*4=8.
         for (i in 0 until 3) {
             for (j in 0 until 3) {
                 val expected = when {
@@ -230,13 +217,11 @@ class OpsTest {
 
     @Test
     fun `ger skips zero entries on both carriers`() {
-        // Dense: a zero in x leaves that whole row untouched.
         val dense = DenseMatrix.diagonal(3, 0.0)
         ger(1.0, dense(0.0, 2.0, 0.0), dense(1.0, 1.0, 1.0), dense)
         for (i in 0 until 3) {
             for (j in 0 until 3) assertEquals(if (i == 1) 2.0 else 0.0, dense[i, j], 1e-12, "dense[$i,$j]")
         }
-        // Sparse: a stored zero counts as a zero, not as a stored entry to scatter.
         val sparse = DenseMatrix.diagonal(3, 0.0)
         ger(1.0, sparse(3, 0 to 0.0, 1 to 1.0), sparse(3, 2 to 5.0), sparse)
         for (i in 0 until 3) {
@@ -269,7 +254,6 @@ class OpsTest {
         assertEquals(2, t.cols)
         for (i in 0 until a.rows) for (j in 0 until a.cols) assertEquals(a[i, j], t[j, i])
         assertEquals(a, t.transpose())
-        // Degenerate shapes.
         assertEquals(DenseMatrix(0, 0), DenseMatrix(0, 0).transpose())
         assertEquals(0, DenseMatrix(0, 5).transpose().cols)
         assertEquals(5, DenseMatrix(0, 5).transpose().rows)
@@ -280,18 +264,12 @@ class OpsTest {
         val rng = Random(20260804)
         val a = randomMatrix(4, 6, rng)
         val b = randomMatrix(4, 3, rng)
-        // A-transpose times B, via a materialized transpose against the flag.
         val viaMaterialized = a.transpose().matMul(b)
         val viaFlag = DenseMatrix(6, 3)
         koblas.gemm(1.0, a, true, b, false, 0.0, viaFlag)
         assertClose(viaMaterialized, viaFlag, "transpose flag vs materialized")
     }
 
-    /**
-     * The sparse-against-sparse dot merges two index lists rather than gathering, so it needs the cases a merge can
-     * get wrong: patterns that interleave, that are disjoint, that nest, and that run off one side before the other.
-     * Each is checked against the dense answer.
-     */
     @Test
     fun `sparse against sparse dot matches the dense answer over merge shapes`() {
         val n = 8

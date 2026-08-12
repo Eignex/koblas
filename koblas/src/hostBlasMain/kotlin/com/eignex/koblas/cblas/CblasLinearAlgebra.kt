@@ -6,29 +6,15 @@ import com.eignex.koblas.dense.Lapack
 import com.eignex.koblas.dense.LinearAlgebra
 
 /**
- * [LinearAlgebra] backed by the host's OpenBLAS through its C interfaces (CBLAS and LAPACKE), for
- * the Linux and macOS native targets. Nothing is linked: the libraries are resolved with `dlopen`
- * on first use, so the dependency is optional at runtime — `libopenblas` plus `liblapacke` on
- * Debian/Ubuntu, `brew install openblas` on macOS. When they are present koblas registers this backend the
- * first time `koblas` is read; when they are missing the program still runs on
- * [com.eignex.koblas.dense.ReferenceLinearAlgebra], and constructing this class throws. [isAvailable] and
- * [isBlasAvailable] report which case the host is, since the two halves resolve independently.
- *
- * Koblas storage is column-major, the order LAPACK defines, so buffers cross the FFI
- * boundary without repacking. Semantics match [com.eignex.koblas.dense.ReferenceLinearAlgebra] exactly as
- * specified by the [LinearAlgebra] contract: `beta == 0` overwrites without reading, `alpha == 0`
- * reduces to the `beta` scale, [syrk] produces the full, exactly symmetric result by default, and
- * the factorizations use the shared packed formats so they interchange between backends.
- *
- * OpenBLAS runs single-threaded by default here, which is the faster configuration at koblas
- * workload sizes; set the `OPENBLAS_NUM_THREADS` environment variable to opt into its threading.
+ * [LinearAlgebra] backed by the host's OpenBLAS through CBLAS and LAPACKE, resolved with `dlopen` on
+ * first use. The two halves resolve independently, so check [isAvailable] and [isBlasAvailable].
  */
 public class CblasLinearAlgebra private constructor(private val blas: CblasBlas, private val lapack: CblasLapack) :
     LinearAlgebra,
     Blas by blas,
     Lapack by lapack {
 
-    /** Both halves of the host library, for a caller that wants to install it explicitly. */
+    /** Resolves both halves, for a caller that wants to install the backend explicitly. */
     public constructor() : this(
         CblasBlas(requireNotNull(OpenBlasLoader.cblas) { NO_OPENBLAS }),
         CblasLapack(requireNotNull(OpenBlasLoader.lapacke) { NO_LAPACKE }, requireNotNull(OpenBlasLoader.cblas)),
@@ -36,10 +22,8 @@ public class CblasLinearAlgebra private constructor(private val blas: CblasBlas,
 
     override val name: String get() = "cblas"
 
-    /** Above the reference (0). */
     override val priority: Int get() = HOST_BACKEND_PRIORITY
 
-    /** Host-availability checks for the two halves. */
     public companion object {
         /** Whether the host provides both CBLAS and LAPACKE, so the full backend can be constructed. */
         public fun isAvailable(): Boolean = OpenBlasLoader.cblas != null && OpenBlasLoader.lapacke != null

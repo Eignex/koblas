@@ -21,12 +21,7 @@ import platform.posix.getenv
 private typealias Dp = CPointer<DoubleVar>?
 private typealias Ip = CPointer<IntVar>?
 
-/**
- * The CBLAS subset koblas dispatches to, resolved from the host library with `dlopen`/`dlsym` rather
- * than linked: the OpenBLAS dependency stays a runtime option, so a binary carrying this backend still
- * starts, and falls back to the portable kernels, on hosts without it. Enum parameters are declared
- * `int`, their C ABI, and all integer widths are LP64 — the default OpenBLAS build, not INTERFACE64.
- */
+/** Every integer here is LP64, matching the default OpenBLAS build rather than an INTERFACE64 one. */
 @Suppress("MagicNumber") // the prototypes' arities are ABI facts
 internal class CblasFunctions(private val blas: COpaquePointer) {
     private fun required(name: String): COpaquePointer = dlsym(blas, name)
@@ -67,13 +62,7 @@ internal class CblasFunctions(private val blas: COpaquePointer) {
         .reinterpret<CFunction<(Int, Int, Int, Int, Int, Int, Int, Double, Dp, Int, Dp, Int) -> Unit>>()
 }
 
-/**
- * The LAPACKE subset, resolved separately because it is optional.
- *
- * Debian and Ubuntu strip LAPACKE out of their OpenBLAS build and ship it as liblapacke, a package that
- * libopenblas0 does not pull in. A host with CBLAS and no LAPACKE therefore gets the BLAS half of the
- * backend and the portable LAPACK half, rather than losing native acceleration entirely.
- */
+/** Resolved separately from CBLAS, so a host with CBLAS and no LAPACKE keeps the portable LAPACK half. */
 @Suppress("MagicNumber") // the prototypes' arities are ABI facts
 internal class LapackeFunctions(private val blas: COpaquePointer, private val lapacke: COpaquePointer?) {
     private fun required(name: String): COpaquePointer = dlsym(blas, name)
@@ -100,14 +89,6 @@ internal class LapackeFunctions(private val blas: COpaquePointer, private val la
         .reinterpret<CFunction<(Int, Byte, Int, Int, Dp, Int, Ip, Dp, Int) -> Int>>()
 }
 
-/**
- * Locates the host OpenBLAS once, resolving the two libraries independently.
- *
- * [cblas] is null when there is no usable OpenBLAS at all, in which case koblas stays fully portable.
- * [lapacke] is null when the host has CBLAS but no LAPACKE — the Debian and Ubuntu default, since
- * liblapacke is a separate package. That case keeps the native BLAS half and takes the portable LAPACK
- * half, which is the whole reason the two are resolved apart.
- */
 internal object OpenBlasLoader {
     private val handle: COpaquePointer? = open(
         "libopenblas.so.0", // Linux runtime package
@@ -118,23 +99,20 @@ internal object OpenBlasLoader {
     )
 
     val cblas: CblasFunctions? = handle?.let { blas ->
-        // An ILP64 build exports these same names and takes 64-bit integers, so resolution cannot tell it
-        // apart from the LP64 one these bindings declare. The config string can.
+        // An ILP64 build exports these same names but takes 64-bit integers; only the config string tells.
         if (isIlp64OpenBlas(configString(blas))) return@let null
         val fns = try {
             CblasFunctions(blas)
-        } catch (_: IllegalStateException) { // a required symbol is missing: treat as not installed
+        } catch (_: IllegalStateException) { // a required symbol is missing, treat as not installed
             return@let null
         }
-        // Single-threaded default, the faster configuration at koblas workload sizes; an explicit
-        // OPENBLAS_NUM_THREADS is honored by OpenBLAS itself.
+        // Single-threaded is the faster configuration at koblas workload sizes.
         if (getenv("OPENBLAS_NUM_THREADS") == null) fns.setNumThreads?.invoke(1)
         fns
     }
 
     val lapacke: LapackeFunctions? = handle?.takeIf { cblas != null }?.let { blas ->
-        // LAPACKE either lives in the OpenBLAS build or in a separate library; absent both, this half
-        // simply is not available.
+        // LAPACKE lives either in the OpenBLAS build or in a separate library.
         val extra = if (dlsym(blas, "LAPACKE_dgetrf") != null) null else open("liblapacke.so.3", "liblapacke.so")
         if (dlsym(blas, "LAPACKE_dgetrf") == null && extra == null) return@let null
         try {
@@ -144,19 +122,12 @@ internal object OpenBlasLoader {
         }
     }
 
-    /** Whether the host CBLAS resolved — the name every koblas host binding answers availability with. */
     val available: Boolean get() = cblas != null
 
-    /** Whether LAPACKE resolved as well; false on a host that ships CBLAS only. */
+    /** False on a host that ships CBLAS only. */
     val lapackAvailable: Boolean get() = lapacke != null
 
-    /**
-     * The library's `openblas_get_config` string, or empty when it does not offer one.
-     *
-     * A string read rather than arithmetic, which is what lets it run during resolution where the probe it
-     * stands in for could not. A build without the symbol cannot be interrogated, and an empty string reads
-     * as "no disqualifying marker".
-     */
+    /** The library's openblas_get_config string, or empty when the build does not offer one. */
     private fun configString(blas: COpaquePointer): String {
         val symbol = dlsym(blas, "openblas_get_config") ?: return ""
         val text = symbol.reinterpret<CFunction<() -> CPointer<ByteVar>?>>().invoke()

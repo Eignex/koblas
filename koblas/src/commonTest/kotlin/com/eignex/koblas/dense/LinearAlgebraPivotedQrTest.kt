@@ -12,13 +12,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * QR with column pivoting: that it factorizes the *permuted* matrix, that the rank it reports is the rank, and that
- * the solve undoes the permutation.
- */
 class LinearAlgebraPivotedQrTest {
 
-    /** An `m×n` matrix of rank exactly [rank], as a product of two random full-rank factors. */
     private fun ofRank(m: Int, n: Int, rank: Int, rng: Random): DenseMatrix {
         val left = randomMatrix(m, rank, rng)
         val right = randomMatrix(rank, n, rng)
@@ -33,14 +28,12 @@ class LinearAlgebraPivotedQrTest {
         return a
     }
 
-    /** `A·P` — the matrix the factorization actually decomposes. */
     private fun permuted(a: DenseMatrix, pivots: IntArray): DenseMatrix {
         val out = DenseMatrix(a.rows, a.cols)
         for (j in pivots.indices) for (i in 0 until a.rows) out[i, j] = a[i, pivots[j]]
         return out
     }
 
-    /** Column [j] of `R`, padded to length `m`. */
     private fun rColumn(qr: QrDecomposition, j: Int): DoubleArray {
         val col = DoubleArray(qr.m)
         for (i in 0 until minOf(j + 1, qr.tau.size)) col[i] = qr.qr[i + j * qr.m]
@@ -69,8 +62,6 @@ class LinearAlgebraPivotedQrTest {
         val a = randomMatrix(10, 6, rng)
         val f = koblas.qrPivoted(a)
         assertEquals((0 until 6).toList(), f.pivots.sorted(), "pivots must be a permutation of the columns")
-        // Pivoting always takes the largest remaining column, which is exactly what makes the rank count a
-        // leading run rather than a scan.
         var previous = Double.MAX_VALUE
         for (d in 0 until 6) {
             val entry = abs(f.factorization.qr[d + d * 10])
@@ -89,7 +80,6 @@ class LinearAlgebraPivotedQrTest {
         assertEquals(6, koblas.qrPivoted(randomMatrix(8, 6, rng)).rank, "a random tall matrix has full rank")
     }
 
-    /** Dependence in the *leading* columns, which is the case that separates pivoted QR from plain QR. */
     @Test
     fun `dependence among the leading columns is pivoted to the end`() {
         val rng = Random(31337)
@@ -98,11 +88,9 @@ class LinearAlgebraPivotedQrTest {
         val f = koblas.qrPivoted(a)
         assertEquals(3, f.rank, "a duplicate in column 1 must not truncate the rank to 1")
         assertTrue(f.rankDeficient)
-        // One of the two identical columns must end up in the trailing position the rank excludes.
         assertTrue(f.pivots.last() == 0 || f.pivots.last() == 1, "the dependent column belongs last")
     }
 
-    /** A column that loses nearly all of its norm in one step, which is what the norm downdating has to survive. */
     @Test
     fun `a column that collapses in one step keeps its true norm`() {
         val a = DenseMatrix(3, 3)
@@ -120,8 +108,7 @@ class LinearAlgebraPivotedQrTest {
     fun `near dependence is the tolerance's decision`() {
         val rng = Random(555)
         val a = randomMatrix(7, 3, rng)
-        // Column 2 differs from column 0 by 1e-10, which is far above the automatic tolerance and far below
-        // a caller who considers anything under 1e-6 to be the same column.
+        // Column 2 differs from column 0 by 1e-10, above the automatic tolerance and below a tolerance of 1e-6.
         for (i in 0 until 7) a[i, 2] = a[i, 0] + 1e-10 * rng.nextDouble()
         assertEquals(3, koblas.qrPivoted(a).rank, "the default tolerance sees a real third direction")
         assertEquals(2, koblas.qrPivoted(a, tolerance = 1e-6).rank, "a looser tolerance calls it dependent")
@@ -134,7 +121,6 @@ class LinearAlgebraPivotedQrTest {
         val b = randomVector(9, rng)
         val pivoted = koblas.solveLeastSquares(koblas.qrPivoted(a), b)
         val plain = koblas.solveLeastSquares(koblas.qr(a), b)
-        // Same problem, same minimiser: if the permutation were not undone these would be a shuffle apart.
         assertClose(plain, pivoted, "pivoted against unpivoted least squares", tolerance = 1e-8)
     }
 
@@ -147,8 +133,6 @@ class LinearAlgebraPivotedQrTest {
         assertEquals(3, f.rank)
         val x = koblas.solveLeastSquares(f, b)
         assertEquals(2, x.count { it == 0.0 }, "a basic solution leaves n − rank entries at zero")
-        // The residual must be orthogonal to every column of A, which is what makes it a minimiser — and is
-        // the property a plausible-looking wrong answer fails.
         val residual = DoubleArray(10)
         for (i in 0 until 10) {
             var s = 0.0

@@ -13,14 +13,6 @@ import kotlinx.benchmark.Scope
 import kotlinx.benchmark.Setup
 import kotlinx.benchmark.State
 
-/**
- * Matrix-vector products across a wide size range, out to sizes where memory bandwidth rather than call
- * dispatch decides.
- *
- * These are `O(n^2)` work over `O(n^2)` data, so a native backend cannot amortize its per-call
- * marshalling: this sweep is what established that `gemv` and `symv` belong on the portable kernels at
- * every size measured, and it guards that conclusion against changes on either side of the seam.
- */
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(BenchmarkTimeUnit.MICROSECONDS)

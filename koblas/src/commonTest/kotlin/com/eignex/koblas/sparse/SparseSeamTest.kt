@@ -18,10 +18,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/**
- * The three sparse seams: that the public sparse operations reach a registered backend, that ranking and overriding
- * work as they do on the dense side, and that the composed pair behaves.
- */
 class SparseSeamTest {
 
     private class CountingVectorKernels(override val priority: Int = 50) : SparseVectorKernels {
@@ -91,8 +87,6 @@ class SparseSeamTest {
         }
     }
 
-    // Restoration is withCleanBackends' job, per test, so a platform backend found by discovery survives.
-
     private fun sparse() = SparseVector.of(6, intArrayOf(1, 4), doubleArrayOf(2.0, -3.0))
 
     @Test
@@ -154,7 +148,6 @@ class SparseSeamTest {
         registerBackend(CountingSparseLapack())
         assertEquals("counting-blas", koblas.sparseBlas.name)
         assertEquals("counting-lapack", koblas.sparseLapack.name)
-        // One object registered for both halves lands in both, with no composite in between.
         resetBackends()
         registerBackend(ReferenceSparseLinearAlgebra)
         assertSame(ReferenceSparseLinearAlgebra, koblas.sparseBlas)
@@ -185,8 +178,6 @@ class SparseSeamTest {
     fun `an empty registry resolves to the portable implementation on all three sparse halves`() = withCleanBackends {
         assertSame(ReferenceSparseLinearAlgebra, koblas.sparseBlas)
         assertSame(ReferenceSparseLinearAlgebra, koblas.sparseLapack)
-        // The kernels differ: they are compiled in per target, so the empty-registry answer is the platform
-        // object rather than the reference, exactly as on the dense side.
         assertSame(PlatformSparseVectorKernels, koblas.sparseVectorKernels)
     }
 }

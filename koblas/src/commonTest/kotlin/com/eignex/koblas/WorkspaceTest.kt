@@ -6,10 +6,8 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/** The scratch pool behind the workspace-taking routines. */
 class WorkspaceTest {
 
-    /** Asserts that no two entries of [buffers] are the same object. */
     private fun assertAllDistinct(buffers: List<DoubleArray>, context: String) {
         for (i in buffers.indices) {
             for (j in i + 1 until buffers.size) {
@@ -38,7 +36,6 @@ class WorkspaceTest {
         assertEquals(3, short.size)
         assertEquals(64, long.size)
         ws.release(short)
-        // Releasing one width must not make the other width's buffer available under the wrong size.
         assertSame(short, ws.take(3))
         assertEquals(64, ws.take(64).size)
     }
@@ -49,7 +46,6 @@ class WorkspaceTest {
         val borrowed = List(9) { ws.take(5) }
         assertAllDistinct(borrowed, "deep pool")
         for (b in borrowed) assertEquals(5, b.size)
-        // Returning them all makes the same buffers available again, without growing further.
         for (b in borrowed) ws.release(b)
         val second = List(9) { ws.take(5) }
         assertAllDistinct(second, "deep pool after release")
@@ -71,7 +67,6 @@ class WorkspaceTest {
         val borrowed = List(3) { ws.take(6) }
         assertAllDistinct(borrowed, "reserved")
         for (b in borrowed) assertEquals(6, b.size)
-        // Reserving again for a width already deeper than the request must not shrink it.
         ws.reserve(6, count = 1)
         for (b in borrowed) ws.release(b)
         assertAllDistinct(List(3) { ws.take(6) }, "after re-reserve")
@@ -100,7 +95,6 @@ class WorkspaceTest {
     fun `releasing a foreign buffer is an error`() {
         val ws = Workspace()
         assertFailsWith<IllegalStateException> { ws.release(DoubleArray(4)) }
-        // A buffer of a width this workspace has lent before is still foreign if it came from elsewhere.
         ws.release(ws.take(4))
         assertFailsWith<IllegalStateException> { ws.release(DoubleArray(4)) }
     }

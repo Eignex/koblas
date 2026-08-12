@@ -9,27 +9,9 @@ import com.eignex.koblas.sparse.SparseVectorKernels
 import kotlin.math.abs
 import kotlin.math.sqrt
 
-// Arithmetic over [VectorView] / [MatrixView] as free functions; the view types stay read-only.
-//
-// Iteration goes through [forEachStored], which dispatches dense to all-indices and sparse to stored
-// entries. Dense-by-dense paths call the active `VectorKernels` through `koblas.vectorKernels` -- the compiled-in
-// SIMD or scalar kernels, or a registered host BLAS for runs long enough to pay for the call.
-//
-// Naming: mutating functions take the destination first and return [Unit] (`scale`,
-// `axpy`, `ger`); allocating functions return a fresh result (`gemv`,
-// infix `dot`).
-//
-// Naming follows the library-wide rule: BLAS routines keep their standard mnemonics, LAPACK routines get
-// English names. Two deliberate exceptions live here. `norm2` and `asum` spell out what BLAS calls
-// `nrm2` and `asum`, because `norm2` pairs with `norm1` (which is LAPACK `dlange`, not BLAS) and reading
-// them side by side matters more than matching four characters exactly. And `iamax` keeps its mnemonic
-// rather than becoming `indexOfMaxAbs`, since it is unambiguous to anyone who has met BLAS.
-
 /**
- * Visit each stored entry of [this] as `(index, value)`, in ascending index order for any storage.
- * For [DenseVector] that's every index in `0 until size`; for [SparseVector] that's the entries present
- * in the parallel index/value arrays (which may include numerical zeros); for any other [VectorLike] it is
- * every index, read through [VectorLike.get].
+ * Visit each stored entry as (index, value), in ascending index order for any storage. A [SparseVector]
+ * may present numerical zeros as stored, and any other [VectorLike] has every index visited.
  */
 public inline fun VectorLike.forEachStored(block: (i: Int, v: Double) -> Unit) {
     when (this) {
@@ -44,20 +26,11 @@ public inline fun VectorLike.forEachStored(block: (i: Int, v: Double) -> Unit) {
             for (k in idx.indices) block(idx[k], vals[k])
         }
 
-        // A foreign VectorLike: koblas cannot know which entries it considers stored, so every index is
-        // visited, which is what "stored" means for a dense vector anyway.
         else -> for (i in 0 until size) block(i, this[i])
     }
 }
 
-/**
- * `aT * b`. Dense×dense routes through the active [com.eignex.koblas.dense.VectorKernels]; a mixed pair
- * walks the sparse side and gathers from the dense one; anything else is read entry by entry.
- *
- * Every combination involving a sparse operand goes through [SparseVectorKernels], where a host sparse
- * BLAS could replace it: `usdot` against a dense vector, and a single-pass merge of the two ascending
- * index lists when both are sparse.
- */
+/** `aT * b`. Any sparse operand goes through [SparseVectorKernels], walking the stored entries only. */
 public infix fun VectorLike.dot(other: VectorLike): Double {
     requireShape(size == other.size) { "size mismatch: $size vs ${other.size}" }
     if (this is DenseVector && other is DenseVector) {
@@ -66,32 +39,24 @@ public infix fun VectorLike.dot(other: VectorLike): Double {
     if (this is SparseVector && other is SparseVector) return koblas.sparseVectorKernels.dot(this, other)
     if (this is SparseVector && other is DenseVector) return koblas.sparseVectorKernels.dot(this, other.data)
     if (this is DenseVector && other is SparseVector) return koblas.sparseVectorKernels.dot(other, data)
-    // At least one operand is a foreign VectorLike, so neither storage is known: the generic path, reached
-    // through `get` on both sides. Unreachable while the view roots were sealed, and reachable since they
-    // opened, which is what an adapter from another library arrives as.
     var s = 0.0
     for (i in 0 until size) s += this[i] * other[i]
     return s
 }
 
 /**
- * Euclidean norm `||v||₂` (BLAS `dnrm2`). Sparse vectors sum over stored entries only.
- *
- * The fast path is a plain `sqrt(sum of squares)`; when that sum overflows or drowns in underflow
- * (components beyond roughly `1e±150`), a rescaled two-pass recovers the netlib-accurate result, so
- * any finite input yields the correct norm.
+ * Euclidean norm (BLAS `dnrm2`). Rescales when the sum of squares would overflow or underflow, so any
+ * finite input gives the correct norm.
  */
 public fun norm2(v: VectorLike): Double = when (v) {
     is DenseVector -> koblas.vectorKernels.nrm2(v.data, 0, v.size)
 
     is SparseVector -> koblas.sparseVectorKernels.nrm2(v)
 
-    // A foreign vector has no backing to hand a kernel, so it is materialised first. The rescaling this
-    // needs is not worth reimplementing per storage.
     else -> euclideanNorm(v.toDoubleArray(), 0, v.size)
 }
 
-/** Sum of absolute values `Sum |v_i|` (BLAS `dasum`). Sparse vectors sum over stored entries only. */
+/** Sum of absolute values (BLAS `dasum`). Sparse vectors sum over stored entries only. */
 public fun asum(v: VectorLike): Double = when (v) {
     is DenseVector -> koblas.vectorKernels.asum(v.data, 0, v.size)
 
@@ -105,10 +70,8 @@ public fun asum(v: VectorLike): Double = when (v) {
 }
 
 /**
- * Index of the first entry with maximal `|v_i|` (BLAS `idamax`), or `-1` for a zero-length vector.
- * "First" is by index for either storage: a [SparseVector]'s stored entries are ascending, so its
- * storage order *is* index order and the two contracts agree. An all-unstored (zero) vector returns index
- * 0, matching the dense zero vector.
+ * Index of the entry with maximal absolute value (BLAS `idamax`), -1 for a zero-length vector.
+ * Ties resolve to the lowest index, and a vector with no stored entries returns 0.
  */
 public fun iamax(v: VectorLike): Int {
     if (v.size == 0) return -1
@@ -124,7 +87,7 @@ public fun iamax(v: VectorLike): Int {
     return if (best == -1) 0 else best // no stored entries: the zero vector's max is its first element
 }
 
-/** `dst = src` (BLAS `dcopy`). Dense sources bulk-copy; sparse sources zero-fill then scatter. */
+/** `dst = src` (BLAS `dcopy`). A sparse source zero-fills the destination first, so nothing survives. */
 public fun copy(src: VectorLike, dst: DenseVector) {
     requireShape(src.size == dst.size) { "size mismatch: ${src.size} vs ${dst.size}" }
     when (src) {
@@ -155,35 +118,21 @@ public fun swap(a: DenseVector, b: DenseVector) {
 }
 
 /**
- * A plane rotation: the cosine and sine that [rot] applies, plus the length it collapsed a pair to.
- *
  * @property c the cosine.
  * @property s the sine.
- * @property r the rotated length, `±hypot(a, b)` — what `a` becomes and what `b` becomes zero from.
+ * @property r the rotated length `±hypot(a, b)`, what `a` becomes as `b` goes to zero.
  */
 public class Givens internal constructor(public val c: Double, public val s: Double, public val r: Double)
 
 /**
- * Generate the plane rotation that zeroes [b] against [a] (BLAS `drotg`).
- *
- * Scales by the larger magnitude before squaring, so a pair whose squares would overflow or vanish still
- * produces the right rotation — the same reason [norm2] rescales, and not optional: `hypot(1e200, 1e200)`
- * is representable while `1e200²` is not.
- *
- * Follows netlib `drotg`'s sign convention rather than inventing one, since a caller reconstructing the
- * factorization depends on it: `r` takes the sign of whichever input was larger in magnitude. The
- * degenerate all-zero pair yields the identity rotation (`c = 1`, `s = 0`, `r = 0`) rather than a `NaN`.
- *
- * Together with [rot] this is what a factorization *update* needs — QR or Cholesky update and downdate,
- * and the Forrest-Tomlin basis update a simplex uses. koblas has none of those yet; this is the primitive
- * they all require.
+ * Generate the plane rotation that zeroes [b] against [a] (BLAS `drotg`), rescaling so squares that would
+ * overflow or vanish still rotate correctly. Netlib sign convention; the all-zero pair gives the identity.
  */
 public fun rotg(a: Double, b: Double): Givens {
     if (b == 0.0 && a == 0.0) return Givens(c = 1.0, s = 0.0, r = 0.0)
     val absA = abs(a)
     val absB = abs(b)
     val scale = maxOf(absA, absB)
-    // Factor the larger out before squaring; both ratios are then at most 1.
     val ra = a / scale
     val rb = b / scale
     val magnitude = scale * sqrt(ra * ra + rb * rb)
@@ -196,13 +145,8 @@ public fun rotg(a: Double, b: Double): Givens {
 }
 
 /**
- * Apply a plane rotation to a pair of vectors in place (BLAS `drot`): each `(x_i, y_i)` becomes
- * `(c·x_i + s·y_i, c·y_i − s·x_i)`.
- *
- * Deliberately off the [com.eignex.koblas.dense.VectorKernels] seam, for the reason that keeps `copy` and
- * `swap` off it: whether a foreign call beats the loop has to be measured, not assumed. A rotation does more
- * arithmetic per element than a copy, so it plausibly clears the bar where copy does not — but "plausibly" is
- * not a threshold. Adding it to the seam later is additive; guessing wrong now is not.
+ * Apply a plane rotation (BLAS `drot`). Each pair `(x_i, y_i)` becomes `(c*x_i + s*y_i, c*y_i - s*x_i)`,
+ * so both [x] and [y] are overwritten in place.
  */
 public fun rot(x: DenseVector, y: DenseVector, rotation: Givens) {
     requireShape(x.size == y.size) { "size mismatch: ${x.size} vs ${y.size}" }
@@ -219,7 +163,7 @@ public fun rot(x: DenseVector, y: DenseVector, rotation: Givens) {
     }
 }
 
-/** `y = y + alpha * x`. Dense `x` uses SIMD; sparse `x` walks stored entries. */
+/** `y = y + alpha * x`. A sparse `x` touches only the positions it stores. */
 public fun axpy(y: DenseVector, alpha: Double, x: VectorLike) {
     requireShape(y.size == x.size) { "size mismatch: ${y.size} vs ${x.size}" }
     if (alpha == 0.0) return
@@ -237,11 +181,8 @@ public fun scale(v: DenseVector, alpha: Double) {
 }
 
 /**
- * Rank-one update `A = A + alpha · x · yᵀ` (BLAS `dger`). Subtract by passing `alpha = -1.0`.
- *
- * Two dense operands dispatch to the installed backend through [LinearAlgebra.ger]. A sparse or mixed
- * pair has no BLAS counterpart and stays here, visiting only the rows and columns where `x_i · y_j`
- * can be non-zero.
+ * Rank-one update `A = A + alpha * x * yT` (BLAS `dger`), in place on [a]. Subtract by passing
+ * `alpha = -1.0`.
  */
 public fun ger(alpha: Double, x: VectorLike, y: VectorLike, a: DenseMatrix) {
     requireShape(a.rows == x.size && a.cols == y.size) {
@@ -252,9 +193,6 @@ public fun ger(alpha: Double, x: VectorLike, y: VectorLike, a: DenseMatrix) {
         koblas.ger(alpha, x.data, y.data, a)
         return
     }
-    // Mixed or sparse: no BLAS routine takes these, so walk the stored entries. Skipping a zero entry of
-    // y skips a whole column of updates, which is the point of accepting a sparse operand at all. The
-    // column is the outer loop because columns are the contiguous axis.
     val md = a.data
     val rows = a.rows
     y.forEachStored { j, yj ->
@@ -266,11 +204,7 @@ public fun ger(alpha: Double, x: VectorLike, y: VectorLike, a: DenseMatrix) {
     }
 }
 
-/**
- * Symmetric rank-1 update `A += alpha · x · xᵀ` (BLAS `dsyr`); see [Blas.syr].
- *
- * The symmetric counterpart of [ger], and what accumulating a covariance one observation at a time is.
- */
+/** Symmetric rank-1 update `A += alpha * x * xT` (BLAS `dsyr`), in place on [a]. See [Blas.syr]. */
 public fun syr(alpha: Double, x: VectorLike, a: DenseMatrix, uplo: Uplo = Uplo.FULL): Unit = koblas.syr(
     alpha,
     x,
@@ -278,19 +212,13 @@ public fun syr(alpha: Double, x: VectorLike, a: DenseMatrix, uplo: Uplo = Uplo.F
     uplo,
 )
 
-/** Symmetric rank-2 update `A += alpha · (x · yᵀ + y · xᵀ)` (BLAS `dsyr2`); see [Blas.syr2]. */
+/** Symmetric rank-2 update `A += alpha * (x * yT + y * xT)` (BLAS `dsyr2`), in place on [a]. See [Blas.syr2]. */
 public fun syr2(alpha: Double, x: VectorLike, y: VectorLike, a: DenseMatrix, uplo: Uplo = Uplo.FULL): Unit =
     koblas.syr2(alpha, x, y, a, uplo)
 
 /**
- * Matrix 1-norm: the maximum absolute column sum (LAPACK `dlange` with norm `1`). This is the `anorm`
- * input [LinearAlgebra.rcond] expects, computed on the matrix before factoring, so a solver that
- * estimates conditioning each refactorization calls both.
- *
- * Takes no workspace, unlike [LinearAlgebra.rcond], because it needs no scratch: a column is contiguous,
- * so each column sum completes before the next begins and one accumulator suffices. Row-major storage would
- * force a running total per column and therefore an `n`-wide array, which is the only reason such a routine
- * would take a workspace at all.
+ * Matrix 1-norm, the maximum absolute column sum (LAPACK `dlange` with norm 1). This is the `anorm`
+ * [LinearAlgebra.rcond] expects, computed before the matrix is factored.
  */
 public fun norm1(a: DenseMatrix): Double {
     val ad = a.data
@@ -305,14 +233,7 @@ public fun norm1(a: DenseMatrix): Double {
     return m
 }
 
-/**
- * Matrix infinity-norm: the maximum absolute row sum (LAPACK `dlange` with norm `I`).
- *
- * The awkward one under column-major storage, and the reason it takes a workspace where [norm1] does not.
- * A column is contiguous, so a column sum finishes before the next begins and one accumulator serves;
- * row sums all advance together, so this needs a `rows`-wide running total. That is exactly the array
- * `norm1` itself needed back when the storage was row-major.
- */
+/** Matrix infinity-norm, the maximum absolute row sum (LAPACK `dlange` with norm I). */
 public fun normInf(a: DenseMatrix, workspace: Workspace? = null): Double {
     val rows = a.rows
     if (rows == 0 || a.cols == 0) return 0.0
@@ -329,26 +250,10 @@ public fun normInf(a: DenseMatrix, workspace: Workspace? = null): Double {
     return m
 }
 
-/**
- * Frobenius norm: `sqrt(Sum a_ij²)` (LAPACK `dlange` with norm `F`).
- *
- * One pass over the flat backing, and it reuses the shared rescaling rather than growing a third copy of
- * it — a matrix whose entries square out of range is no less likely than a vector's.
- */
+/** Frobenius norm (LAPACK `dlange` with norm F). Rescales like [norm2] against overflow and underflow. */
 public fun normFro(a: DenseMatrix): Double = euclideanNorm(a.data, 0, a.data.size)
 
-/**
- * Scale row `i` of [a] by `d[i]`, in place — the product `D · A` for the diagonal `D` whose entries are [d].
- *
- * A diagonal is a vector everywhere it actually turns up, so this takes one: equilibration, a Jacobi
- * preconditioner and per-feature normalization are all this call, and none of them wants an `n²` matrix
- * built to hold `n` numbers. The sparse LU keeps its own equilibration scaling as a `DoubleArray` for the
- * same reason.
- *
- * The awkward direction under column-major storage, and the counterpart of [scaleColumns]: a row's entries
- * sit `rows` apart, so this strides where [scaleColumns] sweeps contiguously. Prefer scaling columns where
- * the algorithm lets you choose.
- */
+/** Scale row i of [a] by d(i) in place, the product `D * A` for the diagonal D with entries [d]. */
 public fun scaleRows(a: DenseMatrix, d: DoubleArray) {
     requireShape(d.size == a.rows) { "scaleRows: d length ${d.size} != ${a.rows} rows" }
     val rows = a.rows
@@ -359,13 +264,7 @@ public fun scaleRows(a: DenseMatrix, d: DoubleArray) {
     }
 }
 
-/**
- * Scale column `j` of [a] by `d[j]`, in place — the product `A · D` for the diagonal `D` whose entries
- * are [d].
- *
- * The cheap direction: a column is one contiguous run, so each scaling is a single [scale] over it and
- * reaches the same vector kernels every other contiguous sweep in koblas does.
- */
+/** Scale column j of [a] by d(j) in place, the product `A * D` for the diagonal D with entries [d]. */
 public fun scaleColumns(a: DenseMatrix, d: DoubleArray) {
     requireShape(d.size == a.cols) { "scaleColumns: d length ${d.size} != ${a.cols} columns" }
     val rows = a.rows
@@ -375,14 +274,7 @@ public fun scaleColumns(a: DenseMatrix, d: DoubleArray) {
     }
 }
 
-/**
- * Scale column `j` of [a] by `d[j]`, in place, for a CSC matrix.
- *
- * The column scaling is the one that stays local on this storage: column `j`'s entries are a contiguous
- * run of [SparseMatrix.values], and the pattern is untouched. Scaling *rows* has no counterpart here on
- * purpose — it would reach every stored entry through its row index, which is a different operation with a
- * different cost, and nothing needs it yet.
- */
+/** Scale column j of [a] by d(j), in place, for a CSC matrix. The pattern is untouched. */
 public fun scaleColumns(a: SparseMatrix, d: DoubleArray) {
     requireShape(d.size == a.cols) { "scaleColumns: d length ${d.size} != ${a.cols} columns" }
     for (j in 0 until a.cols) {
@@ -392,26 +284,14 @@ public fun scaleColumns(a: SparseMatrix, d: DoubleArray) {
     }
 }
 
-/**
- * Column [j] as a fresh vector — a contiguous `copyOfRange` of the backing, since a column of a
- * column-major matrix is exactly the run `data[j * rows until (j + 1) * rows]`.
- *
- * A copy rather than a view: [DenseVector] is a bare `DoubleArray` with no offset or stride, so there is
- * nothing for a view to be. Reach into [DenseMatrix.data] directly when the copy is the cost that matters.
- */
+/** Column [j] as a fresh vector, copied rather than viewed. */
 public fun DenseMatrix.column(j: Int): DenseVector {
     require(j in 0 until cols) { "column $j outside [0,$cols)" }
     val start = j * rows
     return DenseVector.wrap(data.copyOfRange(start, start + rows))
 }
 
-/**
- * Row [i] as a fresh vector.
- *
- * The awkward direction under column-major storage, and the reason to prefer [column] where the algorithm
- * allows: consecutive entries of a row sit `rows` apart, so this gathers across the whole backing where
- * [column] copies one contiguous run.
- */
+/** Row [i] as a fresh vector, gathered across the backing. Prefer [column] where the algorithm allows. */
 public fun DenseMatrix.row(i: Int): DenseVector {
     require(i in 0 until rows) { "row $i outside [0,$rows)" }
     val out = DoubleArray(cols)
@@ -420,14 +300,12 @@ public fun DenseMatrix.row(i: Int): DenseVector {
 }
 
 /**
- * Fresh transposed matrix `Aᵀ`. Always materializes; for products against a transposed operand,
- * prefer the `transpose` flags on [LinearAlgebra.gemv] / [LinearAlgebra.gemm], which read the
- * original storage without copying.
+ * Fresh transposed matrix. For products, prefer the transpose flags on [LinearAlgebra.gemv] and
+ * [LinearAlgebra.gemm], which read the original storage without copying.
  */
 public fun DenseMatrix.transpose(): DenseMatrix {
     val t = DenseMatrix(cols, rows)
     val td = t.data
-    // Reads down a contiguous source column and writes across a stride in the destination.
     for (j in 0 until cols) {
         val base = j * rows
         for (i in 0 until rows) td[j + i * cols] = data[base + i]
@@ -436,28 +314,17 @@ public fun DenseMatrix.transpose(): DenseMatrix {
 }
 
 /**
- * Fresh transposed matrix `Aᵀ`, still CSC — which makes this the CSC-to-CSR conversion as well.
- *
- * Worth more than symmetry with [DenseMatrix.transpose]: transposing compressed-sparse-column *is*
- * compressed-sparse-row of the original, so this is what a host library wanting row-major sparse input
- * needs (MKL's inspector-executor in CSR mode, some CHOLMOD paths). Groundwork for a host sparse backend
- * as much as a missing routine.
- *
- * Two counting passes, no searching: tally the entries per row of `this` to lay out the result's `colPtr`,
- * then scatter each entry to its place. `O(nnz + rows + cols)`.
- *
- * Explicitly stored zeros survive, because equality on [SparseMatrix] distinguishes them — dropping them
- * here would make `transpose().transpose()` a different matrix from the original.
+ * Fresh transposed matrix, still CSC, which makes this the CSC-to-CSR conversion as well. Explicitly
+ * stored zeros survive.
  */
 public fun SparseMatrix.transpose(): SparseMatrix {
     val outPtr = IntArray(rows + 1)
-    // Pass one: outPtr[i + 1] counts the entries in row i, then a prefix sum turns counts into offsets.
+    // Counts of row i land in outPtr(i + 1), then a prefix sum turns them into offsets.
     for (k in rowIdx.indices) outPtr[rowIdx[k] + 1]++
     for (i in 0 until rows) outPtr[i + 1] += outPtr[i]
     val outIdx = IntArray(values.size)
     val outVal = DoubleArray(values.size)
-    // Pass two: walking source columns in order means each destination column receives its row indices
-    // ascending, which is the invariant the constructor requires.
+    // Walking source columns in order leaves each destination column's row indices ascending.
     val next = outPtr.copyOf()
     for (j in 0 until cols) {
         for (k in colPtr[j] until colPtr[j + 1]) {
@@ -470,22 +337,8 @@ public fun SparseMatrix.transpose(): SparseMatrix {
 }
 
 /**
- * Matrix-vector product `this · x` into a fresh dense result (BLAS `dgemv` with `alpha = 1`, `beta = 0`).
- *
- * Named for `DenseMatrix.matMul` rather than `gemv`, because it is not the BLAS routine: it accepts any
- * [MatrixLike] against any [VectorLike], which is a shape the standard has no counterpart for. Reserving
- * `gemv` for the seam members keeps one name from meaning three vocabularies across three packages.
- *
- * The view-taking form exists for the same reason [ger] has one: a [SparseVector] operand has no BLAS
- * counterpart, and walking only its stored entries is the point of passing one. Two dense operands
- * dispatch to the backend, so this is a shape adapter rather than a second implementation.
- *
- * Every combination of the two storages resolves to a loop over stored entries only. That matters most
- * for a [SparseMatrix] operand: the generic fallback below reads through [MatrixView.get], which on CSC
- * is a search per entry, so a sparse matrix taking that path would cost `rows × cols` searches instead of
- * the `nnz` the representation exists to deliver.
- *
- * No `transpose` flag: for a sparse matrix use [com.eignex.koblas.sparse.gemv], which takes one.
+ * Matrix-vector product into a fresh dense result (BLAS `dgemv` with `alpha = 1`, `beta = 0`), for any
+ * [MatrixLike] against any [VectorLike]. No transpose flag; [com.eignex.koblas.sparse.gemv] takes one.
  */
 public fun MatrixLike.matVec(x: VectorLike): DenseVector {
     val a = this
@@ -494,22 +347,19 @@ public fun MatrixLike.matVec(x: VectorLike): DenseVector {
     val out = DenseVector(a.rows)
     val od = out.data
     if (a is DenseMatrix) {
-        // One axpy per stored entry of x, down a contiguous column — so a sparse x touches only the
-        // columns it has entries in, which is the reason this overload exists.
+        // One axpy per stored entry of x, down a contiguous column.
         val ad = a.data
         val rows = a.rows
         x.forEachStored { j, v ->
             if (v != 0.0) koblas.vectorKernels.axpy(od, 0, v, ad, j * rows, rows)
         }
     } else if (a is SparseMatrix) {
-        // Column j of A scaled by x_j, accumulated: only the stored entries of both operands are read,
-        // whichever storage x has.
+        // Accumulating column j of A scaled by x(j) reads only the stored entries of both operands.
         x.forEachStored { j, v ->
             if (v != 0.0) a.forEachInColumn(j) { i, aij -> od[i] += aij * v }
         }
     } else {
-        // A foreign MatrixLike: every entry through `get`, which is why handing koblas its own storage
-        // matters when the data is large.
+        // A foreign MatrixLike is read entry by entry.
         for (i in 0 until a.rows) {
             var s = 0.0
             x.forEachStored { j, v -> s += a[i, j] * v }

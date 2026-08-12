@@ -22,18 +22,12 @@ import kotlin.test.assertEquals
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/**
- * The level-1 seam: that a registered [VectorKernels] is reached for long runs, is not reached for short ones, and
- * that ranking and overriding behave like the other two halves.
- */
 class VectorKernelsTest {
 
-    /** Records what it was asked to do and delegates the arithmetic to a plain loop. */
     private class Recording(override val priority: Int = 90) : VectorKernels {
         override var name: String = "recording"
             private set
 
-        /** Names this instance, so a routed `platform+name` assertion can tell two of them apart. */
         fun named(n: String): Recording = also { it.name = n }
         var dots = 0
         var axpys = 0
@@ -74,11 +68,6 @@ class VectorKernelsTest {
         }
     }
 
-    // No @AfterTest restore: every test that touches the registry wraps itself in withCleanBackends, which
-    // saves and re-registers the incumbents. Resetting and calling registerPlatformBackends() instead only
-    // worked on the JVM -- discovery is a `by lazy` that has already run, so it cannot be replayed and
-    // the platform's backend was gone for every later test.
-
     @Test
     fun `a registered backend is reached exactly above the level-1 threshold`() = withCleanBackends {
         val recording = Recording()
@@ -93,7 +82,6 @@ class VectorKernelsTest {
         } else {
             assertEquals(1, recording.dots, "a run at the threshold should route")
         }
-        // One element is below every threshold this library ships, so it must never route.
         val before = recording.dots
         val short1 = DenseVector.of(doubleArrayOf(3.0))
         val short2 = DenseVector.of(doubleArrayOf(4.0))
@@ -127,7 +115,6 @@ class VectorKernelsTest {
         asum(dense)
         assertEquals(1, recording.nrm2s, "norm2 on a dense vector did not route")
         assertEquals(1, recording.asums, "asum on a dense vector did not route")
-        // A sparse vector has no BLAS counterpart: it must stay on the stored-entry walk.
         val sparse = SparseVector(threshold, IntArray(threshold) { it }, DoubleArray(threshold) { 3.0 })
         norm2(sparse)
         asum(sparse)
@@ -135,11 +122,7 @@ class VectorKernelsTest {
         assertEquals(1, recording.asums, "asum routed a sparse vector")
     }
 
-    /**
-     * iamax stays off the seam by design; see [VectorKernels]. Its tie-breaking and NaN ranking are koblas's own
-     * contract, and `idamax` implementations disagree about the latter, so routing it would make the answer depend on
-     * whether a host library happened to be installed.
-     */
+    /** iamax stays off the seam, since `idamax` implementations disagree about NaN and koblas pins its own contract. */
     @Test
     fun `iamax does not route`() = withCleanBackends {
         val recording = Recording()
@@ -151,7 +134,6 @@ class VectorKernelsTest {
         assertEquals(0, recording.dots + recording.nrm2s + recording.asums, "iamax reached the seam")
     }
 
-    /** Ranking and overriding, read through the context rather than the seam. */
     @Test
     fun `registration keeps the highest priority and install overrides both`() = withCleanBackends {
         val platform = koblas.vectorKernels.name
@@ -167,11 +149,6 @@ class VectorKernelsTest {
         assertEquals(platform, koblas.vectorKernels.name, "a cleared registry leaves the compiled-in kernels")
     }
 
-    /**
-     * The compiled-in kernels satisfy the interface, which is the whole point of the change and could not be asserted
-     * before: they were loose `expect fun`s, so there was no object to hand to a conformance check and no way to
-     * state that they and a host backend are the same kind of thing.
-     */
     @Test
     fun `the compiled-in kernels satisfy the VectorKernels contract`() {
         val k: VectorKernels = PlatformVectorKernels
@@ -209,11 +186,6 @@ class VectorKernelsTest {
         }
     }
 
-    /**
-     * `dot4` is the one member with a default, so both halves of that need pinning: the default (four [dot] calls,
-     * which is what a host backend inherits) and the platform override (one pass sharing the `b` loads) must agree,
-     * and both must agree with four hand-written dots.
-     */
     @Test
     fun `the dot4 default and the platform override agree`() {
         val a = DoubleArray(4 * 30) { it * 0.25 - 5.0 }
@@ -228,10 +200,8 @@ class VectorKernelsTest {
             expected[r] = s
         }
 
-        // The interface default. Recording implements the five required members and not dot4, so it
-        // inherits it -- and being a counter, it also proves the default is four `dot` calls rather than
-        // some other route. Delegating with `by PlatformVectorKernels` would NOT work here: delegation
-        // forwards every member including the defaulted one, so it would silently test the override twice.
+        // Recording omits dot4, so this measures the interface default. Delegating with `by PlatformVectorKernels`
+        // would forward the defaulted member and silently test the override twice.
         val inherited = Recording()
         val viaDefault = DoubleArray(4)
         inherited.dot4(a, 0, stride, b, 0, len, viaDefault, 0)
@@ -246,7 +216,6 @@ class VectorKernelsTest {
         }
     }
 
-    /** The rescaling contract the interface states: a plain sum of squares would overflow here. */
     @Test
     fun `the compiled-in nrm2 survives components that square out of range`() {
         val big = doubleArrayOf(3e200, 4e200)
@@ -255,7 +224,6 @@ class VectorKernelsTest {
         assertEquals(5e-200, PlatformVectorKernels.nrm2(tiny, 0, 2), absoluteTolerance = 1e-212)
     }
 
-    /** With nothing registered the routed kernels are the platform ones, and mathBackend says so. */
     @Test
     fun `the routed kernels report the platform name and gain a suffix for a host`() = withCleanBackends {
         assertEquals(PlatformVectorKernels.name, koblas.vectorKernels.name)
@@ -266,7 +234,6 @@ class VectorKernelsTest {
         assertEquals(PlatformVectorKernels.name, koblas.vectorKernels.name)
     }
 
-    /** The reset hook clears the override too, not only the registration. */
     @Test
     fun `the reset hook clears the install override too`() = withCleanBackends {
         val platform = koblas.vectorKernels.name

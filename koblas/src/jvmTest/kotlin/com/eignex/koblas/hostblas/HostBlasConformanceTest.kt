@@ -15,7 +15,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/** The JVM host-BLAS backend against the portable reference. */
 @Category(HostLibraryTest::class)
 class HostBlasConformanceTest {
 
@@ -35,7 +34,6 @@ class HostBlasConformanceTest {
     @Test
     fun `the host backend resolves when the machine has OpenBLAS`() {
         Assume.assumeTrue("host CBLAS is not installed", HostBlasCalls.available)
-        // Either the backend's own name or a composed one, depending on whether LAPACKE resolved too.
         assertTrue(koblasInfo.contains("openblas"), koblasInfo)
     }
 
@@ -54,7 +52,6 @@ class HostBlasConformanceTest {
         }
     }
 
-    /** The routines whose gates are shut by default, exercised anyway. */
     @Test
     fun `the gated level 2 and 3 routines match reference when their gates are opened`() {
         Assume.assumeTrue("host CBLAS is not installed", HostBlasCalls.available)
@@ -107,7 +104,6 @@ class HostBlasConformanceTest {
                 }
             }
         }
-        // ger, over shapes and the alpha BLAS treats specially.
         for ((rows, cols) in listOf(24 to 24, 30 to 9)) {
             for (alpha in doubleArrayOf(0.0, -0.75)) {
                 val xv = DoubleArray(rows) { rng.nextDouble(-1.0, 1.0) }
@@ -146,14 +142,12 @@ class HostBlasConformanceTest {
         }
     }
 
-    /** The SPD suite — `dpotrf`, `dpotrs`, `dpotri` — against the portable implementation. */
     @Test
     fun `the SPD suite matches reference where the gates open`() {
         Assume.assumeTrue("host LAPACKE is not installed", HostBlasCalls.lapackAvailable)
         val host = HostLapack()
         val rng = Random(20260807)
-        // Comfortably above cholesky's gate of 32 and invertSpd's of 16, and small enough that the portable
-        // comparison is not the slow part of the suite.
+        // Above cholesky's gate of 32 and invertSpd's of 16, and small enough to keep the portable comparison quick.
         val n = 256
         val a = spdMatrix(n, rng)
         for (i in 0 until n) for (j in i + 1 until n) a[i, j] = Double.NaN
@@ -190,10 +184,8 @@ class HostBlasConformanceTest {
     }
 
     /**
-     * A non-positive-definite input has no LAPACK equivalent: `dpotrf` reports the failing leading minor rather than
-     * clamping it, so the host path hands the whole factorization back to the portable one. Both policies must
-     * therefore behave identically on both backends — asserted at a size above the gate, since below it the host path
-     * is not involved at all.
+     * A non-positive-definite input has no LAPACK equivalent, so the host path hands the whole factorization
+     * back to the portable one. Asserted above the gate, because below it the host path is not involved.
      */
     @Test
     fun `a non positive definite input falls back to the portable path`() {
@@ -211,7 +203,6 @@ class HostBlasConformanceTest {
         assertFailsWith<IllegalArgumentException> { host.cholesky(bad) }
     }
 
-    /** `dgeqp3` against the portable pivoted QR. */
     @Test
     fun `pivoted QR matches reference in rank and reconstruction`() {
         Assume.assumeTrue("host LAPACKE is not installed", HostBlasCalls.lapackAvailable)
@@ -219,8 +210,7 @@ class HostBlasConformanceTest {
         val rng = Random(20260809)
         val m = 96
         for (rank in intArrayOf(64, 40)) {
-            // A rank-deficient matrix as a product of full-rank factors, so the rank is known rather than
-            // inferred: 64 is full column rank here, 40 is deficient.
+            // A rank-deficient product of full-rank factors, where 64 is full column rank and 40 is deficient.
             val left = randomMatrix(rng, m, rank)
             val right = randomMatrix(rng, rank, 64)
             val a = DenseMatrix(m, 64)
@@ -231,7 +221,6 @@ class HostBlasConformanceTest {
             assertEquals(expected.rank, actual.rank, "rank of a ${m}x64 matrix built at rank $rank")
             assertEquals((0 until 64).toList(), actual.pivots.sorted(), "pivots must be a permutation")
 
-            // A·P = Q·R, column by column, which is the only statement about P that holds for both.
             for (j in 0 until 64) {
                 val rColumn = DoubleArray(m)
                 for (i in 0..minOf(j, actual.factorization.tau.size - 1)) {
@@ -252,7 +241,6 @@ class HostBlasConformanceTest {
         }
     }
 
-    /** A symmetric positive-definite matrix: symmetrized noise with a dominant diagonal. */
     private fun spdMatrix(n: Int, rng: Random): DenseMatrix {
         val a = DenseMatrix(n, n)
         for (i in 0 until n) {
