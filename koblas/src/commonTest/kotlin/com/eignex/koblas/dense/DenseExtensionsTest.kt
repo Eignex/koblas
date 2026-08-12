@@ -8,10 +8,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/**
- * The fluent spellings of the dense factorizations. Each one has to agree with the member it forwards to,
- * which is what makes it a spelling rather than a second implementation.
- */
 class DenseExtensionsTest {
 
     private val square = DenseMatrix.of(
@@ -40,8 +36,7 @@ class DenseExtensionsTest {
 
     @Test
     fun `qrPivoted passes the tolerance through rather than defaulting it`() {
-        // A tolerance loose enough to call the second column dependent must lower the reported rank; if
-        // the extension dropped the argument, both calls would agree.
+        // The loose tolerance is what lowers the rank, so an extension dropping the argument would make both agree.
         val automatic = tall.qrPivoted().rank
         val loose = tall.qrPivoted(tolerance = 0.9).rank
         assertEquals(2, automatic)
@@ -55,7 +50,6 @@ class DenseExtensionsTest {
         assertClose(koblas.invert(lu).data, lu.invert().data, "lu invert")
         val anorm = norm1(square)
         assertEquals(koblas.rcond(lu, anorm), lu.rcond(anorm), "lu rcond")
-        // The transposed direction and the blocked form reach the same routines.
         assertClose(koblas.solve(lu, b3, transpose = true), lu.solve(b3, transpose = true), "lu solve transposed")
         val rhs = DenseMatrix.ofColumns(arrayOf(b3, doubleArrayOf(0.0, 1.0, 0.0)))
         assertClose(koblas.solve(lu, rhs).data, lu.solve(rhs).data, "lu blocked solve")
@@ -83,7 +77,6 @@ class DenseExtensionsTest {
 
     @Test
     fun `the LU solve actually solves the system`() {
-        // The extensions are thin, but thin is not the same as correct: check one residual end to end.
         val x = square.lu().solve(b3)
         for (i in 0 until 3) {
             var s = 0.0

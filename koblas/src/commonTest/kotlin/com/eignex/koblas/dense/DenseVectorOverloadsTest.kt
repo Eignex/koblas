@@ -9,11 +9,6 @@ import kotlin.test.Test
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/**
- * The [DenseVector] spellings of the seam. Each has to agree with its `DoubleArray` sibling, and the
- * in-place forms must write through to the vector rather than to a copy — which is the whole point of
- * forwarding `DenseVector.data` instead of materialising it.
- */
 class DenseVectorOverloadsTest {
 
     private val a = DenseMatrix.of(
@@ -108,7 +103,6 @@ class DenseVectorOverloadsTest {
 
     @Test
     fun `the in-place forms write through to the vector rather than a copy`() {
-        // Forwarding `.data` is what makes this zero-copy; materialising would leave the operand untouched.
         val x = DenseVector.of(raw)
         val before = x.data
         koblas.trsv(lower, x, lower = true)

@@ -11,16 +11,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * One singularity contract, enforced on whichever backend is active.
- *
- * Every path into a solve is listed here on purpose. The guard lives in each `solveInto`, and the ones a
- * host backend overrides are only exercised on the targets where that backend loads — so this suite is the
- * thing that says the contract holds everywhere rather than only on the reference implementation.
- */
 class SingularSolveTest {
 
-    /** Rank one, so the second pivot is exactly zero. */
     private fun singular() = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 4.0)))
 
     private val b = doubleArrayOf(1.0, 1.0)
@@ -57,7 +49,6 @@ class SingularSolveTest {
 
     @Test
     fun `a non-singular factorization still solves`() {
-        // The guard must not reject a good factorization, which is the way this could go wrong quietly.
         val a = DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0)))
         val x = a.lu().solve(doubleArrayOf(3.0, 5.0))
         assertEquals(0.8, x[0], 1e-12)
@@ -66,7 +57,6 @@ class SingularSolveTest {
 
     @Test
     fun `the sparse solve refuses on the same terms`() {
-        // The sparse side already refused; this pins that the dense and sparse contracts now agree.
         val s = SparseMatrix.ofTriplets(
             rows = 2,
             cols = 2,

@@ -2,56 +2,25 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.SparseMatrix
 
-/**
- * Which permutation the symmetric analysis eliminates in.
- *
- * A symmetric factorization eliminates down the diagonal in the order it is given, so the order decides the
- * fill — the same matrix can factor with none or with a dense triangle depending only on how its rows and
- * columns are numbered. That makes the ordering part of the analysis rather than something a caller is left
- * to arrange, which is what CHOLMOD and CSparse both concluded.
- */
 public enum class SparseOrdering {
-    /**
-     * Reorder to reduce fill, the default.
-     *
-     * The naive call should not be the slow one. A caller who has not thought about ordering gets a
-     * factorization that does not fill needlessly, and one who has can ask for [Natural].
-     */
+    /** Reorder to reduce fill, the default. */
     MinimumDegree,
 
     /**
-     * Eliminate in the order given.
-     *
-     * For a matrix that already has a good ordering — a banded assembly, a KKT system built in blocks — where
-     * rediscovering the identity permutation is work with nothing to show for it. Also the way to apply an
-     * ordering koblas does not offer: permute the matrix, then analyse it with this.
+     * Eliminate in the order given, for a matrix that already has a good one. Also the way to apply an
+     * ordering koblas does not offer, by permuting the matrix and analysing it with this.
      */
     Natural,
 }
 
 /**
- * A fill-reducing permutation by minimum degree over the quotient graph.
- *
- * At each step the variable with the fewest remaining neighbours is eliminated, which turns its neighbourhood
- * into a clique; representing that clique as an *element* rather than by adding its edges is what keeps the
- * graph from growing as the elimination proceeds, and absorbing elements into the one that supersedes them is
- * what keeps it shrinking. The heuristic is Markowitz's, restricted to the symmetric case where the row and
- * column counts are the same number.
- *
- * This is minimum degree with an exact external degree, not SuiteSparse's AMD. AMD's contribution is an
- * *approximate* degree that bounds the true one and costs less to maintain, which is what makes it near-linear
- * on large patterns; the orderings the two produce are comparable, and on the sizes koblas is built for the
- * exact degree is affordable and much harder to get subtly wrong. If analysis time ever dominates on a large
- * pattern, the approximate degree bound is the thing to add, and it slots in here without touching the seam.
- *
- * Takes the pattern of `A + Aᵀ` so it does not care which triangles are stored, and returns `perm` with
- * `perm[k]` the original index eliminated at step `k`.
+ * A fill-reducing permutation by exact minimum degree over the quotient graph. Takes the pattern of
+ * `A + Aᵀ`, so it does not care which triangles are stored, and returns the index eliminated at each step.
  */
 internal fun minimumDegreeOrdering(a: SparseMatrix): IntArray {
     val n = a.rows
     val adjacency = adjacencyOf(a, n)
-    // Per variable: the elements it belongs to. A variable's neighbourhood is its remaining direct edges
-    // together with the variables of every element it touches.
+    // A variable's neighbourhood is its remaining direct edges plus the variables of every element it is in.
     val elements = Array(n) { mutableSetOf<Int>() }
     val alive = BooleanArray(n) { true }
     val elementMembers = arrayOfNulls<MutableSet<Int>>(n)
@@ -89,15 +58,8 @@ internal fun minimumDegreeOrdering(a: SparseMatrix): IntArray {
 }
 
 /**
- * The upper triangle of `P·A·Pᵀ`, which is the matrix a permuted factorization actually eliminates.
- *
- * Reads only `A`'s upper triangle — for a symmetric matrix stored in full that is half the entries, and for
- * one stored as its upper triangle it is all of them — and maps each entry to whichever side of the permuted
- * diagonal it lands on. Each unordered pair is therefore emitted exactly once, so nothing is doubled and
- * nothing is dropped.
- *
- * Materializing rather than reading `A` through the permutation in place: the numeric phase walks columns in
- * elimination order and needs each one sorted, which a permuted view cannot promise without sorting anyway.
+ * The upper triangle of `P·A·Pᵀ`, the matrix a permuted factorization eliminates. Reads only A's upper
+ * triangle and maps each entry to whichever side of the permuted diagonal it lands on, so none is doubled.
  */
 internal fun permutedUpperTriangle(a: SparseMatrix, inversePermutation: IntArray): SparseMatrix {
     val n = a.rows
@@ -129,7 +91,7 @@ private fun adjacencyOf(a: SparseMatrix, n: Int): Array<MutableSet<Int>> {
 }
 
 /** How many live variables [v] would connect to if it were eliminated now. */
-@Suppress("LongParameterList") // the quotient graph is four parallel arrays; bundling them would allocate
+@Suppress("LongParameterList") // the quotient graph is four parallel arrays, and bundling them would allocate
 private fun degreeOf(
     v: Int,
     adjacency: Array<MutableSet<Int>>,
@@ -143,7 +105,7 @@ private fun degreeOf(
 }
 
 /** [scratch] receives the live variables adjacent to [v], directly or through an element it belongs to. */
-@Suppress("LongParameterList") // as [degreeOf]
+@Suppress("LongParameterList") // as degreeOf
 private fun collectNeighbourhood(
     v: Int,
     adjacency: Array<MutableSet<Int>>,

@@ -14,13 +14,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/**
- * The context as a value you can hold: that it is usable as a backend, that [KoblasContext.with] keeps what you did
- * not name, and that a context's own vector kernels actually reach the inner loops.
- */
 class KoblasContextTest {
 
-    /** Counts what the inner loops ask of it and computes the answer with a plain loop. */
     private class Counting(override val name: String = "counting") : VectorKernels {
         override val priority: Int get() = 0
         var dots = 0
@@ -55,9 +50,7 @@ class KoblasContextTest {
         val a = DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0)))
         val f = koblas.factor(a)
         val x = koblas.solve(f, doubleArrayOf(3.0, 5.0))
-        // Same answer through the free-function spelling, which uses this same context.
         assertContentClose(x, a.lu().solve(doubleArrayOf(3.0, 5.0)))
-        // And the sparse half answers on the same object, which is what makes one context enough.
         val s = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 4.0)))
         assertContentClose(doubleArrayOf(2.0, 8.0), koblas.gemv(s, doubleArrayOf(1.0, 2.0)))
     }
@@ -76,7 +69,6 @@ class KoblasContextTest {
         assertSame(base.vectorKernels, base.vectorKernels, "the original must be untouched; contexts are values")
     }
 
-    /** A context's kernels reach the reference backend's inner loops. */
     @Test
     fun `a contexts own kernels reach the reference inner loops`() {
         val mine = Counting()
@@ -91,7 +83,6 @@ class KoblasContextTest {
         assertTrue(mine.dots > before, "a transposed gemv dots contiguous columns")
     }
 
-    /** The shared reference instance follows the process default instead of pinning kernels. */
     @Test
     fun `the shared reference follows the process default kernels`() {
         val mine = Counting("installed")
@@ -101,10 +92,6 @@ class KoblasContextTest {
         assertTrue(mine.axpys > 0, "ReferenceLinearAlgebra must pick up an installed context's kernels")
     }
 
-    /**
-     * The name covers the matrix halves and deduplicates them; the kernels are reported by [mathBackend] instead,
-     * because including them prefixed every name with `"simd(4 lanes)+"`.
-     */
     @Test
     fun `the name covers the matrix halves and not the kernels`() {
         val counting = Counting()

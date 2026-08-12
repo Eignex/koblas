@@ -13,73 +13,49 @@ import kotlin.math.log2
 import kotlin.math.pow
 
 /**
- * Sparse LU factorization `P·B·Q = L·U` of an `m × m` matrix, with **Markowitz threshold pivoting**: at
- * each step the pivot (near-)minimises fill (the Markowitz count `(rowNnz−1)·(colNnz−1)` over the active
- * submatrix, searched over a bounded set of lowest-count candidate columns à la Suhl & Suhl) among
- * entries that are numerically acceptable (`|a| ≥ τ·max|column|`), so the factors stay sparse instead of
- * filling toward `O(m²)`. Both a row permutation `P` and a column permutation `Q` are
- * produced; only the nonzeros of `L`/`U` are stored, so memory is `O(nnz)`.
- *
- * Right-looking Gaussian elimination over per-row hash maps; the factors are frozen into sparse arrays
- * in both orientations (indexed by **pivot position**) so both solve directions are `O(nnz)` triangular
- * solves. The forward direction's result is scattered back to original-column order by `Q`; the
- * transposed direction's right-hand side is gathered by `Q`.
- *
- * The portable [SparseFactorization]. Produced by [SparseLapack.factor] rather than constructed directly,
- * so a caller that holds the interface can be handed a host solver's factors instead without changing.
- * A singular matrix yields [SingularSparseFactorization], never an instance of this class — every
- * `SparseLu` is a complete factorization, which is why [failedAt] is constantly [NOT_SINGULAR].
+ * Sparse LU factorization `P·B·Q = L·U` of an `m × m` matrix with Markowitz threshold pivoting. The factors
+ * are held in both orientations, indexed by pivot position.
  */
 public class SparseLu private constructor(
     private val m: Int,
-    private val perm: IntArray, // perm[k] = original row index now at pivot position k
-    private val colPerm: IntArray, // colPerm[k] = original column index now at pivot position k
-    private val lRowIdx: Array<IntArray>, // L by row (pivot positions < k; unit diagonal implicit)
+    private val perm: IntArray, // perm(k) is the original row now at pivot position k
+    private val colPerm: IntArray, // colPerm(k) is the original column now at pivot position k
+    private val lRowIdx: Array<IntArray>, // L by row, pivot positions < k, unit diagonal implicit
     private val lRowVal: Array<DoubleArray>,
-    private val uRowIdx: Array<IntArray>, // U by row (pivot positions ≥ k); first entry of row k is the diagonal
+    private val uRowIdx: Array<IntArray>, // U by row, pivot positions >= k, the diagonal first in each row
     private val uRowVal: Array<DoubleArray>,
-    private val lColIdx: Array<IntArray>, // L by column (pivot positions > k)
+    private val lColIdx: Array<IntArray>, // L by column, pivot positions > k
     private val lColVal: Array<DoubleArray>,
-    private val uColIdx: Array<IntArray>, // U by column (pivot positions < k, strictly upper)
+    private val uColIdx: Array<IntArray>, // U by column, pivot positions < k, strictly upper
     private val uColVal: Array<DoubleArray>,
     private val uDiag: DoubleArray,
-    /** Per-original-row equilibration factor `eᵢ` applied before factorization (`L·U = E·B`); all 1.0
-     *  when equilibration is off. the forward sweep/the transposed sweep/[determinant] correct for it transparently. */
+    /** Per-original-row equilibration factor applied before factorization, so the factors are of `E·B`. All
+     *  1.0 when equilibration is off. The solves and [determinant] correct for it. */
     private val rowScale: DoubleArray,
-    /** Total nonzeros in `L` + `U` (incl. diagonal) — the factorization's fill. */
+    /** Nonzeros in L and U including the diagonal, the factorization's fill. */
     override val nnz: Int,
 ) : SparseFactorization {
 
     override val n: Int get() = m
 
-    /** Always false: a [SparseLu] only exists for a matrix that factored completely. */
+    /** Always [NOT_SINGULAR]: a [SparseLu] only exists for a matrix that factored completely. */
     override val failedAt: Int get() = NOT_SINGULAR
 
     /**
-     * Solve `B x = b`, or `Bᵀ x = b` when [transpose], into [out].
-     *
-     * The two directions are a simplex's FTRAN and BTRAN, and were spelled `ftran`/`btran` here until the
-     * sparse and dense halves were made to agree on one vocabulary: this is the same operation the dense
-     * `Lapack.solve` performs, so it carries the same name and the same transpose flag rather than a
-     * private one. `b` is indexed by original row and the result by original column.
+     * Solve `B x = b`, or `Bᵀ x = b` when [transpose], into [out]. `b` is indexed by original row and the
+     * result by original column.
      */
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray =
         if (transpose) btranInto(b, out, workspace) else ftranInto(b, out, workspace)
 
-    /**
-     * The forward direction of [solveInto]: `L U (Qᵀ x) = P (E b)`.
-     *
-     * Private because the seam speaks `solve`; the FTRAN name is kept here, where it names which of the two
-     * triangular sweeps this is rather than standing in for "solve".
-     */
+    /** The forward direction of [solveInto]: `L U (Qᵀ x) = P (E b)`. */
     private fun ftranInto(b: DoubleArray, out: DoubleArray, workspace: Workspace? = null): DoubleArray {
         requireShape(b.size == m) { "ftran: b size ${b.size} != $m" }
         requireShape(out.size == m) { "ftran: out size ${out.size} != $m" }
         val y = workspace?.take(m) ?: DoubleArray(m)
         val xp = workspace?.take(m) ?: DoubleArray(m)
-        // Uncleared, though a borrowed buffer holds anything: each sweep writes every position before a
-        // read reaches it — y ascending reading only idx < k, xp descending reading only idx > k.
-        // L y = P (E b) (forward); rows/cols are in pivot-position space.
+        // Left uncleared: y reads only below k and xp only above k, so a borrowed buffer's contents are dead.
+        // L y = P (E b), in pivot-position space.
         for (k in 0 until m) {
             var s = b[perm[k]] * rowScale[perm[k]]
             val idx = lRowIdx[k]
@@ -87,15 +63,15 @@ public class SparseLu private constructor(
             for (t in idx.indices) s -= v[t] * y[idx[t]]
             y[k] = s
         }
-        // U x' = y (back); x' is in pivot-column space.
+        // U x' = y, with x' in pivot-column space.
         for (k in m - 1 downTo 0) {
             var s = y[k]
             val idx = uRowIdx[k]
             val v = uRowVal[k]
-            for (t in 1 until idx.size) s -= v[t] * xp[idx[t]] // skip [0] = diagonal
+            for (t in 1 until idx.size) s -= v[t] * xp[idx[t]] // entry 0 is the diagonal
             xp[k] = s / uDiag[k]
         }
-        // x = Q x'  ⇒  x[colPerm[k]] = x'[k]. Safe in place: xp is separate storage from out.
+        // x = Q x'. Safe in place, since xp is separate storage from out.
         for (k in 0 until m) out[colPerm[k]] = xp[k]
         workspace?.release(xp)
         workspace?.release(y)
@@ -103,14 +79,14 @@ public class SparseLu private constructor(
     }
 
     /** The transposed sweep of [solveInto]: `Uᵀ Lᵀ (P x) = Q b`. `b` is indexed by original column, the
-     *  result by original row. Private for the reason [ftranInto] is. */
+     *  result by original row. */
     private fun btranInto(b: DoubleArray, out: DoubleArray, workspace: Workspace? = null): DoubleArray {
         requireShape(b.size == m) { "solve: b size ${b.size} != $m" }
         requireShape(out.size == m) { "solve: out size ${out.size} != $m" }
         val z = workspace?.take(m) ?: DoubleArray(m)
         val w = workspace?.take(m) ?: DoubleArray(m)
-        // Uncleared for the reason [ftranInto] gives: z ascending, w descending, each written before read.
-        // Uᵀ z = Qᵀ b (forward, lower).
+        // Left uncleared for the reason [ftranInto] gives. z ascends, w descends, each written before read.
+        // Uᵀ z = Qᵀ b, forward and lower.
         for (k in 0 until m) {
             var s = b[colPerm[k]]
             val idx = uColIdx[k]
@@ -118,7 +94,7 @@ public class SparseLu private constructor(
             for (t in idx.indices) s -= v[t] * z[idx[t]]
             z[k] = s / uDiag[k]
         }
-        // Lᵀ w = z (back, upper, unit diagonal).
+        // Lᵀ w = z, back, upper, unit diagonal.
         for (k in m - 1 downTo 0) {
             var s = z[k]
             val idx = lColIdx[k]
@@ -126,7 +102,7 @@ public class SparseLu private constructor(
             for (t in idx.indices) s -= v[t] * w[idx[t]]
             w[k] = s
         }
-        // x = E·x' with x[perm[k]] = w[k]·e_{perm[k]}.
+        // x = E·x', undoing the row equilibration.
         for (k in 0 until m) out[perm[k]] = w[k] * rowScale[perm[k]]
         workspace?.release(w)
         workspace?.release(z)
@@ -134,26 +110,21 @@ public class SparseLu private constructor(
     }
 
     /**
-     * `det(B)` in floating point: `sign(P)·sign(Q)·∏ uDiag / ∏ eᵢ` — the factors are of `E·B`, so the
-     * row-equilibration product is divided back out (a no-op when equilibration is off). For an integer
-     * matrix the true determinant is an integer; this float value is only a *guess* of it.
+     * `det(B)` in floating point, as `sign(P)·sign(Q)·∏ uDiag / ∏ e`. The factors are of `E·B`, so the
+     * row-equilibration product is divided back out.
      */
     override fun determinant(): Double {
         var d = permutationSign(perm) * permutationSign(colPerm)
         for (k in 0 until m) d *= uDiag[k]
-        for (i in 0 until m) d /= rowScale[i] // undo the row equilibration (rowScale all 1.0 when off)
+        for (i in 0 until m) d /= rowScale[i] // undo the row equilibration
         return d
     }
 
-    /** Factorization entrypoints for [SparseLu]. */
     public companion object {
 
         /**
-         * Factorize the square [a], the implementation behind [SparseLapack.factor].
-         *
-         * Returns a [SingularSparseFactorization] rather than null when no acceptable pivot remains: a
-         * caller holding the interface gets the failing pivot position, which a null cannot carry, and the
-         * dense side reports the same condition the same way.
+         * Factorize the square [a], the implementation behind [SparseLapack.factor]. Returns a
+         * [SingularSparseFactorization] when no acceptable pivot remains.
          */
         internal fun factorCsc(
             a: SparseMatrix,
@@ -167,21 +138,11 @@ public class SparseLu private constructor(
         }
 
         /**
-         * Factorize the matrix whose rows are [rows] (`rows[i][col] = B[i][col]`, primitive per-row maps),
-         * size [m].
+         * Factorize the `m × m` matrix whose row maps are [rows], where `rows(i)` maps a column to `B(i, j)`.
+         * Consumes [rows]: the maps are eliminated in place, so the caller must not reuse them.
          *
-         * Internal, and takes [MutableIntDoubleMap] rather than a boxed `HashMap<Int, Double>` because the
-         * elimination probes these maps once per entry per step. Build a [SparseMatrix] and use [factorCsc].
-         *
-         * **Consumes [rows]:** the maps are eliminated in place (and rescaled when [equilibrate]), so the
-         * caller must not reuse them afterward.
-         *
-         * With [equilibrate], each row is first scaled by a power of two `eᵢ ≈ 1/max|rowᵢ|` (exact in
-         * floating point) so pivoting is better conditioned; the scale is undone transparently in the
-         * solves and [determinant].
-         *
-         * [dropTolerance] is a fraction of the largest magnitude in the matrix, applied after any
-         * equilibration; see [SparseLapack.factor].
+         * @param equilibrate scale each row by a power of two near `1/max|row|`, undone in the solves.
+         * @param dropTolerance a fraction of the largest magnitude present, applied after equilibration.
          */
         internal fun factorize(
             rows: Array<MutableIntDoubleMap>,
@@ -205,11 +166,10 @@ public class SparseLu private constructor(
                     rows[i].scaleValues(e)
                 }
             }
-            val u = rows // eliminated in place; u[perm[k]] ends as U's pivot row k (pivot cols ≥ k)
-            // Both tolerances are fractions of the largest magnitude present, so a matrix and the same
-            // matrix scaled by 1e-8 factor identically. Measured after equilibration, which changes it.
+            val u = rows // eliminated in place, so u(perm(k)) ends as U's pivot row k
+            // Both tolerances are fractions of the largest magnitude present, measured after equilibration.
             val scale = largestMagnitude(u)
-            // L multipliers recorded per elimination step, keyed by the eliminated original row.
+            // L multipliers per elimination step, keyed by the eliminated original row.
             val lAtStep = Array(m) { MutableIntDoubleMap() }
             val perm = IntArray(m) { -1 }
             val colPerm = IntArray(m) { -1 }
@@ -244,14 +204,14 @@ public class SparseLu private constructor(
             val invPerm = IntArray(m).also { for (k in 0 until m) it[perm[k]] = k }
             val invColPerm = IntArray(m).also { for (k in 0 until m) it[colPerm[k]] = k }
             val uDiag = DoubleArray(m) { k -> u[perm[k]].getOrDefault(colPerm[k], 0.0) }
-            // U row k (pivot space): the pivot row's entries, original col → pivot position (all ≥ k),
-            // diagonal (k) first then ascending.
+            // U row k in pivot space, its columns mapped to pivot positions (all at least k), with the
+            // diagonal first and the rest ascending.
             val uRowIdx = Array(m) { k -> sortedKeysOf(u[perm[k]]) { invColPerm[it] } }
             val uRowVal = Array(m) { k ->
                 val row = u[perm[k]]
                 DoubleArray(uRowIdx[k].size) { t -> row.getOrDefault(colPerm[uRowIdx[k][t]], 0.0) }
             }
-            // L row k' (pivot space): multipliers from each step j < k' that eliminated row perm[k'].
+            // L row k in pivot space holds the multipliers from each step j < k that eliminated row perm(k).
             val lRowMap = Array(m) { MutableIntDoubleMap() }
             for (j in 0 until m) {
                 lAtStep[j].forEach { origRow, f -> lRowMap[invPerm[origRow]].put(j, f) }
@@ -260,7 +220,7 @@ public class SparseLu private constructor(
             val lRowVal = Array(m) { k ->
                 DoubleArray(lRowIdx[k].size) { t -> lRowMap[k].getOrDefault(lRowIdx[k][t], 0.0) }
             }
-            // Column orientations (pivot space): U strictly-upper by column, L by column.
+            // Column orientations in pivot space, U strictly upper and L entire.
             val uCol = columnOrientation(m, uRowIdx, uRowVal, strictlyAbovePivot = true)
             val lCol = columnOrientation(m, lRowIdx, lRowVal, strictlyAbovePivot = false)
             var nnz = 0
@@ -273,14 +233,10 @@ public class SparseLu private constructor(
         }
 
         /**
-         * Transpose a row-indexed factor into column arrays: count per column, then scatter.
-         *
-         * The shape the CSC `transpose` uses, and for the same reason — gathering
-         * through `ArrayList<Int>`/`ArrayList<Double>` boxed every index and value of `L` and `U`, on the
-         * path a simplex pays per refactorization. Walking `k` ascending leaves each column's rows
+         * Transpose a row-indexed factor into column arrays. Walking k ascending leaves each column's rows
          * ascending, which both solve directions assume.
          *
-         * [strictlyAbovePivot] selects `U`'s strict upper triangle; `L` keeps every entry.
+         * @param strictlyAbovePivot selects U's strict upper triangle; L keeps every entry.
          */
         private fun columnOrientation(
             m: Int,
@@ -320,12 +276,8 @@ public class SparseLu private constructor(
 private class ColumnOrientation(val indices: Array<IntArray>, val values: Array<DoubleArray>)
 
 /**
- * A magnitude this far below the matrix's largest is treated as zero rather than as a pivot candidate.
- *
- * Relative, not absolute: an absolute floor would declare a perfectly well-conditioned matrix whose entries
- * all sit near `1e-10` singular at the first step, and would leave a matrix scaled up by `1e10` with no
- * protection at all. Set near double precision so it rejects only what cannot be told from roundoff — it is
- * a zero test, and stability is [PIVOT_THRESHOLD]'s job.
+ * A magnitude this far below the matrix's largest is treated as zero rather than as a pivot candidate. This
+ * is a zero test, relative rather than absolute; stability is [PIVOT_THRESHOLD]'s job.
  */
 private const val NEGLIGIBLE = 1e-14
 
@@ -339,32 +291,19 @@ private fun largestMagnitude(rows: Array<MutableIntDoubleMap>): Double {
     return largest
 }
 
-/** Markowitz stability threshold: a pivot must be at least this fraction of its column's largest
- *  magnitude, so fill-reducing choices never sacrifice numerical stability. */
+/** A pivot must be at least this fraction of its column's largest magnitude, so a fill-reducing choice never
+ *  sacrifices numerical stability. */
 private const val PIVOT_THRESHOLD = 0.1
 
-/** Candidate-bearing columns to examine before settling for the best pivot found (Suhl & Suhl). */
+/** Candidate-bearing columns to examine before settling for the best pivot found (Suhl and Suhl). */
 private const val MAX_CANDIDATE_COLS = 4
 
-/**
- * Items grouped by a small integer count, in doubly linked lists, with the smallest occupied count tracked.
- *
- * The Markowitz search needs two questions answered on every one of the `m` elimination steps: which columns
- * have the fewest entries, and what the smallest row count is. Answered by scanning, each costs `O(m)` per
- * step and so `O(m²)` over the factorization — which is the whole cost on a matrix that barely fills, where
- * the elimination itself does almost nothing. Answered by this, each costs constant time per *change*, and the
- * changes are exactly the count updates the elimination already performs.
- *
- * Doubly linked because items leave from the middle: a column whose count drops has to be unlinked from
- * wherever it sits, not found first. [smallestFrom] advances its hint monotonically within a step, so a search
- * that walks several count classes pays for each once.
- */
 private class CountBuckets(private val size: Int) {
     private val head = IntArray(size + 2) { -1 }
     private val next = IntArray(size) { -1 }
     private val previous = IntArray(size) { -1 }
 
-    /** No occupied count is below this. A hint rather than a fact: [add] lowers it, lookups raise it. */
+    /** No occupied count is below this. A hint rather than a fact, lowered by [add] and raised by lookups. */
     private var lowest = size + 1
 
     fun add(item: Int, count: Int) {
@@ -405,27 +344,8 @@ private class CountBuckets(private val size: Int) {
 }
 
 /**
- * Incrementally-maintained elimination state for the Markowitz factorization: active row/column flags,
- * per-row/per-column nonzero counts over the active submatrix, and a column → active-rows index
- * (`colRows`) so pivot search and elimination touch only the rows that actually hold an entry.
- *
- * [selectPivot] buckets active columns by count and scans count classes in ascending order, computing
- * each candidate column's max magnitude on demand for the stability threshold. The scan stops at a
- * class boundary once either bound holds:
- *
- * - exactness: any entry in an unscanned column has Markowitz count `≥ r · (minRowCount − 1)`, so a
- *   best-so-far at or below that is a true global minimum;
- * - bounded search (Suhl & Suhl): at least `MAX_CANDIDATE_COLS` candidate-bearing columns have been
- *   examined — the best of the lowest count classes is kept even if a marginally better pivot might
- *   exist in a higher class. This caps per-step search work; fill in practice grows only a couple of
- *   percent over the exact minimum, versus a full active-submatrix rescan per step.
- *
- * [eliminate] keeps every count and index exact as entries are created and cancelled.
- *
- * The two magnitude limits are separate because they answer different questions. [negligible] is a zero
- * test: below it a value cannot be told from roundoff, so it is not a pivot candidate and its column may be
- * structurally singular. [dropBelow] is a fill control: the value is real, and discarding it trades accuracy
- * for sparsity, which is a caller's decision and defaults to not happening.
+ * @property negligible a zero test: a value below it cannot be told from roundoff and is no pivot candidate.
+ * @property dropBelow a fill control: the value is real, and discarding it trades accuracy for sparsity.
  */
 private class MarkowitzState(
     private val u: Array<MutableIntDoubleMap>,
@@ -438,16 +358,14 @@ private class MarkowitzState(
     private val rowCount = IntArray(m)
     private val colCount = IntArray(m)
 
-    /** Per column: the active rows holding a nonzero in it. */
+    /** The active rows holding a nonzero in each column. */
     private val colRows = Array(m) { MutableIntSet() }
 
-    // The candidate column [selectPivot] is scanning, gathered once per column and read twice: the
-    // stability threshold is a fraction of the column max, so it is not known until the scan finishes.
+    // The candidate column selectPivot() is scanning, gathered once and read twice.
     private val candidateRows = IntArray(m)
     private val candidateAbs = DoubleArray(m)
 
-    // Active columns by their count, and active rows by theirs, maintained as the counts change rather
-    // than rebuilt per step. Only items with a positive count are ever in them.
+    // Active columns by their count, and active rows by theirs. Only positive counts are ever in them.
     private val columnsByCount = CountBuckets(m)
     private val rowsByCount = CountBuckets(m)
 
@@ -470,11 +388,8 @@ private class MarkowitzState(
     }
 
     /**
-     * Change a row's count and keep its bucket membership true.
-     *
-     * Every count update in [eliminate] goes through here or [changeColumnCount], which is what lets the
-     * search trust the buckets instead of rescanning. A count of zero is not represented: an empty row is no
-     * longer a pivot candidate, and leaving it in a bucket would mean filtering it out on every lookup.
+     * Change a row's count and keep its bucket membership true. A count of zero is not represented, since an
+     * empty row is no longer a pivot candidate.
      */
     private fun changeRowCount(i: Int, delta: Int) {
         val before = rowCount[i]
@@ -501,15 +416,14 @@ private class MarkowitzState(
         }
     }
 
-    /** Pick the minimum-Markowitz-count numerically acceptable pivot; false if none exists (singular). */
+    /** Pick the numerically acceptable pivot of least Markowitz count. False when none exists, so the
+     *  remaining submatrix is singular. */
     @Suppress("CyclomaticComplexMethod", "NestedBlockDepth")
     fun selectPivot(): Boolean {
         pivotRow = -1
         pivotCol = -1
         var bestMark = Long.MAX_VALUE
         var bestAbs = 0.0
-        // Both of these were O(m) scans per step, and on a matrix that hardly fills they were the entire
-        // cost of the factorization: O(m²) of bookkeeping around an elimination doing almost nothing.
         val smallestRow = rowsByCount.smallestFrom(1)
         val minRow = if (smallestRow == -1) Int.MAX_VALUE else smallestRow
         var candidateCols = 0
@@ -543,11 +457,7 @@ private class MarkowitzState(
                     }
                     candidateCols++
                 }
-                // Checked inside the walk, not after it. Every unscanned column has a count of at least `r`,
-                // here or in a later class, so both bounds hold as well here as at the class boundary — and
-                // finishing the class first is what left this O(m) per step on a matrix whose columns share
-                // one count. A diagonal is the extreme case: one class holds every column, so the search
-                // walked the whole matrix to choose each of its m pivots.
+                // Every unscanned column has a count of at least r, so both bounds hold mid-class too.
                 if (pivotRow != -1 &&
                     (candidateCols >= MAX_CANDIDATE_COLS || bestMark <= r.toLong() * (minRow - 1).toLong())
                 ) {
@@ -560,8 +470,8 @@ private class MarkowitzState(
         return pivotRow != -1
     }
 
-    /** Eliminate the selected pivot, recording the column's multipliers into [l] and keeping all
-     *  counts and the `colRows` index exact as fill-in appears and entries cancel. */
+    /** Eliminate the selected pivot, recording the column's multipliers into [l] and keeping all counts and
+     *  the `colRows` index exact as fill-in appears and entries cancel. */
     @Suppress("NestedBlockDepth")
     fun eliminate(l: MutableIntDoubleMap) {
         val pRow = pivotRow
@@ -572,7 +482,7 @@ private class MarkowitzState(
         rowActive[pRow] = false
         colActive[pCol] = false
         val pivotRowMap = u[pRow]
-        // The pivot row leaves the active submatrix: unindex it from its still-active columns.
+        // The pivot row leaves the active submatrix, so unindex it from its still-active columns.
         pivotRowMap.forEach { c, _ ->
             if (colActive[c]) {
                 colRows[c].remove(pRow)
@@ -584,7 +494,6 @@ private class MarkowitzState(
         colRows[pCol].forEach { i ->
             if (i != pRow) {
                 val target = u[i]
-                // One probe for the multiplier and its removal, rather than a lookup and then a search.
                 val pSlot = target.slotOf(pCol)
                 val f = (if (pSlot >= 0) target.valueAt(pSlot) else 0.0) / pivot
                 l.put(i, f)

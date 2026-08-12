@@ -10,10 +10,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/** The sparse symmetric factorization: the symbolic phase, the numeric one, and the three pivot policies. */
 class SparseLdlTest {
 
-    /** A symmetric positive-definite matrix, stored in full, with [density] off-diagonal fill. */
     private fun spd(n: Int, rng: Random, density: Double = 0.2): SparseMatrix {
         val entries = Array(n) { HashMap<Int, Double>() }
         for (i in 0 until n) entries[i][i] = n.toDouble()
@@ -29,7 +27,7 @@ class SparseLdlTest {
         return SparseMatrix.ofColumns(n, n, List(n) { j -> entries[j].map { (i, v) -> i to v } })
     }
 
-    /** `A·x`, computed straight from the CSC arrays so no seam is involved in checking a seam. */
+    /** `A·x` computed straight from the CSC arrays, so no seam is involved in checking a seam. */
     private fun multiply(a: SparseMatrix, x: DoubleArray): DoubleArray {
         val y = DoubleArray(a.rows)
         for (j in 0 until a.cols) a.forEachInColumn(j) { i, v -> y[i] += v * x[j] }
@@ -45,7 +43,6 @@ class SparseLdlTest {
             assertEquals(n, symbolic.n)
             assertEquals(n + 1, symbolic.columnPointers.size)
             assertTrue(symbolic.columnPointers.asList() == symbolic.columnPointers.sorted(), "n=$n: not ascending")
-            // Filling it is what proves the counts: the numeric phase throws if a column needs more room.
             val f = symbolic.factorLdl(a)
             assertTrue(!f.singular, "n=$n: a dominant diagonal cannot be singular")
             assertEquals(symbolic.nnz + n, f.nnz, "n=$n: nnz should be L's entries plus D")
@@ -71,14 +68,12 @@ class SparseLdlTest {
             val b = multiply(a, x)
             val f = a.cholesky()
             assertClose(x, f.solve(b), "cholesky solve n=$n", tolerance = 1e-8)
-            // Symmetric, so the transposed solve is the same system and must give the same answer.
             assertClose(x, f.solve(b, transpose = true), "transposed solve n=$n", tolerance = 1e-8)
         }
     }
 
     @Test
     fun `an indefinite matrix factors under the indefinite policy and not under strict`() {
-        // [[1, 2], [2, 1]] is symmetric with eigenvalues 3 and -1: a real LDL, no Cholesky.
         val a = SparseMatrix.ofColumns(
             2,
             2,
@@ -89,7 +84,7 @@ class SparseLdlTest {
         assertTrue(!f.singular)
         val x = doubleArrayOf(0.5, -1.5)
         assertClose(x, f.solve(multiply(a, x)), "indefinite solve", tolerance = 1e-12)
-        // det [[1,2],[2,1]] = 1 - 4 = -3, which only an indefinite factorization can report.
+        // The determinant of ((1, 2), (2, 1)) is 1 - 4 = -3, which only an indefinite factorization reports.
         assertClose(-3.0, f.determinant(), "indefinite determinant", tolerance = 1e-12)
     }
 
@@ -117,13 +112,11 @@ class SparseLdlTest {
         }
     }
 
-    /** The point of the split: one analysis, many value sets. */
     @Test
     fun `one analysis factorizes every matrix with its pattern`() {
         val rng = Random(20260812)
         val first = spd(24, rng)
         val symbolic = first.analyze()
-        // Same pattern, different values: rebuild with each stored entry perturbed.
         val second = SparseMatrix(
             first.rows,
             first.cols,
@@ -157,7 +150,6 @@ class SparseLdlTest {
             listOf(listOf(0 to 4.0, 1 to 1.0), listOf(1 to 4.0)),
         )
         assertFailsWith<IllegalArgumentException> { lowerOnly.analyze() }
-        // The same matrix stored in full analyses and factors.
         val full = SparseMatrix.ofColumns(
             2,
             2,
@@ -173,8 +165,7 @@ class SparseLdlTest {
         val f = a.cholesky() as SparseLdl
         val l = f.choleskyFactor()
         val perm = f.symbolic.permutation
-        // L·Lᵀ is P·A·Pᵀ, not A — the factor is of the matrix that was eliminated, which the analysis
-        // reordered. Comparing against A directly is the mistake this asserts against.
+        // `L·Lᵀ` is `P·A·Pᵀ` rather than A, because the factor is of the matrix the analysis reordered.
         val dense = Array(12) { DoubleArray(12) }
         for (j in 0 until 12) l.forEachInColumn(j) { i, v -> dense[i][j] = v }
         for (i in 0 until 12) {
@@ -195,7 +186,6 @@ class SparseLdlTest {
 
     @Test
     fun `fill stays near the input on a banded matrix`() {
-        // A tridiagonal matrix has no fill at all under a symmetric factorization: its tree is a path.
         val n = 200
         val columns = List(n) { j ->
             buildList {

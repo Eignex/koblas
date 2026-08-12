@@ -8,27 +8,9 @@ import com.eignex.koblas.NotPositiveDefinite
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.koblas
 
-// Cholesky helpers operating on the flat-`DoubleArray` backing of [DenseMatrix].
-// Operates on the flat DoubleArray backing of [DenseMatrix].
-//
-// Convention: lower-triangular factor `L` with `A = L * LT`. Entry `(i, k)` for
-// `k <= i` lives at `data[i + k * rows]`; entries above the diagonal are neither
-// read nor written. Column `k` of the factor is therefore the contiguous run
-// `data[k + k * rows until (k + 1) * rows]`.
-//
-// Inner loops reduce to [VectorKernels.dot] / [VectorKernels.axpy] on contiguous column runs (SIMD
-// on JVM).
-
 /**
- * Cholesky factorization `A = L·Lᵀ` with the active backend ([koblas]); see [Lapack.cholesky], which
- * documents that only the lower triangle of the receiver is read.
- *
- * Throws [com.eignex.koblas.NotPositiveDefinite] at the first non-positive pivot. Pass
- * [CholeskyPolicy.Regularize] for a
- * factorization that floors such a pivot and continues, which is a factor of a nearby matrix rather than of
- * the one passed in — useful for an estimate that has drifted slightly indefinite, and a decision the caller
- * makes rather than a default. Catching the exception is the other way to make that decision, after the
- * fact rather than in advance.
+ * Cholesky factorization `A = L·Lᵀ` with the active backend ([koblas]); see [Lapack.cholesky]. Only the
+ * lower triangle is read, and a non-positive pivot throws [NotPositiveDefinite] unless [policy] regularizes.
  */
 public fun DenseMatrix.cholesky(policy: CholeskyPolicy = CholeskyPolicy.Strict): CholeskyDecomposition =
     koblas.cholesky(this, policy)

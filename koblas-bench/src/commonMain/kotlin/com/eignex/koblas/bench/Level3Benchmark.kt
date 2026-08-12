@@ -15,14 +15,6 @@ import kotlinx.benchmark.Scope
 import kotlinx.benchmark.Setup
 import kotlinx.benchmark.State
 
-/**
- * Matrix-matrix products, the routines where a native backend earns its keep: `O(n^3)` work over `O(n^2)`
- * data leaves per-call marshalling far behind, and a blocked native kernel beats the portable one outright.
- *
- * `syrk` is measured in both triangle modes because they take different paths. [Uplo.FULL] is this
- * library's extension and writes both triangles, which a native backend reaches by mirroring into
- * scratch; [Uplo.LOWER] is strict BLAS `dsyrk` and needs no mirror.
- */
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(BenchmarkTimeUnit.MICROSECONDS)

@@ -13,8 +13,7 @@ import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.invoke
 import kotlinx.cinterop.usePinned
 
-// The CBLAS enums and LAPACKE layout macro, by their ABI integer values (the resolved function
-// pointers declare the parameters as plain int; see OpenBlasBindings.kt).
+// The CBLAS enums and the LAPACKE layout macro by their ABI integer values, declared as plain int.
 private const val COL_MAJOR = 102
 private const val NO_TRANS = 111
 private const val TRANS = 112
@@ -25,17 +24,10 @@ private const val UNIT = 132
 private const val LEFT = 141
 private const val RIGHT = 142
 
-/**
- * The host CBLAS as koblas's [Blas] half: the level-2 and level-3 routines, over column-major buffers that
- * cross the FFI boundary without repacking.
- *
- * Constructible whenever the host has OpenBLAS, independently of LAPACKE — which is the point, since a
- * Debian or Ubuntu box without liblapacke still gets every routine here.
- */
+/** Constructible whenever the host has OpenBLAS, independently of LAPACKE. */
 internal class CblasBlas(private val f: CblasFunctions) : Blas {
     override val name: String get() = "cblas"
 
-    /** Above the reference (0). */
     override val priority: Int get() = HOST_BACKEND_PRIORITY
 
     override fun gemv(
@@ -50,8 +42,7 @@ internal class CblasBlas(private val f: CblasFunctions) : Blas {
         val yLen = if (transpose) a.cols else a.rows
         requireShape(x.size == xLen) { "gemv: x length ${x.size} != $xLen" }
         requireShape(y.size == yLen) { "gemv: y length ${y.size} != $yLen" }
-        // Degenerate cases short-circuit in Kotlin: the BLAS quick-return paths do not honor the
-        // beta == 0 overwrite when a dimension is zero.
+        // The BLAS quick-return paths do not honor the beta == 0 overwrite when a dimension is zero.
         if (alpha == 0.0 || xLen == 0) {
             scaleInPlace(y, beta)
             return
@@ -125,7 +116,6 @@ internal class CblasBlas(private val f: CblasFunctions) : Blas {
         if (n == 0) return
         val trans = if (transpose) TRANS else NO_TRANS
         if (uplo != Uplo.FULL) {
-            // Strict dsyrk semantics: one triangle written and beta-scaled, the other untouched.
             val u = if (uplo == Uplo.LOWER) LOWER else UPPER
             a.data.usePinned { ap ->
                 c.data.usePinned { cp ->
@@ -134,9 +124,7 @@ internal class CblasBlas(private val f: CblasFunctions) : Blas {
             }
             return
         }
-        // dsyrk touches one triangle only, while the FULL contract promises the full, exactly
-        // symmetric alpha term on top of a beta scale of all of C. Compute the alpha term into a
-        // scratch lower triangle, mirror it, then combine.
+        // dsyrk writes one triangle only, while Uplo.FULL promises a symmetric alpha term over all of C.
         val w = workspace?.take(n * n) ?: DoubleArray(n * n)
         a.data.usePinned { ap ->
             w.usePinned { wp ->
@@ -285,10 +273,7 @@ internal class CblasBlas(private val f: CblasFunctions) : Blas {
         right: Boolean,
     ) = triangularMultiply(a, b, lower, transpose, unitDiag, right, solve = false)
 
-    /**
-     * dtrsm and dtrmm share every argument but the entry point, and koblas fixes alpha at 1: the side
-     * flag maps straight through, since both libraries mean "T on this side of B" by it.
-     */
+    /** dtrsm and dtrmm share every argument but the entry point, and koblas fixes alpha at 1. */
     @Suppress("LongParameterList") // the shared BLAS signature plus the entry-point flag
     private fun triangularMultiply(
         a: DenseMatrix,
@@ -338,7 +323,7 @@ internal class CblasBlas(private val f: CblasFunctions) : Blas {
         }
     }
 
-    /** `beta` scale of the region [uplo] selects, honoring the `beta == 0` overwrite convention. */
+    /** Scales the region [uplo] selects, honoring the `beta == 0` overwrite convention. */
     private fun scaleUplo(v: DoubleArray, n: Int, beta: Double, uplo: Uplo) {
         if (uplo == Uplo.FULL) {
             scaleInPlace(v, beta)

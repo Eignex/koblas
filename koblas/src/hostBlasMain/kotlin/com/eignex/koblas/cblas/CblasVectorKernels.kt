@@ -10,20 +10,12 @@ import kotlinx.cinterop.invoke
 import kotlinx.cinterop.usePinned
 
 /**
- * The host OpenBLAS behind koblas's level-1 primitives, for the runs long enough to be worth a call.
- *
- * The [com.eignex.koblas.dense.LinearAlgebra] seam does not reach `dot`, `axpy` and `scale`: those compile
- * per target, and on native they are scalar loops with no vector API to reach for. Registering this closes
- * that gap for long vectors, and koblas applies [com.eignex.koblas.DispatchThresholds.level1], so these
- * methods only see runs worth dispatching.
- *
- * Offsets are handled by pinning and taking the address of the element, so no repacking happens at the
- * boundary — the same zero-copy property the rest of this backend relies on.
+ * The host OpenBLAS behind koblas's level-1 primitives. koblas applies
+ * [com.eignex.koblas.DispatchThresholds.level1], so these methods only see runs worth dispatching.
  */
 public class CblasVectorKernels : VectorKernels {
     override val name: String get() = "cblas"
 
-    /** Above the reference (0), matching the other cblas halves. */
     override val priority: Int get() = HOST_BACKEND_PRIORITY
 
     private val f = requireNotNull(OpenBlasLoader.cblas) {

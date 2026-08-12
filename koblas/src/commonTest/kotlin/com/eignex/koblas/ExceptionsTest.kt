@@ -12,10 +12,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * The typed failures: that each one is thrown where it is documented, and that all of them stay
- * catchable as [IllegalArgumentException] so existing handlers keep working.
- */
 class ExceptionsTest {
 
     private val singular = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 4.0)))
@@ -38,7 +34,6 @@ class ExceptionsTest {
 
     @Test
     fun `a singular sparse triangle reports the column`() {
-        // Lower triangular with a zero on the diagonal at column 1.
         val t = SparseMatrix.ofTriplets(
             rows = 2,
             cols = 2,
@@ -55,7 +50,6 @@ class ExceptionsTest {
         val e = assertFailsWith<NotPositiveDefinite> { indefinite.cholesky() }
         assertEquals(1, e.position, "the second pivot is the one that goes negative")
         assertTrue(e.pivot <= 0.0, "the reported pivot should be the offending one, was ${e.pivot}")
-        // The policy is the pre-decision; catching the type is the post-decision. Both reach a factor.
         indefinite.cholesky(CholeskyPolicy.Regularize())
     }
 
@@ -74,7 +68,6 @@ class ExceptionsTest {
 
     @Test
     fun `every koblas failure stays an IllegalArgumentException`() {
-        // The compatibility guarantee: a caller who wrote this before the types existed keeps working.
         for (block in listOf<() -> Unit>(
             { koblas.factor(DenseMatrix.zero(2, 3)) },
             { singular.lu().invert() },

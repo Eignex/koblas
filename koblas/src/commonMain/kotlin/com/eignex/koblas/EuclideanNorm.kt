@@ -3,21 +3,12 @@ package com.eignex.koblas
 import kotlin.math.abs
 import kotlin.math.sqrt
 
-/** Smallest normal double; a squares-sum below this has lost precision to underflow. */
+/** Smallest normal double. A squares-sum below this has lost precision to underflow. */
 private const val MIN_NORMAL = 2.2250738585072014e-308
 
 /**
- * `sqrt(Sum v[off..off+len-1]²)`, accurate over the whole double range (BLAS `dnrm2`).
- *
- * The fast path is a plain sum of squares; when that overflows or drowns in underflow — components beyond
- * roughly `1e±150` — a second pass factors out the largest magnitude so the squares stay in range. Any
- * finite input therefore yields the correct norm, which netlib `dnrm2` also guarantees and a bare
- * `sqrt(sum)` does not.
- *
- * Shared by every kernel koblas ships, dense and sparse, because none of them specializes it per target and
- * all of them need the same three passes over a contiguous run: for a `SparseVector` that run is its value
- * array, since the unstored entries contribute nothing to a sum of squares. Having it once means they cannot
- * drift apart on the rescaling threshold or on which of `0.0`, `NaN` and `Inf` fall through the fast path.
+ * Euclidean norm of the run v(off until off + len), accurate over the whole double range (BLAS `dnrm2`).
+ * When a plain sum of squares overflows or underflows, a second pass factors out the largest magnitude.
  */
 internal fun euclideanNorm(v: DoubleArray, off: Int, len: Int): Double {
     var s = 0.0
@@ -31,7 +22,6 @@ internal fun euclideanNorm(v: DoubleArray, off: Int, len: Int): Double {
         val a = abs(v[off + i])
         if (a > amax) amax = a
     }
-    // All-zero (0.0), NaN anywhere (NaN), or an infinite component (Inf) resolve through the raw sum.
     if (amax == 0.0 || amax.isInfinite()) return sqrt(s)
     var t = 0.0
     for (i in 0 until len) {
@@ -41,12 +31,7 @@ internal fun euclideanNorm(v: DoubleArray, off: Int, len: Int): Double {
     return amax * sqrt(t)
 }
 
-/**
- * `Sum |v[off..off+len-1]|` (BLAS `dasum`).
- *
- * Here for the same reason as [euclideanNorm]: no target specializes it — there is no SIMD counterpart worth
- * writing — so every `VectorKernels` koblas ships forwards here rather than carrying a copy of the loop.
- */
+/** Sum of absolute values over the run v(off until off + len) (BLAS `dasum`). */
 internal fun absoluteSum(v: DoubleArray, off: Int, len: Int): Double {
     var s = 0.0
     for (i in 0 until len) s += abs(v[off + i])

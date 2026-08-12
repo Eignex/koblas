@@ -6,10 +6,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/**
- * The operator spellings. Each one has to agree with the routine it aliases, which is what makes it an
- * alias rather than a second implementation.
- */
 class OperatorsTest {
 
     private val a = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
@@ -24,7 +20,6 @@ class OperatorsTest {
     @Test
     fun `matrix-vector product agrees with gemv`() {
         assertEquals(DenseVector.wrap(koblas.gemv(a, x.data)), a * x)
-        // [[1,2],[3,4]] · (2,-1) = (0, 2)
         assertClose(doubleArrayOf(0.0, 2.0), (a * x).data, "a * x")
     }
 
@@ -50,7 +45,6 @@ class OperatorsTest {
                 assertEquals(a[i, j] - b[i, j], difference[i, j], "difference ($i,$j)")
             }
         }
-        // The operands are untouched: every operator allocates.
         assertEquals(1.0, a[0, 0])
         assertEquals(5.0, b[0, 0])
     }

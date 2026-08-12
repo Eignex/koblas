@@ -20,8 +20,7 @@ import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.invoke
 import kotlinx.cinterop.usePinned
 
-// The CBLAS enums and LAPACKE layout macro, by their ABI integer values (the resolved function
-// pointers declare the parameters as plain int; see OpenBlasBindings.kt).
+// The CBLAS enums and the LAPACKE layout macro by their ABI integer values, declared as plain int.
 private const val COL_MAJOR = 102
 private const val NO_TRANS = 111
 private const val TRANS = 112
@@ -32,17 +31,10 @@ private const val UNIT = 132
 private const val LEFT = 141
 private const val RIGHT = 142
 
-/**
- * The host LAPACKE as koblas's [Lapack] half: the factorizations and the solves over their packed
- * formats.
- *
- * Needs [CblasFunctions] as well, because the blocked solves reach for `dtrsm` and `dtrsv` directly.
- * Only constructed when LAPACKE resolved; a host without it keeps the portable factorizations.
- */
+/** Constructed only when LAPACKE resolved, so a host without it keeps the portable factorizations. */
 internal class CblasLapack(private val f: LapackeFunctions, private val blas: CblasFunctions) : Lapack {
     override val name: String get() = "cblas"
 
-    /** Above the reference (0). */
     override val priority: Int get() = HOST_BACKEND_PRIORITY
 
     override fun factor(a: DenseMatrix): LuDecomposition {
@@ -56,8 +48,7 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
             ipiv.usePinned { pp -> f.dgetrf(COL_MAJOR, n, n, lp.addressOf(0), n, pp.addressOf(0)) }
         }
         check(info >= 0) { "dgetrf: illegal argument ${-info}" }
-        // dgetrf reports successive row swaps (1-based); replay them to get the permutation form
-        // LuDecomposition uses (piv[k] = original row now at position k).
+        // dgetrf reports successive 1-based row swaps; replaying them gives the piv form LuDecomposition uses.
         for (k in 0 until n) {
             val p = ipiv[k] - 1
             if (p != k) {
@@ -83,8 +74,7 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
         requireShape(out.size == n) { "solve: out length ${out.size} != $n" }
         if (n == 0) return out
         if (transpose) {
-            // Aᵀ x = b, with Aᵀ = Uᵀ Lᵀ P: forward-solve Uᵀ, back-solve unit Lᵀ, un-permute. The scatter
-            // cannot run in place, so the solved vector is staged.
+            // Aᵀ = Uᵀ Lᵀ P, so forward-solve Uᵀ, back-solve unit Lᵀ, un-permute.
             val y = workspace?.take(n) ?: DoubleArray(n)
             b.copyInto(y)
             trsv(lu.lu, n, y, UPPER, TRANS, NON_UNIT)
@@ -92,7 +82,7 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
             for (i in 0 until n) out[lu.piv[i]] = y[i]
             workspace?.release(y)
         } else {
-            // A x = b, with P A = L U: permute b, forward-solve unit L, back-solve U.
+            // P A = L U, so permute b, forward-solve unit L, back-solve U.
             if (out === b) {
                 val staged = workspace?.take(n) ?: DoubleArray(n)
                 for (i in 0 until n) staged[i] = b[lu.piv[i]]
@@ -123,9 +113,6 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
             "solve: out is ${out.rows}x${out.cols}, expected ${n}x$nrhs"
         }
         if (n == 0 || nrhs == 0) return out
-        // Same permute + two block triangular solves as the vector path. dtrsm reads the buffers in their
-        // native order, so nothing is transposed on the way in; the permutation is the strided step, one
-        // element per column rather than a contiguous run per row.
         if (transpose) {
             val y = workspace?.take(n * nrhs) ?: DoubleArray(n * nrhs)
             b.data.copyInto(y)
@@ -148,7 +135,7 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
         return out
     }
 
-    /** `dst[i, c] = src[piv[i], c]` when [gather], its inverse otherwise, over an `n × nrhs` pair. */
+    /** Writes dst(i, c) = src(piv(i), c) when [gather], its inverse otherwise, over an n by nrhs pair. */
     @Suppress("LongParameterList")
     private fun permuteRows(src: DoubleArray, dst: DoubleArray, n: Int, nrhs: Int, piv: IntArray, gather: Boolean) {
         for (c in 0 until nrhs) {
@@ -176,15 +163,6 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
         return LdlDecomposition(n, buf, ipiv, lapackFailedAt(info))
     }
 
-    /**
-     * Delegates to the portable kernels, which are faster here at every size that fits in cache.
-     *
-     * `dsytrs` only reaches parity at the largest size measured, and the routine is `O(n²)` work over `O(n²)`
-     * data, so there is nothing to amortize the pivot-block bookkeeping against. This is the one routine
-     * where the native library loses on this platform, unlike on the JVM, whose SIMD kernels beat the
-     * native library at level 2 outright. The blocked multi-RHS solve below stays native: there the work
-     * grows with the right-hand-side count while the factor is read once.
-     */
     override fun solveInto(ldl: LdlDecomposition, b: DoubleArray, out: DoubleArray): DoubleArray =
         ReferenceLinearAlgebra.solveInto(ldl, b, out)
 
@@ -256,7 +234,7 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
         return out[0]
     }
 
-    /** LAPACKE_dsytrs on [x] in place (lower, 1-based block ipiv); returns [x]. */
+    /** Runs LAPACKE_dsytrs on [x] in place, lower triangle with 1-based block ipiv. */
     private fun solveSytrs(ldl: LdlDecomposition, x: DoubleArray, nrhs: Int): DoubleArray {
         val n = ldl.n
         val info = ldl.ldl.usePinned { lp ->
@@ -274,45 +252,27 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
     }
 
     /**
-     * `dpotrf`, with two adjustments to match the koblas contract.
-     *
-     * LAPACK factorizes in place and leaves the strict upper triangle exactly as the input had it, while
-     * koblas returns a factor whose upper triangle is zero, so it is cleared afterwards. And LAPACK has
-     * no equivalent of [CholeskyPolicy.Regularize]: it reports the failing pivot instead of clamping it, so a
-     * non-positive-definite input falls back to the portable path, which is what applies the clamp.
+     * dpotrf leaves the strict upper triangle as the input had it, so it is cleared to match the koblas
+     * factor, and it has no [CholeskyPolicy.Regularize] equivalent, so that case falls back to portable.
      */
     override fun cholesky(a: DenseMatrix, policy: CholeskyPolicy): CholeskyDecomposition {
         requireShape(a.rows == a.cols) { "cholesky requires a square matrix; got ${a.rows}x${a.cols}" }
         val n = a.rows
         if (n == 0) return CholeskyDecomposition(DenseMatrix(0, 0))
         val l = DenseMatrix(n, n)
-        // One bulk copy per column of the lower triangle; `dpotrf` reads no further.
+        // One bulk copy per column of the lower triangle, which is as far as dpotrf reads.
         for (j in 0 until n) a.data.copyInto(l.data, j + j * n, j + j * n, (j + 1) * n)
         val info = l.data.usePinned { lp -> f.dpotrf(COL_MAJOR, 'L'.code.toByte(), n, lp.addressOf(0), n) }
         check(info >= 0) { "dpotrf: illegal argument ${-info}" }
-        // info > 0 marks the leading minor that is not positive definite: redo it portably, which either
-        // clamps the pivot or throws, per the flag.
+        // info > 0 marks the leading minor that is not positive definite.
         if (info > 0) return super.cholesky(a, policy)
         for (i in 0 until n) for (j in i + 1 until n) l[i, j] = 0.0
         return CholeskyDecomposition(l)
     }
 
-    /**
-     * Delegates to the portable kernels, which win here by a wide and widening margin.
-     *
-     * The routine is `O(n^2)` work over `O(n^2)` data, so there is nothing to amortize a call against —
-     * the same reason the LU and LDL vector solves delegate.
-     *
-     * Due a re-measurement rather than settled: the margins recorded with the constants were taken under
-     * row-major storage, where every call also paid for a transpose. The JVM twin was re-measured under
-     * column-major storage and stayed portable.
-     */
     override fun solve(chol: CholeskyDecomposition, b: DoubleArray): DoubleArray = ReferenceLinearAlgebra.solve(chol, b)
 
-    /**
-     * `dpotri`, which writes only the triangle it is given; koblas returns the full symmetric inverse,
-     * so the result is mirrored. The factor is copied first, since dpotri overwrites it with the inverse.
-     */
+    /** dpotri writes one triangle and overwrites its input, so the factor is copied and then mirrored. */
     override fun invert(chol: CholeskyDecomposition, workspace: Workspace?): DenseMatrix {
         val n = chol.n
         if (n == 0) return DenseMatrix(0, 0)
@@ -324,7 +284,6 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
         return inv
     }
 
-    /** cblas_dtrsv over the packed factor buffer. */
     @Suppress("LongParameterList")
     private fun trsv(a: DoubleArray, n: Int, x: DoubleArray, uplo: Int, trans: Int, diag: Int) {
         a.usePinned { ap ->
@@ -334,7 +293,6 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
         }
     }
 
-    /** Left-side cblas_dtrsm over the packed factor buffer. */
     @Suppress("LongParameterList")
     private fun trsmLeft(a: DoubleArray, n: Int, b: DoubleArray, nrhs: Int, uplo: Int, trans: Int, diag: Int) {
         a.usePinned { ap ->

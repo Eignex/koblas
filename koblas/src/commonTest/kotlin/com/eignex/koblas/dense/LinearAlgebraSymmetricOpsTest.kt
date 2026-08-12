@@ -11,7 +11,6 @@ import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
-/** The symmetric routines: `symv`, `symm` on either side, and the `syrk` rank-k update. */
 class LinearAlgebraSymmetricOpsTest {
 
     @Test
@@ -96,11 +95,9 @@ class LinearAlgebraSymmetricOpsTest {
     private fun checkSyrk(rng: Random, uplo: Uplo, transpose: Boolean, alpha: Double, beta: Double) {
         val a = randomMatrix(6, 4, rng)
         val n = if (transpose) a.cols else a.rows
-        // The alpha term alone, from the FULL mode with a clean output.
         val term = DenseMatrix(n, n)
         koblas.syrk(1.0, a, transpose, 0.0, term)
-        // Selected entries are NaN when beta == 0 (overwrite without reading); the unselected strict
-        // triangle is always NaN and must survive untouched.
+        // The output is NaN where beta == 0 must overwrite without reading, and the unselected triangle stays NaN.
         val c = DenseMatrix(n, n)
         val c0 = DenseMatrix(n, n)
         for (i in 0 until n) {
@@ -126,7 +123,6 @@ class LinearAlgebraSymmetricOpsTest {
         }
     }
 
-    /** syrk gives the same answer on its second call with a reused workspace as on its first. */
     @Test
     fun `syrk through a reused workspace does not accumulate the previous call`() {
         val rng = Random(20260946)

@@ -12,7 +12,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/** The general dense routines: `gemv`, `gemm`, and the LU factorization with its solve in both directions. */
 class LinearAlgebraTest {
 
     @Test
@@ -51,7 +50,6 @@ class LinearAlgebraTest {
             val a = wellConditioned(n, rng)
             val x = DoubleArray(n) { rng.nextDouble(-3.0, 3.0) }
             val b = koblas.gemv(a, x, transpose = true) // b = Aᵀ x
-            // Solve Aᵀ y = b, so y == x.
             assertClose(x, a.lu().solve(b, transpose = true), "transpose-solve n=$n", tolerance = 1e-9)
         }
     }
@@ -63,24 +61,15 @@ class LinearAlgebraTest {
         assertTrue(DenseMatrix.of(arrayOf(doubleArrayOf(0.0))).lu().singular)
     }
 
-    /**
-     * `failedAt` reports *where* the factorization broke down, which both storages carry: the position is computed
-     * either way, and reporting only a flag would throw it away. It is the first zero pivot, matching what `dgetrf`
-     * returns in `info`: an all-zero matrix has several, and picking the last one would be just as easy to implement
-     * and wrong.
-     */
     @Test
     fun `factor reports the first zero pivot position`() {
         assertEquals(NOT_SINGULAR, DenseMatrix.diagonal(3).lu().failedAt, "a good factorization has no position")
-        // Rank 1: after the row swap the second pivot cancels to exactly zero.
         val rank1 = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 4.0)))
         assertEquals(1, rank1.lu().failedAt)
         assertEquals(0, DenseMatrix.of(arrayOf(doubleArrayOf(0.0))).lu().failedAt)
         assertEquals(0, DenseMatrix(3, 3).lu().failedAt, "the first of three zero pivots, not the last")
     }
 
-    /** The `info`-to-position translation every LAPACK-backed backend shares: `info` is 1-based, and
-     *  non-positive means no singularity to report. */
     @Test
     fun `lapackFailedAt converts an info return`() {
         assertEquals(NOT_SINGULAR, lapackFailedAt(0))

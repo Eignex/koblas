@@ -7,10 +7,8 @@ import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
-/** The compiled-in sparse kernels against the portable interface defaults they may replace. */
 class PlatformSparseVectorKernelsTest {
 
-    /** A sparse vector of exactly [nnz] entries over [size] positions, one per evenly spaced block. */
     private fun sparse(size: Int, nnz: Int, rng: Random): SparseVector {
         val stride = size / nnz
         val indices = IntArray(nnz) { k -> k * stride + rng.nextInt(stride) }
@@ -27,8 +25,7 @@ class PlatformSparseVectorKernelsTest {
             val y = randomVector(size, rng)
             val expected = ReferenceSparseLinearAlgebra.dot(x, y)
             val actual = PlatformSparseVectorKernels.dot(x, y)
-            // Not exact: a vectorized reduction sums lanes in a different order, so the two associate
-            // differently. The bound scales with the count because that reordering is what accumulates.
+            // A vectorized reduction sums lanes in a different order, so the bound scales with the count.
             assertTrue(
                 abs(actual - expected) <= 1e-13 * nnz * (1.0 + abs(expected)),
                 "nnz=$nnz: $actual vs $expected",
@@ -52,7 +49,6 @@ class PlatformSparseVectorKernelsTest {
         }
     }
 
-    /** The other three routines are the interface defaults on every target; this pins that they still are. */
     @Test
     fun `the routines with no vector form are the portable ones`() {
         val rng = Random(11)

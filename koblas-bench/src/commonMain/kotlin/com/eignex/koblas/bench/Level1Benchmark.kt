@@ -16,17 +16,8 @@ import kotlinx.benchmark.Setup
 import kotlinx.benchmark.State
 
 /**
- * Level-1 kernel cost across vector lengths, which locates the SIMD-versus-scalar crossover: the vector
- * path pays a fixed setup (lane broadcast, horizontal reduce) and does no vector work at all below one
- * lane width.
- *
- * These kernels sit below the [com.eignex.koblas.dense.LinearAlgebra] seam, so the `backend` parameter used by
- * the other suites does not reach them. Two switches do. On the JVM, run the sweep twice, once as-is and
- * once with `-Pkoblas.noSimd=true` to withhold the incubator module, to compare SIMD against scalar. On
- * the other targets the `kernels` parameter installs or clears host level-1 kernels, which is how the
- * length threshold that decides between a foreign call and the built-in loop was measured.
- *
- * [mathBackend] is printed to confirm which kernels each run actually measured.
+ * The vector path pays a fixed setup, lane broadcast and horizontal reduce, and does no vector work below
+ * one lane width. On the JVM, re-run with `-Pkoblas.noSimd=true` to compare SIMD against scalar.
  */
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
@@ -35,7 +26,7 @@ class Level1Benchmark {
     @Param("2", "4", "8", "16", "32", "64", "128", "256", "1024", "4096")
     var len: Int = 0
 
-    /** `host` installs the platform's level-1 kernels when it has any; `builtin` clears them. */
+    /** host installs the platform's level-1 kernels when it has any, builtin clears them. */
     @Param("builtin", "host")
     var kernels: String = "builtin"
 

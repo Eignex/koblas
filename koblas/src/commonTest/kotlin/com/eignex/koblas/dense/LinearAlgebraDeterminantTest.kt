@@ -10,18 +10,16 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** The determinant read off an LU factorization, dense and sparse. */
 class LinearAlgebraDeterminantTest {
 
     @Test
     fun `dense LU determinant matches hand values and tracks row-swap sign`() {
-        // [[2, 1], [1, 3]] → det 5.
+        // The matrix ((2, 1), (1, 3)) has determinant 5.
         val a = DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0)))
         assertEquals(5.0, a.lu().determinant(), 1e-12)
-        // Swapped rows negate: [[1, 3], [2, 1]] → det -5.
         val b = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 3.0), doubleArrayOf(2.0, 1.0)))
         assertEquals(-5.0, b.lu().determinant(), 1e-12)
-        // 3x3 hand value: det = 1·(50−48) − 2·(40−42) + 3·(32−35) = 2 + 4 − 9 = −3.
+        // The 3x3 determinant by hand is 1*(50-48) - 2*(40-42) + 3*(32-35) = -3.
         val c = DenseMatrix.of(
             arrayOf(
                 doubleArrayOf(1.0, 2.0, 3.0),
@@ -30,7 +28,6 @@ class LinearAlgebraDeterminantTest {
             ),
         )
         assertEquals(-3.0, c.lu().determinant(), 1e-9)
-        // Empty and identity edge cases.
         assertEquals(1.0, DenseMatrix(0, 0).lu().determinant())
         assertEquals(1.0, DenseMatrix.diagonal(4).lu().determinant(), 1e-12)
     }

@@ -12,10 +12,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/** The sparse triangular solve, checked against the dense one. */
 class SparseTriangularTest {
 
-    /** A random triangle in both storages, with a comfortably non-zero diagonal. */
     private fun triangle(n: Int, lower: Boolean, rng: Random, density: Double = 0.4): Pair<SparseMatrix, DenseMatrix> {
         val dense = DenseMatrix(n, n)
         val columns = ArrayList<List<Pair<Int, Double>>>(n)
@@ -25,7 +23,6 @@ class SparseTriangularTest {
                 val inTriangle = if (lower) i >= j else i <= j
                 if (!inTriangle) continue
                 val v = when {
-                    // A diagonal of at least 2 keeps the triangle well away from singular.
                     i == j -> 2.0 + rng.nextDouble()
 
                     rng.nextDouble() < density -> rng.nextDouble(-1.0, 1.0)
@@ -67,7 +64,6 @@ class SparseTriangularTest {
         }
     }
 
-    /** The solution must actually satisfy the system, not merely match another implementation. */
     @Test
     fun `the solution reproduces the right-hand side`() {
         val rng = Random(20260812)
@@ -76,7 +72,6 @@ class SparseTriangularTest {
         val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
         val x = b.copyOf()
         sparse.trsv(x, lower = true)
-        // T · x must be b again, computed independently through gemv.
         assertClose(b, sparse.gemv(x), "lower residual", tolerance = 1e-9)
 
         val xt = b.copyOf()
@@ -84,13 +79,12 @@ class SparseTriangularTest {
         assertClose(b, sparse.gemv(xt, transpose = true), "transposed residual", tolerance = 1e-9)
     }
 
-    /** Only the selected triangle may be read, so junk in the other one must not matter. */
     @Test
     fun `the opposite triangle is never read`() {
         val rng = Random(20260813)
         val n = 7
         val (clean, dense) = triangle(n, lower = true, rng)
-        // Same lower triangle, plus NaN scattered through the strict upper one.
+        // Same lower triangle, plus NaN through the strict upper one, which must not reach the answer.
         val poisoned = ArrayList<List<Pair<Int, Double>>>(n)
         for (j in 0 until n) {
             val column = ArrayList<Pair<Int, Double>>()
@@ -109,18 +103,12 @@ class SparseTriangularTest {
         assertClose(fromClean, fromPoisoned, "a NaN in the unread triangle changed the answer", tolerance = 0.0)
     }
 
-    /**
-     * A structurally missing diagonal is the sparse-specific failure: a dense triangle always has the entry even when
-     * it is zero, so the dense cores can leave it to produce infinities. Here it is free to detect.
-     */
     @Test
     fun `a missing or zero diagonal is reported with its position`() {
-        // Column 1 has no diagonal entry at all.
         val missing = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf()))
         val absent = assertFailsWith<IllegalArgumentException> { missing.trsv(DoubleArray(2), lower = true) }
         assertTrue("no diagonal entry at 1" in absent.message!!, absent.message!!)
 
-        // Column 1 stores a diagonal, but it is an explicit zero — a different mistake, so a different message.
         val zeroed = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 0.0)))
         val explicit = assertFailsWith<IllegalArgumentException> { zeroed.trsv(DoubleArray(2), lower = true) }
         assertTrue("explicit zero" in explicit.message!!, explicit.message!!)

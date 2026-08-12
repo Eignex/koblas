@@ -1,12 +1,6 @@
 package com.eignex.koblas.dense
 
-/**
- * Output-triangle selector for [LinearAlgebra.syrk].
- *
- * [FULL] (the default) writes the complete, exactly symmetric result — the koblas extension over
- * BLAS. [LOWER] and [UPPER] follow `dsyrk` strictly: only the selected triangle (diagonal included)
- * is written and beta-scaled, and the opposite strict triangle is never read or touched.
- */
+/** Output-triangle selector for [LinearAlgebra.syrk]. [FULL] is the default and a koblas extension. */
 public enum class Uplo {
     /** Write the complete, exactly symmetric result; beta scales all of `C`. */
     FULL,
@@ -18,15 +12,7 @@ public enum class Uplo {
     UPPER,
 }
 
-/**
- * Accumulate `v` at `(i, j)` into whichever triangle(s) [uplo] selects.
- *
- * Writes the mirror position too under [Uplo.FULL], and writes the diagonal exactly once, which is why the
- * two branches are not symmetric: the diagonal belongs to both triangles.
- *
- * Hoisted out of the reference backend so the [Blas] default implementations can share it rather than
- * carrying a second copy — `syr`, `syr2` and `syr2k` all need exactly this.
- */
+/** Accumulate `v` at `(i, j)` into whichever triangles [uplo] selects, the mirror too under [Uplo.FULL]. */
 internal fun addUplo(cd: DoubleArray, n: Int, i: Int, j: Int, v: Double, uplo: Uplo) {
     if (uplo != Uplo.UPPER) {
         cd[i + j * n] += v
@@ -47,7 +33,6 @@ internal fun scaleUplo(k: VectorKernels, cd: DoubleArray, n: Int, beta: Double, 
         return
     }
     if (beta == 1.0) return
-    // Column j holds its lower triangle at rows j..n-1 and its upper triangle at rows 0..j.
     for (j in 0 until n) {
         val from = if (uplo == Uplo.LOWER) j + j * n else j * n
         val len = if (uplo == Uplo.LOWER) n - j else j + 1

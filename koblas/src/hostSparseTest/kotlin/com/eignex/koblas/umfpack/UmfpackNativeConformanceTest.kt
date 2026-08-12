@@ -1,5 +1,4 @@
-// detekt's default test exclusions cover the standard source-set names, not a custom one; the same
-// suppression the hostBlasTest source set carries.
+// detekt's default test exclusions cover the standard source-set names, not this custom one.
 @file:Suppress("UndocumentedPublicFunction", "FunctionNaming")
 
 package com.eignex.koblas.umfpack
@@ -18,20 +17,16 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/** The native UMFPACK binding against koblas's portable sparse LU — the same conformance the JVM binding gets. */
 class UmfpackNativeConformanceTest {
 
     /**
-     * Required, not skipped. Each test used to open with `umfpack ?: return`, so a machine without
-     * SuiteSparse reported eight passing tests that had exercised nothing — and Kotlin/Native has no
-     * `Assume` to turn that into a visible skip. Demanding the library matches what the OpenBLAS suites
-     * next door already do, and makes an unbound library a failure with a reason on it.
+     * Required rather than skipped. Kotlin/Native has no Assume, and silently passing a test that exercised
+     * nothing is worse than a failure with a reason on it.
      */
     private val umfpack: UmfpackSparseLapack = requireNotNull(
         UmfpackLoader.functions?.let { UmfpackSparseLapack(it) },
     ) { "host SuiteSparse expected in the test environment" }
 
-    /** A diagonally dominant sparse matrix: well conditioned, and singular for neither backend. */
     private fun sparseSystem(n: Int, rng: Random): SparseMatrix {
         val columns = ArrayList<List<Pair<Int, Double>>>(n)
         for (j in 0 until n) {
@@ -53,7 +48,6 @@ class UmfpackNativeConformanceTest {
     fun `the binding resolves and registers`() {
         assertEquals("umfpack", umfpack.name)
         assertEquals(HOST_BACKEND_PRIORITY, umfpack.priority, "every koblas host binding registers at one priority")
-        // Reading the context runs discovery if it has not run, so a resolved library must show up here.
         assertEquals("umfpack", koblas.sparseLapack.name, "discovery should have registered the backend")
     }
 
@@ -85,7 +79,6 @@ class UmfpackNativeConformanceTest {
         }
     }
 
-    /** `out === b` must work: umfpack reads B while writing X, so the aliased case needs a copy. */
     @Test
     fun `an aliased destination still solves correctly`() {
         val rng = Random(20260816)
@@ -112,7 +105,6 @@ class UmfpackNativeConformanceTest {
 
     @Test
     fun `a singular matrix is reported singular with an unknown position`() {
-        // Column 1 is a multiple of column 0, so the matrix is rank 1.
         val rank1 = SparseMatrix.ofColumns(
             2,
             2,
@@ -126,7 +118,6 @@ class UmfpackNativeConformanceTest {
         assertFailsWith<SingularMatrix> { f.solve(doubleArrayOf(1.0, 1.0)) }
     }
 
-    /** Both requests UMFPACK cannot honor must reach the portable factorization instead of being ignored. */
     @Test
     fun `equilibrate and a drop tolerance fall back to the portable factorization`() {
         val rng = Random(20260818)
@@ -139,10 +130,7 @@ class UmfpackNativeConformanceTest {
         }
     }
 
-    /**
-     * The degenerate shapes that cannot be pinned: `usePinned` has no address to give for an empty array, so both go
-     * to the portable path rather than reaching UMFPACK at all.
-     */
+    /** `usePinned` has no address for an empty array, so these shapes take the portable path instead of UMFPACK. */
     @Test
     fun `empty and all-zero matrices take the portable path`() {
         val empty = umfpack.factor(SparseMatrix.ofColumns(0, 0, emptyList()))
@@ -151,7 +139,6 @@ class UmfpackNativeConformanceTest {
         assertTrue(zeros.singular, "a matrix of zeros is singular")
     }
 
-    /** Many factorizations in a loop must not exhaust native memory. */
     @Test
     fun `repeated factorizations do not exhaust native memory`() {
         val rng = Random(20260820)

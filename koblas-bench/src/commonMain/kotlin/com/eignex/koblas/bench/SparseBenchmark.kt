@@ -15,12 +15,6 @@ import kotlinx.benchmark.Scope
 import kotlinx.benchmark.Setup
 import kotlinx.benchmark.State
 
-/**
- * Sparse factorization and solve at a fixed off-diagonal density.
- *
- * The sparse kernels are portable Kotlin with no backend seam behind them, so there is no `backend`
- * parameter: a native BLAS has no bearing on CSC traversal.
- */
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(BenchmarkTimeUnit.MICROSECONDS)
@@ -38,7 +32,6 @@ class SparseBenchmark {
         rhs = randomVector(n, rng)
     }
 
-    /** Sparse LU factorize plus an FTRAN solve, the pair a simplex iteration pays on refactorization. */
     @Benchmark
     fun sparseLuSolve(): DoubleArray {
         val lu = a.lu(equilibrate = true) ?: return rhs

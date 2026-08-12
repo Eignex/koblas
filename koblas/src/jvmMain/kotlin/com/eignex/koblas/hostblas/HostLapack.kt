@@ -28,18 +28,6 @@ import com.eignex.koblas.lapackFailedAt
 import com.eignex.koblas.requireFactored
 import com.eignex.koblas.requireShape
 
-/**
- * The host LAPACKE as the JVM's [Lapack] half.
- *
- * Native where the work is `O(n^3)`: the LU, LDL and QR factorizations, the blocked multi-RHS solve, and
- * the condition estimate. The single-vector solves delegate to the portable kernels, as on every other
- * platform.
- *
- * The Cholesky family is native from a small size up, and the solve is not: `dpotrf` and `dpotri` win from
- * n 32 and n 16 respectively, while `dpotrs` loses two to three times at every size. That split is the whole
- * argument for per-routine gates — the three routines of one family disagree about where the call is worth
- * making, and only measuring finds out.
- */
 public class HostLapack internal constructor() : Lapack {
     override val name: String get() = "openblas"
 
@@ -63,8 +51,8 @@ public class HostLapack internal constructor() : Lapack {
             HostBlasCalls.seg(ipiv),
         ) as Int
         check(info >= 0) { "dgetrf: illegal argument ${-info}" }
-        // dgetrf reports successive row swaps (1-based); replay them to get the permutation form
-        // LuDecomposition uses (piv[k] = original row now at position k).
+        // dgetrf reports successive 1-based row swaps, so replaying them gives the permutation form
+        // LuDecomposition uses, where `piv(k)` is the original row now at position k.
         for (k in 0 until n) {
             val p = ipiv[k] - 1
             if (p != k) {
@@ -76,11 +64,7 @@ public class HostLapack internal constructor() : Lapack {
         return LuDecomposition(n, lu, piv, lapackFailedAt(info))
     }
 
-    /**
-     * Delegated to [ReferenceLinearAlgebra] for the same reason as [Blas.gemv]: two triangular solves over the
-     * `n²` factor are `O(n²)` work on `O(n²)` data, so the per-call cost dominates, and measurement agrees.
-     * The blocked [solve] below keeps `dtrsm`, which amortizes that cost across many right-hand sides.
-     */
+    /** Delegated to [ReferenceLinearAlgebra] for the same reason as [Blas.gemv], the per-call cost. */
     @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
     override fun solveInto(
         lu: LuDecomposition,
@@ -106,8 +90,7 @@ public class HostLapack internal constructor() : Lapack {
             "solve: out is ${out.rows}x${out.cols}, expected ${n}x$nrhs"
         }
         if (n == 0 || nrhs == 0) return out
-        // One or two columns do not cover the native call's cost: at n 256 dtrsm needs 100-140 us for a
-        // single column against the delegated path's 25 us. From four columns on, dtrsm is ahead.
+        // Few columns do not cover the native call's cost.
         if (nrhs < NATIVE_TRSM_MIN_RHS) {
             val col = workspace?.take(n) ?: DoubleArray(n)
             val solved = workspace?.take(n) ?: DoubleArray(n)
@@ -123,8 +106,7 @@ public class HostLapack internal constructor() : Lapack {
             return out
         }
         val f = lu.lu
-        // Permute plus two block triangular solves. The row permutation is the strided step now: it moves
-        // one element per column instead of a contiguous run per row.
+        // Permute plus two block triangular solves.
         if (transpose) {
             val y = workspace?.take(n * nrhs) ?: DoubleArray(n * nrhs)
             b.data.copyInto(y)
@@ -147,7 +129,7 @@ public class HostLapack internal constructor() : Lapack {
         return out
     }
 
-    /** `dst[i, c] = src[piv[i], c]` when [gather], its inverse otherwise, over an `n × nrhs` pair. */
+    /** `dst(i, c) = src(piv(i), c)` when [gather], its inverse otherwise, over an `n × nrhs` pair. */
     @Suppress("LongParameterList")
     private fun permuteRows(src: DoubleArray, dst: DoubleArray, n: Int, nrhs: Int, piv: IntArray, gather: Boolean) {
         for (c in 0 until nrhs) {
@@ -211,13 +193,7 @@ public class HostLapack internal constructor() : Lapack {
         return LdlDecomposition(n, buf, ipiv, lapackFailedAt(info))
     }
 
-    /**
-     * Gated by [JVM_LDL_SOLVE_MIN] rather than by the LAPACK threshold, and disabled by it.
-     *
-     * A vector solve is `O(n²)` work over `O(n²)` data, so it behaves like level 2 rather than like the
-     * factorization it belongs to, and measurement puts it inside the noise band at every size. The gate is a
-     * value to change and re-measure rather than a decision welded shut; the numbers are with the constant.
-     */
+    /** Gated by [JVM_LDL_SOLVE_MIN] rather than by the LAPACK threshold, and disabled by it. */
     override fun solveInto(ldl: LdlDecomposition, b: DoubleArray, out: DoubleArray): DoubleArray {
         requireFactored(ldl.failedAt, "solve")
         if (ldl.n < JVM_LDL_SOLVE_MIN) return ReferenceLinearAlgebra.solveInto(ldl, b, out)
@@ -255,17 +231,8 @@ public class HostLapack internal constructor() : Lapack {
     }
 
     /**
-     * `dgeqp3` above the LAPACK threshold, portable below it.
-     *
-     * `jpvt` is zeroed on input, which is LAPACK's "every column is free to move"; a nonzero entry pins a
-     * column to the front, which koblas does not expose. On output it is one-based, hence the shift.
-     *
-     * LAPACK reports no rank, so it comes from [rankOfPivotedR] — the same rule the portable path applies to
-     * its own `R`, rather than a second implementation that could disagree about where the tolerance falls.
-     *
-     * Whether this is worth the call is not settled. `dgeqp3`'s pivoting phase updates column norms between
-     * panels and is level-2 bound, so the level-3 advantage that makes `dgeqrf` worth binding is smaller
-     * here; this reuses the LAPACK threshold rather than claiming a measured one of its own.
+     * A zeroed jpvt on input leaves every column free to move, and the output is one-based, hence the shift.
+     * LAPACK reports no rank, so it comes from [rankOfPivotedR].
      */
     override fun qrPivoted(a: DenseMatrix, tolerance: Double, workspace: Workspace?): PivotedQrDecomposition {
         if (minOf(a.rows, a.cols) < dispatchThresholds.lapack) {
@@ -329,13 +296,8 @@ public class HostLapack internal constructor() : Lapack {
     }
 
     /**
-     * `dpotrf` above [JVM_CHOLESKY_MIN], portable below it, with three adjustments to match the contract.
-     *
-     * LAPACK factorizes in place and leaves the strict upper triangle exactly as the input had it, while
-     * koblas returns a factor whose upper triangle is zero, so it is cleared. LAPACK has no equivalent of
-     * [CholeskyPolicy.Regularize]: it reports the failing leading minor instead of clamping the pivot, so `info > 0`
-     * falls back to the portable path, which is what applies the clamp or throws per the flag. And only the
-     * lower triangle of the input is read, matching what koblas promises its callers.
+     * Clears the upper triangle LAPACK leaves untouched, reads only the lower triangle of the input, and
+     * falls back to the portable path on a positive info, which [CholeskyPolicy.Regularize] needs.
      */
     override fun cholesky(a: DenseMatrix, policy: CholeskyPolicy): CholeskyDecomposition {
         if (a.rows < JVM_CHOLESKY_MIN) return super.cholesky(a, policy)
@@ -343,7 +305,7 @@ public class HostLapack internal constructor() : Lapack {
         val n = a.rows
         if (n == 0) return CholeskyDecomposition(DenseMatrix(0, 0))
         val l = DenseMatrix(n, n)
-        // One bulk copy per column of the lower triangle; `dpotrf` reads no further.
+        // One bulk copy per column of the lower triangle; dpotrf reads no further.
         for (j in 0 until n) a.data.copyInto(l.data, j + j * n, j + j * n, (j + 1) * n)
         val info = HostBlasCalls.dpotrf.invokeWithArguments(
             COL_MAJOR,
@@ -358,10 +320,7 @@ public class HostLapack internal constructor() : Lapack {
         return CholeskyDecomposition(l)
     }
 
-    /**
-     * Gated by [JVM_SOLVE_SPD_MIN], which shuts it: `dpotrs` loses to the SIMD kernels at every size, because
-     * `O(n²)` work over `O(n²)` data has nothing to amortize a foreign call against.
-     */
+    /** Gated by [JVM_SOLVE_SPD_MIN], which shuts it off. */
     override fun solve(chol: CholeskyDecomposition, b: DoubleArray): DoubleArray {
         if (chol.n < JVM_SOLVE_SPD_MIN) return super.solve(chol, b)
         val n = chol.n
@@ -383,9 +342,8 @@ public class HostLapack internal constructor() : Lapack {
     }
 
     /**
-     * `dpotri` above [JVM_INVERT_SPD_MIN]. It writes only the triangle it is given, where koblas returns the
-     * full symmetric inverse, so the result is mirrored; and it overwrites the factor with the inverse, so
-     * the factor is copied first rather than destroyed.
+     * dpotri writes only the triangle it is given, so the result is mirrored, and it overwrites the factor,
+     * so the factor is copied first.
      */
     override fun invert(chol: CholeskyDecomposition, workspace: Workspace?): DenseMatrix {
         if (chol.n < JVM_INVERT_SPD_MIN) return super.invert(chol, workspace)
@@ -408,51 +366,14 @@ public class HostLapack internal constructor() : Lapack {
 
 private const val NATIVE_TRSM_MIN_RHS = 4
 
-// Every threshold below, and the level defaults in DispatchThresholds.jvm.kt, was measured while koblas
-// stored matrices row-major.
-//
-// Two things changed underneath those numbers. The native side got cheaper: LAPACKE's row-major entry
-// points transposed each matrix into a column-major temporary before calling LAPACK — 32 MB of
-// copying per call at n=2048 — and now nothing is transposed. The portable side changed shape too, since
-// the kernels were rewritten to sweep columns rather than rows. Both effects move the crossovers, and not
-// necessarily in the same direction.
-//
-// So these are the last measured answers under the old layout, kept because a stale measurement beats a
-// guess, and every one of them is a candidate to move. The gates exist precisely so that re-measuring
-// changes a constant rather than a method.
-
-/**
- * The LDL vector solve stays portable at every size: see [HostLapack.solveInto]. Not the never-dispatch sentinel but a
- * finite bound, because the claim rests on measurements that stop at n=256 rather than on a proof.
- */
+/** Holds the LDL vector solve on the portable path at every size, see [HostLapack.solveInto]. */
 private const val JVM_LDL_SOLVE_MIN = 1 shl 20
 
-/**
- * Native from 32 up (us/op, native against SIMD): 0.83 vs 0.87 at n=16, 2.79 vs 3.56 at 32, 11.3 vs 15.5 at
- * 64, 73.5 vs 83.6 at 128, 392 vs 564 at 256, 18353 vs 33498 at 1024, 98988 vs 295342 at 2048.
- *
- * Measured under column-major storage, where a LAPACKE call hands its buffer straight through. An older
- * measurement taken while koblas stored rows put this gate at 2048 on the opposite conclusion; the transposes
- * that produced it are gone. Sixteen is a tie within the error bars and is left to the portable path; below
- * that is not measured, and a matrix that small is not worth a foreign call.
- */
+/** Where dpotrf takes over from the portable Cholesky. */
 private const val JVM_CHOLESKY_MIN = 32
 
-/**
- * Native at every size measured, and by the widest margin of the three (us/op, native against SIMD): 1.52 vs
- * 2.74 at n=16, 5.79 vs 12.0 at 32, 25.6 vs 54.1 at 64, 126 vs 287 at 128, 746 vs 1632 at 256, 20930 vs 81472
- * at 1024, 132975 vs 674060 at 2048.
- *
- * Two-to-five times, consistently, where the old note called this the least certain of the three at close to
- * the noise floor — the same row-major transposes that moved the Cholesky gate. Sixteen because that is the
- * smallest size measured, not because a crossover was found there; there is no sign of one.
- */
+/** Where dpotri takes over from the portable SPD inverse. */
 private const val JVM_INVERT_SPD_MIN = 16
 
-/**
- * The SPD solve stays portable at every size: see [HostLapack.solve]. Re-measured under column-major
- * storage rather than inherited — 38.4 us against the portable 15.3 at n=256, 655 against 234 at 1024, 2937
- * against 1079 at 2048 — so this one keeps its sentinel for the reason it was given, not despite it. Two
- * triangular solves are `O(n²)` work over `O(n²)` data and there is nothing for a foreign call to amortize.
- */
+/** Holds the SPD solve on the portable path at every size, see [HostLapack.solve]. */
 private const val JVM_SOLVE_SPD_MIN = 1 shl 20

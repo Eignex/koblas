@@ -10,13 +10,6 @@ import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
-/**
- * BLAS/LAPACK conformance in the reference-suite style: run each operation on a battery of standard test matrices
- * (identity, diagonal, Hilbert — the classic ill-conditioned case — random well-conditioned, and symmetric
- * positive-definite) and check the result against a constructed reference within a theoretically-informed error bound
- * (residual norm scaled by size and unit roundoff), rather than an exact equality. This mirrors how the netlib
- * `dblat`/LAPACK tests validate an implementation.
- */
 class BlasConformanceTest {
 
     private val eps = 2.220446049250313e-16
@@ -47,7 +40,6 @@ class BlasConformanceTest {
         DenseMatrix(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
             .also { for (i in 0 until n) it[i, i] = it[i, i] + n } // diagonally dominant
 
-    // symmetric positive-definite: M = AᵀA + n·I.
     private fun spd(n: Int, rng: Random): DenseMatrix {
         val a = DenseMatrix(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
         val m = DenseMatrix(n, n)
@@ -61,9 +53,8 @@ class BlasConformanceTest {
         return m
     }
 
-    // Residual ‖A x − b‖∞ scaled by ‖A‖∞‖x‖∞ and the condition-independent bound c·n·eps·cond, relaxed
-    // for Hilbert by its huge condition number — we check the *residual* (always small for a stable
-    // solve), not the forward error (which Hilbert inflates).
+    // The bound scales the residual by the norms of A, x and b and by n times the unit roundoff. Only the
+    // residual is checked, not the forward error, which the condition number of a Hilbert matrix inflates.
     private fun assertSolveResidual(a: DenseMatrix, x: DoubleArray, b: DoubleArray, name: String) {
         val ax = koblas.gemv(a, x)
         val residual = DoubleArray(a.rows) { ax[it] - b[it] }
@@ -133,7 +124,7 @@ class BlasConformanceTest {
                 for (alpha in doubleArrayOf(0.0, 1.0, -1.5)) {
                     for (beta in doubleArrayOf(0.0, 1.0, 0.5)) {
                         val x = DoubleArray(xLen) { rng.nextDouble(-2.0, 2.0) }
-                        // beta == 0 must overwrite without reading: poison y with NaN.
+                        // beta == 0 must overwrite without reading, so y starts poisoned with NaN.
                         val y0 = DoubleArray(yLen) { if (beta == 0.0) Double.NaN else rng.nextDouble(-2.0, 2.0) }
                         val expected = DoubleArray(yLen) { i ->
                             var s = 0.0
@@ -179,9 +170,7 @@ class BlasConformanceTest {
         for (n in intArrayOf(1, 4, 16)) {
             val a = randomWellConditioned(n, rng)
             val id = DenseMatrix.diagonal(n)
-            // A · I == A exactly (identity has 0/1 entries).
             assertTrue(a.matMul(id) == a, "A·I != A at n=$n")
-            // (A·B)·C ≈ A·(B·C).
             val b = DenseMatrix(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
             val c = DenseMatrix(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
             val left = a.matMul(b).matMul(c)
@@ -207,7 +196,7 @@ class BlasConformanceTest {
                 for (idx in b.data.indices) b.data[idx] = rng.nextDouble(-1.0, 1.0)
                 for (alpha in doubleArrayOf(0.0, 1.0, -2.0)) {
                     for (beta in doubleArrayOf(0.0, 1.0, 0.5)) {
-                        // beta == 0 must overwrite without reading: poison C with NaN.
+                        // beta == 0 must overwrite without reading, so C starts poisoned with NaN.
                         val c0 = DenseMatrix(m, n)
                         for (idx in c0.data.indices) {
                             c0.data[idx] = if (beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0)
@@ -246,8 +235,7 @@ class BlasConformanceTest {
                 for (idx in a.data.indices) a.data[idx] = rng.nextDouble(-1.0, 1.0)
                 for (alpha in doubleArrayOf(0.0, 1.0, -1.5)) {
                     for (beta in doubleArrayOf(0.0, 1.0, 0.5)) {
-                        // Deliberately asymmetric C (NaN-poisoned when beta == 0): syrk's beta term is
-                        // per-entry, only the alpha term is symmetric.
+                        // C is asymmetric on purpose, since only syrk's alpha term is symmetric.
                         val c0 = DenseMatrix(n, n)
                         for (idx in c0.data.indices) {
                             c0.data[idx] = if (beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0)

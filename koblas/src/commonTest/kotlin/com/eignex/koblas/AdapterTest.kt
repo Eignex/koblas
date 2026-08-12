@@ -5,17 +5,14 @@ import com.eignex.koblas.dense.solve
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** A caller's own [MatrixLike] / [VectorLike] reaching koblas's routines. */
 class AdapterTest {
 
-    /** A symmetric positive-definite matrix defined by a rule rather than a buffer. */
     private class Spd(override val rows: Int) : MatrixLike {
         override val cols: Int get() = rows
         override fun get(i: Int, j: Int): Double = if (i == j) rows + 2.0 else 1.0 / (1 + i + j)
         override fun toArray(): Array<DoubleArray> = Array(rows) { i -> DoubleArray(cols) { j -> this[i, j] } }
     }
 
-    /** A vector defined by a rule. */
     private class Ramp(override val size: Int) : VectorLike {
         override fun get(i: Int): Double = i * 0.5 - 1.0
         override fun toDoubleArray(): DoubleArray = DoubleArray(size) { this[it] }
@@ -32,16 +29,10 @@ class AdapterTest {
         }
     }
 
-    /**
-     * A foreign matrix reaches the dense factorizations by materialising first, which is the same route
-     * `lu`, `ldl` and `qr` have always taken. The densification is the caller's, and explicit: a Cholesky
-     * factor fills in regardless, so nothing is saved by hiding it inside the routine.
-     */
     @Test
     fun `cholesky and the SPD solve accept a foreign matrix once it is materialised`() {
         val a = Spd(4)
         val l = DenseMatrix.of(a.toArray()).cholesky()
-        // The factor solves the original system, which is the property that matters.
         val b = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
         val x = l.solve(b)
         for (i in 0 until 4) {
@@ -59,7 +50,6 @@ class AdapterTest {
         assertEquals(asum(dense), asum(x), 1e-12)
         assertEquals(iamax(dense), iamax(x))
         assertEquals(dense dot dense, x dot x, 1e-12)
-        // Mixed: one koblas storage, one adapter, which is the generic branch neither storage short-circuits.
         assertEquals(dense dot dense, dense dot x, 1e-12)
         assertEquals(dense dot dense, x dot dense, 1e-12)
     }
@@ -78,8 +68,6 @@ class AdapterTest {
 
     @Test
     fun `a sparse operand still walks its stored entries against an adapter`() {
-        // The adapter path must not disturb the sparse fast paths: a sparse-times-adapter dot reads only the
-        // stored positions, and the answer matches the densified comparison.
         val sparse = SparseVector.of(6, intArrayOf(1, 4), doubleArrayOf(2.0, -3.0))
         val ramp = Ramp(6)
         var expected = 0.0

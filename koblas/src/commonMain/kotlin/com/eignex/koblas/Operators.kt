@@ -2,68 +2,54 @@ package com.eignex.koblas
 
 import com.eignex.koblas.dense.LinearAlgebra
 
-// Operator spellings of routines that already exist.
-//
-// Every operator here is an alias: it forwards to a routine defined elsewhere, or composes two of them
-// over a contiguous backing. None introduces a kernel of its own, which is what keeps the set small and
-// decides the omissions -- `SparseMatrix + SparseMatrix` would need a pattern union, and there is no
-// sparse `scale`, so neither has an operator.
-//
-// All of them allocate. That is the same trade `gemm(a, b)` and `matMul` already make, and the reason
-// each KDoc names the in-place routine to reach for instead: an operator is for the call site where the
-// expression reads better than the loop, not for the inner loop.
-
-/** `A · B` (BLAS `dgemm`); allocates. [LinearAlgebra.gemm] accumulates into an existing `C` instead. */
+/** `A * B` (BLAS `dgemm`), allocating. [LinearAlgebra.gemm] accumulates into an existing C instead. */
 public operator fun DenseMatrix.times(other: DenseMatrix): DenseMatrix = koblas.gemm(this, other)
 
-/** `A · x` (BLAS `dgemv`); allocates. [LinearAlgebra.gemv] writes into an existing `y` instead. */
+/** `A * x` (BLAS `dgemv`), allocating. [LinearAlgebra.gemv] writes into an existing y instead. */
 public operator fun DenseMatrix.times(x: DenseVector): DenseVector = DenseVector.wrap(koblas.gemv(this, x.data))
 
-/** `A · x` for a CSC matrix; allocates. [com.eignex.koblas.sparse.SparseBlas.gemv] takes a destination. */
+/** `A * x` for a CSC matrix, allocating. [com.eignex.koblas.sparse.SparseBlas.gemv] takes a destination. */
 public operator fun SparseMatrix.times(x: DenseVector): DenseVector = DenseVector.wrap(koblas.gemv(this, x.data))
 
-/** `alpha · A`; allocates. [scale] multiplies in place. */
+/** `alpha * A`, allocating. [scale] multiplies in place. */
 public operator fun DenseMatrix.times(alpha: Double): DenseMatrix {
     val out = data.copyOf()
     koblas.vectorKernels.scale(out, 0, alpha, out.size)
     return DenseMatrix.wrap(rows, cols, out)
 }
 
-/** `alpha · A`; allocates. [scale] multiplies in place. */
+/** `alpha * A`, allocating. [scale] multiplies in place. */
 public operator fun Double.times(a: DenseMatrix): DenseMatrix = a * this
 
-/** `-A`; allocates. */
+/** `-A`, allocating. */
 public operator fun DenseMatrix.unaryMinus(): DenseMatrix = this * -1.0
 
-/** `A + B`; allocates. [axpy] accumulates into an existing operand. */
+/** `A + B`, allocating. [axpy] accumulates into an existing operand. */
 public operator fun DenseMatrix.plus(other: DenseMatrix): DenseMatrix = combine(other, 1.0, "plus")
 
-/** `A - B`; allocates. [axpy] with `alpha = -1.0` accumulates into an existing operand. */
+/** `A - B`, allocating. [axpy] with `alpha = -1.0` accumulates into an existing operand. */
 public operator fun DenseMatrix.minus(other: DenseMatrix): DenseMatrix = combine(other, -1.0, "minus")
 
-/** `a + b`; allocates. [axpy] accumulates into an existing operand. */
+/** `a + b`, allocating. [axpy] accumulates into an existing operand. */
 public operator fun DenseVector.plus(other: DenseVector): DenseVector = combine(other, 1.0, "plus")
 
-/** `a - b`; allocates. [axpy] with `alpha = -1.0` accumulates into an existing operand. */
+/** `a - b`, allocating. [axpy] with `alpha = -1.0` accumulates into an existing operand. */
 public operator fun DenseVector.minus(other: DenseVector): DenseVector = combine(other, -1.0, "minus")
 
-/** `alpha · x`; allocates. [scale] multiplies in place. */
+/** `alpha * x`, allocating. [scale] multiplies in place. */
 public operator fun DenseVector.times(alpha: Double): DenseVector {
     val out = data.copyOf()
     koblas.vectorKernels.scale(out, 0, alpha, out.size)
     return DenseVector.wrap(out)
 }
 
-/** `alpha · x`; allocates. [scale] multiplies in place. */
+/** `alpha * x`, allocating. [scale] multiplies in place. */
 public operator fun Double.times(x: DenseVector): DenseVector = x * this
 
-/** `-x`; allocates. */
+/** `-x`, allocating. */
 public operator fun DenseVector.unaryMinus(): DenseVector = this * -1.0
 
-/**
- * `A + alpha · B` over the flat backings, which are contiguous and identically laid out, so the whole
- * matrix is one `axpy` rather than one per column.
- */
+/** `A + alpha * B` as a single `axpy` over the flat backings. */
 private fun DenseMatrix.combine(other: DenseMatrix, alpha: Double, op: String): DenseMatrix {
     requireShape(rows == other.rows && cols == other.cols) {
         "$op shape mismatch: ${rows}x$cols and ${other.rows}x${other.cols}"
@@ -73,7 +59,7 @@ private fun DenseMatrix.combine(other: DenseMatrix, alpha: Double, op: String): 
     return DenseMatrix.wrap(rows, cols, out)
 }
 
-/** `x + alpha · y`. */
+/** `x + alpha * y`. */
 private fun DenseVector.combine(other: DenseVector, alpha: Double, op: String): DenseVector {
     requireShape(size == other.size) { "$op size mismatch: $size vs ${other.size}" }
     val out = data.copyOf()

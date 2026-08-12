@@ -1,6 +1,4 @@
-// hostBlasTest is a custom source set, which the shared convention plugin analyses with the config for
-// published API rather than for tests: it wants KDoc on every function and rejects the backticked names
-// every other suite here uses. The suite is documented at class level like the rest.
+// The published-API detekt config for this custom source set wants KDoc everywhere and rejects backticked names.
 @file:Suppress("UndocumentedPublicFunction", "FunctionNaming")
 
 package com.eignex.koblas.cblas
@@ -22,7 +20,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/** Every routine the host-BLAS backend implements, against the portable reference on identical inputs. */
 class CblasConformanceTest {
 
     private val cblas = CblasLinearAlgebra()
@@ -42,22 +39,16 @@ class CblasConformanceTest {
         }
     }
 
-    /**
-     * Asserted half by half rather than on `koblas.name`, which is a set of the four halves' names and so depends on
-     * which host libraries the machine has. A UMFPACK installed alongside OpenBLAS adds itself to that string, and
-     * this test is about the dense halves.
-     */
     @Test
     fun `discovery registers the backend and install overrides it`() {
         assertTrue(CblasLinearAlgebra.isAvailable(), "host OpenBLAS expected in the test environment")
-        // Discovery ran on the first read of `koblas`: depending on the artifact alone activated it.
         assertEquals("cblas", koblas.blas.name)
         try {
             installBackends(koblas.with(blas = ReferenceLinearAlgebra, lapack = ReferenceLinearAlgebra))
             assertEquals("reference", koblas.blas.name)
             assertEquals("reference", koblas.lapack.name)
         } finally {
-            installBackends(null) // restores automatic selection, i.e. the registered backend
+            installBackends(null) // restores automatic selection
         }
         assertEquals("cblas", koblas.blas.name)
     }
@@ -125,7 +116,6 @@ class CblasConformanceTest {
                     cblas.syrk(alpha, a, transpose, beta, cCblas)
                     assertClose(cRef.data, cCblas.data, context = "syrk t=$transpose a=$alpha b=$beta")
                     if (beta == 0.0) {
-                        // With no prior C the result is the alpha term alone, which must be bit-symmetric.
                         for (i in 0 until n) {
                             for (j in 0 until i) {
                                 assertEquals(cCblas.data[i + j * n], cCblas.data[j + i * n], "asymmetric at ($i;$j)")
@@ -146,7 +136,6 @@ class CblasConformanceTest {
                     val a = randomMatrix(rng, 6, 4)
                     val n = if (transpose) 4 else 6
                     val c0 = DoubleArray(n * n) { idx ->
-                        // Column-major: the flat index runs down a column before moving to the next.
                         val i = idx % n
                         val j = idx / n
                         val selected = if (uplo == Uplo.LOWER) j <= i else j >= i
@@ -284,7 +273,6 @@ class CblasConformanceTest {
             val est = cblas.rcond(cblas.factor(a), anorm)
             assertTrue(est in ref / 10.0..ref * 10.0, "n=$n: cblas $est vs reference $ref")
         }
-        // Conventions match the contract exactly.
         val singular = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 4.0)))
         assertEquals(0.0, cblas.rcond(cblas.factor(singular), norm1(singular)))
         assertEquals(1.0, cblas.rcond(cblas.factor(DenseMatrix(0, 0)), 0.0))
@@ -298,7 +286,6 @@ class CblasConformanceTest {
             val b = DoubleArray(m) { rng.nextDouble(-1.0, 1.0) }
             val fRef = reference.qr(a)
             val fCblas = cblas.qr(a)
-            // Same b through either factorization on either backend gives the same least-squares x.
             val xs = listOf(
                 reference.solveLeastSquares(fRef, b),
                 reference.solveLeastSquares(fCblas, b),
@@ -308,7 +295,6 @@ class CblasConformanceTest {
             for ((i, x) in xs.withIndex()) {
                 assertClose(xs[0], x, tol = 1e-10, context = "qr interchange ${m}x$n variant $i")
             }
-            // Q from one backend's packed form applies identically on the other.
             val y = DoubleArray(m) { rng.nextDouble(-1.0, 1.0) }
             assertClose(
                 reference.applyQ(fCblas, y),
@@ -322,7 +308,6 @@ class CblasConformanceTest {
                 tol = 1e-11,
                 context = "applyQ on reference factors ${m}x$n",
             )
-            // The same tall factorization drives the minimum-norm solve of the wide transpose.
             val bWide = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
             assertClose(
                 reference.solveMinimumNorm(fRef, bWide),
@@ -359,7 +344,6 @@ class CblasConformanceTest {
                 assertClose(xs[0], x, tol = 1e-9, context = "ldl interchange n=$n variant $i")
             }
         }
-        // Conventions.
         assertTrue(cblas.ldl(DenseMatrix(3, 3)).singular)
         assertTrue(cblas.solve(cblas.ldl(DenseMatrix(0, 0)), DoubleArray(0)).isEmpty())
     }
@@ -374,28 +358,20 @@ class CblasConformanceTest {
 
     @Test
     fun `degenerate shapes honor the beta conventions`() {
-        // 0x0 factor/solve round-trips.
         val empty = cblas.factor(DenseMatrix(0, 0))
         assertEquals(0, cblas.solve(empty, DoubleArray(0)).size)
-        // gemv over a 0x3 matrix transposed: the sum is empty, so beta == 0 must still zero y.
         val y = DoubleArray(3) { Double.NaN }
         cblas.gemv(1.0, DenseMatrix(0, 3), DoubleArray(0), 0.0, y, transpose = true)
         assertTrue(y.all { it == 0.0 }, "gemv beta=0 with empty sum left ${y.toList()}")
-        // gemm with k == 0 and beta == 0 zeroes C without reading it.
         val c = DenseMatrix.wrap(2, 2, DoubleArray(4) { Double.NaN })
         cblas.gemm(1.0, DenseMatrix(2, 0), false, DenseMatrix(0, 2), false, 0.0, c)
         assertTrue(c.data.all { it == 0.0 }, "gemm k=0 beta=0 left ${c.data.toList()}")
-        // syrk with alpha == 0 reduces to the beta scale.
         val s = DenseMatrix.wrap(2, 2, doubleArrayOf(1.0, 2.0, 3.0, 4.0))
         cblas.syrk(0.0, DenseMatrix(2, 5), transpose = false, beta = 2.0, c = s)
         assertClose(doubleArrayOf(2.0, 4.0, 6.0, 8.0), s.data, context = "syrk alpha=0")
     }
 
-    /**
-     * The rest of this suite runs at sizes below roughly 50, where OpenBLAS stays on its serial path and its blocked
-     * kernels never engage. These sizes cross into both, so they cover the threading configuration and the blocked
-     * code paths rather than only the arithmetic.
-     */
+    /** The rest of the suite stays below 50, where OpenBLAS is serial and unblocked. 64 and 256 cross into both. */
     @Test
     fun `level 3 and factorization agree with the reference at blocked sizes`() {
         val rng = Random(20260729)
@@ -419,11 +395,7 @@ class CblasConformanceTest {
         }
     }
 
-    /**
-     * The triangular routines and ger only started dispatching when they moved onto the interface, so these compare
-     * the native implementations against the portable ones over every flag combination. The operand's unselected
-     * triangle is NaN, which fails the comparison if the library reads outside the triangle koblas promised it would.
-     */
+    /** The operand's unselected triangle is NaN, so reading outside the promised triangle fails the comparison. */
     @Test
     fun `triangular routines match reference across all flag combinations`() {
         val rng = Random(20260801)
@@ -475,22 +447,15 @@ class CblasConformanceTest {
         }
     }
 
-    /**
-     * The SPD suite, where the native routines differ from koblas's contract in two ways that a value comparison
-     * alone would miss: dpotrf leaves the strict upper triangle as the input had it, while koblas promises zeros
-     * there, and dpotri writes one triangle where koblas returns the full symmetric inverse. Both are asserted
-     * directly.
-     */
     @Test
     fun `the SPD suite matches reference`() {
         val rng = Random(20260803)
         for (n in intArrayOf(1, 4, 9, 33)) {
-            // A·Aᵀ plus a dominant diagonal is symmetric positive definite.
             val seed = randomMatrix(rng, n, n)
             val a = DenseMatrix(n, n)
             reference.syrk(1.0, seed, transpose = false, beta = 0.0, c = a)
             for (i in 0 until n) a[i, i] = a[i, i] + n
-            // Poison the strict upper triangle: only the lower one may be read.
+            // Poison the strict upper triangle, since only the lower one may be read.
             for (i in 0 until n) for (j in i + 1 until n) a[i, j] = Double.NaN
 
             val expected = reference.cholesky(a)
@@ -525,11 +490,6 @@ class CblasConformanceTest {
         }
     }
 
-    /**
-     * A non-positive-definite input has no LAPACK equivalent — `dpotrf` reports the failing minor rather than
-     * clamping — so the host backend has to hand the whole factorization back to the portable path. Both policies
-     * must therefore behave identically on the two backends.
-     */
     @Test
     fun `a non positive definite input falls back to the portable path`() {
         val bad = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 0.0), doubleArrayOf(0.0, -0.5)))
@@ -555,11 +515,7 @@ class CblasConformanceTest {
         }
     }
 
-    /**
-     * The level-1 kernels sit below the backend seam, so they are installed separately and need their own conformance
-     * check: a wrong offset or length here would corrupt every routine that bottoms out in them. Lengths straddle the
-     * routing threshold, so both the host and the scalar path are covered.
-     */
+    /** Lengths 63, 64 and 65 straddle the routing threshold, so both the host and the scalar path are covered. */
     @Test
     fun `installed level-1 kernels agree with the scalar ones`() {
         val kernels = CblasVectorKernels()
@@ -588,10 +544,6 @@ class CblasConformanceTest {
         }
     }
 
-    /**
-     * The routed reductions against the built-in ones, over the magnitudes that separate a correct `nrm2` from a
-     * naive one.
-     */
     @Test
     fun `the routed reductions agree with the built-in ones`() {
         val kernels = CblasVectorKernels()
@@ -615,13 +567,12 @@ class CblasConformanceTest {
                 )
             }
         }
-        // A zero vector, where the rescaling path has no maximum to factor out.
         val zeros = DoubleArray(80)
         assertEquals(0.0, kernels.nrm2(zeros, 0, 80), "nrm2 of zeros")
         assertEquals(0.0, kernels.asum(zeros, 0, 80), "asum of zeros")
     }
 
-    /** The rescaled two-pass norm, independent of the implementation under test. */
+    /** The rescaled two-pass norm, written out here so the reference does not use the implementation under test. */
     private fun referenceNrm2(v: DoubleArray, off: Int, len: Int): Double {
         var amax = 0.0
         for (i in 0 until len) {

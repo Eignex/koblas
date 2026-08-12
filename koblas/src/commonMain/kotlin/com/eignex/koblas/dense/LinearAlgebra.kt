@@ -4,21 +4,10 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.koblas
 
-/**
- * Both halves of the compute seam at once: the [Blas] routines and the [Lapack] factorizations built on
- * them. [koblas] is one of these, composed from whichever backend won each half.
- *
- * Implement this when a backend provides both, which is the usual case for a host library. Implement
- * [Blas] or [Lapack] alone when it does not — the two are ranked and installed independently, so a host
- * with CBLAS but no LAPACKE still accelerates its level-2 and level-3 work.
- */
+/** Both halves of the compute seam at once; implement [Blas] or [Lapack] alone when a backend has one. */
 public interface LinearAlgebra :
     Blas,
     Lapack
-
-// Every dense factorization is reached the same way: a verb on the matrix produces the decomposition, and
-// the solves hang off the decomposition. One shape to learn rather than one per family, and the same shape
-// the sparse side already had.
 
 /** LU-factorize this square matrix with the active backend ([koblas]); see [Lapack.factor]. */
 public fun DenseMatrix.lu(): LuDecomposition = koblas.factor(this)
@@ -29,10 +18,7 @@ public fun DenseMatrix.ldl(workspace: Workspace? = null): LdlDecomposition = kob
 /** QR factorization `A = Q·R` with the active backend; see [Lapack.qr]. */
 public fun DenseMatrix.qr(workspace: Workspace? = null): QrDecomposition = koblas.qr(this, workspace)
 
-/**
- * QR with column pivoting, `A·P = Q·R`, with the active backend — the factorization that reports a
- * numerical [PivotedQrDecomposition.rank]; see [Lapack.qrPivoted].
- */
+/** QR with column pivoting, `A·P = Q·R`, with the active backend; see [Lapack.qrPivoted]. */
 public fun DenseMatrix.qrPivoted(
     tolerance: Double = AUTOMATIC_RANK_TOLERANCE,
     workspace: Workspace? = null,
@@ -56,8 +42,8 @@ public fun LuDecomposition.solve(b: DenseMatrix, transpose: Boolean = false): De
 public fun LuDecomposition.invert(workspace: Workspace? = null): DenseMatrix = koblas.invert(this, workspace)
 
 /**
- * Reciprocal condition estimate for this factorization, given the 1-norm [anorm] of the matrix it came
- * from; see [Lapack.rcond]. Pair it with [com.eignex.koblas.norm1], computed before factoring.
+ * Reciprocal condition estimate, given the 1-norm [anorm] of the matrix it came from; see [Lapack.rcond].
+ * Pair it with [com.eignex.koblas.norm1], computed before factoring.
  */
 public fun LuDecomposition.rcond(anorm: Double, workspace: Workspace? = null): Double = koblas.rcond(
     this,
