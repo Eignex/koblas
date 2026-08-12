@@ -7,6 +7,7 @@ import com.eignex.koblas.Workspace
 import com.eignex.koblas.requireShape
 import kotlin.math.sqrt
 
+/** What the sparse LDL factorization does with a non-positive pivot. */
 public sealed interface SparseLdlPolicy {
     /**
      * Every pivot must be positive, which makes the factorization a Cholesky in scaled form. A non-positive

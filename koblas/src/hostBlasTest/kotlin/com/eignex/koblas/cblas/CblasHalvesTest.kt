@@ -15,6 +15,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
+/** Checks that CBLAS and LAPACKE register independently of each other. */
 class CblasHalvesTest {
 
     @Test

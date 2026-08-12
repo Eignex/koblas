@@ -24,9 +24,7 @@ class SparseTriangularTest {
                 if (!inTriangle) continue
                 val v = when {
                     i == j -> 2.0 + rng.nextDouble()
-
                     rng.nextDouble() < density -> rng.nextDouble(-1.0, 1.0)
-
                     else -> 0.0
                 }
                 if (v != 0.0) {

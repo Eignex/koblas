@@ -5,10 +5,13 @@ import kotlinx.serialization.Serializable
 
 /** Read-only matrix contract. Anything that only reads a matrix should take this. */
 public interface MatrixLike {
+    /** Number of rows. */
     public val rows: Int
 
+    /** Number of columns. */
     public val cols: Int
 
+    /** The entry at row [i], column [j]. */
     public operator fun get(i: Int, j: Int): Double
 
     /** Materialise into a fresh `Array<DoubleArray>` of rows, independent of the internal storage. */
@@ -46,6 +49,7 @@ public class DenseMatrix internal constructor(
         DoubleArray(cols) { j -> data[i + j * rows] }
     }
 
+    /** Writes [v] at row [i], column [j]. */
     public operator fun set(i: Int, j: Int, v: Double) {
         data[i + j * rows] = v
     }
@@ -65,6 +69,7 @@ public class DenseMatrix internal constructor(
     }
     override fun toString(): String = "DenseMatrix(${rows}x$cols)"
 
+    /** Factories for dense matrices. */
     public companion object {
         /** Copy an `Array<DoubleArray>` of rows into a fresh dense matrix, so rows(i) is row i. */
         public fun of(rows: Array<DoubleArray>): DenseMatrix {

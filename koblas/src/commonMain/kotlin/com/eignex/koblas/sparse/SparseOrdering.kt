@@ -2,6 +2,7 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.SparseMatrix
 
+/** Which fill-reducing ordering a sparse factorization applies. */
 public enum class SparseOrdering {
     /** Reorder to reduce fill, the default. */
     MinimumDegree,

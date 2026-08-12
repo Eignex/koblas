@@ -3,11 +3,13 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.Backend
 import com.eignex.koblas.SparseMatrix
 
+/** Sparse factorizations as a backend half. */
 public interface SparseLapack : Backend {
     /**
      * Factorize the square [a] into something solvable. A singular matrix comes back as a factorization
      * reporting `singular` rather than as an exception.
      *
+     * @param a the square matrix to factorize.
      * @param equilibrate scale rows by a power of two first; the solves and the determinant undo it.
      * @param dropTolerance discard produced entries this far below the largest magnitude, giving an
      *   incomplete factorization.

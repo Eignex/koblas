@@ -8,6 +8,7 @@ import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.requireShape
 
+/** Sparse matrix routines as a backend half. */
 public interface SparseBlas : Backend {
     /**
      * In-place `y = alpha · op(A) · x + beta · y`, where `op(A)` is `Aᵀ` when [transpose]. Per BLAS

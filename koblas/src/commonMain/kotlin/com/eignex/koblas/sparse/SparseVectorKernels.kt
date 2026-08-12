@@ -6,6 +6,7 @@ import com.eignex.koblas.euclideanNorm
 import com.eignex.koblas.requireShape
 import kotlin.math.abs
 
+/** Sparse vector-vector routines as a backend half. */
 public interface SparseVectorKernels : Backend {
     /** `xᵀ·y` for a sparse [x] against a dense [y] (Sparse BLAS `usdot`); walks only the stored entries. */
     public fun dot(x: SparseVector, y: DoubleArray): Double {

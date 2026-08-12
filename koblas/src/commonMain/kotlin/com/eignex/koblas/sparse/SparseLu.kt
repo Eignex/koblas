@@ -120,6 +120,7 @@ public class SparseLu private constructor(
         return d
     }
 
+    /** Entry points for factorizing. */
     public companion object {
 
         /**
@@ -141,6 +142,8 @@ public class SparseLu private constructor(
          * Factorize the `m × m` matrix whose row maps are [rows], where `rows(i)` maps a column to `B(i, j)`.
          * Consumes [rows]: the maps are eliminated in place, so the caller must not reuse them.
          *
+         * @param rows the row maps, eliminated in place.
+         * @param m the dimension of the square matrix.
          * @param equilibrate scale each row by a power of two near `1/max|row|`, undone in the solves.
          * @param dropTolerance a fraction of the largest magnitude present, applied after equilibration.
          */
@@ -236,6 +239,9 @@ public class SparseLu private constructor(
          * Transpose a row-indexed factor into column arrays. Walking k ascending leaves each column's rows
          * ascending, which both solve directions assume.
          *
+         * @param m the dimension of the square matrix.
+         * @param rowIdx the column indices stored in each row.
+         * @param rowVal the values parallel to [rowIdx].
          * @param strictlyAbovePivot selects U's strict upper triangle; L keeps every entry.
          */
         private fun columnOrientation(
@@ -344,8 +350,10 @@ private class CountBuckets(private val size: Int) {
 }
 
 /**
- * @property negligible a zero test: a value below it cannot be told from roundoff and is no pivot candidate.
- * @property dropBelow a fill control: the value is real, and discarding it trades accuracy for sparsity.
+ * @param u the row maps being eliminated.
+ * @param m the dimension of the square matrix.
+ * @param negligible a zero test: a value below it cannot be told from roundoff and is no pivot candidate.
+ * @param dropBelow a fill control: the value is real, and discarding it trades accuracy for sparsity.
  */
 private class MarkowitzState(
     private val u: Array<MutableIntDoubleMap>,

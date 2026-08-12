@@ -99,6 +99,7 @@ public class SparseMatrix internal constructor(
 
     override fun toString(): String = "SparseMatrix(${rows}x$cols, nnz=$nnz)"
 
+    /** Factories for sparse matrices. */
     public companion object {
         /**
          * Builds a CSC matrix from column-major `(row, value)` entries, where columns(j) lists column j's

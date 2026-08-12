@@ -4,6 +4,7 @@ import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.singularFailure
 
+/** A factorization held for reuse against further right-hand sides. */
 public interface SparseFactorization {
     /** The dimension of the factored matrix. */
     public val n: Int

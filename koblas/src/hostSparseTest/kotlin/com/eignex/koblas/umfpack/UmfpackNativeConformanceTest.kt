@@ -17,6 +17,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
+/** Checks the native UMFPACK bindings against the reference implementation. */
 class UmfpackNativeConformanceTest {
 
     /**

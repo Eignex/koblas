@@ -3,6 +3,7 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.koblas
 
+/** Both sparse halves in one type. */
 public interface SparseLinearAlgebra :
     SparseBlas,
     SparseLapack

@@ -6,6 +6,7 @@ import com.eignex.koblas.dense.RoutedVectorKernels
 import com.eignex.koblas.sparse.PlatformSparseVectorKernels
 import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
 
+/** The halves of the seam a backend can implement. */
 public enum class BackendSlot {
     /** Dense vector-vector routines. */
     VectorKernels,
@@ -26,6 +27,7 @@ public enum class BackendSlot {
     SparseLapack,
 }
 
+/** The backend installed in [slot]. */
 public fun KoblasContext.backendFor(slot: BackendSlot): Backend = when (slot) {
     BackendSlot.VectorKernels -> vectorKernels
     BackendSlot.Blas -> blas
