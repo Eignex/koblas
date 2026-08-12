@@ -8,6 +8,7 @@ public interface VectorLike {
     /** Number of entries, counting the unstored zeros of a sparse vector. */
     public val size: Int
 
+    /** The entry at index [i]. */
     public operator fun get(i: Int): Double
 
     /** Materialise into a fresh dense `DoubleArray`, independent of the internal storage. */
@@ -31,6 +32,7 @@ public class DenseVector internal constructor(public val data: DoubleArray) : Ve
     override fun get(i: Int): Double = data[i]
     override fun toDoubleArray(): DoubleArray = data.copyOf()
 
+    /** Writes [v] at index [i]. */
     public operator fun set(i: Int, v: Double) {
         data[i] = v
     }
@@ -40,10 +42,12 @@ public class DenseVector internal constructor(public val data: DoubleArray) : Ve
     override fun hashCode(): Int = data.contentHashCode()
     override fun toString(): String = "DenseVector(size=$size)"
 
+    /** Factories for dense vectors. */
     public companion object {
         /** Copy a `DoubleArray` into a fresh dense vector. */
         public fun of(values: DoubleArray): DenseVector = DenseVector(values.copyOf())
 
+        /** A dense vector of [size] zeros. */
         public fun zero(size: Int): DenseVector = DenseVector(size)
 
         /** Wrap an existing `DoubleArray` without copying. The caller relinquishes ownership. */
@@ -113,6 +117,7 @@ public class SparseVector internal constructor(
     }
     override fun toString(): String = "SparseVector(size=$size, nnz=${indices.size})"
 
+    /** Factories for sparse vectors. */
     public companion object {
         /** Build a sparse vector, sorting by index and summing duplicates. Copies its inputs. */
         public fun of(size: Int, indices: IntArray, values: DoubleArray): SparseVector {

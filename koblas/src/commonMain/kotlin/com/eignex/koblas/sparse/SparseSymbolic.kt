@@ -42,6 +42,7 @@ public class SparseSymbolic internal constructor(
         a.colPtr.contentEquals(analysedColumnStarts) &&
         a.rowIdx.contentEquals(analysedRowIndices)
 
+    /** Entry point for the symbolic analysis. */
     public companion object {
         /** Analyse [a]'s pattern, the elimination tree first and then the column counts of L. */
         public fun analyze(a: SparseMatrix, ordering: SparseOrdering = SparseOrdering.MinimumDegree): SparseSymbolic {

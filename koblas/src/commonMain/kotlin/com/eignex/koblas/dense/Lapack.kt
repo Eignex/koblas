@@ -16,6 +16,7 @@ import com.eignex.koblas.transpose
 import kotlin.math.abs
 import kotlin.math.sqrt
 
+/** Dense factorizations as a backend half. */
 public interface Lapack : Backend {
     /** LU factorization with partial pivoting of a square [a] (LAPACK `dgetrf`). [a] is not modified. */
     public fun factor(a: DenseMatrix): LuDecomposition

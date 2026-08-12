@@ -28,6 +28,7 @@ import com.eignex.koblas.lapackFailedAt
 import com.eignex.koblas.requireFactored
 import com.eignex.koblas.requireShape
 
+/** Dense factorizations backed by a host LAPACKE. */
 public class HostLapack internal constructor() : Lapack {
     override val name: String get() = "openblas"
 

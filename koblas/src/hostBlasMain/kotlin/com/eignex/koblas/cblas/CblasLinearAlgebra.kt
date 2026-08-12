@@ -24,6 +24,7 @@ public class CblasLinearAlgebra private constructor(private val blas: CblasBlas,
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY
 
+    /** Availability checks for the host CBLAS and LAPACKE. */
     public companion object {
         /** Whether the host provides both CBLAS and LAPACKE, so the full backend can be constructed. */
         public fun isAvailable(): Boolean = OpenBlasLoader.cblas != null && OpenBlasLoader.lapacke != null

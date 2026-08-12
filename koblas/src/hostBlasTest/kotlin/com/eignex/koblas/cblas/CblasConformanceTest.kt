@@ -20,6 +20,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
+/** Checks the CBLAS backend against the reference implementation. */
 class CblasConformanceTest {
 
     private val cblas = CblasLinearAlgebra()

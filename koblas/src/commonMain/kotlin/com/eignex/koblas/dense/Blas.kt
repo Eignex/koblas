@@ -12,6 +12,7 @@ import com.eignex.koblas.koblas
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.transpose
 
+/** Dense matrix routines as a backend half. */
 public interface Blas : Backend {
     /** `y = alpha · op(A) · x + beta · y` (BLAS `dgemv`), with `op(A)` being `Aᵀ` when [transpose].
      *  `beta == 0.0` overwrites [y] without reading it. */

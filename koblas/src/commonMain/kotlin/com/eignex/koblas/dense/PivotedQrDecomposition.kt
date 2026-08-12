@@ -31,6 +31,7 @@ public class PivotedQrDecomposition(
     /** The column count of the factored matrix. */
     public val n: Int get() = factorization.n
 
+    /** Whether the numerical rank is below `min(m, n)`. */
     public val rankDeficient: Boolean get() = rank < minOf(m, n)
 
     init {

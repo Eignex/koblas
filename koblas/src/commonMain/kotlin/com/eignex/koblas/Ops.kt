@@ -50,9 +50,7 @@ public infix fun VectorLike.dot(other: VectorLike): Double {
  */
 public fun norm2(v: VectorLike): Double = when (v) {
     is DenseVector -> koblas.vectorKernels.nrm2(v.data, 0, v.size)
-
     is SparseVector -> koblas.sparseVectorKernels.nrm2(v)
-
     else -> euclideanNorm(v.toDoubleArray(), 0, v.size)
 }
 

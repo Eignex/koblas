@@ -22,6 +22,7 @@ import com.eignex.koblas.hostblas.HostBlasCalls.UPPER
 import com.eignex.koblas.hostblas.HostBlasCalls.seg
 import com.eignex.koblas.requireShape
 
+/** Dense matrix routines backed by a host OpenBLAS. */
 public class HostBlas internal constructor() : Blas {
     override val name: String get() = "openblas"
 

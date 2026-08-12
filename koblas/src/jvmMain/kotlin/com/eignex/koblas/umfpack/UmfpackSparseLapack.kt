@@ -14,6 +14,7 @@ import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout.ADDRESS
 import java.lang.foreign.ValueLayout.JAVA_DOUBLE
 
+/** Sparse factorizations backed by a host UMFPACK. */
 public class UmfpackSparseLapack : SparseLapack {
     override val name: String get() = "umfpack"
 

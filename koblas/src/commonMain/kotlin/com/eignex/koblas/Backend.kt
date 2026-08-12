@@ -4,6 +4,7 @@ import com.eignex.koblas.dense.Blas
 import com.eignex.koblas.dense.Lapack
 import com.eignex.koblas.dense.VectorKernels
 
+/** What every backend reports about itself. */
 public interface Backend {
     /** A short backend identifier for diagnostics (e.g. `"reference"`). */
     public val name: String
