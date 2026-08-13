@@ -109,7 +109,7 @@ public class SparseMatrix internal constructor(
             require(columns.size == cols) { "expected $cols columns, got ${columns.size}" }
             var nnz = 0
             for (column in columns) nnz += column.size
-            // Flattened into triplets rather than merged per column, so nothing boxes beyond the input pairs.
+            // Flattened into triplets, so nothing boxes beyond the pairs the caller already holds.
             val rowIdx = IntArray(nnz)
             val colIdx = IntArray(nnz)
             val values = DoubleArray(nnz)
