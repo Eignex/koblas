@@ -155,5 +155,3 @@ tasks.named<Jar>("jvmJar") {
         attributes("Automatic-Module-Name" to "com.eignex.koblas")
     }
 }
-
-kover { currentProject { instrumentation { disabledForAll = true } } }
