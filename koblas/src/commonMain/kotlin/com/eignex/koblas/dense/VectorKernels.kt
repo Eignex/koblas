@@ -7,24 +7,27 @@ import com.eignex.koblas.dispatchThresholds
 /**
  * The vector-vector routines as a backend half, alongside [Blas] and [Lapack]. Implementations must agree
  * with [PlatformVectorKernels] exactly and read nothing outside the (offset, length) window.
+ *
+ * A length of zero is legal everywhere and does nothing: the triangular and Householder kernels reach the
+ * last row with an empty tail, so every routine here is called that way.
  */
 public interface VectorKernels : Backend {
-    /** Sum of a(aOff + i) * b(bOff + i) over the first [len] entries, with `len >= 1`. */
+    /** Sum of a(aOff + i) * b(bOff + i) over the first [len] entries; `0` for an empty run. */
     public fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double
 
-    /** Adds alpha * x(xOff + i) into y(yOff + i) over the first [len] entries, with `len >= 1`. */
+    /** Adds alpha * x(xOff + i) into y(yOff + i) over the first [len] entries. */
     public fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int)
 
-    /** Scales the [len] entries from vOff by alpha, with `len >= 1`. */
+    /** Scales the [len] entries from vOff by alpha. */
     public fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int)
 
     /**
-     * Euclidean norm of the [len] entries from vOff, with `len >= 1` (BLAS `dnrm2`). Must rescale to stay
-     * in range, so a plain `sqrt(sum of squares)` is not a valid implementation.
+     * Euclidean norm of the [len] entries from vOff (BLAS `dnrm2`), `0` for an empty run. Must rescale to
+     * stay in range, so a plain `sqrt(sum of squares)` is not a valid implementation.
      */
     public fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double
 
-    /** Sum of the absolute values of the [len] entries from vOff, with `len >= 1` (BLAS `dasum`). */
+    /** Sum of the absolute values of the [len] entries from vOff (BLAS `dasum`); `0` for an empty run. */
     public fun asum(v: DoubleArray, vOff: Int, len: Int): Double
 
     /**
