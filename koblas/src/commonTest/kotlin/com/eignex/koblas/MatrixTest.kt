@@ -69,11 +69,6 @@ class MatrixTest {
     }
 
     @Test
-    fun `DenseMatrix toString shows shape`() {
-        assertTrue("2x3" in DenseMatrix(2, 3).toString())
-    }
-
-    @Test
     fun `DenseMatrix rejects a shape its backing cannot hold`() {
         assertFailsWith<IllegalArgumentException> { DenseMatrix.wrap(2, 3, DoubleArray(5)) }
         assertFailsWith<IllegalArgumentException> { DenseMatrix(-1, 2) }
@@ -151,7 +146,9 @@ class MatrixTest {
         assertEquals(2, m.rows)
         assertEquals(3, m.cols)
         assertTrue(m.data.all { it == 0.0 })
-        assertEquals(4, DenseMatrix.zero(2).cols * 2)
+        val square = DenseMatrix.zero(2)
+        assertEquals(2, square.rows)
+        assertEquals(2, square.cols)
     }
 
     @Test

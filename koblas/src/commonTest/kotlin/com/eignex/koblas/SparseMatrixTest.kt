@@ -174,6 +174,37 @@ class SparseMatrixTest {
     }
 
     @Test
+    fun `the transpose round-trips and preserves stored zeros`() {
+        val a = SparseMatrix.ofColumns(
+            3,
+            2,
+            listOf(
+                listOf(0 to 4.0, 1 to 0.0, 2 to -1.0),
+                listOf(1 to 7.0),
+            ),
+        )
+        val t = a.transpose()
+        assertEquals(2, t.rows)
+        assertEquals(3, t.cols)
+        assertEquals(a.nnz, t.nnz, "an explicitly stored zero was dropped")
+        for (i in 0 until a.rows) {
+            for (j in 0 until a.cols) assertEquals(a[i, j], t[j, i], "transpose at [$i,$j]")
+        }
+        assertEquals(a, t.transpose(), "transpose twice is not the original")
+    }
+
+    @Test
+    fun `the transpose handles degenerate shapes`() {
+        val empty = SparseMatrix.ofColumns(0, 0, emptyList())
+        assertEquals(empty, empty.transpose().transpose())
+        val noEntries = SparseMatrix.ofColumns(3, 2, listOf(emptyList(), emptyList()))
+        val t = noEntries.transpose()
+        assertEquals(2, t.rows)
+        assertEquals(3, t.cols)
+        assertEquals(0, t.nnz)
+    }
+
+    @Test
     fun `wrap adopts CSC arrays and validates them`() {
         val a = SparseMatrix.wrap(2, 2, intArrayOf(0, 1, 2), intArrayOf(1, 0), doubleArrayOf(5.0, 7.0))
         assertEquals(5.0, a[1, 0])

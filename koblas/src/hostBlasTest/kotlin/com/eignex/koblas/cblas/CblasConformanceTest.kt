@@ -4,10 +4,14 @@
 package com.eignex.koblas.cblas
 
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.dense.CholeskyPolicy
-import com.eignex.koblas.dense.LinearAlgebra
 import com.eignex.koblas.dense.ReferenceLinearAlgebra
 import com.eignex.koblas.dense.Uplo
+import com.eignex.koblas.dense.assertGerAgreesWithReference
+import com.eignex.koblas.dense.assertLevel3AgreesWithReference
+import com.eignex.koblas.dense.assertLuAgreesWithReference
+import com.eignex.koblas.dense.assertNonPositiveDefiniteFallsBack
+import com.eignex.koblas.dense.assertSpdSuiteAgreesWithReference
+import com.eignex.koblas.dense.assertTriangularAgreesWithReference
 import com.eignex.koblas.dense.determinant
 import com.eignex.koblas.installBackends
 import com.eignex.koblas.koblas
@@ -17,7 +21,6 @@ import kotlin.math.sqrt
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /** Checks the CBLAS backend against the reference implementation. */
@@ -202,19 +205,17 @@ class CblasConformanceTest {
     }
 
     @Test
-    fun `factor and solve match reference in both directions`() {
+    fun `the LU family matches reference in both directions and for a block`() =
+        assertLuAgreesWithReference(cblas, intArrayOf(1, 3, 8, 33))
+
+    @Test
+    fun `the determinant matches reference`() {
         val rng = Random(20260730)
         for (n in intArrayOf(1, 3, 8, 33)) {
             val a = randomMatrix(rng, n, n)
             for (i in 0 until n) a[i, i] = a[i, i] + n
-            val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
             val luRef = reference.factor(a)
             val luCblas = cblas.factor(a)
-            for (transpose in booleanArrayOf(false, true)) {
-                val xRef = reference.solve(luRef, b, transpose)
-                val xCblas = cblas.solve(luCblas, b, transpose)
-                assertClose(xRef, xCblas, tol = 1e-10, context = "solve n=$n t=$transpose")
-            }
             assertTrue(
                 abs(luRef.determinant() - luCblas.determinant()) <= 1e-9 * maxOf(1.0, abs(luRef.determinant())),
                 "determinant n=$n: ${luRef.determinant()} vs ${luCblas.determinant()}",
@@ -223,18 +224,11 @@ class CblasConformanceTest {
     }
 
     @Test
-    fun `block solves match reference for lu and ldl`() {
+    fun `ldl block solves match reference`() {
         val rng = Random(20260952)
         val n = 9
         val nrhs = 4
-        val a = randomMatrix(rng, n, n)
-        for (i in 0 until n) a[i, i] = a[i, i] + n
         val b = randomMatrix(rng, n, nrhs)
-        for (transpose in booleanArrayOf(false, true)) {
-            val xRef = reference.solve(reference.factor(a), b, transpose)
-            val xCblas = cblas.solve(cblas.factor(a), b, transpose)
-            assertClose(xRef.data, xCblas.data, tol = 1e-10, context = "lu block t=$transpose")
-        }
         val sym = DenseMatrix(n, n)
         for (i in 0 until n) {
             for (j in 0..i) {
@@ -374,147 +368,22 @@ class CblasConformanceTest {
 
     /** The rest of the suite stays below 50, where OpenBLAS is serial and unblocked. 64 and 256 cross into both. */
     @Test
-    fun `level 3 and factorization agree with the reference at blocked sizes`() {
-        val rng = Random(20260729)
-        for (n in intArrayOf(64, 256)) {
-            val a = randomMatrix(rng, n, n)
-            for (i in 0 until n) a[i, i] = a[i, i] + n // diagonally dominant, so the solve is stable
-            val b = randomMatrix(rng, n, n)
-            assertClose(
-                reference.gemm(a, b).data,
-                cblas.gemm(a, b).data,
-                tol = 1e-9 * n,
-                context = "gemm n=$n",
-            )
-            val rhs = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
-            assertClose(
-                reference.solve(reference.factor(a), rhs),
-                cblas.solve(cblas.factor(a), rhs),
-                tol = 1e-9,
-                context = "solve n=$n",
-            )
-        }
-    }
-
-    /** The operand's unselected triangle is NaN, so reading outside the promised triangle fails the comparison. */
-    @Test
-    fun `triangular routines match reference across all flag combinations`() {
-        val rng = Random(20260801)
-        for (n in intArrayOf(1, 5, 12)) {
-            for (lower in booleanArrayOf(true, false)) {
-                for (transpose in booleanArrayOf(true, false)) {
-                    for (unitDiag in booleanArrayOf(true, false)) {
-                        checkTriangular(rng, n, lower, transpose, unitDiag)
-                    }
-                }
-            }
-        }
-    }
-
-    @Suppress("LongParameterList") // the flag combination under test
-    private fun checkTriangular(rng: Random, n: Int, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
-        val t = DenseMatrix(n, n)
-        for (i in 0 until n) {
-            for (j in 0 until n) {
-                val selected = if (lower) j < i else j > i
-                t[i, j] = when {
-                    selected -> rng.nextDouble(-1.0, 1.0)
-                    i == j -> if (unitDiag) Double.NaN else rng.nextDouble(2.0, 4.0)
-                    else -> Double.NaN
-                }
-            }
-        }
-        val flags = "n=$n lower=$lower t=$transpose unit=$unitDiag"
-        val x = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
-        for (vectorOp in listOf<Pair<String, (LinearAlgebra, DoubleArray) -> Unit>>(
-            "trsv" to { la, v -> la.trsv(t, v, lower, transpose, unitDiag) },
-            "trmv" to { la, v -> la.trmv(t, v, lower, transpose, unitDiag) },
-        )) {
-            val expected = x.copyOf().also { vectorOp.second(reference, it) }
-            val actual = x.copyOf().also { vectorOp.second(cblas, it) }
-            assertClose(expected, actual, tol = 1e-9, context = "${vectorOp.first} $flags")
-        }
-        val nrhs = 3
-        for (right in booleanArrayOf(false, true)) {
-            val b = if (right) randomMatrix(rng, nrhs, n) else randomMatrix(rng, n, nrhs)
-            for (matrixOp in listOf<Pair<String, (LinearAlgebra, DenseMatrix) -> Unit>>(
-                "trsm" to { la, m -> la.trsm(t, m, lower, transpose, unitDiag, right) },
-                "trmm" to { la, m -> la.trmm(t, m, lower, transpose, unitDiag, right) },
-            )) {
-                val expected = DenseMatrix(b.rows, b.cols, b.data.copyOf()).also { matrixOp.second(reference, it) }
-                val actual = DenseMatrix(b.rows, b.cols, b.data.copyOf()).also { matrixOp.second(cblas, it) }
-                assertClose(expected.data, actual.data, tol = 1e-9, context = "${matrixOp.first} right=$right $flags")
-            }
-        }
-    }
+    fun `level 3 agrees with the reference at blocked sizes`() =
+        assertLevel3AgreesWithReference(cblas, intArrayOf(64, 256))
 
     @Test
-    fun `the SPD suite matches reference`() {
-        val rng = Random(20260803)
-        for (n in intArrayOf(1, 4, 9, 33)) {
-            val seed = randomMatrix(rng, n, n)
-            val a = DenseMatrix(n, n)
-            reference.syrk(1.0, seed, transpose = false, beta = 0.0, c = a)
-            for (i in 0 until n) a[i, i] = a[i, i] + n
-            // Poison the strict upper triangle, since only the lower one may be read.
-            for (i in 0 until n) for (j in i + 1 until n) a[i, j] = Double.NaN
-
-            val expected = reference.cholesky(a)
-            val actual = cblas.cholesky(a)
-            assertClose(expected.l.data, actual.l.data, tol = 1e-9, context = "cholesky n=$n")
-            for (i in 0 until n) {
-                for (j in i + 1 until n) {
-                    assertEquals(0.0, actual.l[i, j], "cholesky n=$n left ${actual.l[i, j]} above the diagonal")
-                }
-            }
-
-            val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
-            assertClose(
-                reference.solve(expected, b),
-                cblas.solve(actual, b),
-                tol = 1e-9,
-                context = "solveSpd n=$n",
-            )
-
-            val inverse = cblas.invert(actual)
-            assertClose(
-                reference.invert(expected).data,
-                inverse.data,
-                tol = 1e-8,
-                context = "invertSpd n=$n",
-            )
-            for (i in 0 until n) {
-                for (j in 0 until n) {
-                    assertEquals(inverse[i, j], inverse[j, i], 1e-12, "invertSpd n=$n is not symmetric")
-                }
-            }
-        }
-    }
+    fun `triangular routines match reference across all flag combinations`() =
+        assertTriangularAgreesWithReference(cblas, intArrayOf(1, 5, 12, 24))
 
     @Test
-    fun `a non positive definite input falls back to the portable path`() {
-        val bad = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 0.0), doubleArrayOf(0.0, -0.5)))
-        val policy = CholeskyPolicy.Regularize()
-        assertEquals(reference.cholesky(bad, policy).l[1, 1], cblas.cholesky(bad, policy).l[1, 1], 1e-15)
-        assertFailsWith<IllegalArgumentException> { cblas.cholesky(bad) }
-    }
+    fun `the SPD suite matches reference`() = assertSpdSuiteAgreesWithReference(cblas, intArrayOf(1, 4, 9, 33))
 
     @Test
-    fun `ger matches reference`() {
-        val rng = Random(20260802)
-        for ((rows, cols) in listOf(1 to 1, 4 to 7, 9 to 3)) {
-            for (alpha in doubleArrayOf(0.0, 1.0, -0.75)) {
-                val x = DoubleArray(rows) { rng.nextDouble(-1.0, 1.0) }
-                val y = DoubleArray(cols) { rng.nextDouble(-1.0, 1.0) }
-                val a0 = randomMatrix(rng, rows, cols)
-                val expected = DenseMatrix(rows, cols, a0.data.copyOf())
-                reference.ger(alpha, x, y, expected)
-                val actual = DenseMatrix(rows, cols, a0.data.copyOf())
-                cblas.ger(alpha, x, y, actual)
-                assertClose(expected.data, actual.data, context = "ger ${rows}x$cols alpha=$alpha")
-            }
-        }
-    }
+    fun `a non positive definite input falls back to the portable path`() =
+        assertNonPositiveDefiniteFallsBack(cblas, n = 2)
+
+    @Test
+    fun `ger matches reference`() = assertGerAgreesWithReference(cblas)
 
     /** Lengths 63, 64 and 65 straddle the routing threshold, so both the host and the scalar path are covered. */
     @Test

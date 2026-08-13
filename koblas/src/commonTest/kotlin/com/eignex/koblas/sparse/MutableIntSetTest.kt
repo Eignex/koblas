@@ -22,11 +22,15 @@ class MutableIntSetTest {
     @Test
     fun `members occupy the leading slots`() {
         val s = MutableIntSet()
-        for (k in 0 until 50) s.add(k * 11)
-        val seen = BooleanArray(50)
-        for (slot in 0 until s.size) seen[slot] = true
-        assertTrue(seen.all { it })
+        val keys = (0 until 50).map { it * 11 }
+        for (k in keys) s.add(k)
         assertEquals(50, s.size)
+        // Walking slots 0 until size must yield every member exactly once, which is what lets a caller
+        // keep a parallel array indexed by slot.
+        val fromSlots = ArrayList<Int>(s.size)
+        for (slot in 0 until s.size) fromSlots.add(s.keyAt(slot))
+        assertEquals(keys.toSet(), fromSlots.toSet(), "the leading slots do not hold exactly the members")
+        assertEquals(s.size, fromSlots.distinct().size, "a member appears in two slots")
     }
 
     @Test

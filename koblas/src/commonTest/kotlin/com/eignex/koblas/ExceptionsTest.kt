@@ -30,6 +30,7 @@ class ExceptionsTest {
         val e = assertFailsWith<SingularMatrix> { singular.lu().invert() }
         assertEquals(singular.lu().failedAt, e.position, "position should match the factorization's failedAt")
         assertTrue(e.position >= 0)
+        assertTrue("pivot 1" in e.message!!, "the message should name the failing pivot: ${e.message}")
     }
 
     @Test

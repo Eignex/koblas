@@ -1,0 +1,182 @@
+package com.eignex.koblas.dense
+
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.assertClose
+import com.eignex.koblas.randomMatrix
+import kotlin.random.Random
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+
+// What every host BLAS/LAPACK binding owes the seam, written once so the JVM and native suites assert the
+// same thing. Each function takes the half under test and compares it against ReferenceLinearAlgebra; the
+// sizes stay a parameter because each platform gates its dispatch differently. Whatever is one platform's
+// alone - loaders, discovery, the ILP64 check, level-1 routing - stays in its own suite.
+
+private val reference = ReferenceLinearAlgebra
+
+/** An SPD matrix with its strict upper triangle poisoned, since only the lower one may be read. */
+internal fun poisonedSpd(n: Int, rng: Random): DenseMatrix {
+    val seed = randomMatrix(n, n, rng)
+    val a = DenseMatrix(n, n)
+    reference.syrk(1.0, seed, transpose = false, beta = 0.0, c = a)
+    for (i in 0 until n) a[i, i] = a[i, i] + n
+    for (i in 0 until n) for (j in i + 1 until n) a[i, j] = Double.NaN
+    return a
+}
+
+internal fun assertLevel3AgreesWithReference(blas: Blas, sizes: IntArray) {
+    val rng = Random(20260729)
+    for (n in sizes) {
+        val a = randomMatrix(n, n, rng)
+        val b = randomMatrix(n, n, rng)
+        assertClose(reference.gemm(a, b), blas.gemm(a, b), "gemm n=$n", tolerance = 1e-9 * n)
+        for (uplo in listOf(Uplo.FULL, Uplo.LOWER)) {
+            val expected = DenseMatrix(n, n)
+            val actual = DenseMatrix(n, n)
+            reference.syrk(1.0, a, transpose = true, beta = 0.0, c = expected, uplo = uplo)
+            blas.syrk(1.0, a, transpose = true, beta = 0.0, c = actual, uplo = uplo)
+            assertClose(expected, actual, "syrk $uplo n=$n", tolerance = 1e-9 * n)
+        }
+    }
+}
+
+internal fun assertGerAgreesWithReference(blas: Blas) {
+    val rng = Random(20260802)
+    for ((rows, cols) in listOf(1 to 1, 4 to 7, 9 to 3, 30 to 9)) {
+        for (alpha in doubleArrayOf(0.0, 1.0, -0.75)) {
+            val x = DoubleArray(rows) { rng.nextDouble(-1.0, 1.0) }
+            val y = DoubleArray(cols) { rng.nextDouble(-1.0, 1.0) }
+            val a0 = randomMatrix(rows, cols, rng)
+            val expected = DenseMatrix(rows, cols, a0.data.copyOf())
+            reference.ger(alpha, x, y, expected)
+            val actual = DenseMatrix(rows, cols, a0.data.copyOf())
+            blas.ger(alpha, x, y, actual)
+            assertClose(expected, actual, "ger ${rows}x$cols alpha=$alpha")
+        }
+    }
+}
+
+/**
+ * The operand's unselected triangle is NaN, so a routine reading outside the promised triangle fails the
+ * comparison rather than quietly agreeing.
+ */
+internal fun assertTriangularAgreesWithReference(blas: Blas, sizes: IntArray) {
+    val rng = Random(20260801)
+    for (n in sizes) {
+        for (lower in booleanArrayOf(true, false)) {
+            for (transpose in booleanArrayOf(true, false)) {
+                for (unitDiag in booleanArrayOf(true, false)) {
+                    checkTriangular(blas, rng, n, lower, transpose, unitDiag)
+                }
+            }
+        }
+    }
+}
+
+@Suppress("LongParameterList") // the flag combination under test
+private fun checkTriangular(blas: Blas, rng: Random, n: Int, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
+    val t = DenseMatrix(n, n)
+    for (i in 0 until n) {
+        for (j in 0 until n) {
+            val selected = if (lower) j < i else j > i
+            t[i, j] = when {
+                selected -> rng.nextDouble(-1.0, 1.0)
+                i == j -> if (unitDiag) Double.NaN else rng.nextDouble(2.0, 4.0)
+                else -> Double.NaN
+            }
+        }
+    }
+    val flags = "n=$n lower=$lower t=$transpose unit=$unitDiag"
+    val x = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
+    for ((name, op) in listOf<Pair<String, (Blas, DoubleArray) -> Unit>>(
+        "trsv" to { la, v -> la.trsv(t, v, lower, transpose, unitDiag) },
+        "trmv" to { la, v -> la.trmv(t, v, lower, transpose, unitDiag) },
+    )) {
+        val expected = x.copyOf().also { op(reference, it) }
+        val actual = x.copyOf().also { op(blas, it) }
+        assertClose(expected, actual, "$name $flags", tolerance = 1e-9)
+    }
+    val nrhs = 3
+    for (right in booleanArrayOf(false, true)) {
+        val b = if (right) randomMatrix(nrhs, n, rng) else randomMatrix(n, nrhs, rng)
+        for ((name, op) in listOf<Pair<String, (Blas, DenseMatrix) -> Unit>>(
+            "trsm" to { la, m -> la.trsm(t, m, lower, transpose, unitDiag, right) },
+            "trmm" to { la, m -> la.trmm(t, m, lower, transpose, unitDiag, right) },
+        )) {
+            val expected = DenseMatrix(b.rows, b.cols, b.data.copyOf()).also { op(reference, it) }
+            val actual = DenseMatrix(b.rows, b.cols, b.data.copyOf()).also { op(blas, it) }
+            assertClose(expected, actual, "$name right=$right $flags", tolerance = 1e-9)
+        }
+    }
+}
+
+/** The vector solve in both directions, and the blocked multi-RHS path where a native trsm earns its call. */
+internal fun assertLuAgreesWithReference(lapack: Lapack, sizes: IntArray) {
+    val rng = Random(20260730)
+    for (n in sizes) {
+        val a = randomMatrix(n, n, rng)
+        for (i in 0 until n) a[i, i] = a[i, i] + n // diagonally dominant, so the solve is stable
+        val rhs = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
+        val hostLu = lapack.factor(a)
+        val portableLu = reference.factor(a)
+        for (transpose in booleanArrayOf(false, true)) {
+            assertClose(
+                reference.solve(portableLu, rhs, transpose),
+                lapack.solve(hostLu, rhs, transpose),
+                "LU solve n=$n t=$transpose",
+                tolerance = 1e-9,
+            )
+        }
+        val nrhs = 8
+        val b = randomMatrix(n, nrhs, rng)
+        assertClose(
+            reference.solve(portableLu, b),
+            lapack.solve(hostLu, b),
+            "LU block solve n=$n",
+            tolerance = 1e-9,
+        )
+    }
+}
+
+internal fun assertSpdSuiteAgreesWithReference(lapack: Lapack, sizes: IntArray) {
+    val rng = Random(20260803)
+    for (n in sizes) {
+        val a = poisonedSpd(n, rng)
+
+        val expected = reference.cholesky(a)
+        val actual = lapack.cholesky(a)
+        assertClose(expected.l, actual.l, "cholesky n=$n", tolerance = 1e-9)
+        for (i in 0 until n) {
+            for (j in i + 1 until n) {
+                assertEquals(0.0, actual.l[i, j], "cholesky n=$n left ${actual.l[i, j]} above the diagonal")
+            }
+        }
+
+        val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
+        assertClose(reference.solve(expected, b), lapack.solve(actual, b), "solveSpd n=$n", tolerance = 1e-9)
+
+        val inverse = lapack.invert(actual)
+        assertClose(reference.invert(expected), inverse, "invertSpd n=$n", tolerance = 1e-7)
+        for (i in 0 until n) {
+            for (j in 0 until n) {
+                assertEquals(inverse[i, j], inverse[j, i], 1e-12, "invertSpd n=$n is not symmetric at ($i,$j)")
+            }
+        }
+    }
+}
+
+/**
+ * A non-positive-definite input has no LAPACK equivalent, so the host hands the whole factorization back to
+ * the portable one. Asserted at [n] above the gate, because below it the host path is not involved at all.
+ */
+internal fun assertNonPositiveDefiniteFallsBack(lapack: Lapack, n: Int) {
+    val bad = poisonedSpd(n, Random(20260808))
+    bad[n - 1, n - 1] = -1.0 // breaks positive definiteness at the last leading minor
+    val policy = CholeskyPolicy.Regularize()
+    assertEquals(
+        reference.cholesky(bad, policy).l[n - 1, n - 1],
+        lapack.cholesky(bad, policy).l[n - 1, n - 1],
+        1e-15,
+    )
+    assertFailsWith<IllegalArgumentException> { lapack.cholesky(bad) }
+}

@@ -182,6 +182,44 @@ class TriangularTest {
     }
 
     @Test
+    fun `trtri inverts a triangle in both orientations`() {
+        val rng = Random(20260806)
+        for (n in intArrayOf(1, 4, 7)) {
+            for (lower in booleanArrayOf(true, false)) {
+                val t = DenseMatrix(n, n)
+                for (j in 0 until n) {
+                    for (i in 0 until n) {
+                        val inTriangle = if (lower) i >= j else i <= j
+                        if (inTriangle) t[i, j] = if (i == j) 2.0 + j else rng.nextDouble(-1.0, 1.0)
+                    }
+                }
+                val inv = trtri(t, lower)
+                for (i in 0 until n) {
+                    for (j in 0 until n) {
+                        var s = 0.0
+                        for (k in 0 until n) s += t[i, k] * inv[k, j]
+                        assertClose(if (i == j) 1.0 else 0.0, s, "n=$n lower=$lower at [$i,$j]", tolerance = 1e-9)
+                    }
+                    for (j in 0 until n) {
+                        val outside = if (lower) i < j else i > j
+                        if (outside) {
+                            assertClose(0.0, inv[i, j], "n=$n lower=$lower leaked at [$i,$j]", tolerance = 0.0)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `trtri rejects a zero on the diagonal`() {
+        val singular = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 0.0), doubleArrayOf(3.0, 0.0)))
+        val failure = assertFailsWith<IllegalArgumentException> { trtri(singular, lower = true) }
+        assertTrue("entry 1" in failure.message!!, "should name the zero position: ${failure.message}")
+        trtri(singular, lower = true, unitDiag = true)
+    }
+
+    @Test
     fun `trsv and trsm validate shapes`() {
         assertFailsWith<IllegalArgumentException> { trsv(DenseMatrix(2, 3), DoubleArray(2), lower = true) }
         assertFailsWith<IllegalArgumentException> { trsv(DenseMatrix(3, 3), DoubleArray(2), lower = true) }

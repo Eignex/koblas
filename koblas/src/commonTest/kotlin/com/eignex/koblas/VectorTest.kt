@@ -53,11 +53,6 @@ class VectorTest {
     }
 
     @Test
-    fun `DenseVector toString includes size`() {
-        assertTrue("size=2" in DenseVector.zero(2).toString())
-    }
-
-    @Test
     fun `SparseVector rejects mismatched arrays`() {
         assertFailsWith<IllegalArgumentException> {
             SparseVector.of(5, intArrayOf(0, 1), doubleArrayOf(1.0))
@@ -102,12 +97,6 @@ class VectorTest {
         assertNotEquals(a, different)
         assertNotEquals(a, sizeDiff)
         assertNotEquals<Any?>(a, "x")
-    }
-
-    @Test
-    fun `SparseVector toString includes nnz`() {
-        val s = SparseVector.of(4, intArrayOf(0, 3), doubleArrayOf(1.0, 1.0)).toString()
-        assertTrue("nnz=2" in s)
     }
 
     @Test

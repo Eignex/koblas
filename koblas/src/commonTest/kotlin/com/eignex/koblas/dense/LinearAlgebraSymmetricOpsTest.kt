@@ -149,6 +149,32 @@ class LinearAlgebraSymmetricOpsTest {
     }
 
     @Test
+    fun `syr2k matches the gemm expansion in both orientations`() {
+        val rng = Random(20260809)
+        for (transpose in booleanArrayOf(false, true)) {
+            val n = 4
+            val k = 3
+            val a = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
+            val b = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
+            val c = DenseMatrix(n, n)
+            koblas.syr2k(0.5, a, b, transpose, 0.0, c)
+            for (i in 0 until n) {
+                for (j in 0 until n) {
+                    var s = 0.0
+                    for (p in 0 until k) {
+                        val ai = if (transpose) a[p, i] else a[i, p]
+                        val aj = if (transpose) a[p, j] else a[j, p]
+                        val bi = if (transpose) b[p, i] else b[i, p]
+                        val bj = if (transpose) b[p, j] else b[j, p]
+                        s += ai * bj + bi * aj
+                    }
+                    assertClose(0.5 * s, c[i, j], "transpose=$transpose at [$i,$j]")
+                }
+            }
+        }
+    }
+
+    @Test
     fun `symmetric ops handle empty shapes`() {
         koblas.symm(1.0, DenseMatrix(0, 0), DenseMatrix(0, 3), 0.0, DenseMatrix(0, 3))
         val c = DenseMatrix(2, 0)
