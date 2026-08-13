@@ -33,10 +33,7 @@ class SparseBenchmark {
     }
 
     @Benchmark
-    fun sparseLuSolve(): DoubleArray {
-        val lu = a.lu(equilibrate = true) ?: return rhs
-        return lu.solve(rhs)
-    }
+    fun sparseLuSolve(): DoubleArray = a.lu(equilibrate = true).solve(rhs)
 
     @Benchmark
     fun sparseGemv(): DoubleArray = a.gemv(rhs)
