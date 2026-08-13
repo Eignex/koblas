@@ -107,20 +107,22 @@ public class SparseMatrix internal constructor(
          */
         public fun ofColumns(rows: Int, cols: Int, columns: List<List<Pair<Int, Double>>>): SparseMatrix {
             require(columns.size == cols) { "expected $cols columns, got ${columns.size}" }
-            val colPtr = IntArray(cols + 1)
-            val rowIdxList = ArrayList<Int>()
-            val valueList = ArrayList<Double>()
+            var nnz = 0
+            for (column in columns) nnz += column.size
+            // Flattened into triplets rather than merged per column, so nothing boxes beyond the input pairs.
+            val rowIdx = IntArray(nnz)
+            val colIdx = IntArray(nnz)
+            val values = DoubleArray(nnz)
+            var k = 0
             for (j in 0 until cols) {
-                colPtr[j] = rowIdxList.size
-                val merged = HashMap<Int, Double>()
-                for ((i, v) in columns[j]) merged[i] = (merged[i] ?: 0.0) + v
-                for (i in merged.keys.sorted()) {
-                    rowIdxList.add(i)
-                    valueList.add(merged.getValue(i))
+                for ((i, v) in columns[j]) {
+                    rowIdx[k] = i
+                    colIdx[k] = j
+                    values[k] = v
+                    k++
                 }
             }
-            colPtr[cols] = rowIdxList.size
-            return SparseMatrix(rows, cols, colPtr, rowIdxList.toIntArray(), valueList.toDoubleArray())
+            return ofTriplets(rows, cols, rowIdx, colIdx, values)
         }
 
         /**

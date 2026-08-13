@@ -99,7 +99,7 @@ public class SparseLdl internal constructor(
      * @throws com.eignex.koblas.NotPositiveDefinite if any pivot is not positive.
      */
     public fun choleskyFactor(): SparseMatrix {
-        val columns = List(n) { j ->
+        for (j in 0 until n) {
             if (diagonal[j] <= 0.0) {
                 throw NotPositiveDefinite(
                     j,
@@ -108,13 +108,27 @@ public class SparseLdl internal constructor(
                         "L·D·Lᵀ of an indefinite matrix, which has no real Cholesky factor.",
                 )
             }
+        }
+        // The diagonal plus the strict lower triangle, emitted as triplets so no pair is allocated.
+        val nnz = n + columnPointers[n]
+        val rowIdx = IntArray(nnz)
+        val colIdx = IntArray(nnz)
+        val scaled = DoubleArray(nnz)
+        var k = 0
+        for (j in 0 until n) {
             val scale = sqrt(diagonal[j])
-            buildList {
-                add(j to scale)
-                for (p in columnPointers[j] until columnPointers[j + 1]) add(rowIndices[p] to values[p] * scale)
+            rowIdx[k] = j
+            colIdx[k] = j
+            scaled[k] = scale
+            k++
+            for (p in columnPointers[j] until columnPointers[j + 1]) {
+                rowIdx[k] = rowIndices[p]
+                colIdx[k] = j
+                scaled[k] = values[p] * scale
+                k++
             }
         }
-        return SparseMatrix.ofColumns(n, n, columns)
+        return SparseMatrix.ofTriplets(n, n, rowIdx, colIdx, scaled)
     }
 }
 
