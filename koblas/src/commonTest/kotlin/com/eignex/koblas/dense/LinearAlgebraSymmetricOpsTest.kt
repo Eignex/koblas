@@ -37,8 +37,8 @@ class LinearAlgebraSymmetricOpsTest {
     }
 
     /**
-     * `dsymv` derives its extent from one dimension, so a non-square matrix would have the host backend
-     * read `n²` entries out of a shorter array. Sizes straddle every backend's level-2 gate.
+     * `dsymv` derives its extent from one dimension, so a non-square matrix would have the host backend read
+     * `n²` entries from a shorter array. The sizes straddle every backend's level-2 gate.
      */
     @Test
     fun `symv refuses a non-square matrix at every size`() {
