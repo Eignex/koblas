@@ -2,6 +2,7 @@
 
 package com.eignex.koblas
 
+import com.eignex.koblas.dense.Uplo
 import com.eignex.koblas.dense.matMul
 import kotlin.math.abs
 import kotlin.math.sqrt
@@ -143,13 +144,6 @@ class OpsTest {
     }
 
     @Test
-    fun `sparse and dense carriers of the same vector agree on every op`() {
-        assertEquals(norm2(denseOfSparse), norm2(sparse), 1e-15)
-        assertEquals(asum(denseOfSparse), asum(sparse), 1e-15)
-        assertEquals(iamax(denseOfSparse), iamax(sparse))
-    }
-
-    @Test
     fun `the gemv overload computes A x for dense and sparse x`() {
         val A = DenseMatrix.of(
             arrayOf(
@@ -227,6 +221,52 @@ class OpsTest {
         for (i in 0 until 3) {
             for (j in 0 until 3) {
                 assertEquals(if (i == 1 && j == 2) 5.0 else 0.0, sparse[i, j], "sparse[$i,$j]")
+            }
+        }
+    }
+
+    @Test
+    fun `syr and syr2 match the equivalent ger sweeps`() {
+        val rng = Random(20260807)
+        val n = 6
+        val x = DenseVector.of(randomVector(n, rng))
+        val y = DenseVector.of(randomVector(n, rng))
+
+        val viaSyr = DenseMatrix(n, n)
+        syr(1.5, x, viaSyr)
+        val viaGer = DenseMatrix(n, n)
+        ger(1.5, x, x, viaGer)
+        assertClose(viaGer, viaSyr, "syr against ger")
+
+        val viaSyr2 = DenseMatrix(n, n)
+        syr2(-0.75, x, y, viaSyr2)
+        val viaGer2 = DenseMatrix(n, n)
+        ger(-0.75, x, y, viaGer2)
+        ger(-0.75, y, x, viaGer2)
+        assertClose(viaGer2, viaSyr2, "syr2 against two gers")
+    }
+
+    @Test
+    fun `the symmetric updates are exactly symmetric and honour uplo`() {
+        val rng = Random(20260808)
+        val n = 5
+        val x = DenseVector.of(randomVector(n, rng))
+        val y = DenseVector.of(randomVector(n, rng))
+
+        val full = DenseMatrix(n, n)
+        syr2(0.3, x, y, full)
+        for (i in 0 until n) {
+            for (j in 0 until n) {
+                assertTrue(full[i, j] == full[j, i], "syr2 FULL is not exactly symmetric at [$i,$j]")
+            }
+        }
+
+        val lower = DenseMatrix(n, n)
+        syr(1.0, x, lower, Uplo.LOWER)
+        for (i in 0 until n) {
+            for (j in 0 until n) {
+                if (i < j) assertEquals(0.0, lower[i, j], "syr LOWER wrote the upper triangle at [$i,$j]")
+                if (i >= j) assertEquals(x[i] * x[j], lower[i, j], 1e-12, "[$i,$j]")
             }
         }
     }

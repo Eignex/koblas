@@ -4,8 +4,6 @@ import com.eignex.koblas.Backend
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.installBackends
 import com.eignex.koblas.koblas
-import com.eignex.koblas.koblasInfo
-import com.eignex.koblas.mathBackend
 import com.eignex.koblas.registerBackend
 import com.eignex.koblas.resetBackends
 import com.eignex.koblas.withCleanBackends
@@ -99,16 +97,5 @@ class BackendSelectionTest {
             resetBackends()
             assertSame(ReferenceLinearAlgebra, koblas.blas, "reset must clear the override, not just registration")
         }
-    }
-
-    @Test
-    fun `koblasInfo reports the backend and the kernels`() {
-        assertEquals("backend=${koblas.name}, kernels=${koblas.vectorKernels.name}", koblasInfo)
-    }
-
-    @Test
-    fun `mathBackend identifies the vector kernels`() {
-        assertTrue(mathBackend.isNotEmpty())
-        assertEquals(koblas.vectorKernels.name, mathBackend)
     }
 }

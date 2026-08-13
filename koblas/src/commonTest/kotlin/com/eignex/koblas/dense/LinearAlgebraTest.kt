@@ -55,13 +55,6 @@ class LinearAlgebraTest {
     }
 
     @Test
-    fun `factor flags a singular matrix`() {
-        val a = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 4.0))) // rank 1
-        assertTrue(a.lu().singular)
-        assertTrue(DenseMatrix.of(arrayOf(doubleArrayOf(0.0))).lu().singular)
-    }
-
-    @Test
     fun `factor reports the first zero pivot position`() {
         assertEquals(NOT_SINGULAR, DenseMatrix.diagonal(3).lu().failedAt, "a good factorization has no position")
         val rank1 = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 4.0)))
@@ -90,6 +83,22 @@ class LinearAlgebraTest {
         val a = DenseMatrix(2, 0)
         val b = DenseMatrix(0, 3)
         assertEquals(DenseMatrix(2, 3), a.matMul(b))
+    }
+
+    @Test
+    fun `invert produces the inverse of a general matrix`() {
+        val rng = Random(20260805)
+        for (n in intArrayOf(1, 2, 5, 9)) {
+            val a = wellConditioned(n, rng)
+            val inv = a.lu().invert()
+            for (i in 0 until n) {
+                for (j in 0 until n) {
+                    var s = 0.0
+                    for (k in 0 until n) s += a[i, k] * inv[k, j]
+                    assertEquals(if (i == j) 1.0 else 0.0, s, 1e-9, "n=$n A·Ainv at [$i,$j]")
+                }
+            }
+        }
     }
 
     @Test

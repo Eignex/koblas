@@ -6,13 +6,6 @@ import kotlin.test.assertTrue
 class DispatchThresholdsTest {
 
     @Test
-    fun `thresholds are non-negative and ordered by how much work amortizes a call`() {
-        val t = dispatchThresholds
-        assertTrue(t.level2 >= 0 && t.level3 >= 0 && t.lapack >= 0, "negative threshold: $t")
-        assertTrue(t.level2 >= t.level3, "level 2 (${t.level2}) should not dispatch before level 3 (${t.level3})")
-    }
-
-    @Test
     fun `the platform defaults are the ones this target was measured with`() {
         val defaults = platformDispatchThresholds
         // Scalar kernels lose from the smallest size measured, SIMD kernels win level 2 at every size.

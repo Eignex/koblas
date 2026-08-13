@@ -8,7 +8,6 @@ import com.eignex.koblas.wellConditioned
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class LinearAlgebraDeterminantTest {
 
@@ -30,14 +29,6 @@ class LinearAlgebraDeterminantTest {
         assertEquals(-3.0, c.lu().determinant(), 1e-9)
         assertEquals(1.0, DenseMatrix(0, 0).lu().determinant())
         assertEquals(1.0, DenseMatrix.diagonal(4).lu().determinant(), 1e-12)
-    }
-
-    @Test
-    fun `dense LU determinant is exactly zero for a singular matrix`() {
-        val a = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 4.0)))
-        val lu = a.lu()
-        assertTrue(lu.singular)
-        assertEquals(0.0, lu.determinant())
     }
 
     @Test

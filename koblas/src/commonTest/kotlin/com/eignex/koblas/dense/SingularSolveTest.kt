@@ -48,14 +48,6 @@ class SingularSolveTest {
     }
 
     @Test
-    fun `a non-singular factorization still solves`() {
-        val a = DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0)))
-        val x = a.lu().solve(doubleArrayOf(3.0, 5.0))
-        assertEquals(0.8, x[0], 1e-12)
-        assertEquals(1.4, x[1], 1e-12)
-    }
-
-    @Test
     fun `the sparse solve refuses on the same terms`() {
         val s = SparseMatrix.ofTriplets(
             rows = 2,

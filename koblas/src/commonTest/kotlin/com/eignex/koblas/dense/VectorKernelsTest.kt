@@ -86,7 +86,7 @@ class VectorKernelsTest {
         val short1 = DenseVector.of(doubleArrayOf(3.0))
         val short2 = DenseVector.of(doubleArrayOf(4.0))
         assertEquals(12.0, short1 dot short2)
-        assertEquals(before, recording.dots, "a length-1 dot routed to the backend")
+        assertEquals(before, recording.dots, "a length-1 dot should stay portable, but it reached the backend")
     }
 
     @Test
@@ -232,13 +232,5 @@ class VectorKernelsTest {
         assertEquals("${PlatformVectorKernels.name}+recording", koblas.vectorKernels.name)
         resetBackends()
         assertEquals(PlatformVectorKernels.name, koblas.vectorKernels.name)
-    }
-
-    @Test
-    fun `the reset hook clears the install override too`() = withCleanBackends {
-        val platform = koblas.vectorKernels.name
-        installBackends(koblas.with(vectorKernels = Recording(priority = 0).named("override")))
-        resetBackends()
-        assertEquals(platform, koblas.vectorKernels.name, "reset must clear the override, not just registration")
     }
 }

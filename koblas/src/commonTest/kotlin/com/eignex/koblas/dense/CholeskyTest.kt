@@ -50,6 +50,8 @@ class CholeskyTest {
             for (j in 0 until 3) s += A[i, j] * x[j]
             assertEquals(b[i], s, 1e-10, "A*x reproduce b at $i")
         }
+        assertEquals(3, L.n)
+        assertEquals(A.rows, L.l.rows, "the factor stays reachable as an ordinary matrix")
     }
 
     @Test
@@ -103,21 +105,6 @@ class CholeskyTest {
             doubleArrayOf(0.0, -0.5),
         ),
     )
-
-    @Test
-    fun `the factorization is a distinct type from the matrix it factors`() {
-        val a = spdExample()
-        val chol = a.cholesky()
-        val b = doubleArrayOf(1.0, 2.0, 3.0)
-        val x = chol.solve(b)
-        for (i in 0 until 3) {
-            var s = 0.0
-            for (j in 0 until 3) s += a[i, j] * x[j]
-            assertEquals(b[i], s, 1e-9, "residual at $i")
-        }
-        assertEquals(3, chol.n)
-        assertEquals(a.rows, chol.l.rows, "the factor stays reachable as an ordinary matrix")
-    }
 
     @Test
     fun `cholesky reads only the lower triangle`() {

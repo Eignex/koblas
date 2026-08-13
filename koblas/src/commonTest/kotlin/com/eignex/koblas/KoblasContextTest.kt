@@ -58,6 +58,7 @@ class KoblasContextTest {
     @Test
     fun `with keeps every half it is not given`() {
         val base = koblas
+        val originalKernels = base.vectorKernels
         val mine = Counting()
         val derived = base.with(vectorKernels = mine)
         assertSame(mine, derived.vectorKernels)
@@ -66,7 +67,7 @@ class KoblasContextTest {
         assertSame(base.sparseBlas, derived.sparseBlas)
         assertSame(base.sparseLapack, derived.sparseLapack)
         assertSame(base.sparseVectorKernels, derived.sparseVectorKernels)
-        assertSame(base.vectorKernels, base.vectorKernels, "the original must be untouched; contexts are values")
+        assertSame(originalKernels, base.vectorKernels, "the original must be untouched; contexts are values")
     }
 
     @Test
