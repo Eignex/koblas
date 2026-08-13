@@ -317,6 +317,7 @@ public interface Lapack : Backend {
         val n = a.rows
         val l = DenseMatrix(n, n)
         val ld = l.data
+        val kernels = koblas.vectorKernels
         for (j in 0 until n) a.data.copyInto(ld, j + j * n, j + j * n, (j + 1) * n)
         // Right-looking column Cholesky.
         for (j in 0 until n) {
@@ -324,7 +325,7 @@ public interface Lapack : Backend {
             val len = n - j
             for (p in 0 until j) {
                 val f = ld[j + p * n]
-                if (f != 0.0) koblas.vectorKernels.axpy(ld, base, -f, ld, j + p * n, len)
+                if (f != 0.0) kernels.axpy(ld, base, -f, ld, j + p * n, len)
             }
             val pivot = ld[base]
             if (pivot <= 0.0 || pivot.isNaN()) {
@@ -413,6 +414,7 @@ public interface Lapack : Backend {
         val ld = chol.l.data
         val inv = DenseMatrix(n, n)
         val invd = inv.data
+        val kernels = koblas.vectorKernels
         val y = workspace?.take(n) ?: DoubleArray(n)
         for (j in 0 until n) {
             y.fill(0.0, j, n)
@@ -421,11 +423,11 @@ public interface Lapack : Backend {
                 val base = c + c * n
                 val yc = y[c] / ld[base]
                 y[c] = yc
-                if (yc != 0.0) koblas.vectorKernels.axpy(y, c + 1, -yc, ld, base + 1, n - c - 1)
+                if (yc != 0.0) kernels.axpy(y, c + 1, -yc, ld, base + 1, n - c - 1)
             }
             for (i in n - 1 downTo j) {
                 val base = i + i * n
-                y[i] = (y[i] - koblas.vectorKernels.dot(ld, base + 1, y, i + 1, n - i - 1)) / ld[base]
+                y[i] = (y[i] - kernels.dot(ld, base + 1, y, i + 1, n - i - 1)) / ld[base]
             }
             for (i in j until n) {
                 invd[i + j * n] = y[i]
