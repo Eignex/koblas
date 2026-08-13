@@ -90,6 +90,64 @@ class SparseOrderingTest {
         assertClose(x, a.cholesky().solve(multiply(a, x)), "solve after reordering", tolerance = 1e-9)
     }
 
+    /** The upper triangle of a tridiagonal band, whose minimum-degree ordering leaves no fill at all. */
+    private fun band(n: Int): SparseMatrix {
+        val rowIdx = IntArray(2 * n - 1)
+        val colIdx = IntArray(2 * n - 1)
+        val values = DoubleArray(2 * n - 1)
+        var k = 0
+        for (j in 0 until n) {
+            if (j > 0) {
+                rowIdx[k] = j - 1
+                colIdx[k] = j
+                values[k] = -1.0
+                k++
+            }
+            rowIdx[k] = j
+            colIdx[k] = j
+            values[k] = 4.0
+            k++
+        }
+        return SparseMatrix.ofTriplets(n, n, rowIdx, colIdx, values)
+    }
+
+    /**
+     * The assertion is on fill, not on the clock, but the size is the point: an ordering that rescores every
+     * variable at every step cannot finish at this n, so it fails as a job that runs out of time.
+     */
+    @Test
+    fun `the ordering scales to a band far past what an all-pairs degree scan survives`() {
+        val n = 20_000
+        assertEquals(n - 1, band(n).analyze().nnz, "a band should order to no fill at all")
+    }
+
+    /** A 5-point Laplacian, where the ordering has to do real work rather than peel off leaves. */
+    @Test
+    fun `a two-dimensional grid orders to a fraction of the natural fill`() {
+        val k = 40
+        val n = k * k
+        val rowIdx = ArrayList<Int>()
+        val colIdx = ArrayList<Int>()
+        val values = ArrayList<Double>()
+        fun entry(i: Int, j: Int, v: Double) {
+            rowIdx.add(i)
+            colIdx.add(j)
+            values.add(v)
+        }
+        for (y in 0 until k) {
+            for (x in 0 until k) {
+                val i = y * k + x
+                entry(i, i, 8.0)
+                if (x + 1 < k) entry(i, i + 1, -1.0)
+                if (y + 1 < k) entry(i, i + k, -1.0)
+            }
+        }
+        val a = SparseMatrix.ofTriplets(n, n, rowIdx.toIntArray(), colIdx.toIntArray(), values.toDoubleArray())
+        val natural = a.analyze(SparseOrdering.Natural).nnz
+        val ordered = a.analyze().nnz
+        assertTrue(ordered * 3 < natural, "grid fill $ordered should be well under the natural $natural")
+    }
+
     @Test
     fun `an analysis with an ordering is reusable across values like any other`() {
         val rng = Random(20260816)
