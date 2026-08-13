@@ -87,14 +87,23 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
             vectorKernels.scale(cd, 0, beta, cd.size)
         }
         if (alpha == 0.0 || m == 0 || n == 0 || k == 0) return
-        if (transposeA && transposeB) {
-            val bt = DenseMatrix(k, n)
-            for (j in 0 until n) for (p in 0 until k) bt[p, j] = b[j, p]
-            gemm(alpha, a, transposeA = true, bt, transposeB = false, beta = 1.0, c = c)
-            return
-        }
         val ad = a.data
         val bd = b.data
+        val kernels = vectorKernels
+        if (transposeA && transposeB) {
+            // With both transposed one operand is strided whichever way the loops run, so the smaller one is
+            // transposed once instead. That copy is O(k·n) or O(k·m) against the product's O(m·k·n).
+            if (b.rows * b.cols <= a.rows * a.cols) {
+                val bt = DoubleArray(k * n)
+                for (j in 0 until n) for (p in 0 until k) bt[p + j * k] = bd[j + p * n]
+                gemm(alpha, a, true, DenseMatrix.wrap(k, n, bt), false, 1.0, c)
+            } else {
+                val at = DoubleArray(m * k)
+                for (i in 0 until m) for (p in 0 until k) at[i + p * m] = ad[p + i * k]
+                gemm(alpha, DenseMatrix.wrap(m, k, at), false, b, true, 1.0, c)
+            }
+            return
+        }
         when {
             transposeA -> {
                 val quads = DoubleArray(4)
@@ -102,7 +111,7 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
                     var i = 0
                     val bound = m - 3
                     while (i < bound) {
-                        vectorKernels.dot4(ad, i * k, k, bd, j * k, k, quads, 0)
+                        kernels.dot4(ad, i * k, k, bd, j * k, k, quads, 0)
                         cd[i + j * m] += alpha * quads[0]
                         cd[i + 1 + j * m] += alpha * quads[1]
                         cd[i + 2 + j * m] += alpha * quads[2]
@@ -110,7 +119,7 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
                         i += 4
                     }
                     while (i < m) {
-                        cd[i + j * m] += alpha * vectorKernels.dot(ad, i * k, bd, j * k, k)
+                        cd[i + j * m] += alpha * kernels.dot(ad, i * k, bd, j * k, k)
                         i++
                     }
                 }
@@ -119,14 +128,14 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
             !transposeB -> for (j in 0 until n) {
                 for (p in 0 until k) {
                     val bpj = alpha * bd[p + j * k]
-                    if (bpj != 0.0) vectorKernels.axpy(cd, j * m, bpj, ad, p * m, m)
+                    if (bpj != 0.0) kernels.axpy(cd, j * m, bpj, ad, p * m, m)
                 }
             }
 
             else -> for (j in 0 until n) {
                 for (p in 0 until k) {
                     val bjp = alpha * bd[j + p * n]
-                    if (bjp != 0.0) vectorKernels.axpy(cd, j * m, bjp, ad, p * m, m)
+                    if (bjp != 0.0) kernels.axpy(cd, j * m, bjp, ad, p * m, m)
                 }
             }
         }
@@ -149,31 +158,25 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
         scaleUplo(vectorKernels, cd, n, beta, uplo)
         if (alpha == 0.0 || n == 0 || k == 0) return
         val ad = a.data
-        if (transpose) {
-            for (j in 0 until n) {
-                for (i in j until n) {
-                    val v = alpha * vectorKernels.dot(ad, i * k, ad, j * k, k)
-                    addUplo(cd, n, i, j, v, uplo)
-                }
-            }
-        } else {
-            // Cleared first because take() promises nothing about the contents it hands back.
-            val w = workspace?.take(n * n) ?: DoubleArray(n * n)
-            w.fill(0.0, 0, n * n)
+        // The dot form keeps each output entry in a register, while an outer-product form would stream the
+        // whole of C once per column of A. So a non-transposed A is transposed once first, an O(n·k) copy
+        // against the product's O(n²·k/2), and both orientations then run the same inner loop.
+        val kernels = vectorKernels
+        val at = if (transpose) null else workspace?.take(n * k) ?: DoubleArray(n * k)
+        if (at != null) {
             for (p in 0 until k) {
                 val base = p * n
-                for (j in 0 until n) {
-                    val f = alpha * ad[base + j]
-                    if (f != 0.0) vectorKernels.axpy(w, j * n, f, ad, base, n)
-                }
+                for (j in 0 until n) at[p + j * k] = ad[base + j]
             }
-            for (j in 0 until n) {
-                for (i in j until n) {
-                    addUplo(cd, n, i, j, w[i + j * n], uplo)
-                }
-            }
-            workspace?.release(w)
         }
+        val source = at ?: ad
+        for (j in 0 until n) {
+            for (i in j until n) {
+                val v = alpha * kernels.dot(source, i * k, source, j * k, k)
+                addUplo(cd, n, i, j, v, uplo)
+            }
+        }
+        if (at != null) workspace?.release(at)
     }
 
     @Suppress("LongParameterList") // the BLAS dsymv signature
@@ -273,6 +276,7 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
         val n = a.rows
         val w = a.data.copyOf()
         val ipiv = IntArray(n)
+        val kernels = vectorKernels
         var failedAt = NOT_SINGULAR
         val colK = workspace?.take(n) ?: DoubleArray(n)
         val colK1 = workspace?.take(n) ?: DoubleArray(n)
@@ -337,9 +341,9 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
                 val d11 = 1.0 / w[k + k * n]
                 for (j in k + 1 until n) {
                     val f = -d11 * w[j + k * n]
-                    if (f != 0.0) vectorKernels.axpy(w, j + j * n, f, w, j + k * n, n - j)
+                    if (f != 0.0) kernels.axpy(w, j + j * n, f, w, j + k * n, n - j)
                 }
-                vectorKernels.scale(w, k + 1 + k * n, d11, n - k - 1)
+                kernels.scale(w, k + 1 + k * n, d11, n - k - 1)
                 ipiv[k] = kp + 1
             } else {
                 if (k < n - 2) {
@@ -357,8 +361,8 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
                     for (j in k + 2 until n) {
                         val fj = colK[j]
                         val fj1 = colK1[j]
-                        if (fj != 0.0) vectorKernels.axpy(w, j + j * n, -fj, w, j + k * n, n - j)
-                        if (fj1 != 0.0) vectorKernels.axpy(w, j + j * n, -fj1, w, j + (k + 1) * n, n - j)
+                        if (fj != 0.0) kernels.axpy(w, j + j * n, -fj, w, j + k * n, n - j)
+                        if (fj1 != 0.0) kernels.axpy(w, j + j * n, -fj1, w, j + (k + 1) * n, n - j)
                     }
                     for (i in k + 2 until n) {
                         w[i + k * n] = colK[i]
@@ -598,6 +602,7 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
         val lu = out.lu
         a.data.copyInto(lu)
         val piv = out.piv
+        val kernels = vectorKernels
         for (i in 0 until n) piv[i] = i
         var failedAt = NOT_SINGULAR
         for (k in 0 until n) {
@@ -631,7 +636,7 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
             for (i in k + 1 until n) lu[i + k * n] = lu[i + k * n] / pivot
             for (j in k + 1 until n) {
                 val ukj = lu[k + j * n]
-                if (ukj != 0.0) vectorKernels.axpy(lu, k + 1 + j * n, -ukj, lu, colBase, len)
+                if (ukj != 0.0) kernels.axpy(lu, k + 1 + j * n, -ukj, lu, colBase, len)
             }
         }
         out.failedAt = failedAt
