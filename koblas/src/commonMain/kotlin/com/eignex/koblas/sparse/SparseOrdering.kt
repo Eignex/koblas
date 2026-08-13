@@ -64,17 +64,25 @@ internal fun minimumDegreeOrdering(a: SparseMatrix): IntArray {
  */
 internal fun permutedUpperTriangle(a: SparseMatrix, inversePermutation: IntArray): SparseMatrix {
     val n = a.rows
-    val columns = List(n) { ArrayList<Pair<Int, Double>>() }
+    var nnz = 0
+    for (j in 0 until n) a.forEachInColumn(j) { i, _ -> if (i <= j) nnz++ }
+    val rowIdx = IntArray(nnz)
+    val colIdx = IntArray(nnz)
+    val values = DoubleArray(nnz)
+    var k = 0
     for (j in 0 until n) {
         a.forEachInColumn(j) { i, v ->
             if (i <= j) {
                 val row = inversePermutation[i]
                 val column = inversePermutation[j]
-                if (row <= column) columns[column].add(row to v) else columns[row].add(column to v)
+                rowIdx[k] = if (row <= column) row else column
+                colIdx[k] = if (row <= column) column else row
+                values[k] = v
+                k++
             }
         }
     }
-    return SparseMatrix.ofColumns(n, n, columns)
+    return SparseMatrix.ofTriplets(n, n, rowIdx, colIdx, values)
 }
 
 /** The undirected adjacency of `A + Aᵀ`, without self-loops. */
