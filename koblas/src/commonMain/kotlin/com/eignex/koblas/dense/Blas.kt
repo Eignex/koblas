@@ -90,9 +90,10 @@ public interface Blas : Backend {
             "ger shape mismatch: A is ${a.rows}x${a.cols}, x ${x.size}, y ${y.size}"
         }
         if (alpha == 0.0) return
+        val kernels = koblas.vectorKernels
         for (j in 0 until a.cols) {
             val scaled = alpha * y[j]
-            if (scaled != 0.0) koblas.vectorKernels.axpy(a.data, a.colOffset(j), scaled, x, 0, a.rows)
+            if (scaled != 0.0) kernels.axpy(a.data, a.colOffset(j), scaled, x, 0, a.rows)
         }
     }
 
