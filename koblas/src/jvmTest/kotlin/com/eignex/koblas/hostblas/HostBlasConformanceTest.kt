@@ -7,7 +7,9 @@ import com.eignex.koblas.dense.assertGerAgreesWithReference
 import com.eignex.koblas.dense.assertLevel3AgreesWithReference
 import com.eignex.koblas.dense.assertLuAgreesWithReference
 import com.eignex.koblas.dense.assertNonPositiveDefiniteFallsBack
+import com.eignex.koblas.dense.assertSingularLdlIsRefused
 import com.eignex.koblas.dense.assertSpdSuiteAgreesWithReference
+import com.eignex.koblas.dense.assertSymvRefusesNonSquare
 import com.eignex.koblas.dense.assertTriangularAgreesWithReference
 import com.eignex.koblas.koblasInfo
 import org.junit.Assume
@@ -60,6 +62,18 @@ class HostBlasConformanceTest {
         Assume.assumeTrue("host CBLAS is not installed", HostBlasCalls.available)
         assertTriangularAgreesWithReference(HostBlas(), intArrayOf(1, 5, 12, 24))
         assertGerAgreesWithReference(HostBlas())
+    }
+
+    @Test
+    fun `symv refuses a non-square matrix`() {
+        Assume.assumeTrue("host CBLAS is not installed", HostBlasCalls.available)
+        assertSymvRefusesNonSquare(HostBlas())
+    }
+
+    @Test
+    fun `a singular LDL is refused at every width`() {
+        Assume.assumeTrue("host LAPACKE is not installed", HostBlasCalls.lapackAvailable)
+        assertSingularLdlIsRefused(HostLapack())
     }
 
     @Test

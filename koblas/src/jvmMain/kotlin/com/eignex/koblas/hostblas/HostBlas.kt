@@ -249,8 +249,13 @@ public class HostBlas internal constructor() : Blas {
         }
     }
 
-    /** Portable below [DispatchThresholds.level2], native above it, as for [gemv]. */
+    /**
+     * Portable below [DispatchThresholds.level2], native above it, as for [gemv]. The shape is checked
+     * before the gate: `dsymv` takes one dimension and a leading dimension, so a non-square matrix would
+     * have it read `n²` entries from a shorter array, past the end of the pinned buffer.
+     */
     override fun symv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) {
+        requireShape(a.rows == a.cols) { "symv: matrix must be square, got ${a.rows}x${a.cols}" }
         if (a.rows < dispatchThresholds.level2) {
             ReferenceLinearAlgebra.symv(alpha, a, x, beta, y, lower)
             return

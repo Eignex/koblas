@@ -1,11 +1,14 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DimensionMismatch
+import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.randomMatrix
 import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 private val reference = ReferenceLinearAlgebra
 
@@ -171,4 +174,35 @@ internal fun assertNonPositiveDefiniteFallsBack(lapack: Lapack, n: Int) {
         1e-15,
     )
     assertFailsWith<IllegalArgumentException> { lapack.cholesky(bad) }
+}
+
+/**
+ * `dsymv` derives its extent from one dimension and a leading dimension, so a non-square matrix has it
+ * read `n²` entries out of a shorter array — past the end of a pinned on-heap buffer, with no bounds
+ * check. The shape must be rejected whichever side of the level-2 gate the call lands on.
+ */
+internal fun assertSymvRefusesNonSquare(blas: Blas) {
+    for (n in intArrayOf(2, 17, 64, 129)) {
+        assertFailsWith<DimensionMismatch>("symv ${n}x${n + 1}") {
+            blas.symv(1.0, DenseMatrix.zero(n, n + 1), DoubleArray(n), 0.0, DoubleArray(n))
+        }
+        assertFailsWith<DimensionMismatch>("symv ${n + 1}x$n") {
+            blas.symv(1.0, DenseMatrix.zero(n + 1, n), DoubleArray(n + 1), 0.0, DoubleArray(n + 1))
+        }
+    }
+}
+
+/**
+ * `dsytrs` divides by a zero pivot and still reports success, so a backend that skips the singularity
+ * check hands back infinities instead of throwing. [nrhs] must reach the width where the native
+ * multi-right-hand-side path takes over.
+ */
+internal fun assertSingularLdlIsRefused(lapack: Lapack, nrhs: Int = 4) {
+    val ldl = lapack.ldl(DenseMatrix.zero(3, 3))
+    assertTrue(ldl.singular, "a zero matrix factors to a singular LDL")
+    assertFailsWith<SingularMatrix>("vector solve") { lapack.solve(ldl, DoubleArray(3)) }
+    assertFailsWith<SingularMatrix>("$nrhs right-hand sides") { lapack.solve(ldl, DenseMatrix.zero(3, nrhs)) }
+    assertFailsWith<SingularMatrix>("$nrhs right-hand sides into a destination") {
+        lapack.solveInto(ldl, DenseMatrix.zero(3, nrhs), DenseMatrix.zero(3, nrhs))
+    }
 }

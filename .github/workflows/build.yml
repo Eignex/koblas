@@ -138,6 +138,12 @@ jobs:
       - name: Run tests against the host libraries
         run: ./gradlew :koblas:jvmTest :koblas:linuxX64Test -Pkoblas.hostTests=true
 
+      # With the Vector API present the JVM level-2 gate sits at Int.MAX_VALUE, so the run above reaches
+      # none of the cblas level-2 bindings. Dropping the module moves the gate to 0 and makes gemv, symv,
+      # trsv, trmv and ger actually call OpenBLAS.
+      - name: Run the host tests again with the level-2 bindings reachable
+        run: ./gradlew :koblas:jvmTest -Pkoblas.hostTests=true -Pkoblas.noSimd=true --rerun-tasks
+
       # The JVM host tests skip themselves via Assume when a library is missing, and a skipped suite is a
       # green suite. This turns that back into a failure.
       - name: Fail if the host tests did not actually run

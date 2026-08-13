@@ -1,6 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DimensionMismatch
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.koblas
@@ -9,6 +10,7 @@ import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.randomVector
 import kotlin.random.Random
 import kotlin.test.Test
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class LinearAlgebraSymmetricOpsTest {
@@ -30,6 +32,24 @@ class LinearAlgebraSymmetricOpsTest {
                         assertClose(expected, actual, "symv n=$n a=$alpha b=$beta lower=$lower")
                     }
                 }
+            }
+        }
+    }
+
+    /**
+     * `dsymv` derives its extent from one dimension, so a non-square matrix would have the host backend
+     * read `n²` entries out of a shorter array. Sizes straddle every backend's level-2 gate.
+     */
+    @Test
+    fun `symv refuses a non-square matrix at every size`() {
+        for (n in intArrayOf(2, 17, 64, 129)) {
+            val wide = DenseMatrix.zero(n, n + 1)
+            val tall = DenseMatrix.zero(n + 1, n)
+            assertFailsWith<DimensionMismatch>("symv ${n}x${n + 1}") {
+                koblas.symv(1.0, wide, DoubleArray(n), 0.0, DoubleArray(n))
+            }
+            assertFailsWith<DimensionMismatch>("symv ${n + 1}x$n") {
+                koblas.symv(1.0, tall, DoubleArray(n + 1), 0.0, DoubleArray(n + 1))
             }
         }
     }
