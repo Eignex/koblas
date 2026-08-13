@@ -10,10 +10,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-// What every host sparse-factorization binding owes the seam, written once so the JVM and native suites
-// assert the same thing. Each function is one claim; the platform suites supply their own binding and keep
-// whatever is theirs alone (loader, discovery, control-array settings).
-
 /** A diagonally dominant system with roughly a quarter of the off-diagonal entries filled. */
 internal fun sparseConformanceSystem(n: Int, rng: Random): SparseMatrix {
     val columns = ArrayList<List<Pair<Int, Double>>>(n)

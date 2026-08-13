@@ -7,9 +7,6 @@ import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.assertTrue
 
-// The builders returning a pair give a poisoned input and an explicit twin. The poisoned copy holds NaN in
-// every entry the routine may not read, so straying outside the documented triangle fails the comparison.
-
 /** Tolerance for a chain of a few dozen flops, relative to `max(1, |expected|)`. */
 internal const val TIGHT_TOLERANCE = 1e-12
 

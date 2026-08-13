@@ -27,7 +27,7 @@ class SparseLdlTest {
         return SparseMatrix.ofColumns(n, n, List(n) { j -> entries[j].map { (i, v) -> i to v } })
     }
 
-    /** `A·x` computed straight from the CSC arrays, so no seam is involved in checking a seam. */
+    /** A·x computed straight from the CSC arrays, so no seam is involved in checking a seam. */
     private fun multiply(a: SparseMatrix, x: DoubleArray): DoubleArray {
         val y = DoubleArray(a.rows)
         for (j in 0 until a.cols) a.forEachInColumn(j) { i, v -> y[i] += v * x[j] }
@@ -165,7 +165,7 @@ class SparseLdlTest {
         val f = a.cholesky() as SparseLdl
         val l = f.choleskyFactor()
         val perm = f.symbolic.permutation
-        // `L·Lᵀ` is `P·A·Pᵀ` rather than A, because the factor is of the matrix the analysis reordered.
+        // L·Lᵀ is P·A·Pᵀ rather than A, because the factor is of the matrix the analysis reordered.
         val dense = Array(12) { DoubleArray(12) }
         for (j in 0 until 12) l.forEachInColumn(j) { i, v -> dense[i][j] = v }
         for (i in 0 until 12) {

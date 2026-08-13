@@ -1,7 +1,7 @@
 package com.eignex.koblas
 
 /**
- * Marks a test that needs a real host library (OpenBLAS, SuiteSparse). Excluded from the default run and
- * enabled with `-Pkoblas.hostTests=true`.
+ * Marks a test needing a real OpenBLAS or SuiteSparse. Out of the default run, opted into with
+ * `-Pkoblas.hostTests=true`.
  */
 interface HostLibraryTest
