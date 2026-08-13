@@ -91,8 +91,8 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
         val bd = b.data
         val kernels = vectorKernels
         if (transposeA && transposeB) {
-            // With both transposed one operand is strided whichever way the loops run, so the smaller one is
-            // transposed once instead. That copy is O(k·n) or O(k·m) against the product's O(m·k·n).
+            // With both transposed one operand is strided whichever way the loops run, so the smaller one
+            // is transposed first. That copy is O(k·n) or O(k·m) against the product's O(m·k·n).
             if (b.rows * b.cols <= a.rows * a.cols) {
                 val bt = DoubleArray(k * n)
                 for (j in 0 until n) for (p in 0 until k) bt[p + j * k] = bd[j + p * n]
@@ -158,9 +158,9 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
         scaleUplo(vectorKernels, cd, n, beta, uplo)
         if (alpha == 0.0 || n == 0 || k == 0) return
         val ad = a.data
-        // The dot form keeps each output entry in a register, while an outer-product form would stream the
-        // whole of C once per column of A. So a non-transposed A is transposed once first, an O(n·k) copy
-        // against the product's O(n²·k/2), and both orientations then run the same inner loop.
+        // The dot form holds each output entry in a register, where accumulating outer products would
+        // stream all of C once per column of A. So a non-transposed A is transposed first, an O(n·k) copy
+        // against the product's O(n²·k/2), and both orientations run the same loop below.
         val kernels = vectorKernels
         val at = if (transpose) null else workspace?.take(n * k) ?: DoubleArray(n * k)
         if (at != null) {

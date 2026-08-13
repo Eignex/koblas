@@ -11,6 +11,7 @@ import com.eignex.koblas.installBackends
 import com.eignex.koblas.koblas
 import com.eignex.koblas.mathBackend
 import com.eignex.koblas.norm2
+import com.eignex.koblas.platformKernels
 import com.eignex.koblas.registerBackend
 import com.eignex.koblas.resetBackends
 import com.eignex.koblas.scale
@@ -232,5 +233,24 @@ class VectorKernelsTest {
         assertEquals("${PlatformVectorKernels.name}+recording", koblas.vectorKernels.name)
         resetBackends()
         assertEquals(PlatformVectorKernels.name, koblas.vectorKernels.name)
+    }
+
+    /**
+     * The triangular and Householder kernels reach their last row with an empty tail, so every routine here
+     * is called with a zero length. Each must read nothing and return the identity.
+     */
+    @Test
+    fun `every kernel accepts a zero length run`() {
+        val kernels = platformKernels
+        val v = doubleArrayOf(1.0, 2.0, 3.0)
+        assertEquals(0.0, kernels.dot(v, 3, v, 3, 0), "dot over nothing")
+        assertEquals(0.0, kernels.nrm2(v, 3, 0), "nrm2 over nothing")
+        assertEquals(0.0, kernels.asum(v, 3, 0), "asum over nothing")
+        kernels.axpy(v, 3, 2.0, v, 3, 0)
+        kernels.scale(v, 3, 2.0, 0)
+        assertEquals(listOf(1.0, 2.0, 3.0), v.toList(), "a zero-length write touched the vector")
+        val quads = DoubleArray(4)
+        kernels.dot4(v, 3, 0, v, 3, 0, quads, 0)
+        assertEquals(listOf(0.0, 0.0, 0.0, 0.0), quads.toList(), "dot4 over nothing")
     }
 }
