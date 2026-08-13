@@ -105,4 +105,36 @@ class WorkspaceTest {
         assertFailsWith<IllegalArgumentException> { ws.take(-1) }
         assertFailsWith<IllegalArgumentException> { ws.reserve(4, count = -1) }
     }
+
+    /**
+     * Widths that vary must not each cost a pool for the workspace's lifetime. Past the cap the coldest idle
+     * one is recycled, and every borrow keeps working throughout.
+     */
+    @Test
+    fun `many distinct widths stay correct and do not retain every pool`() {
+        val ws = Workspace()
+        for (width in 1..300) {
+            val buffer = ws.take(width)
+            assertEquals(width, buffer.size, "width $width")
+            ws.release(buffer)
+        }
+        assertTrue(ws.pooledWidths <= 64, "300 widths left ${ws.pooledWidths} pools alive")
+        // A width used after the churn still round-trips, and reuse within one width still recycles.
+        val hot = ws.take(7)
+        ws.release(hot)
+        assertSame(hot, ws.take(7), "a just-released buffer should come back")
+    }
+
+    /** Buffers lent out are never reclaimed, however many other widths pass through afterwards. */
+    @Test
+    fun `an outstanding borrow survives churn through other widths`() {
+        val ws = Workspace()
+        val held = ws.take(9)
+        held[0] = 5.0
+        for (width in 100..300) ws.release(ws.take(width))
+        assertEquals(5.0, held[0], "a held buffer was handed to someone else")
+        assertTrue(ws.pooledWidths <= 65, "the lent pool plus the cap, got ${ws.pooledWidths}")
+        ws.release(held)
+        assertSame(held, ws.take(9), "the held buffer's pool was dropped while it was lent")
+    }
 }

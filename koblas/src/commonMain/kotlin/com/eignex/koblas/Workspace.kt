@@ -3,10 +3,17 @@ package com.eignex.koblas
 /**
  * Reusable scratch buffers, pooled by width. Every borrow outstanding at the same time gets a different
  * buffer, so nesting is safe. Not thread-safe, deliberately: sharing one across threads corrupts results.
+ *
+ * A borrow is always exactly the width asked for, so a caller whose sizes vary opens a pool per width.
+ * Pools sit in most-recently-used order, and past 64 of them the coldest idle pool is dropped to bound what
+ * one workspace holds. A pool with a buffer still lent out is never dropped.
  */
 public class Workspace {
     private var pools = arrayOfNulls<Pool>(INITIAL_WIDTHS)
     private var poolCount = 0
+
+    /** How many widths are pooled. A test hook, since reclamation is otherwise invisible from outside. */
+    internal val pooledWidths: Int get() = poolCount
 
     /** Borrows a vector of [size], which must be [release]d; contents are undefined. Prefer [borrow]. */
     public fun take(size: Int): DoubleArray {
@@ -25,17 +32,47 @@ public class Workspace {
         pool(size).reserve(count)
     }
 
+    /**
+     * The pool for [size], created if this is a new width. Found pools move to the front, so a loop that
+     * reuses one width finds it first however many other widths have passed through.
+     */
     private fun pool(size: Int): Pool {
         for (i in 0 until poolCount) {
             val existing = pools[i]
-            if (existing != null && existing.size == size) return existing
+            if (existing != null && existing.size == size) {
+                if (i != 0) moveToFront(i)
+                return existing
+            }
         }
         if (poolCount == pools.size) {
-            pools = pools.copyOf(pools.size * 2)
+            // Below the cap the table simply grows. Once at it, the coldest idle pool is reclaimed, and the
+            // table still grows when every pool has a borrow out, since those must stay releasable.
+            if (poolCount >= MAX_WIDTHS) dropColdestIdlePool()
+            if (poolCount == pools.size) pools = pools.copyOf(pools.size * 2)
         }
         val fresh = Pool(size)
-        pools[poolCount++] = fresh
+        for (i in poolCount downTo 1) pools[i] = pools[i - 1]
+        pools[0] = fresh
+        poolCount++
         return fresh
+    }
+
+    private fun moveToFront(index: Int) {
+        val found = pools[index]
+        for (i in index downTo 1) pools[i] = pools[i - 1]
+        pools[0] = found
+    }
+
+    /** Drops the least recently used pool with nothing lent out; false when every pool is in use. */
+    private fun dropColdestIdlePool(): Boolean {
+        for (i in poolCount - 1 downTo 0) {
+            if (pools[i]?.isIdle() == true) {
+                for (j in i until poolCount - 1) pools[j] = pools[j + 1]
+                pools[--poolCount] = null
+                return true
+            }
+        }
+        return false
     }
 
     /** Buffers of one width, plus which of them are currently lent out. */
@@ -68,6 +105,12 @@ public class Workspace {
             error("released a buffer of size ${buffer.size} that this workspace did not lend")
         }
 
+        /** Whether every buffer here is back, so the pool can be dropped without losing a live borrow. */
+        fun isIdle(): Boolean {
+            for (i in buffers.indices) if (lent[i]) return false
+            return true
+        }
+
         fun reserve(count: Int) {
             if (count > buffers.size) {
                 buffers = buffers.copyOf(count)
@@ -80,6 +123,9 @@ public class Workspace {
     private companion object {
         const val INITIAL_WIDTHS = 2
         const val INITIAL_DEPTH = 4
+
+        /** Distinct widths kept before the coldest idle pool is recycled. */
+        const val MAX_WIDTHS = 64
     }
 }
 
