@@ -152,12 +152,15 @@ public class HostLapack internal constructor() : Lapack {
         )
     }
 
+    /** Native only from [NATIVE_TRSM_MIN_RHS] columns, as for the LU multi-RHS solve above. */
     override fun solveInto(
         ldl: LdlDecomposition,
         b: DenseMatrix,
         out: DenseMatrix,
         workspace: Workspace?,
     ): DenseMatrix {
+        requireFactored(ldl.failedAt, "solve")
+        if (b.cols < NATIVE_TRSM_MIN_RHS) return super.solveInto(ldl, b, out, workspace)
         val n = ldl.n
         val nrhs = b.cols
         requireShape(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }

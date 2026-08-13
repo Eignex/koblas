@@ -172,6 +172,7 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
         out: DenseMatrix,
         workspace: Workspace?,
     ): DenseMatrix {
+        requireFactored(ldl.failedAt, "solve")
         val n = ldl.n
         val nrhs = b.cols
         requireShape(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }

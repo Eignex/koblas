@@ -177,9 +177,9 @@ internal fun assertNonPositiveDefiniteFallsBack(lapack: Lapack, n: Int) {
 }
 
 /**
- * `dsymv` derives its extent from one dimension and a leading dimension, so a non-square matrix has it
- * read `n²` entries out of a shorter array — past the end of a pinned on-heap buffer, with no bounds
- * check. The shape must be rejected whichever side of the level-2 gate the call lands on.
+ * `dsymv` derives its extent from one dimension and a leading dimension, so a non-square matrix has it read
+ * `n²` entries from a shorter array, past the end of a pinned buffer that carries no bounds check. The shape
+ * must be rejected whichever side of the level-2 gate the call lands on.
  */
 internal fun assertSymvRefusesNonSquare(blas: Blas) {
     for (n in intArrayOf(2, 17, 64, 129)) {
@@ -193,8 +193,8 @@ internal fun assertSymvRefusesNonSquare(blas: Blas) {
 }
 
 /**
- * `dsytrs` divides by a zero pivot and still reports success, so a backend that skips the singularity
- * check hands back infinities instead of throwing. [nrhs] must reach the width where the native
+ * `dsytrs` divides by a zero pivot and still reports success, so a backend that skips the singularity check
+ * returns infinities where it should throw. [nrhs] must reach the width at which the native
  * multi-right-hand-side path takes over.
  */
 internal fun assertSingularLdlIsRefused(lapack: Lapack, nrhs: Int = 4) {
