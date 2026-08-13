@@ -19,10 +19,7 @@ import kotlin.test.assertTrue
 /** Checks the native UMFPACK bindings against the reference implementation. */
 class UmfpackNativeConformanceTest {
 
-    /**
-     * Required rather than skipped. Kotlin/Native has no Assume, and silently passing a test that exercised
-     * nothing is worse than a failure with a reason on it.
-     */
+    /** Required rather than skipped, since Kotlin/Native has no Assume and a skipped suite reads as green. */
     private val umfpack: UmfpackSparseLapack = requireNotNull(
         UmfpackLoader.functions?.let { UmfpackSparseLapack(it) },
     ) { "host SuiteSparse expected in the test environment" }

@@ -25,8 +25,7 @@ class MutableIntSetTest {
         val keys = (0 until 50).map { it * 11 }
         for (k in keys) s.add(k)
         assertEquals(50, s.size)
-        // Walking slots 0 until size must yield every member exactly once, which is what lets a caller
-        // keep a parallel array indexed by slot.
+        // Slots 0 until size yield every member once, which is what lets a caller index a parallel array by slot.
         val fromSlots = ArrayList<Int>(s.size)
         for (slot in 0 until s.size) fromSlots.add(s.keyAt(slot))
         assertEquals(keys.toSet(), fromSlots.toSet(), "the leading slots do not hold exactly the members")
@@ -117,7 +116,7 @@ class MutableIntSetTest {
 
     @Test
     fun `removal keeps a parallel value array aligned`() {
-        // The invariant MutableIntDoubleMap relies on: after removeAt the slot to key mapping still agrees.
+        // MutableIntDoubleMap relies on the slot to key mapping still agreeing after removeAt.
         val rng = Random(4711)
         val s = MutableIntSet()
         var values = DoubleArray(s.entryCapacity)

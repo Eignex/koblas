@@ -7,11 +7,6 @@ import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
-// What every host BLAS/LAPACK binding owes the seam, written once so the JVM and native suites assert the
-// same thing. Each function takes the half under test and compares it against ReferenceLinearAlgebra; the
-// sizes stay a parameter because each platform gates its dispatch differently. Whatever is one platform's
-// alone - loaders, discovery, the ILP64 check, level-1 routing - stays in its own suite.
-
 private val reference = ReferenceLinearAlgebra
 
 /** An SPD matrix with its strict upper triangle poisoned, since only the lower one may be read. */
@@ -56,10 +51,7 @@ internal fun assertGerAgreesWithReference(blas: Blas) {
     }
 }
 
-/**
- * The operand's unselected triangle is NaN, so a routine reading outside the promised triangle fails the
- * comparison rather than quietly agreeing.
- */
+/** The unselected triangle is NaN, so reading outside the promised one fails the comparison. */
 internal fun assertTriangularAgreesWithReference(blas: Blas, sizes: IntArray) {
     val rng = Random(20260801)
     for (n in sizes) {
@@ -110,7 +102,7 @@ private fun checkTriangular(blas: Blas, rng: Random, n: Int, lower: Boolean, tra
     }
 }
 
-/** The vector solve in both directions, and the blocked multi-RHS path where a native trsm earns its call. */
+/** The vector solve both ways, then the blocked multi-RHS path where a native trsm earns its call. */
 internal fun assertLuAgreesWithReference(lapack: Lapack, sizes: IntArray) {
     val rng = Random(20260730)
     for (n in sizes) {
@@ -166,8 +158,8 @@ internal fun assertSpdSuiteAgreesWithReference(lapack: Lapack, sizes: IntArray) 
 }
 
 /**
- * A non-positive-definite input has no LAPACK equivalent, so the host hands the whole factorization back to
- * the portable one. Asserted at [n] above the gate, because below it the host path is not involved at all.
+ * A non-positive-definite input has no LAPACK equivalent, so the host hands the factorization back.
+ * Keep [n] above the gate, since below it the host path is not involved.
  */
 internal fun assertNonPositiveDefiniteFallsBack(lapack: Lapack, n: Int) {
     val bad = poisonedSpd(n, Random(20260808))

@@ -79,7 +79,7 @@ class CholeskyTest {
     @Test
     fun `cholesky regularizes when the policy asks for it`() {
         val l = notPositiveDefinite().cholesky(CholeskyPolicy.Regularize())
-        assertEquals(1e-5, l.l[1, 1], 1e-18, "the default floor is the historical 1e-5 on L")
+        assertEquals(1e-5, l.l[1, 1], 1e-18, "the default pivot floor puts 1e-5 on L")
 
         val loose = notPositiveDefinite().cholesky(CholeskyPolicy.Regularize(minimumPivot = 4e-4))
         assertEquals(2e-2, loose.l[1, 1], 1e-12, "L's diagonal is the square root of the pivot floor")
