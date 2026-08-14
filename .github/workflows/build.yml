@@ -74,15 +74,17 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: koblas/build/reports/kover/report.xml
+          flags: reference
           fail_ci_if_error: false
 
   # The default job pins `koblas.backend=reference` and filters the HostLibraryTest category out, so the
   # OpenBLAS and SuiteSparse bindings — which auto-register in any JVM/Linux consumer process — are never
   # exercised there. This job is the one that runs them.
   #
-  # Kept separate rather than folded into `test` for the reasons koblas/build.gradle.kts gives: these
-  # measure the machine as much as the library, and they make discovery bind FFM downcall handles, which
-  # the coverage agent's transformer cannot survive. So: no kover here, and coverage stays with `test`.
+  # Kept separate rather than folded into `test` because these measure the machine as much as the library,
+  # so a box without SuiteSparse would report a different everyday result. Coverage is collected here too and
+  # uploaded under its own flags; codecov takes the union across a commit's uploads, which is what makes the
+  # bindings count. Both configurations upload, since the SIMD one cannot reach the level-2 bindings at all.
   test-host-libraries:
     name: Run tests against the host BLAS and SuiteSparse
     runs-on: ubuntu-latest
@@ -135,13 +137,33 @@ jobs:
           done
 
       - name: Run tests against the host libraries
-        run: ./gradlew :koblas:jvmTest :koblas:linuxX64Test -Pkoblas.hostTests=true
+        run: ./gradlew :koblas:jvmTest :koblas:linuxX64Test :koblas:koverXmlReport -Pkoblas.hostTests=true
+
+      - name: Upload host coverage to Codecov (main only)
+        if: github.ref == 'refs/heads/main'
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: koblas/build/reports/kover/report.xml
+          flags: host-simd
+          fail_ci_if_error: false
 
       # With the Vector API present the JVM level-2 gate sits at Int.MAX_VALUE, so the run above reaches
       # none of the cblas level-2 bindings. Dropping the module moves the gate to 0 and makes gemv, symv,
       # trsv, trmv and ger actually call OpenBLAS.
       - name: Run the host tests again with the level-2 bindings reachable
-        run: ./gradlew :koblas:jvmTest -Pkoblas.hostTests=true -Pkoblas.noSimd=true --rerun-tasks
+        run: >-
+          ./gradlew :koblas:jvmTest :koblas:koverXmlReport
+          -Pkoblas.hostTests=true -Pkoblas.noSimd=true --rerun-tasks
+
+      - name: Upload scalar host coverage to Codecov (main only)
+        if: github.ref == 'refs/heads/main'
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: koblas/build/reports/kover/report.xml
+          flags: host-scalar
+          fail_ci_if_error: false
 
       # The JVM host tests skip themselves via Assume when a library is missing, and a skipped suite is a
       # green suite. This turns that back into a failure.
