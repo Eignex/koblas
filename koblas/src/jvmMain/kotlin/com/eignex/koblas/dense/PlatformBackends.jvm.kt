@@ -70,7 +70,7 @@ private fun loadProviders(): List<LinearAlgebra> {
 }
 
 /** A 1x1 gemv forces the candidate's native path to actually load and produce a correct result. */
-private fun probe(backend: Blas): Boolean {
+internal fun probe(backend: Blas): Boolean {
     @Suppress("TooGenericExceptionCaught") // native load failures surface as UnsatisfiedLinkError
     return try {
         val y = backend.gemv(DenseMatrix(1, 1, doubleArrayOf(2.0)), doubleArrayOf(3.0))
