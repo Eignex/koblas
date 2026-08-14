@@ -158,6 +158,16 @@ kover {
     }
 }
 
+// The detekt plugin adds a JVM-shaped task alongside the per-source-set ones, and for a multiplatform
+// project it feeds commonMain and jvmMain to a single compilation under -Xmulti-platform. The compiler then
+// sees every `expect` beside its `actual` and reports 28 errors, so the rules that need resolved types run
+// against a broken model and can miss what they exist to catch. `detektCommonMainSourceSet` and
+// `detektJvmMainSourceSet` analyse the same files with the fragments separated, and catch the same
+// violations, so the JVM-shaped pair adds nothing but the damage.
+tasks.matching { it.name == "detektMainJvm" || it.name == "detektTestJvm" }.configureEach {
+    enabled = false
+}
+
 // A stable module name, so a modular consumer sees a named module rather than one named after the jar
 // file. That is what lets native access be granted per module instead of blanket ALL-UNNAMED.
 tasks.named<Jar>("jvmJar") {
