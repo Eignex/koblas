@@ -476,7 +476,7 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
         val buf = a.data.copyOf()
         val tau = DoubleArray(k)
         val pivots = IntArray(n) { it }
-        val current = DoubleArray(n) { c -> sqrt(vectorKernels.dot(buf, c * m, buf, c * m, m)) }
+        val current = DoubleArray(n) { c -> vectorKernels.nrm2(buf, c * m, m) }
         val computed = current.copyOf()
         for (col in 0 until k) {
             var best = col
@@ -537,7 +537,7 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
             if (drift <= NORM_RECOMPUTE_THRESHOLD) {
                 val len = m - col - 1
                 val base = col + 1 + c * m
-                current[c] = if (len > 0) sqrt(vectorKernels.dot(buf, base, buf, base, len)) else 0.0
+                current[c] = if (len > 0) vectorKernels.nrm2(buf, base, len) else 0.0
                 computed[c] = current[c]
             } else {
                 current[c] *= sqrt(remaining)
@@ -550,10 +550,11 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
     private fun householderColumn(buf: DoubleArray, m: Int, col: Int): Double {
         val base = col + col * m
         val len = m - col
-        val normSq = vectorKernels.dot(buf, base, buf, base, len)
-        if (normSq == 0.0) return 0.0
+        // Rescaled rather than sqrt of a sum of squares, so a column near either end of the double range
+        // still gets its true norm instead of an infinity or a zero.
+        val norm = vectorKernels.nrm2(buf, base, len)
+        if (norm == 0.0) return 0.0
         val alpha = buf[base]
-        val norm = sqrt(normSq)
         val beta = if (alpha >= 0.0) -norm else norm
         // Divided rather than scaled by a reciprocal, so a subnormal v0 cannot overflow into an infinity.
         val v0 = alpha - beta
