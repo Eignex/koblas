@@ -3,6 +3,7 @@ package com.eignex.koblas.hostblas
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.HostLibraryTest
 import com.eignex.koblas.dense.ReferenceLinearAlgebra
+import com.eignex.koblas.dense.assertFactorIntoUsesItsDestination
 import com.eignex.koblas.dense.assertGerAgreesWithReference
 import com.eignex.koblas.dense.assertLevel3AgreesWithReference
 import com.eignex.koblas.dense.assertLuAgreesWithReference
@@ -131,6 +132,13 @@ class HostBlasConformanceTest {
                 context = "pivoted least squares rank=$rank",
             )
         }
+    }
+
+    /** Above the LAPACK gate, so the host path is the one under test rather than the portable fallback. */
+    @Test
+    fun `factorInto refactorizes into the destination it was given`() {
+        Assume.assumeTrue("host LAPACKE is not installed", HostBlasCalls.lapackAvailable)
+        assertFactorIntoUsesItsDestination(HostLapack(), n = 96)
     }
 
     @Test

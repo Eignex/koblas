@@ -6,6 +6,7 @@ package com.eignex.koblas.cblas
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.dense.ReferenceLinearAlgebra
 import com.eignex.koblas.dense.Uplo
+import com.eignex.koblas.dense.assertFactorIntoUsesItsDestination
 import com.eignex.koblas.dense.assertGerAgreesWithReference
 import com.eignex.koblas.dense.assertLevel3AgreesWithReference
 import com.eignex.koblas.dense.assertLuAgreesWithReference
@@ -207,6 +208,10 @@ class CblasConformanceTest {
     @Test
     fun `the LU family matches reference in both directions and for a block`() =
         assertLuAgreesWithReference(cblas, intArrayOf(1, 3, 8, 33))
+
+    @Test
+    fun `factorInto refactorizes into the destination it was given`() =
+        assertFactorIntoUsesItsDestination(cblas, n = 24)
 
     @Test
     fun `the determinant matches reference`() {

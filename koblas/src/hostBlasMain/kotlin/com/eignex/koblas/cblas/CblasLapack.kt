@@ -4,6 +4,7 @@ package com.eignex.koblas.cblas
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
+import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.dense.CholeskyDecomposition
 import com.eignex.koblas.dense.CholeskyPolicy
@@ -40,11 +41,21 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
     override fun factor(a: DenseMatrix): LuDecomposition {
         requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
         val n = a.rows
-        val lu = a.data.copyOf()
-        val piv = IntArray(n) { it }
-        if (n == 0) return LuDecomposition(0, lu, piv)
+        return factorInto(a, LuDecomposition(n, DoubleArray(n * n), IntArray(n)))
+    }
+
+    /** `dgetrf` works in place, so [out]'s buffers take the copy of [a] and the factorization overwrites it. */
+    override fun factorInto(a: DenseMatrix, out: LuDecomposition): LuDecomposition {
+        requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
+        requireShape(out.n == a.rows) { "factorInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}" }
+        val n = out.n
+        a.data.copyInto(out.lu)
+        val piv = out.piv
+        for (i in 0 until n) piv[i] = i
+        out.failedAt = NOT_SINGULAR
+        if (n == 0) return out
         val ipiv = IntArray(n)
-        val info = lu.usePinned { lp ->
+        val info = out.lu.usePinned { lp ->
             ipiv.usePinned { pp -> f.dgetrf(COL_MAJOR, n, n, lp.addressOf(0), n, pp.addressOf(0)) }
         }
         check(info >= 0) { "dgetrf: illegal argument ${-info}" }
@@ -57,7 +68,8 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
                 piv[p] = t
             }
         }
-        return LuDecomposition(n, lu, piv, lapackFailedAt(info))
+        out.failedAt = lapackFailedAt(info)
+        return out
     }
 
     @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
