@@ -19,9 +19,8 @@ public sealed interface SparseLdlPolicy {
     public data object Indefinite : SparseLdlPolicy
 
     /**
-     * Pivots below [minimumPivot] are raised to it, so a matrix that has drifted slightly indefinite still
-     * factors, trading exactness for a factorization that exists. An exact zero is raised too, so this
-     * policy never reports singularity. The result factorizes a nearby matrix, not the input.
+     * Pivots below [minimumPivot], an exact zero included, are raised to it, so this policy always yields a
+     * factorization. It is one of a nearby matrix, not of the input.
      *
      * @property minimumPivot an absolute floor in the matrix's own units, not the factor's; must be positive.
      */
@@ -211,8 +210,7 @@ internal fun numericLdl(
             filled[i]++
         }
         when {
-            // Ahead of the zero check, since a zero pivot is below any floor and Regularize exists to
-            // produce a factorization rather than report one that does not exist.
+            // Ahead of the zero check, since a zero pivot is below any floor.
             policy is SparseLdlPolicy.Regularize && d[k] < policy.minimumPivot -> d[k] = policy.minimumPivot
 
             d[k] == 0.0 -> return SingularSparseFactorization(n, failedAt = k)
