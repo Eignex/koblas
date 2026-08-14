@@ -55,8 +55,7 @@ public class KoblasContext(
 
     /**
      * A copy with the named halves replaced and the rest kept. Replacing [vectorKernels] rebinds any
-     * reference half that has no kernels of its own, so the new kernels reach the work this context does
-     * without having to be installed globally. A half built around particular kernels keeps them.
+     * reference half that has no kernels of its own; a half built around particular kernels keeps them.
      */
     public fun with(
         vectorKernels: VectorKernels = this.vectorKernels,

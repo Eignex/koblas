@@ -15,10 +15,7 @@ public interface Backend {
      */
     public val priority: Int get() = 0
 
-    /**
-     * The dense vector kernels this backend's inherited routines run on. A backend built around particular
-     * kernels overrides this so they reach those routines too; otherwise the installed ones are used.
-     */
+    /** The dense vector kernels this backend's inherited routines run on; the installed ones by default. */
     public val vectorKernels: VectorKernels get() = koblas.vectorKernels
 }
 
