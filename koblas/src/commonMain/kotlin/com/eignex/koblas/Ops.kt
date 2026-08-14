@@ -74,7 +74,7 @@ public fun asum(v: VectorLike): Double = when (v) {
 public fun iamax(v: VectorLike): Int {
     if (v.size == 0) return -1
     var best = -1
-    var bestAbs = -1.0
+    var bestAbs = 0.0
     v.forEachStored { i, x ->
         val a = abs(x)
         if (a > bestAbs) {
@@ -82,7 +82,7 @@ public fun iamax(v: VectorLike): Int {
             best = i
         }
     }
-    return if (best == -1) 0 else best // no stored entries: the zero vector's max is its first element
+    return if (best == -1) 0 else best // all entries zero: the max is the first element
 }
 
 /** `dst = src` (BLAS `dcopy`). A sparse source zero-fills the destination first, so nothing survives. */
