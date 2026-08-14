@@ -122,7 +122,6 @@ class SparseLdlTest {
 
     @Test
     fun `regularize floors a zero pivot at the head of the matrix too`() {
-        // The first pivot leaves no earlier column to have written into it, a different path to d[k] == 0.
         val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(), listOf(1 to 1.0)))
         val f = SparseSymbolic.analyze(a, SparseOrdering.Natural).factorLdl(a, SparseLdlPolicy.Regularize(1e-10))
         assertTrue(!f.singular, "the leading zero pivot must be floored")
