@@ -29,7 +29,7 @@ public interface SparseLapack : Backend {
 
     /**
      * `A = L·D·Lᵀ` for a symmetric [a], analysing the pattern first. Accepts an indefinite matrix by
-     * default; an exact zero pivot is still singular and reports the column it stopped at.
+     * default, and under that default an exact zero pivot is singular and reports the column it stopped at.
      */
     public fun ldl(
         a: SparseMatrix,
