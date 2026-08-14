@@ -16,6 +16,7 @@ class AccelerationTest {
         Blas by ReferenceLinearAlgebra,
         Lapack by ReferenceLinearAlgebra {
         override val priority: Int get() = 100
+        override val vectorKernels: VectorKernels get() = ReferenceLinearAlgebra.vectorKernels
     }
 
     private class FakeKernels(override val name: String = "fakeblas") : VectorKernels {

@@ -58,16 +58,57 @@ class KoblasContextTest {
     @Test
     fun `with keeps every half it is not given`() {
         val base = koblas
-        val originalKernels = base.vectorKernels
         val mine = Counting()
-        val derived = base.with(vectorKernels = mine)
-        assertSame(mine, derived.vectorKernels)
+        val derived = base.with(sparseVectorKernels = base.sparseVectorKernels)
+        assertSame(base.vectorKernels, derived.vectorKernels)
         assertSame(base.blas, derived.blas)
         assertSame(base.lapack, derived.lapack)
         assertSame(base.sparseBlas, derived.sparseBlas)
         assertSame(base.sparseLapack, derived.sparseLapack)
-        assertSame(base.sparseVectorKernels, derived.sparseVectorKernels)
-        assertSame(originalKernels, base.vectorKernels, "the original must be untouched; contexts are values")
+        base.with(vectorKernels = mine)
+        assertSame(base.vectorKernels, koblas.vectorKernels, "the original must be untouched; contexts are values")
+    }
+
+    @Test
+    fun `a context runs its own kernels without being installed`() {
+        val mine = Counting()
+        // Pinned to the portable halves, since a host backend legitimately keeps kernels of its own.
+        val ctx = koblas.with(blas = ReferenceBackend(), lapack = ReferenceBackend()).with(vectorKernels = mine)
+        assertSame(mine, ctx.vectorKernels)
+        val n = 6
+        val a = DenseMatrix.of(Array(n) { i -> DoubleArray(n) { j -> if (i == j) 4.0 else 1.0 / (i + j + 1) } })
+        val lu = ctx.factor(a)
+        assertTrue(mine.axpys > 0, "factor must run on the context's kernels")
+        val before = mine.dots + mine.axpys
+        ctx.solve(lu, DoubleArray(n) { 1.0 + it })
+        assertTrue(mine.dots + mine.axpys > before, "solve must run on the context's kernels")
+    }
+
+    @Test
+    fun `a half with kernels of its own keeps them when the context kernels change`() {
+        val ownKernels = Counting("own")
+        val contextKernels = Counting("context")
+        val ctx = koblas.with(blas = ReferenceBackend(ownKernels)).with(vectorKernels = contextKernels)
+        ctx.gemv(DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0))), doubleArrayOf(1.0, 1.0))
+        assertTrue(ownKernels.axpys > 0, "an explicitly bound half must keep its own kernels")
+        assertEquals(0, contextKernels.axpys, "the context kernels must not displace them")
+    }
+
+    @Test
+    fun `the inherited routines run on the kernels their backend was built with`() {
+        val mine = Counting()
+        val backend = ReferenceBackend(mine)
+        val l = DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 0.0), doubleArrayOf(1.0, 3.0)))
+        val x = doubleArrayOf(2.0, 5.0)
+
+        // trsv, trmv and cholesky are inherited defaults rather than overrides, so they are the ones that
+        // used to reach past their own backend for kernels.
+        (backend as Blas).trsv(l, x, lower = true)
+        assertTrue(mine.dots + mine.axpys > 0, "trsv must use the backend's kernels")
+
+        val before = mine.dots + mine.axpys
+        (backend as Lapack).cholesky(DenseMatrix.of(arrayOf(doubleArrayOf(4.0, 1.0), doubleArrayOf(1.0, 3.0))))
+        assertTrue(mine.dots + mine.axpys > before, "cholesky must use the backend's kernels")
     }
 
     @Test

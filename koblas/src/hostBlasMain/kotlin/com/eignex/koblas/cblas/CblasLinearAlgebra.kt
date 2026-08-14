@@ -4,6 +4,7 @@ import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.dense.Blas
 import com.eignex.koblas.dense.Lapack
 import com.eignex.koblas.dense.LinearAlgebra
+import com.eignex.koblas.dense.VectorKernels
 
 /**
  * [LinearAlgebra] backed by the host's OpenBLAS through CBLAS and LAPACKE, resolved with `dlopen` on
@@ -23,6 +24,9 @@ public class CblasLinearAlgebra private constructor(private val blas: CblasBlas,
     override val name: String get() = "cblas"
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY
+
+    /** The BLAS half's kernels, so both halves' inherited routines agree on where their inner loops go. */
+    override val vectorKernels: VectorKernels get() = blas.vectorKernels
 
     /** Availability checks for the host CBLAS and LAPACKE. */
     public companion object {

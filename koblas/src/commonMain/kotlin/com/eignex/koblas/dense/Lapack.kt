@@ -75,8 +75,8 @@ public interface Lapack : Backend {
         return if (transpose) {
             val y = workspace?.take(n * nrhs) ?: DoubleArray(n * nrhs)
             b.data.copyInto(y)
-            trsmCore(koblas.vectorKernels, f, n, y, nrhs, lower = false, transpose = true, unitDiag = false)
-            trsmCore(koblas.vectorKernels, f, n, y, nrhs, lower = true, transpose = true, unitDiag = true)
+            trsmCore(vectorKernels, f, n, y, nrhs, lower = false, transpose = true, unitDiag = false)
+            trsmCore(vectorKernels, f, n, y, nrhs, lower = true, transpose = true, unitDiag = true)
             scatterRows(y, out.data, n, nrhs, lu.piv)
             workspace?.release(y)
             out
@@ -90,8 +90,8 @@ public interface Lapack : Backend {
             } else {
                 gatherRows(b.data, out.data, n, nrhs, lu.piv)
             }
-            trsmCore(koblas.vectorKernels, f, n, out.data, nrhs, lower = true, transpose = false, unitDiag = true)
-            trsmCore(koblas.vectorKernels, f, n, out.data, nrhs, lower = false, transpose = false, unitDiag = false)
+            trsmCore(vectorKernels, f, n, out.data, nrhs, lower = true, transpose = false, unitDiag = true)
+            trsmCore(vectorKernels, f, n, out.data, nrhs, lower = false, transpose = false, unitDiag = false)
             out
         }
     }
@@ -164,7 +164,7 @@ public interface Lapack : Backend {
         val y = workspace?.take(qr.m) ?: DoubleArray(qr.m)
         applyQInto(qr.factorization, b, y, transpose = true)
         trsvCore(
-            koblas.vectorKernels,
+            vectorKernels,
             qr.factorization.qr,
             rank,
             y,
@@ -212,7 +212,7 @@ public interface Lapack : Backend {
         val y = workspace?.take(qr.m) ?: DoubleArray(qr.m)
         applyQInto(qr, b, y, transpose = true)
         y.copyInto(out, 0, 0, qr.n)
-        trsvCore(koblas.vectorKernels, qr.qr, qr.n, out, lda = qr.m, lower = false, transpose = false, unitDiag = false)
+        trsvCore(vectorKernels, qr.qr, qr.n, out, lda = qr.m, lower = false, transpose = false, unitDiag = false)
         workspace?.release(y)
         return out
     }
@@ -235,7 +235,7 @@ public interface Lapack : Backend {
         requireShape(out.size == qr.m) { "solveMinimumNorm: out length ${out.size} != ${qr.m}" }
         val w = workspace?.take(qr.n) ?: DoubleArray(qr.n)
         b.copyInto(w)
-        trsvCore(koblas.vectorKernels, qr.qr, qr.n, w, lda = qr.m, lower = false, transpose = true, unitDiag = false)
+        trsvCore(vectorKernels, qr.qr, qr.n, w, lda = qr.m, lower = false, transpose = true, unitDiag = false)
         out.fill(0.0)
         w.copyInto(out)
         workspace?.release(w)
@@ -317,7 +317,7 @@ public interface Lapack : Backend {
         val n = a.rows
         val l = DenseMatrix(n, n)
         val ld = l.data
-        val kernels = koblas.vectorKernels
+        val kernels = vectorKernels
         for (j in 0 until n) a.data.copyInto(ld, j + j * n, j + j * n, (j + 1) * n)
         // Right-looking column Cholesky.
         for (j in 0 until n) {
@@ -353,8 +353,8 @@ public interface Lapack : Backend {
         requireShape(b.size == n) { "solve: b size ${b.size}, expected $n" }
         val x = b.copyOf()
         val ld = chol.l.data
-        trsvCore(koblas.vectorKernels, ld, n, x, lower = true, transpose = false, unitDiag = false)
-        trsvCore(koblas.vectorKernels, ld, n, x, lower = true, transpose = true, unitDiag = false)
+        trsvCore(vectorKernels, ld, n, x, lower = true, transpose = false, unitDiag = false)
+        trsvCore(vectorKernels, ld, n, x, lower = true, transpose = true, unitDiag = false)
         return x
     }
 
@@ -395,7 +395,7 @@ public interface Lapack : Backend {
             column.fill(0.0)
             column[j] = 1.0
             trsvCore(
-                koblas.vectorKernels,
+                vectorKernels,
                 a.data,
                 n,
                 column,
@@ -414,7 +414,7 @@ public interface Lapack : Backend {
         val ld = chol.l.data
         val inv = DenseMatrix(n, n)
         val invd = inv.data
-        val kernels = koblas.vectorKernels
+        val kernels = vectorKernels
         val y = workspace?.take(n) ?: DoubleArray(n)
         for (j in 0 until n) {
             y.fill(0.0, j, n)

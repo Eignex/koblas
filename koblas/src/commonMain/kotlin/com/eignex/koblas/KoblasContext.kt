@@ -3,6 +3,7 @@ package com.eignex.koblas
 import com.eignex.koblas.dense.Blas
 import com.eignex.koblas.dense.Lapack
 import com.eignex.koblas.dense.LinearAlgebra
+import com.eignex.koblas.dense.ReferenceBackend
 import com.eignex.koblas.dense.VectorKernels
 import com.eignex.koblas.sparse.SparseBlas
 import com.eignex.koblas.sparse.SparseLapack
@@ -21,7 +22,7 @@ import com.eignex.koblas.sparse.SparseVectorKernels
  * @property sparseLapack sparse factorizations.
  */
 public class KoblasContext(
-    public val vectorKernels: VectorKernels,
+    override val vectorKernels: VectorKernels,
     public val blas: Blas,
     public val lapack: Lapack,
     public val sparseVectorKernels: SparseVectorKernels,
@@ -52,7 +53,11 @@ public class KoblasContext(
             sparseLapack.priority,
         )
 
-    /** A copy with the named halves replaced and the rest kept. */
+    /**
+     * A copy with the named halves replaced and the rest kept. Replacing [vectorKernels] rebinds any
+     * reference half that has no kernels of its own, so the new kernels reach the work this context does
+     * without having to be installed globally. A half built around particular kernels keeps them.
+     */
     public fun with(
         vectorKernels: VectorKernels = this.vectorKernels,
         blas: Blas = this.blas,
@@ -60,14 +65,17 @@ public class KoblasContext(
         sparseVectorKernels: SparseVectorKernels = this.sparseVectorKernels,
         sparseBlas: SparseBlas = this.sparseBlas,
         sparseLapack: SparseLapack = this.sparseLapack,
-    ): KoblasContext = KoblasContext(
-        vectorKernels = vectorKernels,
-        blas = blas,
-        lapack = lapack,
-        sparseVectorKernels = sparseVectorKernels,
-        sparseBlas = sparseBlas,
-        sparseLapack = sparseLapack,
-    )
+    ): KoblasContext {
+        val rebound = if (vectorKernels !== this.vectorKernels) ReferenceBackend(vectorKernels) else null
+        return KoblasContext(
+            vectorKernels = vectorKernels,
+            blas = if (rebound != null && blas is ReferenceBackend && blas.followsContext) rebound else blas,
+            lapack = if (rebound != null && lapack is ReferenceBackend && lapack.followsContext) rebound else lapack,
+            sparseVectorKernels = sparseVectorKernels,
+            sparseBlas = sparseBlas,
+            sparseLapack = sparseLapack,
+        )
+    }
 
     override fun toString(): String = "KoblasContext($name)"
 }
