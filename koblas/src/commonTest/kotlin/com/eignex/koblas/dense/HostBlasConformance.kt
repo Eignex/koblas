@@ -8,6 +8,7 @@ import com.eignex.koblas.randomMatrix
 import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 private val reference = ReferenceLinearAlgebra
@@ -205,4 +206,37 @@ internal fun assertSingularLdlIsRefused(lapack: Lapack, nrhs: Int = 4) {
     assertFailsWith<SingularMatrix>("$nrhs right-hand sides into a destination") {
         lapack.solveInto(ldl, DenseMatrix.zero(3, nrhs), DenseMatrix.zero(3, nrhs))
     }
+}
+
+/**
+ * `factorInto` promises the destination's own buffers, so a backend must not route it through a fresh
+ * factorization and copy: that allocates the `n²` the caller passed a destination to avoid. Checked by
+ * identity, since agreement with [Lapack.factor] alone would pass either way.
+ */
+internal fun assertFactorIntoUsesItsDestination(lapack: Lapack, n: Int) {
+    val rng = Random(20260823)
+    val first = randomMatrix(n, n, rng)
+    for (i in 0 until n) first[i, i] = first[i, i] + n
+    val second = randomMatrix(n, n, rng)
+    for (i in 0 until n) second[i, i] = second[i, i] + n
+
+    val out = lapack.factor(first)
+    val luBuffer = out.lu
+    val pivBuffer = out.piv
+    val returned = lapack.factorInto(second, out)
+    assertSame(out, returned, "factorInto must return its destination")
+    assertSame(luBuffer, returned.lu, "factorInto must keep the destination's factor buffer")
+    assertSame(pivBuffer, returned.piv, "factorInto must keep the destination's pivot buffer")
+
+    val fresh = lapack.factor(second)
+    assertClose(fresh.lu, returned.lu, "factorInto factors n=$n", tolerance = 1e-12)
+    assertEquals(fresh.piv.toList(), returned.piv.toList(), "factorInto pivots n=$n")
+    assertEquals(fresh.failedAt, returned.failedAt, "factorInto singularity n=$n")
+
+    // A singular matrix has to update failedAt rather than leave the previous factorization's verdict.
+    val singular = DenseMatrix(n, n)
+    lapack.factorInto(singular, returned)
+    assertTrue(returned.singular, "factorInto must report a singular refactorization")
+    lapack.factorInto(second, returned)
+    assertEquals(fresh.failedAt, returned.failedAt, "factorInto must clear a stale singular verdict")
 }

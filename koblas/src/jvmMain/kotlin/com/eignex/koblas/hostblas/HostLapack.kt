@@ -2,6 +2,7 @@ package com.eignex.koblas.hostblas
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
+import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.dense.Blas
 import com.eignex.koblas.dense.CholeskyDecomposition
@@ -39,15 +40,26 @@ public class HostLapack internal constructor() : Lapack {
         if (a.rows < dispatchThresholds.lapack) return ReferenceLinearAlgebra.factor(a)
         requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
         val n = a.rows
-        val lu = a.data.copyOf()
-        val piv = IntArray(n) { it }
-        if (n == 0) return LuDecomposition(0, lu, piv)
+        return factorInto(a, LuDecomposition(n, DoubleArray(n * n), IntArray(n)))
+    }
+
+    /** `dgetrf` works in place, so [out]'s buffers take the copy of [a] and the factorization overwrites it. */
+    override fun factorInto(a: DenseMatrix, out: LuDecomposition): LuDecomposition {
+        requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
+        requireShape(out.n == a.rows) { "factorInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}" }
+        if (a.rows < dispatchThresholds.lapack) return ReferenceLinearAlgebra.factorInto(a, out)
+        val n = out.n
+        a.data.copyInto(out.lu)
+        val piv = out.piv
+        for (i in 0 until n) piv[i] = i
+        out.failedAt = NOT_SINGULAR
+        if (n == 0) return out
         val ipiv = IntArray(n)
         val info = HostBlasCalls.dgetrf.invokeWithArguments(
             COL_MAJOR,
             n,
             n,
-            HostBlasCalls.seg(lu),
+            HostBlasCalls.seg(out.lu),
             n,
             HostBlasCalls.seg(ipiv),
         ) as Int
@@ -62,7 +74,8 @@ public class HostLapack internal constructor() : Lapack {
                 piv[p] = t
             }
         }
-        return LuDecomposition(n, lu, piv, lapackFailedAt(info))
+        out.failedAt = lapackFailedAt(info)
+        return out
     }
 
     /** Delegated to [ReferenceLinearAlgebra] for the same reason as [Blas.gemv], the per-call cost. */
