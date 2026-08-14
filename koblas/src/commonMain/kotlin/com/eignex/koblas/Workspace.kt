@@ -53,7 +53,6 @@ public class Workspace {
         return fresh
     }
 
-    /** The pool for [size] if one exists, moved to the front; null for a width never borrowed. */
     private fun findPool(size: Int): Pool? {
         for (i in 0 until poolCount) {
             val existing = pools[i]

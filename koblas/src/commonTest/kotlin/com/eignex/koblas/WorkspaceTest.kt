@@ -149,7 +149,6 @@ class WorkspaceTest {
         assertEquals(widths, ws.pooledWidths, "a rejected release of a pooled width changed the table")
     }
 
-    /** At the width cap a rejected release must not evict a pool that is still wanted. */
     @Test
     fun `a rejected release at the width cap keeps the pools that exist`() {
         val ws = Workspace()

@@ -104,11 +104,9 @@ class OpsTest {
 
     @Test
     fun `iamax reads a stored zero as the zero it is`() {
-        // An explicit zero at index 3 ties with the implicit zeros before it, so the lowest index wins.
         assertEquals(0, iamax(SparseVector.of(5, intArrayOf(3), doubleArrayOf(0.0))))
         assertEquals(0, iamax(SparseVector.of(5, intArrayOf(1, 3), doubleArrayOf(0.0, -0.0))))
         assertEquals(iamax(DenseVector.zero(5)), iamax(SparseVector.of(5, intArrayOf(3), doubleArrayOf(0.0))))
-        // A stored zero must not shadow a later nonzero either.
         assertEquals(4, iamax(SparseVector.of(5, intArrayOf(1, 4), doubleArrayOf(0.0, -2.0))))
     }
 
