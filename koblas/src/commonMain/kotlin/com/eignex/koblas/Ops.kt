@@ -82,7 +82,7 @@ public fun iamax(v: VectorLike): Int {
             best = i
         }
     }
-    return if (best == -1) 0 else best // all entries zero: the max is the first element
+    return if (best == -1) 0 else best
 }
 
 /** `dst = src` (BLAS `dcopy`). A sparse source zero-fills the destination first, so nothing survives. */
