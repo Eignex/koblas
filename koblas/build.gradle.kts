@@ -132,14 +132,10 @@ tasks.withType<Test>().configureEach {
 }
 
 // Tests marked @Category(HostLibraryTest) need a real OpenBLAS or SuiteSparse, so they are out of the
-// default run and opted into with -Pkoblas.hostTests=true.
-//
-// Two reasons, either sufficient. They measure the machine as much as the library, so including them makes
-// the everyday result mean different things on a box with SuiteSparse and one without. And they are what
-// makes platform discovery initialize the java.lang.foreign downcall handles, which makes the coverage
-// agent's transformer throw — flooding the log, and taking the test worker down when a test fails. Excluding
-// them and pinning the backend to `reference` removes both; the opt-in run accepts the noise in exchange for
-// exercising the bindings.
+// default run and opted into with -Pkoblas.hostTests=true. They measure the machine as much as the library,
+// so including them would make the everyday result mean different things on a box with SuiteSparse and one
+// without. Excluding them and pinning the backend to `reference` keeps that out; the opt-in run accepts the
+// noise in exchange for exercising the bindings, and reports coverage like any other run.
 tasks.withType<Test>().configureEach {
     if (project.findProperty("koblas.hostTests") == "true") return@configureEach
     systemProperty("koblas.backend", "reference")
