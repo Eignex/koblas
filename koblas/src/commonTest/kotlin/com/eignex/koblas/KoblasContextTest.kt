@@ -72,7 +72,6 @@ class KoblasContextTest {
     @Test
     fun `a context runs its own kernels without being installed`() {
         val mine = Counting()
-        // Pinned to the portable halves, since a host backend legitimately keeps kernels of its own.
         val ctx = koblas.with(blas = ReferenceBackend(), lapack = ReferenceBackend()).with(vectorKernels = mine)
         assertSame(mine, ctx.vectorKernels)
         val n = 6
@@ -101,8 +100,6 @@ class KoblasContextTest {
         val l = DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 0.0), doubleArrayOf(1.0, 3.0)))
         val x = doubleArrayOf(2.0, 5.0)
 
-        // trsv, trmv and cholesky are inherited defaults rather than overrides, so they are the ones that
-        // used to reach past their own backend for kernels.
         (backend as Blas).trsv(l, x, lower = true)
         assertTrue(mine.dots + mine.axpys > 0, "trsv must use the backend's kernels")
 

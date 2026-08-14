@@ -27,7 +27,7 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
     /** This backend's kernels, or the process default when it was given none. */
     override val vectorKernels: VectorKernels get() = kernels ?: koblas.vectorKernels
 
-    /** Whether these routines follow whatever kernels surround them rather than ones of their own. */
+    /** Whether these routines follow the kernels around them rather than ones of their own. */
     internal val followsContext: Boolean get() = kernels == null
 
     override fun gemv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, transpose: Boolean) {
