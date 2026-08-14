@@ -20,9 +20,18 @@ public sealed interface SparseLdlPolicy {
 
     /**
      * Pivots below [minimumPivot] are raised to it, so a matrix that has drifted slightly indefinite still
-     * factors, trading exactness for a factorization that exists.
+     * factors, trading exactness for a factorization that exists. An exact zero is raised too, so this
+     * policy never reports singularity. The result factorizes a nearby matrix, not the input.
+     *
+     * @property minimumPivot an absolute floor in the matrix's own units, not the factor's; must be positive.
      */
-    public data class Regularize(val minimumPivot: Double = 1e-10) : SparseLdlPolicy
+    public data class Regularize(val minimumPivot: Double = 1e-10) : SparseLdlPolicy {
+        init {
+            require(minimumPivot > 0.0 && minimumPivot.isFinite()) {
+                "minimumPivot must be positive and finite, got $minimumPivot"
+            }
+        }
+    }
 }
 
 /**
@@ -134,7 +143,7 @@ public class SparseLdl internal constructor(
 
 /**
  * The numeric half of the symmetric factorization, up-looking `L·D·Lᵀ` one row of L at a time. An exact zero
- * pivot is singular whatever the [policy] says, and comes back as [SingularSparseFactorization].
+ * pivot comes back as [SingularSparseFactorization] unless the [policy] floors it.
  */
 @Suppress("NestedBlockDepth", "ReturnCount") // the up-looking traversal, and one exit per pivot verdict
 internal fun numericLdl(
@@ -202,6 +211,10 @@ internal fun numericLdl(
             filled[i]++
         }
         when {
+            // Ahead of the zero check, since a zero pivot is below any floor and Regularize exists to
+            // produce a factorization rather than report one that does not exist.
+            policy is SparseLdlPolicy.Regularize && d[k] < policy.minimumPivot -> d[k] = policy.minimumPivot
+
             d[k] == 0.0 -> return SingularSparseFactorization(n, failedAt = k)
 
             policy is SparseLdlPolicy.Strict && d[k] < 0.0 -> throw NotPositiveDefinite(
@@ -210,8 +223,6 @@ internal fun numericLdl(
                 "ldl: pivot $k is ${d[k]}, so the matrix is not positive definite. Use " +
                     "SparseLdlPolicy.Indefinite to factor it anyway, or Regularize to floor the pivot.",
             )
-
-            policy is SparseLdlPolicy.Regularize && d[k] < policy.minimumPivot -> d[k] = policy.minimumPivot
         }
     }
     return SparseLdl(symbolic, lp, li, lx, d)

@@ -102,14 +102,38 @@ class SparseLdlTest {
     }
 
     @Test
-    fun `a zero pivot is singular whatever the policy`() {
+    fun `a zero pivot is singular under the indefinite policy`() {
         val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf()))
-        for (policy in listOf(SparseLdlPolicy.Indefinite, SparseLdlPolicy.Regularize())) {
-            val f = a.ldl(policy)
-            assertTrue(f.singular, "a zero column is singular under $policy")
-            assertEquals(1, f.failedAt, "the second pivot is the one that failed")
-            assertEquals(0.0, f.determinant())
-        }
+        val f = a.ldl(SparseLdlPolicy.Indefinite)
+        assertTrue(f.singular, "a zero column is singular")
+        assertEquals(1, f.failedAt, "the second pivot is the one that failed")
+        assertEquals(0.0, f.determinant())
+    }
+
+    @Test
+    fun `regularize floors an exact zero pivot instead of reporting singularity`() {
+        val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf()))
+        val f = a.ldl(SparseLdlPolicy.Regularize(minimumPivot = 1e-8))
+        assertTrue(!f.singular, "a floored zero pivot must produce a usable factorization")
+        assertClose(1e-8, f.determinant(), "det is 1 · the floored pivot", tolerance = 1e-20)
+        val x = f.solve(doubleArrayOf(1.0, 1e-8))
+        assertClose(doubleArrayOf(1.0, 1.0), x, "the floored system solves", tolerance = 1e-12)
+    }
+
+    @Test
+    fun `regularize floors a zero pivot at the head of the matrix too`() {
+        // The first pivot leaves no earlier column to have written into it, a different path to d[k] == 0.
+        val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(), listOf(1 to 1.0)))
+        val f = SparseSymbolic.analyze(a, SparseOrdering.Natural).factorLdl(a, SparseLdlPolicy.Regularize(1e-10))
+        assertTrue(!f.singular, "the leading zero pivot must be floored")
+        assertClose(1e-10, f.determinant(), "det is the floored pivot · 1", tolerance = 1e-22)
+    }
+
+    @Test
+    fun `regularize rejects a non-positive floor`() {
+        assertFailsWith<IllegalArgumentException> { SparseLdlPolicy.Regularize(0.0) }
+        assertFailsWith<IllegalArgumentException> { SparseLdlPolicy.Regularize(-1.0) }
+        assertFailsWith<IllegalArgumentException> { SparseLdlPolicy.Regularize(Double.NaN) }
     }
 
     @Test
