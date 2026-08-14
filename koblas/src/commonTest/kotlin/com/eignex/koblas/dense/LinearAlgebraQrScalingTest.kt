@@ -8,11 +8,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/**
- * QR at the ends of the double range. A norm taken as `sqrt(sum of squares)` overflows above `1e154` and
- * underflows to zero below `1e-154`, both of which a rescaling `nrm2` avoids, so every result here must be
- * the unscaled one carried through by the scale factor.
- */
+/** QR at the ends of the double range, where the result must still be the unscaled one times the scale. */
 class LinearAlgebraQrScalingTest {
 
     private val scales = doubleArrayOf(1e-200, 1e-170, 1e-8, 1.0, 1e8, 1e170, 1e200)
@@ -28,7 +24,6 @@ class LinearAlgebraQrScalingTest {
         Array(base.size) { i -> DoubleArray(3) { j -> base[i][j] * scale } },
     )
 
-    /** Column [j] of `R`, which reconstructs column j of `A` once `Q` is applied to it. */
     private fun rColumn(qr: QrDecomposition, j: Int): DoubleArray {
         val col = DoubleArray(qr.m)
         for (i in 0 until minOf(j + 1, qr.tau.size)) col[i] = qr.qr[i + j * qr.m]

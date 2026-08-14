@@ -550,8 +550,6 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
     private fun householderColumn(buf: DoubleArray, m: Int, col: Int): Double {
         val base = col + col * m
         val len = m - col
-        // Rescaled rather than sqrt of a sum of squares, so a column near either end of the double range
-        // still gets its true norm instead of an infinity or a zero.
         val norm = vectorKernels.nrm2(buf, base, len)
         if (norm == 0.0) return 0.0
         val alpha = buf[base]
