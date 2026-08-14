@@ -137,4 +137,28 @@ class WorkspaceTest {
         ws.release(held)
         assertSame(held, ws.take(9), "the held buffer's pool was dropped while it was lent")
     }
+
+    @Test
+    fun `releasing a foreign buffer leaves the pool table untouched`() {
+        val ws = Workspace()
+        ws.release(ws.take(4))
+        val widths = ws.pooledWidths
+        assertFailsWith<IllegalStateException> { ws.release(DoubleArray(9)) }
+        assertEquals(widths, ws.pooledWidths, "a rejected release opened a pool")
+        assertFailsWith<IllegalStateException> { ws.release(DoubleArray(4)) }
+        assertEquals(widths, ws.pooledWidths, "a rejected release of a pooled width changed the table")
+    }
+
+    /** At the width cap a rejected release must not evict a pool that is still wanted. */
+    @Test
+    fun `a rejected release at the width cap keeps the pools that exist`() {
+        val ws = Workspace()
+        for (width in 1..64) ws.release(ws.take(width))
+        val widths = ws.pooledWidths
+        val hot = ws.take(64)
+        ws.release(hot)
+        assertFailsWith<IllegalStateException> { ws.release(DoubleArray(1000)) }
+        assertEquals(widths, ws.pooledWidths)
+        assertSame(hot, ws.take(64), "the rejected release evicted a live pool")
+    }
 }

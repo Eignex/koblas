@@ -23,7 +23,9 @@ public class Workspace {
 
     /** Returns a buffer from [take] to its pool. */
     public fun release(buffer: DoubleArray) {
-        pool(buffer.size).release(buffer)
+        val pool = findPool(buffer.size)
+            ?: error("released a buffer of size ${buffer.size} that this workspace did not lend")
+        pool.release(buffer)
     }
 
     /** Pre-allocates [count] buffers of [size], so a loop does not allocate even on its first pass. */
@@ -37,13 +39,7 @@ public class Workspace {
      * reuses one width finds it first however many other widths have passed through.
      */
     private fun pool(size: Int): Pool {
-        for (i in 0 until poolCount) {
-            val existing = pools[i]
-            if (existing != null && existing.size == size) {
-                if (i != 0) moveToFront(i)
-                return existing
-            }
-        }
+        findPool(size)?.let { return it }
         if (poolCount == pools.size) {
             // Below the cap the table simply grows. Once at it, the coldest idle pool is reclaimed, and the
             // table still grows when every pool has a borrow out, since those must stay releasable.
@@ -55,6 +51,18 @@ public class Workspace {
         pools[0] = fresh
         poolCount++
         return fresh
+    }
+
+    /** The pool for [size] if one exists, moved to the front; null for a width never borrowed. */
+    private fun findPool(size: Int): Pool? {
+        for (i in 0 until poolCount) {
+            val existing = pools[i]
+            if (existing != null && existing.size == size) {
+                if (i != 0) moveToFront(i)
+                return existing
+            }
+        }
+        return null
     }
 
     private fun moveToFront(index: Int) {
