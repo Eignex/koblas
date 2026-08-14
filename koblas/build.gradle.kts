@@ -144,6 +144,20 @@ tasks.withType<Test>().configureEach {
     }
 }
 
+// Kotlin emits a `$DefaultImpls` holder for every interface with a body, and a bridge for every method with
+// a default argument. Neither is reachable from Kotlin call sites, so both count as permanently uncovered and
+// make the report read as though tested code were not: `Blas.syr` shows its real body at 98% next to a bridge
+// at 0%. Dropping the holders leaves the report describing code a test can actually reach.
+kover {
+    reports {
+        filters {
+            excludes {
+                classes("*\$DefaultImpls")
+            }
+        }
+    }
+}
+
 // A stable module name, so a modular consumer sees a named module rather than one named after the jar
 // file. That is what lets native access be granted per module instead of blanket ALL-UNNAMED.
 tasks.named<Jar>("jvmJar") {
