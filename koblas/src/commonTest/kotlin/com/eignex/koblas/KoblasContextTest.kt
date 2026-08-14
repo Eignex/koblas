@@ -105,4 +105,29 @@ class KoblasContextTest {
         assertEquals(expected.size, actual.size)
         for (i in expected.indices) assertEquals(expected[i], actual[i], absoluteTolerance = 1e-9)
     }
+
+    /** A context is at least as preferred as the strongest half in it, and names what it is made of. */
+    @Test
+    fun `a context reports the strongest half's priority and names its backends`() {
+        val reference = KoblasContext(
+            vectorKernels = Counting(),
+            blas = ReferenceLinearAlgebra,
+            lapack = ReferenceLinearAlgebra,
+            sparseVectorKernels = ReferenceSparseLinearAlgebra,
+            sparseBlas = ReferenceSparseLinearAlgebra,
+            sparseLapack = ReferenceSparseLinearAlgebra,
+        )
+        assertEquals(0, reference.priority, "every reference half has priority 0")
+        assertEquals("reference", reference.name, "one distinct backend name should not repeat")
+        assertEquals("KoblasContext(reference)", reference.toString())
+
+        val strong = object : Lapack by ReferenceLinearAlgebra {
+            override val name: String get() = "strong"
+            override val priority: Int get() = 42
+        }
+        val mixed = reference.with(lapack = strong)
+        assertEquals(42, mixed.priority, "the context should take the strongest half's priority")
+        assertEquals("reference+strong", mixed.name, "both distinct names, in half order")
+        assertSame(reference.blas, mixed.blas, "with() should keep the halves it was not given")
+    }
 }

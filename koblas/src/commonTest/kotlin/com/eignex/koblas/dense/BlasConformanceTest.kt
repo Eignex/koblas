@@ -185,9 +185,14 @@ class BlasConformanceTest {
     @Test
     fun `full gemm matches the naive reference across transpose flags alpha and beta`() {
         val rng = Random(20260728)
-        val m = 5
-        val k = 7
-        val n = 4
+        // Two shapes, so the doubly-transposed case transposes A in one and B in the other: it copies
+        // whichever operand is smaller, and one shape alone would only ever reach one of those.
+        for ((m, k, n) in listOf(Triple(5, 7, 4), Triple(3, 7, 6))) {
+            checkGemmShape(rng, m, k, n)
+        }
+    }
+
+    private fun checkGemmShape(rng: Random, m: Int, k: Int, n: Int) {
         for (tA in booleanArrayOf(false, true)) {
             for (tB in booleanArrayOf(false, true)) {
                 val a = if (tA) DenseMatrix(k, m) else DenseMatrix(m, k)
