@@ -14,6 +14,12 @@ public interface Backend {
      * sparse counterpart). [registerBackend] picks the highest; the portable reference is 0.
      */
     public val priority: Int get() = 0
+
+    /**
+     * The dense vector kernels this backend's inherited routines run on. A backend built around particular
+     * kernels overrides this so they reach those routines too; otherwise the installed ones are used.
+     */
+    public val vectorKernels: VectorKernels get() = koblas.vectorKernels
 }
 
 /**

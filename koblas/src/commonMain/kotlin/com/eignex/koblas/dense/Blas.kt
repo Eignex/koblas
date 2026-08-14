@@ -90,7 +90,7 @@ public interface Blas : Backend {
             "ger shape mismatch: A is ${a.rows}x${a.cols}, x ${x.size}, y ${y.size}"
         }
         if (alpha == 0.0) return
-        val kernels = koblas.vectorKernels
+        val kernels = vectorKernels
         for (j in 0 until a.cols) {
             val scaled = alpha * y[j]
             if (scaled != 0.0) kernels.axpy(a.data, a.colOffset(j), scaled, x, 0, a.rows)
@@ -149,7 +149,7 @@ public interface Blas : Backend {
             "syr2k: B is ${b.rows}x${b.cols}, expected ${a.rows}x${a.cols} to match A"
         }
         requireShape(c.rows == n && c.cols == n) { "syr2k: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
-        scaleUplo(koblas.vectorKernels, c.data, n, beta, uplo)
+        scaleUplo(vectorKernels, c.data, n, beta, uplo)
         if (alpha == 0.0 || n == 0 || k == 0) return
         val cd = c.data
         for (j in 0 until n) {
@@ -176,7 +176,7 @@ public interface Blas : Backend {
     ) {
         requireShape(a.rows == a.cols) { "trsv requires a square matrix; got ${a.rows}x${a.cols}" }
         requireShape(x.size == a.rows) { "trsv: x length ${x.size} != ${a.rows}" }
-        trsvCore(koblas.vectorKernels, a.data, a.rows, x, lower = lower, transpose = transpose, unitDiag = unitDiag)
+        trsvCore(vectorKernels, a.data, a.rows, x, lower = lower, transpose = transpose, unitDiag = unitDiag)
     }
 
     /** Solve `op(T) · X = B` in place, or `X · op(T) = B` when [right] (BLAS `dtrsm`). Flags follow [trsv];
@@ -195,7 +195,7 @@ public interface Blas : Backend {
             requireShape(b.cols == a.rows) { "trsm right: B has ${b.cols} cols, expected ${a.rows}" }
             forEachRow(a.rows, b) { row ->
                 trsvCore(
-                    koblas.vectorKernels,
+                    vectorKernels,
                     a.data,
                     a.rows,
                     row,
@@ -206,7 +206,7 @@ public interface Blas : Backend {
             }
         } else {
             requireShape(b.rows == a.rows) { "trsm: B has ${b.rows} rows, expected ${a.rows}" }
-            trsmCore(koblas.vectorKernels, a.data, a.rows, b.data, b.cols, lower, transpose, unitDiag)
+            trsmCore(vectorKernels, a.data, a.rows, b.data, b.cols, lower, transpose, unitDiag)
         }
     }
 
@@ -220,7 +220,7 @@ public interface Blas : Backend {
     ) {
         requireShape(a.rows == a.cols) { "trmv requires a square matrix; got ${a.rows}x${a.cols}" }
         requireShape(x.size == a.rows) { "trmv: x length ${x.size} != ${a.rows}" }
-        trmvCore(koblas.vectorKernels, a.data, a.rows, x, lower = lower, transpose = transpose, unitDiag = unitDiag)
+        trmvCore(vectorKernels, a.data, a.rows, x, lower = lower, transpose = transpose, unitDiag = unitDiag)
     }
 
     /** `B = op(T) · B`, or `B = B · op(T)` when [right] (BLAS `dtrmm`), the counterpart of [trsm]. */
@@ -238,7 +238,7 @@ public interface Blas : Backend {
             requireShape(b.cols == a.rows) { "trmm right: B has ${b.cols} cols, expected ${a.rows}" }
             forEachRow(a.rows, b) { row ->
                 trmvCore(
-                    koblas.vectorKernels,
+                    vectorKernels,
                     a.data,
                     a.rows,
                     row,
@@ -249,7 +249,7 @@ public interface Blas : Backend {
             }
         } else {
             requireShape(b.rows == a.rows) { "trmm: B has ${b.rows} rows, expected ${a.rows}" }
-            trmmCore(koblas.vectorKernels, a.data, a.rows, b.data, b.cols, lower, transpose, unitDiag)
+            trmmCore(vectorKernels, a.data, a.rows, b.data, b.cols, lower, transpose, unitDiag)
         }
     }
 
