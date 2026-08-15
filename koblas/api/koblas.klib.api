@@ -164,6 +164,8 @@ abstract interface com.eignex.koblas/Backend { // com.eignex.koblas/Backend|null
         abstract fun <get-name>(): kotlin/String // com.eignex.koblas/Backend.name.<get-name>|<get-name>(){}[0]
     open val priority // com.eignex.koblas/Backend.priority|{}priority[0]
         open fun <get-priority>(): kotlin/Int // com.eignex.koblas/Backend.priority.<get-priority>|<get-priority>(){}[0]
+    open val vectorKernels // com.eignex.koblas/Backend.vectorKernels|{}vectorKernels[0]
+        open fun <get-vectorKernels>(): com.eignex.koblas.dense/VectorKernels // com.eignex.koblas/Backend.vectorKernels.<get-vectorKernels>|<get-vectorKernels>(){}[0]
 }
 
 abstract interface com.eignex.koblas/MatrixLike { // com.eignex.koblas/MatrixLike|null[0]
@@ -321,6 +323,8 @@ final class com.eignex.koblas.dense/ReferenceBackend : com.eignex.koblas.dense/L
 
     final val name // com.eignex.koblas.dense/ReferenceBackend.name|{}name[0]
         final fun <get-name>(): kotlin/String // com.eignex.koblas.dense/ReferenceBackend.name.<get-name>|<get-name>(){}[0]
+    final val vectorKernels // com.eignex.koblas.dense/ReferenceBackend.vectorKernels|{}vectorKernels[0]
+        final fun <get-vectorKernels>(): com.eignex.koblas.dense/VectorKernels // com.eignex.koblas.dense/ReferenceBackend.vectorKernels.<get-vectorKernels>|<get-vectorKernels>(){}[0]
 
     final fun applyQInto(com.eignex.koblas.dense/QrDecomposition, kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean): kotlin/DoubleArray // com.eignex.koblas.dense/ReferenceBackend.applyQInto|applyQInto(com.eignex.koblas.dense.QrDecomposition;kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean){}[0]
     final fun factor(com.eignex.koblas/DenseMatrix): com.eignex.koblas.dense/LuDecomposition // com.eignex.koblas.dense/ReferenceBackend.factor|factor(com.eignex.koblas.DenseMatrix){}[0]
@@ -771,6 +775,8 @@ final class com.eignex.koblas.cblas/CblasLinearAlgebra : com.eignex.koblas.dense
         final fun <get-name>(): kotlin/String // com.eignex.koblas.cblas/CblasLinearAlgebra.name.<get-name>|<get-name>(){}[0]
     final val priority // com.eignex.koblas.cblas/CblasLinearAlgebra.priority|{}priority[0]
         final fun <get-priority>(): kotlin/Int // com.eignex.koblas.cblas/CblasLinearAlgebra.priority.<get-priority>|<get-priority>(){}[0]
+    final val vectorKernels // com.eignex.koblas.cblas/CblasLinearAlgebra.vectorKernels|{}vectorKernels[0]
+        final fun <get-vectorKernels>(): com.eignex.koblas.dense/VectorKernels // com.eignex.koblas.cblas/CblasLinearAlgebra.vectorKernels.<get-vectorKernels>|<get-vectorKernels>(){}[0]
 
     final fun applyQ(com.eignex.koblas.dense/QrDecomposition, com.eignex.koblas/DenseVector, kotlin/Boolean): com.eignex.koblas/DenseVector // com.eignex.koblas.cblas/CblasLinearAlgebra.applyQ|applyQ(com.eignex.koblas.dense.QrDecomposition;com.eignex.koblas.DenseVector;kotlin.Boolean){}[0]
     final fun applyQ(com.eignex.koblas.dense/QrDecomposition, kotlin/DoubleArray, kotlin/Boolean): kotlin/DoubleArray // com.eignex.koblas.cblas/CblasLinearAlgebra.applyQ|applyQ(com.eignex.koblas.dense.QrDecomposition;kotlin.DoubleArray;kotlin.Boolean){}[0]
