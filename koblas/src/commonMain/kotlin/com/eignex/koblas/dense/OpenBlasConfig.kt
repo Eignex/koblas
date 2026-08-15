@@ -5,5 +5,5 @@ package com.eignex.koblas.dense
  * exports the same unsuffixed symbols as LP64 and then reads the wrong halves of every dimension.
  */
 internal fun isIlp64OpenBlas(config: String): Boolean =
-    // Whole tokens rather than substrings, so a hypothetical USE64BITINT_OFF is not read as the marker.
+    // Whole tokens, so a hypothetical USE64BITINT_OFF is not read as the marker.
     config.split(' ', '\t', '\n').any { it == "USE64BITINT" || it == "INTERFACE64" }

@@ -201,7 +201,7 @@ internal fun numericLdl(
             val lki = yi / d[i]
             d[k] -= lki * yi
             check(end < lp[i + 1]) {
-                // An under-counted column would be written past, corrupting its neighbour instead of failing.
+                // An under-counted column would be written past, silently corrupting its neighbour.
                 "ldl: column $i needs more room than the analysis reserved it, so the analysis and this " +
                     "matrix disagree about the pattern"
             }

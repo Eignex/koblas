@@ -194,7 +194,7 @@ class BranchCoverageTest {
         for (i in 0 until n) for (j in 0 until n) hilbert[i, j] = 1.0 / (i + j + 1.0)
         val estimate = koblas.rcond(hilbert.lu(), norm1(hilbert))
         assertTrue(estimate > 0.0 && estimate < 1e-6, "an ill-conditioned estimate should be tiny, got $estimate")
-        // A zero matrix is singular, and a zero norm reports zero rather than dividing by it.
+        // A zero matrix is singular, and a zero norm reports zero instead of dividing.
         assertEquals(0.0, koblas.rcond(DenseMatrix.zero(3, 3).lu(), 0.0))
         assertEquals(1.0, koblas.rcond(DenseMatrix.zero(0, 0).lu(), 0.0), "an empty matrix is perfectly conditioned")
     }

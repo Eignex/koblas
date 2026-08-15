@@ -188,7 +188,7 @@ class SparseLdlTest {
         val f = a.cholesky() as SparseLdl
         val l = f.choleskyFactor()
         val perm = f.symbolic.permutation
-        // L·Lᵀ is P·A·Pᵀ rather than A, because the factor is of the matrix the analysis reordered.
+        // L·Lᵀ is P·A·Pᵀ, since the factor is of the matrix the analysis reordered.
         val dense = Array(12) { DoubleArray(12) }
         for (j in 0 until 12) l.forEachInColumn(j) { i, v -> dense[i][j] = v }
         for (i in 0 until 12) {

@@ -8,7 +8,7 @@ class DispatchThresholdsTest {
     @Test
     fun `the platform defaults are the ones this target was measured with`() {
         val defaults = platformDispatchThresholds
-        // Scalar kernels lose from the smallest size measured, SIMD kernels win level 2 at every size.
+        // Scalar kernels never win level 1; SIMD kernels win level 2 at every size.
         if (mathBackend.startsWith("simd")) {
             assertTrue(defaults.level2 == Int.MAX_VALUE, "SIMD level 2 should stay portable, got ${defaults.level2}")
             assertTrue(defaults.level3 in 1..1024, "SIMD level 3 threshold looks wrong: ${defaults.level3}")

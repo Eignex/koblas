@@ -80,7 +80,6 @@ class SparseLuTest {
 
     @Test
     fun `determinant matches the hand value and tracks sign under row order`() {
-        // The matrix ((2, 1), (1, 3)) has determinant 5.
         val det = square(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0)).lu().determinant()
         assertClose(5.0, det, "det", tolerance = 1e-9)
         // A row swap negates it, so ((1, 3), (2, 1)) gives 1 - 6 = -5.

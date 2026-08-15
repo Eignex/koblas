@@ -144,7 +144,7 @@ internal object UmfpackCalls {
     }
 
     /** `int f(...)` taking [ints] leading `int` arguments then [pointers] pointers. */
-    // The spread copies the array, once per bound symbol rather than in a hot path.
+    // The spread copies the array, once per bound symbol and off any hot path.
     @Suppress("SpreadOperator")
     private fun intsThenPointers(ints: Int, pointers: Int): FunctionDescriptor {
         val args = Array(ints + pointers) { if (it < ints) JAVA_INT else ADDRESS }
