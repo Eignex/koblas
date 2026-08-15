@@ -4,6 +4,7 @@
 package com.eignex.koblas.cblas
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.assertClose
 import com.eignex.koblas.dense.ReferenceLinearAlgebra
 import com.eignex.koblas.dense.Uplo
 import com.eignex.koblas.dense.assertFactorIntoUsesItsDestination
@@ -17,6 +18,7 @@ import com.eignex.koblas.dense.determinant
 import com.eignex.koblas.installBackends
 import com.eignex.koblas.koblas
 import com.eignex.koblas.norm1
+import com.eignex.koblas.randomMatrix
 import kotlin.math.abs
 import kotlin.math.sqrt
 import kotlin.random.Random
@@ -29,20 +31,6 @@ class CblasConformanceTest {
 
     private val cblas = CblasLinearAlgebra()
     private val reference = ReferenceLinearAlgebra
-
-    private fun randomMatrix(rng: Random, rows: Int, cols: Int) =
-        DenseMatrix.wrap(rows, cols, DoubleArray(rows * cols) { rng.nextDouble(-1.0, 1.0) })
-
-    private fun assertClose(expected: DoubleArray, actual: DoubleArray, tol: Double = 1e-12, context: String = "") {
-        assertEquals(expected.size, actual.size, context)
-        for (i in expected.indices) {
-            val scale = maxOf(1.0, abs(expected[i]))
-            assertTrue(
-                abs(expected[i] - actual[i]) <= tol * scale,
-                "$context index $i: expected ${expected[i]} actual ${actual[i]}",
-            )
-        }
-    }
 
     @Test
     fun `discovery registers the backend and install overrides it`() {
@@ -64,7 +52,7 @@ class CblasConformanceTest {
         for (transpose in booleanArrayOf(false, true)) {
             for (alpha in doubleArrayOf(0.0, 1.0, 0.75)) {
                 for (beta in doubleArrayOf(0.0, 1.0, -0.5)) {
-                    val a = randomMatrix(rng, 7, 5)
+                    val a = randomMatrix(7, 5, rng)
                     val x = DoubleArray(if (transpose) 7 else 5) { rng.nextDouble(-1.0, 1.0) }
                     val yLen = if (transpose) 5 else 7
                     val y0 = DoubleArray(yLen) { if (beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0) }
@@ -88,8 +76,8 @@ class CblasConformanceTest {
                         val m = 6
                         val k = 4
                         val n = 5
-                        val a = if (transposeA) randomMatrix(rng, k, m) else randomMatrix(rng, m, k)
-                        val b = if (transposeB) randomMatrix(rng, n, k) else randomMatrix(rng, k, n)
+                        val a = if (transposeA) randomMatrix(k, m, rng) else randomMatrix(m, k, rng)
+                        val b = if (transposeB) randomMatrix(n, k, rng) else randomMatrix(k, n, rng)
                         val c0 = DoubleArray(m * n) { if (beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0) }
                         val cRef = DenseMatrix.wrap(m, n, c0.copyOf())
                         val cCblas = DenseMatrix.wrap(m, n, c0.copyOf())
@@ -112,7 +100,7 @@ class CblasConformanceTest {
         for (transpose in booleanArrayOf(false, true)) {
             for (alpha in doubleArrayOf(0.0, 1.0, 0.75)) {
                 for (beta in doubleArrayOf(0.0, 1.0, -0.5)) {
-                    val a = randomMatrix(rng, 6, 4)
+                    val a = randomMatrix(6, 4, rng)
                     val n = if (transpose) 4 else 6
                     val c0 = DoubleArray(n * n) { if (beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0) }
                     val cRef = DenseMatrix.wrap(n, n, c0.copyOf())
@@ -138,7 +126,7 @@ class CblasConformanceTest {
         for (uplo in listOf(Uplo.LOWER, Uplo.UPPER)) {
             for (transpose in booleanArrayOf(false, true)) {
                 for (beta in doubleArrayOf(0.0, -0.5)) {
-                    val a = randomMatrix(rng, 6, 4)
+                    val a = randomMatrix(6, 4, rng)
                     val n = if (transpose) 4 else 6
                     val c0 = DoubleArray(n * n) { idx ->
                         val i = idx % n
@@ -217,7 +205,7 @@ class CblasConformanceTest {
     fun `the determinant matches reference`() {
         val rng = Random(20260730)
         for (n in intArrayOf(1, 3, 8, 33)) {
-            val a = randomMatrix(rng, n, n)
+            val a = randomMatrix(n, n, rng)
             for (i in 0 until n) a[i, i] = a[i, i] + n
             val luRef = reference.factor(a)
             val luCblas = cblas.factor(a)
@@ -233,7 +221,7 @@ class CblasConformanceTest {
         val rng = Random(20260952)
         val n = 9
         val nrhs = 4
-        val b = randomMatrix(rng, n, nrhs)
+        val b = randomMatrix(n, nrhs, rng)
         val sym = DenseMatrix(n, n)
         for (i in 0 until n) {
             for (j in 0..i) {
@@ -245,20 +233,20 @@ class CblasConformanceTest {
         }
         val xRef = reference.solve(reference.ldl(sym), b)
         val xCblas = cblas.solve(cblas.ldl(sym), b)
-        assertClose(xRef.data, xCblas.data, tol = 1e-9, context = "ldl block")
+        assertClose(xRef.data, xCblas.data, tolerance = 1e-9, context = "ldl block")
     }
 
     @Test
     fun `factorizations interchange between backends`() {
         val rng = Random(20260731)
         val n = 12
-        val a = randomMatrix(rng, n, n)
+        val a = randomMatrix(n, n, rng)
         for (i in 0 until n) a[i, i] = a[i, i] + n
         val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
         for (transpose in booleanArrayOf(false, true)) {
             val viaCblasFactor = reference.solve(cblas.factor(a), b, transpose)
             val viaRefFactor = cblas.solve(reference.factor(a), b, transpose)
-            assertClose(viaCblasFactor, viaRefFactor, tol = 1e-10, context = "interchange t=$transpose")
+            assertClose(viaCblasFactor, viaRefFactor, tolerance = 1e-10, context = "interchange t=$transpose")
         }
     }
 
@@ -266,7 +254,7 @@ class CblasConformanceTest {
     fun `rcond agrees with the reference estimator in magnitude`() {
         val rng = Random(20260905)
         for (n in intArrayOf(1, 6, 24)) {
-            val a = randomMatrix(rng, n, n)
+            val a = randomMatrix(n, n, rng)
             for (i in 0 until n) a[i, i] = a[i, i] + n
             val anorm = norm1(a)
             val ref = reference.rcond(reference.factor(a), anorm)
@@ -282,7 +270,7 @@ class CblasConformanceTest {
     fun `qr factorizations interchange between backends`() {
         val rng = Random(20260925)
         for ((m, n) in listOf(6 to 6, 10 to 4)) {
-            val a = randomMatrix(rng, m, n)
+            val a = randomMatrix(m, n, rng)
             val b = DoubleArray(m) { rng.nextDouble(-1.0, 1.0) }
             val fRef = reference.qr(a)
             val fCblas = cblas.qr(a)
@@ -293,26 +281,26 @@ class CblasConformanceTest {
                 cblas.solveLeastSquares(fCblas, b),
             )
             for ((i, x) in xs.withIndex()) {
-                assertClose(xs[0], x, tol = 1e-10, context = "qr interchange ${m}x$n variant $i")
+                assertClose(xs[0], x, tolerance = 1e-10, context = "qr interchange ${m}x$n variant $i")
             }
             val y = DoubleArray(m) { rng.nextDouble(-1.0, 1.0) }
             assertClose(
                 reference.applyQ(fCblas, y),
                 cblas.applyQ(fCblas, y),
-                tol = 1e-11,
+                tolerance = 1e-11,
                 context = "applyQ on cblas factors ${m}x$n",
             )
             assertClose(
                 reference.applyQ(fRef, y),
                 cblas.applyQ(fRef, y),
-                tol = 1e-11,
+                tolerance = 1e-11,
                 context = "applyQ on reference factors ${m}x$n",
             )
             val bWide = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
             assertClose(
                 reference.solveMinimumNorm(fRef, bWide),
                 cblas.solveMinimumNorm(fCblas, bWide),
-                tol = 1e-10,
+                tolerance = 1e-10,
                 context = "solveMinimumNorm ${n}x$m",
             )
         }
@@ -341,7 +329,7 @@ class CblasConformanceTest {
                 cblas.solve(fCblas, b),
             )
             for ((i, x) in xs.withIndex()) {
-                assertClose(xs[0], x, tol = 1e-9, context = "ldl interchange n=$n variant $i")
+                assertClose(xs[0], x, tolerance = 1e-9, context = "ldl interchange n=$n variant $i")
             }
         }
         assertTrue(cblas.ldl(DenseMatrix(3, 3)).singular)

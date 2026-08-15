@@ -2,6 +2,7 @@ package com.eignex.koblas.hostblas
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.HostLibraryTest
+import com.eignex.koblas.assertClose
 import com.eignex.koblas.dense.ReferenceLinearAlgebra
 import com.eignex.koblas.dense.assertFactorIntoUsesItsDestination
 import com.eignex.koblas.dense.assertGerAgreesWithReference
@@ -13,9 +14,9 @@ import com.eignex.koblas.dense.assertSpdSuiteAgreesWithReference
 import com.eignex.koblas.dense.assertSymvRefusesNonSquare
 import com.eignex.koblas.dense.assertTriangularAgreesWithReference
 import com.eignex.koblas.koblasInfo
+import com.eignex.koblas.randomMatrix
 import org.junit.Assume
 import org.junit.experimental.categories.Category
-import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -23,19 +24,6 @@ import kotlin.test.assertTrue
 
 @Category(HostLibraryTest::class)
 class HostBlasConformanceTest {
-
-    private fun randomMatrix(rng: Random, rows: Int, cols: Int) =
-        DenseMatrix.wrap(rows, cols, DoubleArray(rows * cols) { rng.nextDouble(-1.0, 1.0) })
-
-    private fun assertClose(expected: DoubleArray, actual: DoubleArray, tol: Double, context: String) {
-        assertEquals(expected.size, actual.size, context)
-        for (i in expected.indices) {
-            assertTrue(
-                abs(expected[i] - actual[i]) <= tol * maxOf(1.0, abs(expected[i])),
-                "$context index $i: expected ${expected[i]} actual ${actual[i]}",
-            )
-        }
-    }
 
     @Test
     fun `the host backend resolves when the machine has OpenBLAS`() {
@@ -104,8 +92,8 @@ class HostBlasConformanceTest {
         val m = 96
         for (rank in intArrayOf(64, 40)) {
             // A rank-deficient product of full-rank factors, where 64 is full column rank and 40 is deficient.
-            val left = randomMatrix(rng, m, rank)
-            val right = randomMatrix(rng, rank, 64)
+            val left = randomMatrix(m, rank, rng)
+            val right = randomMatrix(rank, 64, rng)
             val a = DenseMatrix(m, 64)
             ReferenceLinearAlgebra.gemm(1.0, left, false, right, false, 0.0, a)
 
@@ -121,14 +109,14 @@ class HostBlasConformanceTest {
                 }
                 val rebuilt = host.applyQ(actual.factorization, rColumn)
                 val original = DoubleArray(m) { i -> a[i, actual.pivots[j]] }
-                assertClose(original, rebuilt, tol = 1e-8, context = "A·P = Q·R rank=$rank column $j")
+                assertClose(original, rebuilt, tolerance = 1e-8, context = "A·P = Q·R rank=$rank column $j")
             }
 
             val b = DoubleArray(m) { rng.nextDouble(-1.0, 1.0) }
             assertClose(
                 ReferenceLinearAlgebra.solveLeastSquares(expected, b),
                 host.solveLeastSquares(actual, b),
-                tol = 1e-7,
+                tolerance = 1e-7,
                 context = "pivoted least squares rank=$rank",
             )
         }
