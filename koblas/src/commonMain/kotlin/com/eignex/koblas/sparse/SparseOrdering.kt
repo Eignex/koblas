@@ -43,7 +43,7 @@ private class QuotientGraph(a: SparseMatrix, private val n: Int) {
 
     private val alive = BooleanArray(n) { true }
     private val degree = IntArray(n)
-    private val buckets = DegreeBuckets(n)
+    private val buckets = IntBuckets(n, n, 0)
 
     /** The neighbourhood being gathered, with [inElement] stamped to [elementStamp] for membership. */
     private val element = IntArray(n)
@@ -105,7 +105,7 @@ private class QuotientGraph(a: SparseMatrix, private val n: Int) {
             for (t in 0 until elementSize) {
                 val v = element[t]
                 val updated = degreeOf(v)
-                buckets.move(v, degree[v], updated)
+                buckets.moveTo(v, degree[v], updated)
                 degree[v] = updated
             }
         }
@@ -200,48 +200,6 @@ private class QuotientGraph(a: SparseMatrix, private val n: Int) {
 
     private companion object {
         const val INITIAL_ELEMENTS = 4
-    }
-}
-
-/** Live variables bucketed by degree, so the smallest is found without scanning them all. */
-private class DegreeBuckets(private val size: Int) {
-    private val head = IntArray(size + 1) { -1 }
-    private val next = IntArray(size) { -1 }
-    private val previous = IntArray(size) { -1 }
-
-    /** No occupied bucket is below this. Lowered by [add], raised as [removeSmallest] empties buckets. */
-    private var lowest = 0
-
-    fun add(item: Int, degree: Int) {
-        val first = head[degree]
-        next[item] = first
-        previous[item] = -1
-        if (first != -1) previous[first] = item
-        head[degree] = item
-        if (degree < lowest) lowest = degree
-    }
-
-    fun remove(item: Int, degree: Int) {
-        val before = previous[item]
-        val after = next[item]
-        if (before == -1) head[degree] = after else next[before] = after
-        if (after != -1) previous[after] = before
-        previous[item] = -1
-        next[item] = -1
-    }
-
-    fun move(item: Int, from: Int, to: Int) {
-        if (from == to) return
-        remove(item, from)
-        add(item, to)
-    }
-
-    /** Remove and return the lowest-degree member; the caller guarantees one exists. */
-    fun removeSmallest(): Int {
-        while (lowest <= size && head[lowest] == -1) lowest++
-        val item = head[lowest]
-        remove(item, lowest)
-        return item
     }
 }
 

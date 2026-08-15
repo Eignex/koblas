@@ -304,51 +304,6 @@ private const val PIVOT_THRESHOLD = 0.1
 /** Candidate-bearing columns to examine before settling for the best pivot found (Suhl and Suhl). */
 private const val MAX_CANDIDATE_COLS = 4
 
-private class CountBuckets(private val size: Int) {
-    private val head = IntArray(size + 2) { -1 }
-    private val next = IntArray(size) { -1 }
-    private val previous = IntArray(size) { -1 }
-
-    /** No occupied count is below this. A hint rather than a fact, lowered by [add] and raised by lookups. */
-    private var lowest = size + 1
-
-    fun add(item: Int, count: Int) {
-        val first = head[count]
-        next[item] = first
-        previous[item] = -1
-        if (first != -1) previous[first] = item
-        head[count] = item
-        if (count < lowest) lowest = count
-    }
-
-    fun remove(item: Int, count: Int) {
-        val before = previous[item]
-        val after = next[item]
-        if (before == -1) head[count] = after else next[before] = after
-        if (after != -1) previous[after] = before
-        previous[item] = -1
-        next[item] = -1
-    }
-
-    fun moveTo(item: Int, from: Int, to: Int) {
-        remove(item, from)
-        add(item, to)
-    }
-
-    fun firstAt(count: Int): Int = head[count]
-
-    fun after(item: Int): Int = next[item]
-
-    /** The smallest occupied count at least [from], or -1 when every bucket from there up is empty. */
-    fun smallestFrom(from: Int): Int {
-        var count = if (from > lowest) from else lowest
-        while (count <= size && head[count] == -1) count++
-        if (count > size) return -1
-        if (from <= lowest) lowest = count
-        return count
-    }
-}
-
 /**
  * @param u the row maps being eliminated.
  * @param m the dimension of the square matrix.
@@ -374,8 +329,8 @@ private class MarkowitzState(
     private val candidateAbs = DoubleArray(m)
 
     // Active columns by their count, and active rows by theirs. Only positive counts are ever in them.
-    private val columnsByCount = CountBuckets(m)
-    private val rowsByCount = CountBuckets(m)
+    private val columnsByCount = IntBuckets(m, m + 1, m + 1)
+    private val rowsByCount = IntBuckets(m, m + 1, m + 1)
 
     /** The pivot chosen by the last successful [selectPivot]. */
     var pivotRow = -1
