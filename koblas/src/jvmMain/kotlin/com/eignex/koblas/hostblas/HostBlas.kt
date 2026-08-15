@@ -7,6 +7,7 @@ import com.eignex.koblas.Workspace
 import com.eignex.koblas.dense.Blas
 import com.eignex.koblas.dense.ReferenceLinearAlgebra
 import com.eignex.koblas.dense.Uplo
+import com.eignex.koblas.dense.scaleUplo
 import com.eignex.koblas.dense.trmm
 import com.eignex.koblas.dense.trmv
 import com.eignex.koblas.dense.trsm
@@ -207,7 +208,7 @@ public class HostBlas internal constructor() : Blas {
             return
         }
         if (alpha == 0.0 || k == 0) {
-            scaleUplo(c.data, n, beta, uplo)
+            scaleUplo(vectorKernels, c.data, n, beta, uplo)
             return
         }
         if (n == 0) return
@@ -319,25 +320,6 @@ public class HostBlas internal constructor() : Blas {
                 HostBlasCalls.seg(v),
                 1,
             )
-        }
-    }
-
-    /** `beta` scale of the region [uplo] selects, honoring the `beta == 0` overwrite convention. */
-    private fun scaleUplo(v: DoubleArray, n: Int, beta: Double, uplo: Uplo) {
-        if (uplo == Uplo.FULL) {
-            scaleInPlace(v, beta)
-            return
-        }
-        if (beta == 1.0) return
-        // Column j holds its lower triangle at rows j..n-1 and its upper triangle at rows 0..j.
-        for (j in 0 until n) {
-            val from = if (uplo == Uplo.LOWER) j + j * n else j * n
-            val until = if (uplo == Uplo.LOWER) (j + 1) * n else j + j * n + 1
-            if (beta == 0.0) {
-                v.fill(0.0, from, until)
-            } else {
-                for (idx in from until until) v[idx] *= beta
-            }
         }
     }
 }

@@ -7,6 +7,7 @@ import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.dense.Blas
 import com.eignex.koblas.dense.Uplo
+import com.eignex.koblas.dense.scaleUplo
 import com.eignex.koblas.requireShape
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
@@ -110,7 +111,7 @@ internal class CblasBlas(private val f: CblasFunctions) : Blas {
         val k = if (transpose) a.rows else a.cols
         requireShape(c.rows == n && c.cols == n) { "syrk: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
         if (alpha == 0.0 || k == 0) {
-            scaleUplo(c.data, n, beta, uplo)
+            scaleUplo(vectorKernels, c.data, n, beta, uplo)
             return
         }
         if (n == 0) return
@@ -320,25 +321,6 @@ internal class CblasBlas(private val f: CblasFunctions) : Blas {
         when {
             beta == 0.0 -> v.fill(0.0)
             beta != 1.0 && v.isNotEmpty() -> v.usePinned { vp -> f.dscal(v.size, beta, vp.addressOf(0), 1) }
-        }
-    }
-
-    /** Scales the region [uplo] selects, honoring the `beta == 0` overwrite convention. */
-    private fun scaleUplo(v: DoubleArray, n: Int, beta: Double, uplo: Uplo) {
-        if (uplo == Uplo.FULL) {
-            scaleInPlace(v, beta)
-            return
-        }
-        if (beta == 1.0) return
-        // Column j holds its lower triangle at rows j..n-1 and its upper triangle at rows 0..j.
-        for (j in 0 until n) {
-            val from = if (uplo == Uplo.LOWER) j + j * n else j * n
-            val until = if (uplo == Uplo.LOWER) (j + 1) * n else j + j * n + 1
-            if (beta == 0.0) {
-                v.fill(0.0, from, until)
-            } else {
-                for (idx in from until until) v[idx] *= beta
-            }
         }
     }
 }

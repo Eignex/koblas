@@ -32,11 +32,7 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
         val yLen = if (transpose) a.cols else a.rows
         requireShape(x.size == xLen) { "gemv: x length ${x.size} != $xLen" }
         requireShape(y.size == yLen) { "gemv: y length ${y.size} != $yLen" }
-        if (beta == 0.0) {
-            y.fill(0.0)
-        } else if (beta != 1.0) {
-            vectorKernels.scale(y, 0, beta, y.size)
-        }
+        applyBeta(vectorKernels, y, 0, y.size, beta)
         if (alpha == 0.0) return
         val ad = a.data
         val rows = a.rows
@@ -81,11 +77,7 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
         requireShape(k == kB) { "gemm: op(A) is ${m}x$k but op(B) is ${kB}x$n" }
         requireShape(c.rows == m && c.cols == n) { "gemm: C is ${c.rows}x${c.cols}, expected ${m}x$n" }
         val cd = c.data
-        if (beta == 0.0) {
-            cd.fill(0.0)
-        } else if (beta != 1.0) {
-            vectorKernels.scale(cd, 0, beta, cd.size)
-        }
+        applyBeta(vectorKernels, cd, 0, cd.size, beta)
         if (alpha == 0.0 || m == 0 || n == 0 || k == 0) return
         val ad = a.data
         val bd = b.data
@@ -185,11 +177,7 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
         val n = a.rows
         requireShape(x.size == n) { "symv: x length ${x.size} != $n" }
         requireShape(y.size == n) { "symv: y length ${y.size} != $n" }
-        if (beta == 0.0) {
-            y.fill(0.0)
-        } else if (beta != 1.0) {
-            vectorKernels.scale(y, 0, beta, n)
-        }
+        applyBeta(vectorKernels, y, 0, n, beta)
         if (alpha == 0.0) return
         symvAccumulate(alpha, a.data, n, x, 0, y, 0, lower)
     }
@@ -244,11 +232,7 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
             "symm: C is ${c.rows}x${c.cols} but B is ${b.rows}x${b.cols}"
         }
         val cd = c.data
-        if (beta == 0.0) {
-            cd.fill(0.0)
-        } else if (beta != 1.0) {
-            vectorKernels.scale(cd, 0, beta, cd.size)
-        }
+        applyBeta(vectorKernels, cd, 0, cd.size, beta)
         if (right) {
             requireShape(b.cols == m) { "symm right: B has ${b.cols} cols, expected $m" }
             if (alpha == 0.0 || m == 0 || b.rows == 0) return
