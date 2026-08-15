@@ -1101,7 +1101,7 @@ public final class com/eignex/koblas/sparse/SparseLu : com/eignex/koblas/sparse/
 public final class com/eignex/koblas/sparse/SparseLu$Companion {
 }
 
-public final class com/eignex/koblas/sparse/SparseLuKt {
+public final class com/eignex/koblas/sparse/SparseLuEliminationKt {
 	public static final field NO_DROP D
 }
 
