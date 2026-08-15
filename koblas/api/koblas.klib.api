@@ -272,6 +272,28 @@ abstract class com.eignex.koblas.dense/HostBlasAdapter : com.eignex.koblas.dense
     open fun trsv(com.eignex.koblas/DenseMatrix, kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean) // com.eignex.koblas.dense/HostBlasAdapter.trsv|trsv(com.eignex.koblas.DenseMatrix;kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
 }
 
+abstract class com.eignex.koblas.dense/HostLapackAdapter : com.eignex.koblas.dense/Lapack { // com.eignex.koblas.dense/HostLapackAdapter|null[0]
+    open val choleskyMin // com.eignex.koblas.dense/HostLapackAdapter.choleskyMin|{}choleskyMin[0]
+        open fun <get-choleskyMin>(): kotlin/Int // com.eignex.koblas.dense/HostLapackAdapter.choleskyMin.<get-choleskyMin>|<get-choleskyMin>(){}[0]
+    open val nativeTrsmMinRhs // com.eignex.koblas.dense/HostLapackAdapter.nativeTrsmMinRhs|{}nativeTrsmMinRhs[0]
+        open fun <get-nativeTrsmMinRhs>(): kotlin/Int // com.eignex.koblas.dense/HostLapackAdapter.nativeTrsmMinRhs.<get-nativeTrsmMinRhs>|<get-nativeTrsmMinRhs>(){}[0]
+    open val spdInvertMin // com.eignex.koblas.dense/HostLapackAdapter.spdInvertMin|{}spdInvertMin[0]
+        open fun <get-spdInvertMin>(): kotlin/Int // com.eignex.koblas.dense/HostLapackAdapter.spdInvertMin.<get-spdInvertMin>|<get-spdInvertMin>(){}[0]
+
+    open fun applyQInto(com.eignex.koblas.dense/QrDecomposition, kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean): kotlin/DoubleArray // com.eignex.koblas.dense/HostLapackAdapter.applyQInto|applyQInto(com.eignex.koblas.dense.QrDecomposition;kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean){}[0]
+    open fun cholesky(com.eignex.koblas/DenseMatrix, com.eignex.koblas.dense/CholeskyPolicy): com.eignex.koblas.dense/CholeskyDecomposition // com.eignex.koblas.dense/HostLapackAdapter.cholesky|cholesky(com.eignex.koblas.DenseMatrix;com.eignex.koblas.dense.CholeskyPolicy){}[0]
+    open fun factor(com.eignex.koblas/DenseMatrix): com.eignex.koblas.dense/LuDecomposition // com.eignex.koblas.dense/HostLapackAdapter.factor|factor(com.eignex.koblas.DenseMatrix){}[0]
+    open fun factorInto(com.eignex.koblas/DenseMatrix, com.eignex.koblas.dense/LuDecomposition): com.eignex.koblas.dense/LuDecomposition // com.eignex.koblas.dense/HostLapackAdapter.factorInto|factorInto(com.eignex.koblas.DenseMatrix;com.eignex.koblas.dense.LuDecomposition){}[0]
+    open fun invert(com.eignex.koblas.dense/CholeskyDecomposition, com.eignex.koblas/Workspace?): com.eignex.koblas/DenseMatrix // com.eignex.koblas.dense/HostLapackAdapter.invert|invert(com.eignex.koblas.dense.CholeskyDecomposition;com.eignex.koblas.Workspace?){}[0]
+    open fun ldl(com.eignex.koblas/DenseMatrix, com.eignex.koblas/Workspace?): com.eignex.koblas.dense/LdlDecomposition // com.eignex.koblas.dense/HostLapackAdapter.ldl|ldl(com.eignex.koblas.DenseMatrix;com.eignex.koblas.Workspace?){}[0]
+    open fun qr(com.eignex.koblas/DenseMatrix, com.eignex.koblas/Workspace?): com.eignex.koblas.dense/QrDecomposition // com.eignex.koblas.dense/HostLapackAdapter.qr|qr(com.eignex.koblas.DenseMatrix;com.eignex.koblas.Workspace?){}[0]
+    open fun rcond(com.eignex.koblas.dense/LuDecomposition, kotlin/Double, com.eignex.koblas/Workspace?): kotlin/Double // com.eignex.koblas.dense/HostLapackAdapter.rcond|rcond(com.eignex.koblas.dense.LuDecomposition;kotlin.Double;com.eignex.koblas.Workspace?){}[0]
+    open fun solveInto(com.eignex.koblas.dense/LdlDecomposition, com.eignex.koblas/DenseMatrix, com.eignex.koblas/DenseMatrix, com.eignex.koblas/Workspace?): com.eignex.koblas/DenseMatrix // com.eignex.koblas.dense/HostLapackAdapter.solveInto|solveInto(com.eignex.koblas.dense.LdlDecomposition;com.eignex.koblas.DenseMatrix;com.eignex.koblas.DenseMatrix;com.eignex.koblas.Workspace?){}[0]
+    open fun solveInto(com.eignex.koblas.dense/LdlDecomposition, kotlin/DoubleArray, kotlin/DoubleArray): kotlin/DoubleArray // com.eignex.koblas.dense/HostLapackAdapter.solveInto|solveInto(com.eignex.koblas.dense.LdlDecomposition;kotlin.DoubleArray;kotlin.DoubleArray){}[0]
+    open fun solveInto(com.eignex.koblas.dense/LuDecomposition, com.eignex.koblas/DenseMatrix, com.eignex.koblas/DenseMatrix, kotlin/Boolean, com.eignex.koblas/Workspace?): com.eignex.koblas/DenseMatrix // com.eignex.koblas.dense/HostLapackAdapter.solveInto|solveInto(com.eignex.koblas.dense.LuDecomposition;com.eignex.koblas.DenseMatrix;com.eignex.koblas.DenseMatrix;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
+    open fun solveInto(com.eignex.koblas.dense/LuDecomposition, kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean, com.eignex.koblas/Workspace?): kotlin/DoubleArray // com.eignex.koblas.dense/HostLapackAdapter.solveInto|solveInto(com.eignex.koblas.dense.LuDecomposition;kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
+}
+
 final class com.eignex.koblas.dense/CholeskyDecomposition { // com.eignex.koblas.dense/CholeskyDecomposition|null[0]
     constructor <init>(com.eignex.koblas/DenseMatrix) // com.eignex.koblas.dense/CholeskyDecomposition.<init>|<init>(com.eignex.koblas.DenseMatrix){}[0]
 
