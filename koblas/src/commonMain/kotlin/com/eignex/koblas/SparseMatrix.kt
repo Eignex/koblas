@@ -23,7 +23,7 @@ public class SparseMatrix internal constructor(
     public val values: DoubleArray,
 ) : MatrixView {
     init {
-        require(rows >= 0 && cols >= 0) { "negative shape: ${rows}x$cols" }
+        requireShape(rows >= 0 && cols >= 0) { "negative shape: ${rows}x$cols" }
         require(colPtr.size == cols + 1) { "colPtr length ${colPtr.size} != cols+1 ${cols + 1}" }
         require(rowIdx.size == values.size) { "rowIdx/values length mismatch: ${rowIdx.size} vs ${values.size}" }
         require(colPtr[0] == 0) { "colPtr[0] ${colPtr[0]} != 0" }
@@ -54,7 +54,7 @@ public class SparseMatrix internal constructor(
      * and fine for a probe; sweep with [forEachInColumn] instead.
      */
     override fun get(i: Int, j: Int): Double {
-        require(i in 0 until rows && j in 0 until cols) { "index ($i;$j) outside ${rows}x$cols" }
+        requireIndex(i in 0 until rows && j in 0 until cols) { "index ($i;$j) outside ${rows}x$cols" }
         var lo = colPtr[j]
         var hi = colPtr[j + 1] - 1
         while (lo <= hi) {
@@ -136,7 +136,7 @@ public class SparseMatrix internal constructor(
             colIdx: IntArray,
             values: DoubleArray,
         ): SparseMatrix {
-            require(rows >= 0 && cols >= 0) { "negative shape: ${rows}x$cols" }
+            requireShape(rows >= 0 && cols >= 0) { "negative shape: ${rows}x$cols" }
             require(rowIdx.size == colIdx.size && colIdx.size == values.size) {
                 "rowIdx/colIdx/values must align: ${rowIdx.size}, ${colIdx.size}, ${values.size}"
             }

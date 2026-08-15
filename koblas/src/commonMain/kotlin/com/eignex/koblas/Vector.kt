@@ -8,7 +8,7 @@ public interface VectorLike {
     /** Number of entries, counting the unstored zeros of a sparse vector. */
     public val size: Int
 
-    /** The entry at index [i]. */
+    /** The entry at index [i]. Throws `IndexOutOfBoundsException` outside `0 until size`, whatever the storage. */
     public operator fun get(i: Int): Double
 
     /** Materialise into a fresh dense `DoubleArray`, independent of the internal storage. */
@@ -29,11 +29,20 @@ public class DenseVector internal constructor(public val data: DoubleArray) : Ve
     internal constructor(size: Int) : this(DoubleArray(size))
 
     override val size: Int get() = data.size
-    override fun get(i: Int): Double = data[i]
+
+    override fun get(i: Int): Double {
+        requireIndex(i in 0 until size) { "index $i outside [0,$size)" }
+        return data[i]
+    }
+
+    /** Entry [i] with no bounds check, for kernels that have already validated their indices. */
+    internal fun getUnsafe(i: Int): Double = data[i]
+
     override fun toDoubleArray(): DoubleArray = data.copyOf()
 
     /** Writes [v] at index [i]. */
     public operator fun set(i: Int, v: Double) {
+        requireIndex(i in 0 until size) { "index $i outside [0,$size)" }
         data[i] = v
     }
 
@@ -48,7 +57,10 @@ public class DenseVector internal constructor(public val data: DoubleArray) : Ve
         public fun of(values: DoubleArray): DenseVector = DenseVector(values.copyOf())
 
         /** A dense vector of [size] zeros. */
-        public fun zero(size: Int): DenseVector = DenseVector(size)
+        public fun zero(size: Int): DenseVector {
+            requireShape(size >= 0) { "negative size: $size" }
+            return DenseVector(size)
+        }
 
         /** Wrap an existing `DoubleArray` without copying. The caller relinquishes ownership. */
         public fun wrap(data: DoubleArray): DenseVector = DenseVector(data)
@@ -71,6 +83,7 @@ public class SparseVector internal constructor(
 ) : VectorView {
 
     init {
+        requireShape(size >= 0) { "negative size: $size" }
         require(indices.size == values.size) {
             "indices/values must align: ${indices.size} vs ${values.size}"
         }
@@ -84,6 +97,7 @@ public class SparseVector internal constructor(
 
     /** The stored value at [i], or 0.0 where nothing is stored. */
     override fun get(i: Int): Double {
+        requireIndex(i in 0 until size) { "index $i outside [0,$size)" }
         var lo = 0
         var hi = indices.size - 1
         while (lo <= hi) {
