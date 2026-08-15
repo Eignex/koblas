@@ -15,7 +15,6 @@ class MatrixNormsTest {
 
     @Test
     fun `normInf and normFro agree with direct sums`() {
-        // Row sums are 6 and 15.
         assertEquals(15.0, normInf(example), 1e-12)
         assertEquals(sqrt(1.0 + 4 + 9 + 16 + 25 + 36), normFro(example), 1e-12)
 

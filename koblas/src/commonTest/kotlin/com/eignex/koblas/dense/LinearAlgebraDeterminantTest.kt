@@ -13,7 +13,6 @@ class LinearAlgebraDeterminantTest {
 
     @Test
     fun `dense LU determinant matches hand values and tracks row-swap sign`() {
-        // The matrix ((2, 1), (1, 3)) has determinant 5.
         val a = DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0)))
         assertEquals(5.0, a.lu().determinant(), 1e-12)
         val b = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 3.0), doubleArrayOf(2.0, 1.0)))

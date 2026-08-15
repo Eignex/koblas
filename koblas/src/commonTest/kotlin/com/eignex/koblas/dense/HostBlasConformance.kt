@@ -233,7 +233,7 @@ internal fun assertFactorIntoUsesItsDestination(lapack: Lapack, n: Int) {
     assertEquals(fresh.piv.toList(), returned.piv.toList(), "factorInto pivots n=$n")
     assertEquals(fresh.failedAt, returned.failedAt, "factorInto singularity n=$n")
 
-    // A singular matrix has to update failedAt rather than leave the previous factorization's verdict.
+    // A singular matrix must update failedAt, not keep the previous factorization's verdict.
     val singular = DenseMatrix(n, n)
     lapack.factorInto(singular, returned)
     assertTrue(returned.singular, "factorInto must report a singular refactorization")

@@ -50,7 +50,6 @@ class LinearAlgebraLdlTest {
         val f = koblas.ldl(a)
         assertTrue(!f.singular)
         assertTrue(f.ipiv[0] < 0 && f.ipiv[1] == f.ipiv[0], "expected a 2x2 block, got ${f.ipiv.toList()}")
-        // A x = (2, 3) has the exact solution (3, 2).
         val x = koblas.solve(f, doubleArrayOf(2.0, 3.0))
         assertClose(doubleArrayOf(3.0, 2.0), x, "antidiagonal solve", tolerance = 1e-14)
     }

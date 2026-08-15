@@ -554,7 +554,7 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
         if (norm == 0.0) return 0.0
         val alpha = buf[base]
         val beta = if (alpha >= 0.0) -norm else norm
-        // Divided rather than scaled by a reciprocal, so a subnormal v0 cannot overflow into an infinity.
+        // Division keeps a subnormal v0 from becoming an infinity.
         val v0 = alpha - beta
         for (i in base + 1 until base + len) buf[i] /= v0
         buf[base] = beta
@@ -628,7 +628,7 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) : Line
                 piv[k] = piv[p]
                 piv[p] = tp
             }
-            // Divided rather than reciprocal-scaled, so a subnormal pivot cannot turn into an infinity.
+            // Division keeps a subnormal pivot from becoming an infinity.
             val pivot = lu[k + k * n]
             val len = n - k - 1
             val colBase = k + 1 + k * n
