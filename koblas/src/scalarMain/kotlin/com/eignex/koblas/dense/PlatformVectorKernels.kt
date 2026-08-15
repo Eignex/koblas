@@ -11,6 +11,8 @@ import com.eignex.koblas.euclideanNorm
 internal actual object PlatformVectorKernels : VectorKernels {
     actual override val name: String get() = "scalar"
 
+    override val isPortable: Boolean get() = true
+
     actual override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
         var s = 0.0
         for (i in 0 until len) s += a[aOff + i] * b[bOff + i]

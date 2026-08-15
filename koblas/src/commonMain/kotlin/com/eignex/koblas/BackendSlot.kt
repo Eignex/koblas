@@ -1,10 +1,6 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.PlatformVectorKernels
-import com.eignex.koblas.dense.ReferenceBackend
 import com.eignex.koblas.dense.RoutedVectorKernels
-import com.eignex.koblas.sparse.PlatformSparseVectorKernels
-import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
 
 /** The halves of the seam a backend can implement. */
 public enum class BackendSlot {
@@ -43,11 +39,7 @@ public fun KoblasContext.backendFor(slot: BackendSlot): Backend = when (slot) {
  */
 public fun KoblasContext.isAccelerated(slot: BackendSlot): Boolean = when (val backend = backendFor(slot)) {
     is RoutedVectorKernels -> backend.host != null
-    PlatformVectorKernels -> false
-    PlatformSparseVectorKernels -> false
-    is ReferenceBackend -> false
-    ReferenceSparseLinearAlgebra -> false
-    else -> true
+    else -> !backend.isPortable
 }
 
 /**

@@ -23,6 +23,8 @@ private const val BUNCH_KAUFMAN_ALPHA = 0.6403882032022076
 internal class ReferenceLapack(private val kernels: VectorKernels? = null) : Lapack {
     override val name: String get() = "reference"
 
+    override val isPortable: Boolean get() = true
+
     /** These routines' kernels, or the process default when they were given none. */
     override val vectorKernels: VectorKernels get() = kernels ?: koblas.vectorKernels
 

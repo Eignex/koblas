@@ -28,6 +28,8 @@ private val simdLanes: Int = if (simdAvailable) Simd.lanes() else 0
 internal actual object PlatformVectorKernels : VectorKernels {
     actual override val name: String get() = if (simdAvailable) "simd($simdLanes lanes)" else "scalar"
 
+    override val isPortable: Boolean get() = true
+
     private fun vectorizes(len: Int): Boolean = simdAvailable && len >= simdLanes
 
     actual override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
