@@ -510,6 +510,51 @@ public abstract class com/eignex/koblas/dense/HostBlasAdapter : com/eignex/kobla
 	public fun trsv (Lcom/eignex/koblas/DenseMatrix;[DZZZ)V
 }
 
+public abstract class com/eignex/koblas/dense/HostLapackAdapter : com/eignex/koblas/dense/Lapack {
+	public fun applyQ (Lcom/eignex/koblas/dense/QrDecomposition;Lcom/eignex/koblas/DenseVector;Z)Lcom/eignex/koblas/DenseVector;
+	public fun applyQ (Lcom/eignex/koblas/dense/QrDecomposition;[DZ)[D
+	public fun applyQInto (Lcom/eignex/koblas/dense/QrDecomposition;[D[DZ)[D
+	public fun cholesky (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/dense/CholeskyPolicy;)Lcom/eignex/koblas/dense/CholeskyDecomposition;
+	public fun factor (Lcom/eignex/koblas/DenseMatrix;)Lcom/eignex/koblas/dense/LuDecomposition;
+	public fun factorInto (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/dense/LuDecomposition;)Lcom/eignex/koblas/dense/LuDecomposition;
+	protected fun getCholeskyMin ()I
+	protected fun getNativeTrsmMinRhs ()I
+	public fun getPriority ()I
+	protected fun getSpdInvertMin ()I
+	public fun getVectorKernels ()Lcom/eignex/koblas/dense/VectorKernels;
+	public fun invert (Lcom/eignex/koblas/dense/CholeskyDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/DenseMatrix;
+	public fun invert (Lcom/eignex/koblas/dense/LuDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/DenseMatrix;
+	public fun isPortable ()Z
+	public fun ldl (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/LdlDecomposition;
+	public fun qr (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/QrDecomposition;
+	public fun qrPivoted (Lcom/eignex/koblas/DenseMatrix;DLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/PivotedQrDecomposition;
+	public fun rcond (Lcom/eignex/koblas/dense/LuDecomposition;DLcom/eignex/koblas/Workspace;)D
+	public fun solve (Lcom/eignex/koblas/dense/CholeskyDecomposition;Lcom/eignex/koblas/DenseVector;)Lcom/eignex/koblas/DenseVector;
+	public fun solve (Lcom/eignex/koblas/dense/CholeskyDecomposition;[D)[D
+	public fun solve (Lcom/eignex/koblas/dense/LdlDecomposition;Lcom/eignex/koblas/DenseMatrix;)Lcom/eignex/koblas/DenseMatrix;
+	public fun solve (Lcom/eignex/koblas/dense/LdlDecomposition;Lcom/eignex/koblas/DenseVector;)Lcom/eignex/koblas/DenseVector;
+	public fun solve (Lcom/eignex/koblas/dense/LdlDecomposition;[D)[D
+	public fun solve (Lcom/eignex/koblas/dense/LuDecomposition;Lcom/eignex/koblas/DenseMatrix;Z)Lcom/eignex/koblas/DenseMatrix;
+	public fun solve (Lcom/eignex/koblas/dense/LuDecomposition;Lcom/eignex/koblas/DenseVector;Z)Lcom/eignex/koblas/DenseVector;
+	public fun solve (Lcom/eignex/koblas/dense/LuDecomposition;[DZ)[D
+	public fun solveInto (Lcom/eignex/koblas/dense/LdlDecomposition;Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/DenseMatrix;
+	public fun solveInto (Lcom/eignex/koblas/dense/LdlDecomposition;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;)Lcom/eignex/koblas/DenseVector;
+	public fun solveInto (Lcom/eignex/koblas/dense/LdlDecomposition;[D[D)[D
+	public fun solveInto (Lcom/eignex/koblas/dense/LuDecomposition;Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseMatrix;ZLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/DenseMatrix;
+	public fun solveInto (Lcom/eignex/koblas/dense/LuDecomposition;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;ZLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/DenseVector;
+	public fun solveInto (Lcom/eignex/koblas/dense/LuDecomposition;[D[DZLcom/eignex/koblas/Workspace;)[D
+	public fun solveLeastSquares (Lcom/eignex/koblas/dense/PivotedQrDecomposition;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/DenseVector;
+	public fun solveLeastSquares (Lcom/eignex/koblas/dense/PivotedQrDecomposition;[DLcom/eignex/koblas/Workspace;)[D
+	public fun solveLeastSquares (Lcom/eignex/koblas/dense/QrDecomposition;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/DenseVector;
+	public fun solveLeastSquares (Lcom/eignex/koblas/dense/QrDecomposition;[DLcom/eignex/koblas/Workspace;)[D
+	public fun solveLeastSquaresInto (Lcom/eignex/koblas/dense/PivotedQrDecomposition;[D[DLcom/eignex/koblas/Workspace;)[D
+	public fun solveLeastSquaresInto (Lcom/eignex/koblas/dense/QrDecomposition;[D[DLcom/eignex/koblas/Workspace;)[D
+	public fun solveMinimumNorm (Lcom/eignex/koblas/dense/QrDecomposition;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/DenseVector;
+	public fun solveMinimumNorm (Lcom/eignex/koblas/dense/QrDecomposition;[DLcom/eignex/koblas/Workspace;)[D
+	public fun solveMinimumNormInto (Lcom/eignex/koblas/dense/QrDecomposition;[D[DLcom/eignex/koblas/Workspace;)[D
+	public fun trtri (Lcom/eignex/koblas/DenseMatrix;ZZ)Lcom/eignex/koblas/DenseMatrix;
+}
+
 public abstract interface class com/eignex/koblas/dense/Lapack : com/eignex/koblas/Backend {
 	public fun applyQ (Lcom/eignex/koblas/dense/QrDecomposition;Lcom/eignex/koblas/DenseVector;Z)Lcom/eignex/koblas/DenseVector;
 	public fun applyQ (Lcom/eignex/koblas/dense/QrDecomposition;[DZ)[D
@@ -880,47 +925,10 @@ public final class com/eignex/koblas/hostblas/HostBlas : com/eignex/koblas/dense
 	public fun getPriority ()I
 }
 
-public final class com/eignex/koblas/hostblas/HostLapack : com/eignex/koblas/dense/Lapack {
-	public fun applyQ (Lcom/eignex/koblas/dense/QrDecomposition;Lcom/eignex/koblas/DenseVector;Z)Lcom/eignex/koblas/DenseVector;
-	public fun applyQ (Lcom/eignex/koblas/dense/QrDecomposition;[DZ)[D
-	public fun applyQInto (Lcom/eignex/koblas/dense/QrDecomposition;[D[DZ)[D
-	public fun cholesky (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/dense/CholeskyPolicy;)Lcom/eignex/koblas/dense/CholeskyDecomposition;
-	public fun factor (Lcom/eignex/koblas/DenseMatrix;)Lcom/eignex/koblas/dense/LuDecomposition;
-	public fun factorInto (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/dense/LuDecomposition;)Lcom/eignex/koblas/dense/LuDecomposition;
+public final class com/eignex/koblas/hostblas/HostLapack : com/eignex/koblas/dense/HostLapackAdapter {
 	public fun getName ()Ljava/lang/String;
 	public fun getPriority ()I
-	public fun getVectorKernels ()Lcom/eignex/koblas/dense/VectorKernels;
-	public fun invert (Lcom/eignex/koblas/dense/CholeskyDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/DenseMatrix;
-	public fun invert (Lcom/eignex/koblas/dense/LuDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/DenseMatrix;
-	public fun isPortable ()Z
-	public fun ldl (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/LdlDecomposition;
-	public fun qr (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/QrDecomposition;
 	public fun qrPivoted (Lcom/eignex/koblas/DenseMatrix;DLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/PivotedQrDecomposition;
-	public fun rcond (Lcom/eignex/koblas/dense/LuDecomposition;DLcom/eignex/koblas/Workspace;)D
-	public fun solve (Lcom/eignex/koblas/dense/CholeskyDecomposition;Lcom/eignex/koblas/DenseVector;)Lcom/eignex/koblas/DenseVector;
-	public fun solve (Lcom/eignex/koblas/dense/CholeskyDecomposition;[D)[D
-	public fun solve (Lcom/eignex/koblas/dense/LdlDecomposition;Lcom/eignex/koblas/DenseMatrix;)Lcom/eignex/koblas/DenseMatrix;
-	public fun solve (Lcom/eignex/koblas/dense/LdlDecomposition;Lcom/eignex/koblas/DenseVector;)Lcom/eignex/koblas/DenseVector;
-	public fun solve (Lcom/eignex/koblas/dense/LdlDecomposition;[D)[D
-	public fun solve (Lcom/eignex/koblas/dense/LuDecomposition;Lcom/eignex/koblas/DenseMatrix;Z)Lcom/eignex/koblas/DenseMatrix;
-	public fun solve (Lcom/eignex/koblas/dense/LuDecomposition;Lcom/eignex/koblas/DenseVector;Z)Lcom/eignex/koblas/DenseVector;
-	public fun solve (Lcom/eignex/koblas/dense/LuDecomposition;[DZ)[D
-	public fun solveInto (Lcom/eignex/koblas/dense/LdlDecomposition;Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/DenseMatrix;
-	public fun solveInto (Lcom/eignex/koblas/dense/LdlDecomposition;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;)Lcom/eignex/koblas/DenseVector;
-	public fun solveInto (Lcom/eignex/koblas/dense/LdlDecomposition;[D[D)[D
-	public fun solveInto (Lcom/eignex/koblas/dense/LuDecomposition;Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseMatrix;ZLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/DenseMatrix;
-	public fun solveInto (Lcom/eignex/koblas/dense/LuDecomposition;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/DenseVector;ZLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/DenseVector;
-	public fun solveInto (Lcom/eignex/koblas/dense/LuDecomposition;[D[DZLcom/eignex/koblas/Workspace;)[D
-	public fun solveLeastSquares (Lcom/eignex/koblas/dense/PivotedQrDecomposition;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/DenseVector;
-	public fun solveLeastSquares (Lcom/eignex/koblas/dense/PivotedQrDecomposition;[DLcom/eignex/koblas/Workspace;)[D
-	public fun solveLeastSquares (Lcom/eignex/koblas/dense/QrDecomposition;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/DenseVector;
-	public fun solveLeastSquares (Lcom/eignex/koblas/dense/QrDecomposition;[DLcom/eignex/koblas/Workspace;)[D
-	public fun solveLeastSquaresInto (Lcom/eignex/koblas/dense/PivotedQrDecomposition;[D[DLcom/eignex/koblas/Workspace;)[D
-	public fun solveLeastSquaresInto (Lcom/eignex/koblas/dense/QrDecomposition;[D[DLcom/eignex/koblas/Workspace;)[D
-	public fun solveMinimumNorm (Lcom/eignex/koblas/dense/QrDecomposition;Lcom/eignex/koblas/DenseVector;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/DenseVector;
-	public fun solveMinimumNorm (Lcom/eignex/koblas/dense/QrDecomposition;[DLcom/eignex/koblas/Workspace;)[D
-	public fun solveMinimumNormInto (Lcom/eignex/koblas/dense/QrDecomposition;[D[DLcom/eignex/koblas/Workspace;)[D
-	public fun trtri (Lcom/eignex/koblas/DenseMatrix;ZZ)Lcom/eignex/koblas/DenseMatrix;
 }
 
 public final class com/eignex/koblas/sparse/ReferenceSparseLinearAlgebra : com/eignex/koblas/sparse/SparseLinearAlgebra, com/eignex/koblas/sparse/SparseVectorKernels {
