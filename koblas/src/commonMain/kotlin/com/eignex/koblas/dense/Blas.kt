@@ -160,9 +160,13 @@ public interface Blas : Backend {
             for (i in j until n) {
                 var s = 0.0
                 if (transpose) {
-                    for (p in 0 until k) s += a[p, i] * b[p, j] + b[p, i] * a[p, j]
+                    for (p in 0 until k) {
+                        s += a.getUnsafe(p, i) * b.getUnsafe(p, j) + b.getUnsafe(p, i) * a.getUnsafe(p, j)
+                    }
                 } else {
-                    for (p in 0 until k) s += a[i, p] * b[j, p] + b[i, p] * a[j, p]
+                    for (p in 0 until k) {
+                        s += a.getUnsafe(i, p) * b.getUnsafe(j, p) + b.getUnsafe(i, p) * a.getUnsafe(j, p)
+                    }
                 }
                 if (s != 0.0) addUplo(cd, n, i, j, alpha * s, uplo)
             }

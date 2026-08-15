@@ -30,3 +30,8 @@ public class NotPositiveDefinite(public val position: Int, public val pivot: Dou
 internal inline fun requireShape(condition: Boolean, message: () -> String) {
     if (!condition) throw DimensionMismatch(message())
 }
+
+/** `require` for an index check, so every storage reports the same standard type. */
+internal inline fun requireIndex(condition: Boolean, message: () -> String) {
+    if (!condition) throw IndexOutOfBoundsException(message())
+}

@@ -11,7 +11,7 @@ public interface MatrixLike {
     /** Number of columns. */
     public val cols: Int
 
-    /** The entry at row [i], column [j]. */
+    /** The entry at row [i], column [j]. Throws `IndexOutOfBoundsException` outside the shape, whatever the storage. */
     public operator fun get(i: Int, j: Int): Double
 
     /** Materialise into a fresh `Array<DoubleArray>` of rows, independent of the internal storage. */
@@ -38,19 +38,31 @@ public class DenseMatrix internal constructor(
     internal constructor(rows: Int, cols: Int = rows) : this(rows, cols, DoubleArray(entryCount(rows, cols)))
 
     init {
-        require(rows >= 0 && cols >= 0) { "negative shape: ${rows}x$cols" }
-        requireShape(data.size == rows * cols) {
-            "data length ${data.size} does not match shape ${rows}x$cols (= ${rows * cols})"
+        requireShape(rows >= 0 && cols >= 0) { "negative shape: ${rows}x$cols" }
+        requireShape(data.size.toLong() == rows.toLong() * cols) {
+            "data length ${data.size} does not match shape ${rows}x$cols (= ${rows.toLong() * cols})"
         }
     }
 
-    override fun get(i: Int, j: Int): Double = data[i + j * rows]
+    override fun get(i: Int, j: Int): Double {
+        requireIndex(i in 0 until rows && j in 0 until cols) { "index ($i;$j) outside ${rows}x$cols" }
+        return data[i + j * rows]
+    }
+
+    /** Entry (i, j) with no bounds check, for kernels that have already validated their indices. */
+    internal fun getUnsafe(i: Int, j: Int): Double = data[i + j * rows]
+
+    /** Writes [v] at (i, j) with no bounds check, for kernels that have already validated their indices. */
+    internal fun setUnsafe(i: Int, j: Int, v: Double) {
+        data[i + j * rows] = v
+    }
     override fun toArray(): Array<DoubleArray> = Array(rows) { i ->
         DoubleArray(cols) { j -> data[i + j * rows] }
     }
 
     /** Writes [v] at row [i], column [j]. */
     public operator fun set(i: Int, j: Int, v: Double) {
+        requireIndex(i in 0 until rows && j in 0 until cols) { "index ($i;$j) outside ${rows}x$cols" }
         data[i + j * rows] = v
     }
 
@@ -117,8 +129,12 @@ public class DenseMatrix internal constructor(
 
         /** Entry count for a shape, validated first so a negative dimension reports a shape error. */
         private fun entryCount(rows: Int, cols: Int): Int {
-            require(rows >= 0 && cols >= 0) { "negative shape: ${rows}x$cols" }
-            return rows * cols
+            requireShape(rows >= 0 && cols >= 0) { "negative shape: ${rows}x$cols" }
+            val count = rows.toLong() * cols
+            requireShape(count <= Int.MAX_VALUE) {
+                "shape ${rows}x$cols needs $count entries, more than one array can hold"
+            }
+            return count.toInt()
         }
     }
 }

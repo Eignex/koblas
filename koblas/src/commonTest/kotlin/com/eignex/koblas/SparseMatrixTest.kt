@@ -49,8 +49,8 @@ class SparseMatrixTest {
         assertEquals(0.0, a[1, 0], "unstored entry must read as zero")
         assertEquals(0.0, a[0, 1])
         assertEquals(0.0, a[2, 1])
-        assertFailsWith<IllegalArgumentException> { a[3, 0] }
-        assertFailsWith<IllegalArgumentException> { a[0, 2] }
+        assertFailsWith<IndexOutOfBoundsException> { a[3, 0] }
+        assertFailsWith<IndexOutOfBoundsException> { a[0, 2] }
     }
 
     @Test
