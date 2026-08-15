@@ -22,20 +22,24 @@ internal fun addUplo(cd: DoubleArray, n: Int, i: Int, j: Int, v: Double, uplo: U
     if (uplo != Uplo.LOWER && i != j) cd[j + i * n] += v
 }
 
+/** `v = beta * v` over the [len] entries from [off], honoring the `beta == 0` overwrite convention. */
+internal fun applyBeta(k: VectorKernels, v: DoubleArray, off: Int, len: Int, beta: Double) {
+    when {
+        beta == 0.0 -> v.fill(0.0, off, off + len)
+        beta != 1.0 -> k.scale(v, off, beta, len)
+    }
+}
+
 /** `beta` scale of the region [uplo] selects, honoring the `beta == 0` overwrite convention. */
 internal fun scaleUplo(k: VectorKernels, cd: DoubleArray, n: Int, beta: Double, uplo: Uplo) {
     if (uplo == Uplo.FULL) {
-        if (beta == 0.0) {
-            cd.fill(0.0)
-        } else if (beta != 1.0) {
-            k.scale(cd, 0, beta, cd.size)
-        }
+        applyBeta(k, cd, 0, cd.size, beta)
         return
     }
     if (beta == 1.0) return
     for (j in 0 until n) {
         val from = if (uplo == Uplo.LOWER) j + j * n else j * n
         val len = if (uplo == Uplo.LOWER) n - j else j + 1
-        if (beta == 0.0) cd.fill(0.0, from, from + len) else k.scale(cd, from, beta, len)
+        applyBeta(k, cd, from, len, beta)
     }
 }
