@@ -1,5 +1,6 @@
 package com.eignex.koblas.sparse
 
+import com.eignex.koblas.NotPositiveDefinite
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.randomVector
@@ -79,7 +80,7 @@ class SparseLdlTest {
             2,
             listOf(listOf(0 to 1.0, 1 to 2.0), listOf(0 to 2.0, 1 to 1.0)),
         )
-        assertFailsWith<IllegalArgumentException> { a.cholesky() }
+        assertFailsWith<NotPositiveDefinite> { a.cholesky() }
         val f = a.ldl()
         assertTrue(!f.singular)
         val x = doubleArrayOf(0.5, -1.5)
@@ -95,7 +96,7 @@ class SparseLdlTest {
             2,
             listOf(listOf(0 to 1.0), listOf(1 to -0.5)),
         )
-        assertFailsWith<IllegalArgumentException> { a.cholesky() }
+        assertFailsWith<NotPositiveDefinite> { a.cholesky() }
         val floored = a.cholesky(SparseLdlPolicy.Regularize(minimumPivot = 1e-8))
         assertTrue(!floored.singular, "the floored pivot must produce a usable factorization")
         assertClose(1e-8, floored.determinant(), "det is 1 · the floored pivot", tolerance = 1e-20)
@@ -204,7 +205,7 @@ class SparseLdlTest {
             2,
             listOf(listOf(0 to 1.0, 1 to 2.0), listOf(0 to 2.0, 1 to 1.0)),
         )
-        assertFailsWith<IllegalArgumentException> { (indefinite.ldl() as SparseLdl).choleskyFactor() }
+        assertFailsWith<NotPositiveDefinite> { (indefinite.ldl() as SparseLdl).choleskyFactor() }
     }
 
     @Test

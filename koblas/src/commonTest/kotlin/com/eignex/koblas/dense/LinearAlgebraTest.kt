@@ -1,6 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DimensionMismatch
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.koblas
@@ -107,6 +108,6 @@ class LinearAlgebraTest {
         assertFailsWith<IllegalArgumentException> { DenseMatrix(2, 3).matMul(DenseMatrix(2, 2)) }
         assertFailsWith<IllegalArgumentException> { koblas.gemv(DenseMatrix(2, 3), DoubleArray(2)) }
         assertFailsWith<IllegalArgumentException> { koblas.gemv(DenseMatrix(2, 3), DoubleArray(3), transpose = true) }
-        assertFailsWith<IllegalArgumentException> { DenseMatrix.diagonal(3).lu().solve(DoubleArray(2)) }
+        assertFailsWith<DimensionMismatch> { DenseMatrix.diagonal(3).lu().solve(DoubleArray(2)) }
     }
 }

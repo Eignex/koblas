@@ -16,7 +16,7 @@ class MatrixTest {
 
     @Test
     fun `DenseMatrix of rejects ragged rows`() {
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<DimensionMismatch> {
             DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0)))
         }
     }
@@ -70,8 +70,8 @@ class MatrixTest {
 
     @Test
     fun `DenseMatrix rejects a shape its backing cannot hold`() {
-        assertFailsWith<IllegalArgumentException> { DenseMatrix.wrap(2, 3, DoubleArray(5)) }
-        assertFailsWith<IllegalArgumentException> { DenseMatrix(-1, 2) }
+        assertFailsWith<DimensionMismatch> { DenseMatrix.wrap(2, 3, DoubleArray(5)) }
+        assertFailsWith<DimensionMismatch> { DenseMatrix(-1, 2) }
     }
 
     @Test
@@ -132,7 +132,7 @@ class MatrixTest {
 
     @Test
     fun `DenseMatrix ofColumns rejects ragged columns and accepts none`() {
-        assertFailsWith<IllegalArgumentException> {
+        assertFailsWith<DimensionMismatch> {
             DenseMatrix.ofColumns(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0)))
         }
         val empty = DenseMatrix.ofColumns(arrayOf())

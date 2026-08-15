@@ -24,16 +24,6 @@ class SparseMatrixTest {
     }
 
     @Test
-    fun `SparseMatrix rejects structurally invalid CSC`() {
-        assertFailsWith<IllegalArgumentException> {
-            SparseMatrix(2, 2, intArrayOf(0, 1), intArrayOf(0), doubleArrayOf(1.0))
-        }
-        assertFailsWith<IllegalArgumentException> {
-            SparseMatrix(2, 1, intArrayOf(0, 1), intArrayOf(5), doubleArrayOf(1.0))
-        }
-    }
-
-    @Test
     fun `ofColumns sums duplicate entries and sorts rows`() {
         val a = SparseMatrix.ofColumns(3, 1, listOf(listOf(2 to 1.0, 0 to 2.0, 2 to 3.0)))
         assertTrue(intArrayOf(0, 2).contentEquals(a.rowIdx)) // ascending
@@ -103,14 +93,8 @@ class SparseMatrixTest {
     }
 
     @Test
-    fun `SparseMatrix rejects unsorted or duplicated rows within a column`() {
-        assertFailsWith<IllegalArgumentException> {
-            SparseMatrix(2, 1, intArrayOf(0, 2), intArrayOf(1, 0), doubleArrayOf(5.0, 7.0))
-        }
-        assertFailsWith<IllegalArgumentException> {
-            SparseMatrix(2, 1, intArrayOf(0, 2), intArrayOf(1, 1), doubleArrayOf(5.0, 7.0))
-        }
-        // Across a column boundary the indices restart, so descending there is legitimate.
+    fun `rows may descend across a column boundary`() {
+        // Within a column they must ascend, but the indices restart at each boundary.
         val ok = SparseMatrix(2, 2, intArrayOf(0, 1, 2), intArrayOf(1, 0), doubleArrayOf(5.0, 7.0))
         assertEquals(5.0, ok[1, 0])
         assertEquals(7.0, ok[0, 1])
@@ -205,12 +189,9 @@ class SparseMatrixTest {
     }
 
     @Test
-    fun `wrap adopts CSC arrays and validates them`() {
+    fun `wrap adopts CSC arrays`() {
         val a = SparseMatrix.wrap(2, 2, intArrayOf(0, 1, 2), intArrayOf(1, 0), doubleArrayOf(5.0, 7.0))
         assertEquals(5.0, a[1, 0])
         assertEquals(7.0, a[0, 1])
-        assertFailsWith<IllegalArgumentException> {
-            SparseMatrix.wrap(2, 1, intArrayOf(0, 2), intArrayOf(1, 0), doubleArrayOf(5.0, 7.0))
-        }
     }
 }

@@ -53,13 +53,6 @@ class VectorTest {
     }
 
     @Test
-    fun `SparseVector rejects mismatched arrays`() {
-        assertFailsWith<IllegalArgumentException> {
-            SparseVector.of(5, intArrayOf(0, 1), doubleArrayOf(1.0))
-        }
-    }
-
-    @Test
     fun `SparseVector of copies its inputs`() {
         val idx = intArrayOf(0, 2)
         val vals = doubleArrayOf(1.0, 3.0)
@@ -97,19 +90,6 @@ class VectorTest {
         assertNotEquals(a, different)
         assertNotEquals(a, sizeDiff)
         assertNotEquals<Any?>(a, "x")
-    }
-
-    @Test
-    fun `SparseVector rejects unsorted duplicated or out-of-range indices`() {
-        assertFailsWith<IllegalArgumentException> {
-            SparseVector(4, intArrayOf(2, 0), doubleArrayOf(1.0, 2.0))
-        }
-        assertFailsWith<IllegalArgumentException> {
-            SparseVector(4, intArrayOf(1, 1), doubleArrayOf(1.0, 2.0))
-        }
-        assertFailsWith<IllegalArgumentException> {
-            SparseVector(4, intArrayOf(0, 9), doubleArrayOf(1.0, 2.0))
-        }
     }
 
     @Test

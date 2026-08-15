@@ -3,6 +3,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.NotPositiveDefinite
 import com.eignex.koblas.koblas
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -69,7 +70,7 @@ class CholeskyTest {
 
     @Test
     fun `cholesky rejects a non positive definite pivot by default`() {
-        val failure = assertFailsWith<IllegalArgumentException> { notPositiveDefinite().cholesky() }
+        val failure = assertFailsWith<NotPositiveDefinite> { notPositiveDefinite().cholesky() }
         val message = failure.message!!
         assertTrue("pivot 1" in message, "the message should name the position: $message")
         assertTrue("Regularize" in message, "the message should name the way out: $message")

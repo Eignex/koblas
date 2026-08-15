@@ -79,6 +79,6 @@ class SingularSolveTest {
         )
         val lu = s.lu()
         assertTrue(lu.singular)
-        assertFailsWith<IllegalArgumentException> { lu.solve(b) }
+        assertFailsWith<SingularMatrix> { lu.solve(b) }
     }
 }

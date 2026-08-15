@@ -1,6 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DimensionMismatch
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.koblas
 import com.eignex.koblas.randomMatrix
@@ -159,7 +160,7 @@ class LinearAlgebraPivotedQrTest {
     @Test
     fun `the solve checks its shapes`() {
         val f = koblas.qrPivoted(randomMatrix(6, 3, Random(8)))
-        assertFailsWith<IllegalArgumentException> { koblas.solveLeastSquares(f, DoubleArray(5)) }
+        assertFailsWith<DimensionMismatch> { koblas.solveLeastSquares(f, DoubleArray(5)) }
         assertFailsWith<IllegalArgumentException> {
             koblas.solveLeastSquaresInto(f, DoubleArray(6), DoubleArray(2))
         }

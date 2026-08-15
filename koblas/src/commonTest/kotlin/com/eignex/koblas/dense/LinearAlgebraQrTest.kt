@@ -1,6 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DimensionMismatch
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.koblas
 import com.eignex.koblas.randomMatrix
@@ -115,7 +116,7 @@ class LinearAlgebraQrTest {
         assertTrue(koblas.applyQ(empty, DoubleArray(0)).isEmpty())
         assertTrue(koblas.solveLeastSquares(empty, DoubleArray(0)).isEmpty())
         val wide = koblas.qr(DenseMatrix(2, 4))
-        assertFailsWith<IllegalArgumentException> { koblas.solveLeastSquares(wide, DoubleArray(2)) }
-        assertFailsWith<IllegalArgumentException> { koblas.solveMinimumNorm(wide, DoubleArray(4)) }
+        assertFailsWith<DimensionMismatch> { koblas.solveLeastSquares(wide, DoubleArray(2)) }
+        assertFailsWith<DimensionMismatch> { koblas.solveMinimumNorm(wide, DoubleArray(4)) }
     }
 }
