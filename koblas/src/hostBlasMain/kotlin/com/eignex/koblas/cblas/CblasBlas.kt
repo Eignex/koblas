@@ -184,10 +184,10 @@ internal class CblasBlas(private val f: CblasFunctions) : Blas {
     ) {
         requireShape(a.rows == a.cols) { "symm: matrix must be square, got ${a.rows}x${a.cols}" }
         val m = a.rows
-        require(c.rows == b.rows && c.cols == b.cols) {
+        requireShape(c.rows == b.rows && c.cols == b.cols) {
             "symm: C is ${c.rows}x${c.cols} but B is ${b.rows}x${b.cols}"
         }
-        require((if (right) b.cols else b.rows) == m) {
+        requireShape((if (right) b.cols else b.rows) == m) {
             "symm: B is ${b.rows}x${b.cols}, expected dimension $m on the ${if (right) "cols" else "rows"} side"
         }
         if (alpha == 0.0) {

@@ -23,7 +23,7 @@ public interface SparseVectorKernels : Backend {
      * strictly ascending, which `SparseVector` validates.
      */
     public fun dot(x: SparseVector, y: SparseVector): Double {
-        require(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
+        requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
         var s = 0.0
         var a = 0
         var b = 0

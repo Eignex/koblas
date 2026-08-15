@@ -4,6 +4,7 @@ package com.eignex.koblas.umfpack
 
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.requireFactored
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.sparse.SparseFactorization
 import kotlinx.cinterop.COpaquePointerVar
@@ -55,12 +56,9 @@ public class UmfpackFactorization internal constructor(
 
     @Suppress("NestedBlockDepth") // one nesting level per pinned array, the alternative is copying them
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray {
-        check(!singular) {
-            "cannot solve against a singular factorization: umfpack reported the matrix singular. " +
-                "Check `singular` before solving; repair the matrix and factor again."
-        }
+        requireFactored(failedAt, "solve")
         requireShape(b.size == n) { "solve: b size ${b.size}, expected $n" }
-        require(out.size == n) { "solve: out size ${out.size}, expected $n" }
+        requireShape(out.size == n) { "solve: out size ${out.size}, expected $n" }
         // umfpack_di_solve declares X an output and B an input and says nothing about them overlapping.
         val rhs = if (out === b) b.copyOf() else b
         val info = DoubleArray(INFO)
