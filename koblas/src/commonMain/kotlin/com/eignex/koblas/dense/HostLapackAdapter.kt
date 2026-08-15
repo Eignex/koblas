@@ -36,8 +36,9 @@ private const val SIDE_LEFT: Byte = 'L'.code.toByte()
 public abstract class HostLapackAdapter internal constructor(
     private val f: LapackeCalls,
     private val blas: CblasCalls,
-) : Lapack {
-    private val portable = ReferenceLapack()
+) : ReferenceLapack() {
+    /** A host binding is never portable, whatever the routines it inherits. */
+    override val isPortable: Boolean get() = false
 
     /** Right-hand columns from which the blocked triangular solve beats one native call per column. */
     protected open val nativeTrsmMinRhs: Int get() = 1
@@ -49,7 +50,7 @@ public abstract class HostLapackAdapter internal constructor(
     protected open val spdInvertMin: Int get() = 0
 
     override fun factor(a: DenseMatrix): LuDecomposition {
-        if (a.rows < dispatchThresholds.lapack) return portable.factor(a)
+        if (a.rows < dispatchThresholds.lapack) return super.factor(a)
         requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
         val n = a.rows
         return factorInto(a, LuDecomposition(n, DoubleArray(n * n), IntArray(n)))
@@ -59,7 +60,7 @@ public abstract class HostLapackAdapter internal constructor(
     override fun factorInto(a: DenseMatrix, out: LuDecomposition): LuDecomposition {
         requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
         requireShape(out.n == a.rows) { "factorInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}" }
-        if (a.rows < dispatchThresholds.lapack) return portable.factorInto(a, out)
+        if (a.rows < dispatchThresholds.lapack) return super.factorInto(a, out)
         val n = out.n
         a.data.copyInto(out.lu)
         val piv = out.piv
@@ -91,7 +92,7 @@ public abstract class HostLapackAdapter internal constructor(
         out: DoubleArray,
         transpose: Boolean,
         workspace: Workspace?,
-    ): DoubleArray = portable.solveInto(lu, b, out, transpose, workspace)
+    ): DoubleArray = super.solveInto(lu, b, out, transpose, workspace)
 
     @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
     override fun solveInto(
@@ -164,7 +165,7 @@ public abstract class HostLapackAdapter internal constructor(
     }
 
     override fun ldl(a: DenseMatrix, workspace: Workspace?): LdlDecomposition {
-        if (a.rows < dispatchThresholds.lapack) return portable.ldl(a, workspace)
+        if (a.rows < dispatchThresholds.lapack) return super.ldl(a, workspace)
         requireShape(a.rows == a.cols) { "ldl: matrix must be square, got ${a.rows}x${a.cols}" }
         val n = a.rows
         val buf = a.data.copyOf()
@@ -177,7 +178,7 @@ public abstract class HostLapackAdapter internal constructor(
 
     /** The vector solve stays portable on both bindings: one `dsytrs` call does not cover its own cost. */
     override fun solveInto(ldl: LdlDecomposition, b: DoubleArray, out: DoubleArray): DoubleArray =
-        portable.solveInto(ldl, b, out)
+        super.solveInto(ldl, b, out)
 
     /** Native only from [nativeTrsmMinRhs] columns, as for the LU multi-RHS solve above. */
     override fun solveInto(
@@ -203,7 +204,7 @@ public abstract class HostLapackAdapter internal constructor(
     }
 
     override fun qr(a: DenseMatrix, workspace: Workspace?): QrDecomposition {
-        if (minOf(a.rows, a.cols) < dispatchThresholds.lapack) return portable.qr(a, workspace)
+        if (minOf(a.rows, a.cols) < dispatchThresholds.lapack) return super.qr(a, workspace)
         val m = a.rows
         val n = a.cols
         val buf = a.data.copyOf()
@@ -228,7 +229,7 @@ public abstract class HostLapackAdapter internal constructor(
     }
 
     override fun rcond(lu: LuDecomposition, anorm: Double, workspace: Workspace?): Double {
-        if (lu.n < dispatchThresholds.lapack) return portable.rcond(lu, anorm, workspace)
+        if (lu.n < dispatchThresholds.lapack) return super.rcond(lu, anorm, workspace)
         val n = lu.n
         if (n == 0) return 1.0
         if (lu.singular || anorm == 0.0) return 0.0

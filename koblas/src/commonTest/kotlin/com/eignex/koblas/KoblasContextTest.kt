@@ -2,10 +2,8 @@ package com.eignex.koblas
 
 import com.eignex.koblas.dense.Blas
 import com.eignex.koblas.dense.Lapack
-import com.eignex.koblas.dense.LdlDecomposition
-import com.eignex.koblas.dense.LuDecomposition
-import com.eignex.koblas.dense.QrDecomposition
 import com.eignex.koblas.dense.ReferenceBackend
+import com.eignex.koblas.dense.ReferenceLapack
 import com.eignex.koblas.dense.ReferenceLinearAlgebra
 import com.eignex.koblas.dense.VectorKernels
 import com.eignex.koblas.dense.lu
@@ -87,35 +85,16 @@ class KoblasContextTest {
         assertTrue(mine.dots + mine.axpys > before, "cholesky must use the backend's kernels")
     }
 
-    /**
-     * Delegation would supply `qrPivoted` too, so this forwards only the abstract members by hand and lets
-     * the interface default stand. That default used to reach the installed kernels rather than these.
-     */
-    private class LapackHalf(private val kernels: VectorKernels) : Lapack {
+    /** A backend built the way host bindings are, on the portable base with its own kernels. */
+    private class LapackHalf(kernels: VectorKernels) : ReferenceLapack(kernels) {
         override val name: String get() = "half"
-        override val vectorKernels: VectorKernels get() = kernels
-        private val inner = ReferenceBackend(kernels)
-
-        override fun factor(a: DenseMatrix) = inner.factor(a)
-        override fun solveInto(
-            lu: LuDecomposition,
-            b: DoubleArray,
-            out: DoubleArray,
-            transpose: Boolean,
-            workspace: Workspace?,
-        ) = inner.solveInto(lu, b, out, transpose, workspace)
-        override fun solveInto(ldl: LdlDecomposition, b: DoubleArray, out: DoubleArray) = inner.solveInto(ldl, b, out)
-        override fun ldl(a: DenseMatrix, workspace: Workspace?) = inner.ldl(a, workspace)
-        override fun qr(a: DenseMatrix, workspace: Workspace?) = inner.qr(a, workspace)
-        override fun applyQInto(qr: QrDecomposition, y: DoubleArray, out: DoubleArray, transpose: Boolean) =
-            inner.applyQInto(qr, y, out, transpose)
     }
 
     @Test
     fun `qrPivoted runs on the kernels of the half it was called on`() {
         val mine = Counting()
         LapackHalf(mine).qrPivoted(DenseMatrix.of(arrayOf(doubleArrayOf(3.0, 1.0), doubleArrayOf(4.0, 2.0))))
-        assertTrue(mine.dots + mine.axpys > 0, "the default must not fall back to the installed kernels")
+        assertTrue(mine.dots + mine.axpys > 0, "qrPivoted must not fall back to the installed kernels")
     }
 
     @Test

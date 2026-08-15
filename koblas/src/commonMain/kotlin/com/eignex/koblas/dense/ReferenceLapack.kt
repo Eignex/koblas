@@ -5,6 +5,8 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.KoblasContext
 import com.eignex.koblas.NOT_SINGULAR
+import com.eignex.koblas.NotPositiveDefinite
+import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.koblas
 import com.eignex.koblas.requireFactored
@@ -20,7 +22,7 @@ private const val BUNCH_KAUFMAN_ALPHA = 0.6403882032022076
  *
  * @param kernels the vector kernels the inner loops use, or null to follow the [KoblasContext] default.
  */
-internal class ReferenceLapack(private val kernels: VectorKernels? = null) : Lapack {
+public open class ReferenceLapack(private val kernels: VectorKernels? = null) : Lapack {
     override val name: String get() = "reference"
 
     override val isPortable: Boolean get() = true
@@ -467,5 +469,315 @@ internal class ReferenceLapack(private val kernels: VectorKernels? = null) : Lap
         for (i in 0 until n) out[piv[i]] = y[i] // undo the row permutation
         workspace?.release(y)
         return out
+    }
+
+    /** Solve `A · X = B`, or `Aᵀ · X = B` when [transpose], into [out], which is returned. [out] may be [b],
+     *  and a [workspace] lends the transposed direction's `n·nrhs` staging block. */
+    @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
+    override fun solveInto(
+        lu: LuDecomposition,
+        b: DenseMatrix,
+        out: DenseMatrix,
+        transpose: Boolean,
+        workspace: Workspace?,
+    ): DenseMatrix {
+        requireFactored(lu.failedAt, "solve")
+        val n = lu.n
+        val nrhs = b.cols
+        requireShape(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
+        requireShape(out.rows == n && out.cols == nrhs) {
+            "solve: out is ${out.rows}x${out.cols}, expected ${n}x$nrhs"
+        }
+        if (nrhs == 0) return out
+        val f = lu.lu
+        return if (transpose) {
+            val y = workspace?.take(n * nrhs) ?: DoubleArray(n * nrhs)
+            b.data.copyInto(y)
+            trsmCore(vectorKernels, f, n, y, nrhs, lower = false, transpose = true, unitDiag = false)
+            trsmCore(vectorKernels, f, n, y, nrhs, lower = true, transpose = true, unitDiag = true)
+            permuteRows(y, out.data, n, nrhs, lu.piv, gather = false)
+            workspace?.release(y)
+            out
+        } else {
+            // The gather cannot read B in place once out aliases it, so that case stages.
+            if (out === b) {
+                val staged = workspace?.take(n * nrhs) ?: DoubleArray(n * nrhs)
+                permuteRows(b.data, staged, n, nrhs, lu.piv, gather = true)
+                staged.copyInto(out.data)
+                workspace?.release(staged)
+            } else {
+                permuteRows(b.data, out.data, n, nrhs, lu.piv, gather = true)
+            }
+            trsmCore(vectorKernels, f, n, out.data, nrhs, lower = true, transpose = false, unitDiag = true)
+            trsmCore(vectorKernels, f, n, out.data, nrhs, lower = false, transpose = false, unitDiag = false)
+            out
+        }
+    }
+
+    /** Solve `A · X = B` into [out], which is returned. [out] may be [b]. */
+    override fun solveInto(
+        ldl: LdlDecomposition,
+        b: DenseMatrix,
+        out: DenseMatrix,
+        workspace: Workspace?,
+    ): DenseMatrix {
+        requireFactored(ldl.failedAt, "solve")
+        val n = ldl.n
+        val nrhs = b.cols
+        requireShape(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
+        requireShape(out.rows == n && out.cols == nrhs) {
+            "solve: out is ${out.rows}x${out.cols}, expected ${n}x$nrhs"
+        }
+        return solveColumnwise(b, out, n, nrhs, workspace) { col, dst -> solveInto(ldl, col, dst) }
+    }
+
+    /** [solveLeastSquares] into [out], which is returned. */
+    override fun solveLeastSquaresInto(
+        qr: PivotedQrDecomposition,
+        b: DoubleArray,
+        out: DoubleArray,
+        workspace: Workspace?,
+    ): DoubleArray {
+        requireShape(b.size == qr.m) { "solveLeastSquares: b length ${b.size} != ${qr.m}" }
+        requireShape(out.size == qr.n) { "solveLeastSquares: out length ${out.size} != ${qr.n}" }
+        val rank = qr.rank
+        val y = workspace?.take(qr.m) ?: DoubleArray(qr.m)
+        applyQInto(qr.factorization, b, y, transpose = true)
+        trsvCore(
+            vectorKernels,
+            qr.factorization.qr,
+            rank,
+            y,
+            lda = qr.m,
+            lower = false,
+            transpose = false,
+            unitDiag = false,
+        )
+        out.fill(0.0)
+        for (k in 0 until rank) out[qr.pivots[k]] = y[k]
+        workspace?.release(y)
+        return out
+    }
+
+    /** Least-squares solve into [out], which has length `n` and is returned. A [workspace] lends the
+     *  length-`m` intermediate for `Qᵀb`. */
+    override fun solveLeastSquaresInto(
+        qr: QrDecomposition,
+        b: DoubleArray,
+        out: DoubleArray,
+        workspace: Workspace?,
+    ): DoubleArray {
+        requireShape(qr.m >= qr.n) { "solveLeastSquares requires m >= n, got ${qr.m}x${qr.n}" }
+        requireShape(b.size == qr.m) { "solveLeastSquares: b length ${b.size} != ${qr.m}" }
+        requireShape(out.size == qr.n) { "solveLeastSquares: out length ${out.size} != ${qr.n}" }
+        val y = workspace?.take(qr.m) ?: DoubleArray(qr.m)
+        applyQInto(qr, b, y, transpose = true)
+        y.copyInto(out, 0, 0, qr.n)
+        trsvCore(vectorKernels, qr.qr, qr.n, out, lda = qr.m, lower = false, transpose = false, unitDiag = false)
+        workspace?.release(y)
+        return out
+    }
+
+    /** Minimum-norm solve into [out], which has length `m` (the wide system's column count) and is returned.
+     *  A [workspace] lends the length-`n` intermediate. */
+    override fun solveMinimumNormInto(
+        qr: QrDecomposition,
+        b: DoubleArray,
+        out: DoubleArray,
+        workspace: Workspace?,
+    ): DoubleArray {
+        requireShape(qr.m >= qr.n) { "solveMinimumNorm expects the QR of the transpose (tall), got ${qr.m}x${qr.n}" }
+        requireShape(b.size == qr.n) { "solveMinimumNorm: b length ${b.size} != ${qr.n}" }
+        requireShape(out.size == qr.m) { "solveMinimumNorm: out length ${out.size} != ${qr.m}" }
+        val w = workspace?.take(qr.n) ?: DoubleArray(qr.n)
+        b.copyInto(w)
+        trsvCore(vectorKernels, qr.qr, qr.n, w, lda = qr.m, lower = false, transpose = true, unitDiag = false)
+        out.fill(0.0)
+        w.copyInto(out)
+        workspace?.release(w)
+        return applyQInto(qr, out, out)
+    }
+
+    override fun rcond(lu: LuDecomposition, anorm: Double, workspace: Workspace?): Double {
+        val n = lu.n
+        if (n == 0) return 1.0
+        if (lu.singular || anorm == 0.0) return 0.0
+        val x = workspace?.take(n) ?: DoubleArray(n)
+        val y = workspace?.take(n) ?: DoubleArray(n)
+        val signs = workspace?.take(n) ?: DoubleArray(n)
+        val probe = workspace?.take(n) ?: DoubleArray(n)
+        try {
+            return hagerEstimate(lu, anorm, n, x, y, signs, probe, workspace)
+        } finally {
+            workspace?.release(x)
+            workspace?.release(y)
+            workspace?.release(signs)
+            workspace?.release(probe)
+        }
+    }
+
+    /** Cholesky factorization `A = L·Lᵀ` of a symmetric positive-definite [a] (`dpotrf` with `uplo = 'L'`).
+     *  Reads only the lower triangle of [a], so an upper-only matrix factors to silent nonsense.
+     *  @throws com.eignex.koblas.NotPositiveDefinite at the first non-positive pivot unless [policy] allows it.
+     */
+    override fun cholesky(a: DenseMatrix, policy: CholeskyPolicy): CholeskyDecomposition {
+        requireShape(a.rows == a.cols) { "cholesky requires a square matrix; got ${a.rows}x${a.cols}" }
+        val n = a.rows
+        val l = DenseMatrix(n, n)
+        val ld = l.data
+        val kernels = vectorKernels
+        for (j in 0 until n) a.data.copyInto(ld, j + j * n, j + j * n, (j + 1) * n)
+        // Right-looking column Cholesky.
+        for (j in 0 until n) {
+            val base = j + j * n
+            val len = n - j
+            for (p in 0 until j) {
+                val f = ld[j + p * n]
+                if (f != 0.0) kernels.axpy(ld, base, -f, ld, j + p * n, len)
+            }
+            val pivot = ld[base]
+            if (pivot <= 0.0 || pivot.isNaN()) {
+                if (policy !is CholeskyPolicy.Regularize) {
+                    throw NotPositiveDefinite(
+                        j,
+                        pivot,
+                        "matrix is not positive-definite at pivot $j (diagonal=$pivot); pass " +
+                            "CholeskyPolicy.Regularize to factor a nearby matrix instead",
+                    )
+                }
+                ld[base] = sqrt(policy.minimumPivot)
+            } else {
+                ld[base] = sqrt(pivot)
+            }
+            val diag = ld[base]
+            for (i in base + 1 until base + len) ld[i] = ld[i] / diag
+        }
+        return CholeskyDecomposition(l)
+    }
+
+    /** Invert a general matrix from its LU factorization, returning `A⁻¹` given `P·A = L·U` (LAPACK `dgetri`).
+     *  Prefer [solve] to apply `A⁻¹`, which costs less and is more accurate.
+     *  @throws com.eignex.koblas.SingularMatrix if [lu] is singular; the position is [LuDecomposition.failedAt].
+     */
+    override fun invert(lu: LuDecomposition, workspace: Workspace?): DenseMatrix {
+        if (lu.singular) {
+            throw SingularMatrix(
+                lu.failedAt,
+                "invert: factorization is singular at pivot ${lu.failedAt}, so the inverse does not exist",
+            )
+        }
+        val n = lu.n
+        val inv = DenseMatrix.diagonal(n)
+        return solveInto(lu, inv, inv, transpose = false, workspace = workspace)
+    }
+
+    /** Invert a triangular matrix into a fresh result (LAPACK `dtrtri`), returning `T⁻¹` for the [lower] or
+     *  upper triangle of the square [a], taking the diagonal as 1 when [unitDiag].
+     *  @throws com.eignex.koblas.SingularMatrix naming the first zero diagonal position.
+     */
+    override fun trtri(a: DenseMatrix, lower: Boolean, unitDiag: Boolean): DenseMatrix {
+        requireShape(a.rows == a.cols) { "trtri requires a square matrix; got ${a.rows}x${a.cols}" }
+        val n = a.rows
+        if (!unitDiag) {
+            for (i in 0 until n) {
+                if (a[i, i] == 0.0) {
+                    throw SingularMatrix(i, "trtri: triangle is singular, diagonal entry $i is zero")
+                }
+            }
+        }
+        val inv = DenseMatrix(n, n)
+        val invd = inv.data
+        val column = DoubleArray(n)
+        for (j in 0 until n) {
+            column.fill(0.0)
+            column[j] = 1.0
+            trsvCore(
+                vectorKernels,
+                a.data,
+                n,
+                column,
+                lower = lower,
+                transpose = false,
+                unitDiag = unitDiag,
+            )
+            column.copyInto(invd, n * j)
+        }
+        return inv
+    }
+
+    /** Invert an SPD matrix from its Cholesky factorization, returning `A⁻¹` given [chol] (LAPACK `dpotri`). */
+    override fun invert(chol: CholeskyDecomposition, workspace: Workspace?): DenseMatrix {
+        val n = chol.n
+        val ld = chol.l.data
+        val inv = DenseMatrix(n, n)
+        val invd = inv.data
+        val kernels = vectorKernels
+        val y = workspace?.take(n) ?: DoubleArray(n)
+        for (j in 0 until n) {
+            y.fill(0.0, j, n)
+            y[j] = 1.0
+            for (c in j until n) {
+                val base = c + c * n
+                val yc = y[c] / ld[base]
+                y[c] = yc
+                if (yc != 0.0) kernels.axpy(y, c + 1, -yc, ld, base + 1, n - c - 1)
+            }
+            for (i in n - 1 downTo j) {
+                val base = i + i * n
+                y[i] = (y[i] - kernels.dot(ld, base + 1, y, i + 1, n - i - 1)) / ld[base]
+            }
+            for (i in j until n) {
+                invd[i + j * n] = y[i]
+                invd[j + i * n] = y[i]
+            }
+        }
+        workspace?.release(y)
+        return inv
+    }
+
+    /** The estimator body, over caller-supplied vectors so [rcond] can pool them. */
+    @Suppress("LongParameterList") // four scratch vectors the caller owns
+    private fun hagerEstimate(
+        lu: LuDecomposition,
+        anorm: Double,
+        n: Int,
+        x: DoubleArray,
+        y: DoubleArray,
+        signs: DoubleArray,
+        probe: DoubleArray,
+        workspace: Workspace?,
+    ): Double {
+        for (i in 0 until n) x[i] = 1.0 / n
+        var estimate = 0.0
+        var lastPivot = -1
+        var sweep = 0
+        while (sweep < RCOND_MAX_SWEEPS) {
+            solveInto(lu, x, y, workspace = workspace)
+            var e = 0.0
+            for (i in 0 until n) e += abs(y[i])
+            if (e > estimate) estimate = e
+            for (i in 0 until n) signs[i] = if (y[i] >= 0.0) 1.0 else -1.0
+            val z = solveInto(lu, signs, y, transpose = true, workspace = workspace)
+            var j = 0
+            for (i in 1 until n) if (abs(z[i]) > abs(z[j])) j = i
+            var zx = 0.0
+            for (i in 0 until n) zx += z[i] * x[i]
+            if (j == lastPivot || abs(z[j]) <= zx) break
+            x.fill(0.0)
+            x[j] = 1.0
+            lastPivot = j
+            sweep++
+        }
+        // The alternating-sign safeguard from LAPACK's dlacn2.
+        for (i in 0 until n) {
+            probe[i] = (if (i % 2 == 0) 1.0 else -1.0) * (1.0 + i.toDouble() / maxOf(1, n - 1))
+        }
+        val alt = solveInto(lu, probe, y, workspace = workspace)
+        var e = 0.0
+        for (i in 0 until n) e += abs(alt[i])
+        e = 2.0 * e / (3.0 * n)
+        if (e > estimate) estimate = e
+        val denominator = estimate * anorm
+        return if (denominator.isFinite() && denominator > 0.0) 1.0 / denominator else 0.0
     }
 }

@@ -23,8 +23,9 @@ import com.eignex.koblas.requireShape
  * implementation: crossing into a native library costs more than the work saves on a small problem.
  */
 @Suppress("TooManyFunctions") // the BLAS surface a host library covers
-public abstract class HostBlasAdapter internal constructor(private val f: CblasCalls) : Blas {
-    private val portable = ReferenceBlas()
+public abstract class HostBlasAdapter internal constructor(private val f: CblasCalls) : ReferenceBlas() {
+    /** A host binding is never portable, whatever the routines it inherits. */
+    override val isPortable: Boolean get() = false
 
     /** `v = beta * v`, honoring the BLAS convention that `beta == 0` overwrites without reading. */
     private fun scaleInPlace(v: DoubleArray, beta: Double) {
@@ -124,7 +125,7 @@ public abstract class HostBlasAdapter internal constructor(private val f: CblasC
         transpose: Boolean,
     ) {
         if (minOf(a.rows, a.cols) < dispatchThresholds.level2) {
-            return portable.gemv(alpha, a, x, beta, y, transpose)
+            return super.gemv(alpha, a, x, beta, y, transpose)
         }
         val xLen = if (transpose) a.rows else a.cols
         val yLen = if (transpose) a.cols else a.rows
@@ -160,7 +161,7 @@ public abstract class HostBlasAdapter internal constructor(private val f: CblasC
         }
         if (m == 0 || n == 0) return
         if (minOf(m, n, k) < dispatchThresholds.level3) {
-            return portable.gemm(alpha, a, transposeA, b, transposeB, beta, c)
+            return super.gemm(alpha, a, transposeA, b, transposeB, beta, c)
         }
         f.dgemm(
             COL_MAJOR, transOf(transposeA), transOf(transposeB), m, n, k, alpha,
@@ -182,7 +183,7 @@ public abstract class HostBlasAdapter internal constructor(private val f: CblasC
         val k = if (transpose) a.rows else a.cols
         requireShape(c.rows == n && c.cols == n) { "syrk: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
         if (minOf(n, k) < dispatchThresholds.level3) {
-            return portable.syrk(alpha, a, transpose, beta, c, uplo, workspace)
+            return super.syrk(alpha, a, transpose, beta, c, uplo, workspace)
         }
         if (alpha == 0.0 || k == 0) {
             scaleUplo(vectorKernels, c.data, n, beta, uplo)
@@ -228,7 +229,7 @@ public abstract class HostBlasAdapter internal constructor(private val f: CblasC
      */
     override fun symv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) {
         requireShape(a.rows == a.cols) { "symv: matrix must be square, got ${a.rows}x${a.cols}" }
-        if (a.rows < dispatchThresholds.level2) return portable.symv(alpha, a, x, beta, y, lower)
+        if (a.rows < dispatchThresholds.level2) return super.symv(alpha, a, x, beta, y, lower)
         val n = a.rows
         requireShape(x.size == n) { "symv: x length ${x.size} != $n" }
         requireShape(y.size == n) { "symv: y length ${y.size} != $n" }
@@ -250,7 +251,7 @@ public abstract class HostBlasAdapter internal constructor(private val f: CblasC
     ) {
         requireShape(a.rows == a.cols) { "symm: matrix must be square, got ${a.rows}x${a.cols}" }
         if (minOf(a.rows, b.rows, b.cols) < dispatchThresholds.level3) {
-            return portable.symm(alpha, a, b, beta, c, lower, right)
+            return super.symm(alpha, a, b, beta, c, lower, right)
         }
         val m = a.rows
         requireShape(c.rows == b.rows && c.cols == b.cols) {
