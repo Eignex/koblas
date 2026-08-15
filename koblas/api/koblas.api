@@ -485,6 +485,31 @@ public final class com/eignex/koblas/dense/CholeskyPolicy$Strict : com/eignex/ko
 	public fun toString ()Ljava/lang/String;
 }
 
+public abstract class com/eignex/koblas/dense/HostBlasAdapter : com/eignex/koblas/dense/Blas {
+	public fun gemm (DLcom/eignex/koblas/DenseMatrix;ZLcom/eignex/koblas/DenseMatrix;ZDLcom/eignex/koblas/DenseMatrix;)V
+	public fun gemm (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseMatrix;)Lcom/eignex/koblas/DenseMatrix;
+	public fun gemv (DLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseVector;DLcom/eignex/koblas/DenseVector;Z)V
+	public fun gemv (DLcom/eignex/koblas/DenseMatrix;[DD[DZ)V
+	public fun gemv (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseVector;Z)Lcom/eignex/koblas/DenseVector;
+	public fun gemv (Lcom/eignex/koblas/DenseMatrix;[DZ)[D
+	public fun ger (D[D[DLcom/eignex/koblas/DenseMatrix;)V
+	public fun getPriority ()I
+	public fun getVectorKernels ()Lcom/eignex/koblas/dense/VectorKernels;
+	public fun isPortable ()Z
+	public fun symm (DLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseMatrix;DLcom/eignex/koblas/DenseMatrix;ZZ)V
+	public fun symv (DLcom/eignex/koblas/DenseMatrix;[DD[DZ)V
+	public fun syr (DLcom/eignex/koblas/VectorLike;Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/dense/Uplo;)V
+	public fun syr2 (DLcom/eignex/koblas/VectorLike;Lcom/eignex/koblas/VectorLike;Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/dense/Uplo;)V
+	public fun syr2k (DLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseMatrix;ZDLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/dense/Uplo;)V
+	public fun syrk (DLcom/eignex/koblas/DenseMatrix;ZDLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/dense/Uplo;Lcom/eignex/koblas/Workspace;)V
+	public fun trmm (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseMatrix;ZZZZ)V
+	public fun trmv (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseVector;ZZZ)V
+	public fun trmv (Lcom/eignex/koblas/DenseMatrix;[DZZZ)V
+	public fun trsm (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseMatrix;ZZZZ)V
+	public fun trsv (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseVector;ZZZ)V
+	public fun trsv (Lcom/eignex/koblas/DenseMatrix;[DZZZ)V
+}
+
 public abstract interface class com/eignex/koblas/dense/Lapack : com/eignex/koblas/Backend {
 	public fun applyQ (Lcom/eignex/koblas/dense/QrDecomposition;Lcom/eignex/koblas/DenseVector;Z)Lcom/eignex/koblas/DenseVector;
 	public fun applyQ (Lcom/eignex/koblas/dense/QrDecomposition;[DZ)[D
@@ -850,30 +875,9 @@ public final class com/eignex/koblas/dense/VectorKernels$DefaultImpls {
 	public static fun isPortable (Lcom/eignex/koblas/dense/VectorKernels;)Z
 }
 
-public final class com/eignex/koblas/hostblas/HostBlas : com/eignex/koblas/dense/Blas {
-	public fun gemm (DLcom/eignex/koblas/DenseMatrix;ZLcom/eignex/koblas/DenseMatrix;ZDLcom/eignex/koblas/DenseMatrix;)V
-	public fun gemm (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseMatrix;)Lcom/eignex/koblas/DenseMatrix;
-	public fun gemv (DLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseVector;DLcom/eignex/koblas/DenseVector;Z)V
-	public fun gemv (DLcom/eignex/koblas/DenseMatrix;[DD[DZ)V
-	public fun gemv (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseVector;Z)Lcom/eignex/koblas/DenseVector;
-	public fun gemv (Lcom/eignex/koblas/DenseMatrix;[DZ)[D
-	public fun ger (D[D[DLcom/eignex/koblas/DenseMatrix;)V
+public final class com/eignex/koblas/hostblas/HostBlas : com/eignex/koblas/dense/HostBlasAdapter {
 	public fun getName ()Ljava/lang/String;
 	public fun getPriority ()I
-	public fun getVectorKernels ()Lcom/eignex/koblas/dense/VectorKernels;
-	public fun isPortable ()Z
-	public fun symm (DLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseMatrix;DLcom/eignex/koblas/DenseMatrix;ZZ)V
-	public fun symv (DLcom/eignex/koblas/DenseMatrix;[DD[DZ)V
-	public fun syr (DLcom/eignex/koblas/VectorLike;Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/dense/Uplo;)V
-	public fun syr2 (DLcom/eignex/koblas/VectorLike;Lcom/eignex/koblas/VectorLike;Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/dense/Uplo;)V
-	public fun syr2k (DLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseMatrix;ZDLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/dense/Uplo;)V
-	public fun syrk (DLcom/eignex/koblas/DenseMatrix;ZDLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/dense/Uplo;Lcom/eignex/koblas/Workspace;)V
-	public fun trmm (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseMatrix;ZZZZ)V
-	public fun trmv (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseVector;ZZZ)V
-	public fun trmv (Lcom/eignex/koblas/DenseMatrix;[DZZZ)V
-	public fun trsm (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseMatrix;ZZZZ)V
-	public fun trsv (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseVector;ZZZ)V
-	public fun trsv (Lcom/eignex/koblas/DenseMatrix;[DZZZ)V
 }
 
 public final class com/eignex/koblas/hostblas/HostLapack : com/eignex/koblas/dense/Lapack {
