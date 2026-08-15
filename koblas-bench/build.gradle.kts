@@ -74,6 +74,7 @@ benchmark {
         register("sparse") { include("\\.SparseBenchmark\\.") }
         register("sparseHost") { include("\\.SparseHostBenchmark\\.") }
         register("cholesky") { include("\\.CholeskyBenchmark\\.") }
+        register("qr") { include("\\.QrBenchmark\\.") }
         register("symbolic") { include("\\.SymbolicBenchmark\\.") }
     }
 }
