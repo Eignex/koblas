@@ -6,6 +6,7 @@ import com.eignex.koblas.asum
 import com.eignex.koblas.axpy
 import com.eignex.koblas.dispatchThresholds
 import com.eignex.koblas.dot
+import com.eignex.koblas.euclideanNorm
 import com.eignex.koblas.iamax
 import com.eignex.koblas.installBackends
 import com.eignex.koblas.koblas
@@ -18,6 +19,7 @@ import com.eignex.koblas.scale
 import com.eignex.koblas.withCleanBackends
 import kotlin.math.abs
 import kotlin.math.sqrt
+import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
@@ -223,6 +225,39 @@ class VectorKernelsTest {
         assertEquals(5e200, PlatformVectorKernels.nrm2(big, 0, 2), absoluteTolerance = 1e188)
         val tiny = doubleArrayOf(3e-200, 4e-200)
         assertEquals(5e-200, PlatformVectorKernels.nrm2(tiny, 0, 2), absoluteTolerance = 1e-212)
+    }
+
+    @Test
+    fun `nrm2 survives out-of-range components at lengths that vectorize`() {
+        for (len in intArrayOf(16, 33, 64)) {
+            val big = DoubleArray(len) { 1e200 }
+            val expected = sqrt(len.toDouble()) * 1e200
+            assertEquals(expected, PlatformVectorKernels.nrm2(big, 0, len), absoluteTolerance = expected * 1e-12)
+            val tiny = DoubleArray(len) { 1e-200 }
+            val expectedTiny = sqrt(len.toDouble()) * 1e-200
+            assertEquals(
+                expectedTiny,
+                PlatformVectorKernels.nrm2(tiny, 0, len),
+                absoluteTolerance = expectedTiny * 1e-12,
+            )
+        }
+    }
+
+    @Test
+    fun `nrm2 agrees with the portable norm across offsets and lengths`() {
+        val rng = Random(20260815)
+        val v = DoubleArray(300) { rng.nextDouble(-1.0, 1.0) }
+        for (off in intArrayOf(0, 1, 7)) {
+            for (len in intArrayOf(0, 1, 3, 8, 31, 128, 293)) {
+                val expected = euclideanNorm(v, off, len)
+                assertEquals(
+                    expected,
+                    PlatformVectorKernels.nrm2(v, off, len),
+                    absoluteTolerance = 1e-12 * (expected + 1.0),
+                    message = "off $off len $len",
+                )
+            }
+        }
     }
 
     @Test
