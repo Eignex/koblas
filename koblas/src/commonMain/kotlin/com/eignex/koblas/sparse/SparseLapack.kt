@@ -2,6 +2,7 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.Backend
 import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.Workspace
 
 /** Sparse factorizations as a backend half. */
 public interface SparseLapack : Backend {
@@ -48,4 +49,21 @@ public interface SparseLapack : Backend {
         policy: SparseLdlPolicy = SparseLdlPolicy.Strict,
         ordering: SparseOrdering = SparseOrdering.MinimumDegree,
     ): SparseFactorization = numericLdl(a, analyze(a, ordering), policy)
+
+    /**
+     * Solve `A·x = b` from [f] into [out], `Aᵀ·x = b` when [transpose]. The work belongs to the
+     * factorization; this is here so the seam reads the same from the sparse side as [com.eignex.koblas
+     * .dense.Lapack.solveInto] does from the dense one.
+     */
+    public fun solveInto(
+        f: SparseFactorization,
+        b: DoubleArray,
+        out: DoubleArray,
+        transpose: Boolean = false,
+        workspace: Workspace? = null,
+    ): DoubleArray = f.solveInto(b, out, transpose, workspace)
+
+    /** [solveInto] into a fresh vector. */
+    public fun solve(f: SparseFactorization, b: DoubleArray, transpose: Boolean = false): DoubleArray =
+        f.solve(b, transpose)
 }

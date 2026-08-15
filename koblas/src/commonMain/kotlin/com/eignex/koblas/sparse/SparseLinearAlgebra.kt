@@ -44,5 +44,9 @@ public fun SparseMatrix.gemv(x: DoubleArray, transpose: Boolean = false): Double
  * Solve `op(T) · x = b` in place against this matrix's [lower] or upper triangle, with the active backend
  * ([koblas]). See [SparseBlas.trsv].
  */
-public fun SparseMatrix.trsv(x: DoubleArray, lower: Boolean, transpose: Boolean = false): Unit =
-    koblas.trsv(this, x, lower, transpose)
+public fun SparseMatrix.trsv(
+    x: DoubleArray,
+    lower: Boolean,
+    transpose: Boolean = false,
+    unitDiag: Boolean = false,
+): Unit = koblas.trsv(this, x, lower, transpose, unitDiag)
