@@ -284,14 +284,14 @@ public fun scaleColumns(a: SparseMatrix, d: DoubleArray) {
 
 /** Column [j] as a fresh vector, copied rather than viewed. */
 public fun DenseMatrix.column(j: Int): DenseVector {
-    require(j in 0 until cols) { "column $j outside [0,$cols)" }
+    requireIndex(j in 0 until cols) { "column $j outside [0,$cols)" }
     val start = j * rows
     return DenseVector.wrap(data.copyOfRange(start, start + rows))
 }
 
 /** Row [i] as a fresh vector, gathered across the backing. Prefer [column] where the algorithm allows. */
 public fun DenseMatrix.row(i: Int): DenseVector {
-    require(i in 0 until rows) { "row $i outside [0,$rows)" }
+    requireIndex(i in 0 until rows) { "row $i outside [0,$rows)" }
     val out = DoubleArray(cols)
     for (j in 0 until cols) out[j] = data[i + j * rows]
     return DenseVector.wrap(out)

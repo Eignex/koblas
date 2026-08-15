@@ -2,6 +2,7 @@ package com.eignex.koblas.umfpack
 
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.requireFactored
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.sparse.SparseFactorization
 import java.lang.foreign.Arena
@@ -55,10 +56,7 @@ public class UmfpackFactorization internal constructor(
     internal var unz: Int = 0
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray {
-        check(!singular) {
-            "cannot solve against a singular factorization: umfpack reported the matrix singular. " +
-                "Check `singular` before solving; repair the matrix and factor again."
-        }
+        requireFactored(failedAt, "solve")
         requireShape(b.size == n) { "solve: b size ${b.size}, expected $n" }
         requireShape(out.size == n) { "solve: out size ${out.size}, expected $n" }
         // UMFPACK writes X and reads B, so aliasing them would have it read its own partial output.

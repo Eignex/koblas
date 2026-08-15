@@ -81,11 +81,11 @@ public class SparseVector internal constructor(
 
     init {
         requireShape(size >= 0) { "negative size: $size" }
-        require(indices.size == values.size) {
+        requireShape(indices.size == values.size) {
             "indices/values must align: ${indices.size} vs ${values.size}"
         }
         for (k in indices.indices) {
-            require(indices[k] in 0 until size) { "indices[$k]=${indices[k]} out of [0,$size)" }
+            requireShape(indices[k] in 0 until size) { "indices[$k]=${indices[k]} out of [0,$size)" }
             require(k == 0 || indices[k - 1] < indices[k]) {
                 "indices must be strictly ascending; found ${indices[k - 1]} then ${indices[k]} at $k"
             }
@@ -132,7 +132,7 @@ public class SparseVector internal constructor(
     public companion object {
         /** Build a sparse vector, sorting by index and summing duplicates. Copies its inputs. */
         public fun of(size: Int, indices: IntArray, values: DoubleArray): SparseVector {
-            require(indices.size == values.size) {
+            requireShape(indices.size == values.size) {
                 "indices/values must align: ${indices.size} vs ${values.size}"
             }
             val order = indices.indices.sortedBy { indices[it] }

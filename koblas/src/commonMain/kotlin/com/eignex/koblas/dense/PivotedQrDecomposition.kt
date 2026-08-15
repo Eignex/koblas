@@ -1,5 +1,6 @@
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.requireShape
 import kotlin.math.abs
 
 /** The [LinearAlgebra.qrPivoted] tolerance meaning "derive one from the matrix", `max(m, n) · ε`. */
@@ -35,7 +36,7 @@ public class PivotedQrDecomposition(
     public val rankDeficient: Boolean get() = rank < minOf(m, n)
 
     init {
-        require(pivots.size == n) { "pivots length ${pivots.size} != $n" }
+        requireShape(pivots.size == n) { "pivots length ${pivots.size} != $n" }
         require(rank in 0..minOf(m, n)) { "rank $rank outside 0..${minOf(m, n)}" }
     }
 }

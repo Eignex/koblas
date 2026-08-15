@@ -24,12 +24,12 @@ public class SparseMatrix internal constructor(
 ) : MatrixView {
     init {
         requireShape(rows >= 0 && cols >= 0) { "negative shape: ${rows}x$cols" }
-        require(colPtr.size == cols + 1) { "colPtr length ${colPtr.size} != cols+1 ${cols + 1}" }
-        require(rowIdx.size == values.size) { "rowIdx/values length mismatch: ${rowIdx.size} vs ${values.size}" }
-        require(colPtr[0] == 0) { "colPtr[0] ${colPtr[0]} != 0" }
-        require(colPtr[cols] == values.size) { "colPtr[cols] ${colPtr[cols]} != nnz ${values.size}" }
-        for (j in 0 until cols) require(colPtr[j] <= colPtr[j + 1]) { "colPtr not monotonic at $j" }
-        for (k in rowIdx.indices) require(rowIdx[k] in 0 until rows) { "rowIdx[$k]=${rowIdx[k]} out of [0,$rows)" }
+        requireShape(colPtr.size == cols + 1) { "colPtr length ${colPtr.size} != cols+1 ${cols + 1}" }
+        requireShape(rowIdx.size == values.size) { "rowIdx/values length mismatch: ${rowIdx.size} vs ${values.size}" }
+        requireShape(colPtr[0] == 0) { "colPtr[0] ${colPtr[0]} != 0" }
+        requireShape(colPtr[cols] == values.size) { "colPtr[cols] ${colPtr[cols]} != nnz ${values.size}" }
+        for (j in 0 until cols) requireShape(colPtr[j] <= colPtr[j + 1]) { "colPtr not monotonic at $j" }
+        for (k in rowIdx.indices) requireShape(rowIdx[k] in 0 until rows) { "rowIdx[$k]=${rowIdx[k]} out of [0,$rows)" }
         // Rows must ascend strictly, or the binary search in get reports a stored entry as absent.
         for (j in 0 until cols) {
             for (k in colPtr[j] + 1 until colPtr[j + 1]) {
@@ -142,7 +142,7 @@ public class SparseMatrix internal constructor(
             }
             val nnz = values.size
             for (k in 0 until nnz) {
-                require(rowIdx[k] in 0 until rows) { "rowIdx[$k]=${rowIdx[k]} out of [0,$rows)" }
+                requireShape(rowIdx[k] in 0 until rows) { "rowIdx[$k]=${rowIdx[k]} out of [0,$rows)" }
                 require(colIdx[k] in 0 until cols) { "colIdx[$k]=${colIdx[k]} out of [0,$cols)" }
             }
 

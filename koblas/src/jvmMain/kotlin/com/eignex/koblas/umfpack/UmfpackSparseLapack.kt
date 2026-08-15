@@ -4,6 +4,7 @@ import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
 import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.requireShape
 import com.eignex.koblas.sparse.NO_DROP
 import com.eignex.koblas.sparse.SingularSparseFactorization
 import com.eignex.koblas.sparse.SparseFactorization
@@ -25,7 +26,7 @@ public class UmfpackSparseLapack : SparseLapack {
      * back to the portable path, since UMFPACK offers neither koblas's scaling nor a drop threshold.
      */
     override fun factor(a: SparseMatrix, equilibrate: Boolean, dropTolerance: Double): SparseFactorization {
-        require(a.rows == a.cols) { "factor requires a square matrix; got ${a.rows}x${a.cols}" }
+        requireShape(a.rows == a.cols) { "factor requires a square matrix; got ${a.rows}x${a.cols}" }
         // Any tolerance but the default goes to the portable path, which owns validating the rest.
         if (equilibrate || dropTolerance != NO_DROP) return SparseLu.factorCsc(a, equilibrate, dropTolerance)
         if (a.rows == 0) return SparseLu.factorCsc(a)

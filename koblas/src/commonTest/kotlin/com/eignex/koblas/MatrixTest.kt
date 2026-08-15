@@ -100,10 +100,10 @@ class MatrixTest {
     @Test
     fun `column and row reject an index outside the shape`() {
         val m = DenseMatrix.zero(2, 3)
-        assertFailsWith<IllegalArgumentException> { m.column(3) }
-        assertFailsWith<IllegalArgumentException> { m.column(-1) }
-        assertFailsWith<IllegalArgumentException> { m.row(2) }
-        assertFailsWith<IllegalArgumentException> { m.row(-1) }
+        assertFailsWith<IndexOutOfBoundsException> { m.column(3) }
+        assertFailsWith<IndexOutOfBoundsException> { m.column(-1) }
+        assertFailsWith<IndexOutOfBoundsException> { m.row(2) }
+        assertFailsWith<IndexOutOfBoundsException> { m.row(-1) }
     }
 
     @Test

@@ -64,6 +64,14 @@ class BoundsAndShapeTest {
     }
 
     @Test
+    fun `column and row reject an index the same way get does`() {
+        assertFailsWith<IndexOutOfBoundsException> { dense.column(3) }
+        assertFailsWith<IndexOutOfBoundsException> { dense.column(-1) }
+        assertFailsWith<IndexOutOfBoundsException> { dense.row(2) }
+        assertFailsWith<IndexOutOfBoundsException> { dense.row(-1) }
+    }
+
+    @Test
     fun `a negative size cannot arrive through deserialization either`() {
         assertFailsWith<DimensionMismatch> {
             Json.decodeFromString<VectorView>("""{"type":"SparseVector","size":-5,"indices":[],"values":[]}""")
