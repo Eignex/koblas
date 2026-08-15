@@ -145,7 +145,7 @@ public interface Lapack : Backend {
         a: DenseMatrix,
         tolerance: Double = AUTOMATIC_RANK_TOLERANCE,
         workspace: Workspace? = null,
-    ): PivotedQrDecomposition = ReferenceLinearAlgebra.qrPivoted(a, tolerance, workspace)
+    ): PivotedQrDecomposition = ReferenceLapack(vectorKernels).qrPivoted(a, tolerance, workspace)
 
     /** Least-squares solve from a pivoted factorization, with the column permutation undone. A rank-deficient
      *  factorization returns the basic solution, not the minimum-norm one: zero outside the pivoted rank. */
