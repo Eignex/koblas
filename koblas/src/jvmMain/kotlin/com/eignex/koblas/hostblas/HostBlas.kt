@@ -5,6 +5,16 @@ import com.eignex.koblas.DispatchThresholds
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.dense.Blas
+import com.eignex.koblas.dense.Cblas.COL_MAJOR
+import com.eignex.koblas.dense.Cblas.LEFT
+import com.eignex.koblas.dense.Cblas.LOWER
+import com.eignex.koblas.dense.Cblas.NO_TRANS
+import com.eignex.koblas.dense.Cblas.RIGHT
+import com.eignex.koblas.dense.Cblas.TRANS
+import com.eignex.koblas.dense.Cblas.UPPER
+import com.eignex.koblas.dense.Cblas.diagOf
+import com.eignex.koblas.dense.Cblas.transOf
+import com.eignex.koblas.dense.Cblas.uploOf
 import com.eignex.koblas.dense.ReferenceLinearAlgebra
 import com.eignex.koblas.dense.Uplo
 import com.eignex.koblas.dense.scaleUplo
@@ -13,13 +23,6 @@ import com.eignex.koblas.dense.trmv
 import com.eignex.koblas.dense.trsm
 import com.eignex.koblas.dense.trsv
 import com.eignex.koblas.dispatchThresholds
-import com.eignex.koblas.hostblas.HostBlasCalls.COL_MAJOR
-import com.eignex.koblas.hostblas.HostBlasCalls.LEFT
-import com.eignex.koblas.hostblas.HostBlasCalls.LOWER
-import com.eignex.koblas.hostblas.HostBlasCalls.NO_TRANS
-import com.eignex.koblas.hostblas.HostBlasCalls.RIGHT
-import com.eignex.koblas.hostblas.HostBlasCalls.TRANS
-import com.eignex.koblas.hostblas.HostBlasCalls.UPPER
 import com.eignex.koblas.hostblas.HostBlasCalls.seg
 import com.eignex.koblas.requireShape
 
@@ -119,14 +122,14 @@ public class HostBlas internal constructor() : Blas {
         if (a.rows == 0 || b.rows == 0 || b.cols == 0) return
         val handle = if (solve) HostBlasCalls.dtrsm else HostBlasCalls.dtrmm
         handle.invokeWithArguments(
-            COL_MAJOR, if (right) RIGHT else LEFT, uploOf(lower), transOf(transpose), diagOf(unitDiag),
+            COL_MAJOR, if (right) RIGHT else LEFT,
+            uploOf(
+                lower,
+            ),
+            transOf(transpose), diagOf(unitDiag),
             b.rows, b.cols, 1.0, seg(a.data), a.rows, seg(b.data), b.rows,
         )
     }
-
-    private fun uploOf(lower: Boolean) = if (lower) LOWER else UPPER
-    private fun transOf(transpose: Boolean) = if (transpose) TRANS else NO_TRANS
-    private fun diagOf(unitDiag: Boolean) = if (unitDiag) HostBlasCalls.UNIT else HostBlasCalls.NON_UNIT
 
     /** Portable below [DispatchThresholds.level2], native above it. */
     override fun gemv(

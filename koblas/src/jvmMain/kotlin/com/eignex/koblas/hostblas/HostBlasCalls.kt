@@ -19,17 +19,6 @@ import java.lang.invoke.MethodHandle
  */
 internal object HostBlasCalls {
 
-    // The CBLAS enums and the LAPACKE layout macro, by their ABI integer values.
-    const val COL_MAJOR = 102
-    const val NO_TRANS = 111
-    const val TRANS = 112
-    const val UPPER = 121
-    const val LOWER = 122
-    const val NON_UNIT = 131
-    const val UNIT = 132
-    const val LEFT = 141
-    const val RIGHT = 142
-
     /** Whether the host's CBLAS resolved and takes the integer width koblas binds. */
     val available: Boolean
 

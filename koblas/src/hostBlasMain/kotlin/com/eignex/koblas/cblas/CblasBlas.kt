@@ -6,6 +6,16 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.dense.Blas
+import com.eignex.koblas.dense.Cblas.COL_MAJOR
+import com.eignex.koblas.dense.Cblas.LEFT
+import com.eignex.koblas.dense.Cblas.LOWER
+import com.eignex.koblas.dense.Cblas.NO_TRANS
+import com.eignex.koblas.dense.Cblas.RIGHT
+import com.eignex.koblas.dense.Cblas.TRANS
+import com.eignex.koblas.dense.Cblas.UPPER
+import com.eignex.koblas.dense.Cblas.diagOf
+import com.eignex.koblas.dense.Cblas.transOf
+import com.eignex.koblas.dense.Cblas.uploOf
 import com.eignex.koblas.dense.Uplo
 import com.eignex.koblas.dense.scaleUplo
 import com.eignex.koblas.requireShape
@@ -13,17 +23,6 @@ import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.invoke
 import kotlinx.cinterop.usePinned
-
-// The CBLAS enums and the LAPACKE layout macro by their ABI integer values, declared as plain int.
-private const val COL_MAJOR = 102
-private const val NO_TRANS = 111
-private const val TRANS = 112
-private const val UPPER = 121
-private const val LOWER = 122
-private const val NON_UNIT = 131
-private const val UNIT = 132
-private const val LEFT = 141
-private const val RIGHT = 142
 
 /** Constructible whenever the host has OpenBLAS, independently of LAPACKE. */
 internal class CblasBlas(private val f: CblasFunctions) : Blas {
@@ -129,7 +128,13 @@ internal class CblasBlas(private val f: CblasFunctions) : Blas {
         val w = workspace?.take(n * n) ?: DoubleArray(n * n)
         a.data.usePinned { ap ->
             w.usePinned { wp ->
-                f.dsyrk(COL_MAJOR, LOWER, trans, n, k, alpha, ap.addressOf(0), a.rows, 0.0, wp.addressOf(0), n)
+                f.dsyrk(
+                    COL_MAJOR, LOWER, trans, n, k, alpha,
+                    ap.addressOf(
+                        0,
+                    ),
+                    a.rows, 0.0, wp.addressOf(0), n,
+                )
             }
         }
         for (j in 0 until n) {
@@ -311,10 +316,6 @@ internal class CblasBlas(private val f: CblasFunctions) : Blas {
             }
         }
     }
-
-    private fun uploOf(lower: Boolean) = if (lower) LOWER else UPPER
-    private fun transOf(transpose: Boolean) = if (transpose) TRANS else NO_TRANS
-    private fun diagOf(unitDiag: Boolean) = if (unitDiag) UNIT else NON_UNIT
 
     /** `v = beta * v` honoring the BLAS convention that `beta == 0` overwrites without reading. */
     private fun scaleInPlace(v: DoubleArray, beta: Double) {
