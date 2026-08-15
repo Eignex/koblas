@@ -2,8 +2,11 @@ package com.eignex.koblas.hostblas
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.HostLibraryTest
+import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.dense.Blas
 import com.eignex.koblas.dense.ReferenceLinearAlgebra
+import com.eignex.koblas.dense.Uplo
 import com.eignex.koblas.dense.assertFactorIntoUsesItsDestination
 import com.eignex.koblas.dense.assertGerAgreesWithReference
 import com.eignex.koblas.dense.assertLevel3AgreesWithReference
@@ -20,10 +23,27 @@ import org.junit.experimental.categories.Category
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 @Category(HostLibraryTest::class)
 class HostBlasConformanceTest {
+
+    @Test
+    fun `a full-uplo syrk returns its scratch buffer to the workspace`() {
+        Assume.assumeTrue("host CBLAS is not installed", HostBlasCalls.available)
+        val n = 64
+        val rng = Random(20260816)
+        val a = randomMatrix(n, n, rng)
+        val c = DenseMatrix.zero(n, n)
+        val ws = Workspace()
+        val host: Blas = HostBlas()
+        // Prime the pool with the one buffer of this width, so syrk has to borrow and return that instance.
+        val scratch = ws.take(n * n)
+        ws.release(scratch)
+        host.syrk(1.0, a, transpose = false, beta = 0.0, c = c, uplo = Uplo.FULL, workspace = ws)
+        assertSame(scratch, ws.take(n * n), "syrk kept the scratch buffer instead of releasing it")
+    }
 
     @Test
     fun `the host backend resolves when the machine has OpenBLAS`() {

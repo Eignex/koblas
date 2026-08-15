@@ -219,6 +219,7 @@ public abstract class HostBlasAdapter internal constructor(private val f: CblasC
             if (beta != 1.0) f.dscal(cd.size, beta, cd, 1)
             f.daxpy(cd.size, 1.0, w, 1, cd, 1)
         }
+        workspace?.release(w)
     }
 
     /**
