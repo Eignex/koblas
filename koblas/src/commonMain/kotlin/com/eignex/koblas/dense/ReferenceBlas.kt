@@ -5,6 +5,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.BackendNames
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.KoblasContext
+import com.eignex.koblas.VectorLike
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.koblas
 import com.eignex.koblas.requireShape
@@ -248,4 +249,122 @@ internal class ReferenceBlas(private val kernels: VectorKernels? = null) : Blas 
             symvAccumulate(alpha, a.data, m, b.data, j * m, cd, j * m, lower)
         }
     }
+
+    override fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix) {
+        requireShape(a.rows == x.size && a.cols == y.size) {
+            "ger shape mismatch: A is ${a.rows}x${a.cols}, x ${x.size}, y ${y.size}"
+        }
+        if (alpha == 0.0) return
+        val kernels = vectorKernels
+        for (j in 0 until a.cols) {
+            val scaled = alpha * y[j]
+            if (scaled != 0.0) kernels.axpy(a.data, a.colOffset(j), scaled, x, 0, a.rows)
+        }
+    }
+
+    /** `A += alpha · x · xᵀ` (BLAS `dsyr`), writing the triangles [uplo] selects. [syrk] is the rank-k form. */
+    override fun syr(alpha: Double, x: VectorLike, a: DenseMatrix, uplo: Uplo) {
+        requireShape(a.rows == a.cols) { "syr: matrix must be square, got ${a.rows}x${a.cols}" }
+        requireShape(x.size == a.rows) { "syr: x length ${x.size} != ${a.rows}" }
+        if (alpha == 0.0) return
+        val n = a.rows
+        val ad = a.data
+        val xs = x.toDoubleArray()
+        for (j in 0 until n) {
+            val xj = alpha * xs[j]
+            if (xj == 0.0) continue
+            for (i in j until n) addUplo(ad, n, i, j, xj * xs[i], uplo)
+        }
+    }
+
+    /** `A += alpha · (x · yᵀ + y · xᵀ)` (BLAS `dsyr2`), writing the triangles [uplo] selects. */
+    override fun syr2(alpha: Double, x: VectorLike, y: VectorLike, a: DenseMatrix, uplo: Uplo) {
+        requireShape(a.rows == a.cols) { "syr2: matrix must be square, got ${a.rows}x${a.cols}" }
+        requireShape(x.size == a.rows && y.size == a.rows) {
+            "syr2: operand lengths ${x.size} and ${y.size} must both be ${a.rows}"
+        }
+        if (alpha == 0.0) return
+        val n = a.rows
+        val ad = a.data
+        val xs = x.toDoubleArray()
+        val ys = y.toDoubleArray()
+        for (j in 0 until n) {
+            for (i in j until n) {
+                val v = alpha * (xs[i] * ys[j] + ys[i] * xs[j])
+                if (v != 0.0) addUplo(ad, n, i, j, v, uplo)
+            }
+        }
+    }
+
+    /** `C = alpha · (op(A) · op(B)ᵀ + op(B) · op(A)ᵀ) + beta · C` (BLAS `dsyr2k`), where `op` transposes when
+     *  [transpose]. Writes the triangles [uplo] selects. */
+    @Suppress("LongParameterList") // the BLAS dsyr2k signature
+    override fun syr2k(
+        alpha: Double,
+        a: DenseMatrix,
+        b: DenseMatrix,
+        transpose: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        uplo: Uplo,
+    ) {
+        val n = if (transpose) a.cols else a.rows
+        val k = if (transpose) a.rows else a.cols
+        requireShape(b.rows == a.rows && b.cols == a.cols) {
+            "syr2k: B is ${b.rows}x${b.cols}, expected ${a.rows}x${a.cols} to match A"
+        }
+        requireShape(c.rows == n && c.cols == n) { "syr2k: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
+        scaleUplo(vectorKernels, c.data, n, beta, uplo)
+        if (alpha == 0.0 || n == 0 || k == 0) return
+        val cd = c.data
+        for (j in 0 until n) {
+            for (i in j until n) {
+                var s = 0.0
+                if (transpose) {
+                    for (p in 0 until k) {
+                        s += a.getUnsafe(p, i) * b.getUnsafe(p, j) + b.getUnsafe(p, i) * a.getUnsafe(p, j)
+                    }
+                } else {
+                    for (p in 0 until k) {
+                        s += a.getUnsafe(i, p) * b.getUnsafe(j, p) + b.getUnsafe(i, p) * a.getUnsafe(j, p)
+                    }
+                }
+                if (s != 0.0) addUplo(cd, n, i, j, alpha * s, uplo)
+            }
+        }
+    }
+
+    /** Solve `op(T) · x = b` in place (BLAS `dtrsv`) for the [lower] or upper triangle of the square [a],
+     *  `op` transposing when [transpose] and [unitDiag] taking the diagonal as 1. [x] carries b in and x out. */
+    override fun trsv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) =
+        triangularVector(vectorKernels, a, x, lower, transpose, unitDiag, solve = true)
+
+    /** Solve `op(T) · X = B` in place, or `X · op(T) = B` when [right] (BLAS `dtrsm`). Flags follow [trsv];
+     *  the right-hand sides are the columns of [b] from the left and its rows from the right. */
+    @Suppress("LongParameterList") // the BLAS dtrsm signature
+    override fun trsm(
+        a: DenseMatrix,
+        b: DenseMatrix,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+        right: Boolean,
+    ) =
+        triangularMatrix(vectorKernels, a, b, lower, transpose, unitDiag, right, solve = true)
+
+    /** `x = op(T) · x` in place (BLAS `dtrmv`), the product counterpart of [trsv]. */
+    override fun trmv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) =
+        triangularVector(vectorKernels, a, x, lower, transpose, unitDiag, solve = false)
+
+    /** `B = op(T) · B`, or `B = B · op(T)` when [right] (BLAS `dtrmm`), the counterpart of [trsm]. */
+    @Suppress("LongParameterList") // the BLAS dtrmm signature
+    override fun trmm(
+        a: DenseMatrix,
+        b: DenseMatrix,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+        right: Boolean,
+    ) =
+        triangularMatrix(vectorKernels, a, b, lower, transpose, unitDiag, right, solve = false)
 }

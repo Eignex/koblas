@@ -24,8 +24,13 @@ import com.eignex.koblas.requireSquare
  * implementation: crossing into a native library costs more than the work saves on a small problem.
  */
 @Suppress("TooManyFunctions") // the BLAS surface a host library covers
-public abstract class HostBlasAdapter internal constructor(private val f: CblasCalls) : Blas {
-    private val portable = ReferenceBlas()
+public abstract class HostBlasAdapter internal constructor(
+    private val f: CblasCalls,
+    private val portable: ReferenceBlas = ReferenceBlas(),
+) : Blas by portable {
+
+    /** Stated rather than delegated: the delegate is portable and this is a binding that calls out. */
+    override val isPortable: Boolean get() = false
 
     /** `v = beta * v`, honoring the BLAS convention that `beta == 0` overwrites without reading. */
     private fun scaleInPlace(v: DoubleArray, beta: Double) {
@@ -36,7 +41,7 @@ public abstract class HostBlasAdapter internal constructor(private val f: CblasC
     }
 
     override fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix) {
-        if (minOf(a.rows, a.cols) < dispatchThresholds.level2) return super.ger(alpha, x, y, a)
+        if (minOf(a.rows, a.cols) < dispatchThresholds.level2) return portable.ger(alpha, x, y, a)
         requireShape(a.rows == x.size && a.cols == y.size) {
             "ger shape mismatch: A is ${a.rows}x${a.cols}, x ${x.size}, y ${y.size}"
         }
@@ -45,12 +50,12 @@ public abstract class HostBlasAdapter internal constructor(private val f: CblasC
     }
 
     override fun trsv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
-        if (a.rows < dispatchThresholds.level2) return super.trsv(a, x, lower, transpose, unitDiag)
+        if (a.rows < dispatchThresholds.level2) return portable.trsv(a, x, lower, transpose, unitDiag)
         triangularVector(a, x, lower, transpose, unitDiag, solve = true)
     }
 
     override fun trmv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
-        if (a.rows < dispatchThresholds.level2) return super.trmv(a, x, lower, transpose, unitDiag)
+        if (a.rows < dispatchThresholds.level2) return portable.trmv(a, x, lower, transpose, unitDiag)
         triangularVector(a, x, lower, transpose, unitDiag, solve = false)
     }
 
@@ -82,7 +87,7 @@ public abstract class HostBlasAdapter internal constructor(private val f: CblasC
         right: Boolean,
     ) {
         if (minOf(a.rows, b.rows, b.cols) < dispatchThresholds.level3) {
-            return super.trsm(a, b, lower, transpose, unitDiag, right)
+            return portable.trsm(a, b, lower, transpose, unitDiag, right)
         }
         triangularSolveOrMultiply(a, b, lower, transpose, unitDiag, right, solve = true)
     }
@@ -97,7 +102,7 @@ public abstract class HostBlasAdapter internal constructor(private val f: CblasC
         right: Boolean,
     ) {
         if (minOf(a.rows, b.rows, b.cols) < dispatchThresholds.level3) {
-            return super.trmm(a, b, lower, transpose, unitDiag, right)
+            return portable.trmm(a, b, lower, transpose, unitDiag, right)
         }
         triangularSolveOrMultiply(a, b, lower, transpose, unitDiag, right, solve = false)
     }

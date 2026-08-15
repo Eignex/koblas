@@ -37,8 +37,11 @@ private const val SIDE_LEFT: Byte = 'L'.code.toByte()
 public abstract class HostLapackAdapter internal constructor(
     private val f: LapackeCalls,
     private val blas: CblasCalls,
-) : Lapack {
-    private val portable = ReferenceLapack()
+    private val portable: ReferenceLapack = ReferenceLapack(),
+) : Lapack by portable {
+
+    /** Stated rather than delegated: the delegate is portable and this is a binding that calls out. */
+    override val isPortable: Boolean get() = false
 
     /** Right-hand columns from which the blocked triangular solve beats one native call per column. */
     protected open val nativeTrsmMinRhs: Int get() = 1
@@ -173,7 +176,7 @@ public abstract class HostLapackAdapter internal constructor(
         workspace: Workspace?,
     ): DenseMatrix {
         requireFactored(ldl.failedAt, "solve")
-        if (b.cols < nativeTrsmMinRhs) return super.solveInto(ldl, b, out, workspace)
+        if (b.cols < nativeTrsmMinRhs) return portable.solveInto(ldl, b, out, workspace)
         val n = ldl.n
         val nrhs = b.cols
         requireSolveShapes(n, b, out)
@@ -226,7 +229,7 @@ public abstract class HostLapackAdapter internal constructor(
      * falls back to the portable path on a positive info, which [CholeskyPolicy.Regularize] needs.
      */
     override fun cholesky(a: DenseMatrix, policy: CholeskyPolicy): CholeskyDecomposition {
-        if (a.rows < choleskyMin) return super.cholesky(a, policy)
+        if (a.rows < choleskyMin) return portable.cholesky(a, policy)
         requireSquare(a, "cholesky")
         val n = a.rows
         if (n == 0) return CholeskyDecomposition(DenseMatrix(0, 0))
@@ -235,7 +238,7 @@ public abstract class HostLapackAdapter internal constructor(
         for (j in 0 until n) a.data.copyInto(l.data, j + j * n, j + j * n, (j + 1) * n)
         val info = f.dpotrf(COL_MAJOR, LOWER_UPLO, n, l.data, n)
         check(info >= 0) { "dpotrf: illegal argument ${-info}" }
-        if (info > 0) return super.cholesky(a, policy)
+        if (info > 0) return portable.cholesky(a, policy)
         for (i in 0 until n) for (j in i + 1 until n) l[i, j] = 0.0
         return CholeskyDecomposition(l)
     }
@@ -245,7 +248,7 @@ public abstract class HostLapackAdapter internal constructor(
      * so the factor is copied first.
      */
     override fun invert(chol: CholeskyDecomposition, workspace: Workspace?): DenseMatrix {
-        if (chol.n < spdInvertMin) return super.invert(chol, workspace)
+        if (chol.n < spdInvertMin) return portable.invert(chol, workspace)
         val n = chol.n
         if (n == 0) return DenseMatrix(0, 0)
         val inv = DenseMatrix(n, n, chol.l.data.copyOf())
