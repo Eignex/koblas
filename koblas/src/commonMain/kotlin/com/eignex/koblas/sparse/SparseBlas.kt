@@ -48,11 +48,19 @@ public interface SparseBlas : Backend {
 
     /**
      * Solve `op(T) · x = b` in place, `op` transposing when [transpose]. [x] holds the right-hand side on
-     * entry and the solution on return. Only the [lower] or upper triangle of [a] is read.
+     * entry and the solution on return. Only the [lower] or upper triangle of [a] is read, and [unitDiag]
+     * takes the diagonal as 1 without reading it, as the dense [com.eignex.koblas.dense.Blas.trsv] does.
      *
-     * @throws com.eignex.koblas.SingularMatrix if a diagonal entry is missing or zero, naming its position.
+     * @throws com.eignex.koblas.SingularMatrix if a diagonal entry is missing or zero and [unitDiag] is
+     *  false, naming its position.
      */
-    public fun trsv(a: SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean = false) {
+    public fun trsv(
+        a: SparseMatrix,
+        x: DoubleArray,
+        lower: Boolean,
+        transpose: Boolean = false,
+        unitDiag: Boolean = false,
+    ) {
         requireShape(a.rows == a.cols) { "trsv requires a square matrix; got ${a.rows}x${a.cols}" }
         val n = a.rows
         requireShape(x.size == n) { "trsv: x length ${x.size} != $n" }
@@ -60,7 +68,7 @@ public interface SparseBlas : Backend {
         val order = if (lower != transpose) 0 until n else n - 1 downTo 0
         for (j in order) {
             if (!transpose) {
-                val xj = x[j] / diagonalOf(a, j)
+                val xj = if (unitDiag) x[j] else x[j] / diagonalOf(a, j)
                 x[j] = xj
                 if (xj != 0.0) {
                     a.forEachInColumn(j) { i, v ->
@@ -72,7 +80,7 @@ public interface SparseBlas : Backend {
                 a.forEachInColumn(j) { i, v ->
                     if (if (lower) i > j else i < j) s -= v * x[i]
                 }
-                x[j] = s / diagonalOf(a, j)
+                x[j] = if (unitDiag) s else s / diagonalOf(a, j)
             }
         }
     }
@@ -99,8 +107,13 @@ public interface SparseBlas : Backend {
         DenseVector.wrap(gemv(a, x.data, transpose))
 
     /** [trsv] over a [DenseVector]; [x] holds the right-hand side on entry and the solution on return. */
-    public fun trsv(a: SparseMatrix, x: DenseVector, lower: Boolean, transpose: Boolean = false): Unit =
-        trsv(a, x.data, lower, transpose)
+    public fun trsv(
+        a: SparseMatrix,
+        x: DenseVector,
+        lower: Boolean,
+        transpose: Boolean = false,
+        unitDiag: Boolean = false,
+    ): Unit = trsv(a, x.data, lower, transpose, unitDiag)
 }
 
 /**

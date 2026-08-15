@@ -3,6 +3,7 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.koblas
 import com.eignex.koblas.randomVector
 import kotlin.math.abs
 import kotlin.random.Random
@@ -28,6 +29,16 @@ class SparseLuTest {
             entries
         }
         return SparseMatrix.ofColumns(n, n, columns)
+    }
+
+    @Test
+    fun `the seam solves from a factorization the way the dense side does`() {
+        val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0, 1 to 1.0), listOf(0 to 1.0, 1 to 3.0)))
+        val f = a.lu()
+        val b = doubleArrayOf(3.0, 4.0)
+        assertClose(f.solve(b), koblas.solve(f, b), "seam solve", tolerance = 1e-12)
+        val out = DoubleArray(2)
+        assertClose(f.solve(b), koblas.solveInto(f, b, out), "seam solveInto", tolerance = 1e-12)
     }
 
     @Test

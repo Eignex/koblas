@@ -113,13 +113,28 @@ class SparseTriangularTest {
     }
 
     @Test
+    fun `unitDiag takes the diagonal as one without reading it`() {
+        // A diagonal of 5.0 that must be ignored, and a NaN one that must not even be looked at.
+        val lower = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 5.0, 1 to 3.0), listOf(1 to Double.NaN)))
+        val x = doubleArrayOf(1.0, 2.0)
+        lower.trsv(x, lower = true, unitDiag = true)
+        assertEquals(1.0, x[0])
+        assertEquals(-1.0, x[1], "row 1 is 3*x0 + 1*x1 = 2")
+
+        val t = doubleArrayOf(1.0, 2.0)
+        lower.trsv(t, lower = true, transpose = true, unitDiag = true)
+        assertEquals(2.0, t[1])
+        assertEquals(-5.0, t[0], "column 0 transposed is 1*x0 + 3*x1 = 1")
+    }
+
+    @Test
     fun `it reaches the registered backend`() = withCleanBackends {
         var calls = 0
         val counting = object : SparseBlas {
             override val name: String get() = "counting"
-            override fun trsv(a: SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean) {
+            override fun trsv(a: SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
                 calls++
-                super.trsv(a, x, lower, transpose)
+                super.trsv(a, x, lower, transpose, unitDiag)
             }
         }
         registerBackend(counting)
