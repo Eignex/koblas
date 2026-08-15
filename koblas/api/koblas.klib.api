@@ -259,6 +259,19 @@ sealed interface com.eignex.koblas/VectorView : com.eignex.koblas/VectorLike { /
     }
 }
 
+abstract class com.eignex.koblas.dense/HostBlasAdapter : com.eignex.koblas.dense/Blas { // com.eignex.koblas.dense/HostBlasAdapter|null[0]
+    open fun gemm(kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Double, com.eignex.koblas/DenseMatrix) // com.eignex.koblas.dense/HostBlasAdapter.gemm|gemm(kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Double;com.eignex.koblas.DenseMatrix){}[0]
+    open fun gemv(kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/DoubleArray, kotlin/Double, kotlin/DoubleArray, kotlin/Boolean) // com.eignex.koblas.dense/HostBlasAdapter.gemv|gemv(kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.DoubleArray;kotlin.Double;kotlin.DoubleArray;kotlin.Boolean){}[0]
+    open fun ger(kotlin/Double, kotlin/DoubleArray, kotlin/DoubleArray, com.eignex.koblas/DenseMatrix) // com.eignex.koblas.dense/HostBlasAdapter.ger|ger(kotlin.Double;kotlin.DoubleArray;kotlin.DoubleArray;com.eignex.koblas.DenseMatrix){}[0]
+    open fun symm(kotlin/Double, com.eignex.koblas/DenseMatrix, com.eignex.koblas/DenseMatrix, kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Boolean) // com.eignex.koblas.dense/HostBlasAdapter.symm|symm(kotlin.Double;com.eignex.koblas.DenseMatrix;com.eignex.koblas.DenseMatrix;kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Boolean){}[0]
+    open fun symv(kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/DoubleArray, kotlin/Double, kotlin/DoubleArray, kotlin/Boolean) // com.eignex.koblas.dense/HostBlasAdapter.symv|symv(kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.DoubleArray;kotlin.Double;kotlin.DoubleArray;kotlin.Boolean){}[0]
+    open fun syrk(kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Double, com.eignex.koblas/DenseMatrix, com.eignex.koblas.dense/Uplo, com.eignex.koblas/Workspace?) // com.eignex.koblas.dense/HostBlasAdapter.syrk|syrk(kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Double;com.eignex.koblas.DenseMatrix;com.eignex.koblas.dense.Uplo;com.eignex.koblas.Workspace?){}[0]
+    open fun trmm(com.eignex.koblas/DenseMatrix, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean) // com.eignex.koblas.dense/HostBlasAdapter.trmm|trmm(com.eignex.koblas.DenseMatrix;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
+    open fun trmv(com.eignex.koblas/DenseMatrix, kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean) // com.eignex.koblas.dense/HostBlasAdapter.trmv|trmv(com.eignex.koblas.DenseMatrix;kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
+    open fun trsm(com.eignex.koblas/DenseMatrix, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean) // com.eignex.koblas.dense/HostBlasAdapter.trsm|trsm(com.eignex.koblas.DenseMatrix;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
+    open fun trsv(com.eignex.koblas/DenseMatrix, kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean) // com.eignex.koblas.dense/HostBlasAdapter.trsv|trsv(com.eignex.koblas.DenseMatrix;kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
+}
+
 final class com.eignex.koblas.dense/CholeskyDecomposition { // com.eignex.koblas.dense/CholeskyDecomposition|null[0]
     constructor <init>(com.eignex.koblas/DenseMatrix) // com.eignex.koblas.dense/CholeskyDecomposition.<init>|<init>(com.eignex.koblas.DenseMatrix){}[0]
 
