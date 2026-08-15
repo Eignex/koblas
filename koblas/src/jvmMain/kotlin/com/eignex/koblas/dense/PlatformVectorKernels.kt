@@ -1,9 +1,11 @@
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.MIN_NORMAL
 import com.eignex.koblas.absoluteSum
 import com.eignex.koblas.euclideanNorm
 import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
+import kotlin.math.sqrt
 
 /**
  * Whether the `jdk.incubator.vector` module resolved at runtime. The SIMD code lives in [Simd] so its
@@ -47,10 +49,19 @@ internal actual object PlatformVectorKernels : VectorKernels {
         }
     }
 
-    /** No SIMD counterpart worth writing, so the shared common implementation serves the JVM too. */
-    actual override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double = euclideanNorm(v, vOff, len)
+    /**
+     * The plain sum of squares vectorizes; only the rescaling that overflow or underflow forces does not,
+     * and that path defers to the shared implementation.
+     */
+    actual override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double {
+        if (vectorizes(len)) {
+            val squares = Simd.dot(v, vOff, v, vOff, len)
+            if (squares.isFinite() && squares >= MIN_NORMAL) return sqrt(squares)
+        }
+        return euclideanNorm(v, vOff, len)
+    }
 
-    /** See [nrm2]. */
+    /** No SIMD counterpart worth writing, so the shared common implementation serves the JVM too. */
     actual override fun asum(v: DoubleArray, vOff: Int, len: Int): Double = absoluteSum(v, vOff, len)
 
     /** Overridden because [Simd.dot4] loads each b segment once for all four columns. */
