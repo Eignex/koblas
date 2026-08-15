@@ -14,6 +14,10 @@ import com.eignex.koblas.transpose
 
 /** Dense matrix routines as a backend half. */
 public interface Blas : Backend {
+
+    /** The vector kernels this half's inherited routines run on; the installed ones by default. */
+    public val vectorKernels: VectorKernels get() = koblas.vectorKernels
+
     /** `y = alpha · op(A) · x + beta · y` (BLAS `dgemv`), with `op(A)` being `Aᵀ` when [transpose].
      *  `beta == 0.0` overwrites [y] without reading it. */
     public fun gemv(

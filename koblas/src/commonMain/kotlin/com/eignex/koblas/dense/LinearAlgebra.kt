@@ -7,7 +7,10 @@ import com.eignex.koblas.koblas
 /** Both halves of the compute seam at once; implement [Blas] or [Lapack] alone when a backend has one. */
 public interface LinearAlgebra :
     Blas,
-    Lapack
+    Lapack {
+    /** Resolves the two halves' declarations, so implementing both does not force a choice. */
+    override val vectorKernels: VectorKernels get() = koblas.vectorKernels
+}
 
 /** LU-factorize this square matrix with the active backend ([koblas]); see [Lapack.factor]. */
 public fun DenseMatrix.lu(): LuDecomposition = koblas.factor(this)

@@ -18,6 +18,10 @@ import kotlin.math.sqrt
 
 /** Dense factorizations as a backend half. */
 public interface Lapack : Backend {
+
+    /** The vector kernels this half's inherited routines run on; the installed ones by default. */
+    public val vectorKernels: VectorKernels get() = koblas.vectorKernels
+
     /** LU factorization with partial pivoting of a square [a] (LAPACK `dgetrf`). [a] is not modified. */
     public fun factor(a: DenseMatrix): LuDecomposition
 

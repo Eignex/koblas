@@ -46,6 +46,9 @@ final enum class com.eignex.koblas/BackendSlot : kotlin/Enum<com.eignex.koblas/B
 }
 
 abstract interface com.eignex.koblas.dense/Blas : com.eignex.koblas/Backend { // com.eignex.koblas.dense/Blas|null[0]
+    open val vectorKernels // com.eignex.koblas.dense/Blas.vectorKernels|{}vectorKernels[0]
+        open fun <get-vectorKernels>(): com.eignex.koblas.dense/VectorKernels // com.eignex.koblas.dense/Blas.vectorKernels.<get-vectorKernels>|<get-vectorKernels>(){}[0]
+
     abstract fun gemm(kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean, com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Double, com.eignex.koblas/DenseMatrix) // com.eignex.koblas.dense/Blas.gemm|gemm(kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Double;com.eignex.koblas.DenseMatrix){}[0]
     abstract fun gemv(kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/DoubleArray, kotlin/Double, kotlin/DoubleArray, kotlin/Boolean = ...) // com.eignex.koblas.dense/Blas.gemv|gemv(kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.DoubleArray;kotlin.Double;kotlin.DoubleArray;kotlin.Boolean){}[0]
     abstract fun symm(kotlin/Double, com.eignex.koblas/DenseMatrix, com.eignex.koblas/DenseMatrix, kotlin/Double, com.eignex.koblas/DenseMatrix, kotlin/Boolean = ..., kotlin/Boolean = ...) // com.eignex.koblas.dense/Blas.symm|symm(kotlin.Double;com.eignex.koblas.DenseMatrix;com.eignex.koblas.DenseMatrix;kotlin.Double;com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Boolean){}[0]
@@ -68,6 +71,9 @@ abstract interface com.eignex.koblas.dense/Blas : com.eignex.koblas/Backend { //
 }
 
 abstract interface com.eignex.koblas.dense/Lapack : com.eignex.koblas/Backend { // com.eignex.koblas.dense/Lapack|null[0]
+    open val vectorKernels // com.eignex.koblas.dense/Lapack.vectorKernels|{}vectorKernels[0]
+        open fun <get-vectorKernels>(): com.eignex.koblas.dense/VectorKernels // com.eignex.koblas.dense/Lapack.vectorKernels.<get-vectorKernels>|<get-vectorKernels>(){}[0]
+
     abstract fun applyQInto(com.eignex.koblas.dense/QrDecomposition, kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean = ...): kotlin/DoubleArray // com.eignex.koblas.dense/Lapack.applyQInto|applyQInto(com.eignex.koblas.dense.QrDecomposition;kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean){}[0]
     abstract fun factor(com.eignex.koblas/DenseMatrix): com.eignex.koblas.dense/LuDecomposition // com.eignex.koblas.dense/Lapack.factor|factor(com.eignex.koblas.DenseMatrix){}[0]
     abstract fun ldl(com.eignex.koblas/DenseMatrix, com.eignex.koblas/Workspace? = ...): com.eignex.koblas.dense/LdlDecomposition // com.eignex.koblas.dense/Lapack.ldl|ldl(com.eignex.koblas.DenseMatrix;com.eignex.koblas.Workspace?){}[0]
@@ -106,7 +112,10 @@ abstract interface com.eignex.koblas.dense/Lapack : com.eignex.koblas/Backend { 
     open fun trtri(com.eignex.koblas/DenseMatrix, kotlin/Boolean, kotlin/Boolean = ...): com.eignex.koblas/DenseMatrix // com.eignex.koblas.dense/Lapack.trtri|trtri(com.eignex.koblas.DenseMatrix;kotlin.Boolean;kotlin.Boolean){}[0]
 }
 
-abstract interface com.eignex.koblas.dense/LinearAlgebra : com.eignex.koblas.dense/Blas, com.eignex.koblas.dense/Lapack // com.eignex.koblas.dense/LinearAlgebra|null[0]
+abstract interface com.eignex.koblas.dense/LinearAlgebra : com.eignex.koblas.dense/Blas, com.eignex.koblas.dense/Lapack { // com.eignex.koblas.dense/LinearAlgebra|null[0]
+    open val vectorKernels // com.eignex.koblas.dense/LinearAlgebra.vectorKernels|{}vectorKernels[0]
+        open fun <get-vectorKernels>(): com.eignex.koblas.dense/VectorKernels // com.eignex.koblas.dense/LinearAlgebra.vectorKernels.<get-vectorKernels>|<get-vectorKernels>(){}[0]
+}
 
 abstract interface com.eignex.koblas.dense/VectorKernels : com.eignex.koblas/Backend { // com.eignex.koblas.dense/VectorKernels|null[0]
     abstract fun asum(kotlin/DoubleArray, kotlin/Int, kotlin/Int): kotlin/Double // com.eignex.koblas.dense/VectorKernels.asum|asum(kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
@@ -164,8 +173,6 @@ abstract interface com.eignex.koblas/Backend { // com.eignex.koblas/Backend|null
         abstract fun <get-name>(): kotlin/String // com.eignex.koblas/Backend.name.<get-name>|<get-name>(){}[0]
     open val priority // com.eignex.koblas/Backend.priority|{}priority[0]
         open fun <get-priority>(): kotlin/Int // com.eignex.koblas/Backend.priority.<get-priority>|<get-priority>(){}[0]
-    open val vectorKernels // com.eignex.koblas/Backend.vectorKernels|{}vectorKernels[0]
-        open fun <get-vectorKernels>(): com.eignex.koblas.dense/VectorKernels // com.eignex.koblas/Backend.vectorKernels.<get-vectorKernels>|<get-vectorKernels>(){}[0]
 }
 
 abstract interface com.eignex.koblas/MatrixLike { // com.eignex.koblas/MatrixLike|null[0]
