@@ -13,6 +13,8 @@ private const val SPARSE_DOT_SIMD_MIN = 128
 internal actual object PlatformSparseVectorKernels : SparseVectorKernels {
     actual override val name: String get() = if (simdAvailable) "simd-sparse" else "reference"
 
+    override val isPortable: Boolean get() = true
+
     /** Computes usdot with the dense operand gathered a register at a time. */
     actual override fun dot(x: SparseVector, y: DoubleArray): Double {
         requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }

@@ -14,6 +14,12 @@ public interface Backend {
      * sparse counterpart). [registerBackend] picks the highest; the portable reference is 0.
      */
     public val priority: Int get() = 0
+
+    /**
+     * Whether this is koblas's own implementation rather than a binding to a host library. The compiled-in
+     * SIMD kernels are portable however fast they are; only something calling out counts as accelerated.
+     */
+    public val isPortable: Boolean get() = false
 }
 
 /**

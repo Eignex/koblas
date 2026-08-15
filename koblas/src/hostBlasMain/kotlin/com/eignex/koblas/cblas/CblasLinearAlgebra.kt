@@ -25,6 +25,8 @@ public class CblasLinearAlgebra private constructor(private val blas: CblasBlas,
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY
 
+    override val isPortable: Boolean get() = false
+
     /** The BLAS half's kernels, so both halves' inherited routines agree. */
     override val vectorKernels: VectorKernels get() = blas.vectorKernels
 

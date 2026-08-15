@@ -16,6 +16,8 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) :
     Lapack by ReferenceLapack(kernels) {
     override val name: String get() = "reference"
 
+    override val isPortable: Boolean get() = true
+
     override val priority: Int get() = 0
 
     /** This backend's kernels, or the process default when it was given none. */

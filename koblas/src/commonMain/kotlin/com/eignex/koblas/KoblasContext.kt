@@ -41,6 +41,11 @@ public class KoblasContext(
     override val name: String
         get() = listOf(blas, lapack, sparseBlas, sparseLapack).map { it.name }.distinct().joinToString("+")
 
+    /** True when every half is koblas's own, so the context calls out to nothing. */
+    override val isPortable: Boolean
+        get() = vectorKernels.isPortable && blas.isPortable && lapack.isPortable &&
+            sparseVectorKernels.isPortable && sparseBlas.isPortable && sparseLapack.isPortable
+
     /** The strongest half's priority, so a context is at least as preferred as the best thing in it. */
     override val priority: Int
         get() = maxOf(

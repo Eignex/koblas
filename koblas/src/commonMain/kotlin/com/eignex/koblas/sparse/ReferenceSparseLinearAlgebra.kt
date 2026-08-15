@@ -5,4 +5,6 @@ public object ReferenceSparseLinearAlgebra :
     SparseLinearAlgebra,
     SparseVectorKernels {
     override val name: String get() = "reference"
+
+    override val isPortable: Boolean get() = true
 }

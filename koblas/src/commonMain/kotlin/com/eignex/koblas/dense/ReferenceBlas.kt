@@ -16,6 +16,8 @@ import com.eignex.koblas.requireShape
 internal class ReferenceBlas(private val kernels: VectorKernels? = null) : Blas {
     override val name: String get() = "reference"
 
+    override val isPortable: Boolean get() = true
+
     /** These routines' kernels, or the process default when they were given none. */
     override val vectorKernels: VectorKernels get() = kernels ?: koblas.vectorKernels
 

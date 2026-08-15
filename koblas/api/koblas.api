@@ -1,10 +1,12 @@
 public abstract interface class com/eignex/koblas/Backend {
 	public abstract fun getName ()Ljava/lang/String;
 	public fun getPriority ()I
+	public fun isPortable ()Z
 }
 
 public final class com/eignex/koblas/Backend$DefaultImpls {
 	public static fun getPriority (Lcom/eignex/koblas/Backend;)I
+	public static fun isPortable (Lcom/eignex/koblas/Backend;)Z
 }
 
 public final class com/eignex/koblas/BackendKt {
@@ -144,6 +146,7 @@ public final class com/eignex/koblas/KoblasContext : com/eignex/koblas/dense/Bla
 	public fun getVectorKernels ()Lcom/eignex/koblas/dense/VectorKernels;
 	public fun invert (Lcom/eignex/koblas/dense/CholeskyDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/DenseMatrix;
 	public fun invert (Lcom/eignex/koblas/dense/LuDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/DenseMatrix;
+	public fun isPortable ()Z
 	public fun ldl (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/LdlDecomposition;
 	public fun ldl (Lcom/eignex/koblas/SparseMatrix;Lcom/eignex/koblas/sparse/SparseLdlPolicy;Lcom/eignex/koblas/sparse/SparseOrdering;)Lcom/eignex/koblas/sparse/SparseFactorization;
 	public fun qr (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/QrDecomposition;
@@ -421,6 +424,7 @@ public final class com/eignex/koblas/dense/Blas$DefaultImpls {
 	public static fun ger (Lcom/eignex/koblas/dense/Blas;D[D[DLcom/eignex/koblas/DenseMatrix;)V
 	public static fun getPriority (Lcom/eignex/koblas/dense/Blas;)I
 	public static fun getVectorKernels (Lcom/eignex/koblas/dense/Blas;)Lcom/eignex/koblas/dense/VectorKernels;
+	public static fun isPortable (Lcom/eignex/koblas/dense/Blas;)Z
 	public static synthetic fun symm$default (Lcom/eignex/koblas/dense/Blas;DLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseMatrix;DLcom/eignex/koblas/DenseMatrix;ZZILjava/lang/Object;)V
 	public static synthetic fun symv$default (Lcom/eignex/koblas/dense/Blas;DLcom/eignex/koblas/DenseMatrix;[DD[DZILjava/lang/Object;)V
 	public static fun syr (Lcom/eignex/koblas/dense/Blas;DLcom/eignex/koblas/VectorLike;Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/dense/Uplo;)V
@@ -563,6 +567,7 @@ public final class com/eignex/koblas/dense/Lapack$DefaultImpls {
 	public static fun invert (Lcom/eignex/koblas/dense/Lapack;Lcom/eignex/koblas/dense/LuDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/DenseMatrix;
 	public static synthetic fun invert$default (Lcom/eignex/koblas/dense/Lapack;Lcom/eignex/koblas/dense/CholeskyDecomposition;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/DenseMatrix;
 	public static synthetic fun invert$default (Lcom/eignex/koblas/dense/Lapack;Lcom/eignex/koblas/dense/LuDecomposition;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/DenseMatrix;
+	public static fun isPortable (Lcom/eignex/koblas/dense/Lapack;)Z
 	public static synthetic fun ldl$default (Lcom/eignex/koblas/dense/Lapack;Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/dense/LdlDecomposition;
 	public static synthetic fun qr$default (Lcom/eignex/koblas/dense/Lapack;Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/dense/QrDecomposition;
 	public static fun qrPivoted (Lcom/eignex/koblas/dense/Lapack;Lcom/eignex/koblas/DenseMatrix;DLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/PivotedQrDecomposition;
@@ -638,6 +643,7 @@ public final class com/eignex/koblas/dense/LinearAlgebra$DefaultImpls {
 	public static fun getVectorKernels (Lcom/eignex/koblas/dense/LinearAlgebra;)Lcom/eignex/koblas/dense/VectorKernels;
 	public static fun invert (Lcom/eignex/koblas/dense/LinearAlgebra;Lcom/eignex/koblas/dense/CholeskyDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/DenseMatrix;
 	public static fun invert (Lcom/eignex/koblas/dense/LinearAlgebra;Lcom/eignex/koblas/dense/LuDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/DenseMatrix;
+	public static fun isPortable (Lcom/eignex/koblas/dense/LinearAlgebra;)Z
 	public static fun qrPivoted (Lcom/eignex/koblas/dense/LinearAlgebra;Lcom/eignex/koblas/DenseMatrix;DLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/PivotedQrDecomposition;
 	public static fun rcond (Lcom/eignex/koblas/dense/LinearAlgebra;Lcom/eignex/koblas/dense/LuDecomposition;DLcom/eignex/koblas/Workspace;)D
 	public static fun solve (Lcom/eignex/koblas/dense/LinearAlgebra;Lcom/eignex/koblas/dense/CholeskyDecomposition;Lcom/eignex/koblas/DenseVector;)Lcom/eignex/koblas/DenseVector;
@@ -760,6 +766,7 @@ public final class com/eignex/koblas/dense/ReferenceBackend : com/eignex/koblas/
 	public fun getVectorKernels ()Lcom/eignex/koblas/dense/VectorKernels;
 	public fun invert (Lcom/eignex/koblas/dense/CholeskyDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/DenseMatrix;
 	public fun invert (Lcom/eignex/koblas/dense/LuDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/DenseMatrix;
+	public fun isPortable ()Z
 	public fun ldl (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/LdlDecomposition;
 	public fun qr (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/QrDecomposition;
 	public fun qrPivoted (Lcom/eignex/koblas/DenseMatrix;DLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/PivotedQrDecomposition;
@@ -840,6 +847,7 @@ public abstract interface class com/eignex/koblas/dense/VectorKernels : com/eign
 public final class com/eignex/koblas/dense/VectorKernels$DefaultImpls {
 	public static fun dot4 (Lcom/eignex/koblas/dense/VectorKernels;[DII[DII[DI)V
 	public static fun getPriority (Lcom/eignex/koblas/dense/VectorKernels;)I
+	public static fun isPortable (Lcom/eignex/koblas/dense/VectorKernels;)Z
 }
 
 public final class com/eignex/koblas/hostblas/HostBlas : com/eignex/koblas/dense/Blas {
@@ -853,6 +861,7 @@ public final class com/eignex/koblas/hostblas/HostBlas : com/eignex/koblas/dense
 	public fun getName ()Ljava/lang/String;
 	public fun getPriority ()I
 	public fun getVectorKernels ()Lcom/eignex/koblas/dense/VectorKernels;
+	public fun isPortable ()Z
 	public fun symm (DLcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/DenseMatrix;DLcom/eignex/koblas/DenseMatrix;ZZ)V
 	public fun symv (DLcom/eignex/koblas/DenseMatrix;[DD[DZ)V
 	public fun syr (DLcom/eignex/koblas/VectorLike;Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/dense/Uplo;)V
@@ -879,6 +888,7 @@ public final class com/eignex/koblas/hostblas/HostLapack : com/eignex/koblas/den
 	public fun getVectorKernels ()Lcom/eignex/koblas/dense/VectorKernels;
 	public fun invert (Lcom/eignex/koblas/dense/CholeskyDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/DenseMatrix;
 	public fun invert (Lcom/eignex/koblas/dense/LuDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/DenseMatrix;
+	public fun isPortable ()Z
 	public fun ldl (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/LdlDecomposition;
 	public fun qr (Lcom/eignex/koblas/DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/QrDecomposition;
 	public fun qrPivoted (Lcom/eignex/koblas/DenseMatrix;DLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/PivotedQrDecomposition;
@@ -924,6 +934,7 @@ public final class com/eignex/koblas/sparse/ReferenceSparseLinearAlgebra : com/e
 	public fun gemv (Lcom/eignex/koblas/SparseMatrix;[DZ)[D
 	public fun getName ()Ljava/lang/String;
 	public fun getPriority ()I
+	public fun isPortable ()Z
 	public fun ldl (Lcom/eignex/koblas/SparseMatrix;Lcom/eignex/koblas/sparse/SparseLdlPolicy;Lcom/eignex/koblas/sparse/SparseOrdering;)Lcom/eignex/koblas/sparse/SparseFactorization;
 	public fun nrm2 (Lcom/eignex/koblas/SparseVector;)D
 	public fun scatter (Lcom/eignex/koblas/SparseVector;[D)V
@@ -969,6 +980,7 @@ public final class com/eignex/koblas/sparse/SparseBlas$DefaultImpls {
 	public static synthetic fun gemv$default (Lcom/eignex/koblas/sparse/SparseBlas;Lcom/eignex/koblas/SparseMatrix;Lcom/eignex/koblas/DenseVector;ZILjava/lang/Object;)Lcom/eignex/koblas/DenseVector;
 	public static synthetic fun gemv$default (Lcom/eignex/koblas/sparse/SparseBlas;Lcom/eignex/koblas/SparseMatrix;[DZILjava/lang/Object;)[D
 	public static fun getPriority (Lcom/eignex/koblas/sparse/SparseBlas;)I
+	public static fun isPortable (Lcom/eignex/koblas/sparse/SparseBlas;)Z
 	public static fun trsv (Lcom/eignex/koblas/sparse/SparseBlas;Lcom/eignex/koblas/SparseMatrix;Lcom/eignex/koblas/DenseVector;ZZZ)V
 	public static fun trsv (Lcom/eignex/koblas/sparse/SparseBlas;Lcom/eignex/koblas/SparseMatrix;[DZZZ)V
 	public static synthetic fun trsv$default (Lcom/eignex/koblas/sparse/SparseBlas;Lcom/eignex/koblas/SparseMatrix;Lcom/eignex/koblas/DenseVector;ZZZILjava/lang/Object;)V
@@ -1017,6 +1029,7 @@ public final class com/eignex/koblas/sparse/SparseLapack$DefaultImpls {
 	public static fun factor (Lcom/eignex/koblas/sparse/SparseLapack;Lcom/eignex/koblas/SparseMatrix;ZD)Lcom/eignex/koblas/sparse/SparseFactorization;
 	public static synthetic fun factor$default (Lcom/eignex/koblas/sparse/SparseLapack;Lcom/eignex/koblas/SparseMatrix;ZDILjava/lang/Object;)Lcom/eignex/koblas/sparse/SparseFactorization;
 	public static fun getPriority (Lcom/eignex/koblas/sparse/SparseLapack;)I
+	public static fun isPortable (Lcom/eignex/koblas/sparse/SparseLapack;)Z
 	public static fun ldl (Lcom/eignex/koblas/sparse/SparseLapack;Lcom/eignex/koblas/SparseMatrix;Lcom/eignex/koblas/sparse/SparseLdlPolicy;Lcom/eignex/koblas/sparse/SparseOrdering;)Lcom/eignex/koblas/sparse/SparseFactorization;
 	public static synthetic fun ldl$default (Lcom/eignex/koblas/sparse/SparseLapack;Lcom/eignex/koblas/SparseMatrix;Lcom/eignex/koblas/sparse/SparseLdlPolicy;Lcom/eignex/koblas/sparse/SparseOrdering;ILjava/lang/Object;)Lcom/eignex/koblas/sparse/SparseFactorization;
 	public static fun solve (Lcom/eignex/koblas/sparse/SparseLapack;Lcom/eignex/koblas/sparse/SparseFactorization;[DZ)[D
@@ -1079,6 +1092,7 @@ public final class com/eignex/koblas/sparse/SparseLinearAlgebra$DefaultImpls {
 	public static fun gemv (Lcom/eignex/koblas/sparse/SparseLinearAlgebra;Lcom/eignex/koblas/SparseMatrix;Lcom/eignex/koblas/DenseVector;Z)Lcom/eignex/koblas/DenseVector;
 	public static fun gemv (Lcom/eignex/koblas/sparse/SparseLinearAlgebra;Lcom/eignex/koblas/SparseMatrix;[DZ)[D
 	public static fun getPriority (Lcom/eignex/koblas/sparse/SparseLinearAlgebra;)I
+	public static fun isPortable (Lcom/eignex/koblas/sparse/SparseLinearAlgebra;)Z
 	public static fun ldl (Lcom/eignex/koblas/sparse/SparseLinearAlgebra;Lcom/eignex/koblas/SparseMatrix;Lcom/eignex/koblas/sparse/SparseLdlPolicy;Lcom/eignex/koblas/sparse/SparseOrdering;)Lcom/eignex/koblas/sparse/SparseFactorization;
 	public static fun solve (Lcom/eignex/koblas/sparse/SparseLinearAlgebra;Lcom/eignex/koblas/sparse/SparseFactorization;[DZ)[D
 	public static fun solveInto (Lcom/eignex/koblas/sparse/SparseLinearAlgebra;Lcom/eignex/koblas/sparse/SparseFactorization;[D[DZLcom/eignex/koblas/Workspace;)[D
@@ -1158,6 +1172,7 @@ public final class com/eignex/koblas/sparse/SparseVectorKernels$DefaultImpls {
 	public static fun dot (Lcom/eignex/koblas/sparse/SparseVectorKernels;Lcom/eignex/koblas/SparseVector;Lcom/eignex/koblas/SparseVector;)D
 	public static fun dot (Lcom/eignex/koblas/sparse/SparseVectorKernels;Lcom/eignex/koblas/SparseVector;[D)D
 	public static fun getPriority (Lcom/eignex/koblas/sparse/SparseVectorKernels;)I
+	public static fun isPortable (Lcom/eignex/koblas/sparse/SparseVectorKernels;)Z
 	public static fun nrm2 (Lcom/eignex/koblas/sparse/SparseVectorKernels;Lcom/eignex/koblas/SparseVector;)D
 	public static fun scatter (Lcom/eignex/koblas/sparse/SparseVectorKernels;Lcom/eignex/koblas/SparseVector;[D)V
 }
@@ -1179,6 +1194,7 @@ public final class com/eignex/koblas/umfpack/UmfpackSparseLapack : com/eignex/ko
 	public fun factor (Lcom/eignex/koblas/SparseMatrix;ZD)Lcom/eignex/koblas/sparse/SparseFactorization;
 	public fun getName ()Ljava/lang/String;
 	public fun getPriority ()I
+	public fun isPortable ()Z
 	public fun ldl (Lcom/eignex/koblas/SparseMatrix;Lcom/eignex/koblas/sparse/SparseLdlPolicy;Lcom/eignex/koblas/sparse/SparseOrdering;)Lcom/eignex/koblas/sparse/SparseFactorization;
 	public fun solve (Lcom/eignex/koblas/sparse/SparseFactorization;[DZ)[D
 	public fun solveInto (Lcom/eignex/koblas/sparse/SparseFactorization;[D[DZLcom/eignex/koblas/Workspace;)[D

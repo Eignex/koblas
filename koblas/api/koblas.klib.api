@@ -173,6 +173,8 @@ abstract interface com.eignex.koblas.sparse/SparseVectorKernels : com.eignex.kob
 abstract interface com.eignex.koblas/Backend { // com.eignex.koblas/Backend|null[0]
     abstract val name // com.eignex.koblas/Backend.name|{}name[0]
         abstract fun <get-name>(): kotlin/String // com.eignex.koblas/Backend.name.<get-name>|<get-name>(){}[0]
+    open val isPortable // com.eignex.koblas/Backend.isPortable|{}isPortable[0]
+        open fun <get-isPortable>(): kotlin/Boolean // com.eignex.koblas/Backend.isPortable.<get-isPortable>|<get-isPortable>(){}[0]
     open val priority // com.eignex.koblas/Backend.priority|{}priority[0]
         open fun <get-priority>(): kotlin/Int // com.eignex.koblas/Backend.priority.<get-priority>|<get-priority>(){}[0]
 }
@@ -330,6 +332,8 @@ final class com.eignex.koblas.dense/QrDecomposition { // com.eignex.koblas.dense
 final class com.eignex.koblas.dense/ReferenceBackend : com.eignex.koblas.dense/Blas, com.eignex.koblas.dense/Lapack, com.eignex.koblas.dense/LinearAlgebra { // com.eignex.koblas.dense/ReferenceBackend|null[0]
     constructor <init>(com.eignex.koblas.dense/VectorKernels? = ...) // com.eignex.koblas.dense/ReferenceBackend.<init>|<init>(com.eignex.koblas.dense.VectorKernels?){}[0]
 
+    final val isPortable // com.eignex.koblas.dense/ReferenceBackend.isPortable|{}isPortable[0]
+        final fun <get-isPortable>(): kotlin/Boolean // com.eignex.koblas.dense/ReferenceBackend.isPortable.<get-isPortable>|<get-isPortable>(){}[0]
     final val name // com.eignex.koblas.dense/ReferenceBackend.name|{}name[0]
         final fun <get-name>(): kotlin/String // com.eignex.koblas.dense/ReferenceBackend.name.<get-name>|<get-name>(){}[0]
     final val priority // com.eignex.koblas.dense/ReferenceBackend.priority|{}priority[0]
@@ -539,6 +543,8 @@ final class com.eignex.koblas/KoblasContext : com.eignex.koblas.dense/Blas, com.
 
     final val blas // com.eignex.koblas/KoblasContext.blas|{}blas[0]
         final fun <get-blas>(): com.eignex.koblas.dense/Blas // com.eignex.koblas/KoblasContext.blas.<get-blas>|<get-blas>(){}[0]
+    final val isPortable // com.eignex.koblas/KoblasContext.isPortable|{}isPortable[0]
+        final fun <get-isPortable>(): kotlin/Boolean // com.eignex.koblas/KoblasContext.isPortable.<get-isPortable>|<get-isPortable>(){}[0]
     final val lapack // com.eignex.koblas/KoblasContext.lapack|{}lapack[0]
         final fun <get-lapack>(): com.eignex.koblas.dense/Lapack // com.eignex.koblas/KoblasContext.lapack.<get-lapack>|<get-lapack>(){}[0]
     final val name // com.eignex.koblas/KoblasContext.name|{}name[0]
@@ -720,6 +726,8 @@ final class com.eignex.koblas/Workspace { // com.eignex.koblas/Workspace|null[0]
 sealed class com.eignex.koblas/KoblasException : kotlin/IllegalArgumentException // com.eignex.koblas/KoblasException|null[0]
 
 final object com.eignex.koblas.sparse/ReferenceSparseLinearAlgebra : com.eignex.koblas.sparse/SparseLinearAlgebra, com.eignex.koblas.sparse/SparseVectorKernels { // com.eignex.koblas.sparse/ReferenceSparseLinearAlgebra|null[0]
+    final val isPortable // com.eignex.koblas.sparse/ReferenceSparseLinearAlgebra.isPortable|{}isPortable[0]
+        final fun <get-isPortable>(): kotlin/Boolean // com.eignex.koblas.sparse/ReferenceSparseLinearAlgebra.isPortable.<get-isPortable>|<get-isPortable>(){}[0]
     final val name // com.eignex.koblas.sparse/ReferenceSparseLinearAlgebra.name|{}name[0]
         final fun <get-name>(): kotlin/String // com.eignex.koblas.sparse/ReferenceSparseLinearAlgebra.name.<get-name>|<get-name>(){}[0]
 }
@@ -826,6 +834,8 @@ final inline fun <#A: kotlin/Any?> (com.eignex.koblas/Workspace).com.eignex.kobl
 final class com.eignex.koblas.cblas/CblasLinearAlgebra : com.eignex.koblas.dense/Blas, com.eignex.koblas.dense/Lapack, com.eignex.koblas.dense/LinearAlgebra { // com.eignex.koblas.cblas/CblasLinearAlgebra|null[0]
     constructor <init>() // com.eignex.koblas.cblas/CblasLinearAlgebra.<init>|<init>(){}[0]
 
+    final val isPortable // com.eignex.koblas.cblas/CblasLinearAlgebra.isPortable|{}isPortable[0]
+        final fun <get-isPortable>(): kotlin/Boolean // com.eignex.koblas.cblas/CblasLinearAlgebra.isPortable.<get-isPortable>|<get-isPortable>(){}[0]
     final val name // com.eignex.koblas.cblas/CblasLinearAlgebra.name|{}name[0]
         final fun <get-name>(): kotlin/String // com.eignex.koblas.cblas/CblasLinearAlgebra.name.<get-name>|<get-name>(){}[0]
     final val priority // com.eignex.koblas.cblas/CblasLinearAlgebra.priority|{}priority[0]
