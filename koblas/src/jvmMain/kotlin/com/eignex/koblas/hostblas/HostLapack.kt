@@ -5,6 +5,14 @@ import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.dense.Blas
+import com.eignex.koblas.dense.Cblas.COL_MAJOR
+import com.eignex.koblas.dense.Cblas.LEFT
+import com.eignex.koblas.dense.Cblas.LOWER
+import com.eignex.koblas.dense.Cblas.NON_UNIT
+import com.eignex.koblas.dense.Cblas.NO_TRANS
+import com.eignex.koblas.dense.Cblas.TRANS
+import com.eignex.koblas.dense.Cblas.UNIT
+import com.eignex.koblas.dense.Cblas.UPPER
 import com.eignex.koblas.dense.CholeskyDecomposition
 import com.eignex.koblas.dense.CholeskyPolicy
 import com.eignex.koblas.dense.Lapack
@@ -15,16 +23,9 @@ import com.eignex.koblas.dense.QrDecomposition
 import com.eignex.koblas.dense.ReferenceLinearAlgebra
 import com.eignex.koblas.dense.cholesky
 import com.eignex.koblas.dense.lu
+import com.eignex.koblas.dense.permuteRows
 import com.eignex.koblas.dense.rankOfPivotedR
 import com.eignex.koblas.dispatchThresholds
-import com.eignex.koblas.hostblas.HostBlasCalls.COL_MAJOR
-import com.eignex.koblas.hostblas.HostBlasCalls.LEFT
-import com.eignex.koblas.hostblas.HostBlasCalls.LOWER
-import com.eignex.koblas.hostblas.HostBlasCalls.NON_UNIT
-import com.eignex.koblas.hostblas.HostBlasCalls.NO_TRANS
-import com.eignex.koblas.hostblas.HostBlasCalls.TRANS
-import com.eignex.koblas.hostblas.HostBlasCalls.UNIT
-import com.eignex.koblas.hostblas.HostBlasCalls.UPPER
 import com.eignex.koblas.lapackFailedAt
 import com.eignex.koblas.requireFactored
 import com.eignex.koblas.requireShape
@@ -141,19 +142,6 @@ public class HostLapack internal constructor() : Lapack {
             trsmLeft(f, n, out.data, nrhs, UPPER, NO_TRANS, NON_UNIT)
         }
         return out
-    }
-
-    /** `dst(i, c) = src(piv(i), c)` when [gather], its inverse otherwise, over an `n × nrhs` pair. */
-    @Suppress("LongParameterList")
-    private fun permuteRows(src: DoubleArray, dst: DoubleArray, n: Int, nrhs: Int, piv: IntArray, gather: Boolean) {
-        for (c in 0 until nrhs) {
-            val base = c * n
-            if (gather) {
-                for (i in 0 until n) dst[base + i] = src[base + piv[i]]
-            } else {
-                for (i in 0 until n) dst[base + piv[i]] = src[base + i]
-            }
-        }
     }
 
     /** Left-side dtrsm over a packed factor buffer. */

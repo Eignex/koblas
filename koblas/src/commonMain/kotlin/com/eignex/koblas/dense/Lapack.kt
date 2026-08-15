@@ -81,18 +81,18 @@ public interface Lapack : Backend {
             b.data.copyInto(y)
             trsmCore(vectorKernels, f, n, y, nrhs, lower = false, transpose = true, unitDiag = false)
             trsmCore(vectorKernels, f, n, y, nrhs, lower = true, transpose = true, unitDiag = true)
-            scatterRows(y, out.data, n, nrhs, lu.piv)
+            permuteRows(y, out.data, n, nrhs, lu.piv, gather = false)
             workspace?.release(y)
             out
         } else {
             // The gather cannot read B in place once out aliases it, so that case stages.
             if (out === b) {
                 val staged = workspace?.take(n * nrhs) ?: DoubleArray(n * nrhs)
-                gatherRows(b.data, staged, n, nrhs, lu.piv)
+                permuteRows(b.data, staged, n, nrhs, lu.piv, gather = true)
                 staged.copyInto(out.data)
                 workspace?.release(staged)
             } else {
-                gatherRows(b.data, out.data, n, nrhs, lu.piv)
+                permuteRows(b.data, out.data, n, nrhs, lu.piv, gather = true)
             }
             trsmCore(vectorKernels, f, n, out.data, nrhs, lower = true, transpose = false, unitDiag = true)
             trsmCore(vectorKernels, f, n, out.data, nrhs, lower = false, transpose = false, unitDiag = false)
@@ -518,18 +518,19 @@ private inline fun solveColumnwise(
     return out
 }
 
-/** dst(i, c) = src(piv(i), c) over an `n × nrhs` column-major pair. [dst] must not alias [src]. */
-private fun gatherRows(src: DoubleArray, dst: DoubleArray, n: Int, nrhs: Int, piv: IntArray) {
+/**
+ * Move rows between pivot order and original order for an `nrhs`-column right-hand side, the permutation
+ * an LU solve applies before its triangular sweeps and undoes after them.
+ *
+ * [gather] reads `src` in original order and writes pivot order; otherwise the reverse.
+ */
+internal fun permuteRows(src: DoubleArray, dst: DoubleArray, n: Int, nrhs: Int, piv: IntArray, gather: Boolean) {
     for (c in 0 until nrhs) {
         val base = c * n
-        for (i in 0 until n) dst[base + i] = src[base + piv[i]]
-    }
-}
-
-/** dst(piv(i), c) = src(i, c), the inverse of [gatherRows]. */
-private fun scatterRows(src: DoubleArray, dst: DoubleArray, n: Int, nrhs: Int, piv: IntArray) {
-    for (c in 0 until nrhs) {
-        val base = c * n
-        for (i in 0 until n) dst[base + piv[i]] = src[base + i]
+        if (gather) {
+            for (i in 0 until n) dst[base + i] = src[base + piv[i]]
+        } else {
+            for (i in 0 until n) dst[base + piv[i]] = src[base + i]
+        }
     }
 }
