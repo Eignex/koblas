@@ -26,7 +26,7 @@ internal class ReferenceLapack(private val kernels: VectorKernels? = null) : Lap
     /** These routines' kernels, or the process default when they were given none. */
     override val vectorKernels: VectorKernels get() = kernels ?: koblas.vectorKernels
 
-    @Suppress("CyclomaticComplexMethod", "LongMethod") // netlib dsytf2's control flow, kept recognizable
+    @Suppress("CyclomaticComplexMethod") // netlib dsytf2's control flow, kept recognizable
     override fun ldl(a: DenseMatrix, workspace: Workspace?): LdlDecomposition {
         requireShape(a.rows == a.cols) { "ldl: matrix must be square, got ${a.rows}x${a.cols}" }
         val n = a.rows
@@ -73,26 +73,7 @@ internal class ReferenceLapack(private val kernels: VectorKernels? = null) : Lap
                 }
             }
             val kk = k + kstep - 1
-            if (kp != kk) {
-                for (i in kp + 1 until n) {
-                    val t = w[i + kk * n]
-                    w[i + kk * n] = w[i + kp * n]
-                    w[i + kp * n] = t
-                }
-                for (j in kk + 1 until kp) {
-                    val t = w[j + kk * n]
-                    w[j + kk * n] = w[kp + j * n]
-                    w[kp + j * n] = t
-                }
-                val t = w[kk + kk * n]
-                w[kk + kk * n] = w[kp + kp * n]
-                w[kp + kp * n] = t
-                if (kstep == 2) {
-                    val s = w[(k + 1) + k * n]
-                    w[(k + 1) + k * n] = w[kp + k * n]
-                    w[kp + k * n] = s
-                }
-            }
+            if (kp != kk) swapSymmetric(w, n, k, kk, kp, kstep)
             if (kstep == 1) {
                 val d11 = 1.0 / w[k + k * n]
                 for (j in k + 1 until n) {
@@ -135,6 +116,32 @@ internal class ReferenceLapack(private val kernels: VectorKernels? = null) : Lap
             workspace.release(colK)
         }
         return LdlDecomposition(n, w, ipiv, failedAt)
+    }
+
+    /**
+     * Exchange rows and columns [kk] and [kp] of the lower triangle in [w], the symmetric swap `dsytf2`
+     * makes once it has chosen a pivot. Pure data movement, no arithmetic.
+     */
+    @Suppress("LongParameterList") // the pivot pair plus the step width, all of which the caller holds
+    private fun swapSymmetric(w: DoubleArray, n: Int, k: Int, kk: Int, kp: Int, kstep: Int) {
+        for (i in kp + 1 until n) {
+            val t = w[i + kk * n]
+            w[i + kk * n] = w[i + kp * n]
+            w[i + kp * n] = t
+        }
+        for (j in kk + 1 until kp) {
+            val t = w[j + kk * n]
+            w[j + kk * n] = w[kp + j * n]
+            w[kp + j * n] = t
+        }
+        val t = w[kk + kk * n]
+        w[kk + kk * n] = w[kp + kp * n]
+        w[kp + kp * n] = t
+        if (kstep == 2) {
+            val s = w[(k + 1) + k * n]
+            w[(k + 1) + k * n] = w[kp + k * n]
+            w[kp + k * n] = s
+        }
     }
 
     override fun solveInto(ldl: LdlDecomposition, b: DoubleArray, out: DoubleArray): DoubleArray {
