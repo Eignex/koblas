@@ -6,6 +6,14 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.dense.Cblas.COL_MAJOR
+import com.eignex.koblas.dense.Cblas.LEFT
+import com.eignex.koblas.dense.Cblas.LOWER
+import com.eignex.koblas.dense.Cblas.NON_UNIT
+import com.eignex.koblas.dense.Cblas.NO_TRANS
+import com.eignex.koblas.dense.Cblas.TRANS
+import com.eignex.koblas.dense.Cblas.UNIT
+import com.eignex.koblas.dense.Cblas.UPPER
 import com.eignex.koblas.dense.CholeskyDecomposition
 import com.eignex.koblas.dense.CholeskyPolicy
 import com.eignex.koblas.dense.Lapack
@@ -13,6 +21,7 @@ import com.eignex.koblas.dense.LdlDecomposition
 import com.eignex.koblas.dense.LuDecomposition
 import com.eignex.koblas.dense.QrDecomposition
 import com.eignex.koblas.dense.ReferenceLinearAlgebra
+import com.eignex.koblas.dense.permuteRows
 import com.eignex.koblas.lapackFailedAt
 import com.eignex.koblas.requireFactored
 import com.eignex.koblas.requireShape
@@ -20,17 +29,6 @@ import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.invoke
 import kotlinx.cinterop.usePinned
-
-// The CBLAS enums and the LAPACKE layout macro by their ABI integer values, declared as plain int.
-private const val COL_MAJOR = 102
-private const val NO_TRANS = 111
-private const val TRANS = 112
-private const val UPPER = 121
-private const val LOWER = 122
-private const val NON_UNIT = 131
-private const val UNIT = 132
-private const val LEFT = 141
-private const val RIGHT = 142
 
 /** Constructed only when LAPACKE resolved, so a host without it keeps the portable factorizations. */
 internal class CblasLapack(private val f: LapackeFunctions, private val blas: CblasFunctions) : Lapack {
@@ -145,19 +143,6 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
             trsmLeft(lu.lu, n, out.data, nrhs, UPPER, NO_TRANS, NON_UNIT)
         }
         return out
-    }
-
-    /** Writes dst(i, c) = src(piv(i), c) when [gather], its inverse otherwise, over an n by nrhs pair. */
-    @Suppress("LongParameterList")
-    private fun permuteRows(src: DoubleArray, dst: DoubleArray, n: Int, nrhs: Int, piv: IntArray, gather: Boolean) {
-        for (c in 0 until nrhs) {
-            val base = c * n
-            if (gather) {
-                for (i in 0 until n) dst[base + i] = src[base + piv[i]]
-            } else {
-                for (i in 0 until n) dst[base + piv[i]] = src[base + i]
-            }
-        }
     }
 
     override fun ldl(a: DenseMatrix, workspace: Workspace?): LdlDecomposition {
@@ -310,7 +295,13 @@ internal class CblasLapack(private val f: LapackeFunctions, private val blas: Cb
     private fun trsmLeft(a: DoubleArray, n: Int, b: DoubleArray, nrhs: Int, uplo: Int, trans: Int, diag: Int) {
         a.usePinned { ap ->
             b.usePinned { bp ->
-                blas.dtrsm(COL_MAJOR, LEFT, uplo, trans, diag, n, nrhs, 1.0, ap.addressOf(0), n, bp.addressOf(0), n)
+                blas.dtrsm(
+                    COL_MAJOR, LEFT, uplo, trans, diag, n, nrhs, 1.0,
+                    ap.addressOf(
+                        0,
+                    ),
+                    n, bp.addressOf(0), n,
+                )
             }
         }
     }
