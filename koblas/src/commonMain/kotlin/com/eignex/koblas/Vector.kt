@@ -35,9 +35,6 @@ public class DenseVector internal constructor(public val data: DoubleArray) : Ve
         return data[i]
     }
 
-    /** Entry [i] with no bounds check, for kernels that have already validated their indices. */
-    internal fun getUnsafe(i: Int): Double = data[i]
-
     override fun toDoubleArray(): DoubleArray = data.copyOf()
 
     /** Writes [v] at index [i]. */

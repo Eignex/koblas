@@ -36,9 +36,6 @@ internal object HostBlasCalls {
     /** Whether LAPACKE resolved as well; false on a host that ships CBLAS only. */
     val lapackAvailable: Boolean
 
-    /** Why the host BLAS is unusable, or null when it is usable. For diagnostics, not control flow. */
-    val unavailableReason: String?
-
     private val linker = Linker.nativeLinker()
 
     // Pins the on-heap arrays handed over as segments for the call instead of copying them, blocking
@@ -69,12 +66,6 @@ internal object HostBlasCalls {
         // one these bindings declare.
         val ilp64 = resolved && isIlp64OpenBlas(configString(requireNotNull(blas)))
         available = resolved && !ilp64
-        unavailableReason = when {
-            blas == null -> "libopenblas could not be opened; OpenBLAS does not appear to be installed"
-            !resolved -> "libopenblas opened but lacks cblas_dgemm"
-            ilp64 -> "libopenblas reports a 64-bit integer interface, which koblas does not bind"
-            else -> null
-        }
         val lapackeInBlas = available && requireNotNull(blas).find("LAPACKE_dgetrf").isPresent
         // A second library for the hosts that ship LAPACKE outside their OpenBLAS build.
         val extra = if (available && !lapackeInBlas) openLibrary(LAPACKE_SONAMES) else null

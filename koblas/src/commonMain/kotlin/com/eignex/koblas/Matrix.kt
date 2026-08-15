@@ -51,11 +51,6 @@ public class DenseMatrix internal constructor(
 
     /** Entry (i, j) with no bounds check, for kernels that have already validated their indices. */
     internal fun getUnsafe(i: Int, j: Int): Double = data[i + j * rows]
-
-    /** Writes [v] at (i, j) with no bounds check, for kernels that have already validated their indices. */
-    internal fun setUnsafe(i: Int, j: Int, v: Double) {
-        data[i + j * rows] = v
-    }
     override fun toArray(): Array<DoubleArray> = Array(rows) { i ->
         DoubleArray(cols) { j -> data[i + j * rows] }
     }

@@ -122,11 +122,6 @@ internal object OpenBlasLoader {
         }
     }
 
-    val available: Boolean get() = cblas != null
-
-    /** False on a host that ships CBLAS only. */
-    val lapackAvailable: Boolean get() = lapacke != null
-
     /** The library's openblas_get_config string, or empty when the build does not offer one. */
     private fun configString(blas: COpaquePointer): String {
         val symbol = dlsym(blas, "openblas_get_config") ?: return ""
