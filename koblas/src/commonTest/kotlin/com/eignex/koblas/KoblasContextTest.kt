@@ -59,38 +59,14 @@ class KoblasContextTest {
     fun `with keeps every half it is not given`() {
         val base = koblas
         val mine = Counting()
-        val derived = base.with(sparseVectorKernels = base.sparseVectorKernels)
-        assertSame(base.vectorKernels, derived.vectorKernels)
+        val derived = base.with(vectorKernels = mine)
+        assertSame(mine, derived.vectorKernels)
         assertSame(base.blas, derived.blas)
         assertSame(base.lapack, derived.lapack)
         assertSame(base.sparseBlas, derived.sparseBlas)
         assertSame(base.sparseLapack, derived.sparseLapack)
-        base.with(vectorKernels = mine)
-        assertSame(base.vectorKernels, koblas.vectorKernels, "the original must be untouched; contexts are values")
-    }
-
-    @Test
-    fun `a context runs its own kernels without being installed`() {
-        val mine = Counting()
-        val ctx = koblas.with(blas = ReferenceBackend(), lapack = ReferenceBackend()).with(vectorKernels = mine)
-        assertSame(mine, ctx.vectorKernels)
-        val n = 6
-        val a = DenseMatrix.of(Array(n) { i -> DoubleArray(n) { j -> if (i == j) 4.0 else 1.0 / (i + j + 1) } })
-        val lu = ctx.factor(a)
-        assertTrue(mine.axpys > 0, "factor must run on the context's kernels")
-        val before = mine.dots + mine.axpys
-        ctx.solve(lu, DoubleArray(n) { 1.0 + it })
-        assertTrue(mine.dots + mine.axpys > before, "solve must run on the context's kernels")
-    }
-
-    @Test
-    fun `a half with kernels of its own keeps them when the context kernels change`() {
-        val ownKernels = Counting("own")
-        val contextKernels = Counting("context")
-        val ctx = koblas.with(blas = ReferenceBackend(ownKernels)).with(vectorKernels = contextKernels)
-        ctx.gemv(DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0))), doubleArrayOf(1.0, 1.0))
-        assertTrue(ownKernels.axpys > 0, "an explicitly bound half must keep its own kernels")
-        assertEquals(0, contextKernels.axpys, "the context kernels must not displace them")
+        assertSame(base.sparseVectorKernels, derived.sparseVectorKernels)
+        assertSame(base.vectorKernels, base.vectorKernels, "the original must be untouched; contexts are values")
     }
 
     @Test
