@@ -70,9 +70,9 @@ class OperatorsTest {
     @Test
     fun `mismatched shapes are rejected`() {
         val wide = DenseMatrix.zero(2, 3)
-        assertFailsWith<IllegalArgumentException> { a + wide }
-        assertFailsWith<IllegalArgumentException> { a - wide }
-        assertFailsWith<IllegalArgumentException> { x + DenseVector.zero(3) }
-        assertFailsWith<IllegalArgumentException> { x - DenseVector.zero(3) }
+        assertFailsWith<DimensionMismatch> { a + wide }
+        assertFailsWith<DimensionMismatch> { a - wide }
+        assertFailsWith<DimensionMismatch> { x + DenseVector.zero(3) }
+        assertFailsWith<DimensionMismatch> { x - DenseVector.zero(3) }
     }
 }

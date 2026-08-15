@@ -1,6 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.koblas
 import com.eignex.koblas.poisonedTriangle
@@ -214,7 +215,7 @@ class TriangularTest {
     @Test
     fun `trtri rejects a zero on the diagonal`() {
         val singular = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 0.0), doubleArrayOf(3.0, 0.0)))
-        val failure = assertFailsWith<IllegalArgumentException> { trtri(singular, lower = true) }
+        val failure = assertFailsWith<SingularMatrix> { trtri(singular, lower = true) }
         assertTrue("entry 1" in failure.message!!, "should name the zero position: ${failure.message}")
         trtri(singular, lower = true, unitDiag = true)
     }
