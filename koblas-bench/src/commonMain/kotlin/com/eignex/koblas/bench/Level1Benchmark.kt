@@ -1,9 +1,14 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.DenseVector
+import com.eignex.koblas.asum
 import com.eignex.koblas.axpy
 import com.eignex.koblas.dot
+import com.eignex.koblas.iamax
+import com.eignex.koblas.koblas
 import com.eignex.koblas.mathBackend
+import com.eignex.koblas.norm2
+import com.eignex.koblas.scale
 import kotlin.random.Random
 import kotlinx.benchmark.Benchmark
 import kotlinx.benchmark.BenchmarkMode
@@ -33,6 +38,10 @@ class Level1Benchmark {
     private lateinit var x: DenseVector
     private lateinit var y: DenseVector
 
+    /** Four contiguous runs of [len], the layout `dot4` expects. */
+    private lateinit var quad: DoubleArray
+    private val quadOut = DoubleArray(4)
+
     @Setup
     fun setup() {
         useHostLevel1(kernels == "host")
@@ -40,6 +49,7 @@ class Level1Benchmark {
         val rng = Random(BENCH_SEED)
         x = DenseVector.of(randomVector(len, rng))
         y = DenseVector.of(randomVector(len, rng))
+        quad = randomVector(4 * len, rng)
     }
 
     @Benchmark
@@ -48,5 +58,27 @@ class Level1Benchmark {
     @Benchmark
     fun axpyBench() {
         axpy(y, 1.000001, x)
+    }
+
+    @Benchmark
+    fun scaleBench() {
+        scale(y, 1.000001)
+    }
+
+    /** Rescales rather than summing squares, so it costs more than a dot of the same length. */
+    @Benchmark
+    fun nrm2(): Double = norm2(x)
+
+    @Benchmark
+    fun asumBench(): Double = asum(x)
+
+    @Benchmark
+    fun iamaxBench(): Int = iamax(x)
+
+    /** Four dots against one shared operand, which loads that operand once rather than four times. */
+    @Benchmark
+    fun dot4(): Double {
+        koblas.vectorKernels.dot4(quad, 0, len, x.data, 0, len, quadOut, 0)
+        return quadOut[0]
     }
 }

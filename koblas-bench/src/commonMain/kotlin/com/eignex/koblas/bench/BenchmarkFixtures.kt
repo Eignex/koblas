@@ -2,6 +2,7 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.SparseVector
 import com.eignex.koblas.dense.LinearAlgebra
 import com.eignex.koblas.dense.ReferenceLinearAlgebra
 import com.eignex.koblas.installBackends
@@ -92,4 +93,33 @@ internal fun sparseDominantMatrix(n: Int, density: Double, rng: Random): SparseM
         entries
     }
     return SparseMatrix.ofColumns(n, n, columns)
+}
+
+/** Symmetric with a dominant diagonal, so the sparse LDL and Cholesky paths have a matrix they accept. */
+internal fun sparseSpdMatrix(n: Int, density: Double, rng: Random): SparseMatrix {
+    val entries = Array(n) { HashMap<Int, Double>() }
+    for (i in 0 until n) entries[i][i] = rng.nextDouble(-1.0, 1.0) + n
+    for (j in 0 until n) {
+        for (i in 0 until j) {
+            if (rng.nextDouble() < density) {
+                val v = rng.nextDouble(-1.0, 1.0)
+                entries[j][i] = v
+                entries[i][j] = v
+            }
+        }
+    }
+    return SparseMatrix.ofColumns(n, n, List(n) { j -> entries[j].map { (i, v) -> i to v } })
+}
+
+/** A sparse vector with about `density * n` stored entries, at ascending positions. */
+internal fun randomSparseVector(n: Int, density: Double, rng: Random): SparseVector {
+    val indices = ArrayList<Int>()
+    val values = ArrayList<Double>()
+    for (i in 0 until n) {
+        if (rng.nextDouble() < density) {
+            indices.add(i)
+            values.add(rng.nextDouble(-1.0, 1.0))
+        }
+    }
+    return SparseVector.wrap(n, indices.toIntArray(), values.toDoubleArray())
 }
