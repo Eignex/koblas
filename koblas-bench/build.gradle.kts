@@ -78,6 +78,23 @@ benchmark {
         register("sparseLevel1") { include("\\.SparseLevel1Benchmark\\.") }
         register("matrixOps") { include("\\.MatrixOpsBenchmark\\.") }
         register("symbolic") { include("\\.SymbolicBenchmark\\.") }
+
+        // Focused suites for A/B work on a contended machine. Each pins one decisive row plus a control the
+        // change under test cannot affect, so a comparison fits a short quiet window instead of needing
+        // several undisturbed minutes. The shared settings above still apply, so runs stay comparable.
+        register("qrFocused") {
+            include("\\.QrBenchmark\\.(qrPivotedSquare|qrSquare|applyQ)$")
+            param("n", "512")
+            param("backend", "reference")
+        }
+        register("level3Focused") {
+            include("\\.Level3Benchmark\\.(syr2k|gemm)$")
+            param("n", "256")
+        }
+        register("sparseFocused") {
+            include("\\.SparseBenchmark\\.(sparseLuFactor|sparseGemv)$")
+            param("n", "256")
+        }
     }
 }
 
