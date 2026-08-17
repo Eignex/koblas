@@ -10,7 +10,6 @@ import com.eignex.koblas.VectorView
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.koblas
 import com.eignex.koblas.requireShape
-import com.eignex.koblas.requireSquare
 import com.eignex.koblas.transpose
 
 /** Dense matrix routines as a backend half. */
@@ -183,9 +182,7 @@ public interface Blas : Backend {
         transpose: Boolean = false,
         unitDiag: Boolean = false,
     ) {
-        requireSquare(a, "trsv")
-        requireShape(x.size == a.rows) { "trsv: x length ${x.size} != ${a.rows}" }
-        trsvCore(vectorKernels, a.data, a.rows, x, lower = lower, transpose = transpose, unitDiag = unitDiag)
+        triangularVector(vectorKernels, a, x, lower, transpose, unitDiag, solve = true)
     }
 
     /** Solve `op(T) · X = B` in place, or `X · op(T) = B` when [right] (BLAS `dtrsm`). Flags follow [trsv];
@@ -199,24 +196,7 @@ public interface Blas : Backend {
         unitDiag: Boolean = false,
         right: Boolean = false,
     ) {
-        requireSquare(a, "trsm")
-        if (right) {
-            requireShape(b.cols == a.rows) { "trsm right: B has ${b.cols} cols, expected ${a.rows}" }
-            forEachRow(a.rows, b) { row ->
-                trsvCore(
-                    vectorKernels,
-                    a.data,
-                    a.rows,
-                    row,
-                    lower = lower,
-                    transpose = !transpose,
-                    unitDiag = unitDiag,
-                )
-            }
-        } else {
-            requireShape(b.rows == a.rows) { "trsm: B has ${b.rows} rows, expected ${a.rows}" }
-            trsmCore(vectorKernels, a.data, a.rows, b.data, b.cols, lower, transpose, unitDiag)
-        }
+        triangularMatrix(vectorKernels, a, b, lower, transpose, unitDiag, right, solve = true)
     }
 
     /** `x = op(T) · x` in place (BLAS `dtrmv`), the product counterpart of [trsv]. */
@@ -227,9 +207,7 @@ public interface Blas : Backend {
         transpose: Boolean = false,
         unitDiag: Boolean = false,
     ) {
-        requireSquare(a, "trmv")
-        requireShape(x.size == a.rows) { "trmv: x length ${x.size} != ${a.rows}" }
-        trmvCore(vectorKernels, a.data, a.rows, x, lower = lower, transpose = transpose, unitDiag = unitDiag)
+        triangularVector(vectorKernels, a, x, lower, transpose, unitDiag, solve = false)
     }
 
     /** `B = op(T) · B`, or `B = B · op(T)` when [right] (BLAS `dtrmm`), the counterpart of [trsm]. */
@@ -242,24 +220,7 @@ public interface Blas : Backend {
         unitDiag: Boolean = false,
         right: Boolean = false,
     ) {
-        requireSquare(a, "trmm")
-        if (right) {
-            requireShape(b.cols == a.rows) { "trmm right: B has ${b.cols} cols, expected ${a.rows}" }
-            forEachRow(a.rows, b) { row ->
-                trmvCore(
-                    vectorKernels,
-                    a.data,
-                    a.rows,
-                    row,
-                    lower = lower,
-                    transpose = !transpose,
-                    unitDiag = unitDiag,
-                )
-            }
-        } else {
-            requireShape(b.rows == a.rows) { "trmm: B has ${b.rows} rows, expected ${a.rows}" }
-            trmmCore(vectorKernels, a.data, a.rows, b.data, b.cols, lower, transpose, unitDiag)
-        }
+        triangularMatrix(vectorKernels, a, b, lower, transpose, unitDiag, right, solve = false)
     }
 
     /** [gemv] over [DenseVector] operands, writing [y] in place. */

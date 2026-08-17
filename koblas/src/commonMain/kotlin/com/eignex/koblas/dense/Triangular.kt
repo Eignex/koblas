@@ -4,6 +4,8 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.koblas
+import com.eignex.koblas.requireShape
+import com.eignex.koblas.requireSquare
 
 /** Solve `op(T) · x = b` in place (BLAS `dtrsv`); see [LinearAlgebra.trsv]. Reads only the triangle [lower]
  *  selects, and does not check the diagonal, so a singular triangle yields infinities or NaNs. */
@@ -168,6 +170,71 @@ internal fun trsvCore(
                 val s = x[xOff + i] - k.dot(a, i * lda, x, xOff, i)
                 x[xOff + i] = if (unitDiag) s else s / a[i + i * lda]
             }
+        }
+    }
+}
+
+/**
+ * The body [Blas.trsv] and [Blas.trmv] share. The two BLAS routines take the same arguments and differ only
+ * in which core runs, which [solve] selects.
+ *
+ * The selection is a flag rather than a passed-in core so the call stays direct. A function reference here
+ * would be an indirect call, and in the right-hand path of [triangularMatrix] it would be one per row.
+ */
+@Suppress("LongParameterList") // the shared BLAS signature plus the entry-point flag
+internal fun triangularVector(
+    k: VectorKernels,
+    a: DenseMatrix,
+    x: DoubleArray,
+    lower: Boolean,
+    transpose: Boolean,
+    unitDiag: Boolean,
+    solve: Boolean,
+) {
+    val what = if (solve) "trsv" else "trmv"
+    requireSquare(a, what)
+    requireShape(x.size == a.rows) { "$what: x length ${x.size} != ${a.rows}" }
+    if (solve) {
+        trsvCore(k, a.data, a.rows, x, lower = lower, transpose = transpose, unitDiag = unitDiag)
+    } else {
+        trmvCore(k, a.data, a.rows, x, lower = lower, transpose = transpose, unitDiag = unitDiag)
+    }
+}
+
+/**
+ * The body [Blas.trsm] and [Blas.trmm] share, with [solve] selecting the core as in [triangularVector].
+ *
+ * From the right the operands are the rows of [b] and the triangle is transposed, which is the same identity
+ * both routines used when they were written out separately.
+ */
+@Suppress("LongParameterList") // the shared BLAS signature plus the entry-point flag
+internal fun triangularMatrix(
+    k: VectorKernels,
+    a: DenseMatrix,
+    b: DenseMatrix,
+    lower: Boolean,
+    transpose: Boolean,
+    unitDiag: Boolean,
+    right: Boolean,
+    solve: Boolean,
+) {
+    val what = if (solve) "trsm" else "trmm"
+    requireSquare(a, what)
+    if (right) {
+        requireShape(b.cols == a.rows) { "$what right: B has ${b.cols} cols, expected ${a.rows}" }
+        forEachRow(a.rows, b) { row ->
+            if (solve) {
+                trsvCore(k, a.data, a.rows, row, lower = lower, transpose = !transpose, unitDiag = unitDiag)
+            } else {
+                trmvCore(k, a.data, a.rows, row, lower = lower, transpose = !transpose, unitDiag = unitDiag)
+            }
+        }
+    } else {
+        requireShape(b.rows == a.rows) { "$what: B has ${b.rows} rows, expected ${a.rows}" }
+        if (solve) {
+            trsmCore(k, a.data, a.rows, b.data, b.cols, lower, transpose, unitDiag)
+        } else {
+            trmmCore(k, a.data, a.rows, b.data, b.cols, lower, transpose, unitDiag)
         }
     }
 }
