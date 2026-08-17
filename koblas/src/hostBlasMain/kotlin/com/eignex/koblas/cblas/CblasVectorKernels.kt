@@ -2,6 +2,7 @@
 
 package com.eignex.koblas.cblas
 
+import com.eignex.koblas.BackendNames
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.dense.VectorKernels
 import kotlinx.cinterop.ExperimentalForeignApi
@@ -14,7 +15,7 @@ import kotlinx.cinterop.usePinned
  * [com.eignex.koblas.DispatchThresholds.level1], so these methods only see runs worth dispatching.
  */
 public class CblasVectorKernels : VectorKernels {
-    override val name: String get() = "cblas"
+    override val name: String get() = BackendNames.CBLAS
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY
 

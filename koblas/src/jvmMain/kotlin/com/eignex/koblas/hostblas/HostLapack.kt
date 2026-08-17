@@ -1,5 +1,6 @@
 package com.eignex.koblas.hostblas
 
+import com.eignex.koblas.BackendNames
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.Workspace
@@ -16,7 +17,7 @@ import com.eignex.koblas.dispatchThresholds
  * supplies the JVM's entry points, its measured gates, and the one routine only this binding has.
  */
 public class HostLapack internal constructor() : HostLapackAdapter(JvmLapackeCalls, JvmCblasCalls) {
-    override val name: String get() = "openblas"
+    override val name: String get() = BackendNames.OPENBLAS
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY
 

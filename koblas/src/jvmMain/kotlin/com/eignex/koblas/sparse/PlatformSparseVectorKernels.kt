@@ -1,5 +1,6 @@
 package com.eignex.koblas.sparse
 
+import com.eignex.koblas.BackendNames
 import com.eignex.koblas.SparseVector
 import com.eignex.koblas.dense.simdAvailable
 import com.eignex.koblas.requireShape
@@ -11,7 +12,7 @@ private const val SPARSE_DOT_SIMD_MIN = 128
 
 /** A gathered usdot above [SPARSE_DOT_SIMD_MIN], the portable loops below. */
 internal actual object PlatformSparseVectorKernels : SparseVectorKernels {
-    actual override val name: String get() = if (simdAvailable) "simd-sparse" else "reference"
+    actual override val name: String get() = if (simdAvailable) BackendNames.SIMD_SPARSE else BackendNames.REFERENCE
 
     override val isPortable: Boolean get() = true
 

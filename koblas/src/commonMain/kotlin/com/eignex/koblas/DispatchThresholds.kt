@@ -17,19 +17,31 @@ import com.eignex.koblas.dense.VectorKernels
  */
 internal class DispatchThresholds(val level1: Int, val level2: Int, val level3: Int, val lapack: Int)
 
+/** One [DispatchThresholds] entry, the granularity at which a caller can override the routing. */
+internal enum class DispatchLevel {
+    LEVEL1,
+    LEVEL2,
+    LEVEL3,
+    LAPACK,
+    ;
+
+    /** How this level is written in [ConfigurationKeys.DISPATCH_PROPERTY_PREFIX]. */
+    val key: String get() = name.lowercase()
+}
+
 /** What this platform uses absent an override; see [DispatchThresholds]. */
 internal expect val platformDispatchThresholds: DispatchThresholds
 
-/** Reads an override for `koblas.dispatch.<name>`, or null when unset. */
-internal expect fun dispatchOverride(name: String): Int?
+/** Reads the override for [level], or null when unset. */
+internal expect fun dispatchOverride(level: DispatchLevel): Int?
 
 /** The thresholds in force, overrides applied. */
 internal val dispatchThresholds: DispatchThresholds by lazy {
     val defaults = platformDispatchThresholds
     DispatchThresholds(
-        level1 = dispatchOverride("level1") ?: defaults.level1,
-        level2 = dispatchOverride("level2") ?: defaults.level2,
-        level3 = dispatchOverride("level3") ?: defaults.level3,
-        lapack = dispatchOverride("lapack") ?: defaults.lapack,
+        level1 = dispatchOverride(DispatchLevel.LEVEL1) ?: defaults.level1,
+        level2 = dispatchOverride(DispatchLevel.LEVEL2) ?: defaults.level2,
+        level3 = dispatchOverride(DispatchLevel.LEVEL3) ?: defaults.level3,
+        lapack = dispatchOverride(DispatchLevel.LAPACK) ?: defaults.lapack,
     )
 }

@@ -1,5 +1,6 @@
 package com.eignex.koblas.hostblas
 
+import com.eignex.koblas.ConfigurationKeys
 import com.eignex.koblas.dense.isIlp64OpenBlas
 import java.lang.foreign.Arena
 import java.lang.foreign.FunctionDescriptor
@@ -80,10 +81,10 @@ internal object HostBlasCalls {
      * OPENBLAS_NUM_THREADS is set, which the library honors itself.
      */
     private fun configureThreads() {
-        val requested = System.getProperty("koblas.openblas.threads")?.toIntOrNull()
+        val requested = System.getProperty(ConfigurationKeys.OPENBLAS_THREADS_PROPERTY)?.toIntOrNull()
         when {
             requested != null -> setThreads(requested)
-            System.getenv("OPENBLAS_NUM_THREADS") == null -> setThreads(1)
+            System.getenv(ConfigurationKeys.OPENBLAS_THREADS_ENV) == null -> setThreads(1)
         }
     }
 

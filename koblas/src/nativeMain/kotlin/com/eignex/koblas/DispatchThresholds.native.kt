@@ -6,5 +6,5 @@ import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.toKString
 
 /** Environment only, since there are no system properties outside the JVM. */
-internal actual fun dispatchOverride(name: String): Int? =
-    platform.posix.getenv("KOBLAS_DISPATCH_${name.uppercase()}")?.toKString()?.toIntOrNull()
+internal actual fun dispatchOverride(level: DispatchLevel): Int? =
+    platform.posix.getenv(ConfigurationKeys.DISPATCH_ENV_PREFIX + level.name)?.toKString()?.toIntOrNull()

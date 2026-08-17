@@ -1,5 +1,6 @@
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.BackendNames
 import com.eignex.koblas.KoblasContext
 import com.eignex.koblas.koblas
 
@@ -14,7 +15,7 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) :
     LinearAlgebra,
     Blas by ReferenceBlas(kernels),
     Lapack by ReferenceLapack(kernels) {
-    override val name: String get() = "reference"
+    override val name: String get() = BackendNames.REFERENCE
 
     override val isPortable: Boolean get() = true
 

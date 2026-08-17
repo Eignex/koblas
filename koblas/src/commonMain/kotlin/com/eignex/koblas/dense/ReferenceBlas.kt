@@ -2,6 +2,7 @@
 
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.BackendNames
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.KoblasContext
 import com.eignex.koblas.Workspace
@@ -14,7 +15,7 @@ import com.eignex.koblas.requireShape
  * @param kernels the vector kernels the inner loops use, or null to follow the [KoblasContext] default.
  */
 internal class ReferenceBlas(private val kernels: VectorKernels? = null) : Blas {
-    override val name: String get() = "reference"
+    override val name: String get() = BackendNames.REFERENCE
 
     override val isPortable: Boolean get() = true
 
