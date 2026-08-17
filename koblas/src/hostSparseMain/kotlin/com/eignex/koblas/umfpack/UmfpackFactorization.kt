@@ -113,9 +113,18 @@ public class UmfpackFactorization internal constructor(
     }
 
     internal companion object {
-        /** Allocates a `void **Numeric` holder, owned by the factorization that will hold it. */
-        fun allocateHandle(f: UmfpackFunctions): NumericHandle =
-            NumericHandle(nativeHeap.alloc<COpaquePointerVar>().ptr, f)
+        /**
+         * Allocates a `void **Numeric` holder, owned by the factorization that will hold it.
+         *
+         * Nulled here because `nativeHeap.alloc` is `malloc` and does not zero. A failed symbolic analysis
+         * returns before `umfpack_di_numeric` writes the holder, and freeing it then would hand UMFPACK
+         * whatever the heap happened to contain.
+         */
+        fun allocateHandle(f: UmfpackFunctions): NumericHandle {
+            val holder = nativeHeap.alloc<COpaquePointerVar>()
+            holder.value = null
+            return NumericHandle(holder.ptr, f)
+        }
 
         /** Reads the fill counts out of a completed factorization's Info array. */
         fun fillOf(info: DoubleArray): Pair<Int, Int> = info[INFO_LNZ].toInt() to info[INFO_UNZ].toInt()

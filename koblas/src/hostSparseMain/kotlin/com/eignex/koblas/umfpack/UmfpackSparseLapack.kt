@@ -33,6 +33,9 @@ public class UmfpackSparseLapack internal constructor(private val f: UmfpackFunc
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY
 
+    /** UMFPACK ships separately from OpenBLAS, so a host can have one without the other. */
+    override val isAvailable: Boolean get() = UmfpackLoader.available
+
     @Suppress("ReturnCount") // one early return per condition UMFPACK cannot serve
     override fun factor(a: SparseMatrix, equilibrate: Boolean, dropTolerance: Double): SparseFactorization {
         requireSquare(a, "factor")

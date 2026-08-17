@@ -22,15 +22,21 @@ public class UmfpackSparseLapack : SparseLapack {
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY
 
+    /** UMFPACK ships separately from OpenBLAS, so a host can have one without the other. */
+    override val isAvailable: Boolean get() = UmfpackCalls.available
+
     /**
      * Factorizes [a], symbolic analysis then numeric factorization. [equilibrate] and [dropTolerance] fall
      * back to the portable path, since UMFPACK offers neither koblas's scaling nor a drop threshold.
      */
     override fun factor(a: SparseMatrix, equilibrate: Boolean, dropTolerance: Double): SparseFactorization {
         requireSquare(a, "factor")
+        if (!UmfpackCalls.available) return SparseLu.factorCsc(a, equilibrate, dropTolerance)
         // Any tolerance but the default goes to the portable path, which owns validating the rest.
         if (equilibrate || dropTolerance != NO_DROP) return SparseLu.factorCsc(a, equilibrate, dropTolerance)
-        if (a.rows == 0) return SparseLu.factorCsc(a)
+        // Nothing to factor, and the portable path reports the pivot position where UMFPACK reports only
+        // that it failed, so both bindings route this the same way.
+        if (a.rows == 0 || a.nnz == 0) return SparseLu.factorCsc(a)
 
         val colPtr = MemorySegment.ofArray(a.colPtr)
         val rowIdx = MemorySegment.ofArray(a.rowIdx)
