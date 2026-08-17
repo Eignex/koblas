@@ -10,6 +10,7 @@ import com.eignex.koblas.VectorView
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.koblas
 import com.eignex.koblas.requireShape
+import com.eignex.koblas.requireSquare
 import com.eignex.koblas.transpose
 
 /** Dense matrix routines as a backend half. */
@@ -182,7 +183,7 @@ public interface Blas : Backend {
         transpose: Boolean = false,
         unitDiag: Boolean = false,
     ) {
-        requireShape(a.rows == a.cols) { "trsv requires a square matrix; got ${a.rows}x${a.cols}" }
+        requireSquare(a, "trsv")
         requireShape(x.size == a.rows) { "trsv: x length ${x.size} != ${a.rows}" }
         trsvCore(vectorKernels, a.data, a.rows, x, lower = lower, transpose = transpose, unitDiag = unitDiag)
     }
@@ -198,7 +199,7 @@ public interface Blas : Backend {
         unitDiag: Boolean = false,
         right: Boolean = false,
     ) {
-        requireShape(a.rows == a.cols) { "trsm requires a square matrix; got ${a.rows}x${a.cols}" }
+        requireSquare(a, "trsm")
         if (right) {
             requireShape(b.cols == a.rows) { "trsm right: B has ${b.cols} cols, expected ${a.rows}" }
             forEachRow(a.rows, b) { row ->
@@ -226,7 +227,7 @@ public interface Blas : Backend {
         transpose: Boolean = false,
         unitDiag: Boolean = false,
     ) {
-        requireShape(a.rows == a.cols) { "trmv requires a square matrix; got ${a.rows}x${a.cols}" }
+        requireSquare(a, "trmv")
         requireShape(x.size == a.rows) { "trmv: x length ${x.size} != ${a.rows}" }
         trmvCore(vectorKernels, a.data, a.rows, x, lower = lower, transpose = transpose, unitDiag = unitDiag)
     }
@@ -241,7 +242,7 @@ public interface Blas : Backend {
         unitDiag: Boolean = false,
         right: Boolean = false,
     ) {
-        requireShape(a.rows == a.cols) { "trmm requires a square matrix; got ${a.rows}x${a.cols}" }
+        requireSquare(a, "trmm")
         if (right) {
             requireShape(b.cols == a.rows) { "trmm right: B has ${b.cols} cols, expected ${a.rows}" }
             forEachRow(a.rows, b) { row ->

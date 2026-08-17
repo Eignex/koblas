@@ -48,7 +48,7 @@ public interface SparseLapack : Backend {
         a: SparseMatrix,
         policy: SparseLdlPolicy = SparseLdlPolicy.Strict,
         ordering: SparseOrdering = SparseOrdering.MinimumDegree,
-    ): SparseFactorization = numericLdl(a, analyze(a, ordering), policy)
+    ): SparseFactorization = ldl(a, policy, ordering)
 
     /**
      * Solve `A·x = b` from [f] into [out], `Aᵀ·x = b` when [transpose]. The work belongs to the

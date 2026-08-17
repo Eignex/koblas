@@ -31,7 +31,7 @@ public class DenseVector internal constructor(public val data: DoubleArray) : Ve
     override val size: Int get() = data.size
 
     override fun get(i: Int): Double {
-        requireIndex(i in 0 until size) { "index $i outside [0,$size)" }
+        requireInBounds(i, size)
         return data[i]
     }
 
@@ -39,7 +39,7 @@ public class DenseVector internal constructor(public val data: DoubleArray) : Ve
 
     /** Writes [v] at index [i]. */
     public operator fun set(i: Int, v: Double) {
-        requireIndex(i in 0 until size) { "index $i outside [0,$size)" }
+        requireInBounds(i, size)
         data[i] = v
     }
 
@@ -94,7 +94,7 @@ public class SparseVector internal constructor(
 
     /** The stored value at [i], or 0.0 where nothing is stored. */
     override fun get(i: Int): Double {
-        requireIndex(i in 0 until size) { "index $i outside [0,$size)" }
+        requireInBounds(i, size)
         var lo = 0
         var hi = indices.size - 1
         while (lo <= hi) {

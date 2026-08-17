@@ -23,8 +23,7 @@ public class Workspace {
 
     /** Returns a buffer from [take] to its pool. */
     public fun release(buffer: DoubleArray) {
-        val pool = findPool(buffer.size)
-            ?: error("released a buffer of size ${buffer.size} that this workspace did not lend")
+        val pool = findPool(buffer.size) ?: notLent(buffer)
         pool.release(buffer)
     }
 
@@ -70,16 +69,15 @@ public class Workspace {
         pools[0] = found
     }
 
-    /** Drops the least recently used pool with nothing lent out; false when every pool is in use. */
-    private fun dropColdestIdlePool(): Boolean {
+    /** Drops the least recently used pool with nothing lent out, and does nothing when every pool is in use. */
+    private fun dropColdestIdlePool() {
         for (i in poolCount - 1 downTo 0) {
             if (pools[i]?.isIdle() == true) {
                 for (j in i until poolCount - 1) pools[j] = pools[j + 1]
                 pools[--poolCount] = null
-                return true
+                return
             }
         }
-        return false
     }
 
     /** Buffers of one width, plus which of them are currently lent out. */
@@ -109,7 +107,7 @@ public class Workspace {
                     return
                 }
             }
-            error("released a buffer of size ${buffer.size} that this workspace did not lend")
+            notLent(buffer)
         }
 
         /** Whether every buffer here is back, so the pool can be dropped without losing a live borrow. */
@@ -135,6 +133,10 @@ public class Workspace {
         const val MAX_WIDTHS = 64
     }
 }
+
+/** Reports a buffer handed back to a workspace that never lent it, whether or not a pool of its width exists. */
+private fun notLent(buffer: DoubleArray): Nothing =
+    error("released a buffer of size ${buffer.size} that this workspace did not lend")
 
 /** Borrows a vector of [size] for the duration of [block], returning it to [this] afterwards. */
 public inline fun <T> Workspace.borrow(size: Int, block: (DoubleArray) -> T): T {

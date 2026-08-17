@@ -32,7 +32,7 @@ public inline fun VectorLike.forEachStored(block: (i: Int, v: Double) -> Unit) {
 
 /** `aT * b`. Any sparse operand goes through [SparseVectorKernels], walking the stored entries only. */
 public infix fun VectorLike.dot(other: VectorLike): Double {
-    requireShape(size == other.size) { "size mismatch: $size vs ${other.size}" }
+    requireSameSize(size, other.size)
     if (this is DenseVector && other is DenseVector) {
         return koblas.vectorKernels.dot(data, 0, other.data, 0, size)
     }
@@ -87,7 +87,7 @@ public fun iamax(v: VectorLike): Int {
 
 /** `dst = src` (BLAS `dcopy`). A sparse source zero-fills the destination first, so nothing survives. */
 public fun copy(src: VectorLike, dst: DenseVector) {
-    requireShape(src.size == dst.size) { "size mismatch: ${src.size} vs ${dst.size}" }
+    requireSameSize(src.size, dst.size)
     when (src) {
         is DenseVector -> src.data.copyInto(dst.data)
 
@@ -105,7 +105,7 @@ public fun copy(src: VectorLike, dst: DenseVector) {
 
 /** Exchange the contents of [a] and [b] (BLAS `dswap`). */
 public fun swap(a: DenseVector, b: DenseVector) {
-    requireShape(a.size == b.size) { "size mismatch: ${a.size} vs ${b.size}" }
+    requireSameSize(a.size, b.size)
     val ad = a.data
     val bd = b.data
     for (i in ad.indices) {
@@ -147,7 +147,7 @@ public fun rotg(a: Double, b: Double): Givens {
  * so both [x] and [y] are overwritten in place.
  */
 public fun rot(x: DenseVector, y: DenseVector, rotation: Givens) {
-    requireShape(x.size == y.size) { "size mismatch: ${x.size} vs ${y.size}" }
+    requireSameSize(x.size, y.size)
     val c = rotation.c
     val s = rotation.s
     if (c == 1.0 && s == 0.0) return
@@ -163,7 +163,7 @@ public fun rot(x: DenseVector, y: DenseVector, rotation: Givens) {
 
 /** `y = y + alpha * x`. A sparse `x` touches only the positions it stores. */
 public fun axpy(y: DenseVector, alpha: Double, x: VectorLike) {
-    requireShape(y.size == x.size) { "size mismatch: ${y.size} vs ${x.size}" }
+    requireSameSize(y.size, x.size)
     if (alpha == 0.0) return
     when (x) {
         is DenseVector -> koblas.vectorKernels.axpy(y.data, 0, alpha, x.data, 0, y.size)

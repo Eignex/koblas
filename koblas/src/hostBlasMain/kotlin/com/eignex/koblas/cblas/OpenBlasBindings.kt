@@ -80,8 +80,6 @@ internal class LapackeFunctions(private val blas: COpaquePointer, private val la
         .reinterpret<CFunction<(Int, Byte, Byte, Int, Int, Int, Dp, Int, Dp, Dp, Int) -> Int>>()
     val dpotrf = required("LAPACKE_dpotrf")
         .reinterpret<CFunction<(Int, Byte, Int, Dp, Int) -> Int>>()
-    val dpotrs = required("LAPACKE_dpotrs")
-        .reinterpret<CFunction<(Int, Byte, Int, Int, Dp, Int, Dp, Int) -> Int>>()
     val dpotri = required("LAPACKE_dpotri")
         .reinterpret<CFunction<(Int, Byte, Int, Dp, Int) -> Int>>()
     val dsytrf = required("LAPACKE_dsytrf")

@@ -38,14 +38,14 @@ public class DenseMatrix internal constructor(
     internal constructor(rows: Int, cols: Int = rows) : this(rows, cols, DoubleArray(entryCount(rows, cols)))
 
     init {
-        requireShape(rows >= 0 && cols >= 0) { "negative shape: ${rows}x$cols" }
+        requireNonNegativeShape(rows, cols)
         requireShape(data.size.toLong() == rows.toLong() * cols) {
             "data length ${data.size} does not match shape ${rows}x$cols (= ${rows.toLong() * cols})"
         }
     }
 
     override fun get(i: Int, j: Int): Double {
-        requireIndex(i in 0 until rows && j in 0 until cols) { "index ($i;$j) outside ${rows}x$cols" }
+        requireInBounds(i, j, rows, cols)
         return data[i + j * rows]
     }
 
@@ -57,7 +57,7 @@ public class DenseMatrix internal constructor(
 
     /** Writes [v] at row [i], column [j]. */
     public operator fun set(i: Int, j: Int, v: Double) {
-        requireIndex(i in 0 until rows && j in 0 until cols) { "index ($i;$j) outside ${rows}x$cols" }
+        requireInBounds(i, j, rows, cols)
         data[i + j * rows] = v
     }
 
@@ -124,7 +124,7 @@ public class DenseMatrix internal constructor(
 
         /** Entry count for a shape, validated first so a negative dimension reports a shape error. */
         private fun entryCount(rows: Int, cols: Int): Int {
-            requireShape(rows >= 0 && cols >= 0) { "negative shape: ${rows}x$cols" }
+            requireNonNegativeShape(rows, cols)
             val count = rows.toLong() * cols
             requireShape(count <= Int.MAX_VALUE) {
                 "shape ${rows}x$cols needs $count entries, more than one array can hold"

@@ -14,6 +14,7 @@ import com.eignex.koblas.dense.Cblas.transOf
 import com.eignex.koblas.dense.Cblas.uploOf
 import com.eignex.koblas.dispatchThresholds
 import com.eignex.koblas.requireShape
+import com.eignex.koblas.requireSquare
 
 /**
  * The dense matrix routines a host CBLAS provides, over whichever [CblasCalls] the platform supplies. Both
@@ -45,18 +46,30 @@ public abstract class HostBlasAdapter internal constructor(private val f: CblasC
 
     override fun trsv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
         if (a.rows < dispatchThresholds.level2) return super.trsv(a, x, lower, transpose, unitDiag)
-        requireShape(a.rows == a.cols) { "trsv requires a square matrix; got ${a.rows}x${a.cols}" }
-        requireShape(x.size == a.rows) { "trsv: x length ${x.size} != ${a.rows}" }
-        if (a.rows == 0) return
-        f.dtrsv(COL_MAJOR, uploOf(lower), transOf(transpose), diagOf(unitDiag), a.rows, a.data, a.rows, x, 1)
+        triangularVector(a, x, lower, transpose, unitDiag, solve = true)
     }
 
     override fun trmv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
         if (a.rows < dispatchThresholds.level2) return super.trmv(a, x, lower, transpose, unitDiag)
-        requireShape(a.rows == a.cols) { "trmv requires a square matrix; got ${a.rows}x${a.cols}" }
-        requireShape(x.size == a.rows) { "trmv: x length ${x.size} != ${a.rows}" }
+        triangularVector(a, x, lower, transpose, unitDiag, solve = false)
+    }
+
+    /** dtrsv and dtrmv take the same arguments and differ only in the entry point, as dtrsm and dtrmm do. */
+    @Suppress("LongParameterList") // the shared BLAS signature plus the entry-point flag
+    private fun triangularVector(
+        a: DenseMatrix,
+        x: DoubleArray,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+        solve: Boolean,
+    ) {
+        val what = if (solve) "trsv" else "trmv"
+        requireSquare(a, what)
+        requireShape(x.size == a.rows) { "$what: x length ${x.size} != ${a.rows}" }
         if (a.rows == 0) return
-        f.dtrmv(COL_MAJOR, uploOf(lower), transOf(transpose), diagOf(unitDiag), a.rows, a.data, a.rows, x, 1)
+        val call = if (solve) f::dtrsv else f::dtrmv
+        call(COL_MAJOR, uploOf(lower), transOf(transpose), diagOf(unitDiag), a.rows, a.data, a.rows, x, 1)
     }
 
     @Suppress("LongParameterList") // the BLAS dtrsm signature
@@ -101,7 +114,7 @@ public abstract class HostBlasAdapter internal constructor(private val f: CblasC
         solve: Boolean,
     ) {
         val what = if (solve) "trsm" else "trmm"
-        requireShape(a.rows == a.cols) { "$what requires a square matrix; got ${a.rows}x${a.cols}" }
+        requireSquare(a, what)
         if (right) {
             requireShape(b.cols == a.rows) { "$what right: B has ${b.cols} cols, expected ${a.rows}" }
         } else {
