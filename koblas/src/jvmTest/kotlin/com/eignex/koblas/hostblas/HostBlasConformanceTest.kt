@@ -79,8 +79,13 @@ class HostBlasConformanceTest {
         }
     }
 
+    /**
+     * With the Vector API present the level-2 gate sits at `Int.MAX_VALUE`, so the triangular vector half
+     * and `ger` run the portable path here whatever size they are given. The no-SIMD host pass in CI is the
+     * run that reaches OpenBLAS for those, so this covers the fallback wiring rather than the bindings.
+     */
     @Test
-    fun `the gated level 2 and 3 routines match reference when their gates are opened`() {
+    fun `the gated level 2 and 3 routines match reference`() {
         Assume.assumeTrue("host CBLAS is not installed", HostBlasCalls.available)
         assertTriangularAgreesWithReference(HostBlas(), intArrayOf(1, 5, 12, 24))
         assertGerAgreesWithReference(HostBlas())
