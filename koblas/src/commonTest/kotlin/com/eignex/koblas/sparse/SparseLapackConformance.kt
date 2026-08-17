@@ -148,3 +148,16 @@ internal fun assertRepeatedFactorizationsSurvive(lapack: SparseLapack) {
     }
     assertTrue(checksum > 0.0, "the loop should have produced solutions")
 }
+
+/**
+ * The Control array both bindings build: UMFPACK's own defaults with iterative refinement off, so a solve is
+ * the triangular solve against the factors and nothing more.
+ *
+ * Takes the two values rather than a binding, because the JVM reads them out of a `MemorySegment` and the
+ * native side out of a `DoubleArray`. A null means no Control array was built, which is a failure in itself:
+ * without one the solve reverts to UMFPACK's default of two refinement steps.
+ */
+internal fun assertControlArrayKeepsUmfpackDefaults(refinementSteps: Double?, pivotTolerance: Double?) {
+    assertEquals(0.0, refinementSteps, "umfpack solves must not refine")
+    assertEquals(0.1, pivotTolerance, "umfpack_di_defaults did not fill the control array")
+}

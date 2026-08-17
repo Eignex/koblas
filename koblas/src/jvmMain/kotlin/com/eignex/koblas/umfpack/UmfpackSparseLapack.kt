@@ -66,6 +66,10 @@ public class UmfpackSparseLapack : SparseLapack {
             UmfpackCalls.freeSymbolic(symbolicHolder)
 
             if (numericStatus != OK && numericStatus != WARNING_SINGULAR) {
+                // Freed rather than only closing the arena. UMFPACK nulls the handle on an error return, so
+                // this is a no-op today, but relying on that is what left the native binding freeing an
+                // uninitialized holder, and the arena owns the holder rather than the factors.
+                UmfpackCalls.freeNumeric(numericHolder)
                 arena.close()
                 return SparseLu.factorCsc(a)
             }

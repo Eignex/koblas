@@ -3,6 +3,7 @@ package com.eignex.koblas.umfpack
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.HostLibraryTest
 import com.eignex.koblas.sparse.assertAliasedDestinationSolves
+import com.eignex.koblas.sparse.assertControlArrayKeepsUmfpackDefaults
 import com.eignex.koblas.sparse.assertDeterminantAgreesWithReference
 import com.eignex.koblas.sparse.assertEmptyAndZeroMatricesTakeThePortablePath
 import com.eignex.koblas.sparse.assertRegistersAsTheSparseLapackHalf
@@ -80,14 +81,8 @@ class UmfpackConformanceTest {
     }
 
     @Test
-    fun `solves run without iterative refinement`() {
+    fun `the control array keeps UMFPACK's defaults with refinement off`() {
         requireSuiteSparse()
-        assertEquals(0.0, UmfpackCalls.refinementSteps, "umfpack solves must not refine")
-    }
-
-    @Test
-    fun `the rest of the control array keeps UMFPACK's defaults`() {
-        requireSuiteSparse()
-        assertEquals(0.1, UmfpackCalls.pivotTolerance, "umfpack_di_defaults did not fill the control array")
+        assertControlArrayKeepsUmfpackDefaults(UmfpackCalls.refinementSteps, UmfpackCalls.pivotTolerance)
     }
 }
