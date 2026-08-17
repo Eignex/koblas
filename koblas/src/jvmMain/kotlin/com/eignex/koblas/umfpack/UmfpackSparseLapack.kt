@@ -1,5 +1,6 @@
 package com.eignex.koblas.umfpack
 
+import com.eignex.koblas.BackendNames
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
@@ -17,7 +18,7 @@ import java.lang.foreign.ValueLayout.JAVA_DOUBLE
 
 /** Sparse factorizations backed by a host UMFPACK. */
 public class UmfpackSparseLapack : SparseLapack {
-    override val name: String get() = "umfpack"
+    override val name: String get() = BackendNames.UMFPACK
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY
 

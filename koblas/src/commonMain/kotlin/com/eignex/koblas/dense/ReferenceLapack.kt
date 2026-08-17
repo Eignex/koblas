@@ -2,6 +2,7 @@
 
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.BackendNames
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.KoblasContext
 import com.eignex.koblas.NOT_SINGULAR
@@ -21,7 +22,7 @@ private const val BUNCH_KAUFMAN_ALPHA = 0.6403882032022076
  * @param kernels the vector kernels the inner loops use, or null to follow the [KoblasContext] default.
  */
 internal class ReferenceLapack(private val kernels: VectorKernels? = null) : Lapack {
-    override val name: String get() = "reference"
+    override val name: String get() = BackendNames.REFERENCE
 
     override val isPortable: Boolean get() = true
 

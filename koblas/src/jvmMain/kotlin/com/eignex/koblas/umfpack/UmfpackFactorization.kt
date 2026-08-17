@@ -101,7 +101,7 @@ public class UmfpackFactorization internal constructor(
 
     internal companion object {
         /** Reads the fill counts out of a completed factorization's Info array. */
-        fun fillOf(info: MemorySegment): Pair<Int, Int> =
-            info.get(JAVA_DOUBLE, INFO_LNZ * 8L).toInt() to info.get(JAVA_DOUBLE, INFO_UNZ * 8L).toInt()
+        fun fillOf(info: MemorySegment): Pair<Int, Int> = info.getAtIndex(JAVA_DOUBLE, INFO_LNZ.toLong()).toInt() to
+            info.getAtIndex(JAVA_DOUBLE, INFO_UNZ.toLong()).toInt()
     }
 }

@@ -2,6 +2,7 @@
 
 package com.eignex.koblas.cblas
 
+import com.eignex.koblas.ConfigurationKeys
 import com.eignex.koblas.dense.isIlp64OpenBlas
 import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.CFunction
@@ -107,7 +108,7 @@ internal object OpenBlasLoader {
             return@let null
         }
         // Single-threaded is the faster configuration at koblas workload sizes.
-        if (getenv("OPENBLAS_NUM_THREADS") == null) fns.setNumThreads?.invoke(1)
+        if (getenv(ConfigurationKeys.OPENBLAS_THREADS_ENV) == null) fns.setNumThreads?.invoke(1)
         fns
     }
 

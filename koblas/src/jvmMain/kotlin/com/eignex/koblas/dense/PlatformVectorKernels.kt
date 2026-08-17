@@ -1,5 +1,6 @@
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.BackendNames
 import com.eignex.koblas.MIN_NORMAL
 import com.eignex.koblas.absoluteSum
 import com.eignex.koblas.euclideanNorm
@@ -26,7 +27,8 @@ internal val simdAvailable: Boolean = try {
 private val simdLanes: Int = if (simdAvailable) Simd.lanes() else 0
 
 internal actual object PlatformVectorKernels : VectorKernels {
-    actual override val name: String get() = if (simdAvailable) "simd($simdLanes lanes)" else "scalar"
+    actual override val name: String
+        get() = if (simdAvailable) "${BackendNames.SIMD}($simdLanes lanes)" else BackendNames.SCALAR
 
     override val isPortable: Boolean get() = true
 

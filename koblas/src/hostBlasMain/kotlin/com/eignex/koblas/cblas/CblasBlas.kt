@@ -1,5 +1,6 @@
 package com.eignex.koblas.cblas
 
+import com.eignex.koblas.BackendNames
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.dense.HostBlasAdapter
 
@@ -9,7 +10,7 @@ import com.eignex.koblas.dense.HostBlasAdapter
  * OpenBLAS, independently of LAPACKE.
  */
 internal class CblasBlas(f: CblasFunctions) : HostBlasAdapter(NativeCblasCalls(f)) {
-    override val name: String get() = "cblas"
+    override val name: String get() = BackendNames.CBLAS
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY
 }

@@ -1,5 +1,6 @@
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.BackendNames
 import com.eignex.koblas.absoluteSum
 import com.eignex.koblas.euclideanNorm
 
@@ -9,7 +10,7 @@ import com.eignex.koblas.euclideanNorm
  */
 
 internal actual object PlatformVectorKernels : VectorKernels {
-    actual override val name: String get() = "scalar"
+    actual override val name: String get() = BackendNames.SCALAR
 
     override val isPortable: Boolean get() = true
 

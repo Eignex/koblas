@@ -2,6 +2,7 @@
 
 package com.eignex.koblas.umfpack
 
+import com.eignex.koblas.BackendNames
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
@@ -28,7 +29,7 @@ import kotlinx.cinterop.value
  * UMFPACK failure fall back to [SparseLu]; a singular result becomes [SingularSparseFactorization].
  */
 public class UmfpackSparseLapack internal constructor(private val f: UmfpackFunctions) : SparseLapack {
-    override val name: String get() = "umfpack"
+    override val name: String get() = BackendNames.UMFPACK
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY
 

@@ -1,5 +1,6 @@
 package com.eignex.koblas.cblas
 
+import com.eignex.koblas.BackendNames
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.dense.Blas
 import com.eignex.koblas.dense.Lapack
@@ -21,7 +22,7 @@ public class CblasLinearAlgebra private constructor(private val blas: CblasBlas,
         CblasLapack(requireNotNull(OpenBlasLoader.lapacke) { NO_LAPACKE }, requireNotNull(OpenBlasLoader.cblas)),
     )
 
-    override val name: String get() = "cblas"
+    override val name: String get() = BackendNames.CBLAS
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY
 

@@ -1,6 +1,8 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.Backend
+import com.eignex.koblas.BackendNames
+import com.eignex.koblas.ConfigurationKeys
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.hostblas.HostBlas
 import com.eignex.koblas.hostblas.HostBlasCalls
@@ -15,8 +17,8 @@ import java.util.ServiceLoader
  * halves first, then [ServiceLoader] providers; [Backend.priority] picks the winner on each half.
  */
 internal actual fun registerPlatformBackends() {
-    val requested = System.getProperty("koblas.backend")
-    if (requested == REFERENCE_NAME) return
+    val requested = System.getProperty(ConfigurationKeys.BACKEND_PROPERTY)
+    if (requested == BackendNames.REFERENCE) return
     registerHostBlas(requested)
     registerUmfpack(requested)
     for (provider in loadProviders().sortedByDescending { it.priority }) {
@@ -49,9 +51,6 @@ private fun registerUmfpack(requested: String?) {
     if (requested != null && lapack.name != requested) return
     registerBackend(lapack)
 }
-
-/** The reserved `koblas.backend` value meaning register nothing. */
-private const val REFERENCE_NAME = "reference"
 
 /** Instantiate all registered providers, dropping any whose construction fails. */
 private fun loadProviders(): List<LinearAlgebra> {
