@@ -135,6 +135,9 @@ benchmark {
             param("n", "256")
             param("backend", "reference")
         }
+        suite("pivotedQrGate", "PivotedQrGateBenchmark") {
+            gate()
+        }
         suite("triangularBlockGate", "Level3Benchmark", "trsm|trmm|trsmRight|trmmRight|gemm") {
             gate()
             param("n", "64")
