@@ -5,6 +5,24 @@ import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.SparseVector
 import kotlin.random.Random
 
+/** Every operand derives from this, so a re-run measures the same numbers rather than similar ones. */
+internal const val BENCH_SEED = 20260730
+
+/** Off-diagonal fill fraction for the sparse operands, low enough that the sparse paths stay sparse. */
+internal const val SPARSE_DENSITY = 0.01
+
+/** A scale just off one, so repeated in-place updates neither fold away nor drift out of range. */
+internal const val NEAR_UNIT_SCALE = 1.000001
+
+/** The shape parameter value that takes a simplex-like basis. */
+internal const val BASIS_SHAPE = "basis"
+
+/** The shape parameter value that takes a matrix with uniformly scattered fill. */
+internal const val RANDOM_SHAPE = "random"
+
+/** The generator every fixture draws from, seeded so all suites see the same operands. */
+internal fun benchRng(): Random = Random(BENCH_SEED)
+
 /** A general matrix with entries uniform in -1 to 1. */
 internal fun randomMatrix(rows: Int, cols: Int, rng: Random): DenseMatrix =
     DenseMatrix.wrap(rows, cols, DoubleArray(rows * cols) { rng.nextDouble(-1.0, 1.0) })
@@ -87,4 +105,97 @@ internal fun randomSparseVector(n: Int, density: Double, rng: Random): SparseVec
         }
     }
     return SparseVector.wrap(n, indices.toIntArray(), values.toDoubleArray())
+}
+
+/**
+ * A structural stand-in for a simplex basis: near-triangular, mostly slack columns, a few spikes.
+ *
+ * @param n the basis dimension.
+ * @param slackFraction how many columns are unit vectors, as a fraction of [n].
+ * @param spikeFraction how many columns violate the triangular order, as a fraction of [n].
+ * @param columnNonzeros entries in a structural column, before the triangular restriction.
+ */
+internal fun simplexBasis(
+    n: Int,
+    rng: Random,
+    slackFraction: Double = 0.55,
+    spikeFraction: Double = 0.08,
+    columnNonzeros: Int = 6,
+): SparseMatrix {
+    val slacks = (n * slackFraction).toInt()
+    val spikes = (n * spikeFraction).toInt()
+    val isSpike = BooleanArray(n)
+    repeat(spikes) { isSpike[rng.nextInt(n)] = true }
+    val columns = List(n) { j ->
+        val entries = ArrayList<Pair<Int, Double>>()
+        entries.add(j to (1.0 + rng.nextDouble()))
+        when {
+            j < slacks -> Unit // a slack column is the unit vector, and stays one
+            isSpike[j] -> {
+                repeat(columnNonzeros) {
+                    val i = rng.nextInt(n)
+                    if (i != j) entries.add(i to rng.nextDouble(-1.0, 1.0))
+                }
+            }
+
+            else -> {
+                repeat(columnNonzeros) {
+                    val i = rng.nextInt(j + 1)
+                    if (i != j) entries.add(i to rng.nextDouble(-1.0, 1.0))
+                }
+            }
+        }
+        entries
+    }
+    return SparseMatrix.ofColumns(n, n, columns)
+}
+
+/** The upper triangle of a tridiagonal band of dimension [n]. */
+internal fun bandUpperTriangle(n: Int): SparseMatrix {
+    val rowIdx = IntArray(2 * n - 1)
+    val colIdx = IntArray(2 * n - 1)
+    val values = DoubleArray(2 * n - 1)
+    var k = 0
+    for (j in 0 until n) {
+        if (j > 0) {
+            rowIdx[k] = j - 1
+            colIdx[k] = j
+            values[k] = -1.0
+            k++
+        }
+        rowIdx[k] = j
+        colIdx[k] = j
+        values[k] = 4.0
+        k++
+    }
+    return SparseMatrix.ofTriplets(n, n, rowIdx, colIdx, values)
+}
+
+/** The upper triangle of a 5-point Laplacian on the squarest grid with at most [n] points. */
+internal fun gridUpperTriangle(n: Int): SparseMatrix {
+    var side = 1
+    while ((side + 1) * (side + 1) <= n) side++
+    val points = side * side
+    val rowIdx = ArrayList<Int>()
+    val colIdx = ArrayList<Int>()
+    val values = ArrayList<Double>()
+    for (y in 0 until side) {
+        for (x in 0 until side) {
+            val i = y * side + x
+            rowIdx.add(i)
+            colIdx.add(i)
+            values.add(8.0)
+            if (x + 1 < side) {
+                rowIdx.add(i)
+                colIdx.add(i + 1)
+                values.add(-1.0)
+            }
+            if (y + 1 < side) {
+                rowIdx.add(i)
+                colIdx.add(i + side)
+                values.add(-1.0)
+            }
+        }
+    }
+    return SparseMatrix.ofTriplets(points, points, rowIdx.toIntArray(), colIdx.toIntArray(), values.toDoubleArray())
 }

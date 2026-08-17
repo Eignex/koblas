@@ -6,6 +6,18 @@ import com.eignex.koblas.installBackends
 import com.eignex.koblas.koblas
 import com.eignex.koblas.koblasInfo
 
+/** The backend parameter value that leaves resolution to discovery. */
+internal const val AUTO_BACKEND = "auto"
+
+/** The backend parameter value that pins a run to the portable kernels. */
+internal const val REFERENCE_BACKEND = "reference"
+
+/** The kernels parameter value that clears the platform's level-1 kernels. */
+internal const val BUILTIN_KERNELS = "builtin"
+
+/** The kernels parameter value that installs them. */
+internal const val HOST_KERNELS = "host"
+
 /** The platform's native backend, or null to leave resolution to discovery. */
 internal expect fun nativeBackend(): LinearAlgebra?
 
