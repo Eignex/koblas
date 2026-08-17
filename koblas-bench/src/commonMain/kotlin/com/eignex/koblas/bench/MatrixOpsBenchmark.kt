@@ -8,16 +8,7 @@ import com.eignex.koblas.normInf
 import com.eignex.koblas.scaleColumns
 import com.eignex.koblas.scaleRows
 import com.eignex.koblas.transpose
-import kotlin.random.Random
-import kotlinx.benchmark.Benchmark
-import kotlinx.benchmark.BenchmarkMode
-import kotlinx.benchmark.BenchmarkTimeUnit
-import kotlinx.benchmark.Mode
-import kotlinx.benchmark.OutputTimeUnit
-import kotlinx.benchmark.Param
-import kotlinx.benchmark.Scope
-import kotlinx.benchmark.Setup
-import kotlinx.benchmark.State
+import kotlinx.benchmark.*
 
 /**
  * The matrix-wide operations that are not BLAS calls: the three norms a condition estimate needs, the row
@@ -37,10 +28,10 @@ class MatrixOpsBenchmark {
 
     @Setup
     fun setup() {
-        val rng = Random(BENCH_SEED)
+        val rng = benchRng()
         a = randomMatrix(n, n, rng)
-        sparse = sparseDominantMatrix(n, density = 0.01, rng = rng)
-        factors = DoubleArray(n) { 1.000001 }
+        sparse = sparseDominantMatrix(n, rng)
+        factors = DoubleArray(n) { NEAR_UNIT_SCALE }
     }
 
     /** Column sums, which run with the column-major layout. */

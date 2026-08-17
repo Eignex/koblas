@@ -4,15 +4,7 @@ import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.sparse.SparseOrdering
 import com.eignex.koblas.sparse.SparseSymbolic
 import com.eignex.koblas.sparse.analyze
-import kotlinx.benchmark.Benchmark
-import kotlinx.benchmark.BenchmarkMode
-import kotlinx.benchmark.BenchmarkTimeUnit
-import kotlinx.benchmark.Mode
-import kotlinx.benchmark.OutputTimeUnit
-import kotlinx.benchmark.Param
-import kotlinx.benchmark.Scope
-import kotlinx.benchmark.Setup
-import kotlinx.benchmark.State
+import kotlinx.benchmark.*
 
 /**
  * The symbolic phase on its own, which the fill-reducing ordering dominates. Both shapes have `O(n)`

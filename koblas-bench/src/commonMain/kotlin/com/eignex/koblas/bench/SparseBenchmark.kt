@@ -8,16 +8,7 @@ import com.eignex.koblas.sparse.gemv
 import com.eignex.koblas.sparse.ldl
 import com.eignex.koblas.sparse.lu
 import com.eignex.koblas.sparse.trsv
-import kotlin.random.Random
-import kotlinx.benchmark.Benchmark
-import kotlinx.benchmark.BenchmarkMode
-import kotlinx.benchmark.BenchmarkTimeUnit
-import kotlinx.benchmark.Mode
-import kotlinx.benchmark.OutputTimeUnit
-import kotlinx.benchmark.Param
-import kotlinx.benchmark.Scope
-import kotlinx.benchmark.Setup
-import kotlinx.benchmark.State
+import kotlinx.benchmark.*
 
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
@@ -36,10 +27,10 @@ class SparseBenchmark {
 
     @Setup
     fun setup() {
-        val rng = Random(BENCH_SEED)
-        a = sparseDominantMatrix(n, density = 0.01, rng = rng)
+        val rng = benchRng()
+        a = sparseDominantMatrix(n, rng)
         rhs = randomVector(n, rng)
-        spd = sparseSpdMatrix(n, density = 0.01, rng = rng)
+        spd = sparseSpdMatrix(n, rng)
         ldlFactored = spd.ldl()
         x = DoubleArray(n)
     }

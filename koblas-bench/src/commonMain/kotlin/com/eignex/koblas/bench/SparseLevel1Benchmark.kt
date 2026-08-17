@@ -6,16 +6,7 @@ import com.eignex.koblas.asum
 import com.eignex.koblas.axpy
 import com.eignex.koblas.dot
 import com.eignex.koblas.norm2
-import kotlin.random.Random
-import kotlinx.benchmark.Benchmark
-import kotlinx.benchmark.BenchmarkMode
-import kotlinx.benchmark.BenchmarkTimeUnit
-import kotlinx.benchmark.Mode
-import kotlinx.benchmark.OutputTimeUnit
-import kotlinx.benchmark.Param
-import kotlinx.benchmark.Scope
-import kotlinx.benchmark.Setup
-import kotlinx.benchmark.State
+import kotlinx.benchmark.*
 
 /**
  * The sparse vector primitives, which cost by stored entry rather than by length. [density] is what decides
@@ -37,7 +28,7 @@ class SparseLevel1Benchmark {
 
     @Setup
     fun setup() {
-        val rng = Random(BENCH_SEED)
+        val rng = benchRng()
         sparse = randomSparseVector(len, density, rng)
         other = randomSparseVector(len, density, rng)
         dense = DenseVector.of(randomVector(len, rng))
@@ -53,7 +44,7 @@ class SparseLevel1Benchmark {
 
     @Benchmark
     fun sparseAxpy() {
-        axpy(dense, 1.000001, sparse)
+        axpy(dense, NEAR_UNIT_SCALE, sparse)
     }
 
     @Benchmark

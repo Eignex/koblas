@@ -10,16 +10,7 @@ import com.eignex.koblas.dense.solve
 import com.eignex.koblas.dense.trtri
 import com.eignex.koblas.koblas
 import com.eignex.koblas.norm1
-import kotlin.random.Random
-import kotlinx.benchmark.Benchmark
-import kotlinx.benchmark.BenchmarkMode
-import kotlinx.benchmark.BenchmarkTimeUnit
-import kotlinx.benchmark.Mode
-import kotlinx.benchmark.OutputTimeUnit
-import kotlinx.benchmark.Param
-import kotlinx.benchmark.Scope
-import kotlinx.benchmark.Setup
-import kotlinx.benchmark.State
+import kotlinx.benchmark.*
 
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
@@ -28,8 +19,8 @@ class SolveBenchmark {
     @Param("16", "32", "64", "128", "256")
     var n: Int = 0
 
-    @Param("auto", "reference")
-    var backend: String = "auto"
+    @Param(AUTO_BACKEND, REFERENCE_BACKEND)
+    var backend: String = AUTO_BACKEND
 
     private lateinit var a: DenseMatrix
     private lateinit var factored: LuDecomposition
@@ -46,7 +37,7 @@ class SolveBenchmark {
     @Setup
     fun setup() {
         installBackend(backend)
-        val rng = Random(BENCH_SEED)
+        val rng = benchRng()
         a = dominantMatrix(n, rng)
         factored = a.lu()
         indefinite = koblas.ldl(indefiniteMatrix(n, rng))

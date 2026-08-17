@@ -3,16 +3,7 @@ package com.eignex.koblas.bench
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
 import com.eignex.koblas.koblas
-import kotlin.random.Random
-import kotlinx.benchmark.Benchmark
-import kotlinx.benchmark.BenchmarkMode
-import kotlinx.benchmark.BenchmarkTimeUnit
-import kotlinx.benchmark.Mode
-import kotlinx.benchmark.OutputTimeUnit
-import kotlinx.benchmark.Param
-import kotlinx.benchmark.Scope
-import kotlinx.benchmark.Setup
-import kotlinx.benchmark.State
+import kotlinx.benchmark.*
 
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
@@ -21,8 +12,8 @@ class Level2Benchmark {
     @Param("16", "64", "256", "1024", "2048")
     var n: Int = 0
 
-    @Param("auto", "reference")
-    var backend: String = "auto"
+    @Param(AUTO_BACKEND, REFERENCE_BACKEND)
+    var backend: String = AUTO_BACKEND
 
     private lateinit var a: DenseMatrix
     private lateinit var sym: DenseMatrix
@@ -42,7 +33,7 @@ class Level2Benchmark {
     @Setup
     fun setup() {
         installBackend(backend)
-        val rng = Random(BENCH_SEED)
+        val rng = benchRng()
         a = randomMatrix(n, n, rng)
         sym = lowerSymmetricMatrix(n, rng)
         x = randomVector(n, rng)
@@ -73,17 +64,17 @@ class Level2Benchmark {
     /** Rank-1 update, the one level-2 routine that writes the whole matrix rather than a vector. */
     @Benchmark
     fun ger() {
-        koblas.ger(1.000001, x, y2, target)
+        koblas.ger(NEAR_UNIT_SCALE, x, y2, target)
     }
 
     @Benchmark
     fun syr() {
-        koblas.syr(1.000001, xv, target)
+        koblas.syr(NEAR_UNIT_SCALE, xv, target)
     }
 
     @Benchmark
     fun syr2() {
-        koblas.syr2(1.000001, xv, yv, target)
+        koblas.syr2(NEAR_UNIT_SCALE, xv, yv, target)
     }
 
     /** Triangular solve, sequential down the columns and the hardest level-2 routine to accelerate. */
