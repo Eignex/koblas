@@ -288,4 +288,12 @@ class VectorKernelsTest {
         kernels.dot4(v, 3, 0, v, 3, 0, quads, 0)
         assertEquals(listOf(0.0, 0.0, 0.0, 0.0), quads.toList(), "dot4 over nothing")
     }
+
+    @Test
+    fun `the compiled-in level-1 kernels agree with the scalar loops`() =
+        assertLevel1KernelsAgreeWithScalar(PlatformVectorKernels)
+
+    @Test
+    fun `the compiled-in reductions agree with the scalar loops`() =
+        assertReductionsAgreeWithScalar(PlatformVectorKernels)
 }
