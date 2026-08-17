@@ -108,6 +108,38 @@ benchmark {
         suite("sparseFocused", "SparseBenchmark", "sparseLuFactor|sparseGemv") {
             param("n", "256")
         }
+
+        // Gates for a shared-helper change in a hot path. Each pins the rows the change could regress plus a
+        // control it cannot touch, so drift in the control means the machine moved.
+        //
+        // Several forks, unlike the single fork above. One fork reports a tight error bar and still moves 25%
+        // between two runs of identical code, because the whole run inherits one JVM's JIT decisions. Forks
+        // are what make two runs comparable, which is the only thing a gate is for.
+        val gate: BenchmarkConfiguration.() -> Unit = {
+            warmups = 5
+            iterations = 10
+            advanced("jvmForks", "5")
+        }
+
+        suite("scalarKernelsGate", "Level1Benchmark", "dot|dot4|axpyBench|scaleBench|iamaxBench") {
+            gate()
+            param("len", "64", "1024")
+            param("kernels", "builtin")
+        }
+        suite("sweepGate", "SparseBenchmark", "sparseLuFtran|sparseLuBtran|sparseLuFactor|sparseGemv") {
+            gate()
+            param("n", "256")
+        }
+        suite("triangularGate", "Level2Benchmark", "trsv|trmv|gemv") {
+            gate()
+            param("n", "256")
+            param("backend", "reference")
+        }
+        suite("triangularBlockGate", "Level3Benchmark", "trsm|trmm|trsmRight|trmmRight|gemm") {
+            gate()
+            param("n", "64")
+            param("backend", "reference")
+        }
     }
 }
 

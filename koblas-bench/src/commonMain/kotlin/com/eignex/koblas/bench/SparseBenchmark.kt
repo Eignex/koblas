@@ -25,6 +25,9 @@ class SparseBenchmark {
     private lateinit var ldlFactored: SparseFactorization
     private lateinit var x: DoubleArray
 
+    /** Factored once in setup, so the solve benchmarks below time the sweeps and not the elimination. */
+    private lateinit var luFactored: SparseFactorization
+
     @Setup
     fun setup() {
         val rng = benchRng()
@@ -32,11 +35,20 @@ class SparseBenchmark {
         rhs = randomVector(n, rng)
         spd = sparseSpdMatrix(n, rng)
         ldlFactored = spd.ldl()
+        luFactored = a.lu()
         x = DoubleArray(n)
     }
 
     @Benchmark
     fun sparseLuSolve(): DoubleArray = a.lu(equilibrate = true).solve(rhs)
+
+    /** The forward sweeps alone, `L U (Qᵀx) = P(Eb)`, against a factorization setup already paid for. */
+    @Benchmark
+    fun sparseLuFtran(): DoubleArray = luFactored.solveInto(rhs, x)
+
+    /** The transposed sweeps alone, which walk the factors by column where [sparseLuFtran] walks them by row. */
+    @Benchmark
+    fun sparseLuBtran(): DoubleArray = luFactored.solveInto(rhs, x, transpose = true)
 
     @Benchmark
     fun sparseGemv(): DoubleArray = a.gemv(rhs)
