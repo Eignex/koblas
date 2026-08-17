@@ -3,9 +3,7 @@ package com.eignex.koblas.hostblas
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.HostLibraryTest
 import com.eignex.koblas.Workspace
-import com.eignex.koblas.assertClose
 import com.eignex.koblas.dense.Blas
-import com.eignex.koblas.dense.ReferenceLinearAlgebra
 import com.eignex.koblas.dense.Uplo
 import com.eignex.koblas.dense.assertAnEmptyFactorizationSolvesEmpty
 import com.eignex.koblas.dense.assertDegenerateShapesHonorTheBetaConventions
@@ -20,6 +18,7 @@ import com.eignex.koblas.dense.assertLevel3AgreesWithReference
 import com.eignex.koblas.dense.assertLuAgreesWithReference
 import com.eignex.koblas.dense.assertLuFactorsInterchange
 import com.eignex.koblas.dense.assertNonPositiveDefiniteFallsBack
+import com.eignex.koblas.dense.assertPivotedQrAgreesWithReference
 import com.eignex.koblas.dense.assertQrFactorsInterchange
 import com.eignex.koblas.dense.assertRcondAgreesWithReference
 import com.eignex.koblas.dense.assertSingularLdlIsRefused
@@ -30,7 +29,6 @@ import com.eignex.koblas.dense.assertSymvRefusesNonSquare
 import com.eignex.koblas.dense.assertSyrkAgreesWithReference
 import com.eignex.koblas.dense.assertSyrkTriangleModesLeaveTheOtherTriangle
 import com.eignex.koblas.dense.assertTriangularAgreesWithReference
-import com.eignex.koblas.dense.rColumn
 import com.eignex.koblas.koblasInfo
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.wellConditioned
@@ -122,35 +120,7 @@ class HostBlasConformanceTest {
     @Test
     fun `pivoted QR matches reference in rank and reconstruction`() {
         Assume.assumeTrue("host LAPACKE is not installed", HostBlasCalls.lapackAvailable)
-        val host = HostLapack()
-        val rng = Random(20260809)
-        val m = 96
-        for (rank in intArrayOf(64, 40)) {
-            // A rank-deficient product of full-rank factors, where 64 is full column rank and 40 is deficient.
-            val left = randomMatrix(m, rank, rng)
-            val right = randomMatrix(rank, 64, rng)
-            val a = DenseMatrix(m, 64)
-            ReferenceLinearAlgebra.gemm(1.0, left, false, right, false, 0.0, a)
-
-            val expected = ReferenceLinearAlgebra.qrPivoted(a)
-            val actual = host.qrPivoted(a)
-            assertEquals(expected.rank, actual.rank, "rank of a ${m}x64 matrix built at rank $rank")
-            assertEquals((0 until 64).toList(), actual.pivots.sorted(), "pivots must be a permutation")
-
-            for (j in 0 until 64) {
-                val rebuilt = host.applyQ(actual.factorization, rColumn(actual.factorization, j))
-                val original = DoubleArray(m) { i -> a[i, actual.pivots[j]] }
-                assertClose(original, rebuilt, tolerance = 1e-8, context = "A·P = Q·R rank=$rank column $j")
-            }
-
-            val b = DoubleArray(m) { rng.nextDouble(-1.0, 1.0) }
-            assertClose(
-                ReferenceLinearAlgebra.solveLeastSquares(expected, b),
-                host.solveLeastSquares(actual, b),
-                tolerance = 1e-7,
-                context = "pivoted least squares rank=$rank",
-            )
-        }
+        assertPivotedQrAgreesWithReference(HostLapack(), m = 96, cols = 64, ranks = intArrayOf(64, 40))
     }
 
     /** Above the LAPACK gate, so the host path is the one under test rather than the portable fallback. */
