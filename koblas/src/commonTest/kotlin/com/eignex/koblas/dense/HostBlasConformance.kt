@@ -507,15 +507,19 @@ internal fun assertQrFactorsInterchange(lapack: Lapack, shapes: List<Pair<Int, I
             lapack.solveLeastSquares(fReference, b),
             lapack.solveLeastSquares(fHost, b),
         )
+        // The operand is a random matrix rather than a dominant one, so its conditioning worsens with the
+        // shape and a flat bound would be tight only at the largest one. Scaled so the smallest shapes keep
+        // the bound they had.
+        val leastSquaresTolerance = 1e-10 * maxOf(1.0, m / 16.0)
         for ((i, x) in xs.withIndex()) {
-            assertClose(xs[0], x, "qr interchange ${m}x$n variant $i", tolerance = 1e-10)
+            assertClose(xs[0], x, "qr interchange ${m}x$n variant $i", tolerance = leastSquaresTolerance)
         }
         val y = DoubleArray(m) { rng.nextDouble(-1.0, 1.0) }
         assertClose(
             reference.applyQ(fHost, y),
             lapack.applyQ(fHost, y),
             "applyQ on host factors ${m}x$n",
-            tolerance = 1e-11,
+            tolerance = 1e-11 * maxOf(1.0, m / 16.0),
         )
         assertClose(
             reference.applyQ(fReference, y),
