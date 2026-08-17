@@ -85,4 +85,19 @@ class Level3Benchmark {
         koblas.trmm(triangular, rhs, lower = true)
         return rhs
     }
+
+    /** The right-side form, which the portable path serves one row at a time rather than one column. */
+    @Benchmark
+    fun trsmRight(): DenseMatrix {
+        b.data.copyInto(rhs.data)
+        koblas.trsm(triangular, rhs, lower = true, right = true)
+        return rhs
+    }
+
+    @Benchmark
+    fun trmmRight(): DenseMatrix {
+        b.data.copyInto(rhs.data)
+        koblas.trmm(triangular, rhs, lower = true, right = true)
+        return rhs
+    }
 }
