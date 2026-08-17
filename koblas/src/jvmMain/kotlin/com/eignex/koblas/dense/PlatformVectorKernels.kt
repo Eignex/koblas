@@ -83,25 +83,9 @@ internal actual object PlatformVectorKernels : VectorKernels {
         if (vectorizes(len)) {
             Simd.dot4(a, aOff, stride, b, bOff, len, out, outOff)
         } else {
-            for (r in 0 until 4) out[outOff + r] = scalarDot(a, aOff + r * stride, b, bOff, len)
+            scalarDot4(a, aOff, stride, b, bOff, len, out, outOff)
         }
     }
-}
-
-private fun scalarDot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
-    var s = 0.0
-    for (i in 0 until len) s += a[aOff + i] * b[bOff + i]
-    return s
-}
-
-private fun scalarAxpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
-    if (alpha == 0.0) return
-    for (i in 0 until len) y[yOff + i] += alpha * x[xOff + i]
-}
-
-private fun scalarScale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
-    if (alpha == 1.0) return
-    for (i in 0 until len) v[vOff + i] *= alpha
 }
 
 internal object Simd {
