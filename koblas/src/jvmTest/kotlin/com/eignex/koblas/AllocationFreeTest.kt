@@ -5,8 +5,6 @@ import com.eignex.koblas.dense.lu
 import com.eignex.koblas.dense.solve
 import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.lu
-import com.sun.management.ThreadMXBean
-import java.lang.management.ManagementFactory
 import kotlin.random.Random
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -16,16 +14,12 @@ import kotlin.test.assertTrue
 class AllocationFreeTest {
 
     private companion object {
-        const val WINDOWS = 5
-
         /** Allowance for effects that are not koblas's (instrumentation, index boxing, JIT noise). */
         const val FLOOR_BYTES = 64.0
 
         /** A pooled form must allocate at most this fraction of what the allocating form does. */
         const val POOLED_RATIO = 50.0
     }
-
-    private val bean = ManagementFactory.getThreadMXBean() as ThreadMXBean
 
     /** Pins the portable backend for the suite, since an FFM call allocates a MemorySegment wrapper per array. */
     @BeforeTest
@@ -44,31 +38,6 @@ class AllocationFreeTest {
     @AfterTest
     fun restoreSelection() {
         installBackends(null)
-    }
-
-    /** Holds each block's result so escape analysis cannot delete the allocation being measured. */
-    private var sink: Any? = null
-
-    private fun bytesPerIteration(iterations: Int, warmup: Int = 200, block: (Int) -> Any?): Double {
-        repeat(warmup) { sink = block(it) } // let the JIT settle, since the first calls allocate profiling data
-        val id = Thread.currentThread().threadId()
-        var best = Double.MAX_VALUE
-        repeat(WINDOWS) {
-            val before = bean.getThreadAllocatedBytes(id)
-            repeat(iterations) { i -> sink = block(i) }
-            val after = bean.getThreadAllocatedBytes(id)
-            val perIteration = (after - before).toDouble() / iterations
-            if (perIteration < best) best = perIteration
-        }
-        return best
-    }
-
-    private fun wellConditioned(n: Int, rng: Random): DenseMatrix {
-        val a = DenseMatrix(n, n)
-        for (i in 0 until n) {
-            for (j in 0 until n) a[i, j] = rng.nextDouble(-1.0, 1.0) + if (i == j) n.toDouble() else 0.0
-        }
-        return a
     }
 
     private fun assertPooled(pooled: Double, allocating: Double, what: String) {

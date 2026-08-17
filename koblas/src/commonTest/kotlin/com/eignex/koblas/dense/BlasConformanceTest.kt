@@ -5,6 +5,7 @@ import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.koblas
 import com.eignex.koblas.sparse.gemv
 import com.eignex.koblas.sparse.lu
+import com.eignex.koblas.wellConditioned
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.Test
@@ -36,10 +37,6 @@ class BlasConformanceTest {
     private fun diagonal(n: Int, rng: Random): DenseMatrix =
         DenseMatrix(n, n).also { for (i in 0 until n) it[i, i] = rng.nextDouble(1.0, 5.0) }
 
-    private fun randomWellConditioned(n: Int, rng: Random): DenseMatrix =
-        DenseMatrix(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
-            .also { for (i in 0 until n) it[i, i] = it[i, i] + n } // diagonally dominant
-
     private fun spd(n: Int, rng: Random): DenseMatrix {
         val a = DenseMatrix(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
         val m = DenseMatrix(n, n)
@@ -70,7 +67,7 @@ class BlasConformanceTest {
                 "identity" to DenseMatrix.diagonal(n),
                 "diagonal" to diagonal(n, rng),
                 "hilbert" to hilbert(n),
-                "random" to randomWellConditioned(n, rng),
+                "random" to wellConditioned(n, rng),
                 "spd" to spd(n, rng),
             )
             for ((label, a) in matrices) {
@@ -88,7 +85,7 @@ class BlasConformanceTest {
     fun `dense LU transpose-solve has a small residual`() {
         val rng = Random(99)
         for (n in intArrayOf(2, 7, 25)) {
-            val a = randomWellConditioned(n, rng)
+            val a = wellConditioned(n, rng)
             val xTrue = DoubleArray(n) { rng.nextDouble(-2.0, 2.0) }
             val b = koblas.gemv(a, xTrue, transpose = true)
             val x = a.lu().solve(b, transpose = true)
@@ -168,7 +165,7 @@ class BlasConformanceTest {
     fun `gemm reproduces the identity and is associative within tolerance`() {
         val rng = Random(3)
         for (n in intArrayOf(1, 4, 16)) {
-            val a = randomWellConditioned(n, rng)
+            val a = wellConditioned(n, rng)
             val id = DenseMatrix.diagonal(n)
             assertTrue(a.matMul(id) == a, "A·I != A at n=$n")
             val b = DenseMatrix(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
@@ -273,7 +270,7 @@ class BlasConformanceTest {
     fun `sparse LU solve has a small residual on standard matrices`() {
         val rng = Random(20260101)
         for (n in intArrayOf(2, 8, 30)) {
-            val dense = randomWellConditioned(n, rng)
+            val dense = wellConditioned(n, rng)
             val cols = List(n) { j ->
                 (0 until n).mapNotNull { i -> if (dense[i, j] != 0.0) i to dense[i, j] else null }
             }

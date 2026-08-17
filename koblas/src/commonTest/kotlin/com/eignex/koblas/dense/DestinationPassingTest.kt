@@ -6,6 +6,7 @@ import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.koblas
 import com.eignex.koblas.norm1
+import com.eignex.koblas.poisonedIndefinite
 import com.eignex.koblas.sparse.lu
 import com.eignex.koblas.wellConditioned
 import kotlin.random.Random
@@ -49,15 +50,7 @@ class DestinationPassingTest {
     fun `ldl solveInto matches solve aliased or not`() {
         val rng = Random(20260732)
         for (n in intArrayOf(1, 2, 9)) {
-            val a = DenseMatrix(n, n)
-            for (i in 0 until n) {
-                for (j in 0..i) {
-                    var v = rng.nextDouble(-1.0, 1.0)
-                    if (i == j) v += if (i % 2 == 0) 2.0 else -2.0
-                    a[i, j] = v
-                    a[j, i] = v
-                }
-            }
+            val (a, _) = poisonedIndefinite(rng, n)
             val f = koblas.ldl(a)
             val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
             val expected = koblas.solve(f, b)
@@ -129,15 +122,7 @@ class DestinationPassingTest {
     fun `ldl block solves into a destination match the allocating form`() {
         val rng = Random(20260751)
         val n = 8
-        val a = DenseMatrix(n, n)
-        for (i in 0 until n) {
-            for (j in 0..i) {
-                var v = rng.nextDouble(-1.0, 1.0)
-                if (i == j) v += if (i % 2 == 0) 2.0 else -2.0
-                a[i, j] = v
-                a[j, i] = v
-            }
-        }
+        val (a, _) = poisonedIndefinite(rng, n)
         val f = koblas.ldl(a)
         for (nrhs in intArrayOf(1, 3, 40)) {
             val b = DenseMatrix(n, nrhs)

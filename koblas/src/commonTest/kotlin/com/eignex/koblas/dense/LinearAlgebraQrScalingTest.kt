@@ -24,12 +24,6 @@ class LinearAlgebraQrScalingTest {
         Array(base.size) { i -> DoubleArray(3) { j -> base[i][j] * scale } },
     )
 
-    private fun rColumn(qr: QrDecomposition, j: Int): DoubleArray {
-        val col = DoubleArray(qr.m)
-        for (i in 0 until minOf(j + 1, qr.tau.size)) col[i] = qr.qr[i + j * qr.m]
-        return col
-    }
-
     private fun assertReconstructs(a: DenseMatrix, f: QrDecomposition, scale: Double) {
         for (j in 0 until a.cols) {
             val rebuilt = koblas.applyQ(f, rColumn(f, j))

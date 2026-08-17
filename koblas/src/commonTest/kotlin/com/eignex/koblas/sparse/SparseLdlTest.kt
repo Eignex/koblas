@@ -28,13 +28,6 @@ class SparseLdlTest {
         return SparseMatrix.ofColumns(n, n, List(n) { j -> entries[j].map { (i, v) -> i to v } })
     }
 
-    /** A·x computed straight from the CSC arrays, so no seam is involved in checking a seam. */
-    private fun multiply(a: SparseMatrix, x: DoubleArray): DoubleArray {
-        val y = DoubleArray(a.rows)
-        for (j in 0 until a.cols) a.forEachInColumn(j) { i, v -> y[i] += v * x[j] }
-        return y
-    }
-
     @Test
     fun `the analysis predicts a pattern the numeric phase fits into`() {
         val rng = Random(20260810)

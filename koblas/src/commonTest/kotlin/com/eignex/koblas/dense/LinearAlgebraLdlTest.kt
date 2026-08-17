@@ -4,29 +4,13 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.koblas
+import com.eignex.koblas.poisonedIndefinite
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class LinearAlgebraLdlTest {
-
-    /** A random symmetric indefinite matrix as `(full, poisoned)`, whose mixed-sign pivots force 2x2 blocks. */
-    private fun poisonedIndefinite(rng: Random, n: Int): Pair<DenseMatrix, DenseMatrix> {
-        val full = DenseMatrix(n)
-        val poisoned = DenseMatrix(n)
-        for (i in 0 until n) {
-            for (j in 0..i) {
-                var v = rng.nextDouble(-1.0, 1.0)
-                if (i == j) v += if (i % 2 == 0) 2.0 else -2.0
-                full[i, j] = v
-                full[j, i] = v
-                poisoned[i, j] = v
-                if (j != i) poisoned[j, i] = Double.NaN
-            }
-        }
-        return full to poisoned
-    }
 
     @Test
     fun `ldl solve matches LU solve on indefinite matrices and reads only the lower triangle`() {
