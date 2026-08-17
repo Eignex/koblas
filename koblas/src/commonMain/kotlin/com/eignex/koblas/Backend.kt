@@ -20,6 +20,16 @@ public interface Backend {
      * SIMD kernels are portable however fast they are; only something calling out counts as accelerated.
      */
     public val isPortable: Boolean get() = false
+
+    /**
+     * Whether this backend can do work on this host. koblas's own implementations always can, so the default
+     * is true; a binding reports whether the library it calls resolved.
+     *
+     * Each half answers for itself, since a host can provide CBLAS without LAPACKE, or OpenBLAS without
+     * UMFPACK. Registration already skips an unavailable backend, so this is for a caller installing one
+     * explicitly or reporting what a host offers.
+     */
+    public val isAvailable: Boolean get() = true
 }
 
 /**

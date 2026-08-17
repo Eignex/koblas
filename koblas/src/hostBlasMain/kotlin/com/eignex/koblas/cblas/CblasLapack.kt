@@ -13,4 +13,7 @@ internal class CblasLapack(f: LapackeFunctions, blas: CblasFunctions) :
     override val name: String get() = BackendNames.CBLAS
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY
+
+    /** LAPACKE calls into CBLAS, so this half needs both. */
+    override val isAvailable: Boolean get() = OpenBlasLoader.lapacke != null && OpenBlasLoader.cblas != null
 }

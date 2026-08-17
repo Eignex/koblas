@@ -46,6 +46,11 @@ public class KoblasContext(
         get() = vectorKernels.isPortable && blas.isPortable && lapack.isPortable &&
             sparseVectorKernels.isPortable && sparseBlas.isPortable && sparseLapack.isPortable
 
+    /** True when every half can run, which a context assembled from resolved backends always can. */
+    override val isAvailable: Boolean
+        get() = vectorKernels.isAvailable && blas.isAvailable && lapack.isAvailable &&
+            sparseVectorKernels.isAvailable && sparseBlas.isAvailable && sparseLapack.isAvailable
+
     /** The strongest half's priority, so a context is at least as preferred as the best thing in it. */
     override val priority: Int
         get() = maxOf(

@@ -13,4 +13,7 @@ internal class CblasBlas(f: CblasFunctions) : HostBlasAdapter(NativeCblasCalls(f
     override val name: String get() = BackendNames.CBLAS
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY
+
+    /** The BLAS half needs only CBLAS, which a host can provide without LAPACKE. */
+    override val isAvailable: Boolean get() = OpenBlasLoader.cblas != null
 }

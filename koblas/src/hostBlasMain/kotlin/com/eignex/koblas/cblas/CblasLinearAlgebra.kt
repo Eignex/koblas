@@ -9,7 +9,7 @@ import com.eignex.koblas.dense.VectorKernels
 
 /**
  * [LinearAlgebra] backed by the host's OpenBLAS through CBLAS and LAPACKE, resolved with `dlopen` on
- * first use. The two halves resolve independently, so check [isAvailable] and [isBlasAvailable].
+ * first use. The two halves resolve independently, so [isAvailable] reports whether both did.
  */
 public class CblasLinearAlgebra private constructor(private val blas: CblasBlas, private val lapack: CblasLapack) :
     LinearAlgebra,
@@ -28,6 +28,9 @@ public class CblasLinearAlgebra private constructor(private val blas: CblasBlas,
 
     override val isPortable: Boolean get() = false
 
+    /** Both halves, since this type is the pair. Either half alone is reachable through the registry. */
+    override val isAvailable: Boolean get() = blas.isAvailable && lapack.isAvailable
+
     /** The BLAS half's kernels, so both halves' inherited routines agree. */
     override val vectorKernels: VectorKernels get() = blas.vectorKernels
 
@@ -35,9 +38,6 @@ public class CblasLinearAlgebra private constructor(private val blas: CblasBlas,
     public companion object {
         /** Whether the host provides both CBLAS and LAPACKE, so the full backend can be constructed. */
         public fun isAvailable(): Boolean = OpenBlasLoader.cblas != null && OpenBlasLoader.lapacke != null
-
-        /** Whether the host provides CBLAS, which is all the [Blas] half needs. */
-        public fun isBlasAvailable(): Boolean = OpenBlasLoader.cblas != null
 
         private const val NO_OPENBLAS =
             "OpenBLAS is not available on this host; koblas falls back to the reference backend"
