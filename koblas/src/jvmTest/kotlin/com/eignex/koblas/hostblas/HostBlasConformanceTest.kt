@@ -7,14 +7,28 @@ import com.eignex.koblas.assertClose
 import com.eignex.koblas.dense.Blas
 import com.eignex.koblas.dense.ReferenceLinearAlgebra
 import com.eignex.koblas.dense.Uplo
+import com.eignex.koblas.dense.assertAnEmptyFactorizationSolvesEmpty
+import com.eignex.koblas.dense.assertDegenerateShapesHonorTheBetaConventions
+import com.eignex.koblas.dense.assertDeterminantAgreesWithReference
 import com.eignex.koblas.dense.assertFactorIntoUsesItsDestination
+import com.eignex.koblas.dense.assertGemmAgreesWithReference
+import com.eignex.koblas.dense.assertGemvAgreesWithReference
 import com.eignex.koblas.dense.assertGerAgreesWithReference
+import com.eignex.koblas.dense.assertLdlBlockSolveAgreesWithReference
+import com.eignex.koblas.dense.assertLdlFactorsInterchange
 import com.eignex.koblas.dense.assertLevel3AgreesWithReference
 import com.eignex.koblas.dense.assertLuAgreesWithReference
+import com.eignex.koblas.dense.assertLuFactorsInterchange
 import com.eignex.koblas.dense.assertNonPositiveDefiniteFallsBack
+import com.eignex.koblas.dense.assertQrFactorsInterchange
+import com.eignex.koblas.dense.assertRcondAgreesWithReference
 import com.eignex.koblas.dense.assertSingularLdlIsRefused
+import com.eignex.koblas.dense.assertSingularLuIsFlagged
 import com.eignex.koblas.dense.assertSpdSuiteAgreesWithReference
+import com.eignex.koblas.dense.assertSymmetricProductsAgreeWithReference
 import com.eignex.koblas.dense.assertSymvRefusesNonSquare
+import com.eignex.koblas.dense.assertSyrkAgreesWithReference
+import com.eignex.koblas.dense.assertSyrkTriangleModesLeaveTheOtherTriangle
 import com.eignex.koblas.dense.assertTriangularAgreesWithReference
 import com.eignex.koblas.dense.rColumn
 import com.eignex.koblas.koblasInfo
@@ -150,5 +164,73 @@ class HostBlasConformanceTest {
     fun `the factorizations match reference at blocked sizes`() {
         Assume.assumeTrue("host LAPACKE is not installed", HostBlasCalls.lapackAvailable)
         assertLuAgreesWithReference(HostLapack(), intArrayOf(7, 64, 256))
+    }
+
+    /** Both extents stay at or above the level-3 gate of 16, so the host kernels are the ones under test. */
+    @Test
+    fun `the level 2 and 3 products match reference above the gates`() {
+        Assume.assumeTrue("host CBLAS is not installed", HostBlasCalls.available)
+        val host = HostBlas()
+        assertGemvAgreesWithReference(host, intArrayOf(18, 64))
+        assertGemmAgreesWithReference(host, intArrayOf(18, 64))
+        assertSyrkAgreesWithReference(host, intArrayOf(18, 64))
+        assertSyrkTriangleModesLeaveTheOtherTriangle(host, intArrayOf(18, 64))
+        assertSymmetricProductsAgreeWithReference(host, intArrayOf(18, 64))
+    }
+
+    /** The same properties at sizes under every gate, where the portable fallback answers instead. */
+    @Test
+    fun `the level 2 and 3 products match reference below the gates`() {
+        Assume.assumeTrue("host CBLAS is not installed", HostBlasCalls.available)
+        val host = HostBlas()
+        assertGemvAgreesWithReference(host, intArrayOf(7))
+        assertGemmAgreesWithReference(host, intArrayOf(6))
+        assertSyrkAgreesWithReference(host, intArrayOf(6))
+        assertSyrkTriangleModesLeaveTheOtherTriangle(host, intArrayOf(6))
+        assertSymmetricProductsAgreeWithReference(host, intArrayOf(1, 6, 13))
+    }
+
+    @Test
+    fun `degenerate shapes honor the beta conventions`() {
+        Assume.assumeTrue("host CBLAS is not installed", HostBlasCalls.available)
+        assertDegenerateShapesHonorTheBetaConventions(HostBlas())
+    }
+
+    /** Above the LAPACK gate of 64, so the host factorizations are the ones under test. */
+    @Test
+    fun `the factorization family matches reference above the gate`() {
+        Assume.assumeTrue("host LAPACKE is not installed", HostBlasCalls.lapackAvailable)
+        val host = HostLapack()
+        assertDeterminantAgreesWithReference(host, intArrayOf(64, 96))
+        assertLuFactorsInterchange(host, n = 96)
+        assertRcondAgreesWithReference(host, intArrayOf(64, 96))
+        assertLdlBlockSolveAgreesWithReference(host, n = 96, nrhs = 4)
+        assertLdlFactorsInterchange(host, intArrayOf(64, 96))
+        assertQrFactorsInterchange(host, listOf(96 to 96, 128 to 64))
+    }
+
+    /** The same properties at sizes under the gate, where the portable fallback answers instead. */
+    @Test
+    fun `the factorization family matches reference below the gate`() {
+        Assume.assumeTrue("host LAPACKE is not installed", HostBlasCalls.lapackAvailable)
+        val host = HostLapack()
+        assertDeterminantAgreesWithReference(host, intArrayOf(1, 3, 8, 33))
+        assertLuFactorsInterchange(host, n = 12)
+        assertRcondAgreesWithReference(host, intArrayOf(1, 6, 24))
+        assertLdlBlockSolveAgreesWithReference(host, n = 9, nrhs = 4)
+        assertLdlFactorsInterchange(host, intArrayOf(1, 2, 5, 14, 33))
+        assertQrFactorsInterchange(host, listOf(6 to 6, 10 to 4))
+    }
+
+    @Test
+    fun `a singular matrix sets the flag and a zero determinant`() {
+        Assume.assumeTrue("host LAPACKE is not installed", HostBlasCalls.lapackAvailable)
+        assertSingularLuIsFlagged(HostLapack())
+    }
+
+    @Test
+    fun `an empty factorization solves an empty right-hand side`() {
+        Assume.assumeTrue("host LAPACKE is not installed", HostBlasCalls.lapackAvailable)
+        assertAnEmptyFactorizationSolvesEmpty(HostLapack())
     }
 }

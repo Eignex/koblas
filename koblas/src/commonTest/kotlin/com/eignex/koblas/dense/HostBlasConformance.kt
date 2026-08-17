@@ -4,8 +4,12 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DimensionMismatch
 import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.norm1
+import com.eignex.koblas.poisonedIndefinite
+import com.eignex.koblas.poisonedSymmetric
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.wellConditioned
+import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -244,4 +248,306 @@ internal fun assertFactorIntoUsesItsDestination(lapack: Lapack, n: Int) {
     assertTrue(returned.singular, "factorInto must report a singular refactorization")
     lapack.factorInto(second, returned)
     assertEquals(fresh.failedAt, returned.failedAt, "factorInto must clear a stale singular verdict")
+}
+
+/** The destination starts as NaN wherever beta is zero, so a backend that reads it instead of writing it fails. */
+internal fun assertGemvAgreesWithReference(blas: Blas, sizes: IntArray) {
+    val rng = Random(20260727)
+    for (size in sizes) checkGemv(blas, rng, rows = size, cols = maxOf(1, size - 2))
+}
+
+private fun checkGemv(blas: Blas, rng: Random, rows: Int, cols: Int) {
+    for (transpose in booleanArrayOf(false, true)) {
+        for (alpha in doubleArrayOf(0.0, 1.0, 0.75)) {
+            for (beta in doubleArrayOf(0.0, 1.0, -0.5)) {
+                val a = randomMatrix(rows, cols, rng)
+                val x = DoubleArray(if (transpose) rows else cols) { rng.nextDouble(-1.0, 1.0) }
+                val yLen = if (transpose) cols else rows
+                val y0 = DoubleArray(yLen) { if (beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0) }
+                val expected = y0.copyOf()
+                val actual = y0.copyOf()
+                reference.gemv(alpha, a, x, beta, expected, transpose)
+                blas.gemv(alpha, a, x, beta, actual, transpose)
+                assertClose(expected, actual, "gemv ${rows}x$cols t=$transpose a=$alpha b=$beta")
+            }
+        }
+    }
+}
+
+/** `C` starts as NaN wherever beta is zero, so a backend that reads it instead of writing it fails. */
+internal fun assertGemmAgreesWithReference(blas: Blas, sizes: IntArray) {
+    val rng = Random(20260728)
+    for (size in sizes) {
+        checkGemm(blas, rng, m = size, k = maxOf(1, size - 2), n = maxOf(1, size - 1))
+    }
+}
+
+@Suppress("LongParameterList") // the three extents of the product
+private fun checkGemm(blas: Blas, rng: Random, m: Int, k: Int, n: Int) {
+    for (transposeA in booleanArrayOf(false, true)) {
+        for (transposeB in booleanArrayOf(false, true)) {
+            for (alpha in doubleArrayOf(0.0, 1.0, 0.75)) {
+                for (beta in doubleArrayOf(0.0, 1.0, -0.5)) {
+                    val a = if (transposeA) randomMatrix(k, m, rng) else randomMatrix(m, k, rng)
+                    val b = if (transposeB) randomMatrix(n, k, rng) else randomMatrix(k, n, rng)
+                    val c0 = DoubleArray(m * n) { if (beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0) }
+                    val expected = DenseMatrix.wrap(m, n, c0.copyOf())
+                    val actual = DenseMatrix.wrap(m, n, c0.copyOf())
+                    reference.gemm(alpha, a, transposeA, b, transposeB, beta, expected)
+                    blas.gemm(alpha, a, transposeA, b, transposeB, beta, actual)
+                    val ctx = "gemm ${m}x${k}x$n tA=$transposeA tB=$transposeB a=$alpha b=$beta"
+                    assertClose(expected.data, actual.data, ctx)
+                }
+            }
+        }
+    }
+}
+
+/** A rank update of a symmetric matrix is symmetric to the last bit, not just to a tolerance. */
+internal fun assertSyrkAgreesWithReference(blas: Blas, sizes: IntArray) {
+    val rng = Random(20260729)
+    for (size in sizes) checkSyrk(blas, rng, rows = size, cols = maxOf(1, size - 2))
+}
+
+private fun checkSyrk(blas: Blas, rng: Random, rows: Int, cols: Int) {
+    for (transpose in booleanArrayOf(false, true)) {
+        for (alpha in doubleArrayOf(0.0, 1.0, 0.75)) {
+            for (beta in doubleArrayOf(0.0, 1.0, -0.5)) {
+                val a = randomMatrix(rows, cols, rng)
+                val n = if (transpose) cols else rows
+                val c0 = DoubleArray(n * n) { if (beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0) }
+                val expected = DenseMatrix.wrap(n, n, c0.copyOf())
+                val actual = DenseMatrix.wrap(n, n, c0.copyOf())
+                reference.syrk(alpha, a, transpose, beta, expected)
+                blas.syrk(alpha, a, transpose, beta, actual)
+                assertClose(expected.data, actual.data, "syrk n=$n t=$transpose a=$alpha b=$beta")
+                if (beta == 0.0) assertExactlySymmetric(actual, n, "syrk n=$n t=$transpose")
+            }
+        }
+    }
+}
+
+private fun assertExactlySymmetric(c: DenseMatrix, n: Int, context: String) {
+    for (i in 0 until n) {
+        for (j in 0 until i) {
+            assertEquals(c.data[i + j * n], c.data[j + i * n], "$context asymmetric at ($i;$j)")
+        }
+    }
+}
+
+/** The unselected triangle starts as NaN, so a backend that writes outside the promised one fails. */
+internal fun assertSyrkTriangleModesLeaveTheOtherTriangle(blas: Blas, sizes: IntArray) {
+    val rng = Random(20260934)
+    for (size in sizes) checkSyrkTriangle(blas, rng, rows = size, cols = maxOf(1, size - 2))
+}
+
+private fun checkSyrkTriangle(blas: Blas, rng: Random, rows: Int, cols: Int) {
+    for (uplo in listOf(Uplo.LOWER, Uplo.UPPER)) {
+        for (transpose in booleanArrayOf(false, true)) {
+            for (beta in doubleArrayOf(0.0, -0.5)) {
+                val a = randomMatrix(rows, cols, rng)
+                val n = if (transpose) cols else rows
+                val c0 = DoubleArray(n * n) { idx ->
+                    if (!selects(uplo, idx % n, idx / n) || beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0)
+                }
+                val expected = DenseMatrix.wrap(n, n, c0.copyOf())
+                val actual = DenseMatrix.wrap(n, n, c0.copyOf())
+                reference.syrk(0.75, a, transpose, beta, expected, uplo)
+                blas.syrk(0.75, a, transpose, beta, actual, uplo)
+                compareTriangle(expected, actual, n, uplo, "syrk $uplo t=$transpose b=$beta")
+            }
+        }
+    }
+}
+
+private fun selects(uplo: Uplo, i: Int, j: Int): Boolean = if (uplo == Uplo.LOWER) j <= i else j >= i
+
+/** The bound stays relative and tight, only widened by [n] for the accumulation the larger sizes do. */
+private fun compareTriangle(expected: DenseMatrix, actual: DenseMatrix, n: Int, uplo: Uplo, context: String) {
+    for (i in 0 until n) {
+        for (j in 0 until n) {
+            val ctx = "$context ($i;$j)"
+            if (selects(uplo, i, j)) {
+                val e = expected.data[i + j * n]
+                val v = actual.data[i + j * n]
+                assertTrue(abs(e - v) <= 1e-12 * n * maxOf(1.0, abs(e)), "$ctx: $e vs $v")
+            } else {
+                assertTrue(actual.data[i + j * n].isNaN(), "$ctx: untouched triangle written")
+            }
+        }
+    }
+}
+
+/** The unselected triangle is NaN, so a backend that reads the mirror entry fails instead of agreeing. */
+internal fun assertSymmetricProductsAgreeWithReference(blas: Blas, sizes: IntArray) {
+    val rng = Random(20260912)
+    for (lower in booleanArrayOf(true, false)) {
+        for (n in sizes) {
+            val (_, a) = poisonedSymmetric(rng, n, lower)
+            val x = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
+            val yExpected = DoubleArray(n) { Double.NaN }
+            val yActual = DoubleArray(n) { Double.NaN }
+            reference.symv(0.75, a, x, 0.0, yExpected, lower)
+            blas.symv(0.75, a, x, 0.0, yActual, lower)
+            assertClose(yExpected, yActual, "symv n=$n lower=$lower")
+            checkSymm(blas, rng, a, n, lower)
+        }
+    }
+}
+
+private fun checkSymm(blas: Blas, rng: Random, a: DenseMatrix, n: Int, lower: Boolean) {
+    val p = 3
+    val b = randomMatrix(n, p, rng)
+    val expected = DenseMatrix(n, p)
+    val actual = DenseMatrix(n, p)
+    reference.symm(0.75, a, b, 0.0, expected, lower)
+    blas.symm(0.75, a, b, 0.0, actual, lower)
+    assertClose(expected.data, actual.data, "symm n=$n lower=$lower")
+    val br = randomMatrix(p, n, rng)
+    val expectedRight = DenseMatrix(p, n)
+    val actualRight = DenseMatrix(p, n)
+    reference.symm(0.75, a, br, 0.0, expectedRight, lower, right = true)
+    blas.symm(0.75, a, br, 0.0, actualRight, lower, right = true)
+    assertClose(expectedRight.data, actualRight.data, "symm right n=$n lower=$lower")
+}
+
+/** The comparison is relative, since a determinant grows with the size of the matrix. */
+internal fun assertDeterminantAgreesWithReference(lapack: Lapack, sizes: IntArray) {
+    val rng = Random(20260730)
+    for (n in sizes) {
+        val a = wellConditioned(n, rng)
+        val expected = reference.factor(a).determinant()
+        val actual = lapack.factor(a).determinant()
+        assertTrue(
+            abs(expected - actual) <= 1e-9 * maxOf(1.0, abs(expected)),
+            "determinant n=$n: $expected vs $actual",
+        )
+    }
+}
+
+internal fun assertSingularLuIsFlagged(lapack: Lapack) {
+    val a = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 4.0)))
+    val lu = lapack.factor(a)
+    assertTrue(lu.singular, "a rank-1 matrix factors to a singular LU")
+    assertEquals(0.0, lu.determinant(), "a singular factorization has determinant zero")
+}
+
+/** A factorization is a value, so either backend must be able to solve with the other one's factors. */
+internal fun assertLuFactorsInterchange(lapack: Lapack, n: Int) {
+    val rng = Random(20260731)
+    val a = wellConditioned(n, rng)
+    val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
+    for (transpose in booleanArrayOf(false, true)) {
+        val viaHostFactor = reference.solve(lapack.factor(a), b, transpose)
+        val viaReferenceFactor = lapack.solve(reference.factor(a), b, transpose)
+        assertClose(viaHostFactor, viaReferenceFactor, "interchange n=$n t=$transpose", tolerance = 1e-10)
+    }
+}
+
+/** An estimator is free to disagree in detail, so only the order of magnitude is compared. */
+internal fun assertRcondAgreesWithReference(lapack: Lapack, sizes: IntArray) {
+    val rng = Random(20260905)
+    for (n in sizes) {
+        val a = wellConditioned(n, rng)
+        val anorm = norm1(a)
+        val expected = reference.rcond(reference.factor(a), anorm)
+        val actual = lapack.rcond(lapack.factor(a), anorm)
+        assertTrue(actual in expected / 10.0..expected * 10.0, "n=$n: host $actual vs reference $expected")
+    }
+    val singular = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 4.0)))
+    assertEquals(0.0, lapack.rcond(lapack.factor(singular), norm1(singular)))
+    assertEquals(1.0, lapack.rcond(lapack.factor(DenseMatrix(0, 0)), 0.0))
+}
+
+/**
+ * The block solve of an indefinite system, with the unselected triangle poisoned. [nrhs] must reach the width
+ * at which the native multi-right-hand-side path takes over.
+ */
+internal fun assertLdlBlockSolveAgreesWithReference(lapack: Lapack, n: Int, nrhs: Int) {
+    val rng = Random(20260952)
+    val b = randomMatrix(n, nrhs, rng)
+    val (_, a) = poisonedIndefinite(rng, n)
+    val expected = reference.solve(reference.ldl(a), b)
+    val actual = lapack.solve(lapack.ldl(a), b)
+    assertClose(expected.data, actual.data, "ldl block n=$n nrhs=$nrhs", tolerance = 1e-9)
+}
+
+internal fun assertLdlFactorsInterchange(lapack: Lapack, sizes: IntArray) {
+    val rng = Random(20260932)
+    for (n in sizes) {
+        val (_, a) = poisonedIndefinite(rng, n)
+        val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
+        val fReference = reference.ldl(a)
+        val fHost = lapack.ldl(a)
+        val xs = listOf(
+            reference.solve(fReference, b),
+            reference.solve(fHost, b),
+            lapack.solve(fReference, b),
+            lapack.solve(fHost, b),
+        )
+        for ((i, x) in xs.withIndex()) {
+            assertClose(xs[0], x, "ldl interchange n=$n variant $i", tolerance = 1e-9)
+        }
+    }
+    assertTrue(lapack.ldl(DenseMatrix(3, 3)).singular, "a zero matrix factors to a singular LDL")
+    assertTrue(lapack.solve(lapack.ldl(DenseMatrix(0, 0)), DoubleArray(0)).isEmpty(), "an empty solve is empty")
+}
+
+/** Both least squares and the minimum-norm solve, across every pairing of the two backends' factors. */
+internal fun assertQrFactorsInterchange(lapack: Lapack, shapes: List<Pair<Int, Int>>) {
+    val rng = Random(20260925)
+    for ((m, n) in shapes) {
+        val a = randomMatrix(m, n, rng)
+        val b = DoubleArray(m) { rng.nextDouble(-1.0, 1.0) }
+        val fReference = reference.qr(a)
+        val fHost = lapack.qr(a)
+        val xs = listOf(
+            reference.solveLeastSquares(fReference, b),
+            reference.solveLeastSquares(fHost, b),
+            lapack.solveLeastSquares(fReference, b),
+            lapack.solveLeastSquares(fHost, b),
+        )
+        for ((i, x) in xs.withIndex()) {
+            assertClose(xs[0], x, "qr interchange ${m}x$n variant $i", tolerance = 1e-10)
+        }
+        val y = DoubleArray(m) { rng.nextDouble(-1.0, 1.0) }
+        assertClose(
+            reference.applyQ(fHost, y),
+            lapack.applyQ(fHost, y),
+            "applyQ on host factors ${m}x$n",
+            tolerance = 1e-11,
+        )
+        assertClose(
+            reference.applyQ(fReference, y),
+            lapack.applyQ(fReference, y),
+            "applyQ on reference factors ${m}x$n",
+            tolerance = 1e-11,
+        )
+        val bWide = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
+        assertClose(
+            reference.solveMinimumNorm(fReference, bWide),
+            lapack.solveMinimumNorm(fHost, bWide),
+            "solveMinimumNorm ${n}x$m",
+            tolerance = 1e-10,
+        )
+    }
+}
+
+/** With beta zero the destination is written rather than read, so an empty sum has to leave exact zeros. */
+internal fun assertDegenerateShapesHonorTheBetaConventions(blas: Blas) {
+    val y = DoubleArray(3) { Double.NaN }
+    blas.gemv(1.0, DenseMatrix(0, 3), DoubleArray(0), 0.0, y, transpose = true)
+    assertTrue(y.all { it == 0.0 }, "gemv beta=0 with an empty sum left ${y.toList()}")
+    val c = DenseMatrix.wrap(2, 2, DoubleArray(4) { Double.NaN })
+    blas.gemm(1.0, DenseMatrix(2, 0), false, DenseMatrix(0, 2), false, 0.0, c)
+    assertTrue(c.data.all { it == 0.0 }, "gemm k=0 beta=0 left ${c.data.toList()}")
+    val s = DenseMatrix.wrap(2, 2, doubleArrayOf(1.0, 2.0, 3.0, 4.0))
+    blas.syrk(0.0, DenseMatrix(2, 5), transpose = false, beta = 2.0, c = s)
+    assertClose(doubleArrayOf(2.0, 4.0, 6.0, 8.0), s.data, "syrk alpha=0")
+}
+
+/** A 0x0 system has nothing to solve, so it yields an empty solution rather than failing. */
+internal fun assertAnEmptyFactorizationSolvesEmpty(lapack: Lapack) {
+    val empty = lapack.factor(DenseMatrix(0, 0))
+    assertEquals(0, lapack.solve(empty, DoubleArray(0)).size)
 }

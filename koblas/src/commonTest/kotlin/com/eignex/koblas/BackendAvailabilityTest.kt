@@ -23,7 +23,7 @@ class BackendAvailabilityTest {
     }
 
     @Test
-    fun `koblas's own backends report themselves available`() {
+    fun `the built-in backends report themselves available`() {
         assertTrue(ReferenceLinearAlgebra.isAvailable)
         assertTrue(ReferenceBackend().isAvailable)
         assertTrue(ReferenceSparseLinearAlgebra.isAvailable)
@@ -31,7 +31,7 @@ class BackendAvailabilityTest {
     }
 
     @Test
-    fun `the default is available, so a backend only opts out deliberately`() {
+    fun `the default is available so a backend only opts out deliberately`() {
         val plain = object : Backend {
             override val name: String get() = "plain"
         }

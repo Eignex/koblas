@@ -4,17 +4,17 @@
 package com.eignex.koblas.umfpack
 
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
-import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.koblas
 import com.eignex.koblas.sparse.assertAliasedDestinationSolves
 import com.eignex.koblas.sparse.assertDeterminantAgreesWithReference
+import com.eignex.koblas.sparse.assertEmptyAndZeroMatricesTakeThePortablePath
+import com.eignex.koblas.sparse.assertRegistersAsTheSparseLapackHalf
 import com.eignex.koblas.sparse.assertRepeatedFactorizationsSurvive
 import com.eignex.koblas.sparse.assertSingularIsReportedWithUnknownPosition
 import com.eignex.koblas.sparse.assertSolvesAgreeWithReference
 import com.eignex.koblas.sparse.assertUnsupportedRequestsFallBack
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 /** Checks the native UMFPACK bindings against the reference implementation. */
 class UmfpackNativeConformanceTest {
@@ -48,14 +48,12 @@ class UmfpackNativeConformanceTest {
     fun `equilibrate and a drop tolerance fall back to the portable factorization`() =
         assertUnsupportedRequestsFallBack(umfpack) { it is UmfpackFactorization }
 
-    /** `usePinned` has no address for an empty array, so these shapes take the portable path instead of UMFPACK. */
     @Test
-    fun `empty and all-zero matrices take the portable path`() {
-        val empty = umfpack.factor(SparseMatrix.ofColumns(0, 0, emptyList()))
-        assertEquals(0, empty.n)
-        val zeros = umfpack.factor(SparseMatrix.ofColumns(3, 3, listOf(emptyList(), emptyList(), emptyList())))
-        assertTrue(zeros.singular, "a matrix of zeros is singular")
-    }
+    fun `empty and all-zero matrices take the portable path`() = assertEmptyAndZeroMatricesTakeThePortablePath(umfpack)
+
+    @Test
+    fun `it registers as the sparse factorization half and reports fill`() =
+        assertRegistersAsTheSparseLapackHalf(umfpack, n = 20)
 
     @Test
     fun `repeated factorizations do not exhaust native memory`() = assertRepeatedFactorizationsSurvive(umfpack)
