@@ -70,12 +70,22 @@ internal class LapackeFunctions(private val blas: COpaquePointer, private val la
         ?: lapacke?.let { dlsym(it, name) }
         ?: error("LAPACKE is present but lacks $name")
 
+    /** Looked up the same way as [required] but tolerating absence, for a routine koblas can do without. */
+    private fun optional(name: String): COpaquePointer? = dlsym(blas, name) ?: lapacke?.let { dlsym(it, name) }
+
     val dgetrf = required("LAPACKE_dgetrf")
         .reinterpret<CFunction<(Int, Int, Int, Dp, Int, Ip) -> Int>>()
     val dgecon = required("LAPACKE_dgecon")
         .reinterpret<CFunction<(Int, Byte, Int, Dp, Int, Double, Dp) -> Int>>()
     val dgeqrf = required("LAPACKE_dgeqrf")
         .reinterpret<CFunction<(Int, Int, Int, Dp, Int, Dp) -> Int>>()
+
+    /**
+     * Optional, so a LAPACKE without it keeps the rest of the half rather than disabling all of it. The
+     * pivoted QR is the only routine that needs it, and koblas has a portable one.
+     */
+    val dgeqp3 = optional("LAPACKE_dgeqp3")
+        ?.reinterpret<CFunction<(Int, Int, Int, Dp, Int, Ip, Dp) -> Int>>()
     val dormqr = required("LAPACKE_dormqr")
         .reinterpret<CFunction<(Int, Byte, Byte, Int, Int, Int, Dp, Int, Dp, Dp, Int) -> Int>>()
     val dpotrf = required("LAPACKE_dpotrf")

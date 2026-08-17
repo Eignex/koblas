@@ -18,6 +18,7 @@ import com.eignex.koblas.dense.assertLevel3AgreesWithReference
 import com.eignex.koblas.dense.assertLuAgreesWithReference
 import com.eignex.koblas.dense.assertLuFactorsInterchange
 import com.eignex.koblas.dense.assertNonPositiveDefiniteFallsBack
+import com.eignex.koblas.dense.assertPivotedQrAgreesWithReference
 import com.eignex.koblas.dense.assertQrFactorsInterchange
 import com.eignex.koblas.dense.assertRcondAgreesWithReference
 import com.eignex.koblas.dense.assertReductionsAgreeWithScalar
@@ -99,6 +100,11 @@ class CblasConformanceTest {
     @Test
     fun `rcond agrees with the reference estimator in magnitude`() =
         assertRcondAgreesWithReference(cblas, intArrayOf(1, 6, 24))
+
+    /** Native binds dgeqp3 optionally, so this is a real comparison only where the host provides it. */
+    @Test
+    fun `pivoted QR matches reference in rank and reconstruction`() =
+        assertPivotedQrAgreesWithReference(cblas, m = 40, cols = 24, ranks = intArrayOf(24, 12))
 
     @Test
     fun `qr factorizations interchange between backends`() = assertQrFactorsInterchange(cblas, listOf(6 to 6, 10 to 4))

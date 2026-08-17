@@ -555,3 +555,39 @@ internal fun assertAnEmptyFactorizationSolvesEmpty(lapack: Lapack) {
     val empty = lapack.factor(DenseMatrix(0, 0))
     assertEquals(0, lapack.solve(empty, DoubleArray(0)).size)
 }
+
+/**
+ * Pivoted QR against the reference: the rank of a deliberately deficient matrix, that the pivots are a
+ * permutation, that `A·P = Q·R` column by column, and that the pivoted least-squares solve agrees.
+ *
+ * Each rank in [ranks] builds an `m x cols` matrix as a product of full-rank factors of that rank, so the
+ * deficiency is exact rather than the result of rounding.
+ */
+internal fun assertPivotedQrAgreesWithReference(lapack: Lapack, m: Int, cols: Int, ranks: IntArray) {
+    val rng = Random(20260809)
+    for (rank in ranks) {
+        val left = randomMatrix(m, rank, rng)
+        val right = randomMatrix(rank, cols, rng)
+        val a = DenseMatrix(m, cols)
+        reference.gemm(1.0, left, false, right, false, 0.0, a)
+
+        val expected = reference.qrPivoted(a)
+        val actual = lapack.qrPivoted(a)
+        assertEquals(expected.rank, actual.rank, "rank of a ${m}x$cols matrix built at rank $rank")
+        assertEquals((0 until cols).toList(), actual.pivots.sorted(), "pivots must be a permutation")
+
+        for (j in 0 until cols) {
+            val rebuilt = lapack.applyQ(actual.factorization, rColumn(actual.factorization, j))
+            val original = DoubleArray(m) { i -> a[i, actual.pivots[j]] }
+            assertClose(original, rebuilt, tolerance = 1e-8, context = "A·P = Q·R rank=$rank column $j")
+        }
+
+        val b = DoubleArray(m) { rng.nextDouble(-1.0, 1.0) }
+        assertClose(
+            reference.solveLeastSquares(expected, b),
+            lapack.solveLeastSquares(actual, b),
+            tolerance = 1e-7,
+            context = "pivoted least squares rank=$rank",
+        )
+    }
+}
