@@ -49,8 +49,8 @@ internal class IntBuckets(private val size: Int, private val keys: Int, initialL
     /** The smallest occupied key at least [from], or -1 when every bucket from there up is empty. */
     fun smallestFrom(from: Int): Int {
         var key = if (from > lowest) from else lowest
-        while (key <= size && head[key] == -1) key++
-        if (key > size) return -1
+        while (key <= keys && head[key] == -1) key++
+        if (key > keys) return -1
         if (from <= lowest) lowest = key
         return key
     }
