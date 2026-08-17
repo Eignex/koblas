@@ -19,6 +19,9 @@ public class ReferenceBackend(private val kernels: VectorKernels? = null) :
 
     override val isPortable: Boolean get() = true
 
+    /** koblas's own implementation, so it runs anywhere koblas does. */
+    override val isAvailable: Boolean get() = true
+
     override val priority: Int get() = 0
 
     /** This backend's kernels, or the process default when it was given none. */

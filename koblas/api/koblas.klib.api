@@ -173,6 +173,8 @@ abstract interface com.eignex.koblas.sparse/SparseVectorKernels : com.eignex.kob
 abstract interface com.eignex.koblas/Backend { // com.eignex.koblas/Backend|null[0]
     abstract val name // com.eignex.koblas/Backend.name|{}name[0]
         abstract fun <get-name>(): kotlin/String // com.eignex.koblas/Backend.name.<get-name>|<get-name>(){}[0]
+    open val isAvailable // com.eignex.koblas/Backend.isAvailable|{}isAvailable[0]
+        open fun <get-isAvailable>(): kotlin/Boolean // com.eignex.koblas/Backend.isAvailable.<get-isAvailable>|<get-isAvailable>(){}[0]
     open val isPortable // com.eignex.koblas/Backend.isPortable|{}isPortable[0]
         open fun <get-isPortable>(): kotlin/Boolean // com.eignex.koblas/Backend.isPortable.<get-isPortable>|<get-isPortable>(){}[0]
     open val priority // com.eignex.koblas/Backend.priority|{}priority[0]
@@ -367,6 +369,8 @@ final class com.eignex.koblas.dense/QrDecomposition { // com.eignex.koblas.dense
 final class com.eignex.koblas.dense/ReferenceBackend : com.eignex.koblas.dense/Blas, com.eignex.koblas.dense/Lapack, com.eignex.koblas.dense/LinearAlgebra { // com.eignex.koblas.dense/ReferenceBackend|null[0]
     constructor <init>(com.eignex.koblas.dense/VectorKernels? = ...) // com.eignex.koblas.dense/ReferenceBackend.<init>|<init>(com.eignex.koblas.dense.VectorKernels?){}[0]
 
+    final val isAvailable // com.eignex.koblas.dense/ReferenceBackend.isAvailable|{}isAvailable[0]
+        final fun <get-isAvailable>(): kotlin/Boolean // com.eignex.koblas.dense/ReferenceBackend.isAvailable.<get-isAvailable>|<get-isAvailable>(){}[0]
     final val isPortable // com.eignex.koblas.dense/ReferenceBackend.isPortable|{}isPortable[0]
         final fun <get-isPortable>(): kotlin/Boolean // com.eignex.koblas.dense/ReferenceBackend.isPortable.<get-isPortable>|<get-isPortable>(){}[0]
     final val name // com.eignex.koblas.dense/ReferenceBackend.name|{}name[0]
@@ -578,6 +582,8 @@ final class com.eignex.koblas/KoblasContext : com.eignex.koblas.dense/Blas, com.
 
     final val blas // com.eignex.koblas/KoblasContext.blas|{}blas[0]
         final fun <get-blas>(): com.eignex.koblas.dense/Blas // com.eignex.koblas/KoblasContext.blas.<get-blas>|<get-blas>(){}[0]
+    final val isAvailable // com.eignex.koblas/KoblasContext.isAvailable|{}isAvailable[0]
+        final fun <get-isAvailable>(): kotlin/Boolean // com.eignex.koblas/KoblasContext.isAvailable.<get-isAvailable>|<get-isAvailable>(){}[0]
     final val isPortable // com.eignex.koblas/KoblasContext.isPortable|{}isPortable[0]
         final fun <get-isPortable>(): kotlin/Boolean // com.eignex.koblas/KoblasContext.isPortable.<get-isPortable>|<get-isPortable>(){}[0]
     final val lapack // com.eignex.koblas/KoblasContext.lapack|{}lapack[0]
@@ -869,6 +875,8 @@ final inline fun <#A: kotlin/Any?> (com.eignex.koblas/Workspace).com.eignex.kobl
 final class com.eignex.koblas.cblas/CblasLinearAlgebra : com.eignex.koblas.dense/Blas, com.eignex.koblas.dense/Lapack, com.eignex.koblas.dense/LinearAlgebra { // com.eignex.koblas.cblas/CblasLinearAlgebra|null[0]
     constructor <init>() // com.eignex.koblas.cblas/CblasLinearAlgebra.<init>|<init>(){}[0]
 
+    final val isAvailable // com.eignex.koblas.cblas/CblasLinearAlgebra.isAvailable|{}isAvailable[0]
+        final fun <get-isAvailable>(): kotlin/Boolean // com.eignex.koblas.cblas/CblasLinearAlgebra.isAvailable.<get-isAvailable>|<get-isAvailable>(){}[0]
     final val isPortable // com.eignex.koblas.cblas/CblasLinearAlgebra.isPortable|{}isPortable[0]
         final fun <get-isPortable>(): kotlin/Boolean // com.eignex.koblas.cblas/CblasLinearAlgebra.isPortable.<get-isPortable>|<get-isPortable>(){}[0]
     final val name // com.eignex.koblas.cblas/CblasLinearAlgebra.name|{}name[0]
@@ -936,7 +944,6 @@ final class com.eignex.koblas.cblas/CblasLinearAlgebra : com.eignex.koblas.dense
 
     final object Companion { // com.eignex.koblas.cblas/CblasLinearAlgebra.Companion|null[0]
         final fun isAvailable(): kotlin/Boolean // com.eignex.koblas.cblas/CblasLinearAlgebra.Companion.isAvailable|isAvailable(){}[0]
-        final fun isBlasAvailable(): kotlin/Boolean // com.eignex.koblas.cblas/CblasLinearAlgebra.Companion.isBlasAvailable|isBlasAvailable(){}[0]
     }
 }
 
@@ -944,6 +951,8 @@ final class com.eignex.koblas.cblas/CblasLinearAlgebra : com.eignex.koblas.dense
 final class com.eignex.koblas.cblas/CblasVectorKernels : com.eignex.koblas.dense/VectorKernels { // com.eignex.koblas.cblas/CblasVectorKernels|null[0]
     constructor <init>() // com.eignex.koblas.cblas/CblasVectorKernels.<init>|<init>(){}[0]
 
+    final val isAvailable // com.eignex.koblas.cblas/CblasVectorKernels.isAvailable|{}isAvailable[0]
+        final fun <get-isAvailable>(): kotlin/Boolean // com.eignex.koblas.cblas/CblasVectorKernels.isAvailable.<get-isAvailable>|<get-isAvailable>(){}[0]
     final val name // com.eignex.koblas.cblas/CblasVectorKernels.name|{}name[0]
         final fun <get-name>(): kotlin/String // com.eignex.koblas.cblas/CblasVectorKernels.name.<get-name>|<get-name>(){}[0]
     final val priority // com.eignex.koblas.cblas/CblasVectorKernels.priority|{}priority[0]
@@ -971,6 +980,8 @@ final class com.eignex.koblas.umfpack/UmfpackFactorization : com.eignex.koblas.s
 
 // Targets: [linux, macosArm64]
 final class com.eignex.koblas.umfpack/UmfpackSparseLapack : com.eignex.koblas.sparse/SparseLapack { // com.eignex.koblas.umfpack/UmfpackSparseLapack|null[0]
+    final val isAvailable // com.eignex.koblas.umfpack/UmfpackSparseLapack.isAvailable|{}isAvailable[0]
+        final fun <get-isAvailable>(): kotlin/Boolean // com.eignex.koblas.umfpack/UmfpackSparseLapack.isAvailable.<get-isAvailable>|<get-isAvailable>(){}[0]
     final val name // com.eignex.koblas.umfpack/UmfpackSparseLapack.name|{}name[0]
         final fun <get-name>(): kotlin/String // com.eignex.koblas.umfpack/UmfpackSparseLapack.name.<get-name>|<get-name>(){}[0]
     final val priority // com.eignex.koblas.umfpack/UmfpackSparseLapack.priority|{}priority[0]

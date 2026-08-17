@@ -21,6 +21,9 @@ public class HostLapack internal constructor() : HostLapackAdapter(JvmLapackeCal
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY
 
+    /** LAPACKE resolves separately from CBLAS, either inside OpenBLAS or as its own library. */
+    override val isAvailable: Boolean get() = HostBlasCalls.lapackAvailable
+
     override val nativeTrsmMinRhs: Int get() = NATIVE_TRSM_MIN_RHS
 
     override val choleskyMin: Int get() = JVM_CHOLESKY_MIN

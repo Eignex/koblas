@@ -19,6 +19,9 @@ public class CblasVectorKernels : VectorKernels {
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY
 
+    /** The level-1 kernels come from CBLAS. */
+    override val isAvailable: Boolean get() = OpenBlasLoader.cblas != null
+
     private val f = requireNotNull(OpenBlasLoader.cblas) {
         "OpenBLAS is not available on this host; koblas keeps its built-in level-1 kernels"
     }

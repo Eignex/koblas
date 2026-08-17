@@ -17,6 +17,7 @@ class AccelerationTest {
         Lapack by ReferenceLinearAlgebra {
         override val priority: Int get() = 100
         override val isPortable: Boolean get() = false
+        override val isAvailable: Boolean get() = true
         override val vectorKernels: VectorKernels get() = ReferenceLinearAlgebra.vectorKernels
     }
 

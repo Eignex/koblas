@@ -32,6 +32,12 @@ internal actual object PlatformVectorKernels : VectorKernels {
 
     override val isPortable: Boolean get() = true
 
+    /**
+     * Always true: without the vector module these kernels run the scalar loops rather than nothing, so the
+     * SIMD probe shows up in [name] instead of here.
+     */
+    override val isAvailable: Boolean get() = true
+
     private fun vectorizes(len: Int): Boolean = simdAvailable && len >= simdLanes
 
     actual override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
