@@ -4,6 +4,9 @@ import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
 import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.koblas
+import com.eignex.koblas.registerBackend
+import com.eignex.koblas.withCleanBackends
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.assertEquals
@@ -91,6 +94,33 @@ internal fun assertSingularIsReportedWithUnknownPosition(lapack: SparseLapack) {
     assertEquals(0, f.nnz, "a singular factorization has no fill")
     assertEquals(0.0, f.determinant(), "a singular factorization has determinant zero")
     assertFailsWith<SingularMatrix> { f.solve(doubleArrayOf(1.0, 1.0)) }
+}
+
+/**
+ * A degenerate matrix is answered portably: an empty one factors to a size-zero factorization and one of all
+ * zeros is reported singular. On Kotlin/Native the reason is that `usePinned` has no address for an empty array.
+ */
+internal fun assertEmptyAndZeroMatricesTakeThePortablePath(lapack: SparseLapack) {
+    val empty = lapack.factor(SparseMatrix.ofColumns(0, 0, emptyList()))
+    assertEquals(0, empty.n, "an empty matrix factors to an empty factorization")
+    val zeros = lapack.factor(SparseMatrix.ofColumns(3, 3, listOf(emptyList(), emptyList(), emptyList())))
+    assertTrue(zeros.singular, "a matrix of zeros is singular")
+}
+
+/**
+ * A host sparse factorization wins only its own half of the registry, so the sparse BLAS stays with the
+ * reference. [n] sets the size of the system whose fill is reported.
+ */
+internal fun assertRegistersAsTheSparseLapackHalf(lapack: SparseLapack, n: Int) {
+    withCleanBackends {
+        registerBackend(lapack)
+        assertEquals(lapack.name, koblas.sparseLapack.name, "${lapack.name} should win the sparse lapack half")
+        assertEquals("reference", koblas.sparseBlas.name)
+
+        val a = sparseConformanceSystem(n, Random(20260819))
+        val f = koblas.factor(a)
+        assertTrue(f.nnz >= n, "fill should at least cover the diagonals of L and U, got ${f.nnz}")
+    }
 }
 
 /** Equilibration and a drop tolerance are koblas's own, so a host must hand those requests back. */

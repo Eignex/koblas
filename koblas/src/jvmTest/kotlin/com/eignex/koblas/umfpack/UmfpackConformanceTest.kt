@@ -2,22 +2,18 @@ package com.eignex.koblas.umfpack
 
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.HostLibraryTest
-import com.eignex.koblas.koblas
-import com.eignex.koblas.registerBackend
 import com.eignex.koblas.sparse.assertAliasedDestinationSolves
 import com.eignex.koblas.sparse.assertDeterminantAgreesWithReference
+import com.eignex.koblas.sparse.assertEmptyAndZeroMatricesTakeThePortablePath
+import com.eignex.koblas.sparse.assertRegistersAsTheSparseLapackHalf
 import com.eignex.koblas.sparse.assertRepeatedFactorizationsSurvive
 import com.eignex.koblas.sparse.assertSingularIsReportedWithUnknownPosition
 import com.eignex.koblas.sparse.assertSolvesAgreeWithReference
 import com.eignex.koblas.sparse.assertUnsupportedRequestsFallBack
-import com.eignex.koblas.sparse.sparseConformanceSystem
-import com.eignex.koblas.withCleanBackends
 import org.junit.Assume
 import org.junit.experimental.categories.Category
-import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 @Category(HostLibraryTest::class)
 class UmfpackConformanceTest {
@@ -68,15 +64,13 @@ class UmfpackConformanceTest {
     @Test
     fun `it registers as the sparse factorization half and reports fill`() {
         requireSuiteSparse()
-        withCleanBackends {
-            registerBackend(umfpack)
-            assertEquals("umfpack", koblas.sparseLapack.name, "umfpack should win the sparse lapack half")
-            assertEquals("reference", koblas.sparseBlas.name)
+        assertRegistersAsTheSparseLapackHalf(umfpack, n = 20)
+    }
 
-            val a = sparseConformanceSystem(20, Random(20260819))
-            val f = koblas.factor(a)
-            assertTrue(f.nnz >= 20, "fill should at least cover the diagonals of L and U, got ${f.nnz}")
-        }
+    @Test
+    fun `empty and all-zero matrices take the portable path`() {
+        requireSuiteSparse()
+        assertEmptyAndZeroMatricesTakeThePortablePath(umfpack)
     }
 
     @Test

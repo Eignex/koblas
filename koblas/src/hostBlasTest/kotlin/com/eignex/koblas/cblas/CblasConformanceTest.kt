@@ -3,25 +3,33 @@
 
 package com.eignex.koblas.cblas
 
-import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.dense.ReferenceLinearAlgebra
-import com.eignex.koblas.dense.Uplo
+import com.eignex.koblas.dense.assertAnEmptyFactorizationSolvesEmpty
+import com.eignex.koblas.dense.assertDegenerateShapesHonorTheBetaConventions
+import com.eignex.koblas.dense.assertDeterminantAgreesWithReference
 import com.eignex.koblas.dense.assertFactorIntoUsesItsDestination
+import com.eignex.koblas.dense.assertGemmAgreesWithReference
+import com.eignex.koblas.dense.assertGemvAgreesWithReference
 import com.eignex.koblas.dense.assertGerAgreesWithReference
+import com.eignex.koblas.dense.assertLdlBlockSolveAgreesWithReference
+import com.eignex.koblas.dense.assertLdlFactorsInterchange
 import com.eignex.koblas.dense.assertLevel3AgreesWithReference
 import com.eignex.koblas.dense.assertLuAgreesWithReference
+import com.eignex.koblas.dense.assertLuFactorsInterchange
 import com.eignex.koblas.dense.assertNonPositiveDefiniteFallsBack
+import com.eignex.koblas.dense.assertQrFactorsInterchange
+import com.eignex.koblas.dense.assertRcondAgreesWithReference
+import com.eignex.koblas.dense.assertSingularLdlIsRefused
+import com.eignex.koblas.dense.assertSingularLuIsFlagged
 import com.eignex.koblas.dense.assertSpdSuiteAgreesWithReference
+import com.eignex.koblas.dense.assertSymmetricProductsAgreeWithReference
+import com.eignex.koblas.dense.assertSymvRefusesNonSquare
+import com.eignex.koblas.dense.assertSyrkAgreesWithReference
+import com.eignex.koblas.dense.assertSyrkTriangleModesLeaveTheOtherTriangle
 import com.eignex.koblas.dense.assertTriangularAgreesWithReference
-import com.eignex.koblas.dense.determinant
 import com.eignex.koblas.installBackends
 import com.eignex.koblas.koblas
-import com.eignex.koblas.norm1
-import com.eignex.koblas.poisonedIndefinite
-import com.eignex.koblas.poisonedSymmetric
-import com.eignex.koblas.randomMatrix
-import com.eignex.koblas.wellConditioned
 import kotlin.math.abs
 import kotlin.math.sqrt
 import kotlin.random.Random
@@ -33,7 +41,6 @@ import kotlin.test.assertTrue
 class CblasConformanceTest {
 
     private val cblas = CblasLinearAlgebra()
-    private val reference = ReferenceLinearAlgebra
 
     @Test
     fun `discovery registers the backend and install overrides it`() {
@@ -50,145 +57,26 @@ class CblasConformanceTest {
     }
 
     @Test
-    fun `gemv matches reference across transpose and alpha beta combos`() {
-        val rng = Random(20260727)
-        for (transpose in booleanArrayOf(false, true)) {
-            for (alpha in doubleArrayOf(0.0, 1.0, 0.75)) {
-                for (beta in doubleArrayOf(0.0, 1.0, -0.5)) {
-                    val a = randomMatrix(7, 5, rng)
-                    val x = DoubleArray(if (transpose) 7 else 5) { rng.nextDouble(-1.0, 1.0) }
-                    val yLen = if (transpose) 5 else 7
-                    val y0 = DoubleArray(yLen) { if (beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0) }
-                    val yRef = y0.copyOf()
-                    val yCblas = y0.copyOf()
-                    reference.gemv(alpha, a, x, beta, yRef, transpose)
-                    cblas.gemv(alpha, a, x, beta, yCblas, transpose)
-                    assertClose(yRef, yCblas, context = "gemv t=$transpose a=$alpha b=$beta")
-                }
-            }
-        }
-    }
+    fun `gemv matches reference across transpose and alpha beta combos`() =
+        assertGemvAgreesWithReference(cblas, intArrayOf(7))
 
     @Test
-    fun `gemm matches reference across transpose and alpha beta combos`() {
-        val rng = Random(20260728)
-        for (transposeA in booleanArrayOf(false, true)) {
-            for (transposeB in booleanArrayOf(false, true)) {
-                for (alpha in doubleArrayOf(0.0, 1.0, 0.75)) {
-                    for (beta in doubleArrayOf(0.0, 1.0, -0.5)) {
-                        val m = 6
-                        val k = 4
-                        val n = 5
-                        val a = if (transposeA) randomMatrix(k, m, rng) else randomMatrix(m, k, rng)
-                        val b = if (transposeB) randomMatrix(n, k, rng) else randomMatrix(k, n, rng)
-                        val c0 = DoubleArray(m * n) { if (beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0) }
-                        val cRef = DenseMatrix.wrap(m, n, c0.copyOf())
-                        val cCblas = DenseMatrix.wrap(m, n, c0.copyOf())
-                        reference.gemm(alpha, a, transposeA, b, transposeB, beta, cRef)
-                        cblas.gemm(alpha, a, transposeA, b, transposeB, beta, cCblas)
-                        assertClose(
-                            cRef.data,
-                            cCblas.data,
-                            context = "gemm tA=$transposeA tB=$transposeB a=$alpha b=$beta",
-                        )
-                    }
-                }
-            }
-        }
-    }
+    fun `gemm matches reference across transpose and alpha beta combos`() =
+        assertGemmAgreesWithReference(cblas, intArrayOf(6))
 
     @Test
-    fun `syrk matches reference and is exactly symmetric`() {
-        val rng = Random(20260729)
-        for (transpose in booleanArrayOf(false, true)) {
-            for (alpha in doubleArrayOf(0.0, 1.0, 0.75)) {
-                for (beta in doubleArrayOf(0.0, 1.0, -0.5)) {
-                    val a = randomMatrix(6, 4, rng)
-                    val n = if (transpose) 4 else 6
-                    val c0 = DoubleArray(n * n) { if (beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0) }
-                    val cRef = DenseMatrix.wrap(n, n, c0.copyOf())
-                    val cCblas = DenseMatrix.wrap(n, n, c0.copyOf())
-                    reference.syrk(alpha, a, transpose, beta, cRef)
-                    cblas.syrk(alpha, a, transpose, beta, cCblas)
-                    assertClose(cRef.data, cCblas.data, context = "syrk t=$transpose a=$alpha b=$beta")
-                    if (beta == 0.0) {
-                        for (i in 0 until n) {
-                            for (j in 0 until i) {
-                                assertEquals(cCblas.data[i + j * n], cCblas.data[j + i * n], "asymmetric at ($i;$j)")
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+    fun `syrk matches reference and is exactly symmetric`() = assertSyrkAgreesWithReference(cblas, intArrayOf(6))
 
     @Test
-    fun `syrk triangle modes match reference and leave the other triangle untouched`() {
-        val rng = Random(20260934)
-        for (uplo in listOf(Uplo.LOWER, Uplo.UPPER)) {
-            for (transpose in booleanArrayOf(false, true)) {
-                for (beta in doubleArrayOf(0.0, -0.5)) {
-                    val a = randomMatrix(6, 4, rng)
-                    val n = if (transpose) 4 else 6
-                    val c0 = DoubleArray(n * n) { idx ->
-                        val i = idx % n
-                        val j = idx / n
-                        val selected = if (uplo == Uplo.LOWER) j <= i else j >= i
-                        if (!selected || beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0)
-                    }
-                    val cRef = DenseMatrix.wrap(n, n, c0.copyOf())
-                    val cCblas = DenseMatrix.wrap(n, n, c0.copyOf())
-                    reference.syrk(0.75, a, transpose, beta, cRef, uplo)
-                    cblas.syrk(0.75, a, transpose, beta, cCblas, uplo)
-                    for (i in 0 until n) {
-                        for (j in 0 until n) {
-                            val selected = if (uplo == Uplo.LOWER) j <= i else j >= i
-                            val ctx = "syrk $uplo t=$transpose b=$beta ($i;$j)"
-                            if (selected) {
-                                val e = cRef.data[i + j * n]
-                                val v = cCblas.data[i + j * n]
-                                assertTrue(abs(e - v) <= 1e-12 * maxOf(1.0, abs(e)), "$ctx: $e vs $v")
-                            } else {
-                                assertTrue(cCblas.data[i + j * n].isNaN(), "$ctx: untouched triangle written")
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+    fun `syrk triangle modes match reference and leave the other triangle untouched`() =
+        assertSyrkTriangleModesLeaveTheOtherTriangle(cblas, intArrayOf(6))
 
     @Test
-    fun `symv and symm match reference with the unselected triangle poisoned`() {
-        val rng = Random(20260912)
-        for (lower in booleanArrayOf(true, false)) {
-            for (n in intArrayOf(1, 6, 13)) {
-                val (_, a) = poisonedSymmetric(rng, n, lower)
-                val x = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
-                val yRef = DoubleArray(n) { Double.NaN }
-                val yCblas = DoubleArray(n) { Double.NaN }
-                reference.symv(0.75, a, x, 0.0, yRef, lower)
-                cblas.symv(0.75, a, x, 0.0, yCblas, lower)
-                assertClose(yRef, yCblas, context = "symv n=$n lower=$lower")
-                val p = 3
-                val b = DenseMatrix(n, p)
-                for (i in 0 until n) for (j in 0 until p) b[i, j] = rng.nextDouble(-1.0, 1.0)
-                val cRef = DenseMatrix(n, p)
-                val cCblas = DenseMatrix(n, p)
-                reference.symm(0.75, a, b, 0.0, cRef, lower)
-                cblas.symm(0.75, a, b, 0.0, cCblas, lower)
-                assertClose(cRef.data, cCblas.data, context = "symm n=$n lower=$lower")
-                val br = DenseMatrix(p, n)
-                for (i in 0 until p) for (j in 0 until n) br[i, j] = rng.nextDouble(-1.0, 1.0)
-                val crRef = DenseMatrix(p, n)
-                val crCblas = DenseMatrix(p, n)
-                reference.symm(0.75, a, br, 0.0, crRef, lower, right = true)
-                cblas.symm(0.75, a, br, 0.0, crCblas, lower, right = true)
-                assertClose(crRef.data, crCblas.data, context = "symm right n=$n lower=$lower")
-            }
-        }
-    }
+    fun `symv and symm match reference with the unselected triangle poisoned`() =
+        assertSymmetricProductsAgreeWithReference(cblas, intArrayOf(1, 6, 13))
+
+    @Test
+    fun `symv refuses a non-square matrix`() = assertSymvRefusesNonSquare(cblas)
 
     @Test
     fun `the LU family matches reference in both directions and for a block`() =
@@ -199,143 +87,36 @@ class CblasConformanceTest {
         assertFactorIntoUsesItsDestination(cblas, n = 24)
 
     @Test
-    fun `the determinant matches reference`() {
-        val rng = Random(20260730)
-        for (n in intArrayOf(1, 3, 8, 33)) {
-            val a = wellConditioned(n, rng)
-            val luRef = reference.factor(a)
-            val luCblas = cblas.factor(a)
-            assertTrue(
-                abs(luRef.determinant() - luCblas.determinant()) <= 1e-9 * maxOf(1.0, abs(luRef.determinant())),
-                "determinant n=$n: ${luRef.determinant()} vs ${luCblas.determinant()}",
-            )
-        }
-    }
+    fun `the determinant matches reference`() = assertDeterminantAgreesWithReference(cblas, intArrayOf(1, 3, 8, 33))
 
     @Test
-    fun `ldl block solves match reference`() {
-        val rng = Random(20260952)
-        val n = 9
-        val nrhs = 4
-        val b = randomMatrix(n, nrhs, rng)
-        val (_, sym) = poisonedIndefinite(rng, n)
-        val xRef = reference.solve(reference.ldl(sym), b)
-        val xCblas = cblas.solve(cblas.ldl(sym), b)
-        assertClose(xRef.data, xCblas.data, tolerance = 1e-9, context = "ldl block")
-    }
+    fun `ldl block solves match reference`() = assertLdlBlockSolveAgreesWithReference(cblas, n = 9, nrhs = 4)
 
     @Test
-    fun `factorizations interchange between backends`() {
-        val rng = Random(20260731)
-        val n = 12
-        val a = wellConditioned(n, rng)
-        val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
-        for (transpose in booleanArrayOf(false, true)) {
-            val viaCblasFactor = reference.solve(cblas.factor(a), b, transpose)
-            val viaRefFactor = cblas.solve(reference.factor(a), b, transpose)
-            assertClose(viaCblasFactor, viaRefFactor, tolerance = 1e-10, context = "interchange t=$transpose")
-        }
-    }
+    fun `a singular LDL is refused at every width`() = assertSingularLdlIsRefused(cblas)
 
     @Test
-    fun `rcond agrees with the reference estimator in magnitude`() {
-        val rng = Random(20260905)
-        for (n in intArrayOf(1, 6, 24)) {
-            val a = wellConditioned(n, rng)
-            val anorm = norm1(a)
-            val ref = reference.rcond(reference.factor(a), anorm)
-            val est = cblas.rcond(cblas.factor(a), anorm)
-            assertTrue(est in ref / 10.0..ref * 10.0, "n=$n: cblas $est vs reference $ref")
-        }
-        val singular = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 4.0)))
-        assertEquals(0.0, cblas.rcond(cblas.factor(singular), norm1(singular)))
-        assertEquals(1.0, cblas.rcond(cblas.factor(DenseMatrix(0, 0)), 0.0))
-    }
+    fun `factorizations interchange between backends`() = assertLuFactorsInterchange(cblas, n = 12)
 
     @Test
-    fun `qr factorizations interchange between backends`() {
-        val rng = Random(20260925)
-        for ((m, n) in listOf(6 to 6, 10 to 4)) {
-            val a = randomMatrix(m, n, rng)
-            val b = DoubleArray(m) { rng.nextDouble(-1.0, 1.0) }
-            val fRef = reference.qr(a)
-            val fCblas = cblas.qr(a)
-            val xs = listOf(
-                reference.solveLeastSquares(fRef, b),
-                reference.solveLeastSquares(fCblas, b),
-                cblas.solveLeastSquares(fRef, b),
-                cblas.solveLeastSquares(fCblas, b),
-            )
-            for ((i, x) in xs.withIndex()) {
-                assertClose(xs[0], x, tolerance = 1e-10, context = "qr interchange ${m}x$n variant $i")
-            }
-            val y = DoubleArray(m) { rng.nextDouble(-1.0, 1.0) }
-            assertClose(
-                reference.applyQ(fCblas, y),
-                cblas.applyQ(fCblas, y),
-                tolerance = 1e-11,
-                context = "applyQ on cblas factors ${m}x$n",
-            )
-            assertClose(
-                reference.applyQ(fRef, y),
-                cblas.applyQ(fRef, y),
-                tolerance = 1e-11,
-                context = "applyQ on reference factors ${m}x$n",
-            )
-            val bWide = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
-            assertClose(
-                reference.solveMinimumNorm(fRef, bWide),
-                cblas.solveMinimumNorm(fCblas, bWide),
-                tolerance = 1e-10,
-                context = "solveMinimumNorm ${n}x$m",
-            )
-        }
-    }
+    fun `rcond agrees with the reference estimator in magnitude`() =
+        assertRcondAgreesWithReference(cblas, intArrayOf(1, 6, 24))
 
     @Test
-    fun `ldl factorizations match and interchange between backends`() {
-        val rng = Random(20260932)
-        for (n in intArrayOf(1, 2, 5, 14, 33)) {
-            val (_, a) = poisonedIndefinite(rng, n)
-            val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
-            val fRef = reference.ldl(a)
-            val fCblas = cblas.ldl(a)
-            val xs = listOf(
-                reference.solve(fRef, b),
-                reference.solve(fCblas, b),
-                cblas.solve(fRef, b),
-                cblas.solve(fCblas, b),
-            )
-            for ((i, x) in xs.withIndex()) {
-                assertClose(xs[0], x, tolerance = 1e-9, context = "ldl interchange n=$n variant $i")
-            }
-        }
-        assertTrue(cblas.ldl(DenseMatrix(3, 3)).singular)
-        assertTrue(cblas.solve(cblas.ldl(DenseMatrix(0, 0)), DoubleArray(0)).isEmpty())
-    }
+    fun `qr factorizations interchange between backends`() = assertQrFactorsInterchange(cblas, listOf(6 to 6, 10 to 4))
 
     @Test
-    fun `singular matrix sets the flag and zero determinant`() {
-        val a = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 4.0)))
-        val lu = cblas.factor(a)
-        assertTrue(lu.singular)
-        assertEquals(0.0, lu.determinant())
-    }
+    fun `ldl factorizations match and interchange between backends`() =
+        assertLdlFactorsInterchange(cblas, intArrayOf(1, 2, 5, 14, 33))
 
     @Test
-    fun `degenerate shapes honor the beta conventions`() {
-        val empty = cblas.factor(DenseMatrix(0, 0))
-        assertEquals(0, cblas.solve(empty, DoubleArray(0)).size)
-        val y = DoubleArray(3) { Double.NaN }
-        cblas.gemv(1.0, DenseMatrix(0, 3), DoubleArray(0), 0.0, y, transpose = true)
-        assertTrue(y.all { it == 0.0 }, "gemv beta=0 with empty sum left ${y.toList()}")
-        val c = DenseMatrix.wrap(2, 2, DoubleArray(4) { Double.NaN })
-        cblas.gemm(1.0, DenseMatrix(2, 0), false, DenseMatrix(0, 2), false, 0.0, c)
-        assertTrue(c.data.all { it == 0.0 }, "gemm k=0 beta=0 left ${c.data.toList()}")
-        val s = DenseMatrix.wrap(2, 2, doubleArrayOf(1.0, 2.0, 3.0, 4.0))
-        cblas.syrk(0.0, DenseMatrix(2, 5), transpose = false, beta = 2.0, c = s)
-        assertClose(doubleArrayOf(2.0, 4.0, 6.0, 8.0), s.data, context = "syrk alpha=0")
-    }
+    fun `singular matrix sets the flag and zero determinant`() = assertSingularLuIsFlagged(cblas)
+
+    @Test
+    fun `degenerate shapes honor the beta conventions`() = assertDegenerateShapesHonorTheBetaConventions(cblas)
+
+    @Test
+    fun `an empty factorization solves an empty right-hand side`() = assertAnEmptyFactorizationSolvesEmpty(cblas)
 
     /** The rest of the suite stays below 50, where OpenBLAS is serial and unblocked. 64 and 256 cross into both. */
     @Test
