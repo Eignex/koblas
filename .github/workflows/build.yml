@@ -148,9 +148,8 @@ jobs:
           flags: host-simd
           fail_ci_if_error: false
 
-      # With the Vector API present the JVM level-2 gate sits at Int.MAX_VALUE, so the run above reaches
-      # none of the cblas level-2 bindings. Dropping the module moves the gate to 0 and makes gemv, symv,
-      # trsv, trmv and ger actually call OpenBLAS.
+      # The run above never opens the JVM level-2 gate, so dropping the Vector API is what reaches those
+      # bindings.
       - name: Run the host tests again with the level-2 bindings reachable
         run: >-
           ./gradlew :koblas:jvmTest :koblas:koverXmlReport
