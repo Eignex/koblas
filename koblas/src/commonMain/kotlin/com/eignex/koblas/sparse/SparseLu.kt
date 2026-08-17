@@ -3,10 +3,9 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
-import com.eignex.koblas.dense.determinant
 import com.eignex.koblas.dense.permutationSign
-import com.eignex.koblas.koblas
 import com.eignex.koblas.requireShape
+import com.eignex.koblas.requireSquare
 import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.log2
@@ -81,8 +80,8 @@ public class SparseLu private constructor(
     /** The transposed sweep of [solveInto]: `Uᵀ Lᵀ (P x) = Q b`. `b` is indexed by original column, the
      *  result by original row. */
     private fun btranInto(b: DoubleArray, out: DoubleArray, workspace: Workspace? = null): DoubleArray {
-        requireShape(b.size == m) { "solve: b size ${b.size} != $m" }
-        requireShape(out.size == m) { "solve: out size ${out.size} != $m" }
+        requireShape(b.size == m) { "btran: b size ${b.size} != $m" }
+        requireShape(out.size == m) { "btran: out size ${out.size} != $m" }
         val z = workspace?.take(m) ?: DoubleArray(m)
         val w = workspace?.take(m) ?: DoubleArray(m)
         // Left uncleared for the reason [ftranInto] gives. z ascends, w descends, each written before read.
@@ -132,7 +131,7 @@ public class SparseLu private constructor(
             equilibrate: Boolean = false,
             dropTolerance: Double = NO_DROP,
         ): SparseFactorization {
-            requireShape(a.rows == a.cols) { "SparseLu requires a square matrix; got ${a.rows}x${a.cols}" }
+            requireSquare(a, "SparseLu")
             val rows = Array(a.rows) { MutableIntDoubleMap() }
             for (j in 0 until a.cols) a.forEachInColumn(j) { i, v -> rows[i].put(j, v) }
             return factorize(rows, a.rows, equilibrate, dropTolerance)
@@ -204,8 +203,8 @@ public class SparseLu private constructor(
             m: Int,
             rowScale: DoubleArray,
         ): SparseLu {
-            val invPerm = IntArray(m).also { for (k in 0 until m) it[perm[k]] = k }
-            val invColPerm = IntArray(m).also { for (k in 0 until m) it[colPerm[k]] = k }
+            val invPerm = inverseOf(perm)
+            val invColPerm = inverseOf(colPerm)
             val uDiag = DoubleArray(m) { k -> u[perm[k]].getOrDefault(colPerm[k], 0.0) }
             val (uRowIdx, uRowVal) = uRowsOf(u, perm, colPerm, invColPerm, m)
             val (lRowIdx, lRowVal) = lRowsOf(lAtStep, invPerm, m)

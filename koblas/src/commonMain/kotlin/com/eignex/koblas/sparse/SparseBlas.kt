@@ -7,6 +7,7 @@ import com.eignex.koblas.DenseVector
 import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.requireShape
+import com.eignex.koblas.requireSquare
 
 /** Sparse matrix routines as a backend half. */
 public interface SparseBlas : Backend {
@@ -61,7 +62,7 @@ public interface SparseBlas : Backend {
         transpose: Boolean = false,
         unitDiag: Boolean = false,
     ) {
-        requireShape(a.rows == a.cols) { "trsv requires a square matrix; got ${a.rows}x${a.cols}" }
+        requireSquare(a, "trsv")
         val n = a.rows
         requireShape(x.size == n) { "trsv: x length ${x.size} != $n" }
         // Forward when a finished unknown feeds later columns, backward when it feeds earlier ones.

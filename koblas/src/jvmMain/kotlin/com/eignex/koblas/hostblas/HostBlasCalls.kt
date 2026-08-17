@@ -99,7 +99,7 @@ internal object HostBlasCalls {
      * Configures threads on this instance, which need not be the handle any other preset configured. An
      * unconfigured OpenBLAS runs multithreaded and its parallel LAPACK overflows JVM thread stacks.
      */
-    fun setThreads(count: Int) {
+    private fun setThreads(count: Int) {
         val setter = requireNotNull(lookup).find("openblas_set_num_threads").orElse(null) ?: return
         linker.downcallHandle(setter, FunctionDescriptor.ofVoid(JAVA_INT)).invokeWithArguments(count)
     }
@@ -170,10 +170,6 @@ internal object HostBlasCalls {
 
     val dpotrf: MethodHandle by lazy {
         handle("LAPACKE_dpotrf", intOf(JAVA_INT, JAVA_BYTE, JAVA_INT, ADDRESS, JAVA_INT))
-    }
-
-    val dpotrs: MethodHandle by lazy {
-        handle("LAPACKE_dpotrs", intOf(JAVA_INT, JAVA_BYTE, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT))
     }
 
     val dpotri: MethodHandle by lazy {

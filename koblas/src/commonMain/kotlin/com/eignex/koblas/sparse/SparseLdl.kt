@@ -5,6 +5,7 @@ import com.eignex.koblas.NotPositiveDefinite
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.requireShape
+import com.eignex.koblas.requireSquare
 import kotlin.math.sqrt
 
 /** What the sparse LDL factorization does with a non-positive pivot. */
@@ -150,7 +151,7 @@ internal fun numericLdl(
     symbolic: SparseSymbolic,
     policy: SparseLdlPolicy,
 ): SparseFactorization {
-    requireShape(a.rows == a.cols) { "ldl requires a square matrix; got ${a.rows}x${a.cols}" }
+    requireSquare(a, "ldl")
     requireShape(a.rows == symbolic.n) {
         "ldl: matrix is ${a.rows}x${a.rows} but the analysis is for ${symbolic.n}"
     }

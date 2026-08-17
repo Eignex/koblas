@@ -17,6 +17,7 @@ import com.eignex.koblas.dispatchThresholds
 import com.eignex.koblas.lapackFailedAt
 import com.eignex.koblas.requireFactored
 import com.eignex.koblas.requireShape
+import com.eignex.koblas.requireSquare
 
 /** LAPACK's lower-triangle selector, which koblas asks for everywhere it has a choice. */
 private const val LOWER_UPLO: Byte = 'L'.code.toByte()
@@ -104,10 +105,7 @@ public abstract class HostLapackAdapter internal constructor(
         requireFactored(lu.failedAt, "solve")
         val n = lu.n
         val nrhs = b.cols
-        requireShape(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
-        requireShape(out.rows == n && out.cols == nrhs) {
-            "solve: out is ${out.rows}x${out.cols}, expected ${n}x$nrhs"
-        }
+        requireSolveShapes(n, b, out)
         if (n == 0 || nrhs == 0) return out
         if (nrhs < nativeTrsmMinRhs) return solveColumnByColumn(lu, b, out, transpose, workspace)
         val factor = lu.lu
@@ -141,20 +139,8 @@ public abstract class HostLapackAdapter internal constructor(
         out: DenseMatrix,
         transpose: Boolean,
         workspace: Workspace?,
-    ): DenseMatrix {
-        val n = lu.n
-        val col = workspace?.take(n) ?: DoubleArray(n)
-        val solved = workspace?.take(n) ?: DoubleArray(n)
-        for (c in 0 until b.cols) {
-            b.data.copyInto(col, 0, c * n, (c + 1) * n)
-            solveInto(lu, col, solved, transpose, workspace)
-            solved.copyInto(out.data, c * n, 0, n)
-        }
-        if (workspace != null) {
-            workspace.release(solved)
-            workspace.release(col)
-        }
-        return out
+    ): DenseMatrix = solveColumnwise(b, out, lu.n, b.cols, workspace) { col, dst ->
+        solveInto(lu, col, dst, transpose, workspace)
     }
 
     /** Left-side dtrsm over a packed factor buffer. */
@@ -190,10 +176,7 @@ public abstract class HostLapackAdapter internal constructor(
         if (b.cols < nativeTrsmMinRhs) return super.solveInto(ldl, b, out, workspace)
         val n = ldl.n
         val nrhs = b.cols
-        requireShape(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
-        requireShape(out.rows == n && out.cols == nrhs) {
-            "solve: out is ${out.rows}x${out.cols}, expected ${n}x$nrhs"
-        }
+        requireSolveShapes(n, b, out)
         val x = out.data
         if (out !== b) b.data.copyInto(x)
         if (n == 0 || nrhs == 0) return out
@@ -244,7 +227,7 @@ public abstract class HostLapackAdapter internal constructor(
      */
     override fun cholesky(a: DenseMatrix, policy: CholeskyPolicy): CholeskyDecomposition {
         if (a.rows < choleskyMin) return super.cholesky(a, policy)
-        requireShape(a.rows == a.cols) { "cholesky requires a square matrix; got ${a.rows}x${a.cols}" }
+        requireSquare(a, "cholesky")
         val n = a.rows
         if (n == 0) return CholeskyDecomposition(DenseMatrix(0, 0))
         val l = DenseMatrix(n, n)

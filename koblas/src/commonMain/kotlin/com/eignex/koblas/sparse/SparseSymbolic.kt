@@ -1,7 +1,7 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.requireShape
+import com.eignex.koblas.requireSquare
 
 /**
  * Reads the upper triangle in column form, rows `i ≤ j` of column j, not the lower triangle the dense side
@@ -24,8 +24,7 @@ public class SparseSymbolic internal constructor(
     internal val isNatural: Boolean = permutation.indices.all { permutation[it] == it }
 
     /** The step at which each original index is eliminated, the inverse of [permutation]. */
-    internal val inversePermutation: IntArray =
-        IntArray(permutation.size).also { for (k in permutation.indices) it[permutation[k]] = k }
+    internal val inversePermutation: IntArray = inverseOf(permutation)
 
     /** Nonzeros in the strictly lower L, the fill this pattern will hold. The diagonal is D, not L. */
     public val nnz: Int get() = columnPointers[n]
@@ -46,15 +45,14 @@ public class SparseSymbolic internal constructor(
     public companion object {
         /** Analyse [a]'s pattern, the elimination tree first and then the column counts of L. */
         public fun analyze(a: SparseMatrix, ordering: SparseOrdering = SparseOrdering.MinimumDegree): SparseSymbolic {
-            requireShape(a.rows == a.cols) { "symbolic analysis requires a square matrix; got ${a.rows}x${a.cols}" }
+            requireSquare(a, "symbolic analysis")
             requireUpperTriangleStored(a)
             val n = a.rows
             val permutation = when (ordering) {
                 SparseOrdering.Natural -> IntArray(n) { it }
                 SparseOrdering.MinimumDegree -> minimumDegreeOrdering(a)
             }
-            val inverse = IntArray(n)
-            for (k in 0 until n) inverse[permutation[k]] = k
+            val inverse = inverseOf(permutation)
             // The tree and the counts describe the matrix that is eliminated, the permuted one.
             val analysed = if (ordering == SparseOrdering.Natural) a else permutedUpperTriangle(a, inverse)
             val parent = eliminationTree(analysed, n)
@@ -129,3 +127,6 @@ public class SparseSymbolic internal constructor(
         }
     }
 }
+
+/** The inverse of the permutation [p], so `inverseOf(p)[p[k]] == k`. */
+internal fun inverseOf(p: IntArray): IntArray = IntArray(p.size).also { for (k in p.indices) it[p[k]] = k }

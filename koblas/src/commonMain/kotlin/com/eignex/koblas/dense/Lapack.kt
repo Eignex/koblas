@@ -12,6 +12,7 @@ import com.eignex.koblas.koblas
 import com.eignex.koblas.norm1
 import com.eignex.koblas.requireFactored
 import com.eignex.koblas.requireShape
+import com.eignex.koblas.requireSquare
 import com.eignex.koblas.transpose
 import kotlin.math.abs
 import kotlin.math.sqrt
@@ -70,10 +71,7 @@ public interface Lapack : Backend {
         requireFactored(lu.failedAt, "solve")
         val n = lu.n
         val nrhs = b.cols
-        requireShape(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
-        requireShape(out.rows == n && out.cols == nrhs) {
-            "solve: out is ${out.rows}x${out.cols}, expected ${n}x$nrhs"
-        }
+        requireSolveShapes(n, b, out)
         if (nrhs == 0) return out
         val f = lu.lu
         return if (transpose) {
@@ -128,10 +126,7 @@ public interface Lapack : Backend {
         requireFactored(ldl.failedAt, "solve")
         val n = ldl.n
         val nrhs = b.cols
-        requireShape(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
-        requireShape(out.rows == n && out.cols == nrhs) {
-            "solve: out is ${out.rows}x${out.cols}, expected ${n}x$nrhs"
-        }
+        requireSolveShapes(n, b, out)
         return solveColumnwise(b, out, n, nrhs, workspace) { col, dst -> solveInto(ldl, col, dst) }
     }
 
@@ -317,7 +312,7 @@ public interface Lapack : Backend {
      *  @throws com.eignex.koblas.NotPositiveDefinite at the first non-positive pivot unless [policy] allows it.
      */
     public fun cholesky(a: DenseMatrix, policy: CholeskyPolicy = CholeskyPolicy.Strict): CholeskyDecomposition {
-        requireShape(a.rows == a.cols) { "cholesky requires a square matrix; got ${a.rows}x${a.cols}" }
+        requireSquare(a, "cholesky")
         val n = a.rows
         val l = DenseMatrix(n, n)
         val ld = l.data
@@ -383,7 +378,7 @@ public interface Lapack : Backend {
      *  @throws com.eignex.koblas.SingularMatrix naming the first zero diagonal position.
      */
     public fun trtri(a: DenseMatrix, lower: Boolean, unitDiag: Boolean = false): DenseMatrix {
-        requireShape(a.rows == a.cols) { "trtri requires a square matrix; got ${a.rows}x${a.cols}" }
+        requireSquare(a, "trtri")
         val n = a.rows
         if (!unitDiag) {
             for (i in 0 until n) {
@@ -493,9 +488,17 @@ public interface Lapack : Backend {
 /** Sweep cap for the [Lapack.rcond] estimator. */
 private const val RCOND_MAX_SWEEPS = 5
 
+/** The shapes a multi-right-hand-side solve needs: [b] with [n] rows, and [out] matching it column for column. */
+internal fun requireSolveShapes(n: Int, b: DenseMatrix, out: DenseMatrix) {
+    requireShape(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
+    requireShape(out.rows == n && out.cols == b.cols) {
+        "solve: out is ${out.rows}x${out.cols}, expected ${n}x${b.cols}"
+    }
+}
+
 /** Run [solveOne] over each column of [b], reassembling the results into an `n × nrhs` matrix. */
 @Suppress("LongParameterList") // shape, destination and scratch alongside the per-column solve
-private inline fun solveColumnwise(
+internal inline fun solveColumnwise(
     b: DenseMatrix,
     out: DenseMatrix,
     n: Int,

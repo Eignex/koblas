@@ -1,6 +1,5 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.koblas
 import kotlin.math.abs
 
 /** One factor's entries indexed by column, parallel per column. */
@@ -79,28 +78,21 @@ internal class MarkowitzState(
      * Change a row's count and keep its bucket membership true. A count of zero is not represented, since an
      * empty row is no longer a pivot candidate.
      */
-    private fun changeRowCount(i: Int, delta: Int) {
-        val before = rowCount[i]
-        val after = before + delta
-        rowCount[i] = after
-        if (!rowActive[i]) return
-        when {
-            before > 0 && after > 0 -> rowsByCount.moveTo(i, before, after)
-            before > 0 -> rowsByCount.remove(i, before)
-            after > 0 -> rowsByCount.add(i, after)
-        }
-    }
+    private fun changeRowCount(i: Int, delta: Int) = changeCount(rowCount, rowActive, rowsByCount, i, delta)
 
     /** [changeRowCount] for a column. */
-    private fun changeColumnCount(c: Int, delta: Int) {
-        val before = colCount[c]
+    private fun changeColumnCount(c: Int, delta: Int) = changeCount(colCount, colActive, columnsByCount, c, delta)
+
+    /** The shared body of [changeRowCount] and [changeColumnCount], which differ only in which axis they walk. */
+    private fun changeCount(counts: IntArray, active: BooleanArray, buckets: IntBuckets, i: Int, delta: Int) {
+        val before = counts[i]
         val after = before + delta
-        colCount[c] = after
-        if (!colActive[c]) return
+        counts[i] = after
+        if (!active[i]) return
         when {
-            before > 0 && after > 0 -> columnsByCount.moveTo(c, before, after)
-            before > 0 -> columnsByCount.remove(c, before)
-            after > 0 -> columnsByCount.add(c, after)
+            before > 0 && after > 0 -> buckets.moveTo(i, before, after)
+            before > 0 -> buckets.remove(i, before)
+            after > 0 -> buckets.add(i, after)
         }
     }
 
