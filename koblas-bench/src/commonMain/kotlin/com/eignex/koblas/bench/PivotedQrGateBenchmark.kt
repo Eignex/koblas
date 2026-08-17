@@ -17,7 +17,7 @@ import kotlinx.benchmark.*
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(BenchmarkTimeUnit.MICROSECONDS)
 class PivotedQrGateBenchmark {
-    @Param("4", "16", "32", "64", "128")
+    @Param("4", "8", "12", "16", "32", "64")
     var n: Int = 0
 
     @Param(AUTO_BACKEND, REFERENCE_BACKEND)

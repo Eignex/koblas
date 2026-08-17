@@ -41,7 +41,7 @@ internal class CblasLapack(private val f: LapackeFunctions, blas: CblasFunctions
      */
     override fun qrPivoted(a: DenseMatrix, tolerance: Double, workspace: Workspace?): PivotedQrDecomposition {
         val dgeqp3 = f.dgeqp3
-        if (dgeqp3 == null || minOf(a.rows, a.cols) < dispatchThresholds.lapack) {
+        if (dgeqp3 == null || minOf(a.rows, a.cols) < maxOf(dispatchThresholds.lapack, PIVOTED_QR_MIN)) {
             return ReferenceLinearAlgebra.qrPivoted(a, tolerance, workspace)
         }
         val m = a.rows
@@ -64,3 +64,12 @@ internal class CblasLapack(private val f: LapackeFunctions, blas: CblasFunctions
         return PivotedQrDecomposition(QrDecomposition(m, n, buf, tau), pivots, rank)
     }
 }
+
+/**
+ * Dimension from which `dgeqp3` beats the portable pivoted QR on native.
+ *
+ * The native LAPACK threshold is zero, which suits the routines it was chosen for but not this one, since a
+ * pivoted QR does more setup per call. Measured with the `pivotedQrGate` suite: at 4 the host is 1.3x slower
+ * square and 1.4x tall, at 8 the two are within each other's error, and from 12 the host wins by 1.4x and up.
+ */
+private const val PIVOTED_QR_MIN = 8
