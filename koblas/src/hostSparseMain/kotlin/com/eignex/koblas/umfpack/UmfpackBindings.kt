@@ -79,6 +79,12 @@ internal object UmfpackLoader {
         values
     }
 
+    /** The refinement steps a solve will run, or null when no Control array could be built. */
+    val refinementSteps: Double? get() = control?.get(IRSTEP)
+
+    /** The pivot tolerance, for the test that the array holds UMFPACK's defaults and not zeros. */
+    val pivotTolerance: Double? get() = control?.get(PIVOT_TOLERANCE)
+
     val available: Boolean get() = functions != null
 
     private fun open(vararg names: String): COpaquePointer? {

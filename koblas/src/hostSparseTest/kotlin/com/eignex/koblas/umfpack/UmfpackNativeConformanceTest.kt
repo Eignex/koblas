@@ -6,6 +6,7 @@ package com.eignex.koblas.umfpack
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.koblas
 import com.eignex.koblas.sparse.assertAliasedDestinationSolves
+import com.eignex.koblas.sparse.assertControlArrayKeepsUmfpackDefaults
 import com.eignex.koblas.sparse.assertDeterminantAgreesWithReference
 import com.eignex.koblas.sparse.assertEmptyAndZeroMatricesTakeThePortablePath
 import com.eignex.koblas.sparse.assertRegistersAsTheSparseLapackHalf
@@ -54,6 +55,10 @@ class UmfpackNativeConformanceTest {
     @Test
     fun `it registers as the sparse factorization half and reports fill`() =
         assertRegistersAsTheSparseLapackHalf(umfpack, n = 20)
+
+    @Test
+    fun `the control array keeps UMFPACK's defaults with refinement off`() =
+        assertControlArrayKeepsUmfpackDefaults(UmfpackLoader.refinementSteps, UmfpackLoader.pivotTolerance)
 
     @Test
     fun `repeated factorizations do not exhaust native memory`() = assertRepeatedFactorizationsSurvive(umfpack)
