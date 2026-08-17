@@ -21,32 +21,6 @@ private typealias Dp = CPointer<DoubleVar>?
 private typealias Ip = CPointer<IntVar>?
 private typealias Hp = CPointer<COpaquePointerVar>?
 
-/** The sys selector for Ax = b. */
-internal const val SYS_A = 0
-
-/** The sys selector for Aᵀx = b, which for real matrices is the plain transpose. */
-internal const val SYS_AT = 1
-
-/** Info array length, UMFPACK_INFO. */
-internal const val INFO = 90
-
-/** Control array length, UMFPACK_CONTROL. */
-private const val CONTROL = 20
-
-/** Control index of the iterative-refinement step count, UMFPACK_IRSTEP. UMFPACK defaults it to 2. */
-private const val IRSTEP = 7
-
-internal const val OK = 0
-
-/** UMFPACK_WARNING_singular_matrix, a factorization was produced but the matrix is singular. */
-internal const val WARNING_SINGULAR = 1
-
-/** Info index UMFPACK_LNZ, nonzeros in L with the diagonal included. */
-internal const val INFO_LNZ = 43
-
-/** Info index UMFPACK_UNZ, nonzeros in U with the diagonal included. */
-internal const val INFO_UNZ = 44
-
 /** Prototypes are LP64 with int indices, the di family; the dl family would need widened index copies. */
 @Suppress("MagicNumber") // the prototypes' arities are ABI facts
 internal class UmfpackFunctions(private val lib: COpaquePointer) {
@@ -84,14 +58,7 @@ internal class UmfpackFunctions(private val lib: COpaquePointer) {
 }
 
 internal object UmfpackLoader {
-    private val handle: COpaquePointer? = open(
-        "libumfpack.so.6", // versioned sonames first, a bare .so is the development symlink
-        "libumfpack.so.5",
-        "libumfpack.so",
-        "libumfpack.dylib",
-        "/opt/homebrew/opt/suite-sparse/lib/libumfpack.dylib", // Homebrew is keg-only
-        "/usr/local/opt/suite-sparse/lib/libumfpack.dylib",
-    )
+    private val handle: COpaquePointer? = open(*UMFPACK_SONAMES.toTypedArray())
 
     val functions: UmfpackFunctions? = handle?.let { lib ->
         try {
