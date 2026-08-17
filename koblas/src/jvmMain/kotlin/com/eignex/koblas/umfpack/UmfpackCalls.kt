@@ -16,33 +16,6 @@ import java.lang.invoke.MethodHandle
  */
 internal object UmfpackCalls {
 
-    /** The sys selector for `Ax = b`. */
-    const val SYS_A = 0
-
-    /** The sys selector for `Aᵀx = b`. */
-    const val SYS_AT = 1
-
-    /** Info array length (UMFPACK_INFO). */
-    const val INFO = 90
-
-    /** Control array length (UMFPACK_CONTROL). */
-    private const val CONTROL = 20
-
-    /** Control index of the iterative-refinement step count (UMFPACK_IRSTEP). */
-    private const val IRSTEP = 7
-
-    /** Control index of the threshold-pivoting tolerance (UMFPACK_PIVOT_TOLERANCE). */
-    private const val PIVOT_TOLERANCE = 3
-
-    /** The symbol whose presence stands for a usable UMFPACK. */
-    private const val KEY_SYMBOL = "umfpack_di_symbolic"
-
-    /** Success. */
-    const val OK = 0
-
-    /** UMFPACK_WARNING_singular_matrix: factors were produced, but the matrix is singular. */
-    const val WARNING_SINGULAR = 1
-
     private val linker = Linker.nativeLinker()
 
     // Pins the Kotlin arrays for the call instead of copying them, blocking relocation while it runs.
@@ -106,7 +79,7 @@ internal object UmfpackCalls {
      * UnsatisfiedLinkError count as absence, so a StackOverflowError is never read as a missing library.
      */
     private fun openUmfpack(): SymbolLookup? {
-        for (soname in listOf("libumfpack.so.6", "libumfpack.so.5", "libumfpack.so", "libumfpack.dylib")) {
+        for (soname in UMFPACK_SONAMES) {
             val opened = try {
                 SymbolLookup.libraryLookup(soname, Arena.global())
             } catch (_: IllegalArgumentException) {

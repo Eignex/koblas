@@ -12,12 +12,6 @@ import java.lang.foreign.ValueLayout.JAVA_DOUBLE
 import java.lang.ref.Cleaner
 import kotlin.math.pow
 
-/** Index of UMFPACK_LNZ in Info, the nonzeros in `L` with the diagonal included. */
-private const val INFO_LNZ = 43
-
-/** Index of UMFPACK_UNZ in Info, the nonzeros in `U` with the diagonal included. */
-private const val INFO_UNZ = 44
-
 /** Frees the native factors of unreachable factorizations. One for the whole process. */
 private val cleaner: Cleaner = Cleaner.create()
 
@@ -62,9 +56,9 @@ public class UmfpackFactorization internal constructor(
         // UMFPACK writes X and reads B, so aliasing them would have it read its own partial output.
         val rhs = if (out === b) b.copyOf() else b
         Arena.ofConfined().use { scratch ->
-            val info = scratch.allocate(JAVA_DOUBLE, UmfpackCalls.INFO.toLong())
+            val info = scratch.allocate(JAVA_DOUBLE, INFO.toLong())
             val status = UmfpackCalls.solve(
-                if (transpose) UmfpackCalls.SYS_AT else UmfpackCalls.SYS_A,
+                if (transpose) SYS_AT else SYS_A,
                 MemorySegment.ofArray(matrix.colPtr),
                 MemorySegment.ofArray(matrix.rowIdx),
                 MemorySegment.ofArray(matrix.values),
@@ -73,7 +67,7 @@ public class UmfpackFactorization internal constructor(
                 handles.numericHolder.get(ADDRESS, 0),
                 info,
             )
-            check(status == UmfpackCalls.OK) { "umfpack_di_solve failed with status $status" }
+            check(status == OK) { "umfpack_di_solve failed with status $status" }
         }
         return out
     }
@@ -87,14 +81,14 @@ public class UmfpackFactorization internal constructor(
         Arena.ofConfined().use { scratch ->
             val mx = scratch.allocate(JAVA_DOUBLE)
             val ex = scratch.allocate(JAVA_DOUBLE)
-            val info = scratch.allocate(JAVA_DOUBLE, UmfpackCalls.INFO.toLong())
+            val info = scratch.allocate(JAVA_DOUBLE, INFO.toLong())
             val status = UmfpackCalls.determinant(
                 mx,
                 ex,
                 handles.numericHolder.get(ADDRESS, 0),
                 info,
             )
-            check(status == UmfpackCalls.OK) { "umfpack_di_get_determinant failed with status $status" }
+            check(status == OK) { "umfpack_di_get_determinant failed with status $status" }
             return mx.get(JAVA_DOUBLE, 0) * 10.0.pow(ex.get(JAVA_DOUBLE, 0))
         }
     }
