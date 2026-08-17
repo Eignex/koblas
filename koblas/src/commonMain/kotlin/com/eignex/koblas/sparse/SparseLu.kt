@@ -55,21 +55,11 @@ public class SparseLu private constructor(
         val xp = workspace?.take(m) ?: DoubleArray(m)
         // Left uncleared: y reads only below k and xp only above k, so a borrowed buffer's contents are dead.
         // L y = P (E b), in pivot-position space.
-        for (k in 0 until m) {
-            var s = b[perm[k]] * rowScale[perm[k]]
-            val idx = lRowIdx[k]
-            val v = lRowVal[k]
-            for (t in idx.indices) s -= v[t] * y[idx[t]]
-            y[k] = s
+        sweep(descending = false, lRowIdx, lRowVal, y, skipDiagonal = false, divide = false) { k ->
+            b[perm[k]] * rowScale[perm[k]]
         }
-        // U x' = y, with x' in pivot-column space.
-        for (k in m - 1 downTo 0) {
-            var s = y[k]
-            val idx = uRowIdx[k]
-            val v = uRowVal[k]
-            for (t in 1 until idx.size) s -= v[t] * xp[idx[t]] // entry 0 is the diagonal
-            xp[k] = s / uDiag[k]
-        }
+        // U x' = y, with x' in pivot-column space. Entry 0 of each U row is the diagonal.
+        sweep(descending = true, uRowIdx, uRowVal, xp, skipDiagonal = true, divide = true) { k -> y[k] }
         // x = Q x'. Safe in place, since xp is separate storage from out.
         for (k in 0 until m) out[colPerm[k]] = xp[k]
         workspace?.release(xp)
@@ -86,26 +76,56 @@ public class SparseLu private constructor(
         val w = workspace?.take(m) ?: DoubleArray(m)
         // Left uncleared for the reason [ftranInto] gives. z ascends, w descends, each written before read.
         // Uᵀ z = Qᵀ b, forward and lower.
-        for (k in 0 until m) {
-            var s = b[colPerm[k]]
-            val idx = uColIdx[k]
-            val v = uColVal[k]
-            for (t in idx.indices) s -= v[t] * z[idx[t]]
-            z[k] = s / uDiag[k]
-        }
+        sweep(descending = false, uColIdx, uColVal, z, skipDiagonal = false, divide = true) { k -> b[colPerm[k]] }
         // Lᵀ w = z, back, upper, unit diagonal.
-        for (k in m - 1 downTo 0) {
-            var s = z[k]
-            val idx = lColIdx[k]
-            val v = lColVal[k]
-            for (t in idx.indices) s -= v[t] * w[idx[t]]
-            w[k] = s
-        }
+        sweep(descending = true, lColIdx, lColVal, w, skipDiagonal = false, divide = false) { k -> z[k] }
         // x = E·x', undoing the row equilibration.
         for (k in 0 until m) out[perm[k]] = w[k] * rowScale[perm[k]]
         workspace?.release(w)
         workspace?.release(z)
         return out
+    }
+
+    /**
+     * One triangular sweep of a solve: at each pivot position, subtract the factor entries from what [init]
+     * supplies and write the result into [x], which is also what the inner loop reads. The four sweeps of the
+     * two directions differ only in these arguments.
+     *
+     * Inlined deliberately, and the direction is a flag rather than an `IntProgression` because a progression
+     * parameter is a real object where a `for` over a range is a counted loop, which
+     * `AllocationFreeTest` catches. Every flag here is a constant at every call site, so each site keeps the
+     * inner loop it had when the four sweeps were written out.
+     *
+     * @param descending true to run from the last pivot position down, false to run up from the first.
+     * @param idx the factor's index array per pivot position.
+     * @param vals the factor's values, parallel to [idx].
+     * @param x the destination, which the inner loop also reads at positions already written.
+     * @param skipDiagonal true for a factor that stores its diagonal first, so entry 0 is not an update.
+     * @param divide true when the pivot is not implicitly one and the result needs [uDiag].
+     * @param init the right-hand side at a pivot position, before any factor entry is subtracted.
+     */
+    @Suppress("LongParameterList") // the five things the four sweeps vary, plus the destination
+    private inline fun sweep(
+        descending: Boolean,
+        idx: Array<IntArray>,
+        vals: Array<DoubleArray>,
+        x: DoubleArray,
+        skipDiagonal: Boolean,
+        divide: Boolean,
+        init: (Int) -> Double,
+    ) {
+        val first = if (skipDiagonal) 1 else 0
+        val step = if (descending) -1 else 1
+        val stop = if (descending) -1 else m
+        var k = if (descending) m - 1 else 0
+        while (k != stop) {
+            var s = init(k)
+            val ix = idx[k]
+            val v = vals[k]
+            for (t in first until ix.size) s -= v[t] * x[ix[t]]
+            x[k] = if (divide) s / uDiag[k] else s
+            k += step
+        }
     }
 
     /**
