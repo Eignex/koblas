@@ -28,6 +28,13 @@ internal fun sparseConformanceSystem(n: Int, rng: Random): SparseMatrix {
     return SparseMatrix.ofColumns(n, n, columns)
 }
 
+/** A·x computed straight from the CSC arrays, so no seam is involved in checking a seam. */
+internal fun multiply(a: SparseMatrix, x: DoubleArray): DoubleArray {
+    val y = DoubleArray(a.rows)
+    for (j in 0 until a.cols) a.forEachInColumn(j) { i, v -> y[i] += v * x[j] }
+    return y
+}
+
 internal fun assertSolvesAgreeWithReference(lapack: SparseLapack) {
     val rng = Random(20260815)
     for (n in intArrayOf(1, 2, 7, 23, 60)) {

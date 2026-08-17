@@ -18,7 +18,10 @@ import com.eignex.koblas.dense.determinant
 import com.eignex.koblas.installBackends
 import com.eignex.koblas.koblas
 import com.eignex.koblas.norm1
+import com.eignex.koblas.poisonedIndefinite
+import com.eignex.koblas.poisonedSymmetric
 import com.eignex.koblas.randomMatrix
+import com.eignex.koblas.wellConditioned
 import kotlin.math.abs
 import kotlin.math.sqrt
 import kotlin.random.Random
@@ -161,13 +164,7 @@ class CblasConformanceTest {
         val rng = Random(20260912)
         for (lower in booleanArrayOf(true, false)) {
             for (n in intArrayOf(1, 6, 13)) {
-                val a = DenseMatrix(n, n)
-                for (i in 0 until n) {
-                    for (j in 0..i) {
-                        a[if (lower) i else j, if (lower) j else i] = rng.nextDouble(-1.0, 1.0)
-                        if (j != i) a[if (lower) j else i, if (lower) i else j] = Double.NaN
-                    }
-                }
+                val (_, a) = poisonedSymmetric(rng, n, lower)
                 val x = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
                 val yRef = DoubleArray(n) { Double.NaN }
                 val yCblas = DoubleArray(n) { Double.NaN }
@@ -205,8 +202,7 @@ class CblasConformanceTest {
     fun `the determinant matches reference`() {
         val rng = Random(20260730)
         for (n in intArrayOf(1, 3, 8, 33)) {
-            val a = randomMatrix(n, n, rng)
-            for (i in 0 until n) a[i, i] = a[i, i] + n
+            val a = wellConditioned(n, rng)
             val luRef = reference.factor(a)
             val luCblas = cblas.factor(a)
             assertTrue(
@@ -222,15 +218,7 @@ class CblasConformanceTest {
         val n = 9
         val nrhs = 4
         val b = randomMatrix(n, nrhs, rng)
-        val sym = DenseMatrix(n, n)
-        for (i in 0 until n) {
-            for (j in 0..i) {
-                var v = rng.nextDouble(-1.0, 1.0)
-                if (i == j) v += if (i % 2 == 0) 2.0 else -2.0
-                sym[i, j] = v
-                if (j != i) sym[j, i] = Double.NaN
-            }
-        }
+        val (_, sym) = poisonedIndefinite(rng, n)
         val xRef = reference.solve(reference.ldl(sym), b)
         val xCblas = cblas.solve(cblas.ldl(sym), b)
         assertClose(xRef.data, xCblas.data, tolerance = 1e-9, context = "ldl block")
@@ -240,8 +228,7 @@ class CblasConformanceTest {
     fun `factorizations interchange between backends`() {
         val rng = Random(20260731)
         val n = 12
-        val a = randomMatrix(n, n, rng)
-        for (i in 0 until n) a[i, i] = a[i, i] + n
+        val a = wellConditioned(n, rng)
         val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
         for (transpose in booleanArrayOf(false, true)) {
             val viaCblasFactor = reference.solve(cblas.factor(a), b, transpose)
@@ -254,8 +241,7 @@ class CblasConformanceTest {
     fun `rcond agrees with the reference estimator in magnitude`() {
         val rng = Random(20260905)
         for (n in intArrayOf(1, 6, 24)) {
-            val a = randomMatrix(n, n, rng)
-            for (i in 0 until n) a[i, i] = a[i, i] + n
+            val a = wellConditioned(n, rng)
             val anorm = norm1(a)
             val ref = reference.rcond(reference.factor(a), anorm)
             val est = cblas.rcond(cblas.factor(a), anorm)
@@ -310,15 +296,7 @@ class CblasConformanceTest {
     fun `ldl factorizations match and interchange between backends`() {
         val rng = Random(20260932)
         for (n in intArrayOf(1, 2, 5, 14, 33)) {
-            val a = DenseMatrix(n, n)
-            for (i in 0 until n) {
-                for (j in 0..i) {
-                    var v = rng.nextDouble(-1.0, 1.0)
-                    if (i == j) v += if (i % 2 == 0) 2.0 else -2.0
-                    a[i, j] = v
-                    if (j != i) a[j, i] = Double.NaN
-                }
-            }
+            val (_, a) = poisonedIndefinite(rng, n)
             val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
             val fRef = reference.ldl(a)
             val fCblas = cblas.ldl(a)

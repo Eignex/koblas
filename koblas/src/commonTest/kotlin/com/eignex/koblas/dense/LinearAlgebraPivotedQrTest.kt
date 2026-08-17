@@ -35,12 +35,6 @@ class LinearAlgebraPivotedQrTest {
         return out
     }
 
-    private fun rColumn(qr: QrDecomposition, j: Int): DoubleArray {
-        val col = DoubleArray(qr.m)
-        for (i in 0 until minOf(j + 1, qr.tau.size)) col[i] = qr.qr[i + j * qr.m]
-        return col
-    }
-
     @Test
     fun `Q times R reconstructs the permuted matrix`() {
         val rng = Random(20260807)

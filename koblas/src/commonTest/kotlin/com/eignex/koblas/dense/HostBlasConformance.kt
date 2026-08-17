@@ -5,6 +5,7 @@ import com.eignex.koblas.DimensionMismatch
 import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.randomMatrix
+import com.eignex.koblas.wellConditioned
 import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -21,6 +22,13 @@ internal fun poisonedSpd(n: Int, rng: Random): DenseMatrix {
     for (i in 0 until n) a[i, i] = a[i, i] + n
     for (i in 0 until n) for (j in i + 1 until n) a[i, j] = Double.NaN
     return a
+}
+
+/** Column [j] of R, padded to `m` entries, so that applying Q to it rebuilds column [j] of the input. */
+internal fun rColumn(qr: QrDecomposition, j: Int): DoubleArray {
+    val col = DoubleArray(qr.m)
+    for (i in 0 until minOf(j + 1, qr.tau.size)) col[i] = qr.qr[i + j * qr.m]
+    return col
 }
 
 internal fun assertLevel3AgreesWithReference(blas: Blas, sizes: IntArray) {
@@ -110,8 +118,7 @@ private fun checkTriangular(blas: Blas, rng: Random, n: Int, lower: Boolean, tra
 internal fun assertLuAgreesWithReference(lapack: Lapack, sizes: IntArray) {
     val rng = Random(20260730)
     for (n in sizes) {
-        val a = randomMatrix(n, n, rng)
-        for (i in 0 until n) a[i, i] = a[i, i] + n // diagonally dominant, so the solve is stable
+        val a = wellConditioned(n, rng) // diagonally dominant, so the solve is stable
         val rhs = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
         val hostLu = lapack.factor(a)
         val portableLu = reference.factor(a)
@@ -215,10 +222,8 @@ internal fun assertSingularLdlIsRefused(lapack: Lapack, nrhs: Int = 4) {
  */
 internal fun assertFactorIntoUsesItsDestination(lapack: Lapack, n: Int) {
     val rng = Random(20260823)
-    val first = randomMatrix(n, n, rng)
-    for (i in 0 until n) first[i, i] = first[i, i] + n
-    val second = randomMatrix(n, n, rng)
-    for (i in 0 until n) second[i, i] = second[i, i] + n
+    val first = wellConditioned(n, rng)
+    val second = wellConditioned(n, rng)
 
     val out = lapack.factor(first)
     val luBuffer = out.lu

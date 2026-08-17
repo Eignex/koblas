@@ -67,6 +67,23 @@ internal fun poisonedSymmetric(rng: Random, n: Int, lower: Boolean): Pair<DenseM
     return full to poisoned
 }
 
+/** A random symmetric indefinite matrix as `(full, poisoned)`, whose mixed-sign pivots force 2x2 blocks. */
+internal fun poisonedIndefinite(rng: Random, n: Int): Pair<DenseMatrix, DenseMatrix> {
+    val full = DenseMatrix(n)
+    val poisoned = DenseMatrix(n)
+    for (i in 0 until n) {
+        for (j in 0..i) {
+            var v = rng.nextDouble(-1.0, 1.0)
+            if (i == j) v += if (i % 2 == 0) 2.0 else -2.0
+            full[i, j] = v
+            full[j, i] = v
+            poisoned[i, j] = v
+            if (j != i) poisoned[j, i] = Double.NaN
+        }
+    }
+    return full to poisoned
+}
+
 /** `(poisoned, explicit)`, poisoned outside the [lower] triangle and on an implicit unit diagonal. */
 internal fun poisonedTriangle(rng: Random, n: Int, lower: Boolean, unitDiag: Boolean): Pair<DenseMatrix, DenseMatrix> {
     val poisoned = DenseMatrix(n)

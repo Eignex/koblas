@@ -16,8 +16,10 @@ import com.eignex.koblas.dense.assertSingularLdlIsRefused
 import com.eignex.koblas.dense.assertSpdSuiteAgreesWithReference
 import com.eignex.koblas.dense.assertSymvRefusesNonSquare
 import com.eignex.koblas.dense.assertTriangularAgreesWithReference
+import com.eignex.koblas.dense.rColumn
 import com.eignex.koblas.koblasInfo
 import com.eignex.koblas.randomMatrix
+import com.eignex.koblas.wellConditioned
 import org.junit.Assume
 import org.junit.experimental.categories.Category
 import kotlin.random.Random
@@ -57,8 +59,7 @@ class HostBlasConformanceTest {
         Assume.assumeTrue("host LAPACKE is not installed", HostBlasCalls.lapackAvailable)
         val n = 512
         val rng = Random(20260807)
-        val a = DenseMatrix.wrap(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
-        for (i in 0 until n) a[i, i] = a[i, i] + n
+        val a = wellConditioned(n, rng)
         val host = HostLapack()
         repeat(4) {
             val lu = host.factor(a)
@@ -123,11 +124,7 @@ class HostBlasConformanceTest {
             assertEquals((0 until 64).toList(), actual.pivots.sorted(), "pivots must be a permutation")
 
             for (j in 0 until 64) {
-                val rColumn = DoubleArray(m)
-                for (i in 0..minOf(j, actual.factorization.tau.size - 1)) {
-                    rColumn[i] = actual.factorization.qr[i + j * m]
-                }
-                val rebuilt = host.applyQ(actual.factorization, rColumn)
+                val rebuilt = host.applyQ(actual.factorization, rColumn(actual.factorization, j))
                 val original = DoubleArray(m) { i -> a[i, actual.pivots[j]] }
                 assertClose(original, rebuilt, tolerance = 1e-8, context = "A·P = Q·R rank=$rank column $j")
             }

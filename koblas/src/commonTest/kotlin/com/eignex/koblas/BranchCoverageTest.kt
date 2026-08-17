@@ -19,9 +19,7 @@ class BranchCoverageTest {
     fun `an LU solve into its own right-hand side matches one into a fresh vector`() {
         val rng = Random(20260820)
         for (n in intArrayOf(1, 2, 6, 11)) {
-            val a = DenseMatrix(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
-            for (i in 0 until n) a[i, i] = a[i, i] + n
-            val lu = a.lu()
+            val lu = wellConditioned(n, rng).lu()
             for (transpose in booleanArrayOf(false, true)) {
                 val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
                 val fresh = koblas.solveInto(lu, b, DoubleArray(n), transpose)
@@ -37,9 +35,7 @@ class BranchCoverageTest {
         val rng = Random(20260821)
         val n = 6
         for (nrhs in intArrayOf(1, 5)) {
-            val a = DenseMatrix(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
-            for (i in 0 until n) a[i, i] = a[i, i] + n
-            val lu = a.lu()
+            val lu = wellConditioned(n, rng).lu()
             for (transpose in booleanArrayOf(false, true)) {
                 val b = DenseMatrix(n, nrhs, DoubleArray(n * nrhs) { rng.nextDouble(-1.0, 1.0) })
                 val fresh = koblas.solveInto(lu, b, DenseMatrix.zero(n, nrhs), transpose)

@@ -3,6 +3,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.koblas
+import com.eignex.koblas.poisonedIndefinite
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -46,15 +47,7 @@ class LinearAlgebraMultiRhsSolveTest {
     fun `ldl block solve matches column-by-column vector solves on indefinite matrices`() {
         val rng = Random(20260951)
         for (n in intArrayOf(1, 2, 5, 14)) {
-            val a = DenseMatrix(n)
-            for (i in 0 until n) {
-                for (j in 0..i) {
-                    var v = rng.nextDouble(-1.0, 1.0)
-                    if (i == j) v += if (i % 2 == 0) 2.0 else -2.0
-                    a[i, j] = v
-                    if (j != i) a[j, i] = Double.NaN
-                }
-            }
+            val (_, a) = poisonedIndefinite(rng, n)
             val f = koblas.ldl(a)
             assertTrue(!f.singular, "n=$n flagged singular")
             val nrhs = 3

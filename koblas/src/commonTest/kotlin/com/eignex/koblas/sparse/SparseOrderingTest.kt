@@ -29,13 +29,6 @@ class SparseOrderingTest {
         return SparseMatrix.ofColumns(n, n, columns)
     }
 
-    /** A·x from the CSC arrays, so a solve is checked against the matrix rather than a seam. */
-    private fun multiply(a: SparseMatrix, x: DoubleArray): DoubleArray {
-        val y = DoubleArray(a.rows)
-        for (j in 0 until a.cols) a.forEachInColumn(j) { i, v -> y[i] += v * x[j] }
-        return y
-    }
-
     @Test
     fun `the ordering is a permutation and Natural is the identity`() {
         val a = arrow(24)
