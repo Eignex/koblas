@@ -48,4 +48,5 @@ rm -rf "$root/koblas-bench/build/reports/benchmarks"
 echo "cores=$CORES load=$(cut -d' ' -f1-3 /proc/loadavg)"
 taskset -c "$CORES" ./gradlew --no-daemon ":koblas-bench:$task" "$@" > "$out" 2>&1
 echo "exit=$?"
-grep -aE "^Benchmark |^(Level1|Level2|Level3|Sparse)Benchmark\." "$out"
+# Match any class, since naming the known ones once hid a new suite's whole result behind an empty table.
+grep -aE "^Benchmark +\(|^[A-Za-z0-9_]+Benchmark\.[A-Za-z0-9_]+ " "$out"
