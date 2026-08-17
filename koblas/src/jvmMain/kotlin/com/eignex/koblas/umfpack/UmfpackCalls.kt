@@ -33,15 +33,15 @@ internal object UmfpackCalls {
         val symbolic: MethodHandle,
         val numeric: MethodHandle,
         val solve: MethodHandle,
-        val freeSymbolic: MethodHandle?,
+        val freeSymbolic: MethodHandle,
         val freeNumeric: MethodHandle,
-        val determinant: MethodHandle?,
-        val defaults: MethodHandle?,
+        val determinant: MethodHandle,
+        val defaults: MethodHandle,
     )
 
     /**
      * The Control array every solve passes, holding UMFPACK's defaults with iterative refinement off, so a
-     * solve is the triangular solve against the factors. Null when umfpack_di_defaults is missing.
+     * solve is the triangular solve against the factors. Null until the library resolves.
      */
     private val solveControl: MemorySegment? by lazy { buildSolveControl() }
 
@@ -52,7 +52,7 @@ internal object UmfpackCalls {
     val pivotTolerance: Double? get() = solveControl?.getAtIndex(JAVA_DOUBLE, PIVOT_TOLERANCE.toLong())
 
     private fun buildSolveControl(): MemorySegment? {
-        val defaults = handles?.defaults ?: return null
+        val defaults = (handles ?: return null).defaults
         // The global arena keeps this read-only array alive past every solve.
         val control = Arena.global().allocate(JAVA_DOUBLE, CONTROL.toLong())
         defaults.invokeWithArguments(control)
@@ -109,8 +109,13 @@ internal object UmfpackCalls {
         val determinant = bind(found, "umfpack_di_get_determinant", intsThenPointers(ints = 0, pointers = 4))
         // void umfpack_di_defaults(double Control[UMFPACK_CONTROL])
         val defaults = bind(found, "umfpack_di_defaults", FunctionDescriptor.ofVoid(ADDRESS))
-        if (symbolic == null || numeric == null || solve == null || freeNumeric == null) {
-            bindingFailure = "missing one of umfpack_di_symbolic, _numeric, _solve or _free_numeric"
+        // Every one is required. An optional binding degrades silently instead: without _get_determinant a
+        // determinant reads back as zero, which is indistinguishable from singular, without _defaults the
+        // solve keeps UMFPACK's iterative refinement on, and without _free_symbolic the analysis leaks.
+        if (symbolic == null || numeric == null || solve == null || freeNumeric == null ||
+            freeSymbolic == null || determinant == null || defaults == null
+        ) {
+            bindingFailure = "the host libumfpack lacks one of the umfpack_di_ symbols koblas binds"
             return null
         }
         return Handles(symbolic, numeric, solve, freeSymbolic, freeNumeric, determinant, defaults)
@@ -195,7 +200,7 @@ internal object UmfpackCalls {
 
     /** Writes the mantissa into [mx] and the base-10 exponent into [ex]. */
     fun determinant(mx: MemorySegment, ex: MemorySegment, numeric: MemorySegment, info: MemorySegment): Int {
-        val handle = handlesOrThrow().determinant ?: return OK
+        val handle = handlesOrThrow().determinant
         return handle.invokeWithArguments(mx, ex, numeric, info) as Int
     }
 

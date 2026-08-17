@@ -85,7 +85,7 @@ internal object UmfpackLoader {
         for (name in names) {
             val opened = dlopen(name, RTLD_NOW) ?: continue
             // A library that opens without the di family cannot serve, and must not shadow a later soname.
-            if (dlsym(opened, "umfpack_di_symbolic") != null) return opened
+            if (dlsym(opened, KEY_SYMBOL) != null) return opened
         }
         return null
     }
