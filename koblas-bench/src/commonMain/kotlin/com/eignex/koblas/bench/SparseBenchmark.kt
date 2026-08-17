@@ -8,6 +8,7 @@ import com.eignex.koblas.sparse.gemv
 import com.eignex.koblas.sparse.ldl
 import com.eignex.koblas.sparse.lu
 import com.eignex.koblas.sparse.trsv
+import com.eignex.koblas.transpose
 import kotlinx.benchmark.*
 
 @State(Scope.Benchmark)
@@ -68,4 +69,8 @@ class SparseBenchmark {
         a.trsv(x, lower = true)
         return x
     }
+
+    /** Costs by stored entry rather than by dimension, so it scales with the fill and not with `n`. */
+    @Benchmark
+    fun sparseTranspose(): SparseMatrix = a.transpose()
 }

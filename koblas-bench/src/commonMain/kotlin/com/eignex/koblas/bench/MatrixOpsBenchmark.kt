@@ -1,7 +1,6 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.norm1
 import com.eignex.koblas.normFro
 import com.eignex.koblas.normInf
@@ -23,14 +22,12 @@ class MatrixOpsBenchmark {
     var n: Int = 0
 
     private lateinit var a: DenseMatrix
-    private lateinit var sparse: SparseMatrix
     private lateinit var factors: DoubleArray
 
     @Setup
     fun setup() {
         val rng = benchRng()
         a = randomMatrix(n, n, rng)
-        sparse = sparseDominantMatrix(n, rng)
         factors = DoubleArray(n) { NEAR_UNIT_SCALE }
     }
 
@@ -59,7 +56,4 @@ class MatrixOpsBenchmark {
 
     @Benchmark
     fun transposeDense(): DenseMatrix = a.transpose()
-
-    @Benchmark
-    fun transposeSparse(): SparseMatrix = sparse.transpose()
 }
