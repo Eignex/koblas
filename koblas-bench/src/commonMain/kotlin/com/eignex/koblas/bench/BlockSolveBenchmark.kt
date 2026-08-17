@@ -4,16 +4,7 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.dense.LuDecomposition
 import com.eignex.koblas.dense.lu
 import com.eignex.koblas.koblas
-import kotlin.random.Random
-import kotlinx.benchmark.Benchmark
-import kotlinx.benchmark.BenchmarkMode
-import kotlinx.benchmark.BenchmarkTimeUnit
-import kotlinx.benchmark.Mode
-import kotlinx.benchmark.OutputTimeUnit
-import kotlinx.benchmark.Param
-import kotlinx.benchmark.Scope
-import kotlinx.benchmark.Setup
-import kotlinx.benchmark.State
+import kotlinx.benchmark.*
 
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
@@ -25,8 +16,8 @@ class BlockSolveBenchmark {
     @Param("1", "2", "4", "8", "16", "32", "64")
     var nrhs: Int = 0
 
-    @Param("auto", "reference")
-    var backend: String = "auto"
+    @Param(AUTO_BACKEND, REFERENCE_BACKEND)
+    var backend: String = AUTO_BACKEND
 
     private lateinit var factored: LuDecomposition
     private lateinit var block: DenseMatrix
@@ -34,7 +25,7 @@ class BlockSolveBenchmark {
     @Setup
     fun setup() {
         installBackend(backend)
-        val rng = Random(BENCH_SEED)
+        val rng = benchRng()
         factored = dominantMatrix(n, rng).lu()
         block = randomMatrix(n, nrhs, rng)
     }

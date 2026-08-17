@@ -9,16 +9,7 @@ import com.eignex.koblas.koblas
 import com.eignex.koblas.mathBackend
 import com.eignex.koblas.norm2
 import com.eignex.koblas.scale
-import kotlin.random.Random
-import kotlinx.benchmark.Benchmark
-import kotlinx.benchmark.BenchmarkMode
-import kotlinx.benchmark.BenchmarkTimeUnit
-import kotlinx.benchmark.Mode
-import kotlinx.benchmark.OutputTimeUnit
-import kotlinx.benchmark.Param
-import kotlinx.benchmark.Scope
-import kotlinx.benchmark.Setup
-import kotlinx.benchmark.State
+import kotlinx.benchmark.*
 
 /**
  * The vector path pays a fixed setup, lane broadcast and horizontal reduce, and does no vector work below
@@ -31,9 +22,9 @@ class Level1Benchmark {
     @Param("2", "4", "8", "16", "32", "64", "128", "256", "1024", "4096")
     var len: Int = 0
 
-    /** host installs the platform's level-1 kernels when it has any, builtin clears them. */
-    @Param("builtin", "host")
-    var kernels: String = "builtin"
+    /** [HOST_KERNELS] installs the platform's level-1 kernels when it has any, [BUILTIN_KERNELS] clears them. */
+    @Param(BUILTIN_KERNELS, HOST_KERNELS)
+    var kernels: String = BUILTIN_KERNELS
 
     private lateinit var x: DenseVector
     private lateinit var y: DenseVector
@@ -44,9 +35,9 @@ class Level1Benchmark {
 
     @Setup
     fun setup() {
-        useHostLevel1(kernels == "host")
+        useHostLevel1(kernels == HOST_KERNELS)
         println("resolved: primitives=$mathBackend")
-        val rng = Random(BENCH_SEED)
+        val rng = benchRng()
         x = DenseVector.of(randomVector(len, rng))
         y = DenseVector.of(randomVector(len, rng))
         quad = randomVector(4 * len, rng)
@@ -57,12 +48,12 @@ class Level1Benchmark {
 
     @Benchmark
     fun axpyBench() {
-        axpy(y, 1.000001, x)
+        axpy(y, NEAR_UNIT_SCALE, x)
     }
 
     @Benchmark
     fun scaleBench() {
-        scale(y, 1.000001)
+        scale(y, NEAR_UNIT_SCALE)
     }
 
     /** Rescales rather than summing squares, so it costs more than a dot of the same length. */

@@ -9,16 +9,7 @@ import com.eignex.koblas.dense.qrPivoted
 import com.eignex.koblas.dense.solveLeastSquares
 import com.eignex.koblas.dense.solveMinimumNorm
 import com.eignex.koblas.koblas
-import kotlin.random.Random
-import kotlinx.benchmark.Benchmark
-import kotlinx.benchmark.BenchmarkMode
-import kotlinx.benchmark.BenchmarkTimeUnit
-import kotlinx.benchmark.Mode
-import kotlinx.benchmark.OutputTimeUnit
-import kotlinx.benchmark.Param
-import kotlinx.benchmark.Scope
-import kotlinx.benchmark.Setup
-import kotlinx.benchmark.State
+import kotlinx.benchmark.*
 
 /**
  * Householder QR, whose column norms are the one place a factorization leans on `nrm2` rather than `dot`.
@@ -32,8 +23,8 @@ class QrBenchmark {
     @Param("128", "256", "512")
     var n: Int = 0
 
-    @Param("auto", "reference")
-    var backend: String = "auto"
+    @Param(AUTO_BACKEND, REFERENCE_BACKEND)
+    var backend: String = AUTO_BACKEND
 
     private lateinit var square: DenseMatrix
     private lateinit var tall: DenseMatrix
@@ -47,7 +38,7 @@ class QrBenchmark {
     @Setup
     fun setup() {
         installBackend(backend)
-        val rng = Random(BENCH_SEED)
+        val rng = benchRng()
         square = randomMatrix(n, n, rng)
         tall = randomMatrix(2 * n, n, rng)
         factored = tall.qr()

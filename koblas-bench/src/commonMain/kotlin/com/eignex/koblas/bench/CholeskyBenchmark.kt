@@ -6,16 +6,7 @@ import com.eignex.koblas.dense.CholeskyDecomposition
 import com.eignex.koblas.dense.invert
 import com.eignex.koblas.dense.solve
 import com.eignex.koblas.koblas
-import kotlin.random.Random
-import kotlinx.benchmark.Benchmark
-import kotlinx.benchmark.BenchmarkMode
-import kotlinx.benchmark.BenchmarkTimeUnit
-import kotlinx.benchmark.Mode
-import kotlinx.benchmark.OutputTimeUnit
-import kotlinx.benchmark.Param
-import kotlinx.benchmark.Scope
-import kotlinx.benchmark.Setup
-import kotlinx.benchmark.State
+import kotlinx.benchmark.*
 
 /** koblas configures a host OpenBLAS single-threaded, so large sizes are not what a threaded build reports. */
 @State(Scope.Benchmark)
@@ -25,8 +16,8 @@ class CholeskyBenchmark {
     @Param("256", "1024", "2048")
     var n: Int = 0
 
-    @Param("auto", "reference")
-    var backend: String = "auto"
+    @Param(AUTO_BACKEND, REFERENCE_BACKEND)
+    var backend: String = AUTO_BACKEND
 
     private lateinit var a: DenseMatrix
     private lateinit var factor: CholeskyDecomposition
@@ -35,7 +26,7 @@ class CholeskyBenchmark {
     @Setup
     fun setup() {
         installBackend(backend)
-        val rng = Random(BENCH_SEED)
+        val rng = benchRng()
         a = spdMatrix(n, rng)
         factor = a.cholesky()
         b = randomVector(n, rng)

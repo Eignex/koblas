@@ -1,4 +1,21 @@
+import kotlinx.benchmark.gradle.BenchmarkConfiguration
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
+
+/**
+ * Registers a suite named [name] over the benchmarks of [className] whose names match [methods].
+ *
+ * The include pattern is a regex over the fully qualified name, so both ends are anchored: a bare
+ * "SolveBenchmark" also matches BlockSolveBenchmark and silently runs two suites as one.
+ */
+fun NamedDomainObjectContainer<BenchmarkConfiguration>.suite(
+    name: String,
+    className: String = name.replaceFirstChar(Char::uppercaseChar) + "Benchmark",
+    methods: String = "\\w+",
+    configure: BenchmarkConfiguration.() -> Unit = {},
+) = register(name) {
+    include("\\.$className\\.($methods)$")
+    configure()
+}
 
 plugins {
     kotlin("multiplatform") version "2.4.10"
@@ -53,9 +70,8 @@ benchmark {
         register("macosArm64")
     }
     configurations {
-        // One suite per benchmark class, so `benchmark` runs everything and `<name>Benchmark` runs one
-        // class. Settings are shared below rather than repeated per suite: comparing two runs is only
-        // meaningful when both spent the same warmup and iteration time.
+        // Settings are shared here rather than repeated per suite: comparing two runs is only meaningful
+        // when both spent the same warmup and iteration time.
         configureEach {
             warmups = 3
             iterations = 5
@@ -64,35 +80,32 @@ benchmark {
             // JMH defaults to several forks; one is enough here and keeps a sweep to a coffee break.
             advanced("jvmForks", "1")
         }
-        // Patterns are regexes over the fully qualified name, so they are anchored on the leading dot:
-        // a bare "SolveBenchmark" also matches BlockSolveBenchmark and silently runs both suites.
-        register("level1") { include("\\.Level1Benchmark\\.") }
-        register("level2") { include("\\.Level2Benchmark\\.") }
-        register("level3") { include("\\.Level3Benchmark\\.") }
-        register("solve") { include("\\.SolveBenchmark\\.") }
-        register("blockSolve") { include("\\.BlockSolveBenchmark\\.") }
-        register("sparse") { include("\\.SparseBenchmark\\.") }
-        register("sparseHost") { include("\\.SparseHostBenchmark\\.") }
-        register("cholesky") { include("\\.CholeskyBenchmark\\.") }
-        register("qr") { include("\\.QrBenchmark\\.") }
-        register("sparseLevel1") { include("\\.SparseLevel1Benchmark\\.") }
-        register("matrixOps") { include("\\.MatrixOpsBenchmark\\.") }
-        register("symbolic") { include("\\.SymbolicBenchmark\\.") }
+
+        // One suite per benchmark class, so `benchmark` runs everything and `<name>Benchmark` runs one class.
+        suite("level1")
+        suite("level2")
+        suite("level3")
+        suite("solve")
+        suite("blockSolve")
+        suite("sparse")
+        suite("sparseHost")
+        suite("cholesky")
+        suite("qr")
+        suite("sparseLevel1")
+        suite("matrixOps")
+        suite("symbolic")
 
         // Focused suites for A/B work on a contended machine. Each pins one decisive row plus a control the
         // change under test cannot affect, so a comparison fits a short quiet window instead of needing
         // several undisturbed minutes. The shared settings above still apply, so runs stay comparable.
-        register("qrFocused") {
-            include("\\.QrBenchmark\\.(qrPivotedSquare|qrSquare|applyQ)$")
+        suite("qrFocused", "QrBenchmark", "qrPivotedSquare|qrSquare|applyQ") {
             param("n", "512")
             param("backend", "reference")
         }
-        register("level3Focused") {
-            include("\\.Level3Benchmark\\.(syr2k|gemm)$")
+        suite("level3Focused", "Level3Benchmark", "syr2k|gemm") {
             param("n", "256")
         }
-        register("sparseFocused") {
-            include("\\.SparseBenchmark\\.(sparseLuFactor|sparseGemv)$")
+        suite("sparseFocused", "SparseBenchmark", "sparseLuFactor|sparseGemv") {
             param("n", "256")
         }
     }
