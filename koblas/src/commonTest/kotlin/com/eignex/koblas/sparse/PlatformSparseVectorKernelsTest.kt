@@ -23,8 +23,8 @@ class PlatformSparseVectorKernelsTest {
             val size = nnz * 8
             val x = sparse(size, nnz, rng)
             val y = randomVector(size, rng)
-            val expected = ReferenceSparseLinearAlgebra.dot(x, y)
-            val actual = PlatformSparseVectorKernels.dot(x, y)
+            val expected = F64ReferenceSparseLinearAlgebra.dot(x, y)
+            val actual = F64PlatformSparseVectorKernels.dot(x, y)
             // A vectorized reduction sums lanes in a different order, so the bound scales with the count.
             assertTrue(
                 abs(actual - expected) <= 1e-13 * nnz * (1.0 + abs(expected)),
@@ -40,7 +40,7 @@ class PlatformSparseVectorKernelsTest {
             val x = sparse(nnz * 8, nnz, rng)
             val wrong = DoubleArray(x.size + 1)
             val failed = try {
-                PlatformSparseVectorKernels.dot(x, wrong)
+                F64PlatformSparseVectorKernels.dot(x, wrong)
                 false
             } catch (_: IllegalArgumentException) {
                 true
@@ -55,17 +55,17 @@ class PlatformSparseVectorKernelsTest {
         val x = sparse(4096, 512, rng)
         val dense = randomVector(4096, rng)
 
-        val expectedAxpy = dense.copyOf().also { ReferenceSparseLinearAlgebra.axpy(it, 2.5, x) }
-        val actualAxpy = dense.copyOf().also { PlatformSparseVectorKernels.axpy(it, 2.5, x) }
+        val expectedAxpy = dense.copyOf().also { F64ReferenceSparseLinearAlgebra.axpy(it, 2.5, x) }
+        val actualAxpy = dense.copyOf().also { F64PlatformSparseVectorKernels.axpy(it, 2.5, x) }
         assertTrue(expectedAxpy.contentEquals(actualAxpy), "axpy diverged from the portable loop")
 
-        val expectedScatter = dense.copyOf().also { ReferenceSparseLinearAlgebra.scatter(x, it) }
-        val actualScatter = dense.copyOf().also { PlatformSparseVectorKernels.scatter(x, it) }
+        val expectedScatter = dense.copyOf().also { F64ReferenceSparseLinearAlgebra.scatter(x, it) }
+        val actualScatter = dense.copyOf().also { F64PlatformSparseVectorKernels.scatter(x, it) }
         assertTrue(expectedScatter.contentEquals(actualScatter), "scatter diverged from the portable loop")
 
         val other = sparse(4096, 400, Random(12))
         assertTrue(
-            PlatformSparseVectorKernels.dot(x, other) == ReferenceSparseLinearAlgebra.dot(x, other),
+            F64PlatformSparseVectorKernels.dot(x, other) == F64ReferenceSparseLinearAlgebra.dot(x, other),
             "the sparse-against-sparse merge must stay the portable one",
         )
     }

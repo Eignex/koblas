@@ -16,7 +16,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-private val reference = ReferenceLinearAlgebra
+private val reference = F64ReferenceLinearAlgebra
 
 /** An SPD matrix with its strict upper triangle poisoned, since only the lower one may be read. */
 internal fun poisonedSpd(n: Int, rng: Random): F64DenseMatrix {
@@ -29,13 +29,13 @@ internal fun poisonedSpd(n: Int, rng: Random): F64DenseMatrix {
 }
 
 /** Column [j] of R, padded to `m` entries, so that applying Q to it rebuilds column [j] of the input. */
-internal fun rColumn(qr: QrDecomposition, j: Int): DoubleArray {
+internal fun rColumn(qr: F64QrDecomposition, j: Int): DoubleArray {
     val col = DoubleArray(qr.m)
     for (i in 0 until minOf(j + 1, qr.tau.size)) col[i] = qr.qr[i + j * qr.m]
     return col
 }
 
-internal fun assertLevel3AgreesWithReference(blas: Blas, sizes: IntArray) {
+internal fun assertLevel3AgreesWithReference(blas: F64Blas, sizes: IntArray) {
     val rng = Random(20260729)
     for (n in sizes) {
         val a = randomMatrix(n, n, rng)
@@ -51,7 +51,7 @@ internal fun assertLevel3AgreesWithReference(blas: Blas, sizes: IntArray) {
     }
 }
 
-internal fun assertGerAgreesWithReference(blas: Blas) {
+internal fun assertGerAgreesWithReference(blas: F64Blas) {
     val rng = Random(20260802)
     for ((rows, cols) in listOf(1 to 1, 4 to 7, 9 to 3, 30 to 9)) {
         for (alpha in doubleArrayOf(0.0, 1.0, -0.75)) {
@@ -68,7 +68,7 @@ internal fun assertGerAgreesWithReference(blas: Blas) {
 }
 
 /** The unselected triangle is NaN, so reading outside the promised one fails the comparison. */
-internal fun assertTriangularAgreesWithReference(blas: Blas, sizes: IntArray) {
+internal fun assertTriangularAgreesWithReference(blas: F64Blas, sizes: IntArray) {
     val rng = Random(20260801)
     for (n in sizes) {
         for (lower in booleanArrayOf(true, false)) {
@@ -82,7 +82,7 @@ internal fun assertTriangularAgreesWithReference(blas: Blas, sizes: IntArray) {
 }
 
 @Suppress("LongParameterList") // the flag combination under test
-private fun checkTriangular(blas: Blas, rng: Random, n: Int, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
+private fun checkTriangular(blas: F64Blas, rng: Random, n: Int, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
     val t = F64DenseMatrix(n, n)
     for (i in 0 until n) {
         for (j in 0 until n) {
@@ -96,7 +96,7 @@ private fun checkTriangular(blas: Blas, rng: Random, n: Int, lower: Boolean, tra
     }
     val flags = "n=$n lower=$lower t=$transpose unit=$unitDiag"
     val x = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
-    for ((name, op) in listOf<Pair<String, (Blas, DoubleArray) -> Unit>>(
+    for ((name, op) in listOf<Pair<String, (F64Blas, DoubleArray) -> Unit>>(
         "trsv" to { la, v -> la.trsv(t, v, lower, transpose, unitDiag) },
         "trmv" to { la, v -> la.trmv(t, v, lower, transpose, unitDiag) },
     )) {
@@ -107,7 +107,7 @@ private fun checkTriangular(blas: Blas, rng: Random, n: Int, lower: Boolean, tra
     val nrhs = 3
     for (right in booleanArrayOf(false, true)) {
         val b = if (right) randomMatrix(nrhs, n, rng) else randomMatrix(n, nrhs, rng)
-        for ((name, op) in listOf<Pair<String, (Blas, F64DenseMatrix) -> Unit>>(
+        for ((name, op) in listOf<Pair<String, (F64Blas, F64DenseMatrix) -> Unit>>(
             "trsm" to { la, m -> la.trsm(t, m, lower, transpose, unitDiag, right) },
             "trmm" to { la, m -> la.trmm(t, m, lower, transpose, unitDiag, right) },
         )) {
@@ -119,7 +119,7 @@ private fun checkTriangular(blas: Blas, rng: Random, n: Int, lower: Boolean, tra
 }
 
 /** The vector solve both ways, then the blocked multi-RHS path where a native trsm earns its call. */
-internal fun assertLuAgreesWithReference(lapack: Lapack, sizes: IntArray) {
+internal fun assertLuAgreesWithReference(lapack: F64Lapack, sizes: IntArray) {
     val rng = Random(20260730)
     for (n in sizes) {
         val a = wellConditioned(n, rng) // diagonally dominant, so the solve is stable
@@ -145,7 +145,7 @@ internal fun assertLuAgreesWithReference(lapack: Lapack, sizes: IntArray) {
     }
 }
 
-internal fun assertSpdSuiteAgreesWithReference(lapack: Lapack, sizes: IntArray) {
+internal fun assertSpdSuiteAgreesWithReference(lapack: F64Lapack, sizes: IntArray) {
     val rng = Random(20260803)
     for (n in sizes) {
         val a = poisonedSpd(n, rng)
@@ -176,7 +176,7 @@ internal fun assertSpdSuiteAgreesWithReference(lapack: Lapack, sizes: IntArray) 
  * A non-positive-definite input has no LAPACK equivalent, so the host hands the factorization back.
  * Keep [n] above the gate, since below it the host path is not involved.
  */
-internal fun assertNonPositiveDefiniteFallsBack(lapack: Lapack, n: Int) {
+internal fun assertNonPositiveDefiniteFallsBack(lapack: F64Lapack, n: Int) {
     val bad = poisonedSpd(n, Random(20260808))
     bad[n - 1, n - 1] = -1.0 // breaks positive definiteness at the last leading minor
     val policy = CholeskyPolicy.Regularize()
@@ -193,7 +193,7 @@ internal fun assertNonPositiveDefiniteFallsBack(lapack: Lapack, n: Int) {
  * `n²` entries from a shorter array, past the end of a pinned buffer that carries no bounds check. The shape
  * must be rejected whichever side of the level-2 gate the call lands on.
  */
-internal fun assertSymvRefusesNonSquare(blas: Blas) {
+internal fun assertSymvRefusesNonSquare(blas: F64Blas) {
     for (n in intArrayOf(2, 17, 64, 129)) {
         assertFailsWith<DimensionMismatch>("symv ${n}x${n + 1}") {
             blas.symv(1.0, F64DenseMatrix.zero(n, n + 1), DoubleArray(n), 0.0, DoubleArray(n))
@@ -209,7 +209,7 @@ internal fun assertSymvRefusesNonSquare(blas: Blas) {
  * returns infinities where it should throw. [nrhs] must reach the width at which the native
  * multi-right-hand-side path takes over.
  */
-internal fun assertSingularLdlIsRefused(lapack: Lapack, nrhs: Int = 4) {
+internal fun assertSingularLdlIsRefused(lapack: F64Lapack, nrhs: Int = 4) {
     val ldl = lapack.ldl(F64DenseMatrix.zero(3, 3))
     assertTrue(ldl.singular, "a zero matrix factors to a singular LDL")
     assertFailsWith<SingularMatrix>("vector solve") { lapack.solve(ldl, DoubleArray(3)) }
@@ -222,9 +222,9 @@ internal fun assertSingularLdlIsRefused(lapack: Lapack, nrhs: Int = 4) {
 /**
  * `factorInto` promises the destination's own buffers, so a backend must not route it through a fresh
  * factorization and copy: that allocates the `n²` the caller passed a destination to avoid. Checked by
- * identity, since agreement with [Lapack.factor] alone would pass either way.
+ * identity, since agreement with [F64Lapack.factor] alone would pass either way.
  */
-internal fun assertFactorIntoUsesItsDestination(lapack: Lapack, n: Int) {
+internal fun assertFactorIntoUsesItsDestination(lapack: F64Lapack, n: Int) {
     val rng = Random(20260823)
     val first = wellConditioned(n, rng)
     val second = wellConditioned(n, rng)
@@ -251,12 +251,12 @@ internal fun assertFactorIntoUsesItsDestination(lapack: Lapack, n: Int) {
 }
 
 /** The destination starts as NaN wherever beta is zero, so a backend that reads it instead of writing it fails. */
-internal fun assertGemvAgreesWithReference(blas: Blas, sizes: IntArray) {
+internal fun assertGemvAgreesWithReference(blas: F64Blas, sizes: IntArray) {
     val rng = Random(20260727)
     for (size in sizes) checkGemv(blas, rng, rows = size, cols = maxOf(1, size - 2))
 }
 
-private fun checkGemv(blas: Blas, rng: Random, rows: Int, cols: Int) {
+private fun checkGemv(blas: F64Blas, rng: Random, rows: Int, cols: Int) {
     for (transpose in booleanArrayOf(false, true)) {
         for (alpha in doubleArrayOf(0.0, 1.0, 0.75)) {
             for (beta in doubleArrayOf(0.0, 1.0, -0.5)) {
@@ -275,7 +275,7 @@ private fun checkGemv(blas: Blas, rng: Random, rows: Int, cols: Int) {
 }
 
 /** `C` starts as NaN wherever beta is zero, so a backend that reads it instead of writing it fails. */
-internal fun assertGemmAgreesWithReference(blas: Blas, sizes: IntArray) {
+internal fun assertGemmAgreesWithReference(blas: F64Blas, sizes: IntArray) {
     val rng = Random(20260728)
     for (size in sizes) {
         checkGemm(blas, rng, m = size, k = maxOf(1, size - 2), n = maxOf(1, size - 1))
@@ -283,7 +283,7 @@ internal fun assertGemmAgreesWithReference(blas: Blas, sizes: IntArray) {
 }
 
 @Suppress("LongParameterList") // the three extents of the product
-private fun checkGemm(blas: Blas, rng: Random, m: Int, k: Int, n: Int) {
+private fun checkGemm(blas: F64Blas, rng: Random, m: Int, k: Int, n: Int) {
     for (transposeA in booleanArrayOf(false, true)) {
         for (transposeB in booleanArrayOf(false, true)) {
             for (alpha in doubleArrayOf(0.0, 1.0, 0.75)) {
@@ -304,12 +304,12 @@ private fun checkGemm(blas: Blas, rng: Random, m: Int, k: Int, n: Int) {
 }
 
 /** A rank update of a symmetric matrix is symmetric to the last bit, not just to a tolerance. */
-internal fun assertSyrkAgreesWithReference(blas: Blas, sizes: IntArray) {
+internal fun assertSyrkAgreesWithReference(blas: F64Blas, sizes: IntArray) {
     val rng = Random(20260729)
     for (size in sizes) checkSyrk(blas, rng, rows = size, cols = maxOf(1, size - 2))
 }
 
-private fun checkSyrk(blas: Blas, rng: Random, rows: Int, cols: Int) {
+private fun checkSyrk(blas: F64Blas, rng: Random, rows: Int, cols: Int) {
     for (transpose in booleanArrayOf(false, true)) {
         for (alpha in doubleArrayOf(0.0, 1.0, 0.75)) {
             for (beta in doubleArrayOf(0.0, 1.0, -0.5)) {
@@ -336,12 +336,12 @@ private fun assertExactlySymmetric(c: F64DenseMatrix, n: Int, context: String) {
 }
 
 /** The unselected triangle starts as NaN, so a backend that writes outside the promised one fails. */
-internal fun assertSyrkTriangleModesLeaveTheOtherTriangle(blas: Blas, sizes: IntArray) {
+internal fun assertSyrkTriangleModesLeaveTheOtherTriangle(blas: F64Blas, sizes: IntArray) {
     val rng = Random(20260934)
     for (size in sizes) checkSyrkTriangle(blas, rng, rows = size, cols = maxOf(1, size - 2))
 }
 
-private fun checkSyrkTriangle(blas: Blas, rng: Random, rows: Int, cols: Int) {
+private fun checkSyrkTriangle(blas: F64Blas, rng: Random, rows: Int, cols: Int) {
     for (uplo in listOf(Uplo.LOWER, Uplo.UPPER)) {
         for (transpose in booleanArrayOf(false, true)) {
             for (beta in doubleArrayOf(0.0, -0.5)) {
@@ -379,7 +379,7 @@ private fun compareTriangle(expected: F64DenseMatrix, actual: F64DenseMatrix, n:
 }
 
 /** The unselected triangle is NaN, so a backend that reads the mirror entry fails instead of agreeing. */
-internal fun assertSymmetricProductsAgreeWithReference(blas: Blas, sizes: IntArray) {
+internal fun assertSymmetricProductsAgreeWithReference(blas: F64Blas, sizes: IntArray) {
     val rng = Random(20260912)
     for (lower in booleanArrayOf(true, false)) {
         for (n in sizes) {
@@ -395,7 +395,7 @@ internal fun assertSymmetricProductsAgreeWithReference(blas: Blas, sizes: IntArr
     }
 }
 
-private fun checkSymm(blas: Blas, rng: Random, a: F64DenseMatrix, n: Int, lower: Boolean) {
+private fun checkSymm(blas: F64Blas, rng: Random, a: F64DenseMatrix, n: Int, lower: Boolean) {
     val p = 3
     val b = randomMatrix(n, p, rng)
     val expected = F64DenseMatrix(n, p)
@@ -412,7 +412,7 @@ private fun checkSymm(blas: Blas, rng: Random, a: F64DenseMatrix, n: Int, lower:
 }
 
 /** The comparison is relative, since a determinant grows with the size of the matrix. */
-internal fun assertDeterminantAgreesWithReference(lapack: Lapack, sizes: IntArray) {
+internal fun assertDeterminantAgreesWithReference(lapack: F64Lapack, sizes: IntArray) {
     val rng = Random(20260730)
     for (n in sizes) {
         val a = wellConditioned(n, rng)
@@ -425,7 +425,7 @@ internal fun assertDeterminantAgreesWithReference(lapack: Lapack, sizes: IntArra
     }
 }
 
-internal fun assertSingularLuIsFlagged(lapack: Lapack) {
+internal fun assertSingularLuIsFlagged(lapack: F64Lapack) {
     val a = F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 4.0)))
     val lu = lapack.factor(a)
     assertTrue(lu.singular, "a rank-1 matrix factors to a singular LU")
@@ -433,7 +433,7 @@ internal fun assertSingularLuIsFlagged(lapack: Lapack) {
 }
 
 /** A factorization is a value, so either backend must be able to solve with the other one's factors. */
-internal fun assertLuFactorsInterchange(lapack: Lapack, n: Int) {
+internal fun assertLuFactorsInterchange(lapack: F64Lapack, n: Int) {
     val rng = Random(20260731)
     val a = wellConditioned(n, rng)
     val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
@@ -445,7 +445,7 @@ internal fun assertLuFactorsInterchange(lapack: Lapack, n: Int) {
 }
 
 /** An estimator is free to disagree in detail, so only the order of magnitude is compared. */
-internal fun assertRcondAgreesWithReference(lapack: Lapack, sizes: IntArray) {
+internal fun assertRcondAgreesWithReference(lapack: F64Lapack, sizes: IntArray) {
     val rng = Random(20260905)
     for (n in sizes) {
         val a = wellConditioned(n, rng)
@@ -463,7 +463,7 @@ internal fun assertRcondAgreesWithReference(lapack: Lapack, sizes: IntArray) {
  * The block solve of an indefinite system, with the unselected triangle poisoned. [nrhs] must reach the width
  * at which the native multi-right-hand-side path takes over.
  */
-internal fun assertLdlBlockSolveAgreesWithReference(lapack: Lapack, n: Int, nrhs: Int) {
+internal fun assertLdlBlockSolveAgreesWithReference(lapack: F64Lapack, n: Int, nrhs: Int) {
     val rng = Random(20260952)
     val b = randomMatrix(n, nrhs, rng)
     val (_, a) = poisonedIndefinite(rng, n)
@@ -472,7 +472,7 @@ internal fun assertLdlBlockSolveAgreesWithReference(lapack: Lapack, n: Int, nrhs
     assertClose(expected.data, actual.data, "ldl block n=$n nrhs=$nrhs", tolerance = 1e-9)
 }
 
-internal fun assertLdlFactorsInterchange(lapack: Lapack, sizes: IntArray) {
+internal fun assertLdlFactorsInterchange(lapack: F64Lapack, sizes: IntArray) {
     val rng = Random(20260932)
     for (n in sizes) {
         val (_, a) = poisonedIndefinite(rng, n)
@@ -494,7 +494,7 @@ internal fun assertLdlFactorsInterchange(lapack: Lapack, sizes: IntArray) {
 }
 
 /** Both least squares and the minimum-norm solve, across every pairing of the two backends' factors. */
-internal fun assertQrFactorsInterchange(lapack: Lapack, shapes: List<Pair<Int, Int>>) {
+internal fun assertQrFactorsInterchange(lapack: F64Lapack, shapes: List<Pair<Int, Int>>) {
     val rng = Random(20260925)
     for ((m, n) in shapes) {
         val a = randomMatrix(m, n, rng)
@@ -538,7 +538,7 @@ internal fun assertQrFactorsInterchange(lapack: Lapack, shapes: List<Pair<Int, I
 }
 
 /** With beta zero the destination is written rather than read, so an empty sum has to leave exact zeros. */
-internal fun assertDegenerateShapesHonorTheBetaConventions(blas: Blas) {
+internal fun assertDegenerateShapesHonorTheBetaConventions(blas: F64Blas) {
     val y = DoubleArray(3) { Double.NaN }
     blas.gemv(1.0, F64DenseMatrix(0, 3), DoubleArray(0), 0.0, y, transpose = true)
     assertTrue(y.all { it == 0.0 }, "gemv beta=0 with an empty sum left ${y.toList()}")
@@ -551,7 +551,7 @@ internal fun assertDegenerateShapesHonorTheBetaConventions(blas: Blas) {
 }
 
 /** A 0x0 system has nothing to solve, so it yields an empty solution rather than failing. */
-internal fun assertAnEmptyFactorizationSolvesEmpty(lapack: Lapack) {
+internal fun assertAnEmptyFactorizationSolvesEmpty(lapack: F64Lapack) {
     val empty = lapack.factor(F64DenseMatrix(0, 0))
     assertEquals(0, lapack.solve(empty, DoubleArray(0)).size)
 }
@@ -563,7 +563,7 @@ internal fun assertAnEmptyFactorizationSolvesEmpty(lapack: Lapack) {
  * Each rank in [ranks] builds an `m x cols` matrix as a product of full-rank factors of that rank, so the
  * deficiency is exact rather than the result of rounding.
  */
-internal fun assertPivotedQrAgreesWithReference(lapack: Lapack, m: Int, cols: Int, ranks: IntArray) {
+internal fun assertPivotedQrAgreesWithReference(lapack: F64Lapack, m: Int, cols: Int, ranks: IntArray) {
     val rng = Random(20260809)
     for (rank in ranks) {
         val left = randomMatrix(m, rank, rng)

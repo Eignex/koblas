@@ -3,7 +3,7 @@ package com.eignex.koblas.hostblas
 import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.HostLibraryTest
 import com.eignex.koblas.Workspace
-import com.eignex.koblas.dense.Blas
+import com.eignex.koblas.dense.F64Blas
 import com.eignex.koblas.dense.Uplo
 import com.eignex.koblas.dense.assertAnEmptyFactorizationSolvesEmpty
 import com.eignex.koblas.dense.assertDegenerateShapesHonorTheBetaConventions
@@ -51,7 +51,7 @@ class HostBlasConformanceTest {
         val a = randomMatrix(n, n, rng)
         val c = F64DenseMatrix.zero(n, n)
         val ws = Workspace()
-        val host: Blas = HostBlas()
+        val host: F64Blas = HostBlas()
         // Prime the pool with the one buffer of this width, so syrk has to borrow and return that instance.
         val scratch = ws.take(n * n)
         ws.release(scratch)

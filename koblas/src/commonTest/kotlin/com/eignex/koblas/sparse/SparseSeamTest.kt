@@ -20,7 +20,7 @@ import kotlin.test.assertTrue
 
 class SparseSeamTest {
 
-    private class CountingVectorKernels(override val priority: Int = 50) : SparseVectorKernels {
+    private class CountingVectorKernels(override val priority: Int = 50) : F64SparseVectorKernels {
         override val name: String get() = "counting"
         var dots = 0
         var axpys = 0
@@ -30,36 +30,36 @@ class SparseSeamTest {
 
         override fun dot(x: F64SparseVector, y: DoubleArray): Double {
             dots++
-            return ReferenceSparseLinearAlgebra.dot(x, y)
+            return F64ReferenceSparseLinearAlgebra.dot(x, y)
         }
 
         override fun dot(x: F64SparseVector, y: F64SparseVector): Double {
             dots++
-            return ReferenceSparseLinearAlgebra.dot(x, y)
+            return F64ReferenceSparseLinearAlgebra.dot(x, y)
         }
 
         override fun axpy(y: DoubleArray, alpha: Double, x: F64SparseVector) {
             axpys++
-            ReferenceSparseLinearAlgebra.axpy(y, alpha, x)
+            F64ReferenceSparseLinearAlgebra.axpy(y, alpha, x)
         }
 
         override fun scatter(x: F64SparseVector, out: DoubleArray) {
             scatters++
-            ReferenceSparseLinearAlgebra.scatter(x, out)
+            F64ReferenceSparseLinearAlgebra.scatter(x, out)
         }
 
         override fun nrm2(x: F64SparseVector): Double {
             nrm2s++
-            return ReferenceSparseLinearAlgebra.nrm2(x)
+            return F64ReferenceSparseLinearAlgebra.nrm2(x)
         }
 
         override fun asum(x: F64SparseVector): Double {
             asums++
-            return ReferenceSparseLinearAlgebra.asum(x)
+            return F64ReferenceSparseLinearAlgebra.asum(x)
         }
     }
 
-    private class CountingSparseBlas(override val priority: Int = 50) : SparseBlas {
+    private class CountingSparseBlas(override val priority: Int = 50) : F64SparseBlas {
         override val name: String get() = "counting-blas"
         var gemvs = 0
 
@@ -73,27 +73,27 @@ class SparseSeamTest {
             transpose: Boolean,
         ) {
             gemvs++
-            ReferenceSparseLinearAlgebra.gemv(alpha, a, x, beta, y, transpose)
+            F64ReferenceSparseLinearAlgebra.gemv(alpha, a, x, beta, y, transpose)
         }
 
         override fun trsv(a: F64SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) =
-            ReferenceSparseLinearAlgebra.trsv(a, x, lower, transpose, unitDiag)
+            F64ReferenceSparseLinearAlgebra.trsv(a, x, lower, transpose, unitDiag)
     }
 
-    private class CountingSparseLapack(override val priority: Int = 50) : SparseLapack {
+    private class CountingSparseLapack(override val priority: Int = 50) : F64SparseLapack {
         override val name: String get() = "counting-lapack"
         var factors = 0
 
-        override fun factor(a: F64SparseMatrix, equilibrate: Boolean, dropTolerance: Double): SparseFactorization {
+        override fun factor(a: F64SparseMatrix, equilibrate: Boolean, dropTolerance: Double): F64SparseFactorization {
             factors++
-            return ReferenceSparseLinearAlgebra.factor(a, equilibrate, dropTolerance)
+            return F64ReferenceSparseLinearAlgebra.factor(a, equilibrate, dropTolerance)
         }
 
         override fun analyze(a: F64SparseMatrix, ordering: SparseOrdering) =
-            ReferenceSparseLinearAlgebra.analyze(a, ordering)
+            F64ReferenceSparseLinearAlgebra.analyze(a, ordering)
 
         override fun ldl(a: F64SparseMatrix, policy: SparseLdlPolicy, ordering: SparseOrdering) =
-            ReferenceSparseLinearAlgebra.ldl(a, policy, ordering)
+            F64ReferenceSparseLinearAlgebra.ldl(a, policy, ordering)
     }
 
     private fun sparse() = F64SparseVector.of(6, intArrayOf(1, 4), doubleArrayOf(2.0, -3.0))
@@ -158,9 +158,9 @@ class SparseSeamTest {
         assertEquals("counting-blas", koblas.sparseBlas.name)
         assertEquals("counting-lapack", koblas.sparseLapack.name)
         resetBackends()
-        registerBackend(ReferenceSparseLinearAlgebra)
-        assertSame(ReferenceSparseLinearAlgebra, koblas.sparseBlas)
-        assertSame(ReferenceSparseLinearAlgebra, koblas.sparseLapack)
+        registerBackend(F64ReferenceSparseLinearAlgebra)
+        assertSame(F64ReferenceSparseLinearAlgebra, koblas.sparseBlas)
+        assertSame(F64ReferenceSparseLinearAlgebra, koblas.sparseLapack)
     }
 
     @Test
@@ -177,7 +177,7 @@ class SparseSeamTest {
         assertSame(strong, koblas.sparseVectorKernels, "clearing the override falls back to registration")
         resetBackends()
         assertSame(
-            PlatformSparseVectorKernels,
+            F64PlatformSparseVectorKernels,
             koblas.sparseVectorKernels,
             "an empty registry means the compiled-in kernels for this target",
         )
@@ -185,8 +185,8 @@ class SparseSeamTest {
 
     @Test
     fun `an empty registry resolves to the portable implementation on all three sparse halves`() = withCleanBackends {
-        assertSame(ReferenceSparseLinearAlgebra, koblas.sparseBlas)
-        assertSame(ReferenceSparseLinearAlgebra, koblas.sparseLapack)
-        assertSame(PlatformSparseVectorKernels, koblas.sparseVectorKernels)
+        assertSame(F64ReferenceSparseLinearAlgebra, koblas.sparseBlas)
+        assertSame(F64ReferenceSparseLinearAlgebra, koblas.sparseLapack)
+        assertSame(F64PlatformSparseVectorKernels, koblas.sparseVectorKernels)
     }
 }

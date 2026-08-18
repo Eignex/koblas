@@ -1,44 +1,44 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.RoutedVectorKernels
+import com.eignex.koblas.dense.F64RoutedVectorKernels
 
 /** The halves of the seam a backend can implement. */
 public enum class BackendSlot {
     /** Dense vector-vector routines. */
-    VectorKernels,
+    F64VectorKernels,
 
     /** Dense matrix routines. */
-    Blas,
+    F64Blas,
 
     /** Dense factorizations. */
-    Lapack,
+    F64Lapack,
 
     /** Sparse vector-vector routines. */
-    SparseVectorKernels,
+    F64SparseVectorKernels,
 
     /** Sparse matrix routines. */
-    SparseBlas,
+    F64SparseBlas,
 
     /** Sparse factorizations. */
-    SparseLapack,
+    F64SparseLapack,
 }
 
 /** The backend installed in [slot]. */
-public fun KoblasContext.backendFor(slot: BackendSlot): Backend = when (slot) {
-    BackendSlot.VectorKernels -> vectorKernels
-    BackendSlot.Blas -> blas
-    BackendSlot.Lapack -> lapack
-    BackendSlot.SparseVectorKernels -> sparseVectorKernels
-    BackendSlot.SparseBlas -> sparseBlas
-    BackendSlot.SparseLapack -> sparseLapack
+public fun F64Context.backendFor(slot: BackendSlot): Backend = when (slot) {
+    BackendSlot.F64VectorKernels -> vectorKernels
+    BackendSlot.F64Blas -> blas
+    BackendSlot.F64Lapack -> lapack
+    BackendSlot.F64SparseVectorKernels -> sparseVectorKernels
+    BackendSlot.F64SparseBlas -> sparseBlas
+    BackendSlot.F64SparseLapack -> sparseLapack
 }
 
 /**
  * Whether [slot] is filled by something other than koblas's own portable implementation. Accelerated means a
  * host library is involved; the compiled-in SIMD kernels count as portable however fast they are.
  */
-public fun KoblasContext.isAccelerated(slot: BackendSlot): Boolean = when (val backend = backendFor(slot)) {
-    is RoutedVectorKernels -> backend.host != null
+public fun F64Context.isAccelerated(slot: BackendSlot): Boolean = when (val backend = backendFor(slot)) {
+    is F64RoutedVectorKernels -> backend.host != null
     else -> !backend.isPortable
 }
 
@@ -46,7 +46,7 @@ public fun KoblasContext.isAccelerated(slot: BackendSlot): Boolean = when (val b
  * The slots still running koblas's own portable implementation, in declaration order. All three sparse slots
  * are reported on every target today, since koblas ships no host sparse backend.
  */
-public val KoblasContext.portableSlots: Set<BackendSlot>
+public val F64Context.portableSlots: Set<BackendSlot>
     get() = BackendSlot.entries.filterNot { isAccelerated(it) }.toSet()
 
 /**
@@ -55,7 +55,7 @@ public val KoblasContext.portableSlots: Set<BackendSlot>
  *
  * @throws IllegalStateException naming each unaccelerated slot and what is filling it.
  */
-public fun KoblasContext.requireAccelerated(vararg slots: BackendSlot) {
+public fun F64Context.requireAccelerated(vararg slots: BackendSlot) {
     val fallen = slots.filterNot { isAccelerated(it) }
     check(fallen.isEmpty()) {
         val detail = fallen.joinToString(", ") { "$it=${backendFor(it).name}" }

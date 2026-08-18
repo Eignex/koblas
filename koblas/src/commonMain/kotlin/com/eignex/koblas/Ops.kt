@@ -2,10 +2,10 @@
 
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.Blas
-import com.eignex.koblas.dense.LinearAlgebra
+import com.eignex.koblas.dense.F64Blas
+import com.eignex.koblas.dense.F64LinearAlgebra
 import com.eignex.koblas.dense.Uplo
-import com.eignex.koblas.sparse.SparseVectorKernels
+import com.eignex.koblas.sparse.F64SparseVectorKernels
 import kotlin.math.abs
 import kotlin.math.sqrt
 
@@ -30,7 +30,7 @@ public inline fun F64VectorLike.forEachStored(block: (i: Int, v: Double) -> Unit
     }
 }
 
-/** `aT * b`. Any sparse operand goes through [SparseVectorKernels], walking the stored entries only. */
+/** `aT * b`. Any sparse operand goes through [F64SparseVectorKernels], walking the stored entries only. */
 public infix fun F64VectorLike.dot(other: F64VectorLike): Double {
     requireSameSize(size, other.size)
     if (this is F64DenseVector && other is F64DenseVector) {
@@ -202,7 +202,7 @@ public fun ger(alpha: Double, x: F64VectorLike, y: F64VectorLike, a: F64DenseMat
     }
 }
 
-/** Symmetric rank-1 update `A += alpha * x * xT` (BLAS `dsyr`), in place on [a]. See [Blas.syr]. */
+/** Symmetric rank-1 update `A += alpha * x * xT` (BLAS `dsyr`), in place on [a]. See [F64Blas.syr]. */
 public fun syr(alpha: Double, x: F64VectorLike, a: F64DenseMatrix, uplo: Uplo = Uplo.FULL): Unit = koblas.syr(
     alpha,
     x,
@@ -210,13 +210,13 @@ public fun syr(alpha: Double, x: F64VectorLike, a: F64DenseMatrix, uplo: Uplo = 
     uplo,
 )
 
-/** Symmetric rank-2 update `A += alpha * (x * yT + y * xT)` (BLAS `dsyr2`), in place on [a]. See [Blas.syr2]. */
+/** Symmetric rank-2 update `A += alpha * (x * yT + y * xT)` (BLAS `dsyr2`), in place on [a]. See [F64Blas.syr2]. */
 public fun syr2(alpha: Double, x: F64VectorLike, y: F64VectorLike, a: F64DenseMatrix, uplo: Uplo = Uplo.FULL): Unit =
     koblas.syr2(alpha, x, y, a, uplo)
 
 /**
  * Matrix 1-norm, the maximum absolute column sum (LAPACK `dlange` with norm 1). This is the `anorm`
- * [LinearAlgebra.rcond] expects, computed before the matrix is factored.
+ * [F64LinearAlgebra.rcond] expects, computed before the matrix is factored.
  */
 public fun norm1(a: F64DenseMatrix): Double {
     val ad = a.data
@@ -298,8 +298,8 @@ public fun F64DenseMatrix.row(i: Int): F64DenseVector {
 }
 
 /**
- * Fresh transposed matrix. For products, prefer the transpose flags on [LinearAlgebra.gemv] and
- * [LinearAlgebra.gemm], which read the original storage without copying.
+ * Fresh transposed matrix. For products, prefer the transpose flags on [F64LinearAlgebra.gemv] and
+ * [F64LinearAlgebra.gemm], which read the original storage without copying.
  */
 public fun F64DenseMatrix.transpose(): F64DenseMatrix {
     val t = F64DenseMatrix(cols, rows)

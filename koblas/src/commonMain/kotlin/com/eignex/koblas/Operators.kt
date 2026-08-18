@@ -1,16 +1,16 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.LinearAlgebra
+import com.eignex.koblas.dense.F64LinearAlgebra
 
-/** `A * B` (BLAS `dgemm`), allocating. [LinearAlgebra.gemm] accumulates into an existing C instead. */
+/** `A * B` (BLAS `dgemm`), allocating. [F64LinearAlgebra.gemm] accumulates into an existing C instead. */
 public operator fun F64DenseMatrix.times(other: F64DenseMatrix): F64DenseMatrix = koblas.gemm(this, other)
 
-/** `A * x` (BLAS `dgemv`), allocating. [LinearAlgebra.gemv] writes into an existing y instead. */
+/** `A * x` (BLAS `dgemv`), allocating. [F64LinearAlgebra.gemv] writes into an existing y instead. */
 public operator fun F64DenseMatrix.times(x: F64DenseVector): F64DenseVector = F64DenseVector.wrap(
     koblas.gemv(this, x.data),
 )
 
-/** `A * x` for a CSC matrix, allocating. [com.eignex.koblas.sparse.SparseBlas.gemv] takes a destination. */
+/** `A * x` for a CSC matrix, allocating. [com.eignex.koblas.sparse.F64SparseBlas.gemv] takes a destination. */
 public operator fun F64SparseMatrix.times(x: F64DenseVector): F64DenseVector = F64DenseVector.wrap(
     koblas.gemv(this, x.data),
 )

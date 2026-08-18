@@ -4,7 +4,7 @@ import com.eignex.koblas.F64SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.requireFactored
 import com.eignex.koblas.requireShape
-import com.eignex.koblas.sparse.SparseFactorization
+import com.eignex.koblas.sparse.F64SparseFactorization
 import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout.ADDRESS
@@ -23,7 +23,7 @@ public class UmfpackFactorization internal constructor(
     private val matrix: F64SparseMatrix,
     override val failedAt: Int,
     private val handles: Handles,
-) : SparseFactorization {
+) : F64SparseFactorization {
 
     /**
      * The arena and the `void **Numeric` holder, split out so the cleanup lambda captures them and not the

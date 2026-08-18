@@ -1,8 +1,8 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.cblas.CblasBlas
-import com.eignex.koblas.cblas.CblasLapack
-import com.eignex.koblas.cblas.CblasVectorKernels
+import com.eignex.koblas.cblas.F64CblasBlas
+import com.eignex.koblas.cblas.F64CblasLapack
+import com.eignex.koblas.cblas.F64CblasVectorKernels
 import com.eignex.koblas.cblas.OpenBlasLoader
 import com.eignex.koblas.registerBackend
 import com.eignex.koblas.umfpack.UmfpackLoader
@@ -20,12 +20,12 @@ internal actual fun registerPlatformBackends() {
 /** koblas's CBLAS binding, when this host has OpenBLAS. */
 private fun registerHostBlas() {
     val cblas = OpenBlasLoader.cblas ?: return
-    registerBackend(CblasBlas(cblas))
-    // The level-1 primitives sit below the Blas seam, so they register as their own half.
-    registerBackend(CblasVectorKernels())
+    registerBackend(F64CblasBlas(cblas))
+    // The level-1 primitives sit below the F64Blas seam, so they register as their own half.
+    registerBackend(F64CblasVectorKernels())
     // Without LAPACKE the factorizations stay portable while everything above keeps the host BLAS.
     val lapacke = OpenBlasLoader.lapacke ?: return
-    registerBackend(CblasLapack(lapacke, cblas))
+    registerBackend(F64CblasLapack(lapacke, cblas))
 }
 
 /** koblas's UMFPACK binding, when this host has SuiteSparse. Independent of the BLAS half by design. */

@@ -1,16 +1,16 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.VectorKernels
+import com.eignex.koblas.dense.F64VectorKernels
 
 /**
  * The smallest problem size at which dispatching to a native backend beats staying in Kotlin. One threshold
  * per BLAS level, and [Int.MAX_VALUE] keeps a level portable.
  *
- * [level1] is honored by the routing in [VectorKernels]; the rest by the host BLAS backends, which share
+ * [level1] is honored by the routing in [F64VectorKernels]; the rest by the host BLAS backends, which share
  * one adapter and so read them on every platform. The native defaults are 0, so native dispatches at any
  * size unless an override says otherwise.
  *
- * @property level1 run length from which the level-1 primitives dispatch to a registered [VectorKernels].
+ * @property level1 run length from which the level-1 primitives dispatch to a registered [F64VectorKernels].
  * @property level2 dimension from which the level-2 routines dispatch natively.
  * @property level3 dimension from which the level-3 routines dispatch natively.
  * @property lapack dimension from which the factorizations dispatch natively.

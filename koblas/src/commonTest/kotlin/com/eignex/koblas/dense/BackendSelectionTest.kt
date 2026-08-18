@@ -15,19 +15,21 @@ import kotlin.test.assertTrue
 
 class BackendSelectionTest {
 
-    private class Fake(override val name: String, override val priority: Int) : LinearAlgebra by ReferenceLinearAlgebra
+    private class Fake(override val name: String, override val priority: Int) :
+        F64LinearAlgebra by F64ReferenceLinearAlgebra
 
-    private class FakeBlas(override val name: String, override val priority: Int) : Blas by ReferenceLinearAlgebra
+    private class FakeBlas(override val name: String, override val priority: Int) : F64Blas by F64ReferenceLinearAlgebra
 
-    private class FakeLapack(override val name: String, override val priority: Int) : Lapack by ReferenceLinearAlgebra
+    private class FakeLapack(override val name: String, override val priority: Int) :
+        F64Lapack by F64ReferenceLinearAlgebra
 
     private class NotABackend(override val name: String = "nothing") : Backend
 
     @Test
     fun `an empty registry resolves to the reference backend`() {
         withCleanBackends {
-            assertSame(ReferenceLinearAlgebra, koblas.blas)
-            assertSame(ReferenceLinearAlgebra, koblas.lapack)
+            assertSame(F64ReferenceLinearAlgebra, koblas.blas)
+            assertSame(F64ReferenceLinearAlgebra, koblas.lapack)
             assertEquals("reference", koblas.name)
         }
     }
@@ -53,7 +55,7 @@ class BackendSelectionTest {
     fun `the incumbent backend survives a cleared registry`() {
         // Restoring the incumbent keeps the host BLAS suites valid whatever order tests run in.
         val before = koblas.blas
-        withCleanBackends { assertSame(ReferenceLinearAlgebra, koblas.blas) }
+        withCleanBackends { assertSame(F64ReferenceLinearAlgebra, koblas.blas) }
         assertSame(before, koblas.blas)
     }
 
@@ -95,7 +97,7 @@ class BackendSelectionTest {
             val manual = Fake("manual", -1)
             installBackends(koblas.with(blas = manual, lapack = manual))
             resetBackends()
-            assertSame(ReferenceLinearAlgebra, koblas.blas, "reset must clear the override, not just registration")
+            assertSame(F64ReferenceLinearAlgebra, koblas.blas, "reset must clear the override, not just registration")
         }
     }
 }
