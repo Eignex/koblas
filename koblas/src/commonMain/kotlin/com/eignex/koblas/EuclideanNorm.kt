@@ -4,7 +4,7 @@ import kotlin.math.abs
 import kotlin.math.sqrt
 
 /** Smallest normal double. A squares-sum below this has lost precision to underflow. */
-internal const val MIN_NORMAL = 2.2250738585072014e-308
+internal const val F64_MIN_NORMAL = 2.2250738585072014e-308
 
 /**
  * Euclidean norm of the run v(off until off + len), accurate over the whole double range (BLAS `dnrm2`).
@@ -16,7 +16,7 @@ internal fun euclideanNorm(v: DoubleArray, off: Int, len: Int): Double {
         val x = v[off + i]
         s += x * x
     }
-    if (s.isFinite() && s >= MIN_NORMAL) return sqrt(s)
+    if (s.isFinite() && s >= F64_MIN_NORMAL) return sqrt(s)
     var amax = 0.0
     for (i in 0 until len) {
         val a = abs(v[off + i])

@@ -1,7 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.BackendNames
-import com.eignex.koblas.MIN_NORMAL
+import com.eignex.koblas.F64_MIN_NORMAL
 import com.eignex.koblas.absoluteSum
 import com.eignex.koblas.euclideanNorm
 import jdk.incubator.vector.DoubleVector
@@ -66,7 +66,7 @@ internal actual object F64PlatformVectorKernels : F64VectorKernels {
     actual override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double {
         if (vectorizes(len)) {
             val squares = Simd.dot(v, vOff, v, vOff, len)
-            if (squares.isFinite() && squares >= MIN_NORMAL) return sqrt(squares)
+            if (squares.isFinite() && squares >= F64_MIN_NORMAL) return sqrt(squares)
         }
         return euclideanNorm(v, vOff, len)
     }
