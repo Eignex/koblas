@@ -32,7 +32,8 @@ public interface VectorKernels : Backend {
 
     /**
      * Four dots against a shared right operand. For r in 0..3, out(outOff + r) is the dot of the run at
-     * aOff + r * stride with the run at bOff. Defaults to four [dot] calls.
+     * aOff + r * stride with the run at bOff. Defaults to four [dot] calls, so an implementation that can
+     * read the shared operand once for all four should override it.
      */
     @Suppress("LongParameterList") // four column offsets plus the shared operand
     public fun dot4(
@@ -112,7 +113,8 @@ internal class RoutedVectorKernels(internal val host: VectorKernels?) : VectorKe
 
     override fun asum(v: DoubleArray, vOff: Int, len: Int): Double = forLength(len).asum(v, vOff, len)
 
-    /** Not routed, unlike every other routine here: always the compiled-in kernels. */
+    /** Not routed, unlike every other routine here: only the compiled-in kernels fuse the four dots into
+     *  one pass, and a host cannot, since its dot computes one at a time. */
     @Suppress("LongParameterList") // four column offsets plus the shared operand
     override fun dot4(
         a: DoubleArray,
