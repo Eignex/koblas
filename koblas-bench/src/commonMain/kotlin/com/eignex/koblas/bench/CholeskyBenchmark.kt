@@ -2,7 +2,7 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.dense.cholesky
-import com.eignex.koblas.dense.CholeskyDecomposition
+import com.eignex.koblas.dense.F64CholeskyDecomposition
 import com.eignex.koblas.dense.invert
 import com.eignex.koblas.dense.solve
 import com.eignex.koblas.koblas
@@ -20,7 +20,7 @@ class CholeskyBenchmark {
     var backend: String = AUTO_BACKEND
 
     private lateinit var a: F64DenseMatrix
-    private lateinit var factor: CholeskyDecomposition
+    private lateinit var factor: F64CholeskyDecomposition
     private lateinit var b: DoubleArray
 
     @Setup
@@ -33,7 +33,7 @@ class CholeskyBenchmark {
     }
 
     @Benchmark
-    fun cholesky(): CholeskyDecomposition = a.cholesky()
+    fun cholesky(): F64CholeskyDecomposition = a.cholesky()
 
     @Benchmark
     fun solveSpd(): DoubleArray = factor.solve(b)

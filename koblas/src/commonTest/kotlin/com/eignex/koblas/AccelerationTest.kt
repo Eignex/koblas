@@ -1,9 +1,9 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.Blas
-import com.eignex.koblas.dense.Lapack
-import com.eignex.koblas.dense.ReferenceLinearAlgebra
-import com.eignex.koblas.dense.VectorKernels
+import com.eignex.koblas.dense.F64Blas
+import com.eignex.koblas.dense.F64Lapack
+import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
+import com.eignex.koblas.dense.F64VectorKernels
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -13,15 +13,15 @@ import kotlin.test.assertTrue
 class AccelerationTest {
 
     private class FakeHost(override val name: String) :
-        Blas by ReferenceLinearAlgebra,
-        Lapack by ReferenceLinearAlgebra {
+        F64Blas by F64ReferenceLinearAlgebra,
+        F64Lapack by F64ReferenceLinearAlgebra {
         override val priority: Int get() = 100
         override val isPortable: Boolean get() = false
         override val isAvailable: Boolean get() = true
-        override val vectorKernels: VectorKernels get() = ReferenceLinearAlgebra.vectorKernels
+        override val vectorKernels: F64VectorKernels get() = F64ReferenceLinearAlgebra.vectorKernels
     }
 
-    private class FakeKernels(override val name: String = "fakeblas") : VectorKernels {
+    private class FakeKernels(override val name: String = "fakeblas") : F64VectorKernels {
         override val priority: Int get() = 100
         override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
             var s = 0.0
@@ -49,14 +49,14 @@ class AccelerationTest {
     @Test
     fun `registering a host backend accelerates exactly its own slots`() = withCleanBackends {
         registerBackend(FakeHost("openblas"))
-        assertTrue(koblas.isAccelerated(BackendSlot.Blas))
-        assertTrue(koblas.isAccelerated(BackendSlot.Lapack))
+        assertTrue(koblas.isAccelerated(BackendSlot.F64Blas))
+        assertTrue(koblas.isAccelerated(BackendSlot.F64Lapack))
         assertEquals(
             setOf(
-                BackendSlot.VectorKernels,
-                BackendSlot.SparseVectorKernels,
-                BackendSlot.SparseBlas,
-                BackendSlot.SparseLapack,
+                BackendSlot.F64VectorKernels,
+                BackendSlot.F64SparseVectorKernels,
+                BackendSlot.F64SparseBlas,
+                BackendSlot.F64SparseLapack,
             ),
             koblas.portableSlots,
         )
@@ -64,15 +64,15 @@ class AccelerationTest {
 
     @Test
     fun `the compiled-in kernels do not count as acceleration`() = withCleanBackends {
-        assertTrue(!koblas.isAccelerated(BackendSlot.VectorKernels), "the platform kernels are portable koblas")
+        assertTrue(!koblas.isAccelerated(BackendSlot.F64VectorKernels), "the platform kernels are portable koblas")
         registerBackend(FakeKernels())
-        assertTrue(koblas.isAccelerated(BackendSlot.VectorKernels), "a registered host half is acceleration")
+        assertTrue(koblas.isAccelerated(BackendSlot.F64VectorKernels), "a registered host half is acceleration")
     }
 
     @Test
     fun `requireAccelerated passes for the slots that are covered`() = withCleanBackends {
         registerBackend(FakeHost("openblas"))
-        koblas.requireAccelerated(BackendSlot.Blas, BackendSlot.Lapack)
+        koblas.requireAccelerated(BackendSlot.F64Blas, BackendSlot.F64Lapack)
         koblas.requireAccelerated()
     }
 
@@ -80,30 +80,30 @@ class AccelerationTest {
     fun `requireAccelerated names the slots that fell back and what filled them`() = withCleanBackends {
         registerBackend(FakeHost("openblas"))
         val failure = assertFailsWith<IllegalStateException> {
-            koblas.requireAccelerated(BackendSlot.Blas, BackendSlot.SparseLapack)
+            koblas.requireAccelerated(BackendSlot.F64Blas, BackendSlot.F64SparseLapack)
         }
         val message = failure.message!!
-        assertTrue("SparseLapack=reference" in message, "should name the slot and its backend: $message")
-        assertTrue("Blas=" !in message, "should not name a slot that is accelerated: $message")
+        assertTrue("F64SparseLapack=reference" in message, "should name the slot and its backend: $message")
+        assertTrue("F64Blas=" !in message, "should not name a slot that is accelerated: $message")
         assertTrue("backend=" in message, "should include the resolved summary: $message")
     }
 
     @Test
     fun `a context reports its own halves rather than the global registry`() = withCleanBackends {
         registerBackend(FakeHost("openblas"))
-        val portable = koblas.with(blas = ReferenceLinearAlgebra, lapack = ReferenceLinearAlgebra)
-        assertTrue(!portable.isAccelerated(BackendSlot.Blas), "the context's own half is the portable one")
-        assertTrue(koblas.isAccelerated(BackendSlot.Blas), "the registry is still accelerated")
-        assertFailsWith<IllegalStateException> { portable.requireAccelerated(BackendSlot.Blas) }
+        val portable = koblas.with(blas = F64ReferenceLinearAlgebra, lapack = F64ReferenceLinearAlgebra)
+        assertTrue(!portable.isAccelerated(BackendSlot.F64Blas), "the context's own half is the portable one")
+        assertTrue(koblas.isAccelerated(BackendSlot.F64Blas), "the registry is still accelerated")
+        assertFailsWith<IllegalStateException> { portable.requireAccelerated(BackendSlot.F64Blas) }
     }
 
     @Test
     fun `backendFor returns the half filling each slot`() = withCleanBackends {
         val host = FakeHost("openblas")
         registerBackend(host)
-        assertSame(host, koblas.backendFor(BackendSlot.Blas))
-        assertSame(host, koblas.backendFor(BackendSlot.Lapack))
-        assertSame(koblas.vectorKernels, koblas.backendFor(BackendSlot.VectorKernels))
-        assertSame(koblas.sparseBlas, koblas.backendFor(BackendSlot.SparseBlas))
+        assertSame(host, koblas.backendFor(BackendSlot.F64Blas))
+        assertSame(host, koblas.backendFor(BackendSlot.F64Lapack))
+        assertSame(koblas.vectorKernels, koblas.backendFor(BackendSlot.F64VectorKernels))
+        assertSame(koblas.sparseBlas, koblas.backendFor(BackendSlot.F64SparseBlas))
     }
 }

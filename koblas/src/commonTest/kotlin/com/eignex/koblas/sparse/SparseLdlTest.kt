@@ -179,7 +179,7 @@ class SparseLdlTest {
     fun `the cholesky factor reproduces the matrix and refuses an indefinite one`() {
         val rng = Random(20260813)
         val a = spd(12, rng)
-        val f = a.cholesky() as SparseLdl
+        val f = a.cholesky() as F64SparseLdl
         val l = f.choleskyFactor()
         val perm = f.symbolic.permutation
         // L·Lᵀ is P·A·Pᵀ, since the factor is of the matrix the analysis reordered.
@@ -198,7 +198,7 @@ class SparseLdlTest {
             2,
             listOf(listOf(0 to 1.0, 1 to 2.0), listOf(0 to 2.0, 1 to 1.0)),
         )
-        assertFailsWith<NotPositiveDefinite> { (indefinite.ldl() as SparseLdl).choleskyFactor() }
+        assertFailsWith<NotPositiveDefinite> { (indefinite.ldl() as F64SparseLdl).choleskyFactor() }
     }
 
     @Test

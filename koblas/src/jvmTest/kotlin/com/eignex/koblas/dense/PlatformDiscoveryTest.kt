@@ -67,17 +67,17 @@ class PlatformDiscoveryTest {
             registerPlatformBackends()
             assertEquals(
                 HostBlasCalls.available,
-                koblas.isAccelerated(BackendSlot.Blas),
-                "the Blas slot should be accelerated exactly when a host CBLAS resolved",
+                koblas.isAccelerated(BackendSlot.F64Blas),
+                "the F64Blas slot should be accelerated exactly when a host CBLAS resolved",
             )
             assertEquals(
                 HostBlasCalls.lapackAvailable,
-                koblas.isAccelerated(BackendSlot.Lapack),
-                "the Lapack slot should be accelerated exactly when a host LAPACKE resolved",
+                koblas.isAccelerated(BackendSlot.F64Lapack),
+                "the F64Lapack slot should be accelerated exactly when a host LAPACKE resolved",
             )
             // The vector kernels have no host implementation to route to, so they stay portable either way.
             assertTrue(
-                BackendSlot.VectorKernels in koblas.portableSlots,
+                BackendSlot.F64VectorKernels in koblas.portableSlots,
                 "koblas ships no host vector kernels, so that slot cannot be accelerated",
             )
         }
@@ -90,19 +90,19 @@ class PlatformDiscoveryTest {
      */
     @Test
     fun `the probe accepts a working backend and rejects every broken one`() {
-        assertTrue(probe(ReferenceLinearAlgebra), "the reference backend should pass its own probe")
+        assertTrue(probe(F64ReferenceLinearAlgebra), "the reference backend should pass its own probe")
 
-        val wrongAnswer = object : Blas by ReferenceLinearAlgebra {
+        val wrongAnswer = object : F64Blas by F64ReferenceLinearAlgebra {
             override fun gemv(a: F64DenseMatrix, x: DoubleArray, transpose: Boolean) = doubleArrayOf(0.0)
         }
         assertTrue(!probe(wrongAnswer), "a backend computing the wrong product should be rejected")
 
-        val wrongLength = object : Blas by ReferenceLinearAlgebra {
+        val wrongLength = object : F64Blas by F64ReferenceLinearAlgebra {
             override fun gemv(a: F64DenseMatrix, x: DoubleArray, transpose: Boolean) = DoubleArray(0)
         }
         assertTrue(!probe(wrongLength), "a backend returning the wrong shape should be rejected")
 
-        val throwing = object : Blas by ReferenceLinearAlgebra {
+        val throwing = object : F64Blas by F64ReferenceLinearAlgebra {
             override fun gemv(a: F64DenseMatrix, x: DoubleArray, transpose: Boolean): DoubleArray =
                 throw UnsatisfiedLinkError("no native library")
         }

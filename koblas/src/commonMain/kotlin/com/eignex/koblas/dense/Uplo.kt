@@ -1,6 +1,6 @@
 package com.eignex.koblas.dense
 
-/** Output-triangle selector for [LinearAlgebra.syrk]. [FULL] is the default and a koblas extension. */
+/** Output-triangle selector for [F64LinearAlgebra.syrk]. [FULL] is the default and a koblas extension. */
 public enum class Uplo {
     /** Write the complete, exactly symmetric result; beta scales all of `C`. */
     FULL,
@@ -23,7 +23,7 @@ internal fun addUplo(cd: DoubleArray, n: Int, i: Int, j: Int, v: Double, uplo: U
 }
 
 /** `v = beta * v` over the [len] entries from [off], honoring the `beta == 0` overwrite convention. */
-internal fun applyBeta(k: VectorKernels, v: DoubleArray, off: Int, len: Int, beta: Double) {
+internal fun applyBeta(k: F64VectorKernels, v: DoubleArray, off: Int, len: Int, beta: Double) {
     when {
         beta == 0.0 -> v.fill(0.0, off, off + len)
         beta != 1.0 -> k.scale(v, off, beta, len)
@@ -31,7 +31,7 @@ internal fun applyBeta(k: VectorKernels, v: DoubleArray, off: Int, len: Int, bet
 }
 
 /** `beta` scale of the region [uplo] selects, honoring the `beta == 0` overwrite convention. */
-internal fun scaleUplo(k: VectorKernels, cd: DoubleArray, n: Int, beta: Double, uplo: Uplo) {
+internal fun scaleUplo(k: F64VectorKernels, cd: DoubleArray, n: Int, beta: Double, uplo: Uplo) {
     if (uplo == Uplo.FULL) {
         applyBeta(k, cd, 0, cd.size, beta)
         return

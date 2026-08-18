@@ -3,8 +3,8 @@ package com.eignex.koblas.bench
 import com.eignex.koblas.F64SparseMatrix
 import com.eignex.koblas.installBackends
 import com.eignex.koblas.koblas
-import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
-import com.eignex.koblas.sparse.SparseFactorization
+import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
+import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.lu
 import kotlinx.benchmark.*
 
@@ -25,11 +25,11 @@ class SparseHostBenchmark {
 
     private lateinit var a: F64SparseMatrix
     private lateinit var rhs: DoubleArray
-    private lateinit var factored: SparseFactorization
+    private lateinit var factored: F64SparseFactorization
 
     @Setup
     fun setup() {
-        val portable = koblas.with(sparseLapack = ReferenceSparseLinearAlgebra)
+        val portable = koblas.with(sparseLapack = F64ReferenceSparseLinearAlgebra)
         installBackends(if (backend == REFERENCE_BACKEND) portable else null)
         val rng = benchRng()
         a = if (shape == BASIS_SHAPE) simplexBasis(n, rng) else sparseDominantMatrix(n, rng)
@@ -39,7 +39,7 @@ class SparseHostBenchmark {
     }
 
     @Benchmark
-    fun factor(): SparseFactorization = a.lu()
+    fun factor(): F64SparseFactorization = a.lu()
 
     @Benchmark
     fun solve(): DoubleArray = factored.solve(rhs)

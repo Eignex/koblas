@@ -1,8 +1,8 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.ReferenceLinearAlgebra
-import com.eignex.koblas.dense.RoutedVectorKernels
-import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
+import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
+import com.eignex.koblas.dense.F64RoutedVectorKernels
+import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.assertTrue
@@ -133,8 +133,8 @@ internal fun withCleanBackends(block: () -> Unit) {
         add(before.sparseBlas)
         add(before.sparseLapack)
         add(before.sparseVectorKernels)
-        (before.vectorKernels as? RoutedVectorKernels)?.host?.let { add(it) }
-    }.distinct().filter { it !== ReferenceLinearAlgebra && it !== ReferenceSparseLinearAlgebra }
+        (before.vectorKernels as? F64RoutedVectorKernels)?.host?.let { add(it) }
+    }.distinct().filter { it !== F64ReferenceLinearAlgebra && it !== F64ReferenceSparseLinearAlgebra }
     resetBackends()
     try {
         block()

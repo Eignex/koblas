@@ -1,7 +1,7 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.F64DenseMatrix
-import com.eignex.koblas.dense.LuDecomposition
+import com.eignex.koblas.dense.F64LuDecomposition
 import com.eignex.koblas.dense.lu
 import com.eignex.koblas.koblas
 import kotlinx.benchmark.*
@@ -19,7 +19,7 @@ class BlockSolveBenchmark {
     @Param(AUTO_BACKEND, REFERENCE_BACKEND)
     var backend: String = AUTO_BACKEND
 
-    private lateinit var factored: LuDecomposition
+    private lateinit var factored: F64LuDecomposition
     private lateinit var block: F64DenseMatrix
 
     @Setup

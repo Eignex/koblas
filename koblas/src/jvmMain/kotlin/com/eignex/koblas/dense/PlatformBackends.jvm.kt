@@ -53,9 +53,9 @@ private fun registerUmfpack(requested: String?) {
 }
 
 /** Instantiate all registered providers, dropping any whose construction fails. */
-private fun loadProviders(): List<LinearAlgebra> {
-    val providers = ArrayList<LinearAlgebra>()
-    val iterator = ServiceLoader.load(LinearAlgebra::class.java).iterator()
+private fun loadProviders(): List<F64LinearAlgebra> {
+    val providers = ArrayList<F64LinearAlgebra>()
+    val iterator = ServiceLoader.load(F64LinearAlgebra::class.java).iterator()
     while (true) {
         @Suppress("TooGenericExceptionCaught") // provider loading can throw Error (ServiceConfigurationError)
         try {
@@ -69,7 +69,7 @@ private fun loadProviders(): List<LinearAlgebra> {
 }
 
 /** A 1x1 gemv forces the candidate's native path to actually load and produce a correct result. */
-internal fun probe(backend: Blas): Boolean {
+internal fun probe(backend: F64Blas): Boolean {
     @Suppress("TooGenericExceptionCaught") // native load failures surface as UnsatisfiedLinkError
     return try {
         val y = backend.gemv(F64DenseMatrix(1, 1, doubleArrayOf(2.0)), doubleArrayOf(3.0))

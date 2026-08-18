@@ -1,9 +1,9 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.ReferenceLinearAlgebra
+import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
 import com.eignex.koblas.dense.lu
 import com.eignex.koblas.dense.solve
-import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
+import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.lu
 import kotlin.random.Random
 import kotlin.test.AfterTest
@@ -26,11 +26,11 @@ class AllocationFreeTest {
     fun usePortableKernels() {
         installBackends(
             koblas.with(
-                blas = ReferenceLinearAlgebra,
-                lapack = ReferenceLinearAlgebra,
-                sparseBlas = ReferenceSparseLinearAlgebra,
-                sparseLapack = ReferenceSparseLinearAlgebra,
-                sparseVectorKernels = ReferenceSparseLinearAlgebra,
+                blas = F64ReferenceLinearAlgebra,
+                lapack = F64ReferenceLinearAlgebra,
+                sparseBlas = F64ReferenceSparseLinearAlgebra,
+                sparseLapack = F64ReferenceSparseLinearAlgebra,
+                sparseVectorKernels = F64ReferenceSparseLinearAlgebra,
             ),
         )
     }

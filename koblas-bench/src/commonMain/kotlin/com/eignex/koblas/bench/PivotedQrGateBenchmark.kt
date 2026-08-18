@@ -1,7 +1,7 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.F64DenseMatrix
-import com.eignex.koblas.dense.PivotedQrDecomposition
+import com.eignex.koblas.dense.F64PivotedQrDecomposition
 import com.eignex.koblas.dense.qrPivoted
 import kotlinx.benchmark.*
 
@@ -37,8 +37,8 @@ class PivotedQrGateBenchmark {
     }
 
     @Benchmark
-    fun pivotedSquare(): PivotedQrDecomposition = square.qrPivoted()
+    fun pivotedSquare(): F64PivotedQrDecomposition = square.qrPivoted()
 
     @Benchmark
-    fun pivotedTall(): PivotedQrDecomposition = tall.qrPivoted()
+    fun pivotedTall(): F64PivotedQrDecomposition = tall.qrPivoted()
 }

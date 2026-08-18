@@ -33,7 +33,7 @@ public class SparseSymbolic internal constructor(
      * Factorize [a] numerically against this analysis as `A = L·D·Lᵀ` with L unit lower triangular. [a] must
      * carry exactly the analysed pattern, structural zeros included, which is checked.
      */
-    public fun factorLdl(a: F64SparseMatrix, policy: SparseLdlPolicy = SparseLdlPolicy.Strict): SparseFactorization =
+    public fun factorLdl(a: F64SparseMatrix, policy: SparseLdlPolicy = SparseLdlPolicy.Strict): F64SparseFactorization =
         numericLdl(a, this, policy)
 
     /** Whether [a] carries exactly the analysed pattern. Compares the CSC index arrays, not the values. */

@@ -5,18 +5,18 @@ import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.dense.Cblas.COL_MAJOR
-import com.eignex.koblas.dense.HostLapackAdapter
-import com.eignex.koblas.dense.PivotedQrDecomposition
-import com.eignex.koblas.dense.QrDecomposition
-import com.eignex.koblas.dense.ReferenceLinearAlgebra
+import com.eignex.koblas.dense.F64HostLapackAdapter
+import com.eignex.koblas.dense.F64PivotedQrDecomposition
+import com.eignex.koblas.dense.F64QrDecomposition
+import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
 import com.eignex.koblas.dense.rankOfPivotedR
 import com.eignex.koblas.dispatchThresholds
 
 /**
- * The host LAPACKE through `java.lang.foreign`. Every shared routine lives in [HostLapackAdapter]; this
+ * The host LAPACKE through `java.lang.foreign`. Every shared routine lives in [F64HostLapackAdapter]; this
  * supplies the JVM's entry points, its measured gates, and the one routine only this binding has.
  */
-public class HostLapack internal constructor() : HostLapackAdapter(JvmLapackeCalls, JvmCblasCalls) {
+public class HostLapack internal constructor() : F64HostLapackAdapter(JvmLapackeCalls, JvmCblasCalls) {
     override val name: String get() = BackendNames.OPENBLAS
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY
@@ -34,9 +34,9 @@ public class HostLapack internal constructor() : HostLapackAdapter(JvmLapackeCal
      * A zeroed jpvt on input leaves every column free to move, and the output is one-based, hence the shift.
      * LAPACK reports no rank, so it comes from [rankOfPivotedR]. Only this binding has `dgeqp3`.
      */
-    override fun qrPivoted(a: F64DenseMatrix, tolerance: Double, workspace: Workspace?): PivotedQrDecomposition {
+    override fun qrPivoted(a: F64DenseMatrix, tolerance: Double, workspace: Workspace?): F64PivotedQrDecomposition {
         if (minOf(a.rows, a.cols) < dispatchThresholds.lapack) {
-            return ReferenceLinearAlgebra.qrPivoted(a, tolerance, workspace)
+            return F64ReferenceLinearAlgebra.qrPivoted(a, tolerance, workspace)
         }
         val m = a.rows
         val n = a.cols
@@ -57,7 +57,7 @@ public class HostLapack internal constructor() : HostLapackAdapter(JvmLapackeCal
         }
         val pivots = IntArray(n) { jpvt[it] - 1 }
         val rank = rankOfPivotedR(buf, m, n, minOf(m, n), tolerance)
-        return PivotedQrDecomposition(QrDecomposition(m, n, buf, tau), pivots, rank)
+        return F64PivotedQrDecomposition(F64QrDecomposition(m, n, buf, tau), pivots, rank)
     }
 }
 

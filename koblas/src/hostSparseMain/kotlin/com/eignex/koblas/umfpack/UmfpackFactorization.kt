@@ -6,7 +6,7 @@ import com.eignex.koblas.F64SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.requireFactored
 import com.eignex.koblas.requireShape
-import com.eignex.koblas.sparse.SparseFactorization
+import com.eignex.koblas.sparse.F64SparseFactorization
 import kotlinx.cinterop.COpaquePointerVar
 import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.ExperimentalForeignApi
@@ -24,7 +24,7 @@ import kotlin.math.pow
 import kotlin.native.ref.createCleaner
 
 /**
- * UMFPACK's numeric factors behind koblas's [SparseFactorization]. Holds its [matrix] alive because
+ * UMFPACK's numeric factors behind koblas's [F64SparseFactorization]. Holds its [matrix] alive because
  * `umfpack_di_solve` takes Ap, Ai and Ax alongside the factors.
  */
 public class UmfpackFactorization internal constructor(
@@ -32,7 +32,7 @@ public class UmfpackFactorization internal constructor(
     override val failedAt: Int,
     private val handle: NumericHandle,
     private val f: UmfpackFunctions,
-) : SparseFactorization {
+) : F64SparseFactorization {
 
     /** The `void **Numeric` holder, its own object so the cleaner captures it and not the factorization. */
     internal class NumericHandle(val pointer: CPointer<COpaquePointerVar>, private val f: UmfpackFunctions) {

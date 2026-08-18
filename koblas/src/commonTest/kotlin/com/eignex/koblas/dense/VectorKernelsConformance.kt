@@ -6,7 +6,7 @@ import kotlin.math.sqrt
 import kotlin.random.Random
 import kotlin.test.assertEquals
 
-// The VectorKernels contract, over any implementation. The compiled-in kernels and a host binding must both
+// The F64VectorKernels contract, over any implementation. The compiled-in kernels and a host binding must both
 // satisfy it, and a host kernels class exists only on the native targets, so the assertions live here rather
 // than beside either caller.
 
@@ -15,7 +15,7 @@ import kotlin.test.assertEquals
  * the offset fails. Lengths 63, 64 and 65 straddle the level-1 routing threshold, so both the dispatched and
  * the direct path are covered.
  */
-internal fun assertLevel1KernelsAgreeWithScalar(kernels: VectorKernels) {
+internal fun assertLevel1KernelsAgreeWithScalar(kernels: F64VectorKernels) {
     val rng = Random(20260731)
     for (len in intArrayOf(1, 7, 63, 64, 65, 200)) {
         val pad = 3
@@ -45,7 +45,7 @@ internal fun assertLevel1KernelsAgreeWithScalar(kernels: VectorKernels) {
  * The reductions at scales whose squares leave the exponent range, which is what forces `nrm2` to rescale
  * rather than sum squares directly, plus the zero run both must report as zero exactly.
  */
-internal fun assertReductionsAgreeWithScalar(kernels: VectorKernels) {
+internal fun assertReductionsAgreeWithScalar(kernels: F64VectorKernels) {
     val rng = Random(20260951)
     for (scale in doubleArrayOf(1.0, 1e200, 1e-200)) {
         for (len in intArrayOf(1, 63, 64, 200)) {

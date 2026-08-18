@@ -38,14 +38,14 @@ internal fun multiply(a: F64SparseMatrix, x: DoubleArray): DoubleArray {
     return y
 }
 
-internal fun assertSolvesAgreeWithReference(lapack: SparseLapack) {
+internal fun assertSolvesAgreeWithReference(lapack: F64SparseLapack) {
     val rng = Random(20260815)
     for (n in intArrayOf(1, 2, 7, 23, 60)) {
         val a = sparseConformanceSystem(n, rng)
         val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
 
         val host = lapack.factor(a)
-        val portable = ReferenceSparseLinearAlgebra.factor(a)
+        val portable = F64ReferenceSparseLinearAlgebra.factor(a)
         assertTrue(!host.singular, "n=$n the host called a well-conditioned system singular")
         assertTrue(!portable.singular, "n=$n the reference called it singular")
 
@@ -58,7 +58,7 @@ internal fun assertSolvesAgreeWithReference(lapack: SparseLapack) {
     }
 }
 
-internal fun assertAliasedDestinationSolves(lapack: SparseLapack) {
+internal fun assertAliasedDestinationSolves(lapack: F64SparseLapack) {
     val rng = Random(20260816)
     val n = 12
     val a = sparseConformanceSystem(n, rng)
@@ -70,19 +70,19 @@ internal fun assertAliasedDestinationSolves(lapack: SparseLapack) {
     assertClose(expected, aliased, "aliased destination", tolerance = 1e-12)
 }
 
-internal fun assertDeterminantAgreesWithReference(lapack: SparseLapack) {
+internal fun assertDeterminantAgreesWithReference(lapack: F64SparseLapack) {
     val rng = Random(20260817)
     for (n in intArrayOf(1, 3, 8)) {
         val a = sparseConformanceSystem(n, rng)
         val host = lapack.factor(a).determinant()
-        val portable = ReferenceSparseLinearAlgebra.factor(a).determinant()
+        val portable = F64ReferenceSparseLinearAlgebra.factor(a).determinant()
         // The comparison is relative because the values grow with n.
         assertTrue(abs(host / portable - 1.0) < 1e-9, "n=$n determinant disagreed: $host vs $portable")
     }
 }
 
 /** A host that cannot name the failing pivot must say so rather than invent a position. */
-internal fun assertSingularIsReportedWithUnknownPosition(lapack: SparseLapack) {
+internal fun assertSingularIsReportedWithUnknownPosition(lapack: F64SparseLapack) {
     val rank1 = F64SparseMatrix.ofColumns(
         2,
         2,
@@ -100,7 +100,7 @@ internal fun assertSingularIsReportedWithUnknownPosition(lapack: SparseLapack) {
  * A degenerate matrix is answered portably: an empty one factors to a size-zero factorization and one of all
  * zeros is reported singular. On Kotlin/Native the reason is that `usePinned` has no address for an empty array.
  */
-internal fun assertEmptyAndZeroMatricesTakeThePortablePath(lapack: SparseLapack) {
+internal fun assertEmptyAndZeroMatricesTakeThePortablePath(lapack: F64SparseLapack) {
     val empty = lapack.factor(F64SparseMatrix.ofColumns(0, 0, emptyList()))
     assertEquals(0, empty.n, "an empty matrix factors to an empty factorization")
     val zeros = lapack.factor(F64SparseMatrix.ofColumns(3, 3, listOf(emptyList(), emptyList(), emptyList())))
@@ -111,7 +111,7 @@ internal fun assertEmptyAndZeroMatricesTakeThePortablePath(lapack: SparseLapack)
  * A host sparse factorization wins only its own half of the registry, so the sparse BLAS stays with the
  * reference. [n] sets the size of the system whose fill is reported.
  */
-internal fun assertRegistersAsTheSparseLapackHalf(lapack: SparseLapack, n: Int) {
+internal fun assertRegistersAsTheSparseLapackHalf(lapack: F64SparseLapack, n: Int) {
     withCleanBackends {
         registerBackend(lapack)
         assertEquals(lapack.name, koblas.sparseLapack.name, "${lapack.name} should win the sparse lapack half")
@@ -125,8 +125,8 @@ internal fun assertRegistersAsTheSparseLapackHalf(lapack: SparseLapack, n: Int) 
 
 /** Equilibration and a drop tolerance are koblas's own, so a host must hand those requests back. */
 internal fun assertUnsupportedRequestsFallBack(
-    lapack: SparseLapack,
-    hostFactorization: (SparseFactorization) -> Boolean,
+    lapack: F64SparseLapack,
+    hostFactorization: (F64SparseFactorization) -> Boolean,
 ) {
     val rng = Random(20260818)
     val a = sparseConformanceSystem(6, rng)
@@ -138,7 +138,7 @@ internal fun assertUnsupportedRequestsFallBack(
 }
 
 /** Native handles are freed per factorization, so a long loop must not grow without bound. */
-internal fun assertRepeatedFactorizationsSurvive(lapack: SparseLapack) {
+internal fun assertRepeatedFactorizationsSurvive(lapack: F64SparseLapack) {
     val rng = Random(20260820)
     val a = sparseConformanceSystem(120, rng)
     var checksum = 0.0

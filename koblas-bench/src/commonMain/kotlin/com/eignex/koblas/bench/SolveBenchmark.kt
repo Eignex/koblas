@@ -1,8 +1,8 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.F64DenseMatrix
-import com.eignex.koblas.dense.LdlDecomposition
-import com.eignex.koblas.dense.LuDecomposition
+import com.eignex.koblas.dense.F64LdlDecomposition
+import com.eignex.koblas.dense.F64LuDecomposition
 import com.eignex.koblas.dense.invert
 import com.eignex.koblas.dense.lu
 import com.eignex.koblas.dense.rcond
@@ -23,13 +23,13 @@ class SolveBenchmark {
     var backend: String = AUTO_BACKEND
 
     private lateinit var a: F64DenseMatrix
-    private lateinit var factored: LuDecomposition
-    private lateinit var indefinite: LdlDecomposition
+    private lateinit var factored: F64LuDecomposition
+    private lateinit var indefinite: F64LdlDecomposition
     private lateinit var rhs: DoubleArray
     private lateinit var x: DoubleArray
 
     /** A destination for the in-place refactorization, and the operands the added routines need. */
-    private lateinit var reusable: LuDecomposition
+    private lateinit var reusable: F64LuDecomposition
     private lateinit var sym: F64DenseMatrix
     private lateinit var triangular: F64DenseMatrix
     private var anorm: Double = 0.0
@@ -63,13 +63,13 @@ class SolveBenchmark {
 
     /** The factorizations themselves, which the solve benchmarks above amortise away. */
     @Benchmark
-    fun luFactor(): LuDecomposition = a.lu()
+    fun luFactor(): F64LuDecomposition = a.lu()
 
     @Benchmark
-    fun luFactorInto(): LuDecomposition = koblas.factorInto(a, reusable)
+    fun luFactorInto(): F64LuDecomposition = koblas.factorInto(a, reusable)
 
     @Benchmark
-    fun ldlFactor(): LdlDecomposition = koblas.ldl(sym)
+    fun ldlFactor(): F64LdlDecomposition = koblas.ldl(sym)
 
     /** Hager's estimator, which iterates a solve against the factorization. */
     @Benchmark

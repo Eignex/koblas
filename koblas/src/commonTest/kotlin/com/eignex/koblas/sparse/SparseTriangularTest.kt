@@ -135,7 +135,7 @@ class SparseTriangularTest {
     @Test
     fun `it reaches the registered backend`() = withCleanBackends {
         var calls = 0
-        val counting = object : SparseBlas {
+        val counting = object : F64SparseBlas {
             override val name: String get() = "counting"
             override fun trsv(
                 a: F64SparseMatrix,
@@ -145,7 +145,7 @@ class SparseTriangularTest {
                 unitDiag: Boolean,
             ) {
                 calls++
-                ReferenceSparseLinearAlgebra.trsv(a, x, lower, transpose, unitDiag)
+                F64ReferenceSparseLinearAlgebra.trsv(a, x, lower, transpose, unitDiag)
             }
 
             @Suppress("LongParameterList")
@@ -156,7 +156,7 @@ class SparseTriangularTest {
                 beta: Double,
                 y: DoubleArray,
                 transpose: Boolean,
-            ) = ReferenceSparseLinearAlgebra.gemv(alpha, a, x, beta, y, transpose)
+            ) = F64ReferenceSparseLinearAlgebra.gemv(alpha, a, x, beta, y, transpose)
         }
         registerBackend(counting)
         val t = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 4.0)))

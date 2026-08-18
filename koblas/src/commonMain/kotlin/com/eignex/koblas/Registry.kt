@@ -1,37 +1,37 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.Blas
-import com.eignex.koblas.dense.Lapack
-import com.eignex.koblas.dense.PlatformVectorKernels
-import com.eignex.koblas.dense.ReferenceLinearAlgebra
-import com.eignex.koblas.dense.RoutedVectorKernels
-import com.eignex.koblas.dense.VectorKernels
+import com.eignex.koblas.dense.F64Blas
+import com.eignex.koblas.dense.F64Lapack
+import com.eignex.koblas.dense.F64PlatformVectorKernels
+import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
+import com.eignex.koblas.dense.F64RoutedVectorKernels
+import com.eignex.koblas.dense.F64VectorKernels
 import com.eignex.koblas.dense.registerPlatformBackends
-import com.eignex.koblas.sparse.PlatformSparseVectorKernels
-import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
-import com.eignex.koblas.sparse.SparseBlas
-import com.eignex.koblas.sparse.SparseLapack
-import com.eignex.koblas.sparse.SparseVectorKernels
+import com.eignex.koblas.sparse.F64PlatformSparseVectorKernels
+import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
+import com.eignex.koblas.sparse.F64SparseBlas
+import com.eignex.koblas.sparse.F64SparseLapack
+import com.eignex.koblas.sparse.F64SparseVectorKernels
 import kotlin.concurrent.Volatile
 
-private val vectorKernelSeam = Seam<VectorKernels>(::recompose)
+private val vectorKernelSeam = Seam<F64VectorKernels>(::recompose)
 
-private val blasSeam = Seam<Blas>(::recompose)
+private val blasSeam = Seam<F64Blas>(::recompose)
 
-private val lapackSeam = Seam<Lapack>(::recompose)
+private val lapackSeam = Seam<F64Lapack>(::recompose)
 
-private val sparseVectorKernelSeam = Seam<SparseVectorKernels>(::recompose)
+private val sparseVectorKernelSeam = Seam<F64SparseVectorKernels>(::recompose)
 
-private val sparseBlasSeam = Seam<SparseBlas>(::recompose)
+private val sparseBlasSeam = Seam<F64SparseBlas>(::recompose)
 
-private val sparseLapackSeam = Seam<SparseLapack>(::recompose)
+private val sparseLapackSeam = Seam<F64SparseLapack>(::recompose)
 
 @Volatile
-private var installed: KoblasContext? = null
+private var installed: F64Context? = null
 
 /** The context assembled from the winning halves, rebuilt only when a registration changes. */
 @Volatile
-private var resolved: KoblasContext = assemble()
+private var resolved: F64Context = assemble()
 
 /** Runs platform discovery exactly once, on the first [koblas] read. */
 private val discovery: Unit by lazy { registerPlatformBackends() }
@@ -40,20 +40,20 @@ private val discovery: Unit by lazy { registerPlatformBackends() }
  * The process-wide default context: an [installBackends] override when set, else whatever registered
  * itself, else the portable reference implementations. Every free function in koblas uses this.
  */
-public val koblas: KoblasContext
+public val koblas: F64Context
     get() {
         discovery
         return installed ?: resolved
     }
 
 /** Builds a context from the currently registered halves, falling back to the portable reference. */
-private fun assemble(): KoblasContext = KoblasContext(
-    vectorKernels = RoutedVectorKernels(vectorKernelSeam.active),
-    blas = blasSeam.active ?: ReferenceLinearAlgebra,
-    lapack = lapackSeam.active ?: ReferenceLinearAlgebra,
-    sparseVectorKernels = sparseVectorKernelSeam.active ?: PlatformSparseVectorKernels,
-    sparseBlas = sparseBlasSeam.active ?: ReferenceSparseLinearAlgebra,
-    sparseLapack = sparseLapackSeam.active ?: ReferenceSparseLinearAlgebra,
+private fun assemble(): F64Context = F64Context(
+    vectorKernels = F64RoutedVectorKernels(vectorKernelSeam.active),
+    blas = blasSeam.active ?: F64ReferenceLinearAlgebra,
+    lapack = lapackSeam.active ?: F64ReferenceLinearAlgebra,
+    sparseVectorKernels = sparseVectorKernelSeam.active ?: F64PlatformSparseVectorKernels,
+    sparseBlas = sparseBlasSeam.active ?: F64ReferenceSparseLinearAlgebra,
+    sparseLapack = sparseLapackSeam.active ?: F64ReferenceSparseLinearAlgebra,
 )
 
 private fun recompose() {
@@ -72,33 +72,33 @@ public val koblasInfo: String get() = "backend=${koblas.name}, kernels=${koblas.
  */
 public fun registerBackend(backend: Backend) {
     var offered = false
-    if (backend is VectorKernels) {
+    if (backend is F64VectorKernels) {
         vectorKernelSeam.register(backend)
         offered = true
     }
-    if (backend is Blas) {
+    if (backend is F64Blas) {
         blasSeam.register(backend)
         offered = true
     }
-    if (backend is Lapack) {
+    if (backend is F64Lapack) {
         lapackSeam.register(backend)
         offered = true
     }
-    if (backend is SparseVectorKernels) {
+    if (backend is F64SparseVectorKernels) {
         sparseVectorKernelSeam.register(backend)
         offered = true
     }
-    if (backend is SparseBlas) {
+    if (backend is F64SparseBlas) {
         sparseBlasSeam.register(backend)
         offered = true
     }
-    if (backend is SparseLapack) {
+    if (backend is F64SparseLapack) {
         sparseLapackSeam.register(backend)
         offered = true
     }
     require(offered) {
-        "${backend.name} implements none of VectorKernels, Blas, Lapack, SparseVectorKernels, SparseBlas " +
-            "or SparseLapack, so there is nothing to register it as"
+        "${backend.name} implements none of F64VectorKernels, F64Blas, F64Lapack, " +
+            "F64SparseVectorKernels, F64SparseBlas or F64SparseLapack, so there is nothing to register it as"
     }
 }
 
@@ -106,7 +106,7 @@ public fun registerBackend(backend: Backend) {
  * Overrides the context [koblas] returns; null restores automatic selection. Not synchronized with
  * operations in flight, so install during startup, before other threads run.
  */
-public fun installBackends(context: KoblasContext?) {
+public fun installBackends(context: F64Context?) {
     installed = context
 }
 
@@ -122,4 +122,4 @@ internal fun resetBackends() {
 }
 
 /** The kernels the compiled-in path uses when nothing is registered, for tests that need to name them. */
-internal val platformKernels: VectorKernels get() = PlatformVectorKernels
+internal val platformKernels: F64VectorKernels get() = F64PlatformVectorKernels

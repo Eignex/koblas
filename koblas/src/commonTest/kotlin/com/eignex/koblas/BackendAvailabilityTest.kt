@@ -1,11 +1,11 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.Blas
-import com.eignex.koblas.dense.Lapack
-import com.eignex.koblas.dense.ReferenceBackend
-import com.eignex.koblas.dense.ReferenceLinearAlgebra
-import com.eignex.koblas.dense.VectorKernels
-import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
+import com.eignex.koblas.dense.F64Blas
+import com.eignex.koblas.dense.F64Lapack
+import com.eignex.koblas.dense.F64ReferenceBackend
+import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
+import com.eignex.koblas.dense.F64VectorKernels
+import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -14,20 +14,20 @@ class BackendAvailabilityTest {
 
     /** A half that reports itself unusable, which is what a binding does when its library did not resolve. */
     private class UnavailableHost(override val name: String) :
-        Blas by ReferenceLinearAlgebra,
-        Lapack by ReferenceLinearAlgebra {
+        F64Blas by F64ReferenceLinearAlgebra,
+        F64Lapack by F64ReferenceLinearAlgebra {
         override val priority: Int get() = HOST_BACKEND_PRIORITY
         override val isPortable: Boolean get() = false
         override val isAvailable: Boolean get() = false
-        override val vectorKernels: VectorKernels get() = ReferenceLinearAlgebra.vectorKernels
+        override val vectorKernels: F64VectorKernels get() = F64ReferenceLinearAlgebra.vectorKernels
     }
 
     @Test
     fun `the built-in backends report themselves available`() {
-        assertTrue(ReferenceLinearAlgebra.isAvailable)
-        assertTrue(ReferenceBackend().isAvailable)
-        assertTrue(ReferenceSparseLinearAlgebra.isAvailable)
-        assertTrue(ReferenceLinearAlgebra.vectorKernels.isAvailable, "the compiled-in kernels always run")
+        assertTrue(F64ReferenceLinearAlgebra.isAvailable)
+        assertTrue(F64ReferenceBackend().isAvailable)
+        assertTrue(F64ReferenceSparseLinearAlgebra.isAvailable)
+        assertTrue(F64ReferenceLinearAlgebra.vectorKernels.isAvailable, "the compiled-in kernels always run")
     }
 
     @Test

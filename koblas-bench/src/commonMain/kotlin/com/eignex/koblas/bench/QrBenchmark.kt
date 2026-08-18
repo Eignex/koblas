@@ -1,8 +1,8 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.F64DenseMatrix
-import com.eignex.koblas.dense.PivotedQrDecomposition
-import com.eignex.koblas.dense.QrDecomposition
+import com.eignex.koblas.dense.F64PivotedQrDecomposition
+import com.eignex.koblas.dense.F64QrDecomposition
 import com.eignex.koblas.dense.applyQ
 import com.eignex.koblas.dense.qr
 import com.eignex.koblas.dense.qrPivoted
@@ -28,11 +28,11 @@ class QrBenchmark {
 
     private lateinit var square: F64DenseMatrix
     private lateinit var tall: F64DenseMatrix
-    private lateinit var factored: QrDecomposition
+    private lateinit var factored: F64QrDecomposition
     private lateinit var rhs: DoubleArray
 
     /** A wide factorization for the minimum-norm path, which the tall shapes never exercise. */
-    private lateinit var wide: QrDecomposition
+    private lateinit var wide: F64QrDecomposition
     private lateinit var wideRhs: DoubleArray
 
     @Setup
@@ -48,16 +48,16 @@ class QrBenchmark {
     }
 
     @Benchmark
-    fun qrSquare(): QrDecomposition = square.qr()
+    fun qrSquare(): F64QrDecomposition = square.qr()
 
     @Benchmark
-    fun qrTall(): QrDecomposition = tall.qr()
+    fun qrTall(): F64QrDecomposition = tall.qr()
 
     @Benchmark
-    fun qrPivotedSquare(): PivotedQrDecomposition = square.qrPivoted()
+    fun qrPivotedSquare(): F64PivotedQrDecomposition = square.qrPivoted()
 
     @Benchmark
-    fun qrPivotedTall(): PivotedQrDecomposition = tall.qrPivoted()
+    fun qrPivotedTall(): F64PivotedQrDecomposition = tall.qrPivoted()
 
     @Benchmark
     fun leastSquares(): DoubleArray = factored.solveLeastSquares(rhs)

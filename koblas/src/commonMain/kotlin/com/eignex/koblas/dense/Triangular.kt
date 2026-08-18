@@ -7,7 +7,7 @@ import com.eignex.koblas.koblas
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.requireSquare
 
-/** Solve `op(T) · x = b` in place (BLAS `dtrsv`); see [LinearAlgebra.trsv]. Reads only the triangle [lower]
+/** Solve `op(T) · x = b` in place (BLAS `dtrsv`); see [F64LinearAlgebra.trsv]. Reads only the triangle [lower]
  *  selects, and does not check the diagonal, so a singular triangle yields infinities or NaNs. */
 public fun trsv(
     a: F64DenseMatrix,
@@ -17,7 +17,7 @@ public fun trsv(
     unitDiag: Boolean = false,
 ): Unit = koblas.trsv(a, x, lower, transpose, unitDiag)
 
-/** Solve `op(T) · X = B`, or `X · op(T) = B` when [right] (BLAS `dtrsm`); see [LinearAlgebra.trsm]. Reads
+/** Solve `op(T) · X = B`, or `X · op(T) = B` when [right] (BLAS `dtrsm`); see [F64LinearAlgebra.trsm]. Reads
  *  only the triangle [lower] selects, and a singular triangle yields infinities or NaNs. */
 @Suppress("LongParameterList") // the BLAS dtrsm signature
 public fun trsm(
@@ -29,7 +29,7 @@ public fun trsm(
     right: Boolean = false,
 ): Unit = koblas.trsm(a, b, lower, transpose, unitDiag, right)
 
-/** Multiply `x = op(T) · x` in place (BLAS `dtrmv`); see [LinearAlgebra.trmv]. Reads only the triangle
+/** Multiply `x = op(T) · x` in place (BLAS `dtrmv`); see [F64LinearAlgebra.trmv]. Reads only the triangle
  *  [lower] selects. */
 public fun trmv(
     a: F64DenseMatrix,
@@ -39,7 +39,7 @@ public fun trmv(
     unitDiag: Boolean = false,
 ): Unit = koblas.trmv(a, x, lower, transpose, unitDiag)
 
-/** Multiply `B = op(T) · B`, or `B = B · op(T)` when [right] (BLAS `dtrmm`); see [LinearAlgebra.trmm].
+/** Multiply `B = op(T) · B`, or `B = B · op(T)` when [right] (BLAS `dtrmm`); see [F64LinearAlgebra.trmm].
  *  Reads only the triangle [lower] selects. */
 @Suppress("LongParameterList") // the BLAS dtrmm signature
 public fun trmm(
@@ -71,7 +71,7 @@ internal inline fun forEachRow(n: Int, b: F64DenseMatrix, op: (DoubleArray) -> U
  */
 @Suppress("LongParameterList") // the shape, the leading dimension and the three BLAS flags
 internal fun trmvCore(
-    k: VectorKernels,
+    k: F64VectorKernels,
     a: DoubleArray,
     n: Int,
     x: DoubleArray,
@@ -115,7 +115,7 @@ internal fun trmvCore(
 /** [trmv] applied to each of the [nrhs] contiguous columns of a flat column-major `n×nrhs` [b]. */
 @Suppress("LongParameterList")
 internal fun trmmCore(
-    k: VectorKernels,
+    k: F64VectorKernels,
     a: DoubleArray,
     n: Int,
     b: DoubleArray,
@@ -133,7 +133,7 @@ internal fun trmmCore(
  *  x(xOff until xOff + n). The diagonal is not checked, so a singular triangle yields infinities or NaNs. */
 @Suppress("LongParameterList") // the shape, the leading dimension and the three BLAS flags
 internal fun trsvCore(
-    k: VectorKernels,
+    k: F64VectorKernels,
     a: DoubleArray,
     n: Int,
     x: DoubleArray,
@@ -175,7 +175,7 @@ internal fun trsvCore(
 }
 
 /**
- * The body [Blas.trsv] and [Blas.trmv] share. The two BLAS routines take the same arguments and differ only
+ * The body [F64Blas.trsv] and [F64Blas.trmv] share. The two BLAS routines take the same arguments and differ only
  * in which core runs, which [solve] selects.
  *
  * The selection is a flag rather than a passed-in core so the call stays direct. A function reference here
@@ -183,7 +183,7 @@ internal fun trsvCore(
  */
 @Suppress("LongParameterList") // the shared BLAS signature plus the entry-point flag
 internal fun triangularVector(
-    k: VectorKernels,
+    k: F64VectorKernels,
     a: F64DenseMatrix,
     x: DoubleArray,
     lower: Boolean,
@@ -202,14 +202,14 @@ internal fun triangularVector(
 }
 
 /**
- * The body [Blas.trsm] and [Blas.trmm] share, with [solve] selecting the core as in [triangularVector].
+ * The body [F64Blas.trsm] and [F64Blas.trmm] share, with [solve] selecting the core as in [triangularVector].
  *
  * From the right the operands are the rows of [b] and the triangle is transposed, which is the same identity
  * both routines used when they were written out separately.
  */
 @Suppress("LongParameterList") // the shared BLAS signature plus the entry-point flag
 internal fun triangularMatrix(
-    k: VectorKernels,
+    k: F64VectorKernels,
     a: F64DenseMatrix,
     b: F64DenseMatrix,
     lower: Boolean,
@@ -242,7 +242,7 @@ internal fun triangularMatrix(
 /** [trsv] applied to each of the [nrhs] contiguous columns of a flat column-major `n×nrhs` [b]. */
 @Suppress("LongParameterList")
 internal fun trsmCore(
-    k: VectorKernels,
+    k: F64VectorKernels,
     a: DoubleArray,
     n: Int,
     b: DoubleArray,
@@ -256,7 +256,7 @@ internal fun trsmCore(
     }
 }
 
-/** Invert the [lower] or upper triangle of [a] (LAPACK `dtrtri`); see [LinearAlgebra.trtri]. */
+/** Invert the [lower] or upper triangle of [a] (LAPACK `dtrtri`); see [F64LinearAlgebra.trtri]. */
 public fun trtri(a: F64DenseMatrix, lower: Boolean, unitDiag: Boolean = false): F64DenseMatrix = koblas.trtri(
     a,
     lower,

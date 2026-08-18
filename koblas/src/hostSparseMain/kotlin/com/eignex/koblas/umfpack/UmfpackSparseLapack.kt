@@ -8,13 +8,13 @@ import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
 import com.eignex.koblas.requireSquare
+import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
+import com.eignex.koblas.sparse.F64SingularSparseFactorization
+import com.eignex.koblas.sparse.F64SparseFactorization
+import com.eignex.koblas.sparse.F64SparseLapack
+import com.eignex.koblas.sparse.F64SparseLu
 import com.eignex.koblas.sparse.NO_DROP
-import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
-import com.eignex.koblas.sparse.SingularSparseFactorization
-import com.eignex.koblas.sparse.SparseFactorization
-import com.eignex.koblas.sparse.SparseLapack
 import com.eignex.koblas.sparse.SparseLdlPolicy
-import com.eignex.koblas.sparse.SparseLu
 import com.eignex.koblas.sparse.SparseOrdering
 import com.eignex.koblas.sparse.SparseSymbolic
 import kotlinx.cinterop.COpaquePointerVar
@@ -30,9 +30,9 @@ import kotlinx.cinterop.value
 
 /**
  * The sparse half backed by SuiteSparse's UMFPACK. Equilibration, a non-default drop tolerance and any
- * UMFPACK failure fall back to [SparseLu]; a singular result becomes [SingularSparseFactorization].
+ * UMFPACK failure fall back to [F64SparseLu]; a singular result becomes [F64SingularSparseFactorization].
  */
-public class UmfpackSparseLapack internal constructor(private val f: UmfpackFunctions) : SparseLapack {
+public class UmfpackSparseLapack internal constructor(private val f: UmfpackFunctions) : F64SparseLapack {
     override val name: String get() = BackendNames.UMFPACK
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY
@@ -44,11 +44,11 @@ public class UmfpackSparseLapack internal constructor(private val f: UmfpackFunc
     override val isPortable: Boolean get() = false
 
     @Suppress("ReturnCount") // one early return per condition UMFPACK cannot serve
-    override fun factor(a: F64SparseMatrix, equilibrate: Boolean, dropTolerance: Double): SparseFactorization {
+    override fun factor(a: F64SparseMatrix, equilibrate: Boolean, dropTolerance: Double): F64SparseFactorization {
         requireSquare(a, "factor")
-        if (equilibrate || dropTolerance != NO_DROP) return SparseLu.factorCsc(a, equilibrate, dropTolerance)
+        if (equilibrate || dropTolerance != NO_DROP) return F64SparseLu.factorCsc(a, equilibrate, dropTolerance)
         // An empty matrix and an all-zero one have nothing to pin, and `usePinned` yields no address.
-        if (a.rows == 0 || a.nnz == 0) return SparseLu.factorCsc(a)
+        if (a.rows == 0 || a.nnz == 0) return F64SparseLu.factorCsc(a)
 
         val info = DoubleArray(INFO)
         val symbolicHolder = nativeHeap.alloc<COpaquePointerVar>()
@@ -60,12 +60,12 @@ public class UmfpackSparseLapack internal constructor(private val f: UmfpackFunc
 
         if (status != OK && status != WARNING_SINGULAR) {
             handle.release()
-            return SparseLu.factorCsc(a)
+            return F64SparseLu.factorCsc(a)
         }
         if (status == WARNING_SINGULAR) {
             // Solving a singular factorization is forbidden, so holding UMFPACK's partial factors leaks.
             handle.release()
-            return SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
+            return F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
         }
         val factorization = UmfpackFactorization(a, NOT_SINGULAR, handle, f)
         val (lnz, unz) = UmfpackFactorization.fillOf(info)
@@ -119,8 +119,8 @@ public class UmfpackSparseLapack internal constructor(private val f: UmfpackFunc
     // rather than by class delegation, which would route the convenience overloads to the portable factor
     // instead of this one, since a delegated member calls back into the delegate.
     override fun analyze(a: F64SparseMatrix, ordering: SparseOrdering): SparseSymbolic =
-        ReferenceSparseLinearAlgebra.analyze(a, ordering)
+        F64ReferenceSparseLinearAlgebra.analyze(a, ordering)
 
-    override fun ldl(a: F64SparseMatrix, policy: SparseLdlPolicy, ordering: SparseOrdering): SparseFactorization =
-        ReferenceSparseLinearAlgebra.ldl(a, policy, ordering)
+    override fun ldl(a: F64SparseMatrix, policy: SparseLdlPolicy, ordering: SparseOrdering): F64SparseFactorization =
+        F64ReferenceSparseLinearAlgebra.ldl(a, policy, ordering)
 }
