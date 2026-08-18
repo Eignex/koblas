@@ -36,37 +36,29 @@ for the exact contract and what is out of scope.
 
 ### Element types
 
-Everything is double precision today, and every container, backend half and
-factorization says so in its name: `F64DenseMatrix`, `F64Blas`,
-`F64LuDecomposition`. The unqualified names are aliases for the
-double-precision ones, so `DenseMatrix` is `F64DenseMatrix` and code written
-against the short names does not change. What a caller who does not say which
-element type they mean gets is double precision.
+Every container, backend half and factorization names its element type, and
+double precision is the only one implemented: `F64DenseMatrix`, `F64Blas`,
+`F64LuDecomposition`. The unqualified names are aliases for them, so
+`DenseMatrix` is `F64DenseMatrix`, and the short spelling used throughout this
+README is the double-precision one.
 
-The names are shaped that way so a second element type is an addition rather
-than a reshaping. `F32` is next: its containers and its level-1 to level-3
-kernels are written for `Float`, where a SIMD register holds twice the lanes,
-while its factorizations promote to double precision, factor there and demote
-on the way out. That is a correct `F32Lapack` from the first commit, and the
-seam lets a real single-precision LAPACK replace it later without a call site
-changing. `BF16` is planned as a storage type only: `Short` storage of
-bfloat16 with `Float` accumulation, for the products where bf16 is actually
-used, and no bf16 factorizations, whose eight mantissa bits would not survive
-pivoting.
+The names are shaped that way so that a second element type is an addition
+rather than a reshaping. `F32` is next: `Float` containers and hand-written
+level-1 to level-3 kernels, where a SIMD register holds twice the lanes, with
+factorizations that promote to double precision and demote on the way out, which
+the seam lets a real single-precision LAPACK replace later. `BF16` is planned as
+storage only, `Short` bfloat16 accumulating in `Float`, for the products bf16 is
+actually used for and no factorizations, whose eight mantissa bits would not
+survive pivoting.
 
-The parts that are not per element type stay shared: `Backend`, `Seam` and the
-priority ranking, the shape and bounds checks, the sparse symbolic analysis and
-ordering, `Uplo`, `CholeskyPolicy`, and the `Workspace` pooling, which lends
-buffers of one array type per element type out of one set of reclamation rules.
-Serial names carry the prefix as the class names do, so the type discriminator
-in a snapshot is the name of the class that wrote it and an element type added
-later is a discriminator of its own.
-
-The dispatch thresholds are per element type, and double precision owns the
-unqualified configuration keys: `koblas.dispatch.level3` is the double-precision
-crossover, and a later element type reads `koblas.dispatch.f32.level3`.
-Crossovers are counted in elements, not bytes, so a narrower element type
-measures its own rather than inheriting these.
+What is not per element type stays shared: `Backend`, `Seam` and the priority
+ranking, the shape and bounds checks, the sparse symbolic analysis and ordering,
+`Uplo`, `CholeskyPolicy`, and the `Workspace` pooling, which lends buffers of
+one array type per element type out of one set of reclamation rules. The dispatch
+thresholds are per element type, counted in elements rather than bytes, and
+double precision owns the unqualified keys: `koblas.dispatch.level3` is its
+level-3 crossover, where a later element type reads
+`koblas.dispatch.f32.level3`.
 
 ### Installation
 
@@ -225,10 +217,11 @@ stay together in the parent package because the view roots are sealed, which is
 what gives a serialized snapshot a closed set of concrete storage types.
 
 The dense seam is three interfaces, each named for what it covers: VectorKernels
-holds the vector-vector routines, Blas the matrix ones, Lapack the factorizations
-built on them, and LinearAlgebra is the Blas and Lapack pair. All three are ranked and selected independently, so a
-host providing one library and not the other still accelerates what it can, and
-koblas composes the winning halves.
+holds the vector-vector routines, Blas the matrix ones, and Lapack the
+factorizations built on them, with LinearAlgebra as the Blas and Lapack pair.
+All three are ranked and selected independently, so a host providing one library
+and not the other still accelerates what it can, and koblas composes the winning
+halves.
 
 The sparse seam mirrors it one for one -- SparseVectorKernels, SparseBlas,
 SparseLapack, SparseLinearAlgebra -- and shares its machinery rather than
@@ -263,16 +256,16 @@ column-major storage, and the sparse matrix takes the column form only.
 
 Level 1 is reached differently from the other two, because those kernels do
 nanoseconds of work and a virtual call per invocation would cost more than the
-kernel. They are specialized at compile time, and consult the VectorKernels interface
-only once a run is long enough to cover a foreign call. Three of the level 1
-routines stay off that seam on purpose: iamax because its tie-breaking and NaN
-ranking are koblas's own contract and idamax implementations disagree about the
-latter, copy and swap because copyInto already beats a foreign call.
+kernel. They are specialized at compile time, and consult the VectorKernels
+interface only once a run is long enough to cover a foreign call. Three of the
+level 1 routines stay off that seam on purpose: iamax because its tie-breaking
+and NaN ranking are koblas's own contract and idamax implementations disagree
+about the latter, copy and swap because copyInto already beats a foreign call.
 
-**Out of scope:** single precision, complex numbers, banded and packed storage
-layouts, SVD, and eigendecompositions. Nothing is supported silently: new
-routines are implemented, tested, and added to the table when a workload
-needs them.
+**Out of scope:** complex numbers, banded and packed storage layouts, SVD, and
+eigendecompositions. Single precision is planned rather than omitted; see
+[Element types](#element-types). Nothing is supported silently: new routines are
+implemented, tested, and added to the table when a workload needs them.
 
 The routines a steady-state loop repeats have a destination-passing form, so a
 loop that owns its buffers allocates nothing: solveInto for the dense and
@@ -333,11 +326,11 @@ is consulted. The level 2 and 3 multiplies and the factorizations amortize a
 virtual call, so every invocation goes through the interface. The level 1
 kernels do not, so they are specialized at compile time -- the JVM uses the
 incubator Vector API when started with `--add-modules=jdk.incubator.vector`, and
-the other targets use scalar loops -- and reach a registered VectorKernels backend only
-for runs at least as long as the level 1 threshold, 64 elements on the native
-targets. Every dense inner loop bottoms out here. The sparse kernels have their
-own seam and their own reference, and consult it unconditionally -- there is no
-compiled-in sparse primitive for a foreign call to have to beat.
+the other targets use scalar loops -- and reach a registered VectorKernels
+backend only for runs at least as long as the level 1 threshold, 64 elements on
+the native targets. Every dense inner loop bottoms out here. The sparse kernels
+have their own seam and their own reference, and consult it unconditionally --
+there is no compiled-in sparse primitive for a foreign call to have to beat.
 
 Each threshold has a name and an override: `koblas.dispatch.level1` and its
 level2, level3 and lapack counterparts, as a JVM system property or as
@@ -367,7 +360,7 @@ That fallback is silent, which is the right default and a bad thing to discover
 in production. Ask, when it matters:
 
 ```kotlin
-koblas.requireAccelerated(BackendSlot.Blas, BackendSlot.Lapack) // throws, naming what fell back
+koblas.requireAccelerated(BackendSlot.F64Blas, BackendSlot.F64Lapack) // throws, naming the fallback
 println(koblas.portableSlots)                                   // or just look
 ```
 
@@ -405,29 +398,18 @@ println(koblasInfo) // backend=cblas, kernels=scalar+host
 
 ## Migrating
 
-This release reshapes the public API. Every removal has a direct replacement.
+Every container, backend half and factorization now carries its element type,
+and the unqualified names are aliases for the double-precision ones, so code
+written against `DenseMatrix`, `Blas` or `LuDecomposition` compiles unchanged.
+Three things do move:
 
 | was | now |
 |-----|-----|
-| `SparseMatrix(rows, cols, colPtr, rowIdx, values)` | `SparseMatrix.wrap(...)` |
-| `DenseMatrix(rows, cols)` | `DenseMatrix.zero(rows, cols)` |
-| `DenseVector(size)` | `DenseVector.zero(size)` |
-| `a.cholesky()` returning `DenseMatrix` | returns `CholeskyDecomposition`; the factor is `.l` |
-| `solveSpd(l, b)` | `chol.solve(b)` |
-| `invertSpd(l, ws)` | `chol.invert(ws)` |
-| `invert(lu, ws)` | `lu.invert(ws)` |
-| `gemv(a, x)` over views | `a.matVec(x)` |
-| `a.cholesky()` on any `MatrixLike` | takes a `DenseMatrix`; materialise with `DenseMatrix.of(a.toArray())` |
-| `solve` on a singular factorization returning `Inf`/`NaN` | throws `SingularMatrix` |
-| `IllegalStateException` from a singular sparse solve | `SingularMatrix` |
-| `ReferenceLinearAlgebra` | `F64ReferenceLinearAlgebra`; the type names carry their element type |
+| `ReferenceLinearAlgebra` | `F64ReferenceLinearAlgebra`; a val, so no alias stands in for it |
+| `BackendSlot.Blas`, `BackendSlot.SparseLapack` | `BackendSlot.F64Blas`, `BackendSlot.F64SparseLapack` |
+| `"type": "DenseMatrix"` in a snapshot | `"type": "F64DenseMatrix"`, the name of the class that wrote it |
 
-Everything else is additive: the container factories (`ofTriplets`,
-`ofColumns`, `zero`, `diagonal`, `wrap`), the fluent factorizations (`ldl`,
-`qr`, `qrPivoted` and their solves), the `DenseVector` overloads of every
-routine that took a `DoubleArray`, `column` / `row`, the operators, and
-`scaleRows` / `scaleColumns`.
-
-The exception types all extend `IllegalArgumentException`, which is what koblas
-threw before, so a `catch` written against the old API still compiles and still
-catches.
+The serial names moved with the class names, so a snapshot an earlier version
+encoded through `VectorView` or `MatrixView` needs its discriminator rewritten
+before this version reads it. One encoded through a concrete serializer carries
+no discriminator and is unaffected.
