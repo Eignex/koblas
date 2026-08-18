@@ -23,7 +23,7 @@ public sealed interface F64VectorView : F64VectorLike
  * @property data the flat backing array.
  */
 @Serializable
-@SerialName("DenseVector")
+@SerialName("F64DenseVector")
 public class F64DenseVector internal constructor(public val data: DoubleArray) : F64VectorView {
 
     internal constructor(size: Int) : this(DoubleArray(size))
@@ -72,7 +72,7 @@ public class F64DenseVector internal constructor(public val data: DoubleArray) :
  * @property values the stored entry values, parallel to [indices].
  */
 @Serializable
-@SerialName("SparseVector")
+@SerialName("F64SparseVector")
 public class F64SparseVector internal constructor(
     override val size: Int,
     public val indices: IntArray,

@@ -28,7 +28,7 @@ public sealed interface F64MatrixView : F64MatrixLike
  * @property data the flat column-major backing of length `rows * cols`, entry `(i, j)` at `i + j * rows`.
  */
 @Serializable
-@SerialName("DenseMatrix")
+@SerialName("F64DenseMatrix")
 public class F64DenseMatrix internal constructor(
     override val rows: Int,
     override val cols: Int,

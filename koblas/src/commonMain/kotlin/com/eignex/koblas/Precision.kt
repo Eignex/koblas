@@ -6,8 +6,8 @@ package com.eignex.koblas
  * follow. The unprefixed names stay as aliases, so double precision is what a caller who does not say
  * which one they mean gets.
  *
- * The serial names are not prefixed. They are a wire contract, and a snapshot written before the rename
- * still reads back; a future element type gets a serial name of its own rather than sharing this one.
+ * The serial names carry the prefix too, so the type discriminator in a snapshot is the name of the class
+ * that wrote it, and an element type added later is a distinct discriminator rather than a wider one.
  */
 
 /** Double-precision [F64VectorLike], the vector contract an unqualified `VectorLike` means. */

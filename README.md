@@ -58,9 +58,9 @@ The parts that are not per element type stay shared: `Backend`, `Seam` and the
 priority ranking, the shape and bounds checks, the sparse symbolic analysis and
 ordering, `Uplo`, `CholeskyPolicy`, and the `Workspace` pooling, which lends
 buffers of one array type per element type out of one set of reclamation rules.
-Serial names carry no prefix, so a snapshot written before the element type
-reached the class names still reads back; a later element type gets serial names
-of its own.
+Serial names carry the prefix as the class names do, so the type discriminator
+in a snapshot is the name of the class that wrote it and an element type added
+later is a discriminator of its own.
 
 The dispatch thresholds are per element type, and double precision owns the
 unqualified configuration keys: `koblas.dispatch.level3` is the double-precision

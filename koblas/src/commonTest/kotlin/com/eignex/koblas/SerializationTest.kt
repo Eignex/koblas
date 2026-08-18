@@ -107,16 +107,15 @@ class SerializationTest {
 
     @Test
     fun `both matrix storages round-trip polymorphically through F64MatrixView`() {
-        // The discriminators are the serial names, which carry no precision prefix: the wire form predates
-        // the element type reaching the class names, and a second element type gets serial names of its own.
-        val views: List<Pair<String, F64MatrixView>> = listOf(
-            "SparseMatrix" to F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 2.0))),
-            "DenseMatrix" to F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0))),
-            "DenseMatrix" to F64DenseMatrix(0, 0),
+        val views: List<F64MatrixView> = listOf(
+            F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 2.0))),
+            F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0))),
+            F64DenseMatrix(0, 0),
         )
-        for ((discriminator, v) in views) {
+        for (v in views) {
             val encoded = json.encodeToString(F64MatrixView.serializer(), v)
-            assertTrue(discriminator in encoded, "expected the $discriminator discriminator in $encoded")
+            // The serial name of each storage is its class name, so the discriminator is that name.
+            assertTrue(v::class.simpleName!! in encoded, "expected a type discriminator in $encoded")
             val back = json.decodeFromString(F64MatrixView.serializer(), encoded)
             assertEquals(v::class, back::class, "storage was not preserved for $encoded")
             assertEquals(v, back)
