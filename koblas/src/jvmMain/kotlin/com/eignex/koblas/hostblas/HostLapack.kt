@@ -35,7 +35,9 @@ public class HostLapack internal constructor() : F64HostLapackAdapter(JvmLapacke
      * LAPACK reports no rank, so it comes from [rankOfPivotedR]. Only this binding has `dgeqp3`.
      */
     override fun qrPivoted(a: F64DenseMatrix, tolerance: Double, workspace: Workspace?): F64PivotedQrDecomposition {
-        if (minOf(a.rows, a.cols) < f64DispatchThresholds.lapack) {
+        // The floor of one keeps an empty dimension here even when the threshold is zero: dgeqp3 has
+        // nothing to factor then, and the untouched jpvt would read back as a column permutation of -1.
+        if (minOf(a.rows, a.cols) < maxOf(1, f64DispatchThresholds.lapack)) {
             return F64ReferenceLinearAlgebra.qrPivoted(a, tolerance, workspace)
         }
         val m = a.rows
@@ -43,18 +45,16 @@ public class HostLapack internal constructor() : F64HostLapackAdapter(JvmLapacke
         val buf = a.data.copyOf()
         val tau = DoubleArray(minOf(m, n))
         val jpvt = IntArray(n) // zero: no column is pinned
-        if (m > 0 && n > 0) {
-            val info = HostBlasCalls.dgeqp3.invokeWithArguments(
-                COL_MAJOR,
-                m,
-                n,
-                HostBlasCalls.seg(buf),
-                m,
-                HostBlasCalls.seg(jpvt),
-                HostBlasCalls.seg(tau),
-            ) as Int
-            check(info == 0) { "dgeqp3: illegal argument ${-info}" }
-        }
+        val info = HostBlasCalls.dgeqp3.invokeWithArguments(
+            COL_MAJOR,
+            m,
+            n,
+            HostBlasCalls.seg(buf),
+            m,
+            HostBlasCalls.seg(jpvt),
+            HostBlasCalls.seg(tau),
+        ) as Int
+        check(info == 0) { "dgeqp3: illegal argument ${-info}" }
         val pivots = IntArray(n) { jpvt[it] - 1 }
         val rank = rankOfPivotedR(buf, m, n, minOf(m, n), tolerance)
         return F64PivotedQrDecomposition(F64QrDecomposition(m, n, buf, tau), pivots, rank)
