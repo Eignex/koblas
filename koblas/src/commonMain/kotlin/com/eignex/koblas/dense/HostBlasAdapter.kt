@@ -4,6 +4,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DispatchThresholds
+import com.eignex.koblas.VectorLike
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.dense.Cblas.COL_MAJOR
 import com.eignex.koblas.dense.Cblas.LOWER
@@ -27,10 +28,29 @@ import com.eignex.koblas.requireSquare
 public abstract class HostBlasAdapter internal constructor(
     private val f: CblasCalls,
     private val portable: ReferenceBlas = ReferenceBlas(),
-) : Blas by portable {
+) : Blas {
 
-    /** Stated rather than delegated: the delegate is portable and this is a binding that calls out. */
+    /** A binding that calls out, whatever the portable instance it falls back to reports. */
     override val isPortable: Boolean get() = false
+
+    // The rank-updates below have no host binding, so they run the portable versions. Forwarded explicitly
+    // rather than by class delegation, which would route a caller's convenience overloads to the portable
+    // routine instead of the accelerated one, since a delegated member calls back into the delegate.
+    override fun syr(alpha: Double, x: VectorLike, a: DenseMatrix, uplo: Uplo): Unit = portable.syr(alpha, x, a, uplo)
+
+    override fun syr2(alpha: Double, x: VectorLike, y: VectorLike, a: DenseMatrix, uplo: Uplo): Unit =
+        portable.syr2(alpha, x, y, a, uplo)
+
+    @Suppress("LongParameterList") // the BLAS dsyr2k signature
+    override fun syr2k(
+        alpha: Double,
+        a: DenseMatrix,
+        b: DenseMatrix,
+        transpose: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        uplo: Uplo,
+    ): Unit = portable.syr2k(alpha, a, b, transpose, beta, c, uplo)
 
     /** `v = beta * v`, honoring the BLAS convention that `beta == 0` overwrites without reading. */
     private fun scaleInPlace(v: DoubleArray, beta: Double) {

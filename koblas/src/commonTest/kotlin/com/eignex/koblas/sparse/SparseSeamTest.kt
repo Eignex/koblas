@@ -30,32 +30,32 @@ class SparseSeamTest {
 
         override fun dot(x: SparseVector, y: DoubleArray): Double {
             dots++
-            return super.dot(x, y)
+            return ReferenceSparseLinearAlgebra.dot(x, y)
         }
 
         override fun dot(x: SparseVector, y: SparseVector): Double {
             dots++
-            return super.dot(x, y)
+            return ReferenceSparseLinearAlgebra.dot(x, y)
         }
 
         override fun axpy(y: DoubleArray, alpha: Double, x: SparseVector) {
             axpys++
-            super.axpy(y, alpha, x)
+            ReferenceSparseLinearAlgebra.axpy(y, alpha, x)
         }
 
         override fun scatter(x: SparseVector, out: DoubleArray) {
             scatters++
-            super.scatter(x, out)
+            ReferenceSparseLinearAlgebra.scatter(x, out)
         }
 
         override fun nrm2(x: SparseVector): Double {
             nrm2s++
-            return super.nrm2(x)
+            return ReferenceSparseLinearAlgebra.nrm2(x)
         }
 
         override fun asum(x: SparseVector): Double {
             asums++
-            return super.asum(x)
+            return ReferenceSparseLinearAlgebra.asum(x)
         }
     }
 
@@ -73,8 +73,11 @@ class SparseSeamTest {
             transpose: Boolean,
         ) {
             gemvs++
-            super.gemv(alpha, a, x, beta, y, transpose)
+            ReferenceSparseLinearAlgebra.gemv(alpha, a, x, beta, y, transpose)
         }
+
+        override fun trsv(a: SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) =
+            ReferenceSparseLinearAlgebra.trsv(a, x, lower, transpose, unitDiag)
     }
 
     private class CountingSparseLapack(override val priority: Int = 50) : SparseLapack {
@@ -83,8 +86,14 @@ class SparseSeamTest {
 
         override fun factor(a: SparseMatrix, equilibrate: Boolean, dropTolerance: Double): SparseFactorization {
             factors++
-            return super.factor(a, equilibrate, dropTolerance)
+            return ReferenceSparseLinearAlgebra.factor(a, equilibrate, dropTolerance)
         }
+
+        override fun analyze(a: SparseMatrix, ordering: SparseOrdering) =
+            ReferenceSparseLinearAlgebra.analyze(a, ordering)
+
+        override fun ldl(a: SparseMatrix, policy: SparseLdlPolicy, ordering: SparseOrdering) =
+            ReferenceSparseLinearAlgebra.ldl(a, policy, ordering)
     }
 
     private fun sparse() = SparseVector.of(6, intArrayOf(1, 4), doubleArrayOf(2.0, -3.0))

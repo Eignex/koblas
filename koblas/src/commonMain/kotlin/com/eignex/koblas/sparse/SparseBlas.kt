@@ -6,8 +6,6 @@ import com.eignex.koblas.Backend
 import com.eignex.koblas.DenseVector
 import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.requireShape
-import com.eignex.koblas.requireSquare
 
 /** Sparse matrix routines as a backend half. */
 public interface SparseBlas : Backend {
@@ -23,29 +21,7 @@ public interface SparseBlas : Backend {
         beta: Double,
         y: DoubleArray,
         transpose: Boolean = false,
-    ) {
-        val xLen = if (transpose) a.rows else a.cols
-        val yLen = if (transpose) a.cols else a.rows
-        requireShape(x.size == xLen) { "gemv: x length ${x.size} != $xLen" }
-        requireShape(y.size == yLen) { "gemv: y length ${y.size} != $yLen" }
-        when {
-            beta == 0.0 -> y.fill(0.0)
-            beta != 1.0 -> for (i in y.indices) y[i] *= beta
-        }
-        if (alpha == 0.0) return
-        if (transpose) {
-            for (j in 0 until a.cols) {
-                var s = 0.0
-                a.forEachInColumn(j) { i, v -> s += v * x[i] }
-                y[j] += alpha * s
-            }
-        } else {
-            for (j in 0 until a.cols) {
-                val xj = alpha * x[j]
-                if (xj != 0.0) a.forEachInColumn(j) { i, v -> y[i] += v * xj }
-            }
-        }
-    }
+    )
 
     /**
      * Solve `op(T) · x = b` in place, `op` transposing when [transpose]. [x] holds the right-hand side on
@@ -61,30 +37,7 @@ public interface SparseBlas : Backend {
         lower: Boolean,
         transpose: Boolean = false,
         unitDiag: Boolean = false,
-    ) {
-        requireSquare(a, "trsv")
-        val n = a.rows
-        requireShape(x.size == n) { "trsv: x length ${x.size} != $n" }
-        // Forward when a finished unknown feeds later columns, backward when it feeds earlier ones.
-        val order = if (lower != transpose) 0 until n else n - 1 downTo 0
-        for (j in order) {
-            if (!transpose) {
-                val xj = if (unitDiag) x[j] else x[j] / diagonalOf(a, j)
-                x[j] = xj
-                if (xj != 0.0) {
-                    a.forEachInColumn(j) { i, v ->
-                        if (if (lower) i > j else i < j) x[i] -= v * xj
-                    }
-                }
-            } else {
-                var s = x[j]
-                a.forEachInColumn(j) { i, v ->
-                    if (if (lower) i > j else i < j) s -= v * x[i]
-                }
-                x[j] = if (unitDiag) s else s / diagonalOf(a, j)
-            }
-        }
-    }
+    )
 
     /** `A · x`, or `Aᵀ · x` when [transpose], into a fresh result. */
     public fun gemv(a: SparseMatrix, x: DoubleArray, transpose: Boolean = false): DoubleArray {
@@ -121,7 +74,7 @@ public interface SparseBlas : Backend {
  * The diagonal entry of column [j]. A missing entry and an explicit zero are both rejected, with different
  * messages, since a missing one is usually a construction mistake.
  */
-private fun diagonalOf(a: SparseMatrix, j: Int): Double {
+internal fun diagonalOf(a: SparseMatrix, j: Int): Double {
     val d = a[j, j]
     if (d == 0.0) {
         val stored = (a.colPtr[j] until a.colPtr[j + 1]).any { a.rowIdx[it] == j }
