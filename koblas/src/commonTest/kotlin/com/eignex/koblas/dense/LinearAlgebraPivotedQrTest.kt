@@ -149,6 +149,13 @@ class LinearAlgebraPivotedQrTest {
         val zeros = koblas.qrPivoted(F64DenseMatrix(4, 3))
         assertEquals(0, zeros.rank, "an all-zero matrix has rank zero")
         assertEquals(listOf(0, 1, 2), zeros.pivots.sorted())
+        // A matrix with no rows still has columns, and they still have to come back as a permutation.
+        val noRows = koblas.qrPivoted(F64DenseMatrix(0, 3))
+        assertEquals(0, noRows.rank, "a matrix with no rows has rank zero")
+        assertEquals(listOf(0, 1, 2), noRows.pivots.sorted(), "a zero-row matrix must still permute its columns")
+        val noColumns = koblas.qrPivoted(F64DenseMatrix(4, 0))
+        assertEquals(0, noColumns.rank, "a matrix with no columns has rank zero")
+        assertEquals(0, noColumns.pivots.size)
     }
 
     @Test
