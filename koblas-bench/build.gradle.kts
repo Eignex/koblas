@@ -138,6 +138,13 @@ benchmark {
         suite("pivotedQrGate", "PivotedQrGateBenchmark") {
             gate()
         }
+        // One decisive row plus a control, because a five-row suite gives interference minutes to arrive
+        // and JMH runs the rows alphabetically, so a control that sorts first cannot see it.
+        suite("trsmRightGate", "Level3Benchmark", "trsmRight|gemm") {
+            gate()
+            param("n", "64")
+            param("backend", "reference")
+        }
         suite("triangularBlockGate", "Level3Benchmark", "trsm|trmm|trsmRight|trmmRight|gemm") {
             gate()
             param("n", "64")
