@@ -10,6 +10,7 @@ import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout.ADDRESS
 import java.lang.foreign.ValueLayout.JAVA_DOUBLE
 import java.lang.ref.Cleaner
+import java.lang.ref.Reference
 import kotlin.math.pow
 
 /** Frees the native factors of unreachable factorizations. One for the whole process. */
@@ -55,19 +56,25 @@ public class UmfpackFactorization internal constructor(
         requireShape(out.size == n) { "solve: out size ${out.size}, expected $n" }
         // UMFPACK writes X and reads B, so aliasing them would have it read its own partial output.
         val rhs = if (out === b) b.copyOf() else b
-        Arena.ofConfined().use { scratch ->
-            val info = scratch.allocate(JAVA_DOUBLE, INFO.toLong())
-            val status = UmfpackCalls.solve(
-                if (transpose) SYS_AT else SYS_A,
-                MemorySegment.ofArray(matrix.colPtr),
-                MemorySegment.ofArray(matrix.rowIdx),
-                MemorySegment.ofArray(matrix.values),
-                MemorySegment.ofArray(out),
-                MemorySegment.ofArray(rhs),
-                handles.numericHolder.get(ADDRESS, 0),
-                info,
-            )
-            check(status == OK) { "umfpack_di_solve failed with status $status" }
+        // The factors are reached as a raw address, so nothing the call holds keeps this factorization
+        // reachable and the cleaner is free to run mid-call. The fence is what holds it to the return.
+        try {
+            Arena.ofConfined().use { scratch ->
+                val info = scratch.allocate(JAVA_DOUBLE, INFO.toLong())
+                val status = UmfpackCalls.solve(
+                    if (transpose) SYS_AT else SYS_A,
+                    MemorySegment.ofArray(matrix.colPtr),
+                    MemorySegment.ofArray(matrix.rowIdx),
+                    MemorySegment.ofArray(matrix.values),
+                    MemorySegment.ofArray(out),
+                    MemorySegment.ofArray(rhs),
+                    handles.numericHolder.get(ADDRESS, 0),
+                    info,
+                )
+                check(status == OK) { "umfpack_di_solve failed with status $status" }
+            }
+        } finally {
+            Reference.reachabilityFence(this)
         }
         return out
     }
@@ -78,18 +85,23 @@ public class UmfpackFactorization internal constructor(
      */
     override fun determinant(): Double {
         if (singular) return 0.0
-        Arena.ofConfined().use { scratch ->
-            val mx = scratch.allocate(JAVA_DOUBLE)
-            val ex = scratch.allocate(JAVA_DOUBLE)
-            val info = scratch.allocate(JAVA_DOUBLE, INFO.toLong())
-            val status = UmfpackCalls.determinant(
-                mx,
-                ex,
-                handles.numericHolder.get(ADDRESS, 0),
-                info,
-            )
-            check(status == OK) { "umfpack_di_get_determinant failed with status $status" }
-            return mx.get(JAVA_DOUBLE, 0) * 10.0.pow(ex.get(JAVA_DOUBLE, 0))
+        // Fenced for the reason [solveInto] gives.
+        try {
+            Arena.ofConfined().use { scratch ->
+                val mx = scratch.allocate(JAVA_DOUBLE)
+                val ex = scratch.allocate(JAVA_DOUBLE)
+                val info = scratch.allocate(JAVA_DOUBLE, INFO.toLong())
+                val status = UmfpackCalls.determinant(
+                    mx,
+                    ex,
+                    handles.numericHolder.get(ADDRESS, 0),
+                    info,
+                )
+                check(status == OK) { "umfpack_di_get_determinant failed with status $status" }
+                return mx.get(JAVA_DOUBLE, 0) * 10.0.pow(ex.get(JAVA_DOUBLE, 0))
+            }
+        } finally {
+            Reference.reachabilityFence(this)
         }
     }
 
