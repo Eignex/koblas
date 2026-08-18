@@ -1,7 +1,7 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.DenseVector
-import com.eignex.koblas.SparseVector
+import com.eignex.koblas.F64DenseVector
+import com.eignex.koblas.F64SparseVector
 import com.eignex.koblas.asum
 import com.eignex.koblas.axpy
 import com.eignex.koblas.dot
@@ -23,16 +23,16 @@ class SparseLevel1Benchmark {
     @Param("0.001", "0.01", "0.1")
     var density: Double = 0.0
 
-    private lateinit var sparse: SparseVector
-    private lateinit var other: SparseVector
-    private lateinit var dense: DenseVector
+    private lateinit var sparse: F64SparseVector
+    private lateinit var other: F64SparseVector
+    private lateinit var dense: F64DenseVector
 
     @Setup
     fun setup() {
         val rng = benchRng()
         sparse = randomSparseVector(len, density, rng)
         other = randomSparseVector(len, density, rng)
-        dense = DenseVector.of(randomVector(len, rng))
+        dense = F64DenseVector.of(randomVector(len, rng))
     }
 
     /** Both operands sparse, which walks the two index lists in step. */

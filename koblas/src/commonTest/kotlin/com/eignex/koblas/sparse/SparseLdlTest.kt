@@ -1,7 +1,7 @@
 package com.eignex.koblas.sparse
 
+import com.eignex.koblas.F64SparseMatrix
 import com.eignex.koblas.NotPositiveDefinite
-import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.randomVector
 import kotlin.math.abs
@@ -13,7 +13,7 @@ import kotlin.test.assertTrue
 
 class SparseLdlTest {
 
-    private fun spd(n: Int, rng: Random, density: Double = 0.2): SparseMatrix {
+    private fun spd(n: Int, rng: Random, density: Double = 0.2): F64SparseMatrix {
         val entries = Array(n) { HashMap<Int, Double>() }
         for (i in 0 until n) entries[i][i] = n.toDouble()
         for (i in 0 until n) {
@@ -25,7 +25,7 @@ class SparseLdlTest {
                 }
             }
         }
-        return SparseMatrix.ofColumns(n, n, List(n) { j -> entries[j].map { (i, v) -> i to v } })
+        return F64SparseMatrix.ofColumns(n, n, List(n) { j -> entries[j].map { (i, v) -> i to v } })
     }
 
     @Test
@@ -68,7 +68,7 @@ class SparseLdlTest {
 
     @Test
     fun `an indefinite matrix factors under the indefinite policy and not under strict`() {
-        val a = SparseMatrix.ofColumns(
+        val a = F64SparseMatrix.ofColumns(
             2,
             2,
             listOf(listOf(0 to 1.0, 1 to 2.0), listOf(0 to 2.0, 1 to 1.0)),
@@ -84,7 +84,7 @@ class SparseLdlTest {
 
     @Test
     fun `regularize floors a pivot that strict would reject`() {
-        val a = SparseMatrix.ofColumns(
+        val a = F64SparseMatrix.ofColumns(
             2,
             2,
             listOf(listOf(0 to 1.0), listOf(1 to -0.5)),
@@ -97,7 +97,7 @@ class SparseLdlTest {
 
     @Test
     fun `a zero pivot is singular under the indefinite policy`() {
-        val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf()))
+        val a = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf()))
         val f = a.ldl(SparseLdlPolicy.Indefinite)
         assertTrue(f.singular, "a zero column is singular")
         assertEquals(1, f.failedAt, "the second pivot is the one that failed")
@@ -106,7 +106,7 @@ class SparseLdlTest {
 
     @Test
     fun `regularize floors an exact zero pivot instead of reporting singularity`() {
-        val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf()))
+        val a = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf()))
         val f = a.ldl(SparseLdlPolicy.Regularize(minimumPivot = 1e-8))
         assertTrue(!f.singular, "a floored zero pivot must produce a usable factorization")
         assertClose(1e-8, f.determinant(), "det is 1 · the floored pivot", tolerance = 1e-20)
@@ -116,7 +116,7 @@ class SparseLdlTest {
 
     @Test
     fun `regularize floors a zero pivot at the head of the matrix too`() {
-        val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(), listOf(1 to 1.0)))
+        val a = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(), listOf(1 to 1.0)))
         val f = SparseSymbolic.analyze(a, SparseOrdering.Natural).factorLdl(a, SparseLdlPolicy.Regularize(1e-10))
         assertTrue(!f.singular, "the leading zero pivot must be floored")
         assertClose(1e-10, f.determinant(), "det is the floored pivot · 1", tolerance = 1e-22)
@@ -134,7 +134,7 @@ class SparseLdlTest {
         val rng = Random(20260812)
         val first = spd(24, rng)
         val symbolic = first.analyze()
-        val second = SparseMatrix(
+        val second = F64SparseMatrix(
             first.rows,
             first.cols,
             first.colPtr.copyOf(),
@@ -150,8 +150,8 @@ class SparseLdlTest {
 
     @Test
     fun `a matrix outside the analysed pattern is rejected rather than silently truncated`() {
-        val sparse = SparseMatrix.ofColumns(3, 3, listOf(listOf(0 to 4.0), listOf(1 to 4.0), listOf(2 to 4.0)))
-        val denser = SparseMatrix.ofColumns(
+        val sparse = F64SparseMatrix.ofColumns(3, 3, listOf(listOf(0 to 4.0), listOf(1 to 4.0), listOf(2 to 4.0)))
+        val denser = F64SparseMatrix.ofColumns(
             3,
             3,
             listOf(listOf(0 to 4.0, 1 to 1.0), listOf(0 to 1.0, 1 to 4.0), listOf(2 to 4.0)),
@@ -161,13 +161,13 @@ class SparseLdlTest {
 
     @Test
     fun `a lower-only matrix is rejected instead of analysed as diagonal`() {
-        val lowerOnly = SparseMatrix.ofColumns(
+        val lowerOnly = F64SparseMatrix.ofColumns(
             2,
             2,
             listOf(listOf(0 to 4.0, 1 to 1.0), listOf(1 to 4.0)),
         )
         assertFailsWith<IllegalArgumentException> { lowerOnly.analyze() }
-        val full = SparseMatrix.ofColumns(
+        val full = F64SparseMatrix.ofColumns(
             2,
             2,
             listOf(listOf(0 to 4.0, 1 to 1.0), listOf(0 to 1.0, 1 to 4.0)),
@@ -193,7 +193,7 @@ class SparseLdlTest {
                 assertTrue(abs(s - expected) < 1e-9, "L·Lᵀ differs from P·A·Pᵀ at ($i,$j): $s vs $expected")
             }
         }
-        val indefinite = SparseMatrix.ofColumns(
+        val indefinite = F64SparseMatrix.ofColumns(
             2,
             2,
             listOf(listOf(0 to 1.0, 1 to 2.0), listOf(0 to 2.0, 1 to 1.0)),
@@ -211,7 +211,7 @@ class SparseLdlTest {
                 if (j < n - 1) add(j + 1 to -1.0)
             }
         }
-        val a = SparseMatrix.ofColumns(n, n, columns)
+        val a = F64SparseMatrix.ofColumns(n, n, columns)
         val symbolic = a.analyze()
         assertEquals(n - 1, symbolic.nnz, "a tridiagonal L holds exactly one subdiagonal")
         val f = a.cholesky()
@@ -221,7 +221,7 @@ class SparseLdlTest {
 
     @Test
     fun `a non-square matrix is rejected`() {
-        val a = SparseMatrix.ofColumns(2, 3, listOf(listOf(0 to 1.0), listOf(1 to 1.0), listOf(0 to 1.0)))
+        val a = F64SparseMatrix.ofColumns(2, 3, listOf(listOf(0 to 1.0), listOf(1 to 1.0), listOf(0 to 1.0)))
         assertFailsWith<IllegalArgumentException> { a.analyze() }
         assertFailsWith<IllegalArgumentException> { a.ldl() }
     }

@@ -1,6 +1,6 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.koblas
@@ -28,7 +28,7 @@ class LinearAlgebraLdlTest {
 
     @Test
     fun `zero diagonal forces a two-by-two pivot`() {
-        val a = DenseMatrix(2)
+        val a = F64DenseMatrix(2)
         a[1, 0] = 1.0
         a[0, 1] = Double.NaN
         val f = koblas.ldl(a)
@@ -42,7 +42,7 @@ class LinearAlgebraLdlTest {
     fun `spd matrices agree with the Cholesky solve`() {
         val rng = Random(20260931)
         val n = 9
-        val a = DenseMatrix(n)
+        val a = F64DenseMatrix(n)
         for (i in 0 until n) {
             for (j in 0..i) {
                 val v = rng.nextDouble(-1.0, 1.0) + if (i == j) n.toDouble() else 0.0
@@ -58,11 +58,11 @@ class LinearAlgebraLdlTest {
 
     @Test
     fun `singular and empty conventions`() {
-        assertTrue(koblas.ldl(DenseMatrix(3, 3)).singular)
-        val empty = koblas.ldl(DenseMatrix(0, 0))
+        assertTrue(koblas.ldl(F64DenseMatrix(3, 3)).singular)
+        val empty = koblas.ldl(F64DenseMatrix(0, 0))
         assertTrue(!empty.singular)
         assertTrue(koblas.solve(empty, DoubleArray(0)).isEmpty())
-        assertEquals(0, koblas.ldl(DenseMatrix(3, 3)).failedAt, "the first of three zero pivots")
+        assertEquals(0, koblas.ldl(F64DenseMatrix(3, 3)).failedAt, "the first of three zero pivots")
         assertEquals(NOT_SINGULAR, empty.failedAt)
     }
 }

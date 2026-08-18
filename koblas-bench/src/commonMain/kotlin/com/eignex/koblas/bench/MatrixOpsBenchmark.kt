@@ -1,6 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.norm1
 import com.eignex.koblas.normFro
 import com.eignex.koblas.normInf
@@ -21,7 +21,7 @@ class MatrixOpsBenchmark {
     @Param("64", "256", "1024")
     var n: Int = 0
 
-    private lateinit var a: DenseMatrix
+    private lateinit var a: F64DenseMatrix
     private lateinit var factors: DoubleArray
 
     @Setup
@@ -43,17 +43,17 @@ class MatrixOpsBenchmark {
     fun normFro(): Double = normFro(a)
 
     @Benchmark
-    fun scaleRowsBench(): DenseMatrix {
+    fun scaleRowsBench(): F64DenseMatrix {
         scaleRows(a, factors)
         return a
     }
 
     @Benchmark
-    fun scaleColumnsBench(): DenseMatrix {
+    fun scaleColumnsBench(): F64DenseMatrix {
         scaleColumns(a, factors)
         return a
     }
 
     @Benchmark
-    fun transposeDense(): DenseMatrix = a.transpose()
+    fun transposeDense(): F64DenseMatrix = a.transpose()
 }

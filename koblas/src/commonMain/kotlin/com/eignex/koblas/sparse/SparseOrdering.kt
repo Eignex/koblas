@@ -1,6 +1,6 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.F64SparseMatrix
 
 /** Which fill-reducing ordering a sparse factorization applies. */
 public enum class SparseOrdering {
@@ -18,7 +18,7 @@ public enum class SparseOrdering {
  * A fill-reducing permutation by minimum degree over the quotient graph. Takes the pattern of `A + Aᵀ`, so
  * it does not care which triangles are stored, and returns the index eliminated at each step.
  */
-internal fun minimumDegreeOrdering(a: SparseMatrix): IntArray {
+internal fun minimumDegreeOrdering(a: F64SparseMatrix): IntArray {
     val n = a.rows
     if (n == 0) return IntArray(0)
     return QuotientGraph(a, n).eliminate()
@@ -29,7 +29,7 @@ internal fun minimumDegreeOrdering(a: SparseMatrix): IntArray {
  * elements earlier pivots left behind. Every structure is a primitive array, each step reads only the
  * pivot's own neighbourhood, and the degrees it invalidates are the only ones rescored.
  */
-private class QuotientGraph(a: SparseMatrix, private val n: Int) {
+private class QuotientGraph(a: F64SparseMatrix, private val n: Int) {
     /** Direct variable-to-variable edges, [varAdjLen] long and shrinking as elements absorb them. */
     private val varAdj: Array<IntArray>
     private val varAdjLen = IntArray(n)
@@ -207,7 +207,7 @@ private class QuotientGraph(a: SparseMatrix, private val n: Int) {
  * The upper triangle of `P·A·Pᵀ`, the matrix a permuted factorization eliminates. Reads only A's upper
  * triangle and maps each entry to whichever side of the permuted diagonal it lands on, so none is doubled.
  */
-internal fun permutedUpperTriangle(a: SparseMatrix, inversePermutation: IntArray): SparseMatrix {
+internal fun permutedUpperTriangle(a: F64SparseMatrix, inversePermutation: IntArray): F64SparseMatrix {
     val n = a.rows
     var nnz = 0
     for (j in 0 until n) a.forEachInColumn(j) { i, _ -> if (i <= j) nnz++ }
@@ -227,5 +227,5 @@ internal fun permutedUpperTriangle(a: SparseMatrix, inversePermutation: IntArray
             }
         }
     }
-    return SparseMatrix.ofTriplets(n, n, rowIdx, colIdx, values)
+    return F64SparseMatrix.ofTriplets(n, n, rowIdx, colIdx, values)
 }

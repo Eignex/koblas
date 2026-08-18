@@ -1,7 +1,7 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DimensionMismatch
+import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.koblas
 import com.eignex.koblas.randomMatrix
@@ -85,7 +85,7 @@ class LinearAlgebraQrTest {
             val x = koblas.solveMinimumNorm(koblas.qr(a.transpose()), b)
             assertClose(b, koblas.gemv(a, x), "residual ${m}x$n", tolerance = 1e-11)
             // The minimum-norm solution is the pseudoinverse solution At (A At)^-1 b.
-            val g = DenseMatrix(m, m)
+            val g = F64DenseMatrix(m, m)
             koblas.syrk(1.0, a, transpose = false, beta = 0.0, c = g)
             val z = koblas.solve(koblas.factor(g), b)
             val expected = koblas.gemv(a, z, transpose = true)
@@ -106,10 +106,10 @@ class LinearAlgebraQrTest {
 
     @Test
     fun `degenerate shapes and wide rejection`() {
-        val empty = koblas.qr(DenseMatrix(0, 0))
+        val empty = koblas.qr(F64DenseMatrix(0, 0))
         assertTrue(koblas.applyQ(empty, DoubleArray(0)).isEmpty())
         assertTrue(koblas.solveLeastSquares(empty, DoubleArray(0)).isEmpty())
-        val wide = koblas.qr(DenseMatrix(2, 4))
+        val wide = koblas.qr(F64DenseMatrix(2, 4))
         assertFailsWith<DimensionMismatch> { koblas.solveLeastSquares(wide, DoubleArray(2)) }
         assertFailsWith<DimensionMismatch> { koblas.solveMinimumNorm(wide, DoubleArray(4)) }
     }

@@ -1,6 +1,6 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.koblas
 import kotlin.math.abs
@@ -16,9 +16,9 @@ import kotlin.test.assertTrue
 class LinearAlgebraLdlPivotingTest {
 
     /** Symmetric with a [diagonalScale] diagonal against unit off-diagonals, poisoned above the diagonal. */
-    private fun poisoned(rng: Random, n: Int, diagonalScale: Double): Pair<DenseMatrix, DenseMatrix> {
-        val full = DenseMatrix(n)
-        val lowerOnly = DenseMatrix(n)
+    private fun poisoned(rng: Random, n: Int, diagonalScale: Double): Pair<F64DenseMatrix, F64DenseMatrix> {
+        val full = F64DenseMatrix(n)
+        val lowerOnly = F64DenseMatrix(n)
         for (i in 0 until n) {
             for (j in 0..i) {
                 val v = if (i == j) diagonalScale * rng.nextDouble(-1.0, 1.0) else rng.nextDouble(-1.0, 1.0)
@@ -46,7 +46,7 @@ class LinearAlgebraLdlPivotingTest {
         return blocks
     }
 
-    private fun residual(a: DenseMatrix, x: DoubleArray, b: DoubleArray): Double {
+    private fun residual(a: F64DenseMatrix, x: DoubleArray, b: DoubleArray): Double {
         val ax = koblas.gemv(a, x)
         var worst = 0.0
         for (i in b.indices) worst = maxOf(worst, abs(ax[i] - b[i]))
@@ -107,8 +107,8 @@ class LinearAlgebraLdlPivotingTest {
     @Test
     fun `a pivot far below the diagonal interchanges correctly`() {
         val n = 5
-        val full = DenseMatrix(n)
-        val lowerOnly = DenseMatrix(n)
+        val full = F64DenseMatrix(n)
+        val lowerOnly = F64DenseMatrix(n)
         // Zero diagonal, and column 0's only large entry is in the last row, so the pivot comes from there.
         for (i in 0 until n) {
             for (j in 0..i) {
@@ -139,7 +139,7 @@ class LinearAlgebraLdlPivotingTest {
         val (_, lowerOnly) = poisoned(rng, n, diagonalScale = 0.0)
         val f = koblas.ldl(lowerOnly)
         assertTrue(twoByTwoBlocks(f.ipiv) > 0, "expected a 2x2 block")
-        val b = DenseMatrix(n, nrhs)
+        val b = F64DenseMatrix(n, nrhs)
         for (idx in b.data.indices) b.data[idx] = rng.nextDouble(-1.0, 1.0)
         val block = koblas.solve(f, b)
         for (c in 0 until nrhs) {

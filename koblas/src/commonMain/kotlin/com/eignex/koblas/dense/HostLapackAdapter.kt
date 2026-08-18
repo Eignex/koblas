@@ -2,7 +2,7 @@
 
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.dense.Cblas.COL_MAJOR
@@ -46,9 +46,9 @@ public abstract class HostLapackAdapter internal constructor(
     // No host binding for these, so they run the portable versions. Forwarded explicitly rather than by
     // class delegation, which would route a caller's convenience overloads to the portable routine instead
     // of the accelerated one, since a delegated member calls back into the delegate.
-    override fun invert(lu: LuDecomposition, workspace: Workspace?): DenseMatrix = portable.invert(lu, workspace)
+    override fun invert(lu: LuDecomposition, workspace: Workspace?): F64DenseMatrix = portable.invert(lu, workspace)
 
-    override fun trtri(a: DenseMatrix, lower: Boolean, unitDiag: Boolean): DenseMatrix =
+    override fun trtri(a: F64DenseMatrix, lower: Boolean, unitDiag: Boolean): F64DenseMatrix =
         portable.trtri(a, lower, unitDiag)
 
     override fun solveLeastSquaresInto(
@@ -81,7 +81,7 @@ public abstract class HostLapackAdapter internal constructor(
     /** Dimension from which `dpotri` takes over the SPD inverse. */
     protected open val spdInvertMin: Int get() = 0
 
-    override fun factor(a: DenseMatrix): LuDecomposition {
+    override fun factor(a: F64DenseMatrix): LuDecomposition {
         if (a.rows < dispatchThresholds.lapack) return portable.factor(a)
         requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
         val n = a.rows
@@ -89,7 +89,7 @@ public abstract class HostLapackAdapter internal constructor(
     }
 
     /** `dgetrf` works in place, so [out]'s buffers take the copy of [a] and the factorization overwrites it. */
-    override fun factorInto(a: DenseMatrix, out: LuDecomposition): LuDecomposition {
+    override fun factorInto(a: F64DenseMatrix, out: LuDecomposition): LuDecomposition {
         requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
         requireShape(out.n == a.rows) { "factorInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}" }
         if (a.rows < dispatchThresholds.lapack) return portable.factorInto(a, out)
@@ -129,11 +129,11 @@ public abstract class HostLapackAdapter internal constructor(
     @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
     override fun solveInto(
         lu: LuDecomposition,
-        b: DenseMatrix,
-        out: DenseMatrix,
+        b: F64DenseMatrix,
+        out: F64DenseMatrix,
         transpose: Boolean,
         workspace: Workspace?,
-    ): DenseMatrix {
+    ): F64DenseMatrix {
         requireFactored(lu.failedAt, "solve")
         val n = lu.n
         val nrhs = b.cols
@@ -167,11 +167,11 @@ public abstract class HostLapackAdapter internal constructor(
     @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
     private fun solveColumnByColumn(
         lu: LuDecomposition,
-        b: DenseMatrix,
-        out: DenseMatrix,
+        b: F64DenseMatrix,
+        out: F64DenseMatrix,
         transpose: Boolean,
         workspace: Workspace?,
-    ): DenseMatrix = solveColumnwise(b, out, lu.n, b.cols, workspace) { col, dst ->
+    ): F64DenseMatrix = solveColumnwise(b, out, lu.n, b.cols, workspace) { col, dst ->
         solveInto(lu, col, dst, transpose, workspace)
     }
 
@@ -181,7 +181,7 @@ public abstract class HostLapackAdapter internal constructor(
         blas.dtrsm(COL_MAJOR, LEFT, uplo, trans, diag, n, nrhs, 1.0, factor, n, x, n)
     }
 
-    override fun ldl(a: DenseMatrix, workspace: Workspace?): LdlDecomposition {
+    override fun ldl(a: F64DenseMatrix, workspace: Workspace?): LdlDecomposition {
         if (a.rows < dispatchThresholds.lapack) return portable.ldl(a, workspace)
         requireShape(a.rows == a.cols) { "ldl: matrix must be square, got ${a.rows}x${a.cols}" }
         val n = a.rows
@@ -200,10 +200,10 @@ public abstract class HostLapackAdapter internal constructor(
     /** Native only from [nativeTrsmMinRhs] columns, as for the LU multi-RHS solve above. */
     override fun solveInto(
         ldl: LdlDecomposition,
-        b: DenseMatrix,
-        out: DenseMatrix,
+        b: F64DenseMatrix,
+        out: F64DenseMatrix,
         workspace: Workspace?,
-    ): DenseMatrix {
+    ): F64DenseMatrix {
         requireFactored(ldl.failedAt, "solve")
         if (b.cols < nativeTrsmMinRhs) return portable.solveInto(ldl, b, out, workspace)
         val n = ldl.n
@@ -217,7 +217,7 @@ public abstract class HostLapackAdapter internal constructor(
         return out
     }
 
-    override fun qr(a: DenseMatrix, workspace: Workspace?): QrDecomposition {
+    override fun qr(a: F64DenseMatrix, workspace: Workspace?): QrDecomposition {
         if (minOf(a.rows, a.cols) < dispatchThresholds.lapack) return portable.qr(a, workspace)
         val m = a.rows
         val n = a.cols
@@ -257,12 +257,12 @@ public abstract class HostLapackAdapter internal constructor(
      * Clears the upper triangle LAPACK leaves untouched, reads only the lower triangle of the input, and
      * falls back to the portable path on a positive info, which [CholeskyPolicy.Regularize] needs.
      */
-    override fun cholesky(a: DenseMatrix, policy: CholeskyPolicy): CholeskyDecomposition {
+    override fun cholesky(a: F64DenseMatrix, policy: CholeskyPolicy): CholeskyDecomposition {
         if (a.rows < choleskyMin) return portable.cholesky(a, policy)
         requireSquare(a, "cholesky")
         val n = a.rows
-        if (n == 0) return CholeskyDecomposition(DenseMatrix(0, 0))
-        val l = DenseMatrix(n, n)
+        if (n == 0) return CholeskyDecomposition(F64DenseMatrix(0, 0))
+        val l = F64DenseMatrix(n, n)
         // One bulk copy per column of the lower triangle; dpotrf reads no further.
         for (j in 0 until n) a.data.copyInto(l.data, j + j * n, j + j * n, (j + 1) * n)
         val info = f.dpotrf(COL_MAJOR, LOWER_UPLO, n, l.data, n)
@@ -276,11 +276,11 @@ public abstract class HostLapackAdapter internal constructor(
      * dpotri writes only the triangle it is given, so the result is mirrored, and it overwrites the factor,
      * so the factor is copied first.
      */
-    override fun invert(chol: CholeskyDecomposition, workspace: Workspace?): DenseMatrix {
+    override fun invert(chol: CholeskyDecomposition, workspace: Workspace?): F64DenseMatrix {
         if (chol.n < spdInvertMin) return portable.invert(chol, workspace)
         val n = chol.n
-        if (n == 0) return DenseMatrix(0, 0)
-        val inv = DenseMatrix(n, n, chol.l.data.copyOf())
+        if (n == 0) return F64DenseMatrix(0, 0)
+        val inv = F64DenseMatrix(n, n, chol.l.data.copyOf())
         val info = f.dpotri(COL_MAJOR, LOWER_UPLO, n, inv.data, n)
         check(info >= 0) { "dpotri: illegal argument ${-info}" }
         check(info == 0) { "dpotri: zero diagonal at $info, the factor is singular" }

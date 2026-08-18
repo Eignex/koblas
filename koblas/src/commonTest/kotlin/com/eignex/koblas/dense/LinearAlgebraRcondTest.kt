@@ -1,6 +1,6 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.koblas
 import com.eignex.koblas.norm1
 import com.eignex.koblas.wellConditioned
@@ -14,7 +14,7 @@ class LinearAlgebraRcondTest {
 
     @Test
     fun `identity has rcond one and norm1 one`() {
-        val a = DenseMatrix.diagonal(5)
+        val a = F64DenseMatrix.diagonal(5)
         assertEquals(1.0, norm1(a), 1e-15)
         assertEquals(1.0, koblas.rcond(a.lu(), norm1(a)), 1e-12)
     }
@@ -22,7 +22,7 @@ class LinearAlgebraRcondTest {
     @Test
     fun `diagonal matrix estimate is exact`() {
         // For diag(1, 1e-6) the 1-norm is 1 and the inverse 1-norm is 1e6, so rcond is 1e-6.
-        val a = DenseMatrix(2)
+        val a = F64DenseMatrix(2)
         a[0, 0] = 1.0
         a[1, 1] = 1e-6
         val rc = koblas.rcond(a.lu(), norm1(a))
@@ -31,11 +31,11 @@ class LinearAlgebraRcondTest {
 
     @Test
     fun `singular and degenerate conventions`() {
-        val singular = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 4.0)))
+        val singular = F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 4.0)))
         assertEquals(0.0, koblas.rcond(singular.lu(), norm1(singular)))
-        val regular = DenseMatrix.diagonal(2)
+        val regular = F64DenseMatrix.diagonal(2)
         assertEquals(0.0, koblas.rcond(regular.lu(), 0.0))
-        assertEquals(1.0, koblas.rcond(DenseMatrix(0, 0).lu(), 0.0))
+        assertEquals(1.0, koblas.rcond(F64DenseMatrix(0, 0).lu(), 0.0))
     }
 
     @Test
@@ -66,7 +66,7 @@ class LinearAlgebraRcondTest {
         val rng = Random(20260902)
         val n = 6
         val a = wellConditioned(n, rng)
-        val scaled = DenseMatrix(n)
+        val scaled = F64DenseMatrix(n)
         for (i in 0 until n) for (j in 0 until n) scaled[i, j] = 8.0 * a[i, j]
         val rc = koblas.rcond(a.lu(), norm1(a))
         val rcScaled = koblas.rcond(scaled.lu(), norm1(scaled))

@@ -1,6 +1,6 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.F64SparseMatrix
 import com.eignex.koblas.requireSquare
 
 /**
@@ -33,18 +33,21 @@ public class SparseSymbolic internal constructor(
      * Factorize [a] numerically against this analysis as `A = L·D·Lᵀ` with L unit lower triangular. [a] must
      * carry exactly the analysed pattern, structural zeros included, which is checked.
      */
-    public fun factorLdl(a: SparseMatrix, policy: SparseLdlPolicy = SparseLdlPolicy.Strict): SparseFactorization =
+    public fun factorLdl(a: F64SparseMatrix, policy: SparseLdlPolicy = SparseLdlPolicy.Strict): SparseFactorization =
         numericLdl(a, this, policy)
 
     /** Whether [a] carries exactly the analysed pattern. Compares the CSC index arrays, not the values. */
-    internal fun describesPatternOf(a: SparseMatrix): Boolean = a.rows == n && a.cols == n &&
+    internal fun describesPatternOf(a: F64SparseMatrix): Boolean = a.rows == n && a.cols == n &&
         a.colPtr.contentEquals(analysedColumnStarts) &&
         a.rowIdx.contentEquals(analysedRowIndices)
 
     /** Entry point for the symbolic analysis. */
     public companion object {
         /** Analyse [a]'s pattern, the elimination tree first and then the column counts of L. */
-        public fun analyze(a: SparseMatrix, ordering: SparseOrdering = SparseOrdering.MinimumDegree): SparseSymbolic {
+        public fun analyze(
+            a: F64SparseMatrix,
+            ordering: SparseOrdering = SparseOrdering.MinimumDegree,
+        ): SparseSymbolic {
             requireSquare(a, "symbolic analysis")
             requireUpperTriangleStored(a)
             val n = a.rows
@@ -66,7 +69,7 @@ public class SparseSymbolic internal constructor(
          * Rejects a lower-only matrix, which the analysis reading rows `i ≤ j` of column j would see as
          * diagonal and factor into something that solves nothing. Full and upper-only both pass.
          */
-        private fun requireUpperTriangleStored(a: SparseMatrix) {
+        private fun requireUpperTriangleStored(a: F64SparseMatrix) {
             var strictUpper = 0
             var strictLower = 0
             for (j in 0 until a.cols) {
@@ -86,7 +89,7 @@ public class SparseSymbolic internal constructor(
          * The elimination tree of a symmetric pattern. Each column k walks upward from every row `i < k` it
          * holds, redirecting the ancestor pointers it passes to k.
          */
-        private fun eliminationTree(a: SparseMatrix, n: Int): IntArray {
+        private fun eliminationTree(a: F64SparseMatrix, n: Int): IntArray {
             val parent = IntArray(n) { -1 }
             val ancestor = IntArray(n) { -1 }
             for (k in 0 until n) {
@@ -107,7 +110,7 @@ public class SparseSymbolic internal constructor(
          * How many entries each column of L will hold. For column k, every row `i < k` climbs to the first
          * already-visited ancestor and each node passed gains an entry in its own column.
          */
-        private fun columnCounts(a: SparseMatrix, n: Int, parent: IntArray): IntArray {
+        private fun columnCounts(a: F64SparseMatrix, n: Int, parent: IntArray): IntArray {
             val counts = IntArray(n)
             val flag = IntArray(n) { -1 }
             for (k in 0 until n) {

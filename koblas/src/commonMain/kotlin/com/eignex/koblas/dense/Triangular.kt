@@ -2,7 +2,7 @@
 
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.koblas
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.requireSquare
@@ -10,7 +10,7 @@ import com.eignex.koblas.requireSquare
 /** Solve `op(T) · x = b` in place (BLAS `dtrsv`); see [LinearAlgebra.trsv]. Reads only the triangle [lower]
  *  selects, and does not check the diagonal, so a singular triangle yields infinities or NaNs. */
 public fun trsv(
-    a: DenseMatrix,
+    a: F64DenseMatrix,
     x: DoubleArray,
     lower: Boolean,
     transpose: Boolean = false,
@@ -21,8 +21,8 @@ public fun trsv(
  *  only the triangle [lower] selects, and a singular triangle yields infinities or NaNs. */
 @Suppress("LongParameterList") // the BLAS dtrsm signature
 public fun trsm(
-    a: DenseMatrix,
-    b: DenseMatrix,
+    a: F64DenseMatrix,
+    b: F64DenseMatrix,
     lower: Boolean,
     transpose: Boolean = false,
     unitDiag: Boolean = false,
@@ -32,7 +32,7 @@ public fun trsm(
 /** Multiply `x = op(T) · x` in place (BLAS `dtrmv`); see [LinearAlgebra.trmv]. Reads only the triangle
  *  [lower] selects. */
 public fun trmv(
-    a: DenseMatrix,
+    a: F64DenseMatrix,
     x: DoubleArray,
     lower: Boolean,
     transpose: Boolean = false,
@@ -43,8 +43,8 @@ public fun trmv(
  *  Reads only the triangle [lower] selects. */
 @Suppress("LongParameterList") // the BLAS dtrmm signature
 public fun trmm(
-    a: DenseMatrix,
-    b: DenseMatrix,
+    a: F64DenseMatrix,
+    b: F64DenseMatrix,
     lower: Boolean,
     transpose: Boolean = false,
     unitDiag: Boolean = false,
@@ -53,7 +53,7 @@ public fun trmm(
 
 /** Stages each row of [b] through a scratch vector and applies [op] to it, with the transpose flag
  *  flipped. */
-internal inline fun forEachRow(n: Int, b: DenseMatrix, op: (DoubleArray) -> Unit) {
+internal inline fun forEachRow(n: Int, b: F64DenseMatrix, op: (DoubleArray) -> Unit) {
     if (n == 0) return
     val rows = b.rows
     val bd = b.data
@@ -184,7 +184,7 @@ internal fun trsvCore(
 @Suppress("LongParameterList") // the shared BLAS signature plus the entry-point flag
 internal fun triangularVector(
     k: VectorKernels,
-    a: DenseMatrix,
+    a: F64DenseMatrix,
     x: DoubleArray,
     lower: Boolean,
     transpose: Boolean,
@@ -210,8 +210,8 @@ internal fun triangularVector(
 @Suppress("LongParameterList") // the shared BLAS signature plus the entry-point flag
 internal fun triangularMatrix(
     k: VectorKernels,
-    a: DenseMatrix,
-    b: DenseMatrix,
+    a: F64DenseMatrix,
+    b: F64DenseMatrix,
     lower: Boolean,
     transpose: Boolean,
     unitDiag: Boolean,
@@ -257,7 +257,7 @@ internal fun trsmCore(
 }
 
 /** Invert the [lower] or upper triangle of [a] (LAPACK `dtrtri`); see [LinearAlgebra.trtri]. */
-public fun trtri(a: DenseMatrix, lower: Boolean, unitDiag: Boolean = false): DenseMatrix = koblas.trtri(
+public fun trtri(a: F64DenseMatrix, lower: Boolean, unitDiag: Boolean = false): F64DenseMatrix = koblas.trtri(
     a,
     lower,
     unitDiag,

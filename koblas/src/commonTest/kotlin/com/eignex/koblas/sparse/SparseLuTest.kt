@@ -1,7 +1,7 @@
 package com.eignex.koblas.sparse
 
+import com.eignex.koblas.F64SparseMatrix
 import com.eignex.koblas.SingularMatrix
-import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.koblas
 import com.eignex.koblas.randomVector
@@ -15,25 +15,30 @@ import kotlin.test.assertTrue
 
 class SparseLuTest {
 
-    private fun square(vararg rows: DoubleArray): SparseMatrix {
+    private fun square(vararg rows: DoubleArray): F64SparseMatrix {
         val n = rows.size
         val cols = List(n) { j -> (0 until n).mapNotNull { i -> if (rows[i][j] != 0.0) i to rows[i][j] else null } }
-        return SparseMatrix.ofColumns(n, n, cols)
+        return F64SparseMatrix.ofColumns(n, n, cols)
     }
 
-    private fun randomSparseSquare(n: Int, rng: Random, density: Double = 0.3, dominance: Double = 5.0): SparseMatrix {
+    private fun randomSparseSquare(
+        n: Int,
+        rng: Random,
+        density: Double = 0.3,
+        dominance: Double = 5.0,
+    ): F64SparseMatrix {
         val columns = List(n) { j ->
             val entries = ArrayList<Pair<Int, Double>>()
             entries.add(j to (rng.nextDouble(-2.0, 2.0) + n * dominance))
             for (i in 0 until n) if (i != j && rng.nextDouble() < density) entries.add(i to rng.nextDouble(-2.0, 2.0))
             entries
         }
-        return SparseMatrix.ofColumns(n, n, columns)
+        return F64SparseMatrix.ofColumns(n, n, columns)
     }
 
     @Test
     fun `the seam solves from a factorization the way the dense side does`() {
-        val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0, 1 to 1.0), listOf(0 to 1.0, 1 to 3.0)))
+        val a = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0, 1 to 1.0), listOf(0 to 1.0, 1 to 3.0)))
         val f = a.lu()
         val b = doubleArrayOf(3.0, 4.0)
         assertClose(f.solve(b), koblas.solve(f, b), "seam solve", tolerance = 1e-12)
@@ -114,7 +119,7 @@ class SparseLuTest {
     fun `a singular matrix factors to a singular factorization`() {
         // A column of zeros and a duplicated column, neither with a full set of acceptable pivots.
         for (a in listOf(
-            SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf())),
+            F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf())),
             square(doubleArrayOf(1.0, 1.0), doubleArrayOf(2.0, 2.0)),
         )) {
             val f = a.lu()
@@ -127,7 +132,7 @@ class SparseLuTest {
         // The failing pivot position is koblas's own, so this uses the portable factorization. UMFPACK reports only
         // that the matrix is singular, so asserting a position against an installed backend would assert the machine.
         val singular = ReferenceSparseLinearAlgebra.factor(
-            SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf())),
+            F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf())),
         )
         assertTrue(singular is SingularSparseFactorization)
         assertEquals(1, singular.failedAt, "the second pivot is the one with no candidate")
@@ -135,7 +140,7 @@ class SparseLuTest {
 
     @Test
     fun `factorize rejects a non-square matrix`() {
-        val a = SparseMatrix.ofColumns(2, 3, listOf(listOf(0 to 1.0), listOf(1 to 1.0), listOf(0 to 1.0)))
+        val a = F64SparseMatrix.ofColumns(2, 3, listOf(listOf(0 to 1.0), listOf(1 to 1.0), listOf(0 to 1.0)))
         assertFailsWith<IllegalArgumentException> { a.lu() }
     }
 
@@ -147,7 +152,7 @@ class SparseLuTest {
         // These are koblas's own tolerances, so this uses the portable factorization rather than an installed UMFPACK.
         val reference = ReferenceSparseLinearAlgebra.factor(base)
         for (scale in doubleArrayOf(POW_2_MINUS_60, POW_2_60)) {
-            val scaled = SparseMatrix.ofColumns(
+            val scaled = F64SparseMatrix.ofColumns(
                 6,
                 6,
                 List(6) { j -> buildList { base.forEachInColumn(j) { i, v -> add(i to v * scale) } } },
@@ -197,7 +202,7 @@ class SparseLuTest {
         assertClose(doubleArrayOf(1.0, 2.0, 3.0), lu.solve(a.gemv(doubleArrayOf(1.0, 2.0, 3.0))), "solve")
     }
 
-    private fun residualOf(a: SparseMatrix, f: SparseFactorization, rhs: DoubleArray): Double {
+    private fun residualOf(a: F64SparseMatrix, f: SparseFactorization, rhs: DoubleArray): Double {
         val residual = a.gemv(f.solve(rhs))
         var worst = 0.0
         for (i in rhs.indices) worst = maxOf(worst, abs(residual[i] - rhs[i]))

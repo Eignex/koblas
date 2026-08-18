@@ -2,7 +2,7 @@
 
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.NotPositiveDefinite
 import com.eignex.koblas.koblas
 import kotlin.test.Test
@@ -13,7 +13,7 @@ import kotlin.test.assertTrue
 @Suppress("VariableNaming") // single-letter matrix/vector names track math conventions
 class CholeskyTest {
 
-    private fun spdExample() = DenseMatrix.of(
+    private fun spdExample() = F64DenseMatrix.of(
         arrayOf(
             doubleArrayOf(4.0, 2.0, 0.0),
             doubleArrayOf(2.0, 5.0, 1.0),
@@ -22,7 +22,7 @@ class CholeskyTest {
     )
 
     /** Computes `(L Lt)(i, j)` from the stored lower triangle only. */
-    private fun reconstruct(l: DenseMatrix, i: Int, j: Int): Double {
+    private fun reconstruct(l: F64DenseMatrix, i: Int, j: Int): Double {
         var s = 0.0
         for (k in 0..minOf(i, j)) s += l[i, k] * l[j, k]
         return s
@@ -85,7 +85,7 @@ class CholeskyTest {
         val loose = notPositiveDefinite().cholesky(CholeskyPolicy.Regularize(minimumPivot = 4e-4))
         assertEquals(2e-2, loose.l[1, 1], 1e-12, "L's diagonal is the square root of the pivot floor")
 
-        val good = DenseMatrix.of(arrayOf(doubleArrayOf(4.0, 2.0), doubleArrayOf(2.0, 5.0)))
+        val good = F64DenseMatrix.of(arrayOf(doubleArrayOf(4.0, 2.0), doubleArrayOf(2.0, 5.0)))
         val strict = good.cholesky()
         val regularized = good.cholesky(CholeskyPolicy.Regularize())
         for (i in 0 until 2) {
@@ -100,7 +100,7 @@ class CholeskyTest {
         assertFailsWith<IllegalArgumentException> { CholeskyPolicy.Regularize(minimumPivot = Double.NaN) }
     }
 
-    private fun notPositiveDefinite() = DenseMatrix.of(
+    private fun notPositiveDefinite() = F64DenseMatrix.of(
         arrayOf(
             doubleArrayOf(1.0, 0.0),
             doubleArrayOf(0.0, -0.5),
@@ -111,7 +111,7 @@ class CholeskyTest {
     fun `cholesky reads only the lower triangle`() {
         // Values above the diagonal must not reach the factor, so an upper-only caller has to mirror first.
         val a = spdExample()
-        val defaced = DenseMatrix.of(a.toArray())
+        val defaced = F64DenseMatrix.of(a.toArray())
         for (i in 0 until defaced.rows) {
             for (j in i + 1 until defaced.cols) defaced[i, j] = Double.NaN
         }

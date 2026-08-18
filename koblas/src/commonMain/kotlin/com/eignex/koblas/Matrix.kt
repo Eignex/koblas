@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /** Read-only matrix contract. Anything that only reads a matrix should take this. */
-public interface MatrixLike {
+public interface F64MatrixLike {
     /** Number of rows. */
     public val rows: Int
 
@@ -18,9 +18,9 @@ public interface MatrixLike {
     public fun toArray(): Array<DoubleArray>
 }
 
-/** The matrix storages koblas itself defines, [DenseMatrix] and [SparseMatrix]. */
+/** The matrix storages koblas itself defines, [F64DenseMatrix] and [F64SparseMatrix]. */
 @Serializable
-public sealed interface MatrixView : MatrixLike
+public sealed interface F64MatrixView : F64MatrixLike
 
 /**
  * @property rows the number of rows.
@@ -29,11 +29,11 @@ public sealed interface MatrixView : MatrixLike
  */
 @Serializable
 @SerialName("DenseMatrix")
-public class DenseMatrix internal constructor(
+public class F64DenseMatrix internal constructor(
     override val rows: Int,
     override val cols: Int,
     public val data: DoubleArray,
-) : MatrixView {
+) : F64MatrixView {
 
     internal constructor(rows: Int, cols: Int = rows) : this(rows, cols, DoubleArray(entryCount(rows, cols)))
 
@@ -66,7 +66,7 @@ public class DenseMatrix internal constructor(
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (other !is DenseMatrix) return false
+        if (other !is F64DenseMatrix) return false
         return rows == other.rows && cols == other.cols && data.contentEquals(other.data)
     }
     override fun hashCode(): Int {
@@ -74,12 +74,12 @@ public class DenseMatrix internal constructor(
         h = 31 * h + data.contentHashCode()
         return h
     }
-    override fun toString(): String = "DenseMatrix(${rows}x$cols)"
+    override fun toString(): String = "F64DenseMatrix(${rows}x$cols)"
 
     /** Factories for dense matrices. */
     public companion object {
         /** Copy an `Array<DoubleArray>` of rows into a fresh dense matrix, so rows(i) is row i. */
-        public fun of(rows: Array<DoubleArray>): DenseMatrix {
+        public fun of(rows: Array<DoubleArray>): F64DenseMatrix {
             val r = rows.size
             val c = if (r == 0) 0 else rows[0].size
             requireShape(rows.all { it.size == c }) { "all rows must have the same length" }
@@ -88,39 +88,39 @@ public class DenseMatrix internal constructor(
                 val row = rows[i]
                 for (j in 0 until c) flat[i + j * r] = row[j]
             }
-            return DenseMatrix(r, c, flat)
+            return F64DenseMatrix(r, c, flat)
         }
 
         /** Copy an `Array<DoubleArray>` of columns into a fresh dense matrix, so columns(j) is column j. */
-        public fun ofColumns(columns: Array<DoubleArray>): DenseMatrix {
+        public fun ofColumns(columns: Array<DoubleArray>): F64DenseMatrix {
             val c = columns.size
             val r = if (c == 0) 0 else columns[0].size
             requireShape(columns.all { it.size == r }) { "all columns must have the same length" }
             val flat = DoubleArray(entryCount(r, c))
             for (j in 0 until c) columns[j].copyInto(flat, j * r)
-            return DenseMatrix(r, c, flat)
+            return F64DenseMatrix(r, c, flat)
         }
 
         /** Create a zero matrix of shape [rows] x [cols], square when [cols] is omitted. */
-        public fun zero(rows: Int, cols: Int = rows): DenseMatrix = DenseMatrix(rows, cols)
+        public fun zero(rows: Int, cols: Int = rows): F64DenseMatrix = F64DenseMatrix(rows, cols)
 
         /** Create a square identity matrix of the given [size], scaled by [diagonal]. */
-        public fun diagonal(size: Int, diagonal: Double = 1.0): DenseMatrix {
-            val m = DenseMatrix(size, size)
+        public fun diagonal(size: Int, diagonal: Double = 1.0): F64DenseMatrix {
+            val m = F64DenseMatrix(size, size)
             for (i in 0 until size) m[i, i] = diagonal
             return m
         }
 
         /** Create the square matrix whose diagonal is [values]. */
-        public fun diagonal(values: DoubleArray): DenseMatrix {
+        public fun diagonal(values: DoubleArray): F64DenseMatrix {
             val n = values.size
-            val m = DenseMatrix(n, n)
+            val m = F64DenseMatrix(n, n)
             for (i in 0 until n) m.data[i + i * n] = values[i]
             return m
         }
 
         /** Wrap an existing flat `DoubleArray` without copying. The caller relinquishes ownership. */
-        public fun wrap(rows: Int, cols: Int, data: DoubleArray): DenseMatrix = DenseMatrix(rows, cols, data)
+        public fun wrap(rows: Int, cols: Int, data: DoubleArray): F64DenseMatrix = F64DenseMatrix(rows, cols, data)
 
         /** Entry count for a shape, validated first so a negative dimension reports a shape error. */
         private fun entryCount(rows: Int, cols: Int): Int {

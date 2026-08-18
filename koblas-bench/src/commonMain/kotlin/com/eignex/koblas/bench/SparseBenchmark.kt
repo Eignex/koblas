@@ -1,6 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.F64SparseMatrix
 import com.eignex.koblas.sparse.SparseFactorization
 import com.eignex.koblas.sparse.cholesky
 import com.eignex.koblas.sparse.gemv
@@ -17,11 +17,11 @@ class SparseBenchmark {
     @Param("64", "256", "1024")
     var n: Int = 0
 
-    private lateinit var a: SparseMatrix
+    private lateinit var a: F64SparseMatrix
     private lateinit var rhs: DoubleArray
 
     /** A symmetric operand for the LDL and Cholesky paths, plus a destination the triangular solve writes. */
-    private lateinit var spd: SparseMatrix
+    private lateinit var spd: F64SparseMatrix
     private lateinit var ldlFactored: SparseFactorization
     private lateinit var x: DoubleArray
 
@@ -83,5 +83,5 @@ class SparseBenchmark {
 
     /** Costs by stored entry rather than by dimension, so it scales with the fill and not with `n`. */
     @Benchmark
-    fun sparseTranspose(): SparseMatrix = a.transpose()
+    fun sparseTranspose(): F64SparseMatrix = a.transpose()
 }

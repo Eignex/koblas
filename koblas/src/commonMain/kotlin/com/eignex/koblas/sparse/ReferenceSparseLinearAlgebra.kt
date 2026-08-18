@@ -1,8 +1,8 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.BackendNames
-import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.SparseVector
+import com.eignex.koblas.F64SparseMatrix
+import com.eignex.koblas.F64SparseVector
 import com.eignex.koblas.euclideanNorm
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.requireSquare
@@ -23,7 +23,7 @@ public object ReferenceSparseLinearAlgebra :
     @Suppress("LongParameterList") // the BLAS dgemv signature
     override fun gemv(
         alpha: Double,
-        a: SparseMatrix,
+        a: F64SparseMatrix,
         x: DoubleArray,
         beta: Double,
         y: DoubleArray,
@@ -52,7 +52,7 @@ public object ReferenceSparseLinearAlgebra :
         }
     }
 
-    override fun trsv(a: SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
+    override fun trsv(a: F64SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
         requireSquare(a, "trsv")
         val n = a.rows
         requireShape(x.size == n) { "trsv: x length ${x.size} != $n" }
@@ -77,16 +77,16 @@ public object ReferenceSparseLinearAlgebra :
         }
     }
 
-    override fun factor(a: SparseMatrix, equilibrate: Boolean, dropTolerance: Double): SparseFactorization =
+    override fun factor(a: F64SparseMatrix, equilibrate: Boolean, dropTolerance: Double): SparseFactorization =
         SparseLu.factorCsc(a, equilibrate, dropTolerance)
 
-    override fun analyze(a: SparseMatrix, ordering: SparseOrdering): SparseSymbolic =
+    override fun analyze(a: F64SparseMatrix, ordering: SparseOrdering): SparseSymbolic =
         SparseSymbolic.analyze(a, ordering)
 
-    override fun ldl(a: SparseMatrix, policy: SparseLdlPolicy, ordering: SparseOrdering): SparseFactorization =
+    override fun ldl(a: F64SparseMatrix, policy: SparseLdlPolicy, ordering: SparseOrdering): SparseFactorization =
         numericLdl(a, analyze(a, ordering), policy)
 
-    override fun dot(x: SparseVector, y: DoubleArray): Double {
+    override fun dot(x: F64SparseVector, y: DoubleArray): Double {
         requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
         var s = 0.0
         val idx = x.indices
@@ -95,7 +95,7 @@ public object ReferenceSparseLinearAlgebra :
         return s
     }
 
-    override fun dot(x: SparseVector, y: SparseVector): Double {
+    override fun dot(x: F64SparseVector, y: F64SparseVector): Double {
         requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
         var s = 0.0
         var a = 0
@@ -118,7 +118,7 @@ public object ReferenceSparseLinearAlgebra :
         return s
     }
 
-    override fun axpy(y: DoubleArray, alpha: Double, x: SparseVector) {
+    override fun axpy(y: DoubleArray, alpha: Double, x: F64SparseVector) {
         requireShape(x.size == y.size) { "axpy: sizes differ, ${x.size} vs ${y.size}" }
         if (alpha == 0.0) return
         val idx = x.indices
@@ -126,16 +126,16 @@ public object ReferenceSparseLinearAlgebra :
         for (k in idx.indices) y[idx[k]] += alpha * vals[k]
     }
 
-    override fun scatter(x: SparseVector, out: DoubleArray) {
+    override fun scatter(x: F64SparseVector, out: DoubleArray) {
         requireShape(x.size == out.size) { "scatter: sizes differ, ${x.size} vs ${out.size}" }
         val idx = x.indices
         val vals = x.values
         for (k in idx.indices) out[idx[k]] = vals[k]
     }
 
-    override fun nrm2(x: SparseVector): Double = euclideanNorm(x.values, 0, x.values.size)
+    override fun nrm2(x: F64SparseVector): Double = euclideanNorm(x.values, 0, x.values.size)
 
-    override fun asum(x: SparseVector): Double {
+    override fun asum(x: F64SparseVector): Double {
         var s = 0.0
         for (v in x.values) s += abs(v)
         return s

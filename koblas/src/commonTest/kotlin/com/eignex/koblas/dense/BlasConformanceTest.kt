@@ -1,7 +1,7 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.F64DenseMatrix
+import com.eignex.koblas.F64SparseMatrix
 import com.eignex.koblas.koblas
 import com.eignex.koblas.sparse.gemv
 import com.eignex.koblas.sparse.lu
@@ -21,7 +21,7 @@ class BlasConformanceTest {
         return m
     }
 
-    private fun infNorm(a: DenseMatrix): Double {
+    private fun infNorm(a: F64DenseMatrix): Double {
         var m = 0.0
         for (i in 0 until a.rows) {
             var r = 0.0
@@ -31,15 +31,15 @@ class BlasConformanceTest {
         return m
     }
 
-    private fun hilbert(n: Int): DenseMatrix =
-        DenseMatrix(n, n).also { for (i in 0 until n) for (j in 0 until n) it[i, j] = 1.0 / (i + j + 1.0) }
+    private fun hilbert(n: Int): F64DenseMatrix =
+        F64DenseMatrix(n, n).also { for (i in 0 until n) for (j in 0 until n) it[i, j] = 1.0 / (i + j + 1.0) }
 
-    private fun diagonal(n: Int, rng: Random): DenseMatrix =
-        DenseMatrix(n, n).also { for (i in 0 until n) it[i, i] = rng.nextDouble(1.0, 5.0) }
+    private fun diagonal(n: Int, rng: Random): F64DenseMatrix =
+        F64DenseMatrix(n, n).also { for (i in 0 until n) it[i, i] = rng.nextDouble(1.0, 5.0) }
 
-    private fun spd(n: Int, rng: Random): DenseMatrix {
-        val a = DenseMatrix(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
-        val m = DenseMatrix(n, n)
+    private fun spd(n: Int, rng: Random): F64DenseMatrix {
+        val a = F64DenseMatrix(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
+        val m = F64DenseMatrix(n, n)
         for (i in 0 until n) {
             for (j in 0 until n) {
                 var s = 0.0
@@ -52,7 +52,7 @@ class BlasConformanceTest {
 
     // The bound scales the residual by the norms of A, x and b and by n times the unit roundoff. Only the
     // residual is checked, not the forward error, which the condition number of a Hilbert matrix inflates.
-    private fun assertSolveResidual(a: DenseMatrix, x: DoubleArray, b: DoubleArray, name: String) {
+    private fun assertSolveResidual(a: F64DenseMatrix, x: DoubleArray, b: DoubleArray, name: String) {
         val ax = koblas.gemv(a, x)
         val residual = DoubleArray(a.rows) { ax[it] - b[it] }
         val bound = 100.0 * a.rows * eps * (infNorm(a) * infNorm(x) + infNorm(b))
@@ -64,7 +64,7 @@ class BlasConformanceTest {
         val rng = Random(20260716)
         for (n in intArrayOf(1, 2, 5, 12, 40)) {
             val matrices = listOf(
-                "identity" to DenseMatrix.diagonal(n),
+                "identity" to F64DenseMatrix.diagonal(n),
                 "diagonal" to diagonal(n, rng),
                 "hilbert" to hilbert(n),
                 "random" to wellConditioned(n, rng),
@@ -114,7 +114,7 @@ class BlasConformanceTest {
         val rng = Random(20260727)
         for (n in intArrayOf(1, 4, 17)) {
             val m = n + 3 // non-square to catch row/col mixups
-            val a = DenseMatrix(m, n, DoubleArray(m * n) { rng.nextDouble(-1.0, 1.0) })
+            val a = F64DenseMatrix(m, n, DoubleArray(m * n) { rng.nextDouble(-1.0, 1.0) })
             for (transpose in booleanArrayOf(false, true)) {
                 val xLen = if (transpose) m else n
                 val yLen = if (transpose) n else m
@@ -166,10 +166,10 @@ class BlasConformanceTest {
         val rng = Random(3)
         for (n in intArrayOf(1, 4, 16)) {
             val a = wellConditioned(n, rng)
-            val id = DenseMatrix.diagonal(n)
+            val id = F64DenseMatrix.diagonal(n)
             assertTrue(a.matMul(id) == a, "A·I != A at n=$n")
-            val b = DenseMatrix(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
-            val c = DenseMatrix(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
+            val b = F64DenseMatrix(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
+            val c = F64DenseMatrix(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
             val left = a.matMul(b).matMul(c)
             val right = a.matMul(b.matMul(c))
             val bound = 100.0 * n * eps * infNorm(a) * infNorm(b) * infNorm(c)
@@ -192,18 +192,18 @@ class BlasConformanceTest {
     private fun checkGemmShape(rng: Random, m: Int, k: Int, n: Int) {
         for (tA in booleanArrayOf(false, true)) {
             for (tB in booleanArrayOf(false, true)) {
-                val a = if (tA) DenseMatrix(k, m) else DenseMatrix(m, k)
-                val b = if (tB) DenseMatrix(n, k) else DenseMatrix(k, n)
+                val a = if (tA) F64DenseMatrix(k, m) else F64DenseMatrix(m, k)
+                val b = if (tB) F64DenseMatrix(n, k) else F64DenseMatrix(k, n)
                 for (idx in a.data.indices) a.data[idx] = rng.nextDouble(-1.0, 1.0)
                 for (idx in b.data.indices) b.data[idx] = rng.nextDouble(-1.0, 1.0)
                 for (alpha in doubleArrayOf(0.0, 1.0, -2.0)) {
                     for (beta in doubleArrayOf(0.0, 1.0, 0.5)) {
                         // beta == 0 must overwrite without reading, so C starts poisoned with NaN.
-                        val c0 = DenseMatrix(m, n)
+                        val c0 = F64DenseMatrix(m, n)
                         for (idx in c0.data.indices) {
                             c0.data[idx] = if (beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0)
                         }
-                        val expected = DenseMatrix(m, n)
+                        val expected = F64DenseMatrix(m, n)
                         for (i in 0 until m) {
                             for (j in 0 until n) {
                                 var s = 0.0
@@ -213,7 +213,7 @@ class BlasConformanceTest {
                                 expected[i, j] = alpha * s + (if (beta == 0.0) 0.0 else beta * c0[i, j])
                             }
                         }
-                        val c = DenseMatrix(m, n, c0.data.copyOf())
+                        val c = F64DenseMatrix(m, n, c0.data.copyOf())
                         koblas.gemm(alpha, a, tA, b, tB, beta, c)
                         val bound = 100.0 * k * eps * (infNorm(a) * infNorm(b) + infNorm(expected))
                         for (idx in c.data.indices) {
@@ -233,18 +233,18 @@ class BlasConformanceTest {
         val rng = Random(20260731)
         for ((n, k) in listOf(1 to 1, 4 to 7, 9 to 3)) {
             for (transpose in booleanArrayOf(false, true)) {
-                val a = if (transpose) DenseMatrix(k, n) else DenseMatrix(n, k)
+                val a = if (transpose) F64DenseMatrix(k, n) else F64DenseMatrix(n, k)
                 for (idx in a.data.indices) a.data[idx] = rng.nextDouble(-1.0, 1.0)
                 for (alpha in doubleArrayOf(0.0, 1.0, -1.5)) {
                     for (beta in doubleArrayOf(0.0, 1.0, 0.5)) {
                         // C is asymmetric on purpose, since only syrk's alpha term is symmetric.
-                        val c0 = DenseMatrix(n, n)
+                        val c0 = F64DenseMatrix(n, n)
                         for (idx in c0.data.indices) {
                             c0.data[idx] = if (beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0)
                         }
-                        val expected = DenseMatrix(n, n, if (beta == 0.0) DoubleArray(n * n) else c0.data.copyOf())
+                        val expected = F64DenseMatrix(n, n, if (beta == 0.0) DoubleArray(n * n) else c0.data.copyOf())
                         koblas.gemm(alpha, a, transpose, a, !transpose, if (beta == 0.0) 0.0 else beta, expected)
-                        val c = DenseMatrix(n, n, c0.data.copyOf())
+                        val c = F64DenseMatrix(n, n, c0.data.copyOf())
                         koblas.syrk(alpha, a, transpose, beta, c)
                         val bound = 100.0 * k * eps * (infNorm(a) * infNorm(a) + infNorm(expected)) + 1e-12
                         for (idx in c.data.indices) {
@@ -274,7 +274,7 @@ class BlasConformanceTest {
             val cols = List(n) { j ->
                 (0 until n).mapNotNull { i -> if (dense[i, j] != 0.0) i to dense[i, j] else null }
             }
-            val sparse = SparseMatrix.ofColumns(n, n, cols)
+            val sparse = F64SparseMatrix.ofColumns(n, n, cols)
             val lu = sparse.lu(equilibrate = true)
             if (lu.singular) continue
             val xTrue = DoubleArray(n) { rng.nextDouble(-2.0, 2.0) }

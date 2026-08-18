@@ -1,7 +1,7 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.BackendNames
-import com.eignex.koblas.SparseVector
+import com.eignex.koblas.F64SparseVector
 import com.eignex.koblas.dense.simdAvailable
 import com.eignex.koblas.requireShape
 import jdk.incubator.vector.DoubleVector
@@ -17,7 +17,7 @@ internal actual object PlatformSparseVectorKernels : SparseVectorKernels {
     override val isPortable: Boolean get() = true
 
     /** Computes usdot with the dense operand gathered a register at a time. */
-    actual override fun dot(x: SparseVector, y: DoubleArray): Double {
+    actual override fun dot(x: F64SparseVector, y: DoubleArray): Double {
         requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
         if (!simdAvailable || x.indices.size < SPARSE_DOT_SIMD_MIN) return ReferenceSparseLinearAlgebra.dot(x, y)
         return SparseSimd.dot(x.indices, x.values, y)
@@ -26,16 +26,17 @@ internal actual object PlatformSparseVectorKernels : SparseVectorKernels {
     // The routines this backend does not provide run the portable versions. Forwarded explicitly rather than
     // by class delegation, which would route a caller's convenience overloads to the portable routine instead
     // of this one, since a delegated member calls back into the delegate.
-    actual override fun dot(x: SparseVector, y: SparseVector): Double = ReferenceSparseLinearAlgebra.dot(x, y)
+    actual override fun dot(x: F64SparseVector, y: F64SparseVector): Double = ReferenceSparseLinearAlgebra.dot(x, y)
 
-    actual override fun axpy(y: DoubleArray, alpha: Double, x: SparseVector): Unit =
+    actual override fun axpy(y: DoubleArray, alpha: Double, x: F64SparseVector): Unit =
         ReferenceSparseLinearAlgebra.axpy(y, alpha, x)
 
-    actual override fun scatter(x: SparseVector, out: DoubleArray): Unit = ReferenceSparseLinearAlgebra.scatter(x, out)
+    actual override fun scatter(x: F64SparseVector, out: DoubleArray): Unit =
+        ReferenceSparseLinearAlgebra.scatter(x, out)
 
-    actual override fun nrm2(x: SparseVector): Double = ReferenceSparseLinearAlgebra.nrm2(x)
+    actual override fun nrm2(x: F64SparseVector): Double = ReferenceSparseLinearAlgebra.nrm2(x)
 
-    actual override fun asum(x: SparseVector): Double = ReferenceSparseLinearAlgebra.asum(x)
+    actual override fun asum(x: F64SparseVector): Double = ReferenceSparseLinearAlgebra.asum(x)
 }
 
 /** Its own object so the initializer, which touches DoubleVector, runs only once the module is present. */

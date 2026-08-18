@@ -1,6 +1,6 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.SparseVector
+import com.eignex.koblas.F64SparseVector
 import com.eignex.koblas.randomVector
 import kotlin.math.abs
 import kotlin.random.Random
@@ -9,10 +9,10 @@ import kotlin.test.assertTrue
 
 class PlatformSparseVectorKernelsTest {
 
-    private fun sparse(size: Int, nnz: Int, rng: Random): SparseVector {
+    private fun sparse(size: Int, nnz: Int, rng: Random): F64SparseVector {
         val stride = size / nnz
         val indices = IntArray(nnz) { k -> k * stride + rng.nextInt(stride) }
-        return SparseVector.of(size, indices, DoubleArray(nnz) { rng.nextDouble(-1.0, 1.0) })
+        return F64SparseVector.of(size, indices, DoubleArray(nnz) { rng.nextDouble(-1.0, 1.0) })
     }
 
     @Test

@@ -7,7 +7,7 @@ import kotlin.test.assertFailsWith
 
 class ScalingTest {
 
-    private fun example() = DenseMatrix.of(
+    private fun example() = F64DenseMatrix.of(
         arrayOf(
             doubleArrayOf(1.0, 2.0, 3.0),
             doubleArrayOf(4.0, 5.0, 6.0),
@@ -19,7 +19,7 @@ class ScalingTest {
         val d = doubleArrayOf(2.0, -1.0)
         val actual = example()
         scaleRows(actual, d)
-        val expected = DenseMatrix.diagonal(d).matMul(example())
+        val expected = F64DenseMatrix.diagonal(d).matMul(example())
         assertEquals(expected, actual)
     }
 
@@ -28,7 +28,7 @@ class ScalingTest {
         val d = doubleArrayOf(2.0, -1.0, 0.5)
         val actual = example()
         scaleColumns(actual, d)
-        val expected = example().matMul(DenseMatrix.diagonal(d))
+        val expected = example().matMul(F64DenseMatrix.diagonal(d))
         assertEquals(expected, actual)
     }
 
@@ -39,13 +39,13 @@ class ScalingTest {
         val actual = example()
         scaleRows(actual, rowScale)
         scaleColumns(actual, colScale)
-        val expected = DenseMatrix.diagonal(rowScale).matMul(example()).matMul(DenseMatrix.diagonal(colScale))
+        val expected = F64DenseMatrix.diagonal(rowScale).matMul(example()).matMul(F64DenseMatrix.diagonal(colScale))
         assertEquals(expected, actual)
     }
 
     @Test
     fun `scaleColumns on CSC agrees with the dense result and keeps the pattern`() {
-        val s = SparseMatrix.ofTriplets(
+        val s = F64SparseMatrix.ofTriplets(
             rows = 2,
             cols = 3,
             rowIdx = intArrayOf(0, 1, 0),
@@ -56,7 +56,7 @@ class ScalingTest {
         val nnzBefore = s.nnz
         scaleColumns(s, d)
 
-        val dense = DenseMatrix.of(
+        val dense = F64DenseMatrix.of(
             arrayOf(doubleArrayOf(1.0, 0.0, 3.0), doubleArrayOf(0.0, 5.0, 0.0)),
         )
         scaleColumns(dense, d)
@@ -80,7 +80,7 @@ class ScalingTest {
         assertFailsWith<DimensionMismatch> { scaleRows(example(), DoubleArray(3)) }
         assertFailsWith<DimensionMismatch> { scaleColumns(example(), DoubleArray(2)) }
         assertFailsWith<DimensionMismatch> {
-            scaleColumns(SparseMatrix.ofTriplets(2, 2, IntArray(0), IntArray(0), DoubleArray(0)), DoubleArray(3))
+            scaleColumns(F64SparseMatrix.ofTriplets(2, 2, IntArray(0), IntArray(0), DoubleArray(0)), DoubleArray(3))
         }
     }
 }

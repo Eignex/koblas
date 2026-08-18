@@ -1,6 +1,6 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.koblas
 import com.eignex.koblas.norm1
@@ -10,14 +10,14 @@ import kotlin.test.assertTrue
 
 class DenseExtensionsTest {
 
-    private val square = DenseMatrix.of(
+    private val square = F64DenseMatrix.of(
         arrayOf(
             doubleArrayOf(4.0, 1.0, 0.0),
             doubleArrayOf(1.0, 3.0, 1.0),
             doubleArrayOf(0.0, 1.0, 2.0),
         ),
     )
-    private val tall = DenseMatrix.of(
+    private val tall = F64DenseMatrix.of(
         arrayOf(
             doubleArrayOf(1.0, 0.0),
             doubleArrayOf(1.0, 1.0),
@@ -51,7 +51,7 @@ class DenseExtensionsTest {
         val anorm = norm1(square)
         assertEquals(koblas.rcond(lu, anorm), lu.rcond(anorm), "lu rcond")
         assertClose(koblas.solve(lu, b3, transpose = true), lu.solve(b3, transpose = true), "lu solve transposed")
-        val rhs = DenseMatrix.ofColumns(arrayOf(b3, doubleArrayOf(0.0, 1.0, 0.0)))
+        val rhs = F64DenseMatrix.ofColumns(arrayOf(b3, doubleArrayOf(0.0, 1.0, 0.0)))
         assertClose(koblas.solve(lu, rhs).data, lu.solve(rhs).data, "lu blocked solve")
     }
 

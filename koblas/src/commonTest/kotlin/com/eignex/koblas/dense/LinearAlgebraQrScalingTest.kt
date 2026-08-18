@@ -1,6 +1,6 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.koblas
 import kotlin.math.abs
@@ -20,11 +20,11 @@ class LinearAlgebraQrScalingTest {
         doubleArrayOf(2.0, 8.0, 3.0),
     )
 
-    private fun scaled(scale: Double) = DenseMatrix.of(
+    private fun scaled(scale: Double) = F64DenseMatrix.of(
         Array(base.size) { i -> DoubleArray(3) { j -> base[i][j] * scale } },
     )
 
-    private fun assertReconstructs(a: DenseMatrix, f: QrDecomposition, scale: Double) {
+    private fun assertReconstructs(a: F64DenseMatrix, f: QrDecomposition, scale: Double) {
         for (j in 0 until a.cols) {
             val rebuilt = koblas.applyQ(f, rColumn(f, j))
             for (i in 0 until a.rows) {
@@ -54,7 +54,7 @@ class LinearAlgebraQrScalingTest {
             val a = scaled(scale)
             val f = koblas.qrPivoted(a)
             assertEquals(3, f.rank, "scale $scale")
-            val permuted = DenseMatrix.of(Array(a.rows) { i -> DoubleArray(a.cols) { j -> a[i, f.pivots[j]] } })
+            val permuted = F64DenseMatrix.of(Array(a.rows) { i -> DoubleArray(a.cols) { j -> a[i, f.pivots[j]] } })
             assertReconstructs(permuted, f.factorization, scale)
         }
     }
@@ -62,7 +62,7 @@ class LinearAlgebraQrScalingTest {
     @Test
     fun `a rank deficient matrix is detected at every scale`() {
         for (scale in scales) {
-            val a = DenseMatrix.of(
+            val a = F64DenseMatrix.of(
                 Array(base.size) { i ->
                     doubleArrayOf(base[i][0] * scale, base[i][1] * scale, 2.0 * base[i][0] * scale)
                 },
@@ -84,7 +84,7 @@ class LinearAlgebraQrScalingTest {
 
     @Test
     fun `a column that is exactly zero still yields no reflector`() {
-        val a = DenseMatrix.of(
+        val a = F64DenseMatrix.of(
             arrayOf(
                 doubleArrayOf(0.0, 1.0),
                 doubleArrayOf(0.0, 2.0),

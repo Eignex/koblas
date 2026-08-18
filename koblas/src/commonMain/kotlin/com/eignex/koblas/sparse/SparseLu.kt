@@ -1,7 +1,7 @@
 package com.eignex.koblas.sparse
 
+import com.eignex.koblas.F64SparseMatrix
 import com.eignex.koblas.NOT_SINGULAR
-import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.dense.permutationSign
 import com.eignex.koblas.requireShape
@@ -147,7 +147,7 @@ public class SparseLu private constructor(
          * [SingularSparseFactorization] when no acceptable pivot remains.
          */
         internal fun factorCsc(
-            a: SparseMatrix,
+            a: F64SparseMatrix,
             equilibrate: Boolean = false,
             dropTolerance: Double = NO_DROP,
         ): SparseFactorization {

@@ -16,23 +16,23 @@ class SerializationTest {
     private val json = Json
 
     @Test
-    fun `DenseMatrix round-trips through JSON for square rectangular and degenerate shapes`() {
+    fun `F64DenseMatrix round-trips through JSON for square rectangular and degenerate shapes`() {
         val cases = listOf(
-            DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0))),
-            DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0, 3.0))), // 1x3
-            DenseMatrix(1, 1).also { it[0, 0] = 7.5 },
-            DenseMatrix(3, 0), // 3 empty rows survive (cols=0)
-            DenseMatrix(0, 0),
+            F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0))),
+            F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0, 3.0))), // 1x3
+            F64DenseMatrix(1, 1).also { it[0, 0] = 7.5 },
+            F64DenseMatrix(3, 0), // 3 empty rows survive (cols=0)
+            F64DenseMatrix(0, 0),
         )
         for (m in cases) {
-            val back = json.decodeFromString(DenseMatrix.serializer(), json.encodeToString(m))
+            val back = json.decodeFromString(F64DenseMatrix.serializer(), json.encodeToString(m))
             assertEquals(m, back, "round-trip $m")
         }
     }
 
     @Test
-    fun `DenseMatrix wire form is its shape and a flat array`() {
-        val m = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
+    fun `F64DenseMatrix wire form is its shape and a flat array`() {
+        val m = F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
         val obj = json.parseToJsonElement(json.encodeToString(m)).jsonObject
         assertEquals(2, obj.getValue("rows").jsonPrimitive.int)
         assertEquals(2, obj.getValue("cols").jsonPrimitive.int)
@@ -43,79 +43,81 @@ class SerializationTest {
     }
 
     @Test
-    fun `DenseVector round-trips including empty and singleton`() {
+    fun `F64DenseVector round-trips including empty and singleton`() {
         for (v in listOf(
-            DenseVector.of(doubleArrayOf(1.0, -2.0, 3.5)),
-            DenseVector(0),
-            DenseVector.of(doubleArrayOf(9.0)),
+            F64DenseVector.of(doubleArrayOf(1.0, -2.0, 3.5)),
+            F64DenseVector(0),
+            F64DenseVector.of(doubleArrayOf(9.0)),
         )) {
-            assertEquals(v, json.decodeFromString(DenseVector.serializer(), json.encodeToString(v)))
+            assertEquals(v, json.decodeFromString(F64DenseVector.serializer(), json.encodeToString(v)))
         }
     }
 
     @Test
-    fun `SparseVector round-trips including empty and stored-zero cases`() {
+    fun `F64SparseVector round-trips including empty and stored-zero cases`() {
         for (v in listOf(
-            SparseVector.of(5, intArrayOf(2, 0), doubleArrayOf(3.0, 1.0)), // of sorts these on the way in
-            SparseVector.of(4, IntArray(0), DoubleArray(0)),
-            SparseVector.of(3, intArrayOf(1), doubleArrayOf(0.0)), // a stored explicit zero
+            F64SparseVector.of(5, intArrayOf(2, 0), doubleArrayOf(3.0, 1.0)), // of sorts these on the way in
+            F64SparseVector.of(4, IntArray(0), DoubleArray(0)),
+            F64SparseVector.of(3, intArrayOf(1), doubleArrayOf(0.0)), // a stored explicit zero
         )) {
-            assertEquals(v, json.decodeFromString(SparseVector.serializer(), json.encodeToString(v)))
+            assertEquals(v, json.decodeFromString(F64SparseVector.serializer(), json.encodeToString(v)))
         }
     }
 
     @Test
-    fun `VectorView round-trips polymorphically preserving dense and sparse types`() {
-        val dense: VectorView = DenseVector.of(doubleArrayOf(1.0, 2.0))
-        val sparse: VectorView = SparseVector.of(4, intArrayOf(0, 3), doubleArrayOf(1.0, 2.0))
+    fun `F64VectorView round-trips polymorphically preserving dense and sparse types`() {
+        val dense: F64VectorView = F64DenseVector.of(doubleArrayOf(1.0, 2.0))
+        val sparse: F64VectorView = F64SparseVector.of(4, intArrayOf(0, 3), doubleArrayOf(1.0, 2.0))
         val backDense = json.decodeFromString(
-            VectorView.serializer(),
-            json.encodeToString(VectorView.serializer(), dense),
+            F64VectorView.serializer(),
+            json.encodeToString(F64VectorView.serializer(), dense),
         )
         val backSparse =
-            json.decodeFromString(VectorView.serializer(), json.encodeToString(VectorView.serializer(), sparse))
-        assertTrue(backDense is DenseVector)
-        assertTrue(backSparse is SparseVector)
+            json.decodeFromString(F64VectorView.serializer(), json.encodeToString(F64VectorView.serializer(), sparse))
+        assertTrue(backDense is F64DenseVector)
+        assertTrue(backSparse is F64SparseVector)
         assertEquals(dense, backDense)
         assertEquals(sparse, backSparse)
     }
 
     @Test
-    fun `SparseMatrix round-trips through its CSC arrays`() {
+    fun `F64SparseMatrix round-trips through its CSC arrays`() {
         for (a in listOf(
-            SparseMatrix.ofColumns(3, 2, listOf(listOf(0 to 1.0, 2 to 3.0), listOf(1 to 2.0))),
-            SparseMatrix(2, 1, intArrayOf(0, 1), intArrayOf(1), doubleArrayOf(0.0)), // a stored zero
-            SparseMatrix(0, 0, intArrayOf(0), IntArray(0), DoubleArray(0)),
-            SparseMatrix(4, 3, intArrayOf(0, 0, 0, 0), IntArray(0), DoubleArray(0)), // all-empty columns
+            F64SparseMatrix.ofColumns(3, 2, listOf(listOf(0 to 1.0, 2 to 3.0), listOf(1 to 2.0))),
+            F64SparseMatrix(2, 1, intArrayOf(0, 1), intArrayOf(1), doubleArrayOf(0.0)), // a stored zero
+            F64SparseMatrix(0, 0, intArrayOf(0), IntArray(0), DoubleArray(0)),
+            F64SparseMatrix(4, 3, intArrayOf(0, 0, 0, 0), IntArray(0), DoubleArray(0)), // all-empty columns
         )) {
             val back = json.decodeFromString(
-                SparseMatrix.serializer(),
-                json.encodeToString(SparseMatrix.serializer(), a),
+                F64SparseMatrix.serializer(),
+                json.encodeToString(F64SparseMatrix.serializer(), a),
             )
             assertEquals(a, back, "round-trip changed $a")
         }
     }
 
     @Test
-    fun `SparseMatrix encodes its structure rather than a dense grid`() {
-        val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(1 to 5.0), emptyList()))
-        val encoded = json.encodeToString(SparseMatrix.serializer(), a)
+    fun `F64SparseMatrix encodes its structure rather than a dense grid`() {
+        val a = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(1 to 5.0), emptyList()))
+        val encoded = json.encodeToString(F64SparseMatrix.serializer(), a)
         assertTrue(encoded.contains("colPtr"), "expected the CSC arrays in $encoded")
         assertTrue(encoded.contains("rowIdx"), "expected the CSC arrays in $encoded")
         assertTrue("0.0" !in encoded, "a structural zero leaked into the payload: $encoded")
     }
 
     @Test
-    fun `both matrix storages round-trip polymorphically through MatrixView`() {
-        val views: List<MatrixView> = listOf(
-            SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 2.0))),
-            DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0))),
-            DenseMatrix(0, 0),
+    fun `both matrix storages round-trip polymorphically through F64MatrixView`() {
+        // The discriminators are the serial names, which carry no precision prefix: the wire form predates
+        // the element type reaching the class names, and a second element type gets serial names of its own.
+        val views: List<Pair<String, F64MatrixView>> = listOf(
+            "SparseMatrix" to F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 2.0))),
+            "DenseMatrix" to F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0))),
+            "DenseMatrix" to F64DenseMatrix(0, 0),
         )
-        for (v in views) {
-            val encoded = json.encodeToString(MatrixView.serializer(), v)
-            assertTrue(v::class.simpleName!! in encoded, "expected a type discriminator in $encoded")
-            val back = json.decodeFromString(MatrixView.serializer(), encoded)
+        for ((discriminator, v) in views) {
+            val encoded = json.encodeToString(F64MatrixView.serializer(), v)
+            assertTrue(discriminator in encoded, "expected the $discriminator discriminator in $encoded")
+            val back = json.decodeFromString(F64MatrixView.serializer(), encoded)
             assertEquals(v::class, back::class, "storage was not preserved for $encoded")
             assertEquals(v, back)
         }

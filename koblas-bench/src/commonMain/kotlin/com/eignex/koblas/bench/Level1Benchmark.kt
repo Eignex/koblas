@@ -1,6 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.DenseVector
+import com.eignex.koblas.F64DenseVector
 import com.eignex.koblas.asum
 import com.eignex.koblas.axpy
 import com.eignex.koblas.dot
@@ -26,8 +26,8 @@ class Level1Benchmark {
     @Param(BUILTIN_KERNELS, HOST_KERNELS)
     var kernels: String = BUILTIN_KERNELS
 
-    private lateinit var x: DenseVector
-    private lateinit var y: DenseVector
+    private lateinit var x: F64DenseVector
+    private lateinit var y: F64DenseVector
 
     /** Four contiguous runs of [len], the layout `dot4` expects. */
     private lateinit var quad: DoubleArray
@@ -38,8 +38,8 @@ class Level1Benchmark {
         useHostLevel1(kernels == HOST_KERNELS)
         println("resolved: primitives=$mathBackend")
         val rng = benchRng()
-        x = DenseVector.of(randomVector(len, rng))
-        y = DenseVector.of(randomVector(len, rng))
+        x = F64DenseVector.of(randomVector(len, rng))
+        y = F64DenseVector.of(randomVector(len, rng))
         quad = randomVector(4 * len, rng)
     }
 

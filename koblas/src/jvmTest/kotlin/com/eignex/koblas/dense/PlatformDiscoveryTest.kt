@@ -1,7 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.BackendSlot
-import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.HostLibraryTest
 import com.eignex.koblas.hostblas.HostBlasCalls
 import com.eignex.koblas.isAccelerated
@@ -93,17 +93,17 @@ class PlatformDiscoveryTest {
         assertTrue(probe(ReferenceLinearAlgebra), "the reference backend should pass its own probe")
 
         val wrongAnswer = object : Blas by ReferenceLinearAlgebra {
-            override fun gemv(a: DenseMatrix, x: DoubleArray, transpose: Boolean) = doubleArrayOf(0.0)
+            override fun gemv(a: F64DenseMatrix, x: DoubleArray, transpose: Boolean) = doubleArrayOf(0.0)
         }
         assertTrue(!probe(wrongAnswer), "a backend computing the wrong product should be rejected")
 
         val wrongLength = object : Blas by ReferenceLinearAlgebra {
-            override fun gemv(a: DenseMatrix, x: DoubleArray, transpose: Boolean) = DoubleArray(0)
+            override fun gemv(a: F64DenseMatrix, x: DoubleArray, transpose: Boolean) = DoubleArray(0)
         }
         assertTrue(!probe(wrongLength), "a backend returning the wrong shape should be rejected")
 
         val throwing = object : Blas by ReferenceLinearAlgebra {
-            override fun gemv(a: DenseMatrix, x: DoubleArray, transpose: Boolean): DoubleArray =
+            override fun gemv(a: F64DenseMatrix, x: DoubleArray, transpose: Boolean): DoubleArray =
                 throw UnsatisfiedLinkError("no native library")
         }
         assertTrue(!probe(throwing), "a backend whose native library is missing should be rejected")

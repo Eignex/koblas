@@ -1,6 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.dense.LdlDecomposition
 import com.eignex.koblas.dense.LuDecomposition
 import com.eignex.koblas.dense.invert
@@ -22,7 +22,7 @@ class SolveBenchmark {
     @Param(AUTO_BACKEND, REFERENCE_BACKEND)
     var backend: String = AUTO_BACKEND
 
-    private lateinit var a: DenseMatrix
+    private lateinit var a: F64DenseMatrix
     private lateinit var factored: LuDecomposition
     private lateinit var indefinite: LdlDecomposition
     private lateinit var rhs: DoubleArray
@@ -30,8 +30,8 @@ class SolveBenchmark {
 
     /** A destination for the in-place refactorization, and the operands the added routines need. */
     private lateinit var reusable: LuDecomposition
-    private lateinit var sym: DenseMatrix
-    private lateinit var triangular: DenseMatrix
+    private lateinit var sym: F64DenseMatrix
+    private lateinit var triangular: F64DenseMatrix
     private var anorm: Double = 0.0
 
     @Setup
@@ -77,8 +77,8 @@ class SolveBenchmark {
 
     /** Explicit inverse, which koblas documents as the thing to avoid; measured so the advice has a number. */
     @Benchmark
-    fun invertLu(): DenseMatrix = koblas.invert(factored)
+    fun invertLu(): F64DenseMatrix = koblas.invert(factored)
 
     @Benchmark
-    fun trtri(): DenseMatrix = koblas.trtri(triangular, lower = true)
+    fun trtri(): F64DenseMatrix = koblas.trtri(triangular, lower = true)
 }

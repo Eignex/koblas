@@ -1,7 +1,7 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.F64DenseMatrix
+import com.eignex.koblas.F64SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.koblas
@@ -75,7 +75,7 @@ class DestinationPassingTest {
         assertSame(pivBuffer, reused.piv, "factorInto must not replace the pivot buffer")
         val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
         assertClose(koblas.solve(koblas.factor(second), b), koblas.solve(reused, b), "refactorized solve")
-        val singular = DenseMatrix(n, n) // all zeros
+        val singular = F64DenseMatrix(n, n) // all zeros
         koblas.factorInto(singular, reused)
         assertTrue(reused.singular, "singular flag must follow the refactorization")
     }
@@ -102,15 +102,15 @@ class DestinationPassingTest {
             // Both sides of the dispatch, column by column below the threshold and blocked above.
             for (nrhs in intArrayOf(1, 3, 40)) {
                 val lu = wellConditioned(n, rng).lu()
-                val b = DenseMatrix(n, nrhs)
+                val b = F64DenseMatrix(n, nrhs)
                 for (i in 0 until n) for (j in 0 until nrhs) b[i, j] = rng.nextDouble(-1.0, 1.0)
                 for (transpose in booleanArrayOf(false, true)) {
                     val expected = koblas.solve(lu, b, transpose)
-                    val out = DenseMatrix(n, nrhs)
+                    val out = F64DenseMatrix(n, nrhs)
                     val returned = koblas.solveInto(lu, b, out, transpose, ws)
                     assertSame(out, returned, "solveInto must return its destination")
                     assertClose(expected.data, out.data, "block n=$n nrhs=$nrhs t=$transpose")
-                    val aliased = DenseMatrix(n, nrhs, b.data.copyOf())
+                    val aliased = F64DenseMatrix(n, nrhs, b.data.copyOf())
                     koblas.solveInto(lu, aliased, aliased, transpose, ws)
                     assertClose(expected.data, aliased.data, "block aliased n=$n nrhs=$nrhs t=$transpose")
                 }
@@ -125,12 +125,12 @@ class DestinationPassingTest {
         val (a, _) = poisonedIndefinite(rng, n)
         val f = koblas.ldl(a)
         for (nrhs in intArrayOf(1, 3, 40)) {
-            val b = DenseMatrix(n, nrhs)
+            val b = F64DenseMatrix(n, nrhs)
             for (i in 0 until n) for (j in 0 until nrhs) b[i, j] = rng.nextDouble(-1.0, 1.0)
             val expected = koblas.solve(f, b)
-            val out = DenseMatrix(n, nrhs)
+            val out = F64DenseMatrix(n, nrhs)
             assertClose(expected.data, koblas.solveInto(f, b, out).data, "ldl block nrhs=$nrhs")
-            val aliased = DenseMatrix(n, nrhs, b.data.copyOf())
+            val aliased = F64DenseMatrix(n, nrhs, b.data.copyOf())
             koblas.solveInto(f, aliased, aliased)
             assertClose(expected.data, aliased.data, "ldl block aliased nrhs=$nrhs")
         }
@@ -141,7 +141,7 @@ class DestinationPassingTest {
         val rng = Random(20260752)
         val ws = Workspace()
         for ((m, n) in listOf(7 to 4, 6 to 6)) {
-            val a = DenseMatrix(m, n)
+            val a = F64DenseMatrix(m, n)
             for (i in 0 until m) for (j in 0 until n) a[i, j] = rng.nextDouble(-1.0, 1.0)
             val f = koblas.qr(a, ws)
             val y = DoubleArray(m) { rng.nextDouble(-1.0, 1.0) }
@@ -170,7 +170,7 @@ class DestinationPassingTest {
             for (i in 0 until m) if (i != j && rng.nextDouble() < 0.15) entries.add(i to rng.nextDouble(-1.0, 1.0))
             entries
         }
-        val sparse = SparseMatrix.ofColumns(m, m, columns)
+        val sparse = F64SparseMatrix.ofColumns(m, m, columns)
         val lu = sparse.lu()
         val b = DoubleArray(m) { rng.nextDouble(-1.0, 1.0) }
         val ws = Workspace()

@@ -1,6 +1,6 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.koblas
@@ -16,7 +16,7 @@ import kotlin.test.assertTrue
 class TriangularTest {
 
     /** `op(explicit) x` by definition, so the solve checks do not depend on the library's own kernels. */
-    private fun naiveMultiply(explicit: DenseMatrix, transpose: Boolean, x: DoubleArray): DoubleArray {
+    private fun naiveMultiply(explicit: F64DenseMatrix, transpose: Boolean, x: DoubleArray): DoubleArray {
         val n = explicit.rows
         val y = DoubleArray(n)
         for (i in 0 until n) {
@@ -58,7 +58,7 @@ class TriangularTest {
                 for (unitDiag in booleanArrayOf(true, false)) {
                     val (t, _) = poisonedTriangle(rng, n, lower, unitDiag)
                     val b = randomMatrix(n, nrhs, rng)
-                    val viaTrsm = DenseMatrix(n, nrhs, b.data.copyOf())
+                    val viaTrsm = F64DenseMatrix(n, nrhs, b.data.copyOf())
                     trsm(t, viaTrsm, lower, transpose, unitDiag)
                     for (c in 0 until nrhs) {
                         val col = DoubleArray(n) { b[it, c] }
@@ -116,9 +116,9 @@ class TriangularTest {
                     for (unitDiag in booleanArrayOf(false, true)) {
                         val (t, explicit) = poisonedTriangle(rng, n, lower, unitDiag)
                         val b = randomMatrix(n, p, rng)
-                        val expected = DenseMatrix(n, p)
+                        val expected = F64DenseMatrix(n, p)
                         koblas.gemm(1.0, explicit, transpose, b, false, 0.0, expected)
-                        val actual = DenseMatrix(n, p, b.data.copyOf())
+                        val actual = F64DenseMatrix(n, p, b.data.copyOf())
                         trmm(t, actual, lower, transpose, unitDiag)
                         assertClose(expected, actual, "trmm n=$n lower=$lower t=$transpose unit=$unitDiag")
                     }
@@ -137,9 +137,9 @@ class TriangularTest {
                 for (unitDiag in booleanArrayOf(true, false)) {
                     val (t, explicit) = poisonedTriangle(rng, n, lower, unitDiag)
                     val b = randomMatrix(rows, n, rng)
-                    val expected = DenseMatrix(rows, n)
+                    val expected = F64DenseMatrix(rows, n)
                     koblas.gemm(1.0, b, false, explicit, transpose, 0.0, expected)
-                    val actual = DenseMatrix.wrap(rows, n, b.data.copyOf())
+                    val actual = F64DenseMatrix.wrap(rows, n, b.data.copyOf())
                     trmm(t, actual, lower, transpose, unitDiag, right = true)
                     assertClose(expected, actual, "trmm right l=$lower t=$transpose u=$unitDiag", tolerance = 1e-11)
                 }
@@ -157,7 +157,7 @@ class TriangularTest {
                 for (unitDiag in booleanArrayOf(true, false)) {
                     val (t, _) = poisonedTriangle(rng, n, lower, unitDiag)
                     val x = randomMatrix(rows, n, rng)
-                    val b = DenseMatrix.wrap(rows, n, x.data.copyOf())
+                    val b = F64DenseMatrix.wrap(rows, n, x.data.copyOf())
                     trmm(t, b, lower, transpose, unitDiag, right = true)
                     trsm(t, b, lower, transpose, unitDiag, right = true)
                     assertClose(x, b, "trsm right l=$lower t=$transpose u=$unitDiag", tolerance = 1e-11)
@@ -187,7 +187,7 @@ class TriangularTest {
         val rng = Random(20260806)
         for (n in intArrayOf(1, 4, 7)) {
             for (lower in booleanArrayOf(true, false)) {
-                val t = DenseMatrix(n, n)
+                val t = F64DenseMatrix(n, n)
                 for (j in 0 until n) {
                     for (i in 0 until n) {
                         val inTriangle = if (lower) i >= j else i <= j
@@ -214,7 +214,7 @@ class TriangularTest {
 
     @Test
     fun `trtri rejects a zero on the diagonal`() {
-        val singular = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 0.0), doubleArrayOf(3.0, 0.0)))
+        val singular = F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 0.0), doubleArrayOf(3.0, 0.0)))
         val failure = assertFailsWith<SingularMatrix> { trtri(singular, lower = true) }
         assertTrue("entry 1" in failure.message!!, "should name the zero position: ${failure.message}")
         trtri(singular, lower = true, unitDiag = true)
@@ -222,8 +222,8 @@ class TriangularTest {
 
     @Test
     fun `trsv and trsm validate shapes`() {
-        assertFailsWith<IllegalArgumentException> { trsv(DenseMatrix(2, 3), DoubleArray(2), lower = true) }
-        assertFailsWith<IllegalArgumentException> { trsv(DenseMatrix(3, 3), DoubleArray(2), lower = true) }
-        assertFailsWith<IllegalArgumentException> { trsm(DenseMatrix(3, 3), DenseMatrix(2, 4), lower = true) }
+        assertFailsWith<IllegalArgumentException> { trsv(F64DenseMatrix(2, 3), DoubleArray(2), lower = true) }
+        assertFailsWith<IllegalArgumentException> { trsv(F64DenseMatrix(3, 3), DoubleArray(2), lower = true) }
+        assertFailsWith<IllegalArgumentException> { trsm(F64DenseMatrix(3, 3), F64DenseMatrix(2, 4), lower = true) }
     }
 }

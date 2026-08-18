@@ -2,9 +2,9 @@
 
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DispatchThresholds
-import com.eignex.koblas.VectorLike
+import com.eignex.koblas.F64DenseMatrix
+import com.eignex.koblas.F64VectorLike
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.dense.Cblas.COL_MAJOR
 import com.eignex.koblas.dense.Cblas.LOWER
@@ -36,19 +36,24 @@ public abstract class HostBlasAdapter internal constructor(
     // The rank-updates below have no host binding, so they run the portable versions. Forwarded explicitly
     // rather than by class delegation, which would route a caller's convenience overloads to the portable
     // routine instead of the accelerated one, since a delegated member calls back into the delegate.
-    override fun syr(alpha: Double, x: VectorLike, a: DenseMatrix, uplo: Uplo): Unit = portable.syr(alpha, x, a, uplo)
+    override fun syr(alpha: Double, x: F64VectorLike, a: F64DenseMatrix, uplo: Uplo): Unit = portable.syr(
+        alpha,
+        x,
+        a,
+        uplo,
+    )
 
-    override fun syr2(alpha: Double, x: VectorLike, y: VectorLike, a: DenseMatrix, uplo: Uplo): Unit =
+    override fun syr2(alpha: Double, x: F64VectorLike, y: F64VectorLike, a: F64DenseMatrix, uplo: Uplo): Unit =
         portable.syr2(alpha, x, y, a, uplo)
 
     @Suppress("LongParameterList") // the BLAS dsyr2k signature
     override fun syr2k(
         alpha: Double,
-        a: DenseMatrix,
-        b: DenseMatrix,
+        a: F64DenseMatrix,
+        b: F64DenseMatrix,
         transpose: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: F64DenseMatrix,
         uplo: Uplo,
     ): Unit = portable.syr2k(alpha, a, b, transpose, beta, c, uplo)
 
@@ -60,7 +65,7 @@ public abstract class HostBlasAdapter internal constructor(
         }
     }
 
-    override fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix) {
+    override fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: F64DenseMatrix) {
         if (minOf(a.rows, a.cols) < dispatchThresholds.level2) return portable.ger(alpha, x, y, a)
         requireShape(a.rows == x.size && a.cols == y.size) {
             "ger shape mismatch: A is ${a.rows}x${a.cols}, x ${x.size}, y ${y.size}"
@@ -69,12 +74,12 @@ public abstract class HostBlasAdapter internal constructor(
         f.dger(COL_MAJOR, a.rows, a.cols, alpha, x, 1, y, 1, a.data, a.rows)
     }
 
-    override fun trsv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
+    override fun trsv(a: F64DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
         if (a.rows < dispatchThresholds.level2) return portable.trsv(a, x, lower, transpose, unitDiag)
         triangularVector(a, x, lower, transpose, unitDiag, solve = true)
     }
 
-    override fun trmv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
+    override fun trmv(a: F64DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
         if (a.rows < dispatchThresholds.level2) return portable.trmv(a, x, lower, transpose, unitDiag)
         triangularVector(a, x, lower, transpose, unitDiag, solve = false)
     }
@@ -82,7 +87,7 @@ public abstract class HostBlasAdapter internal constructor(
     /** dtrsv and dtrmv take the same arguments and differ only in the entry point, as dtrsm and dtrmm do. */
     @Suppress("LongParameterList") // the shared BLAS signature plus the entry-point flag
     private fun triangularVector(
-        a: DenseMatrix,
+        a: F64DenseMatrix,
         x: DoubleArray,
         lower: Boolean,
         transpose: Boolean,
@@ -99,8 +104,8 @@ public abstract class HostBlasAdapter internal constructor(
 
     @Suppress("LongParameterList") // the BLAS dtrsm signature
     override fun trsm(
-        a: DenseMatrix,
-        b: DenseMatrix,
+        a: F64DenseMatrix,
+        b: F64DenseMatrix,
         lower: Boolean,
         transpose: Boolean,
         unitDiag: Boolean,
@@ -114,8 +119,8 @@ public abstract class HostBlasAdapter internal constructor(
 
     @Suppress("LongParameterList") // the BLAS dtrmm signature
     override fun trmm(
-        a: DenseMatrix,
-        b: DenseMatrix,
+        a: F64DenseMatrix,
+        b: F64DenseMatrix,
         lower: Boolean,
         transpose: Boolean,
         unitDiag: Boolean,
@@ -130,8 +135,8 @@ public abstract class HostBlasAdapter internal constructor(
     /** dtrsm and dtrmm take the same arguments and differ only in the entry point. koblas fixes alpha at 1. */
     @Suppress("LongParameterList") // the shared BLAS signature plus the entry-point flag
     private fun triangularSolveOrMultiply(
-        a: DenseMatrix,
-        b: DenseMatrix,
+        a: F64DenseMatrix,
+        b: F64DenseMatrix,
         lower: Boolean,
         transpose: Boolean,
         unitDiag: Boolean,
@@ -155,7 +160,7 @@ public abstract class HostBlasAdapter internal constructor(
 
     override fun gemv(
         alpha: Double,
-        a: DenseMatrix,
+        a: F64DenseMatrix,
         x: DoubleArray,
         beta: Double,
         y: DoubleArray,
@@ -179,12 +184,12 @@ public abstract class HostBlasAdapter internal constructor(
 
     override fun gemm(
         alpha: Double,
-        a: DenseMatrix,
+        a: F64DenseMatrix,
         transposeA: Boolean,
-        b: DenseMatrix,
+        b: F64DenseMatrix,
         transposeB: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: F64DenseMatrix,
     ) {
         val m = if (transposeA) a.cols else a.rows
         val k = if (transposeA) a.rows else a.cols
@@ -209,10 +214,10 @@ public abstract class HostBlasAdapter internal constructor(
     @Suppress("LongParameterList", "ReturnCount") // dsyrk's arguments plus scratch; guard-clause style
     override fun syrk(
         alpha: Double,
-        a: DenseMatrix,
+        a: F64DenseMatrix,
         transpose: Boolean,
         beta: Double,
-        c: DenseMatrix,
+        c: F64DenseMatrix,
         uplo: Uplo,
         workspace: Workspace?,
     ) {
@@ -264,7 +269,7 @@ public abstract class HostBlasAdapter internal constructor(
      * The shape is checked ahead of the gate: `dsymv` takes one dimension and a leading dimension, so a
      * non-square matrix would have it read `n²` entries from a shorter array, past the end of the buffer.
      */
-    override fun symv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) {
+    override fun symv(alpha: Double, a: F64DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) {
         requireShape(a.rows == a.cols) { "symv: matrix must be square, got ${a.rows}x${a.cols}" }
         if (a.rows < dispatchThresholds.level2) return portable.symv(alpha, a, x, beta, y, lower)
         val n = a.rows
@@ -279,10 +284,10 @@ public abstract class HostBlasAdapter internal constructor(
 
     override fun symm(
         alpha: Double,
-        a: DenseMatrix,
-        b: DenseMatrix,
+        a: F64DenseMatrix,
+        b: F64DenseMatrix,
         beta: Double,
-        c: DenseMatrix,
+        c: F64DenseMatrix,
         lower: Boolean,
         right: Boolean,
     ) {

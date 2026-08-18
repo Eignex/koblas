@@ -3,7 +3,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.Backend
 import com.eignex.koblas.BackendNames
 import com.eignex.koblas.ConfigurationKeys
-import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.hostblas.HostBlas
 import com.eignex.koblas.hostblas.HostBlasCalls
 import com.eignex.koblas.hostblas.HostLapack
@@ -72,7 +72,7 @@ private fun loadProviders(): List<LinearAlgebra> {
 internal fun probe(backend: Blas): Boolean {
     @Suppress("TooGenericExceptionCaught") // native load failures surface as UnsatisfiedLinkError
     return try {
-        val y = backend.gemv(DenseMatrix(1, 1, doubleArrayOf(2.0)), doubleArrayOf(3.0))
+        val y = backend.gemv(F64DenseMatrix(1, 1, doubleArrayOf(2.0)), doubleArrayOf(3.0))
         y.size == 1 && y[0] == 6.0
     } catch (_: Throwable) {
         false

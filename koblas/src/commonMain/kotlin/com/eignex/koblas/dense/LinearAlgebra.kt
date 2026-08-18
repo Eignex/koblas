@@ -1,6 +1,6 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.koblas
 
@@ -13,16 +13,16 @@ public interface LinearAlgebra :
 }
 
 /** LU-factorize this square matrix with the active backend ([koblas]); see [Lapack.factor]. */
-public fun DenseMatrix.lu(): LuDecomposition = koblas.factor(this)
+public fun F64DenseMatrix.lu(): LuDecomposition = koblas.factor(this)
 
 /** Symmetric indefinite factorization `A = L·D·Lᵀ` with the active backend; see [Lapack.ldl]. */
-public fun DenseMatrix.ldl(workspace: Workspace? = null): LdlDecomposition = koblas.ldl(this, workspace)
+public fun F64DenseMatrix.ldl(workspace: Workspace? = null): LdlDecomposition = koblas.ldl(this, workspace)
 
 /** QR factorization `A = Q·R` with the active backend; see [Lapack.qr]. */
-public fun DenseMatrix.qr(workspace: Workspace? = null): QrDecomposition = koblas.qr(this, workspace)
+public fun F64DenseMatrix.qr(workspace: Workspace? = null): QrDecomposition = koblas.qr(this, workspace)
 
 /** QR with column pivoting, `A·P = Q·R`, with the active backend; see [Lapack.qrPivoted]. */
-public fun DenseMatrix.qrPivoted(
+public fun F64DenseMatrix.qrPivoted(
     tolerance: Double = AUTOMATIC_RANK_TOLERANCE,
     workspace: Workspace? = null,
 ): PivotedQrDecomposition = koblas.qrPivoted(this, tolerance, workspace)
@@ -35,14 +35,14 @@ public fun LuDecomposition.solve(b: DoubleArray, transpose: Boolean = false): Do
 )
 
 /** Solve `A · X = B` for the columns of [b] at once (LAPACK `dgetrs` with `nrhs`). */
-public fun LuDecomposition.solve(b: DenseMatrix, transpose: Boolean = false): DenseMatrix = koblas.solve(
+public fun LuDecomposition.solve(b: F64DenseMatrix, transpose: Boolean = false): F64DenseMatrix = koblas.solve(
     this,
     b,
     transpose,
 )
 
 /** `A⁻¹` from this factorization (LAPACK `dgetri`); see [Lapack.invert]. */
-public fun LuDecomposition.invert(workspace: Workspace? = null): DenseMatrix = koblas.invert(this, workspace)
+public fun LuDecomposition.invert(workspace: Workspace? = null): F64DenseMatrix = koblas.invert(this, workspace)
 
 /**
  * Reciprocal condition estimate, given the 1-norm [anorm] of the matrix it came from; see [Lapack.rcond].
@@ -58,7 +58,7 @@ public fun LuDecomposition.rcond(anorm: Double, workspace: Workspace? = null): D
 public fun LdlDecomposition.solve(b: DoubleArray): DoubleArray = koblas.solve(this, b)
 
 /** Solve `A · X = B` for the columns of [b] at once (LAPACK `dsytrs` with `nrhs`). */
-public fun LdlDecomposition.solve(b: DenseMatrix): DenseMatrix = koblas.solve(this, b)
+public fun LdlDecomposition.solve(b: F64DenseMatrix): F64DenseMatrix = koblas.solve(this, b)
 
 /** Least-squares solution of `A · x ≈ b` for an overdetermined system; see [Lapack.solveLeastSquares]. */
 public fun QrDecomposition.solveLeastSquares(b: DoubleArray, workspace: Workspace? = null): DoubleArray =
@@ -80,4 +80,4 @@ public fun PivotedQrDecomposition.solveLeastSquares(b: DoubleArray, workspace: W
     koblas.solveLeastSquares(this, b, workspace)
 
 /** Matrix-matrix product `this · other` with the active backend. */
-public fun DenseMatrix.matMul(other: DenseMatrix): DenseMatrix = koblas.gemm(this, other)
+public fun F64DenseMatrix.matMul(other: F64DenseMatrix): F64DenseMatrix = koblas.gemm(this, other)

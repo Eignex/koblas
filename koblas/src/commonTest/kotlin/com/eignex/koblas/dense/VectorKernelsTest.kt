@@ -1,7 +1,7 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.DenseVector
-import com.eignex.koblas.SparseVector
+import com.eignex.koblas.F64DenseVector
+import com.eignex.koblas.F64SparseVector
 import com.eignex.koblas.asum
 import com.eignex.koblas.axpy
 import com.eignex.koblas.dispatchThresholds
@@ -77,8 +77,8 @@ class VectorKernelsTest {
         registerBackend(recording)
         val threshold = dispatchThresholds.level1
         val long = if (threshold == Int.MAX_VALUE) 4096 else threshold
-        val x = DenseVector.of(DoubleArray(long) { 1.0 })
-        val y = DenseVector.of(DoubleArray(long) { 2.0 })
+        val x = F64DenseVector.of(DoubleArray(long) { 1.0 })
+        val y = F64DenseVector.of(DoubleArray(long) { 2.0 })
         assertEquals(2.0 * long, x dot y, "the arithmetic must be right whichever path ran")
         if (threshold == Int.MAX_VALUE) {
             assertEquals(0, recording.dots, "nothing should route when the platform keeps level 1 portable")
@@ -86,8 +86,8 @@ class VectorKernelsTest {
             assertEquals(1, recording.dots, "a run at the threshold should route")
         }
         val before = recording.dots
-        val short1 = DenseVector.of(doubleArrayOf(3.0))
-        val short2 = DenseVector.of(doubleArrayOf(4.0))
+        val short1 = F64DenseVector.of(doubleArrayOf(3.0))
+        val short2 = F64DenseVector.of(doubleArrayOf(4.0))
         assertEquals(12.0, short1 dot short2)
         assertEquals(before, recording.dots, "a length-1 dot should stay portable, but it reached the backend")
     }
@@ -98,8 +98,8 @@ class VectorKernelsTest {
         registerBackend(recording)
         val threshold = dispatchThresholds.level1
         if (threshold == Int.MAX_VALUE) return@withCleanBackends
-        val v = DenseVector.of(DoubleArray(threshold) { 1.0 })
-        val x = DenseVector.of(DoubleArray(threshold) { 2.0 })
+        val v = F64DenseVector.of(DoubleArray(threshold) { 1.0 })
+        val x = F64DenseVector.of(DoubleArray(threshold) { 2.0 })
         axpy(v, 3.0, x)
         scale(v, 0.5)
         assertEquals(1, recording.axpys, "axpy did not route")
@@ -113,12 +113,12 @@ class VectorKernelsTest {
         registerBackend(recording)
         val threshold = dispatchThresholds.level1
         if (threshold == Int.MAX_VALUE) return@withCleanBackends
-        val dense = DenseVector.of(DoubleArray(threshold) { 3.0 })
+        val dense = F64DenseVector.of(DoubleArray(threshold) { 3.0 })
         norm2(dense)
         asum(dense)
         assertEquals(1, recording.nrm2s, "norm2 on a dense vector did not route")
         assertEquals(1, recording.asums, "asum on a dense vector did not route")
-        val sparse = SparseVector(threshold, IntArray(threshold) { it }, DoubleArray(threshold) { 3.0 })
+        val sparse = F64SparseVector(threshold, IntArray(threshold) { it }, DoubleArray(threshold) { 3.0 })
         norm2(sparse)
         asum(sparse)
         assertEquals(1, recording.nrm2s, "norm2 routed a sparse vector")
@@ -132,7 +132,7 @@ class VectorKernelsTest {
         registerBackend(recording)
         val threshold = dispatchThresholds.level1
         val len = if (threshold == Int.MAX_VALUE) 4096 else threshold
-        val v = DenseVector.of(DoubleArray(len) { if (it == 7) -9.0 else 1.0 })
+        val v = F64DenseVector.of(DoubleArray(len) { if (it == 7) -9.0 else 1.0 })
         assertEquals(7, iamax(v))
         assertEquals(0, recording.dots + recording.nrm2s + recording.asums, "iamax reached the seam")
     }

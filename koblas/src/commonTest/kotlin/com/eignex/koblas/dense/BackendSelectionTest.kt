@@ -1,7 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.Backend
-import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.installBackends
 import com.eignex.koblas.koblas
 import com.eignex.koblas.registerBackend
@@ -62,7 +62,7 @@ class BackendSelectionTest {
         withCleanBackends {
             registerBackend(FakeBlas("fastblas", 50))
             assertEquals("fastblas+reference", koblas.name)
-            assertEquals(2, koblas.factor(DenseMatrix.diagonal(2)).n)
+            assertEquals(2, koblas.factor(F64DenseMatrix.diagonal(2)).n)
             registerBackend(FakeLapack("fastlapack", 10))
             assertEquals("fastblas+fastlapack+reference", koblas.name)
             registerBackend(FakeBlas("slowblas", 5))

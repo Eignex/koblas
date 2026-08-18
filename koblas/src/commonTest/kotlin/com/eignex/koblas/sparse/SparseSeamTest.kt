@@ -1,8 +1,8 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.DenseVector
-import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.SparseVector
+import com.eignex.koblas.F64DenseVector
+import com.eignex.koblas.F64SparseMatrix
+import com.eignex.koblas.F64SparseVector
 import com.eignex.koblas.asum
 import com.eignex.koblas.axpy
 import com.eignex.koblas.copy
@@ -28,32 +28,32 @@ class SparseSeamTest {
         var nrm2s = 0
         var asums = 0
 
-        override fun dot(x: SparseVector, y: DoubleArray): Double {
+        override fun dot(x: F64SparseVector, y: DoubleArray): Double {
             dots++
             return ReferenceSparseLinearAlgebra.dot(x, y)
         }
 
-        override fun dot(x: SparseVector, y: SparseVector): Double {
+        override fun dot(x: F64SparseVector, y: F64SparseVector): Double {
             dots++
             return ReferenceSparseLinearAlgebra.dot(x, y)
         }
 
-        override fun axpy(y: DoubleArray, alpha: Double, x: SparseVector) {
+        override fun axpy(y: DoubleArray, alpha: Double, x: F64SparseVector) {
             axpys++
             ReferenceSparseLinearAlgebra.axpy(y, alpha, x)
         }
 
-        override fun scatter(x: SparseVector, out: DoubleArray) {
+        override fun scatter(x: F64SparseVector, out: DoubleArray) {
             scatters++
             ReferenceSparseLinearAlgebra.scatter(x, out)
         }
 
-        override fun nrm2(x: SparseVector): Double {
+        override fun nrm2(x: F64SparseVector): Double {
             nrm2s++
             return ReferenceSparseLinearAlgebra.nrm2(x)
         }
 
-        override fun asum(x: SparseVector): Double {
+        override fun asum(x: F64SparseVector): Double {
             asums++
             return ReferenceSparseLinearAlgebra.asum(x)
         }
@@ -66,7 +66,7 @@ class SparseSeamTest {
         @Suppress("LongParameterList")
         override fun gemv(
             alpha: Double,
-            a: SparseMatrix,
+            a: F64SparseMatrix,
             x: DoubleArray,
             beta: Double,
             y: DoubleArray,
@@ -76,7 +76,7 @@ class SparseSeamTest {
             ReferenceSparseLinearAlgebra.gemv(alpha, a, x, beta, y, transpose)
         }
 
-        override fun trsv(a: SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) =
+        override fun trsv(a: F64SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) =
             ReferenceSparseLinearAlgebra.trsv(a, x, lower, transpose, unitDiag)
     }
 
@@ -84,36 +84,36 @@ class SparseSeamTest {
         override val name: String get() = "counting-lapack"
         var factors = 0
 
-        override fun factor(a: SparseMatrix, equilibrate: Boolean, dropTolerance: Double): SparseFactorization {
+        override fun factor(a: F64SparseMatrix, equilibrate: Boolean, dropTolerance: Double): SparseFactorization {
             factors++
             return ReferenceSparseLinearAlgebra.factor(a, equilibrate, dropTolerance)
         }
 
-        override fun analyze(a: SparseMatrix, ordering: SparseOrdering) =
+        override fun analyze(a: F64SparseMatrix, ordering: SparseOrdering) =
             ReferenceSparseLinearAlgebra.analyze(a, ordering)
 
-        override fun ldl(a: SparseMatrix, policy: SparseLdlPolicy, ordering: SparseOrdering) =
+        override fun ldl(a: F64SparseMatrix, policy: SparseLdlPolicy, ordering: SparseOrdering) =
             ReferenceSparseLinearAlgebra.ldl(a, policy, ordering)
     }
 
-    private fun sparse() = SparseVector.of(6, intArrayOf(1, 4), doubleArrayOf(2.0, -3.0))
+    private fun sparse() = F64SparseVector.of(6, intArrayOf(1, 4), doubleArrayOf(2.0, -3.0))
 
     @Test
     fun `every public sparse vector operation reaches the registered kernels`() = withCleanBackends {
         val kernels = CountingVectorKernels()
         registerBackend(kernels)
         val x = sparse()
-        val dense = DenseVector.of(DoubleArray(6) { it + 1.0 })
+        val dense = F64DenseVector.of(DoubleArray(6) { it + 1.0 })
 
         assertEquals(2.0 * 2.0 + -3.0 * 5.0, x dot dense)
         assertEquals(2.0 * 2.0 + -3.0 * 5.0, dense dot x)
         assertEquals(4.0 + 9.0, x dot x)
         assertEquals(3, kernels.dots, "all three dot combinations should route")
 
-        axpy(DenseVector.of(DoubleArray(6)), 2.0, x)
+        axpy(F64DenseVector.of(DoubleArray(6)), 2.0, x)
         assertEquals(1, kernels.axpys)
 
-        copy(x, DenseVector.of(DoubleArray(6)))
+        copy(x, F64DenseVector.of(DoubleArray(6)))
         assertEquals(1, kernels.scatters, "copy from a sparse source is a scatter")
 
         norm2(x)
@@ -126,8 +126,8 @@ class SparseSeamTest {
     fun `a dense-only operation does not reach the sparse kernels`() = withCleanBackends {
         val kernels = CountingVectorKernels()
         registerBackend(kernels)
-        val a = DenseVector.of(doubleArrayOf(1.0, 2.0))
-        val b = DenseVector.of(doubleArrayOf(3.0, 4.0))
+        val a = F64DenseVector.of(doubleArrayOf(1.0, 2.0))
+        val b = F64DenseVector.of(doubleArrayOf(3.0, 4.0))
         assertEquals(11.0, a dot b)
         norm2(a)
         asum(a)
@@ -140,13 +140,13 @@ class SparseSeamTest {
         val lapack = CountingSparseLapack()
         registerBackend(blas)
         registerBackend(lapack)
-        val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 4.0)))
+        val a = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 4.0)))
 
         assertTrue(doubleArrayOf(2.0, 8.0).contentEquals(a.gemv(doubleArrayOf(1.0, 2.0))))
-        assertEquals(1, blas.gemvs, "SparseMatrix.gemv should forward to the seam")
+        assertEquals(1, blas.gemvs, "F64SparseMatrix.gemv should forward to the seam")
 
         val f = a.lu()
-        assertEquals(1, lapack.factors, "SparseMatrix.lu should forward to the seam")
+        assertEquals(1, lapack.factors, "F64SparseMatrix.lu should forward to the seam")
         assertTrue(!f.singular)
         assertEquals(8.0, f.determinant(), absoluteTolerance = 1e-12)
     }

@@ -1,6 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.dense.LuDecomposition
 import com.eignex.koblas.dense.lu
 import com.eignex.koblas.koblas
@@ -20,7 +20,7 @@ class BlockSolveBenchmark {
     var backend: String = AUTO_BACKEND
 
     private lateinit var factored: LuDecomposition
-    private lateinit var block: DenseMatrix
+    private lateinit var block: F64DenseMatrix
 
     @Setup
     fun setup() {
@@ -31,7 +31,7 @@ class BlockSolveBenchmark {
     }
 
     @Benchmark
-    fun blockSolve(): DenseMatrix = koblas.solve(factored, block)
+    fun blockSolve(): F64DenseMatrix = koblas.solve(factored, block)
 
     @Benchmark
     fun columnSolves(): DoubleArray {
