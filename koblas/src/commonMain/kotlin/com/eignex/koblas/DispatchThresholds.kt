@@ -29,19 +29,25 @@ internal enum class DispatchLevel {
     val key: String get() = name.lowercase()
 }
 
-/** What this platform uses absent an override; see [DispatchThresholds]. */
+/** What this platform uses for double precision absent an override; see [DispatchThresholds]. */
 internal expect val platformDispatchThresholds: DispatchThresholds
 
-/** Reads the override for [level], or null when unset. */
-internal expect fun dispatchOverride(level: DispatchLevel): Int?
+/** Reads the override for [element]'s [level], or null when unset. */
+internal expect fun dispatchOverride(element: ElementType, level: DispatchLevel): Int?
 
-/** The thresholds in force, overrides applied. */
-internal val dispatchThresholds: DispatchThresholds by lazy {
-    val defaults = platformDispatchThresholds
+/**
+ * The thresholds in force for [element], its [defaults] with any override applied. Crossovers are counted
+ * in elements rather than bytes, so a narrower element type measures its own and passes them here.
+ */
+internal fun dispatchThresholdsFor(element: ElementType, defaults: DispatchThresholds): DispatchThresholds =
     DispatchThresholds(
-        level1 = dispatchOverride(DispatchLevel.LEVEL1) ?: defaults.level1,
-        level2 = dispatchOverride(DispatchLevel.LEVEL2) ?: defaults.level2,
-        level3 = dispatchOverride(DispatchLevel.LEVEL3) ?: defaults.level3,
-        lapack = dispatchOverride(DispatchLevel.LAPACK) ?: defaults.lapack,
+        level1 = dispatchOverride(element, DispatchLevel.LEVEL1) ?: defaults.level1,
+        level2 = dispatchOverride(element, DispatchLevel.LEVEL2) ?: defaults.level2,
+        level3 = dispatchOverride(element, DispatchLevel.LEVEL3) ?: defaults.level3,
+        lapack = dispatchOverride(element, DispatchLevel.LAPACK) ?: defaults.lapack,
     )
+
+/** The double-precision thresholds in force, overrides applied. */
+internal val f64DispatchThresholds: DispatchThresholds by lazy {
+    dispatchThresholdsFor(ElementType.F64, platformDispatchThresholds)
 }

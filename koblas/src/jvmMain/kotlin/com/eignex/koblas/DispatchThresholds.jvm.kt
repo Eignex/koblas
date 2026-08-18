@@ -29,6 +29,6 @@ private const val JVM_LEVEL3_MIN = 16
 private const val JVM_LAPACK_MIN = 64
 
 /** A system property first, then the environment, so a caller can use whichever suits their launcher. */
-internal actual fun dispatchOverride(level: DispatchLevel): Int? =
-    System.getProperty(ConfigurationKeys.DISPATCH_PROPERTY_PREFIX + level.key)?.toIntOrNull()
-        ?: System.getenv(ConfigurationKeys.DISPATCH_ENV_PREFIX + level.name)?.toIntOrNull()
+internal actual fun dispatchOverride(element: ElementType, level: DispatchLevel): Int? =
+    System.getProperty(ConfigurationKeys.dispatchProperty(element, level))?.toIntOrNull()
+        ?: System.getenv(ConfigurationKeys.dispatchEnv(element, level))?.toIntOrNull()

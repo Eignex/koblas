@@ -4,9 +4,9 @@ import com.eignex.koblas.F64DenseVector
 import com.eignex.koblas.F64SparseVector
 import com.eignex.koblas.asum
 import com.eignex.koblas.axpy
-import com.eignex.koblas.dispatchThresholds
 import com.eignex.koblas.dot
 import com.eignex.koblas.euclideanNorm
+import com.eignex.koblas.f64DispatchThresholds
 import com.eignex.koblas.iamax
 import com.eignex.koblas.installBackends
 import com.eignex.koblas.koblas
@@ -75,7 +75,7 @@ class VectorKernelsTest {
     fun `a registered backend is reached exactly above the level-1 threshold`() = withCleanBackends {
         val recording = Recording()
         registerBackend(recording)
-        val threshold = dispatchThresholds.level1
+        val threshold = f64DispatchThresholds.level1
         val long = if (threshold == Int.MAX_VALUE) 4096 else threshold
         val x = F64DenseVector.of(DoubleArray(long) { 1.0 })
         val y = F64DenseVector.of(DoubleArray(long) { 2.0 })
@@ -96,7 +96,7 @@ class VectorKernelsTest {
     fun `axpy and scale route on the same threshold as dot`() = withCleanBackends {
         val recording = Recording()
         registerBackend(recording)
-        val threshold = dispatchThresholds.level1
+        val threshold = f64DispatchThresholds.level1
         if (threshold == Int.MAX_VALUE) return@withCleanBackends
         val v = F64DenseVector.of(DoubleArray(threshold) { 1.0 })
         val x = F64DenseVector.of(DoubleArray(threshold) { 2.0 })
@@ -111,7 +111,7 @@ class VectorKernelsTest {
     fun `the dense reductions route but the sparse ones cannot`() = withCleanBackends {
         val recording = Recording()
         registerBackend(recording)
-        val threshold = dispatchThresholds.level1
+        val threshold = f64DispatchThresholds.level1
         if (threshold == Int.MAX_VALUE) return@withCleanBackends
         val dense = F64DenseVector.of(DoubleArray(threshold) { 3.0 })
         norm2(dense)
@@ -130,7 +130,7 @@ class VectorKernelsTest {
     fun `iamax does not route`() = withCleanBackends {
         val recording = Recording()
         registerBackend(recording)
-        val threshold = dispatchThresholds.level1
+        val threshold = f64DispatchThresholds.level1
         val len = if (threshold == Int.MAX_VALUE) 4096 else threshold
         val v = F64DenseVector.of(DoubleArray(len) { if (it == 7) -9.0 else 1.0 })
         assertEquals(7, iamax(v))

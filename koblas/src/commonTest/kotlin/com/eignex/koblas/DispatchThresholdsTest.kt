@@ -1,6 +1,7 @@
 package com.eignex.koblas
 
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class DispatchThresholdsTest {
@@ -17,5 +18,25 @@ class DispatchThresholdsTest {
             assertTrue(defaults.level3 == 0, "scalar kernels should dispatch level 3 from the start")
             assertTrue(defaults.level2 == 0, "scalar kernels should dispatch level 2 from the start")
         }
+    }
+
+    @Test
+    fun `double precision owns the unqualified override keys and a later element type namespaces its own`() {
+        assertEquals(
+            "koblas.dispatch.level3",
+            ConfigurationKeys.dispatchProperty(ElementType.F64, DispatchLevel.LEVEL3),
+        )
+        assertEquals(
+            "KOBLAS_DISPATCH_LEVEL3",
+            ConfigurationKeys.dispatchEnv(ElementType.F64, DispatchLevel.LEVEL3),
+        )
+        assertEquals(
+            "koblas.dispatch.f32.level3",
+            ConfigurationKeys.dispatchProperty(ElementType.F32, DispatchLevel.LEVEL3),
+        )
+        assertEquals(
+            "KOBLAS_DISPATCH_F32_LEVEL3",
+            ConfigurationKeys.dispatchEnv(ElementType.F32, DispatchLevel.LEVEL3),
+        )
     }
 }

@@ -2,7 +2,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.Backend
 import com.eignex.koblas.DispatchThresholds
-import com.eignex.koblas.dispatchThresholds
+import com.eignex.koblas.f64DispatchThresholds
 
 /**
  * The vector-vector routines as a backend half, alongside [F64Blas] and [F64Lapack]. Implementations must agree
@@ -93,7 +93,7 @@ internal class F64RoutedVectorKernels(internal val host: F64VectorKernels?) : F6
     /** The kernels for a run of [len]: the host backend only when it exists and the run is long enough. */
     private fun forLength(len: Int): F64VectorKernels {
         val h = host
-        return if (h != null && len >= dispatchThresholds.level1) h else F64PlatformVectorKernels
+        return if (h != null && len >= f64DispatchThresholds.level1) h else F64PlatformVectorKernels
     }
 
     override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =

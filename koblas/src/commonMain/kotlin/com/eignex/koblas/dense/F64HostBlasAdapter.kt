@@ -13,7 +13,7 @@ import com.eignex.koblas.dense.Cblas.diagOf
 import com.eignex.koblas.dense.Cblas.sideOf
 import com.eignex.koblas.dense.Cblas.transOf
 import com.eignex.koblas.dense.Cblas.uploOf
-import com.eignex.koblas.dispatchThresholds
+import com.eignex.koblas.f64DispatchThresholds
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.requireSquare
 
@@ -66,7 +66,7 @@ public abstract class F64HostBlasAdapter internal constructor(
     }
 
     override fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: F64DenseMatrix) {
-        if (minOf(a.rows, a.cols) < dispatchThresholds.level2) return portable.ger(alpha, x, y, a)
+        if (minOf(a.rows, a.cols) < f64DispatchThresholds.level2) return portable.ger(alpha, x, y, a)
         requireShape(a.rows == x.size && a.cols == y.size) {
             "ger shape mismatch: A is ${a.rows}x${a.cols}, x ${x.size}, y ${y.size}"
         }
@@ -75,12 +75,12 @@ public abstract class F64HostBlasAdapter internal constructor(
     }
 
     override fun trsv(a: F64DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
-        if (a.rows < dispatchThresholds.level2) return portable.trsv(a, x, lower, transpose, unitDiag)
+        if (a.rows < f64DispatchThresholds.level2) return portable.trsv(a, x, lower, transpose, unitDiag)
         triangularVector(a, x, lower, transpose, unitDiag, solve = true)
     }
 
     override fun trmv(a: F64DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
-        if (a.rows < dispatchThresholds.level2) return portable.trmv(a, x, lower, transpose, unitDiag)
+        if (a.rows < f64DispatchThresholds.level2) return portable.trmv(a, x, lower, transpose, unitDiag)
         triangularVector(a, x, lower, transpose, unitDiag, solve = false)
     }
 
@@ -111,7 +111,7 @@ public abstract class F64HostBlasAdapter internal constructor(
         unitDiag: Boolean,
         right: Boolean,
     ) {
-        if (minOf(a.rows, b.rows, b.cols) < dispatchThresholds.level3) {
+        if (minOf(a.rows, b.rows, b.cols) < f64DispatchThresholds.level3) {
             return portable.trsm(a, b, lower, transpose, unitDiag, right)
         }
         triangularSolveOrMultiply(a, b, lower, transpose, unitDiag, right, solve = true)
@@ -126,7 +126,7 @@ public abstract class F64HostBlasAdapter internal constructor(
         unitDiag: Boolean,
         right: Boolean,
     ) {
-        if (minOf(a.rows, b.rows, b.cols) < dispatchThresholds.level3) {
+        if (minOf(a.rows, b.rows, b.cols) < f64DispatchThresholds.level3) {
             return portable.trmm(a, b, lower, transpose, unitDiag, right)
         }
         triangularSolveOrMultiply(a, b, lower, transpose, unitDiag, right, solve = false)
@@ -166,7 +166,7 @@ public abstract class F64HostBlasAdapter internal constructor(
         y: DoubleArray,
         transpose: Boolean,
     ) {
-        if (minOf(a.rows, a.cols) < dispatchThresholds.level2) {
+        if (minOf(a.rows, a.cols) < f64DispatchThresholds.level2) {
             return portable.gemv(alpha, a, x, beta, y, transpose)
         }
         val xLen = if (transpose) a.rows else a.cols
@@ -202,7 +202,7 @@ public abstract class F64HostBlasAdapter internal constructor(
             return
         }
         if (m == 0 || n == 0) return
-        if (minOf(m, n, k) < dispatchThresholds.level3) {
+        if (minOf(m, n, k) < f64DispatchThresholds.level3) {
             return portable.gemm(alpha, a, transposeA, b, transposeB, beta, c)
         }
         f.dgemm(
@@ -224,7 +224,7 @@ public abstract class F64HostBlasAdapter internal constructor(
         val n = if (transpose) a.cols else a.rows
         val k = if (transpose) a.rows else a.cols
         requireShape(c.rows == n && c.cols == n) { "syrk: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
-        if (minOf(n, k) < dispatchThresholds.level3) {
+        if (minOf(n, k) < f64DispatchThresholds.level3) {
             return portable.syrk(alpha, a, transpose, beta, c, uplo, workspace)
         }
         if (alpha == 0.0 || k == 0) {
@@ -271,7 +271,7 @@ public abstract class F64HostBlasAdapter internal constructor(
      */
     override fun symv(alpha: Double, a: F64DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) {
         requireShape(a.rows == a.cols) { "symv: matrix must be square, got ${a.rows}x${a.cols}" }
-        if (a.rows < dispatchThresholds.level2) return portable.symv(alpha, a, x, beta, y, lower)
+        if (a.rows < f64DispatchThresholds.level2) return portable.symv(alpha, a, x, beta, y, lower)
         val n = a.rows
         requireShape(x.size == n) { "symv: x length ${x.size} != $n" }
         requireShape(y.size == n) { "symv: y length ${y.size} != $n" }
@@ -292,7 +292,7 @@ public abstract class F64HostBlasAdapter internal constructor(
         right: Boolean,
     ) {
         requireShape(a.rows == a.cols) { "symm: matrix must be square, got ${a.rows}x${a.cols}" }
-        if (minOf(a.rows, b.rows, b.cols) < dispatchThresholds.level3) {
+        if (minOf(a.rows, b.rows, b.cols) < f64DispatchThresholds.level3) {
             return portable.symm(alpha, a, b, beta, c, lower, right)
         }
         val m = a.rows

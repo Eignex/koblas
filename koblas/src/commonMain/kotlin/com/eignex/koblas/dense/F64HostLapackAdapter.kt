@@ -13,7 +13,7 @@ import com.eignex.koblas.dense.Cblas.NO_TRANS
 import com.eignex.koblas.dense.Cblas.TRANS
 import com.eignex.koblas.dense.Cblas.UNIT
 import com.eignex.koblas.dense.Cblas.UPPER
-import com.eignex.koblas.dispatchThresholds
+import com.eignex.koblas.f64DispatchThresholds
 import com.eignex.koblas.lapackFailedAt
 import com.eignex.koblas.requireFactored
 import com.eignex.koblas.requireShape
@@ -82,7 +82,7 @@ public abstract class F64HostLapackAdapter internal constructor(
     protected open val spdInvertMin: Int get() = 0
 
     override fun factor(a: F64DenseMatrix): F64LuDecomposition {
-        if (a.rows < dispatchThresholds.lapack) return portable.factor(a)
+        if (a.rows < f64DispatchThresholds.lapack) return portable.factor(a)
         requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
         val n = a.rows
         return factorInto(a, F64LuDecomposition(n, DoubleArray(n * n), IntArray(n)))
@@ -92,7 +92,7 @@ public abstract class F64HostLapackAdapter internal constructor(
     override fun factorInto(a: F64DenseMatrix, out: F64LuDecomposition): F64LuDecomposition {
         requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
         requireShape(out.n == a.rows) { "factorInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}" }
-        if (a.rows < dispatchThresholds.lapack) return portable.factorInto(a, out)
+        if (a.rows < f64DispatchThresholds.lapack) return portable.factorInto(a, out)
         val n = out.n
         a.data.copyInto(out.lu)
         val piv = out.piv
@@ -182,7 +182,7 @@ public abstract class F64HostLapackAdapter internal constructor(
     }
 
     override fun ldl(a: F64DenseMatrix, workspace: Workspace?): F64LdlDecomposition {
-        if (a.rows < dispatchThresholds.lapack) return portable.ldl(a, workspace)
+        if (a.rows < f64DispatchThresholds.lapack) return portable.ldl(a, workspace)
         requireShape(a.rows == a.cols) { "ldl: matrix must be square, got ${a.rows}x${a.cols}" }
         val n = a.rows
         val buf = a.data.copyOf()
@@ -218,7 +218,7 @@ public abstract class F64HostLapackAdapter internal constructor(
     }
 
     override fun qr(a: F64DenseMatrix, workspace: Workspace?): F64QrDecomposition {
-        if (minOf(a.rows, a.cols) < dispatchThresholds.lapack) return portable.qr(a, workspace)
+        if (minOf(a.rows, a.cols) < f64DispatchThresholds.lapack) return portable.qr(a, workspace)
         val m = a.rows
         val n = a.cols
         val buf = a.data.copyOf()
@@ -243,7 +243,7 @@ public abstract class F64HostLapackAdapter internal constructor(
     }
 
     override fun rcond(lu: F64LuDecomposition, anorm: Double, workspace: Workspace?): Double {
-        if (lu.n < dispatchThresholds.lapack) return portable.rcond(lu, anorm, workspace)
+        if (lu.n < f64DispatchThresholds.lapack) return portable.rcond(lu, anorm, workspace)
         val n = lu.n
         if (n == 0) return 1.0
         if (lu.singular || anorm == 0.0) return 0.0

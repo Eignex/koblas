@@ -15,9 +15,17 @@ internal object ConfigurationKeys {
     /** OpenBLAS's own thread count. When it is set koblas leaves the threading to the library. */
     const val OPENBLAS_THREADS_ENV = "OPENBLAS_NUM_THREADS"
 
-    /** Prefix of the per-level [DispatchThresholds] overrides, completed by [DispatchLevel.key]. */
+    /** Prefix of the per-level [DispatchThresholds] overrides, completed by [dispatchProperty]. */
     const val DISPATCH_PROPERTY_PREFIX = "koblas.dispatch."
 
-    /** Prefix of the same overrides read from the environment, completed by the [DispatchLevel] name. */
+    /** Prefix of the same overrides read from the environment, completed by [dispatchEnv]. */
     const val DISPATCH_ENV_PREFIX = "KOBLAS_DISPATCH_"
+
+    /** The system property an override for [element]'s [level] is read from, `koblas.dispatch.level3`. */
+    fun dispatchProperty(element: ElementType, level: DispatchLevel): String =
+        DISPATCH_PROPERTY_PREFIX + element.keySegment + level.key
+
+    /** The environment variable for the same override, `KOBLAS_DISPATCH_LEVEL3`. */
+    fun dispatchEnv(element: ElementType, level: DispatchLevel): String =
+        DISPATCH_ENV_PREFIX + element.envSegment + level.name
 }
