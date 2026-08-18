@@ -109,8 +109,15 @@ benchmark {
             param("n", "256")
         }
 
-        // Gates for a shared-helper change in a hot path. Each pins the rows the change could regress plus a
-        // control it cannot touch, so drift in the control means the machine moved.
+        // Gates for a shared-helper change in a hot path. Each pins the rows the change could regress plus
+        // at least one control it cannot touch, so drift in the control means the machine moved.
+        //
+        // JMH runs a suite's rows alphabetically, which decides where a control can sit. A control that sorts
+        // after the subjects is worth most, since it sees interference that arrives mid-run: one discarded run
+        // had a pristine leading control beside rows three times worse. Where the subject names sort last in
+        // their class no trailing control exists, and those gates are kept to a couple of rows instead, so the
+        // window is small. Either way the procedure in measure.sh is what makes a comparison sound: several
+        // runs a side, compare minimums, read the subject against a control from the same run.
         //
         // Several forks, unlike the single fork above. One fork reports a tight error bar and still moves 25%
         // between two runs of identical code, because the whole run inherits one JVM's JIT decisions. Forks
@@ -121,31 +128,45 @@ benchmark {
             advanced("jvmForks", "5")
         }
 
-        suite("scalarKernelsGate", "Level1Benchmark", "dot|dot4|axpyBench|scaleBench|iamaxBench") {
+        // Bracketed: asumBench leads, iamaxBench trails, the three subjects sit between them.
+        suite("scalarKernelsGate", "Level1Benchmark", "asumBench|axpyBench|dot|dot4|iamaxBench") {
             gate()
             param("len", "64", "1024")
             param("kernels", "builtin")
         }
-        suite("sweepGate", "SparseBenchmark", "sparseLuFtran|sparseLuBtran|sparseLuFactor|sparseGemv") {
+        // scaleBench sorts last in its class, so nrm2 can only lead. Two rows keep the window short.
+        suite("scaleGate", "Level1Benchmark", "nrm2|scaleBench") {
             gate()
-            param("n", "256")
+            param("len", "64", "1024")
+            param("kernels", "builtin")
         }
-        suite("triangularGate", "Level2Benchmark", "trsv|trmv|gemv") {
+        // Bracketed: sparseGemv leads, sparseTranspose trails, and it is O(nnz) so it costs little.
+        suite("sweepGate", "SparseBenchmark", "sparseGemv|sparseLuBtran|sparseLuFtran|sparseTranspose") {
             gate()
             param("n", "256")
-            param("backend", "reference")
         }
         suite("pivotedQrGate", "PivotedQrGateBenchmark") {
             gate()
         }
-        // One decisive row plus a control, because a five-row suite gives interference minutes to arrive
-        // and JMH runs the rows alphabetically, so a control that sorts first cannot see it.
-        suite("trsmRightGate", "Level3Benchmark", "trsmRight|gemm") {
+        // The triangular rows sort last in Level2Benchmark and Level3Benchmark, so no control can trail them.
+        // These stay short, and trsmRightGate is the instrument for the row a shared helper is most likely to
+        // cost, the right-hand path that runs one core call per row of B.
+        suite("triangularGate", "Level2Benchmark", "gemv|trmv|trsv") {
+            gate()
+            param("n", "256")
+            param("backend", "reference")
+        }
+        suite("trsmRightGate", "Level3Benchmark", "gemm|trsmRight") {
             gate()
             param("n", "64")
             param("backend", "reference")
         }
-        suite("triangularBlockGate", "Level3Benchmark", "trsm|trmm|trsmRight|trmmRight|gemm") {
+        suite("trmmRightGate", "Level3Benchmark", "gemm|trmmRight") {
+            gate()
+            param("n", "64")
+            param("backend", "reference")
+        }
+        suite("triangularBlockGate", "Level3Benchmark", "gemm|trmm|trsm") {
             gate()
             param("n", "64")
             param("backend", "reference")
