@@ -2,6 +2,11 @@
 
 Dense and sparse linear algebra for Kotlin Multiplatform.
 
+Every container and every backend half names its element type. Double precision is the only one
+implemented, so the names all begin `F64`, and the unqualified names are aliases for them: `DenseMatrix` is
+[F64DenseMatrix][com.eignex.koblas.F64DenseMatrix]. The README's "Element types" section says what an
+element type added later brings and what stays shared.
+
 koblas provides read-only matrix/vector containers with sealed dense and sparse backings —
 [F64MatrixView][com.eignex.koblas.F64MatrixView] / [F64DenseMatrix][com.eignex.koblas.F64DenseMatrix] and
 [F64VectorView][com.eignex.koblas.F64VectorView] / [F64DenseVector][com.eignex.koblas.F64DenseVector] /
