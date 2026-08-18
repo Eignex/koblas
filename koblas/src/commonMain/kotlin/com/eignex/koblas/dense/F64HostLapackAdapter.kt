@@ -149,7 +149,7 @@ public abstract class F64HostLapackAdapter internal constructor(
             permuteRows(y, out.data, n, nrhs, lu.piv, gather = false)
             workspace?.release(y)
         } else {
-            if (out === b) {
+            if (out.data === b.data) {
                 val staged = workspace?.take(n * nrhs) ?: DoubleArray(n * nrhs)
                 permuteRows(b.data, staged, n, nrhs, lu.piv, gather = true)
                 staged.copyInto(out.data)
