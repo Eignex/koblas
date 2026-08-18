@@ -501,8 +501,9 @@ internal class F64ReferenceLapack(private val kernels: F64VectorKernels? = null)
             workspace?.release(y)
             out
         } else {
-            // The gather cannot read B in place once out aliases it, so that case stages.
-            if (out === b) {
+            // The gather cannot read B in place once out shares its buffer, so that case stages. Two
+            // matrices can be distinct objects over one array, so the test is on the storage.
+            if (out.data === b.data) {
                 val staged = workspace?.take(n * nrhs) ?: DoubleArray(n * nrhs)
                 permuteRows(b.data, staged, n, nrhs, lu.piv, gather = true)
                 staged.copyInto(out.data)

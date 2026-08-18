@@ -186,4 +186,35 @@ class DestinationPassingTest {
             "sparse forward solve after a transposed one",
         )
     }
+
+    @Test
+    fun `lu block solve tolerates a destination sharing the input's buffer`() {
+        val rng = Random(20260753)
+        val ws = Workspace()
+        for (n in intArrayOf(2, 9)) {
+            for (nrhs in intArrayOf(1, 3, 40)) {
+                // Row-swapped so the factorization actually permutes: an identity pivot would make the
+                // gather a no-op and the test blind to the aliasing it exists to cover.
+                val a = wellConditioned(n, rng)
+                for (j in 0 until n) {
+                    val top = a[0, j]
+                    a[0, j] = a[n - 1, j]
+                    a[n - 1, j] = top
+                }
+                val lu = a.lu()
+                assertTrue(lu.piv.withIndex().any { (k, p) -> k != p }, "n=$n must permute to exercise the gather")
+                val b = F64DenseMatrix(n, nrhs)
+                for (i in 0 until n) for (j in 0 until nrhs) b[i, j] = rng.nextDouble(-1.0, 1.0)
+                for (transpose in booleanArrayOf(false, true)) {
+                    val expected = koblas.solve(lu, b, transpose)
+                    // Two views over one buffer: not the same object, but the same storage.
+                    val shared = b.data.copyOf()
+                    val rhs = F64DenseMatrix.wrap(n, nrhs, shared)
+                    val out = F64DenseMatrix.wrap(n, nrhs, shared)
+                    koblas.solveInto(lu, rhs, out, transpose, ws)
+                    assertClose(expected.data, shared, "shared buffer n=$n nrhs=$nrhs t=$transpose")
+                }
+            }
+        }
+    }
 }
