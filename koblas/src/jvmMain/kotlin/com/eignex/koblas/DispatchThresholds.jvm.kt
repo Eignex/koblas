@@ -1,11 +1,17 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.dense.simdAvailable
+
 /**
- * JVM defaults, chosen from [mathBackend] because they hold only while the Vector API kernels are there.
+ * JVM defaults, chosen from [simdAvailable] because they hold only while the Vector API kernels are there.
  * The incubator module is opt-in, and without it the crossovers move down to the scalar ones.
+ *
+ * Whether the module resolved is fixed for the process, which is what lets [f64DispatchThresholds] memoize
+ * these. Reading the installed backend's name instead would be a value that moves under a memo that cannot:
+ * an [installBackends] override would freeze whichever thresholds were in force at the first read.
  */
 internal actual val platformDispatchThresholds: DispatchThresholds
-    get() = if (mathBackend.startsWith(BackendNames.SIMD)) SIMD_THRESHOLDS else SCALAR_THRESHOLDS
+    get() = if (simdAvailable) SIMD_THRESHOLDS else SCALAR_THRESHOLDS
 
 /** For a JVM running the Vector API kernels. */
 private val SIMD_THRESHOLDS = DispatchThresholds(
