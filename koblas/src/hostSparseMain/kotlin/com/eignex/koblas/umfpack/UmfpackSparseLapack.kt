@@ -9,10 +9,14 @@ import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.requireSquare
 import com.eignex.koblas.sparse.NO_DROP
+import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.SingularSparseFactorization
 import com.eignex.koblas.sparse.SparseFactorization
 import com.eignex.koblas.sparse.SparseLapack
+import com.eignex.koblas.sparse.SparseLdlPolicy
 import com.eignex.koblas.sparse.SparseLu
+import com.eignex.koblas.sparse.SparseOrdering
+import com.eignex.koblas.sparse.SparseSymbolic
 import kotlinx.cinterop.COpaquePointerVar
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
@@ -35,6 +39,9 @@ public class UmfpackSparseLapack internal constructor(private val f: UmfpackFunc
 
     /** UMFPACK ships separately from OpenBLAS, so a host can have one without the other. */
     override val isAvailable: Boolean get() = UmfpackLoader.available
+
+    /** Stated rather than delegated: the delegate is portable and this calls out to UMFPACK. */
+    override val isPortable: Boolean get() = false
 
     @Suppress("ReturnCount") // one early return per condition UMFPACK cannot serve
     override fun factor(a: SparseMatrix, equilibrate: Boolean, dropTolerance: Double): SparseFactorization {
@@ -107,4 +114,13 @@ public class UmfpackSparseLapack internal constructor(private val f: UmfpackFunc
             }
         }
     }
+
+    // UMFPACK provides no symmetric factorization, so these run the portable versions. Forwarded explicitly
+    // rather than by class delegation, which would route the convenience overloads to the portable factor
+    // instead of this one, since a delegated member calls back into the delegate.
+    override fun analyze(a: SparseMatrix, ordering: SparseOrdering): SparseSymbolic =
+        ReferenceSparseLinearAlgebra.analyze(a, ordering)
+
+    override fun ldl(a: SparseMatrix, policy: SparseLdlPolicy, ordering: SparseOrdering): SparseFactorization =
+        ReferenceSparseLinearAlgebra.ldl(a, policy, ordering)
 }

@@ -134,8 +134,18 @@ class SparseTriangularTest {
             override val name: String get() = "counting"
             override fun trsv(a: SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
                 calls++
-                super.trsv(a, x, lower, transpose, unitDiag)
+                ReferenceSparseLinearAlgebra.trsv(a, x, lower, transpose, unitDiag)
             }
+
+            @Suppress("LongParameterList")
+            override fun gemv(
+                alpha: Double,
+                a: SparseMatrix,
+                x: DoubleArray,
+                beta: Double,
+                y: DoubleArray,
+                transpose: Boolean,
+            ) = ReferenceSparseLinearAlgebra.gemv(alpha, a, x, beta, y, transpose)
         }
         registerBackend(counting)
         val t = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 4.0)))

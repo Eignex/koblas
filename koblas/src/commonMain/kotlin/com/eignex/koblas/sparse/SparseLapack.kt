@@ -19,14 +19,13 @@ public interface SparseLapack : Backend {
         a: SparseMatrix,
         equilibrate: Boolean = false,
         dropTolerance: Double = NO_DROP,
-    ): SparseFactorization = SparseLu.factorCsc(a, equilibrate, dropTolerance)
+    ): SparseFactorization
 
     /**
      * Analyse a symmetric [a]'s pattern, the elimination tree and the nonzero pattern of L, reading no
      * values. Reusable, so every matrix with this pattern factors against one analysis.
      */
-    public fun analyze(a: SparseMatrix, ordering: SparseOrdering = SparseOrdering.MinimumDegree): SparseSymbolic =
-        SparseSymbolic.analyze(a, ordering)
+    public fun analyze(a: SparseMatrix, ordering: SparseOrdering = SparseOrdering.MinimumDegree): SparseSymbolic
 
     /**
      * `A = L·D·Lᵀ` for a symmetric [a], analysing the pattern first. Accepts an indefinite matrix by
@@ -36,7 +35,7 @@ public interface SparseLapack : Backend {
         a: SparseMatrix,
         policy: SparseLdlPolicy = SparseLdlPolicy.Indefinite,
         ordering: SparseOrdering = SparseOrdering.MinimumDegree,
-    ): SparseFactorization = numericLdl(a, analyze(a, ordering), policy)
+    ): SparseFactorization
 
     /**
      * The Cholesky factorization of a symmetric positive-definite [a], as `L·D·Lᵀ` with every pivot

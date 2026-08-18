@@ -38,10 +38,39 @@ public abstract class HostLapackAdapter internal constructor(
     private val f: LapackeCalls,
     private val blas: CblasCalls,
     private val portable: ReferenceLapack = ReferenceLapack(),
-) : Lapack by portable {
+) : Lapack {
 
-    /** Stated rather than delegated: the delegate is portable and this is a binding that calls out. */
+    /** A binding that calls out, whatever the portable instance it falls back to reports. */
     override val isPortable: Boolean get() = false
+
+    // No host binding for these, so they run the portable versions. Forwarded explicitly rather than by
+    // class delegation, which would route a caller's convenience overloads to the portable routine instead
+    // of the accelerated one, since a delegated member calls back into the delegate.
+    override fun invert(lu: LuDecomposition, workspace: Workspace?): DenseMatrix = portable.invert(lu, workspace)
+
+    override fun trtri(a: DenseMatrix, lower: Boolean, unitDiag: Boolean): DenseMatrix =
+        portable.trtri(a, lower, unitDiag)
+
+    override fun solveLeastSquaresInto(
+        qr: QrDecomposition,
+        b: DoubleArray,
+        out: DoubleArray,
+        workspace: Workspace?,
+    ): DoubleArray = portable.solveLeastSquaresInto(qr, b, out, workspace)
+
+    override fun solveLeastSquaresInto(
+        qr: PivotedQrDecomposition,
+        b: DoubleArray,
+        out: DoubleArray,
+        workspace: Workspace?,
+    ): DoubleArray = portable.solveLeastSquaresInto(qr, b, out, workspace)
+
+    override fun solveMinimumNormInto(
+        qr: QrDecomposition,
+        b: DoubleArray,
+        out: DoubleArray,
+        workspace: Workspace?,
+    ): DoubleArray = portable.solveMinimumNormInto(qr, b, out, workspace)
 
     /** Right-hand columns from which the blocked triangular solve beats one native call per column. */
     protected open val nativeTrsmMinRhs: Int get() = 1
