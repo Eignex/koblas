@@ -7,11 +7,11 @@ import kotlin.math.abs
 public const val AUTOMATIC_RANK_TOLERANCE: Double = 0.0
 
 /** `2⁻⁵²`, the gap between 1.0 and the next double. Kotlin has no `Double.EPSILON`. */
-internal const val MACHINE_EPSILON = 2.220446049250313e-16
+internal const val F64_MACHINE_EPSILON = 2.220446049250313e-16
 
 /** Below this, a downdated column norm is recomputed from the column instead of trusted. `√ε`, as in
  *  LAPACK `dgeqp3`. */
-internal const val NORM_RECOMPUTE_THRESHOLD = 1.4901161193847656e-8
+internal const val F64_NORM_RECOMPUTE_THRESHOLD = 1.4901161193847656e-8
 
 /**
  * A QR factorization with column pivoting, `A·P = Q·R` (LAPACK `dgeqp3`), plus the numerical [rank] the
@@ -49,7 +49,7 @@ internal fun rankOfPivotedR(r: DoubleArray, m: Int, n: Int, k: Int, tolerance: D
     if (k == 0) return 0
     val largest = abs(r[0])
     if (largest == 0.0) return 0
-    val effective = if (tolerance > AUTOMATIC_RANK_TOLERANCE) tolerance else maxOf(m, n) * MACHINE_EPSILON
+    val effective = if (tolerance > AUTOMATIC_RANK_TOLERANCE) tolerance else maxOf(m, n) * F64_MACHINE_EPSILON
     val limit = effective * largest
     var rank = 0
     while (rank < k && abs(r[rank + rank * m]) > limit) rank++
