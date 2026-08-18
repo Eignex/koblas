@@ -1,7 +1,7 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.F64DenseMatrix
+import com.eignex.koblas.F64SparseMatrix
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.dense.trsv
 import com.eignex.koblas.registerBackend
@@ -14,8 +14,13 @@ import kotlin.test.assertTrue
 
 class SparseTriangularTest {
 
-    private fun triangle(n: Int, lower: Boolean, rng: Random, density: Double = 0.4): Pair<SparseMatrix, DenseMatrix> {
-        val dense = DenseMatrix(n, n)
+    private fun triangle(
+        n: Int,
+        lower: Boolean,
+        rng: Random,
+        density: Double = 0.4,
+    ): Pair<F64SparseMatrix, F64DenseMatrix> {
+        val dense = F64DenseMatrix(n, n)
         val columns = ArrayList<List<Pair<Int, Double>>>(n)
         for (j in 0 until n) {
             val column = ArrayList<Pair<Int, Double>>()
@@ -34,7 +39,7 @@ class SparseTriangularTest {
             }
             columns.add(column)
         }
-        return SparseMatrix.ofColumns(n, n, columns) to dense
+        return F64SparseMatrix.ofColumns(n, n, columns) to dense
     }
 
     @Test
@@ -97,17 +102,17 @@ class SparseTriangularTest {
         }
         val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
         val fromClean = b.copyOf().also { clean.trsv(it, lower = true) }
-        val fromPoisoned = b.copyOf().also { SparseMatrix.ofColumns(n, n, poisoned).trsv(it, lower = true) }
+        val fromPoisoned = b.copyOf().also { F64SparseMatrix.ofColumns(n, n, poisoned).trsv(it, lower = true) }
         assertClose(fromClean, fromPoisoned, "a NaN in the unread triangle changed the answer", tolerance = 0.0)
     }
 
     @Test
     fun `a missing or zero diagonal is reported with its position`() {
-        val missing = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf()))
+        val missing = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf()))
         val absent = assertFailsWith<IllegalArgumentException> { missing.trsv(DoubleArray(2), lower = true) }
         assertTrue("no diagonal entry at 1" in absent.message!!, absent.message!!)
 
-        val zeroed = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 0.0)))
+        val zeroed = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 0.0)))
         val explicit = assertFailsWith<IllegalArgumentException> { zeroed.trsv(DoubleArray(2), lower = true) }
         assertTrue("explicit zero" in explicit.message!!, explicit.message!!)
     }
@@ -115,7 +120,7 @@ class SparseTriangularTest {
     @Test
     fun `unitDiag takes the diagonal as one without reading it`() {
         // A diagonal of 5.0 that must be ignored, and a NaN one that must not even be looked at.
-        val lower = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 5.0, 1 to 3.0), listOf(1 to Double.NaN)))
+        val lower = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 5.0, 1 to 3.0), listOf(1 to Double.NaN)))
         val x = doubleArrayOf(1.0, 2.0)
         lower.trsv(x, lower = true, unitDiag = true)
         assertEquals(1.0, x[0])
@@ -132,7 +137,13 @@ class SparseTriangularTest {
         var calls = 0
         val counting = object : SparseBlas {
             override val name: String get() = "counting"
-            override fun trsv(a: SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
+            override fun trsv(
+                a: F64SparseMatrix,
+                x: DoubleArray,
+                lower: Boolean,
+                transpose: Boolean,
+                unitDiag: Boolean,
+            ) {
                 calls++
                 ReferenceSparseLinearAlgebra.trsv(a, x, lower, transpose, unitDiag)
             }
@@ -140,7 +151,7 @@ class SparseTriangularTest {
             @Suppress("LongParameterList")
             override fun gemv(
                 alpha: Double,
-                a: SparseMatrix,
+                a: F64SparseMatrix,
                 x: DoubleArray,
                 beta: Double,
                 y: DoubleArray,
@@ -148,7 +159,7 @@ class SparseTriangularTest {
             ) = ReferenceSparseLinearAlgebra.gemv(alpha, a, x, beta, y, transpose)
         }
         registerBackend(counting)
-        val t = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 4.0)))
+        val t = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 4.0)))
         t.trsv(doubleArrayOf(2.0, 4.0), lower = true)
         assertEquals(1, calls, "the extension must forward to the seam")
     }

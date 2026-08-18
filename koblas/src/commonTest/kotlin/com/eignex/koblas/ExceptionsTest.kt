@@ -14,15 +14,15 @@ import kotlin.test.assertTrue
 
 class ExceptionsTest {
 
-    private val singular = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 4.0)))
-    private val indefinite = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 1.0)))
+    private val singular = F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 4.0)))
+    private val indefinite = F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 1.0)))
 
     @Test
     fun `a shape mismatch is a DimensionMismatch`() {
-        val a = DenseMatrix.zero(2, 3)
+        val a = F64DenseMatrix.zero(2, 3)
         assertFailsWith<DimensionMismatch> { koblas.factor(a) }
-        assertFailsWith<DimensionMismatch> { DenseVector.zero(2) dot DenseVector.zero(3) }
-        assertFailsWith<DimensionMismatch> { koblas.gemm(a, DenseMatrix.zero(2, 2)) }
+        assertFailsWith<DimensionMismatch> { F64DenseVector.zero(2) dot F64DenseVector.zero(3) }
+        assertFailsWith<DimensionMismatch> { koblas.gemm(a, F64DenseMatrix.zero(2, 2)) }
     }
 
     @Test
@@ -35,7 +35,7 @@ class ExceptionsTest {
 
     @Test
     fun `a singular sparse triangle reports the column`() {
-        val t = SparseMatrix.ofTriplets(
+        val t = F64SparseMatrix.ofTriplets(
             rows = 2,
             cols = 2,
             rowIdx = intArrayOf(0, 1, 1),
@@ -56,7 +56,7 @@ class ExceptionsTest {
 
     @Test
     fun `a strict sparse ldl reports a non-positive pivot`() {
-        val s = SparseMatrix.ofTriplets(
+        val s = F64SparseMatrix.ofTriplets(
             rows = 2,
             cols = 2,
             rowIdx = intArrayOf(0, 1, 0, 1),
@@ -70,7 +70,7 @@ class ExceptionsTest {
     @Test
     fun `every koblas failure stays an IllegalArgumentException`() {
         for (block in listOf<() -> Unit>(
-            { koblas.factor(DenseMatrix.zero(2, 3)) },
+            { koblas.factor(F64DenseMatrix.zero(2, 3)) },
             { singular.lu().invert() },
             { indefinite.cholesky() },
         )) {

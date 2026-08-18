@@ -1,7 +1,7 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DimensionMismatch
+import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.norm1
@@ -19,9 +19,9 @@ import kotlin.test.assertTrue
 private val reference = ReferenceLinearAlgebra
 
 /** An SPD matrix with its strict upper triangle poisoned, since only the lower one may be read. */
-internal fun poisonedSpd(n: Int, rng: Random): DenseMatrix {
+internal fun poisonedSpd(n: Int, rng: Random): F64DenseMatrix {
     val seed = randomMatrix(n, n, rng)
-    val a = DenseMatrix(n, n)
+    val a = F64DenseMatrix(n, n)
     reference.syrk(1.0, seed, transpose = false, beta = 0.0, c = a)
     for (i in 0 until n) a[i, i] = a[i, i] + n
     for (i in 0 until n) for (j in i + 1 until n) a[i, j] = Double.NaN
@@ -42,8 +42,8 @@ internal fun assertLevel3AgreesWithReference(blas: Blas, sizes: IntArray) {
         val b = randomMatrix(n, n, rng)
         assertClose(reference.gemm(a, b), blas.gemm(a, b), "gemm n=$n", tolerance = 1e-9 * n)
         for (uplo in listOf(Uplo.FULL, Uplo.LOWER)) {
-            val expected = DenseMatrix(n, n)
-            val actual = DenseMatrix(n, n)
+            val expected = F64DenseMatrix(n, n)
+            val actual = F64DenseMatrix(n, n)
             reference.syrk(1.0, a, transpose = true, beta = 0.0, c = expected, uplo = uplo)
             blas.syrk(1.0, a, transpose = true, beta = 0.0, c = actual, uplo = uplo)
             assertClose(expected, actual, "syrk $uplo n=$n", tolerance = 1e-9 * n)
@@ -58,9 +58,9 @@ internal fun assertGerAgreesWithReference(blas: Blas) {
             val x = DoubleArray(rows) { rng.nextDouble(-1.0, 1.0) }
             val y = DoubleArray(cols) { rng.nextDouble(-1.0, 1.0) }
             val a0 = randomMatrix(rows, cols, rng)
-            val expected = DenseMatrix(rows, cols, a0.data.copyOf())
+            val expected = F64DenseMatrix(rows, cols, a0.data.copyOf())
             reference.ger(alpha, x, y, expected)
-            val actual = DenseMatrix(rows, cols, a0.data.copyOf())
+            val actual = F64DenseMatrix(rows, cols, a0.data.copyOf())
             blas.ger(alpha, x, y, actual)
             assertClose(expected, actual, "ger ${rows}x$cols alpha=$alpha")
         }
@@ -83,7 +83,7 @@ internal fun assertTriangularAgreesWithReference(blas: Blas, sizes: IntArray) {
 
 @Suppress("LongParameterList") // the flag combination under test
 private fun checkTriangular(blas: Blas, rng: Random, n: Int, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
-    val t = DenseMatrix(n, n)
+    val t = F64DenseMatrix(n, n)
     for (i in 0 until n) {
         for (j in 0 until n) {
             val selected = if (lower) j < i else j > i
@@ -107,12 +107,12 @@ private fun checkTriangular(blas: Blas, rng: Random, n: Int, lower: Boolean, tra
     val nrhs = 3
     for (right in booleanArrayOf(false, true)) {
         val b = if (right) randomMatrix(nrhs, n, rng) else randomMatrix(n, nrhs, rng)
-        for ((name, op) in listOf<Pair<String, (Blas, DenseMatrix) -> Unit>>(
+        for ((name, op) in listOf<Pair<String, (Blas, F64DenseMatrix) -> Unit>>(
             "trsm" to { la, m -> la.trsm(t, m, lower, transpose, unitDiag, right) },
             "trmm" to { la, m -> la.trmm(t, m, lower, transpose, unitDiag, right) },
         )) {
-            val expected = DenseMatrix(b.rows, b.cols, b.data.copyOf()).also { op(reference, it) }
-            val actual = DenseMatrix(b.rows, b.cols, b.data.copyOf()).also { op(blas, it) }
+            val expected = F64DenseMatrix(b.rows, b.cols, b.data.copyOf()).also { op(reference, it) }
+            val actual = F64DenseMatrix(b.rows, b.cols, b.data.copyOf()).also { op(blas, it) }
             assertClose(expected, actual, "$name right=$right $flags", tolerance = 1e-9)
         }
     }
@@ -196,10 +196,10 @@ internal fun assertNonPositiveDefiniteFallsBack(lapack: Lapack, n: Int) {
 internal fun assertSymvRefusesNonSquare(blas: Blas) {
     for (n in intArrayOf(2, 17, 64, 129)) {
         assertFailsWith<DimensionMismatch>("symv ${n}x${n + 1}") {
-            blas.symv(1.0, DenseMatrix.zero(n, n + 1), DoubleArray(n), 0.0, DoubleArray(n))
+            blas.symv(1.0, F64DenseMatrix.zero(n, n + 1), DoubleArray(n), 0.0, DoubleArray(n))
         }
         assertFailsWith<DimensionMismatch>("symv ${n + 1}x$n") {
-            blas.symv(1.0, DenseMatrix.zero(n + 1, n), DoubleArray(n + 1), 0.0, DoubleArray(n + 1))
+            blas.symv(1.0, F64DenseMatrix.zero(n + 1, n), DoubleArray(n + 1), 0.0, DoubleArray(n + 1))
         }
     }
 }
@@ -210,12 +210,12 @@ internal fun assertSymvRefusesNonSquare(blas: Blas) {
  * multi-right-hand-side path takes over.
  */
 internal fun assertSingularLdlIsRefused(lapack: Lapack, nrhs: Int = 4) {
-    val ldl = lapack.ldl(DenseMatrix.zero(3, 3))
+    val ldl = lapack.ldl(F64DenseMatrix.zero(3, 3))
     assertTrue(ldl.singular, "a zero matrix factors to a singular LDL")
     assertFailsWith<SingularMatrix>("vector solve") { lapack.solve(ldl, DoubleArray(3)) }
-    assertFailsWith<SingularMatrix>("$nrhs right-hand sides") { lapack.solve(ldl, DenseMatrix.zero(3, nrhs)) }
+    assertFailsWith<SingularMatrix>("$nrhs right-hand sides") { lapack.solve(ldl, F64DenseMatrix.zero(3, nrhs)) }
     assertFailsWith<SingularMatrix>("$nrhs right-hand sides into a destination") {
-        lapack.solveInto(ldl, DenseMatrix.zero(3, nrhs), DenseMatrix.zero(3, nrhs))
+        lapack.solveInto(ldl, F64DenseMatrix.zero(3, nrhs), F64DenseMatrix.zero(3, nrhs))
     }
 }
 
@@ -243,7 +243,7 @@ internal fun assertFactorIntoUsesItsDestination(lapack: Lapack, n: Int) {
     assertEquals(fresh.failedAt, returned.failedAt, "factorInto singularity n=$n")
 
     // A singular matrix must update failedAt, not keep the previous factorization's verdict.
-    val singular = DenseMatrix(n, n)
+    val singular = F64DenseMatrix(n, n)
     lapack.factorInto(singular, returned)
     assertTrue(returned.singular, "factorInto must report a singular refactorization")
     lapack.factorInto(second, returned)
@@ -291,8 +291,8 @@ private fun checkGemm(blas: Blas, rng: Random, m: Int, k: Int, n: Int) {
                     val a = if (transposeA) randomMatrix(k, m, rng) else randomMatrix(m, k, rng)
                     val b = if (transposeB) randomMatrix(n, k, rng) else randomMatrix(k, n, rng)
                     val c0 = DoubleArray(m * n) { if (beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0) }
-                    val expected = DenseMatrix.wrap(m, n, c0.copyOf())
-                    val actual = DenseMatrix.wrap(m, n, c0.copyOf())
+                    val expected = F64DenseMatrix.wrap(m, n, c0.copyOf())
+                    val actual = F64DenseMatrix.wrap(m, n, c0.copyOf())
                     reference.gemm(alpha, a, transposeA, b, transposeB, beta, expected)
                     blas.gemm(alpha, a, transposeA, b, transposeB, beta, actual)
                     val ctx = "gemm ${m}x${k}x$n tA=$transposeA tB=$transposeB a=$alpha b=$beta"
@@ -316,8 +316,8 @@ private fun checkSyrk(blas: Blas, rng: Random, rows: Int, cols: Int) {
                 val a = randomMatrix(rows, cols, rng)
                 val n = if (transpose) cols else rows
                 val c0 = DoubleArray(n * n) { if (beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0) }
-                val expected = DenseMatrix.wrap(n, n, c0.copyOf())
-                val actual = DenseMatrix.wrap(n, n, c0.copyOf())
+                val expected = F64DenseMatrix.wrap(n, n, c0.copyOf())
+                val actual = F64DenseMatrix.wrap(n, n, c0.copyOf())
                 reference.syrk(alpha, a, transpose, beta, expected)
                 blas.syrk(alpha, a, transpose, beta, actual)
                 assertClose(expected.data, actual.data, "syrk n=$n t=$transpose a=$alpha b=$beta")
@@ -327,7 +327,7 @@ private fun checkSyrk(blas: Blas, rng: Random, rows: Int, cols: Int) {
     }
 }
 
-private fun assertExactlySymmetric(c: DenseMatrix, n: Int, context: String) {
+private fun assertExactlySymmetric(c: F64DenseMatrix, n: Int, context: String) {
     for (i in 0 until n) {
         for (j in 0 until i) {
             assertEquals(c.data[i + j * n], c.data[j + i * n], "$context asymmetric at ($i;$j)")
@@ -350,8 +350,8 @@ private fun checkSyrkTriangle(blas: Blas, rng: Random, rows: Int, cols: Int) {
                 val c0 = DoubleArray(n * n) { idx ->
                     if (!selects(uplo, idx % n, idx / n) || beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0)
                 }
-                val expected = DenseMatrix.wrap(n, n, c0.copyOf())
-                val actual = DenseMatrix.wrap(n, n, c0.copyOf())
+                val expected = F64DenseMatrix.wrap(n, n, c0.copyOf())
+                val actual = F64DenseMatrix.wrap(n, n, c0.copyOf())
                 reference.syrk(0.75, a, transpose, beta, expected, uplo)
                 blas.syrk(0.75, a, transpose, beta, actual, uplo)
                 compareTriangle(expected, actual, n, uplo, "syrk $uplo t=$transpose b=$beta")
@@ -363,7 +363,7 @@ private fun checkSyrkTriangle(blas: Blas, rng: Random, rows: Int, cols: Int) {
 private fun selects(uplo: Uplo, i: Int, j: Int): Boolean = if (uplo == Uplo.LOWER) j <= i else j >= i
 
 /** The bound stays relative and tight, only widened by [n] for the accumulation the larger sizes do. */
-private fun compareTriangle(expected: DenseMatrix, actual: DenseMatrix, n: Int, uplo: Uplo, context: String) {
+private fun compareTriangle(expected: F64DenseMatrix, actual: F64DenseMatrix, n: Int, uplo: Uplo, context: String) {
     for (i in 0 until n) {
         for (j in 0 until n) {
             val ctx = "$context ($i;$j)"
@@ -395,17 +395,17 @@ internal fun assertSymmetricProductsAgreeWithReference(blas: Blas, sizes: IntArr
     }
 }
 
-private fun checkSymm(blas: Blas, rng: Random, a: DenseMatrix, n: Int, lower: Boolean) {
+private fun checkSymm(blas: Blas, rng: Random, a: F64DenseMatrix, n: Int, lower: Boolean) {
     val p = 3
     val b = randomMatrix(n, p, rng)
-    val expected = DenseMatrix(n, p)
-    val actual = DenseMatrix(n, p)
+    val expected = F64DenseMatrix(n, p)
+    val actual = F64DenseMatrix(n, p)
     reference.symm(0.75, a, b, 0.0, expected, lower)
     blas.symm(0.75, a, b, 0.0, actual, lower)
     assertClose(expected.data, actual.data, "symm n=$n lower=$lower")
     val br = randomMatrix(p, n, rng)
-    val expectedRight = DenseMatrix(p, n)
-    val actualRight = DenseMatrix(p, n)
+    val expectedRight = F64DenseMatrix(p, n)
+    val actualRight = F64DenseMatrix(p, n)
     reference.symm(0.75, a, br, 0.0, expectedRight, lower, right = true)
     blas.symm(0.75, a, br, 0.0, actualRight, lower, right = true)
     assertClose(expectedRight.data, actualRight.data, "symm right n=$n lower=$lower")
@@ -426,7 +426,7 @@ internal fun assertDeterminantAgreesWithReference(lapack: Lapack, sizes: IntArra
 }
 
 internal fun assertSingularLuIsFlagged(lapack: Lapack) {
-    val a = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 4.0)))
+    val a = F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 4.0)))
     val lu = lapack.factor(a)
     assertTrue(lu.singular, "a rank-1 matrix factors to a singular LU")
     assertEquals(0.0, lu.determinant(), "a singular factorization has determinant zero")
@@ -454,9 +454,9 @@ internal fun assertRcondAgreesWithReference(lapack: Lapack, sizes: IntArray) {
         val actual = lapack.rcond(lapack.factor(a), anorm)
         assertTrue(actual in expected / 10.0..expected * 10.0, "n=$n: host $actual vs reference $expected")
     }
-    val singular = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 4.0)))
+    val singular = F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 4.0)))
     assertEquals(0.0, lapack.rcond(lapack.factor(singular), norm1(singular)))
-    assertEquals(1.0, lapack.rcond(lapack.factor(DenseMatrix(0, 0)), 0.0))
+    assertEquals(1.0, lapack.rcond(lapack.factor(F64DenseMatrix(0, 0)), 0.0))
 }
 
 /**
@@ -489,8 +489,8 @@ internal fun assertLdlFactorsInterchange(lapack: Lapack, sizes: IntArray) {
             assertClose(xs[0], x, "ldl interchange n=$n variant $i", tolerance = 1e-9)
         }
     }
-    assertTrue(lapack.ldl(DenseMatrix(3, 3)).singular, "a zero matrix factors to a singular LDL")
-    assertTrue(lapack.solve(lapack.ldl(DenseMatrix(0, 0)), DoubleArray(0)).isEmpty(), "an empty solve is empty")
+    assertTrue(lapack.ldl(F64DenseMatrix(3, 3)).singular, "a zero matrix factors to a singular LDL")
+    assertTrue(lapack.solve(lapack.ldl(F64DenseMatrix(0, 0)), DoubleArray(0)).isEmpty(), "an empty solve is empty")
 }
 
 /** Both least squares and the minimum-norm solve, across every pairing of the two backends' factors. */
@@ -540,19 +540,19 @@ internal fun assertQrFactorsInterchange(lapack: Lapack, shapes: List<Pair<Int, I
 /** With beta zero the destination is written rather than read, so an empty sum has to leave exact zeros. */
 internal fun assertDegenerateShapesHonorTheBetaConventions(blas: Blas) {
     val y = DoubleArray(3) { Double.NaN }
-    blas.gemv(1.0, DenseMatrix(0, 3), DoubleArray(0), 0.0, y, transpose = true)
+    blas.gemv(1.0, F64DenseMatrix(0, 3), DoubleArray(0), 0.0, y, transpose = true)
     assertTrue(y.all { it == 0.0 }, "gemv beta=0 with an empty sum left ${y.toList()}")
-    val c = DenseMatrix.wrap(2, 2, DoubleArray(4) { Double.NaN })
-    blas.gemm(1.0, DenseMatrix(2, 0), false, DenseMatrix(0, 2), false, 0.0, c)
+    val c = F64DenseMatrix.wrap(2, 2, DoubleArray(4) { Double.NaN })
+    blas.gemm(1.0, F64DenseMatrix(2, 0), false, F64DenseMatrix(0, 2), false, 0.0, c)
     assertTrue(c.data.all { it == 0.0 }, "gemm k=0 beta=0 left ${c.data.toList()}")
-    val s = DenseMatrix.wrap(2, 2, doubleArrayOf(1.0, 2.0, 3.0, 4.0))
-    blas.syrk(0.0, DenseMatrix(2, 5), transpose = false, beta = 2.0, c = s)
+    val s = F64DenseMatrix.wrap(2, 2, doubleArrayOf(1.0, 2.0, 3.0, 4.0))
+    blas.syrk(0.0, F64DenseMatrix(2, 5), transpose = false, beta = 2.0, c = s)
     assertClose(doubleArrayOf(2.0, 4.0, 6.0, 8.0), s.data, "syrk alpha=0")
 }
 
 /** A 0x0 system has nothing to solve, so it yields an empty solution rather than failing. */
 internal fun assertAnEmptyFactorizationSolvesEmpty(lapack: Lapack) {
-    val empty = lapack.factor(DenseMatrix(0, 0))
+    val empty = lapack.factor(F64DenseMatrix(0, 0))
     assertEquals(0, lapack.solve(empty, DoubleArray(0)).size)
 }
 
@@ -568,7 +568,7 @@ internal fun assertPivotedQrAgreesWithReference(lapack: Lapack, m: Int, cols: In
     for (rank in ranks) {
         val left = randomMatrix(m, rank, rng)
         val right = randomMatrix(rank, cols, rng)
-        val a = DenseMatrix(m, cols)
+        val a = F64DenseMatrix(m, cols)
         reference.gemm(1.0, left, false, right, false, 0.0, a)
 
         val expected = reference.qrPivoted(a)

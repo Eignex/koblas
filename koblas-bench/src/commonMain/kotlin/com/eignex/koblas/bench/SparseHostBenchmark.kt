@@ -1,6 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.F64SparseMatrix
 import com.eignex.koblas.installBackends
 import com.eignex.koblas.koblas
 import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
@@ -23,7 +23,7 @@ class SparseHostBenchmark {
     @Param(REFERENCE_BACKEND, AUTO_BACKEND)
     var backend: String = REFERENCE_BACKEND
 
-    private lateinit var a: SparseMatrix
+    private lateinit var a: F64SparseMatrix
     private lateinit var rhs: DoubleArray
     private lateinit var factored: SparseFactorization
 

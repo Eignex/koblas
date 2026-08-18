@@ -15,13 +15,13 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 @SerialName("SparseMatrix")
-public class SparseMatrix internal constructor(
+public class F64SparseMatrix internal constructor(
     override val rows: Int,
     override val cols: Int,
     public val colPtr: IntArray,
     public val rowIdx: IntArray,
     public val values: DoubleArray,
-) : MatrixView {
+) : F64MatrixView {
     init {
         requireNonNegativeShape(rows, cols)
         requireShape(colPtr.size == cols + 1) { "colPtr length ${colPtr.size} != cols+1 ${cols + 1}" }
@@ -82,7 +82,7 @@ public class SparseMatrix internal constructor(
      */
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (other !is SparseMatrix) return false
+        if (other !is F64SparseMatrix) return false
         return rows == other.rows && cols == other.cols &&
             colPtr.contentEquals(other.colPtr) &&
             rowIdx.contentEquals(other.rowIdx) &&
@@ -97,7 +97,7 @@ public class SparseMatrix internal constructor(
         return h
     }
 
-    override fun toString(): String = "SparseMatrix(${rows}x$cols, nnz=$nnz)"
+    override fun toString(): String = "F64SparseMatrix(${rows}x$cols, nnz=$nnz)"
 
     /** Factories for sparse matrices. */
     public companion object {
@@ -105,7 +105,7 @@ public class SparseMatrix internal constructor(
          * Builds a CSC matrix from column-major `(row, value)` entries, where columns(j) lists column j's
          * nonzeros in any order. Entries are sorted by row and duplicate positions are summed.
          */
-        public fun ofColumns(rows: Int, cols: Int, columns: List<List<Pair<Int, Double>>>): SparseMatrix {
+        public fun ofColumns(rows: Int, cols: Int, columns: List<List<Pair<Int, Double>>>): F64SparseMatrix {
             require(columns.size == cols) { "expected $cols columns, got ${columns.size}" }
             var nnz = 0
             for (column in columns) nnz += column.size
@@ -135,7 +135,7 @@ public class SparseMatrix internal constructor(
             rowIdx: IntArray,
             colIdx: IntArray,
             values: DoubleArray,
-        ): SparseMatrix {
+        ): F64SparseMatrix {
             requireNonNegativeShape(rows, cols)
             require(rowIdx.size == colIdx.size && colIdx.size == values.size) {
                 "rowIdx/colIdx/values must align: ${rowIdx.size}, ${colIdx.size}, ${values.size}"
@@ -194,14 +194,19 @@ public class SparseMatrix internal constructor(
                 }
             }
             outPtr[cols] = n
-            return SparseMatrix(rows, cols, outPtr, outRow.copyOf(n), outVal.copyOf(n))
+            return F64SparseMatrix(rows, cols, outPtr, outRow.copyOf(n), outVal.copyOf(n))
         }
 
         /**
          * Wraps arrays already in CSC form without copying; the caller relinquishes ownership. Validates the
          * invariants rather than repairing them, so use [ofColumns] or [ofTriplets] when they do not hold.
          */
-        public fun wrap(rows: Int, cols: Int, colPtr: IntArray, rowIdx: IntArray, values: DoubleArray): SparseMatrix =
-            SparseMatrix(rows, cols, colPtr, rowIdx, values)
+        public fun wrap(
+            rows: Int,
+            cols: Int,
+            colPtr: IntArray,
+            rowIdx: IntArray,
+            values: DoubleArray,
+        ): F64SparseMatrix = F64SparseMatrix(rows, cols, colPtr, rowIdx, values)
     }
 }

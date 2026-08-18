@@ -1,7 +1,7 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DimensionMismatch
+import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.koblas
 import com.eignex.koblas.randomMatrix
@@ -15,10 +15,10 @@ import kotlin.test.assertTrue
 
 class LinearAlgebraPivotedQrTest {
 
-    private fun ofRank(m: Int, n: Int, rank: Int, rng: Random): DenseMatrix {
+    private fun ofRank(m: Int, n: Int, rank: Int, rng: Random): F64DenseMatrix {
         val left = randomMatrix(m, rank, rng)
         val right = randomMatrix(rank, n, rng)
-        val a = DenseMatrix(m, n)
+        val a = F64DenseMatrix(m, n)
         for (i in 0 until m) {
             for (j in 0 until n) {
                 var s = 0.0
@@ -29,8 +29,8 @@ class LinearAlgebraPivotedQrTest {
         return a
     }
 
-    private fun permuted(a: DenseMatrix, pivots: IntArray): DenseMatrix {
-        val out = DenseMatrix(a.rows, a.cols)
+    private fun permuted(a: F64DenseMatrix, pivots: IntArray): F64DenseMatrix {
+        val out = F64DenseMatrix(a.rows, a.cols)
         for (j in pivots.indices) for (i in 0 until a.rows) out[i, j] = a[i, pivots[j]]
         return out
     }
@@ -88,7 +88,7 @@ class LinearAlgebraPivotedQrTest {
 
     @Test
     fun `a column that collapses in one step keeps its true norm`() {
-        val a = DenseMatrix(3, 3)
+        val a = F64DenseMatrix(3, 3)
         a[0, 0] = 1.0
         a[0, 1] = 1.0
         a[2, 1] = 1e-17 // below the tolerance: a direction that is not really there
@@ -143,10 +143,10 @@ class LinearAlgebraPivotedQrTest {
 
     @Test
     fun `degenerate shapes factor without special-casing`() {
-        val empty = koblas.qrPivoted(DenseMatrix(0, 0))
+        val empty = koblas.qrPivoted(F64DenseMatrix(0, 0))
         assertEquals(0, empty.rank)
         assertEquals(0, empty.pivots.size)
-        val zeros = koblas.qrPivoted(DenseMatrix(4, 3))
+        val zeros = koblas.qrPivoted(F64DenseMatrix(4, 3))
         assertEquals(0, zeros.rank, "an all-zero matrix has rank zero")
         assertEquals(listOf(0, 1, 2), zeros.pivots.sorted())
     }

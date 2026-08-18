@@ -3,10 +3,10 @@
 package com.eignex.koblas.umfpack
 
 import com.eignex.koblas.BackendNames
+import com.eignex.koblas.F64SparseMatrix
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
-import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.requireSquare
 import com.eignex.koblas.sparse.NO_DROP
 import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
@@ -44,7 +44,7 @@ public class UmfpackSparseLapack internal constructor(private val f: UmfpackFunc
     override val isPortable: Boolean get() = false
 
     @Suppress("ReturnCount") // one early return per condition UMFPACK cannot serve
-    override fun factor(a: SparseMatrix, equilibrate: Boolean, dropTolerance: Double): SparseFactorization {
+    override fun factor(a: F64SparseMatrix, equilibrate: Boolean, dropTolerance: Double): SparseFactorization {
         requireSquare(a, "factor")
         if (equilibrate || dropTolerance != NO_DROP) return SparseLu.factorCsc(a, equilibrate, dropTolerance)
         // An empty matrix and an all-zero one have nothing to pin, and `usePinned` yields no address.
@@ -77,7 +77,7 @@ public class UmfpackSparseLapack internal constructor(private val f: UmfpackFunc
     /** The symbolic analysis followed by the numeric factorization, sharing one set of pinned arrays. */
     @Suppress("NestedBlockDepth") // one nesting level per pinned array
     private fun analyzeAndFactor(
-        a: SparseMatrix,
+        a: F64SparseMatrix,
         symbolicHolder: COpaquePointerVar,
         handle: UmfpackFactorization.NumericHandle,
         info: DoubleArray,
@@ -118,9 +118,9 @@ public class UmfpackSparseLapack internal constructor(private val f: UmfpackFunc
     // UMFPACK provides no symmetric factorization, so these run the portable versions. Forwarded explicitly
     // rather than by class delegation, which would route the convenience overloads to the portable factor
     // instead of this one, since a delegated member calls back into the delegate.
-    override fun analyze(a: SparseMatrix, ordering: SparseOrdering): SparseSymbolic =
+    override fun analyze(a: F64SparseMatrix, ordering: SparseOrdering): SparseSymbolic =
         ReferenceSparseLinearAlgebra.analyze(a, ordering)
 
-    override fun ldl(a: SparseMatrix, policy: SparseLdlPolicy, ordering: SparseOrdering): SparseFactorization =
+    override fun ldl(a: F64SparseMatrix, policy: SparseLdlPolicy, ordering: SparseOrdering): SparseFactorization =
         ReferenceSparseLinearAlgebra.ldl(a, policy, ordering)
 }

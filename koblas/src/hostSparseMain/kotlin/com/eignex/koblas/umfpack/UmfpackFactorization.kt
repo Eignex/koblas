@@ -2,7 +2,7 @@
 
 package com.eignex.koblas.umfpack
 
-import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.F64SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.requireFactored
 import com.eignex.koblas.requireShape
@@ -28,7 +28,7 @@ import kotlin.native.ref.createCleaner
  * `umfpack_di_solve` takes Ap, Ai and Ax alongside the factors.
  */
 public class UmfpackFactorization internal constructor(
-    private val matrix: SparseMatrix,
+    private val matrix: F64SparseMatrix,
     override val failedAt: Int,
     private val handle: NumericHandle,
     private val f: UmfpackFunctions,

@@ -3,7 +3,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.BackendNames
-import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.KoblasContext
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.NotPositiveDefinite
@@ -32,7 +32,7 @@ internal class ReferenceLapack(private val kernels: VectorKernels? = null) : Lap
     override val vectorKernels: VectorKernels get() = kernels ?: koblas.vectorKernels
 
     @Suppress("CyclomaticComplexMethod") // netlib dsytf2's control flow, kept recognizable
-    override fun ldl(a: DenseMatrix, workspace: Workspace?): LdlDecomposition {
+    override fun ldl(a: F64DenseMatrix, workspace: Workspace?): LdlDecomposition {
         requireShape(a.rows == a.cols) { "ldl: matrix must be square, got ${a.rows}x${a.cols}" }
         val n = a.rows
         val w = a.data.copyOf()
@@ -224,7 +224,7 @@ internal class ReferenceLapack(private val kernels: VectorKernels? = null) : Lap
         return x
     }
 
-    override fun qr(a: DenseMatrix, workspace: Workspace?): QrDecomposition {
+    override fun qr(a: F64DenseMatrix, workspace: Workspace?): QrDecomposition {
         val m = a.rows
         val n = a.cols
         val k = minOf(m, n)
@@ -237,7 +237,7 @@ internal class ReferenceLapack(private val kernels: VectorKernels? = null) : Lap
         return QrDecomposition(m, n, buf, tau)
     }
 
-    override fun qrPivoted(a: DenseMatrix, tolerance: Double, workspace: Workspace?): PivotedQrDecomposition {
+    override fun qrPivoted(a: F64DenseMatrix, tolerance: Double, workspace: Workspace?): PivotedQrDecomposition {
         val m = a.rows
         val n = a.cols
         val k = minOf(m, n)
@@ -351,20 +351,20 @@ internal class ReferenceLapack(private val kernels: VectorKernels? = null) : Lap
         return x
     }
 
-    override fun factor(a: DenseMatrix): LuDecomposition {
+    override fun factor(a: F64DenseMatrix): LuDecomposition {
         requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
         val n = a.rows
         return factorCore(a, LuDecomposition(n, DoubleArray(n * n), IntArray(n)))
     }
 
-    override fun factorInto(a: DenseMatrix, out: LuDecomposition): LuDecomposition {
+    override fun factorInto(a: F64DenseMatrix, out: LuDecomposition): LuDecomposition {
         requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
         requireShape(out.n == a.rows) { "factorInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}" }
         return factorCore(a, out)
     }
 
     /** Doolittle LU with partial pivoting, writing into [out]'s buffers. */
-    private fun factorCore(a: DenseMatrix, out: LuDecomposition): LuDecomposition {
+    private fun factorCore(a: F64DenseMatrix, out: LuDecomposition): LuDecomposition {
         val n = out.n
         val lu = out.lu
         a.data.copyInto(lu)
@@ -477,11 +477,11 @@ internal class ReferenceLapack(private val kernels: VectorKernels? = null) : Lap
     @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
     override fun solveInto(
         lu: LuDecomposition,
-        b: DenseMatrix,
-        out: DenseMatrix,
+        b: F64DenseMatrix,
+        out: F64DenseMatrix,
         transpose: Boolean,
         workspace: Workspace?,
-    ): DenseMatrix {
+    ): F64DenseMatrix {
         requireFactored(lu.failedAt, "solve")
         val n = lu.n
         val nrhs = b.cols
@@ -515,10 +515,10 @@ internal class ReferenceLapack(private val kernels: VectorKernels? = null) : Lap
     /** Solve `A · X = B` into [out], which is returned. [out] may be [b]. */
     override fun solveInto(
         ldl: LdlDecomposition,
-        b: DenseMatrix,
-        out: DenseMatrix,
+        b: F64DenseMatrix,
+        out: F64DenseMatrix,
         workspace: Workspace?,
-    ): DenseMatrix {
+    ): F64DenseMatrix {
         requireFactored(ldl.failedAt, "solve")
         val n = ldl.n
         val nrhs = b.cols
@@ -615,10 +615,10 @@ internal class ReferenceLapack(private val kernels: VectorKernels? = null) : Lap
      *  Reads only the lower triangle of [a], so an upper-only matrix factors to silent nonsense.
      *  @throws com.eignex.koblas.NotPositiveDefinite at the first non-positive pivot unless [policy] allows it.
      */
-    override fun cholesky(a: DenseMatrix, policy: CholeskyPolicy): CholeskyDecomposition {
+    override fun cholesky(a: F64DenseMatrix, policy: CholeskyPolicy): CholeskyDecomposition {
         requireShape(a.rows == a.cols) { "cholesky requires a square matrix; got ${a.rows}x${a.cols}" }
         val n = a.rows
-        val l = DenseMatrix(n, n)
+        val l = F64DenseMatrix(n, n)
         val ld = l.data
         val kernels = vectorKernels
         for (j in 0 until n) a.data.copyInto(ld, j + j * n, j + j * n, (j + 1) * n)
@@ -654,7 +654,7 @@ internal class ReferenceLapack(private val kernels: VectorKernels? = null) : Lap
      *  Prefer [solve] to apply `A⁻¹`, which costs less and is more accurate.
      *  @throws com.eignex.koblas.SingularMatrix if [lu] is singular; the position is [LuDecomposition.failedAt].
      */
-    override fun invert(lu: LuDecomposition, workspace: Workspace?): DenseMatrix {
+    override fun invert(lu: LuDecomposition, workspace: Workspace?): F64DenseMatrix {
         if (lu.singular) {
             throw SingularMatrix(
                 lu.failedAt,
@@ -662,7 +662,7 @@ internal class ReferenceLapack(private val kernels: VectorKernels? = null) : Lap
             )
         }
         val n = lu.n
-        val inv = DenseMatrix.diagonal(n)
+        val inv = F64DenseMatrix.diagonal(n)
         return solveInto(lu, inv, inv, transpose = false, workspace = workspace)
     }
 
@@ -670,7 +670,7 @@ internal class ReferenceLapack(private val kernels: VectorKernels? = null) : Lap
      *  upper triangle of the square [a], taking the diagonal as 1 when [unitDiag].
      *  @throws com.eignex.koblas.SingularMatrix naming the first zero diagonal position.
      */
-    override fun trtri(a: DenseMatrix, lower: Boolean, unitDiag: Boolean): DenseMatrix {
+    override fun trtri(a: F64DenseMatrix, lower: Boolean, unitDiag: Boolean): F64DenseMatrix {
         requireShape(a.rows == a.cols) { "trtri requires a square matrix; got ${a.rows}x${a.cols}" }
         val n = a.rows
         if (!unitDiag) {
@@ -680,7 +680,7 @@ internal class ReferenceLapack(private val kernels: VectorKernels? = null) : Lap
                 }
             }
         }
-        val inv = DenseMatrix(n, n)
+        val inv = F64DenseMatrix(n, n)
         val invd = inv.data
         val column = DoubleArray(n)
         for (j in 0 until n) {
@@ -701,10 +701,10 @@ internal class ReferenceLapack(private val kernels: VectorKernels? = null) : Lap
     }
 
     /** Invert an SPD matrix from its Cholesky factorization, returning `A⁻¹` given [chol] (LAPACK `dpotri`). */
-    override fun invert(chol: CholeskyDecomposition, workspace: Workspace?): DenseMatrix {
+    override fun invert(chol: CholeskyDecomposition, workspace: Workspace?): F64DenseMatrix {
         val n = chol.n
         val ld = chol.l.data
-        val inv = DenseMatrix(n, n)
+        val inv = F64DenseMatrix(n, n)
         val invd = inv.data
         val kernels = vectorKernels
         val y = workspace?.take(n) ?: DoubleArray(n)

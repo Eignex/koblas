@@ -1,7 +1,7 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DimensionMismatch
+import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.koblas
@@ -43,8 +43,8 @@ class LinearAlgebraSymmetricOpsTest {
     @Test
     fun `symv refuses a non-square matrix at every size`() {
         for (n in intArrayOf(2, 17, 64, 129)) {
-            val wide = DenseMatrix.zero(n, n + 1)
-            val tall = DenseMatrix.zero(n + 1, n)
+            val wide = F64DenseMatrix.zero(n, n + 1)
+            val tall = F64DenseMatrix.zero(n + 1, n)
             assertFailsWith<DimensionMismatch>("symv ${n}x${n + 1}") {
                 koblas.symv(1.0, wide, DoubleArray(n), 0.0, DoubleArray(n))
             }
@@ -65,9 +65,9 @@ class LinearAlgebraSymmetricOpsTest {
                         val (full, poisoned) = poisonedSymmetric(rng, n, lower)
                         val b = randomMatrix(n, p, rng)
                         val c0 = DoubleArray(n * p) { if (beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0) }
-                        val expected = DenseMatrix(n, p, c0.copyOf())
+                        val expected = F64DenseMatrix(n, p, c0.copyOf())
                         koblas.gemm(alpha, full, transposeA = false, b, transposeB = false, beta, expected)
-                        val actual = DenseMatrix(n, p, c0.copyOf())
+                        val actual = F64DenseMatrix(n, p, c0.copyOf())
                         koblas.symm(alpha, poisoned, b, beta, actual, lower)
                         assertClose(expected, actual, "symm n=$n a=$alpha b=$beta lower=$lower")
                     }
@@ -87,9 +87,9 @@ class LinearAlgebraSymmetricOpsTest {
                     val (full, poisoned) = poisonedSymmetric(rng, n, lower)
                     val b = randomMatrix(rows, n, rng)
                     val c0 = DoubleArray(rows * n) { if (beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0) }
-                    val expected = DenseMatrix.wrap(rows, n, c0.copyOf())
+                    val expected = F64DenseMatrix.wrap(rows, n, c0.copyOf())
                     koblas.gemm(alpha, b, false, full, false, beta, expected)
-                    val actual = DenseMatrix.wrap(rows, n, c0.copyOf())
+                    val actual = F64DenseMatrix.wrap(rows, n, c0.copyOf())
                     koblas.symm(alpha, poisoned, b, beta, actual, lower, right = true)
                     assertClose(expected, actual, "symm right l=$lower a=$alpha b=$beta", tolerance = 1e-11)
                 }
@@ -115,11 +115,11 @@ class LinearAlgebraSymmetricOpsTest {
     private fun checkSyrk(rng: Random, uplo: Uplo, transpose: Boolean, alpha: Double, beta: Double) {
         val a = randomMatrix(6, 4, rng)
         val n = if (transpose) a.cols else a.rows
-        val term = DenseMatrix(n, n)
+        val term = F64DenseMatrix(n, n)
         koblas.syrk(1.0, a, transpose, 0.0, term)
         // The output is NaN where beta == 0 must overwrite without reading, and the unselected triangle stays NaN.
-        val c = DenseMatrix(n, n)
-        val c0 = DenseMatrix(n, n)
+        val c = F64DenseMatrix(n, n)
+        val c0 = F64DenseMatrix(n, n)
         for (i in 0 until n) {
             for (j in 0 until n) {
                 val selected = if (uplo == Uplo.LOWER) j <= i else j >= i
@@ -151,11 +151,11 @@ class LinearAlgebraSymmetricOpsTest {
         val ws = Workspace()
         for (uplo in listOf(Uplo.FULL, Uplo.LOWER, Uplo.UPPER)) {
             val a = randomMatrix(n, k, rng)
-            val first = DenseMatrix(n, n)
+            val first = F64DenseMatrix(n, n)
             koblas.syrk(0.75, a, transpose = false, beta = 0.0, c = first, uplo = uplo, workspace = ws)
-            val second = DenseMatrix(n, n)
+            val second = F64DenseMatrix(n, n)
             koblas.syrk(0.75, a, transpose = false, beta = 0.0, c = second, uplo = uplo, workspace = ws)
-            val fresh = DenseMatrix(n, n)
+            val fresh = F64DenseMatrix(n, n)
             koblas.syrk(0.75, a, transpose = false, beta = 0.0, c = fresh, uplo = uplo)
             for (i in 0 until n) {
                 for (j in 0 until n) {
@@ -176,7 +176,7 @@ class LinearAlgebraSymmetricOpsTest {
             val k = 3
             val a = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
             val b = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
-            val c = DenseMatrix(n, n)
+            val c = F64DenseMatrix(n, n)
             koblas.syr2k(0.5, a, b, transpose, 0.0, c)
             for (i in 0 until n) {
                 for (j in 0 until n) {
@@ -196,11 +196,11 @@ class LinearAlgebraSymmetricOpsTest {
 
     @Test
     fun `symmetric ops handle empty shapes`() {
-        koblas.symm(1.0, DenseMatrix(0, 0), DenseMatrix(0, 3), 0.0, DenseMatrix(0, 3))
-        val c = DenseMatrix(2, 0)
-        koblas.symm(1.0, DenseMatrix(2, 2), DenseMatrix(2, 0), 0.0, c)
+        koblas.symm(1.0, F64DenseMatrix(0, 0), F64DenseMatrix(0, 3), 0.0, F64DenseMatrix(0, 3))
+        val c = F64DenseMatrix(2, 0)
+        koblas.symm(1.0, F64DenseMatrix(2, 2), F64DenseMatrix(2, 0), 0.0, c)
         val y = DoubleArray(2) { Double.NaN }
-        koblas.symv(0.0, DenseMatrix(2, 2), DoubleArray(2), 0.0, y)
+        koblas.symv(0.0, F64DenseMatrix(2, 2), DoubleArray(2), 0.0, y)
         assertTrue(y.all { it == 0.0 }, "symv alpha=0 beta=0 left ${y.toList()}")
     }
 }

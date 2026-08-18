@@ -1,6 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.dense.PivotedQrDecomposition
 import com.eignex.koblas.dense.QrDecomposition
 import com.eignex.koblas.dense.applyQ
@@ -26,8 +26,8 @@ class QrBenchmark {
     @Param(AUTO_BACKEND, REFERENCE_BACKEND)
     var backend: String = AUTO_BACKEND
 
-    private lateinit var square: DenseMatrix
-    private lateinit var tall: DenseMatrix
+    private lateinit var square: F64DenseMatrix
+    private lateinit var tall: F64DenseMatrix
     private lateinit var factored: QrDecomposition
     private lateinit var rhs: DoubleArray
 

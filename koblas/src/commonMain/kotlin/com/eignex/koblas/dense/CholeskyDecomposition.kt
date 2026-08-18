@@ -1,6 +1,6 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.requireShape
 
 /**
@@ -9,7 +9,7 @@ import com.eignex.koblas.requireShape
  *
  * @property l the lower triangular factor `L`, square, with `A = L·Lᵀ`.
  */
-public class CholeskyDecomposition(public val l: DenseMatrix) {
+public class CholeskyDecomposition(public val l: F64DenseMatrix) {
     init {
         requireShape(l.rows == l.cols) { "cholesky factor must be square; got ${l.rows}x${l.cols}" }
     }

@@ -1,7 +1,7 @@
 package com.eignex.koblas.hostblas
 
 import com.eignex.koblas.BackendNames
-import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.dense.Cblas.COL_MAJOR
@@ -34,7 +34,7 @@ public class HostLapack internal constructor() : HostLapackAdapter(JvmLapackeCal
      * A zeroed jpvt on input leaves every column free to move, and the output is one-based, hence the shift.
      * LAPACK reports no rank, so it comes from [rankOfPivotedR]. Only this binding has `dgeqp3`.
      */
-    override fun qrPivoted(a: DenseMatrix, tolerance: Double, workspace: Workspace?): PivotedQrDecomposition {
+    override fun qrPivoted(a: F64DenseMatrix, tolerance: Double, workspace: Workspace?): PivotedQrDecomposition {
         if (minOf(a.rows, a.cols) < dispatchThresholds.lapack) {
             return ReferenceLinearAlgebra.qrPivoted(a, tolerance, workspace)
         }

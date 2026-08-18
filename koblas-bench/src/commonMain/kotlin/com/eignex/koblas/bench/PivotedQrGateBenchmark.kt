@@ -1,6 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.dense.PivotedQrDecomposition
 import com.eignex.koblas.dense.qrPivoted
 import kotlinx.benchmark.*
@@ -23,10 +23,10 @@ class PivotedQrGateBenchmark {
     @Param(AUTO_BACKEND, REFERENCE_BACKEND)
     var backend: String = AUTO_BACKEND
 
-    private lateinit var square: DenseMatrix
+    private lateinit var square: F64DenseMatrix
 
     /** Tall as well as square, since a host routine's per-call cost is amortised differently by shape. */
-    private lateinit var tall: DenseMatrix
+    private lateinit var tall: F64DenseMatrix
 
     @Setup
     fun setup() {

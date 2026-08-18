@@ -98,7 +98,7 @@ class AllocationFreeTest {
         val n = 64
         val rng = Random(20260741)
         val a = wellConditioned(n, rng)
-        val c = DenseMatrix(n, n)
+        val c = F64DenseMatrix(n, n)
         val ws = Workspace().apply { reserve(n * n, count = 1) }
 
         val allocating = bytesPerIteration(200) { koblas.syrk(1.0, a, transpose = false, beta = 0.0, c = c) }
@@ -115,9 +115,9 @@ class AllocationFreeTest {
         val nrhs = 40 // above the crossover, so the blocked path runs rather than column-by-column
         val rng = Random(20260743)
         val lu = wellConditioned(n, rng).lu()
-        val b = DenseMatrix(n, nrhs)
+        val b = F64DenseMatrix(n, nrhs)
         for (i in 0 until n) for (j in 0 until nrhs) b[i, j] = rng.nextDouble(-1.0, 1.0)
-        val out = DenseMatrix(n, nrhs)
+        val out = F64DenseMatrix(n, nrhs)
         val ws = Workspace().apply { reserve(n * nrhs, count = 1) }
 
         val allocating = bytesPerIteration(200) { koblas.solve(lu, b) }
@@ -131,7 +131,7 @@ class AllocationFreeTest {
         val m = 64
         val n = 16
         val rng = Random(20260744)
-        val a = DenseMatrix(m, n)
+        val a = F64DenseMatrix(m, n)
         for (i in 0 until m) for (j in 0 until n) a[i, j] = rng.nextDouble(-1.0, 1.0)
         val f = koblas.qr(a)
         val b = DoubleArray(m) { rng.nextDouble(-1.0, 1.0) }
@@ -162,7 +162,7 @@ class AllocationFreeTest {
             for (i in 0 until m) if (i != j && rng.nextDouble() < 0.05) entries.add(i to rng.nextDouble(-1.0, 1.0))
             entries
         }
-        val basis = SparseMatrix.ofColumns(m, m, columns).lu()
+        val basis = F64SparseMatrix.ofColumns(m, m, columns).lu()
         val b = DoubleArray(m) { rng.nextDouble(-1.0, 1.0) }
         val x = DoubleArray(m)
         val y = DoubleArray(m)

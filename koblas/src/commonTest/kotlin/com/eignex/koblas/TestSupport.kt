@@ -28,8 +28,8 @@ internal fun assertClose(
 }
 
 internal fun assertClose(
-    expected: DenseMatrix,
-    actual: DenseMatrix,
+    expected: F64DenseMatrix,
+    actual: F64DenseMatrix,
     context: String,
     tolerance: Double = TIGHT_TOLERANCE,
 ) {
@@ -42,19 +42,19 @@ internal fun assertClose(
 
 internal fun randomVector(n: Int, rng: Random): DoubleArray = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
 
-internal fun randomMatrix(rows: Int, cols: Int, rng: Random): DenseMatrix =
-    DenseMatrix.wrap(rows, cols, DoubleArray(rows * cols) { rng.nextDouble(-1.0, 1.0) })
+internal fun randomMatrix(rows: Int, cols: Int, rng: Random): F64DenseMatrix =
+    F64DenseMatrix.wrap(rows, cols, DoubleArray(rows * cols) { rng.nextDouble(-1.0, 1.0) })
 
-internal fun wellConditioned(n: Int, rng: Random): DenseMatrix {
+internal fun wellConditioned(n: Int, rng: Random): F64DenseMatrix {
     val a = randomMatrix(n, n, rng)
     for (i in 0 until n) a[i, i] = a[i, i] + n
     return a
 }
 
 /** `(full, poisoned)`, where the poisoned copy holds only the triangle selected by [lower], NaN off it. */
-internal fun poisonedSymmetric(rng: Random, n: Int, lower: Boolean): Pair<DenseMatrix, DenseMatrix> {
-    val full = DenseMatrix(n)
-    val poisoned = DenseMatrix(n)
+internal fun poisonedSymmetric(rng: Random, n: Int, lower: Boolean): Pair<F64DenseMatrix, F64DenseMatrix> {
+    val full = F64DenseMatrix(n)
+    val poisoned = F64DenseMatrix(n)
     for (i in 0 until n) {
         for (j in 0..i) {
             val v = rng.nextDouble(-1.0, 1.0)
@@ -68,9 +68,9 @@ internal fun poisonedSymmetric(rng: Random, n: Int, lower: Boolean): Pair<DenseM
 }
 
 /** A random symmetric indefinite matrix as `(full, poisoned)`, whose mixed-sign pivots force 2x2 blocks. */
-internal fun poisonedIndefinite(rng: Random, n: Int): Pair<DenseMatrix, DenseMatrix> {
-    val full = DenseMatrix(n)
-    val poisoned = DenseMatrix(n)
+internal fun poisonedIndefinite(rng: Random, n: Int): Pair<F64DenseMatrix, F64DenseMatrix> {
+    val full = F64DenseMatrix(n)
+    val poisoned = F64DenseMatrix(n)
     for (i in 0 until n) {
         for (j in 0..i) {
             var v = rng.nextDouble(-1.0, 1.0)
@@ -85,9 +85,14 @@ internal fun poisonedIndefinite(rng: Random, n: Int): Pair<DenseMatrix, DenseMat
 }
 
 /** `(poisoned, explicit)`, poisoned outside the [lower] triangle and on an implicit unit diagonal. */
-internal fun poisonedTriangle(rng: Random, n: Int, lower: Boolean, unitDiag: Boolean): Pair<DenseMatrix, DenseMatrix> {
-    val poisoned = DenseMatrix(n)
-    val explicit = DenseMatrix(n)
+internal fun poisonedTriangle(
+    rng: Random,
+    n: Int,
+    lower: Boolean,
+    unitDiag: Boolean,
+): Pair<F64DenseMatrix, F64DenseMatrix> {
+    val poisoned = F64DenseMatrix(n)
+    val explicit = F64DenseMatrix(n)
     for (i in 0 until n) {
         for (j in 0 until n) {
             val strict = if (lower) j < i else j > i

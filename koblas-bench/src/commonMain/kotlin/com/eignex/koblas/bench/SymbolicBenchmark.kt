@@ -1,6 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.F64SparseMatrix
 import com.eignex.koblas.sparse.SparseOrdering
 import com.eignex.koblas.sparse.SparseSymbolic
 import com.eignex.koblas.sparse.analyze
@@ -17,8 +17,8 @@ class SymbolicBenchmark {
     @Param("500", "2000", "8000")
     var n: Int = 0
 
-    private lateinit var band: SparseMatrix
-    private lateinit var grid: SparseMatrix
+    private lateinit var band: F64SparseMatrix
+    private lateinit var grid: F64SparseMatrix
 
     @Setup
     fun setup() {

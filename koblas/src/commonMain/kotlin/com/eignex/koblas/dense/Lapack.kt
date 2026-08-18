@@ -3,8 +3,8 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.Backend
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.DenseVector
+import com.eignex.koblas.F64DenseMatrix
+import com.eignex.koblas.F64DenseVector
 import com.eignex.koblas.NotPositiveDefinite
 import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.Workspace
@@ -20,11 +20,11 @@ public interface Lapack : Backend {
     public val vectorKernels: VectorKernels get() = koblas.vectorKernels
 
     /** LU factorization with partial pivoting of a square [a] (LAPACK `dgetrf`). [a] is not modified. */
-    public fun factor(a: DenseMatrix): LuDecomposition
+    public fun factor(a: F64DenseMatrix): LuDecomposition
 
     /** Refactorize [a] into [out]'s existing buffers, returning [out]. [out] must have [a]'s dimension and
      *  its previous contents are discarded. */
-    public fun factorInto(a: DenseMatrix, out: LuDecomposition): LuDecomposition {
+    public fun factorInto(a: F64DenseMatrix, out: LuDecomposition): LuDecomposition {
         requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
         requireShape(out.n == a.rows) { "factorInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}" }
         val fresh = factor(a)
@@ -51,23 +51,23 @@ public interface Lapack : Backend {
 
     /** Solve `A · X = B`, or `Aᵀ · X = B` when [transpose], for all right-hand-side columns of [b] at once
      *  (LAPACK `dgetrs` with `nrhs`). */
-    public fun solve(lu: LuDecomposition, b: DenseMatrix, transpose: Boolean = false): DenseMatrix =
-        solveInto(lu, b, DenseMatrix(b.rows, b.cols), transpose)
+    public fun solve(lu: LuDecomposition, b: F64DenseMatrix, transpose: Boolean = false): F64DenseMatrix =
+        solveInto(lu, b, F64DenseMatrix(b.rows, b.cols), transpose)
 
     /** Solve `A · X = B`, or `Aᵀ · X = B` when [transpose], into [out], which is returned. [out] may be [b],
      *  and a [workspace] lends the transposed direction's `n·nrhs` staging block. */
     @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
     public fun solveInto(
         lu: LuDecomposition,
-        b: DenseMatrix,
-        out: DenseMatrix,
+        b: F64DenseMatrix,
+        out: F64DenseMatrix,
         transpose: Boolean = false,
         workspace: Workspace? = null,
-    ): DenseMatrix
+    ): F64DenseMatrix
 
     /** Symmetric indefinite factorization `A = L·D·Lᵀ` with Bunch-Kaufman pivoting (LAPACK `dsytrf`, lower).
      *  Reads only the lower triangle of [a], so an upper-only matrix factors to silent nonsense. */
-    public fun ldl(a: DenseMatrix, workspace: Workspace? = null): LdlDecomposition
+    public fun ldl(a: F64DenseMatrix, workspace: Workspace? = null): LdlDecomposition
 
     /** Solve `A · x = b` for a symmetric indefinite factorization [ldl] (LAPACK `dsytrs`). */
     public fun solve(ldl: LdlDecomposition, b: DoubleArray): DoubleArray = solveInto(ldl, b, DoubleArray(ldl.n))
@@ -77,28 +77,28 @@ public interface Lapack : Backend {
 
     /** Solve `A · X = B` for all right-hand-side columns of [b] at once against a symmetric indefinite
      *  factorization (LAPACK `dsytrs` with `nrhs`). */
-    public fun solve(ldl: LdlDecomposition, b: DenseMatrix): DenseMatrix = solveInto(
+    public fun solve(ldl: LdlDecomposition, b: F64DenseMatrix): F64DenseMatrix = solveInto(
         ldl,
         b,
-        DenseMatrix(b.rows, b.cols),
+        F64DenseMatrix(b.rows, b.cols),
     )
 
     /** Solve `A · X = B` into [out], which is returned. [out] may be [b]. */
     public fun solveInto(
         ldl: LdlDecomposition,
-        b: DenseMatrix,
-        out: DenseMatrix,
+        b: F64DenseMatrix,
+        out: F64DenseMatrix,
         workspace: Workspace? = null,
-    ): DenseMatrix
+    ): F64DenseMatrix
 
     /** QR factorization `A = Q·R` of an `m×n` [a] via Householder reflections (LAPACK `dgeqrf`). [a] is not
      *  modified, any shape is accepted, and rank deficiency is not detected. */
-    public fun qr(a: DenseMatrix, workspace: Workspace? = null): QrDecomposition
+    public fun qr(a: F64DenseMatrix, workspace: Workspace? = null): QrDecomposition
 
     /** QR with column pivoting, `A·P = Q·R` (LAPACK `dgeqp3`), reporting [PivotedQrDecomposition.rank] as the
      *  count of leading diagonal entries with `|R_kk| > tolerance · |R₀₀|`. [tolerance] defaults to `max(m, n) · ε`. */
     public fun qrPivoted(
-        a: DenseMatrix,
+        a: F64DenseMatrix,
         tolerance: Double = AUTOMATIC_RANK_TOLERANCE,
         workspace: Workspace? = null,
     ): PivotedQrDecomposition
@@ -169,7 +169,7 @@ public interface Lapack : Backend {
      *  Reads only the lower triangle of [a], so an upper-only matrix factors to silent nonsense.
      *  @throws com.eignex.koblas.NotPositiveDefinite at the first non-positive pivot unless [policy] allows it.
      */
-    public fun cholesky(a: DenseMatrix, policy: CholeskyPolicy = CholeskyPolicy.Strict): CholeskyDecomposition
+    public fun cholesky(a: F64DenseMatrix, policy: CholeskyPolicy = CholeskyPolicy.Strict): CholeskyDecomposition
 
     /** Solve `A · x = b` for the Cholesky factorization [chol] (LAPACK `dpotrs`). [b] is not modified. */
     public fun solve(chol: CholeskyDecomposition, b: DoubleArray): DoubleArray {
@@ -186,70 +186,72 @@ public interface Lapack : Backend {
      *  Prefer [solve] to apply `A⁻¹`, which costs less and is more accurate.
      *  @throws com.eignex.koblas.SingularMatrix if [lu] is singular; the position is [LuDecomposition.failedAt].
      */
-    public fun invert(lu: LuDecomposition, workspace: Workspace? = null): DenseMatrix
+    public fun invert(lu: LuDecomposition, workspace: Workspace? = null): F64DenseMatrix
 
     /** Invert a triangular matrix into a fresh result (LAPACK `dtrtri`), returning `T⁻¹` for the [lower] or
      *  upper triangle of the square [a], taking the diagonal as 1 when [unitDiag].
      *  @throws com.eignex.koblas.SingularMatrix naming the first zero diagonal position.
      */
-    public fun trtri(a: DenseMatrix, lower: Boolean, unitDiag: Boolean = false): DenseMatrix
+    public fun trtri(a: F64DenseMatrix, lower: Boolean, unitDiag: Boolean = false): F64DenseMatrix
 
     /** Invert an SPD matrix from its Cholesky factorization, returning `A⁻¹` given [chol] (LAPACK `dpotri`). */
-    public fun invert(chol: CholeskyDecomposition, workspace: Workspace? = null): DenseMatrix
+    public fun invert(chol: CholeskyDecomposition, workspace: Workspace? = null): F64DenseMatrix
 
-    /** [solve] over a [DenseVector] right-hand side. */
-    public fun solve(lu: LuDecomposition, b: DenseVector, transpose: Boolean = false): DenseVector =
-        DenseVector.wrap(solve(lu, b.data, transpose))
+    /** [solve] over a [F64DenseVector] right-hand side. */
+    public fun solve(lu: LuDecomposition, b: F64DenseVector, transpose: Boolean = false): F64DenseVector =
+        F64DenseVector.wrap(solve(lu, b.data, transpose))
 
-    /** [solveInto] over [DenseVector] operands, returning [out]. */
+    /** [solveInto] over [F64DenseVector] operands, returning [out]. */
     public fun solveInto(
         lu: LuDecomposition,
-        b: DenseVector,
-        out: DenseVector,
+        b: F64DenseVector,
+        out: F64DenseVector,
         transpose: Boolean = false,
         workspace: Workspace? = null,
-    ): DenseVector {
+    ): F64DenseVector {
         solveInto(lu, b.data, out.data, transpose, workspace)
         return out
     }
 
-    /** [solve] over a [DenseVector] right-hand side. */
-    public fun solve(ldl: LdlDecomposition, b: DenseVector): DenseVector = DenseVector.wrap(solve(ldl, b.data))
+    /** [solve] over a [F64DenseVector] right-hand side. */
+    public fun solve(ldl: LdlDecomposition, b: F64DenseVector): F64DenseVector = F64DenseVector.wrap(solve(ldl, b.data))
 
-    /** [solveInto] over [DenseVector] operands, returning [out]. */
-    public fun solveInto(ldl: LdlDecomposition, b: DenseVector, out: DenseVector): DenseVector {
+    /** [solveInto] over [F64DenseVector] operands, returning [out]. */
+    public fun solveInto(ldl: LdlDecomposition, b: F64DenseVector, out: F64DenseVector): F64DenseVector {
         solveInto(ldl, b.data, out.data)
         return out
     }
 
-    /** [solve] over a [DenseVector] right-hand side. */
-    public fun solve(chol: CholeskyDecomposition, b: DenseVector): DenseVector = DenseVector.wrap(solve(chol, b.data))
+    /** [solve] over a [F64DenseVector] right-hand side. */
+    public fun solve(chol: CholeskyDecomposition, b: F64DenseVector): F64DenseVector = F64DenseVector.wrap(
+        solve(chol, b.data),
+    )
 
-    /** [solveLeastSquares] over a [DenseVector] right-hand side. */
-    public fun solveLeastSquares(qr: QrDecomposition, b: DenseVector, workspace: Workspace? = null): DenseVector =
-        DenseVector.wrap(solveLeastSquares(qr, b.data, workspace))
+    /** [solveLeastSquares] over a [F64DenseVector] right-hand side. */
+    public fun solveLeastSquares(qr: QrDecomposition, b: F64DenseVector, workspace: Workspace? = null): F64DenseVector =
+        F64DenseVector.wrap(solveLeastSquares(qr, b.data, workspace))
 
-    /** [solveLeastSquares] over a [DenseVector] right-hand side. */
+    /** [solveLeastSquares] over a [F64DenseVector] right-hand side. */
     public fun solveLeastSquares(
         qr: PivotedQrDecomposition,
-        b: DenseVector,
+        b: F64DenseVector,
         workspace: Workspace? = null,
-    ): DenseVector = DenseVector.wrap(solveLeastSquares(qr, b.data, workspace))
+    ): F64DenseVector = F64DenseVector.wrap(solveLeastSquares(qr, b.data, workspace))
 
-    /** [solveMinimumNorm] over a [DenseVector] right-hand side. */
-    public fun solveMinimumNorm(qr: QrDecomposition, b: DenseVector, workspace: Workspace? = null): DenseVector =
-        DenseVector.wrap(solveMinimumNorm(qr, b.data, workspace))
+    /** [solveMinimumNorm] over a [F64DenseVector] right-hand side. */
+    public fun solveMinimumNorm(qr: QrDecomposition, b: F64DenseVector, workspace: Workspace? = null): F64DenseVector =
+        F64DenseVector.wrap(solveMinimumNorm(qr, b.data, workspace))
 
-    /** [applyQ] over a [DenseVector]. */
-    public fun applyQ(qr: QrDecomposition, y: DenseVector, transpose: Boolean = false): DenseVector =
-        DenseVector.wrap(applyQ(qr, y.data, transpose))
+    /** [applyQ] over a [F64DenseVector]. */
+    public fun applyQ(qr: QrDecomposition, y: F64DenseVector, transpose: Boolean = false): F64DenseVector =
+        F64DenseVector.wrap(applyQ(qr, y.data, transpose))
 }
 
 /** Sweep cap for the [Lapack.rcond] estimator. */
 internal const val RCOND_MAX_SWEEPS = 5
 
 /** The shapes a multi-right-hand-side solve needs: [b] with [n] rows, and [out] matching it column for column. */
-internal fun requireSolveShapes(n: Int, b: DenseMatrix, out: DenseMatrix) {
+internal fun requireSolveShapes(n: Int, b: F64DenseMatrix, out: F64DenseMatrix) {
     requireShape(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
     requireShape(out.rows == n && out.cols == b.cols) {
         "solve: out is ${out.rows}x${out.cols}, expected ${n}x${b.cols}"
@@ -259,13 +261,13 @@ internal fun requireSolveShapes(n: Int, b: DenseMatrix, out: DenseMatrix) {
 /** Run [solveOne] over each column of [b], reassembling the results into an `n × nrhs` matrix. */
 @Suppress("LongParameterList") // shape, destination and scratch alongside the per-column solve
 internal inline fun solveColumnwise(
-    b: DenseMatrix,
-    out: DenseMatrix,
+    b: F64DenseMatrix,
+    out: F64DenseMatrix,
     n: Int,
     nrhs: Int,
     workspace: Workspace?,
     solveOne: (column: DoubleArray, destination: DoubleArray) -> DoubleArray,
-): DenseMatrix {
+): F64DenseMatrix {
     if (nrhs == 0) return out
     val col = workspace?.take(n) ?: DoubleArray(n)
     val solved = workspace?.take(n) ?: DoubleArray(n)

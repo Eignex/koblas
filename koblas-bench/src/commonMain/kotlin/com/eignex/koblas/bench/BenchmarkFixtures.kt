@@ -1,8 +1,8 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.SparseVector
+import com.eignex.koblas.F64DenseMatrix
+import com.eignex.koblas.F64SparseMatrix
+import com.eignex.koblas.F64SparseVector
 import kotlin.random.Random
 
 /** Every operand derives from this, so a re-run measures the same numbers rather than similar ones. */
@@ -24,33 +24,33 @@ internal const val RANDOM_SHAPE = "random"
 internal fun benchRng(): Random = Random(BENCH_SEED)
 
 /** A general matrix with entries uniform in -1 to 1. */
-internal fun randomMatrix(rows: Int, cols: Int, rng: Random): DenseMatrix =
-    DenseMatrix.wrap(rows, cols, DoubleArray(rows * cols) { rng.nextDouble(-1.0, 1.0) })
+internal fun randomMatrix(rows: Int, cols: Int, rng: Random): F64DenseMatrix =
+    F64DenseMatrix.wrap(rows, cols, DoubleArray(rows * cols) { rng.nextDouble(-1.0, 1.0) })
 
 /** Diagonally dominant, so pivot searches through near-ties do not distort factor-and-solve timings. */
-internal fun dominantMatrix(n: Int, rng: Random): DenseMatrix {
+internal fun dominantMatrix(n: Int, rng: Random): F64DenseMatrix {
     val a = randomMatrix(n, n, rng)
     for (i in 0 until n) a[i, i] = a[i, i] + n
     return a
 }
 
 /** A matrix whose lower triangle is populated and whose upper triangle is left at zero. */
-internal fun lowerSymmetricMatrix(n: Int, rng: Random): DenseMatrix {
-    val a = DenseMatrix.zero(n, n)
+internal fun lowerSymmetricMatrix(n: Int, rng: Random): F64DenseMatrix {
+    val a = F64DenseMatrix.zero(n, n)
     for (i in 0 until n) for (j in 0..i) a[i, j] = rng.nextDouble(-1.0, 1.0)
     return a
 }
 
 /** Mixed-sign diagonal shifts force LDL onto the 2x2 Bunch-Kaufman pivots rather than the diagonal path. */
-internal fun indefiniteMatrix(n: Int, rng: Random): DenseMatrix =
+internal fun indefiniteMatrix(n: Int, rng: Random): F64DenseMatrix =
     symmetricMatrix(n, rng) { i -> if (i % 2 == 0) n.toDouble() else -n.toDouble() }
 
 /** Symmetric positive-definite, built by symmetrizing and then dominating the diagonal, not as A·Aᵀ. */
-internal fun spdMatrix(n: Int, rng: Random): DenseMatrix = symmetricMatrix(n, rng) { n.toDouble() }
+internal fun spdMatrix(n: Int, rng: Random): F64DenseMatrix = symmetricMatrix(n, rng) { n.toDouble() }
 
 /** A full symmetric matrix with entries uniform in -1 to 1, plus [shift] added to each diagonal entry. */
-private inline fun symmetricMatrix(n: Int, rng: Random, shift: (Int) -> Double): DenseMatrix {
-    val a = DenseMatrix.zero(n, n)
+private inline fun symmetricMatrix(n: Int, rng: Random, shift: (Int) -> Double): F64DenseMatrix {
+    val a = F64DenseMatrix.zero(n, n)
     for (i in 0 until n) {
         for (j in 0..i) {
             val v = rng.nextDouble(-1.0, 1.0)
@@ -66,7 +66,7 @@ private inline fun symmetricMatrix(n: Int, rng: Random, shift: (Int) -> Double):
 internal fun randomVector(n: Int, rng: Random): DoubleArray = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
 
 /** A dominant diagonal with [SPARSE_DENSITY] fill off it. */
-internal fun sparseDominantMatrix(n: Int, rng: Random): SparseMatrix {
+internal fun sparseDominantMatrix(n: Int, rng: Random): F64SparseMatrix {
     val columns = List(n) { j ->
         val entries = ArrayList<Pair<Int, Double>>()
         entries.add(j to (rng.nextDouble(-1.0, 1.0) + n))
@@ -75,11 +75,11 @@ internal fun sparseDominantMatrix(n: Int, rng: Random): SparseMatrix {
         }
         entries
     }
-    return SparseMatrix.ofColumns(n, n, columns)
+    return F64SparseMatrix.ofColumns(n, n, columns)
 }
 
 /** Symmetric with a dominant diagonal, so the sparse LDL and Cholesky paths have a matrix they accept. */
-internal fun sparseSpdMatrix(n: Int, rng: Random): SparseMatrix {
+internal fun sparseSpdMatrix(n: Int, rng: Random): F64SparseMatrix {
     val entries = Array(n) { HashMap<Int, Double>() }
     for (i in 0 until n) entries[i][i] = rng.nextDouble(-1.0, 1.0) + n
     for (j in 0 until n) {
@@ -91,11 +91,11 @@ internal fun sparseSpdMatrix(n: Int, rng: Random): SparseMatrix {
             }
         }
     }
-    return SparseMatrix.ofColumns(n, n, List(n) { j -> entries[j].map { (i, v) -> i to v } })
+    return F64SparseMatrix.ofColumns(n, n, List(n) { j -> entries[j].map { (i, v) -> i to v } })
 }
 
 /** A sparse vector with about `density * n` stored entries, at ascending positions. */
-internal fun randomSparseVector(n: Int, density: Double, rng: Random): SparseVector {
+internal fun randomSparseVector(n: Int, density: Double, rng: Random): F64SparseVector {
     val indices = ArrayList<Int>()
     val values = ArrayList<Double>()
     for (i in 0 until n) {
@@ -104,7 +104,7 @@ internal fun randomSparseVector(n: Int, density: Double, rng: Random): SparseVec
             values.add(rng.nextDouble(-1.0, 1.0))
         }
     }
-    return SparseVector.wrap(n, indices.toIntArray(), values.toDoubleArray())
+    return F64SparseVector.wrap(n, indices.toIntArray(), values.toDoubleArray())
 }
 
 /**
@@ -121,7 +121,7 @@ internal fun simplexBasis(
     slackFraction: Double = 0.55,
     spikeFraction: Double = 0.08,
     columnNonzeros: Int = 6,
-): SparseMatrix {
+): F64SparseMatrix {
     val slacks = (n * slackFraction).toInt()
     val spikes = (n * spikeFraction).toInt()
     val isSpike = BooleanArray(n)
@@ -147,11 +147,11 @@ internal fun simplexBasis(
         }
         entries
     }
-    return SparseMatrix.ofColumns(n, n, columns)
+    return F64SparseMatrix.ofColumns(n, n, columns)
 }
 
 /** The upper triangle of a tridiagonal band of dimension [n]. */
-internal fun bandUpperTriangle(n: Int): SparseMatrix {
+internal fun bandUpperTriangle(n: Int): F64SparseMatrix {
     val rowIdx = IntArray(2 * n - 1)
     val colIdx = IntArray(2 * n - 1)
     val values = DoubleArray(2 * n - 1)
@@ -168,11 +168,11 @@ internal fun bandUpperTriangle(n: Int): SparseMatrix {
         values[k] = 4.0
         k++
     }
-    return SparseMatrix.ofTriplets(n, n, rowIdx, colIdx, values)
+    return F64SparseMatrix.ofTriplets(n, n, rowIdx, colIdx, values)
 }
 
 /** The upper triangle of a 5-point Laplacian on the squarest grid with at most [n] points. */
-internal fun gridUpperTriangle(n: Int): SparseMatrix {
+internal fun gridUpperTriangle(n: Int): F64SparseMatrix {
     var side = 1
     while ((side + 1) * (side + 1) <= n) side++
     val points = side * side
@@ -197,5 +197,5 @@ internal fun gridUpperTriangle(n: Int): SparseMatrix {
             }
         }
     }
-    return SparseMatrix.ofTriplets(points, points, rowIdx.toIntArray(), colIdx.toIntArray(), values.toDoubleArray())
+    return F64SparseMatrix.ofTriplets(points, points, rowIdx.toIntArray(), colIdx.toIntArray(), values.toDoubleArray())
 }

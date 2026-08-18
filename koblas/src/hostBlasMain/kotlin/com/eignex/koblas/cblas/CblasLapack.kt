@@ -3,7 +3,7 @@
 package com.eignex.koblas.cblas
 
 import com.eignex.koblas.BackendNames
-import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.dense.Cblas.COL_MAJOR
@@ -39,7 +39,7 @@ internal class CblasLapack(private val f: LapackeFunctions, blas: CblasFunctions
      * `dgeqp3` is an optional binding, so a LAPACKE without it takes the portable path here rather than
      * costing the host its whole LAPACK half.
      */
-    override fun qrPivoted(a: DenseMatrix, tolerance: Double, workspace: Workspace?): PivotedQrDecomposition {
+    override fun qrPivoted(a: F64DenseMatrix, tolerance: Double, workspace: Workspace?): PivotedQrDecomposition {
         val dgeqp3 = f.dgeqp3
         if (dgeqp3 == null || minOf(a.rows, a.cols) < maxOf(dispatchThresholds.lapack, PIVOTED_QR_MIN)) {
             return ReferenceLinearAlgebra.qrPivoted(a, tolerance, workspace)

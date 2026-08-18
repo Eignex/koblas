@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /** Read-only vector contract. Anything that only reads a vector should take this. */
-public interface VectorLike {
+public interface F64VectorLike {
     /** Number of entries, counting the unstored zeros of a sparse vector. */
     public val size: Int
 
@@ -15,16 +15,16 @@ public interface VectorLike {
     public fun toDoubleArray(): DoubleArray
 }
 
-/** The vector storages koblas itself defines, [DenseVector] and [SparseVector]. */
+/** The vector storages koblas itself defines, [F64DenseVector] and [F64SparseVector]. */
 @Serializable
-public sealed interface VectorView : VectorLike
+public sealed interface F64VectorView : F64VectorLike
 
 /**
  * @property data the flat backing array.
  */
 @Serializable
 @SerialName("DenseVector")
-public class DenseVector internal constructor(public val data: DoubleArray) : VectorView {
+public class F64DenseVector internal constructor(public val data: DoubleArray) : F64VectorView {
 
     internal constructor(size: Int) : this(DoubleArray(size))
 
@@ -44,23 +44,23 @@ public class DenseVector internal constructor(public val data: DoubleArray) : Ve
     }
 
     override fun equals(other: Any?): Boolean =
-        this === other || (other is DenseVector && data.contentEquals(other.data))
+        this === other || (other is F64DenseVector && data.contentEquals(other.data))
     override fun hashCode(): Int = data.contentHashCode()
-    override fun toString(): String = "DenseVector(size=$size)"
+    override fun toString(): String = "F64DenseVector(size=$size)"
 
     /** Factories for dense vectors. */
     public companion object {
         /** Copy a `DoubleArray` into a fresh dense vector. */
-        public fun of(values: DoubleArray): DenseVector = DenseVector(values.copyOf())
+        public fun of(values: DoubleArray): F64DenseVector = F64DenseVector(values.copyOf())
 
         /** A dense vector of [size] zeros. */
-        public fun zero(size: Int): DenseVector {
+        public fun zero(size: Int): F64DenseVector {
             requireShape(size >= 0) { "negative size: $size" }
-            return DenseVector(size)
+            return F64DenseVector(size)
         }
 
         /** Wrap an existing `DoubleArray` without copying. The caller relinquishes ownership. */
-        public fun wrap(data: DoubleArray): DenseVector = DenseVector(data)
+        public fun wrap(data: DoubleArray): F64DenseVector = F64DenseVector(data)
     }
 }
 
@@ -73,11 +73,11 @@ public class DenseVector internal constructor(public val data: DoubleArray) : Ve
  */
 @Serializable
 @SerialName("SparseVector")
-public class SparseVector internal constructor(
+public class F64SparseVector internal constructor(
     override val size: Int,
     public val indices: IntArray,
     public val values: DoubleArray,
-) : VectorView {
+) : F64VectorView {
 
     init {
         requireShape(size >= 0) { "negative size: $size" }
@@ -117,7 +117,7 @@ public class SparseVector internal constructor(
 
     override fun equals(other: Any?): Boolean = this === other ||
         (
-            other is SparseVector && size == other.size &&
+            other is F64SparseVector && size == other.size &&
                 indices.contentEquals(other.indices) && values.contentEquals(other.values)
             )
     override fun hashCode(): Int {
@@ -126,12 +126,12 @@ public class SparseVector internal constructor(
         h = 31 * h + values.contentHashCode()
         return h
     }
-    override fun toString(): String = "SparseVector(size=$size, nnz=${indices.size})"
+    override fun toString(): String = "F64SparseVector(size=$size, nnz=${indices.size})"
 
     /** Factories for sparse vectors. */
     public companion object {
         /** Build a sparse vector, sorting by index and summing duplicates. Copies its inputs. */
-        public fun of(size: Int, indices: IntArray, values: DoubleArray): SparseVector {
+        public fun of(size: Int, indices: IntArray, values: DoubleArray): F64SparseVector {
             requireShape(indices.size == values.size) {
                 "indices/values must align: ${indices.size} vs ${values.size}"
             }
@@ -148,14 +148,14 @@ public class SparseVector internal constructor(
                     n++
                 }
             }
-            return SparseVector(size, idx.copyOf(n), vals.copyOf(n))
+            return F64SparseVector(size, idx.copyOf(n), vals.copyOf(n))
         }
 
         /**
          * Wrap existing arrays without copying, taking ownership; [indices] must already be strictly
          * ascending and in range.
          */
-        public fun wrap(size: Int, indices: IntArray, values: DoubleArray): SparseVector = SparseVector(
+        public fun wrap(size: Int, indices: IntArray, values: DoubleArray): F64SparseVector = F64SparseVector(
             size,
             indices,
             values,

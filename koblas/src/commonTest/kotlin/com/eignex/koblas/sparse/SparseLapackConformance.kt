@@ -1,8 +1,8 @@
 package com.eignex.koblas.sparse
 
+import com.eignex.koblas.F64SparseMatrix
 import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
 import com.eignex.koblas.SingularMatrix
-import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.koblas
 import com.eignex.koblas.registerBackend
@@ -14,7 +14,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /** A diagonally dominant system with roughly a quarter of the off-diagonal entries filled. */
-internal fun sparseConformanceSystem(n: Int, rng: Random): SparseMatrix {
+internal fun sparseConformanceSystem(n: Int, rng: Random): F64SparseMatrix {
     val columns = ArrayList<List<Pair<Int, Double>>>(n)
     for (j in 0 until n) {
         val column = ArrayList<Pair<Int, Double>>()
@@ -28,11 +28,11 @@ internal fun sparseConformanceSystem(n: Int, rng: Random): SparseMatrix {
         }
         columns.add(column)
     }
-    return SparseMatrix.ofColumns(n, n, columns)
+    return F64SparseMatrix.ofColumns(n, n, columns)
 }
 
 /** A·x computed straight from the CSC arrays, so no seam is involved in checking a seam. */
-internal fun multiply(a: SparseMatrix, x: DoubleArray): DoubleArray {
+internal fun multiply(a: F64SparseMatrix, x: DoubleArray): DoubleArray {
     val y = DoubleArray(a.rows)
     for (j in 0 until a.cols) a.forEachInColumn(j) { i, v -> y[i] += v * x[j] }
     return y
@@ -83,7 +83,7 @@ internal fun assertDeterminantAgreesWithReference(lapack: SparseLapack) {
 
 /** A host that cannot name the failing pivot must say so rather than invent a position. */
 internal fun assertSingularIsReportedWithUnknownPosition(lapack: SparseLapack) {
-    val rank1 = SparseMatrix.ofColumns(
+    val rank1 = F64SparseMatrix.ofColumns(
         2,
         2,
         listOf(listOf(0 to 1.0, 1 to 2.0), listOf(0 to 2.0, 1 to 4.0)),
@@ -101,9 +101,9 @@ internal fun assertSingularIsReportedWithUnknownPosition(lapack: SparseLapack) {
  * zeros is reported singular. On Kotlin/Native the reason is that `usePinned` has no address for an empty array.
  */
 internal fun assertEmptyAndZeroMatricesTakeThePortablePath(lapack: SparseLapack) {
-    val empty = lapack.factor(SparseMatrix.ofColumns(0, 0, emptyList()))
+    val empty = lapack.factor(F64SparseMatrix.ofColumns(0, 0, emptyList()))
     assertEquals(0, empty.n, "an empty matrix factors to an empty factorization")
-    val zeros = lapack.factor(SparseMatrix.ofColumns(3, 3, listOf(emptyList(), emptyList(), emptyList())))
+    val zeros = lapack.factor(F64SparseMatrix.ofColumns(3, 3, listOf(emptyList(), emptyList(), emptyList())))
     assertTrue(zeros.singular, "a matrix of zeros is singular")
 }
 

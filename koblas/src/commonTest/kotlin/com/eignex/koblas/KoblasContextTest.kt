@@ -48,11 +48,11 @@ class KoblasContextTest {
 
     @Test
     fun `a context is usable as a backend`() {
-        val a = DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0)))
+        val a = F64DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0)))
         val f = koblas.factor(a)
         val x = koblas.solve(f, doubleArrayOf(3.0, 5.0))
         assertContentClose(x, a.lu().solve(doubleArrayOf(3.0, 5.0)))
-        val s = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 4.0)))
+        val s = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 4.0)))
         assertContentClose(doubleArrayOf(2.0, 8.0), koblas.gemv(s, doubleArrayOf(1.0, 2.0)))
     }
 
@@ -74,14 +74,14 @@ class KoblasContextTest {
     fun `the inherited routines run on the kernels their backend was built with`() {
         val mine = Counting()
         val backend = ReferenceBackend(mine)
-        val l = DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 0.0), doubleArrayOf(1.0, 3.0)))
+        val l = F64DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 0.0), doubleArrayOf(1.0, 3.0)))
         val x = doubleArrayOf(2.0, 5.0)
 
         (backend as Blas).trsv(l, x, lower = true)
         assertTrue(mine.dots + mine.axpys > 0, "trsv must use the backend's kernels")
 
         val before = mine.dots + mine.axpys
-        (backend as Lapack).cholesky(DenseMatrix.of(arrayOf(doubleArrayOf(4.0, 1.0), doubleArrayOf(1.0, 3.0))))
+        (backend as Lapack).cholesky(F64DenseMatrix.of(arrayOf(doubleArrayOf(4.0, 1.0), doubleArrayOf(1.0, 3.0))))
         assertTrue(mine.dots + mine.axpys > before, "cholesky must use the backend's kernels")
     }
 
@@ -93,7 +93,7 @@ class KoblasContextTest {
     @Test
     fun `qrPivoted runs on the kernels of the half it was called on`() {
         val mine = Counting()
-        LapackHalf(mine).qrPivoted(DenseMatrix.of(arrayOf(doubleArrayOf(3.0, 1.0), doubleArrayOf(4.0, 2.0))))
+        LapackHalf(mine).qrPivoted(F64DenseMatrix.of(arrayOf(doubleArrayOf(3.0, 1.0), doubleArrayOf(4.0, 2.0))))
         assertTrue(mine.dots + mine.axpys > 0, "qrPivoted must not fall back to the installed kernels")
     }
 
@@ -101,7 +101,7 @@ class KoblasContextTest {
     fun `a contexts own kernels reach the reference inner loops`() {
         val mine = Counting()
         val portable: Blas = ReferenceBackend(mine)
-        val a = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
+        val a = F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
 
         portable.gemv(a, doubleArrayOf(1.0, 1.0))
         assertTrue(mine.axpys > 0, "a non-transposed gemv sweeps columns with axpy")
@@ -116,7 +116,7 @@ class KoblasContextTest {
         val mine = Counting("installed")
         installBackends(koblas.with(vectorKernels = mine))
         val lapack: Lapack = ReferenceLinearAlgebra
-        lapack.factor(DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0))))
+        lapack.factor(F64DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0))))
         assertTrue(mine.axpys > 0, "ReferenceLinearAlgebra must pick up an installed context's kernels")
     }
 

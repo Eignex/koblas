@@ -37,7 +37,7 @@ internal inline fun requireIndex(condition: Boolean, message: () -> String) {
 }
 
 /** The shape every factorization and triangular routine needs, naming [what] so the message says which one. */
-internal fun requireSquare(a: MatrixLike, what: String) {
+internal fun requireSquare(a: F64MatrixLike, what: String) {
     requireShape(a.rows == a.cols) { "$what requires a square matrix; got ${a.rows}x${a.cols}" }
 }
 

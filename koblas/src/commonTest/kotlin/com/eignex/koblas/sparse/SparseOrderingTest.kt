@@ -1,6 +1,6 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.F64SparseMatrix
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.randomVector
 import kotlin.random.Random
@@ -10,7 +10,7 @@ import kotlin.test.assertTrue
 
 class SparseOrderingTest {
 
-    private fun arrow(n: Int): SparseMatrix {
+    private fun arrow(n: Int): F64SparseMatrix {
         val columns = List(n) { j ->
             buildList {
                 when (j) {
@@ -26,7 +26,7 @@ class SparseOrderingTest {
                 }
             }
         }
-        return SparseMatrix.ofColumns(n, n, columns)
+        return F64SparseMatrix.ofColumns(n, n, columns)
     }
 
     @Test
@@ -72,7 +72,7 @@ class SparseOrderingTest {
             entries[shuffle[i]][shuffle[i + 1]] = -1.0
             entries[shuffle[i + 1]][shuffle[i]] = -1.0
         }
-        val a = SparseMatrix.ofColumns(n, n, List(n) { j -> entries[j].map { (i, v) -> i to v } })
+        val a = F64SparseMatrix.ofColumns(n, n, List(n) { j -> entries[j].map { (i, v) -> i to v } })
 
         val natural = a.analyze(SparseOrdering.Natural).nnz
         val ordered = a.analyze().nnz
@@ -84,7 +84,7 @@ class SparseOrderingTest {
     }
 
     /** The upper triangle of a tridiagonal band, whose minimum-degree ordering leaves no fill at all. */
-    private fun band(n: Int): SparseMatrix {
+    private fun band(n: Int): F64SparseMatrix {
         val rowIdx = IntArray(2 * n - 1)
         val colIdx = IntArray(2 * n - 1)
         val values = DoubleArray(2 * n - 1)
@@ -101,7 +101,7 @@ class SparseOrderingTest {
             values[k] = 4.0
             k++
         }
-        return SparseMatrix.ofTriplets(n, n, rowIdx, colIdx, values)
+        return F64SparseMatrix.ofTriplets(n, n, rowIdx, colIdx, values)
     }
 
     /**
@@ -135,7 +135,7 @@ class SparseOrderingTest {
                 if (y + 1 < k) entry(i, i + k, -1.0)
             }
         }
-        val a = SparseMatrix.ofTriplets(n, n, rowIdx.toIntArray(), colIdx.toIntArray(), values.toDoubleArray())
+        val a = F64SparseMatrix.ofTriplets(n, n, rowIdx.toIntArray(), colIdx.toIntArray(), values.toDoubleArray())
         val natural = a.analyze(SparseOrdering.Natural).nnz
         val ordered = a.analyze().nnz
         assertTrue(ordered * 3 < natural, "grid fill $ordered should be well under the natural $natural")
@@ -146,7 +146,7 @@ class SparseOrderingTest {
         val rng = Random(20260816)
         val a = arrow(30)
         val symbolic = a.analyze()
-        val scaled = SparseMatrix(
+        val scaled = F64SparseMatrix(
             a.rows,
             a.cols,
             a.colPtr.copyOf(),

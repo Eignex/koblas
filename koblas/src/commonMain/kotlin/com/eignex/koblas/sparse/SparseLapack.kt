@@ -1,7 +1,7 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.Backend
-import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.F64SparseMatrix
 import com.eignex.koblas.Workspace
 
 /** Sparse factorizations as a backend half. */
@@ -16,7 +16,7 @@ public interface SparseLapack : Backend {
      *   incomplete factorization.
      */
     public fun factor(
-        a: SparseMatrix,
+        a: F64SparseMatrix,
         equilibrate: Boolean = false,
         dropTolerance: Double = NO_DROP,
     ): SparseFactorization
@@ -25,14 +25,14 @@ public interface SparseLapack : Backend {
      * Analyse a symmetric [a]'s pattern, the elimination tree and the nonzero pattern of L, reading no
      * values. Reusable, so every matrix with this pattern factors against one analysis.
      */
-    public fun analyze(a: SparseMatrix, ordering: SparseOrdering = SparseOrdering.MinimumDegree): SparseSymbolic
+    public fun analyze(a: F64SparseMatrix, ordering: SparseOrdering = SparseOrdering.MinimumDegree): SparseSymbolic
 
     /**
      * `A = L·D·Lᵀ` for a symmetric [a], analysing the pattern first. Accepts an indefinite matrix by
      * default, and under that default an exact zero pivot is singular and reports the column it stopped at.
      */
     public fun ldl(
-        a: SparseMatrix,
+        a: F64SparseMatrix,
         policy: SparseLdlPolicy = SparseLdlPolicy.Indefinite,
         ordering: SparseOrdering = SparseOrdering.MinimumDegree,
     ): SparseFactorization
@@ -44,7 +44,7 @@ public interface SparseLapack : Backend {
      * @throws com.eignex.koblas.NotPositiveDefinite on a non-positive pivot, naming the column.
      */
     public fun cholesky(
-        a: SparseMatrix,
+        a: F64SparseMatrix,
         policy: SparseLdlPolicy = SparseLdlPolicy.Strict,
         ordering: SparseOrdering = SparseOrdering.MinimumDegree,
     ): SparseFactorization = ldl(a, policy, ordering)

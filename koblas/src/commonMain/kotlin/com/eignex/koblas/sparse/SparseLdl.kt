@@ -1,8 +1,8 @@
 package com.eignex.koblas.sparse
 
+import com.eignex.koblas.F64SparseMatrix
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.NotPositiveDefinite
-import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.requireSquare
@@ -107,7 +107,7 @@ public class SparseLdl internal constructor(
      *
      * @throws com.eignex.koblas.NotPositiveDefinite if any pivot is not positive.
      */
-    public fun choleskyFactor(): SparseMatrix {
+    public fun choleskyFactor(): F64SparseMatrix {
         for (j in 0 until n) {
             if (diagonal[j] <= 0.0) {
                 throw NotPositiveDefinite(
@@ -137,7 +137,7 @@ public class SparseLdl internal constructor(
                 k++
             }
         }
-        return SparseMatrix.ofTriplets(n, n, rowIdx, colIdx, scaled)
+        return F64SparseMatrix.ofTriplets(n, n, rowIdx, colIdx, scaled)
     }
 }
 
@@ -147,7 +147,7 @@ public class SparseLdl internal constructor(
  */
 @Suppress("NestedBlockDepth", "ReturnCount") // the up-looking traversal, and one exit per pivot verdict
 internal fun numericLdl(
-    a: SparseMatrix,
+    a: F64SparseMatrix,
     symbolic: SparseSymbolic,
     policy: SparseLdlPolicy,
 ): SparseFactorization {

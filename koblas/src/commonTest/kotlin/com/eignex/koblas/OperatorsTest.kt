@@ -8,9 +8,9 @@ import kotlin.test.assertTrue
 
 class OperatorsTest {
 
-    private val a = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
-    private val b = DenseMatrix.of(arrayOf(doubleArrayOf(5.0, 6.0), doubleArrayOf(7.0, 8.0)))
-    private val x = DenseVector.of(doubleArrayOf(2.0, -1.0))
+    private val a = F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
+    private val b = F64DenseMatrix.of(arrayOf(doubleArrayOf(5.0, 6.0), doubleArrayOf(7.0, 8.0)))
+    private val x = F64DenseVector.of(doubleArrayOf(2.0, -1.0))
 
     @Test
     fun `matrix product agrees with matMul`() {
@@ -19,13 +19,13 @@ class OperatorsTest {
 
     @Test
     fun `matrix-vector product agrees with gemv`() {
-        assertEquals(DenseVector.wrap(koblas.gemv(a, x.data)), a * x)
+        assertEquals(F64DenseVector.wrap(koblas.gemv(a, x.data)), a * x)
         assertClose(doubleArrayOf(0.0, 2.0), (a * x).data, "a * x")
     }
 
     @Test
     fun `sparse matrix-vector product agrees with the sparse gemv`() {
-        val s = SparseMatrix.ofTriplets(
+        val s = F64SparseMatrix.ofTriplets(
             rows = 2,
             cols = 2,
             rowIdx = intArrayOf(0, 0, 1, 1),
@@ -51,7 +51,7 @@ class OperatorsTest {
 
     @Test
     fun `vector sum and difference agree entrywise`() {
-        val y = DenseVector.of(doubleArrayOf(0.5, 4.0))
+        val y = F64DenseVector.of(doubleArrayOf(0.5, 4.0))
         assertClose(doubleArrayOf(2.5, 3.0), (x + y).data, "x + y")
         assertClose(doubleArrayOf(1.5, -5.0), (x - y).data, "x - y")
         assertTrue(doubleArrayOf(2.0, -1.0).contentEquals(x.data), "x should be untouched")
@@ -69,10 +69,10 @@ class OperatorsTest {
 
     @Test
     fun `mismatched shapes are rejected`() {
-        val wide = DenseMatrix.zero(2, 3)
+        val wide = F64DenseMatrix.zero(2, 3)
         assertFailsWith<DimensionMismatch> { a + wide }
         assertFailsWith<DimensionMismatch> { a - wide }
-        assertFailsWith<DimensionMismatch> { x + DenseVector.zero(3) }
-        assertFailsWith<DimensionMismatch> { x - DenseVector.zero(3) }
+        assertFailsWith<DimensionMismatch> { x + F64DenseVector.zero(3) }
+        assertFailsWith<DimensionMismatch> { x - F64DenseVector.zero(3) }
     }
 }

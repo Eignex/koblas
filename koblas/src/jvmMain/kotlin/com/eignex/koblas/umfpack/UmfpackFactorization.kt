@@ -1,6 +1,6 @@
 package com.eignex.koblas.umfpack
 
-import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.F64SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.requireFactored
 import com.eignex.koblas.requireShape
@@ -20,7 +20,7 @@ private val cleaner: Cleaner = Cleaner.create()
  * factors, which are UMFPACK's own allocation, through a [Cleaner] once this object is unreachable.
  */
 public class UmfpackFactorization internal constructor(
-    private val matrix: SparseMatrix,
+    private val matrix: F64SparseMatrix,
     override val failedAt: Int,
     private val handles: Handles,
 ) : SparseFactorization {
