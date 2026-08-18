@@ -6,5 +6,5 @@ import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.toKString
 
 /** Environment only, since there are no system properties outside the JVM. */
-internal actual fun dispatchOverride(level: DispatchLevel): Int? =
-    platform.posix.getenv(ConfigurationKeys.DISPATCH_ENV_PREFIX + level.name)?.toKString()?.toIntOrNull()
+internal actual fun dispatchOverride(element: ElementType, level: DispatchLevel): Int? =
+    platform.posix.getenv(ConfigurationKeys.dispatchEnv(element, level))?.toKString()?.toIntOrNull()
