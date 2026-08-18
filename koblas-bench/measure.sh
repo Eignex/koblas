@@ -6,8 +6,14 @@
 #   koblas-bench/measure.sh jvm    jvmScalarKernelsGateBenchmark  out.txt -Pkoblas.noSimd=true
 #   koblas-bench/measure.sh native linuxX64SweepGateBenchmark     out.txt
 #
-# Compare a change by running the same suite before and after and reading the control row first: if the
-# control moved, the machine moved, and only differences larger than that mean anything.
+# Compare a change by running the same suite before and after, several runs per side. One run per side
+# decides nothing: a single pair, taken while load ramped in opposite directions, once manufactured a
+# convincing 7% regression that did not exist.
+#
+# Read the minimums, not the means, since interference only ever adds time. Better still, compare the
+# subject against a control row from the same run, which is immune to machine speed. Do not trust a clean
+# control on its own: JMH runs rows alphabetically, so a control that sorts early is measured before any
+# interference that arrives later and will certify a contaminated run.
 #
 # Each step below exists because leaving it out produced a wrong answer:
 #
@@ -24,7 +30,7 @@
 set -u
 
 if [ "$#" -lt 3 ]; then
-    sed -n '2,20p' "$0"
+    sed -n '3,8p' "$0"
     exit 2
 fi
 
