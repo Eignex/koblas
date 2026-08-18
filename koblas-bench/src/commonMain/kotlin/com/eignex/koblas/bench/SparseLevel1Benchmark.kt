@@ -5,6 +5,7 @@ import com.eignex.koblas.SparseVector
 import com.eignex.koblas.asum
 import com.eignex.koblas.axpy
 import com.eignex.koblas.dot
+import com.eignex.koblas.koblas
 import com.eignex.koblas.norm2
 import kotlinx.benchmark.*
 
@@ -52,4 +53,10 @@ class SparseLevel1Benchmark {
 
     @Benchmark
     fun sparseAsum(): Double = asum(sparse)
+
+    /** `ussc`, the pure write, with no arithmetic to hide its cost behind. */
+    @Benchmark
+    fun sparseScatter() {
+        koblas.sparseVectorKernels.scatter(sparse, dense.data)
+    }
 }
