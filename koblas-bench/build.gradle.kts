@@ -145,6 +145,15 @@ benchmark {
             gate()
             param("n", "256")
         }
+        // The sparse level-1 kernels a target does not accelerate, against sparseDotDense, which stays a real
+        // override and so carries no forwarding hop. That control sorts third of five, the best this class
+        // offers, since it is the only row the change cannot touch.
+        val sparseKernelRows = "sparseAsum|sparseAxpy|sparseDotDense|sparseDotSparse|sparseNrm2"
+        suite("sparseKernelGate", "SparseLevel1Benchmark", sparseKernelRows) {
+            gate()
+            param("density", "0.01")
+            param("len", "4096")
+        }
         suite("pivotedQrGate", "PivotedQrGateBenchmark") {
             gate()
         }
