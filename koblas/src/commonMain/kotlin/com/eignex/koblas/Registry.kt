@@ -7,8 +7,24 @@ import com.eignex.koblas.dense.registerPlatformBackends
 /** Where the double-precision registrations live; an element type added later gets a registry beside it. */
 private val f64 = F64Registry()
 
+/**
+ * Set when discovery starts rather than when it finishes, so a read of [koblas] from inside it does not
+ * start it again. Discovery probes each candidate by calling its own `gemv`, and a candidate that has not
+ * overridden its vector kernels resolves them through [koblas], which lands back here. The lazy below has
+ * not published a value yet at that point, so it would run the initializer a second time: load the
+ * providers again, build a fresh instance of each, probe that one, and so on until the stack ran out.
+ */
+private var discoveryStarted = false
+
 /** Runs platform discovery exactly once, on the first [koblas] read. */
-private val discovery: Unit by lazy { registerPlatformBackends() }
+private val discovery: Unit by lazy {
+    // Ordered by the lazy's own lock: the nested read is on the thread already inside it, and any other
+    // thread waits on that lock rather than reaching this.
+    if (!discoveryStarted) {
+        discoveryStarted = true
+        registerPlatformBackends()
+    }
+}
 
 /**
  * The process-wide default context: an [installBackends] override when set, else whatever registered
