@@ -34,6 +34,40 @@ and symmetric indefinite solver families with condition estimation, and sparse
 LU and symmetric factorizations. See [BLAS Coverage](#blas-coverage)
 for the exact contract and what is out of scope.
 
+### Element types
+
+Everything is double precision today, and every container, backend half and
+factorization says so in its name: `F64DenseMatrix`, `F64Blas`,
+`F64LuDecomposition`. The unqualified names are aliases for the
+double-precision ones, so `DenseMatrix` is `F64DenseMatrix` and code written
+against the short names does not change. What a caller who does not say which
+element type they mean gets is double precision.
+
+The names are shaped that way so a second element type is an addition rather
+than a reshaping. `F32` is next: its containers and its level-1 to level-3
+kernels are written for `Float`, where a SIMD register holds twice the lanes,
+while its factorizations promote to double precision, factor there and demote
+on the way out. That is a correct `F32Lapack` from the first commit, and the
+seam lets a real single-precision LAPACK replace it later without a call site
+changing. `BF16` is planned as a storage type only: `Short` storage of
+bfloat16 with `Float` accumulation, for the products where bf16 is actually
+used, and no bf16 factorizations, whose eight mantissa bits would not survive
+pivoting.
+
+The parts that are not per element type stay shared: `Backend`, `Seam` and the
+priority ranking, the shape and bounds checks, the sparse symbolic analysis and
+ordering, `Uplo`, `CholeskyPolicy`, and the `Workspace` pooling, which lends
+buffers of one array type per element type out of one set of reclamation rules.
+Serial names carry no prefix, so a snapshot written before the element type
+reached the class names still reads back; a later element type gets serial names
+of its own.
+
+The dispatch thresholds are per element type, and double precision owns the
+unqualified configuration keys: `koblas.dispatch.level3` is the double-precision
+crossover, and a later element type reads `koblas.dispatch.f32.level3`.
+Crossovers are counted in elements, not bytes, so a narrower element type
+measures its own rather than inheriting these.
+
 ### Installation
 
 ```kotlin
@@ -386,6 +420,7 @@ This release reshapes the public API. Every removal has a direct replacement.
 | `a.cholesky()` on any `MatrixLike` | takes a `DenseMatrix`; materialise with `DenseMatrix.of(a.toArray())` |
 | `solve` on a singular factorization returning `Inf`/`NaN` | throws `SingularMatrix` |
 | `IllegalStateException` from a singular sparse solve | `SingularMatrix` |
+| `ReferenceLinearAlgebra` | `F64ReferenceLinearAlgebra`; the type names carry their element type |
 
 Everything else is additive: the container factories (`ofTriplets`,
 `ofColumns`, `zero`, `diagonal`, `wrap`), the fluent factorizations (`ldl`,
