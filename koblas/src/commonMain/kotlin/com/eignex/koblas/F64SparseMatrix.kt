@@ -14,7 +14,7 @@ import kotlinx.serialization.Serializable
  * @property values the stored nonzero values, parallel to [rowIdx].
  */
 @Serializable
-@SerialName("SparseMatrix")
+@SerialName("F64SparseMatrix")
 public class F64SparseMatrix internal constructor(
     override val rows: Int,
     override val cols: Int,
