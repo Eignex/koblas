@@ -43,7 +43,10 @@ internal class F64CblasLapack(private val f: LapackeFunctions, blas: CblasFuncti
     override fun qrPivoted(a: F64DenseMatrix, tolerance: Double, workspace: Workspace?): F64PivotedQrDecomposition {
         requireRankTolerance(tolerance)
         val dgeqp3 = f.dgeqp3
-        if (dgeqp3 == null || minOf(a.rows, a.cols) < maxOf(f64DispatchThresholds.lapack, PIVOTED_QR_MIN)) {
+        // The floor of one is what keeps an empty dimension off the native call, rather than PIVOTED_QR_MIN
+        // happening to sit above zero: dgeqp3 has nothing to factor then, and the untouched jpvt would read
+        // back as a column permutation of -1. Same floor as the JVM binding.
+        if (dgeqp3 == null || minOf(a.rows, a.cols) < maxOf(1, f64DispatchThresholds.lapack, PIVOTED_QR_MIN)) {
             return F64ReferenceLinearAlgebra.qrPivoted(a, tolerance, workspace)
         }
         val m = a.rows
@@ -51,16 +54,14 @@ internal class F64CblasLapack(private val f: LapackeFunctions, blas: CblasFuncti
         val buf = a.data.copyOf()
         val tau = DoubleArray(minOf(m, n))
         val jpvt = IntArray(n) // zero: no column is pinned
-        if (m > 0 && n > 0) {
-            val info = buf.usePinned { bp ->
-                jpvt.usePinned { jp ->
-                    tau.usePinned { tp ->
-                        dgeqp3(COL_MAJOR, m, n, bp.addressOf(0), m, jp.addressOf(0), tp.addressOf(0))
-                    }
+        val info = buf.usePinned { bp ->
+            jpvt.usePinned { jp ->
+                tau.usePinned { tp ->
+                    dgeqp3(COL_MAJOR, m, n, bp.addressOf(0), m, jp.addressOf(0), tp.addressOf(0))
                 }
             }
-            check(info == 0) { "dgeqp3: illegal argument ${-info}" }
         }
+        check(info == 0) { "dgeqp3: illegal argument ${-info}" }
         val pivots = IntArray(n) { jpvt[it] - 1 }
         val rank = rankOfPivotedR(buf, m, n, minOf(m, n), tolerance)
         return F64PivotedQrDecomposition(F64QrDecomposition(m, n, buf, tau), pivots, rank)

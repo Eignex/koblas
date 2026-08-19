@@ -55,9 +55,12 @@ public class SparseSymbolic internal constructor(
                 SparseOrdering.Natural -> IntArray(n) { it }
                 SparseOrdering.MinimumDegree -> minimumDegreeOrdering(a)
             }
-            val inverse = inverseOf(permutation)
-            // The tree and the counts describe the matrix that is eliminated, the permuted one.
-            val analysed = if (ordering == SparseOrdering.Natural) a else permutedUpperTriangle(a, inverse)
+            // The tree and the counts describe the matrix that is eliminated, the permuted one. Keyed on the
+            // permutation being the identity rather than on the ordering asked for, which is the test
+            // [SparseSymbolic.isNatural] makes and the one numericLdl reads: a fill-reducing ordering that
+            // happens to come back as the identity has to leave both sides eliminating the same matrix.
+            val natural = permutation.indices.all { permutation[it] == it }
+            val analysed = if (natural) a else permutedUpperTriangle(a, inverseOf(permutation))
             val parent = eliminationTree(analysed, n)
             val counts = columnCounts(analysed, n, parent)
             val pointers = IntArray(n + 1)

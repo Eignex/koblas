@@ -5,8 +5,14 @@ import com.eignex.koblas.DispatchThresholds
 import com.eignex.koblas.f64DispatchThresholds
 
 /**
- * The vector-vector routines as a backend half, alongside [F64Blas] and [F64Lapack]. Implementations must agree
- * with [F64PlatformVectorKernels] exactly and read nothing outside the (offset, length) window.
+ * The vector-vector routines as a backend half, alongside [F64Blas] and [F64Lapack]. Implementations must
+ * agree with [F64PlatformVectorKernels] to within rounding and read nothing outside the (offset, length)
+ * window.
+ *
+ * To within rounding rather than exactly, because bit-for-bit is not a contract these routines can hold:
+ * [F64PlatformVectorKernels] itself fuses its multiply-add above one lane width and does not below it, and
+ * reduces over lanes as a tree rather than in order. Two conforming implementations can differ in the last
+ * bits of a sum, and the reference routines are written not to depend on which one they got.
  *
  * A length of zero is legal everywhere and does nothing: the triangular and Householder kernels reach the
  * last row with an empty tail, so every routine here is called that way.
