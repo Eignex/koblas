@@ -46,9 +46,9 @@ public val koblasInfo: String get() = "backend=${koblas.name}, kernels=${koblas.
  * A backend is offered to the registry of every element type, since which one it serves is which halves it
  * implements, and one object may serve more than one.
  *
- * Each half keeps the strongest offer through a read, a compare and a write that are not one atomic step,
- * so concurrent registrations can leave the weaker one active. Register during startup, before other
- * threads run, as [installBackends] also asks.
+ * Safe to call from any thread: each half takes its offer through a compare-and-set, so concurrent
+ * registrations settle on the strongest rather than on whoever wrote last. [installBackends] is the one that
+ * still wants startup, since it replaces the whole context rather than ranking into a half.
  *
  * @throws IllegalArgumentException if [backend] implements no half of any element type, which would
  *   otherwise register nothing and look like it worked.
