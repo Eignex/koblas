@@ -3,7 +3,9 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.DimensionMismatch
 import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.absoluteSum
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.euclideanNorm
 import com.eignex.koblas.koblas
 import com.eignex.koblas.poisonedSymmetric
 import com.eignex.koblas.randomMatrix
@@ -11,6 +13,7 @@ import com.eignex.koblas.randomVector
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class LinearAlgebraSymmetricOpsTest {
@@ -202,5 +205,64 @@ class LinearAlgebraSymmetricOpsTest {
         val y = DoubleArray(2) { Double.NaN }
         koblas.symv(0.0, F64DenseMatrix(2, 2), DoubleArray(2), 0.0, y)
         assertTrue(y.all { it == 0.0 }, "symv alpha=0 beta=0 left ${y.toList()}")
+    }
+
+    @Test
+    fun `symm leaves C alone when the operands do not line up`() {
+        // Scaling C is part of the operation, so a call that cannot go through must not have done it.
+        for (right in booleanArrayOf(true, false)) {
+            for (beta in doubleArrayOf(0.0, 2.0)) {
+                // C matches B, so the shape that fails is A against B: too few columns from the right,
+                // too few rows from the left.
+                val a = F64DenseMatrix.diagonal(if (right) 2 else 3)
+                val b = F64DenseMatrix(2, 3)
+                val c = F64DenseMatrix(2, 3)
+                c.data.fill(7.0)
+                assertFailsWith<DimensionMismatch>("symm right=$right beta=$beta should reject these shapes") {
+                    koblas.symm(1.0, a, b, beta, c, lower = true, right = right)
+                }
+                assertTrue(
+                    c.data.all { it == 7.0 },
+                    "symm right=$right beta=$beta scaled C before rejecting the call: ${c.data.toList()}",
+                )
+            }
+        }
+    }
+
+    /** Kernels whose `dot` fails, standing in for a host backend that cannot complete a call. */
+    private class FailingDot : F64VectorKernels {
+        override val name: String get() = "failing-dot"
+        override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
+            error("kernel failed")
+        override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
+            for (i in 0 until len) y[yOff + i] += alpha * x[xOff + i]
+        }
+        override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
+            for (i in 0 until len) v[vOff + i] *= alpha
+        }
+        override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double = euclideanNorm(v, vOff, len)
+        override fun asum(v: DoubleArray, vOff: Int, len: Int): Double = absoluteSum(v, vOff, len)
+    }
+
+    @Test
+    fun `syrk gives its workspace buffer back when the inner loop throws`() {
+        val n = 4
+        val k = 3
+        val ws = Workspace()
+        // Park one buffer of the staging width in the pool, so syrk borrows this exact instance.
+        val parked = ws.take(n * k)
+        ws.release(parked)
+        val blas = F64ReferenceBlas(FailingDot())
+        assertFailsWith<IllegalStateException> {
+            blas.syrk(
+                1.0,
+                F64DenseMatrix(n, k),
+                transpose = false,
+                beta = 0.0,
+                c = F64DenseMatrix(n, n),
+                workspace = ws,
+            )
+        }
+        assertSame(parked, ws.take(n * k), "syrk kept its workspace buffer after the inner loop threw")
     }
 }
