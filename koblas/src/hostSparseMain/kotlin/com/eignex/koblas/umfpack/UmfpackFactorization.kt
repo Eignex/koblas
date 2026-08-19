@@ -42,6 +42,17 @@ public class UmfpackFactorization internal constructor(
         }
     }
 
+    /**
+     * Frees the factors once this object goes away. Hold the factorization in a variable for as long as you
+     * solve against it, rather than solving against a temporary: the calls below reach the factors as a raw
+     * address, so a receiver that is already unreachable can in principle have its factors freed underneath
+     * a call in flight.
+     *
+     * The JVM binding fences that window. Kotlin/Native offers no equivalent, and pinning the handle would
+     * not substitute: this cleaner fires on its own unreachability, so keeping the resource alive does not
+     * stop it. Closing the window here means an explicit release rather than a cleaner, which is a wider
+     * decision than this binding.
+     */
     @Suppress("unused") // the cleaner runs when this property becomes unreachable, which is the point
     private val cleaner = createCleaner(handle) { it.release() }
 
