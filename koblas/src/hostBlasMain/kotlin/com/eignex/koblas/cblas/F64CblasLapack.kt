@@ -12,6 +12,7 @@ import com.eignex.koblas.dense.F64PivotedQrDecomposition
 import com.eignex.koblas.dense.F64QrDecomposition
 import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
 import com.eignex.koblas.dense.rankOfPivotedR
+import com.eignex.koblas.dense.requireRankTolerance
 import com.eignex.koblas.f64DispatchThresholds
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
@@ -40,6 +41,7 @@ internal class F64CblasLapack(private val f: LapackeFunctions, blas: CblasFuncti
      * costing the host its whole LAPACK half.
      */
     override fun qrPivoted(a: F64DenseMatrix, tolerance: Double, workspace: Workspace?): F64PivotedQrDecomposition {
+        requireRankTolerance(tolerance)
         val dgeqp3 = f.dgeqp3
         if (dgeqp3 == null || minOf(a.rows, a.cols) < maxOf(f64DispatchThresholds.lapack, PIVOTED_QR_MIN)) {
             return F64ReferenceLinearAlgebra.qrPivoted(a, tolerance, workspace)

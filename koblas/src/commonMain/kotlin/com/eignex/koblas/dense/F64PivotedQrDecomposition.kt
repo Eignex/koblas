@@ -44,6 +44,18 @@ public class F64PivotedQrDecomposition(
 }
 
 /**
+ * Rejects a rank tolerance that is not a fraction of `|R₀₀|`. Zero is [AUTOMATIC_RANK_TOLERANCE] and
+ * derives one from the shape; a negative value has no reading, so it is a mistake at the call site rather
+ * than a request for the automatic one.
+ */
+internal fun requireRankTolerance(tolerance: Double) {
+    require(tolerance >= 0.0) {
+        "qrPivoted: tolerance must not be negative, got $tolerance; pass AUTOMATIC_RANK_TOLERANCE for the " +
+            "shape-derived default"
+    }
+}
+
+/**
  * The numerical rank of a pivoted `R`, the leading run of diagonal entries above `tolerance · |R₀₀|`.
  * [r] is the packed buffer, column-major with `lda == m`, and `k = min(m, n)`.
  */

@@ -8,6 +8,8 @@ import com.eignex.koblas.wellConditioned
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class LinearAlgebraDeterminantTest {
 
@@ -39,5 +41,20 @@ class LinearAlgebraDeterminantTest {
             val sparseDet = F64SparseMatrix.ofColumns(n, n, cols).lu().determinant()
             assertClose(a.lu().determinant(), sparseDet, "n=$n dense vs sparse determinant", tolerance = 1e-9)
         }
+    }
+
+    @Test
+    fun `the determinant saturates without that meaning singular`() {
+        // The product of n pivots leaves the double range long before n is large, in both directions. A
+        // returned zero therefore says nothing about singularity, which is what `singular` is for.
+        val tiny = F64DenseMatrix.diagonal(200, 0.01).lu()
+        assertEquals(0.0, tiny.determinant(), "0.01^200 underflows")
+        assertFalse(tiny.singular, "an underflowed determinant is not a singular factorization")
+        val huge = F64DenseMatrix.diagonal(200, 100.0).lu()
+        assertTrue(huge.determinant().isInfinite(), "100^200 overflows")
+        assertFalse(huge.singular, "an overflowed determinant is not a singular factorization")
+        // And the solve is unaffected, which is the point: the factorization is perfectly usable.
+        val x = tiny.solve(DoubleArray(200) { 1.0 })
+        assertClose(DoubleArray(200) { 100.0 }, x, "the underflowed determinant did not spoil the solve")
     }
 }

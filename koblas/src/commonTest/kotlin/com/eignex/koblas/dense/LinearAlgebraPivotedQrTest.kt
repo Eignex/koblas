@@ -166,4 +166,17 @@ class LinearAlgebraPivotedQrTest {
             koblas.solveLeastSquaresInto(f, DoubleArray(6), DoubleArray(2))
         }
     }
+
+    @Test
+    fun `a negative tolerance is rejected rather than read as automatic`() {
+        val a = randomMatrix(6, 3, Random(20260919))
+        for (tolerance in doubleArrayOf(-1.0, -1e-300, Double.NEGATIVE_INFINITY)) {
+            assertFailsWith<IllegalArgumentException>("tolerance $tolerance should be rejected") {
+                koblas.qrPivoted(a, tolerance)
+            }
+        }
+        // Zero still means the shape-derived default, and a positive value is still honoured.
+        assertEquals(3, koblas.qrPivoted(a, AUTOMATIC_RANK_TOLERANCE).rank)
+        assertEquals(3, koblas.qrPivoted(a, 1e-12).rank)
+    }
 }

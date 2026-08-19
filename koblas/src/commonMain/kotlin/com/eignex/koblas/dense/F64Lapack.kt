@@ -96,7 +96,10 @@ public interface F64Lapack : Backend {
     public fun qr(a: F64DenseMatrix, workspace: Workspace? = null): F64QrDecomposition
 
     /** QR with column pivoting, `A·P = Q·R` (LAPACK `dgeqp3`), reporting [F64PivotedQrDecomposition.rank] as the
-     *  count of leading diagonal entries with `|R_kk| > tolerance · |R₀₀|`. [tolerance] defaults to `max(m, n) · ε`. */
+     *  count of leading diagonal entries with `|R_kk| > tolerance · |R₀₀|`. [tolerance] is a fraction of
+     *  `|R₀₀|`; [AUTOMATIC_RANK_TOLERANCE] derives one from the shape, `max(m, n) · ε`, and a negative value
+     *  is rejected.
+     *  @throws IllegalArgumentException if [tolerance] is negative. */
     public fun qrPivoted(
         a: F64DenseMatrix,
         tolerance: Double = AUTOMATIC_RANK_TOLERANCE,

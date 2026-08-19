@@ -238,6 +238,7 @@ internal class F64ReferenceLapack(private val kernels: F64VectorKernels? = null)
     }
 
     override fun qrPivoted(a: F64DenseMatrix, tolerance: Double, workspace: Workspace?): F64PivotedQrDecomposition {
+        requireRankTolerance(tolerance)
         val m = a.rows
         val n = a.cols
         val k = minOf(m, n)
