@@ -1,0 +1,61 @@
+# koblas working notes
+
+Kotlin Multiplatform BLAS and LAPACK.
+
+## Pre-PR gate
+
+Run `./gradlew check lintDocs`.
+
+- check runs tests and some light checks.
+- lintDocs runs detekt and dokka linting.
+- For new/edited files add `--rerun-tasks`, detekt caches per source-set and skips them otherwise.
+- The default run pins `koblas.backend=reference`. Add `-Pkoblas.hostTests=true` for the OpenBLAS and
+  SuiteSparse bindings, and `-Pkoblas.noSimd=true` on top for the scalar thresholds, which is the only
+  way the level-2 bindings and the small-size dispatch paths are reached.
+
+## Tests
+
+- Test names within backticks, plain ascii, describing the behavior under test.
+- Class almost always named after the file under test (`<FileUnderTest>Test`).
+- One observable behavior per test; assert behavior, not implementation. Follow arrange → act → assert.
+- Mirror existing tests' framework, layout, and assertion style.
+- Reuse existing fixtures/helpers; don't add new ones unless asked.
+- Use the parameterized form for variants of the same behavior; separate tests for semantically different ones.
+- Keep comments minimal and let the test name carry the intent.
+- No JVM test over 300ms.
+- Backtick names take words only: `checkNativeSafeTestNames` rejects `(`, `)` and `#`, and a comma fails to
+  compile on JS and native.
+- Check a backend routine against the portable reference, not against hand values. The
+  `assert*AgreesWithReference` helpers are the pattern, and a new backend joins them.
+- `wellConditioned` is diagonally dominant, so it factors to an identity pivot. A test about pivoting or
+  row permutation must perturb it or it exercises nothing.
+
+## Bench
+
+Read `koblas-bench/README.md` before benchmarking. In short:
+
+- `./gradlew :koblas-bench:jvmLevel3Benchmark` runs one suite, prefixed by target: `jvm`, `linuxX64`
+  or `macosArm64`. Only the host's own target runs, so macOS numbers come from a macOS checkout.
+- Cite a crossover or a speedup in KDoc only when it came from these suites; drop the number otherwise.
+
+## Design
+
+- Public types carry their element type: `F64DenseMatrix`, `F64Blas`. A second element type brings its own
+  registry and seams rather than widening these.
+- Dense storage is column-major, entry `(i, j)` at `i + j * rows`. Sparse is CSC with rows strictly
+  ascending within a column, which the constructors validate rather than repair.
+- The portable reference is the semantic definition. A host binding gates on a measured threshold and falls
+  back to it, so every routine agrees with it to within rounding.
+- Backends register per half into a seam keeping the strongest offer, ties to whoever registered first.
+  Register during startup, before other threads run.
+- An `*Into` destination may alias its input, and that test is on the backing buffer, not the wrapper.
+
+## Style
+
+- Prefer clear naming and types over comments. Comments explain *why* (soundness, perf, lifecycle) and never
+  restate the code. Never narrate changes, avoid "now/no longer/previously", and don't cite issues. Keep `TODO`/`FIXME`.
+- KDoc on public API only. Use functional notation for math (`A(i, j)`, not `A[i][j]`); use `[Symbol]` for links.
+- Don't edit anything under `.github/` unless asked directly.
+- Single-line conventional commits, no scope, no body/trailers:
+  `feat: `, `fix: `, `chore: `, `refactor: `, `docs: `, `test: `.
+- PR body: follow `.github/pull_request_template.md`, with `Closes #NN` on its own line at the top.
