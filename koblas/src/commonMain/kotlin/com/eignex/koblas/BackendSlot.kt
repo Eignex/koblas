@@ -43,9 +43,10 @@ public fun F64Context.isAccelerated(slot: BackendSlot): Boolean = when (val back
 }
 
 /**
- * The slots still running koblas's own portable implementation, in declaration order. [F64SparseLapack]
- * leaves this set wherever SuiteSparse is installed, since the UMFPACK binding fills it; the other two
- * sparse slots are reported on every target, koblas having no host backend for either.
+ * The slots still running koblas's own portable implementation, in declaration order.
+ * [BackendSlot.F64SparseLapack] leaves this set wherever SuiteSparse is installed, since the UMFPACK
+ * binding fills it; the other two sparse slots are reported on every target, koblas having no host
+ * backend for either.
  */
 public val F64Context.portableSlots: Set<BackendSlot>
     get() = BackendSlot.entries.filterNot { isAccelerated(it) }.toSet()
