@@ -165,9 +165,3 @@ tasks.named<Jar>("jvmJar") {
         attributes("Automatic-Module-Name" to "com.eignex.koblas")
     }
 }
-
-// CI runs lintDocs as its own step, so `check` passing locally did not mean CI would: an unresolved KDoc
-// link fails the Dokka pass and nothing else catches it. Wiring it in makes one local command the same gate.
-tasks.named("check") {
-    dependsOn(tasks.named("lintDocs"))
-}
