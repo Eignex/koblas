@@ -53,10 +53,13 @@ class BackendSelectionTest {
 
     @Test
     fun `the incumbent backend survives a cleared registry`() {
-        // Restoring the incumbent keeps the host BLAS suites valid whatever order tests run in.
-        val before = koblas.blas
+        // Restoring the incumbent keeps the host BLAS suites valid whatever order tests run in. Compared by
+        // name rather than by identity: the registry is put back by replaying discovery, which builds a
+        // fresh binding object, and what has to survive is which backend fills the half. A restore that
+        // failed outright would leave the reference here and still be caught.
+        val before = koblas.blas.name
         withCleanBackends { assertSame(F64ReferenceLinearAlgebra, koblas.blas) }
-        assertSame(before, koblas.blas)
+        assertEquals(before, koblas.blas.name)
     }
 
     @Test

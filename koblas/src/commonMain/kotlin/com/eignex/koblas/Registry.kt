@@ -68,9 +68,25 @@ public fun installBackends(context: F64Context?) {
     f64.install(context)
 }
 
-/** Test hook: clears every override and registration, so selection tests are order-independent. */
+/**
+ * Test hook: clears every override and registration, leaving the portable fallbacks. Platform discovery is
+ * not replayed by this, so pair it with [rediscoverBackends] to put the process back as it was.
+ */
 internal fun resetBackends() {
+    // Forces discovery before clearing. Otherwise a reset that lands before the first [koblas] read clears
+    // an empty registry, and the read that follows runs discovery for the first time and fills it back in.
+    discovery
     f64.reset()
+}
+
+/**
+ * Test hook: runs platform discovery again, which [resetBackends] undoes and the one-shot on the first
+ * [koblas] read cannot repeat. Registering the halves a caller happened to read beforehand is not the same
+ * thing: a slot nothing was registered for reads as its compiled-in fallback, and putting that back fills
+ * the seam with a priority-0 incumbent that then outranks every later default-priority offer.
+ */
+internal fun rediscoverBackends() {
+    registerPlatformBackends()
 }
 
 /** The kernels the compiled-in path uses when nothing is registered, for tests that need to name them. */

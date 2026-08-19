@@ -1,8 +1,5 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
-import com.eignex.koblas.dense.F64RoutedVectorKernels
-import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.assertTrue
@@ -122,24 +119,17 @@ internal fun poisonedTriangle(
 }
 
 /**
- * Runs [block] against an empty registry, then restores what was resolved before. Discovery is a `by lazy`
- * that cannot be replayed, so a test that leaves the registry cleared breaks every test after it.
+ * Runs [block] against an empty registry, then puts the process back by replaying platform discovery.
+ *
+ * Discovery is a one-shot on the first [koblas] read, so clearing the registry without replaying it leaves
+ * every later test on the portable fallbacks.
  */
 internal fun withCleanBackends(block: () -> Unit) {
-    val before = koblas
-    val incumbents = buildList {
-        add(before.blas)
-        add(before.lapack)
-        add(before.sparseBlas)
-        add(before.sparseLapack)
-        add(before.sparseVectorKernels)
-        (before.vectorKernels as? F64RoutedVectorKernels)?.host?.let { add(it) }
-    }.distinct().filter { it !== F64ReferenceLinearAlgebra && it !== F64ReferenceSparseLinearAlgebra }
     resetBackends()
     try {
         block()
     } finally {
         resetBackends()
-        incumbents.forEach { registerBackend(it) }
+        rediscoverBackends()
     }
 }

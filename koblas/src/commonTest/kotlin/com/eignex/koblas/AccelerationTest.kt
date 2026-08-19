@@ -4,6 +4,8 @@ import com.eignex.koblas.dense.F64Blas
 import com.eignex.koblas.dense.F64Lapack
 import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
 import com.eignex.koblas.dense.F64VectorKernels
+import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
+import com.eignex.koblas.sparse.F64SparseVectorKernels
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -105,5 +107,38 @@ class AccelerationTest {
         assertSame(host, koblas.backendFor(BackendSlot.F64Lapack))
         assertSame(koblas.vectorKernels, koblas.backendFor(BackendSlot.F64VectorKernels))
         assertSame(koblas.sparseBlas, koblas.backendFor(BackendSlot.F64SparseBlas))
+    }
+
+    /** A sparse-kernel half at the default priority, which is what most registrations use. */
+    private class PlainSparseKernels : F64SparseVectorKernels {
+        override val name: String get() = "plain-sparse"
+        override fun dot(x: F64SparseVector, y: DoubleArray): Double = F64ReferenceSparseLinearAlgebra.dot(x, y)
+        override fun dot(x: F64SparseVector, y: F64SparseVector): Double = F64ReferenceSparseLinearAlgebra.dot(x, y)
+        override fun axpy(y: DoubleArray, alpha: Double, x: F64SparseVector) =
+            F64ReferenceSparseLinearAlgebra.axpy(y, alpha, x)
+        override fun scatter(x: F64SparseVector, out: DoubleArray) = F64ReferenceSparseLinearAlgebra.scatter(x, out)
+        override fun nrm2(x: F64SparseVector): Double = F64ReferenceSparseLinearAlgebra.nrm2(x)
+        override fun asum(x: F64SparseVector): Double = F64ReferenceSparseLinearAlgebra.asum(x)
+    }
+
+    /**
+     * A seam nothing was registered for has to accept the next offer whatever its priority, including after
+     * some earlier test has cleaned the registry. Restoring by re-registering the halves that were resolved
+     * cannot manage that: a slot nothing was registered for reads as its compiled-in fallback, so putting
+     * that back leaves a priority-0 incumbent occupying the seam.
+     *
+     * Registered outside a [withCleanBackends] block on purpose. Inside one the leading reset would hide the
+     * problem, which is what makes this trap easy to miss.
+     */
+    @Test
+    fun `a default-priority sparse kernel wins after an earlier test cleaned the registry`() {
+        withCleanBackends { /* the clean-and-restore path under test */ }
+        try {
+            registerBackend(PlainSparseKernels())
+            assertEquals("plain-sparse", koblas.sparseVectorKernels.name, "an occupied seam refused the offer")
+        } finally {
+            resetBackends()
+            rediscoverBackends()
+        }
     }
 }
