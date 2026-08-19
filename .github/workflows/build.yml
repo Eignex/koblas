@@ -46,17 +46,18 @@ jobs:
       - name: Grant execute permission for Gradle
         run: chmod +x gradlew
 
-      # koblas dlopens these at runtime; only the shared libraries are needed. SuiteSparse belongs here
-      # even though the JVM host tests are excluded from this job: `check` runs linuxX64Test, whose
-      # UMFPACK suite requires the library rather than skipping without it, as the OpenBLAS suites do.
-      - name: Install OpenBLAS and SuiteSparse
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libopenblas0 liblapacke libsuitesparse-dev
-
       - name: Run linter
         run: ./gradlew lintDocs
 
+      # linuxX64Test is excluded so this job needs no host libraries at all. Its native suites are the only
+      # thing here that would touch them: the JVM side pins `koblas.backend=reference` and filters the
+      # HostLibraryTest category out, and CblasConformanceTest and UmfpackNativeConformanceTest both require
+      # their library rather than skipping, since Kotlin/Native has no Assume and a skipped suite reads as
+      # green. test-host-libraries already runs linuxX64Test with the libraries installed, so nothing is
+      # lost, and Kover measures the JVM only so coverage is unaffected. Not installing them keeps a slow
+      # package mirror from being able to stall this job.
       - name: Run tests with coverage
-        run: ./gradlew check koverXmlReport
+        run: ./gradlew check koverXmlReport -x :koblas:linuxX64Test
 
       - name: Upload test reports
         if: always()
@@ -120,7 +121,12 @@ jobs:
 
       # Both backends dlopen by soname, so the runtime libraries are what matter. libsuitesparse-dev is
       # named the same across releases where the versioned runtime package (libumfpack5/6) is not.
+      #
+      # Bounded well under the job timeout: an unreachable package mirror otherwise stalls here until the
+      # whole job is cancelled, which costs 45 minutes and reports as a test failure. Failing in three
+      # leaves a re-run cheap and says plainly that it was the install.
       - name: Install OpenBLAS and SuiteSparse
+        timeout-minutes: 3
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libopenblas0 liblapacke libsuitesparse-dev
 
       # Fail here rather than let the tests pass over an absent library: the native tests return early
