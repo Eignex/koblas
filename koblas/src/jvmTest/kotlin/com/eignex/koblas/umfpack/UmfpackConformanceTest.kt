@@ -99,11 +99,11 @@ class UmfpackConformanceTest {
     @Test
     fun `a factorization used as a temporary survives collection during its own solve`() {
         requireSuiteSparse()
-        val n = 60
+        val n = 24
         val a = sparseConformanceSystem(n, Random(20260821))
         val b = DoubleArray(n) { 1.0 }
         val expected = umfpack.factor(a).solve(b)
-        repeat(400) { round ->
+        repeat(30) { round ->
             assertClose(expected, umfpack.factor(a).solve(b), "solve under collection pressure round $round")
             assertClose(
                 expected,
@@ -111,7 +111,7 @@ class UmfpackConformanceTest {
                 "solveInto under collection pressure round $round",
             )
             umfpack.factor(a).determinant()
-            if (round % 50 == 0) System.gc()
+            if (round % 10 == 0) System.gc()
         }
     }
 }

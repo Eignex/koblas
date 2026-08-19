@@ -75,7 +75,8 @@ public fun main() {
  * discovery, so it recursed until the stack ran out.
  *
  * The provider has to arrive through a real [java.util.ServiceLoader] lookup in a fresh process, since
- * discovery runs once per JVM and this one has already run it. So the test forks one.
+ * discovery runs once per JVM and this one has already run it. So the test forks one, which is why it is
+ * the one JVM test over the 300ms budget.
  */
 class DiscoveryReentrancyTest {
 
