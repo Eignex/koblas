@@ -159,4 +159,55 @@ class SparseOrderingTest {
             assertClose(x, f.solve(multiply(matrix, x)), "reused ordered analysis", tolerance = 1e-9)
         }
     }
+
+    /**
+     * The analysis and the numeric pass have to agree on when no permuting happens. `analyze` decides from
+     * the permutation it computed and `numericLdl` from `SparseSymbolic.isNatural`, so a fill-reducing
+     * ordering that comes back as the identity must leave both eliminating the same matrix.
+     */
+    @Test
+    fun `a fill-reducing ordering that comes back as the identity analyses like Natural`() {
+        val rng = Random(20260921)
+        var identities = 0
+        for (t in 0 until 400) {
+            val n = 1 + t % 12
+            // Full storage, both triangles, so an upper-only analysis of the same pattern would differ if
+            // the two sides ever stopped filtering rows the same way.
+            val entries = ArrayList<Triple<Int, Int, Double>>()
+            for (j in 0 until n) {
+                entries.add(Triple(j, j, 8.0 * n))
+                for (i in 0 until j) {
+                    if (rng.nextDouble() < 0.2) {
+                        val v = rng.nextDouble(-1.0, 1.0)
+                        entries.add(Triple(i, j, v))
+                        entries.add(Triple(j, i, v))
+                    }
+                }
+            }
+            val full = F64SparseMatrix.ofTriplets(
+                n,
+                n,
+                entries.map { it.first }.toIntArray(),
+                entries.map { it.second }.toIntArray(),
+                entries.map { it.third }.toDoubleArray(),
+            )
+            val reduced = SparseSymbolic.analyze(full, SparseOrdering.MinimumDegree)
+            if (reduced.permutation.withIndex().any { (k, p) -> k != p }) continue
+            identities++
+            val natural = SparseSymbolic.analyze(full, SparseOrdering.Natural)
+            assertEquals(
+                natural.columnPointers.toList(),
+                reduced.columnPointers.toList(),
+                "identity ordering gave different column counts at n=$n",
+            )
+            assertEquals(natural.parent.toList(), reduced.parent.toList(), "different elimination tree at n=$n")
+            val b = randomVector(n, rng)
+            assertClose(
+                natural.factorLdl(full).solve(b),
+                reduced.factorLdl(full).solve(b),
+                "identity ordering solved differently at n=$n",
+            )
+        }
+        assertTrue(identities > 0, "no case produced an identity ordering, so nothing was compared")
+    }
 }
