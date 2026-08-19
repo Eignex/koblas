@@ -67,3 +67,25 @@ ls -t koblas-bench/build/reports/benchmarks/<suite>/
 If the newest timestamp predates your run, nothing was measured and any numbers
 you are reading are from a previous one. Remove the lock and check for a stray
 `ForkedMain` process before re-running.
+
+## Soaks
+
+Not every regression shows up as a time. `stressRegistration` looks for a wrong
+answer instead:
+
+```bash
+./gradlew :koblas-bench:stressRegistration
+./gradlew :koblas-bench:stressRegistration -Prounds=1000000 -Pthreads=8
+```
+
+It has several threads offer a band of backend priorities at once and checks the
+strongest one ends up holding the half. `Seam.register` takes its offer with a
+compare-and-set for exactly this reason, and the task fails with a non-zero exit
+if a weaker offer ever wins.
+
+It lives here rather than in the test suite because catching a regression needs
+the offers to collide, which is luck per round. Measured against the registration
+as it was before the compare-and-set, a weaker offer won about once every ten
+thousand rounds, so the default is 200,000 rounds and takes about eight seconds.
+A run prints `contended=` alongside `rounds=`; if those are not equal the threads
+were not really racing and the run proves less than it looks.
