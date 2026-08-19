@@ -21,6 +21,7 @@ import kotlinx.cinterop.usePinned
 import kotlinx.cinterop.value
 import kotlin.experimental.ExperimentalNativeApi
 import kotlin.math.pow
+import kotlin.native.concurrent.ThreadLocal
 import kotlin.native.ref.createCleaner
 
 /**
@@ -42,17 +43,7 @@ public class UmfpackFactorization internal constructor(
         }
     }
 
-    /**
-     * Frees the factors once this object goes away. Hold the factorization in a variable for as long as you
-     * solve against it, rather than solving against a temporary: the calls below reach the factors as a raw
-     * address, so a receiver that is already unreachable can in principle have its factors freed underneath
-     * a call in flight.
-     *
-     * The JVM binding fences that window. Kotlin/Native offers no equivalent, and pinning the handle would
-     * not substitute: this cleaner fires on its own unreachability, so keeping the resource alive does not
-     * stop it. Closing the window here means an explicit release rather than a cleaner, which is a wider
-     * decision than this binding.
-     */
+    /** Frees the factors once this object goes away; [AnchoredFactorization] covers the calls in flight. */
     @Suppress("unused") // the cleaner runs when this property becomes unreachable, which is the point
     private val cleaner = createCleaner(handle) { it.release() }
 
@@ -74,24 +65,26 @@ public class UmfpackFactorization internal constructor(
         val rhs = if (out === b) b.copyOf() else b
         val info = DoubleArray(INFO)
         val control = UmfpackLoader.control
-        val status = matrix.colPtr.usePinned { ap ->
-            matrix.rowIdx.usePinned { ai ->
-                matrix.values.usePinned { ax ->
-                    out.usePinned { x ->
-                        rhs.usePinned { rp ->
-                            info.usePinned { ip ->
-                                withControl(control) { cp ->
-                                    f.solve(
-                                        if (transpose) SYS_AT else SYS_A,
-                                        ap.addressOf(0),
-                                        ai.addressOf(0),
-                                        ax.addressOf(0),
-                                        x.addressOf(0),
-                                        rp.addressOf(0),
-                                        handle.pointer.pointed.value,
-                                        cp,
-                                        ip.addressOf(0),
-                                    )
+        val status = anchoring {
+            matrix.colPtr.usePinned { ap ->
+                matrix.rowIdx.usePinned { ai ->
+                    matrix.values.usePinned { ax ->
+                        out.usePinned { x ->
+                            rhs.usePinned { rp ->
+                                info.usePinned { ip ->
+                                    withControl(control) { cp ->
+                                        f.solve(
+                                            if (transpose) SYS_AT else SYS_A,
+                                            ap.addressOf(0),
+                                            ai.addressOf(0),
+                                            ax.addressOf(0),
+                                            x.addressOf(0),
+                                            rp.addressOf(0),
+                                            handle.pointer.pointed.value,
+                                            cp,
+                                            ip.addressOf(0),
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -112,15 +105,36 @@ public class UmfpackFactorization internal constructor(
         val mantissa = DoubleArray(1)
         val exponent = DoubleArray(1)
         val info = DoubleArray(INFO)
-        val status = mantissa.usePinned { mx ->
-            exponent.usePinned { ex ->
-                info.usePinned { ip ->
-                    f.determinant(mx.addressOf(0), ex.addressOf(0), handle.pointer.pointed.value, ip.addressOf(0))
+        val status = anchoring {
+            mantissa.usePinned { mx ->
+                exponent.usePinned { ex ->
+                    info.usePinned { ip ->
+                        f.determinant(
+                            mx.addressOf(0),
+                            ex.addressOf(0),
+                            handle.pointer.pointed.value,
+                            ip.addressOf(0),
+                        )
+                    }
                 }
             }
         }
         check(status == OK) { "umfpack_di_get_determinant failed with status $status" }
         return mantissa[0] * 10.0.pow(exponent[0])
+    }
+
+    /**
+     * Runs [body] with this factorization reachable from a global, so the cleaner cannot free the factors
+     * while the native call inside it is reading them. See [AnchoredFactorization].
+     */
+    private inline fun <R> anchoring(body: () -> R): R {
+        val previous = AnchoredFactorization.held
+        AnchoredFactorization.held = this
+        try {
+            return body()
+        } finally {
+            AnchoredFactorization.held = previous
+        }
     }
 
     internal companion object {
@@ -140,6 +154,23 @@ public class UmfpackFactorization internal constructor(
         /** Reads the fill counts out of a completed factorization's Info array. */
         fun fillOf(info: DoubleArray): Pair<Int, Int> = info[INFO_LNZ].toInt() to info[INFO_UNZ].toInt()
     }
+}
+
+/**
+ * Keeps a factorization reachable from a global while its own native call runs.
+ *
+ * The calls in [UmfpackFactorization] reach the factors as a raw address, and the cleaner that frees them is
+ * one of its own fields, so a receiver nothing else refers to can have its factors freed underneath a call in
+ * flight. `koblas.factor(a).solve(b)` is that shape. The JVM binding uses `Reference.reachabilityFence`;
+ * Kotlin/Native has no equivalent, and pinning the handle is no substitute, since the cleaner fires on its own
+ * unreachability rather than the resource's. Global variables are GC roots, which is what makes this a fence.
+ *
+ * One slot per thread, since a solve does not re-enter another. Saved and restored rather than cleared, so a
+ * nested call could not strand the outer one.
+ */
+@ThreadLocal
+internal object AnchoredFactorization {
+    var held: UmfpackFactorization? = null
 }
 
 /** Runs [body] with a pointer to [control], or with null, which means UMFPACK's own defaults. */

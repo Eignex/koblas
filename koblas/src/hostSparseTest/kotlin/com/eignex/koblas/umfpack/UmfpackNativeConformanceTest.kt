@@ -14,8 +14,11 @@ import com.eignex.koblas.sparse.assertRepeatedFactorizationsSurvive
 import com.eignex.koblas.sparse.assertSingularIsReportedWithUnknownPosition
 import com.eignex.koblas.sparse.assertSolvesAgreeWithReference
 import com.eignex.koblas.sparse.assertUnsupportedRequestsFallBack
+import com.eignex.koblas.sparse.sparseConformanceSystem
+import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 /** Checks the native UMFPACK bindings against the reference implementation. */
 class UmfpackNativeConformanceTest {
@@ -62,4 +65,20 @@ class UmfpackNativeConformanceTest {
 
     @Test
     fun `repeated factorizations do not exhaust native memory`() = assertRepeatedFactorizationsSurvive(umfpack)
+
+    /**
+     * The anchor holds a factorization reachable for the length of a native call and has to let go
+     * afterwards. Left set, it would pin every factorization the thread ever solved against, turning a rare
+     * crash into a steady leak.
+     */
+    @Test
+    fun `the call anchor is released once the call returns`() {
+        val a = sparseConformanceSystem(12, Random(20260922))
+        val f = umfpack.factor(a)
+        assertNull(AnchoredFactorization.held, "nothing should be anchored before a call")
+        f.solve(DoubleArray(12) { 1.0 })
+        assertNull(AnchoredFactorization.held, "solve left its factorization anchored")
+        f.determinant()
+        assertNull(AnchoredFactorization.held, "determinant left its factorization anchored")
+    }
 }
