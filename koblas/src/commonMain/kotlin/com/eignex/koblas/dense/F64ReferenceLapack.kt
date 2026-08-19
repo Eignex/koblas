@@ -627,7 +627,8 @@ internal class F64ReferenceLapack(private val kernels: F64VectorKernels? = null)
         val ld = l.data
         val kernels = vectorKernels
         for (j in 0 until n) a.data.copyInto(ld, j + j * n, j + j * n, (j + 1) * n)
-        // Right-looking column Cholesky.
+        // Left-looking column Cholesky: column j gathers what every column before it owes, rather than
+        // each column pushing its contribution out to the ones after it.
         for (j in 0 until n) {
             val base = j + j * n
             val len = n - j
