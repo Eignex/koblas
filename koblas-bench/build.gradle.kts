@@ -197,3 +197,17 @@ tasks.withType<JavaExec>().configureEach {
         jvmArgs("--add-modules=jdk.incubator.vector")
     }
 }
+
+// A soak rather than a benchmark: it looks for a wrong answer under contention, not for a time. Kept out of
+// the test suite because catching a regression needs far more rounds than a 300ms test budget allows.
+tasks.register<JavaExec>("stressRegistration") {
+    group = "verification"
+    description = "Hammers concurrent backend registration, failing if a weaker offer ever holds a half."
+    val main = kotlin.targets.getByName("jvm").compilations.getByName("main")
+    classpath = files(main.output.allOutputs, main.runtimeDependencyFiles)
+    mainClass.set("com.eignex.koblas.bench.RegistrationStressKt")
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
+    listOf("rounds", "threads").forEach { name ->
+        project.findProperty(name)?.let { args("--$name=$it") }
+    }
+}
