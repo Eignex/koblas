@@ -122,28 +122,67 @@ jobs:
       # Both backends dlopen by soname, so the runtime libraries are what matter. libsuitesparse-dev is
       # named the same across releases where the versioned runtime package (libumfpack5/6) is not.
       #
-      # Retried, and bounded by the step rather than per attempt. An unreachable mirror otherwise stalls here
-      # until the whole job is cancelled, which costs 45 minutes and reports as a test failure.
+      # Cached as .deb files, so a hit installs with no mirror access at all. Keyed on the image as well as
+      # the package list: ubuntu-latest moves between releases, and unpacking one release's debs on another
+      # would be worse than a slow download.
+      - name: Cache the host library packages
+        id: host-packages
+        uses: actions/cache@v5
+        with:
+          path: ~/host-packages
+          key: host-packages-${{ runner.os }}-${{ env.ImageOS }}-openblas-lapacke-suitesparse-v1
+
+      # Generous on purpose: a slow mirror should cost time, never a red build. Observed downloads run 11 to
+      # 18 seconds normally, 117 to 156 seconds on a degraded mirror that still works, and sometimes hang
+      # indefinitely. Two earlier passes at this were cut too fine, 180s for the step and then 100s per
+      # attempt, and both turned a working-but-slow install into a failure. The per-attempt cut is still what
+      # makes the retry mean anything, since bounding only the step lets one hung attempt consume the lot.
       #
-      # Observed install durations: 11 to 18 seconds normally, and 117 to 156 seconds on a degraded mirror
-      # that still works. A per-attempt cap below that range cannot distinguish slow from stuck and kills
-      # installs that would have finished, so the retry loop is left uncapped and the step bound does the
-      # cutting. The retry then covers what it is actually good for, an attempt that fails fast.
+      # Only the download is bounded and retried. Unpacking is local and cannot hang on the network, and on a
+      # cache hit nothing is downloaded at all.
       - name: Install OpenBLAS and SuiteSparse
-        timeout-minutes: 8
+        timeout-minutes: 30
         run: |
           set -eu
-          for attempt in 1 2 3; do
-            if sudo apt-get update && \
-               sudo apt-get install -y --no-install-recommends \
-                 libopenblas0 liblapacke libsuitesparse-dev; then
-              exit 0
-            fi
-            echo "attempt $attempt failed, retrying"
-            sleep 5
-          done
-          echo "::error::could not install the host libraries after 3 attempts"
-          exit 1
+          packages="libopenblas0 liblapacke libsuitesparse-dev"
+          cache="$HOME/host-packages"
+          # The runner's mirrorlist leads with azure.archive.ubuntu.com, which has been unreachable: apt waits
+          # on it for every index file, logs Ign, and only then falls back to archive.ubuntu.com, which answers
+          # fine. That accumulated per-index wait is the difference between an 11 second install and a 20
+          # minute one. Pointing at the mirror that answers skips it, and a short acquire timeout keeps a
+          # future dead host from being waited on rather than abandoned.
+          mirrors=/etc/apt/apt-mirrors.txt
+          if [ -f "$mirrors" ]; then
+            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$mirrors"
+            echo "mirrorlist now:"; cat "$mirrors"
+          fi
+          opts="-o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 -o Acquire::Retries=2"
+          if [ -z "$(ls -A "$cache" 2>/dev/null || true)" ]; then
+            mkdir -p "$cache"
+            # Cleared first so the cache holds this closure and not whatever the image had lying around.
+            sudo apt-get clean
+            for attempt in 1 2; do
+              if timeout 600 sudo apt-get $opts update && \
+                 timeout 600 sudo apt-get $opts install -y --no-install-recommends --download-only $packages; then
+                sudo cp /var/cache/apt/archives/*.deb "$cache"/
+                sudo chown -R "$(id -u):$(id -g)" "$cache"
+                break
+              fi
+              echo "attempt $attempt failed"
+              # A killed apt can leave dpkg mid-transaction, which would fail the next attempt for an
+              # unrelated reason.
+              sudo dpkg --configure -a || true
+              sleep 5
+            done
+          else
+            echo "using $(ls -1 "$cache"/*.deb | wc -l) cached packages"
+          fi
+          if [ -z "$(ls -A "$cache" 2>/dev/null || true)" ]; then
+            echo "::error::could not download the host libraries; the package mirror is likely unreachable"
+            exit 1
+          fi
+          # One dpkg call over the whole closure, so it can work out the unpack and configure order itself.
+          sudo dpkg -i "$cache"/*.deb
 
       # Fail here rather than let the tests pass over an absent library: the native tests return early
       # when dlopen finds nothing, which is indistinguishable from success in a report.
