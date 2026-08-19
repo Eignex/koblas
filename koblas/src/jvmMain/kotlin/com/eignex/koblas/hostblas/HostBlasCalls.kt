@@ -112,6 +112,12 @@ internal object HostBlasCalls {
     private fun handle(name: String, descriptor: FunctionDescriptor): MethodHandle =
         linker.downcallHandle(symbol(name), descriptor, critical)
 
+    /** Looked up the same way as [symbol] but tolerating absence, for a routine koblas can do without. */
+    private fun optionalHandle(name: String, descriptor: FunctionDescriptor): MethodHandle? {
+        val found = requireNotNull(lookup).find(name).orElse(null) ?: lapackeLookup?.find(name)?.orElse(null)
+        return found?.let { linker.downcallHandle(it, descriptor, critical) }
+    }
+
     private fun voidOf(vararg layouts: MemoryLayout) = FunctionDescriptor.ofVoid(*layouts)
     private fun intOf(vararg layouts: MemoryLayout) = FunctionDescriptor.of(JAVA_INT, *layouts)
 
@@ -234,9 +240,15 @@ internal object HostBlasCalls {
         handle("LAPACKE_dgeqrf", intOf(JAVA_INT, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS))
     }
 
-    // int LAPACKE_dgeqp3(int layout, int m, int n, double* a, int lda, int* jpvt, double* tau)
-    val dgeqp3: MethodHandle by lazy {
-        handle("LAPACKE_dgeqp3", intOf(JAVA_INT, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, ADDRESS))
+    /**
+     * int LAPACKE_dgeqp3(int layout, int m, int n, double* a, int lda, int* jpvt, double* tau)
+     *
+     * Optional, so a LAPACKE without it keeps the rest of the half rather than failing every call that
+     * reaches it. The pivoted QR is the only routine that needs it and koblas has a portable one, which is
+     * how the native binding treats it too.
+     */
+    val dgeqp3: MethodHandle? by lazy {
+        optionalHandle("LAPACKE_dgeqp3", intOf(JAVA_INT, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, ADDRESS))
     }
 
     val dormqr: MethodHandle by lazy {

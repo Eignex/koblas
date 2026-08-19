@@ -33,13 +33,18 @@ public class HostLapack internal constructor() : F64HostLapackAdapter(JvmLapacke
 
     /**
      * A zeroed jpvt on input leaves every column free to move, and the output is one-based, hence the shift.
-     * LAPACK reports no rank, so it comes from [rankOfPivotedR]. Only this binding has `dgeqp3`.
+     * LAPACK reports no rank, so it comes from [rankOfPivotedR]. Not in the shared adapter, since the two
+     * host bindings reach `dgeqp3` through different mechanisms.
+     *
+     * `dgeqp3` is an optional binding, so a LAPACKE without it takes the portable path here rather than
+     * costing the host its whole LAPACK half.
      */
     override fun qrPivoted(a: F64DenseMatrix, tolerance: Double, workspace: Workspace?): F64PivotedQrDecomposition {
         requireRankTolerance(tolerance)
         // The floor of one keeps an empty dimension here even when the threshold is zero: dgeqp3 has
         // nothing to factor then, and the untouched jpvt would read back as a column permutation of -1.
-        if (minOf(a.rows, a.cols) < maxOf(1, f64DispatchThresholds.lapack)) {
+        val dgeqp3 = HostBlasCalls.dgeqp3
+        if (dgeqp3 == null || minOf(a.rows, a.cols) < maxOf(1, f64DispatchThresholds.lapack)) {
             return F64ReferenceLinearAlgebra.qrPivoted(a, tolerance, workspace)
         }
         val m = a.rows
@@ -47,7 +52,7 @@ public class HostLapack internal constructor() : F64HostLapackAdapter(JvmLapacke
         val buf = a.data.copyOf()
         val tau = DoubleArray(minOf(m, n))
         val jpvt = IntArray(n) // zero: no column is pinned
-        val info = HostBlasCalls.dgeqp3.invokeWithArguments(
+        val info = dgeqp3.invokeWithArguments(
             COL_MAJOR,
             m,
             n,
