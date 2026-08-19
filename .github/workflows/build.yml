@@ -122,12 +122,27 @@ jobs:
       # Both backends dlopen by soname, so the runtime libraries are what matter. libsuitesparse-dev is
       # named the same across releases where the versioned runtime package (libumfpack5/6) is not.
       #
-      # Bounded well under the job timeout: an unreachable package mirror otherwise stalls here until the
-      # whole job is cancelled, which costs 45 minutes and reports as a test failure. Failing in three
-      # leaves a re-run cheap and says plainly that it was the install.
+      # Retried and bounded well under the job timeout. An unreachable mirror otherwise stalls here until the
+      # whole job is cancelled, which costs 45 minutes and reports as a test failure. Observed durations: 11
+      # to 18 seconds normally, 117 and 154 seconds on a degraded mirror, and two runs stuck past three
+      # minutes. So the bound has to clear a slow-but-working mirror while still failing an order of
+      # magnitude faster than the job would, and a retry covers a first attempt that hangs where a second
+      # one works.
       - name: Install OpenBLAS and SuiteSparse
-        timeout-minutes: 3
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libopenblas0 liblapacke libsuitesparse-dev
+        timeout-minutes: 6
+        run: |
+          set -eu
+          for attempt in 1 2 3; do
+            if timeout 100 sudo apt-get update && \
+               timeout 100 sudo apt-get install -y --no-install-recommends \
+                 libopenblas0 liblapacke libsuitesparse-dev; then
+              exit 0
+            fi
+            echo "attempt $attempt failed, retrying"
+            sleep 5
+          done
+          echo "::error::could not install the host libraries after 3 attempts"
+          exit 1
 
       # Fail here rather than let the tests pass over an absent library: the native tests return early
       # when dlopen finds nothing, which is indistinguishable from success in a report.
