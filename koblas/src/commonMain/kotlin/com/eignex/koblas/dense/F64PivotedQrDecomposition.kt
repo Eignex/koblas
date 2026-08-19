@@ -16,6 +16,8 @@ internal const val F64_NORM_RECOMPUTE_THRESHOLD = 1.4901161193847656e-8
 /**
  * A QR factorization with column pivoting, `A·P = Q·R` (LAPACK `dgeqp3`), plus the numerical [rank] the
  * pivoting revealed. [factorization] factorizes `A·P`, so its solutions come out in permuted column order.
+ * [pivots] is a live buffer, not a copy, so treat it as read-only: reordering it changes what every later
+ * solve against this factorization returns.
  *
  * @property factorization the `Q` and `R` of `A·P`, in the packed `dgeqrf` form.
  * @property pivots pivots(k) is the column of `A` at position k of `A·P`, LAPACK `jpvt` made 0-based.
