@@ -10,6 +10,7 @@ import com.eignex.koblas.dense.F64PivotedQrDecomposition
 import com.eignex.koblas.dense.F64QrDecomposition
 import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
 import com.eignex.koblas.dense.rankOfPivotedR
+import com.eignex.koblas.dense.requireRankTolerance
 import com.eignex.koblas.f64DispatchThresholds
 
 /**
@@ -35,6 +36,7 @@ public class HostLapack internal constructor() : F64HostLapackAdapter(JvmLapacke
      * LAPACK reports no rank, so it comes from [rankOfPivotedR]. Only this binding has `dgeqp3`.
      */
     override fun qrPivoted(a: F64DenseMatrix, tolerance: Double, workspace: Workspace?): F64PivotedQrDecomposition {
+        requireRankTolerance(tolerance)
         // The floor of one keeps an empty dimension here even when the threshold is zero: dgeqp3 has
         // nothing to factor then, and the untouched jpvt would read back as a column permutation of -1.
         if (minOf(a.rows, a.cols) < maxOf(1, f64DispatchThresholds.lapack)) {
