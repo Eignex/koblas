@@ -26,8 +26,9 @@ public interface Backend {
      * is true; a binding reports whether the library it calls resolved.
      *
      * Each half answers for itself, since a host can provide CBLAS without LAPACKE, or OpenBLAS without
-     * UMFPACK. Registration already skips an unavailable backend, so this is for a caller installing one
-     * explicitly or reporting what a host offers.
+     * UMFPACK. Registration does not consult this: koblas registers its UMFPACK binding on a bare library
+     * lookup and lets the binding fall back per call, so a registered backend may still report false here.
+     * Read it to report what a host offers, or before installing one explicitly.
      */
     public val isAvailable: Boolean get() = true
 }
