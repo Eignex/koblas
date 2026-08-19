@@ -158,20 +158,25 @@ internal class F64ReferenceBlas(private val kernels: F64VectorKernels? = null) :
         // against the product's O(n²·k/2), and both orientations run the same loop below.
         val kernels = vectorKernels
         val at = if (transpose) null else workspace?.take(n * k) ?: DoubleArray(n * k)
-        if (at != null) {
-            for (p in 0 until k) {
-                val base = p * n
-                for (j in 0 until n) at[p + j * k] = ad[base + j]
+        // Returned in a finally, so a kernel that throws does not strand the borrow: a buffer never handed
+        // back is one its pool can neither lend again nor reclaim.
+        try {
+            if (at != null) {
+                for (p in 0 until k) {
+                    val base = p * n
+                    for (j in 0 until n) at[p + j * k] = ad[base + j]
+                }
             }
-        }
-        val source = at ?: ad
-        for (j in 0 until n) {
-            for (i in j until n) {
-                val v = alpha * kernels.dot(source, i * k, source, j * k, k)
-                addUplo(cd, n, i, j, v, uplo)
+            val source = at ?: ad
+            for (j in 0 until n) {
+                for (i in j until n) {
+                    val v = alpha * kernels.dot(source, i * k, source, j * k, k)
+                    addUplo(cd, n, i, j, v, uplo)
+                }
             }
+        } finally {
+            if (at != null) workspace?.release(at)
         }
-        if (at != null) workspace?.release(at)
     }
 
     @Suppress("LongParameterList") // the BLAS dsymv signature
@@ -234,10 +239,16 @@ internal class F64ReferenceBlas(private val kernels: F64VectorKernels? = null) :
         requireShape(c.rows == b.rows && c.cols == b.cols) {
             "symm: C is ${c.rows}x${c.cols} but B is ${b.rows}x${b.cols}"
         }
+        // Both sides check A against B before anything is written, since scaling C is part of the
+        // operation and a call that cannot go through must not have performed half of it.
+        if (right) {
+            requireShape(b.cols == m) { "symm right: B has ${b.cols} cols, expected $m" }
+        } else {
+            requireShape(b.rows == m) { "symm: B has ${b.rows} rows, expected $m" }
+        }
         val cd = c.data
         applyBeta(vectorKernels, cd, 0, cd.size, beta)
         if (right) {
-            requireShape(b.cols == m) { "symm right: B has ${b.cols} cols, expected $m" }
             if (alpha == 0.0 || m == 0 || b.rows == 0) return
             val rows = b.rows
             val ad = a.data
@@ -250,7 +261,6 @@ internal class F64ReferenceBlas(private val kernels: F64VectorKernels? = null) :
             }
             return
         }
-        requireShape(b.rows == m) { "symm: B has ${b.rows} rows, expected $m" }
         if (alpha == 0.0 || m == 0 || b.cols == 0) return
         for (j in 0 until b.cols) {
             symvAccumulate(alpha, a.data, m, b.data, j * m, cd, j * m, lower)
