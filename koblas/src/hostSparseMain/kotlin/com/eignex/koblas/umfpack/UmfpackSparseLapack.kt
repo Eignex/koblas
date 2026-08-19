@@ -51,7 +51,11 @@ public class UmfpackSparseLapack internal constructor(private val f: UmfpackFunc
         if (a.rows == 0 || a.nnz == 0) return F64SparseLu.factorCsc(a)
 
         val info = DoubleArray(INFO)
+        // Nulled for the reason [UmfpackFactorization.allocateHandle] nulls its own holder: nativeHeap.alloc
+        // does not clear, and the free below runs whatever the analysis returned. UMFPACK nulls this itself
+        // on the error paths it has today, so the guard is against the ones it might not.
         val symbolicHolder = nativeHeap.alloc<COpaquePointerVar>()
+        symbolicHolder.value = null
         val handle = UmfpackFactorization.allocateHandle(f)
         val status = analyzeAndFactor(a, symbolicHolder, handle, info)
         // The symbolic analysis is scratch, UMFPACK keeps what it needs inside Numeric.
