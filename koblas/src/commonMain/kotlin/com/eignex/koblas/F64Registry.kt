@@ -11,6 +11,10 @@ import com.eignex.koblas.sparse.F64SparseBlas
 import com.eignex.koblas.sparse.F64SparseLapack
 import com.eignex.koblas.sparse.F64SparseVectorKernels
 import kotlin.concurrent.Volatile
+import kotlin.concurrent.atomics.AtomicInt
+import kotlin.concurrent.atomics.AtomicReference
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
+import kotlin.concurrent.atomics.incrementAndFetch
 
 /**
  * The six double-precision seams and the context they compose. One element type's registrations live in one
@@ -18,6 +22,7 @@ import kotlin.concurrent.Volatile
  * different interfaces, and a backend offered to [registerBackend] belongs to whichever registry recognises
  * it. [Seam] and the ranking are shared, so what differs between two registries is only the six types.
  */
+@OptIn(ExperimentalAtomicApi::class)
 internal class F64Registry {
     private val vectorKernelSeam = Seam<F64VectorKernels>(::recompose)
     private val blasSeam = Seam<F64Blas>(::recompose)
@@ -29,12 +34,31 @@ internal class F64Registry {
     @Volatile
     private var installed: F64Context? = null
 
-    /** The context assembled from the winning halves, rebuilt only when a registration changes. */
-    @Volatile
-    private var resolved: F64Context = assemble()
+    /** A context and the [changes] count it was assembled at, published as one so neither can be read alone. */
+    private class Resolution(val at: Int, val context: F64Context)
 
-    /** The context in force: an [install] override when set, else what the seams resolved to. */
-    val active: F64Context get() = installed ?: resolved
+    /** Bumped by every seam change, so a stale [resolution] can be told from a current one. */
+    private val changes = AtomicInt(0)
+
+    private val resolution = AtomicReference<Resolution?>(null)
+
+    /**
+     * The context in force: an [install] override when set, else what the seams resolved to.
+     *
+     * Assembled on demand against a change count rather than eagerly on every registration. Eager rebuilds
+     * race: two threads registering into different halves could each assemble from a partial view, and the
+     * later write would drop the other's registration with nothing left to trigger a rebuild. Reading the
+     * count before assembling means a stamp that still matches cannot have missed a change, and a stamp
+     * that no longer matches costs a rebuild rather than a wrong answer.
+     */
+    val active: F64Context get() {
+        installed?.let { return it }
+        val at = changes.load()
+        resolution.load()?.let { if (it.at == at) return it.context }
+        val fresh = Resolution(at, assemble())
+        resolution.store(fresh)
+        return fresh.context
+    }
 
     /** Overrides [active] wholesale; null restores automatic selection. */
     fun install(context: F64Context?) {
@@ -96,7 +120,7 @@ internal class F64Registry {
     )
 
     private fun recompose() {
-        resolved = assemble()
+        changes.incrementAndFetch()
     }
 
     companion object {
