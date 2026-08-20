@@ -125,6 +125,20 @@ class WorkspaceTest {
         assertSame(hot, ws.take(7), "a just-released buffer should come back")
     }
 
+    /**
+     * The cap has to apply on its own terms, not only when the table happens to be full. A burst of borrows
+     * that leaves no idle pool to reclaim is what grows the table past it.
+     */
+    @Test
+    fun `the width cap survives a burst that leaves nothing to reclaim`() {
+        val ws = Workspace()
+        val held = (1..64).map { ws.take(it) }
+        ws.release(ws.take(65))
+        held.forEach { ws.release(it) }
+        for (width in 66..140) ws.release(ws.take(width))
+        assertTrue(ws.pooledWidths <= 64, "the burst left ${ws.pooledWidths} pools alive")
+    }
+
     /** Buffers lent out are never reclaimed, however many other widths pass through afterwards. */
     @Test
     fun `an outstanding borrow survives churn through other widths`() {

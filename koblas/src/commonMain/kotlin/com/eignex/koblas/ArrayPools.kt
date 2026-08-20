@@ -40,12 +40,14 @@ internal class ArrayPools<A : Any>(private val allocate: (Int) -> A, private val
      */
     private fun pool(size: Int): Pool {
         findPool(size)?.let { return it }
-        if (poolCount == pools.size) {
-            // Below the cap the table simply grows. Once at it, the coldest idle pool is reclaimed, and the
-            // table still grows when every pool has a borrow out, since those must stay releasable.
-            if (poolCount >= MAX_WIDTHS) dropColdestIdlePool()
-            if (poolCount == pools.size) pools = pools.copyOf(pools.size * 2)
+        // Reclaimed until the new pool fits under the cap, rather than once when the table happens to be
+        // full. Tying the two together left the cap dormant until the next doubling, since the table doubles
+        // and a burst of borrows can push the count past the cap with nothing idle to give back. Stops early
+        // when every pool has a borrow out, because those have to stay releasable.
+        while (poolCount >= MAX_WIDTHS) {
+            if (!dropColdestIdlePool()) break
         }
+        if (poolCount == pools.size) pools = pools.copyOf(pools.size * 2)
         val fresh = Pool(size)
         for (i in poolCount downTo 1) pools[i] = pools[i - 1]
         pools[0] = fresh
@@ -70,15 +72,16 @@ internal class ArrayPools<A : Any>(private val allocate: (Int) -> A, private val
         pools[0] = found
     }
 
-    /** Drops the least recently used pool with nothing lent out, and does nothing when every pool is in use. */
-    private fun dropColdestIdlePool() {
+    /** Drops the least recently used pool with nothing lent out, reporting whether it found one. */
+    private fun dropColdestIdlePool(): Boolean {
         for (i in poolCount - 1 downTo 0) {
             if (pools[i]?.isIdle() == true) {
                 for (j in i until poolCount - 1) pools[j] = pools[j + 1]
                 pools[--poolCount] = null
-                return
+                return true
             }
         }
+        return false
     }
 
     /** Buffers of one width, plus which of them are currently lent out. */
