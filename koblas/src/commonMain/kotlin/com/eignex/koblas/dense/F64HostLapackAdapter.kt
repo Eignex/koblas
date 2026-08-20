@@ -143,17 +143,24 @@ public abstract class F64HostLapackAdapter internal constructor(
         val factor = lu.lu
         if (transpose) {
             val y = workspace?.take(n * nrhs) ?: DoubleArray(n * nrhs)
-            b.data.copyInto(y)
-            trsmLeft(factor, n, y, nrhs, UPPER, TRANS, NON_UNIT)
-            trsmLeft(factor, n, y, nrhs, LOWER, TRANS, UNIT)
-            permuteRows(y, out.data, n, nrhs, lu.piv, gather = false)
-            workspace?.release(y)
+            // Handed back even when a native solve raises, for the reason the syrk borrow gives.
+            try {
+                b.data.copyInto(y)
+                trsmLeft(factor, n, y, nrhs, UPPER, TRANS, NON_UNIT)
+                trsmLeft(factor, n, y, nrhs, LOWER, TRANS, UNIT)
+                permuteRows(y, out.data, n, nrhs, lu.piv, gather = false)
+            } finally {
+                workspace?.release(y)
+            }
         } else {
             if (out.data === b.data) {
                 val staged = workspace?.take(n * nrhs) ?: DoubleArray(n * nrhs)
-                permuteRows(b.data, staged, n, nrhs, lu.piv, gather = true)
-                staged.copyInto(out.data)
-                workspace?.release(staged)
+                try {
+                    permuteRows(b.data, staged, n, nrhs, lu.piv, gather = true)
+                    staged.copyInto(out.data)
+                } finally {
+                    workspace?.release(staged)
+                }
             } else {
                 permuteRows(b.data, out.data, n, nrhs, lu.piv, gather = true)
             }

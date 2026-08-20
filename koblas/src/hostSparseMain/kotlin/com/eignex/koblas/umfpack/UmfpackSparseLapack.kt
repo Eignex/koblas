@@ -57,10 +57,20 @@ public class UmfpackSparseLapack internal constructor(private val f: UmfpackFunc
         val symbolicHolder = nativeHeap.alloc<COpaquePointerVar>()
         symbolicHolder.value = null
         val handle = UmfpackFactorization.allocateHandle(f)
-        val status = analyzeAndFactor(a, symbolicHolder, handle, info)
-        // The symbolic analysis is scratch, UMFPACK keeps what it needs inside Numeric.
-        f.freeSymbolic(symbolicHolder.ptr)
-        nativeHeap.free(symbolicHolder.ptr)
+        // Until a factorization holds the handle, this call owns it, and nothing else would free it: the
+        // cleaner is created with the factorization, so an escape before that point strands the factors for
+        // the life of the process.
+        @Suppress("TooGenericExceptionCaught") // rethrown, and the handle has no other owner yet
+        val status = try {
+            analyzeAndFactor(a, symbolicHolder, handle, info)
+        } catch (t: Throwable) {
+            handle.release()
+            throw t
+        } finally {
+            // The symbolic analysis is scratch, UMFPACK keeps what it needs inside Numeric.
+            f.freeSymbolic(symbolicHolder.ptr)
+            nativeHeap.free(symbolicHolder.ptr)
+        }
 
         if (status != OK && status != WARNING_SINGULAR) {
             handle.release()
