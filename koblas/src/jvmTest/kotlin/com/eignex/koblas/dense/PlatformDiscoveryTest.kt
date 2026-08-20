@@ -3,6 +3,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.BackendSlot
 import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.HostLibraryTest
+import com.eignex.koblas.f64DispatchThresholds
 import com.eignex.koblas.hostblas.HostBlasCalls
 import com.eignex.koblas.isAccelerated
 import com.eignex.koblas.koblas
@@ -86,27 +87,59 @@ class PlatformDiscoveryTest {
     /**
      * The probe is what keeps a candidate whose native library is absent or broken out of the registry. It
      * has to reject a wrong answer as firmly as a throw, since a backend that loads and computes nonsense is
-     * the worse of the two.
+     * the worse of the two, and it has to reach the candidate's native path to see either.
+     *
+     * Each fake overrides the primitive rather than a convenience overload, because that is what the probe
+     * calls and because a backend assembled by delegation inherits a forwarder for everything it leaves
+     * alone.
      */
     @Test
     fun `the probe accepts a working backend and rejects every broken one`() {
         assertTrue(probe(F64ReferenceLinearAlgebra), "the reference backend should pass its own probe")
 
-        val wrongAnswer = object : F64Blas by F64ReferenceLinearAlgebra {
-            override fun gemv(a: F64DenseMatrix, x: DoubleArray, transpose: Boolean) = doubleArrayOf(0.0)
-        }
-        assertTrue(!probe(wrongAnswer), "a backend computing the wrong product should be rejected")
+        assertTrue(
+            !probe(GemmBackend { _, _, c -> c.data.fill(0.0) }),
+            "a backend computing the wrong product should be rejected",
+        )
+        assertTrue(
+            !probe(GemmBackend { _, _, _ -> throw UnsatisfiedLinkError("no native library") }),
+            "a backend whose native library is missing should be rejected",
+        )
+        // Shaped like koblas's own adapters: portable below its gate, native at or above it. A probe that
+        // stays under every gate never reaches the half that can be broken.
+        assertTrue(
+            !probe(
+                GemmBackend { a, reference, c ->
+                    if (a.rows >= f64DispatchThresholds.level3) throw UnsatisfiedLinkError("no native library")
+                    reference()
+                    @Suppress("UNUSED_EXPRESSION")
+                    c
+                },
+            ),
+            "a backend whose native path is missing should be rejected",
+        )
+    }
 
-        val wrongLength = object : F64Blas by F64ReferenceLinearAlgebra {
-            override fun gemv(a: F64DenseMatrix, x: DoubleArray, transpose: Boolean) = DoubleArray(0)
-        }
-        assertTrue(!probe(wrongLength), "a backend returning the wrong shape should be rejected")
+    /** A backend whose gemm is [gemm]; every other routine is the reference's. */
+    private class GemmBackend(
+        private val gemm: (a: F64DenseMatrix, reference: () -> Unit, c: F64DenseMatrix) -> Unit,
+    ) : F64Blas by F64ReferenceLinearAlgebra {
+        override val name: String get() = "fake"
 
-        val throwing = object : F64Blas by F64ReferenceLinearAlgebra {
-            override fun gemv(a: F64DenseMatrix, x: DoubleArray, transpose: Boolean): DoubleArray =
-                throw UnsatisfiedLinkError("no native library")
-        }
-        assertTrue(!probe(throwing), "a backend whose native library is missing should be rejected")
+        @Suppress("LongParameterList") // the BLAS dgemm signature
+        override fun gemm(
+            alpha: Double,
+            a: F64DenseMatrix,
+            transposeA: Boolean,
+            b: F64DenseMatrix,
+            transposeB: Boolean,
+            beta: Double,
+            c: F64DenseMatrix,
+        ) = gemm(
+            a,
+            { F64ReferenceLinearAlgebra.gemm(alpha, a, transposeA, b, transposeB, beta, c) },
+            c,
+        )
     }
 
     private companion object {
