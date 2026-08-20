@@ -19,6 +19,19 @@ import kotlin.test.assertTrue
 class CblasHalvesTest {
 
     @Test
+    fun `the level-1 kernels accept an empty run at the end of an array`() {
+        val kernels = F64CblasVectorKernels()
+        val v = doubleArrayOf(1.0, 2.0, 3.0)
+        val end = v.size
+        assertEquals(0.0, kernels.dot(v, end, v, end, 0), "dot")
+        assertEquals(0.0, kernels.nrm2(v, end, 0), "nrm2")
+        assertEquals(0.0, kernels.asum(v, end, 0), "asum")
+        kernels.axpy(v, end, 2.0, v, end, 0)
+        kernels.scale(v, end, 2.0, 0)
+        assertEquals(listOf(1.0, 2.0, 3.0), v.toList(), "an empty run wrote something")
+    }
+
+    @Test
     fun `the BLAS half stands alone when LAPACKE is missing`() {
         val cblas = requireNotNull(OpenBlasLoader.cblas) { "host OpenBLAS expected in the test environment" }
         withCleanBackends {
