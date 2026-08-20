@@ -96,6 +96,15 @@ internal class F64RoutedVectorKernels(internal val host: F64VectorKernels?) : F6
     override val name: String
         get() = if (host == null) F64PlatformVectorKernels.name else "${F64PlatformVectorKernels.name}+${host.name}"
 
+    // Routing is all this class does, so what it reports about itself is what it routes to. Left to the
+    // Backend defaults these describe the wrapper instead, which reads as an unaccelerated priority-0 half
+    // whatever it holds, and [F64Context] composes all three from its halves.
+    override val isPortable: Boolean get() = host?.isPortable ?: F64PlatformVectorKernels.isPortable
+
+    override val isAvailable: Boolean get() = host?.isAvailable ?: F64PlatformVectorKernels.isAvailable
+
+    override val priority: Int get() = host?.priority ?: F64PlatformVectorKernels.priority
+
     /** The kernels for a run of [len]: the host backend only when it exists and the run is long enough. */
     private fun forLength(len: Int): F64VectorKernels {
         val h = host
