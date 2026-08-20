@@ -8,7 +8,9 @@ import com.eignex.koblas.Workspace
 public interface F64SparseLapack : Backend {
     /**
      * Factorize the square [a] into something solvable. A singular matrix comes back as a factorization
-     * reporting `singular` rather than as an exception.
+     * reporting `singular` rather than as an exception, with a `failedAt` counting elimination steps rather
+     * than naming a column: the step that fails is the one with no acceptable pivot left, so there is no
+     * column of [a] to attribute it to.
      *
      * @param a the square matrix to factorize.
      * @param equilibrate scale rows by a power of two first; the solves and the determinant undo it.
@@ -29,7 +31,8 @@ public interface F64SparseLapack : Backend {
 
     /**
      * `A = L·D·Lᵀ` for a symmetric [a], analysing the pattern first. Accepts an indefinite matrix by
-     * default, and under that default an exact zero pivot is singular and reports the column it stopped at.
+     * default, and under that default an exact zero pivot is singular and reports the column of [a] it
+     * stopped at, which the fill-reducing ordering makes distinct from the step it stopped on.
      */
     public fun ldl(
         a: F64SparseMatrix,
@@ -41,7 +44,8 @@ public interface F64SparseLapack : Backend {
      * The Cholesky factorization of a symmetric positive-definite [a], as `L·D·Lᵀ` with every pivot
      * positive. The classical factor `L·√D` is available through `F64SparseLdl.choleskyFactor`.
      *
-     * @throws com.eignex.koblas.NotPositiveDefinite on a non-positive pivot, naming the column.
+     * @throws com.eignex.koblas.NotPositiveDefinite on a non-positive pivot, naming that pivot's column
+     *   of [a].
      */
     public fun cholesky(
         a: F64SparseMatrix,

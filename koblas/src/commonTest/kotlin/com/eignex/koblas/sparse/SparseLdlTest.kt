@@ -13,6 +13,26 @@ import kotlin.test.assertTrue
 
 class SparseLdlTest {
 
+    /**
+     * The fill-reducing ordering puts elimination step 1 at original column 0 here, so the two index spaces
+     * disagree and a reported position tells them apart.
+     */
+    @Test
+    fun `a non-positive pivot names a column of the matrix it was given`() {
+        val a = F64SparseMatrix.ofColumns(
+            3,
+            3,
+            listOf(
+                listOf(0 to 0.5, 1 to 1.0, 2 to 1.0),
+                listOf(0 to 1.0, 1 to 1.0),
+                listOf(0 to 1.0, 2 to 2.0),
+            ),
+        )
+        assertEquals(listOf(1, 0, 2), a.analyze().permutation.toList(), "the ordering this test relies on")
+        val failure = assertFailsWith<NotPositiveDefinite> { a.cholesky() }
+        assertEquals(0, failure.position)
+    }
+
     private fun spd(n: Int, rng: Random, density: Double = 0.2): F64SparseMatrix {
         val entries = Array(n) { HashMap<Int, Double>() }
         for (i in 0 until n) entries[i][i] = n.toDouble()

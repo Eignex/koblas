@@ -214,13 +214,16 @@ internal fun numericLdl(
             // Ahead of the zero check, since a zero pivot is below any floor.
             policy is SparseLdlPolicy.Regularize && d[k] < policy.minimumPivot -> d[k] = policy.minimumPivot
 
-            d[k] == 0.0 -> return F64SingularSparseFactorization(n, failedAt = k)
+            // Reported as a column of the caller's matrix. Elimination runs over the permuted one, so k is
+            // an ordering-dependent index nothing outside here can act on.
+            d[k] == 0.0 -> return F64SingularSparseFactorization(n, failedAt = symbolic.permutation[k])
 
             policy is SparseLdlPolicy.Strict && d[k] < 0.0 -> throw NotPositiveDefinite(
-                k,
+                symbolic.permutation[k],
                 d[k],
-                "ldl: pivot $k is ${d[k]}, so the matrix is not positive definite. Use " +
-                    "SparseLdlPolicy.Indefinite to factor it anyway, or Regularize to floor the pivot.",
+                "ldl: the pivot for column ${symbolic.permutation[k]} is ${d[k]}, so the matrix is not " +
+                    "positive definite. Use SparseLdlPolicy.Indefinite to factor it anyway, or Regularize " +
+                    "to floor the pivot.",
             )
         }
     }
