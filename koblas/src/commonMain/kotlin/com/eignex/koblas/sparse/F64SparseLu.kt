@@ -183,7 +183,11 @@ public class F64SparseLu private constructor(
                     }
                     if (maxAbs <= 0.0) continue
                     val e = 2.0.pow(-floor(log2(maxAbs)).toInt())
-                    if (e == 1.0) continue
+                    // A row below 2^-1023 needs a factor no double holds, and an infinite one would scale
+                    // the row to infinities and take the tolerances below with it, since both are fractions
+                    // of the largest magnitude present. Two steps would not help: rowScale has to stay
+                    // finite for btran to undo it.
+                    if (e == 1.0 || !e.isFinite()) continue
                     rowScale[i] = e
                     rows[i].scaleValues(e)
                 }
