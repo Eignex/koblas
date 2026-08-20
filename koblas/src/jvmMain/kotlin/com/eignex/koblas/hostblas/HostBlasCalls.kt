@@ -26,7 +26,18 @@ internal object HostBlasCalls {
     /** Whether LAPACKE resolved as well; false on a host that ships CBLAS only. */
     val lapackAvailable: Boolean
 
-    private val linker = Linker.nativeLinker()
+    /**
+     * Null where this platform has no native linker to hand out. Resolved defensively because this object's
+     * initializer runs on the first backend discovery, and an escape from it would leave the portable
+     * reference path, which calls out to nothing, unreachable behind a failed class initialization.
+     */
+    private val nativeLinker: Linker? = try {
+        Linker.nativeLinker()
+    } catch (_: UnsupportedOperationException) {
+        null
+    }
+
+    private val linker: Linker get() = requireNotNull(nativeLinker)
 
     // Pins the on-heap arrays handed over as segments for the call instead of copying them, blocking
     // relocation while it runs.
@@ -49,7 +60,7 @@ internal object HostBlasCalls {
     private val LAPACKE_SONAMES = listOf("liblapacke.so.3", "liblapacke.so", "liblapacke.dylib", "lapacke.dll")
 
     init {
-        val blas = openLibrary(SONAMES)
+        val blas = if (nativeLinker == null) null else openLibrary(SONAMES)
         lookup = blas
         val resolved = blas != null && blas.find("cblas_dgemm").isPresent
         // An ILP64 build exports these same names, so only the config string tells it apart from the LP64
