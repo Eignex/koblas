@@ -12,7 +12,10 @@ import kotlinx.cinterop.usePinned
 
 /**
  * The host OpenBLAS behind koblas's level-1 primitives. koblas applies
- * [com.eignex.koblas.DispatchThresholds.level1], so these methods only see runs worth dispatching.
+ * [com.eignex.koblas.DispatchThresholds.level1], so these methods normally see only runs worth dispatching,
+ * but the [F64VectorKernels] contract makes a length of zero legal everywhere and an override of the
+ * threshold routes those here. Each routine answers one itself: an empty run sits at the end of its array,
+ * where there is no element to take an address of.
  */
 public class F64CblasVectorKernels : F64VectorKernels {
     override val name: String get() = BackendNames.CBLAS
@@ -26,13 +29,17 @@ public class F64CblasVectorKernels : F64VectorKernels {
         "OpenBLAS is not available on this host; koblas keeps its built-in level-1 kernels"
     }
 
-    override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double = a.usePinned { ap ->
-        b.usePinned { bp ->
-            f.ddot(len, ap.addressOf(aOff), 1, bp.addressOf(bOff), 1)
+    override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
+        if (len == 0) return 0.0
+        return a.usePinned { ap ->
+            b.usePinned { bp ->
+                f.ddot(len, ap.addressOf(aOff), 1, bp.addressOf(bOff), 1)
+            }
         }
     }
 
     override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
+        if (len == 0) return
         x.usePinned { xp ->
             y.usePinned { yp ->
                 f.daxpy(len, alpha, xp.addressOf(xOff), 1, yp.addressOf(yOff), 1)
@@ -41,12 +48,13 @@ public class F64CblasVectorKernels : F64VectorKernels {
     }
 
     override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
+        if (len == 0) return
         v.usePinned { vp -> f.dscal(len, alpha, vp.addressOf(vOff), 1) }
     }
 
     override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double =
-        v.usePinned { vp -> f.dnrm2(len, vp.addressOf(vOff), 1) }
+        if (len == 0) 0.0 else v.usePinned { vp -> f.dnrm2(len, vp.addressOf(vOff), 1) }
 
     override fun asum(v: DoubleArray, vOff: Int, len: Int): Double =
-        v.usePinned { vp -> f.dasum(len, vp.addressOf(vOff), 1) }
+        if (len == 0) 0.0 else v.usePinned { vp -> f.dasum(len, vp.addressOf(vOff), 1) }
 }
