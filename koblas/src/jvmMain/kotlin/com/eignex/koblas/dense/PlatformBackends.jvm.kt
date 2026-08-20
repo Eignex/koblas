@@ -4,6 +4,7 @@ import com.eignex.koblas.Backend
 import com.eignex.koblas.BackendNames
 import com.eignex.koblas.ConfigurationKeys
 import com.eignex.koblas.F64DenseMatrix
+import com.eignex.koblas.f64DispatchThresholds
 import com.eignex.koblas.hostblas.HostBlas
 import com.eignex.koblas.hostblas.HostBlasCalls
 import com.eignex.koblas.hostblas.HostLapack
@@ -68,12 +69,28 @@ private fun loadProviders(): List<F64LinearAlgebra> {
     return providers
 }
 
-/** A 1x1 gemv forces the candidate's native path to actually load and produce a correct result. */
+/**
+ * Makes the candidate load its native path and produce a correct result.
+ *
+ * Sized from the level-3 gate, because a candidate that gates on these same thresholds answers anything
+ * below its own gate from its portable fallback, where a missing library cannot show up. A 1x1 gemv, which
+ * this used to be, can never reach a native path: every gate sits above 1, and level 2 stays portable
+ * outright on a JVM carrying the Vector API. A level pinned portable has no native path to reach at any
+ * size, so the probe stays at the cheap sanity check rather than allocating for the pinning value.
+ *
+ * The primitive is called rather than the convenience overload, since a backend built by delegation
+ * inherits a forwarder for every routine it does not override and the convenience one would bypass it.
+ */
 internal fun probe(backend: F64Blas): Boolean {
+    val gate = f64DispatchThresholds.level3
+    val n = if (gate == Int.MAX_VALUE) 1 else maxOf(1, gate)
     @Suppress("TooGenericExceptionCaught") // native load failures surface as UnsatisfiedLinkError
     return try {
-        val y = backend.gemv(F64DenseMatrix(1, 1, doubleArrayOf(2.0)), doubleArrayOf(3.0))
-        y.size == 1 && y[0] == 6.0
+        val a = F64DenseMatrix(n, n, DoubleArray(n * n) { 2.0 })
+        val c = F64DenseMatrix(n, n)
+        backend.gemm(1.0, a, transposeA = false, a, transposeB = false, beta = 0.0, c = c)
+        val expected = 4.0 * n
+        c.data.all { it == expected }
     } catch (_: Throwable) {
         false
     }
