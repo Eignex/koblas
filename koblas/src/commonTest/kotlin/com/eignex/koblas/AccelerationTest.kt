@@ -41,6 +41,18 @@ class AccelerationTest {
     }
 
     @Test
+    fun `an empty registry reports the context itself as portable`() = withCleanBackends {
+        assertTrue(koblas.isPortable, "nothing is registered, so every half is koblas's own")
+    }
+
+    @Test
+    fun `registered kernels carry their identity through the routing wrapper`() = withCleanBackends {
+        registerBackend(FakeKernels())
+        assertTrue(!koblas.isPortable, "a registered host half leaves the context accelerated")
+        assertEquals(100, koblas.priority, "the context is as preferred as the best half in it")
+    }
+
+    @Test
     fun `an empty registry reports every slot as portable`() = withCleanBackends {
         assertEquals(BackendSlot.entries.toSet(), koblas.portableSlots)
         for (slot in BackendSlot.entries) {
