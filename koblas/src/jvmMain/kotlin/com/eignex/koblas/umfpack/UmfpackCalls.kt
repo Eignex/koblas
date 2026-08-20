@@ -16,7 +16,12 @@ import java.lang.invoke.MethodHandle
  */
 internal object UmfpackCalls {
 
-    private val linker = Linker.nativeLinker()
+    /** Null where this platform has no native linker; see the same field in `HostBlasCalls`. */
+    private val linker: Linker? = try {
+        Linker.nativeLinker()
+    } catch (_: UnsupportedOperationException) {
+        null
+    }
 
     // Pins the Kotlin arrays for the call instead of copying them, blocking relocation while it runs.
     private val critical = Linker.Option.critical(true)
@@ -61,7 +66,7 @@ internal object UmfpackCalls {
     }
 
     /** Whether a libumfpack carrying the di family opened, which creates no downcall handle. */
-    val libraryPresent: Boolean get() = lookup != null
+    val libraryPresent: Boolean get() = linker != null && lookup != null
 
     /** Whether the library opened and its symbols bound. Reading this binds the handles. */
     val available: Boolean get() = handles != null
@@ -131,8 +136,9 @@ internal object UmfpackCalls {
 
     /** Calls on the result use `invokeWithArguments`, since Kotlin cannot emit signature-polymorphic `invokeExact`. */
     private fun bind(found: SymbolLookup, name: String, descriptor: FunctionDescriptor): MethodHandle? {
+        val downcall = linker ?: return null
         val address = found.find(name).orElse(null) ?: return null
-        return linker.downcallHandle(address, descriptor, critical)
+        return downcall.downcallHandle(address, descriptor, critical)
     }
 
     private fun handlesOrThrow(): Handles =
