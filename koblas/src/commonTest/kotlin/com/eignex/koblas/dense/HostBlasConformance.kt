@@ -169,6 +169,16 @@ internal fun assertSpdSuiteAgreesWithReference(lapack: F64Lapack, sizes: IntArra
                 assertEquals(inverse[i, j], inverse[j, i], 1e-12, "invertSpd n=$n is not symmetric at ($i,$j)")
             }
         }
+
+        // The factor is the caller's to build over any square matrix, so a singular one reaches here and the
+        // two halves have to answer it alike rather than one of them throwing.
+        val singular = F64CholeskyDecomposition(F64DenseMatrix.zero(n, n))
+        val referenceEntry = reference.invert(singular).data[0]
+        assertEquals(
+            referenceEntry.isFinite(),
+            lapack.invert(singular).data[0].isFinite(),
+            "invertSpd n=$n disagrees with the reference on a singular factor",
+        )
     }
 }
 
