@@ -251,18 +251,23 @@ public abstract class F64HostBlasAdapter internal constructor(
         // dsyrk touches one triangle only, so the FULL contract needs the alpha term computed into a
         // scratch lower triangle, mirrored, then combined with a beta scale of all of C.
         val w = workspace?.take(n * n) ?: DoubleArray(n * n)
-        f.dsyrk(COL_MAJOR, LOWER, trans, n, k, alpha, a.data, a.rows, 0.0, w, n)
-        for (j in 0 until n) {
-            for (i in j + 1 until n) w[j + i * n] = w[i + j * n]
+        // Handed back even when the library raises: a buffer never returned is one its pool can neither lend
+        // again nor reclaim, and every call through here is a call that can fail.
+        try {
+            f.dsyrk(COL_MAJOR, LOWER, trans, n, k, alpha, a.data, a.rows, 0.0, w, n)
+            for (j in 0 until n) {
+                for (i in j + 1 until n) w[j + i * n] = w[i + j * n]
+            }
+            val cd = c.data
+            if (beta == 0.0) {
+                w.copyInto(cd)
+            } else {
+                if (beta != 1.0) f.dscal(cd.size, beta, cd, 1)
+                f.daxpy(cd.size, 1.0, w, 1, cd, 1)
+            }
+        } finally {
+            workspace?.release(w)
         }
-        val cd = c.data
-        if (beta == 0.0) {
-            w.copyInto(cd)
-        } else {
-            if (beta != 1.0) f.dscal(cd.size, beta, cd, 1)
-            f.daxpy(cd.size, 1.0, w, 1, cd, 1)
-        }
-        workspace?.release(w)
     }
 
     /**

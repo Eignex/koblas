@@ -62,37 +62,47 @@ public class UmfpackSparseLapack : F64SparseLapack {
             // The numeric factors outlive this call, so their holder gets an arena the factorization owns.
             val arena = Arena.ofShared()
             val numericHolder = arena.allocate(ADDRESS)
-            val numericStatus = UmfpackCalls.numeric(
-                colPtr,
-                rowIdx,
-                values,
-                symbolicHolder.get(ADDRESS, 0),
-                numericHolder,
-                info,
-            )
-            UmfpackCalls.freeSymbolic(symbolicHolder)
+            // Until a factorization holds them, this call owns the factors and the arena, and nothing else
+            // would ever free them: the cleaner is registered with the factorization, so an escape before
+            // that point strands both for the life of the process. Freed rather than only closed, because
+            // UMFPACK nulls the handle on an error return but the arena owns the holder, not the factors.
+            var owned = true
+            try {
+                val numericStatus = try {
+                    UmfpackCalls.numeric(
+                        colPtr,
+                        rowIdx,
+                        values,
+                        symbolicHolder.get(ADDRESS, 0),
+                        numericHolder,
+                        info,
+                    )
+                } finally {
+                    // Scratch either way; UMFPACK keeps what it needs inside Numeric.
+                    UmfpackCalls.freeSymbolic(symbolicHolder)
+                }
 
-            if (numericStatus != OK && numericStatus != WARNING_SINGULAR) {
-                // Freed rather than only closing the arena. UMFPACK nulls the handle on an error return, so
-                // this is a no-op today, but relying on that is what left the native binding freeing an
-                // uninitialized holder, and the arena owns the holder rather than the factors.
-                UmfpackCalls.freeNumeric(numericHolder)
-                arena.close()
-                return F64SparseLu.factorCsc(a)
-            }
-            if (numericStatus == WARNING_SINGULAR) {
-                // The partial factors UMFPACK hands back cannot be solved against, so they are released and
+                if (numericStatus != OK && numericStatus != WARNING_SINGULAR) {
+                    return F64SparseLu.factorCsc(a)
+                }
+                // The partial factors UMFPACK hands back for a singular matrix cannot be solved against, so
                 // the canonical singular result keeps `nnz == 0` true of every singular factorization.
-                UmfpackCalls.freeNumeric(numericHolder)
-                arena.close()
-                return F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
+                if (numericStatus == WARNING_SINGULAR) {
+                    return F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
+                }
+                val handles = UmfpackFactorization.Handles(arena, numericHolder)
+                val factorization = UmfpackFactorization(a, NOT_SINGULAR, handles)
+                val (lnz, unz) = UmfpackFactorization.fillOf(info)
+                factorization.lnz = lnz
+                factorization.unz = unz
+                owned = false
+                return factorization
+            } finally {
+                if (owned) {
+                    UmfpackCalls.freeNumeric(numericHolder)
+                    arena.close()
+                }
             }
-            val handles = UmfpackFactorization.Handles(arena, numericHolder)
-            val factorization = UmfpackFactorization(a, NOT_SINGULAR, handles)
-            val (lnz, unz) = UmfpackFactorization.fillOf(info)
-            factorization.lnz = lnz
-            factorization.unz = unz
-            return factorization
         }
     }
 
