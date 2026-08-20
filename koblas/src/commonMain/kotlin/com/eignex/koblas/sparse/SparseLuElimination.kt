@@ -137,7 +137,11 @@ internal class MarkowitzState(
                     }
                     candidateCols++
                 }
-                // Every unscanned column has a count of at least r, so both bounds hold mid-class too.
+                // One class loose on purpose. An unscanned column holds at least r entries and its best row
+                // at least minRow, so its floor is (r - 1) * (minRow - 1) and one still in this class can
+                // match the pivot in hand; this compares against the next class's floor instead. Scanning on
+                // to rule that out lengthens every search and buys no fill, so the cheaper stop wins and the
+                // Markowitz minimum here is approximate rather than exact.
                 if (pivotRow != -1 &&
                     (candidateCols >= MAX_CANDIDATE_COLS || bestMark <= r.toLong() * (minRow - 1).toLong())
                 ) {
