@@ -31,6 +31,19 @@ class LinearAlgebraQrTest {
     }
 
     @Test
+    fun `a column already in triangular form needs no reflector`() {
+        val f = koblas.qr(F64DenseMatrix.diagonal(3))
+        assertTrue(f.tau.all { it == 0.0 }, "expected no reflectors, got ${f.tau.toList()}")
+        assertClose(F64DenseMatrix.diagonal(3), F64DenseMatrix(3, 3, f.qr), "R", tolerance = 1e-15)
+        assertClose(
+            doubleArrayOf(1.0, 0.0, 0.0),
+            koblas.applyQ(f, doubleArrayOf(1.0, 0.0, 0.0)),
+            "Q is the identity",
+            tolerance = 1e-15,
+        )
+    }
+
+    @Test
     fun `applying Q then Q transpose round-trips`() {
         val rng = Random(20260921)
         val f = koblas.qr(randomMatrix(8, 5, rng))

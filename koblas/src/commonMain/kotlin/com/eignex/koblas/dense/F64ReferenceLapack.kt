@@ -328,9 +328,13 @@ internal class F64ReferenceLapack(private val kernels: F64VectorKernels? = null)
     private fun householderColumn(buf: DoubleArray, m: Int, col: Int): Double {
         val base = col + col * m
         val len = m - col
-        val norm = vectorKernels.nrm2(buf, base, len)
-        if (norm == 0.0) return 0.0
+        // dlarfg measures the tail alone and returns a zero reflector when it vanishes, leaving the
+        // diagonal as it found it. Measuring the whole column instead would reflect a column already in
+        // triangular form, which is valid but puts a sign in R that LAPACK does not, and the last column of
+        // every square matrix takes that path.
         val alpha = buf[base]
+        if (vectorKernels.nrm2(buf, base + 1, len - 1) == 0.0) return 0.0
+        val norm = vectorKernels.nrm2(buf, base, len)
         val beta = if (alpha >= 0.0) -norm else norm
         // Division keeps a subnormal v0 from becoming an infinity.
         val v0 = alpha - beta

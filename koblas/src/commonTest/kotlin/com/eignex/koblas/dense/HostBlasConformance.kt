@@ -495,6 +495,12 @@ internal fun assertLdlFactorsInterchange(lapack: F64Lapack, sizes: IntArray) {
 
 /** Both least squares and the minimum-norm solve, across every pairing of the two backends' factors. */
 internal fun assertQrFactorsInterchange(lapack: F64Lapack, shapes: List<Pair<Int, Int>>) {
+    // A column whose tail is already zero is where the two can differ without either being wrong: both
+    // factor it, and only a zero reflector leaves R's diagonal as it found it. Sized past the LAPACK
+    // dispatch threshold so the binding rather than the fallback answers.
+    val triangular = F64DenseMatrix.diagonal(80)
+    assertClose(reference.qr(triangular).tau, lapack.qr(triangular).tau, "tau on a triangular operand")
+    assertClose(reference.qr(triangular).qr, lapack.qr(triangular).qr, "R on a triangular operand")
     val rng = Random(20260925)
     for ((m, n) in shapes) {
         val a = randomMatrix(m, n, rng)
