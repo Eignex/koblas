@@ -68,7 +68,12 @@ internal class F64ReferenceLapack(private val kernels: F64VectorKernels? = null)
                 var rowmax = 0.0
                 for (j in k until imax) rowmax = maxOf(rowmax, abs(w[imax + j * n]))
                 for (j in imax + 1 until n) rowmax = maxOf(rowmax, abs(w[j + imax * n]))
-                if (absakk * rowmax >= BUNCH_KAUFMAN_ALPHA * colmax * colmax) {
+                // Grouped as dsytf2 groups it. The algebraically equal `absakk * rowmax >= alpha * colmax
+                // * colmax` leaves the exponent range on a matrix this one holds: rowmax >= colmax here, so
+                // whichever side overflows first the other follows, and `Inf >= Inf` selects the 1x1 pivot
+                // this test exists to reject. rowmax > 0 because the scan below covers the entry colmax was
+                // attained at.
+                if (absakk >= BUNCH_KAUFMAN_ALPHA * colmax * (colmax / rowmax)) {
                     kp = k
                 } else if (abs(w[imax + imax * n]) >= BUNCH_KAUFMAN_ALPHA * rowmax) {
                     kp = imax
