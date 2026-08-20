@@ -83,6 +83,15 @@ class SparseLuTest {
     }
 
     @Test
+    fun `equilibration leaves a row it cannot scale into range alone`() {
+        val a = F64SparseMatrix(2, 2, intArrayOf(0, 1, 2), intArrayOf(0, 1), doubleArrayOf(1e-320, 2e-320))
+        val plain = assertNotNull(a.lu(equilibrate = false))
+        val equilibrated = assertNotNull(a.lu(equilibrate = true))
+        assertEquals(plain.singular, equilibrated.singular, "equilibration changed the singularity verdict")
+        assertEquals(plain.failedAt, equilibrated.failedAt, "equilibration changed the reported position")
+    }
+
+    @Test
     fun `solve is correct with equilibration off`() {
         val rng = Random(22)
         repeat(60) {
