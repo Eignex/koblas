@@ -283,7 +283,10 @@ public abstract class F64HostLapackAdapter internal constructor(
         val inv = F64DenseMatrix(n, n, chol.l.data.copyOf())
         val info = f.dpotri(COL_MAJOR, LOWER_UPLO, n, inv.data, n)
         check(info >= 0) { "dpotri: illegal argument ${-info}" }
-        check(info == 0) { "dpotri: zero diagonal at $info, the factor is singular" }
+        // A zero on the diagonal is dpotri's error and the reference's division by zero, and the factor is
+        // the caller's to construct over any square matrix. The reference answers with infinities, so this
+        // half answers the same way rather than throwing where it would not.
+        if (info > 0) return portable.invert(chol, workspace)
         for (i in 0 until n) for (j in 0 until i) inv[j, i] = inv[i, j]
         return inv
     }
