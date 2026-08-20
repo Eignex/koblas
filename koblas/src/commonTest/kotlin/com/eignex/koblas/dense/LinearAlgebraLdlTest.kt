@@ -39,6 +39,25 @@ class LinearAlgebraLdlTest {
     }
 
     @Test
+    fun `a pivot test spanning the exponent range keeps the factor finite`() {
+        for (a in listOf(
+            F64DenseMatrix(2, 2, doubleArrayOf(1e100, 1e250, 1e250, 1.0)),
+            F64DenseMatrix(2, 2, doubleArrayOf(1e-310, 1e-200, 1e-200, 0.0)),
+        )) {
+            val f = koblas.ldl(a)
+            assertTrue(f.ldl.all { it.isFinite() }, "factor of ${a.data.toList()} holds ${f.ldl.toList()}")
+        }
+    }
+
+    @Test
+    fun `a solve over a wide exponent range reproduces its right-hand side`() {
+        val a = F64DenseMatrix(2, 2, doubleArrayOf(1e100, 1e250, 1e250, 1.0))
+        val b = doubleArrayOf(1.0, 1.0)
+        val x = koblas.solve(koblas.ldl(a), b)
+        assertClose(b, koblas.gemv(a, x), "residual", tolerance = 1e-9)
+    }
+
+    @Test
     fun `spd matrices agree with the Cholesky solve`() {
         val rng = Random(20260931)
         val n = 9
