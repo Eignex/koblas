@@ -12,7 +12,11 @@ import kotlin.test.assertSame
  */
 class AdapterBorrowTest {
 
-    /** Fails the one entry point the FULL syrk contract needs; nothing else here is reached. */
+    /**
+     * Fails the one entry point the FULL syrk contract needs; nothing else here is reached. A host binding
+     * would raise `UnsatisfiedLinkError`, which is not a type common code can name, and what the borrow needs
+     * to survive is any throw.
+     */
     private class FailingSyrk : CblasCalls {
         override fun dscal(n: Int, alpha: Double, x: DoubleArray, incx: Int) = error("unused")
 
@@ -121,7 +125,7 @@ class AdapterBorrowTest {
             beta: Double,
             c: DoubleArray,
             ldc: Int,
-        ): Unit = throw UnsatisfiedLinkError("libopenblas.so.0: cannot open shared object file")
+        ): Unit = error("libopenblas.so.0: cannot open shared object file")
 
         @Suppress("LongParameterList")
         override fun dsymm(
@@ -183,7 +187,7 @@ class AdapterBorrowTest {
         val ws = Workspace()
         val parked = ws.take(n * n)
         ws.release(parked)
-        assertFailsWith<UnsatisfiedLinkError> {
+        assertFailsWith<IllegalStateException> {
             FailingAdapter().syrk(
                 1.0,
                 F64DenseMatrix(n, n),

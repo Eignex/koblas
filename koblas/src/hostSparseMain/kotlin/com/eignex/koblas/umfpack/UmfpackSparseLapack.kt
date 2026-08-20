@@ -57,6 +57,7 @@ public class UmfpackSparseLapack internal constructor(private val f: UmfpackFunc
         val symbolicHolder = nativeHeap.alloc<COpaquePointerVar>()
         symbolicHolder.value = null
         val handle = UmfpackFactorization.allocateHandle(f)
+
         // Until a factorization holds the handle, this call owns it, and nothing else would free it: the
         // cleaner is created with the factorization, so an escape before that point strands the factors for
         // the life of the process.
