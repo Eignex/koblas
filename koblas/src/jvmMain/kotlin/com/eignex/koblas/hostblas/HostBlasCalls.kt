@@ -59,10 +59,33 @@ internal object HostBlasCalls {
 
     private val LAPACKE_SONAMES = listOf("liblapacke.so.3", "liblapacke.so", "liblapacke.dylib", "lapacke.dll")
 
+    /**
+     * Every CBLAS entry point these bindings resolve. Availability is the whole set rather than one symbol,
+     * because the handles bind lazily and a missing one raises past the dispatch gate, where nothing is left
+     * to fall back to. A host offering part of the library has to leave the half portable instead. Presence
+     * is read with `find`, which is a lookup; binding would be the stack-hungry thing discovery avoids.
+     */
+    private val REQUIRED_CBLAS = listOf(
+        "cblas_daxpy", "cblas_dgemm", "cblas_dgemv", "cblas_dger", "cblas_dscal", "cblas_dsymm",
+        "cblas_dsymv", "cblas_dsyrk", "cblas_dtrmm", "cblas_dtrmv", "cblas_dtrsm", "cblas_dtrsv",
+    )
+
+    /** The same for LAPACKE, less `LAPACKE_dgeqp3`, which [optionalHandle] already lets a host omit. */
+    private val REQUIRED_LAPACKE = listOf(
+        "LAPACKE_dgecon",
+        "LAPACKE_dgeqrf",
+        "LAPACKE_dgetrf",
+        "LAPACKE_dormqr",
+        "LAPACKE_dpotrf",
+        "LAPACKE_dpotri",
+        "LAPACKE_dsytrf",
+        "LAPACKE_dsytrs",
+    )
+
     init {
         val blas = if (nativeLinker == null) null else openLibrary(SONAMES)
         lookup = blas
-        val resolved = blas != null && blas.find("cblas_dgemm").isPresent
+        val resolved = blas != null && REQUIRED_CBLAS.all { blas.find(it).isPresent }
         // An ILP64 build exports these same names, so only the config string tells it apart from the LP64
         // one these bindings declare.
         val ilp64 = resolved && isIlp64OpenBlas(configString(requireNotNull(blas)))
@@ -71,7 +94,11 @@ internal object HostBlasCalls {
         // A second library for the hosts that ship LAPACKE outside their OpenBLAS build.
         val extra = if (available && !lapackeInBlas) openLibrary(LAPACKE_SONAMES) else null
         lapackeLookup = extra
-        lapackAvailable = lapackeInBlas || extra?.find("LAPACKE_dgetrf")?.isPresent == true
+        // Resolved the way [symbol] resolves, the OpenBLAS build first and then liblapacke, so a host
+        // splitting the set across the two is still served.
+        lapackAvailable = available && REQUIRED_LAPACKE.all { name ->
+            blas?.find(name)?.isPresent == true || extra?.find(name)?.isPresent == true
+        }
         // Before any routine runs: an unconfigured OpenBLAS is multithreaded and its parallel LAPACK
         // overflows a default JVM thread stack, killing the process with an uncatchable SIGSEGV.
         if (available) configureThreads()
