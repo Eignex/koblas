@@ -1,8 +1,8 @@
 package com.eignex.koblas.dense
 
-/** Output-triangle selector for [F64LinearAlgebra.syrk]. [FULL] is the default and a koblas extension. */
+/** Triangle selector. [FULL] is a koblas extension to the lower/upper choice in BLAS and LAPACK. */
 public enum class Uplo {
-    /** Write the complete, exactly symmetric result; beta scales all of `C`. */
+    /** Read or write the complete, exactly symmetric matrix. */
     FULL,
 
     /** Standard `dsyrk` with `uplo = L`: write and beta-scale the lower triangle only. */
