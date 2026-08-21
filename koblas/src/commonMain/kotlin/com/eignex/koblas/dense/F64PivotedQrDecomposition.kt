@@ -1,5 +1,6 @@
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.requireShape
 import kotlin.math.abs
 
@@ -23,9 +24,9 @@ internal const val F64_NORM_RECOMPUTE_THRESHOLD = 1.4901161193847656e-8
  * @property pivots pivots(k) is the column of `A` at position k of `A·P`, LAPACK `jpvt` made 0-based.
  * @property rank the number of `R` diagonal entries above the tolerance, in `0..min(m, n)`.
  */
-public class F64PivotedQrDecomposition(
+public class F64PivotedQrDecomposition @UnsafeKoblasApi constructor(
     public val factorization: F64QrDecomposition,
-    public val pivots: IntArray,
+    @property:UnsafeKoblasApi public val pivots: IntArray,
     public val rank: Int,
 ) {
     /** The row count of the factored matrix. */

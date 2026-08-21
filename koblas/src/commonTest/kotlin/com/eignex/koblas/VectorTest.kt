@@ -114,6 +114,17 @@ class VectorTest {
     }
 
     @Test
+    fun `copyIndices cannot mutate sparse structure`() {
+        val v = F64SparseVector.of(4, intArrayOf(1, 3), doubleArrayOf(2.0, 4.0))
+        val indices = v.copyIndices()
+
+        indices[0] = 0
+
+        assertEquals(2.0, v[1])
+        assertEquals(0.0, v[0])
+    }
+
+    @Test
     fun `F64SparseVector wrap adopts ascending arrays and validates them`() {
         val indices = intArrayOf(0, 3)
         val values = doubleArrayOf(2.0, 1.5)

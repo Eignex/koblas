@@ -1,22 +1,29 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.F64SparseMatrix
+import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.requireSquare
 
 /**
  * Reads the upper triangle in column form, rows `i ≤ j` of column j, not the lower triangle the dense side
  * reads. Reorders by default, so the factorization is then of `P·A·Pᵀ`.
  *
+ * Use the `copy` accessors for safe structural access. [parent], [columnPointers], and [permutation] are live
+ * zero-copy escape hatches for specialized kernels and require [UnsafeKoblasApi]; mutating them can invalidate
+ * a later numeric factorization.
+ *
  * @property n the dimension of the analysed matrix.
- * @property parent the elimination tree of the permuted matrix, so parent(j) is the parent of column j.
- * @property columnPointers L's column starts, length `n + 1`, so columnPointers(n) is the fill.
- * @property permutation the row and column of `A` eliminated at step `k`; the identity when natural.
+ * @property parent elimination tree of the permuted matrix.
+ * @property columnPointers L's column starts, of length `n + 1`.
+ * @property permutation original row and column eliminated at each step.
+ * @param analysedColumnStarts column starts of the pattern this analysis describes.
+ * @param analysedRowIndices row indices of the pattern this analysis describes.
  */
 public class SparseSymbolic internal constructor(
     public val n: Int,
-    public val parent: IntArray,
-    public val columnPointers: IntArray,
-    public val permutation: IntArray,
+    @property:UnsafeKoblasApi public val parent: IntArray,
+    @property:UnsafeKoblasApi public val columnPointers: IntArray,
+    @property:UnsafeKoblasApi public val permutation: IntArray,
     private val analysedColumnStarts: IntArray,
     private val analysedRowIndices: IntArray,
 ) {
@@ -28,6 +35,15 @@ public class SparseSymbolic internal constructor(
 
     /** Nonzeros in the strictly lower L, the fill this pattern will hold. The diagonal is D, not L. */
     public val nnz: Int get() = columnPointers[n]
+
+    /** A copy of the elimination tree, where entry j is the parent of column j. */
+    public fun copyParent(): IntArray = parent.copyOf()
+
+    /** A copy of L's column start offsets, of length `n + 1`. */
+    public fun copyColumnPointers(): IntArray = columnPointers.copyOf()
+
+    /** A copy of the row and column permutation, from elimination step to original index. */
+    public fun copyPermutation(): IntArray = permutation.copyOf()
 
     /**
      * Factorize [a] numerically against this analysis as `A = L·D·Lᵀ` with L unit lower triangular. [a] must

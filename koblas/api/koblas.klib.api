@@ -7,6 +7,10 @@
 // - Show declarations: true
 
 // Library unique name: <com.eignex:koblas>
+open annotation class com.eignex.koblas/UnsafeKoblasApi : kotlin/Annotation { // com.eignex.koblas/UnsafeKoblasApi|null[0]
+    constructor <init>() // com.eignex.koblas/UnsafeKoblasApi.<init>|<init>(){}[0]
+}
+
 final enum class com.eignex.koblas.dense/Uplo : kotlin/Enum<com.eignex.koblas.dense/Uplo> { // com.eignex.koblas.dense/Uplo|null[0]
     enum entry FULL // com.eignex.koblas.dense/Uplo.FULL|null[0]
     enum entry LOWER // com.eignex.koblas.dense/Uplo.LOWER|null[0]
@@ -505,6 +509,9 @@ final class com.eignex.koblas.sparse/SparseSymbolic { // com.eignex.koblas.spars
     final val permutation // com.eignex.koblas.sparse/SparseSymbolic.permutation|{}permutation[0]
         final fun <get-permutation>(): kotlin/IntArray // com.eignex.koblas.sparse/SparseSymbolic.permutation.<get-permutation>|<get-permutation>(){}[0]
 
+    final fun copyColumnPointers(): kotlin/IntArray // com.eignex.koblas.sparse/SparseSymbolic.copyColumnPointers|copyColumnPointers(){}[0]
+    final fun copyParent(): kotlin/IntArray // com.eignex.koblas.sparse/SparseSymbolic.copyParent|copyParent(){}[0]
+    final fun copyPermutation(): kotlin/IntArray // com.eignex.koblas.sparse/SparseSymbolic.copyPermutation|copyPermutation(){}[0]
     final fun factorLdl(com.eignex.koblas/F64SparseMatrix, com.eignex.koblas.sparse/SparseLdlPolicy = ...): com.eignex.koblas.sparse/F64SparseFactorization // com.eignex.koblas.sparse/SparseSymbolic.factorLdl|factorLdl(com.eignex.koblas.F64SparseMatrix;com.eignex.koblas.sparse.SparseLdlPolicy){}[0]
 
     final object Companion { // com.eignex.koblas.sparse/SparseSymbolic.Companion|null[0]
@@ -699,6 +706,8 @@ final class com.eignex.koblas/F64SparseMatrix : com.eignex.koblas/F64MatrixView 
     final val values // com.eignex.koblas/F64SparseMatrix.values|{}values[0]
         final fun <get-values>(): kotlin/DoubleArray // com.eignex.koblas/F64SparseMatrix.values.<get-values>|<get-values>(){}[0]
 
+    final fun copyColumnPointers(): kotlin/IntArray // com.eignex.koblas/F64SparseMatrix.copyColumnPointers|copyColumnPointers(){}[0]
+    final fun copyRowIndices(): kotlin/IntArray // com.eignex.koblas/F64SparseMatrix.copyRowIndices|copyRowIndices(){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas/F64SparseMatrix.equals|equals(kotlin.Any?){}[0]
     final fun get(kotlin/Int, kotlin/Int): kotlin/Double // com.eignex.koblas/F64SparseMatrix.get|get(kotlin.Int;kotlin.Int){}[0]
     final fun hashCode(): kotlin/Int // com.eignex.koblas/F64SparseMatrix.hashCode|hashCode(){}[0]
@@ -731,6 +740,7 @@ final class com.eignex.koblas/F64SparseVector : com.eignex.koblas/F64VectorView 
     final val values // com.eignex.koblas/F64SparseVector.values|{}values[0]
         final fun <get-values>(): kotlin/DoubleArray // com.eignex.koblas/F64SparseVector.values.<get-values>|<get-values>(){}[0]
 
+    final fun copyIndices(): kotlin/IntArray // com.eignex.koblas/F64SparseVector.copyIndices|copyIndices(){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas/F64SparseVector.equals|equals(kotlin.Any?){}[0]
     final fun get(kotlin/Int): kotlin/Double // com.eignex.koblas/F64SparseVector.get|get(kotlin.Int){}[0]
     final fun hashCode(): kotlin/Int // com.eignex.koblas/F64SparseVector.hashCode|hashCode(){}[0]

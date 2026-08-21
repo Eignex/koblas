@@ -44,6 +44,20 @@ class SparseMatrixTest {
     }
 
     @Test
+    fun `structural copies cannot mutate CSC storage`() {
+        val a = F64SparseMatrix.ofColumns(3, 2, listOf(listOf(0 to 1.0, 2 to 3.0), listOf(1 to 2.0)))
+        val pointers = a.copyColumnPointers()
+        val rows = a.copyRowIndices()
+
+        pointers[1] = 0
+        rows[0] = 1
+
+        assertEquals(1.0, a[0, 0])
+        assertEquals(3.0, a[2, 0])
+        assertEquals(0.0, a[1, 0])
+    }
+
+    @Test
     fun `get finds a stored zero and equality distinguishes it from an absent one`() {
         val stored = F64SparseMatrix(2, 1, intArrayOf(0, 1), intArrayOf(1), doubleArrayOf(0.0))
         val absent = F64SparseMatrix(2, 1, intArrayOf(0, 0), IntArray(0), DoubleArray(0))

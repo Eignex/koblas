@@ -7,7 +7,8 @@ implemented, so the names all begin `F64`, and the unqualified names are aliases
 [F64DenseMatrix][com.eignex.koblas.F64DenseMatrix]. The README's "Element types" section says what an
 element type added later brings and what stays shared.
 
-koblas provides read-only matrix/vector containers with sealed dense and sparse backings —
+Koblas provides mutable owning containers through read-only matrix/vector contracts, with sealed dense and
+sparse backings —
 [F64MatrixView][com.eignex.koblas.F64MatrixView] / [F64DenseMatrix][com.eignex.koblas.F64DenseMatrix] and
 [F64VectorView][com.eignex.koblas.F64VectorView] / [F64DenseVector][com.eignex.koblas.F64DenseVector] /
 [F64SparseVector][com.eignex.koblas.F64SparseVector], all `@Serializable` so snapshots round-trip through

@@ -1,6 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.NOT_SINGULAR
+import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.requireShape
 
 /**
@@ -12,10 +13,10 @@ import com.eignex.koblas.requireShape
  * @property ipiv LAPACK `dsytrf` 1-based pivots: positive marks a 1×1 block, a negative pair a 2×2 block.
  * @property failedAt the zero pivot position, or [NOT_SINGULAR]; `dsytrf`'s positive `info`, made 0-based.
  */
-public class F64LdlDecomposition(
+public class F64LdlDecomposition @UnsafeKoblasApi constructor(
     public val n: Int,
-    public val ldl: DoubleArray,
-    public val ipiv: IntArray,
+    @property:UnsafeKoblasApi public val ldl: DoubleArray,
+    @property:UnsafeKoblasApi public val ipiv: IntArray,
     public val failedAt: Int = NOT_SINGULAR,
 ) {
     /** Whether a zero pivot was encountered. */
