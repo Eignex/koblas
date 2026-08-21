@@ -71,13 +71,25 @@ no other dependencies.
 
 ## Usage
 
-Solve a general dense system via LU:
+Containers and light arithmetic live in `com.eignex.koblas`; dense BLAS and
+factorization extensions live in `.dense`, and sparse ones in `.sparse`. This is
+a complete Kotlin file that solves a general dense system via LU:
 
 ```kotlin
-val rows = arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0))
-val a = DenseMatrix.of(rows)
-val x = a.lu().solve(doubleArrayOf(3.0, 5.0))
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.dense.lu
+import com.eignex.koblas.dense.solve
+
+fun main() {
+    val rows = arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0))
+    val a = DenseMatrix.of(rows)
+    val x = a.lu().solve(doubleArrayOf(3.0, 5.0))
+    println(x.contentToString()) // [0.8, 1.4]
+}
 ```
+
+The examples below omit imports once the package containing an operation has
+been introduced.
 
 Solve a symmetric positive-definite system via Cholesky:
 
