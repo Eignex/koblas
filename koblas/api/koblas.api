@@ -211,6 +211,8 @@ public final class com/eignex/koblas/F64MatrixView$Companion {
 
 public final class com/eignex/koblas/F64SparseMatrix : com/eignex/koblas/F64MatrixView {
 	public static final field Companion Lcom/eignex/koblas/F64SparseMatrix$Companion;
+	public final fun copyColumnPointers ()[I
+	public final fun copyRowIndices ()[I
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun forEachInColumn (ILkotlin/jvm/functions/Function2;)V
 	public fun get (II)D
@@ -245,6 +247,7 @@ public final class com/eignex/koblas/F64SparseMatrix$Companion {
 
 public final class com/eignex/koblas/F64SparseVector : com/eignex/koblas/F64VectorView {
 	public static final field Companion Lcom/eignex/koblas/F64SparseVector$Companion;
+	public final fun copyIndices ()[I
 	public fun equals (Ljava/lang/Object;)Z
 	public fun get (I)D
 	public final fun getIndices ()[I
@@ -363,6 +366,9 @@ public final class com/eignex/koblas/RegistryKt {
 public final class com/eignex/koblas/SingularMatrix : com/eignex/koblas/KoblasException {
 	public fun <init> (ILjava/lang/String;)V
 	public final fun getPosition ()I
+}
+
+public abstract interface annotation class com/eignex/koblas/UnsafeKoblasApi : java/lang/annotation/Annotation {
 }
 
 public final class com/eignex/koblas/Workspace {
@@ -1137,6 +1143,9 @@ public final class com/eignex/koblas/sparse/SparseOrdering : java/lang/Enum {
 
 public final class com/eignex/koblas/sparse/SparseSymbolic {
 	public static final field Companion Lcom/eignex/koblas/sparse/SparseSymbolic$Companion;
+	public final fun copyColumnPointers ()[I
+	public final fun copyParent ()[I
+	public final fun copyPermutation ()[I
 	public final fun factorLdl (Lcom/eignex/koblas/F64SparseMatrix;Lcom/eignex/koblas/sparse/SparseLdlPolicy;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
 	public static synthetic fun factorLdl$default (Lcom/eignex/koblas/sparse/SparseSymbolic;Lcom/eignex/koblas/F64SparseMatrix;Lcom/eignex/koblas/sparse/SparseLdlPolicy;ILjava/lang/Object;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
 	public final fun getColumnPointers ()[I

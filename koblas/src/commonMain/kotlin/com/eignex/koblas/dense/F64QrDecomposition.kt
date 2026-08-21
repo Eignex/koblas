@@ -1,5 +1,6 @@
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.requireShape
 
 /**
@@ -11,11 +12,11 @@ import com.eignex.koblas.requireShape
  * @property qr the packed `R` and Householder vectors, column-major, length `m * n`.
  * @property tau the coefficients of `H_k = I − tau_k·v_k·v_kᵀ`, length `min(m, n)`.
  */
-public class F64QrDecomposition(
+public class F64QrDecomposition @UnsafeKoblasApi constructor(
     public val m: Int,
     public val n: Int,
-    public val qr: DoubleArray,
-    public val tau: DoubleArray,
+    @property:UnsafeKoblasApi public val qr: DoubleArray,
+    @property:UnsafeKoblasApi public val tau: DoubleArray,
 ) {
     init {
         requireShape(qr.size == m * n) { "qr length ${qr.size} != ${m * n}" }

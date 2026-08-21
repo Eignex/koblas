@@ -18,6 +18,7 @@ kotlin {
     applyDefaultHierarchyTemplate()
     compilerOptions {
         freeCompilerArgs.add("-Xexpect-actual-classes")
+        optIn.add("com.eignex.koblas.UnsafeKoblasApi")
     }
     // The JVM host-BLAS backend binds through java.lang.foreign, finalized in 22 and used here with
     // Linker.Option.critical. 25 is the current LTS-track release; this is the floor for JVM consumers.

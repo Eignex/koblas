@@ -26,6 +26,7 @@ public sealed interface F64MatrixView : F64MatrixLike
  * @property rows the number of rows.
  * @property cols the number of columns.
  * @property data the flat column-major backing of length `rows * cols`, entry `(i, j)` at `i + j * rows`.
+ *   The matrix is mutable through this buffer and [set]; do not use it as a hash-map key while mutating it.
  */
 @Serializable
 @SerialName("F64DenseMatrix")

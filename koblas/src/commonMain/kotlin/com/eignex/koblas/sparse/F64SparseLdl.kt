@@ -103,7 +103,7 @@ public class F64SparseLdl internal constructor(
 
     /**
      * The classical Cholesky factor `L·√D`, as a fresh sparse matrix. This is the factor of `P·A·Pᵀ`, not of
-     * A, whenever the analysis reordered; `symbolic.permutation` relates them.
+     * A, whenever the analysis reordered; [SparseSymbolic.copyPermutation] relates them.
      *
      * @throws com.eignex.koblas.NotPositiveDefinite if any pivot is not positive.
      */

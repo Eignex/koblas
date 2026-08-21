@@ -20,7 +20,8 @@ public interface F64VectorLike {
 public sealed interface F64VectorView : F64VectorLike
 
 /**
- * @property data the flat backing array.
+ * @property data the flat backing array. The vector is mutable through it and [set]; do not use the vector as
+ *   a hash-map key while mutating it.
  */
 @Serializable
 @SerialName("F64DenseVector")
@@ -67,15 +68,19 @@ public class F64DenseVector internal constructor(public val data: DoubleArray) :
 /**
  * Indices are strictly ascending and in range, validated by the constructor; [of] sorts and sums instead.
  *
+ * Use [copyIndices] or [forEachStored] for safe structural access. [indices] is a live zero-copy escape hatch
+ * for specialized kernels and requires [UnsafeKoblasApi]; mutating it can invalidate the sparse structure.
+ * [values] remains live so coefficients can be updated without changing the sparse pattern.
+ *
  * @property size the logical length, counting the unstored zeros.
- * @property indices the positions of the stored entries.
- * @property values the stored entry values, parallel to [indices].
+ * @property indices live positions of the stored entries; do not mutate.
+ * @property values the stored entry values, parallel to the stored positions.
  */
 @Serializable
 @SerialName("F64SparseVector")
 public class F64SparseVector internal constructor(
     override val size: Int,
-    public val indices: IntArray,
+    @property:UnsafeKoblasApi public val indices: IntArray,
     public val values: DoubleArray,
 ) : F64VectorView {
 
@@ -115,6 +120,9 @@ public class F64SparseVector internal constructor(
         return out
     }
 
+    /** A copy of the stored positions, in strictly ascending order. */
+    public fun copyIndices(): IntArray = indices.copyOf()
+
     override fun equals(other: Any?): Boolean = this === other ||
         (
             other is F64SparseVector && size == other.size &&
@@ -153,7 +161,7 @@ public class F64SparseVector internal constructor(
 
         /**
          * Wrap existing arrays without copying, taking ownership; [indices] must already be strictly
-         * ascending and in range.
+         * ascending and in range. The structural indices cannot be recovered for mutation afterwards.
          */
         public fun wrap(size: Int, indices: IntArray, values: DoubleArray): F64SparseVector = F64SparseVector(
             size,

@@ -9,17 +9,22 @@ import kotlinx.serialization.Serializable
  *
  * @property rows the number of rows.
  * @property cols the number of columns.
- * @property colPtr column start offsets, length `cols + 1`.
- * @property rowIdx row index of each stored entry, length `values.size`.
- * @property values the stored nonzero values, parallel to [rowIdx].
+ * Use [copyColumnPointers], [copyRowIndices], or [forEachInColumn] for safe structural access. [colPtr] and
+ * [rowIdx] are live zero-copy escape hatches for specialized kernels and require [UnsafeKoblasApi]; mutating
+ * them can invalidate the CSC structure. [values] remains live so coefficients can be updated without
+ * rebuilding the pattern; do not use the matrix as a hash-map key while mutating it.
+ *
+ * @property colPtr live column start offsets, length `cols + 1`; do not mutate.
+ * @property rowIdx live row index of each stored entry, length `values.size`; do not mutate.
+ * @property values the stored values, parallel to the row indices.
  */
 @Serializable
 @SerialName("F64SparseMatrix")
 public class F64SparseMatrix internal constructor(
     override val rows: Int,
     override val cols: Int,
-    public val colPtr: IntArray,
-    public val rowIdx: IntArray,
+    @property:UnsafeKoblasApi public val colPtr: IntArray,
+    @property:UnsafeKoblasApi public val rowIdx: IntArray,
     public val values: DoubleArray,
 ) : F64MatrixView {
     init {
@@ -75,6 +80,12 @@ public class F64SparseMatrix internal constructor(
         for (j in 0 until cols) forEachInColumn(j) { i, v -> out[i][j] = v }
         return out
     }
+
+    /** A copy of the CSC column start offsets, of length `cols + 1`. */
+    public fun copyColumnPointers(): IntArray = colPtr.copyOf()
+
+    /** A copy of the stored row indices, parallel to [values]. */
+    public fun copyRowIndices(): IntArray = rowIdx.copyOf()
 
     /**
      * Structural equality over the shape and the CSC arrays, so two matrices differing only in which
@@ -199,7 +210,8 @@ public class F64SparseMatrix internal constructor(
 
         /**
          * Wraps arrays already in CSC form without copying; the caller relinquishes ownership. Validates the
-         * invariants rather than repairing them, so use [ofColumns] or [ofTriplets] when they do not hold.
+         * invariants rather than repairing them, so use [ofColumns] or [ofTriplets] when they do not hold. The
+         * structural arrays cannot be recovered for mutation afterwards.
          */
         public fun wrap(
             rows: Int,

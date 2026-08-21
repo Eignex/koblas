@@ -1,6 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.NOT_SINGULAR
+import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.sparse.F64SparseLu
 
@@ -13,10 +14,10 @@ import com.eignex.koblas.sparse.F64SparseLu
  * @property piv the row permutation, where piv(k) is the original row now at position k.
  * @param failedAt the position of the zero pivot, or [NOT_SINGULAR]; readable afterwards through [failedAt].
  */
-public class F64LuDecomposition(
+public class F64LuDecomposition @UnsafeKoblasApi constructor(
     public val n: Int,
-    public val lu: DoubleArray,
-    public val piv: IntArray,
+    @property:UnsafeKoblasApi public val lu: DoubleArray,
+    @property:UnsafeKoblasApi public val piv: IntArray,
     failedAt: Int = NOT_SINGULAR,
 ) {
     /**
