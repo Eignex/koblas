@@ -7,7 +7,9 @@ Dense linear algebra: the three swappable seams and the routines behind them.
   [com.eignex.koblas.DispatchThresholds.level1]; offered through [com.eignex.koblas.registerBackend], forced by installing a
   [com.eignex.koblas.F64Context].
 - [F64Blas] — the level-2 and level-3 routines in full BLAS alpha/beta/transpose form, plus the triangular
-  solves [trsv] / [trsm] and their multiply counterparts.
+  solves [trsv] / [trsm] and their multiply counterparts. Its binary BLAS flags remain Boolean parameters;
+  calls supplying more than one should name them, as in
+  `trsm(a, b, lower = true, transpose = false, unitDiag = false, right = false)`.
 - [F64Lapack] — the factorizations and the solves built on them: LU ([F64Lapack.factor] / [F64Lapack.solve],
   with [F64LuDecomposition] and [determinant]), symmetric indefinite [F64LdlDecomposition], [F64QrDecomposition]
   with the least-squares and minimum-norm solves, [F64PivotedQrDecomposition] when the rank is the question
