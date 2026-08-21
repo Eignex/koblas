@@ -18,7 +18,7 @@
 Koblas provides dense and sparse linear algebra for Kotlin Multiplatform: a
 well-defined subset of double-precision BLAS and LAPACK, sparse LU
 factorization, and a swappable compute backend that uses the host OpenBLAS on
-the Linux and macOS native targets when it is installed.
+the JVM and on Linux and macOS native targets when it is installed.
 
 ## Overview
 
@@ -356,9 +356,9 @@ a native backend receives raw buffers with no repacking and no row-major wrapper
 layer, and every backend must match the reference on the conformance suite.
 
 The sparse factorization has a host backend too: SuiteSparse's UMFPACK, bound on
-the JVM through java.lang.foreign and resolved by soname, so it activates on any
-machine with SuiteSparse installed and is absent otherwise. A SparseMatrix
-crosses to umfpack_di_* with no repacking at all -- koblas's CSC invariant is
+the JVM through java.lang.foreign and resolved by Unix soname, so it activates
+on Linux or macOS JVM hosts with SuiteSparse installed and is absent otherwise.
+A SparseMatrix crosses to umfpack_di_* with no repacking at all -- koblas's CSC invariant is
 UMFPACK's stated precondition, checked against the headers. Nothing is bundled;
 without the library koblas's own Markowitz SparseLu keeps the seam.
 
@@ -384,8 +384,9 @@ Accelerated means a registered backend is being consulted. The compiled-in SIMD
 kernels do not count, however fast they are -- they are what you get with no host
 library, so mathBackend reporting simd is not evidence that one was found. The
 slots are named explicitly because which ones can be accelerated depends on the
-target and on what koblas ships: there is no host sparse backend yet, so the
-three sparse slots are portable everywhere today.
+target and on what koblas ships. The sparse vector-kernel and sparse BLAS slots
+are portable everywhere today. On Linux and macOS JVM hosts, the sparse LAPACK
+slot uses UMFPACK when SuiteSparse is installed; other targets keep it portable.
 
 The JVM resolves the same host OpenBLAS through `java.lang.foreign`, binding it
 with `Linker.Option.critical` so a DoubleArray is pinned rather than copied.
