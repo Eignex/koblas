@@ -15,8 +15,12 @@ public interface F64LinearAlgebra :
 /** LU-factorize this square matrix with the active backend ([koblas]); see [F64Lapack.factor]. */
 public fun F64DenseMatrix.lu(): F64LuDecomposition = koblas.factor(this)
 
-/** Symmetric indefinite factorization `A = L·D·Lᵀ` with the active backend; see [F64Lapack.ldl]. */
-public fun F64DenseMatrix.ldl(workspace: Workspace? = null): F64LdlDecomposition = koblas.ldl(this, workspace)
+/**
+ * Symmetric indefinite factorization `A = L·D·Lᵀ` with the active backend. [Uplo.FULL] checks that both
+ * triangles agree; [Uplo.LOWER] or [Uplo.UPPER] selects one triangle without checking the other.
+ */
+public fun F64DenseMatrix.ldl(workspace: Workspace? = null, uplo: Uplo = Uplo.FULL): F64LdlDecomposition =
+    koblas.ldl(asLowerSymmetricInput(uplo, "ldl"), workspace)
 
 /** QR factorization `A = Q·R` with the active backend; see [F64Lapack.qr]. */
 public fun F64DenseMatrix.qr(workspace: Workspace? = null): F64QrDecomposition = koblas.qr(this, workspace)
