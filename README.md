@@ -237,6 +237,10 @@ here, marked as such. Members also have a free-function spelling of the
 same name (trsv, trsm, ger, ...) that forwards to the member, so a call site may
 use whichever reads better.
 
+The BLAS-shaped routines keep binary choices as Boolean parameters. Name them at
+a call site that supplies more than one, so the standard flags stay readable:
+`trsm(a, b, lower = true, transpose = false, unitDiag = false, right = false)`.
+
 The everyday arithmetic also has an operator spelling -- `a * b`, `a * x`,
 `a + b`, `2.0 * v`, `-v` -- for the call sites where the expression reads better
 than the routine. Every one is an alias that forwards to a routine documented
