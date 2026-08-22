@@ -7,7 +7,7 @@ package com.eignex.koblas.dense
  *
  * An implementation must not copy its arrays, since the routines write their results through them.
  */
-@Suppress("LongParameterList") // the LAPACKE signatures, one method each
+@Suppress("LongParameterList")
 internal interface LapackeCalls {
     fun dgetrf(order: Int, m: Int, n: Int, a: DoubleArray, lda: Int, ipiv: IntArray): Int
 
