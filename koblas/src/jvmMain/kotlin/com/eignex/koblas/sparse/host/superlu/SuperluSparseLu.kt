@@ -8,8 +8,8 @@ import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.requireSquare
 import com.eignex.koblas.sparse.F64SingularSparseFactorization
 import com.eignex.koblas.sparse.F64SparseFactorization
-import com.eignex.koblas.sparse.F64SparseLapack
-import com.eignex.koblas.sparse.factorization.lu.F64SparseLu
+import com.eignex.koblas.sparse.F64SparseLu
+import com.eignex.koblas.sparse.factorization.lu.F64SparseLuFactorization
 import com.eignex.koblas.sparse.factorization.lu.NO_DROP
 import java.lang.foreign.Arena
 
@@ -23,10 +23,10 @@ public enum class SuperluDriver {
 }
 
 /** Sparse factorizations backed by a host SuperLU bridge. */
-public class SuperluSparseLapack(
+public class SuperluSparseLu(
     /** The SuperLU routine family that factors and solves each matrix. */
     public val driver: SuperluDriver = SuperluDriver.Expert,
-) : F64SparseLapack {
+) : F64SparseLu {
     override val name: String get() = BackendNames.SUPERLU
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 1
@@ -38,7 +38,7 @@ public class SuperluSparseLapack(
     override fun factor(a: F64SparseMatrix, equilibrate: Boolean, dropTolerance: Double): F64SparseFactorization {
         requireSquare(a, "factor")
         if (!SuperluCalls.available || dropTolerance != NO_DROP || a.rows == 0 || a.nnz == 0) {
-            return F64SparseLu.factorCsc(a, equilibrate, dropTolerance)
+            return F64SparseLuFactorization.factorCsc(a, equilibrate, dropTolerance)
         }
         val arena = Arena.ofShared()
         val factor =

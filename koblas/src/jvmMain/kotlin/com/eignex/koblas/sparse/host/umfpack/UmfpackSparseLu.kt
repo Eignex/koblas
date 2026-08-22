@@ -9,8 +9,8 @@ import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.requireSquare
 import com.eignex.koblas.sparse.F64SingularSparseFactorization
 import com.eignex.koblas.sparse.F64SparseFactorization
-import com.eignex.koblas.sparse.F64SparseLapack
-import com.eignex.koblas.sparse.factorization.lu.F64SparseLu
+import com.eignex.koblas.sparse.F64SparseLu
+import com.eignex.koblas.sparse.factorization.lu.F64SparseLuFactorization
 import com.eignex.koblas.sparse.factorization.lu.NO_DROP
 import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
@@ -18,7 +18,7 @@ import java.lang.foreign.ValueLayout.ADDRESS
 import java.lang.foreign.ValueLayout.JAVA_DOUBLE
 
 /** Sparse factorizations backed by a host UMFPACK. */
-public class UmfpackSparseLapack : F64SparseLapack {
+public class UmfpackSparseLu : F64SparseLu {
     override val name: String get() = BackendNames.UMFPACK
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY
@@ -35,12 +35,20 @@ public class UmfpackSparseLapack : F64SparseLapack {
      */
     override fun factor(a: F64SparseMatrix, equilibrate: Boolean, dropTolerance: Double): F64SparseFactorization {
         requireSquare(a, "factor")
-        if (!UmfpackCalls.available) return F64SparseLu.factorCsc(a, equilibrate, dropTolerance)
+        if (!UmfpackCalls.available) {
+            return F64SparseLuFactorization.factorCsc(a, equilibrate, dropTolerance)
+        }
         // Any tolerance but the default goes to the portable path, which owns validating the rest.
-        if (equilibrate || dropTolerance != NO_DROP) return F64SparseLu.factorCsc(a, equilibrate, dropTolerance)
+        if (equilibrate || dropTolerance != NO_DROP) {
+            return F64SparseLuFactorization.factorCsc(
+                a,
+                equilibrate,
+                dropTolerance,
+            )
+        }
         // Nothing to factor, and the portable path reports the pivot position where UMFPACK reports only
         // that it failed, so both bindings route this the same way.
-        if (a.rows == 0 || a.nnz == 0) return F64SparseLu.factorCsc(a)
+        if (a.rows == 0 || a.nnz == 0) return F64SparseLuFactorization.factorCsc(a)
 
         val colPtr = MemorySegment.ofArray(a.colPtr)
         val rowIdx = MemorySegment.ofArray(a.rowIdx)
@@ -53,7 +61,7 @@ public class UmfpackSparseLapack : F64SparseLapack {
             val symbolicStatus = UmfpackCalls.symbolic(a.rows, colPtr, rowIdx, values, symbolicHolder, info)
             if (symbolicStatus != OK) {
                 // A rejected pattern goes to the portable path.
-                return F64SparseLu.factorCsc(a)
+                return F64SparseLuFactorization.factorCsc(a)
             }
 
             // The numeric factors outlive this call, so their holder gets an arena the factorization owns.
@@ -80,7 +88,7 @@ public class UmfpackSparseLapack : F64SparseLapack {
                 }
 
                 if (numericStatus != OK && numericStatus != WARNING_SINGULAR) {
-                    return F64SparseLu.factorCsc(a)
+                    return F64SparseLuFactorization.factorCsc(a)
                 }
                 // The partial factors UMFPACK hands back for a singular matrix cannot be solved against, so
                 // the canonical singular result keeps `nnz == 0` true of every singular factorization.

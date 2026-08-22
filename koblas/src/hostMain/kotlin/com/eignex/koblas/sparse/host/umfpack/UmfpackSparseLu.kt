@@ -11,8 +11,8 @@ import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.requireSquare
 import com.eignex.koblas.sparse.F64SingularSparseFactorization
 import com.eignex.koblas.sparse.F64SparseFactorization
-import com.eignex.koblas.sparse.F64SparseLapack
-import com.eignex.koblas.sparse.factorization.lu.F64SparseLu
+import com.eignex.koblas.sparse.F64SparseLu
+import com.eignex.koblas.sparse.factorization.lu.F64SparseLuFactorization
 import com.eignex.koblas.sparse.factorization.lu.NO_DROP
 import kotlinx.cinterop.COpaquePointerVar
 import kotlinx.cinterop.ExperimentalForeignApi
@@ -27,9 +27,9 @@ import kotlinx.cinterop.value
 
 /**
  * The sparse half backed by SuiteSparse's UMFPACK. Equilibration, a non-default drop tolerance and any
- * UMFPACK failure fall back to [F64SparseLu]; a singular result becomes [F64SingularSparseFactorization].
+ * UMFPACK failure fall back to [F64SparseLuFactorization]; a singular result becomes [F64SingularSparseFactorization].
  */
-public class UmfpackSparseLapack internal constructor(private val f: UmfpackFunctions) : F64SparseLapack {
+public class UmfpackSparseLu internal constructor(private val f: UmfpackFunctions) : F64SparseLu {
     override val name: String get() = BackendNames.UMFPACK
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY
@@ -43,9 +43,15 @@ public class UmfpackSparseLapack internal constructor(private val f: UmfpackFunc
     @Suppress("ReturnCount") // one early return per condition UMFPACK cannot serve
     override fun factor(a: F64SparseMatrix, equilibrate: Boolean, dropTolerance: Double): F64SparseFactorization {
         requireSquare(a, "factor")
-        if (equilibrate || dropTolerance != NO_DROP) return F64SparseLu.factorCsc(a, equilibrate, dropTolerance)
+        if (equilibrate || dropTolerance != NO_DROP) {
+            return F64SparseLuFactorization.factorCsc(
+                a,
+                equilibrate,
+                dropTolerance,
+            )
+        }
         // An empty matrix and an all-zero one have nothing to pin, and `usePinned` yields no address.
-        if (a.rows == 0 || a.nnz == 0) return F64SparseLu.factorCsc(a)
+        if (a.rows == 0 || a.nnz == 0) return F64SparseLuFactorization.factorCsc(a)
 
         val info = DoubleArray(INFO)
         // Nulled for the reason [UmfpackFactorization.allocateHandle] nulls its own holder: nativeHeap.alloc
@@ -72,7 +78,7 @@ public class UmfpackSparseLapack internal constructor(private val f: UmfpackFunc
 
         if (status != OK && status != WARNING_SINGULAR) {
             handle.release()
-            return F64SparseLu.factorCsc(a)
+            return F64SparseLuFactorization.factorCsc(a)
         }
         if (status == WARNING_SINGULAR) {
             // Solving a singular factorization is forbidden, so holding UMFPACK's partial factors leaks.

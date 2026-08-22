@@ -18,7 +18,7 @@ import kotlin.math.pow
  * Sparse LU factorization `P·B·Q = L·U` of an `m × m` matrix with Markowitz threshold pivoting. The factors
  * are held in both orientations, indexed by pivot position.
  */
-public class F64SparseLu private constructor(
+public class F64SparseLuFactorization private constructor(
     private val m: Int,
     private val perm: IntArray, // perm(k) is the original row now at pivot position k
     private val colPerm: IntArray, // colPerm(k) is the original column now at pivot position k
@@ -40,7 +40,7 @@ public class F64SparseLu private constructor(
 
     override val n: Int get() = m
 
-    /** Always [NOT_SINGULAR]: a [F64SparseLu] only exists for a matrix that factored completely. */
+    /** Always [NOT_SINGULAR]: a [F64SparseLuFactorization] only exists for a matrix that factored completely. */
     override val failedAt: Int get() = NOT_SINGULAR
 
     /**
@@ -146,7 +146,7 @@ public class F64SparseLu private constructor(
     public companion object {
 
         /**
-         * Factorize the square [a], the implementation behind [F64SparseLapack.factor]. Returns a
+         * Factorize the square [a], the implementation behind [F64SparseLu.factor]. Returns a
          * [F64SingularSparseFactorization] when no acceptable pivot remains.
          */
         internal fun factorCsc(
@@ -154,7 +154,7 @@ public class F64SparseLu private constructor(
             equilibrate: Boolean = false,
             dropTolerance: Double = NO_DROP,
         ): F64SparseFactorization {
-            requireSquare(a, "F64SparseLu")
+            requireSquare(a, "F64SparseLuFactorization")
             val rows = Array(a.rows) { MutableIntDoubleMap() }
             for (j in 0 until a.cols) a.forEachInColumn(j) { i, v -> rows[i].put(j, v) }
             return factorize(rows, a.rows, equilibrate, dropTolerance)
@@ -229,7 +229,7 @@ public class F64SparseLu private constructor(
             colPerm: IntArray,
             m: Int,
             rowScale: DoubleArray,
-        ): F64SparseLu {
+        ): F64SparseLuFactorization {
             val invPerm = inverseOf(perm)
             val invColPerm = inverseOf(colPerm)
             val uDiag = DoubleArray(m) { k -> u[perm[k]].getOrDefault(colPerm[k], 0.0) }
@@ -240,7 +240,7 @@ public class F64SparseLu private constructor(
             val lCol = columnOrientation(m, lRowIdx, lRowVal, strictlyAbovePivot = false)
             var nnz = 0
             for (k in 0 until m) nnz += uRowIdx[k].size + lRowIdx[k].size
-            return F64SparseLu(
+            return F64SparseLuFactorization(
                 m, perm, colPerm, lRowIdx, lRowVal, uRowIdx, uRowVal,
                 lCol.indices, lCol.values, uCol.indices, uCol.values,
                 uDiag, rowScale, nnz,

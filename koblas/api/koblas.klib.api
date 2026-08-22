@@ -27,7 +27,7 @@ final enum class com.eignex.koblas.internal.backend/BackendSlot : kotlin/Enum<co
     enum entry F64Blas // com.eignex.koblas.internal.backend/BackendSlot.F64Blas|null[0]
     enum entry F64Lapack // com.eignex.koblas.internal.backend/BackendSlot.F64Lapack|null[0]
     enum entry F64SparseBlas // com.eignex.koblas.internal.backend/BackendSlot.F64SparseBlas|null[0]
-    enum entry F64SparseLapack // com.eignex.koblas.internal.backend/BackendSlot.F64SparseLapack|null[0]
+    enum entry F64SparseLu // com.eignex.koblas.internal.backend/BackendSlot.F64SparseLu|null[0]
     enum entry F64SparseVectorKernels // com.eignex.koblas.internal.backend/BackendSlot.F64SparseVectorKernels|null[0]
     enum entry F64VectorKernels // com.eignex.koblas.internal.backend/BackendSlot.F64VectorKernels|null[0]
 
@@ -145,13 +145,13 @@ abstract interface com.eignex.koblas.sparse/F64SparseFactorization { // com.eign
     open fun solve(kotlin/DoubleArray, kotlin/Boolean = ...): kotlin/DoubleArray // com.eignex.koblas.sparse/F64SparseFactorization.solve|solve(kotlin.DoubleArray;kotlin.Boolean){}[0]
 }
 
-abstract interface com.eignex.koblas.sparse/F64SparseLapack : com.eignex.koblas/Backend { // com.eignex.koblas.sparse/F64SparseLapack|null[0]
-    abstract fun factor(com.eignex.koblas.core/F64SparseMatrix, kotlin/Boolean = ..., kotlin/Double = ...): com.eignex.koblas.sparse/F64SparseFactorization // com.eignex.koblas.sparse/F64SparseLapack.factor|factor(com.eignex.koblas.core.F64SparseMatrix;kotlin.Boolean;kotlin.Double){}[0]
-    open fun solve(com.eignex.koblas.sparse/F64SparseFactorization, kotlin/DoubleArray, kotlin/Boolean = ...): kotlin/DoubleArray // com.eignex.koblas.sparse/F64SparseLapack.solve|solve(com.eignex.koblas.sparse.F64SparseFactorization;kotlin.DoubleArray;kotlin.Boolean){}[0]
-    open fun solveInto(com.eignex.koblas.sparse/F64SparseFactorization, kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean = ..., com.eignex.koblas/Workspace? = ...): kotlin/DoubleArray // com.eignex.koblas.sparse/F64SparseLapack.solveInto|solveInto(com.eignex.koblas.sparse.F64SparseFactorization;kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
-}
+abstract interface com.eignex.koblas.sparse/F64SparseLinearAlgebra : com.eignex.koblas.sparse/F64SparseBlas, com.eignex.koblas.sparse/F64SparseLu // com.eignex.koblas.sparse/F64SparseLinearAlgebra|null[0]
 
-abstract interface com.eignex.koblas.sparse/F64SparseLinearAlgebra : com.eignex.koblas.sparse/F64SparseBlas, com.eignex.koblas.sparse/F64SparseLapack // com.eignex.koblas.sparse/F64SparseLinearAlgebra|null[0]
+abstract interface com.eignex.koblas.sparse/F64SparseLu : com.eignex.koblas/Backend { // com.eignex.koblas.sparse/F64SparseLu|null[0]
+    abstract fun factor(com.eignex.koblas.core/F64SparseMatrix, kotlin/Boolean = ..., kotlin/Double = ...): com.eignex.koblas.sparse/F64SparseFactorization // com.eignex.koblas.sparse/F64SparseLu.factor|factor(com.eignex.koblas.core.F64SparseMatrix;kotlin.Boolean;kotlin.Double){}[0]
+    open fun solve(com.eignex.koblas.sparse/F64SparseFactorization, kotlin/DoubleArray, kotlin/Boolean = ...): kotlin/DoubleArray // com.eignex.koblas.sparse/F64SparseLu.solve|solve(com.eignex.koblas.sparse.F64SparseFactorization;kotlin.DoubleArray;kotlin.Boolean){}[0]
+    open fun solveInto(com.eignex.koblas.sparse/F64SparseFactorization, kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean = ..., com.eignex.koblas/Workspace? = ...): kotlin/DoubleArray // com.eignex.koblas.sparse/F64SparseLu.solveInto|solveInto(com.eignex.koblas.sparse.F64SparseFactorization;kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
+}
 
 abstract interface com.eignex.koblas.sparse/F64SparseVectorKernels : com.eignex.koblas/Backend { // com.eignex.koblas.sparse/F64SparseVectorKernels|null[0]
     abstract fun asum(com.eignex.koblas.core/F64SparseVector): kotlin/Double // com.eignex.koblas.sparse/F64SparseVectorKernels.asum|asum(com.eignex.koblas.core.F64SparseVector){}[0]
@@ -520,18 +520,18 @@ final class com.eignex.koblas.dense/F64ReferenceBackend : com.eignex.koblas.dens
     final fun trtri(com.eignex.koblas.core/F64DenseMatrix, kotlin/Boolean, kotlin/Boolean): com.eignex.koblas.core/F64DenseMatrix // com.eignex.koblas.dense/F64ReferenceBackend.trtri|trtri(com.eignex.koblas.core.F64DenseMatrix;kotlin.Boolean;kotlin.Boolean){}[0]
 }
 
-final class com.eignex.koblas.sparse.factorization.lu/F64SparseLu : com.eignex.koblas.sparse/F64SparseFactorization { // com.eignex.koblas.sparse.factorization.lu/F64SparseLu|null[0]
-    final val failedAt // com.eignex.koblas.sparse.factorization.lu/F64SparseLu.failedAt|{}failedAt[0]
-        final fun <get-failedAt>(): kotlin/Int // com.eignex.koblas.sparse.factorization.lu/F64SparseLu.failedAt.<get-failedAt>|<get-failedAt>(){}[0]
-    final val n // com.eignex.koblas.sparse.factorization.lu/F64SparseLu.n|{}n[0]
-        final fun <get-n>(): kotlin/Int // com.eignex.koblas.sparse.factorization.lu/F64SparseLu.n.<get-n>|<get-n>(){}[0]
-    final val nnz // com.eignex.koblas.sparse.factorization.lu/F64SparseLu.nnz|{}nnz[0]
-        final fun <get-nnz>(): kotlin/Int // com.eignex.koblas.sparse.factorization.lu/F64SparseLu.nnz.<get-nnz>|<get-nnz>(){}[0]
+final class com.eignex.koblas.sparse.factorization.lu/F64SparseLuFactorization : com.eignex.koblas.sparse/F64SparseFactorization { // com.eignex.koblas.sparse.factorization.lu/F64SparseLuFactorization|null[0]
+    final val failedAt // com.eignex.koblas.sparse.factorization.lu/F64SparseLuFactorization.failedAt|{}failedAt[0]
+        final fun <get-failedAt>(): kotlin/Int // com.eignex.koblas.sparse.factorization.lu/F64SparseLuFactorization.failedAt.<get-failedAt>|<get-failedAt>(){}[0]
+    final val n // com.eignex.koblas.sparse.factorization.lu/F64SparseLuFactorization.n|{}n[0]
+        final fun <get-n>(): kotlin/Int // com.eignex.koblas.sparse.factorization.lu/F64SparseLuFactorization.n.<get-n>|<get-n>(){}[0]
+    final val nnz // com.eignex.koblas.sparse.factorization.lu/F64SparseLuFactorization.nnz|{}nnz[0]
+        final fun <get-nnz>(): kotlin/Int // com.eignex.koblas.sparse.factorization.lu/F64SparseLuFactorization.nnz.<get-nnz>|<get-nnz>(){}[0]
 
-    final fun determinant(): kotlin/Double // com.eignex.koblas.sparse.factorization.lu/F64SparseLu.determinant|determinant(){}[0]
-    final fun solveInto(kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean, com.eignex.koblas/Workspace?): kotlin/DoubleArray // com.eignex.koblas.sparse.factorization.lu/F64SparseLu.solveInto|solveInto(kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
+    final fun determinant(): kotlin/Double // com.eignex.koblas.sparse.factorization.lu/F64SparseLuFactorization.determinant|determinant(){}[0]
+    final fun solveInto(kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean, com.eignex.koblas/Workspace?): kotlin/DoubleArray // com.eignex.koblas.sparse.factorization.lu/F64SparseLuFactorization.solveInto|solveInto(kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
 
-    final object Companion // com.eignex.koblas.sparse.factorization.lu/F64SparseLu.Companion|null[0]
+    final object Companion // com.eignex.koblas.sparse.factorization.lu/F64SparseLuFactorization.Companion|null[0]
 }
 
 final class com.eignex.koblas.sparse/F64SingularSparseFactorization : com.eignex.koblas.sparse/F64SparseFactorization { // com.eignex.koblas.sparse/F64SingularSparseFactorization|null[0]
@@ -552,8 +552,8 @@ final class com.eignex.koblas/DimensionMismatch : com.eignex.koblas/KoblasExcept
     constructor <init>(kotlin/String) // com.eignex.koblas/DimensionMismatch.<init>|<init>(kotlin.String){}[0]
 }
 
-final class com.eignex.koblas/F64Context : com.eignex.koblas.dense/F64Blas, com.eignex.koblas.dense/F64Lapack, com.eignex.koblas.dense/F64LinearAlgebra, com.eignex.koblas.sparse/F64SparseBlas, com.eignex.koblas.sparse/F64SparseLapack, com.eignex.koblas.sparse/F64SparseLinearAlgebra { // com.eignex.koblas/F64Context|null[0]
-    constructor <init>(com.eignex.koblas.dense/F64VectorKernels, com.eignex.koblas.dense/F64Blas, com.eignex.koblas.dense/F64Lapack, com.eignex.koblas.sparse/F64SparseVectorKernels, com.eignex.koblas.sparse/F64SparseBlas, com.eignex.koblas.sparse/F64SparseLapack) // com.eignex.koblas/F64Context.<init>|<init>(com.eignex.koblas.dense.F64VectorKernels;com.eignex.koblas.dense.F64Blas;com.eignex.koblas.dense.F64Lapack;com.eignex.koblas.sparse.F64SparseVectorKernels;com.eignex.koblas.sparse.F64SparseBlas;com.eignex.koblas.sparse.F64SparseLapack){}[0]
+final class com.eignex.koblas/F64Context : com.eignex.koblas.dense/F64Blas, com.eignex.koblas.dense/F64Lapack, com.eignex.koblas.dense/F64LinearAlgebra, com.eignex.koblas.sparse/F64SparseBlas, com.eignex.koblas.sparse/F64SparseLinearAlgebra, com.eignex.koblas.sparse/F64SparseLu { // com.eignex.koblas/F64Context|null[0]
+    constructor <init>(com.eignex.koblas.dense/F64VectorKernels, com.eignex.koblas.dense/F64Blas, com.eignex.koblas.dense/F64Lapack, com.eignex.koblas.sparse/F64SparseVectorKernels, com.eignex.koblas.sparse/F64SparseBlas, com.eignex.koblas.sparse/F64SparseLu) // com.eignex.koblas/F64Context.<init>|<init>(com.eignex.koblas.dense.F64VectorKernels;com.eignex.koblas.dense.F64Blas;com.eignex.koblas.dense.F64Lapack;com.eignex.koblas.sparse.F64SparseVectorKernels;com.eignex.koblas.sparse.F64SparseBlas;com.eignex.koblas.sparse.F64SparseLu){}[0]
 
     final val blas // com.eignex.koblas/F64Context.blas|{}blas[0]
         final fun <get-blas>(): com.eignex.koblas.dense/F64Blas // com.eignex.koblas/F64Context.blas.<get-blas>|<get-blas>(){}[0]
@@ -569,8 +569,8 @@ final class com.eignex.koblas/F64Context : com.eignex.koblas.dense/F64Blas, com.
         final fun <get-priority>(): kotlin/Int // com.eignex.koblas/F64Context.priority.<get-priority>|<get-priority>(){}[0]
     final val sparseBlas // com.eignex.koblas/F64Context.sparseBlas|{}sparseBlas[0]
         final fun <get-sparseBlas>(): com.eignex.koblas.sparse/F64SparseBlas // com.eignex.koblas/F64Context.sparseBlas.<get-sparseBlas>|<get-sparseBlas>(){}[0]
-    final val sparseLapack // com.eignex.koblas/F64Context.sparseLapack|{}sparseLapack[0]
-        final fun <get-sparseLapack>(): com.eignex.koblas.sparse/F64SparseLapack // com.eignex.koblas/F64Context.sparseLapack.<get-sparseLapack>|<get-sparseLapack>(){}[0]
+    final val sparseLu // com.eignex.koblas/F64Context.sparseLu|{}sparseLu[0]
+        final fun <get-sparseLu>(): com.eignex.koblas.sparse/F64SparseLu // com.eignex.koblas/F64Context.sparseLu.<get-sparseLu>|<get-sparseLu>(){}[0]
     final val sparseVectorKernels // com.eignex.koblas/F64Context.sparseVectorKernels|{}sparseVectorKernels[0]
         final fun <get-sparseVectorKernels>(): com.eignex.koblas.sparse/F64SparseVectorKernels // com.eignex.koblas/F64Context.sparseVectorKernels.<get-sparseVectorKernels>|<get-sparseVectorKernels>(){}[0]
     final val vectorKernels // com.eignex.koblas/F64Context.vectorKernels|{}vectorKernels[0]
@@ -625,7 +625,7 @@ final class com.eignex.koblas/F64Context : com.eignex.koblas.dense/F64Blas, com.
     final fun trsv(com.eignex.koblas.core/F64DenseMatrix, kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean) // com.eignex.koblas/F64Context.trsv|trsv(com.eignex.koblas.core.F64DenseMatrix;kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
     final fun trsv(com.eignex.koblas.core/F64SparseMatrix, kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean) // com.eignex.koblas/F64Context.trsv|trsv(com.eignex.koblas.core.F64SparseMatrix;kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
     final fun trtri(com.eignex.koblas.core/F64DenseMatrix, kotlin/Boolean, kotlin/Boolean): com.eignex.koblas.core/F64DenseMatrix // com.eignex.koblas/F64Context.trtri|trtri(com.eignex.koblas.core.F64DenseMatrix;kotlin.Boolean;kotlin.Boolean){}[0]
-    final fun with(com.eignex.koblas.dense/F64VectorKernels = ..., com.eignex.koblas.dense/F64Blas = ..., com.eignex.koblas.dense/F64Lapack = ..., com.eignex.koblas.sparse/F64SparseVectorKernels = ..., com.eignex.koblas.sparse/F64SparseBlas = ..., com.eignex.koblas.sparse/F64SparseLapack = ...): com.eignex.koblas/F64Context // com.eignex.koblas/F64Context.with|with(com.eignex.koblas.dense.F64VectorKernels;com.eignex.koblas.dense.F64Blas;com.eignex.koblas.dense.F64Lapack;com.eignex.koblas.sparse.F64SparseVectorKernels;com.eignex.koblas.sparse.F64SparseBlas;com.eignex.koblas.sparse.F64SparseLapack){}[0]
+    final fun with(com.eignex.koblas.dense/F64VectorKernels = ..., com.eignex.koblas.dense/F64Blas = ..., com.eignex.koblas.dense/F64Lapack = ..., com.eignex.koblas.sparse/F64SparseVectorKernels = ..., com.eignex.koblas.sparse/F64SparseBlas = ..., com.eignex.koblas.sparse/F64SparseLu = ...): com.eignex.koblas/F64Context // com.eignex.koblas/F64Context.with|with(com.eignex.koblas.dense.F64VectorKernels;com.eignex.koblas.dense.F64Blas;com.eignex.koblas.dense.F64Lapack;com.eignex.koblas.sparse.F64SparseVectorKernels;com.eignex.koblas.sparse.F64SparseBlas;com.eignex.koblas.sparse.F64SparseLu){}[0]
 }
 
 final class com.eignex.koblas/F64Givens { // com.eignex.koblas/F64Givens|null[0]
@@ -870,15 +870,15 @@ final class com.eignex.koblas.sparse.host.umfpack/UmfpackFactorization : com.eig
 }
 
 // Targets: [linux, macosArm64]
-final class com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLapack : com.eignex.koblas.sparse/F64SparseLapack { // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLapack|null[0]
-    final val isAvailable // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLapack.isAvailable|{}isAvailable[0]
-        final fun <get-isAvailable>(): kotlin/Boolean // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLapack.isAvailable.<get-isAvailable>|<get-isAvailable>(){}[0]
-    final val isPortable // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLapack.isPortable|{}isPortable[0]
-        final fun <get-isPortable>(): kotlin/Boolean // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLapack.isPortable.<get-isPortable>|<get-isPortable>(){}[0]
-    final val name // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLapack.name|{}name[0]
-        final fun <get-name>(): kotlin/String // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLapack.name.<get-name>|<get-name>(){}[0]
-    final val priority // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLapack.priority|{}priority[0]
-        final fun <get-priority>(): kotlin/Int // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLapack.priority.<get-priority>|<get-priority>(){}[0]
+final class com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu : com.eignex.koblas.sparse/F64SparseLu { // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu|null[0]
+    final val isAvailable // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.isAvailable|{}isAvailable[0]
+        final fun <get-isAvailable>(): kotlin/Boolean // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.isAvailable.<get-isAvailable>|<get-isAvailable>(){}[0]
+    final val isPortable // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.isPortable|{}isPortable[0]
+        final fun <get-isPortable>(): kotlin/Boolean // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.isPortable.<get-isPortable>|<get-isPortable>(){}[0]
+    final val name // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.name|{}name[0]
+        final fun <get-name>(): kotlin/String // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.name.<get-name>|<get-name>(){}[0]
+    final val priority // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.priority|{}priority[0]
+        final fun <get-priority>(): kotlin/Int // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.priority.<get-priority>|<get-priority>(){}[0]
 
-    final fun factor(com.eignex.koblas.core/F64SparseMatrix, kotlin/Boolean, kotlin/Double): com.eignex.koblas.sparse/F64SparseFactorization // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLapack.factor|factor(com.eignex.koblas.core.F64SparseMatrix;kotlin.Boolean;kotlin.Double){}[0]
+    final fun factor(com.eignex.koblas.core/F64SparseMatrix, kotlin/Boolean, kotlin/Double): com.eignex.koblas.sparse/F64SparseFactorization // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.factor|factor(com.eignex.koblas.core.F64SparseMatrix;kotlin.Boolean;kotlin.Double){}[0]
 }

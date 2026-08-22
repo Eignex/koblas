@@ -69,7 +69,7 @@ class KoblasContextTest {
         assertSame(base.blas, derived.blas)
         assertSame(base.lapack, derived.lapack)
         assertSame(base.sparseBlas, derived.sparseBlas)
-        assertSame(base.sparseLapack, derived.sparseLapack)
+        assertSame(base.sparseLu, derived.sparseLu)
         assertSame(base.sparseVectorKernels, derived.sparseVectorKernels)
         assertSame(base.vectorKernels, base.vectorKernels, "the original must be untouched; contexts are values")
     }
@@ -146,7 +146,7 @@ class KoblasContextTest {
             lapack = F64ReferenceLinearAlgebra,
             sparseVectorKernels = F64ReferenceSparseLinearAlgebra,
             sparseBlas = F64ReferenceSparseLinearAlgebra,
-            sparseLapack = F64ReferenceSparseLinearAlgebra,
+            sparseLu = F64ReferenceSparseLinearAlgebra,
         )
         assertEquals(0, reference.priority, "every reference half has priority 0")
         assertEquals("reference", reference.name, "one distinct backend name should not repeat")

@@ -15,7 +15,7 @@ internal class ColumnOrientation(val indices: Array<IntArray>, val values: Array
  */
 internal const val NEGLIGIBLE = 1e-14
 
-/** The default [F64SparseLapack.factor] drop tolerance: keep every entry the elimination produces. */
+/** The default [F64SparseLu.factor] drop tolerance: keep every entry the elimination produces. */
 public const val NO_DROP: Double = 0.0
 
 /** The largest magnitude anywhere in [rows], the scale both tolerances are relative to. */

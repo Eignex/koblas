@@ -3,7 +3,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.requireShape
-import com.eignex.koblas.sparse.factorization.lu.F64SparseLu
+import com.eignex.koblas.sparse.factorization.lu.F64SparseLuFactorization
 
 /**
  * A general LU factorization with partial pivoting, `P·A = L·U`, packed column-major with `L` below the
@@ -41,7 +41,7 @@ public class F64LuDecomposition @UnsafeKoblasApi constructor(
 
 /**
  * `det(A)` as sign(P) times the product of the U(k, k). The floating-point counterpart of
- * [F64SparseLu.determinant].
+ * [F64SparseLuFactorization.determinant].
  *
  * The product is unscaled, so it saturates in both directions well before n is large: a 200x200 with 0.01
  * on the diagonal returns `0.0` and one with 100.0 returns infinity, neither of them singular. So a
