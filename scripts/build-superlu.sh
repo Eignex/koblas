@@ -27,15 +27,15 @@ actual="$(sha256sum "$cache" | awk '{print $1}')"
 case "$platform" in
     linux-x86_64)
         [[ "$(uname -s)" == Linux ]] || { echo "linux-x86_64 requires Linux" >&2; exit 1; }
-        bridge_flags=(-shared -fPIC); rpath='$ORIGIN'; library_extension=so
+        rpath='$ORIGIN'
         ;;
     linux-arm64)
         [[ "$(uname -s)" == Linux ]] || { echo "linux-arm64 requires Linux" >&2; exit 1; }
-        bridge_flags=(-shared -fPIC); rpath='$ORIGIN'; library_extension=so
+        rpath='$ORIGIN'
         ;;
     macosx-arm64)
         [[ "$(uname -s)" == Darwin ]] || { echo "macosx-arm64 requires macOS" >&2; exit 1; }
-        bridge_flags=(-dynamiclib -fPIC); rpath='@loader_path'; library_extension=dylib
+        rpath='@loader_path'
         ;;
     *) echo "unsupported SuperLU platform $platform" >&2; exit 1 ;;
 esac
@@ -51,15 +51,11 @@ cmake -S "$source" -B "$work/build" -G "Unix Makefiles" \
     -DCMAKE_INSTALL_RPATH="$rpath" -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON \
     -DCMAKE_C_COMPILER="${CC:-cc}" >/dev/null
 cmake --build "$work/build" --parallel "${SUPERLU_JOBS:-2}" >/dev/null
-cc "${bridge_flags[@]}" "$root/koblas-superlu/native/koblas_superlu.c" \
-    -I"$source/SRC" -I"$work/build/SRC" -L"$work/build/SRC" -lsuperlu "-Wl,-rpath,$rpath" \
-    -o "$work/libkoblas-superlu.$library_extension"
 cmake --install "$work/build" >/dev/null
 
 destination="$output/org/eignex/superlu/$platform"
 rm -rf "$destination"; mkdir -p "$destination"
 find "$install/lib" -maxdepth 1 -type f \( -name '*.so*' -o -name '*.dylib' \) -exec cp {} "$destination" \;
-cp "$work/libkoblas-superlu.$library_extension" "$destination/"
 if [[ "$platform" == linux-* ]]; then
     while IFS= read -r library; do
         soname="$(readelf -d "$library" | sed -n '/SONAME/s/.*\[\(.*\)\]/\1/p')"
