@@ -10,6 +10,8 @@ import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
 import com.eignex.koblas.dense.F64VectorKernels
 import com.eignex.koblas.dense.lu
 import com.eignex.koblas.dense.solve
+import com.eignex.koblas.internal.numeric.absoluteSum
+import com.eignex.koblas.internal.numeric.euclideanNorm
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import kotlin.test.AfterTest
 import kotlin.test.Test

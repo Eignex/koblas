@@ -1,4 +1,4 @@
-package com.eignex.koblas.dense
+package com.eignex.koblas.internal.backend
 
 /**
  * Nothing to discover on a target with no host library to reach: JS, both Wasm flavours, mingw and iOS.

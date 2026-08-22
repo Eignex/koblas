@@ -2,7 +2,6 @@
 
 package com.eignex.koblas.dense.host
 
-import com.eignex.koblas.DispatchThresholds
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64DenseMatrix
@@ -17,7 +16,8 @@ import com.eignex.koblas.dense.host.cblas.Cblas.diagOf
 import com.eignex.koblas.dense.host.cblas.Cblas.sideOf
 import com.eignex.koblas.dense.host.cblas.Cblas.transOf
 import com.eignex.koblas.dense.host.cblas.Cblas.uploOf
-import com.eignex.koblas.f64DispatchThresholds
+import com.eignex.koblas.internal.backend.DispatchThresholds
+import com.eignex.koblas.internal.backend.f64DispatchThresholds
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.requireSquare
 

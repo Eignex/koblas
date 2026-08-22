@@ -16,7 +16,7 @@ import com.eignex.koblas.dense.host.cblas.Cblas.NO_TRANS
 import com.eignex.koblas.dense.host.cblas.Cblas.TRANS
 import com.eignex.koblas.dense.host.cblas.Cblas.UNIT
 import com.eignex.koblas.dense.host.cblas.Cblas.UPPER
-import com.eignex.koblas.f64DispatchThresholds
+import com.eignex.koblas.internal.backend.f64DispatchThresholds
 import com.eignex.koblas.lapackFailedAt
 import com.eignex.koblas.requireFactored
 import com.eignex.koblas.requireShape

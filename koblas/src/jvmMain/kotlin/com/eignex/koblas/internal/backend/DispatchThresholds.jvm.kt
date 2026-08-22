@@ -1,6 +1,7 @@
-package com.eignex.koblas
+package com.eignex.koblas.internal.backend
 
 import com.eignex.koblas.dense.simdAvailable
+import com.eignex.koblas.installBackends
 
 /**
  * JVM defaults, chosen from [simdAvailable] because they hold only while the Vector API kernels are there.

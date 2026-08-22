@@ -6,10 +6,10 @@ import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64DenseVector
 import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.dot
-import com.eignex.koblas.euclideanNorm
-import com.eignex.koblas.f64DispatchThresholds
 import com.eignex.koblas.iamax
 import com.eignex.koblas.installBackends
+import com.eignex.koblas.internal.backend.f64DispatchThresholds
+import com.eignex.koblas.internal.numeric.euclideanNorm
 import com.eignex.koblas.koblas
 import com.eignex.koblas.mathBackend
 import com.eignex.koblas.norm2

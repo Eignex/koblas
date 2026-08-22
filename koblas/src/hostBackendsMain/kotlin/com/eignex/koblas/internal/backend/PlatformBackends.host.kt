@@ -1,4 +1,4 @@
-package com.eignex.koblas.dense
+package com.eignex.koblas.internal.backend
 
 import com.eignex.koblas.cblas.F64CblasVectorKernels
 import com.eignex.koblas.dense.host.cblas.F64CblasBlas

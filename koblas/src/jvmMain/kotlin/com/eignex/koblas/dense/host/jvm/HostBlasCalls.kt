@@ -1,7 +1,7 @@
 package com.eignex.koblas.dense.host.jvm
 
-import com.eignex.koblas.ConfigurationKeys
 import com.eignex.koblas.dense.isIlp64OpenBlas
+import com.eignex.koblas.internal.backend.ConfigurationKeys
 import java.lang.foreign.Arena
 import java.lang.foreign.FunctionDescriptor
 import java.lang.foreign.Linker

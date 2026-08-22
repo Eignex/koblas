@@ -1,8 +1,8 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.Backend
-import com.eignex.koblas.DispatchThresholds
-import com.eignex.koblas.f64DispatchThresholds
+import com.eignex.koblas.internal.backend.DispatchThresholds
+import com.eignex.koblas.internal.backend.f64DispatchThresholds
 
 /**
  * The vector-vector routines as a backend half, alongside [F64Blas] and [F64Lapack]. Implementations must

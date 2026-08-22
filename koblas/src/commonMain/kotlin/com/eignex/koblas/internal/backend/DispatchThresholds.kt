@@ -1,4 +1,4 @@
-package com.eignex.koblas
+package com.eignex.koblas.internal.backend
 
 import com.eignex.koblas.dense.F64VectorKernels
 

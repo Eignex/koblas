@@ -13,8 +13,8 @@ import com.eignex.koblas.dense.host.F64HostLapackAdapter
 import com.eignex.koblas.dense.host.cblas.Cblas.COL_MAJOR
 import com.eignex.koblas.dense.rankOfPivotedR
 import com.eignex.koblas.dense.requireRankTolerance
-import com.eignex.koblas.f64DispatchThresholds
 import com.eignex.koblas.internal.backend.BackendNames
+import com.eignex.koblas.internal.backend.f64DispatchThresholds
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.invoke

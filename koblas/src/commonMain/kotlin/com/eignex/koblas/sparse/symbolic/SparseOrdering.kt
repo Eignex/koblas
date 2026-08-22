@@ -3,6 +3,7 @@ package com.eignex.koblas.sparse.symbolic
 import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.*
+import com.eignex.koblas.sparse.internal.IntBuckets
 
 /** Which fill-reducing ordering a sparse factorization applies. */
 public enum class SparseOrdering {

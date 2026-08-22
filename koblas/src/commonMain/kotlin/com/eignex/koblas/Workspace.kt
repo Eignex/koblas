@@ -1,5 +1,7 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.internal.workspace.ArrayPools
+
 /**
  * Reusable scratch buffers, pooled by width. Every borrow outstanding at the same time gets a different
  * buffer, so nesting is safe. Not thread-safe, deliberately: sharing one across threads corrupts results.

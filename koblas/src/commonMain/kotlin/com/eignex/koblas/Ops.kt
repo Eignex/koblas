@@ -6,6 +6,7 @@ import com.eignex.koblas.core.*
 import com.eignex.koblas.dense.F64Blas
 import com.eignex.koblas.dense.F64LinearAlgebra
 import com.eignex.koblas.dense.Uplo
+import com.eignex.koblas.internal.numeric.euclideanNorm
 import com.eignex.koblas.sparse.F64SparseVectorKernels
 import kotlin.math.abs
 import kotlin.math.sqrt

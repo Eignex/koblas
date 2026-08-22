@@ -8,6 +8,7 @@ import com.eignex.koblas.dense.permutationSign
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.requireSquare
 import com.eignex.koblas.sparse.*
+import com.eignex.koblas.sparse.internal.MutableIntDoubleMap
 import com.eignex.koblas.sparse.symbolic.inverseOf
 import kotlin.math.abs
 import kotlin.math.floor

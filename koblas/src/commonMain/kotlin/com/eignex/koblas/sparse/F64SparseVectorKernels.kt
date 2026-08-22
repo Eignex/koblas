@@ -3,7 +3,7 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.Backend
 import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64SparseVector
-import com.eignex.koblas.euclideanNorm
+import com.eignex.koblas.internal.numeric.euclideanNorm
 
 /** Sparse vector-vector routines as a backend half. */
 public interface F64SparseVectorKernels : Backend {

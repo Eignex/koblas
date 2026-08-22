@@ -1,4 +1,4 @@
-package com.eignex.koblas.sparse
+package com.eignex.koblas.sparse.internal
 
 import kotlin.test.Test
 import kotlin.test.assertEquals

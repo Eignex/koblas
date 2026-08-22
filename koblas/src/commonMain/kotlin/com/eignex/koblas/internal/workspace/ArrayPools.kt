@@ -1,4 +1,6 @@
-package com.eignex.koblas
+package com.eignex.koblas.internal.workspace
+
+import com.eignex.koblas.Workspace
 
 /**
  * Buffers of one array type, pooled by width, and the whole of [Workspace]'s bookkeeping. It is written

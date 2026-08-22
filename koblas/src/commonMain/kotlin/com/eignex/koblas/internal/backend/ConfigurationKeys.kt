@@ -1,6 +1,4 @@
-package com.eignex.koblas
-
-import com.eignex.koblas.internal.backend.BackendNames
+package com.eignex.koblas.internal.backend
 
 /**
  * The system properties and environment variables koblas reads. Each is an external identifier a caller
