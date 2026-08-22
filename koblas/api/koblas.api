@@ -332,7 +332,7 @@ public final class com/eignex/koblas/OpsKt {
 	public static final fun copy (Lcom/eignex/koblas/F64VectorLike;Lcom/eignex/koblas/F64DenseVector;)V
 	public static final fun dot (Lcom/eignex/koblas/F64VectorLike;Lcom/eignex/koblas/F64VectorLike;)D
 	public static final fun forEachStored (Lcom/eignex/koblas/F64VectorLike;Lkotlin/jvm/functions/Function2;)V
-	public static final fun ger (DLcom/eignex/koblas/F64VectorLike;Lcom/eignex/koblas/F64VectorLike;Lcom/eignex/koblas/F64DenseMatrix;)V
+	public static final fun ger (Lcom/eignex/koblas/F64DenseMatrix;DLcom/eignex/koblas/F64VectorLike;Lcom/eignex/koblas/F64VectorLike;)V
 	public static final fun iamax (Lcom/eignex/koblas/F64VectorLike;)I
 	public static final fun matVec (Lcom/eignex/koblas/F64MatrixLike;Lcom/eignex/koblas/F64VectorLike;)Lcom/eignex/koblas/F64DenseVector;
 	public static final fun norm1 (Lcom/eignex/koblas/F64DenseMatrix;)D
@@ -348,10 +348,10 @@ public final class com/eignex/koblas/OpsKt {
 	public static final fun scaleColumns (Lcom/eignex/koblas/F64SparseMatrix;[D)V
 	public static final fun scaleRows (Lcom/eignex/koblas/F64DenseMatrix;[D)V
 	public static final fun swap (Lcom/eignex/koblas/F64DenseVector;Lcom/eignex/koblas/F64DenseVector;)V
-	public static final fun syr (DLcom/eignex/koblas/F64VectorLike;Lcom/eignex/koblas/F64DenseMatrix;Lcom/eignex/koblas/dense/Uplo;)V
-	public static synthetic fun syr$default (DLcom/eignex/koblas/F64VectorLike;Lcom/eignex/koblas/F64DenseMatrix;Lcom/eignex/koblas/dense/Uplo;ILjava/lang/Object;)V
-	public static final fun syr2 (DLcom/eignex/koblas/F64VectorLike;Lcom/eignex/koblas/F64VectorLike;Lcom/eignex/koblas/F64DenseMatrix;Lcom/eignex/koblas/dense/Uplo;)V
-	public static synthetic fun syr2$default (DLcom/eignex/koblas/F64VectorLike;Lcom/eignex/koblas/F64VectorLike;Lcom/eignex/koblas/F64DenseMatrix;Lcom/eignex/koblas/dense/Uplo;ILjava/lang/Object;)V
+	public static final fun syr (Lcom/eignex/koblas/F64DenseMatrix;DLcom/eignex/koblas/F64VectorLike;Lcom/eignex/koblas/dense/Uplo;)V
+	public static synthetic fun syr$default (Lcom/eignex/koblas/F64DenseMatrix;DLcom/eignex/koblas/F64VectorLike;Lcom/eignex/koblas/dense/Uplo;ILjava/lang/Object;)V
+	public static final fun syr2 (Lcom/eignex/koblas/F64DenseMatrix;DLcom/eignex/koblas/F64VectorLike;Lcom/eignex/koblas/F64VectorLike;Lcom/eignex/koblas/dense/Uplo;)V
+	public static synthetic fun syr2$default (Lcom/eignex/koblas/F64DenseMatrix;DLcom/eignex/koblas/F64VectorLike;Lcom/eignex/koblas/F64VectorLike;Lcom/eignex/koblas/dense/Uplo;ILjava/lang/Object;)V
 	public static final fun transpose (Lcom/eignex/koblas/F64DenseMatrix;)Lcom/eignex/koblas/F64DenseMatrix;
 	public static final fun transpose (Lcom/eignex/koblas/F64SparseMatrix;)Lcom/eignex/koblas/F64SparseMatrix;
 }

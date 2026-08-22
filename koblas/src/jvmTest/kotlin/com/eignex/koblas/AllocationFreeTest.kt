@@ -70,7 +70,7 @@ class AllocationFreeTest {
         val n = 48
         val rng = Random(20260737)
         val a = wellConditioned(n, rng)
-        val anorm = norm1(a)
+        val anorm = a.norm1()
         val lu = a.lu()
         val ws = Workspace()
 
@@ -148,7 +148,7 @@ class AllocationFreeTest {
     fun `norm1 allocates nothing`() {
         val n = 64
         val a = wellConditioned(n, Random(20260742))
-        val bytes = bytesPerIteration(2000) { norm1(a) }
+        val bytes = bytesPerIteration(2000) { a.norm1() }
         assertTrue(bytes <= FLOOR_BYTES, "norm1 allocated $bytes B")
     }
 

@@ -135,7 +135,7 @@ Every factorization is reached the same way on both storages: a verb on the
 matrix produces the decomposition, and the solves hang off the decomposition.
 
 ```kotlin
-a.lu().solve(b)                    a.lu().invert()      a.lu().rcond(norm1(a))
+a.lu().solve(b)                    a.lu().invert()      a.lu().rcond(a.norm1())
 a.ldl().solve(b)                   a.cholesky().solve(b)
 a.qr().solveLeastSquares(b)        a.qr().applyQ(y)
 a.qrPivoted().solveLeastSquares(b) // reports a numerical rank
@@ -266,8 +266,8 @@ copy and the second a strided gather, which is the storage order showing through
 `matVec` is the product that takes any MatrixLike against any VectorLike,
 sparse-aware on both sides; it is named for `matMul` rather than `gemv` so that
 `gemv` means the seam member and nothing else. A diagonal is applied as a
-scaling rather than built as a matrix -- `scaleRows(a, d)` is `D · A` and
-`scaleColumns(a, d)` is `A · D`, the second being the cheap direction under
+scaling rather than built as a matrix -- `a.scaleRows(d)` is `D · A` and
+`a.scaleColumns(d)` is `A · D`, the second being the cheap direction under
 column-major storage, and the sparse matrix takes the column form only.
 
 Level 1 is reached differently from the other two, because those kernels do

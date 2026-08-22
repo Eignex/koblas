@@ -73,7 +73,7 @@ class ReadmeSamplesTest {
         val identity = F64SparseMatrix.ofColumns(n, n, List(n) { j -> listOf(j to 1.0) })
         val basis = identity.lu()
         val lu = a.lu()
-        val anorm = norm1(a)
+        val anorm = a.norm1()
         val threshold = 1e-12
         val iterations = 3
 

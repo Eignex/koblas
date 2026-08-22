@@ -459,13 +459,13 @@ internal fun assertRcondAgreesWithReference(lapack: F64Lapack, sizes: IntArray) 
     val rng = Random(20260905)
     for (n in sizes) {
         val a = wellConditioned(n, rng)
-        val anorm = norm1(a)
+        val anorm = a.norm1()
         val expected = reference.rcond(reference.factor(a), anorm)
         val actual = lapack.rcond(lapack.factor(a), anorm)
         assertTrue(actual in expected / 10.0..expected * 10.0, "n=$n: host $actual vs reference $expected")
     }
     val singular = F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 4.0)))
-    assertEquals(0.0, lapack.rcond(lapack.factor(singular), norm1(singular)))
+    assertEquals(0.0, lapack.rcond(lapack.factor(singular), singular.norm1()))
     assertEquals(1.0, lapack.rcond(lapack.factor(F64DenseMatrix(0, 0)), 0.0))
 }
 

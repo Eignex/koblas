@@ -181,14 +181,14 @@ class BranchCoverageTest {
     fun `rcond spans well and ill conditioned matrices`() {
         val identity = F64DenseMatrix.diagonal(6)
         assertTrue(
-            abs(koblas.rcond(identity.lu(), norm1(identity)) - 1.0) < 1e-9,
+            abs(koblas.rcond(identity.lu(), identity.norm1()) - 1.0) < 1e-9,
             "the identity should estimate a reciprocal condition of 1",
         )
         // A Hilbert-like matrix, ill conditioned enough that the estimate has to iterate.
         val n = 8
         val hilbert = F64DenseMatrix(n, n)
         for (i in 0 until n) for (j in 0 until n) hilbert[i, j] = 1.0 / (i + j + 1.0)
-        val estimate = koblas.rcond(hilbert.lu(), norm1(hilbert))
+        val estimate = koblas.rcond(hilbert.lu(), hilbert.norm1())
         assertTrue(estimate > 0.0 && estimate < 1e-6, "an ill-conditioned estimate should be tiny, got $estimate")
         // A zero matrix is singular, and a zero norm reports zero instead of dividing.
         assertEquals(0.0, koblas.rcond(F64DenseMatrix.zero(3, 3).lu(), 0.0))

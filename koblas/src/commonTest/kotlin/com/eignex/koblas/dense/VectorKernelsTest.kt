@@ -100,8 +100,8 @@ class VectorKernelsTest {
         if (threshold == Int.MAX_VALUE) return@withCleanBackends
         val v = F64DenseVector.of(DoubleArray(threshold) { 1.0 })
         val x = F64DenseVector.of(DoubleArray(threshold) { 2.0 })
-        axpy(v, 3.0, x)
-        scale(v, 0.5)
+        v.axpy(3.0, x)
+        v.scale(0.5)
         assertEquals(1, recording.axpys, "axpy did not route")
         assertEquals(1, recording.scales, "scale did not route")
         assertTrue(v.data.all { it == 3.5 }, "routed arithmetic is wrong: ${v.data[0]}")
@@ -114,13 +114,13 @@ class VectorKernelsTest {
         val threshold = f64DispatchThresholds.level1
         if (threshold == Int.MAX_VALUE) return@withCleanBackends
         val dense = F64DenseVector.of(DoubleArray(threshold) { 3.0 })
-        norm2(dense)
-        asum(dense)
+        dense.norm2()
+        dense.asum()
         assertEquals(1, recording.nrm2s, "norm2 on a dense vector did not route")
         assertEquals(1, recording.asums, "asum on a dense vector did not route")
         val sparse = F64SparseVector(threshold, IntArray(threshold) { it }, DoubleArray(threshold) { 3.0 })
-        norm2(sparse)
-        asum(sparse)
+        sparse.norm2()
+        sparse.asum()
         assertEquals(1, recording.nrm2s, "norm2 routed a sparse vector")
         assertEquals(1, recording.asums, "asum routed a sparse vector")
     }
@@ -133,7 +133,7 @@ class VectorKernelsTest {
         val threshold = f64DispatchThresholds.level1
         val len = if (threshold == Int.MAX_VALUE) 4096 else threshold
         val v = F64DenseVector.of(DoubleArray(len) { if (it == 7) -9.0 else 1.0 })
-        assertEquals(7, iamax(v))
+        assertEquals(7, v.iamax())
         assertEquals(0, recording.dots + recording.nrm2s + recording.asums, "iamax reached the seam")
     }
 
