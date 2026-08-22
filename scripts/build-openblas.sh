@@ -123,16 +123,23 @@ else
     exit 1
   }
   while read -r dependency; do
-    [[ -f "$dependency" ]] && cp "$dependency" "$resource_dir/$(basename "$dependency")"
+    destination="$resource_dir/$(basename "$dependency")"
+    if [[ -f "$dependency" && ! -e "$destination" ]]; then
+      cp "$dependency" "$destination"
+    fi
   done < <(otool -L "$resource_dir/$library_name" | awk '/\/.*\/(libgfortran|libquadmath|libgcc_s).*\.dylib/ { print $1 }')
   for binary in "$resource_dir"/*.dylib; do
     while read -r dependency; do
-      [[ -f "$dependency" ]] && cp -n "$dependency" "$resource_dir/$(basename "$dependency")"
+      destination="$resource_dir/$(basename "$dependency")"
+      if [[ -f "$dependency" && ! -e "$destination" ]]; then
+        cp "$dependency" "$destination"
+      fi
       install_name_tool -change "$dependency" "@loader_path/$(basename "$dependency")" "$binary"
     done < <(otool -L "$binary" | awk 'NR > 1 && /\/.*\/(libgfortran|libquadmath|libgcc_s).*\.dylib/ { print $1 }')
   done
-  [[ -f "$resource_dir/libgfortran.5.dylib" ]] &&
-    cp -n "$resource_dir/libgfortran.5.dylib" "$resource_dir/libgfortran.dylib"
+  if [[ -f "$resource_dir/libgfortran.5.dylib" && ! -e "$resource_dir/libgfortran.dylib" ]]; then
+    cp "$resource_dir/libgfortran.5.dylib" "$resource_dir/libgfortran.dylib"
+  fi
 fi
 
 for file in "${required_files[@]}"; do
