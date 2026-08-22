@@ -12,4 +12,4 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
-include(":koblas", ":koblas-bench", ":koblas-openblas")
+include(":koblas", ":koblas-bench", ":koblas-openblas", ":koblas-umfpack")
