@@ -1,4 +1,4 @@
-package com.eignex.koblas.dense
+package com.eignex.koblas.dense.host.cblas
 
 /**
  * The CBLAS enums and the LAPACKE layout macro by their ABI integer values. Both host bindings pass these

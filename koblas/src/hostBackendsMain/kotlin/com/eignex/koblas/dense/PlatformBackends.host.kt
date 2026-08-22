@@ -5,8 +5,8 @@ import com.eignex.koblas.dense.host.cblas.F64CblasBlas
 import com.eignex.koblas.dense.host.cblas.F64CblasLapack
 import com.eignex.koblas.dense.host.cblas.OpenBlasLoader
 import com.eignex.koblas.registerBackend
-import com.eignex.koblas.umfpack.UmfpackLoader
-import com.eignex.koblas.umfpack.UmfpackSparseLapack
+import com.eignex.koblas.sparse.host.umfpack.UmfpackLoader
+import com.eignex.koblas.sparse.host.umfpack.UmfpackSparseLapack
 
 /**
  * Backend discovery on the native targets that can reach a host library, run once on the first

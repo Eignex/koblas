@@ -10,8 +10,8 @@ import com.eignex.koblas.hostblas.HostBlas
 import com.eignex.koblas.hostblas.HostLapack
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.registerBackend
-import com.eignex.koblas.umfpack.UmfpackCalls
-import com.eignex.koblas.umfpack.UmfpackSparseLapack
+import com.eignex.koblas.sparse.host.umfpack.UmfpackCalls
+import com.eignex.koblas.sparse.host.umfpack.UmfpackSparseLapack
 import java.util.ServiceLoader
 
 /**

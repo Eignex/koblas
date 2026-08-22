@@ -1,6 +1,6 @@
 @file:OptIn(ExperimentalForeignApi::class)
 
-package com.eignex.koblas.umfpack
+package com.eignex.koblas.sparse.host.umfpack
 
 import kotlinx.cinterop.CFunction
 import kotlinx.cinterop.COpaquePointer

@@ -1,7 +1,7 @@
 // detekt's default test exclusions cover the standard source-set names, not this custom one.
 @file:Suppress("UndocumentedPublicFunction", "FunctionNaming")
 
-package com.eignex.koblas.umfpack
+package com.eignex.koblas.sparse.host.umfpack
 
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.koblas
