@@ -37,11 +37,10 @@ internal const val WARNING_SINGULAR = 1
 /** The symbol whose presence stands for a usable UMFPACK. */
 internal const val KEY_SYMBOL = "umfpack_di_symbolic"
 
-/** The names to try when opening libumfpack, in the order a loader should try them. */
+/** The SuiteSparse UMFPACK ABI 5 and 6 names koblas supports. */
 internal val UMFPACK_SONAMES = listOf(
-    "libumfpack.so.6", // versioned sonames first, a bare .so is the development symlink
+    "libumfpack.so.6",
     "libumfpack.so.5",
-    "libumfpack.so",
     "libumfpack.dylib",
     "/opt/homebrew/opt/suite-sparse/lib/libumfpack.dylib", // Homebrew is keg-only
     "/usr/local/opt/suite-sparse/lib/libumfpack.dylib",

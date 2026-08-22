@@ -6,8 +6,11 @@ package com.eignex.koblas.internal.backend
  * them. Which platform honors which is up to that platform: there are no system properties outside the JVM.
  */
 internal object ConfigurationKeys {
-    /** Pins backend selection to one [BackendNames] value instead of taking the highest priority offered. */
-    const val BACKEND_PROPERTY = "koblas.backend"
+    /** Pins dense backend selection to one [BackendNames] value instead of taking the highest priority offered. */
+    const val DENSE_BACKEND_PROPERTY = "koblas.dense.backend"
+
+    /** Pins sparse backend selection to one [BackendNames] value instead of taking the highest priority offered. */
+    const val SPARSE_BACKEND_PROPERTY = "koblas.sparse.backend"
 
     /** Thread count for a host OpenBLAS, which koblas otherwise pins to one. */
     const val OPENBLAS_THREADS_PROPERTY = "koblas.openblas.threads"

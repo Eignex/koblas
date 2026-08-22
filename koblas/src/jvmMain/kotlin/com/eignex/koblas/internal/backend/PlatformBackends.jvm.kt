@@ -7,6 +7,9 @@ import com.eignex.koblas.dense.host.jvm.HostBlasCalls
 import com.eignex.koblas.hostblas.HostBlas
 import com.eignex.koblas.hostblas.HostLapack
 import com.eignex.koblas.registerBackend
+import com.eignex.koblas.sparse.F64SparseLapack
+import com.eignex.koblas.sparse.host.superlu.SuperluCalls
+import com.eignex.koblas.sparse.host.superlu.SuperluSparseLapack
 import com.eignex.koblas.sparse.host.umfpack.UmfpackCalls
 import com.eignex.koblas.sparse.host.umfpack.UmfpackSparseLapack
 import java.util.ServiceLoader
@@ -16,17 +19,31 @@ import java.util.ServiceLoader
  * halves first, then [ServiceLoader] providers; [Backend.priority] picks the winner on each half.
  */
 internal actual fun registerPlatformBackends() {
-    val requested = System.getProperty(ConfigurationKeys.BACKEND_PROPERTY)
-    if (requested == BackendNames.REFERENCE) return
+    val denseRequested = System.getProperty(ConfigurationKeys.DENSE_BACKEND_PROPERTY)
+    val sparseRequested = System.getProperty(ConfigurationKeys.SPARSE_BACKEND_PROPERTY)
     for (provider in loadProviders().sortedByDescending { it.priority }) {
-        if (requested != null && provider.name != requested) continue
+        if (provider is F64Blas && denseRequested != null &&
+            !matchesRequested(provider.name, denseRequested)
+        ) {
+            continue
+        }
+        if (provider is F64SparseLapack && sparseRequested != null &&
+            !matchesRequested(provider.name, sparseRequested)
+        ) {
+            continue
+        }
         if (!probe(provider)) continue
         // Once, not per half, since registerBackend offers the object as every half it implements.
         registerBackend(provider)
     }
-    registerHostBlas(requested)
-    registerUmfpack(requested)
+    registerHostBlas(denseRequested)
+    registerSuperlu(sparseRequested)
+    registerUmfpack(sparseRequested)
 }
+
+/** Bundled providers add a diagnostic suffix while retaining the canonical name callers configure. */
+private fun matchesRequested(name: String, requested: String): Boolean =
+    name == requested || name.removeSuffix("-bundled") == requested
 
 /**
  * koblas's own FFM binding to a host OpenBLAS. The test is a `dlopen` plus a symbol lookup, not a probe
@@ -47,6 +64,14 @@ private fun registerHostBlas(requested: String?) {
 private fun registerUmfpack(requested: String?) {
     if (!UmfpackCalls.libraryPresent) return
     val lapack = UmfpackSparseLapack()
+    if (requested != null && lapack.name != requested) return
+    registerBackend(lapack)
+}
+
+/** SuperLU is the preferred general sparse-LU backend; UMFPACK remains selectable by name. */
+private fun registerSuperlu(requested: String?) {
+    if (!SuperluCalls.libraryPresent) return
+    val lapack = SuperluSparseLapack()
     if (requested != null && lapack.name != requested) return
     registerBackend(lapack)
 }
