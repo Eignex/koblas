@@ -3,11 +3,11 @@ package com.eignex.koblas.internal.backend
 import com.eignex.koblas.Backend
 /**
  * The [Backend.name] values koblas's own backends report. They are also what a caller writes into
- * [ConfigurationKeys.BACKEND_PROPERTY] to pin one backend, so a name is a shared identifier and not a label
- * any one implementation is free to reword.
+ * [ConfigurationKeys.DENSE_BACKEND_PROPERTY] or [ConfigurationKeys.SPARSE_BACKEND_PROPERTY] to pin a
+ * backend, so a name is a shared identifier and not a label any one implementation is free to reword.
  */
 internal object BackendNames {
-    /** The portable implementations, and the [ConfigurationKeys.BACKEND_PROPERTY] value that registers none. */
+    /** The portable implementations, and a backend-selection value that registers none. */
     const val REFERENCE = "reference"
 
     /** The JVM's `java.lang.foreign` binding to a host OpenBLAS. */
@@ -18,6 +18,9 @@ internal object BackendNames {
 
     /** The binding to SuiteSparse's UMFPACK. */
     const val UMFPACK = "umfpack"
+
+    /** The binding to SuperLU. */
+    const val SUPERLU = "superlu"
 
     /** The compiled-in scalar kernels. */
     const val SCALAR = "scalar"

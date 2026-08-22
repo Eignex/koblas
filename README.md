@@ -17,7 +17,7 @@
 
 Dense and sparse double-precision linear algebra for Kotlin Multiplatform.
 Koblas provides BLAS/LAPACK operations, factorizations, and optional OpenBLAS
-and SuiteSparse UMFPACK acceleration.
+and optional SuperLU or SuiteSparse UMFPACK acceleration.
 
 ## Install
 
@@ -26,12 +26,13 @@ and SuiteSparse UMFPACK acceleration.
 | koblas | Core API and portable backend. |
 | koblas-openblas | Optional JVM bundle of OpenBLAS/LAPACKE for Linux x64/arm64 and macOS arm64. |
 | koblas-umfpack | Optional GPL-3.0-only JVM bundle of SuiteSparse UMFPACK; includes koblas-openblas. |
+| koblas-superlu | Optional BSD-3-Clause JVM bundle of SuperLU; includes koblas-openblas. |
 
 ```kotlin
 implementation("com.eignex:koblas:<version>")
 ```
 
-Install OpenBLAS/LAPACKE and, for sparse LU, SuiteSparse with your system
+Install OpenBLAS/LAPACKE and, for sparse LU, SuperLU or SuiteSparse with your system
 package manager, such as `apt` or Homebrew. Koblas discovers them automatically
 and otherwise uses its portable backend.
 
@@ -39,13 +40,14 @@ On JVM Linux x64/arm64 and macOS arm64, Maven bundles are an alternative:
 
 ```kotlin
 runtimeOnly("com.eignex:koblas-openblas:<version>")
-runtimeOnly("com.eignex:koblas-umfpack:<version>") // optional; GPL-3.0-only
+runtimeOnly("com.eignex:koblas-superlu:<version>") // optional; BSD-3-Clause, sparse LU default
+runtimeOnly("com.eignex:koblas-umfpack:<version>") // optional; GPL-3.0-only alternative
 ```
 
 Host packages and Maven bundles use the same Koblas bindings; only the native
 library source differs.
 
-The UMFPACK bundle brings OpenBLAS and uses the same OpenBLAS library as the
+The sparse-LU bundles bring OpenBLAS and use the same OpenBLAS library as the
 dense backend. Bundled providers win over host lookup. To select a custom
 absolute library path, use these JVM properties or environment variables:
 
@@ -53,9 +55,11 @@ absolute library path, use these JVM properties or environment variables:
 |---------|--------------|----------------------|
 | OpenBLAS | `koblas.openblas.path` | `KOBLAS_OPENBLAS_PATH` |
 | LAPACKE | `koblas.lapacke.path` | `KOBLAS_LAPACKE_PATH` |
+| SuperLU | `koblas.superlu.path` | `KOBLAS_SUPERLU_PATH` |
 | UMFPACK | `koblas.umfpack.path` | `KOBLAS_UMFPACK_PATH` |
 
-The JVM property takes precedence.
+The JVM property takes precedence. With both sparse-LU bundles present, SuperLU is selected by default;
+set `koblas.sparse.backend=umfpack` to select UMFPACK.
 
 ## Use
 
@@ -91,7 +95,7 @@ condition estimates, and inverses. Sparse LU and LDLᵀ are also available.
 Koblas starts with portable implementations and registers available accelerated
 backends. Inspect `koblasInfo` or `koblas.portableSlots`; call
 `koblas.requireAccelerated(...)` to fail when acceleration is unavailable. Set
-`-Dkoblas.backend=reference` to force the portable backend.
+`-Dkoblas.dense.backend=reference -Dkoblas.sparse.backend=reference` to force portable backends.
 
 Host and bundled libraries are optional. If one cannot load, Koblas falls back
 to the portable implementation.

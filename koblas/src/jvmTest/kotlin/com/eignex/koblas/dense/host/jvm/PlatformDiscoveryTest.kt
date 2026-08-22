@@ -20,22 +20,29 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Discovery itself, which the everyday run never reaches: it pins `koblas.backend=reference`, whose first
- * line returns before anything is registered. Carries the host-library category because every path past that
- * line consults [HostBlasCalls], and loading a host library is what the default run is kept away from.
+ * Discovery itself, which the everyday run never reaches: it pins both backend domains to `reference`.
+ * Carries the host-library category because every path past that line consults [HostBlasCalls], and loading a
+ * host library is what the default run is kept away from.
  */
 @Category(HostLibraryTest::class)
 class PlatformDiscoveryTest {
 
-    /** Runs [block] with `koblas.backend` set to [value], or absent when null, then puts it back. */
+    /** Runs [block] with both backend-domain properties set to [value], or absent when null, then restores them. */
     private fun withRequestedBackend(value: String?, block: () -> Unit) {
-        val previous: String? = System.getProperty(PROPERTY)
-        if (value == null) System.clearProperty(PROPERTY) else System.setProperty(PROPERTY, value)
+        val previousDense: String? = System.getProperty(DENSE_PROPERTY)
+        val previousSparse: String? = System.getProperty(SPARSE_PROPERTY)
+        setRequestedBackend(DENSE_PROPERTY, value)
+        setRequestedBackend(SPARSE_PROPERTY, value)
         try {
             block()
         } finally {
-            if (previous == null) System.clearProperty(PROPERTY) else System.setProperty(PROPERTY, previous)
+            setRequestedBackend(DENSE_PROPERTY, previousDense)
+            setRequestedBackend(SPARSE_PROPERTY, previousSparse)
         }
+    }
+
+    private fun setRequestedBackend(property: String, value: String?) {
+        if (value == null) System.clearProperty(property) else System.setProperty(property, value)
     }
 
     @Test
@@ -148,6 +155,7 @@ class PlatformDiscoveryTest {
     }
 
     private companion object {
-        const val PROPERTY = "koblas.backend"
+        const val DENSE_PROPERTY = "koblas.dense.backend"
+        const val SPARSE_PROPERTY = "koblas.sparse.backend"
     }
 }
