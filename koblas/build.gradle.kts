@@ -42,7 +42,6 @@ kotlin {
             dependsOn(commonMain.get())
         }
         nativeMain.get().dependsOn(scalarMain)
-        wasmWasiMain.get().dependsOn(scalarMain)
 
         // Host backends run on Linux and macOS only. The bindings resolve OpenBLAS and SuiteSparse
         // independently, so either library may be absent. iOS has no host library to find, and mingw does
@@ -108,14 +107,11 @@ tasks.withType<Test>().configureEach {
     if (project.findProperty("koblas.noSimd") != "true") {
         jvmArgs("--add-modules=jdk.incubator.vector")
     }
-}
-
-// Tests marked @Category(HostLibraryTest) need a real OpenBLAS or SuiteSparse, so they are out of the
-// default run and opted into with -Pkoblas.hostTests=true. They measure the machine as much as the library,
-// so including them would make the everyday result mean different things on a box with SuiteSparse and one
-// without. Excluding them and pinning the backend to `reference` keeps that out; the opt-in run accepts the
-// noise in exchange for exercising the bindings, and reports coverage like any other run.
-tasks.withType<Test>().configureEach {
+    // Tests marked @Category(HostLibraryTest) need a real OpenBLAS or SuiteSparse, so they are out of the
+    // default run and opted into with -Pkoblas.hostTests=true. They measure the machine as much as the library,
+    // so including them would make the everyday result mean different things on a box with SuiteSparse and one
+    // without. Excluding them and pinning the backend to `reference` keeps that out; the opt-in run accepts the
+    // noise in exchange for exercising the bindings, and reports coverage like any other run.
     if (project.findProperty("koblas.hostTests") == "true") return@configureEach
     systemProperty("koblas.backend", "reference")
     useJUnit {
