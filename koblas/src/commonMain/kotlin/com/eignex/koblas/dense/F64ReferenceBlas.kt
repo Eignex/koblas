@@ -2,11 +2,11 @@
 
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.BackendNames
 import com.eignex.koblas.F64Context
 import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.F64VectorLike
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.koblas
 import com.eignex.koblas.requireShape
 

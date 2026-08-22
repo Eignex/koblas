@@ -1,8 +1,8 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.BackendNames
 import com.eignex.koblas.absoluteSum
 import com.eignex.koblas.euclideanNorm
+import com.eignex.koblas.internal.backend.BackendNames
 
 /**
  * The compile-time kernels for every non-JVM target. Routing to a registered [F64VectorKernels] backend

@@ -1,13 +1,13 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.Backend
-import com.eignex.koblas.BackendNames
 import com.eignex.koblas.ConfigurationKeys
 import com.eignex.koblas.F64DenseMatrix
+import com.eignex.koblas.dense.host.jvm.HostBlasCalls
 import com.eignex.koblas.f64DispatchThresholds
 import com.eignex.koblas.hostblas.HostBlas
-import com.eignex.koblas.hostblas.HostBlasCalls
 import com.eignex.koblas.hostblas.HostLapack
+import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.registerBackend
 import com.eignex.koblas.umfpack.UmfpackCalls
 import com.eignex.koblas.umfpack.UmfpackSparseLapack

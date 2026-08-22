@@ -1,9 +1,9 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.BackendNames
 import com.eignex.koblas.F64SparseMatrix
 import com.eignex.koblas.F64SparseVector
 import com.eignex.koblas.euclideanNorm
+import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.requireSquare
 import kotlin.math.abs

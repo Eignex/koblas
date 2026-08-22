@@ -1,7 +1,7 @@
-package com.eignex.koblas.hostblas
+package com.eignex.koblas.dense.host.jvm
 
-import com.eignex.koblas.dense.LapackeCalls
-import com.eignex.koblas.hostblas.HostBlasCalls.seg
+import com.eignex.koblas.dense.host.LapackeCalls
+import com.eignex.koblas.dense.host.jvm.HostBlasCalls.seg
 
 /** [LapackeCalls] over `java.lang.foreign`, alongside [JvmCblasCalls]. */
 @Suppress("LongParameterList") // the LAPACKE signatures

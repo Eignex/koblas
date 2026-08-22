@@ -1,11 +1,12 @@
-package com.eignex.koblas
+package com.eignex.koblas.internal.backend
 
+import com.eignex.koblas.Backend
 import kotlin.concurrent.atomics.AtomicReference
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
 /**
  * One replaceable half of the compute seam, holding the strongest offer made for it. A whole-context
- * override is [installBackends]'s job, not this one's.
+ * override is the public registry's job, not this one's.
  *
  * @param T the interface this half implements.
  * @param onChange run after every change, for a seam whose composed whole needs rebuilding.

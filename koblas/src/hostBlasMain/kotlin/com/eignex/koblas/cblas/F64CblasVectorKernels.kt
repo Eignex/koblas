@@ -2,9 +2,10 @@
 
 package com.eignex.koblas.cblas
 
-import com.eignex.koblas.BackendNames
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.dense.F64VectorKernels
+import com.eignex.koblas.dense.host.cblas.OpenBlasLoader
+import com.eignex.koblas.internal.backend.BackendNames
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.invoke

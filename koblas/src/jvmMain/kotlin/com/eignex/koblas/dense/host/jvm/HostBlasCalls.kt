@@ -1,4 +1,4 @@
-package com.eignex.koblas.hostblas
+package com.eignex.koblas.dense.host.jvm
 
 import com.eignex.koblas.ConfigurationKeys
 import com.eignex.koblas.dense.isIlp64OpenBlas

@@ -15,23 +15,11 @@ public final class com/eignex/koblas/BackendKt {
 	public static final field HOST_BACKEND_PRIORITY I
 }
 
-public final class com/eignex/koblas/BackendSlot : java/lang/Enum {
-	public static final field F64Blas Lcom/eignex/koblas/BackendSlot;
-	public static final field F64Lapack Lcom/eignex/koblas/BackendSlot;
-	public static final field F64SparseBlas Lcom/eignex/koblas/BackendSlot;
-	public static final field F64SparseLapack Lcom/eignex/koblas/BackendSlot;
-	public static final field F64SparseVectorKernels Lcom/eignex/koblas/BackendSlot;
-	public static final field F64VectorKernels Lcom/eignex/koblas/BackendSlot;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/BackendSlot;
-	public static fun values ()[Lcom/eignex/koblas/BackendSlot;
-}
-
-public final class com/eignex/koblas/BackendSlotKt {
-	public static final fun backendFor (Lcom/eignex/koblas/F64Context;Lcom/eignex/koblas/BackendSlot;)Lcom/eignex/koblas/Backend;
+public final class com/eignex/koblas/BackendStatusKt {
+	public static final fun backendFor (Lcom/eignex/koblas/F64Context;Lcom/eignex/koblas/internal/backend/BackendSlot;)Lcom/eignex/koblas/Backend;
 	public static final fun getPortableSlots (Lcom/eignex/koblas/F64Context;)Ljava/util/Set;
-	public static final fun isAccelerated (Lcom/eignex/koblas/F64Context;Lcom/eignex/koblas/BackendSlot;)Z
-	public static final fun requireAccelerated (Lcom/eignex/koblas/F64Context;[Lcom/eignex/koblas/BackendSlot;)V
+	public static final fun isAccelerated (Lcom/eignex/koblas/F64Context;Lcom/eignex/koblas/internal/backend/BackendSlot;)Z
+	public static final fun requireAccelerated (Lcom/eignex/koblas/F64Context;[Lcom/eignex/koblas/internal/backend/BackendSlot;)V
 }
 
 public final class com/eignex/koblas/DimensionMismatch : com/eignex/koblas/KoblasException {
@@ -908,6 +896,18 @@ public final class com/eignex/koblas/hostblas/HostLapack : com/eignex/koblas/den
 	public fun getPriority ()I
 	public fun isAvailable ()Z
 	public fun qrPivoted (Lcom/eignex/koblas/F64DenseMatrix;DLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;
+}
+
+public final class com/eignex/koblas/internal/backend/BackendSlot : java/lang/Enum {
+	public static final field F64Blas Lcom/eignex/koblas/internal/backend/BackendSlot;
+	public static final field F64Lapack Lcom/eignex/koblas/internal/backend/BackendSlot;
+	public static final field F64SparseBlas Lcom/eignex/koblas/internal/backend/BackendSlot;
+	public static final field F64SparseLapack Lcom/eignex/koblas/internal/backend/BackendSlot;
+	public static final field F64SparseVectorKernels Lcom/eignex/koblas/internal/backend/BackendSlot;
+	public static final field F64VectorKernels Lcom/eignex/koblas/internal/backend/BackendSlot;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/internal/backend/BackendSlot;
+	public static fun values ()[Lcom/eignex/koblas/internal/backend/BackendSlot;
 }
 
 public final class com/eignex/koblas/sparse/F64ReferenceSparseLinearAlgebra : com/eignex/koblas/sparse/F64SparseLinearAlgebra, com/eignex/koblas/sparse/F64SparseVectorKernels {

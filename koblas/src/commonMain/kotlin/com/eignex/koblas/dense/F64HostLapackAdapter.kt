@@ -13,6 +13,8 @@ import com.eignex.koblas.dense.Cblas.NO_TRANS
 import com.eignex.koblas.dense.Cblas.TRANS
 import com.eignex.koblas.dense.Cblas.UNIT
 import com.eignex.koblas.dense.Cblas.UPPER
+import com.eignex.koblas.dense.host.CblasCalls
+import com.eignex.koblas.dense.host.LapackeCalls
 import com.eignex.koblas.f64DispatchThresholds
 import com.eignex.koblas.lapackFailedAt
 import com.eignex.koblas.requireFactored

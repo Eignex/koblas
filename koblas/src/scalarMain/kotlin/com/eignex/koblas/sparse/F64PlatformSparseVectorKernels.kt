@@ -1,7 +1,7 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.BackendNames
 import com.eignex.koblas.F64SparseVector
+import com.eignex.koblas.internal.backend.BackendNames
 
 /** The portable sparse level-1 kernels, which come from the reference backend. */
 internal actual object F64PlatformSparseVectorKernels : F64SparseVectorKernels {

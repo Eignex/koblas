@@ -2,6 +2,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.dense.host.CblasCalls
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
 import kotlin.test.assertSame

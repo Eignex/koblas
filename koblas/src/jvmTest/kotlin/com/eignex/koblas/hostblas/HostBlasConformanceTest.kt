@@ -29,6 +29,7 @@ import com.eignex.koblas.dense.assertSymvRefusesNonSquare
 import com.eignex.koblas.dense.assertSyrkAgreesWithReference
 import com.eignex.koblas.dense.assertSyrkTriangleModesLeaveTheOtherTriangle
 import com.eignex.koblas.dense.assertTriangularAgreesWithReference
+import com.eignex.koblas.dense.host.jvm.HostBlasCalls
 import com.eignex.koblas.koblasInfo
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.wellConditioned

@@ -1,11 +1,14 @@
 package com.eignex.koblas.cblas
 
-import com.eignex.koblas.BackendNames
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.dense.F64Blas
 import com.eignex.koblas.dense.F64Lapack
 import com.eignex.koblas.dense.F64LinearAlgebra
 import com.eignex.koblas.dense.F64VectorKernels
+import com.eignex.koblas.dense.host.cblas.F64CblasBlas
+import com.eignex.koblas.dense.host.cblas.F64CblasLapack
+import com.eignex.koblas.dense.host.cblas.OpenBlasLoader
+import com.eignex.koblas.internal.backend.BackendNames
 
 /**
  * [F64LinearAlgebra] backed by the host's OpenBLAS through CBLAS and LAPACKE, resolved with `dlopen` on

@@ -2,6 +2,7 @@ package com.eignex.koblas.hostblas
 
 import com.eignex.koblas.HostLibraryTest
 import com.eignex.koblas.bytesPerIteration
+import com.eignex.koblas.dense.host.jvm.HostBlasCalls
 import com.eignex.koblas.wellConditioned
 import org.junit.Assume
 import org.junit.experimental.categories.Category

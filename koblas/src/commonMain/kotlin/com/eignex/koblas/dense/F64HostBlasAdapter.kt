@@ -13,6 +13,7 @@ import com.eignex.koblas.dense.Cblas.diagOf
 import com.eignex.koblas.dense.Cblas.sideOf
 import com.eignex.koblas.dense.Cblas.transOf
 import com.eignex.koblas.dense.Cblas.uploOf
+import com.eignex.koblas.dense.host.CblasCalls
 import com.eignex.koblas.f64DispatchThresholds
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.requireSquare

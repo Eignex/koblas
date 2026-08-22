@@ -1,5 +1,7 @@
-package com.eignex.koblas
+package com.eignex.koblas.internal.backend
 
+import com.eignex.koblas.Backend
+import com.eignex.koblas.F64Context
 import com.eignex.koblas.dense.F64Blas
 import com.eignex.koblas.dense.F64Lapack
 import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
@@ -19,7 +21,7 @@ import kotlin.concurrent.atomics.incrementAndFetch
 /**
  * The six double-precision seams and the context they compose. One element type's registrations live in one
  * of these, so an element type added later brings its own rather than widening this one: its halves are
- * different interfaces, and a backend offered to [registerBackend] belongs to whichever registry recognises
+ * different interfaces, and a backend offered to the public registry belongs to whichever registry recognises
  * it. [Seam] and the ranking are shared, so what differs between two registries is only the six types.
  */
 @OptIn(ExperimentalAtomicApi::class)
@@ -124,7 +126,7 @@ internal class F64Registry {
     }
 
     companion object {
-        /** The halves this registry has seams for, as [registerBackend] names them when nothing matched. */
+        /** The halves this registry has seams for, used in diagnostics when nothing matched. */
         const val HALF_NAMES: String = "F64VectorKernels, F64Blas, F64Lapack, F64SparseVectorKernels, " +
             "F64SparseBlas or F64SparseLapack"
     }

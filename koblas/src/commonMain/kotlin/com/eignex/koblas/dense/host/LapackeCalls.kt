@@ -1,4 +1,4 @@
-package com.eignex.koblas.dense
+package com.eignex.koblas.dense.host
 
 /**
  * The LAPACKE entry points koblas binds, in plain arrays and ints, alongside [CblasCalls]. Each returns
