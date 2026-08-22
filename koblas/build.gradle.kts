@@ -44,39 +44,17 @@ kotlin {
         nativeMain.get().dependsOn(scalarMain)
         wasmWasiMain.get().dependsOn(scalarMain)
 
-        // The host-BLAS backend: Linux and macOS only. It resolves libopenblas with dlopen, which iOS
-        // has no use for (no host library to find, and an App Store binary should not carry the call),
-        // and mingw does not provide at all. Both keep the portable kernels, and need no source set of
-        // their own to say so - the level-1 routing lives in commonMain and resolves to null for them.
-        val hostBlasMain = create("hostBlasMain") { dependsOn(nativeMain.get()) }
-        linuxMain.get().dependsOn(hostBlasMain)
-        macosMain.get().dependsOn(hostBlasMain)
+        // Host backends run on Linux and macOS only. The bindings resolve OpenBLAS and SuiteSparse
+        // independently, so either library may be absent. iOS has no host library to find, and mingw does
+        // not provide one. Everything else takes the no-op from noHostMain; exactly one implementation
+        // reaches each target, as `registerPlatformBackends` is an expect declaration.
+        val hostMain = create("hostMain") { dependsOn(nativeMain.get()) }
+        linuxMain.get().dependsOn(hostMain)
+        macosMain.get().dependsOn(hostMain)
 
-        val hostBlasTest = create("hostBlasTest") { dependsOn(nativeTest.get()) }
-        linuxTest.get().dependsOn(hostBlasTest)
-        macosTest.get().dependsOn(hostBlasTest)
-
-        // The host-SuiteSparse backend, on the same targets and for the same reason as hostBlasMain. Its own
-        // source set rather than a package inside that one because the two libraries are independent: a host
-        // may have OpenBLAS without SuiteSparse or the reverse, and a sparse direct solver is not BLAS.
-        val hostSparseMain = create("hostSparseMain") { dependsOn(nativeMain.get()) }
-        linuxMain.get().dependsOn(hostSparseMain)
-        macosMain.get().dependsOn(hostSparseMain)
-
-        val hostSparseTest = create("hostSparseTest") { dependsOn(nativeTest.get()) }
-        linuxTest.get().dependsOn(hostSparseTest)
-        macosTest.get().dependsOn(hostSparseTest)
-
-        // Backend discovery has to live where it can see the bindings, and the two host source sets are
-        // siblings, so the platforms that have both get a source set that depends on both. Everything else
-        // takes the no-op from noHostMain. Exactly one of the two reaches each target, which is what
-        // `registerPlatformBackends` being an expect declaration requires.
-        val hostBackendsMain = create("hostBackendsMain") {
-            dependsOn(hostBlasMain)
-            dependsOn(hostSparseMain)
-        }
-        linuxMain.get().dependsOn(hostBackendsMain)
-        macosMain.get().dependsOn(hostBackendsMain)
+        val hostTest = create("hostTest") { dependsOn(nativeTest.get()) }
+        linuxTest.get().dependsOn(hostTest)
+        macosTest.get().dependsOn(hostTest)
 
         val noHostMain = create("noHostMain") { dependsOn(scalarMain) }
         mingwMain.get().dependsOn(noHostMain)
