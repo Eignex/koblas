@@ -21,7 +21,7 @@ import com.eignex.koblas.internal.backend.f64DispatchThresholds
  * The host LAPACKE through `java.lang.foreign`. Every shared routine lives in [F64HostLapackAdapter]; this
  * supplies the JVM's entry points, its measured gates, and the one routine only this binding has.
  */
-public class HostLapack internal constructor() : F64HostLapackAdapter(JvmLapackeCalls, JvmCblasCalls) {
+public class HostLapack : F64HostLapackAdapter(JvmLapackeCalls, JvmCblasCalls) {
     override val name: String get() = BackendNames.OPENBLAS
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY

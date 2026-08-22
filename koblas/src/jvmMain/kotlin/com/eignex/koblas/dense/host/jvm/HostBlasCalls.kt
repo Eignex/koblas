@@ -48,7 +48,8 @@ internal object HostBlasCalls {
     /** Where LAPACKE lives when the OpenBLAS build does not include it. */
     private var lapackeLookup: SymbolLookup? = null
 
-    private val SONAMES = listOf(
+    private val SONAMES = listOfNotNull(
+        System.getProperty("koblas.openblas.path"),
         "libopenblas.so.0",
         "libopenblas.so",
         "libopenblas.dylib",
@@ -57,7 +58,13 @@ internal object HostBlasCalls {
         "openblas.dll",
     )
 
-    private val LAPACKE_SONAMES = listOf("liblapacke.so.3", "liblapacke.so", "liblapacke.dylib", "lapacke.dll")
+    private val LAPACKE_SONAMES = listOfNotNull(
+        System.getProperty("koblas.lapacke.path"),
+        "liblapacke.so.3",
+        "liblapacke.so",
+        "liblapacke.dylib",
+        "lapacke.dll",
+    )
 
     /**
      * Every CBLAS entry point these bindings resolve. Availability is the whole set rather than one symbol,
@@ -97,7 +104,7 @@ internal object HostBlasCalls {
         // Resolved the way [symbol] resolves, the OpenBLAS build first and then liblapacke, so a host
         // splitting the set across the two is still served.
         lapackAvailable = available && REQUIRED_LAPACKE.all { name ->
-            blas?.find(name)?.isPresent == true || extra?.find(name)?.isPresent == true
+            requireNotNull(blas).find(name).isPresent || extra?.find(name)?.isPresent == true
         }
         // Before any routine runs: an unconfigured OpenBLAS is multithreaded and its parallel LAPACK
         // overflows a default JVM thread stack, killing the process with an uncatchable SIGSEGV.
