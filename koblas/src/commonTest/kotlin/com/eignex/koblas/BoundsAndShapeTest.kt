@@ -40,10 +40,10 @@ class BoundsAndShapeTest {
 
     @Test
     fun `an out-of-range row does not read a neighbouring column`() {
-        // data is column-major, so row 5 of a 2x3 lands inside column 2 and used to read back as 6.0.
+        // Column-major indexing must not turn an invalid row into an entry from another column.
         assertFailsWith<IndexOutOfBoundsException> { dense[5, 0] }
         assertFailsWith<IndexOutOfBoundsException> { dense[5, 0] = 0.0 }
-        assertEquals(6.0, dense[1, 2], "the entry that used to leak must still be reachable properly")
+        assertEquals(6.0, dense[1, 2], "a valid entry in the neighbouring column remains reachable")
     }
 
     @Test

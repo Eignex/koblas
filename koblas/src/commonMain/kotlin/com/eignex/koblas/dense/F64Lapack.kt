@@ -8,7 +8,6 @@ import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.core.F64DenseVector
 import com.eignex.koblas.koblas
 import com.eignex.koblas.norm1
 import com.eignex.koblas.requireShape
@@ -200,63 +199,6 @@ public interface F64Lapack : Backend {
 
     /** Invert an SPD matrix from its Cholesky factorization, returning `A⁻¹` given [chol] (LAPACK `dpotri`). */
     public fun invert(chol: F64CholeskyDecomposition, workspace: Workspace? = null): F64DenseMatrix
-
-    /** [solve] over a [F64DenseVector] right-hand side. */
-    public fun solve(lu: F64LuDecomposition, b: F64DenseVector, transpose: Boolean = false): F64DenseVector =
-        F64DenseVector.wrap(solve(lu, b.data, transpose))
-
-    /** [solveInto] over [F64DenseVector] operands, returning [out]. */
-    public fun solveInto(
-        lu: F64LuDecomposition,
-        b: F64DenseVector,
-        out: F64DenseVector,
-        transpose: Boolean = false,
-        workspace: Workspace? = null,
-    ): F64DenseVector {
-        solveInto(lu, b.data, out.data, transpose, workspace)
-        return out
-    }
-
-    /** [solve] over a [F64DenseVector] right-hand side. */
-    public fun solve(ldl: F64LdlDecomposition, b: F64DenseVector): F64DenseVector = F64DenseVector.wrap(
-        solve(ldl, b.data),
-    )
-
-    /** [solveInto] over [F64DenseVector] operands, returning [out]. */
-    public fun solveInto(ldl: F64LdlDecomposition, b: F64DenseVector, out: F64DenseVector): F64DenseVector {
-        solveInto(ldl, b.data, out.data)
-        return out
-    }
-
-    /** [solve] over a [F64DenseVector] right-hand side. */
-    public fun solve(chol: F64CholeskyDecomposition, b: F64DenseVector): F64DenseVector = F64DenseVector.wrap(
-        solve(chol, b.data),
-    )
-
-    /** [solveLeastSquares] over a [F64DenseVector] right-hand side. */
-    public fun solveLeastSquares(
-        qr: F64QrDecomposition,
-        b: F64DenseVector,
-        workspace: Workspace? = null,
-    ): F64DenseVector = F64DenseVector.wrap(solveLeastSquares(qr, b.data, workspace))
-
-    /** [solveLeastSquares] over a [F64DenseVector] right-hand side. */
-    public fun solveLeastSquares(
-        qr: F64PivotedQrDecomposition,
-        b: F64DenseVector,
-        workspace: Workspace? = null,
-    ): F64DenseVector = F64DenseVector.wrap(solveLeastSquares(qr, b.data, workspace))
-
-    /** [solveMinimumNorm] over a [F64DenseVector] right-hand side. */
-    public fun solveMinimumNorm(
-        qr: F64QrDecomposition,
-        b: F64DenseVector,
-        workspace: Workspace? = null,
-    ): F64DenseVector = F64DenseVector.wrap(solveMinimumNorm(qr, b.data, workspace))
-
-    /** [applyQ] over a [F64DenseVector]. */
-    public fun applyQ(qr: F64QrDecomposition, y: F64DenseVector, transpose: Boolean = false): F64DenseVector =
-        F64DenseVector.wrap(applyQ(qr, y.data, transpose))
 }
 
 /** Sweep cap for the [F64Lapack.rcond] estimator. */

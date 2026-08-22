@@ -5,7 +5,6 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.Backend
 import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.core.*
-import com.eignex.koblas.core.F64DenseVector
 import com.eignex.koblas.core.F64SparseMatrix
 
 /** Sparse matrix routines as a backend half. */
@@ -46,29 +45,6 @@ public interface F64SparseBlas : Backend {
         gemv(1.0, a, x, 0.0, y, transpose)
         return y
     }
-
-    /** [gemv] over [F64DenseVector] operands; [y] is written in place. */
-    public fun gemv(
-        alpha: Double,
-        a: F64SparseMatrix,
-        x: F64DenseVector,
-        beta: Double,
-        y: F64DenseVector,
-        transpose: Boolean = false,
-    ): Unit = gemv(alpha, a, x.data, beta, y.data, transpose)
-
-    /** [gemv] over a [F64DenseVector], into a fresh result. */
-    public fun gemv(a: F64SparseMatrix, x: F64DenseVector, transpose: Boolean = false): F64DenseVector =
-        F64DenseVector.wrap(gemv(a, x.data, transpose))
-
-    /** [trsv] over a [F64DenseVector]; [x] holds the right-hand side on entry and the solution on return. */
-    public fun trsv(
-        a: F64SparseMatrix,
-        x: F64DenseVector,
-        lower: Boolean,
-        transpose: Boolean = false,
-        unitDiag: Boolean = false,
-    ): Unit = trsv(a, x.data, lower, transpose, unitDiag)
 }
 
 /**
