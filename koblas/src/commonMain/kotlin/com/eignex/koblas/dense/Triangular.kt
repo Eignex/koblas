@@ -18,8 +18,9 @@ public fun trsv(
     unitDiag: Boolean = false,
 ): Unit = koblas.trsv(a, x, lower, transpose, unitDiag)
 
-/** Solve `op(T) · X = B`, or `X · op(T) = B` when [right] (BLAS `dtrsm`); see [F64LinearAlgebra.trsm]. Reads
- *  only the triangle [lower] selects, and a singular triangle yields infinities or NaNs. */
+/** `B = alpha · op(T)⁻¹ · B`, or `B = alpha · B · op(T)⁻¹` when [right] (BLAS `dtrsm`); see
+ *  [F64LinearAlgebra.trsm]. Reads only the triangle [lower] selects, and a singular triangle yields infinities
+ *  or NaNs. */
 @Suppress("LongParameterList") // the BLAS dtrsm signature
 public fun trsm(
     a: F64DenseMatrix,
@@ -28,7 +29,8 @@ public fun trsm(
     transpose: Boolean = false,
     unitDiag: Boolean = false,
     right: Boolean = false,
-): Unit = koblas.trsm(a, b, lower, transpose, unitDiag, right)
+    alpha: Double = 1.0,
+): Unit = koblas.trsm(a, b, lower, transpose, unitDiag, right, alpha)
 
 /** Multiply `x = op(T) · x` in place (BLAS `dtrmv`); see [F64LinearAlgebra.trmv]. Reads only the triangle
  *  [lower] selects. */
@@ -40,8 +42,8 @@ public fun trmv(
     unitDiag: Boolean = false,
 ): Unit = koblas.trmv(a, x, lower, transpose, unitDiag)
 
-/** Multiply `B = op(T) · B`, or `B = B · op(T)` when [right] (BLAS `dtrmm`); see [F64LinearAlgebra.trmm].
- *  Reads only the triangle [lower] selects. */
+/** `B = alpha · op(T) · B`, or `B = alpha · B · op(T)` when [right] (BLAS `dtrmm`); see
+ *  [F64LinearAlgebra.trmm]. Reads only the triangle [lower] selects. */
 @Suppress("LongParameterList") // the BLAS dtrmm signature
 public fun trmm(
     a: F64DenseMatrix,
@@ -50,7 +52,8 @@ public fun trmm(
     transpose: Boolean = false,
     unitDiag: Boolean = false,
     right: Boolean = false,
-): Unit = koblas.trmm(a, b, lower, transpose, unitDiag, right)
+    alpha: Double = 1.0,
+): Unit = koblas.trmm(a, b, lower, transpose, unitDiag, right, alpha)
 
 /** Stages each row of [b] through a scratch vector and applies [op] to it, with the transpose flag
  *  flipped. */
@@ -217,12 +220,18 @@ internal fun triangularMatrix(
     transpose: Boolean,
     unitDiag: Boolean,
     right: Boolean,
+    alpha: Double,
     solve: Boolean,
 ) {
     val what = if (solve) "trsm" else "trmm"
     requireSquare(a, what)
     if (right) {
         requireShape(b.cols == a.rows) { "$what right: B has ${b.cols} cols, expected ${a.rows}" }
+        if (alpha == 0.0) {
+            b.data.fill(0.0)
+            return
+        }
+        if (alpha != 1.0) k.scale(b.data, 0, alpha, b.data.size)
         forEachRow(a.rows, b) { row ->
             if (solve) {
                 trsvCore(k, a.data, a.rows, row, lower = lower, transpose = !transpose, unitDiag = unitDiag)
@@ -232,6 +241,11 @@ internal fun triangularMatrix(
         }
     } else {
         requireShape(b.rows == a.rows) { "$what: B has ${b.rows} rows, expected ${a.rows}" }
+        if (alpha == 0.0) {
+            b.data.fill(0.0)
+            return
+        }
+        if (alpha != 1.0) k.scale(b.data, 0, alpha, b.data.size)
         if (solve) {
             trsmCore(k, a.data, a.rows, b.data, b.cols, lower, transpose, unitDiag)
         } else {
