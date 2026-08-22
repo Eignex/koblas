@@ -30,7 +30,7 @@ private const val UMFPACK_PATH_ENVIRONMENT = "KOBLAS_UMFPACK_PATH"
 private fun loadUmfpack(): UmfpackSparseLapack {
     // UMFPACK links to BLAS. Loading the transitive single OpenBLAS bundle first makes its SONAME available
     // to the dynamic loader without making a system installation part of this optional artifact's contract.
-    BundledOpenBlas()
+    check(BundledOpenBlas().isAvailable) { "the bundled OpenBLAS dependency could not be loaded" }
     if (System.getProperty(UMFPACK_PATH_PROPERTY) == null && System.getenv(UMFPACK_PATH_ENVIRONMENT) == null) {
         System.setProperty(UMFPACK_PATH_PROPERTY, UmfpackResources.extract().toString())
     }
