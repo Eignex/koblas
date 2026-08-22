@@ -8,12 +8,9 @@ import com.eignex.koblas.dense.F64VectorKernels
 import com.eignex.koblas.hostblas.HostBlas
 import com.eignex.koblas.hostblas.HostLapack
 import java.io.InputStream
-import java.nio.file.AtomicMoveNotSupportedException
-import java.nio.file.FileAlreadyExistsException
 import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.StandardCopyOption.ATOMIC_MOVE
-import java.nio.file.StandardCopyOption.REPLACE_EXISTING
+import java.nio.file.attribute.PosixFilePermissions
 
 /**
  * OpenBLAS and LAPACKE extracted from the Maven-native resources on this application's classpath.
@@ -40,19 +37,40 @@ public class BundledOpenBlas private constructor(private val blas: HostBlas, pri
 
 private const val OPENBLAS_PATH_PROPERTY = "koblas.openblas.path"
 private const val LAPACKE_PATH_PROPERTY = "koblas.lapacke.path"
+private const val OPENBLAS_PATH_ENVIRONMENT = "KOBLAS_OPENBLAS_PATH"
+private const val LAPACKE_PATH_ENVIRONMENT = "KOBLAS_LAPACKE_PATH"
 
-private data class OpenBlasPaths(val openblas: Path, val lapacke: Path?)
+internal data class OpenBlasPaths(val openblas: Path, val lapacke: Path?)
 
 private data class HostBackends(val blas: HostBlas, val lapack: HostLapack)
 
 private fun loadHostBackends(): HostBackends {
-    val paths = OpenBlasResources.extract()
-    System.setProperty(OPENBLAS_PATH_PROPERTY, paths.openblas.toString())
-    paths.lapacke?.let { System.setProperty(LAPACKE_PATH_PROPERTY, it.toString()) }
+    if (openBlasPathOverride() == null) {
+        configureHostLibraryPaths(OpenBlasResources.extract())
+    }
     return HostBackends(HostBlas(), HostLapack())
 }
 
-private object OpenBlasResources {
+internal fun configureHostLibraryPaths(paths: OpenBlasPaths) {
+    setPathIfAbsent(OPENBLAS_PATH_PROPERTY, paths.openblas)
+    paths.lapacke?.let { setPathIfAbsent(LAPACKE_PATH_PROPERTY, it) }
+}
+
+private fun setPathIfAbsent(property: String, path: Path) {
+    val environment = when (property) {
+        OPENBLAS_PATH_PROPERTY -> OPENBLAS_PATH_ENVIRONMENT
+        LAPACKE_PATH_PROPERTY -> LAPACKE_PATH_ENVIRONMENT
+        else -> error("unknown native library property $property")
+    }
+    if (System.getProperty(property) == null && System.getenv(environment) == null) {
+        System.setProperty(property, path.toString())
+    }
+}
+
+private fun openBlasPathOverride(): String? =
+    System.getProperty(OPENBLAS_PATH_PROPERTY) ?: System.getenv(OPENBLAS_PATH_ENVIRONMENT)
+
+internal object OpenBlasResources {
     private val x64Architectures: Set<String> = setOf("amd64", "x86_64")
     private val arm64Architectures: Set<String> = setOf("aarch64", "arm64")
 
@@ -66,31 +84,37 @@ private object OpenBlasResources {
         else -> error("koblas-openblas has no bundled OpenBLAS for $os $architecture")
     }
 
-    fun extract(): OpenBlasPaths {
-        val directory = Files.createDirectories(
-            Path.of(System.getProperty("java.io.tmpdir"), "koblas-openblas", platform),
-        )
+    private val extracted: OpenBlasPaths by lazy {
+        val directory = createExtractionDirectory()
         val copied = libraries.associateWith { name -> copyResource(directory, name) }
-        return OpenBlasPaths(
+        OpenBlasPaths(
             checkNotNull(copied[openblasLibrary]) { "OpenBLAS resource is absent for $platform" },
             lapackeLibrary?.let(copied::get),
         )
     }
 
+    fun extract(): OpenBlasPaths = extracted
+
+    private fun createExtractionDirectory(): Path {
+        val directory = Files.createTempDirectory("koblas-openblas-$platform-")
+        setOwnerOnlyPermissions(directory, "rwx------")
+        return directory
+    }
+
     private fun copyResource(directory: Path, name: String): Path? {
         val input = resource(name) ?: return null
         val destination = directory.resolve(name)
-        if (Files.isRegularFile(destination)) return destination
-        val temporary = Files.createTempFile(directory, "$name-", ".part")
-        input.use { Files.copy(it, temporary, REPLACE_EXISTING) }
-        try {
-            Files.move(temporary, destination, ATOMIC_MOVE)
-        } catch (_: FileAlreadyExistsException) {
-            // Another class loader won the race and wrote the same immutable resource.
-        } catch (_: AtomicMoveNotSupportedException) {
-            Files.move(temporary, destination, REPLACE_EXISTING)
-        }
+        input.use { Files.copy(it, destination) }
+        setOwnerOnlyPermissions(destination, "rw-------")
         return destination
+    }
+
+    private fun setOwnerOnlyPermissions(path: Path, permissions: String) {
+        runCatching {
+            Files.setPosixFilePermissions(path, PosixFilePermissions.fromString(permissions))
+        }.onFailure { cause ->
+            throw IllegalStateException("cannot secure extracted OpenBLAS resource $path", cause)
+        }
     }
 
     private fun resource(name: String): InputStream? {

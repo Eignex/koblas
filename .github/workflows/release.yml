@@ -22,7 +22,59 @@ concurrency:
   cancel-in-progress: ${{ github.ref_type != 'tag' }}
 
 jobs:
+  build-openblas:
+    name: Build bundled OpenBLAS for ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-x86_64
+            runner: ubuntu-latest
+          - platform: linux-arm64
+            runner: ubuntu-24.04-arm
+          - platform: macosx-arm64
+            runner: macos-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: true
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+
+      - name: Install the macOS Fortran compiler
+        if: matrix.platform == 'macosx-arm64'
+        run: |
+          brew install gcc
+          echo "FC=$(find "$(brew --prefix gcc)/bin" -name 'gfortran-*' -print -quit)" >> "$GITHUB_ENV"
+
+      - name: Cache bundled OpenBLAS resources
+        uses: actions/cache@v5
+        with:
+          path: koblas-openblas/build/openblas
+          key: release-openblas-${{ runner.os }}-${{ runner.arch }}-${{ matrix.platform }}-${{ hashFiles('koblas-openblas/openblas.lock', 'scripts/build-openblas.sh') }}
+
+      - name: Build bundled OpenBLAS
+        run: ./gradlew :koblas-openblas:buildOpenBlas -Pkoblas.openblas.platform=${{ matrix.platform }}
+
+      - name: Upload bundled OpenBLAS resources
+        uses: actions/upload-artifact@v7
+        with:
+          name: openblas-${{ matrix.platform }}
+          path: koblas-openblas/build/openblas/resources/org/bytedeco/openblas/${{ matrix.platform }}
+          if-no-files-found: error
+
   publish:
+    needs: build-openblas
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -50,6 +102,13 @@ jobs:
           path: ~/.konan
           key: ${{ runner.os }}-konan-${{ hashFiles('**/*.gradle.kts') }}
           restore-keys: ${{ runner.os }}-konan-
+
+      - name: Download bundled OpenBLAS resources
+        uses: actions/download-artifact@v8
+        with:
+          pattern: openblas-*
+          path: koblas-openblas/build/openblas/resources/org/bytedeco/openblas
+          merge-multiple: true
 
       # A tag publishes that exact version as a release. Any other ref publishes a snapshot of the
       # next patch, so main always has a consumable build. A dry run takes the release path as far
