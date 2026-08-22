@@ -110,8 +110,8 @@ private fun checkTriangular(blas: F64Blas, rng: Random, n: Int, lower: Boolean, 
     for (right in booleanArrayOf(false, true)) {
         val b = if (right) randomMatrix(nrhs, n, rng) else randomMatrix(n, nrhs, rng)
         for ((name, op) in listOf<Pair<String, (F64Blas, F64DenseMatrix) -> Unit>>(
-            "trsm" to { la, m -> la.trsm(t, m, lower, transpose, unitDiag, right) },
-            "trmm" to { la, m -> la.trmm(t, m, lower, transpose, unitDiag, right) },
+            "trsm" to { la, m -> la.trsm(t, m, lower, transpose, unitDiag, right, alpha = -0.75) },
+            "trmm" to { la, m -> la.trmm(t, m, lower, transpose, unitDiag, right, alpha = -0.75) },
         )) {
             val expected = F64DenseMatrix(b.rows, b.cols, b.data.copyOf()).also { op(reference, it) }
             val actual = F64DenseMatrix(b.rows, b.cols, b.data.copyOf()).also { op(blas, it) }

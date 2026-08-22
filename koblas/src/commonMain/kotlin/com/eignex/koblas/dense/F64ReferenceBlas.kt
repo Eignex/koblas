@@ -367,8 +367,9 @@ internal class F64ReferenceBlas(private val kernels: F64VectorKernels? = null) :
         transpose: Boolean,
         unitDiag: Boolean,
         right: Boolean,
+        alpha: Double,
     ) =
-        triangularMatrix(vectorKernels, a, b, lower, transpose, unitDiag, right, solve = true)
+        triangularMatrix(vectorKernels, a, b, lower, transpose, unitDiag, right, alpha, solve = true)
 
     /** `x = op(T) · x` in place (BLAS `dtrmv`), the product counterpart of [trsv]. */
     override fun trmv(a: F64DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) =
@@ -383,6 +384,7 @@ internal class F64ReferenceBlas(private val kernels: F64VectorKernels? = null) :
         transpose: Boolean,
         unitDiag: Boolean,
         right: Boolean,
+        alpha: Double,
     ) =
-        triangularMatrix(vectorKernels, a, b, lower, transpose, unitDiag, right, solve = false)
+        triangularMatrix(vectorKernels, a, b, lower, transpose, unitDiag, right, alpha, solve = false)
 }

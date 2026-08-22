@@ -126,8 +126,8 @@ public interface F64Blas : Backend {
         unitDiag: Boolean = false,
     )
 
-    /** Solve `op(T) · X = B` in place, or `X · op(T) = B` when [right] (BLAS `dtrsm`). Flags follow [trsv];
-     *  the right-hand sides are the columns of [b] from the left and its rows from the right. */
+    /** `B = alpha · op(T)⁻¹ · B` in place, or `B = alpha · B · op(T)⁻¹` when [right] (BLAS `dtrsm`). Flags
+     *  follow [trsv]; the right-hand sides are the columns of [b] from the left and its rows from the right. */
     @Suppress("LongParameterList") // the BLAS dtrsm signature
     public fun trsm(
         a: F64DenseMatrix,
@@ -136,6 +136,7 @@ public interface F64Blas : Backend {
         transpose: Boolean = false,
         unitDiag: Boolean = false,
         right: Boolean = false,
+        alpha: Double = 1.0,
     )
 
     /** `x = op(T) · x` in place (BLAS `dtrmv`), the product counterpart of [trsv]. */
@@ -147,7 +148,8 @@ public interface F64Blas : Backend {
         unitDiag: Boolean = false,
     )
 
-    /** `B = op(T) · B`, or `B = B · op(T)` when [right] (BLAS `dtrmm`), the counterpart of [trsm]. */
+    /** `B = alpha · op(T) · B`, or `B = alpha · B · op(T)` when [right] (BLAS `dtrmm`), the counterpart of
+     *  [trsm]. */
     @Suppress("LongParameterList") // the BLAS dtrmm signature
     public fun trmm(
         a: F64DenseMatrix,
@@ -156,5 +158,6 @@ public interface F64Blas : Backend {
         transpose: Boolean = false,
         unitDiag: Boolean = false,
         right: Boolean = false,
+        alpha: Double = 1.0,
     )
 }

@@ -114,11 +114,12 @@ public abstract class F64HostBlasAdapter internal constructor(
         transpose: Boolean,
         unitDiag: Boolean,
         right: Boolean,
+        alpha: Double,
     ) {
         if (minOf(a.rows, b.rows, b.cols) < f64DispatchThresholds.level3) {
-            return portable.trsm(a, b, lower, transpose, unitDiag, right)
+            return portable.trsm(a, b, lower, transpose, unitDiag, right, alpha)
         }
-        triangularSolveOrMultiply(a, b, lower, transpose, unitDiag, right, solve = true)
+        triangularSolveOrMultiply(a, b, lower, transpose, unitDiag, right, alpha, solve = true)
     }
 
     @Suppress("LongParameterList") // the BLAS dtrmm signature
@@ -129,14 +130,15 @@ public abstract class F64HostBlasAdapter internal constructor(
         transpose: Boolean,
         unitDiag: Boolean,
         right: Boolean,
+        alpha: Double,
     ) {
         if (minOf(a.rows, b.rows, b.cols) < f64DispatchThresholds.level3) {
-            return portable.trmm(a, b, lower, transpose, unitDiag, right)
+            return portable.trmm(a, b, lower, transpose, unitDiag, right, alpha)
         }
-        triangularSolveOrMultiply(a, b, lower, transpose, unitDiag, right, solve = false)
+        triangularSolveOrMultiply(a, b, lower, transpose, unitDiag, right, alpha, solve = false)
     }
 
-    /** dtrsm and dtrmm take the same arguments and differ only in the entry point. koblas fixes alpha at 1. */
+    /** dtrsm and dtrmm take the same arguments and differ only in the entry point. */
     @Suppress("LongParameterList") // the shared BLAS signature plus the entry-point flag
     private fun triangularSolveOrMultiply(
         a: F64DenseMatrix,
@@ -145,6 +147,7 @@ public abstract class F64HostBlasAdapter internal constructor(
         transpose: Boolean,
         unitDiag: Boolean,
         right: Boolean,
+        alpha: Double,
         solve: Boolean,
     ) {
         val what = if (solve) "trsm" else "trmm"
@@ -158,7 +161,7 @@ public abstract class F64HostBlasAdapter internal constructor(
         val call = if (solve) f::dtrsm else f::dtrmm
         call(
             COL_MAJOR, sideOf(right), uploOf(lower), transOf(transpose), diagOf(unitDiag),
-            b.rows, b.cols, 1.0, a.data, a.rows, b.data, b.rows,
+            b.rows, b.cols, alpha, a.data, a.rows, b.data, b.rows,
         )
     }
 

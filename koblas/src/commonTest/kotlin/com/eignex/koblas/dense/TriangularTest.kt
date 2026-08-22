@@ -89,6 +89,22 @@ class TriangularTest {
     }
 
     @Test
+    fun `trsm applies alpha to the solved matrix`() {
+        val rng = Random(20261021)
+        val alpha = -0.75
+        val n = 10
+        val nrhs = 3
+        val (t, explicit) = poisonedTriangle(rng, n, lower = true, unitDiag = false)
+        val x = randomMatrix(n, nrhs, rng)
+        val b = explicit.matMul(x)
+
+        trsm(t, b, lower = true, alpha = alpha)
+
+        val expected = F64DenseMatrix(n, nrhs, DoubleArray(n * nrhs) { alpha * x.data[it] })
+        assertClose(expected, b, "trsm alpha", tolerance = 1e-9)
+    }
+
+    @Test
     fun `trmv matches gemv on the explicit triangle for all flag combos`() {
         val rng = Random(20260915)
         for (n in intArrayOf(1, 2, 7, 16)) {
@@ -110,6 +126,7 @@ class TriangularTest {
     @Test
     fun `trmm matches gemm on the explicit triangle for all flag combos`() {
         val rng = Random(20260916)
+        val alpha = -0.75
         for (n in intArrayOf(1, 5, 12)) {
             val p = 3
             for (lower in booleanArrayOf(true, false)) {
@@ -118,9 +135,9 @@ class TriangularTest {
                         val (t, explicit) = poisonedTriangle(rng, n, lower, unitDiag)
                         val b = randomMatrix(n, p, rng)
                         val expected = F64DenseMatrix(n, p)
-                        koblas.gemm(1.0, explicit, transpose, b, false, 0.0, expected)
+                        koblas.gemm(alpha, explicit, transpose, b, false, 0.0, expected)
                         val actual = F64DenseMatrix(n, p, b.data.copyOf())
-                        trmm(t, actual, lower, transpose, unitDiag)
+                        trmm(t, actual, lower, transpose, unitDiag, alpha = alpha)
                         assertClose(expected, actual, "trmm n=$n lower=$lower t=$transpose unit=$unitDiag")
                     }
                 }
