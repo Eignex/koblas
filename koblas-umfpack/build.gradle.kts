@@ -46,9 +46,14 @@ val buildUmfpack = tasks.register<Exec>("buildUmfpack") {
     inputs.property("cmake", toolVersion("cmake"))
     outputs.dir(umfpackResources.map { it.dir("org/eignex/umfpack/$platform") })
     outputs.cacheIf("the locked source, target platform, and toolchain are declared inputs") { true }
+    dependsOn(":koblas-openblas:buildOpenBlas")
+    val blas = project(":koblas-openblas").layout.buildDirectory
+        .file("openblas/resources/org/bytedeco/openblas/$platform/${if (platform.startsWith("linux")) "libopenblas.so.0" else "libopenblas.0.dylib"}")
+    inputs.file(blas)
     commandLine(
         "bash", rootProject.layout.projectDirectory.file("scripts/build-umfpack.sh").asFile.absolutePath,
         "--platform", platform, "--output", umfpackResources.get().asFile.absolutePath,
+        "--blas", blas.get().asFile.absolutePath,
     )
     environment(
         "CC" to cCompiler.get(), "CFLAGS" to "", "CXXFLAGS" to "", "LDFLAGS" to "",

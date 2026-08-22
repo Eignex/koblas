@@ -2,15 +2,16 @@
 set -euo pipefail
 
 usage() { echo "usage: $0 --platform <platform> --output <directory>" >&2; exit 2; }
-platform=""; output=""
+platform=""; output=""; blas=""
 while (($#)); do
     case "$1" in
         --platform) platform="${2:-}"; shift 2 ;;
         --output) output="${2:-}"; shift 2 ;;
+        --blas) blas="${2:-}"; shift 2 ;;
         *) usage ;;
     esac
 done
-[[ -n "$platform" && -n "$output" ]] || usage
+[[ -n "$platform" && -n "$output" && -n "$blas" ]] || usage
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 lock="$root/koblas-umfpack/umfpack.lock"
@@ -38,6 +39,7 @@ cmake -S "$source" -B "$work/build" -G "Unix Makefiles" \
     -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_PREFIX="$install" \
     -DSUITESPARSE_ENABLE_PROJECTS="suitesparse_config;amd;colamd;umfpack" \
     -DUMFPACK_USE_CHOLMOD=OFF \
+    -DBLAS_LIBRARIES="$blas" \
     -DCMAKE_INSTALL_RPATH='\$ORIGIN' -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON \
     -DCMAKE_C_COMPILER="${CC:-cc}" >/dev/null
 cmake --build "$work/build" --parallel "${SUITESPARSE_JOBS:-2}" >/dev/null
