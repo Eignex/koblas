@@ -3,7 +3,6 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.core.F64DenseVector
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.koblas
 import com.eignex.koblas.sparse.lu
@@ -37,8 +36,6 @@ class SingularSolveTest {
             "blocked solve" to { koblas.solve(lu, rhs) },
             "blocked solve transposed" to { koblas.solve(lu, rhs, transpose = true) },
             "blocked solveInto" to { koblas.solveInto(lu, rhs, F64DenseMatrix.zero(2, 1)) },
-            "vector solve" to { koblas.solve(lu, F64DenseVector.of(b)) },
-            "vector solveInto" to { koblas.solveInto(lu, F64DenseVector.of(b), F64DenseVector.zero(2)) },
             "extension solve" to { lu.solve(b) },
             "invert" to { lu.invert() },
         )
@@ -59,8 +56,6 @@ class SingularSolveTest {
             "solveInto" to { koblas.solveInto(ldl, DoubleArray(3), DoubleArray(3)) },
             "blocked solve" to { koblas.solve(ldl, rhs) },
             "blocked solveInto" to { koblas.solveInto(ldl, rhs, F64DenseMatrix.zero(3, 4)) },
-            "vector solve" to { koblas.solve(ldl, F64DenseVector.zero(3)) },
-            "vector solveInto" to { koblas.solveInto(ldl, F64DenseVector.zero(3), F64DenseVector.zero(3)) },
             "extension solve" to { ldl.solve(DoubleArray(3)) },
         )
         for ((name, block) in cases) {

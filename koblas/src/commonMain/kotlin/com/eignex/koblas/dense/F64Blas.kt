@@ -6,7 +6,6 @@ import com.eignex.koblas.Backend
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.core.F64DenseVector
 import com.eignex.koblas.core.F64VectorLike
 import com.eignex.koblas.core.F64VectorView
 import com.eignex.koblas.koblas
@@ -158,36 +157,4 @@ public interface F64Blas : Backend {
         unitDiag: Boolean = false,
         right: Boolean = false,
     )
-
-    /** [gemv] over [F64DenseVector] operands, writing [y] in place. */
-    public fun gemv(
-        alpha: Double,
-        a: F64DenseMatrix,
-        x: F64DenseVector,
-        beta: Double,
-        y: F64DenseVector,
-        transpose: Boolean = false,
-    ): Unit = gemv(alpha, a, x.data, beta, y.data, transpose)
-
-    /** [gemv] over a [F64DenseVector], into a fresh result. */
-    public fun gemv(a: F64DenseMatrix, x: F64DenseVector, transpose: Boolean = false): F64DenseVector =
-        F64DenseVector.wrap(gemv(a, x.data, transpose))
-
-    /** [trsv] over a [F64DenseVector], solving in place. */
-    public fun trsv(
-        a: F64DenseMatrix,
-        x: F64DenseVector,
-        lower: Boolean,
-        transpose: Boolean = false,
-        unitDiag: Boolean = false,
-    ): Unit = trsv(a, x.data, lower, transpose, unitDiag)
-
-    /** [trmv] over a [F64DenseVector], multiplying [x] in place. */
-    public fun trmv(
-        a: F64DenseMatrix,
-        x: F64DenseVector,
-        lower: Boolean,
-        transpose: Boolean = false,
-        unitDiag: Boolean = false,
-    ): Unit = trmv(a, x.data, lower, transpose, unitDiag)
 }

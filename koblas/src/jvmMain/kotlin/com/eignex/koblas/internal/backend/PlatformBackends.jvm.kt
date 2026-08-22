@@ -72,10 +72,10 @@ private fun loadProviders(): List<F64LinearAlgebra> {
  * Makes the candidate load its native path and produce a correct result.
  *
  * Sized from the level-3 gate, because a candidate that gates on these same thresholds answers anything
- * below its own gate from its portable fallback, where a missing library cannot show up. A 1x1 gemv, which
- * this used to be, can never reach a native path: every gate sits above 1, and level 2 stays portable
- * outright on a JVM carrying the Vector API. A level pinned portable has no native path to reach at any
- * size, so the probe stays at the cheap sanity check rather than allocating for the pinning value.
+ * below its own gate from its portable fallback, where a missing library cannot show up. Every gate sits
+ * above 1, and level 2 stays portable outright on a JVM carrying the Vector API. A level pinned portable
+ * has no native path to reach at any size, so the probe stays at the cheap sanity check rather than
+ * allocating for the pinning value.
  *
  * The primitive is called rather than the convenience overload, since a backend built by delegation
  * inherits a forwarder for every routine it does not override and the convenience one would bypass it.
