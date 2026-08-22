@@ -17,7 +17,6 @@ import com.eignex.koblas.sparse.symbolic.SparseOrdering
 import com.eignex.koblas.sparse.symbolic.SparseSymbolic
 import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
-import java.lang.foreign.ValueLayout.JAVA_INT
 
 /** Sparse factorizations backed by a host SuperLU bridge. */
 public class SuperluSparseLapack : F64SparseLapack {
@@ -34,25 +33,19 @@ public class SuperluSparseLapack : F64SparseLapack {
         if (!SuperluCalls.available || equilibrate || dropTolerance != NO_DROP || a.rows == 0 || a.nnz == 0) {
             return F64SparseLu.factorCsc(a, equilibrate, dropTolerance)
         }
-        Arena.ofConfined().use { scratch ->
-            val status = scratch.allocate(JAVA_INT)
-            val lnz = scratch.allocate(JAVA_INT)
-            val unz = scratch.allocate(JAVA_INT)
-            val handle = SuperluCalls.factorize(
+        val arena = Arena.ofShared()
+        val factor =
+            SuperluCalls.factorize(
                 a.rows,
                 MemorySegment.ofArray(a.values),
                 MemorySegment.ofArray(a.rowIdx),
                 MemorySegment.ofArray(a.colPtr),
-                status,
-                lnz,
-                unz,
-            )
-            return when (status.get(JAVA_INT, 0)) {
-                0 -> SuperluFactorization(a.rows, NOT_SINGULAR, handle, lnz.get(JAVA_INT, 0) + unz.get(JAVA_INT, 0))
-                1 -> F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
-                else -> F64SparseLu.factorCsc(a)
+                arena,
+            ) ?: run {
+                arena.close()
+                return F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
             }
-        }
+        return SuperluFactorization(a.rows, NOT_SINGULAR, factor, arena, SuperluCalls.fill(factor))
     }
 
     override fun analyze(a: F64SparseMatrix, ordering: SparseOrdering): SparseSymbolic =

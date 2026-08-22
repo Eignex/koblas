@@ -46,7 +46,6 @@ val buildSuperlu = tasks.register<Exec>("buildSuperlu") {
     val platform = superluPlatform.get()
     require(platform in supportedPlatforms) { "unsupported SuperLU platform $platform" }
     inputs.file(layout.projectDirectory.file("superlu.lock"))
-    inputs.file(layout.projectDirectory.file("native/koblas_superlu.c"))
     inputs.file(rootProject.layout.projectDirectory.file("scripts/build-superlu.sh"))
     inputs.property("platform", platform)
     inputs.property("cc", toolVersion(cCompiler.get()))
@@ -78,7 +77,7 @@ val superluVersion = layout.projectDirectory.file("superlu.lock").asFile.useLine
 val verifySuperluResources = tasks.register("verifySuperluResources") {
     val requiredResources = supportedPlatforms.associateWith { platform ->
         listOf(
-            if (platform.startsWith("linux")) "libkoblas-superlu.so" else "libkoblas-superlu.dylib",
+            if (platform.startsWith("linux")) "libsuperlu.so.7" else "libsuperlu.7.dylib",
             ".libraries",
             ".superlu-source-sha256",
             "LICENSE.superlu-$superluVersion.txt",

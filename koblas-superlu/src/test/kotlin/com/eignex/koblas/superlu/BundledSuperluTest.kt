@@ -32,4 +32,13 @@ class BundledSuperluTest {
 
         assertEquals(-6.0, determinant)
     }
+
+    @Test
+    fun `the bundled SuperLU reports a singular matrix`() {
+        val matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(0 to 2.0)))
+
+        val factorization = matrix.lu()
+
+        assertTrue(factorization.singular)
+    }
 }

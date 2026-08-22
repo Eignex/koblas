@@ -9,7 +9,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.attribute.PosixFilePermissions
 
-/** BSD-3-Clause SuperLU extracted from Maven-native resources on the application's classpath. */
+/** BSD-3-Clause SuperLU 7 extracted from Maven-native resources on the application's classpath. */
 public class BundledSuperlu private constructor(private val delegate: SuperluSparseLapack) :
     F64SparseLapack by delegate {
     /** Extracts the matching Maven-native resources before the core FFM binding is initialized. */
@@ -63,14 +63,7 @@ internal object SuperluResources {
 
     fun extract(): Path = extracted
 
-    private val superluLibrary: String = if (platform.startsWith(
-            "linux",
-        )
-    ) {
-        "libkoblas-superlu.so"
-    } else {
-        "libkoblas-superlu.dylib"
-    }
+    private val superluLibrary: String = if (platform.startsWith("linux")) "libsuperlu.so.7" else "libsuperlu.7.dylib"
 
     private fun resourceNames(): List<String> = checkNotNull(resource(".libraries")) {
         "SuperLU resources are absent for $platform"
