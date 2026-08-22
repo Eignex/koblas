@@ -8,6 +8,8 @@ import java.lang.foreign.MemoryLayout
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.SymbolLookup
 import java.lang.foreign.ValueLayout.ADDRESS
+import java.lang.foreign.ValueLayout.JAVA_BYTE
+import java.lang.foreign.ValueLayout.JAVA_DOUBLE
 import java.lang.foreign.ValueLayout.JAVA_INT
 import java.lang.invoke.MethodHandle
 
@@ -27,7 +29,9 @@ internal object SuperluCalls {
         val permutation: MethodHandle,
         val preorder: MethodHandle,
         val factor: MethodHandle,
+        val expert: MethodHandle,
         val solve: MethodHandle,
+        val refine: MethodHandle,
         val diagonal: MethodHandle,
         val destroyStore: MethodHandle,
         val destroyPermuted: MethodHandle,
@@ -137,6 +141,12 @@ internal object SuperluCalls {
                 ADDRESS,
             ),
             bindVoid(
+                "dgssvx",
+                ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS,
+                ADDRESS, JAVA_INT, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS,
+                ADDRESS, ADDRESS,
+            ),
+            bindVoid(
                 "dgstrs",
                 JAVA_INT,
                 ADDRESS,
@@ -146,6 +156,11 @@ internal object SuperluCalls {
                 ADDRESS,
                 ADDRESS,
                 ADDRESS,
+            ),
+            bindVoid(
+                "dgsrfs",
+                JAVA_INT, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS,
+                ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS,
             ),
             bindVoid(
                 "dGetDiagU",
@@ -172,9 +187,10 @@ internal object SuperluCalls {
 
     fun factorize(
         n: Int,
-        values: MemorySegment,
-        rowIdx: MemorySegment,
-        colPtr: MemorySegment,
+        values: DoubleArray,
+        rowIdx: IntArray,
+        colPtr: IntArray,
+        @Suppress("UNUSED_PARAMETER") equilibrate: Boolean,
         arena: Arena,
     ): SuperluFactor? {
         val h = handlesOrThrow()
@@ -200,10 +216,10 @@ internal object SuperluCalls {
                 a,
                 n,
                 n,
-                (rowIdx.byteSize() / JAVA_INT.byteSize()).toInt(),
-                values,
-                rowIdx,
-                colPtr,
+                rowIdx.size,
+                MemorySegment.ofArray(values),
+                MemorySegment.ofArray(rowIdx),
+                MemorySegment.ofArray(colPtr),
                 SLU_NC,
                 SLU_D,
                 SLU_GE,
@@ -246,6 +262,79 @@ internal object SuperluCalls {
         }
     }
 
+    fun factorizeExpert(
+        n: Int,
+        values: DoubleArray,
+        rowIdx: IntArray,
+        colPtr: IntArray,
+        equilibrate: Boolean,
+        arena: Arena,
+    ): SuperluFactor? {
+        val h = handlesOrThrow()
+        Arena.ofConfined().use { scratch ->
+            val a = scratch.allocate(SUPER_MATRIX)
+            val options = scratch.allocate(OPTIONS)
+            val etree = scratch.allocate(JAVA_INT, n.toLong())
+            val equed = scratch.allocate(JAVA_BYTE)
+            val rowScale = DoubleArray(n)
+            val columnScale = DoubleArray(n)
+            val factor =
+                SuperluFactor(
+                    arena.allocate(SUPER_MATRIX),
+                    arena.allocate(SUPER_MATRIX),
+                    arena.allocate(JAVA_INT, n.toLong()),
+                    arena.allocate(JAVA_INT, n.toLong()),
+                    rowScale = rowScale,
+                    columnScale = columnScale,
+                    matrixValues = values,
+                    rowIdx = rowIdx,
+                    colPtr = colPtr,
+                )
+            val glu = scratch.allocate(GLOBAL_LU)
+            val stat = scratch.allocate(STAT)
+            val memory = scratch.allocate(MEMORY)
+            val info = scratch.allocate(JAVA_INT)
+            val b = scratch.allocate(SUPER_MATRIX)
+            val x = scratch.allocate(SUPER_MATRIX)
+            val dummy = scratch.allocate(JAVA_DOUBLE)
+            val reciprocalPivotGrowth = scratch.allocate(JAVA_DOUBLE)
+            val condition = scratch.allocate(JAVA_DOUBLE)
+            val forwardError = scratch.allocate(JAVA_DOUBLE)
+            val backwardError = scratch.allocate(JAVA_DOUBLE)
+            h.createCompCol.call(
+                a, n, n, rowIdx.size, MemorySegment.ofArray(values), MemorySegment.ofArray(rowIdx),
+                MemorySegment.ofArray(colPtr), SLU_NC, SLU_D, SLU_GE,
+            )
+            h.defaults.call(options)
+            options.set(JAVA_INT, EQUIL_OFFSET, if (equilibrate) YES else NO)
+            options.set(JAVA_INT, ITER_REFINE_OFFSET, SLU_DOUBLE)
+            options.set(JAVA_INT, PIVOT_GROWTH_OFFSET, YES)
+            options.set(JAVA_INT, CONDITION_NUMBER_OFFSET, YES)
+            options.set(JAVA_INT, PRINT_STAT_OFFSET, NO)
+            h.createDense.call(b, n, 0, dummy, n, SLU_DN, SLU_D, SLU_GE)
+            h.createDense.call(x, n, 0, dummy, n, SLU_DN, SLU_D, SLU_GE)
+            h.statInit.call(stat)
+            try {
+                h.expert.call(
+                    options, a, factor.permC, factor.permR, etree, equed, MemorySegment.ofArray(rowScale),
+                    MemorySegment.ofArray(columnScale), factor.l, factor.u, MemorySegment.NULL, 0, b, x,
+                    reciprocalPivotGrowth, condition, forwardError, backwardError, glu, memory, stat, info,
+                )
+            } finally {
+                h.statFree.call(stat)
+                h.destroyStore.call(a)
+                h.destroyStore.call(b)
+                h.destroyStore.call(x)
+            }
+            if (info.get(JAVA_INT, 0) != 0) {
+                free(factor)
+                return null
+            }
+            factor.equed = equed.get(JAVA_BYTE, 0)
+            return factor
+        }
+    }
+
     fun solve(factor: SuperluFactor, rhs: MemorySegment, transpose: Boolean) {
         val h = handlesOrThrow()
         Arena.ofConfined().use { scratch ->
@@ -253,9 +342,15 @@ internal object SuperluCalls {
                 scratch.allocate(
                     SUPER_MATRIX,
                 )
+            val originalB = scratch.allocate(SUPER_MATRIX)
+            val originalRhs = scratch.allocate(JAVA_DOUBLE, factor.n.toLong())
             val stat = scratch.allocate(STAT)
             val info = scratch.allocate(JAVA_INT)
+            val ferr = scratch.allocate(JAVA_DOUBLE)
+            val berr = scratch.allocate(JAVA_DOUBLE)
+            originalRhs.copyFrom(rhs)
             h.createDense.call(b, factor.n, 1, rhs, factor.n, SLU_DN, SLU_D, SLU_GE)
+            h.createDense.call(originalB, factor.n, 1, originalRhs, factor.n, SLU_DN, SLU_D, SLU_GE)
             h.statInit.call(stat)
             try {
                 h.solve.call(
@@ -268,9 +363,30 @@ internal object SuperluCalls {
                     stat,
                     info,
                 )
+                factor.matrixValues?.let { values ->
+                    val a = scratch.allocate(SUPER_MATRIX)
+                    h.createCompCol.call(
+                        a, factor.n, factor.n, checkNotNull(factor.rowIdx).size, MemorySegment.ofArray(values),
+                        MemorySegment.ofArray(
+                            checkNotNull(factor.rowIdx),
+                        ),
+                        MemorySegment.ofArray(checkNotNull(factor.colPtr)),
+                        SLU_NC, SLU_D, SLU_GE,
+                    )
+                    try {
+                        h.refine.call(
+                            if (transpose) TRANS else NOTRANS, a, factor.l, factor.u, factor.permC, factor.permR,
+                            MemorySegment.ofArray(byteArrayOf(factor.equed)), MemorySegment.ofArray(factor.rowScale),
+                            MemorySegment.ofArray(factor.columnScale), originalB, b, ferr, berr, stat, info,
+                        )
+                    } finally {
+                        h.destroyStore.call(a)
+                    }
+                }
             } finally {
                 h.statFree.call(stat)
                 h.destroyStore.call(b)
+                h.destroyStore.call(originalB)
             }
             check(info.get(JAVA_INT, 0) == 0) { "SuperLU solve failed" }
         }
@@ -282,7 +398,31 @@ internal object SuperluCalls {
         var result =
             permutationSign(factor.permC, factor.n) * permutationSign(factor.permR, factor.n)
         for (entry in diagonal) result *= entry
+        if (factor.equed == ROW || factor.equed == BOTH) for (scale in factor.rowScale) result /= scale
+        if (factor.equed == COL || factor.equed == BOTH) for (scale in factor.columnScale) result /= scale
         return result
+    }
+
+    fun scaleRhs(factor: SuperluFactor, rhs: DoubleArray, transpose: Boolean) {
+        val scale = if (transpose) factor.columnScale else factor.rowScale
+        val applied = if (transpose) {
+            factor.equed == COL || factor.equed == BOTH
+        } else {
+            factor.equed == ROW ||
+                factor.equed == BOTH
+        }
+        if (applied) for (i in rhs.indices) rhs[i] *= scale[i]
+    }
+
+    fun unscaleSolution(factor: SuperluFactor, solution: DoubleArray, transpose: Boolean) {
+        val scale = if (transpose) factor.rowScale else factor.columnScale
+        val applied = if (transpose) {
+            factor.equed == ROW || factor.equed == BOTH
+        } else {
+            factor.equed == COL ||
+                factor.equed == BOTH
+        }
+        if (applied) for (i in solution.indices) solution[i] *= scale[i]
     }
 
     fun fill(factor: SuperluFactor): Int = storeNnz(factor.l) + storeNnz(factor.u)
@@ -324,6 +464,12 @@ internal class SuperluFactor(
     val u: MemorySegment,
     val permC: MemorySegment,
     val permR: MemorySegment,
+    var equed: Byte = NOEQUIL,
+    val rowScale: DoubleArray = DoubleArray(0),
+    val columnScale: DoubleArray = DoubleArray(0),
+    val matrixValues: DoubleArray? = null,
+    val rowIdx: IntArray? = null,
+    val colPtr: IntArray? = null,
 ) {
     val n: Int get() = l.get(JAVA_INT, NROW_OFFSET)
 }
@@ -335,9 +481,18 @@ private const val SLU_GE = 0
 private const val NOTRANS = 0
 private const val TRANS = 1
 private const val NO = 0
+private const val YES = 1
+private const val SLU_DOUBLE = 2
+private const val NOEQUIL: Byte = 'N'.code.toByte()
+private const val ROW: Byte = 'R'.code.toByte()
+private const val COL: Byte = 'C'.code.toByte()
+private const val BOTH: Byte = 'B'.code.toByte()
 private const val PANEL_SIZE = 20
 private const val RELAX = 10
 private const val EQUIL_OFFSET = 4L
+private const val ITER_REFINE_OFFSET = 16L
+private const val PIVOT_GROWTH_OFFSET = 36L
+private const val CONDITION_NUMBER_OFFSET = 40L
 private const val COL_PERM_OFFSET = 8L
 private const val PRINT_STAT_OFFSET = 120L
 private const val NROW_OFFSET = 12L
@@ -358,4 +513,5 @@ private val OPTIONS =
     )
 private val GLOBAL_LU = MemoryLayout.paddingLayout(192)
 private val STAT = MemoryLayout.paddingLayout(48)
+private val MEMORY = MemoryLayout.paddingLayout(8)
 internal val SUPERLU_SONAMES = listOf("libsuperlu.so.7", "libsuperlu.7.dylib")

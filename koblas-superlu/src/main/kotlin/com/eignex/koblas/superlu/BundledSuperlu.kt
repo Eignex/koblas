@@ -3,6 +3,7 @@ package com.eignex.koblas.superlu
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.openblas.BundledOpenBlas
 import com.eignex.koblas.sparse.F64SparseLapack
+import com.eignex.koblas.sparse.host.superlu.SuperluDriver
 import com.eignex.koblas.sparse.host.superlu.SuperluSparseLapack
 import java.io.InputStream
 import java.nio.file.Files
@@ -13,7 +14,7 @@ import java.nio.file.attribute.PosixFilePermissions
 public class BundledSuperlu private constructor(private val delegate: SuperluSparseLapack) :
     F64SparseLapack by delegate {
     /** Extracts the matching Maven-native resources before the core FFM binding is initialized. */
-    public constructor() : this(loadSuperlu())
+    public constructor(driver: SuperluDriver = SuperluDriver.Expert) : this(loadSuperlu(driver))
 
     override val name: String get() = "superlu-bundled"
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 2
@@ -22,14 +23,14 @@ public class BundledSuperlu private constructor(private val delegate: SuperluSpa
 private const val SUPERLU_PATH_PROPERTY = "koblas.superlu.path"
 private const val SUPERLU_PATH_ENVIRONMENT = "KOBLAS_SUPERLU_PATH"
 
-private fun loadSuperlu(): SuperluSparseLapack {
+private fun loadSuperlu(driver: SuperluDriver): SuperluSparseLapack {
     check(BundledOpenBlas().isAvailable) { "the bundled OpenBLAS dependency could not be loaded" }
     if (System.getProperty(SUPERLU_PATH_PROPERTY) == null &&
         System.getenv(SUPERLU_PATH_ENVIRONMENT) == null
     ) {
         System.setProperty(SUPERLU_PATH_PROPERTY, SuperluResources.extract().toString())
     }
-    return SuperluSparseLapack()
+    return SuperluSparseLapack(driver)
 }
 
 internal object SuperluResources {
