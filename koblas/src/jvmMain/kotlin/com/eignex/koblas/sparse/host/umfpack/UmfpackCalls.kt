@@ -9,6 +9,8 @@ import java.lang.foreign.ValueLayout.ADDRESS
 import java.lang.foreign.ValueLayout.JAVA_DOUBLE
 import java.lang.foreign.ValueLayout.JAVA_INT
 import java.lang.invoke.MethodHandle
+import java.nio.file.InvalidPathException
+import java.nio.file.Path
 
 /**
  * The LP64 umfpack_di family, whose `int32_t` indices and `double` values match IntArray and DoubleArray;
@@ -84,7 +86,7 @@ internal object UmfpackCalls {
      * UnsatisfiedLinkError count as absence, so a StackOverflowError is never read as a missing library.
      */
     private fun openUmfpack(): SymbolLookup? {
-        for (soname in UMFPACK_SONAMES) {
+        for (soname in umfpackPaths()) {
             val opened = try {
                 SymbolLookup.libraryLookup(soname, Arena.global())
             } catch (_: IllegalArgumentException) {
@@ -95,6 +97,21 @@ internal object UmfpackCalls {
             if (opened.find(KEY_SYMBOL).isPresent) return opened
         }
         return null
+    }
+
+    /** Explicit configuration takes precedence over the separately packaged UMFPACK environment fallback. */
+    internal fun umfpackPaths(
+        propertyPath: String? = System.getProperty("koblas.umfpack.path"),
+        environmentPath: String? = System.getenv("KOBLAS_UMFPACK_PATH"),
+    ): List<String> = listOfNotNull(
+        propertyPath?.takeIf(::isAbsolutePath),
+        environmentPath?.takeIf(::isAbsolutePath),
+    ) + UMFPACK_SONAMES
+
+    private fun isAbsolutePath(value: String): Boolean = try {
+        Path.of(value).isAbsolute
+    } catch (_: InvalidPathException) {
+        false
     }
 
     private fun bindAll(): Handles? {

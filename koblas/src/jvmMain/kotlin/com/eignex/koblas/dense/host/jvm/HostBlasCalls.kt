@@ -49,7 +49,7 @@ internal object HostBlasCalls {
     private var lapackeLookup: SymbolLookup? = null
 
     private val SONAMES = listOfNotNull(
-        System.getProperty("koblas.openblas.path"),
+        preferredLibraryPath("koblas.openblas.path", "KOBLAS_OPENBLAS_PATH"),
         "libopenblas.so.0",
         "libopenblas.so",
         "libopenblas.dylib",
@@ -59,7 +59,7 @@ internal object HostBlasCalls {
     )
 
     private val LAPACKE_SONAMES = listOfNotNull(
-        System.getProperty("koblas.lapacke.path"),
+        preferredLibraryPath("koblas.lapacke.path", "KOBLAS_LAPACKE_PATH"),
         "liblapacke.so.3",
         "liblapacke.so",
         "liblapacke.dylib",
@@ -323,3 +323,9 @@ internal object HostBlasCalls {
     /** Pins [values] for the call. */
     fun seg(values: IntArray): MemorySegment = MemorySegment.ofArray(values)
 }
+
+internal fun preferredLibraryPath(
+    property: String,
+    environment: String,
+    environmentValue: String? = System.getenv(environment),
+): String? = System.getProperty(property) ?: environmentValue

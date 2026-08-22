@@ -259,6 +259,58 @@ jobs:
             koblas/build/test-results/
           if-no-files-found: ignore
 
+  # This intentionally runs before any system packages are installed. It exercises the optional Maven
+  # artifact exactly as a consumer does: its own native resources, extraction, FFM load, and service
+  # registration must all work without the host OpenBLAS or LAPACKE paths.
+  #
+  # ubuntu-24.04-arm is a GitHub-hosted ARM64 runner. Keeping Linux ARM64 here catches resource and
+  # dependent-library mistakes that an x64 runner cannot observe.
+  test-openblas-bundle:
+    name: Run the Maven OpenBLAS bundle on ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: Linux x64
+            runner: ubuntu-latest
+            native-platform: linux-x86_64
+          - platform: Linux ARM64
+            runner: ubuntu-24.04-arm
+            native-platform: linux-arm64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: false
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+
+      - name: Grant execute permission for Gradle
+        run: chmod +x gradlew
+
+      # buildOpenBlas writes both its downloaded source archive and generated resources under this
+      # directory. The full platform tuple and the two task inputs make this cache safe to restore only
+      # for the binary it was built for; deliberately no restore-keys can select another architecture.
+      - name: Cache native OpenBLAS build resources
+        uses: actions/cache@v5
+        with:
+          path: koblas-openblas/build/openblas
+          key: openblas-${{ runner.os }}-${{ runner.arch }}-${{ matrix.native-platform }}-${{ hashFiles('koblas-openblas/openblas.lock', 'scripts/build-openblas.sh') }}
+
+      - name: Run the Maven OpenBLAS bundle tests without host libraries
+        run: ./gradlew :koblas-openblas:test --rerun-tasks
+
   # The Linux job cross-compiles the macOS klibs but cannot link or run them; this job exercises
   # the native tests on Apple Silicon, including the host-BLAS backend against Homebrew's OpenBLAS.
   test-macos:
@@ -293,6 +345,17 @@ jobs:
 
       - name: Grant execute permission for Gradle
         run: chmod +x gradlew
+
+      - name: Install the macOS Fortran compiler
+        run: |
+          brew install gcc
+          echo "FC=$(find "$(brew --prefix gcc)/bin" -name 'gfortran-*' -print -quit)" >> "$GITHUB_ENV"
+
+      # This must stay before Homebrew: it verifies that a JVM consumer can use the optional Maven
+      # artifact on Apple Silicon without a host OpenBLAS installation. GCC supplies the toolchain used to
+      # build the bundled source, not an OpenBLAS runtime library.
+      - name: Run the Maven OpenBLAS bundle tests without host libraries
+        run: ./gradlew :koblas-openblas:test --rerun-tasks
 
       # macosTest depends on hostSparseTest as well as hostBlasTest, so this job runs the UMFPACK suite
       # too — and that suite requires its library rather than skipping without it.

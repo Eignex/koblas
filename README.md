@@ -79,6 +79,20 @@ runtimeOnly("com.eignex:koblas-openblas:<version>")
 It registers `openblas-bundled` through `ServiceLoader` and wins over the host
 lookup. Omitting it keeps the host-library lookup and portable fallback.
 
+To select an audited or custom native library, set `KOBLAS_OPENBLAS_PATH` or
+`KOBLAS_LAPACKE_PATH` to its absolute path. The corresponding JVM properties,
+`koblas.openblas.path` and `koblas.lapacke.path`, take precedence over those
+environment variables.
+
+UMFPACK is a separate SuiteSparse component under GPL-2.0-or-later. Koblas's
+Apache-2.0 FFM ABI binding can use a separately obtained UMFPACK installation
+without redistributing it. On the JVM, set `koblas.umfpack.path` or
+`KOBLAS_UMFPACK_PATH` to the absolute path of `libumfpack` to select that copy
+before the regular host-library lookup. The system property takes precedence.
+An eventual `koblas-umfpack` binary bundle must be published as a separate GPL
+artifact with its native dependencies and notices; it cannot inherit the core
+artifact's Apache Maven metadata.
+
 ## Usage
 
 Containers and light arithmetic live in `com.eignex.koblas`; dense BLAS and
