@@ -40,6 +40,7 @@ cmake -S "$source" -B "$work/build" -G "Unix Makefiles" \
     -DSUITESPARSE_ENABLE_PROJECTS="suitesparse_config;amd;colamd;umfpack" \
     -DUMFPACK_USE_CHOLMOD=OFF \
     -DBLAS_LIBRARIES="$blas" \
+    -DBLA_VENDOR=OpenBLAS \
     -DCMAKE_INSTALL_RPATH='\$ORIGIN' -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON \
     -DCMAKE_C_COMPILER="${CC:-cc}" >/dev/null
 cmake --build "$work/build" --parallel "${SUITESPARSE_JOBS:-2}" >/dev/null
