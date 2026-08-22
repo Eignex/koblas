@@ -1,4 +1,4 @@
-package com.eignex.koblas.umfpack
+package com.eignex.koblas.sparse.host.umfpack
 
 import java.lang.foreign.Arena
 import java.lang.foreign.FunctionDescriptor

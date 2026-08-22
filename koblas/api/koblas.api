@@ -1133,6 +1133,30 @@ public final class com/eignex/koblas/sparse/factorization/lu/SparseLuElimination
 	public static final field NO_DROP D
 }
 
+public final class com/eignex/koblas/sparse/host/umfpack/UmfpackFactorization : com/eignex/koblas/sparse/F64SparseFactorization {
+	public fun determinant ()D
+	public fun getFailedAt ()I
+	public fun getN ()I
+	public fun getNnz ()I
+	public fun getSingular ()Z
+	public fun solve ([DZ)[D
+	public fun solveInto ([D[DZLcom/eignex/koblas/Workspace;)[D
+}
+
+public final class com/eignex/koblas/sparse/host/umfpack/UmfpackSparseLapack : com/eignex/koblas/sparse/F64SparseLapack {
+	public fun <init> ()V
+	public fun analyze (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/sparse/symbolic/SparseOrdering;)Lcom/eignex/koblas/sparse/symbolic/SparseSymbolic;
+	public fun cholesky (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/sparse/factorization/ldl/SparseLdlPolicy;Lcom/eignex/koblas/sparse/symbolic/SparseOrdering;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
+	public fun factor (Lcom/eignex/koblas/core/F64SparseMatrix;ZD)Lcom/eignex/koblas/sparse/F64SparseFactorization;
+	public fun getName ()Ljava/lang/String;
+	public fun getPriority ()I
+	public fun isAvailable ()Z
+	public fun isPortable ()Z
+	public fun ldl (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/sparse/factorization/ldl/SparseLdlPolicy;Lcom/eignex/koblas/sparse/symbolic/SparseOrdering;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
+	public fun solve (Lcom/eignex/koblas/sparse/F64SparseFactorization;[DZ)[D
+	public fun solveInto (Lcom/eignex/koblas/sparse/F64SparseFactorization;[D[DZLcom/eignex/koblas/Workspace;)[D
+}
+
 public final class com/eignex/koblas/sparse/symbolic/SparseOrdering : java/lang/Enum {
 	public static final field MinimumDegree Lcom/eignex/koblas/sparse/symbolic/SparseOrdering;
 	public static final field Natural Lcom/eignex/koblas/sparse/symbolic/SparseOrdering;
@@ -1158,29 +1182,5 @@ public final class com/eignex/koblas/sparse/symbolic/SparseSymbolic {
 public final class com/eignex/koblas/sparse/symbolic/SparseSymbolic$Companion {
 	public final fun analyze (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/sparse/symbolic/SparseOrdering;)Lcom/eignex/koblas/sparse/symbolic/SparseSymbolic;
 	public static synthetic fun analyze$default (Lcom/eignex/koblas/sparse/symbolic/SparseSymbolic$Companion;Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/sparse/symbolic/SparseOrdering;ILjava/lang/Object;)Lcom/eignex/koblas/sparse/symbolic/SparseSymbolic;
-}
-
-public final class com/eignex/koblas/umfpack/UmfpackFactorization : com/eignex/koblas/sparse/F64SparseFactorization {
-	public fun determinant ()D
-	public fun getFailedAt ()I
-	public fun getN ()I
-	public fun getNnz ()I
-	public fun getSingular ()Z
-	public fun solve ([DZ)[D
-	public fun solveInto ([D[DZLcom/eignex/koblas/Workspace;)[D
-}
-
-public final class com/eignex/koblas/umfpack/UmfpackSparseLapack : com/eignex/koblas/sparse/F64SparseLapack {
-	public fun <init> ()V
-	public fun analyze (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/sparse/symbolic/SparseOrdering;)Lcom/eignex/koblas/sparse/symbolic/SparseSymbolic;
-	public fun cholesky (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/sparse/factorization/ldl/SparseLdlPolicy;Lcom/eignex/koblas/sparse/symbolic/SparseOrdering;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
-	public fun factor (Lcom/eignex/koblas/core/F64SparseMatrix;ZD)Lcom/eignex/koblas/sparse/F64SparseFactorization;
-	public fun getName ()Ljava/lang/String;
-	public fun getPriority ()I
-	public fun isAvailable ()Z
-	public fun isPortable ()Z
-	public fun ldl (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/sparse/factorization/ldl/SparseLdlPolicy;Lcom/eignex/koblas/sparse/symbolic/SparseOrdering;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
-	public fun solve (Lcom/eignex/koblas/sparse/F64SparseFactorization;[DZ)[D
-	public fun solveInto (Lcom/eignex/koblas/sparse/F64SparseFactorization;[D[DZLcom/eignex/koblas/Workspace;)[D
 }
 

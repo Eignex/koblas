@@ -1,4 +1,4 @@
-package com.eignex.koblas.umfpack
+package com.eignex.koblas.sparse.host.umfpack
 
 // UMFPACK's ABI constants and the names its library goes by, shared by the two bindings. The JVM binding
 // and the native one have no common source set below commonMain, so this is the only place both can read.

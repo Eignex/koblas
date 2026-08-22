@@ -1,4 +1,4 @@
-package com.eignex.koblas.umfpack
+package com.eignex.koblas.sparse.host.umfpack
 
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.*
