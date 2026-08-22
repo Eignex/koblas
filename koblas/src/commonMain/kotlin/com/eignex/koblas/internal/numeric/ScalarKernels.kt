@@ -1,8 +1,4 @@
-package com.eignex.koblas.dense
-
-// The level-1 loops with no per-target specialization, next to euclideanNorm and absoluteSum, which are
-// shared the same way. jvmMain and scalarMain have no common source set below commonMain, so a target
-// without SIMD reads them from here and the JVM falls back to them below one lane width.
+package com.eignex.koblas.internal.numeric
 
 /** `a · b` over [len] elements from each offset. */
 internal fun scalarDot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {

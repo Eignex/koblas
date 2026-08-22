@@ -1,4 +1,4 @@
-package com.eignex.koblas.sparse
+package com.eignex.koblas.sparse.internal
 
 internal class MutableIntSet(initialCapacity: Int = 8) {
     /** Entry index plus one, so 0 reads as empty. */

@@ -1,4 +1,4 @@
-package com.eignex.koblas
+package com.eignex.koblas.internal.numeric
 
 import kotlin.math.abs
 import kotlin.math.sqrt

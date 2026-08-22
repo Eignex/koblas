@@ -1,4 +1,4 @@
-package com.eignex.koblas
+package com.eignex.koblas.internal.backend
 
 /**
  * Defaults away from the JVM, where the portable kernels are scalar loops rather than SIMD, so levels 2,

@@ -13,7 +13,7 @@ import kotlinx.cinterop.usePinned
 
 /**
  * The host OpenBLAS behind koblas's level-1 primitives. koblas applies
- * [com.eignex.koblas.DispatchThresholds.level1], so these methods normally see only runs worth dispatching,
+ * the level-1 dispatch threshold, so these methods normally see only runs worth dispatching,
  * but the [F64VectorKernels] contract makes a length of zero legal everywhere and an override of the
  * threshold routes those here. Each routine answers one itself: an empty run sits at the end of its array,
  * where there is no element to take an address of.

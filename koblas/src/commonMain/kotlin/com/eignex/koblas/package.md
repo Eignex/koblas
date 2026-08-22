@@ -15,6 +15,6 @@ BLAS/LAPACK and the deliberate deviations.
   [scale], [norm2], [asum], [iamax], [copy], [swap], [ger], [matVec], [transpose], [forEachStored], and
   the matrix 1-norm [norm1].
 - Shared machinery: [Backend] (what every backend of every tier reports about itself), the [Workspace]
-  buffer pool, [DispatchThresholds] and the [mathBackend] identifier. None of these is per element type.
+  buffer pool, and the [mathBackend] identifier. None of these is per element type.
 - The element type in the names, and the unqualified aliases for the double-precision ones, are collected
   in `Precision.kt`; the `dense` and `sparse` packages each have the same file for their own names.

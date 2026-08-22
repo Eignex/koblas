@@ -1,4 +1,4 @@
-package com.eignex.koblas.sparse
+package com.eignex.koblas.sparse.internal
 
 /**
  * Items `0 until size` bucketed by a small non-negative key, as one intrusive doubly-linked list per key.

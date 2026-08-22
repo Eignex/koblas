@@ -14,8 +14,8 @@ import com.eignex.koblas.dense.host.jvm.JvmCblasCalls
 import com.eignex.koblas.dense.host.jvm.JvmLapackeCalls
 import com.eignex.koblas.dense.rankOfPivotedR
 import com.eignex.koblas.dense.requireRankTolerance
-import com.eignex.koblas.f64DispatchThresholds
 import com.eignex.koblas.internal.backend.BackendNames
+import com.eignex.koblas.internal.backend.f64DispatchThresholds
 
 /**
  * The host LAPACKE through `java.lang.foreign`. Every shared routine lives in [F64HostLapackAdapter]; this

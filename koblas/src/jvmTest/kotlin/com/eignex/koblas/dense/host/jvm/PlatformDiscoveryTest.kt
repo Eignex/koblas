@@ -6,10 +6,10 @@ import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.F64Blas
 import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
 import com.eignex.koblas.dense.host.jvm.HostBlasCalls
-import com.eignex.koblas.dense.probe
-import com.eignex.koblas.dense.registerPlatformBackends
-import com.eignex.koblas.f64DispatchThresholds
 import com.eignex.koblas.internal.backend.BackendSlot
+import com.eignex.koblas.internal.backend.f64DispatchThresholds
+import com.eignex.koblas.internal.backend.probe
+import com.eignex.koblas.internal.backend.registerPlatformBackends
 import com.eignex.koblas.isAccelerated
 import com.eignex.koblas.koblas
 import com.eignex.koblas.portableSlots
