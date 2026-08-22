@@ -6,6 +6,7 @@ import com.eignex.koblas.dense.lu
 import com.eignex.koblas.dense.solve
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.lu
+import com.eignex.koblas.testutil.allocation.bytesPerIteration
 import kotlin.random.Random
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest

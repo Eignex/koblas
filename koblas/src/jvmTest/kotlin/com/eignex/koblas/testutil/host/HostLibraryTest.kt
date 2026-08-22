@@ -1,4 +1,4 @@
-package com.eignex.koblas
+package com.eignex.koblas.testutil.host
 
 /**
  * Marks a test needing a real OpenBLAS or SuiteSparse. Out of the default run, opted into with

@@ -1,6 +1,5 @@
 package com.eignex.koblas.dense.host.jvm
 
-import com.eignex.koblas.HostLibraryTest
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64DenseMatrix
@@ -12,6 +11,7 @@ import com.eignex.koblas.hostblas.HostBlas
 import com.eignex.koblas.hostblas.HostLapack
 import com.eignex.koblas.koblasInfo
 import com.eignex.koblas.randomMatrix
+import com.eignex.koblas.testutil.host.HostLibraryTest
 import com.eignex.koblas.wellConditioned
 import org.junit.Assume
 import org.junit.experimental.categories.Category
