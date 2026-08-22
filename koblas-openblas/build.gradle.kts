@@ -62,7 +62,6 @@ val buildOpenBlas = tasks.register<Exec>("buildOpenBlas") {
     inputs.property("os.arch", System.getProperty("os.arch"))
     outputs.dir(openBlasResources.map { it.dir("org/bytedeco/openblas/$platform") })
     outputs.cacheIf("the locked source, target platform, and toolchain are declared inputs") { true }
-    onlyIf("documentation lint does not need native resources") { !lintOnly }
     commandLine(
         "bash",
         rootProject.layout.projectDirectory.file("scripts/build-openblas.sh").asFile.absolutePath,
@@ -88,7 +87,7 @@ sourceSets.named("main") {
 }
 
 tasks.named("processResources") {
-    dependsOn(buildOpenBlas)
+    if (!lintOnly) dependsOn(buildOpenBlas)
 }
 
 val verifyOpenBlasResources = tasks.register("verifyOpenBlasResources") {
