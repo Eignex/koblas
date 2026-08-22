@@ -39,44 +39,44 @@ class OpsTest {
     @Test
     fun `axpy adds alpha-scaled x to y for any sparsity`() {
         val y = F64DenseVector.of(doubleArrayOf(1.0, 2.0, 3.0))
-        axpy(y, 2.0, sparse(3, 0 to 1.0, 2 to -1.0))
+        y.axpy(2.0, sparse(3, 0 to 1.0, 2 to -1.0))
         assertEquals(dense(3.0, 2.0, 1.0), y)
     }
 
     @Test
     fun `scale mutates in place and respects identity`() {
         val v = F64DenseVector.of(doubleArrayOf(1.0, -2.0, 3.0))
-        scale(v, 0.5)
+        v.scale(0.5)
         assertEquals(dense(0.5, -1.0, 1.5), v)
-        scale(v, 1.0) // no-op
+        v.scale(1.0) // no-op
         assertEquals(dense(0.5, -1.0, 1.5), v)
     }
 
     @Test
     fun `norm2 matches the hand value on dense and sparse`() {
-        assertEquals(5.0, norm2(F64DenseVector.of(doubleArrayOf(3.0, 0.0, -4.0))))
-        assertEquals(sqrt(13.0), norm2(sparse), 1e-15)
-        assertEquals(0.0, norm2(F64DenseVector.zero(4)))
-        assertEquals(0.0, norm2(F64DenseVector.zero(0)))
+        assertEquals(5.0, F64DenseVector.of(doubleArrayOf(3.0, 0.0, -4.0)).norm2())
+        assertEquals(sqrt(13.0), sparse.norm2(), 1e-15)
+        assertEquals(0.0, F64DenseVector.zero(4).norm2())
+        assertEquals(0.0, F64DenseVector.zero(0).norm2())
     }
 
     @Test
     fun `norm2 survives overflow and underflow via the rescale fallback`() {
-        assertEquals(5.0e200, norm2(F64DenseVector.of(doubleArrayOf(3.0e200, 0.0, -4.0e200))), 1e186)
-        assertEquals(5.0e-200, norm2(F64DenseVector.of(doubleArrayOf(3.0e-200, 4.0e-200))), 1e-214)
-        assertEquals(1.0e-300, norm2(F64DenseVector.of(doubleArrayOf(1.0e-300))), 1e-314)
+        assertEquals(5.0e200, F64DenseVector.of(doubleArrayOf(3.0e200, 0.0, -4.0e200)).norm2(), 1e186)
+        assertEquals(5.0e-200, F64DenseVector.of(doubleArrayOf(3.0e-200, 4.0e-200)).norm2(), 1e-214)
+        assertEquals(1.0e-300, F64DenseVector.of(doubleArrayOf(1.0e-300)).norm2(), 1e-314)
         val sparseHuge = F64SparseVector.of(5, intArrayOf(0, 3), doubleArrayOf(3.0e200, 4.0e200))
-        assertEquals(5.0e200, norm2(sparseHuge), 1e186)
-        assertTrue(norm2(F64DenseVector.of(doubleArrayOf(1.0, Double.NaN))).isNaN())
-        assertTrue(norm2(F64DenseVector.of(doubleArrayOf(1.0e200, Double.NaN))).isNaN())
-        assertEquals(Double.POSITIVE_INFINITY, norm2(F64DenseVector.of(doubleArrayOf(1.0, Double.NEGATIVE_INFINITY))))
+        assertEquals(5.0e200, sparseHuge.norm2(), 1e186)
+        assertTrue(F64DenseVector.of(doubleArrayOf(1.0, Double.NaN)).norm2().isNaN())
+        assertTrue(F64DenseVector.of(doubleArrayOf(1.0e200, Double.NaN)).norm2().isNaN())
+        assertEquals(Double.POSITIVE_INFINITY, F64DenseVector.of(doubleArrayOf(1.0, Double.NEGATIVE_INFINITY)).norm2())
     }
 
     @Test
     fun `asum matches the hand value on dense and sparse`() {
-        assertEquals(7.0, asum(F64DenseVector.of(doubleArrayOf(3.0, 0.0, -4.0))))
-        assertEquals(5.0, asum(sparse))
-        assertEquals(0.0, asum(F64DenseVector.zero(0)))
+        assertEquals(7.0, F64DenseVector.of(doubleArrayOf(3.0, 0.0, -4.0)).asum())
+        assertEquals(5.0, sparse.asum())
+        assertEquals(0.0, F64DenseVector.zero(0).asum())
     }
 
     @Test
@@ -87,27 +87,27 @@ class OpsTest {
                 doubleArrayOf(-4.0, 5.0, -6.0),
             ),
         )
-        assertEquals(9.0, norm1(a)) // columns sum to 5, 7, 9
-        assertEquals(0.0, norm1(F64DenseMatrix(0, 3)))
-        assertEquals(0.0, norm1(F64DenseMatrix(3, 0)))
+        assertEquals(9.0, a.norm1()) // columns sum to 5, 7, 9
+        assertEquals(0.0, F64DenseMatrix(0, 3).norm1())
+        assertEquals(0.0, F64DenseMatrix(3, 0).norm1())
     }
 
     @Test
     fun `iamax returns the first maximal index and handles edge cases`() {
-        assertEquals(2, iamax(F64DenseVector.of(doubleArrayOf(1.0, -2.0, 5.0, -5.0))))
-        assertEquals(1, iamax(F64DenseVector.of(doubleArrayOf(1.0, -5.0, 5.0)))) // tie: first wins
-        assertEquals(4, iamax(sparse))
-        assertEquals(0, iamax(F64DenseVector.zero(3))) // zero vector: first element
-        assertEquals(0, iamax(F64SparseVector.of(3, IntArray(0), DoubleArray(0)))) // all-unstored: same
-        assertEquals(-1, iamax(F64DenseVector.zero(0)))
+        assertEquals(2, F64DenseVector.of(doubleArrayOf(1.0, -2.0, 5.0, -5.0)).iamax())
+        assertEquals(1, F64DenseVector.of(doubleArrayOf(1.0, -5.0, 5.0)).iamax()) // tie: first wins
+        assertEquals(4, sparse.iamax())
+        assertEquals(0, F64DenseVector.zero(3).iamax()) // zero vector: first element
+        assertEquals(0, F64SparseVector.of(3, IntArray(0), DoubleArray(0)).iamax()) // all-unstored: same
+        assertEquals(-1, F64DenseVector.zero(0).iamax())
     }
 
     @Test
     fun `iamax reads a stored zero as the zero it is`() {
-        assertEquals(0, iamax(F64SparseVector.of(5, intArrayOf(3), doubleArrayOf(0.0))))
-        assertEquals(0, iamax(F64SparseVector.of(5, intArrayOf(1, 3), doubleArrayOf(0.0, -0.0))))
-        assertEquals(iamax(F64DenseVector.zero(5)), iamax(F64SparseVector.of(5, intArrayOf(3), doubleArrayOf(0.0))))
-        assertEquals(4, iamax(F64SparseVector.of(5, intArrayOf(1, 4), doubleArrayOf(0.0, -2.0))))
+        assertEquals(0, F64SparseVector.of(5, intArrayOf(3), doubleArrayOf(0.0)).iamax())
+        assertEquals(0, F64SparseVector.of(5, intArrayOf(1, 3), doubleArrayOf(0.0, -0.0)).iamax())
+        assertEquals(F64DenseVector.zero(5).iamax(), F64SparseVector.of(5, intArrayOf(3), doubleArrayOf(0.0)).iamax())
+        assertEquals(4, F64SparseVector.of(5, intArrayOf(1, 4), doubleArrayOf(0.0, -2.0)).iamax())
     }
 
     @Test
@@ -145,9 +145,9 @@ class OpsTest {
                 sumAbs += abs(data[i])
                 if (abs(data[i]) > abs(data[maxIdx])) maxIdx = i
             }
-            assertTrue(abs(norm2(v) - sqrt(sumSq)) <= 1e-12 * sqrt(sumSq))
-            assertTrue(abs(asum(v) - sumAbs) <= 1e-12 * sumAbs)
-            assertEquals(maxIdx, iamax(v))
+            assertTrue(abs(v.norm2() - sqrt(sumSq)) <= 1e-12 * sqrt(sumSq))
+            assertTrue(abs(v.asum() - sumAbs) <= 1e-12 * sumAbs)
+            assertEquals(maxIdx, v.iamax())
         }
     }
 
@@ -182,7 +182,7 @@ class OpsTest {
     @Test
     fun `ger updates a matrix with alpha x y_transpose`() {
         val M = F64DenseMatrix.diagonal(2, 1.0)
-        ger(0.5, dense(1.0, 2.0), dense(3.0, 4.0), M)
+        M.ger(0.5, dense(1.0, 2.0), dense(3.0, 4.0))
         assertEquals(1.0 + 0.5 * 3, M[0, 0], 1e-12)
         assertEquals(0.5 * 4, M[0, 1], 1e-12)
         assertEquals(0.5 * 6, M[1, 0], 1e-12)
@@ -192,7 +192,7 @@ class OpsTest {
     @Test
     fun `ger with sparse operands only touches nonzero rows and cols`() {
         val M = F64DenseMatrix.diagonal(3, 0.0)
-        ger(1.0, sparse(3, 1 to 2.0), sparse(3, 0 to 3.0, 2 to 4.0), M)
+        M.ger(1.0, sparse(3, 1 to 2.0), sparse(3, 0 to 3.0, 2 to 4.0))
         for (i in 0 until 3) {
             for (j in 0 until 3) {
                 val expected = when {
@@ -208,10 +208,10 @@ class OpsTest {
     @Test
     fun `alpha zero makes axpy and ger no-ops`() {
         val y = F64DenseVector.of(doubleArrayOf(1.0, 2.0, 3.0))
-        axpy(y, 0.0, F64DenseVector.of(doubleArrayOf(9.0, 9.0, 9.0)))
+        y.axpy(0.0, F64DenseVector.of(doubleArrayOf(9.0, 9.0, 9.0)))
         assertTrue(y.toDoubleArray().contentEquals(doubleArrayOf(1.0, 2.0, 3.0)))
         val M = F64DenseMatrix.diagonal(2, 1.0)
-        ger(0.0, F64DenseVector.of(doubleArrayOf(1.0, 1.0)), F64DenseVector.of(doubleArrayOf(1.0, 1.0)), M)
+        M.ger(0.0, F64DenseVector.of(doubleArrayOf(1.0, 1.0)), F64DenseVector.of(doubleArrayOf(1.0, 1.0)))
         for (i in 0 until 2) {
             for (j in 0 until 2) assertEquals(if (i == j) 1.0 else 0.0, M[i, j])
         }
@@ -220,12 +220,12 @@ class OpsTest {
     @Test
     fun `ger skips zero entries on both carriers`() {
         val dense = F64DenseMatrix.diagonal(3, 0.0)
-        ger(1.0, dense(0.0, 2.0, 0.0), dense(1.0, 1.0, 1.0), dense)
+        dense.ger(1.0, dense(0.0, 2.0, 0.0), dense(1.0, 1.0, 1.0))
         for (i in 0 until 3) {
             for (j in 0 until 3) assertEquals(if (i == 1) 2.0 else 0.0, dense[i, j], 1e-12, "dense[$i,$j]")
         }
         val sparse = F64DenseMatrix.diagonal(3, 0.0)
-        ger(1.0, sparse(3, 0 to 0.0, 1 to 1.0), sparse(3, 2 to 5.0), sparse)
+        sparse.ger(1.0, sparse(3, 0 to 0.0, 1 to 1.0), sparse(3, 2 to 5.0))
         for (i in 0 until 3) {
             for (j in 0 until 3) {
                 assertEquals(if (i == 1 && j == 2) 5.0 else 0.0, sparse[i, j], "sparse[$i,$j]")
@@ -241,16 +241,16 @@ class OpsTest {
         val y = F64DenseVector.of(randomVector(n, rng))
 
         val viaSyr = F64DenseMatrix(n, n)
-        syr(1.5, x, viaSyr)
+        viaSyr.syr(1.5, x)
         val viaGer = F64DenseMatrix(n, n)
-        ger(1.5, x, x, viaGer)
+        viaGer.ger(1.5, x, x)
         assertClose(viaGer, viaSyr, "syr against ger")
 
         val viaSyr2 = F64DenseMatrix(n, n)
-        syr2(-0.75, x, y, viaSyr2)
+        viaSyr2.syr2(-0.75, x, y)
         val viaGer2 = F64DenseMatrix(n, n)
-        ger(-0.75, x, y, viaGer2)
-        ger(-0.75, y, x, viaGer2)
+        viaGer2.ger(-0.75, x, y)
+        viaGer2.ger(-0.75, y, x)
         assertClose(viaGer2, viaSyr2, "syr2 against two gers")
     }
 
@@ -262,7 +262,7 @@ class OpsTest {
         val y = F64DenseVector.of(randomVector(n, rng))
 
         val full = F64DenseMatrix(n, n)
-        syr2(0.3, x, y, full)
+        full.syr2(0.3, x, y)
         for (i in 0 until n) {
             for (j in 0 until n) {
                 assertTrue(full[i, j] == full[j, i], "syr2 FULL is not exactly symmetric at [$i,$j]")
@@ -270,7 +270,7 @@ class OpsTest {
         }
 
         val lower = F64DenseMatrix(n, n)
-        syr(1.0, x, lower, Uplo.LOWER)
+        lower.syr(1.0, x, Uplo.LOWER)
         for (i in 0 until n) {
             for (j in 0 until n) {
                 if (i < j) assertEquals(0.0, lower[i, j], "syr LOWER wrote the upper triangle at [$i,$j]")
@@ -282,9 +282,9 @@ class OpsTest {
     @Test
     fun `the ops reject mismatched sizes and shapes`() {
         assertFailsWith<IllegalArgumentException> { dense(1.0) dot dense(1.0, 2.0) }
-        assertFailsWith<IllegalArgumentException> { axpy(dense(1.0), 1.0, dense(1.0, 2.0)) }
+        assertFailsWith<IllegalArgumentException> { dense(1.0).axpy(1.0, dense(1.0, 2.0)) }
         assertFailsWith<IllegalArgumentException> {
-            ger(1.0, dense(1.0, 2.0, 3.0), dense(1.0, 2.0), F64DenseMatrix(2, 2))
+            F64DenseMatrix(2, 2).ger(1.0, dense(1.0, 2.0, 3.0), dense(1.0, 2.0))
         }
         assertFailsWith<IllegalArgumentException> { F64DenseMatrix(2, 3).matVec(dense(1.0, 2.0)) }
     }

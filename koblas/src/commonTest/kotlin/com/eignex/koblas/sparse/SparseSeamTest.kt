@@ -110,14 +110,14 @@ class SparseSeamTest {
         assertEquals(4.0 + 9.0, x dot x)
         assertEquals(3, kernels.dots, "all three dot combinations should route")
 
-        axpy(F64DenseVector.of(DoubleArray(6)), 2.0, x)
+        F64DenseVector.of(DoubleArray(6)).axpy(2.0, x)
         assertEquals(1, kernels.axpys)
 
         copy(x, F64DenseVector.of(DoubleArray(6)))
         assertEquals(1, kernels.scatters, "copy from a sparse source is a scatter")
 
-        norm2(x)
-        asum(x)
+        x.norm2()
+        x.asum()
         assertEquals(1, kernels.nrm2s)
         assertEquals(1, kernels.asums)
     }
@@ -129,8 +129,8 @@ class SparseSeamTest {
         val a = F64DenseVector.of(doubleArrayOf(1.0, 2.0))
         val b = F64DenseVector.of(doubleArrayOf(3.0, 4.0))
         assertEquals(11.0, a dot b)
-        norm2(a)
-        asum(a)
+        a.norm2()
+        a.asum()
         assertEquals(0, kernels.dots + kernels.nrm2s + kernels.asums, "dense work must stay on the dense kernels")
     }
 

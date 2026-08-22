@@ -46,9 +46,9 @@ class AdapterTest {
     fun `the vector reductions accept a foreign vector`() {
         val x = Ramp(9)
         val dense = F64DenseVector.of(x.toDoubleArray())
-        assertEquals(norm2(dense), norm2(x), 1e-12)
-        assertEquals(asum(dense), asum(x), 1e-12)
-        assertEquals(iamax(dense), iamax(x))
+        assertEquals(dense.norm2(), x.norm2(), 1e-12)
+        assertEquals(dense.asum(), x.asum(), 1e-12)
+        assertEquals(dense.iamax(), x.iamax())
         assertEquals(dense dot dense, x dot x, 1e-12)
         assertEquals(dense dot dense, dense dot x, 1e-12)
         assertEquals(dense dot dense, x dot dense, 1e-12)
@@ -58,7 +58,7 @@ class AdapterTest {
     fun `axpy and copy accept a foreign source`() {
         val x = Ramp(6)
         val y = F64DenseVector(6)
-        axpy(y, 2.0, x)
+        y.axpy(2.0, x)
         for (i in 0 until 6) assertEquals(2.0 * x[i], y.data[i], 1e-12, "axpy at $i")
 
         val dst = F64DenseVector(6)

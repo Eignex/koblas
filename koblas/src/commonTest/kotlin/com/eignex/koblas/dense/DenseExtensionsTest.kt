@@ -48,7 +48,7 @@ class DenseExtensionsTest {
         val lu = square.lu()
         assertClose(koblas.solve(lu, b3), lu.solve(b3), "lu solve")
         assertClose(koblas.invert(lu).data, lu.invert().data, "lu invert")
-        val anorm = norm1(square)
+        val anorm = square.norm1()
         assertEquals(koblas.rcond(lu, anorm), lu.rcond(anorm), "lu rcond")
         assertClose(koblas.solve(lu, b3, transpose = true), lu.solve(b3, transpose = true), "lu solve transposed")
         val rhs = F64DenseMatrix.ofColumns(arrayOf(b3, doubleArrayOf(0.0, 1.0, 0.0)))

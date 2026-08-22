@@ -86,7 +86,7 @@ class DestinationPassingTest {
         val ws = Workspace()
         for (n in intArrayOf(1, 6, 24)) {
             val a = wellConditioned(n, rng)
-            val anorm = norm1(a)
+            val anorm = a.norm1()
             val lu = a.lu()
             val plain = koblas.rcond(lu, anorm)
             assertEquals(plain, koblas.rcond(lu, anorm, ws), "rcond n=$n first")

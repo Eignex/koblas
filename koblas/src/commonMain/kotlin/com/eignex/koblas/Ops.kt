@@ -48,21 +48,21 @@ public infix fun F64VectorLike.dot(other: F64VectorLike): Double {
  * Euclidean norm (BLAS `dnrm2`). Rescales when the sum of squares would overflow or underflow, so any
  * finite input gives the correct norm.
  */
-public fun norm2(v: F64VectorLike): Double = when (v) {
-    is F64DenseVector -> koblas.vectorKernels.nrm2(v.data, 0, v.size)
-    is F64SparseVector -> koblas.sparseVectorKernels.nrm2(v)
-    else -> euclideanNorm(v.toDoubleArray(), 0, v.size)
+public fun F64VectorLike.norm2(): Double = when (this) {
+    is F64DenseVector -> koblas.vectorKernels.nrm2(data, 0, size)
+    is F64SparseVector -> koblas.sparseVectorKernels.nrm2(this)
+    else -> euclideanNorm(toDoubleArray(), 0, size)
 }
 
 /** Sum of absolute values (BLAS `dasum`). Sparse vectors sum over stored entries only. */
-public fun asum(v: F64VectorLike): Double = when (v) {
-    is F64DenseVector -> koblas.vectorKernels.asum(v.data, 0, v.size)
+public fun F64VectorLike.asum(): Double = when (this) {
+    is F64DenseVector -> koblas.vectorKernels.asum(data, 0, size)
 
-    is F64SparseVector -> koblas.sparseVectorKernels.asum(v)
+    is F64SparseVector -> koblas.sparseVectorKernels.asum(this)
 
     else -> {
         var s = 0.0
-        v.forEachStored { _, x -> s += abs(x) }
+        forEachStored { _, x -> s += abs(x) }
         s
     }
 }
@@ -71,11 +71,11 @@ public fun asum(v: F64VectorLike): Double = when (v) {
  * Index of the entry with maximal absolute value (BLAS `idamax`), -1 for a zero-length vector.
  * Ties resolve to the lowest index, and a vector with no stored entries returns 0.
  */
-public fun iamax(v: F64VectorLike): Int {
-    if (v.size == 0) return -1
+public fun F64VectorLike.iamax(): Int {
+    if (size == 0) return -1
     var best = -1
     var bestAbs = 0.0
-    v.forEachStored { i, x ->
+    forEachStored { i, x ->
         val a = abs(x)
         if (a > bestAbs) {
             bestAbs = a
@@ -162,37 +162,36 @@ public fun rot(x: F64DenseVector, y: F64DenseVector, rotation: F64Givens) {
 }
 
 /** `y = y + alpha * x`. A sparse `x` touches only the positions it stores. */
-public fun axpy(y: F64DenseVector, alpha: Double, x: F64VectorLike) {
-    requireSameSize(y.size, x.size)
+public fun F64DenseVector.axpy(alpha: Double, x: F64VectorLike) {
+    requireSameSize(size, x.size)
     if (alpha == 0.0) return
     when (x) {
-        is F64DenseVector -> koblas.vectorKernels.axpy(y.data, 0, alpha, x.data, 0, y.size)
-        is F64SparseVector -> koblas.sparseVectorKernels.axpy(y.data, alpha, x)
-        else -> x.forEachStored { i, v -> y.data[i] += alpha * v }
+        is F64DenseVector -> koblas.vectorKernels.axpy(data, 0, alpha, x.data, 0, size)
+        is F64SparseVector -> koblas.sparseVectorKernels.axpy(data, alpha, x)
+        else -> x.forEachStored { i, v -> data[i] += alpha * v }
     }
 }
 
 /** `v = alpha * v`. */
-public fun scale(v: F64DenseVector, alpha: Double) {
+public fun F64DenseVector.scale(alpha: Double) {
     if (alpha == 1.0) return
-    koblas.vectorKernels.scale(v.data, 0, alpha, v.size)
+    koblas.vectorKernels.scale(data, 0, alpha, size)
 }
 
 /**
- * Rank-one update `A = A + alpha * x * yT` (BLAS `dger`), in place on [a]. Subtract by passing
+ * Rank-one update `A = A + alpha * x * yT` (BLAS `dger`) in place. Subtract by passing
  * `alpha = -1.0`.
  */
-public fun ger(alpha: Double, x: F64VectorLike, y: F64VectorLike, a: F64DenseMatrix) {
-    requireShape(a.rows == x.size && a.cols == y.size) {
-        "ger shape mismatch: A is ${a.rows}x${a.cols}, x ${x.size}, y ${y.size}"
+public fun F64DenseMatrix.ger(alpha: Double, x: F64VectorLike, y: F64VectorLike) {
+    requireShape(rows == x.size && cols == y.size) {
+        "ger shape mismatch: A is ${rows}x$cols, x ${x.size}, y ${y.size}"
     }
     if (alpha == 0.0) return
     if (x is F64DenseVector && y is F64DenseVector) {
-        koblas.ger(alpha, x.data, y.data, a)
+        koblas.ger(alpha, x.data, y.data, this)
         return
     }
-    val md = a.data
-    val rows = a.rows
+    val md = data
     y.forEachStored { j, yj ->
         if (yj != 0.0) {
             val col = j * rows
@@ -202,27 +201,26 @@ public fun ger(alpha: Double, x: F64VectorLike, y: F64VectorLike, a: F64DenseMat
     }
 }
 
-/** Symmetric rank-1 update `A += alpha * x * xT` (BLAS `dsyr`), in place on [a]. See [F64Blas.syr]. */
-public fun syr(alpha: Double, x: F64VectorLike, a: F64DenseMatrix, uplo: Uplo = Uplo.FULL): Unit = koblas.syr(
+/** Symmetric rank-1 update `A += alpha * x * xT` (BLAS `dsyr`) in place. See [F64Blas.syr]. */
+public fun F64DenseMatrix.syr(alpha: Double, x: F64VectorLike, uplo: Uplo = Uplo.FULL): Unit = koblas.syr(
     alpha,
     x,
-    a,
+    this,
     uplo,
 )
 
-/** Symmetric rank-2 update `A += alpha * (x * yT + y * xT)` (BLAS `dsyr2`), in place on [a]. See [F64Blas.syr2]. */
-public fun syr2(alpha: Double, x: F64VectorLike, y: F64VectorLike, a: F64DenseMatrix, uplo: Uplo = Uplo.FULL): Unit =
-    koblas.syr2(alpha, x, y, a, uplo)
+/** Symmetric rank-2 update `A += alpha * (x * yT + y * xT)` (BLAS `dsyr2`) in place. See [F64Blas.syr2]. */
+public fun F64DenseMatrix.syr2(alpha: Double, x: F64VectorLike, y: F64VectorLike, uplo: Uplo = Uplo.FULL): Unit =
+    koblas.syr2(alpha, x, y, this, uplo)
 
 /**
  * Matrix 1-norm, the maximum absolute column sum (LAPACK `dlange` with norm 1). This is the `anorm`
  * [F64LinearAlgebra.rcond] expects, computed before the matrix is factored.
  */
-public fun norm1(a: F64DenseMatrix): Double {
-    val ad = a.data
-    val rows = a.rows
+public fun F64DenseMatrix.norm1(): Double {
+    val ad = data
     var m = 0.0
-    for (j in 0 until a.cols) {
+    for (j in 0 until cols) {
         val base = j * rows
         var s = 0.0
         for (i in 0 until rows) s += abs(ad[base + i])
@@ -232,13 +230,12 @@ public fun norm1(a: F64DenseMatrix): Double {
 }
 
 /** Matrix infinity-norm, the maximum absolute row sum (LAPACK `dlange` with norm I). */
-public fun normInf(a: F64DenseMatrix, workspace: Workspace? = null): Double {
-    val rows = a.rows
-    if (rows == 0 || a.cols == 0) return 0.0
+public fun F64DenseMatrix.normInf(workspace: Workspace? = null): Double {
+    if (rows == 0 || cols == 0) return 0.0
     val sums = workspace?.take(rows) ?: DoubleArray(rows)
     sums.fill(0.0, 0, rows) // take() promises nothing about the contents
-    val ad = a.data
-    for (j in 0 until a.cols) {
+    val ad = data
+    for (j in 0 until cols) {
         val base = j * rows
         for (i in 0 until rows) sums[i] += abs(ad[base + i])
     }
@@ -249,47 +246,45 @@ public fun normInf(a: F64DenseMatrix, workspace: Workspace? = null): Double {
 }
 
 /** Frobenius norm (LAPACK `dlange` with norm F). Rescales like [norm2] against overflow and underflow. */
-public fun normFro(a: F64DenseMatrix): Double = euclideanNorm(a.data, 0, a.data.size)
+public fun F64DenseMatrix.normFro(): Double = euclideanNorm(data, 0, data.size)
 
-/** Scale row i of [a] by d(i) in place, the product `D * A` for the diagonal D with entries [d]. */
-public fun scaleRows(a: F64DenseMatrix, d: DoubleArray) {
-    requireShape(d.size == a.rows) { "scaleRows: d length ${d.size} != ${a.rows} rows" }
-    val rows = a.rows
-    val ad = a.data
-    for (j in 0 until a.cols) {
+/** Scale row `i` by d(i) in place, the product `D * A` for the diagonal D with entries d(i). */
+public fun F64DenseMatrix.scaleRows(d: DoubleArray) {
+    requireShape(d.size == rows) { "scaleRows: d length ${d.size} != $rows rows" }
+    val ad = data
+    for (j in 0 until cols) {
         val base = j * rows
         for (i in 0 until rows) ad[base + i] *= d[i]
     }
 }
 
-/** Scale column j of [a] by d(j) in place, the product `A * D` for the diagonal D with entries [d]. */
-public fun scaleColumns(a: F64DenseMatrix, d: DoubleArray) {
-    requireShape(d.size == a.cols) { "scaleColumns: d length ${d.size} != ${a.cols} columns" }
-    val rows = a.rows
-    for (j in 0 until a.cols) {
+/** Scale column `j` by d(j) in place, the product `A * D` for the diagonal D with entries d(j). */
+public fun F64DenseMatrix.scaleColumns(d: DoubleArray) {
+    requireShape(d.size == cols) { "scaleColumns: d length ${d.size} != $cols columns" }
+    for (j in 0 until cols) {
         val f = d[j]
-        if (f != 1.0) koblas.vectorKernels.scale(a.data, j * rows, f, rows)
+        if (f != 1.0) koblas.vectorKernels.scale(data, j * rows, f, rows)
     }
 }
 
-/** Scale column j of [a] by d(j), in place, for a CSC matrix. The pattern is untouched. */
-public fun scaleColumns(a: F64SparseMatrix, d: DoubleArray) {
-    requireShape(d.size == a.cols) { "scaleColumns: d length ${d.size} != ${a.cols} columns" }
-    for (j in 0 until a.cols) {
+/** Scale column `j` by d(j) in place for a CSC matrix. The pattern is untouched. */
+public fun F64SparseMatrix.scaleColumns(d: DoubleArray) {
+    requireShape(d.size == cols) { "scaleColumns: d length ${d.size} != $cols columns" }
+    for (j in 0 until cols) {
         val f = d[j]
         if (f == 1.0) continue
-        for (k in a.colPtr[j] until a.colPtr[j + 1]) a.values[k] *= f
+        for (k in colPtr[j] until colPtr[j + 1]) values[k] *= f
     }
 }
 
-/** Column [j] as a fresh vector, copied rather than viewed. */
+/** Column `j` as a fresh vector, copied rather than viewed. */
 public fun F64DenseMatrix.column(j: Int): F64DenseVector {
     requireIndex(j in 0 until cols) { "column $j outside [0,$cols)" }
     val start = j * rows
     return F64DenseVector.wrap(data.copyOfRange(start, start + rows))
 }
 
-/** Row [i] as a fresh vector, gathered across the backing. Prefer [column] where the algorithm allows. */
+/** Row `i` as a fresh vector, gathered across the backing. Prefer [column] where the algorithm allows. */
 public fun F64DenseMatrix.row(i: Int): F64DenseVector {
     requireIndex(i in 0 until rows) { "row $i outside [0,$rows)" }
     val out = DoubleArray(cols)
