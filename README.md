@@ -62,6 +62,11 @@ level-3 crossover, where a later element type reads
 
 ### Installation
 
+| Module | Purpose |
+|--------|---------|
+| `koblas` | Core Kotlin Multiplatform API, portable backend, and optional host-library lookup. |
+| `koblas-openblas` | Optional JVM runtime bundle of OpenBLAS and LAPACKE for Linux x64/arm64 and macOS arm64. |
+
 ```kotlin
 implementation("com.eignex:koblas:<version>")
 ```
