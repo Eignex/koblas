@@ -11,6 +11,11 @@ eignexPublish {
     githubRepo.set("Eignex/koblas")
     licenses {
         license {
+            name.set("Apache-2.0")
+            url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+            distribution.set("repo")
+        }
+        license {
             name.set("BSD-3-Clause")
             url.set("https://opensource.org/license/bsd-3-clause")
             distribution.set("repo")
