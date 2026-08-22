@@ -69,6 +69,16 @@ implementation("com.eignex:koblas:<version>")
 The serializable containers need the kotlinx.serialization runtime; there are
 no other dependencies.
 
+On JVM Linux x64 or arm64 and macOS arm64, add the optional OpenBLAS bundle to
+load Maven-hosted native binaries rather than installing OpenBLAS on the host:
+
+```kotlin
+runtimeOnly("com.eignex:koblas-openblas:<version>")
+```
+
+It registers `openblas-bundled` through `ServiceLoader` and wins over the host
+lookup. Omitting it keeps the host-library lookup and portable fallback.
+
 ## Usage
 
 Containers and light arithmetic live in `com.eignex.koblas`; dense BLAS and
@@ -325,7 +335,7 @@ installBackends overrides it with a KoblasContext of your own.
 Discovery runs once, on the first read of koblas, on every platform. It resolves
 the host libraries this build ships bindings for -- OpenBLAS and SuiteSparse's
 UMFPACK -- by soname, and on the JVM it then scans the classpath for third-party
-LinearAlgebra providers. A library that is not installed simply is not
+Backend providers. A library that is not installed simply is not
 registered, and the portable implementation stays in place, so nothing has to be
 configured for either case. On the JVM, `-Dkoblas.backend=reference` registers
 nothing at all, and any other value registers only the backend whose name
@@ -397,10 +407,11 @@ the Vector API kernels, which beat a foreign call there — measured, SIMD
 Cholesky matches single-threaded OpenBLAS to n=1024 and wins outright at 256.
 
 This is why the JVM artifact targets Java 25: FFM was finalized in 22, and the
-backend ships inside koblas rather than as a separate artifact. Native access is
-a restricted operation, so pass `--enable-native-access=ALL-UNNAMED` to silence
-the warning; without it the backend still works on 25. A machine with no
-OpenBLAS runs the portable kernels, as everywhere else.
+host backend ships inside koblas. `koblas-openblas` is an optional Maven-native
+alternative that extracts its bundled binary before the same FFM calls run.
+Native access is a restricted operation, so pass `--enable-native-access=ALL-UNNAMED`
+to silence the warning; without it the backend still works on 25. A machine
+with no OpenBLAS runs the portable kernels, as everywhere else.
 
 The ServiceLoader seam remains for a consumer who wants to supply their own
 backend, and it outranks the built-in one when its priority is higher.

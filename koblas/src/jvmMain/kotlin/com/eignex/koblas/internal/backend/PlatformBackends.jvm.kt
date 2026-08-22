@@ -3,7 +3,6 @@ package com.eignex.koblas.internal.backend
 import com.eignex.koblas.Backend
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.F64Blas
-import com.eignex.koblas.dense.F64LinearAlgebra
 import com.eignex.koblas.dense.host.jvm.HostBlasCalls
 import com.eignex.koblas.hostblas.HostBlas
 import com.eignex.koblas.hostblas.HostLapack
@@ -19,14 +18,14 @@ import java.util.ServiceLoader
 internal actual fun registerPlatformBackends() {
     val requested = System.getProperty(ConfigurationKeys.BACKEND_PROPERTY)
     if (requested == BackendNames.REFERENCE) return
-    registerHostBlas(requested)
-    registerUmfpack(requested)
     for (provider in loadProviders().sortedByDescending { it.priority }) {
         if (requested != null && provider.name != requested) continue
         if (!probe(provider)) continue
         // Once, not per half, since registerBackend offers the object as every half it implements.
         registerBackend(provider)
     }
+    registerHostBlas(requested)
+    registerUmfpack(requested)
 }
 
 /**
@@ -53,9 +52,18 @@ private fun registerUmfpack(requested: String?) {
 }
 
 /** Instantiate all registered providers, dropping any whose construction fails. */
-private fun loadProviders(): List<F64LinearAlgebra> {
-    val providers = ArrayList<F64LinearAlgebra>()
-    val iterator = ServiceLoader.load(F64LinearAlgebra::class.java).iterator()
+private fun loadProviders(): List<Backend> {
+    val providers = ArrayList<Backend>()
+    loadProviders(Backend::class.java, providers)
+    // The dense service type was the original public SPI. Keep it while providers migrate to [Backend],
+    // which also permits sparse-only add-ons such as UMFPACK.
+    loadProviders(com.eignex.koblas.dense.F64LinearAlgebra::class.java, providers)
+    return providers.distinctBy { it::class.java.name }
+}
+
+/** Adds providers from one service type, dropping a malformed registration without failing discovery. */
+private fun <T : Backend> loadProviders(type: Class<T>, providers: MutableList<Backend>) {
+    val iterator = ServiceLoader.load(type).iterator()
     while (true) {
         @Suppress("TooGenericExceptionCaught") // provider loading can throw Error (ServiceConfigurationError)
         try {
@@ -65,7 +73,6 @@ private fun loadProviders(): List<F64LinearAlgebra> {
             break // a malformed registration poisons the iterator, keep what loaded so far
         }
     }
-    return providers
 }
 
 /**
@@ -80,7 +87,8 @@ private fun loadProviders(): List<F64LinearAlgebra> {
  * The primitive is called rather than the convenience overload, since a backend built by delegation
  * inherits a forwarder for every routine it does not override and the convenience one would bypass it.
  */
-internal fun probe(backend: F64Blas): Boolean {
+internal fun probe(backend: Backend): Boolean {
+    if (backend !is F64Blas) return backend.isAvailable
     val gate = f64DispatchThresholds.level3
     val n = if (gate == Int.MAX_VALUE) 1 else maxOf(1, gate)
     @Suppress("TooGenericExceptionCaught") // native load failures surface as UnsatisfiedLinkError

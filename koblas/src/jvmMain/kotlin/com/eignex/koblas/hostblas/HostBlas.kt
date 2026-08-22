@@ -10,7 +10,7 @@ import com.eignex.koblas.internal.backend.BackendNames
  * The host OpenBLAS through CBLAS, bound with `java.lang.foreign`. Every routine lives in
  * [F64HostBlasAdapter]; this supplies the JVM's entry points and the backend's identity.
  */
-public class HostBlas internal constructor() : F64HostBlasAdapter(JvmCblasCalls) {
+public class HostBlas : F64HostBlasAdapter(JvmCblasCalls) {
     override val name: String get() = BackendNames.OPENBLAS
 
     /** Above the reference (0) and the native dlopen backend (90). */
