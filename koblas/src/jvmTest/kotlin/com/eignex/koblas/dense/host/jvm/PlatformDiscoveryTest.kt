@@ -1,9 +1,13 @@
-package com.eignex.koblas.dense
+package com.eignex.koblas.dense.host.jvm
 
 import com.eignex.koblas.HostLibraryTest
 import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64DenseMatrix
+import com.eignex.koblas.dense.F64Blas
+import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
 import com.eignex.koblas.dense.host.jvm.HostBlasCalls
+import com.eignex.koblas.dense.probe
+import com.eignex.koblas.dense.registerPlatformBackends
 import com.eignex.koblas.f64DispatchThresholds
 import com.eignex.koblas.internal.backend.BackendSlot
 import com.eignex.koblas.isAccelerated

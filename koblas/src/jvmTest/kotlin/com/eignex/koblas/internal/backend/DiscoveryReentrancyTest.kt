@@ -1,5 +1,6 @@
-package com.eignex.koblas
+package com.eignex.koblas.internal.backend
 
+import com.eignex.koblas.*
 import com.eignex.koblas.core.*
 import com.eignex.koblas.dense.F64Blas
 import com.eignex.koblas.dense.F64Lapack
@@ -88,7 +89,7 @@ class DiscoveryReentrancyTest {
         Files.createDirectories(registrations)
         Files.writeString(
             registrations.resolve("com.eignex.koblas.dense.F64LinearAlgebra"),
-            "com.eignex.koblas.ProbeReentrantProvider\n",
+            "com.eignex.koblas.internal.backend.ProbeReentrantProvider\n",
         )
         val separator = System.getProperty("path.separator")
         val process = ProcessBuilder(
@@ -97,7 +98,7 @@ class DiscoveryReentrancyTest {
             "--add-modules=jdk.incubator.vector",
             "-cp",
             "$services$separator${System.getProperty("java.class.path")}",
-            "com.eignex.koblas.DiscoveryReentrancyTestKt",
+            "com.eignex.koblas.internal.backend.DiscoveryReentrancyTestKt",
         ).redirectErrorStream(true).start()
         val output = process.inputStream.bufferedReader().readText()
         val status = process.waitFor()
