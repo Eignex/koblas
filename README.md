@@ -96,9 +96,3 @@ optional. Set `-Dkoblas.backend=reference` to force the portable backend.
 Host and bundled libraries are optional. A missing or unusable native library
 does not stop the application; the affected operation falls back to the
 portable implementation.
-
-## License
-
-The core is Apache-2.0. koblas-openblas also distributes BSD-3-Clause OpenBLAS
-binaries. koblas-umfpack distributes GPL-3.0-only SuiteSparse UMFPACK in a
-separate optional artifact.
