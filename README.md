@@ -32,9 +32,10 @@ and optional SuperLU or SuiteSparse UMFPACK acceleration.
 implementation("com.eignex:koblas:<version>")
 ```
 
-Install OpenBLAS/LAPACKE and, for sparse LU, SuperLU or SuiteSparse with your system
-package manager, such as `apt` or Homebrew. Koblas discovers them automatically
-and otherwise uses its portable backend.
+Install OpenBLAS/LAPACKE and, for sparse LU, SuiteSparse with your system package
+manager, such as `apt` or Homebrew. Koblas discovers them automatically and otherwise
+uses its portable backend. SuperLU needs Koblas's native bridge, which is included in
+the Maven bundle below.
 
 On JVM Linux x64/arm64 and macOS arm64, Maven bundles are an alternative:
 
@@ -44,8 +45,8 @@ runtimeOnly("com.eignex:koblas-superlu:<version>") // optional; BSD-3-Clause, sp
 runtimeOnly("com.eignex:koblas-umfpack:<version>") // optional; GPL-3.0-only alternative
 ```
 
-Host packages and Maven bundles use the same Koblas bindings; only the native
-library source differs.
+The SuperLU bundle provides the bridge that isolates SuperLU's native factor structures.
+OpenBLAS/LAPACKE and UMFPACK can instead use their system libraries.
 
 The sparse-LU bundles bring OpenBLAS and use the same OpenBLAS library as the
 dense backend. Bundled providers win over host lookup. To select a custom
@@ -55,11 +56,13 @@ absolute library path, use these JVM properties or environment variables:
 |---------|--------------|----------------------|
 | OpenBLAS | `koblas.openblas.path` | `KOBLAS_OPENBLAS_PATH` |
 | LAPACKE | `koblas.lapacke.path` | `KOBLAS_LAPACKE_PATH` |
-| SuperLU | `koblas.superlu.path` | `KOBLAS_SUPERLU_PATH` |
+| Koblas SuperLU bridge | `koblas.superlu.path` | `KOBLAS_SUPERLU_PATH` |
 | UMFPACK | `koblas.umfpack.path` | `KOBLAS_UMFPACK_PATH` |
 
-The JVM property takes precedence. With both sparse-LU bundles present, SuperLU is selected by default;
-set `koblas.sparse.backend=umfpack` to select UMFPACK.
+The JVM property takes precedence. `koblas.superlu.path` must name a compatible
+`libkoblas-superlu` bridge, rather than SuperLU's own library. With both sparse-LU
+bundles present, SuperLU is selected by default; set `koblas.sparse.backend=umfpack`
+to select UMFPACK.
 
 ## Use
 
