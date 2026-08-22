@@ -42,6 +42,9 @@ runtimeOnly("com.eignex:koblas-openblas:<version>")
 runtimeOnly("com.eignex:koblas-umfpack:<version>") // optional; GPL-3.0-only
 ```
 
+Both routes use the same Koblas bindings. Choose the host package manager or
+Maven bundles based on what is more convenient for the application.
+
 The UMFPACK bundle brings OpenBLAS and uses the same OpenBLAS library as the
 dense backend. Bundled providers win over host lookup. To select a custom
 absolute library path, use these JVM properties or environment variables:
