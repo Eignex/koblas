@@ -1,5 +1,7 @@
 package com.eignex.koblas.dense.host.jvm
 
+import com.eignex.koblas.dense.host.cblas.LAPACKE_SONAMES
+import com.eignex.koblas.dense.host.cblas.OPENBLAS_SONAMES
 import com.eignex.koblas.dense.host.cblas.isIlp64OpenBlas
 import com.eignex.koblas.internal.backend.ConfigurationKeys
 import com.eignex.koblas.internal.backend.nativeLibraryPaths
@@ -52,25 +54,13 @@ internal object HostBlasCalls {
     private val SONAMES = nativeLibraryPaths(
         "koblas.openblas.path",
         "KOBLAS_OPENBLAS_PATH",
-        listOf(
-            "libopenblas.so.0",
-            "libopenblas.so",
-            "libopenblas.dylib",
-            "/opt/homebrew/opt/openblas/lib/libopenblas.dylib",
-            "/usr/local/opt/openblas/lib/libopenblas.dylib",
-            "openblas.dll",
-        ),
+        OPENBLAS_SONAMES,
     )
 
     private val LAPACKE_SONAMES = nativeLibraryPaths(
         "koblas.lapacke.path",
         "KOBLAS_LAPACKE_PATH",
-        listOf(
-            "liblapacke.so.3",
-            "liblapacke.so",
-            "liblapacke.dylib",
-            "lapacke.dll",
-        ),
+        LAPACKE_SONAMES,
     )
 
     /**

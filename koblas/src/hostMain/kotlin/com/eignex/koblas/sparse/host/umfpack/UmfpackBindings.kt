@@ -2,6 +2,7 @@
 
 package com.eignex.koblas.sparse.host.umfpack
 
+import com.eignex.koblas.internal.host.openNativeLibrary
 import kotlinx.cinterop.CFunction
 import kotlinx.cinterop.COpaquePointer
 import kotlinx.cinterop.COpaquePointerVar
@@ -13,8 +14,6 @@ import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.invoke
 import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.usePinned
-import platform.posix.RTLD_NOW
-import platform.posix.dlopen
 import platform.posix.dlsym
 
 private typealias Dp = CPointer<DoubleVar>?
@@ -58,7 +57,7 @@ internal class UmfpackFunctions(private val lib: COpaquePointer) {
 }
 
 internal object UmfpackLoader {
-    private val handle: COpaquePointer? = open(*UMFPACK_SONAMES.toTypedArray())
+    private val handle: COpaquePointer? = openNativeLibrary(UMFPACK_SONAMES, KEY_SYMBOL)
 
     val functions: UmfpackFunctions? = handle?.let { lib ->
         try {
@@ -86,13 +85,4 @@ internal object UmfpackLoader {
     val pivotTolerance: Double? get() = control?.get(PIVOT_TOLERANCE)
 
     val available: Boolean get() = functions != null
-
-    private fun open(vararg names: String): COpaquePointer? {
-        for (name in names) {
-            val opened = dlopen(name, RTLD_NOW) ?: continue
-            // A library that opens without the di family cannot serve, and must not shadow a later soname.
-            if (dlsym(opened, KEY_SYMBOL) != null) return opened
-        }
-        return null
-    }
 }
