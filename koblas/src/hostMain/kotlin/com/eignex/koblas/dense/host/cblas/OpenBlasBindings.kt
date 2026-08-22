@@ -2,8 +2,8 @@
 
 package com.eignex.koblas.dense.host.cblas
 
-import com.eignex.koblas.dense.host.cblas.isIlp64OpenBlas
 import com.eignex.koblas.internal.backend.ConfigurationKeys
+import com.eignex.koblas.internal.host.openNativeLibrary
 import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.CFunction
 import kotlinx.cinterop.COpaquePointer
@@ -14,8 +14,6 @@ import kotlinx.cinterop.IntVar
 import kotlinx.cinterop.invoke
 import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.toKString
-import platform.posix.RTLD_NOW
-import platform.posix.dlopen
 import platform.posix.dlsym
 import platform.posix.getenv
 
@@ -99,13 +97,7 @@ internal class LapackeFunctions(private val blas: COpaquePointer, private val la
 }
 
 internal object OpenBlasLoader {
-    private val handle: COpaquePointer? = open(
-        "libopenblas.so.0", // Linux runtime package
-        "libopenblas.so",
-        "libopenblas.dylib",
-        "/opt/homebrew/opt/openblas/lib/libopenblas.dylib", // Homebrew is keg-only
-        "/usr/local/opt/openblas/lib/libopenblas.dylib",
-    )
+    private val handle: COpaquePointer? = openNativeLibrary(OPENBLAS_SONAMES)
 
     val cblas: CblasFunctions? = handle?.let { blas ->
         // An ILP64 build exports these same names but takes 64-bit integers; only the config string tells.
@@ -122,7 +114,7 @@ internal object OpenBlasLoader {
 
     val lapacke: LapackeFunctions? = handle?.takeIf { cblas != null }?.let { blas ->
         // LAPACKE lives either in the OpenBLAS build or in a separate library.
-        val extra = if (dlsym(blas, "LAPACKE_dgetrf") != null) null else open("liblapacke.so.3", "liblapacke.so")
+        val extra = if (dlsym(blas, "LAPACKE_dgetrf") != null) null else openNativeLibrary(LAPACKE_SONAMES)
         if (dlsym(blas, "LAPACKE_dgetrf") == null && extra == null) return@let null
         try {
             LapackeFunctions(blas, extra)
@@ -136,10 +128,5 @@ internal object OpenBlasLoader {
         val symbol = dlsym(blas, "openblas_get_config") ?: return ""
         val text = symbol.reinterpret<CFunction<() -> CPointer<ByteVar>?>>().invoke()
         return text?.toKString() ?: ""
-    }
-
-    private fun open(vararg names: String): COpaquePointer? {
-        for (name in names) dlopen(name, RTLD_NOW)?.let { return it }
-        return null
     }
 }
