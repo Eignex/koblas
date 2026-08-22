@@ -51,13 +51,13 @@ internal object HostBlasCalls {
     /** Where LAPACKE lives when the OpenBLAS build does not include it. */
     private var lapackeLookup: SymbolLookup? = null
 
-    private val SONAMES = nativeLibraryPaths(
+    private val openblasNames = nativeLibraryPaths(
         "koblas.openblas.path",
         "KOBLAS_OPENBLAS_PATH",
         OPENBLAS_SONAMES,
     )
 
-    private val LAPACKE_SONAMES = nativeLibraryPaths(
+    private val lapackeNames = nativeLibraryPaths(
         "koblas.lapacke.path",
         "KOBLAS_LAPACKE_PATH",
         LAPACKE_SONAMES,
@@ -87,7 +87,7 @@ internal object HostBlasCalls {
     )
 
     init {
-        val blas = if (nativeLinker == null) null else openLibrary(SONAMES)
+        val blas = if (nativeLinker == null) null else openLibrary(openblasNames)
         lookup = blas
         val resolved = blas != null && REQUIRED_CBLAS.all { blas.find(it).isPresent }
         // An ILP64 build exports these same names, so only the config string tells it apart from the LP64
@@ -96,7 +96,7 @@ internal object HostBlasCalls {
         available = resolved && !ilp64
         val lapackeInBlas = available && requireNotNull(blas).find("LAPACKE_dgetrf").isPresent
         // A second library for the hosts that ship LAPACKE outside their OpenBLAS build.
-        val extra = if (available && !lapackeInBlas) openLibrary(LAPACKE_SONAMES) else null
+        val extra = if (available && !lapackeInBlas) openLibrary(lapackeNames) else null
         lapackeLookup = extra
         // Resolved the way [symbol] resolves, the OpenBLAS build first and then liblapacke, so a host
         // splitting the set across the two is still served.
