@@ -1,10 +1,11 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.DimensionMismatch
-import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.absoluteSum
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.core.*
+import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.euclideanNorm
 import com.eignex.koblas.koblas
 import com.eignex.koblas.poisonedSymmetric

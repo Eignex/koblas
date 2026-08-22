@@ -1,9 +1,7 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.dense.F64RoutedVectorKernels
-
-/** The halves of the backend seam a context reports on. */
-public typealias BackendSlot = com.eignex.koblas.internal.backend.BackendSlot
+import com.eignex.koblas.internal.backend.BackendSlot
 
 /** The backend installed in [slot]. */
 public fun F64Context.backendFor(slot: BackendSlot): Backend = when (slot) {

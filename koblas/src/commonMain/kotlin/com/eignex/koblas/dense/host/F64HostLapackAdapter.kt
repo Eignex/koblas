@@ -1,10 +1,12 @@
 @file:Suppress("VariableNaming", "FunctionParameterNaming") // math convention: single-letter A, B, L
 
-package com.eignex.koblas.dense
+package com.eignex.koblas.dense.host
 
-import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.core.*
+import com.eignex.koblas.core.F64DenseMatrix
+import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.Cblas.COL_MAJOR
 import com.eignex.koblas.dense.Cblas.LEFT
 import com.eignex.koblas.dense.Cblas.LOWER
@@ -13,8 +15,7 @@ import com.eignex.koblas.dense.Cblas.NO_TRANS
 import com.eignex.koblas.dense.Cblas.TRANS
 import com.eignex.koblas.dense.Cblas.UNIT
 import com.eignex.koblas.dense.Cblas.UPPER
-import com.eignex.koblas.dense.host.CblasCalls
-import com.eignex.koblas.dense.host.LapackeCalls
+import com.eignex.koblas.dense.F64Lapack
 import com.eignex.koblas.f64DispatchThresholds
 import com.eignex.koblas.lapackFailedAt
 import com.eignex.koblas.requireFactored

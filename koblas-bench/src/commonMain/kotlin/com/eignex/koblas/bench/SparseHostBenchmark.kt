@@ -1,6 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.F64SparseMatrix
+import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.installBackends
 import com.eignex.koblas.koblas
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra

@@ -1,5 +1,6 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.core.*
 import kotlin.math.sqrt
 import kotlin.test.Test
 import kotlin.test.assertEquals

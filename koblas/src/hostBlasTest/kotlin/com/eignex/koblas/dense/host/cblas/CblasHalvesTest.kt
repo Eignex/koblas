@@ -1,9 +1,12 @@
 // The published-API detekt config for this custom source set wants KDoc everywhere and rejects backticked names.
 @file:Suppress("UndocumentedPublicFunction", "FunctionNaming")
 
-package com.eignex.koblas.cblas
+package com.eignex.koblas.dense.host.cblas
 
-import com.eignex.koblas.F64DenseMatrix
+import com.eignex.koblas.cblas.F64CblasLinearAlgebra
+import com.eignex.koblas.cblas.F64CblasVectorKernels
+import com.eignex.koblas.core.*
+import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.F64LinearAlgebra
 import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
 import com.eignex.koblas.koblas

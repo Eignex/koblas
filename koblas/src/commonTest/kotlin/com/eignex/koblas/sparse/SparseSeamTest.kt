@@ -1,17 +1,20 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.F64DenseVector
-import com.eignex.koblas.F64SparseMatrix
-import com.eignex.koblas.F64SparseVector
 import com.eignex.koblas.asum
 import com.eignex.koblas.axpy
 import com.eignex.koblas.copy
+import com.eignex.koblas.core.*
+import com.eignex.koblas.core.F64DenseVector
+import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.dot
 import com.eignex.koblas.installBackends
 import com.eignex.koblas.koblas
 import com.eignex.koblas.norm2
 import com.eignex.koblas.registerBackend
 import com.eignex.koblas.resetBackends
+import com.eignex.koblas.sparse.factorization.ldl.SparseLdlPolicy
+import com.eignex.koblas.sparse.symbolic.SparseOrdering
 import com.eignex.koblas.withCleanBackends
 import kotlin.test.Test
 import kotlin.test.assertEquals

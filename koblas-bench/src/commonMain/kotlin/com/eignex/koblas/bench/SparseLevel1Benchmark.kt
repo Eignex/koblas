@@ -1,7 +1,8 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.F64DenseVector
-import com.eignex.koblas.F64SparseVector
+import com.eignex.koblas.*
+import com.eignex.koblas.core.F64DenseVector
+import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.asum
 import com.eignex.koblas.axpy
 import com.eignex.koblas.dot
@@ -45,14 +46,14 @@ class SparseLevel1Benchmark {
 
     @Benchmark
     fun sparseAxpy() {
-        axpy(dense, NEAR_UNIT_SCALE, sparse)
+        dense.axpy(NEAR_UNIT_SCALE, sparse)
     }
 
     @Benchmark
-    fun sparseNrm2(): Double = norm2(sparse)
+    fun sparseNrm2(): Double = sparse.norm2()
 
     @Benchmark
-    fun sparseAsum(): Double = asum(sparse)
+    fun sparseAsum(): Double = sparse.asum()
 
     /** `ussc`, the pure write, with no arithmetic to hide its cost behind. */
     @Benchmark

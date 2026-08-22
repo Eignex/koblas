@@ -1,9 +1,10 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.F64DenseMatrix
-import com.eignex.koblas.F64SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.core.*
+import com.eignex.koblas.core.F64DenseMatrix
+import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.koblas
 import com.eignex.koblas.norm1
 import com.eignex.koblas.poisonedIndefinite

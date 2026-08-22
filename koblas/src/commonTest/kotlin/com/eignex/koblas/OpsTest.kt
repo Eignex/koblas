@@ -2,6 +2,7 @@
 
 package com.eignex.koblas
 
+import com.eignex.koblas.core.*
 import com.eignex.koblas.dense.Uplo
 import com.eignex.koblas.dense.matMul
 import kotlin.math.abs

@@ -1,8 +1,12 @@
-package com.eignex.koblas.sparse
+package com.eignex.koblas.sparse.symbolic
 
-import com.eignex.koblas.F64SparseMatrix
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.core.*
+import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.randomVector
+import com.eignex.koblas.sparse.analyze
+import com.eignex.koblas.sparse.cholesky
+import com.eignex.koblas.sparse.multiply
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals

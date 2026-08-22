@@ -1,35 +1,14 @@
 // The published-API detekt config for this custom source set wants KDoc everywhere and rejects backticked names.
 @file:Suppress("UndocumentedPublicFunction", "FunctionNaming")
 
-package com.eignex.koblas.cblas
+package com.eignex.koblas.dense.host.cblas
 
+import com.eignex.koblas.cblas.F64CblasLinearAlgebra
+import com.eignex.koblas.cblas.F64CblasVectorKernels
 import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
-import com.eignex.koblas.dense.assertAnEmptyFactorizationSolvesEmpty
-import com.eignex.koblas.dense.assertDegenerateShapesHonorTheBetaConventions
-import com.eignex.koblas.dense.assertDeterminantAgreesWithReference
-import com.eignex.koblas.dense.assertFactorIntoUsesItsDestination
-import com.eignex.koblas.dense.assertGemmAgreesWithReference
-import com.eignex.koblas.dense.assertGemvAgreesWithReference
-import com.eignex.koblas.dense.assertGerAgreesWithReference
-import com.eignex.koblas.dense.assertLdlBlockSolveAgreesWithReference
-import com.eignex.koblas.dense.assertLdlFactorsInterchange
 import com.eignex.koblas.dense.assertLevel1KernelsAgreeWithScalar
-import com.eignex.koblas.dense.assertLevel3AgreesWithReference
-import com.eignex.koblas.dense.assertLuAgreesWithReference
-import com.eignex.koblas.dense.assertLuFactorsInterchange
-import com.eignex.koblas.dense.assertNonPositiveDefiniteFallsBack
-import com.eignex.koblas.dense.assertPivotedQrAgreesWithReference
-import com.eignex.koblas.dense.assertQrFactorsInterchange
-import com.eignex.koblas.dense.assertRcondAgreesWithReference
 import com.eignex.koblas.dense.assertReductionsAgreeWithScalar
-import com.eignex.koblas.dense.assertSingularLdlIsRefused
-import com.eignex.koblas.dense.assertSingularLuIsFlagged
-import com.eignex.koblas.dense.assertSpdSuiteAgreesWithReference
-import com.eignex.koblas.dense.assertSymmetricProductsAgreeWithReference
-import com.eignex.koblas.dense.assertSymvRefusesNonSquare
-import com.eignex.koblas.dense.assertSyrkAgreesWithReference
-import com.eignex.koblas.dense.assertSyrkTriangleModesLeaveTheOtherTriangle
-import com.eignex.koblas.dense.assertTriangularAgreesWithReference
+import com.eignex.koblas.dense.host.*
 import com.eignex.koblas.installBackends
 import com.eignex.koblas.koblas
 import kotlin.test.Test

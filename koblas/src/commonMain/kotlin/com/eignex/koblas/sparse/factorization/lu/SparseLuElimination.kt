@@ -1,5 +1,6 @@
-package com.eignex.koblas.sparse
+package com.eignex.koblas.sparse.factorization.lu
 
+import com.eignex.koblas.sparse.*
 import kotlin.math.abs
 
 /** One factor's entries indexed by column, parallel per column. */

@@ -1,6 +1,7 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.F64DenseMatrix
+import com.eignex.koblas.*
+import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.norm1
 import com.eignex.koblas.normFro
 import com.eignex.koblas.normInf
@@ -33,24 +34,24 @@ class MatrixOpsBenchmark {
 
     /** Column sums, which run with the column-major layout. */
     @Benchmark
-    fun norm1(): Double = norm1(a)
+    fun norm1(): Double = a.norm1()
 
     /** Row sums, which run across it and pay for the stride. */
     @Benchmark
-    fun normInf(): Double = normInf(a)
+    fun normInf(): Double = a.normInf()
 
     @Benchmark
-    fun normFro(): Double = normFro(a)
+    fun normFro(): Double = a.normFro()
 
     @Benchmark
     fun scaleRowsBench(): F64DenseMatrix {
-        scaleRows(a, factors)
+        a.scaleRows(factors)
         return a
     }
 
     @Benchmark
     fun scaleColumnsBench(): F64DenseMatrix {
-        scaleColumns(a, factors)
+        a.scaleColumns(factors)
         return a
     }
 

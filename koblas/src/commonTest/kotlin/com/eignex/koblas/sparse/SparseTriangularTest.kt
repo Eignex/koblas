@@ -1,8 +1,9 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.F64DenseMatrix
-import com.eignex.koblas.F64SparseMatrix
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.core.*
+import com.eignex.koblas.core.F64DenseMatrix
+import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.dense.trsv
 import com.eignex.koblas.registerBackend
 import com.eignex.koblas.withCleanBackends

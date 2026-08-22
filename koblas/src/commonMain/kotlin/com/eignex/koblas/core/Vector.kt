@@ -1,5 +1,8 @@
-package com.eignex.koblas
+package com.eignex.koblas.core
 
+import com.eignex.koblas.UnsafeKoblasApi
+import com.eignex.koblas.requireInBounds
+import com.eignex.koblas.requireShape
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -8,7 +11,7 @@ public interface F64VectorLike {
     /** Number of entries, counting the unstored zeros of a sparse vector. */
     public val size: Int
 
-    /** The entry at index [i]. Throws `IndexOutOfBoundsException` outside `0 until size`, whatever the storage. */
+    /** The entry at index (i). Throws `IndexOutOfBoundsException` outside `0 until size`, whatever the storage. */
     public operator fun get(i: Int): Double
 
     /** Materialise into a fresh dense `DoubleArray`, independent of the internal storage. */
@@ -38,7 +41,7 @@ public class F64DenseVector internal constructor(public val data: DoubleArray) :
 
     override fun toDoubleArray(): DoubleArray = data.copyOf()
 
-    /** Writes [v] at index [i]. */
+    /** Writes (v) at index (i). */
     public operator fun set(i: Int, v: Double) {
         requireInBounds(i, size)
         data[i] = v
@@ -68,7 +71,8 @@ public class F64DenseVector internal constructor(public val data: DoubleArray) :
 /**
  * Indices are strictly ascending and in range, validated by the constructor; [of] sorts and sums instead.
  *
- * Use [copyIndices] or [forEachStored] for safe structural access. [indices] is a live zero-copy escape hatch
+ * Use [copyIndices] or [com.eignex.koblas.forEachStored] for safe structural access. [indices] is a live
+ * zero-copy escape hatch
  * for specialized kernels and requires [UnsafeKoblasApi]; mutating it can invalidate the sparse structure.
  * [values] remains live so coefficients can be updated without changing the sparse pattern.
  *
@@ -97,7 +101,7 @@ public class F64SparseVector internal constructor(
         }
     }
 
-    /** The stored value at [i], or 0.0 where nothing is stored. */
+    /** The stored value at (i), or 0.0 where nothing is stored. */
     override fun get(i: Int): Double {
         requireInBounds(i, size)
         var lo = 0

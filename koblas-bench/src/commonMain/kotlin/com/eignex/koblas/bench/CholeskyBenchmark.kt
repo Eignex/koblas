@@ -1,6 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.F64DenseMatrix
+import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.cholesky
 import com.eignex.koblas.dense.F64CholeskyDecomposition
 import com.eignex.koblas.dense.invert

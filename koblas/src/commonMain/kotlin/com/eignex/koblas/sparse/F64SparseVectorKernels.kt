@@ -1,7 +1,8 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.Backend
-import com.eignex.koblas.F64SparseVector
+import com.eignex.koblas.core.*
+import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.euclideanNorm
 
 /** Sparse vector-vector routines as a backend half. */

@@ -1,6 +1,7 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.F64SparseVector
+import com.eignex.koblas.core.*
+import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.randomVector
 import kotlin.math.abs
 import kotlin.random.Random

@@ -1,9 +1,10 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.F64DenseVector
-import com.eignex.koblas.F64SparseVector
 import com.eignex.koblas.asum
 import com.eignex.koblas.axpy
+import com.eignex.koblas.core.*
+import com.eignex.koblas.core.F64DenseVector
+import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.dot
 import com.eignex.koblas.euclideanNorm
 import com.eignex.koblas.f64DispatchThresholds
