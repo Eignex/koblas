@@ -27,6 +27,8 @@ lock_file="$project_dir/koblas-openblas/openblas.lock"
 version=$(sed -n 's/^version=//p' "$lock_file")
 url=$(sed -n 's/^url=//p' "$lock_file")
 expected_sha=$(sed -n 's/^sha256=//p' "$lock_file")
+c_compiler="${CC:-cc}"
+fortran_compiler="${FC:-gfortran}"
 cache_dir="${OPENBLAS_DOWNLOAD_CACHE:-$project_dir/koblas-openblas/build/openblas/downloads}"
 archive="$cache_dir/openblas-$version.tar.gz"
 mkdir -p "$cache_dir"
@@ -48,9 +50,12 @@ case "$platform" in
     library_name=libopenblas.so.0
     ;;
   linux-arm64)
-    [[ "$(uname -s)" == Linux && "$(uname -m)" =~ ^(aarch64|arm64)$ ]] || {
-      echo "$platform must be built on Linux ARM64" >&2; exit 1
-    }
+    [[ "$(uname -s)" == Linux ]] || { echo "$platform must be built on Linux" >&2; exit 1; }
+    if [[ ! "$(uname -m)" =~ ^(aarch64|arm64)$ ]] &&
+      ! "$c_compiler" -dumpmachine | grep -Eq '^aarch64.*-linux'; then
+      echo "$platform requires Linux ARM64 or an aarch64 Linux cross-compiler" >&2
+      exit 1
+    fi
     library_name=libopenblas.so.0
     ;;
   macosx-arm64)
@@ -85,7 +90,13 @@ if [[ "$platform" == linux-* ]]; then
   # before falling back to a host installation.
   printf '%s\n' "EXTRALIB += -Wl,-rpath,'\$\$ORIGIN'" >> "$source_dir/Makefile.system"
 fi
-make -s -C "$source_dir" -j"${OPENBLAS_JOBS:-2}" shared DYNAMIC_ARCH=1 NO_AFFINITY=1 USE_OPENMP=0 LAPACKE=1
+build_args=(shared NO_AFFINITY=1 USE_OPENMP=0 LAPACKE=1 "CC=$c_compiler" "FC=$fortran_compiler" "HOSTCC=${HOSTCC:-cc}")
+if [[ "$platform" == linux-arm64 ]] && ! [[ "$(uname -m)" =~ ^(aarch64|arm64)$ ]]; then
+  build_args+=(TARGET=ARMV8 DYNAMIC_ARCH=0)
+else
+  build_args+=(DYNAMIC_ARCH=1)
+fi
+make -s -C "$source_dir" -j"${OPENBLAS_JOBS:-2}" "${build_args[@]}"
 
 rm -rf "$resource_dir"
 mkdir -p "$resource_dir"
@@ -96,9 +107,9 @@ cp "$source_dir/LICENSE" "$resource_dir/LICENSE.openblas-$version.txt"
 
 if [[ "$platform" == linux-* ]]; then
   for runtime in \
-    "$("${FC:-gfortran}" -print-file-name=libgfortran.so.5)" \
-    "$("${FC:-gfortran}" -print-file-name=libquadmath.so.0)" \
-    "$(cc -print-file-name=libgcc_s.so.1)"; do
+    "$("$fortran_compiler" -print-file-name=libgfortran.so.5)" \
+    "$("$fortran_compiler" -print-file-name=libquadmath.so.0)" \
+    "$("$c_compiler" -print-file-name=libgcc_s.so.1)"; do
     [[ -f "$runtime" ]] || { echo "missing Linux runtime $runtime" >&2; exit 1; }
     cp "$runtime" "$resource_dir/$(basename "$runtime")"
   done

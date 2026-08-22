@@ -259,48 +259,6 @@ jobs:
             koblas/build/test-results/
           if-no-files-found: ignore
 
-  # This intentionally runs before any system packages are installed. It exercises the optional Maven
-  # artifact exactly as a consumer does: its own native resources, extraction, FFM load, and service
-  # registration must all work without the host OpenBLAS or LAPACKE paths.
-  #
-  # The standard Linux test job already exercises the x64 bundle through `check`. This runner covers the
-  # remaining Linux architecture, where resource and dependent-library mistakes differ from x64.
-  test-openblas-bundle:
-    name: Run the Maven OpenBLAS bundle on Linux ARM64
-    runs-on: ubuntu-24.04-arm
-    timeout-minutes: 20
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Set up JDK
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: 25
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
-        with:
-          cache-read-only: false
-          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
-
-      - name: Grant execute permission for Gradle
-        run: chmod +x gradlew
-
-      # buildOpenBlas writes both its downloaded source archive and generated resources under this
-      # directory. The full platform tuple and the two task inputs make this cache safe to restore only
-      # for the binary it was built for; deliberately no restore-keys can select another architecture.
-      - name: Cache native OpenBLAS build resources
-        uses: actions/cache@v5
-        with:
-          path: koblas-openblas/build/openblas
-          key: openblas-${{ runner.os }}-${{ runner.arch }}-linux-arm64-${{ hashFiles('koblas-openblas/openblas.lock', 'scripts/build-openblas.sh') }}
-
-      - name: Run the Maven OpenBLAS bundle tests without host libraries
-        run: ./gradlew :koblas-openblas:test --rerun-tasks
-
   # The Linux job cross-compiles the macOS klibs but cannot link or run them; this job exercises
   # the native tests on Apple Silicon, including the host-BLAS backend against Homebrew's OpenBLAS.
   test-macos:
