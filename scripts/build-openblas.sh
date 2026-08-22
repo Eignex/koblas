@@ -90,7 +90,7 @@ if [[ "$platform" == linux-* ]]; then
   # before falling back to a host installation.
   printf '%s\n' "EXTRALIB += -Wl,-rpath,'\$\$ORIGIN'" >> "$source_dir/Makefile.system"
 fi
-build_args=(shared NO_AFFINITY=1 USE_OPENMP=0 LAPACKE=1 "CC=$c_compiler" "FC=$fortran_compiler" "HOSTCC=${HOSTCC:-cc}")
+build_args=(shared NO_AFFINITY=1 USE_OPENMP=0 LAPACKE=1 CFLAGS=-w FFLAGS=-w "CC=$c_compiler" "FC=$fortran_compiler" "HOSTCC=${HOSTCC:-cc}")
 if [[ "$platform" == linux-arm64 ]] && ! [[ "$(uname -m)" =~ ^(aarch64|arm64)$ ]]; then
   build_args+=(TARGET=ARMV8 DYNAMIC_ARCH=0)
 else
@@ -125,7 +125,7 @@ else
     while read -r dependency; do
       [[ -f "$dependency" ]] && cp -n "$dependency" "$resource_dir/$(basename "$dependency")"
       install_name_tool -change "$dependency" "@loader_path/$(basename "$dependency")" "$binary"
-    done < <(otool -L "$binary" | awk '/\/.*\/(libgfortran|libquadmath|libgcc_s).*\.dylib/ { print $1 }')
+    done < <(otool -L "$binary" | awk 'NR > 1 && /\/.*\/(libgfortran|libquadmath|libgcc_s).*\.dylib/ { print $1 }')
   done
   [[ -f "$resource_dir/libgfortran.5.dylib" ]] &&
     cp -n "$resource_dir/libgfortran.5.dylib" "$resource_dir/libgfortran.dylib"
