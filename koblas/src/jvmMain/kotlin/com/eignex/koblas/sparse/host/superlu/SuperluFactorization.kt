@@ -34,6 +34,7 @@ public class SuperluFactorization internal constructor(
         requireShape(out.size == n) { "solve: out size ${out.size}, expected $n" }
         if (out !== b) b.copyInto(out)
         try {
+            SuperluCalls.scaleRhs(factor, out, transpose)
             SuperluCalls.solve(
                 factor,
                 MemorySegment.ofArray(out),
@@ -42,6 +43,7 @@ public class SuperluFactorization internal constructor(
         } finally {
             Reference.reachabilityFence(this)
         }
+        SuperluCalls.unscaleSolution(factor, out, transpose)
         return out
     }
 

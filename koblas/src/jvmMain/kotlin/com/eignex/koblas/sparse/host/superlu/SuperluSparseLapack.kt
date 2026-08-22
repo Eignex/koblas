@@ -6,20 +6,27 @@ import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.requireSquare
-import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.F64SingularSparseFactorization
 import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.F64SparseLapack
-import com.eignex.koblas.sparse.factorization.ldl.SparseLdlPolicy
 import com.eignex.koblas.sparse.factorization.lu.F64SparseLu
 import com.eignex.koblas.sparse.factorization.lu.NO_DROP
-import com.eignex.koblas.sparse.symbolic.SparseOrdering
-import com.eignex.koblas.sparse.symbolic.SparseSymbolic
 import java.lang.foreign.Arena
-import java.lang.foreign.MemorySegment
+
+/** SuperLU's factorization driver. */
+public enum class SuperluDriver {
+    /** The lean factorization and triangular-solve routines. */
+    Standard,
+
+    /** The expert driver with SuperLU-native equilibration and diagnostics. */
+    Expert,
+}
 
 /** Sparse factorizations backed by a host SuperLU bridge. */
-public class SuperluSparseLapack : F64SparseLapack {
+public class SuperluSparseLapack(
+    /** The SuperLU routine family that factors and solves each matrix. */
+    public val driver: SuperluDriver = SuperluDriver.Expert,
+) : F64SparseLapack {
     override val name: String get() = BackendNames.SUPERLU
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 1
@@ -30,16 +37,17 @@ public class SuperluSparseLapack : F64SparseLapack {
 
     override fun factor(a: F64SparseMatrix, equilibrate: Boolean, dropTolerance: Double): F64SparseFactorization {
         requireSquare(a, "factor")
-        if (!SuperluCalls.available || equilibrate || dropTolerance != NO_DROP || a.rows == 0 || a.nnz == 0) {
+        if (!SuperluCalls.available || dropTolerance != NO_DROP || a.rows == 0 || a.nnz == 0) {
             return F64SparseLu.factorCsc(a, equilibrate, dropTolerance)
         }
         val arena = Arena.ofShared()
         val factor =
-            SuperluCalls.factorize(
+            (if (driver == SuperluDriver.Expert) SuperluCalls::factorizeExpert else SuperluCalls::factorize).invoke(
                 a.rows,
-                MemorySegment.ofArray(a.values),
-                MemorySegment.ofArray(a.rowIdx),
-                MemorySegment.ofArray(a.colPtr),
+                a.values.copyOf(),
+                a.rowIdx,
+                a.colPtr,
+                equilibrate,
                 arena,
             ) ?: run {
                 arena.close()
@@ -47,10 +55,4 @@ public class SuperluSparseLapack : F64SparseLapack {
             }
         return SuperluFactorization(a.rows, NOT_SINGULAR, factor, arena, SuperluCalls.fill(factor))
     }
-
-    override fun analyze(a: F64SparseMatrix, ordering: SparseOrdering): SparseSymbolic =
-        F64ReferenceSparseLinearAlgebra.analyze(a, ordering)
-
-    override fun ldl(a: F64SparseMatrix, policy: SparseLdlPolicy, ordering: SparseOrdering): F64SparseFactorization =
-        F64ReferenceSparseLinearAlgebra.ldl(a, policy, ordering)
 }
