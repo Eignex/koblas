@@ -7,7 +7,7 @@ plugins {
 }
 
 eignexPublish {
-    description.set("BSD-3-Clause Maven-hosted SuperLU loader for koblas on the JVM.")
+    description.set("LGPL-2.1-or-later Maven-hosted SuiteSparse KLU loader for koblas on the JVM.")
     githubRepo.set("Eignex/koblas")
     licenses {
         license {
@@ -20,13 +20,15 @@ eignexPublish {
             url.set("https://opensource.org/license/bsd-3-clause")
             distribution.set("repo")
         }
+        license {
+            name.set("LGPL-2.1-or-later")
+            url.set("https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html")
+            distribution.set("repo")
+        }
     }
 }
 
-dependencies {
-    api(project(":koblas"))
-    implementation(project(":koblas-openblas"))
-}
+dependencies { api(project(":koblas")) }
 
 val supportedPlatforms = listOf("linux-x86_64", "linux-arm64", "macosx-arm64")
 val hostPlatform = when {
@@ -36,10 +38,10 @@ val hostPlatform = when {
         System.getProperty("os.arch") in setOf("aarch64", "arm64") -> "linux-arm64"
     System.getProperty("os.name").startsWith("Mac", ignoreCase = true) &&
         System.getProperty("os.arch") in setOf("aarch64", "arm64") -> "macosx-arm64"
-    else -> error("koblas-superlu cannot build SuperLU for this host")
+    else -> error("koblas-klu cannot build SuiteSparse KLU for this host")
 }
-val superluPlatform = providers.gradleProperty("koblas.superlu.platform").orElse(hostPlatform)
-val superluResources = layout.buildDirectory.dir("superlu/resources")
+val kluPlatform = providers.gradleProperty("koblas.klu.platform").orElse(hostPlatform)
+val kluResources = layout.buildDirectory.dir("klu/resources")
 val lintOnly = gradle.startParameter.taskNames.let { names ->
     names.isNotEmpty() && names.all { it.substringAfterLast(':') == "lintDocs" }
 }
@@ -47,24 +49,19 @@ val lintOnly = gradle.startParameter.taskNames.let { names ->
 fun toolVersion(command: String) = providers.exec { commandLine(command, "--version") }.standardOutput.asText
 
 val cCompiler = providers.environmentVariable("CC").orElse("cc")
-val buildSuperlu = tasks.register<Exec>("buildSuperlu") {
-    val platform = superluPlatform.get()
-    require(platform in supportedPlatforms) { "unsupported SuperLU platform $platform" }
-    inputs.file(layout.projectDirectory.file("superlu.lock"))
-    inputs.file(rootProject.layout.projectDirectory.file("scripts/build-superlu.sh"))
+val buildKlu = tasks.register<Exec>("buildKlu") {
+    val platform = kluPlatform.get()
+    require(platform in supportedPlatforms) { "unsupported KLU platform $platform" }
+    inputs.file(layout.projectDirectory.file("klu.lock"))
+    inputs.file(rootProject.layout.projectDirectory.file("scripts/build-klu.sh"))
     inputs.property("platform", platform)
     inputs.property("cc", toolVersion(cCompiler.get()))
     inputs.property("cmake", toolVersion("cmake"))
-    outputs.dir(superluResources.map { it.dir("org/eignex/superlu/$platform") })
+    outputs.dir(kluResources.map { it.dir("org/eignex/klu/$platform") })
     outputs.cacheIf("the locked source, target platform, and toolchain are declared inputs") { true }
-    dependsOn(":koblas-openblas:buildOpenBlas")
-    val blas = project(":koblas-openblas").layout.buildDirectory
-        .file("openblas/resources/org/bytedeco/openblas/$platform/${if (platform.startsWith("linux")) "libopenblas.so.0" else "libopenblas.0.dylib"}")
-    inputs.file(blas)
     commandLine(
-        "bash", rootProject.layout.projectDirectory.file("scripts/build-superlu.sh").asFile.absolutePath,
-        "--platform", platform, "--output", superluResources.get().asFile.absolutePath,
-        "--blas", blas.get().asFile.absolutePath,
+        "bash", rootProject.layout.projectDirectory.file("scripts/build-klu.sh").asFile.absolutePath,
+        "--platform", platform, "--output", kluResources.get().asFile.absolutePath,
     )
     environment(
         "CC" to cCompiler.get(), "CFLAGS" to "", "CXXFLAGS" to "", "LDFLAGS" to "",
@@ -72,24 +69,24 @@ val buildSuperlu = tasks.register<Exec>("buildSuperlu") {
     )
 }
 
-sourceSets.named("main") { resources.srcDir(superluResources) }
-tasks.named("processResources") { if (!lintOnly) dependsOn(buildSuperlu) }
+sourceSets.named("main") { resources.srcDir(kluResources) }
+tasks.named("processResources") { if (!lintOnly) dependsOn(buildKlu) }
 
-val superluVersion = layout.projectDirectory.file("superlu.lock").asFile.useLines { lines ->
+val kluVersion = layout.projectDirectory.file("klu.lock").asFile.useLines { lines ->
     lines.first { it.startsWith("version=") }.removePrefix("version=")
 }
 
-val verifySuperluResources = tasks.register("verifySuperluResources") {
+val verifyKluResources = tasks.register("verifyKluResources") {
     val requiredResources = supportedPlatforms.associateWith { platform ->
         listOf(
-            if (platform.startsWith("linux")) "libsuperlu.so.7" else "libsuperlu.7.dylib",
+            if (platform.startsWith("linux")) "libklu.so.2" else "libklu.2.dylib",
             ".libraries",
-            ".superlu-source-sha256",
-            "LICENSE.superlu-$superluVersion.txt",
+            ".suitesparse-source-sha256",
+            "LICENSE.klu-$kluVersion.txt",
         )
     }
     val resourceDirectories = supportedPlatforms.associateWith { platform ->
-        superluResources.get().dir("org/eignex/superlu/$platform").asFile.absolutePath
+        kluResources.get().dir("org/eignex/klu/$platform").asFile.absolutePath
     }
     inputs.files(resourceDirectories.values)
     inputs.property("requiredResources", requiredResources)
@@ -99,17 +96,20 @@ val verifySuperluResources = tasks.register("verifySuperluResources") {
         val required = inputs.properties.getValue("requiredResources") as Map<String, List<String>>
         @Suppress("UNCHECKED_CAST")
         val directories = inputs.properties.getValue("resourceDirectories") as Map<String, String>
-        for ((platform, names) in required) {
+        required.forEach { (platform, resources) ->
             val directory = File(directories.getValue(platform))
-            check(directory.isDirectory) {
-                "missing bundled SuperLU resources for $platform; build them on that platform before publishing"
+            check(resources.all { directory.resolve(it).isFile && directory.resolve(it).length() > 0L }) {
+                "missing bundled KLU resources for $platform; build them on that platform before publishing"
             }
-            for (name in names) check(File(directory, name).isFile) { "missing $name for $platform" }
         }
     }
 }
 
-tasks.withType<Jar>().configureEach {
-    manifest { attributes("Automatic-Module-Name" to "com.eignex.koblas.superlu") }
+tasks.configureEach {
+    if (name.startsWith("publish")) dependsOn(verifyKluResources)
 }
-tasks.configureEach { if (name.startsWith("publish")) dependsOn(verifySuperluResources) }
+
+tasks.withType<Jar>().configureEach {
+    manifest { attributes("Automatic-Module-Name" to "com.eignex.koblas.klu") }
+}
+tasks.withType<Test>().configureEach { jvmArgs("--enable-native-access=ALL-UNNAMED") }

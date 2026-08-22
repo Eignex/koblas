@@ -16,8 +16,8 @@
 [![License](https://img.shields.io/github/license/eignex/koblas)](https://github.com/eignex/koblas/blob/main/LICENSE)
 
 Dense and sparse double-precision linear algebra for Kotlin Multiplatform.
-Koblas provides BLAS/LAPACK operations, factorizations, and optional OpenBLAS
-and optional SuperLU or SuiteSparse UMFPACK acceleration.
+Koblas provides BLAS/LAPACK operations, factorizations, and optional OpenBLAS,
+SuiteSparse KLU, or SuiteSparse UMFPACK acceleration.
 
 ## Install
 
@@ -26,13 +26,13 @@ and optional SuperLU or SuiteSparse UMFPACK acceleration.
 | koblas | Core API and portable backend. |
 | koblas-openblas | Optional JVM bundle of OpenBLAS/LAPACKE for Linux x64/arm64 and macOS arm64. |
 | koblas-umfpack | Optional GPL-3.0-only JVM bundle of SuiteSparse UMFPACK; includes koblas-openblas. |
-| koblas-superlu | Optional BSD-3-Clause JVM bundle of SuperLU; includes koblas-openblas. |
+| koblas-klu | Optional LGPL-2.1-or-later JVM bundle of SuiteSparse KLU. |
 
 ```kotlin
 implementation("com.eignex:koblas:<version>")
 ```
 
-Install OpenBLAS/LAPACKE and, for sparse LU, SuperLU 7 LP64 or SuiteSparse with your
+Install OpenBLAS/LAPACKE and, for sparse LU, SuiteSparse KLU 2 or UMFPACK with your
 system package manager, such as `apt` or Homebrew. Koblas discovers them automatically
 and otherwise uses its portable backend.
 
@@ -40,26 +40,26 @@ On JVM Linux x64/arm64 and macOS arm64, Maven bundles are an alternative:
 
 ```kotlin
 runtimeOnly("com.eignex:koblas-openblas:<version>")
-runtimeOnly("com.eignex:koblas-superlu:<version>") // optional; BSD-3-Clause, sparse LU default
+runtimeOnly("com.eignex:koblas-klu:<version>") // optional; LGPL-2.1-or-later, sparse LU default
 runtimeOnly("com.eignex:koblas-umfpack:<version>") // optional; GPL-3.0-only alternative
 ```
 
 Host packages and Maven bundles use the same Koblas bindings; only the native library
 source differs.
 
-The sparse-LU bundles bring OpenBLAS and use the same OpenBLAS library as the
-dense backend. Bundled providers win over host lookup. To select a custom
-absolute library path, use these JVM properties or environment variables:
+The UMFPACK bundle brings OpenBLAS and uses the same OpenBLAS library as the
+dense backend; KLU has no BLAS dependency. Bundled providers win over host lookup. To
+select a custom absolute library path, use these JVM properties or environment variables:
 
 | Library | JVM property | Environment variable |
 |---------|--------------|----------------------|
 | OpenBLAS | `koblas.openblas.path` | `KOBLAS_OPENBLAS_PATH` |
 | LAPACKE | `koblas.lapacke.path` | `KOBLAS_LAPACKE_PATH` |
-| SuperLU 7 LP64 | `koblas.superlu.path` | `KOBLAS_SUPERLU_PATH` |
+| SuiteSparse KLU 2 | `koblas.klu.path` | `KOBLAS_KLU_PATH` |
 | UMFPACK | `koblas.umfpack.path` | `KOBLAS_UMFPACK_PATH` |
 
-The JVM property takes precedence. `koblas.superlu.path` must name a SuperLU 7 LP64
-library. With both sparse-LU bundles present, SuperLU is selected by default; set
+The JVM property takes precedence. `koblas.klu.path` must name a SuiteSparse KLU 2
+library. With both sparse-LU bundles present, KLU is selected by default; set
 `koblas.sparse.backend=umfpack` to select UMFPACK.
 
 ## Use

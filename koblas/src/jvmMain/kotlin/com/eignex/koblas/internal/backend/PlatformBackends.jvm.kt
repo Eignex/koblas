@@ -8,8 +8,8 @@ import com.eignex.koblas.hostblas.HostBlas
 import com.eignex.koblas.hostblas.HostLapack
 import com.eignex.koblas.registerBackend
 import com.eignex.koblas.sparse.F64SparseLu
-import com.eignex.koblas.sparse.host.superlu.SuperluCalls
-import com.eignex.koblas.sparse.host.superlu.SuperluSparseLu
+import com.eignex.koblas.sparse.host.klu.KluCalls
+import com.eignex.koblas.sparse.host.klu.KluSparseLu
 import com.eignex.koblas.sparse.host.umfpack.UmfpackCalls
 import com.eignex.koblas.sparse.host.umfpack.UmfpackSparseLu
 import java.util.ServiceLoader
@@ -37,7 +37,7 @@ internal actual fun registerPlatformBackends() {
         registerBackend(provider)
     }
     registerHostBlas(denseRequested)
-    registerSuperlu(sparseRequested)
+    registerKlu(sparseRequested)
     registerUmfpack(sparseRequested)
 }
 
@@ -68,10 +68,10 @@ private fun registerUmfpack(requested: String?) {
     registerBackend(lapack)
 }
 
-/** SuperLU is the preferred general sparse-LU backend; UMFPACK remains selectable by name. */
-private fun registerSuperlu(requested: String?) {
-    if (!SuperluCalls.libraryPresent) return
-    val lapack = SuperluSparseLu()
+/** KLU is the preferred sparse-LU backend; UMFPACK remains selectable by name. */
+private fun registerKlu(requested: String?) {
+    if (!KluCalls.libraryPresent) return
+    val lapack = KluSparseLu()
     if (requested != null && lapack.name != requested) return
     registerBackend(lapack)
 }

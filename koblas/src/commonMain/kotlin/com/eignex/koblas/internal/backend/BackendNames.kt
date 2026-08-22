@@ -19,8 +19,8 @@ internal object BackendNames {
     /** The binding to SuiteSparse's UMFPACK. */
     const val UMFPACK = "umfpack"
 
-    /** The binding to SuperLU. */
-    const val SUPERLU = "superlu"
+    /** The binding to SuiteSparse's KLU. */
+    const val KLU = "klu"
 
     /** The compiled-in scalar kernels. */
     const val SCALAR = "scalar"
