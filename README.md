@@ -64,43 +64,31 @@ level-3 crossover, where a later element type reads
 
 | Module | Purpose |
 |--------|---------|
-| `koblas` | Core Kotlin Multiplatform API, portable backend, and optional host-library lookup. |
-| `koblas-openblas` | Optional JVM runtime bundle of OpenBLAS and LAPACKE for Linux x64/arm64 and macOS arm64. |
-| `koblas-umfpack` | Optional GPL-3.0-only JVM runtime bundle of SuiteSparse UMFPACK; pulls in `koblas-openblas`. |
+| koblas | Core Kotlin Multiplatform API, portable backend, and optional host-library lookup. |
+| koblas-openblas | Optional JVM runtime bundle of OpenBLAS and LAPACKE for Linux x64/arm64 and macOS arm64. |
+| koblas-umfpack | Optional GPL-3.0-only JVM runtime bundle of SuiteSparse UMFPACK; pulls in koblas-openblas. |
 
 ```kotlin
 implementation("com.eignex:koblas:<version>")
 ```
 
-The serializable containers need the kotlinx.serialization runtime; there are
-no other dependencies.
+Koblas discovers host OpenBLAS/LAPACKE and SuiteSparse UMFPACK automatically.
+Install them through the normal host process -- for example, `apt` on Debian or
+Ubuntu and `brew` on macOS -- to use those bindings. Without them, Koblas uses
+its portable backend.
 
-On JVM Linux x64 or arm64 and macOS arm64, add the optional OpenBLAS bundle to
-load Maven-hosted native binaries rather than installing OpenBLAS on the host:
+On JVM Linux x64 or arm64 and macOS arm64, Maven bundles are an alternative to
+host installation:
 
 ```kotlin
 runtimeOnly("com.eignex:koblas-openblas:<version>")
+runtimeOnly("com.eignex:koblas-umfpack:<version>") // optional; GPL-3.0-only
 ```
 
-It registers `openblas-bundled` through `ServiceLoader` and wins over the host
-lookup. Omitting it keeps the host-library lookup and portable fallback.
-
-To select an audited or custom native library, set `KOBLAS_OPENBLAS_PATH` or
-`KOBLAS_LAPACKE_PATH` to its absolute path. The corresponding JVM properties,
-`koblas.openblas.path` and `koblas.lapacke.path`, take precedence over those
-environment variables.
-
-UMFPACK is a separate GPL-3.0-only runtime artifact. Add it with
-
-```kotlin
-runtimeOnly("com.eignex:koblas-umfpack:<version>")
-```
-
-It brings the OpenBLAS bundle it needs and registers `umfpack-bundled`. Koblas's
-Apache-2.0 FFM ABI binding can also use a separately obtained UMFPACK installation.
-On the JVM, set `koblas.umfpack.path` or
-`KOBLAS_UMFPACK_PATH` to the absolute path of `libumfpack` to select that copy
-before the regular host-library lookup. The system property takes precedence.
+The UMFPACK bundle brings OpenBLAS. Bundled providers win over host lookup. Set
+`koblas.openblas.path`, `koblas.lapacke.path`, or `koblas.umfpack.path` -- or
+`KOBLAS_OPENBLAS_PATH`, `KOBLAS_LAPACKE_PATH`, or `KOBLAS_UMFPACK_PATH` -- to
+select an absolute custom path; the JVM property takes precedence.
 
 ## Usage
 
