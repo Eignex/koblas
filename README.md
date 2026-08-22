@@ -66,6 +66,7 @@ level-3 crossover, where a later element type reads
 |--------|---------|
 | `koblas` | Core Kotlin Multiplatform API, portable backend, and optional host-library lookup. |
 | `koblas-openblas` | Optional JVM runtime bundle of OpenBLAS and LAPACKE for Linux x64/arm64 and macOS arm64. |
+| `koblas-umfpack` | Optional GPL-3.0-only JVM runtime bundle of SuiteSparse UMFPACK; pulls in `koblas-openblas`. |
 
 ```kotlin
 implementation("com.eignex:koblas:<version>")
@@ -89,14 +90,17 @@ To select an audited or custom native library, set `KOBLAS_OPENBLAS_PATH` or
 `koblas.openblas.path` and `koblas.lapacke.path`, take precedence over those
 environment variables.
 
-UMFPACK is a separate SuiteSparse component under GPL-2.0-or-later. Koblas's
-Apache-2.0 FFM ABI binding can use a separately obtained UMFPACK installation
-without redistributing it. On the JVM, set `koblas.umfpack.path` or
+UMFPACK is a separate GPL-3.0-only runtime artifact. Add it with
+
+```kotlin
+runtimeOnly("com.eignex:koblas-umfpack:<version>")
+```
+
+It brings the OpenBLAS bundle it needs and registers `umfpack-bundled`. Koblas's
+Apache-2.0 FFM ABI binding can also use a separately obtained UMFPACK installation.
+On the JVM, set `koblas.umfpack.path` or
 `KOBLAS_UMFPACK_PATH` to the absolute path of `libumfpack` to select that copy
 before the regular host-library lookup. The system property takes precedence.
-An eventual `koblas-umfpack` binary bundle must be published as a separate GPL
-artifact with its native dependencies and notices; it cannot inherit the core
-artifact's Apache Maven metadata.
 
 ## Usage
 

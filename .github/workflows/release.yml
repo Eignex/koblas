@@ -71,6 +71,12 @@ jobs:
           path: koblas-openblas/build/openblas
           key: release-openblas-${{ runner.os }}-${{ runner.arch }}-${{ matrix.platform }}-${{ hashFiles('koblas-openblas/openblas.lock', 'scripts/build-openblas.sh') }}
 
+      - name: Cache bundled UMFPACK resources
+        uses: actions/cache@v5
+        with:
+          path: koblas-umfpack/build/umfpack
+          key: release-umfpack-${{ runner.os }}-${{ runner.arch }}-${{ matrix.platform }}-${{ hashFiles('koblas-umfpack/umfpack.lock', 'scripts/build-umfpack.sh', 'koblas-openblas/openblas.lock', 'scripts/build-openblas.sh') }}
+
       - name: Build bundled OpenBLAS
         run: ./gradlew :koblas-openblas:buildOpenBlas -Pkoblas.openblas.platform=${{ matrix.platform }}
 
@@ -79,6 +85,16 @@ jobs:
         with:
           name: openblas-${{ matrix.platform }}
           path: koblas-openblas/build/openblas/resources/org/bytedeco/openblas
+          if-no-files-found: error
+
+      - name: Build bundled UMFPACK
+        run: ./gradlew :koblas-umfpack:buildUmfpack -Pkoblas.umfpack.platform=${{ matrix.platform }}
+
+      - name: Upload bundled UMFPACK resources
+        uses: actions/upload-artifact@v7
+        with:
+          name: umfpack-${{ matrix.platform }}
+          path: koblas-umfpack/build/umfpack/resources/org/eignex/umfpack
           if-no-files-found: error
 
   publish:
@@ -116,6 +132,13 @@ jobs:
         with:
           pattern: openblas-*
           path: koblas-openblas/build/openblas/resources/org/bytedeco/openblas
+          merge-multiple: true
+
+      - name: Download bundled UMFPACK resources
+        uses: actions/download-artifact@v8
+        with:
+          pattern: umfpack-*
+          path: koblas-umfpack/build/umfpack/resources/org/eignex/umfpack
           merge-multiple: true
 
       # A tag publishes that exact version as a release. Any other ref publishes a snapshot of the
