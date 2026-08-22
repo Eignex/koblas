@@ -357,8 +357,8 @@ installBackends overrides it with a KoblasContext of your own.
 
 Discovery runs once, on the first read of koblas, on every platform. It resolves
 the host libraries this build ships bindings for -- OpenBLAS and SuiteSparse's
-UMFPACK -- by soname, and on the JVM it then scans the classpath for third-party
-Backend providers. A library that is not installed simply is not
+UMFPACK -- by soname, and on the JVM it then scans the classpath for bundled and
+third-party Backend providers. A library that is not installed simply is not
 registered, and the portable implementation stays in place, so nothing has to be
 configured for either case. On the JVM, `-Dkoblas.backend=reference` registers
 nothing at all, and any other value registers only the backend whose name
@@ -390,10 +390,12 @@ layer, and every backend must match the reference on the conformance suite.
 
 The sparse factorization has a host backend too: SuiteSparse's UMFPACK, bound on
 the JVM through java.lang.foreign and resolved by Unix soname, so it activates
-on Linux or macOS JVM hosts with SuiteSparse installed and is absent otherwise.
-A SparseMatrix crosses to umfpack_di_* with no repacking at all -- koblas's CSC invariant is
-UMFPACK's stated precondition, checked against the headers. Nothing is bundled;
-without the library koblas's own Markowitz SparseLu keeps the seam.
+on Linux or macOS JVM hosts with SuiteSparse installed. The optional
+GPL-3.0-only `koblas-umfpack` artifact instead extracts its bundled UMFPACK and
+OpenBLAS binaries, then registers `umfpack-bundled`. A SparseMatrix crosses to
+umfpack_di_* with no repacking at all -- koblas's CSC invariant is UMFPACK's
+stated precondition, checked against the headers. Without either copy, koblas's
+own Markowitz SparseLu keeps the seam.
 
 On the Linux and macOS native targets koblas resolves the host OpenBLAS with
 dlopen at program start (libopenblas and liblapacke on Debian/Ubuntu, brew
