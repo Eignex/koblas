@@ -1,16 +1,21 @@
-import org.gradle.api.publish.maven.MavenPublication
-import org.gradle.api.publish.maven.tasks.GenerateMavenPom
 import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.bundling.Jar
 import java.io.File
 
 plugins {
-    id("com.eignex.jvm") version "1.3.1"
+    id("com.eignex.jvm") version "1.3.2"
 }
 
 eignexPublish {
     description.set("GPL-3.0-only Maven-hosted SuiteSparse UMFPACK loader for koblas on the JVM.")
     githubRepo.set("Eignex/koblas")
+    licenses {
+        license {
+            name.set("GPL-3.0-only")
+            url.set("https://www.gnu.org/licenses/gpl-3.0.html")
+            distribution.set("repo")
+        }
+    }
 }
 
 dependencies {
@@ -106,26 +111,3 @@ tasks.withType<Jar>().configureEach {
     manifest { attributes("Automatic-Module-Name" to "com.eignex.koblas.umfpack") }
 }
 tasks.withType<Test>().configureEach { jvmArgs("--enable-native-access=ALL-UNNAMED") }
-
-afterEvaluate {
-    publishing.publications.withType(MavenPublication::class.java).configureEach {
-        pom.withXml {
-            val license = asNode().appendNode("licenses").appendNode("license")
-            license.appendNode("name", "GPL-3.0-only")
-            license.appendNode("url", "https://www.gnu.org/licenses/gpl-3.0.html")
-            license.appendNode("distribution", "repo")
-        }
-    }
-}
-
-tasks.withType<GenerateMavenPom>().configureEach {
-    doLast {
-        val pom = destination
-        pom.writeText(
-            pom.readText().replace(
-                Regex("""  <licenses>\s*<license>\s*<name>Apache-2.0</name>.*?</licenses>\s*""", RegexOption.DOT_MATCHES_ALL),
-                "",
-            ),
-        )
-    }
-}
