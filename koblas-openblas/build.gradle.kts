@@ -44,6 +44,7 @@ fun toolVersion(command: String) = providers.exec {
 }.standardOutput.asText
 
 val fortranCompiler = providers.environmentVariable("FC").orElse("gfortran")
+val cCompiler = providers.environmentVariable("CC").orElse("cc")
 
 val buildOpenBlas = tasks.register<Exec>("buildOpenBlas") {
     val platform = openBlasPlatform.get()
@@ -51,7 +52,7 @@ val buildOpenBlas = tasks.register<Exec>("buildOpenBlas") {
     inputs.file(layout.projectDirectory.file("openblas.lock"))
     inputs.file(rootProject.layout.projectDirectory.file("scripts/build-openblas.sh"))
     inputs.property("platform", platform)
-    inputs.property("cc", toolVersion("cc"))
+    inputs.property("cc", toolVersion(cCompiler.get()))
     inputs.property("fortran", toolVersion(fortranCompiler.get()))
     inputs.property("make", toolVersion("make"))
     inputs.property("os.name", System.getProperty("os.name"))
@@ -65,7 +66,7 @@ val buildOpenBlas = tasks.register<Exec>("buildOpenBlas") {
         "--output", openBlasResources.get().asFile.absolutePath,
     )
     environment(
-        "CC" to "cc",
+        "CC" to cCompiler.get(),
         "FC" to fortranCompiler.get(),
         "CFLAGS" to "",
         "CXXFLAGS" to "",

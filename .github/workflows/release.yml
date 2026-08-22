@@ -33,7 +33,7 @@ jobs:
           - platform: linux-x86_64
             runner: ubuntu-latest
           - platform: linux-arm64
-            runner: ubuntu-24.04-arm
+            runner: ubuntu-latest
           - platform: macosx-arm64
             runner: macos-latest
 
@@ -57,6 +57,14 @@ jobs:
           brew install gcc
           echo "FC=$(find "$(brew --prefix gcc)/bin" -name 'gfortran-*' -print -quit)" >> "$GITHUB_ENV"
 
+      - name: Install the Linux ARM64 cross-toolchain
+        if: matrix.platform == 'linux-arm64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu gfortran-aarch64-linux-gnu
+          echo "CC=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
+          echo "FC=aarch64-linux-gnu-gfortran" >> "$GITHUB_ENV"
+
       - name: Cache bundled OpenBLAS resources
         uses: actions/cache@v5
         with:
@@ -70,7 +78,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: openblas-${{ matrix.platform }}
-          path: koblas-openblas/build/openblas/resources/org/bytedeco/openblas/${{ matrix.platform }}
+          path: koblas-openblas/build/openblas/resources/org/bytedeco/openblas
           if-no-files-found: error
 
   publish:
