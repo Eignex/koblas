@@ -1,5 +1,8 @@
-package com.eignex.koblas
+package com.eignex.koblas.core
 
+import com.eignex.koblas.requireInBounds
+import com.eignex.koblas.requireNonNegativeShape
+import com.eignex.koblas.requireShape
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -11,7 +14,7 @@ public interface F64MatrixLike {
     /** Number of columns. */
     public val cols: Int
 
-    /** The entry at row [i], column [j]. Throws `IndexOutOfBoundsException` outside the shape, whatever the storage. */
+    /** The entry at row (i), column (j). Throws `IndexOutOfBoundsException` outside the shape, whatever the storage. */
     public operator fun get(i: Int, j: Int): Double
 
     /** Materialise into a fresh `Array<DoubleArray>` of rows, independent of the internal storage. */
@@ -56,7 +59,7 @@ public class F64DenseMatrix internal constructor(
         DoubleArray(cols) { j -> data[i + j * rows] }
     }
 
-    /** Writes [v] at row [i], column [j]. */
+    /** Writes (v) at row (i), column (j). */
     public operator fun set(i: Int, j: Int, v: Double) {
         requireInBounds(i, j, rows, cols)
         data[i + j * rows] = v

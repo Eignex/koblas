@@ -1,7 +1,7 @@
 package com.eignex.koblas.dense.host.cblas
 
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
-import com.eignex.koblas.dense.F64HostBlasAdapter
+import com.eignex.koblas.dense.host.F64HostBlasAdapter
 import com.eignex.koblas.internal.backend.BackendNames
 
 /**

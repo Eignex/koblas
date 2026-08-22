@@ -1,5 +1,8 @@
 package com.eignex.koblas.sparse
 
+import com.eignex.koblas.sparse.factorization.ldl.F64SparseLdl
+import com.eignex.koblas.sparse.factorization.lu.F64SparseLu
+
 /*
  * The double-precision names of this package under the aliases they had before the element type reached
  * them. [com.eignex.koblas.Precision] says why they carry it.

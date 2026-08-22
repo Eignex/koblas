@@ -2,14 +2,15 @@
 
 package com.eignex.koblas.dense.host.cblas
 
-import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.core.*
+import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.Cblas.COL_MAJOR
-import com.eignex.koblas.dense.F64HostLapackAdapter
 import com.eignex.koblas.dense.F64PivotedQrDecomposition
 import com.eignex.koblas.dense.F64QrDecomposition
 import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
+import com.eignex.koblas.dense.host.F64HostLapackAdapter
 import com.eignex.koblas.dense.rankOfPivotedR
 import com.eignex.koblas.dense.requireRankTolerance
 import com.eignex.koblas.f64DispatchThresholds

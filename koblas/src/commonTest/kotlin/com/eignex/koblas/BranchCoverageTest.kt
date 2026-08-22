@@ -1,5 +1,6 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.core.*
 import com.eignex.koblas.dense.lu
 import com.eignex.koblas.sparse.gemv
 import kotlin.math.abs

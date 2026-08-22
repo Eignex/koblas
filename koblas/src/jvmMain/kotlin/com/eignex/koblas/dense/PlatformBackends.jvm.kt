@@ -2,7 +2,8 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.Backend
 import com.eignex.koblas.ConfigurationKeys
-import com.eignex.koblas.F64DenseMatrix
+import com.eignex.koblas.core.*
+import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.host.jvm.HostBlasCalls
 import com.eignex.koblas.f64DispatchThresholds
 import com.eignex.koblas.hostblas.HostBlas

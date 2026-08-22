@@ -1,8 +1,8 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.F64DenseMatrix
-import com.eignex.koblas.F64SparseMatrix
-import com.eignex.koblas.F64SparseVector
+import com.eignex.koblas.core.F64DenseMatrix
+import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.core.F64SparseVector
 import kotlin.random.Random
 
 /** Every operand derives from this, so a re-run measures the same numbers rather than similar ones. */

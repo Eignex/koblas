@@ -1,6 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.F64DenseMatrix
+import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.Uplo
 import com.eignex.koblas.dense.matMul
 import com.eignex.koblas.koblas

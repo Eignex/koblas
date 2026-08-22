@@ -1,9 +1,10 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.F64SparseMatrix
 import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
 import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.core.*
+import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.koblas
 import com.eignex.koblas.registerBackend
 import com.eignex.koblas.withCleanBackends

@@ -20,12 +20,6 @@ public typealias LinearAlgebra = F64LinearAlgebra
 /** Double-precision [F64ReferenceBackend], the portable backend an unqualified `ReferenceBackend` means. */
 public typealias ReferenceBackend = F64ReferenceBackend
 
-/** Double-precision [F64HostBlasAdapter], the CBLAS adapter an unqualified `HostBlasAdapter` means. */
-public typealias HostBlasAdapter = F64HostBlasAdapter
-
-/** Double-precision [F64HostLapackAdapter], the LAPACKE adapter an unqualified `HostLapackAdapter` means. */
-public typealias HostLapackAdapter = F64HostLapackAdapter
-
 /** Double-precision [F64LuDecomposition], the LU factors an unqualified `LuDecomposition` means. */
 public typealias LuDecomposition = F64LuDecomposition
 

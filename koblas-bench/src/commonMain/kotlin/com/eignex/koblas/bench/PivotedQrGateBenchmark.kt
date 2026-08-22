@@ -1,6 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.F64DenseMatrix
+import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.F64PivotedQrDecomposition
 import com.eignex.koblas.dense.qrPivoted
 import kotlinx.benchmark.*

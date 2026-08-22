@@ -1,7 +1,8 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.core.*
+import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.koblas
 
 /** Both halves of the compute seam at once; implement [F64Blas] or [F64Lapack] alone when a backend has one. */

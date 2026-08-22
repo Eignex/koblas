@@ -1,6 +1,7 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.F64DenseMatrix
+import com.eignex.koblas.*
+import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.F64LdlDecomposition
 import com.eignex.koblas.dense.F64LuDecomposition
 import com.eignex.koblas.dense.invert
@@ -46,7 +47,7 @@ class SolveBenchmark {
         reusable = a.lu()
         sym = indefiniteMatrix(n, rng)
         triangular = dominantMatrix(n, rng)
-        anorm = norm1(a)
+        anorm = a.norm1()
     }
 
     @Benchmark

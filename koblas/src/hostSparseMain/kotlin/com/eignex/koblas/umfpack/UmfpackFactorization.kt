@@ -2,8 +2,9 @@
 
 package com.eignex.koblas.umfpack
 
-import com.eignex.koblas.F64SparseMatrix
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.core.*
+import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.requireFactored
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.sparse.F64SparseFactorization

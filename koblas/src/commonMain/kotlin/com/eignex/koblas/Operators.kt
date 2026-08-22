@@ -1,5 +1,6 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.core.*
 import com.eignex.koblas.dense.F64LinearAlgebra
 
 /** `A * B` (BLAS `dgemm`), allocating. [F64LinearAlgebra.gemm] accumulates into an existing C instead. */

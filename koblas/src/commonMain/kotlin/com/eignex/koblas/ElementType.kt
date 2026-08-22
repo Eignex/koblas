@@ -1,5 +1,6 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.core.*
 /**
  * An element type koblas keys things by: the dispatch thresholds and the configuration keys that override
  * them. It is not what picks a container or a backend half, since those carry their element type in their

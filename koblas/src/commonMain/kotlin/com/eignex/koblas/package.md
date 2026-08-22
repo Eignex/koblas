@@ -5,8 +5,10 @@ themselves live one package down, split by storage: `com.eignex.koblas.dense` an
 `com.eignex.koblas.sparse`. See the README's "BLAS coverage" table for the routine-by-routine mapping to
 BLAS/LAPACK and the deliberate deviations.
 
-- Containers: [F64MatrixView] / [F64DenseMatrix] and [F64VectorView] / [F64DenseVector] / [F64SparseVector], all
-  `@Serializable`, plus the CSC [F64SparseMatrix]. The view roots are sealed, which is what gives the
+- Containers: [F64MatrixView][com.eignex.koblas.core.F64MatrixView] / [F64DenseMatrix][com.eignex.koblas.core.F64DenseMatrix]
+  and [F64VectorView][com.eignex.koblas.core.F64VectorView] / [F64DenseVector][com.eignex.koblas.core.F64DenseVector] /
+  [F64SparseVector][com.eignex.koblas.core.F64SparseVector], all `@Serializable`, plus the CSC
+  [F64SparseMatrix][com.eignex.koblas.core.F64SparseMatrix]. The view roots are sealed, which is what gives the
   concrete storage a closed set and lets a snapshot round-trip with its type preserved — and is why the
   containers stay in one package rather than splitting with the operations that consume them.
 - Free-function arithmetic over the views, dispatching dense or sparse by operand type: [dot], [axpy],

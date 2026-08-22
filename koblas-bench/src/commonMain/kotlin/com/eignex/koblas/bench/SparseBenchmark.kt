@@ -1,6 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.F64SparseMatrix
+import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.cholesky
 import com.eignex.koblas.sparse.gemv

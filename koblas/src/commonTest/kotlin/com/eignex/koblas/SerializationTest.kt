@@ -1,5 +1,6 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.core.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.double

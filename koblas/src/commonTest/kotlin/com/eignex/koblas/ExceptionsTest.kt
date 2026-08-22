@@ -1,10 +1,11 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.core.*
 import com.eignex.koblas.dense.CholeskyPolicy
 import com.eignex.koblas.dense.cholesky
 import com.eignex.koblas.dense.invert
 import com.eignex.koblas.dense.lu
-import com.eignex.koblas.sparse.SparseLdlPolicy
+import com.eignex.koblas.sparse.factorization.ldl.SparseLdlPolicy
 import com.eignex.koblas.sparse.ldl
 import com.eignex.koblas.sparse.trsv
 import kotlin.test.Test

@@ -1,5 +1,9 @@
-package com.eignex.koblas
+package com.eignex.koblas.core
 
+import com.eignex.koblas.UnsafeKoblasApi
+import com.eignex.koblas.requireInBounds
+import com.eignex.koblas.requireNonNegativeShape
+import com.eignex.koblas.requireShape
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 

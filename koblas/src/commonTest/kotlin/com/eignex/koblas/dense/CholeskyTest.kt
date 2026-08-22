@@ -2,8 +2,9 @@
 
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.NotPositiveDefinite
+import com.eignex.koblas.core.*
+import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.koblas
 import kotlin.test.Test
 import kotlin.test.assertEquals

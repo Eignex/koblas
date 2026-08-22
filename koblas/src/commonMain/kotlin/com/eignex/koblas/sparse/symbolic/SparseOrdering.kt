@@ -1,6 +1,8 @@
-package com.eignex.koblas.sparse
+package com.eignex.koblas.sparse.symbolic
 
-import com.eignex.koblas.F64SparseMatrix
+import com.eignex.koblas.core.*
+import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.sparse.*
 
 /** Which fill-reducing ordering a sparse factorization applies. */
 public enum class SparseOrdering {

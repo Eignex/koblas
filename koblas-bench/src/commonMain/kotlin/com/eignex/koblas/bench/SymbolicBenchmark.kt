@@ -1,8 +1,8 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.F64SparseMatrix
-import com.eignex.koblas.sparse.SparseOrdering
-import com.eignex.koblas.sparse.SparseSymbolic
+import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.sparse.symbolic.SparseOrdering
+import com.eignex.koblas.sparse.symbolic.SparseSymbolic
 import com.eignex.koblas.sparse.analyze
 import kotlinx.benchmark.*
 

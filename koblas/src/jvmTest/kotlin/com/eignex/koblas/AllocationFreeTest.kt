@@ -1,5 +1,6 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.core.*
 import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
 import com.eignex.koblas.dense.lu
 import com.eignex.koblas.dense.solve

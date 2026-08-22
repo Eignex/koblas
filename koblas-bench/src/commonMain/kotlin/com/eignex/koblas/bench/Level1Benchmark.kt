@@ -1,6 +1,7 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.F64DenseVector
+import com.eignex.koblas.*
+import com.eignex.koblas.core.F64DenseVector
 import com.eignex.koblas.asum
 import com.eignex.koblas.axpy
 import com.eignex.koblas.dot
@@ -48,23 +49,23 @@ class Level1Benchmark {
 
     @Benchmark
     fun axpyBench() {
-        axpy(y, NEAR_UNIT_SCALE, x)
+        y.axpy(NEAR_UNIT_SCALE, x)
     }
 
     @Benchmark
     fun scaleBench() {
-        scale(y, NEAR_UNIT_SCALE)
+        y.scale(NEAR_UNIT_SCALE)
     }
 
     /** Rescales rather than summing squares, so it costs more than a dot of the same length. */
     @Benchmark
-    fun nrm2(): Double = norm2(x)
+    fun nrm2(): Double = x.norm2()
 
     @Benchmark
-    fun asumBench(): Double = asum(x)
+    fun asumBench(): Double = x.asum()
 
     @Benchmark
-    fun iamaxBench(): Int = iamax(x)
+    fun iamaxBench(): Int = x.iamax()
 
     /** Four dots against one shared operand, which loads that operand once rather than four times. */
     @Benchmark

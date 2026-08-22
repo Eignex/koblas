@@ -1,9 +1,11 @@
-package com.eignex.koblas.dense
+package com.eignex.koblas.dense.host
 
 import com.eignex.koblas.DimensionMismatch
-import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.core.*
+import com.eignex.koblas.core.F64DenseMatrix
+import com.eignex.koblas.dense.*
 import com.eignex.koblas.norm1
 import com.eignex.koblas.poisonedIndefinite
 import com.eignex.koblas.poisonedSymmetric

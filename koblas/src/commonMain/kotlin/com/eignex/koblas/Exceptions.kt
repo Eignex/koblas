@@ -1,5 +1,6 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.core.*
 /** What koblas throws when a routine cannot do what was asked. Every one is an [IllegalArgumentException]. */
 public sealed class KoblasException(message: String) : IllegalArgumentException(message)
 
