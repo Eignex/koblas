@@ -75,7 +75,7 @@ class AccelerationTest {
                 BackendSlot.F64VectorKernels,
                 BackendSlot.F64SparseVectorKernels,
                 BackendSlot.F64SparseBlas,
-                BackendSlot.F64SparseLapack,
+                BackendSlot.F64SparseLu,
             ),
             koblas.portableSlots,
         )
@@ -99,10 +99,10 @@ class AccelerationTest {
     fun `requireAccelerated names the slots that fell back and what filled them`() = withCleanBackends {
         registerBackend(FakeHost("openblas"))
         val failure = assertFailsWith<IllegalStateException> {
-            koblas.requireAccelerated(BackendSlot.F64Blas, BackendSlot.F64SparseLapack)
+            koblas.requireAccelerated(BackendSlot.F64Blas, BackendSlot.F64SparseLu)
         }
         val message = failure.message!!
-        assertTrue("F64SparseLapack=reference" in message, "should name the slot and its backend: $message")
+        assertTrue("F64SparseLu=reference" in message, "should name the slot and its backend: $message")
         assertTrue("F64Blas=" !in message, "should not name a slot that is accelerated: $message")
         assertTrue("backend=" in message, "should include the resolved summary: $message")
     }

@@ -18,5 +18,5 @@ public enum class BackendSlot {
     F64SparseBlas,
 
     /** Sparse factorizations. */
-    F64SparseLapack,
+    F64SparseLu,
 }

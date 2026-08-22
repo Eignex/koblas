@@ -10,7 +10,7 @@ import com.eignex.koblas.dense.F64VectorKernels
 import com.eignex.koblas.sparse.F64PlatformSparseVectorKernels
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.F64SparseBlas
-import com.eignex.koblas.sparse.F64SparseLapack
+import com.eignex.koblas.sparse.F64SparseLu
 import com.eignex.koblas.sparse.F64SparseVectorKernels
 import kotlin.concurrent.Volatile
 import kotlin.concurrent.atomics.AtomicInt
@@ -31,7 +31,7 @@ internal class F64Registry {
     private val lapackSeam = Seam<F64Lapack>(::recompose)
     private val sparseVectorKernelSeam = Seam<F64SparseVectorKernels>(::recompose)
     private val sparseBlasSeam = Seam<F64SparseBlas>(::recompose)
-    private val sparseLapackSeam = Seam<F64SparseLapack>(::recompose)
+    private val sparseLuSeam = Seam<F64SparseLu>(::recompose)
 
     @Volatile
     private var installed: F64Context? = null
@@ -93,8 +93,8 @@ internal class F64Registry {
             sparseBlasSeam.register(backend)
             offered = true
         }
-        if (backend is F64SparseLapack) {
-            sparseLapackSeam.register(backend)
+        if (backend is F64SparseLu) {
+            sparseLuSeam.register(backend)
             offered = true
         }
         return offered
@@ -108,7 +108,7 @@ internal class F64Registry {
         lapackSeam.reset()
         sparseVectorKernelSeam.reset()
         sparseBlasSeam.reset()
-        sparseLapackSeam.reset()
+        sparseLuSeam.reset()
     }
 
     /** Builds a context from the currently registered halves, falling back to the portable reference. */
@@ -118,7 +118,7 @@ internal class F64Registry {
         lapack = lapackSeam.active ?: F64ReferenceLinearAlgebra,
         sparseVectorKernels = sparseVectorKernelSeam.active ?: F64PlatformSparseVectorKernels,
         sparseBlas = sparseBlasSeam.active ?: F64ReferenceSparseLinearAlgebra,
-        sparseLapack = sparseLapackSeam.active ?: F64ReferenceSparseLinearAlgebra,
+        sparseLu = sparseLuSeam.active ?: F64ReferenceSparseLinearAlgebra,
     )
 
     private fun recompose() {
@@ -128,6 +128,6 @@ internal class F64Registry {
     companion object {
         /** The halves this registry has seams for, used in diagnostics when nothing matched. */
         const val HALF_NAMES: String = "F64VectorKernels, F64Blas, F64Lapack, F64SparseVectorKernels, " +
-            "F64SparseBlas or F64SparseLapack"
+            "F64SparseBlas or F64SparseLu"
     }
 }

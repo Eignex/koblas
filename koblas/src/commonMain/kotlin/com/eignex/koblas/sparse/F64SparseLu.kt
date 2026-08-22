@@ -6,8 +6,8 @@ import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.factorization.lu.*
 
-/** Sparse factorizations as a backend half. */
-public interface F64SparseLapack : Backend {
+/** Sparse LU factorization as a backend half. */
+public interface F64SparseLu : Backend {
     /**
      * Factorize the square [a] into something solvable. A singular matrix comes back as a factorization
      * reporting `singular` rather than as an exception, with a `failedAt` counting elimination steps rather

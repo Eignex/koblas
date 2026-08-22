@@ -10,13 +10,13 @@ mirror the dense ones.
 - [F64SparseBlas] — the sparse matrix routines. `gemv` in both directions, walking columns, which is what CSC
   stores. Deliberately thin: a sparse `gemm` fills in and is a different algorithm with a different result
   type, so it lands here when something needs it.
-- [F64SparseLapack] — general sparse LU factorization. [F64SparseLapack.factor] returns
+- [F64SparseLu] — general sparse LU factorization. [F64SparseLu.factor] returns
   [F64SparseFactorization], never null: a singular matrix yields a factorization reporting `singular`, matching
   the dense contract. Its factors support both ordinary and transposed solves.
 - [F64SparseLinearAlgebra] pairs the two matrix seams. All three are offered through `registerSparseBlas` /
   [com.eignex.koblas.registerBackend] and forced with [com.eignex.koblas.installBackends], resolving as
   [com.eignex.koblas.koblas] and its `sparseVectorKernels`.
-- Implementation: [F64SparseLu][com.eignex.koblas.sparse.factorization.lu.F64SparseLu], a Markowitz threshold-pivoting
+- Implementation: [F64SparseLuFactorization][com.eignex.koblas.sparse.factorization.lu.F64SparseLuFactorization], a Markowitz threshold-pivoting
   `P·B·Q = L·U` that keeps the factors sparse instead of filling toward `O(m²)`.
 
 [F64SparseFactorization] is an interface rather than a class, which is the one place this deviates from the

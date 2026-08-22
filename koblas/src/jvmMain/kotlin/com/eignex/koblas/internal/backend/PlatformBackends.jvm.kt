@@ -7,11 +7,11 @@ import com.eignex.koblas.dense.host.jvm.HostBlasCalls
 import com.eignex.koblas.hostblas.HostBlas
 import com.eignex.koblas.hostblas.HostLapack
 import com.eignex.koblas.registerBackend
-import com.eignex.koblas.sparse.F64SparseLapack
+import com.eignex.koblas.sparse.F64SparseLu
 import com.eignex.koblas.sparse.host.superlu.SuperluCalls
-import com.eignex.koblas.sparse.host.superlu.SuperluSparseLapack
+import com.eignex.koblas.sparse.host.superlu.SuperluSparseLu
 import com.eignex.koblas.sparse.host.umfpack.UmfpackCalls
-import com.eignex.koblas.sparse.host.umfpack.UmfpackSparseLapack
+import com.eignex.koblas.sparse.host.umfpack.UmfpackSparseLu
 import java.util.ServiceLoader
 
 /**
@@ -27,7 +27,7 @@ internal actual fun registerPlatformBackends() {
         ) {
             continue
         }
-        if (provider is F64SparseLapack && sparseRequested != null &&
+        if (provider is F64SparseLu && sparseRequested != null &&
             !matchesRequested(provider.name, sparseRequested)
         ) {
             continue
@@ -59,11 +59,11 @@ private fun registerHostBlas(requested: String?) {
 
 /**
  * koblas's FFM binding to SuiteSparse's UMFPACK, checked with a bare `dlopen` for the same stack reason
- * as [registerHostBlas]. Registration means installed, not working; [UmfpackSparseLapack] falls back.
+ * as [registerHostBlas]. Registration means installed, not working; [UmfpackSparseLu] falls back.
  */
 private fun registerUmfpack(requested: String?) {
     if (!UmfpackCalls.libraryPresent) return
-    val lapack = UmfpackSparseLapack()
+    val lapack = UmfpackSparseLu()
     if (requested != null && lapack.name != requested) return
     registerBackend(lapack)
 }
@@ -71,7 +71,7 @@ private fun registerUmfpack(requested: String?) {
 /** SuperLU is the preferred general sparse-LU backend; UMFPACK remains selectable by name. */
 private fun registerSuperlu(requested: String?) {
     if (!SuperluCalls.libraryPresent) return
-    val lapack = SuperluSparseLapack()
+    val lapack = SuperluSparseLu()
     if (requested != null && lapack.name != requested) return
     registerBackend(lapack)
 }

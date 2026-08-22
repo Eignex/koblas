@@ -42,7 +42,7 @@ public interface F64SparseFactorization {
     public fun determinant(): Double
 }
 
-/** What [F64SparseLapack.factor] returns when no numerically acceptable pivot remains. */
+/** What [F64SparseLu.factor] returns when no numerically acceptable pivot remains. */
 public class F64SingularSparseFactorization(override val n: Int, override val failedAt: Int) : F64SparseFactorization {
     override val nnz: Int get() = 0
 

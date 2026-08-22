@@ -6,7 +6,7 @@ import com.eignex.koblas.sparse.assertAliasedDestinationSolves
 import com.eignex.koblas.sparse.assertControlArrayKeepsUmfpackDefaults
 import com.eignex.koblas.sparse.assertDeterminantAgreesWithReference
 import com.eignex.koblas.sparse.assertEmptyAndZeroMatricesTakeThePortablePath
-import com.eignex.koblas.sparse.assertRegistersAsTheSparseLapackHalf
+import com.eignex.koblas.sparse.assertRegistersAsTheSparseLuHalf
 import com.eignex.koblas.sparse.assertRepeatedFactorizationsSurvive
 import com.eignex.koblas.sparse.assertSingularIsReportedWithUnknownPosition
 import com.eignex.koblas.sparse.assertSolvesAgreeWithReference
@@ -22,7 +22,7 @@ import kotlin.test.assertEquals
 @Category(HostLibraryTest::class)
 class UmfpackConformanceTest {
 
-    private val umfpack = UmfpackSparseLapack()
+    private val umfpack = UmfpackSparseLu()
 
     private fun requireSuiteSparse() {
         Assume.assumeTrue("SuiteSparse is not installed; umfpack conformance cannot run", UmfpackCalls.available)
@@ -68,7 +68,7 @@ class UmfpackConformanceTest {
     @Test
     fun `it registers as the sparse factorization half and reports fill`() {
         requireSuiteSparse()
-        assertRegistersAsTheSparseLapackHalf(umfpack, n = 20)
+        assertRegistersAsTheSparseLuHalf(umfpack, n = 20)
     }
 
     @Test

@@ -5,8 +5,8 @@ import com.eignex.koblas.dense.F64Lapack
 import com.eignex.koblas.dense.F64LinearAlgebra
 import com.eignex.koblas.dense.F64VectorKernels
 import com.eignex.koblas.sparse.F64SparseBlas
-import com.eignex.koblas.sparse.F64SparseLapack
 import com.eignex.koblas.sparse.F64SparseLinearAlgebra
+import com.eignex.koblas.sparse.F64SparseLu
 import com.eignex.koblas.sparse.F64SparseVectorKernels
 
 /**
@@ -18,7 +18,7 @@ import com.eignex.koblas.sparse.F64SparseVectorKernels
  * @property lapack dense factorizations.
  * @property sparseVectorKernels sparse vector-vector routines.
  * @property sparseBlas sparse matrix routines.
- * @property sparseLapack sparse factorizations.
+ * @property sparseLu sparse factorizations.
  */
 public class F64Context(
     override val vectorKernels: F64VectorKernels,
@@ -26,30 +26,30 @@ public class F64Context(
     public val lapack: F64Lapack,
     public val sparseVectorKernels: F64SparseVectorKernels,
     public val sparseBlas: F64SparseBlas,
-    public val sparseLapack: F64SparseLapack,
+    public val sparseLu: F64SparseLu,
 ) : F64LinearAlgebra,
     F64Blas by blas,
     F64Lapack by lapack,
     F64SparseLinearAlgebra,
     F64SparseBlas by sparseBlas,
-    F64SparseLapack by sparseLapack {
+    F64SparseLu by sparseLu {
 
     /**
      * The distinct names of the backends that do the matrix work, joined, such as `"openblas+reference"`.
      * The vector-kernel halves are left out; [koblasInfo] prints both parts.
      */
     override val name: String
-        get() = listOf(blas, lapack, sparseBlas, sparseLapack).map { it.name }.distinct().joinToString("+")
+        get() = listOf(blas, lapack, sparseBlas, sparseLu).map { it.name }.distinct().joinToString("+")
 
     /** True when every half is koblas's own, so the context calls out to nothing. */
     override val isPortable: Boolean
         get() = vectorKernels.isPortable && blas.isPortable && lapack.isPortable &&
-            sparseVectorKernels.isPortable && sparseBlas.isPortable && sparseLapack.isPortable
+            sparseVectorKernels.isPortable && sparseBlas.isPortable && sparseLu.isPortable
 
     /** True when every half can run, which a context assembled from resolved backends always can. */
     override val isAvailable: Boolean
         get() = vectorKernels.isAvailable && blas.isAvailable && lapack.isAvailable &&
-            sparseVectorKernels.isAvailable && sparseBlas.isAvailable && sparseLapack.isAvailable
+            sparseVectorKernels.isAvailable && sparseBlas.isAvailable && sparseLu.isAvailable
 
     /** The strongest half's priority, so a context is at least as preferred as the best thing in it. */
     override val priority: Int
@@ -59,7 +59,7 @@ public class F64Context(
             lapack.priority,
             sparseVectorKernels.priority,
             sparseBlas.priority,
-            sparseLapack.priority,
+            sparseLu.priority,
         )
 
     /**
@@ -73,14 +73,14 @@ public class F64Context(
         lapack: F64Lapack = this.lapack,
         sparseVectorKernels: F64SparseVectorKernels = this.sparseVectorKernels,
         sparseBlas: F64SparseBlas = this.sparseBlas,
-        sparseLapack: F64SparseLapack = this.sparseLapack,
+        sparseLu: F64SparseLu = this.sparseLu,
     ): F64Context = F64Context(
         vectorKernels = vectorKernels,
         blas = blas,
         lapack = lapack,
         sparseVectorKernels = sparseVectorKernels,
         sparseBlas = sparseBlas,
-        sparseLapack = sparseLapack,
+        sparseLu = sparseLu,
     )
 
     override fun toString(): String = "F64Context($name)"

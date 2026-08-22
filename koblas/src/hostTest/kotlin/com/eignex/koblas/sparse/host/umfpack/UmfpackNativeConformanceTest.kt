@@ -9,7 +9,7 @@ import com.eignex.koblas.sparse.assertAliasedDestinationSolves
 import com.eignex.koblas.sparse.assertControlArrayKeepsUmfpackDefaults
 import com.eignex.koblas.sparse.assertDeterminantAgreesWithReference
 import com.eignex.koblas.sparse.assertEmptyAndZeroMatricesTakeThePortablePath
-import com.eignex.koblas.sparse.assertRegistersAsTheSparseLapackHalf
+import com.eignex.koblas.sparse.assertRegistersAsTheSparseLuHalf
 import com.eignex.koblas.sparse.assertRepeatedFactorizationsSurvive
 import com.eignex.koblas.sparse.assertSingularIsReportedWithUnknownPosition
 import com.eignex.koblas.sparse.assertSolvesAgreeWithReference
@@ -24,15 +24,15 @@ import kotlin.test.assertNull
 class UmfpackNativeConformanceTest {
 
     /** Required rather than skipped, since Kotlin/Native has no Assume and a skipped suite reads as green. */
-    private val umfpack: UmfpackSparseLapack = requireNotNull(
-        UmfpackLoader.functions?.let { UmfpackSparseLapack(it) },
+    private val umfpack: UmfpackSparseLu = requireNotNull(
+        UmfpackLoader.functions?.let { UmfpackSparseLu(it) },
     ) { "host SuiteSparse expected in the test environment" }
 
     @Test
     fun `the binding resolves and registers`() {
         assertEquals("umfpack", umfpack.name)
         assertEquals(HOST_BACKEND_PRIORITY, umfpack.priority, "every koblas host binding registers at one priority")
-        assertEquals("umfpack", koblas.sparseLapack.name, "discovery should have registered the backend")
+        assertEquals("umfpack", koblas.sparseLu.name, "discovery should have registered the backend")
     }
 
     @Test
@@ -57,7 +57,7 @@ class UmfpackNativeConformanceTest {
 
     @Test
     fun `it registers as the sparse factorization half and reports fill`() =
-        assertRegistersAsTheSparseLapackHalf(umfpack, n = 20)
+        assertRegistersAsTheSparseLuHalf(umfpack, n = 20)
 
     @Test
     fun `the control array keeps UMFPACK's defaults with refinement off`() =

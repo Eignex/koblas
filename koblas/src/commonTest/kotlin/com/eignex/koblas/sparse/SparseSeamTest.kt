@@ -81,7 +81,7 @@ class SparseSeamTest {
             F64ReferenceSparseLinearAlgebra.trsv(a, x, lower, transpose, unitDiag)
     }
 
-    private class CountingSparseLapack(override val priority: Int = 50) : F64SparseLapack {
+    private class CountingSparseLu(override val priority: Int = 50) : F64SparseLu {
         override val name: String get() = "counting-lapack"
         var factors = 0
 
@@ -132,7 +132,7 @@ class SparseSeamTest {
     @Test
     fun `the matrix product and the factorization reach their halves`() = withCleanBackends {
         val blas = CountingSparseBlas()
-        val lapack = CountingSparseLapack()
+        val lapack = CountingSparseLu()
         registerBackend(blas)
         registerBackend(lapack)
         val a = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 4.0)))
@@ -149,13 +149,13 @@ class SparseSeamTest {
     @Test
     fun `the halves land in the context independently`() = withCleanBackends {
         registerBackend(CountingSparseBlas())
-        registerBackend(CountingSparseLapack())
+        registerBackend(CountingSparseLu())
         assertEquals("counting-blas", koblas.sparseBlas.name)
-        assertEquals("counting-lapack", koblas.sparseLapack.name)
+        assertEquals("counting-lapack", koblas.sparseLu.name)
         resetBackends()
         registerBackend(F64ReferenceSparseLinearAlgebra)
         assertSame(F64ReferenceSparseLinearAlgebra, koblas.sparseBlas)
-        assertSame(F64ReferenceSparseLinearAlgebra, koblas.sparseLapack)
+        assertSame(F64ReferenceSparseLinearAlgebra, koblas.sparseLu)
     }
 
     @Test
@@ -181,7 +181,7 @@ class SparseSeamTest {
     @Test
     fun `an empty registry resolves to the portable implementation on all three sparse halves`() = withCleanBackends {
         assertSame(F64ReferenceSparseLinearAlgebra, koblas.sparseBlas)
-        assertSame(F64ReferenceSparseLinearAlgebra, koblas.sparseLapack)
+        assertSame(F64ReferenceSparseLinearAlgebra, koblas.sparseLu)
         assertSame(F64PlatformSparseVectorKernels, koblas.sparseVectorKernels)
     }
 }

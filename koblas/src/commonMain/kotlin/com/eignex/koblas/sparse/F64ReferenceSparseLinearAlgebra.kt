@@ -80,7 +80,7 @@ public object F64ReferenceSparseLinearAlgebra :
     }
 
     override fun factor(a: F64SparseMatrix, equilibrate: Boolean, dropTolerance: Double): F64SparseFactorization =
-        F64SparseLu.factorCsc(a, equilibrate, dropTolerance)
+        F64SparseLuFactorization.factorCsc(a, equilibrate, dropTolerance)
 
     override fun dot(x: F64SparseVector, y: DoubleArray): Double {
         requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }

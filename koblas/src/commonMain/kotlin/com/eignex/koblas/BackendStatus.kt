@@ -10,7 +10,7 @@ public fun F64Context.backendFor(slot: BackendSlot): Backend = when (slot) {
     BackendSlot.F64Lapack -> lapack
     BackendSlot.F64SparseVectorKernels -> sparseVectorKernels
     BackendSlot.F64SparseBlas -> sparseBlas
-    BackendSlot.F64SparseLapack -> sparseLapack
+    BackendSlot.F64SparseLu -> sparseLu
 }
 
 /** Whether [slot] is filled by something other than koblas's own portable implementation. */

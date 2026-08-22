@@ -8,7 +8,7 @@ import com.eignex.koblas.sparse.factorization.lu.*
 /** Both sparse halves in one type. */
 public interface F64SparseLinearAlgebra :
     F64SparseBlas,
-    F64SparseLapack
+    F64SparseLu
 
 /** Factorize this sparse matrix with the active backend ([koblas]), the counterpart of `F64DenseMatrix.lu`. */
 public fun F64SparseMatrix.lu(equilibrate: Boolean = false, dropTolerance: Double = NO_DROP): F64SparseFactorization =

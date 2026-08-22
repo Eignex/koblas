@@ -2,8 +2,8 @@ package com.eignex.koblas.umfpack
 
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.openblas.BundledOpenBlas
-import com.eignex.koblas.sparse.F64SparseLapack
-import com.eignex.koblas.sparse.host.umfpack.UmfpackSparseLapack
+import com.eignex.koblas.sparse.F64SparseLu
+import com.eignex.koblas.sparse.host.umfpack.UmfpackSparseLu
 import java.io.InputStream
 import java.nio.file.Files
 import java.nio.file.Path
@@ -15,8 +15,7 @@ import java.nio.file.attribute.PosixFilePermissions
  * Add `com.eignex:koblas-umfpack` at runtime to discover this optional sparse backend. Its GPL license is
  * separate from the Apache-2.0 [koblas](https://github.com/Eignex/koblas) core artifact.
  */
-public class BundledUmfpack private constructor(private val delegate: UmfpackSparseLapack) :
-    F64SparseLapack by delegate {
+public class BundledUmfpack private constructor(private val delegate: UmfpackSparseLu) : F64SparseLu by delegate {
     /** Extracts the matching Maven-native resources before the core FFM binding is initialized. */
     public constructor() : this(loadUmfpack())
 
@@ -27,14 +26,14 @@ public class BundledUmfpack private constructor(private val delegate: UmfpackSpa
 private const val UMFPACK_PATH_PROPERTY = "koblas.umfpack.path"
 private const val UMFPACK_PATH_ENVIRONMENT = "KOBLAS_UMFPACK_PATH"
 
-private fun loadUmfpack(): UmfpackSparseLapack {
+private fun loadUmfpack(): UmfpackSparseLu {
     // UMFPACK links to BLAS. Loading the transitive single OpenBLAS bundle first makes its SONAME available
     // to the dynamic loader without making a system installation part of this optional artifact's contract.
     check(BundledOpenBlas().isAvailable) { "the bundled OpenBLAS dependency could not be loaded" }
     if (System.getProperty(UMFPACK_PATH_PROPERTY) == null && System.getenv(UMFPACK_PATH_ENVIRONMENT) == null) {
         System.setProperty(UMFPACK_PATH_PROPERTY, UmfpackResources.extract().toString())
     }
-    return UmfpackSparseLapack()
+    return UmfpackSparseLu()
 }
 
 internal object UmfpackResources {
