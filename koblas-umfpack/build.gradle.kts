@@ -2,6 +2,7 @@ import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.publish.maven.tasks.GenerateMavenPom
 import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.bundling.Jar
+import java.io.File
 
 plugins {
     id("com.eignex.jvm") version "1.3.1"
@@ -63,6 +64,43 @@ val buildUmfpack = tasks.register<Exec>("buildUmfpack") {
 
 sourceSets.named("main") { resources.srcDir(umfpackResources) }
 tasks.named("processResources") { if (!lintOnly) dependsOn(buildUmfpack) }
+
+val umfpackVersion = layout.projectDirectory.file("umfpack.lock").asFile.useLines { lines ->
+    lines.first { it.startsWith("version=") }.removePrefix("version=")
+}
+
+val verifyUmfpackResources = tasks.register("verifyUmfpackResources") {
+    val requiredResources = supportedPlatforms.associateWith { platform ->
+        listOf(
+            if (platform.startsWith("linux")) "libumfpack.so.6" else "libumfpack.dylib",
+            ".libraries",
+            ".suitesparse-source-sha256",
+            "LICENSE.suitesparse-$umfpackVersion.txt",
+        )
+    }
+    val resourceDirectories = supportedPlatforms.associateWith { platform ->
+        umfpackResources.get().dir("org/eignex/umfpack/$platform").asFile.absolutePath
+    }
+    inputs.files(resourceDirectories.values)
+    inputs.property("requiredResources", requiredResources)
+    inputs.property("resourceDirectories", resourceDirectories)
+    doLast {
+        @Suppress("UNCHECKED_CAST")
+        val required = inputs.properties.getValue("requiredResources") as Map<String, List<String>>
+        @Suppress("UNCHECKED_CAST")
+        val directories = inputs.properties.getValue("resourceDirectories") as Map<String, String>
+        required.forEach { (platform, resources) ->
+            val directory = File(directories.getValue(platform))
+            check(resources.all { directory.resolve(it).isFile && directory.resolve(it).length() > 0L }) {
+                "missing bundled UMFPACK resources for $platform; build them on that platform before publishing"
+            }
+        }
+    }
+}
+
+tasks.configureEach {
+    if (name.startsWith("publish")) dependsOn(verifyUmfpackResources)
+}
 
 tasks.withType<Jar>().configureEach {
     manifest { attributes("Automatic-Module-Name" to "com.eignex.koblas.umfpack") }
