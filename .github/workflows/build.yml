@@ -299,11 +299,17 @@ jobs:
           brew install gcc
           echo "FC=$(find "$(brew --prefix gcc)/bin" -name 'gfortran-*' -print -quit)" >> "$GITHUB_ENV"
 
+      - name: Cache bundled OpenBLAS resources
+        uses: actions/cache@v5
+        with:
+          path: koblas-openblas/build/openblas
+          key: openblas-${{ runner.os }}-${{ runner.arch }}-macosx-arm64-${{ hashFiles('koblas-openblas/openblas.lock', 'scripts/build-openblas.sh') }}
+
       # This must stay before Homebrew: it verifies that a JVM consumer can use the optional Maven
       # artifact on Apple Silicon without a host OpenBLAS installation. GCC supplies the toolchain used to
       # build the bundled source, not an OpenBLAS runtime library.
       - name: Run the Maven OpenBLAS bundle tests without host libraries
-        run: ./gradlew :koblas-openblas:test --rerun-tasks
+        run: ./gradlew :koblas-openblas:test
 
       # macosTest depends on hostSparseTest as well as hostBlasTest, so this job runs the UMFPACK suite
       # too — and that suite requires its library rather than skipping without it.
