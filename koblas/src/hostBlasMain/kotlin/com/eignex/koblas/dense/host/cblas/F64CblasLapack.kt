@@ -1,8 +1,7 @@
 @file:OptIn(ExperimentalForeignApi::class)
 
-package com.eignex.koblas.cblas
+package com.eignex.koblas.dense.host.cblas
 
-import com.eignex.koblas.BackendNames
 import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.Workspace
@@ -14,6 +13,7 @@ import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
 import com.eignex.koblas.dense.rankOfPivotedR
 import com.eignex.koblas.dense.requireRankTolerance
 import com.eignex.koblas.f64DispatchThresholds
+import com.eignex.koblas.internal.backend.BackendNames
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.invoke

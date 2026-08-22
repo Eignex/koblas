@@ -1,4 +1,6 @@
-package com.eignex.koblas.dense
+package com.eignex.koblas.dense.host
+
+import com.eignex.koblas.dense.F64HostBlasAdapter
 
 /**
  * The CBLAS entry points koblas binds, in plain arrays and ints. The two host bindings differ only in how

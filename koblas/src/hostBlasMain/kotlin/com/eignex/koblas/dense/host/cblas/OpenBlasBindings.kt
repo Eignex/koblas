@@ -1,6 +1,6 @@
 @file:OptIn(ExperimentalForeignApi::class)
 
-package com.eignex.koblas.cblas
+package com.eignex.koblas.dense.host.cblas
 
 import com.eignex.koblas.ConfigurationKeys
 import com.eignex.koblas.dense.isIlp64OpenBlas

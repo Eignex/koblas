@@ -1,8 +1,8 @@
 @file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 
-package com.eignex.koblas.cblas
+package com.eignex.koblas.dense.host.cblas
 
-import com.eignex.koblas.dense.CblasCalls
+import com.eignex.koblas.dense.host.CblasCalls
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.invoke
 import kotlinx.cinterop.usePinned

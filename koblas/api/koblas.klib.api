@@ -23,6 +23,21 @@ final enum class com.eignex.koblas.dense/Uplo : kotlin/Enum<com.eignex.koblas.de
     final fun values(): kotlin/Array<com.eignex.koblas.dense/Uplo> // com.eignex.koblas.dense/Uplo.values|values#static(){}[0]
 }
 
+final enum class com.eignex.koblas.internal.backend/BackendSlot : kotlin/Enum<com.eignex.koblas.internal.backend/BackendSlot> { // com.eignex.koblas.internal.backend/BackendSlot|null[0]
+    enum entry F64Blas // com.eignex.koblas.internal.backend/BackendSlot.F64Blas|null[0]
+    enum entry F64Lapack // com.eignex.koblas.internal.backend/BackendSlot.F64Lapack|null[0]
+    enum entry F64SparseBlas // com.eignex.koblas.internal.backend/BackendSlot.F64SparseBlas|null[0]
+    enum entry F64SparseLapack // com.eignex.koblas.internal.backend/BackendSlot.F64SparseLapack|null[0]
+    enum entry F64SparseVectorKernels // com.eignex.koblas.internal.backend/BackendSlot.F64SparseVectorKernels|null[0]
+    enum entry F64VectorKernels // com.eignex.koblas.internal.backend/BackendSlot.F64VectorKernels|null[0]
+
+    final val entries // com.eignex.koblas.internal.backend/BackendSlot.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas.internal.backend/BackendSlot> // com.eignex.koblas.internal.backend/BackendSlot.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): com.eignex.koblas.internal.backend/BackendSlot // com.eignex.koblas.internal.backend/BackendSlot.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<com.eignex.koblas.internal.backend/BackendSlot> // com.eignex.koblas.internal.backend/BackendSlot.values|values#static(){}[0]
+}
+
 final enum class com.eignex.koblas.sparse/SparseOrdering : kotlin/Enum<com.eignex.koblas.sparse/SparseOrdering> { // com.eignex.koblas.sparse/SparseOrdering|null[0]
     enum entry MinimumDegree // com.eignex.koblas.sparse/SparseOrdering.MinimumDegree|null[0]
     enum entry Natural // com.eignex.koblas.sparse/SparseOrdering.Natural|null[0]
@@ -32,21 +47,6 @@ final enum class com.eignex.koblas.sparse/SparseOrdering : kotlin/Enum<com.eigne
 
     final fun valueOf(kotlin/String): com.eignex.koblas.sparse/SparseOrdering // com.eignex.koblas.sparse/SparseOrdering.valueOf|valueOf#static(kotlin.String){}[0]
     final fun values(): kotlin/Array<com.eignex.koblas.sparse/SparseOrdering> // com.eignex.koblas.sparse/SparseOrdering.values|values#static(){}[0]
-}
-
-final enum class com.eignex.koblas/BackendSlot : kotlin/Enum<com.eignex.koblas/BackendSlot> { // com.eignex.koblas/BackendSlot|null[0]
-    enum entry F64Blas // com.eignex.koblas/BackendSlot.F64Blas|null[0]
-    enum entry F64Lapack // com.eignex.koblas/BackendSlot.F64Lapack|null[0]
-    enum entry F64SparseBlas // com.eignex.koblas/BackendSlot.F64SparseBlas|null[0]
-    enum entry F64SparseLapack // com.eignex.koblas/BackendSlot.F64SparseLapack|null[0]
-    enum entry F64SparseVectorKernels // com.eignex.koblas/BackendSlot.F64SparseVectorKernels|null[0]
-    enum entry F64VectorKernels // com.eignex.koblas/BackendSlot.F64VectorKernels|null[0]
-
-    final val entries // com.eignex.koblas/BackendSlot.entries|#static{}entries[0]
-        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas/BackendSlot> // com.eignex.koblas/BackendSlot.entries.<get-entries>|<get-entries>#static(){}[0]
-
-    final fun valueOf(kotlin/String): com.eignex.koblas/BackendSlot // com.eignex.koblas/BackendSlot.valueOf|valueOf#static(kotlin.String){}[0]
-    final fun values(): kotlin/Array<com.eignex.koblas/BackendSlot> // com.eignex.koblas/BackendSlot.values|values#static(){}[0]
 }
 
 abstract interface com.eignex.koblas.dense/F64Blas : com.eignex.koblas/Backend { // com.eignex.koblas.dense/F64Blas|null[0]
@@ -828,7 +828,7 @@ final val com.eignex.koblas/koblasInfo // com.eignex.koblas/koblasInfo|{}koblasI
 final val com.eignex.koblas/mathBackend // com.eignex.koblas/mathBackend|{}mathBackend[0]
     final fun <get-mathBackend>(): kotlin/String // com.eignex.koblas/mathBackend.<get-mathBackend>|<get-mathBackend>(){}[0]
 final val com.eignex.koblas/portableSlots // com.eignex.koblas/portableSlots|@com.eignex.koblas.F64Context{}portableSlots[0]
-    final fun (com.eignex.koblas/F64Context).<get-portableSlots>(): kotlin.collections/Set<com.eignex.koblas/BackendSlot> // com.eignex.koblas/portableSlots.<get-portableSlots>|<get-portableSlots>@com.eignex.koblas.F64Context(){}[0]
+    final fun (com.eignex.koblas/F64Context).<get-portableSlots>(): kotlin.collections/Set<com.eignex.koblas.internal.backend/BackendSlot> // com.eignex.koblas/portableSlots.<get-portableSlots>|<get-portableSlots>@com.eignex.koblas.F64Context(){}[0]
 
 final fun (com.eignex.koblas.dense/F64CholeskyDecomposition).com.eignex.koblas.dense/invert(com.eignex.koblas/Workspace? = ...): com.eignex.koblas/F64DenseMatrix // com.eignex.koblas.dense/invert|invert@com.eignex.koblas.dense.F64CholeskyDecomposition(com.eignex.koblas.Workspace?){}[0]
 final fun (com.eignex.koblas.dense/F64CholeskyDecomposition).com.eignex.koblas.dense/solve(kotlin/DoubleArray): kotlin/DoubleArray // com.eignex.koblas.dense/solve|solve@com.eignex.koblas.dense.F64CholeskyDecomposition(kotlin.DoubleArray){}[0]
@@ -843,9 +843,9 @@ final fun (com.eignex.koblas.dense/F64PivotedQrDecomposition).com.eignex.koblas.
 final fun (com.eignex.koblas.dense/F64QrDecomposition).com.eignex.koblas.dense/applyQ(kotlin/DoubleArray, kotlin/Boolean = ...): kotlin/DoubleArray // com.eignex.koblas.dense/applyQ|applyQ@com.eignex.koblas.dense.F64QrDecomposition(kotlin.DoubleArray;kotlin.Boolean){}[0]
 final fun (com.eignex.koblas.dense/F64QrDecomposition).com.eignex.koblas.dense/solveLeastSquares(kotlin/DoubleArray, com.eignex.koblas/Workspace? = ...): kotlin/DoubleArray // com.eignex.koblas.dense/solveLeastSquares|solveLeastSquares@com.eignex.koblas.dense.F64QrDecomposition(kotlin.DoubleArray;com.eignex.koblas.Workspace?){}[0]
 final fun (com.eignex.koblas.dense/F64QrDecomposition).com.eignex.koblas.dense/solveMinimumNorm(kotlin/DoubleArray, com.eignex.koblas/Workspace? = ...): kotlin/DoubleArray // com.eignex.koblas.dense/solveMinimumNorm|solveMinimumNorm@com.eignex.koblas.dense.F64QrDecomposition(kotlin.DoubleArray;com.eignex.koblas.Workspace?){}[0]
-final fun (com.eignex.koblas/F64Context).com.eignex.koblas/backendFor(com.eignex.koblas/BackendSlot): com.eignex.koblas/Backend // com.eignex.koblas/backendFor|backendFor@com.eignex.koblas.F64Context(com.eignex.koblas.BackendSlot){}[0]
-final fun (com.eignex.koblas/F64Context).com.eignex.koblas/isAccelerated(com.eignex.koblas/BackendSlot): kotlin/Boolean // com.eignex.koblas/isAccelerated|isAccelerated@com.eignex.koblas.F64Context(com.eignex.koblas.BackendSlot){}[0]
-final fun (com.eignex.koblas/F64Context).com.eignex.koblas/requireAccelerated(kotlin/Array<out com.eignex.koblas/BackendSlot>...) // com.eignex.koblas/requireAccelerated|requireAccelerated@com.eignex.koblas.F64Context(kotlin.Array<out|com.eignex.koblas.BackendSlot>...){}[0]
+final fun (com.eignex.koblas/F64Context).com.eignex.koblas/backendFor(com.eignex.koblas.internal.backend/BackendSlot): com.eignex.koblas/Backend // com.eignex.koblas/backendFor|backendFor@com.eignex.koblas.F64Context(com.eignex.koblas.internal.backend.BackendSlot){}[0]
+final fun (com.eignex.koblas/F64Context).com.eignex.koblas/isAccelerated(com.eignex.koblas.internal.backend/BackendSlot): kotlin/Boolean // com.eignex.koblas/isAccelerated|isAccelerated@com.eignex.koblas.F64Context(com.eignex.koblas.internal.backend.BackendSlot){}[0]
+final fun (com.eignex.koblas/F64Context).com.eignex.koblas/requireAccelerated(kotlin/Array<out com.eignex.koblas.internal.backend/BackendSlot>...) // com.eignex.koblas/requireAccelerated|requireAccelerated@com.eignex.koblas.F64Context(kotlin.Array<out|com.eignex.koblas.internal.backend.BackendSlot>...){}[0]
 final fun (com.eignex.koblas/F64DenseMatrix).com.eignex.koblas.dense/cholesky(com.eignex.koblas.dense/CholeskyPolicy = ..., com.eignex.koblas.dense/Uplo = ...): com.eignex.koblas.dense/F64CholeskyDecomposition // com.eignex.koblas.dense/cholesky|cholesky@com.eignex.koblas.F64DenseMatrix(com.eignex.koblas.dense.CholeskyPolicy;com.eignex.koblas.dense.Uplo){}[0]
 final fun (com.eignex.koblas/F64DenseMatrix).com.eignex.koblas.dense/ldl(com.eignex.koblas/Workspace? = ..., com.eignex.koblas.dense/Uplo = ...): com.eignex.koblas.dense/F64LdlDecomposition // com.eignex.koblas.dense/ldl|ldl@com.eignex.koblas.F64DenseMatrix(com.eignex.koblas.Workspace?;com.eignex.koblas.dense.Uplo){}[0]
 final fun (com.eignex.koblas/F64DenseMatrix).com.eignex.koblas.dense/lu(): com.eignex.koblas.dense/F64LuDecomposition // com.eignex.koblas.dense/lu|lu@com.eignex.koblas.F64DenseMatrix(){}[0]

@@ -1,8 +1,8 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.BackendNames
 import com.eignex.koblas.F64SparseVector
 import com.eignex.koblas.dense.simdAvailable
+import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.requireShape
 import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators

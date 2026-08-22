@@ -1,8 +1,10 @@
 package com.eignex.koblas.hostblas
 
-import com.eignex.koblas.BackendNames
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.dense.F64HostBlasAdapter
+import com.eignex.koblas.dense.host.jvm.HostBlasCalls
+import com.eignex.koblas.dense.host.jvm.JvmCblasCalls
+import com.eignex.koblas.internal.backend.BackendNames
 
 /**
  * The host OpenBLAS through CBLAS, bound with `java.lang.foreign`. Every routine lives in

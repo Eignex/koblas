@@ -1,9 +1,9 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.cblas.F64CblasBlas
-import com.eignex.koblas.cblas.F64CblasLapack
 import com.eignex.koblas.cblas.F64CblasVectorKernels
-import com.eignex.koblas.cblas.OpenBlasLoader
+import com.eignex.koblas.dense.host.cblas.F64CblasBlas
+import com.eignex.koblas.dense.host.cblas.F64CblasLapack
+import com.eignex.koblas.dense.host.cblas.OpenBlasLoader
 import com.eignex.koblas.registerBackend
 import com.eignex.koblas.umfpack.UmfpackLoader
 import com.eignex.koblas.umfpack.UmfpackSparseLapack

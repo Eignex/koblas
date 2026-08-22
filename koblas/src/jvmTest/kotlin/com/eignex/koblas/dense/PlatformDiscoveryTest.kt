@@ -3,8 +3,8 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.BackendSlot
 import com.eignex.koblas.F64DenseMatrix
 import com.eignex.koblas.HostLibraryTest
+import com.eignex.koblas.dense.host.jvm.HostBlasCalls
 import com.eignex.koblas.f64DispatchThresholds
-import com.eignex.koblas.hostblas.HostBlasCalls
 import com.eignex.koblas.isAccelerated
 import com.eignex.koblas.koblas
 import com.eignex.koblas.portableSlots

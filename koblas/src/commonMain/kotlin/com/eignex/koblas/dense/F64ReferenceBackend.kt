@@ -1,7 +1,7 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.BackendNames
 import com.eignex.koblas.F64Context
+import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.koblas
 
 /**

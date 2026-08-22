@@ -2,26 +2,8 @@ package com.eignex.koblas
 
 import com.eignex.koblas.dense.F64RoutedVectorKernels
 
-/** The halves of the seam a backend can implement. */
-public enum class BackendSlot {
-    /** Dense vector-vector routines. */
-    F64VectorKernels,
-
-    /** Dense matrix routines. */
-    F64Blas,
-
-    /** Dense factorizations. */
-    F64Lapack,
-
-    /** Sparse vector-vector routines. */
-    F64SparseVectorKernels,
-
-    /** Sparse matrix routines. */
-    F64SparseBlas,
-
-    /** Sparse factorizations. */
-    F64SparseLapack,
-}
+/** The halves of the backend seam a context reports on. */
+public typealias BackendSlot = com.eignex.koblas.internal.backend.BackendSlot
 
 /** The backend installed in [slot]. */
 public fun F64Context.backendFor(slot: BackendSlot): Backend = when (slot) {
@@ -33,30 +15,17 @@ public fun F64Context.backendFor(slot: BackendSlot): Backend = when (slot) {
     BackendSlot.F64SparseLapack -> sparseLapack
 }
 
-/**
- * Whether [slot] is filled by something other than koblas's own portable implementation. Accelerated means a
- * host library is involved; the compiled-in SIMD kernels count as portable however fast they are.
- */
+/** Whether [slot] is filled by something other than koblas's own portable implementation. */
 public fun F64Context.isAccelerated(slot: BackendSlot): Boolean = when (val backend = backendFor(slot)) {
     is F64RoutedVectorKernels -> backend.host != null
     else -> !backend.isPortable
 }
 
-/**
- * The slots still running koblas's own portable implementation, in declaration order.
- * [BackendSlot.F64SparseLapack] leaves this set wherever SuiteSparse is installed, since the UMFPACK
- * binding fills it; the other two sparse slots are reported on every target, koblas having no host
- * backend for either.
- */
+/** The slots still running koblas's own portable implementation, in declaration order. */
 public val F64Context.portableSlots: Set<BackendSlot>
     get() = BackendSlot.entries.filterNot { isAccelerated(it) }.toSet()
 
-/**
- * Throws unless every one of [slots] is filled by an accelerated backend. The fallback is silent, so a
- * deployment that expected OpenBLAS and did not get it looks healthy and runs several times slower.
- *
- * @throws IllegalStateException naming each unaccelerated slot and what is filling it.
- */
+/** Throws unless every one of [slots] is filled by an accelerated backend. */
 public fun F64Context.requireAccelerated(vararg slots: BackendSlot) {
     val fallen = slots.filterNot { isAccelerated(it) }
     check(fallen.isEmpty()) {

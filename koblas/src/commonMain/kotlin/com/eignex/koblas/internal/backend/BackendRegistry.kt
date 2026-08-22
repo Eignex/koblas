@@ -1,0 +1,96 @@
+package com.eignex.koblas.internal.backend
+
+import com.eignex.koblas.Backend
+import com.eignex.koblas.F64Context
+import com.eignex.koblas.dense.F64PlatformVectorKernels
+import com.eignex.koblas.dense.F64VectorKernels
+import com.eignex.koblas.dense.registerPlatformBackends
+import com.eignex.koblas.koblas
+
+internal object BackendRegistry {
+
+/** Where the double-precision registrations live; an element type added later gets a registry beside it. */
+    private val f64 = F64Registry()
+
+/**
+     * Set when discovery starts rather than when it finishes, so a read of [koblas] from inside it does not
+     * start it again. Discovery probes each candidate by calling its own `gemv`, and a candidate that has not
+     * overridden its vector kernels resolves them through [koblas], which lands back here. The lazy below has
+     * not published a value yet at that point, so it would run the initializer a second time: load the
+     * providers again, build a fresh instance of each, probe that one, and so on until the stack ran out.
+     */
+    private var discoveryStarted = false
+
+/** Runs platform discovery exactly once, on the first [koblas] read. */
+    private val discovery: Unit by lazy {
+        // Ordered by the lazy's own lock: the nested read is on the thread already inside it, and any other
+        // thread waits on that lock rather than reaching this.
+        if (!discoveryStarted) {
+            discoveryStarted = true
+            registerPlatformBackends()
+        }
+    }
+
+/**
+     * The process-wide default context: an explicit override when set, else whatever registered
+     * itself, else the portable reference implementations. Every free function in koblas uses this.
+     */
+    internal val activeContext: F64Context
+        get() {
+            discovery
+            return f64.active
+        }
+
+/**
+     * Offers [backend] for automatic selection as every half it implements. It becomes active only while no
+     * explicit override is set and nothing stronger was offered for the same half.
+     *
+     * A backend is offered to the registry of every element type, since which one it serves is which halves it
+     * implements, and one object may serve more than one.
+     *
+     * Safe to call from any thread: each half takes its offer through a compare-and-set, so concurrent
+     * registrations settle on the strongest rather than on whoever wrote last. Whole-context installation
+     * still wants startup, since it replaces the whole context rather than ranking into a half.
+     *
+     * @throws IllegalArgumentException if [backend] implements no half of any element type, which would
+     *   otherwise register nothing and look like it worked.
+     */
+    internal fun register(backend: Backend) {
+        val offered = f64.offer(backend)
+        require(offered) {
+            "${backend.name} implements none of ${F64Registry.HALF_NAMES}, so there is nothing to register it as"
+        }
+    }
+
+/**
+     * Overrides the context [koblas] returns; null restores automatic selection. Not synchronized with
+     * operations in flight, so install during startup, before other threads run.
+     */
+    internal fun install(context: F64Context?) {
+        f64.install(context)
+    }
+
+/**
+     * Test hook: clears every override and registration, leaving the portable fallbacks. Platform discovery is
+     * not replayed by this, so pair it with rediscovery to put the process back as it was.
+     */
+    internal fun reset() {
+        // Forces discovery before clearing. Otherwise a reset that lands before the first [koblas] read clears
+        // an empty registry, and the read that follows runs discovery for the first time and fills it back in.
+        discovery
+        f64.reset()
+    }
+
+/**
+     * Test hook: runs platform discovery again, which reset undoes and the one-shot on the first
+     * [koblas] read cannot repeat. Registering the halves a caller happened to read beforehand is not the same
+     * thing: a slot nothing was registered for reads as its compiled-in fallback, and putting that back fills
+     * the seam with a priority-0 incumbent that then outranks every later default-priority offer.
+     */
+    internal fun rediscover() {
+        registerPlatformBackends()
+    }
+
+/** The kernels the compiled-in path uses when nothing is registered, for tests that need to name them. */
+    internal val platformKernels: F64VectorKernels get() = F64PlatformVectorKernels
+}

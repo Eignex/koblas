@@ -1,7 +1,7 @@
-package com.eignex.koblas.hostblas
+package com.eignex.koblas.dense.host.jvm
 
-import com.eignex.koblas.dense.CblasCalls
-import com.eignex.koblas.hostblas.HostBlasCalls.seg
+import com.eignex.koblas.dense.host.CblasCalls
+import com.eignex.koblas.dense.host.jvm.HostBlasCalls.seg
 
 /**
  * [CblasCalls] over `java.lang.foreign`. Each array goes across as a segment over the on-heap array itself,
