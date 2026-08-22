@@ -122,12 +122,19 @@ else
     echo "install_name_tool is required to bundle macOS Fortran runtimes" >&2
     exit 1
   }
+  for runtime_name in libgfortran.5.dylib libquadmath.0.dylib libgcc_s.1.1.dylib; do
+    runtime=$("$fortran_compiler" -print-file-name="$runtime_name")
+    [[ -f "$runtime" ]] || { echo "missing macOS runtime $runtime_name" >&2; exit 1; }
+    destination="$resource_dir/$runtime_name"
+    [[ -e "$destination" ]] || cp "$runtime" "$destination"
+  done
   while read -r dependency; do
     destination="$resource_dir/$(basename "$dependency")"
     if [[ -f "$dependency" && ! -e "$destination" ]]; then
       cp "$dependency" "$destination"
     fi
-  done < <(otool -L "$resource_dir/$library_name" | awk '/\/.*\/(libgfortran|libquadmath|libgcc_s).*\.dylib/ { print $1 }')
+    install_name_tool -change "$dependency" "@loader_path/$(basename "$dependency")" "$resource_dir/$library_name"
+  done < <(otool -L "$resource_dir/$library_name" | awk 'NR > 1 && /(@rpath\/|\/)(libgfortran|libquadmath|libgcc_s).*\.dylib/ { print $1 }')
   for binary in "$resource_dir"/*.dylib; do
     while read -r dependency; do
       destination="$resource_dir/$(basename "$dependency")"
@@ -135,7 +142,7 @@ else
         cp "$dependency" "$destination"
       fi
       install_name_tool -change "$dependency" "@loader_path/$(basename "$dependency")" "$binary"
-    done < <(otool -L "$binary" | awk 'NR > 1 && /\/.*\/(libgfortran|libquadmath|libgcc_s).*\.dylib/ { print $1 }')
+    done < <(otool -L "$binary" | awk 'NR > 1 && /(@rpath\/|\/)(libgfortran|libquadmath|libgcc_s).*\.dylib/ { print $1 }')
   done
   if [[ -f "$resource_dir/libgfortran.5.dylib" && ! -e "$resource_dir/libgfortran.dylib" ]]; then
     cp "$resource_dir/libgfortran.5.dylib" "$resource_dir/libgfortran.dylib"
