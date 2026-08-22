@@ -78,22 +78,6 @@ internal fun sparseDominantMatrix(n: Int, rng: Random): F64SparseMatrix {
     return F64SparseMatrix.ofColumns(n, n, columns)
 }
 
-/** Symmetric with a dominant diagonal, so the sparse LDL and Cholesky paths have a matrix they accept. */
-internal fun sparseSpdMatrix(n: Int, rng: Random): F64SparseMatrix {
-    val entries = Array(n) { HashMap<Int, Double>() }
-    for (i in 0 until n) entries[i][i] = rng.nextDouble(-1.0, 1.0) + n
-    for (j in 0 until n) {
-        for (i in 0 until j) {
-            if (rng.nextDouble() < SPARSE_DENSITY) {
-                val v = rng.nextDouble(-1.0, 1.0)
-                entries[j][i] = v
-                entries[i][j] = v
-            }
-        }
-    }
-    return F64SparseMatrix.ofColumns(n, n, List(n) { j -> entries[j].map { (i, v) -> i to v } })
-}
-
 /** A sparse vector with about `density * n` stored entries, at ascending positions. */
 internal fun randomSparseVector(n: Int, density: Double, rng: Random): F64SparseVector {
     val indices = ArrayList<Int>()

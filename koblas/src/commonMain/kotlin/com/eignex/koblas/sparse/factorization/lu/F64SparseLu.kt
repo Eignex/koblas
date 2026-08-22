@@ -9,7 +9,6 @@ import com.eignex.koblas.requireShape
 import com.eignex.koblas.requireSquare
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.sparse.internal.MutableIntDoubleMap
-import com.eignex.koblas.sparse.symbolic.inverseOf
 import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.log2
@@ -326,3 +325,6 @@ public class F64SparseLu private constructor(
         }
     }
 }
+
+private fun inverseOf(permutation: IntArray): IntArray =
+    IntArray(permutation.size).also { inverse -> for (i in permutation.indices) inverse[permutation[i]] = i }

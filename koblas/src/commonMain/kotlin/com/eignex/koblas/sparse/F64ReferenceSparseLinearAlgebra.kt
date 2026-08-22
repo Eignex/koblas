@@ -7,9 +7,7 @@ import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.requireSquare
-import com.eignex.koblas.sparse.factorization.ldl.*
 import com.eignex.koblas.sparse.factorization.lu.*
-import com.eignex.koblas.sparse.symbolic.*
 import kotlin.math.abs
 
 /**
@@ -83,12 +81,6 @@ public object F64ReferenceSparseLinearAlgebra :
 
     override fun factor(a: F64SparseMatrix, equilibrate: Boolean, dropTolerance: Double): F64SparseFactorization =
         F64SparseLu.factorCsc(a, equilibrate, dropTolerance)
-
-    override fun analyze(a: F64SparseMatrix, ordering: SparseOrdering): SparseSymbolic =
-        SparseSymbolic.analyze(a, ordering)
-
-    override fun ldl(a: F64SparseMatrix, policy: SparseLdlPolicy, ordering: SparseOrdering): F64SparseFactorization =
-        numericLdl(a, analyze(a, ordering), policy)
 
     override fun dot(x: F64SparseVector, y: DoubleArray): Double {
         requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }

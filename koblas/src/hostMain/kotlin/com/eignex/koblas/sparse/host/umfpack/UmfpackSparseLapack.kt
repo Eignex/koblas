@@ -9,15 +9,11 @@ import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.requireSquare
-import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.F64SingularSparseFactorization
 import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.F64SparseLapack
-import com.eignex.koblas.sparse.factorization.ldl.SparseLdlPolicy
 import com.eignex.koblas.sparse.factorization.lu.F64SparseLu
 import com.eignex.koblas.sparse.factorization.lu.NO_DROP
-import com.eignex.koblas.sparse.symbolic.SparseOrdering
-import com.eignex.koblas.sparse.symbolic.SparseSymbolic
 import kotlinx.cinterop.COpaquePointerVar
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
@@ -134,9 +130,4 @@ public class UmfpackSparseLapack internal constructor(private val f: UmfpackFunc
     // UMFPACK provides no symmetric factorization, so these run the portable versions. Forwarded explicitly
     // rather than by class delegation, which would route the convenience overloads to the portable factor
     // instead of this one, since a delegated member calls back into the delegate.
-    override fun analyze(a: F64SparseMatrix, ordering: SparseOrdering): SparseSymbolic =
-        F64ReferenceSparseLinearAlgebra.analyze(a, ordering)
-
-    override fun ldl(a: F64SparseMatrix, policy: SparseLdlPolicy, ordering: SparseOrdering): F64SparseFactorization =
-        F64ReferenceSparseLinearAlgebra.ldl(a, policy, ordering)
 }

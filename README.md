@@ -89,7 +89,7 @@ val x = a.lu().solve(doubleArrayOf(4.0, 9.0))
 ```
 
 The dense API covers level 1-3 BLAS, LU, Cholesky, QR, pivoted QR, LDLᵀ,
-condition estimates, and inverses. Sparse LU and LDLᵀ are also available.
+condition estimates, and inverses. Sparse LU is also available.
 
 ## Backends
 

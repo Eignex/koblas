@@ -10,22 +10,14 @@ mirror the dense ones.
 - [F64SparseBlas] — the sparse matrix routines. `gemv` in both directions, walking columns, which is what CSC
   stores. Deliberately thin: a sparse `gemm` fills in and is a different algorithm with a different result
   type, so it lands here when something needs it.
-- [F64SparseLapack] — the factorizations, unsymmetric and symmetric. [F64SparseLapack.factor] returns
+- [F64SparseLapack] — general sparse LU factorization. [F64SparseLapack.factor] returns
   [F64SparseFactorization], never null: a singular matrix yields a factorization reporting `singular`, matching
-  the dense contract. [F64SparseLapack.cholesky] and [F64SparseLapack.ldl] are the symmetric pair, and
-  [F64SparseLapack.analyze] is their symbolic half — the phase the unsymmetric factorization cannot have,
-  separated because it depends only on the pattern and is therefore reusable across value updates. The
-  analysis reorders to reduce fill by default ([SparseOrdering][com.eignex.koblas.sparse.symbolic.SparseOrdering]), because the elimination order is what
-  decides the fill and the naive call should not be the slow one; solves permute through it invisibly.
+  the dense contract. Its factors support both ordinary and transposed solves.
 - [F64SparseLinearAlgebra] pairs the two matrix seams. All three are offered through `registerSparseBlas` /
   [com.eignex.koblas.registerBackend] and forced with [com.eignex.koblas.installBackends], resolving as
   [com.eignex.koblas.koblas] and its `sparseVectorKernels`.
-- Implementations: [F64SparseLu][com.eignex.koblas.sparse.factorization.lu.F64SparseLu], a Markowitz threshold-pivoting
-  `P·B·Q = L·U` that keeps the factors sparse instead of filling toward `O(m²)`; and
-  [F64SparseLdl][com.eignex.koblas.sparse.factorization.ldl.F64SparseLdl], an up-looking `A = L·D·Lᵀ` over the
-  elimination tree [SparseSymbolic][com.eignex.koblas.sparse.symbolic.SparseSymbolic] computes. The two differ in
-  exactly the way their inputs do: an unsymmetric matrix needs
-  pivots chosen from the values, a symmetric one is eliminated down its diagonal in the order given.
+- Implementation: [F64SparseLu][com.eignex.koblas.sparse.factorization.lu.F64SparseLu], a Markowitz threshold-pivoting
+  `P·B·Q = L·U` that keeps the factors sparse instead of filling toward `O(m²)`.
 
 [F64SparseFactorization] is an interface rather than a class, which is the one place this deviates from the
 dense shape. LAPACK's packed formats are a standard, so a dense [com.eignex.koblas.dense.F64LuDecomposition]

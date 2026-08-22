@@ -2,9 +2,7 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.F64SparseFactorization
-import com.eignex.koblas.sparse.cholesky
 import com.eignex.koblas.sparse.gemv
-import com.eignex.koblas.sparse.ldl
 import com.eignex.koblas.sparse.lu
 import com.eignex.koblas.sparse.trsv
 import com.eignex.koblas.transpose
@@ -20,9 +18,6 @@ class SparseBenchmark {
     private lateinit var a: F64SparseMatrix
     private lateinit var rhs: DoubleArray
 
-    /** A symmetric operand for the LDL and Cholesky paths, plus a destination the triangular solve writes. */
-    private lateinit var spd: F64SparseMatrix
-    private lateinit var ldlFactored: F64SparseFactorization
     private lateinit var x: DoubleArray
 
     /** Factored once in setup, so the solve benchmarks below time the sweeps and not the elimination. */
@@ -33,8 +28,6 @@ class SparseBenchmark {
         val rng = benchRng()
         a = sparseDominantMatrix(n, rng)
         rhs = randomVector(n, rng)
-        spd = sparseSpdMatrix(n, rng)
-        ldlFactored = spd.ldl()
         luFactored = a.lu()
         x = DoubleArray(n)
     }
@@ -62,16 +55,6 @@ class SparseBenchmark {
 
     @Benchmark
     fun sparseLuFactorEquilibrated(): F64SparseFactorization = a.lu(equilibrate = true)
-
-    /** The symmetric paths, which take a different elimination from LU. */
-    @Benchmark
-    fun sparseLdlFactor(): F64SparseFactorization = spd.ldl()
-
-    @Benchmark
-    fun sparseCholeskyFactor(): F64SparseFactorization = spd.cholesky()
-
-    @Benchmark
-    fun sparseLdlSolve(): DoubleArray = ldlFactored.solve(rhs)
 
     /** Triangular solve straight off the CSC arrays, with no factorization in front of it. */
     @Benchmark
