@@ -15,9 +15,9 @@
 [![codecov](https://codecov.io/gh/eignex/koblas/branch/main/graph/badge.svg)](https://codecov.io/gh/eignex/koblas)
 [![License](https://img.shields.io/github/license/eignex/koblas)](https://github.com/eignex/koblas/blob/main/LICENSE)
 
-Kotlin Multiplatform dense and sparse double-precision linear algebra. Koblas
-provides BLAS/LAPACK operations, dense and sparse factorizations, portable
-fallbacks, and optional OpenBLAS and SuiteSparse UMFPACK acceleration.
+Dense and sparse double-precision linear algebra for Kotlin Multiplatform.
+Koblas provides BLAS/LAPACK operations, factorizations, and optional OpenBLAS
+and SuiteSparse UMFPACK acceleration.
 
 ## Install
 
@@ -31,9 +31,9 @@ fallbacks, and optional OpenBLAS and SuiteSparse UMFPACK acceleration.
 implementation("com.eignex:koblas:<version>")
 ```
 
-For host-native acceleration, install OpenBLAS/LAPACKE and, optionally,
-SuiteSparse through your normal package manager (`apt`, `brew`, and so on).
-Koblas discovers them automatically; without them it uses the portable backend.
+Install OpenBLAS/LAPACKE and, for sparse LU, SuiteSparse with your system
+package manager, such as `apt` or Homebrew. Koblas discovers them automatically
+and otherwise uses its portable backend.
 
 On JVM Linux x64/arm64 and macOS arm64, Maven bundles are an alternative:
 
@@ -42,8 +42,8 @@ runtimeOnly("com.eignex:koblas-openblas:<version>")
 runtimeOnly("com.eignex:koblas-umfpack:<version>") // optional; GPL-3.0-only
 ```
 
-Both routes use the same Koblas bindings. Choose the host package manager or
-Maven bundles based on what is more convenient for the application.
+Host packages and Maven bundles use the same Koblas bindings; only the native
+library source differs.
 
 The UMFPACK bundle brings OpenBLAS and uses the same OpenBLAS library as the
 dense backend. Bundled providers win over host lookup. To select a custom
@@ -59,8 +59,8 @@ The JVM property takes precedence.
 
 ## Use
 
-Containers use column-major storage. The unqualified names are aliases for the
-implemented double-precision types, such as `F64DenseMatrix`.
+Containers use column-major storage. Unqualified names such as `DenseMatrix`
+are aliases for the implemented double-precision types (`F64DenseMatrix`).
 
 ```kotlin
 import com.eignex.koblas.DenseMatrix
@@ -72,8 +72,8 @@ val x = a.lu().solve(doubleArrayOf(3.0, 5.0))
 println(x.contentToString()) // [0.8, 1.4]
 ```
 
-Sparse matrices use CSC storage and can be created from readable columns or
-coordinate triplets:
+Sparse matrices use CSC storage. Construct them from columns or coordinate
+triplets:
 
 ```kotlin
 import com.eignex.koblas.SparseMatrix
@@ -89,10 +89,9 @@ condition estimates, and inverses. Sparse LU and LDLᵀ are also available.
 ## Backends
 
 Koblas starts with portable implementations and registers available accelerated
-backends. Use `koblasInfo`, `koblas.portableSlots`, or
-`koblas.requireAccelerated(...)` when acceleration is required rather than
-optional. Set `-Dkoblas.backend=reference` to force the portable backend.
+backends. Inspect `koblasInfo` or `koblas.portableSlots`; call
+`koblas.requireAccelerated(...)` to fail when acceleration is unavailable. Set
+`-Dkoblas.backend=reference` to force the portable backend.
 
-Host and bundled libraries are optional. A missing or unusable native library
-does not stop the application; the affected operation falls back to the
-portable implementation.
+Host and bundled libraries are optional. If one cannot load, Koblas falls back
+to the portable implementation.
