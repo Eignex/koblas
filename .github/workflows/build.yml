@@ -263,22 +263,12 @@ jobs:
   # artifact exactly as a consumer does: its own native resources, extraction, FFM load, and service
   # registration must all work without the host OpenBLAS or LAPACKE paths.
   #
-  # ubuntu-24.04-arm is a GitHub-hosted ARM64 runner. Keeping Linux ARM64 here catches resource and
-  # dependent-library mistakes that an x64 runner cannot observe.
+  # The standard Linux test job already exercises the x64 bundle through `check`. This runner covers the
+  # remaining Linux architecture, where resource and dependent-library mistakes differ from x64.
   test-openblas-bundle:
-    name: Run the Maven OpenBLAS bundle on ${{ matrix.platform }}
-    runs-on: ${{ matrix.runner }}
+    name: Run the Maven OpenBLAS bundle on Linux ARM64
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: Linux x64
-            runner: ubuntu-latest
-            native-platform: linux-x86_64
-          - platform: Linux ARM64
-            runner: ubuntu-24.04-arm
-            native-platform: linux-arm64
 
     steps:
       - name: Checkout
@@ -306,7 +296,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: koblas-openblas/build/openblas
-          key: openblas-${{ runner.os }}-${{ runner.arch }}-${{ matrix.native-platform }}-${{ hashFiles('koblas-openblas/openblas.lock', 'scripts/build-openblas.sh') }}
+          key: openblas-${{ runner.os }}-${{ runner.arch }}-linux-arm64-${{ hashFiles('koblas-openblas/openblas.lock', 'scripts/build-openblas.sh') }}
 
       - name: Run the Maven OpenBLAS bundle tests without host libraries
         run: ./gradlew :koblas-openblas:test --rerun-tasks
