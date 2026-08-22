@@ -15,7 +15,8 @@ import java.nio.file.attribute.PosixFilePermissions
  * Add `com.eignex:koblas-umfpack` at runtime to discover this optional sparse backend. Its GPL license is
  * separate from the Apache-2.0 [koblas](https://github.com/Eignex/koblas) core artifact.
  */
-public class BundledUmfpack private constructor(private val delegate: UmfpackSparseLapack) : F64SparseLapack by delegate {
+public class BundledUmfpack private constructor(private val delegate: UmfpackSparseLapack) :
+    F64SparseLapack by delegate {
     /** Extracts the matching Maven-native resources before the core FFM binding is initialized. */
     public constructor() : this(loadUmfpack())
 
@@ -42,10 +43,13 @@ internal object UmfpackResources {
     private val platform = when {
         System.getProperty("os.name").startsWith("Linux", ignoreCase = true) &&
             System.getProperty("os.arch") in x64Architectures -> "linux-x86_64"
+
         System.getProperty("os.name").startsWith("Linux", ignoreCase = true) &&
             System.getProperty("os.arch") in arm64Architectures -> "linux-arm64"
+
         System.getProperty("os.name").startsWith("Mac", ignoreCase = true) &&
             System.getProperty("os.arch") in arm64Architectures -> "macosx-arm64"
+
         else -> error("koblas-umfpack has no bundled SuiteSparse for this host")
     }
 
@@ -66,7 +70,9 @@ internal object UmfpackResources {
 
     private val umfpackLibrary: String = if (platform.startsWith("linux")) "libumfpack.so.6" else "libumfpack.dylib"
 
-    private fun resourceNames(): List<String> = checkNotNull(resource(".libraries")) { "UMFPACK resources are absent for $platform" }
+    private fun resourceNames(): List<String> = checkNotNull(resource(".libraries")) {
+        "UMFPACK resources are absent for $platform"
+    }
         .bufferedReader().useLines { it.filter(String::isNotBlank).toList() }
 
     private fun resource(name: String): InputStream? {
