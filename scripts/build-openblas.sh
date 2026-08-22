@@ -96,7 +96,11 @@ if [[ "$platform" == linux-arm64 ]] && ! [[ "$(uname -m)" =~ ^(aarch64|arm64)$ ]
 else
   build_args+=(DYNAMIC_ARCH=1)
 fi
-make -s -C "$source_dir" -j"${OPENBLAS_JOBS:-2}" "${build_args[@]}"
+make -s -C "$source_dir" -j"${OPENBLAS_JOBS:-2}" "${build_args[@]}" 2> >(
+  sed \
+    -e '/^No receipt for .*com.apple.pkg.Xcode.* found at .*\/.*$/d' \
+    -e '/^make\[[0-9][0-9]*\]: warning: -jN forced in submake: disabling jobserver mode\.$/d' >&2
+)
 
 rm -rf "$resource_dir"
 mkdir -p "$resource_dir"
