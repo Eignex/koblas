@@ -11,8 +11,18 @@ eignexPublish {
     githubRepo.set("Eignex/koblas")
     licenses {
         license {
-            name.set("GPL-3.0-only")
-            url.set("https://www.gnu.org/licenses/gpl-3.0.html")
+            name.set("Apache-2.0")
+            url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+            distribution.set("repo")
+        }
+        license {
+            name.set("BSD-3-Clause")
+            url.set("https://opensource.org/license/bsd-3-clause")
+            distribution.set("repo")
+        }
+        license {
+            name.set("GPL-2.0-or-later")
+            url.set("https://www.gnu.org/licenses/old-licenses/gpl-2.0.html")
             distribution.set("repo")
         }
     }

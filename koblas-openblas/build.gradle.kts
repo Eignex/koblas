@@ -19,6 +19,16 @@ eignexPublish {
             url.set("https://opensource.org/license/bsd-3-clause")
             distribution.set("repo")
         }
+        license {
+            name.set("GPL-3.0-with-GCC-exception")
+            url.set("https://www.gnu.org/licenses/gcc-exception-3.1.html")
+            distribution.set("repo")
+        }
+        license {
+            name.set("LGPL-3.0-or-later")
+            url.set("https://www.gnu.org/licenses/lgpl-3.0.html")
+            distribution.set("repo")
+        }
     }
 }
 
