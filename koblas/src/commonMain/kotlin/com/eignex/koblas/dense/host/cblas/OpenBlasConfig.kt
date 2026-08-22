@@ -1,4 +1,4 @@
-package com.eignex.koblas.dense
+package com.eignex.koblas.dense.host.cblas
 
 /**
  * Whether an OpenBLAS reporting this `openblas_get_config` string takes 64-bit integers. Such a build

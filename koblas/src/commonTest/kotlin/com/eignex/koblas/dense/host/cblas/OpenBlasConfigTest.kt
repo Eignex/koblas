@@ -1,4 +1,4 @@
-package com.eignex.koblas.dense
+package com.eignex.koblas.dense.host.cblas
 
 import kotlin.test.Test
 import kotlin.test.assertFalse

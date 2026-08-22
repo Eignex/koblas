@@ -141,7 +141,7 @@ tasks.withType<Test>().configureEach {
     if (project.findProperty("koblas.hostTests") == "true") return@configureEach
     systemProperty("koblas.backend", "reference")
     useJUnit {
-        excludeCategories("com.eignex.koblas.HostLibraryTest")
+        excludeCategories("com.eignex.koblas.testutil.host.HostLibraryTest")
     }
 }
 

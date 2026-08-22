@@ -2,7 +2,7 @@
 
 package com.eignex.koblas.dense.host.cblas
 
-import com.eignex.koblas.dense.isIlp64OpenBlas
+import com.eignex.koblas.dense.host.cblas.isIlp64OpenBlas
 import com.eignex.koblas.internal.backend.ConfigurationKeys
 import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.CFunction

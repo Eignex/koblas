@@ -1,6 +1,5 @@
 package com.eignex.koblas.dense.host.jvm
 
-import com.eignex.koblas.HostLibraryTest
 import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.F64Blas
@@ -13,6 +12,7 @@ import com.eignex.koblas.internal.backend.registerPlatformBackends
 import com.eignex.koblas.isAccelerated
 import com.eignex.koblas.koblas
 import com.eignex.koblas.portableSlots
+import com.eignex.koblas.testutil.host.HostLibraryTest
 import com.eignex.koblas.withCleanBackends
 import org.junit.experimental.categories.Category
 import kotlin.test.Test
