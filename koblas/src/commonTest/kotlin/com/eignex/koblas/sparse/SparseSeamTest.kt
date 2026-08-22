@@ -13,8 +13,6 @@ import com.eignex.koblas.koblas
 import com.eignex.koblas.norm2
 import com.eignex.koblas.registerBackend
 import com.eignex.koblas.resetBackends
-import com.eignex.koblas.sparse.factorization.ldl.SparseLdlPolicy
-import com.eignex.koblas.sparse.symbolic.SparseOrdering
 import com.eignex.koblas.withCleanBackends
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -91,12 +89,6 @@ class SparseSeamTest {
             factors++
             return F64ReferenceSparseLinearAlgebra.factor(a, equilibrate, dropTolerance)
         }
-
-        override fun analyze(a: F64SparseMatrix, ordering: SparseOrdering) =
-            F64ReferenceSparseLinearAlgebra.analyze(a, ordering)
-
-        override fun ldl(a: F64SparseMatrix, policy: SparseLdlPolicy, ordering: SparseOrdering) =
-            F64ReferenceSparseLinearAlgebra.ldl(a, policy, ordering)
     }
 
     private fun sparse() = F64SparseVector.of(6, intArrayOf(1, 4), doubleArrayOf(2.0, -3.0))

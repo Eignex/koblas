@@ -5,8 +5,6 @@ import com.eignex.koblas.dense.CholeskyPolicy
 import com.eignex.koblas.dense.cholesky
 import com.eignex.koblas.dense.invert
 import com.eignex.koblas.dense.lu
-import com.eignex.koblas.sparse.factorization.ldl.SparseLdlPolicy
-import com.eignex.koblas.sparse.ldl
 import com.eignex.koblas.sparse.trsv
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -53,19 +51,6 @@ class ExceptionsTest {
         assertEquals(1, e.position, "the second pivot is the one that goes negative")
         assertTrue(e.pivot <= 0.0, "the reported pivot should be the offending one, was ${e.pivot}")
         indefinite.cholesky(CholeskyPolicy.Regularize())
-    }
-
-    @Test
-    fun `a strict sparse ldl reports a non-positive pivot`() {
-        val s = F64SparseMatrix.ofTriplets(
-            rows = 2,
-            cols = 2,
-            rowIdx = intArrayOf(0, 1, 0, 1),
-            colIdx = intArrayOf(0, 0, 1, 1),
-            values = doubleArrayOf(1.0, 2.0, 2.0, 1.0),
-        )
-        val e = assertFailsWith<NotPositiveDefinite> { s.ldl(SparseLdlPolicy.Strict) }
-        assertTrue(e.pivot < 0.0, "the reported pivot should be negative, was ${e.pivot}")
     }
 
     @Test

@@ -1,6 +1,5 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.sparse.factorization.ldl.F64SparseLdl
 import com.eignex.koblas.sparse.factorization.lu.F64SparseLu
 
 /*
@@ -28,6 +27,3 @@ public typealias SingularSparseFactorization = F64SingularSparseFactorization
 
 /** Double-precision [F64SparseLu], the sparse LU an unqualified `SparseLu` means. */
 public typealias SparseLu = F64SparseLu
-
-/** Double-precision [F64SparseLdl], the sparse LDLt an unqualified `SparseLdl` means. */
-public typealias SparseLdl = F64SparseLdl
