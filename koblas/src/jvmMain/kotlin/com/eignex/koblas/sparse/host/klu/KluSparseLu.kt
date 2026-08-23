@@ -20,18 +20,6 @@ public class KluSparseLu(
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 1
     override val nativeAvailable: Boolean get() = calls.available
 
-    override fun factorWhenUnavailable(
-        a: F64SparseMatrix,
-        equilibrate: Boolean,
-        dropTolerance: Double,
-    ): F64SparseFactorization = error("KLU 2 is not available")
-
-    override fun factorWithDropTolerance(
-        a: F64SparseMatrix,
-        equilibrate: Boolean,
-        dropTolerance: Double,
-    ): F64SparseFactorization = throw IllegalArgumentException("KLU does not support drop tolerance")
-
     override fun factorNative(a: F64SparseMatrix, equilibrate: Boolean): F64SparseFactorization {
         val factor = calls.factorize(a.rows, a.colPtr, a.rowIdx, a.values, equilibrate)
             ?: return F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)

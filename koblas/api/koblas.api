@@ -1043,14 +1043,10 @@ public final class com/eignex/koblas/sparse/factorization/lu/SparseLuElimination
 public abstract class com/eignex/koblas/sparse/host/F64HostSparseLuAdapter : com/eignex/koblas/sparse/F64SparseLu {
 	public final fun factor (Lcom/eignex/koblas/core/F64SparseMatrix;ZD)Lcom/eignex/koblas/sparse/F64SparseFactorization;
 	protected abstract fun factorNative (Lcom/eignex/koblas/core/F64SparseMatrix;Z)Lcom/eignex/koblas/sparse/F64SparseFactorization;
-	protected fun factorWhenUnavailable (Lcom/eignex/koblas/core/F64SparseMatrix;ZD)Lcom/eignex/koblas/sparse/F64SparseFactorization;
-	protected fun factorWithDropTolerance (Lcom/eignex/koblas/core/F64SparseMatrix;ZD)Lcom/eignex/koblas/sparse/F64SparseFactorization;
 	protected abstract fun getNativeAvailable ()Z
 	public fun getPriority ()I
 	public fun isAvailable ()Z
 	public fun isPortable ()Z
-	protected final fun portableFactor (Lcom/eignex/koblas/core/F64SparseMatrix;ZD)Lcom/eignex/koblas/sparse/F64SparseFactorization;
-	public static synthetic fun portableFactor$default (Lcom/eignex/koblas/sparse/host/F64HostSparseLuAdapter;Lcom/eignex/koblas/core/F64SparseMatrix;ZDILjava/lang/Object;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
 	public fun solve (Lcom/eignex/koblas/sparse/F64SparseFactorization;[DZ)[D
 	public fun solveInto (Lcom/eignex/koblas/sparse/F64SparseFactorization;[D[DZLcom/eignex/koblas/Workspace;)[D
 }

@@ -44,10 +44,7 @@ public class UmfpackSparseLu(
             val symbolicHolder = scratch.allocate(ADDRESS)
             val info = scratch.allocate(JAVA_DOUBLE, INFO.toLong())
             val symbolicStatus = calls.symbolic(a.rows, colPtr, rowIdx, values, symbolicHolder, control, info)
-            if (symbolicStatus != OK) {
-                // A rejected pattern goes to the portable path.
-                return portableFactor(a, equilibrate)
-            }
+            check(symbolicStatus == OK) { "umfpack_di_symbolic failed with status $symbolicStatus" }
 
             // The numeric factors outlive this call, so their holder gets an arena the factorization owns.
             val arena = Arena.ofShared()
@@ -73,8 +70,8 @@ public class UmfpackSparseLu(
                     calls.freeSymbolic(symbolicHolder)
                 }
 
-                if (numericStatus != OK && numericStatus != WARNING_SINGULAR) {
-                    return portableFactor(a, equilibrate)
+                check(numericStatus == OK || numericStatus == WARNING_SINGULAR) {
+                    "umfpack_di_numeric failed with status $numericStatus"
                 }
                 // The partial factors UMFPACK hands back for a singular matrix cannot be solved against, so
                 // the canonical singular result keeps `nnz == 0` true of every singular factorization.

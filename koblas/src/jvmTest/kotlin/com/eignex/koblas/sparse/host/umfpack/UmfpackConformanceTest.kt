@@ -4,8 +4,7 @@ import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.sparse.assertAliasedDestinationSolves
 import com.eignex.koblas.sparse.assertControlArrayKeepsUmfpackDefaults
-import com.eignex.koblas.sparse.assertEmptyAndZeroMatricesTakeThePortablePath
-import com.eignex.koblas.sparse.assertNativeEquilibrationAndDropToleranceFallsBack
+import com.eignex.koblas.sparse.assertNativeEquilibrationAndUnsupportedDropToleranceIsRejected
 import com.eignex.koblas.sparse.assertReciprocalPivotConditionEstimateIsBounded
 import com.eignex.koblas.sparse.assertRegistersAsTheSparseLuHalf
 import com.eignex.koblas.sparse.assertRepeatedFactorizationsSurvive
@@ -60,21 +59,15 @@ class UmfpackConformanceTest {
     }
 
     @Test
-    fun `equilibrate stays native while a drop tolerance falls back`() {
+    fun `equilibrate stays native and an unsupported drop tolerance is rejected`() {
         requireSuiteSparse()
-        assertNativeEquilibrationAndDropToleranceFallsBack(umfpack) { it is UmfpackFactorization }
+        assertNativeEquilibrationAndUnsupportedDropToleranceIsRejected(umfpack) { it is UmfpackFactorization }
     }
 
     @Test
     fun `it registers as the sparse factorization half and reports fill`() {
         requireSuiteSparse()
         assertRegistersAsTheSparseLuHalf(umfpack, n = 20)
-    }
-
-    @Test
-    fun `empty and all-zero matrices take the portable path`() {
-        requireSuiteSparse()
-        assertEmptyAndZeroMatricesTakeThePortablePath(umfpack)
     }
 
     @Test
