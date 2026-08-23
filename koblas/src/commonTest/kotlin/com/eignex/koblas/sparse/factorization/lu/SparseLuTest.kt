@@ -81,7 +81,7 @@ class SparseLuTest {
         assertClose(b, a.gemv(lu.solve(b, transpose = true), transpose = true), "btran residual", tolerance = 1e-8)
         // The bound is loose because random sparsity gives the ordering no structure to exploit.
         assertTrue(lu.nnz < 15 * a.nnz, "fill blew up: factor nnz=${lu.nnz} vs input nnz=${a.nnz}")
-        val dropped = a.lu(equilibrate = true, dropTolerance = 1e-9)
+        val dropped = F64ReferenceSparseLinearAlgebra.factor(a, equilibrate = true, dropTolerance = 1e-9)
         assertTrue(
             dropped.nnz < lu.nnz / 2,
             "the drop tolerance should cut fill sharply here: ${dropped.nnz} against ${lu.nnz}",

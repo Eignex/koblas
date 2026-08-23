@@ -110,7 +110,6 @@ internal object KluCalls {
             }
             numericHolder.set(ADDRESS, 0, numeric)
             return KluFactor(a, arena, common, symbolicHolder, numericHolder)
-            // Native calls can fail after allocating factors.
         } catch (@Suppress("TooGenericExceptionCaught") t: Throwable) {
             free(KluFactor(a, arena, common, symbolicHolder, numericHolder))
             throw t
@@ -142,7 +141,7 @@ internal object KluCalls {
         val scales = numeric.get(ADDRESS, KLU_NUMERIC_RS)
         if (scales.address() != 0L) {
             val boundedScales = scales.reinterpret(factor.n.toLong() * JAVA_DOUBLE.byteSize())
-            for (i in 0 until factor.n) determinant /= boundedScales.getAtIndex(JAVA_DOUBLE, i.toLong())
+            for (i in 0 until factor.n) determinant *= boundedScales.getAtIndex(JAVA_DOUBLE, i.toLong())
         }
         return determinant
     }
