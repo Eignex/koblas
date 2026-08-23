@@ -93,6 +93,7 @@ jobs:
         run: >-
           ./gradlew --no-build-cache --no-configuration-cache --rerun-tasks
           :koblas-umfpack:buildUmfpack -Pkoblas.umfpack.platform=${{ matrix.platform }}
+          -Pkoblas.openblas.platform=${{ matrix.platform }}
 
       - name: Upload bundled UMFPACK resources
         uses: actions/upload-artifact@v7
