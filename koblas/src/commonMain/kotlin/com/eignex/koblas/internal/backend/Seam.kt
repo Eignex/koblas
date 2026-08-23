@@ -5,34 +5,43 @@ import kotlin.concurrent.atomics.AtomicReference
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
 /**
- * One replaceable half of the compute seam, holding the strongest offer made for it. A whole-context
- * override is the public registry's job, not this one's.
+ * One replaceable half of the compute seam, holding the strongest explicit offer or, when none exists, the
+ * strongest automatic offer. A whole-context override is the public registry's job, not this one's.
  *
  * @param T the interface this half implements.
  * @param onChange run after every change, for a seam whose composed whole needs rebuilding.
  */
 @OptIn(ExperimentalAtomicApi::class)
 internal class Seam<T : Backend>(private val onChange: () -> Unit = {}) {
-    private val slot = AtomicReference<T?>(null)
+    private class Registration<T : Backend>(val backend: T, val explicit: Boolean)
+
+    private val slot = AtomicReference<Registration<T>?>(null)
 
     /**
      * The strongest registration, or null. Null means use the compiled kernel, since a reference
      * implementation defined in terms of itself would recurse.
      */
-    val active: T? get() = slot.load()
+    val active: T? get() = slot.load()?.backend
 
     /**
-     * Offers [backend], which becomes active only if it outranks the strongest previous offer.
+     * Offers [backend], which becomes active only if it outranks the strongest previous offer of the same
+     * kind, or if it is explicit and the previous offer was automatic.
      *
      * Compare-and-set rather than a read and a write, so two threads offering at once cannot leave the
      * weaker one holding the seam. A lost race retries against whatever won it, which either supersedes it
      * or ranks it out.
      */
-    fun register(backend: T) {
+    fun register(backend: T, explicit: Boolean) {
         while (true) {
             val current = slot.load()
-            if (current != null && backend.priority <= current.priority) return
-            if (slot.compareAndSet(current, backend)) {
+            if (current != null && (
+                    (current.explicit && !explicit) ||
+                        (current.explicit == explicit && backend.priority <= current.backend.priority)
+                    )
+            ) {
+                return
+            }
+            if (slot.compareAndSet(current, Registration(backend, explicit))) {
                 onChange()
                 return
             }

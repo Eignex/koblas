@@ -68,33 +68,34 @@ internal class F64Registry {
     }
 
     /**
-     * Offers [backend] to every seam whose half it implements, and reports whether any took it. A caller
-     * that gets false has offered something this element type has no seam for.
+     * Offers [backend] to every seam whose half it implements, and reports whether any took it. Explicit
+     * offers outrank automatic ones. A caller that gets false has offered something this element type has no
+     * seam for.
      */
-    fun offer(backend: Backend): Boolean {
+    fun offer(backend: Backend, explicit: Boolean): Boolean {
         var offered = false
         if (backend is F64VectorKernels) {
-            vectorKernelSeam.register(backend)
+            vectorKernelSeam.register(backend, explicit)
             offered = true
         }
         if (backend is F64Blas) {
-            blasSeam.register(backend)
+            blasSeam.register(backend, explicit)
             offered = true
         }
         if (backend is F64Lapack) {
-            lapackSeam.register(backend)
+            lapackSeam.register(backend, explicit)
             offered = true
         }
         if (backend is F64SparseVectorKernels) {
-            sparseVectorKernelSeam.register(backend)
+            sparseVectorKernelSeam.register(backend, explicit)
             offered = true
         }
         if (backend is F64SparseBlas) {
-            sparseBlasSeam.register(backend)
+            sparseBlasSeam.register(backend, explicit)
             offered = true
         }
         if (backend is F64SparseLu) {
-            sparseLuSeam.register(backend)
+            sparseLuSeam.register(backend, explicit)
             offered = true
         }
         return offered
