@@ -1,20 +1,20 @@
 package com.eignex.koblas.dense.host.jvm
 
 import com.eignex.koblas.dense.host.CblasCalls
-import com.eignex.koblas.dense.host.jvm.HostBlasCalls.seg
 
 /**
  * [CblasCalls] over `java.lang.foreign`. Each array goes across as a segment over the on-heap array itself,
  * which `Linker.Option.critical` lets the call read and write in place rather than copying.
  */
 @Suppress("LongParameterList") // the CBLAS signatures
-internal object JvmCblasCalls : CblasCalls {
+internal class JvmCblasCalls(private val calls: HostBlasCalls) : CblasCalls {
+    private fun seg(values: DoubleArray) = java.lang.foreign.MemorySegment.ofArray(values)
     override fun dscal(n: Int, alpha: Double, x: DoubleArray, incx: Int) {
-        HostBlasCalls.dscal.invokeWithArguments(n, alpha, seg(x), incx)
+        calls.dscal.invokeWithArguments(n, alpha, seg(x), incx)
     }
 
     override fun daxpy(n: Int, alpha: Double, x: DoubleArray, incx: Int, y: DoubleArray, incy: Int) {
-        HostBlasCalls.daxpy.invokeWithArguments(n, alpha, seg(x), incx, seg(y), incy)
+        calls.daxpy.invokeWithArguments(n, alpha, seg(x), incx, seg(y), incy)
     }
 
     override fun dgemv(
@@ -31,7 +31,7 @@ internal object JvmCblasCalls : CblasCalls {
         y: DoubleArray,
         incy: Int,
     ) {
-        HostBlasCalls.dgemv.invokeWithArguments(
+        calls.dgemv.invokeWithArguments(
             order, trans, m, n, alpha, seg(a), lda, seg(x), incx, beta, seg(y), incy,
         )
     }
@@ -48,7 +48,7 @@ internal object JvmCblasCalls : CblasCalls {
         a: DoubleArray,
         lda: Int,
     ) {
-        HostBlasCalls.dger.invokeWithArguments(order, m, n, alpha, seg(x), incx, seg(y), incy, seg(a), lda)
+        calls.dger.invokeWithArguments(order, m, n, alpha, seg(x), incx, seg(y), incy, seg(a), lda)
     }
 
     override fun dsymv(
@@ -64,7 +64,7 @@ internal object JvmCblasCalls : CblasCalls {
         y: DoubleArray,
         incy: Int,
     ) {
-        HostBlasCalls.dsymv.invokeWithArguments(order, uplo, n, alpha, seg(a), lda, seg(x), incx, beta, seg(y), incy)
+        calls.dsymv.invokeWithArguments(order, uplo, n, alpha, seg(a), lda, seg(x), incx, beta, seg(y), incy)
     }
 
     override fun dtrsv(
@@ -78,7 +78,7 @@ internal object JvmCblasCalls : CblasCalls {
         x: DoubleArray,
         incx: Int,
     ) {
-        HostBlasCalls.dtrsv.invokeWithArguments(order, uplo, trans, diag, n, seg(a), lda, seg(x), incx)
+        calls.dtrsv.invokeWithArguments(order, uplo, trans, diag, n, seg(a), lda, seg(x), incx)
     }
 
     override fun dtrmv(
@@ -92,7 +92,7 @@ internal object JvmCblasCalls : CblasCalls {
         x: DoubleArray,
         incx: Int,
     ) {
-        HostBlasCalls.dtrmv.invokeWithArguments(order, uplo, trans, diag, n, seg(a), lda, seg(x), incx)
+        calls.dtrmv.invokeWithArguments(order, uplo, trans, diag, n, seg(a), lda, seg(x), incx)
     }
 
     override fun dgemm(
@@ -111,7 +111,7 @@ internal object JvmCblasCalls : CblasCalls {
         c: DoubleArray,
         ldc: Int,
     ) {
-        HostBlasCalls.dgemm.invokeWithArguments(
+        calls.dgemm.invokeWithArguments(
             order, transA, transB, m, n, k, alpha, seg(a), lda, seg(b), ldb, beta, seg(c), ldc,
         )
     }
@@ -129,7 +129,7 @@ internal object JvmCblasCalls : CblasCalls {
         c: DoubleArray,
         ldc: Int,
     ) {
-        HostBlasCalls.dsyrk.invokeWithArguments(order, uplo, trans, n, k, alpha, seg(a), lda, beta, seg(c), ldc)
+        calls.dsyrk.invokeWithArguments(order, uplo, trans, n, k, alpha, seg(a), lda, beta, seg(c), ldc)
     }
 
     override fun dsymm(
@@ -147,7 +147,7 @@ internal object JvmCblasCalls : CblasCalls {
         c: DoubleArray,
         ldc: Int,
     ) {
-        HostBlasCalls.dsymm.invokeWithArguments(
+        calls.dsymm.invokeWithArguments(
             order, side, uplo, m, n, alpha, seg(a), lda, seg(b), ldb, beta, seg(c), ldc,
         )
     }
@@ -166,7 +166,7 @@ internal object JvmCblasCalls : CblasCalls {
         b: DoubleArray,
         ldb: Int,
     ) {
-        HostBlasCalls.dtrsm.invokeWithArguments(order, side, uplo, trans, diag, m, n, alpha, seg(a), lda, seg(b), ldb)
+        calls.dtrsm.invokeWithArguments(order, side, uplo, trans, diag, m, n, alpha, seg(a), lda, seg(b), ldb)
     }
 
     override fun dtrmm(
@@ -183,6 +183,6 @@ internal object JvmCblasCalls : CblasCalls {
         b: DoubleArray,
         ldb: Int,
     ) {
-        HostBlasCalls.dtrmm.invokeWithArguments(order, side, uplo, trans, diag, m, n, alpha, seg(a), lda, seg(b), ldb)
+        calls.dtrmm.invokeWithArguments(order, side, uplo, trans, diag, m, n, alpha, seg(a), lda, seg(b), ldb)
     }
 }

@@ -7,6 +7,7 @@ import com.eignex.koblas.dense.F64LinearAlgebra
 import com.eignex.koblas.dense.F64VectorKernels
 import com.eignex.koblas.dense.host.cblas.F64CblasBlas
 import com.eignex.koblas.dense.host.cblas.F64CblasLapack
+import com.eignex.koblas.dense.host.cblas.OpenBlasConfig
 import com.eignex.koblas.dense.host.cblas.OpenBlasLoader
 import com.eignex.koblas.internal.backend.BackendNames
 
@@ -21,11 +22,13 @@ public class F64CblasLinearAlgebra private constructor(
     F64Blas by blas,
     F64Lapack by lapack {
 
-    /** Resolves both halves, for a caller that wants to install the backend explicitly. */
-    public constructor() : this(
-        F64CblasBlas(requireNotNull(OpenBlasLoader.cblas) { NO_OPENBLAS }),
-        F64CblasLapack(requireNotNull(OpenBlasLoader.lapacke) { NO_LAPACKE }, requireNotNull(OpenBlasLoader.cblas)),
+    private constructor(loader: OpenBlasLoader, config: OpenBlasConfig) : this(
+        F64CblasBlas(requireNotNull(loader.cblas) { NO_OPENBLAS }, loader),
+        F64CblasLapack(requireNotNull(loader.lapacke) { NO_LAPACKE }, requireNotNull(loader.cblas), loader, config),
     )
+
+    /** Resolves both halves, for a caller that wants to install the backend explicitly. */
+    public constructor(config: OpenBlasConfig = OpenBlasConfig()) : this(OpenBlasLoader(config), config)
 
     override val name: String get() = BackendNames.CBLAS
 
@@ -42,7 +45,10 @@ public class F64CblasLinearAlgebra private constructor(
     /** Availability checks for the host CBLAS and LAPACKE. */
     public companion object {
         /** Whether the host provides both CBLAS and LAPACKE, so the full backend can be constructed. */
-        public fun isAvailable(): Boolean = OpenBlasLoader.cblas != null && OpenBlasLoader.lapacke != null
+        public fun isAvailable(config: OpenBlasConfig = OpenBlasConfig()): Boolean {
+            val loader = OpenBlasLoader(config)
+            return loader.cblas != null && loader.lapacke != null
+        }
 
         private const val NO_OPENBLAS =
             "OpenBLAS is not available on this host; koblas falls back to the reference backend"

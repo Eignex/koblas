@@ -24,6 +24,7 @@ public class UmfpackFactorization internal constructor(
     private val matrix: F64SparseMatrix,
     override val failedAt: Int,
     private val handles: Handles,
+    private val calls: UmfpackCalls,
 ) : F64SparseFactorization {
 
     /**
@@ -36,7 +37,7 @@ public class UmfpackFactorization internal constructor(
         val arena = handles.arena
         val holder = handles.numericHolder
         cleaner.register(this) {
-            UmfpackCalls.freeNumeric(holder)
+            calls.freeNumeric(holder)
             arena.close()
         }
     }
@@ -64,7 +65,7 @@ public class UmfpackFactorization internal constructor(
         try {
             Arena.ofConfined().use { scratch ->
                 val info = scratch.allocate(JAVA_DOUBLE, INFO.toLong())
-                val status = UmfpackCalls.solve(
+                val status = calls.solve(
                     if (transpose) SYS_AT else SYS_A,
                     MemorySegment.ofArray(matrix.colPtr),
                     MemorySegment.ofArray(matrix.rowIdx),

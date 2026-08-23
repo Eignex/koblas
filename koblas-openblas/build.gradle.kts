@@ -118,7 +118,7 @@ val verifyOpenBlasResources = tasks.register("verifyOpenBlasResources") {
         supportedPlatforms.forEach { platform ->
             val directory = openBlasResources.get().dir("org/bytedeco/openblas/$platform").asFile
             val resources = requiredResources.getValue(platform) +
-                ".openblas-source-sha256" + "LICENSE.openblas-$openBlasVersion.txt"
+                ".openblas-source-sha256" + ".openblas-build-options" + "LICENSE.openblas-$openBlasVersion.txt"
             check(resources.all { directory.resolve(it).isFile && directory.resolve(it).length() > 0L }) {
                 "missing bundled OpenBLAS resources for $platform; build them on that platform before publishing"
             }

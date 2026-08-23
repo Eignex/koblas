@@ -13,19 +13,24 @@ import com.eignex.koblas.sparse.factorization.lu.F64SparseLuFactorization
 import com.eignex.koblas.sparse.factorization.lu.NO_DROP
 
 /** Sparse LU factorizations backed by KLU 2. */
-public class KluSparseLu : F64SparseLu {
+public class KluSparseLu(
+    /** Policy for this backend instance. */
+    public val config: KluConfig = KluConfig(),
+) : F64SparseLu {
+    private val calls = KluCalls(config.libraryPath)
+
     override val name: String get() = BackendNames.KLU
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 1
-    override val isAvailable: Boolean get() = KluCalls.available
+    override val isAvailable: Boolean get() = calls.available
     override val isPortable: Boolean get() = false
 
     override fun factor(a: F64SparseMatrix, equilibrate: Boolean, dropTolerance: Double): F64SparseFactorization {
         requireSquare(a, "factor")
         require(dropTolerance == NO_DROP) { "KLU does not support drop tolerance" }
         if (a.rows == 0 || a.nnz == 0) return F64SparseLuFactorization.factorCsc(a, equilibrate)
-        check(KluCalls.available) { "KLU 2 is not available" }
-        val factor = KluCalls.factorize(a.rows, a.colPtr, a.rowIdx, a.values, equilibrate)
+        check(calls.available) { "KLU 2 is not available" }
+        val factor = calls.factorize(a.rows, a.colPtr, a.rowIdx, a.values, equilibrate)
             ?: return F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
-        return KluFactorization(NOT_SINGULAR, factor)
+        return KluFactorization(NOT_SINGULAR, factor, calls)
     }
 }

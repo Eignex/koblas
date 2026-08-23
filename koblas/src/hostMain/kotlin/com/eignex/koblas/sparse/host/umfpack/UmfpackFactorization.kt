@@ -33,6 +33,7 @@ public class UmfpackFactorization internal constructor(
     override val failedAt: Int,
     private val handle: NumericHandle,
     private val f: UmfpackFunctions,
+    private val control: DoubleArray?,
 ) : F64SparseFactorization {
 
     /** The `void **Numeric` holder, its own object so the cleaner captures it and not the factorization. */
@@ -67,7 +68,6 @@ public class UmfpackFactorization internal constructor(
         // umfpack_di_solve declares X an output and B an input and says nothing about them overlapping.
         val rhs = if (out === b) b.copyOf() else b
         val info = DoubleArray(INFO)
-        val control = UmfpackLoader.control
         val status = anchoring {
             matrix.colPtr.usePinned { ap ->
                 matrix.rowIdx.usePinned { ai ->

@@ -15,7 +15,7 @@ import java.lang.invoke.MethodHandle
  * The LP64 umfpack_di family, whose `int32_t` indices and `double` values match IntArray and DoubleArray;
  * the dl family takes `int64_t` and would need widening copies.
  */
-internal object UmfpackCalls {
+internal class UmfpackCalls(private val config: UmfpackConfig) {
 
     /** Null where this platform has no native linker; see the same field in `HostBlasCalls`. */
     private val linker: Linker? = try {
@@ -45,8 +45,7 @@ internal object UmfpackCalls {
     )
 
     /**
-     * The Control array every solve passes, holding UMFPACK's defaults with iterative refinement off, so a
-     * solve is the triangular solve against the factors. Null until the library resolves.
+     * The Control array passed through factorization and every solve. Null until the library resolves.
      */
     private val solveControl: MemorySegment? by lazy { buildSolveControl() }
 
@@ -61,7 +60,9 @@ internal object UmfpackCalls {
         // The global arena keeps this read-only array alive past every solve.
         val control = Arena.global().allocate(JAVA_DOUBLE, CONTROL.toLong())
         defaults.invokeWithArguments(control)
-        control.setAtIndex(JAVA_DOUBLE, IRSTEP.toLong(), 0.0)
+        control.setAtIndex(JAVA_DOUBLE, IRSTEP.toLong(), config.iterativeRefinementSteps.toDouble())
+        control.setAtIndex(JAVA_DOUBLE, PIVOT_TOLERANCE.toLong(), config.pivotTolerance)
+        control.setAtIndex(JAVA_DOUBLE, SCALE.toLong(), config.scaling.nativeValue)
         return control
     }
 
@@ -84,7 +85,12 @@ internal object UmfpackCalls {
      * UnsatisfiedLinkError count as absence, so a StackOverflowError is never read as a missing library.
      */
     private fun openUmfpack(): SymbolLookup? {
-        for (soname in nativeLibraryPaths("koblas.umfpack.path", "KOBLAS_UMFPACK_PATH", UMFPACK_SONAMES)) {
+        val paths = config.libraryPath?.let(::listOf) ?: nativeLibraryPaths(
+            "koblas.umfpack.path",
+            "KOBLAS_UMFPACK_PATH",
+            UMFPACK_SONAMES,
+        )
+        for (soname in paths) {
             val opened = try {
                 SymbolLookup.libraryLookup(soname, Arena.global())
             } catch (_: IllegalArgumentException) {
@@ -156,7 +162,7 @@ internal object UmfpackCalls {
         rowIdx,
         values,
         symbolicOut,
-        MemorySegment.NULL, // Control: NULL takes UMFPACK's defaults
+        solveControl ?: MemorySegment.NULL,
         info,
     ) as Int
 
@@ -174,7 +180,7 @@ internal object UmfpackCalls {
         values,
         symbolic,
         numericOut,
-        MemorySegment.NULL,
+        solveControl ?: MemorySegment.NULL,
         info,
     ) as Int
 
@@ -211,3 +217,10 @@ internal object UmfpackCalls {
         handles?.freeNumeric?.invokeWithArguments(numericHolder)
     }
 }
+
+private val UmfpackScaling.nativeValue: Double
+    get() = when (this) {
+        UmfpackScaling.NONE -> 0.0
+        UmfpackScaling.SUM -> 1.0
+        UmfpackScaling.MAX -> 2.0
+    }

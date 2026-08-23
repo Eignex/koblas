@@ -18,13 +18,22 @@ import java.lang.foreign.ValueLayout.ADDRESS
 import java.lang.foreign.ValueLayout.JAVA_DOUBLE
 
 /** Sparse factorizations backed by a host UMFPACK. */
-public class UmfpackSparseLu : F64SparseLu {
+public class UmfpackSparseLu(
+    /** Policy for this backend instance and the factors it produces. */
+    public val config: UmfpackConfig = UmfpackConfig(),
+) : F64SparseLu {
+    private val calls = UmfpackCalls(config)
+
     override val name: String get() = BackendNames.UMFPACK
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY
 
     /** UMFPACK ships separately from OpenBLAS, so a host can have one without the other. */
-    override val isAvailable: Boolean get() = UmfpackCalls.available
+    override val isAvailable: Boolean get() = calls.available
+
+    internal val refinementSteps: Double? get() = calls.refinementSteps
+
+    internal val pivotTolerance: Double? get() = calls.pivotTolerance
 
     /** Stated rather than delegated: the delegate is portable and this calls out to UMFPACK. */
     override val isPortable: Boolean get() = false
@@ -35,7 +44,7 @@ public class UmfpackSparseLu : F64SparseLu {
      */
     override fun factor(a: F64SparseMatrix, equilibrate: Boolean, dropTolerance: Double): F64SparseFactorization {
         requireSquare(a, "factor")
-        if (!UmfpackCalls.available) {
+        if (!calls.available) {
             return F64SparseLuFactorization.factorCsc(a, equilibrate, dropTolerance)
         }
         // Any tolerance but the default goes to the portable path, which owns validating the rest.
@@ -58,7 +67,7 @@ public class UmfpackSparseLu : F64SparseLu {
         Arena.ofConfined().use { scratch ->
             val symbolicHolder = scratch.allocate(ADDRESS)
             val info = scratch.allocate(JAVA_DOUBLE, INFO.toLong())
-            val symbolicStatus = UmfpackCalls.symbolic(a.rows, colPtr, rowIdx, values, symbolicHolder, info)
+            val symbolicStatus = calls.symbolic(a.rows, colPtr, rowIdx, values, symbolicHolder, info)
             if (symbolicStatus != OK) {
                 // A rejected pattern goes to the portable path.
                 return F64SparseLuFactorization.factorCsc(a)
@@ -74,7 +83,7 @@ public class UmfpackSparseLu : F64SparseLu {
             var owned = true
             try {
                 val numericStatus = try {
-                    UmfpackCalls.numeric(
+                    calls.numeric(
                         colPtr,
                         rowIdx,
                         values,
@@ -84,7 +93,7 @@ public class UmfpackSparseLu : F64SparseLu {
                     )
                 } finally {
                     // Scratch either way; UMFPACK keeps what it needs inside Numeric.
-                    UmfpackCalls.freeSymbolic(symbolicHolder)
+                    calls.freeSymbolic(symbolicHolder)
                 }
 
                 if (numericStatus != OK && numericStatus != WARNING_SINGULAR) {
@@ -96,7 +105,7 @@ public class UmfpackSparseLu : F64SparseLu {
                     return F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
                 }
                 val handles = UmfpackFactorization.Handles(arena, numericHolder)
-                val factorization = UmfpackFactorization(a, NOT_SINGULAR, handles)
+                val factorization = UmfpackFactorization(a, NOT_SINGULAR, handles, calls)
                 val (lnz, unz) = UmfpackFactorization.fillOf(info)
                 factorization.lnz = lnz
                 factorization.unz = unz
@@ -105,7 +114,7 @@ public class UmfpackSparseLu : F64SparseLu {
                 return factorization
             } finally {
                 if (owned) {
-                    UmfpackCalls.freeNumeric(numericHolder)
+                    calls.freeNumeric(numericHolder)
                     arena.close()
                 }
             }

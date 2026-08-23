@@ -9,11 +9,12 @@ import com.eignex.koblas.internal.backend.BackendNames
  * supplies the native entry points and the backend's identity. Constructible whenever the host has
  * OpenBLAS, independently of LAPACKE.
  */
-internal class F64CblasBlas(f: CblasFunctions) : F64HostBlasAdapter(NativeCblasCalls(f)) {
+internal class F64CblasBlas(f: CblasFunctions, private val loader: OpenBlasLoader = OpenBlasLoader()) :
+    F64HostBlasAdapter(NativeCblasCalls(f)) {
     override val name: String get() = BackendNames.CBLAS
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY
 
     /** The BLAS half needs only CBLAS, which a host can provide without LAPACKE. */
-    override val isAvailable: Boolean get() = OpenBlasLoader.cblas != null
+    override val isAvailable: Boolean get() = loader.cblas != null
 }
