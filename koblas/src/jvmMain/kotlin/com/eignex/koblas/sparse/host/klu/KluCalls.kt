@@ -7,6 +7,7 @@ import java.lang.foreign.Linker
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.SymbolLookup
 import java.lang.foreign.ValueLayout.ADDRESS
+import java.lang.foreign.ValueLayout.JAVA_DOUBLE
 import java.lang.foreign.ValueLayout.JAVA_INT
 import java.lang.invoke.MethodHandle
 
@@ -21,6 +22,7 @@ internal object KluCalls {
         val defaults: MethodHandle,
         val analyze: MethodHandle,
         val factor: MethodHandle,
+        val rcond: MethodHandle,
         val solve: MethodHandle,
         val transposedSolve: MethodHandle,
         val freeSymbolic: MethodHandle,
@@ -62,6 +64,7 @@ internal object KluCalls {
             defaults = bind("klu_defaults", JAVA_INT, ADDRESS),
             analyze = bind("klu_analyze", ADDRESS, JAVA_INT, ADDRESS, ADDRESS, ADDRESS),
             factor = bind("klu_factor", ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
+            rcond = bind("klu_rcond", JAVA_INT, ADDRESS, ADDRESS, ADDRESS),
             solve = bind("klu_solve", JAVA_INT, ADDRESS, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS),
             transposedSolve = bind("klu_tsolve", JAVA_INT, ADDRESS, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS),
             freeSymbolic = bind("klu_free_symbolic", JAVA_INT, ADDRESS, ADDRESS),
@@ -108,9 +111,17 @@ internal object KluCalls {
                 error("klu_factor failed with status ${common.get(JAVA_INT, KLU_COMMON_STATUS)}")
             }
             numericHolder.set(ADDRESS, 0, numeric)
-            return KluFactor(a, arena, common, symbolicHolder, numericHolder)
+            check((h.rcond.call(symbolic, numeric, common) as Int) != 0) { "klu_rcond failed" }
+            return KluFactor(
+                a,
+                arena,
+                common,
+                symbolicHolder,
+                numericHolder,
+                common.get(JAVA_DOUBLE, KLU_COMMON_RCOND),
+            )
         } catch (@Suppress("TooGenericExceptionCaught") t: Throwable) {
-            free(KluFactor(a, arena, common, symbolicHolder, numericHolder))
+            free(KluFactor(a, arena, common, symbolicHolder, numericHolder, 0.0))
             throw t
         }
     }
@@ -154,6 +165,7 @@ internal class KluFactor(
     val common: MemorySegment,
     val symbolicHolder: MemorySegment,
     val numericHolder: MemorySegment,
+    val reciprocalPivotConditionEstimate: Double,
 ) {
     val numeric: MemorySegment get() = numericHolder.get(ADDRESS, 0).reinterpret(KLU_NUMERIC_BYTES)
 
@@ -169,6 +181,7 @@ private const val KLU_COMMON_BYTES = 160L
 private const val KLU_NUMERIC_BYTES = 168L
 private const val KLU_COMMON_SCALE = 48L
 private const val KLU_COMMON_STATUS = 76L
+private const val KLU_COMMON_RCOND = 112L
 private const val KLU_NUMERIC_LNZ = 8L
 private const val KLU_NUMERIC_UNZ = 12L
 private const val KLU_SCALE_NONE = 0

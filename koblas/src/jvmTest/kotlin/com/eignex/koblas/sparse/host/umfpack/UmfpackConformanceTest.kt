@@ -5,6 +5,7 @@ import com.eignex.koblas.assertClose
 import com.eignex.koblas.sparse.assertAliasedDestinationSolves
 import com.eignex.koblas.sparse.assertControlArrayKeepsUmfpackDefaults
 import com.eignex.koblas.sparse.assertEmptyAndZeroMatricesTakeThePortablePath
+import com.eignex.koblas.sparse.assertReciprocalPivotConditionEstimateIsBounded
 import com.eignex.koblas.sparse.assertRegistersAsTheSparseLuHalf
 import com.eignex.koblas.sparse.assertRepeatedFactorizationsSurvive
 import com.eignex.koblas.sparse.assertSingularIsReportedWithUnknownPosition
@@ -44,6 +45,12 @@ class UmfpackConformanceTest {
     fun `an aliased destination still solves correctly`() {
         requireSuiteSparse()
         assertAliasedDestinationSolves(umfpack)
+    }
+
+    @Test
+    fun `the reciprocal pivot condition estimate is bounded`() {
+        requireSuiteSparse()
+        assertReciprocalPivotConditionEstimateIsBounded(umfpack)
     }
 
     @Test
