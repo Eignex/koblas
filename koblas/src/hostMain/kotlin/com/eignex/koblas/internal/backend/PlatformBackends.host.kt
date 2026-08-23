@@ -21,7 +21,7 @@ private fun registerHostBlas() {
     val config = OpenBlasConfig()
     val loader = OpenBlasLoader(config)
     val cblas = loader.cblas ?: return
-    BackendRegistry.registerAutomatic(F64CblasBlas(cblas, loader))
+    BackendRegistry.registerAutomatic(F64CblasBlas(cblas, loader, config))
     // The level-1 primitives sit below the F64Blas seam, so they register as their own half.
     BackendRegistry.registerAutomatic(F64CblasVectorKernels(loader))
     // Without LAPACKE the factorizations stay portable while everything above keeps the host BLAS.

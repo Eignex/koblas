@@ -5,10 +5,10 @@ import com.eignex.koblas.dense.F64Blas
 import com.eignex.koblas.dense.F64Lapack
 import com.eignex.koblas.dense.F64LinearAlgebra
 import com.eignex.koblas.dense.F64VectorKernels
-import com.eignex.koblas.hostblas.HostBlas
-import com.eignex.koblas.hostblas.HostBackends
-import com.eignex.koblas.hostblas.HostLapack
 import com.eignex.koblas.dense.host.cblas.OpenBlasConfig
+import com.eignex.koblas.hostblas.HostBackends
+import com.eignex.koblas.hostblas.HostBlas
+import com.eignex.koblas.hostblas.HostLapack
 import com.eignex.koblas.internal.backend.BundledNativeResources
 import java.nio.file.Path
 
@@ -38,20 +38,9 @@ public class BundledOpenBlas private constructor(private val blas: HostBlas, pri
 internal data class OpenBlasPaths(val openblas: Path, val lapacke: Path?)
 
 private fun loadHostBackends(): HostBackends {
-    if (hasHostLibraryOverride()) {
-        return HostBackends()
-    }
     val paths = OpenBlasResources.extract()
     return HostBackends(OpenBlasConfig(paths.openblas.toString(), paths.lapacke?.toString()))
 }
-
-private fun hasHostLibraryOverride(): Boolean = listOf(
-    "koblas.openblas.path",
-    "koblas.lapacke.path",
-).any { System.getProperty(it) != null } || listOf(
-    "KOBLAS_OPENBLAS_PATH",
-    "KOBLAS_LAPACKE_PATH",
-).any { System.getenv(it) != null }
 
 internal object OpenBlasResources {
     private val platform: String = BundledNativeResources.supportedPlatform { os, architecture ->

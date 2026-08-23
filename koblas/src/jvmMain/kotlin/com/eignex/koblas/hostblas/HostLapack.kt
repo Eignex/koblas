@@ -8,6 +8,7 @@ import com.eignex.koblas.dense.host.jvm.HostBlasCalls
 import com.eignex.koblas.dense.host.jvm.JvmCblasCalls
 import com.eignex.koblas.dense.host.jvm.JvmLapackeCalls
 import com.eignex.koblas.internal.backend.BackendNames
+import com.eignex.koblas.internal.backend.openBlasDispatchThresholds
 
 /**
  * The host LAPACKE through `java.lang.foreign`. Every shared routine lives in [F64HostLapackAdapter]; this
@@ -17,6 +18,7 @@ public class HostLapack internal constructor(private val calls: HostBlasCalls, p
     F64HostLapackAdapter(
         JvmLapackeCalls(calls),
         JvmCblasCalls(calls),
+        dispatch = openBlasDispatchThresholds(config),
     ) {
     public constructor(config: OpenBlasConfig = OpenBlasConfig()) : this(HostBlasCalls(config), config)
     override val name: String get() = BackendNames.OPENBLAS

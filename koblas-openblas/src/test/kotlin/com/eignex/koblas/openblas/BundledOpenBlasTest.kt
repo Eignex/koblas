@@ -33,5 +33,4 @@ class BundledOpenBlasTest {
         assertTrue(path.parent.fileName.toString().startsWith("koblas-openblas-"))
         assertTrue(Files.isDirectory(path.parent))
     }
-
 }

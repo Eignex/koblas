@@ -17,12 +17,7 @@ public class BundledKlu private constructor(private val delegate: KluSparseLu) :
 }
 
 private fun loadKlu(): KluSparseLu {
-    val path = if (System.getProperty("koblas.klu.path") == null && System.getenv("KOBLAS_KLU_PATH") == null) {
-        KluResources.extract().toString()
-    } else {
-        null
-    }
-    return KluSparseLu(KluConfig(path))
+    return KluSparseLu(KluConfig(KluResources.extract().toString()))
 }
 
 internal object KluResources {

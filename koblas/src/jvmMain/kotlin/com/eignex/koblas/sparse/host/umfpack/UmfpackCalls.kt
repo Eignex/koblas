@@ -1,6 +1,5 @@
 package com.eignex.koblas.sparse.host.umfpack
 
-import com.eignex.koblas.internal.backend.nativeLibraryPaths
 import java.lang.foreign.Arena
 import java.lang.foreign.FunctionDescriptor
 import java.lang.foreign.Linker
@@ -89,11 +88,7 @@ internal class UmfpackCalls(private val config: UmfpackConfig) {
      * UnsatisfiedLinkError count as absence, so a StackOverflowError is never read as a missing library.
      */
     private fun openUmfpack(): SymbolLookup? {
-        val paths = config.libraryPath?.let(::listOf) ?: nativeLibraryPaths(
-            "koblas.umfpack.path",
-            "KOBLAS_UMFPACK_PATH",
-            UMFPACK_SONAMES,
-        )
+        val paths = config.libraryPath?.let(::listOf) ?: UMFPACK_SONAMES
         for (soname in paths) {
             val opened = try {
                 SymbolLookup.libraryLookup(soname, Arena.global())

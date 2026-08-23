@@ -6,6 +6,7 @@ import com.eignex.koblas.dense.host.cblas.OpenBlasConfig
 import com.eignex.koblas.dense.host.jvm.HostBlasCalls
 import com.eignex.koblas.dense.host.jvm.JvmCblasCalls
 import com.eignex.koblas.internal.backend.BackendNames
+import com.eignex.koblas.internal.backend.openBlasDispatchThresholds
 
 /**
  * The host OpenBLAS through CBLAS, bound with `java.lang.foreign`. Every routine lives in
@@ -14,6 +15,7 @@ import com.eignex.koblas.internal.backend.BackendNames
 public class HostBlas internal constructor(private val calls: HostBlasCalls) :
     F64HostBlasAdapter(
         JvmCblasCalls(calls),
+        dispatch = openBlasDispatchThresholds(calls.config),
     ) {
     public constructor(config: OpenBlasConfig = OpenBlasConfig()) : this(HostBlasCalls(config))
     override val name: String get() = BackendNames.OPENBLAS
