@@ -4,7 +4,6 @@ import com.eignex.koblas.Backend
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.F64Blas
 import com.eignex.koblas.hostblas.HostBackends
-import com.eignex.koblas.registerBackend
 import com.eignex.koblas.sparse.F64SparseLu
 import com.eignex.koblas.sparse.host.klu.KluSparseLu
 import com.eignex.koblas.sparse.host.umfpack.UmfpackSparseLu
@@ -30,7 +29,7 @@ internal actual fun registerPlatformBackends() {
         }
         if (!probe(provider)) continue
         // Once, not per half, since registerBackend offers the object as every half it implements.
-        registerBackend(provider)
+        BackendRegistry.registerAutomatic(provider)
     }
     builtinCandidates.forEach { candidate -> candidate.register(denseRequested, sparseRequested) }
 }
@@ -53,7 +52,7 @@ private data class BuiltinBackendCandidate(
         if (!present()) return
         val backend = create()
         if (requested(denseRequested, sparseRequested)?.let { it != backend.name } == true) return
-        registerBackend(backend)
+        BackendRegistry.registerAutomatic(backend)
         afterRegister?.invoke()
     }
 }
@@ -68,7 +67,7 @@ private val builtinCandidates: List<BuiltinBackendCandidate> = listOf(
         present = { defaultHostBackends.blas.isAvailable },
         create = { defaultHostBackends.blas },
         afterRegister = {
-            defaultHostBackends.lapack.takeIf { it.isAvailable }?.let(::registerBackend)
+            defaultHostBackends.lapack.takeIf { it.isAvailable }?.let { BackendRegistry.registerAutomatic(it) }
         },
     ),
     BuiltinBackendCandidate(

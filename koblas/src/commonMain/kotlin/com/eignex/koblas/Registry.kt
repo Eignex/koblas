@@ -12,7 +12,11 @@ public val koblas: F64Context get() = BackendRegistry.activeContext
 /** What this runtime resolved, for startup logging (e.g. `"backend=openblas, kernels=simd(8 lanes)"`). */
 public val koblasInfo: String get() = "backend=${koblas.name}, kernels=${koblas.vectorKernels.name}"
 
-/** Offers [backend] for automatic selection as every half it implements. */
+/**
+ * Completes automatic discovery, if necessary, then offers [backend] as an explicit choice for every half it
+ * implements. Explicit registrations outrank automatically discovered ones; among explicit registrations,
+ * [Backend.priority] selects the winner.
+ */
 public fun registerBackend(backend: Backend) {
     BackendRegistry.register(backend)
 }

@@ -41,21 +41,31 @@ internal object BackendRegistry {
         }
 
 /**
-     * Offers [backend] for automatic selection as every half it implements. It becomes active only while no
-     * explicit override is set and nothing stronger was offered for the same half.
+     * Completes automatic discovery, then offers [backend] explicitly as every half it implements. Explicit
+     * offers outrank automatic ones; priority ranks offers of the same kind.
      *
      * A backend is offered to the registry of every element type, since which one it serves is which halves it
      * implements, and one object may serve more than one.
      *
      * Safe to call from any thread: each half takes its offer through a compare-and-set, so concurrent
-     * registrations settle on the strongest rather than on whoever wrote last. Whole-context installation
-     * still wants startup, since it replaces the whole context rather than ranking into a half.
+     * registrations settle on the strongest explicit offer rather than on whoever wrote last. Whole-context
+     * installation still wants startup, since it replaces the whole context rather than ranking into a half.
      *
      * @throws IllegalArgumentException if [backend] implements no half of any element type, which would
      *   otherwise register nothing and look like it worked.
      */
     internal fun register(backend: Backend) {
-        val offered = f64.offer(backend)
+        discovery
+        offer(backend, explicit = true)
+    }
+
+    /** Offers one automatically discovered backend without recursively starting discovery. */
+    internal fun registerAutomatic(backend: Backend) {
+        offer(backend, explicit = false)
+    }
+
+    private fun offer(backend: Backend, explicit: Boolean) {
+        val offered = f64.offer(backend, explicit)
         require(offered) {
             "${backend.name} implements none of ${F64Registry.HALF_NAMES}, so there is nothing to register it as"
         }

@@ -55,6 +55,18 @@ class BackendSelectionTest {
     }
 
     @Test
+    fun `an explicit registration outranks automatic discovery`() {
+        withCleanBackends {
+            BackendRegistry.registerAutomatic(Fake("automatic", 100))
+            val configured = Fake("configured", 1)
+            registerBackend(configured)
+            BackendRegistry.registerAutomatic(Fake("later automatic", 200))
+            assertSame(configured, koblas.blas)
+            assertSame(configured, koblas.lapack)
+        }
+    }
+
+    @Test
     fun `the incumbent backend survives a cleared registry`() {
         // Restoring the incumbent keeps the host BLAS suites valid whatever order tests run in. Compared by
         // name rather than by identity: the registry is put back by replaying discovery, which builds a
