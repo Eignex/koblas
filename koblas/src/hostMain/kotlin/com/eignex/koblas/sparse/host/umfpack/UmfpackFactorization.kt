@@ -21,7 +21,6 @@ import kotlinx.cinterop.ptr
 import kotlinx.cinterop.usePinned
 import kotlinx.cinterop.value
 import kotlin.experimental.ExperimentalNativeApi
-import kotlin.math.pow
 import kotlin.native.concurrent.ThreadLocal
 import kotlin.native.ref.createCleaner
 
@@ -95,33 +94,6 @@ public class UmfpackFactorization internal constructor(
         }
         check(status == OK) { "umfpack_di_solve failed with status $status" }
         return out
-    }
-
-    /**
-     * UMFPACK reports the determinant as a mantissa and a base-10 exponent. Recombining them here can
-     * overflow to infinity, which is the honest answer for a value a double cannot hold.
-     */
-    override fun determinant(): Double {
-        if (singular) return 0.0
-        val mantissa = DoubleArray(1)
-        val exponent = DoubleArray(1)
-        val info = DoubleArray(INFO)
-        val status = anchoring {
-            mantissa.usePinned { mx ->
-                exponent.usePinned { ex ->
-                    info.usePinned { ip ->
-                        f.determinant(
-                            mx.addressOf(0),
-                            ex.addressOf(0),
-                            handle.pointer.pointed.value,
-                            ip.addressOf(0),
-                        )
-                    }
-                }
-            }
-        }
-        check(status == OK) { "umfpack_di_get_determinant failed with status $status" }
-        return mantissa[0] * 10.0.pow(exponent[0])
     }
 
     /**

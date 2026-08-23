@@ -3,10 +3,6 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.sparse.lu
-import com.eignex.koblas.wellConditioned
-import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -31,17 +27,6 @@ class LinearAlgebraDeterminantTest {
         assertEquals(-3.0, c.lu().determinant(), 1e-9)
         assertEquals(1.0, F64DenseMatrix(0, 0).lu().determinant())
         assertEquals(1.0, F64DenseMatrix.diagonal(4).lu().determinant(), 1e-12)
-    }
-
-    @Test
-    fun `dense and sparse determinants agree on random matrices`() {
-        val rng = Random(20260803)
-        for (n in intArrayOf(1, 3, 7, 15)) {
-            val a = wellConditioned(n, rng)
-            val cols = List(n) { j -> (0 until n).map { i -> i to a[i, j] } }
-            val sparseDet = F64SparseMatrix.ofColumns(n, n, cols).lu().determinant()
-            assertClose(a.lu().determinant(), sparseDet, "n=$n dense vs sparse determinant", tolerance = 1e-9)
-        }
     }
 
     @Test

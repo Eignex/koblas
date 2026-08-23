@@ -4,7 +4,6 @@ import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.dense.permutationSign
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.requireSquare
 import com.eignex.koblas.sparse.*
@@ -32,7 +31,7 @@ public class F64SparseLuFactorization private constructor(
     private val uColVal: Array<DoubleArray>,
     private val uDiag: DoubleArray,
     /** Per-original-row equilibration factor applied before factorization, so the factors are of `E·B`. All
-     *  1.0 when equilibration is off. The solves and [determinant] correct for it. */
+     *  1.0 when equilibration is off. The solves correct for it. */
     private val rowScale: DoubleArray,
     /** Nonzeros in L and U including the diagonal, the factorization's fill. */
     override val nnz: Int,
@@ -129,17 +128,6 @@ public class F64SparseLuFactorization private constructor(
             x[k] = if (divide) s / uDiag[k] else s
             k += step
         }
-    }
-
-    /**
-     * `det(B)` in floating point, as `sign(P)·sign(Q)·∏ uDiag / ∏ e`. The factors are of `E·B`, so the
-     * row-equilibration product is divided back out.
-     */
-    override fun determinant(): Double {
-        var d = permutationSign(perm) * permutationSign(colPerm)
-        for (k in 0 until m) d *= uDiag[k]
-        for (i in 0 until m) d /= rowScale[i] // undo the row equilibration
-        return d
     }
 
     /** Entry points for factorizing. */

@@ -7,7 +7,6 @@ import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.koblas
 import com.eignex.koblas.sparse.assertAliasedDestinationSolves
 import com.eignex.koblas.sparse.assertControlArrayKeepsUmfpackDefaults
-import com.eignex.koblas.sparse.assertDeterminantAgreesWithReference
 import com.eignex.koblas.sparse.assertEmptyAndZeroMatricesTakeThePortablePath
 import com.eignex.koblas.sparse.assertRegistersAsTheSparseLuHalf
 import com.eignex.koblas.sparse.assertRepeatedFactorizationsSurvive
@@ -40,9 +39,6 @@ class UmfpackNativeConformanceTest {
 
     @Test
     fun `an aliased destination still solves correctly`() = assertAliasedDestinationSolves(umfpack)
-
-    @Test
-    fun `the determinant agrees with the portable factorization`() = assertDeterminantAgreesWithReference(umfpack)
 
     @Test
     fun `a singular matrix is reported singular with an unknown position`() =
@@ -78,7 +74,5 @@ class UmfpackNativeConformanceTest {
         assertNull(AnchoredFactorization.held, "nothing should be anchored before a call")
         f.solve(DoubleArray(12) { 1.0 })
         assertNull(AnchoredFactorization.held, "solve left its factorization anchored")
-        f.determinant()
-        assertNull(AnchoredFactorization.held, "determinant left its factorization anchored")
     }
 }

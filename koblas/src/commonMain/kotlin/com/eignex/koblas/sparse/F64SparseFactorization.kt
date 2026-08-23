@@ -37,16 +37,11 @@ public interface F64SparseFactorization {
 
     /** Solve `B x = b`, or `Bᵀ x = b` when [transpose], into a fresh result. */
     public fun solve(b: DoubleArray, transpose: Boolean = false): DoubleArray = solveInto(b, DoubleArray(n), transpose)
-
-    /** `det(B)`, or exactly `0.0` when [singular]. */
-    public fun determinant(): Double
 }
 
 /** What [F64SparseLu.factor] returns when no numerically acceptable pivot remains. */
 public class F64SingularSparseFactorization(override val n: Int, override val failedAt: Int) : F64SparseFactorization {
     override val nnz: Int get() = 0
-
-    override fun determinant(): Double = 0.0
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray =
         throw singularFailure(failedAt, "solve")

@@ -41,7 +41,6 @@ internal object UmfpackCalls {
         val solve: MethodHandle,
         val freeSymbolic: MethodHandle,
         val freeNumeric: MethodHandle,
-        val determinant: MethodHandle,
         val defaults: MethodHandle,
     )
 
@@ -111,20 +110,17 @@ internal object UmfpackCalls {
         val solve = bind(found, "umfpack_di_solve", intsThenPointers(ints = 1, pointers = 8))
         val freeSymbolic = bind(found, "umfpack_di_free_symbolic", FunctionDescriptor.ofVoid(ADDRESS))
         val freeNumeric = bind(found, "umfpack_di_free_numeric", FunctionDescriptor.ofVoid(ADDRESS))
-        // int umfpack_di_get_determinant(double *Mx, double *Ex, void *Numeric, double Info[])
-        val determinant = bind(found, "umfpack_di_get_determinant", intsThenPointers(ints = 0, pointers = 4))
         // void umfpack_di_defaults(double Control[UMFPACK_CONTROL])
         val defaults = bind(found, "umfpack_di_defaults", FunctionDescriptor.ofVoid(ADDRESS))
-        // Every one is required. An optional binding degrades silently instead: without _get_determinant a
-        // determinant reads back as zero, which is indistinguishable from singular, without _defaults the
-        // solve keeps UMFPACK's iterative refinement on, and without _free_symbolic the analysis leaks.
+        // Every one is required. An optional binding degrades silently instead: without _defaults the solve
+        // keeps UMFPACK's iterative refinement on, and without _free_symbolic the analysis leaks.
         if (symbolic == null || numeric == null || solve == null || freeNumeric == null ||
-            freeSymbolic == null || determinant == null || defaults == null
+            freeSymbolic == null || defaults == null
         ) {
             bindingFailure = "the host libumfpack lacks one of the umfpack_di_ symbols koblas binds"
             return null
         }
-        return Handles(symbolic, numeric, solve, freeSymbolic, freeNumeric, determinant, defaults)
+        return Handles(symbolic, numeric, solve, freeSymbolic, freeNumeric, defaults)
     }
 
     /** `int f(...)` taking [ints] leading `int` arguments then [pointers] pointers. */
@@ -204,12 +200,6 @@ internal object UmfpackCalls {
         solveControl ?: MemorySegment.NULL,
         info,
     ) as Int
-
-    /** Writes the mantissa into [mx] and the base-10 exponent into [ex]. */
-    fun determinant(mx: MemorySegment, ex: MemorySegment, numeric: MemorySegment, info: MemorySegment): Int {
-        val handle = handlesOrThrow().determinant
-        return handle.invokeWithArguments(mx, ex, numeric, info) as Int
-    }
 
     /** The analysis is not needed once the numeric factors exist. */
     fun freeSymbolic(symbolicHolder: MemorySegment) {

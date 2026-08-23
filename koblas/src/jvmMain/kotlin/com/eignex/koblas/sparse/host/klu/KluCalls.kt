@@ -7,7 +7,6 @@ import java.lang.foreign.Linker
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.SymbolLookup
 import java.lang.foreign.ValueLayout.ADDRESS
-import java.lang.foreign.ValueLayout.JAVA_DOUBLE
 import java.lang.foreign.ValueLayout.JAVA_INT
 import java.lang.invoke.MethodHandle
 
@@ -130,22 +129,6 @@ internal object KluCalls {
         check(status != 0) { "KLU solve failed with status ${factor.common.get(JAVA_INT, KLU_COMMON_STATUS)}" }
     }
 
-    fun determinant(factor: KluFactor): Double {
-        val numeric = factor.numeric
-        val symbolic = factor.symbolic
-        val diagonal = numeric.get(ADDRESS, KLU_NUMERIC_UDIAG).reinterpret(factor.n.toLong() * JAVA_DOUBLE.byteSize())
-        var determinant = 1.0
-        for (i in 0 until factor.n) determinant *= diagonal.getAtIndex(JAVA_DOUBLE, i.toLong())
-        determinant *= permutationSign(numeric.get(ADDRESS, KLU_NUMERIC_PNUM), factor.n)
-        determinant *= permutationSign(symbolic.get(ADDRESS, KLU_SYMBOLIC_Q), factor.n)
-        val scales = numeric.get(ADDRESS, KLU_NUMERIC_RS)
-        if (scales.address() != 0L) {
-            val boundedScales = scales.reinterpret(factor.n.toLong() * JAVA_DOUBLE.byteSize())
-            for (i in 0 until factor.n) determinant *= boundedScales.getAtIndex(JAVA_DOUBLE, i.toLong())
-        }
-        return determinant
-    }
-
     fun free(factor: KluFactor) {
         val h = handles ?: return
         if (factor.numericHolder.get(
@@ -163,21 +146,6 @@ internal object KluCalls {
             h.freeSymbolic.call(factor.symbolicHolder, factor.common)
         }
     }
-
-    private fun permutationSign(permutation: MemorySegment, n: Int): Double {
-        val boundedPermutation = permutation.reinterpret(n.toLong() * JAVA_INT.byteSize())
-        var inversions = 0
-        for (i in 0 until n) {
-            for (j in i + 1 until n) {
-                if (boundedPermutation.getAtIndex(JAVA_INT, i.toLong()) >
-                    boundedPermutation.getAtIndex(JAVA_INT, j.toLong())
-                ) {
-                    inversions++
-                }
-            }
-        }
-        return if (inversions and 1 == 0) 1.0 else -1.0
-    }
 }
 
 internal class KluFactor(
@@ -187,7 +155,6 @@ internal class KluFactor(
     val symbolicHolder: MemorySegment,
     val numericHolder: MemorySegment,
 ) {
-    val symbolic: MemorySegment get() = symbolicHolder.get(ADDRESS, 0).reinterpret(KLU_SYMBOLIC_BYTES)
     val numeric: MemorySegment get() = numericHolder.get(ADDRESS, 0).reinterpret(KLU_NUMERIC_BYTES)
 
     val nnz: Int
@@ -199,16 +166,11 @@ internal class KluFactor(
 internal val KLU_SONAMES = listOf("libklu.so.2", "libklu.2.dylib")
 
 private const val KLU_COMMON_BYTES = 160L
-private const val KLU_SYMBOLIC_BYTES = 96L
 private const val KLU_NUMERIC_BYTES = 168L
 private const val KLU_COMMON_SCALE = 48L
 private const val KLU_COMMON_STATUS = 76L
-private const val KLU_SYMBOLIC_Q = 56L
 private const val KLU_NUMERIC_LNZ = 8L
 private const val KLU_NUMERIC_UNZ = 12L
-private const val KLU_NUMERIC_PNUM = 24L
-private const val KLU_NUMERIC_UDIAG = 88L
-private const val KLU_NUMERIC_RS = 96L
 private const val KLU_SCALE_NONE = 0
 private const val KLU_SCALE_MAX = 2
 private const val KLU_SINGULAR = 1

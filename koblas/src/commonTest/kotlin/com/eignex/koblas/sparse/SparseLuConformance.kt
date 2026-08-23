@@ -71,17 +71,6 @@ internal fun assertAliasedDestinationSolves(lapack: F64SparseLu) {
     assertClose(expected, aliased, "aliased destination", tolerance = 1e-12)
 }
 
-internal fun assertDeterminantAgreesWithReference(lapack: F64SparseLu) {
-    val rng = Random(20260817)
-    for (n in intArrayOf(1, 3, 8)) {
-        val a = sparseConformanceSystem(n, rng)
-        val host = lapack.factor(a).determinant()
-        val portable = F64ReferenceSparseLinearAlgebra.factor(a).determinant()
-        // The comparison is relative because the values grow with n.
-        assertTrue(abs(host / portable - 1.0) < 1e-9, "n=$n determinant disagreed: $host vs $portable")
-    }
-}
-
 /** A host that cannot name the failing pivot must say so rather than invent a position. */
 internal fun assertSingularIsReportedWithUnknownPosition(lapack: F64SparseLu) {
     val rank1 = F64SparseMatrix.ofColumns(
@@ -93,7 +82,6 @@ internal fun assertSingularIsReportedWithUnknownPosition(lapack: F64SparseLu) {
     assertTrue(f.singular, "a rank-1 matrix should have been called singular")
     assertEquals(SINGULAR_POSITION_UNKNOWN, f.failedAt, "a host that cannot name the pivot must say so")
     assertEquals(0, f.nnz, "a singular factorization has no fill")
-    assertEquals(0.0, f.determinant(), "a singular factorization has determinant zero")
     assertFailsWith<SingularMatrix> { f.solve(doubleArrayOf(1.0, 1.0)) }
 }
 

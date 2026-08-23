@@ -4,7 +4,6 @@ import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.sparse.assertAliasedDestinationSolves
 import com.eignex.koblas.sparse.assertControlArrayKeepsUmfpackDefaults
-import com.eignex.koblas.sparse.assertDeterminantAgreesWithReference
 import com.eignex.koblas.sparse.assertEmptyAndZeroMatricesTakeThePortablePath
 import com.eignex.koblas.sparse.assertRegistersAsTheSparseLuHalf
 import com.eignex.koblas.sparse.assertRepeatedFactorizationsSurvive
@@ -45,12 +44,6 @@ class UmfpackConformanceTest {
     fun `an aliased destination still solves correctly`() {
         requireSuiteSparse()
         assertAliasedDestinationSolves(umfpack)
-    }
-
-    @Test
-    fun `the determinant agrees with the portable factorization`() {
-        requireSuiteSparse()
-        assertDeterminantAgreesWithReference(umfpack)
     }
 
     @Test
@@ -110,7 +103,6 @@ class UmfpackConformanceTest {
                 umfpack.factor(a).solveInto(b, DoubleArray(n)),
                 "solveInto under collection pressure round $round",
             )
-            umfpack.factor(a).determinant()
             if (round % 10 == 0) System.gc()
         }
     }

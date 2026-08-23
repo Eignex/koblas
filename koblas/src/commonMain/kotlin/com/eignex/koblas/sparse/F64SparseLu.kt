@@ -15,7 +15,7 @@ public interface F64SparseLu : Backend {
      * column of [a] to attribute it to.
      *
      * @param a the square matrix to factorize.
-     * @param equilibrate scale rows by a power of two first; the solves and the determinant undo it.
+     * @param equilibrate scale rows by a power of two first; the solves undo it.
      * @param dropTolerance discard produced entries this far below the largest magnitude, giving an
      *   incomplete factorization.
      */
