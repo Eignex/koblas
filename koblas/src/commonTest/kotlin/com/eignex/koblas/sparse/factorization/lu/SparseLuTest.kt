@@ -113,7 +113,7 @@ class SparseLuTest {
     fun `the reciprocal pivot condition estimate reads the U diagonal range`() {
         val matrix = square(doubleArrayOf(1.0, 0.0), doubleArrayOf(0.0, 4.0))
 
-        assertEquals(0.25, F64ReferenceSparseLinearAlgebra.factor(matrix).reciprocalPivotConditionEstimate)
+        assertEquals(0.25, F64ReferenceSparseLinearAlgebra.factor(matrix).rcond)
     }
 
     @Test
@@ -127,7 +127,7 @@ class SparseLuTest {
             assertTrue(f.singular, "expected singular for $a")
             assertEquals(2, f.n)
             assertEquals(0, f.nnz, "a singular factorization has no fill")
-            assertEquals(0.0, f.reciprocalPivotConditionEstimate)
+            assertEquals(0.0, f.rcond)
             assertFailsWith<SingularMatrix> { f.solve(doubleArrayOf(1.0, 2.0)) }
         }
         // The failing pivot position is koblas's own, so this uses the portable factorization. UMFPACK reports only
