@@ -16,9 +16,7 @@ public class BundledKlu private constructor(private val delegate: KluSparseLu) :
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 2
 }
 
-private fun loadKlu(): KluSparseLu {
-    return KluSparseLu(KluConfig(KluResources.extract().toString()))
-}
+private fun loadKlu(): KluSparseLu = KluSparseLu(KluConfig(KluResources.extract().toString()))
 
 internal object KluResources {
     private val platform = BundledNativeResources.supportedPlatform { _, _ ->
