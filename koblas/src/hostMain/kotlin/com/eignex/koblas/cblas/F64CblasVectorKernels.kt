@@ -19,8 +19,8 @@ import kotlinx.cinterop.usePinned
  * threshold routes those here. Each routine answers one itself: an empty run sits at the end of its array,
  * where there is no element to take an address of.
  */
-public class F64CblasVectorKernels(config: OpenBlasConfig = OpenBlasConfig()) : F64VectorKernels {
-    private val loader = OpenBlasLoader(config)
+public class F64CblasVectorKernels internal constructor(private val loader: OpenBlasLoader) : F64VectorKernels {
+    public constructor(config: OpenBlasConfig = OpenBlasConfig()) : this(OpenBlasLoader(config))
     override val name: String get() = BackendNames.CBLAS
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY

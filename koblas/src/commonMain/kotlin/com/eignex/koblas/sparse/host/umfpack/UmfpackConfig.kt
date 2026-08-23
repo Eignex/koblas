@@ -20,7 +20,7 @@ public data class UmfpackConfig(
     val iterativeRefinementSteps: Int = 0,
     /** UMFPACK's threshold-pivoting tolerance. */
     val pivotTolerance: Double = 0.1,
-    /** Row scaling used while constructing numeric factors. */
+    /** Row scaling used while constructing numeric factors requested with `equilibrate = true`. */
     val scaling: UmfpackScaling = UmfpackScaling.SUM,
 ) {
     init {

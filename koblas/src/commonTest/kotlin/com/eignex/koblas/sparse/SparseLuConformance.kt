@@ -121,18 +121,20 @@ internal fun assertRegistersAsTheSparseLuHalf(lapack: F64SparseLu, n: Int) {
     }
 }
 
-/** Equilibration and a drop tolerance are koblas's own, so a host must hand those requests back. */
-internal fun assertUnsupportedRequestsFallBack(
+/** A host may equilibrate natively but must hand a drop-tolerance request back to koblas. */
+internal fun assertNativeEquilibrationAndDropToleranceFallsBack(
     lapack: F64SparseLu,
     hostFactorization: (F64SparseFactorization) -> Boolean,
 ) {
     val rng = Random(20260818)
     val a = sparseConformanceSystem(6, rng)
     val b = DoubleArray(6) { rng.nextDouble(-1.0, 1.0) }
-    for (fallback in listOf(lapack.factor(a, equilibrate = true), lapack.factor(a, dropTolerance = 1e-12))) {
-        assertTrue(!hostFactorization(fallback), "a request the host cannot serve must not be ignored")
-        assertClose(b, a.gemv(fallback.solve(b)), "fallback residual", tolerance = 1e-9)
-    }
+    val equilibrated = lapack.factor(a, equilibrate = true)
+    assertTrue(hostFactorization(equilibrated), "native equilibration must retain the host factorization")
+    assertClose(b, a.gemv(equilibrated.solve(b)), "equilibrated residual", tolerance = 1e-9)
+    val fallback = lapack.factor(a, dropTolerance = 1e-12)
+    assertTrue(!hostFactorization(fallback), "a drop-tolerance request must not be ignored")
+    assertClose(b, a.gemv(fallback.solve(b)), "fallback residual", tolerance = 1e-9)
 }
 
 /** Native handles are freed per factorization, so a long loop must not grow without bound. */

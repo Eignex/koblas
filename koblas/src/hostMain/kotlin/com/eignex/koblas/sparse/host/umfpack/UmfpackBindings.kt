@@ -70,20 +70,26 @@ internal class UmfpackLoader(private val config: UmfpackConfig) {
      * UMFPACK's defaults with this instance's requested policy. Filled by umfpack_di_defaults rather than
      * left zeroed, since a zeroed Control overrides the remaining heuristics with zeros.
      */
-    val control: DoubleArray? = functions?.let { f ->
+    private fun control(scaling: UmfpackScaling): DoubleArray? = functions?.let { f ->
         val values = DoubleArray(CONTROL)
         values.usePinned { f.defaults(it.addressOf(0)) }
         values[IRSTEP] = config.iterativeRefinementSteps.toDouble()
         values[PIVOT_TOLERANCE] = config.pivotTolerance
-        values[SCALE] = config.scaling.nativeValue
+        values[SCALE] = scaling.nativeValue
         values
     }
 
+    private val scaledControl: DoubleArray? by lazy { control(config.scaling) }
+    private val unscaledControl: DoubleArray? by lazy { control(UmfpackScaling.NONE) }
+
+    /** The Control array whose scaling agrees with one [F64SparseLu.factor] request. */
+    fun control(equilibrate: Boolean): DoubleArray? = if (equilibrate) scaledControl else unscaledControl
+
     /** The refinement steps a solve will run, or null when no Control array could be built. */
-    val refinementSteps: Double? get() = control?.get(IRSTEP)
+    val refinementSteps: Double? get() = scaledControl?.get(IRSTEP)
 
     /** The pivot tolerance, for the test that the array holds UMFPACK's defaults and not zeros. */
-    val pivotTolerance: Double? get() = control?.get(PIVOT_TOLERANCE)
+    val pivotTolerance: Double? get() = scaledControl?.get(PIVOT_TOLERANCE)
 
     val available: Boolean get() = functions != null
 }

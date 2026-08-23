@@ -44,25 +44,29 @@ internal class UmfpackCalls(private val config: UmfpackConfig) {
         val defaults: MethodHandle,
     )
 
-    /**
-     * The Control array passed through factorization and every solve. Null until the library resolves.
-     */
-    private val solveControl: MemorySegment? by lazy { buildSolveControl() }
+    /** The configured scaling Control array, built lazily once the library resolves. */
+    private val scaledControl: MemorySegment? by lazy { buildControl(config.scaling) }
+
+    /** The unscaled Control array used for factors requested without equilibration. */
+    private val unscaledControl: MemorySegment? by lazy { buildControl(UmfpackScaling.NONE) }
 
     /** The refinement steps a solve will run, or null when no Control array could be built. */
-    val refinementSteps: Double? get() = solveControl?.getAtIndex(JAVA_DOUBLE, IRSTEP.toLong())
+    val refinementSteps: Double? get() = scaledControl?.getAtIndex(JAVA_DOUBLE, IRSTEP.toLong())
 
     /** The pivot tolerance, for the test that the array holds UMFPACK's defaults and not zeros. */
-    val pivotTolerance: Double? get() = solveControl?.getAtIndex(JAVA_DOUBLE, PIVOT_TOLERANCE.toLong())
+    val pivotTolerance: Double? get() = scaledControl?.getAtIndex(JAVA_DOUBLE, PIVOT_TOLERANCE.toLong())
 
-    private fun buildSolveControl(): MemorySegment? {
+    /** The Control array whose scaling agrees with one [F64SparseLu.factor] request. */
+    fun control(equilibrate: Boolean): MemorySegment? = if (equilibrate) scaledControl else unscaledControl
+
+    private fun buildControl(scaling: UmfpackScaling): MemorySegment? {
         val defaults = (handles ?: return null).defaults
         // The global arena keeps this read-only array alive past every solve.
         val control = Arena.global().allocate(JAVA_DOUBLE, CONTROL.toLong())
         defaults.invokeWithArguments(control)
         control.setAtIndex(JAVA_DOUBLE, IRSTEP.toLong(), config.iterativeRefinementSteps.toDouble())
         control.setAtIndex(JAVA_DOUBLE, PIVOT_TOLERANCE.toLong(), config.pivotTolerance)
-        control.setAtIndex(JAVA_DOUBLE, SCALE.toLong(), config.scaling.nativeValue)
+        control.setAtIndex(JAVA_DOUBLE, SCALE.toLong(), scaling.nativeValue)
         return control
     }
 
@@ -154,6 +158,7 @@ internal class UmfpackCalls(private val config: UmfpackConfig) {
         rowIdx: MemorySegment,
         values: MemorySegment,
         symbolicOut: MemorySegment,
+        control: MemorySegment?,
         info: MemorySegment,
     ): Int = handlesOrThrow().symbolic.invokeWithArguments(
         n,
@@ -162,7 +167,7 @@ internal class UmfpackCalls(private val config: UmfpackConfig) {
         rowIdx,
         values,
         symbolicOut,
-        solveControl ?: MemorySegment.NULL,
+        control ?: MemorySegment.NULL,
         info,
     ) as Int
 
@@ -173,6 +178,7 @@ internal class UmfpackCalls(private val config: UmfpackConfig) {
         values: MemorySegment,
         symbolic: MemorySegment,
         numericOut: MemorySegment,
+        control: MemorySegment?,
         info: MemorySegment,
     ): Int = handlesOrThrow().numeric.invokeWithArguments(
         colPtr,
@@ -180,7 +186,7 @@ internal class UmfpackCalls(private val config: UmfpackConfig) {
         values,
         symbolic,
         numericOut,
-        solveControl ?: MemorySegment.NULL,
+        control ?: MemorySegment.NULL,
         info,
     ) as Int
 
@@ -194,6 +200,7 @@ internal class UmfpackCalls(private val config: UmfpackConfig) {
         x: MemorySegment,
         b: MemorySegment,
         numeric: MemorySegment,
+        control: MemorySegment?,
         info: MemorySegment,
     ): Int = handlesOrThrow().solve.invokeWithArguments(
         sys,
@@ -203,7 +210,7 @@ internal class UmfpackCalls(private val config: UmfpackConfig) {
         x,
         b,
         numeric,
-        solveControl ?: MemorySegment.NULL,
+        control ?: MemorySegment.NULL,
         info,
     ) as Int
 

@@ -53,7 +53,7 @@ public class UmfpackSparseLu(
     override fun factor(a: F64SparseMatrix, equilibrate: Boolean, dropTolerance: Double): F64SparseFactorization {
         requireSquare(a, "factor")
         val f = loader.functions ?: return F64SparseLuFactorization.factorCsc(a, equilibrate, dropTolerance)
-        if (equilibrate || dropTolerance != NO_DROP) {
+        if (dropTolerance != NO_DROP) {
             return F64SparseLuFactorization.factorCsc(
                 a,
                 equilibrate,
@@ -64,6 +64,7 @@ public class UmfpackSparseLu(
         if (a.rows == 0 || a.nnz == 0) return F64SparseLuFactorization.factorCsc(a)
 
         val info = DoubleArray(INFO)
+        val control = loader.control(equilibrate)
         // Nulled for the reason [UmfpackFactorization.allocateHandle] nulls its own holder: nativeHeap.alloc
         // does not clear, and the free below runs whatever the analysis returned. UMFPACK nulls this itself
         // on the error paths it has today, so the guard is against the ones it might not.
@@ -76,7 +77,7 @@ public class UmfpackSparseLu(
         // the life of the process.
         @Suppress("TooGenericExceptionCaught") // rethrown, and the handle has no other owner yet
         val status = try {
-            analyzeAndFactor(a, symbolicHolder, handle, info, loader.control, f)
+            analyzeAndFactor(a, symbolicHolder, handle, info, control, f)
         } catch (t: Throwable) {
             handle.release()
             throw t
@@ -95,7 +96,7 @@ public class UmfpackSparseLu(
             handle.release()
             return F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
         }
-        val factorization = UmfpackFactorization(a, NOT_SINGULAR, handle, f, loader.control)
+        val factorization = UmfpackFactorization(a, NOT_SINGULAR, handle, f, control)
         val (lnz, unz) = UmfpackFactorization.fillOf(info)
         factorization.lnz = lnz
         factorization.unz = unz

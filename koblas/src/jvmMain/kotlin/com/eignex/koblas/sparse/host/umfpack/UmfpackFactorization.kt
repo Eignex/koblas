@@ -25,6 +25,7 @@ public class UmfpackFactorization internal constructor(
     override val failedAt: Int,
     private val handles: Handles,
     private val calls: UmfpackCalls,
+    private val control: MemorySegment?,
 ) : F64SparseFactorization {
 
     /**
@@ -73,6 +74,7 @@ public class UmfpackFactorization internal constructor(
                     MemorySegment.ofArray(out),
                     MemorySegment.ofArray(rhs),
                     handles.numericHolder.get(ADDRESS, 0),
+                    control,
                     info,
                 )
                 check(status == OK) { "umfpack_di_solve failed with status $status" }
