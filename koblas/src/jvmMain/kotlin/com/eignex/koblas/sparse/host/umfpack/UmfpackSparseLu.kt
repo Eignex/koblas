@@ -100,8 +100,7 @@ public class UmfpackSparseLu : F64SparseLu {
                 val (lnz, unz) = UmfpackFactorization.fillOf(info)
                 factorization.lnz = lnz
                 factorization.unz = unz
-                factorization.reciprocalPivotConditionEstimate =
-                    UmfpackFactorization.reciprocalPivotConditionEstimateOf(info)
+                factorization.rcond = UmfpackFactorization.rcondOf(info)
                 owned = false
                 return factorization
             } finally {

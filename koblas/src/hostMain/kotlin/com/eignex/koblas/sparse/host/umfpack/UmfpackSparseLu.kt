@@ -89,7 +89,7 @@ public class UmfpackSparseLu internal constructor(private val f: UmfpackFunction
         val (lnz, unz) = UmfpackFactorization.fillOf(info)
         factorization.lnz = lnz
         factorization.unz = unz
-        factorization.reciprocalPivotConditionEstimate = UmfpackFactorization.reciprocalPivotConditionEstimateOf(info)
+        factorization.rcond = UmfpackFactorization.rcondOf(info)
         return factorization
     }
 

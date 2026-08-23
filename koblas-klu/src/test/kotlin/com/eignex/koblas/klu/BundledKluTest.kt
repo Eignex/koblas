@@ -26,7 +26,7 @@ class BundledKluTest {
     fun `the bundled KLU reports reciprocal pivot condition`() {
         val matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 4.0)))
 
-        assertEquals(0.25, BundledKlu().factor(matrix).reciprocalPivotConditionEstimate)
+        assertEquals(0.25, BundledKlu().factor(matrix).rcond)
     }
 
     @Test

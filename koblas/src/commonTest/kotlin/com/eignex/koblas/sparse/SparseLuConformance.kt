@@ -73,9 +73,9 @@ internal fun assertAliasedDestinationSolves(lapack: F64SparseLu) {
 
 internal fun assertReciprocalPivotConditionEstimateIsBounded(lapack: F64SparseLu) {
     val identity = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 1.0)))
-    assertEquals(1.0, lapack.factor(identity).reciprocalPivotConditionEstimate)
+    assertEquals(1.0, lapack.factor(identity).rcond)
 
-    val estimate = lapack.factor(sparseConformanceSystem(12, Random(20260824))).reciprocalPivotConditionEstimate
+    val estimate = lapack.factor(sparseConformanceSystem(12, Random(20260824))).rcond
     assertTrue(estimate in 0.0..1.0, "reciprocal pivot condition estimate out of range: $estimate")
 }
 
@@ -90,7 +90,7 @@ internal fun assertSingularIsReportedWithUnknownPosition(lapack: F64SparseLu) {
     assertTrue(f.singular, "a rank-1 matrix should have been called singular")
     assertEquals(SINGULAR_POSITION_UNKNOWN, f.failedAt, "a host that cannot name the pivot must say so")
     assertEquals(0, f.nnz, "a singular factorization has no fill")
-    assertEquals(0.0, f.reciprocalPivotConditionEstimate)
+    assertEquals(0.0, f.rcond)
     assertFailsWith<SingularMatrix> { f.solve(doubleArrayOf(1.0, 1.0)) }
 }
 

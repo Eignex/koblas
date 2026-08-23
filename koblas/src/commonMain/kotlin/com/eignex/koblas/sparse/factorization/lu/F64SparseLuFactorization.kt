@@ -42,7 +42,7 @@ public class F64SparseLuFactorization private constructor(
     /** Always [NOT_SINGULAR]: a [F64SparseLuFactorization] only exists for a matrix that factored completely. */
     override val failedAt: Int get() = NOT_SINGULAR
 
-    override val reciprocalPivotConditionEstimate: Double
+    override val rcond: Double
         get() {
             if (m == 0) return 1.0
             var minimum = Double.POSITIVE_INFINITY

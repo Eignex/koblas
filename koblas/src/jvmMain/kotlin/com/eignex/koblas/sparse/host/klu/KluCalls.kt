@@ -165,7 +165,7 @@ internal class KluFactor(
     val common: MemorySegment,
     val symbolicHolder: MemorySegment,
     val numericHolder: MemorySegment,
-    val reciprocalPivotConditionEstimate: Double,
+    val rcond: Double,
 ) {
     val numeric: MemorySegment get() = numericHolder.get(ADDRESS, 0).reinterpret(KLU_NUMERIC_BYTES)
 

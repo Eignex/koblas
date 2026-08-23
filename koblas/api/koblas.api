@@ -833,7 +833,7 @@ public final class com/eignex/koblas/sparse/F64SingularSparseFactorization : com
 	public fun getFailedAt ()I
 	public fun getN ()I
 	public fun getNnz ()I
-	public fun getReciprocalPivotConditionEstimate ()D
+	public fun getRcond ()D
 	public fun getSingular ()Z
 	public fun solve ([DZ)[D
 	public fun solveInto ([D[DZLcom/eignex/koblas/Workspace;)[D
@@ -862,7 +862,7 @@ public abstract interface class com/eignex/koblas/sparse/F64SparseFactorization 
 	public abstract fun getFailedAt ()I
 	public abstract fun getN ()I
 	public abstract fun getNnz ()I
-	public abstract fun getReciprocalPivotConditionEstimate ()D
+	public abstract fun getRcond ()D
 	public fun getSingular ()Z
 	public fun solve ([DZ)[D
 	public static synthetic fun solve$default (Lcom/eignex/koblas/sparse/F64SparseFactorization;[DZILjava/lang/Object;)[D
@@ -938,7 +938,7 @@ public final class com/eignex/koblas/sparse/factorization/lu/F64SparseLuFactoriz
 	public fun getFailedAt ()I
 	public fun getN ()I
 	public fun getNnz ()I
-	public fun getReciprocalPivotConditionEstimate ()D
+	public fun getRcond ()D
 	public fun getSingular ()Z
 	public fun solve ([DZ)[D
 	public fun solveInto ([D[DZLcom/eignex/koblas/Workspace;)[D
@@ -955,7 +955,7 @@ public final class com/eignex/koblas/sparse/host/klu/KluFactorization : com/eign
 	public fun getFailedAt ()I
 	public fun getN ()I
 	public fun getNnz ()I
-	public fun getReciprocalPivotConditionEstimate ()D
+	public fun getRcond ()D
 	public fun getSingular ()Z
 	public fun solve ([DZ)[D
 	public fun solveInto ([D[DZLcom/eignex/koblas/Workspace;)[D
@@ -976,7 +976,7 @@ public final class com/eignex/koblas/sparse/host/umfpack/UmfpackFactorization : 
 	public fun getFailedAt ()I
 	public fun getN ()I
 	public fun getNnz ()I
-	public fun getReciprocalPivotConditionEstimate ()D
+	public fun getRcond ()D
 	public fun getSingular ()Z
 	public fun solve ([DZ)[D
 	public fun solveInto ([D[DZLcom/eignex/koblas/Workspace;)[D

@@ -56,7 +56,7 @@ public class UmfpackFactorization internal constructor(
 
     internal var unz: Int = 0
 
-    override var reciprocalPivotConditionEstimate: Double = 0.0
+    override var rcond: Double = 0.0
         internal set
 
     @Suppress("NestedBlockDepth") // one nesting level per pinned array, the alternative is copying them
@@ -130,7 +130,7 @@ public class UmfpackFactorization internal constructor(
         /** Reads the fill counts out of a completed factorization's Info array. */
         fun fillOf(info: DoubleArray): Pair<Int, Int> = info[INFO_LNZ].toInt() to info[INFO_UNZ].toInt()
 
-        fun reciprocalPivotConditionEstimateOf(info: DoubleArray): Double = info[INFO_RCOND]
+        fun rcondOf(info: DoubleArray): Double = info[INFO_RCOND]
     }
 }
 
