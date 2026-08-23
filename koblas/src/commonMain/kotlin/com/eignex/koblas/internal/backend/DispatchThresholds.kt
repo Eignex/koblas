@@ -18,10 +18,8 @@ import com.eignex.koblas.dense.host.cblas.OpenBlasConfig
  */
 internal class DispatchThresholds(val level1: Int, val level2: Int, val level3: Int, val lapack: Int)
 
-/** What this platform uses for double precision absent an override; see [DispatchThresholds]. */
+/** What this platform uses for double precision absent backend-specific configuration. */
 internal expect val platformDispatchThresholds: DispatchThresholds
-
-/** Reads the override for [element]'s [level], or null when unset. */
 
 /** The dispatch policy for one OpenBLAS instance, with null configuration entries retaining platform defaults. */
 internal fun openBlasDispatchThresholds(config: OpenBlasConfig): DispatchThresholds = DispatchThresholds(
