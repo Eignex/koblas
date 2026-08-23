@@ -57,7 +57,7 @@ jobs:
       # lost, and Kover measures the JVM only so coverage is unaffected. Not installing them keeps a slow
       # package mirror from being able to stall this job.
       - name: Run tests with coverage
-        run: ./gradlew check koverXmlReport -x :koblas:linuxX64Test
+        run: ./gradlew :koblas:check :koblas-bench:check :koblas:koverXmlReport -x :koblas:linuxX64Test
 
       - name: Upload test reports
         if: always()
@@ -77,6 +77,61 @@ jobs:
           files: koblas/build/reports/kover/report.xml
           flags: reference
           fail_ci_if_error: false
+
+  # The bundled Maven packages compile their native libraries from source. Keep that work in its own job so
+  # it runs beside the core, host-library, and macOS suites instead of extending the core feedback path.
+  # Each job retains Gradle's cache setup and builds/tests its resources in the same workspace, avoiding a
+  # serial artifact upload/download handoff and preserving the native tasks' normal build-cache behavior.
+  test-bundled-native:
+    name: Build and test bundled native packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: false
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+
+      - name: Cache Kotlin/Native toolchain
+        uses: actions/cache@v5
+        with:
+          path: ~/.konan
+          key: ${{ runner.os }}-konan-${{ hashFiles('**/*.gradle.kts') }}
+          restore-keys: ${{ runner.os }}-konan-
+
+      - name: Grant execute permission for Gradle
+        run: chmod +x gradlew
+
+      - name: Build and test the bundled native packages
+        run: >-
+          ./gradlew :koblas-klu:check :koblas-openblas:check :koblas-umfpack:check
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports-bundled-native
+          path: |
+            koblas-klu/build/reports/tests/
+            koblas-klu/build/test-results/
+            koblas-openblas/build/reports/tests/
+            koblas-openblas/build/test-results/
+            koblas-umfpack/build/reports/tests/
+            koblas-umfpack/build/test-results/
+          if-no-files-found: ignore
 
   # The default job pins `koblas.backend=reference` and filters the HostLibraryTest category out, so the
   # OpenBLAS and SuiteSparse bindings — which auto-register in any JVM/Linux consumer process — are never
