@@ -25,6 +25,12 @@ public interface F64SparseFactorization {
     public val nnz: Int
 
     /**
+     * A cheap pivot-quality estimate: `min(abs(U(k, k))) / max(abs(U(k, k)))`. A small value warns that
+     * the factorization may be inaccurate; it is not a reciprocal condition-number estimate.
+     */
+    public val reciprocalPivotConditionEstimate: Double
+
+    /**
      * Solve `B x = b`, or `Bᵀ x = b` when [transpose], into [out], which is returned. Allocates nothing
      * when given a [workspace]. [out] may be [b].
      */
@@ -42,6 +48,8 @@ public interface F64SparseFactorization {
 /** What [F64SparseLu.factor] returns when no numerically acceptable pivot remains. */
 public class F64SingularSparseFactorization(override val n: Int, override val failedAt: Int) : F64SparseFactorization {
     override val nnz: Int get() = 0
+
+    override val reciprocalPivotConditionEstimate: Double get() = 0.0
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray =
         throw singularFailure(failedAt, "solve")

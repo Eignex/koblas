@@ -50,6 +50,9 @@ public class UmfpackFactorization internal constructor(
 
     internal var unz: Int = 0
 
+    override var reciprocalPivotConditionEstimate: Double = 0.0
+        internal set
+
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray {
         requireFactored(failedAt, "solve")
         requireShape(b.size == n) { "solve: b size ${b.size}, expected $n" }
@@ -83,5 +86,8 @@ public class UmfpackFactorization internal constructor(
         /** Reads the fill counts out of a completed factorization's Info array. */
         fun fillOf(info: MemorySegment): Pair<Int, Int> = info.getAtIndex(JAVA_DOUBLE, INFO_LNZ.toLong()).toInt() to
             info.getAtIndex(JAVA_DOUBLE, INFO_UNZ.toLong()).toInt()
+
+        fun reciprocalPivotConditionEstimateOf(info: MemorySegment): Double =
+            info.getAtIndex(JAVA_DOUBLE, INFO_RCOND.toLong())
     }
 }

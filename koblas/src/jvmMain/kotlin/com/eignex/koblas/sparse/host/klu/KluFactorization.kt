@@ -22,6 +22,7 @@ public class KluFactorization internal constructor(override val failedAt: Int, p
 
     override val n: Int get() = factor.n
     override val nnz: Int get() = factor.nnz
+    override val reciprocalPivotConditionEstimate: Double get() = factor.reciprocalPivotConditionEstimate
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray {
         requireFactored(failedAt, "solve")

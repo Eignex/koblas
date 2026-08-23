@@ -137,6 +137,8 @@ abstract interface com.eignex.koblas.sparse/F64SparseFactorization { // com.eign
         abstract fun <get-n>(): kotlin/Int // com.eignex.koblas.sparse/F64SparseFactorization.n.<get-n>|<get-n>(){}[0]
     abstract val nnz // com.eignex.koblas.sparse/F64SparseFactorization.nnz|{}nnz[0]
         abstract fun <get-nnz>(): kotlin/Int // com.eignex.koblas.sparse/F64SparseFactorization.nnz.<get-nnz>|<get-nnz>(){}[0]
+    abstract val reciprocalPivotConditionEstimate // com.eignex.koblas.sparse/F64SparseFactorization.reciprocalPivotConditionEstimate|{}reciprocalPivotConditionEstimate[0]
+        abstract fun <get-reciprocalPivotConditionEstimate>(): kotlin/Double // com.eignex.koblas.sparse/F64SparseFactorization.reciprocalPivotConditionEstimate.<get-reciprocalPivotConditionEstimate>|<get-reciprocalPivotConditionEstimate>(){}[0]
     open val singular // com.eignex.koblas.sparse/F64SparseFactorization.singular|{}singular[0]
         open fun <get-singular>(): kotlin/Boolean // com.eignex.koblas.sparse/F64SparseFactorization.singular.<get-singular>|<get-singular>(){}[0]
 
@@ -526,6 +528,8 @@ final class com.eignex.koblas.sparse.factorization.lu/F64SparseLuFactorization :
         final fun <get-n>(): kotlin/Int // com.eignex.koblas.sparse.factorization.lu/F64SparseLuFactorization.n.<get-n>|<get-n>(){}[0]
     final val nnz // com.eignex.koblas.sparse.factorization.lu/F64SparseLuFactorization.nnz|{}nnz[0]
         final fun <get-nnz>(): kotlin/Int // com.eignex.koblas.sparse.factorization.lu/F64SparseLuFactorization.nnz.<get-nnz>|<get-nnz>(){}[0]
+    final val reciprocalPivotConditionEstimate // com.eignex.koblas.sparse.factorization.lu/F64SparseLuFactorization.reciprocalPivotConditionEstimate|{}reciprocalPivotConditionEstimate[0]
+        final fun <get-reciprocalPivotConditionEstimate>(): kotlin/Double // com.eignex.koblas.sparse.factorization.lu/F64SparseLuFactorization.reciprocalPivotConditionEstimate.<get-reciprocalPivotConditionEstimate>|<get-reciprocalPivotConditionEstimate>(){}[0]
 
     final fun solveInto(kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean, com.eignex.koblas/Workspace?): kotlin/DoubleArray // com.eignex.koblas.sparse.factorization.lu/F64SparseLuFactorization.solveInto|solveInto(kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
 
@@ -541,6 +545,8 @@ final class com.eignex.koblas.sparse/F64SingularSparseFactorization : com.eignex
         final fun <get-n>(): kotlin/Int // com.eignex.koblas.sparse/F64SingularSparseFactorization.n.<get-n>|<get-n>(){}[0]
     final val nnz // com.eignex.koblas.sparse/F64SingularSparseFactorization.nnz|{}nnz[0]
         final fun <get-nnz>(): kotlin/Int // com.eignex.koblas.sparse/F64SingularSparseFactorization.nnz.<get-nnz>|<get-nnz>(){}[0]
+    final val reciprocalPivotConditionEstimate // com.eignex.koblas.sparse/F64SingularSparseFactorization.reciprocalPivotConditionEstimate|{}reciprocalPivotConditionEstimate[0]
+        final fun <get-reciprocalPivotConditionEstimate>(): kotlin/Double // com.eignex.koblas.sparse/F64SingularSparseFactorization.reciprocalPivotConditionEstimate.<get-reciprocalPivotConditionEstimate>|<get-reciprocalPivotConditionEstimate>(){}[0]
 
     final fun solveInto(kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean, com.eignex.koblas/Workspace?): kotlin/DoubleArray // com.eignex.koblas.sparse/F64SingularSparseFactorization.solveInto|solveInto(kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
 }
@@ -861,6 +867,9 @@ final class com.eignex.koblas.sparse.host.umfpack/UmfpackFactorization : com.eig
         final fun <get-n>(): kotlin/Int // com.eignex.koblas.sparse.host.umfpack/UmfpackFactorization.n.<get-n>|<get-n>(){}[0]
     final val nnz // com.eignex.koblas.sparse.host.umfpack/UmfpackFactorization.nnz|{}nnz[0]
         final fun <get-nnz>(): kotlin/Int // com.eignex.koblas.sparse.host.umfpack/UmfpackFactorization.nnz.<get-nnz>|<get-nnz>(){}[0]
+
+    final var reciprocalPivotConditionEstimate // com.eignex.koblas.sparse.host.umfpack/UmfpackFactorization.reciprocalPivotConditionEstimate|{}reciprocalPivotConditionEstimate[0]
+        final fun <get-reciprocalPivotConditionEstimate>(): kotlin/Double // com.eignex.koblas.sparse.host.umfpack/UmfpackFactorization.reciprocalPivotConditionEstimate.<get-reciprocalPivotConditionEstimate>|<get-reciprocalPivotConditionEstimate>(){}[0]
 
     final fun solveInto(kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean, com.eignex.koblas/Workspace?): kotlin/DoubleArray // com.eignex.koblas.sparse.host.umfpack/UmfpackFactorization.solveInto|solveInto(kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
 }

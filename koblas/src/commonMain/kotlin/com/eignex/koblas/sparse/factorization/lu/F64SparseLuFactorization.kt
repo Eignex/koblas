@@ -42,6 +42,19 @@ public class F64SparseLuFactorization private constructor(
     /** Always [NOT_SINGULAR]: a [F64SparseLuFactorization] only exists for a matrix that factored completely. */
     override val failedAt: Int get() = NOT_SINGULAR
 
+    override val reciprocalPivotConditionEstimate: Double
+        get() {
+            if (m == 0) return 1.0
+            var minimum = Double.POSITIVE_INFINITY
+            var maximum = 0.0
+            for (pivot in uDiag) {
+                val magnitude = abs(pivot)
+                minimum = minOf(minimum, magnitude)
+                maximum = maxOf(maximum, magnitude)
+            }
+            return if (maximum == 0.0) 0.0 else minimum / maximum
+        }
+
     /**
      * Solve `B x = b`, or `Bᵀ x = b` when [transpose], into [out]. `b` is indexed by original row and the
      * result by original column.

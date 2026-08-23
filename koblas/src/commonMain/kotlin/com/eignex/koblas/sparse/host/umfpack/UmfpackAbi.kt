@@ -28,6 +28,9 @@ internal const val INFO_LNZ = 43
 /** Info index UMFPACK_UNZ, nonzeros in U with the diagonal included. */
 internal const val INFO_UNZ = 44
 
+/** Info index UMFPACK_RCOND, the cheap reciprocal pivot-condition estimate. */
+internal const val INFO_RCOND = 67
+
 /** Success. */
 internal const val OK = 0
 

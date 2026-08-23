@@ -3,6 +3,7 @@ package com.eignex.koblas.klu
 import com.eignex.koblas.SparseMatrix
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class BundledKluTest {
@@ -19,6 +20,13 @@ class BundledKluTest {
 
         assertContentEquals(doubleArrayOf(2.0, 3.0), factorization.solve(doubleArrayOf(9.0, 4.0)))
         assertContentEquals(doubleArrayOf(2.0, 3.0), factorization.solve(doubleArrayOf(6.0, 6.0), transpose = true))
+    }
+
+    @Test
+    fun `the bundled KLU reports reciprocal pivot condition`() {
+        val matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 4.0)))
+
+        assertEquals(0.25, BundledKlu().factor(matrix).reciprocalPivotConditionEstimate)
     }
 
     @Test
