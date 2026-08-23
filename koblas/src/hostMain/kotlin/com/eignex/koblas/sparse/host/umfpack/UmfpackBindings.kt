@@ -82,7 +82,7 @@ internal class UmfpackLoader(private val config: UmfpackConfig) {
     private val scaledControl: DoubleArray? by lazy { control(config.scaling) }
     private val unscaledControl: DoubleArray? by lazy { control(UmfpackScaling.NONE) }
 
-    /** The Control array whose scaling agrees with one [F64SparseLu.factor] request. */
+    /** The Control array whose scaling agrees with one factorization request. */
     fun control(equilibrate: Boolean): DoubleArray? = if (equilibrate) scaledControl else unscaledControl
 
     /** The refinement steps a solve will run, or null when no Control array could be built. */
