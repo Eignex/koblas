@@ -17,7 +17,7 @@ public class KluSparseLu(
     /** Policy for this backend instance. */
     public val config: KluConfig = KluConfig(),
 ) : F64SparseLu {
-    private val calls = KluCalls(config.libraryPath)
+    private val calls = KluCalls(config)
 
     override val name: String get() = BackendNames.KLU
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 1
