@@ -13,9 +13,9 @@ mirror the dense ones.
 - [F64SparseLu] — general sparse LU factorization. [F64SparseLu.factor] returns
   [F64SparseFactorization], never null: a singular matrix yields a factorization reporting `singular`, matching
   the dense contract. Its factors support both ordinary and transposed solves.
-- [F64SparseLinearAlgebra] pairs the two matrix seams. All three are offered through `registerSparseBlas` /
-  [com.eignex.koblas.registerBackend] and forced with [com.eignex.koblas.installBackends], resolving as
-  [com.eignex.koblas.koblas] and its `sparseVectorKernels`.
+- [F64SparseLinearAlgebra] pairs the matrix seams and exposes the sparse-vector kernels alongside them.
+  Backends may implement either matrix half; [com.eignex.koblas.registerBackend] ranks each independently,
+  while [com.eignex.koblas.installBackends] supplies all three through [com.eignex.koblas.koblas].
 - Implementation: [F64SparseLuFactorization][com.eignex.koblas.sparse.factorization.lu.F64SparseLuFactorization], a Markowitz threshold-pivoting
   `P·B·Q = L·U` that keeps the factors sparse instead of filling toward `O(m²)`.
 

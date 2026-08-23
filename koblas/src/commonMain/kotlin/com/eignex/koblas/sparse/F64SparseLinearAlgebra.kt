@@ -5,10 +5,13 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.koblas
 import com.eignex.koblas.sparse.factorization.lu.*
 
-/** Both sparse halves in one type. */
+/** The sparse matrix halves, with the active sparse-vector kernels used by their surrounding operations. */
 public interface F64SparseLinearAlgebra :
     F64SparseBlas,
-    F64SparseLu
+    F64SparseLu {
+    /** The sparse vector kernels used by operations around these matrix halves. */
+    public val sparseVectorKernels: F64SparseVectorKernels get() = koblas.sparseVectorKernels
+}
 
 /** Factorize this sparse matrix with the active backend ([koblas]), the counterpart of `F64DenseMatrix.lu`. */
 public fun F64SparseMatrix.lu(equilibrate: Boolean = false, dropTolerance: Double = NO_DROP): F64SparseFactorization =
