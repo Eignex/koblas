@@ -5,15 +5,16 @@ import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.F64Blas
 import com.eignex.koblas.dense.host.cblas.OpenBlasConfig
 import com.eignex.koblas.hostblas.HostBackends
+import com.eignex.koblas.hostsparse.HostSparseBackends
+import com.eignex.koblas.sparse.F64SparseBlas
 import com.eignex.koblas.sparse.F64SparseLu
+import com.eignex.koblas.sparse.F64SparseVectorKernels
 import com.eignex.koblas.sparse.host.klu.KluConfig
-import com.eignex.koblas.sparse.host.klu.KluSparseLu
 import com.eignex.koblas.sparse.host.umfpack.UmfpackConfig
-import com.eignex.koblas.sparse.host.umfpack.UmfpackSparseLu
 import java.util.ServiceLoader
 
 /**
- * The JVM's backend discovery, run once on the first [com.eignex.koblas.koblas] read. koblas's own
+ * The JVM's backend discovery, run once when [com.eignex.koblas.discoverBackends] is called. koblas's own
  * halves first, then [ServiceLoader] providers; [Backend.priority] picks the winner on each half.
  */
 internal actual fun registerPlatformBackends() {
@@ -27,10 +28,12 @@ internal actual fun registerPlatformBackends() {
         ) {
             continue
         }
-        if (provider is F64SparseLu && sparseRequested != null &&
-            !matchesRequested(provider.name, sparseRequested)
-        ) {
-            continue
+        if (provider is F64SparseVectorKernels || provider is F64SparseBlas || provider is F64SparseLu) {
+            if (sparseRequested != null &&
+                !matchesRequested(provider.name, sparseRequested)
+            ) {
+                continue
+            }
         }
         if (!probe(provider)) continue
         // Once, not per half, since registerBackend offers the object as every half it implements.
@@ -99,26 +102,32 @@ private fun builtinCandidates(automatic: AutomaticHostConfiguration): List<Built
         present = { hostBackends(automatic.openBlas).blas.isAvailable },
         create = { hostBackends(automatic.openBlas).blas },
         afterRegister = {
-            hostBackends(
-                automatic.openBlas,
-            ).lapack.takeIf { it.isAvailable }?.let { BackendRegistry.registerAutomatic(it) }
+            hostBackends(automatic.openBlas).also { backends ->
+                BackendRegistry.registerAutomatic(backends.vectorKernels)
+                backends.lapack.takeIf { it.isAvailable }?.let { BackendRegistry.registerAutomatic(it) }
+            }
         },
     ),
     BuiltinBackendCandidate(
         requested = { _, sparse -> sparse },
-        present = { KluSparseLu(automatic.klu).isAvailable },
-        create = { KluSparseLu(automatic.klu) },
+        present = { hostSparseBackends(automatic).klu.isAvailable },
+        create = { hostSparseBackends(automatic).klu },
     ),
     BuiltinBackendCandidate(
         requested = { _, sparse -> sparse },
-        present = { UmfpackSparseLu(automatic.umfpack).isAvailable },
-        create = { UmfpackSparseLu(automatic.umfpack) },
+        present = { hostSparseBackends(automatic).umfpack.isAvailable },
+        create = { hostSparseBackends(automatic).umfpack },
     ),
 )
 
 private val hostBackends = mutableMapOf<OpenBlasConfig, HostBackends>()
 
 private fun hostBackends(config: OpenBlasConfig): HostBackends = hostBackends.getOrPut(config) { HostBackends(config) }
+
+private val hostSparseBackends = mutableMapOf<AutomaticHostConfiguration, HostSparseBackends>()
+
+private fun hostSparseBackends(config: AutomaticHostConfiguration): HostSparseBackends =
+    hostSparseBackends.getOrPut(config) { HostSparseBackends(config.klu, config.umfpack) }
 
 /** Instantiate all registered providers, dropping any whose construction fails. */
 private fun loadProviders(): List<Backend> {

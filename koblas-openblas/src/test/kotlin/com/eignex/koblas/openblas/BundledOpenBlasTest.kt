@@ -1,6 +1,7 @@
 package com.eignex.koblas.openblas
 
 import com.eignex.koblas.core.F64DenseMatrix
+import com.eignex.koblas.discoverBackends
 import com.eignex.koblas.koblas
 import java.nio.file.Files
 import kotlin.test.Test
@@ -10,6 +11,7 @@ import kotlin.test.assertTrue
 class BundledOpenBlasTest {
     @Test
     fun `registers through the backend service`() {
+        discoverBackends()
         assertEquals("openblas-bundled", koblas.blas.name)
         assertEquals("openblas-bundled", koblas.lapack.name)
     }

@@ -8,10 +8,7 @@ import com.eignex.koblas.requireShape
 import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
 
-/** The nonzero count from which the gathered usdot beats the portable loop. */
-private const val SPARSE_DOT_SIMD_MIN = 128
-
-/** A gathered usdot above [SPARSE_DOT_SIMD_MIN], the portable loops below. */
+/** A gathered usdot when the Vector API is present, the portable loop otherwise. */
 internal actual object F64PlatformSparseVectorKernels : F64SparseVectorKernels {
     actual override val name: String get() = if (simdAvailable) BackendNames.SIMD_SPARSE else BackendNames.REFERENCE
 
@@ -20,7 +17,7 @@ internal actual object F64PlatformSparseVectorKernels : F64SparseVectorKernels {
     /** Computes usdot with the dense operand gathered a register at a time. */
     actual override fun dot(x: F64SparseVector, y: DoubleArray): Double {
         requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
-        if (!simdAvailable || x.indices.size < SPARSE_DOT_SIMD_MIN) return F64ReferenceSparseLinearAlgebra.dot(x, y)
+        if (!simdAvailable) return F64ReferenceSparseLinearAlgebra.dot(x, y)
         return SparseSimd.dot(x.indices, x.values, y)
     }
 

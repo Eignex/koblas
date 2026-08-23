@@ -35,6 +35,8 @@ public data class OpenBlasConfig(
     val lapackeLibraryPath: String? = null,
     /** OpenBLAS thread count; setting it, including to one, requires a higher JVM thread-memory cap. */
     val threadCount: Int? = 1,
+    /** Smallest run length routed to native level-1 BLAS; null keeps the platform default. */
+    val level1Min: Int? = null,
     /** Smallest dimension routed to native level-2 BLAS; null keeps the platform default. */
     val level2Min: Int? = null,
     /** Smallest dimension routed to native level-3 BLAS; null keeps the platform default. */
@@ -52,6 +54,7 @@ public data class OpenBlasConfig(
 ) {
     init {
         require(threadCount == null || threadCount > 0) { "threadCount must be positive" }
+        require(level1Min == null || level1Min >= 0) { "level1Min must not be negative" }
         require(level2Min == null || level2Min >= 0) { "level2Min must not be negative" }
         require(level3Min == null || level3Min >= 0) { "level3Min must not be negative" }
         require(lapackMin == null || lapackMin >= 0) { "lapackMin must not be negative" }

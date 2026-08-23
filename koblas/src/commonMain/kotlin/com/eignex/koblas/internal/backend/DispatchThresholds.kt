@@ -23,7 +23,7 @@ internal expect val platformDispatchThresholds: DispatchThresholds
 
 /** The dispatch policy for one OpenBLAS instance, with null configuration entries retaining platform defaults. */
 internal fun openBlasDispatchThresholds(config: OpenBlasConfig): DispatchThresholds = DispatchThresholds(
-    level1 = platformDispatchThresholds.level1,
+    level1 = config.level1Min ?: platformDispatchThresholds.level1,
     level2 = config.level2Min ?: platformDispatchThresholds.level2,
     level3 = config.level3Min ?: platformDispatchThresholds.level3,
     lapack = config.lapackMin ?: platformDispatchThresholds.lapack,

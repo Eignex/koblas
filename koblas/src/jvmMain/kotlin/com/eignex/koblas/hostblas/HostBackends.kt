@@ -10,6 +10,9 @@ public class HostBackends(config: OpenBlasConfig = OpenBlasConfig()) {
     /** The CBLAS half. */
     public val blas: HostBlas = HostBlas(calls)
 
+    /** The level-1 CBLAS half. */
+    public val vectorKernels: HostVectorKernels = HostVectorKernels(calls, config)
+
     /** The LAPACKE half. */
     public val lapack: HostLapack = HostLapack(calls, config)
 }

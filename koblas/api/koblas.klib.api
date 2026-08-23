@@ -151,6 +151,9 @@ abstract interface com.eignex.koblas.dense/F64LinearAlgebra : com.eignex.koblas.
 }
 
 abstract interface com.eignex.koblas.dense/F64VectorKernels : com.eignex.koblas/Backend { // com.eignex.koblas.dense/F64VectorKernels|null[0]
+    open val minDispatchLength // com.eignex.koblas.dense/F64VectorKernels.minDispatchLength|{}minDispatchLength[0]
+        open fun <get-minDispatchLength>(): kotlin/Int? // com.eignex.koblas.dense/F64VectorKernels.minDispatchLength.<get-minDispatchLength>|<get-minDispatchLength>(){}[0]
+
     abstract fun asum(kotlin/DoubleArray, kotlin/Int, kotlin/Int): kotlin/Double // com.eignex.koblas.dense/F64VectorKernels.asum|asum(kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
     abstract fun axpy(kotlin/DoubleArray, kotlin/Int, kotlin/Double, kotlin/DoubleArray, kotlin/Int, kotlin/Int) // com.eignex.koblas.dense/F64VectorKernels.axpy|axpy(kotlin.DoubleArray;kotlin.Int;kotlin.Double;kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
     abstract fun dot(kotlin/DoubleArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int): kotlin/Double // com.eignex.koblas.dense/F64VectorKernels.dot|dot(kotlin.DoubleArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
@@ -451,7 +454,7 @@ final class com.eignex.koblas.core/F64SparseVector : com.eignex.koblas.core/F64V
 }
 
 final class com.eignex.koblas.dense.host.cblas/OpenBlasConfig { // com.eignex.koblas.dense.host.cblas/OpenBlasConfig|null[0]
-    constructor <init>(kotlin/String? = ..., kotlin/String? = ..., kotlin/Int? = ..., kotlin/Int? = ..., kotlin/Int? = ..., kotlin/Int? = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ...) // com.eignex.koblas.dense.host.cblas/OpenBlasConfig.<init>|<init>(kotlin.String?;kotlin.String?;kotlin.Int?;kotlin.Int?;kotlin.Int?;kotlin.Int?;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int){}[0]
+    constructor <init>(kotlin/String? = ..., kotlin/String? = ..., kotlin/Int? = ..., kotlin/Int? = ..., kotlin/Int? = ..., kotlin/Int? = ..., kotlin/Int? = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ...) // com.eignex.koblas.dense.host.cblas/OpenBlasConfig.<init>|<init>(kotlin.String?;kotlin.String?;kotlin.Int?;kotlin.Int?;kotlin.Int?;kotlin.Int?;kotlin.Int?;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int){}[0]
 
     final val choleskyMin // com.eignex.koblas.dense.host.cblas/OpenBlasConfig.choleskyMin|{}choleskyMin[0]
         final fun <get-choleskyMin>(): kotlin/Int // com.eignex.koblas.dense.host.cblas/OpenBlasConfig.choleskyMin.<get-choleskyMin>|<get-choleskyMin>(){}[0]
@@ -459,6 +462,8 @@ final class com.eignex.koblas.dense.host.cblas/OpenBlasConfig { // com.eignex.ko
         final fun <get-lapackMin>(): kotlin/Int? // com.eignex.koblas.dense.host.cblas/OpenBlasConfig.lapackMin.<get-lapackMin>|<get-lapackMin>(){}[0]
     final val lapackeLibraryPath // com.eignex.koblas.dense.host.cblas/OpenBlasConfig.lapackeLibraryPath|{}lapackeLibraryPath[0]
         final fun <get-lapackeLibraryPath>(): kotlin/String? // com.eignex.koblas.dense.host.cblas/OpenBlasConfig.lapackeLibraryPath.<get-lapackeLibraryPath>|<get-lapackeLibraryPath>(){}[0]
+    final val level1Min // com.eignex.koblas.dense.host.cblas/OpenBlasConfig.level1Min|{}level1Min[0]
+        final fun <get-level1Min>(): kotlin/Int? // com.eignex.koblas.dense.host.cblas/OpenBlasConfig.level1Min.<get-level1Min>|<get-level1Min>(){}[0]
     final val level2Min // com.eignex.koblas.dense.host.cblas/OpenBlasConfig.level2Min|{}level2Min[0]
         final fun <get-level2Min>(): kotlin/Int? // com.eignex.koblas.dense.host.cblas/OpenBlasConfig.level2Min.<get-level2Min>|<get-level2Min>(){}[0]
     final val level3Min // com.eignex.koblas.dense.host.cblas/OpenBlasConfig.level3Min|{}level3Min[0]
@@ -476,15 +481,16 @@ final class com.eignex.koblas.dense.host.cblas/OpenBlasConfig { // com.eignex.ko
 
     final fun component1(): kotlin/String? // com.eignex.koblas.dense.host.cblas/OpenBlasConfig.component1|component1(){}[0]
     final fun component10(): kotlin/Int // com.eignex.koblas.dense.host.cblas/OpenBlasConfig.component10|component10(){}[0]
+    final fun component11(): kotlin/Int // com.eignex.koblas.dense.host.cblas/OpenBlasConfig.component11|component11(){}[0]
     final fun component2(): kotlin/String? // com.eignex.koblas.dense.host.cblas/OpenBlasConfig.component2|component2(){}[0]
     final fun component3(): kotlin/Int? // com.eignex.koblas.dense.host.cblas/OpenBlasConfig.component3|component3(){}[0]
     final fun component4(): kotlin/Int? // com.eignex.koblas.dense.host.cblas/OpenBlasConfig.component4|component4(){}[0]
     final fun component5(): kotlin/Int? // com.eignex.koblas.dense.host.cblas/OpenBlasConfig.component5|component5(){}[0]
     final fun component6(): kotlin/Int? // com.eignex.koblas.dense.host.cblas/OpenBlasConfig.component6|component6(){}[0]
-    final fun component7(): kotlin/Int // com.eignex.koblas.dense.host.cblas/OpenBlasConfig.component7|component7(){}[0]
+    final fun component7(): kotlin/Int? // com.eignex.koblas.dense.host.cblas/OpenBlasConfig.component7|component7(){}[0]
     final fun component8(): kotlin/Int // com.eignex.koblas.dense.host.cblas/OpenBlasConfig.component8|component8(){}[0]
     final fun component9(): kotlin/Int // com.eignex.koblas.dense.host.cblas/OpenBlasConfig.component9|component9(){}[0]
-    final fun copy(kotlin/String? = ..., kotlin/String? = ..., kotlin/Int? = ..., kotlin/Int? = ..., kotlin/Int? = ..., kotlin/Int? = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ...): com.eignex.koblas.dense.host.cblas/OpenBlasConfig // com.eignex.koblas.dense.host.cblas/OpenBlasConfig.copy|copy(kotlin.String?;kotlin.String?;kotlin.Int?;kotlin.Int?;kotlin.Int?;kotlin.Int?;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int){}[0]
+    final fun copy(kotlin/String? = ..., kotlin/String? = ..., kotlin/Int? = ..., kotlin/Int? = ..., kotlin/Int? = ..., kotlin/Int? = ..., kotlin/Int? = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ..., kotlin/Int = ...): com.eignex.koblas.dense.host.cblas/OpenBlasConfig // com.eignex.koblas.dense.host.cblas/OpenBlasConfig.copy|copy(kotlin.String?;kotlin.String?;kotlin.Int?;kotlin.Int?;kotlin.Int?;kotlin.Int?;kotlin.Int?;kotlin.Int;kotlin.Int;kotlin.Int;kotlin.Int){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas.dense.host.cblas/OpenBlasConfig.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // com.eignex.koblas.dense.host.cblas/OpenBlasConfig.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // com.eignex.koblas.dense.host.cblas/OpenBlasConfig.toString|toString(){}[0]
@@ -928,6 +934,7 @@ final fun com.eignex.koblas.dense/trsm(com.eignex.koblas.core/F64DenseMatrix, co
 final fun com.eignex.koblas.dense/trsv(com.eignex.koblas.core/F64DenseMatrix, kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean = ..., kotlin/Boolean = ...) // com.eignex.koblas.dense/trsv|trsv(com.eignex.koblas.core.F64DenseMatrix;kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
 final fun com.eignex.koblas.dense/trtri(com.eignex.koblas.core/F64DenseMatrix, kotlin/Boolean, kotlin/Boolean = ...): com.eignex.koblas.core/F64DenseMatrix // com.eignex.koblas.dense/trtri|trtri(com.eignex.koblas.core.F64DenseMatrix;kotlin.Boolean;kotlin.Boolean){}[0]
 final fun com.eignex.koblas/copy(com.eignex.koblas.core/F64VectorLike, com.eignex.koblas.core/F64DenseVector) // com.eignex.koblas/copy|copy(com.eignex.koblas.core.F64VectorLike;com.eignex.koblas.core.F64DenseVector){}[0]
+final fun com.eignex.koblas/discoverBackends() // com.eignex.koblas/discoverBackends|discoverBackends(){}[0]
 final fun com.eignex.koblas/installBackends(com.eignex.koblas/F64Context?) // com.eignex.koblas/installBackends|installBackends(com.eignex.koblas.F64Context?){}[0]
 final fun com.eignex.koblas/lapackFailedAt(kotlin/Int): kotlin/Int // com.eignex.koblas/lapackFailedAt|lapackFailedAt(kotlin.Int){}[0]
 final fun com.eignex.koblas/registerBackend(com.eignex.koblas/Backend) // com.eignex.koblas/registerBackend|registerBackend(com.eignex.koblas.Backend){}[0]
@@ -1004,8 +1011,12 @@ final class com.eignex.koblas.cblas/F64CblasLinearAlgebra : com.eignex.koblas.de
 final class com.eignex.koblas.cblas/F64CblasVectorKernels : com.eignex.koblas.dense/F64VectorKernels { // com.eignex.koblas.cblas/F64CblasVectorKernels|null[0]
     constructor <init>(com.eignex.koblas.dense.host.cblas/OpenBlasConfig = ...) // com.eignex.koblas.cblas/F64CblasVectorKernels.<init>|<init>(com.eignex.koblas.dense.host.cblas.OpenBlasConfig){}[0]
 
+    final val config // com.eignex.koblas.cblas/F64CblasVectorKernels.config|{}config[0]
+        final fun <get-config>(): com.eignex.koblas.dense.host.cblas/OpenBlasConfig // com.eignex.koblas.cblas/F64CblasVectorKernels.config.<get-config>|<get-config>(){}[0]
     final val isAvailable // com.eignex.koblas.cblas/F64CblasVectorKernels.isAvailable|{}isAvailable[0]
         final fun <get-isAvailable>(): kotlin/Boolean // com.eignex.koblas.cblas/F64CblasVectorKernels.isAvailable.<get-isAvailable>|<get-isAvailable>(){}[0]
+    final val minDispatchLength // com.eignex.koblas.cblas/F64CblasVectorKernels.minDispatchLength|{}minDispatchLength[0]
+        final fun <get-minDispatchLength>(): kotlin/Int // com.eignex.koblas.cblas/F64CblasVectorKernels.minDispatchLength.<get-minDispatchLength>|<get-minDispatchLength>(){}[0]
     final val name // com.eignex.koblas.cblas/F64CblasVectorKernels.name|{}name[0]
         final fun <get-name>(): kotlin/String // com.eignex.koblas.cblas/F64CblasVectorKernels.name.<get-name>|<get-name>(){}[0]
     final val priority // com.eignex.koblas.cblas/F64CblasVectorKernels.priority|{}priority[0]
@@ -1016,6 +1027,14 @@ final class com.eignex.koblas.cblas/F64CblasVectorKernels : com.eignex.koblas.de
     final fun dot(kotlin/DoubleArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int): kotlin/Double // com.eignex.koblas.cblas/F64CblasVectorKernels.dot|dot(kotlin.DoubleArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
     final fun nrm2(kotlin/DoubleArray, kotlin/Int, kotlin/Int): kotlin/Double // com.eignex.koblas.cblas/F64CblasVectorKernels.nrm2|nrm2(kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
     final fun scale(kotlin/DoubleArray, kotlin/Int, kotlin/Double, kotlin/Int) // com.eignex.koblas.cblas/F64CblasVectorKernels.scale|scale(kotlin.DoubleArray;kotlin.Int;kotlin.Double;kotlin.Int){}[0]
+}
+
+// Targets: [linux, macosArm64]
+final class com.eignex.koblas.hostsparse/HostSparseBackends { // com.eignex.koblas.hostsparse/HostSparseBackends|null[0]
+    constructor <init>(com.eignex.koblas.sparse.host.umfpack/UmfpackConfig = ...) // com.eignex.koblas.hostsparse/HostSparseBackends.<init>|<init>(com.eignex.koblas.sparse.host.umfpack.UmfpackConfig){}[0]
+
+    final val umfpack // com.eignex.koblas.hostsparse/HostSparseBackends.umfpack|{}umfpack[0]
+        final fun <get-umfpack>(): com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu // com.eignex.koblas.hostsparse/HostSparseBackends.umfpack.<get-umfpack>|<get-umfpack>(){}[0]
 }
 
 // Targets: [linux, macosArm64]
