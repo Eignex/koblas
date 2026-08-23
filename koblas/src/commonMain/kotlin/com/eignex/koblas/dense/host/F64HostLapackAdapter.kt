@@ -84,6 +84,29 @@ public abstract class F64HostLapackAdapter internal constructor(
     /** Dimension from which `dpotri` takes over the SPD inverse. */
     protected open val spdInvertMin: Int get() = 0
 
+    /** Dimension from which an optional native `dgeqp3` call is used. */
+    protected open val pivotedQrMin: Int get() = 0
+
+    /** Performs `dgeqp3`, or returns null when the binding does not expose it. */
+    protected open fun dgeqp3(m: Int, n: Int, a: DoubleArray, jpvt: IntArray, tau: DoubleArray): Int? = null
+
+    override fun qrPivoted(a: F64DenseMatrix, tolerance: Double, workspace: Workspace?): F64PivotedQrDecomposition {
+        requireRankTolerance(tolerance)
+        if (minOf(a.rows, a.cols) < maxOf(1, f64DispatchThresholds.lapack, pivotedQrMin)) {
+            return portable.qrPivoted(a, tolerance, workspace)
+        }
+        val m = a.rows
+        val n = a.cols
+        val buf = a.data.copyOf()
+        val tau = DoubleArray(minOf(m, n))
+        val jpvt = IntArray(n)
+        val info = dgeqp3(m, n, buf, jpvt, tau) ?: return portable.qrPivoted(a, tolerance, workspace)
+        check(info == 0) { "dgeqp3: illegal argument ${-info}" }
+        val pivots = IntArray(n) { jpvt[it] - 1 }
+        val rank = rankOfPivotedR(buf, m, n, minOf(m, n), tolerance)
+        return F64PivotedQrDecomposition(F64QrDecomposition(m, n, buf, tau), pivots, rank)
+    }
+
     override fun factor(a: F64DenseMatrix): F64LuDecomposition {
         if (a.rows < f64DispatchThresholds.lapack) return portable.factor(a)
         requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }

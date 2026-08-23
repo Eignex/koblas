@@ -1,13 +1,11 @@
 package com.eignex.koblas.umfpack
 
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
+import com.eignex.koblas.internal.backend.BundledNativeResources
 import com.eignex.koblas.openblas.BundledOpenBlas
 import com.eignex.koblas.sparse.F64SparseLu
 import com.eignex.koblas.sparse.host.umfpack.UmfpackSparseLu
-import java.io.InputStream
-import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.attribute.PosixFilePermissions
 
 /**
  * GPL-3.0-only SuiteSparse UMFPACK extracted from Maven-native resources on this application's classpath.
@@ -37,52 +35,29 @@ private fun loadUmfpack(): UmfpackSparseLu {
 }
 
 internal object UmfpackResources {
-    private val x64Architectures = setOf("amd64", "x86_64")
-    private val arm64Architectures = setOf("aarch64", "arm64")
-    private val platform = when {
-        System.getProperty("os.name").startsWith("Linux", ignoreCase = true) &&
-            System.getProperty("os.arch") in x64Architectures -> "linux-x86_64"
-
-        System.getProperty("os.name").startsWith("Linux", ignoreCase = true) &&
-            System.getProperty("os.arch") in arm64Architectures -> "linux-arm64"
-
-        System.getProperty("os.name").startsWith("Mac", ignoreCase = true) &&
-            System.getProperty("os.arch") in arm64Architectures -> "macosx-arm64"
-
-        else -> error("koblas-umfpack has no bundled SuiteSparse for this host")
+    private val platform = BundledNativeResources.supportedPlatform { _, _ ->
+        "koblas-umfpack has no bundled SuiteSparse for this host"
     }
+    private val resources = BundledNativeResources(
+        directoryPrefix = "koblas-umfpack",
+        platform = platform,
+        resourceRoot = "org/eignex/umfpack",
+        anchor = BundledUmfpack::class.java,
+        libraryDescription = "SuiteSparse",
+    )
 
     private val extracted: Path by lazy {
-        val directory = Files.createTempDirectory("koblas-umfpack-$platform-")
-        setOwnerOnlyPermissions(directory, "rwx------")
-        resourceNames().forEach { name ->
-            resource(name).use { input ->
-                val destination = directory.resolve(name)
-                Files.copy(input, destination)
-                setOwnerOnlyPermissions(destination, "rw-------")
-            }
+        checkNotNull(resources.extractRequired(resourceNames())[umfpackLibrary]) {
+            "UMFPACK resource is absent for $platform"
         }
-        directory.resolve(umfpackLibrary)
     }
 
     fun extract(): Path = extracted
 
     private val umfpackLibrary: String = if (platform.startsWith("linux")) "libumfpack.so.6" else "libumfpack.dylib"
 
-    private fun resourceNames(): List<String> = checkNotNull(resource(".libraries")) {
+    private fun resourceNames(): List<String> = checkNotNull(resources.resource(".libraries")) {
         "UMFPACK resources are absent for $platform"
     }
         .bufferedReader().useLines { it.filter(String::isNotBlank).toList() }
-
-    private fun resource(name: String): InputStream? {
-        val path = "org/eignex/umfpack/$platform/$name"
-        return Thread.currentThread().contextClassLoader.getResourceAsStream(path)
-            ?: BundledUmfpack::class.java.classLoader.getResourceAsStream(path)
-            ?: BundledUmfpack::class.java.getResourceAsStream("/$path")
-    }
-
-    private fun setOwnerOnlyPermissions(path: Path, permissions: String) {
-        runCatching { Files.setPosixFilePermissions(path, PosixFilePermissions.fromString(permissions)) }
-            .onFailure { throw IllegalStateException("cannot secure extracted SuiteSparse resource $path", it) }
-    }
 }
