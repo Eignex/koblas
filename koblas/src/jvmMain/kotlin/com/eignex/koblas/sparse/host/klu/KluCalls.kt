@@ -11,7 +11,7 @@ import java.lang.foreign.ValueLayout.JAVA_INT
 import java.lang.invoke.MethodHandle
 
 /** The public 32-bit-index ABI exported by KLU 2. */
-internal class KluCalls(private val libraryPath: String?) {
+internal class KluCalls(private val config: KluConfig) {
     private val linker: Linker? = runCatching { Linker.nativeLinker() }.getOrNull()
     private val critical = Linker.Option.critical(true)
     private val lookup: SymbolLookup? by lazy { openKlu() }
@@ -32,7 +32,7 @@ internal class KluCalls(private val libraryPath: String?) {
     val available: Boolean get() = handles != null
 
     private fun openKlu(): SymbolLookup? {
-        val paths = libraryPath?.let(::listOf) ?: KLU_SONAMES
+        val paths = config.libraryPath?.let(::listOf) ?: KLU_SONAMES
         for (path in paths) {
             val opened =
                 try {
@@ -85,7 +85,7 @@ internal class KluCalls(private val libraryPath: String?) {
         val numericHolder = arena.allocate(ADDRESS)
         try {
             check((h.defaults.call(common) as Int) != 0) { "klu_defaults failed" }
-            common.set(JAVA_INT, KLU_COMMON_SCALE, if (equilibrate) KLU_SCALE_MAX else KLU_SCALE_NONE)
+            applyConfig(common, equilibrate)
             val symbolic = h.analyze.call(
                 a,
                 MemorySegment.ofArray(colPtr),
@@ -123,6 +123,19 @@ internal class KluCalls(private val libraryPath: String?) {
             free(KluFactor(a, arena, common, symbolicHolder, numericHolder, 0.0))
             throw t
         }
+    }
+
+    private fun applyConfig(common: MemorySegment, equilibrate: Boolean) {
+        config.pivotTolerance?.let { common.set(JAVA_DOUBLE, KLU_COMMON_TOL, it) }
+        config.memoryGrowth?.let { common.set(JAVA_DOUBLE, KLU_COMMON_MEMGROW, it) }
+        config.amdInitialMemoryFactor?.let { common.set(JAVA_DOUBLE, KLU_COMMON_INITMEM_AMD, it) }
+        config.initialMemoryFactor?.let { common.set(JAVA_DOUBLE, KLU_COMMON_INITMEM, it) }
+        config.maxBtfWork?.let { common.set(JAVA_DOUBLE, KLU_COMMON_MAXWORK, it) }
+        config.useBtf?.let { common.set(JAVA_INT, KLU_COMMON_BTF, it.asNativeBoolean()) }
+        config.ordering?.let { common.set(JAVA_INT, KLU_COMMON_ORDERING, it.nativeValue) }
+        config.haltIfSingular?.let { common.set(JAVA_INT, KLU_COMMON_HALT_IF_SINGULAR, it.asNativeBoolean()) }
+        val scaling = if (equilibrate) config.equilibratedScaling.nativeValue else KLU_SCALE_NONE
+        common.set(JAVA_INT, KLU_COMMON_SCALE, scaling)
     }
 
     fun solve(factor: KluFactor, rhs: DoubleArray, transpose: Boolean) {
@@ -178,7 +191,15 @@ internal val KLU_SONAMES = listOf("libklu.so.2", "libklu.2.dylib")
 
 private const val KLU_COMMON_BYTES = 160L
 private const val KLU_NUMERIC_BYTES = 168L
+private const val KLU_COMMON_TOL = 0L
+private const val KLU_COMMON_MEMGROW = 8L
+private const val KLU_COMMON_INITMEM_AMD = 16L
+private const val KLU_COMMON_INITMEM = 24L
+private const val KLU_COMMON_MAXWORK = 32L
+private const val KLU_COMMON_BTF = 40L
+private const val KLU_COMMON_ORDERING = 44L
 private const val KLU_COMMON_SCALE = 48L
+private const val KLU_COMMON_HALT_IF_SINGULAR = 72L
 private const val KLU_COMMON_STATUS = 76L
 private const val KLU_COMMON_RCOND = 112L
 private const val KLU_NUMERIC_LNZ = 8L
@@ -186,3 +207,18 @@ private const val KLU_NUMERIC_UNZ = 12L
 private const val KLU_SCALE_NONE = 0
 private const val KLU_SCALE_MAX = 2
 private const val KLU_SINGULAR = 1
+
+private fun Boolean.asNativeBoolean(): Int = if (this) 1 else 0
+
+private val KluOrdering.nativeValue: Int
+    get() = when (this) {
+        KluOrdering.AMD -> 0
+        KluOrdering.COLAMD -> 1
+    }
+
+private val KluScaling.nativeValue: Int
+    get() = when (this) {
+        KluScaling.NONE -> KLU_SCALE_NONE
+        KluScaling.SUM -> 1
+        KluScaling.MAX -> KLU_SCALE_MAX
+    }
