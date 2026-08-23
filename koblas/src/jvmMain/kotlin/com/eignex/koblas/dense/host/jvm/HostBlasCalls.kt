@@ -112,7 +112,7 @@ internal class HostBlasCalls(private val config: OpenBlasConfig) {
         lapackAvailable = available && requiredLapacke.all { name ->
             requireNotNull(blas).find(name).isPresent || extra?.find(name)?.isPresent == true
         }
-        configureThreads(blas)
+        if (available) configureThreads(blas)
     }
 
     /** OpenBLAS owns this setting process-wide; setting it at backend construction makes that scope explicit. */

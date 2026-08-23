@@ -5,12 +5,12 @@ import com.eignex.koblas.assertClose
 import com.eignex.koblas.sparse.assertAliasedDestinationSolves
 import com.eignex.koblas.sparse.assertControlArrayKeepsUmfpackDefaults
 import com.eignex.koblas.sparse.assertEmptyAndZeroMatricesTakeThePortablePath
+import com.eignex.koblas.sparse.assertNativeEquilibrationAndDropToleranceFallsBack
 import com.eignex.koblas.sparse.assertReciprocalPivotConditionEstimateIsBounded
 import com.eignex.koblas.sparse.assertRegistersAsTheSparseLuHalf
 import com.eignex.koblas.sparse.assertRepeatedFactorizationsSurvive
 import com.eignex.koblas.sparse.assertSingularIsReportedWithUnknownPosition
 import com.eignex.koblas.sparse.assertSolvesAgreeWithReference
-import com.eignex.koblas.sparse.assertUnsupportedRequestsFallBack
 import com.eignex.koblas.sparse.sparseConformanceSystem
 import com.eignex.koblas.testutil.host.HostLibraryTest
 import org.junit.Assume
@@ -60,9 +60,9 @@ class UmfpackConformanceTest {
     }
 
     @Test
-    fun `equilibrate and a drop tolerance fall back to the portable factorization`() {
+    fun `equilibrate stays native while a drop tolerance falls back`() {
         requireSuiteSparse()
-        assertUnsupportedRequestsFallBack(umfpack) { it is UmfpackFactorization }
+        assertNativeEquilibrationAndDropToleranceFallsBack(umfpack) { it is UmfpackFactorization }
     }
 
     @Test

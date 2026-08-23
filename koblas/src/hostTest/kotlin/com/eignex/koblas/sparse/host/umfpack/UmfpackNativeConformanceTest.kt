@@ -8,12 +8,12 @@ import com.eignex.koblas.koblas
 import com.eignex.koblas.sparse.assertAliasedDestinationSolves
 import com.eignex.koblas.sparse.assertControlArrayKeepsUmfpackDefaults
 import com.eignex.koblas.sparse.assertEmptyAndZeroMatricesTakeThePortablePath
+import com.eignex.koblas.sparse.assertNativeEquilibrationAndDropToleranceFallsBack
 import com.eignex.koblas.sparse.assertReciprocalPivotConditionEstimateIsBounded
 import com.eignex.koblas.sparse.assertRegistersAsTheSparseLuHalf
 import com.eignex.koblas.sparse.assertRepeatedFactorizationsSurvive
 import com.eignex.koblas.sparse.assertSingularIsReportedWithUnknownPosition
 import com.eignex.koblas.sparse.assertSolvesAgreeWithReference
-import com.eignex.koblas.sparse.assertUnsupportedRequestsFallBack
 import com.eignex.koblas.sparse.sparseConformanceSystem
 import kotlin.random.Random
 import kotlin.test.Test
@@ -50,8 +50,8 @@ class UmfpackNativeConformanceTest {
         assertSingularIsReportedWithUnknownPosition(umfpack)
 
     @Test
-    fun `equilibrate and a drop tolerance fall back to the portable factorization`() =
-        assertUnsupportedRequestsFallBack(umfpack) { it is UmfpackFactorization }
+    fun `equilibrate stays native while a drop tolerance falls back`() =
+        assertNativeEquilibrationAndDropToleranceFallsBack(umfpack) { it is UmfpackFactorization }
 
     @Test
     fun `empty and all-zero matrices take the portable path`() = assertEmptyAndZeroMatricesTakeThePortablePath(umfpack)

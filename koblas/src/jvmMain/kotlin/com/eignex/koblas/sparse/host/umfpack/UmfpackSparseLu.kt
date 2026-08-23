@@ -39,8 +39,8 @@ public class UmfpackSparseLu(
     override val isPortable: Boolean get() = false
 
     /**
-     * Factorizes [a], symbolic analysis then numeric factorization. [equilibrate] and [dropTolerance] fall
-     * back to the portable path, since UMFPACK offers neither koblas's scaling nor a drop threshold.
+     * Factorizes [a], symbolic analysis then numeric factorization. [equilibrate] selects UMFPACK's native
+     * row scaling; [dropTolerance] falls back to the portable path because UMFPACK has no drop threshold.
      */
     override fun factor(a: F64SparseMatrix, equilibrate: Boolean, dropTolerance: Double): F64SparseFactorization {
         requireSquare(a, "factor")
@@ -48,7 +48,7 @@ public class UmfpackSparseLu(
             return F64SparseLuFactorization.factorCsc(a, equilibrate, dropTolerance)
         }
         // Any tolerance but the default goes to the portable path, which owns validating the rest.
-        if (equilibrate || dropTolerance != NO_DROP) {
+        if (dropTolerance != NO_DROP) {
             return F64SparseLuFactorization.factorCsc(
                 a,
                 equilibrate,
@@ -62,12 +62,13 @@ public class UmfpackSparseLu(
         val colPtr = MemorySegment.ofArray(a.colPtr)
         val rowIdx = MemorySegment.ofArray(a.rowIdx)
         val values = MemorySegment.ofArray(a.values)
+        val control = calls.control(equilibrate)
 
         // A confined arena for the symbolic analysis, which is scratch: Numeric keeps what it needs.
         Arena.ofConfined().use { scratch ->
             val symbolicHolder = scratch.allocate(ADDRESS)
             val info = scratch.allocate(JAVA_DOUBLE, INFO.toLong())
-            val symbolicStatus = calls.symbolic(a.rows, colPtr, rowIdx, values, symbolicHolder, info)
+            val symbolicStatus = calls.symbolic(a.rows, colPtr, rowIdx, values, symbolicHolder, control, info)
             if (symbolicStatus != OK) {
                 // A rejected pattern goes to the portable path.
                 return F64SparseLuFactorization.factorCsc(a)
@@ -89,6 +90,7 @@ public class UmfpackSparseLu(
                         values,
                         symbolicHolder.get(ADDRESS, 0),
                         numericHolder,
+                        control,
                         info,
                     )
                 } finally {
@@ -105,7 +107,7 @@ public class UmfpackSparseLu(
                     return F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
                 }
                 val handles = UmfpackFactorization.Handles(arena, numericHolder)
-                val factorization = UmfpackFactorization(a, NOT_SINGULAR, handles, calls)
+                val factorization = UmfpackFactorization(a, NOT_SINGULAR, handles, calls, control)
                 val (lnz, unz) = UmfpackFactorization.fillOf(info)
                 factorization.lnz = lnz
                 factorization.unz = unz
