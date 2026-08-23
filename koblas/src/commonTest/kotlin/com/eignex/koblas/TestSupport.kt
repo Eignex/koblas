@@ -122,8 +122,8 @@ internal fun poisonedTriangle(
 /**
  * Runs [block] against an empty registry, then puts the process back by replaying platform discovery.
  *
- * Discovery is a one-shot on the first [koblas] read, so clearing the registry without replaying it leaves
- * every later test on the portable fallbacks.
+ * Discovery is explicit, so clearing the registry without replaying it leaves later tests on the portable
+ * fallbacks.
  */
 internal fun withCleanBackends(block: () -> Unit) {
     resetBackends()

@@ -1,7 +1,6 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.Backend
-import com.eignex.koblas.internal.backend.DispatchThresholds
 import com.eignex.koblas.internal.backend.f64DispatchThresholds
 
 /**
@@ -18,6 +17,9 @@ import com.eignex.koblas.internal.backend.f64DispatchThresholds
  * last row with an empty tail, so every routine here is called that way.
  */
 public interface F64VectorKernels : Backend {
+    /** The run length from which this backend replaces the compiled-in kernels, or null for the platform default. */
+    public val minDispatchLength: Int? get() = null
+
     /** Sum of a(aOff + i) * b(bOff + i) over the first [len] entries; `0` for an empty run. */
     public fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double
 
@@ -90,9 +92,10 @@ internal expect object F64PlatformVectorKernels : F64VectorKernels {
  * Picks between [F64PlatformVectorKernels] and a registered host backend by run length. The `alpha` guards
  * live here, so `axpy` by zero and `scale` by one are no-ops whichever kernel would have run.
  *
- * @property host a registered backend, used at or above [DispatchThresholds.level1]; null routes nothing.
+ * @property host a registered backend, used at or above the configured minimum; null routes nothing.
  */
 internal class F64RoutedVectorKernels(internal val host: F64VectorKernels?) : F64VectorKernels {
+    private val minLength: Int = host?.minDispatchLength ?: f64DispatchThresholds.level1
     override val name: String
         get() = if (host == null) F64PlatformVectorKernels.name else "${F64PlatformVectorKernels.name}+${host.name}"
 
@@ -108,7 +111,7 @@ internal class F64RoutedVectorKernels(internal val host: F64VectorKernels?) : F6
     /** The kernels for a run of [len]: the host backend only when it exists and the run is long enough. */
     private fun forLength(len: Int): F64VectorKernels {
         val h = host
-        return if (h != null && len >= f64DispatchThresholds.level1) h else F64PlatformVectorKernels
+        return if (h != null && len >= minLength) h else F64PlatformVectorKernels
     }
 
     override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =

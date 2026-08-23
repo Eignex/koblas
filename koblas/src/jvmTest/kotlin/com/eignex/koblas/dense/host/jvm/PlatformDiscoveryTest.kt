@@ -88,10 +88,10 @@ class PlatformDiscoveryTest {
                 koblas.isAccelerated(BackendSlot.F64Lapack),
                 "the F64Lapack slot should be accelerated exactly when a host LAPACKE resolved",
             )
-            // The vector kernels have no host implementation to route to, so they stay portable either way.
-            assertTrue(
-                BackendSlot.F64VectorKernels in koblas.portableSlots,
-                "koblas ships no host vector kernels, so that slot cannot be accelerated",
+            assertEquals(
+                HostBlasCalls.available,
+                koblas.isAccelerated(BackendSlot.F64VectorKernels),
+                "the F64VectorKernels slot should be accelerated exactly when a host CBLAS resolved",
             )
         }
     }

@@ -70,8 +70,9 @@ internal class HostBlasCalls(internal val config: OpenBlasConfig) {
      * is read with `find`, which is a lookup; binding would be the stack-hungry thing discovery avoids.
      */
     private val requiredCblas = listOf(
-        "cblas_daxpy", "cblas_dgemm", "cblas_dgemv", "cblas_dger", "cblas_dscal", "cblas_dsymm",
-        "cblas_dsymv", "cblas_dsyrk", "cblas_dtrmm", "cblas_dtrmv", "cblas_dtrsm", "cblas_dtrsv",
+        "cblas_dasum", "cblas_daxpy", "cblas_ddot", "cblas_dgemm", "cblas_dgemv", "cblas_dger",
+        "cblas_dnrm2", "cblas_dscal", "cblas_dsymm", "cblas_dsymv", "cblas_dsyrk", "cblas_dtrmm",
+        "cblas_dtrmv", "cblas_dtrsm", "cblas_dtrsv",
     )
 
     /** The same for LAPACKE, less `LAPACKE_dgeqp3`, which [optionalHandle] already lets a host omit. */
@@ -252,6 +253,30 @@ internal class HostBlasCalls(internal val config: OpenBlasConfig) {
 
     val daxpy: MethodHandle by lazy {
         handle("cblas_daxpy", voidOf(JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT))
+    }
+
+    val ddot: MethodHandle by lazy {
+        linker.downcallHandle(
+            symbol("cblas_ddot"),
+            FunctionDescriptor.of(JAVA_DOUBLE, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT),
+            critical,
+        )
+    }
+
+    val dnrm2: MethodHandle by lazy {
+        linker.downcallHandle(
+            symbol("cblas_dnrm2"),
+            FunctionDescriptor.of(JAVA_DOUBLE, JAVA_INT, ADDRESS, JAVA_INT),
+            critical,
+        )
+    }
+
+    val dasum: MethodHandle by lazy {
+        linker.downcallHandle(
+            symbol("cblas_dasum"),
+            FunctionDescriptor.of(JAVA_DOUBLE, JAVA_INT, ADDRESS, JAVA_INT),
+            critical,
+        )
     }
 
     val dgetrf: MethodHandle by lazy {

@@ -165,6 +165,7 @@ public final class com/eignex/koblas/OpsKt {
 }
 
 public final class com/eignex/koblas/RegistryKt {
+	public static final fun discoverBackends ()V
 	public static final fun getKoblas ()Lcom/eignex/koblas/F64Context;
 	public static final fun getKoblasInfo ()Ljava/lang/String;
 	public static final fun installBackends (Lcom/eignex/koblas/F64Context;)V
@@ -690,12 +691,14 @@ public abstract interface class com/eignex/koblas/dense/F64VectorKernels : com/e
 	public abstract fun axpy ([DID[DII)V
 	public abstract fun dot ([DI[DII)D
 	public fun dot4 ([DII[DII[DI)V
+	public fun getMinDispatchLength ()Ljava/lang/Integer;
 	public abstract fun nrm2 ([DII)D
 	public abstract fun scale ([DIDI)V
 }
 
 public final class com/eignex/koblas/dense/F64VectorKernels$DefaultImpls {
 	public static fun dot4 (Lcom/eignex/koblas/dense/F64VectorKernels;[DII[DII[DI)V
+	public static fun getMinDispatchLength (Lcom/eignex/koblas/dense/F64VectorKernels;)Ljava/lang/Integer;
 	public static fun getPriority (Lcom/eignex/koblas/dense/F64VectorKernels;)I
 	public static fun isAvailable (Lcom/eignex/koblas/dense/F64VectorKernels;)Z
 	public static fun isPortable (Lcom/eignex/koblas/dense/F64VectorKernels;)Z
@@ -786,24 +789,26 @@ public abstract class com/eignex/koblas/dense/host/F64HostLapackAdapter : com/ei
 
 public final class com/eignex/koblas/dense/host/cblas/OpenBlasConfig {
 	public fun <init> ()V
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;IIII)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;IIIIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;IIII)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;IIIIILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
 	public final fun component10 ()I
+	public final fun component11 ()I
 	public final fun component2 ()Ljava/lang/String;
 	public final fun component3 ()Ljava/lang/Integer;
 	public final fun component4 ()Ljava/lang/Integer;
 	public final fun component5 ()Ljava/lang/Integer;
 	public final fun component6 ()Ljava/lang/Integer;
-	public final fun component7 ()I
+	public final fun component7 ()Ljava/lang/Integer;
 	public final fun component8 ()I
 	public final fun component9 ()I
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;IIII)Lcom/eignex/koblas/dense/host/cblas/OpenBlasConfig;
-	public static synthetic fun copy$default (Lcom/eignex/koblas/dense/host/cblas/OpenBlasConfig;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;IIIIILjava/lang/Object;)Lcom/eignex/koblas/dense/host/cblas/OpenBlasConfig;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;IIII)Lcom/eignex/koblas/dense/host/cblas/OpenBlasConfig;
+	public static synthetic fun copy$default (Lcom/eignex/koblas/dense/host/cblas/OpenBlasConfig;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;IIIIILjava/lang/Object;)Lcom/eignex/koblas/dense/host/cblas/OpenBlasConfig;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getCholeskyMin ()I
 	public final fun getLapackMin ()Ljava/lang/Integer;
 	public final fun getLapackeLibraryPath ()Ljava/lang/String;
+	public final fun getLevel1Min ()Ljava/lang/Integer;
 	public final fun getLevel2Min ()Ljava/lang/Integer;
 	public final fun getLevel3Min ()Ljava/lang/Integer;
 	public final fun getLibraryPath ()Ljava/lang/String;
@@ -821,6 +826,7 @@ public final class com/eignex/koblas/hostblas/HostBackends {
 	public synthetic fun <init> (Lcom/eignex/koblas/dense/host/cblas/OpenBlasConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun getBlas ()Lcom/eignex/koblas/hostblas/HostBlas;
 	public final fun getLapack ()Lcom/eignex/koblas/hostblas/HostLapack;
+	public final fun getVectorKernels ()Lcom/eignex/koblas/hostblas/HostVectorKernels;
 }
 
 public final class com/eignex/koblas/hostblas/HostBlas : com/eignex/koblas/dense/host/F64HostBlasAdapter {
@@ -837,6 +843,31 @@ public final class com/eignex/koblas/hostblas/HostLapack : com/eignex/koblas/den
 	public fun getName ()Ljava/lang/String;
 	public fun getPriority ()I
 	public fun isAvailable ()Z
+}
+
+public final class com/eignex/koblas/hostblas/HostVectorKernels : com/eignex/koblas/dense/F64VectorKernels {
+	public fun <init> (Lcom/eignex/koblas/dense/host/cblas/OpenBlasConfig;)V
+	public synthetic fun <init> (Lcom/eignex/koblas/dense/host/cblas/OpenBlasConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun asum ([DII)D
+	public fun axpy ([DID[DII)V
+	public fun dot ([DI[DII)D
+	public fun dot4 ([DII[DII[DI)V
+	public final fun getConfig ()Lcom/eignex/koblas/dense/host/cblas/OpenBlasConfig;
+	public fun getMinDispatchLength ()Ljava/lang/Integer;
+	public fun getName ()Ljava/lang/String;
+	public fun getPriority ()I
+	public fun isAvailable ()Z
+	public fun isPortable ()Z
+	public fun nrm2 ([DII)D
+	public fun scale ([DIDI)V
+}
+
+public final class com/eignex/koblas/hostsparse/HostSparseBackends {
+	public fun <init> ()V
+	public fun <init> (Lcom/eignex/koblas/sparse/host/klu/KluConfig;Lcom/eignex/koblas/sparse/host/umfpack/UmfpackConfig;)V
+	public synthetic fun <init> (Lcom/eignex/koblas/sparse/host/klu/KluConfig;Lcom/eignex/koblas/sparse/host/umfpack/UmfpackConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getKlu ()Lcom/eignex/koblas/sparse/host/klu/KluSparseLu;
+	public final fun getUmfpack ()Lcom/eignex/koblas/sparse/host/umfpack/UmfpackSparseLu;
 }
 
 public final class com/eignex/koblas/internal/backend/BackendSlot : java/lang/Enum {
