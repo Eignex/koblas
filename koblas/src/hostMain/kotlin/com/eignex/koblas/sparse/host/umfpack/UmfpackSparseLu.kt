@@ -8,12 +8,9 @@ import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
 import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.backend.BackendNames
-import com.eignex.koblas.requireSquare
 import com.eignex.koblas.sparse.F64SingularSparseFactorization
 import com.eignex.koblas.sparse.F64SparseFactorization
-import com.eignex.koblas.sparse.F64SparseLu
-import com.eignex.koblas.sparse.factorization.lu.F64SparseLuFactorization
-import com.eignex.koblas.sparse.factorization.lu.NO_DROP
+import com.eignex.koblas.sparse.host.F64HostSparseLuAdapter
 import kotlinx.cinterop.COpaquePointerVar
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
@@ -25,14 +22,11 @@ import kotlinx.cinterop.ptr
 import kotlinx.cinterop.usePinned
 import kotlinx.cinterop.value
 
-/**
- * The sparse half backed by SuiteSparse's UMFPACK. Equilibration, a non-default drop tolerance and any
- * UMFPACK failure fall back to [F64SparseLuFactorization]; a singular result becomes [F64SingularSparseFactorization].
- */
+/** The sparse half backed by SuiteSparse's UMFPACK. */
 public class UmfpackSparseLu(
     /** Policy for this backend instance and the factors it produces. */
     public val config: UmfpackConfig = UmfpackConfig(),
-) : F64SparseLu {
+) : F64HostSparseLuAdapter() {
     private val loader = UmfpackLoader(config)
 
     override val name: String get() = BackendNames.UMFPACK
@@ -40,28 +34,14 @@ public class UmfpackSparseLu(
     override val priority: Int get() = HOST_BACKEND_PRIORITY
 
     /** UMFPACK ships separately from OpenBLAS, so a host can have one without the other. */
-    override val isAvailable: Boolean get() = loader.available
+    override val nativeAvailable: Boolean get() = loader.available
 
     internal val refinementSteps: Double? get() = loader.refinementSteps
 
     internal val pivotTolerance: Double? get() = loader.pivotTolerance
 
-    /** Stated rather than delegated: the delegate is portable and this calls out to UMFPACK. */
-    override val isPortable: Boolean get() = false
-
-    @Suppress("ReturnCount") // one early return per condition UMFPACK cannot serve
-    override fun factor(a: F64SparseMatrix, equilibrate: Boolean, dropTolerance: Double): F64SparseFactorization {
-        requireSquare(a, "factor")
-        val f = loader.functions ?: return F64SparseLuFactorization.factorCsc(a, equilibrate, dropTolerance)
-        if (dropTolerance != NO_DROP) {
-            return F64SparseLuFactorization.factorCsc(
-                a,
-                equilibrate,
-                dropTolerance,
-            )
-        }
-        // An empty matrix and an all-zero one have nothing to pin, and `usePinned` yields no address.
-        if (a.rows == 0 || a.nnz == 0) return F64SparseLuFactorization.factorCsc(a)
+    override fun factorNative(a: F64SparseMatrix, equilibrate: Boolean): F64SparseFactorization {
+        val f = loader.functions ?: error("UMFPACK is not available")
 
         val info = DoubleArray(INFO)
         val control = loader.control(equilibrate)
@@ -89,7 +69,7 @@ public class UmfpackSparseLu(
 
         if (status != OK && status != WARNING_SINGULAR) {
             handle.release()
-            return F64SparseLuFactorization.factorCsc(a)
+            return portableFactor(a, equilibrate)
         }
         if (status == WARNING_SINGULAR) {
             // Solving a singular factorization is forbidden, so holding UMFPACK's partial factors leaks.

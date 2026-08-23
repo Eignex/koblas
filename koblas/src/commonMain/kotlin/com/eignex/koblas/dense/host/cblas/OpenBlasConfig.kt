@@ -33,7 +33,7 @@ public data class OpenBlasConfig(
     val libraryPath: String? = null,
     /** An absolute LAPACKE library path, or the deployment lookup chain when null. */
     val lapackeLibraryPath: String? = null,
-    /** OpenBLAS's process-wide thread count; one prevents parallel LAPACK from overflowing a JVM stack. */
+    /** OpenBLAS thread count; setting it, including to one, requires a higher JVM thread-memory cap. */
     val threadCount: Int? = 1,
     /** Smallest dimension routed to native level-2 BLAS; null keeps the platform default. */
     val level2Min: Int? = null,
