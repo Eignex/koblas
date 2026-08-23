@@ -95,17 +95,6 @@ internal fun assertSingularIsReportedWithUnknownPosition(lapack: F64SparseLu) {
 }
 
 /**
- * A degenerate matrix is answered portably: an empty one factors to a size-zero factorization and one of all
- * zeros is reported singular. On Kotlin/Native the reason is that `usePinned` has no address for an empty array.
- */
-internal fun assertEmptyAndZeroMatricesTakeThePortablePath(lapack: F64SparseLu) {
-    val empty = lapack.factor(F64SparseMatrix.ofColumns(0, 0, emptyList()))
-    assertEquals(0, empty.n, "an empty matrix factors to an empty factorization")
-    val zeros = lapack.factor(F64SparseMatrix.ofColumns(3, 3, listOf(emptyList(), emptyList(), emptyList())))
-    assertTrue(zeros.singular, "a matrix of zeros is singular")
-}
-
-/**
  * A host sparse factorization wins only its own half of the registry, so the sparse BLAS stays with the
  * reference. [n] sets the size of the system whose fill is reported.
  */
@@ -121,8 +110,8 @@ internal fun assertRegistersAsTheSparseLuHalf(lapack: F64SparseLu, n: Int) {
     }
 }
 
-/** A host may equilibrate natively but must hand a drop-tolerance request back to koblas. */
-internal fun assertNativeEquilibrationAndDropToleranceFallsBack(
+/** A host may equilibrate natively and rejects a drop tolerance it cannot represent. */
+internal fun assertNativeEquilibrationAndUnsupportedDropToleranceIsRejected(
     lapack: F64SparseLu,
     hostFactorization: (F64SparseFactorization) -> Boolean,
 ) {
@@ -132,9 +121,7 @@ internal fun assertNativeEquilibrationAndDropToleranceFallsBack(
     val equilibrated = lapack.factor(a, equilibrate = true)
     assertTrue(hostFactorization(equilibrated), "native equilibration must retain the host factorization")
     assertClose(b, a.gemv(equilibrated.solve(b)), "equilibrated residual", tolerance = 1e-9)
-    val fallback = lapack.factor(a, dropTolerance = 1e-12)
-    assertTrue(!hostFactorization(fallback), "a drop-tolerance request must not be ignored")
-    assertClose(b, a.gemv(fallback.solve(b)), "fallback residual", tolerance = 1e-9)
+    assertFailsWith<IllegalArgumentException> { lapack.factor(a, dropTolerance = 1e-12) }
 }
 
 /** Native handles are freed per factorization, so a long loop must not grow without bound. */

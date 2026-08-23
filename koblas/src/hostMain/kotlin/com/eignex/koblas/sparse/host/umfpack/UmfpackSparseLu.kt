@@ -69,7 +69,7 @@ public class UmfpackSparseLu(
 
         if (status != OK && status != WARNING_SINGULAR) {
             handle.release()
-            return portableFactor(a, equilibrate)
+            error("umfpack_di_numeric failed with status $status")
         }
         if (status == WARNING_SINGULAR) {
             // Solving a singular factorization is forbidden, so holding UMFPACK's partial factors leaks.
@@ -126,8 +126,4 @@ public class UmfpackSparseLu(
             }
         }
     }
-
-    // UMFPACK provides no symmetric factorization, so these run the portable versions. Forwarded explicitly
-    // rather than by class delegation, which would route the convenience overloads to the portable factor
-    // instead of this one, since a delegated member calls back into the delegate.
 }

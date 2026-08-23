@@ -312,9 +312,6 @@ abstract class com.eignex.koblas.sparse.host/F64HostSparseLuAdapter : com.eignex
 
     abstract fun factorNative(com.eignex.koblas.core/F64SparseMatrix, kotlin/Boolean): com.eignex.koblas.sparse/F64SparseFactorization // com.eignex.koblas.sparse.host/F64HostSparseLuAdapter.factorNative|factorNative(com.eignex.koblas.core.F64SparseMatrix;kotlin.Boolean){}[0]
     final fun factor(com.eignex.koblas.core/F64SparseMatrix, kotlin/Boolean, kotlin/Double): com.eignex.koblas.sparse/F64SparseFactorization // com.eignex.koblas.sparse.host/F64HostSparseLuAdapter.factor|factor(com.eignex.koblas.core.F64SparseMatrix;kotlin.Boolean;kotlin.Double){}[0]
-    final fun portableFactor(com.eignex.koblas.core/F64SparseMatrix, kotlin/Boolean, kotlin/Double = ...): com.eignex.koblas.sparse/F64SparseFactorization // com.eignex.koblas.sparse.host/F64HostSparseLuAdapter.portableFactor|portableFactor(com.eignex.koblas.core.F64SparseMatrix;kotlin.Boolean;kotlin.Double){}[0]
-    open fun factorWhenUnavailable(com.eignex.koblas.core/F64SparseMatrix, kotlin/Boolean, kotlin/Double): com.eignex.koblas.sparse/F64SparseFactorization // com.eignex.koblas.sparse.host/F64HostSparseLuAdapter.factorWhenUnavailable|factorWhenUnavailable(com.eignex.koblas.core.F64SparseMatrix;kotlin.Boolean;kotlin.Double){}[0]
-    open fun factorWithDropTolerance(com.eignex.koblas.core/F64SparseMatrix, kotlin/Boolean, kotlin/Double): com.eignex.koblas.sparse/F64SparseFactorization // com.eignex.koblas.sparse.host/F64HostSparseLuAdapter.factorWithDropTolerance|factorWithDropTolerance(com.eignex.koblas.core.F64SparseMatrix;kotlin.Boolean;kotlin.Double){}[0]
 }
 
 final class com.eignex.koblas.core/F64DenseMatrix : com.eignex.koblas.core/F64MatrixView { // com.eignex.koblas.core/F64DenseMatrix|null[0]
