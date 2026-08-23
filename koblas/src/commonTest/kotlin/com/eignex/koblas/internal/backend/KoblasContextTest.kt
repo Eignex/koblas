@@ -13,6 +13,7 @@ import com.eignex.koblas.dense.solve
 import com.eignex.koblas.internal.numeric.absoluteSum
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
+import com.eignex.koblas.sparse.F64SparseLinearAlgebra
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -72,6 +73,13 @@ class KoblasContextTest {
         assertSame(base.sparseLu, derived.sparseLu)
         assertSame(base.sparseVectorKernels, derived.sparseVectorKernels)
         assertSame(base.vectorKernels, base.vectorKernels, "the original must be untouched; contexts are values")
+    }
+
+    @Test
+    fun `sparse linear algebra exposes its vector kernels`() {
+        val context: F64SparseLinearAlgebra = koblas
+
+        assertSame(koblas.sparseVectorKernels, context.sparseVectorKernels)
     }
 
     @Test

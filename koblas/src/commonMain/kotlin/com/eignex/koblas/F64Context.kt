@@ -24,7 +24,7 @@ public class F64Context(
     override val vectorKernels: F64VectorKernels,
     public val blas: F64Blas,
     public val lapack: F64Lapack,
-    public val sparseVectorKernels: F64SparseVectorKernels,
+    override val sparseVectorKernels: F64SparseVectorKernels,
     public val sparseBlas: F64SparseBlas,
     public val sparseLu: F64SparseLu,
 ) : F64LinearAlgebra,

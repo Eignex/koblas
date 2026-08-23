@@ -181,7 +181,10 @@ abstract interface com.eignex.koblas.sparse/F64SparseFactorization { // com.eign
     open fun solve(kotlin/DoubleArray, kotlin/Boolean = ...): kotlin/DoubleArray // com.eignex.koblas.sparse/F64SparseFactorization.solve|solve(kotlin.DoubleArray;kotlin.Boolean){}[0]
 }
 
-abstract interface com.eignex.koblas.sparse/F64SparseLinearAlgebra : com.eignex.koblas.sparse/F64SparseBlas, com.eignex.koblas.sparse/F64SparseLu // com.eignex.koblas.sparse/F64SparseLinearAlgebra|null[0]
+abstract interface com.eignex.koblas.sparse/F64SparseLinearAlgebra : com.eignex.koblas.sparse/F64SparseBlas, com.eignex.koblas.sparse/F64SparseLu { // com.eignex.koblas.sparse/F64SparseLinearAlgebra|null[0]
+    open val sparseVectorKernels // com.eignex.koblas.sparse/F64SparseLinearAlgebra.sparseVectorKernels|{}sparseVectorKernels[0]
+        open fun <get-sparseVectorKernels>(): com.eignex.koblas.sparse/F64SparseVectorKernels // com.eignex.koblas.sparse/F64SparseLinearAlgebra.sparseVectorKernels.<get-sparseVectorKernels>|<get-sparseVectorKernels>(){}[0]
+}
 
 abstract interface com.eignex.koblas.sparse/F64SparseLu : com.eignex.koblas/Backend { // com.eignex.koblas.sparse/F64SparseLu|null[0]
     abstract fun factor(com.eignex.koblas.core/F64SparseMatrix, kotlin/Boolean = ..., kotlin/Double = ...): com.eignex.koblas.sparse/F64SparseFactorization // com.eignex.koblas.sparse/F64SparseLu.factor|factor(com.eignex.koblas.core.F64SparseMatrix;kotlin.Boolean;kotlin.Double){}[0]
