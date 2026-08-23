@@ -37,7 +37,7 @@ dependencies { api(project(":koblas")) }
 val supportedPlatforms = listOf("linux-x86_64", "linux-arm64", "macosx-arm64")
 val requiredResources = mapOf(
     "linux-x86_64" to listOf("libopenblas.so.0", "libgfortran.so.5", "libquadmath.so.0", "libgcc_s.so.1"),
-    "linux-arm64" to listOf("libopenblas.so.0", "libgfortran.so.5", "libquadmath.so.0", "libgcc_s.so.1"),
+    "linux-arm64" to listOf("libopenblas.so.0", "libgfortran.so.5", "libgcc_s.so.1"),
     "macosx-arm64" to listOf(
         "libopenblas.0.dylib",
         "libgfortran.dylib",

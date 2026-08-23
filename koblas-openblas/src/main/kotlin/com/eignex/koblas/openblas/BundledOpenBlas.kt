@@ -73,12 +73,14 @@ internal object OpenBlasResources {
     private val lapackeLibrary: String? = null
 
     private val libraries: List<String> = when (platform) {
-        "linux-x86_64", "linux-arm64" -> listOf(
+        "linux-x86_64" -> listOf(
             openblasLibrary,
             "libgfortran.so.5",
             "libquadmath.so.0",
             "libgcc_s.so.1",
         )
+
+        "linux-arm64" -> listOf(openblasLibrary, "libgfortran.so.5", "libgcc_s.so.1")
 
         "macosx-arm64" -> listOf(
             openblasLibrary,

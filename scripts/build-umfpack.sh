@@ -35,6 +35,9 @@ work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
 tar -xzf "$cache" -C "$work"
 source="$(find "$work" -mindepth 1 -maxdepth 1 -type d | head -1)"
 install="$work/install"
+if [[ "$platform" == macosx-arm64 ]]; then
+    export DYLD_LIBRARY_PATH="$(dirname "$blas")${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}"
+fi
 cmake -S "$source" -B "$work/build" -G "Unix Makefiles" \
     -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_PREFIX="$install" \
     -DSUITESPARSE_ENABLE_PROJECTS="suitesparse_config;amd;colamd;umfpack" \

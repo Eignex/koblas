@@ -70,7 +70,8 @@ resource_dir="$output/org/bytedeco/openblas/$platform"
 license_name="LICENSE.openblas-$version.txt"
 build_options="USE_THREAD=0"
 case "$platform" in
-  linux-*) required_files=("$library_name" libgfortran.so.5 libquadmath.so.0 libgcc_s.so.1 "$license_name") ;;
+  linux-x86_64) required_files=("$library_name" libgfortran.so.5 libquadmath.so.0 libgcc_s.so.1 "$license_name") ;;
+  linux-arm64) required_files=("$library_name" libgfortran.so.5 libgcc_s.so.1 "$license_name") ;;
   macosx-arm64) required_files=("$library_name" libgfortran.dylib libgfortran.5.dylib libquadmath.0.dylib libgcc_s.1.1.dylib "$license_name") ;;
 esac
 if [[ -f "$resource_dir/.openblas-source-sha256" ]] &&
@@ -113,10 +114,14 @@ cp "$library" "$resource_dir/$library_name"
 cp "$source_dir/LICENSE" "$resource_dir/LICENSE.openblas-$version.txt"
 
 if [[ "$platform" == linux-* ]]; then
-  for runtime in \
-    "$("$fortran_compiler" -print-file-name=libgfortran.so.5)" \
-    "$("$fortran_compiler" -print-file-name=libquadmath.so.0)" \
-    "$("$c_compiler" -print-file-name=libgcc_s.so.1)"; do
+  runtimes=(
+    "$("$fortran_compiler" -print-file-name=libgfortran.so.5)"
+    "$("$c_compiler" -print-file-name=libgcc_s.so.1)"
+  )
+  if [[ "$platform" == linux-x86_64 ]]; then
+    runtimes+=("$("$fortran_compiler" -print-file-name=libquadmath.so.0)")
+  fi
+  for runtime in "${runtimes[@]}"; do
     [[ -f "$runtime" ]] || { echo "missing Linux runtime $runtime" >&2; exit 1; }
     cp "$runtime" "$resource_dir/$(basename "$runtime")"
   done
