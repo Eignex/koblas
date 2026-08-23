@@ -749,10 +749,12 @@ public abstract class com/eignex/koblas/dense/host/F64HostLapackAdapter : com/ei
 	public fun applyQ (Lcom/eignex/koblas/dense/F64QrDecomposition;[DZ)[D
 	public fun applyQInto (Lcom/eignex/koblas/dense/F64QrDecomposition;[D[DZ)[D
 	public fun cholesky (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/CholeskyPolicy;)Lcom/eignex/koblas/dense/F64CholeskyDecomposition;
+	protected fun dgeqp3 (II[D[I[D)Ljava/lang/Integer;
 	public fun factor (Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/dense/F64LuDecomposition;
 	public fun factorInto (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/F64LuDecomposition;)Lcom/eignex/koblas/dense/F64LuDecomposition;
 	protected fun getCholeskyMin ()I
 	protected fun getNativeTrsmMinRhs ()I
+	protected fun getPivotedQrMin ()I
 	public fun getPriority ()I
 	protected fun getSpdInvertMin ()I
 	public fun getVectorKernels ()Lcom/eignex/koblas/dense/F64VectorKernels;
@@ -762,6 +764,7 @@ public abstract class com/eignex/koblas/dense/host/F64HostLapackAdapter : com/ei
 	public fun isPortable ()Z
 	public fun ldl (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64LdlDecomposition;
 	public fun qr (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64QrDecomposition;
+	public fun qrPivoted (Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;
 	public fun rcond (Lcom/eignex/koblas/dense/F64LuDecomposition;DLcom/eignex/koblas/Workspace;)D
 	public fun solve (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;[D)[D
 	public fun solve (Lcom/eignex/koblas/dense/F64LdlDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/core/F64DenseMatrix;
@@ -793,7 +796,6 @@ public final class com/eignex/koblas/hostblas/HostLapack : com/eignex/koblas/den
 	public fun getName ()Ljava/lang/String;
 	public fun getPriority ()I
 	public fun isAvailable ()Z
-	public fun qrPivoted (Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;
 }
 
 public final class com/eignex/koblas/internal/backend/BackendSlot : java/lang/Enum {
@@ -806,6 +808,18 @@ public final class com/eignex/koblas/internal/backend/BackendSlot : java/lang/En
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/internal/backend/BackendSlot;
 	public static fun values ()[Lcom/eignex/koblas/internal/backend/BackendSlot;
+}
+
+public final class com/eignex/koblas/internal/backend/BundledNativeResources {
+	public static final field Companion Lcom/eignex/koblas/internal/backend/BundledNativeResources$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Class;Ljava/lang/String;)V
+	public final fun extract (Ljava/lang/Iterable;)Ljava/util/Map;
+	public final fun extractRequired (Ljava/lang/Iterable;)Ljava/util/Map;
+	public final fun resource (Ljava/lang/String;)Ljava/io/InputStream;
+}
+
+public final class com/eignex/koblas/internal/backend/BundledNativeResources$Companion {
+	public final fun supportedPlatform (Lkotlin/jvm/functions/Function2;)Ljava/lang/String;
 }
 
 public final class com/eignex/koblas/sparse/F64ReferenceSparseLinearAlgebra : com/eignex/koblas/sparse/F64SparseLinearAlgebra, com/eignex/koblas/sparse/F64SparseVectorKernels {

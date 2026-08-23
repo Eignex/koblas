@@ -7,10 +7,8 @@ import com.eignex.koblas.dense.F64LinearAlgebra
 import com.eignex.koblas.dense.F64VectorKernels
 import com.eignex.koblas.hostblas.HostBlas
 import com.eignex.koblas.hostblas.HostLapack
-import java.io.InputStream
-import java.nio.file.Files
+import com.eignex.koblas.internal.backend.BundledNativeResources
 import java.nio.file.Path
-import java.nio.file.attribute.PosixFilePermissions
 
 /**
  * OpenBLAS and LAPACKE extracted from the Maven-native resources on this application's classpath.
@@ -71,22 +69,19 @@ private fun openBlasPathOverride(): String? =
     System.getProperty(OPENBLAS_PATH_PROPERTY) ?: System.getenv(OPENBLAS_PATH_ENVIRONMENT)
 
 internal object OpenBlasResources {
-    private val x64Architectures: Set<String> = setOf("amd64", "x86_64")
-    private val arm64Architectures: Set<String> = setOf("aarch64", "arm64")
-
-    private val os: String = System.getProperty("os.name")
-    private val architecture: String = System.getProperty("os.arch")
-
-    private val platform: String = when {
-        os.startsWith("Linux", ignoreCase = true) && architecture in x64Architectures -> "linux-x86_64"
-        os.startsWith("Linux", ignoreCase = true) && architecture in arm64Architectures -> "linux-arm64"
-        os.startsWith("Mac", ignoreCase = true) && architecture in arm64Architectures -> "macosx-arm64"
-        else -> error("koblas-openblas has no bundled OpenBLAS for $os $architecture")
+    private val platform: String = BundledNativeResources.supportedPlatform { os, architecture ->
+        "koblas-openblas has no bundled OpenBLAS for $os $architecture"
     }
+    private val resources = BundledNativeResources(
+        directoryPrefix = "koblas-openblas",
+        platform = platform,
+        resourceRoot = "org/bytedeco/openblas",
+        anchor = BundledOpenBlas::class.java,
+        libraryDescription = "OpenBLAS",
+    )
 
     private val extracted: OpenBlasPaths by lazy {
-        val directory = createExtractionDirectory()
-        val copied = libraries.associateWith { name -> copyResource(directory, name) }
+        val copied = resources.extract(libraries)
         OpenBlasPaths(
             checkNotNull(copied[openblasLibrary]) { "OpenBLAS resource is absent for $platform" },
             lapackeLibrary?.let(copied::get),
@@ -94,35 +89,6 @@ internal object OpenBlasResources {
     }
 
     fun extract(): OpenBlasPaths = extracted
-
-    private fun createExtractionDirectory(): Path {
-        val directory = Files.createTempDirectory("koblas-openblas-$platform-")
-        setOwnerOnlyPermissions(directory, "rwx------")
-        return directory
-    }
-
-    private fun copyResource(directory: Path, name: String): Path? {
-        val input = resource(name) ?: return null
-        val destination = directory.resolve(name)
-        input.use { Files.copy(it, destination) }
-        setOwnerOnlyPermissions(destination, "rw-------")
-        return destination
-    }
-
-    private fun setOwnerOnlyPermissions(path: Path, permissions: String) {
-        runCatching {
-            Files.setPosixFilePermissions(path, PosixFilePermissions.fromString(permissions))
-        }.onFailure { cause ->
-            throw IllegalStateException("cannot secure extracted OpenBLAS resource $path", cause)
-        }
-    }
-
-    private fun resource(name: String): InputStream? {
-        val path = "org/bytedeco/openblas/$platform/$name"
-        return Thread.currentThread().contextClassLoader.getResourceAsStream(path)
-            ?: BundledOpenBlas::class.java.classLoader.getResourceAsStream(path)
-            ?: BundledOpenBlas::class.java.getResourceAsStream("/$path")
-    }
 
     private val openblasLibrary: String = when (platform) {
         "linux-x86_64", "linux-arm64" -> "libopenblas.so.0"

@@ -36,9 +36,7 @@ internal actual fun registerPlatformBackends() {
         // Once, not per half, since registerBackend offers the object as every half it implements.
         registerBackend(provider)
     }
-    registerHostBlas(denseRequested)
-    registerKlu(sparseRequested)
-    registerUmfpack(sparseRequested)
+    builtinCandidates.forEach { candidate -> candidate.register(denseRequested, sparseRequested) }
 }
 
 /** Bundled providers add a diagnostic suffix while retaining the canonical name callers configure. */
@@ -49,32 +47,45 @@ private fun matchesRequested(name: String, requested: String): Boolean =
  * koblas's own FFM binding to a host OpenBLAS. The test is a `dlopen` plus a symbol lookup, not a probe
  * computation, because `Linker.downcallHandle` is stack-hungry enough to throw StackOverflowError here.
  */
-private fun registerHostBlas(requested: String?) {
-    if (!HostBlasCalls.available) return
-    val blas = HostBlas()
-    if (requested != null && blas.name != requested) return
-    registerBackend(blas)
-    if (HostBlasCalls.lapackAvailable) registerBackend(HostLapack())
+private data class BuiltinBackendCandidate(
+    val requested: (dense: String?, sparse: String?) -> String?,
+    val present: () -> Boolean,
+    val create: () -> Backend,
+    val afterRegister: (() -> Unit)? = null,
+) {
+    fun register(denseRequested: String?, sparseRequested: String?) {
+        if (!present()) return
+        val backend = create()
+        if (requested(denseRequested, sparseRequested)?.let { it != backend.name } == true) return
+        registerBackend(backend)
+        afterRegister?.invoke()
+    }
 }
 
 /**
- * koblas's FFM binding to SuiteSparse's UMFPACK, checked with a bare `dlopen` for the same stack reason
- * as [registerHostBlas]. Registration means installed, not working; [UmfpackSparseLu] falls back.
+ * koblas's own FFM bindings. Presence checks intentionally stay library-specific: these are `dlopen`
+ * checks, while dense correctness is covered by [probe] for service providers.
  */
-private fun registerUmfpack(requested: String?) {
-    if (!UmfpackCalls.libraryPresent) return
-    val lapack = UmfpackSparseLu()
-    if (requested != null && lapack.name != requested) return
-    registerBackend(lapack)
-}
-
-/** KLU is the preferred sparse-LU backend; UMFPACK remains selectable by name. */
-private fun registerKlu(requested: String?) {
-    if (!KluCalls.libraryPresent) return
-    val lapack = KluSparseLu()
-    if (requested != null && lapack.name != requested) return
-    registerBackend(lapack)
-}
+private val builtinCandidates: List<BuiltinBackendCandidate> = listOf(
+    BuiltinBackendCandidate(
+        requested = { dense, _ -> dense },
+        present = { HostBlasCalls.available },
+        create = ::HostBlas,
+        afterRegister = {
+            if (HostBlasCalls.lapackAvailable) registerBackend(HostLapack())
+        },
+    ),
+    BuiltinBackendCandidate(
+        requested = { _, sparse -> sparse },
+        present = { KluCalls.libraryPresent },
+        create = ::KluSparseLu,
+    ),
+    BuiltinBackendCandidate(
+        requested = { _, sparse -> sparse },
+        present = { UmfpackCalls.libraryPresent },
+        create = ::UmfpackSparseLu,
+    ),
+)
 
 /** Instantiate all registered providers, dropping any whose construction fails. */
 private fun loadProviders(): List<Backend> {
