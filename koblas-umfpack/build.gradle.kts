@@ -79,6 +79,7 @@ val buildUmfpack = tasks.register<Exec>("buildUmfpack") {
 
 sourceSets.named("main") { resources.srcDir(umfpackResources) }
 tasks.named("processResources") { if (!lintOnly) dependsOn(buildUmfpack) }
+tasks.named<Jar>("sourcesJar") { dependsOn(buildUmfpack) }
 
 val umfpackVersion = layout.projectDirectory.file("umfpack.lock").asFile.useLines { lines ->
     lines.first { it.startsWith("version=") }.removePrefix("version=")

@@ -111,6 +111,7 @@ sourceSets.named("main") {
 tasks.named("processResources") {
     if (!lintOnly) dependsOn(buildOpenBlas)
 }
+tasks.named<Jar>("sourcesJar") { dependsOn(buildOpenBlas) }
 
 val verifyOpenBlasResources = tasks.register("verifyOpenBlasResources") {
     inputs.dir(openBlasResources)

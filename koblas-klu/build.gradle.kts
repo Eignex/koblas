@@ -71,6 +71,7 @@ val buildKlu = tasks.register<Exec>("buildKlu") {
 
 sourceSets.named("main") { resources.srcDir(kluResources) }
 tasks.named("processResources") { if (!lintOnly) dependsOn(buildKlu) }
+tasks.named<Jar>("sourcesJar") { dependsOn(buildKlu) }
 
 val kluVersion = layout.projectDirectory.file("klu.lock").asFile.useLines { lines ->
     lines.first { it.startsWith("version=") }.removePrefix("version=")
