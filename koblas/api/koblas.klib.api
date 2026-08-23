@@ -296,6 +296,21 @@ abstract class com.eignex.koblas.dense.host/F64HostLapackAdapter : com.eignex.ko
     open fun trtri(com.eignex.koblas.core/F64DenseMatrix, kotlin/Boolean, kotlin/Boolean): com.eignex.koblas.core/F64DenseMatrix // com.eignex.koblas.dense.host/F64HostLapackAdapter.trtri|trtri(com.eignex.koblas.core.F64DenseMatrix;kotlin.Boolean;kotlin.Boolean){}[0]
 }
 
+abstract class com.eignex.koblas.sparse.host/F64HostSparseLuAdapter : com.eignex.koblas.sparse/F64SparseLu { // com.eignex.koblas.sparse.host/F64HostSparseLuAdapter|null[0]
+    abstract val nativeAvailable // com.eignex.koblas.sparse.host/F64HostSparseLuAdapter.nativeAvailable|{}nativeAvailable[0]
+        abstract fun <get-nativeAvailable>(): kotlin/Boolean // com.eignex.koblas.sparse.host/F64HostSparseLuAdapter.nativeAvailable.<get-nativeAvailable>|<get-nativeAvailable>(){}[0]
+    open val isAvailable // com.eignex.koblas.sparse.host/F64HostSparseLuAdapter.isAvailable|{}isAvailable[0]
+        open fun <get-isAvailable>(): kotlin/Boolean // com.eignex.koblas.sparse.host/F64HostSparseLuAdapter.isAvailable.<get-isAvailable>|<get-isAvailable>(){}[0]
+    open val isPortable // com.eignex.koblas.sparse.host/F64HostSparseLuAdapter.isPortable|{}isPortable[0]
+        open fun <get-isPortable>(): kotlin/Boolean // com.eignex.koblas.sparse.host/F64HostSparseLuAdapter.isPortable.<get-isPortable>|<get-isPortable>(){}[0]
+
+    abstract fun factorNative(com.eignex.koblas.core/F64SparseMatrix, kotlin/Boolean): com.eignex.koblas.sparse/F64SparseFactorization // com.eignex.koblas.sparse.host/F64HostSparseLuAdapter.factorNative|factorNative(com.eignex.koblas.core.F64SparseMatrix;kotlin.Boolean){}[0]
+    final fun factor(com.eignex.koblas.core/F64SparseMatrix, kotlin/Boolean, kotlin/Double): com.eignex.koblas.sparse/F64SparseFactorization // com.eignex.koblas.sparse.host/F64HostSparseLuAdapter.factor|factor(com.eignex.koblas.core.F64SparseMatrix;kotlin.Boolean;kotlin.Double){}[0]
+    final fun portableFactor(com.eignex.koblas.core/F64SparseMatrix, kotlin/Boolean, kotlin/Double = ...): com.eignex.koblas.sparse/F64SparseFactorization // com.eignex.koblas.sparse.host/F64HostSparseLuAdapter.portableFactor|portableFactor(com.eignex.koblas.core.F64SparseMatrix;kotlin.Boolean;kotlin.Double){}[0]
+    open fun factorWhenUnavailable(com.eignex.koblas.core/F64SparseMatrix, kotlin/Boolean, kotlin/Double): com.eignex.koblas.sparse/F64SparseFactorization // com.eignex.koblas.sparse.host/F64HostSparseLuAdapter.factorWhenUnavailable|factorWhenUnavailable(com.eignex.koblas.core.F64SparseMatrix;kotlin.Boolean;kotlin.Double){}[0]
+    open fun factorWithDropTolerance(com.eignex.koblas.core/F64SparseMatrix, kotlin/Boolean, kotlin/Double): com.eignex.koblas.sparse/F64SparseFactorization // com.eignex.koblas.sparse.host/F64HostSparseLuAdapter.factorWithDropTolerance|factorWithDropTolerance(com.eignex.koblas.core.F64SparseMatrix;kotlin.Boolean;kotlin.Double){}[0]
+}
+
 final class com.eignex.koblas.core/F64DenseMatrix : com.eignex.koblas.core/F64MatrixView { // com.eignex.koblas.core/F64DenseMatrix|null[0]
     final val cols // com.eignex.koblas.core/F64DenseMatrix.cols|{}cols[0]
         final fun <get-cols>(): kotlin/Int // com.eignex.koblas.core/F64DenseMatrix.cols.<get-cols>|<get-cols>(){}[0]
@@ -1016,19 +1031,13 @@ final class com.eignex.koblas.sparse.host.umfpack/UmfpackFactorization : com.eig
 }
 
 // Targets: [linux, macosArm64]
-final class com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu : com.eignex.koblas.sparse/F64SparseLu { // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu|null[0]
+final class com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu : com.eignex.koblas.sparse.host/F64HostSparseLuAdapter { // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu|null[0]
     constructor <init>(com.eignex.koblas.sparse.host.umfpack/UmfpackConfig = ...) // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.<init>|<init>(com.eignex.koblas.sparse.host.umfpack.UmfpackConfig){}[0]
 
     final val config // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.config|{}config[0]
         final fun <get-config>(): com.eignex.koblas.sparse.host.umfpack/UmfpackConfig // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.config.<get-config>|<get-config>(){}[0]
-    final val isAvailable // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.isAvailable|{}isAvailable[0]
-        final fun <get-isAvailable>(): kotlin/Boolean // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.isAvailable.<get-isAvailable>|<get-isAvailable>(){}[0]
-    final val isPortable // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.isPortable|{}isPortable[0]
-        final fun <get-isPortable>(): kotlin/Boolean // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.isPortable.<get-isPortable>|<get-isPortable>(){}[0]
     final val name // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.name|{}name[0]
         final fun <get-name>(): kotlin/String // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.name.<get-name>|<get-name>(){}[0]
     final val priority // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.priority|{}priority[0]
         final fun <get-priority>(): kotlin/Int // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.priority.<get-priority>|<get-priority>(){}[0]
-
-    final fun factor(com.eignex.koblas.core/F64SparseMatrix, kotlin/Boolean, kotlin/Double): com.eignex.koblas.sparse/F64SparseFactorization // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.factor|factor(com.eignex.koblas.core.F64SparseMatrix;kotlin.Boolean;kotlin.Double){}[0]
 }

@@ -6,12 +6,9 @@ import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
 import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.backend.BackendNames
-import com.eignex.koblas.requireSquare
 import com.eignex.koblas.sparse.F64SingularSparseFactorization
 import com.eignex.koblas.sparse.F64SparseFactorization
-import com.eignex.koblas.sparse.F64SparseLu
-import com.eignex.koblas.sparse.factorization.lu.F64SparseLuFactorization
-import com.eignex.koblas.sparse.factorization.lu.NO_DROP
+import com.eignex.koblas.sparse.host.F64HostSparseLuAdapter
 import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout.ADDRESS
@@ -21,7 +18,7 @@ import java.lang.foreign.ValueLayout.JAVA_DOUBLE
 public class UmfpackSparseLu(
     /** Policy for this backend instance and the factors it produces. */
     public val config: UmfpackConfig = UmfpackConfig(),
-) : F64SparseLu {
+) : F64HostSparseLuAdapter() {
     private val calls = UmfpackCalls(config)
 
     override val name: String get() = BackendNames.UMFPACK
@@ -29,36 +26,14 @@ public class UmfpackSparseLu(
     override val priority: Int get() = HOST_BACKEND_PRIORITY
 
     /** UMFPACK ships separately from OpenBLAS, so a host can have one without the other. */
-    override val isAvailable: Boolean get() = calls.available
+    override val nativeAvailable: Boolean get() = calls.available
 
     internal val refinementSteps: Double? get() = calls.refinementSteps
 
     internal val pivotTolerance: Double? get() = calls.pivotTolerance
 
-    /** Stated rather than delegated: the delegate is portable and this calls out to UMFPACK. */
-    override val isPortable: Boolean get() = false
-
-    /**
-     * Factorizes [a], symbolic analysis then numeric factorization. [equilibrate] selects UMFPACK's native
-     * row scaling; [dropTolerance] falls back to the portable path because UMFPACK has no drop threshold.
-     */
-    override fun factor(a: F64SparseMatrix, equilibrate: Boolean, dropTolerance: Double): F64SparseFactorization {
-        requireSquare(a, "factor")
-        if (!calls.available) {
-            return F64SparseLuFactorization.factorCsc(a, equilibrate, dropTolerance)
-        }
-        // Any tolerance but the default goes to the portable path, which owns validating the rest.
-        if (dropTolerance != NO_DROP) {
-            return F64SparseLuFactorization.factorCsc(
-                a,
-                equilibrate,
-                dropTolerance,
-            )
-        }
-        // Nothing to factor, and the portable path reports the pivot position where UMFPACK reports only
-        // that it failed, so both bindings route this the same way.
-        if (a.rows == 0 || a.nnz == 0) return F64SparseLuFactorization.factorCsc(a)
-
+    /** Factorizes [a] through UMFPACK's symbolic analysis and numeric factorization. */
+    override fun factorNative(a: F64SparseMatrix, equilibrate: Boolean): F64SparseFactorization {
         val colPtr = MemorySegment.ofArray(a.colPtr)
         val rowIdx = MemorySegment.ofArray(a.rowIdx)
         val values = MemorySegment.ofArray(a.values)
@@ -71,7 +46,7 @@ public class UmfpackSparseLu(
             val symbolicStatus = calls.symbolic(a.rows, colPtr, rowIdx, values, symbolicHolder, control, info)
             if (symbolicStatus != OK) {
                 // A rejected pattern goes to the portable path.
-                return F64SparseLuFactorization.factorCsc(a)
+                return portableFactor(a, equilibrate)
             }
 
             // The numeric factors outlive this call, so their holder gets an arena the factorization owns.
@@ -99,7 +74,7 @@ public class UmfpackSparseLu(
                 }
 
                 if (numericStatus != OK && numericStatus != WARNING_SINGULAR) {
-                    return F64SparseLuFactorization.factorCsc(a)
+                    return portableFactor(a, equilibrate)
                 }
                 // The partial factors UMFPACK hands back for a singular matrix cannot be solved against, so
                 // the canonical singular result keeps `nnz == 0` true of every singular factorization.
