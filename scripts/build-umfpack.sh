@@ -60,6 +60,6 @@ if [[ "$platform" == linux-* ]]; then
 else
     for library in "$destination"/libumfpack.*.dylib; do cp "$library" "$destination/libumfpack.dylib"; done
 fi
-find "$destination" -maxdepth 1 -type f -printf '%f\n' | sort > "$destination/.libraries"
+find "$destination" -maxdepth 1 -type f -exec basename {} \; | sort > "$destination/.libraries"
 cp "$source/LICENSE.txt" "$destination/LICENSE.suitesparse-$version.txt"
 printf '%s\n' "$expected" > "$destination/.suitesparse-source-sha256"
