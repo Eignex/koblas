@@ -1,6 +1,7 @@
 package com.eignex.koblas.internal.backend
 
 import com.eignex.koblas.dense.F64VectorKernels
+import com.eignex.koblas.dense.host.cblas.OpenBlasConfig
 
 /**
  * The smallest problem size at which dispatching to a native backend beats staying in Kotlin. One threshold
@@ -17,37 +18,18 @@ import com.eignex.koblas.dense.F64VectorKernels
  */
 internal class DispatchThresholds(val level1: Int, val level2: Int, val level3: Int, val lapack: Int)
 
-/** One [DispatchThresholds] entry, the granularity at which a caller can override the routing. */
-internal enum class DispatchLevel {
-    LEVEL1,
-    LEVEL2,
-    LEVEL3,
-    LAPACK,
-    ;
-
-    /** How this level is written in [ConfigurationKeys.DISPATCH_PROPERTY_PREFIX]. */
-    val key: String get() = name.lowercase()
-}
-
 /** What this platform uses for double precision absent an override; see [DispatchThresholds]. */
 internal expect val platformDispatchThresholds: DispatchThresholds
 
 /** Reads the override for [element]'s [level], or null when unset. */
-internal expect fun dispatchOverride(element: ElementType, level: DispatchLevel): Int?
 
-/**
- * The thresholds in force for [element], its [defaults] with any override applied. Crossovers are counted
- * in elements rather than bytes, so a narrower element type measures its own and passes them here.
- */
-internal fun dispatchThresholdsFor(element: ElementType, defaults: DispatchThresholds): DispatchThresholds =
-    DispatchThresholds(
-        level1 = dispatchOverride(element, DispatchLevel.LEVEL1) ?: defaults.level1,
-        level2 = dispatchOverride(element, DispatchLevel.LEVEL2) ?: defaults.level2,
-        level3 = dispatchOverride(element, DispatchLevel.LEVEL3) ?: defaults.level3,
-        lapack = dispatchOverride(element, DispatchLevel.LAPACK) ?: defaults.lapack,
-    )
+/** The dispatch policy for one OpenBLAS instance, with null configuration entries retaining platform defaults. */
+internal fun openBlasDispatchThresholds(config: OpenBlasConfig): DispatchThresholds = DispatchThresholds(
+    level1 = platformDispatchThresholds.level1,
+    level2 = config.level2Min ?: platformDispatchThresholds.level2,
+    level3 = config.level3Min ?: platformDispatchThresholds.level3,
+    lapack = config.lapackMin ?: platformDispatchThresholds.lapack,
+)
 
-/** The double-precision thresholds in force, overrides applied. */
-internal val f64DispatchThresholds: DispatchThresholds by lazy {
-    dispatchThresholdsFor(ElementType.F64, platformDispatchThresholds)
-}
+/** The compiled-in vector-kernel routing policy. */
+internal val f64DispatchThresholds: DispatchThresholds get() = platformDispatchThresholds

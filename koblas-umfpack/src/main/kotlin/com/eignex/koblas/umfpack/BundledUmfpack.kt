@@ -26,12 +26,7 @@ private fun loadUmfpack(): UmfpackSparseLu {
     // UMFPACK links to BLAS. Loading the transitive single OpenBLAS bundle first makes its SONAME available
     // to the dynamic loader without making a system installation part of this optional artifact's contract.
     check(BundledOpenBlas().isAvailable) { "the bundled OpenBLAS dependency could not be loaded" }
-    val path = if (System.getProperty("koblas.umfpack.path") == null && System.getenv("KOBLAS_UMFPACK_PATH") == null) {
-        UmfpackResources.extract().toString()
-    } else {
-        null
-    }
-    return UmfpackSparseLu(UmfpackConfig(libraryPath = path))
+    return UmfpackSparseLu(UmfpackConfig(libraryPath = UmfpackResources.extract().toString()))
 }
 
 internal object UmfpackResources {

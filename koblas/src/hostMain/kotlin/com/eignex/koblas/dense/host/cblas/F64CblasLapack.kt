@@ -6,6 +6,7 @@ import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.dense.host.F64HostLapackAdapter
 import com.eignex.koblas.dense.host.cblas.Cblas.COL_MAJOR
 import com.eignex.koblas.internal.backend.BackendNames
+import com.eignex.koblas.internal.backend.openBlasDispatchThresholds
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.invoke
@@ -21,7 +22,7 @@ internal class F64CblasLapack(
     blas: CblasFunctions,
     private val loader: OpenBlasLoader = OpenBlasLoader(),
     private val config: OpenBlasConfig = OpenBlasConfig(),
-) : F64HostLapackAdapter(NativeLapackeCalls(f), NativeCblasCalls(blas)) {
+) : F64HostLapackAdapter(NativeLapackeCalls(f), NativeCblasCalls(blas), dispatch = openBlasDispatchThresholds(config)) {
     override val name: String get() = BackendNames.CBLAS
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY

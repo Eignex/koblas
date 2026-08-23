@@ -3,9 +3,12 @@ package com.eignex.koblas.internal.backend
 import com.eignex.koblas.Backend
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.F64Blas
+import com.eignex.koblas.dense.host.cblas.OpenBlasConfig
 import com.eignex.koblas.hostblas.HostBackends
 import com.eignex.koblas.sparse.F64SparseLu
+import com.eignex.koblas.sparse.host.klu.KluConfig
 import com.eignex.koblas.sparse.host.klu.KluSparseLu
+import com.eignex.koblas.sparse.host.umfpack.UmfpackConfig
 import com.eignex.koblas.sparse.host.umfpack.UmfpackSparseLu
 import java.util.ServiceLoader
 
@@ -16,7 +19,9 @@ import java.util.ServiceLoader
 internal actual fun registerPlatformBackends() {
     val denseRequested = System.getProperty(ConfigurationKeys.DENSE_BACKEND_PROPERTY)
     val sparseRequested = System.getProperty(ConfigurationKeys.SPARSE_BACKEND_PROPERTY)
+    val automatic = AutomaticHostConfiguration()
     for (provider in loadProviders().sortedByDescending { it.priority }) {
+        if (automatic.overrides(provider)) continue
         if (provider is F64Blas && denseRequested != null &&
             !matchesRequested(provider.name, denseRequested)
         ) {
@@ -31,8 +36,35 @@ internal actual fun registerPlatformBackends() {
         // Once, not per half, since registerBackend offers the object as every half it implements.
         BackendRegistry.registerAutomatic(provider)
     }
-    builtinCandidates.forEach { candidate -> candidate.register(denseRequested, sparseRequested) }
+    builtinCandidates(automatic).forEach { candidate -> candidate.register(denseRequested, sparseRequested) }
 }
+
+/** Deployment overrides are read only while automatic discovery chooses its candidates. */
+private class AutomaticHostConfiguration {
+    val openBlas = OpenBlasConfig(
+        libraryPath = libraryPath("koblas.openblas.path", "KOBLAS_OPENBLAS_PATH"),
+        lapackeLibraryPath = libraryPath("koblas.lapacke.path", "KOBLAS_LAPACKE_PATH"),
+    )
+    val klu = KluConfig(libraryPath("koblas.klu.path", "KOBLAS_KLU_PATH"))
+    val umfpack = UmfpackConfig(libraryPath = libraryPath("koblas.umfpack.path", "KOBLAS_UMFPACK_PATH"))
+
+    fun overrides(provider: Backend): Boolean = when (provider.name.removeSuffix("-bundled")) {
+        BackendNames.OPENBLAS -> provider.name.endsWith("-bundled") &&
+            (openBlas.libraryPath != null || openBlas.lapackeLibraryPath != null)
+
+        BackendNames.KLU -> provider.name.endsWith("-bundled") && klu.libraryPath != null
+
+        BackendNames.UMFPACK -> provider.name.endsWith("-bundled") && umfpack.libraryPath != null
+
+        else -> false
+    }
+}
+
+private fun libraryPath(property: String, environment: String): String? =
+    System.getProperty(property)?.takeIf(::isAbsolutePath)
+        ?: System.getenv(environment)?.takeIf(::isAbsolutePath)
+
+private fun isAbsolutePath(path: String): Boolean = java.nio.file.Path.of(path).isAbsolute
 
 /** Bundled providers add a diagnostic suffix while retaining the canonical name callers configure. */
 private fun matchesRequested(name: String, requested: String): Boolean =
@@ -61,28 +93,32 @@ private data class BuiltinBackendCandidate(
  * koblas's own FFM bindings. Presence checks intentionally stay library-specific: these are `dlopen`
  * checks, while dense correctness is covered by [probe] for service providers.
  */
-private val builtinCandidates: List<BuiltinBackendCandidate> = listOf(
+private fun builtinCandidates(automatic: AutomaticHostConfiguration): List<BuiltinBackendCandidate> = listOf(
     BuiltinBackendCandidate(
         requested = { dense, _ -> dense },
-        present = { defaultHostBackends.blas.isAvailable },
-        create = { defaultHostBackends.blas },
+        present = { hostBackends(automatic.openBlas).blas.isAvailable },
+        create = { hostBackends(automatic.openBlas).blas },
         afterRegister = {
-            defaultHostBackends.lapack.takeIf { it.isAvailable }?.let { BackendRegistry.registerAutomatic(it) }
+            hostBackends(
+                automatic.openBlas,
+            ).lapack.takeIf { it.isAvailable }?.let { BackendRegistry.registerAutomatic(it) }
         },
     ),
     BuiltinBackendCandidate(
         requested = { _, sparse -> sparse },
-        present = { KluSparseLu().isAvailable },
-        create = ::KluSparseLu,
+        present = { KluSparseLu(automatic.klu).isAvailable },
+        create = { KluSparseLu(automatic.klu) },
     ),
     BuiltinBackendCandidate(
         requested = { _, sparse -> sparse },
-        present = { UmfpackSparseLu().isAvailable },
-        create = ::UmfpackSparseLu,
+        present = { UmfpackSparseLu(automatic.umfpack).isAvailable },
+        create = { UmfpackSparseLu(automatic.umfpack) },
     ),
 )
 
-private val defaultHostBackends: HostBackends by lazy(::HostBackends)
+private val hostBackends = mutableMapOf<OpenBlasConfig, HostBackends>()
+
+private fun hostBackends(config: OpenBlasConfig): HostBackends = hostBackends.getOrPut(config) { HostBackends(config) }
 
 /** Instantiate all registered providers, dropping any whose construction fails. */
 private fun loadProviders(): List<Backend> {

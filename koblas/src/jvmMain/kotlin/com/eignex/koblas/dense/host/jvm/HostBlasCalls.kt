@@ -4,7 +4,6 @@ import com.eignex.koblas.dense.host.cblas.LAPACKE_SONAMES
 import com.eignex.koblas.dense.host.cblas.OPENBLAS_SONAMES
 import com.eignex.koblas.dense.host.cblas.OpenBlasConfig
 import com.eignex.koblas.dense.host.cblas.isIlp64OpenBlas
-import com.eignex.koblas.internal.backend.nativeLibraryPaths
 import java.lang.foreign.Arena
 import java.lang.foreign.FunctionDescriptor
 import java.lang.foreign.Linker
@@ -21,7 +20,7 @@ import java.lang.invoke.MethodHandle
  * The LP64 CBLAS and LAPACKE subset, bound as downcalls that are invoked with `invokeWithArguments`, since
  * Kotlin cannot emit signature-polymorphic `invokeExact` and the native side would then read garbage.
  */
-internal class HostBlasCalls(private val config: OpenBlasConfig) {
+internal class HostBlasCalls(internal val config: OpenBlasConfig) {
     companion object {
         private val defaultCalls: HostBlasCalls by lazy { HostBlasCalls(OpenBlasConfig()) }
 
@@ -60,17 +59,9 @@ internal class HostBlasCalls(private val config: OpenBlasConfig) {
     /** Where LAPACKE lives when the OpenBLAS build does not include it. */
     private var lapackeLookup: SymbolLookup? = null
 
-    private val openblasNames = config.libraryPath?.let(::listOf) ?: nativeLibraryPaths(
-        "koblas.openblas.path",
-        "KOBLAS_OPENBLAS_PATH",
-        OPENBLAS_SONAMES,
-    )
+    private val openblasNames = config.libraryPath?.let(::listOf) ?: OPENBLAS_SONAMES
 
-    private val lapackeNames = config.lapackeLibraryPath?.let(::listOf) ?: nativeLibraryPaths(
-        "koblas.lapacke.path",
-        "KOBLAS_LAPACKE_PATH",
-        LAPACKE_SONAMES,
-    )
+    private val lapackeNames = config.lapackeLibraryPath?.let(::listOf) ?: LAPACKE_SONAMES
 
     /**
      * Every CBLAS entry point these bindings resolve. Availability is the whole set rather than one symbol,

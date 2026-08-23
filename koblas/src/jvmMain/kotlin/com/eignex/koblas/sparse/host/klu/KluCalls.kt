@@ -1,6 +1,5 @@
 package com.eignex.koblas.sparse.host.klu
 
-import com.eignex.koblas.internal.backend.nativeLibraryPaths
 import java.lang.foreign.Arena
 import java.lang.foreign.FunctionDescriptor
 import java.lang.foreign.Linker
@@ -33,7 +32,7 @@ internal class KluCalls(private val libraryPath: String?) {
     val available: Boolean get() = handles != null
 
     private fun openKlu(): SymbolLookup? {
-        val paths = libraryPath?.let(::listOf) ?: nativeLibraryPaths("koblas.klu.path", "KOBLAS_KLU_PATH", KLU_SONAMES)
+        val paths = libraryPath?.let(::listOf) ?: KLU_SONAMES
         for (path in paths) {
             val opened =
                 try {
