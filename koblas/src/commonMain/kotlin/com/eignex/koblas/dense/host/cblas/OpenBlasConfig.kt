@@ -33,8 +33,8 @@ public data class OpenBlasConfig(
     val libraryPath: String? = null,
     /** An absolute LAPACKE library path, or the deployment lookup chain when null. */
     val lapackeLibraryPath: String? = null,
-    /** OpenBLAS's process-wide thread count, or its own default when null. */
-    val threadCount: Int? = null,
+    /** OpenBLAS's process-wide thread count; one prevents parallel LAPACK from overflowing a JVM stack. */
+    val threadCount: Int? = 1,
     /** Smallest dimension routed to the native pivoted QR routine. */
     val pivotedQrMin: Int = 8,
     /** Smallest number of right-hand sides routed to native triangular solve. */
