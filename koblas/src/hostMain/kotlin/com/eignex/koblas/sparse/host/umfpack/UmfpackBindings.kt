@@ -47,10 +47,6 @@ internal class UmfpackFunctions(private val lib: COpaquePointer) {
     val freeNumeric = required("umfpack_di_free_numeric")
         .reinterpret<CFunction<(Hp) -> Unit>>()
 
-    // int umfpack_di_get_determinant(double *Mx, double *Ex, void *Numeric, double Info[])
-    val determinant = required("umfpack_di_get_determinant")
-        .reinterpret<CFunction<(Dp, Dp, COpaquePointer?, Dp) -> Int>>()
-
     // void umfpack_di_defaults(double Control[UMFPACK_CONTROL])
     val defaults = required("umfpack_di_defaults")
         .reinterpret<CFunction<(Dp) -> Unit>>()

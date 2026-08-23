@@ -140,7 +140,6 @@ abstract interface com.eignex.koblas.sparse/F64SparseFactorization { // com.eign
     open val singular // com.eignex.koblas.sparse/F64SparseFactorization.singular|{}singular[0]
         open fun <get-singular>(): kotlin/Boolean // com.eignex.koblas.sparse/F64SparseFactorization.singular.<get-singular>|<get-singular>(){}[0]
 
-    abstract fun determinant(): kotlin/Double // com.eignex.koblas.sparse/F64SparseFactorization.determinant|determinant(){}[0]
     abstract fun solveInto(kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean = ..., com.eignex.koblas/Workspace? = ...): kotlin/DoubleArray // com.eignex.koblas.sparse/F64SparseFactorization.solveInto|solveInto(kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
     open fun solve(kotlin/DoubleArray, kotlin/Boolean = ...): kotlin/DoubleArray // com.eignex.koblas.sparse/F64SparseFactorization.solve|solve(kotlin.DoubleArray;kotlin.Boolean){}[0]
 }
@@ -528,7 +527,6 @@ final class com.eignex.koblas.sparse.factorization.lu/F64SparseLuFactorization :
     final val nnz // com.eignex.koblas.sparse.factorization.lu/F64SparseLuFactorization.nnz|{}nnz[0]
         final fun <get-nnz>(): kotlin/Int // com.eignex.koblas.sparse.factorization.lu/F64SparseLuFactorization.nnz.<get-nnz>|<get-nnz>(){}[0]
 
-    final fun determinant(): kotlin/Double // com.eignex.koblas.sparse.factorization.lu/F64SparseLuFactorization.determinant|determinant(){}[0]
     final fun solveInto(kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean, com.eignex.koblas/Workspace?): kotlin/DoubleArray // com.eignex.koblas.sparse.factorization.lu/F64SparseLuFactorization.solveInto|solveInto(kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
 
     final object Companion // com.eignex.koblas.sparse.factorization.lu/F64SparseLuFactorization.Companion|null[0]
@@ -544,7 +542,6 @@ final class com.eignex.koblas.sparse/F64SingularSparseFactorization : com.eignex
     final val nnz // com.eignex.koblas.sparse/F64SingularSparseFactorization.nnz|{}nnz[0]
         final fun <get-nnz>(): kotlin/Int // com.eignex.koblas.sparse/F64SingularSparseFactorization.nnz.<get-nnz>|<get-nnz>(){}[0]
 
-    final fun determinant(): kotlin/Double // com.eignex.koblas.sparse/F64SingularSparseFactorization.determinant|determinant(){}[0]
     final fun solveInto(kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean, com.eignex.koblas/Workspace?): kotlin/DoubleArray // com.eignex.koblas.sparse/F64SingularSparseFactorization.solveInto|solveInto(kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
 }
 
@@ -865,7 +862,6 @@ final class com.eignex.koblas.sparse.host.umfpack/UmfpackFactorization : com.eig
     final val nnz // com.eignex.koblas.sparse.host.umfpack/UmfpackFactorization.nnz|{}nnz[0]
         final fun <get-nnz>(): kotlin/Int // com.eignex.koblas.sparse.host.umfpack/UmfpackFactorization.nnz.<get-nnz>|<get-nnz>(){}[0]
 
-    final fun determinant(): kotlin/Double // com.eignex.koblas.sparse.host.umfpack/UmfpackFactorization.determinant|determinant(){}[0]
     final fun solveInto(kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean, com.eignex.koblas/Workspace?): kotlin/DoubleArray // com.eignex.koblas.sparse.host.umfpack/UmfpackFactorization.solveInto|solveInto(kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
 }
 

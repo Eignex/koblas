@@ -830,7 +830,6 @@ public final class com/eignex/koblas/sparse/F64ReferenceSparseLinearAlgebra : co
 
 public final class com/eignex/koblas/sparse/F64SingularSparseFactorization : com/eignex/koblas/sparse/F64SparseFactorization {
 	public fun <init> (II)V
-	public fun determinant ()D
 	public fun getFailedAt ()I
 	public fun getN ()I
 	public fun getNnz ()I
@@ -859,7 +858,6 @@ public final class com/eignex/koblas/sparse/F64SparseBlas$DefaultImpls {
 }
 
 public abstract interface class com/eignex/koblas/sparse/F64SparseFactorization {
-	public abstract fun determinant ()D
 	public abstract fun getFailedAt ()I
 	public abstract fun getN ()I
 	public abstract fun getNnz ()I
@@ -935,7 +933,6 @@ public final class com/eignex/koblas/sparse/F64SparseVectorKernels$DefaultImpls 
 
 public final class com/eignex/koblas/sparse/factorization/lu/F64SparseLuFactorization : com/eignex/koblas/sparse/F64SparseFactorization {
 	public static final field Companion Lcom/eignex/koblas/sparse/factorization/lu/F64SparseLuFactorization$Companion;
-	public fun determinant ()D
 	public fun getFailedAt ()I
 	public fun getN ()I
 	public fun getNnz ()I
@@ -952,7 +949,6 @@ public final class com/eignex/koblas/sparse/factorization/lu/SparseLuElimination
 }
 
 public final class com/eignex/koblas/sparse/host/klu/KluFactorization : com/eignex/koblas/sparse/F64SparseFactorization {
-	public fun determinant ()D
 	public fun getFailedAt ()I
 	public fun getN ()I
 	public fun getNnz ()I
@@ -973,7 +969,6 @@ public final class com/eignex/koblas/sparse/host/klu/KluSparseLu : com/eignex/ko
 }
 
 public final class com/eignex/koblas/sparse/host/umfpack/UmfpackFactorization : com/eignex/koblas/sparse/F64SparseFactorization {
-	public fun determinant ()D
 	public fun getFailedAt ()I
 	public fun getN ()I
 	public fun getNnz ()I
@@ -992,4 +987,3 @@ public final class com/eignex/koblas/sparse/host/umfpack/UmfpackSparseLu : com/e
 	public fun solve (Lcom/eignex/koblas/sparse/F64SparseFactorization;[DZ)[D
 	public fun solveInto (Lcom/eignex/koblas/sparse/F64SparseFactorization;[D[DZLcom/eignex/koblas/Workspace;)[D
 }
-

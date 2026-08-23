@@ -35,10 +35,4 @@ public class KluFactorization internal constructor(override val failedAt: Int, p
         }
         return out
     }
-
-    override fun determinant(): Double = try {
-        KluCalls.determinant(factor)
-    } finally {
-        Reference.reachabilityFence(this)
-    }
 }

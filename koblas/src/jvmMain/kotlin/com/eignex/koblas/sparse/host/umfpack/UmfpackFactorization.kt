@@ -12,7 +12,6 @@ import java.lang.foreign.ValueLayout.ADDRESS
 import java.lang.foreign.ValueLayout.JAVA_DOUBLE
 import java.lang.ref.Cleaner
 import java.lang.ref.Reference
-import kotlin.math.pow
 
 /** Frees the native factors of unreachable factorizations. One for the whole process. */
 private val cleaner: Cleaner = Cleaner.create()
@@ -78,32 +77,6 @@ public class UmfpackFactorization internal constructor(
             Reference.reachabilityFence(this)
         }
         return out
-    }
-
-    /**
-     * UMFPACK reports a mantissa and a base-10 exponent, since the product of n pivots overflows a double
-     * early. Recombining them here can still overflow to infinity.
-     */
-    override fun determinant(): Double {
-        if (singular) return 0.0
-        // Fenced for the reason [solveInto] gives.
-        try {
-            Arena.ofConfined().use { scratch ->
-                val mx = scratch.allocate(JAVA_DOUBLE)
-                val ex = scratch.allocate(JAVA_DOUBLE)
-                val info = scratch.allocate(JAVA_DOUBLE, INFO.toLong())
-                val status = UmfpackCalls.determinant(
-                    mx,
-                    ex,
-                    handles.numericHolder.get(ADDRESS, 0),
-                    info,
-                )
-                check(status == OK) { "umfpack_di_get_determinant failed with status $status" }
-                return mx.get(JAVA_DOUBLE, 0) * 10.0.pow(ex.get(JAVA_DOUBLE, 0))
-            }
-        } finally {
-            Reference.reachabilityFence(this)
-        }
     }
 
     internal companion object {

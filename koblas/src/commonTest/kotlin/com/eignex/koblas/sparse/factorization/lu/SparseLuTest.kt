@@ -110,27 +110,6 @@ class SparseLuTest {
     }
 
     @Test
-    fun `determinant matches the hand value and tracks sign under row order`() {
-        val det = square(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0)).lu().determinant()
-        assertClose(5.0, det, "det", tolerance = 1e-9)
-        // A row swap negates it, so ((1, 3), (2, 1)) gives 1 - 6 = -5.
-        val det2 = square(doubleArrayOf(1.0, 3.0), doubleArrayOf(2.0, 1.0)).lu().determinant()
-        assertClose(-5.0, det2, "det after row swap", tolerance = 1e-9)
-    }
-
-    @Test
-    fun `determinant is invariant to equilibration`() {
-        val rng = Random(11)
-        repeat(30) {
-            val n = rng.nextInt(2, 6)
-            val a = randomSparseSquare(n, rng, density = 1.0, dominance = 4.0)
-            val d0 = assertNotNull(a.lu(equilibrate = false)).determinant()
-            val d1 = assertNotNull(a.lu(equilibrate = true)).determinant()
-            assertTrue(abs(d0 - d1) <= 1e-6 * (abs(d0) + 1.0), "det differs: $d0 vs $d1")
-        }
-    }
-
-    @Test
     fun `a singular matrix factors to a singular factorization`() {
         // A column of zeros and a duplicated column, neither with a full set of acceptable pivots.
         for (a in listOf(
@@ -141,7 +120,6 @@ class SparseLuTest {
             assertTrue(f.singular, "expected singular for $a")
             assertEquals(2, f.n)
             assertEquals(0, f.nnz, "a singular factorization has no fill")
-            assertEquals(0.0, f.determinant())
             assertFailsWith<SingularMatrix> { f.solve(doubleArrayOf(1.0, 2.0)) }
         }
         // The failing pivot position is koblas's own, so this uses the portable factorization. UMFPACK reports only
