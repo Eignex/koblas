@@ -37,7 +37,7 @@ install="$work/install"
 cmake -S "$source" -B "$work/build" -G "Unix Makefiles" \
     -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DCMAKE_INSTALL_PREFIX="$install" \
     -DSUITESPARSE_ENABLE_PROJECTS="suitesparse_config;amd;colamd;btf;klu" \
-    -DKLU_USE_CHOLMOD=OFF -DSUITESPARSE_USE_OPENMP=OFF \
+    -DBLA_VENDOR=Generic -DKLU_USE_CHOLMOD=OFF -DSUITESPARSE_REQUIRE_BLAS=OFF -DSUITESPARSE_USE_OPENMP=OFF \
     -DCMAKE_INSTALL_RPATH='\$ORIGIN' -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON \
     -DCMAKE_C_COMPILER="${CC:-cc}" >/dev/null
 cmake --build "$work/build" --parallel "${KLU_JOBS:-2}" >/dev/null

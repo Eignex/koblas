@@ -38,6 +38,7 @@ class BundledKluTest {
         val factorization = BundledKlu().factor(matrix, equilibrate = true)
 
         assertContentEquals(doubleArrayOf(2.0, 3.0), factorization.solve(doubleArrayOf(16.0, 0.75)))
+        assertEquals(2.0, factorization.determinant())
     }
 
     @Test
