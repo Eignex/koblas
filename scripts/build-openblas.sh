@@ -68,12 +68,15 @@ esac
 
 resource_dir="$output/org/bytedeco/openblas/$platform"
 license_name="LICENSE.openblas-$version.txt"
+build_options="USE_THREAD=0"
 case "$platform" in
   linux-*) required_files=("$library_name" libgfortran.so.5 libquadmath.so.0 libgcc_s.so.1 "$license_name") ;;
   macosx-arm64) required_files=("$library_name" libgfortran.dylib libgfortran.5.dylib libquadmath.0.dylib libgcc_s.1.1.dylib "$license_name") ;;
 esac
 if [[ -f "$resource_dir/.openblas-source-sha256" ]] &&
-  [[ "$(<"$resource_dir/.openblas-source-sha256")" == "$expected_sha" ]]; then
+  [[ "$(<"$resource_dir/.openblas-source-sha256")" == "$expected_sha" ]] &&
+  [[ -f "$resource_dir/.openblas-build-options" ]] &&
+  [[ "$(<"$resource_dir/.openblas-build-options")" == "$build_options" ]]; then
   complete=true
   for file in "${required_files[@]}"; do
     [[ -s "$resource_dir/$file" ]] || { complete=false; break; }
@@ -90,7 +93,7 @@ if [[ "$platform" == linux-* ]]; then
   # before falling back to a host installation.
   printf '%s\n' "EXTRALIB += -Wl,-rpath,'\$\$ORIGIN'" >> "$source_dir/Makefile.system"
 fi
-build_args=(shared NO_AFFINITY=1 USE_OPENMP=0 LAPACKE=1 CFLAGS=-w FFLAGS=-w "CC=$c_compiler" "FC=$fortran_compiler" "HOSTCC=${HOSTCC:-cc}")
+build_args=(shared NO_AFFINITY=1 USE_THREAD=0 USE_OPENMP=0 LAPACKE=1 CFLAGS=-w FFLAGS=-w "CC=$c_compiler" "FC=$fortran_compiler" "HOSTCC=${HOSTCC:-cc}")
 if [[ "$platform" == linux-arm64 ]] && ! [[ "$(uname -m)" =~ ^(aarch64|arm64)$ ]]; then
   build_args+=(TARGET=ARMV8 DYNAMIC_ARCH=0)
 else
@@ -153,3 +156,4 @@ for file in "${required_files[@]}"; do
   [[ -s "$resource_dir/$file" ]] || { echo "missing bundled runtime $file" >&2; exit 1; }
 done
 printf '%s\n' "$expected_sha" > "$resource_dir/.openblas-source-sha256"
+printf '%s\n' "$build_options" > "$resource_dir/.openblas-build-options"

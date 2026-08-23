@@ -3,14 +3,10 @@ package com.eignex.koblas.internal.backend
 import com.eignex.koblas.Backend
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.F64Blas
-import com.eignex.koblas.dense.host.jvm.HostBlasCalls
-import com.eignex.koblas.hostblas.HostBlas
-import com.eignex.koblas.hostblas.HostLapack
+import com.eignex.koblas.hostblas.HostBackends
 import com.eignex.koblas.registerBackend
 import com.eignex.koblas.sparse.F64SparseLu
-import com.eignex.koblas.sparse.host.klu.KluCalls
 import com.eignex.koblas.sparse.host.klu.KluSparseLu
-import com.eignex.koblas.sparse.host.umfpack.UmfpackCalls
 import com.eignex.koblas.sparse.host.umfpack.UmfpackSparseLu
 import java.util.ServiceLoader
 
@@ -69,23 +65,25 @@ private data class BuiltinBackendCandidate(
 private val builtinCandidates: List<BuiltinBackendCandidate> = listOf(
     BuiltinBackendCandidate(
         requested = { dense, _ -> dense },
-        present = { HostBlasCalls.available },
-        create = ::HostBlas,
+        present = { defaultHostBackends.blas.isAvailable },
+        create = { defaultHostBackends.blas },
         afterRegister = {
-            if (HostBlasCalls.lapackAvailable) registerBackend(HostLapack())
+            defaultHostBackends.lapack.takeIf { it.isAvailable }?.let(::registerBackend)
         },
     ),
     BuiltinBackendCandidate(
         requested = { _, sparse -> sparse },
-        present = { KluCalls.libraryPresent },
+        present = { KluSparseLu().isAvailable },
         create = ::KluSparseLu,
     ),
     BuiltinBackendCandidate(
         requested = { _, sparse -> sparse },
-        present = { UmfpackCalls.libraryPresent },
+        present = { UmfpackSparseLu().isAvailable },
         create = ::UmfpackSparseLu,
     ),
 )
+
+private val defaultHostBackends: HostBackends by lazy(::HostBackends)
 
 /** Instantiate all registered providers, dropping any whose construction fails. */
 private fun loadProviders(): List<Backend> {

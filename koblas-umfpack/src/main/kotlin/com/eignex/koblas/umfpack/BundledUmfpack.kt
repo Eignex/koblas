@@ -4,6 +4,7 @@ import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.internal.backend.BundledNativeResources
 import com.eignex.koblas.openblas.BundledOpenBlas
 import com.eignex.koblas.sparse.F64SparseLu
+import com.eignex.koblas.sparse.host.umfpack.UmfpackConfig
 import com.eignex.koblas.sparse.host.umfpack.UmfpackSparseLu
 import java.nio.file.Path
 
@@ -21,17 +22,16 @@ public class BundledUmfpack private constructor(private val delegate: UmfpackSpa
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 1
 }
 
-private const val UMFPACK_PATH_PROPERTY = "koblas.umfpack.path"
-private const val UMFPACK_PATH_ENVIRONMENT = "KOBLAS_UMFPACK_PATH"
-
 private fun loadUmfpack(): UmfpackSparseLu {
     // UMFPACK links to BLAS. Loading the transitive single OpenBLAS bundle first makes its SONAME available
     // to the dynamic loader without making a system installation part of this optional artifact's contract.
     check(BundledOpenBlas().isAvailable) { "the bundled OpenBLAS dependency could not be loaded" }
-    if (System.getProperty(UMFPACK_PATH_PROPERTY) == null && System.getenv(UMFPACK_PATH_ENVIRONMENT) == null) {
-        System.setProperty(UMFPACK_PATH_PROPERTY, UmfpackResources.extract().toString())
+    val path = if (System.getProperty("koblas.umfpack.path") == null && System.getenv("KOBLAS_UMFPACK_PATH") == null) {
+        UmfpackResources.extract().toString()
+    } else {
+        null
     }
-    return UmfpackSparseLu()
+    return UmfpackSparseLu(UmfpackConfig(libraryPath = path))
 }
 
 internal object UmfpackResources {

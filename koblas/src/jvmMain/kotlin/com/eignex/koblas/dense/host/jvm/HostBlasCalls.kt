@@ -2,8 +2,8 @@ package com.eignex.koblas.dense.host.jvm
 
 import com.eignex.koblas.dense.host.cblas.LAPACKE_SONAMES
 import com.eignex.koblas.dense.host.cblas.OPENBLAS_SONAMES
+import com.eignex.koblas.dense.host.cblas.OpenBlasConfig
 import com.eignex.koblas.dense.host.cblas.isIlp64OpenBlas
-import com.eignex.koblas.internal.backend.ConfigurationKeys
 import com.eignex.koblas.internal.backend.nativeLibraryPaths
 import java.lang.foreign.Arena
 import java.lang.foreign.FunctionDescriptor
@@ -21,7 +21,16 @@ import java.lang.invoke.MethodHandle
  * The LP64 CBLAS and LAPACKE subset, bound as downcalls that are invoked with `invokeWithArguments`, since
  * Kotlin cannot emit signature-polymorphic `invokeExact` and the native side would then read garbage.
  */
-internal object HostBlasCalls {
+internal class HostBlasCalls(private val config: OpenBlasConfig) {
+    companion object {
+        private val defaultCalls: HostBlasCalls by lazy { HostBlasCalls(OpenBlasConfig()) }
+
+        /** Compatibility seam for discovery tests; production backends own their own calls. */
+        val available: Boolean get() = defaultCalls.available
+
+        /** Compatibility seam for discovery tests; production backends own their own calls. */
+        val lapackAvailable: Boolean get() = defaultCalls.lapackAvailable
+    }
 
     /** Whether the host's CBLAS resolved and takes the integer width koblas binds. */
     val available: Boolean
@@ -51,13 +60,13 @@ internal object HostBlasCalls {
     /** Where LAPACKE lives when the OpenBLAS build does not include it. */
     private var lapackeLookup: SymbolLookup? = null
 
-    private val openblasNames = nativeLibraryPaths(
+    private val openblasNames = config.libraryPath?.let(::listOf) ?: nativeLibraryPaths(
         "koblas.openblas.path",
         "KOBLAS_OPENBLAS_PATH",
         OPENBLAS_SONAMES,
     )
 
-    private val lapackeNames = nativeLibraryPaths(
+    private val lapackeNames = config.lapackeLibraryPath?.let(::listOf) ?: nativeLibraryPaths(
         "koblas.lapacke.path",
         "KOBLAS_LAPACKE_PATH",
         LAPACKE_SONAMES,
@@ -69,13 +78,13 @@ internal object HostBlasCalls {
      * to fall back to. A host offering part of the library has to leave the half portable instead. Presence
      * is read with `find`, which is a lookup; binding would be the stack-hungry thing discovery avoids.
      */
-    private val REQUIRED_CBLAS = listOf(
+    private val requiredCblas = listOf(
         "cblas_daxpy", "cblas_dgemm", "cblas_dgemv", "cblas_dger", "cblas_dscal", "cblas_dsymm",
         "cblas_dsymv", "cblas_dsyrk", "cblas_dtrmm", "cblas_dtrmv", "cblas_dtrsm", "cblas_dtrsv",
     )
 
     /** The same for LAPACKE, less `LAPACKE_dgeqp3`, which [optionalHandle] already lets a host omit. */
-    private val REQUIRED_LAPACKE = listOf(
+    private val requiredLapacke = listOf(
         "LAPACKE_dgecon",
         "LAPACKE_dgeqrf",
         "LAPACKE_dgetrf",
@@ -89,7 +98,7 @@ internal object HostBlasCalls {
     init {
         val blas = if (nativeLinker == null) null else openLibrary(openblasNames)
         lookup = blas
-        val resolved = blas != null && REQUIRED_CBLAS.all { blas.find(it).isPresent }
+        val resolved = blas != null && requiredCblas.all { blas.find(it).isPresent }
         // An ILP64 build exports these same names, so only the config string tells it apart from the LP64
         // one these bindings declare.
         val ilp64 = resolved && isIlp64OpenBlas(configString(requireNotNull(blas)))
@@ -100,12 +109,17 @@ internal object HostBlasCalls {
         lapackeLookup = extra
         // Resolved the way [symbol] resolves, the OpenBLAS build first and then liblapacke, so a host
         // splitting the set across the two is still served.
-        lapackAvailable = available && REQUIRED_LAPACKE.all { name ->
+        lapackAvailable = available && requiredLapacke.all { name ->
             requireNotNull(blas).find(name).isPresent || extra?.find(name)?.isPresent == true
         }
-        // Before any routine runs: an unconfigured OpenBLAS is multithreaded and its parallel LAPACK
-        // overflows a default JVM thread stack, killing the process with an uncatchable SIGSEGV.
-        if (available) configureThreads()
+        configureThreads(blas)
+    }
+
+    /** OpenBLAS owns this setting process-wide; setting it at backend construction makes that scope explicit. */
+    private fun configureThreads(blas: SymbolLookup?) {
+        val count = config.threadCount ?: return
+        val setter = blas?.find("openblas_set_num_threads")?.orElse(null) ?: return
+        linker.downcallHandle(setter, FunctionDescriptor.ofVoid(JAVA_INT)).invokeWithArguments(count)
     }
 
     /** The library's openblas_get_config string, or empty when it does not offer one. */
@@ -118,32 +132,11 @@ internal object HostBlasCalls {
         return text.reinterpret(Long.MAX_VALUE).getString(0)
     }
 
-    /**
-     * Pins OpenBLAS to one thread unless `koblas.openblas.threads` asks for a count or an explicit
-     * OPENBLAS_NUM_THREADS is set, which the library honors itself.
-     */
-    private fun configureThreads() {
-        val requested = System.getProperty(ConfigurationKeys.OPENBLAS_THREADS_PROPERTY)?.toIntOrNull()
-        when {
-            requested != null -> setThreads(requested)
-            System.getenv(ConfigurationKeys.OPENBLAS_THREADS_ENV) == null -> setThreads(1)
-        }
-    }
-
     /** Opens the first of [names] the platform loader can find, or null when none resolves. */
     private fun openLibrary(names: List<String>): SymbolLookup? = try {
         names.firstNotNullOfOrNull { runCatching { SymbolLookup.libraryLookup(it, Arena.global()) }.getOrNull() }
     } catch (_: Throwable) { // a host without the library must not crash startup
         null
-    }
-
-    /**
-     * Configures threads on this instance, which need not be the handle any other preset configured. An
-     * unconfigured OpenBLAS runs multithreaded and its parallel LAPACK overflows JVM thread stacks.
-     */
-    private fun setThreads(count: Int) {
-        val setter = requireNotNull(lookup).find("openblas_set_num_threads").orElse(null) ?: return
-        linker.downcallHandle(setter, FunctionDescriptor.ofVoid(JAVA_INT)).invokeWithArguments(count)
     }
 
     /** The symbol from the OpenBLAS library, or from liblapacke when that is where LAPACKE lives. */

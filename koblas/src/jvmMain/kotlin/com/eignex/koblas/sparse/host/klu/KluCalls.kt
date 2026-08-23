@@ -12,7 +12,7 @@ import java.lang.foreign.ValueLayout.JAVA_INT
 import java.lang.invoke.MethodHandle
 
 /** The public 32-bit-index ABI exported by KLU 2. */
-internal object KluCalls {
+internal class KluCalls(private val libraryPath: String?) {
     private val linker: Linker? = runCatching { Linker.nativeLinker() }.getOrNull()
     private val critical = Linker.Option.critical(true)
     private val lookup: SymbolLookup? by lazy { openKlu() }
@@ -33,7 +33,7 @@ internal object KluCalls {
     val available: Boolean get() = handles != null
 
     private fun openKlu(): SymbolLookup? {
-        val paths = nativeLibraryPaths("koblas.klu.path", "KOBLAS_KLU_PATH", KLU_SONAMES)
+        val paths = libraryPath?.let(::listOf) ?: nativeLibraryPaths("koblas.klu.path", "KOBLAS_KLU_PATH", KLU_SONAMES)
         for (path in paths) {
             val opened =
                 try {

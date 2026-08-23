@@ -52,8 +52,11 @@ internal class UmfpackFunctions(private val lib: COpaquePointer) {
         .reinterpret<CFunction<(Dp) -> Unit>>()
 }
 
-internal object UmfpackLoader {
-    private val handle: COpaquePointer? = openNativeLibrary(UMFPACK_SONAMES, KEY_SYMBOL)
+internal class UmfpackLoader(private val config: UmfpackConfig) {
+    private val handle: COpaquePointer? = openNativeLibrary(
+        config.libraryPath?.let(::listOf) ?: UMFPACK_SONAMES,
+        KEY_SYMBOL,
+    )
 
     val functions: UmfpackFunctions? = handle?.let { lib ->
         try {
@@ -64,13 +67,15 @@ internal object UmfpackLoader {
     }
 
     /**
-     * UMFPACK's own defaults with iterative refinement turned off. Filled by umfpack_di_defaults rather
-     * than left zeroed, since a zeroed Control overrides the pivot tolerance and heuristics with zeros.
+     * UMFPACK's defaults with this instance's requested policy. Filled by umfpack_di_defaults rather than
+     * left zeroed, since a zeroed Control overrides the remaining heuristics with zeros.
      */
     val control: DoubleArray? = functions?.let { f ->
         val values = DoubleArray(CONTROL)
         values.usePinned { f.defaults(it.addressOf(0)) }
-        values[IRSTEP] = 0.0
+        values[IRSTEP] = config.iterativeRefinementSteps.toDouble()
+        values[PIVOT_TOLERANCE] = config.pivotTolerance
+        values[SCALE] = config.scaling.nativeValue
         values
     }
 
@@ -82,3 +87,10 @@ internal object UmfpackLoader {
 
     val available: Boolean get() = functions != null
 }
+
+private val UmfpackScaling.nativeValue: Double
+    get() = when (this) {
+        UmfpackScaling.NONE -> 0.0
+        UmfpackScaling.SUM -> 1.0
+        UmfpackScaling.MAX -> 2.0
+    }

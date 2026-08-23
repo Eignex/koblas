@@ -22,6 +22,9 @@ internal const val IRSTEP = 7
 /** Control index of the threshold-pivoting tolerance, UMFPACK_PIVOT_TOLERANCE. */
 internal const val PIVOT_TOLERANCE = 3
 
+/** Control index selecting native row scaling. */
+internal const val SCALE = 16
+
 /** Info index UMFPACK_LNZ, nonzeros in L with the diagonal included. */
 internal const val INFO_LNZ = 43
 

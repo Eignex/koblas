@@ -10,12 +10,15 @@ import java.lang.ref.Reference
 private val cleaner: Cleaner = Cleaner.create()
 
 /** A KLU factorization whose native symbolic and numeric objects are reclaimed when it becomes unreachable. */
-public class KluFactorization internal constructor(override val failedAt: Int, private val factor: KluFactor) :
-    F64SparseFactorization {
+public class KluFactorization internal constructor(
+    override val failedAt: Int,
+    private val factor: KluFactor,
+    private val calls: KluCalls,
+) : F64SparseFactorization {
     init {
         val heldFactor = factor
         cleaner.register(this) {
-            KluCalls.free(heldFactor)
+            calls.free(heldFactor)
             heldFactor.arena.close()
         }
     }
@@ -30,7 +33,7 @@ public class KluFactorization internal constructor(override val failedAt: Int, p
         requireShape(out.size == n) { "solve: out size ${out.size}, expected $n" }
         if (out !== b) b.copyInto(out)
         try {
-            KluCalls.solve(factor, out, transpose)
+            calls.solve(factor, out, transpose)
         } finally {
             Reference.reachabilityFence(this)
         }

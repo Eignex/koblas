@@ -29,13 +29,22 @@ import kotlinx.cinterop.value
  * The sparse half backed by SuiteSparse's UMFPACK. Equilibration, a non-default drop tolerance and any
  * UMFPACK failure fall back to [F64SparseLuFactorization]; a singular result becomes [F64SingularSparseFactorization].
  */
-public class UmfpackSparseLu internal constructor(private val f: UmfpackFunctions) : F64SparseLu {
+public class UmfpackSparseLu(
+    /** Policy for this backend instance and the factors it produces. */
+    public val config: UmfpackConfig = UmfpackConfig(),
+) : F64SparseLu {
+    private val loader = UmfpackLoader(config)
+
     override val name: String get() = BackendNames.UMFPACK
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY
 
     /** UMFPACK ships separately from OpenBLAS, so a host can have one without the other. */
-    override val isAvailable: Boolean get() = UmfpackLoader.available
+    override val isAvailable: Boolean get() = loader.available
+
+    internal val refinementSteps: Double? get() = loader.refinementSteps
+
+    internal val pivotTolerance: Double? get() = loader.pivotTolerance
 
     /** Stated rather than delegated: the delegate is portable and this calls out to UMFPACK. */
     override val isPortable: Boolean get() = false
@@ -43,6 +52,7 @@ public class UmfpackSparseLu internal constructor(private val f: UmfpackFunction
     @Suppress("ReturnCount") // one early return per condition UMFPACK cannot serve
     override fun factor(a: F64SparseMatrix, equilibrate: Boolean, dropTolerance: Double): F64SparseFactorization {
         requireSquare(a, "factor")
+        val f = loader.functions ?: return F64SparseLuFactorization.factorCsc(a, equilibrate, dropTolerance)
         if (equilibrate || dropTolerance != NO_DROP) {
             return F64SparseLuFactorization.factorCsc(
                 a,
@@ -66,7 +76,7 @@ public class UmfpackSparseLu internal constructor(private val f: UmfpackFunction
         // the life of the process.
         @Suppress("TooGenericExceptionCaught") // rethrown, and the handle has no other owner yet
         val status = try {
-            analyzeAndFactor(a, symbolicHolder, handle, info)
+            analyzeAndFactor(a, symbolicHolder, handle, info, loader.control, f)
         } catch (t: Throwable) {
             handle.release()
             throw t
@@ -85,7 +95,7 @@ public class UmfpackSparseLu internal constructor(private val f: UmfpackFunction
             handle.release()
             return F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
         }
-        val factorization = UmfpackFactorization(a, NOT_SINGULAR, handle, f)
+        val factorization = UmfpackFactorization(a, NOT_SINGULAR, handle, f, loader.control)
         val (lnz, unz) = UmfpackFactorization.fillOf(info)
         factorization.lnz = lnz
         factorization.unz = unz
@@ -100,11 +110,13 @@ public class UmfpackSparseLu internal constructor(private val f: UmfpackFunction
         symbolicHolder: COpaquePointerVar,
         handle: UmfpackFactorization.NumericHandle,
         info: DoubleArray,
+        control: DoubleArray?,
+        f: UmfpackFunctions,
     ): Int = a.colPtr.usePinned { ap ->
         a.rowIdx.usePinned { ai ->
             a.values.usePinned { ax ->
                 info.usePinned { ip ->
-                    withControl(UmfpackLoader.control) { cp ->
+                    withControl(control) { cp ->
                         val symbolic = f.symbolic(
                             a.rows,
                             a.rows,

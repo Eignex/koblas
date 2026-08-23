@@ -34,33 +34,4 @@ class BundledOpenBlasTest {
         assertTrue(Files.isDirectory(path.parent))
     }
 
-    @Test
-    fun `preserves explicit host library paths`() {
-        val openblas = Files.createTempFile("openblas-user-", ".so")
-        val lapacke = Files.createTempFile("lapacke-user-", ".so")
-        val bundledOpenBlas = Files.createTempFile("openblas-bundled-", ".so")
-        val bundledLapacke = Files.createTempFile("lapacke-bundled-", ".so")
-        val oldOpenBlas = System.getProperty("koblas.openblas.path")
-        val oldLapacke = System.getProperty("koblas.lapacke.path")
-        try {
-            System.setProperty("koblas.openblas.path", openblas.toString())
-            System.setProperty("koblas.lapacke.path", lapacke.toString())
-
-            configureHostLibraryPaths(OpenBlasPaths(bundledOpenBlas, bundledLapacke))
-
-            assertEquals(openblas.toString(), System.getProperty("koblas.openblas.path"))
-            assertEquals(lapacke.toString(), System.getProperty("koblas.lapacke.path"))
-        } finally {
-            restoreProperty("koblas.openblas.path", oldOpenBlas)
-            restoreProperty("koblas.lapacke.path", oldLapacke)
-            Files.deleteIfExists(openblas)
-            Files.deleteIfExists(lapacke)
-            Files.deleteIfExists(bundledOpenBlas)
-            Files.deleteIfExists(bundledLapacke)
-        }
-    }
-
-    private fun restoreProperty(name: String, value: String?) {
-        if (value == null) System.clearProperty(name) else System.setProperty(name, value)
-    }
 }

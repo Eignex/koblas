@@ -24,9 +24,9 @@ import kotlin.test.assertNull
 class UmfpackNativeConformanceTest {
 
     /** Required rather than skipped, since Kotlin/Native has no Assume and a skipped suite reads as green. */
-    private val umfpack: UmfpackSparseLu = requireNotNull(
-        UmfpackLoader.functions?.let { UmfpackSparseLu(it) },
-    ) { "host SuiteSparse expected in the test environment" }
+    private val umfpack: UmfpackSparseLu = UmfpackSparseLu().also {
+        require(it.isAvailable) { "host SuiteSparse expected in the test environment" }
+    }
 
     @Test
     fun `the binding resolves and registers`() {
@@ -62,7 +62,7 @@ class UmfpackNativeConformanceTest {
 
     @Test
     fun `the control array keeps UMFPACK's defaults with refinement off`() =
-        assertControlArrayKeepsUmfpackDefaults(UmfpackLoader.refinementSteps, UmfpackLoader.pivotTolerance)
+        assertControlArrayKeepsUmfpackDefaults(umfpack.refinementSteps, umfpack.pivotTolerance)
 
     @Test
     fun `repeated factorizations do not exhaust native memory`() = assertRepeatedFactorizationsSurvive(umfpack)

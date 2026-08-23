@@ -2,7 +2,6 @@
 
 package com.eignex.koblas.dense.host.cblas
 
-import com.eignex.koblas.internal.backend.ConfigurationKeys
 import com.eignex.koblas.internal.host.openNativeLibrary
 import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.CFunction
@@ -15,7 +14,6 @@ import kotlinx.cinterop.invoke
 import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.toKString
 import platform.posix.dlsym
-import platform.posix.getenv
 
 private typealias Dp = CPointer<DoubleVar>?
 private typealias Ip = CPointer<IntVar>?
@@ -26,9 +24,8 @@ internal class CblasFunctions(private val blas: COpaquePointer) {
     private fun required(name: String): COpaquePointer = dlsym(blas, name)
         ?: error("libopenblas is present but lacks $name")
 
-    /** Absent from some builds; threading setup is best-effort. */
-    val setNumThreads =
-        dlsym(blas, "openblas_set_num_threads")?.reinterpret<CFunction<(Int) -> Unit>>()
+    val setNumThreads = dlsym(blas, "openblas_set_num_threads")
+        ?.reinterpret<CFunction<(Int) -> Unit>>()
     val ddot = required("cblas_ddot")
         .reinterpret<CFunction<(Int, Dp, Int, Dp, Int) -> Double>>()
     val dnrm2 = required("cblas_dnrm2")
@@ -96,8 +93,14 @@ internal class LapackeFunctions(private val blas: COpaquePointer, private val la
         .reinterpret<CFunction<(Int, Byte, Int, Int, Dp, Int, Ip, Dp, Int) -> Int>>()
 }
 
-internal object OpenBlasLoader {
-    private val handle: COpaquePointer? = openNativeLibrary(OPENBLAS_SONAMES)
+internal class OpenBlasLoader(private val config: OpenBlasConfig = OpenBlasConfig()) {
+    companion object {
+        private val defaultLoader: OpenBlasLoader by lazy { OpenBlasLoader() }
+
+        val cblas: CblasFunctions? get() = defaultLoader.cblas
+        val lapacke: LapackeFunctions? get() = defaultLoader.lapacke
+    }
+    private val handle: COpaquePointer? = openNativeLibrary(config.libraryPath?.let(::listOf) ?: OPENBLAS_SONAMES)
 
     val cblas: CblasFunctions? = handle?.let { blas ->
         // An ILP64 build exports these same names but takes 64-bit integers; only the config string tells.
@@ -107,14 +110,17 @@ internal object OpenBlasLoader {
         } catch (_: IllegalStateException) { // a required symbol is missing, treat as not installed
             return@let null
         }
-        // Single-threaded is the faster configuration at koblas workload sizes.
-        if (getenv(ConfigurationKeys.OPENBLAS_THREADS_ENV) == null) fns.setNumThreads?.invoke(1)
+        config.threadCount?.let { fns.setNumThreads?.invoke(it) }
         fns
     }
 
     val lapacke: LapackeFunctions? = handle?.takeIf { cblas != null }?.let { blas ->
         // LAPACKE lives either in the OpenBLAS build or in a separate library.
-        val extra = if (dlsym(blas, "LAPACKE_dgetrf") != null) null else openNativeLibrary(LAPACKE_SONAMES)
+        val extra = if (dlsym(blas, "LAPACKE_dgetrf") != null) {
+            null
+        } else {
+            openNativeLibrary(config.lapackeLibraryPath?.let(::listOf) ?: LAPACKE_SONAMES)
+        }
         if (dlsym(blas, "LAPACKE_dgetrf") == null && extra == null) return@let null
         try {
             LapackeFunctions(blas, extra)

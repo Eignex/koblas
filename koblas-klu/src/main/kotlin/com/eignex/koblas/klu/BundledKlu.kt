@@ -3,6 +3,7 @@ package com.eignex.koblas.klu
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.internal.backend.BundledNativeResources
 import com.eignex.koblas.sparse.F64SparseLu
+import com.eignex.koblas.sparse.host.klu.KluConfig
 import com.eignex.koblas.sparse.host.klu.KluSparseLu
 import java.nio.file.Path
 
@@ -15,14 +16,13 @@ public class BundledKlu private constructor(private val delegate: KluSparseLu) :
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 2
 }
 
-private const val KLU_PATH_PROPERTY = "koblas.klu.path"
-private const val KLU_PATH_ENVIRONMENT = "KOBLAS_KLU_PATH"
-
 private fun loadKlu(): KluSparseLu {
-    if (System.getProperty(KLU_PATH_PROPERTY) == null && System.getenv(KLU_PATH_ENVIRONMENT) == null) {
-        System.setProperty(KLU_PATH_PROPERTY, KluResources.extract().toString())
+    val path = if (System.getProperty("koblas.klu.path") == null && System.getenv("KOBLAS_KLU_PATH") == null) {
+        KluResources.extract().toString()
+    } else {
+        null
     }
-    return KluSparseLu()
+    return KluSparseLu(KluConfig(path))
 }
 
 internal object KluResources {

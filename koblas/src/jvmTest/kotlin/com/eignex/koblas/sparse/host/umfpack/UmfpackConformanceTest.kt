@@ -25,7 +25,7 @@ class UmfpackConformanceTest {
     private val umfpack = UmfpackSparseLu()
 
     private fun requireSuiteSparse() {
-        Assume.assumeTrue("SuiteSparse is not installed; umfpack conformance cannot run", UmfpackCalls.available)
+        Assume.assumeTrue("SuiteSparse is not installed; umfpack conformance cannot run", umfpack.isAvailable)
     }
 
     @Test
@@ -86,7 +86,7 @@ class UmfpackConformanceTest {
     @Test
     fun `the control array keeps UMFPACK's defaults with refinement off`() {
         requireSuiteSparse()
-        assertControlArrayKeepsUmfpackDefaults(UmfpackCalls.refinementSteps, UmfpackCalls.pivotTolerance)
+        assertControlArrayKeepsUmfpackDefaults(umfpack.refinementSteps, umfpack.pivotTolerance)
     }
 
     /**

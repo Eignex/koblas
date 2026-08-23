@@ -4,6 +4,7 @@ package com.eignex.koblas.cblas
 
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.dense.F64VectorKernels
+import com.eignex.koblas.dense.host.cblas.OpenBlasConfig
 import com.eignex.koblas.dense.host.cblas.OpenBlasLoader
 import com.eignex.koblas.internal.backend.BackendNames
 import kotlinx.cinterop.ExperimentalForeignApi
@@ -18,15 +19,16 @@ import kotlinx.cinterop.usePinned
  * threshold routes those here. Each routine answers one itself: an empty run sits at the end of its array,
  * where there is no element to take an address of.
  */
-public class F64CblasVectorKernels : F64VectorKernels {
+public class F64CblasVectorKernels(config: OpenBlasConfig = OpenBlasConfig()) : F64VectorKernels {
+    private val loader = OpenBlasLoader(config)
     override val name: String get() = BackendNames.CBLAS
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY
 
     /** The level-1 kernels come from CBLAS. */
-    override val isAvailable: Boolean get() = OpenBlasLoader.cblas != null
+    override val isAvailable: Boolean get() = loader.cblas != null
 
-    private val f = requireNotNull(OpenBlasLoader.cblas) {
+    private val f = requireNotNull(loader.cblas) {
         "OpenBLAS is not available on this host; koblas keeps its built-in level-1 kernels"
     }
 
