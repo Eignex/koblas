@@ -80,17 +80,17 @@ public abstract class F64HostBlasAdapter internal constructor(
 
     override fun trsv(a: F64DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
         if (a.rows < dispatch.level2) return portable.trsv(a, x, lower, transpose, unitDiag)
-        triangularVector(a, x, lower, transpose, unitDiag, solve = true)
+        nativeTriangularVector(a, x, lower, transpose, unitDiag, solve = true)
     }
 
     override fun trmv(a: F64DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
         if (a.rows < dispatch.level2) return portable.trmv(a, x, lower, transpose, unitDiag)
-        triangularVector(a, x, lower, transpose, unitDiag, solve = false)
+        nativeTriangularVector(a, x, lower, transpose, unitDiag, solve = false)
     }
 
     /** dtrsv and dtrmv take the same arguments and differ only in the entry point, as dtrsm and dtrmm do. */
     @Suppress("LongParameterList") // the shared BLAS signature plus the entry-point flag
-    private fun triangularVector(
+    private fun nativeTriangularVector(
         a: F64DenseMatrix,
         x: DoubleArray,
         lower: Boolean,
@@ -119,7 +119,7 @@ public abstract class F64HostBlasAdapter internal constructor(
         if (minOf(a.rows, b.rows, b.cols) < dispatch.level3) {
             return portable.trsm(a, b, lower, transpose, unitDiag, right, alpha)
         }
-        triangularSolveOrMultiply(a, b, lower, transpose, unitDiag, right, alpha, solve = true)
+        nativeTriangularMatrix(a, b, lower, transpose, unitDiag, right, alpha, solve = true)
     }
 
     @Suppress("LongParameterList") // the BLAS dtrmm signature
@@ -135,12 +135,12 @@ public abstract class F64HostBlasAdapter internal constructor(
         if (minOf(a.rows, b.rows, b.cols) < dispatch.level3) {
             return portable.trmm(a, b, lower, transpose, unitDiag, right, alpha)
         }
-        triangularSolveOrMultiply(a, b, lower, transpose, unitDiag, right, alpha, solve = false)
+        nativeTriangularMatrix(a, b, lower, transpose, unitDiag, right, alpha, solve = false)
     }
 
     /** dtrsm and dtrmm take the same arguments and differ only in the entry point. */
     @Suppress("LongParameterList") // the shared BLAS signature plus the entry-point flag
-    private fun triangularSolveOrMultiply(
+    private fun nativeTriangularMatrix(
         a: F64DenseMatrix,
         b: F64DenseMatrix,
         lower: Boolean,
