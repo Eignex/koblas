@@ -4,6 +4,7 @@ import com.eignex.koblas.dense.F64Blas
 import com.eignex.koblas.dense.F64Lapack
 import com.eignex.koblas.dense.F64LinearAlgebra
 import com.eignex.koblas.dense.F64VectorKernels
+import com.eignex.koblas.internal.backend.BackendSlot
 import com.eignex.koblas.sparse.F64SparseBlas
 import com.eignex.koblas.sparse.F64SparseLinearAlgebra
 import com.eignex.koblas.sparse.F64SparseLu
@@ -39,28 +40,16 @@ public class F64Context(
      * The vector-kernel halves are left out; [koblasInfo] prints both parts.
      */
     override val name: String
-        get() = listOf(blas, lapack, sparseBlas, sparseLu).map { it.name }.distinct().joinToString("+")
+        get() = BackendSlot.matrixHalves.map { backendFor(it).name }.distinct().joinToString("+")
 
     /** True when every half is koblas's own, so the context calls out to nothing. */
-    override val isPortable: Boolean
-        get() = vectorKernels.isPortable && blas.isPortable && lapack.isPortable &&
-            sparseVectorKernels.isPortable && sparseBlas.isPortable && sparseLu.isPortable
+    override val isPortable: Boolean get() = BackendSlot.entries.all { backendFor(it).isPortable }
 
     /** True when every half can run, which a context assembled from resolved backends always can. */
-    override val isAvailable: Boolean
-        get() = vectorKernels.isAvailable && blas.isAvailable && lapack.isAvailable &&
-            sparseVectorKernels.isAvailable && sparseBlas.isAvailable && sparseLu.isAvailable
+    override val isAvailable: Boolean get() = BackendSlot.entries.all { backendFor(it).isAvailable }
 
     /** The strongest half's priority, so a context is at least as preferred as the best thing in it. */
-    override val priority: Int
-        get() = maxOf(
-            vectorKernels.priority,
-            blas.priority,
-            lapack.priority,
-            sparseVectorKernels.priority,
-            sparseBlas.priority,
-            sparseLu.priority,
-        )
+    override val priority: Int get() = BackendSlot.entries.maxOf { backendFor(it).priority }
 
     /**
      * A copy with the named halves replaced and the rest kept. A replaced [vectorKernels] reaches the

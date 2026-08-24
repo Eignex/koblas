@@ -59,7 +59,7 @@ internal object BackendRegistry {
     private fun offer(backend: Backend, explicit: Boolean) {
         val offered = f64.offer(backend, explicit)
         require(offered) {
-            "${backend.name} implements none of ${F64Registry.HALF_NAMES}, so there is nothing to register it as"
+            "${backend.name} implements none of ${BackendSlot.names}, so there is nothing to register it as"
         }
     }
 
