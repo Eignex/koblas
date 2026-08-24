@@ -56,7 +56,7 @@ if [[ "$platform" == linux-* ]]; then
 else
     for library in "$destination"/*.dylib; do cp "$library" "$destination/$(basename "$library" | sed 's/\.[0-9].*\.dylib$/.dylib/')"; done
 fi
-find "$destination" -maxdepth 1 -type f -printf '%f\n' | sort > "$destination/.libraries"
+find "$destination" -maxdepth 1 -type f -exec basename {} \; | sort > "$destination/.libraries"
 notices_init "$notices" "koblas-klu" "scripts/build-klu.sh"
 notices_append_file "$notices" "SuiteSparse KLU $version — LGPL-2.1-or-later" "SuiteSparse/KLU/Doc/License.txt" "$source/KLU/Doc/License.txt"
 notices_append_file "$notices" "SuiteSparse KLU LGPL-2.1 license text" "SuiteSparse/KLU/Doc/lesser.txt" "$source/KLU/Doc/lesser.txt"

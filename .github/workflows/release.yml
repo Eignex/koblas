@@ -79,6 +79,13 @@ jobs:
           path: koblas-umfpack/build/umfpack
           key: release-umfpack-${{ runner.os }}-${{ runner.arch }}-${{ matrix.platform }}-${{ hashFiles('koblas-umfpack/umfpack.lock', 'scripts/build-umfpack.sh', 'koblas-openblas/openblas.lock', 'scripts/build-openblas.sh', 'scripts/third-party-notices.sh') }}
 
+      - name: Cache bundled KLU resources
+        id: cache-klu
+        uses: actions/cache@v5
+        with:
+          path: koblas-klu/build/klu
+          key: release-klu-${{ runner.os }}-${{ runner.arch }}-${{ matrix.platform }}-${{ hashFiles('koblas-klu/klu.lock', 'scripts/build-klu.sh', 'scripts/third-party-notices.sh') }}
+
       - name: Cache bundled BASICLU resources
         id: cache-basiclu
         uses: actions/cache@v5
@@ -97,6 +104,20 @@ jobs:
         with:
           name: openblas-${{ matrix.platform }}
           path: koblas-openblas/build/openblas/resources/org/bytedeco/openblas
+          include-hidden-files: true
+          if-no-files-found: error
+
+      - name: Build bundled KLU
+        if: steps.cache-klu.outputs.cache-hit != 'true'
+        run: >-
+          ./gradlew --no-build-cache --no-configuration-cache --rerun-tasks
+          :koblas-klu:buildKlu -Pkoblas.klu.platform=${{ matrix.platform }}
+
+      - name: Upload bundled KLU resources
+        uses: actions/upload-artifact@v7
+        with:
+          name: klu-${{ matrix.platform }}
+          path: koblas-klu/build/klu/resources/org/eignex/klu
           include-hidden-files: true
           if-no-files-found: error
 
@@ -172,6 +193,13 @@ jobs:
         with:
           pattern: openblas-*
           path: koblas-openblas/build/openblas/resources/org/bytedeco/openblas
+          merge-multiple: true
+
+      - name: Download bundled KLU resources
+        uses: actions/download-artifact@v8
+        with:
+          pattern: klu-*
+          path: koblas-klu/build/klu/resources/org/eignex/klu
           merge-multiple: true
 
       - name: Download bundled UMFPACK resources
