@@ -66,24 +66,28 @@ jobs:
           echo "FC=aarch64-linux-gnu-gfortran" >> "$GITHUB_ENV"
 
       - name: Cache bundled OpenBLAS resources
+        id: cache-openblas
         uses: actions/cache@v5
         with:
           path: koblas-openblas/build/openblas
           key: release-openblas-${{ runner.os }}-${{ runner.arch }}-${{ matrix.platform }}-${{ hashFiles('koblas-openblas/openblas.lock', 'scripts/build-openblas.sh', 'scripts/third-party-notices.sh') }}
 
       - name: Cache bundled UMFPACK resources
+        id: cache-umfpack
         uses: actions/cache@v5
         with:
           path: koblas-umfpack/build/umfpack
           key: release-umfpack-${{ runner.os }}-${{ runner.arch }}-${{ matrix.platform }}-${{ hashFiles('koblas-umfpack/umfpack.lock', 'scripts/build-umfpack.sh', 'koblas-openblas/openblas.lock', 'scripts/build-openblas.sh', 'scripts/third-party-notices.sh') }}
 
       - name: Cache bundled BASICLU resources
+        id: cache-basiclu
         uses: actions/cache@v5
         with:
           path: koblas-basiclu/build/basiclu
           key: release-basiclu-${{ runner.os }}-${{ runner.arch }}-${{ matrix.platform }}-${{ hashFiles('koblas-basiclu/basiclu.lock', 'koblas-basiclu/native/basiclu_shim.c', 'scripts/build-basiclu.sh', 'scripts/third-party-notices.sh') }}
 
       - name: Build bundled OpenBLAS
+        if: steps.cache-openblas.outputs.cache-hit != 'true'
         run: >-
           ./gradlew --no-build-cache --no-configuration-cache --rerun-tasks
           :koblas-openblas:buildOpenBlas -Pkoblas.openblas.platform=${{ matrix.platform }}
@@ -97,6 +101,15 @@ jobs:
           if-no-files-found: error
 
       - name: Build bundled UMFPACK
+        if: steps.cache-umfpack.outputs.cache-hit != 'true' && steps.cache-openblas.outputs.cache-hit == 'true'
+        run: >-
+          ./gradlew --no-build-cache --no-configuration-cache --rerun-tasks
+          :koblas-umfpack:buildUmfpack -x :koblas-openblas:buildOpenBlas
+          -Pkoblas.umfpack.platform=${{ matrix.platform }}
+          -Pkoblas.openblas.platform=${{ matrix.platform }}
+
+      - name: Build bundled UMFPACK with OpenBLAS
+        if: steps.cache-umfpack.outputs.cache-hit != 'true' && steps.cache-openblas.outputs.cache-hit != 'true'
         run: >-
           ./gradlew --no-build-cache --no-configuration-cache --rerun-tasks
           :koblas-umfpack:buildUmfpack -Pkoblas.umfpack.platform=${{ matrix.platform }}
@@ -111,6 +124,7 @@ jobs:
           if-no-files-found: error
 
       - name: Build bundled BASICLU
+        if: steps.cache-basiclu.outputs.cache-hit != 'true'
         run: >-
           ./gradlew --no-build-cache --no-configuration-cache --rerun-tasks
           :koblas-basiclu:buildBasiclu -Pkoblas.basiclu.platform=${{ matrix.platform }}
