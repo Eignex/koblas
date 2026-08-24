@@ -73,7 +73,7 @@ class CblasHalvesTest {
             val whole: F64LinearAlgebra = F64CblasBackend()
             registerBackend(whole)
             assertSame(whole, koblas.blas)
-            assertSame(whole, koblas.lapack)
+            assertSame(whole, koblas.decompositions)
             assertEquals("cblas+reference", koblas.name)
         }
     }

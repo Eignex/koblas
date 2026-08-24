@@ -20,6 +20,6 @@ internal expect fun useHostLevel1(enabled: Boolean): Boolean
 
 internal fun installBackend(backend: String) {
     val chosen = if (backend == REFERENCE_BACKEND) F64ReferenceLinearAlgebra else nativeBackend()
-    installBackends(chosen?.let { koblas.with(blas = it, lapack = it) })
+    installBackends(chosen?.let { koblas.with(blas = it, decompositions = it) })
     println("resolved: $koblasInfo")
 }

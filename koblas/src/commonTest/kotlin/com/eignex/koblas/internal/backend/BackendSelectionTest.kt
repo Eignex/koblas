@@ -32,7 +32,7 @@ class BackendSelectionTest {
     fun `an empty registry resolves to the reference backend`() {
         withCleanBackends {
             assertSame(F64ReferenceLinearAlgebra, koblas.blas)
-            assertSame(F64ReferenceLinearAlgebra, koblas.lapack)
+            assertSame(F64ReferenceLinearAlgebra, koblas.decompositions)
             assertEquals("reference", koblas.name)
         }
     }
@@ -47,7 +47,7 @@ class BackendSelectionTest {
             registerBackend(Fake("mid", 20)) // weaker than the incumbent: ignored
             assertEquals("high+reference", koblas.name)
             val manual = Fake("manual", -1)
-            installBackends(koblas.with(blas = manual, lapack = manual))
+            installBackends(koblas.with(blas = manual, decompositions = manual))
             assertEquals("manual+reference", koblas.name)
             installBackends(null)
             assertEquals("high+reference", koblas.name)
@@ -62,7 +62,7 @@ class BackendSelectionTest {
             registerBackend(configured)
             BackendRegistry.registerAutomatic(Fake("later automatic", 200))
             assertSame(configured, koblas.blas)
-            assertSame(configured, koblas.lapack)
+            assertSame(configured, koblas.decompositions)
         }
     }
 
@@ -96,7 +96,7 @@ class BackendSelectionTest {
             val both = Fake("whole", 30)
             registerBackend(both)
             assertSame(both, koblas.blas)
-            assertSame(both, koblas.lapack)
+            assertSame(both, koblas.decompositions)
             assertEquals("whole+reference", koblas.name, "the dense halves are its; the sparse ones are not")
         }
     }
@@ -113,7 +113,7 @@ class BackendSelectionTest {
     fun `the reset hook clears the install override too`() {
         withCleanBackends {
             val manual = Fake("manual", -1)
-            installBackends(koblas.with(blas = manual, lapack = manual))
+            installBackends(koblas.with(blas = manual, decompositions = manual))
             resetBackends()
             assertSame(F64ReferenceLinearAlgebra, koblas.blas, "reset must clear the override, not just registration")
         }

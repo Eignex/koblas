@@ -16,7 +16,7 @@ import com.eignex.koblas.sparse.F64SparseLu
  *
  * @property kernels dense vector-vector routines; every dense inner loop bottoms out here.
  * @property blas dense matrix routines.
- * @property lapack dense factorizations.
+ * @property decompositions dense factorizations.
  * @property sparseKernels sparse vector-vector routines.
  * @property sparseBlas sparse matrix routines.
  * @property sparseLu sparse factorizations.
@@ -24,13 +24,13 @@ import com.eignex.koblas.sparse.F64SparseLu
 public class F64Context(
     override val kernels: F64Kernels,
     public val blas: F64Blas,
-    public val lapack: F64Decompositions,
+    public val decompositions: F64Decompositions,
     override val sparseKernels: F64SparseKernels,
     public val sparseBlas: F64SparseBlas,
     public val sparseLu: F64SparseLu,
 ) : F64LinearAlgebra,
     F64Blas by blas,
-    F64Decompositions by lapack,
+    F64Decompositions by decompositions,
     F64SparseLinearAlgebra,
     F64SparseBlas by sparseBlas,
     F64SparseLu by sparseLu {
@@ -59,14 +59,14 @@ public class F64Context(
     public fun with(
         kernels: F64Kernels = this.kernels,
         blas: F64Blas = this.blas,
-        lapack: F64Decompositions = this.lapack,
+        decompositions: F64Decompositions = this.decompositions,
         sparseKernels: F64SparseKernels = this.sparseKernels,
         sparseBlas: F64SparseBlas = this.sparseBlas,
         sparseLu: F64SparseLu = this.sparseLu,
     ): F64Context = F64Context(
         kernels = kernels,
         blas = blas,
-        lapack = lapack,
+        decompositions = decompositions,
         sparseKernels = sparseKernels,
         sparseBlas = sparseBlas,
         sparseLu = sparseLu,
