@@ -5,6 +5,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.F64DenseMatrix
+import com.eignex.koblas.internal.numeric.F64_MIN_NORMAL
 import com.eignex.koblas.requireFactored
 import com.eignex.koblas.requireShape
 import kotlin.math.abs
@@ -13,6 +14,10 @@ import kotlin.math.abs
  * The portable Bunch-Kaufman factorization and the solve over its factors, netlib dsytf2 and dsytrs. This is
  * the semantic definition a native LDL is validated against; [F64ReferenceLapack] is the F64Lapack surface
  * over it.
+ *
+ * One deliberate departure: the 1x1 elimination takes dsytf2_rook's guarded scaling rather than plain
+ * dsytf2's unguarded reciprocal, so a subnormal pivot factors here where a host dsytrf answers with
+ * infinities. See [eliminateOneByOne].
  */
 
 /** Bunch-Kaufman pivot threshold `(1 + sqrt(17)) / 8`, the value minimizing element growth (netlib dsytf2). */
@@ -44,8 +49,9 @@ internal fun referenceLdl(
                 imax = i
             }
         }
-        if (maxOf(absakk, colmax) == 0.0) {
-            // The first zero pivot is the one reported, matching dsytf2's info.
+        if (maxOf(absakk, colmax) == 0.0 || absakk.isNaN()) {
+            // The first zero pivot is the one reported, matching dsytf2's info, which reports a NaN
+            // diagonal the same way rather than eliminating on it.
             if (failedAt == NOT_SINGULAR) failedAt = k
             ipiv[k] = k + 1
             k += 1
@@ -75,12 +81,7 @@ internal fun referenceLdl(
         val kk = k + kstep - 1
         if (kp != kk) swapSymmetric(w, n, k, kk, kp, kstep)
         if (kstep == 1) {
-            val d11 = 1.0 / w[k + k * n]
-            for (j in k + 1 until n) {
-                val f = -d11 * w[j + k * n]
-                if (f != 0.0) kernels.axpy(w, j + j * n, f, w, j + k * n, n - j)
-            }
-            kernels.scale(w, k + 1 + k * n, d11, n - k - 1)
+            eliminateOneByOne(kernels, w, n, k)
             ipiv[k] = kp + 1
         } else {
             if (k < n - 2) {
@@ -116,6 +117,35 @@ internal fun referenceLdl(
         workspace.release(colK)
     }
     return F64LdlDecomposition(n, w, ipiv, failedAt)
+}
+
+/**
+ * Eliminate a 1x1 pivot and update the trailing triangle, `dsytf2`'s `dscal` and `dsyr`.
+ *
+ * A pivot below the smallest normal has no reciprocal: `1 / 1e-320` is an infinity, and scaling the column
+ * by it turns a factor that dividing resolves exactly into infinities and NaNs. So the small case divides
+ * the column and scales the update by the pivot itself, which is the same arithmetic out of the reciprocal's
+ * exponent range, and is the branch dsytf2 takes below its own `sfmin`.
+ */
+private fun eliminateOneByOne(kernels: F64VectorKernels, w: DoubleArray, n: Int, k: Int) {
+    val pivot = w[k + k * n]
+    // A pivot below the smallest normal has no reciprocal: `1 / 1e-320` is an infinity, and scaling the
+    // column by it turns multipliers that dividing resolves exactly into infinities. So the small case
+    // divides the column first and scales the update by the pivot itself, which is the same arithmetic out
+    // of the reciprocal's exponent range. That is dsytf2_rook's branch below its own sfmin; plain dsytf2
+    // takes the reciprocal whatever the pivot. It bounds the reciprocal, not the result: an entry far above
+    // the pivot still overflows the division, which the pivot search allows on its rowmax branch.
+    val scalable = abs(pivot) >= F64_MIN_NORMAL
+    if (!scalable) {
+        for (i in k + 1 until n) w[i + k * n] = w[i + k * n] / pivot
+    }
+    // Against the divided column the update takes the pivot where the reciprocal form takes its inverse.
+    val coefficient = if (scalable) 1.0 / pivot else pivot
+    for (j in k + 1 until n) {
+        val f = -coefficient * w[j + k * n]
+        if (f != 0.0) kernels.axpy(w, j + j * n, f, w, j + k * n, n - j)
+    }
+    if (scalable) kernels.scale(w, k + 1 + k * n, coefficient, n - k - 1)
 }
 
 /**
