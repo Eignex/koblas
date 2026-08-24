@@ -8,8 +8,14 @@ import com.eignex.koblas.sparse.F64SparseLu
 
 /** BASICLU bundle extracted from Maven-native resources on the application's classpath. */
 public class BundledBasiclu private constructor(private val delegate: BasicluSparseLu) : F64SparseLu by delegate {
-    /** Extracts the matching Maven-native resources before the FFM binding is initialized. */
-    public constructor() : this(BasicluSparseLu(basicluLibrary.extract().toString()))
+    /**
+     * Extracts the matching Maven-native resources before the FFM binding is initialized.
+     *
+     * @param factorizeMin stored entries from which this binding factorizes natively, or null for the
+     *   platform default.
+     */
+    public constructor(factorizeMin: Int? = null) :
+        this(BasicluSparseLu(basicluLibrary.extract().toString(), factorizeMin))
 
     override val name: String get() = "basiclu-bundled"
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 3

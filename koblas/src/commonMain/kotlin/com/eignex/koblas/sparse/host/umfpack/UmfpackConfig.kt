@@ -16,6 +16,8 @@ public enum class UmfpackScaling {
 public data class UmfpackConfig(
     /** An absolute UMFPACK library path, or the deployment lookup chain when null. */
     val libraryPath: String? = null,
+    /** Smallest stored-entry count routed to the native factorization; null keeps the platform default. */
+    val factorizeMin: Int? = null,
     /** Maximum residual-correction passes each solve may perform. */
     val iterativeRefinementSteps: Int = 0,
     /** UMFPACK's threshold-pivoting tolerance. */
@@ -24,6 +26,7 @@ public data class UmfpackConfig(
     val scaling: UmfpackScaling = UmfpackScaling.SUM,
 ) {
     init {
+        require(factorizeMin == null || factorizeMin >= 0) { "factorizeMin must not be negative" }
         require(iterativeRefinementSteps >= 0) { "iterativeRefinementSteps must not be negative" }
         require(pivotTolerance in 0.0..1.0) { "pivotTolerance must be between zero and one" }
     }

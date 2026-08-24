@@ -4,6 +4,8 @@ import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.sparse.assertAliasedDestinationSolves
 import com.eignex.koblas.sparse.assertControlArrayKeepsUmfpackDefaults
+import com.eignex.koblas.sparse.assertFactorizeGateFallsBackToReference
+import com.eignex.koblas.sparse.assertGatedFallbackStillSolves
 import com.eignex.koblas.sparse.assertNativeEquilibrationAndUnsupportedDropToleranceIsRejected
 import com.eignex.koblas.sparse.assertReciprocalPivotConditionEstimateIsBounded
 import com.eignex.koblas.sparse.assertRegistersAsTheSparseLuHalf
@@ -21,7 +23,9 @@ import kotlin.test.assertEquals
 @Category(HostLibraryTest::class)
 class UmfpackConformanceTest {
 
-    private val umfpack = UmfpackSparseLu()
+    // Every assertion below is about the native binding, and these systems are small enough that the
+    // stored-entry gate would hand them to the portable factorization instead.
+    private val umfpack = UmfpackSparseLu(UmfpackConfig(factorizeMin = 0))
 
     private fun requireSuiteSparse() {
         Assume.assumeTrue("SuiteSparse is not installed; umfpack conformance cannot run", umfpack.isAvailable)
@@ -62,6 +66,21 @@ class UmfpackConformanceTest {
     fun `equilibrate stays native and an unsupported drop tolerance is rejected`() {
         requireSuiteSparse()
         assertNativeEquilibrationAndUnsupportedDropToleranceIsRejected(umfpack) { it is UmfpackFactorization }
+    }
+
+    @Test
+    fun `below its gate the portable factorization answers`() {
+        requireSuiteSparse()
+        assertFactorizeGateFallsBackToReference(
+            { min -> UmfpackSparseLu(UmfpackConfig(factorizeMin = min)) },
+            { it is UmfpackFactorization },
+        )
+    }
+
+    @Test
+    fun `a gated fallback still agrees with the reference`() {
+        requireSuiteSparse()
+        assertGatedFallbackStillSolves { min -> UmfpackSparseLu(UmfpackConfig(factorizeMin = min)) }
     }
 
     @Test

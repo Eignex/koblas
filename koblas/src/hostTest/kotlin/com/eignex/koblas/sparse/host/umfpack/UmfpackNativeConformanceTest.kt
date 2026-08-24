@@ -23,7 +23,8 @@ import kotlin.test.assertNull
 class UmfpackNativeConformanceTest {
 
     /** Required rather than skipped, since Kotlin/Native has no Assume and a skipped suite reads as green. */
-    private val umfpack: UmfpackSparseLu = UmfpackSparseLu().also {
+    // Ungated for the reason the JVM conformance test is: these assertions are about the native binding.
+    private val umfpack: UmfpackSparseLu = UmfpackSparseLu(UmfpackConfig(factorizeMin = 0)).also {
         require(it.isAvailable) { "host SuiteSparse expected in the test environment" }
     }
 

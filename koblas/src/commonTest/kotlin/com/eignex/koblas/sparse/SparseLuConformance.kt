@@ -110,6 +110,33 @@ internal fun assertRegistersAsTheSparseLuHalf(lapack: F64SparseLu, n: Int) {
     }
 }
 
+/**
+ * Below its gate a host hands the factorization to the portable implementation, and at the gate it takes it
+ * back. [gated] builds the binding with a chosen gate, since the gate is per-binding configuration. The two
+ * gates straddle one matrix's stored-entry count, which is the quantity a sparse host gates on.
+ */
+internal fun assertFactorizeGateFallsBackToReference(
+    gated: (factorizeMin: Int) -> F64SparseLu,
+    hostFactorization: (F64SparseFactorization) -> Boolean,
+) {
+    val a = sparseConformanceSystem(12, Random(20260901))
+    val below = gated(a.nnz + 1).factor(a)
+    assertTrue(!hostFactorization(below), "above the gate the portable factorization should answer")
+    val at = gated(a.nnz).factor(a)
+    assertTrue(hostFactorization(at), "at the gate the host factorization should answer")
+}
+
+/** A gated host still agrees with the reference on a problem it hands back. */
+internal fun assertGatedFallbackStillSolves(gated: (factorizeMin: Int) -> F64SparseLu) {
+    val n = 7
+    val rng = Random(20260902)
+    val a = sparseConformanceSystem(n, rng)
+    val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
+    val fromGated = gated(a.nnz + 1).factor(a).solve(b)
+    val fromPortable = F64ReferenceSparseLinearAlgebra.factor(a).solve(b)
+    assertClose(fromPortable, fromGated, "a gated host below its gate", tolerance = 1e-12)
+}
+
 /** A host may equilibrate natively and rejects a drop tolerance it cannot represent. */
 internal fun assertNativeEquilibrationAndUnsupportedDropToleranceIsRejected(
     lapack: F64SparseLu,

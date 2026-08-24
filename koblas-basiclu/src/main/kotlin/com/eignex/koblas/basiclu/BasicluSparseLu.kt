@@ -13,7 +13,7 @@ import com.eignex.koblas.internal.host.nativeCleaner
 import com.eignex.koblas.sparse.F64BasisFactorization
 import com.eignex.koblas.sparse.F64SingularSparseFactorization
 import com.eignex.koblas.sparse.F64SparseFactorization
-import com.eignex.koblas.sparse.F64SparseLu
+import com.eignex.koblas.sparse.host.F64HostSparseLuAdapter
 import com.eignex.koblas.sparse.requireSolveShapes
 import java.lang.ref.Reference
 import kotlin.math.abs
@@ -23,18 +23,18 @@ import kotlin.math.abs
 public class BasicluSparseLu(
     /** Absolute path to the BASICLU bridge library, or the platform lookup chain when null. */
     public val libraryPath: String? = null,
-) : F64SparseLu {
+    /** Smallest stored-entry count routed to the native factorization; null keeps the platform default. */
+    public val factorizeMin: Int? = null,
+) : F64HostSparseLuAdapter(factorizeMin) {
     private val calls = BasicluCalls(libraryPath)
 
     override val name: String get() = "basiclu"
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 2
-    override val isAvailable: Boolean get() = calls.available
+    override val nativeAvailable: Boolean get() = calls.available
 
-    override fun factor(a: F64SparseMatrix, equilibrate: Boolean, dropTolerance: Double): F64SparseFactorization {
-        require(a.rows == a.cols) { "factor requires a square matrix; got ${a.rows}x${a.cols}" }
-        return factorHandle(a)?.let { BasicluFactorization(a.rows, it, calls) }
+    override fun factorNative(a: F64SparseMatrix, equilibrate: Boolean): F64SparseFactorization =
+        factorHandle(a)?.let { BasicluFactorization(a.rows, it, calls) }
             ?: F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
-    }
 
     /** Factor a simplex [basis] for sparse column replacements. */
     override fun factorBasis(basis: F64SparseMatrix): F64BasisFactorization {

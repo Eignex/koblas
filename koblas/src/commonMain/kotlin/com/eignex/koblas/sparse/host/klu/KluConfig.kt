@@ -25,6 +25,8 @@ public enum class KluScaling {
 public data class KluConfig(
     /** An absolute KLU library path, or the platform lookup chain when null. */
     val libraryPath: String? = null,
+    /** Smallest stored-entry count routed to the native factorization; null keeps the platform default. */
+    val factorizeMin: Int? = null,
     /** Pivot tolerance for diagonal preference. */
     val pivotTolerance: Double? = null,
     /** Factor-storage growth multiplier when KLU reallocates. */
@@ -45,6 +47,7 @@ public data class KluConfig(
     val haltIfSingular: Boolean? = null,
 ) {
     init {
+        require(factorizeMin == null || factorizeMin >= 0) { "factorizeMin must not be negative" }
         require(pivotTolerance == null || pivotTolerance in 0.0..1.0) {
             "pivotTolerance must be between zero and one"
         }
