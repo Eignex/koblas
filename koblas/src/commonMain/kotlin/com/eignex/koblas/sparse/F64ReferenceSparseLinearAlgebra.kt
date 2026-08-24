@@ -19,7 +19,7 @@ import kotlin.math.abs
 @Suppress("TooManyFunctions") // the sparse surface a backend half covers
 public object F64ReferenceSparseLinearAlgebra :
     F64SparseLinearAlgebra,
-    F64SparseVectorKernels {
+    F64SparseKernels {
     override val name: String get() = BackendNames.REFERENCE
 
     override val isPortable: Boolean get() = true
@@ -37,7 +37,7 @@ public object F64ReferenceSparseLinearAlgebra :
         val yLen = if (transpose) a.cols else a.rows
         requireShape(x.size == xLen) { "gemv: x length ${x.size} != $xLen" }
         requireShape(y.size == yLen) { "gemv: y length ${y.size} != $yLen" }
-        applyBeta(koblas.vectorKernels, y, 0, y.size, beta)
+        applyBeta(koblas.kernels, y, 0, y.size, beta)
         if (alpha == 0.0) return
         if (transpose) {
             for (j in 0 until a.cols) {

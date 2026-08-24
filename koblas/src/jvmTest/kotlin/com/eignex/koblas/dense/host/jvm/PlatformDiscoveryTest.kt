@@ -84,13 +84,13 @@ class PlatformDiscoveryTest {
             )
             assertEquals(
                 HostLibraries.lapacke,
-                koblas.isAccelerated(BackendSlot.F64Lapack),
-                "the F64Lapack slot should be accelerated exactly when a host LAPACKE resolved",
+                koblas.isAccelerated(BackendSlot.F64Decompositions),
+                "the F64Decompositions slot should be accelerated exactly when a host LAPACKE resolved",
             )
             assertEquals(
                 HostLibraries.cblas,
-                koblas.isAccelerated(BackendSlot.F64VectorKernels),
-                "the F64VectorKernels slot should be accelerated exactly when a host CBLAS resolved",
+                koblas.isAccelerated(BackendSlot.F64Kernels),
+                "the F64Kernels slot should be accelerated exactly when a host CBLAS resolved",
             )
         }
     }

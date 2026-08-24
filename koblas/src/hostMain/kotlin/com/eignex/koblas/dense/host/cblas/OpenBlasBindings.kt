@@ -93,7 +93,7 @@ internal class LapackeFunctions(private val blas: COpaquePointer, private val la
         .reinterpret<CFunction<(Int, Byte, Int, Int, Dp, Int, Ip, Dp, Int) -> Int>>()
 }
 
-internal class OpenBlasLoader(private val config: OpenBlasConfig = OpenBlasConfig()) {
+internal class OpenBlasLoader(private val config: HostBlasConfig = HostBlasConfig()) {
     companion object {
         private val defaultLoader: OpenBlasLoader by lazy { OpenBlasLoader() }
 

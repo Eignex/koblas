@@ -2,10 +2,10 @@ package com.eignex.koblas.internal.backend
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.F64Blas
-import com.eignex.koblas.dense.F64Lapack
+import com.eignex.koblas.dense.F64Decompositions
+import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.dense.F64ReferenceBackend
 import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
-import com.eignex.koblas.dense.F64VectorKernels
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import kotlin.test.Test
 import kotlin.test.assertFalse
@@ -16,11 +16,11 @@ class BackendAvailabilityTest {
     /** A half that reports itself unusable, which is what a binding does when its library did not resolve. */
     private class UnavailableHost(override val name: String) :
         F64Blas by F64ReferenceLinearAlgebra,
-        F64Lapack by F64ReferenceLinearAlgebra {
+        F64Decompositions by F64ReferenceLinearAlgebra {
         override val priority: Int get() = HOST_BACKEND_PRIORITY
         override val isPortable: Boolean get() = false
         override val isAvailable: Boolean get() = false
-        override val vectorKernels: F64VectorKernels get() = F64ReferenceLinearAlgebra.vectorKernels
+        override val kernels: F64Kernels get() = F64ReferenceLinearAlgebra.kernels
     }
 
     @Test
@@ -28,7 +28,7 @@ class BackendAvailabilityTest {
         assertTrue(F64ReferenceLinearAlgebra.isAvailable)
         assertTrue(F64ReferenceBackend().isAvailable)
         assertTrue(F64ReferenceSparseLinearAlgebra.isAvailable)
-        assertTrue(F64ReferenceLinearAlgebra.vectorKernels.isAvailable, "the compiled-in kernels always run")
+        assertTrue(F64ReferenceLinearAlgebra.kernels.isAvailable, "the compiled-in kernels always run")
     }
 
     @Test

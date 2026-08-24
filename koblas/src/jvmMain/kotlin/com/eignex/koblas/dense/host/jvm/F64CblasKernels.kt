@@ -1,23 +1,23 @@
 package com.eignex.koblas.dense.host.jvm
 
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
-import com.eignex.koblas.dense.F64VectorKernels
-import com.eignex.koblas.dense.host.cblas.OpenBlasConfig
+import com.eignex.koblas.dense.F64Kernels
+import com.eignex.koblas.dense.host.cblas.HostBlasConfig
 import com.eignex.koblas.dense.host.jvm.HostBlasCalls
 import com.eignex.koblas.internal.backend.BackendNames
-import com.eignex.koblas.internal.backend.openBlasDispatchThresholds
+import com.eignex.koblas.internal.backend.hostBlasDispatchThresholds
 
-/** The level-1 CBLAS routines from the OpenBLAS instance shared with [F64OpenBlasBlas]. */
-public class F64OpenBlasVectorKernels internal constructor(
+/** The level-1 CBLAS routines from the OpenBLAS instance shared with [F64Cblas]. */
+public class F64CblasKernels internal constructor(
     private val calls: HostBlasCalls,
     /** Policy for this level-1 backend instance. */
-    public val config: OpenBlasConfig,
-) : F64VectorKernels {
-    public constructor(config: OpenBlasConfig = OpenBlasConfig()) : this(HostBlasCalls(config), config)
+    public val config: HostBlasConfig,
+) : F64Kernels {
+    public constructor(config: HostBlasConfig = HostBlasConfig()) : this(HostBlasCalls(config), config)
 
     override val name: String get() = BackendNames.OPENBLAS
     override val priority: Int get() = HOST_BACKEND_PRIORITY
-    override val minDispatchLength: Int get() = openBlasDispatchThresholds(config).level1
+    override val minDispatchLength: Int get() = hostBlasDispatchThresholds(config).level1
     override val isAvailable: Boolean get() = calls.available
 
     private fun segment(values: DoubleArray, offset: Int) =

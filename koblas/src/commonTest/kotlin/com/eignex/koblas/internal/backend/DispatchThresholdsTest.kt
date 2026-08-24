@@ -1,7 +1,7 @@
 package com.eignex.koblas.internal.backend
 
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.F64VectorKernels
+import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.internal.numeric.absoluteSum
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import kotlin.test.Test
@@ -11,7 +11,7 @@ import kotlin.test.assertTrue
 class DispatchThresholdsTest {
 
     /** Kernels whose name is nothing like the compiled-in ones, so a threshold that reads it would move. */
-    private class ForeignKernels : F64VectorKernels {
+    private class ForeignKernels : F64Kernels {
         override val name: String get() = "foreign"
         override val priority: Int get() = 100
         override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
@@ -35,7 +35,7 @@ class DispatchThresholdsTest {
         // Reading an installed backend instead would freeze whatever happened to be active at the first
         // read and leave every later dispatch deciding against the wrong table.
         val before = platformDispatchThresholds
-        installBackends(koblas.with(vectorKernels = ForeignKernels()))
+        installBackends(koblas.with(kernels = ForeignKernels()))
         try {
             val during = platformDispatchThresholds
             assertEquals(before.level1, during.level1, "level1 followed the installed backend")

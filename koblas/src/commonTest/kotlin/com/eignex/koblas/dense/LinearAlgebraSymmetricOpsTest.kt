@@ -298,7 +298,7 @@ class LinearAlgebraSymmetricOpsTest {
     }
 
     /** Kernels whose `dot` fails, standing in for a host backend that cannot complete a call. */
-    private class FailingDot : F64VectorKernels {
+    private class FailingDot : F64Kernels {
         override val name: String get() = "failing-dot"
         override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
             error("kernel failed")

@@ -13,7 +13,7 @@ import com.eignex.koblas.internal.host.nativeCleaner
 import com.eignex.koblas.sparse.F64BasisFactorization
 import com.eignex.koblas.sparse.F64SingularSparseFactorization
 import com.eignex.koblas.sparse.F64SparseFactorization
-import com.eignex.koblas.sparse.host.F64HostSparseLuAdapter
+import com.eignex.koblas.sparse.host.F64SparseLuAdapter
 import com.eignex.koblas.sparse.requireSolveShapes
 import java.lang.ref.Reference
 import kotlin.math.abs
@@ -25,7 +25,7 @@ public class BasicluSparseLu(
     public val libraryPath: String? = null,
     /** Smallest stored-entry count routed to the native factorization; null keeps the platform default. */
     public val factorizeMin: Int? = null,
-) : F64HostSparseLuAdapter(factorizeMin) {
+) : F64SparseLuAdapter(factorizeMin) {
     private val calls = BasicluCalls(libraryPath)
 
     override val name: String get() = "basiclu"

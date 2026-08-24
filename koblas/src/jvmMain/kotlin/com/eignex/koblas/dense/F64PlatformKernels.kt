@@ -30,7 +30,7 @@ internal val simdAvailable: Boolean = try {
  */
 private val simdLanes: Int = if (simdAvailable) Simd.lanes() else 0
 
-internal actual object F64PlatformVectorKernels : F64VectorKernels {
+internal actual object F64PlatformKernels : F64Kernels {
     actual override val name: String
         get() = if (simdAvailable) "${BackendNames.SIMD}($simdLanes lanes)" else BackendNames.SCALAR
 

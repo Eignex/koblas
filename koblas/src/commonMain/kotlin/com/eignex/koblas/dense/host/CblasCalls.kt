@@ -6,7 +6,7 @@ package com.eignex.koblas.dense.host
  * it: the JVM implements it over `java.lang.foreign`, Kotlin/Native over `usePinned`.
  *
  * Every array is passed whole and read from its start; leading dimensions come as separate arguments, as in
- * CBLAS itself. An implementation must not copy, since [F64HostBlasAdapter] relies on the library writing
+ * CBLAS itself. An implementation must not copy, since [F64BlasAdapter] relies on the library writing
  * through to the caller's arrays.
  */
 @Suppress("LongParameterList", "TooManyFunctions") // the CBLAS signatures, one method each

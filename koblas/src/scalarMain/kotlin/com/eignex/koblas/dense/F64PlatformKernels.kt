@@ -9,11 +9,11 @@ import com.eignex.koblas.internal.numeric.scalarDot4
 import com.eignex.koblas.internal.numeric.scalarScale
 
 /**
- * The compile-time kernels for every non-JVM target. Routing to a registered [F64VectorKernels] backend
- * happens above these, in [F64RoutedVectorKernels], so these are pure loops with no dispatch.
+ * The compile-time kernels for every non-JVM target. Routing to a registered [F64Kernels] backend
+ * happens above these, in [F64RoutedKernels], so these are pure loops with no dispatch.
  */
 
-internal actual object F64PlatformVectorKernels : F64VectorKernels {
+internal actual object F64PlatformKernels : F64Kernels {
     actual override val name: String get() = BackendNames.SCALAR
 
     override val isPortable: Boolean get() = true

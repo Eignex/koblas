@@ -1,6 +1,6 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.F64RoutedVectorKernels
+import com.eignex.koblas.dense.F64RoutedKernels
 import com.eignex.koblas.internal.backend.BackendSlot
 
 /** The backend installed in [slot]. */
@@ -8,7 +8,7 @@ public fun F64Context.backendFor(slot: BackendSlot): Backend = slot.from(this)
 
 /** Whether [slot] is filled by something other than koblas's own portable implementation. */
 public fun F64Context.isAccelerated(slot: BackendSlot): Boolean = when (val backend = backendFor(slot)) {
-    is F64RoutedVectorKernels -> backend.host != null
+    is F64RoutedKernels -> backend.host != null
     else -> !backend.isPortable
 }
 
@@ -24,6 +24,6 @@ public fun F64Context.requireAccelerated(vararg slots: BackendSlot) {
         "koblas fell back to portable implementations for: $detail. " +
             "Either the host library is missing (libopenblas/liblapacke on Linux, brew install openblas on " +
             "macOS), the backend artifact is not on the classpath, or nothing has been registered for that " +
-            "slot yet. Resolved: backend=$name, kernels=${vectorKernels.name}"
+            "slot yet. Resolved: backend=$name, kernels=${kernels.name}"
     }
 }

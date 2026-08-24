@@ -2,29 +2,27 @@ package com.eignex.koblas.dense.host.cblas
 
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.dense.F64Blas
-import com.eignex.koblas.dense.F64Lapack
+import com.eignex.koblas.dense.F64Decompositions
+import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.dense.F64LinearAlgebra
-import com.eignex.koblas.dense.F64VectorKernels
 import com.eignex.koblas.internal.backend.BackendNames
 
 /**
  * [F64LinearAlgebra] backed by the host's OpenBLAS through CBLAS and LAPACKE, resolved with `dlopen` on
  * first use. The two halves resolve independently, so [isAvailable] reports whether both did.
  */
-public class F64CblasLinearAlgebra private constructor(
-    private val blas: F64CblasBlas,
-    private val lapack: F64CblasLapack,
-) : F64LinearAlgebra,
+public class F64CblasBackend private constructor(private val blas: F64Cblas, private val lapack: F64Lapacke) :
+    F64LinearAlgebra,
     F64Blas by blas,
-    F64Lapack by lapack {
+    F64Decompositions by lapack {
 
-    private constructor(loader: OpenBlasLoader, config: OpenBlasConfig) : this(
-        F64CblasBlas(requireNotNull(loader.cblas) { NO_OPENBLAS }, loader),
-        F64CblasLapack(requireNotNull(loader.lapacke) { NO_LAPACKE }, requireNotNull(loader.cblas), loader, config),
+    private constructor(loader: OpenBlasLoader, config: HostBlasConfig) : this(
+        F64Cblas(requireNotNull(loader.cblas) { NO_OPENBLAS }, loader),
+        F64Lapacke(requireNotNull(loader.lapacke) { NO_LAPACKE }, requireNotNull(loader.cblas), loader, config),
     )
 
     /** Resolves both halves, for a caller that wants to install the backend explicitly. */
-    public constructor(config: OpenBlasConfig = OpenBlasConfig()) : this(OpenBlasLoader(config), config)
+    public constructor(config: HostBlasConfig = HostBlasConfig()) : this(OpenBlasLoader(config), config)
 
     override val name: String get() = BackendNames.CBLAS
 
@@ -36,12 +34,12 @@ public class F64CblasLinearAlgebra private constructor(
     override val isAvailable: Boolean get() = blas.isAvailable && lapack.isAvailable
 
     /** The BLAS half's kernels, so both halves' inherited routines agree. */
-    override val vectorKernels: F64VectorKernels get() = blas.vectorKernels
+    override val kernels: F64Kernels get() = blas.kernels
 
     /** Availability checks for the host CBLAS and LAPACKE. */
     public companion object {
         /** Whether the host provides both CBLAS and LAPACKE, so the full backend can be constructed. */
-        public fun isAvailable(config: OpenBlasConfig = OpenBlasConfig()): Boolean {
+        public fun isAvailable(config: HostBlasConfig = HostBlasConfig()): Boolean {
             val loader = OpenBlasLoader(config)
             return loader.cblas != null && loader.lapacke != null
         }

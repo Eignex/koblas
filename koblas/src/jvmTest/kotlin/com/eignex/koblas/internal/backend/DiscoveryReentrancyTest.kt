@@ -3,10 +3,10 @@ package com.eignex.koblas.internal.backend
 import com.eignex.koblas.*
 import com.eignex.koblas.core.*
 import com.eignex.koblas.dense.F64Blas
-import com.eignex.koblas.dense.F64Lapack
+import com.eignex.koblas.dense.F64Decompositions
+import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.dense.F64LinearAlgebra
 import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
-import com.eignex.koblas.dense.F64VectorKernels
 import java.nio.file.Files
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
@@ -15,13 +15,13 @@ import kotlin.test.assertTrue
 
 /**
  * A provider whose `gemv` runs its inner loop on the installed kernels, which is what a host backend does
- * and what the discovery probe calls. It does not override [F64Blas.vectorKernels], so that read resolves
+ * and what the discovery probe calls. It does not override [F64Blas.kernels], so that read resolves
  * through [koblas]: a read of the very value discovery is computing.
  */
 public class ProbeReentrantProvider :
     F64LinearAlgebra,
     F64Blas by F64ReferenceLinearAlgebra,
-    F64Lapack by F64ReferenceLinearAlgebra {
+    F64Decompositions by F64ReferenceLinearAlgebra {
 
     init {
         instantiations.incrementAndGet()
@@ -33,7 +33,7 @@ public class ProbeReentrantProvider :
     override val isAvailable: Boolean get() = true
 
     /** What [F64LinearAlgebra] resolves to by default, spelled out because the delegations declare it too. */
-    override val vectorKernels: F64VectorKernels get() = koblas.vectorKernels
+    override val kernels: F64Kernels get() = koblas.kernels
 
     /**
      * What the probe actually calls. Spelled out because delegating [F64Blas] generates a forwarder for
@@ -54,7 +54,7 @@ public class ProbeReentrantProvider :
         y: DoubleArray,
         transpose: Boolean,
     ) {
-        val kernels = vectorKernels // the read that closes the loop back onto discovery
+        val kernels = kernels // the read that closes the loop back onto discovery
         y.fill(0.0)
         kernels.axpy(y, 0, alpha * x[0], a.data, 0, y.size)
     }
@@ -74,7 +74,7 @@ public fun main() {
 
 /**
  * Discovery probes every ServiceLoader provider by running a small gemv on it, and a provider that has not
- * overridden [F64Blas.vectorKernels] reads [koblas] to get them. Nothing stopped that read from restarting
+ * overridden [F64Blas.kernels] reads [koblas] to get them. Nothing stopped that read from restarting
  * discovery, so it recursed until the stack ran out.
  *
  * The provider has to arrive through a real [java.util.ServiceLoader] lookup in a fresh process, since

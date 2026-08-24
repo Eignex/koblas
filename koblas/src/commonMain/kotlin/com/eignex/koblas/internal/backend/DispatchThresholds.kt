@@ -1,13 +1,13 @@
 package com.eignex.koblas.internal.backend
 
-import com.eignex.koblas.dense.F64VectorKernels
-import com.eignex.koblas.dense.host.cblas.OpenBlasConfig
+import com.eignex.koblas.dense.F64Kernels
+import com.eignex.koblas.dense.host.cblas.HostBlasConfig
 
 /**
  * The smallest problem size at which dispatching to a native backend beats staying in Kotlin.
  * [Int.MAX_VALUE] keeps a family portable.
  *
- * [level1] is honored by the routing in [F64VectorKernels]; the rest by the host backends, which share their
+ * [level1] is honored by the routing in [F64Kernels]; the rest by the host backends, which share their
  * adapters across platforms and so read them everywhere. One gate per quantity a routine can be gated on
  * rather than one per routine: the factorizations and their inverses gate on a matrix dimension, and the
  * multi-column solves over their factors gate on a count of right-hand sides, which is not a dimension and
@@ -15,7 +15,7 @@ import com.eignex.koblas.dense.host.cblas.OpenBlasConfig
  *
  * One value carries every gate an adapter reads, so a binding cannot wire one gate and forget another.
  *
- * @property level1 run length from which the level-1 primitives dispatch to a registered [F64VectorKernels].
+ * @property level1 run length from which the level-1 primitives dispatch to a registered [F64Kernels].
  * @property level2 dimension from which the level-2 routines dispatch natively.
  * @property level3 dimension from which the level-3 routines dispatch natively.
  * @property factorize size from which the factorizations and the inverses built on them dispatch natively,
@@ -58,7 +58,7 @@ internal fun hostDispatchThresholds(
 )
 
 /** The dispatch policy for one OpenBLAS instance, every gate the configuration carries included. */
-internal fun openBlasDispatchThresholds(config: OpenBlasConfig): DispatchThresholds = hostDispatchThresholds(
+internal fun hostBlasDispatchThresholds(config: HostBlasConfig): DispatchThresholds = hostDispatchThresholds(
     level1 = config.level1Min,
     level2 = config.level2Min,
     level3 = config.level3Min,

@@ -98,7 +98,7 @@ public fun F64DenseMatrix.scaleColumns(d: DoubleArray) {
     requireShape(d.size == cols) { "scaleColumns: d length ${d.size} != $cols columns" }
     for (j in 0 until cols) {
         val f = d[j]
-        if (f != 1.0) koblas.vectorKernels.scale(data, j * rows, f, rows)
+        if (f != 1.0) koblas.kernels.scale(data, j * rows, f, rows)
     }
 }
 
@@ -179,7 +179,7 @@ public fun F64MatrixLike.matVec(x: F64VectorLike): F64DenseVector {
         val ad = a.data
         val rows = a.rows
         x.forEachStored { j, v ->
-            if (v != 0.0) koblas.vectorKernels.axpy(od, 0, v, ad, j * rows, rows)
+            if (v != 0.0) koblas.kernels.axpy(od, 0, v, ad, j * rows, rows)
         }
     } else if (a is F64SparseMatrix) {
         // Accumulating column j of A scaled by x(j) reads only the stored entries of both operands.

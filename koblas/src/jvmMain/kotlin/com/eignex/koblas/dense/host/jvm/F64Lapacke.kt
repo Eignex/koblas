@@ -1,26 +1,26 @@
 package com.eignex.koblas.dense.host.jvm
 
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
-import com.eignex.koblas.dense.host.F64HostLapackAdapter
+import com.eignex.koblas.dense.host.F64DecompositionsAdapter
 import com.eignex.koblas.dense.host.cblas.Cblas.COL_MAJOR
-import com.eignex.koblas.dense.host.cblas.OpenBlasConfig
+import com.eignex.koblas.dense.host.cblas.HostBlasConfig
 import com.eignex.koblas.dense.host.jvm.HostBlasCalls
 import com.eignex.koblas.dense.host.jvm.JvmCblasCalls
 import com.eignex.koblas.dense.host.jvm.JvmLapackeCalls
 import com.eignex.koblas.internal.backend.BackendNames
-import com.eignex.koblas.internal.backend.openBlasDispatchThresholds
+import com.eignex.koblas.internal.backend.hostBlasDispatchThresholds
 
 /**
- * The host LAPACKE through `java.lang.foreign`. Every shared routine lives in [F64HostLapackAdapter]; this
+ * The host LAPACKE through `java.lang.foreign`. Every shared routine lives in [F64DecompositionsAdapter]; this
  * supplies the JVM's entry points and measured gates.
  */
-public class F64OpenBlasLapack internal constructor(private val calls: HostBlasCalls, config: OpenBlasConfig) :
-    F64HostLapackAdapter(
+public class F64Lapacke internal constructor(private val calls: HostBlasCalls, config: HostBlasConfig) :
+    F64DecompositionsAdapter(
         JvmLapackeCalls(calls),
         JvmCblasCalls(calls),
-        dispatch = openBlasDispatchThresholds(config),
+        dispatch = hostBlasDispatchThresholds(config),
     ) {
-    public constructor(config: OpenBlasConfig = OpenBlasConfig()) : this(HostBlasCalls(config), config)
+    public constructor(config: HostBlasConfig = HostBlasConfig()) : this(HostBlasCalls(config), config)
     override val name: String get() = BackendNames.OPENBLAS
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY

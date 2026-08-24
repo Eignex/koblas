@@ -5,7 +5,7 @@ import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.host.CblasCalls
-import com.eignex.koblas.dense.host.F64HostBlasAdapter
+import com.eignex.koblas.dense.host.F64BlasAdapter
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
@@ -181,7 +181,7 @@ class AdapterBorrowTest {
         ) = error("unused")
     }
 
-    private class FailingAdapter : F64HostBlasAdapter(FailingSyrk()) {
+    private class FailingAdapter : F64BlasAdapter(FailingSyrk()) {
         override val name: String get() = "failing-syrk"
     }
 

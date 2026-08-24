@@ -33,7 +33,7 @@ class AllocationFreeTest {
                 lapack = F64ReferenceLinearAlgebra,
                 sparseBlas = F64ReferenceSparseLinearAlgebra,
                 sparseLu = F64ReferenceSparseLinearAlgebra,
-                sparseVectorKernels = F64ReferenceSparseLinearAlgebra,
+                sparseKernels = F64ReferenceSparseLinearAlgebra,
             ),
         )
     }

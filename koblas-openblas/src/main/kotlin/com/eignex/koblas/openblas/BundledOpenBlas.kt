@@ -2,13 +2,13 @@ package com.eignex.koblas.openblas
 
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.dense.F64Blas
-import com.eignex.koblas.dense.F64Lapack
+import com.eignex.koblas.dense.F64Decompositions
+import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.dense.F64LinearAlgebra
-import com.eignex.koblas.dense.F64VectorKernels
-import com.eignex.koblas.dense.host.cblas.OpenBlasConfig
-import com.eignex.koblas.dense.host.jvm.F64OpenBlasBackends
-import com.eignex.koblas.dense.host.jvm.F64OpenBlasBlas
-import com.eignex.koblas.dense.host.jvm.F64OpenBlasLapack
+import com.eignex.koblas.dense.host.cblas.HostBlasConfig
+import com.eignex.koblas.dense.host.jvm.F64Backends
+import com.eignex.koblas.dense.host.jvm.F64Cblas
+import com.eignex.koblas.dense.host.jvm.F64Lapacke
 import com.eignex.koblas.internal.backend.BundledNativeResources
 import java.nio.file.Path
 
@@ -18,30 +18,28 @@ import java.nio.file.Path
  * Add `com.eignex:koblas-openblas` at runtime to make this provider discoverable. The provider uses the
  * same FFM calls as the host backend, constructed with its extracted absolute paths.
  */
-public class BundledOpenBlas private constructor(
-    private val blas: F64OpenBlasBlas,
-    private val lapack: F64OpenBlasLapack,
-) : F64LinearAlgebra,
+public class BundledOpenBlas private constructor(private val blas: F64Cblas, private val lapack: F64Lapacke) :
+    F64LinearAlgebra,
     F64Blas by blas,
-    F64Lapack by lapack {
+    F64Decompositions by lapack {
 
     /** Extracts the matching Maven-native resources before the core FFM binding is initialized. */
     public constructor() : this(loadHostBackends())
 
-    private constructor(backends: F64OpenBlasBackends) : this(backends.blas, backends.lapack)
+    private constructor(backends: F64Backends) : this(backends.blas, backends.lapack)
 
     override val name: String get() = "openblas-bundled"
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 1
     override val isAvailable: Boolean get() = blas.isAvailable && lapack.isAvailable
     override val isPortable: Boolean get() = false
-    override val vectorKernels: F64VectorKernels get() = blas.vectorKernels
+    override val kernels: F64Kernels get() = blas.kernels
 }
 
 internal data class OpenBlasPaths(val openblas: Path, val lapacke: Path?)
 
-private fun loadHostBackends(): F64OpenBlasBackends {
+private fun loadHostBackends(): F64Backends {
     val paths = OpenBlasResources.extract()
-    return F64OpenBlasBackends(OpenBlasConfig(paths.openblas.toString(), paths.lapacke?.toString()))
+    return F64Backends(HostBlasConfig(paths.openblas.toString(), paths.lapacke?.toString()))
 }
 
 internal object OpenBlasResources {

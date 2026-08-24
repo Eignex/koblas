@@ -4,19 +4,19 @@ import com.eignex.koblas.Backend
 import com.eignex.koblas.internal.backend.f64DispatchThresholds
 
 /**
- * The vector-vector routines as a backend half, alongside [F64Blas] and [F64Lapack]. Implementations must
- * agree with [F64PlatformVectorKernels] to within rounding and read nothing outside the (offset, length)
+ * The vector-vector routines as a backend half, alongside [F64Blas] and [F64Decompositions]. Implementations must
+ * agree with [F64PlatformKernels] to within rounding and read nothing outside the (offset, length)
  * window.
  *
  * To within rounding rather than exactly, because bit-for-bit is not a contract these routines can hold:
- * [F64PlatformVectorKernels] itself fuses its multiply-add above one lane width and does not below it, and
+ * [F64PlatformKernels] itself fuses its multiply-add above one lane width and does not below it, and
  * reduces over lanes as a tree rather than in order. Two conforming implementations can differ in the last
  * bits of a sum, and the reference routines are written not to depend on which one they got.
  *
  * A length of zero is legal everywhere and does nothing: the triangular and Householder kernels reach the
  * last row with an empty tail, so every routine here is called that way.
  */
-public interface F64VectorKernels : Backend {
+public interface F64Kernels : Backend {
     /** The run length from which this backend replaces the compiled-in kernels, or null for the platform default. */
     public val minDispatchLength: Int? get() = null
 
@@ -62,7 +62,7 @@ public interface F64VectorKernels : Backend {
  * The kernels compiled into this target, `jdk.incubator.vector` SIMD on the JVM and scalar loops
  * elsewhere. Its [Backend.name] is what `mathBackend` reports.
  */
-internal expect object F64PlatformVectorKernels : F64VectorKernels {
+internal expect object F64PlatformKernels : F64Kernels {
     override val name: String
 
     override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double
@@ -89,29 +89,29 @@ internal expect object F64PlatformVectorKernels : F64VectorKernels {
 }
 
 /**
- * Picks between [F64PlatformVectorKernels] and a registered host backend by run length. The `alpha` guards
+ * Picks between [F64PlatformKernels] and a registered host backend by run length. The `alpha` guards
  * live here, so `axpy` by zero and `scale` by one are no-ops whichever kernel would have run.
  *
  * @property host a registered backend, used at or above the configured minimum; null routes nothing.
  */
-internal class F64RoutedVectorKernels(internal val host: F64VectorKernels?) : F64VectorKernels {
+internal class F64RoutedKernels(internal val host: F64Kernels?) : F64Kernels {
     private val minLength: Int = host?.minDispatchLength ?: f64DispatchThresholds.level1
     override val name: String
-        get() = if (host == null) F64PlatformVectorKernels.name else "${F64PlatformVectorKernels.name}+${host.name}"
+        get() = if (host == null) F64PlatformKernels.name else "${F64PlatformKernels.name}+${host.name}"
 
     // Routing is all this class does, so what it reports about itself is what it routes to. Left to the
     // Backend defaults these describe the wrapper instead, which reads as an unaccelerated priority-0 half
     // whatever it holds, and [F64Context] composes all three from its halves.
-    override val isPortable: Boolean get() = host?.isPortable ?: F64PlatformVectorKernels.isPortable
+    override val isPortable: Boolean get() = host?.isPortable ?: F64PlatformKernels.isPortable
 
-    override val isAvailable: Boolean get() = host?.isAvailable ?: F64PlatformVectorKernels.isAvailable
+    override val isAvailable: Boolean get() = host?.isAvailable ?: F64PlatformKernels.isAvailable
 
-    override val priority: Int get() = host?.priority ?: F64PlatformVectorKernels.priority
+    override val priority: Int get() = host?.priority ?: F64PlatformKernels.priority
 
     /** The kernels for a run of [len]: the host backend only when it exists and the run is long enough. */
-    private fun forLength(len: Int): F64VectorKernels {
+    private fun forLength(len: Int): F64Kernels {
         val h = host
-        return if (h != null && len >= minLength) h else F64PlatformVectorKernels
+        return if (h != null && len >= minLength) h else F64PlatformKernels
     }
 
     override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
@@ -143,5 +143,5 @@ internal class F64RoutedVectorKernels(internal val host: F64VectorKernels?) : F6
         len: Int,
         out: DoubleArray,
         outOff: Int,
-    ) = F64PlatformVectorKernels.dot4(a, aOff, stride, b, bOff, len, out, outOff)
+    ) = F64PlatformKernels.dot4(a, aOff, stride, b, bOff, len, out, outOff)
 }
