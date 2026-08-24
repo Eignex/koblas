@@ -30,11 +30,10 @@ private const val SIDE_LEFT: Byte = 'L'.code.toByte()
 
 /**
  * The dense factorizations a host LAPACKE provides, over whichever [LapackeCalls] the platform supplies.
- * Both host bindings are this class plus their own FFI mechanism and their own tuning.
+ * Both host bindings are this class plus their own FFI mechanism.
  *
- * The size at which a native call starts to pay differs by platform, so each gate is an open property
- * rather than a constant. The defaults dispatch natively at any size; a binding that has measured
- * otherwise raises them.
+ * The size at which a native call starts to pay differs by host, so every gate arrives in [dispatch],
+ * resolved from the binding's own configuration. Its defaults dispatch natively at any size.
  */
 @Suppress("TooManyFunctions") // the LAPACK surface a host library covers
 public abstract class F64HostLapackAdapter internal constructor(
@@ -76,24 +75,12 @@ public abstract class F64HostLapackAdapter internal constructor(
         workspace: Workspace?,
     ): DoubleArray = portable.solveMinimumNormInto(qr, b, out, workspace)
 
-    /** Right-hand columns from which the blocked triangular solve beats one native call per column. */
-    protected open val nativeTrsmMinRhs: Int get() = 1
-
-    /** Dimension from which `dpotrf` takes over the Cholesky. */
-    protected open val choleskyMin: Int get() = 0
-
-    /** Dimension from which `dpotri` takes over the SPD inverse. */
-    protected open val spdInvertMin: Int get() = 0
-
-    /** Dimension from which an optional native `dgeqp3` call is used. */
-    protected open val pivotedQrMin: Int get() = 0
-
     /** Performs `dgeqp3`, or returns null when the binding does not expose it. */
     protected open fun dgeqp3(m: Int, n: Int, a: DoubleArray, jpvt: IntArray, tau: DoubleArray): Int? = null
 
     override fun qrPivoted(a: F64DenseMatrix, tolerance: Double, workspace: Workspace?): F64PivotedQrDecomposition {
         requireRankTolerance(tolerance)
-        if (minOf(a.rows, a.cols) < maxOf(1, dispatch.lapack, pivotedQrMin)) {
+        if (minOf(a.rows, a.cols) < maxOf(1, dispatch.factorize)) {
             return portable.qrPivoted(a, tolerance, workspace)
         }
         val m = a.rows
@@ -109,7 +96,7 @@ public abstract class F64HostLapackAdapter internal constructor(
     }
 
     override fun factor(a: F64DenseMatrix): F64LuDecomposition {
-        if (a.rows < dispatch.lapack) return portable.factor(a)
+        if (a.rows < dispatch.factorize) return portable.factor(a)
         requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
         val n = a.rows
         return factorInto(a, F64LuDecomposition(n, DoubleArray(n * n), IntArray(n)))
@@ -119,7 +106,7 @@ public abstract class F64HostLapackAdapter internal constructor(
     override fun factorInto(a: F64DenseMatrix, out: F64LuDecomposition): F64LuDecomposition {
         requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
         requireShape(out.n == a.rows) { "factorInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}" }
-        if (a.rows < dispatch.lapack) return portable.factorInto(a, out)
+        if (a.rows < dispatch.factorize) return portable.factorInto(a, out)
         val n = out.n
         a.data.copyInto(out.lu)
         val piv = out.piv
@@ -166,7 +153,7 @@ public abstract class F64HostLapackAdapter internal constructor(
         val nrhs = b.cols
         requireSolveShapes(n, b, out)
         if (n == 0 || nrhs == 0) return out
-        if (nrhs < nativeTrsmMinRhs) return solveColumnByColumn(lu, b, out, transpose, workspace)
+        if (nrhs < dispatch.factorizeRhs) return solveColumnByColumn(lu, b, out, transpose, workspace)
         val factor = lu.lu
         if (transpose) {
             val y = workspace?.take(n * nrhs) ?: DoubleArray(n * nrhs)
@@ -216,7 +203,7 @@ public abstract class F64HostLapackAdapter internal constructor(
     }
 
     override fun ldl(a: F64DenseMatrix, workspace: Workspace?): F64LdlDecomposition {
-        if (a.rows < dispatch.lapack) return portable.ldl(a, workspace)
+        if (a.rows < dispatch.factorize) return portable.ldl(a, workspace)
         requireShape(a.rows == a.cols) { "ldl: matrix must be square, got ${a.rows}x${a.cols}" }
         val n = a.rows
         val buf = a.data.copyOf()
@@ -231,7 +218,7 @@ public abstract class F64HostLapackAdapter internal constructor(
     override fun solveInto(ldl: F64LdlDecomposition, b: DoubleArray, out: DoubleArray): DoubleArray =
         portable.solveInto(ldl, b, out)
 
-    /** Native only from [nativeTrsmMinRhs] columns, as for the LU multi-RHS solve above. */
+    /** Native only from the configured right-hand-side count, as for the LU multi-RHS solve above. */
     override fun solveInto(
         ldl: F64LdlDecomposition,
         b: F64DenseMatrix,
@@ -239,7 +226,7 @@ public abstract class F64HostLapackAdapter internal constructor(
         workspace: Workspace?,
     ): F64DenseMatrix {
         requireFactored(ldl.failedAt, "solve")
-        if (b.cols < nativeTrsmMinRhs) return portable.solveInto(ldl, b, out, workspace)
+        if (b.cols < dispatch.factorizeRhs) return portable.solveInto(ldl, b, out, workspace)
         val n = ldl.n
         val nrhs = b.cols
         requireSolveShapes(n, b, out)
@@ -252,7 +239,7 @@ public abstract class F64HostLapackAdapter internal constructor(
     }
 
     override fun qr(a: F64DenseMatrix, workspace: Workspace?): F64QrDecomposition {
-        if (minOf(a.rows, a.cols) < dispatch.lapack) return portable.qr(a, workspace)
+        if (minOf(a.rows, a.cols) < dispatch.factorize) return portable.qr(a, workspace)
         val m = a.rows
         val n = a.cols
         val buf = a.data.copyOf()
@@ -277,7 +264,7 @@ public abstract class F64HostLapackAdapter internal constructor(
     }
 
     override fun rcond(lu: F64LuDecomposition, anorm: Double, workspace: Workspace?): Double {
-        if (lu.n < dispatch.lapack) return portable.rcond(lu, anorm, workspace)
+        if (lu.n < dispatch.factorize) return portable.rcond(lu, anorm, workspace)
         val n = lu.n
         if (n == 0) return 1.0
         if (lu.singular || anorm == 0.0) return 0.0
@@ -292,7 +279,7 @@ public abstract class F64HostLapackAdapter internal constructor(
      * falls back to the portable path on a positive info, which [CholeskyPolicy.Regularize] needs.
      */
     override fun cholesky(a: F64DenseMatrix, policy: CholeskyPolicy): F64CholeskyDecomposition {
-        if (a.rows < choleskyMin) return portable.cholesky(a, policy)
+        if (a.rows < dispatch.factorize) return portable.cholesky(a, policy)
         requireSquare(a, "cholesky")
         val n = a.rows
         if (n == 0) return F64CholeskyDecomposition(F64DenseMatrix(0, 0))
@@ -311,7 +298,7 @@ public abstract class F64HostLapackAdapter internal constructor(
      * so the factor is copied first.
      */
     override fun invert(chol: F64CholeskyDecomposition, workspace: Workspace?): F64DenseMatrix {
-        if (chol.n < spdInvertMin) return portable.invert(chol, workspace)
+        if (chol.n < dispatch.factorize) return portable.invert(chol, workspace)
         val n = chol.n
         if (n == 0) return F64DenseMatrix(0, 0)
         val inv = F64DenseMatrix(n, n, chol.l.data.copyOf())

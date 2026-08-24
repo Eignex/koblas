@@ -14,14 +14,14 @@ import kotlinx.cinterop.usePinned
 
 /**
  * The host LAPACKE through cinterop. Every shared routine lives in [F64HostLapackAdapter]; this supplies the
- * native entry points and the backend's identity. The gates keep their defaults, so native dispatches at any
- * size.
+ * native entry points and the backend's identity. The gates come from the configuration, as they do for the
+ * JVM binding.
  */
 internal class F64CblasLapack(
     private val f: LapackeFunctions,
     blas: CblasFunctions,
     private val loader: OpenBlasLoader = OpenBlasLoader(),
-    private val config: OpenBlasConfig = OpenBlasConfig(),
+    config: OpenBlasConfig = OpenBlasConfig(),
 ) : F64HostLapackAdapter(NativeLapackeCalls(f), NativeCblasCalls(blas), dispatch = openBlasDispatchThresholds(config)) {
     override val name: String get() = BackendNames.CBLAS
 
@@ -29,8 +29,6 @@ internal class F64CblasLapack(
 
     /** LAPACKE calls into CBLAS, so this half needs both. */
     override val isAvailable: Boolean get() = loader.lapacke != null && loader.cblas != null
-
-    override val pivotedQrMin: Int get() = config.pivotedQrMin
 
     override fun dgeqp3(m: Int, n: Int, a: DoubleArray, jpvt: IntArray, tau: DoubleArray): Int? {
         val dgeqp3 = f.dgeqp3 ?: return null
