@@ -15,7 +15,7 @@ import com.eignex.koblas.sparse.host.F64HostSparseLuAdapter
 public class KluSparseLu(
     /** Policy for this backend instance. */
     public val config: KluConfig = KluConfig(),
-) : F64HostSparseLuAdapter() {
+) : F64HostSparseLuAdapter(config.factorizeMin) {
     private val calls = KluCalls(config)
 
     override val name: String get() = BackendNames.KLU

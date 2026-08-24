@@ -18,7 +18,7 @@ import java.lang.foreign.ValueLayout.JAVA_DOUBLE
 public class UmfpackSparseLu(
     /** Policy for this backend instance and the factors it produces. */
     public val config: UmfpackConfig = UmfpackConfig(),
-) : F64HostSparseLuAdapter() {
+) : F64HostSparseLuAdapter(config.factorizeMin) {
     private val calls = UmfpackCalls(config)
 
     override val name: String get() = BackendNames.UMFPACK

@@ -8,14 +8,20 @@ import com.eignex.koblas.sparse.host.klu.KluSparseLu
 
 /** KLU 2 bundle extracted from Maven-native resources on the application's classpath. */
 public class BundledKlu private constructor(private val delegate: KluSparseLu) : F64SparseLu by delegate {
-    /** Extracts the matching Maven-native resources before the core FFM binding is initialized. */
-    public constructor() : this(loadKlu())
+    /**
+     * Extracts the matching Maven-native resources before the core FFM binding is initialized.
+     *
+     * @param factorizeMin stored entries from which this binding factorizes natively, or null for the
+     *   platform default.
+     */
+    public constructor(factorizeMin: Int? = null) : this(loadKlu(factorizeMin))
 
     override val name: String get() = "klu-bundled"
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 2
 }
 
-private fun loadKlu(): KluSparseLu = KluSparseLu(KluConfig(kluLibrary.extract().toString()))
+private fun loadKlu(factorizeMin: Int?): KluSparseLu =
+    KluSparseLu(KluConfig(kluLibrary.extract().toString(), factorizeMin))
 
 private val kluLibrary = BundledNativeResources.manifestDriven(
     directoryPrefix = "koblas-klu",

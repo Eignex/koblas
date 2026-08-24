@@ -304,6 +304,8 @@ abstract class com.eignex.koblas.dense.host/F64HostLapackAdapter : com.eignex.ko
 }
 
 abstract class com.eignex.koblas.sparse.host/F64HostSparseLuAdapter : com.eignex.koblas.sparse/F64SparseLu { // com.eignex.koblas.sparse.host/F64HostSparseLuAdapter|null[0]
+    constructor <init>(kotlin/Int? = ...) // com.eignex.koblas.sparse.host/F64HostSparseLuAdapter.<init>|<init>(kotlin.Int?){}[0]
+
     abstract val nativeAvailable // com.eignex.koblas.sparse.host/F64HostSparseLuAdapter.nativeAvailable|{}nativeAvailable[0]
         abstract fun <get-nativeAvailable>(): kotlin/Boolean // com.eignex.koblas.sparse.host/F64HostSparseLuAdapter.nativeAvailable.<get-nativeAvailable>|<get-nativeAvailable>(){}[0]
     open val isAvailable // com.eignex.koblas.sparse.host/F64HostSparseLuAdapter.isAvailable|{}isAvailable[0]
@@ -629,12 +631,14 @@ final class com.eignex.koblas.sparse.factorization.lu/F64SparseLuFactorization :
 }
 
 final class com.eignex.koblas.sparse.host.klu/KluConfig { // com.eignex.koblas.sparse.host.klu/KluConfig|null[0]
-    constructor <init>(kotlin/String? = ..., kotlin/Double? = ..., kotlin/Double? = ..., kotlin/Double? = ..., kotlin/Double? = ..., kotlin/Double? = ..., kotlin/Boolean? = ..., com.eignex.koblas.sparse.host.klu/KluOrdering? = ..., com.eignex.koblas.sparse.host.klu/KluScaling = ..., kotlin/Boolean? = ...) // com.eignex.koblas.sparse.host.klu/KluConfig.<init>|<init>(kotlin.String?;kotlin.Double?;kotlin.Double?;kotlin.Double?;kotlin.Double?;kotlin.Double?;kotlin.Boolean?;com.eignex.koblas.sparse.host.klu.KluOrdering?;com.eignex.koblas.sparse.host.klu.KluScaling;kotlin.Boolean?){}[0]
+    constructor <init>(kotlin/String? = ..., kotlin/Int? = ..., kotlin/Double? = ..., kotlin/Double? = ..., kotlin/Double? = ..., kotlin/Double? = ..., kotlin/Double? = ..., kotlin/Boolean? = ..., com.eignex.koblas.sparse.host.klu/KluOrdering? = ..., com.eignex.koblas.sparse.host.klu/KluScaling = ..., kotlin/Boolean? = ...) // com.eignex.koblas.sparse.host.klu/KluConfig.<init>|<init>(kotlin.String?;kotlin.Int?;kotlin.Double?;kotlin.Double?;kotlin.Double?;kotlin.Double?;kotlin.Double?;kotlin.Boolean?;com.eignex.koblas.sparse.host.klu.KluOrdering?;com.eignex.koblas.sparse.host.klu.KluScaling;kotlin.Boolean?){}[0]
 
     final val amdInitialMemoryFactor // com.eignex.koblas.sparse.host.klu/KluConfig.amdInitialMemoryFactor|{}amdInitialMemoryFactor[0]
         final fun <get-amdInitialMemoryFactor>(): kotlin/Double? // com.eignex.koblas.sparse.host.klu/KluConfig.amdInitialMemoryFactor.<get-amdInitialMemoryFactor>|<get-amdInitialMemoryFactor>(){}[0]
     final val equilibratedScaling // com.eignex.koblas.sparse.host.klu/KluConfig.equilibratedScaling|{}equilibratedScaling[0]
         final fun <get-equilibratedScaling>(): com.eignex.koblas.sparse.host.klu/KluScaling // com.eignex.koblas.sparse.host.klu/KluConfig.equilibratedScaling.<get-equilibratedScaling>|<get-equilibratedScaling>(){}[0]
+    final val factorizeMin // com.eignex.koblas.sparse.host.klu/KluConfig.factorizeMin|{}factorizeMin[0]
+        final fun <get-factorizeMin>(): kotlin/Int? // com.eignex.koblas.sparse.host.klu/KluConfig.factorizeMin.<get-factorizeMin>|<get-factorizeMin>(){}[0]
     final val haltIfSingular // com.eignex.koblas.sparse.host.klu/KluConfig.haltIfSingular|{}haltIfSingular[0]
         final fun <get-haltIfSingular>(): kotlin/Boolean? // com.eignex.koblas.sparse.host.klu/KluConfig.haltIfSingular.<get-haltIfSingular>|<get-haltIfSingular>(){}[0]
     final val initialMemoryFactor // com.eignex.koblas.sparse.host.klu/KluConfig.initialMemoryFactor|{}initialMemoryFactor[0]
@@ -653,24 +657,27 @@ final class com.eignex.koblas.sparse.host.klu/KluConfig { // com.eignex.koblas.s
         final fun <get-useBtf>(): kotlin/Boolean? // com.eignex.koblas.sparse.host.klu/KluConfig.useBtf.<get-useBtf>|<get-useBtf>(){}[0]
 
     final fun component1(): kotlin/String? // com.eignex.koblas.sparse.host.klu/KluConfig.component1|component1(){}[0]
-    final fun component10(): kotlin/Boolean? // com.eignex.koblas.sparse.host.klu/KluConfig.component10|component10(){}[0]
-    final fun component2(): kotlin/Double? // com.eignex.koblas.sparse.host.klu/KluConfig.component2|component2(){}[0]
+    final fun component10(): com.eignex.koblas.sparse.host.klu/KluScaling // com.eignex.koblas.sparse.host.klu/KluConfig.component10|component10(){}[0]
+    final fun component11(): kotlin/Boolean? // com.eignex.koblas.sparse.host.klu/KluConfig.component11|component11(){}[0]
+    final fun component2(): kotlin/Int? // com.eignex.koblas.sparse.host.klu/KluConfig.component2|component2(){}[0]
     final fun component3(): kotlin/Double? // com.eignex.koblas.sparse.host.klu/KluConfig.component3|component3(){}[0]
     final fun component4(): kotlin/Double? // com.eignex.koblas.sparse.host.klu/KluConfig.component4|component4(){}[0]
     final fun component5(): kotlin/Double? // com.eignex.koblas.sparse.host.klu/KluConfig.component5|component5(){}[0]
     final fun component6(): kotlin/Double? // com.eignex.koblas.sparse.host.klu/KluConfig.component6|component6(){}[0]
-    final fun component7(): kotlin/Boolean? // com.eignex.koblas.sparse.host.klu/KluConfig.component7|component7(){}[0]
-    final fun component8(): com.eignex.koblas.sparse.host.klu/KluOrdering? // com.eignex.koblas.sparse.host.klu/KluConfig.component8|component8(){}[0]
-    final fun component9(): com.eignex.koblas.sparse.host.klu/KluScaling // com.eignex.koblas.sparse.host.klu/KluConfig.component9|component9(){}[0]
-    final fun copy(kotlin/String? = ..., kotlin/Double? = ..., kotlin/Double? = ..., kotlin/Double? = ..., kotlin/Double? = ..., kotlin/Double? = ..., kotlin/Boolean? = ..., com.eignex.koblas.sparse.host.klu/KluOrdering? = ..., com.eignex.koblas.sparse.host.klu/KluScaling = ..., kotlin/Boolean? = ...): com.eignex.koblas.sparse.host.klu/KluConfig // com.eignex.koblas.sparse.host.klu/KluConfig.copy|copy(kotlin.String?;kotlin.Double?;kotlin.Double?;kotlin.Double?;kotlin.Double?;kotlin.Double?;kotlin.Boolean?;com.eignex.koblas.sparse.host.klu.KluOrdering?;com.eignex.koblas.sparse.host.klu.KluScaling;kotlin.Boolean?){}[0]
+    final fun component7(): kotlin/Double? // com.eignex.koblas.sparse.host.klu/KluConfig.component7|component7(){}[0]
+    final fun component8(): kotlin/Boolean? // com.eignex.koblas.sparse.host.klu/KluConfig.component8|component8(){}[0]
+    final fun component9(): com.eignex.koblas.sparse.host.klu/KluOrdering? // com.eignex.koblas.sparse.host.klu/KluConfig.component9|component9(){}[0]
+    final fun copy(kotlin/String? = ..., kotlin/Int? = ..., kotlin/Double? = ..., kotlin/Double? = ..., kotlin/Double? = ..., kotlin/Double? = ..., kotlin/Double? = ..., kotlin/Boolean? = ..., com.eignex.koblas.sparse.host.klu/KluOrdering? = ..., com.eignex.koblas.sparse.host.klu/KluScaling = ..., kotlin/Boolean? = ...): com.eignex.koblas.sparse.host.klu/KluConfig // com.eignex.koblas.sparse.host.klu/KluConfig.copy|copy(kotlin.String?;kotlin.Int?;kotlin.Double?;kotlin.Double?;kotlin.Double?;kotlin.Double?;kotlin.Double?;kotlin.Boolean?;com.eignex.koblas.sparse.host.klu.KluOrdering?;com.eignex.koblas.sparse.host.klu.KluScaling;kotlin.Boolean?){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas.sparse.host.klu/KluConfig.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // com.eignex.koblas.sparse.host.klu/KluConfig.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // com.eignex.koblas.sparse.host.klu/KluConfig.toString|toString(){}[0]
 }
 
 final class com.eignex.koblas.sparse.host.umfpack/UmfpackConfig { // com.eignex.koblas.sparse.host.umfpack/UmfpackConfig|null[0]
-    constructor <init>(kotlin/String? = ..., kotlin/Int = ..., kotlin/Double = ..., com.eignex.koblas.sparse.host.umfpack/UmfpackScaling = ...) // com.eignex.koblas.sparse.host.umfpack/UmfpackConfig.<init>|<init>(kotlin.String?;kotlin.Int;kotlin.Double;com.eignex.koblas.sparse.host.umfpack.UmfpackScaling){}[0]
+    constructor <init>(kotlin/String? = ..., kotlin/Int? = ..., kotlin/Int = ..., kotlin/Double = ..., com.eignex.koblas.sparse.host.umfpack/UmfpackScaling = ...) // com.eignex.koblas.sparse.host.umfpack/UmfpackConfig.<init>|<init>(kotlin.String?;kotlin.Int?;kotlin.Int;kotlin.Double;com.eignex.koblas.sparse.host.umfpack.UmfpackScaling){}[0]
 
+    final val factorizeMin // com.eignex.koblas.sparse.host.umfpack/UmfpackConfig.factorizeMin|{}factorizeMin[0]
+        final fun <get-factorizeMin>(): kotlin/Int? // com.eignex.koblas.sparse.host.umfpack/UmfpackConfig.factorizeMin.<get-factorizeMin>|<get-factorizeMin>(){}[0]
     final val iterativeRefinementSteps // com.eignex.koblas.sparse.host.umfpack/UmfpackConfig.iterativeRefinementSteps|{}iterativeRefinementSteps[0]
         final fun <get-iterativeRefinementSteps>(): kotlin/Int // com.eignex.koblas.sparse.host.umfpack/UmfpackConfig.iterativeRefinementSteps.<get-iterativeRefinementSteps>|<get-iterativeRefinementSteps>(){}[0]
     final val libraryPath // com.eignex.koblas.sparse.host.umfpack/UmfpackConfig.libraryPath|{}libraryPath[0]
@@ -681,10 +688,11 @@ final class com.eignex.koblas.sparse.host.umfpack/UmfpackConfig { // com.eignex.
         final fun <get-scaling>(): com.eignex.koblas.sparse.host.umfpack/UmfpackScaling // com.eignex.koblas.sparse.host.umfpack/UmfpackConfig.scaling.<get-scaling>|<get-scaling>(){}[0]
 
     final fun component1(): kotlin/String? // com.eignex.koblas.sparse.host.umfpack/UmfpackConfig.component1|component1(){}[0]
-    final fun component2(): kotlin/Int // com.eignex.koblas.sparse.host.umfpack/UmfpackConfig.component2|component2(){}[0]
-    final fun component3(): kotlin/Double // com.eignex.koblas.sparse.host.umfpack/UmfpackConfig.component3|component3(){}[0]
-    final fun component4(): com.eignex.koblas.sparse.host.umfpack/UmfpackScaling // com.eignex.koblas.sparse.host.umfpack/UmfpackConfig.component4|component4(){}[0]
-    final fun copy(kotlin/String? = ..., kotlin/Int = ..., kotlin/Double = ..., com.eignex.koblas.sparse.host.umfpack/UmfpackScaling = ...): com.eignex.koblas.sparse.host.umfpack/UmfpackConfig // com.eignex.koblas.sparse.host.umfpack/UmfpackConfig.copy|copy(kotlin.String?;kotlin.Int;kotlin.Double;com.eignex.koblas.sparse.host.umfpack.UmfpackScaling){}[0]
+    final fun component2(): kotlin/Int? // com.eignex.koblas.sparse.host.umfpack/UmfpackConfig.component2|component2(){}[0]
+    final fun component3(): kotlin/Int // com.eignex.koblas.sparse.host.umfpack/UmfpackConfig.component3|component3(){}[0]
+    final fun component4(): kotlin/Double // com.eignex.koblas.sparse.host.umfpack/UmfpackConfig.component4|component4(){}[0]
+    final fun component5(): com.eignex.koblas.sparse.host.umfpack/UmfpackScaling // com.eignex.koblas.sparse.host.umfpack/UmfpackConfig.component5|component5(){}[0]
+    final fun copy(kotlin/String? = ..., kotlin/Int? = ..., kotlin/Int = ..., kotlin/Double = ..., com.eignex.koblas.sparse.host.umfpack/UmfpackScaling = ...): com.eignex.koblas.sparse.host.umfpack/UmfpackConfig // com.eignex.koblas.sparse.host.umfpack/UmfpackConfig.copy|copy(kotlin.String?;kotlin.Int?;kotlin.Int;kotlin.Double;com.eignex.koblas.sparse.host.umfpack.UmfpackScaling){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas.sparse.host.umfpack/UmfpackConfig.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // com.eignex.koblas.sparse.host.umfpack/UmfpackConfig.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // com.eignex.koblas.sparse.host.umfpack/UmfpackConfig.toString|toString(){}[0]

@@ -18,8 +18,10 @@ import com.eignex.koblas.dense.host.cblas.OpenBlasConfig
  * @property level1 run length from which the level-1 primitives dispatch to a registered [F64VectorKernels].
  * @property level2 dimension from which the level-2 routines dispatch natively.
  * @property level3 dimension from which the level-3 routines dispatch natively.
- * @property factorize dimension from which the factorizations and the inverses built on them dispatch
- *   natively, the optional pivoted QR included.
+ * @property factorize size from which the factorizations and the inverses built on them dispatch natively,
+ *   the optional pivoted QR included. A dense routine reads it as a dimension and a sparse one as a count of
+ *   stored entries, since that is what each one's work scales with; one number, measured against whichever
+ *   quantity pays for the crossing.
  * @property factorizeRhs right-hand columns from which one blocked native solve over those factors beats
  *   a native call per column.
  */
