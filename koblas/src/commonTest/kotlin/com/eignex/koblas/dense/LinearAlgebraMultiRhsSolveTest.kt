@@ -1,5 +1,6 @@
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64DenseMatrix
@@ -8,6 +9,7 @@ import com.eignex.koblas.poisonedIndefinite
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class LinearAlgebraMultiRhsSolveTest {
@@ -89,5 +91,27 @@ class LinearAlgebraMultiRhsSolveTest {
         assertEquals(0, xn.cols)
         val ldl0 = koblas.ldl(F64DenseMatrix(0, 0))
         assertEquals(0, koblas.solve(ldl0, F64DenseMatrix(0, 2)).rows)
+    }
+
+    /**
+     * The per-column callback is the caller's, and a native solve in it reports failure by throwing, so the
+     * two borrows must come back. A stranded borrow is invisible: its pool can neither lend that buffer
+     * again nor be reclaimed, so this asks for both back.
+     */
+    @Test
+    fun `a column solve that throws hands its borrows back`() {
+        val ws = Workspace()
+        val n = 4
+        val lent = listOf(ws.take(n), ws.take(n))
+        assertTrue(lent[0] !== lent[1], "two outstanding borrows shared a buffer")
+        lent.forEach { ws.release(it) }
+        assertFailsWith<IllegalStateException> {
+            solveColumnwise(F64DenseMatrix(n, 2), F64DenseMatrix(n, 2), n, 2, ws) { _, _ ->
+                error("the native solve failed")
+            }
+        }
+        for (buffer in listOf(ws.take(n), ws.take(n))) {
+            assertTrue(buffer === lent[0] || buffer === lent[1], "the failed solve kept a borrow")
+        }
     }
 }
