@@ -4,11 +4,6 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.koblas
 import com.eignex.koblas.sparse.factorization.lu.NO_DROP
 
-/*
- * The sparse free functions, each routing through the installed context. The dense side keeps its facade in
- * Ops.kt and Triangular.kt for the same reason: the interface file holds the interface.
- */
-
 /** Factorize this sparse matrix with the active backend ([koblas]), the counterpart of `F64DenseMatrix.lu`. */
 public fun F64SparseMatrix.lu(equilibrate: Boolean = false, dropTolerance: Double = NO_DROP): F64SparseFactorization =
     koblas.factor(this, equilibrate, dropTolerance)

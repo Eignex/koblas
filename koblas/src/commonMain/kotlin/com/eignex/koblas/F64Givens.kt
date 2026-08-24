@@ -4,11 +4,6 @@ import com.eignex.koblas.core.F64DenseVector
 import kotlin.math.abs
 import kotlin.math.sqrt
 
-/*
- * The Givens plane rotation and the two BLAS routines over it, drotg and drot. [Precision] aliases
- * F64Givens to Givens.
- */
-
 /**
  * @property c the cosine.
  * @property s the sine.
