@@ -147,11 +147,15 @@ public class F64SparseVector internal constructor(
             requireShape(indices.size == values.size) {
                 "indices/values must align: ${indices.size} vs ${values.size}"
             }
-            val order = indices.indices.sortedBy { indices[it] }
+            // Index in the high half and position in the low, so one primitive sort orders by index and
+            // keeps equal indices in the order given, which is what summing duplicates in one pass needs.
+            val order = LongArray(indices.size) { (indices[it].toLong() shl Int.SIZE_BITS) or it.toLong() }
+            order.sort()
             val idx = IntArray(indices.size)
             val vals = DoubleArray(values.size)
             var n = 0
-            for (k in order) {
+            for (encoded in order) {
+                val k = encoded.toInt()
                 if (n > 0 && idx[n - 1] == indices[k]) {
                     vals[n - 1] += values[k]
                 } else {

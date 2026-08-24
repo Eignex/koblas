@@ -1,6 +1,7 @@
 package com.eignex.koblas.sparse.host.umfpack
 
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.borrow
 import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.nativeCleaner
@@ -56,8 +57,17 @@ public class UmfpackFactorization internal constructor(
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray {
         requireFactored(failedAt, "solve")
         requireSolveShapes(n, b, out)
-        // UMFPACK writes X and reads B, so aliasing them would have it read its own partial output.
-        val rhs = if (out === b) b.copyOf() else b
+        // UMFPACK writes X and reads B, so aliasing them would have it read its own partial output. The
+        // separate right-hand side comes from the workspace when there is one to lend it.
+        if (out !== b) return solveDistinct(b, out, transpose)
+        return workspace.borrow(n) { rhs ->
+            b.copyInto(rhs)
+            solveDistinct(rhs, out, transpose)
+        }
+    }
+
+    /** The call itself, over a right-hand side that does not alias [out]. */
+    private fun solveDistinct(b: DoubleArray, out: DoubleArray, transpose: Boolean): DoubleArray {
         // The factors are reached as a raw address, so nothing the call holds keeps this factorization
         // reachable and the cleaner is free to run mid-call. The fence is what holds it to the return.
         try {
@@ -69,7 +79,7 @@ public class UmfpackFactorization internal constructor(
                     MemorySegment.ofArray(matrix.rowIdx),
                     MemorySegment.ofArray(matrix.values),
                     MemorySegment.ofArray(out),
-                    MemorySegment.ofArray(rhs),
+                    MemorySegment.ofArray(b),
                     numericHolder.get(ADDRESS, 0),
                     control,
                     info,
