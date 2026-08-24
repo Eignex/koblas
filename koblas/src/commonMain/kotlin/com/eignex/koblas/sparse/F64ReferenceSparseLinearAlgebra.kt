@@ -5,6 +5,7 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.numeric.euclideanNorm
+import com.eignex.koblas.koblas
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.requireSquare
 import com.eignex.koblas.sparse.factorization.lu.*
@@ -37,7 +38,7 @@ public object F64ReferenceSparseLinearAlgebra :
         requireShape(y.size == yLen) { "gemv: y length ${y.size} != $yLen" }
         when {
             beta == 0.0 -> y.fill(0.0)
-            beta != 1.0 -> for (i in y.indices) y[i] *= beta
+            beta != 1.0 -> koblas.vectorKernels.scale(y, 0, beta, y.size)
         }
         if (alpha == 0.0) return
         if (transpose) {
