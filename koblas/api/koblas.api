@@ -895,6 +895,16 @@ public final class com/eignex/koblas/internal/backend/BundledNativeResources$Com
 	public final fun supportedPlatform (Lkotlin/jvm/functions/Function2;)Ljava/lang/String;
 }
 
+public abstract interface class com/eignex/koblas/sparse/F64BasisFactorization : com/eignex/koblas/sparse/F64SparseFactorization {
+	public abstract fun getBasis ()Lcom/eignex/koblas/core/F64SparseMatrix;
+	public abstract fun replaceColumn (ILcom/eignex/koblas/core/F64SparseVector;)Lcom/eignex/koblas/sparse/F64BasisFactorization;
+}
+
+public final class com/eignex/koblas/sparse/F64BasisFactorization$DefaultImpls {
+	public static fun getSingular (Lcom/eignex/koblas/sparse/F64BasisFactorization;)Z
+	public static fun solve (Lcom/eignex/koblas/sparse/F64BasisFactorization;[DZ)[D
+}
+
 public final class com/eignex/koblas/sparse/F64ReferenceSparseLinearAlgebra : com/eignex/koblas/sparse/F64SparseLinearAlgebra, com/eignex/koblas/sparse/F64SparseVectorKernels {
 	public static final field INSTANCE Lcom/eignex/koblas/sparse/F64ReferenceSparseLinearAlgebra;
 	public fun asum (Lcom/eignex/koblas/core/F64SparseVector;)D
