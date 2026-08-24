@@ -2,6 +2,7 @@ package com.eignex.koblas
 
 import com.eignex.koblas.core.*
 import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
+import com.eignex.koblas.dense.Uplo
 import com.eignex.koblas.dense.lu
 import com.eignex.koblas.dense.solve
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
@@ -180,5 +181,23 @@ class AllocationFreeTest {
         }
         assertTrue(allocating > m * Double.SIZE_BYTES * 2.0, "expected allocation, saw $allocating B")
         assertPooled(into, allocating, "sparse solve both directions")
+    }
+
+    /**
+     * The symmetric rank-one and rank-two updates take a [F64VectorLike], and densifying a dense operand to
+     * read it copies the whole vector on every call. They are the innermost step of a covariance or a
+     * quasi-Newton update, so a copy per call is a copy per iteration of the caller's loop.
+     */
+    @Test
+    fun `a symmetric rank update loop allocates nothing per iteration`() {
+        val n = 96
+        val rng = Random(20260824)
+        val a = F64DenseMatrix.zero(n, n)
+        val x = F64DenseVector.wrap(DoubleArray(n) { rng.nextDouble(-1.0, 1.0) })
+        val y = F64DenseVector.wrap(DoubleArray(n) { rng.nextDouble(-1.0, 1.0) })
+        val syr = bytesPerIteration(500) { koblas.syr(1e-12, x, a, Uplo.LOWER) }
+        val syr2 = bytesPerIteration(500) { koblas.syr2(1e-12, x, y, a, Uplo.LOWER) }
+        assertTrue(syr < FLOOR_BYTES, "syr allocated $syr B per call for a dense operand it can read in place")
+        assertTrue(syr2 < FLOOR_BYTES, "syr2 allocated $syr2 B per call for dense operands it can read in place")
     }
 }
