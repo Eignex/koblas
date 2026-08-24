@@ -4,6 +4,7 @@ import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.core.F64SparseVector
+import com.eignex.koblas.requireShape
 import com.eignex.koblas.singularFailure
 
 /** A factorization held for reuse against further right-hand sides. */
@@ -75,4 +76,15 @@ public class F64SingularSparseFactorization(override val n: Int, override val fa
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray =
         throw singularFailure(failedAt, "solve")
+}
+
+/**
+ * The shapes [F64SparseFactorization.solveInto] requires of its right-hand side and its destination.
+ *
+ * Public because the bindings that need it ship as their own artifacts, and every one of them owes the same
+ * message for the same misuse.
+ */
+public fun requireSolveShapes(n: Int, b: DoubleArray, out: DoubleArray) {
+    requireShape(b.size == n) { "solve: b size ${b.size}, expected $n" }
+    requireShape(out.size == n) { "solve: out size ${out.size}, expected $n" }
 }

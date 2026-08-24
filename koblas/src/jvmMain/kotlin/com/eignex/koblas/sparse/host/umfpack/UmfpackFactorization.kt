@@ -3,22 +3,19 @@ package com.eignex.koblas.sparse.host.umfpack
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.internal.host.nativeCleaner
 import com.eignex.koblas.requireFactored
-import com.eignex.koblas.requireShape
 import com.eignex.koblas.sparse.F64SparseFactorization
+import com.eignex.koblas.sparse.requireSolveShapes
 import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout.ADDRESS
 import java.lang.foreign.ValueLayout.JAVA_DOUBLE
-import java.lang.ref.Cleaner
 import java.lang.ref.Reference
-
-/** Frees the native factors of unreachable factorizations. One for the whole process. */
-private val cleaner: Cleaner = Cleaner.create()
 
 /**
  * Holds [matrix] alive because umfpack_di_solve takes Ap, Ai and Ax alongside the factors, and releases the
- * factors, which are UMFPACK's own allocation, through a [Cleaner] once this object is unreachable.
+ * factors, which are UMFPACK's own allocation, through [nativeCleaner] once this object is unreachable.
  */
 public class UmfpackFactorization internal constructor(
     private val matrix: F64SparseMatrix,
@@ -37,7 +34,7 @@ public class UmfpackFactorization internal constructor(
     init {
         val arena = handles.arena
         val holder = handles.numericHolder
-        cleaner.register(this) {
+        nativeCleaner.register(this) {
             calls.freeNumeric(holder)
             arena.close()
         }
@@ -57,8 +54,7 @@ public class UmfpackFactorization internal constructor(
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray {
         requireFactored(failedAt, "solve")
-        requireShape(b.size == n) { "solve: b size ${b.size}, expected $n" }
-        requireShape(out.size == n) { "solve: out size ${out.size}, expected $n" }
+        requireSolveShapes(n, b, out)
         // UMFPACK writes X and reads B, so aliasing them would have it read its own partial output.
         val rhs = if (out === b) b.copyOf() else b
         // The factors are reached as a raw address, so nothing the call holds keeps this factorization

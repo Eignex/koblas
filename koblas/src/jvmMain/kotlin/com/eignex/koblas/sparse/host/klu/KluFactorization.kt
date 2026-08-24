@@ -4,13 +4,12 @@ import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.internal.host.nativeCleaner
 import com.eignex.koblas.requireFactored
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.sparse.F64SparseFactorization
-import java.lang.ref.Cleaner
+import com.eignex.koblas.sparse.requireSolveShapes
 import java.lang.ref.Reference
-
-private val cleaner: Cleaner = Cleaner.create()
 
 /** A KLU factorization whose native symbolic and numeric objects are reclaimed when it becomes unreachable. */
 public class KluFactorization internal constructor(
@@ -22,7 +21,7 @@ public class KluFactorization internal constructor(
         private set
     init {
         val heldFactor = factor
-        cleaner.register(this) {
+        nativeCleaner.register(this) {
             calls.free(heldFactor)
             heldFactor.arena.close()
         }
@@ -52,8 +51,7 @@ public class KluFactorization internal constructor(
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray {
         requireFactored(failedAt, "solve")
-        requireShape(b.size == n) { "solve: b size ${b.size}, expected $n" }
-        requireShape(out.size == n) { "solve: out size ${out.size}, expected $n" }
+        requireSolveShapes(n, b, out)
         if (out !== b) b.copyInto(out)
         try {
             calls.solve(factor, out, transpose)
