@@ -45,4 +45,24 @@ class BundledBasicluTest {
             factorization.solve(doubleArrayOf(3.0, 4.0)),
         )
     }
+
+    /**
+     * `nnz` and `rcond` are the only readers of `koblas_basiclu_info`, so without them that downcall is
+     * never made and a wrong descriptor for it would ship unnoticed. The operand carries off-diagonal fill,
+     * since a permutation factors to no off-diagonal entries at all and would report nothing.
+     */
+    @Test
+    fun `the bundled BASICLU reports its fill and pivot ratio`() {
+        val matrix = SparseMatrix.ofColumns(
+            2,
+            2,
+            listOf(listOf(0 to 2.0, 1 to 1.0), listOf(0 to 1.0, 1 to 3.0)),
+        )
+        val factorization = BundledBasiclu(factorizeMin = 0).factor(matrix)
+        assertTrue(factorization.nnz > 0, "expected off-diagonal fill, got ${factorization.nnz}")
+        assertTrue(
+            factorization.rcond > 0.0 && factorization.rcond <= 1.0,
+            "pivot ratio ${factorization.rcond} outside (0, 1]",
+        )
+    }
 }

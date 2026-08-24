@@ -5,9 +5,13 @@ import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.F64Blas
 import com.eignex.koblas.dense.Uplo
+import com.eignex.koblas.dense.assertLevel1KernelsAgreeWithScalar
+import com.eignex.koblas.dense.assertReductionsAgreeWithScalar
 import com.eignex.koblas.dense.host.*
+import com.eignex.koblas.dense.host.cblas.OpenBlasConfig
 import com.eignex.koblas.dense.host.jvm.F64OpenBlasBlas
 import com.eignex.koblas.dense.host.jvm.F64OpenBlasLapack
+import com.eignex.koblas.dense.host.jvm.F64OpenBlasVectorKernels
 import com.eignex.koblas.koblasInfo
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.testutil.host.HostLibraryTest
@@ -183,5 +187,19 @@ class HostBlasConformanceTest {
     fun `an empty factorization solves an empty right-hand side`() {
         Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
         assertAnEmptyFactorizationSolvesEmpty(F64OpenBlasLapack())
+    }
+
+    /**
+     * The level-1 gate is [Int.MAX_VALUE] while the compiled-in kernels are SIMD, so nothing otherwise calls
+     * OpenBLAS's ddot, dnrm2, dasum, daxpy or dscal. Configured to route from length zero, these are the
+     * only exercise those five downcalls get.
+     */
+    @Test
+    fun `the host level-1 kernels agree with the compiled-in ones`() {
+        Assume.assumeTrue("host CBLAS is not installed", HostLibraries.cblas)
+        val host = F64OpenBlasVectorKernels(OpenBlasConfig(level1Min = 0))
+        Assume.assumeTrue("host CBLAS did not bind its level-1 symbols", host.isAvailable)
+        assertLevel1KernelsAgreeWithScalar(host)
+        assertReductionsAgreeWithScalar(host)
     }
 }

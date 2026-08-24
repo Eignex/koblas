@@ -10,11 +10,11 @@ import com.eignex.koblas.dense.host.CblasCalls
 internal class JvmCblasCalls(private val calls: HostBlasCalls) : CblasCalls {
     private fun seg(values: DoubleArray) = java.lang.foreign.MemorySegment.ofArray(values)
     override fun dscal(n: Int, alpha: Double, x: DoubleArray, incx: Int) {
-        calls.dscal.invokeWithArguments(n, alpha, seg(x), incx)
+        calls.dscal.invokeExact(n, alpha, seg(x), incx) as Unit
     }
 
     override fun daxpy(n: Int, alpha: Double, x: DoubleArray, incx: Int, y: DoubleArray, incy: Int) {
-        calls.daxpy.invokeWithArguments(n, alpha, seg(x), incx, seg(y), incy)
+        calls.daxpy.invokeExact(n, alpha, seg(x), incx, seg(y), incy) as Unit
     }
 
     override fun dgemv(
@@ -31,9 +31,9 @@ internal class JvmCblasCalls(private val calls: HostBlasCalls) : CblasCalls {
         y: DoubleArray,
         incy: Int,
     ) {
-        calls.dgemv.invokeWithArguments(
+        calls.dgemv.invokeExact(
             order, trans, m, n, alpha, seg(a), lda, seg(x), incx, beta, seg(y), incy,
-        )
+        ) as Unit
     }
 
     override fun dger(
@@ -48,7 +48,7 @@ internal class JvmCblasCalls(private val calls: HostBlasCalls) : CblasCalls {
         a: DoubleArray,
         lda: Int,
     ) {
-        calls.dger.invokeWithArguments(order, m, n, alpha, seg(x), incx, seg(y), incy, seg(a), lda)
+        calls.dger.invokeExact(order, m, n, alpha, seg(x), incx, seg(y), incy, seg(a), lda) as Unit
     }
 
     override fun dsymv(
@@ -64,7 +64,7 @@ internal class JvmCblasCalls(private val calls: HostBlasCalls) : CblasCalls {
         y: DoubleArray,
         incy: Int,
     ) {
-        calls.dsymv.invokeWithArguments(order, uplo, n, alpha, seg(a), lda, seg(x), incx, beta, seg(y), incy)
+        calls.dsymv.invokeExact(order, uplo, n, alpha, seg(a), lda, seg(x), incx, beta, seg(y), incy) as Unit
     }
 
     override fun dtrsv(
@@ -78,7 +78,7 @@ internal class JvmCblasCalls(private val calls: HostBlasCalls) : CblasCalls {
         x: DoubleArray,
         incx: Int,
     ) {
-        calls.dtrsv.invokeWithArguments(order, uplo, trans, diag, n, seg(a), lda, seg(x), incx)
+        calls.dtrsv.invokeExact(order, uplo, trans, diag, n, seg(a), lda, seg(x), incx) as Unit
     }
 
     override fun dtrmv(
@@ -92,7 +92,7 @@ internal class JvmCblasCalls(private val calls: HostBlasCalls) : CblasCalls {
         x: DoubleArray,
         incx: Int,
     ) {
-        calls.dtrmv.invokeWithArguments(order, uplo, trans, diag, n, seg(a), lda, seg(x), incx)
+        calls.dtrmv.invokeExact(order, uplo, trans, diag, n, seg(a), lda, seg(x), incx) as Unit
     }
 
     override fun dgemm(
@@ -111,9 +111,9 @@ internal class JvmCblasCalls(private val calls: HostBlasCalls) : CblasCalls {
         c: DoubleArray,
         ldc: Int,
     ) {
-        calls.dgemm.invokeWithArguments(
+        calls.dgemm.invokeExact(
             order, transA, transB, m, n, k, alpha, seg(a), lda, seg(b), ldb, beta, seg(c), ldc,
-        )
+        ) as Unit
     }
 
     override fun dsyrk(
@@ -129,7 +129,7 @@ internal class JvmCblasCalls(private val calls: HostBlasCalls) : CblasCalls {
         c: DoubleArray,
         ldc: Int,
     ) {
-        calls.dsyrk.invokeWithArguments(order, uplo, trans, n, k, alpha, seg(a), lda, beta, seg(c), ldc)
+        calls.dsyrk.invokeExact(order, uplo, trans, n, k, alpha, seg(a), lda, beta, seg(c), ldc) as Unit
     }
 
     override fun dsymm(
@@ -147,9 +147,9 @@ internal class JvmCblasCalls(private val calls: HostBlasCalls) : CblasCalls {
         c: DoubleArray,
         ldc: Int,
     ) {
-        calls.dsymm.invokeWithArguments(
+        calls.dsymm.invokeExact(
             order, side, uplo, m, n, alpha, seg(a), lda, seg(b), ldb, beta, seg(c), ldc,
-        )
+        ) as Unit
     }
 
     override fun dtrsm(
@@ -166,7 +166,7 @@ internal class JvmCblasCalls(private val calls: HostBlasCalls) : CblasCalls {
         b: DoubleArray,
         ldb: Int,
     ) {
-        calls.dtrsm.invokeWithArguments(order, side, uplo, trans, diag, m, n, alpha, seg(a), lda, seg(b), ldb)
+        calls.dtrsm.invokeExact(order, side, uplo, trans, diag, m, n, alpha, seg(a), lda, seg(b), ldb) as Unit
     }
 
     override fun dtrmm(
@@ -183,6 +183,6 @@ internal class JvmCblasCalls(private val calls: HostBlasCalls) : CblasCalls {
         b: DoubleArray,
         ldb: Int,
     ) {
-        calls.dtrmm.invokeWithArguments(order, side, uplo, trans, diag, m, n, alpha, seg(a), lda, seg(b), ldb)
+        calls.dtrmm.invokeExact(order, side, uplo, trans, diag, m, n, alpha, seg(a), lda, seg(b), ldb) as Unit
     }
 }
