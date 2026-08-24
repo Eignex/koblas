@@ -1,10 +1,10 @@
 package com.eignex.koblas.sparse.host.klu
 
+import com.eignex.koblas.internal.host.FfmLibrary
+import com.eignex.koblas.internal.host.FfmLibrary.Companion.intOf
+import com.eignex.koblas.internal.host.FfmLibrary.Companion.pointerOf
 import java.lang.foreign.Arena
-import java.lang.foreign.FunctionDescriptor
-import java.lang.foreign.Linker
 import java.lang.foreign.MemorySegment
-import java.lang.foreign.SymbolLookup
 import java.lang.foreign.ValueLayout.ADDRESS
 import java.lang.foreign.ValueLayout.JAVA_DOUBLE
 import java.lang.foreign.ValueLayout.JAVA_INT
@@ -12,9 +12,9 @@ import java.lang.invoke.MethodHandle
 
 /** The public 32-bit-index ABI exported by KLU 2. */
 internal class KluCalls(private val config: KluConfig) {
-    private val linker: Linker? = runCatching { Linker.nativeLinker() }.getOrNull()
-    private val critical = Linker.Option.critical(true)
-    private val lookup: SymbolLookup? by lazy { openKlu() }
+    private val library: FfmLibrary by lazy {
+        FfmLibrary.open(config.libraryPath?.let(::listOf) ?: KLU_SONAMES, "klu_defaults", "KLU 2")
+    }
     private val handles: Handles? by lazy { bindAll() }
 
     private class Handles(
@@ -29,50 +29,31 @@ internal class KluCalls(private val config: KluConfig) {
         val freeNumeric: MethodHandle,
     )
 
-    val libraryPresent: Boolean get() = linker != null && lookup != null
+    val libraryPresent: Boolean get() = library.present
     val available: Boolean get() = handles != null
 
-    private fun openKlu(): SymbolLookup? {
-        val paths = config.libraryPath?.let(::listOf) ?: KLU_SONAMES
-        for (path in paths) {
-            val opened =
-                try {
-                    SymbolLookup.libraryLookup(path, Arena.global())
-                } catch (_: IllegalArgumentException) {
-                    continue
-                } catch (_: UnsatisfiedLinkError) {
-                    continue
-                }
-            if (opened.find("klu_defaults").isPresent) return opened
-        }
-        return null
-    }
-
-    private class MissingSymbol : RuntimeException()
-
-    private fun bindAll(): Handles? = try {
-        val found = lookup ?: return null
-        fun bind(
-            name: String,
-            result: java.lang.foreign.MemoryLayout,
-            vararg args: java.lang.foreign.MemoryLayout,
-        ): MethodHandle {
-            val address = found.find(name).orElse(null) ?: throw MissingSymbol()
-            return checkNotNull(linker).downcallHandle(address, FunctionDescriptor.of(result, *args), critical)
-        }
-        Handles(
-            defaults = bind("klu_defaults", JAVA_INT, ADDRESS),
-            analyze = bind("klu_analyze", ADDRESS, JAVA_INT, ADDRESS, ADDRESS, ADDRESS),
-            factor = bind("klu_factor", ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
-            refactor = bind("klu_refactor", JAVA_INT, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
-            rcond = bind("klu_rcond", JAVA_INT, ADDRESS, ADDRESS, ADDRESS),
-            solve = bind("klu_solve", JAVA_INT, ADDRESS, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS),
-            transposedSolve = bind("klu_tsolve", JAVA_INT, ADDRESS, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS),
-            freeSymbolic = bind("klu_free_symbolic", JAVA_INT, ADDRESS, ADDRESS),
-            freeNumeric = bind("klu_free_numeric", JAVA_INT, ADDRESS, ADDRESS),
+    private fun bindAll(): Handles? {
+        if (!library.present) return null
+        return Handles(
+            defaults = library.handleOrNull("klu_defaults", intOf(ADDRESS)) ?: return null,
+            analyze = library.handleOrNull("klu_analyze", pointerOf(JAVA_INT, ADDRESS, ADDRESS, ADDRESS))
+                ?: return null,
+            factor = library.handleOrNull("klu_factor", pointerOf(ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS))
+                ?: return null,
+            refactor = library.handleOrNull(
+                "klu_refactor",
+                intOf(ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
+            ) ?: return null,
+            rcond = library.handleOrNull("klu_rcond", intOf(ADDRESS, ADDRESS, ADDRESS)) ?: return null,
+            solve = library.handleOrNull("klu_solve", intOf(ADDRESS, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS))
+                ?: return null,
+            transposedSolve = library.handleOrNull(
+                "klu_tsolve",
+                intOf(ADDRESS, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS),
+            ) ?: return null,
+            freeSymbolic = library.handleOrNull("klu_free_symbolic", intOf(ADDRESS, ADDRESS)) ?: return null,
+            freeNumeric = library.handleOrNull("klu_free_numeric", intOf(ADDRESS, ADDRESS)) ?: return null,
         )
-    } catch (_: MissingSymbol) {
-        null
     }
 
     private fun handlesOrThrow(): Handles = checkNotNull(handles) { "KLU 2 is not available" }
