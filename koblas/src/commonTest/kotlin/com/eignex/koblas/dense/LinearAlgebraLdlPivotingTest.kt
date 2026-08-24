@@ -131,6 +131,32 @@ class LinearAlgebraLdlPivotingTest {
         assertTrue(residual(full, x, b) <= 1e-8, "residual ${residual(full, x, b)}")
     }
 
+    /**
+     * A subnormal pivot is a valid 1x1 pivot, and its reciprocal overflows where dividing by it does not.
+     * netlib dsytf2 compares the pivot against the smallest normal and divides entry by entry below it, so
+     * the factors of a matrix scaled down this far stay finite.
+     */
+    @Test
+    fun `a subnormal pivot factors to finite factors`() {
+        val tiny = 1e-320
+        val n = 2
+        val lowerOnly = F64DenseMatrix(n)
+        lowerOnly[0, 0] = tiny
+        lowerOnly[1, 0] = tiny
+        lowerOnly[1, 1] = 1.0
+        lowerOnly[0, 1] = Double.NaN
+        val f = koblas.ldl(lowerOnly)
+        assertTrue(!f.singular, "a subnormal pivot is not a zero pivot")
+        for (i in 0 until n) {
+            for (j in 0..i) {
+                assertTrue(
+                    f.ldl[i + j * n].isFinite(),
+                    "factor entry ($i;$j) is ${f.ldl[i + j * n]}, so the pivot reciprocal overflowed",
+                )
+            }
+        }
+    }
+
     /** Multi-RHS goes column by column, so it has to agree with the vector solve on the same matrix. */
     @Test
     fun `the multi-RHS solve agrees with the vector solve through a two-by-two block`() {

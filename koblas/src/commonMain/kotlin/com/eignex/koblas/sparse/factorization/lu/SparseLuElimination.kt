@@ -182,10 +182,13 @@ internal class MarkowitzState(
         colRows[pCol].forEach { i ->
             if (i != pRow) {
                 val target = u[i]
+                // colRows(pCol) indexes exactly the active rows holding an entry there, and every earlier
+                // step removed its own pivot column from every row it touched, so the slot is always
+                // present. The count below depends on that, so reading it unguarded keeps the two in step.
                 val pSlot = target.slotOf(pCol)
-                val f = (if (pSlot >= 0) target.valueAt(pSlot) else 0.0) / pivot
+                val f = target.valueAt(pSlot) / pivot
                 l.put(i, f)
-                if (pSlot >= 0) target.removeAt(pSlot)
+                target.removeAt(pSlot)
                 changeRowCount(i, -1)
                 pivotRowMap.forEach { col, value ->
                     if (colActive[col]) { // skips the pivot column and already-pivoted columns

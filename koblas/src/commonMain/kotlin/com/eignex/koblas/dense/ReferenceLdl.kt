@@ -5,6 +5,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.F64DenseMatrix
+import com.eignex.koblas.internal.numeric.F64_MIN_NORMAL
 import com.eignex.koblas.requireFactored
 import com.eignex.koblas.requireShape
 import kotlin.math.abs
@@ -75,12 +76,7 @@ internal fun referenceLdl(
         val kk = k + kstep - 1
         if (kp != kk) swapSymmetric(w, n, k, kk, kp, kstep)
         if (kstep == 1) {
-            val d11 = 1.0 / w[k + k * n]
-            for (j in k + 1 until n) {
-                val f = -d11 * w[j + k * n]
-                if (f != 0.0) kernels.axpy(w, j + j * n, f, w, j + k * n, n - j)
-            }
-            kernels.scale(w, k + 1 + k * n, d11, n - k - 1)
+            eliminateOneByOne(kernels, w, n, k)
             ipiv[k] = kp + 1
         } else {
             if (k < n - 2) {
@@ -116,6 +112,34 @@ internal fun referenceLdl(
         workspace.release(colK)
     }
     return F64LdlDecomposition(n, w, ipiv, failedAt)
+}
+
+/**
+ * Eliminate a 1x1 pivot and update the trailing triangle, `dsytf2`'s `dscal` and `dsyr`.
+ *
+ * A pivot below the smallest normal has no reciprocal: `1 / 1e-320` is an infinity, and scaling the column
+ * by it turns a factor that dividing resolves exactly into infinities and NaNs. So the small case divides
+ * the column and scales the update by the pivot itself, which is the same arithmetic out of the reciprocal's
+ * exponent range, and is the branch dsytf2 takes below its own `sfmin`.
+ */
+private fun eliminateOneByOne(kernels: F64VectorKernels, w: DoubleArray, n: Int, k: Int) {
+    val pivot = w[k + k * n]
+    if (abs(pivot) >= F64_MIN_NORMAL) {
+        val d11 = 1.0 / pivot
+        for (j in k + 1 until n) {
+            val f = -d11 * w[j + k * n]
+            if (f != 0.0) kernels.axpy(w, j + j * n, f, w, j + k * n, n - j)
+        }
+        kernels.scale(w, k + 1 + k * n, d11, n - k - 1)
+    } else {
+        for (i in k + 1 until n) w[i + k * n] = w[i + k * n] / pivot
+        // The column now carries the divided multipliers, so the update takes the pivot where the
+        // reciprocal form takes its inverse.
+        for (j in k + 1 until n) {
+            val f = -pivot * w[j + k * n]
+            if (f != 0.0) kernels.axpy(w, j + j * n, f, w, j + k * n, n - j)
+        }
+    }
 }
 
 /**
