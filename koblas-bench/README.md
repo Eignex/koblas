@@ -39,10 +39,28 @@ kernels, so one run gives both sides of the comparison. Every `@Setup` prints
 the resolved backend — check it before trusting a number, because a missing
 native library changes what was measured without failing anything.
 
-`level1` has no such parameter: those kernels reach a backend through Kernels
-rather than through the `backend` the other suites switch. Run it twice,
-once as-is and once with `-Pkoblas.noSimd=true` to withhold the incubator
-vector module, to compare SIMD against scalar.
+`level1` takes a `kernels` parameter instead, since those kernels sit below the
+`backend` seam the other suites switch: `builtin` leaves the compiled-in kernels
+in place and `host` installs the host CBLAS ones. The host arm installs past the
+level-1 gate on purpose, because that gate is what such a run exists to measure.
+On a JVM with the Vector API kernels it is `Int.MAX_VALUE`, so an arm left to the
+shipped default routes every length back to the compiled-in kernels and times
+them twice. Run it twice as well, once as-is and once with
+`-Pkoblas.noSimd=true` to withhold the incubator vector module, to compare SIMD
+against scalar.
+
+`forced` is a third value the level-2 and level-3 `backend` parameter takes. It
+installs the host halves with their level-2, level-3 and factorization gates at
+zero, for the same reason: a curve measured under the shipped gate shows one side
+below the threshold and the other above it, which is two half-curves rather than
+the two full ones a crossover is read off. `reference` and `forced` give those,
+and `auto` keeps what the shipped gates actually do.
+
+`tools/bench-curves.py` turns a report into per-arm CSV plus a least-squares fit
+of `ns = intercept + slope * size`. Read the slopes first: a gate exists only
+where two curves cross, so two arms with the same slope have no crossover at any
+threshold, however far their intercepts differ. That is a result, not a failed
+measurement.
 
 **Do not carry a conclusion from one platform to the other.** The JVM's portable
 kernels are SIMD and its FFI is expensive, so it keeps level 2 and the vector

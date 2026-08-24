@@ -12,7 +12,7 @@ class Level2Benchmark {
     @Param("16", "64", "256", "1024", "2048")
     var n: Int = 0
 
-    @Param(AUTO_BACKEND, REFERENCE_BACKEND)
+    @Param(AUTO_BACKEND, REFERENCE_BACKEND, FORCED_BACKEND)
     var backend: String = AUTO_BACKEND
 
     private lateinit var a: F64DenseMatrix
