@@ -7,25 +7,8 @@ plugins {
 }
 
 eignexPublish {
-    description.set("GPL-3.0-only Maven-hosted SuiteSparse UMFPACK loader for koblas on the JVM.")
+    description.set("Maven-hosted SuiteSparse UMFPACK loader for koblas on the JVM.")
     githubRepo.set("Eignex/koblas")
-    licenses {
-        license {
-            name.set("Apache-2.0")
-            url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
-            distribution.set("repo")
-        }
-        license {
-            name.set("BSD-3-Clause")
-            url.set("https://opensource.org/license/bsd-3-clause")
-            distribution.set("repo")
-        }
-        license {
-            name.set("GPL-2.0-or-later")
-            url.set("https://www.gnu.org/licenses/old-licenses/gpl-2.0.html")
-            distribution.set("repo")
-        }
-    }
 }
 
 dependencies {
@@ -57,6 +40,8 @@ val buildUmfpack = tasks.register<Exec>("buildUmfpack") {
     require(platform in supportedPlatforms) { "unsupported UMFPACK platform $platform" }
     inputs.file(layout.projectDirectory.file("umfpack.lock"))
     inputs.file(rootProject.layout.projectDirectory.file("scripts/build-umfpack.sh"))
+    inputs.file(rootProject.layout.projectDirectory.file("scripts/third-party-notices.sh"))
+    inputs.file(rootProject.project(":koblas-openblas").layout.projectDirectory.file("openblas.lock"))
     inputs.property("platform", platform)
     inputs.property("cc", toolVersion(cCompiler.get()))
     inputs.property("cmake", toolVersion("cmake"))
@@ -81,17 +66,14 @@ sourceSets.named("main") { resources.srcDir(umfpackResources) }
 tasks.named("processResources") { if (!lintOnly) dependsOn(buildUmfpack) }
 tasks.named<Jar>("sourcesJar") { dependsOn(buildUmfpack) }
 
-val umfpackVersion = layout.projectDirectory.file("umfpack.lock").asFile.useLines { lines ->
-    lines.first { it.startsWith("version=") }.removePrefix("version=")
-}
-
 val verifyUmfpackResources = tasks.register("verifyUmfpackResources") {
+    val notices = umfpackResources.get().file("THIRD-PARTY-NOTICES.txt").asFile
+    inputs.file(notices)
     val requiredResources = supportedPlatforms.associateWith { platform ->
         listOf(
             if (platform.startsWith("linux")) "libumfpack.so.6" else "libumfpack.dylib",
             ".libraries",
             ".suitesparse-source-sha256",
-            "LICENSE.suitesparse-$umfpackVersion.txt",
         )
     }
     val resourceDirectories = supportedPlatforms.associateWith { platform ->
@@ -101,6 +83,9 @@ val verifyUmfpackResources = tasks.register("verifyUmfpackResources") {
     inputs.property("requiredResources", requiredResources)
     inputs.property("resourceDirectories", resourceDirectories)
     doLast {
+        check(notices.isFile && notices.length() > 0L) {
+            "missing consolidated third-party notices for koblas-umfpack"
+        }
         @Suppress("UNCHECKED_CAST")
         val required = inputs.properties.getValue("requiredResources") as Map<String, List<String>>
         @Suppress("UNCHECKED_CAST")

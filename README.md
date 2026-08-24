@@ -24,9 +24,12 @@ SuiteSparse KLU, or SuiteSparse UMFPACK acceleration.
 | Module | Purpose |
 |--------|---------|
 | koblas | Core API and portable backend. |
-| koblas-openblas | Optional JVM bundle of OpenBLAS/LAPACKE for Linux x64/arm64 and macOS arm64. |
-| koblas-umfpack | Optional GPL-3.0-only JVM bundle of SuiteSparse UMFPACK; includes koblas-openblas. |
-| koblas-klu | Optional LGPL-2.1-or-later JVM bundle of SuiteSparse KLU. |
+| koblas-openblas* | Optional JVM bundle of OpenBLAS/LAPACKE for Linux x64/arm64 and macOS arm64. |
+| koblas-umfpack* | Optional JVM bundle of SuiteSparse UMFPACK (GPL-2.0-or-later); includes koblas-openblas. |
+| koblas-klu* | Optional JVM bundle of SuiteSparse KLU (LGPL-2.1-or-later). |
+
+* Each optional hosted module includes a generated `THIRD-PARTY-NOTICES.txt` with
+  the applicable native-library licenses and required notices.
 
 ```kotlin
 implementation("com.eignex:koblas:<version>")
@@ -40,8 +43,8 @@ On JVM Linux x64/arm64 and macOS arm64, Maven bundles are an alternative:
 
 ```kotlin
 runtimeOnly("com.eignex:koblas-openblas:<version>")
-runtimeOnly("com.eignex:koblas-klu:<version>") // optional; LGPL-2.1-or-later, sparse LU default
-runtimeOnly("com.eignex:koblas-umfpack:<version>") // optional; GPL-3.0-only alternative
+runtimeOnly("com.eignex:koblas-klu:<version>") // optional, sparse LU default
+runtimeOnly("com.eignex:koblas-umfpack:<version>") // optional alternative
 ```
 
 Host packages and Maven bundles use the same Koblas bindings; only the native library

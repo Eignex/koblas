@@ -7,7 +7,7 @@ import com.eignex.koblas.sparse.host.klu.KluConfig
 import com.eignex.koblas.sparse.host.klu.KluSparseLu
 import java.nio.file.Path
 
-/** LGPL-2.1-or-later KLU 2 extracted from Maven-native resources on the application's classpath. */
+/** KLU 2 bundle extracted from Maven-native resources on the application's classpath. */
 public class BundledKlu private constructor(private val delegate: KluSparseLu) : F64SparseLu by delegate {
     /** Extracts the matching Maven-native resources before the core FFM binding is initialized. */
     public constructor() : this(loadKlu())

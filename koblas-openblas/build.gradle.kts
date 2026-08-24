@@ -8,28 +8,6 @@ plugins {
 eignexPublish {
     description.set("Maven-hosted OpenBLAS and LAPACKE loader for koblas on the JVM.")
     githubRepo.set("Eignex/koblas")
-    licenses {
-        license {
-            name.set("Apache-2.0")
-            url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
-            distribution.set("repo")
-        }
-        license {
-            name.set("BSD-3-Clause")
-            url.set("https://opensource.org/license/bsd-3-clause")
-            distribution.set("repo")
-        }
-        license {
-            name.set("GPL-3.0-with-GCC-exception")
-            url.set("https://www.gnu.org/licenses/gcc-exception-3.1.html")
-            distribution.set("repo")
-        }
-        license {
-            name.set("LGPL-3.0-or-later")
-            url.set("https://www.gnu.org/licenses/lgpl-3.0.html")
-            distribution.set("repo")
-        }
-    }
 }
 
 dependencies { api(project(":koblas")) }
@@ -60,10 +38,6 @@ val openBlasResources = layout.buildDirectory.dir("openblas/resources")
 val lintOnly = gradle.startParameter.taskNames.let { taskNames ->
     taskNames.isNotEmpty() && taskNames.all { it.substringAfterLast(':') == "lintDocs" }
 }
-val openBlasVersion = layout.projectDirectory.file("openblas.lock").asFile.useLines { lines ->
-    lines.first { it.startsWith("version=") }.removePrefix("version=")
-}
-
 fun toolVersion(command: String) = providers.exec {
     commandLine(command, "--version")
 }.standardOutput.asText
@@ -76,6 +50,7 @@ val buildOpenBlas = tasks.register<Exec>("buildOpenBlas") {
     require(platform in supportedPlatforms) { "unsupported OpenBLAS platform $platform" }
     inputs.file(layout.projectDirectory.file("openblas.lock"))
     inputs.file(rootProject.layout.projectDirectory.file("scripts/build-openblas.sh"))
+    inputs.file(rootProject.layout.projectDirectory.file("scripts/third-party-notices.sh"))
     inputs.property("platform", platform)
     inputs.property("cc", toolVersion(cCompiler.get()))
     inputs.property("fortran", toolVersion(fortranCompiler.get()))
@@ -115,11 +90,16 @@ tasks.named<Jar>("sourcesJar") { dependsOn(buildOpenBlas) }
 
 val verifyOpenBlasResources = tasks.register("verifyOpenBlasResources") {
     inputs.dir(openBlasResources)
+    val notices = openBlasResources.get().file("THIRD-PARTY-NOTICES.txt").asFile
+    inputs.file(notices)
     doLast {
+        check(notices.isFile && notices.length() > 0L) {
+            "missing consolidated third-party notices for koblas-openblas"
+        }
         supportedPlatforms.forEach { platform ->
             val directory = openBlasResources.get().dir("org/bytedeco/openblas/$platform").asFile
             val resources = requiredResources.getValue(platform) +
-                ".openblas-source-sha256" + ".openblas-build-options" + "LICENSE.openblas-$openBlasVersion.txt"
+                ".openblas-source-sha256" + ".openblas-build-options"
             check(resources.all { directory.resolve(it).isFile && directory.resolve(it).length() > 0L }) {
                 "missing bundled OpenBLAS resources for $platform; build them on that platform before publishing"
             }

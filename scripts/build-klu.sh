@@ -13,6 +13,7 @@ done
 [[ -n "$platform" && -n "$output" ]] || usage
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$root/scripts/third-party-notices.sh"
 lock="$root/koblas-klu/klu.lock"
 version="$(sed -n 's/^version=//p' "$lock")"
 url="$(sed -n 's/^url=//p' "$lock")"
@@ -44,6 +45,7 @@ cmake --build "$work/build" --parallel "${KLU_JOBS:-2}" >/dev/null
 cmake --install "$work/build" >/dev/null
 
 destination="$output/org/eignex/klu/$platform"
+notices="$output/THIRD-PARTY-NOTICES.txt"
 rm -rf "$destination"; mkdir -p "$destination"
 find "$install/lib" -maxdepth 1 -type f \( -name '*.so*' -o -name '*.dylib' \) -exec cp {} "$destination" \;
 if [[ "$platform" == linux-* ]]; then
@@ -55,5 +57,11 @@ else
     for library in "$destination"/*.dylib; do cp "$library" "$destination/$(basename "$library" | sed 's/\.[0-9].*\.dylib$/.dylib/')"; done
 fi
 find "$destination" -maxdepth 1 -type f -printf '%f\n' | sort > "$destination/.libraries"
-cp "$source/KLU/Doc/License.txt" "$destination/LICENSE.klu-$version.txt"
+notices_init "$notices" "koblas-klu" "scripts/build-klu.sh"
+notices_append_file "$notices" "SuiteSparse KLU $version — LGPL-2.1-or-later" "SuiteSparse/KLU/Doc/License.txt" "$source/KLU/Doc/License.txt"
+notices_append_file "$notices" "SuiteSparse KLU LGPL-2.1 license text" "SuiteSparse/KLU/Doc/lesser.txt" "$source/KLU/Doc/lesser.txt"
+notices_append_file "$notices" "SuiteSparse AMD — BSD-3-Clause" "SuiteSparse/AMD/Doc/License.txt" "$source/AMD/Doc/License.txt"
+notices_append_file "$notices" "SuiteSparse BTF — LGPL-2.1-or-later" "SuiteSparse/BTF/Doc/License.txt" "$source/BTF/Doc/License.txt"
+notices_append_file "$notices" "SuiteSparse COLAMD — BSD-3-Clause" "SuiteSparse/COLAMD/Doc/License.txt" "$source/COLAMD/Doc/License.txt"
+notices_append_suite_sparse_config "$notices" "$source" "$work"
 printf '%s\n' "$expected" > "$destination/.suitesparse-source-sha256"

@@ -7,25 +7,8 @@ plugins {
 }
 
 eignexPublish {
-    description.set("LGPL-2.1-or-later Maven-hosted SuiteSparse KLU loader for koblas on the JVM.")
+    description.set("Maven-hosted SuiteSparse KLU loader for koblas on the JVM.")
     githubRepo.set("Eignex/koblas")
-    licenses {
-        license {
-            name.set("Apache-2.0")
-            url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
-            distribution.set("repo")
-        }
-        license {
-            name.set("BSD-3-Clause")
-            url.set("https://opensource.org/license/bsd-3-clause")
-            distribution.set("repo")
-        }
-        license {
-            name.set("LGPL-2.1-or-later")
-            url.set("https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html")
-            distribution.set("repo")
-        }
-    }
 }
 
 dependencies { api(project(":koblas")) }
@@ -54,6 +37,7 @@ val buildKlu = tasks.register<Exec>("buildKlu") {
     require(platform in supportedPlatforms) { "unsupported KLU platform $platform" }
     inputs.file(layout.projectDirectory.file("klu.lock"))
     inputs.file(rootProject.layout.projectDirectory.file("scripts/build-klu.sh"))
+    inputs.file(rootProject.layout.projectDirectory.file("scripts/third-party-notices.sh"))
     inputs.property("platform", platform)
     inputs.property("cc", toolVersion(cCompiler.get()))
     inputs.property("cmake", toolVersion("cmake"))
@@ -73,17 +57,14 @@ sourceSets.named("main") { resources.srcDir(kluResources) }
 tasks.named("processResources") { if (!lintOnly) dependsOn(buildKlu) }
 tasks.named<Jar>("sourcesJar") { dependsOn(buildKlu) }
 
-val kluVersion = layout.projectDirectory.file("klu.lock").asFile.useLines { lines ->
-    lines.first { it.startsWith("version=") }.removePrefix("version=")
-}
-
 val verifyKluResources = tasks.register("verifyKluResources") {
+    val notices = kluResources.get().file("THIRD-PARTY-NOTICES.txt").asFile
+    inputs.file(notices)
     val requiredResources = supportedPlatforms.associateWith { platform ->
         listOf(
             if (platform.startsWith("linux")) "libklu.so.2" else "libklu.2.dylib",
             ".libraries",
             ".suitesparse-source-sha256",
-            "LICENSE.klu-$kluVersion.txt",
         )
     }
     val resourceDirectories = supportedPlatforms.associateWith { platform ->
@@ -93,6 +74,9 @@ val verifyKluResources = tasks.register("verifyKluResources") {
     inputs.property("requiredResources", requiredResources)
     inputs.property("resourceDirectories", resourceDirectories)
     doLast {
+        check(notices.isFile && notices.length() > 0L) {
+            "missing consolidated third-party notices for koblas-klu"
+        }
         @Suppress("UNCHECKED_CAST")
         val required = inputs.properties.getValue("requiredResources") as Map<String, List<String>>
         @Suppress("UNCHECKED_CAST")

@@ -9,10 +9,10 @@ import com.eignex.koblas.sparse.host.umfpack.UmfpackSparseLu
 import java.nio.file.Path
 
 /**
- * GPL-3.0-only SuiteSparse UMFPACK extracted from Maven-native resources on this application's classpath.
+ * SuiteSparse UMFPACK extracted from Maven-native resources on the application's classpath.
  *
- * Add `com.eignex:koblas-umfpack` at runtime to discover this optional sparse backend. Its GPL license is
- * separate from the Apache-2.0 [koblas](https://github.com/Eignex/koblas) core artifact.
+ * Add `com.eignex:koblas-umfpack` at runtime to discover this optional sparse backend. Bundled native
+ * component licenses are listed in `THIRD-PARTY-NOTICES.txt`.
  */
 public class BundledUmfpack private constructor(private val delegate: UmfpackSparseLu) : F64SparseLu by delegate {
     /** Extracts the matching Maven-native resources before the core FFM binding is initialized. */

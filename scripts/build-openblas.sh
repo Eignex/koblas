@@ -23,6 +23,7 @@ esac
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 project_dir=$(cd "$script_dir/.." && pwd)
+source "$script_dir/third-party-notices.sh"
 lock_file="$project_dir/koblas-openblas/openblas.lock"
 version=$(sed -n 's/^version=//p' "$lock_file")
 url=$(sed -n 's/^url=//p' "$lock_file")
@@ -67,12 +68,11 @@ case "$platform" in
 esac
 
 resource_dir="$output/org/bytedeco/openblas/$platform"
-license_name="LICENSE.openblas-$version.txt"
+notices="$output/THIRD-PARTY-NOTICES.txt"
 build_options="USE_THREAD=0"
 case "$platform" in
-  linux-x86_64) required_files=("$library_name" libgfortran.so.5 libquadmath.so.0 libgcc_s.so.1 "$license_name") ;;
-  linux-arm64) required_files=("$library_name" libgfortran.so.5 libgcc_s.so.1 "$license_name") ;;
-  macosx-arm64) required_files=("$library_name" libgfortran.dylib libgfortran.5.dylib libquadmath.0.dylib libgcc_s.1.1.dylib "$license_name") ;;
+  linux-*) required_files=("$library_name" libgfortran.so.5 libquadmath.so.0 libgcc_s.so.1) ;;
+  macosx-arm64) required_files=("$library_name" libgfortran.dylib libgfortran.5.dylib libquadmath.0.dylib libgcc_s.1.1.dylib) ;;
 esac
 if [[ -f "$resource_dir/.openblas-source-sha256" ]] &&
   [[ "$(<"$resource_dir/.openblas-source-sha256")" == "$expected_sha" ]] &&
@@ -82,6 +82,7 @@ if [[ -f "$resource_dir/.openblas-source-sha256" ]] &&
   for file in "${required_files[@]}"; do
     [[ -s "$resource_dir/$file" ]] || { complete=false; break; }
   done
+  [[ -s "$notices" ]] || complete=false
   "$complete" && exit 0
 fi
 
@@ -111,7 +112,6 @@ mkdir -p "$resource_dir"
 library=$(find "$source_dir" -type f \( -name 'libopenblas*.so' -o -name 'libopenblas*.dylib' \) -print -quit)
 [[ -n "$library" ]] || { echo "OpenBLAS build did not produce a shared library" >&2; exit 1; }
 cp "$library" "$resource_dir/$library_name"
-cp "$source_dir/LICENSE" "$resource_dir/LICENSE.openblas-$version.txt"
 
 if [[ "$platform" == linux-* ]]; then
   runtimes=(
@@ -160,5 +160,8 @@ fi
 for file in "${required_files[@]}"; do
   [[ -s "$resource_dir/$file" ]] || { echo "missing bundled runtime $file" >&2; exit 1; }
 done
+notices_init "$notices" "koblas-openblas" "scripts/build-openblas.sh"
+notices_append_file "$notices" "OpenBLAS $version — BSD-3-Clause" "OpenBLAS/LICENSE" "$source_dir/LICENSE"
+notices_append_gcc_runtime_licenses "$notices" "$work_dir"
 printf '%s\n' "$expected_sha" > "$resource_dir/.openblas-source-sha256"
 printf '%s\n' "$build_options" > "$resource_dir/.openblas-build-options"
