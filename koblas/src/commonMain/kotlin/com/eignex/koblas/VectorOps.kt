@@ -10,11 +10,6 @@ import com.eignex.koblas.requireSameSize
 import com.eignex.koblas.sparse.F64SparseVectorKernels
 import kotlin.math.abs
 
-/*
- * The level-1 vector operations, each routing through the installed context. The matrix ones are in
- * MatrixOps.kt and the plane rotation in F64Givens.kt.
- */
-
 /**
  * Visit each stored entry as (index, value), in ascending index order for any storage. A [F64SparseVector]
  * may present numerical zeros as stored, and any other [F64VectorLike] has every index visited.

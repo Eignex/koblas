@@ -78,12 +78,7 @@ public class F64SingularSparseFactorization(override val n: Int, override val fa
         throw singularFailure(failedAt, "solve")
 }
 
-/**
- * The shapes [F64SparseFactorization.solveInto] requires of its right-hand side and its destination.
- *
- * Public because the bindings that need it ship as their own artifacts, and every one of them owes the same
- * message for the same misuse.
- */
+/** The shapes [F64SparseFactorization.solveInto] requires of its right-hand side and its destination. */
 public fun requireSolveShapes(n: Int, b: DoubleArray, out: DoubleArray) {
     requireShape(b.size == n) { "solve: b size ${b.size}, expected $n" }
     requireShape(out.size == n) { "solve: out size ${out.size}, expected $n" }

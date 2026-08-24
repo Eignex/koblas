@@ -13,11 +13,6 @@ import com.eignex.koblas.dense.Uplo
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import kotlin.math.abs
 
-/*
- * The matrix operations that are not a backend half: rank updates, norms, row and column extraction, the
- * transposes and the generic matrix-vector product. The level-1 ones are in VectorOps.kt.
- */
-
 /**
  * Rank-one update `A = A + alpha * x * yT` (BLAS `dger`) in place. Subtract by passing
  * `alpha = -1.0`.
