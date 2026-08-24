@@ -86,13 +86,12 @@ private open class BasicluFactorization(
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray {
         requireSolveShapes(n, b, out)
-        return if (out === b && workspace != null) {
-            workspace.borrow(n) { rhs ->
-                b.copyInto(rhs)
-                solve(rhs, out, transpose)
-            }
-        } else {
-            solve(if (out === b) b.copyOf() else b, out, transpose)
+        // BASICLU reads the right-hand side and writes the destination, so an aliased pair needs a separate
+        // buffer for one of them.
+        if (out !== b) return solve(b, out, transpose)
+        return workspace.borrow(n) { rhs ->
+            b.copyInto(rhs)
+            solve(rhs, out, transpose)
         }
     }
 

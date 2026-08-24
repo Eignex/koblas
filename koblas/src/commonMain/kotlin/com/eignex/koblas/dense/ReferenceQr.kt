@@ -3,6 +3,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.borrow
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.requireShape
 import kotlin.math.abs
@@ -188,21 +189,21 @@ internal fun referencePivotedLeastSquaresInto(
     requireShape(b.size == qr.m) { "solveLeastSquares: b length ${b.size} != ${qr.m}" }
     requireShape(out.size == qr.n) { "solveLeastSquares: out length ${out.size} != ${qr.n}" }
     val rank = qr.rank
-    val y = workspace?.take(qr.m) ?: DoubleArray(qr.m)
-    referenceApplyQInto(kernels, qr.factorization, b, y, transpose = true)
-    trsvCore(
-        kernels,
-        qr.factorization.qr,
-        rank,
-        y,
-        lda = qr.m,
-        lower = false,
-        transpose = false,
-        unitDiag = false,
-    )
-    out.fill(0.0)
-    for (k in 0 until rank) out[qr.pivots[k]] = y[k]
-    workspace?.release(y)
+    workspace.borrow(qr.m) { y ->
+        referenceApplyQInto(kernels, qr.factorization, b, y, transpose = true)
+        trsvCore(
+            kernels,
+            qr.factorization.qr,
+            rank,
+            y,
+            lda = qr.m,
+            lower = false,
+            transpose = false,
+            unitDiag = false,
+        )
+        out.fill(0.0)
+        for (k in 0 until rank) out[qr.pivots[k]] = y[k]
+    }
     return out
 }
 
@@ -218,11 +219,11 @@ internal fun referenceLeastSquaresInto(
     requireShape(qr.m >= qr.n) { "solveLeastSquares requires m >= n, got ${qr.m}x${qr.n}" }
     requireShape(b.size == qr.m) { "solveLeastSquares: b length ${b.size} != ${qr.m}" }
     requireShape(out.size == qr.n) { "solveLeastSquares: out length ${out.size} != ${qr.n}" }
-    val y = workspace?.take(qr.m) ?: DoubleArray(qr.m)
-    referenceApplyQInto(kernels, qr, b, y, transpose = true)
-    y.copyInto(out, 0, 0, qr.n)
+    workspace.borrow(qr.m) { y ->
+        referenceApplyQInto(kernels, qr, b, y, transpose = true)
+        y.copyInto(out, 0, 0, qr.n)
+    }
     trsvCore(kernels, qr.qr, qr.n, out, lda = qr.m, lower = false, transpose = false, unitDiag = false)
-    workspace?.release(y)
     return out
 }
 
@@ -238,11 +239,11 @@ internal fun referenceMinimumNormInto(
     requireShape(qr.m >= qr.n) { "solveMinimumNorm expects the QR of the transpose (tall), got ${qr.m}x${qr.n}" }
     requireShape(b.size == qr.n) { "solveMinimumNorm: b length ${b.size} != ${qr.n}" }
     requireShape(out.size == qr.m) { "solveMinimumNorm: out length ${out.size} != ${qr.m}" }
-    val w = workspace?.take(qr.n) ?: DoubleArray(qr.n)
-    b.copyInto(w)
-    trsvCore(kernels, qr.qr, qr.n, w, lda = qr.m, lower = false, transpose = true, unitDiag = false)
-    out.fill(0.0)
-    w.copyInto(out)
-    workspace?.release(w)
+    workspace.borrow(qr.n) { w ->
+        b.copyInto(w)
+        trsvCore(kernels, qr.qr, qr.n, w, lda = qr.m, lower = false, transpose = true, unitDiag = false)
+        out.fill(0.0)
+        w.copyInto(out)
+    }
     return referenceApplyQInto(kernels, qr, out, out, transpose = false)
 }

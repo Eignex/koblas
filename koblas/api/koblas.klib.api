@@ -942,7 +942,7 @@ final fun com.eignex.koblas/rot(com.eignex.koblas.core/F64DenseVector, com.eigne
 final fun com.eignex.koblas/rotg(kotlin/Double, kotlin/Double): com.eignex.koblas/F64Givens // com.eignex.koblas/rotg|rotg(kotlin.Double;kotlin.Double){}[0]
 final fun com.eignex.koblas/swap(com.eignex.koblas.core/F64DenseVector, com.eignex.koblas.core/F64DenseVector) // com.eignex.koblas/swap|swap(com.eignex.koblas.core.F64DenseVector;com.eignex.koblas.core.F64DenseVector){}[0]
 final inline fun (com.eignex.koblas.core/F64VectorLike).com.eignex.koblas/forEachStored(kotlin/Function2<kotlin/Int, kotlin/Double, kotlin/Unit>) // com.eignex.koblas/forEachStored|forEachStored@com.eignex.koblas.core.F64VectorLike(kotlin.Function2<kotlin.Int,kotlin.Double,kotlin.Unit>){}[0]
-final inline fun <#A: kotlin/Any?> (com.eignex.koblas/Workspace).com.eignex.koblas/borrow(kotlin/Int, kotlin/Function1<kotlin/DoubleArray, #A>): #A // com.eignex.koblas/borrow|borrow@com.eignex.koblas.Workspace(kotlin.Int;kotlin.Function1<kotlin.DoubleArray,0:0>){0§<kotlin.Any?>}[0]
+final inline fun <#A: kotlin/Any?> (com.eignex.koblas/Workspace?).com.eignex.koblas/borrow(kotlin/Int, kotlin/Function1<kotlin/DoubleArray, #A>): #A // com.eignex.koblas/borrow|borrow@com.eignex.koblas.Workspace?(kotlin.Int;kotlin.Function1<kotlin.DoubleArray,0:0>){0§<kotlin.Any?>}[0]
 
 // Targets: [linux, macosArm64]
 final class com.eignex.koblas.dense.host.cblas/F64CblasLinearAlgebra : com.eignex.koblas.dense/F64Blas, com.eignex.koblas.dense/F64Lapack, com.eignex.koblas.dense/F64LinearAlgebra { // com.eignex.koblas.dense.host.cblas/F64CblasLinearAlgebra|null[0]
