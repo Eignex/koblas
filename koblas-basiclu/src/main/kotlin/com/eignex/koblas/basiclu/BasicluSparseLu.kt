@@ -9,15 +9,14 @@ import com.eignex.koblas.Workspace
 import com.eignex.koblas.borrow
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.core.F64SparseVector
+import com.eignex.koblas.internal.host.nativeCleaner
 import com.eignex.koblas.sparse.F64BasisFactorization
 import com.eignex.koblas.sparse.F64SingularSparseFactorization
 import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.F64SparseLu
-import java.lang.ref.Cleaner
+import com.eignex.koblas.sparse.requireSolveShapes
 import java.lang.ref.Reference
 import kotlin.math.abs
-
-private val cleaner: Cleaner = Cleaner.create()
 
 /** Sparse LU and Forrest-Tomlin basis updates backed by BASICLU. */
 @OptIn(UnsafeKoblasApi::class)
@@ -60,7 +59,7 @@ private open class BasicluFactorization(
 ) : F64SparseFactorization {
     init {
         val held = handle
-        cleaner.register(this) { calls.free(held) }
+        nativeCleaner.register(this) { calls.free(held) }
     }
 
     override val failedAt: Int get() = NOT_SINGULAR
@@ -72,8 +71,7 @@ private open class BasicluFactorization(
         }
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray {
-        require(b.size == n) { "solve: b size ${b.size}, expected $n" }
-        require(out.size == n) { "solve: out size ${out.size}, expected $n" }
+        requireSolveShapes(n, b, out)
         return if (out === b && workspace != null) {
             workspace.borrow(n) { rhs ->
                 b.copyInto(rhs)
