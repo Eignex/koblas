@@ -252,6 +252,9 @@ public abstract class F64HostLapackAdapter internal constructor(
     }
 
     override fun applyQInto(qr: F64QrDecomposition, y: DoubleArray, out: DoubleArray, transpose: Boolean): DoubleArray {
+        // `tau.size` is min(m, n), the quantity [qr] gates on, so a factorization small enough to be
+        // factored portably has its reflectors applied portably too.
+        if (qr.tau.size < dispatch.factorize) return portable.applyQInto(qr, y, out, transpose)
         requireShape(y.size == qr.m) { "applyQ: y length ${y.size} != ${qr.m}" }
         requireShape(out.size == qr.m) { "applyQ: out length ${out.size} != ${qr.m}" }
         val c = out
@@ -275,8 +278,8 @@ public abstract class F64HostLapackAdapter internal constructor(
     }
 
     /**
-     * Clears the upper triangle LAPACK leaves untouched, reads only the lower triangle of the input, and
-     * falls back to the portable path on a positive info, which [CholeskyPolicy.Regularize] needs.
+     * Reads only the lower triangle of the input, and falls back to the portable path on a positive info,
+     * which [CholeskyPolicy.Regularize] needs.
      */
     override fun cholesky(a: F64DenseMatrix, policy: CholeskyPolicy): F64CholeskyDecomposition {
         if (a.rows < dispatch.factorize) return portable.cholesky(a, policy)
@@ -289,7 +292,8 @@ public abstract class F64HostLapackAdapter internal constructor(
         val info = f.dpotrf(COL_MAJOR, LOWER_UPLO, n, l.data, n)
         check(info >= 0) { "dpotrf: illegal argument ${-info}" }
         if (info > 0) return portable.cholesky(a, policy)
-        for (i in 0 until n) for (j in i + 1 until n) l[i, j] = 0.0
+        // Nothing clears the upper triangle: the destination is allocated zeroed and `dpotrf` with
+        // `uplo = L` never writes above the diagonal.
         return F64CholeskyDecomposition(l)
     }
 
@@ -308,7 +312,12 @@ public abstract class F64HostLapackAdapter internal constructor(
         // the caller's to construct over any square matrix. The reference answers with infinities, so this
         // half answers the same way rather than throwing where it would not.
         if (info > 0) return portable.invert(chol, workspace)
-        for (i in 0 until n) for (j in 0 until i) inv[j, i] = inv[i, j]
+        // Column i's upper entries are contiguous, so the mirror writes down a column and reads across.
+        val invd = inv.data
+        for (i in 0 until n) {
+            val col = i * n
+            for (j in 0 until i) invd[col + j] = invd[i + j * n]
+        }
         return inv
     }
 }
