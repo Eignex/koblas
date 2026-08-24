@@ -46,12 +46,12 @@ if [[ "$platform" == linux-* ]]; then
     cp "$destination/$library" "$destination/libkoblas_basiclu.so"
 else
     library="libkoblas_basiclu.1.dylib"
-    "${CC:-cc}" -std=c99 -O3 -DNDEBUG -fPIC -dynamiclib -Wl,-install_name,@rpath/"$library" \
+    "${CC:-cc}" -std=c99 -O3 -DNDEBUG -fPIC -DCLOCK_MONOTONIC_RAW=CLOCK_MONOTONIC -dynamiclib -Wl,-install_name,@rpath/"$library" \
         -I"$source/include" "$source"/src/*.c "$root/koblas-basiclu/native/basiclu_shim.c" -lm \
         -o "$destination/$library"
     cp "$destination/$library" "$destination/libkoblas_basiclu.dylib"
 fi
-find "$destination" -maxdepth 1 -type f -printf '%f\n' | sort > "$destination/.libraries"
+find "$destination" -maxdepth 1 -type f -exec basename {} \; | sort > "$destination/.libraries"
 notices_init "$notices" "koblas-basiclu" "scripts/build-basiclu.sh"
 printf '\nBASICLU Copyright (c) 2016-2020 ERGO-Code\nUsed in Koblas under the MIT license.\n' >> "$notices"
 notices_append_file "$notices" "BASICLU $version — MIT" "BASICLU/LICENSE" "$source/LICENSE"
