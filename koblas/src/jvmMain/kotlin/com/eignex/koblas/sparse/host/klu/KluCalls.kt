@@ -58,8 +58,6 @@ internal class KluCalls(private val config: KluConfig) {
 
     private fun handlesOrThrow(): Handles = checkNotNull(handles) { "KLU 2 is not available" }
 
-    private fun MethodHandle.call(vararg arguments: Any?): Any? = invokeWithArguments(*arguments)
-
     fun factorize(a: Int, colPtr: IntArray, rowIdx: IntArray, values: DoubleArray, equilibrate: Boolean): KluFactor? {
         val h = handlesOrThrow()
         val arena = Arena.ofShared()
@@ -67,9 +65,9 @@ internal class KluCalls(private val config: KluConfig) {
         val symbolicHolder = arena.allocate(ADDRESS)
         val numericHolder = arena.allocate(ADDRESS)
         try {
-            check((h.defaults.call(common) as Int) != 0) { "klu_defaults failed" }
+            check((h.defaults.invokeExact(common) as Int) != 0) { "klu_defaults failed" }
             applyConfig(common, equilibrate)
-            val symbolic = h.analyze.call(
+            val symbolic = h.analyze.invokeExact(
                 a,
                 MemorySegment.ofArray(colPtr),
                 MemorySegment.ofArray(rowIdx),
@@ -81,7 +79,7 @@ internal class KluCalls(private val config: KluConfig) {
                 )
             }
             symbolicHolder.set(ADDRESS, 0, symbolic)
-            val numeric = h.factor.call(
+            val numeric = h.factor.invokeExact(
                 MemorySegment.ofArray(colPtr),
                 MemorySegment.ofArray(rowIdx),
                 MemorySegment.ofArray(values),
@@ -93,7 +91,7 @@ internal class KluCalls(private val config: KluConfig) {
                 error("klu_factor failed with status ${common.get(JAVA_INT, KLU_COMMON_STATUS)}")
             }
             numericHolder.set(ADDRESS, 0, numeric)
-            check((h.rcond.call(symbolic, numeric, common) as Int) != 0) { "klu_rcond failed" }
+            check((h.rcond.invokeExact(symbolic, numeric, common) as Int) != 0) { "klu_rcond failed" }
             return KluFactor(
                 a,
                 arena,
@@ -126,7 +124,7 @@ internal class KluCalls(private val config: KluConfig) {
     fun solve(factor: KluFactor, rhs: DoubleArray, transpose: Boolean) {
         val h = handlesOrThrow()
         val solve = if (transpose) h.transposedSolve else h.solve
-        val status = solve.call(
+        val status = solve.invokeExact(
             factor.symbolicHolder.get(ADDRESS, 0),
             factor.numericHolder.get(ADDRESS, 0),
             factor.n,
@@ -146,7 +144,7 @@ internal class KluCalls(private val config: KluConfig) {
     ): Boolean {
         val h = handlesOrThrow()
         applyConfig(factor.common, equilibrate)
-        val status = h.refactor.call(
+        val status = h.refactor.invokeExact(
             MemorySegment.ofArray(colPtr),
             MemorySegment.ofArray(rowIdx),
             MemorySegment.ofArray(values),
@@ -158,7 +156,7 @@ internal class KluCalls(private val config: KluConfig) {
         check(status != 0) { "klu_refactor failed with status ${factor.common.get(JAVA_INT, KLU_COMMON_STATUS)}" }
         check(
             (
-                h.rcond.call(
+                h.rcond.invokeExact(
                     factor.symbolicHolder.get(ADDRESS, 0),
                     factor.numericHolder.get(ADDRESS, 0),
                     factor.common,
@@ -176,14 +174,16 @@ internal class KluCalls(private val config: KluConfig) {
                 0,
             ).address() != 0L
         ) {
-            h.freeNumeric.call(factor.numericHolder, factor.common)
+            // The cast is the descriptor, not a use of the status: klu_free_numeric returns int, and
+            // without it Kotlin infers Unit here and emits a void call the handle will not accept.
+            h.freeNumeric.invokeExact(factor.numericHolder, factor.common) as Int
         }
         if (factor.symbolicHolder.get(
                 ADDRESS,
                 0,
             ).address() != 0L
         ) {
-            h.freeSymbolic.call(factor.symbolicHolder, factor.common)
+            h.freeSymbolic.invokeExact(factor.symbolicHolder, factor.common) as Int // as above
         }
     }
 }

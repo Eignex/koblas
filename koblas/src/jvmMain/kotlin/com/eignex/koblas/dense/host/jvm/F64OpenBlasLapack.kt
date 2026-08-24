@@ -30,7 +30,7 @@ public class F64OpenBlasLapack internal constructor(private val calls: HostBlasC
 
     override fun dgeqp3(m: Int, n: Int, a: DoubleArray, jpvt: IntArray, tau: DoubleArray): Int? {
         val dgeqp3 = calls.dgeqp3 ?: return null
-        return dgeqp3.invokeWithArguments(
+        return dgeqp3.invokeExact(
             COL_MAJOR,
             m,
             n,

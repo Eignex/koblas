@@ -18,8 +18,8 @@ import java.lang.foreign.ValueLayout.JAVA_INT
 import java.lang.invoke.MethodHandle
 
 /**
- * The LP64 CBLAS and LAPACKE subset, bound as downcalls that are invoked with `invokeWithArguments`, since
- * Kotlin cannot emit signature-polymorphic `invokeExact` and the native side would then read garbage.
+ * The LP64 CBLAS and LAPACKE subset, bound as downcalls and invoked with `invokeExact`, so an argument's
+ * Kotlin type has to match its layout exactly. See [com.eignex.koblas.internal.host.FfmLibrary].
  */
 internal class HostBlasCalls(internal val config: OpenBlasConfig) {
 
@@ -85,13 +85,13 @@ internal class HostBlasCalls(internal val config: OpenBlasConfig) {
         val count = config.threadCount ?: return
         // Not a critical downcall: setting the count starts OpenBLAS's threads, which one may not do.
         val setter = library.handleOrNull("openblas_set_num_threads", voidOf(JAVA_INT), critical = false) ?: return
-        setter.invokeWithArguments(count)
+        setter.invokeExact(count) as Unit
     }
 
     /** The library's openblas_get_config string, or empty when it does not offer one. */
     private fun configString(blas: FfmLibrary): String {
         val handle = blas.handleOrNull("openblas_get_config", pointerOf(), critical = false) ?: return ""
-        val text = handle.invokeWithArguments() as MemorySegment
+        val text = handle.invokeExact() as MemorySegment
         if (text.address() == 0L) return ""
         // The returned pointer carries no length, so it is re-sized before the string is read.
         return text.reinterpret(Long.MAX_VALUE).getString(0)

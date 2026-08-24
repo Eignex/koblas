@@ -24,19 +24,19 @@ public class F64OpenBlasVectorKernels internal constructor(
         java.lang.foreign.MemorySegment.ofArray(values).asSlice(offset.toLong() * Double.SIZE_BYTES)
 
     override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
-        if (len == 0) 0.0 else calls.ddot.invokeWithArguments(len, segment(a, aOff), 1, segment(b, bOff), 1) as Double
+        if (len == 0) 0.0 else calls.ddot.invokeExact(len, segment(a, aOff), 1, segment(b, bOff), 1) as Double
 
     override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
-        if (len != 0) calls.daxpy.invokeWithArguments(len, alpha, segment(x, xOff), 1, segment(y, yOff), 1)
+        if (len != 0) calls.daxpy.invokeExact(len, alpha, segment(x, xOff), 1, segment(y, yOff), 1) as Unit
     }
 
     override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
-        if (len != 0) calls.dscal.invokeWithArguments(len, alpha, segment(v, vOff), 1)
+        if (len != 0) calls.dscal.invokeExact(len, alpha, segment(v, vOff), 1) as Unit
     }
 
     override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double =
-        if (len == 0) 0.0 else calls.dnrm2.invokeWithArguments(len, segment(v, vOff), 1) as Double
+        if (len == 0) 0.0 else calls.dnrm2.invokeExact(len, segment(v, vOff), 1) as Double
 
     override fun asum(v: DoubleArray, vOff: Int, len: Int): Double =
-        if (len == 0) 0.0 else calls.dasum.invokeWithArguments(len, segment(v, vOff), 1) as Double
+        if (len == 0) 0.0 else calls.dasum.invokeExact(len, segment(v, vOff), 1) as Double
 }

@@ -20,8 +20,18 @@ import java.lang.invoke.MethodHandle
  * binding contributes only its prototypes. The native targets have `openNativeLibrary` for the same reason.
  *
  * Handles are bound with `Linker.Option.critical` by default, which lets a call read and write the Kotlin
- * arrays handed to it in place rather than copying them. Calls on the result use `invokeWithArguments`, since
- * Kotlin cannot emit signature-polymorphic `invokeExact` and the native side would then read garbage.
+ * arrays handed to it in place rather than copying them.
+ *
+ * Calls on the result use `invokeExact`, a signature-polymorphic call site: the descriptor lands in the
+ * bytecode, where `invokeWithArguments` would box every argument into a varargs array and pay a fixed cost
+ * per call that a short routine cannot amortise.
+ *
+ * The exactness is load-bearing. `invokeExact` converts nothing, so an argument whose Kotlin type does not
+ * match its layout throws `WrongMethodTypeException` where `invokeWithArguments` would have widened it
+ * silently. Two consequences for the call sites: a routine called for effect whose descriptor returns a
+ * value still needs the cast, since Kotlin infers `Unit` in statement position and emits a void descriptor
+ * that will not match; and a safe-call chain has to be resolved to a local first, because `as Unit?` is the
+ * boxed `Unit` rather than void.
  */
 public class FfmLibrary private constructor(
     private val linker: Linker?,
