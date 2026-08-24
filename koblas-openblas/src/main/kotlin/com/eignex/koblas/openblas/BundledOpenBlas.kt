@@ -6,9 +6,9 @@ import com.eignex.koblas.dense.F64Lapack
 import com.eignex.koblas.dense.F64LinearAlgebra
 import com.eignex.koblas.dense.F64VectorKernels
 import com.eignex.koblas.dense.host.cblas.OpenBlasConfig
-import com.eignex.koblas.hostblas.HostBackends
-import com.eignex.koblas.hostblas.HostBlas
-import com.eignex.koblas.hostblas.HostLapack
+import com.eignex.koblas.dense.host.jvm.F64OpenBlasBackends
+import com.eignex.koblas.dense.host.jvm.F64OpenBlasBlas
+import com.eignex.koblas.dense.host.jvm.F64OpenBlasLapack
 import com.eignex.koblas.internal.backend.BundledNativeResources
 import java.nio.file.Path
 
@@ -18,15 +18,17 @@ import java.nio.file.Path
  * Add `com.eignex:koblas-openblas` at runtime to make this provider discoverable. The provider uses the
  * same FFM calls as the host backend, constructed with its extracted absolute paths.
  */
-public class BundledOpenBlas private constructor(private val blas: HostBlas, private val lapack: HostLapack) :
-    F64LinearAlgebra,
+public class BundledOpenBlas private constructor(
+    private val blas: F64OpenBlasBlas,
+    private val lapack: F64OpenBlasLapack,
+) : F64LinearAlgebra,
     F64Blas by blas,
     F64Lapack by lapack {
 
     /** Extracts the matching Maven-native resources before the core FFM binding is initialized. */
     public constructor() : this(loadHostBackends())
 
-    private constructor(backends: HostBackends) : this(backends.blas, backends.lapack)
+    private constructor(backends: F64OpenBlasBackends) : this(backends.blas, backends.lapack)
 
     override val name: String get() = "openblas-bundled"
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 1
@@ -37,9 +39,9 @@ public class BundledOpenBlas private constructor(private val blas: HostBlas, pri
 
 internal data class OpenBlasPaths(val openblas: Path, val lapacke: Path?)
 
-private fun loadHostBackends(): HostBackends {
+private fun loadHostBackends(): F64OpenBlasBackends {
     val paths = OpenBlasResources.extract()
-    return HostBackends(OpenBlasConfig(paths.openblas.toString(), paths.lapacke?.toString()))
+    return F64OpenBlasBackends(OpenBlasConfig(paths.openblas.toString(), paths.lapacke?.toString()))
 }
 
 internal object OpenBlasResources {

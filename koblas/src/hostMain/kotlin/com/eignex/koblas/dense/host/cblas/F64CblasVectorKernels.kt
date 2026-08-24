@@ -1,11 +1,9 @@
 @file:OptIn(ExperimentalForeignApi::class)
 
-package com.eignex.koblas.cblas
+package com.eignex.koblas.dense.host.cblas
 
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.dense.F64VectorKernels
-import com.eignex.koblas.dense.host.cblas.OpenBlasConfig
-import com.eignex.koblas.dense.host.cblas.OpenBlasLoader
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.backend.openBlasDispatchThresholds
 import kotlinx.cinterop.ExperimentalForeignApi

@@ -1,4 +1,4 @@
-package com.eignex.koblas.hostblas
+package com.eignex.koblas.dense.host.jvm
 
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.dense.host.F64HostBlasAdapter
@@ -12,7 +12,7 @@ import com.eignex.koblas.internal.backend.openBlasDispatchThresholds
  * The host OpenBLAS through CBLAS, bound with `java.lang.foreign`. Every routine lives in
  * [F64HostBlasAdapter]; this supplies the JVM's entry points and the backend's identity.
  */
-public class HostBlas internal constructor(private val calls: HostBlasCalls) :
+public class F64OpenBlasBlas internal constructor(private val calls: HostBlasCalls) :
     F64HostBlasAdapter(
         JvmCblasCalls(calls),
         dispatch = openBlasDispatchThresholds(calls.config),

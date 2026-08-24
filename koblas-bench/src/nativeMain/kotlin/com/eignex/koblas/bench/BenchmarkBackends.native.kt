@@ -1,8 +1,8 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.cblas.F64CblasLinearAlgebra
-import com.eignex.koblas.cblas.F64CblasVectorKernels
 import com.eignex.koblas.dense.F64LinearAlgebra
+import com.eignex.koblas.dense.host.cblas.F64CblasLinearAlgebra
+import com.eignex.koblas.dense.host.cblas.F64CblasVectorKernels
 import com.eignex.koblas.installBackends
 import com.eignex.koblas.koblas
 

@@ -812,16 +812,16 @@ public final class com/eignex/koblas/dense/host/cblas/OpenBlasConfig {
 	public fun toString ()Ljava/lang/String;
 }
 
-public final class com/eignex/koblas/hostblas/HostBackends {
+public final class com/eignex/koblas/dense/host/jvm/F64OpenBlasBackends {
 	public fun <init> ()V
 	public fun <init> (Lcom/eignex/koblas/dense/host/cblas/OpenBlasConfig;)V
 	public synthetic fun <init> (Lcom/eignex/koblas/dense/host/cblas/OpenBlasConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun getBlas ()Lcom/eignex/koblas/hostblas/HostBlas;
-	public final fun getLapack ()Lcom/eignex/koblas/hostblas/HostLapack;
-	public final fun getVectorKernels ()Lcom/eignex/koblas/hostblas/HostVectorKernels;
+	public final fun getBlas ()Lcom/eignex/koblas/dense/host/jvm/F64OpenBlasBlas;
+	public final fun getLapack ()Lcom/eignex/koblas/dense/host/jvm/F64OpenBlasLapack;
+	public final fun getVectorKernels ()Lcom/eignex/koblas/dense/host/jvm/F64OpenBlasVectorKernels;
 }
 
-public final class com/eignex/koblas/hostblas/HostBlas : com/eignex/koblas/dense/host/F64HostBlasAdapter {
+public final class com/eignex/koblas/dense/host/jvm/F64OpenBlasBlas : com/eignex/koblas/dense/host/F64HostBlasAdapter {
 	public fun <init> (Lcom/eignex/koblas/dense/host/cblas/OpenBlasConfig;)V
 	public synthetic fun <init> (Lcom/eignex/koblas/dense/host/cblas/OpenBlasConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun getName ()Ljava/lang/String;
@@ -829,7 +829,7 @@ public final class com/eignex/koblas/hostblas/HostBlas : com/eignex/koblas/dense
 	public fun isAvailable ()Z
 }
 
-public final class com/eignex/koblas/hostblas/HostLapack : com/eignex/koblas/dense/host/F64HostLapackAdapter {
+public final class com/eignex/koblas/dense/host/jvm/F64OpenBlasLapack : com/eignex/koblas/dense/host/F64HostLapackAdapter {
 	public fun <init> (Lcom/eignex/koblas/dense/host/cblas/OpenBlasConfig;)V
 	public synthetic fun <init> (Lcom/eignex/koblas/dense/host/cblas/OpenBlasConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun getName ()Ljava/lang/String;
@@ -837,7 +837,7 @@ public final class com/eignex/koblas/hostblas/HostLapack : com/eignex/koblas/den
 	public fun isAvailable ()Z
 }
 
-public final class com/eignex/koblas/hostblas/HostVectorKernels : com/eignex/koblas/dense/F64VectorKernels {
+public final class com/eignex/koblas/dense/host/jvm/F64OpenBlasVectorKernels : com/eignex/koblas/dense/F64VectorKernels {
 	public fun <init> (Lcom/eignex/koblas/dense/host/cblas/OpenBlasConfig;)V
 	public synthetic fun <init> (Lcom/eignex/koblas/dense/host/cblas/OpenBlasConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun asum ([DII)D
@@ -852,14 +852,6 @@ public final class com/eignex/koblas/hostblas/HostVectorKernels : com/eignex/kob
 	public fun isPortable ()Z
 	public fun nrm2 ([DII)D
 	public fun scale ([DIDI)V
-}
-
-public final class com/eignex/koblas/hostsparse/HostSparseBackends {
-	public fun <init> ()V
-	public fun <init> (Lcom/eignex/koblas/sparse/host/klu/KluConfig;Lcom/eignex/koblas/sparse/host/umfpack/UmfpackConfig;)V
-	public synthetic fun <init> (Lcom/eignex/koblas/sparse/host/klu/KluConfig;Lcom/eignex/koblas/sparse/host/umfpack/UmfpackConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun getKlu ()Lcom/eignex/koblas/sparse/host/klu/KluSparseLu;
-	public final fun getUmfpack ()Lcom/eignex/koblas/sparse/host/umfpack/UmfpackSparseLu;
 }
 
 public final class com/eignex/koblas/internal/backend/BackendSlot : java/lang/Enum {
@@ -1077,6 +1069,14 @@ public final class com/eignex/koblas/sparse/factorization/lu/F64SparseLuFactoriz
 
 public final class com/eignex/koblas/sparse/factorization/lu/SparseLuEliminationKt {
 	public static final field NO_DROP D
+}
+
+public final class com/eignex/koblas/sparse/host/F64HostSparseBackends {
+	public fun <init> ()V
+	public fun <init> (Lcom/eignex/koblas/sparse/host/klu/KluConfig;Lcom/eignex/koblas/sparse/host/umfpack/UmfpackConfig;)V
+	public synthetic fun <init> (Lcom/eignex/koblas/sparse/host/klu/KluConfig;Lcom/eignex/koblas/sparse/host/umfpack/UmfpackConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getKlu ()Lcom/eignex/koblas/sparse/host/klu/KluSparseLu;
+	public final fun getUmfpack ()Lcom/eignex/koblas/sparse/host/umfpack/UmfpackSparseLu;
 }
 
 public abstract class com/eignex/koblas/sparse/host/F64HostSparseLuAdapter : com/eignex/koblas/sparse/F64SparseLu {

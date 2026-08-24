@@ -1,4 +1,4 @@
-package com.eignex.koblas.hostblas
+package com.eignex.koblas.dense.host.jvm
 
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.dense.F64VectorKernels
@@ -7,8 +7,8 @@ import com.eignex.koblas.dense.host.jvm.HostBlasCalls
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.backend.openBlasDispatchThresholds
 
-/** The level-1 CBLAS routines from the OpenBLAS instance shared with [HostBlas]. */
-public class HostVectorKernels internal constructor(
+/** The level-1 CBLAS routines from the OpenBLAS instance shared with [F64OpenBlasBlas]. */
+public class F64OpenBlasVectorKernels internal constructor(
     private val calls: HostBlasCalls,
     /** Policy for this level-1 backend instance. */
     public val config: OpenBlasConfig,
@@ -39,17 +39,4 @@ public class HostVectorKernels internal constructor(
 
     override fun asum(v: DoubleArray, vOff: Int, len: Int): Double =
         if (len == 0) 0.0 else calls.dasum.invokeWithArguments(len, segment(v, vOff), 1) as Double
-
-    override fun dot4(
-        a: DoubleArray,
-        aOff: Int,
-        stride: Int,
-        b: DoubleArray,
-        bOff: Int,
-        len: Int,
-        out: DoubleArray,
-        outOff: Int,
-    ) {
-        repeat(4) { i -> out[outOff + i] = dot(a, aOff + i * stride, b, bOff, len) }
-    }
 }
