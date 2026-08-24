@@ -2,6 +2,7 @@ package com.eignex.koblas.sparse.host.umfpack
 
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.assertAliasedDestinationSolves
 import com.eignex.koblas.sparse.assertControlArrayKeepsUmfpackDefaults
 import com.eignex.koblas.sparse.assertFactorizeGateFallsBackToReference
@@ -16,9 +17,12 @@ import com.eignex.koblas.sparse.sparseConformanceSystem
 import com.eignex.koblas.testutil.host.HostLibraryTest
 import org.junit.Assume
 import org.junit.experimental.categories.Category
+import java.lang.ref.PhantomReference
+import java.lang.ref.ReferenceQueue
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 @Category(HostLibraryTest::class)
 class UmfpackConformanceTest {
@@ -103,10 +107,10 @@ class UmfpackConformanceTest {
 
     /**
      * The factorization reaches its native factors through a raw address, and the cleaner that frees them
-     * captures the handles rather than the factorization, so nothing the call itself holds keeps the
-     * factorization reachable. Each iteration here uses one as a temporary whose last use is the receiver
-     * of the solve, which is the shape a missing reachability fence would lose, and allocates between
-     * solves so collection actually runs.
+     * holds the handles alone, so nothing the call itself holds keeps the factorization reachable. Each
+     * iteration here uses one as a temporary whose last use is the receiver of the solve, which is the
+     * shape a missing reachability fence would lose, and allocates between solves so collection actually
+     * runs.
      */
     @Test
     fun `a factorization used as a temporary survives collection during its own solve`() {
@@ -124,5 +128,40 @@ class UmfpackConformanceTest {
             )
             if (round % 10 == 0) System.gc()
         }
+    }
+
+    /** A dropped factorization, watched through a queue so the caller's frame keeps no reference to it. */
+    private fun watchDropped(a: F64SparseMatrix, queue: ReferenceQueue<Any>): PhantomReference<Any> =
+        PhantomReference(umfpack.factor(a), queue)
+
+    /**
+     * The cleaner frees UMFPACK's factors, and only reaching them once the factorization is unreachable
+     * does that. A free built from a member of the factorization captures it instead, which keeps it
+     * strongly reachable from the cleaner and leaks every factorization for the life of the process.
+     * Nothing observes the leak, so this watches for the collection the free waits on.
+     */
+    @Test
+    @Suppress("ExplicitGarbageCollectionCall") // a reachability test has to provoke the collection it watches
+    fun `a dropped factorization becomes unreachable so its factors can be freed`() {
+        requireSuiteSparse()
+        val queue = ReferenceQueue<Any>()
+        val watch = watchDropped(sparseConformanceSystem(8, Random(20260824)), queue)
+        // A collection is a request, not an instruction, and the reference is enqueued by another thread
+        // afterwards, so this asks more than once and waits on the queue instead of polling it.
+        var collected = false
+        for (attempt in 0 until 5) {
+            System.gc()
+            if (queue.remove(ENQUEUE_WAIT_MILLIS) != null) {
+                collected = true
+                break
+            }
+        }
+        watch.clear()
+        assertTrue(collected, "a dropped factorization must become unreachable or its native factors never free")
+    }
+
+    private companion object {
+        /** How long one attempt waits for the reference handler, five of which bound the test. */
+        const val ENQUEUE_WAIT_MILLIS = 100L
     }
 }

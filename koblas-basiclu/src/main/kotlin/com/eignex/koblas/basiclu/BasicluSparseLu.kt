@@ -58,8 +58,17 @@ private open class BasicluFactorization(
     protected val calls: BasicluCalls,
 ) : F64SparseFactorization {
     init {
-        val held = handle
-        nativeCleaner.register(this) { calls.free(held) }
+        nativeCleaner.register(this, Release(calls, handle))
+    }
+
+    /**
+     * The free, over the native state alone. A lambda would read `calls` through the factorization and so
+     * capture it, which keeps it strongly reachable from the cleaner and means the free never runs.
+     */
+    private class Release(private val calls: BasicluCalls, private val handle: BasicluHandle) : Runnable {
+        override fun run() {
+            calls.free(handle)
+        }
     }
 
     override val failedAt: Int get() = NOT_SINGULAR

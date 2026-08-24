@@ -25,18 +25,21 @@ public class UmfpackFactorization internal constructor(
     private val control: MemorySegment?,
 ) : F64SparseFactorization {
 
-    /**
-     * The arena and the `void **Numeric` holder, split out so the cleanup lambda captures them and not the
-     * factorization, which it would otherwise keep reachable forever.
-     */
+    /** The arena and the `void **Numeric` holder, which outlive the factorization by one cleanup. */
     internal class Handles(val arena: Arena, val numericHolder: MemorySegment)
 
     init {
-        val arena = handles.arena
-        val holder = handles.numericHolder
-        nativeCleaner.register(this) {
-            calls.freeNumeric(holder)
-            arena.close()
+        nativeCleaner.register(this, Release(calls, handles))
+    }
+
+    /**
+     * The free, over the native state alone. A lambda would read [calls] through the factorization and so
+     * capture it, which keeps it strongly reachable from the cleaner and means the free never runs.
+     */
+    private class Release(private val calls: UmfpackCalls, private val handles: Handles) : Runnable {
+        override fun run() {
+            calls.freeNumeric(handles.numericHolder)
+            handles.arena.close()
         }
     }
 

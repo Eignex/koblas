@@ -20,10 +20,17 @@ public class KluFactorization internal constructor(
     override var failedAt: Int = initialFailedAt
         private set
     init {
-        val heldFactor = factor
-        nativeCleaner.register(this) {
-            calls.free(heldFactor)
-            heldFactor.arena.close()
+        nativeCleaner.register(this, Release(calls, factor))
+    }
+
+    /**
+     * The free, over the native state alone. A lambda would read [calls] through the factorization and so
+     * capture it, which keeps it strongly reachable from the cleaner and means the free never runs.
+     */
+    private class Release(private val calls: KluCalls, private val factor: KluFactor) : Runnable {
+        override fun run() {
+            calls.free(factor)
+            factor.arena.close()
         }
     }
 
