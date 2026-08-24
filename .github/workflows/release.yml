@@ -1,9 +1,14 @@
 name: release
 
 on:
-  push:
+  workflow_run:
+    workflows:
+      - build
+    types:
+      - completed
     branches:
       - main
+  push:
     tags:
       - 'v*'
   workflow_dispatch:
@@ -23,6 +28,7 @@ concurrency:
 
 jobs:
   build-native-resources:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     name: Build bundled native resources for ${{ matrix.platform }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
@@ -39,6 +45,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - uses: actions/setup-java@v5
         with:
@@ -159,12 +167,14 @@ jobs:
           if-no-files-found: error
 
   publish:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     needs: build-native-resources
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
         with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           # Tags are needed to derive the next snapshot version on a main push.
           fetch-depth: 0
 
