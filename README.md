@@ -24,13 +24,12 @@ SuiteSparse KLU, or SuiteSparse UMFPACK acceleration.
 | Module | Purpose |
 |--------|---------|
 | koblas | Core API and portable backend. |
-| koblas-openblas* | Optional JVM bundle of OpenBLAS/LAPACKE for Linux x64/arm64 and macOS arm64. |
-| koblas-umfpack* | Optional JVM bundle of SuiteSparse UMFPACK (GPL-2.0-or-later); includes koblas-openblas. |
-| koblas-klu* | Optional JVM bundle of SuiteSparse KLU (LGPL-2.1-or-later). |
-| koblas-basiclu* | Optional JVM bundle of BASICLU for sparse simplex-basis factorization and updates (MIT). |
+| koblas-openblas | Optional JVM bundle of OpenBLAS/LAPACKE for Linux x64/arm64 and macOS arm64. |
+| koblas-umfpack | Optional JVM bundle of SuiteSparse UMFPACK (GPL-2.0-or-later); includes koblas-openblas. |
+| koblas-klu | Optional JVM bundle of SuiteSparse KLU (LGPL-2.1-or-later). |
+| koblas-basiclu | Optional JVM bundle of BASICLU for sparse simplex-basis factorization and updates (MIT). |
 
-* Each optional hosted module includes a generated `THIRD-PARTY-NOTICES.txt` with
-  the applicable native-library licenses and required notices.
+All optional hosted modules have a bunch of different licenses in addition to Apache 2.0, see it's generated `THIRD-PARTY-NOTICES.txt` for specifics.
 
 ```kotlin
 implementation("com.eignex:koblas:<version>")
