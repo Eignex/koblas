@@ -20,7 +20,6 @@ class Level3Benchmark {
     private lateinit var b: F64DenseMatrix
     private lateinit var c: F64DenseMatrix
 
-    /** Symmetric and triangular operands, plus a destination the triangular routines overwrite. */
     private lateinit var sym: F64DenseMatrix
     private lateinit var triangular: F64DenseMatrix
     private lateinit var rhs: F64DenseMatrix
@@ -52,7 +51,6 @@ class Level3Benchmark {
         return c
     }
 
-    /** Rank-2k, two dots per entry over operands transposed into scratch, and no workspace to lend it. */
     @Benchmark
     fun syr2k(): F64DenseMatrix {
         koblas.syr2k(1.0, a, b, transpose = false, beta = 0.0, c = c, uplo = Uplo.LOWER)
@@ -71,7 +69,6 @@ class Level3Benchmark {
         return c
     }
 
-    /** Triangular solve with many right-hand sides, the blocked path a host library wins on. */
     @Benchmark
     fun trsm(): F64DenseMatrix {
         b.data.copyInto(rhs.data)
@@ -86,7 +83,6 @@ class Level3Benchmark {
         return rhs
     }
 
-    /** The right-side form, which the portable path serves one row at a time rather than one column. */
     @Benchmark
     fun trsmRight(): F64DenseMatrix {
         b.data.copyInto(rhs.data)

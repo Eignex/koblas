@@ -7,19 +7,9 @@ import com.eignex.koblas.sparse.F64SparseLu
 import com.eignex.koblas.sparse.host.umfpack.UmfpackConfig
 import com.eignex.koblas.sparse.host.umfpack.UmfpackSparseLu
 
-/**
- * SuiteSparse UMFPACK extracted from Maven-native resources on the application's classpath.
- *
- * Add `com.eignex:koblas-umfpack` at runtime to discover this optional sparse backend. Bundled native
- * component licenses are listed in `THIRD-PARTY-NOTICES.txt`.
- */
+/** SuiteSparse UMFPACK backend bundled in Maven-native resources. */
 public class BundledUmfpack private constructor(private val delegate: UmfpackSparseLu) : F64SparseLu by delegate {
-    /**
-     * Extracts the matching Maven-native resources before the core FFM binding is initialized.
-     *
-     * @param factorizeMin stored entries from which this binding factorizes natively, or null for the
-     *   platform default.
-     */
+    /** Creates a UMFPACK backend from bundled native resources. */
     public constructor(factorizeMin: Int? = null) : this(loadUmfpack(factorizeMin))
 
     override val name: String get() = "umfpack-bundled"
@@ -27,8 +17,6 @@ public class BundledUmfpack private constructor(private val delegate: UmfpackSpa
 }
 
 private fun loadUmfpack(factorizeMin: Int?): UmfpackSparseLu {
-    // UMFPACK links to BLAS. Loading the transitive single OpenBLAS bundle first makes its SONAME available
-    // to the dynamic loader without making a system installation part of this optional artifact's contract.
     check(BundledOpenBlas().isAvailable) { "the bundled OpenBLAS dependency could not be loaded" }
     return UmfpackSparseLu(
         UmfpackConfig(libraryPath = umfpackLibrary.extract().toString(), factorizeMin = factorizeMin),

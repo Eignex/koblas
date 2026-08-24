@@ -6,14 +6,9 @@ import com.eignex.koblas.sparse.F64SparseLu
 import com.eignex.koblas.sparse.host.klu.KluConfig
 import com.eignex.koblas.sparse.host.klu.KluSparseLu
 
-/** KLU 2 bundle extracted from Maven-native resources on the application's classpath. */
+/** KLU backend bundled in Maven-native resources. */
 public class BundledKlu private constructor(private val delegate: KluSparseLu) : F64SparseLu by delegate {
-    /**
-     * Extracts the matching Maven-native resources before the core FFM binding is initialized.
-     *
-     * @param factorizeMin stored entries from which this binding factorizes natively, or null for the
-     *   platform default.
-     */
+    /** Creates a KLU backend from bundled native resources. */
     public constructor(factorizeMin: Int? = null) : this(loadKlu(factorizeMin))
 
     override val name: String get() = "klu-bundled"
