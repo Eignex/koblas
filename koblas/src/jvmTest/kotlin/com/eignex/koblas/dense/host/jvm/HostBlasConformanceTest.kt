@@ -157,7 +157,7 @@ class HostBlasConformanceTest {
         assertRcondAgreesWithReference(host, intArrayOf(64, 96))
         assertLdlBlockSolveAgreesWithReference(host, n = 96, nrhs = 4)
         assertLdlFactorsInterchange(host, intArrayOf(64, 96))
-        assertQrFactorsInterchange(host, listOf(96 to 96, 128 to 64))
+        assertQrFactorsInterchange(host, listOf(96 to 96, 128 to 64, 512 to 16))
     }
 
     /** The same properties at sizes under the gate, where the portable fallback answers instead. */
