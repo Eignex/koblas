@@ -26,6 +26,18 @@ public interface F64SparseLu : Backend {
     ): F64SparseFactorization
 
     /**
+     * Factor [a], reusing compatible state from [previous] when this backend can. The returned
+     * factorization supersedes [previous], which must not be solved after this call. Backends that cannot
+     * reuse it answer as [factor] would.
+     */
+    public fun refactor(
+        previous: F64SparseFactorization,
+        a: F64SparseMatrix,
+        equilibrate: Boolean = false,
+        dropTolerance: Double = NO_DROP,
+    ): F64SparseFactorization = factor(a, equilibrate, dropTolerance)
+
+    /**
      * Solve `A·x = b` from [f] into [out], `Aᵀ·x = b` when [transpose]. The work belongs to the
      * factorization; this is here so the seam reads the same from the sparse side as [com.eignex.koblas
      * .dense.F64Lapack.solveInto] does from the dense one.

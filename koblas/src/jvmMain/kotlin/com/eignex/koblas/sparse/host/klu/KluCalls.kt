@@ -21,6 +21,7 @@ internal class KluCalls(private val config: KluConfig) {
         val defaults: MethodHandle,
         val analyze: MethodHandle,
         val factor: MethodHandle,
+        val refactor: MethodHandle,
         val rcond: MethodHandle,
         val solve: MethodHandle,
         val transposedSolve: MethodHandle,
@@ -63,6 +64,7 @@ internal class KluCalls(private val config: KluConfig) {
             defaults = bind("klu_defaults", JAVA_INT, ADDRESS),
             analyze = bind("klu_analyze", ADDRESS, JAVA_INT, ADDRESS, ADDRESS, ADDRESS),
             factor = bind("klu_factor", ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
+            refactor = bind("klu_refactor", JAVA_INT, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
             rcond = bind("klu_rcond", JAVA_INT, ADDRESS, ADDRESS, ADDRESS),
             solve = bind("klu_solve", JAVA_INT, ADDRESS, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS),
             transposedSolve = bind("klu_tsolve", JAVA_INT, ADDRESS, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS),
@@ -118,9 +120,11 @@ internal class KluCalls(private val config: KluConfig) {
                 symbolicHolder,
                 numericHolder,
                 common.get(JAVA_DOUBLE, KLU_COMMON_RCOND),
+                colPtr.copyOf(),
+                rowIdx.copyOf(),
             )
         } catch (@Suppress("TooGenericExceptionCaught") t: Throwable) {
-            free(KluFactor(a, arena, common, symbolicHolder, numericHolder, 0.0))
+            free(KluFactor(a, arena, common, symbolicHolder, numericHolder, 0.0, colPtr.copyOf(), rowIdx.copyOf()))
             throw t
         }
     }
@@ -152,6 +156,38 @@ internal class KluCalls(private val config: KluConfig) {
         check(status != 0) { "KLU solve failed with status ${factor.common.get(JAVA_INT, KLU_COMMON_STATUS)}" }
     }
 
+    fun refactor(
+        factor: KluFactor,
+        colPtr: IntArray,
+        rowIdx: IntArray,
+        values: DoubleArray,
+        equilibrate: Boolean,
+    ): Boolean {
+        val h = handlesOrThrow()
+        applyConfig(factor.common, equilibrate)
+        val status = h.refactor.call(
+            MemorySegment.ofArray(colPtr),
+            MemorySegment.ofArray(rowIdx),
+            MemorySegment.ofArray(values),
+            factor.symbolicHolder.get(ADDRESS, 0),
+            factor.numericHolder.get(ADDRESS, 0),
+            factor.common,
+        ) as Int
+        if (factor.common.get(JAVA_INT, KLU_COMMON_STATUS) == KLU_SINGULAR) return false
+        check(status != 0) { "klu_refactor failed with status ${factor.common.get(JAVA_INT, KLU_COMMON_STATUS)}" }
+        check(
+            (
+                h.rcond.call(
+                    factor.symbolicHolder.get(ADDRESS, 0),
+                    factor.numericHolder.get(ADDRESS, 0),
+                    factor.common,
+                ) as Int
+                ) != 0,
+        ) { "klu_rcond failed" }
+        factor.rcond = factor.common.get(JAVA_DOUBLE, KLU_COMMON_RCOND)
+        return true
+    }
+
     fun free(factor: KluFactor) {
         val h = handles ?: return
         if (factor.numericHolder.get(
@@ -177,7 +213,9 @@ internal class KluFactor(
     val common: MemorySegment,
     val symbolicHolder: MemorySegment,
     val numericHolder: MemorySegment,
-    val rcond: Double,
+    var rcond: Double,
+    val colPtr: IntArray,
+    val rowIdx: IntArray,
 ) {
     val numeric: MemorySegment get() = numericHolder.get(ADDRESS, 0).reinterpret(KLU_NUMERIC_BYTES)
 
