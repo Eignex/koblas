@@ -45,7 +45,7 @@ Read `koblas-bench/README.md` before benchmarking. In short:
 - Dense storage is column-major, entry `(i, j)` at `i + j * rows`. Sparse is CSC with rows strictly
   ascending within a column, which the constructors validate rather than repair.
 - The portable reference is the semantic definition. A host binding gates on a measured threshold and falls
-  back to it, so every routine agrees with it to within rounding.
+  back to it.
 - Backends register per half into a seam keeping the strongest offer, ties to whoever registered first.
   Registration is compare-and-set, so any thread may register; `installBackends` still wants startup.
 - An `*Into` destination may alias its input, and that test is on the backing buffer, not the wrapper.
