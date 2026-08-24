@@ -239,6 +239,14 @@ class TriangularTest {
     }
 
     @Test
+    fun `trsv divides by a zero diagonal instead of reporting it`() {
+        val singular = F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 0.0), doubleArrayOf(3.0, 0.0)))
+        val x = doubleArrayOf(1.0, 1.0)
+        trsv(singular, x, lower = true)
+        assertTrue(!x[1].isFinite(), "expected a non-finite entry from the zero pivot, got ${x[1]}")
+    }
+
+    @Test
     fun `trsv and trsm validate shapes`() {
         assertFailsWith<IllegalArgumentException> { trsv(F64DenseMatrix(2, 3), DoubleArray(2), lower = true) }
         assertFailsWith<IllegalArgumentException> { trsv(F64DenseMatrix(3, 3), DoubleArray(2), lower = true) }
