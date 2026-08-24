@@ -4,14 +4,7 @@ import com.eignex.koblas.dense.F64RoutedVectorKernels
 import com.eignex.koblas.internal.backend.BackendSlot
 
 /** The backend installed in [slot]. */
-public fun F64Context.backendFor(slot: BackendSlot): Backend = when (slot) {
-    BackendSlot.F64VectorKernels -> vectorKernels
-    BackendSlot.F64Blas -> blas
-    BackendSlot.F64Lapack -> lapack
-    BackendSlot.F64SparseVectorKernels -> sparseVectorKernels
-    BackendSlot.F64SparseBlas -> sparseBlas
-    BackendSlot.F64SparseLu -> sparseLu
-}
+public fun F64Context.backendFor(slot: BackendSlot): Backend = slot.from(this)
 
 /** Whether [slot] is filled by something other than koblas's own portable implementation. */
 public fun F64Context.isAccelerated(slot: BackendSlot): Boolean = when (val backend = backendFor(slot)) {

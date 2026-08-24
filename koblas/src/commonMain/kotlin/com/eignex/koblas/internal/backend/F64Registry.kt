@@ -33,6 +33,38 @@ internal class F64Registry {
     private val sparseBlasSeam = Seam<F64SparseBlas>(::recompose)
     private val sparseLuSeam = Seam<F64SparseLu>(::recompose)
 
+    /**
+     * One seam paired with the cast that recognises its half. The cast is written out rather than reflected,
+     * since [BackendSlot] names an interface and only the compiler can turn that name into a type test.
+     */
+    private class Half<T : Backend>(val seam: Seam<T>, private val cast: (Backend) -> T?) {
+        /** Offers [backend] to this seam if it implements this half, and reports whether it did. */
+        fun offer(backend: Backend, explicit: Boolean): Boolean {
+            val half = cast(backend) ?: return false
+            seam.register(half, explicit)
+            return true
+        }
+    }
+
+    /**
+     * Every half this registry has a seam for, by slot. Keyed rather than listed so a [BackendSlot] added
+     * without a seam beside it fails here, at construction, rather than by registering nothing at all.
+     */
+    private val halves: Map<BackendSlot, Half<*>> = mapOf(
+        BackendSlot.F64VectorKernels to Half(vectorKernelSeam) { it as? F64VectorKernels },
+        BackendSlot.F64Blas to Half(blasSeam) { it as? F64Blas },
+        BackendSlot.F64Lapack to Half(lapackSeam) { it as? F64Lapack },
+        BackendSlot.F64SparseVectorKernels to Half(sparseVectorKernelSeam) { it as? F64SparseVectorKernels },
+        BackendSlot.F64SparseBlas to Half(sparseBlasSeam) { it as? F64SparseBlas },
+        BackendSlot.F64SparseLu to Half(sparseLuSeam) { it as? F64SparseLu },
+    )
+
+    init {
+        check(halves.keys == BackendSlot.entries.toSet()) {
+            "every BackendSlot needs a seam: ${BackendSlot.entries - halves.keys} have none"
+        }
+    }
+
     @Volatile
     private var installed: F64Context? = null
 
@@ -73,43 +105,16 @@ internal class F64Registry {
      * seam for.
      */
     fun offer(backend: Backend, explicit: Boolean): Boolean {
-        var offered = false
-        if (backend is F64VectorKernels) {
-            vectorKernelSeam.register(backend, explicit)
-            offered = true
-        }
-        if (backend is F64Blas) {
-            blasSeam.register(backend, explicit)
-            offered = true
-        }
-        if (backend is F64Lapack) {
-            lapackSeam.register(backend, explicit)
-            offered = true
-        }
-        if (backend is F64SparseVectorKernels) {
-            sparseVectorKernelSeam.register(backend, explicit)
-            offered = true
-        }
-        if (backend is F64SparseBlas) {
-            sparseBlasSeam.register(backend, explicit)
-            offered = true
-        }
-        if (backend is F64SparseLu) {
-            sparseLuSeam.register(backend, explicit)
-            offered = true
-        }
-        return offered
+        // Counted rather than short-circuited: an object implementing several halves is offered to all of them.
+        var offered = 0
+        for (half in halves.values) if (half.offer(backend, explicit)) offered++
+        return offered > 0
     }
 
     /** Clears the override and every registration, leaving the portable fallbacks. */
     fun reset() {
         installed = null
-        vectorKernelSeam.reset()
-        blasSeam.reset()
-        lapackSeam.reset()
-        sparseVectorKernelSeam.reset()
-        sparseBlasSeam.reset()
-        sparseLuSeam.reset()
+        halves.values.forEach { it.seam.reset() }
     }
 
     /** Builds a context from the currently registered halves, falling back to the portable reference. */
@@ -124,11 +129,5 @@ internal class F64Registry {
 
     private fun recompose() {
         changes.incrementAndFetch()
-    }
-
-    companion object {
-        /** The halves this registry has seams for, used in diagnostics when nothing matched. */
-        const val HALF_NAMES: String = "F64VectorKernels, F64Blas, F64Lapack, F64SparseVectorKernels, " +
-            "F64SparseBlas or F64SparseLu"
     }
 }
