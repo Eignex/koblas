@@ -116,8 +116,16 @@ public interface F64Blas : Backend {
         uplo: Uplo = Uplo.FULL,
     )
 
-    /** Solve `op(T) · x = b` in place (BLAS `dtrsv`) for the [lower] or upper triangle of the square [a],
-     *  `op` transposing when [transpose] and [unitDiag] taking the diagonal as 1. [x] carries b in and x out. */
+    /**
+     * Solve `op(T) · x = b` in place (BLAS `dtrsv`) for the [lower] or upper triangle of the square [a],
+     * `op` transposing when [transpose] and [unitDiag] taking the diagonal as 1. [x] carries b in and x out.
+     *
+     * The diagonal is divided by, not tested: `dtrsv` carries no `info` and reports nothing, so a singular
+     * triangle yields infinities or NaNs and the caller who needs the distinction tests the diagonal first.
+     * That is the convention rather than a cost, and [trtri] shows it: having an `info` to return, it throws
+     * on a zero diagonal. The sparse [com.eignex.koblas.sparse.F64SparseBlas.trsv] throws too, having no
+     * BLAS routine whose silence it has to match.
+     */
     public fun trsv(
         a: F64DenseMatrix,
         x: DoubleArray,
