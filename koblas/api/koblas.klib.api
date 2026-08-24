@@ -162,6 +162,13 @@ abstract interface com.eignex.koblas.dense/F64VectorKernels : com.eignex.koblas/
     open fun dot4(kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/DoubleArray, kotlin/Int) // com.eignex.koblas.dense/F64VectorKernels.dot4|dot4(kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.DoubleArray;kotlin.Int){}[0]
 }
 
+abstract interface com.eignex.koblas.sparse/F64BasisFactorization : com.eignex.koblas.sparse/F64SparseFactorization { // com.eignex.koblas.sparse/F64BasisFactorization|null[0]
+    abstract val basis // com.eignex.koblas.sparse/F64BasisFactorization.basis|{}basis[0]
+        abstract fun <get-basis>(): com.eignex.koblas.core/F64SparseMatrix // com.eignex.koblas.sparse/F64BasisFactorization.basis.<get-basis>|<get-basis>(){}[0]
+
+    abstract fun replaceColumn(kotlin/Int, com.eignex.koblas.core/F64SparseVector): com.eignex.koblas.sparse/F64BasisFactorization // com.eignex.koblas.sparse/F64BasisFactorization.replaceColumn|replaceColumn(kotlin.Int;com.eignex.koblas.core.F64SparseVector){}[0]
+}
+
 abstract interface com.eignex.koblas.sparse/F64SparseBlas : com.eignex.koblas/Backend { // com.eignex.koblas.sparse/F64SparseBlas|null[0]
     abstract fun gemv(kotlin/Double, com.eignex.koblas.core/F64SparseMatrix, kotlin/DoubleArray, kotlin/Double, kotlin/DoubleArray, kotlin/Boolean = ...) // com.eignex.koblas.sparse/F64SparseBlas.gemv|gemv(kotlin.Double;com.eignex.koblas.core.F64SparseMatrix;kotlin.DoubleArray;kotlin.Double;kotlin.DoubleArray;kotlin.Boolean){}[0]
     abstract fun trsv(com.eignex.koblas.core/F64SparseMatrix, kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean = ..., kotlin/Boolean = ...) // com.eignex.koblas.sparse/F64SparseBlas.trsv|trsv(com.eignex.koblas.core.F64SparseMatrix;kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]

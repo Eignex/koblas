@@ -13,6 +13,8 @@ mirror the dense ones.
 - [F64SparseLu] — general sparse LU factorization. [F64SparseLu.factor] returns
   [F64SparseFactorization], never null: a singular matrix yields a factorization reporting `singular`, matching
   the dense contract. Its factors support both ordinary and transposed solves.
+- [F64BasisFactorization] — a sparse LU factorization of a simplex basis. It retains the basis matrix and
+  can produce the factorization after one column replacement.
 - [F64SparseLinearAlgebra] pairs the matrix seams and exposes the sparse-vector kernels alongside them.
   Backends may implement either matrix half; [com.eignex.koblas.registerBackend] ranks each independently,
   while [com.eignex.koblas.installBackends] supplies all three through [com.eignex.koblas.koblas].
