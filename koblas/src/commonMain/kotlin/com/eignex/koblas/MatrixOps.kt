@@ -2,183 +2,21 @@
 
 package com.eignex.koblas
 
-import com.eignex.koblas.core.*
+import com.eignex.koblas.core.F64DenseMatrix
+import com.eignex.koblas.core.F64DenseVector
+import com.eignex.koblas.core.F64MatrixLike
+import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.core.F64VectorLike
 import com.eignex.koblas.dense.F64Blas
 import com.eignex.koblas.dense.F64LinearAlgebra
 import com.eignex.koblas.dense.Uplo
 import com.eignex.koblas.internal.numeric.euclideanNorm
-import com.eignex.koblas.sparse.F64SparseVectorKernels
 import kotlin.math.abs
-import kotlin.math.sqrt
 
-/**
- * Visit each stored entry as (index, value), in ascending index order for any storage. A [F64SparseVector]
- * may present numerical zeros as stored, and any other [F64VectorLike] has every index visited.
+/*
+ * The matrix operations that are not a backend half: rank updates, norms, row and column extraction, the
+ * transposes and the generic matrix-vector product. The level-1 ones are in VectorOps.kt.
  */
-public inline fun F64VectorLike.forEachStored(block: (i: Int, v: Double) -> Unit) {
-    when (this) {
-        is F64DenseVector -> {
-            val d = data
-            for (i in 0 until d.size) block(i, d[i])
-        }
-
-        is F64SparseVector -> {
-            val idx = indices
-            val vals = values
-            for (k in idx.indices) block(idx[k], vals[k])
-        }
-
-        else -> for (i in 0 until size) block(i, this[i])
-    }
-}
-
-/** `aT * b`. Any sparse operand goes through [F64SparseVectorKernels], walking the stored entries only. */
-public infix fun F64VectorLike.dot(other: F64VectorLike): Double {
-    requireSameSize(size, other.size)
-    if (this is F64DenseVector && other is F64DenseVector) {
-        return koblas.vectorKernels.dot(data, 0, other.data, 0, size)
-    }
-    if (this is F64SparseVector && other is F64SparseVector) return koblas.sparseVectorKernels.dot(this, other)
-    if (this is F64SparseVector && other is F64DenseVector) return koblas.sparseVectorKernels.dot(this, other.data)
-    if (this is F64DenseVector && other is F64SparseVector) return koblas.sparseVectorKernels.dot(other, data)
-    var s = 0.0
-    for (i in 0 until size) s += this[i] * other[i]
-    return s
-}
-
-/**
- * Euclidean norm (BLAS `dnrm2`). Rescales when the sum of squares would overflow or underflow, so any
- * finite input gives the correct norm.
- */
-public fun F64VectorLike.norm2(): Double = when (this) {
-    is F64DenseVector -> koblas.vectorKernels.nrm2(data, 0, size)
-    is F64SparseVector -> koblas.sparseVectorKernels.nrm2(this)
-    else -> euclideanNorm(toDoubleArray(), 0, size)
-}
-
-/** Sum of absolute values (BLAS `dasum`). Sparse vectors sum over stored entries only. */
-public fun F64VectorLike.asum(): Double = when (this) {
-    is F64DenseVector -> koblas.vectorKernels.asum(data, 0, size)
-
-    is F64SparseVector -> koblas.sparseVectorKernels.asum(this)
-
-    else -> {
-        var s = 0.0
-        forEachStored { _, x -> s += abs(x) }
-        s
-    }
-}
-
-/**
- * Index of the entry with maximal absolute value (BLAS `idamax`), -1 for a zero-length vector.
- * Ties resolve to the lowest index, and a vector with no stored entries returns 0.
- */
-public fun F64VectorLike.iamax(): Int {
-    if (size == 0) return -1
-    var best = -1
-    var bestAbs = 0.0
-    forEachStored { i, x ->
-        val a = abs(x)
-        if (a > bestAbs) {
-            bestAbs = a
-            best = i
-        }
-    }
-    return if (best == -1) 0 else best
-}
-
-/** `dst = src` (BLAS `dcopy`). A sparse source zero-fills the destination first, so nothing survives. */
-public fun copy(src: F64VectorLike, dst: F64DenseVector) {
-    requireSameSize(src.size, dst.size)
-    when (src) {
-        is F64DenseVector -> src.data.copyInto(dst.data)
-
-        is F64SparseVector -> {
-            dst.data.fill(0.0)
-            koblas.sparseVectorKernels.scatter(src, dst.data)
-        }
-
-        else -> {
-            dst.data.fill(0.0)
-            src.forEachStored { i, v -> dst.data[i] = v }
-        }
-    }
-}
-
-/** Exchange the contents of [a] and [b] (BLAS `dswap`). */
-public fun swap(a: F64DenseVector, b: F64DenseVector) {
-    requireSameSize(a.size, b.size)
-    val ad = a.data
-    val bd = b.data
-    for (i in ad.indices) {
-        val t = ad[i]
-        ad[i] = bd[i]
-        bd[i] = t
-    }
-}
-
-/**
- * @property c the cosine.
- * @property s the sine.
- * @property r the rotated length `±hypot(a, b)`, what `a` becomes as `b` goes to zero.
- */
-public class F64Givens internal constructor(public val c: Double, public val s: Double, public val r: Double)
-
-/**
- * Generate the plane rotation that zeroes [b] against [a] (BLAS `drotg`), rescaling so squares that would
- * overflow or vanish still rotate correctly. Netlib sign convention; the all-zero pair gives the identity.
- */
-public fun rotg(a: Double, b: Double): F64Givens {
-    if (b == 0.0 && a == 0.0) return F64Givens(c = 1.0, s = 0.0, r = 0.0)
-    val absA = abs(a)
-    val absB = abs(b)
-    val scale = maxOf(absA, absB)
-    val ra = a / scale
-    val rb = b / scale
-    val magnitude = scale * sqrt(ra * ra + rb * rb)
-    val r = if (absA > absB) {
-        if (a >= 0.0) magnitude else -magnitude
-    } else {
-        if (b >= 0.0) magnitude else -magnitude
-    }
-    return F64Givens(c = a / r, s = b / r, r = r)
-}
-
-/**
- * Apply a plane rotation (BLAS `drot`). Each pair `(x_i, y_i)` becomes `(c*x_i + s*y_i, c*y_i - s*x_i)`,
- * so both [x] and [y] are overwritten in place.
- */
-public fun rot(x: F64DenseVector, y: F64DenseVector, rotation: F64Givens) {
-    requireSameSize(x.size, y.size)
-    val c = rotation.c
-    val s = rotation.s
-    if (c == 1.0 && s == 0.0) return
-    val xd = x.data
-    val yd = y.data
-    for (i in xd.indices) {
-        val xi = xd[i]
-        val yi = yd[i]
-        xd[i] = c * xi + s * yi
-        yd[i] = c * yi - s * xi
-    }
-}
-
-/** `y = y + alpha * x`. A sparse `x` touches only the positions it stores. */
-public fun F64DenseVector.axpy(alpha: Double, x: F64VectorLike) {
-    requireSameSize(size, x.size)
-    if (alpha == 0.0) return
-    when (x) {
-        is F64DenseVector -> koblas.vectorKernels.axpy(data, 0, alpha, x.data, 0, size)
-        is F64SparseVector -> koblas.sparseVectorKernels.axpy(data, alpha, x)
-        else -> x.forEachStored { i, v -> data[i] += alpha * v }
-    }
-}
-
-/** `v = alpha * v`. */
-public fun F64DenseVector.scale(alpha: Double) {
-    if (alpha == 1.0) return
-    koblas.vectorKernels.scale(data, 0, alpha, size)
-}
 
 /**
  * Rank-one update `A = A + alpha * x * yT` (BLAS `dger`) in place. Subtract by passing
