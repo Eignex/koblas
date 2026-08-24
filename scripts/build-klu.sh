@@ -55,6 +55,10 @@ if [[ "$platform" == linux-* ]]; then
     done < <(find "$destination" -maxdepth 1 -type f -name '*.so.*')
 else
     for library in "$destination"/*.dylib; do cp "$library" "$destination/$(basename "$library" | sed 's/\.[0-9].*\.dylib$/.dylib/')"; done
+    for library in "$destination"/libklu.[0-9]*.dylib; do
+        [[ -e "$library" ]] || continue
+        cp "$library" "$destination/libklu.2.dylib"
+    done
 fi
 find "$destination" -maxdepth 1 -type f -exec basename {} \; | sort > "$destination/.libraries"
 notices_init "$notices" "koblas-klu" "scripts/build-klu.sh"
