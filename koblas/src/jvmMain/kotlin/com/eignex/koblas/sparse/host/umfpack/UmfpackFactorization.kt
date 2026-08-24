@@ -20,22 +20,23 @@ import java.lang.ref.Reference
 public class UmfpackFactorization internal constructor(
     private val matrix: F64SparseMatrix,
     override val failedAt: Int,
-    private val handles: Handles,
+    private val arena: Arena,
+    private val numericHolder: MemorySegment,
     private val calls: UmfpackCalls,
     private val control: MemorySegment?,
 ) : F64SparseFactorization {
 
-    /**
-     * The arena and the `void **Numeric` holder, split out so the cleanup lambda captures them and not the
-     * factorization, which it would otherwise keep reachable forever.
-     */
-    internal class Handles(val arena: Arena, val numericHolder: MemorySegment)
-
     init {
-        val arena = handles.arena
-        val holder = handles.numericHolder
-        nativeCleaner.register(this) {
-            calls.freeNumeric(holder)
+        nativeCleaner.register(this, Release(calls, arena, numericHolder))
+    }
+
+    private class Release(
+        private val calls: UmfpackCalls,
+        private val arena: Arena,
+        private val numericHolder: MemorySegment,
+    ) : Runnable {
+        override fun run() {
+            calls.freeNumeric(numericHolder)
             arena.close()
         }
     }
@@ -69,7 +70,7 @@ public class UmfpackFactorization internal constructor(
                     MemorySegment.ofArray(matrix.values),
                     MemorySegment.ofArray(out),
                     MemorySegment.ofArray(rhs),
-                    handles.numericHolder.get(ADDRESS, 0),
+                    numericHolder.get(ADDRESS, 0),
                     control,
                     info,
                 )

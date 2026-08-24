@@ -78,8 +78,7 @@ public class UmfpackSparseLu(
                 if (numericStatus == WARNING_SINGULAR) {
                     return F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
                 }
-                val handles = UmfpackFactorization.Handles(arena, numericHolder)
-                val factorization = UmfpackFactorization(a, NOT_SINGULAR, handles, calls, control)
+                val factorization = UmfpackFactorization(a, NOT_SINGULAR, arena, numericHolder, calls, control)
                 val (lnz, unz) = UmfpackFactorization.fillOf(info)
                 factorization.lnz = lnz
                 factorization.unz = unz
