@@ -38,6 +38,14 @@ public interface F64SparseLu : Backend {
     ): F64SparseFactorization = factor(a, equilibrate, dropTolerance)
 
     /**
+     * Factor a simplex [basis] for column replacements.
+     *
+     * A general sparse LU backend need not support factor updates, so the default rejects this operation.
+     */
+    public fun factorBasis(basis: F64SparseMatrix): F64BasisFactorization =
+        throw UnsupportedOperationException("$name does not support sparse basis factorization")
+
+    /**
      * Solve `A·x = b` from [f] into [out], `Aᵀ·x = b` when [transpose]. The work belongs to the
      * factorization; this is here so the seam reads the same from the sparse side as [com.eignex.koblas
      * .dense.F64Lapack.solveInto] does from the dense one.

@@ -27,6 +27,7 @@ SuiteSparse KLU, or SuiteSparse UMFPACK acceleration.
 | koblas-openblas* | Optional JVM bundle of OpenBLAS/LAPACKE for Linux x64/arm64 and macOS arm64. |
 | koblas-umfpack* | Optional JVM bundle of SuiteSparse UMFPACK (GPL-2.0-or-later); includes koblas-openblas. |
 | koblas-klu* | Optional JVM bundle of SuiteSparse KLU (LGPL-2.1-or-later). |
+| koblas-basiclu* | Optional JVM bundle of BASICLU for sparse simplex-basis factorization and updates (MIT). |
 
 * Each optional hosted module includes a generated `THIRD-PARTY-NOTICES.txt` with
   the applicable native-library licenses and required notices.
@@ -45,13 +46,14 @@ On JVM Linux x64/arm64 and macOS arm64, Maven bundles are an alternative:
 runtimeOnly("com.eignex:koblas-openblas:<version>")
 runtimeOnly("com.eignex:koblas-klu:<version>") // optional, sparse LU default
 runtimeOnly("com.eignex:koblas-umfpack:<version>") // optional alternative
+runtimeOnly("com.eignex:koblas-basiclu:<version>") // optional, sparse simplex bases
 ```
 
 Host packages and Maven bundles use the same Koblas bindings; only the native library
 source differs.
 
 The UMFPACK bundle brings OpenBLAS and uses the same OpenBLAS library as the
-dense backend; KLU has no BLAS dependency. Bundled providers win over host lookup. To
+dense backend; KLU and BASICLU have no BLAS dependency. Bundled providers win over host lookup. To
 select a custom absolute library path, use these JVM properties or environment variables:
 
 | Library | JVM property | Environment variable |
