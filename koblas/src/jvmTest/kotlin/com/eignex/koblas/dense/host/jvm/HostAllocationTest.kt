@@ -1,6 +1,5 @@
 package com.eignex.koblas.dense.host.jvm
 
-import com.eignex.koblas.dense.host.jvm.HostBlasCalls
 import com.eignex.koblas.hostblas.HostLapack
 import com.eignex.koblas.testutil.allocation.bytesPerIteration
 import com.eignex.koblas.testutil.host.HostLibraryTest
@@ -21,7 +20,7 @@ class HostAllocationTest {
 
     @Test
     fun `factorInto does not carry the factor buffer a fresh factorization allocates`() {
-        Assume.assumeTrue("host LAPACKE is not installed", HostBlasCalls.lapackAvailable)
+        Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
         val host = HostLapack()
         // Above the LAPACK gate of 64, so the host path runs rather than the portable fallback.
         val n = 96
