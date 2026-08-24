@@ -37,7 +37,9 @@ notices_append_url() {
     local title="$2"
     local url="$3"
     local downloaded="$4"
-    curl --fail --location --retry 3 --silent --show-error "$url" --output "$downloaded"
+    if [[ ! -s "$downloaded" ]]; then
+        curl --fail --location --retry 3 --silent --show-error "$url" --output "$downloaded"
+    fi
     {
         printf '\n\n================================================================\n'
         printf '%s\n' "$title"

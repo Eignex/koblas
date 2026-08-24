@@ -162,6 +162,6 @@ for file in "${required_files[@]}"; do
 done
 notices_init "$notices" "koblas-openblas" "scripts/build-openblas.sh"
 notices_append_file "$notices" "OpenBLAS $version — BSD-3-Clause" "OpenBLAS/LICENSE" "$source_dir/LICENSE"
-notices_append_gcc_runtime_licenses "$notices" "$work_dir"
+notices_append_gcc_runtime_licenses "$notices" "$cache_dir"
 printf '%s\n' "$expected_sha" > "$resource_dir/.openblas-source-sha256"
 printf '%s\n' "$build_options" > "$resource_dir/.openblas-build-options"
