@@ -19,7 +19,7 @@ import com.eignex.koblas.sparse.factorization.lu.NO_DROP
  * @param factorizeMin stored entries from which this binding factorizes natively, or null for the platform
  *   default.
  */
-public abstract class F64HostSparseLuAdapter protected constructor(factorizeMin: Int? = null) : F64SparseLu {
+public abstract class F64SparseLuAdapter protected constructor(factorizeMin: Int? = null) : F64SparseLu {
     /** Whether the binding resolved every symbol needed to factor and solve. */
     protected abstract val nativeAvailable: Boolean
 

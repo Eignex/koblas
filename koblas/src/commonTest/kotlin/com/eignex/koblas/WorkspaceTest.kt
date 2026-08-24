@@ -174,4 +174,13 @@ class WorkspaceTest {
         assertEquals(widths, ws.pooledWidths)
         assertSame(hot, ws.take(64), "the rejected release evicted a live pool")
     }
+
+    /** With no workspace to lend one, [borrow] allocates and has nothing to hand back. */
+    @Test
+    fun `a borrow without a workspace allocates and returns the block value`() {
+        val absent: Workspace? = null
+        val size = absent.borrow(12) { it.size }
+        assertEquals(12, size)
+        assertFailsWith<IllegalStateException> { absent.borrow(4) { error("propagates") } }
+    }
 }

@@ -4,118 +4,143 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.borrow
 import com.eignex.koblas.core.F64DenseMatrix
+import com.eignex.koblas.internal.numeric.F64_MIN_NORMAL
 import com.eignex.koblas.requireFactored
 import com.eignex.koblas.requireShape
 import kotlin.math.abs
 
 /*
  * The portable Bunch-Kaufman factorization and the solve over its factors, netlib dsytf2 and dsytrs. This is
- * the semantic definition a native LDL is validated against; [F64ReferenceLapack] is the F64Lapack surface
- * over it.
+ * the semantic definition a native LDL is validated against; [F64ReferenceDecompositions] is the
+ * F64Decompositions surface over it.
+ *
+ * One deliberate departure: the 1x1 elimination takes dsytf2_rook's guarded scaling rather than plain
+ * dsytf2's unguarded reciprocal, so a subnormal pivot factors here where a host dsytrf answers with
+ * infinities. See [eliminateOneByOne].
  */
 
 /** Bunch-Kaufman pivot threshold `(1 + sqrt(17)) / 8`, the value minimizing element growth (netlib dsytf2). */
 private const val BUNCH_KAUFMAN_ALPHA = 0.6403882032022076
 
 @Suppress("CyclomaticComplexMethod") // netlib dsytf2's control flow, kept recognizable
-internal fun referenceLdl(
-    kernels: F64VectorKernels,
-    a: F64DenseMatrix,
-    workspace: Workspace?,
-): F64LdlDecomposition {
+internal fun referenceLdl(kernels: F64Kernels, a: F64DenseMatrix, workspace: Workspace?): F64LdlDecomposition {
     requireShape(a.rows == a.cols) { "ldl: matrix must be square, got ${a.rows}x${a.cols}" }
     val n = a.rows
     val w = a.data.copyOf()
     val ipiv = IntArray(n)
     var failedAt = NOT_SINGULAR
-    val colK = workspace?.take(n) ?: DoubleArray(n)
-    val colK1 = workspace?.take(n) ?: DoubleArray(n)
-    var k = 0
-    while (k < n) {
-        var kstep = 1
-        val absakk = abs(w[k + k * n])
-        var imax = k
-        var colmax = 0.0
-        for (i in k + 1 until n) {
-            val v = abs(w[i + k * n])
-            if (v > colmax) {
-                colmax = v
-                imax = i
-            }
-        }
-        if (maxOf(absakk, colmax) == 0.0) {
-            // The first zero pivot is the one reported, matching dsytf2's info.
-            if (failedAt == NOT_SINGULAR) failedAt = k
-            ipiv[k] = k + 1
-            k += 1
-            continue
-        }
-        val kp: Int
-        if (absakk >= BUNCH_KAUFMAN_ALPHA * colmax) {
-            kp = k
-        } else {
-            var rowmax = 0.0
-            for (j in k until imax) rowmax = maxOf(rowmax, abs(w[imax + j * n]))
-            for (j in imax + 1 until n) rowmax = maxOf(rowmax, abs(w[j + imax * n]))
-            // Grouped as dsytf2 groups it. The algebraically equal `absakk * rowmax >= alpha * colmax
-            // * colmax` leaves the exponent range on a matrix this one holds: rowmax >= colmax here, so
-            // whichever side overflows first the other follows, and `Inf >= Inf` selects the 1x1 pivot
-            // this test exists to reject. rowmax > 0 because the scan below covers the entry colmax was
-            // attained at.
-            if (absakk >= BUNCH_KAUFMAN_ALPHA * colmax * (colmax / rowmax)) {
-                kp = k
-            } else if (abs(w[imax + imax * n]) >= BUNCH_KAUFMAN_ALPHA * rowmax) {
-                kp = imax
-            } else {
-                kp = imax
-                kstep = 2
-            }
-        }
-        val kk = k + kstep - 1
-        if (kp != kk) swapSymmetric(w, n, k, kk, kp, kstep)
-        if (kstep == 1) {
-            val d11 = 1.0 / w[k + k * n]
-            for (j in k + 1 until n) {
-                val f = -d11 * w[j + k * n]
-                if (f != 0.0) kernels.axpy(w, j + j * n, f, w, j + k * n, n - j)
-            }
-            kernels.scale(w, k + 1 + k * n, d11, n - k - 1)
-            ipiv[k] = kp + 1
-        } else {
-            if (k < n - 2) {
-                val d21 = w[(k + 1) + k * n]
-                val d11 = w[(k + 1) + (k + 1) * n] / d21
-                val d22 = w[k + k * n] / d21
-                val t = 1.0 / (d11 * d22 - 1.0)
-                val d21inv = t / d21
-                for (j in k + 2 until n) {
-                    val cj = w[j + k * n]
-                    val cj1 = w[j + (k + 1) * n]
-                    colK[j] = d21inv * (d11 * cj - cj1)
-                    colK1[j] = d21inv * (d22 * cj1 - cj)
+    workspace.borrow(n) { colK ->
+        workspace.borrow(n) { colK1 ->
+            var k = 0
+            while (k < n) {
+                var kstep = 1
+                val absakk = abs(w[k + k * n])
+                var imax = k
+                var colmax = 0.0
+                for (i in k + 1 until n) {
+                    val v = abs(w[i + k * n])
+                    if (v > colmax) {
+                        colmax = v
+                        imax = i
+                    }
                 }
-                for (j in k + 2 until n) {
-                    val fj = colK[j]
-                    val fj1 = colK1[j]
-                    if (fj != 0.0) kernels.axpy(w, j + j * n, -fj, w, j + k * n, n - j)
-                    if (fj1 != 0.0) kernels.axpy(w, j + j * n, -fj1, w, j + (k + 1) * n, n - j)
+                if (maxOf(absakk, colmax) == 0.0 || absakk.isNaN()) {
+                    // The first zero pivot is the one reported, matching dsytf2's info, which reports a NaN
+                    // diagonal the same way rather than eliminating on it.
+                    if (failedAt == NOT_SINGULAR) failedAt = k
+                    ipiv[k] = k + 1
+                    k += 1
+                    continue
                 }
-                for (i in k + 2 until n) {
-                    w[i + k * n] = colK[i]
-                    w[i + (k + 1) * n] = colK1[i]
+                val kp: Int
+                if (absakk >= BUNCH_KAUFMAN_ALPHA * colmax) {
+                    kp = k
+                } else {
+                    var rowmax = 0.0
+                    for (j in k until imax) rowmax = maxOf(rowmax, abs(w[imax + j * n]))
+                    for (j in imax + 1 until n) rowmax = maxOf(rowmax, abs(w[j + imax * n]))
+                    // Grouped as dsytf2 groups it. The algebraically equal `absakk * rowmax >= alpha * colmax
+                    // * colmax` leaves the exponent range on a matrix this one holds: rowmax >= colmax here, so
+                    // whichever side overflows first the other follows, and `Inf >= Inf` selects the 1x1 pivot
+                    // this test exists to reject. rowmax > 0 because the scan below covers the entry colmax was
+                    // attained at.
+                    if (absakk >= BUNCH_KAUFMAN_ALPHA * colmax * (colmax / rowmax)) {
+                        kp = k
+                    } else if (abs(w[imax + imax * n]) >= BUNCH_KAUFMAN_ALPHA * rowmax) {
+                        kp = imax
+                    } else {
+                        kp = imax
+                        kstep = 2
+                    }
                 }
+                val kk = k + kstep - 1
+                if (kp != kk) swapSymmetric(w, n, k, kk, kp, kstep)
+                if (kstep == 1) {
+                    eliminateOneByOne(kernels, w, n, k)
+                    ipiv[k] = kp + 1
+                } else {
+                    if (k < n - 2) {
+                        val d21 = w[(k + 1) + k * n]
+                        val d11 = w[(k + 1) + (k + 1) * n] / d21
+                        val d22 = w[k + k * n] / d21
+                        val t = 1.0 / (d11 * d22 - 1.0)
+                        val d21inv = t / d21
+                        for (j in k + 2 until n) {
+                            val cj = w[j + k * n]
+                            val cj1 = w[j + (k + 1) * n]
+                            colK[j] = d21inv * (d11 * cj - cj1)
+                            colK1[j] = d21inv * (d22 * cj1 - cj)
+                        }
+                        for (j in k + 2 until n) {
+                            val fj = colK[j]
+                            val fj1 = colK1[j]
+                            if (fj != 0.0) kernels.axpy(w, j + j * n, -fj, w, j + k * n, n - j)
+                            if (fj1 != 0.0) kernels.axpy(w, j + j * n, -fj1, w, j + (k + 1) * n, n - j)
+                        }
+                        for (i in k + 2 until n) {
+                            w[i + k * n] = colK[i]
+                            w[i + (k + 1) * n] = colK1[i]
+                        }
+                    }
+                    ipiv[k] = -(kp + 1)
+                    ipiv[k + 1] = -(kp + 1)
+                }
+                k += kstep
             }
-            ipiv[k] = -(kp + 1)
-            ipiv[k + 1] = -(kp + 1)
         }
-        k += kstep
-    }
-    if (workspace != null) {
-        workspace.release(colK1)
-        workspace.release(colK)
     }
     return F64LdlDecomposition(n, w, ipiv, failedAt)
+}
+
+/**
+ * Eliminate a 1x1 pivot and update the trailing triangle, `dsytf2`'s `dscal` and `dsyr`.
+ *
+ * A pivot below the smallest normal has no reciprocal: `1 / 1e-320` is an infinity, and scaling the column
+ * by it turns a factor that dividing resolves exactly into infinities and NaNs. So the small case divides
+ * the column and scales the update by the pivot itself, which is the same arithmetic out of the reciprocal's
+ * exponent range, and is the branch dsytf2 takes below its own `sfmin`.
+ */
+private fun eliminateOneByOne(kernels: F64Kernels, w: DoubleArray, n: Int, k: Int) {
+    val pivot = w[k + k * n]
+    // A pivot below the smallest normal has no reciprocal: `1 / 1e-320` is an infinity, and scaling the
+    // column by it turns multipliers that dividing resolves exactly into infinities. So the small case
+    // divides the column first and scales the update by the pivot itself, which is the same arithmetic out
+    // of the reciprocal's exponent range. That is dsytf2_rook's branch below its own sfmin; plain dsytf2
+    // takes the reciprocal whatever the pivot. It bounds the reciprocal, not the result: an entry far above
+    // the pivot still overflows the division, which the pivot search allows on its rowmax branch.
+    val scalable = abs(pivot) >= F64_MIN_NORMAL
+    if (!scalable) {
+        for (i in k + 1 until n) w[i + k * n] = w[i + k * n] / pivot
+    }
+    // Against the divided column the update takes the pivot where the reciprocal form takes its inverse.
+    val coefficient = if (scalable) 1.0 / pivot else pivot
+    for (j in k + 1 until n) {
+        val f = -coefficient * w[j + k * n]
+        if (f != 0.0) kernels.axpy(w, j + j * n, f, w, j + k * n, n - j)
+    }
+    if (scalable) kernels.scale(w, k + 1 + k * n, coefficient, n - k - 1)
 }
 
 /**
@@ -145,7 +170,7 @@ private fun swapSymmetric(w: DoubleArray, n: Int, k: Int, kk: Int, kp: Int, kste
 }
 
 internal fun referenceLdlSolveInto(
-    kernels: F64VectorKernels,
+    kernels: F64Kernels,
     ldl: F64LdlDecomposition,
     b: DoubleArray,
     out: DoubleArray,

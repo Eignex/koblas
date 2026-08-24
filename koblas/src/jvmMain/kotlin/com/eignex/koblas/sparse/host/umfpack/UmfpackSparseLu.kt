@@ -8,7 +8,7 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.sparse.F64SingularSparseFactorization
 import com.eignex.koblas.sparse.F64SparseFactorization
-import com.eignex.koblas.sparse.host.F64HostSparseLuAdapter
+import com.eignex.koblas.sparse.host.F64SparseLuAdapter
 import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout.ADDRESS
@@ -18,7 +18,7 @@ import java.lang.foreign.ValueLayout.JAVA_DOUBLE
 public class UmfpackSparseLu(
     /** Policy for this backend instance and the factors it produces. */
     public val config: UmfpackConfig = UmfpackConfig(),
-) : F64HostSparseLuAdapter(config.factorizeMin) {
+) : F64SparseLuAdapter(config.factorizeMin) {
     private val calls = UmfpackCalls(config)
 
     override val name: String get() = BackendNames.UMFPACK
@@ -78,8 +78,7 @@ public class UmfpackSparseLu(
                 if (numericStatus == WARNING_SINGULAR) {
                     return F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
                 }
-                val handles = UmfpackFactorization.Handles(arena, numericHolder)
-                val factorization = UmfpackFactorization(a, NOT_SINGULAR, handles, calls, control)
+                val factorization = UmfpackFactorization(a, NOT_SINGULAR, arena, numericHolder, calls, control)
                 val (lnz, unz) = UmfpackFactorization.fillOf(info)
                 factorization.lnz = lnz
                 factorization.unz = unz

@@ -44,7 +44,7 @@ public class F64LuDecomposition @UnsafeKoblasApi constructor(
  * The product is unscaled, so it saturates in both directions well before n is large: a 200x200 with 0.01
  * on the diagonal returns `0.0` and one with 100.0 returns infinity, neither of them singular. So a
  * returned `0.0` does not mean singular, even though a singular factorization does return it. Test
- * [F64LuDecomposition.singular] for exact singularity and [F64Lapack.rcond] for how close to it a matrix
+ * [F64LuDecomposition.singular] for exact singularity and [F64Decompositions.rcond] for how close to it a matrix
  * is; that is what LAPACK offers too, which ships `dgecon` and no determinant routine at all.
  */
 public fun F64LuDecomposition.determinant(): Double {

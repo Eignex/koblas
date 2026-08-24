@@ -62,7 +62,7 @@ class Level1Benchmark {
 
     @Benchmark
     fun dot4(): Double {
-        koblas.vectorKernels.dot4(quad, 0, len, x.data, 0, len, quadOut, 0)
+        koblas.kernels.dot4(quad, 0, len, x.data, 0, len, quadOut, 0)
         return quadOut[0]
     }
 }

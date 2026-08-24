@@ -55,13 +55,11 @@ internal class BasicluCalls(libraryPath: String?) {
         )
     }
 
-    private fun MethodHandle.call(vararg arguments: Any?): Any? = invokeWithArguments(*arguments)
-
     fun factorize(a: Int, begin: LongArray, end: LongArray, rows: LongArray, values: DoubleArray): BasicluHandle? {
         val h = checkNotNull(handles) { "BASICLU is not available" }
-        val handle = h.create.call(a.toLong()) as MemorySegment
+        val handle = h.create.invokeExact(a.toLong()) as MemorySegment
         check(handle.address() != 0L) { "BASICLU could not allocate a factorization" }
-        val status = h.factorize.call(
+        val status = h.factorize.invokeExact(
             handle,
             MemorySegment.ofArray(begin),
             MemorySegment.ofArray(end),
@@ -86,12 +84,14 @@ internal class BasicluCalls(libraryPath: String?) {
     fun solve(handle: BasicluHandle, rhs: DoubleArray, out: DoubleArray, transpose: Boolean) {
         val h = checkNotNull(handles) { "BASICLU is not available" }
         check(
-            h.solve.call(
-                handle.address,
-                MemorySegment.ofArray(rhs),
-                MemorySegment.ofArray(out),
-                if (transpose) 1 else 0,
-            ) == BASICLU_OK,
+            (
+                h.solve.invokeExact(
+                    handle.address,
+                    MemorySegment.ofArray(rhs),
+                    MemorySegment.ofArray(out),
+                    if (transpose) 1 else 0,
+                ) as Long
+                ) == BASICLU_OK,
         ) {
             "BASICLU solve failed"
         }
@@ -99,23 +99,26 @@ internal class BasicluCalls(libraryPath: String?) {
 
     fun replaceColumn(handle: BasicluHandle, entering: LongArray, values: DoubleArray, column: Int): Long {
         val h = checkNotNull(handles) { "BASICLU is not available" }
-        val prepared = h.prepareUpdate.call(
+        val prepared = h.prepareUpdate.invokeExact(
             handle.address,
             entering.size.toLong(),
             MemorySegment.ofArray(entering),
             MemorySegment.ofArray(values),
             column.toLong(),
         ) as Long
-        return if (prepared == BASICLU_OK) h.update.call(handle.address) as Long else prepared
+        return if (prepared == BASICLU_OK) h.update.invokeExact(handle.address) as Long else prepared
     }
 
     fun info(handle: BasicluHandle, index: Int): Double = checkNotNull(handles) { "BASICLU is not available" }
-        .info.call(handle.address, index.toLong()) as Double
+        .info.invokeExact(handle.address, index.toLong()) as Double
 
     fun free(handle: BasicluHandle) = free(handle.address)
 
     private fun free(handle: MemorySegment) {
-        handles?.free?.call(handle)
+        // Resolved before the call because a safe-call chain makes the result nullable, and the boxed Unit
+        // that gives is not the void the descriptor declares.
+        val free = handles?.free ?: return
+        free.invokeExact(handle) as Unit
     }
 }
 

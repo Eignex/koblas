@@ -5,7 +5,7 @@ import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.internal.backend.BackendNames
 
 /** The portable sparse level-1 kernels, which come from the reference backend. */
-internal actual object F64PlatformSparseVectorKernels : F64SparseVectorKernels {
+internal actual object F64PlatformSparseKernels : F64SparseKernels {
     actual override val name: String get() = BackendNames.REFERENCE
 
     override val isPortable: Boolean get() = true

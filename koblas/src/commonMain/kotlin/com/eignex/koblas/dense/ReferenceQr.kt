@@ -3,6 +3,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.borrow
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.requireShape
 import kotlin.math.abs
@@ -11,10 +12,10 @@ import kotlin.math.sqrt
 /*
  * The portable Householder QR, its column-pivoted form and the solves over their factors, netlib dgeqrf,
  * dgeqp3, dormqr and dtrtrs. This is the semantic definition a native QR is validated against;
- * [F64ReferenceLapack] is the F64Lapack surface over it.
+ * [F64ReferenceDecompositions] is the F64Decompositions surface over it.
  */
 
-internal fun referenceQr(kernels: F64VectorKernels, a: F64DenseMatrix): F64QrDecomposition {
+internal fun referenceQr(kernels: F64Kernels, a: F64DenseMatrix): F64QrDecomposition {
     val m = a.rows
     val n = a.cols
     val k = minOf(m, n)
@@ -27,11 +28,7 @@ internal fun referenceQr(kernels: F64VectorKernels, a: F64DenseMatrix): F64QrDec
     return F64QrDecomposition(m, n, buf, tau)
 }
 
-internal fun referenceQrPivoted(
-    kernels: F64VectorKernels,
-    a: F64DenseMatrix,
-    tolerance: Double,
-): F64PivotedQrDecomposition {
+internal fun referenceQrPivoted(kernels: F64Kernels, a: F64DenseMatrix, tolerance: Double): F64PivotedQrDecomposition {
     requireRankTolerance(tolerance)
     val m = a.rows
     val n = a.cols
@@ -80,7 +77,7 @@ private fun swapColumns(
 /** Apply `H = I − tau·v·vᵀ` from column [col] to every column after it. */
 @Suppress("LongParameterList") // the kernels on top of the reflector's own arguments
 private fun applyReflectorToTrailing(
-    kernels: F64VectorKernels,
+    kernels: F64Kernels,
     buf: DoubleArray,
     m: Int,
     n: Int,
@@ -105,7 +102,7 @@ private fun applyReflectorToTrailing(
  *  the column when the downdate has drifted too far to trust. */
 @Suppress("LongParameterList") // the kernels on top of one array per tracked quantity
 private fun downdateNorms(
-    kernels: F64VectorKernels,
+    kernels: F64Kernels,
     buf: DoubleArray,
     m: Int,
     n: Int,
@@ -131,7 +128,7 @@ private fun downdateNorms(
 
 /** Build the Householder reflector for [col] in place (LAPACK `dlarfg`), returning `tau` and storing
  *  the scaled vector below the diagonal with the new `R` diagonal entry on it. */
-private fun householderColumn(kernels: F64VectorKernels, buf: DoubleArray, m: Int, col: Int): Double {
+private fun householderColumn(kernels: F64Kernels, buf: DoubleArray, m: Int, col: Int): Double {
     val base = col + col * m
     val len = m - col
     // dlarfg measures the tail alone and returns a zero reflector when it vanishes, leaving the
@@ -150,7 +147,7 @@ private fun householderColumn(kernels: F64VectorKernels, buf: DoubleArray, m: In
 }
 
 internal fun referenceApplyQInto(
-    kernels: F64VectorKernels,
+    kernels: F64Kernels,
     qr: F64QrDecomposition,
     y: DoubleArray,
     out: DoubleArray,
@@ -179,7 +176,7 @@ internal fun referenceApplyQInto(
 
 /** The pivoted least-squares solve into [out], which is returned. */
 internal fun referencePivotedLeastSquaresInto(
-    kernels: F64VectorKernels,
+    kernels: F64Kernels,
     qr: F64PivotedQrDecomposition,
     b: DoubleArray,
     out: DoubleArray,
@@ -188,28 +185,28 @@ internal fun referencePivotedLeastSquaresInto(
     requireShape(b.size == qr.m) { "solveLeastSquares: b length ${b.size} != ${qr.m}" }
     requireShape(out.size == qr.n) { "solveLeastSquares: out length ${out.size} != ${qr.n}" }
     val rank = qr.rank
-    val y = workspace?.take(qr.m) ?: DoubleArray(qr.m)
-    referenceApplyQInto(kernels, qr.factorization, b, y, transpose = true)
-    trsvCore(
-        kernels,
-        qr.factorization.qr,
-        rank,
-        y,
-        lda = qr.m,
-        lower = false,
-        transpose = false,
-        unitDiag = false,
-    )
-    out.fill(0.0)
-    for (k in 0 until rank) out[qr.pivots[k]] = y[k]
-    workspace?.release(y)
+    workspace.borrow(qr.m) { y ->
+        referenceApplyQInto(kernels, qr.factorization, b, y, transpose = true)
+        trsvCore(
+            kernels,
+            qr.factorization.qr,
+            rank,
+            y,
+            lda = qr.m,
+            lower = false,
+            transpose = false,
+            unitDiag = false,
+        )
+        out.fill(0.0)
+        for (k in 0 until rank) out[qr.pivots[k]] = y[k]
+    }
     return out
 }
 
 /** Least-squares solve into [out], which has length `n` and is returned. A [workspace] lends the
  *  length-`m` intermediate for `Qᵀb`. */
 internal fun referenceLeastSquaresInto(
-    kernels: F64VectorKernels,
+    kernels: F64Kernels,
     qr: F64QrDecomposition,
     b: DoubleArray,
     out: DoubleArray,
@@ -218,18 +215,18 @@ internal fun referenceLeastSquaresInto(
     requireShape(qr.m >= qr.n) { "solveLeastSquares requires m >= n, got ${qr.m}x${qr.n}" }
     requireShape(b.size == qr.m) { "solveLeastSquares: b length ${b.size} != ${qr.m}" }
     requireShape(out.size == qr.n) { "solveLeastSquares: out length ${out.size} != ${qr.n}" }
-    val y = workspace?.take(qr.m) ?: DoubleArray(qr.m)
-    referenceApplyQInto(kernels, qr, b, y, transpose = true)
-    y.copyInto(out, 0, 0, qr.n)
+    workspace.borrow(qr.m) { y ->
+        referenceApplyQInto(kernels, qr, b, y, transpose = true)
+        y.copyInto(out, 0, 0, qr.n)
+    }
     trsvCore(kernels, qr.qr, qr.n, out, lda = qr.m, lower = false, transpose = false, unitDiag = false)
-    workspace?.release(y)
     return out
 }
 
 /** Minimum-norm solve into [out], which has length `m` (the wide system's column count) and is returned.
  *  A [workspace] lends the length-`n` intermediate. */
 internal fun referenceMinimumNormInto(
-    kernels: F64VectorKernels,
+    kernels: F64Kernels,
     qr: F64QrDecomposition,
     b: DoubleArray,
     out: DoubleArray,
@@ -238,11 +235,11 @@ internal fun referenceMinimumNormInto(
     requireShape(qr.m >= qr.n) { "solveMinimumNorm expects the QR of the transpose (tall), got ${qr.m}x${qr.n}" }
     requireShape(b.size == qr.n) { "solveMinimumNorm: b length ${b.size} != ${qr.n}" }
     requireShape(out.size == qr.m) { "solveMinimumNorm: out length ${out.size} != ${qr.m}" }
-    val w = workspace?.take(qr.n) ?: DoubleArray(qr.n)
-    b.copyInto(w)
-    trsvCore(kernels, qr.qr, qr.n, w, lda = qr.m, lower = false, transpose = true, unitDiag = false)
-    out.fill(0.0)
-    w.copyInto(out)
-    workspace?.release(w)
+    workspace.borrow(qr.n) { w ->
+        b.copyInto(w)
+        trsvCore(kernels, qr.qr, qr.n, w, lda = qr.m, lower = false, transpose = true, unitDiag = false)
+        w.copyInto(out)
+    }
+    out.fill(0.0, qr.n, out.size) // the leading n entries are the solve's, the tail is the wide part
     return referenceApplyQInto(kernels, qr, out, out, transpose = false)
 }

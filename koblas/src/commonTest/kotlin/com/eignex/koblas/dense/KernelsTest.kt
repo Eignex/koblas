@@ -26,9 +26,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-class VectorKernelsTest {
+class KernelsTest {
 
-    private class Recording(override val priority: Int = 90) : F64VectorKernels {
+    private class Recording(override val priority: Int = 90) : F64Kernels {
         override var name: String = "recording"
             private set
 
@@ -140,22 +140,22 @@ class VectorKernelsTest {
 
     @Test
     fun `registration keeps the highest priority and install overrides both`() = withCleanBackends {
-        val platform = koblas.vectorKernels.name
+        val platform = koblas.kernels.name
         registerBackend(Recording(priority = 200).named("strong"))
         registerBackend(Recording(priority = 10).named("weak"))
-        assertEquals("$platform+strong", koblas.vectorKernels.name, "a weaker registration displaced a stronger one")
+        assertEquals("$platform+strong", koblas.kernels.name, "a weaker registration displaced a stronger one")
         val override = Recording(priority = 0).named("override")
-        installBackends(koblas.with(vectorKernels = override))
-        assertSame(override, koblas.vectorKernels, "install must win regardless of priority, and unrouted")
+        installBackends(koblas.with(kernels = override))
+        assertSame(override, koblas.kernels, "install must win regardless of priority, and unrouted")
         installBackends(null)
-        assertEquals("$platform+strong", koblas.vectorKernels.name, "clearing the override falls back to registration")
+        assertEquals("$platform+strong", koblas.kernels.name, "clearing the override falls back to registration")
         resetBackends()
-        assertEquals(platform, koblas.vectorKernels.name, "a cleared registry leaves the compiled-in kernels")
+        assertEquals(platform, koblas.kernels.name, "a cleared registry leaves the compiled-in kernels")
     }
 
     @Test
-    fun `the compiled-in kernels satisfy the F64VectorKernels contract`() {
-        val k: F64VectorKernels = F64PlatformVectorKernels
+    fun `the compiled-in kernels satisfy the F64Kernels contract`() {
+        val k: F64Kernels = F64PlatformKernels
         assertTrue(k.name.isNotEmpty(), "the kernels must name themselves; mathBackend reports it")
 
         val a = DoubleArray(40) { it * 0.5 - 3.0 }
@@ -204,7 +204,7 @@ class VectorKernelsTest {
             expected[r] = s
         }
 
-        // Recording omits dot4, so this measures the interface default. Delegating with `by F64PlatformVectorKernels`
+        // Recording omits dot4, so this measures the interface default. Delegating with `by F64PlatformKernels`
         // would forward the defaulted member and silently test the override twice.
         val inherited = Recording()
         val viaDefault = DoubleArray(4)
@@ -212,7 +212,7 @@ class VectorKernelsTest {
         assertEquals(4, inherited.dots, "the default must reach dot once per column")
 
         val viaPlatform = DoubleArray(4)
-        F64PlatformVectorKernels.dot4(a, 0, stride, b, 0, len, viaPlatform, 0)
+        F64PlatformKernels.dot4(a, 0, stride, b, 0, len, viaPlatform, 0)
 
         for (r in 0 until 4) {
             assertEquals(expected[r], viaDefault[r], absoluteTolerance = 1e-12, message = "default row $r")
@@ -223,9 +223,9 @@ class VectorKernelsTest {
     @Test
     fun `the compiled-in nrm2 survives components that square out of range`() {
         val big = doubleArrayOf(3e200, 4e200)
-        assertEquals(5e200, F64PlatformVectorKernels.nrm2(big, 0, 2), absoluteTolerance = 1e188)
+        assertEquals(5e200, F64PlatformKernels.nrm2(big, 0, 2), absoluteTolerance = 1e188)
         val tiny = doubleArrayOf(3e-200, 4e-200)
-        assertEquals(5e-200, F64PlatformVectorKernels.nrm2(tiny, 0, 2), absoluteTolerance = 1e-212)
+        assertEquals(5e-200, F64PlatformKernels.nrm2(tiny, 0, 2), absoluteTolerance = 1e-212)
     }
 
     @Test
@@ -233,12 +233,12 @@ class VectorKernelsTest {
         for (len in intArrayOf(16, 33, 64)) {
             val big = DoubleArray(len) { 1e200 }
             val expected = sqrt(len.toDouble()) * 1e200
-            assertEquals(expected, F64PlatformVectorKernels.nrm2(big, 0, len), absoluteTolerance = expected * 1e-12)
+            assertEquals(expected, F64PlatformKernels.nrm2(big, 0, len), absoluteTolerance = expected * 1e-12)
             val tiny = DoubleArray(len) { 1e-200 }
             val expectedTiny = sqrt(len.toDouble()) * 1e-200
             assertEquals(
                 expectedTiny,
-                F64PlatformVectorKernels.nrm2(tiny, 0, len),
+                F64PlatformKernels.nrm2(tiny, 0, len),
                 absoluteTolerance = expectedTiny * 1e-12,
             )
         }
@@ -253,7 +253,7 @@ class VectorKernelsTest {
                 val expected = euclideanNorm(v, off, len)
                 assertEquals(
                     expected,
-                    F64PlatformVectorKernels.nrm2(v, off, len),
+                    F64PlatformKernels.nrm2(v, off, len),
                     absoluteTolerance = 1e-12 * (expected + 1.0),
                     message = "off $off len $len",
                 )
@@ -263,12 +263,12 @@ class VectorKernelsTest {
 
     @Test
     fun `the routed kernels report the platform name and gain a suffix for a host`() = withCleanBackends {
-        assertEquals(F64PlatformVectorKernels.name, koblas.vectorKernels.name)
-        assertEquals(koblas.vectorKernels.name, mathBackend, "mathBackend is the routed kernels' name")
+        assertEquals(F64PlatformKernels.name, koblas.kernels.name)
+        assertEquals(koblas.kernels.name, mathBackend, "mathBackend is the routed kernels' name")
         registerBackend(Recording(priority = 90))
-        assertEquals("${F64PlatformVectorKernels.name}+recording", koblas.vectorKernels.name)
+        assertEquals("${F64PlatformKernels.name}+recording", koblas.kernels.name)
         resetBackends()
-        assertEquals(F64PlatformVectorKernels.name, koblas.vectorKernels.name)
+        assertEquals(F64PlatformKernels.name, koblas.kernels.name)
     }
 
     /**
@@ -292,9 +292,8 @@ class VectorKernelsTest {
 
     @Test
     fun `the compiled-in level-1 kernels agree with the scalar loops`() =
-        assertLevel1KernelsAgreeWithScalar(F64PlatformVectorKernels)
+        assertLevel1KernelsAgreeWithScalar(F64PlatformKernels)
 
     @Test
-    fun `the compiled-in reductions agree with the scalar loops`() =
-        assertReductionsAgreeWithScalar(F64PlatformVectorKernels)
+    fun `the compiled-in reductions agree with the scalar loops`() = assertReductionsAgreeWithScalar(F64PlatformKernels)
 }

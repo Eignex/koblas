@@ -54,7 +54,7 @@ internal class UmfpackCalls(private val config: UmfpackConfig) {
         val defaults = (handles ?: return null).defaults
         // The global arena keeps this read-only array alive past every solve.
         val control = Arena.global().allocate(JAVA_DOUBLE, CONTROL.toLong())
-        defaults.invokeWithArguments(control)
+        defaults.invokeExact(control) as Unit
         control.setAtIndex(JAVA_DOUBLE, IRSTEP.toLong(), config.iterativeRefinementSteps.toDouble())
         control.setAtIndex(JAVA_DOUBLE, PIVOT_TOLERANCE.toLong(), config.pivotTolerance)
         control.setAtIndex(JAVA_DOUBLE, SCALE.toLong(), scaling.nativeValue)
@@ -124,7 +124,7 @@ internal class UmfpackCalls(private val config: UmfpackConfig) {
         symbolicOut: MemorySegment,
         control: MemorySegment?,
         info: MemorySegment,
-    ): Int = handlesOrThrow().symbolic.invokeWithArguments(
+    ): Int = handlesOrThrow().symbolic.invokeExact(
         n,
         n,
         colPtr,
@@ -144,7 +144,7 @@ internal class UmfpackCalls(private val config: UmfpackConfig) {
         numericOut: MemorySegment,
         control: MemorySegment?,
         info: MemorySegment,
-    ): Int = handlesOrThrow().numeric.invokeWithArguments(
+    ): Int = handlesOrThrow().numeric.invokeExact(
         colPtr,
         rowIdx,
         values,
@@ -166,7 +166,7 @@ internal class UmfpackCalls(private val config: UmfpackConfig) {
         numeric: MemorySegment,
         control: MemorySegment?,
         info: MemorySegment,
-    ): Int = handlesOrThrow().solve.invokeWithArguments(
+    ): Int = handlesOrThrow().solve.invokeExact(
         sys,
         colPtr,
         rowIdx,
@@ -180,12 +180,16 @@ internal class UmfpackCalls(private val config: UmfpackConfig) {
 
     /** The analysis is not needed once the numeric factors exist. */
     fun freeSymbolic(symbolicHolder: MemorySegment) {
-        handles?.freeSymbolic?.invokeWithArguments(symbolicHolder)
+        // Resolved before the call because a safe-call chain makes the result nullable, and `as Unit?` is
+        // the boxed Unit rather than void, which is not the descriptor.
+        val free = handles?.freeSymbolic ?: return
+        free.invokeExact(symbolicHolder) as Unit
     }
 
     /** Not calling this leaks whatever UMFPACK malloc'd for the factors. */
     fun freeNumeric(numericHolder: MemorySegment) {
-        handles?.freeNumeric?.invokeWithArguments(numericHolder)
+        val free = handles?.freeNumeric ?: return
+        free.invokeExact(numericHolder) as Unit
     }
 }
 

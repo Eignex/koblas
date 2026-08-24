@@ -1,6 +1,6 @@
 package com.eignex.koblas.dense.host.jvm
 
-import com.eignex.koblas.dense.host.cblas.OpenBlasConfig
+import com.eignex.koblas.dense.host.cblas.HostBlasConfig
 
 /**
  * What this host's OpenBLAS offers, resolved once for the tests that skip themselves without it. A
@@ -8,7 +8,7 @@ import com.eignex.koblas.dense.host.cblas.OpenBlasConfig
  * as a static on the binding.
  */
 internal object HostLibraries {
-    private val calls by lazy { HostBlasCalls(OpenBlasConfig()) }
+    private val calls by lazy { HostBlasCalls(HostBlasConfig()) }
 
     /** Whether the host's CBLAS resolved. */
     val cblas: Boolean get() = calls.available

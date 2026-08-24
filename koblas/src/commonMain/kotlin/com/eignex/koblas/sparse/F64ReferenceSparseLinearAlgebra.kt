@@ -3,8 +3,10 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.core.F64SparseVector
+import com.eignex.koblas.dense.applyBeta
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.numeric.euclideanNorm
+import com.eignex.koblas.koblas
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.requireSquare
 import com.eignex.koblas.sparse.factorization.lu.*
@@ -17,7 +19,7 @@ import kotlin.math.abs
 @Suppress("TooManyFunctions") // the sparse surface a backend half covers
 public object F64ReferenceSparseLinearAlgebra :
     F64SparseLinearAlgebra,
-    F64SparseVectorKernels {
+    F64SparseKernels {
     override val name: String get() = BackendNames.REFERENCE
 
     override val isPortable: Boolean get() = true
@@ -35,10 +37,7 @@ public object F64ReferenceSparseLinearAlgebra :
         val yLen = if (transpose) a.cols else a.rows
         requireShape(x.size == xLen) { "gemv: x length ${x.size} != $xLen" }
         requireShape(y.size == yLen) { "gemv: y length ${y.size} != $yLen" }
-        when {
-            beta == 0.0 -> y.fill(0.0)
-            beta != 1.0 -> for (i in y.indices) y[i] *= beta
-        }
+        applyBeta(koblas.kernels, y, 0, y.size, beta)
         if (alpha == 0.0) return
         if (transpose) {
             for (j in 0 until a.cols) {

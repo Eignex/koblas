@@ -7,8 +7,8 @@ import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.F64LinearAlgebra
 import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
-import com.eignex.koblas.dense.host.cblas.F64CblasLinearAlgebra
-import com.eignex.koblas.dense.host.cblas.F64CblasVectorKernels
+import com.eignex.koblas.dense.host.cblas.F64CblasBackend
+import com.eignex.koblas.dense.host.cblas.F64CblasKernels
 import com.eignex.koblas.koblas
 import com.eignex.koblas.koblasInfo
 import com.eignex.koblas.registerBackend
@@ -23,7 +23,7 @@ class CblasHalvesTest {
 
     @Test
     fun `the level-1 kernels accept an empty run at the end of an array`() {
-        val kernels = F64CblasVectorKernels()
+        val kernels = F64CblasKernels()
         val v = doubleArrayOf(1.0, 2.0, 3.0)
         val end = v.size
         assertEquals(0.0, kernels.dot(v, end, v, end, 0), "dot")
@@ -38,7 +38,7 @@ class CblasHalvesTest {
     fun `the BLAS half stands alone when LAPACKE is missing`() {
         val cblas = requireNotNull(OpenBlasLoader.cblas) { "host OpenBLAS expected in the test environment" }
         withCleanBackends {
-            registerBackend(F64CblasBlas(cblas))
+            registerBackend(F64Cblas(cblas))
             assertEquals("cblas+reference", koblas.name, koblasInfo)
 
             val rng = kotlin.random.Random(20260804)
@@ -61,7 +61,7 @@ class CblasHalvesTest {
         val cblas = requireNotNull(OpenBlasLoader.cblas)
         val lapacke = requireNotNull(OpenBlasLoader.lapacke) { "host LAPACKE expected in the test environment" }
         withCleanBackends {
-            registerBackend(F64CblasLapack(lapacke, cblas))
+            registerBackend(F64Lapacke(lapacke, cblas))
             assertEquals("reference+cblas", koblas.name, koblasInfo)
             assertEquals(4, koblas.factor(F64DenseMatrix.diagonal(4, 2.0)).n)
         }
@@ -70,7 +70,7 @@ class CblasHalvesTest {
     @Test
     fun `both halves together land in both slots of the context`() {
         withCleanBackends {
-            val whole: F64LinearAlgebra = F64CblasLinearAlgebra()
+            val whole: F64LinearAlgebra = F64CblasBackend()
             registerBackend(whole)
             assertSame(whole, koblas.blas)
             assertSame(whole, koblas.lapack)

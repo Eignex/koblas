@@ -1,20 +1,20 @@
 package com.eignex.koblas.dense.host.cblas
 
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
-import com.eignex.koblas.dense.host.F64HostBlasAdapter
+import com.eignex.koblas.dense.host.F64BlasAdapter
 import com.eignex.koblas.internal.backend.BackendNames
-import com.eignex.koblas.internal.backend.openBlasDispatchThresholds
+import com.eignex.koblas.internal.backend.hostBlasDispatchThresholds
 
 /**
- * The host OpenBLAS through CBLAS, bound with cinterop. Every routine lives in [F64HostBlasAdapter]; this
+ * The host OpenBLAS through CBLAS, bound with cinterop. Every routine lives in [F64BlasAdapter]; this
  * supplies the native entry points and the backend's identity. Constructible whenever the host has
  * OpenBLAS, independently of LAPACKE.
  */
-internal class F64CblasBlas(
+internal class F64Cblas(
     f: CblasFunctions,
     private val loader: OpenBlasLoader = OpenBlasLoader(),
-    config: OpenBlasConfig = OpenBlasConfig(),
-) : F64HostBlasAdapter(NativeCblasCalls(f), dispatch = openBlasDispatchThresholds(config)) {
+    config: HostBlasConfig = HostBlasConfig(),
+) : F64BlasAdapter(NativeCblasCalls(f), dispatch = hostBlasDispatchThresholds(config)) {
     override val name: String get() = BackendNames.CBLAS
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY

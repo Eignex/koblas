@@ -1,6 +1,6 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.F64VectorKernels
+import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.internal.backend.BackendRegistry
 
 /**
@@ -10,7 +10,7 @@ import com.eignex.koblas.internal.backend.BackendRegistry
 public val koblas: F64Context get() = BackendRegistry.activeContext
 
 /** What this runtime resolved, for startup logging (e.g. `"backend=openblas, kernels=simd(8 lanes)"`). */
-public val koblasInfo: String get() = "backend=${koblas.name}, kernels=${koblas.vectorKernels.name}"
+public val koblasInfo: String get() = "backend=${koblas.name}, kernels=${koblas.kernels.name}"
 
 /**
  * Offers [backend] as an explicit choice for every half it implements. Explicit registrations outrank
@@ -38,4 +38,4 @@ internal fun rediscoverBackends() {
     BackendRegistry.rediscover()
 }
 
-internal val platformKernels: F64VectorKernels get() = BackendRegistry.platformKernels
+internal val platformKernels: F64Kernels get() = BackendRegistry.platformKernels

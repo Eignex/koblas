@@ -30,7 +30,7 @@ internal val simdAvailable: Boolean = try {
  */
 private val simdLanes: Int = if (simdAvailable) Simd.lanes() else 0
 
-internal actual object F64PlatformVectorKernels : F64VectorKernels {
+internal actual object F64PlatformKernels : F64Kernels {
     actual override val name: String
         get() = if (simdAvailable) "${BackendNames.SIMD}($simdLanes lanes)" else BackendNames.SCALAR
 
@@ -104,8 +104,29 @@ internal object Simd {
 
     fun lanes(): Int = LANE
 
-    /** One accumulator, since several would grow the method past what the JIT will inline. */
-    fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
+    /**
+     * Run length from which four accumulators beat one, as a multiple of the lane width because the reduce
+     * that combines them is a fixed cost against a per-vector saving.
+     *
+     * Set where `jvmLevel1Benchmark` shows the win without argument rather than at the crossover: on four
+     * lanes the unrolled form runs about 2x to 3x at 1024 and 4096, while unrolling every length is slower
+     * than not unrolling below 32 elements. The `LANE` scaling is reasoning, not measurement: only four
+     * lanes were measured.
+     */
+    private val UNROLL_MIN = 32 * LANE
+
+    /**
+     * One accumulator chains every multiply-add on the previous one's result, and an FMA's latency is
+     * several times its throughput, so a single chain leaves most of the unit idle on a long run. Four
+     * independent chains keep it fed, which is why [dot4] already runs that many.
+     *
+     * Two functions rather than one branching body so the short-length arm stays small enough for the JIT
+     * to inline into its callers, which is what the four accumulators and the extra loop would cost it.
+     */
+    fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
+        if (len >= UNROLL_MIN) dotUnrolled(a, aOff, b, bOff, len) else dotOneChain(a, aOff, b, bOff, len)
+
+    private fun dotOneChain(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
         var i = 0
         val bound = SPECIES.loopBound(len)
         var sum = DoubleVector.zero(SPECIES)
@@ -121,6 +142,30 @@ internal object Simd {
             i++
         }
         return s
+    }
+
+    /** [dot] past [UNROLL_MIN], where the four chains pay for the reduce that combines them. */
+    private fun dotUnrolled(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
+        var s0 = DoubleVector.zero(SPECIES)
+        var s1 = DoubleVector.zero(SPECIES)
+        var s2 = DoubleVector.zero(SPECIES)
+        var s3 = DoubleVector.zero(SPECIES)
+        var i = 0
+        val unrolled = len - len % (4 * LANE)
+        while (i < unrolled) {
+            s0 = DoubleVector.fromArray(SPECIES, a, aOff + i)
+                .fma(DoubleVector.fromArray(SPECIES, b, bOff + i), s0)
+            s1 = DoubleVector.fromArray(SPECIES, a, aOff + i + LANE)
+                .fma(DoubleVector.fromArray(SPECIES, b, bOff + i + LANE), s1)
+            s2 = DoubleVector.fromArray(SPECIES, a, aOff + i + 2 * LANE)
+                .fma(DoubleVector.fromArray(SPECIES, b, bOff + i + 2 * LANE), s2)
+            s3 = DoubleVector.fromArray(SPECIES, a, aOff + i + 3 * LANE)
+                .fma(DoubleVector.fromArray(SPECIES, b, bOff + i + 3 * LANE), s3)
+            i += 4 * LANE
+        }
+        // What the unroll leaves over is under one unroll width, which is what the single chain is for.
+        val head = s0.add(s1).add(s2.add(s3)).reduceLanes(VectorOperators.ADD)
+        return head + dotOneChain(a, aOff + unrolled, b, bOff + unrolled, len - unrolled)
     }
 
     /**

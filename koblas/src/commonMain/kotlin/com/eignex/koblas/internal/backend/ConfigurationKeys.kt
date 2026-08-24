@@ -12,10 +12,10 @@ internal object ConfigurationKeys {
     /** Pins sparse backend selection to one [BackendNames] value instead of taking the highest priority offered. */
     const val SPARSE_BACKEND_PROPERTY = "koblas.sparse.backend"
 
-    /** An absolute path to the host OpenBLAS, overriding the deployment lookup chain. */
-    val OPENBLAS_PATH = LibraryPathKeys("koblas.openblas.path", "KOBLAS_OPENBLAS_PATH")
+    /** An absolute path to the library exporting `cblas_*`, overriding the deployment lookup chain. */
+    val CBLAS_PATH = LibraryPathKeys("koblas.cblas.path", "KOBLAS_CBLAS_PATH")
 
-    /** An absolute path to the host LAPACKE, for a host that keeps it outside its OpenBLAS. */
+    /** An absolute path to the library exporting `LAPACKE_*`, for a host that keeps it outside its CBLAS. */
     val LAPACKE_PATH = LibraryPathKeys("koblas.lapacke.path", "KOBLAS_LAPACKE_PATH")
 
     /** An absolute path to the host KLU. */

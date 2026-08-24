@@ -4,9 +4,11 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.F64Context
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.borrow
 import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64VectorLike
+import com.eignex.koblas.denseEntries
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.koblas
 import com.eignex.koblas.requireShape
@@ -14,15 +16,15 @@ import com.eignex.koblas.requireShape
 /**
  * The portable dense matrix routines, the semantic reference a native [F64Blas] is validated against.
  *
- * @param kernels the vector kernels the inner loops use, or null to follow the [F64Context] default.
+ * @param configured the kernels the inner loops use, or null to follow the [F64Context] default.
  */
-internal class F64ReferenceBlas(private val kernels: F64VectorKernels? = null) : F64Blas {
+internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F64Blas {
     override val name: String get() = BackendNames.REFERENCE
 
     override val isPortable: Boolean get() = true
 
     /** These routines' kernels, or the process default when they were given none. */
-    override val vectorKernels: F64VectorKernels get() = kernels ?: koblas.vectorKernels
+    override val kernels: F64Kernels get() = configured ?: koblas.kernels
 
     override fun gemv(
         alpha: Double,
@@ -36,21 +38,21 @@ internal class F64ReferenceBlas(private val kernels: F64VectorKernels? = null) :
         val yLen = if (transpose) a.cols else a.rows
         requireShape(x.size == xLen) { "gemv: x length ${x.size} != $xLen" }
         requireShape(y.size == yLen) { "gemv: y length ${y.size} != $yLen" }
-        applyBeta(vectorKernels, y, 0, y.size, beta)
+        applyBeta(kernels, y, 0, y.size, beta)
         if (alpha == 0.0) return
         val ad = a.data
         val rows = a.rows
         if (!transpose) {
             for (j in 0 until a.cols) {
                 val xj = alpha * x[j]
-                if (xj != 0.0) vectorKernels.axpy(y, 0, xj, ad, j * rows, rows)
+                if (xj != 0.0) kernels.axpy(y, 0, xj, ad, j * rows, rows)
             }
         } else {
             val quads = DoubleArray(4)
             var j = 0
             val bound = a.cols - 3
             while (j < bound) {
-                vectorKernels.dot4(ad, j * rows, rows, x, 0, rows, quads, 0)
+                kernels.dot4(ad, j * rows, rows, x, 0, rows, quads, 0)
                 y[j] += alpha * quads[0]
                 y[j + 1] += alpha * quads[1]
                 y[j + 2] += alpha * quads[2]
@@ -58,7 +60,7 @@ internal class F64ReferenceBlas(private val kernels: F64VectorKernels? = null) :
                 j += 4
             }
             while (j < a.cols) {
-                y[j] += alpha * vectorKernels.dot(ad, j * rows, x, 0, rows)
+                y[j] += alpha * kernels.dot(ad, j * rows, x, 0, rows)
                 j++
             }
         }
@@ -81,11 +83,11 @@ internal class F64ReferenceBlas(private val kernels: F64VectorKernels? = null) :
         requireShape(k == kB) { "gemm: op(A) is ${m}x$k but op(B) is ${kB}x$n" }
         requireShape(c.rows == m && c.cols == n) { "gemm: C is ${c.rows}x${c.cols}, expected ${m}x$n" }
         val cd = c.data
-        applyBeta(vectorKernels, cd, 0, cd.size, beta)
+        applyBeta(kernels, cd, 0, cd.size, beta)
         if (alpha == 0.0 || m == 0 || n == 0 || k == 0) return
         val ad = a.data
         val bd = b.data
-        val kernels = vectorKernels
+        val kernels = kernels
         if (transposeA && transposeB) {
             // With both transposed one operand is strided whichever way the loops run, so the smaller one
             // is transposed first. That copy is O(k·n) or O(k·m) against the product's O(m·k·n).
@@ -151,32 +153,30 @@ internal class F64ReferenceBlas(private val kernels: F64VectorKernels? = null) :
         val k = if (transpose) a.rows else a.cols
         requireShape(c.rows == n && c.cols == n) { "syrk: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
         val cd = c.data
-        scaleUplo(vectorKernels, cd, n, beta, uplo)
+        scaleUplo(kernels, cd, n, beta, uplo)
         if (alpha == 0.0 || n == 0 || k == 0) return
         val ad = a.data
         // The dot form holds each output entry in a register, where accumulating outer products would
         // stream all of C once per column of A. So a non-transposed A is transposed first, an O(n·k) copy
         // against the product's O(n²·k/2), and both orientations run the same loop below.
-        val kernels = vectorKernels
-        val at = if (transpose) null else workspace?.take(n * k) ?: DoubleArray(n * k)
-        // Returned in a finally, so a kernel that throws does not strand the borrow: a buffer never handed
-        // back is one its pool can neither lend again nor reclaim.
-        try {
-            if (at != null) {
-                for (p in 0 until k) {
-                    val base = p * n
-                    for (j in 0 until n) at[p + j * k] = ad[base + j]
-                }
+        if (transpose) {
+            accumulateSyrk(alpha, ad, n, k, cd, uplo)
+            return
+        }
+        workspace.borrow(n * k) { at ->
+            transposeIntoRows(ad, at, n, k)
+            accumulateSyrk(alpha, at, n, k, cd, uplo)
+        }
+    }
+
+    /** The `dsyrk` accumulation with the operand stored `k×n`, so op(A) row i is column i of the buffer. */
+    @Suppress("LongParameterList") // the operand and the shape, all of which the caller holds
+    private fun accumulateSyrk(alpha: Double, ad: DoubleArray, n: Int, k: Int, cd: DoubleArray, uplo: Uplo) {
+        val kernels = kernels
+        for (j in 0 until n) {
+            for (i in j until n) {
+                addUplo(cd, n, i, j, alpha * kernels.dot(ad, i * k, ad, j * k, k), uplo)
             }
-            val source = at ?: ad
-            for (j in 0 until n) {
-                for (i in j until n) {
-                    val v = alpha * kernels.dot(source, i * k, source, j * k, k)
-                    addUplo(cd, n, i, j, v, uplo)
-                }
-            }
-        } finally {
-            if (at != null) workspace?.release(at)
         }
     }
 
@@ -186,7 +186,7 @@ internal class F64ReferenceBlas(private val kernels: F64VectorKernels? = null) :
         val n = a.rows
         requireShape(x.size == n) { "symv: x length ${x.size} != $n" }
         requireShape(y.size == n) { "symv: y length ${y.size} != $n" }
-        applyBeta(vectorKernels, y, 0, n, beta)
+        applyBeta(kernels, y, 0, n, beta)
         if (alpha == 0.0) return
         symvAccumulate(alpha, a.data, n, x, 0, y, 0, lower)
     }
@@ -209,11 +209,11 @@ internal class F64ReferenceBlas(private val kernels: F64VectorKernels? = null) :
             val xj = alpha * x[xOff + j]
             if (lower) {
                 val len = n - j - 1
-                y[yOff + j] += alpha * vectorKernels.dot(ad, base + 1, x, xOff + j + 1, len) + xj * ad[base]
-                if (xj != 0.0) vectorKernels.axpy(y, yOff + j + 1, xj, ad, base + 1, len)
+                y[yOff + j] += alpha * kernels.dot(ad, base + 1, x, xOff + j + 1, len) + xj * ad[base]
+                if (xj != 0.0) kernels.axpy(y, yOff + j + 1, xj, ad, base + 1, len)
             } else {
-                y[yOff + j] += alpha * vectorKernels.dot(ad, j * n, x, xOff, j) + xj * ad[base]
-                if (xj != 0.0) vectorKernels.axpy(y, yOff, xj, ad, j * n, j)
+                y[yOff + j] += alpha * kernels.dot(ad, j * n, x, xOff, j) + xj * ad[base]
+                if (xj != 0.0) kernels.axpy(y, yOff, xj, ad, j * n, j)
             }
         }
     }
@@ -248,7 +248,7 @@ internal class F64ReferenceBlas(private val kernels: F64VectorKernels? = null) :
             requireShape(b.rows == m) { "symm: B has ${b.rows} rows, expected $m" }
         }
         val cd = c.data
-        applyBeta(vectorKernels, cd, 0, cd.size, beta)
+        applyBeta(kernels, cd, 0, cd.size, beta)
         if (right) {
             if (alpha == 0.0 || m == 0 || b.rows == 0) return
             val rows = b.rows
@@ -257,7 +257,7 @@ internal class F64ReferenceBlas(private val kernels: F64VectorKernels? = null) :
             for (j in 0 until m) {
                 for (p in 0 until m) {
                     val apj = alpha * symEntry(ad, m, p, j, lower)
-                    if (apj != 0.0) vectorKernels.axpy(cd, j * rows, apj, bd, p * rows, rows)
+                    if (apj != 0.0) kernels.axpy(cd, j * rows, apj, bd, p * rows, rows)
                 }
             }
             return
@@ -273,7 +273,7 @@ internal class F64ReferenceBlas(private val kernels: F64VectorKernels? = null) :
             "ger shape mismatch: A is ${a.rows}x${a.cols}, x ${x.size}, y ${y.size}"
         }
         if (alpha == 0.0) return
-        val kernels = vectorKernels
+        val kernels = kernels
         for (j in 0 until a.cols) {
             val scaled = alpha * y[j]
             if (scaled != 0.0) kernels.axpy(a.data, a.colOffset(j), scaled, x, 0, a.rows)
@@ -287,7 +287,7 @@ internal class F64ReferenceBlas(private val kernels: F64VectorKernels? = null) :
         if (alpha == 0.0) return
         val n = a.rows
         val ad = a.data
-        val xs = x.toDoubleArray()
+        val xs = x.denseEntries()
         for (j in 0 until n) {
             val xj = alpha * xs[j]
             if (xj == 0.0) continue
@@ -304,8 +304,8 @@ internal class F64ReferenceBlas(private val kernels: F64VectorKernels? = null) :
         if (alpha == 0.0) return
         val n = a.rows
         val ad = a.data
-        val xs = x.toDoubleArray()
-        val ys = y.toDoubleArray()
+        val xs = x.denseEntries()
+        val ys = y.denseEntries()
         for (j in 0 until n) {
             for (i in j until n) {
                 val v = alpha * (xs[i] * ys[j] + ys[i] * xs[j])
@@ -316,7 +316,7 @@ internal class F64ReferenceBlas(private val kernels: F64VectorKernels? = null) :
 
     /** `C = alpha · (op(A) · op(B)ᵀ + op(B) · op(A)ᵀ) + beta · C` (BLAS `dsyr2k`), where `op` transposes when
      *  [transpose]. Writes the triangles [uplo] selects. */
-    @Suppress("LongParameterList") // the BLAS dsyr2k signature
+    @Suppress("LongParameterList") // the BLAS dsyr2k signature plus optional scratch
     override fun syr2k(
         alpha: Double,
         a: F64DenseMatrix,
@@ -325,6 +325,7 @@ internal class F64ReferenceBlas(private val kernels: F64VectorKernels? = null) :
         beta: Double,
         c: F64DenseMatrix,
         uplo: Uplo,
+        workspace: Workspace?,
     ) {
         val n = if (transpose) a.cols else a.rows
         val k = if (transpose) a.rows else a.cols
@@ -332,21 +333,49 @@ internal class F64ReferenceBlas(private val kernels: F64VectorKernels? = null) :
             "syr2k: B is ${b.rows}x${b.cols}, expected ${a.rows}x${a.cols} to match A"
         }
         requireShape(c.rows == n && c.cols == n) { "syr2k: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
-        scaleUplo(vectorKernels, c.data, n, beta, uplo)
+        scaleUplo(kernels, c.data, n, beta, uplo)
         if (alpha == 0.0 || n == 0 || k == 0) return
-        val cd = c.data
+        // Each entry is two dots, which hold their accumulator in a register. A transposed operand already
+        // has op(X) row i as column i of its buffer; a non-transposed one has it strided, so both are
+        // transposed first, an O(n·k) copy against the product's O(n²·k), as [syrk] does with its one
+        // operand. One triangle is computed and addUplo places it, which halves the dots and keeps the two
+        // halves identical even against a host dot whose value depends on which operand comes first.
+        if (transpose) {
+            accumulateSyr2k(alpha, a.data, b.data, n, k, c.data, uplo)
+            return
+        }
+        workspace.borrow(n * k) { at ->
+            workspace.borrow(n * k) { bt ->
+                transposeIntoRows(a.data, at, n, k)
+                transposeIntoRows(b.data, bt, n, k)
+                accumulateSyr2k(alpha, at, bt, n, k, c.data, uplo)
+            }
+        }
+    }
+
+    /** Column p of the `n×k` [src] becomes row p of the `k×n` [dst], so a row read turns into a column read. */
+    private fun transposeIntoRows(src: DoubleArray, dst: DoubleArray, n: Int, k: Int) {
+        for (p in 0 until k) {
+            val base = p * n
+            for (j in 0 until n) dst[p + j * k] = src[base + j]
+        }
+    }
+
+    /** The `dsyr2k` accumulation with both operands stored `k×n`, so op(X) row i is column i of the buffer. */
+    @Suppress("LongParameterList") // two operands and the shape, all of which the caller holds
+    private fun accumulateSyr2k(
+        alpha: Double,
+        ad: DoubleArray,
+        bd: DoubleArray,
+        n: Int,
+        k: Int,
+        cd: DoubleArray,
+        uplo: Uplo,
+    ) {
+        val kernels = kernels
         for (j in 0 until n) {
             for (i in j until n) {
-                var s = 0.0
-                if (transpose) {
-                    for (p in 0 until k) {
-                        s += a.getUnsafe(p, i) * b.getUnsafe(p, j) + b.getUnsafe(p, i) * a.getUnsafe(p, j)
-                    }
-                } else {
-                    for (p in 0 until k) {
-                        s += a.getUnsafe(i, p) * b.getUnsafe(j, p) + b.getUnsafe(i, p) * a.getUnsafe(j, p)
-                    }
-                }
+                val s = kernels.dot(ad, i * k, bd, j * k, k) + kernels.dot(bd, i * k, ad, j * k, k)
                 if (s != 0.0) addUplo(cd, n, i, j, alpha * s, uplo)
             }
         }
@@ -355,7 +384,7 @@ internal class F64ReferenceBlas(private val kernels: F64VectorKernels? = null) :
     /** Solve `op(T) · x = b` in place (BLAS `dtrsv`) for the [lower] or upper triangle of the square [a],
      *  `op` transposing when [transpose] and [unitDiag] taking the diagonal as 1. [x] carries b in and x out. */
     override fun trsv(a: F64DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) =
-        triangularVector(vectorKernels, a, x, lower, transpose, unitDiag, solve = true)
+        triangularVector(kernels, a, x, lower, transpose, unitDiag, solve = true)
 
     /** Solve `op(T) · X = B` in place, or `X · op(T) = B` when [right] (BLAS `dtrsm`). Flags follow [trsv];
      *  the right-hand sides are the columns of [b] from the left and its rows from the right. */
@@ -369,11 +398,11 @@ internal class F64ReferenceBlas(private val kernels: F64VectorKernels? = null) :
         right: Boolean,
         alpha: Double,
     ) =
-        triangularMatrix(vectorKernels, a, b, lower, transpose, unitDiag, right, alpha, solve = true)
+        triangularMatrix(kernels, a, b, lower, transpose, unitDiag, right, alpha, solve = true)
 
     /** `x = op(T) · x` in place (BLAS `dtrmv`), the product counterpart of [trsv]. */
     override fun trmv(a: F64DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) =
-        triangularVector(vectorKernels, a, x, lower, transpose, unitDiag, solve = false)
+        triangularVector(kernels, a, x, lower, transpose, unitDiag, solve = false)
 
     /** `B = op(T) · B`, or `B = B · op(T)` when [right] (BLAS `dtrmm`), the counterpart of [trsm]. */
     @Suppress("LongParameterList") // the BLAS dtrmm signature
@@ -386,5 +415,5 @@ internal class F64ReferenceBlas(private val kernels: F64VectorKernels? = null) :
         right: Boolean,
         alpha: Double,
     ) =
-        triangularMatrix(vectorKernels, a, b, lower, transpose, unitDiag, right, alpha, solve = false)
+        triangularMatrix(kernels, a, b, lower, transpose, unitDiag, right, alpha, solve = false)
 }

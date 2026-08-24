@@ -28,6 +28,11 @@ public interface F64SparseBlas : Backend {
      * entry and the solution on return. Only the [lower] or upper triangle of [a] is read, and [unitDiag]
      * takes the diagonal as 1 without reading it, as the dense [com.eignex.koblas.dense.F64Blas.trsv] does.
      *
+     * Unlike the dense half, which follows `dtrsv` in reporting nothing and answering a singular triangle
+     * with infinities, this reports it. There is no sparse BLAS routine whose silence it has to match, and
+     * the value is looked up to divide by it anyway, so a healthy solve pays nothing; only the failing
+     * column pays the extra scan that tells a stored zero from a missing entry.
+     *
      * @throws com.eignex.koblas.SingularMatrix if a diagonal entry is missing or zero and [unitDiag] is
      *  false, naming its position.
      */

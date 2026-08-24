@@ -182,10 +182,15 @@ internal class MarkowitzState(
         colRows[pCol].forEach { i ->
             if (i != pRow) {
                 val target = u[i]
+                // Every removal below pairs an entry with its `colRows` membership, so a row indexed under
+                // an active column always still holds that entry and the slot is present. The count update
+                // below depends on the same pairing, so it is asserted rather than worked around: a negative
+                // slot indexes out of bounds, which throws here but reads unchecked on Kotlin/JS.
                 val pSlot = target.slotOf(pCol)
-                val f = (if (pSlot >= 0) target.valueAt(pSlot) else 0.0) / pivot
+                require(pSlot >= 0) { "colRows held row $i with no entry in pivot column $pCol" }
+                val f = target.valueAt(pSlot) / pivot
                 l.put(i, f)
-                if (pSlot >= 0) target.removeAt(pSlot)
+                target.removeAt(pSlot)
                 changeRowCount(i, -1)
                 pivotRowMap.forEach { col, value ->
                     if (colActive[col]) { // skips the pivot column and already-pivoted columns

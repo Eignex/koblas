@@ -3,9 +3,9 @@
 Sparse linear algebra over the CSC [com.eignex.koblas.core.F64SparseMatrix], behind three swappable seams that
 mirror the dense ones.
 
-- [F64SparseVectorKernels] — the sparse level-1 tier: a sparse vector against a dense one (`usdot`, `usaxpy`
+- [F64SparseKernels] — the sparse level-1 tier: a sparse vector against a dense one (`usdot`, `usaxpy`
   in Sparse BLAS terms) or against another sparse one, plus scatter and the reductions. Unlike the dense
-  `F64VectorKernels` there is no length threshold, because the fallback here is an object rather than a
+  `F64Kernels` there is no length threshold, because the fallback here is an object rather than a
   compiled-in primitive and there is no compile-time kernel to protect.
 - [F64SparseBlas] — the sparse matrix routines. `gemv` in both directions, walking columns, which is what CSC
   stores. Deliberately thin: a sparse `gemm` fills in and is a different algorithm with a different result

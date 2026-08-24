@@ -13,7 +13,7 @@ import com.eignex.koblas.internal.host.nativeCleaner
 import com.eignex.koblas.sparse.F64BasisFactorization
 import com.eignex.koblas.sparse.F64SingularSparseFactorization
 import com.eignex.koblas.sparse.F64SparseFactorization
-import com.eignex.koblas.sparse.host.F64HostSparseLuAdapter
+import com.eignex.koblas.sparse.host.F64SparseLuAdapter
 import com.eignex.koblas.sparse.requireSolveShapes
 import java.lang.ref.Reference
 import kotlin.math.abs
@@ -25,7 +25,7 @@ public class BasicluSparseLu(
     public val libraryPath: String? = null,
     /** Smallest stored-entry count routed to the native factorization; null keeps the platform default. */
     public val factorizeMin: Int? = null,
-) : F64HostSparseLuAdapter(factorizeMin) {
+) : F64SparseLuAdapter(factorizeMin) {
     private val calls = BasicluCalls(libraryPath)
 
     override val name: String get() = "basiclu"
@@ -57,27 +57,40 @@ private open class BasicluFactorization(
     protected val calls: BasicluCalls,
 ) : F64SparseFactorization {
     init {
-        val held = handle
-        nativeCleaner.register(this) { calls.free(held) }
+        nativeCleaner.register(this, Release(calls, handle))
+    }
+
+    private class Release(private val calls: BasicluCalls, private val handle: BasicluHandle) : Runnable {
+        override fun run() {
+            calls.free(handle)
+        }
     }
 
     override val failedAt: Int get() = NOT_SINGULAR
-    override val nnz: Int get() = (calls.info(handle, BASICLU_LNZ) + calls.info(handle, BASICLU_UNZ)).toInt()
+
+    /** Reads BASICLU's own store, so the fence holds this factorization past the read. */
+    override val nnz: Int get() = try {
+        (calls.info(handle, BASICLU_LNZ) + calls.info(handle, BASICLU_UNZ)).toInt()
+    } finally {
+        Reference.reachabilityFence(this)
+    }
+
     override val rcond: Double
-        get() {
+        get() = try {
             val largest = abs(calls.info(handle, BASICLU_MAX_PIVOT))
-            return if (largest == 0.0) 0.0 else abs(calls.info(handle, BASICLU_MIN_PIVOT)) / largest
+            if (largest == 0.0) 0.0 else abs(calls.info(handle, BASICLU_MIN_PIVOT)) / largest
+        } finally {
+            Reference.reachabilityFence(this)
         }
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray {
         requireSolveShapes(n, b, out)
-        return if (out === b && workspace != null) {
-            workspace.borrow(n) { rhs ->
-                b.copyInto(rhs)
-                solve(rhs, out, transpose)
-            }
-        } else {
-            solve(if (out === b) b.copyOf() else b, out, transpose)
+        // BASICLU reads the right-hand side and writes the destination, so an aliased pair needs a separate
+        // buffer for one of them.
+        if (out !== b) return solve(b, out, transpose)
+        return workspace.borrow(n) { rhs ->
+            b.copyInto(rhs)
+            solve(rhs, out, transpose)
         }
     }
 
@@ -103,12 +116,16 @@ private class BasicluBasisFactorization(
         require(column in 0 until n) { "replaceColumn: column $column out of [0,$n)" }
         require(entering.size == n) { "replaceColumn: entering size ${entering.size}, expected $n" }
         val next = basis.withColumn(column, entering)
-        val status = calls.replaceColumn(
-            handle,
-            LongArray(entering.indices.size) { entering.indices[it].toLong() },
-            entering.values,
-            column,
-        )
+        val status = try {
+            calls.replaceColumn(
+                handle,
+                LongArray(entering.indices.size) { entering.indices[it].toLong() },
+                entering.values,
+                column,
+            )
+        } finally {
+            Reference.reachabilityFence(this)
+        }
         return if (status == BASICLU_OK) {
             basis = next
             this

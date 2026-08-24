@@ -4,6 +4,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.borrow
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.requireFactored
 import com.eignex.koblas.requireShape
@@ -12,12 +13,12 @@ import kotlin.math.abs
 /*
  * The portable LU factorization, the solves over its factors and the Hager condition estimator built on
  * them, netlib dgetrf, dgetrs and dgecon. This is the semantic definition a native LU is validated against;
- * [F64ReferenceLapack] is the F64Lapack surface over it.
+ * [F64ReferenceDecompositions] is the F64Decompositions surface over it.
  */
 
 /** Doolittle LU with partial pivoting, writing into [out]'s buffers. */
 internal fun referenceLuFactorInto(
-    kernels: F64VectorKernels,
+    kernels: F64Kernels,
     a: F64DenseMatrix,
     out: F64LuDecomposition,
 ): F64LuDecomposition {
@@ -67,7 +68,7 @@ internal fun referenceLuFactorInto(
 
 @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
 internal fun referenceLuSolveInto(
-    kernels: F64VectorKernels,
+    kernels: F64Kernels,
     lu: F64LuDecomposition,
     b: DoubleArray,
     out: DoubleArray,
@@ -89,7 +90,7 @@ internal fun referenceLuSolveInto(
 
 @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
 private fun solveNormal(
-    kernels: F64VectorKernels,
+    kernels: F64Kernels,
     n: Int,
     a: DoubleArray,
     piv: IntArray,
@@ -99,10 +100,10 @@ private fun solveNormal(
 ): DoubleArray {
     // When out aliases b the permutation may read a slot already written, so it stages the gather.
     if (out === b) {
-        val staged = workspace?.take(n) ?: DoubleArray(n)
-        for (i in 0 until n) staged[i] = b[piv[i]]
-        staged.copyInto(out)
-        workspace?.release(staged)
+        workspace.borrow(n) { staged ->
+            for (i in 0 until n) staged[i] = b[piv[i]]
+            staged.copyInto(out)
+        }
     } else {
         for (i in 0 until n) out[i] = b[piv[i]]
     }
@@ -113,7 +114,7 @@ private fun solveNormal(
 
 @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
 private fun solveTranspose(
-    kernels: F64VectorKernels,
+    kernels: F64Kernels,
     n: Int,
     a: DoubleArray,
     piv: IntArray,
@@ -121,12 +122,12 @@ private fun solveTranspose(
     out: DoubleArray,
     workspace: Workspace?,
 ): DoubleArray {
-    val y = workspace?.take(n) ?: DoubleArray(n)
-    b.copyInto(y)
-    trsvCore(kernels, a, n, y, lower = false, transpose = true, unitDiag = false)
-    trsvCore(kernels, a, n, y, lower = true, transpose = true, unitDiag = true)
-    for (i in 0 until n) out[piv[i]] = y[i] // undo the row permutation
-    workspace?.release(y)
+    workspace.borrow(n) { y ->
+        b.copyInto(y)
+        trsvCore(kernels, a, n, y, lower = false, transpose = true, unitDiag = false)
+        trsvCore(kernels, a, n, y, lower = true, transpose = true, unitDiag = true)
+        for (i in 0 until n) out[piv[i]] = y[i] // undo the row permutation
+    }
     return out
 }
 
@@ -134,7 +135,7 @@ private fun solveTranspose(
  *  and a [workspace] lends the transposed direction's `n·nrhs` staging block. */
 @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
 internal fun referenceLuSolveInto(
-    kernels: F64VectorKernels,
+    kernels: F64Kernels,
     lu: F64LuDecomposition,
     b: F64DenseMatrix,
     out: F64DenseMatrix,
@@ -148,21 +149,21 @@ internal fun referenceLuSolveInto(
     if (nrhs == 0) return out
     val f = lu.lu
     return if (transpose) {
-        val y = workspace?.take(n * nrhs) ?: DoubleArray(n * nrhs)
-        b.data.copyInto(y)
-        trsmCore(kernels, f, n, y, nrhs, lower = false, transpose = true, unitDiag = false)
-        trsmCore(kernels, f, n, y, nrhs, lower = true, transpose = true, unitDiag = true)
-        permuteRows(y, out.data, n, nrhs, lu.piv, gather = false)
-        workspace?.release(y)
+        workspace.borrow(n * nrhs) { y ->
+            b.data.copyInto(y)
+            trsmCore(kernels, f, n, y, nrhs, lower = false, transpose = true, unitDiag = false)
+            trsmCore(kernels, f, n, y, nrhs, lower = true, transpose = true, unitDiag = true)
+            permuteRows(y, out.data, n, nrhs, lu.piv, gather = false)
+        }
         out
     } else {
         // The gather cannot read B in place once out shares its buffer, so that case stages. Two
         // matrices can be distinct objects over one array, so the test is on the storage.
         if (out.data === b.data) {
-            val staged = workspace?.take(n * nrhs) ?: DoubleArray(n * nrhs)
-            permuteRows(b.data, staged, n, nrhs, lu.piv, gather = true)
-            staged.copyInto(out.data)
-            workspace?.release(staged)
+            workspace.borrow(n * nrhs) { staged ->
+                permuteRows(b.data, staged, n, nrhs, lu.piv, gather = true)
+                staged.copyInto(out.data)
+            }
         } else {
             permuteRows(b.data, out.data, n, nrhs, lu.piv, gather = true)
         }
@@ -175,7 +176,7 @@ internal fun referenceLuSolveInto(
 /** The estimator body, over caller-supplied vectors so [rcond] can pool them. */
 @Suppress("LongParameterList") // the kernels on top of four scratch vectors the caller owns
 internal fun hagerEstimate(
-    kernels: F64VectorKernels,
+    kernels: F64Kernels,
     lu: F64LuDecomposition,
     anorm: Double,
     n: Int,

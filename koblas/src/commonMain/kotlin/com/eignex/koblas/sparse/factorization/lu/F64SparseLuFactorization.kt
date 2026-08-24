@@ -2,6 +2,7 @@ package com.eignex.koblas.sparse.factorization.lu
 
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.borrow
 import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.requireShape
@@ -66,19 +67,19 @@ public class F64SparseLuFactorization private constructor(
     private fun ftranInto(b: DoubleArray, out: DoubleArray, workspace: Workspace? = null): DoubleArray {
         requireShape(b.size == m) { "ftran: b size ${b.size} != $m" }
         requireShape(out.size == m) { "ftran: out size ${out.size} != $m" }
-        val y = workspace?.take(m) ?: DoubleArray(m)
-        val xp = workspace?.take(m) ?: DoubleArray(m)
         // Left uncleared: y reads only below k and xp only above k, so a borrowed buffer's contents are dead.
-        // L y = P (E b), in pivot-position space.
-        sweep(descending = false, lRowIdx, lRowVal, y, skipDiagonal = false, divide = false) { k ->
-            b[perm[k]] * rowScale[perm[k]]
+        workspace.borrow(m) { y ->
+            workspace.borrow(m) { xp ->
+                // L y = P (E b), in pivot-position space.
+                sweep(descending = false, lRowIdx, lRowVal, y, skipDiagonal = false, divide = false) { k ->
+                    b[perm[k]] * rowScale[perm[k]]
+                }
+                // U x' = y, with x' in pivot-column space. Entry 0 of each U row is the diagonal.
+                sweep(descending = true, uRowIdx, uRowVal, xp, skipDiagonal = true, divide = true) { k -> y[k] }
+                // x = Q x'. Safe in place, since xp is separate storage from out.
+                for (k in 0 until m) out[colPerm[k]] = xp[k]
+            }
         }
-        // U x' = y, with x' in pivot-column space. Entry 0 of each U row is the diagonal.
-        sweep(descending = true, uRowIdx, uRowVal, xp, skipDiagonal = true, divide = true) { k -> y[k] }
-        // x = Q x'. Safe in place, since xp is separate storage from out.
-        for (k in 0 until m) out[colPerm[k]] = xp[k]
-        workspace?.release(xp)
-        workspace?.release(y)
         return out
     }
 
@@ -87,17 +88,19 @@ public class F64SparseLuFactorization private constructor(
     private fun btranInto(b: DoubleArray, out: DoubleArray, workspace: Workspace? = null): DoubleArray {
         requireShape(b.size == m) { "btran: b size ${b.size} != $m" }
         requireShape(out.size == m) { "btran: out size ${out.size} != $m" }
-        val z = workspace?.take(m) ?: DoubleArray(m)
-        val w = workspace?.take(m) ?: DoubleArray(m)
         // Left uncleared for the reason [ftranInto] gives. z ascends, w descends, each written before read.
-        // Uᵀ z = Qᵀ b, forward and lower.
-        sweep(descending = false, uColIdx, uColVal, z, skipDiagonal = false, divide = true) { k -> b[colPerm[k]] }
-        // Lᵀ w = z, back, upper, unit diagonal.
-        sweep(descending = true, lColIdx, lColVal, w, skipDiagonal = false, divide = false) { k -> z[k] }
-        // x = E·x', undoing the row equilibration.
-        for (k in 0 until m) out[perm[k]] = w[k] * rowScale[perm[k]]
-        workspace?.release(w)
-        workspace?.release(z)
+        workspace.borrow(m) { z ->
+            workspace.borrow(m) { w ->
+                // Uᵀ z = Qᵀ b, forward and lower.
+                sweep(descending = false, uColIdx, uColVal, z, skipDiagonal = false, divide = true) { k ->
+                    b[colPerm[k]]
+                }
+                // Lᵀ w = z, back, upper, unit diagonal.
+                sweep(descending = true, lColIdx, lColVal, w, skipDiagonal = false, divide = false) { k -> z[k] }
+                // x = E·x', undoing the row equilibration.
+                for (k in 0 until m) out[perm[k]] = w[k] * rowScale[perm[k]]
+            }
+        }
         return out
     }
 

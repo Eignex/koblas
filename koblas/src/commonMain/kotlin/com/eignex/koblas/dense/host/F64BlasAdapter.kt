@@ -28,7 +28,7 @@ import com.eignex.koblas.requireSquare
  * implementation: crossing into a native library costs more than the work saves on a small problem.
  */
 @Suppress("TooManyFunctions") // the BLAS surface a host library covers
-public abstract class F64HostBlasAdapter internal constructor(
+public abstract class F64BlasAdapter internal constructor(
     private val f: CblasCalls,
     private val portable: F64ReferenceBlas = F64ReferenceBlas(),
     private val dispatch: DispatchThresholds = DispatchThresholds(0, 0, 0, 0),
@@ -50,7 +50,7 @@ public abstract class F64HostBlasAdapter internal constructor(
     override fun syr2(alpha: Double, x: F64VectorLike, y: F64VectorLike, a: F64DenseMatrix, uplo: Uplo): Unit =
         portable.syr2(alpha, x, y, a, uplo)
 
-    @Suppress("LongParameterList") // the BLAS dsyr2k signature
+    @Suppress("LongParameterList") // the BLAS dsyr2k signature plus optional scratch
     override fun syr2k(
         alpha: Double,
         a: F64DenseMatrix,
@@ -59,7 +59,8 @@ public abstract class F64HostBlasAdapter internal constructor(
         beta: Double,
         c: F64DenseMatrix,
         uplo: Uplo,
-    ): Unit = portable.syr2k(alpha, a, b, transpose, beta, c, uplo)
+        workspace: Workspace?,
+    ): Unit = portable.syr2k(alpha, a, b, transpose, beta, c, uplo, workspace)
 
     /** `v = beta * v`, honoring the BLAS convention that `beta == 0` overwrites without reading. */
     private fun scaleInPlace(v: DoubleArray, beta: Double) {
@@ -235,7 +236,7 @@ public abstract class F64HostBlasAdapter internal constructor(
             return portable.syrk(alpha, a, transpose, beta, c, uplo, workspace)
         }
         if (alpha == 0.0 || k == 0) {
-            scaleUplo(vectorKernels, c.data, n, beta, uplo)
+            scaleUplo(kernels, c.data, n, beta, uplo)
             return
         }
         if (n == 0) return

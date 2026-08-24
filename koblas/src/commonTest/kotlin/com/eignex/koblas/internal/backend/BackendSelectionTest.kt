@@ -24,7 +24,7 @@ class BackendSelectionTest {
     private class FakeBlas(override val name: String, override val priority: Int) : F64Blas by F64ReferenceLinearAlgebra
 
     private class FakeLapack(override val name: String, override val priority: Int) :
-        F64Lapack by F64ReferenceLinearAlgebra
+        F64Decompositions by F64ReferenceLinearAlgebra
 
     private class NotABackend(override val name: String = "nothing") : Backend
 

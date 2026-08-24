@@ -121,7 +121,7 @@ private fun checkTriangular(blas: F64Blas, rng: Random, n: Int, lower: Boolean, 
 }
 
 /** The vector solve both ways, then the blocked multi-RHS path where a native trsm earns its call. */
-internal fun assertLuAgreesWithReference(lapack: F64Lapack, sizes: IntArray) {
+internal fun assertLuAgreesWithReference(lapack: F64Decompositions, sizes: IntArray) {
     val rng = Random(20260730)
     for (n in sizes) {
         val a = wellConditioned(n, rng) // diagonally dominant, so the solve is stable
@@ -147,7 +147,7 @@ internal fun assertLuAgreesWithReference(lapack: F64Lapack, sizes: IntArray) {
     }
 }
 
-internal fun assertSpdSuiteAgreesWithReference(lapack: F64Lapack, sizes: IntArray) {
+internal fun assertSpdSuiteAgreesWithReference(lapack: F64Decompositions, sizes: IntArray) {
     val rng = Random(20260803)
     for (n in sizes) {
         val a = poisonedSpd(n, rng)
@@ -188,7 +188,7 @@ internal fun assertSpdSuiteAgreesWithReference(lapack: F64Lapack, sizes: IntArra
  * A non-positive-definite input has no LAPACK equivalent, so the host hands the factorization back.
  * Keep [n] above the gate, since below it the host path is not involved.
  */
-internal fun assertNonPositiveDefiniteFallsBack(lapack: F64Lapack, n: Int) {
+internal fun assertNonPositiveDefiniteFallsBack(lapack: F64Decompositions, n: Int) {
     val bad = poisonedSpd(n, Random(20260808))
     bad[n - 1, n - 1] = -1.0 // breaks positive definiteness at the last leading minor
     val policy = CholeskyPolicy.Regularize()
@@ -221,7 +221,7 @@ internal fun assertSymvRefusesNonSquare(blas: F64Blas) {
  * returns infinities where it should throw. [nrhs] must reach the width at which the native
  * multi-right-hand-side path takes over.
  */
-internal fun assertSingularLdlIsRefused(lapack: F64Lapack, nrhs: Int = 4) {
+internal fun assertSingularLdlIsRefused(lapack: F64Decompositions, nrhs: Int = 4) {
     val ldl = lapack.ldl(F64DenseMatrix.zero(3, 3))
     assertTrue(ldl.singular, "a zero matrix factors to a singular LDL")
     assertFailsWith<SingularMatrix>("vector solve") { lapack.solve(ldl, DoubleArray(3)) }
@@ -234,9 +234,9 @@ internal fun assertSingularLdlIsRefused(lapack: F64Lapack, nrhs: Int = 4) {
 /**
  * `factorInto` promises the destination's own buffers, so a backend must not route it through a fresh
  * factorization and copy: that allocates the `n²` the caller passed a destination to avoid. Checked by
- * identity, since agreement with [F64Lapack.factor] alone would pass either way.
+ * identity, since agreement with [F64Decompositions.factor] alone would pass either way.
  */
-internal fun assertFactorIntoUsesItsDestination(lapack: F64Lapack, n: Int) {
+internal fun assertFactorIntoUsesItsDestination(lapack: F64Decompositions, n: Int) {
     val rng = Random(20260823)
     val first = wellConditioned(n, rng)
     val second = wellConditioned(n, rng)
@@ -424,7 +424,7 @@ private fun checkSymm(blas: F64Blas, rng: Random, a: F64DenseMatrix, n: Int, low
 }
 
 /** The comparison is relative, since a determinant grows with the size of the matrix. */
-internal fun assertDeterminantAgreesWithReference(lapack: F64Lapack, sizes: IntArray) {
+internal fun assertDeterminantAgreesWithReference(lapack: F64Decompositions, sizes: IntArray) {
     val rng = Random(20260730)
     for (n in sizes) {
         val a = wellConditioned(n, rng)
@@ -437,7 +437,7 @@ internal fun assertDeterminantAgreesWithReference(lapack: F64Lapack, sizes: IntA
     }
 }
 
-internal fun assertSingularLuIsFlagged(lapack: F64Lapack) {
+internal fun assertSingularLuIsFlagged(lapack: F64Decompositions) {
     val a = F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 4.0)))
     val lu = lapack.factor(a)
     assertTrue(lu.singular, "a rank-1 matrix factors to a singular LU")
@@ -445,7 +445,7 @@ internal fun assertSingularLuIsFlagged(lapack: F64Lapack) {
 }
 
 /** A factorization is a value, so either backend must be able to solve with the other one's factors. */
-internal fun assertLuFactorsInterchange(lapack: F64Lapack, n: Int) {
+internal fun assertLuFactorsInterchange(lapack: F64Decompositions, n: Int) {
     val rng = Random(20260731)
     val a = wellConditioned(n, rng)
     val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
@@ -457,7 +457,7 @@ internal fun assertLuFactorsInterchange(lapack: F64Lapack, n: Int) {
 }
 
 /** An estimator is free to disagree in detail, so only the order of magnitude is compared. */
-internal fun assertRcondAgreesWithReference(lapack: F64Lapack, sizes: IntArray) {
+internal fun assertRcondAgreesWithReference(lapack: F64Decompositions, sizes: IntArray) {
     val rng = Random(20260905)
     for (n in sizes) {
         val a = wellConditioned(n, rng)
@@ -475,7 +475,7 @@ internal fun assertRcondAgreesWithReference(lapack: F64Lapack, sizes: IntArray) 
  * The block solve of an indefinite system, with the unselected triangle poisoned. [nrhs] must reach the width
  * at which the native multi-right-hand-side path takes over.
  */
-internal fun assertLdlBlockSolveAgreesWithReference(lapack: F64Lapack, n: Int, nrhs: Int) {
+internal fun assertLdlBlockSolveAgreesWithReference(lapack: F64Decompositions, n: Int, nrhs: Int) {
     val rng = Random(20260952)
     val b = randomMatrix(n, nrhs, rng)
     val (_, a) = poisonedIndefinite(rng, n)
@@ -484,7 +484,7 @@ internal fun assertLdlBlockSolveAgreesWithReference(lapack: F64Lapack, n: Int, n
     assertClose(expected.data, actual.data, "ldl block n=$n nrhs=$nrhs", tolerance = 1e-9)
 }
 
-internal fun assertLdlFactorsInterchange(lapack: F64Lapack, sizes: IntArray) {
+internal fun assertLdlFactorsInterchange(lapack: F64Decompositions, sizes: IntArray) {
     val rng = Random(20260932)
     for (n in sizes) {
         val (_, a) = poisonedIndefinite(rng, n)
@@ -506,7 +506,7 @@ internal fun assertLdlFactorsInterchange(lapack: F64Lapack, sizes: IntArray) {
 }
 
 /** Both least squares and the minimum-norm solve, across every pairing of the two backends' factors. */
-internal fun assertQrFactorsInterchange(lapack: F64Lapack, shapes: List<Pair<Int, Int>>) {
+internal fun assertQrFactorsInterchange(lapack: F64Decompositions, shapes: List<Pair<Int, Int>>) {
     // A column whose tail is already zero is where the two can differ without either being wrong: both
     // factor it, and only a zero reflector leaves R's diagonal as it found it. Sized past the LAPACK
     // dispatch threshold so the binding rather than the fallback answers.
@@ -569,7 +569,7 @@ internal fun assertDegenerateShapesHonorTheBetaConventions(blas: F64Blas) {
 }
 
 /** A 0x0 system has nothing to solve, so it yields an empty solution rather than failing. */
-internal fun assertAnEmptyFactorizationSolvesEmpty(lapack: F64Lapack) {
+internal fun assertAnEmptyFactorizationSolvesEmpty(lapack: F64Decompositions) {
     val empty = lapack.factor(F64DenseMatrix(0, 0))
     assertEquals(0, lapack.solve(empty, DoubleArray(0)).size)
 }
@@ -581,7 +581,7 @@ internal fun assertAnEmptyFactorizationSolvesEmpty(lapack: F64Lapack) {
  * Each rank in [ranks] builds an `m x cols` matrix as a product of full-rank factors of that rank, so the
  * deficiency is exact rather than the result of rounding.
  */
-internal fun assertPivotedQrAgreesWithReference(lapack: F64Lapack, m: Int, cols: Int, ranks: IntArray) {
+internal fun assertPivotedQrAgreesWithReference(lapack: F64Decompositions, m: Int, cols: Int, ranks: IntArray) {
     val rng = Random(20260809)
     for (rank in ranks) {
         val left = randomMatrix(m, rank, rng)

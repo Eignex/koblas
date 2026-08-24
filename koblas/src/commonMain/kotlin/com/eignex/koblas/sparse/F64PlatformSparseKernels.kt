@@ -3,7 +3,7 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64SparseVector
 
-internal expect object F64PlatformSparseVectorKernels : F64SparseVectorKernels {
+internal expect object F64PlatformSparseKernels : F64SparseKernels {
     override val name: String
 
     /** `xᵀ·y` against a dense operand, the one routine a target may accelerate. */

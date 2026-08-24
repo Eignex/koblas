@@ -15,7 +15,7 @@ import com.eignex.koblas.transpose
 public interface F64Blas : Backend {
 
     /** The vector kernels this half's inherited routines run on; the installed ones by default. */
-    public val vectorKernels: F64VectorKernels get() = koblas.vectorKernels
+    public val kernels: F64Kernels get() = koblas.kernels
 
     /** `y = alpha · op(A) · x + beta · y` (BLAS `dgemv`), with `op(A)` being `Aᵀ` when [transpose].
      *  `beta == 0.0` overwrites [y] without reading it. */
@@ -103,9 +103,14 @@ public interface F64Blas : Backend {
     /** `A += alpha · (x · yᵀ + y · xᵀ)` (BLAS `dsyr2`), writing the triangles [uplo] selects. */
     public fun syr2(alpha: Double, x: F64VectorLike, y: F64VectorLike, a: F64DenseMatrix, uplo: Uplo = Uplo.FULL)
 
-    /** `C = alpha · (op(A) · op(B)ᵀ + op(B) · op(A)ᵀ) + beta · C` (BLAS `dsyr2k`), where `op` transposes when
-     *  [transpose]. Writes the triangles [uplo] selects. */
-    @Suppress("LongParameterList") // the BLAS dsyr2k signature
+    /**
+     * `C = alpha · (op(A) · op(B)ᵀ + op(B) · op(A)ᵀ) + beta · C` (BLAS `dsyr2k`), where `op` transposes when
+     * [transpose]. Writes the triangles [uplo] selects.
+     *
+     * A non-transposed pair is transposed into scratch first, so pass a [workspace] to keep a loop over this
+     * routine from allocating `2·n·k` doubles per call. [syrk] borrows the same way for its one operand.
+     */
+    @Suppress("LongParameterList") // the BLAS dsyr2k signature plus optional scratch
     public fun syr2k(
         alpha: Double,
         a: F64DenseMatrix,
@@ -114,10 +119,19 @@ public interface F64Blas : Backend {
         beta: Double,
         c: F64DenseMatrix,
         uplo: Uplo = Uplo.FULL,
+        workspace: Workspace? = null,
     )
 
-    /** Solve `op(T) · x = b` in place (BLAS `dtrsv`) for the [lower] or upper triangle of the square [a],
-     *  `op` transposing when [transpose] and [unitDiag] taking the diagonal as 1. [x] carries b in and x out. */
+    /**
+     * Solve `op(T) · x = b` in place (BLAS `dtrsv`) for the [lower] or upper triangle of the square [a],
+     * `op` transposing when [transpose] and [unitDiag] taking the diagonal as 1. [x] carries b in and x out.
+     *
+     * The diagonal is divided by, not tested: `dtrsv` carries no `info` and reports nothing, so a singular
+     * triangle yields infinities or NaNs and the caller who needs the distinction tests the diagonal first.
+     * That is the convention rather than a cost, and [trtri] shows it: having an `info` to return, it throws
+     * on a zero diagonal. The sparse [com.eignex.koblas.sparse.F64SparseBlas.trsv] throws too, having no
+     * BLAS routine whose silence it has to match.
+     */
     public fun trsv(
         a: F64DenseMatrix,
         x: DoubleArray,

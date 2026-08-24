@@ -19,10 +19,10 @@ public fun F64DenseMatrix.cholesky(
     uplo: Uplo = Uplo.FULL,
 ): F64CholeskyDecomposition = koblas.cholesky(asLowerSymmetricInput(uplo, "cholesky"), policy)
 
-/** Solve `A · x = b` for this factorization with the active backend; see [F64Lapack.solve]. */
+/** Solve `A · x = b` for this factorization with the active backend; see [F64Decompositions.solve]. */
 public fun F64CholeskyDecomposition.solve(b: DoubleArray): DoubleArray = koblas.solve(this, b)
 
-/** `A⁻¹` from this factorization with the active backend; see [F64Lapack.invert]. */
+/** `A⁻¹` from this factorization with the active backend; see [F64Decompositions.invert]. */
 public fun F64CholeskyDecomposition.invert(workspace: Workspace? = null): F64DenseMatrix = koblas.invert(
     this,
     workspace,

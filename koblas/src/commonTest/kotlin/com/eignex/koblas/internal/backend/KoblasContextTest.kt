@@ -3,11 +3,11 @@ package com.eignex.koblas.internal.backend
 import com.eignex.koblas.*
 import com.eignex.koblas.core.*
 import com.eignex.koblas.dense.F64Blas
-import com.eignex.koblas.dense.F64Lapack
+import com.eignex.koblas.dense.F64Decompositions
+import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.dense.F64ReferenceBackend
-import com.eignex.koblas.dense.F64ReferenceLapack
+import com.eignex.koblas.dense.F64ReferenceDecompositions
 import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
-import com.eignex.koblas.dense.F64VectorKernels
 import com.eignex.koblas.dense.lu
 import com.eignex.koblas.dense.solve
 import com.eignex.koblas.internal.numeric.absoluteSum
@@ -22,7 +22,7 @@ import kotlin.test.assertTrue
 
 class KoblasContextTest {
 
-    private class Counting(override val name: String = "counting") : F64VectorKernels {
+    private class Counting(override val name: String = "counting") : F64Kernels {
         override val priority: Int get() = 0
         var dots = 0
         var axpys = 0
@@ -65,21 +65,21 @@ class KoblasContextTest {
     fun `with keeps every half it is not given`() {
         val base = koblas
         val mine = Counting()
-        val derived = base.with(vectorKernels = mine)
-        assertSame(mine, derived.vectorKernels)
+        val derived = base.with(kernels = mine)
+        assertSame(mine, derived.kernels)
         assertSame(base.blas, derived.blas)
         assertSame(base.lapack, derived.lapack)
         assertSame(base.sparseBlas, derived.sparseBlas)
         assertSame(base.sparseLu, derived.sparseLu)
-        assertSame(base.sparseVectorKernels, derived.sparseVectorKernels)
-        assertSame(base.vectorKernels, base.vectorKernels, "the original must be untouched; contexts are values")
+        assertSame(base.sparseKernels, derived.sparseKernels)
+        assertSame(base.kernels, base.kernels, "the original must be untouched; contexts are values")
     }
 
     @Test
     fun `sparse linear algebra exposes its vector kernels`() {
         val context: F64SparseLinearAlgebra = koblas
 
-        assertSame(koblas.sparseVectorKernels, context.sparseVectorKernels)
+        assertSame(koblas.sparseKernels, context.sparseKernels)
     }
 
     @Test
@@ -93,12 +93,14 @@ class KoblasContextTest {
         assertTrue(mine.dots + mine.axpys > 0, "trsv must use the backend's kernels")
 
         val before = mine.dots + mine.axpys
-        (backend as F64Lapack).cholesky(F64DenseMatrix.of(arrayOf(doubleArrayOf(4.0, 1.0), doubleArrayOf(1.0, 3.0))))
+        (backend as F64Decompositions).cholesky(
+            F64DenseMatrix.of(arrayOf(doubleArrayOf(4.0, 1.0), doubleArrayOf(1.0, 3.0))),
+        )
         assertTrue(mine.dots + mine.axpys > before, "cholesky must use the backend's kernels")
     }
 
     /** A backend built the way host bindings are, delegating to the portable base with its own kernels. */
-    private class LapackHalf(kernels: F64VectorKernels) : F64Lapack by F64ReferenceLapack(kernels) {
+    private class LapackHalf(kernels: F64Kernels) : F64Decompositions by F64ReferenceDecompositions(kernels) {
         override val name: String get() = "half"
     }
 
@@ -126,8 +128,8 @@ class KoblasContextTest {
     @Test
     fun `the shared reference follows the process default kernels`() {
         val mine = Counting("installed")
-        installBackends(koblas.with(vectorKernels = mine))
-        val lapack: F64Lapack = F64ReferenceLinearAlgebra
+        installBackends(koblas.with(kernels = mine))
+        val lapack: F64Decompositions = F64ReferenceLinearAlgebra
         lapack.factor(F64DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0))))
         assertTrue(mine.axpys > 0, "F64ReferenceLinearAlgebra must pick up an installed context's kernels")
     }
@@ -135,7 +137,7 @@ class KoblasContextTest {
     @Test
     fun `the name covers the matrix halves and not the kernels`() {
         val counting = Counting()
-        assertEquals(koblas.name, koblas.with(vectorKernels = counting).name, "kernels do not belong in the name")
+        assertEquals(koblas.name, koblas.with(kernels = counting).name, "kernels do not belong in the name")
         val named = koblas.with(sparseBlas = F64ReferenceSparseLinearAlgebra).name.split("+")
         assertEquals(named.size, named.distinct().size, "the name repeated a backend")
     }
@@ -149,10 +151,10 @@ class KoblasContextTest {
     @Test
     fun `a context reports the strongest half's priority and names its backends`() {
         val reference = F64Context(
-            vectorKernels = Counting(),
+            kernels = Counting(),
             blas = F64ReferenceLinearAlgebra,
             lapack = F64ReferenceLinearAlgebra,
-            sparseVectorKernels = F64ReferenceSparseLinearAlgebra,
+            sparseKernels = F64ReferenceSparseLinearAlgebra,
             sparseBlas = F64ReferenceSparseLinearAlgebra,
             sparseLu = F64ReferenceSparseLinearAlgebra,
         )
@@ -160,7 +162,7 @@ class KoblasContextTest {
         assertEquals("reference", reference.name, "one distinct backend name should not repeat")
         assertEquals("F64Context(reference)", reference.toString())
 
-        val strong = object : F64Lapack by F64ReferenceLinearAlgebra {
+        val strong = object : F64Decompositions by F64ReferenceLinearAlgebra {
             override val name: String get() = "strong"
             override val priority: Int get() = 42
         }

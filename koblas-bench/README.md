@@ -39,7 +39,7 @@ kernels, so one run gives both sides of the comparison. Every `@Setup` prints
 the resolved backend — check it before trusting a number, because a missing
 native library changes what was measured without failing anything.
 
-`level1` has no such parameter: those kernels reach a backend through VectorKernels
+`level1` has no such parameter: those kernels reach a backend through Kernels
 rather than through the `backend` the other suites switch. Run it twice,
 once as-is and once with `-Pkoblas.noSimd=true` to withhold the incubator
 vector module, to compare SIMD against scalar.
