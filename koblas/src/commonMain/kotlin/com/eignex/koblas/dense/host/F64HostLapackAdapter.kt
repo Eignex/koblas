@@ -252,6 +252,12 @@ public abstract class F64HostLapackAdapter internal constructor(
     }
 
     override fun applyQInto(qr: F64QrDecomposition, y: DoubleArray, out: DoubleArray, transpose: Boolean): DoubleArray {
+        // Gated on the work, m reflector applications of length k, against what the square case costs at
+        // the threshold. Gating on min(m, n) alone would keep a tall thin factorization portable however
+        // large m grows, which is the shape least-squares presents most often.
+        val reflectorWork = qr.m.toLong() * qr.tau.size
+        val gate = dispatch.factorize.toLong() * dispatch.factorize
+        if (reflectorWork < gate) return portable.applyQInto(qr, y, out, transpose)
         requireShape(y.size == qr.m) { "applyQ: y length ${y.size} != ${qr.m}" }
         requireShape(out.size == qr.m) { "applyQ: out length ${out.size} != ${qr.m}" }
         val c = out
@@ -275,8 +281,8 @@ public abstract class F64HostLapackAdapter internal constructor(
     }
 
     /**
-     * Clears the upper triangle LAPACK leaves untouched, reads only the lower triangle of the input, and
-     * falls back to the portable path on a positive info, which [CholeskyPolicy.Regularize] needs.
+     * Reads only the lower triangle of the input, and falls back to the portable path on a positive info,
+     * which [CholeskyPolicy.Regularize] needs.
      */
     override fun cholesky(a: F64DenseMatrix, policy: CholeskyPolicy): F64CholeskyDecomposition {
         if (a.rows < dispatch.factorize) return portable.cholesky(a, policy)
@@ -289,7 +295,8 @@ public abstract class F64HostLapackAdapter internal constructor(
         val info = f.dpotrf(COL_MAJOR, LOWER_UPLO, n, l.data, n)
         check(info >= 0) { "dpotrf: illegal argument ${-info}" }
         if (info > 0) return portable.cholesky(a, policy)
-        for (i in 0 until n) for (j in i + 1 until n) l[i, j] = 0.0
+        // The destination is allocated zeroed and `dpotrf` with `uplo = L` leaves the strict upper triangle
+        // untouched, so it is already the zero this returns.
         return F64CholeskyDecomposition(l)
     }
 
@@ -308,7 +315,12 @@ public abstract class F64HostLapackAdapter internal constructor(
         // the caller's to construct over any square matrix. The reference answers with infinities, so this
         // half answers the same way rather than throwing where it would not.
         if (info > 0) return portable.invert(chol, workspace)
-        for (i in 0 until n) for (j in 0 until i) inv[j, i] = inv[i, j]
+        // Column i's upper entries are contiguous, so the mirror writes down a column and reads across.
+        val invd = inv.data
+        for (i in 0 until n) {
+            val base = inv.colOffset(i)
+            for (j in 0 until i) invd[base + j] = invd[i + j * n]
+        }
         return inv
     }
 }
