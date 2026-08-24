@@ -4,6 +4,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.F64Context
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.borrow
 import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64VectorLike
@@ -158,26 +159,24 @@ internal class F64ReferenceBlas(private val kernels: F64VectorKernels? = null) :
         // The dot form holds each output entry in a register, where accumulating outer products would
         // stream all of C once per column of A. So a non-transposed A is transposed first, an O(n·k) copy
         // against the product's O(n²·k/2), and both orientations run the same loop below.
+        if (transpose) {
+            accumulateSyrk(alpha, ad, n, k, cd, uplo)
+            return
+        }
+        workspace.borrow(n * k) { at ->
+            transposeIntoRows(ad, at, n, k)
+            accumulateSyrk(alpha, at, n, k, cd, uplo)
+        }
+    }
+
+    /** The `dsyrk` accumulation with the operand stored `k×n`, so op(A) row i is column i of the buffer. */
+    @Suppress("LongParameterList") // the operand and the shape, all of which the caller holds
+    private fun accumulateSyrk(alpha: Double, ad: DoubleArray, n: Int, k: Int, cd: DoubleArray, uplo: Uplo) {
         val kernels = vectorKernels
-        val at = if (transpose) null else workspace?.take(n * k) ?: DoubleArray(n * k)
-        // Returned in a finally, so a kernel that throws does not strand the borrow: a buffer never handed
-        // back is one its pool can neither lend again nor reclaim.
-        try {
-            if (at != null) {
-                for (p in 0 until k) {
-                    val base = p * n
-                    for (j in 0 until n) at[p + j * k] = ad[base + j]
-                }
+        for (j in 0 until n) {
+            for (i in j until n) {
+                addUplo(cd, n, i, j, alpha * kernels.dot(ad, i * k, ad, j * k, k), uplo)
             }
-            val source = at ?: ad
-            for (j in 0 until n) {
-                for (i in j until n) {
-                    val v = alpha * kernels.dot(source, i * k, source, j * k, k)
-                    addUplo(cd, n, i, j, v, uplo)
-                }
-            }
-        } finally {
-            if (at != null) workspace?.release(at)
         }
     }
 
@@ -317,7 +316,7 @@ internal class F64ReferenceBlas(private val kernels: F64VectorKernels? = null) :
 
     /** `C = alpha · (op(A) · op(B)ᵀ + op(B) · op(A)ᵀ) + beta · C` (BLAS `dsyr2k`), where `op` transposes when
      *  [transpose]. Writes the triangles [uplo] selects. */
-    @Suppress("LongParameterList") // the BLAS dsyr2k signature
+    @Suppress("LongParameterList") // the BLAS dsyr2k signature plus optional scratch
     override fun syr2k(
         alpha: Double,
         a: F64DenseMatrix,
@@ -326,6 +325,7 @@ internal class F64ReferenceBlas(private val kernels: F64VectorKernels? = null) :
         beta: Double,
         c: F64DenseMatrix,
         uplo: Uplo,
+        workspace: Workspace?,
     ) {
         val n = if (transpose) a.cols else a.rows
         val k = if (transpose) a.rows else a.cols
@@ -335,19 +335,47 @@ internal class F64ReferenceBlas(private val kernels: F64VectorKernels? = null) :
         requireShape(c.rows == n && c.cols == n) { "syr2k: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
         scaleUplo(vectorKernels, c.data, n, beta, uplo)
         if (alpha == 0.0 || n == 0 || k == 0) return
-        val cd = c.data
+        // Each entry is two dots, which hold their accumulator in a register. A transposed operand already
+        // has op(X) row i as column i of its buffer; a non-transposed one has it strided, so both are
+        // transposed first, an O(n·k) copy against the product's O(n²·k), as [syrk] does with its one
+        // operand. One triangle is computed and addUplo places it, which halves the dots and keeps the two
+        // halves identical even against a host dot whose value depends on which operand comes first.
+        if (transpose) {
+            accumulateSyr2k(alpha, a.data, b.data, n, k, c.data, uplo)
+            return
+        }
+        workspace.borrow(n * k) { at ->
+            workspace.borrow(n * k) { bt ->
+                transposeIntoRows(a.data, at, n, k)
+                transposeIntoRows(b.data, bt, n, k)
+                accumulateSyr2k(alpha, at, bt, n, k, c.data, uplo)
+            }
+        }
+    }
+
+    /** Column p of the `n×k` [src] becomes row p of the `k×n` [dst], so a row read turns into a column read. */
+    private fun transposeIntoRows(src: DoubleArray, dst: DoubleArray, n: Int, k: Int) {
+        for (p in 0 until k) {
+            val base = p * n
+            for (j in 0 until n) dst[p + j * k] = src[base + j]
+        }
+    }
+
+    /** The `dsyr2k` accumulation with both operands stored `k×n`, so op(X) row i is column i of the buffer. */
+    @Suppress("LongParameterList") // two operands and the shape, all of which the caller holds
+    private fun accumulateSyr2k(
+        alpha: Double,
+        ad: DoubleArray,
+        bd: DoubleArray,
+        n: Int,
+        k: Int,
+        cd: DoubleArray,
+        uplo: Uplo,
+    ) {
+        val kernels = vectorKernels
         for (j in 0 until n) {
             for (i in j until n) {
-                var s = 0.0
-                if (transpose) {
-                    for (p in 0 until k) {
-                        s += a.getUnsafe(p, i) * b.getUnsafe(p, j) + b.getUnsafe(p, i) * a.getUnsafe(p, j)
-                    }
-                } else {
-                    for (p in 0 until k) {
-                        s += a.getUnsafe(i, p) * b.getUnsafe(j, p) + b.getUnsafe(i, p) * a.getUnsafe(j, p)
-                    }
-                }
+                val s = kernels.dot(ad, i * k, bd, j * k, k) + kernels.dot(bd, i * k, ad, j * k, k)
                 if (s != 0.0) addUplo(cd, n, i, j, alpha * s, uplo)
             }
         }

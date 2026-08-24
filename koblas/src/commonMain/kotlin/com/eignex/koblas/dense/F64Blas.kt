@@ -103,9 +103,14 @@ public interface F64Blas : Backend {
     /** `A += alpha · (x · yᵀ + y · xᵀ)` (BLAS `dsyr2`), writing the triangles [uplo] selects. */
     public fun syr2(alpha: Double, x: F64VectorLike, y: F64VectorLike, a: F64DenseMatrix, uplo: Uplo = Uplo.FULL)
 
-    /** `C = alpha · (op(A) · op(B)ᵀ + op(B) · op(A)ᵀ) + beta · C` (BLAS `dsyr2k`), where `op` transposes when
-     *  [transpose]. Writes the triangles [uplo] selects. */
-    @Suppress("LongParameterList") // the BLAS dsyr2k signature
+    /**
+     * `C = alpha · (op(A) · op(B)ᵀ + op(B) · op(A)ᵀ) + beta · C` (BLAS `dsyr2k`), where `op` transposes when
+     * [transpose]. Writes the triangles [uplo] selects.
+     *
+     * A non-transposed pair is transposed into scratch first, so pass a [workspace] to keep a loop over this
+     * routine from allocating `2·n·k` doubles per call. [syrk] borrows the same way for its one operand.
+     */
+    @Suppress("LongParameterList") // the BLAS dsyr2k signature plus optional scratch
     public fun syr2k(
         alpha: Double,
         a: F64DenseMatrix,
@@ -114,6 +119,7 @@ public interface F64Blas : Backend {
         beta: Double,
         c: F64DenseMatrix,
         uplo: Uplo = Uplo.FULL,
+        workspace: Workspace? = null,
     )
 
     /**
