@@ -3,12 +3,12 @@
 
 package com.eignex.koblas.dense.host.cblas
 
-import com.eignex.koblas.cblas.F64CblasLinearAlgebra
-import com.eignex.koblas.cblas.F64CblasVectorKernels
 import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
 import com.eignex.koblas.dense.assertLevel1KernelsAgreeWithScalar
 import com.eignex.koblas.dense.assertReductionsAgreeWithScalar
 import com.eignex.koblas.dense.host.*
+import com.eignex.koblas.dense.host.cblas.F64CblasLinearAlgebra
+import com.eignex.koblas.dense.host.cblas.F64CblasVectorKernels
 import com.eignex.koblas.installBackends
 import com.eignex.koblas.koblas
 import kotlin.test.Test

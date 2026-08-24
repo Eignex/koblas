@@ -1,4 +1,4 @@
-package com.eignex.koblas.hostblas
+package com.eignex.koblas.dense.host.jvm
 
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.dense.host.F64HostLapackAdapter
@@ -14,7 +14,7 @@ import com.eignex.koblas.internal.backend.openBlasDispatchThresholds
  * The host LAPACKE through `java.lang.foreign`. Every shared routine lives in [F64HostLapackAdapter]; this
  * supplies the JVM's entry points and measured gates.
  */
-public class HostLapack internal constructor(private val calls: HostBlasCalls, config: OpenBlasConfig) :
+public class F64OpenBlasLapack internal constructor(private val calls: HostBlasCalls, config: OpenBlasConfig) :
     F64HostLapackAdapter(
         JvmLapackeCalls(calls),
         JvmCblasCalls(calls),

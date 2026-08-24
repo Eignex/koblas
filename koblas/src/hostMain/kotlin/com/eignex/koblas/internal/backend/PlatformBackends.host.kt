@@ -1,11 +1,11 @@
 package com.eignex.koblas.internal.backend
 
-import com.eignex.koblas.cblas.F64CblasVectorKernels
 import com.eignex.koblas.dense.host.cblas.F64CblasBlas
 import com.eignex.koblas.dense.host.cblas.F64CblasLapack
+import com.eignex.koblas.dense.host.cblas.F64CblasVectorKernels
 import com.eignex.koblas.dense.host.cblas.OpenBlasConfig
 import com.eignex.koblas.dense.host.cblas.OpenBlasLoader
-import com.eignex.koblas.hostsparse.HostSparseBackends
+import com.eignex.koblas.sparse.host.F64HostSparseBackends
 
 /**
  * Backend discovery on the native targets that can reach a host library, run once on the first
@@ -31,6 +31,6 @@ private fun registerHostBlas() {
 
 /** koblas's UMFPACK binding, when this host has SuiteSparse. Independent of the BLAS half by design. */
 private fun registerUmfpack() {
-    val umfpack = HostSparseBackends().umfpack
+    val umfpack = F64HostSparseBackends().umfpack
     if (umfpack.isAvailable) BackendRegistry.registerAutomatic(umfpack)
 }

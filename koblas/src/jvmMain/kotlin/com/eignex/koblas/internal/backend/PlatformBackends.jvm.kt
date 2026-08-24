@@ -4,11 +4,11 @@ import com.eignex.koblas.Backend
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.F64Blas
 import com.eignex.koblas.dense.host.cblas.OpenBlasConfig
-import com.eignex.koblas.hostblas.HostBackends
-import com.eignex.koblas.hostsparse.HostSparseBackends
+import com.eignex.koblas.dense.host.jvm.F64OpenBlasBackends
 import com.eignex.koblas.sparse.F64SparseBlas
 import com.eignex.koblas.sparse.F64SparseLu
 import com.eignex.koblas.sparse.F64SparseVectorKernels
+import com.eignex.koblas.sparse.host.F64HostSparseBackends
 import com.eignex.koblas.sparse.host.klu.KluConfig
 import com.eignex.koblas.sparse.host.umfpack.UmfpackConfig
 import java.util.ServiceLoader
@@ -85,13 +85,13 @@ private fun registerBuiltins(
     denseRequested: String?,
     sparseRequested: String?,
 ) {
-    val dense = HostBackends(automatic.openBlas)
+    val dense = F64OpenBlasBackends(automatic.openBlas)
     registerIfOffered(dense.blas, denseRequested) {
         // The level-1 primitives and the factorizations are their own halves of the seam.
         BackendRegistry.registerAutomatic(dense.vectorKernels)
         dense.lapack.takeIf { it.isAvailable }?.let { BackendRegistry.registerAutomatic(it) }
     }
-    val sparse = HostSparseBackends(automatic.klu, automatic.umfpack)
+    val sparse = F64HostSparseBackends(automatic.klu, automatic.umfpack)
     registerIfOffered(sparse.klu, sparseRequested)
     registerIfOffered(sparse.umfpack, sparseRequested)
 }

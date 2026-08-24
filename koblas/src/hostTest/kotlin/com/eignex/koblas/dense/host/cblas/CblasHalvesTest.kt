@@ -3,12 +3,12 @@
 
 package com.eignex.koblas.dense.host.cblas
 
-import com.eignex.koblas.cblas.F64CblasLinearAlgebra
-import com.eignex.koblas.cblas.F64CblasVectorKernels
 import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.F64LinearAlgebra
 import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
+import com.eignex.koblas.dense.host.cblas.F64CblasLinearAlgebra
+import com.eignex.koblas.dense.host.cblas.F64CblasVectorKernels
 import com.eignex.koblas.koblas
 import com.eignex.koblas.koblasInfo
 import com.eignex.koblas.registerBackend
