@@ -50,7 +50,7 @@ public abstract class F64HostBlasAdapter internal constructor(
     override fun syr2(alpha: Double, x: F64VectorLike, y: F64VectorLike, a: F64DenseMatrix, uplo: Uplo): Unit =
         portable.syr2(alpha, x, y, a, uplo)
 
-    @Suppress("LongParameterList") // the BLAS dsyr2k signature
+    @Suppress("LongParameterList") // the BLAS dsyr2k signature plus optional scratch
     override fun syr2k(
         alpha: Double,
         a: F64DenseMatrix,
@@ -59,7 +59,8 @@ public abstract class F64HostBlasAdapter internal constructor(
         beta: Double,
         c: F64DenseMatrix,
         uplo: Uplo,
-    ): Unit = portable.syr2k(alpha, a, b, transpose, beta, c, uplo)
+        workspace: Workspace?,
+    ): Unit = portable.syr2k(alpha, a, b, transpose, beta, c, uplo, workspace)
 
     /** `v = beta * v`, honoring the BLAS convention that `beta == 0` overwrites without reading. */
     private fun scaleInPlace(v: DoubleArray, beta: Double) {

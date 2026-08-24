@@ -52,7 +52,7 @@ class Level3Benchmark {
         return c
     }
 
-    /** Rank-2k, whose inner loop reads both operands through the unchecked accessor. */
+    /** Rank-2k, two dots per entry over operands transposed into scratch, and no workspace to lend it. */
     @Benchmark
     fun syr2k(): F64DenseMatrix {
         koblas.syr2k(1.0, a, b, transpose = false, beta = 0.0, c = c, uplo = Uplo.LOWER)

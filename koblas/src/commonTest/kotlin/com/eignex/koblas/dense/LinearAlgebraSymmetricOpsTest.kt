@@ -172,6 +172,77 @@ class LinearAlgebraSymmetricOpsTest {
         }
     }
 
+    /** The `dsyr2k` sum for one entry, over whichever orientation [transpose] selects. */
+    private fun syr2kEntry(a: F64DenseMatrix, b: F64DenseMatrix, transpose: Boolean, k: Int, i: Int, j: Int): Double {
+        var s = 0.0
+        for (p in 0 until k) {
+            val ai = if (transpose) a[p, i] else a[i, p]
+            val aj = if (transpose) a[p, j] else a[j, p]
+            val bi = if (transpose) b[p, i] else b[i, p]
+            val bj = if (transpose) b[p, j] else b[j, p]
+            s += ai * bj + bi * aj
+        }
+        return s
+    }
+
+    /**
+     * A triangle mode has to beta-scale and write the same half, and leave the other half of an asymmetric
+     * destination exactly as it found it. Beta is non-zero and C starts asymmetric so that scaling the wrong
+     * region, or mirroring where the routine should accumulate, both show up.
+     */
+    @Test
+    fun `syr2k writes only the triangle it is given and scales only that`() {
+        val rng = Random(20260825)
+        val n = 5
+        val k = 3
+        for (transpose in booleanArrayOf(false, true)) {
+            for (uplo in Uplo.entries) {
+                val a = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
+                val b = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
+                val before = randomMatrix(n, n, rng)
+                val c = F64DenseMatrix.wrap(n, n, before.data.copyOf())
+                koblas.syr2k(0.5, a, b, transpose, beta = 2.0, c = c, uplo = uplo)
+                for (i in 0 until n) {
+                    for (j in 0 until n) {
+                        val written = when (uplo) {
+                            Uplo.FULL -> true
+                            Uplo.LOWER -> i >= j
+                            Uplo.UPPER -> i <= j
+                        }
+                        val expected = if (written) {
+                            2.0 * before[i, j] + 0.5 * syr2kEntry(a, b, transpose, k, i, j)
+                        } else {
+                            before[i, j]
+                        }
+                        assertClose(expected, c[i, j], "transpose=$transpose uplo=$uplo at [$i,$j]")
+                    }
+                }
+            }
+        }
+    }
+
+    /** The full mode writes both halves, so a mirror dropped from the placement shows up as an asymmetry. */
+    @Test
+    fun `syr2k writes both halves in the full mode`() {
+        val rng = Random(20260826)
+        val n = 6
+        val k = 4
+        for (transpose in booleanArrayOf(false, true)) {
+            val a = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
+            val b = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
+            val c = F64DenseMatrix(n, n)
+            koblas.syr2k(0.5, a, b, transpose, beta = 0.0, c = c, uplo = Uplo.FULL)
+            for (i in 0 until n) {
+                for (j in 0 until n) {
+                    assertTrue(
+                        c[i, j] == c[j, i],
+                        "transpose=$transpose is not exactly symmetric at [$i,$j]: ${c[i, j]} vs ${c[j, i]}",
+                    )
+                }
+            }
+        }
+    }
+
     @Test
     fun `syr2k matches the gemm expansion in both orientations`() {
         val rng = Random(20260809)
@@ -184,15 +255,11 @@ class LinearAlgebraSymmetricOpsTest {
             koblas.syr2k(0.5, a, b, transpose, 0.0, c)
             for (i in 0 until n) {
                 for (j in 0 until n) {
-                    var s = 0.0
-                    for (p in 0 until k) {
-                        val ai = if (transpose) a[p, i] else a[i, p]
-                        val aj = if (transpose) a[p, j] else a[j, p]
-                        val bi = if (transpose) b[p, i] else b[i, p]
-                        val bj = if (transpose) b[p, j] else b[j, p]
-                        s += ai * bj + bi * aj
-                    }
-                    assertClose(0.5 * s, c[i, j], "transpose=$transpose at [$i,$j]")
+                    assertClose(
+                        0.5 * syr2kEntry(a, b, transpose, k, i, j),
+                        c[i, j],
+                        "transpose=$transpose at [$i,$j]",
+                    )
                 }
             }
         }
@@ -265,5 +332,54 @@ class LinearAlgebraSymmetricOpsTest {
             )
         }
         assertSame(parked, ws.take(n * k), "syrk kept its workspace buffer after the inner loop threw")
+    }
+
+    @Test
+    fun `syr2k through a reused workspace does not accumulate the previous call`() {
+        val rng = Random(20260827)
+        val n = 7
+        val k = 4
+        val ws = Workspace()
+        for (transpose in booleanArrayOf(false, true)) {
+            val a = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
+            val b = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
+            // Two staging buffers of one width, so a routine that borrowed the same one twice would hold
+            // one operand where the other belongs and both dots would read it.
+            val pooled = F64DenseMatrix(n, n)
+            koblas.syr2k(0.75, a, b, transpose, beta = 0.0, c = pooled, uplo = Uplo.LOWER, workspace = ws)
+            val fresh = F64DenseMatrix(n, n)
+            koblas.syr2k(0.75, a, b, transpose, beta = 0.0, c = fresh, uplo = Uplo.LOWER)
+            assertClose(fresh.data, pooled.data, "transpose=$transpose against the unpooled result")
+            val again = F64DenseMatrix(n, n)
+            koblas.syr2k(0.75, a, b, transpose, beta = 0.0, c = again, uplo = Uplo.LOWER, workspace = ws)
+            assertClose(fresh.data, again.data, "transpose=$transpose on the second pooled call")
+        }
+    }
+
+    @Test
+    fun `syr2k gives its workspace buffers back when the inner loop throws`() {
+        val n = 4
+        val k = 3
+        val ws = Workspace()
+        val parked = listOf(ws.take(n * k), ws.take(n * k))
+        parked.forEach { ws.release(it) }
+        val blas = F64ReferenceBlas(FailingDot())
+        assertFailsWith<IllegalStateException> {
+            blas.syr2k(
+                1.0,
+                F64DenseMatrix(n, k),
+                F64DenseMatrix(n, k),
+                transpose = false,
+                beta = 0.0,
+                c = F64DenseMatrix(n, n),
+                workspace = ws,
+            )
+        }
+        for (buffer in listOf(ws.take(n * k), ws.take(n * k))) {
+            assertTrue(
+                buffer === parked[0] || buffer === parked[1],
+                "syr2k kept a workspace buffer after the inner loop threw",
+            )
+        }
     }
 }
