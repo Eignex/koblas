@@ -14,5 +14,5 @@ public class F64Backends(config: HostBlasConfig = HostBlasConfig()) {
     public val kernels: F64CblasKernels = F64CblasKernels(calls, config)
 
     /** The LAPACKE half. */
-    public val lapack: F64Lapacke = F64Lapacke(calls, config)
+    public val decompositions: F64Lapacke = F64Lapacke(calls, config)
 }

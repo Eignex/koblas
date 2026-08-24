@@ -89,7 +89,7 @@ private fun registerBuiltins(
     registerIfOffered(dense.blas, denseRequested) {
         // The level-1 primitives and the factorizations are their own halves of the seam.
         BackendRegistry.registerAutomatic(dense.kernels)
-        dense.lapack.takeIf { it.isAvailable }?.let { BackendRegistry.registerAutomatic(it) }
+        dense.decompositions.takeIf { it.isAvailable }?.let { BackendRegistry.registerAutomatic(it) }
     }
     val sparse = F64SparseBackends(automatic.klu, automatic.umfpack)
     registerIfOffered(sparse.klu, sparseRequested)

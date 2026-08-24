@@ -45,6 +45,6 @@ class BackendAvailabilityTest {
         assertTrue(koblas.isAvailable, "the installed context is assembled from resolved backends")
         val absent = UnavailableHost("absent")
         assertFalse(koblas.with(blas = absent).isAvailable, "one unavailable half makes the context so")
-        assertFalse(koblas.with(lapack = absent).isAvailable)
+        assertFalse(koblas.with(decompositions = absent).isAvailable)
     }
 }

@@ -32,7 +32,7 @@ class ResolvedContextTest {
         assertEquals("someblas", koblas.blas.name)
         // Reading it above caches a context. The next registration has to be seen through that cache.
         registerBackend(LapackHalf("somelapack"))
-        assertEquals("somelapack", koblas.lapack.name, "the cached context hid a later registration")
+        assertEquals("somelapack", koblas.decompositions.name, "the cached context hid a later registration")
         assertEquals("someblas", koblas.blas.name, "rebuilding the context dropped the earlier half")
     }
 

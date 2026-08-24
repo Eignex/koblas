@@ -19,7 +19,7 @@ public enum class BackendSlot(internal val from: (F64Context) -> Backend, intern
     F64Blas({ it.blas }),
 
     /** Dense factorizations. */
-    F64Decompositions({ it.lapack }),
+    F64Decompositions({ it.decompositions }),
 
     /** Sparse vector-vector routines. */
     F64SparseKernels({ it.sparseKernels }, vectorHalf = true),

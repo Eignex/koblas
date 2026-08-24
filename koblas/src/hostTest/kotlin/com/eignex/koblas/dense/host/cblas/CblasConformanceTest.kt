@@ -25,9 +25,9 @@ class CblasConformanceTest {
         assertTrue(F64CblasBackend.isAvailable(), "host OpenBLAS expected in the test environment")
         assertEquals("cblas", koblas.blas.name)
         try {
-            installBackends(koblas.with(blas = F64ReferenceLinearAlgebra, lapack = F64ReferenceLinearAlgebra))
+            installBackends(koblas.with(blas = F64ReferenceLinearAlgebra, decompositions = F64ReferenceLinearAlgebra))
             assertEquals("reference", koblas.blas.name)
-            assertEquals("reference", koblas.lapack.name)
+            assertEquals("reference", koblas.decompositions.name)
         } finally {
             installBackends(null) // restores automatic selection
         }

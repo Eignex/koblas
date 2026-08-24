@@ -82,7 +82,7 @@ class SparseSeamTest {
     }
 
     private class CountingSparseLu(override val priority: Int = 50) : F64SparseLu {
-        override val name: String get() = "counting-lapack"
+        override val name: String get() = "counting-decompositions"
         var factors = 0
 
         override fun factor(a: F64SparseMatrix, equilibrate: Boolean, dropTolerance: Double): F64SparseFactorization {
@@ -132,16 +132,16 @@ class SparseSeamTest {
     @Test
     fun `the matrix product and the factorization reach their halves`() = withCleanBackends {
         val blas = CountingSparseBlas()
-        val lapack = CountingSparseLu()
+        val decompositions = CountingSparseLu()
         registerBackend(blas)
-        registerBackend(lapack)
+        registerBackend(decompositions)
         val a = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 4.0)))
 
         assertTrue(doubleArrayOf(2.0, 8.0).contentEquals(a.gemv(doubleArrayOf(1.0, 2.0))))
         assertEquals(1, blas.gemvs, "F64SparseMatrix.gemv should forward to the seam")
 
         val f = a.lu()
-        assertEquals(1, lapack.factors, "F64SparseMatrix.lu should forward to the seam")
+        assertEquals(1, decompositions.factors, "F64SparseMatrix.lu should forward to the seam")
         assertTrue(!f.singular)
     }
 
@@ -150,7 +150,7 @@ class SparseSeamTest {
         registerBackend(CountingSparseBlas())
         registerBackend(CountingSparseLu())
         assertEquals("counting-blas", koblas.sparseBlas.name)
-        assertEquals("counting-lapack", koblas.sparseLu.name)
+        assertEquals("counting-decompositions", koblas.sparseLu.name)
         resetBackends()
         registerBackend(F64ReferenceSparseLinearAlgebra)
         assertSame(F64ReferenceSparseLinearAlgebra, koblas.sparseBlas)

@@ -110,7 +110,7 @@ class AccelerationTest {
     @Test
     fun `a context reports its own halves rather than the global registry`() = withCleanBackends {
         registerBackend(FakeHost("openblas"))
-        val portable = koblas.with(blas = F64ReferenceLinearAlgebra, lapack = F64ReferenceLinearAlgebra)
+        val portable = koblas.with(blas = F64ReferenceLinearAlgebra, decompositions = F64ReferenceLinearAlgebra)
         assertTrue(!portable.isAccelerated(BackendSlot.F64Blas), "the context's own half is the portable one")
         assertTrue(koblas.isAccelerated(BackendSlot.F64Blas), "the registry is still accelerated")
         assertFailsWith<IllegalStateException> { portable.requireAccelerated(BackendSlot.F64Blas) }

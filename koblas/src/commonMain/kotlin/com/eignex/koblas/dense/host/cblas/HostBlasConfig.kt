@@ -22,8 +22,8 @@ internal val LAPACKE_SONAMES = listOf(
     "liblapacke.so.3",
     "liblapacke.so",
     "liblapacke.dylib",
-    "/opt/homebrew/opt/lapack/lib/liblapacke.dylib",
-    "/usr/local/opt/lapack/lib/liblapacke.dylib",
+    "/opt/homebrew/opt/decompositions/lib/liblapacke.dylib",
+    "/usr/local/opt/decompositions/lib/liblapacke.dylib",
     "lapacke.dll",
 )
 

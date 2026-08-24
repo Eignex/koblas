@@ -11,10 +11,10 @@ import com.eignex.koblas.internal.backend.BackendNames
  * [F64LinearAlgebra] backed by the host's OpenBLAS through CBLAS and LAPACKE, resolved with `dlopen` on
  * first use. The two halves resolve independently, so [isAvailable] reports whether both did.
  */
-public class F64CblasBackend private constructor(private val blas: F64Cblas, private val lapack: F64Lapacke) :
+public class F64CblasBackend private constructor(private val blas: F64Cblas, private val decompositions: F64Lapacke) :
     F64LinearAlgebra,
     F64Blas by blas,
-    F64Decompositions by lapack {
+    F64Decompositions by decompositions {
 
     private constructor(loader: OpenBlasLoader, config: HostBlasConfig) : this(
         F64Cblas(requireNotNull(loader.cblas) { NO_OPENBLAS }, loader),
@@ -31,7 +31,7 @@ public class F64CblasBackend private constructor(private val blas: F64Cblas, pri
     override val isPortable: Boolean get() = false
 
     /** Both halves, since this type is the pair. Either half alone is reachable through the registry. */
-    override val isAvailable: Boolean get() = blas.isAvailable && lapack.isAvailable
+    override val isAvailable: Boolean get() = blas.isAvailable && decompositions.isAvailable
 
     /** The BLAS half's kernels, so both halves' inherited routines agree. */
     override val kernels: F64Kernels get() = blas.kernels

@@ -30,7 +30,7 @@ class AllocationFreeTest {
         installBackends(
             koblas.with(
                 blas = F64ReferenceLinearAlgebra,
-                lapack = F64ReferenceLinearAlgebra,
+                decompositions = F64ReferenceLinearAlgebra,
                 sparseBlas = F64ReferenceSparseLinearAlgebra,
                 sparseLu = F64ReferenceSparseLinearAlgebra,
                 sparseKernels = F64ReferenceSparseLinearAlgebra,

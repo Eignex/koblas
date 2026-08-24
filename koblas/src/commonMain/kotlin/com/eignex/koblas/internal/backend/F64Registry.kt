@@ -28,7 +28,7 @@ import kotlin.concurrent.atomics.incrementAndFetch
 internal class F64Registry {
     private val vectorKernelSeam = Seam<F64Kernels>(::recompose)
     private val blasSeam = Seam<F64Blas>(::recompose)
-    private val lapackSeam = Seam<F64Decompositions>(::recompose)
+    private val decompositionsSeam = Seam<F64Decompositions>(::recompose)
     private val sparseVectorKernelSeam = Seam<F64SparseKernels>(::recompose)
     private val sparseBlasSeam = Seam<F64SparseBlas>(::recompose)
     private val sparseLuSeam = Seam<F64SparseLu>(::recompose)
@@ -53,7 +53,7 @@ internal class F64Registry {
     private val halves: Map<BackendSlot, Half<*>> = mapOf(
         BackendSlot.F64Kernels to Half(vectorKernelSeam) { it as? F64Kernels },
         BackendSlot.F64Blas to Half(blasSeam) { it as? F64Blas },
-        BackendSlot.F64Decompositions to Half(lapackSeam) { it as? F64Decompositions },
+        BackendSlot.F64Decompositions to Half(decompositionsSeam) { it as? F64Decompositions },
         BackendSlot.F64SparseKernels to Half(sparseVectorKernelSeam) { it as? F64SparseKernels },
         BackendSlot.F64SparseBlas to Half(sparseBlasSeam) { it as? F64SparseBlas },
         BackendSlot.F64SparseLu to Half(sparseLuSeam) { it as? F64SparseLu },
@@ -121,7 +121,7 @@ internal class F64Registry {
     private fun assemble(): F64Context = F64Context(
         kernels = F64RoutedKernels(vectorKernelSeam.active),
         blas = blasSeam.active ?: F64ReferenceLinearAlgebra,
-        lapack = lapackSeam.active ?: F64ReferenceLinearAlgebra,
+        decompositions = decompositionsSeam.active ?: F64ReferenceLinearAlgebra,
         sparseKernels = sparseVectorKernelSeam.active ?: F64PlatformSparseKernels,
         sparseBlas = sparseBlasSeam.active ?: F64ReferenceSparseLinearAlgebra,
         sparseLu = sparseLuSeam.active ?: F64ReferenceSparseLinearAlgebra,

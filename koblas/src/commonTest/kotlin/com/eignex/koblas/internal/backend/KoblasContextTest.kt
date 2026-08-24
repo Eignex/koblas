@@ -68,7 +68,7 @@ class KoblasContextTest {
         val derived = base.with(kernels = mine)
         assertSame(mine, derived.kernels)
         assertSame(base.blas, derived.blas)
-        assertSame(base.lapack, derived.lapack)
+        assertSame(base.decompositions, derived.decompositions)
         assertSame(base.sparseBlas, derived.sparseBlas)
         assertSame(base.sparseLu, derived.sparseLu)
         assertSame(base.sparseKernels, derived.sparseKernels)
@@ -129,8 +129,8 @@ class KoblasContextTest {
     fun `the shared reference follows the process default kernels`() {
         val mine = Counting("installed")
         installBackends(koblas.with(kernels = mine))
-        val lapack: F64Decompositions = F64ReferenceLinearAlgebra
-        lapack.factor(F64DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0))))
+        val decompositions: F64Decompositions = F64ReferenceLinearAlgebra
+        decompositions.factor(F64DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0))))
         assertTrue(mine.axpys > 0, "F64ReferenceLinearAlgebra must pick up an installed context's kernels")
     }
 
@@ -153,7 +153,7 @@ class KoblasContextTest {
         val reference = F64Context(
             kernels = Counting(),
             blas = F64ReferenceLinearAlgebra,
-            lapack = F64ReferenceLinearAlgebra,
+            decompositions = F64ReferenceLinearAlgebra,
             sparseKernels = F64ReferenceSparseLinearAlgebra,
             sparseBlas = F64ReferenceSparseLinearAlgebra,
             sparseLu = F64ReferenceSparseLinearAlgebra,
@@ -166,7 +166,7 @@ class KoblasContextTest {
             override val name: String get() = "strong"
             override val priority: Int get() = 42
         }
-        val mixed = reference.with(lapack = strong)
+        val mixed = reference.with(decompositions = strong)
         assertEquals(42, mixed.priority, "the context should take the strongest half's priority")
         assertEquals("reference+strong", mixed.name, "both distinct names, in half order")
         assertSame(reference.blas, mixed.blas, "with() should keep the halves it was not given")

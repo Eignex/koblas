@@ -13,19 +13,19 @@ import com.eignex.koblas.internal.backend.BundledNativeResources
 import java.nio.file.Path
 
 /** OpenBLAS backend bundled in Maven-native resources. */
-public class BundledOpenBlas private constructor(private val blas: F64Cblas, private val lapack: F64Lapacke) :
+public class BundledOpenBlas private constructor(private val blas: F64Cblas, private val decompositions: F64Lapacke) :
     F64LinearAlgebra,
     F64Blas by blas,
-    F64Decompositions by lapack {
+    F64Decompositions by decompositions {
 
     /** Creates an OpenBLAS backend from bundled native resources. */
     public constructor() : this(loadHostBackends())
 
-    private constructor(backends: F64Backends) : this(backends.blas, backends.lapack)
+    private constructor(backends: F64Backends) : this(backends.blas, backends.decompositions)
 
     override val name: String get() = "openblas-bundled"
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 1
-    override val isAvailable: Boolean get() = blas.isAvailable && lapack.isAvailable
+    override val isAvailable: Boolean get() = blas.isAvailable && decompositions.isAvailable
     override val isPortable: Boolean get() = false
     override val kernels: F64Kernels get() = blas.kernels
 }

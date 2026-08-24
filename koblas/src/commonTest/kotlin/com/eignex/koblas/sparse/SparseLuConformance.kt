@@ -39,13 +39,13 @@ internal fun multiply(a: F64SparseMatrix, x: DoubleArray): DoubleArray {
     return y
 }
 
-internal fun assertSolvesAgreeWithReference(lapack: F64SparseLu) {
+internal fun assertSolvesAgreeWithReference(decompositions: F64SparseLu) {
     val rng = Random(20260815)
     for (n in intArrayOf(1, 2, 7, 23, 60)) {
         val a = sparseConformanceSystem(n, rng)
         val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
 
-        val host = lapack.factor(a)
+        val host = decompositions.factor(a)
         val portable = F64ReferenceSparseLinearAlgebra.factor(a)
         assertTrue(!host.singular, "n=$n the host called a well-conditioned system singular")
         assertTrue(!portable.singular, "n=$n the reference called it singular")
@@ -59,34 +59,34 @@ internal fun assertSolvesAgreeWithReference(lapack: F64SparseLu) {
     }
 }
 
-internal fun assertAliasedDestinationSolves(lapack: F64SparseLu) {
+internal fun assertAliasedDestinationSolves(decompositions: F64SparseLu) {
     val rng = Random(20260816)
     val n = 12
     val a = sparseConformanceSystem(n, rng)
     val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
-    val f = lapack.factor(a)
+    val f = decompositions.factor(a)
     val expected = f.solve(b)
     val aliased = b.copyOf()
     f.solveInto(aliased, aliased)
     assertClose(expected, aliased, "aliased destination", tolerance = 1e-12)
 }
 
-internal fun assertReciprocalPivotConditionEstimateIsBounded(lapack: F64SparseLu) {
+internal fun assertReciprocalPivotConditionEstimateIsBounded(decompositions: F64SparseLu) {
     val identity = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 1.0)))
-    assertEquals(1.0, lapack.factor(identity).rcond)
+    assertEquals(1.0, decompositions.factor(identity).rcond)
 
-    val estimate = lapack.factor(sparseConformanceSystem(12, Random(20260824))).rcond
+    val estimate = decompositions.factor(sparseConformanceSystem(12, Random(20260824))).rcond
     assertTrue(estimate in 0.0..1.0, "reciprocal pivot condition estimate out of range: $estimate")
 }
 
 /** A host that cannot name the failing pivot must say so rather than invent a position. */
-internal fun assertSingularIsReportedWithUnknownPosition(lapack: F64SparseLu) {
+internal fun assertSingularIsReportedWithUnknownPosition(decompositions: F64SparseLu) {
     val rank1 = F64SparseMatrix.ofColumns(
         2,
         2,
         listOf(listOf(0 to 1.0, 1 to 2.0), listOf(0 to 2.0, 1 to 4.0)),
     )
-    val f = lapack.factor(rank1)
+    val f = decompositions.factor(rank1)
     assertTrue(f.singular, "a rank-1 matrix should have been called singular")
     assertEquals(SINGULAR_POSITION_UNKNOWN, f.failedAt, "a host that cannot name the pivot must say so")
     assertEquals(0, f.nnz, "a singular factorization has no fill")
@@ -98,10 +98,14 @@ internal fun assertSingularIsReportedWithUnknownPosition(lapack: F64SparseLu) {
  * A host sparse factorization wins only its own half of the registry, so the sparse BLAS stays with the
  * reference. [n] sets the size of the system whose fill is reported.
  */
-internal fun assertRegistersAsTheSparseLuHalf(lapack: F64SparseLu, n: Int) {
+internal fun assertRegistersAsTheSparseLuHalf(decompositions: F64SparseLu, n: Int) {
     withCleanBackends {
-        registerBackend(lapack)
-        assertEquals(lapack.name, koblas.sparseLu.name, "${lapack.name} should win the sparse lapack half")
+        registerBackend(decompositions)
+        assertEquals(
+            decompositions.name,
+            koblas.sparseLu.name,
+            "${decompositions.name} should win the sparse decompositions half",
+        )
         assertEquals("reference", koblas.sparseBlas.name)
 
         val a = sparseConformanceSystem(n, Random(20260819))
@@ -139,25 +143,25 @@ internal fun assertGatedFallbackStillSolves(gated: (factorizeMin: Int) -> F64Spa
 
 /** A host may equilibrate natively and rejects a drop tolerance it cannot represent. */
 internal fun assertNativeEquilibrationAndUnsupportedDropToleranceIsRejected(
-    lapack: F64SparseLu,
+    decompositions: F64SparseLu,
     hostFactorization: (F64SparseFactorization) -> Boolean,
 ) {
     val rng = Random(20260818)
     val a = sparseConformanceSystem(6, rng)
     val b = DoubleArray(6) { rng.nextDouble(-1.0, 1.0) }
-    val equilibrated = lapack.factor(a, equilibrate = true)
+    val equilibrated = decompositions.factor(a, equilibrate = true)
     assertTrue(hostFactorization(equilibrated), "native equilibration must retain the host factorization")
     assertClose(b, a.gemv(equilibrated.solve(b)), "equilibrated residual", tolerance = 1e-9)
-    assertFailsWith<IllegalArgumentException> { lapack.factor(a, dropTolerance = 1e-12) }
+    assertFailsWith<IllegalArgumentException> { decompositions.factor(a, dropTolerance = 1e-12) }
 }
 
 /** Native handles are freed per factorization, so a long loop must not grow without bound. */
-internal fun assertRepeatedFactorizationsSurvive(lapack: F64SparseLu) {
+internal fun assertRepeatedFactorizationsSurvive(decompositions: F64SparseLu) {
     val rng = Random(20260820)
     val a = sparseConformanceSystem(120, rng)
     var checksum = 0.0
     repeat(300) {
-        val f = lapack.factor(a)
+        val f = decompositions.factor(a)
         checksum += abs(f.solve(DoubleArray(120) { 1.0 })[0])
     }
     assertTrue(checksum > 0.0, "the loop should have produced solutions")
