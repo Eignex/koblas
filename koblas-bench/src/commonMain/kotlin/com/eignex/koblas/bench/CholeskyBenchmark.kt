@@ -8,7 +8,6 @@ import com.eignex.koblas.dense.solve
 import com.eignex.koblas.koblas
 import kotlinx.benchmark.*
 
-/** koblas configures a host OpenBLAS single-threaded, so large sizes are not what a threaded build reports. */
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(BenchmarkTimeUnit.MICROSECONDS)

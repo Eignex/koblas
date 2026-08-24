@@ -59,7 +59,6 @@ class Level2Benchmark {
         koblas.symv(1.0, sym, x, 0.0, y)
     }
 
-    /** Rank-1 update, the one level-2 routine that writes the whole matrix rather than a vector. */
     @Benchmark
     fun ger() {
         koblas.ger(NEAR_UNIT_SCALE, x, y2, target)
@@ -75,7 +74,6 @@ class Level2Benchmark {
         koblas.syr2(NEAR_UNIT_SCALE, xv, yv, target)
     }
 
-    /** Triangular solve, sequential down the columns and the hardest level-2 routine to accelerate. */
     @Benchmark
     fun trsv() {
         x.copyInto(rhs)

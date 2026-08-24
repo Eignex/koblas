@@ -40,7 +40,6 @@ public fun main(args: Array<String>) {
                     koblas.blas.priority
                 }
             }.map { it.get() }
-            // Count only rounds that observed the race.
             if (winners.any { it != offered.max() }) collisions++
             val active = koblas.blas.priority
             if (active != offered.max()) {

@@ -10,10 +10,6 @@ import com.eignex.koblas.koblas
 import com.eignex.koblas.norm2
 import kotlinx.benchmark.*
 
-/**
- * The sparse vector primitives, which cost by stored entry rather than by length. [density] is what decides
- * whether a sparse operand beats the dense one, so it is the parameter that matters here.
- */
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(BenchmarkTimeUnit.NANOSECONDS)
@@ -36,11 +32,9 @@ class SparseLevel1Benchmark {
         dense = F64DenseVector.of(randomVector(len, rng))
     }
 
-    /** Both operands sparse, which walks the two index lists in step. */
     @Benchmark
     fun sparseDotSparse(): Double = sparse dot other
 
-    /** One sparse operand against a dense one, which indexes straight into the dense side. */
     @Benchmark
     fun sparseDotDense(): Double = sparse dot dense
 
@@ -55,7 +49,6 @@ class SparseLevel1Benchmark {
     @Benchmark
     fun sparseAsum(): Double = sparse.asum()
 
-    /** `ussc`, the pure write, with no arithmetic to hide its cost behind. */
     @Benchmark
     fun sparseScatter() {
         koblas.sparseVectorKernels.scatter(sparse, dense.data)

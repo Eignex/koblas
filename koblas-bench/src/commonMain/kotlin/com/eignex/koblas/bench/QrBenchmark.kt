@@ -11,11 +11,6 @@ import com.eignex.koblas.dense.solveMinimumNorm
 import com.eignex.koblas.koblas
 import kotlinx.benchmark.*
 
-/**
- * Householder QR, whose column norms are the one place a factorization leans on `nrm2` rather than `dot`.
- * The tall shape is the least-squares case; the square one is where the norm work is largest relative to
- * the reflector updates.
- */
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(BenchmarkTimeUnit.MICROSECONDS)

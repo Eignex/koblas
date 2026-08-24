@@ -22,7 +22,6 @@ internal fun benchRng(): Random = Random(BENCH_SEED)
 internal fun randomMatrix(rows: Int, cols: Int, rng: Random): F64DenseMatrix =
     F64DenseMatrix.wrap(rows, cols, DoubleArray(rows * cols) { rng.nextDouble(-1.0, 1.0) })
 
-// Diagonal dominance prevents pivot-search near-ties from distorting timings.
 internal fun dominantMatrix(n: Int, rng: Random): F64DenseMatrix {
     val a = randomMatrix(n, n, rng)
     for (i in 0 until n) a[i, i] = a[i, i] + n
@@ -35,7 +34,6 @@ internal fun lowerSymmetricMatrix(n: Int, rng: Random): F64DenseMatrix {
     return a
 }
 
-// Mixed-sign diagonal shifts exercise Bunch-Kaufman 2x2 pivots.
 internal fun indefiniteMatrix(n: Int, rng: Random): F64DenseMatrix =
     symmetricMatrix(n, rng) { i -> if (i % 2 == 0) n.toDouble() else -n.toDouble() }
 

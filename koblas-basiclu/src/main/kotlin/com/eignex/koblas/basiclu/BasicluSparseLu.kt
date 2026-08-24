@@ -36,7 +36,6 @@ public class BasicluSparseLu(
         factorHandle(a)?.let { BasicluFactorization(a.rows, it, calls) }
             ?: F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
 
-    /** Factor a simplex [basis] for sparse column replacements. */
     override fun factorBasis(basis: F64SparseMatrix): F64BasisFactorization {
         require(basis.rows == basis.cols) { "factorBasis requires a square matrix; got ${basis.rows}x${basis.cols}" }
         return factorHandle(basis)?.let { BasicluBasisFactorization(this, basis, it, calls) }

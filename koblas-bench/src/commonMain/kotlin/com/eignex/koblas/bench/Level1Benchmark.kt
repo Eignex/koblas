@@ -12,10 +12,6 @@ import com.eignex.koblas.norm2
 import com.eignex.koblas.scale
 import kotlinx.benchmark.*
 
-/**
- * The vector path pays a fixed setup, lane broadcast and horizontal reduce, and does no vector work below
- * one lane width. On the JVM, re-run with `-Pkoblas.noSimd=true` to compare SIMD against scalar.
- */
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(BenchmarkTimeUnit.NANOSECONDS)

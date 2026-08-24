@@ -8,7 +8,6 @@ import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.lu
 import kotlinx.benchmark.*
 
-/** Without SuiteSparse installed both backend values measure the same code, and only the resolved line says so. */
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(BenchmarkTimeUnit.MICROSECONDS)
@@ -19,7 +18,6 @@ class SparseHostBenchmark {
     @Param(BASIS_SHAPE, RANDOM_SHAPE)
     var shape: String = BASIS_SHAPE
 
-    /** [REFERENCE_BACKEND] pins the portable factorization, [AUTO_BACKEND] takes UMFPACK when discovery found it. */
     @Param(REFERENCE_BACKEND, AUTO_BACKEND)
     var backend: String = REFERENCE_BACKEND
 

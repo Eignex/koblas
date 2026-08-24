@@ -12,12 +12,7 @@ import com.eignex.koblas.dense.host.jvm.F64OpenBlasLapack
 import com.eignex.koblas.internal.backend.BundledNativeResources
 import java.nio.file.Path
 
-/**
- * OpenBLAS and LAPACKE extracted from the Maven-native resources on this application's classpath.
- *
- * Add `com.eignex:koblas-openblas` at runtime to make this provider discoverable. The provider uses the
- * same FFM calls as the host backend, constructed with its extracted absolute paths.
- */
+/** OpenBLAS backend bundled in Maven-native resources. */
 public class BundledOpenBlas private constructor(
     private val blas: F64OpenBlasBlas,
     private val lapack: F64OpenBlasLapack,
@@ -25,7 +20,7 @@ public class BundledOpenBlas private constructor(
     F64Blas by blas,
     F64Lapack by lapack {
 
-    /** Extracts the matching Maven-native resources before the core FFM binding is initialized. */
+    /** Creates an OpenBLAS backend from bundled native resources. */
     public constructor() : this(loadHostBackends())
 
     private constructor(backends: F64OpenBlasBackends) : this(backends.blas, backends.lapack)
