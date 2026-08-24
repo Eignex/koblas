@@ -2,6 +2,7 @@ package com.eignex.koblas.sparse.host.umfpack
 
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.assertAliasedDestinationSolves
 import com.eignex.koblas.sparse.assertControlArrayKeepsUmfpackDefaults
 import com.eignex.koblas.sparse.assertFactorizeGateFallsBackToReference
@@ -16,9 +17,13 @@ import com.eignex.koblas.sparse.sparseConformanceSystem
 import com.eignex.koblas.testutil.host.HostLibraryTest
 import org.junit.Assume
 import org.junit.experimental.categories.Category
+import java.lang.ref.PhantomReference
+import java.lang.ref.Reference
+import java.lang.ref.ReferenceQueue
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 @Category(HostLibraryTest::class)
 class UmfpackConformanceTest {
@@ -103,10 +108,10 @@ class UmfpackConformanceTest {
 
     /**
      * The factorization reaches its native factors through a raw address, and the cleaner that frees them
-     * captures the handles rather than the factorization, so nothing the call itself holds keeps the
-     * factorization reachable. Each iteration here uses one as a temporary whose last use is the receiver
-     * of the solve, which is the shape a missing reachability fence would lose, and allocates between
-     * solves so collection actually runs.
+     * holds the handles alone, so nothing the call itself holds keeps the factorization reachable. Each
+     * iteration here uses one as a temporary whose last use is the receiver of the solve, which is the
+     * shape a missing reachability fence would lose, and allocates between solves so collection actually
+     * runs.
      */
     @Test
     fun `a factorization used as a temporary survives collection during its own solve`() {
@@ -124,5 +129,51 @@ class UmfpackConformanceTest {
             )
             if (round % 10 == 0) System.gc()
         }
+    }
+
+    /**
+     * A dropped native factorization, watched through a queue. Built here so the referent never lands in the
+     * caller's frame, where a live slot would keep it reachable whatever the cleaner holds.
+     */
+    private fun watchDropped(a: F64SparseMatrix, queue: ReferenceQueue<Any>): PhantomReference<Any> {
+        val factorization = umfpack.factor(a)
+        // A singular result is the portable factorization, which registers no cleaner and is collectable
+        // whatever this commit did, so watching one would pass without testing anything.
+        assertTrue(factorization is UmfpackFactorization, "expected the native factorization, got $factorization")
+        return PhantomReference(factorization, queue)
+    }
+
+    /**
+     * The cleaner frees UMFPACK's factors, and only reaching them once the factorization is unreachable
+     * does that. A free built from a member of the factorization captures it instead, which keeps it
+     * strongly reachable from the cleaner and leaks every factorization for the life of the process.
+     * Nothing observes the leak, so this watches for the collection the free waits on.
+     */
+    @Test
+    @Suppress("ExplicitGarbageCollectionCall") // a reachability test has to provoke the collection it watches
+    fun `a dropped factorization becomes unreachable so its factors can be freed`() {
+        requireSuiteSparse()
+        val queue = ReferenceQueue<Any>()
+        val watch = watchDropped(sparseConformanceSystem(8, Random(20260824)), queue)
+        // A collection is a request, not an instruction, and the reference is enqueued by another thread
+        // afterwards, so this asks more than once and waits on the queue instead of polling it.
+        var collected = false
+        for (attempt in 0 until ENQUEUE_ATTEMPTS) {
+            System.gc()
+            if (queue.remove(ENQUEUE_WAIT_MILLIS) != null) {
+                collected = true
+                break
+            }
+        }
+        // Holds `watch` itself past the loop. Collecting the reference before its referent leaves nothing to
+        // enqueue, which would fail this spuriously.
+        Reference.reachabilityFence(watch)
+        assertTrue(collected, "a dropped factorization must become unreachable or its native factors never free")
+    }
+
+    private companion object {
+        /** Attempts, and how long each waits for the reference handler, bounding the test together. */
+        const val ENQUEUE_ATTEMPTS = 3
+        const val ENQUEUE_WAIT_MILLIS = 100L
     }
 }

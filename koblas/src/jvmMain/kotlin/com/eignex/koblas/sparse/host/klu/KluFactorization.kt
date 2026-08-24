@@ -20,15 +20,25 @@ public class KluFactorization internal constructor(
     override var failedAt: Int = initialFailedAt
         private set
     init {
-        val heldFactor = factor
-        nativeCleaner.register(this) {
-            calls.free(heldFactor)
-            heldFactor.arena.close()
+        nativeCleaner.register(this, Release(calls, factor))
+    }
+
+    private class Release(private val calls: KluCalls, private val factor: KluFactor) : Runnable {
+        override fun run() {
+            calls.free(factor)
+            factor.arena.close()
         }
     }
 
     override val n: Int get() = factor.n
-    override val nnz: Int get() = factor.nnz
+
+    /** Reads KLU's numeric object, so the fence holds this factorization past the read. */
+    override val nnz: Int get() = try {
+        factor.nnz
+    } finally {
+        Reference.reachabilityFence(this)
+    }
+
     override val rcond: Double get() = factor.rcond
 
     internal fun refactor(a: F64SparseMatrix, equilibrate: Boolean): KluRefactorResult {

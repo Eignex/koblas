@@ -7,5 +7,13 @@ import java.lang.ref.Cleaner
  *
  * A cleaner owns a thread, so one per factorization type would be one thread per type for work that is a
  * handful of frees. Public because the bindings that register with it ship as their own artifacts.
+ *
+ * Register a named class built from the native state, never a lambda that reads a member of the object being
+ * registered: an unqualified member read captures that object, which keeps it strongly reachable from here
+ * and means the free never runs. Nothing observes that, so it leaks for the life of the process.
+ *
+ * A registered free also makes every unfenced native read a race. Once the free can run, an accessor that
+ * dereferences a native handle needs `Reference.reachabilityFence` around it, or the object can be collected
+ * while the call is still in flight.
  */
 public val nativeCleaner: Cleaner = Cleaner.create()
