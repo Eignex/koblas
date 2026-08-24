@@ -87,7 +87,7 @@ public class F64DenseMatrix internal constructor(
             val r = rows.size
             val c = if (r == 0) 0 else rows[0].size
             requireShape(rows.all { it.size == c }) { "all rows must have the same length" }
-            val flat = DoubleArray(r * c)
+            val flat = DoubleArray(entryCount(r, c))
             for (i in 0 until r) {
                 val row = rows[i]
                 for (j in 0 until c) flat[i + j * r] = row[j]

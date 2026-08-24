@@ -3,6 +3,7 @@
 package com.eignex.koblas.sparse.host.umfpack
 
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.borrow
 import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.requireFactored
@@ -60,12 +61,21 @@ public class UmfpackFactorization internal constructor(
     override var rcond: Double = 0.0
         internal set
 
-    @Suppress("NestedBlockDepth") // one nesting level per pinned array, the alternative is copying them
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray {
         requireFactored(failedAt, "solve")
         requireSolveShapes(n, b, out)
-        // umfpack_di_solve declares X an output and B an input and says nothing about them overlapping.
-        val rhs = if (out === b) b.copyOf() else b
+        // umfpack_di_solve declares X an output and B an input and says nothing about them overlapping, so an
+        // aliased pair needs a separate right-hand side, borrowed when there is a workspace to lend it.
+        if (out !== b) return solveDistinct(b, out, transpose)
+        return workspace.borrow(n) { rhs ->
+            b.copyInto(rhs)
+            solveDistinct(rhs, out, transpose)
+        }
+    }
+
+    /** The call itself, over a right-hand side that does not alias [out]. */
+    @Suppress("NestedBlockDepth") // one nesting level per pinned array, the alternative is copying them
+    private fun solveDistinct(rhs: DoubleArray, out: DoubleArray, transpose: Boolean): DoubleArray {
         val info = DoubleArray(INFO)
         val status = anchoring {
             matrix.colPtr.usePinned { ap ->

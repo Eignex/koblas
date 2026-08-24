@@ -242,8 +242,8 @@ internal fun referenceMinimumNormInto(
     workspace.borrow(qr.n) { w ->
         b.copyInto(w)
         trsvCore(kernels, qr.qr, qr.n, w, lda = qr.m, lower = false, transpose = true, unitDiag = false)
-        out.fill(0.0)
         w.copyInto(out)
     }
+    out.fill(0.0, qr.n, out.size) // the leading n entries are the solve's, the tail is the wide part
     return referenceApplyQInto(kernels, qr, out, out, transpose = false)
 }
