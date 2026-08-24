@@ -4,12 +4,13 @@ import com.eignex.koblas.dense.host.cblas.LAPACKE_SONAMES
 import com.eignex.koblas.dense.host.cblas.OPENBLAS_SONAMES
 import com.eignex.koblas.dense.host.cblas.OpenBlasConfig
 import com.eignex.koblas.dense.host.cblas.isIlp64OpenBlas
-import java.lang.foreign.Arena
+import com.eignex.koblas.internal.host.FfmLibrary
+import com.eignex.koblas.internal.host.FfmLibrary.Companion.doubleOf
+import com.eignex.koblas.internal.host.FfmLibrary.Companion.intOf
+import com.eignex.koblas.internal.host.FfmLibrary.Companion.pointerOf
+import com.eignex.koblas.internal.host.FfmLibrary.Companion.voidOf
 import java.lang.foreign.FunctionDescriptor
-import java.lang.foreign.Linker
-import java.lang.foreign.MemoryLayout
 import java.lang.foreign.MemorySegment
-import java.lang.foreign.SymbolLookup
 import java.lang.foreign.ValueLayout.ADDRESS
 import java.lang.foreign.ValueLayout.JAVA_BYTE
 import java.lang.foreign.ValueLayout.JAVA_DOUBLE
@@ -21,15 +22,6 @@ import java.lang.invoke.MethodHandle
  * Kotlin cannot emit signature-polymorphic `invokeExact` and the native side would then read garbage.
  */
 internal class HostBlasCalls(internal val config: OpenBlasConfig) {
-    companion object {
-        private val defaultCalls: HostBlasCalls by lazy { HostBlasCalls(OpenBlasConfig()) }
-
-        /** Compatibility seam for discovery tests; production backends own their own calls. */
-        val available: Boolean get() = defaultCalls.available
-
-        /** Compatibility seam for discovery tests; production backends own their own calls. */
-        val lapackAvailable: Boolean get() = defaultCalls.lapackAvailable
-    }
 
     /** Whether the host's CBLAS resolved and takes the integer width koblas binds. */
     val available: Boolean
@@ -37,31 +29,12 @@ internal class HostBlasCalls(internal val config: OpenBlasConfig) {
     /** Whether LAPACKE resolved as well; false on a host that ships CBLAS only. */
     val lapackAvailable: Boolean
 
-    /**
-     * Null where this platform has no native linker to hand out. Resolved defensively because this object's
-     * initializer runs on the first backend discovery, and an escape from it would leave the portable
-     * reference path, which calls out to nothing, unreachable behind a failed class initialization.
-     */
-    private val nativeLinker: Linker? = try {
-        Linker.nativeLinker()
-    } catch (_: UnsupportedOperationException) {
-        null
-    }
-
-    private val linker: Linker get() = requireNotNull(nativeLinker)
-
-    // Pins the on-heap arrays handed over as segments for the call instead of copying them, blocking
-    // relocation while it runs.
-    private val critical = Linker.Option.critical(true)
-
-    private var lookup: SymbolLookup? = null
-
-    /** Where LAPACKE lives when the OpenBLAS build does not include it. */
-    private var lapackeLookup: SymbolLookup? = null
-
     private val openblasNames = config.libraryPath?.let(::listOf) ?: OPENBLAS_SONAMES
 
     private val lapackeNames = config.lapackeLibraryPath?.let(::listOf) ?: LAPACKE_SONAMES
+
+    /** The OpenBLAS build, and behind it the separate liblapacke a host that needs one keeps LAPACKE in. */
+    private val library: FfmLibrary
 
     /**
      * Every CBLAS entry point these bindings resolve. Availability is the whole set rather than one symbol,
@@ -88,65 +61,47 @@ internal class HostBlasCalls(internal val config: OpenBlasConfig) {
     )
 
     init {
-        val blas = if (nativeLinker == null) null else openLibrary(openblasNames)
-        lookup = blas
-        val resolved = blas != null && requiredCblas.all { blas.find(it).isPresent }
+        val blas = FfmLibrary.open(openblasNames, KEY_CBLAS_SYMBOL, "the host OpenBLAS")
+        val resolved = blas.containsAll(requiredCblas)
         // An ILP64 build exports these same names, so only the config string tells it apart from the LP64
         // one these bindings declare.
-        val ilp64 = resolved && isIlp64OpenBlas(configString(requireNotNull(blas)))
+        val ilp64 = resolved && isIlp64OpenBlas(configString(blas))
         available = resolved && !ilp64
-        val lapackeInBlas = available && requireNotNull(blas).find("LAPACKE_dgetrf").isPresent
         // A second library for the hosts that ship LAPACKE outside their OpenBLAS build.
-        val extra = if (available && !lapackeInBlas) openLibrary(lapackeNames) else null
-        lapackeLookup = extra
-        // Resolved the way [symbol] resolves, the OpenBLAS build first and then liblapacke, so a host
-        // splitting the set across the two is still served.
-        lapackAvailable = available && requiredLapacke.all { name ->
-            requireNotNull(blas).find(name).isPresent || extra?.find(name)?.isPresent == true
+        val lapackeInBlas = available && blas.contains(KEY_LAPACKE_SYMBOL)
+        val extra = if (available && !lapackeInBlas) {
+            FfmLibrary.open(lapackeNames, KEY_LAPACKE_SYMBOL, "the host LAPACKE")
+        } else {
+            null
         }
-        if (available) configureThreads(blas)
+        // The OpenBLAS build first and then liblapacke, so a host splitting the set across the two is served.
+        library = blas.withFallback(extra)
+        lapackAvailable = available && library.containsAll(requiredLapacke)
+        if (available) configureThreads()
     }
 
     /** OpenBLAS owns this setting process-wide; setting it at backend construction makes that scope explicit. */
-    private fun configureThreads(blas: SymbolLookup?) {
+    private fun configureThreads() {
         val count = config.threadCount ?: return
-        val setter = blas?.find("openblas_set_num_threads")?.orElse(null) ?: return
-        linker.downcallHandle(setter, FunctionDescriptor.ofVoid(JAVA_INT)).invokeWithArguments(count)
+        // Not a critical downcall: setting the count starts OpenBLAS's threads, which one may not do.
+        val setter = library.handleOrNull("openblas_set_num_threads", voidOf(JAVA_INT), critical = false) ?: return
+        setter.invokeWithArguments(count)
     }
 
     /** The library's openblas_get_config string, or empty when it does not offer one. */
-    private fun configString(blas: SymbolLookup): String {
-        val symbol = blas.find("openblas_get_config").orElse(null) ?: return ""
-        val handle = linker.downcallHandle(symbol, FunctionDescriptor.of(ADDRESS))
+    private fun configString(blas: FfmLibrary): String {
+        val handle = blas.handleOrNull("openblas_get_config", pointerOf(), critical = false) ?: return ""
         val text = handle.invokeWithArguments() as MemorySegment
         if (text.address() == 0L) return ""
         // The returned pointer carries no length, so it is re-sized before the string is read.
         return text.reinterpret(Long.MAX_VALUE).getString(0)
     }
 
-    /** Opens the first of [names] the platform loader can find, or null when none resolves. */
-    private fun openLibrary(names: List<String>): SymbolLookup? = try {
-        names.firstNotNullOfOrNull { runCatching { SymbolLookup.libraryLookup(it, Arena.global()) }.getOrNull() }
-    } catch (_: Throwable) { // a host without the library must not crash startup
-        null
-    }
+    private fun handle(name: String, descriptor: FunctionDescriptor): MethodHandle = library.handle(name, descriptor)
 
-    /** The symbol from the OpenBLAS library, or from liblapacke when that is where LAPACKE lives. */
-    private fun symbol(name: String): MemorySegment = requireNotNull(lookup).find(name).orElse(null)
-        ?: lapackeLookup?.find(name)?.orElse(null)
-        ?: error("the host OpenBLAS is present but lacks $name")
-
-    private fun handle(name: String, descriptor: FunctionDescriptor): MethodHandle =
-        linker.downcallHandle(symbol(name), descriptor, critical)
-
-    /** Looked up the same way as [symbol] but tolerating absence, for a routine koblas can do without. */
-    private fun optionalHandle(name: String, descriptor: FunctionDescriptor): MethodHandle? {
-        val found = requireNotNull(lookup).find(name).orElse(null) ?: lapackeLookup?.find(name)?.orElse(null)
-        return found?.let { linker.downcallHandle(it, descriptor, critical) }
-    }
-
-    private fun voidOf(vararg layouts: MemoryLayout) = FunctionDescriptor.ofVoid(*layouts)
-    private fun intOf(vararg layouts: MemoryLayout) = FunctionDescriptor.of(JAVA_INT, *layouts)
+    /** Looked up the same way as [handle] but tolerating absence, for a routine koblas can do without. */
+    private fun optionalHandle(name: String, descriptor: FunctionDescriptor): MethodHandle? =
+        library.handleOrNull(name, descriptor)
 
     // Enum arguments are int, their C ABI, and lapack_int is 32-bit, matching the default (non-INTERFACE64)
     // OpenBLAS build.
@@ -256,28 +211,12 @@ internal class HostBlasCalls(internal val config: OpenBlasConfig) {
     }
 
     val ddot: MethodHandle by lazy {
-        linker.downcallHandle(
-            symbol("cblas_ddot"),
-            FunctionDescriptor.of(JAVA_DOUBLE, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT),
-            critical,
-        )
+        handle("cblas_ddot", doubleOf(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT))
     }
 
-    val dnrm2: MethodHandle by lazy {
-        linker.downcallHandle(
-            symbol("cblas_dnrm2"),
-            FunctionDescriptor.of(JAVA_DOUBLE, JAVA_INT, ADDRESS, JAVA_INT),
-            critical,
-        )
-    }
+    val dnrm2: MethodHandle by lazy { handle("cblas_dnrm2", doubleOf(JAVA_INT, ADDRESS, JAVA_INT)) }
 
-    val dasum: MethodHandle by lazy {
-        linker.downcallHandle(
-            symbol("cblas_dasum"),
-            FunctionDescriptor.of(JAVA_DOUBLE, JAVA_INT, ADDRESS, JAVA_INT),
-            critical,
-        )
-    }
+    val dasum: MethodHandle by lazy { handle("cblas_dasum", doubleOf(JAVA_INT, ADDRESS, JAVA_INT)) }
 
     val dgetrf: MethodHandle by lazy {
         handle("LAPACKE_dgetrf", intOf(JAVA_INT, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS))
@@ -321,6 +260,14 @@ internal class HostBlasCalls(internal val config: OpenBlasConfig) {
             "LAPACKE_dsytrs",
             intOf(JAVA_INT, JAVA_BYTE, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, ADDRESS, JAVA_INT),
         )
+    }
+
+    private companion object {
+        /** Read to tell an OpenBLAS build apart from a library that merely carries the soname. */
+        const val KEY_CBLAS_SYMBOL = "cblas_dgemm"
+
+        /** Read to find which of the two libraries LAPACKE lives in. */
+        const val KEY_LAPACKE_SYMBOL = "LAPACKE_dgetrf"
     }
 
     /** Pins [values] for the call. Nothing is copied, and the address is valid only for that call. */

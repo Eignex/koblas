@@ -1,21 +1,24 @@
 package com.eignex.koblas.basiclu
 
-import java.lang.foreign.Arena
-import java.lang.foreign.FunctionDescriptor
-import java.lang.foreign.Linker
-import java.lang.foreign.MemoryLayout
+import com.eignex.koblas.internal.host.FfmLibrary
+import com.eignex.koblas.internal.host.FfmLibrary.Companion.doubleOf
+import com.eignex.koblas.internal.host.FfmLibrary.Companion.longOf
+import com.eignex.koblas.internal.host.FfmLibrary.Companion.pointerOf
+import com.eignex.koblas.internal.host.FfmLibrary.Companion.voidOf
 import java.lang.foreign.MemorySegment
-import java.lang.foreign.SymbolLookup
 import java.lang.foreign.ValueLayout.ADDRESS
-import java.lang.foreign.ValueLayout.JAVA_DOUBLE
 import java.lang.foreign.ValueLayout.JAVA_INT
 import java.lang.foreign.ValueLayout.JAVA_LONG
 import java.lang.invoke.MethodHandle
 
 internal class BasicluCalls(libraryPath: String?) {
-    private val linker: Linker? = runCatching { Linker.nativeLinker() }.getOrNull()
-    private val critical = Linker.Option.critical(true)
-    private val lookup: SymbolLookup? by lazy { open(libraryPath) }
+    private val library: FfmLibrary by lazy {
+        FfmLibrary.open(
+            libraryPath?.let(::listOf) ?: BASICLU_SONAMES,
+            "koblas_basiclu_create",
+            "BASICLU",
+        )
+    }
     private val handles: Handles? by lazy { bindAll() }
 
     private class Handles(
@@ -30,68 +33,26 @@ internal class BasicluCalls(libraryPath: String?) {
 
     val available: Boolean get() = handles != null
 
-    private fun open(path: String?): SymbolLookup? {
-        val paths = path?.let(::listOf) ?: BASICLU_SONAMES
-        for (candidate in paths) {
-            val lookup = try {
-                SymbolLookup.libraryLookup(candidate, Arena.global())
-            } catch (_: IllegalArgumentException) {
-                continue
-            } catch (_: UnsatisfiedLinkError) {
-                continue
-            }
-            if (lookup.find("koblas_basiclu_create").isPresent) return lookup
-        }
-        return null
-    }
-
-    private class MissingSymbol : RuntimeException()
-
-    private fun bindAll(): Handles? = try {
-        val found = lookup ?: return null
-        fun bind(name: String, result: MemoryLayout, vararg args: MemoryLayout): MethodHandle {
-            val address = found.find(name).orElse(null) ?: throw MissingSymbol()
-            return checkNotNull(linker).downcallHandle(
-                address,
-                FunctionDescriptor.of(result, *args),
-                critical,
-            )
-        }
-        fun bindVoid(name: String, vararg args: MemoryLayout): MethodHandle {
-            val address = found.find(name).orElse(null) ?: throw MissingSymbol()
-            return checkNotNull(linker).downcallHandle(
-                address,
-                FunctionDescriptor.ofVoid(*args),
-                critical,
-            )
-        }
-        Handles(
-            create = bind("koblas_basiclu_create", ADDRESS, JAVA_LONG),
-            free = bindVoid("koblas_basiclu_free", ADDRESS),
-            factorize = bind(
+    private fun bindAll(): Handles? {
+        if (!library.present) return null
+        return Handles(
+            create = library.handleOrNull("koblas_basiclu_create", pointerOf(JAVA_LONG)) ?: return null,
+            free = library.handleOrNull("koblas_basiclu_free", voidOf(ADDRESS)) ?: return null,
+            factorize = library.handleOrNull(
                 "koblas_basiclu_factorize",
-                JAVA_LONG,
-                ADDRESS,
-                ADDRESS,
-                ADDRESS,
-                ADDRESS,
-                ADDRESS,
-            ),
-            solve = bind("koblas_basiclu_solve", JAVA_LONG, ADDRESS, ADDRESS, ADDRESS, JAVA_INT),
-            prepareUpdate = bind(
+                longOf(ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
+            ) ?: return null,
+            solve = library.handleOrNull(
+                "koblas_basiclu_solve",
+                longOf(ADDRESS, ADDRESS, ADDRESS, JAVA_INT),
+            ) ?: return null,
+            prepareUpdate = library.handleOrNull(
                 "koblas_basiclu_prepare_update",
-                JAVA_LONG,
-                ADDRESS,
-                JAVA_LONG,
-                ADDRESS,
-                ADDRESS,
-                JAVA_LONG,
-            ),
-            update = bind("koblas_basiclu_update", JAVA_LONG, ADDRESS),
-            info = bind("koblas_basiclu_info", JAVA_DOUBLE, ADDRESS, JAVA_LONG),
+                longOf(ADDRESS, JAVA_LONG, ADDRESS, ADDRESS, JAVA_LONG),
+            ) ?: return null,
+            update = library.handleOrNull("koblas_basiclu_update", longOf(ADDRESS)) ?: return null,
+            info = library.handleOrNull("koblas_basiclu_info", doubleOf(ADDRESS, JAVA_LONG)) ?: return null,
         )
-    } catch (_: MissingSymbol) {
-        null
     }
 
     private fun MethodHandle.call(vararg arguments: Any?): Any? = invokeWithArguments(*arguments)

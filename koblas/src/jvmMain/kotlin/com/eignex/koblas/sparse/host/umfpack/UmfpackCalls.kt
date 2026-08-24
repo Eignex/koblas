@@ -1,10 +1,9 @@
 package com.eignex.koblas.sparse.host.umfpack
 
+import com.eignex.koblas.internal.host.FfmLibrary
 import java.lang.foreign.Arena
 import java.lang.foreign.FunctionDescriptor
-import java.lang.foreign.Linker
 import java.lang.foreign.MemorySegment
-import java.lang.foreign.SymbolLookup
 import java.lang.foreign.ValueLayout.ADDRESS
 import java.lang.foreign.ValueLayout.JAVA_DOUBLE
 import java.lang.foreign.ValueLayout.JAVA_INT
@@ -16,17 +15,10 @@ import java.lang.invoke.MethodHandle
  */
 internal class UmfpackCalls(private val config: UmfpackConfig) {
 
-    /** Null where this platform has no native linker; see the same field in `HostBlasCalls`. */
-    private val linker: Linker? = try {
-        Linker.nativeLinker()
-    } catch (_: UnsupportedOperationException) {
-        null
+    /** Opened lazily, since a binding constructed during discovery must not load a library to exist. */
+    private val library: FfmLibrary by lazy {
+        FfmLibrary.open(config.libraryPath?.let(::listOf) ?: UMFPACK_SONAMES, KEY_SYMBOL, "libumfpack")
     }
-
-    // Pins the Kotlin arrays for the call instead of copying them, blocking relocation while it runs.
-    private val critical = Linker.Option.critical(true)
-
-    private val lookup: SymbolLookup? by lazy { openUmfpack() }
 
     @Volatile
     private var bindingFailure: String? = null
@@ -70,7 +62,7 @@ internal class UmfpackCalls(private val config: UmfpackConfig) {
     }
 
     /** Whether a libumfpack carrying the di family opened, which creates no downcall handle. */
-    val libraryPresent: Boolean get() = linker != null && lookup != null
+    val libraryPresent: Boolean get() = library.present
 
     /** Whether the library opened and its symbols bound. Reading this binds the handles. */
     val available: Boolean get() = handles != null
@@ -78,45 +70,26 @@ internal class UmfpackCalls(private val config: UmfpackConfig) {
     /** Why UMFPACK is unusable, or null when it is usable. For diagnostics, not control flow. */
     val unavailableReason: String?
         get() = when {
-            lookup == null -> "libumfpack could not be opened; SuiteSparse does not appear to be installed"
+            !library.present -> "libumfpack could not be opened; SuiteSparse does not appear to be installed"
             handles == null -> "libumfpack opened but its symbols did not bind: ${bindingFailure ?: "unknown"}"
             else -> null
         }
 
-    /**
-     * Opens the first libumfpack that loads and carries [KEY_SYMBOL]. Only IllegalArgumentException and
-     * UnsatisfiedLinkError count as absence, so a StackOverflowError is never read as a missing library.
-     */
-    private fun openUmfpack(): SymbolLookup? {
-        val paths = config.libraryPath?.let(::listOf) ?: UMFPACK_SONAMES
-        for (soname in paths) {
-            val opened = try {
-                SymbolLookup.libraryLookup(soname, Arena.global())
-            } catch (_: IllegalArgumentException) {
-                continue // not on this machine
-            } catch (_: UnsatisfiedLinkError) {
-                continue // present but unloadable
-            }
-            if (opened.find(KEY_SYMBOL).isPresent) return opened
-        }
-        return null
-    }
-
     private fun bindAll(): Handles? {
-        val found = lookup ?: return null
+        if (!library.present) return null
         // int umfpack_di_symbolic(int n_row, int n_col, const int Ap[], const int Ai[], const double Ax[],
         //                         void **Symbolic, const double Control[], double Info[])
-        val symbolic = bind(found, "umfpack_di_symbolic", intsThenPointers(ints = 2, pointers = 6))
+        val symbolic = bind("umfpack_di_symbolic", intsThenPointers(ints = 2, pointers = 6))
         // int umfpack_di_numeric(const int Ap[], const int Ai[], const double Ax[], void *Symbolic,
         //                        void **Numeric, const double Control[], double Info[])
-        val numeric = bind(found, "umfpack_di_numeric", intsThenPointers(ints = 0, pointers = 7))
+        val numeric = bind("umfpack_di_numeric", intsThenPointers(ints = 0, pointers = 7))
         // int umfpack_di_solve(int sys, const int Ap[], const int Ai[], const double Ax[], double X[],
         //                      const double B[], void *Numeric, const double Control[], double Info[])
-        val solve = bind(found, "umfpack_di_solve", intsThenPointers(ints = 1, pointers = 8))
-        val freeSymbolic = bind(found, "umfpack_di_free_symbolic", FunctionDescriptor.ofVoid(ADDRESS))
-        val freeNumeric = bind(found, "umfpack_di_free_numeric", FunctionDescriptor.ofVoid(ADDRESS))
+        val solve = bind("umfpack_di_solve", intsThenPointers(ints = 1, pointers = 8))
+        val freeSymbolic = bind("umfpack_di_free_symbolic", FunctionDescriptor.ofVoid(ADDRESS))
+        val freeNumeric = bind("umfpack_di_free_numeric", FunctionDescriptor.ofVoid(ADDRESS))
         // void umfpack_di_defaults(double Control[UMFPACK_CONTROL])
-        val defaults = bind(found, "umfpack_di_defaults", FunctionDescriptor.ofVoid(ADDRESS))
+        val defaults = bind("umfpack_di_defaults", FunctionDescriptor.ofVoid(ADDRESS))
         // Every one is required. An optional binding degrades silently instead: without _defaults the solve
         // keeps UMFPACK's iterative refinement on, and without _free_symbolic the analysis leaks.
         if (symbolic == null || numeric == null || solve == null || freeNumeric == null ||
@@ -136,12 +109,8 @@ internal class UmfpackCalls(private val config: UmfpackConfig) {
         return FunctionDescriptor.of(JAVA_INT, *args)
     }
 
-    /** Calls on the result use `invokeWithArguments`, since Kotlin cannot emit signature-polymorphic `invokeExact`. */
-    private fun bind(found: SymbolLookup, name: String, descriptor: FunctionDescriptor): MethodHandle? {
-        val downcall = linker ?: return null
-        val address = found.find(name).orElse(null) ?: return null
-        return downcall.downcallHandle(address, descriptor, critical)
-    }
+    private fun bind(name: String, descriptor: FunctionDescriptor): MethodHandle? =
+        library.handleOrNull(name, descriptor)
 
     private fun handlesOrThrow(): Handles =
         checkNotNull(handles) { "umfpack is not available: ${unavailableReason ?: "unknown reason"}" }

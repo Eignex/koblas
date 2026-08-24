@@ -874,16 +874,43 @@ public final class com/eignex/koblas/internal/backend/BackendSlot : java/lang/En
 	public static fun values ()[Lcom/eignex/koblas/internal/backend/BackendSlot;
 }
 
+public final class com/eignex/koblas/internal/backend/BundledLibrary {
+	public final fun extract ()Ljava/nio/file/Path;
+}
+
 public final class com/eignex/koblas/internal/backend/BundledNativeResources {
 	public static final field Companion Lcom/eignex/koblas/internal/backend/BundledNativeResources$Companion;
 	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Class;Ljava/lang/String;)V
-	public final fun extract (Ljava/lang/Iterable;)Ljava/util/Map;
-	public final fun extractRequired (Ljava/lang/Iterable;)Ljava/util/Map;
+	public final fun extract (Ljava/lang/Iterable;Z)Ljava/util/Map;
+	public static synthetic fun extract$default (Lcom/eignex/koblas/internal/backend/BundledNativeResources;Ljava/lang/Iterable;ZILjava/lang/Object;)Ljava/util/Map;
+	public final fun manifestNames ()Ljava/util/List;
 	public final fun resource (Ljava/lang/String;)Ljava/io/InputStream;
 }
 
 public final class com/eignex/koblas/internal/backend/BundledNativeResources$Companion {
+	public final fun manifestDriven (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;)Lcom/eignex/koblas/internal/backend/BundledLibrary;
 	public final fun supportedPlatform (Lkotlin/jvm/functions/Function2;)Ljava/lang/String;
+}
+
+public final class com/eignex/koblas/internal/host/FfmLibrary {
+	public static final field Companion Lcom/eignex/koblas/internal/host/FfmLibrary$Companion;
+	public final fun contains (Ljava/lang/String;)Z
+	public final fun containsAll (Ljava/lang/Iterable;)Z
+	public final fun getPresent ()Z
+	public final fun handle (Ljava/lang/String;Ljava/lang/foreign/FunctionDescriptor;Z)Ljava/lang/invoke/MethodHandle;
+	public static synthetic fun handle$default (Lcom/eignex/koblas/internal/host/FfmLibrary;Ljava/lang/String;Ljava/lang/foreign/FunctionDescriptor;ZILjava/lang/Object;)Ljava/lang/invoke/MethodHandle;
+	public final fun handleOrNull (Ljava/lang/String;Ljava/lang/foreign/FunctionDescriptor;Z)Ljava/lang/invoke/MethodHandle;
+	public static synthetic fun handleOrNull$default (Lcom/eignex/koblas/internal/host/FfmLibrary;Ljava/lang/String;Ljava/lang/foreign/FunctionDescriptor;ZILjava/lang/Object;)Ljava/lang/invoke/MethodHandle;
+	public final fun withFallback (Lcom/eignex/koblas/internal/host/FfmLibrary;)Lcom/eignex/koblas/internal/host/FfmLibrary;
+}
+
+public final class com/eignex/koblas/internal/host/FfmLibrary$Companion {
+	public final fun doubleOf ([Ljava/lang/foreign/MemoryLayout;)Ljava/lang/foreign/FunctionDescriptor;
+	public final fun intOf ([Ljava/lang/foreign/MemoryLayout;)Ljava/lang/foreign/FunctionDescriptor;
+	public final fun longOf ([Ljava/lang/foreign/MemoryLayout;)Ljava/lang/foreign/FunctionDescriptor;
+	public final fun open (Ljava/util/List;Ljava/lang/String;Ljava/lang/String;)Lcom/eignex/koblas/internal/host/FfmLibrary;
+	public final fun pointerOf ([Ljava/lang/foreign/MemoryLayout;)Ljava/lang/foreign/FunctionDescriptor;
+	public final fun voidOf ([Ljava/lang/foreign/MemoryLayout;)Ljava/lang/foreign/FunctionDescriptor;
 }
 
 public abstract interface class com/eignex/koblas/sparse/F64BasisFactorization : com/eignex/koblas/sparse/F64SparseFactorization {
