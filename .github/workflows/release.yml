@@ -103,7 +103,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: openblas-${{ matrix.platform }}
-          path: koblas-openblas/build/openblas/resources/org/bytedeco/openblas
+          path: koblas-openblas/build/openblas/resources
           include-hidden-files: true
           if-no-files-found: error
 
@@ -117,7 +117,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: klu-${{ matrix.platform }}
-          path: koblas-klu/build/klu/resources/org/eignex/klu
+          path: koblas-klu/build/klu/resources
           include-hidden-files: true
           if-no-files-found: error
 
@@ -140,7 +140,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: umfpack-${{ matrix.platform }}
-          path: koblas-umfpack/build/umfpack/resources/org/eignex/umfpack
+          path: koblas-umfpack/build/umfpack/resources
           include-hidden-files: true
           if-no-files-found: error
 
@@ -154,7 +154,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: basiclu-${{ matrix.platform }}
-          path: koblas-basiclu/build/basiclu/resources/org/eignex/basiclu
+          path: koblas-basiclu/build/basiclu/resources
           include-hidden-files: true
           if-no-files-found: error
 
@@ -192,28 +192,28 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           pattern: openblas-*
-          path: koblas-openblas/build/openblas/resources/org/bytedeco/openblas
+          path: koblas-openblas/build/openblas/resources
           merge-multiple: true
 
       - name: Download bundled KLU resources
         uses: actions/download-artifact@v8
         with:
           pattern: klu-*
-          path: koblas-klu/build/klu/resources/org/eignex/klu
+          path: koblas-klu/build/klu/resources
           merge-multiple: true
 
       - name: Download bundled UMFPACK resources
         uses: actions/download-artifact@v8
         with:
           pattern: umfpack-*
-          path: koblas-umfpack/build/umfpack/resources/org/eignex/umfpack
+          path: koblas-umfpack/build/umfpack/resources
           merge-multiple: true
 
       - name: Download bundled BASICLU resources
         uses: actions/download-artifact@v8
         with:
           pattern: basiclu-*
-          path: koblas-basiclu/build/basiclu/resources/org/eignex/basiclu
+          path: koblas-basiclu/build/basiclu/resources
           merge-multiple: true
 
       # A tag publishes that exact version as a release. Any other ref publishes a snapshot of the
