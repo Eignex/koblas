@@ -77,6 +77,12 @@ jobs:
           path: koblas-umfpack/build/umfpack
           key: release-umfpack-${{ runner.os }}-${{ runner.arch }}-${{ matrix.platform }}-${{ hashFiles('koblas-umfpack/umfpack.lock', 'scripts/build-umfpack.sh', 'koblas-openblas/openblas.lock', 'scripts/build-openblas.sh', 'scripts/third-party-notices.sh') }}
 
+      - name: Cache bundled BASICLU resources
+        uses: actions/cache@v5
+        with:
+          path: koblas-basiclu/build/basiclu
+          key: release-basiclu-${{ runner.os }}-${{ runner.arch }}-${{ matrix.platform }}-${{ hashFiles('koblas-basiclu/basiclu.lock', 'koblas-basiclu/native/basiclu_shim.c', 'scripts/build-basiclu.sh', 'scripts/third-party-notices.sh') }}
+
       - name: Build bundled OpenBLAS
         run: >-
           ./gradlew --no-build-cache --no-configuration-cache --rerun-tasks
@@ -100,6 +106,18 @@ jobs:
         with:
           name: umfpack-${{ matrix.platform }}
           path: koblas-umfpack/build/umfpack/resources/org/eignex/umfpack
+          if-no-files-found: error
+
+      - name: Build bundled BASICLU
+        run: >-
+          ./gradlew --no-build-cache --no-configuration-cache --rerun-tasks
+          :koblas-basiclu:buildBasiclu -Pkoblas.basiclu.platform=${{ matrix.platform }}
+
+      - name: Upload bundled BASICLU resources
+        uses: actions/upload-artifact@v7
+        with:
+          name: basiclu-${{ matrix.platform }}
+          path: koblas-basiclu/build/basiclu/resources/org/eignex/basiclu
           if-no-files-found: error
 
   publish:
@@ -144,6 +162,13 @@ jobs:
         with:
           pattern: umfpack-*
           path: koblas-umfpack/build/umfpack/resources/org/eignex/umfpack
+          merge-multiple: true
+
+      - name: Download bundled BASICLU resources
+        uses: actions/download-artifact@v8
+        with:
+          pattern: basiclu-*
+          path: koblas-basiclu/build/basiclu/resources/org/eignex/basiclu
           merge-multiple: true
 
       # A tag publishes that exact version as a release. Any other ref publishes a snapshot of the

@@ -58,6 +58,7 @@ tasks.named("processResources") { if (!lintOnly) dependsOn(buildKlu) }
 tasks.named<Jar>("sourcesJar") { dependsOn(buildKlu) }
 
 val verifyKluResources = tasks.register("verifyKluResources") {
+    dependsOn(buildKlu)
     val notices = kluResources.get().file("THIRD-PARTY-NOTICES.txt").asFile
     inputs.file(notices)
     val requiredResources = supportedPlatforms.associateWith { platform ->

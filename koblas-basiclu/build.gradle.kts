@@ -55,6 +55,7 @@ tasks.named("processResources") { if (!lintOnly) dependsOn(buildBasiclu) }
 tasks.named<Jar>("sourcesJar") { dependsOn(buildBasiclu) }
 
 val verifyBasicluResources = tasks.register("verifyBasicluResources") {
+    dependsOn(buildBasiclu)
     val notices = basicluResources.get().file("THIRD-PARTY-NOTICES.txt").asFile
     inputs.file(notices)
     val requiredResources = supportedPlatforms.associateWith { platform ->

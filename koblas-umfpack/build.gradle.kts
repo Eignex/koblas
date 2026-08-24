@@ -67,6 +67,7 @@ tasks.named("processResources") { if (!lintOnly) dependsOn(buildUmfpack) }
 tasks.named<Jar>("sourcesJar") { dependsOn(buildUmfpack) }
 
 val verifyUmfpackResources = tasks.register("verifyUmfpackResources") {
+    dependsOn(buildUmfpack)
     val notices = umfpackResources.get().file("THIRD-PARTY-NOTICES.txt").asFile
     inputs.file(notices)
     val requiredResources = supportedPlatforms.associateWith { platform ->

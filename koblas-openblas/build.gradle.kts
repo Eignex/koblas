@@ -89,17 +89,28 @@ tasks.named("processResources") {
 tasks.named<Jar>("sourcesJar") { dependsOn(buildOpenBlas) }
 
 val verifyOpenBlasResources = tasks.register("verifyOpenBlasResources") {
-    inputs.dir(openBlasResources)
+    dependsOn(buildOpenBlas)
     val notices = openBlasResources.get().file("THIRD-PARTY-NOTICES.txt").asFile
     inputs.file(notices)
+    val requiredOpenBlasResources = supportedPlatforms.associateWith { platform ->
+        requiredResources.getValue(platform) + ".openblas-source-sha256" + ".openblas-build-options"
+    }
+    val resourceDirectories = supportedPlatforms.associateWith { platform ->
+        openBlasResources.get().dir("org/bytedeco/openblas/$platform").asFile.absolutePath
+    }
+    inputs.files(resourceDirectories.values)
+    inputs.property("requiredResources", requiredOpenBlasResources)
+    inputs.property("resourceDirectories", resourceDirectories)
     doLast {
         check(notices.isFile && notices.length() > 0L) {
             "missing consolidated third-party notices for koblas-openblas"
         }
-        supportedPlatforms.forEach { platform ->
-            val directory = openBlasResources.get().dir("org/bytedeco/openblas/$platform").asFile
-            val resources = requiredResources.getValue(platform) +
-                ".openblas-source-sha256" + ".openblas-build-options"
+        @Suppress("UNCHECKED_CAST")
+        val required = inputs.properties.getValue("requiredResources") as Map<String, List<String>>
+        @Suppress("UNCHECKED_CAST")
+        val directories = inputs.properties.getValue("resourceDirectories") as Map<String, String>
+        required.forEach { (platform, resources) ->
+            val directory = File(directories.getValue(platform))
             check(resources.all { directory.resolve(it).isFile && directory.resolve(it).length() > 0L }) {
                 "missing bundled OpenBLAS resources for $platform; build them on that platform before publishing"
             }
