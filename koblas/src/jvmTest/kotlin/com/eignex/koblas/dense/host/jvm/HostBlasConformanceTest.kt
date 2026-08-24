@@ -6,7 +6,6 @@ import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.F64Blas
 import com.eignex.koblas.dense.Uplo
 import com.eignex.koblas.dense.host.*
-import com.eignex.koblas.dense.host.jvm.HostBlasCalls
 import com.eignex.koblas.hostblas.HostBlas
 import com.eignex.koblas.hostblas.HostLapack
 import com.eignex.koblas.koblasInfo
@@ -26,7 +25,7 @@ class HostBlasConformanceTest {
 
     @Test
     fun `a full-uplo syrk returns its scratch buffer to the workspace`() {
-        Assume.assumeTrue("host CBLAS is not installed", HostBlasCalls.available)
+        Assume.assumeTrue("host CBLAS is not installed", HostLibraries.cblas)
         val n = 64
         val rng = Random(20260816)
         val a = randomMatrix(n, n, rng)
@@ -42,14 +41,14 @@ class HostBlasConformanceTest {
 
     @Test
     fun `the host backend resolves when the machine has OpenBLAS`() {
-        Assume.assumeTrue("host CBLAS is not installed", HostBlasCalls.available)
+        Assume.assumeTrue("host CBLAS is not installed", HostLibraries.cblas)
         assertTrue(koblasInfo.contains("openblas"), koblasInfo)
     }
 
     /** A factorization at a size that engages OpenBLAS's parallel path. */
     @Test
     fun `a large factorization does not take the process down`() {
-        Assume.assumeTrue("host LAPACKE is not installed", HostBlasCalls.lapackAvailable)
+        Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
         val n = 512
         val rng = Random(20260807)
         val a = wellConditioned(n, rng)
@@ -63,65 +62,65 @@ class HostBlasConformanceTest {
     /** The level-2 half runs portable here whatever the size; the no-SIMD host pass is what reaches it. */
     @Test
     fun `the gated level 2 and 3 routines match reference`() {
-        Assume.assumeTrue("host CBLAS is not installed", HostBlasCalls.available)
+        Assume.assumeTrue("host CBLAS is not installed", HostLibraries.cblas)
         assertTriangularAgreesWithReference(HostBlas(), intArrayOf(1, 5, 12, 24))
         assertGerAgreesWithReference(HostBlas())
     }
 
     @Test
     fun `symv refuses a non-square matrix`() {
-        Assume.assumeTrue("host CBLAS is not installed", HostBlasCalls.available)
+        Assume.assumeTrue("host CBLAS is not installed", HostLibraries.cblas)
         assertSymvRefusesNonSquare(HostBlas())
     }
 
     @Test
     fun `a singular LDL is refused at every width`() {
-        Assume.assumeTrue("host LAPACKE is not installed", HostBlasCalls.lapackAvailable)
+        Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
         assertSingularLdlIsRefused(HostLapack())
     }
 
     @Test
     fun `level 3 matches reference at blocked sizes`() {
-        Assume.assumeTrue("host CBLAS is not installed", HostBlasCalls.available)
+        Assume.assumeTrue("host CBLAS is not installed", HostLibraries.cblas)
         assertLevel3AgreesWithReference(HostBlas(), intArrayOf(7, 64, 256))
     }
 
     /** Above cholesky's gate of 32 and invertSpd's of 16, so the host path is the one under test. */
     @Test
     fun `the SPD suite matches reference where the gates open`() {
-        Assume.assumeTrue("host LAPACKE is not installed", HostBlasCalls.lapackAvailable)
+        Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
         assertSpdSuiteAgreesWithReference(HostLapack(), intArrayOf(33, 256))
     }
 
     @Test
     fun `a non positive definite input falls back to the portable path`() {
-        Assume.assumeTrue("host LAPACKE is not installed", HostBlasCalls.lapackAvailable)
+        Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
         assertNonPositiveDefiniteFallsBack(HostLapack(), n = 256)
     }
 
     @Test
     fun `pivoted QR matches reference in rank and reconstruction`() {
-        Assume.assumeTrue("host LAPACKE is not installed", HostBlasCalls.lapackAvailable)
+        Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
         assertPivotedQrAgreesWithReference(HostLapack(), m = 96, cols = 64, ranks = intArrayOf(64, 40))
     }
 
     /** Above the LAPACK gate, so the host path is the one under test rather than the portable fallback. */
     @Test
     fun `factorInto refactorizes into the destination it was given`() {
-        Assume.assumeTrue("host LAPACKE is not installed", HostBlasCalls.lapackAvailable)
+        Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
         assertFactorIntoUsesItsDestination(HostLapack(), n = 96)
     }
 
     @Test
     fun `the factorizations match reference at blocked sizes`() {
-        Assume.assumeTrue("host LAPACKE is not installed", HostBlasCalls.lapackAvailable)
+        Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
         assertLuAgreesWithReference(HostLapack(), intArrayOf(7, 64, 256))
     }
 
     /** Both extents stay at or above the level-3 gate of 16, so the host kernels are the ones under test. */
     @Test
     fun `the level 2 and 3 products match reference above the gates`() {
-        Assume.assumeTrue("host CBLAS is not installed", HostBlasCalls.available)
+        Assume.assumeTrue("host CBLAS is not installed", HostLibraries.cblas)
         val host = HostBlas()
         assertGemvAgreesWithReference(host, intArrayOf(18, 64))
         assertGemmAgreesWithReference(host, intArrayOf(18, 64))
@@ -133,7 +132,7 @@ class HostBlasConformanceTest {
     /** The same properties at sizes under every gate, where the portable fallback answers instead. */
     @Test
     fun `the level 2 and 3 products match reference below the gates`() {
-        Assume.assumeTrue("host CBLAS is not installed", HostBlasCalls.available)
+        Assume.assumeTrue("host CBLAS is not installed", HostLibraries.cblas)
         val host = HostBlas()
         assertGemvAgreesWithReference(host, intArrayOf(7))
         assertGemmAgreesWithReference(host, intArrayOf(6))
@@ -144,14 +143,14 @@ class HostBlasConformanceTest {
 
     @Test
     fun `degenerate shapes honor the beta conventions`() {
-        Assume.assumeTrue("host CBLAS is not installed", HostBlasCalls.available)
+        Assume.assumeTrue("host CBLAS is not installed", HostLibraries.cblas)
         assertDegenerateShapesHonorTheBetaConventions(HostBlas())
     }
 
     /** Above the LAPACK gate of 64, so the host factorizations are the ones under test. */
     @Test
     fun `the factorization family matches reference above the gate`() {
-        Assume.assumeTrue("host LAPACKE is not installed", HostBlasCalls.lapackAvailable)
+        Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
         val host = HostLapack()
         assertDeterminantAgreesWithReference(host, intArrayOf(64, 96))
         assertLuFactorsInterchange(host, n = 96)
@@ -164,7 +163,7 @@ class HostBlasConformanceTest {
     /** The same properties at sizes under the gate, where the portable fallback answers instead. */
     @Test
     fun `the factorization family matches reference below the gate`() {
-        Assume.assumeTrue("host LAPACKE is not installed", HostBlasCalls.lapackAvailable)
+        Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
         val host = HostLapack()
         assertDeterminantAgreesWithReference(host, intArrayOf(1, 3, 8, 33))
         assertLuFactorsInterchange(host, n = 12)
@@ -176,13 +175,13 @@ class HostBlasConformanceTest {
 
     @Test
     fun `a singular matrix sets the flag and a zero determinant`() {
-        Assume.assumeTrue("host LAPACKE is not installed", HostBlasCalls.lapackAvailable)
+        Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
         assertSingularLuIsFlagged(HostLapack())
     }
 
     @Test
     fun `an empty factorization solves an empty right-hand side`() {
-        Assume.assumeTrue("host LAPACKE is not installed", HostBlasCalls.lapackAvailable)
+        Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
         assertAnEmptyFactorizationSolvesEmpty(HostLapack())
     }
 }

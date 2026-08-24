@@ -4,7 +4,6 @@ import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.F64Blas
 import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
-import com.eignex.koblas.dense.host.jvm.HostBlasCalls
 import com.eignex.koblas.internal.backend.BackendSlot
 import com.eignex.koblas.internal.backend.f64DispatchThresholds
 import com.eignex.koblas.internal.backend.probe
@@ -21,7 +20,7 @@ import kotlin.test.assertTrue
 
 /**
  * Discovery itself, which the everyday run never reaches: it pins both backend domains to `reference`.
- * Carries the host-library category because every path past that line consults [HostBlasCalls], and loading a
+ * Carries the host-library category because every path past that line consults [HostLibraries], and loading a
  * host library is what the default run is kept away from.
  */
 @Category(HostLibraryTest::class)
@@ -79,17 +78,17 @@ class PlatformDiscoveryTest {
         withRequestedBackend(null) {
             registerPlatformBackends()
             assertEquals(
-                HostBlasCalls.available,
+                HostLibraries.cblas,
                 koblas.isAccelerated(BackendSlot.F64Blas),
                 "the F64Blas slot should be accelerated exactly when a host CBLAS resolved",
             )
             assertEquals(
-                HostBlasCalls.lapackAvailable,
+                HostLibraries.lapacke,
                 koblas.isAccelerated(BackendSlot.F64Lapack),
                 "the F64Lapack slot should be accelerated exactly when a host LAPACKE resolved",
             )
             assertEquals(
-                HostBlasCalls.available,
+                HostLibraries.cblas,
                 koblas.isAccelerated(BackendSlot.F64VectorKernels),
                 "the F64VectorKernels slot should be accelerated exactly when a host CBLAS resolved",
             )
