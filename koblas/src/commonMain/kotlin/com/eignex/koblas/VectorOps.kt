@@ -31,6 +31,15 @@ public inline fun F64VectorLike.forEachStored(block: (i: Int, v: Double) -> Unit
     }
 }
 
+/**
+ * The entries as a flat array, the backing itself when the vector already is one and a densified copy
+ * otherwise. For a routine that reads every position and so cannot walk stored entries.
+ *
+ * The result may be the caller's own buffer, and may therefore alias another argument, so a caller must
+ * neither write through it nor read it after writing whatever else it was handed.
+ */
+internal fun F64VectorLike.denseEntries(): DoubleArray = if (this is F64DenseVector) data else toDoubleArray()
+
 /** `aT * b`. Any sparse operand goes through [F64SparseVectorKernels], walking the stored entries only. */
 public infix fun F64VectorLike.dot(other: F64VectorLike): Double {
     requireSameSize(size, other.size)
