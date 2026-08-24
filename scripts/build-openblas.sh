@@ -71,7 +71,8 @@ resource_dir="$output/org/bytedeco/openblas/$platform"
 notices="$output/THIRD-PARTY-NOTICES.txt"
 build_options="USE_THREAD=0"
 case "$platform" in
-  linux-*) required_files=("$library_name" libgfortran.so.5 libquadmath.so.0 libgcc_s.so.1) ;;
+  linux-x86_64) required_files=("$library_name" libgfortran.so.5 libquadmath.so.0 libgcc_s.so.1) ;;
+  linux-arm64) required_files=("$library_name" libgfortran.so.5 libgcc_s.so.1) ;;
   macosx-arm64) required_files=("$library_name" libgfortran.dylib libgfortran.5.dylib libquadmath.0.dylib libgcc_s.1.1.dylib) ;;
 esac
 if [[ -f "$resource_dir/.openblas-source-sha256" ]] &&

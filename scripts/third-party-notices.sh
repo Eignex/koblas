@@ -59,7 +59,7 @@ notices_append_gcc_runtime_licenses() {
     notices_append_url \
         "$output" \
         "GCC libgfortran and libgcc_s — GPL-3.0 with GCC Runtime Library Exception 3.1" \
-        "https://www.gnu.org/licenses/gpl-3.0.txt" \
+        "https://raw.githubusercontent.com/gcc-mirror/gcc/releases/gcc-15.2.0/COPYING3" \
         "$gpl"
     notices_append_url \
         "$output" \
@@ -69,7 +69,7 @@ notices_append_gcc_runtime_licenses() {
     notices_append_url \
         "$output" \
         "GCC libquadmath — LGPL-2.1" \
-        "https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt" \
+        "https://raw.githubusercontent.com/gcc-mirror/gcc/releases/gcc-15.2.0/COPYING.LIB" \
         "$lgpl"
 }
 
