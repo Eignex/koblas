@@ -7,6 +7,7 @@ import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64VectorLike
+import com.eignex.koblas.denseEntries
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.koblas
 import com.eignex.koblas.requireShape
@@ -287,7 +288,7 @@ internal class F64ReferenceBlas(private val kernels: F64VectorKernels? = null) :
         if (alpha == 0.0) return
         val n = a.rows
         val ad = a.data
-        val xs = x.toDoubleArray()
+        val xs = x.denseEntries()
         for (j in 0 until n) {
             val xj = alpha * xs[j]
             if (xj == 0.0) continue
@@ -304,8 +305,8 @@ internal class F64ReferenceBlas(private val kernels: F64VectorKernels? = null) :
         if (alpha == 0.0) return
         val n = a.rows
         val ad = a.data
-        val xs = x.toDoubleArray()
-        val ys = y.toDoubleArray()
+        val xs = x.denseEntries()
+        val ys = y.denseEntries()
         for (j in 0 until n) {
             for (i in j until n) {
                 val v = alpha * (xs[i] * ys[j] + ys[i] * xs[j])
