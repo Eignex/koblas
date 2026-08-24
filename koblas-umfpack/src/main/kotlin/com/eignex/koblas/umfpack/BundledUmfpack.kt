@@ -6,7 +6,6 @@ import com.eignex.koblas.openblas.BundledOpenBlas
 import com.eignex.koblas.sparse.F64SparseLu
 import com.eignex.koblas.sparse.host.umfpack.UmfpackConfig
 import com.eignex.koblas.sparse.host.umfpack.UmfpackSparseLu
-import java.nio.file.Path
 
 /**
  * SuiteSparse UMFPACK extracted from Maven-native resources on the application's classpath.
@@ -26,33 +25,14 @@ private fun loadUmfpack(): UmfpackSparseLu {
     // UMFPACK links to BLAS. Loading the transitive single OpenBLAS bundle first makes its SONAME available
     // to the dynamic loader without making a system installation part of this optional artifact's contract.
     check(BundledOpenBlas().isAvailable) { "the bundled OpenBLAS dependency could not be loaded" }
-    return UmfpackSparseLu(UmfpackConfig(libraryPath = UmfpackResources.extract().toString()))
+    return UmfpackSparseLu(UmfpackConfig(libraryPath = umfpackLibrary.extract().toString()))
 }
 
-internal object UmfpackResources {
-    private val platform = BundledNativeResources.supportedPlatform { _, _ ->
-        "koblas-umfpack has no bundled SuiteSparse for this host"
-    }
-    private val resources = BundledNativeResources(
-        directoryPrefix = "koblas-umfpack",
-        platform = platform,
-        resourceRoot = "org/eignex/umfpack",
-        anchor = BundledUmfpack::class.java,
-        libraryDescription = "SuiteSparse",
-    )
-
-    private val extracted: Path by lazy {
-        checkNotNull(resources.extractRequired(resourceNames())[umfpackLibrary]) {
-            "UMFPACK resource is absent for $platform"
-        }
-    }
-
-    fun extract(): Path = extracted
-
-    private val umfpackLibrary: String = if (platform.startsWith("linux")) "libumfpack.so.6" else "libumfpack.dylib"
-
-    private fun resourceNames(): List<String> = checkNotNull(resources.resource(".libraries")) {
-        "UMFPACK resources are absent for $platform"
-    }
-        .bufferedReader().useLines { it.filter(String::isNotBlank).toList() }
-}
+private val umfpackLibrary = BundledNativeResources.manifestDriven(
+    directoryPrefix = "koblas-umfpack",
+    resourceRoot = "org/eignex/umfpack",
+    anchor = BundledUmfpack::class.java,
+    libraryDescription = "SuiteSparse",
+    linuxSoname = "libumfpack.so.6",
+    macosSoname = "libumfpack.dylib",
+) { _, _ -> "koblas-umfpack has no bundled SuiteSparse for this host" }
