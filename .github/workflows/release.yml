@@ -93,6 +93,7 @@ jobs:
         with:
           name: openblas-${{ matrix.platform }}
           path: koblas-openblas/build/openblas/resources/org/bytedeco/openblas
+          include-hidden-files: true
           if-no-files-found: error
 
       - name: Build bundled UMFPACK
@@ -106,6 +107,7 @@ jobs:
         with:
           name: umfpack-${{ matrix.platform }}
           path: koblas-umfpack/build/umfpack/resources/org/eignex/umfpack
+          include-hidden-files: true
           if-no-files-found: error
 
       - name: Build bundled BASICLU
@@ -118,6 +120,7 @@ jobs:
         with:
           name: basiclu-${{ matrix.platform }}
           path: koblas-basiclu/build/basiclu/resources/org/eignex/basiclu
+          include-hidden-files: true
           if-no-files-found: error
 
   publish:
