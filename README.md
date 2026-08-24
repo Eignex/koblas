@@ -21,50 +21,29 @@ SuiteSparse KLU, or SuiteSparse UMFPACK acceleration.
 
 ## Install
 
-| Module | Purpose |
-|--------|---------|
-| koblas | Core API and portable backend. |
-| koblas-openblas | Optional JVM bundle of OpenBLAS/LAPACKE for Linux x64/arm64 and macOS arm64. |
-| koblas-umfpack | Optional JVM bundle of SuiteSparse UMFPACK (GPL-2.0-or-later); includes koblas-openblas. |
-| koblas-klu | Optional JVM bundle of SuiteSparse KLU (LGPL-2.1-or-later). |
-| koblas-basiclu | Optional JVM bundle of BASICLU for sparse simplex-basis factorization and updates (MIT). |
+| Module | Gradle dependency | Purpose |
+|--------|-------------------|---------|
+| koblas | `implementation("com.eignex:koblas:<version>")` | Core API and portable backend. |
+| koblas-openblas | `runtimeOnly("com.eignex:koblas-openblas:<version>")` | Optional JVM bundle of OpenBLAS/LAPACKE for Linux x64/arm64 and macOS arm64. |
+| koblas-umfpack | `runtimeOnly("com.eignex:koblas-umfpack:<version>")` | Optional JVM bundle of SuiteSparse UMFPACK (GPL-2.0-or-later); includes koblas-openblas. |
+| koblas-klu | `runtimeOnly("com.eignex:koblas-klu:<version>")` | Optional JVM bundle of SuiteSparse KLU (LGPL-2.1-or-later). |
+| koblas-basiclu | `runtimeOnly("com.eignex:koblas-basiclu:<version>")` | Optional JVM bundle of BASICLU for sparse simplex-basis factorization and updates (MIT). |
 
-All optional hosted modules have a bunch of different licenses in addition to Apache 2.0, see it's generated `THIRD-PARTY-NOTICES.txt` for specifics.
-
-```kotlin
-implementation("com.eignex:koblas:<version>")
-```
+Optional bundled modules have licenses in addition to Apache 2.0; see their generated
+`THIRD-PARTY-NOTICES.txt` files for details.
 
 Install OpenBLAS/LAPACKE and, for sparse LU, SuiteSparse KLU 2 or UMFPACK with your
 system package manager, such as `apt` or Homebrew. Koblas discovers them automatically
 and otherwise uses its portable backend.
 
-On JVM Linux x64/arm64 and macOS arm64, Maven bundles are an alternative:
-
-```kotlin
-runtimeOnly("com.eignex:koblas-openblas:<version>")
-runtimeOnly("com.eignex:koblas-klu:<version>") // optional, sparse LU default
-runtimeOnly("com.eignex:koblas-umfpack:<version>") // optional alternative
-runtimeOnly("com.eignex:koblas-basiclu:<version>") // optional, sparse simplex bases
-```
+On JVM Linux x64/arm64 and macOS arm64, use any of the optional bundled modules
+listed above as an alternative.
 
 Host packages and Maven bundles use the same Koblas bindings; only the native library
 source differs.
 
 The UMFPACK bundle brings OpenBLAS and uses the same OpenBLAS library as the
-dense backend; KLU and BASICLU have no BLAS dependency. Bundled providers win over host lookup. To
-select a custom absolute library path, use these JVM properties or environment variables:
-
-| Library | JVM property | Environment variable |
-|---------|--------------|----------------------|
-| CBLAS | `koblas.cblas.path` | `KOBLAS_CBLAS_PATH` |
-| LAPACKE | `koblas.lapacke.path` | `KOBLAS_LAPACKE_PATH` |
-| SuiteSparse KLU 2 | `koblas.klu.path` | `KOBLAS_KLU_PATH` |
-| UMFPACK | `koblas.umfpack.path` | `KOBLAS_UMFPACK_PATH` |
-
-The JVM property takes precedence. `koblas.klu.path` must name a SuiteSparse KLU 2
-library. With both sparse-LU bundles present, KLU is selected by default; set
-`koblas.sparse.backend=umfpack` to select UMFPACK.
+dense backend; KLU and BASICLU have no BLAS dependency. Bundled providers win over host lookup.
 
 ## Use
 
@@ -81,6 +60,41 @@ val x = a.lu().solve(doubleArrayOf(3.0, 5.0))
 println(x.contentToString()) // [0.8, 1.4]
 ```
 
+For a symmetric positive-definite system, use Cholesky factorization:
+
+```kotlin
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.dense.cholesky
+import com.eignex.koblas.dense.solve
+
+val a = DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0)))
+val x = a.cholesky().solve(doubleArrayOf(3.0, 5.0))
+```
+
+For an overdetermined system, QR produces a least-squares solution:
+
+```kotlin
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.dense.qr
+import com.eignex.koblas.dense.solveLeastSquares
+
+val design = DenseMatrix.of(
+    arrayOf(doubleArrayOf(1.0, 0.0), doubleArrayOf(0.0, 1.0), doubleArrayOf(1.0, 1.0)),
+)
+val coefficients = design.qr().solveLeastSquares(doubleArrayOf(1.0, 2.0, 3.0))
+```
+
+Use `matMul` for dense matrix products:
+
+```kotlin
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.dense.matMul
+
+val a = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
+val b = DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 0.0), doubleArrayOf(1.0, 2.0)))
+val product = a.matMul(b)
+```
+
 Sparse matrices use CSC storage. Construct them from columns or coordinate
 triplets:
 
@@ -92,15 +106,36 @@ val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 3.0)))
 val x = a.lu().solve(doubleArrayOf(4.0, 9.0))
 ```
 
-The dense API covers level 1-3 BLAS, LU, Cholesky, QR, pivoted QR, LDLᵀ,
-condition estimates, and inverses. Sparse LU is also available.
+For dense matrices, Koblas provides level 1-3 BLAS; LU, Cholesky, QR, pivoted QR,
+and LDLᵀ factorizations; condition estimates; and inverses. For sparse matrices,
+it provides sparse-vector operations, matrix-vector products, triangular solves, and
+LU factorization.
 
 ## Backends
 
-Koblas starts with portable implementations and registers available accelerated
-backends. Inspect `koblasInfo` or `koblas.portableSlots`; call
-`koblas.requireAccelerated(...)` to fail when acceleration is unavailable. Set
-`-Dkoblas.dense.backend=reference -Dkoblas.sparse.backend=reference` to force portable backends.
+Koblas starts with portable implementations. Configure accelerated backends either
+programmatically or automatically.
 
-Host and bundled libraries are optional. If one cannot load, Koblas falls back
-to the portable implementation.
+For programmatic control, use `registerBackend(...)` to offer a backend, or
+`installBackends(...)` to override the process-wide context. Programmatic
+registrations take precedence over automatically discovered backends.
+
+For automatic JVM configuration, call `discoverBackends()`. Koblas probes the host
+and bundled libraries and falls back to the portable implementation when a library
+cannot load. Use these JVM properties or environment variables to steer discovery
+to custom absolute library paths:
+
+| Library | JVM property | Environment variable |
+|---------|--------------|----------------------|
+| CBLAS | `koblas.cblas.path` | `KOBLAS_CBLAS_PATH` |
+| LAPACKE | `koblas.lapacke.path` | `KOBLAS_LAPACKE_PATH` |
+| SuiteSparse KLU 2 | `koblas.klu.path` | `KOBLAS_KLU_PATH` |
+| UMFPACK | `koblas.umfpack.path` | `KOBLAS_UMFPACK_PATH` |
+
+The JVM property takes precedence. `koblas.klu.path` must name a SuiteSparse KLU 2
+library. Set `-Dkoblas.dense.backend=reference -Dkoblas.sparse.backend=reference`
+to force portable backends. With both sparse-LU bundles present, set
+`-Dkoblas.sparse.backend=umfpack` to select UMFPACK.
+
+Inspect `koblasInfo` or `koblas.portableSlots` after configuration; call
+`koblas.requireAccelerated(...)` to fail when acceleration is unavailable.
