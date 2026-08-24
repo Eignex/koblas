@@ -13,11 +13,12 @@ import kotlin.test.assertEquals
 /**
  * The level-1 kernels against loops written out here, at a non-zero offset so an implementation that ignores
  * the offset fails. Lengths 63, 64 and 65 straddle the level-1 routing threshold, so both the dispatched and
- * the direct path are covered.
+ * the direct path are covered. 600 clears any unrolled body a wide-lane host takes, whose own threshold
+ * scales with the lane count and so sits above the shorter lengths here.
  */
 internal fun assertLevel1KernelsAgreeWithScalar(kernels: F64VectorKernels) {
     val rng = Random(20260731)
-    for (len in intArrayOf(1, 7, 63, 64, 65, 200)) {
+    for (len in intArrayOf(1, 7, 63, 64, 65, 200, 600)) {
         val pad = 3
         val a = DoubleArray(len + pad) { rng.nextDouble(-1.0, 1.0) }
         val b = DoubleArray(len + pad) { rng.nextDouble(-1.0, 1.0) }
@@ -48,7 +49,7 @@ internal fun assertLevel1KernelsAgreeWithScalar(kernels: F64VectorKernels) {
 internal fun assertReductionsAgreeWithScalar(kernels: F64VectorKernels) {
     val rng = Random(20260951)
     for (scale in doubleArrayOf(1.0, 1e200, 1e-200)) {
-        for (len in intArrayOf(1, 63, 64, 200)) {
+        for (len in intArrayOf(1, 63, 64, 200, 600)) {
             val pad = 3
             val v = DoubleArray(len + pad) { rng.nextDouble(-1.0, 1.0) * scale }
             val ctx = "len=$len scale=$scale"
