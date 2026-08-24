@@ -1,6 +1,9 @@
 package com.eignex.koblas.sparse.host.klu
 
+import com.eignex.koblas.NOT_SINGULAR
+import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.requireFactored
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.sparse.F64SparseFactorization
@@ -11,10 +14,12 @@ private val cleaner: Cleaner = Cleaner.create()
 
 /** A KLU factorization whose native symbolic and numeric objects are reclaimed when it becomes unreachable. */
 public class KluFactorization internal constructor(
-    override val failedAt: Int,
+    initialFailedAt: Int,
     private val factor: KluFactor,
     private val calls: KluCalls,
 ) : F64SparseFactorization {
+    override var failedAt: Int = initialFailedAt
+        private set
     init {
         val heldFactor = factor
         cleaner.register(this) {
@@ -26,6 +31,24 @@ public class KluFactorization internal constructor(
     override val n: Int get() = factor.n
     override val nnz: Int get() = factor.nnz
     override val rcond: Double get() = factor.rcond
+
+    internal fun refactor(a: F64SparseMatrix, equilibrate: Boolean): KluRefactorResult {
+        requireShape(a.rows == n) { "refactor: matrix size ${a.rows}, expected $n" }
+        if (!a.colPtr.contentEquals(factor.colPtr) || !a.rowIdx.contentEquals(factor.rowIdx)) {
+            return KluRefactorResult.Incompatible
+        }
+        return try {
+            if (calls.refactor(factor, a.colPtr, a.rowIdx, a.values, equilibrate)) {
+                failedAt = NOT_SINGULAR
+                KluRefactorResult.Success
+            } else {
+                failedAt = SINGULAR_POSITION_UNKNOWN
+                KluRefactorResult.Singular
+            }
+        } finally {
+            Reference.reachabilityFence(this)
+        }
+    }
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray {
         requireFactored(failedAt, "solve")
@@ -40,3 +63,5 @@ public class KluFactorization internal constructor(
         return out
     }
 }
+
+internal enum class KluRefactorResult { Success, Incompatible, Singular }
