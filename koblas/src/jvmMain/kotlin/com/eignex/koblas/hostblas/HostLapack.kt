@@ -14,7 +14,7 @@ import com.eignex.koblas.internal.backend.openBlasDispatchThresholds
  * The host LAPACKE through `java.lang.foreign`. Every shared routine lives in [F64HostLapackAdapter]; this
  * supplies the JVM's entry points and measured gates.
  */
-public class HostLapack internal constructor(private val calls: HostBlasCalls, private val config: OpenBlasConfig) :
+public class HostLapack internal constructor(private val calls: HostBlasCalls, config: OpenBlasConfig) :
     F64HostLapackAdapter(
         JvmLapackeCalls(calls),
         JvmCblasCalls(calls),
@@ -27,12 +27,6 @@ public class HostLapack internal constructor(private val calls: HostBlasCalls, p
 
     /** LAPACKE resolves separately from CBLAS, either inside OpenBLAS or as its own library. */
     override val isAvailable: Boolean get() = calls.lapackAvailable
-
-    override val nativeTrsmMinRhs: Int get() = config.triangularSolveMinRhs
-
-    override val choleskyMin: Int get() = config.choleskyMin
-
-    override val spdInvertMin: Int get() = config.spdInvertMin
 
     override fun dgeqp3(m: Int, n: Int, a: DoubleArray, jpvt: IntArray, tau: DoubleArray): Int? {
         val dgeqp3 = calls.dgeqp3 ?: return null

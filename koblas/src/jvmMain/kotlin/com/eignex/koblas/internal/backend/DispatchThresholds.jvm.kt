@@ -16,12 +16,18 @@ private val SIMD_THRESHOLDS = DispatchThresholds(
     level1 = Int.MAX_VALUE,
     level2 = Int.MAX_VALUE,
     level3 = JVM_LEVEL3_MIN,
-    lapack = JVM_LAPACK_MIN,
+    factorize = JVM_FACTORIZE_MIN,
+    factorizeRhs = JVM_FACTORIZE_RHS_MIN,
 )
 
 /** For a JVM running the scalar loops, where the host library wins from the smallest sizes. */
-private val SCALAR_THRESHOLDS =
-    DispatchThresholds(level1 = JVM_SCALAR_LEVEL1_MIN, level2 = 0, level3 = 0, lapack = 0)
+private val SCALAR_THRESHOLDS = DispatchThresholds(
+    level1 = JVM_SCALAR_LEVEL1_MIN,
+    level2 = 0,
+    level3 = 0,
+    factorize = 0,
+    factorizeRhs = JVM_FACTORIZE_RHS_MIN,
+)
 
 /** The run length from which a foreign call is worth making for a level-1 primitive. */
 private const val JVM_SCALAR_LEVEL1_MIN = 64
@@ -30,4 +36,7 @@ private const val JVM_SCALAR_LEVEL1_MIN = 64
 private const val JVM_LEVEL3_MIN = 16
 
 /** The matrix size from which the host LAPACK takes the factorizations. */
-private const val JVM_LAPACK_MIN = 64
+private const val JVM_FACTORIZE_MIN = 64
+
+/** The right-hand-side count from which one blocked native solve beats a native call per column. */
+private const val JVM_FACTORIZE_RHS_MIN = 4

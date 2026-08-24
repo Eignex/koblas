@@ -41,11 +41,12 @@ class DispatchThresholdsTest {
             assertEquals(before.level1, during.level1, "level1 followed the installed backend")
             assertEquals(before.level2, during.level2, "level2 followed the installed backend")
             assertEquals(before.level3, during.level3, "level3 followed the installed backend")
-            assertEquals(before.lapack, during.lapack, "lapack followed the installed backend")
+            assertEquals(before.factorize, during.factorize, "factorize followed the installed backend")
+            assertEquals(before.factorizeRhs, during.factorizeRhs, "factorizeRhs followed the installed backend")
         } finally {
             installBackends(null)
         }
-        assertEquals(before.lapack, platformDispatchThresholds.lapack, "lapack did not come back")
+        assertEquals(before.factorize, platformDispatchThresholds.factorize, "factorize did not come back")
     }
 
     @Test
@@ -55,7 +56,10 @@ class DispatchThresholdsTest {
         if (mathBackend.startsWith("simd")) {
             assertTrue(defaults.level2 == Int.MAX_VALUE, "SIMD level 2 should stay portable, got ${defaults.level2}")
             assertTrue(defaults.level3 in 1..1024, "SIMD level 3 threshold looks wrong: ${defaults.level3}")
-            assertTrue(defaults.lapack in 1..1024, "SIMD lapack threshold looks wrong: ${defaults.lapack}")
+            assertTrue(
+                defaults.factorize in 1..1024,
+                "SIMD factorize threshold looks wrong: ${defaults.factorize}",
+            )
         } else {
             assertTrue(defaults.level3 == 0, "scalar kernels should dispatch level 3 from the start")
             assertTrue(defaults.level2 == 0, "scalar kernels should dispatch level 2 from the start")

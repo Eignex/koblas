@@ -41,26 +41,19 @@ public data class OpenBlasConfig(
     val level2Min: Int? = null,
     /** Smallest dimension routed to native level-3 BLAS; null keeps the platform default. */
     val level3Min: Int? = null,
-    /** Smallest dimension routed to native LAPACK; null keeps the platform default. */
-    val lapackMin: Int? = null,
-    /** Smallest dimension routed to the native pivoted QR routine. */
-    val pivotedQrMin: Int = 8,
-    /** Smallest number of right-hand sides routed to native triangular solve. */
-    val triangularSolveMinRhs: Int = 4,
-    /** Smallest order routed to native Cholesky factorization. */
-    val choleskyMin: Int = 32,
-    /** Smallest order routed to native SPD inversion. */
-    val spdInvertMin: Int = 16,
+    /** Smallest dimension routed to the native factorizations; null keeps the platform default. */
+    val factorizeMin: Int? = null,
+    /** Smallest number of right-hand sides routed to a blocked native solve; null keeps the default. */
+    val factorizeRhsMin: Int? = null,
 ) {
     init {
         require(threadCount == null || threadCount > 0) { "threadCount must be positive" }
         require(level1Min == null || level1Min >= 0) { "level1Min must not be negative" }
         require(level2Min == null || level2Min >= 0) { "level2Min must not be negative" }
         require(level3Min == null || level3Min >= 0) { "level3Min must not be negative" }
-        require(lapackMin == null || lapackMin >= 0) { "lapackMin must not be negative" }
-        require(pivotedQrMin >= 0) { "pivotedQrMin must not be negative" }
-        require(triangularSolveMinRhs >= 0) { "triangularSolveMinRhs must not be negative" }
-        require(choleskyMin >= 0) { "choleskyMin must not be negative" }
-        require(spdInvertMin >= 0) { "spdInvertMin must not be negative" }
+        require(factorizeMin == null || factorizeMin >= 0) { "factorizeMin must not be negative" }
+        require(factorizeRhsMin == null || factorizeRhsMin >= 0) {
+            "factorizeRhsMin must not be negative"
+        }
     }
 }
