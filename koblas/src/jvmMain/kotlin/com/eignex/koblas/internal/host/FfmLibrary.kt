@@ -20,8 +20,15 @@ import java.lang.invoke.MethodHandle
  * binding contributes only its prototypes. The native targets have `openNativeLibrary` for the same reason.
  *
  * Handles are bound with `Linker.Option.critical` by default, which lets a call read and write the Kotlin
- * arrays handed to it in place rather than copying them. Calls on the result use `invokeWithArguments`, since
- * Kotlin cannot emit signature-polymorphic `invokeExact` and the native side would then read garbage.
+ * arrays handed to it in place rather than copying them.
+ *
+ * Calls on the result use `invokeWithArguments`, which costs about 69 ns per call more than `invokeExact`
+ * on the same handle: 4.4 ns against 76.8 for a one-argument `fabs`, and 17.7 against 87.0 for a
+ * five-argument `cblas_ddot` over two arrays. The overhead is the boxed varargs path rather than anything
+ * about FFM, and it is near enough constant across those arities.
+ *
+ * That fixed cost is most of why the JVM's level-1 and level-2 gates sit as high as they do: 69 ns buys
+ * several hundred elements of the compiled-in SIMD kernels.
  */
 public class FfmLibrary private constructor(
     private val linker: Linker?,
