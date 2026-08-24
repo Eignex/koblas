@@ -99,6 +99,11 @@ public final class com/eignex/koblas/F64Givens {
 	public final fun getS ()D
 }
 
+public final class com/eignex/koblas/F64GivensKt {
+	public static final fun rot (Lcom/eignex/koblas/core/F64DenseVector;Lcom/eignex/koblas/core/F64DenseVector;Lcom/eignex/koblas/F64Givens;)V
+	public static final fun rotg (DD)Lcom/eignex/koblas/F64Givens;
+}
+
 public final class com/eignex/koblas/FactorizationKt {
 	public static final field NOT_SINGULAR I
 	public static final field SINGULAR_POSITION_UNKNOWN I
@@ -111,6 +116,26 @@ public abstract class com/eignex/koblas/KoblasException : java/lang/IllegalArgum
 
 public final class com/eignex/koblas/MathBackendKt {
 	public static final fun getMathBackend ()Ljava/lang/String;
+}
+
+public final class com/eignex/koblas/MatrixOpsKt {
+	public static final fun column (Lcom/eignex/koblas/core/F64DenseMatrix;I)Lcom/eignex/koblas/core/F64DenseVector;
+	public static final fun ger (Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/core/F64VectorLike;Lcom/eignex/koblas/core/F64VectorLike;)V
+	public static final fun matVec (Lcom/eignex/koblas/core/F64MatrixLike;Lcom/eignex/koblas/core/F64VectorLike;)Lcom/eignex/koblas/core/F64DenseVector;
+	public static final fun norm1 (Lcom/eignex/koblas/core/F64DenseMatrix;)D
+	public static final fun normFro (Lcom/eignex/koblas/core/F64DenseMatrix;)D
+	public static final fun normInf (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)D
+	public static synthetic fun normInf$default (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)D
+	public static final fun row (Lcom/eignex/koblas/core/F64DenseMatrix;I)Lcom/eignex/koblas/core/F64DenseVector;
+	public static final fun scaleColumns (Lcom/eignex/koblas/core/F64DenseMatrix;[D)V
+	public static final fun scaleColumns (Lcom/eignex/koblas/core/F64SparseMatrix;[D)V
+	public static final fun scaleRows (Lcom/eignex/koblas/core/F64DenseMatrix;[D)V
+	public static final fun syr (Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/core/F64VectorLike;Lcom/eignex/koblas/dense/Uplo;)V
+	public static synthetic fun syr$default (Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/core/F64VectorLike;Lcom/eignex/koblas/dense/Uplo;ILjava/lang/Object;)V
+	public static final fun syr2 (Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/core/F64VectorLike;Lcom/eignex/koblas/core/F64VectorLike;Lcom/eignex/koblas/dense/Uplo;)V
+	public static synthetic fun syr2$default (Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/core/F64VectorLike;Lcom/eignex/koblas/core/F64VectorLike;Lcom/eignex/koblas/dense/Uplo;ILjava/lang/Object;)V
+	public static final fun transpose (Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/core/F64DenseMatrix;
+	public static final fun transpose (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/core/F64SparseMatrix;
 }
 
 public final class com/eignex/koblas/NotPositiveDefinite : com/eignex/koblas/KoblasException {
@@ -135,37 +160,6 @@ public final class com/eignex/koblas/OperatorsKt {
 	public static final fun unaryMinus (Lcom/eignex/koblas/core/F64DenseVector;)Lcom/eignex/koblas/core/F64DenseVector;
 }
 
-public final class com/eignex/koblas/OpsKt {
-	public static final fun asum (Lcom/eignex/koblas/core/F64VectorLike;)D
-	public static final fun axpy (Lcom/eignex/koblas/core/F64DenseVector;DLcom/eignex/koblas/core/F64VectorLike;)V
-	public static final fun column (Lcom/eignex/koblas/core/F64DenseMatrix;I)Lcom/eignex/koblas/core/F64DenseVector;
-	public static final fun copy (Lcom/eignex/koblas/core/F64VectorLike;Lcom/eignex/koblas/core/F64DenseVector;)V
-	public static final fun dot (Lcom/eignex/koblas/core/F64VectorLike;Lcom/eignex/koblas/core/F64VectorLike;)D
-	public static final fun forEachStored (Lcom/eignex/koblas/core/F64VectorLike;Lkotlin/jvm/functions/Function2;)V
-	public static final fun ger (Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/core/F64VectorLike;Lcom/eignex/koblas/core/F64VectorLike;)V
-	public static final fun iamax (Lcom/eignex/koblas/core/F64VectorLike;)I
-	public static final fun matVec (Lcom/eignex/koblas/core/F64MatrixLike;Lcom/eignex/koblas/core/F64VectorLike;)Lcom/eignex/koblas/core/F64DenseVector;
-	public static final fun norm1 (Lcom/eignex/koblas/core/F64DenseMatrix;)D
-	public static final fun norm2 (Lcom/eignex/koblas/core/F64VectorLike;)D
-	public static final fun normFro (Lcom/eignex/koblas/core/F64DenseMatrix;)D
-	public static final fun normInf (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)D
-	public static synthetic fun normInf$default (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)D
-	public static final fun rot (Lcom/eignex/koblas/core/F64DenseVector;Lcom/eignex/koblas/core/F64DenseVector;Lcom/eignex/koblas/F64Givens;)V
-	public static final fun rotg (DD)Lcom/eignex/koblas/F64Givens;
-	public static final fun row (Lcom/eignex/koblas/core/F64DenseMatrix;I)Lcom/eignex/koblas/core/F64DenseVector;
-	public static final fun scale (Lcom/eignex/koblas/core/F64DenseVector;D)V
-	public static final fun scaleColumns (Lcom/eignex/koblas/core/F64DenseMatrix;[D)V
-	public static final fun scaleColumns (Lcom/eignex/koblas/core/F64SparseMatrix;[D)V
-	public static final fun scaleRows (Lcom/eignex/koblas/core/F64DenseMatrix;[D)V
-	public static final fun swap (Lcom/eignex/koblas/core/F64DenseVector;Lcom/eignex/koblas/core/F64DenseVector;)V
-	public static final fun syr (Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/core/F64VectorLike;Lcom/eignex/koblas/dense/Uplo;)V
-	public static synthetic fun syr$default (Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/core/F64VectorLike;Lcom/eignex/koblas/dense/Uplo;ILjava/lang/Object;)V
-	public static final fun syr2 (Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/core/F64VectorLike;Lcom/eignex/koblas/core/F64VectorLike;Lcom/eignex/koblas/dense/Uplo;)V
-	public static synthetic fun syr2$default (Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/core/F64VectorLike;Lcom/eignex/koblas/core/F64VectorLike;Lcom/eignex/koblas/dense/Uplo;ILjava/lang/Object;)V
-	public static final fun transpose (Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static final fun transpose (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/core/F64SparseMatrix;
-}
-
 public final class com/eignex/koblas/RegistryKt {
 	public static final fun discoverBackends ()V
 	public static final fun getKoblas ()Lcom/eignex/koblas/F64Context;
@@ -180,6 +174,18 @@ public final class com/eignex/koblas/SingularMatrix : com/eignex/koblas/KoblasEx
 }
 
 public abstract interface annotation class com/eignex/koblas/UnsafeKoblasApi : java/lang/annotation/Annotation {
+}
+
+public final class com/eignex/koblas/VectorOpsKt {
+	public static final fun asum (Lcom/eignex/koblas/core/F64VectorLike;)D
+	public static final fun axpy (Lcom/eignex/koblas/core/F64DenseVector;DLcom/eignex/koblas/core/F64VectorLike;)V
+	public static final fun copy (Lcom/eignex/koblas/core/F64VectorLike;Lcom/eignex/koblas/core/F64DenseVector;)V
+	public static final fun dot (Lcom/eignex/koblas/core/F64VectorLike;Lcom/eignex/koblas/core/F64VectorLike;)D
+	public static final fun forEachStored (Lcom/eignex/koblas/core/F64VectorLike;Lkotlin/jvm/functions/Function2;)V
+	public static final fun iamax (Lcom/eignex/koblas/core/F64VectorLike;)I
+	public static final fun norm2 (Lcom/eignex/koblas/core/F64VectorLike;)D
+	public static final fun scale (Lcom/eignex/koblas/core/F64DenseVector;D)V
+	public static final fun swap (Lcom/eignex/koblas/core/F64DenseVector;Lcom/eignex/koblas/core/F64DenseVector;)V
 }
 
 public final class com/eignex/koblas/Workspace {
@@ -905,6 +911,10 @@ public final class com/eignex/koblas/internal/host/FfmLibrary$Companion {
 	public final fun voidOf ([Ljava/lang/foreign/MemoryLayout;)Ljava/lang/foreign/FunctionDescriptor;
 }
 
+public final class com/eignex/koblas/internal/host/NativeCleanerKt {
+	public static final fun getNativeCleaner ()Ljava/lang/ref/Cleaner;
+}
+
 public abstract interface class com/eignex/koblas/sparse/F64BasisFactorization : com/eignex/koblas/sparse/F64SparseFactorization {
 	public abstract fun getBasis ()Lcom/eignex/koblas/core/F64SparseMatrix;
 	public abstract fun replaceColumn (ILcom/eignex/koblas/core/F64SparseVector;)Lcom/eignex/koblas/sparse/F64BasisFactorization;
@@ -987,6 +997,10 @@ public final class com/eignex/koblas/sparse/F64SparseFactorization$DefaultImpls 
 	public static synthetic fun solveInto$default (Lcom/eignex/koblas/sparse/F64SparseFactorization;[D[DZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)[D
 }
 
+public final class com/eignex/koblas/sparse/F64SparseFactorizationKt {
+	public static final fun requireSolveShapes (I[D[D)V
+}
+
 public abstract interface class com/eignex/koblas/sparse/F64SparseLinearAlgebra : com/eignex/koblas/sparse/F64SparseBlas, com/eignex/koblas/sparse/F64SparseLu {
 	public fun getSparseVectorKernels ()Lcom/eignex/koblas/sparse/F64SparseVectorKernels;
 }
@@ -1001,15 +1015,6 @@ public final class com/eignex/koblas/sparse/F64SparseLinearAlgebra$DefaultImpls 
 	public static fun refactor (Lcom/eignex/koblas/sparse/F64SparseLinearAlgebra;Lcom/eignex/koblas/sparse/F64SparseFactorization;Lcom/eignex/koblas/core/F64SparseMatrix;ZD)Lcom/eignex/koblas/sparse/F64SparseFactorization;
 	public static fun solve (Lcom/eignex/koblas/sparse/F64SparseLinearAlgebra;Lcom/eignex/koblas/sparse/F64SparseFactorization;[DZ)[D
 	public static fun solveInto (Lcom/eignex/koblas/sparse/F64SparseLinearAlgebra;Lcom/eignex/koblas/sparse/F64SparseFactorization;[D[DZLcom/eignex/koblas/Workspace;)[D
-}
-
-public final class com/eignex/koblas/sparse/F64SparseLinearAlgebraKt {
-	public static final fun gemv (Lcom/eignex/koblas/core/F64SparseMatrix;[DZ)[D
-	public static synthetic fun gemv$default (Lcom/eignex/koblas/core/F64SparseMatrix;[DZILjava/lang/Object;)[D
-	public static final fun lu (Lcom/eignex/koblas/core/F64SparseMatrix;ZD)Lcom/eignex/koblas/sparse/F64SparseFactorization;
-	public static synthetic fun lu$default (Lcom/eignex/koblas/core/F64SparseMatrix;ZDILjava/lang/Object;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
-	public static final fun trsv (Lcom/eignex/koblas/core/F64SparseMatrix;[DZZZ)V
-	public static synthetic fun trsv$default (Lcom/eignex/koblas/core/F64SparseMatrix;[DZZZILjava/lang/Object;)V
 }
 
 public abstract interface class com/eignex/koblas/sparse/F64SparseLu : com/eignex/koblas/Backend {
@@ -1051,6 +1056,15 @@ public final class com/eignex/koblas/sparse/F64SparseVectorKernels$DefaultImpls 
 	public static fun getPriority (Lcom/eignex/koblas/sparse/F64SparseVectorKernels;)I
 	public static fun isAvailable (Lcom/eignex/koblas/sparse/F64SparseVectorKernels;)Z
 	public static fun isPortable (Lcom/eignex/koblas/sparse/F64SparseVectorKernels;)Z
+}
+
+public final class com/eignex/koblas/sparse/SparseOpsKt {
+	public static final fun gemv (Lcom/eignex/koblas/core/F64SparseMatrix;[DZ)[D
+	public static synthetic fun gemv$default (Lcom/eignex/koblas/core/F64SparseMatrix;[DZILjava/lang/Object;)[D
+	public static final fun lu (Lcom/eignex/koblas/core/F64SparseMatrix;ZD)Lcom/eignex/koblas/sparse/F64SparseFactorization;
+	public static synthetic fun lu$default (Lcom/eignex/koblas/core/F64SparseMatrix;ZDILjava/lang/Object;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
+	public static final fun trsv (Lcom/eignex/koblas/core/F64SparseMatrix;[DZZZ)V
+	public static synthetic fun trsv$default (Lcom/eignex/koblas/core/F64SparseMatrix;[DZZZILjava/lang/Object;)V
 }
 
 public final class com/eignex/koblas/sparse/factorization/lu/F64SparseLuFactorization : com/eignex/koblas/sparse/F64SparseFactorization {
