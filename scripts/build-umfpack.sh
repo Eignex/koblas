@@ -20,7 +20,8 @@ version="$(sed -n 's/^version=//p' "$lock")"
 url="$(sed -n 's/^url=//p' "$lock")"
 expected="$(sed -n 's/^sha256=//p' "$lock")"
 cache="$output/../downloads/suitesparse-$version.tar.gz"
-mkdir -p "$(dirname "$cache")"
+cache_dir="$(dirname "$cache")"
+mkdir -p "$cache_dir"
 if [[ ! -f "$cache" ]]; then curl --fail --location --silent --show-error "$url" -o "$cache"; fi
 actual="$(sha256sum "$cache" | awk '{print $1}')"
 [[ "$actual" == "$expected" ]] || { echo "SuiteSparse source checksum mismatch" >&2; exit 1; }
@@ -81,7 +82,7 @@ if [[ "$platform" == linux-* ]]; then
 else
     for library in "$destination"/libumfpack.*.dylib; do cp "$library" "$destination/libumfpack.dylib"; done
 fi
-find "$destination" -maxdepth 1 -type f -printf '%f\n' | sort > "$destination/.libraries"
+find "$destination" -maxdepth 1 -type f -exec basename {} \; | sort > "$destination/.libraries"
 notices_init "$notices" "koblas-umfpack" "scripts/build-umfpack.sh"
 notices_append_file "$notices" "SuiteSparse UMFPACK $version — GPL-2.0-or-later" "SuiteSparse/UMFPACK/Doc/License.txt" "$source/UMFPACK/Doc/License.txt"
 notices_append_file "$notices" "SuiteSparse UMFPACK GPL-2.0 license text" "SuiteSparse/UMFPACK/Doc/gpl.txt" "$source/UMFPACK/Doc/gpl.txt"
@@ -89,5 +90,5 @@ notices_append_file "$notices" "SuiteSparse AMD — BSD-3-Clause" "SuiteSparse/A
 notices_append_file "$notices" "SuiteSparse COLAMD — BSD-3-Clause" "SuiteSparse/COLAMD/Doc/License.txt" "$source/COLAMD/Doc/License.txt"
 notices_append_suite_sparse_config "$notices" "$source" "$work"
 notices_append_file "$notices" "OpenBLAS $openblas_version — BSD-3-Clause" "OpenBLAS/LICENSE" "$openblas_source/LICENSE"
-notices_append_gcc_runtime_licenses "$notices" "$work"
+notices_append_gcc_runtime_licenses "$notices" "$cache_dir"
 printf '%s\n' "$expected" > "$destination/.suitesparse-source-sha256"
