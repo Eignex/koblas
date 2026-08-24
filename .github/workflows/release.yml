@@ -22,8 +22,8 @@ concurrency:
   cancel-in-progress: ${{ github.ref_type != 'tag' }}
 
 jobs:
-  build-openblas:
-    name: Build bundled OpenBLAS for ${{ matrix.platform }}
+  build-native-resources:
+    name: Build bundled native resources for ${{ matrix.platform }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     strategy:
@@ -159,7 +159,7 @@ jobs:
           if-no-files-found: error
 
   publish:
-    needs: build-openblas
+    needs: build-native-resources
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
