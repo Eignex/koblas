@@ -67,17 +67,17 @@ public fun F64DenseMatrix.norm1(): Double {
 /** Matrix infinity-norm, the maximum absolute row sum (LAPACK `dlange` with norm I). */
 public fun F64DenseMatrix.normInf(workspace: Workspace? = null): Double {
     if (rows == 0 || cols == 0) return 0.0
-    val sums = workspace?.take(rows) ?: DoubleArray(rows)
-    sums.fill(0.0, 0, rows) // take() promises nothing about the contents
-    val ad = data
-    for (j in 0 until cols) {
-        val base = j * rows
-        for (i in 0 until rows) sums[i] += abs(ad[base + i])
+    return workspace.scratch(rows) { sums ->
+        sums.fill(0.0, 0, rows) // take() promises nothing about the contents
+        val ad = data
+        for (j in 0 until cols) {
+            val base = j * rows
+            for (i in 0 until rows) sums[i] += abs(ad[base + i])
+        }
+        var m = 0.0
+        for (i in 0 until rows) if (sums[i] > m) m = sums[i]
+        m
     }
-    var m = 0.0
-    for (i in 0 until rows) if (sums[i] > m) m = sums[i]
-    workspace?.release(sums)
-    return m
 }
 
 /** Frobenius norm (LAPACK `dlange` with norm F). Rescales like [norm2] against overflow and underflow. */

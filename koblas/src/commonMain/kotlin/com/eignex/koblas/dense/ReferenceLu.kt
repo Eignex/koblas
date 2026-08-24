@@ -7,6 +7,7 @@ import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.requireFactored
 import com.eignex.koblas.requireShape
+import com.eignex.koblas.scratch
 import kotlin.math.abs
 
 /*
@@ -99,10 +100,10 @@ private fun solveNormal(
 ): DoubleArray {
     // When out aliases b the permutation may read a slot already written, so it stages the gather.
     if (out === b) {
-        val staged = workspace?.take(n) ?: DoubleArray(n)
-        for (i in 0 until n) staged[i] = b[piv[i]]
-        staged.copyInto(out)
-        workspace?.release(staged)
+        workspace.scratch(n) { staged ->
+            for (i in 0 until n) staged[i] = b[piv[i]]
+            staged.copyInto(out)
+        }
     } else {
         for (i in 0 until n) out[i] = b[piv[i]]
     }
@@ -121,12 +122,12 @@ private fun solveTranspose(
     out: DoubleArray,
     workspace: Workspace?,
 ): DoubleArray {
-    val y = workspace?.take(n) ?: DoubleArray(n)
-    b.copyInto(y)
-    trsvCore(kernels, a, n, y, lower = false, transpose = true, unitDiag = false)
-    trsvCore(kernels, a, n, y, lower = true, transpose = true, unitDiag = true)
-    for (i in 0 until n) out[piv[i]] = y[i] // undo the row permutation
-    workspace?.release(y)
+    workspace.scratch(n) { y ->
+        b.copyInto(y)
+        trsvCore(kernels, a, n, y, lower = false, transpose = true, unitDiag = false)
+        trsvCore(kernels, a, n, y, lower = true, transpose = true, unitDiag = true)
+        for (i in 0 until n) out[piv[i]] = y[i] // undo the row permutation
+    }
     return out
 }
 
@@ -148,21 +149,21 @@ internal fun referenceLuSolveInto(
     if (nrhs == 0) return out
     val f = lu.lu
     return if (transpose) {
-        val y = workspace?.take(n * nrhs) ?: DoubleArray(n * nrhs)
-        b.data.copyInto(y)
-        trsmCore(kernels, f, n, y, nrhs, lower = false, transpose = true, unitDiag = false)
-        trsmCore(kernels, f, n, y, nrhs, lower = true, transpose = true, unitDiag = true)
-        permuteRows(y, out.data, n, nrhs, lu.piv, gather = false)
-        workspace?.release(y)
+        workspace.scratch(n * nrhs) { y ->
+            b.data.copyInto(y)
+            trsmCore(kernels, f, n, y, nrhs, lower = false, transpose = true, unitDiag = false)
+            trsmCore(kernels, f, n, y, nrhs, lower = true, transpose = true, unitDiag = true)
+            permuteRows(y, out.data, n, nrhs, lu.piv, gather = false)
+        }
         out
     } else {
         // The gather cannot read B in place once out shares its buffer, so that case stages. Two
         // matrices can be distinct objects over one array, so the test is on the storage.
         if (out.data === b.data) {
-            val staged = workspace?.take(n * nrhs) ?: DoubleArray(n * nrhs)
-            permuteRows(b.data, staged, n, nrhs, lu.piv, gather = true)
-            staged.copyInto(out.data)
-            workspace?.release(staged)
+            workspace.scratch(n * nrhs) { staged ->
+                permuteRows(b.data, staged, n, nrhs, lu.piv, gather = true)
+                staged.copyInto(out.data)
+            }
         } else {
             permuteRows(b.data, out.data, n, nrhs, lu.piv, gather = true)
         }

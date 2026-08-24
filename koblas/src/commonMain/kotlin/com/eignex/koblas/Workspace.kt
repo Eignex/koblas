@@ -30,6 +30,22 @@ public class Workspace {
     public fun reserve(size: Int, count: Int): Unit = f64.reserve(size, count)
 }
 
+/**
+ * Borrows a vector of [size] for [block], allocating one when there is no workspace to lend it.
+ *
+ * Handed back in a finally, so a routine whose kernels throw does not strand the borrow. A buffer never
+ * returned is one its pool can neither lend again nor reclaim, which pins that width for the life of the
+ * workspace.
+ */
+internal inline fun <T> Workspace?.scratch(size: Int, block: (DoubleArray) -> T): T {
+    val buffer = this?.take(size) ?: DoubleArray(size)
+    try {
+        return block(buffer)
+    } finally {
+        this?.release(buffer)
+    }
+}
+
 /** Borrows a vector of [size] for the duration of [block], returning it to [this] afterwards. */
 public inline fun <T> Workspace.borrow(size: Int, block: (DoubleArray) -> T): T {
     val buffer = take(size)

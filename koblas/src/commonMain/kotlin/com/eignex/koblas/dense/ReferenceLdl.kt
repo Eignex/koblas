@@ -19,12 +19,7 @@ import kotlin.math.abs
 /** Bunch-Kaufman pivot threshold `(1 + sqrt(17)) / 8`, the value minimizing element growth (netlib dsytf2). */
 private const val BUNCH_KAUFMAN_ALPHA = 0.6403882032022076
 
-@Suppress("CyclomaticComplexMethod") // netlib dsytf2's control flow, kept recognizable
-internal fun referenceLdl(
-    kernels: F64VectorKernels,
-    a: F64DenseMatrix,
-    workspace: Workspace?,
-): F64LdlDecomposition {
+internal fun referenceLdl(kernels: F64VectorKernels, a: F64DenseMatrix, workspace: Workspace?): F64LdlDecomposition {
     requireShape(a.rows == a.cols) { "ldl: matrix must be square, got ${a.rows}x${a.cols}" }
     val n = a.rows
     val w = a.data.copyOf()
@@ -32,6 +27,31 @@ internal fun referenceLdl(
     var failedAt = NOT_SINGULAR
     val colK = workspace?.take(n) ?: DoubleArray(n)
     val colK1 = workspace?.take(n) ?: DoubleArray(n)
+    try {
+        eliminate(kernels, w, n, ipiv, colK, colK1) { at -> if (failedAt == NOT_SINGULAR) failedAt = at }
+    } finally {
+        if (workspace != null) {
+            workspace.release(colK1)
+            workspace.release(colK)
+        }
+    }
+    return F64LdlDecomposition(n, w, ipiv, failedAt)
+}
+
+/**
+ * The `dsytf2` elimination over the lower triangle of [w], reporting the first zero pivot through
+ * [reportSingular]. Split out so the two scratch columns can be handed back in a finally around it.
+ */
+@Suppress("CyclomaticComplexMethod", "LongParameterList") // netlib dsytf2's control flow, kept recognizable
+private inline fun eliminate(
+    kernels: F64VectorKernels,
+    w: DoubleArray,
+    n: Int,
+    ipiv: IntArray,
+    colK: DoubleArray,
+    colK1: DoubleArray,
+    reportSingular: (Int) -> Unit,
+) {
     var k = 0
     while (k < n) {
         var kstep = 1
@@ -47,7 +67,7 @@ internal fun referenceLdl(
         }
         if (maxOf(absakk, colmax) == 0.0) {
             // The first zero pivot is the one reported, matching dsytf2's info.
-            if (failedAt == NOT_SINGULAR) failedAt = k
+            reportSingular(k)
             ipiv[k] = k + 1
             k += 1
             continue
@@ -107,11 +127,6 @@ internal fun referenceLdl(
         }
         k += kstep
     }
-    if (workspace != null) {
-        workspace.release(colK1)
-        workspace.release(colK)
-    }
-    return F64LdlDecomposition(n, w, ipiv, failedAt)
 }
 
 /**

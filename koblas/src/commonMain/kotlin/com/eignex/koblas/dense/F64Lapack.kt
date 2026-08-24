@@ -225,14 +225,19 @@ internal inline fun solveColumnwise(
     if (nrhs == 0) return out
     val col = workspace?.take(n) ?: DoubleArray(n)
     val solved = workspace?.take(n) ?: DoubleArray(n)
-    for (c in 0 until nrhs) {
-        b.data.copyInto(col, 0, c * n, (c + 1) * n)
-        val x = solveOne(col, solved)
-        x.copyInto(out.data, c * n, 0, n)
-    }
-    if (workspace != null) {
-        workspace.release(solved)
-        workspace.release(col)
+    // Handed back in a finally because [solveOne] is the caller's, and a native solve in it reports a
+    // failure by throwing. A borrow never returned is one its pool can neither lend again nor reclaim.
+    try {
+        for (c in 0 until nrhs) {
+            b.data.copyInto(col, 0, c * n, (c + 1) * n)
+            val x = solveOne(col, solved)
+            x.copyInto(out.data, c * n, 0, n)
+        }
+    } finally {
+        if (workspace != null) {
+            workspace.release(solved)
+            workspace.release(col)
+        }
     }
     return out
 }

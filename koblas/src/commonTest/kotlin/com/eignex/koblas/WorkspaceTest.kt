@@ -1,5 +1,7 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.core.F64DenseMatrix
+import com.eignex.koblas.dense.solveColumnwise
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -173,5 +175,38 @@ class WorkspaceTest {
         assertFailsWith<IllegalStateException> { ws.release(DoubleArray(1000)) }
         assertEquals(widths, ws.pooledWidths)
         assertSame(hot, ws.take(64), "the rejected release evicted a live pool")
+    }
+
+    /**
+     * A column-by-column solve borrows two buffers and its per-column callback is the caller's, so a native
+     * solve reporting failure by throwing must not carry the borrows off with it. A stranded borrow is
+     * invisible: the pool can neither lend that buffer again nor be reclaimed, so this asks for it back.
+     */
+    @Test
+    fun `a column solve that throws hands its borrows back`() {
+        val ws = Workspace()
+        val n = 4
+        val lent = listOf(ws.take(n), ws.take(n))
+        lent.forEach { ws.release(it) }
+        val b = F64DenseMatrix(n, 2)
+        val out = F64DenseMatrix(n, 2)
+        assertFailsWith<IllegalStateException> {
+            solveColumnwise(b, out, n, 2, ws) { _, _ -> error("the native solve failed") }
+        }
+        assertAllDistinct(lent, "precondition")
+        val after = listOf(ws.take(n), ws.take(n))
+        for (buffer in after) {
+            assertTrue(buffer === lent[0] || buffer === lent[1], "the failed solve kept a borrow")
+        }
+    }
+
+    /** [scratch] is the nullable-workspace borrow, and it owes the same guarantee. */
+    @Test
+    fun `a scratch borrow comes back when the block throws`() {
+        val ws = Workspace()
+        val lent = ws.take(16)
+        ws.release(lent)
+        assertFailsWith<IllegalStateException> { ws.scratch(16) { error("kernel failed") } }
+        assertSame(lent, ws.take(16), "scratch kept the borrow when its block threw")
     }
 }

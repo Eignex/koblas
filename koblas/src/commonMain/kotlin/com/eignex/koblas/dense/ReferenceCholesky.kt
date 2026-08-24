@@ -6,6 +6,7 @@ import com.eignex.koblas.NotPositiveDefinite
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.requireShape
+import com.eignex.koblas.scratch
 import kotlin.math.sqrt
 
 /*
@@ -67,25 +68,25 @@ internal fun referenceSpdInvert(
     val ld = chol.l.data
     val inv = F64DenseMatrix(n, n)
     val invd = inv.data
-    val y = workspace?.take(n) ?: DoubleArray(n)
-    for (j in 0 until n) {
-        y.fill(0.0, j, n)
-        y[j] = 1.0
-        for (c in j until n) {
-            val base = c + c * n
-            val yc = y[c] / ld[base]
-            y[c] = yc
-            if (yc != 0.0) kernels.axpy(y, c + 1, -yc, ld, base + 1, n - c - 1)
-        }
-        for (i in n - 1 downTo j) {
-            val base = i + i * n
-            y[i] = (y[i] - kernels.dot(ld, base + 1, y, i + 1, n - i - 1)) / ld[base]
-        }
-        for (i in j until n) {
-            invd[i + j * n] = y[i]
-            invd[j + i * n] = y[i]
+    workspace.scratch(n) { y ->
+        for (j in 0 until n) {
+            y.fill(0.0, j, n)
+            y[j] = 1.0
+            for (c in j until n) {
+                val base = c + c * n
+                val yc = y[c] / ld[base]
+                y[c] = yc
+                if (yc != 0.0) kernels.axpy(y, c + 1, -yc, ld, base + 1, n - c - 1)
+            }
+            for (i in n - 1 downTo j) {
+                val base = i + i * n
+                y[i] = (y[i] - kernels.dot(ld, base + 1, y, i + 1, n - i - 1)) / ld[base]
+            }
+            for (i in j until n) {
+                invd[i + j * n] = y[i]
+                invd[j + i * n] = y[i]
+            }
         }
     }
-    workspace?.release(y)
     return inv
 }
