@@ -2,7 +2,7 @@ package com.eignex.koblas.internal.backend
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.F64Blas
-import com.eignex.koblas.dense.F64Lapack
+import com.eignex.koblas.dense.F64Decompositions
 import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -20,7 +20,7 @@ class ResolvedContextTest {
         override val isAvailable: Boolean get() = true
     }
 
-    private class LapackHalf(override val name: String) : F64Lapack by F64ReferenceLinearAlgebra {
+    private class LapackHalf(override val name: String) : F64Decompositions by F64ReferenceLinearAlgebra {
         override val priority: Int get() = 40
         override val isPortable: Boolean get() = false
         override val isAvailable: Boolean get() = true

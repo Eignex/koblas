@@ -1,6 +1,6 @@
 package com.eignex.koblas.dense
 
-/** What [F64Lapack.cholesky] does when the matrix turns out not to be positive-definite. */
+/** What [F64Decompositions.cholesky] does when the matrix turns out not to be positive-definite. */
 public sealed interface CholeskyPolicy {
     /** Throw at the first non-positive pivot, naming the position and the value. */
     public data object Strict : CholeskyPolicy

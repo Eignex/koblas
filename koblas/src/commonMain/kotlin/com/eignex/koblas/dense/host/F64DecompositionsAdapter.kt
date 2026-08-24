@@ -7,7 +7,7 @@ import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.dense.F64Lapack
+import com.eignex.koblas.dense.F64Decompositions
 import com.eignex.koblas.dense.host.cblas.Cblas.COL_MAJOR
 import com.eignex.koblas.dense.host.cblas.Cblas.LEFT
 import com.eignex.koblas.dense.host.cblas.Cblas.LOWER
@@ -36,12 +36,12 @@ private const val SIDE_LEFT: Byte = 'L'.code.toByte()
  * resolved from the binding's own configuration. Its defaults dispatch natively at any size.
  */
 @Suppress("TooManyFunctions") // the LAPACK surface a host library covers
-public abstract class F64HostLapackAdapter internal constructor(
+public abstract class F64DecompositionsAdapter internal constructor(
     private val f: LapackeCalls,
     private val blas: CblasCalls,
-    private val portable: F64ReferenceLapack = F64ReferenceLapack(),
+    private val portable: F64ReferenceDecompositions = F64ReferenceDecompositions(),
     private val dispatch: DispatchThresholds = DispatchThresholds(0, 0, 0, 0),
-) : F64Lapack {
+) : F64Decompositions {
 
     /** A binding that calls out, whatever the portable instance it falls back to reports. */
     override val isPortable: Boolean get() = false

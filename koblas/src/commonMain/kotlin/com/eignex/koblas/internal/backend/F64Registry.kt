@@ -3,15 +3,15 @@ package com.eignex.koblas.internal.backend
 import com.eignex.koblas.Backend
 import com.eignex.koblas.F64Context
 import com.eignex.koblas.dense.F64Blas
-import com.eignex.koblas.dense.F64Lapack
+import com.eignex.koblas.dense.F64Decompositions
+import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
-import com.eignex.koblas.dense.F64RoutedVectorKernels
-import com.eignex.koblas.dense.F64VectorKernels
-import com.eignex.koblas.sparse.F64PlatformSparseVectorKernels
+import com.eignex.koblas.dense.F64RoutedKernels
+import com.eignex.koblas.sparse.F64PlatformSparseKernels
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.F64SparseBlas
+import com.eignex.koblas.sparse.F64SparseKernels
 import com.eignex.koblas.sparse.F64SparseLu
-import com.eignex.koblas.sparse.F64SparseVectorKernels
 import kotlin.concurrent.Volatile
 import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.AtomicReference
@@ -26,10 +26,10 @@ import kotlin.concurrent.atomics.incrementAndFetch
  */
 @OptIn(ExperimentalAtomicApi::class)
 internal class F64Registry {
-    private val vectorKernelSeam = Seam<F64VectorKernels>(::recompose)
+    private val vectorKernelSeam = Seam<F64Kernels>(::recompose)
     private val blasSeam = Seam<F64Blas>(::recompose)
-    private val lapackSeam = Seam<F64Lapack>(::recompose)
-    private val sparseVectorKernelSeam = Seam<F64SparseVectorKernels>(::recompose)
+    private val lapackSeam = Seam<F64Decompositions>(::recompose)
+    private val sparseVectorKernelSeam = Seam<F64SparseKernels>(::recompose)
     private val sparseBlasSeam = Seam<F64SparseBlas>(::recompose)
     private val sparseLuSeam = Seam<F64SparseLu>(::recompose)
 
@@ -51,10 +51,10 @@ internal class F64Registry {
      * without a seam beside it fails here, at construction, rather than by registering nothing at all.
      */
     private val halves: Map<BackendSlot, Half<*>> = mapOf(
-        BackendSlot.F64VectorKernels to Half(vectorKernelSeam) { it as? F64VectorKernels },
+        BackendSlot.F64Kernels to Half(vectorKernelSeam) { it as? F64Kernels },
         BackendSlot.F64Blas to Half(blasSeam) { it as? F64Blas },
-        BackendSlot.F64Lapack to Half(lapackSeam) { it as? F64Lapack },
-        BackendSlot.F64SparseVectorKernels to Half(sparseVectorKernelSeam) { it as? F64SparseVectorKernels },
+        BackendSlot.F64Decompositions to Half(lapackSeam) { it as? F64Decompositions },
+        BackendSlot.F64SparseKernels to Half(sparseVectorKernelSeam) { it as? F64SparseKernels },
         BackendSlot.F64SparseBlas to Half(sparseBlasSeam) { it as? F64SparseBlas },
         BackendSlot.F64SparseLu to Half(sparseLuSeam) { it as? F64SparseLu },
     )
@@ -119,10 +119,10 @@ internal class F64Registry {
 
     /** Builds a context from the currently registered halves, falling back to the portable reference. */
     private fun assemble(): F64Context = F64Context(
-        vectorKernels = F64RoutedVectorKernels(vectorKernelSeam.active),
+        kernels = F64RoutedKernels(vectorKernelSeam.active),
         blas = blasSeam.active ?: F64ReferenceLinearAlgebra,
         lapack = lapackSeam.active ?: F64ReferenceLinearAlgebra,
-        sparseVectorKernels = sparseVectorKernelSeam.active ?: F64PlatformSparseVectorKernels,
+        sparseKernels = sparseVectorKernelSeam.active ?: F64PlatformSparseKernels,
         sparseBlas = sparseBlasSeam.active ?: F64ReferenceSparseLinearAlgebra,
         sparseLu = sparseLuSeam.active ?: F64ReferenceSparseLinearAlgebra,
     )

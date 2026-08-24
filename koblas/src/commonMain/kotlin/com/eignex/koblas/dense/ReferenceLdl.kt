@@ -13,8 +13,8 @@ import kotlin.math.abs
 
 /*
  * The portable Bunch-Kaufman factorization and the solve over its factors, netlib dsytf2 and dsytrs. This is
- * the semantic definition a native LDL is validated against; [F64ReferenceLapack] is the F64Lapack surface
- * over it.
+ * the semantic definition a native LDL is validated against; [F64ReferenceDecompositions] is the
+ * F64Decompositions surface over it.
  *
  * One deliberate departure: the 1x1 elimination takes dsytf2_rook's guarded scaling rather than plain
  * dsytf2's unguarded reciprocal, so a subnormal pivot factors here where a host dsytrf answers with
@@ -25,7 +25,7 @@ import kotlin.math.abs
 private const val BUNCH_KAUFMAN_ALPHA = 0.6403882032022076
 
 @Suppress("CyclomaticComplexMethod") // netlib dsytf2's control flow, kept recognizable
-internal fun referenceLdl(kernels: F64VectorKernels, a: F64DenseMatrix, workspace: Workspace?): F64LdlDecomposition {
+internal fun referenceLdl(kernels: F64Kernels, a: F64DenseMatrix, workspace: Workspace?): F64LdlDecomposition {
     requireShape(a.rows == a.cols) { "ldl: matrix must be square, got ${a.rows}x${a.cols}" }
     val n = a.rows
     val w = a.data.copyOf()
@@ -122,7 +122,7 @@ internal fun referenceLdl(kernels: F64VectorKernels, a: F64DenseMatrix, workspac
  * the column and scales the update by the pivot itself, which is the same arithmetic out of the reciprocal's
  * exponent range, and is the branch dsytf2 takes below its own `sfmin`.
  */
-private fun eliminateOneByOne(kernels: F64VectorKernels, w: DoubleArray, n: Int, k: Int) {
+private fun eliminateOneByOne(kernels: F64Kernels, w: DoubleArray, n: Int, k: Int) {
     val pivot = w[k + k * n]
     // A pivot below the smallest normal has no reciprocal: `1 / 1e-320` is an infinity, and scaling the
     // column by it turns multipliers that dividing resolves exactly into infinities. So the small case
@@ -170,7 +170,7 @@ private fun swapSymmetric(w: DoubleArray, n: Int, k: Int, kk: Int, kp: Int, kste
 }
 
 internal fun referenceLdlSolveInto(
-    kernels: F64VectorKernels,
+    kernels: F64Kernels,
     ldl: F64LdlDecomposition,
     b: DoubleArray,
     out: DoubleArray,

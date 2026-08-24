@@ -8,10 +8,10 @@ import com.eignex.koblas.dense.Uplo
 import com.eignex.koblas.dense.assertLevel1KernelsAgreeWithScalar
 import com.eignex.koblas.dense.assertReductionsAgreeWithScalar
 import com.eignex.koblas.dense.host.*
-import com.eignex.koblas.dense.host.cblas.OpenBlasConfig
-import com.eignex.koblas.dense.host.jvm.F64OpenBlasBlas
-import com.eignex.koblas.dense.host.jvm.F64OpenBlasLapack
-import com.eignex.koblas.dense.host.jvm.F64OpenBlasVectorKernels
+import com.eignex.koblas.dense.host.cblas.HostBlasConfig
+import com.eignex.koblas.dense.host.jvm.F64Cblas
+import com.eignex.koblas.dense.host.jvm.F64CblasKernels
+import com.eignex.koblas.dense.host.jvm.F64Lapacke
 import com.eignex.koblas.koblasInfo
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.testutil.host.HostLibraryTest
@@ -35,7 +35,7 @@ class HostBlasConformanceTest {
         val a = randomMatrix(n, n, rng)
         val c = F64DenseMatrix.zero(n, n)
         val ws = Workspace()
-        val host: F64Blas = F64OpenBlasBlas()
+        val host: F64Blas = F64Cblas()
         // Prime the pool with the one buffer of this width, so syrk has to borrow and return that instance.
         val scratch = ws.take(n * n)
         ws.release(scratch)
@@ -56,7 +56,7 @@ class HostBlasConformanceTest {
         val n = 512
         val rng = Random(20260807)
         val a = wellConditioned(n, rng)
-        val host = F64OpenBlasLapack()
+        val host = F64Lapacke()
         repeat(4) {
             val lu = host.factor(a)
             assertEquals(n, lu.n)
@@ -67,65 +67,65 @@ class HostBlasConformanceTest {
     @Test
     fun `the gated level 2 and 3 routines match reference`() {
         Assume.assumeTrue("host CBLAS is not installed", HostLibraries.cblas)
-        assertTriangularAgreesWithReference(F64OpenBlasBlas(), intArrayOf(1, 5, 12, 24))
-        assertGerAgreesWithReference(F64OpenBlasBlas())
+        assertTriangularAgreesWithReference(F64Cblas(), intArrayOf(1, 5, 12, 24))
+        assertGerAgreesWithReference(F64Cblas())
     }
 
     @Test
     fun `symv refuses a non-square matrix`() {
         Assume.assumeTrue("host CBLAS is not installed", HostLibraries.cblas)
-        assertSymvRefusesNonSquare(F64OpenBlasBlas())
+        assertSymvRefusesNonSquare(F64Cblas())
     }
 
     @Test
     fun `a singular LDL is refused at every width`() {
         Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
-        assertSingularLdlIsRefused(F64OpenBlasLapack())
+        assertSingularLdlIsRefused(F64Lapacke())
     }
 
     @Test
     fun `level 3 matches reference at blocked sizes`() {
         Assume.assumeTrue("host CBLAS is not installed", HostLibraries.cblas)
-        assertLevel3AgreesWithReference(F64OpenBlasBlas(), intArrayOf(7, 64, 256))
+        assertLevel3AgreesWithReference(F64Cblas(), intArrayOf(7, 64, 256))
     }
 
     /** Above cholesky's gate of 32 and invertSpd's of 16, so the host path is the one under test. */
     @Test
     fun `the SPD suite matches reference where the gates open`() {
         Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
-        assertSpdSuiteAgreesWithReference(F64OpenBlasLapack(), intArrayOf(33, 256))
+        assertSpdSuiteAgreesWithReference(F64Lapacke(), intArrayOf(33, 256))
     }
 
     @Test
     fun `a non positive definite input falls back to the portable path`() {
         Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
-        assertNonPositiveDefiniteFallsBack(F64OpenBlasLapack(), n = 256)
+        assertNonPositiveDefiniteFallsBack(F64Lapacke(), n = 256)
     }
 
     @Test
     fun `pivoted QR matches reference in rank and reconstruction`() {
         Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
-        assertPivotedQrAgreesWithReference(F64OpenBlasLapack(), m = 96, cols = 64, ranks = intArrayOf(64, 40))
+        assertPivotedQrAgreesWithReference(F64Lapacke(), m = 96, cols = 64, ranks = intArrayOf(64, 40))
     }
 
     /** Above the LAPACK gate, so the host path is the one under test rather than the portable fallback. */
     @Test
     fun `factorInto refactorizes into the destination it was given`() {
         Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
-        assertFactorIntoUsesItsDestination(F64OpenBlasLapack(), n = 96)
+        assertFactorIntoUsesItsDestination(F64Lapacke(), n = 96)
     }
 
     @Test
     fun `the factorizations match reference at blocked sizes`() {
         Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
-        assertLuAgreesWithReference(F64OpenBlasLapack(), intArrayOf(7, 64, 256))
+        assertLuAgreesWithReference(F64Lapacke(), intArrayOf(7, 64, 256))
     }
 
     /** Both extents stay at or above the level-3 gate of 16, so the host kernels are the ones under test. */
     @Test
     fun `the level 2 and 3 products match reference above the gates`() {
         Assume.assumeTrue("host CBLAS is not installed", HostLibraries.cblas)
-        val host = F64OpenBlasBlas()
+        val host = F64Cblas()
         assertGemvAgreesWithReference(host, intArrayOf(18, 64))
         assertGemmAgreesWithReference(host, intArrayOf(18, 64))
         assertSyrkAgreesWithReference(host, intArrayOf(18, 64))
@@ -137,7 +137,7 @@ class HostBlasConformanceTest {
     @Test
     fun `the level 2 and 3 products match reference below the gates`() {
         Assume.assumeTrue("host CBLAS is not installed", HostLibraries.cblas)
-        val host = F64OpenBlasBlas()
+        val host = F64Cblas()
         assertGemvAgreesWithReference(host, intArrayOf(7))
         assertGemmAgreesWithReference(host, intArrayOf(6))
         assertSyrkAgreesWithReference(host, intArrayOf(6))
@@ -148,14 +148,14 @@ class HostBlasConformanceTest {
     @Test
     fun `degenerate shapes honor the beta conventions`() {
         Assume.assumeTrue("host CBLAS is not installed", HostLibraries.cblas)
-        assertDegenerateShapesHonorTheBetaConventions(F64OpenBlasBlas())
+        assertDegenerateShapesHonorTheBetaConventions(F64Cblas())
     }
 
     /** Above the LAPACK gate of 64, so the host factorizations are the ones under test. */
     @Test
     fun `the factorization family matches reference above the gate`() {
         Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
-        val host = F64OpenBlasLapack()
+        val host = F64Lapacke()
         assertDeterminantAgreesWithReference(host, intArrayOf(64, 96))
         assertLuFactorsInterchange(host, n = 96)
         assertRcondAgreesWithReference(host, intArrayOf(64, 96))
@@ -168,7 +168,7 @@ class HostBlasConformanceTest {
     @Test
     fun `the factorization family matches reference below the gate`() {
         Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
-        val host = F64OpenBlasLapack()
+        val host = F64Lapacke()
         assertDeterminantAgreesWithReference(host, intArrayOf(1, 3, 8, 33))
         assertLuFactorsInterchange(host, n = 12)
         assertRcondAgreesWithReference(host, intArrayOf(1, 6, 24))
@@ -180,13 +180,13 @@ class HostBlasConformanceTest {
     @Test
     fun `a singular matrix sets the flag and a zero determinant`() {
         Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
-        assertSingularLuIsFlagged(F64OpenBlasLapack())
+        assertSingularLuIsFlagged(F64Lapacke())
     }
 
     @Test
     fun `an empty factorization solves an empty right-hand side`() {
         Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
-        assertAnEmptyFactorizationSolvesEmpty(F64OpenBlasLapack())
+        assertAnEmptyFactorizationSolvesEmpty(F64Lapacke())
     }
 
     /**
@@ -197,7 +197,7 @@ class HostBlasConformanceTest {
     @Test
     fun `the host level-1 kernels agree with the compiled-in ones`() {
         Assume.assumeTrue("host CBLAS is not installed", HostLibraries.cblas)
-        val host = F64OpenBlasVectorKernels(OpenBlasConfig(level1Min = 0))
+        val host = F64CblasKernels(HostBlasConfig(level1Min = 0))
         Assume.assumeTrue("host CBLAS did not bind its level-1 symbols", host.isAvailable)
         assertLevel1KernelsAgreeWithScalar(host)
         assertReductionsAgreeWithScalar(host)

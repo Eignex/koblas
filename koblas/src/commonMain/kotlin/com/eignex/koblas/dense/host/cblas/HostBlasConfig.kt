@@ -28,7 +28,7 @@ internal val LAPACKE_SONAMES = listOf(
 )
 
 /** Policy for one OpenBLAS and optional LAPACKE backend instance. */
-public data class OpenBlasConfig(
+public data class HostBlasConfig(
     /** An absolute OpenBLAS library path, or the deployment lookup chain when null. */
     val libraryPath: String? = null,
     /** An absolute LAPACKE library path, or the deployment lookup chain when null. */

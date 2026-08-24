@@ -2,8 +2,8 @@ package com.eignex.koblas.internal.backend
 
 import com.eignex.koblas.Backend
 import com.eignex.koblas.F64Context
-import com.eignex.koblas.dense.F64PlatformVectorKernels
-import com.eignex.koblas.dense.F64VectorKernels
+import com.eignex.koblas.dense.F64Kernels
+import com.eignex.koblas.dense.F64PlatformKernels
 import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
@@ -87,5 +87,5 @@ internal object BackendRegistry {
     }
 
     /** The kernels the compiled-in path uses when nothing is registered, for tests that need to name them. */
-    internal val platformKernels: F64VectorKernels get() = F64PlatformVectorKernels
+    internal val platformKernels: F64Kernels get() = F64PlatformKernels
 }

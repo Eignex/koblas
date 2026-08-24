@@ -12,10 +12,10 @@ import kotlin.math.sqrt
 /*
  * The portable Householder QR, its column-pivoted form and the solves over their factors, netlib dgeqrf,
  * dgeqp3, dormqr and dtrtrs. This is the semantic definition a native QR is validated against;
- * [F64ReferenceLapack] is the F64Lapack surface over it.
+ * [F64ReferenceDecompositions] is the F64Decompositions surface over it.
  */
 
-internal fun referenceQr(kernels: F64VectorKernels, a: F64DenseMatrix): F64QrDecomposition {
+internal fun referenceQr(kernels: F64Kernels, a: F64DenseMatrix): F64QrDecomposition {
     val m = a.rows
     val n = a.cols
     val k = minOf(m, n)
@@ -28,11 +28,7 @@ internal fun referenceQr(kernels: F64VectorKernels, a: F64DenseMatrix): F64QrDec
     return F64QrDecomposition(m, n, buf, tau)
 }
 
-internal fun referenceQrPivoted(
-    kernels: F64VectorKernels,
-    a: F64DenseMatrix,
-    tolerance: Double,
-): F64PivotedQrDecomposition {
+internal fun referenceQrPivoted(kernels: F64Kernels, a: F64DenseMatrix, tolerance: Double): F64PivotedQrDecomposition {
     requireRankTolerance(tolerance)
     val m = a.rows
     val n = a.cols
@@ -81,7 +77,7 @@ private fun swapColumns(
 /** Apply `H = I − tau·v·vᵀ` from column [col] to every column after it. */
 @Suppress("LongParameterList") // the kernels on top of the reflector's own arguments
 private fun applyReflectorToTrailing(
-    kernels: F64VectorKernels,
+    kernels: F64Kernels,
     buf: DoubleArray,
     m: Int,
     n: Int,
@@ -106,7 +102,7 @@ private fun applyReflectorToTrailing(
  *  the column when the downdate has drifted too far to trust. */
 @Suppress("LongParameterList") // the kernels on top of one array per tracked quantity
 private fun downdateNorms(
-    kernels: F64VectorKernels,
+    kernels: F64Kernels,
     buf: DoubleArray,
     m: Int,
     n: Int,
@@ -132,7 +128,7 @@ private fun downdateNorms(
 
 /** Build the Householder reflector for [col] in place (LAPACK `dlarfg`), returning `tau` and storing
  *  the scaled vector below the diagonal with the new `R` diagonal entry on it. */
-private fun householderColumn(kernels: F64VectorKernels, buf: DoubleArray, m: Int, col: Int): Double {
+private fun householderColumn(kernels: F64Kernels, buf: DoubleArray, m: Int, col: Int): Double {
     val base = col + col * m
     val len = m - col
     // dlarfg measures the tail alone and returns a zero reflector when it vanishes, leaving the
@@ -151,7 +147,7 @@ private fun householderColumn(kernels: F64VectorKernels, buf: DoubleArray, m: In
 }
 
 internal fun referenceApplyQInto(
-    kernels: F64VectorKernels,
+    kernels: F64Kernels,
     qr: F64QrDecomposition,
     y: DoubleArray,
     out: DoubleArray,
@@ -180,7 +176,7 @@ internal fun referenceApplyQInto(
 
 /** The pivoted least-squares solve into [out], which is returned. */
 internal fun referencePivotedLeastSquaresInto(
-    kernels: F64VectorKernels,
+    kernels: F64Kernels,
     qr: F64PivotedQrDecomposition,
     b: DoubleArray,
     out: DoubleArray,
@@ -210,7 +206,7 @@ internal fun referencePivotedLeastSquaresInto(
 /** Least-squares solve into [out], which has length `n` and is returned. A [workspace] lends the
  *  length-`m` intermediate for `Qᵀb`. */
 internal fun referenceLeastSquaresInto(
-    kernels: F64VectorKernels,
+    kernels: F64Kernels,
     qr: F64QrDecomposition,
     b: DoubleArray,
     out: DoubleArray,
@@ -230,7 +226,7 @@ internal fun referenceLeastSquaresInto(
 /** Minimum-norm solve into [out], which has length `m` (the wide system's column count) and is returned.
  *  A [workspace] lends the length-`n` intermediate. */
 internal fun referenceMinimumNormInto(
-    kernels: F64VectorKernels,
+    kernels: F64Kernels,
     qr: F64QrDecomposition,
     b: DoubleArray,
     out: DoubleArray,

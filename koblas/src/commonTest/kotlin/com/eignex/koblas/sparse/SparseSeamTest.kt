@@ -21,7 +21,7 @@ import kotlin.test.assertTrue
 
 class SparseSeamTest {
 
-    private class CountingVectorKernels(override val priority: Int = 50) : F64SparseVectorKernels {
+    private class CountingKernels(override val priority: Int = 50) : F64SparseKernels {
         override val name: String get() = "counting"
         var dots = 0
         var axpys = 0
@@ -95,7 +95,7 @@ class SparseSeamTest {
 
     @Test
     fun `every public sparse vector operation reaches the registered kernels`() = withCleanBackends {
-        val kernels = CountingVectorKernels()
+        val kernels = CountingKernels()
         registerBackend(kernels)
         val x = sparse()
         val dense = F64DenseVector.of(DoubleArray(6) { it + 1.0 })
@@ -119,7 +119,7 @@ class SparseSeamTest {
 
     @Test
     fun `a dense-only operation does not reach the sparse kernels`() = withCleanBackends {
-        val kernels = CountingVectorKernels()
+        val kernels = CountingKernels()
         registerBackend(kernels)
         val a = F64DenseVector.of(doubleArrayOf(1.0, 2.0))
         val b = F64DenseVector.of(doubleArrayOf(3.0, 4.0))
@@ -159,20 +159,20 @@ class SparseSeamTest {
 
     @Test
     fun `registration keeps the highest priority and install overrides both`() = withCleanBackends {
-        val weak = CountingVectorKernels(priority = 10)
-        val strong = CountingVectorKernels(priority = 200)
+        val weak = CountingKernels(priority = 10)
+        val strong = CountingKernels(priority = 200)
         registerBackend(strong)
         registerBackend(weak)
-        assertSame(strong, koblas.sparseVectorKernels, "a weaker registration displaced a stronger one")
-        val override = CountingVectorKernels(priority = 0)
-        installBackends(koblas.with(sparseVectorKernels = override))
-        assertSame(override, koblas.sparseVectorKernels, "install must win regardless of priority")
+        assertSame(strong, koblas.sparseKernels, "a weaker registration displaced a stronger one")
+        val override = CountingKernels(priority = 0)
+        installBackends(koblas.with(sparseKernels = override))
+        assertSame(override, koblas.sparseKernels, "install must win regardless of priority")
         installBackends(null)
-        assertSame(strong, koblas.sparseVectorKernels, "clearing the override falls back to registration")
+        assertSame(strong, koblas.sparseKernels, "clearing the override falls back to registration")
         resetBackends()
         assertSame(
-            F64PlatformSparseVectorKernels,
-            koblas.sparseVectorKernels,
+            F64PlatformSparseKernels,
+            koblas.sparseKernels,
             "an empty registry means the compiled-in kernels for this target",
         )
     }
@@ -181,6 +181,6 @@ class SparseSeamTest {
     fun `an empty registry resolves to the portable implementation on all three sparse halves`() = withCleanBackends {
         assertSame(F64ReferenceSparseLinearAlgebra, koblas.sparseBlas)
         assertSame(F64ReferenceSparseLinearAlgebra, koblas.sparseLu)
-        assertSame(F64PlatformSparseVectorKernels, koblas.sparseVectorKernels)
+        assertSame(F64PlatformSparseKernels, koblas.sparseKernels)
     }
 }

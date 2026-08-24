@@ -28,7 +28,7 @@ import com.eignex.koblas.requireSquare
  * implementation: crossing into a native library costs more than the work saves on a small problem.
  */
 @Suppress("TooManyFunctions") // the BLAS surface a host library covers
-public abstract class F64HostBlasAdapter internal constructor(
+public abstract class F64BlasAdapter internal constructor(
     private val f: CblasCalls,
     private val portable: F64ReferenceBlas = F64ReferenceBlas(),
     private val dispatch: DispatchThresholds = DispatchThresholds(0, 0, 0, 0),
@@ -236,7 +236,7 @@ public abstract class F64HostBlasAdapter internal constructor(
             return portable.syrk(alpha, a, transpose, beta, c, uplo, workspace)
         }
         if (alpha == 0.0 || k == 0) {
-            scaleUplo(vectorKernels, c.data, n, beta, uplo)
+            scaleUplo(kernels, c.data, n, beta, uplo)
             return
         }
         if (n == 0) return

@@ -4,7 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-class OpenBlasConfigTest {
+class HostBlasConfigTest {
 
     @Test
     fun `a default LP64 build is accepted`() {

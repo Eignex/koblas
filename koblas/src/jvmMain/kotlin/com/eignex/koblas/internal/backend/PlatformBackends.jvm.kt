@@ -3,12 +3,12 @@ package com.eignex.koblas.internal.backend
 import com.eignex.koblas.Backend
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.F64Blas
-import com.eignex.koblas.dense.host.cblas.OpenBlasConfig
-import com.eignex.koblas.dense.host.jvm.F64OpenBlasBackends
+import com.eignex.koblas.dense.host.cblas.HostBlasConfig
+import com.eignex.koblas.dense.host.jvm.F64Backends
 import com.eignex.koblas.sparse.F64SparseBlas
+import com.eignex.koblas.sparse.F64SparseKernels
 import com.eignex.koblas.sparse.F64SparseLu
-import com.eignex.koblas.sparse.F64SparseVectorKernels
-import com.eignex.koblas.sparse.host.F64HostSparseBackends
+import com.eignex.koblas.sparse.host.F64SparseBackends
 import com.eignex.koblas.sparse.host.klu.KluConfig
 import com.eignex.koblas.sparse.host.umfpack.UmfpackConfig
 import java.util.ServiceLoader
@@ -28,7 +28,7 @@ internal actual fun registerPlatformBackends() {
         ) {
             continue
         }
-        if (provider is F64SparseVectorKernels || provider is F64SparseBlas || provider is F64SparseLu) {
+        if (provider is F64SparseKernels || provider is F64SparseBlas || provider is F64SparseLu) {
             if (sparseRequested != null &&
                 !matchesRequested(provider.name, sparseRequested)
             ) {
@@ -44,8 +44,8 @@ internal actual fun registerPlatformBackends() {
 
 /** Deployment overrides are read only while automatic discovery chooses its candidates. */
 private class AutomaticHostConfiguration {
-    val openBlas = OpenBlasConfig(
-        libraryPath = libraryPath(ConfigurationKeys.OPENBLAS_PATH),
+    val openBlas = HostBlasConfig(
+        libraryPath = libraryPath(ConfigurationKeys.CBLAS_PATH),
         lapackeLibraryPath = libraryPath(ConfigurationKeys.LAPACKE_PATH),
     )
     val klu = KluConfig(libraryPath(ConfigurationKeys.KLU_PATH))
@@ -85,13 +85,13 @@ private fun registerBuiltins(
     denseRequested: String?,
     sparseRequested: String?,
 ) {
-    val dense = F64OpenBlasBackends(automatic.openBlas)
+    val dense = F64Backends(automatic.openBlas)
     registerIfOffered(dense.blas, denseRequested) {
         // The level-1 primitives and the factorizations are their own halves of the seam.
-        BackendRegistry.registerAutomatic(dense.vectorKernels)
+        BackendRegistry.registerAutomatic(dense.kernels)
         dense.lapack.takeIf { it.isAvailable }?.let { BackendRegistry.registerAutomatic(it) }
     }
-    val sparse = F64HostSparseBackends(automatic.klu, automatic.umfpack)
+    val sparse = F64SparseBackends(automatic.klu, automatic.umfpack)
     registerIfOffered(sparse.klu, sparseRequested)
     registerIfOffered(sparse.umfpack, sparseRequested)
 }

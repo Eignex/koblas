@@ -1,23 +1,23 @@
 package com.eignex.koblas.dense.host.jvm
 
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
-import com.eignex.koblas.dense.host.F64HostBlasAdapter
-import com.eignex.koblas.dense.host.cblas.OpenBlasConfig
+import com.eignex.koblas.dense.host.F64BlasAdapter
+import com.eignex.koblas.dense.host.cblas.HostBlasConfig
 import com.eignex.koblas.dense.host.jvm.HostBlasCalls
 import com.eignex.koblas.dense.host.jvm.JvmCblasCalls
 import com.eignex.koblas.internal.backend.BackendNames
-import com.eignex.koblas.internal.backend.openBlasDispatchThresholds
+import com.eignex.koblas.internal.backend.hostBlasDispatchThresholds
 
 /**
  * The host OpenBLAS through CBLAS, bound with `java.lang.foreign`. Every routine lives in
- * [F64HostBlasAdapter]; this supplies the JVM's entry points and the backend's identity.
+ * [F64BlasAdapter]; this supplies the JVM's entry points and the backend's identity.
  */
-public class F64OpenBlasBlas internal constructor(private val calls: HostBlasCalls) :
-    F64HostBlasAdapter(
+public class F64Cblas internal constructor(private val calls: HostBlasCalls) :
+    F64BlasAdapter(
         JvmCblasCalls(calls),
-        dispatch = openBlasDispatchThresholds(calls.config),
+        dispatch = hostBlasDispatchThresholds(calls.config),
     ) {
-    public constructor(config: OpenBlasConfig = OpenBlasConfig()) : this(HostBlasCalls(config))
+    public constructor(config: HostBlasConfig = HostBlasConfig()) : this(HostBlasCalls(config))
     override val name: String get() = BackendNames.OPENBLAS
 
     /** Above the reference (0) and the native dlopen backend (90). */

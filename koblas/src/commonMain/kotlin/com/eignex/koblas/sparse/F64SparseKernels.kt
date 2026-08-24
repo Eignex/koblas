@@ -6,7 +6,7 @@ import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.internal.numeric.euclideanNorm
 
 /** Sparse vector-vector routines as a backend half. */
-public interface F64SparseVectorKernels : Backend {
+public interface F64SparseKernels : Backend {
     /** `xᵀ·y` for a sparse [x] against a dense [y] (Sparse BLAS `usdot`); walks only the stored entries. */
     public fun dot(x: F64SparseVector, y: DoubleArray): Double
 

@@ -7,8 +7,8 @@ import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
 import com.eignex.koblas.dense.assertLevel1KernelsAgreeWithScalar
 import com.eignex.koblas.dense.assertReductionsAgreeWithScalar
 import com.eignex.koblas.dense.host.*
-import com.eignex.koblas.dense.host.cblas.F64CblasLinearAlgebra
-import com.eignex.koblas.dense.host.cblas.F64CblasVectorKernels
+import com.eignex.koblas.dense.host.cblas.F64CblasBackend
+import com.eignex.koblas.dense.host.cblas.F64CblasKernels
 import com.eignex.koblas.installBackends
 import com.eignex.koblas.koblas
 import kotlin.test.Test
@@ -18,11 +18,11 @@ import kotlin.test.assertTrue
 /** Checks the CBLAS backend against the reference implementation. */
 class CblasConformanceTest {
 
-    private val cblas = F64CblasLinearAlgebra()
+    private val cblas = F64CblasBackend()
 
     @Test
     fun `discovery registers the backend and install overrides it`() {
-        assertTrue(F64CblasLinearAlgebra.isAvailable(), "host OpenBLAS expected in the test environment")
+        assertTrue(F64CblasBackend.isAvailable(), "host OpenBLAS expected in the test environment")
         assertEquals("cblas", koblas.blas.name)
         try {
             installBackends(koblas.with(blas = F64ReferenceLinearAlgebra, lapack = F64ReferenceLinearAlgebra))
@@ -121,11 +121,10 @@ class CblasConformanceTest {
     fun `ger matches reference`() = assertGerAgreesWithReference(cblas)
 
     @Test
-    fun `installed level-1 kernels agree with the scalar ones`() =
-        assertLevel1KernelsAgreeWithScalar(F64CblasVectorKernels())
+    fun `installed level-1 kernels agree with the scalar ones`() = assertLevel1KernelsAgreeWithScalar(F64CblasKernels())
 
     @Test
     fun `the routed reductions agree with the built-in ones`() = assertReductionsAgreeWithScalar(
-        F64CblasVectorKernels(),
+        F64CblasKernels(),
     )
 }

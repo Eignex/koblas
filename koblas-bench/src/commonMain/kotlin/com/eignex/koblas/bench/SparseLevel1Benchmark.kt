@@ -58,6 +58,6 @@ class SparseLevel1Benchmark {
     /** `ussc`, the pure write, with no arithmetic to hide its cost behind. */
     @Benchmark
     fun sparseScatter() {
-        koblas.sparseVectorKernels.scatter(sparse, dense.data)
+        koblas.sparseKernels.scatter(sparse, dense.data)
     }
 }

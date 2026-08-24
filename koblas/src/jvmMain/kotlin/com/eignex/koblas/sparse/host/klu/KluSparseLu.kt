@@ -9,13 +9,13 @@ import com.eignex.koblas.requireSquare
 import com.eignex.koblas.sparse.F64SingularSparseFactorization
 import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.factorization.lu.NO_DROP
-import com.eignex.koblas.sparse.host.F64HostSparseLuAdapter
+import com.eignex.koblas.sparse.host.F64SparseLuAdapter
 
 /** Sparse LU factorizations backed by KLU 2. */
 public class KluSparseLu(
     /** Policy for this backend instance. */
     public val config: KluConfig = KluConfig(),
-) : F64HostSparseLuAdapter(config.factorizeMin) {
+) : F64SparseLuAdapter(config.factorizeMin) {
     private val calls = KluCalls(config)
 
     override val name: String get() = BackendNames.KLU

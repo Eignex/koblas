@@ -13,16 +13,16 @@ import com.eignex.koblas.F64Context
  */
 public enum class BackendSlot(internal val from: (F64Context) -> Backend, internal val vectorHalf: Boolean = false) {
     /** Dense vector-vector routines. */
-    F64VectorKernels({ it.vectorKernels }, vectorHalf = true),
+    F64Kernels({ it.kernels }, vectorHalf = true),
 
     /** Dense matrix routines. */
     F64Blas({ it.blas }),
 
     /** Dense factorizations. */
-    F64Lapack({ it.lapack }),
+    F64Decompositions({ it.lapack }),
 
     /** Sparse vector-vector routines. */
-    F64SparseVectorKernels({ it.sparseVectorKernels }, vectorHalf = true),
+    F64SparseKernels({ it.sparseKernels }, vectorHalf = true),
 
     /** Sparse matrix routines. */
     F64SparseBlas({ it.sparseBlas }),

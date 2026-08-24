@@ -70,7 +70,7 @@ class Level1Benchmark {
     /** Four dots against one shared operand, which loads that operand once rather than four times. */
     @Benchmark
     fun dot4(): Double {
-        koblas.vectorKernels.dot4(quad, 0, len, x.data, 0, len, quadOut, 0)
+        koblas.kernels.dot4(quad, 0, len, x.data, 0, len, quadOut, 0)
         return quadOut[0]
     }
 }

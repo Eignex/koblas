@@ -1,8 +1,8 @@
 package com.eignex.koblas.dense.host.jvm
 
+import com.eignex.koblas.dense.host.cblas.HostBlasConfig
 import com.eignex.koblas.dense.host.cblas.LAPACKE_SONAMES
 import com.eignex.koblas.dense.host.cblas.OPENBLAS_SONAMES
-import com.eignex.koblas.dense.host.cblas.OpenBlasConfig
 import com.eignex.koblas.dense.host.cblas.isIlp64OpenBlas
 import com.eignex.koblas.internal.host.FfmLibrary
 import com.eignex.koblas.internal.host.FfmLibrary.Companion.doubleOf
@@ -21,7 +21,7 @@ import java.lang.invoke.MethodHandle
  * The LP64 CBLAS and LAPACKE subset, bound as downcalls and invoked with `invokeExact`, so an argument's
  * Kotlin type has to match its layout exactly. See [com.eignex.koblas.internal.host.FfmLibrary].
  */
-internal class HostBlasCalls(internal val config: OpenBlasConfig) {
+internal class HostBlasCalls(internal val config: HostBlasConfig) {
 
     /** Whether the host's CBLAS resolved and takes the integer width koblas binds. */
     val available: Boolean

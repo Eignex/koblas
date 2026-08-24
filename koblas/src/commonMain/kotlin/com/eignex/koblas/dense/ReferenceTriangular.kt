@@ -9,7 +9,7 @@ import com.eignex.koblas.requireSquare
 /*
  * The portable triangular kernels, netlib dtrsv, dtrsm, dtrmv and dtrmm over a flat column-major buffer.
  * These are the semantic definition a native triangular routine is validated against, and what
- * [F64ReferenceBlas], [F64ReferenceLapack] and the host adapters' fallbacks call. `Triangular.kt` is the
+ * [F64ReferenceBlas], [F64ReferenceDecompositions] and the host adapters' fallbacks call. `Triangular.kt` is the
  * public facade that routes through the installed context instead.
  */
 
@@ -33,7 +33,7 @@ internal inline fun forEachRow(n: Int, b: F64DenseMatrix, op: (DoubleArray) -> U
  */
 @Suppress("LongParameterList") // the shape, the leading dimension and the three BLAS flags
 internal fun trmvCore(
-    k: F64VectorKernels,
+    k: F64Kernels,
     a: DoubleArray,
     n: Int,
     x: DoubleArray,
@@ -77,7 +77,7 @@ internal fun trmvCore(
 /** [trmv] applied to each of the [nrhs] contiguous columns of a flat column-major `n×nrhs` [b]. */
 @Suppress("LongParameterList")
 internal fun trmmCore(
-    k: F64VectorKernels,
+    k: F64Kernels,
     a: DoubleArray,
     n: Int,
     b: DoubleArray,
@@ -95,7 +95,7 @@ internal fun trmmCore(
  *  x(xOff until xOff + n). The diagonal is not checked, so a singular triangle yields infinities or NaNs. */
 @Suppress("LongParameterList") // the shape, the leading dimension and the three BLAS flags
 internal fun trsvCore(
-    k: F64VectorKernels,
+    k: F64Kernels,
     a: DoubleArray,
     n: Int,
     x: DoubleArray,
@@ -145,7 +145,7 @@ internal fun trsvCore(
  */
 @Suppress("LongParameterList") // the shared BLAS signature plus the entry-point flag
 internal fun triangularVector(
-    k: F64VectorKernels,
+    k: F64Kernels,
     a: F64DenseMatrix,
     x: DoubleArray,
     lower: Boolean,
@@ -171,7 +171,7 @@ internal fun triangularVector(
  */
 @Suppress("LongParameterList") // the shared BLAS signature plus the entry-point flag
 internal fun triangularMatrix(
-    k: F64VectorKernels,
+    k: F64Kernels,
     a: F64DenseMatrix,
     b: F64DenseMatrix,
     lower: Boolean,
@@ -215,7 +215,7 @@ internal fun triangularMatrix(
 /** [trsv] applied to each of the [nrhs] contiguous columns of a flat column-major `n×nrhs` [b]. */
 @Suppress("LongParameterList")
 internal fun trsmCore(
-    k: F64VectorKernels,
+    k: F64Kernels,
     a: DoubleArray,
     n: Int,
     b: DoubleArray,

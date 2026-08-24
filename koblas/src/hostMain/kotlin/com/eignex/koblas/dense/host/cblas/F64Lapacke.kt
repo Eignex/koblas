@@ -3,26 +3,30 @@
 package com.eignex.koblas.dense.host.cblas
 
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
-import com.eignex.koblas.dense.host.F64HostLapackAdapter
+import com.eignex.koblas.dense.host.F64DecompositionsAdapter
 import com.eignex.koblas.dense.host.cblas.Cblas.COL_MAJOR
 import com.eignex.koblas.internal.backend.BackendNames
-import com.eignex.koblas.internal.backend.openBlasDispatchThresholds
+import com.eignex.koblas.internal.backend.hostBlasDispatchThresholds
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.invoke
 import kotlinx.cinterop.usePinned
 
 /**
- * The host LAPACKE through cinterop. Every shared routine lives in [F64HostLapackAdapter]; this supplies the
+ * The host LAPACKE through cinterop. Every shared routine lives in [F64DecompositionsAdapter]; this supplies the
  * native entry points and the backend's identity. The gates come from the configuration, as they do for the
  * JVM binding.
  */
-internal class F64CblasLapack(
+internal class F64Lapacke(
     private val f: LapackeFunctions,
     blas: CblasFunctions,
     private val loader: OpenBlasLoader = OpenBlasLoader(),
-    config: OpenBlasConfig = OpenBlasConfig(),
-) : F64HostLapackAdapter(NativeLapackeCalls(f), NativeCblasCalls(blas), dispatch = openBlasDispatchThresholds(config)) {
+    config: HostBlasConfig = HostBlasConfig(),
+) : F64DecompositionsAdapter(
+    NativeLapackeCalls(f),
+    NativeCblasCalls(blas),
+    dispatch = hostBlasDispatchThresholds(config),
+) {
     override val name: String get() = BackendNames.CBLAS
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY

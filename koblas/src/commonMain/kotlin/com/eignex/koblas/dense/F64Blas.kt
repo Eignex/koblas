@@ -15,7 +15,7 @@ import com.eignex.koblas.transpose
 public interface F64Blas : Backend {
 
     /** The vector kernels this half's inherited routines run on; the installed ones by default. */
-    public val vectorKernels: F64VectorKernels get() = koblas.vectorKernels
+    public val kernels: F64Kernels get() = koblas.kernels
 
     /** `y = alpha · op(A) · x + beta · y` (BLAS `dgemv`), with `op(A)` being `Aᵀ` when [transpose].
      *  `beta == 0.0` overwrites [y] without reading it. */

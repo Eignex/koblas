@@ -3,14 +3,14 @@ package com.eignex.koblas.internal.backend
 import com.eignex.koblas.*
 import com.eignex.koblas.core.*
 import com.eignex.koblas.dense.F64Blas
-import com.eignex.koblas.dense.F64Lapack
+import com.eignex.koblas.dense.F64Decompositions
+import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
-import com.eignex.koblas.dense.F64VectorKernels
 import com.eignex.koblas.internal.backend.BackendSlot
 import com.eignex.koblas.internal.numeric.absoluteSum
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
-import com.eignex.koblas.sparse.F64SparseVectorKernels
+import com.eignex.koblas.sparse.F64SparseKernels
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -21,14 +21,14 @@ class AccelerationTest {
 
     private class FakeHost(override val name: String) :
         F64Blas by F64ReferenceLinearAlgebra,
-        F64Lapack by F64ReferenceLinearAlgebra {
+        F64Decompositions by F64ReferenceLinearAlgebra {
         override val priority: Int get() = 100
         override val isPortable: Boolean get() = false
         override val isAvailable: Boolean get() = true
-        override val vectorKernels: F64VectorKernels get() = F64ReferenceLinearAlgebra.vectorKernels
+        override val kernels: F64Kernels get() = F64ReferenceLinearAlgebra.kernels
     }
 
-    private class FakeKernels(override val name: String = "fakeblas") : F64VectorKernels {
+    private class FakeKernels(override val name: String = "fakeblas") : F64Kernels {
         override val priority: Int get() = 100
         override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
             var s = 0.0
@@ -69,11 +69,11 @@ class AccelerationTest {
     fun `registering a host backend accelerates exactly its own slots`() = withCleanBackends {
         registerBackend(FakeHost("openblas"))
         assertTrue(koblas.isAccelerated(BackendSlot.F64Blas))
-        assertTrue(koblas.isAccelerated(BackendSlot.F64Lapack))
+        assertTrue(koblas.isAccelerated(BackendSlot.F64Decompositions))
         assertEquals(
             setOf(
-                BackendSlot.F64VectorKernels,
-                BackendSlot.F64SparseVectorKernels,
+                BackendSlot.F64Kernels,
+                BackendSlot.F64SparseKernels,
                 BackendSlot.F64SparseBlas,
                 BackendSlot.F64SparseLu,
             ),
@@ -83,15 +83,15 @@ class AccelerationTest {
 
     @Test
     fun `the compiled-in kernels do not count as acceleration`() = withCleanBackends {
-        assertTrue(!koblas.isAccelerated(BackendSlot.F64VectorKernels), "the platform kernels are portable koblas")
+        assertTrue(!koblas.isAccelerated(BackendSlot.F64Kernels), "the platform kernels are portable koblas")
         registerBackend(FakeKernels())
-        assertTrue(koblas.isAccelerated(BackendSlot.F64VectorKernels), "a registered host half is acceleration")
+        assertTrue(koblas.isAccelerated(BackendSlot.F64Kernels), "a registered host half is acceleration")
     }
 
     @Test
     fun `requireAccelerated passes for the slots that are covered`() = withCleanBackends {
         registerBackend(FakeHost("openblas"))
-        koblas.requireAccelerated(BackendSlot.F64Blas, BackendSlot.F64Lapack)
+        koblas.requireAccelerated(BackendSlot.F64Blas, BackendSlot.F64Decompositions)
         koblas.requireAccelerated()
     }
 
@@ -121,13 +121,13 @@ class AccelerationTest {
         val host = FakeHost("openblas")
         registerBackend(host)
         assertSame(host, koblas.backendFor(BackendSlot.F64Blas))
-        assertSame(host, koblas.backendFor(BackendSlot.F64Lapack))
-        assertSame(koblas.vectorKernels, koblas.backendFor(BackendSlot.F64VectorKernels))
+        assertSame(host, koblas.backendFor(BackendSlot.F64Decompositions))
+        assertSame(koblas.kernels, koblas.backendFor(BackendSlot.F64Kernels))
         assertSame(koblas.sparseBlas, koblas.backendFor(BackendSlot.F64SparseBlas))
     }
 
     /** A sparse-kernel half at the default priority, which is what most registrations use. */
-    private class PlainSparseKernels : F64SparseVectorKernels {
+    private class PlainSparseKernels : F64SparseKernels {
         override val name: String get() = "plain-sparse"
         override fun dot(x: F64SparseVector, y: DoubleArray): Double = F64ReferenceSparseLinearAlgebra.dot(x, y)
         override fun dot(x: F64SparseVector, y: F64SparseVector): Double = F64ReferenceSparseLinearAlgebra.dot(x, y)
@@ -152,7 +152,7 @@ class AccelerationTest {
         withCleanBackends { /* the clean-and-restore path under test */ }
         try {
             registerBackend(PlainSparseKernels())
-            assertEquals("plain-sparse", koblas.sparseVectorKernels.name, "an occupied seam refused the offer")
+            assertEquals("plain-sparse", koblas.sparseKernels.name, "an occupied seam refused the offer")
         } finally {
             resetBackends()
             rediscoverBackends()

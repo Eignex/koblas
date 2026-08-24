@@ -6,7 +6,7 @@ import com.eignex.koblas.sparse.host.umfpack.UmfpackConfig
 import com.eignex.koblas.sparse.host.umfpack.UmfpackSparseLu
 
 /** The independently configured sparse LU backends this JVM can load from its host libraries. */
-public class F64HostSparseBackends(kluConfig: KluConfig = KluConfig(), umfpackConfig: UmfpackConfig = UmfpackConfig()) {
+public class F64SparseBackends(kluConfig: KluConfig = KluConfig(), umfpackConfig: UmfpackConfig = UmfpackConfig()) {
     /** The KLU sparse LU half. */
     public val klu: KluSparseLu = KluSparseLu(kluConfig)
 

@@ -7,7 +7,7 @@ import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.core.F64VectorLike
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import com.eignex.koblas.requireSameSize
-import com.eignex.koblas.sparse.F64SparseVectorKernels
+import com.eignex.koblas.sparse.F64SparseKernels
 import kotlin.math.abs
 
 /**
@@ -40,15 +40,15 @@ public inline fun F64VectorLike.forEachStored(block: (i: Int, v: Double) -> Unit
  */
 internal fun F64VectorLike.denseEntries(): DoubleArray = if (this is F64DenseVector) data else toDoubleArray()
 
-/** `aT * b`. Any sparse operand goes through [F64SparseVectorKernels], walking the stored entries only. */
+/** `aT * b`. Any sparse operand goes through [F64SparseKernels], walking the stored entries only. */
 public infix fun F64VectorLike.dot(other: F64VectorLike): Double {
     requireSameSize(size, other.size)
     if (this is F64DenseVector && other is F64DenseVector) {
-        return koblas.vectorKernels.dot(data, 0, other.data, 0, size)
+        return koblas.kernels.dot(data, 0, other.data, 0, size)
     }
-    if (this is F64SparseVector && other is F64SparseVector) return koblas.sparseVectorKernels.dot(this, other)
-    if (this is F64SparseVector && other is F64DenseVector) return koblas.sparseVectorKernels.dot(this, other.data)
-    if (this is F64DenseVector && other is F64SparseVector) return koblas.sparseVectorKernels.dot(other, data)
+    if (this is F64SparseVector && other is F64SparseVector) return koblas.sparseKernels.dot(this, other)
+    if (this is F64SparseVector && other is F64DenseVector) return koblas.sparseKernels.dot(this, other.data)
+    if (this is F64DenseVector && other is F64SparseVector) return koblas.sparseKernels.dot(other, data)
     var s = 0.0
     for (i in 0 until size) s += this[i] * other[i]
     return s
@@ -59,16 +59,16 @@ public infix fun F64VectorLike.dot(other: F64VectorLike): Double {
  * finite input gives the correct norm.
  */
 public fun F64VectorLike.norm2(): Double = when (this) {
-    is F64DenseVector -> koblas.vectorKernels.nrm2(data, 0, size)
-    is F64SparseVector -> koblas.sparseVectorKernels.nrm2(this)
+    is F64DenseVector -> koblas.kernels.nrm2(data, 0, size)
+    is F64SparseVector -> koblas.sparseKernels.nrm2(this)
     else -> euclideanNorm(toDoubleArray(), 0, size)
 }
 
 /** Sum of absolute values (BLAS `dasum`). Sparse vectors sum over stored entries only. */
 public fun F64VectorLike.asum(): Double = when (this) {
-    is F64DenseVector -> koblas.vectorKernels.asum(data, 0, size)
+    is F64DenseVector -> koblas.kernels.asum(data, 0, size)
 
-    is F64SparseVector -> koblas.sparseVectorKernels.asum(this)
+    is F64SparseVector -> koblas.sparseKernels.asum(this)
 
     else -> {
         var s = 0.0
@@ -103,7 +103,7 @@ public fun copy(src: F64VectorLike, dst: F64DenseVector) {
 
         is F64SparseVector -> {
             dst.data.fill(0.0)
-            koblas.sparseVectorKernels.scatter(src, dst.data)
+            koblas.sparseKernels.scatter(src, dst.data)
         }
 
         else -> {
@@ -130,8 +130,8 @@ public fun F64DenseVector.axpy(alpha: Double, x: F64VectorLike) {
     requireSameSize(size, x.size)
     if (alpha == 0.0) return
     when (x) {
-        is F64DenseVector -> koblas.vectorKernels.axpy(data, 0, alpha, x.data, 0, size)
-        is F64SparseVector -> koblas.sparseVectorKernels.axpy(data, alpha, x)
+        is F64DenseVector -> koblas.kernels.axpy(data, 0, alpha, x.data, 0, size)
+        is F64SparseVector -> koblas.sparseKernels.axpy(data, alpha, x)
         else -> x.forEachStored { i, v -> data[i] += alpha * v }
     }
 }
@@ -139,5 +139,5 @@ public fun F64DenseVector.axpy(alpha: Double, x: F64VectorLike) {
 /** `v = alpha * v`. */
 public fun F64DenseVector.scale(alpha: Double) {
     if (alpha == 1.0) return
-    koblas.vectorKernels.scale(data, 0, alpha, size)
+    koblas.kernels.scale(data, 0, alpha, size)
 }

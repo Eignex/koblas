@@ -11,7 +11,7 @@ import kotlin.math.sqrt
 
 /*
  * The portable Cholesky factorization and the SPD inverse over its factor, netlib dpotrf and dpotri. This is
- * the semantic definition a native Cholesky is validated against; [F64ReferenceLapack] is the F64Lapack
+ * the semantic definition a native Cholesky is validated against; [F64ReferenceDecompositions] is the F64Decompositions
  * surface over it.
  */
 
@@ -20,7 +20,7 @@ import kotlin.math.sqrt
  *  @throws com.eignex.koblas.NotPositiveDefinite at the first non-positive pivot unless [policy] allows it.
  */
 internal fun referenceCholesky(
-    kernels: F64VectorKernels,
+    kernels: F64Kernels,
     a: F64DenseMatrix,
     policy: CholeskyPolicy,
 ): F64CholeskyDecomposition {
@@ -60,7 +60,7 @@ internal fun referenceCholesky(
 
 /** Invert an SPD matrix from its Cholesky factorization, returning `A⁻¹` given [chol] (LAPACK `dpotri`). */
 internal fun referenceSpdInvert(
-    kernels: F64VectorKernels,
+    kernels: F64Kernels,
     chol: F64CholeskyDecomposition,
     workspace: Workspace?,
 ): F64DenseMatrix {

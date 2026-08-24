@@ -13,12 +13,12 @@ import kotlin.math.abs
 /*
  * The portable LU factorization, the solves over its factors and the Hager condition estimator built on
  * them, netlib dgetrf, dgetrs and dgecon. This is the semantic definition a native LU is validated against;
- * [F64ReferenceLapack] is the F64Lapack surface over it.
+ * [F64ReferenceDecompositions] is the F64Decompositions surface over it.
  */
 
 /** Doolittle LU with partial pivoting, writing into [out]'s buffers. */
 internal fun referenceLuFactorInto(
-    kernels: F64VectorKernels,
+    kernels: F64Kernels,
     a: F64DenseMatrix,
     out: F64LuDecomposition,
 ): F64LuDecomposition {
@@ -68,7 +68,7 @@ internal fun referenceLuFactorInto(
 
 @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
 internal fun referenceLuSolveInto(
-    kernels: F64VectorKernels,
+    kernels: F64Kernels,
     lu: F64LuDecomposition,
     b: DoubleArray,
     out: DoubleArray,
@@ -90,7 +90,7 @@ internal fun referenceLuSolveInto(
 
 @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
 private fun solveNormal(
-    kernels: F64VectorKernels,
+    kernels: F64Kernels,
     n: Int,
     a: DoubleArray,
     piv: IntArray,
@@ -114,7 +114,7 @@ private fun solveNormal(
 
 @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
 private fun solveTranspose(
-    kernels: F64VectorKernels,
+    kernels: F64Kernels,
     n: Int,
     a: DoubleArray,
     piv: IntArray,
@@ -135,7 +135,7 @@ private fun solveTranspose(
  *  and a [workspace] lends the transposed direction's `n·nrhs` staging block. */
 @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
 internal fun referenceLuSolveInto(
-    kernels: F64VectorKernels,
+    kernels: F64Kernels,
     lu: F64LuDecomposition,
     b: F64DenseMatrix,
     out: F64DenseMatrix,
@@ -176,7 +176,7 @@ internal fun referenceLuSolveInto(
 /** The estimator body, over caller-supplied vectors so [rcond] can pool them. */
 @Suppress("LongParameterList") // the kernels on top of four scratch vectors the caller owns
 internal fun hagerEstimate(
-    kernels: F64VectorKernels,
+    kernels: F64Kernels,
     lu: F64LuDecomposition,
     anorm: Double,
     n: Int,

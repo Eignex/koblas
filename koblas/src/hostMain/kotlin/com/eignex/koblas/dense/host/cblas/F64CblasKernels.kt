@@ -3,9 +3,9 @@
 package com.eignex.koblas.dense.host.cblas
 
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
-import com.eignex.koblas.dense.F64VectorKernels
+import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.internal.backend.BackendNames
-import com.eignex.koblas.internal.backend.openBlasDispatchThresholds
+import com.eignex.koblas.internal.backend.hostBlasDispatchThresholds
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.invoke
@@ -14,20 +14,20 @@ import kotlinx.cinterop.usePinned
 /**
  * The host OpenBLAS behind koblas's level-1 primitives. koblas applies
  * the level-1 dispatch threshold, so these methods normally see only runs worth dispatching,
- * but the [F64VectorKernels] contract makes a length of zero legal everywhere and an override of the
+ * but the [F64Kernels] contract makes a length of zero legal everywhere and an override of the
  * threshold routes those here. Each routine answers one itself: an empty run sits at the end of its array,
  * where there is no element to take an address of.
  */
-public class F64CblasVectorKernels internal constructor(
+public class F64CblasKernels internal constructor(
     private val loader: OpenBlasLoader,
     /** Policy for this level-1 backend instance. */
-    public val config: OpenBlasConfig,
-) : F64VectorKernels {
-    public constructor(config: OpenBlasConfig = OpenBlasConfig()) : this(OpenBlasLoader(config), config)
+    public val config: HostBlasConfig,
+) : F64Kernels {
+    public constructor(config: HostBlasConfig = HostBlasConfig()) : this(OpenBlasLoader(config), config)
     override val name: String get() = BackendNames.CBLAS
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY
-    override val minDispatchLength: Int get() = openBlasDispatchThresholds(config).level1
+    override val minDispatchLength: Int get() = hostBlasDispatchThresholds(config).level1
 
     /** The level-1 kernels come from CBLAS. */
     override val isAvailable: Boolean get() = loader.cblas != null

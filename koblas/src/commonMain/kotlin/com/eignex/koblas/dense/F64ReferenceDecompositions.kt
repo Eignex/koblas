@@ -13,42 +13,42 @@ import com.eignex.koblas.requireFactored
 import com.eignex.koblas.requireShape
 
 /**
- * The portable dense factorizations, the semantic reference a native [F64Lapack] is validated against.
+ * The portable dense factorizations, the semantic reference a native [F64Decompositions] is validated against.
  *
- * @param kernels the vector kernels the inner loops use, or null to follow the [F64Context] default.
+ * @param configured the kernels the inner loops use, or null to follow the [F64Context] default.
  */
-internal class F64ReferenceLapack(private val kernels: F64VectorKernels? = null) : F64Lapack {
+internal class F64ReferenceDecompositions(private val configured: F64Kernels? = null) : F64Decompositions {
     override val name: String get() = BackendNames.REFERENCE
 
     override val isPortable: Boolean get() = true
 
     /** These routines' kernels, or the process default when they were given none. */
-    override val vectorKernels: F64VectorKernels get() = kernels ?: koblas.vectorKernels
+    override val kernels: F64Kernels get() = configured ?: koblas.kernels
 
     override fun ldl(a: F64DenseMatrix, workspace: Workspace?): F64LdlDecomposition =
-        referenceLdl(vectorKernels, a, workspace)
+        referenceLdl(kernels, a, workspace)
 
     override fun solveInto(ldl: F64LdlDecomposition, b: DoubleArray, out: DoubleArray): DoubleArray =
-        referenceLdlSolveInto(vectorKernels, ldl, b, out)
+        referenceLdlSolveInto(kernels, ldl, b, out)
 
-    override fun qr(a: F64DenseMatrix, workspace: Workspace?): F64QrDecomposition = referenceQr(vectorKernels, a)
+    override fun qr(a: F64DenseMatrix, workspace: Workspace?): F64QrDecomposition = referenceQr(kernels, a)
 
     override fun qrPivoted(a: F64DenseMatrix, tolerance: Double, workspace: Workspace?): F64PivotedQrDecomposition =
-        referenceQrPivoted(vectorKernels, a, tolerance)
+        referenceQrPivoted(kernels, a, tolerance)
 
     override fun applyQInto(qr: F64QrDecomposition, y: DoubleArray, out: DoubleArray, transpose: Boolean): DoubleArray =
-        referenceApplyQInto(vectorKernels, qr, y, out, transpose)
+        referenceApplyQInto(kernels, qr, y, out, transpose)
 
     override fun factor(a: F64DenseMatrix): F64LuDecomposition {
         requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
         val n = a.rows
-        return referenceLuFactorInto(vectorKernels, a, F64LuDecomposition(n, DoubleArray(n * n), IntArray(n)))
+        return referenceLuFactorInto(kernels, a, F64LuDecomposition(n, DoubleArray(n * n), IntArray(n)))
     }
 
     override fun factorInto(a: F64DenseMatrix, out: F64LuDecomposition): F64LuDecomposition {
         requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
         requireShape(out.n == a.rows) { "factorInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}" }
-        return referenceLuFactorInto(vectorKernels, a, out)
+        return referenceLuFactorInto(kernels, a, out)
     }
 
     @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
@@ -58,7 +58,7 @@ internal class F64ReferenceLapack(private val kernels: F64VectorKernels? = null)
         out: DoubleArray,
         transpose: Boolean,
         workspace: Workspace?,
-    ): DoubleArray = referenceLuSolveInto(vectorKernels, lu, b, out, transpose, workspace)
+    ): DoubleArray = referenceLuSolveInto(kernels, lu, b, out, transpose, workspace)
 
     @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
     override fun solveInto(
@@ -67,7 +67,7 @@ internal class F64ReferenceLapack(private val kernels: F64VectorKernels? = null)
         out: F64DenseMatrix,
         transpose: Boolean,
         workspace: Workspace?,
-    ): F64DenseMatrix = referenceLuSolveInto(vectorKernels, lu, b, out, transpose, workspace)
+    ): F64DenseMatrix = referenceLuSolveInto(kernels, lu, b, out, transpose, workspace)
 
     /** Solve `A · X = B` into [out], which is returned. [out] may be [b]. */
     override fun solveInto(
@@ -88,21 +88,21 @@ internal class F64ReferenceLapack(private val kernels: F64VectorKernels? = null)
         b: DoubleArray,
         out: DoubleArray,
         workspace: Workspace?,
-    ): DoubleArray = referencePivotedLeastSquaresInto(vectorKernels, qr, b, out, workspace)
+    ): DoubleArray = referencePivotedLeastSquaresInto(kernels, qr, b, out, workspace)
 
     override fun solveLeastSquaresInto(
         qr: F64QrDecomposition,
         b: DoubleArray,
         out: DoubleArray,
         workspace: Workspace?,
-    ): DoubleArray = referenceLeastSquaresInto(vectorKernels, qr, b, out, workspace)
+    ): DoubleArray = referenceLeastSquaresInto(kernels, qr, b, out, workspace)
 
     override fun solveMinimumNormInto(
         qr: F64QrDecomposition,
         b: DoubleArray,
         out: DoubleArray,
         workspace: Workspace?,
-    ): DoubleArray = referenceMinimumNormInto(vectorKernels, qr, b, out, workspace)
+    ): DoubleArray = referenceMinimumNormInto(kernels, qr, b, out, workspace)
 
     override fun rcond(lu: F64LuDecomposition, anorm: Double, workspace: Workspace?): Double {
         val n = lu.n
@@ -113,7 +113,7 @@ internal class F64ReferenceLapack(private val kernels: F64VectorKernels? = null)
         val signs = workspace?.take(n) ?: DoubleArray(n)
         val probe = workspace?.take(n) ?: DoubleArray(n)
         try {
-            return hagerEstimate(vectorKernels, lu, anorm, n, x, y, signs, probe, workspace)
+            return hagerEstimate(kernels, lu, anorm, n, x, y, signs, probe, workspace)
         } finally {
             workspace?.release(x)
             workspace?.release(y)
@@ -123,7 +123,7 @@ internal class F64ReferenceLapack(private val kernels: F64VectorKernels? = null)
     }
 
     override fun cholesky(a: F64DenseMatrix, policy: CholeskyPolicy): F64CholeskyDecomposition =
-        referenceCholesky(vectorKernels, a, policy)
+        referenceCholesky(kernels, a, policy)
 
     /** Invert a general matrix from its LU factorization, returning `A⁻¹` given `P·A = L·U` (LAPACK `dgetri`).
      *  Prefer [solve] to apply `A⁻¹`, which costs less and is more accurate.
@@ -162,7 +162,7 @@ internal class F64ReferenceLapack(private val kernels: F64VectorKernels? = null)
             column.fill(0.0)
             column[j] = 1.0
             trsvCore(
-                vectorKernels,
+                kernels,
                 a.data,
                 n,
                 column,
@@ -176,5 +176,5 @@ internal class F64ReferenceLapack(private val kernels: F64VectorKernels? = null)
     }
 
     override fun invert(chol: F64CholeskyDecomposition, workspace: Workspace?): F64DenseMatrix =
-        referenceSpdInvert(vectorKernels, chol, workspace)
+        referenceSpdInvert(kernels, chol, workspace)
 }

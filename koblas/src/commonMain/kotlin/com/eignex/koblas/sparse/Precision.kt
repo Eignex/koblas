@@ -7,8 +7,8 @@ import com.eignex.koblas.sparse.factorization.lu.F64SparseLuFactorization
  * them. [com.eignex.koblas.Precision] says why they carry it.
  */
 
-/** Double-precision [F64SparseVectorKernels], the half an unqualified `SparseVectorKernels` means. */
-public typealias SparseVectorKernels = F64SparseVectorKernels
+/** Double-precision [F64SparseKernels], the half an unqualified `SparseKernels` means. */
+public typealias SparseKernels = F64SparseKernels
 
 /** Double-precision [F64SparseBlas], the sparse matrix half an unqualified `SparseBlas` means. */
 public typealias SparseBlas = F64SparseBlas

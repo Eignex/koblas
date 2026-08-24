@@ -57,7 +57,7 @@ select a custom absolute library path, use these JVM properties or environment v
 
 | Library | JVM property | Environment variable |
 |---------|--------------|----------------------|
-| OpenBLAS | `koblas.openblas.path` | `KOBLAS_OPENBLAS_PATH` |
+| CBLAS | `koblas.cblas.path` | `KOBLAS_CBLAS_PATH` |
 | LAPACKE | `koblas.lapacke.path` | `KOBLAS_LAPACKE_PATH` |
 | SuiteSparse KLU 2 | `koblas.klu.path` | `KOBLAS_KLU_PATH` |
 | UMFPACK | `koblas.umfpack.path` | `KOBLAS_UMFPACK_PATH` |

@@ -15,10 +15,10 @@ import com.eignex.koblas.requireShape
 import com.eignex.koblas.transpose
 
 /** Dense factorizations as a backend half. */
-public interface F64Lapack : Backend {
+public interface F64Decompositions : Backend {
 
     /** The vector kernels this half's inherited routines run on; the installed ones by default. */
-    public val vectorKernels: F64VectorKernels get() = koblas.vectorKernels
+    public val kernels: F64Kernels get() = koblas.kernels
 
     /** LU factorization with partial pivoting of a square [a] (LAPACK `dgetrf`). [a] is not modified. */
     public fun factor(a: F64DenseMatrix): F64LuDecomposition
@@ -181,8 +181,8 @@ public interface F64Lapack : Backend {
         requireShape(b.size == n) { "solve: b size ${b.size}, expected $n" }
         val x = b.copyOf()
         val ld = chol.l.data
-        trsvCore(vectorKernels, ld, n, x, lower = true, transpose = false, unitDiag = false)
-        trsvCore(vectorKernels, ld, n, x, lower = true, transpose = true, unitDiag = false)
+        trsvCore(kernels, ld, n, x, lower = true, transpose = false, unitDiag = false)
+        trsvCore(kernels, ld, n, x, lower = true, transpose = true, unitDiag = false)
         return x
     }
 
@@ -202,7 +202,7 @@ public interface F64Lapack : Backend {
     public fun invert(chol: F64CholeskyDecomposition, workspace: Workspace? = null): F64DenseMatrix
 }
 
-/** Sweep cap for the [F64Lapack.rcond] estimator. */
+/** Sweep cap for the [F64Decompositions.rcond] estimator. */
 internal const val RCOND_MAX_SWEEPS = 5
 
 /** The shapes a multi-right-hand-side solve needs: [b] with [n] rows, and [out] matching it column for column. */

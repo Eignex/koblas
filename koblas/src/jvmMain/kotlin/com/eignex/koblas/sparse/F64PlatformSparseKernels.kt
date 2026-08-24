@@ -9,7 +9,7 @@ import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
 
 /** A gathered usdot when the Vector API is present, the portable loop otherwise. */
-internal actual object F64PlatformSparseVectorKernels : F64SparseVectorKernels {
+internal actual object F64PlatformSparseKernels : F64SparseKernels {
     actual override val name: String get() = if (simdAvailable) BackendNames.SIMD_SPARSE else BackendNames.REFERENCE
 
     override val isPortable: Boolean get() = true

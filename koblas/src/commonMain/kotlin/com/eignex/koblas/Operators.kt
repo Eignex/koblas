@@ -67,13 +67,13 @@ private fun F64DenseVector.combine(other: F64DenseVector, alpha: Double, op: Str
 /** A fresh copy of [data] scaled by [alpha], which is what the allocating scalar products all return. */
 private fun scaledCopy(data: DoubleArray, alpha: Double): DoubleArray {
     val out = data.copyOf()
-    koblas.vectorKernels.scale(out, 0, alpha, out.size)
+    koblas.kernels.scale(out, 0, alpha, out.size)
     return out
 }
 
 /** A fresh copy of [a] with `alpha * b` added, which is what the allocating sums and differences return. */
 private fun axpyCopy(a: DoubleArray, alpha: Double, b: DoubleArray): DoubleArray {
     val out = a.copyOf()
-    koblas.vectorKernels.axpy(out, 0, alpha, b, 0, out.size)
+    koblas.kernels.axpy(out, 0, alpha, b, 0, out.size)
     return out
 }
