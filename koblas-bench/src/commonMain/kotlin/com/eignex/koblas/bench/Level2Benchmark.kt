@@ -20,13 +20,11 @@ class Level2Benchmark {
     private lateinit var x: DoubleArray
     private lateinit var y: DoubleArray
 
-    /** A second operand for the rank-1 and rank-2 updates, and the matrix they write into. */
     private lateinit var y2: DoubleArray
     private lateinit var target: F64DenseMatrix
     private lateinit var xv: F64DenseVector
     private lateinit var yv: F64DenseVector
 
-    /** Unit-diagonal-free lower triangle, so the solve has a real diagonal to divide by. */
     private lateinit var triangular: F64DenseMatrix
     private lateinit var rhs: DoubleArray
 

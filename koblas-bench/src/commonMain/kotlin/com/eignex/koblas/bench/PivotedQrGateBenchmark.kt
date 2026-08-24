@@ -25,7 +25,6 @@ class PivotedQrGateBenchmark {
 
     private lateinit var square: F64DenseMatrix
 
-    /** Tall as well as square, since a host routine's per-call cost is amortised differently by shape. */
     private lateinit var tall: F64DenseMatrix
 
     @Setup

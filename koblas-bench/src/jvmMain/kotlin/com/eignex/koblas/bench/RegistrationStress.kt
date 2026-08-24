@@ -7,33 +7,16 @@ import com.eignex.koblas.registerBackend
 import java.util.concurrent.CyclicBarrier
 import java.util.concurrent.Executors
 
-/**
- * Soaks concurrent backend registration, looking for a round where the strongest offer does not end up
- * holding the half.
- *
- * A seam takes its offer with a compare-and-set, so two threads offering at once cannot leave the weaker one
- * active. Catching a regression in that needs the offers to collide, which is a matter of luck per round, so
- * it wants far more rounds than a unit test can afford. Hence a task here rather than a test in the suite.
- *
- * Each round offers a band of priorities strictly above everything offered before it, so the expected winner
- * is known without clearing the registry between rounds.
- */
 private class Ranked(override val name: String, override val priority: Int) :
     F64Blas by F64ReferenceLinearAlgebra {
     override val isPortable: Boolean get() = false
     override val isAvailable: Boolean get() = true
 }
 
-/**
- * Enough rounds that one run is decisive. Measured against the pre-compare-and-set registration, a weaker
- * offer held the half about once every ten thousand rounds, at four threads and at eight, so the default
- * sits an order of magnitude above that and costs about eight seconds.
- */
 private const val DEFAULT_ROUNDS = 200_000
 
 private const val DEFAULT_THREADS = 4
 
-/** Priorities of one round sit this far apart, so a later round cannot be won by an earlier offer. */
 private const val BAND = 100
 
 public fun main(args: Array<String>) {
@@ -57,7 +40,7 @@ public fun main(args: Array<String>) {
                     koblas.blas.priority
                 }
             }.map { it.get() }
-            // A round where every thread already saw the strongest cannot have raced, so it proves nothing.
+            // Count only rounds that observed the race.
             if (winners.any { it != offered.max() }) collisions++
             val active = koblas.blas.priority
             if (active != offered.max()) {

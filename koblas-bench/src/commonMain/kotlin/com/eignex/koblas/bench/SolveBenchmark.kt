@@ -29,7 +29,6 @@ class SolveBenchmark {
     private lateinit var rhs: DoubleArray
     private lateinit var x: DoubleArray
 
-    /** A destination for the in-place refactorization, and the operands the added routines need. */
     private lateinit var reusable: F64LuDecomposition
     private lateinit var sym: F64DenseMatrix
     private lateinit var triangular: F64DenseMatrix
@@ -62,7 +61,6 @@ class SolveBenchmark {
     @Benchmark
     fun ldlSolveInto(): DoubleArray = koblas.solveInto(indefinite, rhs, x)
 
-    /** The factorizations themselves, which the solve benchmarks above amortise away. */
     @Benchmark
     fun luFactor(): F64LuDecomposition = a.lu()
 
@@ -72,11 +70,9 @@ class SolveBenchmark {
     @Benchmark
     fun ldlFactor(): F64LdlDecomposition = koblas.ldl(sym)
 
-    /** Hager's estimator, which iterates a solve against the factorization. */
     @Benchmark
     fun rcond(): Double = koblas.rcond(factored, anorm)
 
-    /** Explicit inverse, which koblas documents as the thing to avoid; measured so the advice has a number. */
     @Benchmark
     fun invertLu(): F64DenseMatrix = koblas.invert(factored)
 

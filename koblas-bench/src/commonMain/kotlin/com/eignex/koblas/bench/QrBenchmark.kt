@@ -31,7 +31,6 @@ class QrBenchmark {
     private lateinit var factored: F64QrDecomposition
     private lateinit var rhs: DoubleArray
 
-    /** A wide factorization for the minimum-norm path, which the tall shapes never exercise. */
     private lateinit var wide: F64QrDecomposition
     private lateinit var wideRhs: DoubleArray
 
@@ -62,14 +61,12 @@ class QrBenchmark {
     @Benchmark
     fun leastSquares(): DoubleArray = factored.solveLeastSquares(rhs)
 
-    /** Applying Q without forming it, the reflector sweep every QR solve is built on. */
     @Benchmark
     fun applyQ(): DoubleArray = koblas.applyQ(factored, rhs)
 
     @Benchmark
     fun applyQTransposed(): DoubleArray = koblas.applyQ(factored, rhs, transpose = true)
 
-    /** The wide system's minimum-norm solve, which runs QR on the transpose. */
     @Benchmark
     fun minimumNorm(): DoubleArray = koblas.solveMinimumNorm(wide, wideRhs)
 }

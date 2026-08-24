@@ -20,7 +20,6 @@ class SparseBenchmark {
 
     private lateinit var x: DoubleArray
 
-    /** Factored once in setup, so the solve benchmarks below time the sweeps and not the elimination. */
     private lateinit var luFactored: F64SparseFactorization
 
     @Setup
@@ -35,11 +34,9 @@ class SparseBenchmark {
     @Benchmark
     fun sparseLuSolve(): DoubleArray = a.lu(equilibrate = true).solve(rhs)
 
-    /** The forward sweeps alone, `L U (Qᵀx) = P(Eb)`, against a factorization setup already paid for. */
     @Benchmark
     fun sparseLuFtran(): DoubleArray = luFactored.solveInto(rhs, x)
 
-    /** The transposed sweeps alone, which walk the factors by column where [sparseLuFtran] walks them by row. */
     @Benchmark
     fun sparseLuBtran(): DoubleArray = luFactored.solveInto(rhs, x, transpose = true)
 
@@ -49,14 +46,12 @@ class SparseBenchmark {
     @Benchmark
     fun sparseGemvTransposed(): DoubleArray = a.gemv(rhs, transpose = true)
 
-    /** The factorization on its own, which the solve benchmark amortises away. */
     @Benchmark
     fun sparseLuFactor(): F64SparseFactorization = a.lu()
 
     @Benchmark
     fun sparseLuFactorEquilibrated(): F64SparseFactorization = a.lu(equilibrate = true)
 
-    /** Triangular solve straight off the CSC arrays, with no factorization in front of it. */
     @Benchmark
     fun sparseTrsv(): DoubleArray {
         rhs.copyInto(x)
@@ -64,7 +59,6 @@ class SparseBenchmark {
         return x
     }
 
-    /** Costs by stored entry rather than by dimension, so it scales with the fill and not with `n`. */
     @Benchmark
     fun sparseTranspose(): F64SparseMatrix = a.transpose()
 }
