@@ -64,14 +64,18 @@ class BundledBasicluTest {
         )
     }
 
+    /**
+     * The suffix is what discovery reads to leave this provider out when a deployment configured its own
+     * library, so it holds whatever the configuration says.
+     */
     @Test
-    fun `a configured library path is preferred over the bundled build`() {
+    fun `it reports the bundled name whatever is configured`() {
         val previous = System.getProperty("koblas.basiclu.path")
-        System.setProperty("koblas.basiclu.path", "/nonexistent/libkoblas_basiclu.so.1")
+        System.setProperty("koblas.basiclu.path", "/nonexistent/libbasiclu.so.2")
         try {
             val backend = BundledBasiclu(factorizeMin = 0)
-            assertEquals("basiclu", backend.name)
-            assertFalse(backend.isAvailable, "the configured path does not exist, so nothing should resolve")
+            assertEquals("basiclu-bundled", backend.name)
+            assertTrue(backend.isAvailable, "the bundled library still answers")
         } finally {
             if (previous == null) {
                 System.clearProperty("koblas.basiclu.path")
@@ -82,8 +86,8 @@ class BundledBasicluTest {
     }
 
     @Test
-    fun `the bundled build answers when no path is configured`() {
-        assertEquals("basiclu-bundled", BundledBasiclu(factorizeMin = 0).name)
+    fun `it offers basis updates through the shared binding`() {
+        assertTrue(BundledBasiclu(factorizeMin = 0).supportsBasisUpdates)
     }
 
     /**
