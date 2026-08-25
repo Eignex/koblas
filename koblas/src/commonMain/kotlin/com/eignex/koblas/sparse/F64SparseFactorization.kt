@@ -80,3 +80,29 @@ public fun requireSolveShapes(n: Int, b: DoubleArray, out: DoubleArray) {
     requireShape(b.size == n) { "solve: b size ${b.size}, expected $n" }
     requireShape(out.size == n) { "solve: out size ${out.size}, expected $n" }
 }
+
+/**
+ * What a backend without factor updates answers [F64SparseLu.factorBasis] with. A replacement refactorizes
+ * the basis it produces, so the factors stay exact at the cost of a factorization per pivot.
+ */
+internal class F64RefactoringBasisFactorization(
+    private val lu: F64SparseLu,
+    override val basis: F64SparseMatrix,
+    private val factors: F64SparseFactorization,
+) : F64BasisFactorization {
+    override val n: Int get() = factors.n
+
+    override val failedAt: Int get() = factors.failedAt
+
+    override val nnz: Int get() = factors.nnz
+
+    override val rcond: Double get() = factors.rcond
+
+    override fun replaceColumn(column: Int, entering: F64SparseVector): F64BasisFactorization {
+        val next = basis.withColumn(column, entering)
+        return F64RefactoringBasisFactorization(lu, next, lu.refactor(factors, next))
+    }
+
+    override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray =
+        factors.solveInto(b, out, transpose, workspace)
+}

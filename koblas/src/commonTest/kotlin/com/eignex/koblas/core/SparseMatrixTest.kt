@@ -1,8 +1,10 @@
 package com.eignex.koblas.core
 
+import com.eignex.koblas.DimensionMismatch
 import com.eignex.koblas.sparse.gemv
 import com.eignex.koblas.times
 import com.eignex.koblas.transpose
+import com.eignex.koblas.withColumn
 import kotlin.test.*
 
 class SparseMatrixTest {
@@ -205,5 +207,31 @@ class SparseMatrixTest {
         val a = F64SparseMatrix.wrap(2, 2, intArrayOf(0, 1, 2), intArrayOf(1, 0), doubleArrayOf(5.0, 7.0))
         assertEquals(5.0, a[1, 0])
         assertEquals(7.0, a[0, 1])
+    }
+
+    @Test
+    fun `withColumn replaces one column and leaves the rest`() {
+        val a = F64SparseMatrix.ofColumns(
+            3,
+            2,
+            listOf(
+                listOf(0 to 4.0, 2 to -1.0),
+                listOf(1 to 7.0),
+            ),
+        )
+        val b = a.withColumn(0, F64SparseVector.of(3, intArrayOf(1), doubleArrayOf(5.0)))
+        assertEquals(0.0, b[0, 0])
+        assertEquals(5.0, b[1, 0])
+        assertEquals(0.0, b[2, 0])
+        assertEquals(7.0, b[1, 1])
+        assertEquals(2, b.nnz)
+    }
+
+    @Test
+    fun `withColumn rejects an entering column of the wrong length`() {
+        val a = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 1.0)))
+        assertFailsWith<DimensionMismatch> {
+            a.withColumn(0, F64SparseVector.of(3, intArrayOf(0), doubleArrayOf(1.0)))
+        }
     }
 }

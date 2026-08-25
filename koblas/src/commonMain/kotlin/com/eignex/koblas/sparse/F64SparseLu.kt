@@ -3,6 +3,7 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.Backend
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.requireSquare
 import com.eignex.koblas.sparse.factorization.lu.NO_DROP
 
 /** Sparse LU factorization as a backend half. */
@@ -37,12 +38,21 @@ public interface F64SparseLu : Backend {
     ): F64SparseFactorization = factor(a, equilibrate, dropTolerance)
 
     /**
+     * Whether [factorBasis] answers with a factorization that updates its factors in place. When false a
+     * replacement costs a factorization, so a caller pacing its own refactorizations has nothing left to pace.
+     */
+    public val supportsBasisUpdates: Boolean get() = false
+
+    /**
      * Factor a simplex [basis] for column replacements.
      *
-     * A general sparse LU backend need not support factor updates, so the default rejects this operation.
+     * A general sparse LU backend need not support factor updates. The default refactorizes on every
+     * replacement, which every backend can do; [supportsBasisUpdates] tells the two apart.
      */
-    public fun factorBasis(basis: F64SparseMatrix): F64BasisFactorization =
-        throw UnsupportedOperationException("$name does not support sparse basis factorization")
+    public fun factorBasis(basis: F64SparseMatrix): F64BasisFactorization {
+        requireSquare(basis, "factorBasis")
+        return F64RefactoringBasisFactorization(this, basis, factor(basis))
+    }
 
     /**
      * Solve `A·x = b` from [f] into [out], `Aᵀ·x = b` when [transpose]. The work belongs to the
