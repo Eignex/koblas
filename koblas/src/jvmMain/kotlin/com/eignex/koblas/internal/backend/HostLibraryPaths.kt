@@ -9,10 +9,3 @@ internal fun libraryPath(keys: LibraryPathKeys): String? = System.getProperty(ke
     ?: System.getenv(keys.environment)?.takeIf(::isAbsolutePath)
 
 internal fun isAbsolutePath(path: String): Boolean = java.nio.file.Path.of(path).isAbsolute
-
-/**
- * The BASICLU path a deployment configured through `koblas.basiclu.path` or `KOBLAS_BASICLU_PATH`, or null
- * for the bundled build. Public because the BASICLU binding ships as its own artifact, so it cannot read
- * [ConfigurationKeys] itself.
- */
-public fun configuredBasicluPath(): String? = libraryPath(ConfigurationKeys.BASICLU_PATH)

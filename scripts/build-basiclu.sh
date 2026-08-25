@@ -41,13 +41,13 @@ rm -rf "$destination"; mkdir -p "$destination"
 if [[ "$platform" == linux-* ]]; then
     library="libkoblas_basiclu.so.1"
     "${CC:-cc}" -std=c99 -O3 -DNDEBUG -fPIC -shared -Wl,-soname,"$library" \
-        -I"$source/include" "$source"/src/*.c "$root/koblas-basiclu/native/basiclu_shim.c" -lm \
+        -I"$source/include" "$source"/src/*.c -lm \
         -o "$destination/$library"
     cp "$destination/$library" "$destination/libkoblas_basiclu.so"
 else
     library="libkoblas_basiclu.1.dylib"
     "${CC:-cc}" -std=c99 -O3 -DNDEBUG -fPIC -DCLOCK_MONOTONIC_RAW=CLOCK_MONOTONIC -dynamiclib -Wl,-install_name,@rpath/"$library" \
-        -I"$source/include" "$source"/src/*.c "$root/koblas-basiclu/native/basiclu_shim.c" -lm \
+        -I"$source/include" "$source"/src/*.c -lm \
         -o "$destination/$library"
     cp "$destination/$library" "$destination/libkoblas_basiclu.dylib"
 fi

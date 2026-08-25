@@ -36,7 +36,6 @@ val buildBasiclu = tasks.register<Exec>("buildBasiclu") {
     val platform = basicluPlatform.get()
     require(platform in supportedPlatforms) { "unsupported BASICLU platform $platform" }
     inputs.file(layout.projectDirectory.file("basiclu.lock"))
-    inputs.file(layout.projectDirectory.file("native/basiclu_shim.c"))
     inputs.file(rootProject.layout.projectDirectory.file("scripts/build-basiclu.sh"))
     inputs.file(rootProject.layout.projectDirectory.file("scripts/third-party-notices.sh"))
     inputs.property("platform", platform)
