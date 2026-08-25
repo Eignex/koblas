@@ -5,6 +5,8 @@ import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.host.*
 import com.eignex.koblas.dense.host.cblas.HostBlasConfig
+import com.eignex.koblas.dense.host.cblas.OPENBLAS_SONAMES
+import com.eignex.koblas.internal.host.FfmLibrary
 import com.eignex.koblas.testutil.host.HostLibraryTest
 import org.junit.Assume
 import org.junit.experimental.categories.Category
@@ -34,6 +36,17 @@ class HostBlasConformanceTest {
     fun `the host backend resolves when the machine has OpenBLAS`() {
         Assume.assumeTrue("host CBLAS is not installed", HostLibraries.cblas)
         assertTrue(koblasInfo.contains("openblas"), koblasInfo)
+    }
+
+    /**
+     * The hosts this suite runs on ship the LP64 build, so a rejection here is the width probe misfiring
+     * rather than a host it was right to turn away.
+     */
+    @Test
+    fun `an LP64 host is not turned away by the pivot-width probe`() {
+        val library = FfmLibrary.open(OPENBLAS_SONAMES, "cblas_dgemm", "the host OpenBLAS")
+        Assume.assumeTrue("host CBLAS is not installed", library.present)
+        assertTrue(HostBlasCalls(HostBlasConfig()).available, "the host OpenBLAS was judged ILP64")
     }
 
     /** A factorization at a size that engages OpenBLAS's parallel path. */

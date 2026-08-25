@@ -6,6 +6,7 @@ import com.eignex.koblas.internal.host.FfmLibrary.Companion.doubleOf
 import com.eignex.koblas.internal.host.FfmLibrary.Companion.intOf
 import com.eignex.koblas.internal.host.FfmLibrary.Companion.pointerOf
 import com.eignex.koblas.internal.host.FfmLibrary.Companion.voidOf
+import java.lang.foreign.Arena
 import java.lang.foreign.FunctionDescriptor
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout.*
@@ -57,10 +58,11 @@ internal class HostBlasCalls(internal val config: HostBlasConfig) {
     init {
         val blas = FfmLibrary.open(openblasNames, KEY_CBLAS_SYMBOL, "the host OpenBLAS")
         val resolved = blas.containsAll(requiredCblas)
-        // An ILP64 build exports these same names, so only the config string tells it apart from the LP64
-        // one these bindings declare.
-        val ilp64 = resolved && isIlp64OpenBlas(configString(blas))
-        available = resolved && !ilp64
+        // An ILP64 build exports these same names, so the config string and then the pivot width are what
+        // tell it apart from the LP64 one these bindings declare.
+        val declaredIlp64 = resolved && isIlp64OpenBlas(configString(blas))
+        val blasIlp64 = declaredIlp64 || (resolved && writesIlp64Pivots(blas))
+        available = resolved && !blasIlp64
         // A second library for the hosts that ship LAPACKE outside their OpenBLAS build.
         val lapackeInBlas = available && blas.contains(KEY_LAPACKE_SYMBOL)
         val extra = if (available && !lapackeInBlas) {
@@ -70,8 +72,34 @@ internal class HostBlasCalls(internal val config: HostBlasConfig) {
         }
         // The OpenBLAS build first and then liblapacke, so a host splitting the set across the two is served.
         library = blas.withFallback(extra)
-        lapackAvailable = available && library.containsAll(requiredLapacke)
+        // A separate liblapacke of the wrong width costs the host only its LAPACK half, since the CBLAS it
+        // sits behind was judged on its own.
+        val lapackeIlp64 = extra != null && writesIlp64Pivots(extra)
+        lapackAvailable = available && !lapackeIlp64 && library.containsAll(requiredLapacke)
         if (available) configureThreads()
+    }
+
+    /**
+     * Whether [source] answers `LAPACKE_dgetrf` with 64-bit pivots. Every integer argument is passed as a
+     * long whose upper half is zero, which both widths read correctly, so the only thing the call turns on is
+     * how wide the pivots it writes are. A library without the routine, or one that fails the factorization,
+     * is left to the config string.
+     */
+    private fun writesIlp64Pivots(source: FfmLibrary): Boolean {
+        val getrf = source.handleOrNull(
+            "LAPACKE_dgetrf",
+            intOf(JAVA_LONG, JAVA_LONG, JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS),
+            critical = false,
+        ) ?: return false
+        Arena.ofConfined().use { arena ->
+            // Column-major [[0, 1], [1, 0]], so partial pivoting selects row 2 at both steps.
+            val a = arena.allocateFrom(JAVA_DOUBLE, 0.0, 1.0, 1.0, 0.0)
+            val pivots = arena.allocate(JAVA_LONG, PROBE_WORDS.toLong())
+            val order = PROBE_ORDER.toLong()
+            val status = getrf.invokeExact(Cblas.COL_MAJOR.toLong(), order, order, a, order, pivots) as Int
+            if (status != 0) return false
+            return isIlp64PivotWidth(IntArray(PROBE_WORDS) { pivots.get(JAVA_INT, it * Int.SIZE_BYTES.toLong()) })
+        }
     }
 
     /** OpenBLAS owns this setting process-wide; setting it at backend construction makes that scope explicit. */

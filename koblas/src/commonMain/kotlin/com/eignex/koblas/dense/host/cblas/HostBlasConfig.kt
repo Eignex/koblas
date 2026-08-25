@@ -7,6 +7,28 @@ package com.eignex.koblas.dense.host.cblas
 internal fun isIlp64OpenBlas(config: String): Boolean =
     config.split(' ', '\t', '\n').any { it == "USE64BITINT" || it == "INTERFACE64" }
 
+/**
+ * Whether the pivots a probing `LAPACKE_dgetrf` wrote are 64 bits wide, read as the first three 32-bit
+ * [words] of a zeroed buffer. The probe factorizes a 2x2 whose both pivots are row 2, so an LP64 build
+ * leaves `2, 2` in the first two words and an ILP64 build spreads the same two pivots over four, putting a
+ * zero where the second pivot would sit.
+ *
+ * A vendor that reports no `openblas_get_config` string is judged here instead, since ILP64 exports the same
+ * unsuffixed symbols and the width of what it writes is the only evidence left. Anything but the exact ILP64
+ * arrangement counts as LP64, so an unrecognized library keeps working rather than being turned away.
+ */
+internal fun isIlp64PivotWidth(words: IntArray): Boolean =
+    words.size >= PROBE_WORDS && words[0] == PROBE_PIVOT && words[1] == 0 && words[2] == PROBE_PIVOT
+
+/** Words of the pivot buffer [isIlp64PivotWidth] reads, enough to cover two 64-bit pivots. */
+internal const val PROBE_WORDS: Int = 3
+
+/** The pivot both steps of the probe's 2x2 factorization select, in LAPACK's 1-based row numbering. */
+internal const val PROBE_PIVOT: Int = 2
+
+/** The order of the matrix the pivot-width probe factorizes. */
+internal const val PROBE_ORDER: Int = 2
+
 /** Names used by the platform loader to locate a host OpenBLAS. */
 internal val OPENBLAS_SONAMES = listOf(
     "libopenblas.so.0",
