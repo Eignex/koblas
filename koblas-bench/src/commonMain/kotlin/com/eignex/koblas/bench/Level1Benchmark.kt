@@ -55,8 +55,8 @@ class Level1Benchmark {
     fun iamaxBench(): Int = x.iamax()
 
     // Two loads and two stores an element against one load for the reductions, so this is the level-1
-    // routine most likely to be bandwidth-bound rather than issue-bound. Measured because it is scalar and
-    // nothing said whether that costs anything.
+    // routine most likely to be bandwidth-bound rather than issue-bound, and the one where the host has
+    // least room to win.
     @Benchmark
     fun swapBench() {
         swap(x, y)

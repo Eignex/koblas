@@ -43,6 +43,33 @@ internal fun assertLevel1KernelsAgreeWithScalar(kernels: F64Kernels) {
 }
 
 /**
+ * Exchange, at a non-zero offset in both operands and at lengths that straddle a lane boundary, so a kernel
+ * that swaps whole vectors is checked for leaving the padding either side untouched.
+ */
+internal fun assertSwapAgreesWithScalar(kernels: F64Kernels) {
+    val rng = Random(20260826)
+    for (len in intArrayOf(1, 7, 63, 64, 65, 200, 600)) {
+        val pad = 3
+        val a = DoubleArray(len + 2 * pad) { rng.nextDouble(-1.0, 1.0) }
+        val b = DoubleArray(len + 2 * pad) { rng.nextDouble(-1.0, 1.0) }
+        val aBefore = a.copyOf()
+        val bBefore = b.copyOf()
+        kernels.swap(a, pad, b, pad, len)
+        for (i in 0 until len) {
+            assertEquals(bBefore[pad + i], a[pad + i], "swap len=$len a($i)")
+            assertEquals(aBefore[pad + i], b[pad + i], "swap len=$len b($i)")
+        }
+        // Everything outside the run has to survive, which is what an overrunning vector store would break.
+        for (i in 0 until pad) {
+            assertEquals(aBefore[i], a[i], "swap len=$len wrote before a")
+            assertEquals(bBefore[i], b[i], "swap len=$len wrote before b")
+            assertEquals(aBefore[pad + len + i], a[pad + len + i], "swap len=$len wrote past a")
+            assertEquals(bBefore[pad + len + i], b[pad + len + i], "swap len=$len wrote past b")
+        }
+    }
+}
+
+/**
  * The reductions at scales whose squares leave the exponent range, which is what forces `nrm2` to rescale
  * rather than sum squares directly, plus the zero run both must report as zero exactly.
  */

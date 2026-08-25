@@ -51,6 +51,11 @@ public class F64CblasKernels internal constructor(
         }
     }
 
+    override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) {
+        if (len == 0) return
+        a.usePinned { ap -> b.usePinned { bp -> f.dswap(len, ap.addressOf(aOff), 1, bp.addressOf(bOff), 1) } }
+    }
+
     override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
         if (len == 0) return
         v.usePinned { vp -> f.dscal(len, alpha, vp.addressOf(vOff), 1) }

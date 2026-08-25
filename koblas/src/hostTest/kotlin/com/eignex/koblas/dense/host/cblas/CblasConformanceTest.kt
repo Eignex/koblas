@@ -121,4 +121,9 @@ class CblasConformanceTest {
     fun `the routed reductions agree with the built-in ones`() = assertReductionsAgreeWithScalar(
         F64CblasKernels(),
     )
+
+    @Test
+    fun `the routed swap agrees with the built-in one`() = assertSwapAgreesWithScalar(
+        F64CblasKernels(),
+    )
 }

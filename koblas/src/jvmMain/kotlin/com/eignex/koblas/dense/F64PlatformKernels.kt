@@ -71,6 +71,10 @@ internal actual object F64PlatformKernels : F64Kernels {
         return euclideanNorm(v, vOff, len)
     }
 
+    override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) {
+        if (vectorizes(len)) Simd.swap(a, aOff, b, bOff, len) else super.swap(a, aOff, b, bOff, len)
+    }
+
     actual override fun asum(v: DoubleArray, vOff: Int, len: Int): Double =
         if (vectorizes(len)) Simd.asum(v, vOff, len) else absoluteSum(v, vOff, len)
 
@@ -272,6 +276,27 @@ internal object Simd {
         }
         while (i < len) {
             y[yOff + i] += alpha * x[xOff + i]
+            i++
+        }
+    }
+
+    /**
+     * Exchange two runs a vector at a time. No accumulator, so no dependency chain to break and no unrolled
+     * variant: the win is two loads and two stores per vector where the loop does them per element.
+     */
+    fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) {
+        var i = 0
+        val bound = SPECIES.loopBound(len)
+        while (i < bound) {
+            val va = DoubleVector.fromArray(SPECIES, a, aOff + i)
+            DoubleVector.fromArray(SPECIES, b, bOff + i).intoArray(a, aOff + i)
+            va.intoArray(b, bOff + i)
+            i += LANE
+        }
+        while (i < len) {
+            val t = a[aOff + i]
+            a[aOff + i] = b[bOff + i]
+            b[bOff + i] = t
             i++
         }
     }

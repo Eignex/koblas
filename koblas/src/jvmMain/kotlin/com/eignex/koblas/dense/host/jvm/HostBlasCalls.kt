@@ -37,7 +37,7 @@ internal class HostBlasCalls(internal val config: HostBlasConfig) {
      * is read with `find`, which is a lookup; binding would be the stack-hungry thing discovery avoids.
      */
     private val requiredCblas = listOf(
-        "cblas_dasum", "cblas_daxpy", "cblas_ddot", "cblas_dgemm", "cblas_dgemv", "cblas_dger",
+        "cblas_dasum", "cblas_daxpy", "cblas_ddot", "cblas_dgemm", "cblas_dgemv", "cblas_dger", "cblas_dswap",
         "cblas_dnrm2", "cblas_dscal", "cblas_dsymm", "cblas_dsymv", "cblas_dsyrk", "cblas_dtrmm",
         "cblas_dtrmv", "cblas_dtrsm", "cblas_dtrsv",
     )
@@ -199,6 +199,10 @@ internal class HostBlasCalls(internal val config: HostBlasConfig) {
     }
 
     val dscal: MethodHandle by lazy { handle("cblas_dscal", voidOf(JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT)) }
+
+    val dswap: MethodHandle by lazy {
+        handle("cblas_dswap", voidOf(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT))
+    }
 
     val daxpy: MethodHandle by lazy {
         handle("cblas_daxpy", voidOf(JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT))
