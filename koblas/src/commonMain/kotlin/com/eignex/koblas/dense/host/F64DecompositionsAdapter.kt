@@ -256,8 +256,10 @@ public abstract class F64DecompositionsAdapter internal constructor(
         if (out !== y) y.copyInto(out)
         if (qr.tau.isEmpty()) return out
         val trans = (if (transpose) 'T' else 'N').code.toByte()
-        val info = f.dormqr(COL_MAJOR, SIDE_LEFT, trans, qr.m, 1, qr.tau.size, qr.qr, qr.m, qr.tau,
-            out, qr.m)
+        val info = f.dormqr(
+            COL_MAJOR, SIDE_LEFT, trans, qr.m, 1, qr.tau.size, qr.qr, qr.m, qr.tau,
+            out, qr.m,
+        )
         check(info == 0) { "dormqr: illegal argument ${-info}" }
         return out
     }
