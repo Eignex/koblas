@@ -117,7 +117,8 @@ jobs:
 
       - name: Build and test the bundled native packages
         run: >-
-          ./gradlew :koblas-basiclu:check :koblas-klu:check :koblas-openblas:check :koblas-umfpack:check
+          ./gradlew :koblas-basiclu:check :koblas-hfactor:check :koblas-klu:check
+          :koblas-openblas:check :koblas-umfpack:check
 
       - name: Upload test reports
         if: always()
@@ -127,6 +128,8 @@ jobs:
           path: |
             koblas-basiclu/build/reports/tests/
             koblas-basiclu/build/test-results/
+            koblas-hfactor/build/reports/tests/
+            koblas-hfactor/build/test-results/
             koblas-klu/build/reports/tests/
             koblas-klu/build/test-results/
             koblas-openblas/build/reports/tests/

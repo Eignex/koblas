@@ -101,6 +101,13 @@ jobs:
           path: koblas-basiclu/build/basiclu
           key: release-basiclu-${{ runner.os }}-${{ runner.arch }}-${{ matrix.platform }}-${{ hashFiles('koblas-basiclu/basiclu.lock', 'koblas-basiclu/native/basiclu_shim.c', 'scripts/build-basiclu.sh', 'scripts/third-party-notices.sh') }}
 
+      - name: Cache bundled HFactor resources
+        id: cache-hfactor
+        uses: actions/cache@v5
+        with:
+          path: koblas-hfactor/build/hfactor
+          key: release-hfactor-${{ runner.os }}-${{ runner.arch }}-${{ matrix.platform }}-${{ hashFiles('koblas-hfactor/hfactor.lock', 'koblas-hfactor/native/*', 'scripts/build-hfactor.sh', 'scripts/third-party-notices.sh') }}
+
       - name: Build bundled OpenBLAS
         if: steps.cache-openblas.outputs.cache-hit != 'true'
         run: >-
@@ -166,6 +173,22 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
 
+      # Alone among the bundled libraries this one is C++: HFactor is a class inside HiGHS rather than a
+      # library with an API, so the build compiles it against a shim and reads CXX rather than CC.
+      - name: Build bundled HFactor
+        if: steps.cache-hfactor.outputs.cache-hit != 'true'
+        run: >-
+          ./gradlew --no-build-cache --no-configuration-cache --rerun-tasks
+          :koblas-hfactor:buildHfactor -Pkoblas.hfactor.platform=${{ matrix.platform }}
+
+      - name: Upload bundled HFactor resources
+        uses: actions/upload-artifact@v7
+        with:
+          name: hfactor-${{ matrix.platform }}
+          path: koblas-hfactor/build/hfactor/resources
+          include-hidden-files: true
+          if-no-files-found: error
+
   publish:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     needs: build-native-resources
@@ -226,6 +249,13 @@ jobs:
           path: koblas-basiclu/build/basiclu/resources
           merge-multiple: true
 
+      - name: Download bundled HFactor resources
+        uses: actions/download-artifact@v8
+        with:
+          pattern: hfactor-*
+          path: koblas-hfactor/build/hfactor/resources
+          merge-multiple: true
+
       # A tag publishes that exact version as a release. Any other ref publishes a snapshot of the
       # next patch, so main always has a consumable build. A dry run takes the release path as far
       # as the tests and stops, so the tag path can be exercised on demand.
@@ -259,8 +289,10 @@ jobs:
         run: >-
           ./gradlew :koblas-openblas:verifyOpenBlasResources :koblas-klu:verifyKluResources
           :koblas-umfpack:verifyUmfpackResources :koblas-basiclu:verifyBasicluResources
+          :koblas-hfactor:verifyHfactorResources
           -x :koblas-openblas:buildOpenBlas -x :koblas-klu:buildKlu
           -x :koblas-umfpack:buildUmfpack -x :koblas-basiclu:buildBasiclu
+          -x :koblas-hfactor:buildHfactor
 
       - name: Build and Test
         if: env.IS_SNAPSHOT == 'false'
@@ -268,6 +300,7 @@ jobs:
           ./gradlew build -PciVersion=${{ env.RELEASE_VERSION }}
           -x :koblas-openblas:buildOpenBlas -x :koblas-klu:buildKlu
           -x :koblas-umfpack:buildUmfpack -x :koblas-basiclu:buildBasiclu
+          -x :koblas-hfactor:buildHfactor
 
       - name: Upload test reports
         if: always() && env.IS_SNAPSHOT == 'false'
@@ -290,6 +323,7 @@ jobs:
           ./gradlew publishToMavenCentral -PciVersion=${{ env.RELEASE_VERSION }}
           -x :koblas-openblas:buildOpenBlas -x :koblas-klu:buildKlu
           -x :koblas-umfpack:buildUmfpack -x :koblas-basiclu:buildBasiclu
+          -x :koblas-hfactor:buildHfactor
 
       - name: Publish to Sonatype Snapshots
         if: env.IS_SNAPSHOT == 'true'
@@ -302,6 +336,7 @@ jobs:
           ./gradlew publishAllPublicationsToSonatypeSnapshotsRepository -PciVersion=${{ env.RELEASE_VERSION }}
           -x :koblas-openblas:buildOpenBlas -x :koblas-klu:buildKlu
           -x :koblas-umfpack:buildUmfpack -x :koblas-basiclu:buildBasiclu
+          -x :koblas-hfactor:buildHfactor
 
       - name: Detect pre-release
         if: github.ref_type == 'tag' && env.IS_SNAPSHOT == 'false'
