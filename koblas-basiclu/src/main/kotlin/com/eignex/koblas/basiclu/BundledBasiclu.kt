@@ -15,6 +15,8 @@ public class BundledBasiclu private constructor(private val delegate: BasicluSpa
     override val name: String get() = "basiclu-bundled"
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 3
 
+    override val supportsBasisUpdates: Boolean get() = delegate.supportsBasisUpdates
+
     override fun factorBasis(basis: F64SparseMatrix): F64BasisFactorization = delegate.factorBasis(basis)
 }
 

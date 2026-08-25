@@ -158,3 +158,25 @@ public fun F64SparseMatrix.transpose(): F64SparseMatrix {
     }
     return F64SparseMatrix(cols, rows, outPtr, outIdx, outVal)
 }
+
+/**
+ * Fresh matrix with column [column] replaced by [entering], still CSC. The replacement is structural, so an
+ * explicitly stored zero in [entering] survives as one.
+ */
+public fun F64SparseMatrix.withColumn(column: Int, entering: F64SparseVector): F64SparseMatrix {
+    requireIndex(column in 0 until cols) { "withColumn: column $column outside [0,$cols)" }
+    requireShape(entering.size == rows) { "withColumn: entering size ${entering.size}, expected $rows" }
+    val start = colPtr[column]
+    val end = colPtr[column + 1]
+    val delta = entering.indices.size - (end - start)
+    val pointers = IntArray(cols + 1) { colPtr[it] + if (it <= column) 0 else delta }
+    val outIdx = IntArray(rowIdx.size + delta)
+    val outVal = DoubleArray(values.size + delta)
+    rowIdx.copyInto(outIdx, endIndex = start)
+    values.copyInto(outVal, endIndex = start)
+    entering.indices.copyInto(outIdx, start)
+    entering.values.copyInto(outVal, start)
+    rowIdx.copyInto(outIdx, start + entering.indices.size, end)
+    values.copyInto(outVal, start + entering.indices.size, end)
+    return F64SparseMatrix(rows, cols, pointers, outIdx, outVal)
+}

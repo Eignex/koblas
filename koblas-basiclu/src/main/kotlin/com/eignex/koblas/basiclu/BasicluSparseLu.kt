@@ -27,6 +27,8 @@ public class BasicluSparseLu(
         factorHandle(a)?.let { BasicluFactorization(a.rows, it, calls) }
             ?: F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
 
+    override val supportsBasisUpdates: Boolean get() = true
+
     override fun factorBasis(basis: F64SparseMatrix): F64BasisFactorization {
         require(basis.rows == basis.cols) { "factorBasis requires a square matrix; got ${basis.rows}x${basis.cols}" }
         return factorHandle(basis)?.let { BasicluBasisFactorization(this, basis, it, calls) }
@@ -140,22 +142,4 @@ private class BasicluSingularBasisFactorization(
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray =
         throw SingularMatrix(failedAt, "solve: the factorization is singular")
-}
-
-@OptIn(UnsafeKoblasApi::class)
-private fun F64SparseMatrix.withColumn(column: Int, entering: F64SparseVector): F64SparseMatrix {
-    val oldStart = colPtr[column]
-    val oldEnd = colPtr[column + 1]
-    val delta = entering.indices.size - (oldEnd - oldStart)
-    val pointers = IntArray(cols + 1)
-    for (j in 0..cols) pointers[j] = colPtr[j] + if (j <= column) 0 else delta
-    val rows = IntArray(rowIdx.size + delta)
-    val values = DoubleArray(this.values.size + delta)
-    rowIdx.copyInto(rows, endIndex = oldStart)
-    this.values.copyInto(values, endIndex = oldStart)
-    entering.indices.copyInto(rows, oldStart)
-    entering.values.copyInto(values, oldStart)
-    rowIdx.copyInto(rows, oldStart + entering.indices.size, oldEnd)
-    this.values.copyInto(values, oldStart + entering.indices.size, oldEnd)
-    return F64SparseMatrix.wrap(this.rows, cols, pointers, rows, values)
 }
