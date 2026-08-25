@@ -29,21 +29,16 @@ SuiteSparse KLU, or SuiteSparse UMFPACK acceleration.
 | koblas-klu | `runtimeOnly("com.eignex:koblas-klu:<version>")` | KLU sparse-LU runtime bundle. |
 | koblas-basiclu | `runtimeOnly("com.eignex:koblas-basiclu:<version>")` | BASICLU sparse-basis runtime bundle. |
 
-Optional bundled modules have licenses in addition to Apache 2.0; see their generated
-`THIRD-PARTY-NOTICES.txt` files for details.
-
 Install OpenBLAS/LAPACKE and, for sparse LU, SuiteSparse KLU 2 or UMFPACK with your
 system package manager, such as `apt` or Homebrew. Koblas discovers them automatically
-and otherwise uses its portable backend.
-
-On JVM Linux x64/arm64 and macOS arm64, use any of the optional bundled modules
-listed above as an alternative.
-
-Host packages and Maven bundles use the same Koblas bindings; only the native library
-source differs.
+and otherwise uses its portable backend. On JVM Linux x64/arm64 and macOS arm64, the
+optional bundled modules are an alternative; host packages and Maven bundles use the
+same Koblas bindings, differing only in the native library source.
 
 The UMFPACK bundle brings OpenBLAS and uses the same OpenBLAS library as the
-dense backend; KLU and BASICLU have no BLAS dependency. Bundled providers win over host lookup.
+dense backend; KLU and BASICLU have no BLAS dependency. Bundled providers win over host
+lookup. Optional bundled modules have licenses in addition to Apache 2.0; see their
+generated `THIRD-PARTY-NOTICES.txt` files for details.
 
 ## Use
 
