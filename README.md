@@ -23,11 +23,11 @@ SuiteSparse KLU, or SuiteSparse UMFPACK acceleration.
 
 | Module | Purpose |
 |--------|---------|
-| koblas | Core API and portable backend. |
-| koblas-openblas | OpenBLAS/LAPACKE runtime bundle. |
-| koblas-umfpack | UMFPACK sparse-LU runtime bundle. |
-| koblas-klu | KLU sparse-LU runtime bundle. |
-| koblas-basiclu | BASICLU sparse-basis runtime bundle. |
+| koblas | Dense and sparse API with a portable backend. |
+| koblas-openblas | Accelerated dense BLAS and LAPACK operations. |
+| koblas-umfpack | General sparse LU factorization. |
+| koblas-klu | Sparse LU for circuit-style systems. |
+| koblas-basiclu | Sparse simplex-basis factorization and updates. |
 
 Install OpenBLAS/LAPACKE and, for sparse LU, SuiteSparse KLU 2 or UMFPACK with your
 system package manager, such as `apt` or Homebrew. Koblas discovers them automatically
