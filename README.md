@@ -128,17 +128,18 @@ repeat(1_000) { koblas.solveInto(factor, rhs, solution, workspace = workspace) }
 
 ## Backends
 
-Koblas starts with portable implementations. Configure accelerated backends either
-programmatically or automatically.
+Every top-level operation uses Koblas’s process-wide backend registry. It starts with
+portable implementations and selects the strongest registered provider for each dense
+or sparse backend half.
 
-For programmatic control, use `registerBackend(...)` to offer a backend, or
-`installBackends(...)` to override the process-wide context. Programmatic
-registrations take precedence over automatically discovered backends.
+On JVM, call `discoverBackends()` once at startup to probe host libraries, bundled
+providers, and service-loaded providers. Available providers register automatically;
+Koblas otherwise keeps using its portable implementation.
 
-For automatic JVM configuration, call `discoverBackends()`. Koblas probes the host
-and bundled libraries and falls back to the portable implementation when a library
-cannot load. Use these JVM properties or environment variables to steer discovery
-to custom absolute library paths:
+Use `registerBackend(...)` to add your own provider; explicit registrations outrank
+discovered ones. Use `installBackends(...)` to replace the entire global context, and
+`installBackends(null)` to restore registry selection. These JVM properties or
+environment variables steer discovery to custom library paths:
 
 | Library | JVM property | Environment variable |
 |---------|--------------|----------------------|
@@ -147,10 +148,5 @@ to custom absolute library paths:
 | SuiteSparse KLU 2 | `koblas.klu.path` | `KOBLAS_KLU_PATH` |
 | UMFPACK | `koblas.umfpack.path` | `KOBLAS_UMFPACK_PATH` |
 
-The JVM property takes precedence. `koblas.klu.path` must name a SuiteSparse KLU 2
-library. Set `-Dkoblas.dense.backend=reference -Dkoblas.sparse.backend=reference`
-to force portable backends. With both sparse-LU bundles present, set
-`-Dkoblas.sparse.backend=umfpack` to select UMFPACK.
-
-Inspect `koblasInfo` or `koblas.portableSlots` after configuration; call
-`koblas.requireAccelerated(...)` to fail when acceleration is unavailable.
+The JVM property takes precedence. Inspect `koblasInfo` or `koblas.portableSlots`
+after configuration, or call `koblas.requireAccelerated(...)` to require acceleration.
