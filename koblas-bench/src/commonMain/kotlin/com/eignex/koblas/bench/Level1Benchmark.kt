@@ -54,6 +54,14 @@ class Level1Benchmark {
     @Benchmark
     fun iamaxBench(): Int = x.iamax()
 
+    // Two loads and two stores an element against one load for the reductions, so this is the level-1
+    // routine most likely to be bandwidth-bound rather than issue-bound. Measured because it is scalar and
+    // nothing said whether that costs anything.
+    @Benchmark
+    fun swapBench() {
+        swap(x, y)
+    }
+
     @Benchmark
     fun dot4(): Double {
         koblas.kernels.dot4(quad, 0, len, x.data, 0, len, quadOut, 0)
