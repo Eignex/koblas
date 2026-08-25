@@ -29,16 +29,13 @@ SuiteSparse KLU, or SuiteSparse UMFPACK acceleration.
 | koblas-klu | Sparse LU for circuit-style systems. |
 | koblas-basiclu | Sparse simplex-basis factorization and updates. |
 
-Install OpenBLAS/LAPACKE and, for sparse LU, SuiteSparse KLU 2 or UMFPACK with your
-system package manager, such as `apt` or Homebrew. Koblas discovers them automatically
-and otherwise uses its portable backend. On JVM Linux x64/arm64 and macOS arm64, the
-optional bundled modules are an alternative; host packages and Maven bundles use the
-same Koblas bindings, differing only in the native library source.
-
-The UMFPACK bundle brings OpenBLAS and uses the same OpenBLAS library as the
-dense backend; KLU and BASICLU have no BLAS dependency. Bundled providers win over host
-lookup. Optional bundled modules have licenses in addition to Apache 2.0; see their
-generated `THIRD-PARTY-NOTICES.txt` files for details.
+Install OpenBLAS/LAPACKE and, for sparse LU, SuiteSparse KLU 2 or UMFPACK with a
+system package manager such as apt or Homebrew. Koblas finds installed libraries
+automatically and falls back to its portable backend if they are unavailable. On JVM
+Linux x64/arm64 and macOS arm64, the optional bundled modules are an alternative and
+take precedence over host libraries. UMFPACK includes OpenBLAS for dense operations;
+KLU and BASICLU do not need it. Optional bundled modules have licenses in addition to
+Apache 2.0; see their generated `THIRD-PARTY-NOTICES.txt` files for details.
 
 ## Use
 
