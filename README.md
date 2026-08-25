@@ -90,9 +90,10 @@ val x = a.lu().solve(doubleArrayOf(4.0, 9.0))
 
 Koblas is for numerical and optimization routines that need predictable performance
 and precise control over matrix storage, allocations, and workspaces. It is especially
-suited to repeated solves and refactorizations. Typical uses include embedding numerical
-routines in larger applications, simplex and other optimization methods, statistical
-estimation, regression, and custom scientific-computing algorithms.
+suited to repeated solves and refactorizations. Typical uses include vector embeddings
+and similarity search, simplex and other optimization methods, statistical estimation,
+regression, and custom scientific-computing algorithms. BF16 support is planned for
+embedding workloads.
 
 ## Backends
 
