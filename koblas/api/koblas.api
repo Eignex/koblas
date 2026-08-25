@@ -880,6 +880,10 @@ public final class com/eignex/koblas/internal/backend/BundledNativeResources$Com
 	public final fun supportedPlatform (Lkotlin/jvm/functions/Function2;)Ljava/lang/String;
 }
 
+public final class com/eignex/koblas/internal/backend/HostLibraryPathsKt {
+	public static final fun configuredBasicluPath ()Ljava/lang/String;
+}
+
 public final class com/eignex/koblas/internal/host/FfmLibrary {
 	public static final field Companion Lcom/eignex/koblas/internal/host/FfmLibrary$Companion;
 	public final fun contains (Ljava/lang/String;)Z

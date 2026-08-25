@@ -63,4 +63,26 @@ class BundledBasicluTest {
             "pivot ratio ${factorization.rcond} outside (0, 1]",
         )
     }
+
+    @Test
+    fun `a configured library path is preferred over the bundled build`() {
+        val previous = System.getProperty("koblas.basiclu.path")
+        System.setProperty("koblas.basiclu.path", "/nonexistent/libkoblas_basiclu.so.1")
+        try {
+            val backend = BundledBasiclu(factorizeMin = 0)
+            assertEquals("basiclu", backend.name)
+            assertFalse(backend.isAvailable, "the configured path does not exist, so nothing should resolve")
+        } finally {
+            if (previous == null) {
+                System.clearProperty("koblas.basiclu.path")
+            } else {
+                System.setProperty("koblas.basiclu.path", previous)
+            }
+        }
+    }
+
+    @Test
+    fun `the bundled build answers when no path is configured`() {
+        assertEquals("basiclu-bundled", BundledBasiclu(factorizeMin = 0).name)
+    }
 }

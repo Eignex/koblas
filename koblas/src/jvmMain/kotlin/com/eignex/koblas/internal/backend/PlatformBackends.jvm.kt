@@ -61,11 +61,6 @@ private class AutomaticHostConfiguration {
     }
 }
 
-private fun libraryPath(keys: LibraryPathKeys): String? = System.getProperty(keys.property)?.takeIf(::isAbsolutePath)
-    ?: System.getenv(keys.environment)?.takeIf(::isAbsolutePath)
-
-private fun isAbsolutePath(path: String): Boolean = java.nio.file.Path.of(path).isAbsolute
-
 /** Bundled providers add a diagnostic suffix while retaining the canonical name callers configure. */
 private fun matchesRequested(name: String, requested: String): Boolean =
     name == requested || name.removeSuffix("-bundled") == requested
