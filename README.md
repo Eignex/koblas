@@ -39,12 +39,9 @@ possible.
 |--------|---------|
 | koblas | Dense and sparse API with a portable backend. |
 | koblas-openblas | Accelerated dense BLAS and LAPACK operations. |
-| koblas-umfpack | General sparse LU factorization. |
-| koblas-klu | Sparse LU for circuit-style systems. |
-| koblas-basiclu | Sparse simplex-basis factorization and updates. |
-
-For sparse LU, choose UMFPACK for general systems, KLU for circuit-style systems,
-and BASICLU for simplex bases that need column updates.
+| koblas-umfpack | General sparse LU systems. |
+| koblas-klu | Circuit-style sparse LU systems. |
+| koblas-basiclu | Simplex bases with column updates. |
 
 On JVM, add `--add-modules=jdk.incubator.vector` to enable the built-in SIMD kernels.
 They beat the native binding for BLAS level 1 (vector-vector work) and level 2
