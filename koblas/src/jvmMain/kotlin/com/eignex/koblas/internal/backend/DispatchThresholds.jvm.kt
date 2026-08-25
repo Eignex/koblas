@@ -17,7 +17,7 @@ private val SIMD_THRESHOLDS = DispatchThresholds(
     level2 = Int.MAX_VALUE,
     level3 = JVM_LEVEL3_MIN,
     factorize = JVM_FACTORIZE_MIN,
-    factorizeRhs = JVM_FACTORIZE_RHS_MIN,
+    factorizeRhs = JVM_SIMD_FACTORIZE_RHS_MIN,
 )
 
 /** For a JVM running the scalar loops, where the host library wins from the smallest sizes. */
@@ -38,8 +38,18 @@ private const val JVM_SCALAR_LEVEL1_MIN = 128
 /** The matrix size from which the host BLAS takes the level-3 routines. */
 private const val JVM_LEVEL3_MIN = 16
 
-/** The matrix size from which the host LAPACK takes the factorizations. */
-private const val JVM_FACTORIZE_MIN = 64
+/**
+ * The matrix size from which the host LAPACK takes the factorizations. Nothing crosses at 64: the LU
+ * factorizations cross here, and Cholesky and QR only at 256, so this dispatches those two a little early.
+ */
+private const val JVM_FACTORIZE_MIN = 128
 
-/** The right-hand-side count from which one blocked native solve beats a native call per column. */
+/**
+ * The right-hand-side count from which one blocked native solve beats a native call per column, with the
+ * Vector API kernels in place. Counts of one, two and four never cross, eight crosses from a dimension of
+ * 256, and sixteen and above from 64.
+ */
+private const val JVM_SIMD_FACTORIZE_RHS_MIN = 8
+
+/** The same for a JVM on the scalar loops, where it is unmeasured and the shipped value stands. */
 private const val JVM_FACTORIZE_RHS_MIN = 4
