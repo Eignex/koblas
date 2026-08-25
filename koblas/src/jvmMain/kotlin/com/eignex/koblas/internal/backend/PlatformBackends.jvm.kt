@@ -16,8 +16,14 @@ import java.util.ServiceLoader
  * halves first, then [ServiceLoader] providers; [Backend.priority] picks the winner on each half.
  */
 internal actual fun registerPlatformBackends() {
-    val denseRequested = System.getProperty(ConfigurationKeys.DENSE_BACKEND_PROPERTY)
-    val sparseRequested = System.getProperty(ConfigurationKeys.SPARSE_BACKEND_PROPERTY)
+    val denseRequested = pinnedBackend(
+        System.getProperty(ConfigurationKeys.DENSE_BACKEND_PROPERTY),
+        System.getenv(ConfigurationKeys.DENSE_BACKEND_ENVIRONMENT),
+    )
+    val sparseRequested = pinnedBackend(
+        System.getProperty(ConfigurationKeys.SPARSE_BACKEND_PROPERTY),
+        System.getenv(ConfigurationKeys.SPARSE_BACKEND_ENVIRONMENT),
+    )
     val automatic = AutomaticHostConfiguration()
     for (provider in loadProviders().sortedByDescending { it.priority }) {
         if (automatic.overrides(provider)) continue
