@@ -43,6 +43,11 @@ possible.
 | koblas-klu | Sparse LU for circuit-style systems. |
 | koblas-basiclu | Sparse simplex-basis factorization and updates. |
 
+On JVM, add `--add-modules=jdk.incubator.vector` to enable the built-in SIMD kernels.
+They beat the native binding for BLAS level 1 (vector-vector work) and level 2
+(matrix-vector work), so Koblas keeps them on the JVM and reserves the native backend
+for level 3 matrix-matrix operations and factorizations.
+
 Install OpenBLAS/LAPACKE and, for sparse LU, SuiteSparse KLU 2 or UMFPACK with a
 system package manager such as apt or Homebrew. Koblas finds installed libraries
 automatically and falls back to its portable backend if they are unavailable. On JVM
@@ -157,3 +162,21 @@ environment variables steer discovery to custom library paths:
 
 The JVM property takes precedence. Inspect `koblasInfo` or `koblas.portableSlots`
 after configuration, or call `koblas.requireAccelerated(...)` to require acceleration.
+
+## Multithreading
+
+The portable reference and SIMD implementations are single-threaded. The JVM OpenBLAS
+binding can use a threaded OpenBLAS build for supported dense operations, but automatic
+discovery configures one thread. Configure and register it during startup instead:
+
+```kotlin
+import com.eignex.koblas.registerBackend
+import com.eignex.koblas.dense.host.cblas.HostBlasConfig
+import com.eignex.koblas.dense.host.jvm.F64Backends
+
+registerBackend(F64Backends(HostBlasConfig(threadCount = 8)))
+```
+
+OpenBLAS owns this setting process-wide. The bundled OpenBLAS is built with threading
+disabled, so bundled UMFPACK is also single-threaded. KLU has no multithreaded mode; a
+host UMFPACK may use threads only through the BLAS library it was built against.

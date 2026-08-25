@@ -86,6 +86,20 @@ class PlatformDiscoveryTest {
         }
     }
 
+    @Test
+    fun `registering OpenBLAS backends offers their available halves`() = withCleanBackends {
+        val backends = F64Backends()
+        registerBackend(backends)
+
+        assertEquals(backends.blas.isAvailable, koblas.isAccelerated(BackendSlot.F64Blas), "BLAS")
+        assertEquals(backends.blas.isAvailable, koblas.isAccelerated(BackendSlot.F64Kernels), "kernels")
+        assertEquals(
+            backends.decompositions.isAvailable,
+            koblas.isAccelerated(BackendSlot.F64Decompositions),
+            "decompositions",
+        )
+    }
+
     /**
      * The probe is what keeps a candidate whose native library is absent or broken out of the registry. It
      * has to reject a wrong answer as firmly as a throw, since a backend that loads and computes nonsense is
