@@ -31,5 +31,5 @@ BLAS/LAPACK implementation can replace it without changing callers. [koblas][com
 resolves to an [installBackends][com.eignex.koblas.installBackends] override when set, else
 the platform backend when present, else the pure-Kotlin
 [F64ReferenceLinearAlgebra][com.eignex.koblas.dense.F64ReferenceLinearAlgebra]. Ergonomic entry points
-[lu][com.eignex.koblas.dense.lu] / [F64LuDecomposition.solve][com.eignex.koblas.dense.solve] / [matMul][com.eignex.koblas.dense.matMul]
+[lu][com.eignex.koblas.dense.lu] / [F64LuDecomposition.solve][com.eignex.koblas.dense.solve]
 delegate to the active backend.

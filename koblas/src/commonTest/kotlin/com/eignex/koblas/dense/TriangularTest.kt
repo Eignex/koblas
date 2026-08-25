@@ -8,6 +8,7 @@ import com.eignex.koblas.koblas
 import com.eignex.koblas.poisonedTriangle
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.randomVector
+import com.eignex.koblas.times
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.Test
@@ -83,7 +84,7 @@ class TriangularTest {
         val nrhs = 3
         val (t, explicit) = poisonedTriangle(rng, n, lower = true, unitDiag = false)
         val xTrue = randomMatrix(n, nrhs, rng)
-        val b = explicit.matMul(xTrue)
+        val b = explicit * xTrue
         trsm(t, b, lower = true)
         assertClose(xTrue, b, "trsm multi-RHS", tolerance = 1e-9)
     }
@@ -96,7 +97,7 @@ class TriangularTest {
         val nrhs = 3
         val (t, explicit) = poisonedTriangle(rng, n, lower = true, unitDiag = false)
         val x = randomMatrix(n, nrhs, rng)
-        val b = explicit.matMul(x)
+        val b = explicit * x
 
         trsm(t, b, lower = true, alpha = alpha)
 

@@ -2,8 +2,8 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.Uplo
-import com.eignex.koblas.dense.matMul
 import com.eignex.koblas.koblas
+import com.eignex.koblas.times
 import kotlinx.benchmark.*
 
 @State(Scope.Benchmark)
@@ -37,7 +37,7 @@ class Level3Benchmark {
     }
 
     @Benchmark
-    fun gemm(): F64DenseMatrix = a.matMul(b)
+    fun gemm(): F64DenseMatrix = a * b
 
     @Benchmark
     fun syrkFull(): F64DenseMatrix {

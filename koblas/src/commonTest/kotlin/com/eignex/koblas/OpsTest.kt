@@ -4,7 +4,6 @@ package com.eignex.koblas
 
 import com.eignex.koblas.core.*
 import com.eignex.koblas.dense.Uplo
-import com.eignex.koblas.dense.matMul
 import kotlin.math.abs
 import kotlin.math.sqrt
 import kotlin.random.Random
@@ -313,7 +312,7 @@ class OpsTest {
         val rng = Random(20260804)
         val a = randomMatrix(4, 6, rng)
         val b = randomMatrix(4, 3, rng)
-        val viaMaterialized = a.transpose().matMul(b)
+        val viaMaterialized = a.transpose() * b
         val viaFlag = F64DenseMatrix(6, 3)
         koblas.gemm(1.0, a, true, b, false, 0.0, viaFlag)
         assertClose(viaMaterialized, viaFlag, "transpose flag vs materialized")

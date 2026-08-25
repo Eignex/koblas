@@ -6,6 +6,7 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.koblas
 import com.eignex.koblas.sparse.gemv
 import com.eignex.koblas.sparse.lu
+import com.eignex.koblas.times
 import com.eignex.koblas.wellConditioned
 import kotlin.math.abs
 import kotlin.random.Random
@@ -150,7 +151,7 @@ class BlasConformanceTest {
         for (n in intArrayOf(1, 3, 10, 30)) {
             val a = spd(n, rng)
             val inv = a.cholesky().invert()
-            val prod = a.matMul(inv)
+            val prod = a * inv
             var maxOffIdentity = 0.0
             for (i in 0 until n) {
                 for (j in 0 until n) {
@@ -168,11 +169,11 @@ class BlasConformanceTest {
         for (n in intArrayOf(1, 4, 16)) {
             val a = wellConditioned(n, rng)
             val id = F64DenseMatrix.diagonal(n)
-            assertTrue(a.matMul(id) == a, "A·I != A at n=$n")
+            assertTrue(a * id == a, "A·I != A at n=$n")
             val b = F64DenseMatrix(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
             val c = F64DenseMatrix(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
-            val left = a.matMul(b).matMul(c)
-            val right = a.matMul(b.matMul(c))
+            val left = a * b * c
+            val right = a * (b * c)
             val bound = 100.0 * n * eps * infNorm(a) * infNorm(b) * infNorm(c)
             var maxDiff = 0.0
             for (k in left.data.indices) maxDiff = maxOf(maxDiff, abs(left.data[k] - right.data[k]))

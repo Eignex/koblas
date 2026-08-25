@@ -1,7 +1,6 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.core.*
-import com.eignex.koblas.dense.matMul
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -14,8 +13,8 @@ class OperatorsTest {
     private val x = F64DenseVector.of(doubleArrayOf(2.0, -1.0))
 
     @Test
-    fun `matrix product agrees with matMul`() {
-        assertEquals(a.matMul(b), a * b)
+    fun `matrix product has expected entries`() {
+        assertEquals(F64DenseMatrix.of(arrayOf(doubleArrayOf(19.0, 22.0), doubleArrayOf(43.0, 50.0))), a * b)
     }
 
     @Test

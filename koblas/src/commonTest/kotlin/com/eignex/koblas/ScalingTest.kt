@@ -1,7 +1,6 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.core.*
-import com.eignex.koblas.dense.matMul
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -20,7 +19,7 @@ class ScalingTest {
         val d = doubleArrayOf(2.0, -1.0)
         val actual = example()
         actual.scaleRows(d)
-        val expected = F64DenseMatrix.diagonal(d).matMul(example())
+        val expected = F64DenseMatrix.diagonal(d) * example()
         assertEquals(expected, actual)
     }
 
@@ -29,7 +28,7 @@ class ScalingTest {
         val d = doubleArrayOf(2.0, -1.0, 0.5)
         val actual = example()
         actual.scaleColumns(d)
-        val expected = example().matMul(F64DenseMatrix.diagonal(d))
+        val expected = example() * F64DenseMatrix.diagonal(d)
         assertEquals(expected, actual)
     }
 
@@ -40,7 +39,7 @@ class ScalingTest {
         val actual = example()
         actual.scaleRows(rowScale)
         actual.scaleColumns(colScale)
-        val expected = F64DenseMatrix.diagonal(rowScale).matMul(example()).matMul(F64DenseMatrix.diagonal(colScale))
+        val expected = F64DenseMatrix.diagonal(rowScale) * example() * F64DenseMatrix.diagonal(colScale)
         assertEquals(expected, actual)
     }
 

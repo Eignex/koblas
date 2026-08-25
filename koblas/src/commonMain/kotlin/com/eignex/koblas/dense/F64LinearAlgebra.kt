@@ -1,7 +1,6 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.Workspace
-import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.koblas
 
@@ -83,6 +82,3 @@ public fun F64QrDecomposition.applyQ(y: DoubleArray, transpose: Boolean = false)
 /** Least-squares solution against a rank-revealing factorization; see [F64Decompositions.solveLeastSquares]. */
 public fun F64PivotedQrDecomposition.solveLeastSquares(b: DoubleArray, workspace: Workspace? = null): DoubleArray =
     koblas.solveLeastSquares(this, b, workspace)
-
-/** Matrix-matrix product `this · other` with the active backend. */
-public fun F64DenseMatrix.matMul(other: F64DenseMatrix): F64DenseMatrix = koblas.gemm(this, other)

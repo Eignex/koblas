@@ -598,7 +598,6 @@ public final class com/eignex/koblas/dense/F64LinearAlgebraKt {
 	public static final fun ldl (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;Lcom/eignex/koblas/dense/Uplo;)Lcom/eignex/koblas/dense/F64LdlDecomposition;
 	public static synthetic fun ldl$default (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;Lcom/eignex/koblas/dense/Uplo;ILjava/lang/Object;)Lcom/eignex/koblas/dense/F64LdlDecomposition;
 	public static final fun lu (Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/dense/F64LuDecomposition;
-	public static final fun matMul (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public static final fun qr (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64QrDecomposition;
 	public static synthetic fun qr$default (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/dense/F64QrDecomposition;
 	public static final fun qrPivoted (Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;

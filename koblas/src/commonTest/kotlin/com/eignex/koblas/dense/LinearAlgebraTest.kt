@@ -7,6 +7,7 @@ import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.koblas
 import com.eignex.koblas.lapackFailedAt
+import com.eignex.koblas.times
 import com.eignex.koblas.wellConditioned
 import kotlin.random.Random
 import kotlin.test.Test
@@ -29,7 +30,7 @@ class LinearAlgebraTest {
     fun `gemm multiplies two matrices`() {
         val a = F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
         val b = F64DenseMatrix.of(arrayOf(doubleArrayOf(5.0, 6.0), doubleArrayOf(7.0, 8.0)))
-        assertEquals(F64DenseMatrix.of(arrayOf(doubleArrayOf(19.0, 22.0), doubleArrayOf(43.0, 50.0))), a.matMul(b))
+        assertEquals(F64DenseMatrix.of(arrayOf(doubleArrayOf(19.0, 22.0), doubleArrayOf(43.0, 50.0))), a * b)
     }
 
     @Test
@@ -84,7 +85,7 @@ class LinearAlgebraTest {
     fun `gemm with zero inner dimension yields a zero matrix`() {
         val a = F64DenseMatrix(2, 0)
         val b = F64DenseMatrix(0, 3)
-        assertEquals(F64DenseMatrix(2, 3), a.matMul(b))
+        assertEquals(F64DenseMatrix(2, 3), a * b)
     }
 
     @Test
@@ -106,7 +107,7 @@ class LinearAlgebraTest {
     @Test
     fun `the dense routines reject mismatched shapes`() {
         assertFailsWith<IllegalArgumentException> { F64DenseMatrix(2, 3).lu() }
-        assertFailsWith<IllegalArgumentException> { F64DenseMatrix(2, 3).matMul(F64DenseMatrix(2, 2)) }
+        assertFailsWith<IllegalArgumentException> { F64DenseMatrix(2, 3) * F64DenseMatrix(2, 2) }
         assertFailsWith<IllegalArgumentException> { koblas.gemv(F64DenseMatrix(2, 3), DoubleArray(2)) }
         assertFailsWith<IllegalArgumentException> {
             koblas.gemv(
