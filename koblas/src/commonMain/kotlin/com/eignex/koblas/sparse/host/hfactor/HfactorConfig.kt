@@ -24,7 +24,7 @@ internal val HFACTOR_SONAMES: List<String> = listOf(
     "libkoblas_hfactor.dylib",
 )
 
-/** What [koblas_hfactor_update] answers with, which is advice rather than a status. */
+/** What the bridge's `koblas_hfactor_update` answers with, which is advice rather than a status. */
 internal object HfactorUpdate {
     const val REFUSED = -1
     const val APPLIED = 0
