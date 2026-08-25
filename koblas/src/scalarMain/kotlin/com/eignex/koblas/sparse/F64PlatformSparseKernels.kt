@@ -1,6 +1,7 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.core.F64SparseVector
+import com.eignex.koblas.dense.F64PlatformKernels
 import com.eignex.koblas.internal.backend.BackendNames
 
 /** The portable sparse level-1 kernels, which come from the reference backend. */
@@ -23,7 +24,9 @@ internal actual object F64PlatformSparseKernels : F64SparseKernels {
     actual override fun scatter(x: F64SparseVector, out: DoubleArray): Unit =
         F64ReferenceSparseLinearAlgebra.scatter(x, out)
 
-    actual override fun nrm2(x: F64SparseVector): Double = F64ReferenceSparseLinearAlgebra.nrm2(x)
+    // As on the JVM: both reduce over the stored values alone, so the dense kernels apply unchanged. Here
+    // they are the same scalar loops, so this states the shape rather than changing the arithmetic.
+    actual override fun nrm2(x: F64SparseVector): Double = F64PlatformKernels.nrm2(x.values, 0, x.values.size)
 
-    actual override fun asum(x: F64SparseVector): Double = F64ReferenceSparseLinearAlgebra.asum(x)
+    actual override fun asum(x: F64SparseVector): Double = F64PlatformKernels.asum(x.values, 0, x.values.size)
 }

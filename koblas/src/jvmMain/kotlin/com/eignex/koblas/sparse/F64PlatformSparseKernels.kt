@@ -1,6 +1,7 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.core.F64SparseVector
+import com.eignex.koblas.dense.F64PlatformKernels
 import com.eignex.koblas.dense.simdAvailable
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.requireShape
@@ -31,9 +32,11 @@ internal actual object F64PlatformSparseKernels : F64SparseKernels {
     actual override fun scatter(x: F64SparseVector, out: DoubleArray): Unit =
         F64ReferenceSparseLinearAlgebra.scatter(x, out)
 
-    actual override fun nrm2(x: F64SparseVector): Double = F64ReferenceSparseLinearAlgebra.nrm2(x)
+    // Both reduce over the stored values alone, so the indices are beside the point and the dense kernels
+    // apply unchanged. They branch on lane width themselves, so this needs no `simdAvailable` guard.
+    actual override fun nrm2(x: F64SparseVector): Double = F64PlatformKernels.nrm2(x.values, 0, x.values.size)
 
-    actual override fun asum(x: F64SparseVector): Double = F64ReferenceSparseLinearAlgebra.asum(x)
+    actual override fun asum(x: F64SparseVector): Double = F64PlatformKernels.asum(x.values, 0, x.values.size)
 }
 
 /** Its own object so the initializer, which touches DoubleVector, runs only once the module is present. */

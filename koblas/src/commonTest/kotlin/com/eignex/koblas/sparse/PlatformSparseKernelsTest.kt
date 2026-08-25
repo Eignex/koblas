@@ -34,6 +34,53 @@ class PlatformSparseKernelsTest {
     }
 
     @Test
+    fun `the reductions match the portable loop at every count`() {
+        val counts = (1..17) + listOf(31, 32, 33, 127, 128, 129, 255, 512, 1000)
+        for (nnz in counts) {
+            val rng = Random(nnz * 6151)
+            val x = sparse(nnz * 8, nnz, rng)
+            // Both reduce over the stored values, so a vectorized kernel sums lanes in a different order and
+            // the bound scales with the count, as it does for dot above.
+            val expectedAsum = F64ReferenceSparseLinearAlgebra.asum(x)
+            val actualAsum = F64PlatformSparseKernels.asum(x)
+            assertTrue(
+                abs(actualAsum - expectedAsum) <= 1e-13 * nnz * (1.0 + abs(expectedAsum)),
+                "asum nnz=$nnz: $actualAsum vs $expectedAsum",
+            )
+            val expectedNrm2 = F64ReferenceSparseLinearAlgebra.nrm2(x)
+            val actualNrm2 = F64PlatformSparseKernels.nrm2(x)
+            assertTrue(
+                abs(actualNrm2 - expectedNrm2) <= 1e-13 * nnz * (1.0 + abs(expectedNrm2)),
+                "nrm2 nnz=$nnz: $actualNrm2 vs $expectedNrm2",
+            )
+        }
+    }
+
+    /** The rescaling path both reductions share, which a plain sum of squares would answer with 0 or Inf. */
+    @Test
+    fun `the reductions survive values that would overflow a plain sum of squares`() {
+        for (scale in doubleArrayOf(1e200, 1e-200)) {
+            val rng = Random(20260825)
+            val nnz = 64
+            val values = DoubleArray(nnz) { rng.nextDouble(0.5, 1.0) * scale }
+            val x = F64SparseVector.of(nnz * 4, IntArray(nnz) { it * 4 }, values)
+            val expectedNrm2 = F64ReferenceSparseLinearAlgebra.nrm2(x)
+            val actualNrm2 = F64PlatformSparseKernels.nrm2(x)
+            assertTrue(actualNrm2.isFinite() && actualNrm2 > 0.0, "nrm2 at scale $scale is $actualNrm2")
+            assertTrue(
+                abs(actualNrm2 - expectedNrm2) <= 1e-13 * nnz * expectedNrm2,
+                "nrm2 scale=$scale: $actualNrm2 vs $expectedNrm2",
+            )
+            val expectedAsum = F64ReferenceSparseLinearAlgebra.asum(x)
+            val actualAsum = F64PlatformSparseKernels.asum(x)
+            assertTrue(
+                abs(actualAsum - expectedAsum) <= 1e-13 * nnz * expectedAsum,
+                "asum scale=$scale: $actualAsum vs $expectedAsum",
+            )
+        }
+    }
+
+    @Test
     fun `dot rejects mismatched sizes on both paths`() {
         val rng = Random(4)
         for (nnz in intArrayOf(4, 200)) { // one below the JVM threshold, one above it
