@@ -79,15 +79,18 @@ val design = DenseMatrix.of(
 val coefficients = design.qr().solveLeastSquares(doubleArrayOf(1.0, 2.0, 3.0))
 ```
 
-Use `matMul` for dense matrix products:
+Operator functions cover matrix arithmetic, products, and matrix-vector products:
 
 ```kotlin
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.dense.matMul
+import com.eignex.koblas.*
 
 val a = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
 val b = DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 0.0), doubleArrayOf(1.0, 2.0)))
-val product = a.matMul(b)
+val x = DenseVector.of(doubleArrayOf(2.0, -1.0))
+
+val sum = a + b
+val product = a * b
+val y = a * x
 ```
 
 Sparse matrices use CSC storage. Construct them from columns or coordinate
