@@ -213,18 +213,107 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         yOff: Int,
         lower: Boolean,
     ) {
-        for (j in 0 until n) {
+        val mult = DoubleArray(SYMV_BLOCK)
+        val dots = DoubleArray(SYMV_BLOCK)
+        var j = 0
+        while (j + SYMV_BLOCK <= n) {
+            for (r in 0 until SYMV_BLOCK) mult[r] = alpha * x[xOff + j + r]
+            symvCorner(alpha, ad, n, x, xOff, y, yOff, j, mult, lower)
+            // Below the corner for a lower triangle, above it for an upper.
+            val runOff = if (lower) j + SYMV_BLOCK else 0
+            val len = if (lower) n - j - SYMV_BLOCK else j
+            if (len > 0) {
+                if (mult.none { it == 0.0 }) {
+                    kernels.symvColumn4(
+                        ad,
+                        runOff + j * n,
+                        n,
+                        x,
+                        xOff + runOff,
+                        y,
+                        yOff + runOff,
+                        mult,
+                        0,
+                        dots,
+                        0,
+                        len,
+                    )
+                } else {
+                    // A zero multiplier must not write into y.
+                    for (r in 0 until SYMV_BLOCK) {
+                        dots[r] = symvOneColumn(
+                            ad,
+                            runOff + (j + r) * n,
+                            x,
+                            xOff + runOff,
+                            y,
+                            yOff + runOff,
+                            mult[r],
+                            len,
+                        )
+                    }
+                }
+                for (r in 0 until SYMV_BLOCK) y[yOff + j + r] += alpha * dots[r]
+            }
+            j += SYMV_BLOCK
+        }
+        while (j < n) {
             val base = j + j * n
             val xj = alpha * x[xOff + j]
-            if (lower) {
-                val len = n - j - 1
-                y[yOff + j] += alpha * kernels.dot(ad, base + 1, x, xOff + j + 1, len) + xj * ad[base]
-                if (xj != 0.0) kernels.axpy(y, yOff + j + 1, xj, ad, base + 1, len)
-            } else {
-                y[yOff + j] += alpha * kernels.dot(ad, j * n, x, xOff, j) + xj * ad[base]
-                if (xj != 0.0) kernels.axpy(y, yOff, xj, ad, j * n, j)
+            val runOff = if (lower) j + 1 else 0
+            val len = if (lower) n - j - 1 else j
+            val dot = symvOneColumn(ad, runOff + j * n, x, xOff + runOff, y, yOff + runOff, xj, len)
+            y[yOff + j] += alpha * dot + xj * ad[base]
+            j++
+        }
+    }
+
+    /** The corner at [j], where the block's columns have ragged extents and cannot share one run. */
+    @Suppress("LongParameterList") // the operand, both vectors and the block position
+    private fun symvCorner(
+        alpha: Double,
+        ad: DoubleArray,
+        n: Int,
+        x: DoubleArray,
+        xOff: Int,
+        y: DoubleArray,
+        yOff: Int,
+        j: Int,
+        mult: DoubleArray,
+        lower: Boolean,
+    ) {
+        for (c in j until j + SYMV_BLOCK) {
+            val mc = mult[c - j]
+            val col = c * n
+            y[yOff + c] += mc * ad[c + col]
+            val from = if (lower) c + 1 else j
+            val until = if (lower) j + SYMV_BLOCK else c
+            for (i in from until until) {
+                val aij = ad[i + col]
+                if (mc != 0.0) y[yOff + i] += mc * aij
+                y[yOff + c] += alpha * aij * x[xOff + i]
             }
         }
+    }
+
+    /**
+     * One column's contribution to both halves, returning its dot with x. A zero multiplier takes the dot
+     * alone, since `0.0` times an infinite entry is a NaN rather than nothing.
+     */
+    @Suppress("LongParameterList") // three runs, the multiplier and the length
+    private fun symvOneColumn(
+        ad: DoubleArray,
+        aOff: Int,
+        x: DoubleArray,
+        xOff: Int,
+        y: DoubleArray,
+        yOff: Int,
+        mult: Double,
+        len: Int,
+    ): Double = if (mult != 0.0) {
+        kernels.symvColumn(ad, aOff, x, xOff, y, yOff, mult, len)
+    } else {
+        kernels.dot(ad, aOff, x, xOff, len)
     }
 
     /** A(i, j) of a symmetric `n×n` matrix stored in its [lower] or upper triangle only. */
@@ -441,3 +530,6 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
     ) =
         triangularMatrix(kernels, a, b, lower, transpose, unitDiag, right, alpha, solve = false)
 }
+
+/** Columns a symmetric product takes per pass, matching the width [F64Kernels.symvColumn4] serves. */
+private const val SYMV_BLOCK = 4

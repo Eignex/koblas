@@ -30,6 +30,23 @@ class LinearAlgebraSymmetricOpsTest {
         }
     }
 
+    @Test
+    fun `symv matches gemv when x holds zeros`() {
+        val rng = Random(20260911)
+        for (lower in booleanArrayOf(true, false)) {
+            for (n in intArrayOf(4, 7, 9, 16)) {
+                val (full, poisoned) = poisonedSymmetric(rng, n, lower)
+                // A zero inside a block sends it down the column by column path.
+                val x = DoubleArray(n) { if (it % 3 == 0) 0.0 else rng.nextDouble(-1.0, 1.0) }
+                val expected = DoubleArray(n)
+                koblas.gemv(1.0, full, x, 0.0, expected)
+                val actual = DoubleArray(n)
+                koblas.symv(1.0, poisoned, x, 0.0, actual, lower)
+                assertClose(expected, actual, "symv zeros n=$n lower=$lower")
+            }
+        }
+    }
+
     /**
      * `dsymv` derives its extent from one dimension, so a non-square matrix would have the host backend read
      * `n²` entries from a shorter array. The sizes straddle every backend's level-2 gate.
