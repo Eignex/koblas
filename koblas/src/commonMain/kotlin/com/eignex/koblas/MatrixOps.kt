@@ -4,7 +4,6 @@ package com.eignex.koblas
 
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64DenseVector
-import com.eignex.koblas.core.F64MatrixLike
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.core.F64VectorLike
 import com.eignex.koblas.dense.F64Blas
