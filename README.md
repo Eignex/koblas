@@ -93,8 +93,10 @@ val product = a * b
 val y = a * x
 ```
 
-Sparse matrices use CSC storage. Construct them from columns or coordinate
-triplets:
+Sparse matrices use CSC storage. Like dense matrices, they support vector operations,
+matrix-vector products, and triangular solves. Their factorization is LU only, with
+refactorization and simplex-basis column replacement for repeated solves and updates.
+Construct them from columns or coordinate triplets:
 
 ```kotlin
 import com.eignex.koblas.SparseMatrix
@@ -105,9 +107,7 @@ val x = a.lu().solve(doubleArrayOf(4.0, 9.0))
 ```
 
 For dense matrices, Koblas provides level 1-3 BLAS; LU, Cholesky, QR, pivoted QR,
-and LDLᵀ factorizations; condition estimates; and inverses. For sparse matrices,
-it provides sparse-vector operations, matrix-vector products, triangular solves, and
-LU factorization.
+and LDLᵀ factorizations; condition estimates; and inverses.
 
 ## Backends
 
