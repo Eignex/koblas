@@ -93,6 +93,39 @@ val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 3.0)))
 val x = a.lu().solve(doubleArrayOf(4.0, 9.0))
 ```
 
+## Control memory
+
+Use BLAS-style overloads with caller-owned arrays when a routine should write into
+an existing destination:
+
+```kotlin
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.koblas
+
+val a = DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0)))
+val x = doubleArrayOf(3.0, 5.0)
+val y = DoubleArray(2)
+koblas.gemv(alpha = 1.0, a = a, x = x, beta = 0.0, y = y)
+```
+
+For operations that need temporary storage, reuse a `Workspace` and pass an output
+array to an `Into` operation. Reserve its buffers before a hot loop when allocations
+must be avoided:
+
+```kotlin
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.Workspace
+import com.eignex.koblas.koblas
+
+val a = DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0)))
+val factor = koblas.factor(a)
+val rhs = doubleArrayOf(3.0, 5.0)
+val solution = DoubleArray(2)
+val workspace = Workspace().apply { reserve(size = 2, count = 1) }
+
+repeat(1_000) { koblas.solveInto(factor, rhs, solution, workspace = workspace) }
+```
+
 ## Backends
 
 Koblas starts with portable implementations. Configure accelerated backends either
