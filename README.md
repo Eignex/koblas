@@ -68,12 +68,12 @@ For an overdetermined system, QR produces a least-squares solution:
 ```kotlin
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.dense.qr
-import com.eignex.koblas.dense.solveLeastSquares
+import com.eignex.koblas.dense.solve
 
 val design = DenseMatrix.of(
     arrayOf(doubleArrayOf(1.0, 0.0), doubleArrayOf(0.0, 1.0), doubleArrayOf(1.0, 1.0)),
 )
-val coefficients = design.qr().solveLeastSquares(doubleArrayOf(1.0, 2.0, 3.0))
+val coefficients = design.qr().solve(doubleArrayOf(1.0, 2.0, 3.0))
 ```
 
 Operator functions cover matrix arithmetic, products, and matrix-vector products:

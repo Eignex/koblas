@@ -108,8 +108,8 @@ class LinearAlgebraPivotedQrTest {
         val rng = Random(90210)
         val a = randomMatrix(9, 4, rng)
         val b = randomVector(9, rng)
-        val pivoted = koblas.solveLeastSquares(koblas.qrPivoted(a), b)
-        val plain = koblas.solveLeastSquares(koblas.qr(a), b)
+        val pivoted = koblas.solve(koblas.qrPivoted(a), b)
+        val plain = koblas.solve(koblas.qr(a), b)
         assertClose(plain, pivoted, "pivoted against unpivoted least squares", tolerance = 1e-8)
     }
 
@@ -120,7 +120,7 @@ class LinearAlgebraPivotedQrTest {
         val b = randomVector(10, rng)
         val f = koblas.qrPivoted(a)
         assertEquals(3, f.rank)
-        val x = koblas.solveLeastSquares(f, b)
+        val x = koblas.solve(f, b)
         assertEquals(2, x.count { it == 0.0 }, "a basic solution leaves n − rank entries at zero")
         val residual = DoubleArray(10)
         for (i in 0 until 10) {
@@ -155,9 +155,9 @@ class LinearAlgebraPivotedQrTest {
     @Test
     fun `the solve checks its shapes`() {
         val f = koblas.qrPivoted(randomMatrix(6, 3, Random(8)))
-        assertFailsWith<DimensionMismatch> { koblas.solveLeastSquares(f, DoubleArray(5)) }
+        assertFailsWith<DimensionMismatch> { koblas.solve(f, DoubleArray(5)) }
         assertFailsWith<IllegalArgumentException> {
-            koblas.solveLeastSquaresInto(f, DoubleArray(6), DoubleArray(2))
+            koblas.solveInto(f, DoubleArray(6), DoubleArray(2))
         }
     }
 

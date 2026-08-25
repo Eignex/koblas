@@ -144,11 +144,15 @@ class DestinationPassingTest {
                 koblas.applyQInto(f, aliased, aliased, transpose)
                 assertClose(expected, aliased, "applyQ aliased t=$transpose")
             }
-            val ls = koblas.solveLeastSquares(f, y)
-            assertClose(ls, koblas.solveLeastSquaresInto(f, y, DoubleArray(n), ws), "least squares ${m}x$n")
+            val ls = koblas.solve(f, y)
+            assertClose(ls, koblas.solveInto(f, y, DoubleArray(n), workspace = ws), "least squares ${m}x$n")
             val bWide = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
-            val mn = koblas.solveMinimumNorm(f, bWide)
-            assertClose(mn, koblas.solveMinimumNormInto(f, bWide, DoubleArray(m), ws), "min norm ${m}x$n")
+            val mn = koblas.solve(f, bWide, minimumNorm = true)
+            assertClose(
+                mn,
+                koblas.solveInto(f, bWide, DoubleArray(m), minimumNorm = true, workspace = ws),
+                "min norm ${m}x$n",
+            )
         }
     }
 

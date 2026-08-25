@@ -47,26 +47,20 @@ public abstract class F64DecompositionsAdapter internal constructor(
     override fun trtri(a: F64DenseMatrix, lower: Boolean, unitDiag: Boolean): F64DenseMatrix =
         portable.trtri(a, lower, unitDiag)
 
-    override fun solveLeastSquaresInto(
+    override fun solveInto(
         qr: F64QrDecomposition,
         b: DoubleArray,
         out: DoubleArray,
+        minimumNorm: Boolean,
         workspace: Workspace?,
-    ): DoubleArray = portable.solveLeastSquaresInto(qr, b, out, workspace)
+    ): DoubleArray = portable.solveInto(qr, b, out, minimumNorm, workspace)
 
-    override fun solveLeastSquaresInto(
+    override fun solveInto(
         qr: F64PivotedQrDecomposition,
         b: DoubleArray,
         out: DoubleArray,
         workspace: Workspace?,
-    ): DoubleArray = portable.solveLeastSquaresInto(qr, b, out, workspace)
-
-    override fun solveMinimumNormInto(
-        qr: F64QrDecomposition,
-        b: DoubleArray,
-        out: DoubleArray,
-        workspace: Workspace?,
-    ): DoubleArray = portable.solveMinimumNormInto(qr, b, out, workspace)
+    ): DoubleArray = portable.solveInto(qr, b, out, workspace)
 
     /** Performs `dgeqp3`, or returns null when the binding does not expose it. */
     protected open fun dgeqp3(m: Int, n: Int, a: DoubleArray, jpvt: IntArray, tau: DoubleArray): Int? = null

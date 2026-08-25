@@ -180,8 +180,8 @@ internal fun referencePivotedLeastSquaresInto(
     out: DoubleArray,
     workspace: Workspace?,
 ): DoubleArray {
-    requireShape(b.size == qr.m) { "solveLeastSquares: b length ${b.size} != ${qr.m}" }
-    requireShape(out.size == qr.n) { "solveLeastSquares: out length ${out.size} != ${qr.n}" }
+    requireShape(b.size == qr.m) { "solve: b length ${b.size} != ${qr.m}" }
+    requireShape(out.size == qr.n) { "solve: out length ${out.size} != ${qr.n}" }
     val rank = qr.rank
     workspace.borrow(qr.m) { y ->
         referenceApplyQInto(kernels, qr.factorization, b, y, transpose = true)
@@ -210,9 +210,9 @@ internal fun referenceLeastSquaresInto(
     out: DoubleArray,
     workspace: Workspace?,
 ): DoubleArray {
-    requireShape(qr.m >= qr.n) { "solveLeastSquares requires m >= n, got ${qr.m}x${qr.n}" }
-    requireShape(b.size == qr.m) { "solveLeastSquares: b length ${b.size} != ${qr.m}" }
-    requireShape(out.size == qr.n) { "solveLeastSquares: out length ${out.size} != ${qr.n}" }
+    requireShape(qr.m >= qr.n) { "solve requires m >= n, got ${qr.m}x${qr.n}" }
+    requireShape(b.size == qr.m) { "solve: b length ${b.size} != ${qr.m}" }
+    requireShape(out.size == qr.n) { "solve: out length ${out.size} != ${qr.n}" }
     workspace.borrow(qr.m) { y ->
         referenceApplyQInto(kernels, qr, b, y, transpose = true)
         y.copyInto(out, 0, 0, qr.n)
@@ -230,9 +230,9 @@ internal fun referenceMinimumNormInto(
     out: DoubleArray,
     workspace: Workspace?,
 ): DoubleArray {
-    requireShape(qr.m >= qr.n) { "solveMinimumNorm expects the QR of the transpose (tall), got ${qr.m}x${qr.n}" }
-    requireShape(b.size == qr.n) { "solveMinimumNorm: b length ${b.size} != ${qr.n}" }
-    requireShape(out.size == qr.m) { "solveMinimumNorm: out length ${out.size} != ${qr.m}" }
+    requireShape(qr.m >= qr.n) { "solve with minimumNorm expects the QR of the transpose (tall), got ${qr.m}x${qr.n}" }
+    requireShape(b.size == qr.n) { "solve with minimumNorm: b length ${b.size} != ${qr.n}" }
+    requireShape(out.size == qr.m) { "solve with minimumNorm: out length ${out.size} != ${qr.m}" }
     workspace.borrow(qr.n) { w ->
         b.copyInto(w)
         trsvCore(kernels, qr.qr, qr.n, w, lda = qr.m, lower = false, transpose = true, unitDiag = false)

@@ -100,14 +100,11 @@ public interface F64Decompositions : Backend {
 
     /** Least-squares solve from a pivoted factorization, with the column permutation undone. A rank-deficient
      *  factorization returns the basic solution, not the minimum-norm one: zero outside the pivoted rank. */
-    public fun solveLeastSquares(
-        qr: F64PivotedQrDecomposition,
-        b: DoubleArray,
-        workspace: Workspace? = null,
-    ): DoubleArray = solveLeastSquaresInto(qr, b, DoubleArray(qr.n), workspace)
+    public fun solve(qr: F64PivotedQrDecomposition, b: DoubleArray, workspace: Workspace? = null): DoubleArray =
+        solveInto(qr, b, DoubleArray(qr.n), workspace)
 
-    /** [solveLeastSquares] into [out], which is returned. */
-    public fun solveLeastSquaresInto(
+    /** [solve] into [out], which is returned. */
+    public fun solveInto(
         qr: F64PivotedQrDecomposition,
         b: DoubleArray,
         out: DoubleArray,
@@ -128,31 +125,23 @@ public interface F64Decompositions : Backend {
         transpose: Boolean = false,
     ): DoubleArray
 
-    /** Least-squares solve `min ‖A·x − b‖₂` from the factorization (the `dgels` shape). Requires `m ≥ n` and
-     *  full column rank, and returns the length-`n` solution `R⁻¹·(Qᵀb)`. */
-    public fun solveLeastSquares(qr: F64QrDecomposition, b: DoubleArray, workspace: Workspace? = null): DoubleArray =
-        solveLeastSquaresInto(qr, b, DoubleArray(qr.n), workspace)
-
-    /** Least-squares solve into [out], which has length `n` and is returned. A [workspace] lends the
-     *  length-`m` intermediate for `Qᵀb`. */
-    public fun solveLeastSquaresInto(
+    /** Solve from a QR factorization. By default, finds the least-squares solution `min ‖A·x − b‖₂` for a tall
+     *  or square `A`; it requires full column rank and returns `R⁻¹·(Qᵀb)`. With [minimumNorm], finds the
+     *  minimum-norm solution of a consistent wide system from `qr(Aᵀ)`; it requires full row rank. */
+    public fun solve(
         qr: F64QrDecomposition,
         b: DoubleArray,
-        out: DoubleArray,
+        minimumNorm: Boolean = false,
         workspace: Workspace? = null,
-    ): DoubleArray
+    ): DoubleArray = solveInto(qr, b, DoubleArray(if (minimumNorm) qr.m else qr.n), minimumNorm, workspace)
 
-    /** Minimum-norm solution of the consistent underdetermined system `A · x = b` for a wide `m×n` A of full
-     *  row rank. Pass the factorization `qr(Aᵀ)`; rank deficiency is not detected. */
-    public fun solveMinimumNorm(qr: F64QrDecomposition, b: DoubleArray, workspace: Workspace? = null): DoubleArray =
-        solveMinimumNormInto(qr, b, DoubleArray(qr.m), workspace)
-
-    /** Minimum-norm solve into [out], which has length `m` (the wide system's column count) and is returned.
-     *  A [workspace] lends the length-`n` intermediate. */
-    public fun solveMinimumNormInto(
+    /** [solve] into [out], which is returned. Its length is `n` by default and `m` with [minimumNorm]. A
+     *  [workspace] lends the intermediate for applying `Q` or `Qᵀ`. */
+    public fun solveInto(
         qr: F64QrDecomposition,
         b: DoubleArray,
         out: DoubleArray,
+        minimumNorm: Boolean = false,
         workspace: Workspace? = null,
     ): DoubleArray
 

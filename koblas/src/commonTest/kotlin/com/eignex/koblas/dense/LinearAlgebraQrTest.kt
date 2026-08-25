@@ -52,7 +52,7 @@ class LinearAlgebraQrTest {
         val n = 4
         val a = randomMatrix(m, n, rng)
         val b = randomVector(m, rng)
-        val x = koblas.solveLeastSquares(koblas.qr(a), b)
+        val x = koblas.solve(koblas.qr(a), b)
         val ax = koblas.gemv(a, x)
         val residual = DoubleArray(m) { ax[it] - b[it] }
         val normalResidual = koblas.gemv(a, residual, transpose = true)
@@ -65,7 +65,7 @@ class LinearAlgebraQrTest {
         val n = 7
         val a = wellConditioned(n, rng)
         val b = randomVector(n, rng)
-        val viaQr = koblas.solveLeastSquares(koblas.qr(a), b)
+        val viaQr = koblas.solve(koblas.qr(a), b)
         val viaLu = koblas.solve(a.lu(), b)
         assertClose(viaLu, viaQr, "square system", tolerance = 1e-10)
     }
@@ -78,7 +78,7 @@ class LinearAlgebraQrTest {
         val a = randomMatrix(m, n, rng)
         val xTrue = randomVector(n, rng)
         val b = koblas.gemv(a, xTrue)
-        val x = koblas.solveLeastSquares(koblas.qr(a), b)
+        val x = koblas.solve(koblas.qr(a), b)
         assertClose(xTrue, x, "consistent system", tolerance = 1e-11)
     }
 
@@ -88,7 +88,7 @@ class LinearAlgebraQrTest {
         for ((m, n) in listOf(2 to 4, 3 to 7, 5 to 6)) {
             val a = randomMatrix(m, n, rng)
             val b = randomVector(m, rng)
-            val x = koblas.solveMinimumNorm(koblas.qr(a.transpose()), b)
+            val x = koblas.solve(koblas.qr(a.transpose()), b, minimumNorm = true)
             assertClose(b, koblas.gemv(a, x), "residual ${m}x$n", tolerance = 1e-11)
             // The minimum-norm solution is the pseudoinverse solution At (A At)^-1 b.
             val g = F64DenseMatrix(m, m)
@@ -106,7 +106,7 @@ class LinearAlgebraQrTest {
         val a = wellConditioned(n, rng)
         val b = randomVector(n, rng)
         val viaLu = koblas.solve(koblas.factor(a), b)
-        val viaMinNorm = koblas.solveMinimumNorm(koblas.qr(a.transpose()), b)
+        val viaMinNorm = koblas.solve(koblas.qr(a.transpose()), b, minimumNorm = true)
         assertClose(viaLu, viaMinNorm, "square", tolerance = 1e-10)
     }
 
@@ -114,9 +114,9 @@ class LinearAlgebraQrTest {
     fun `degenerate shapes and wide rejection`() {
         val empty = koblas.qr(F64DenseMatrix(0, 0))
         assertTrue(koblas.applyQ(empty, DoubleArray(0)).isEmpty())
-        assertTrue(koblas.solveLeastSquares(empty, DoubleArray(0)).isEmpty())
+        assertTrue(koblas.solve(empty, DoubleArray(0)).isEmpty())
         val wide = koblas.qr(F64DenseMatrix(2, 4))
-        assertFailsWith<DimensionMismatch> { koblas.solveLeastSquares(wide, DoubleArray(2)) }
-        assertFailsWith<DimensionMismatch> { koblas.solveMinimumNorm(wide, DoubleArray(4)) }
+        assertFailsWith<DimensionMismatch> { koblas.solve(wide, DoubleArray(2)) }
+        assertFailsWith<DimensionMismatch> { koblas.solve(wide, DoubleArray(4), minimumNorm = true) }
     }
 }

@@ -135,8 +135,8 @@ class AllocationFreeTest {
         val x = DoubleArray(n)
         val ws = Workspace().apply { reserve(m, count = 1) }
 
-        val allocating = bytesPerIteration(500) { koblas.solveLeastSquares(f, b) }
-        val into = bytesPerIteration(500) { koblas.solveLeastSquaresInto(f, b, x, ws) }
+        val allocating = bytesPerIteration(500) { koblas.solve(f, b) }
+        val into = bytesPerIteration(500) { koblas.solveInto(f, b, x, workspace = ws) }
         assertTrue(allocating > m * Double.SIZE_BYTES * 0.5, "expected allocation, saw $allocating B")
         assertPooled(into, allocating, "least squares")
     }

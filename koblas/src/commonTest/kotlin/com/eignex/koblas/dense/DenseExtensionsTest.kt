@@ -57,7 +57,7 @@ class DenseExtensionsTest {
         assertClose(koblas.solve(ldl, b3), ldl.solve(b3), "ldl solve")
 
         val qr = tall.qr()
-        assertClose(koblas.solveLeastSquares(qr, b3), qr.solveLeastSquares(b3), "qr least squares")
+        assertClose(koblas.solve(qr, b3), qr.solve(b3), "qr least squares")
         assertClose(koblas.applyQ(qr, b3), qr.applyQ(b3), "applyQ")
         assertClose(
             koblas.applyQ(qr, b3, transpose = true),
@@ -65,8 +65,8 @@ class DenseExtensionsTest {
             "applyQ transposed",
         )
         assertClose(
-            koblas.solveLeastSquares(tall.qrPivoted(), b3),
-            tall.qrPivoted().solveLeastSquares(b3),
+            koblas.solve(tall.qrPivoted(), b3),
+            tall.qrPivoted().solve(b3),
             "pivoted least squares",
         )
     }

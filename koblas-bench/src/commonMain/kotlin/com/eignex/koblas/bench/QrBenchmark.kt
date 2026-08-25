@@ -48,7 +48,7 @@ class QrBenchmark {
     fun qrPivotedTall(): F64PivotedQrDecomposition = tall.qrPivoted()
 
     @Benchmark
-    fun leastSquares(): DoubleArray = factored.solveLeastSquares(rhs)
+    fun leastSquares(): DoubleArray = factored.solve(rhs)
 
     @Benchmark
     fun applyQ(): DoubleArray = koblas.applyQ(factored, rhs)
@@ -57,5 +57,5 @@ class QrBenchmark {
     fun applyQTransposed(): DoubleArray = koblas.applyQ(factored, rhs, transpose = true)
 
     @Benchmark
-    fun minimumNorm(): DoubleArray = koblas.solveMinimumNorm(wide, wideRhs)
+    fun minimumNorm(): DoubleArray = koblas.solve(wide, wideRhs, minimumNorm = true)
 }

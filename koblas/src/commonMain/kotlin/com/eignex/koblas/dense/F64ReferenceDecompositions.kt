@@ -77,26 +77,24 @@ internal class F64ReferenceDecompositions(private val configured: F64Kernels? = 
         return solveColumnwise(b, out, n, nrhs, workspace) { col, dst -> solveInto(ldl, col, dst) }
     }
 
-    override fun solveLeastSquaresInto(
+    override fun solveInto(
         qr: F64PivotedQrDecomposition,
         b: DoubleArray,
         out: DoubleArray,
         workspace: Workspace?,
     ): DoubleArray = referencePivotedLeastSquaresInto(kernels, qr, b, out, workspace)
 
-    override fun solveLeastSquaresInto(
+    override fun solveInto(
         qr: F64QrDecomposition,
         b: DoubleArray,
         out: DoubleArray,
+        minimumNorm: Boolean,
         workspace: Workspace?,
-    ): DoubleArray = referenceLeastSquaresInto(kernels, qr, b, out, workspace)
-
-    override fun solveMinimumNormInto(
-        qr: F64QrDecomposition,
-        b: DoubleArray,
-        out: DoubleArray,
-        workspace: Workspace?,
-    ): DoubleArray = referenceMinimumNormInto(kernels, qr, b, out, workspace)
+    ): DoubleArray = if (minimumNorm) {
+        referenceMinimumNormInto(kernels, qr, b, out, workspace)
+    } else {
+        referenceLeastSquaresInto(kernels, qr, b, out, workspace)
+    }
 
     override fun rcond(lu: F64LuDecomposition, anorm: Double, workspace: Workspace?): Double {
         val n = lu.n
