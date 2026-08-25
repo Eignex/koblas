@@ -32,9 +32,14 @@ class HostBlasConformanceTest {
         assertSame(scratch, ws.take(n * n), "syrk kept the scratch buffer instead of releasing it")
     }
 
+    /**
+     * Discovery is what registers a host binding, and reading the context does not start it, so the test
+     * that asserts the outcome is the one that has to ask for it.
+     */
     @Test
     fun `the host backend resolves when the machine has OpenBLAS`() {
         Assume.assumeTrue("host CBLAS is not installed", HostLibraries.cblas)
+        discoverBackends()
         assertTrue(koblasInfo.contains("openblas"), koblasInfo)
     }
 
