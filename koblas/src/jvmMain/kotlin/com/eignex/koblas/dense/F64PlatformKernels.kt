@@ -102,15 +102,13 @@ internal actual object F64PlatformKernels : F64Kernels {
         y: DoubleArray,
         yOff: Int,
         mult: DoubleArray,
-        multOff: Int,
         out: DoubleArray,
-        outOff: Int,
         len: Int,
     ) {
         if (vectorizes(len)) {
-            Simd.symvColumn4(a, aOff, stride, x, xOff, y, yOff, mult, multOff, out, outOff, len)
+            Simd.symvColumn4(a, aOff, stride, x, xOff, y, yOff, mult, out, len)
         } else {
-            super.symvColumn4(a, aOff, stride, x, xOff, y, yOff, mult, multOff, out, outOff, len)
+            super.symvColumn4(a, aOff, stride, x, xOff, y, yOff, mult, out, len)
         }
     }
 
@@ -250,18 +248,20 @@ internal object Simd {
         y: DoubleArray,
         yOff: Int,
         mult: DoubleArray,
-        multOff: Int,
         out: DoubleArray,
-        outOff: Int,
         len: Int,
     ) {
         val o1 = aOff + stride
         val o2 = aOff + 2 * stride
         val o3 = aOff + 3 * stride
-        val m0 = DoubleVector.broadcast(SPECIES, mult[multOff])
-        val m1 = DoubleVector.broadcast(SPECIES, mult[multOff + 1])
-        val m2 = DoubleVector.broadcast(SPECIES, mult[multOff + 2])
-        val m3 = DoubleVector.broadcast(SPECIES, mult[multOff + 3])
+        val f0 = mult[0]
+        val f1 = mult[1]
+        val f2 = mult[2]
+        val f3 = mult[3]
+        val m0 = DoubleVector.broadcast(SPECIES, f0)
+        val m1 = DoubleVector.broadcast(SPECIES, f1)
+        val m2 = DoubleVector.broadcast(SPECIES, f2)
+        val m3 = DoubleVector.broadcast(SPECIES, f3)
         var s0 = DoubleVector.zero(SPECIES)
         var s1 = DoubleVector.zero(SPECIES)
         var s2 = DoubleVector.zero(SPECIES)
@@ -290,10 +290,6 @@ internal object Simd {
         var r1 = s1.reduceLanes(VectorOperators.ADD)
         var r2 = s2.reduceLanes(VectorOperators.ADD)
         var r3 = s3.reduceLanes(VectorOperators.ADD)
-        val f0 = mult[multOff]
-        val f1 = mult[multOff + 1]
-        val f2 = mult[multOff + 2]
-        val f3 = mult[multOff + 3]
         while (i < len) {
             val xi = x[xOff + i]
             val q0 = a[aOff + i]
@@ -307,10 +303,10 @@ internal object Simd {
             y[yOff + i] += q0 * f0 + q1 * f1 + q2 * f2 + q3 * f3
             i++
         }
-        out[outOff] = r0
-        out[outOff + 1] = r1
-        out[outOff + 2] = r2
-        out[outOff + 3] = r3
+        out[0] = r0
+        out[1] = r1
+        out[2] = r2
+        out[3] = r3
     }
 
     /**

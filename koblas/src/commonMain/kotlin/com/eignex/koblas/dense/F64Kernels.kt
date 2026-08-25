@@ -75,8 +75,8 @@ public interface F64Kernels : Backend {
     }
 
     /**
-     * Four [symvColumn] runs at `aOff + r * stride`, their dots landing in `out(outOff + r)`. Defaults to
-     * four calls, so an implementation that can read x and y once for all four should override it.
+     * Four [symvColumn] runs at `aOff + r * stride`, their dots landing in `out(r)`. Defaults to four
+     * calls, so an implementation that can read x and y once for all four should override it.
      */
     @Suppress("LongParameterList") // four column offsets over three runs, plus the multipliers
     public fun symvColumn4(
@@ -88,14 +88,10 @@ public interface F64Kernels : Backend {
         y: DoubleArray,
         yOff: Int,
         mult: DoubleArray,
-        multOff: Int,
         out: DoubleArray,
-        outOff: Int,
         len: Int,
     ) {
-        for (r in 0 until 4) {
-            out[outOff + r] = symvColumn(a, aOff + r * stride, x, xOff, y, yOff, mult[multOff + r], len)
-        }
+        for (r in 0 until 4) out[r] = symvColumn(a, aOff + r * stride, x, xOff, y, yOff, mult[r], len)
     }
 
     /**
@@ -204,4 +200,33 @@ internal class F64RoutedKernels(internal val host: F64Kernels?) : F64Kernels {
         out: DoubleArray,
         outOff: Int,
     ) = F64PlatformKernels.dot4(a, aOff, stride, b, bOff, len, out, outOff)
+
+    override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) =
+        forLength(len).swap(a, aOff, b, bOff, len)
+
+    @Suppress("LongParameterList") // three runs and the multiplier, matching the seam
+    override fun symvColumn(
+        a: DoubleArray,
+        aOff: Int,
+        x: DoubleArray,
+        xOff: Int,
+        y: DoubleArray,
+        yOff: Int,
+        mult: Double,
+        len: Int,
+    ): Double = F64PlatformKernels.symvColumn(a, aOff, x, xOff, y, yOff, mult, len)
+
+    @Suppress("LongParameterList") // four column offsets over three runs, matching the seam
+    override fun symvColumn4(
+        a: DoubleArray,
+        aOff: Int,
+        stride: Int,
+        x: DoubleArray,
+        xOff: Int,
+        y: DoubleArray,
+        yOff: Int,
+        mult: DoubleArray,
+        out: DoubleArray,
+        len: Int,
+    ) = F64PlatformKernels.symvColumn4(a, aOff, stride, x, xOff, y, yOff, mult, out, len)
 }
