@@ -233,9 +233,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
                         y,
                         yOff + runOff,
                         mult,
-                        0,
                         dots,
-                        0,
                         len,
                     )
                 } else {
