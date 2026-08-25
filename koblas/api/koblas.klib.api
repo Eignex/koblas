@@ -629,6 +629,22 @@ final class com.eignex.koblas.sparse.factorization.lu/F64SparseLuFactorization :
     final object Companion // com.eignex.koblas.sparse.factorization.lu/F64SparseLuFactorization.Companion|null[0]
 }
 
+final class com.eignex.koblas.sparse.host.basiclu/BasicluConfig { // com.eignex.koblas.sparse.host.basiclu/BasicluConfig|null[0]
+    constructor <init>(kotlin/String? = ..., kotlin/Int? = ...) // com.eignex.koblas.sparse.host.basiclu/BasicluConfig.<init>|<init>(kotlin.String?;kotlin.Int?){}[0]
+
+    final val factorizeMin // com.eignex.koblas.sparse.host.basiclu/BasicluConfig.factorizeMin|{}factorizeMin[0]
+        final fun <get-factorizeMin>(): kotlin/Int? // com.eignex.koblas.sparse.host.basiclu/BasicluConfig.factorizeMin.<get-factorizeMin>|<get-factorizeMin>(){}[0]
+    final val libraryPath // com.eignex.koblas.sparse.host.basiclu/BasicluConfig.libraryPath|{}libraryPath[0]
+        final fun <get-libraryPath>(): kotlin/String? // com.eignex.koblas.sparse.host.basiclu/BasicluConfig.libraryPath.<get-libraryPath>|<get-libraryPath>(){}[0]
+
+    final fun component1(): kotlin/String? // com.eignex.koblas.sparse.host.basiclu/BasicluConfig.component1|component1(){}[0]
+    final fun component2(): kotlin/Int? // com.eignex.koblas.sparse.host.basiclu/BasicluConfig.component2|component2(){}[0]
+    final fun copy(kotlin/String? = ..., kotlin/Int? = ...): com.eignex.koblas.sparse.host.basiclu/BasicluConfig // com.eignex.koblas.sparse.host.basiclu/BasicluConfig.copy|copy(kotlin.String?;kotlin.Int?){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas.sparse.host.basiclu/BasicluConfig.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // com.eignex.koblas.sparse.host.basiclu/BasicluConfig.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // com.eignex.koblas.sparse.host.basiclu/BasicluConfig.toString|toString(){}[0]
+}
+
 final class com.eignex.koblas.sparse.host.klu/KluConfig { // com.eignex.koblas.sparse.host.klu/KluConfig|null[0]
     constructor <init>(kotlin/String? = ..., kotlin/Int? = ..., kotlin/Double? = ..., kotlin/Double? = ..., kotlin/Double? = ..., kotlin/Double? = ..., kotlin/Double? = ..., kotlin/Boolean? = ..., com.eignex.koblas.sparse.host.klu/KluOrdering? = ..., com.eignex.koblas.sparse.host.klu/KluScaling = ..., kotlin/Boolean? = ...) // com.eignex.koblas.sparse.host.klu/KluConfig.<init>|<init>(kotlin.String?;kotlin.Int?;kotlin.Double?;kotlin.Double?;kotlin.Double?;kotlin.Double?;kotlin.Double?;kotlin.Boolean?;com.eignex.koblas.sparse.host.klu.KluOrdering?;com.eignex.koblas.sparse.host.klu.KluScaling;kotlin.Boolean?){}[0]
 
