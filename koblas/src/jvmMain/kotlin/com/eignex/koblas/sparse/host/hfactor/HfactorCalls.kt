@@ -67,7 +67,7 @@ internal class HfactorCalls(config: HfactorConfig) {
     private fun handlesOrThrow(): Handles = checkNotNull(handles) { "HFactor is not available" }
 
     /**
-     * Sets a factorization up over the CSC arrays of [a], which every later basis draws its columns from.
+     * Sets a factorization up over the CSC arrays of the matrix every later basis draws its columns from.
      * Returns null when the library will not take it.
      */
     fun create(rows: Int, cols: Int, colPtr: IntArray, rowIdx: IntArray, values: DoubleArray): MemorySegment? {
