@@ -14,7 +14,7 @@ internal actual val platformDispatchThresholds: DispatchThresholds
 /** For a JVM running the Vector API kernels. */
 private val SIMD_THRESHOLDS = DispatchThresholds(
     level1 = Int.MAX_VALUE,
-    level2 = Int.MAX_VALUE,
+    level2 = JVM_LEVEL2_MIN,
     level3 = JVM_LEVEL3_MIN,
     factorize = JVM_FACTORIZE_MIN,
     factorizeRhs = JVM_SIMD_FACTORIZE_RHS_MIN,
@@ -34,6 +34,13 @@ private val SCALAR_THRESHOLDS = DispatchThresholds(
  * one because the call costs more from here.
  */
 private const val JVM_SCALAR_LEVEL1_MIN = 128
+
+/**
+ * The dimension from which the host BLAS takes the level-2 routines. Only trsv and trmv gain here, by 24%
+ * and 18%, and ger loses about 10%; the rest of the family sits within noise of parity, so this is the size
+ * at which dispatching stops costing more than it returns rather than one where the host pulls ahead.
+ */
+private const val JVM_LEVEL2_MIN = 2048
 
 /** The matrix size from which the host BLAS takes the level-3 routines. */
 private const val JVM_LEVEL3_MIN = 16
