@@ -810,6 +810,10 @@ public final class com/eignex/koblas/dense/host/jvm/F64Backends {
 	public final fun getKernels ()Lcom/eignex/koblas/dense/host/jvm/F64CblasKernels;
 }
 
+public final class com/eignex/koblas/dense/host/jvm/F64BackendsKt {
+	public static final fun registerBackend (Lcom/eignex/koblas/dense/host/jvm/F64Backends;)V
+}
+
 public final class com/eignex/koblas/dense/host/jvm/F64Cblas : com/eignex/koblas/dense/host/F64BlasAdapter {
 	public fun <init> (Lcom/eignex/koblas/dense/host/cblas/HostBlasConfig;)V
 	public synthetic fun <init> (Lcom/eignex/koblas/dense/host/cblas/HostBlasConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
