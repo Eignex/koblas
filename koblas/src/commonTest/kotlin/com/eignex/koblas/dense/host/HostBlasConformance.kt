@@ -514,10 +514,10 @@ internal fun assertQrFactorsInterchange(decompositions: F64Decompositions, shape
         val fReference = reference.qr(a)
         val fHost = decompositions.qr(a)
         val xs = listOf(
-            reference.solveLeastSquares(fReference, b),
-            reference.solveLeastSquares(fHost, b),
-            decompositions.solveLeastSquares(fReference, b),
-            decompositions.solveLeastSquares(fHost, b),
+            reference.solve(fReference, b),
+            reference.solve(fHost, b),
+            decompositions.solve(fReference, b),
+            decompositions.solve(fHost, b),
         )
         // The operand is a random matrix rather than a dominant one, so its conditioning worsens with the
         // shape and a flat bound would be tight only at the largest one. Scaled so the smallest shapes keep
@@ -541,9 +541,9 @@ internal fun assertQrFactorsInterchange(decompositions: F64Decompositions, shape
         )
         val bWide = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
         assertClose(
-            reference.solveMinimumNorm(fReference, bWide),
-            decompositions.solveMinimumNorm(fHost, bWide),
-            "solveMinimumNorm ${n}x$m",
+            reference.solve(fReference, bWide, minimumNorm = true),
+            decompositions.solve(fHost, bWide, minimumNorm = true),
+            "minimum-norm solve ${n}x$m",
             tolerance = 1e-10,
         )
     }
@@ -596,8 +596,8 @@ internal fun assertPivotedQrAgreesWithReference(decompositions: F64Decomposition
 
         val b = DoubleArray(m) { rng.nextDouble(-1.0, 1.0) }
         assertClose(
-            reference.solveLeastSquares(expected, b),
-            decompositions.solveLeastSquares(actual, b),
+            reference.solve(expected, b),
+            decompositions.solve(actual, b),
             tolerance = 1e-7,
             context = "pivoted least squares rank=$rank",
         )

@@ -73,10 +73,10 @@ class LinearAlgebraQrScalingTest {
     @Test
     fun `least squares is invariant to scaling both sides`() {
         val rhs = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
-        val reference = koblas.solveLeastSquares(koblas.qr(scaled(1.0)), rhs.copyOf())
+        val reference = koblas.solve(koblas.qr(scaled(1.0)), rhs.copyOf())
         for (scale in scales) {
             val b = DoubleArray(rhs.size) { rhs[it] * scale }
-            val x = koblas.solveLeastSquares(koblas.qr(scaled(scale)), b)
+            val x = koblas.solve(koblas.qr(scaled(scale)), b)
             assertClose(reference, x, "scale $scale", tolerance = 1e-10)
         }
     }

@@ -64,13 +64,12 @@ public fun F64LdlDecomposition.solve(b: DoubleArray): DoubleArray = koblas.solve
 /** Solve `A · X = B` for the columns of [b] at once (LAPACK `dsytrs` with `nrhs`). */
 public fun F64LdlDecomposition.solve(b: F64DenseMatrix): F64DenseMatrix = koblas.solve(this, b)
 
-/** Least-squares solution of `A · x ≈ b` for an overdetermined system; see [F64Decompositions.solveLeastSquares]. */
-public fun F64QrDecomposition.solveLeastSquares(b: DoubleArray, workspace: Workspace? = null): DoubleArray =
-    koblas.solveLeastSquares(this, b, workspace)
-
-/** Minimum-norm solution of an underdetermined `A · x = b`; see [F64Decompositions.solveMinimumNorm]. */
-public fun F64QrDecomposition.solveMinimumNorm(b: DoubleArray, workspace: Workspace? = null): DoubleArray =
-    koblas.solveMinimumNorm(this, b, workspace)
+/** Solve this QR factorization; [minimumNorm] solves a wide original system from `qr(Aᵀ)`. */
+public fun F64QrDecomposition.solve(
+    b: DoubleArray,
+    minimumNorm: Boolean = false,
+    workspace: Workspace? = null,
+): DoubleArray = koblas.solve(this, b, minimumNorm, workspace)
 
 /** `Q · y`, or `Qᵀ · y` when [transpose], without forming `Q`; see [F64Decompositions.applyQ]. */
 public fun F64QrDecomposition.applyQ(y: DoubleArray, transpose: Boolean = false): DoubleArray = koblas.applyQ(
@@ -79,6 +78,6 @@ public fun F64QrDecomposition.applyQ(y: DoubleArray, transpose: Boolean = false)
     transpose,
 )
 
-/** Least-squares solution against a rank-revealing factorization; see [F64Decompositions.solveLeastSquares]. */
-public fun F64PivotedQrDecomposition.solveLeastSquares(b: DoubleArray, workspace: Workspace? = null): DoubleArray =
-    koblas.solveLeastSquares(this, b, workspace)
+/** Least-squares solution against this rank-revealing factorization; see [F64Decompositions.solve]. */
+public fun F64PivotedQrDecomposition.solve(b: DoubleArray, workspace: Workspace? = null): DoubleArray =
+    koblas.solve(this, b, workspace)
