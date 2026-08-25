@@ -4,6 +4,8 @@ import com.eignex.koblas.Backend
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.requireSquare
+import com.eignex.koblas.sparse.basis.F64BasisSolver
+import com.eignex.koblas.sparse.basis.F64ProductFormBasisSolver
 import com.eignex.koblas.sparse.factorization.lu.NO_DROP
 
 /** Sparse LU factorization as a backend half. */
@@ -53,6 +55,17 @@ public interface F64SparseLu : Backend {
         requireSquare(basis, "factorBasis")
         return F64RefactoringBasisFactorization(this, basis, factor(basis))
     }
+
+    /**
+     * A solver for bases drawn from the columns of [a], for a simplex that pivots rather than a caller
+     * factoring one matrix at a time.
+     *
+     * The portable answer keeps a factorization of the basis and folds each pivot in as an elementary
+     * transform. A backend whose library updates its own factors overrides this with that, which is where
+     * the seam pays: the basis is named by index into [a], so neither side assembles a square matrix per
+     * refactorization.
+     */
+    public fun basisSolver(a: F64SparseMatrix): F64BasisSolver = F64ProductFormBasisSolver(a, this)
 
     /**
      * Solve `A·x = b` from [f] into [out], `Aᵀ·x = b` when [transpose]. The work belongs to the
