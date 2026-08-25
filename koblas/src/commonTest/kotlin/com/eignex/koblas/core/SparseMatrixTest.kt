@@ -1,9 +1,9 @@
 package com.eignex.koblas.core
 
-import com.eignex.koblas.times
 import com.eignex.koblas.*
 import com.eignex.koblas.core.*
 import com.eignex.koblas.sparse.gemv
+import com.eignex.koblas.times
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -104,9 +104,8 @@ class SparseMatrixTest {
             val viaDense = dense * x
             assertEquals(viaDense, viaSparse, "gemv disagreed for $x")
         }
-        assertTrue(
-            a.gemv(doubleArrayOf(2.0, -1.0)).contentEquals((a * F64DenseVector.of(doubleArrayOf(2.0, -1.0))).data),
-        )
+        val product = a * F64DenseVector.of(doubleArrayOf(2.0, -1.0))
+        assertTrue(a.gemv(doubleArrayOf(2.0, -1.0)).contentEquals(product.data))
     }
 
     @Test

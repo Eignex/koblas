@@ -20,4 +20,4 @@ Dense linear algebra: the three swappable seams and the routines behind them.
   [com.eignex.koblas.registerBackend], forced with [com.eignex.koblas.installBackends], resolved as
   [com.eignex.koblas.koblas]. [F64ReferenceLinearAlgebra]
   is the portable implementation every backend is validated against.
-- Ergonomic entry points: [lu], [matMul].
+- Ergonomic entry points: [lu] and Kotlin arithmetic operators.
