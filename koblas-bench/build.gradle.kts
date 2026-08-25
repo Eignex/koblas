@@ -89,6 +89,7 @@ benchmark {
         suite("blockSolve")
         suite("sparse")
         suite("sparseHost")
+        suite("basis")
         suite("cholesky")
         suite("qr")
         suite("sparseLevel1")
