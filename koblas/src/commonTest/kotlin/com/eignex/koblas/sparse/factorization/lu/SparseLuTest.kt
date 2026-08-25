@@ -46,7 +46,9 @@ class SparseLuTest {
         repeat(150) {
             val n = rng.nextInt(1, 10)
             val a = randomSparseSquare(n, rng)
-            val lu = assertNotNull(a.lu(equilibrate = true))
+            // The reference explicitly: this is a test of its elimination, and the fill it is compared against
+            // below is the reference's own. Through the seam a host backend would answer with different fill.
+            val lu = F64ReferenceSparseLinearAlgebra.factor(a, equilibrate = true)
             val x = DoubleArray(n) { rng.nextDouble(-3.0, 3.0) }
             assertClose(x, lu.solve(a.gemv(x)), "forward solve n=$n", tolerance = 1e-7)
             assertClose(
@@ -63,7 +65,9 @@ class SparseLuTest {
         val rng = Random(20260727)
         val n = 300
         val a = randomSparseSquare(n, rng, density = 0.02, dominance = 1.0)
-        val lu = assertNotNull(a.lu(equilibrate = true))
+        // The reference explicitly: this is a test of its elimination, and the fill it is compared against
+        // below is the reference's own. Through the seam a host backend would answer with different fill.
+        val lu = F64ReferenceSparseLinearAlgebra.factor(a, equilibrate = true)
         val b = randomVector(n, rng)
         assertClose(b, a.gemv(lu.solve(b)), "ftran residual", tolerance = 1e-8)
         assertClose(b, a.gemv(lu.solve(b, transpose = true), transpose = true), "btran residual", tolerance = 1e-8)
