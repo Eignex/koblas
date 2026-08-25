@@ -17,13 +17,13 @@ import java.util.ServiceLoader
  * halves first, then [ServiceLoader] providers; [Backend.priority] picks the winner on each half.
  */
 internal actual fun registerPlatformBackends() {
-    val denseRequested = pinnedBackend(
-        System.getProperty(ConfigurationKeys.DENSE_BACKEND_PROPERTY),
-        System.getenv(ConfigurationKeys.DENSE_BACKEND_ENVIRONMENT),
+    val denseRequested = requestedBackend(
+        ConfigurationKeys.DENSE_BACKEND_PROPERTY,
+        ConfigurationKeys.DENSE_BACKEND_ENVIRONMENT,
     )
-    val sparseRequested = pinnedBackend(
-        System.getProperty(ConfigurationKeys.SPARSE_BACKEND_PROPERTY),
-        System.getenv(ConfigurationKeys.SPARSE_BACKEND_ENVIRONMENT),
+    val sparseRequested = requestedBackend(
+        ConfigurationKeys.SPARSE_BACKEND_PROPERTY,
+        ConfigurationKeys.SPARSE_BACKEND_ENVIRONMENT,
     )
     val automatic = AutomaticHostConfiguration()
     for (provider in loadProviders().sortedByDescending { it.priority }) {
@@ -70,10 +70,6 @@ private class AutomaticHostConfiguration {
         else -> false
     }
 }
-
-/** Bundled providers add a diagnostic suffix while retaining the canonical name callers configure. */
-private fun matchesRequested(name: String, requested: String): Boolean =
-    name == requested || name.removeSuffix("-bundled") == requested
 
 /**
  * koblas's own FFM bindings, offered once each. Presence is a `dlopen` plus a symbol lookup, not a probe

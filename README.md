@@ -162,7 +162,10 @@ environment variables steer discovery to custom library paths:
 | UMFPACK | `koblas.umfpack.path` | `KOBLAS_UMFPACK_PATH` |
 | BASICLU | `koblas.basiclu.path` | `KOBLAS_BASICLU_PATH` |
 
-The JVM property takes precedence. Inspect `koblasInfo` or `koblas.portableSlots`
+The JVM property takes precedence. The native targets read the environment variables only,
+having no system properties, and only for the bindings they carry: CBLAS, LAPACKE and
+UMFPACK. KLU and BASICLU are bound on the JVM alone, so their variables do nothing
+elsewhere. Inspect `koblasInfo` or `koblas.portableSlots`
 after configuration, or call `koblas.requireAccelerated(...)` to require acceleration.
 
 These pin selection per half, the JVM property again first:

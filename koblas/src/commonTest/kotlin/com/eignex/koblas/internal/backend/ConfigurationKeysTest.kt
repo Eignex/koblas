@@ -29,4 +29,24 @@ class ConfigurationKeysTest {
         assertNull(pinnedBackend("", null))
         assertNull(pinnedBackend(null, "   "))
     }
+
+    @Test
+    fun `an absolute path is accepted in either spelling`() {
+        assertTrue(isAbsolutePath("/opt/openblas/lib/libopenblas.so"))
+        assertTrue(isAbsolutePath("C:/libs/openblas.dll"))
+    }
+
+    @Test
+    fun `a relative path is not a configured path`() {
+        assertFalse(isAbsolutePath("build/libopenblas.so"))
+        assertFalse(isAbsolutePath("libopenblas.so"))
+        assertFalse(isAbsolutePath(""))
+    }
+
+    @Test
+    fun `a pin matches a bundled provider by its canonical name`() {
+        assertTrue(matchesRequested("openblas-bundled", "openblas"))
+        assertTrue(matchesRequested("openblas", "openblas"))
+        assertFalse(matchesRequested("openblas", "cblas"))
+    }
 }
