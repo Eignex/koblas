@@ -48,13 +48,14 @@ They beat the native binding for BLAS level 1 (vector-vector work) and level 2
 (matrix-vector work), so Koblas keeps them on the JVM and reserves the native backend
 for level 3 matrix-matrix operations and factorizations.
 
-Install OpenBLAS/LAPACKE and, for sparse LU, SuiteSparse KLU 2 or UMFPACK with a
-system package manager such as apt or Homebrew. Koblas finds installed libraries
-automatically and falls back to its portable backend if they are unavailable. On JVM
-Linux x64/arm64 and macOS arm64, the optional bundled modules are an alternative and
-take precedence over host libraries. UMFPACK includes OpenBLAS for dense operations;
-KLU and BASICLU do not need it. Optional bundled modules have licenses in addition to
-Apache 2.0; see their generated `THIRD-PARTY-NOTICES.txt` files for details.
+Install OpenBLAS/LAPACKE for dense acceleration and SuiteSparse KLU 2 or UMFPACK for
+sparse LU with a system package manager such as apt or Homebrew. Koblas discovers host
+libraries automatically and falls back to its portable backend when they are unavailable.
+
+On JVM Linux x64/arm64 and macOS arm64, optional bundled modules take precedence over
+host libraries. `koblas-umfpack` bundles OpenBLAS for dense operations; KLU and BASICLU
+do not need it. Bundled modules have licenses in addition to Apache 2.0; see their
+generated `THIRD-PARTY-NOTICES.txt` files for details.
 
 ## Use
 
@@ -177,6 +178,8 @@ import com.eignex.koblas.dense.host.jvm.F64Backends
 registerBackend(F64Backends(HostBlasConfig(threadCount = 8)))
 ```
 
-OpenBLAS owns this setting process-wide. The bundled OpenBLAS is built with threading
-disabled, so bundled UMFPACK is also single-threaded. KLU has no multithreaded mode; a
-host UMFPACK may use threads only through the BLAS library it was built against.
+Start the JVM with `-Xss16m` as well: threaded LAPACK needs the larger Java thread
+stack and can otherwise crash the process. OpenBLAS owns this setting process-wide. The
+bundled OpenBLAS is built with threading disabled, so bundled UMFPACK is also
+single-threaded. KLU has no multithreaded mode; a host UMFPACK may use threads only
+through the BLAS library it was built against.
