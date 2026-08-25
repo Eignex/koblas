@@ -16,6 +16,10 @@ internal expect fun nativeBackend(): F64LinearAlgebra?
 
 internal expect fun useUngatedHost(): Boolean
 
+// The sparse LU gate counts stored entries, and the shipped value decides which side answers, so a sparse
+// crossover needs the host ungated for the same reason the dense one does.
+internal expect fun useUngatedSparseLu(): Boolean
+
 internal fun installBackend(backend: String) {
     // Cleared first, so an arm inherits discovery rather than whatever the previous one installed.
     installBackends(null)

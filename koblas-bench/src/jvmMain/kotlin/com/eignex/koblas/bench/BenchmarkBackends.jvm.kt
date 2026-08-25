@@ -3,6 +3,9 @@ package com.eignex.koblas.bench
 import com.eignex.koblas.dense.F64LinearAlgebra
 import com.eignex.koblas.dense.host.cblas.HostBlasConfig
 import com.eignex.koblas.dense.host.jvm.F64Backends
+import com.eignex.koblas.sparse.host.F64SparseBackends
+import com.eignex.koblas.sparse.host.klu.KluConfig
+import com.eignex.koblas.sparse.host.umfpack.UmfpackConfig
 import com.eignex.koblas.installBackends
 import com.eignex.koblas.koblas
 
@@ -24,5 +27,14 @@ internal actual fun useUngatedHost(): Boolean {
             decompositions = backends.decompositions,
         ),
     )
+    return true
+}
+
+// Whichever sparse library this JVM can load, ungated. KLU first, matching the priority the backends
+// register with, so the arm measures the half discovery would have picked.
+internal actual fun useUngatedSparseLu(): Boolean {
+    val backends = F64SparseBackends(KluConfig(factorizeMin = 0), UmfpackConfig(factorizeMin = 0))
+    val chosen = listOf(backends.klu, backends.umfpack).firstOrNull { it.isAvailable } ?: return false
+    installBackends(koblas.with(sparseLu = chosen))
     return true
 }

@@ -3,6 +3,8 @@ package com.eignex.koblas.bench
 import com.eignex.koblas.dense.F64LinearAlgebra
 import com.eignex.koblas.dense.host.cblas.*
 import com.eignex.koblas.installBackends
+import com.eignex.koblas.sparse.host.F64SparseBackends
+import com.eignex.koblas.sparse.host.umfpack.UmfpackConfig
 import com.eignex.koblas.koblas
 
 // Returned explicitly because the linker may drop the unreferenced eager-init property, leaving a silent
@@ -18,5 +20,12 @@ internal actual fun useUngatedHost(): Boolean {
     val config = HostBlasConfig(level1Min = 0, level2Min = 0, level3Min = 0, factorizeMin = 0)
     val backend = F64CblasBackend(config)
     installBackends(koblas.with(kernels = F64CblasKernels(config), blas = backend, decompositions = backend))
+    return true
+}
+
+internal actual fun useUngatedSparseLu(): Boolean {
+    val umfpack = F64SparseBackends(UmfpackConfig(factorizeMin = 0)).umfpack
+    if (!umfpack.isAvailable) return false
+    installBackends(koblas.with(sparseLu = umfpack))
     return true
 }
