@@ -43,6 +43,9 @@ possible.
 | koblas-klu | Sparse LU for circuit-style systems. |
 | koblas-basiclu | Sparse simplex-basis factorization and updates. |
 
+For sparse LU, choose UMFPACK for general systems, KLU for circuit-style systems,
+and BASICLU for simplex bases that need column updates.
+
 On JVM, add `--add-modules=jdk.incubator.vector` to enable the built-in SIMD kernels.
 They beat the native binding for BLAS level 1 (vector-vector work) and level 2
 (matrix-vector work), so Koblas keeps them on the JVM and reserves the native backend
