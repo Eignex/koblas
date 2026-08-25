@@ -5,6 +5,7 @@ import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.numeric.*
 import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
+import kotlin.math.abs
 import kotlin.math.sqrt
 
 /**
@@ -70,8 +71,8 @@ internal actual object F64PlatformKernels : F64Kernels {
         return euclideanNorm(v, vOff, len)
     }
 
-    /** No SIMD counterpart worth writing, so the shared common implementation serves the JVM too. */
-    actual override fun asum(v: DoubleArray, vOff: Int, len: Int): Double = absoluteSum(v, vOff, len)
+    actual override fun asum(v: DoubleArray, vOff: Int, len: Int): Double =
+        if (vectorizes(len)) Simd.asum(v, vOff, len) else absoluteSum(v, vOff, len)
 
     /** Overridden because [Simd.dot4] loads each b segment once for all four columns. */
     @Suppress("LongParameterList") // four column offsets plus the shared operand
@@ -211,6 +212,50 @@ internal object Simd {
         out[outOff + 1] = r1
         out[outOff + 2] = r2
         out[outOff + 3] = r3
+    }
+
+    /**
+     * Absolute values summed. Vectorized because the JIT will not do it: splitting a sum across lanes
+     * reorders the additions, which is a different result in floating point, so HotSpot leaves an FP-add
+     * reduction alone however hot it gets. Four accumulators for the reason [dot] gives.
+     */
+    fun asum(v: DoubleArray, vOff: Int, len: Int): Double =
+        if (len >= UNROLL_MIN) asumUnrolled(v, vOff, len) else asumOneChain(v, vOff, len)
+
+    private fun asumOneChain(v: DoubleArray, vOff: Int, len: Int): Double {
+        var i = 0
+        val bound = SPECIES.loopBound(len)
+        var sum = DoubleVector.zero(SPECIES)
+        while (i < bound) {
+            sum = sum.add(DoubleVector.fromArray(SPECIES, v, vOff + i).abs())
+            i += LANE
+        }
+        var s = sum.reduceLanes(VectorOperators.ADD)
+        while (i < len) {
+            s += abs(v[vOff + i])
+            i++
+        }
+        return s
+    }
+
+    /** [asum] past [UNROLL_MIN], where the four chains pay for the reduce that combines them. */
+    private fun asumUnrolled(v: DoubleArray, vOff: Int, len: Int): Double {
+        var s0 = DoubleVector.zero(SPECIES)
+        var s1 = DoubleVector.zero(SPECIES)
+        var s2 = DoubleVector.zero(SPECIES)
+        var s3 = DoubleVector.zero(SPECIES)
+        var i = 0
+        val unrolled = len - len % (4 * LANE)
+        while (i < unrolled) {
+            s0 = s0.add(DoubleVector.fromArray(SPECIES, v, vOff + i).abs())
+            s1 = s1.add(DoubleVector.fromArray(SPECIES, v, vOff + i + LANE).abs())
+            s2 = s2.add(DoubleVector.fromArray(SPECIES, v, vOff + i + 2 * LANE).abs())
+            s3 = s3.add(DoubleVector.fromArray(SPECIES, v, vOff + i + 3 * LANE).abs())
+            i += 4 * LANE
+        }
+        // What the unroll leaves over is under one unroll width, which is what the single chain is for.
+        val head = s0.add(s1).add(s2.add(s3)).reduceLanes(VectorOperators.ADD)
+        return head + asumOneChain(v, vOff + unrolled, len - unrolled)
     }
 
     fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
