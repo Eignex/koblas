@@ -164,6 +164,16 @@ environment variables steer discovery to custom library paths:
 The JVM property takes precedence. Inspect `koblasInfo` or `koblas.portableSlots`
 after configuration, or call `koblas.requireAccelerated(...)` to require acceleration.
 
+These pin selection per half, the JVM property again first:
+
+| Half | JVM property | Environment variable |
+|------|--------------|----------------------|
+| Dense | `koblas.dense.backend` | `KOBLAS_DENSE_BACKEND` |
+| Sparse | `koblas.sparse.backend` | `KOBLAS_SPARSE_BACKEND` |
+
+The value is a backend name, with the `-bundled` suffix optional and `reference` selecting
+none of the host bindings. A blank setting counts as unset, leaving the half to priority.
+
 ## Multithreading
 
 The portable reference and SIMD implementations are single-threaded. The JVM OpenBLAS
