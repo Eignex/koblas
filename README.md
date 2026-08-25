@@ -17,7 +17,7 @@
 
 Dense and sparse double-precision linear algebra for Kotlin Multiplatform.
 Koblas provides BLAS/LAPACK operations, factorizations, and optional OpenBLAS,
-SuiteSparse KLU, or SuiteSparse UMFPACK acceleration.
+SuiteSparse KLU, SuiteSparse UMFPACK, or BASICLU acceleration.
 
 Koblas is for numerical and optimization routines that need predictable performance
 and precise control over matrix storage, allocations, and workspaces. It is especially

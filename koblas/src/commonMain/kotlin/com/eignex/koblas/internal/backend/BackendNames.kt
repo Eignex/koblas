@@ -22,6 +22,9 @@ internal object BackendNames {
     /** The binding to SuiteSparse's KLU. */
     const val KLU = "klu"
 
+    /** The binding to BASICLU, whose basis updates no other sparse backend offers. */
+    const val BASICLU = "basiclu"
+
     /** The compiled-in scalar kernels. */
     const val SCALAR = "scalar"
 
