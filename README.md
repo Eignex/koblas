@@ -26,6 +26,13 @@ and similarity search, simplex and other optimization methods, statistical estim
 regression, and custom scientific-computing algorithms. BF16 support is planned for
 embedding workloads.
 
+Unlike [Kotlin DataFrame](https://github.com/Kotlin/dataframe), Koblas is a low-level
+linear-algebra building block for applications that already own their numerical data
+and algorithms. Its API exposes dense and sparse storage, BLAS/LAPACK-style
+operations, and caller-managed outputs and workspaces so compatible `DoubleArray` and
+CSC buffers can be wrapped without copying and hot paths can avoid allocations where
+possible.
+
 ## Install
 
 | Module | Purpose |
