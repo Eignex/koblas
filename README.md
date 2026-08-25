@@ -19,6 +19,13 @@ Dense and sparse double-precision linear algebra for Kotlin Multiplatform.
 Koblas provides BLAS/LAPACK operations, factorizations, and optional OpenBLAS,
 SuiteSparse KLU, or SuiteSparse UMFPACK acceleration.
 
+Koblas is for numerical and optimization routines that need predictable performance
+and precise control over matrix storage, allocations, and workspaces. It is especially
+suited to repeated solves and refactorizations. Typical uses include vector embeddings
+and similarity search, simplex and other optimization methods, statistical estimation,
+regression, and custom scientific-computing algorithms. BF16 support is planned for
+embedding workloads.
+
 ## Install
 
 | Module | Purpose |
@@ -85,15 +92,6 @@ import com.eignex.koblas.sparse.lu
 val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 3.0)))
 val x = a.lu().solve(doubleArrayOf(4.0, 9.0))
 ```
-
-## Who it’s for
-
-Koblas is for numerical and optimization routines that need predictable performance
-and precise control over matrix storage, allocations, and workspaces. It is especially
-suited to repeated solves and refactorizations. Typical uses include vector embeddings
-and similarity search, simplex and other optimization methods, statistical estimation,
-regression, and custom scientific-computing algorithms. BF16 support is planned for
-embedding workloads.
 
 ## Backends
 
