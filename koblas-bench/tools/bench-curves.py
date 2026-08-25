@@ -19,12 +19,19 @@ ARM_KEYS = ("backend",)
 def rows(path):
     for entry in json.load(open(path)):
         params = entry.get("params", {})
-        size = next((int(params[k]) for k in SIZE_KEYS if k in params), None)
-        if size is None:
+        size_key = next((k for k in SIZE_KEYS if k in params), None)
+        if size_key is None:
             continue
         arm = next((params[k] for k in ARM_KEYS if k in params), "-")
+        # Every parameter that is neither the swept size nor the arm joins the label. Dropping one merges
+        # two curves into a single key where the later row wins: a suite sweeping nrhs beside n, or one
+        # measuring two matrix shapes at a size, silently reports one of them as both.
+        rest = sorted(k for k in params if k != size_key and k not in ARM_KEYS)
+        label = entry["benchmark"].rsplit(".", 1)[-1]
+        if rest:
+            label += "[" + ",".join(f"{k}={params[k]}" for k in rest) + "]"
         metric = entry["primaryMetric"]
-        yield (entry["benchmark"].rsplit(".", 1)[-1], arm, size,
+        yield (label, arm, int(params[size_key]),
                metric["score"], metric.get("scoreError") or 0.0)
 
 
