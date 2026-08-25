@@ -163,36 +163,3 @@ public fun F64SparseMatrix.transpose(): F64SparseMatrix {
     }
     return F64SparseMatrix(cols, rows, outPtr, outIdx, outVal)
 }
-
-/**
- * Matrix-vector product into a fresh dense result (BLAS `dgemv` with `alpha = 1`, `beta = 0`), for any
- * [F64MatrixLike] against any [F64VectorLike]. No transpose flag; [com.eignex.koblas.sparse.gemv] takes one.
- */
-public fun F64MatrixLike.matVec(x: F64VectorLike): F64DenseVector {
-    val a = this
-    requireShape(a.cols == x.size) { "matVec shape mismatch: A is ${a.rows}x${a.cols}, x size ${x.size}" }
-    if (a is F64DenseMatrix && x is F64DenseVector) return F64DenseVector.wrap(koblas.gemv(a, x.data))
-    val out = F64DenseVector(a.rows)
-    val od = out.data
-    if (a is F64DenseMatrix) {
-        // One axpy per stored entry of x, down a contiguous column.
-        val ad = a.data
-        val rows = a.rows
-        x.forEachStored { j, v ->
-            if (v != 0.0) koblas.kernels.axpy(od, 0, v, ad, j * rows, rows)
-        }
-    } else if (a is F64SparseMatrix) {
-        // Accumulating column j of A scaled by x(j) reads only the stored entries of both operands.
-        x.forEachStored { j, v ->
-            if (v != 0.0) a.forEachInColumn(j) { i, aij -> od[i] += aij * v }
-        }
-    } else {
-        // A foreign F64MatrixLike is read entry by entry.
-        for (i in 0 until a.rows) {
-            var s = 0.0
-            x.forEachStored { j, v -> s += a[i, j] * v }
-            od[i] = s
-        }
-    }
-    return out
-}

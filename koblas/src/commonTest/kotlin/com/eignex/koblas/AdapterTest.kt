@@ -23,8 +23,8 @@ class AdapterTest {
     fun `gemv accepts a foreign matrix and vector`() {
         val a = Spd(5)
         val x = Ramp(5)
-        val viaAdapter = a.matVec(x)
-        val viaStorage = F64DenseMatrix.of(a.toArray()).matVec(F64DenseVector.of(x.toDoubleArray()))
+        val viaAdapter = a * x
+        val viaStorage = F64DenseMatrix.of(a.toArray()) * F64DenseVector.of(x.toDoubleArray())
         for (i in 0 until 5) {
             assertEquals(viaStorage[i], viaAdapter[i], 1e-12, "row $i")
         }

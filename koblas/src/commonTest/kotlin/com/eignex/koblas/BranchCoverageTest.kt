@@ -76,9 +76,9 @@ class BranchCoverageTest {
         }
     }
 
-    /** [matVec] dispatches on both operands' storage, and only the dense pair is otherwise exercised. */
+    /** [times] dispatches on both operands' storage, and only the dense pair is otherwise exercised. */
     @Test
-    fun `matVec agrees across every storage combination`() {
+    fun `matrix vector product agrees across every storage combination`() {
         val rows = 4
         val cols = 3
         val entries = arrayOf(
@@ -95,7 +95,7 @@ class BranchCoverageTest {
             intArrayOf(0, 2, 0, 1, 1, 2),
             doubleArrayOf(1.0, 2.0, -3.0, 4.0, 0.5, 1.5),
         )
-        // A F64MatrixLike koblas does not know, so matVec takes its entry-by-entry path.
+        // A F64MatrixLike koblas does not know, so multiplication takes its entry-by-entry path.
         val foreign = object : F64MatrixLike {
             override val rows: Int get() = dense.rows
             override val cols: Int get() = dense.cols
@@ -112,8 +112,8 @@ class BranchCoverageTest {
             "sparse" to sparse,
             "foreign" to foreign,
         )) {
-            assertClose(expectedDense, matrix.matVec(denseX).data, "$name x dense", tolerance = 1e-12)
-            assertClose(expectedSparse, matrix.matVec(sparseX).data, "$name x sparse", tolerance = 1e-12)
+            assertClose(expectedDense, (matrix * denseX).data, "$name x dense", tolerance = 1e-12)
+            assertClose(expectedSparse, (matrix * sparseX).data, "$name x sparse", tolerance = 1e-12)
         }
     }
 

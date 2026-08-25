@@ -163,8 +163,8 @@ class OpsTest {
         val xDense = dense(1.0, -1.0)
         val xSparse = sparse(2, 0 to 1.0, 1 to -1.0)
         val expected = dense(1.0 * 1 + 2 * -1, 3.0 * 1 + 4 * -1, 5.0 * 1 + 6 * -1)
-        assertEquals(expected, A.matVec(xDense))
-        assertEquals(expected, A.matVec(xSparse))
+        assertEquals(expected, A * xDense)
+        assertEquals(expected, A * xSparse)
     }
 
     @Test
@@ -176,7 +176,7 @@ class OpsTest {
         val xv = DoubleArray(n)
         for (i in nz) xv[i] = rng.nextDouble(-1.0, 1.0)
         val xSparse = F64SparseVector.of(n, nz.toIntArray(), nz.map { xv[it] }.toDoubleArray())
-        assertClose(A.matVec(F64DenseVector.of(xv)).data, A.matVec(xSparse).data, "matVec dense vs sparse")
+        assertClose((A * F64DenseVector.of(xv)).data, (A * xSparse).data, "matrix vector dense vs sparse")
     }
 
     @Test
@@ -286,7 +286,7 @@ class OpsTest {
         assertFailsWith<IllegalArgumentException> {
             F64DenseMatrix(2, 2).ger(1.0, dense(1.0, 2.0, 3.0), dense(1.0, 2.0))
         }
-        assertFailsWith<IllegalArgumentException> { F64DenseMatrix(2, 3).matVec(dense(1.0, 2.0)) }
+        assertFailsWith<IllegalArgumentException> { F64DenseMatrix(2, 3) * dense(1.0, 2.0) }
     }
 
     @Test

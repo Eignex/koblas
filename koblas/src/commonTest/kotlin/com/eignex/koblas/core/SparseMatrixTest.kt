@@ -1,5 +1,6 @@
 package com.eignex.koblas.core
 
+import com.eignex.koblas.times
 import com.eignex.koblas.*
 import com.eignex.koblas.core.*
 import com.eignex.koblas.sparse.gemv
@@ -99,12 +100,12 @@ class SparseMatrixTest {
             F64SparseVector.of(2, intArrayOf(1), doubleArrayOf(-1.0)),
             F64SparseVector.of(2, IntArray(0), DoubleArray(0)),
         )) {
-            val viaSparse = a.matVec(x)
-            val viaDense = dense.matVec(x)
+            val viaSparse = a * x
+            val viaDense = dense * x
             assertEquals(viaDense, viaSparse, "gemv disagreed for $x")
         }
         assertTrue(
-            a.gemv(doubleArrayOf(2.0, -1.0)).contentEquals(a.matVec(F64DenseVector.of(doubleArrayOf(2.0, -1.0))).data),
+            a.gemv(doubleArrayOf(2.0, -1.0)).contentEquals((a * F64DenseVector.of(doubleArrayOf(2.0, -1.0))).data),
         )
     }
 

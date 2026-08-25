@@ -121,7 +121,6 @@ public final class com/eignex/koblas/MathBackendKt {
 public final class com/eignex/koblas/MatrixOpsKt {
 	public static final fun column (Lcom/eignex/koblas/core/F64DenseMatrix;I)Lcom/eignex/koblas/core/F64DenseVector;
 	public static final fun ger (Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/core/F64VectorLike;Lcom/eignex/koblas/core/F64VectorLike;)V
-	public static final fun matVec (Lcom/eignex/koblas/core/F64MatrixLike;Lcom/eignex/koblas/core/F64VectorLike;)Lcom/eignex/koblas/core/F64DenseVector;
 	public static final fun norm1 (Lcom/eignex/koblas/core/F64DenseMatrix;)D
 	public static final fun normFro (Lcom/eignex/koblas/core/F64DenseMatrix;)D
 	public static final fun normInf (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)D
@@ -153,9 +152,8 @@ public final class com/eignex/koblas/OperatorsKt {
 	public static final fun times (DLcom/eignex/koblas/core/F64DenseVector;)Lcom/eignex/koblas/core/F64DenseVector;
 	public static final fun times (Lcom/eignex/koblas/core/F64DenseMatrix;D)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public static final fun times (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static final fun times (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseVector;)Lcom/eignex/koblas/core/F64DenseVector;
 	public static final fun times (Lcom/eignex/koblas/core/F64DenseVector;D)Lcom/eignex/koblas/core/F64DenseVector;
-	public static final fun times (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/core/F64DenseVector;)Lcom/eignex/koblas/core/F64DenseVector;
+	public static final fun times (Lcom/eignex/koblas/core/F64MatrixLike;Lcom/eignex/koblas/core/F64VectorLike;)Lcom/eignex/koblas/core/F64DenseVector;
 	public static final fun unaryMinus (Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public static final fun unaryMinus (Lcom/eignex/koblas/core/F64DenseVector;)Lcom/eignex/koblas/core/F64DenseVector;
 }

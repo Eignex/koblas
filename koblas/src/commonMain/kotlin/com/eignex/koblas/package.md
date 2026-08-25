@@ -12,7 +12,7 @@ BLAS/LAPACK and the deliberate deviations.
   concrete storage a closed set and lets a snapshot round-trip with its type preserved — and is why the
   containers stay in one package rather than splitting with the operations that consume them.
 - Free-function arithmetic over the views, dispatching dense or sparse by operand type: [dot], [axpy],
-  [scale], [norm2], [asum], [iamax], [copy], [swap], [ger], [matVec], [transpose], [forEachStored], and
+  [scale], [norm2], [asum], [iamax], [copy], [swap], [ger], [times], [transpose], [forEachStored], and
   the matrix 1-norm [norm1].
 - Shared machinery: [Backend] (what every backend of every tier reports about itself), the [Workspace]
   buffer pool, and the [mathBackend] identifier. None of these is per element type.
