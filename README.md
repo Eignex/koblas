@@ -23,11 +23,11 @@ SuiteSparse KLU, or SuiteSparse UMFPACK acceleration.
 
 | Module | Gradle dependency | Purpose |
 |--------|-------------------|---------|
-| koblas | `implementation("com.eignex:koblas:<version>")` | Core API and portable backend. |
-| koblas-openblas | `runtimeOnly("com.eignex:koblas-openblas:<version>")` | Optional JVM bundle of OpenBLAS/LAPACKE for Linux x64/arm64 and macOS arm64. |
-| koblas-umfpack | `runtimeOnly("com.eignex:koblas-umfpack:<version>")` | Optional JVM bundle of SuiteSparse UMFPACK (GPL-2.0-or-later); includes koblas-openblas. |
-| koblas-klu | `runtimeOnly("com.eignex:koblas-klu:<version>")` | Optional JVM bundle of SuiteSparse KLU (LGPL-2.1-or-later). |
-| koblas-basiclu | `runtimeOnly("com.eignex:koblas-basiclu:<version>")` | Optional JVM bundle of BASICLU for sparse simplex-basis factorization and updates (MIT). |
+| koblas | implementation("com.eignex:koblas:<version>") | Core API and portable backend. |
+| koblas-openblas | runtimeOnly("com.eignex:koblas-openblas:<version>") | OpenBLAS/LAPACKE runtime bundle. |
+| koblas-umfpack | runtimeOnly("com.eignex:koblas-umfpack:<version>") | UMFPACK sparse-LU runtime bundle. |
+| koblas-klu | runtimeOnly("com.eignex:koblas-klu:<version>") | KLU sparse-LU runtime bundle. |
+| koblas-basiclu | runtimeOnly("com.eignex:koblas-basiclu:<version>") | BASICLU sparse-basis runtime bundle. |
 
 Optional bundled modules have licenses in addition to Apache 2.0; see their generated
 `THIRD-PARTY-NOTICES.txt` files for details.
