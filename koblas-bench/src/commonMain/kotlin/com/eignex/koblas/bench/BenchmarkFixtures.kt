@@ -111,6 +111,24 @@ internal fun simplexBasis(
     return F64SparseMatrix.ofColumns(n, n, columns)
 }
 
+/**
+ * `[B | I]`, the shape a basis solver draws from: the structural columns of [simplexBasis] and then the
+ * logical ones, so a basis is a choice among `2n` columns and a pivot swaps one for another.
+ */
+internal fun simplexProblem(n: Int, rng: Random, spikeFraction: Double = 0.08): F64SparseMatrix {
+    val structural = simplexBasis(n, rng, spikeFraction = spikeFraction)
+    val columns = List(2 * n) { j ->
+        if (j >= n) {
+            listOf((j - n) to 1.0)
+        } else {
+            val entries = ArrayList<Pair<Int, Double>>()
+            structural.forEachInColumn(j) { i, v -> entries.add(i to v) }
+            entries
+        }
+    }
+    return F64SparseMatrix.ofColumns(n, 2 * n, columns)
+}
+
 internal fun bandUpperTriangle(n: Int): F64SparseMatrix {
     val rowIdx = IntArray(2 * n - 1)
     val colIdx = IntArray(2 * n - 1)
