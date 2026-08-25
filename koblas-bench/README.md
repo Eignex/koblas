@@ -75,16 +75,37 @@ measures the same operands rather than similar ones.
 
 A benchmark task reports `BUILD SUCCESSFUL` even when JMH refused to start — a
 killed run leaves `/tmp/jmh.lock` behind, and the next invocation prints
-`Failure: Unable to acquire the JMH lock` and still exits zero. The report
-directory is the only reliable evidence:
+`Failure: Unable to acquire the JMH lock` and still exits zero. A freshly
+written report is the only evidence that anything ran, so key on the mtime of
+the report json against a marker dropped just before the run:
 
 ```bash
-ls -t koblas-bench/build/reports/benchmarks/<suite>/
+marker=$(mktemp)
+./gradlew :koblas-bench:jvmLevel1Benchmark
+find koblas-bench/build/reports/benchmarks/<suite> -name '*.json' -newer "$marker"
 ```
 
-If the newest timestamp predates your run, nothing was measured and any numbers
-you are reading are from a previous one. Remove the lock and check for a stray
+Nothing newer than the marker means nothing was measured, and any numbers you
+are reading are from a previous run. Remove the lock and check for a stray
 `ForkedMain` process before re-running.
+
+Do not compare directory names instead. The timestamped directory is named
+during configuration, so a reused configuration cache entry (`Configuration
+cache entry reused`) hands the run an earlier one's name and it writes *into*
+that directory, overwriting the report already there. A name comparison then
+reads a real run as "nothing measured" while the previous run's numbers are
+silently destroyed. To detect that overwrite, snapshot the names before the run
+and check whether the fresh report landed in one that already existed:
+
+```bash
+before=$(ls koblas-bench/build/reports/benchmarks/<suite>)
+# ... run, then locate the fresh report as above ...
+printf '%s\n' "$before" | grep -qxF "$(basename "$(dirname "$report")")" \
+  && echo 'WARNING: overwrote an earlier report'
+```
+
+Extract anything you need from a report before starting the next run; the copy
+in `build/` is not durable.
 
 ## Soaks
 
