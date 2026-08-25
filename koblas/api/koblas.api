@@ -539,6 +539,8 @@ public abstract interface class com/eignex/koblas/dense/F64Kernels : com/eignex/
 	public abstract fun nrm2 ([DII)D
 	public abstract fun scale ([DIDI)V
 	public fun swap ([DI[DII)V
+	public fun symvColumn ([DI[DI[DIDI)D
+	public fun symvColumn4 ([DII[DI[DI[DI[DII)V
 }
 
 public final class com/eignex/koblas/dense/F64Kernels$DefaultImpls {
@@ -548,6 +550,8 @@ public final class com/eignex/koblas/dense/F64Kernels$DefaultImpls {
 	public static fun isAvailable (Lcom/eignex/koblas/dense/F64Kernels;)Z
 	public static fun isPortable (Lcom/eignex/koblas/dense/F64Kernels;)Z
 	public static fun swap (Lcom/eignex/koblas/dense/F64Kernels;[DI[DII)V
+	public static fun symvColumn (Lcom/eignex/koblas/dense/F64Kernels;[DI[DI[DIDI)D
+	public static fun symvColumn4 (Lcom/eignex/koblas/dense/F64Kernels;[DII[DI[DI[DI[DII)V
 }
 
 public final class com/eignex/koblas/dense/F64LdlDecomposition {
@@ -840,6 +844,8 @@ public final class com/eignex/koblas/dense/host/jvm/F64CblasKernels : com/eignex
 	public fun nrm2 ([DII)D
 	public fun scale ([DIDI)V
 	public fun swap ([DI[DII)V
+	public fun symvColumn ([DI[DI[DIDI)D
+	public fun symvColumn4 ([DII[DI[DI[DI[DII)V
 }
 
 public final class com/eignex/koblas/dense/host/jvm/F64Lapacke : com/eignex/koblas/dense/host/F64DecompositionsAdapter {

@@ -75,6 +75,45 @@ internal actual object F64PlatformKernels : F64Kernels {
         if (vectorizes(len)) Simd.swap(a, aOff, b, bOff, len) else super.swap(a, aOff, b, bOff, len)
     }
 
+    @Suppress("LongParameterList") // three runs and the multiplier, matching the seam
+    override fun symvColumn(
+        a: DoubleArray,
+        aOff: Int,
+        x: DoubleArray,
+        xOff: Int,
+        y: DoubleArray,
+        yOff: Int,
+        mult: Double,
+        len: Int,
+    ): Double = if (vectorizes(len)) {
+        Simd.symvColumn(a, aOff, x, xOff, y, yOff, mult, len)
+    } else {
+        super.symvColumn(a, aOff, x, xOff, y, yOff, mult, len)
+    }
+
+    /** Overridden because [Simd.symvColumn4] reads x and y once for all four columns. */
+    @Suppress("LongParameterList") // four column offsets over three runs, matching the seam
+    override fun symvColumn4(
+        a: DoubleArray,
+        aOff: Int,
+        stride: Int,
+        x: DoubleArray,
+        xOff: Int,
+        y: DoubleArray,
+        yOff: Int,
+        mult: DoubleArray,
+        multOff: Int,
+        out: DoubleArray,
+        outOff: Int,
+        len: Int,
+    ) {
+        if (vectorizes(len)) {
+            Simd.symvColumn4(a, aOff, stride, x, xOff, y, yOff, mult, multOff, out, outOff, len)
+        } else {
+            super.symvColumn4(a, aOff, stride, x, xOff, y, yOff, mult, multOff, out, outOff, len)
+        }
+    }
+
     actual override fun asum(v: DoubleArray, vOff: Int, len: Int): Double =
         if (vectorizes(len)) Simd.asum(v, vOff, len) else absoluteSum(v, vOff, len)
 
@@ -166,6 +205,112 @@ internal object Simd {
         // What the unroll leaves over is under one unroll width, which is what the single chain is for.
         val head = s0.add(s1).add(s2.add(s3)).reduceLanes(VectorOperators.ADD)
         return head + dotOneChain(a, aOff + unrolled, b, bOff + unrolled, len - unrolled)
+    }
+
+    /** One pass over the column, accumulating the dot while writing y, so `a` is loaded once. */
+    @Suppress("LongParameterList") // three runs and the multiplier, matching the seam
+    fun symvColumn(
+        a: DoubleArray,
+        aOff: Int,
+        x: DoubleArray,
+        xOff: Int,
+        y: DoubleArray,
+        yOff: Int,
+        mult: Double,
+        len: Int,
+    ): Double {
+        var acc = DoubleVector.zero(SPECIES)
+        val vm = DoubleVector.broadcast(SPECIES, mult)
+        var i = 0
+        val bound = SPECIES.loopBound(len)
+        while (i < bound) {
+            val va = DoubleVector.fromArray(SPECIES, a, aOff + i)
+            acc = va.fma(DoubleVector.fromArray(SPECIES, x, xOff + i), acc)
+            va.fma(vm, DoubleVector.fromArray(SPECIES, y, yOff + i)).intoArray(y, yOff + i)
+            i += LANE
+        }
+        var s = acc.reduceLanes(VectorOperators.ADD)
+        while (i < len) {
+            val ai = a[aOff + i]
+            s += ai * x[xOff + i]
+            y[yOff + i] += mult * ai
+            i++
+        }
+        return s
+    }
+
+    /** One pass over four columns, so x is loaded once and y is loaded and stored once for the four. */
+    @Suppress("LongParameterList") // four column offsets over three runs, matching the seam
+    fun symvColumn4(
+        a: DoubleArray,
+        aOff: Int,
+        stride: Int,
+        x: DoubleArray,
+        xOff: Int,
+        y: DoubleArray,
+        yOff: Int,
+        mult: DoubleArray,
+        multOff: Int,
+        out: DoubleArray,
+        outOff: Int,
+        len: Int,
+    ) {
+        val o1 = aOff + stride
+        val o2 = aOff + 2 * stride
+        val o3 = aOff + 3 * stride
+        val m0 = DoubleVector.broadcast(SPECIES, mult[multOff])
+        val m1 = DoubleVector.broadcast(SPECIES, mult[multOff + 1])
+        val m2 = DoubleVector.broadcast(SPECIES, mult[multOff + 2])
+        val m3 = DoubleVector.broadcast(SPECIES, mult[multOff + 3])
+        var s0 = DoubleVector.zero(SPECIES)
+        var s1 = DoubleVector.zero(SPECIES)
+        var s2 = DoubleVector.zero(SPECIES)
+        var s3 = DoubleVector.zero(SPECIES)
+        var i = 0
+        val bound = SPECIES.loopBound(len)
+        while (i < bound) {
+            val vx = DoubleVector.fromArray(SPECIES, x, xOff + i)
+            val a0 = DoubleVector.fromArray(SPECIES, a, aOff + i)
+            val a1 = DoubleVector.fromArray(SPECIES, a, o1 + i)
+            val a2 = DoubleVector.fromArray(SPECIES, a, o2 + i)
+            val a3 = DoubleVector.fromArray(SPECIES, a, o3 + i)
+            s0 = a0.fma(vx, s0)
+            s1 = a1.fma(vx, s1)
+            s2 = a2.fma(vx, s2)
+            s3 = a3.fma(vx, s3)
+            var vy = DoubleVector.fromArray(SPECIES, y, yOff + i)
+            vy = a0.fma(m0, vy)
+            vy = a1.fma(m1, vy)
+            vy = a2.fma(m2, vy)
+            vy = a3.fma(m3, vy)
+            vy.intoArray(y, yOff + i)
+            i += LANE
+        }
+        var r0 = s0.reduceLanes(VectorOperators.ADD)
+        var r1 = s1.reduceLanes(VectorOperators.ADD)
+        var r2 = s2.reduceLanes(VectorOperators.ADD)
+        var r3 = s3.reduceLanes(VectorOperators.ADD)
+        val f0 = mult[multOff]
+        val f1 = mult[multOff + 1]
+        val f2 = mult[multOff + 2]
+        val f3 = mult[multOff + 3]
+        while (i < len) {
+            val xi = x[xOff + i]
+            val q0 = a[aOff + i]
+            val q1 = a[o1 + i]
+            val q2 = a[o2 + i]
+            val q3 = a[o3 + i]
+            r0 += q0 * xi
+            r1 += q1 * xi
+            r2 += q2 * xi
+            r3 += q3 * xi
+            y[yOff + i] += q0 * f0 + q1 * f1 + q2 * f2 + q3 * f3
+            i++
+        }
+        out[outOff] = r0
+        out[outOff + 1] = r1
+        out[outOff + 2] = r2
+        out[outOff + 3] = r3
     }
 
     /**
