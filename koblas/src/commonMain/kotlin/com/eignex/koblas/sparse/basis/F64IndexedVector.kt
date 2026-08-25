@@ -35,9 +35,12 @@ public class F64IndexedVector(public val size: Int) {
     @UnsafeKoblasApi
     public val indices: IntArray = IntArray(size)
 
-    /** How many positions [indices] names. */
+    /**
+     * How many positions [indices] names. Settable inside koblas, for a backend that fills both arrays
+     * past the seam and has nothing left to tell the vector but how far they run.
+     */
     public var count: Int = 0
-        private set
+        internal set
 
     /** The fraction of [size] that is stored, what a solve reads to choose between its sweeps. */
     public val density: Double get() = if (size == 0) 0.0 else count.toDouble() / size

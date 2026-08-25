@@ -25,6 +25,9 @@ internal object BackendNames {
     /** The binding to BASICLU, whose basis updates no other sparse backend offers. */
     const val BASICLU = "basiclu"
 
+    /** The binding to HiGHS's HFactor, which solves a simplex basis hypersparsely and updates it. */
+    const val HFACTOR = "hfactor"
+
     /** The compiled-in scalar kernels. */
     const val SCALAR = "scalar"
 
