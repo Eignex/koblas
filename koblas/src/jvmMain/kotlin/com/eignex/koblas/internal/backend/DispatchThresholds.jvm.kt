@@ -29,8 +29,11 @@ private val SCALAR_THRESHOLDS = DispatchThresholds(
     factorizeRhs = JVM_FACTORIZE_RHS_MIN,
 )
 
-/** The run length from which a foreign call is worth making for a level-1 primitive. */
-private const val JVM_SCALAR_LEVEL1_MIN = 64
+/**
+ * The run length from which a foreign call is worth making for a level-1 primitive, later than the native
+ * one because the call costs more from here.
+ */
+private const val JVM_SCALAR_LEVEL1_MIN = 128
 
 /** The matrix size from which the host BLAS takes the level-3 routines. */
 private const val JVM_LEVEL3_MIN = 16

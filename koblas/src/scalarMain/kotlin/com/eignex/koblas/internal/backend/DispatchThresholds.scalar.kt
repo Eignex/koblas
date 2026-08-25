@@ -8,4 +8,4 @@ internal actual val platformDispatchThresholds: DispatchThresholds =
     DispatchThresholds(level1 = NATIVE_LEVEL1_MIN, level2 = 0, level3 = 0, factorize = 0)
 
 /** The run length from which a foreign call is worth making for a level-1 primitive. */
-private const val NATIVE_LEVEL1_MIN = 64
+private const val NATIVE_LEVEL1_MIN = 32
