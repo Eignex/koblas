@@ -42,38 +42,21 @@ Apache 2.0; see their generated `THIRD-PARTY-NOTICES.txt` files for details.
 Containers use column-major storage. Unqualified names such as `DenseMatrix`
 are aliases for the implemented double-precision types (`F64DenseMatrix`).
 
-```kotlin
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.dense.lu
-import com.eignex.koblas.dense.solve
-
-val a = DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0)))
-val x = a.lu().solve(doubleArrayOf(3.0, 5.0))
-println(x.contentToString()) // [0.8, 1.4]
-```
-
-For a symmetric positive-definite system, use Cholesky factorization:
+Choose a factorization that matches the system:
 
 ```kotlin
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.dense.cholesky
-import com.eignex.koblas.dense.solve
+import com.eignex.koblas.dense.*
 
-val a = DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0)))
-val x = a.cholesky().solve(doubleArrayOf(3.0, 5.0))
-```
-
-For an overdetermined system, QR produces a least-squares solution:
-
-```kotlin
-import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.dense.qr
-import com.eignex.koblas.dense.solve
+val system = DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0)))
+val rhs = doubleArrayOf(3.0, 5.0)
+val viaLu = system.lu().solve(rhs)
+val viaCholesky = system.cholesky().solve(rhs)
 
 val design = DenseMatrix.of(
     arrayOf(doubleArrayOf(1.0, 0.0), doubleArrayOf(0.0, 1.0), doubleArrayOf(1.0, 1.0)),
 )
-val coefficients = design.qr().solve(doubleArrayOf(1.0, 2.0, 3.0))
+val leastSquares = design.qr().solve(doubleArrayOf(1.0, 2.0, 3.0))
 ```
 
 Operator functions cover matrix arithmetic, products, and matrix-vector products:
