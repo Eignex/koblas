@@ -91,7 +91,6 @@ dokka {
             "src/commonMain/kotlin/com/eignex/koblas/package.md",
             "src/commonMain/kotlin/com/eignex/koblas/dense/package.md",
             "src/commonMain/kotlin/com/eignex/koblas/sparse/package.md",
-            "src/commonMain/kotlin/com/eignex/koblas/sparse/basis/package.md",
         )
     }
 }
