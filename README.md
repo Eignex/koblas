@@ -86,6 +86,13 @@ val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 3.0)))
 val x = a.lu().solve(doubleArrayOf(4.0, 9.0))
 ```
 
+## Who it’s for
+
+Koblas is for numerical and optimization routines that need predictable performance
+and precise control over matrix storage, allocations, and workspaces. Typical uses
+include simplex and other optimization methods, statistical estimation, regression,
+and custom scientific-computing algorithms that repeatedly factor or solve systems.
+
 ## Backends
 
 Koblas starts with portable implementations. Configure accelerated backends either
