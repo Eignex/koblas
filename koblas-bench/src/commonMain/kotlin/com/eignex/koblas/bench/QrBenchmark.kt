@@ -1,13 +1,7 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.dense.F64PivotedQrDecomposition
-import com.eignex.koblas.dense.F64QrDecomposition
-import com.eignex.koblas.dense.applyQ
-import com.eignex.koblas.dense.qr
-import com.eignex.koblas.dense.qrPivoted
-import com.eignex.koblas.dense.solveLeastSquares
-import com.eignex.koblas.dense.solveMinimumNorm
+import com.eignex.koblas.dense.*
 import com.eignex.koblas.koblas
 import kotlinx.benchmark.*
 

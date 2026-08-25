@@ -1,6 +1,6 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.core.*
+import com.eignex.koblas.core.F64DenseMatrix
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.assertTrue

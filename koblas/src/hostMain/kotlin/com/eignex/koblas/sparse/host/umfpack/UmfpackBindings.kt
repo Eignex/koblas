@@ -3,17 +3,7 @@
 package com.eignex.koblas.sparse.host.umfpack
 
 import com.eignex.koblas.internal.host.openNativeLibrary
-import kotlinx.cinterop.CFunction
-import kotlinx.cinterop.COpaquePointer
-import kotlinx.cinterop.COpaquePointerVar
-import kotlinx.cinterop.CPointer
-import kotlinx.cinterop.DoubleVar
-import kotlinx.cinterop.ExperimentalForeignApi
-import kotlinx.cinterop.IntVar
-import kotlinx.cinterop.addressOf
-import kotlinx.cinterop.invoke
-import kotlinx.cinterop.reinterpret
-import kotlinx.cinterop.usePinned
+import kotlinx.cinterop.*
 import platform.posix.dlsym
 
 private typealias Dp = CPointer<DoubleVar>?

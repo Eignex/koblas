@@ -3,8 +3,6 @@ package com.eignex.koblas.dense.host.jvm
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.dense.host.F64BlasAdapter
 import com.eignex.koblas.dense.host.cblas.HostBlasConfig
-import com.eignex.koblas.dense.host.jvm.HostBlasCalls
-import com.eignex.koblas.dense.host.jvm.JvmCblasCalls
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.backend.hostBlasDispatchThresholds
 

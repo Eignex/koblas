@@ -1,10 +1,7 @@
 package com.eignex.koblas.sparse.internal
 
 import kotlin.random.Random
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 class MutableIntDoubleMapTest {
 

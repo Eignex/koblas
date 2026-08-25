@@ -1,15 +1,13 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.core.*
-import com.eignex.koblas.dense.F64LinearAlgebra
 
-/** `A * B` (BLAS `dgemm`), allocating. [F64LinearAlgebra.gemm] accumulates into an existing C instead. */
+/** `A * B` (BLAS `dgemm`), allocating. gemm accumulates into an existing C instead. */
 public operator fun F64DenseMatrix.times(other: F64DenseMatrix): F64DenseMatrix = koblas.gemm(this, other)
 
 /**
  * Matrix-vector product into a fresh dense result for any [F64MatrixLike] against any [F64VectorLike].
- * [F64LinearAlgebra.gemv] and [com.eignex.koblas.sparse.F64SparseBlas.gemv] provide transpose and
- * destination-buffer variants.
+ * gemv provide transpose and destination-buffer variants.
  */
 public operator fun F64MatrixLike.times(x: F64VectorLike): F64DenseVector {
     val a = this

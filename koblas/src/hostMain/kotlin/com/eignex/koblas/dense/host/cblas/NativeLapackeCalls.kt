@@ -3,9 +3,7 @@
 package com.eignex.koblas.dense.host.cblas
 
 import com.eignex.koblas.dense.host.LapackeCalls
-import kotlinx.cinterop.addressOf
-import kotlinx.cinterop.invoke
-import kotlinx.cinterop.usePinned
+import kotlinx.cinterop.*
 
 /** [LapackeCalls] over cinterop, alongside [NativeCblasCalls]. */
 @Suppress("LongParameterList") // the LAPACKE signatures

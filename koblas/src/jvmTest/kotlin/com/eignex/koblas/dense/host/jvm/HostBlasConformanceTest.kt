@@ -1,28 +1,15 @@
 package com.eignex.koblas.dense.host.jvm
 
-import com.eignex.koblas.Workspace
-import com.eignex.koblas.core.*
+import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.dense.F64Blas
-import com.eignex.koblas.dense.Uplo
-import com.eignex.koblas.dense.assertLevel1KernelsAgreeWithScalar
-import com.eignex.koblas.dense.assertReductionsAgreeWithScalar
+import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.host.*
 import com.eignex.koblas.dense.host.cblas.HostBlasConfig
-import com.eignex.koblas.dense.host.jvm.F64Cblas
-import com.eignex.koblas.dense.host.jvm.F64CblasKernels
-import com.eignex.koblas.dense.host.jvm.F64Lapacke
-import com.eignex.koblas.koblasInfo
-import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.testutil.host.HostLibraryTest
-import com.eignex.koblas.wellConditioned
 import org.junit.Assume
 import org.junit.experimental.categories.Category
 import kotlin.random.Random
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertSame
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 @Category(HostLibraryTest::class)
 class HostBlasConformanceTest {

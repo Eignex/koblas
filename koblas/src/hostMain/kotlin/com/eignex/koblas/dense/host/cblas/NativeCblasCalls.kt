@@ -3,9 +3,7 @@
 package com.eignex.koblas.dense.host.cblas
 
 import com.eignex.koblas.dense.host.CblasCalls
-import kotlinx.cinterop.addressOf
-import kotlinx.cinterop.invoke
-import kotlinx.cinterop.usePinned
+import kotlinx.cinterop.*
 
 /**
  * [CblasCalls] over cinterop. Each array is pinned for the duration of its call, so the library reads and

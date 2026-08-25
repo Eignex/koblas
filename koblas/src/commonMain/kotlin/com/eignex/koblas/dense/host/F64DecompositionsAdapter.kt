@@ -2,12 +2,9 @@
 
 package com.eignex.koblas.dense.host
 
-import com.eignex.koblas.NOT_SINGULAR
-import com.eignex.koblas.Workspace
-import com.eignex.koblas.core.*
+import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.dense.F64Decompositions
 import com.eignex.koblas.dense.host.cblas.Cblas.COL_MAJOR
 import com.eignex.koblas.dense.host.cblas.Cblas.LEFT
 import com.eignex.koblas.dense.host.cblas.Cblas.LOWER
@@ -17,10 +14,6 @@ import com.eignex.koblas.dense.host.cblas.Cblas.TRANS
 import com.eignex.koblas.dense.host.cblas.Cblas.UNIT
 import com.eignex.koblas.dense.host.cblas.Cblas.UPPER
 import com.eignex.koblas.internal.backend.DispatchThresholds
-import com.eignex.koblas.lapackFailedAt
-import com.eignex.koblas.requireFactored
-import com.eignex.koblas.requireShape
-import com.eignex.koblas.requireSquare
 
 /** LAPACK's lower-triangle selector, which koblas asks for everywhere it has a choice. */
 private const val LOWER_UPLO: Byte = 'L'.code.toByte()
@@ -260,13 +253,13 @@ public abstract class F64DecompositionsAdapter internal constructor(
         if (reflectorWork < gate) return portable.applyQInto(qr, y, out, transpose)
         requireShape(y.size == qr.m) { "applyQ: y length ${y.size} != ${qr.m}" }
         requireShape(out.size == qr.m) { "applyQ: out length ${out.size} != ${qr.m}" }
-        val c = out
         if (out !== y) y.copyInto(out)
-        if (qr.tau.isEmpty()) return c
+        if (qr.tau.isEmpty()) return out
         val trans = (if (transpose) 'T' else 'N').code.toByte()
-        val info = f.dormqr(COL_MAJOR, SIDE_LEFT, trans, qr.m, 1, qr.tau.size, qr.qr, qr.m, qr.tau, c, qr.m)
+        val info = f.dormqr(COL_MAJOR, SIDE_LEFT, trans, qr.m, 1, qr.tau.size, qr.qr, qr.m, qr.tau,
+            out, qr.m)
         check(info == 0) { "dormqr: illegal argument ${-info}" }
-        return c
+        return out
     }
 
     override fun rcond(lu: F64LuDecomposition, anorm: Double, workspace: Workspace?): Double {

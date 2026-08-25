@@ -1,8 +1,6 @@
 package com.eignex.koblas.core
 
-import com.eignex.koblas.requireInBounds
-import com.eignex.koblas.requireNonNegativeShape
-import com.eignex.koblas.requireShape
+import com.eignex.koblas.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -53,8 +51,6 @@ public class F64DenseMatrix internal constructor(
         return data[i + j * rows]
     }
 
-    /** Entry (i, j) with no bounds check, for kernels that have already validated their indices. */
-    internal fun getUnsafe(i: Int, j: Int): Double = data[i + j * rows]
     override fun toArray(): Array<DoubleArray> = Array(rows) { i ->
         DoubleArray(cols) { j -> data[i + j * rows] }
     }

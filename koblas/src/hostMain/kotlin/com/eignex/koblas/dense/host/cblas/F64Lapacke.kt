@@ -7,10 +7,7 @@ import com.eignex.koblas.dense.host.F64DecompositionsAdapter
 import com.eignex.koblas.dense.host.cblas.Cblas.COL_MAJOR
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.backend.hostBlasDispatchThresholds
-import kotlinx.cinterop.ExperimentalForeignApi
-import kotlinx.cinterop.addressOf
-import kotlinx.cinterop.invoke
-import kotlinx.cinterop.usePinned
+import kotlinx.cinterop.*
 
 /**
  * The host LAPACKE through cinterop. Every shared routine lives in [F64DecompositionsAdapter]; this supplies the

@@ -4,9 +4,7 @@ import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
-import kotlin.test.Test
-import kotlin.test.assertContentEquals
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 class BundledBasicluTest {
     @Test

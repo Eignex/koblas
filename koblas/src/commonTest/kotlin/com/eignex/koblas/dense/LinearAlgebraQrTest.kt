@@ -1,20 +1,11 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.DimensionMismatch
-import com.eignex.koblas.assertClose
-import com.eignex.koblas.core.*
+import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.host.rColumn
-import com.eignex.koblas.koblas
-import com.eignex.koblas.randomMatrix
-import com.eignex.koblas.randomVector
-import com.eignex.koblas.transpose
-import com.eignex.koblas.wellConditioned
 import kotlin.math.abs
 import kotlin.random.Random
-import kotlin.test.Test
-import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 class LinearAlgebraQrTest {
 

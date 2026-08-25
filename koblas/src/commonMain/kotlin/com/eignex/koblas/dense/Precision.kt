@@ -1,10 +1,5 @@
 package com.eignex.koblas.dense
 
-/*
- * The double-precision names of this package under the aliases they had before the element type reached
- * them. [com.eignex.koblas.Precision] says why they carry it.
- */
-
 /** Double-precision [F64Kernels], the vector-vector half an unqualified `Kernels` means. */
 public typealias Kernels = F64Kernels
 

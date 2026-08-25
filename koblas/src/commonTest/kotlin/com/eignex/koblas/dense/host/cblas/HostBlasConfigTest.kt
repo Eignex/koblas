@@ -1,8 +1,6 @@
 package com.eignex.koblas.dense.host.cblas
 
-import kotlin.test.Test
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 class HostBlasConfigTest {
 

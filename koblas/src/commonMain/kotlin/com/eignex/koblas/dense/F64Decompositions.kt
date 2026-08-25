@@ -2,17 +2,8 @@
 
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.Backend
-import com.eignex.koblas.NotPositiveDefinite
-import com.eignex.koblas.SingularMatrix
-import com.eignex.koblas.Workspace
-import com.eignex.koblas.borrow
-import com.eignex.koblas.core.*
+import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.koblas
-import com.eignex.koblas.norm1
-import com.eignex.koblas.requireShape
-import com.eignex.koblas.transpose
 
 /** Dense factorizations as a backend half. */
 public interface F64Decompositions : Backend {

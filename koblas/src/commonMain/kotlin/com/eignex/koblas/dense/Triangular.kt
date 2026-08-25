@@ -2,7 +2,6 @@
 
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.koblas
 

@@ -2,12 +2,8 @@
 
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.NOT_SINGULAR
-import com.eignex.koblas.Workspace
-import com.eignex.koblas.borrow
+import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.requireFactored
-import com.eignex.koblas.requireShape
 import kotlin.math.abs
 
 /*

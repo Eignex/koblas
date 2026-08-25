@@ -1,10 +1,8 @@
 package com.eignex.koblas.bench
 
+import com.eignex.koblas.*
 import com.eignex.koblas.dense.F64LinearAlgebra
 import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
-import com.eignex.koblas.installBackends
-import com.eignex.koblas.koblas
-import com.eignex.koblas.koblasInfo
 
 internal const val AUTO_BACKEND = "auto"
 

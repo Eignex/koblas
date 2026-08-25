@@ -1,18 +1,12 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.core.*
-import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
-import com.eignex.koblas.dense.Uplo
-import com.eignex.koblas.dense.lu
-import com.eignex.koblas.dense.solve
+import com.eignex.koblas.dense.*
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.lu
 import com.eignex.koblas.testutil.allocation.bytesPerIteration
 import kotlin.random.Random
-import kotlin.test.AfterTest
-import kotlin.test.BeforeTest
-import kotlin.test.Test
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 class AllocationFreeTest {
 

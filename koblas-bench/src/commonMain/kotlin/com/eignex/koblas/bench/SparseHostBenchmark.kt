@@ -3,9 +3,7 @@ package com.eignex.koblas.bench
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.installBackends
 import com.eignex.koblas.koblas
-import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
-import com.eignex.koblas.sparse.F64SparseFactorization
-import com.eignex.koblas.sparse.lu
+import com.eignex.koblas.sparse.*
 import kotlinx.benchmark.*
 
 @State(Scope.Benchmark)

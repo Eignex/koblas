@@ -1,19 +1,9 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.DimensionMismatch
-import com.eignex.koblas.NOT_SINGULAR
-import com.eignex.koblas.assertClose
-import com.eignex.koblas.core.*
+import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.koblas
-import com.eignex.koblas.lapackFailedAt
-import com.eignex.koblas.times
-import com.eignex.koblas.wellConditioned
 import kotlin.random.Random
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 class LinearAlgebraTest {
 

@@ -2,9 +2,7 @@ package com.eignex.koblas
 
 import com.eignex.koblas.core.*
 import kotlinx.serialization.json.Json
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
+import kotlin.test.*
 
 /** Indexing and shape validation, which must not depend on which storage the caller happens to hold. */
 class BoundsAndShapeTest {

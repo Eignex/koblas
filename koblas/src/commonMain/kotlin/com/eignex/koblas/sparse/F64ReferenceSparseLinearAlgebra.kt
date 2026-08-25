@@ -1,15 +1,12 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.core.*
+import com.eignex.koblas.*
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.dense.applyBeta
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.numeric.euclideanNorm
-import com.eignex.koblas.koblas
-import com.eignex.koblas.requireShape
-import com.eignex.koblas.requireSquare
-import com.eignex.koblas.sparse.factorization.lu.*
+import com.eignex.koblas.sparse.factorization.lu.F64SparseLuFactorization
 import kotlin.math.abs
 
 /**

@@ -1,22 +1,13 @@
 package com.eignex.koblas.dense.host.jvm
 
-import com.eignex.koblas.core.*
+import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.F64Blas
 import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
-import com.eignex.koblas.internal.backend.BackendSlot
-import com.eignex.koblas.internal.backend.f64DispatchThresholds
-import com.eignex.koblas.internal.backend.probe
-import com.eignex.koblas.internal.backend.registerPlatformBackends
-import com.eignex.koblas.isAccelerated
-import com.eignex.koblas.koblas
-import com.eignex.koblas.portableSlots
+import com.eignex.koblas.internal.backend.*
 import com.eignex.koblas.testutil.host.HostLibraryTest
-import com.eignex.koblas.withCleanBackends
 import org.junit.experimental.categories.Category
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 /**
  * Discovery itself, which the everyday run never reaches: it pins both backend domains to `reference`.

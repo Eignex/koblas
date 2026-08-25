@@ -7,11 +7,7 @@ import com.eignex.koblas.dense.Uplo
 import kotlin.math.abs
 import kotlin.math.sqrt
 import kotlin.random.Random
-import kotlin.test.Test
-import kotlin.test.assertContentEquals
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 @Suppress("VariableNaming") // single-letter matrix/vector names track math conventions
 class OpsTest {

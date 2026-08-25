@@ -1,12 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.internal.backend.BackendNames
-import com.eignex.koblas.internal.numeric.absoluteSum
-import com.eignex.koblas.internal.numeric.euclideanNorm
-import com.eignex.koblas.internal.numeric.scalarAxpy
-import com.eignex.koblas.internal.numeric.scalarDot
-import com.eignex.koblas.internal.numeric.scalarDot4
-import com.eignex.koblas.internal.numeric.scalarScale
+import com.eignex.koblas.internal.numeric.*
 
 /**
  * The compile-time kernels for every non-JVM target. Routing to a registered [F64Kernels] backend

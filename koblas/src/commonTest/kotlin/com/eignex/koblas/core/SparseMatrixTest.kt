@@ -1,13 +1,9 @@
 package com.eignex.koblas.core
 
-import com.eignex.koblas.*
-import com.eignex.koblas.core.*
 import com.eignex.koblas.sparse.gemv
 import com.eignex.koblas.times
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
+import com.eignex.koblas.transpose
+import kotlin.test.*
 
 class SparseMatrixTest {
 

@@ -4,9 +4,6 @@ import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.dense.host.F64DecompositionsAdapter
 import com.eignex.koblas.dense.host.cblas.Cblas.COL_MAJOR
 import com.eignex.koblas.dense.host.cblas.HostBlasConfig
-import com.eignex.koblas.dense.host.jvm.HostBlasCalls
-import com.eignex.koblas.dense.host.jvm.JvmCblasCalls
-import com.eignex.koblas.dense.host.jvm.JvmLapackeCalls
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.backend.hostBlasDispatchThresholds
 

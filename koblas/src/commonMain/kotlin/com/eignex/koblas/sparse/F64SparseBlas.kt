@@ -4,7 +4,6 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.Backend
 import com.eignex.koblas.SingularMatrix
-import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64SparseMatrix
 
 /** Sparse matrix routines as a backend half. */

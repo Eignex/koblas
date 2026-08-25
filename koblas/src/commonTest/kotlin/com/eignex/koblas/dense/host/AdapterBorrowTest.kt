@@ -1,14 +1,9 @@
 package com.eignex.koblas.dense.host
 
 import com.eignex.koblas.Workspace
-import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.dense.*
-import com.eignex.koblas.dense.host.CblasCalls
-import com.eignex.koblas.dense.host.F64BlasAdapter
-import kotlin.test.Test
-import kotlin.test.assertFailsWith
-import kotlin.test.assertSame
+import com.eignex.koblas.dense.Uplo
+import kotlin.test.*
 
 /**
  * The host adapters borrow scratch around calls into a library that can raise, and a buffer never handed back

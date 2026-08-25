@@ -3,20 +3,11 @@
 
 package com.eignex.koblas.dense.host.cblas
 
-import com.eignex.koblas.core.*
+import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.F64LinearAlgebra
 import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
-import com.eignex.koblas.dense.host.cblas.F64CblasBackend
-import com.eignex.koblas.dense.host.cblas.F64CblasKernels
-import com.eignex.koblas.koblas
-import com.eignex.koblas.koblasInfo
-import com.eignex.koblas.registerBackend
-import com.eignex.koblas.withCleanBackends
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertSame
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 /** Checks that CBLAS and LAPACKE register independently of each other. */
 class CblasHalvesTest {

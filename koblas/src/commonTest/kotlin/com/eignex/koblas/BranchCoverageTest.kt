@@ -2,13 +2,9 @@ package com.eignex.koblas
 
 import com.eignex.koblas.core.*
 import com.eignex.koblas.dense.lu
-import com.eignex.koblas.sparse.gemv
 import kotlin.math.abs
 import kotlin.random.Random
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 /**
  * Paths the shape-driven suites step over: a destination that aliases its source, the storage combinations

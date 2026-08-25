@@ -5,9 +5,7 @@ import com.eignex.koblas.internal.host.FfmLibrary.Companion.intOf
 import com.eignex.koblas.internal.host.FfmLibrary.Companion.pointerOf
 import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
-import java.lang.foreign.ValueLayout.ADDRESS
-import java.lang.foreign.ValueLayout.JAVA_DOUBLE
-import java.lang.foreign.ValueLayout.JAVA_INT
+import java.lang.foreign.ValueLayout.*
 import java.lang.invoke.MethodHandle
 
 /** The public 32-bit-index ABI exported by KLU 2. */

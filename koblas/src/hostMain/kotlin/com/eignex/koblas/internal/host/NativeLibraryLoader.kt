@@ -3,9 +3,7 @@
 package com.eignex.koblas.internal.host
 
 import kotlinx.cinterop.COpaquePointer
-import platform.posix.RTLD_NOW
-import platform.posix.dlopen
-import platform.posix.dlsym
+import platform.posix.*
 
 /** Opens the first library in [names], optionally requiring that it exports [requiredSymbol]. */
 internal fun openNativeLibrary(names: List<String>, requiredSymbol: String? = null): COpaquePointer? {

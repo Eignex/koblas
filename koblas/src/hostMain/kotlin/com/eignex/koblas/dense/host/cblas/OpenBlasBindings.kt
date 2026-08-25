@@ -3,16 +3,7 @@
 package com.eignex.koblas.dense.host.cblas
 
 import com.eignex.koblas.internal.host.openNativeLibrary
-import kotlinx.cinterop.ByteVar
-import kotlinx.cinterop.CFunction
-import kotlinx.cinterop.COpaquePointer
-import kotlinx.cinterop.CPointer
-import kotlinx.cinterop.DoubleVar
-import kotlinx.cinterop.ExperimentalForeignApi
-import kotlinx.cinterop.IntVar
-import kotlinx.cinterop.invoke
-import kotlinx.cinterop.reinterpret
-import kotlinx.cinterop.toKString
+import kotlinx.cinterop.*
 import platform.posix.dlsym
 
 private typealias Dp = CPointer<DoubleVar>?

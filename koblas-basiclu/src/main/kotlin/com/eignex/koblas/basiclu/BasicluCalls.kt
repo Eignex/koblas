@@ -6,9 +6,7 @@ import com.eignex.koblas.internal.host.FfmLibrary.Companion.longOf
 import com.eignex.koblas.internal.host.FfmLibrary.Companion.pointerOf
 import com.eignex.koblas.internal.host.FfmLibrary.Companion.voidOf
 import java.lang.foreign.MemorySegment
-import java.lang.foreign.ValueLayout.ADDRESS
-import java.lang.foreign.ValueLayout.JAVA_INT
-import java.lang.foreign.ValueLayout.JAVA_LONG
+import java.lang.foreign.ValueLayout.*
 import java.lang.invoke.MethodHandle
 
 internal class BasicluCalls(libraryPath: String?) {

@@ -1,9 +1,6 @@
 package com.eignex.koblas.dense.host.jvm
 
-import com.eignex.koblas.dense.host.cblas.HostBlasConfig
-import com.eignex.koblas.dense.host.cblas.LAPACKE_SONAMES
-import com.eignex.koblas.dense.host.cblas.OPENBLAS_SONAMES
-import com.eignex.koblas.dense.host.cblas.isIlp64OpenBlas
+import com.eignex.koblas.dense.host.cblas.*
 import com.eignex.koblas.internal.host.FfmLibrary
 import com.eignex.koblas.internal.host.FfmLibrary.Companion.doubleOf
 import com.eignex.koblas.internal.host.FfmLibrary.Companion.intOf
@@ -11,10 +8,7 @@ import com.eignex.koblas.internal.host.FfmLibrary.Companion.pointerOf
 import com.eignex.koblas.internal.host.FfmLibrary.Companion.voidOf
 import java.lang.foreign.FunctionDescriptor
 import java.lang.foreign.MemorySegment
-import java.lang.foreign.ValueLayout.ADDRESS
-import java.lang.foreign.ValueLayout.JAVA_BYTE
-import java.lang.foreign.ValueLayout.JAVA_DOUBLE
-import java.lang.foreign.ValueLayout.JAVA_INT
+import java.lang.foreign.ValueLayout.*
 import java.lang.invoke.MethodHandle
 
 /**

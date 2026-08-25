@@ -2,13 +2,10 @@
 
 package com.eignex.koblas.dense.host
 
-import com.eignex.koblas.Workspace
-import com.eignex.koblas.core.*
+import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64VectorLike
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.dense.F64Blas
-import com.eignex.koblas.dense.Uplo
 import com.eignex.koblas.dense.host.cblas.Cblas.COL_MAJOR
 import com.eignex.koblas.dense.host.cblas.Cblas.LOWER
 import com.eignex.koblas.dense.host.cblas.Cblas.UPPER
@@ -17,8 +14,6 @@ import com.eignex.koblas.dense.host.cblas.Cblas.sideOf
 import com.eignex.koblas.dense.host.cblas.Cblas.transOf
 import com.eignex.koblas.dense.host.cblas.Cblas.uploOf
 import com.eignex.koblas.internal.backend.DispatchThresholds
-import com.eignex.koblas.requireShape
-import com.eignex.koblas.requireSquare
 
 /**
  * The dense matrix routines a host CBLAS provides, over whichever [CblasCalls] the platform supplies. Both

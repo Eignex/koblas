@@ -2,12 +2,6 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.norm1
-import com.eignex.koblas.normFro
-import com.eignex.koblas.normInf
-import com.eignex.koblas.scaleColumns
-import com.eignex.koblas.scaleRows
-import com.eignex.koblas.transpose
 import kotlinx.benchmark.*
 
 @State(Scope.Benchmark)

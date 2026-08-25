@@ -1,15 +1,10 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.core.*
+import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.koblas
-import com.eignex.koblas.norm1
-import com.eignex.koblas.wellConditioned
 import kotlin.math.abs
 import kotlin.random.Random
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 class LinearAlgebraRcondTest {
 

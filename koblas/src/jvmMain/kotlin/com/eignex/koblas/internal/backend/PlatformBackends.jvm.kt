@@ -5,9 +5,7 @@ import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.F64Blas
 import com.eignex.koblas.dense.host.cblas.HostBlasConfig
 import com.eignex.koblas.dense.host.jvm.F64Backends
-import com.eignex.koblas.sparse.F64SparseBlas
-import com.eignex.koblas.sparse.F64SparseKernels
-import com.eignex.koblas.sparse.F64SparseLu
+import com.eignex.koblas.sparse.*
 import com.eignex.koblas.sparse.host.F64SparseBackends
 import com.eignex.koblas.sparse.host.klu.KluConfig
 import com.eignex.koblas.sparse.host.umfpack.UmfpackConfig

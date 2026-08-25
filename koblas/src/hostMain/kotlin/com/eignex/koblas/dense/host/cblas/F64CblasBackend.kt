@@ -1,10 +1,7 @@
 package com.eignex.koblas.dense.host.cblas
 
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
-import com.eignex.koblas.dense.F64Blas
-import com.eignex.koblas.dense.F64Decompositions
-import com.eignex.koblas.dense.F64Kernels
-import com.eignex.koblas.dense.F64LinearAlgebra
+import com.eignex.koblas.dense.*
 import com.eignex.koblas.internal.backend.BackendNames
 
 /**

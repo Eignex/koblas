@@ -2,25 +2,11 @@
 
 package com.eignex.koblas.sparse.host.umfpack
 
-import com.eignex.koblas.Workspace
-import com.eignex.koblas.borrow
-import com.eignex.koblas.core.*
+import com.eignex.koblas.*
 import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.requireFactored
 import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.requireSolveShapes
-import kotlinx.cinterop.COpaquePointerVar
-import kotlinx.cinterop.CPointer
-import kotlinx.cinterop.ExperimentalForeignApi
-import kotlinx.cinterop.addressOf
-import kotlinx.cinterop.alloc
-import kotlinx.cinterop.free
-import kotlinx.cinterop.invoke
-import kotlinx.cinterop.nativeHeap
-import kotlinx.cinterop.pointed
-import kotlinx.cinterop.ptr
-import kotlinx.cinterop.usePinned
-import kotlinx.cinterop.value
+import kotlinx.cinterop.*
 import kotlin.experimental.ExperimentalNativeApi
 import kotlin.native.concurrent.ThreadLocal
 import kotlin.native.ref.createCleaner

@@ -3,17 +3,11 @@
 
 package com.eignex.koblas.dense.host.cblas
 
-import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
-import com.eignex.koblas.dense.assertLevel1KernelsAgreeWithScalar
-import com.eignex.koblas.dense.assertReductionsAgreeWithScalar
+import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.host.*
-import com.eignex.koblas.dense.host.cblas.F64CblasBackend
-import com.eignex.koblas.dense.host.cblas.F64CblasKernels
 import com.eignex.koblas.installBackends
 import com.eignex.koblas.koblas
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 /** Checks the CBLAS backend against the reference implementation. */
 class CblasConformanceTest {

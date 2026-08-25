@@ -1,9 +1,6 @@
 package com.eignex.koblas.sparse.host.umfpack
 
-import com.eignex.koblas.HOST_BACKEND_PRIORITY
-import com.eignex.koblas.NOT_SINGULAR
-import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
-import com.eignex.koblas.core.*
+import com.eignex.koblas.*
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.sparse.F64SingularSparseFactorization

@@ -1,18 +1,10 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
-import com.eignex.koblas.SingularMatrix
-import com.eignex.koblas.assertClose
-import com.eignex.koblas.core.*
+import com.eignex.koblas.*
 import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.koblas
-import com.eignex.koblas.registerBackend
-import com.eignex.koblas.withCleanBackends
 import kotlin.math.abs
 import kotlin.random.Random
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 /** A diagonally dominant system with roughly a quarter of the off-diagonal entries filled. */
 internal fun sparseConformanceSystem(n: Int, rng: Random): F64SparseMatrix {

@@ -1,7 +1,6 @@
 package com.eignex.koblas.dense.host.jvm
 
 import com.eignex.koblas.dense.host.cblas.HostBlasConfig
-import com.eignex.koblas.dense.host.jvm.HostBlasCalls
 
 /** The CBLAS and LAPACKE halves resolved from one OpenBLAS and optional LAPACKE path pair. */
 public class F64Backends(config: HostBlasConfig = HostBlasConfig()) {

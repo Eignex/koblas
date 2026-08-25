@@ -3,27 +3,13 @@ package com.eignex.koblas.sparse.host.umfpack
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.sparse.assertAliasedDestinationSolves
-import com.eignex.koblas.sparse.assertControlArrayKeepsUmfpackDefaults
-import com.eignex.koblas.sparse.assertFactorizeGateFallsBackToReference
-import com.eignex.koblas.sparse.assertGatedFallbackStillSolves
-import com.eignex.koblas.sparse.assertNativeEquilibrationAndUnsupportedDropToleranceIsRejected
-import com.eignex.koblas.sparse.assertReciprocalPivotConditionEstimateIsBounded
-import com.eignex.koblas.sparse.assertRegistersAsTheSparseLuHalf
-import com.eignex.koblas.sparse.assertRepeatedFactorizationsSurvive
-import com.eignex.koblas.sparse.assertSingularIsReportedWithUnknownPosition
-import com.eignex.koblas.sparse.assertSolvesAgreeWithReference
-import com.eignex.koblas.sparse.sparseConformanceSystem
+import com.eignex.koblas.sparse.*
 import com.eignex.koblas.testutil.host.HostLibraryTest
 import org.junit.Assume
 import org.junit.experimental.categories.Category
-import java.lang.ref.PhantomReference
-import java.lang.ref.Reference
-import java.lang.ref.ReferenceQueue
+import java.lang.ref.*
 import kotlin.random.Random
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 @Category(HostLibraryTest::class)
 class UmfpackConformanceTest {

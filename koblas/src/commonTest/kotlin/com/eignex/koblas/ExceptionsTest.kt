@@ -1,15 +1,9 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.core.*
-import com.eignex.koblas.dense.CholeskyPolicy
-import com.eignex.koblas.dense.cholesky
-import com.eignex.koblas.dense.invert
-import com.eignex.koblas.dense.lu
+import com.eignex.koblas.dense.*
 import com.eignex.koblas.sparse.trsv
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 class ExceptionsTest {
 

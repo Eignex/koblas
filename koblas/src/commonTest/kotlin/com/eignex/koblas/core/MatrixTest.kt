@@ -1,12 +1,7 @@
 package com.eignex.koblas.core
 
 import com.eignex.koblas.*
-import com.eignex.koblas.core.*
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertNotEquals
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 class MatrixTest {
 

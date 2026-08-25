@@ -2,9 +2,8 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.Backend
 import com.eignex.koblas.Workspace
-import com.eignex.koblas.core.*
 import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.sparse.factorization.lu.*
+import com.eignex.koblas.sparse.factorization.lu.NO_DROP
 
 /** Sparse LU factorization as a backend half. */
 public interface F64SparseLu : Backend {

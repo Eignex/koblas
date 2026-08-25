@@ -1,6 +1,5 @@
 package com.eignex.koblas.dense.host.jvm
 
-import com.eignex.koblas.dense.host.jvm.F64Lapacke
 import com.eignex.koblas.testutil.allocation.bytesPerIteration
 import com.eignex.koblas.testutil.host.HostLibraryTest
 import com.eignex.koblas.wellConditioned

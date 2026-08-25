@@ -1,10 +1,7 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.sparse.F64SparseFactorization
-import com.eignex.koblas.sparse.gemv
-import com.eignex.koblas.sparse.lu
-import com.eignex.koblas.sparse.trsv
+import com.eignex.koblas.sparse.*
 import com.eignex.koblas.transpose
 import kotlinx.benchmark.*
 

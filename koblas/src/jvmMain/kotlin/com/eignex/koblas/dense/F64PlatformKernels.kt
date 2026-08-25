@@ -1,13 +1,8 @@
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.dense.Simd.UNROLL_MIN
 import com.eignex.koblas.internal.backend.BackendNames
-import com.eignex.koblas.internal.numeric.F64_MIN_NORMAL
-import com.eignex.koblas.internal.numeric.absoluteSum
-import com.eignex.koblas.internal.numeric.euclideanNorm
-import com.eignex.koblas.internal.numeric.scalarAxpy
-import com.eignex.koblas.internal.numeric.scalarDot
-import com.eignex.koblas.internal.numeric.scalarDot4
-import com.eignex.koblas.internal.numeric.scalarScale
+import com.eignex.koblas.internal.numeric.*
 import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
 import kotlin.math.sqrt

@@ -4,9 +4,7 @@ import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.discoverBackends
 import com.eignex.koblas.koblas
 import java.nio.file.Files
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 class BundledOpenBlasTest {
     @Test

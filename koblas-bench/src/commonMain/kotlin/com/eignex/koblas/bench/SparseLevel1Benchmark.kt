@@ -3,11 +3,6 @@ package com.eignex.koblas.bench
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseVector
 import com.eignex.koblas.core.F64SparseVector
-import com.eignex.koblas.asum
-import com.eignex.koblas.axpy
-import com.eignex.koblas.dot
-import com.eignex.koblas.koblas
-import com.eignex.koblas.norm2
 import kotlinx.benchmark.*
 
 @State(Scope.Benchmark)

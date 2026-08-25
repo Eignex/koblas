@@ -1,11 +1,8 @@
 package com.eignex.koblas.sparse.host.umfpack
 
-import com.eignex.koblas.Workspace
-import com.eignex.koblas.borrow
-import com.eignex.koblas.core.*
+import com.eignex.koblas.*
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.nativeCleaner
-import com.eignex.koblas.requireFactored
 import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.requireSolveShapes
 import java.lang.foreign.Arena

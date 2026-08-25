@@ -1,17 +1,12 @@
 package com.eignex.koblas.internal.backend
 
-import com.eignex.koblas.*
-import com.eignex.koblas.core.*
-import com.eignex.koblas.dense.F64Blas
-import com.eignex.koblas.dense.F64Decompositions
-import com.eignex.koblas.dense.F64Kernels
-import com.eignex.koblas.dense.F64LinearAlgebra
-import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
+import com.eignex.koblas.core.F64DenseMatrix
+import com.eignex.koblas.dense.*
+import com.eignex.koblas.discoverBackends
+import com.eignex.koblas.koblas
 import java.nio.file.Files
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 /**
  * A provider whose `gemv` runs its inner loop on the installed kernels, which is what a host backend does

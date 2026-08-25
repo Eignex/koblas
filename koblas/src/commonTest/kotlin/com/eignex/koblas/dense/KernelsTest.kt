@@ -1,30 +1,14 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.asum
-import com.eignex.koblas.axpy
-import com.eignex.koblas.core.*
+import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseVector
 import com.eignex.koblas.core.F64SparseVector
-import com.eignex.koblas.dot
-import com.eignex.koblas.iamax
-import com.eignex.koblas.installBackends
 import com.eignex.koblas.internal.backend.f64DispatchThresholds
 import com.eignex.koblas.internal.numeric.euclideanNorm
-import com.eignex.koblas.koblas
-import com.eignex.koblas.mathBackend
-import com.eignex.koblas.norm2
-import com.eignex.koblas.platformKernels
-import com.eignex.koblas.registerBackend
-import com.eignex.koblas.resetBackends
-import com.eignex.koblas.scale
-import com.eignex.koblas.withCleanBackends
 import kotlin.math.abs
 import kotlin.math.sqrt
 import kotlin.random.Random
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertSame
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 class KernelsTest {
 

@@ -3,11 +3,7 @@ package com.eignex.koblas.klu
 import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
-import kotlin.test.Test
-import kotlin.test.assertContentEquals
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 class BundledKluTest {
     @Test

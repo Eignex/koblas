@@ -1,14 +1,7 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.dense.F64LdlDecomposition
-import com.eignex.koblas.dense.F64LuDecomposition
-import com.eignex.koblas.dense.invert
-import com.eignex.koblas.dense.lu
-import com.eignex.koblas.dense.rcond
-import com.eignex.koblas.dense.solve
-import com.eignex.koblas.dense.trtri
+import com.eignex.koblas.dense.*
 import com.eignex.koblas.koblas
 import com.eignex.koblas.norm1
 import kotlinx.benchmark.*

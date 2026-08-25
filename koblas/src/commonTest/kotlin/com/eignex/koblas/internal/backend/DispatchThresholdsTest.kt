@@ -4,9 +4,7 @@ import com.eignex.koblas.*
 import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.internal.numeric.absoluteSum
 import com.eignex.koblas.internal.numeric.euclideanNorm
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 class DispatchThresholdsTest {
 

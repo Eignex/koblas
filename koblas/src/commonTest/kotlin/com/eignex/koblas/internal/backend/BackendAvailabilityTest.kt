@@ -1,15 +1,9 @@
 package com.eignex.koblas.internal.backend
 
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.F64Blas
-import com.eignex.koblas.dense.F64Decompositions
-import com.eignex.koblas.dense.F64Kernels
-import com.eignex.koblas.dense.F64ReferenceBackend
-import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
+import com.eignex.koblas.dense.*
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
-import kotlin.test.Test
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 class BackendAvailabilityTest {
 

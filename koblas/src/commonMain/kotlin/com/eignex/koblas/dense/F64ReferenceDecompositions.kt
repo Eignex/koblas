@@ -2,15 +2,9 @@
 
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.F64Context
-import com.eignex.koblas.SingularMatrix
-import com.eignex.koblas.Workspace
-import com.eignex.koblas.core.*
+import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.internal.backend.BackendNames
-import com.eignex.koblas.koblas
-import com.eignex.koblas.requireFactored
-import com.eignex.koblas.requireShape
 
 /**
  * The portable dense factorizations, the semantic reference a native [F64Decompositions] is validated against.

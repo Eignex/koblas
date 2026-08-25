@@ -1,10 +1,8 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.core.*
-import com.eignex.koblas.dense.CholeskyPolicy
-import com.eignex.koblas.dense.cholesky
-import com.eignex.koblas.dense.lu
-import com.eignex.koblas.dense.solve
+import com.eignex.koblas.core.F64DenseMatrix
+import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.dense.*
 import com.eignex.koblas.sparse.gemv
 import com.eignex.koblas.sparse.lu
 import kotlin.random.Random

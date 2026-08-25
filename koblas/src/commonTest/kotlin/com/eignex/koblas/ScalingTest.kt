@@ -1,9 +1,8 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.core.*
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
+import com.eignex.koblas.core.F64DenseMatrix
+import com.eignex.koblas.core.F64SparseMatrix
+import kotlin.test.*
 
 class ScalingTest {
 

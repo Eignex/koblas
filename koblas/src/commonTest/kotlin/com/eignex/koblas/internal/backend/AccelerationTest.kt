@@ -1,21 +1,13 @@
 package com.eignex.koblas.internal.backend
 
 import com.eignex.koblas.*
-import com.eignex.koblas.core.*
-import com.eignex.koblas.dense.F64Blas
-import com.eignex.koblas.dense.F64Decompositions
-import com.eignex.koblas.dense.F64Kernels
-import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
-import com.eignex.koblas.internal.backend.BackendSlot
+import com.eignex.koblas.core.F64SparseVector
+import com.eignex.koblas.dense.*
 import com.eignex.koblas.internal.numeric.absoluteSum
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.F64SparseKernels
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertSame
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 class AccelerationTest {
 

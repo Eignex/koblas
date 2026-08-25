@@ -1,9 +1,7 @@
 package com.eignex.koblas.internal.backend
 
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.F64Blas
-import com.eignex.koblas.dense.F64Decompositions
-import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
+import com.eignex.koblas.dense.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

@@ -1,6 +1,6 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.core.*
+import com.eignex.koblas.core.F64DenseMatrix
 import kotlin.math.sqrt
 import kotlin.test.Test
 import kotlin.test.assertEquals
