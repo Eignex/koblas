@@ -42,6 +42,7 @@ possible.
 | koblas-umfpack | General sparse LU for irregular or unstructured systems. |
 | koblas-klu | Sparse LU for circuit-style systems with a fixed sparsity pattern. |
 | koblas-basiclu | Simplex-basis LU with efficient column replacements. |
+| koblas-hfactor | Simplex-basis solver with hypersparse solves and Forrest-Tomlin updates. |
 
 On JVM, add `--add-modules=jdk.incubator.vector` to enable the built-in SIMD kernels.
 They beat the native binding for BLAS level 1 (vector-vector work) and level 2

@@ -32,6 +32,9 @@ internal object ConfigurationKeys {
 
     /** An absolute path to a BASICLU exporting koblas's bridge entry points, ahead of the bundled build. */
     val BASICLU_PATH = LibraryPathKeys("koblas.basiclu.path", "KOBLAS_BASICLU_PATH")
+
+    /** An absolute path to a build of koblas's HFactor bridge, ahead of the bundled one. */
+    val HFACTOR_PATH = LibraryPathKeys("koblas.hfactor.path", "KOBLAS_HFACTOR_PATH")
 }
 
 /** The system property and the environment variable a deployment can point one library path at. */
