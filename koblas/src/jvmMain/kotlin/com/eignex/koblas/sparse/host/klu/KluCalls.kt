@@ -112,9 +112,9 @@ internal class KluCalls(private val config: KluConfig) {
         config.amdInitialMemoryFactor?.let { common.set(JAVA_DOUBLE, KLU_COMMON_INITMEM_AMD, it) }
         config.initialMemoryFactor?.let { common.set(JAVA_DOUBLE, KLU_COMMON_INITMEM, it) }
         config.maxBtfWork?.let { common.set(JAVA_DOUBLE, KLU_COMMON_MAXWORK, it) }
-        config.useBtf?.let { common.set(JAVA_INT, KLU_COMMON_BTF, it.asNativeBoolean()) }
+        config.useBtf?.let { common.set(JAVA_INT, KLU_COMMON_BTF, it.asNativeKluBoolean()) }
         config.ordering?.let { common.set(JAVA_INT, KLU_COMMON_ORDERING, it.nativeValue) }
-        config.haltIfSingular?.let { common.set(JAVA_INT, KLU_COMMON_HALT_IF_SINGULAR, it.asNativeBoolean()) }
+        config.haltIfSingular?.let { common.set(JAVA_INT, KLU_COMMON_HALT_IF_SINGULAR, it.asNativeKluBoolean()) }
         val scaling = if (equilibrate) config.equilibratedScaling.nativeValue else KLU_SCALE_NONE
         common.set(JAVA_INT, KLU_COMMON_SCALE, scaling)
     }
@@ -203,39 +203,3 @@ internal class KluFactor(
             return numeric.get(JAVA_INT, KLU_NUMERIC_LNZ) + numeric.get(JAVA_INT, KLU_NUMERIC_UNZ)
         }
 }
-
-internal val KLU_SONAMES = listOf("libklu.so.2", "libklu.2.dylib")
-
-private const val KLU_COMMON_BYTES = 160L
-private const val KLU_NUMERIC_BYTES = 168L
-private const val KLU_COMMON_TOL = 0L
-private const val KLU_COMMON_MEMGROW = 8L
-private const val KLU_COMMON_INITMEM_AMD = 16L
-private const val KLU_COMMON_INITMEM = 24L
-private const val KLU_COMMON_MAXWORK = 32L
-private const val KLU_COMMON_BTF = 40L
-private const val KLU_COMMON_ORDERING = 44L
-private const val KLU_COMMON_SCALE = 48L
-private const val KLU_COMMON_HALT_IF_SINGULAR = 72L
-private const val KLU_COMMON_STATUS = 76L
-private const val KLU_COMMON_RCOND = 112L
-private const val KLU_NUMERIC_LNZ = 8L
-private const val KLU_NUMERIC_UNZ = 12L
-private const val KLU_SCALE_NONE = 0
-private const val KLU_SCALE_MAX = 2
-private const val KLU_SINGULAR = 1
-
-private fun Boolean.asNativeBoolean(): Int = if (this) 1 else 0
-
-private val KluOrdering.nativeValue: Int
-    get() = when (this) {
-        KluOrdering.AMD -> 0
-        KluOrdering.COLAMD -> 1
-    }
-
-private val KluScaling.nativeValue: Int
-    get() = when (this) {
-        KluScaling.NONE -> KLU_SCALE_NONE
-        KluScaling.SUM -> 1
-        KluScaling.MAX -> KLU_SCALE_MAX
-    }

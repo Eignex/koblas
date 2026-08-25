@@ -36,8 +36,11 @@ public abstract class F64SparseLuAdapter protected constructor(factorizeMin: Int
         require(dropTolerance >= 0.0) { "dropTolerance must not be negative" }
         // Rejected before the gate is read, so which exception a caller gets does not turn on the size.
         require(dropTolerance == NO_DROP) { "$name does not support drop tolerance" }
-        if (a.nnz < factorizeGate) return F64ReferenceSparseLinearAlgebra.factor(a, equilibrate, dropTolerance)
-        check(nativeAvailable) { "$name is not available" }
+        // A binding whose library is absent answers portably rather than throwing, which is what lets a
+        // caller reach [factorBasis] on any backend and get the refactoring fallback instead of an error.
+        if (a.nnz < factorizeGate || !nativeAvailable) {
+            return F64ReferenceSparseLinearAlgebra.factor(a, equilibrate, dropTolerance)
+        }
         return factorNative(a, equilibrate)
     }
 

@@ -3,6 +3,8 @@ package com.eignex.koblas.internal.backend
 import com.eignex.koblas.Backend
 import com.eignex.koblas.dense.host.cblas.*
 import com.eignex.koblas.sparse.host.F64SparseBackends
+import com.eignex.koblas.sparse.host.basiclu.BasicluConfig
+import com.eignex.koblas.sparse.host.klu.KluConfig
 import com.eignex.koblas.sparse.host.umfpack.UmfpackConfig
 
 /**
@@ -22,7 +24,7 @@ internal actual fun registerPlatformBackends() {
         ConfigurationKeys.SPARSE_BACKEND_ENVIRONMENT,
     )
     registerHostBlas(denseRequested)
-    registerUmfpack(sparseRequested)
+    registerSparse(sparseRequested)
 }
 
 /** koblas's CBLAS binding, when this host has OpenBLAS and the deployment did not pin another backend. */
@@ -43,13 +45,20 @@ private fun registerHostBlas(requested: String?) {
     BackendRegistry.registerAutomatic(F64Lapacke(lapacke, cblas, loader, config))
 }
 
-/** koblas's UMFPACK binding, when this host has SuiteSparse. Independent of the BLAS half by design. */
-private fun registerUmfpack(requested: String?) {
-    val umfpack = F64SparseBackends(
+/**
+ * koblas's sparse bindings, each independent of the BLAS half and of each other: a host can have SuiteSparse
+ * without BASICLU, or one of KLU and UMFPACK without the other. Priority picks the winner among those that
+ * resolve, and only BASICLU offers basis updates whatever the priorities say.
+ */
+private fun registerSparse(requested: String?) {
+    val sparse = F64SparseBackends(
         umfpackConfig = UmfpackConfig(libraryPath = libraryPath(ConfigurationKeys.UMFPACK_PATH)),
-    ).umfpack
-    if (!umfpack.isAvailable || !offered(umfpack, requested)) return
-    BackendRegistry.registerAutomatic(umfpack)
+        kluConfig = KluConfig(libraryPath(ConfigurationKeys.KLU_PATH)),
+        basicluConfig = BasicluConfig(libraryPath(ConfigurationKeys.BASICLU_PATH)),
+    )
+    for (backend in listOf(sparse.umfpack, sparse.klu, sparse.basiclu)) {
+        if (backend.isAvailable && offered(backend, requested)) BackendRegistry.registerAutomatic(backend)
+    }
 }
 
 /** Whether [backend] is what the deployment asked for, or asked for nothing in particular. */
