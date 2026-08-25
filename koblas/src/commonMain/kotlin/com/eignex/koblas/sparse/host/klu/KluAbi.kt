@@ -5,7 +5,15 @@ package com.eignex.koblas.sparse.host.klu
  * at these offsets and the native targets read a pointer. Both hold the `klu_common` and `klu_numeric`
  * structs as opaque blocks, since neither has a header to generate from at build time.
  */
-internal val KLU_SONAMES: List<String> = listOf("libklu.so.2", "libklu.2.dylib")
+internal val KLU_SONAMES: List<String> = listOf(
+    "libklu.so.2",
+    "libklu.so",
+    "libklu.2.dylib",
+    "libklu.dylib",
+    "/opt/homebrew/opt/suite-sparse/lib/libklu.dylib", // Homebrew is keg-only
+    "/opt/homebrew/opt/suite-sparse/lib/libklu.2.dylib",
+    "/usr/local/opt/suite-sparse/lib/libklu.dylib",
+)
 
 internal const val KLU_COMMON_BYTES = 160L
 internal const val KLU_NUMERIC_BYTES = 168L
