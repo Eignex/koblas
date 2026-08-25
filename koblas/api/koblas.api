@@ -1115,6 +1115,12 @@ public abstract class com/eignex/koblas/sparse/host/F64SparseLuAdapter : com/eig
 	public fun solveInto (Lcom/eignex/koblas/sparse/F64SparseFactorization;[D[DZLcom/eignex/koblas/Workspace;)[D
 }
 
+public final class com/eignex/koblas/sparse/host/RowEquilibrationKt {
+	public static final fun applyEquilibration ([D[D)V
+	public static final fun equilibrationScale (I[I[D)[D
+	public static final fun scaledValues ([I[D[D)[D
+}
+
 public final class com/eignex/koblas/sparse/host/basiclu/BasicluBasisFactorization : com/eignex/koblas/sparse/host/basiclu/BasicluFactorization, com/eignex/koblas/sparse/F64BasisFactorization {
 	public fun getBasis ()Lcom/eignex/koblas/core/F64SparseMatrix;
 	public fun replaceColumn (ILcom/eignex/koblas/core/F64SparseVector;)Lcom/eignex/koblas/sparse/F64BasisFactorization;

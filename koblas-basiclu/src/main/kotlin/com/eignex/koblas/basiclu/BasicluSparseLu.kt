@@ -6,6 +6,9 @@ import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.internal.host.nativeCleaner
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.sparse.host.F64SparseLuAdapter
+import com.eignex.koblas.sparse.host.applyEquilibration
+import com.eignex.koblas.sparse.host.equilibrationScale
+import com.eignex.koblas.sparse.host.scaledValues
 import java.lang.ref.Reference
 import kotlin.math.abs
 
@@ -23,24 +26,32 @@ public class BasicluSparseLu(
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 2
     override val nativeAvailable: Boolean get() = calls.available
 
-    override fun factorNative(a: F64SparseMatrix, equilibrate: Boolean): F64SparseFactorization =
-        factorHandle(a)?.let { BasicluFactorization(a.rows, it, calls) }
+    /**
+     * BASICLU offers no row scaling of its own, so equilibration is applied to the values handed over and
+     * undone in the solves, by the same power-of-two factors the portable factorization uses.
+     */
+    override fun factorNative(a: F64SparseMatrix, equilibrate: Boolean): F64SparseFactorization {
+        val scale = if (equilibrate) equilibrationScale(a.rows, a.rowIdx, a.values) else null
+        val values = if (scale == null) a.values else scaledValues(a.rowIdx, a.values, scale)
+        return factorHandle(a, values)?.let { BasicluFactorization(a.rows, it, calls, scale) }
             ?: F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
+    }
 
     override val supportsBasisUpdates: Boolean get() = true
 
     override fun factorBasis(basis: F64SparseMatrix): F64BasisFactorization {
         require(basis.rows == basis.cols) { "factorBasis requires a square matrix; got ${basis.rows}x${basis.cols}" }
-        return factorHandle(basis)?.let { BasicluBasisFactorization(this, basis, it, calls) }
+        return factorHandle(basis, basis.values)?.let { BasicluBasisFactorization(this, basis, it, calls) }
             ?: BasicluSingularBasisFactorization(this, basis)
     }
 
-    private fun factorHandle(a: F64SparseMatrix): BasicluHandle? = calls.factorize(
+    /** [values] comes in separately because an equilibrated factorization scales it before handing it over. */
+    private fun factorHandle(a: F64SparseMatrix, values: DoubleArray): BasicluHandle? = calls.factorize(
         a.rows,
         LongArray(a.cols) { a.colPtr[it].toLong() },
         LongArray(a.cols) { a.colPtr[it + 1].toLong() },
         LongArray(a.rowIdx.size) { a.rowIdx[it].toLong() },
-        a.values,
+        values,
     )
 }
 
@@ -48,6 +59,7 @@ private open class BasicluFactorization(
     override val n: Int,
     protected val handle: BasicluHandle,
     protected val calls: BasicluCalls,
+    private val rowScale: DoubleArray? = null,
 ) : F64SparseFactorization {
     init {
         nativeCleaner.register(this, Release(calls, handle))
@@ -78,13 +90,27 @@ private open class BasicluFactorization(
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray {
         requireSolveShapes(n, b, out)
+        // The factors are of E·B, so a forward solve scales what goes in, which cannot touch the caller's
+        // right-hand side, and a transposed one scales what comes out.
+        if (rowScale != null && !transpose) {
+            return workspace.borrow(n) { rhs ->
+                b.copyInto(rhs)
+                applyEquilibration(rhs, rowScale)
+                solve(rhs, out, transpose)
+            }
+        }
         // BASICLU reads the right-hand side and writes the destination, so an aliased pair needs a separate
         // buffer for one of them.
-        if (out !== b) return solve(b, out, transpose)
-        return workspace.borrow(n) { rhs ->
-            b.copyInto(rhs)
-            solve(rhs, out, transpose)
+        val solved = if (out !== b) {
+            solve(b, out, transpose)
+        } else {
+            workspace.borrow(n) { rhs ->
+                b.copyInto(rhs)
+                solve(rhs, out, transpose)
+            }
         }
+        if (rowScale != null) applyEquilibration(solved, rowScale)
+        return solved
     }
 
     private fun solve(rhs: DoubleArray, out: DoubleArray, transpose: Boolean): DoubleArray {

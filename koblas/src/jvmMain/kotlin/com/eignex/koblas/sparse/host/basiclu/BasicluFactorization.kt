@@ -7,6 +7,7 @@ import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.internal.host.nativeCleaner
 import com.eignex.koblas.sparse.F64BasisFactorization
 import com.eignex.koblas.sparse.F64SparseFactorization
+import com.eignex.koblas.sparse.host.applyEquilibration
 import com.eignex.koblas.sparse.requireSolveShapes
 import com.eignex.koblas.withColumn
 import java.lang.ref.Reference
@@ -16,6 +17,8 @@ import kotlin.math.abs
 public open class BasicluFactorization internal constructor(
     internal val target: BasicluObject,
     internal val calls: BasicluCalls,
+    /** The equilibration the values were scaled by before factorization, or null when there was none. */
+    private val rowScale: DoubleArray? = null,
 ) : F64SparseFactorization {
     init {
         nativeCleaner.register(this, Release(calls, target))
@@ -50,12 +53,15 @@ public open class BasicluFactorization internal constructor(
         requireSolveShapes(n, b, out)
         // BASICLU solves through its own buffer, so the destination carries the right-hand side in.
         if (out !== b) b.copyInto(out)
+        // The factors are of E·B, so a forward solve scales what goes in and a transposed one what comes out.
+        if (rowScale != null && !transpose) applyEquilibration(out, rowScale)
         val status = try {
             calls.solve(target, out, transpose)
         } finally {
             Reference.reachabilityFence(this)
         }
         check(status == BasicluStatus.OK) { "BASICLU solve failed with status $status" }
+        if (rowScale != null && transpose) applyEquilibration(out, rowScale)
         return out
     }
 }

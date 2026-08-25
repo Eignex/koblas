@@ -116,6 +116,45 @@ class BasicluConformanceTest {
         assertTrue(factorization.singular, "two equal columns are a singular basis")
     }
 
+    @Test
+    fun `an equilibrated factorization stays native and still solves`() {
+        requireBasiclu()
+        assertNativeEquilibrationAndUnsupportedDropToleranceIsRejected(basiclu) { it is BasicluFactorization }
+    }
+
+    @Test
+    fun `an equilibrated factorization agrees with the portable one in both directions`() {
+        requireBasiclu()
+        val rng = Random(20260827)
+        val n = 14
+        val a = sparseConformanceSystem(n, rng)
+        val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
+        val host = basiclu.factor(a, equilibrate = true)
+
+        for (transpose in booleanArrayOf(false, true)) {
+            assertClose(
+                F64ReferenceSparseLinearAlgebra.factor(a, equilibrate = true).solve(b, transpose),
+                host.solve(b, transpose),
+                "equilibrated transpose=$transpose",
+                tolerance = 1e-9,
+            )
+        }
+    }
+
+    @Test
+    fun `an equilibrated solve leaves its right-hand side alone`() {
+        requireBasiclu()
+        val rng = Random(20260828)
+        val n = 8
+        val a = sparseConformanceSystem(n, rng)
+        val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
+        val untouched = b.copyOf()
+
+        basiclu.factor(a, equilibrate = true).solve(b)
+
+        assertContentEquals(untouched, b, "the right-hand side was scaled in place")
+    }
+
     /**
      * HiGHS vendors BASICLU built for 32-bit `lu_int` and exports the same symbol names, which is the one
      * provider that would answer this binding and compute nonsense. The path is where Debian keeps it.
