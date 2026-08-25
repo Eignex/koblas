@@ -160,6 +160,7 @@ environment variables steer discovery to custom library paths:
 | LAPACKE | `koblas.lapacke.path` | `KOBLAS_LAPACKE_PATH` |
 | SuiteSparse KLU 2 | `koblas.klu.path` | `KOBLAS_KLU_PATH` |
 | UMFPACK | `koblas.umfpack.path` | `KOBLAS_UMFPACK_PATH` |
+| BASICLU | `koblas.basiclu.path` | `KOBLAS_BASICLU_PATH` |
 
 The JVM property takes precedence. Inspect `koblasInfo` or `koblas.portableSlots`
 after configuration, or call `koblas.requireAccelerated(...)` to require acceleration.
