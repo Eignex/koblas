@@ -106,9 +106,6 @@ val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 3.0)))
 val x = a.lu().solve(doubleArrayOf(4.0, 9.0))
 ```
 
-For dense matrices, Koblas provides level 1-3 BLAS; LU, Cholesky, QR, pivoted QR,
-and LDLᵀ factorizations; condition estimates; and inverses.
-
 ## Backends
 
 Koblas starts with portable implementations. Configure accelerated backends either
