@@ -1,7 +1,6 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.F64LinearAlgebra
 import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
 
 internal const val AUTO_BACKEND = "auto"
@@ -12,7 +11,9 @@ internal const val REFERENCE_BACKEND = "reference"
 // which side answers, so a curve taken under it is two half-curves rather than the two a crossover needs.
 internal const val FORCED_BACKEND = "forced"
 
-internal expect fun nativeBackend(): F64LinearAlgebra?
+// Installs the host at its shipped gates, which is what the auto arm is for: it answers whether the value
+// the library ships pays off, where the forced arm answers where the crossover actually is.
+internal expect fun useShippedHost(): Boolean
 
 internal expect fun useUngatedHost(): Boolean
 
@@ -21,13 +22,19 @@ internal expect fun useUngatedHost(): Boolean
 internal expect fun useUngatedSparseLu(): Boolean
 
 internal fun installBackend(backend: String) {
-    // Cleared first, so an arm inherits discovery rather than whatever the previous one installed.
+    // Cleared first, so an arm starts from the portable halves rather than whatever the previous one left.
     installBackends(null)
-    if (backend == FORCED_BACKEND) {
-        println("resolved: $koblasInfo (ungated=${useUngatedHost()})")
-        return
+    // Each branch installs before reporting: an interpolation reads koblasInfo before the call beside it
+    // runs, which would describe the state the arm was replacing.
+    val installed = when (backend) {
+        FORCED_BACKEND -> useUngatedHost()
+        AUTO_BACKEND -> useShippedHost()
+        else -> {
+            installBackends(
+                koblas.with(blas = F64ReferenceLinearAlgebra, decompositions = F64ReferenceLinearAlgebra),
+            )
+            true
+        }
     }
-    val chosen = if (backend == REFERENCE_BACKEND) F64ReferenceLinearAlgebra else nativeBackend()
-    installBackends(chosen?.let { koblas.with(blas = it, decompositions = it) })
-    println("resolved: $koblasInfo")
+    println("resolved: $koblasInfo (installed=$installed)")
 }
