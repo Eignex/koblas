@@ -21,13 +21,13 @@ SuiteSparse KLU, or SuiteSparse UMFPACK acceleration.
 
 ## Install
 
-| Module | Gradle dependency | Purpose |
-|--------|-------------------|---------|
-| koblas | `implementation("com.eignex:koblas:<version>")` | Core API and portable backend. |
-| koblas-openblas | `runtimeOnly("com.eignex:koblas-openblas:<version>")` | OpenBLAS/LAPACKE runtime bundle. |
-| koblas-umfpack | `runtimeOnly("com.eignex:koblas-umfpack:<version>")` | UMFPACK sparse-LU runtime bundle. |
-| koblas-klu | `runtimeOnly("com.eignex:koblas-klu:<version>")` | KLU sparse-LU runtime bundle. |
-| koblas-basiclu | `runtimeOnly("com.eignex:koblas-basiclu:<version>")` | BASICLU sparse-basis runtime bundle. |
+| Module | Purpose |
+|--------|---------|
+| koblas | Core API and portable backend. |
+| koblas-openblas | OpenBLAS/LAPACKE runtime bundle. |
+| koblas-umfpack | UMFPACK sparse-LU runtime bundle. |
+| koblas-klu | KLU sparse-LU runtime bundle. |
+| koblas-basiclu | BASICLU sparse-basis runtime bundle. |
 
 Install OpenBLAS/LAPACKE and, for sparse LU, SuiteSparse KLU 2 or UMFPACK with your
 system package manager, such as `apt` or Homebrew. Koblas discovers them automatically
