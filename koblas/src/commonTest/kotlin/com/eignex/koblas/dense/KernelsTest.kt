@@ -12,7 +12,10 @@ import kotlin.test.*
 
 class KernelsTest {
 
-    private class Recording(override val priority: Int = 90) : F64Kernels {
+    private class Recording(
+        override val priority: Int = 90,
+        override val minDispatchLength: Int? = null,
+    ) : F64Kernels {
         override var name: String = "recording"
             private set
 
@@ -40,6 +43,16 @@ class KernelsTest {
 
         var nrm2s = 0
         var asums = 0
+        var swaps = 0
+
+        override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) {
+            swaps++
+            for (i in 0 until len) {
+                val t = a[aOff + i]
+                a[aOff + i] = b[bOff + i]
+                b[bOff + i] = t
+            }
+        }
 
         override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double {
             nrm2s++
@@ -172,6 +185,32 @@ class KernelsTest {
             val want = if (i in off until off + len) a[i] * 3.0 else a[i]
             assertEquals(want, v[i], absoluteTolerance = 1e-12, message = "scale touched outside its window at $i")
         }
+    }
+
+    /**
+     * The router carries one override per seam member it routes, and a member it forgets falls through to
+     * the interface default rather than reaching anything. That is invisible through the platform gate,
+     * which is [Int.MAX_VALUE] where the kernels are SIMD, so this drives the router with a host that takes
+     * every length.
+     */
+    @Test
+    fun `every routed kernel reaches the host it was given`() {
+        val recording = Recording(minDispatchLength = 0)
+        val routed: F64Kernels = F64RoutedKernels(recording)
+        val a = DoubleArray(8) { it.toDouble() }
+        val b = DoubleArray(8) { 1.0 }
+        routed.dot(a, 0, b, 0, 8)
+        routed.axpy(a, 0, 2.0, b, 0, 8)
+        routed.scale(a, 0, 2.0, 8)
+        routed.nrm2(a, 0, 8)
+        routed.asum(a, 0, 8)
+        routed.swap(a, 0, b, 0, 8)
+        assertEquals(1, recording.dots, "dot did not reach the host")
+        assertEquals(1, recording.axpys, "axpy did not reach the host")
+        assertEquals(1, recording.scales, "scale did not reach the host")
+        assertEquals(1, recording.nrm2s, "nrm2 did not reach the host")
+        assertEquals(1, recording.asums, "asum did not reach the host")
+        assertEquals(1, recording.swaps, "swap did not reach the host, so the router is missing an override")
     }
 
     @Test
