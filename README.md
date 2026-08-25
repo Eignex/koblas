@@ -23,11 +23,11 @@ SuiteSparse KLU, or SuiteSparse UMFPACK acceleration.
 
 | Module | Gradle dependency | Purpose |
 |--------|-------------------|---------|
-| koblas | implementation("com.eignex:koblas:<version>") | Core API and portable backend. |
-| koblas-openblas | runtimeOnly("com.eignex:koblas-openblas:<version>") | OpenBLAS/LAPACKE runtime bundle. |
-| koblas-umfpack | runtimeOnly("com.eignex:koblas-umfpack:<version>") | UMFPACK sparse-LU runtime bundle. |
-| koblas-klu | runtimeOnly("com.eignex:koblas-klu:<version>") | KLU sparse-LU runtime bundle. |
-| koblas-basiclu | runtimeOnly("com.eignex:koblas-basiclu:<version>") | BASICLU sparse-basis runtime bundle. |
+| koblas | `implementation("com.eignex:koblas:<version>")` | Core API and portable backend. |
+| koblas-openblas | `runtimeOnly("com.eignex:koblas-openblas:<version>")` | OpenBLAS/LAPACKE runtime bundle. |
+| koblas-umfpack | `runtimeOnly("com.eignex:koblas-umfpack:<version>")` | UMFPACK sparse-LU runtime bundle. |
+| koblas-klu | `runtimeOnly("com.eignex:koblas-klu:<version>")` | KLU sparse-LU runtime bundle. |
+| koblas-basiclu | `runtimeOnly("com.eignex:koblas-basiclu:<version>")` | BASICLU sparse-basis runtime bundle. |
 
 Optional bundled modules have licenses in addition to Apache 2.0; see their generated
 `THIRD-PARTY-NOTICES.txt` files for details.
