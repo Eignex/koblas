@@ -167,9 +167,24 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
     @Suppress("LongParameterList") // the operand and the shape, all of which the caller holds
     private fun accumulateSyrk(alpha: Double, ad: DoubleArray, n: Int, k: Int, cd: DoubleArray, uplo: Uplo) {
         val kernels = kernels
+        // Four rows of op(A) against one column, so column j is read once for the four rather than once
+        // each. The rows sit at stride k because the operand arrives transposed, which is the shape
+        // [F64Kernels.dot4] is for.
+        val quads = DoubleArray(4)
         for (j in 0 until n) {
-            for (i in j until n) {
+            var i = j
+            val bound = n - 3
+            while (i < bound) {
+                kernels.dot4(ad, i * k, k, ad, j * k, k, quads, 0)
+                addUplo(cd, n, i, j, alpha * quads[0], uplo)
+                addUplo(cd, n, i + 1, j, alpha * quads[1], uplo)
+                addUplo(cd, n, i + 2, j, alpha * quads[2], uplo)
+                addUplo(cd, n, i + 3, j, alpha * quads[3], uplo)
+                i += 4
+            }
+            while (i < n) {
                 addUplo(cd, n, i, j, alpha * kernels.dot(ad, i * k, ad, j * k, k), uplo)
+                i++
             }
         }
     }
@@ -367,10 +382,25 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         uplo: Uplo,
     ) {
         val kernels = kernels
+        // Both halves of the pair are the shape dot4 wants, so each column is read once for four rows.
+        val fromA = DoubleArray(4)
+        val fromB = DoubleArray(4)
         for (j in 0 until n) {
-            for (i in j until n) {
+            var i = j
+            val bound = n - 3
+            while (i < bound) {
+                kernels.dot4(ad, i * k, k, bd, j * k, k, fromA, 0)
+                kernels.dot4(bd, i * k, k, ad, j * k, k, fromB, 0)
+                for (r in 0 until 4) {
+                    val s = fromA[r] + fromB[r]
+                    if (s != 0.0) addUplo(cd, n, i + r, j, alpha * s, uplo)
+                }
+                i += 4
+            }
+            while (i < n) {
                 val s = kernels.dot(ad, i * k, bd, j * k, k) + kernels.dot(bd, i * k, ad, j * k, k)
                 if (s != 0.0) addUplo(cd, n, i, j, alpha * s, uplo)
+                i++
             }
         }
     }
