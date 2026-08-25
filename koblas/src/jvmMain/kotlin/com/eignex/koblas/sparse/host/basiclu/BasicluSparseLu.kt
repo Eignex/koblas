@@ -10,6 +10,8 @@ import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.requireSquare
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.sparse.host.F64SparseLuAdapter
+import com.eignex.koblas.sparse.host.equilibrationScale
+import com.eignex.koblas.sparse.host.scaledValues
 import com.eignex.koblas.withColumn
 
 /** Sparse LU and Forrest-Tomlin basis updates backed by a host BASICLU. */
@@ -25,11 +27,17 @@ public class BasicluSparseLu(
 
     override val supportsBasisUpdates: Boolean get() = nativeAvailable
 
-    /** BASICLU offers no row scaling, so an equilibrated factorization stays with the portable one. */
+    /**
+     * BASICLU offers no row scaling of its own, so equilibration is applied to the values handed over and
+     * undone in the solves, by the same power-of-two factors the portable factorization uses.
+     */
     override fun factorNative(a: F64SparseMatrix, equilibrate: Boolean): F64SparseFactorization {
-        if (equilibrate) return F64ReferenceSparseLinearAlgebra.factor(a, equilibrate = true)
-        val target = factored(a) ?: return F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
-        return BasicluFactorization(target, calls)
+        val rowIdx = a.copyRowIndices()
+        val scale = if (equilibrate) equilibrationScale(a.rows, rowIdx, a.values) else null
+        val values = if (scale == null) a.values else scaledValues(rowIdx, a.values, scale)
+        val target = factored(a, rowIdx, values)
+            ?: return F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
+        return BasicluFactorization(target, calls, scale)
     }
 
     /**
@@ -39,14 +47,18 @@ public class BasicluSparseLu(
     override fun factorBasis(basis: F64SparseMatrix): F64BasisFactorization {
         requireSquare(basis, "factorBasis")
         if (!nativeAvailable) return super.factorBasis(basis)
-        val target = factored(basis) ?: return F64SingularBasisFactorization(this, basis)
+        val target = factored(basis, basis.copyRowIndices(), basis.values)
+            ?: return F64SingularBasisFactorization(this, basis)
         return BasicluBasisFactorization(this, basis, target, calls)
     }
 
-    /** An initialized object carrying [a]'s factors, or null when BASICLU would not factor it. */
-    private fun factored(a: F64SparseMatrix): BasicluObject? {
+    /**
+     * An initialized object carrying the factors of [a]'s pattern with [values], or null when BASICLU would
+     * not factor it. The values come in separately because an equilibrated factorization scales them first.
+     */
+    private fun factored(a: F64SparseMatrix, rowIdx: IntArray, values: DoubleArray): BasicluObject? {
         val target = calls.create(a.rows) ?: return null
-        val status = calls.factorize(target, a.copyColumnPointers(), a.copyRowIndices(), a.values)
+        val status = calls.factorize(target, a.copyColumnPointers(), rowIdx, values)
         if (status == BasicluStatus.OK) return target
         calls.free(target)
         target.arena.close()

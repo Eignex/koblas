@@ -85,4 +85,42 @@ class BundledBasicluTest {
     fun `the bundled build answers when no path is configured`() {
         assertEquals("basiclu-bundled", BundledBasiclu(factorizeMin = 0).name)
     }
+
+    /**
+     * Rows of 4 and 8 equilibrate by 2^-2 and 2^-3, so the scaling is active and every value stays a power
+     * of two, which keeps the solve exact and the comparison with the portable one bit for bit.
+     */
+    @Test
+    fun `an equilibrated factorization solves as the portable one does`() {
+        val matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(0 to 2.0, 1 to 8.0)))
+        val rhs = doubleArrayOf(8.0, 8.0)
+        val factorization = BundledBasiclu(factorizeMin = 0).factor(matrix, equilibrate = true)
+
+        assertContentEquals(
+            F64ReferenceSparseLinearAlgebra.factor(matrix, equilibrate = true).solve(rhs),
+            factorization.solve(rhs),
+        )
+    }
+
+    @Test
+    fun `an equilibrated transposed solve agrees with the portable one`() {
+        val matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(0 to 2.0, 1 to 8.0)))
+        val rhs = doubleArrayOf(8.0, 8.0)
+        val factorization = BundledBasiclu(factorizeMin = 0).factor(matrix, equilibrate = true)
+
+        assertContentEquals(
+            F64ReferenceSparseLinearAlgebra.factor(matrix, equilibrate = true).solve(rhs, transpose = true),
+            factorization.solve(rhs, transpose = true),
+        )
+    }
+
+    @Test
+    fun `an equilibrated solve leaves its right-hand side alone`() {
+        val matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4e8), listOf(1 to 3e-7)))
+        val rhs = doubleArrayOf(1.0, 2.0)
+
+        BundledBasiclu(factorizeMin = 0).factor(matrix, equilibrate = true).solve(rhs)
+
+        assertContentEquals(doubleArrayOf(1.0, 2.0), rhs)
+    }
 }
