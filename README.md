@@ -89,9 +89,10 @@ val x = a.lu().solve(doubleArrayOf(4.0, 9.0))
 ## Who it’s for
 
 Koblas is for numerical and optimization routines that need predictable performance
-and precise control over matrix storage, allocations, and workspaces. Typical uses
-include simplex and other optimization methods, statistical estimation, regression,
-and custom scientific-computing algorithms that repeatedly factor or solve systems.
+and precise control over matrix storage, allocations, and workspaces. It is especially
+suited to repeated solves and refactorizations. Typical uses include simplex and other
+optimization methods, statistical estimation, regression, and custom scientific-computing
+algorithms.
 
 ## Backends
 
