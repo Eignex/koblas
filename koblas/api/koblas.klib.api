@@ -155,6 +155,7 @@ abstract interface com.eignex.koblas.dense/F64Kernels : com.eignex.koblas/Backen
     abstract fun nrm2(kotlin/DoubleArray, kotlin/Int, kotlin/Int): kotlin/Double // com.eignex.koblas.dense/F64Kernels.nrm2|nrm2(kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
     abstract fun scale(kotlin/DoubleArray, kotlin/Int, kotlin/Double, kotlin/Int) // com.eignex.koblas.dense/F64Kernels.scale|scale(kotlin.DoubleArray;kotlin.Int;kotlin.Double;kotlin.Int){}[0]
     open fun dot4(kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/DoubleArray, kotlin/Int) // com.eignex.koblas.dense/F64Kernels.dot4|dot4(kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.DoubleArray;kotlin.Int){}[0]
+    open fun swap(kotlin/DoubleArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int) // com.eignex.koblas.dense/F64Kernels.swap|swap(kotlin.DoubleArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
 }
 
 abstract interface com.eignex.koblas.dense/F64LinearAlgebra : com.eignex.koblas.dense/F64Blas, com.eignex.koblas.dense/F64Decompositions { // com.eignex.koblas.dense/F64LinearAlgebra|null[0]
@@ -1024,6 +1025,7 @@ final class com.eignex.koblas.dense.host.cblas/F64CblasKernels : com.eignex.kobl
     final fun dot(kotlin/DoubleArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int): kotlin/Double // com.eignex.koblas.dense.host.cblas/F64CblasKernels.dot|dot(kotlin.DoubleArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
     final fun nrm2(kotlin/DoubleArray, kotlin/Int, kotlin/Int): kotlin/Double // com.eignex.koblas.dense.host.cblas/F64CblasKernels.nrm2|nrm2(kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
     final fun scale(kotlin/DoubleArray, kotlin/Int, kotlin/Double, kotlin/Int) // com.eignex.koblas.dense.host.cblas/F64CblasKernels.scale|scale(kotlin.DoubleArray;kotlin.Int;kotlin.Double;kotlin.Int){}[0]
+    final fun swap(kotlin/DoubleArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int) // com.eignex.koblas.dense.host.cblas/F64CblasKernels.swap|swap(kotlin.DoubleArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
 }
 
 // Targets: [linux, macosArm64]

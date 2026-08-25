@@ -29,6 +29,10 @@ public class F64CblasKernels internal constructor(
         if (len != 0) calls.daxpy.invokeExact(len, alpha, segment(x, xOff), 1, segment(y, yOff), 1) as Unit
     }
 
+    override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) {
+        if (len != 0) calls.dswap.invokeExact(len, segment(a, aOff), 1, segment(b, bOff), 1) as Unit
+    }
+
     override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
         if (len != 0) calls.dscal.invokeExact(len, alpha, segment(v, vOff), 1) as Unit
     }

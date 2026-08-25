@@ -39,6 +39,18 @@ public interface F64Kernels : Backend {
     public fun asum(v: DoubleArray, vOff: Int, len: Int): Double
 
     /**
+     * Exchange the two runs (BLAS `dswap`). Two loads and two stores an element, so an implementation is
+     * bound by memory rather than by issue rate; the default is the plain loop for that reason.
+     */
+    public fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) {
+        for (i in 0 until len) {
+            val t = a[aOff + i]
+            a[aOff + i] = b[bOff + i]
+            b[bOff + i] = t
+        }
+    }
+
+    /**
      * Four dots against a shared right operand. For r in 0..3, out(outOff + r) is the dot of the run at
      * aOff + r * stride with the run at bOff. Defaults to four [dot] calls, so an implementation that can
      * read the shared operand once for all four should override it.

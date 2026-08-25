@@ -280,4 +280,7 @@ class KernelsTest {
 
     @Test
     fun `the compiled-in reductions agree with the scalar loops`() = assertReductionsAgreeWithScalar(F64PlatformKernels)
+
+    @Test
+    fun `the compiled-in swap agrees with the scalar loop`() = assertSwapAgreesWithScalar(F64PlatformKernels)
 }

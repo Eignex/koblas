@@ -116,13 +116,7 @@ public fun copy(src: F64VectorLike, dst: F64DenseVector) {
 /** Exchange the contents of [a] and [b] (BLAS `dswap`). */
 public fun swap(a: F64DenseVector, b: F64DenseVector) {
     requireSameSize(a.size, b.size)
-    val ad = a.data
-    val bd = b.data
-    for (i in ad.indices) {
-        val t = ad[i]
-        ad[i] = bd[i]
-        bd[i] = t
-    }
+    koblas.kernels.swap(a.data, 0, b.data, 0, a.size)
 }
 
 /** `y = y + alpha * x`. A sparse `x` touches only the positions it stores. */
