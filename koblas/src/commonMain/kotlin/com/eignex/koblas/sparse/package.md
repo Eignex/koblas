@@ -9,9 +9,14 @@ mirror the dense ones.
   `F64Kernels` there is no length threshold, because the fallback here is an object rather than a
   compiled-in primitive and there is no compile-time kernel to protect.
 - [F64SparseBlas] — the sparse matrix routines. `gemv` and `trsv` in both directions, walking columns, which
-  is what CSC stores, and `gemm` and `trsm` over several right-hand sides at once. The level-3 pair takes a
-  dense second operand, so the product stays dense and fills in nowhere; the sparse-times-sparse product is
-  the one that needs a result type of its own, and it lands here when something asks for it.
+  is what CSC stores; `gemm` and `trsm` over several right-hand sides at once, from either side; the
+  sparse-times-sparse product; and `transpose`, which is also the CSC-to-CSR conversion.
+
+  The product of two sparse matrices and the transpose are the two routines here that return their result
+  instead of filling a destination. Not for want of a type, since [com.eignex.koblas.core.F64SparseMatrix] is
+  the type either would fill: what a sparse product discovers is its own pattern, so there is no destination
+  to hand in before the multiplication has run and no `beta · C` to accumulate into. Everything else on this
+  seam keeps the BLAS shape, where the caller owns the memory.
 - [F64SparseDecompositions] — the sparse factorizations, one seam over all of them as the dense
   [com.eignex.koblas.dense.F64Decompositions] is. [F64SparseDecompositions.factor] is the general LU and
   returns [F64SparseFactorization], never null: a singular matrix yields a factorization reporting

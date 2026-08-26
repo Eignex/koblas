@@ -117,6 +117,99 @@ class SparseProductTest {
     }
 
     @Test
+    fun `every transpose combination from the right agrees with the dense product`() {
+        val rng = Random(20260917)
+        for (transposeA in booleanArrayOf(false, true)) {
+            for (transposeB in booleanArrayOf(false, true)) {
+                val (sparse, dense) = sparseAndDense(5, 3, rng)
+                val k = if (transposeA) 3 else 5
+                val n = if (transposeA) 5 else 3
+                val b = if (transposeB) randomMatrix(k, 4, rng) else randomMatrix(4, k, rng)
+                val c = randomMatrix(4, n, rng)
+
+                val fromDense = copyOf(c)
+                koblas.gemm(0.75, b, transposeB, dense, transposeA, -0.5, fromDense)
+                val fromSparse = copyOf(c)
+                koblas.sparseBlas.gemm(0.75, sparse, transposeA, b, transposeB, -0.5, fromSparse, right = true)
+
+                assertClose(fromDense, fromSparse, "right transposeA=$transposeA transposeB=$transposeB")
+            }
+        }
+    }
+
+    @Test
+    fun `a dense operand that does not meet the sparse one from the right is rejected`() {
+        val rng = Random(20260918)
+        val (sparse, _) = sparseAndDense(5, 4, rng)
+
+        assertFailsWith<DimensionMismatch> {
+            koblas.sparseBlas.gemm(
+                1.0,
+                sparse,
+                false,
+                randomMatrix(3, 3, rng),
+                false,
+                0.0,
+                F64DenseMatrix.zero(3, 4),
+                right = true,
+            )
+        }
+    }
+
+    @Test
+    fun `the sparse product agrees with the dense one`() {
+        val rng = Random(20260919)
+        for (shape in listOf(Triple(1, 1, 1), Triple(5, 4, 3), Triple(9, 2, 7))) {
+            val (left, leftDense) = sparseAndDense(shape.first, shape.second, rng)
+            val (right, rightDense) = sparseAndDense(shape.second, shape.third, rng)
+
+            val product = left.gemm(right)
+
+            val expected = koblas.gemm(leftDense, rightDense)
+            for (i in 0 until shape.first) {
+                for (j in 0 until shape.third) {
+                    assertClose(expected[i, j], product[i, j], "shape=$shape entry $i $j")
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `the sparse product keeps its rows ascending within a column`() {
+        val rng = Random(20260920)
+        val (left, _) = sparseAndDense(12, 9, rng, density = 0.5)
+        val (right, _) = sparseAndDense(9, 7, rng, density = 0.5)
+
+        val product = left.gemm(right)
+
+        for (j in 0 until product.cols) {
+            var previous = -1
+            product.forEachInColumn(j) { i, _ ->
+                assertTrue(i > previous, "column $j has $i after $previous")
+                previous = i
+            }
+        }
+    }
+
+    @Test
+    fun `a sparse matrix times a sparse identity is the matrix`() {
+        val rng = Random(20260921)
+        val (a, _) = sparseAndDense(6, 5, rng)
+        val identity = F64SparseMatrix.ofColumns(5, 5, List(5) { j -> listOf(j to 1.0) })
+
+        assertEquals(a, a.gemm(identity), "A times I should give A back")
+    }
+
+    @Test
+    fun `a sparse operand that does not meet the first is rejected`() {
+        val rng = Random(20260922)
+        val (a, _) = sparseAndDense(5, 4, rng)
+        val (b, _) = sparseAndDense(3, 4, rng)
+
+        assertFailsWith<DimensionMismatch> { a.gemm(b) }
+    }
+
+    @Test
     fun `a destination of the wrong shape is rejected`() {
         val rng = Random(20260901)
         val (sparse, _) = sparseAndDense(5, 4, rng)

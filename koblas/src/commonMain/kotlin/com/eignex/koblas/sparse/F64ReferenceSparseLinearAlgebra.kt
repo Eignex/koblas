@@ -10,6 +10,7 @@ import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import com.eignex.koblas.sparse.basis.F64BasisSolver
 import com.eignex.koblas.sparse.basis.F64ProductFormBasisSolver
+import com.eignex.koblas.sparse.internal.multiplySparse
 import com.eignex.koblas.sparse.internal.transposeCsc
 import kotlin.math.abs
 
@@ -66,7 +67,7 @@ public object F64ReferenceSparseLinearAlgebra :
         trsvCore(a, x, 0, lower, transpose, unitDiag)
     }
 
-    @Suppress("LongParameterList") // the BLAS dgemm signature
+    @Suppress("LongParameterList") // the BLAS dgemm signature, plus the side the sparse operand sits on
     override fun gemm(
         alpha: Double,
         a: F64SparseMatrix,
@@ -75,16 +76,43 @@ public object F64ReferenceSparseLinearAlgebra :
         transposeB: Boolean,
         beta: Double,
         c: F64DenseMatrix,
+        right: Boolean,
     ) {
-        val m = if (transposeA) a.cols else a.rows
-        val k = if (transposeA) a.rows else a.cols
-        val kB = if (transposeB) b.cols else b.rows
-        val n = if (transposeB) b.rows else b.cols
-        requireShape(k == kB) { "gemm: op(A) is ${m}x$k but op(B) is ${kB}x$n" }
+        val aRows = if (transposeA) a.cols else a.rows
+        val aCols = if (transposeA) a.rows else a.cols
+        val bRows = if (transposeB) b.cols else b.rows
+        val bCols = if (transposeB) b.rows else b.cols
+        val m = if (right) bRows else aRows
+        val n = if (right) aCols else bCols
+        requireShape(if (right) bCols == aRows else aCols == bRows) {
+            val first = if (right) "${bRows}x$bCols" else "${aRows}x$aCols"
+            val second = if (right) "${aRows}x$aCols" else "${bRows}x$bCols"
+            "gemm: $first does not meet $second"
+        }
         requireShape(c.rows == m && c.cols == n) { "gemm: C is ${c.rows}x${c.cols}, expected ${m}x$n" }
-        val cd = c.data
-        applyBeta(koblas.kernels, cd, 0, cd.size, beta)
+        applyBeta(koblas.kernels, c.data, 0, c.data.size, beta)
         if (alpha == 0.0) return
+        if (right) {
+            multiplyFromTheRight(alpha, a, transposeA, b, transposeB, c, m)
+        } else {
+            multiplyFromTheLeft(alpha, a, transposeA, b, transposeB, c, m, n, aCols)
+        }
+    }
+
+    /** `C += alpha · op(A) · op(B)`, which is [gemv] over the columns of the dense operand. */
+    @Suppress("LongParameterList") // the operands, their flags, and the shape already worked out
+    private fun multiplyFromTheLeft(
+        alpha: Double,
+        a: F64SparseMatrix,
+        transposeA: Boolean,
+        b: F64DenseMatrix,
+        transposeB: Boolean,
+        c: F64DenseMatrix,
+        m: Int,
+        n: Int,
+        k: Int,
+    ) {
+        val cd = c.data
         val bd = b.data
         val ld = b.rows
         for (l in 0 until n) {
@@ -102,6 +130,43 @@ public object F64ReferenceSparseLinearAlgebra :
                 }
             }
         }
+    }
+
+    /**
+     * `C += alpha · op(B) · op(A)`. Each stored entry of the sparse operand scales one column of the dense
+     * one into one column of the destination, so the walk is over storage either way the sparse operand is
+     * transposed and only which index names which column changes.
+     */
+    @Suppress("LongParameterList") // the operands, their flags, and the shape already worked out
+    private fun multiplyFromTheRight(
+        alpha: Double,
+        a: F64SparseMatrix,
+        transposeA: Boolean,
+        b: F64DenseMatrix,
+        transposeB: Boolean,
+        c: F64DenseMatrix,
+        m: Int,
+    ) {
+        val cd = c.data
+        val bd = b.data
+        val ld = b.rows
+        for (column in 0 until a.cols) {
+            a.forEachInColumn(column) { row, v ->
+                val scaled = alpha * v
+                if (scaled != 0.0) {
+                    val cOff = (if (transposeA) row else column) * m
+                    val bColumn = if (transposeA) column else row
+                    for (i in 0 until m) {
+                        cd[cOff + i] += scaled * bd[if (transposeB) bColumn + i * ld else i + bColumn * ld]
+                    }
+                }
+            }
+        }
+    }
+
+    override fun gemm(a: F64SparseMatrix, b: F64SparseMatrix): F64SparseMatrix {
+        requireShape(a.cols == b.rows) { "gemm: ${a.rows}x${a.cols} does not meet ${b.rows}x${b.cols}" }
+        return multiplySparse(a, b)
     }
 
     @Suppress("LongParameterList") // the BLAS dtrsm signature
