@@ -4,6 +4,7 @@ import java.io.InputStream
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.attribute.PosixFilePermissions
+import java.util.concurrent.ConcurrentHashMap
 
 /** Shared extraction support for optional JVM artifacts that bundle native Maven resources. */
 public class BundledNativeResources(
@@ -13,6 +14,17 @@ public class BundledNativeResources(
     private val anchor: Class<*>,
     private val libraryDescription: String,
 ) {
+    /** What identifies one bundle, so two libraries out of the same one share a single extraction. */
+    private val key: String get() = "$directoryPrefix|$resourceRoot|$platform"
+
+    /**
+     * The whole manifest, extracted once per bundle per process. An artifact bundling several libraries has
+     * a handle per library and each asks for the whole manifest, since a library's dependencies ship beside
+     * it; without this they would each lay the bundle down in a directory of their own.
+     */
+    internal fun extractManifest(): Map<String, Path> =
+        extractions.getOrPut(key) { extract(manifestNames(), required = true) }
+
     /**
      * Extracts [names] into a private directory. A name this bundle does not carry is skipped, or fails when
      * [required], which is what a manifest listing exactly what shipped calls for.
@@ -54,6 +66,13 @@ public class BundledNativeResources(
 
     /** Platform detection and the manifest-driven bundle shared by bundled artifacts. */
     public companion object {
+        /**
+         * One extraction per bundle, keyed by what identifies it. Held for the life of the process because
+         * the paths it hands out stay loaded, and shared across threads because two backends out of one
+         * artifact may be constructed at once.
+         */
+        private val extractions = ConcurrentHashMap<String, Map<String, Path>>()
+
         /**
          * A bundle whose contents are listed by a `.libraries` manifest and whose one library of interest is
          * [linuxSoname] or [macosSoname]. Every optional artifact koblas ships that wraps a single library is
@@ -111,7 +130,7 @@ public class BundledLibrary internal constructor(
     private val platform: String,
 ) {
     private val extracted: Path by lazy {
-        checkNotNull(resources.extract(resources.manifestNames(), required = true)[soname]) {
+        checkNotNull(resources.extractManifest()[soname]) {
             "$description resource $soname is absent for $platform"
         }
     }
