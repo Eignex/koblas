@@ -186,6 +186,13 @@ benchmark {
         // like several hundred. Answering the pair with `DoubleVector.fromArray` over an index map is slower
         // on every row of an AVX2 host, 2.7x to 8.9x on its efficiency cores and 1.1x to 4.6x on its
         // performance cores, so both kernels stay portable and this suite is what would have to say otherwise.
+        //
+        // Measured where DoubleVector.SPECIES_PREFERRED is four lanes, which is the widest species an AVX2
+        // machine offers. The two rows lose for different reasons, and only one of them is about this width.
+        // A gather has no arithmetic to amortize itself over in a routine that only moves data, and that holds
+        // at any width. gatherZero also writes back through the index map, which AVX2 has no scatter for and
+        // so lowers to a store a lane, and an eight-lane species has vscatterqpd instead. So a host reporting
+        // eight lanes is the one place this answer could turn, and gatherZero the row that would turn it.
         suite("sparseGatherGate", "SparseLevel1Benchmark", "sparseGather|sparseGatherZero|sparseNrm2") {
             gate()
             param("density", "0.01")

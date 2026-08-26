@@ -173,6 +173,7 @@ public final class com/eignex/koblas/RegistryKt {
 	public static final fun installBackends (Lcom/eignex/koblas/F64Context;)V
 	public static final fun registerBackend (Lcom/eignex/koblas/Backend;)V
 	public static final fun registeredBackendNames (Lcom/eignex/koblas/internal/backend/BackendSlot;)Ljava/util/List;
+	public static final fun sparseBlasNamed (Ljava/lang/String;)Lcom/eignex/koblas/sparse/F64SparseBlas;
 	public static final fun sparseDecompositionsNamed (Ljava/lang/String;)Lcom/eignex/koblas/sparse/F64SparseDecompositions;
 }
 

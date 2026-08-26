@@ -13,9 +13,16 @@ import com.eignex.koblas.sparse.F64SparseBlas
  * work saves on a small problem. The gate counts stored entries rather than a dimension, because that is what
  * sparse work scales with.
  *
- * Only the products route natively. The libraries koblas binds carry a sparse-times-dense multiply and no
- * triangular solve over a caller's matrix, so [trsv] and [trsm] stay portable here rather than declaring a
- * hook nothing would fill.
+ * Only the products route natively, and [trsv] and [trsm] are final rather than hooks a binding may fill.
+ * Every triangular solve in the libraries koblas binds runs against factors that library produced itself:
+ * KLU's takes a `klu_numeric`, UMFPACK's addresses its own `L` and `U` through a system code, CHOLMOD's takes
+ * a `cholmod_factor`. None takes a caller's matrix and a lower flag. The one thing in the SuiteSparse tarball
+ * that does is CSparse, with `cs_lsolve` and `cs_usolve`, and it is left out of the build for being the
+ * concise companion code to the book rather than the fast version of anything, so its solves are the same
+ * loops this seam already runs.
+ *
+ * So the door is shut on what is there now rather than on the idea. Open these two the moment something can
+ * fill them, following [gemm]'s shape: a hook defaulting to the portable routine, and a measured gate.
  *
  * @param level2Min stored entries from which this binding multiplies natively, or null for the platform
  *   default. It moves the sparse product gate, not the dense level-2 one, which a vector-kernel platform sets
@@ -39,6 +46,15 @@ public abstract class F64SparseBlasAdapter protected constructor(level2Min: Int?
      * and what they charge for the call is fixed, so a single right-hand side has nothing to amortise it
      * over: measured against CHOLMOD this loses from the smallest matrices to the largest. [gemm] is where
      * that call pays.
+     *
+     * Marshalling is not what costs it, which was worth finding out because it looked like the obvious
+     * culprit. A JVM binding has to copy the matrix off heap for every call, a struct field holding an
+     * address where a pinned Kotlin array has none to give, so holding that copy across calls was tried:
+     * a handle a caller prepares once and multiplies against repeatedly. It did not rescue this routine, and
+     * it did not reliably improve [gemm] either, which already wins while paying the copy every time. What is
+     * left is the two dense operands, which change per call by definition, and the library's own per-call
+     * cost. The native targets do not pay the copy at all, pinning their arrays in place instead, and they
+     * cross earlier for that reason rather than because they skip a marshalling step this could remove.
      */
     @Suppress("LongParameterList") // the BLAS dgemv signature
     final override fun gemv(

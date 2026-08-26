@@ -3,6 +3,7 @@ package com.eignex.koblas
 import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.internal.backend.BackendRegistry
 import com.eignex.koblas.internal.backend.BackendSlot
+import com.eignex.koblas.sparse.F64SparseBlas
 import com.eignex.koblas.sparse.F64SparseDecompositions
 import com.eignex.koblas.sparse.basis.F64BasisSolvers
 
@@ -46,6 +47,13 @@ public fun discoverBackends() {
  */
 public fun sparseDecompositionsNamed(name: String): F64SparseDecompositions? =
     BackendRegistry.sparseDecompositionsNamed(name)
+
+/**
+ * The sparse matrix half registered under [name], the counterpart of [sparseDecompositionsNamed] for the
+ * products. Its own lookup because that half now resolves to a binding rather than always to the portable
+ * routines, so which one answered is a question a caller can have.
+ */
+public fun sparseBlasNamed(name: String): F64SparseBlas? = BackendRegistry.sparseBlasNamed(name)
 
 /**
  * The basis solvers registered under [name], the counterpart of [sparseDecompositionsNamed] for the basis half.

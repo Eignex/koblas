@@ -54,6 +54,8 @@ internal object BackendRegistry {
     internal fun sparseDecompositionsNamed(name: String) = f64.sparseDecompositionsNamed(name)
 
     /** The basis solvers registered under [name], or null when nothing did. */
+    internal fun sparseBlasNamed(name: String) = f64.sparseBlasNamed(name)
+
     internal fun basisSolversNamed(name: String) = f64.basisSolversNamed(name)
 
     /** The names registered for [slot], strongest first. */

@@ -115,6 +115,9 @@ internal class F64Registry {
     /** The sparse LU registered under [name], or null when nothing did. */
     fun sparseDecompositionsNamed(name: String): F64SparseDecompositions? = sparseDecompositionsSeam.named(name)
 
+    /** The sparse matrix half registered under [name], or null when nothing did. */
+    fun sparseBlasNamed(name: String): F64SparseBlas? = sparseBlasSeam.named(name)
+
     /** The basis solvers registered under [name], or null when nothing did. */
     fun basisSolversNamed(name: String): F64BasisSolvers? = basisSolverSeam.named(name)
 
