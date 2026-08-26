@@ -5,6 +5,7 @@ import com.eignex.koblas.dense.host.jvm.F64Backends
 import com.eignex.koblas.sparse.host.F64SparseBackends
 import com.eignex.koblas.sparse.host.klu.KluConfig
 import com.eignex.koblas.sparse.host.umfpack.UmfpackConfig
+import com.eignex.koblas.F64Context
 import com.eignex.koblas.installBackends
 import com.eignex.koblas.koblas
 
@@ -17,6 +18,19 @@ internal actual fun useShippedHost(): Boolean = installHost(HostBlasConfig())
 // kernels in place level1 and level2 are Int.MAX_VALUE, so an arm left to the default routes every call back
 // to the compiled-in path and times that twice. Installed unrouted for the reason the native binding gives,
 // that the benchmark sweeps the sizes itself.
+/**
+ * Only the factorization gates move. The kernel half is deliberately left alone: [F64Context.with] installs
+ * whatever it is handed without the routing wrapper, so passing the host kernels here would put every short
+ * dot and axpy through a foreign call whatever level1Min says, and a routine that stayed portable would be
+ * timed against that instead of against the compiled-in kernels.
+ */
+internal actual fun useUngatedFactorization(): Boolean {
+    val backends = F64Backends(HostBlasConfig(factorizeMin = 0))
+    if (!backends.blas.isAvailable) return false
+    installBackends(koblas.with(blas = backends.blas, decompositions = backends.decompositions))
+    return true
+}
+
 internal actual fun useUngatedHost(): Boolean = installHost(
     HostBlasConfig(level1Min = 0, level2Min = 0, level3Min = 0, factorizeMin = 0),
 )

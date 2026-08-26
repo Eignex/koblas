@@ -11,11 +11,19 @@ internal const val REFERENCE_BACKEND = "reference"
 // which side answers, so a curve taken under it is two half-curves rather than the two a crossover needs.
 internal const val FORCED_BACKEND = "forced"
 
+// Ungates the factorizations alone, leaving the level-1 to level-3 gates at their platform values. Forcing
+// every gate at once measures more than one thing: a routine that stays portable still has its inner
+// primitives replaced by host calls, so what looks like the host losing a solve is a portable algorithm
+// paying a foreign call for each short dot and axpy inside it.
+internal const val FORCED_FACTORIZE_BACKEND = "forced-factorize"
+
 // Installs the host at its shipped gates, which is what the auto arm is for: it answers whether the value
 // the library ships pays off, where the forced arm answers where the crossover actually is.
 internal expect fun useShippedHost(): Boolean
 
 internal expect fun useUngatedHost(): Boolean
+
+internal expect fun useUngatedFactorization(): Boolean
 
 // The sparse LU gate counts stored entries, and the shipped value decides which side answers, so a sparse
 // crossover needs the host ungated for the same reason the dense one does.
@@ -28,6 +36,7 @@ internal fun installBackend(backend: String) {
     // runs, which would describe the state the arm was replacing.
     val installed = when (backend) {
         FORCED_BACKEND -> useUngatedHost()
+        FORCED_FACTORIZE_BACKEND -> useUngatedFactorization()
         AUTO_BACKEND -> useShippedHost()
         else -> {
             installBackends(
