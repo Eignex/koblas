@@ -39,8 +39,7 @@ possible.
 |--------|---------|
 | koblas | Dense and sparse API with a portable backend. |
 | koblas-openblas | Accelerated dense BLAS and LAPACK operations. |
-| koblas-umfpack | General sparse LU for irregular or unstructured systems. |
-| koblas-klu | Sparse LU for circuit-style systems with a fixed sparsity pattern. |
+| koblas-suitesparse | UMFPACK for general sparse LU, KLU for a fixed sparsity pattern. |
 | koblas-basiclu | Simplex-basis LU with efficient column replacements. |
 | koblas-hfactor | Simplex-basis solver with hypersparse solves and Forrest-Tomlin updates. |
 
@@ -54,9 +53,10 @@ sparse LU with a system package manager such as apt or Homebrew. Koblas discover
 libraries automatically and falls back to its portable backend when they are unavailable.
 
 On JVM Linux x64/arm64 and macOS arm64, optional bundled modules take precedence over
-host libraries. `koblas-umfpack` bundles OpenBLAS for dense operations; KLU and BASICLU
-do not need it. Bundled modules have licenses in addition to Apache 2.0; see their
-generated `THIRD-PARTY-NOTICES.txt` files for details.
+host libraries. `koblas-suitesparse` bundles OpenBLAS for dense operations; BASICLU does
+not need it. Bundled modules have licenses in addition to Apache 2.0; see their generated
+`THIRD-PARTY-NOTICES.txt` files for details. `koblas-suitesparse` carries GPL-licensed
+SuiteSparse packages, which makes that artifact effectively GPL-3.0.
 
 ## Use
 
