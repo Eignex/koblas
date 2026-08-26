@@ -35,7 +35,13 @@ class SparseProductHostBenchmark {
     @Setup
     fun setup() {
         installBackends(null)
-        if (backend == FORCED_BACKEND) useUngatedSparseProduct()
+        // The reference arm is pinned rather than left to discovery, which registers the sparse product
+        // binding wherever the host has one: read through its shipped gate, the portable arm would answer
+        // natively from the size that gate names and the run would compare the library against itself.
+        when (backend) {
+            REFERENCE_BACKEND -> installBackends(koblas.with(sparseBlas = F64ReferenceSparseLinearAlgebra))
+            FORCED_BACKEND -> useUngatedSparseProduct()
+        }
         val rng = benchRng()
         a = sparseDominantMatrix(n, rng)
         square = a
