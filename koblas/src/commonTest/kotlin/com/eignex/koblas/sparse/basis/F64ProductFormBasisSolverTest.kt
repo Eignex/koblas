@@ -5,6 +5,8 @@ import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
+import com.eignex.koblas.sparse.F64SparseFactorization
+import com.eignex.koblas.sparse.F64SparseLu
 import com.eignex.koblas.sparse.sparseConformanceSystem
 import kotlin.random.Random
 import kotlin.test.*
@@ -190,6 +192,57 @@ class F64ProductFormBasisSolverTest {
         val solver = reference.basisSolver(simplexMatrix(n, rng))
 
         assertFailsWith<DimensionMismatch> { solver.refactorize(IntArray(n - 1)) }
+    }
+
+    @Test
+    fun `an update before a basis is factorized is refused`() {
+        val rng = Random(20260910)
+        val n = 5
+        val solver = reference.basisSolver(simplexMatrix(n, rng))
+        val spike = F64IndexedVector(n)
+        spike.store(0, 1.0)
+
+        assertEquals(BasisUpdate.SINGULAR, solver.update(0, 0, spike))
+        assertEquals(0, solver.updateCount)
+    }
+
+    @Test
+    fun `an update on a singular basis is refused`() {
+        val n = 3
+        val a = F64SparseMatrix.ofColumns(n, n, listOf(listOf(0 to 1.0), listOf(0 to 2.0), listOf(2 to 1.0)))
+        val solver = reference.basisSolver(a)
+        assertFalse(solver.refactorize(IntArray(n) { it }))
+        val spike = F64IndexedVector(n)
+        spike.store(0, 1.0)
+
+        assertEquals(BasisUpdate.SINGULAR, solver.update(0, 0, spike))
+    }
+
+    /** A backend that gives up outright rather than answering singular, which a rebuild must survive. */
+    private class GivingUpSparseLu(private val delegate: F64SparseLu) : F64SparseLu by delegate {
+        var refuse: Boolean = false
+
+        override fun factor(a: F64SparseMatrix): F64SparseFactorization {
+            check(!refuse) { "the library gave up" }
+            return delegate.factor(a)
+        }
+    }
+
+    @Test
+    fun `a rebuild that throws leaves the basis the solver already had`() {
+        val rng = Random(20260911)
+        val n = 6
+        val a = simplexMatrix(n, rng)
+        val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
+        val lu = GivingUpSparseLu(reference)
+        val solver = F64ProductFormBasisSolver(a, lu)
+        solver.refactorize(logicalBasis(n))
+        val before = solved(solver, b, transpose = false)
+
+        lu.refuse = true
+        assertFailsWith<IllegalStateException> { solver.refactorize(IntArray(n) { it }) }
+
+        assertContentEquals(before, solved(solver, b, transpose = false))
     }
 
     @Test

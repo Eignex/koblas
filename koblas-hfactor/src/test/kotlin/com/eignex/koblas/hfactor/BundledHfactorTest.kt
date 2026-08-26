@@ -169,6 +169,29 @@ class BundledHfactorTest {
     }
 
     @Test
+    fun `an update before a basis is factorized is refused`() {
+        val rng = Random(20260918)
+        val n = 5
+        val solver = backend.basisSolver(simplexMatrix(n, rng))
+        val spike = F64IndexedVector(n)
+        spike.store(0, 1.0)
+
+        assertEquals(BasisUpdate.SINGULAR, solver.update(0, 0, spike))
+    }
+
+    @Test
+    fun `an update on a singular basis is refused`() {
+        val n = 3
+        val a = SparseMatrix.ofColumns(n, n, listOf(listOf(0 to 1.0), listOf(0 to 2.0), listOf(2 to 1.0)))
+        val solver = backend.basisSolver(a)
+        assertFalse(solver.refactorize(IntArray(n) { it }))
+        val spike = F64IndexedVector(n)
+        spike.store(0, 1.0)
+
+        assertEquals(BasisUpdate.SINGULAR, solver.update(0, 0, spike))
+    }
+
+    @Test
     fun `the updates it folded in are counted`() {
         val rng = Random(20260914)
         val n = 10
