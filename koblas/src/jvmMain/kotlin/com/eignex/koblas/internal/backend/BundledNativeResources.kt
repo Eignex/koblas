@@ -4,6 +4,7 @@ import java.io.InputStream
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.attribute.PosixFilePermissions
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 
 /** Shared extraction support for optional JVM artifacts that bundle native Maven resources. */
@@ -22,8 +23,21 @@ public class BundledNativeResources(
      * a handle per library and each asks for the whole manifest, since a library's dependencies ship beside
      * it; without this they would each lay the bundle down in a directory of their own.
      */
-    internal fun extractManifest(): Map<String, Path> =
-        extractions.getOrPut(key) { extract(manifestNames(), required = true) }
+    @Suppress("TooGenericExceptionCaught") // every extraction failure must release the callers waiting on its future
+    internal fun extractManifest(): Map<String, Path> {
+        val pending = CompletableFuture<Map<String, Path>>()
+        val existing = extractions.putIfAbsent(key, pending)
+        if (existing != null) return existing.join()
+        try {
+            return extract(manifestNames(), required = true).also(pending::complete)
+        } catch (cause: Throwable) {
+            pending.completeExceptionally(cause)
+            // A missing or corrupt bundle can be repaired while this process remains alive, so do not retain
+            // its failure and prevent a later construction from trying again.
+            extractions.remove(key, pending)
+            throw cause
+        }
+    }
 
     /**
      * Extracts [names] into a private directory. A name this bundle does not carry is skipped, or fails when
@@ -71,7 +85,7 @@ public class BundledNativeResources(
          * the paths it hands out stay loaded, and shared across threads because two backends out of one
          * artifact may be constructed at once.
          */
-        private val extractions = ConcurrentHashMap<String, Map<String, Path>>()
+        private val extractions = ConcurrentHashMap<String, CompletableFuture<Map<String, Path>>>()
 
         /**
          * A bundle whose contents are listed by a `.libraries` manifest and whose one library of interest is
