@@ -1286,6 +1286,7 @@ public abstract interface class com/eignex/koblas/sparse/F64BasisFactorization :
 }
 
 public final class com/eignex/koblas/sparse/F64BasisFactorization$DefaultImpls {
+	public static fun close (Lcom/eignex/koblas/sparse/F64BasisFactorization;)V
 	public static fun getSingular (Lcom/eignex/koblas/sparse/F64BasisFactorization;)Z
 	public static fun solve (Lcom/eignex/koblas/sparse/F64BasisFactorization;[DZ)[D
 }
@@ -1312,6 +1313,7 @@ public final class com/eignex/koblas/sparse/F64GeneralSparseLu$DefaultImpls {
 
 public final class com/eignex/koblas/sparse/F64RefactoringBasisFactorization : com/eignex/koblas/sparse/F64BasisFactorization {
 	public fun <init> (Lcom/eignex/koblas/sparse/F64SparseDecompositions;Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/sparse/F64SparseFactorization;)V
+	public fun close ()V
 	public fun getBasis ()Lcom/eignex/koblas/core/F64SparseMatrix;
 	public fun getFailedAt ()I
 	public fun getN ()I
@@ -1396,6 +1398,7 @@ public final class com/eignex/koblas/sparse/F64RepeatedSparseLu$DefaultImpls {
 
 public final class com/eignex/koblas/sparse/F64SingularSparseFactorization : com/eignex/koblas/sparse/F64SparseFactorization {
 	public fun <init> (II)V
+	public fun close ()V
 	public fun getFailedAt ()I
 	public fun getN ()I
 	public fun getNnz ()I
@@ -1464,7 +1467,8 @@ public final class com/eignex/koblas/sparse/F64SparseDecompositions$DefaultImpls
 	public static synthetic fun solveInto$default (Lcom/eignex/koblas/sparse/F64SparseDecompositions;Lcom/eignex/koblas/sparse/F64SparseFactorization;[D[DZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)[D
 }
 
-public abstract interface class com/eignex/koblas/sparse/F64SparseFactorization {
+public abstract interface class com/eignex/koblas/sparse/F64SparseFactorization : java/lang/AutoCloseable {
+	public fun close ()V
 	public abstract fun getFailedAt ()I
 	public abstract fun getN ()I
 	public abstract fun getNnz ()I
@@ -1477,6 +1481,7 @@ public abstract interface class com/eignex/koblas/sparse/F64SparseFactorization 
 }
 
 public final class com/eignex/koblas/sparse/F64SparseFactorization$DefaultImpls {
+	public static fun close (Lcom/eignex/koblas/sparse/F64SparseFactorization;)V
 	public static fun getSingular (Lcom/eignex/koblas/sparse/F64SparseFactorization;)Z
 	public static fun solve (Lcom/eignex/koblas/sparse/F64SparseFactorization;[DZ)[D
 	public static synthetic fun solve$default (Lcom/eignex/koblas/sparse/F64SparseFactorization;[DZILjava/lang/Object;)[D
@@ -1552,9 +1557,10 @@ public final class com/eignex/koblas/sparse/basis/BasisUpdate : java/lang/Enum {
 	public static fun values ()[Lcom/eignex/koblas/sparse/basis/BasisUpdate;
 }
 
-public abstract interface class com/eignex/koblas/sparse/basis/F64BasisSolver {
+public abstract interface class com/eignex/koblas/sparse/basis/F64BasisSolver : java/lang/AutoCloseable {
 	public abstract fun btran (Lcom/eignex/koblas/sparse/basis/F64IndexedVector;D)V
 	public static synthetic fun btran$default (Lcom/eignex/koblas/sparse/basis/F64BasisSolver;Lcom/eignex/koblas/sparse/basis/F64IndexedVector;DILjava/lang/Object;)V
+	public fun close ()V
 	public abstract fun ftran (Lcom/eignex/koblas/sparse/basis/F64IndexedVector;D)V
 	public static synthetic fun ftran$default (Lcom/eignex/koblas/sparse/basis/F64BasisSolver;Lcom/eignex/koblas/sparse/basis/F64IndexedVector;DILjava/lang/Object;)V
 	public abstract fun getN ()I
@@ -1568,6 +1574,7 @@ public abstract interface class com/eignex/koblas/sparse/basis/F64BasisSolver {
 
 public final class com/eignex/koblas/sparse/basis/F64BasisSolver$DefaultImpls {
 	public static synthetic fun btran$default (Lcom/eignex/koblas/sparse/basis/F64BasisSolver;Lcom/eignex/koblas/sparse/basis/F64IndexedVector;DILjava/lang/Object;)V
+	public static fun close (Lcom/eignex/koblas/sparse/basis/F64BasisSolver;)V
 	public static synthetic fun ftran$default (Lcom/eignex/koblas/sparse/basis/F64BasisSolver;Lcom/eignex/koblas/sparse/basis/F64IndexedVector;DILjava/lang/Object;)V
 	public static synthetic fun update$default (Lcom/eignex/koblas/sparse/basis/F64BasisSolver;IILcom/eignex/koblas/sparse/basis/F64IndexedVector;Lcom/eignex/koblas/sparse/basis/F64IndexedVector;ILjava/lang/Object;)Lcom/eignex/koblas/sparse/basis/BasisUpdate;
 }
@@ -1608,6 +1615,7 @@ public final class com/eignex/koblas/sparse/basis/F64ProductFormBasisSolver : co
 	public fun <init> (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/sparse/F64SparseDecompositions;I)V
 	public synthetic fun <init> (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/sparse/F64SparseDecompositions;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun btran (Lcom/eignex/koblas/sparse/basis/F64IndexedVector;D)V
+	public fun close ()V
 	public fun ftran (Lcom/eignex/koblas/sparse/basis/F64IndexedVector;D)V
 	public fun getN ()I
 	public fun getNnz ()I
@@ -1623,6 +1631,7 @@ public final class com/eignex/koblas/sparse/basis/F64ProductFormBasisSolverKt {
 
 public final class com/eignex/koblas/sparse/factorization/cholesky/F64SparseCholeskyFactorization : com/eignex/koblas/sparse/F64SparseFactorization {
 	public static final field Companion Lcom/eignex/koblas/sparse/factorization/cholesky/F64SparseCholeskyFactorization$Companion;
+	public fun close ()V
 	public fun getFailedAt ()I
 	public final fun getL ()Lcom/eignex/koblas/core/F64SparseMatrix;
 	public fun getN ()I
@@ -1639,6 +1648,7 @@ public final class com/eignex/koblas/sparse/factorization/cholesky/F64SparseChol
 
 public final class com/eignex/koblas/sparse/factorization/ldl/F64SparseLdlFactorization : com/eignex/koblas/sparse/F64SparseFactorization {
 	public static final field Companion Lcom/eignex/koblas/sparse/factorization/ldl/F64SparseLdlFactorization$Companion;
+	public fun close ()V
 	public final fun getD ()[D
 	public fun getFailedAt ()I
 	public final fun getL ()Lcom/eignex/koblas/core/F64SparseMatrix;
@@ -1656,6 +1666,7 @@ public final class com/eignex/koblas/sparse/factorization/ldl/F64SparseLdlFactor
 
 public final class com/eignex/koblas/sparse/factorization/lu/F64SparseLuFactorization : com/eignex/koblas/sparse/F64SparseFactorization {
 	public static final field Companion Lcom/eignex/koblas/sparse/factorization/lu/F64SparseLuFactorization$Companion;
+	public fun close ()V
 	public fun getFailedAt ()I
 	public fun getN ()I
 	public fun getNnz ()I
@@ -1758,6 +1769,7 @@ public final class com/eignex/koblas/sparse/host/basiclu/BasicluConfig {
 }
 
 public class com/eignex/koblas/sparse/host/basiclu/BasicluFactorization : com/eignex/koblas/sparse/F64SparseFactorization {
+	public fun close ()V
 	public fun getFailedAt ()I
 	public fun getN ()I
 	public fun getNnz ()I
@@ -1821,6 +1833,7 @@ public final class com/eignex/koblas/sparse/host/cholmod/CholmodConfig {
 }
 
 public final class com/eignex/koblas/sparse/host/cholmod/CholmodFactorization : com/eignex/koblas/sparse/F64SparseFactorization {
+	public fun close ()V
 	public fun getFailedAt ()I
 	public fun getN ()I
 	public fun getNnz ()I
@@ -1844,6 +1857,7 @@ public class com/eignex/koblas/sparse/host/cholmod/CholmodSparseBlas : com/eigne
 
 public final class com/eignex/koblas/sparse/host/hfactor/HfactorBasisSolver : com/eignex/koblas/sparse/basis/F64BasisSolver {
 	public fun btran (Lcom/eignex/koblas/sparse/basis/F64IndexedVector;D)V
+	public fun close ()V
 	public fun ftran (Lcom/eignex/koblas/sparse/basis/F64IndexedVector;D)V
 	public fun getN ()I
 	public fun getNnz ()I
@@ -1874,6 +1888,7 @@ public final class com/eignex/koblas/sparse/host/hfactor/HfactorConfig {
 }
 
 public final class com/eignex/koblas/sparse/host/hfactor/HfactorFactorization : com/eignex/koblas/sparse/F64SparseFactorization {
+	public fun close ()V
 	public fun getFailedAt ()I
 	public fun getN ()I
 	public fun getNnz ()I
@@ -1949,6 +1964,7 @@ public final class com/eignex/koblas/sparse/host/klu/KluConfig {
 }
 
 public final class com/eignex/koblas/sparse/host/klu/KluFactorization : com/eignex/koblas/sparse/F64SparseFactorization {
+	public fun close ()V
 	public fun getFailedAt ()I
 	public fun getN ()I
 	public fun getNnz ()I
@@ -2049,6 +2065,7 @@ public final class com/eignex/koblas/sparse/host/umfpack/UmfpackConfig {
 }
 
 public final class com/eignex/koblas/sparse/host/umfpack/UmfpackFactorization : com/eignex/koblas/sparse/F64SparseFactorization {
+	public fun close ()V
 	public fun getFailedAt ()I
 	public fun getN ()I
 	public fun getNnz ()I

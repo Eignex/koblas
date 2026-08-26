@@ -16,6 +16,30 @@ class F64SparseFactorizationTest {
         F64RefactoringBasisFactorization(reference, basis, reference.factor(basis))
 
     @Test
+    fun `closing a portable factorization is a no op`() {
+        val matrix = sparseConformanceSystem(5, Random(20261012))
+        val factorization = reference.factor(matrix)
+        val rhs = DoubleArray(5) { it + 1.0 }
+        val expected = factorization.solve(rhs)
+
+        factorization.close()
+        factorization.close()
+
+        assertContentEquals(expected, factorization.solve(rhs))
+    }
+
+    @Test
+    fun `closing the refactoring wrapper rejects later work`() {
+        val factorization = refactoring(sparseConformanceSystem(5, Random(20261013)))
+
+        factorization.close()
+        factorization.close()
+
+        assertFailsWith<IllegalStateException> { factorization.nnz }
+        assertFailsWith<IllegalStateException> { factorization.solve(DoubleArray(5)) }
+    }
+
+    @Test
     fun `the refactoring fallback rejects a rectangular basis`() {
         val wide = F64SparseMatrix.ofColumns(1, 2, listOf(listOf(0 to 1.0), listOf(0 to 2.0)))
         assertFailsWith<DimensionMismatch> { refactoring(wide) }

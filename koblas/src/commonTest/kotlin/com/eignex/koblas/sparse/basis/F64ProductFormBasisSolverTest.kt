@@ -262,4 +262,38 @@ class F64ProductFormBasisSolverTest {
 
         assertTrue(solver.nnz > factored, "an eta adds to the fill: $factored then ${solver.nnz}")
     }
+
+    @Test
+    fun `rebuild and close release each owned base factor once`() {
+        val n = 5
+        val tracking = TrackingSparseLu(reference)
+        val solver = F64ProductFormBasisSolver(simplexMatrix(n, Random(20261011)), tracking)
+
+        solver.refactorize(logicalBasis(n))
+        solver.refactorize(logicalBasis(n))
+        solver.close()
+        solver.close()
+
+        assertEquals(listOf(1, 1), tracking.factors.map { it.closes })
+        assertFailsWith<IllegalStateException> { solver.refactorize(logicalBasis(n)) }
+    }
+
+    private class TrackingSparseLu(private val delegate: F64SparseDecompositions) :
+        F64SparseDecompositions by delegate {
+        val factors = ArrayList<TrackingFactor>()
+
+        override fun factor(a: F64SparseMatrix): F64SparseFactorization =
+            TrackingFactor(delegate.factor(a)).also(factors::add)
+    }
+
+    private class TrackingFactor(private val delegate: F64SparseFactorization) :
+        F64SparseFactorization by delegate {
+        var closes = 0
+            private set
+
+        override fun close() {
+            closes++
+            delegate.close()
+        }
+    }
 }

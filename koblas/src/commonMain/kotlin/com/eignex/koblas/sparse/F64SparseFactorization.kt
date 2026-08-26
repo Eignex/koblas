@@ -5,8 +5,15 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.requireSquare
 
-/** A factorization held for reuse against further right-hand sides. */
-public interface F64SparseFactorization {
+/**
+ * A factorization held for reuse against further right-hand sides.
+ *
+ * Close a factorization when it is no longer needed. Portable implementations own no external resource and
+ * use the default no-op [close]. Native implementations release their factors deterministically; closing
+ * them is idempotent, and subsequent reads of [nnz] or [rcond] and calls to [solveInto] throw
+ * [IllegalStateException]. [n], [failedAt], and [singular] remain available after close.
+ */
+public interface F64SparseFactorization : AutoCloseable {
     /** The dimension of the factored matrix. */
     public val n: Int
 
@@ -44,6 +51,9 @@ public interface F64SparseFactorization {
 
     /** Solve `B x = b`, or `Bᵀ x = b` when [transpose], into a fresh result. */
     public fun solve(b: DoubleArray, transpose: Boolean = false): DoubleArray = solveInto(b, DoubleArray(n), transpose)
+
+    /** Releases resources owned by this factorization. Portable implementations have nothing to release. */
+    override fun close() {}
 }
 
 /**
@@ -95,6 +105,8 @@ public class F64RefactoringBasisFactorization(
     override val basis: F64SparseMatrix,
     private val factors: F64SparseFactorization,
 ) : F64BasisFactorization {
+    private var closed = false
+
     init {
         requireSquare(basis, "factorBasis")
     }
@@ -103,15 +115,36 @@ public class F64RefactoringBasisFactorization(
 
     override val failedAt: Int get() = factors.failedAt
 
-    override val nnz: Int get() = factors.nnz
-
-    override val rcond: Double get() = factors.rcond
-
-    override fun replaceColumn(column: Int, entering: F64SparseVector): F64BasisFactorization {
-        val next = basis.withColumn(column, entering)
-        return F64RefactoringBasisFactorization(lu, next, lu.factor(next))
+    override val nnz: Int get() {
+        checkOpen()
+        return factors.nnz
     }
 
-    override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray =
-        factors.solveInto(b, out, transpose, workspace)
+    override val rcond: Double get() {
+        checkOpen()
+        return factors.rcond
+    }
+
+    override fun replaceColumn(column: Int, entering: F64SparseVector): F64BasisFactorization {
+        checkOpen()
+        val next = basis.withColumn(column, entering)
+        val replacement = F64RefactoringBasisFactorization(lu, next, lu.factor(next))
+        close()
+        return replacement
+    }
+
+    override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray {
+        checkOpen()
+        return factors.solveInto(b, out, transpose, workspace)
+    }
+
+    override fun close() {
+        if (closed) return
+        closed = true
+        factors.close()
+    }
+
+    private fun checkOpen() {
+        check(!closed) { "basis factorization is closed" }
+    }
 }

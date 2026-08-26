@@ -2,6 +2,7 @@ package com.eignex.koblas.sparse.host.umfpack
 
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.internal.host.nativeCleaner
 import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.requireSolveShapes
@@ -13,7 +14,7 @@ import java.lang.ref.Reference
 
 /**
  * Holds [matrix] alive because umfpack_di_solve takes Ap, Ai and Ax alongside the factors, and releases the
- * factors, which are UMFPACK's own allocation, through [nativeCleaner] once this object is unreachable.
+ * factors, which are UMFPACK's own allocation, on close or through [nativeCleaner] as a fallback.
  */
 public class UmfpackFactorization internal constructor(
     private val matrix: F64SparseMatrix,
@@ -23,25 +24,29 @@ public class UmfpackFactorization internal constructor(
     private val calls: UmfpackCalls,
     private val control: MemorySegment?,
 ) : F64SparseFactorization {
-
-    init {
-        nativeCleaner.register(this, Release(calls, arena, numericHolder))
-    }
-
     private class Release(
         private val calls: UmfpackCalls,
         private val arena: Arena,
         private val numericHolder: MemorySegment,
-    ) : Runnable {
-        override fun run() {
-            calls.freeNumeric(numericHolder)
-            arena.close()
+    ) {
+        fun release() {
+            try {
+                calls.freeNumeric(numericHolder)
+            } finally {
+                arena.close()
+            }
         }
     }
 
+    private val lifecycle = NativeResourceLifecycle(
+        "UMFPACK factorization",
+        Release(calls, arena, numericHolder)::release,
+    )
+    private val cleanable = nativeCleaner.register(this, lifecycle)
+
     override val n: Int get() = matrix.rows
 
-    override val nnz: Int get() = lnz + unz
+    override val nnz: Int get() = lifecycle.withResource { lnz + unz }
 
     /** Fill in `L` and `U`, read out of UMFPACK's Info at factorization time. */
     internal var lnz: Int = 0
@@ -49,19 +54,21 @@ public class UmfpackFactorization internal constructor(
     internal var unz: Int = 0
 
     override var rcond: Double = 0.0
+        get() = lifecycle.withResource { field }
         internal set
 
-    override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray {
-        requireFactored(failedAt, "solve")
-        requireSolveShapes(n, b, out)
-        // UMFPACK writes X and reads B, so aliasing them would have it read its own partial output. The
-        // separate right-hand side comes from the workspace when there is one to lend it.
-        if (out !== b) return solveDistinct(b, out, transpose)
-        return workspace.borrow(n) { rhs ->
-            b.copyInto(rhs)
-            solveDistinct(rhs, out, transpose)
+    override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray =
+        lifecycle.withResource {
+            requireFactored(failedAt, "solve")
+            requireSolveShapes(n, b, out)
+            // UMFPACK writes X and reads B, so aliasing them would have it read its own partial output. The
+            // separate right-hand side comes from the workspace when there is one to lend it.
+            if (out !== b) return@withResource solveDistinct(b, out, transpose)
+            workspace.borrow(n) { rhs ->
+                b.copyInto(rhs)
+                solveDistinct(rhs, out, transpose)
+            }
         }
-    }
 
     /** The call itself, over a right-hand side that does not alias [out]. */
     private fun solveDistinct(b: DoubleArray, out: DoubleArray, transpose: Boolean): DoubleArray {
@@ -88,6 +95,8 @@ public class UmfpackFactorization internal constructor(
         }
         return out
     }
+
+    override fun close(): Unit = cleanable.clean()
 
     internal companion object {
         /** Reads the fill counts out of a completed factorization's Info array. */

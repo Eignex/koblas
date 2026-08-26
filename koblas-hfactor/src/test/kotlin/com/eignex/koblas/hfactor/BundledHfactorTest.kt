@@ -8,6 +8,8 @@ import com.eignex.koblas.sparse.basis.F64BasisSolver
 import com.eignex.koblas.sparse.basis.F64IndexedVector
 import com.eignex.koblas.sparse.basis.F64ProductFormBasisSolver
 import com.eignex.koblas.sparse.factorization.lu.F64SparseLuFactorization
+import com.eignex.koblas.sparse.host.hfactor.HfactorBasisSolver
+import com.eignex.koblas.sparse.host.hfactor.HfactorFactorization
 import com.eignex.koblas.sparse.host.hfactor.HfactorOptions
 import com.eignex.koblas.sparse.host.hfactor.HfactorSparseLu
 import kotlin.math.abs
@@ -126,6 +128,42 @@ class BundledHfactorTest {
 
         assertIs<F64SparseLuFactorization>(factorization)
         assertEquals("true", equilibrated.backendMetadata.options["equilibrate"])
+    }
+
+    @Test
+    fun `a native factor closes deterministically`() {
+        val matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(1 to 8.0)))
+        val factorization = backend.factor(matrix)
+        assertIs<HfactorFactorization>(factorization)
+        val n = factorization.n
+        val failedAt = factorization.failedAt
+
+        factorization.close()
+        factorization.close()
+
+        assertEquals(n, factorization.n)
+        assertEquals(failedAt, factorization.failedAt)
+        assertFailsWith<IllegalStateException> { factorization.nnz }
+        assertFailsWith<IllegalStateException> { factorization.rcond }
+        assertFailsWith<IllegalStateException> { factorization.solve(DoubleArray(n)) }
+    }
+
+    @Test
+    fun `a native basis solver closes deterministically`() {
+        val solver = backend.basisSolver(simplexMatrix(6, Random(20261010)))
+        assertIs<HfactorBasisSolver>(solver)
+        assertTrue(solver.refactorize(logicalBasis(6)))
+        val n = solver.n
+        val singular = solver.singular
+
+        solver.close()
+        solver.close()
+
+        assertEquals(n, solver.n)
+        assertEquals(singular, solver.singular)
+        assertFailsWith<IllegalStateException> { solver.nnz }
+        assertFailsWith<IllegalStateException> { solver.updateCount }
+        assertFailsWith<IllegalStateException> { solver.refactorize(logicalBasis(6)) }
     }
 
     @Test

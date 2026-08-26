@@ -5,6 +5,7 @@ package com.eignex.koblas.sparse.host.klu
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.requireFactored
 import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.requireSolveShapes
@@ -36,8 +37,10 @@ public class KluFactorization internal constructor(
         }
     }
 
+    private val lifecycle = NativeResourceLifecycle("KLU factorization", handle::release)
+
     @Suppress("unused") // the cleaner runs when this property becomes unreachable, which is the point
-    private val cleaner = createCleaner(handle) { it.release() }
+    private val cleaner = createCleaner(lifecycle) { it.close() }
 
     override var failedAt: Int = NOT_SINGULAR
         internal set
@@ -95,15 +98,17 @@ public class KluFactorization internal constructor(
         status == 1 && !singular
     }
 
+    override fun close(): Unit = lifecycle.close()
+
     /**
      * Runs [body] with this factorization reachable from a global, so the cleaner cannot free the objects
      * while the native call inside it is reading them.
      */
-    private inline fun <R> anchoring(body: () -> R): R {
+    private fun <R> anchoring(body: () -> R): R = lifecycle.withResource {
         val previous = AnchoredKlu.held
         AnchoredKlu.held = this
         try {
-            return body()
+            body()
         } finally {
             AnchoredKlu.held = previous
         }

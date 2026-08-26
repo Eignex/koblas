@@ -120,6 +120,23 @@ class UmfpackConformanceTest {
         assertEquals(2.0, configured.scaling)
     }
 
+    @Test
+    fun `a native factor closes deterministically`() {
+        requireSuiteSparse()
+        val factorization = umfpack.factor(sparseConformanceSystem(8, Random(20261001)))
+        assertIs<UmfpackFactorization>(factorization)
+
+        assertNativeFactorCloseContract(factorization)
+    }
+
+    @Test
+    fun `use closes a native factor on return and failure`() {
+        requireSuiteSparse()
+        val matrix = sparseConformanceSystem(8, Random(20261002))
+
+        assertNativeFactorUseContract { umfpack.factor(matrix) }
+    }
+
     /**
      * The factorization reaches its native factors through a raw address, and the cleaner that frees them
      * holds the handles alone, so nothing the call itself holds keeps the factorization reachable. Each

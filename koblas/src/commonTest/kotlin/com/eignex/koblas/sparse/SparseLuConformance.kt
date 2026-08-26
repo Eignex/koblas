@@ -158,6 +158,34 @@ internal fun assertRepeatedFactorizationsSurvive(decompositions: F64SparseDecomp
     assertTrue(checksum > 0.0, "the loop should have produced solutions")
 }
 
+/** A native factor releases idempotently, keeps stable facts, and rejects every resource-backed operation. */
+internal fun assertNativeFactorCloseContract(factorization: F64SparseFactorization) {
+    val n = factorization.n
+    val failedAt = factorization.failedAt
+
+    factorization.close()
+    factorization.close()
+
+    assertEquals(n, factorization.n)
+    assertEquals(failedAt, factorization.failedAt)
+    assertFailsWith<IllegalStateException> { factorization.nnz }
+    assertFailsWith<IllegalStateException> { factorization.rcond }
+    assertFailsWith<IllegalStateException> { factorization.solve(DoubleArray(n)) }
+}
+
+/** [AutoCloseable.use] closes a native factor when its body returns and when its body throws. */
+internal fun assertNativeFactorUseContract(factory: () -> F64SparseFactorization) {
+    val returned = factory()
+    returned.use { assertTrue(it.nnz >= it.n) }
+    assertFailsWith<IllegalStateException> { returned.nnz }
+
+    val failed = factory()
+    assertFailsWith<IllegalArgumentException> {
+        failed.use { throw IllegalArgumentException("test failure") }
+    }
+    assertFailsWith<IllegalStateException> { failed.nnz }
+}
+
 /**
  * The Control array both bindings build: UMFPACK's own defaults with iterative refinement off, so a solve is
  * the triangular solve against the factors and nothing more.

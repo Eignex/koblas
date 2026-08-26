@@ -61,8 +61,13 @@ public open class KluSparseLu(
         val reusable = previous as? KluFactorization ?: return factor(a)
         return when (reusable.refactor(a, equilibrate)) {
             KluRefactorResult.Success -> reusable
-            KluRefactorResult.Incompatible -> factor(a)
-            KluRefactorResult.Singular -> F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
+
+            KluRefactorResult.Incompatible -> factor(a).also { reusable.close() }
+
+            KluRefactorResult.Singular -> F64SingularSparseFactorization(
+                a.rows,
+                SINGULAR_POSITION_UNKNOWN,
+            ).also { reusable.close() }
         }
     }
 

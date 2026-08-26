@@ -4,6 +4,7 @@ package com.eignex.koblas.sparse.host.umfpack
 
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.requireSolveShapes
 import kotlinx.cinterop.*
@@ -31,13 +32,15 @@ public class UmfpackFactorization internal constructor(
         }
     }
 
+    private val lifecycle = NativeResourceLifecycle("UMFPACK factorization", handle::release)
+
     /** Frees the factors once this object goes away; [AnchoredFactorization] covers the calls in flight. */
     @Suppress("unused") // the cleaner runs when this property becomes unreachable, which is the point
-    private val cleaner = createCleaner(handle) { it.release() }
+    private val cleaner = createCleaner(lifecycle) { it.close() }
 
     override val n: Int get() = matrix.rows
 
-    override val nnz: Int get() = lnz + unz
+    override val nnz: Int get() = anchoring { lnz + unz }
 
     /** Fill in L and U, read out of UMFPACK's Info array at factorization time. */
     internal var lnz: Int = 0
@@ -45,6 +48,7 @@ public class UmfpackFactorization internal constructor(
     internal var unz: Int = 0
 
     override var rcond: Double = 0.0
+        get() = anchoring { field }
         internal set
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray {
@@ -94,15 +98,17 @@ public class UmfpackFactorization internal constructor(
         return out
     }
 
+    override fun close(): Unit = lifecycle.close()
+
     /**
      * Runs [body] with this factorization reachable from a global, so the cleaner cannot free the factors
      * while the native call inside it is reading them. See [AnchoredFactorization].
      */
-    private inline fun <R> anchoring(body: () -> R): R {
+    private fun <R> anchoring(body: () -> R): R = lifecycle.withResource {
         val previous = AnchoredFactorization.held
         AnchoredFactorization.held = this
         try {
-            return body()
+            body()
         } finally {
             AnchoredFactorization.held = previous
         }

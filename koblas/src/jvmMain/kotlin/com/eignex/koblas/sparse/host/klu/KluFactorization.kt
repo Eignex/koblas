@@ -2,12 +2,13 @@ package com.eignex.koblas.sparse.host.klu
 
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.internal.host.nativeCleaner
 import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.requireSolveShapes
 import java.lang.ref.Reference
 
-/** A KLU factorization whose native symbolic and numeric objects are reclaimed when it becomes unreachable. */
+/** A KLU factorization with deterministic close and cleaner fallback for its symbolic and numeric objects. */
 public class KluFactorization internal constructor(
     initialFailedAt: Int,
     private val factor: KluFactor,
@@ -15,34 +16,39 @@ public class KluFactorization internal constructor(
 ) : F64SparseFactorization {
     override var failedAt: Int = initialFailedAt
         private set
-    init {
-        nativeCleaner.register(this, Release(calls, factor))
-    }
 
-    private class Release(private val calls: KluCalls, private val factor: KluFactor) : Runnable {
-        override fun run() {
-            calls.free(factor)
-            factor.arena.close()
+    private class Release(private val calls: KluCalls, private val factor: KluFactor) {
+        fun release() {
+            try {
+                calls.free(factor)
+            } finally {
+                factor.arena.close()
+            }
         }
     }
+
+    private val lifecycle = NativeResourceLifecycle("KLU factorization", Release(calls, factor)::release)
+    private val cleanable = nativeCleaner.register(this, lifecycle)
 
     override val n: Int get() = factor.n
 
     /** Reads KLU's numeric object, so the fence holds this factorization past the read. */
-    override val nnz: Int get() = try {
-        factor.nnz
-    } finally {
-        Reference.reachabilityFence(this)
+    override val nnz: Int get() = lifecycle.withResource {
+        try {
+            factor.nnz
+        } finally {
+            Reference.reachabilityFence(this)
+        }
     }
 
-    override val rcond: Double get() = factor.rcond
+    override val rcond: Double get() = lifecycle.withResource { factor.rcond }
 
-    internal fun refactor(a: F64SparseMatrix, equilibrate: Boolean): KluRefactorResult {
+    internal fun refactor(a: F64SparseMatrix, equilibrate: Boolean): KluRefactorResult = lifecycle.withResource {
         requireShape(a.rows == n) { "refactor: matrix size ${a.rows}, expected $n" }
         if (!a.colPtr.contentEquals(factor.colPtr) || !a.rowIdx.contentEquals(factor.rowIdx)) {
-            return KluRefactorResult.Incompatible
+            return@withResource KluRefactorResult.Incompatible
         }
-        return try {
+        try {
             if (calls.refactor(factor, a.colPtr, a.rowIdx, a.values, equilibrate)) {
                 failedAt = NOT_SINGULAR
                 KluRefactorResult.Success
@@ -55,17 +61,20 @@ public class KluFactorization internal constructor(
         }
     }
 
-    override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray {
-        requireFactored(failedAt, "solve")
-        requireSolveShapes(n, b, out)
-        if (out !== b) b.copyInto(out)
-        try {
-            calls.solve(factor, out, transpose)
-        } finally {
-            Reference.reachabilityFence(this)
+    override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray =
+        lifecycle.withResource {
+            requireFactored(failedAt, "solve")
+            requireSolveShapes(n, b, out)
+            if (out !== b) b.copyInto(out)
+            try {
+                calls.solve(factor, out, transpose)
+            } finally {
+                Reference.reachabilityFence(this)
+            }
+            out
         }
-        return out
-    }
+
+    override fun close(): Unit = cleanable.clean()
 }
 
 internal enum class KluRefactorResult { Success, Incompatible, Singular }

@@ -4,6 +4,7 @@ package com.eignex.koblas.sparse.host.cholmod
 
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.singularFailure
 import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.requireSolveShapes
@@ -13,7 +14,7 @@ import kotlin.math.sqrt
 import kotlin.native.concurrent.ThreadLocal
 import kotlin.native.ref.createCleaner
 
-/** A CHOLMOD factorization whose native factor is reclaimed when it becomes unreachable. */
+/** A CHOLMOD factorization with deterministic close and cleaner fallback for its native factor. */
 public class CholmodFactorization internal constructor(
     private val handle: CholmodHandle,
     private val functions: CholmodFunctions,
@@ -37,13 +38,15 @@ public class CholmodFactorization internal constructor(
         }
     }
 
-    @Suppress("unused") // the cleaner runs when this property becomes unreachable, which is the point
-    private val cleaner = createCleaner(handle) { it.release() }
+    private val lifecycle = NativeResourceLifecycle("CHOLMOD factorization", handle::release)
 
-    override val nnz: Int get() = if (singular) {
-        0
-    } else {
-        anchoring {
+    @Suppress("unused") // the cleaner runs when this property becomes unreachable, which is the point
+    private val cleaner = createCleaner(lifecycle) { it.close() }
+
+    override val nnz: Int get() = anchoring {
+        if (singular) {
+            0
+        } else {
             sizeAt(handle.factor.reinterpret(), CHOLMOD_FACTOR_NZMAX).toInt()
         }
     }
@@ -53,10 +56,10 @@ public class CholmodFactorization internal constructor(
      * an `L·Lᵀ`. The square root brings it back to the ratio this seam documents, so the number means the
      * same thing whichever backend produced it.
      */
-    override val rcond: Double get() = if (singular) {
-        0.0
-    } else {
-        anchoring {
+    override val rcond: Double get() = anchoring {
+        if (singular) {
+            0.0
+        } else {
             val estimate = functions.rcond(handle.factor.reinterpret(), handle.common)
             if (intAt(handle.factor.reinterpret(), CHOLMOD_FACTOR_IS_LL) == CHOLMOD_TRUE) sqrt(estimate) else estimate
         }
@@ -94,15 +97,17 @@ public class CholmodFactorization internal constructor(
         return out
     }
 
+    override fun close(): Unit = lifecycle.close()
+
     /**
      * Holds this factorization in a thread-local for the length of a native call, so the cleaner cannot run
      * against the factor a call still has a pointer to. The same fence the other native bindings take.
      */
-    private inline fun <R> anchoring(body: () -> R): R {
+    private fun <R> anchoring(body: () -> R): R = lifecycle.withResource {
         val previous = AnchoredCholmod.held
         AnchoredCholmod.held = this
         try {
-            return body()
+            body()
         } finally {
             AnchoredCholmod.held = previous
         }
