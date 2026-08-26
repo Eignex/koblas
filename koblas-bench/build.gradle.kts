@@ -156,7 +156,11 @@ benchmark {
         // all three subjects and no product gate reaches it.
         suite("sparseProductGate", "SparseProductHostBenchmark", "gemm|gemv|sparseProduct|trsv") {
             gate()
-            param("n", "64", "256", "1024")
+            // The matrices are one percent dense, so these carry roughly 18, 42, 109, 292, 919 and 11526
+            // stored entries. The range starts where a product is a handful of entries, since a gate is a
+            // claim about the smallest sizes, and ends far above it, since a gate that reverses again higher
+            // up would not be a crossing at all.
+            param("n", "16", "32", "64", "128", "256", "1024")
         }
         // The two symmetric factorizations against the portable ones, with transpose trailing as the
         // control: it sorts after both subjects and no factorization gate reaches it.
