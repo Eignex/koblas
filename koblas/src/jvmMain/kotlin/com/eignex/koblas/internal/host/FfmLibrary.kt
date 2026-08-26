@@ -12,7 +12,16 @@ import java.lang.invoke.MethodHandle
  * binding contributes only its prototypes. The native targets have `openNativeLibrary` for the same reason.
  *
  * Handles are bound with `Linker.Option.critical` by default, which lets a call read and write the Kotlin
- * arrays handed to it in place rather than copying them.
+ * arrays handed to it in place rather than copying them. That is the whole reason: a heap segment is
+ * accepted by a critical downcall and by nothing else, so without it every operand would be staged into an
+ * arena and copied back on each call, which is most of what dispatching to the library was for.
+ *
+ * It is not free, and it is not what the option was written for. The linker reserves it for a function that
+ * returns almost immediately, because a thread inside one never transitions to native and so holds off a
+ * safepoint until the call returns: a large factorization keeps a collection waiting for as long as it runs.
+ * koblas takes that latency for the copies it saves. What the option genuinely forbids is a call back into
+ * the JVM, and what it cannot survive is a call that blocks with no bound on when it returns; those pass
+ * `critical = false` and pay the copy.
  *
  * Calls on the result use `invokeExact`, a signature-polymorphic call site: the descriptor lands in the
  * bytecode, where `invokeWithArguments` would box every argument into a varargs array and pay a fixed cost
@@ -46,9 +55,9 @@ public class FfmLibrary private constructor(
     /**
      * A handle for [name], or null when the library does not export it.
      *
-     * Pass `critical = false` for a routine that may block or start a thread, which a critical downcall is
-     * not allowed to do; the numeric routines, which run to completion over the arrays handed to them, are
-     * the reason critical is the default.
+     * Pass `critical = false` for a routine that may call back into the JVM, block on something outside
+     * itself, or start a thread. The numeric routines, which run to completion over the arrays handed to
+     * them and hand nothing back, are the reason critical is the default, at the cost the class KDoc names.
      */
     public fun handleOrNull(name: String, descriptor: FunctionDescriptor, critical: Boolean = true): MethodHandle? {
         val downcall = linker ?: return null

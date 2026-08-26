@@ -8,6 +8,18 @@ internal fun isIlp64OpenBlas(config: String): Boolean =
     config.split(' ', '\t', '\n').any { it == "USE64BITINT" || it == "INTERFACE64" }
 
 /**
+ * Whether an OpenBLAS takes 64-bit integers, from its config string when that says so and from the pivots it
+ * writes when it does not. [probePivots] answers with the first [PROBE_WORDS] words a probing
+ * `LAPACKE_dgetrf` left, or null when the library carries no such routine to ask.
+ *
+ * Two questions rather than one because neither settles it alone: an ILP64 build exports the same unsuffixed
+ * symbols as an LP64 one, so only the config string names it, and a vendor is free to report no config
+ * string at all. A build that answers neither is taken as LP64, so an unrecognized library keeps working.
+ */
+internal fun isIlp64Build(config: String, probePivots: () -> IntArray?): Boolean =
+    isIlp64OpenBlas(config) || isIlp64PivotWidth(probePivots() ?: IntArray(0))
+
+/**
  * Whether the pivots a probing `LAPACKE_dgetrf` wrote are 64 bits wide, read as the first three 32-bit
  * [words] of a zeroed buffer. The probe factorizes a 2x2 whose both pivots are row 2, so an LP64 build
  * leaves `2, 2` in the first two words and an ILP64 build spreads the same two pivots over four, putting a

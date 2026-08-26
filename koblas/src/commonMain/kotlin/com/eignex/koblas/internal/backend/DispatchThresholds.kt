@@ -55,5 +55,21 @@ internal fun hostBlasDispatchThresholds(config: HostBlasConfig): DispatchThresho
     factorize = config.factorizeMin,
 )
 
+/**
+ * Whether a level-3 product whose work is `m · n · k` is worth handing to a native library, against a [gate]
+ * measured as the dimension at which a cube of that side crosses over.
+ *
+ * The work at that crossover is the cube of the gate, and a shape reaching the same work has paid for the
+ * crossing however narrow its narrowest side is. Reading the gate as a dimension instead leaves a wide
+ * matrix times a two-column one portable on the two, whatever the other two dimensions are.
+ *
+ * Never less permissive than the dimension it was measured as, since every side at or above [gate] is a
+ * work volume at or above the cube; [Int.MAX_VALUE] keeps the family portable as it does everywhere else.
+ */
+internal fun dispatchesLevel3(gate: Int, m: Int, n: Int, k: Int): Boolean {
+    if (gate == Int.MAX_VALUE) return false
+    return m.toLong() * n * k >= gate.toLong() * gate * gate
+}
+
 /** The compiled-in vector-kernel routing policy. */
 internal val f64DispatchThresholds: DispatchThresholds get() = platformDispatchThresholds

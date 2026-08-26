@@ -14,6 +14,7 @@ import com.eignex.koblas.dense.host.cblas.Cblas.sideOf
 import com.eignex.koblas.dense.host.cblas.Cblas.transOf
 import com.eignex.koblas.dense.host.cblas.Cblas.uploOf
 import com.eignex.koblas.internal.backend.DispatchThresholds
+import com.eignex.koblas.internal.backend.dispatchesLevel3
 
 /**
  * The dense matrix routines a host CBLAS provides, over whichever [CblasCalls] the platform supplies. Both
@@ -209,7 +210,7 @@ public abstract class F64BlasAdapter internal constructor(
             return
         }
         if (m == 0 || n == 0) return
-        if (minOf(m, n, k) < dispatch.level3) {
+        if (!dispatchesLevel3(dispatch.level3, m, n, k)) {
             return portable.gemm(alpha, a, transposeA, b, transposeB, beta, c)
         }
         f.dgemm(

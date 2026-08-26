@@ -46,6 +46,41 @@ class DispatchThresholdsTest {
         assertEquals(before.factorize, platformDispatchThresholds.factorize, "factorize did not come back")
     }
 
+    /**
+     * The gate is measured as the dimension at which a cube crosses over, and the work at that crossover is
+     * its cube. A shape that reaches the same work has paid for the crossing however narrow one of its sides
+     * is, which the narrowest dimension alone cannot say.
+     */
+    @Test
+    fun `a level-3 gate follows the work rather than the narrowest dimension`() {
+        val gate = 64
+
+        assertTrue(dispatchesLevel3(gate, gate, gate, gate), "the cube it was measured as")
+        assertFalse(dispatchesLevel3(gate, gate - 1, gate, gate), "just under the crossover")
+        assertTrue(dispatchesLevel3(gate, 4096, 2, 4096), "a large product of a two-column matrix")
+        assertFalse(dispatchesLevel3(gate, 4096, 2, 8), "a small one of the same shape")
+    }
+
+    @Test
+    fun `a level-3 gate is never less permissive than the dimension it is measured as`() {
+        for (gate in intArrayOf(0, 1, 16, 64, 1024)) {
+            for (m in intArrayOf(1, 2, 63, 64, 1024)) {
+                for (n in intArrayOf(1, 2, 63, 64, 1024)) {
+                    for (k in intArrayOf(1, 2, 63, 64, 1024)) {
+                        if (minOf(m, n, k) < gate) continue
+                        assertTrue(dispatchesLevel3(gate, m, n, k), "gate=$gate shape=${m}x${n}x$k")
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `a level-3 family pinned portable stays portable at any size`() {
+        assertFalse(dispatchesLevel3(Int.MAX_VALUE, 1, 1, 1))
+        assertFalse(dispatchesLevel3(Int.MAX_VALUE, Int.MAX_VALUE, Int.MAX_VALUE, Int.MAX_VALUE))
+    }
+
     @Test
     fun `the platform defaults are the ones this target was measured with`() {
         val defaults = platformDispatchThresholds
