@@ -56,7 +56,9 @@ private fun registerSparse(requested: String?) {
         kluConfig = KluConfig(libraryPath(ConfigurationKeys.KLU_PATH)),
         basicluConfig = BasicluConfig(libraryPath(ConfigurationKeys.BASICLU_PATH)),
     )
-    for (backend in listOf(sparse.umfpack, sparse.klu, sparse.basiclu)) {
+    // The three sparse LU halves, then the sparse matrix half. CHOLMOD fills the latter rather than the
+    // factorization one, so it takes nothing from the three above and they take nothing from it.
+    for (backend in listOf(sparse.umfpack, sparse.klu, sparse.basiclu, sparse.cholmod)) {
         if (backend.isAvailable && offered(backend, requested)) BackendRegistry.registerAutomatic(backend)
     }
 }

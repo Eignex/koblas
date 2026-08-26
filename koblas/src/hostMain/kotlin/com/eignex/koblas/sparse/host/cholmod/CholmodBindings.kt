@@ -8,6 +8,7 @@ import kotlinx.cinterop.*
 import platform.posix.dlsym
 
 private typealias Block = CPointer<ByteVar>?
+private typealias Scalar = CPointer<DoubleVar>?
 private typealias Handle = COpaquePointer?
 private typealias HandleSlot = CPointer<COpaquePointerVar>?
 
@@ -25,6 +26,10 @@ internal class CholmodFunctions(private val lib: COpaquePointer) {
     val solve = required("cholmod_solve").reinterpret<CFunction<(Int, Block, Block, Block) -> Handle>>()
 
     val rcond = required("cholmod_rcond").reinterpret<CFunction<(Block, Block) -> Double>>()
+
+    /** The scalars are complex pairs, so each is two doubles of which a real matrix reads only the first. */
+    val sdmult =
+        required("cholmod_sdmult").reinterpret<CFunction<(Block, Int, Scalar, Scalar, Block, Block, Block) -> Int>>()
 
     val freeFactor = required("cholmod_free_factor").reinterpret<CFunction<(HandleSlot, Block) -> Int>>()
 
@@ -91,9 +96,10 @@ internal fun pointerAt(block: CPointer<ByteVar>, offset: Long): COpaquePointer? 
 
 /**
  * [a]'s lower triangle as a `cholmod_sparse` over a native copy, which the caller frees with [freeMatrix].
+ * The `stype` saying so is what makes CHOLMOD read that triangle and ignore whatever sits above the diagonal.
  *
- * The copy is what taking operands as a struct costs: a struct field holds an address, and a Kotlin array
- * pinned for the length of one call has none to leave behind.
+ * The copy is what a matrix outliving one call costs: a struct field holds an address, and a factorization
+ * spans an analysis and a numeric pass that no single pinning covers.
  */
 internal fun describeLowerTriangle(a: F64SparseMatrix): CPointer<ByteVar> {
     val nnz = maxOf(a.nnz, 1)
@@ -104,7 +110,45 @@ internal fun describeLowerTriangle(a: F64SparseMatrix): CPointer<ByteVar> {
     val values = nativeHeap.allocArray<DoubleVar>(nnz)
     for (k in 0 until a.nnz) values[k] = a.values[k]
 
-    val sparse = nativeHeap.allocArray<ByteVar>(CHOLMOD_SPARSE_BYTES)
+    return nativeHeap.allocArray<ByteVar>(CHOLMOD_SPARSE_BYTES).also {
+        describeSparse(it, a, CHOLMOD_STYPE_LOWER, columnPointers, rowIndices, values)
+    }
+}
+
+/** Frees a matrix built by [describeLowerTriangle], arrays included. */
+internal fun freeMatrix(sparse: CPointer<ByteVar>) {
+    pointerAt(sparse, CHOLMOD_SPARSE_P)?.let { nativeHeap.free(it) }
+    pointerAt(sparse, CHOLMOD_SPARSE_I)?.let { nativeHeap.free(it) }
+    pointerAt(sparse, CHOLMOD_SPARSE_X)?.let { nativeHeap.free(it) }
+    nativeHeap.free(sparse)
+}
+
+/**
+ * [a] as a `cholmod_sparse` holding every entry it stores, which is what a routine reading the whole matrix
+ * rather than a symmetric half of it needs.
+ *
+ * Laid out in this placement over [columnPointers], [rowIndices] and [values], which stay the caller's: a
+ * routine answering in one call reads [a]'s own arrays while they are pinned, and copies nothing.
+ */
+internal fun NativePlacement.describeGeneral(
+    a: F64SparseMatrix,
+    columnPointers: CPointer<IntVar>,
+    rowIndices: CPointer<IntVar>,
+    values: CPointer<DoubleVar>,
+): CPointer<ByteVar> = allocArray<ByteVar>(CHOLMOD_SPARSE_BYTES).also {
+    describeSparse(it, a, CHOLMOD_STYPE_GENERAL, columnPointers, rowIndices, values)
+}
+
+/** Fills [sparse] as a packed CSC `cholmod_sparse` of [stype] over the three arrays [a]'s entries lie in. */
+@Suppress("LongParameterList") // the struct's own fields, less the four this seam never varies
+private fun describeSparse(
+    sparse: CPointer<ByteVar>,
+    a: F64SparseMatrix,
+    stype: Int,
+    columnPointers: CPointer<IntVar>,
+    rowIndices: CPointer<IntVar>,
+    values: CPointer<DoubleVar>,
+) {
     sizeAt(sparse, CHOLMOD_SPARSE_NROW, a.rows.toLong())
     sizeAt(sparse, CHOLMOD_SPARSE_NCOL, a.cols.toLong())
     sizeAt(sparse, CHOLMOD_SPARSE_NZMAX, a.nnz.toLong())
@@ -114,20 +158,25 @@ internal fun describeLowerTriangle(a: F64SparseMatrix): CPointer<ByteVar> {
     pointerAt(sparse, CHOLMOD_SPARSE_NZ, null)
     pointerAt(sparse, CHOLMOD_SPARSE_X, values)
     pointerAt(sparse, CHOLMOD_SPARSE_Z, null)
-    intAt(sparse, CHOLMOD_SPARSE_STYPE, CHOLMOD_STYPE_LOWER)
+    intAt(sparse, CHOLMOD_SPARSE_STYPE, stype)
     intAt(sparse, CHOLMOD_SPARSE_ITYPE, CHOLMOD_INT)
     intAt(sparse, CHOLMOD_SPARSE_XTYPE, CHOLMOD_REAL)
     intAt(sparse, CHOLMOD_SPARSE_DTYPE, CHOLMOD_DOUBLE)
     // koblas keeps rows strictly ascending within a column, which is what sorted claims.
     intAt(sparse, CHOLMOD_SPARSE_SORTED, CHOLMOD_TRUE)
     intAt(sparse, CHOLMOD_SPARSE_PACKED, CHOLMOD_TRUE)
-    return sparse
 }
 
-/** Frees a matrix built by [describeLowerTriangle], arrays included. */
-internal fun freeMatrix(sparse: CPointer<ByteVar>) {
-    pointerAt(sparse, CHOLMOD_SPARSE_P)?.let { nativeHeap.free(it) }
-    pointerAt(sparse, CHOLMOD_SPARSE_I)?.let { nativeHeap.free(it) }
-    pointerAt(sparse, CHOLMOD_SPARSE_X)?.let { nativeHeap.free(it) }
-    nativeHeap.free(sparse)
+/** A `cholmod_dense` of [rows] by [cols] over the caller's [values], laid out in this placement. */
+internal fun NativePlacement.describeDense(rows: Int, cols: Int, values: CPointer<DoubleVar>): CPointer<ByteVar> {
+    val dense = allocArray<ByteVar>(CHOLMOD_DENSE_BYTES)
+    sizeAt(dense, CHOLMOD_DENSE_NROW, rows.toLong())
+    sizeAt(dense, CHOLMOD_DENSE_NCOL, cols.toLong())
+    sizeAt(dense, CHOLMOD_DENSE_NZMAX, rows.toLong() * cols)
+    sizeAt(dense, CHOLMOD_DENSE_D, rows.toLong())
+    pointerAt(dense, CHOLMOD_DENSE_X, values)
+    pointerAt(dense, CHOLMOD_DENSE_Z, null)
+    intAt(dense, CHOLMOD_DENSE_XTYPE, CHOLMOD_REAL)
+    intAt(dense, CHOLMOD_DENSE_DTYPE, CHOLMOD_DOUBLE)
+    return dense
 }

@@ -1373,10 +1373,12 @@ final class com.eignex.koblas.sparse.host.umfpack/UmfpackFactorization : com.eig
 
 // Targets: [linux, macosArm64]
 final class com.eignex.koblas.sparse.host/F64SparseBackends { // com.eignex.koblas.sparse.host/F64SparseBackends|null[0]
-    constructor <init>(com.eignex.koblas.sparse.host.umfpack/UmfpackConfig = ..., com.eignex.koblas.sparse.host.klu/KluConfig = ..., com.eignex.koblas.sparse.host.basiclu/BasicluConfig = ...) // com.eignex.koblas.sparse.host/F64SparseBackends.<init>|<init>(com.eignex.koblas.sparse.host.umfpack.UmfpackConfig;com.eignex.koblas.sparse.host.klu.KluConfig;com.eignex.koblas.sparse.host.basiclu.BasicluConfig){}[0]
+    constructor <init>(com.eignex.koblas.sparse.host.umfpack/UmfpackConfig = ..., com.eignex.koblas.sparse.host.klu/KluConfig = ..., com.eignex.koblas.sparse.host.basiclu/BasicluConfig = ..., com.eignex.koblas.sparse.host.cholmod/CholmodConfig = ...) // com.eignex.koblas.sparse.host/F64SparseBackends.<init>|<init>(com.eignex.koblas.sparse.host.umfpack.UmfpackConfig;com.eignex.koblas.sparse.host.klu.KluConfig;com.eignex.koblas.sparse.host.basiclu.BasicluConfig;com.eignex.koblas.sparse.host.cholmod.CholmodConfig){}[0]
 
     final val basiclu // com.eignex.koblas.sparse.host/F64SparseBackends.basiclu|{}basiclu[0]
         final fun <get-basiclu>(): com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu // com.eignex.koblas.sparse.host/F64SparseBackends.basiclu.<get-basiclu>|<get-basiclu>(){}[0]
+    final val cholmod // com.eignex.koblas.sparse.host/F64SparseBackends.cholmod|{}cholmod[0]
+        final fun <get-cholmod>(): com.eignex.koblas.sparse.host.cholmod/CholmodSparseBlas // com.eignex.koblas.sparse.host/F64SparseBackends.cholmod.<get-cholmod>|<get-cholmod>(){}[0]
     final val klu // com.eignex.koblas.sparse.host/F64SparseBackends.klu|{}klu[0]
         final fun <get-klu>(): com.eignex.koblas.sparse.host.klu/KluSparseLu // com.eignex.koblas.sparse.host/F64SparseBackends.klu.<get-klu>|<get-klu>(){}[0]
     final val umfpack // com.eignex.koblas.sparse.host/F64SparseBackends.umfpack|{}umfpack[0]
@@ -1414,6 +1416,22 @@ open class com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu : com.eignex.ko
 
     final fun factorBasis(com.eignex.koblas.core/F64SparseMatrix): com.eignex.koblas.sparse/F64BasisFactorization // com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu.factorBasis|factorBasis(com.eignex.koblas.core.F64SparseMatrix){}[0]
     final fun factorNative(com.eignex.koblas.core/F64SparseMatrix): com.eignex.koblas.sparse/F64SparseFactorization // com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu.factorNative|factorNative(com.eignex.koblas.core.F64SparseMatrix){}[0]
+}
+
+// Targets: [linux, macosArm64]
+open class com.eignex.koblas.sparse.host.cholmod/CholmodSparseBlas : com.eignex.koblas.sparse.host/F64SparseBlasAdapter { // com.eignex.koblas.sparse.host.cholmod/CholmodSparseBlas|null[0]
+    constructor <init>(com.eignex.koblas.sparse.host.cholmod/CholmodConfig = ..., kotlin/Int? = ...) // com.eignex.koblas.sparse.host.cholmod/CholmodSparseBlas.<init>|<init>(com.eignex.koblas.sparse.host.cholmod.CholmodConfig;kotlin.Int?){}[0]
+
+    final val config // com.eignex.koblas.sparse.host.cholmod/CholmodSparseBlas.config|{}config[0]
+        final fun <get-config>(): com.eignex.koblas.sparse.host.cholmod/CholmodConfig // com.eignex.koblas.sparse.host.cholmod/CholmodSparseBlas.config.<get-config>|<get-config>(){}[0]
+    final val nativeAvailable // com.eignex.koblas.sparse.host.cholmod/CholmodSparseBlas.nativeAvailable|{}nativeAvailable[0]
+        final fun <get-nativeAvailable>(): kotlin/Boolean // com.eignex.koblas.sparse.host.cholmod/CholmodSparseBlas.nativeAvailable.<get-nativeAvailable>|<get-nativeAvailable>(){}[0]
+    open val name // com.eignex.koblas.sparse.host.cholmod/CholmodSparseBlas.name|{}name[0]
+        open fun <get-name>(): kotlin/String // com.eignex.koblas.sparse.host.cholmod/CholmodSparseBlas.name.<get-name>|<get-name>(){}[0]
+    open val priority // com.eignex.koblas.sparse.host.cholmod/CholmodSparseBlas.priority|{}priority[0]
+        open fun <get-priority>(): kotlin/Int // com.eignex.koblas.sparse.host.cholmod/CholmodSparseBlas.priority.<get-priority>|<get-priority>(){}[0]
+
+    final fun gemmNative(kotlin/Double, com.eignex.koblas.core/F64SparseMatrix, kotlin/Boolean, com.eignex.koblas.core/F64DenseMatrix, kotlin/Double, com.eignex.koblas.core/F64DenseMatrix) // com.eignex.koblas.sparse.host.cholmod/CholmodSparseBlas.gemmNative|gemmNative(kotlin.Double;com.eignex.koblas.core.F64SparseMatrix;kotlin.Boolean;com.eignex.koblas.core.F64DenseMatrix;kotlin.Double;com.eignex.koblas.core.F64DenseMatrix){}[0]
 }
 
 // Targets: [linux, macosArm64]
