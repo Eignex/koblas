@@ -14,7 +14,9 @@ BLAS/LAPACK and the deliberate deviations.
 - Free-function arithmetic over the views, dispatching dense or sparse by operand type: [dot], [axpy],
   [scale], [norm2], [asum], [iamax], [copy], [swap], [ger], [times], [transpose], [forEachStored], and
   the matrix 1-norm [norm1].
-- Shared machinery: [Backend] (what every backend of every tier reports about itself), the [Workspace]
-  buffer pool, and the [mathBackend] identifier. None of these is per element type.
+- Shared machinery: [Backend] (what every backend of every tier reports about itself), structured
+  [F64Context.status][com.eignex.koblas.status] snapshots, operation-level
+  [F64Context.route][com.eignex.koblas.route] diagnostics, the [Workspace] buffer pool, and the [mathBackend]
+  identifier. None of these is per element type.
 - The element type in the names, and the unqualified aliases for the double-precision ones, are collected
   in `Precision.kt`; the `dense` and `sparse` packages each have the same file for their own names.

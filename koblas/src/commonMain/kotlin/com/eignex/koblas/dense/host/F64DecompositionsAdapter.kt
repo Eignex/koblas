@@ -37,10 +37,27 @@ public abstract class F64DecompositionsAdapter internal constructor(
     private val blas: CblasCalls,
     private val portable: F64ReferenceDecompositions = F64ReferenceDecompositions(),
     private val dispatch: DispatchThresholds = DispatchThresholds(0, 0, 0, 0),
-) : F64Decompositions {
+) : F64Decompositions,
+    F64RoutingBackend,
+    BackendMetadataProvider {
 
     /** A binding that calls out, whatever the portable instance it falls back to reports. */
     override val isPortable: Boolean get() = false
+
+    override val backendMetadata: BackendMetadata get() = BackendMetadata(integerAbi = "LP64")
+
+    override fun route(query: F64RouteQuery): BackendRoute? = when (query) {
+        is F64RouteQuery.DenseLu -> thresholdRoute(
+            query,
+            this,
+            portable.name,
+            DispatchGate(DispatchMetric.DIMENSION, query.order.toLong(), dispatch.factorize.toLong()),
+            query.order >= dispatch.factorize,
+            fallbackWhenUnavailable = false,
+        )
+
+        else -> null
+    }
 
     // Forwarded explicitly rather than by class delegation, which would route a caller's convenience
     // overloads to the portable routine instead of the accelerated one, since a delegated member calls back

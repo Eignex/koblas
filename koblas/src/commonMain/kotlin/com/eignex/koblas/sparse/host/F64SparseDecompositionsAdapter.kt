@@ -1,8 +1,8 @@
 package com.eignex.koblas.sparse.host
 
+import com.eignex.koblas.*
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.backend.hostDispatchThresholds
-import com.eignex.koblas.requireSquare
 import com.eignex.koblas.sparse.*
 
 /**
@@ -22,7 +22,8 @@ import com.eignex.koblas.sparse.*
 public abstract class F64SparseDecompositionsAdapter protected constructor(
     factorizeMin: Int? = null,
     protected val equilibrate: Boolean = false,
-) : F64SparseDecompositions {
+) : F64SparseDecompositions,
+    F64RoutingBackend {
     /** Whether the binding resolved every symbol needed to factor and solve. */
     protected abstract val nativeAvailable: Boolean
 
@@ -44,6 +45,18 @@ public abstract class F64SparseDecompositionsAdapter protected constructor(
     override val isAvailable: Boolean get() = nativeAvailable
 
     override val isPortable: Boolean get() = false
+
+    override fun route(query: F64RouteQuery): BackendRoute? = when (query) {
+        is F64RouteQuery.SparseLu -> thresholdRoute(
+            query,
+            this,
+            portable.name,
+            DispatchGate(DispatchMetric.STORED_ENTRIES, query.storedEntries.toLong(), factorizeGate.toLong()),
+            query.storedEntries >= factorizeGate,
+        )
+
+        else -> null
+    }
 
     final override fun factor(a: F64SparseMatrix): F64SparseFactorization {
         requireSquare(a, "factor")

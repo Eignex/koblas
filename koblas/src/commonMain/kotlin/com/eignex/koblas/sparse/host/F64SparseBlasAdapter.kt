@@ -1,5 +1,6 @@
 package com.eignex.koblas.sparse.host
 
+import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.backend.hostDispatchThresholds
@@ -21,7 +22,9 @@ import com.eignex.koblas.sparse.F64SparseBlas
  *   default. It moves the sparse product gate, not the dense level-2 one, which a vector-kernel platform sets
  *   beyond reach for a reason that does not carry here.
  */
-public abstract class F64SparseBlasAdapter protected constructor(level2Min: Int? = null) : F64SparseBlas {
+public abstract class F64SparseBlasAdapter protected constructor(level2Min: Int? = null) :
+    F64SparseBlas,
+    F64RoutingBackend {
     /** Whether the binding resolved every symbol needed to multiply. */
     protected abstract val nativeAvailable: Boolean
 
@@ -33,6 +36,25 @@ public abstract class F64SparseBlasAdapter protected constructor(level2Min: Int?
     override val isAvailable: Boolean get() = nativeAvailable
 
     override val isPortable: Boolean get() = false
+
+    override fun route(query: F64RouteQuery): BackendRoute? {
+        if (query !is F64RouteQuery.SparseDenseGemm) return null
+        val threshold = thresholdRoute(
+            query,
+            this,
+            portable.name,
+            DispatchGate(DispatchMetric.STORED_ENTRIES, query.storedEntries.toLong(), gate.toLong()),
+            query.storedEntries >= gate,
+        )
+        if (threshold.execution != BackendExecution.NATIVE || (!query.right && !query.transposeDense)) {
+            return threshold
+        }
+        return threshold.copy(
+            execution = BackendExecution.PORTABLE,
+            executor = portable.name,
+            reason = BackendRouteReason.UNSUPPORTED_ARGUMENTS,
+        )
+    }
 
     /**
      * Portable, deliberately. The libraries here multiply a sparse matrix by a dense one of any column count,

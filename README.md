@@ -166,8 +166,31 @@ environment variables steer discovery to custom library paths:
 The JVM property takes precedence. The native targets read the environment variables only,
 having no system properties, and only for the bindings they carry: CBLAS, LAPACKE and
 UMFPACK. KLU and BASICLU are bound on the JVM alone, so their variables do nothing
-elsewhere. Inspect `koblasInfo` or `koblas.portableSlots`
-after configuration, or call `koblas.requireAccelerated(...)` to require acceleration.
+elsewhere. Inspect `koblas.status` after configuration, or call
+`koblas.requireAccelerated(BackendRole.DENSE_BLAS)` to require a specific role:
+
+```kotlin
+import com.eignex.koblas.BackendExecution
+import com.eignex.koblas.BackendRole
+import com.eignex.koblas.F64RouteQuery
+import com.eignex.koblas.koblas
+import com.eignex.koblas.route
+import com.eignex.koblas.status
+
+val dense = koblas.status[BackendRole.DENSE_BLAS]
+check(dense.available)
+
+val route = koblas.route(F64RouteQuery.DenseGemm(m = 256, n = 64, k = 128))
+check(route.execution == BackendExecution.NATIVE) {
+    "${route.executor}: ${route.reason}, gate=${route.gate}"
+}
+```
+
+Status describes the provider selected for each semantic role. A route additionally reports the predicted
+executor, measured threshold, and fallback reason for a representative operation and problem shape. A
+third-party backend that does not implement routing diagnostics reports `UNKNOWN`; this is distinct from a
+known portable fallback or an unavailable binding. The legacy `koblasInfo` and slot-based inspection APIs
+remain available.
 
 These pin selection per half, the JVM property again first:
 

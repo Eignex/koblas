@@ -55,6 +55,9 @@ public fun basisSolversNamed(name: String): F64BasisSolvers? = BackendRegistry.b
 /** The backends registered for [slot], strongest first, for a diagnostic naming what a lookup can find. */
 public fun registeredBackendNames(slot: BackendSlot): List<String> = BackendRegistry.namesFor(slot)
 
+/** The backends registered for [role], strongest first. */
+public fun registeredBackendNames(role: BackendRole): List<String> = BackendRegistry.namesFor(role.slot)
+
 /** Overrides the context [koblas] returns; null restores automatic selection. */
 public fun installBackends(context: F64Context?) {
     BackendRegistry.install(context)
@@ -69,3 +72,14 @@ internal fun rediscoverBackends() {
 }
 
 internal val platformKernels: F64Kernels get() = BackendRegistry.platformKernels
+
+private val BackendRole.slot: BackendSlot
+    get() = when (this) {
+        BackendRole.DENSE_KERNELS -> BackendSlot.F64Kernels
+        BackendRole.DENSE_BLAS -> BackendSlot.F64Blas
+        BackendRole.DENSE_DECOMPOSITIONS -> BackendSlot.F64Decompositions
+        BackendRole.SPARSE_KERNELS -> BackendSlot.F64SparseKernels
+        BackendRole.SPARSE_BLAS -> BackendSlot.F64SparseBlas
+        BackendRole.SPARSE_DECOMPOSITIONS -> BackendSlot.F64SparseDecompositions
+        BackendRole.BASIS_SOLVERS -> BackendSlot.F64BasisSolvers
+    }
