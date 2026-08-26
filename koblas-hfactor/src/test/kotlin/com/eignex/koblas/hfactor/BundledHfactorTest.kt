@@ -7,6 +7,8 @@ import com.eignex.koblas.sparse.basis.BasisUpdate
 import com.eignex.koblas.sparse.basis.F64BasisSolver
 import com.eignex.koblas.sparse.basis.F64IndexedVector
 import com.eignex.koblas.sparse.basis.F64ProductFormBasisSolver
+import com.eignex.koblas.sparse.factorization.lu.F64SparseLuFactorization
+import com.eignex.koblas.sparse.host.hfactor.HfactorOptions
 import com.eignex.koblas.sparse.host.hfactor.HfactorSparseLu
 import kotlin.math.abs
 import kotlin.random.Random
@@ -113,6 +115,17 @@ class BundledHfactorTest {
     @Test
     fun `the bundled HFactor is available`() {
         assertTrue(backend.isAvailable)
+    }
+
+    @Test
+    fun `shared equilibration option reaches the bundled fallback policy`() {
+        val equilibrated = BundledHfactor(HfactorOptions(factorizeMin = 0, equilibrate = true))
+        val matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(1 to 8.0)))
+
+        val factorization = equilibrated.factor(matrix)
+
+        assertIs<F64SparseLuFactorization>(factorization)
+        assertEquals("true", equilibrated.backendMetadata.options["equilibrate"])
     }
 
     @Test

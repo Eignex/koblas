@@ -37,6 +37,7 @@ public abstract class F64DecompositionsAdapter internal constructor(
     private val blas: CblasCalls,
     private val portable: F64ReferenceDecompositions = F64ReferenceDecompositions(),
     private val dispatch: DispatchThresholds = DispatchThresholds(0, 0, 0, 0),
+    private val metadata: BackendMetadata = BackendMetadata(integerAbi = "LP64"),
 ) : F64Decompositions,
     F64RoutingBackend,
     BackendMetadataProvider {
@@ -44,7 +45,7 @@ public abstract class F64DecompositionsAdapter internal constructor(
     /** A binding that calls out, whatever the portable instance it falls back to reports. */
     override val isPortable: Boolean get() = false
 
-    override val backendMetadata: BackendMetadata get() = BackendMetadata(integerAbi = "LP64")
+    override val backendMetadata: BackendMetadata get() = metadata
 
     override fun route(query: F64RouteQuery): BackendRoute? = when (query) {
         is F64RouteQuery.DenseLu -> thresholdRoute(

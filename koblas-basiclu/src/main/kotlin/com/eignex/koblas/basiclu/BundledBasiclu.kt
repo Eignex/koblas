@@ -3,6 +3,7 @@ package com.eignex.koblas.basiclu
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.internal.backend.BundledNativeResources
 import com.eignex.koblas.sparse.host.basiclu.BasicluConfig
+import com.eignex.koblas.sparse.host.basiclu.BasicluOptions
 import com.eignex.koblas.sparse.host.basiclu.BasicluSparseLu
 
 /**
@@ -14,10 +15,23 @@ import com.eignex.koblas.sparse.host.basiclu.BasicluSparseLu
  * than on a seam, so a caller reaching it through [com.eignex.koblas.sparseDecompositionsNamed] can only
  * use them if the bundled provider and the configured binding are the same type.
  */
-public class BundledBasiclu(factorizeMin: Int? = null, equilibrate: Boolean = false) :
-    BasicluSparseLu(
-        BasicluConfig(basicluLibrary.extract().toString(), factorizeMin, equilibrate),
-    ) {
+public class BundledBasiclu private constructor(config: BasicluConfig) : BasicluSparseLu(config) {
+    /** Creates bundled BASICLU with default options. */
+    public constructor() : this(BasicluOptions())
+
+    /** Creates bundled BASICLU with the same numerical and execution [options] accepted by the host binding. */
+    public constructor(options: BasicluOptions) : this(
+        BasicluConfig(basicluLibrary.extract().toString(), options),
+    )
+
+    /** Retains the original threshold-and-equilibration constructor. */
+    public constructor(factorizeMin: Int?, equilibrate: Boolean = false) : this(
+        BasicluOptions(factorizeMin = factorizeMin, equilibrate = equilibrate),
+    )
+
+    /** Retains calls that configured only equilibration by name. */
+    public constructor(equilibrate: Boolean) : this(BasicluOptions(equilibrate = equilibrate))
+
     override val name: String get() = "basiclu-bundled"
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 3
 }

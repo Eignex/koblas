@@ -5,6 +5,7 @@ import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.sparse.F64ReferenceSparseDecompositions
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
+import com.eignex.koblas.sparse.host.basiclu.BasicluOptions
 import com.eignex.koblas.sparse.host.basiclu.BasicluSparseLu
 import com.eignex.koblas.withColumn
 import kotlin.test.*
@@ -127,6 +128,19 @@ class BundledBasicluTest {
             F64ReferenceSparseDecompositions(equilibrate = true).factor(matrix).solve(rhs),
             factorization.solve(rhs),
         )
+    }
+
+    @Test
+    fun `shared options reach bundled BASICLU routing and equilibration`() {
+        val options = BasicluOptions(factorizeMin = 0, equilibrate = true)
+        val backend = BundledBasiclu(options)
+        val matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(1 to 8.0)))
+
+        val factorization = backend.factor(matrix)
+
+        assertContentEquals(doubleArrayOf(2.0, 3.0), factorization.solve(doubleArrayOf(8.0, 24.0)))
+        assertEquals("0", backend.backendMetadata.options["factorizeMin"])
+        assertEquals("true", backend.backendMetadata.options["equilibrate"])
     }
 
     @Test

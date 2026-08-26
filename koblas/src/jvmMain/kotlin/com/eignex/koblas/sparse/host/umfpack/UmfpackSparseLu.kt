@@ -22,7 +22,11 @@ import java.lang.foreign.ValueLayout.JAVA_DOUBLE
 public open class UmfpackSparseLu(
     /** Policy for this backend instance and the factors it produces. */
     public val config: UmfpackConfig = UmfpackConfig(),
-) : F64SparseDecompositionsAdapter(config.factorizeMin, config.equilibrate),
+) : F64SparseDecompositionsAdapter(
+    config.factorizeMin,
+    config.equilibrate,
+    BackendMetadata(options = config.options.metadataOptions()),
+),
     com.eignex.koblas.sparse.F64GeneralSparseLu,
     com.eignex.koblas.sparse.F64SparseCholesky,
     com.eignex.koblas.sparse.F64SparseLdl {
@@ -51,6 +55,8 @@ public open class UmfpackSparseLu(
     internal val refinementSteps: Double? get() = calls.refinementSteps
 
     internal val pivotTolerance: Double? get() = calls.pivotTolerance
+
+    internal val scaling: Double? get() = calls.scaling
 
     /** Factorizes [a] through UMFPACK's symbolic analysis and numeric factorization. */
     final override fun factorNative(a: F64SparseMatrix): F64SparseFactorization {

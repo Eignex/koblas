@@ -2,6 +2,7 @@
 
 package com.eignex.koblas.sparse.host.klu
 
+import com.eignex.koblas.BackendMetadata
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
 import com.eignex.koblas.core.F64SparseMatrix
@@ -23,7 +24,11 @@ import kotlinx.cinterop.*
 public open class KluSparseLu(
     /** Policy for this backend instance. */
     public val config: KluConfig = KluConfig(),
-) : F64SparseDecompositionsAdapter(config.factorizeMin, config.equilibrate),
+) : F64SparseDecompositionsAdapter(
+    config.factorizeMin,
+    config.equilibrate,
+    BackendMetadata(options = config.options.metadataOptions()),
+),
     com.eignex.koblas.sparse.F64GeneralSparseLu,
     com.eignex.koblas.sparse.F64RepeatedSparseLu,
     com.eignex.koblas.sparse.F64SparseCholesky,

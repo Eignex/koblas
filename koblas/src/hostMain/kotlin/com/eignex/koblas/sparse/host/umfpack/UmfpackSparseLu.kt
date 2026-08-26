@@ -21,7 +21,11 @@ import kotlinx.cinterop.*
 public open class UmfpackSparseLu(
     /** Policy for this backend instance and the factors it produces. */
     public val config: UmfpackConfig = UmfpackConfig(),
-) : F64SparseDecompositionsAdapter(config.factorizeMin, config.equilibrate),
+) : F64SparseDecompositionsAdapter(
+    config.factorizeMin,
+    config.equilibrate,
+    BackendMetadata(options = config.options.metadataOptions()),
+),
     com.eignex.koblas.sparse.F64GeneralSparseLu,
     com.eignex.koblas.sparse.F64SparseCholesky,
     com.eignex.koblas.sparse.F64SparseLdl {
@@ -50,6 +54,8 @@ public open class UmfpackSparseLu(
     internal val refinementSteps: Double? get() = loader.refinementSteps
 
     internal val pivotTolerance: Double? get() = loader.pivotTolerance
+
+    internal val scaling: Double? get() = loader.scaling
 
     final override fun factorNative(a: F64SparseMatrix): F64SparseFactorization {
         val f = loader.functions ?: error("UMFPACK is not available")

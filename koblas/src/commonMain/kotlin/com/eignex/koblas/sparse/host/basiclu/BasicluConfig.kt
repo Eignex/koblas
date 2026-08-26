@@ -1,5 +1,19 @@
 package com.eignex.koblas.sparse.host.basiclu
 
+import com.eignex.koblas.internal.backend.hostDispatchThresholds
+
+/** Numerical and execution policy shared by host and bundled BASICLU providers. */
+public data class BasicluOptions(
+    /** Smallest stored-entry count routed to native factorization. */
+    val factorizeMin: Int? = null,
+    /** Whether the binding scales rows before factorization. */
+    val equilibrate: Boolean = false,
+) {
+    init {
+        require(factorizeMin == null || factorizeMin >= 0) { "factorizeMin must not be negative" }
+    }
+}
+
 /** Policy for one host BASICLU backend instance. */
 public data class BasicluConfig(
     /** An absolute BASICLU library path, or the platform lookup chain when null. */
@@ -9,10 +23,28 @@ public data class BasicluConfig(
     /** Whether to scale rows before factorizing and undo it in the solves. */
     val equilibrate: Boolean = false,
 ) {
+    /** Creates a deployment-discovered BASICLU configuration from shared [options]. */
+    public constructor(options: BasicluOptions) : this(null, options)
+
+    /** Creates a BASICLU configuration from a library location and shared [options]. */
+    public constructor(libraryPath: String?, options: BasicluOptions) : this(
+        libraryPath,
+        options.factorizeMin,
+        options.equilibrate,
+    )
+
+    /** Numerical and execution policy, independent of [libraryPath]. */
+    public val options: BasicluOptions get() = BasicluOptions(factorizeMin, equilibrate)
+
     init {
         require(factorizeMin == null || factorizeMin >= 0) { "factorizeMin must not be negative" }
     }
 }
+
+internal fun BasicluOptions.metadataOptions(): Map<String, String> = mapOf(
+    "factorizeMin" to hostDispatchThresholds(factorize = factorizeMin).factorize.toString(),
+    "equilibrate" to equilibrate.toString(),
+)
 
 /** Names used by the platform loader to locate a host BASICLU. */
 internal val BASICLU_SONAMES: List<String> = listOf(

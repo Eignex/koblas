@@ -18,7 +18,11 @@ import com.eignex.koblas.sparse.host.cholmod.suiteSparseCholesky
 public open class KluSparseLu(
     /** Policy for this backend instance. */
     public val config: KluConfig = KluConfig(),
-) : F64SparseDecompositionsAdapter(config.factorizeMin, config.equilibrate),
+) : F64SparseDecompositionsAdapter(
+    config.factorizeMin,
+    config.equilibrate,
+    BackendMetadata(options = config.options.metadataOptions()),
+),
     com.eignex.koblas.sparse.F64GeneralSparseLu,
     com.eignex.koblas.sparse.F64RepeatedSparseLu,
     com.eignex.koblas.sparse.F64SparseCholesky,

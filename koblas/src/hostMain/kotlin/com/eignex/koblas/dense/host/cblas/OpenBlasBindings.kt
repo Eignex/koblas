@@ -99,6 +99,11 @@ internal class OpenBlasLoader(private val config: HostBlasConfig = HostBlasConfi
     }
     private val handle: COpaquePointer? = openNativeLibrary(config.libraryPath?.let(::listOf) ?: OPENBLAS_SONAMES)
 
+    private var configuredThreadCount: Int? = null
+
+    /** Thread count applied through OpenBLAS, or null when it was not requested or the setter is absent. */
+    val effectiveThreadCount: Int? get() = configuredThreadCount
+
     val cblas: CblasFunctions? = handle?.let { blas ->
         // An ILP64 build exports these same names but takes 64-bit integers, so the config string and then
         // the width of the pivots it writes are what tell it apart from the LP64 one these bindings declare.
@@ -108,7 +113,12 @@ internal class OpenBlasLoader(private val config: HostBlasConfig = HostBlasConfi
         } catch (_: IllegalStateException) { // a required symbol is missing, treat as not installed
             return@let null
         }
-        config.threadCount?.let { fns.setNumThreads?.invoke(it) }
+        config.threadCount?.let { count ->
+            fns.setNumThreads?.let { setter ->
+                setter(count)
+                configuredThreadCount = count
+            }
+        }
         fns
     }
 

@@ -1,5 +1,6 @@
 package com.eignex.koblas.sparse.host.hfactor
 
+import com.eignex.koblas.BackendMetadata
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
 import com.eignex.koblas.core.F64SparseMatrix
@@ -25,7 +26,11 @@ import com.eignex.koblas.sparse.host.F64SparseDecompositionsAdapter
 public open class HfactorSparseLu(
     /** Policy for this backend instance. */
     public val config: HfactorConfig = HfactorConfig(),
-) : F64SparseDecompositionsAdapter(config.factorizeMin),
+) : F64SparseDecompositionsAdapter(
+    config.factorizeMin,
+    config.equilibrate,
+    BackendMetadata(options = config.options.metadataOptions()),
+),
     F64BasisSolvers {
     private val calls = HfactorCalls(config)
 

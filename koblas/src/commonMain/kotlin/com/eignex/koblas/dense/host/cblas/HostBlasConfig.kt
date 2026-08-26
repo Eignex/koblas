@@ -1,5 +1,7 @@
 package com.eignex.koblas.dense.host.cblas
 
+import com.eignex.koblas.internal.backend.hostDispatchThresholds
+
 /**
  * Whether an OpenBLAS reporting this `openblas_get_config` string takes 64-bit integers. Such a build
  * exports the same unsuffixed symbols as LP64 and then reads the wrong halves of every dimension.
@@ -61,6 +63,28 @@ internal val LAPACKE_SONAMES = listOf(
     "lapacke.dll",
 )
 
+/** Numerical and execution policy shared by host and bundled OpenBLAS providers. */
+public data class OpenBlasOptions(
+    /** OpenBLAS thread count; null leaves the library's process-wide setting unchanged. */
+    val threadCount: Int? = 1,
+    /** Smallest run length routed to native level-1 BLAS; null keeps the platform default. */
+    val level1Min: Int? = null,
+    /** Smallest dimension routed to native level-2 BLAS; null keeps the platform default. */
+    val level2Min: Int? = null,
+    /** Smallest dimension routed to native level-3 BLAS; null keeps the platform default. */
+    val level3Min: Int? = null,
+    /** Smallest dimension routed to native factorizations; null keeps the platform default. */
+    val factorizeMin: Int? = null,
+) {
+    init {
+        require(threadCount == null || threadCount > 0) { "threadCount must be positive" }
+        require(level1Min == null || level1Min >= 0) { "level1Min must not be negative" }
+        require(level2Min == null || level2Min >= 0) { "level2Min must not be negative" }
+        require(level3Min == null || level3Min >= 0) { "level3Min must not be negative" }
+        require(factorizeMin == null || factorizeMin >= 0) { "factorizeMin must not be negative" }
+    }
+}
+
 /** Policy for one OpenBLAS and optional LAPACKE backend instance. */
 public data class HostBlasConfig(
     /** An absolute OpenBLAS library path, or the deployment lookup chain when null. */
@@ -78,6 +102,28 @@ public data class HostBlasConfig(
     /** Smallest dimension routed to the native factorizations; null keeps the platform default. */
     val factorizeMin: Int? = null,
 ) {
+    /** Creates a deployment-discovered host configuration from shared [options]. */
+    public constructor(options: OpenBlasOptions) : this(null, null, options)
+
+    /** Creates a host configuration from library locations and shared [options]. */
+    public constructor(
+        libraryPath: String?,
+        lapackeLibraryPath: String?,
+        options: OpenBlasOptions,
+    ) : this(
+        libraryPath,
+        lapackeLibraryPath,
+        options.threadCount,
+        options.level1Min,
+        options.level2Min,
+        options.level3Min,
+        options.factorizeMin,
+    )
+
+    /** Numerical and execution policy, independent of the library locations. */
+    public val options: OpenBlasOptions
+        get() = OpenBlasOptions(threadCount, level1Min, level2Min, level3Min, factorizeMin)
+
     init {
         require(threadCount == null || threadCount > 0) { "threadCount must be positive" }
         require(level1Min == null || level1Min >= 0) { "level1Min must not be negative" }
@@ -85,4 +131,13 @@ public data class HostBlasConfig(
         require(level3Min == null || level3Min >= 0) { "level3Min must not be negative" }
         require(factorizeMin == null || factorizeMin >= 0) { "factorizeMin must not be negative" }
     }
+}
+
+internal fun OpenBlasOptions.metadataOptions(effectiveThreadCount: Int? = threadCount): Map<String, String> = buildMap {
+    val dispatch = hostDispatchThresholds(level1Min, level2Min, level3Min, factorizeMin)
+    effectiveThreadCount?.let { put("threadCount", it.toString()) }
+    put("level1Min", dispatch.level1.toString())
+    put("level2Min", dispatch.level2.toString())
+    put("level3Min", dispatch.level3.toString())
+    put("factorizeMin", dispatch.factorize.toString())
 }

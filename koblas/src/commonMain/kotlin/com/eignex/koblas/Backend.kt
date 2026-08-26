@@ -41,6 +41,8 @@ public data class BackendMetadata(
     val integerAbi: String? = null,
     /** Effective threading mode, when the provider can determine it. */
     val threading: String? = null,
+    /** Effective numerical and dispatch options, keyed by stable option names. */
+    val options: Map<String, String> = emptyMap(),
 )
 
 /** Optional capability for a [Backend] that can report structured runtime facts. */

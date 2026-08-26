@@ -254,6 +254,34 @@ BASICLU selects basis factorization rather than changing general LU.
 The value is a backend name, with the `-bundled` suffix optional and `reference` selecting
 none of the host bindings. A blank setting counts as unset, leaving the half to priority.
 
+## Native numerical options
+
+Host-library paths belong to the `*Config` types; numerical and dispatch policy belongs to reusable
+`*Options` values. The bundled and host-backed forms accept the same option type, so changing deployment
+does not change solver policy:
+
+```kotlin
+import com.eignex.koblas.sparse.host.klu.KluConfig
+import com.eignex.koblas.sparse.host.klu.KluOptions
+import com.eignex.koblas.sparse.host.klu.KluOrdering
+import com.eignex.koblas.sparse.host.klu.KluSparseLu
+import com.eignex.koblas.suitesparse.BundledKlu
+
+val options = KluOptions(
+    factorizeMin = 128,
+    pivotTolerance = 0.01,
+    useBtf = true,
+    ordering = KluOrdering.AMD,
+)
+val systemKlu = KluSparseLu(KluConfig("/opt/suitesparse/lib/libklu.so.2", options))
+val bundledKlu = BundledKlu(options)
+```
+
+The same split is available through `OpenBlasOptions`, `UmfpackOptions`, `BasicluOptions`, and
+`HfactorOptions`. Existing configuration and bundled-provider constructors remain available. A provider's
+`backendMetadata.options` reports the effective numerical settings and resolved dispatch gates; a requested
+OpenBLAS thread count is reported only when the loaded library exposes and accepts the thread setter.
+
 ## Multithreading
 
 The portable reference and SIMD implementations are single-threaded. The JVM OpenBLAS
@@ -263,9 +291,10 @@ discovery configures one thread. Configure and register it during startup instea
 ```kotlin
 import com.eignex.koblas.registerBackend
 import com.eignex.koblas.dense.host.cblas.HostBlasConfig
+import com.eignex.koblas.dense.host.cblas.OpenBlasOptions
 import com.eignex.koblas.dense.host.jvm.F64Backends
 
-registerBackend(F64Backends(HostBlasConfig(threadCount = 8)))
+registerBackend(F64Backends(HostBlasConfig(OpenBlasOptions(threadCount = 8))))
 ```
 
 Start the JVM with `-Xss16m` as well: threaded LAPACK needs the larger Java thread

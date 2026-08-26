@@ -1,8 +1,8 @@
 package com.eignex.koblas.suitesparse
 
-import com.eignex.koblas.SingularMatrix
-import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.*
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
+import com.eignex.koblas.sparse.host.klu.*
 import com.eignex.koblas.sparse.host.klu.KluSparseLu
 import kotlin.test.*
 
@@ -36,6 +36,26 @@ class BundledKluTest {
         val factorization = BundledKlu(factorizeMin = 0, equilibrate = true).factor(matrix)
 
         assertContentEquals(doubleArrayOf(2.0, 3.0), factorization.solve(doubleArrayOf(16.0, 0.75)))
+    }
+
+    @Test
+    fun `shared options control bundled KLU routing and diagnostics`() {
+        val options = KluOptions(
+            factorizeMin = 100,
+            pivotTolerance = 0.25,
+            useBtf = false,
+            ordering = KluOrdering.COLAMD,
+            haltIfSingular = true,
+        )
+        val backend = BundledKlu(options)
+
+        val route = assertNotNull(backend.route(F64RouteQuery.SparseLu(storedEntries = 16)))
+
+        assertEquals(BackendExecution.PORTABLE, route.execution)
+        assertEquals("0.25", backend.backendMetadata.options["pivotTolerance"])
+        assertEquals("false", backend.backendMetadata.options["useBtf"])
+        assertEquals("COLAMD", backend.backendMetadata.options["ordering"])
+        assertEquals("true", backend.backendMetadata.options["haltIfSingular"])
     }
 
     @Test

@@ -81,6 +81,9 @@ internal class UmfpackLoader(private val config: UmfpackConfig) {
     /** The pivot tolerance, for the test that the array holds UMFPACK's defaults and not zeros. */
     val pivotTolerance: Double? get() = scaledControl?.get(PIVOT_TOLERANCE)
 
+    /** The native scaling selector written into the effective Control array. */
+    val scaling: Double? get() = scaledControl?.get(SCALE)
+
     val available: Boolean get() = functions != null
 }
 

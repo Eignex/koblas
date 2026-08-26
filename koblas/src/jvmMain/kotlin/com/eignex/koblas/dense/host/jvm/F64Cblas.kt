@@ -1,8 +1,10 @@
 package com.eignex.koblas.dense.host.jvm
 
+import com.eignex.koblas.BackendMetadata
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.dense.host.F64BlasAdapter
 import com.eignex.koblas.dense.host.cblas.HostBlasConfig
+import com.eignex.koblas.dense.host.cblas.metadataOptions
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.backend.hostBlasDispatchThresholds
 
@@ -14,6 +16,11 @@ public class F64Cblas internal constructor(private val calls: HostBlasCalls) :
     F64BlasAdapter(
         JvmCblasCalls(calls),
         dispatch = hostBlasDispatchThresholds(calls.config),
+        metadata = BackendMetadata(
+            integerAbi = "LP64",
+            threading = calls.effectiveThreadCount?.let { "$it threads" },
+            options = calls.config.options.metadataOptions(calls.effectiveThreadCount),
+        ),
     ) {
     public constructor(config: HostBlasConfig = HostBlasConfig()) : this(HostBlasCalls(config))
     override val name: String get() = BackendNames.OPENBLAS
