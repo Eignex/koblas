@@ -1,5 +1,6 @@
 package com.eignex.koblas.dense.host.cblas
 
+import com.eignex.koblas.BackendMetadata
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.dense.host.F64BlasAdapter
 import com.eignex.koblas.internal.backend.BackendNames
@@ -14,7 +15,15 @@ internal class F64Cblas(
     f: CblasFunctions,
     private val loader: OpenBlasLoader = OpenBlasLoader(),
     config: HostBlasConfig = HostBlasConfig(),
-) : F64BlasAdapter(NativeCblasCalls(f), dispatch = hostBlasDispatchThresholds(config)) {
+) : F64BlasAdapter(
+    NativeCblasCalls(f),
+    dispatch = hostBlasDispatchThresholds(config),
+    metadata = BackendMetadata(
+        integerAbi = "LP64",
+        threading = loader.effectiveThreadCount?.let { "$it threads" },
+        options = config.options.metadataOptions(loader.effectiveThreadCount),
+    ),
+) {
     override val name: String get() = BackendNames.CBLAS
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY

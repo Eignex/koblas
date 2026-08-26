@@ -43,6 +43,9 @@ internal class UmfpackCalls(private val config: UmfpackConfig) {
     /** The pivot tolerance, for the test that the array holds UMFPACK's defaults and not zeros. */
     val pivotTolerance: Double? get() = scaledControl?.getAtIndex(JAVA_DOUBLE, PIVOT_TOLERANCE.toLong())
 
+    /** The native scaling selector written into the effective Control array. */
+    val scaling: Double? get() = scaledControl?.getAtIndex(JAVA_DOUBLE, SCALE.toLong())
+
     /** The Control array whose scaling agrees with one factorization request. */
     fun control(equilibrate: Boolean): MemorySegment? = if (equilibrate) scaledControl else unscaledControl
 

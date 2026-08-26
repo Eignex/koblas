@@ -2,6 +2,7 @@
 
 package com.eignex.koblas.dense.host.cblas
 
+import com.eignex.koblas.BackendMetadata
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.dense.host.F64DecompositionsAdapter
 import com.eignex.koblas.dense.host.cblas.Cblas.COL_MAJOR
@@ -23,6 +24,11 @@ internal class F64Lapacke(
     NativeLapackeCalls(f),
     NativeCblasCalls(blas),
     dispatch = hostBlasDispatchThresholds(config),
+    metadata = BackendMetadata(
+        integerAbi = "LP64",
+        threading = loader.effectiveThreadCount?.let { "$it threads" },
+        options = config.options.metadataOptions(loader.effectiveThreadCount),
+    ),
 ) {
     override val name: String get() = BackendNames.CBLAS
 

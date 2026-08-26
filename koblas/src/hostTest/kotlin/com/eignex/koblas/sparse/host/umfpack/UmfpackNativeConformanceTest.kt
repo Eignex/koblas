@@ -103,6 +103,26 @@ class UmfpackNativeConformanceTest {
         assertControlArrayKeepsUmfpackDefaults(umfpack.refinementSteps, umfpack.pivotTolerance)
 
     @Test
+    fun `shared options reach the effective UMFPACK control array`() {
+        val configured = UmfpackSparseLu(
+            UmfpackConfig(
+                libraryPath = null,
+                options = UmfpackOptions(
+                    factorizeMin = 0,
+                    equilibrate = true,
+                    iterativeRefinementSteps = 3,
+                    pivotTolerance = 0.2,
+                    scaling = UmfpackScaling.MAX,
+                ),
+            ),
+        )
+
+        assertEquals(3.0, configured.refinementSteps)
+        assertEquals(0.2, configured.pivotTolerance)
+        assertEquals(2.0, configured.scaling)
+    }
+
+    @Test
     fun `repeated factorizations do not exhaust native memory`() = assertRepeatedFactorizationsSurvive(umfpack)
 
     /**

@@ -3,6 +3,7 @@ package com.eignex.koblas.openblas
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.host.cblas.HostBlasConfig
+import com.eignex.koblas.dense.host.cblas.OpenBlasOptions
 import com.eignex.koblas.dense.host.jvm.*
 import com.eignex.koblas.internal.backend.BundledNativeResources
 import java.nio.file.Path
@@ -15,8 +16,11 @@ public class BundledOpenBlas private constructor(private val blas: F64Cblas, pri
     F64RoutingBackend,
     BackendMetadataProvider {
 
-    /** Creates an OpenBLAS backend from bundled native resources. */
-    public constructor() : this(loadHostBackends())
+    /** Creates an OpenBLAS backend from bundled native resources with default options. */
+    public constructor() : this(OpenBlasOptions())
+
+    /** Creates an OpenBLAS backend from bundled native resources with shared [options]. */
+    public constructor(options: OpenBlasOptions) : this(loadHostBackends(options))
 
     private constructor(backends: F64Backends) : this(backends.blas, backends.decompositions)
 
@@ -36,9 +40,9 @@ public class BundledOpenBlas private constructor(private val blas: F64Cblas, pri
 
 internal data class OpenBlasPaths(val openblas: Path, val lapacke: Path?)
 
-private fun loadHostBackends(): F64Backends {
+private fun loadHostBackends(options: OpenBlasOptions): F64Backends {
     val paths = OpenBlasResources.extract()
-    return F64Backends(HostBlasConfig(paths.openblas.toString(), paths.lapacke?.toString()))
+    return F64Backends(HostBlasConfig(paths.openblas.toString(), paths.lapacke?.toString(), options))
 }
 
 internal object OpenBlasResources {

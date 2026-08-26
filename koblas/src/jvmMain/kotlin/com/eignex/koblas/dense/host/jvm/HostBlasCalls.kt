@@ -24,6 +24,9 @@ internal class HostBlasCalls(internal val config: HostBlasConfig) {
     /** Whether LAPACKE resolved as well; false on a host that ships CBLAS only. */
     val lapackAvailable: Boolean
 
+    /** Thread count applied through OpenBLAS, or null when it was not requested or the setter is absent. */
+    val effectiveThreadCount: Int?
+
     private val openblasNames = config.libraryPath?.let(::listOf) ?: OPENBLAS_SONAMES
 
     private val lapackeNames = config.lapackeLibraryPath?.let(::listOf) ?: LAPACKE_SONAMES
@@ -77,7 +80,7 @@ internal class HostBlasCalls(internal val config: HostBlasConfig) {
         // sits behind was judged on its own.
         val lapackeIlp64 = extra != null && isIlp64PivotWidth(probePivots(extra) ?: IntArray(0))
         lapackAvailable = available && !lapackeIlp64 && library.containsAll(requiredLapacke)
-        if (available) configureThreads()
+        effectiveThreadCount = if (available) configureThreads() else null
     }
 
     /**
@@ -103,11 +106,12 @@ internal class HostBlasCalls(internal val config: HostBlasConfig) {
     }
 
     /** OpenBLAS owns this setting process-wide; setting it at backend construction makes that scope explicit. */
-    private fun configureThreads() {
-        val count = config.threadCount ?: return
+    private fun configureThreads(): Int? {
+        val count = config.threadCount ?: return null
         // Not a critical downcall: setting the count starts OpenBLAS's threads, which one may not do.
-        val setter = library.handleOrNull("openblas_set_num_threads", voidOf(JAVA_INT), critical = false) ?: return
+        val setter = library.handleOrNull("openblas_set_num_threads", voidOf(JAVA_INT), critical = false) ?: return null
         setter.invokeExact(count) as Unit
+        return count
     }
 
     /** The library's openblas_get_config string, or empty when it does not offer one. */

@@ -16,7 +16,7 @@ public class F64CblasBackend private constructor(private val blas: F64Cblas, pri
     BackendMetadataProvider {
 
     private constructor(loader: OpenBlasLoader, config: HostBlasConfig) : this(
-        F64Cblas(requireNotNull(loader.cblas) { NO_OPENBLAS }, loader),
+        F64Cblas(requireNotNull(loader.cblas) { NO_OPENBLAS }, loader, config),
         F64Lapacke(requireNotNull(loader.lapacke) { NO_LAPACKE }, requireNotNull(loader.cblas), loader, config),
     )
 

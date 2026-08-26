@@ -18,12 +18,15 @@ import com.eignex.koblas.sparse.*
  * @property equilibrate whether this backend scales rows before factorizing and undoes it in the solves. It
  *   is settled once here rather than per call, since it is policy of a piece with the scaling each
  *   library's own settings already choose.
+ * @param metadata effective provider options exposed through structured diagnostics.
  */
 public abstract class F64SparseDecompositionsAdapter protected constructor(
     factorizeMin: Int? = null,
     protected val equilibrate: Boolean = false,
+    private val metadata: BackendMetadata = BackendMetadata(),
 ) : F64SparseDecompositions,
-    F64RoutingBackend {
+    F64RoutingBackend,
+    BackendMetadataProvider {
     /** Whether the binding resolved every symbol needed to factor and solve. */
     protected abstract val nativeAvailable: Boolean
 
@@ -45,6 +48,8 @@ public abstract class F64SparseDecompositionsAdapter protected constructor(
     override val isAvailable: Boolean get() = nativeAvailable
 
     override val isPortable: Boolean get() = false
+
+    override val backendMetadata: BackendMetadata get() = metadata
 
     override fun route(query: F64RouteQuery): BackendRoute? = when (query) {
         is F64RouteQuery.SparseLu -> thresholdRoute(
