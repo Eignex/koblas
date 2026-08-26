@@ -5,6 +5,7 @@ import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.F64ReferenceSparseLu
+import com.eignex.koblas.sparse.host.basiclu.BasicluSparseLu
 import kotlin.test.*
 
 class BundledBasicluTest {
@@ -127,5 +128,11 @@ class BundledBasicluTest {
         BundledBasiclu(factorizeMin = 0, equilibrate = true).factor(matrix).solve(rhs)
 
         assertContentEquals(doubleArrayOf(1.0, 2.0), rhs)
+    }
+
+    /** A caller reaching this library by name gets its own routines only if the two share a type. */
+    @Test
+    fun `the bundled BASICLU is the binding rather than a wrapper around it`() {
+        assertIs<BasicluSparseLu>(BundledBasiclu(), "factorBasis is on the binding rather than on a seam")
     }
 }

@@ -10,8 +10,14 @@ import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.host.F64SparseLuAdapter
 import kotlinx.cinterop.*
 
-/** The sparse half backed by SuiteSparse's UMFPACK. */
-public class UmfpackSparseLu(
+/**
+ * The sparse half backed by SuiteSparse's UMFPACK.
+ *
+ * Open so a bundled provider is one of these under another name rather than a wrapper around one. What a
+ * caller reaches this backend by name for is the routines it carries outside the seam, and a wrapper
+ * would hide their type. Only the name and the ranking are meant to vary.
+ */
+public open class UmfpackSparseLu(
     /** Policy for this backend instance and the factors it produces. */
     public val config: UmfpackConfig = UmfpackConfig(),
 ) : F64SparseLuAdapter(config.factorizeMin, config.equilibrate) {
@@ -22,13 +28,13 @@ public class UmfpackSparseLu(
     override val priority: Int get() = HOST_BACKEND_PRIORITY
 
     /** UMFPACK ships separately from OpenBLAS, so a host can have one without the other. */
-    override val nativeAvailable: Boolean get() = loader.available
+    final override val nativeAvailable: Boolean get() = loader.available
 
     internal val refinementSteps: Double? get() = loader.refinementSteps
 
     internal val pivotTolerance: Double? get() = loader.pivotTolerance
 
-    override fun factorNative(a: F64SparseMatrix): F64SparseFactorization {
+    final override fun factorNative(a: F64SparseMatrix): F64SparseFactorization {
         val f = loader.functions ?: error("UMFPACK is not available")
 
         val info = DoubleArray(INFO)

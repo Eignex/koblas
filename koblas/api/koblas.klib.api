@@ -1201,22 +1201,6 @@ final class com.eignex.koblas.sparse.host.basiclu/BasicluBasisFactorization : co
 }
 
 // Targets: [linux, macosArm64]
-final class com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu : com.eignex.koblas.sparse.host/F64SparseLuAdapter { // com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu|null[0]
-    constructor <init>(com.eignex.koblas.sparse.host.basiclu/BasicluConfig = ...) // com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu.<init>|<init>(com.eignex.koblas.sparse.host.basiclu.BasicluConfig){}[0]
-
-    final val config // com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu.config|{}config[0]
-        final fun <get-config>(): com.eignex.koblas.sparse.host.basiclu/BasicluConfig // com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu.config.<get-config>|<get-config>(){}[0]
-    final val name // com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu.name|{}name[0]
-        final fun <get-name>(): kotlin/String // com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu.name.<get-name>|<get-name>(){}[0]
-    final val priority // com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu.priority|{}priority[0]
-        final fun <get-priority>(): kotlin/Int // com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu.priority.<get-priority>|<get-priority>(){}[0]
-    final val supportsBasisUpdates // com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu.supportsBasisUpdates|{}supportsBasisUpdates[0]
-        final fun <get-supportsBasisUpdates>(): kotlin/Boolean // com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu.supportsBasisUpdates.<get-supportsBasisUpdates>|<get-supportsBasisUpdates>(){}[0]
-
-    final fun factorBasis(com.eignex.koblas.core/F64SparseMatrix): com.eignex.koblas.sparse/F64BasisFactorization // com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu.factorBasis|factorBasis(com.eignex.koblas.core.F64SparseMatrix){}[0]
-}
-
-// Targets: [linux, macosArm64]
 final class com.eignex.koblas.sparse.host.klu/KluFactorization : com.eignex.koblas.sparse/F64SparseFactorization { // com.eignex.koblas.sparse.host.klu/KluFactorization|null[0]
     final val n // com.eignex.koblas.sparse.host.klu/KluFactorization.n|{}n[0]
         final fun <get-n>(): kotlin/Int // com.eignex.koblas.sparse.host.klu/KluFactorization.n.<get-n>|<get-n>(){}[0]
@@ -1232,20 +1216,6 @@ final class com.eignex.koblas.sparse.host.klu/KluFactorization : com.eignex.kobl
 }
 
 // Targets: [linux, macosArm64]
-final class com.eignex.koblas.sparse.host.klu/KluSparseLu : com.eignex.koblas.sparse.host/F64SparseLuAdapter { // com.eignex.koblas.sparse.host.klu/KluSparseLu|null[0]
-    constructor <init>(com.eignex.koblas.sparse.host.klu/KluConfig = ...) // com.eignex.koblas.sparse.host.klu/KluSparseLu.<init>|<init>(com.eignex.koblas.sparse.host.klu.KluConfig){}[0]
-
-    final val config // com.eignex.koblas.sparse.host.klu/KluSparseLu.config|{}config[0]
-        final fun <get-config>(): com.eignex.koblas.sparse.host.klu/KluConfig // com.eignex.koblas.sparse.host.klu/KluSparseLu.config.<get-config>|<get-config>(){}[0]
-    final val name // com.eignex.koblas.sparse.host.klu/KluSparseLu.name|{}name[0]
-        final fun <get-name>(): kotlin/String // com.eignex.koblas.sparse.host.klu/KluSparseLu.name.<get-name>|<get-name>(){}[0]
-    final val priority // com.eignex.koblas.sparse.host.klu/KluSparseLu.priority|{}priority[0]
-        final fun <get-priority>(): kotlin/Int // com.eignex.koblas.sparse.host.klu/KluSparseLu.priority.<get-priority>|<get-priority>(){}[0]
-
-    final fun refactor(com.eignex.koblas.sparse/F64SparseFactorization, com.eignex.koblas.core/F64SparseMatrix): com.eignex.koblas.sparse/F64SparseFactorization // com.eignex.koblas.sparse.host.klu/KluSparseLu.refactor|refactor(com.eignex.koblas.sparse.F64SparseFactorization;com.eignex.koblas.core.F64SparseMatrix){}[0]
-}
-
-// Targets: [linux, macosArm64]
 final class com.eignex.koblas.sparse.host.umfpack/UmfpackFactorization : com.eignex.koblas.sparse/F64SparseFactorization { // com.eignex.koblas.sparse.host.umfpack/UmfpackFactorization|null[0]
     final val failedAt // com.eignex.koblas.sparse.host.umfpack/UmfpackFactorization.failedAt|{}failedAt[0]
         final fun <get-failedAt>(): kotlin/Int // com.eignex.koblas.sparse.host.umfpack/UmfpackFactorization.failedAt.<get-failedAt>|<get-failedAt>(){}[0]
@@ -1258,18 +1228,6 @@ final class com.eignex.koblas.sparse.host.umfpack/UmfpackFactorization : com.eig
         final fun <get-rcond>(): kotlin/Double // com.eignex.koblas.sparse.host.umfpack/UmfpackFactorization.rcond.<get-rcond>|<get-rcond>(){}[0]
 
     final fun solveInto(kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean, com.eignex.koblas/Workspace?): kotlin/DoubleArray // com.eignex.koblas.sparse.host.umfpack/UmfpackFactorization.solveInto|solveInto(kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
-}
-
-// Targets: [linux, macosArm64]
-final class com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu : com.eignex.koblas.sparse.host/F64SparseLuAdapter { // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu|null[0]
-    constructor <init>(com.eignex.koblas.sparse.host.umfpack/UmfpackConfig = ...) // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.<init>|<init>(com.eignex.koblas.sparse.host.umfpack.UmfpackConfig){}[0]
-
-    final val config // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.config|{}config[0]
-        final fun <get-config>(): com.eignex.koblas.sparse.host.umfpack/UmfpackConfig // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.config.<get-config>|<get-config>(){}[0]
-    final val name // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.name|{}name[0]
-        final fun <get-name>(): kotlin/String // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.name.<get-name>|<get-name>(){}[0]
-    final val priority // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.priority|{}priority[0]
-        final fun <get-priority>(): kotlin/Int // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.priority.<get-priority>|<get-priority>(){}[0]
 }
 
 // Targets: [linux, macosArm64]
@@ -1296,4 +1254,56 @@ open class com.eignex.koblas.sparse.host.basiclu/BasicluFactorization : com.eign
         open fun <get-rcond>(): kotlin/Double // com.eignex.koblas.sparse.host.basiclu/BasicluFactorization.rcond.<get-rcond>|<get-rcond>(){}[0]
 
     open fun solveInto(kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean, com.eignex.koblas/Workspace?): kotlin/DoubleArray // com.eignex.koblas.sparse.host.basiclu/BasicluFactorization.solveInto|solveInto(kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
+}
+
+// Targets: [linux, macosArm64]
+open class com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu : com.eignex.koblas.sparse.host/F64SparseLuAdapter { // com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu|null[0]
+    constructor <init>(com.eignex.koblas.sparse.host.basiclu/BasicluConfig = ...) // com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu.<init>|<init>(com.eignex.koblas.sparse.host.basiclu.BasicluConfig){}[0]
+
+    final val config // com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu.config|{}config[0]
+        final fun <get-config>(): com.eignex.koblas.sparse.host.basiclu/BasicluConfig // com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu.config.<get-config>|<get-config>(){}[0]
+    final val nativeAvailable // com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu.nativeAvailable|{}nativeAvailable[0]
+        final fun <get-nativeAvailable>(): kotlin/Boolean // com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu.nativeAvailable.<get-nativeAvailable>|<get-nativeAvailable>(){}[0]
+    final val supportsBasisUpdates // com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu.supportsBasisUpdates|{}supportsBasisUpdates[0]
+        final fun <get-supportsBasisUpdates>(): kotlin/Boolean // com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu.supportsBasisUpdates.<get-supportsBasisUpdates>|<get-supportsBasisUpdates>(){}[0]
+    open val name // com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu.name|{}name[0]
+        open fun <get-name>(): kotlin/String // com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu.name.<get-name>|<get-name>(){}[0]
+    open val priority // com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu.priority|{}priority[0]
+        open fun <get-priority>(): kotlin/Int // com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu.priority.<get-priority>|<get-priority>(){}[0]
+
+    final fun factorBasis(com.eignex.koblas.core/F64SparseMatrix): com.eignex.koblas.sparse/F64BasisFactorization // com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu.factorBasis|factorBasis(com.eignex.koblas.core.F64SparseMatrix){}[0]
+    final fun factorNative(com.eignex.koblas.core/F64SparseMatrix): com.eignex.koblas.sparse/F64SparseFactorization // com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu.factorNative|factorNative(com.eignex.koblas.core.F64SparseMatrix){}[0]
+}
+
+// Targets: [linux, macosArm64]
+open class com.eignex.koblas.sparse.host.klu/KluSparseLu : com.eignex.koblas.sparse.host/F64SparseLuAdapter { // com.eignex.koblas.sparse.host.klu/KluSparseLu|null[0]
+    constructor <init>(com.eignex.koblas.sparse.host.klu/KluConfig = ...) // com.eignex.koblas.sparse.host.klu/KluSparseLu.<init>|<init>(com.eignex.koblas.sparse.host.klu.KluConfig){}[0]
+
+    final val config // com.eignex.koblas.sparse.host.klu/KluSparseLu.config|{}config[0]
+        final fun <get-config>(): com.eignex.koblas.sparse.host.klu/KluConfig // com.eignex.koblas.sparse.host.klu/KluSparseLu.config.<get-config>|<get-config>(){}[0]
+    final val nativeAvailable // com.eignex.koblas.sparse.host.klu/KluSparseLu.nativeAvailable|{}nativeAvailable[0]
+        final fun <get-nativeAvailable>(): kotlin/Boolean // com.eignex.koblas.sparse.host.klu/KluSparseLu.nativeAvailable.<get-nativeAvailable>|<get-nativeAvailable>(){}[0]
+    open val name // com.eignex.koblas.sparse.host.klu/KluSparseLu.name|{}name[0]
+        open fun <get-name>(): kotlin/String // com.eignex.koblas.sparse.host.klu/KluSparseLu.name.<get-name>|<get-name>(){}[0]
+    open val priority // com.eignex.koblas.sparse.host.klu/KluSparseLu.priority|{}priority[0]
+        open fun <get-priority>(): kotlin/Int // com.eignex.koblas.sparse.host.klu/KluSparseLu.priority.<get-priority>|<get-priority>(){}[0]
+
+    final fun factorNative(com.eignex.koblas.core/F64SparseMatrix): com.eignex.koblas.sparse/F64SparseFactorization // com.eignex.koblas.sparse.host.klu/KluSparseLu.factorNative|factorNative(com.eignex.koblas.core.F64SparseMatrix){}[0]
+    final fun refactor(com.eignex.koblas.sparse/F64SparseFactorization, com.eignex.koblas.core/F64SparseMatrix): com.eignex.koblas.sparse/F64SparseFactorization // com.eignex.koblas.sparse.host.klu/KluSparseLu.refactor|refactor(com.eignex.koblas.sparse.F64SparseFactorization;com.eignex.koblas.core.F64SparseMatrix){}[0]
+}
+
+// Targets: [linux, macosArm64]
+open class com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu : com.eignex.koblas.sparse.host/F64SparseLuAdapter { // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu|null[0]
+    constructor <init>(com.eignex.koblas.sparse.host.umfpack/UmfpackConfig = ...) // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.<init>|<init>(com.eignex.koblas.sparse.host.umfpack.UmfpackConfig){}[0]
+
+    final val config // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.config|{}config[0]
+        final fun <get-config>(): com.eignex.koblas.sparse.host.umfpack/UmfpackConfig // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.config.<get-config>|<get-config>(){}[0]
+    final val nativeAvailable // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.nativeAvailable|{}nativeAvailable[0]
+        final fun <get-nativeAvailable>(): kotlin/Boolean // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.nativeAvailable.<get-nativeAvailable>|<get-nativeAvailable>(){}[0]
+    open val name // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.name|{}name[0]
+        open fun <get-name>(): kotlin/String // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.name.<get-name>|<get-name>(){}[0]
+    open val priority // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.priority|{}priority[0]
+        open fun <get-priority>(): kotlin/Int // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.priority.<get-priority>|<get-priority>(){}[0]
+
+    final fun factorNative(com.eignex.koblas.core/F64SparseMatrix): com.eignex.koblas.sparse/F64SparseFactorization // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.factorNative|factorNative(com.eignex.koblas.core.F64SparseMatrix){}[0]
 }

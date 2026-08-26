@@ -3,6 +3,7 @@ package com.eignex.koblas.klu
 import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
+import com.eignex.koblas.sparse.host.klu.KluSparseLu
 import kotlin.test.*
 
 class BundledKluTest {
@@ -86,5 +87,11 @@ class BundledKluTest {
         val expected = F64ReferenceSparseLinearAlgebra.factor(full).solve(rhs)
         val actual = refactored.solve(rhs)
         for (i in expected.indices) assertEquals(expected[i], actual[i], 1e-12)
+    }
+
+    /** A caller reaching this library by name gets its own routines only if the two share a type. */
+    @Test
+    fun `the bundled KLU is the binding rather than a wrapper around it`() {
+        assertIs<KluSparseLu>(BundledKlu(), "refactor is on the binding rather than on a seam")
     }
 }

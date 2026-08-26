@@ -13,8 +13,14 @@ import com.eignex.koblas.sparse.host.equilibrationScale
 import com.eignex.koblas.sparse.host.scaledValues
 import kotlinx.cinterop.*
 
-/** Sparse LU and Forrest-Tomlin basis updates backed by a host BASICLU. */
-public class BasicluSparseLu(
+/**
+ * Sparse LU and Forrest-Tomlin basis updates backed by a host BASICLU.
+ *
+ * Open so a bundled provider is one of these under another name rather than a wrapper around one. What a
+ * caller reaches this backend by name for is the routines it carries outside the seam, and a wrapper
+ * would hide their type. Only the name and the ranking are meant to vary.
+ */
+public open class BasicluSparseLu(
     /** Policy for this backend instance. */
     public val config: BasicluConfig = BasicluConfig(),
 ) : F64SparseLuAdapter(config.factorizeMin, config.equilibrate) {
@@ -22,7 +28,7 @@ public class BasicluSparseLu(
 
     override val name: String get() = BackendNames.BASICLU
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 2
-    override val nativeAvailable: Boolean get() = loader.available
+    final override val nativeAvailable: Boolean get() = loader.available
 
     /**
      * Whether [factorBasis] answers with a factorization that updates its factors in place. False without
@@ -35,7 +41,7 @@ public class BasicluSparseLu(
      * BASICLU offers no row scaling of its own, so equilibration is applied to the values handed over and
      * undone in the solves, by the same power-of-two factors the portable factorization uses.
      */
-    override fun factorNative(a: F64SparseMatrix): F64SparseFactorization {
+    final override fun factorNative(a: F64SparseMatrix): F64SparseFactorization {
         val rowIdx = a.copyRowIndices()
         val scale = if (equilibrate) equilibrationScale(a.rows, rowIdx, a.values) else null
         val values = if (scale == null) a.values else scaledValues(rowIdx, a.values, scale)

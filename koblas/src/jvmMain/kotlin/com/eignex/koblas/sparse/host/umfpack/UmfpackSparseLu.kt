@@ -11,8 +11,14 @@ import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout.ADDRESS
 import java.lang.foreign.ValueLayout.JAVA_DOUBLE
 
-/** Sparse factorizations backed by a host UMFPACK. */
-public class UmfpackSparseLu(
+/**
+ * Sparse factorizations backed by a host UMFPACK.
+ *
+ * Open so a bundled provider is one of these under another name rather than a wrapper around one. What a
+ * caller reaches this backend by name for is the routines it carries outside the seam, and a wrapper
+ * would hide their type. Only the name and the ranking are meant to vary.
+ */
+public open class UmfpackSparseLu(
     /** Policy for this backend instance and the factors it produces. */
     public val config: UmfpackConfig = UmfpackConfig(),
 ) : F64SparseLuAdapter(config.factorizeMin, config.equilibrate) {
@@ -23,14 +29,14 @@ public class UmfpackSparseLu(
     override val priority: Int get() = HOST_BACKEND_PRIORITY
 
     /** UMFPACK ships separately from OpenBLAS, so a host can have one without the other. */
-    override val nativeAvailable: Boolean get() = calls.available
+    final override val nativeAvailable: Boolean get() = calls.available
 
     internal val refinementSteps: Double? get() = calls.refinementSteps
 
     internal val pivotTolerance: Double? get() = calls.pivotTolerance
 
     /** Factorizes [a] through UMFPACK's symbolic analysis and numeric factorization. */
-    override fun factorNative(a: F64SparseMatrix): F64SparseFactorization {
+    final override fun factorNative(a: F64SparseMatrix): F64SparseFactorization {
         val colPtr = MemorySegment.ofArray(a.colPtr)
         val rowIdx = MemorySegment.ofArray(a.rowIdx)
         val values = MemorySegment.ofArray(a.values)

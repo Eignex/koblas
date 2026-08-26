@@ -1246,13 +1246,15 @@ public class com/eignex/koblas/sparse/host/basiclu/BasicluFactorization : com/ei
 	public fun solveInto ([D[DZLcom/eignex/koblas/Workspace;)[D
 }
 
-public final class com/eignex/koblas/sparse/host/basiclu/BasicluSparseLu : com/eignex/koblas/sparse/host/F64SparseLuAdapter {
+public class com/eignex/koblas/sparse/host/basiclu/BasicluSparseLu : com/eignex/koblas/sparse/host/F64SparseLuAdapter {
 	public fun <init> ()V
 	public fun <init> (Lcom/eignex/koblas/sparse/host/basiclu/BasicluConfig;)V
 	public synthetic fun <init> (Lcom/eignex/koblas/sparse/host/basiclu/BasicluConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun factorBasis (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64BasisFactorization;
+	protected final fun factorNative (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
 	public final fun getConfig ()Lcom/eignex/koblas/sparse/host/basiclu/BasicluConfig;
 	public fun getName ()Ljava/lang/String;
+	protected final fun getNativeAvailable ()Z
 	public fun getPriority ()I
 	public final fun getSupportsBasisUpdates ()Z
 }
@@ -1295,13 +1297,15 @@ public final class com/eignex/koblas/sparse/host/hfactor/HfactorFactorization : 
 	public fun solveInto ([D[DZLcom/eignex/koblas/Workspace;)[D
 }
 
-public final class com/eignex/koblas/sparse/host/hfactor/HfactorSparseLu : com/eignex/koblas/sparse/host/F64SparseLuAdapter, com/eignex/koblas/sparse/basis/F64BasisSolvers {
+public class com/eignex/koblas/sparse/host/hfactor/HfactorSparseLu : com/eignex/koblas/sparse/host/F64SparseLuAdapter, com/eignex/koblas/sparse/basis/F64BasisSolvers {
 	public fun <init> ()V
 	public fun <init> (Lcom/eignex/koblas/sparse/host/hfactor/HfactorConfig;)V
 	public synthetic fun <init> (Lcom/eignex/koblas/sparse/host/hfactor/HfactorConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun basisSolver (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/basis/F64BasisSolver;
+	protected final fun factorNative (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
 	public final fun getConfig ()Lcom/eignex/koblas/sparse/host/hfactor/HfactorConfig;
 	public fun getName ()Ljava/lang/String;
+	protected final fun getNativeAvailable ()Z
 	public fun getPriority ()I
 }
 
@@ -1367,12 +1371,14 @@ public final class com/eignex/koblas/sparse/host/klu/KluScaling : java/lang/Enum
 	public static fun values ()[Lcom/eignex/koblas/sparse/host/klu/KluScaling;
 }
 
-public final class com/eignex/koblas/sparse/host/klu/KluSparseLu : com/eignex/koblas/sparse/host/F64SparseLuAdapter {
+public class com/eignex/koblas/sparse/host/klu/KluSparseLu : com/eignex/koblas/sparse/host/F64SparseLuAdapter {
 	public fun <init> ()V
 	public fun <init> (Lcom/eignex/koblas/sparse/host/klu/KluConfig;)V
 	public synthetic fun <init> (Lcom/eignex/koblas/sparse/host/klu/KluConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	protected final fun factorNative (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
 	public final fun getConfig ()Lcom/eignex/koblas/sparse/host/klu/KluConfig;
 	public fun getName ()Ljava/lang/String;
+	protected final fun getNativeAvailable ()Z
 	public fun getPriority ()I
 	public final fun refactor (Lcom/eignex/koblas/sparse/F64SparseFactorization;Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
 }
@@ -1419,12 +1425,14 @@ public final class com/eignex/koblas/sparse/host/umfpack/UmfpackScaling : java/l
 	public static fun values ()[Lcom/eignex/koblas/sparse/host/umfpack/UmfpackScaling;
 }
 
-public final class com/eignex/koblas/sparse/host/umfpack/UmfpackSparseLu : com/eignex/koblas/sparse/host/F64SparseLuAdapter {
+public class com/eignex/koblas/sparse/host/umfpack/UmfpackSparseLu : com/eignex/koblas/sparse/host/F64SparseLuAdapter {
 	public fun <init> ()V
 	public fun <init> (Lcom/eignex/koblas/sparse/host/umfpack/UmfpackConfig;)V
 	public synthetic fun <init> (Lcom/eignex/koblas/sparse/host/umfpack/UmfpackConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	protected final fun factorNative (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
 	public final fun getConfig ()Lcom/eignex/koblas/sparse/host/umfpack/UmfpackConfig;
 	public fun getName ()Ljava/lang/String;
+	protected final fun getNativeAvailable ()Z
 	public fun getPriority ()I
 }
 

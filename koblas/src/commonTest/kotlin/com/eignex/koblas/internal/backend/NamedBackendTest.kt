@@ -105,4 +105,32 @@ class NamedBackendTest {
         assertEquals(BackendNames.REFERENCE, koblas.sparseLu.name)
         assertNull(sparseLuNamed(BackendNames.REFERENCE), "nothing registered it; it is the fallback")
     }
+
+    /** An explicit offer takes the half, which is what it is for, and takes nothing else. */
+    @Test
+    fun `a discovered backend stays reachable while an explicit one holds the half`() = withCleanBackends {
+        BackendRegistry.registerAutomatic(FakeSparseLu("discovered", priority = 30))
+        registerBackend(FakeSparseLu("configured", priority = 10))
+
+        assertEquals("configured", koblas.sparseLu.name, "the explicit offer holds the half")
+        assertEquals("discovered", sparseLuNamed("discovered")?.name, "and the discovered one is still there")
+    }
+
+    @Test
+    fun `a discovered backend is listed behind the explicit one rather than dropped`() = withCleanBackends {
+        BackendRegistry.registerAutomatic(FakeSparseLu("discovered", priority = 30))
+        registerBackend(FakeSparseLu("configured", priority = 10))
+
+        assertEquals(listOf("configured", "discovered"), registeredBackendNames(BackendSlot.F64SparseLu))
+    }
+
+    /** Order of arrival must not change either answer. */
+    @Test
+    fun `an explicit offer registered first still leaves a later discovered one findable`() = withCleanBackends {
+        registerBackend(FakeSparseLu("configured", priority = 10))
+        BackendRegistry.registerAutomatic(FakeSparseLu("discovered", priority = 30))
+
+        assertEquals("configured", koblas.sparseLu.name)
+        assertEquals("discovered", sparseLuNamed("discovered")?.name)
+    }
 }

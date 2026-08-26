@@ -1,11 +1,7 @@
 package com.eignex.koblas.hfactor
 
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
-import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.backend.BundledNativeResources
-import com.eignex.koblas.sparse.F64SparseLu
-import com.eignex.koblas.sparse.basis.F64BasisSolver
-import com.eignex.koblas.sparse.basis.F64BasisSolvers
 import com.eignex.koblas.sparse.host.hfactor.HfactorConfig
 import com.eignex.koblas.sparse.host.hfactor.HfactorSparseLu
 
@@ -13,22 +9,16 @@ import com.eignex.koblas.sparse.host.hfactor.HfactorSparseLu
  * HiGHS's HFactor from this module's bundled native resources, driven by koblas's own HFactor binding. A
  * deployment pointing `koblas.hfactor.path` or `KOBLAS_HFACTOR_PATH` at its own build gets that binding
  * directly, and discovery leaves this provider out of the running.
+ *
+ * One of [HfactorSparseLu] rather than a wrapper around one, which is how the bundled providers reach the
+ * routines their bindings carry outside a seam.
  */
-public class BundledHfactor private constructor(private val delegate: HfactorSparseLu) :
-    F64SparseLu by delegate,
-    F64BasisSolvers by delegate {
-    /** Creates an HFactor backend from the bundled library. */
-    public constructor(factorizeMin: Int? = null, equilibrate: Boolean = false) :
-        this(HfactorSparseLu(HfactorConfig(hfactorLibrary.extract().toString(), factorizeMin, equilibrate)))
-
+public class BundledHfactor(factorizeMin: Int? = null, equilibrate: Boolean = false) :
+    HfactorSparseLu(
+        HfactorConfig(hfactorLibrary.extract().toString(), factorizeMin, equilibrate),
+    ) {
     override val name: String get() = "hfactor-bundled"
-
-    // Both delegated halves are the same object, so either answers; Kotlin still wants the ambiguity settled.
-    override val isPortable: Boolean get() = delegate.isPortable
-    override val isAvailable: Boolean get() = delegate.isAvailable
     override val priority: Int get() = HOST_BACKEND_PRIORITY - 1
-
-    override fun basisSolver(a: F64SparseMatrix): F64BasisSolver = delegate.basisSolver(a)
 }
 
 private val hfactorLibrary = BundledNativeResources.manifestDriven(

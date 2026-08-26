@@ -18,8 +18,11 @@ import com.eignex.koblas.sparse.host.F64SparseLuAdapter
  * What HFactor is for is [basisSolver]: a basis named by index into a matrix that outlives it, solved
  * through vectors that stay sparse. [factor] is the plainer surface, HFactor taking a square matrix as a
  * basis of its own columns.
+ *
+ * Open so a bundled provider is one of these under another name rather than a wrapper around one, as the
+ * other host bindings are. Only the name and the ranking are meant to vary.
  */
-public class HfactorSparseLu(
+public open class HfactorSparseLu(
     /** Policy for this backend instance. */
     public val config: HfactorConfig = HfactorConfig(),
 ) : F64SparseLuAdapter(config.factorizeMin),
@@ -33,13 +36,13 @@ public class HfactorSparseLu(
      * need to outrank them to win the half it is here for: no other backend offers [basisSolver].
      */
     override val priority: Int get() = HOST_BACKEND_PRIORITY - 2
-    override val nativeAvailable: Boolean get() = calls.available
+    final override val nativeAvailable: Boolean get() = calls.available
 
     /**
      * HFactor offers no row scaling, so a backend set to equilibrate stays with the portable factorization
      * rather than reproducing it here by scaling the values on the way in.
      */
-    override fun factorNative(a: F64SparseMatrix): F64SparseFactorization {
+    final override fun factorNative(a: F64SparseMatrix): F64SparseFactorization {
         if (equilibrate) return portable.factor(a)
         val handle = calls.create(a.rows, a.cols, a.copyColumnPointers(), a.copyRowIndices(), a.values)
             ?: return F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
