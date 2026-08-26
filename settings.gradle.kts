@@ -17,7 +17,6 @@ include(
     ":koblas-basiclu",
     ":koblas-bench",
     ":koblas-hfactor",
-    ":koblas-klu",
     ":koblas-openblas",
-    ":koblas-umfpack",
+    ":koblas-suitesparse",
 )
