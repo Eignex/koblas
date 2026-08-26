@@ -51,6 +51,15 @@ internal object BackendRegistry {
         offer(backend, explicit = true)
     }
 
+    /** The sparse LU registered under [name], or null when nothing did. */
+    internal fun sparseLuNamed(name: String) = f64.sparseLuNamed(name)
+
+    /** The basis solvers registered under [name], or null when nothing did. */
+    internal fun basisSolversNamed(name: String) = f64.basisSolversNamed(name)
+
+    /** The names registered for [slot], strongest first. */
+    internal fun namesFor(slot: BackendSlot) = f64.namesFor(slot)
+
     /** Offers one automatically discovered backend without recursively starting discovery. */
     internal fun registerAutomatic(backend: Backend) {
         offer(backend, explicit = false)

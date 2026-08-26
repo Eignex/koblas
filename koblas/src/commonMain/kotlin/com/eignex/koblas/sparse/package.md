@@ -20,6 +20,16 @@ mirror the dense ones.
 - [F64SparseLinearAlgebra] pairs the matrix seams and exposes the sparse-vector kernels alongside them.
   Backends may implement either matrix half; [com.eignex.koblas.registerBackend] ranks each independently,
   while [com.eignex.koblas.installBackends] supplies all three through [com.eignex.koblas.koblas].
+
+The sparse backends differ from the dense ones in a way the ranking cannot express. A dense binding is the
+same routine computed faster, so ordering them by [com.eignex.koblas.Backend.priority] and taking the
+strongest is the whole story. The sparse libraries are specialised instead: KLU wants a circuit pattern it
+can factor repeatedly, UMFPACK an unstructured system, BASICLU a basis whose columns are replaced one at a
+time, [com.eignex.koblas.sparse.basis.F64BasisSolver] a basis pivoted thousands of times. Which is best is
+a property of the matrix, not of a ranking, and one process can want two at once.
+
+So [com.eignex.koblas.koblas] hands out the strongest offer per half, which is the right default, and
+[com.eignex.koblas.sparseLuNamed] hands out a particular one for a caller that knows which it wants.
 - Implementation: [F64SparseLuFactorization][com.eignex.koblas.sparse.factorization.lu.F64SparseLuFactorization], a Markowitz threshold-pivoting
   `P·B·Q = L·U` that keeps the factors sparse instead of filling toward `O(m²)`.
 

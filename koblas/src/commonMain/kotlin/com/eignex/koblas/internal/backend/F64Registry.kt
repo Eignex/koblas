@@ -35,6 +35,9 @@ internal class F64Registry {
             seam.register(half, explicit)
             return true
         }
+
+        /** The names offered for this half, strongest first. */
+        val names: List<String> get() = seam.all.map { it.name }
     }
 
     /**
@@ -102,6 +105,15 @@ internal class F64Registry {
         for (half in halves.values) if (half.offer(backend, explicit)) offered++
         return offered > 0
     }
+
+    /** The sparse LU registered under [name], or null when nothing did. */
+    fun sparseLuNamed(name: String): F64SparseLu? = sparseLuSeam.named(name)
+
+    /** The basis solvers registered under [name], or null when nothing did. */
+    fun basisSolversNamed(name: String): F64BasisSolvers? = basisSolverSeam.named(name)
+
+    /** The names registered for [slot], strongest first. */
+    fun namesFor(slot: BackendSlot): List<String> = halves.getValue(slot).names
 
     /** Clears the override and every registration, leaving the portable fallbacks. */
     fun reset() {
