@@ -67,8 +67,12 @@ fi
 # CUDA is opt-out upstream, so a build host that happens to have it would otherwise put a CUDA runtime
 # dependency into CHOLMOD and SPQR. Static archives are never copied into the bundle, so building them
 # would only cost compile time.
+#
+# BUILD_TESTING is what cmake defaults on, and CHOLMOD builds its demo programs under it as well as under
+# its own flag. Those link against CHOLMOD without naming a BLAS, so the linker has to resolve the OpenBLAS
+# that CHOLMOD needs by soname and finds it only where one is installed. Nothing here ships them.
 cmake -S "$source" -B "$work/build" -G "Unix Makefiles" \
-    -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DBUILD_STATIC_LIBS=OFF \
+    -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DBUILD_STATIC_LIBS=OFF -DBUILD_TESTING=OFF \
     -DCMAKE_INSTALL_PREFIX="$install" \
     -DSUITESPARSE_ENABLE_PROJECTS="suitesparse_config;amd;camd;colamd;ccolamd;btf;klu;umfpack;cholmod;spqr" \
     -DKLU_USE_CHOLMOD=OFF -DUMFPACK_USE_CHOLMOD=OFF \
