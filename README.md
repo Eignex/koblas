@@ -192,6 +192,31 @@ third-party backend that does not implement routing diagnostics reports `UNKNOWN
 known portable fallback or an unavailable binding. The legacy `koblasInfo` and slot-based inspection APIs
 remain available.
 
+For solver-owned configuration, build and retain an explicit context. The builder is immutable: each
+`with` call returns a new configuration, and `resolve()` neither reads nor mutates the global registry.
+
+```kotlin
+import com.eignex.koblas.BackendRole
+import com.eignex.koblas.F64ContextBuilder
+import com.eignex.koblas.F64DispatchPolicy
+
+val strictDense = F64ContextBuilder()
+    .withBackend(BackendRole.DENSE_BLAS, selectedBlas)
+    .withBackend(BackendRole.DENSE_DECOMPOSITIONS, selectedLapack)
+    .withDispatchPolicy(F64DispatchPolicy.NATIVE_ONLY)
+    .resolve()
+
+val c = strictDense.gemm(a, b)
+```
+
+`NATIVE_ONLY` rejects a known threshold, argument, availability, or portable-provider fallback before the
+backend is invoked. `PORTABLE_ONLY` discards external selections and resolves every role to the reference
+path. In `AUTO`, choose `ALLOW`, `WARN`, or `THROW` with `withFallbackPolicy`; `WARN` also requires an
+`onFallback` handler. Enforcement applies to the operation families represented by `F64RouteQuery`, and the
+route plan is available separately through `context.plan(query)`. Other routines retain their existing
+backend behavior until their route families are added. Context policies never affect free functions, which
+continue to use the process-wide `koblas` context.
+
 These pin selection per half, the JVM property again first:
 
 | Half | JVM property | Environment variable |
