@@ -158,6 +158,12 @@ benchmark {
             gate()
             param("n", "64", "256", "1024")
         }
+        // The same CHOLMOD call over one column. Kept separate so the normal bracketed suite does not double
+        // every control row merely to measure the single-right-hand-side case.
+        suite("sparseProductSingleGate", "SparseProductHostBenchmark", "gemmSingle") {
+            gate()
+            param("n", "64", "256", "1024")
+        }
         // The two symmetric factorizations against the portable ones, with transpose trailing as the
         // control: it sorts after both subjects and no factorization gate reaches it.
         suite("symmetricGate", "SparseSymmetricHostBenchmark", "cholesky|ldl|transpose") {

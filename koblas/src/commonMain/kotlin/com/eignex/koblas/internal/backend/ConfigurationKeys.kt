@@ -30,6 +30,9 @@ internal object ConfigurationKeys {
     /** An absolute path to the host UMFPACK. */
     val UMFPACK_PATH = LibraryPathKeys("koblas.umfpack.path", "KOBLAS_UMFPACK_PATH")
 
+    /** An absolute path to the host CHOLMOD. */
+    val CHOLMOD_PATH = LibraryPathKeys("koblas.cholmod.path", "KOBLAS_CHOLMOD_PATH")
+
     /** An absolute path to a BASICLU exporting koblas's bridge entry points, ahead of the bundled build. */
     val BASICLU_PATH = LibraryPathKeys("koblas.basiclu.path", "KOBLAS_BASICLU_PATH")
 

@@ -11,6 +11,7 @@ internal actual val platformDispatchThresholds: DispatchThresholds =
         level3 = 0,
         factorize = 0,
         symmetricFactorize = NATIVE_SYMMETRIC_FACTORIZE_MIN,
+        sparseProduct = NATIVE_SPARSE_PRODUCT_MIN,
     )
 
 /**
@@ -27,3 +28,10 @@ private const val NATIVE_SYMMETRIC_FACTORIZE_MIN = 448
 
 /** The run length from which a foreign call is worth making for a level-1 primitive. */
 private const val NATIVE_LEVEL1_MIN = 32
+
+/**
+ * The native `sparseProductGate` suites found no crossover through 11,526 stored entries: one right-hand
+ * side remained 4.2 times slower and eight remained 1.2 times slower because each call copies the CSC
+ * descriptor and dense blocks. Keep automatic routing portable until reusable descriptors change that cost.
+ */
+private const val NATIVE_SPARSE_PRODUCT_MIN = Int.MAX_VALUE
