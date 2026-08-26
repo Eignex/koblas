@@ -97,12 +97,18 @@ internal class F64Registry {
     /**
      * Offers [backend] to every seam whose half it implements, and reports whether any took it. Explicit
      * offers outrank automatic ones. A caller that gets false has offered something this element type has no
-     * seam for.
+     * seam for, or nothing but halves [only] left out.
+     *
+     * [only] narrows the offer to those halves, for a caller that will take some of what a backend carries
+     * and not the rest. Null offers every half, which is what a caller with no reason to choose wants.
      */
-    fun offer(backend: Backend, explicit: Boolean): Boolean {
+    fun offer(backend: Backend, explicit: Boolean, only: Set<BackendSlot>? = null): Boolean {
         // Counted rather than short-circuited: an object implementing several halves is offered to all of them.
         var offered = 0
-        for (half in halves.values) if (half.offer(backend, explicit)) offered++
+        for ((slot, half) in halves) {
+            if (only != null && slot !in only) continue
+            if (half.offer(backend, explicit)) offered++
+        }
         return offered > 0
     }
 

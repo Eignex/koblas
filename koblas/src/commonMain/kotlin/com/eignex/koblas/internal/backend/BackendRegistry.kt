@@ -4,24 +4,23 @@ import com.eignex.koblas.Backend
 import com.eignex.koblas.F64Context
 import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.dense.F64PlatformKernels
-import kotlin.concurrent.atomics.AtomicInt
-import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
-@OptIn(ExperimentalAtomicApi::class)
 internal object BackendRegistry {
 
     /** Where the double-precision registrations live; an element type added later gets a registry beside it. */
     private val f64 = F64Registry()
 
-    /**
-     * Set when discovery starts rather than when it finishes, so an explicit discovery request from a provider
-     * cannot start it again while its candidate is being probed.
-     */
-    private val discoveryStarted = AtomicInt(0)
+    /** The gate discovery runs behind, which is also what makes a second caller wait for it. */
+    private val discovery = RunOnce()
 
-    /** Runs platform discovery once when the application explicitly asks for it. */
+    /**
+     * Runs platform discovery once when the application explicitly asks for it, and does not return before
+     * it has finished: a caller on another thread waits rather than reading a registry still filling up. A
+     * provider that asks for discovery while it is being probed is already inside the pass and returns
+     * without starting a second one. A pass that throws leaves whatever it registered and can be retried.
+     */
     internal fun discover() {
-        if (discoveryStarted.compareAndSet(0, 1)) registerPlatformBackends()
+        discovery.run(::registerPlatformBackends)
     }
 
     /**
@@ -60,14 +59,19 @@ internal object BackendRegistry {
     /** The names registered for [slot], strongest first. */
     internal fun namesFor(slot: BackendSlot) = f64.namesFor(slot)
 
-    /** Offers one automatically discovered backend without recursively starting discovery. */
-    internal fun registerAutomatic(backend: Backend) {
-        offer(backend, explicit = false)
+    /**
+     * Offers one automatically discovered backend without recursively starting discovery. [only] narrows the
+     * offer to those halves, for a deployment that pinned one half to another backend and said nothing about
+     * the rest of what this one carries.
+     */
+    internal fun registerAutomatic(backend: Backend, only: Set<BackendSlot>? = null) {
+        offer(backend, explicit = false, only = only)
     }
 
-    private fun offer(backend: Backend, explicit: Boolean) {
-        val offered = f64.offer(backend, explicit)
-        require(offered) {
+    private fun offer(backend: Backend, explicit: Boolean, only: Set<BackendSlot>? = null) {
+        val offered = f64.offer(backend, explicit, only)
+        // A narrowed offer matching nothing is the caller's own doing, not a backend with no half at all.
+        require(offered || only != null) {
             "${backend.name} implements none of ${BackendSlot.names}, so there is nothing to register it as"
         }
     }

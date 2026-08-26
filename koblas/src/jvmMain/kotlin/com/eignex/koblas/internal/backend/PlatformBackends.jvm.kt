@@ -29,23 +29,32 @@ internal actual fun registerPlatformBackends() {
     val automatic = AutomaticHostConfiguration()
     for (provider in loadProviders().sortedByDescending { it.priority }) {
         if (automatic.overrides(provider)) continue
-        if (provider is F64Blas && denseRequested != null &&
-            !matchesRequested(provider.name, denseRequested)
-        ) {
-            continue
-        }
-        if (provider is F64SparseKernels || provider is F64SparseBlas || provider is F64SparseDecompositions) {
-            if (sparseRequested != null &&
-                !matchesRequested(provider.name, sparseRequested)
-            ) {
-                continue
-            }
-        }
-        if (!probe(provider)) continue
-        // Once, not per half, since registerBackend offers the object as every half it implements.
-        BackendRegistry.registerAutomatic(provider)
+        val offered = offeredHalves(provider.name, denseRequested, sparseRequested)
+        if (offered.isEmpty()) continue
+        if (!probe(provider, offered)) continue
+        // Once, not per half, since registerBackend offers the object as every half it implements, less
+        // whatever a pin on one half left out.
+        BackendRegistry.registerAutomatic(provider, offered)
     }
     registerBuiltins(automatic, denseRequested, sparseRequested)
+}
+
+/**
+ * The halves of the provider named [name] this deployment will take.
+ *
+ * A pin names one backend for one half and says nothing about the other, so a provider carrying both halves
+ * keeps the half no pin spoke for. Turning the whole provider away instead costs a deployment that pinned
+ * its dense backend the sparse backends of everything else it installed.
+ */
+internal fun offeredHalves(name: String, denseRequested: String?, sparseRequested: String?): Set<BackendSlot> {
+    val dense = denseRequested == null || matchesRequested(name, denseRequested)
+    val sparse = sparseRequested == null || matchesRequested(name, sparseRequested)
+    return when {
+        dense && sparse -> BackendSlot.entries.toSet()
+        dense -> BackendSlot.denseHalves
+        sparse -> BackendSlot.sparseHalves
+        else -> emptySet()
+    }
 }
 
 /** Deployment overrides are read only while automatic discovery chooses its candidates. */
@@ -152,9 +161,12 @@ private fun <T : Backend> loadProviders(type: Class<T>, providers: MutableList<B
  *
  * The primitive is called rather than the convenience overload, since a backend built by delegation
  * inherits a forwarder for every routine it does not override and the convenience one would bypass it.
+ *
+ * A candidate whose dense half is not among [offered] is asked only whether it loaded, since the product it
+ * would be asked to compute is the half a pin already turned away.
  */
-internal fun probe(backend: Backend): Boolean {
-    if (backend !is F64Blas) return backend.isAvailable
+internal fun probe(backend: Backend, offered: Set<BackendSlot> = BackendSlot.entries.toSet()): Boolean {
+    if (backend !is F64Blas || BackendSlot.F64Blas !in offered) return backend.isAvailable
     val gate = f64DispatchThresholds.level3
     val n = if (gate == Int.MAX_VALUE) 1 else maxOf(1, gate)
     @Suppress("TooGenericExceptionCaught") // native load failures surface as UnsatisfiedLinkError
