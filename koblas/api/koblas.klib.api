@@ -1289,7 +1289,7 @@ final class com.eignex.koblas.dense.host.cblas/F64CblasKernels : com.eignex.kobl
 
 // Targets: [linux, macosArm64]
 final class com.eignex.koblas.sparse.host.basiclu/BasicluBasisFactorization : com.eignex.koblas.sparse.host.basiclu/BasicluFactorization, com.eignex.koblas.sparse/F64BasisFactorization { // com.eignex.koblas.sparse.host.basiclu/BasicluBasisFactorization|null[0]
-    final var basis // com.eignex.koblas.sparse.host.basiclu/BasicluBasisFactorization.basis|{}basis[0]
+    final val basis // com.eignex.koblas.sparse.host.basiclu/BasicluBasisFactorization.basis|{}basis[0]
         final fun <get-basis>(): com.eignex.koblas.core/F64SparseMatrix // com.eignex.koblas.sparse.host.basiclu/BasicluBasisFactorization.basis.<get-basis>|<get-basis>(){}[0]
 
     final fun replaceColumn(kotlin/Int, com.eignex.koblas.core/F64SparseVector): com.eignex.koblas.sparse/F64BasisFactorization // com.eignex.koblas.sparse.host.basiclu/BasicluBasisFactorization.replaceColumn|replaceColumn(kotlin.Int;com.eignex.koblas.core.F64SparseVector){}[0]

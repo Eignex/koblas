@@ -4,6 +4,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
+import com.eignex.koblas.core.F64DenseVector
 import com.eignex.koblas.core.F64VectorLike
 import com.eignex.koblas.internal.backend.BackendNames
 
@@ -394,14 +395,29 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         }
     }
 
-    /** `A += alpha · x · xᵀ` (BLAS `dsyr`), writing the triangles [uplo] selects. [syrk] is the rank-k form. */
+    /**
+     * `A += alpha · x · xᵀ` (BLAS `dsyr`), writing the triangles [uplo] selects. [syrk] is the rank-k form.
+     *
+     * A sparse x updates the outer product of its stored positions and nothing else, which is the whole of
+     * the update: a position it does not store contributes a zero row and a zero column.
+     */
     override fun syr(alpha: Double, x: F64VectorLike, a: F64DenseMatrix, uplo: Uplo) {
         requireShape(a.rows == a.cols) { "syr: matrix must be square, got ${a.rows}x${a.cols}" }
         requireShape(x.size == a.rows) { "syr: x length ${x.size} != ${a.rows}" }
         if (alpha == 0.0) return
         val n = a.rows
         val ad = a.data
-        val xs = x.denseEntries()
+        if (x !is F64DenseVector) {
+            val positions = storedPositions(x)
+            val xs = DoubleArray(positions.size) { x[positions[it]] }
+            for (b in positions.indices) {
+                val xj = alpha * xs[b]
+                if (xj == 0.0) continue
+                for (c in b until positions.size) addUplo(ad, n, positions[c], positions[b], xj * xs[c], uplo)
+            }
+            return
+        }
+        val xs = x.data
         for (j in 0 until n) {
             val xj = alpha * xs[j]
             if (xj == 0.0) continue
@@ -409,7 +425,12 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         }
     }
 
-    /** `A += alpha · (x · yᵀ + y · xᵀ)` (BLAS `dsyr2`), writing the triangles [uplo] selects. */
+    /**
+     * `A += alpha · (x · yᵀ + y · xᵀ)` (BLAS `dsyr2`), writing the triangles [uplo] selects.
+     *
+     * Sparse operands are handled as [syr] handles one, over the positions either of them stores: a position
+     * neither stores has `x(i)` and `y(i)` both zero and so contributes nothing to any entry.
+     */
     override fun syr2(alpha: Double, x: F64VectorLike, y: F64VectorLike, a: F64DenseMatrix, uplo: Uplo) {
         requireShape(a.rows == a.cols) { "syr2: matrix must be square, got ${a.rows}x${a.cols}" }
         requireShape(x.size == a.rows && y.size == a.rows) {
@@ -418,12 +439,67 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         if (alpha == 0.0) return
         val n = a.rows
         val ad = a.data
-        val xs = x.denseEntries()
-        val ys = y.denseEntries()
+        if (x !is F64DenseVector || y !is F64DenseVector) {
+            syr2Stored(alpha, x, y, ad, n, uplo)
+            return
+        }
+        val xs = x.data
+        val ys = y.data
         for (j in 0 until n) {
+            // Column j of the update is x(j) times y plus y(j) times x, so both being zero empties it.
+            if (xs[j] == 0.0 && ys[j] == 0.0) continue
             for (i in j until n) {
                 val v = alpha * (xs[i] * ys[j] + ys[i] * xs[j])
                 if (v != 0.0) addUplo(ad, n, i, j, v, uplo)
+            }
+        }
+    }
+
+    /** The positions [x] stores, ascending, which [forEachStored] visits in that order for any storage. */
+    private fun storedPositions(x: F64VectorLike): IntArray {
+        val gathered = ArrayList<Int>()
+        x.forEachStored { i, _ -> gathered.add(i) }
+        return gathered.toIntArray()
+    }
+
+    /** The positions [x] or [y] stores, ascending and without repeats, merged from the two ascending runs. */
+    private fun storedPositions(x: F64VectorLike, y: F64VectorLike): IntArray {
+        val left = storedPositions(x)
+        val right = storedPositions(y)
+        val merged = IntArray(left.size + right.size)
+        var a = 0
+        var b = 0
+        var count = 0
+        while (a < left.size || b < right.size) {
+            merged[count++] = when {
+                b == right.size -> left[a++]
+                a == left.size -> right[b++]
+                left[a] < right[b] -> left[a++]
+                left[a] > right[b] -> right[b++]
+                else -> left[a++].also { b++ }
+            }
+        }
+        return merged.copyOf(count)
+    }
+
+    /** [syr2] over the positions [x] or [y] stores, gathered so each is read once rather than searched for. */
+    @Suppress("LongParameterList") // the dsyr2 operands, less the matrix it has already been taken out of
+    private fun syr2Stored(
+        alpha: Double,
+        x: F64VectorLike,
+        y: F64VectorLike,
+        ad: DoubleArray,
+        n: Int,
+        uplo: Uplo,
+    ) {
+        val positions = storedPositions(x, y)
+        val xs = DoubleArray(positions.size) { x[positions[it]] }
+        val ys = DoubleArray(positions.size) { y[positions[it]] }
+        for (b in positions.indices) {
+            if (xs[b] == 0.0 && ys[b] == 0.0) continue
+            for (c in b until positions.size) {
+                val v = alpha * (xs[c] * ys[b] + ys[c] * xs[b])
+                if (v != 0.0) addUplo(ad, n, positions[c], positions[b], v, uplo)
             }
         }
     }

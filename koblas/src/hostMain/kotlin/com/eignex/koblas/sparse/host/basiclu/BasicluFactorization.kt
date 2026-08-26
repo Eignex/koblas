@@ -11,6 +11,8 @@ import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.sparse.F64BasisFactorization
 import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.host.applyEquilibration
+import com.eignex.koblas.sparse.internal.replaceColumns
+import com.eignex.koblas.sparse.internal.snapshot
 import com.eignex.koblas.sparse.requireSolveShapes
 import com.eignex.koblas.withColumn
 import kotlinx.cinterop.*
@@ -101,11 +103,24 @@ public class BasicluBasisFactorization internal constructor(
     functions: BasicluFunctions,
 ) : BasicluFactorization(handle, functions, initialBasis.rows),
     F64BasisFactorization {
-    override var basis: F64SparseMatrix = initialBasis
-        private set
+    private var built: F64SparseMatrix = initialBasis
+    private val pending = LinkedHashMap<Int, F64SparseVector>()
+
+    /**
+     * The basis these factors stand for, built from the replacements BASICLU took when it is asked for and
+     * not before. Building it copies the structure of the whole matrix and validates it again, which is
+     * work per pivot that a driver pivoting to optimality asks for once, if at all.
+     */
+    override val basis: F64SparseMatrix
+        get() {
+            if (pending.isNotEmpty()) {
+                built = replaceColumns(built, pending)
+                pending.clear()
+            }
+            return built
+        }
 
     override fun replaceColumn(column: Int, entering: F64SparseVector): F64BasisFactorization {
-        val next = basis.withColumn(column, entering)
         // BASICLU wants the entering column solved for and then the leaving row named through a transposed
         // solve, both before the update itself.
         val status = anchoring {
@@ -130,8 +145,9 @@ public class BasicluBasisFactorization internal constructor(
                 if (named != BasicluStatus.OK) named else functions.update(handle.obj, 0.0)
             }
         }
-        if (status != BasicluStatus.OK) return owner.factorBasis(next)
-        basis = next
+        // Kept as a copy, since the caller's vector stays live for it to write and the build comes later.
+        pending[column] = entering.snapshot()
+        if (status != BasicluStatus.OK) return owner.factorBasis(basis)
         return this
     }
 }

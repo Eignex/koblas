@@ -8,8 +8,9 @@ import com.eignex.koblas.internal.host.nativeCleaner
 import com.eignex.koblas.sparse.F64BasisFactorization
 import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.host.applyEquilibration
+import com.eignex.koblas.sparse.internal.replaceColumns
+import com.eignex.koblas.sparse.internal.snapshot
 import com.eignex.koblas.sparse.requireSolveShapes
-import com.eignex.koblas.withColumn
 import java.lang.ref.Reference
 import kotlin.math.abs
 
@@ -74,18 +75,32 @@ public class BasicluBasisFactorization internal constructor(
     calls: BasicluCalls,
 ) : BasicluFactorization(target, calls),
     F64BasisFactorization {
-    override var basis: F64SparseMatrix = initialBasis
-        private set
+    private var built: F64SparseMatrix = initialBasis
+    private val pending = LinkedHashMap<Int, F64SparseVector>()
+
+    /**
+     * The basis these factors stand for, built from the replacements BASICLU took when it is asked for and
+     * not before. Building it copies the structure of the whole matrix and validates it again, which is
+     * work per pivot that a driver pivoting to optimality asks for once, if at all.
+     */
+    override val basis: F64SparseMatrix
+        get() {
+            if (pending.isNotEmpty()) {
+                built = replaceColumns(built, pending)
+                pending.clear()
+            }
+            return built
+        }
 
     override fun replaceColumn(column: Int, entering: F64SparseVector): F64BasisFactorization {
-        val next = basis.withColumn(column, entering)
         val status = try {
             calls.replaceColumn(target, column, entering.indices, entering.values)
         } finally {
             Reference.reachabilityFence(this)
         }
-        if (status != BasicluStatus.OK) return owner.factorBasis(next)
-        basis = next
+        // Kept as a copy, since the caller's vector stays live for it to write and the build comes later.
+        pending[column] = entering.snapshot()
+        if (status != BasicluStatus.OK) return owner.factorBasis(basis)
         return this
     }
 }

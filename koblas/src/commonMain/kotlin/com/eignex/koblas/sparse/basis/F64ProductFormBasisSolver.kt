@@ -79,6 +79,7 @@ public class F64ProductFormBasisSolver(
         return !factors.singular
     }
 
+    /** [expectedDensity] is not read: there is one sweep here to choose from, for the reason the class says. */
     override fun ftran(x: F64IndexedVector, expectedDensity: Double) {
         val factors = solvable(x)
         x.gather(dense)
@@ -87,6 +88,7 @@ public class F64ProductFormBasisSolver(
         x.scatter(dense)
     }
 
+    /** [expectedDensity] is not read, as in [ftran]. */
     override fun btran(x: F64IndexedVector, expectedDensity: Double) {
         val factors = solvable(x)
         x.gather(dense)

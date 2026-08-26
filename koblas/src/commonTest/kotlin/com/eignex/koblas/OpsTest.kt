@@ -252,6 +252,51 @@ class OpsTest {
         assertClose(viaGer2, viaSyr2, "syr2 against two gers")
     }
 
+    /**
+     * A sparse operand updates the outer product of its stored positions and leaves the rest of A alone, so
+     * it has to land exactly where the same vector densified does.
+     */
+    @Test
+    fun `syr and syr2 over sparse operands match their dense equivalents`() {
+        val n = 8
+        val xSparse = sparse(n, 1 to 2.0, 4 to -3.0, 7 to 0.5)
+        val ySparse = sparse(n, 0 to 1.5, 4 to 2.5)
+        val xDense = F64DenseVector.of(xSparse.toDoubleArray())
+        val yDense = F64DenseVector.of(ySparse.toDoubleArray())
+
+        for (uplo in Uplo.entries) {
+            val sparseSyr = F64DenseMatrix(n, n)
+            sparseSyr.syr(1.5, xSparse, uplo)
+            val denseSyr = F64DenseMatrix(n, n)
+            denseSyr.syr(1.5, xDense, uplo)
+            assertClose(denseSyr, sparseSyr, "syr uplo=$uplo")
+
+            // Mixed storages as well, since only one operand of syr2 need be sparse.
+            for (pair in listOf(xSparse to ySparse, xSparse to yDense, xDense to ySparse)) {
+                val sparseSyr2 = F64DenseMatrix(n, n)
+                sparseSyr2.syr2(-0.75, pair.first, pair.second, uplo)
+                val denseSyr2 = F64DenseMatrix(n, n)
+                denseSyr2.syr2(-0.75, xDense, yDense, uplo)
+                assertClose(denseSyr2, sparseSyr2, "syr2 uplo=$uplo")
+            }
+        }
+    }
+
+    /** A sparse vector may store a zero, which contributes nothing and must not be mistaken for a position. */
+    @Test
+    fun `syr over a sparse operand storing a zero matches the dense update`() {
+        val n = 5
+        val stored = F64SparseVector.of(n, intArrayOf(0, 2, 3), doubleArrayOf(2.0, 0.0, -1.0))
+        val densified = F64DenseVector.of(stored.toDoubleArray())
+
+        val fromSparse = F64DenseMatrix(n, n)
+        fromSparse.syr(1.0, stored)
+        val fromDense = F64DenseMatrix(n, n)
+        fromDense.syr(1.0, densified)
+
+        assertClose(fromDense, fromSparse, "syr over a stored zero")
+    }
+
     @Test
     fun `the symmetric updates are exactly symmetric and honour uplo`() {
         val rng = Random(20260808)

@@ -107,17 +107,22 @@ internal class BasicluCalls(private val config: BasicluConfig) {
         }
     }
 
-    /** Solves in place through [target]'s own scratch, `Bᵀ x = b` when [transpose]. */
+    /**
+     * Solves in place through [target]'s own scratch, `Bᵀ x = b` when [transpose].
+     *
+     * The right-hand side crosses as a segment over the caller's own array, which a critical downcall reads
+     * where it lies, rather than through an arena that cost a copy each way and an allocation per solve on
+     * the routine a simplex calls twice an iteration. BASICLU writes its answer to a second buffer, so that
+     * one is still copied back.
+     */
     fun solve(target: BasicluObject, values: DoubleArray, transpose: Boolean): Long {
         val h = handlesOrThrow()
-        return Arena.ofConfined().use { arena ->
-            val rhs = arena.allocateFrom(JAVA_DOUBLE, *values)
-            val status = h.solveDense.invokeExact(target.obj, rhs, target.solution, transposeFlag(transpose)) as Long
-            if (status == BasicluStatus.OK) {
-                MemorySegment.copy(target.solution, JAVA_DOUBLE, 0, values, 0, values.size)
-            }
-            status
+        val rhs = MemorySegment.ofArray(values)
+        val status = h.solveDense.invokeExact(target.obj, rhs, target.solution, transposeFlag(transpose)) as Long
+        if (status == BasicluStatus.OK) {
+            MemorySegment.copy(target.solution, JAVA_DOUBLE, 0, values, 0, values.size)
         }
+        return status
     }
 
     /**
