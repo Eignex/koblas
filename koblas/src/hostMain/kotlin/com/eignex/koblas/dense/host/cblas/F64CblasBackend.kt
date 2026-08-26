@@ -1,6 +1,6 @@
 package com.eignex.koblas.dense.host.cblas
 
-import com.eignex.koblas.HOST_BACKEND_PRIORITY
+import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.internal.backend.BackendNames
 
@@ -11,7 +11,9 @@ import com.eignex.koblas.internal.backend.BackendNames
 public class F64CblasBackend private constructor(private val blas: F64Cblas, private val decompositions: F64Lapacke) :
     F64LinearAlgebra,
     F64Blas by blas,
-    F64Decompositions by decompositions {
+    F64Decompositions by decompositions,
+    F64RoutingBackend,
+    BackendMetadataProvider {
 
     private constructor(loader: OpenBlasLoader, config: HostBlasConfig) : this(
         F64Cblas(requireNotNull(loader.cblas) { NO_OPENBLAS }, loader),
@@ -32,6 +34,14 @@ public class F64CblasBackend private constructor(private val blas: F64Cblas, pri
 
     /** The BLAS half's kernels, so both halves' inherited routines agree. */
     override val kernels: F64Kernels get() = blas.kernels
+
+    override val backendMetadata: BackendMetadata get() = blas.backendMetadata
+
+    override fun route(query: F64RouteQuery): BackendRoute? = when (query.role) {
+        BackendRole.DENSE_BLAS -> blas.route(query)
+        BackendRole.DENSE_DECOMPOSITIONS -> decompositions.route(query)
+        else -> null
+    }?.let { if (it.execution == BackendExecution.NATIVE) it.copy(executor = name) else it }
 
     /** Availability checks for the host CBLAS and LAPACKE. */
     public companion object {

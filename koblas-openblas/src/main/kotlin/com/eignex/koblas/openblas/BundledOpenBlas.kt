@@ -1,6 +1,6 @@
 package com.eignex.koblas.openblas
 
-import com.eignex.koblas.HOST_BACKEND_PRIORITY
+import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.host.cblas.HostBlasConfig
 import com.eignex.koblas.dense.host.jvm.*
@@ -11,7 +11,9 @@ import java.nio.file.Path
 public class BundledOpenBlas private constructor(private val blas: F64Cblas, private val decompositions: F64Lapacke) :
     F64LinearAlgebra,
     F64Blas by blas,
-    F64Decompositions by decompositions {
+    F64Decompositions by decompositions,
+    F64RoutingBackend,
+    BackendMetadataProvider {
 
     /** Creates an OpenBLAS backend from bundled native resources. */
     public constructor() : this(loadHostBackends())
@@ -23,6 +25,13 @@ public class BundledOpenBlas private constructor(private val blas: F64Cblas, pri
     override val isAvailable: Boolean get() = blas.isAvailable && decompositions.isAvailable
     override val isPortable: Boolean get() = false
     override val kernels: F64Kernels get() = blas.kernels
+    override val backendMetadata: BackendMetadata get() = blas.backendMetadata
+
+    override fun route(query: F64RouteQuery): BackendRoute? = when (query.role) {
+        BackendRole.DENSE_BLAS -> blas.route(query)
+        BackendRole.DENSE_DECOMPOSITIONS -> decompositions.route(query)
+        else -> null
+    }?.let { if (it.execution == BackendExecution.NATIVE) it.copy(executor = name) else it }
 }
 
 internal data class OpenBlasPaths(val openblas: Path, val lapacke: Path?)

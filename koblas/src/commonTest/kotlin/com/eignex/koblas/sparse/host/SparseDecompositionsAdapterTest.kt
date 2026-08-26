@@ -1,5 +1,6 @@
 package com.eignex.koblas.sparse.host
 
+import com.eignex.koblas.*
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.backend.platformDispatchThresholds
 import com.eignex.koblas.sparse.F64SparseFactorization
@@ -82,5 +83,19 @@ class SparseDecompositionsAdapterTest {
         assertEquals(1, adapter.factors)
         assertEquals(1, adapter.choleskys)
         assertEquals(1, adapter.ldls)
+    }
+
+    @Test
+    fun `the sparse LU route reports both sides of its gate`() {
+        val adapter = RecordingAdapter(factorizeMin = 8)
+
+        val below = adapter.route(F64RouteQuery.SparseLu(7))!!
+        val native = adapter.route(F64RouteQuery.SparseLu(8))!!
+
+        assertEquals(BackendExecution.PORTABLE, below.execution)
+        assertEquals(BackendRouteReason.BELOW_THRESHOLD, below.reason)
+        assertEquals(DispatchGate(DispatchMetric.STORED_ENTRIES, 7, 8), below.gate)
+        assertEquals(BackendExecution.NATIVE, native.execution)
+        assertEquals(BackendRouteReason.NATIVE_ROUTE, native.reason)
     }
 }

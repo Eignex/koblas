@@ -28,10 +28,43 @@ public abstract class F64BlasAdapter internal constructor(
     private val f: CblasCalls,
     private val portable: F64ReferenceBlas = F64ReferenceBlas(),
     private val dispatch: DispatchThresholds = DispatchThresholds(0, 0, 0, 0),
-) : F64Blas {
+) : F64Blas,
+    F64RoutingBackend,
+    BackendMetadataProvider {
 
     /** A binding that calls out, whatever the portable instance it falls back to reports. */
     override val isPortable: Boolean get() = false
+
+    override val backendMetadata: BackendMetadata get() = BackendMetadata(integerAbi = "LP64")
+
+    override fun route(query: F64RouteQuery): BackendRoute? = when (query) {
+        is F64RouteQuery.DenseGemv -> {
+            val actual = minOf(query.rows, query.cols)
+            thresholdRoute(
+                query,
+                this,
+                portable.name,
+                DispatchGate(DispatchMetric.DIMENSION, actual.toLong(), dispatch.level2.toLong()),
+                actual >= dispatch.level2,
+                fallbackWhenUnavailable = false,
+            )
+        }
+
+        is F64RouteQuery.DenseGemm -> thresholdRoute(
+            query,
+            this,
+            portable.name,
+            DispatchGate(
+                DispatchMetric.LEVEL3_WORK,
+                saturatedProduct(query.m, query.n, query.k),
+                saturatedProduct(dispatch.level3, dispatch.level3, dispatch.level3),
+            ),
+            dispatchesLevel3(dispatch.level3, query.m, query.n, query.k),
+            fallbackWhenUnavailable = false,
+        )
+
+        else -> null
+    }
 
     // The routines below have no host binding, so they run the portable versions. Forwarded explicitly
     // rather than by class delegation, which would route a caller's convenience overloads to the portable

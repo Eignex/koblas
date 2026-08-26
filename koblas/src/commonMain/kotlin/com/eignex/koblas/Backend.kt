@@ -33,6 +33,22 @@ public interface Backend {
     public val isAvailable: Boolean get() = true
 }
 
+/** Runtime facts a backend can report without requiring callers to parse [Backend.name]. */
+public data class BackendMetadata(
+    /** Library or implementation version, when the provider can determine it. */
+    val version: String? = null,
+    /** Integer ABI used at the native boundary, such as `"LP64"`, when applicable and known. */
+    val integerAbi: String? = null,
+    /** Effective threading mode, when the provider can determine it. */
+    val threading: String? = null,
+)
+
+/** Optional capability for a [Backend] that can report structured runtime facts. */
+public interface BackendMetadataProvider {
+    /** The structured facts this backend knows about itself. */
+    public val backendMetadata: BackendMetadata
+}
+
 /**
  * The priority every host binding koblas ships registers at. A third-party backend is unprobed, and an ILP64
  * OpenBLAS exports identical symbols while computing wrong answers, caught by reading `openblas_get_config`.

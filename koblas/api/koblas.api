@@ -11,19 +11,150 @@ public final class com/eignex/koblas/Backend$DefaultImpls {
 	public static fun isPortable (Lcom/eignex/koblas/Backend;)Z
 }
 
+public final class com/eignex/koblas/BackendExecution : java/lang/Enum {
+	public static final field NATIVE Lcom/eignex/koblas/BackendExecution;
+	public static final field PORTABLE Lcom/eignex/koblas/BackendExecution;
+	public static final field UNAVAILABLE Lcom/eignex/koblas/BackendExecution;
+	public static final field UNKNOWN Lcom/eignex/koblas/BackendExecution;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/BackendExecution;
+	public static fun values ()[Lcom/eignex/koblas/BackendExecution;
+}
+
 public final class com/eignex/koblas/BackendKt {
 	public static final field HOST_BACKEND_PRIORITY I
 }
 
+public final class com/eignex/koblas/BackendMetadata {
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lcom/eignex/koblas/BackendMetadata;
+	public static synthetic fun copy$default (Lcom/eignex/koblas/BackendMetadata;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/eignex/koblas/BackendMetadata;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getIntegerAbi ()Ljava/lang/String;
+	public final fun getThreading ()Ljava/lang/String;
+	public final fun getVersion ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class com/eignex/koblas/BackendMetadataProvider {
+	public abstract fun getBackendMetadata ()Lcom/eignex/koblas/BackendMetadata;
+}
+
+public final class com/eignex/koblas/BackendRole : java/lang/Enum {
+	public static final field BASIS_SOLVERS Lcom/eignex/koblas/BackendRole;
+	public static final field DENSE_BLAS Lcom/eignex/koblas/BackendRole;
+	public static final field DENSE_DECOMPOSITIONS Lcom/eignex/koblas/BackendRole;
+	public static final field DENSE_KERNELS Lcom/eignex/koblas/BackendRole;
+	public static final field SPARSE_BLAS Lcom/eignex/koblas/BackendRole;
+	public static final field SPARSE_DECOMPOSITIONS Lcom/eignex/koblas/BackendRole;
+	public static final field SPARSE_KERNELS Lcom/eignex/koblas/BackendRole;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/BackendRole;
+	public static fun values ()[Lcom/eignex/koblas/BackendRole;
+}
+
+public final class com/eignex/koblas/BackendRoute {
+	public fun <init> (Lcom/eignex/koblas/F64RouteQuery;Lcom/eignex/koblas/BackendStatus;Lcom/eignex/koblas/BackendExecution;Ljava/lang/String;Lcom/eignex/koblas/BackendRouteReason;Lcom/eignex/koblas/DispatchGate;)V
+	public synthetic fun <init> (Lcom/eignex/koblas/F64RouteQuery;Lcom/eignex/koblas/BackendStatus;Lcom/eignex/koblas/BackendExecution;Ljava/lang/String;Lcom/eignex/koblas/BackendRouteReason;Lcom/eignex/koblas/DispatchGate;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lcom/eignex/koblas/F64RouteQuery;
+	public final fun component2 ()Lcom/eignex/koblas/BackendStatus;
+	public final fun component3 ()Lcom/eignex/koblas/BackendExecution;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Lcom/eignex/koblas/BackendRouteReason;
+	public final fun component6 ()Lcom/eignex/koblas/DispatchGate;
+	public final fun copy (Lcom/eignex/koblas/F64RouteQuery;Lcom/eignex/koblas/BackendStatus;Lcom/eignex/koblas/BackendExecution;Ljava/lang/String;Lcom/eignex/koblas/BackendRouteReason;Lcom/eignex/koblas/DispatchGate;)Lcom/eignex/koblas/BackendRoute;
+	public static synthetic fun copy$default (Lcom/eignex/koblas/BackendRoute;Lcom/eignex/koblas/F64RouteQuery;Lcom/eignex/koblas/BackendStatus;Lcom/eignex/koblas/BackendExecution;Ljava/lang/String;Lcom/eignex/koblas/BackendRouteReason;Lcom/eignex/koblas/DispatchGate;ILjava/lang/Object;)Lcom/eignex/koblas/BackendRoute;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAccelerated ()Z
+	public final fun getExecution ()Lcom/eignex/koblas/BackendExecution;
+	public final fun getExecutor ()Ljava/lang/String;
+	public final fun getGate ()Lcom/eignex/koblas/DispatchGate;
+	public final fun getQuery ()Lcom/eignex/koblas/F64RouteQuery;
+	public final fun getReason ()Lcom/eignex/koblas/BackendRouteReason;
+	public final fun getSelected ()Lcom/eignex/koblas/BackendStatus;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/eignex/koblas/BackendRouteReason : java/lang/Enum {
+	public static final field BACKEND_UNAVAILABLE Lcom/eignex/koblas/BackendRouteReason;
+	public static final field BELOW_THRESHOLD Lcom/eignex/koblas/BackendRouteReason;
+	public static final field NATIVE_ROUTE Lcom/eignex/koblas/BackendRouteReason;
+	public static final field NOT_REPORTED Lcom/eignex/koblas/BackendRouteReason;
+	public static final field SELECTED_PORTABLE Lcom/eignex/koblas/BackendRouteReason;
+	public static final field UNSUPPORTED_ARGUMENTS Lcom/eignex/koblas/BackendRouteReason;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/BackendRouteReason;
+	public static fun values ()[Lcom/eignex/koblas/BackendRouteReason;
+}
+
+public final class com/eignex/koblas/BackendStatus {
+	public fun <init> (Lcom/eignex/koblas/BackendRole;Ljava/lang/String;IZZZLcom/eignex/koblas/BackendMetadata;)V
+	public final fun component1 ()Lcom/eignex/koblas/BackendRole;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()I
+	public final fun component4 ()Z
+	public final fun component5 ()Z
+	public final fun component6 ()Z
+	public final fun component7 ()Lcom/eignex/koblas/BackendMetadata;
+	public final fun copy (Lcom/eignex/koblas/BackendRole;Ljava/lang/String;IZZZLcom/eignex/koblas/BackendMetadata;)Lcom/eignex/koblas/BackendStatus;
+	public static synthetic fun copy$default (Lcom/eignex/koblas/BackendStatus;Lcom/eignex/koblas/BackendRole;Ljava/lang/String;IZZZLcom/eignex/koblas/BackendMetadata;ILjava/lang/Object;)Lcom/eignex/koblas/BackendStatus;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAccelerated ()Z
+	public final fun getAvailable ()Z
+	public final fun getMetadata ()Lcom/eignex/koblas/BackendMetadata;
+	public final fun getPortable ()Z
+	public final fun getPriority ()I
+	public final fun getProvider ()Ljava/lang/String;
+	public final fun getRole ()Lcom/eignex/koblas/BackendRole;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class com/eignex/koblas/BackendStatusKt {
+	public static final fun backendFor (Lcom/eignex/koblas/F64Context;Lcom/eignex/koblas/BackendRole;)Lcom/eignex/koblas/Backend;
 	public static final fun backendFor (Lcom/eignex/koblas/F64Context;Lcom/eignex/koblas/internal/backend/BackendSlot;)Lcom/eignex/koblas/Backend;
+	public static final fun getPortableRoles (Lcom/eignex/koblas/F64Context;)Ljava/util/Set;
 	public static final fun getPortableSlots (Lcom/eignex/koblas/F64Context;)Ljava/util/Set;
+	public static final fun getStatus (Lcom/eignex/koblas/F64Context;)Lcom/eignex/koblas/F64ContextStatus;
+	public static final fun isAccelerated (Lcom/eignex/koblas/F64Context;Lcom/eignex/koblas/BackendRole;)Z
 	public static final fun isAccelerated (Lcom/eignex/koblas/F64Context;Lcom/eignex/koblas/internal/backend/BackendSlot;)Z
+	public static final fun requireAccelerated (Lcom/eignex/koblas/F64Context;Lcom/eignex/koblas/BackendRole;[Lcom/eignex/koblas/BackendRole;)V
 	public static final fun requireAccelerated (Lcom/eignex/koblas/F64Context;[Lcom/eignex/koblas/internal/backend/BackendSlot;)V
 }
 
 public final class com/eignex/koblas/DimensionMismatch : com/eignex/koblas/KoblasException {
 	public fun <init> (Ljava/lang/String;)V
+}
+
+public final class com/eignex/koblas/DispatchGate {
+	public fun <init> (Lcom/eignex/koblas/DispatchMetric;JJ)V
+	public final fun component1 ()Lcom/eignex/koblas/DispatchMetric;
+	public final fun component2 ()J
+	public final fun component3 ()J
+	public final fun copy (Lcom/eignex/koblas/DispatchMetric;JJ)Lcom/eignex/koblas/DispatchGate;
+	public static synthetic fun copy$default (Lcom/eignex/koblas/DispatchGate;Lcom/eignex/koblas/DispatchMetric;JJILjava/lang/Object;)Lcom/eignex/koblas/DispatchGate;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getActual ()J
+	public final fun getMetric ()Lcom/eignex/koblas/DispatchMetric;
+	public final fun getMinimum ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/eignex/koblas/DispatchMetric : java/lang/Enum {
+	public static final field DIMENSION Lcom/eignex/koblas/DispatchMetric;
+	public static final field LEVEL3_WORK Lcom/eignex/koblas/DispatchMetric;
+	public static final field STORED_ENTRIES Lcom/eignex/koblas/DispatchMetric;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/DispatchMetric;
+	public static fun values ()[Lcom/eignex/koblas/DispatchMetric;
 }
 
 public final class com/eignex/koblas/F64Context : com/eignex/koblas/dense/F64Blas, com/eignex/koblas/dense/F64Decompositions, com/eignex/koblas/dense/F64LinearAlgebra, com/eignex/koblas/sparse/F64SparseBlas, com/eignex/koblas/sparse/F64SparseDecompositions, com/eignex/koblas/sparse/F64SparseLinearAlgebra, com/eignex/koblas/sparse/basis/F64BasisSolvers {
@@ -99,6 +230,18 @@ public final class com/eignex/koblas/F64Context : com/eignex/koblas/dense/F64Bla
 	public static synthetic fun with$default (Lcom/eignex/koblas/F64Context;Lcom/eignex/koblas/dense/F64Kernels;Lcom/eignex/koblas/dense/F64Blas;Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/sparse/F64SparseKernels;Lcom/eignex/koblas/sparse/F64SparseBlas;Lcom/eignex/koblas/sparse/F64SparseDecompositions;Lcom/eignex/koblas/sparse/basis/F64BasisSolvers;ILjava/lang/Object;)Lcom/eignex/koblas/F64Context;
 }
 
+public final class com/eignex/koblas/F64ContextStatus {
+	public fun <init> (Ljava/util/List;)V
+	public final fun component1 ()Ljava/util/List;
+	public final fun copy (Ljava/util/List;)Lcom/eignex/koblas/F64ContextStatus;
+	public static synthetic fun copy$default (Lcom/eignex/koblas/F64ContextStatus;Ljava/util/List;ILjava/lang/Object;)Lcom/eignex/koblas/F64ContextStatus;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun get (Lcom/eignex/koblas/BackendRole;)Lcom/eignex/koblas/BackendStatus;
+	public final fun getBackends ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class com/eignex/koblas/F64Givens {
 	public final fun getC ()D
 	public final fun getR ()D
@@ -108,6 +251,91 @@ public final class com/eignex/koblas/F64Givens {
 public final class com/eignex/koblas/F64GivensKt {
 	public static final fun rot (Lcom/eignex/koblas/core/F64DenseVector;Lcom/eignex/koblas/core/F64DenseVector;Lcom/eignex/koblas/F64Givens;)V
 	public static final fun rotg (DD)Lcom/eignex/koblas/F64Givens;
+}
+
+public abstract interface class com/eignex/koblas/F64RouteQuery {
+	public abstract fun getRole ()Lcom/eignex/koblas/BackendRole;
+}
+
+public final class com/eignex/koblas/F64RouteQuery$DenseGemm : com/eignex/koblas/F64RouteQuery {
+	public fun <init> (III)V
+	public final fun component1 ()I
+	public final fun component2 ()I
+	public final fun component3 ()I
+	public final fun copy (III)Lcom/eignex/koblas/F64RouteQuery$DenseGemm;
+	public static synthetic fun copy$default (Lcom/eignex/koblas/F64RouteQuery$DenseGemm;IIIILjava/lang/Object;)Lcom/eignex/koblas/F64RouteQuery$DenseGemm;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getK ()I
+	public final fun getM ()I
+	public final fun getN ()I
+	public fun getRole ()Lcom/eignex/koblas/BackendRole;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/eignex/koblas/F64RouteQuery$DenseGemv : com/eignex/koblas/F64RouteQuery {
+	public fun <init> (II)V
+	public final fun component1 ()I
+	public final fun component2 ()I
+	public final fun copy (II)Lcom/eignex/koblas/F64RouteQuery$DenseGemv;
+	public static synthetic fun copy$default (Lcom/eignex/koblas/F64RouteQuery$DenseGemv;IIILjava/lang/Object;)Lcom/eignex/koblas/F64RouteQuery$DenseGemv;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCols ()I
+	public fun getRole ()Lcom/eignex/koblas/BackendRole;
+	public final fun getRows ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/eignex/koblas/F64RouteQuery$DenseLu : com/eignex/koblas/F64RouteQuery {
+	public fun <init> (I)V
+	public final fun component1 ()I
+	public final fun copy (I)Lcom/eignex/koblas/F64RouteQuery$DenseLu;
+	public static synthetic fun copy$default (Lcom/eignex/koblas/F64RouteQuery$DenseLu;IILjava/lang/Object;)Lcom/eignex/koblas/F64RouteQuery$DenseLu;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getOrder ()I
+	public fun getRole ()Lcom/eignex/koblas/BackendRole;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/eignex/koblas/F64RouteQuery$SparseDenseGemm : com/eignex/koblas/F64RouteQuery {
+	public fun <init> (IZZ)V
+	public synthetic fun <init> (IZZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()I
+	public final fun component2 ()Z
+	public final fun component3 ()Z
+	public final fun copy (IZZ)Lcom/eignex/koblas/F64RouteQuery$SparseDenseGemm;
+	public static synthetic fun copy$default (Lcom/eignex/koblas/F64RouteQuery$SparseDenseGemm;IZZILjava/lang/Object;)Lcom/eignex/koblas/F64RouteQuery$SparseDenseGemm;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getRight ()Z
+	public fun getRole ()Lcom/eignex/koblas/BackendRole;
+	public final fun getStoredEntries ()I
+	public final fun getTransposeDense ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/eignex/koblas/F64RouteQuery$SparseLu : com/eignex/koblas/F64RouteQuery {
+	public fun <init> (I)V
+	public final fun component1 ()I
+	public final fun copy (I)Lcom/eignex/koblas/F64RouteQuery$SparseLu;
+	public static synthetic fun copy$default (Lcom/eignex/koblas/F64RouteQuery$SparseLu;IILjava/lang/Object;)Lcom/eignex/koblas/F64RouteQuery$SparseLu;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getRole ()Lcom/eignex/koblas/BackendRole;
+	public final fun getStoredEntries ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class com/eignex/koblas/F64RoutingBackend : com/eignex/koblas/Backend {
+	public abstract fun route (Lcom/eignex/koblas/F64RouteQuery;)Lcom/eignex/koblas/BackendRoute;
+}
+
+public final class com/eignex/koblas/F64RoutingBackend$DefaultImpls {
+	public static fun getPriority (Lcom/eignex/koblas/F64RoutingBackend;)I
+	public static fun isAvailable (Lcom/eignex/koblas/F64RoutingBackend;)Z
+	public static fun isPortable (Lcom/eignex/koblas/F64RoutingBackend;)Z
 }
 
 public final class com/eignex/koblas/FactorizationKt {
@@ -172,8 +400,13 @@ public final class com/eignex/koblas/RegistryKt {
 	public static final fun getKoblasInfo ()Ljava/lang/String;
 	public static final fun installBackends (Lcom/eignex/koblas/F64Context;)V
 	public static final fun registerBackend (Lcom/eignex/koblas/Backend;)V
+	public static final fun registeredBackendNames (Lcom/eignex/koblas/BackendRole;)Ljava/util/List;
 	public static final fun registeredBackendNames (Lcom/eignex/koblas/internal/backend/BackendSlot;)Ljava/util/List;
 	public static final fun sparseDecompositionsNamed (Ljava/lang/String;)Lcom/eignex/koblas/sparse/F64SparseDecompositions;
+}
+
+public final class com/eignex/koblas/RoutingKt {
+	public static final fun route (Lcom/eignex/koblas/F64Context;Lcom/eignex/koblas/F64RouteQuery;)Lcom/eignex/koblas/BackendRoute;
 }
 
 public final class com/eignex/koblas/SingularMatrix : com/eignex/koblas/KoblasException {
@@ -739,16 +972,18 @@ public final class com/eignex/koblas/dense/Uplo : java/lang/Enum {
 	public static fun values ()[Lcom/eignex/koblas/dense/Uplo;
 }
 
-public abstract class com/eignex/koblas/dense/host/F64BlasAdapter : com/eignex/koblas/dense/F64Blas {
+public abstract class com/eignex/koblas/dense/host/F64BlasAdapter : com/eignex/koblas/BackendMetadataProvider, com/eignex/koblas/F64RoutingBackend, com/eignex/koblas/dense/F64Blas {
 	public fun gemm (DLcom/eignex/koblas/core/F64DenseMatrix;ZLcom/eignex/koblas/core/F64DenseMatrix;ZDLcom/eignex/koblas/core/F64DenseMatrix;)V
 	public fun gemm (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public fun gemv (DLcom/eignex/koblas/core/F64DenseMatrix;[DD[DZ)V
 	public fun gemv (Lcom/eignex/koblas/core/F64DenseMatrix;[DZ)[D
 	public fun ger (D[D[DLcom/eignex/koblas/core/F64DenseMatrix;)V
+	public fun getBackendMetadata ()Lcom/eignex/koblas/BackendMetadata;
 	public fun getKernels ()Lcom/eignex/koblas/dense/F64Kernels;
 	public fun getPriority ()I
 	public fun isAvailable ()Z
 	public fun isPortable ()Z
+	public fun route (Lcom/eignex/koblas/F64RouteQuery;)Lcom/eignex/koblas/BackendRoute;
 	public fun symm (DLcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/core/F64DenseMatrix;ZZ)V
 	public fun symv (DLcom/eignex/koblas/core/F64DenseMatrix;[DD[DZ)V
 	public fun syr (DLcom/eignex/koblas/core/F64VectorLike;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/Uplo;)V
@@ -762,13 +997,14 @@ public abstract class com/eignex/koblas/dense/host/F64BlasAdapter : com/eignex/k
 	public fun trsv (Lcom/eignex/koblas/core/F64DenseMatrix;[DZZZ)V
 }
 
-public abstract class com/eignex/koblas/dense/host/F64DecompositionsAdapter : com/eignex/koblas/dense/F64Decompositions {
+public abstract class com/eignex/koblas/dense/host/F64DecompositionsAdapter : com/eignex/koblas/BackendMetadataProvider, com/eignex/koblas/F64RoutingBackend, com/eignex/koblas/dense/F64Decompositions {
 	public fun applyQ (Lcom/eignex/koblas/dense/F64QrDecomposition;[DZ)[D
 	public fun applyQInto (Lcom/eignex/koblas/dense/F64QrDecomposition;[D[DZ)[D
 	public fun cholesky (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/CholeskyPolicy;)Lcom/eignex/koblas/dense/F64CholeskyDecomposition;
 	protected fun dgeqp3 (II[D[I[D)Ljava/lang/Integer;
 	public fun factor (Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/dense/F64LuDecomposition;
 	public fun factorInto (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/F64LuDecomposition;)Lcom/eignex/koblas/dense/F64LuDecomposition;
+	public fun getBackendMetadata ()Lcom/eignex/koblas/BackendMetadata;
 	public fun getKernels ()Lcom/eignex/koblas/dense/F64Kernels;
 	public fun getPriority ()I
 	public fun invert (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
@@ -779,6 +1015,7 @@ public abstract class com/eignex/koblas/dense/host/F64DecompositionsAdapter : co
 	public fun qr (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64QrDecomposition;
 	public fun qrPivoted (Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;
 	public fun rcond (Lcom/eignex/koblas/dense/F64LuDecomposition;DLcom/eignex/koblas/Workspace;)D
+	public fun route (Lcom/eignex/koblas/F64RouteQuery;)Lcom/eignex/koblas/BackendRoute;
 	public fun solve (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;[D)[D
 	public fun solve (Lcom/eignex/koblas/dense/F64LdlDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public fun solve (Lcom/eignex/koblas/dense/F64LdlDecomposition;[D)[D
@@ -1269,7 +1506,7 @@ public final class com/eignex/koblas/sparse/host/F64SparseBackends {
 	public final fun getUmfpack ()Lcom/eignex/koblas/sparse/host/umfpack/UmfpackSparseLu;
 }
 
-public abstract class com/eignex/koblas/sparse/host/F64SparseBlasAdapter : com/eignex/koblas/sparse/F64SparseBlas {
+public abstract class com/eignex/koblas/sparse/host/F64SparseBlasAdapter : com/eignex/koblas/F64RoutingBackend, com/eignex/koblas/sparse/F64SparseBlas {
 	protected fun <init> ()V
 	protected fun <init> (Ljava/lang/Integer;)V
 	public synthetic fun <init> (Ljava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
@@ -1284,12 +1521,13 @@ public abstract class com/eignex/koblas/sparse/host/F64SparseBlasAdapter : com/e
 	public fun getPriority ()I
 	public fun isAvailable ()Z
 	public fun isPortable ()Z
+	public fun route (Lcom/eignex/koblas/F64RouteQuery;)Lcom/eignex/koblas/BackendRoute;
 	public final fun transpose (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/core/F64SparseMatrix;
 	public final fun trsm (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZZZZD)V
 	public final fun trsv (Lcom/eignex/koblas/core/F64SparseMatrix;[DZZZ)V
 }
 
-public abstract class com/eignex/koblas/sparse/host/F64SparseDecompositionsAdapter : com/eignex/koblas/sparse/F64SparseDecompositions {
+public abstract class com/eignex/koblas/sparse/host/F64SparseDecompositionsAdapter : com/eignex/koblas/F64RoutingBackend, com/eignex/koblas/sparse/F64SparseDecompositions {
 	protected fun <init> ()V
 	protected fun <init> (Ljava/lang/Integer;Z)V
 	public synthetic fun <init> (Ljava/lang/Integer;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
@@ -1305,6 +1543,7 @@ public abstract class com/eignex/koblas/sparse/host/F64SparseDecompositionsAdapt
 	public fun isPortable ()Z
 	public final fun ldl (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
 	protected fun ldlNative (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
+	public fun route (Lcom/eignex/koblas/F64RouteQuery;)Lcom/eignex/koblas/BackendRoute;
 	public fun solve (Lcom/eignex/koblas/sparse/F64SparseFactorization;[DZ)[D
 	public fun solveInto (Lcom/eignex/koblas/sparse/F64SparseFactorization;[D[DZLcom/eignex/koblas/Workspace;)[D
 }

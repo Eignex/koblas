@@ -37,6 +37,33 @@ class AccelerationTest {
         override fun asum(v: DoubleArray, vOff: Int, len: Int): Double = absoluteSum(v, vOff, len)
     }
 
+    private class RoutedHost :
+        F64Blas by F64ReferenceLinearAlgebra,
+        F64RoutingBackend {
+        override val name: String get() = "routed"
+        override val priority: Int get() = 100
+        override val isPortable: Boolean get() = false
+
+        override fun route(query: F64RouteQuery): BackendRoute? {
+            if (query !is F64RouteQuery.DenseGemm) return null
+            return BackendRoute(
+                query,
+                BackendStatus(
+                    BackendRole.DENSE_BLAS,
+                    name,
+                    priority,
+                    available = true,
+                    portable = false,
+                    accelerated = true,
+                    BackendMetadata(),
+                ),
+                BackendExecution.NATIVE,
+                name,
+                BackendRouteReason.NATIVE_ROUTE,
+            )
+        }
+    }
+
     @Test
     fun `an empty registry reports the context itself as portable`() = withCleanBackends {
         assertTrue(koblas.isPortable, "nothing is registered, so every half is koblas's own")
@@ -117,6 +144,55 @@ class AccelerationTest {
         assertSame(host, koblas.backendFor(BackendSlot.F64Decompositions))
         assertSame(koblas.kernels, koblas.backendFor(BackendSlot.F64Kernels))
         assertSame(koblas.sparseBlas, koblas.backendFor(BackendSlot.F64SparseBlas))
+    }
+
+    @Test
+    fun `structured status names every public role`() = withCleanBackends {
+        registerBackend(FakeHost("openblas"))
+
+        val status = koblas.status
+
+        assertEquals(BackendRole.entries, status.backends.map { it.role })
+        assertEquals("openblas", status[BackendRole.DENSE_BLAS].provider)
+        assertTrue(status[BackendRole.DENSE_BLAS].accelerated)
+        assertEquals(BackendMetadata(), status[BackendRole.DENSE_BLAS].metadata)
+        assertEquals(koblas.blas, koblas.backendFor(BackendRole.DENSE_BLAS))
+        assertEquals(koblas.portableSlots.size, koblas.portableRoles.size)
+    }
+
+    @Test
+    fun `a portable context reports a portable operation route`() = withCleanBackends {
+        val query = F64RouteQuery.DenseGemm(64, 64, 64)
+
+        val route = koblas.route(query)
+
+        assertEquals(BackendExecution.PORTABLE, route.execution)
+        assertEquals(BackendRouteReason.SELECTED_PORTABLE, route.reason)
+        assertEquals("reference", route.executor)
+        assertFalse(route.accelerated)
+    }
+
+    @Test
+    fun `a reporting backend supplies an operation route`() = withCleanBackends {
+        registerBackend(RoutedHost())
+
+        val route = koblas.route(F64RouteQuery.DenseGemm(8, 16, 4))
+
+        assertEquals(BackendExecution.NATIVE, route.execution)
+        assertEquals("routed", route.selected.provider)
+        assertEquals("routed", route.executor)
+        assertTrue(route.accelerated)
+    }
+
+    @Test
+    fun `an unreporting backend leaves the route unknown`() = withCleanBackends {
+        registerBackend(FakeHost("opaque"))
+
+        val route = koblas.route(F64RouteQuery.DenseGemm(8, 8, 8))
+
+        assertEquals(BackendExecution.UNKNOWN, route.execution)
+        assertEquals(BackendRouteReason.NOT_REPORTED, route.reason)
+        assertEquals("opaque", route.selected.provider)
     }
 
     /** A sparse-kernel half at the default priority, which is what most registrations use. */
