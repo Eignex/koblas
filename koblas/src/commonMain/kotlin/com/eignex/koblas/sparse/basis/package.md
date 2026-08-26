@@ -14,6 +14,16 @@ The simplex basis seam: a factorization held across pivots rather than one taken
   Its solves run densely between the seam and [com.eignex.koblas.sparse.F64SparseLu]; the seam stays indexed
   so a host binding that solves hypersparsely has nothing to undo.
 
+- [F64BasisSolvers] — the backend half. It is separate from [com.eignex.koblas.sparse.F64SparseLu] because
+  the two basis contracts want different libraries, and held in one seam the strongest at either would take
+  the other from whoever was strongest there.
+
 This is the counterpart of [com.eignex.koblas.sparse.F64BasisFactorization], which factors a basis a caller
-hands over whole and answers a column replacement with a superseding factorization. That shape suits a caller
-holding one basis; this one suits a caller pivoting through thousands.
+hands over whole and answers a column replacement with a superseding factorization. The difference is not
+that one supersedes the other. That one takes *any* entering column, so it wants a backend carrying the
+basis independently of a matrix, which is BASICLU and is what an interior point method's basis
+preconditioner asks for. This one names the entering column by index into a matrix fixed for the solver's
+lifetime, which is what lets a backend keep the factors where the columns lie and solve hypersparsely, and
+is what a simplex pivoting through thousands of bases asks for. A backend reading its columns out of a
+matrix by index cannot answer the first: the update would go through, but the refactorization behind it
+would have no column to rebuild from.

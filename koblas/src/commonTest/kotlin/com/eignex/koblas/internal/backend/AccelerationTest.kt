@@ -68,6 +68,7 @@ class AccelerationTest {
                 BackendSlot.F64SparseKernels,
                 BackendSlot.F64SparseBlas,
                 BackendSlot.F64SparseLu,
+                BackendSlot.F64BasisSolvers,
             ),
             koblas.portableSlots,
         )

@@ -4,11 +4,12 @@ import com.eignex.koblas.Backend
 import com.eignex.koblas.F64Context
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.sparse.*
+import com.eignex.koblas.sparse.basis.F64BasisSolvers
 import kotlin.concurrent.Volatile
 import kotlin.concurrent.atomics.*
 
 /**
- * The six double-precision seams and the context they compose. One element type's registrations live in one
+ * The double-precision seams and the context they compose. One element type's registrations live in one
  * of these, so an element type added later brings its own rather than widening this one: its halves are
  * different interfaces, and a backend offered to the public registry belongs to whichever registry recognises
  * it. [Seam] and the ranking are shared, so what differs between two registries is only the six types.
@@ -21,6 +22,7 @@ internal class F64Registry {
     private val sparseVectorKernelSeam = Seam<F64SparseKernels>(::recompose)
     private val sparseBlasSeam = Seam<F64SparseBlas>(::recompose)
     private val sparseLuSeam = Seam<F64SparseLu>(::recompose)
+    private val basisSolverSeam = Seam<F64BasisSolvers>(::recompose)
 
     /**
      * One seam paired with the cast that recognises its half. The cast is written out rather than reflected,
@@ -46,6 +48,7 @@ internal class F64Registry {
         BackendSlot.F64SparseKernels to Half(sparseVectorKernelSeam) { it as? F64SparseKernels },
         BackendSlot.F64SparseBlas to Half(sparseBlasSeam) { it as? F64SparseBlas },
         BackendSlot.F64SparseLu to Half(sparseLuSeam) { it as? F64SparseLu },
+        BackendSlot.F64BasisSolvers to Half(basisSolverSeam) { it as? F64BasisSolvers },
     )
 
     init {
@@ -114,6 +117,7 @@ internal class F64Registry {
         sparseKernels = sparseVectorKernelSeam.active ?: F64PlatformSparseKernels,
         sparseBlas = sparseBlasSeam.active ?: F64ReferenceSparseLinearAlgebra,
         sparseLu = sparseLuSeam.active ?: F64ReferenceSparseLinearAlgebra,
+        basisSolvers = basisSolverSeam.active ?: F64ReferenceSparseLinearAlgebra,
     )
 
     private fun recompose() {
