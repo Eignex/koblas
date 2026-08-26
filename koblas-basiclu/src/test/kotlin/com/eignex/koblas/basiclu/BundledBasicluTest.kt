@@ -6,6 +6,7 @@ import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.sparse.F64ReferenceSparseDecompositions
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.host.basiclu.BasicluSparseLu
+import com.eignex.koblas.withColumn
 import kotlin.test.*
 
 class BundledBasicluTest {
@@ -44,6 +45,26 @@ class BundledBasicluTest {
             F64ReferenceSparseLinearAlgebra.factor(expected).solve(doubleArrayOf(3.0, 4.0)),
             factorization.solve(doubleArrayOf(3.0, 4.0)),
         )
+    }
+
+    /**
+     * The basis a run of replacements left behind, which the factorization builds when it is asked for
+     * rather than at each replacement. A slot replaced twice keeps only what went into it last.
+     */
+    @Test
+    fun `the bundled BASICLU follows a run of replacements to the basis they leave`() {
+        val basis = SparseMatrix.ofColumns(3, 3, listOf(listOf(0 to 1.0), listOf(1 to 1.0), listOf(2 to 1.0)))
+        val first = F64SparseVector.of(3, intArrayOf(0, 1), doubleArrayOf(1.0, 2.0))
+        val second = F64SparseVector.of(3, intArrayOf(1, 2), doubleArrayOf(3.0, 1.0))
+        val third = F64SparseVector.of(3, intArrayOf(0, 2), doubleArrayOf(4.0, 5.0))
+
+        val factorization = BundledBasiclu(factorizeMin = 0)
+            .factorBasis(basis)
+            .replaceColumn(1, first)
+            .replaceColumn(2, second)
+            .replaceColumn(1, third)
+
+        assertEquals(basis.withColumn(1, first).withColumn(2, second).withColumn(1, third), factorization.basis)
     }
 
     /**
