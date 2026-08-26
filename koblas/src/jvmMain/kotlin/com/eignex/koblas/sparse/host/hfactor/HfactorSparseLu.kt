@@ -9,6 +9,7 @@ import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.F64SingularSparseFactorization
 import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.basis.F64BasisSolver
+import com.eignex.koblas.sparse.basis.F64BasisSolvers
 import com.eignex.koblas.sparse.basis.F64ProductFormBasisSolver
 import com.eignex.koblas.sparse.host.F64SparseLuAdapter
 
@@ -23,14 +24,24 @@ import com.eignex.koblas.sparse.host.F64SparseLuAdapter
 public class HfactorSparseLu(
     /** Policy for this backend instance. */
     public val config: HfactorConfig = HfactorConfig(),
-) : F64SparseLuAdapter(config.factorizeMin) {
+) : F64SparseLuAdapter(config.factorizeMin),
+    F64BasisSolvers {
     private val calls = HfactorCalls(config)
 
     override val name: String get() = BackendNames.HFACTOR
-    override val priority: Int get() = HOST_BACKEND_PRIORITY + 4
+
+    /**
+     * Below the general sparse LUs, which are better at the factorization this also offers, and it does not
+     * need to outrank them to win the half it is here for: no other backend offers [basisSolver].
+     */
+    override val priority: Int get() = HOST_BACKEND_PRIORITY - 2
     override val nativeAvailable: Boolean get() = calls.available
 
-    override val supportsBasisUpdates: Boolean get() = nativeAvailable
+    /**
+     * False, and not because HFactor cannot update a basis. [factorBasis] answers with the shape that takes
+     * any entering column, which HFactor cannot rebuild from; its updates are on [basisSolver] instead.
+     */
+    override val supportsBasisUpdates: Boolean get() = false
 
     /**
      * HFactor offers no row scaling, so an equilibrated factorization stays with the portable one rather

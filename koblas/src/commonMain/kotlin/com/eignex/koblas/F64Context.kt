@@ -9,6 +9,7 @@ import com.eignex.koblas.sparse.F64SparseBlas
 import com.eignex.koblas.sparse.F64SparseKernels
 import com.eignex.koblas.sparse.F64SparseLinearAlgebra
 import com.eignex.koblas.sparse.F64SparseLu
+import com.eignex.koblas.sparse.basis.F64BasisSolvers
 
 /**
  * Every backend koblas will use for a piece of work, in one object you can hold. Immutable, and itself a
@@ -20,6 +21,7 @@ import com.eignex.koblas.sparse.F64SparseLu
  * @property sparseKernels sparse vector-vector routines.
  * @property sparseBlas sparse matrix routines.
  * @property sparseLu sparse factorizations.
+ * @property basisSolvers simplex basis solvers, a half of their own beside [sparseLu].
  */
 public class F64Context(
     override val kernels: F64Kernels,
@@ -28,12 +30,14 @@ public class F64Context(
     override val sparseKernels: F64SparseKernels,
     public val sparseBlas: F64SparseBlas,
     public val sparseLu: F64SparseLu,
+    public val basisSolvers: F64BasisSolvers,
 ) : F64LinearAlgebra,
     F64Blas by blas,
     F64Decompositions by decompositions,
     F64SparseLinearAlgebra,
     F64SparseBlas by sparseBlas,
-    F64SparseLu by sparseLu {
+    F64SparseLu by sparseLu,
+    F64BasisSolvers by basisSolvers {
 
     /**
      * The distinct names of the backends that do the matrix work, joined, such as `"openblas+reference"`.
@@ -63,6 +67,7 @@ public class F64Context(
         sparseKernels: F64SparseKernels = this.sparseKernels,
         sparseBlas: F64SparseBlas = this.sparseBlas,
         sparseLu: F64SparseLu = this.sparseLu,
+        basisSolvers: F64BasisSolvers = this.basisSolvers,
     ): F64Context = F64Context(
         kernels = kernels,
         blas = blas,
@@ -70,6 +75,7 @@ public class F64Context(
         sparseKernels = sparseKernels,
         sparseBlas = sparseBlas,
         sparseLu = sparseLu,
+        basisSolvers = basisSolvers,
     )
 
     override fun toString(): String = "F64Context($name)"

@@ -147,6 +147,7 @@ class KoblasContextTest {
             sparseKernels = F64ReferenceSparseLinearAlgebra,
             sparseBlas = F64ReferenceSparseLinearAlgebra,
             sparseLu = F64ReferenceSparseLinearAlgebra,
+            basisSolvers = F64ReferenceSparseLinearAlgebra,
         )
         assertEquals(0, reference.priority, "every reference half has priority 0")
         assertEquals("reference", reference.name, "one distinct backend name should not repeat")

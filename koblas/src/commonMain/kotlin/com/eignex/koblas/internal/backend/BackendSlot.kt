@@ -7,7 +7,7 @@ import com.eignex.koblas.F64Context
  * The halves of the seam a backend can implement.
  *
  * Each entry knows how to read its half out of a context, so the places that need every half in turn read
- * them from [entries] rather than listing the six again. The constant names are the interface names, which
+ * them from [entries] rather than listing them all again. The constant names are the interface names, which
  * is what makes them usable in a diagnostic. A vector half is one sitting below the matrix routines, as the
  * vector-vector kernels do.
  */
@@ -29,6 +29,9 @@ public enum class BackendSlot(internal val from: (F64Context) -> Backend, intern
 
     /** Sparse factorizations. */
     F64SparseLu({ it.sparseLu }),
+
+    /** Simplex basis solvers. */
+    F64BasisSolvers({ it.basisSolvers }),
     ;
 
     internal companion object {

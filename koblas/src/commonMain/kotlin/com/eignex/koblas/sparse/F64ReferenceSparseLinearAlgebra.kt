@@ -6,6 +6,8 @@ import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.dense.applyBeta
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.numeric.euclideanNorm
+import com.eignex.koblas.sparse.basis.F64BasisSolver
+import com.eignex.koblas.sparse.basis.F64ProductFormBasisSolver
 import com.eignex.koblas.sparse.factorization.lu.F64SparseLuFactorization
 import kotlin.math.abs
 
@@ -20,6 +22,9 @@ public object F64ReferenceSparseLinearAlgebra :
     override val name: String get() = BackendNames.REFERENCE
 
     override val isPortable: Boolean get() = true
+
+    /** The product form over this backend's own factorization, so the portable half stays portable. */
+    override fun basisSolver(a: F64SparseMatrix): F64BasisSolver = F64ProductFormBasisSolver(a, this)
 
     @Suppress("LongParameterList") // the BLAS dgemv signature
     override fun gemv(

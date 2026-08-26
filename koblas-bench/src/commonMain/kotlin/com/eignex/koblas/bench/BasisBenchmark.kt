@@ -51,11 +51,13 @@ class BasisBenchmark {
         val rng = benchRng()
         a = simplexProblem(n, rng, spikeFraction = if (shape == SPIKED_COLUMNS) 0.5 else 0.0)
         logical = IntArray(n) { n + it }
-        solver = koblas.sparseLu.basisSolver(a)
+        solver = koblas.basisSolvers.basisSolver(a)
         spike = F64IndexedVector(n)
         eta = F64IndexedVector(n)
         check(solver.refactorize(logical)) { "the logical basis did not factor" }
-        println("resolved: sparseLu=${koblas.sparseLu.name} shape=$shape nnz(A)=${a.nnz} fill=${solver.nnz}")
+        println(
+            "resolved: basisSolvers=${koblas.basisSolvers.name} shape=$shape nnz(A)=${a.nnz} fill=${solver.nnz}",
+        )
     }
 
     @Benchmark
