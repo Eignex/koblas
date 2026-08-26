@@ -36,7 +36,9 @@ fun toolVersion(command: String) = providers.exec { commandLine(command, "--vers
 
 val cCompiler = providers.environmentVariable("CC").orElse("cc")
 
-// SPQR is C++, so this build wants a C++ compiler alongside the C one every other package uses.
+// Nothing enabled here is C++, but SuiteSparse's top-level project() names no languages and so enables the
+// C++ one cmake defaults to, which it then refuses to configure without a compiler for. Naming it here
+// fails on a host missing one before cmake does, whose own complaint would come out of a silenced configure.
 val cxxCompiler = providers.environmentVariable("CXX").orElse("c++")
 val buildSuiteSparse = tasks.register<Exec>("buildSuiteSparse") {
     val platform = suiteSparsePlatform.get()
@@ -71,11 +73,11 @@ sourceSets.named("main") { resources.srcDir(suiteSparseResources) }
 tasks.named("processResources") { if (!lintOnly) dependsOn(buildSuiteSparse) }
 tasks.named<Jar>("sourcesJar") { dependsOn(buildSuiteSparse) }
 
-// CHOLMOD and SPQR carry no binding yet, so this task is the only thing that would notice them going
-// missing from a platform's build.
+// Each platform's libraries are built on that platform, so a publish is the first place all three meet and
+// this check is what catches one missing from a build that happened elsewhere.
 val bundledLibraries = mapOf(
-    "linux" to listOf("libklu.so.2", "libumfpack.so.6", "libcholmod.so.5", "libspqr.so.4"),
-    "macos" to listOf("libklu.2.dylib", "libumfpack.dylib", "libcholmod.5.dylib", "libspqr.4.dylib"),
+    "linux" to listOf("libklu.so.2", "libumfpack.so.6", "libcholmod.so.5"),
+    "macos" to listOf("libklu.2.dylib", "libumfpack.dylib", "libcholmod.5.dylib"),
 )
 
 val verifySuiteSparseResources = tasks.register("verifySuiteSparseResources") {
