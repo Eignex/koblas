@@ -227,6 +227,13 @@ Acceptance criteria:
 
 ### PR 5: Add deterministic native factor lifecycle
 
+Status: open as [PR #320](https://github.com/Eignex/koblas/pull/320) from
+`codex/native-factor-lifecycle`; portable lifecycle tests, bundled BASICLU and HFactor tests, JVM and
+Linux/Native host tests, and close-versus-call race coverage passed, and `./gradlew check lintDocs
+--rerun-tasks` passed all 190 tasks. Sparse factors and basis solvers now expose an idempotent close contract,
+superseded factors are closed by refactorization workflows, and cleaners remain a fallback behind the same
+single-release guard.
+
 - Add an idempotent close contract to sparse factorization resources.
 - Implement explicit release for JVM and Kotlin/Native KLU, UMFPACK, CHOLMOD, BASICLU, and HFactor resources.
 - Retain cleaner fallback without double-free risk.
