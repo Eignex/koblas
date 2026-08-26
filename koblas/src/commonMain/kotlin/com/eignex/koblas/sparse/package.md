@@ -22,8 +22,16 @@ mirror the dense ones.
   returns [F64SparseFactorization], never null: a singular matrix yields a factorization reporting
   `singular`, matching the dense contract. [F64SparseDecompositions.cholesky] is `A = L·Lᵀ` for a symmetric
   positive-definite matrix, reading only the lower triangle, and raises where the LU reports, because a
-  non-positive pivot says the matrix was not the one the caller described. Both factorizations solve in the
-  ordinary and the transposed direction, which for the Cholesky is the same direction twice.
+  non-positive pivot says the matrix was not the one the caller described.
+  [F64SparseDecompositions.ldl] is `A = L·D·Lᵀ` for a symmetric matrix that need not be definite, and reports
+  a zero pivot as singular the way the LU does, a negative one being no failure at all. All three solve in the
+  ordinary and the transposed direction, which for the two symmetric ones is the same direction twice.
+
+  The sparse `ldl` is not the sparse counterpart of the dense one, whatever the shared name suggests. The
+  dense one pivots for stability; neither the portable sparse one nor any library behind this seam does, the
+  permutation being chosen to limit fill with nothing reordering on the numbers. It is the factorization for a
+  quasi-definite matrix, which is what an interior point method's KKT system is, and a caller who cannot
+  promise that wants [F64SparseDecompositions.factor], whose pivoting is numerical.
 - [F64BasisFactorization] — a sparse LU factorization of a simplex basis. It retains the basis matrix and
   can produce the factorization after one column replacement, which may be any column at all. BASICLU
   answers it; [F64RefactoringBasisFactorization] wraps any other backend at the cost of a factorization per

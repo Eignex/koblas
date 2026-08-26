@@ -4,6 +4,7 @@ package com.eignex.koblas.sparse.host.cholmod
 
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.singularFailure
 import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.requireSolveShapes
 import kotlinx.cinterop.*
@@ -17,6 +18,8 @@ public class CholmodFactorization internal constructor(
     private val handle: CholmodHandle,
     private val functions: CholmodFunctions,
     override val n: Int,
+    /** The column a zero pivot stopped an `L·D·Lᵀ` at, or [NOT_SINGULAR]; a Cholesky raises instead. */
+    override val failedAt: Int = NOT_SINGULAR,
 ) : F64SparseFactorization {
 
     /** The factor and the common it must be freed against, one object so the cleaner captures only these. */
@@ -37,11 +40,12 @@ public class CholmodFactorization internal constructor(
     @Suppress("unused") // the cleaner runs when this property becomes unreachable, which is the point
     private val cleaner = createCleaner(handle) { it.release() }
 
-    /** Always [NOT_SINGULAR]: a non-positive pivot is raised at factorization rather than carried here. */
-    override val failedAt: Int get() = NOT_SINGULAR
-
-    override val nnz: Int get() = anchoring {
-        sizeAt(handle.factor.reinterpret(), CHOLMOD_FACTOR_NZMAX).toInt()
+    override val nnz: Int get() = if (singular) {
+        0
+    } else {
+        anchoring {
+            sizeAt(handle.factor.reinterpret(), CHOLMOD_FACTOR_NZMAX).toInt()
+        }
     }
 
     /**
@@ -49,12 +53,17 @@ public class CholmodFactorization internal constructor(
      * an `L·Lᵀ`. The square root brings it back to the ratio this seam documents, so the number means the
      * same thing whichever backend produced it.
      */
-    override val rcond: Double get() = anchoring {
-        val estimate = functions.rcond(handle.factor.reinterpret(), handle.common)
-        if (intAt(handle.factor.reinterpret(), CHOLMOD_FACTOR_IS_LL) == CHOLMOD_TRUE) sqrt(estimate) else estimate
+    override val rcond: Double get() = if (singular) {
+        0.0
+    } else {
+        anchoring {
+            val estimate = functions.rcond(handle.factor.reinterpret(), handle.common)
+            if (intAt(handle.factor.reinterpret(), CHOLMOD_FACTOR_IS_LL) == CHOLMOD_TRUE) sqrt(estimate) else estimate
+        }
     }
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray {
+        if (singular) throw singularFailure(failedAt, "solve")
         requireSolveShapes(n, b, out)
         if (out !== b) b.copyInto(out)
         anchoring {

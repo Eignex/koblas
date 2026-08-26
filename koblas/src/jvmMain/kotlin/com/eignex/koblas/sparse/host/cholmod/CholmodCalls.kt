@@ -44,7 +44,14 @@ internal class CholmodCalls(private val config: CholmodConfig) {
      * and because a factor has to be freed against the same one it was made with. It is never finished: the
      * factors outlive any scope this could close in, and the process exiting reclaims it.
      */
-    private val common: MemorySegment? by lazy { startCommon() }
+    private val common: MemorySegment? by lazy { startCommon(CHOLMOD_TRUE) }
+
+    /**
+     * A second common asking for `L·D·Lᵀ`, which is CHOLMOD's own default. Two rather than one flipped per
+     * call, because the flag lives in the common and a factorization sharing it with another thread's would
+     * get whichever kind that thread asked for.
+     */
+    private val commonLdl: MemorySegment? by lazy { startCommon(0) }
 
     /** Whether a libcholmod carrying the 32-bit family opened, which creates no downcall handle. */
     val libraryPresent: Boolean get() = library.present
@@ -94,23 +101,23 @@ internal class CholmodCalls(private val config: CholmodConfig) {
         null
     }
 
-    private fun startCommon(): MemorySegment? {
+    private fun startCommon(finalLl: Int): MemorySegment? {
         val bound = handles ?: return null
         // The global arena keeps the common alive for as long as any factor made against it.
         val block = Arena.global().allocate(CHOLMOD_COMMON_BYTES)
         if (bound.start.invokeExact(block) as Int != CHOLMOD_TRUE) return null
-        block.set(JAVA_INT, CHOLMOD_COMMON_FINAL_LL, CHOLMOD_TRUE)
+        block.set(JAVA_INT, CHOLMOD_COMMON_FINAL_LL, finalLl)
         block.set(JAVA_INT, CHOLMOD_COMMON_PRINT, 0)
         return block
     }
 
     /**
-     * Analyze and factorize [a]'s lower triangle, returning the factor and the column its pivot failed at,
-     * or null when the library is unusable. The caller owns the returned factor and frees it with [free].
+     * Analyze and factorize [a]'s lower triangle into `L·Lᵀ`, or into `L·D·Lᵀ` when [ldl], or null when the
+     * library is unusable. The caller owns the returned factor and frees it with [free].
      */
-    fun factorize(a: CholmodMatrix): CholmodFactor? {
+    fun factorize(a: CholmodMatrix, ldl: Boolean = false): CholmodFactor? {
         val bound = handles ?: return null
-        val shared = common ?: return null
+        val shared = (if (ldl) commonLdl else common) ?: return null
         val factor = bound.analyze.invokeExact(a.segment, shared) as MemorySegment
         if (factor.address() == 0L) return null
         val reinterpreted = factor.reinterpret(CHOLMOD_FACTOR_BYTES)

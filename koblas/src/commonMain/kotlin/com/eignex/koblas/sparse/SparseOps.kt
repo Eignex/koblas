@@ -13,6 +13,12 @@ public fun F64SparseMatrix.lu(): F64SparseFactorization = koblas.factor(this)
  */
 public fun F64SparseMatrix.cholesky(): F64SparseFactorization = koblas.cholesky(this)
 
+/**
+ * Factorize this symmetric matrix into `L·D·Lᵀ` with the active backend ([koblas]), reading only its lower
+ * triangle. See [F64SparseDecompositions.ldl], which says what it does and does not promise.
+ */
+public fun F64SparseMatrix.ldl(): F64SparseFactorization = koblas.ldl(this)
+
 /** `this · x`, or `thisᵀ · x` when [transpose], with the active backend ([koblas]). */
 public fun F64SparseMatrix.gemv(x: DoubleArray, transpose: Boolean = false): DoubleArray = koblas.gemv(
     this,

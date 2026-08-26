@@ -3,6 +3,7 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.sparse.factorization.cholesky.F64SparseCholeskyFactorization
+import com.eignex.koblas.sparse.factorization.ldl.F64SparseLdlFactorization
 import com.eignex.koblas.sparse.factorization.lu.F64SparseLuFactorization
 import com.eignex.koblas.sparse.factorization.lu.NO_DROP
 
@@ -35,6 +36,9 @@ public open class F64ReferenceSparseDecompositions(
     /** Neither knob reaches here: equilibration would break the symmetry, and a drop tolerance would leave
      *  an incomplete factor, which is a preconditioner rather than the factorization this promises. */
     override fun cholesky(a: F64SparseMatrix): F64SparseFactorization = F64SparseCholeskyFactorization.factorLower(a)
+
+    /** The knobs stay out of this one too, for the reason above. */
+    override fun ldl(a: F64SparseMatrix): F64SparseFactorization = F64SparseLdlFactorization.factorLower(a)
 
     /** No scaling and no drop tolerance, so `F64ReferenceSparseDecompositions.factor(a)` reads as the plain routine. */
     public companion object Default : F64ReferenceSparseDecompositions()

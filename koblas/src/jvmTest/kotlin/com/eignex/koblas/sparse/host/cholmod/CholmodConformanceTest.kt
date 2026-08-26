@@ -5,10 +5,12 @@ import com.eignex.koblas.assertClose
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.assertCholeskyAgreesWithReference
+import com.eignex.koblas.sparse.assertLdlAgreesWithReference
 import com.eignex.koblas.sparse.host.klu.KluConfig
 import com.eignex.koblas.sparse.host.klu.KluSparseLu
 import com.eignex.koblas.sparse.host.umfpack.UmfpackConfig
 import com.eignex.koblas.sparse.host.umfpack.UmfpackSparseLu
+import com.eignex.koblas.sparse.indefiniteConformanceSystem
 import com.eignex.koblas.sparse.sparseSymmetricConformanceSystem
 import com.eignex.koblas.testutil.host.HostLibraryTest
 import org.junit.Assume
@@ -51,6 +53,30 @@ class CholmodConformanceTest {
 
         assertIs<CholmodFactorization>(umfpack.cholesky(a), "UMFPACK should answer with CHOLMOD's Cholesky")
         assertIs<CholmodFactorization>(klu.cholesky(a), "KLU should answer with CHOLMOD's Cholesky")
+    }
+
+    /**
+     * The factorization CHOLMOD produces by default, which the Cholesky path turns off. An indefinite matrix
+     * is what tells the two apart: it has an `L·D·Lᵀ` and no `L·Lᵀ`.
+     */
+    @Test
+    fun `the LDL comes from CHOLMOD and factors a matrix the Cholesky refuses`() {
+        requireCholmod()
+        Assume.assumeTrue("SuiteSparse is not installed", umfpack.isAvailable)
+        val a = indefiniteConformanceSystem(20, Random(20260928))
+
+        val f = umfpack.ldl(a)
+
+        assertIs<CholmodFactorization>(f, "expected CHOLMOD's factorization rather than the portable fallback")
+        assertTrue(!f.singular, "an invertible indefinite system has an L D Lt")
+        assertFailsWith<NotPositiveDefinite> { umfpack.cholesky(a) }
+    }
+
+    @Test
+    fun `LDL solutions agree with the portable one`() {
+        requireCholmod()
+        Assume.assumeTrue("SuiteSparse is not installed", umfpack.isAvailable)
+        assertLdlAgreesWithReference(umfpack)
     }
 
     @Test

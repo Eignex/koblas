@@ -124,6 +124,7 @@ class SparseSeamTest {
         override val name: String get() = "counting-decompositions"
         var factors = 0
         var choleskys = 0
+        var ldls = 0
 
         override fun factor(a: F64SparseMatrix): F64SparseFactorization {
             factors++
@@ -133,6 +134,11 @@ class SparseSeamTest {
         override fun cholesky(a: F64SparseMatrix): F64SparseFactorization {
             choleskys++
             return F64ReferenceSparseLinearAlgebra.cholesky(a)
+        }
+
+        override fun ldl(a: F64SparseMatrix): F64SparseFactorization {
+            ldls++
+            return F64ReferenceSparseLinearAlgebra.ldl(a)
         }
     }
 
@@ -207,6 +213,9 @@ class SparseSeamTest {
 
         a.cholesky()
         assertEquals(1, decompositions.choleskys, "F64SparseMatrix.cholesky should forward to the seam")
+
+        a.ldl()
+        assertEquals(1, decompositions.ldls, "F64SparseMatrix.ldl should forward to the seam")
     }
 
     /**

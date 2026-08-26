@@ -42,6 +42,9 @@ public open class UmfpackSparseLu(
     final override fun choleskyNative(a: F64SparseMatrix): F64SparseFactorization =
         cholmod.factor(a) ?: portable.cholesky(a)
 
+    /** CHOLMOD's own default factorization, which is the one this seam's `ldl` asks for. */
+    final override fun ldlNative(a: F64SparseMatrix): F64SparseFactorization = cholmod.factorLdl(a) ?: portable.ldl(a)
+
     internal val refinementSteps: Double? get() = calls.refinementSteps
 
     internal val pivotTolerance: Double? get() = calls.pivotTolerance
