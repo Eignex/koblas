@@ -7,6 +7,7 @@ import com.eignex.koblas.sparse.basis.BasisUpdate
 import com.eignex.koblas.sparse.basis.F64BasisSolver
 import com.eignex.koblas.sparse.basis.F64IndexedVector
 import com.eignex.koblas.sparse.basis.F64ProductFormBasisSolver
+import com.eignex.koblas.sparse.host.hfactor.HfactorSparseLu
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.*
@@ -171,5 +172,11 @@ class BundledHfactorTest {
             factorization.rcond > 0.0 && factorization.rcond <= 1.0,
             "pivot ratio ${factorization.rcond} outside (0, 1]",
         )
+    }
+
+    /** A caller reaching this library by name gets its own routines only if the two share a type. */
+    @Test
+    fun `the bundled HFactor is the binding rather than a wrapper around it`() {
+        assertIs<HfactorSparseLu>(BundledHfactor(), "the bundled providers all answer as the type their binding is")
     }
 }

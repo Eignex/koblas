@@ -73,12 +73,13 @@ internal class Seam<T : Backend>(private val onChange: () -> Unit = {}) {
     /**
      * Explicit offers outrank automatic ones, and priority ranks offers of the same kind. Ties keep
      * registration order, so the first to offer holds the half against a later equal.
+     *
+     * Ordered rather than narrowed to the explicit ones: an explicit offer takes the half from an automatic
+     * offer without making it unfindable, and what [named] is asked for is usually the backend that lost.
      */
-    private fun ranked(offers: List<Registration<T>>): List<Registration<T>> {
-        val explicit = offers.filter { it.explicit }
-        val pool = explicit.ifEmpty { offers }
-        return pool.sortedByDescending { it.backend.priority }
-    }
+    private fun ranked(offers: List<Registration<T>>): List<Registration<T>> = offers.sortedWith(
+        compareByDescending<Registration<T>> { it.explicit }.thenByDescending { it.backend.priority },
+    )
 
     private fun strongest(offers: List<Registration<T>>): Registration<T>? = ranked(offers).firstOrNull()
 

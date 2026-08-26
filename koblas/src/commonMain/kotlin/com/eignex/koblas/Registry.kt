@@ -40,7 +40,9 @@ public fun discoverBackends() {
  * want two of them at once, which is what this answers and [koblas] cannot.
  *
  * Named rather than constructed directly so a caller keeps discovery, the configured library paths, and
- * the bundled builds.
+ * the bundled builds. What comes back is the binding's own type, a bundled provider included, so the
+ * routines that library carries outside this seam are reached by narrowing to it:
+ * `(sparseLuNamed("basiclu") as? BasicluSparseLu)?.factorBasis(b)`.
  */
 public fun sparseLuNamed(name: String): F64SparseLu? = BackendRegistry.sparseLuNamed(name)
 

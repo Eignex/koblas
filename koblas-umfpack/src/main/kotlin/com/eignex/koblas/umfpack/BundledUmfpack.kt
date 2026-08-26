@@ -3,28 +3,28 @@ package com.eignex.koblas.umfpack
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.internal.backend.BundledNativeResources
 import com.eignex.koblas.openblas.BundledOpenBlas
-import com.eignex.koblas.sparse.F64SparseLu
 import com.eignex.koblas.sparse.host.umfpack.UmfpackConfig
 import com.eignex.koblas.sparse.host.umfpack.UmfpackSparseLu
 
-/** SuiteSparse UMFPACK backend bundled in Maven-native resources. */
-public class BundledUmfpack private constructor(private val delegate: UmfpackSparseLu) : F64SparseLu by delegate {
-    /** Creates a UMFPACK backend from bundled native resources. */
-    public constructor(factorizeMin: Int? = null, equilibrate: Boolean = false) :
-        this(loadUmfpack(factorizeMin, equilibrate))
-
+/**
+ * SuiteSparse UMFPACK backend bundled in Maven-native resources.
+ *
+ * One of [UmfpackSparseLu] rather than a wrapper around one, so the bundled providers all answer to
+ * [com.eignex.koblas.sparseLuNamed] as the type their binding is.
+ */
+public class BundledUmfpack(factorizeMin: Int? = null, equilibrate: Boolean = false) :
+    UmfpackSparseLu(bundledConfig(factorizeMin, equilibrate)) {
     override val name: String get() = "umfpack-bundled"
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 1
 }
 
-private fun loadUmfpack(factorizeMin: Int?, equilibrate: Boolean): UmfpackSparseLu {
+/** UMFPACK is linked against OpenBLAS, so the dependency is checked before the library is extracted. */
+private fun bundledConfig(factorizeMin: Int?, equilibrate: Boolean): UmfpackConfig {
     check(BundledOpenBlas().isAvailable) { "the bundled OpenBLAS dependency could not be loaded" }
-    return UmfpackSparseLu(
-        UmfpackConfig(
-            libraryPath = umfpackLibrary.extract().toString(),
-            factorizeMin = factorizeMin,
-            equilibrate = equilibrate,
-        ),
+    return UmfpackConfig(
+        libraryPath = umfpackLibrary.extract().toString(),
+        factorizeMin = factorizeMin,
+        equilibrate = equilibrate,
     )
 }
 
