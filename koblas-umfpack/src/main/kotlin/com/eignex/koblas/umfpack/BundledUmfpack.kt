@@ -10,16 +10,21 @@ import com.eignex.koblas.sparse.host.umfpack.UmfpackSparseLu
 /** SuiteSparse UMFPACK backend bundled in Maven-native resources. */
 public class BundledUmfpack private constructor(private val delegate: UmfpackSparseLu) : F64SparseLu by delegate {
     /** Creates a UMFPACK backend from bundled native resources. */
-    public constructor(factorizeMin: Int? = null) : this(loadUmfpack(factorizeMin))
+    public constructor(factorizeMin: Int? = null, equilibrate: Boolean = false) :
+        this(loadUmfpack(factorizeMin, equilibrate))
 
     override val name: String get() = "umfpack-bundled"
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 1
 }
 
-private fun loadUmfpack(factorizeMin: Int?): UmfpackSparseLu {
+private fun loadUmfpack(factorizeMin: Int?, equilibrate: Boolean): UmfpackSparseLu {
     check(BundledOpenBlas().isAvailable) { "the bundled OpenBLAS dependency could not be loaded" }
     return UmfpackSparseLu(
-        UmfpackConfig(libraryPath = umfpackLibrary.extract().toString(), factorizeMin = factorizeMin),
+        UmfpackConfig(
+            libraryPath = umfpackLibrary.extract().toString(),
+            factorizeMin = factorizeMin,
+            equilibrate = equilibrate,
+        ),
     )
 }
 

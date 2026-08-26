@@ -6,6 +6,8 @@ public data class HfactorConfig(
     val libraryPath: String? = null,
     /** Smallest stored-entry count routed to the native factorization; null keeps the platform default. */
     val factorizeMin: Int? = null,
+    /** Whether to scale rows before factorizing and undo it in the solves. */
+    val equilibrate: Boolean = false,
 ) {
     init {
         require(factorizeMin == null || factorizeMin >= 0) { "factorizeMin must not be negative" }

@@ -92,16 +92,6 @@ class BundledHfactorTest {
         assertTrue(backend.isAvailable)
     }
 
-    /**
-     * Its updates are on [BundledHfactor.basisSolver]. `supportsBasisUpdates` is about what `factorBasis`
-     * answers with, and that contract takes any entering column, which HFactor could update against but
-     * could not rebuild from.
-     */
-    @Test
-    fun `it does not claim the column replacement contract`() {
-        assertFalse(backend.supportsBasisUpdates)
-    }
-
     @Test
     fun `a freshly factorized basis solves as the portable one does`() {
         assertAgreesWithPortable(n = 12, seed = 20260910, pivots = 0)

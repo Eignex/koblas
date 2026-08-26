@@ -16,8 +16,7 @@ class NamedBackendTest {
 
     private class FakeSparseLu(override val name: String, override val priority: Int) :
         F64SparseLu by F64ReferenceSparseLinearAlgebra {
-        override fun factor(a: F64SparseMatrix, equilibrate: Boolean, dropTolerance: Double): F64SparseFactorization =
-            F64ReferenceSparseLinearAlgebra.factor(a, equilibrate, dropTolerance)
+        override fun factor(a: F64SparseMatrix): F64SparseFactorization = F64ReferenceSparseLinearAlgebra.factor(a)
     }
 
     @Test

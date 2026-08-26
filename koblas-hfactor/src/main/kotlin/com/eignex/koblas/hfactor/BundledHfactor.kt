@@ -3,7 +3,6 @@ package com.eignex.koblas.hfactor
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.backend.BundledNativeResources
-import com.eignex.koblas.sparse.F64BasisFactorization
 import com.eignex.koblas.sparse.F64SparseLu
 import com.eignex.koblas.sparse.basis.F64BasisSolver
 import com.eignex.koblas.sparse.basis.F64BasisSolvers
@@ -19,8 +18,8 @@ public class BundledHfactor private constructor(private val delegate: HfactorSpa
     F64SparseLu by delegate,
     F64BasisSolvers by delegate {
     /** Creates an HFactor backend from the bundled library. */
-    public constructor(factorizeMin: Int? = null) :
-        this(HfactorSparseLu(HfactorConfig(hfactorLibrary.extract().toString(), factorizeMin)))
+    public constructor(factorizeMin: Int? = null, equilibrate: Boolean = false) :
+        this(HfactorSparseLu(HfactorConfig(hfactorLibrary.extract().toString(), factorizeMin, equilibrate)))
 
     override val name: String get() = "hfactor-bundled"
 
@@ -28,10 +27,6 @@ public class BundledHfactor private constructor(private val delegate: HfactorSpa
     override val isPortable: Boolean get() = delegate.isPortable
     override val isAvailable: Boolean get() = delegate.isAvailable
     override val priority: Int get() = HOST_BACKEND_PRIORITY - 1
-
-    override val supportsBasisUpdates: Boolean get() = delegate.supportsBasisUpdates
-
-    override fun factorBasis(basis: F64SparseMatrix): F64BasisFactorization = delegate.factorBasis(basis)
 
     override fun basisSolver(a: F64SparseMatrix): F64BasisSolver = delegate.basisSolver(a)
 }

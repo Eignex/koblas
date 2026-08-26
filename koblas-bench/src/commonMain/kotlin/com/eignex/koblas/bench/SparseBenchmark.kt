@@ -29,7 +29,7 @@ class SparseBenchmark {
     }
 
     @Benchmark
-    fun sparseLuSolve(): DoubleArray = a.lu(equilibrate = true).solve(rhs)
+    fun sparseLuSolve(): DoubleArray = F64ReferenceSparseLinearAlgebra.factor(a, equilibrate = true).solve(rhs)
 
     @Benchmark
     fun sparseLuFtran(): DoubleArray = luFactored.solveInto(rhs, x)
@@ -47,7 +47,8 @@ class SparseBenchmark {
     fun sparseLuFactor(): F64SparseFactorization = a.lu()
 
     @Benchmark
-    fun sparseLuFactorEquilibrated(): F64SparseFactorization = a.lu(equilibrate = true)
+    fun sparseLuFactorEquilibrated(): F64SparseFactorization =
+        F64ReferenceSparseLinearAlgebra.factor(a, equilibrate = true)
 
     @Benchmark
     fun sparseTrsv(): DoubleArray {

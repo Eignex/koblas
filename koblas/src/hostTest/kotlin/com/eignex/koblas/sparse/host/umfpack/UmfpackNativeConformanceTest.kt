@@ -46,8 +46,10 @@ class UmfpackNativeConformanceTest {
         assertSingularIsReportedWithUnknownPosition(umfpack)
 
     @Test
-    fun `equilibrate stays native and an unsupported drop tolerance is rejected`() =
-        assertNativeEquilibrationAndUnsupportedDropToleranceIsRejected(umfpack) { it is UmfpackFactorization }
+    fun `a backend set to equilibrate stays native and still solves`() =
+        assertNativeEquilibration(UmfpackSparseLu(UmfpackConfig(factorizeMin = 0, equilibrate = true))) {
+            it is UmfpackFactorization
+        }
 
     @Test
     fun `it registers as the sparse factorization half and reports fill`() =

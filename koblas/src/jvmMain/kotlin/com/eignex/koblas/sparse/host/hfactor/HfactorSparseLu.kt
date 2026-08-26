@@ -18,8 +18,7 @@ import com.eignex.koblas.sparse.host.F64SparseLuAdapter
  *
  * What HFactor is for is [basisSolver]: a basis named by index into a matrix that outlives it, solved
  * through vectors that stay sparse. [factor] is the plainer surface, HFactor taking a square matrix as a
- * basis of its own columns, and it ranks above BASICLU for the same reason BASICLU ranks above the general
- * sparse LUs.
+ * basis of its own columns.
  */
 public class HfactorSparseLu(
     /** Policy for this backend instance. */
@@ -38,16 +37,10 @@ public class HfactorSparseLu(
     override val nativeAvailable: Boolean get() = calls.available
 
     /**
-     * False, and not because HFactor cannot update a basis. [factorBasis] answers with the shape that takes
-     * any entering column, which HFactor cannot rebuild from; its updates are on [basisSolver] instead.
+     * HFactor offers no row scaling, so a backend set to equilibrate stays with the portable factorization
+     * rather than reproducing it here by scaling the values on the way in.
      */
-    override val supportsBasisUpdates: Boolean get() = false
-
-    /**
-     * HFactor offers no row scaling, so an equilibrated factorization stays with the portable one rather
-     * than being reproduced here by scaling the values on the way in.
-     */
-    override fun factorNative(a: F64SparseMatrix, equilibrate: Boolean): F64SparseFactorization {
+    override fun factorNative(a: F64SparseMatrix): F64SparseFactorization {
         if (equilibrate) return F64ReferenceSparseLinearAlgebra.factor(a, equilibrate = true)
         val handle = calls.create(a.rows, a.cols, a.copyColumnPointers(), a.copyRowIndices(), a.values)
             ?: return F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)

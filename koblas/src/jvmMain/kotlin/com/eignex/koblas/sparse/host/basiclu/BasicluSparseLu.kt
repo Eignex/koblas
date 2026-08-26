@@ -18,20 +18,25 @@ import com.eignex.koblas.withColumn
 public class BasicluSparseLu(
     /** Policy for this backend instance. */
     public val config: BasicluConfig = BasicluConfig(),
-) : F64SparseLuAdapter(config.factorizeMin) {
+) : F64SparseLuAdapter(config.factorizeMin, config.equilibrate) {
     private val calls = BasicluCalls(config)
 
     override val name: String get() = BackendNames.BASICLU
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 2
     override val nativeAvailable: Boolean get() = calls.available
 
-    override val supportsBasisUpdates: Boolean get() = nativeAvailable
+    /**
+     * Whether [factorBasis] answers with a factorization that updates its factors in place. False without
+     * the library, where a replacement costs a factorization and a caller pacing its own refactorizations
+     * has nothing left to pace.
+     */
+    public val supportsBasisUpdates: Boolean get() = nativeAvailable
 
     /**
      * BASICLU offers no row scaling of its own, so equilibration is applied to the values handed over and
      * undone in the solves, by the same power-of-two factors the portable factorization uses.
      */
-    override fun factorNative(a: F64SparseMatrix, equilibrate: Boolean): F64SparseFactorization {
+    override fun factorNative(a: F64SparseMatrix): F64SparseFactorization {
         val rowIdx = a.copyRowIndices()
         val scale = if (equilibrate) equilibrationScale(a.rows, rowIdx, a.values) else null
         val values = if (scale == null) a.values else scaledValues(rowIdx, a.values, scale)
@@ -41,12 +46,16 @@ public class BasicluSparseLu(
     }
 
     /**
+     * Factor a simplex [basis] for column replacements, which may bring in any column at all.
+     *
+     * BASICLU's own routine rather than a seam method: it carries the basis independently of any matrix,
+     * which is what lets an entering column be arbitrary, and no other sparse LU koblas binds does that.
      * A basis is factorized natively at any size, since what a caller wants from BASICLU is the update that
      * follows and the gate the general factorization answers to has nothing to say about it.
      */
-    override fun factorBasis(basis: F64SparseMatrix): F64BasisFactorization {
+    public fun factorBasis(basis: F64SparseMatrix): F64BasisFactorization {
         requireSquare(basis, "factorBasis")
-        if (!nativeAvailable) return super.factorBasis(basis)
+        if (!nativeAvailable) return F64RefactoringBasisFactorization(this, basis, factor(basis))
         val target = factored(basis, basis.copyRowIndices(), basis.values)
             ?: return F64SingularBasisFactorization(this, basis)
         return BasicluBasisFactorization(this, basis, target, calls)

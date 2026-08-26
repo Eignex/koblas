@@ -133,18 +133,17 @@ internal fun assertGatedFallbackStillSolves(gated: (factorizeMin: Int) -> F64Spa
     assertClose(fromPortable, fromGated, "a gated host below its gate", tolerance = 1e-12)
 }
 
-/** A host may equilibrate natively and rejects a drop tolerance it cannot represent. */
-internal fun assertNativeEquilibrationAndUnsupportedDropToleranceIsRejected(
+/** A backend set to equilibrate scales natively and still solves the system it was given. */
+internal fun assertNativeEquilibration(
     decompositions: F64SparseLu,
     hostFactorization: (F64SparseFactorization) -> Boolean,
 ) {
     val rng = Random(20260818)
     val a = sparseConformanceSystem(6, rng)
     val b = DoubleArray(6) { rng.nextDouble(-1.0, 1.0) }
-    val equilibrated = decompositions.factor(a, equilibrate = true)
+    val equilibrated = decompositions.factor(a)
     assertTrue(hostFactorization(equilibrated), "native equilibration must retain the host factorization")
     assertClose(b, a.gemv(equilibrated.solve(b)), "equilibrated residual", tolerance = 1e-9)
-    assertFailsWith<IllegalArgumentException> { decompositions.factor(a, dropTolerance = 1e-12) }
 }
 
 /** Native handles are freed per factorization, so a long loop must not grow without bound. */

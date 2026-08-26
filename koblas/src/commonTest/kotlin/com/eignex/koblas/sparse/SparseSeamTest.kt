@@ -70,9 +70,9 @@ class SparseSeamTest {
         override val name: String get() = "counting-decompositions"
         var factors = 0
 
-        override fun factor(a: F64SparseMatrix, equilibrate: Boolean, dropTolerance: Double): F64SparseFactorization {
+        override fun factor(a: F64SparseMatrix): F64SparseFactorization {
             factors++
-            return F64ReferenceSparseLinearAlgebra.factor(a, equilibrate, dropTolerance)
+            return F64ReferenceSparseLinearAlgebra.factor(a)
         }
     }
 

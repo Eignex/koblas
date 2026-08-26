@@ -83,8 +83,8 @@ class SparseLuTest {
     @Test
     fun `equilibration leaves a row it cannot scale into range alone`() {
         val a = F64SparseMatrix(2, 2, intArrayOf(0, 1, 2), intArrayOf(0, 1), doubleArrayOf(1e-320, 2e-320))
-        val plain = assertNotNull(a.lu(equilibrate = false))
-        val equilibrated = assertNotNull(a.lu(equilibrate = true))
+        val plain = assertNotNull(F64ReferenceSparseLinearAlgebra.factor(a, equilibrate = false))
+        val equilibrated = assertNotNull(F64ReferenceSparseLinearAlgebra.factor(a, equilibrate = true))
         assertEquals(plain.singular, equilibrated.singular, "equilibration changed the singularity verdict")
         assertEquals(plain.failedAt, equilibrated.failedAt, "equilibration changed the reported position")
     }
@@ -95,7 +95,7 @@ class SparseLuTest {
         repeat(60) {
             val n = rng.nextInt(1, 8)
             val a = randomSparseSquare(n, rng, density = 1.0)
-            val lu = assertNotNull(a.lu(equilibrate = false))
+            val lu = assertNotNull(F64ReferenceSparseLinearAlgebra.factor(a, equilibrate = false))
             val x = DoubleArray(n) { rng.nextDouble(-3.0, 3.0) }
             assertClose(x, lu.solve(a.gemv(x)), "unequilibrated n=$n", tolerance = 1e-7)
         }
@@ -180,7 +180,9 @@ class SparseLuTest {
 
     @Test
     fun `a negative drop tolerance is rejected`() {
-        assertFailsWith<IllegalArgumentException> { randomSparseSquare(3, Random(1)).lu(dropTolerance = -1e-9) }
+        assertFailsWith<IllegalArgumentException> {
+            F64ReferenceSparseLinearAlgebra.factor(randomSparseSquare(3, Random(1)), dropTolerance = -1e-9)
+        }
     }
 
     @Test

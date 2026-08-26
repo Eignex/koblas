@@ -10,12 +10,13 @@ mirror the dense ones.
 - [F64SparseBlas] — the sparse matrix routines. `gemv` in both directions, walking columns, which is what CSC
   stores. Deliberately thin: a sparse `gemm` fills in and is a different algorithm with a different result
   type, so it lands here when something needs it.
-- [F64SparseLu] — general sparse LU factorization. [F64SparseLu.factor] returns
+- [F64SparseLu] — general sparse LU factorization, and only that. [F64SparseLu.factor] returns
   [F64SparseFactorization], never null: a singular matrix yields a factorization reporting `singular`, matching
   the dense contract. Its factors support both ordinary and transposed solves.
 - [F64BasisFactorization] — a sparse LU factorization of a simplex basis. It retains the basis matrix and
-  can produce the factorization after one column replacement, which may be any column at all. A caller
-  pivoting a basis named by index into a fixed matrix wants
+  can produce the factorization after one column replacement, which may be any column at all. BASICLU
+  answers it; [F64RefactoringBasisFactorization] wraps any other backend at the cost of a factorization per
+  replacement. A caller pivoting a basis named by index into a fixed matrix wants
   [F64BasisSolver][com.eignex.koblas.sparse.basis.F64BasisSolver] instead, on its own backend half.
 - [F64SparseLinearAlgebra] pairs the matrix seams and exposes the sparse-vector kernels alongside them.
   Backends may implement either matrix half; [com.eignex.koblas.registerBackend] ranks each independently,
@@ -30,6 +31,12 @@ a property of the matrix, not of a ranking, and one process can want two at once
 
 So [com.eignex.koblas.koblas] hands out the strongest offer per half, which is the right default, and
 [com.eignex.koblas.sparseLuNamed] hands out a particular one for a caller that knows which it wants.
+
+For the same reason [F64SparseLu] carries only what every sparse LU does. What one library has and the
+others do not is a routine on that library: KLU's `refactor`, which reuses a symbolic analysis across
+matrices of one pattern; BASICLU's `factorBasis`; HFactor's `basisSolver`, which has a half of its own
+because the portable backend answers it too. Row equilibration and a drop tolerance are policy a backend's
+constructor settles, beside the settings that already say how to scale.
 - Implementation: [F64SparseLuFactorization][com.eignex.koblas.sparse.factorization.lu.F64SparseLuFactorization], a Markowitz threshold-pivoting
   `P·B·Q = L·U` that keeps the factors sparse instead of filling toward `O(m²)`.
 
