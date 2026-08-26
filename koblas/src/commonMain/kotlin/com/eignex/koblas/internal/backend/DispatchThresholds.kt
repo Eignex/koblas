@@ -22,8 +22,20 @@ import com.eignex.koblas.dense.host.cblas.HostBlasConfig
  *   the optional pivoted QR included. A dense routine reads it as a dimension and a sparse one as a count of
  *   stored entries, since that is what each one's work scales with; one number, measured against whichever
  *   quantity pays for the crossing.
+ * @property symmetricFactorize the same, for the factorizations that need no numerical pivoting. They cross
+ *   later than the general one, so they gate on a number of their own rather than dispatching early on its.
+ * @property sparseProduct stored entries from which the sparse matrix products dispatch natively. Separate
+ *   from [level2], which a vector-kernel platform sets beyond reach because its own kernels win the dense
+ *   level-2 routines; there are no vector kernels for a sparse product, so that reasoning does not carry.
  */
-internal class DispatchThresholds(val level1: Int, val level2: Int, val level3: Int, val factorize: Int)
+internal class DispatchThresholds(
+    val level1: Int,
+    val level2: Int,
+    val level3: Int,
+    val factorize: Int,
+    val symmetricFactorize: Int = factorize,
+    val sparseProduct: Int = level2,
+)
 
 /** What this platform uses for double precision absent backend-specific configuration. */
 internal expect val platformDispatchThresholds: DispatchThresholds
@@ -40,11 +52,15 @@ internal fun hostDispatchThresholds(
     level2: Int? = null,
     level3: Int? = null,
     factorize: Int? = null,
+    symmetricFactorize: Int? = null,
+    sparseProduct: Int? = null,
 ): DispatchThresholds = DispatchThresholds(
     level1 = level1 ?: platformDispatchThresholds.level1,
     level2 = level2 ?: platformDispatchThresholds.level2,
     level3 = level3 ?: platformDispatchThresholds.level3,
     factorize = factorize ?: platformDispatchThresholds.factorize,
+    symmetricFactorize = symmetricFactorize ?: platformDispatchThresholds.symmetricFactorize,
+    sparseProduct = sparseProduct ?: platformDispatchThresholds.sparseProduct,
 )
 
 /** The dispatch policy for one OpenBLAS instance, every gate the configuration carries included. */

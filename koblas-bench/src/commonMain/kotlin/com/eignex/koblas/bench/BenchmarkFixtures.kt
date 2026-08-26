@@ -1,6 +1,7 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.core.*
+import kotlin.math.abs
 import kotlin.random.Random
 
 // A fixed seed makes repeated runs comparable.
@@ -62,6 +63,35 @@ internal fun sparseDominantMatrix(n: Int, rng: Random): F64SparseMatrix {
         entries
     }
     return F64SparseMatrix.ofColumns(n, n, columns)
+}
+
+/**
+ * A sparse symmetric positive-definite matrix as the lower triangle a Cholesky reads, diagonally dominant so
+ * it factors without an ordering. The off-diagonal pattern is symmetric by construction, which is what makes
+ * the stored triangle describe a symmetric matrix at all.
+ */
+internal fun sparseSpdMatrix(n: Int, rng: Random): F64SparseMatrix {
+    val below = List(n) { HashMap<Int, Double>() }
+    val weight = DoubleArray(n)
+    for (j in 0 until n) {
+        for (i in j + 1 until n) {
+            if (rng.nextDouble() >= SPARSE_DENSITY) continue
+            val v = rng.nextDouble(-1.0, 1.0)
+            below[j][i] = v
+            weight[i] += abs(v)
+            weight[j] += abs(v)
+        }
+    }
+    return F64SparseMatrix.ofColumns(
+        n,
+        n,
+        List(n) { j ->
+            val column = ArrayList<Pair<Int, Double>>()
+            column.add(j to weight[j] + 1.0)
+            for (i in j + 1 until n) below[j][i]?.let { column.add(i to it) }
+            column
+        },
+    )
 }
 
 internal fun randomSparseVector(n: Int, density: Double, rng: Random): F64SparseVector {

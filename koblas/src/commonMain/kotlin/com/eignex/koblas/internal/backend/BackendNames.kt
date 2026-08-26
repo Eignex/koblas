@@ -28,6 +28,9 @@ internal object BackendNames {
     /** The binding to HiGHS's HFactor, which solves a simplex basis hypersparsely and updates it. */
     const val HFACTOR = "hfactor"
 
+    /** SuiteSparse CHOLMOD, which fills the sparse matrix products. */
+    const val CHOLMOD = "cholmod"
+
     /** The compiled-in scalar kernels. */
     const val SCALAR = "scalar"
 

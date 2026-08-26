@@ -33,6 +33,7 @@ internal class CholmodCalls(private val config: CholmodConfig) {
         val factorize: MethodHandle,
         val solve: MethodHandle,
         val rcond: MethodHandle,
+        val sdmult: MethodHandle,
         val freeFactor: MethodHandle,
         val freeDense: MethodHandle,
     )
@@ -93,6 +94,11 @@ internal class CholmodCalls(private val config: CholmodConfig) {
                 critical = false,
             ),
             rcond = library.handle("cholmod_rcond", FfmLibrary.doubleOf(ADDRESS, ADDRESS), critical = false),
+            sdmult = library.handle(
+                "cholmod_sdmult",
+                FfmLibrary.intOf(ADDRESS, JAVA_INT, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
+                critical = false,
+            ),
             freeFactor = library.handle("cholmod_free_factor", FfmLibrary.intOf(ADDRESS, ADDRESS), critical = false),
             freeDense = library.handle("cholmod_free_dense", FfmLibrary.intOf(ADDRESS, ADDRESS), critical = false),
         )
@@ -158,6 +164,63 @@ internal class CholmodCalls(private val config: CholmodConfig) {
     fun rcond(factor: CholmodFactor): Double {
         val bound = handles ?: return 0.0
         return bound.rcond.invokeExact(factor.segment, factor.common) as Double
+    }
+
+    /**
+     * `y = alpha · op(A) · x + beta · y` over [columns] right-hand sides held column-major in [x] and [y].
+     *
+     * The scalars are two-element arrays because CHOLMOD takes them as complex pairs; only the first is read
+     * for a real matrix.
+     */
+    @Suppress("LongParameterList") // the routine's own signature, plus the shape the two dense blocks share
+    fun sdmult(
+        a: CholmodMatrix,
+        transpose: Boolean,
+        alpha: Double,
+        x: DoubleArray,
+        beta: Double,
+        y: DoubleArray,
+        columns: Int,
+        xRows: Int,
+        yRows: Int,
+    ): Boolean {
+        val bound = handles ?: return false
+        val shared = common ?: return false
+        Arena.ofConfined().use { arena ->
+            val alphaPair = arena.allocate(JAVA_DOUBLE, 2L).also { it.setAtIndex(JAVA_DOUBLE, 0L, alpha) }
+            val betaPair = arena.allocate(JAVA_DOUBLE, 2L).also { it.setAtIndex(JAVA_DOUBLE, 0L, beta) }
+            val xBlock = arena.allocate(JAVA_DOUBLE, x.size.toLong())
+            MemorySegment.copy(x, 0, xBlock, JAVA_DOUBLE, 0L, x.size)
+            val yBlock = arena.allocate(JAVA_DOUBLE, y.size.toLong())
+            MemorySegment.copy(y, 0, yBlock, JAVA_DOUBLE, 0L, y.size)
+            val dense = { rows: Int, block: MemorySegment ->
+                arena.allocate(CHOLMOD_DENSE_BYTES).also {
+                    it.set(JAVA_LONG, CHOLMOD_DENSE_NROW, rows.toLong())
+                    it.set(JAVA_LONG, CHOLMOD_DENSE_NCOL, columns.toLong())
+                    it.set(JAVA_LONG, CHOLMOD_DENSE_NZMAX, rows.toLong() * columns)
+                    it.set(JAVA_LONG, CHOLMOD_DENSE_D, rows.toLong())
+                    it.set(ADDRESS, CHOLMOD_DENSE_X, block)
+                    it.set(ADDRESS, CHOLMOD_DENSE_Z, MemorySegment.NULL)
+                    it.set(JAVA_INT, CHOLMOD_DENSE_XTYPE, CHOLMOD_REAL)
+                    it.set(JAVA_INT, CHOLMOD_DENSE_DTYPE, CHOLMOD_DOUBLE)
+                }
+            }
+            val xDense = dense(xRows, xBlock)
+            val yDense = dense(yRows, yBlock)
+            val flag = if (transpose) CHOLMOD_TRUE else 0
+            val ok = bound.sdmult.invokeExact(
+                a.segment,
+                flag,
+                alphaPair,
+                betaPair,
+                xDense,
+                yDense,
+                shared,
+            ) as Int
+            if (ok != CHOLMOD_TRUE) return false
+            MemorySegment.copy(yBlock, JAVA_DOUBLE, 0L, y, 0, y.size)
+        }
+        return true
     }
 
     /** Frees the native factor. */

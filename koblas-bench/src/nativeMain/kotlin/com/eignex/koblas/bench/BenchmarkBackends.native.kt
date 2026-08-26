@@ -38,6 +38,9 @@ private fun installHost(config: HostBlasConfig): Boolean {
     return true
 }
 
+/** No native sparse product binding on this target, so the portable one is what a run measures. */
+internal actual fun useUngatedSparseProduct(): Boolean = false
+
 internal actual fun useUngatedSparseLu(): Boolean {
     val umfpack = F64SparseBackends(UmfpackConfig(factorizeMin = 0)).umfpack
     if (!umfpack.isAvailable) return false

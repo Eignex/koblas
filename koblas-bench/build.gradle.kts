@@ -89,6 +89,8 @@ benchmark {
         suite("blockSolve")
         suite("sparse")
         suite("sparseHost")
+        suite("sparseSymmetricHost")
+        suite("sparseProductHost")
         suite("basis")
         suite("cholesky")
         suite("qr")
@@ -104,7 +106,7 @@ benchmark {
             param("backend", "reference")
         }
         suite("level3Focused", "Level3Benchmark", "syr2k|gemm") {
-            param("n", "256")
+            param("n", "64", "256", "1024")
         }
         // The solve rows alone, at the sizes the main suite stops short of. A solve over an existing factor
         // is a pair of triangular solves, and those only cross around 1024, so a sweep ending at 256 cannot
@@ -116,7 +118,7 @@ benchmark {
             param("backend", "reference", "forced-solve")
         }
         suite("sparseFocused", "SparseBenchmark", "sparseLuFactor|sparseGemv") {
-            param("n", "256")
+            param("n", "64", "256", "1024")
         }
 
         // Gates for a shared-helper change in a hot path. Each pins the rows the change could regress plus
@@ -150,10 +152,24 @@ benchmark {
             param("len", "64", "1024")
             param("kernels", "builtin")
         }
+        // The sparse products against the portable ones, with trsv trailing as the control: it sorts after
+        // all three subjects and no product gate reaches it.
+        suite("sparseProductGate", "SparseProductHostBenchmark", "gemm|gemv|sparseProduct|trsv") {
+            gate()
+            param("n", "64", "256", "1024")
+        }
+        // The two symmetric factorizations against the portable ones, with transpose trailing as the
+        // control: it sorts after both subjects and no factorization gate reaches it.
+        suite("symmetricGate", "SparseSymmetricHostBenchmark", "cholesky|ldl|transpose") {
+            gate()
+            // The range the crossover sits in: the portable factorization fills without an ordering, so it
+            // goes from winning by three times to losing by two across these five sizes.
+            param("n", "128", "160", "192", "224", "256")
+        }
         // Bracketed: sparseGemv leads, sparseTranspose trails, and it is O(nnz) so it costs little.
         suite("sweepGate", "SparseBenchmark", "sparseGemv|sparseLuBtran|sparseLuFtran|sparseTranspose") {
             gate()
-            param("n", "256")
+            param("n", "64", "256", "1024")
         }
         // The sparse level-1 kernels a target does not accelerate, against sparseDotDense, which stays a real
         // override and so carries no forwarding hop. That control sorts third of five, the best this class
@@ -172,22 +188,22 @@ benchmark {
         // cost, the right-hand path that runs one core call per row of B.
         suite("triangularGate", "Level2Benchmark", "gemv|trmv|trsv") {
             gate()
-            param("n", "256")
+            param("n", "64", "256", "1024")
             param("backend", "reference")
         }
         suite("trsmRightGate", "Level3Benchmark", "gemm|trsmRight") {
             gate()
-            param("n", "64")
+            param("n", "64", "256", "1024")
             param("backend", "reference")
         }
         suite("trmmRightGate", "Level3Benchmark", "gemm|trmmRight") {
             gate()
-            param("n", "64")
+            param("n", "64", "256", "1024")
             param("backend", "reference")
         }
         suite("triangularBlockGate", "Level3Benchmark", "gemm|trmm|trsm") {
             gate()
-            param("n", "64")
+            param("n", "64", "256", "1024")
             param("backend", "reference")
         }
     }

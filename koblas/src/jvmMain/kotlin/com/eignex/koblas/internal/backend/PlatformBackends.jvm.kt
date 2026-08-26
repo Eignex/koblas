@@ -113,6 +113,9 @@ private fun registerBuiltins(
     registerIfOffered(sparse.umfpack, sparseRequested)
     registerIfOffered(sparse.basiclu, sparseRequested)
     registerIfOffered(sparse.hfactor, sparseRequested)
+    // Fills the sparse matrix half rather than the factorization one, so it takes nothing from the four
+    // above and they take nothing from it.
+    registerIfOffered(sparse.cholmod, sparseRequested)
 }
 
 /**
