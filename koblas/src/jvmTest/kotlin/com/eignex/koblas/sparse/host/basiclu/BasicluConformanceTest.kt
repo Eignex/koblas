@@ -64,6 +64,15 @@ class BasicluConformanceTest {
     }
 
     @Test
+    fun `a native factor closes deterministically`() {
+        requireBasiclu()
+        val factorization = basiclu.factor(sparseConformanceSystem(8, Random(20261003)))
+        assertIs<BasicluFactorization>(factorization)
+
+        assertNativeFactorCloseContract(factorization)
+    }
+
+    @Test
     fun `an updated basis solves as the basis it became in both directions`() {
         requireBasiclu()
         val rng = Random(20260825)

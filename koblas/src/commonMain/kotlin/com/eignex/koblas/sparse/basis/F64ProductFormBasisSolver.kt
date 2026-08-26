@@ -45,6 +45,7 @@ public class F64ProductFormBasisSolver(
 
     private val basicIndex = IntArray(n)
     private var base: F64SparseFactorization? = null
+    private var closed = false
 
     // The chain in update order, the pivot held apart from the spike so applying one is a loop over the
     // off-pivot entries and a single divide.
@@ -56,31 +57,39 @@ public class F64ProductFormBasisSolver(
     private val dense = DoubleArray(n)
     private val workspace = Workspace().apply { reserve(n, count = 3) }
 
-    override val updateCount: Int get() = etaPivotRow.size
+    override val updateCount: Int get() {
+        checkOpen()
+        return etaPivotRow.size
+    }
 
     override val singular: Boolean get() = base.let { it == null || it.singular }
 
     override val nnz: Int
         get() {
+            checkOpen()
             var total = base?.nnz ?: 0
             for (entries in etaIndices) total += entries.size + 1
             return total
         }
 
     override fun refactorize(basicIndex: IntArray): Boolean {
+        checkOpen()
         requireShape(basicIndex.size == n) { "refactorize: basicIndex size ${basicIndex.size} != $n" }
         for (t in 0 until n) requireInBounds(basicIndex[t], a.cols)
         // Factorized before any of this is committed, so a backend that throws rather than answering
         // singular leaves the solver on the basis it already holds instead of on one it cannot solve.
         val factors = lu.factor(basisMatrix(basicIndex))
+        val previous = base
         basicIndex.copyInto(this.basicIndex)
         dropChain()
         base = factors
+        previous?.close()
         return !factors.singular
     }
 
     /** [expectedDensity] is not read: there is one sweep here to choose from, for the reason the class says. */
     override fun ftran(x: F64IndexedVector, expectedDensity: Double) {
+        checkOpen()
         val factors = solvable(x)
         x.gather(dense)
         factors.solveInto(dense, dense, transpose = false, workspace = workspace)
@@ -90,6 +99,7 @@ public class F64ProductFormBasisSolver(
 
     /** [expectedDensity] is not read, as in [ftran]. */
     override fun btran(x: F64IndexedVector, expectedDensity: Double) {
+        checkOpen()
         val factors = solvable(x)
         x.gather(dense)
         for (j in etaPivotRow.indices.reversed()) applyEtaTransposed(j)
@@ -103,6 +113,7 @@ public class F64ProductFormBasisSolver(
         spike: F64IndexedVector,
         pivotEta: F64IndexedVector?,
     ): BasisUpdate {
+        checkOpen()
         requireInBounds(pivotRow, n)
         requireInBounds(entering, a.cols)
         requireShape(spike.size == n) { "update: spike size ${spike.size} != $n" }
@@ -185,5 +196,15 @@ public class F64ProductFormBasisSolver(
         val factors = base ?: throw SingularMatrix(SINGULAR_POSITION_UNKNOWN, "solve: no basis has been factorized")
         if (factors.singular) throw SingularMatrix(factors.failedAt, "solve: the basis is singular")
         return factors
+    }
+
+    override fun close() {
+        if (closed) return
+        closed = true
+        base?.close()
+    }
+
+    private fun checkOpen() {
+        check(!closed) { "product-form basis solver is closed" }
     }
 }

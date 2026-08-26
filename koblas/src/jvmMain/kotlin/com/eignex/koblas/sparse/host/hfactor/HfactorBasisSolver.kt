@@ -4,6 +4,7 @@ import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
 import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.internal.host.nativeCleaner
 import com.eignex.koblas.requireInBounds
 import com.eignex.koblas.requireShape
@@ -35,13 +36,12 @@ public class HfactorBasisSolver internal constructor(
     private val calls: HfactorCalls,
     private val handle: MemorySegment,
 ) : F64BasisSolver {
-    init {
-        nativeCleaner.register(this, Release(calls, handle))
+    private class Release(private val calls: HfactorCalls, private val handle: MemorySegment) {
+        fun release(): Unit = calls.free(handle)
     }
 
-    private class Release(private val calls: HfactorCalls, private val handle: MemorySegment) : Runnable {
-        override fun run(): Unit = calls.free(handle)
-    }
+    private val lifecycle = NativeResourceLifecycle("HFactor basis solver", Release(calls, handle)::release)
+    private val cleanable = nativeCleaner.register(this, lifecycle)
 
     override val n: Int = a.rows
 
@@ -53,19 +53,23 @@ public class HfactorBasisSolver internal constructor(
     override var singular: Boolean = true
         private set
 
-    override val updateCount: Int get() = try {
-        if (factorized) calls.updateCount(handle) else 0
-    } finally {
-        Reference.reachabilityFence(this)
+    override val updateCount: Int get() = lifecycle.withResource {
+        try {
+            if (factorized) calls.updateCount(handle) else 0
+        } finally {
+            Reference.reachabilityFence(this)
+        }
     }
 
-    override val nnz: Int get() = try {
-        if (factorized) calls.fill(handle) else 0
-    } finally {
-        Reference.reachabilityFence(this)
+    override val nnz: Int get() = lifecycle.withResource {
+        try {
+            if (factorized) calls.fill(handle) else 0
+        } finally {
+            Reference.reachabilityFence(this)
+        }
     }
 
-    override fun refactorize(basicIndex: IntArray): Boolean {
+    override fun refactorize(basicIndex: IntArray): Boolean = lifecycle.withResource {
         requireShape(basicIndex.size == n) { "refactorize: basicIndex size ${basicIndex.size} != $n" }
         for (t in 0 until n) requireInBounds(basicIndex[t], columns)
         val deficiency = try {
@@ -81,16 +85,16 @@ public class HfactorBasisSolver internal constructor(
          * solver, and the repair goes unused.
          */
         singular = deficiency != 0
-        return !singular
+        !singular
     }
 
-    override fun ftran(x: F64IndexedVector, expectedDensity: Double) {
-        solve(x, expectedDensity, transpose = false)
+    override fun ftran(x: F64IndexedVector, expectedDensity: Double): Unit = lifecycle.withResource {
+        solveNative(x, expectedDensity, transpose = false)
         lastFtran = x
     }
 
-    override fun btran(x: F64IndexedVector, expectedDensity: Double) {
-        solve(x, expectedDensity, transpose = true)
+    override fun btran(x: F64IndexedVector, expectedDensity: Double): Unit = lifecycle.withResource {
+        solveNative(x, expectedDensity, transpose = true)
         lastBtran = x
     }
 
@@ -99,18 +103,18 @@ public class HfactorBasisSolver internal constructor(
         entering: Int,
         spike: F64IndexedVector,
         pivotEta: F64IndexedVector?,
-    ): BasisUpdate {
+    ): BasisUpdate = lifecycle.withResource {
         requireInBounds(pivotRow, n)
         requireInBounds(entering, columns)
         requireShape(spike.size == n) { "update: spike size ${spike.size} != $n" }
-        if (!factorized || singular) return BasisUpdate.SINGULAR
+        if (!factorized || singular) return@withResource BasisUpdate.SINGULAR
         /*
          * Judged on the spike the caller passed rather than on the one HFactor may be about to recompute,
          * so an update is refused for the same inputs the portable solver refuses it for. The bridge checks
          * again on whatever it ends up with.
          */
         val pivot = spike[pivotRow]
-        if (pivot == 0.0 || !pivot.isFinite()) return BasisUpdate.SINGULAR
+        if (pivot == 0.0 || !pivot.isFinite()) return@withResource BasisUpdate.SINGULAR
         val advice = try {
             calls.update(handle, pivotRow, entering, spike === lastFtran, pivotEta != null && pivotEta === lastBtran)
         } finally {
@@ -118,14 +122,14 @@ public class HfactorBasisSolver internal constructor(
         }
         // The update consumes both native vectors, so neither answers for a caller's vector afterwards.
         forgetSolves()
-        return when (advice) {
+        when (advice) {
             HfactorUpdate.REFUSED -> BasisUpdate.SINGULAR
             HfactorUpdate.REFACTORIZE -> BasisUpdate.REFACTORIZE
             else -> BasisUpdate.APPLIED
         }
     }
 
-    private fun solve(x: F64IndexedVector, expectedDensity: Double, transpose: Boolean) {
+    private fun solveNative(x: F64IndexedVector, expectedDensity: Double, transpose: Boolean) {
         checkSolvable()
         requireShape(x.size == n) { "solve: x size ${x.size} != $n" }
         x.count = try {
@@ -144,4 +148,6 @@ public class HfactorBasisSolver internal constructor(
         lastFtran = null
         lastBtran = null
     }
+
+    override fun close(): Unit = cleanable.clean()
 }

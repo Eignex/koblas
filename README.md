@@ -104,8 +104,14 @@ import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.sparse.lu
 
 val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 3.0)))
-val x = a.lu().solve(doubleArrayOf(4.0, 9.0))
+val x = a.lu().use { factor -> factor.solve(doubleArrayOf(4.0, 9.0)) }
 ```
+
+Sparse factorizations are `AutoCloseable`. Use `use` for a bounded solve or retain the factor across solves
+and call `close()` when finished. Native KLU, UMFPACK, CHOLMOD, BASICLU, and HFactor factors release their
+resources immediately; cleaners remain only as protection for a factor the caller forgot to close. Closing
+is idempotent. The dimension and singular status remain readable afterwards, while solves and native factor
+statistics throw `IllegalStateException`.
 
 ## Control memory
 

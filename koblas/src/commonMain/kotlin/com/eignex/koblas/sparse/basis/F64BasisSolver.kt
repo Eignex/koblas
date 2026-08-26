@@ -36,9 +36,11 @@ public enum class BasisUpdate {
  * reports. Nothing here sees a cost, a bound, or an objective.
  *
  * A solver is mutable and single-threaded: [update] and [refactorize] change the factors in place, so one
- * solver serves one simplex.
+ * solver serves one simplex. Close it when the simplex is finished; portable implementations own no
+ * external resource and use the default no-op [close]. A native solver keeps [n] and [singular] readable
+ * after close and rejects factor reports and operations with [IllegalStateException].
  */
-public interface F64BasisSolver {
+public interface F64BasisSolver : AutoCloseable {
     /** The dimension of the basis, the row count of `A`. */
     public val n: Int
 
@@ -97,4 +99,7 @@ public interface F64BasisSolver {
         spike: F64IndexedVector,
         pivotEta: F64IndexedVector? = null,
     ): BasisUpdate
+
+    /** Releases resources owned by this solver. Portable implementations have nothing to release. */
+    override fun close() {}
 }

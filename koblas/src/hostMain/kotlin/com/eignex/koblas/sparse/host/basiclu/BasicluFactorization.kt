@@ -8,6 +8,7 @@ import com.eignex.koblas.Workspace
 import com.eignex.koblas.borrow
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.core.F64SparseVector
+import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.sparse.F64BasisFactorization
 import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.host.applyEquilibration
@@ -21,7 +22,7 @@ import kotlin.math.abs
 import kotlin.native.concurrent.ThreadLocal
 import kotlin.native.ref.createCleaner
 
-/** A host BASICLU factorization whose native object is freed once this object becomes unreachable. */
+/** A host BASICLU factorization with deterministic close and cleaner fallback for its native object. */
 public open class BasicluFactorization internal constructor(
     internal val handle: BasicluObjectHandle,
     internal val functions: BasicluFunctions,
@@ -38,8 +39,10 @@ public open class BasicluFactorization internal constructor(
         }
     }
 
+    private val lifecycle = NativeResourceLifecycle("BASICLU factorization", handle::release)
+
     @Suppress("unused") // the cleaner runs when this property becomes unreachable, which is the point
-    private val cleaner = createCleaner(handle) { it.release() }
+    private val cleaner = createCleaner(lifecycle) { it.close() }
 
     override val failedAt: Int get() = NOT_SINGULAR
 
@@ -80,15 +83,17 @@ public open class BasicluFactorization internal constructor(
         return out
     }
 
+    override fun close(): Unit = lifecycle.close()
+
     /**
      * Runs [body] with this factorization reachable from a global, so the cleaner cannot free the object
      * while the native call inside it is reading it.
      */
-    internal inline fun <R> anchoring(body: () -> R): R {
+    internal fun <R> anchoring(body: () -> R): R = lifecycle.withResource {
         val previous = AnchoredBasiclu.held
         AnchoredBasiclu.held = this
         try {
-            return body()
+            body()
         } finally {
             AnchoredBasiclu.held = previous
         }
@@ -147,7 +152,11 @@ public class BasicluBasisFactorization internal constructor(
         }
         // Kept as a copy, since the caller's vector stays live for it to write and the build comes later.
         pending[column] = entering.snapshot()
-        if (status != BasicluStatus.OK) return owner.factorBasis(basis)
+        if (status != BasicluStatus.OK) {
+            val replacement = owner.factorBasis(basis)
+            close()
+            return replacement
+        }
         return this
     }
 }

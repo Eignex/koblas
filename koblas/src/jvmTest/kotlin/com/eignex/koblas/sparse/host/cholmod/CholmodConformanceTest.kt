@@ -6,6 +6,7 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.assertCholeskyAgreesWithReference
 import com.eignex.koblas.sparse.assertLdlAgreesWithReference
+import com.eignex.koblas.sparse.assertNativeFactorCloseContract
 import com.eignex.koblas.sparse.host.klu.KluConfig
 import com.eignex.koblas.sparse.host.klu.KluSparseLu
 import com.eignex.koblas.sparse.host.umfpack.UmfpackConfig
@@ -53,6 +54,16 @@ class CholmodConformanceTest {
 
         assertIs<CholmodFactorization>(umfpack.cholesky(a), "UMFPACK should answer with CHOLMOD's Cholesky")
         assertIs<CholmodFactorization>(klu.cholesky(a), "KLU should answer with CHOLMOD's Cholesky")
+    }
+
+    @Test
+    fun `a native factor closes deterministically`() {
+        requireCholmod()
+        Assume.assumeTrue("SuiteSparse is not installed", umfpack.isAvailable)
+        val factorization = umfpack.cholesky(spd(12, 20261004))
+        assertIs<CholmodFactorization>(factorization)
+
+        assertNativeFactorCloseContract(factorization)
     }
 
     /**

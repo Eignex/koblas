@@ -40,6 +40,15 @@ class BasicluNativeConformanceTest {
         assertAliasedDestinationSolves(basiclu)
     }
 
+    @Test
+    fun `a native factor closes deterministically`() {
+        if (!basiclu.isAvailable) return
+        val factorization = basiclu.factor(sparseConformanceSystem(8, Random(20261009)))
+        assertIs<BasicluFactorization>(factorization)
+
+        assertNativeFactorCloseContract(factorization)
+    }
+
     /** The replacement path where BASICLU is installed, the refactoring fallback where it is not. */
     @Test
     fun `a replaced basis column solves as the basis it became`() {

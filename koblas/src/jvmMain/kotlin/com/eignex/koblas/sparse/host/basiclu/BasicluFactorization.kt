@@ -4,6 +4,7 @@ import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.core.F64SparseVector
+import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.internal.host.nativeCleaner
 import com.eignex.koblas.sparse.F64BasisFactorization
 import com.eignex.koblas.sparse.F64SparseFactorization
@@ -14,57 +15,62 @@ import com.eignex.koblas.sparse.requireSolveShapes
 import java.lang.ref.Reference
 import kotlin.math.abs
 
-/** A host BASICLU factorization whose native object is reclaimed when it becomes unreachable. */
+/** A host BASICLU factorization with deterministic close and cleaner fallback for its native object. */
 public open class BasicluFactorization internal constructor(
     internal val target: BasicluObject,
     internal val calls: BasicluCalls,
     /** The equilibration the values were scaled by before factorization, or null when there was none. */
     private val rowScale: DoubleArray? = null,
 ) : F64SparseFactorization {
-    init {
-        nativeCleaner.register(this, Release(calls, target))
-    }
-
-    private class Release(private val calls: BasicluCalls, private val target: BasicluObject) : Runnable {
-        override fun run() {
-            calls.free(target)
-            target.arena.close()
+    private class Release(private val calls: BasicluCalls, private val target: BasicluObject) {
+        fun release() {
+            try {
+                calls.free(target)
+            } finally {
+                target.arena.close()
+            }
         }
     }
+
+    private val lifecycle = NativeResourceLifecycle("BASICLU factorization", Release(calls, target)::release)
+    private val cleanable = nativeCleaner.register(this, lifecycle)
 
     override val n: Int get() = target.n
 
     override val failedAt: Int get() = NOT_SINGULAR
 
     /** Reads BASICLU's own store, so the fence holds this factorization past the read. */
-    override val nnz: Int get() = try {
+    override val nnz: Int get() = withNativeFactor {
         (calls.statistic(target, BasicluStore.LNZ) + calls.statistic(target, BasicluStore.UNZ)).toInt()
-    } finally {
-        Reference.reachabilityFence(this)
     }
 
-    override val rcond: Double get() = try {
+    override val rcond: Double get() = withNativeFactor {
         val largest = abs(calls.statistic(target, BasicluStore.MAX_PIVOT))
         if (largest == 0.0) 0.0 else abs(calls.statistic(target, BasicluStore.MIN_PIVOT)) / largest
-    } finally {
-        Reference.reachabilityFence(this)
     }
 
-    override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray {
-        requireSolveShapes(n, b, out)
-        // BASICLU solves through its own buffer, so the destination carries the right-hand side in.
-        if (out !== b) b.copyInto(out)
-        // The factors are of E·B, so a forward solve scales what goes in and a transposed one what comes out.
-        if (rowScale != null && !transpose) applyEquilibration(out, rowScale)
-        val status = try {
-            calls.solve(target, out, transpose)
+    override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray =
+        withNativeFactor {
+            requireSolveShapes(n, b, out)
+            // BASICLU solves through its own buffer, so the destination carries the right-hand side in.
+            if (out !== b) b.copyInto(out)
+            // The factors are of E·B, so a forward solve scales what goes in and a transposed one what comes out.
+            if (rowScale != null && !transpose) applyEquilibration(out, rowScale)
+            val status = calls.solve(target, out, transpose)
+            check(status == BasicluStatus.OK) { "BASICLU solve failed with status $status" }
+            if (rowScale != null && transpose) applyEquilibration(out, rowScale)
+            out
+        }
+
+    internal fun <T> withNativeFactor(block: () -> T): T = lifecycle.withResource {
+        try {
+            block()
         } finally {
             Reference.reachabilityFence(this)
         }
-        check(status == BasicluStatus.OK) { "BASICLU solve failed with status $status" }
-        if (rowScale != null && transpose) applyEquilibration(out, rowScale)
-        return out
     }
+
+    override fun close(): Unit = cleanable.clean()
 }
 
 /** A host BASICLU basis whose factors follow a column replacement until BASICLU declines the update. */
@@ -93,14 +99,16 @@ public class BasicluBasisFactorization internal constructor(
         }
 
     override fun replaceColumn(column: Int, entering: F64SparseVector): F64BasisFactorization {
-        val status = try {
+        val status = withNativeFactor {
             calls.replaceColumn(target, column, entering.indices, entering.values)
-        } finally {
-            Reference.reachabilityFence(this)
         }
         // Kept as a copy, since the caller's vector stays live for it to write and the build comes later.
         pending[column] = entering.snapshot()
-        if (status != BasicluStatus.OK) return owner.factorBasis(basis)
+        if (status != BasicluStatus.OK) {
+            val replacement = owner.factorBasis(basis)
+            close()
+            return replacement
+        }
         return this
     }
 }

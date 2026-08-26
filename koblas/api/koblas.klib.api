@@ -274,7 +274,7 @@ abstract interface com.eignex.koblas.dense/F64LinearAlgebra : com.eignex.koblas.
         open fun <get-kernels>(): com.eignex.koblas.dense/F64Kernels // com.eignex.koblas.dense/F64LinearAlgebra.kernels.<get-kernels>|<get-kernels>(){}[0]
 }
 
-abstract interface com.eignex.koblas.sparse.basis/F64BasisSolver { // com.eignex.koblas.sparse.basis/F64BasisSolver|null[0]
+abstract interface com.eignex.koblas.sparse.basis/F64BasisSolver : kotlin/AutoCloseable { // com.eignex.koblas.sparse.basis/F64BasisSolver|null[0]
     abstract val n // com.eignex.koblas.sparse.basis/F64BasisSolver.n|{}n[0]
         abstract fun <get-n>(): kotlin/Int // com.eignex.koblas.sparse.basis/F64BasisSolver.n.<get-n>|<get-n>(){}[0]
     abstract val nnz // com.eignex.koblas.sparse.basis/F64BasisSolver.nnz|{}nnz[0]
@@ -288,6 +288,7 @@ abstract interface com.eignex.koblas.sparse.basis/F64BasisSolver { // com.eignex
     abstract fun ftran(com.eignex.koblas.sparse.basis/F64IndexedVector, kotlin/Double = ...) // com.eignex.koblas.sparse.basis/F64BasisSolver.ftran|ftran(com.eignex.koblas.sparse.basis.F64IndexedVector;kotlin.Double){}[0]
     abstract fun refactorize(kotlin/IntArray): kotlin/Boolean // com.eignex.koblas.sparse.basis/F64BasisSolver.refactorize|refactorize(kotlin.IntArray){}[0]
     abstract fun update(kotlin/Int, kotlin/Int, com.eignex.koblas.sparse.basis/F64IndexedVector, com.eignex.koblas.sparse.basis/F64IndexedVector? = ...): com.eignex.koblas.sparse.basis/BasisUpdate // com.eignex.koblas.sparse.basis/F64BasisSolver.update|update(kotlin.Int;kotlin.Int;com.eignex.koblas.sparse.basis.F64IndexedVector;com.eignex.koblas.sparse.basis.F64IndexedVector?){}[0]
+    open fun close() // com.eignex.koblas.sparse.basis/F64BasisSolver.close|close(){}[0]
 }
 
 abstract interface com.eignex.koblas.sparse.basis/F64BasisSolvers : com.eignex.koblas/Backend { // com.eignex.koblas.sparse.basis/F64BasisSolvers|null[0]
@@ -337,7 +338,7 @@ abstract interface com.eignex.koblas.sparse/F64SparseDecompositions : com.eignex
     open fun solveInto(com.eignex.koblas.sparse/F64SparseFactorization, kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean = ..., com.eignex.koblas/Workspace? = ...): kotlin/DoubleArray // com.eignex.koblas.sparse/F64SparseDecompositions.solveInto|solveInto(com.eignex.koblas.sparse.F64SparseFactorization;kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
 }
 
-abstract interface com.eignex.koblas.sparse/F64SparseFactorization { // com.eignex.koblas.sparse/F64SparseFactorization|null[0]
+abstract interface com.eignex.koblas.sparse/F64SparseFactorization : kotlin/AutoCloseable { // com.eignex.koblas.sparse/F64SparseFactorization|null[0]
     abstract val failedAt // com.eignex.koblas.sparse/F64SparseFactorization.failedAt|{}failedAt[0]
         abstract fun <get-failedAt>(): kotlin/Int // com.eignex.koblas.sparse/F64SparseFactorization.failedAt.<get-failedAt>|<get-failedAt>(){}[0]
     abstract val n // com.eignex.koblas.sparse/F64SparseFactorization.n|{}n[0]
@@ -350,6 +351,7 @@ abstract interface com.eignex.koblas.sparse/F64SparseFactorization { // com.eign
         open fun <get-singular>(): kotlin/Boolean // com.eignex.koblas.sparse/F64SparseFactorization.singular.<get-singular>|<get-singular>(){}[0]
 
     abstract fun solveInto(kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean = ..., com.eignex.koblas/Workspace? = ...): kotlin/DoubleArray // com.eignex.koblas.sparse/F64SparseFactorization.solveInto|solveInto(kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
+    open fun close() // com.eignex.koblas.sparse/F64SparseFactorization.close|close(){}[0]
     open fun solve(kotlin/DoubleArray, kotlin/Boolean = ...): kotlin/DoubleArray // com.eignex.koblas.sparse/F64SparseFactorization.solve|solve(kotlin.DoubleArray;kotlin.Boolean){}[0]
 }
 
@@ -987,6 +989,7 @@ final class com.eignex.koblas.sparse.basis/F64ProductFormBasisSolver : com.eigne
         final fun <get-updateCount>(): kotlin/Int // com.eignex.koblas.sparse.basis/F64ProductFormBasisSolver.updateCount.<get-updateCount>|<get-updateCount>(){}[0]
 
     final fun btran(com.eignex.koblas.sparse.basis/F64IndexedVector, kotlin/Double) // com.eignex.koblas.sparse.basis/F64ProductFormBasisSolver.btran|btran(com.eignex.koblas.sparse.basis.F64IndexedVector;kotlin.Double){}[0]
+    final fun close() // com.eignex.koblas.sparse.basis/F64ProductFormBasisSolver.close|close(){}[0]
     final fun ftran(com.eignex.koblas.sparse.basis/F64IndexedVector, kotlin/Double) // com.eignex.koblas.sparse.basis/F64ProductFormBasisSolver.ftran|ftran(com.eignex.koblas.sparse.basis.F64IndexedVector;kotlin.Double){}[0]
     final fun refactorize(kotlin/IntArray): kotlin/Boolean // com.eignex.koblas.sparse.basis/F64ProductFormBasisSolver.refactorize|refactorize(kotlin.IntArray){}[0]
     final fun update(kotlin/Int, kotlin/Int, com.eignex.koblas.sparse.basis/F64IndexedVector, com.eignex.koblas.sparse.basis/F64IndexedVector?): com.eignex.koblas.sparse.basis/BasisUpdate // com.eignex.koblas.sparse.basis/F64ProductFormBasisSolver.update|update(kotlin.Int;kotlin.Int;com.eignex.koblas.sparse.basis.F64IndexedVector;com.eignex.koblas.sparse.basis.F64IndexedVector?){}[0]
@@ -1305,6 +1308,7 @@ final class com.eignex.koblas.sparse/F64RefactoringBasisFactorization : com.eign
     final val rcond // com.eignex.koblas.sparse/F64RefactoringBasisFactorization.rcond|{}rcond[0]
         final fun <get-rcond>(): kotlin/Double // com.eignex.koblas.sparse/F64RefactoringBasisFactorization.rcond.<get-rcond>|<get-rcond>(){}[0]
 
+    final fun close() // com.eignex.koblas.sparse/F64RefactoringBasisFactorization.close|close(){}[0]
     final fun replaceColumn(kotlin/Int, com.eignex.koblas.core/F64SparseVector): com.eignex.koblas.sparse/F64BasisFactorization // com.eignex.koblas.sparse/F64RefactoringBasisFactorization.replaceColumn|replaceColumn(kotlin.Int;com.eignex.koblas.core.F64SparseVector){}[0]
     final fun solveInto(kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean, com.eignex.koblas/Workspace?): kotlin/DoubleArray // com.eignex.koblas.sparse/F64RefactoringBasisFactorization.solveInto|solveInto(kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
 }
@@ -1925,6 +1929,7 @@ final class com.eignex.koblas.sparse.host.cholmod/CholmodFactorization : com.eig
     final val rcond // com.eignex.koblas.sparse.host.cholmod/CholmodFactorization.rcond|{}rcond[0]
         final fun <get-rcond>(): kotlin/Double // com.eignex.koblas.sparse.host.cholmod/CholmodFactorization.rcond.<get-rcond>|<get-rcond>(){}[0]
 
+    final fun close() // com.eignex.koblas.sparse.host.cholmod/CholmodFactorization.close|close(){}[0]
     final fun solveInto(kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean, com.eignex.koblas/Workspace?): kotlin/DoubleArray // com.eignex.koblas.sparse.host.cholmod/CholmodFactorization.solveInto|solveInto(kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
 }
 
@@ -1940,6 +1945,7 @@ final class com.eignex.koblas.sparse.host.klu/KluFactorization : com.eignex.kobl
     final var failedAt // com.eignex.koblas.sparse.host.klu/KluFactorization.failedAt|{}failedAt[0]
         final fun <get-failedAt>(): kotlin/Int // com.eignex.koblas.sparse.host.klu/KluFactorization.failedAt.<get-failedAt>|<get-failedAt>(){}[0]
 
+    final fun close() // com.eignex.koblas.sparse.host.klu/KluFactorization.close|close(){}[0]
     final fun solveInto(kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean, com.eignex.koblas/Workspace?): kotlin/DoubleArray // com.eignex.koblas.sparse.host.klu/KluFactorization.solveInto|solveInto(kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
 }
 
@@ -1955,6 +1961,7 @@ final class com.eignex.koblas.sparse.host.umfpack/UmfpackFactorization : com.eig
     final var rcond // com.eignex.koblas.sparse.host.umfpack/UmfpackFactorization.rcond|{}rcond[0]
         final fun <get-rcond>(): kotlin/Double // com.eignex.koblas.sparse.host.umfpack/UmfpackFactorization.rcond.<get-rcond>|<get-rcond>(){}[0]
 
+    final fun close() // com.eignex.koblas.sparse.host.umfpack/UmfpackFactorization.close|close(){}[0]
     final fun solveInto(kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean, com.eignex.koblas/Workspace?): kotlin/DoubleArray // com.eignex.koblas.sparse.host.umfpack/UmfpackFactorization.solveInto|solveInto(kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
 }
 
@@ -1981,6 +1988,7 @@ open class com.eignex.koblas.sparse.host.basiclu/BasicluFactorization : com.eign
     open val rcond // com.eignex.koblas.sparse.host.basiclu/BasicluFactorization.rcond|{}rcond[0]
         open fun <get-rcond>(): kotlin/Double // com.eignex.koblas.sparse.host.basiclu/BasicluFactorization.rcond.<get-rcond>|<get-rcond>(){}[0]
 
+    open fun close() // com.eignex.koblas.sparse.host.basiclu/BasicluFactorization.close|close(){}[0]
     open fun solveInto(kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean, com.eignex.koblas/Workspace?): kotlin/DoubleArray // com.eignex.koblas.sparse.host.basiclu/BasicluFactorization.solveInto|solveInto(kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
 }
 

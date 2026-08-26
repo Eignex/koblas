@@ -6,7 +6,8 @@ The simplex basis seam: a factorization held across pivots rather than one taken
   named by index, so neither side assembles a square basis per refactorization and a backend that factors
   those columns where they lie never has one to read. It divides the work: the solver owns the factors, the
   pivot order, and the updates, and reports when they are wearing out; a simplex owns pricing, the ratio
-  tests, and the refactorization policy that reads those reports.
+  tests, and the refactorization policy that reads those reports. It is [AutoCloseable][kotlin.AutoCloseable],
+  so a native solver is closed when the simplex finishes; portable solvers have no external resource.
 - [F64IndexedVector] — the carrier the solves read and write, dense values alongside the positions of the
   nonzeros. A simplex iteration on a large model touches a few positions, and a `DoubleArray` would spend
   `O(n)` clearing and rescanning around work that is `O(1)` in the model's size.

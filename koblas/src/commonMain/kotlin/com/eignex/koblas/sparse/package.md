@@ -78,5 +78,11 @@ dense shape. LAPACK's packed formats are a standard, so a dense [com.eignex.kobl
 travels between backends; no sparse solver describes its factors — UMFPACK hands back a `void *`, KLU and
 CHOLMOD their own structs — so a seam demanding a concrete type could never admit one.
 
+It is also [AutoCloseable][kotlin.AutoCloseable]. A native factor owns the opaque objects the library handed
+back and should be held in `use` or closed explicitly after its final solve. Close is idempotent and waits for
+an in-flight native call before releasing; a cleaner follows the same one-shot path only if the caller loses
+the factor first. Portable factors have no external resource and close as a no-op. A closed native factor
+keeps its dimension and singular status but rejects solves and factor-statistic reads.
+
 The containers themselves live in the parent package, alongside the dense ones, because the sealed view
 roots require their subtypes in one package.

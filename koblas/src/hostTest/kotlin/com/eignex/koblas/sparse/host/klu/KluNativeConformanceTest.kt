@@ -38,6 +38,14 @@ class KluNativeConformanceTest {
     fun `a singular matrix is reported rather than solved`() = assertSingularIsReportedWithUnknownPosition(klu)
 
     @Test
+    fun `a native factor closes deterministically`() {
+        val factorization = klu.factor(sparseConformanceSystem(8, Random(20261006)))
+        assertIs<KluFactorization>(factorization)
+
+        assertNativeFactorCloseContract(factorization)
+    }
+
+    @Test
     fun `shared options reach the effective KLU common block`() {
         val loader = KluLoader(
             KluConfig(
