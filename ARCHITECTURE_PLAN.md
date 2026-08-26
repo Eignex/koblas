@@ -248,6 +248,13 @@ Acceptance criteria:
 
 ### PR 6: Add Kotlin/Native CHOLMOD sparse BLAS
 
+Status: open as [PR #322](https://github.com/Eignex/koblas/pull/322) from
+`codex/native-cholmod-sparse-blas`; JVM and Linux/Native host tests passed, and `./gradlew check lintDocs
+--rerun-tasks` passed all 190 tasks. Native `cholmod_sdmult` is bound, discoverable, path-configurable, and
+forceable. The measured automatic gate remains portable: at 11,526 stored entries Native CHOLMOD was 1.2
+times slower over eight right-hand sides and 4.2 times slower over one, with larger losses below that size,
+so reusable descriptors in PR 7 must remove the per-call copies before automatic routing can profit.
+
 - Bind CHOLMOD sparse BLAS in `hostMain` using the existing dynamic-symbol plumbing.
 - Add Kotlin/Native marshalling and conformance tests for the same operation families supported on JVM.
 - Set the scalar/native `sparseProduct` gate explicitly rather than inheriting the level-2 default of zero.
