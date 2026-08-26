@@ -7,6 +7,7 @@ import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.koblas
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.sparse.host.F64SparseBackends
+import com.eignex.koblas.sparse.host.cholmod.CholmodFactorization
 import kotlin.random.Random
 import kotlin.test.*
 
@@ -36,6 +37,16 @@ class UmfpackNativeConformanceTest {
 
     @Test
     fun `an aliased destination still solves correctly`() = assertAliasedDestinationSolves(umfpack)
+
+    /** CHOLMOD ships beside UMFPACK, so the collection answers this seam's Cholesky natively here too. */
+    @Test
+    fun `the Cholesky comes from CHOLMOD beside it`() {
+        assertIs<CholmodFactorization>(
+            umfpack.cholesky(sparseSymmetricConformanceSystem(24, Random(20260916))),
+            "expected CHOLMOD's factorization rather than the portable fallback",
+        )
+        assertCholeskyAgreesWithReference(umfpack)
+    }
 
     @Test
     fun `the reciprocal pivot condition estimate is bounded`() =

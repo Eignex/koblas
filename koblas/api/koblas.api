@@ -1309,6 +1309,42 @@ public class com/eignex/koblas/sparse/host/basiclu/BasicluSparseLu : com/eignex/
 	public final fun getSupportsBasisUpdates ()Z
 }
 
+public final class com/eignex/koblas/sparse/host/cholmod/CholmodCholesky {
+	public fun <init> ()V
+	public fun <init> (Lcom/eignex/koblas/sparse/host/cholmod/CholmodConfig;)V
+	public synthetic fun <init> (Lcom/eignex/koblas/sparse/host/cholmod/CholmodConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun factor (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
+	public final fun getUnavailableReason ()Ljava/lang/String;
+	public final fun isAvailable ()Z
+}
+
+public final class com/eignex/koblas/sparse/host/cholmod/CholmodConfig {
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/Integer;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;)Lcom/eignex/koblas/sparse/host/cholmod/CholmodConfig;
+	public static synthetic fun copy$default (Lcom/eignex/koblas/sparse/host/cholmod/CholmodConfig;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;ILjava/lang/Object;)Lcom/eignex/koblas/sparse/host/cholmod/CholmodConfig;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFactorizeMin ()Ljava/lang/Integer;
+	public final fun getLibraryPath ()Ljava/lang/String;
+	public final fun getSearchDirectory ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/eignex/koblas/sparse/host/cholmod/CholmodFactorization : com/eignex/koblas/sparse/F64SparseFactorization {
+	public fun getFailedAt ()I
+	public fun getN ()I
+	public fun getNnz ()I
+	public fun getRcond ()D
+	public fun getSingular ()Z
+	public fun solve ([DZ)[D
+	public fun solveInto ([D[DZLcom/eignex/koblas/Workspace;)[D
+}
+
 public final class com/eignex/koblas/sparse/host/hfactor/HfactorBasisSolver : com/eignex/koblas/sparse/basis/F64BasisSolver {
 	public fun btran (Lcom/eignex/koblas/sparse/basis/F64IndexedVector;D)V
 	public fun ftran (Lcom/eignex/koblas/sparse/basis/F64IndexedVector;D)V
@@ -1425,6 +1461,7 @@ public class com/eignex/koblas/sparse/host/klu/KluSparseLu : com/eignex/koblas/s
 	public fun <init> ()V
 	public fun <init> (Lcom/eignex/koblas/sparse/host/klu/KluConfig;)V
 	public synthetic fun <init> (Lcom/eignex/koblas/sparse/host/klu/KluConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	protected final fun choleskyNative (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
 	protected final fun factorNative (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
 	public final fun getConfig ()Lcom/eignex/koblas/sparse/host/klu/KluConfig;
 	public fun getName ()Ljava/lang/String;
@@ -1479,6 +1516,7 @@ public class com/eignex/koblas/sparse/host/umfpack/UmfpackSparseLu : com/eignex/
 	public fun <init> ()V
 	public fun <init> (Lcom/eignex/koblas/sparse/host/umfpack/UmfpackConfig;)V
 	public synthetic fun <init> (Lcom/eignex/koblas/sparse/host/umfpack/UmfpackConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	protected final fun choleskyNative (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
 	protected final fun factorNative (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
 	public final fun getConfig ()Lcom/eignex/koblas/sparse/host/umfpack/UmfpackConfig;
 	public fun getName ()Ljava/lang/String;

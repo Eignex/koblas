@@ -6,6 +6,7 @@ import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.sparse.F64SingularSparseFactorization
 import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.host.F64SparseDecompositionsAdapter
+import com.eignex.koblas.sparse.host.cholmod.suiteSparseCholesky
 import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout.ADDRESS
@@ -30,6 +31,16 @@ public open class UmfpackSparseLu(
 
     /** UMFPACK ships separately from OpenBLAS, so a host can have one without the other. */
     final override val nativeAvailable: Boolean get() = calls.available
+
+    private val cholmod by lazy { suiteSparseCholesky(config.libraryPath, config.factorizeMin) }
+
+    /**
+     * CHOLMOD ships beside UMFPACK in the same collection, so this backend answers the seam's Cholesky
+     * natively too rather than leaving it to the portable factorization. A machine carrying UMFPACK without
+     * CHOLMOD falls back, which is what the null answer is for.
+     */
+    final override fun choleskyNative(a: F64SparseMatrix): F64SparseFactorization =
+        cholmod.factor(a) ?: portable.cholesky(a)
 
     internal val refinementSteps: Double? get() = calls.refinementSteps
 
