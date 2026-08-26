@@ -60,6 +60,17 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         }
     }
 
+    override fun transpose(a: F64DenseMatrix): F64DenseMatrix {
+        val t = F64DenseMatrix(a.cols, a.rows)
+        val td = t.data
+        val ad = a.data
+        for (j in 0 until a.cols) {
+            val base = j * a.rows
+            for (i in 0 until a.rows) td[j + i * a.cols] = ad[base + i]
+        }
+        return t
+    }
+
     @Suppress("LongParameterList", "CyclomaticComplexMethod")
     override fun gemm(
         alpha: Double,

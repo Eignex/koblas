@@ -123,41 +123,16 @@ public fun F64DenseMatrix.row(i: Int): F64DenseVector {
 }
 
 /**
- * Fresh transposed matrix. For products, prefer the transpose flags on gemv and
- * gemm, which read the original storage without copying.
+ * Fresh transposed matrix, with the active backend ([koblas]). For products, prefer the transpose flags on
+ * gemv and gemm, which read the original storage without copying. See [F64Blas.transpose].
  */
-public fun F64DenseMatrix.transpose(): F64DenseMatrix {
-    val t = F64DenseMatrix(cols, rows)
-    val td = t.data
-    for (j in 0 until cols) {
-        val base = j * rows
-        for (i in 0 until rows) td[j + i * cols] = data[base + i]
-    }
-    return t
-}
+public fun F64DenseMatrix.transpose(): F64DenseMatrix = koblas.blas.transpose(this)
 
 /**
- * Fresh transposed matrix, still CSC, which makes this the CSC-to-CSR conversion as well. Explicitly
- * stored zeros survive.
+ * Fresh transposed matrix, still CSC, which makes this the CSC-to-CSR conversion as well, with the active
+ * backend ([koblas]). See [com.eignex.koblas.sparse.F64SparseBlas.transpose].
  */
-public fun F64SparseMatrix.transpose(): F64SparseMatrix {
-    val outPtr = IntArray(rows + 1)
-    // Counts of row i land in outPtr(i + 1), then a prefix sum turns them into offsets.
-    for (k in rowIdx.indices) outPtr[rowIdx[k] + 1]++
-    for (i in 0 until rows) outPtr[i + 1] += outPtr[i]
-    val outIdx = IntArray(values.size)
-    val outVal = DoubleArray(values.size)
-    // Walking source columns in order leaves each destination column's row indices ascending.
-    val next = outPtr.copyOf()
-    for (j in 0 until cols) {
-        for (k in colPtr[j] until colPtr[j + 1]) {
-            val slot = next[rowIdx[k]]++
-            outIdx[slot] = j
-            outVal[slot] = values[k]
-        }
-    }
-    return F64SparseMatrix(cols, rows, outPtr, outIdx, outVal)
-}
+public fun F64SparseMatrix.transpose(): F64SparseMatrix = koblas.sparseBlas.transpose(this)
 
 /**
  * Fresh matrix with column [column] replaced by [entering], still CSC. The replacement is structural, so an

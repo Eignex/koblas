@@ -6,8 +6,8 @@ import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.requireSquare
 import com.eignex.koblas.sparse.F64SparseFactorization
+import com.eignex.koblas.sparse.internal.transposeCsc
 import com.eignex.koblas.sparse.requireSolveShapes
-import com.eignex.koblas.transpose
 import kotlin.math.abs
 import kotlin.math.sqrt
 
@@ -89,7 +89,7 @@ public class F64SparseCholeskyFactorization internal constructor(
             val n = a.rows
             // The up-looking sweep reads row k of A left of the diagonal, and CSC stores columns. Transposing
             // the lower triangle once turns each of those rows into a column, and costs one pass over A.
-            val upper = a.transpose()
+            val upper = transposeCsc(a)
             val parent = eliminationTree(n, upper)
             val colPtr = columnPointers(n, upper, parent)
             val rowIdx = IntArray(colPtr[n])

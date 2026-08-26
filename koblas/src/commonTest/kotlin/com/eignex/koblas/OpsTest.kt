@@ -3,6 +3,8 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.core.*
+import com.eignex.koblas.dense.F64Blas
+import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
 import com.eignex.koblas.dense.Uplo
 import kotlin.math.abs
 import kotlin.math.sqrt
@@ -301,6 +303,24 @@ class OpsTest {
         assertEquals(F64DenseMatrix(0, 0), F64DenseMatrix(0, 0).transpose())
         assertEquals(0, F64DenseMatrix(0, 5).transpose().cols)
         assertEquals(5, F64DenseMatrix(0, 5).transpose().rows)
+    }
+
+    @Test
+    fun `transpose reaches the registered backend`() = withCleanBackends {
+        var calls = 0
+        val counting = object : F64Blas by F64ReferenceLinearAlgebra {
+            override val name: String get() = "counting"
+            override val priority: Int get() = 50
+            override fun transpose(a: F64DenseMatrix): F64DenseMatrix {
+                calls++
+                return F64ReferenceLinearAlgebra.transpose(a)
+            }
+        }
+        registerBackend(counting)
+
+        F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0))).transpose()
+
+        assertEquals(1, calls, "the extension must forward to the seam")
     }
 
     @Test

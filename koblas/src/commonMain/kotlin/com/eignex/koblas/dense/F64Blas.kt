@@ -29,6 +29,15 @@ public interface F64Blas : Backend {
         return y
     }
 
+    /**
+     * Fresh transposed [a]. For a product prefer the transpose flags on [gemv] and [gemm], which read the
+     * original storage without copying; this is for a caller that means to hold the transpose.
+     *
+     * On the seam rather than beside the other whole-matrix operations because a library has its own routine
+     * for it, `omatcopy` in the BLAS-like extensions, where the standard has none.
+     */
+    public fun transpose(a: F64DenseMatrix): F64DenseMatrix
+
     /** `C = alpha · op(A) · op(B) + beta · C` (BLAS `dgemm`), with shapes `op(A): m×k`, `op(B): k×n`, `C: m×n`.
      *  `beta == 0.0` overwrites [c] without reading it. */
     @Suppress("LongParameterList") // the BLAS dgemm signature

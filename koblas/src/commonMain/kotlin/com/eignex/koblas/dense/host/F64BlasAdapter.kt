@@ -32,9 +32,13 @@ public abstract class F64BlasAdapter internal constructor(
     /** A binding that calls out, whatever the portable instance it falls back to reports. */
     override val isPortable: Boolean get() = false
 
-    // The rank-updates below have no host binding, so they run the portable versions. Forwarded explicitly
+    // The routines below have no host binding, so they run the portable versions. Forwarded explicitly
     // rather than by class delegation, which would route a caller's convenience overloads to the portable
     // routine instead of the accelerated one, since a delegated member calls back into the delegate.
+    // A transpose is `omatcopy`, a BLAS-like extension rather than part of CBLAS, so it is not among the
+    // symbols this binding resolves.
+    override fun transpose(a: F64DenseMatrix): F64DenseMatrix = portable.transpose(a)
+
     override fun syr(alpha: Double, x: F64VectorLike, a: F64DenseMatrix, uplo: Uplo): Unit = portable.syr(
         alpha,
         x,

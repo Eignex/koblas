@@ -10,6 +10,7 @@ import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import com.eignex.koblas.sparse.basis.F64BasisSolver
 import com.eignex.koblas.sparse.basis.F64ProductFormBasisSolver
+import com.eignex.koblas.sparse.internal.transposeCsc
 import kotlin.math.abs
 
 /**
@@ -55,6 +56,8 @@ public object F64ReferenceSparseLinearAlgebra :
             }
         }
     }
+
+    override fun transpose(a: F64SparseMatrix): F64SparseMatrix = transposeCsc(a)
 
     override fun trsv(a: F64SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
         requireSquare(a, "trsv")
