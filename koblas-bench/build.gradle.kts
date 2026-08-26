@@ -164,6 +164,17 @@ benchmark {
             param("density", "0.01")
             param("len", "4096")
         }
+        // The two gathering kernels against sparseNrm2, which sorts after both and reduces over the stored
+        // values alone, so it never touches the dense operand a gather reads. Two lengths at one density,
+        // since a gathered load amortizes its setup over its block and a handful of blocks need not behave
+        // like several hundred. Answering the pair with `DoubleVector.fromArray` over an index map is slower
+        // on every row of an AVX2 host, 2.7x to 8.9x on its efficiency cores and 1.1x to 4.6x on its
+        // performance cores, so both kernels stay portable and this suite is what would have to say otherwise.
+        suite("sparseGatherGate", "SparseLevel1Benchmark", "sparseGather|sparseGatherZero|sparseNrm2") {
+            gate()
+            param("density", "0.01")
+            param("len", "4096", "65536")
+        }
         suite("pivotedQrGate", "PivotedQrGateBenchmark") {
             gate()
         }
