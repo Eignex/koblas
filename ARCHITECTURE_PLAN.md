@@ -207,6 +207,13 @@ Acceptance criteria:
 
 ### PR 4: Unify host and bundled numerical options
 
+Status: open as [PR #317](https://github.com/Eignex/koblas/pull/317) from
+`codex/unified-native-options`; bundled-provider tests, JVM host tests, and Linux/Native host tests passed,
+and `./gradlew check lintDocs --rerun-tasks` passed all 190 tasks. Shared option objects now configure both
+deployment forms, structured metadata reports resolved dispatch gates and applied threading, and native
+control-array tests verify KLU and UMFPACK propagation. The change also fixes HFactor's previously ignored
+equilibration setting.
+
 - Separate library location/loading from numerical and execution policy.
 - Make bundled OpenBLAS, KLU, UMFPACK, BASICLU, and HFactor accept the applicable common option objects.
 - Preserve existing constructors with delegating overloads or a documented migration.
