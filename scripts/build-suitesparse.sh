@@ -59,6 +59,11 @@ install="$work/install"
 if [[ "$platform" == macosx-arm64 ]]; then
     export DYLD_LIBRARY_PATH="$(dirname "$blas")${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}"
 fi
+# CHOLMOD and SPQR want LAPACK where UMFPACK wanted only BLAS, and the bundled OpenBLAS carries both, so
+# both variables point at it. Naming LAPACK_LIBRARIES also settles where it comes from: SuiteSparseLAPACK
+# takes a supplied one as-is and returns, where falling through to cmake's own FindLAPACK searches the host
+# and takes whatever it finds, which on a machine with no system LAPACK is nothing.
+#
 # CUDA is opt-out upstream, so a build host that happens to have it would otherwise put a CUDA runtime
 # dependency into CHOLMOD and SPQR. Static archives are never copied into the bundle, so building them
 # would only cost compile time.
@@ -67,7 +72,7 @@ cmake -S "$source" -B "$work/build" -G "Unix Makefiles" \
     -DCMAKE_INSTALL_PREFIX="$install" \
     -DSUITESPARSE_ENABLE_PROJECTS="suitesparse_config;amd;camd;colamd;ccolamd;btf;klu;umfpack;cholmod;spqr" \
     -DKLU_USE_CHOLMOD=OFF -DUMFPACK_USE_CHOLMOD=OFF \
-    -DBLAS_LIBRARIES="$blas" \
+    -DBLAS_LIBRARIES="$blas" -DLAPACK_LIBRARIES="$blas" \
     -DBLA_VENDOR=OpenBLAS \
     -DSUITESPARSE_USE_OPENMP=OFF -DSUITESPARSE_USE_CUDA=OFF \
     -DCMAKE_INSTALL_RPATH='\$ORIGIN' -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON \
