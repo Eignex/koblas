@@ -107,13 +107,19 @@ class SparseSeamTest {
         }
     }
 
-    private class CountingSparseLu(override val priority: Int = 50) : F64SparseLu {
+    private class CountingSparseLu(override val priority: Int = 50) : F64SparseDecompositions {
         override val name: String get() = "counting-decompositions"
         var factors = 0
+        var choleskys = 0
 
         override fun factor(a: F64SparseMatrix): F64SparseFactorization {
             factors++
             return F64ReferenceSparseLinearAlgebra.factor(a)
+        }
+
+        override fun cholesky(a: F64SparseMatrix): F64SparseFactorization {
+            choleskys++
+            return F64ReferenceSparseLinearAlgebra.cholesky(a)
         }
     }
 
@@ -179,6 +185,9 @@ class SparseSeamTest {
         val f = a.lu()
         assertEquals(1, decompositions.factors, "F64SparseMatrix.lu should forward to the seam")
         assertTrue(!f.singular)
+
+        a.cholesky()
+        assertEquals(1, decompositions.choleskys, "F64SparseMatrix.cholesky should forward to the seam")
     }
 
     @Test
@@ -186,11 +195,11 @@ class SparseSeamTest {
         registerBackend(CountingSparseBlas())
         registerBackend(CountingSparseLu())
         assertEquals("counting-blas", koblas.sparseBlas.name)
-        assertEquals("counting-decompositions", koblas.sparseLu.name)
+        assertEquals("counting-decompositions", koblas.sparseDecompositions.name)
         resetBackends()
         registerBackend(F64ReferenceSparseLinearAlgebra)
         assertSame(F64ReferenceSparseLinearAlgebra, koblas.sparseBlas)
-        assertSame(F64ReferenceSparseLinearAlgebra, koblas.sparseLu)
+        assertSame(F64ReferenceSparseLinearAlgebra, koblas.sparseDecompositions)
     }
 
     @Test
@@ -216,7 +225,7 @@ class SparseSeamTest {
     @Test
     fun `an empty registry resolves to the portable implementation on all three sparse halves`() = withCleanBackends {
         assertSame(F64ReferenceSparseLinearAlgebra, koblas.sparseBlas)
-        assertSame(F64ReferenceSparseLinearAlgebra, koblas.sparseLu)
+        assertSame(F64ReferenceSparseLinearAlgebra, koblas.sparseDecompositions)
         assertSame(F64PlatformSparseKernels, koblas.sparseKernels)
     }
 }

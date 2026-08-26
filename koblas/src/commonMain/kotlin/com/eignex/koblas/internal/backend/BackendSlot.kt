@@ -28,7 +28,7 @@ public enum class BackendSlot(internal val from: (F64Context) -> Backend, intern
     F64SparseBlas({ it.sparseBlas }),
 
     /** Sparse factorizations. */
-    F64SparseLu({ it.sparseLu }),
+    F64SparseDecompositions({ it.sparseDecompositions }),
 
     /** Simplex basis solvers. */
     F64BasisSolvers({ it.basisSolvers }),

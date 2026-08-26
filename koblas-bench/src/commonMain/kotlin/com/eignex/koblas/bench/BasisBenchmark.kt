@@ -46,7 +46,7 @@ class BasisBenchmark {
 
     @Setup
     fun setup() {
-        val portable = koblas.with(sparseLu = F64ReferenceSparseLinearAlgebra)
+        val portable = koblas.with(sparseDecompositions = F64ReferenceSparseLinearAlgebra)
         installBackends(if (backend == REFERENCE_BACKEND) portable else null)
         val rng = benchRng()
         a = simplexProblem(n, rng, spikeFraction = if (shape == SPIKED_COLUMNS) 0.5 else 0.0)

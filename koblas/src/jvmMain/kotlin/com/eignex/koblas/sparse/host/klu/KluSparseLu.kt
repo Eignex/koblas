@@ -5,7 +5,7 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.sparse.F64SingularSparseFactorization
 import com.eignex.koblas.sparse.F64SparseFactorization
-import com.eignex.koblas.sparse.host.F64SparseLuAdapter
+import com.eignex.koblas.sparse.host.F64SparseDecompositionsAdapter
 
 /**
  * Sparse LU factorizations backed by KLU 2.
@@ -17,7 +17,7 @@ import com.eignex.koblas.sparse.host.F64SparseLuAdapter
 public open class KluSparseLu(
     /** Policy for this backend instance. */
     public val config: KluConfig = KluConfig(),
-) : F64SparseLuAdapter(config.factorizeMin, config.equilibrate) {
+) : F64SparseDecompositionsAdapter(config.factorizeMin, config.equilibrate) {
     private val calls = KluCalls(config)
 
     override val name: String get() = BackendNames.KLU

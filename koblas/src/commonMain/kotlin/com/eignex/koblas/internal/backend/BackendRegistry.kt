@@ -52,7 +52,7 @@ internal object BackendRegistry {
     }
 
     /** The sparse LU registered under [name], or null when nothing did. */
-    internal fun sparseLuNamed(name: String) = f64.sparseLuNamed(name)
+    internal fun sparseDecompositionsNamed(name: String) = f64.sparseDecompositionsNamed(name)
 
     /** The basis solvers registered under [name], or null when nothing did. */
     internal fun basisSolversNamed(name: String) = f64.basisSolversNamed(name)

@@ -41,6 +41,6 @@ private fun installHost(config: HostBlasConfig): Boolean {
 internal actual fun useUngatedSparseLu(): Boolean {
     val umfpack = F64SparseBackends(UmfpackConfig(factorizeMin = 0)).umfpack
     if (!umfpack.isAvailable) return false
-    installBackends(koblas.with(sparseLu = umfpack))
+    installBackends(koblas.with(sparseDecompositions = umfpack))
     return true
 }

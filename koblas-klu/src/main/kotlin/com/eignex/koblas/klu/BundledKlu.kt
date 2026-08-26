@@ -9,7 +9,7 @@ import com.eignex.koblas.sparse.host.klu.KluSparseLu
  * KLU backend bundled in Maven-native resources.
  *
  * One of [KluSparseLu] rather than a wrapper around one, so the analysis reuse that sits on that class stays
- * reachable through [com.eignex.koblas.sparseLuNamed] whichever of the two answered to the name.
+ * reachable through [com.eignex.koblas.sparseDecompositionsNamed] whichever of the two answered to the name.
  */
 public class BundledKlu(factorizeMin: Int? = null, equilibrate: Boolean = false) :
     KluSparseLu(

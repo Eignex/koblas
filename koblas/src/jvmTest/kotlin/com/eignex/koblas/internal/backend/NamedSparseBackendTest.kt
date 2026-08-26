@@ -4,7 +4,7 @@ import com.eignex.koblas.registerBackend
 import com.eignex.koblas.sparse.host.basiclu.BasicluSparseLu
 import com.eignex.koblas.sparse.host.hfactor.HfactorSparseLu
 import com.eignex.koblas.sparse.host.klu.KluSparseLu
-import com.eignex.koblas.sparseLuNamed
+import com.eignex.koblas.sparseDecompositionsNamed
 import com.eignex.koblas.withCleanBackends
 import kotlin.test.Test
 import kotlin.test.assertIs
@@ -19,7 +19,7 @@ class NamedSparseBackendTest {
     fun `BASICLU by name carries its own basis factorization`() = withCleanBackends {
         registerBackend(BasicluSparseLu())
 
-        val found = sparseLuNamed("basiclu")
+        val found = sparseDecompositionsNamed("basiclu")
 
         assertIs<BasicluSparseLu>(found, "factorBasis lives here and nowhere else")
     }
@@ -28,7 +28,7 @@ class NamedSparseBackendTest {
     fun `KLU by name carries its own analysis reuse`() = withCleanBackends {
         registerBackend(KluSparseLu())
 
-        val found = sparseLuNamed("klu")
+        val found = sparseDecompositionsNamed("klu")
 
         assertIs<KluSparseLu>(found, "refactor lives here and nowhere else")
     }
@@ -37,7 +37,7 @@ class NamedSparseBackendTest {
     fun `HFactor by name carries the basis solver it is here for`() = withCleanBackends {
         registerBackend(HfactorSparseLu())
 
-        val found = sparseLuNamed("hfactor")
+        val found = sparseDecompositionsNamed("hfactor")
 
         assertIs<HfactorSparseLu>(found)
     }

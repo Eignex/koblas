@@ -9,7 +9,7 @@ public enum class KluOrdering {
     COLAMD,
 }
 
-/** Row scaling KLU applies when [com.eignex.koblas.sparse.F64SparseLu.factor] requests equilibration. */
+/** Row scaling KLU applies when [com.eignex.koblas.sparse.F64SparseDecompositions.factor] requests equilibration. */
 public enum class KluScaling {
     /** Do not scale rows. */
     NONE,

@@ -48,7 +48,7 @@ class SparseLuTest {
             val a = randomSparseSquare(n, rng)
             // The reference explicitly: this is a test of its elimination, and the fill it is compared against
             // below is the reference's own. Through the seam a host backend would answer with different fill.
-            val lu = F64ReferenceSparseLu(equilibrate = true).factor(a)
+            val lu = F64ReferenceSparseDecompositions(equilibrate = true).factor(a)
             val x = DoubleArray(n) { rng.nextDouble(-3.0, 3.0) }
             assertClose(x, lu.solve(a.gemv(x)), "forward solve n=$n", tolerance = 1e-7)
             assertClose(
@@ -67,13 +67,13 @@ class SparseLuTest {
         val a = randomSparseSquare(n, rng, density = 0.02, dominance = 1.0)
         // The reference explicitly: this is a test of its elimination, and the fill it is compared against
         // below is the reference's own. Through the seam a host backend would answer with different fill.
-        val lu = F64ReferenceSparseLu(equilibrate = true).factor(a)
+        val lu = F64ReferenceSparseDecompositions(equilibrate = true).factor(a)
         val b = randomVector(n, rng)
         assertClose(b, a.gemv(lu.solve(b)), "ftran residual", tolerance = 1e-8)
         assertClose(b, a.gemv(lu.solve(b, transpose = true), transpose = true), "btran residual", tolerance = 1e-8)
         // The bound is loose because random sparsity gives the ordering no structure to exploit.
         assertTrue(lu.nnz < 15 * a.nnz, "fill blew up: factor nnz=${lu.nnz} vs input nnz=${a.nnz}")
-        val dropped = F64ReferenceSparseLu(equilibrate = true, dropTolerance = 1e-9).factor(a)
+        val dropped = F64ReferenceSparseDecompositions(equilibrate = true, dropTolerance = 1e-9).factor(a)
         assertTrue(
             dropped.nnz < lu.nnz / 2,
             "the drop tolerance should cut fill sharply here: ${dropped.nnz} against ${lu.nnz}",
@@ -83,8 +83,8 @@ class SparseLuTest {
     @Test
     fun `equilibration leaves a row it cannot scale into range alone`() {
         val a = F64SparseMatrix(2, 2, intArrayOf(0, 1, 2), intArrayOf(0, 1), doubleArrayOf(1e-320, 2e-320))
-        val plain = assertNotNull(F64ReferenceSparseLu().factor(a))
-        val equilibrated = assertNotNull(F64ReferenceSparseLu(equilibrate = true).factor(a))
+        val plain = assertNotNull(F64ReferenceSparseDecompositions().factor(a))
+        val equilibrated = assertNotNull(F64ReferenceSparseDecompositions(equilibrate = true).factor(a))
         assertEquals(plain.singular, equilibrated.singular, "equilibration changed the singularity verdict")
         assertEquals(plain.failedAt, equilibrated.failedAt, "equilibration changed the reported position")
     }
@@ -95,7 +95,7 @@ class SparseLuTest {
         repeat(60) {
             val n = rng.nextInt(1, 8)
             val a = randomSparseSquare(n, rng, density = 1.0)
-            val lu = assertNotNull(F64ReferenceSparseLu().factor(a))
+            val lu = assertNotNull(F64ReferenceSparseDecompositions().factor(a))
             val x = DoubleArray(n) { rng.nextDouble(-3.0, 3.0) }
             assertClose(x, lu.solve(a.gemv(x)), "unequilibrated n=$n", tolerance = 1e-7)
         }
@@ -166,7 +166,7 @@ class SparseLuTest {
         val rhs = randomVector(40, rng)
         // A drop tolerance falls back to the portable path, so the baseline takes it too rather than a host backend.
         val exact = F64ReferenceSparseLinearAlgebra.factor(a)
-        val dropped = F64ReferenceSparseLu(dropTolerance = 1e-3).factor(a)
+        val dropped = F64ReferenceSparseDecompositions(dropTolerance = 1e-3).factor(a)
         assertTrue(
             dropped.nnz < exact.nnz,
             "a drop tolerance must discard fill: ${dropped.nnz} against ${exact.nnz}",
@@ -181,7 +181,7 @@ class SparseLuTest {
     @Test
     fun `a negative drop tolerance is rejected`() {
         assertFailsWith<IllegalArgumentException> {
-            F64ReferenceSparseLu(dropTolerance = -1e-9).factor(randomSparseSquare(3, Random(1)))
+            F64ReferenceSparseDecompositions(dropTolerance = -1e-9).factor(randomSparseSquare(3, Random(1)))
         }
     }
 

@@ -36,6 +36,12 @@ class UmfpackConformanceTest {
     }
 
     @Test
+    fun `a backend with no native Cholesky answers with the portable one`() {
+        requireSuiteSparse()
+        assertCholeskyAgreesWithReference(umfpack)
+    }
+
+    @Test
     fun `an aliased destination still solves correctly`() {
         requireSuiteSparse()
         assertAliasedDestinationSolves(umfpack)

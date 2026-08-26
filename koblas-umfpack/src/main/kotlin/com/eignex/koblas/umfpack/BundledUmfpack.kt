@@ -10,7 +10,7 @@ import com.eignex.koblas.sparse.host.umfpack.UmfpackSparseLu
  * SuiteSparse UMFPACK backend bundled in Maven-native resources.
  *
  * One of [UmfpackSparseLu] rather than a wrapper around one, so the bundled providers all answer to
- * [com.eignex.koblas.sparseLuNamed] as the type their binding is.
+ * [com.eignex.koblas.sparseDecompositionsNamed] as the type their binding is.
  */
 public class BundledUmfpack(factorizeMin: Int? = null, equilibrate: Boolean = false) :
     UmfpackSparseLu(bundledConfig(factorizeMin, equilibrate)) {

@@ -40,6 +40,12 @@ class BasicluConformanceTest {
     }
 
     @Test
+    fun `a backend with no native Cholesky answers with the portable one`() {
+        requireBasiclu()
+        assertCholeskyAgreesWithReference(basiclu)
+    }
+
+    @Test
     fun `an aliased destination still solves correctly`() {
         requireBasiclu()
         assertAliasedDestinationSolves(basiclu)
@@ -134,7 +140,7 @@ class BasicluConformanceTest {
 
         for (transpose in booleanArrayOf(false, true)) {
             assertClose(
-                F64ReferenceSparseLu(equilibrate = true).factor(a).solve(b, transpose),
+                F64ReferenceSparseDecompositions(equilibrate = true).factor(a).solve(b, transpose),
                 host.solve(b, transpose),
                 "equilibrated transpose=$transpose",
                 tolerance = 1e-9,

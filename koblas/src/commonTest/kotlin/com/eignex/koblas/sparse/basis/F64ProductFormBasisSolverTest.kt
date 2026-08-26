@@ -5,8 +5,8 @@ import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
+import com.eignex.koblas.sparse.F64SparseDecompositions
 import com.eignex.koblas.sparse.F64SparseFactorization
-import com.eignex.koblas.sparse.F64SparseLu
 import com.eignex.koblas.sparse.sparseConformanceSystem
 import kotlin.random.Random
 import kotlin.test.*
@@ -219,7 +219,8 @@ class F64ProductFormBasisSolverTest {
     }
 
     /** A backend that gives up outright rather than answering singular, which a rebuild must survive. */
-    private class GivingUpSparseLu(private val delegate: F64SparseLu) : F64SparseLu by delegate {
+    private class GivingUpSparseLu(private val delegate: F64SparseDecompositions) :
+        F64SparseDecompositions by delegate {
         var refuse: Boolean = false
 
         override fun factor(a: F64SparseMatrix): F64SparseFactorization {

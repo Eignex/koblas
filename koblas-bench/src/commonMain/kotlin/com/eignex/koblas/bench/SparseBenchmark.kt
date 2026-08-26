@@ -20,7 +20,7 @@ class SparseBenchmark {
     private lateinit var luFactored: F64SparseFactorization
 
     /** The portable factorization set to scale rows, which is where equilibration lives now. */
-    private val equilibrating = F64ReferenceSparseLu(equilibrate = true)
+    private val equilibrating = F64ReferenceSparseDecompositions(equilibrate = true)
 
     @Setup
     fun setup() {

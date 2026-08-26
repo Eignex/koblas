@@ -165,8 +165,10 @@ public object F64ReferenceSparseLinearAlgebra :
         }
     }
 
-    /** The portable factorization at its default policy; [F64ReferenceSparseLu] carries the knobs. */
-    override fun factor(a: F64SparseMatrix): F64SparseFactorization = F64ReferenceSparseLu.factor(a)
+    /** The portable factorization at its default policy; [F64ReferenceSparseDecompositions] carries the knobs. */
+    override fun factor(a: F64SparseMatrix): F64SparseFactorization = F64ReferenceSparseDecompositions.factor(a)
+
+    override fun cholesky(a: F64SparseMatrix): F64SparseFactorization = F64ReferenceSparseDecompositions.cholesky(a)
 
     override fun dot(x: F64SparseVector, y: DoubleArray): Double {
         requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }

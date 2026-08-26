@@ -66,7 +66,7 @@ public interface F64BasisFactorization : F64SparseFactorization {
     public fun replaceColumn(column: Int, entering: F64SparseVector): F64BasisFactorization
 }
 
-/** What [F64SparseLu.factor] returns when no numerically acceptable pivot remains. */
+/** What [F64SparseDecompositions.factor] returns when no numerically acceptable pivot remains. */
 public class F64SingularSparseFactorization(override val n: Int, override val failedAt: Int) : F64SparseFactorization {
     override val nnz: Int get() = 0
 
@@ -83,7 +83,7 @@ public fun requireSolveShapes(n: Int, b: DoubleArray, out: DoubleArray) {
 }
 
 /**
- * A basis factorization over any [F64SparseLu], for a backend that cannot update its own factors. A
+ * A basis factorization over any [F64SparseDecompositions], for a backend that cannot update its own factors. A
  * replacement refactorizes the basis it produces, so the factors stay exact at the cost of a factorization
  * per replacement.
  *
@@ -91,7 +91,7 @@ public fun requireSolveShapes(n: Int, b: DoubleArray, out: DoubleArray) {
  * builds it from. BASICLU offers one; nothing else koblas binds does.
  */
 public class F64RefactoringBasisFactorization(
-    private val lu: F64SparseLu,
+    private val lu: F64SparseDecompositions,
     override val basis: F64SparseMatrix,
     private val factors: F64SparseFactorization,
 ) : F64BasisFactorization {

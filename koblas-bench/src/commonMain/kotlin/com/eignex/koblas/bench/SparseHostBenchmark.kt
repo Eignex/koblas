@@ -27,14 +27,15 @@ class SparseHostBenchmark {
     fun setup() {
         installBackends(null)
         when (backend) {
-            REFERENCE_BACKEND -> installBackends(koblas.with(sparseLu = F64ReferenceSparseLinearAlgebra))
+            REFERENCE_BACKEND -> installBackends(koblas.with(sparseDecompositions = F64ReferenceSparseLinearAlgebra))
             FORCED_BACKEND -> useUngatedSparseLu()
         }
         val rng = benchRng()
         a = if (shape == BASIS_SHAPE) simplexBasis(n, rng) else sparseDominantMatrix(n, rng)
         rhs = randomVector(n, rng)
         factored = a.lu()
-        println("resolved: sparseLu=${koblas.sparseLu.name} shape=$shape nnz(A)=${a.nnz} fill=${factored.nnz}")
+        val half = koblas.sparseDecompositions.name
+        println("resolved: sparseDecompositions=$half shape=$shape nnz(A)=${a.nnz} fill=${factored.nnz}")
     }
 
     @Benchmark

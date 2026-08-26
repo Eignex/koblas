@@ -142,7 +142,7 @@ public class F64SparseLuFactorization private constructor(
     public companion object {
 
         /**
-         * Factorize the square [a], the implementation behind [F64SparseLu.factor]. Returns a
+         * Factorize the square [a], the implementation behind [F64SparseDecompositions.factor]. Returns a
          * [F64SingularSparseFactorization] when no acceptable pivot remains.
          */
         internal fun factorCsc(
