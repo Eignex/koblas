@@ -6,8 +6,8 @@ import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.requireInBounds
 import com.eignex.koblas.requireShape
+import com.eignex.koblas.sparse.F64SparseDecompositions
 import com.eignex.koblas.sparse.F64SparseFactorization
-import com.eignex.koblas.sparse.F64SparseLu
 
 /** Updates a portable solver folds in before advising a rebuild; past this the chain costs more than it saves. */
 public const val DEFAULT_ETA_LIMIT: Int = 50
@@ -33,7 +33,7 @@ public const val DEFAULT_ETA_LIMIT: Int = 50
  */
 public class F64ProductFormBasisSolver(
     private val a: F64SparseMatrix,
-    private val lu: F64SparseLu,
+    private val lu: F64SparseDecompositions,
     private val etaLimit: Int = DEFAULT_ETA_LIMIT,
 ) : F64BasisSolver {
     init {

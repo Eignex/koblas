@@ -9,7 +9,7 @@ import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.requireSquare
 import com.eignex.koblas.sparse.*
-import com.eignex.koblas.sparse.host.F64SparseLuAdapter
+import com.eignex.koblas.sparse.host.F64SparseDecompositionsAdapter
 import com.eignex.koblas.sparse.host.equilibrationScale
 import com.eignex.koblas.sparse.host.scaledValues
 import com.eignex.koblas.withColumn
@@ -24,7 +24,7 @@ import com.eignex.koblas.withColumn
 public open class BasicluSparseLu(
     /** Policy for this backend instance. */
     public val config: BasicluConfig = BasicluConfig(),
-) : F64SparseLuAdapter(config.factorizeMin, config.equilibrate) {
+) : F64SparseDecompositionsAdapter(config.factorizeMin, config.equilibrate) {
     private val calls = BasicluCalls(config)
 
     override val name: String get() = BackendNames.BASICLU

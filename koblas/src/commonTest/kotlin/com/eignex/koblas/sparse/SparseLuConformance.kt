@@ -31,7 +31,7 @@ internal fun multiply(a: F64SparseMatrix, x: DoubleArray): DoubleArray {
     return y
 }
 
-internal fun assertSolvesAgreeWithReference(decompositions: F64SparseLu) {
+internal fun assertSolvesAgreeWithReference(decompositions: F64SparseDecompositions) {
     val rng = Random(20260815)
     for (n in intArrayOf(1, 2, 7, 23, 60)) {
         val a = sparseConformanceSystem(n, rng)
@@ -51,7 +51,7 @@ internal fun assertSolvesAgreeWithReference(decompositions: F64SparseLu) {
     }
 }
 
-internal fun assertAliasedDestinationSolves(decompositions: F64SparseLu) {
+internal fun assertAliasedDestinationSolves(decompositions: F64SparseDecompositions) {
     val rng = Random(20260816)
     val n = 12
     val a = sparseConformanceSystem(n, rng)
@@ -63,7 +63,7 @@ internal fun assertAliasedDestinationSolves(decompositions: F64SparseLu) {
     assertClose(expected, aliased, "aliased destination", tolerance = 1e-12)
 }
 
-internal fun assertReciprocalPivotConditionEstimateIsBounded(decompositions: F64SparseLu) {
+internal fun assertReciprocalPivotConditionEstimateIsBounded(decompositions: F64SparseDecompositions) {
     val identity = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 1.0)))
     assertEquals(1.0, decompositions.factor(identity).rcond)
 
@@ -72,7 +72,7 @@ internal fun assertReciprocalPivotConditionEstimateIsBounded(decompositions: F64
 }
 
 /** A host that cannot name the failing pivot must say so rather than invent a position. */
-internal fun assertSingularIsReportedWithUnknownPosition(decompositions: F64SparseLu) {
+internal fun assertSingularIsReportedWithUnknownPosition(decompositions: F64SparseDecompositions) {
     val rank1 = F64SparseMatrix.ofColumns(
         2,
         2,
@@ -90,12 +90,12 @@ internal fun assertSingularIsReportedWithUnknownPosition(decompositions: F64Spar
  * A host sparse factorization wins only its own half of the registry, so the sparse BLAS stays with the
  * reference. [n] sets the size of the system whose fill is reported.
  */
-internal fun assertRegistersAsTheSparseLuHalf(decompositions: F64SparseLu, n: Int) {
+internal fun assertRegistersAsTheSparseLuHalf(decompositions: F64SparseDecompositions, n: Int) {
     withCleanBackends {
         registerBackend(decompositions)
         assertEquals(
             decompositions.name,
-            koblas.sparseLu.name,
+            koblas.sparseDecompositions.name,
             "${decompositions.name} should win the sparse decompositions half",
         )
         assertEquals("reference", koblas.sparseBlas.name)
@@ -112,7 +112,7 @@ internal fun assertRegistersAsTheSparseLuHalf(decompositions: F64SparseLu, n: In
  * gates straddle one matrix's stored-entry count, which is the quantity a sparse host gates on.
  */
 internal fun assertFactorizeGateFallsBackToReference(
-    gated: (factorizeMin: Int) -> F64SparseLu,
+    gated: (factorizeMin: Int) -> F64SparseDecompositions,
     hostFactorization: (F64SparseFactorization) -> Boolean,
 ) {
     val a = sparseConformanceSystem(12, Random(20260901))
@@ -123,7 +123,7 @@ internal fun assertFactorizeGateFallsBackToReference(
 }
 
 /** A gated host still agrees with the reference on a problem it hands back. */
-internal fun assertGatedFallbackStillSolves(gated: (factorizeMin: Int) -> F64SparseLu) {
+internal fun assertGatedFallbackStillSolves(gated: (factorizeMin: Int) -> F64SparseDecompositions) {
     val n = 7
     val rng = Random(20260902)
     val a = sparseConformanceSystem(n, rng)
@@ -135,7 +135,7 @@ internal fun assertGatedFallbackStillSolves(gated: (factorizeMin: Int) -> F64Spa
 
 /** A backend set to equilibrate scales natively and still solves the system it was given. */
 internal fun assertNativeEquilibration(
-    decompositions: F64SparseLu,
+    decompositions: F64SparseDecompositions,
     hostFactorization: (F64SparseFactorization) -> Boolean,
 ) {
     val rng = Random(20260818)
@@ -147,7 +147,7 @@ internal fun assertNativeEquilibration(
 }
 
 /** Native handles are freed per factorization, so a long loop must not grow without bound. */
-internal fun assertRepeatedFactorizationsSurvive(decompositions: F64SparseLu) {
+internal fun assertRepeatedFactorizationsSurvive(decompositions: F64SparseDecompositions) {
     val rng = Random(20260820)
     val a = sparseConformanceSystem(120, rng)
     var checksum = 0.0

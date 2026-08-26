@@ -33,7 +33,7 @@ internal actual fun registerPlatformBackends() {
         ) {
             continue
         }
-        if (provider is F64SparseKernels || provider is F64SparseBlas || provider is F64SparseLu) {
+        if (provider is F64SparseKernels || provider is F64SparseBlas || provider is F64SparseDecompositions) {
             if (sparseRequested != null &&
                 !matchesRequested(provider.name, sparseRequested)
             ) {

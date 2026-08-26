@@ -10,7 +10,7 @@ import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.basis.F64BasisSolver
 import com.eignex.koblas.sparse.basis.F64BasisSolvers
 import com.eignex.koblas.sparse.basis.F64ProductFormBasisSolver
-import com.eignex.koblas.sparse.host.F64SparseLuAdapter
+import com.eignex.koblas.sparse.host.F64SparseDecompositionsAdapter
 
 /**
  * Sparse LU, hypersparse solves, and Forrest-Tomlin basis updates backed by HiGHS's HFactor.
@@ -25,7 +25,7 @@ import com.eignex.koblas.sparse.host.F64SparseLuAdapter
 public open class HfactorSparseLu(
     /** Policy for this backend instance. */
     public val config: HfactorConfig = HfactorConfig(),
-) : F64SparseLuAdapter(config.factorizeMin),
+) : F64SparseDecompositionsAdapter(config.factorizeMin),
     F64BasisSolvers {
     private val calls = HfactorCalls(config)
 

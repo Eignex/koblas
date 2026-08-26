@@ -12,9 +12,13 @@ mirror the dense ones.
   is what CSC stores, and `gemm` and `trsm` over several right-hand sides at once. The level-3 pair takes a
   dense second operand, so the product stays dense and fills in nowhere; the sparse-times-sparse product is
   the one that needs a result type of its own, and it lands here when something asks for it.
-- [F64SparseLu] — general sparse LU factorization, and only that. [F64SparseLu.factor] returns
-  [F64SparseFactorization], never null: a singular matrix yields a factorization reporting `singular`, matching
-  the dense contract. Its factors support both ordinary and transposed solves.
+- [F64SparseDecompositions] — the sparse factorizations, one seam over all of them as the dense
+  [com.eignex.koblas.dense.F64Decompositions] is. [F64SparseDecompositions.factor] is the general LU and
+  returns [F64SparseFactorization], never null: a singular matrix yields a factorization reporting
+  `singular`, matching the dense contract. [F64SparseDecompositions.cholesky] is `A = L·Lᵀ` for a symmetric
+  positive-definite matrix, reading only the lower triangle, and raises where the LU reports, because a
+  non-positive pivot says the matrix was not the one the caller described. Both factorizations solve in the
+  ordinary and the transposed direction, which for the Cholesky is the same direction twice.
 - [F64BasisFactorization] — a sparse LU factorization of a simplex basis. It retains the basis matrix and
   can produce the factorization after one column replacement, which may be any column at all. BASICLU
   answers it; [F64RefactoringBasisFactorization] wraps any other backend at the cost of a factorization per
@@ -32,16 +36,26 @@ time, [com.eignex.koblas.sparse.basis.F64BasisSolver] a basis pivoted thousands 
 a property of the matrix, not of a ranking, and one process can want two at once.
 
 So [com.eignex.koblas.koblas] hands out the strongest offer per half, which is the right default, and
-[com.eignex.koblas.sparseLuNamed] hands out a particular one for a caller that knows which it wants.
+[com.eignex.koblas.sparseDecompositionsNamed] hands out a particular one for a caller that knows which it wants.
 
-For the same reason [F64SparseLu] carries only what every sparse LU does. What one library has and the
-others do not is a routine on that library: KLU's `refactor`, which reuses a symbolic analysis across
-matrices of one pattern; BASICLU's `factorBasis`; HFactor's `basisSolver`, which has a half of its own
-because the portable backend answers it too. Row equilibration and a drop tolerance are policy a backend's
-constructor settles, beside the settings that already say how to scale; the portable half settles them in
-[F64ReferenceSparseLu], whose `Default` is what the seam falls back to.
-- Implementation: [F64SparseLuFactorization][com.eignex.koblas.sparse.factorization.lu.F64SparseLuFactorization], a Markowitz threshold-pivoting
-  `P·B·Q = L·U` that keeps the factors sparse instead of filling toward `O(m²)`.
+For the same reason [F64SparseDecompositions] carries only what a factorization of each kind universally
+does. What one library has and the others do not is a routine on that library: KLU's `refactor`, which
+reuses a symbolic analysis across matrices of one pattern; BASICLU's `factorBasis`; HFactor's `basisSolver`,
+which has a half of its own because the portable backend answers it too. Row equilibration and a drop
+tolerance are policy a backend's constructor settles, beside the settings that already say how to scale; the
+portable half settles them in [F64ReferenceSparseDecompositions], whose `Default` is what the seam falls
+back to.
+
+A library filling one kind and not another is the ordinary case rather than the exception, since most of
+these are unsymmetric LU and nothing else. Such a binding answers the rest portably through
+[F64SparseDecompositionsAdapter][com.eignex.koblas.sparse.host.F64SparseDecompositionsAdapter], which is the
+same fallback it already uses below its own size gate.
+
+- LU: [F64SparseLuFactorization][com.eignex.koblas.sparse.factorization.lu.F64SparseLuFactorization], a
+  Markowitz threshold-pivoting `P·B·Q = L·U` that keeps the factors sparse instead of filling toward `O(m²)`.
+- Cholesky:
+  [F64SparseCholeskyFactorization][com.eignex.koblas.sparse.factorization.cholesky.F64SparseCholeskyFactorization],
+  an up-looking `A = L·Lᵀ` over the elimination tree, in the ordering the matrix arrives in.
 
 [F64SparseFactorization] is an interface rather than a class, which is the one place this deviates from the
 dense shape. LAPACK's packed formats are a standard, so a dense [com.eignex.koblas.dense.F64LuDecomposition]

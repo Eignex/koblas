@@ -28,7 +28,7 @@ class UmfpackNativeConformanceTest {
         val strongest = F64SparseBackends().let { listOf(it.umfpack, it.klu, it.basiclu) }
             .filter { it.isAvailable }
             .maxBy { it.priority }
-        assertEquals(strongest.name, koblas.sparseLu.name, "discovery should have registered the backend")
+        assertEquals(strongest.name, koblas.sparseDecompositions.name, "discovery should have registered the backend")
     }
 
     @Test

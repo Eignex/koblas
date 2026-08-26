@@ -19,17 +19,18 @@ import com.eignex.koblas.sparse.*
  *   is settled once here rather than per call, since it is policy of a piece with the scaling each
  *   library's own settings already choose.
  */
-public abstract class F64SparseLuAdapter protected constructor(
+public abstract class F64SparseDecompositionsAdapter protected constructor(
     factorizeMin: Int? = null,
     protected val equilibrate: Boolean = false,
-) : F64SparseLu {
+) : F64SparseDecompositions {
     /** Whether the binding resolved every symbol needed to factor and solve. */
     protected abstract val nativeAvailable: Boolean
 
     private val factorizeGate = hostDispatchThresholds(factorize = factorizeMin).factorize
 
     /** The portable factorization at this backend's own policy, for everything the library will not take. */
-    protected val portable: F64ReferenceSparseLu = F64ReferenceSparseLu(equilibrate = equilibrate)
+    protected val portable: F64ReferenceSparseDecompositions =
+        F64ReferenceSparseDecompositions(equilibrate = equilibrate)
 
     override val isAvailable: Boolean get() = nativeAvailable
 
@@ -47,4 +48,19 @@ public abstract class F64SparseLuAdapter protected constructor(
 
     /** Factorizes a matrix through the native library, equilibrating when this backend is set to. */
     protected abstract fun factorNative(a: F64SparseMatrix): F64SparseFactorization
+
+    final override fun cholesky(a: F64SparseMatrix): F64SparseFactorization {
+        requireSquare(a, "cholesky")
+        if (a.nnz < factorizeGate || !nativeAvailable) {
+            return portable.cholesky(a)
+        }
+        return choleskyNative(a)
+    }
+
+    /**
+     * Factorizes a symmetric positive-definite matrix through the native library. Most of these libraries are
+     * unsymmetric LU and have none, so the default is the portable factorization: the seam carries every
+     * sparse factorization, and a binding filling one half of it does not have to offer the rest.
+     */
+    protected open fun choleskyNative(a: F64SparseMatrix): F64SparseFactorization = portable.cholesky(a)
 }

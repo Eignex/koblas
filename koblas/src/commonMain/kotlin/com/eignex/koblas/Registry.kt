@@ -3,7 +3,7 @@ package com.eignex.koblas
 import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.internal.backend.BackendRegistry
 import com.eignex.koblas.internal.backend.BackendSlot
-import com.eignex.koblas.sparse.F64SparseLu
+import com.eignex.koblas.sparse.F64SparseDecompositions
 import com.eignex.koblas.sparse.basis.F64BasisSolvers
 
 /**
@@ -42,12 +42,13 @@ public fun discoverBackends() {
  * Named rather than constructed directly so a caller keeps discovery, the configured library paths, and
  * the bundled builds. What comes back is the binding's own type, a bundled provider included, so the
  * routines that library carries outside this seam are reached by narrowing to it:
- * `(sparseLuNamed("basiclu") as? BasicluSparseLu)?.factorBasis(b)`.
+ * `(sparseDecompositionsNamed("basiclu") as? BasicluSparseLu)?.factorBasis(b)`.
  */
-public fun sparseLuNamed(name: String): F64SparseLu? = BackendRegistry.sparseLuNamed(name)
+public fun sparseDecompositionsNamed(name: String): F64SparseDecompositions? =
+    BackendRegistry.sparseDecompositionsNamed(name)
 
 /**
- * The basis solvers registered under [name], the counterpart of [sparseLuNamed] for the basis half.
+ * The basis solvers registered under [name], the counterpart of [sparseDecompositionsNamed] for the basis half.
  */
 public fun basisSolversNamed(name: String): F64BasisSolvers? = BackendRegistry.basisSolversNamed(name)
 

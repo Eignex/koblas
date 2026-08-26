@@ -21,7 +21,7 @@ internal class F64Registry {
     private val decompositionsSeam = Seam<F64Decompositions>(::recompose)
     private val sparseVectorKernelSeam = Seam<F64SparseKernels>(::recompose)
     private val sparseBlasSeam = Seam<F64SparseBlas>(::recompose)
-    private val sparseLuSeam = Seam<F64SparseLu>(::recompose)
+    private val sparseDecompositionsSeam = Seam<F64SparseDecompositions>(::recompose)
     private val basisSolverSeam = Seam<F64BasisSolvers>(::recompose)
 
     /**
@@ -50,7 +50,7 @@ internal class F64Registry {
         BackendSlot.F64Decompositions to Half(decompositionsSeam) { it as? F64Decompositions },
         BackendSlot.F64SparseKernels to Half(sparseVectorKernelSeam) { it as? F64SparseKernels },
         BackendSlot.F64SparseBlas to Half(sparseBlasSeam) { it as? F64SparseBlas },
-        BackendSlot.F64SparseLu to Half(sparseLuSeam) { it as? F64SparseLu },
+        BackendSlot.F64SparseDecompositions to Half(sparseDecompositionsSeam) { it as? F64SparseDecompositions },
         BackendSlot.F64BasisSolvers to Half(basisSolverSeam) { it as? F64BasisSolvers },
     )
 
@@ -107,7 +107,7 @@ internal class F64Registry {
     }
 
     /** The sparse LU registered under [name], or null when nothing did. */
-    fun sparseLuNamed(name: String): F64SparseLu? = sparseLuSeam.named(name)
+    fun sparseDecompositionsNamed(name: String): F64SparseDecompositions? = sparseDecompositionsSeam.named(name)
 
     /** The basis solvers registered under [name], or null when nothing did. */
     fun basisSolversNamed(name: String): F64BasisSolvers? = basisSolverSeam.named(name)
@@ -128,7 +128,7 @@ internal class F64Registry {
         decompositions = decompositionsSeam.active ?: F64ReferenceLinearAlgebra,
         sparseKernels = sparseVectorKernelSeam.active ?: F64PlatformSparseKernels,
         sparseBlas = sparseBlasSeam.active ?: F64ReferenceSparseLinearAlgebra,
-        sparseLu = sparseLuSeam.active ?: F64ReferenceSparseLinearAlgebra,
+        sparseDecompositions = sparseDecompositionsSeam.active ?: F64ReferenceSparseLinearAlgebra,
         basisSolvers = basisSolverSeam.active ?: F64ReferenceSparseLinearAlgebra,
     )
 

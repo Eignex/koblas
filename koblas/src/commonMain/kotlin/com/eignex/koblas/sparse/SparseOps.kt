@@ -7,6 +7,12 @@ import com.eignex.koblas.koblas
 /** Factorize this sparse matrix with the active backend ([koblas]), the counterpart of `F64DenseMatrix.lu`. */
 public fun F64SparseMatrix.lu(): F64SparseFactorization = koblas.factor(this)
 
+/**
+ * Cholesky-factorize this symmetric positive-definite matrix with the active backend ([koblas]), reading
+ * only its lower triangle. See [F64SparseDecompositions.cholesky].
+ */
+public fun F64SparseMatrix.cholesky(): F64SparseFactorization = koblas.cholesky(this)
+
 /** `this · x`, or `thisᵀ · x` when [transpose], with the active backend ([koblas]). */
 public fun F64SparseMatrix.gemv(x: DoubleArray, transpose: Boolean = false): DoubleArray = koblas.gemv(
     this,

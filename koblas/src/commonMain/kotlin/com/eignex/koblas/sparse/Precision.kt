@@ -1,5 +1,6 @@
 package com.eignex.koblas.sparse
 
+import com.eignex.koblas.sparse.factorization.cholesky.F64SparseCholeskyFactorization
 import com.eignex.koblas.sparse.factorization.lu.F64SparseLuFactorization
 
 /*
@@ -13,8 +14,9 @@ public typealias SparseKernels = F64SparseKernels
 /** Double-precision [F64SparseBlas], the sparse matrix half an unqualified `SparseBlas` means. */
 public typealias SparseBlas = F64SparseBlas
 
-/** Double-precision [F64SparseLu], the sparse LU backend half. */
-public typealias SparseLuBackend = F64SparseLu
+/** Double-precision [F64SparseDecompositions], the sparse factorization half an unqualified
+ *  `SparseLapack` means, as [com.eignex.koblas.dense.Lapack] is the dense one. */
+public typealias SparseLapack = F64SparseDecompositions
 
 /** Double-precision [F64SparseLinearAlgebra], the pair of sparse halves an unqualified `SparseLinearAlgebra` means. */
 public typealias SparseLinearAlgebra = F64SparseLinearAlgebra
@@ -27,3 +29,7 @@ public typealias SingularSparseFactorization = F64SingularSparseFactorization
 
 /** Double-precision [F64SparseLuFactorization], the sparse LU an unqualified `SparseLu` means. */
 public typealias SparseLu = F64SparseLuFactorization
+
+/** Double-precision [F64SparseCholeskyFactorization], the sparse Cholesky an unqualified `SparseCholesky`
+ *  means. */
+public typealias SparseCholesky = F64SparseCholeskyFactorization

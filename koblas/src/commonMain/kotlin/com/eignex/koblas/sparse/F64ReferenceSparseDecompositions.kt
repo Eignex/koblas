@@ -2,6 +2,7 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.backend.BackendNames
+import com.eignex.koblas.sparse.factorization.cholesky.F64SparseCholeskyFactorization
 import com.eignex.koblas.sparse.factorization.lu.F64SparseLuFactorization
 import com.eignex.koblas.sparse.factorization.lu.NO_DROP
 
@@ -16,10 +17,10 @@ import com.eignex.koblas.sparse.factorization.lu.NO_DROP
  * @property dropTolerance discard produced entries this far below the largest magnitude, giving an
  *   incomplete factorization.
  */
-public open class F64ReferenceSparseLu(
+public open class F64ReferenceSparseDecompositions(
     public val equilibrate: Boolean = false,
     public val dropTolerance: Double = NO_DROP,
-) : F64SparseLu {
+) : F64SparseDecompositions {
     init {
         require(dropTolerance >= 0.0) { "dropTolerance must not be negative" }
     }
@@ -31,6 +32,10 @@ public open class F64ReferenceSparseLu(
     override fun factor(a: F64SparseMatrix): F64SparseFactorization =
         F64SparseLuFactorization.factorCsc(a, equilibrate, dropTolerance)
 
-    /** No scaling and no drop tolerance, so `F64ReferenceSparseLu.factor(a)` reads as the plain routine. */
-    public companion object Default : F64ReferenceSparseLu()
+    /** Neither knob reaches here: equilibration would break the symmetry, and a drop tolerance would leave
+     *  an incomplete factor, which is a preconditioner rather than the factorization this promises. */
+    override fun cholesky(a: F64SparseMatrix): F64SparseFactorization = F64SparseCholeskyFactorization.factorLower(a)
+
+    /** No scaling and no drop tolerance, so `F64ReferenceSparseDecompositions.factor(a)` reads as the plain routine. */
+    public companion object Default : F64ReferenceSparseDecompositions()
 }

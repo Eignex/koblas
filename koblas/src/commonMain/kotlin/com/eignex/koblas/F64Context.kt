@@ -6,9 +6,9 @@ import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.dense.F64LinearAlgebra
 import com.eignex.koblas.internal.backend.BackendSlot
 import com.eignex.koblas.sparse.F64SparseBlas
+import com.eignex.koblas.sparse.F64SparseDecompositions
 import com.eignex.koblas.sparse.F64SparseKernels
 import com.eignex.koblas.sparse.F64SparseLinearAlgebra
-import com.eignex.koblas.sparse.F64SparseLu
 import com.eignex.koblas.sparse.basis.F64BasisSolvers
 
 /**
@@ -20,8 +20,8 @@ import com.eignex.koblas.sparse.basis.F64BasisSolvers
  * @property decompositions dense factorizations.
  * @property sparseKernels sparse vector-vector routines.
  * @property sparseBlas sparse matrix routines.
- * @property sparseLu sparse factorizations.
- * @property basisSolvers simplex basis solvers, a half of their own beside [sparseLu].
+ * @property sparseDecompositions sparse factorizations.
+ * @property basisSolvers simplex basis solvers, a half of their own beside [sparseDecompositions].
  */
 public class F64Context(
     override val kernels: F64Kernels,
@@ -29,14 +29,14 @@ public class F64Context(
     public val decompositions: F64Decompositions,
     override val sparseKernels: F64SparseKernels,
     public val sparseBlas: F64SparseBlas,
-    public val sparseLu: F64SparseLu,
+    public val sparseDecompositions: F64SparseDecompositions,
     public val basisSolvers: F64BasisSolvers,
 ) : F64LinearAlgebra,
     F64Blas by blas,
     F64Decompositions by decompositions,
     F64SparseLinearAlgebra,
     F64SparseBlas by sparseBlas,
-    F64SparseLu by sparseLu,
+    F64SparseDecompositions by sparseDecompositions,
     F64BasisSolvers by basisSolvers {
 
     /**
@@ -66,7 +66,7 @@ public class F64Context(
         decompositions: F64Decompositions = this.decompositions,
         sparseKernels: F64SparseKernels = this.sparseKernels,
         sparseBlas: F64SparseBlas = this.sparseBlas,
-        sparseLu: F64SparseLu = this.sparseLu,
+        sparseDecompositions: F64SparseDecompositions = this.sparseDecompositions,
         basisSolvers: F64BasisSolvers = this.basisSolvers,
     ): F64Context = F64Context(
         kernels = kernels,
@@ -74,7 +74,7 @@ public class F64Context(
         decompositions = decompositions,
         sparseKernels = sparseKernels,
         sparseBlas = sparseBlas,
-        sparseLu = sparseLu,
+        sparseDecompositions = sparseDecompositions,
         basisSolvers = basisSolvers,
     )
 

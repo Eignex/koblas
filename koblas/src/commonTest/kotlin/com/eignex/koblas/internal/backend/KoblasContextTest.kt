@@ -60,7 +60,7 @@ class KoblasContextTest {
         assertSame(base.blas, derived.blas)
         assertSame(base.decompositions, derived.decompositions)
         assertSame(base.sparseBlas, derived.sparseBlas)
-        assertSame(base.sparseLu, derived.sparseLu)
+        assertSame(base.sparseDecompositions, derived.sparseDecompositions)
         assertSame(base.sparseKernels, derived.sparseKernels)
         assertSame(base.kernels, base.kernels, "the original must be untouched; contexts are values")
     }
@@ -146,7 +146,7 @@ class KoblasContextTest {
             decompositions = F64ReferenceLinearAlgebra,
             sparseKernels = F64ReferenceSparseLinearAlgebra,
             sparseBlas = F64ReferenceSparseLinearAlgebra,
-            sparseLu = F64ReferenceSparseLinearAlgebra,
+            sparseDecompositions = F64ReferenceSparseLinearAlgebra,
             basisSolvers = F64ReferenceSparseLinearAlgebra,
         )
         assertEquals(0, reference.priority, "every reference half has priority 0")

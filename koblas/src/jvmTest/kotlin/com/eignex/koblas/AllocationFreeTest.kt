@@ -26,7 +26,7 @@ class AllocationFreeTest {
                 blas = F64ReferenceLinearAlgebra,
                 decompositions = F64ReferenceLinearAlgebra,
                 sparseBlas = F64ReferenceSparseLinearAlgebra,
-                sparseLu = F64ReferenceSparseLinearAlgebra,
+                sparseDecompositions = F64ReferenceSparseLinearAlgebra,
                 sparseKernels = F64ReferenceSparseLinearAlgebra,
             ),
         )

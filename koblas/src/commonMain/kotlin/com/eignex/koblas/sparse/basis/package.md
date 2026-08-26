@@ -11,10 +11,10 @@ The simplex basis seam: a factorization held across pivots rather than one taken
   nonzeros. A simplex iteration on a large model touches a few positions, and a `DoubleArray` would spend
   `O(n)` clearing and rescanning around work that is `O(1)` in the model's size.
 - [F64ProductFormBasisSolver] — the portable answer, a sparse LU plus one elementary transform per pivot.
-  Its solves run densely between the seam and [com.eignex.koblas.sparse.F64SparseLu]; the seam stays indexed
+  Its solves run densely between the seam and [com.eignex.koblas.sparse.F64SparseDecompositions]; the seam stays indexed
   so a host binding that solves hypersparsely has nothing to undo.
 
-- [F64BasisSolvers] — the backend half. It is separate from [com.eignex.koblas.sparse.F64SparseLu] because
+- [F64BasisSolvers] — the backend half. It is separate from [com.eignex.koblas.sparse.F64SparseDecompositions] because
   the two basis contracts want different libraries, and held in one seam the strongest at either would take
   the other from whoever was strongest there.
 
