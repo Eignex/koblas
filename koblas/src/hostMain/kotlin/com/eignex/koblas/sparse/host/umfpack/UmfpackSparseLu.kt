@@ -31,7 +31,7 @@ public open class UmfpackSparseLu(
     /** UMFPACK ships separately from OpenBLAS, so a host can have one without the other. */
     final override val nativeAvailable: Boolean get() = loader.available
 
-    private val cholmod by lazy { suiteSparseCholesky(config.libraryPath, config.factorizeMin) }
+    private val cholmod by lazy { suiteSparseCholesky(config.libraryPath) }
 
     /**
      * CHOLMOD ships beside UMFPACK in the same collection, so this backend answers the seam's Cholesky

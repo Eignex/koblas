@@ -79,9 +79,8 @@ public class CholmodCholesky(config: CholmodConfig = CholmodConfig()) {
 }
 
 /** The CHOLMOD that ships beside a SuiteSparse library already loaded from [libraryPath]. */
-internal fun suiteSparseCholesky(libraryPath: String?, factorizeMin: Int?): CholmodCholesky = CholmodCholesky(
-    CholmodConfig(searchDirectory = libraryPath?.parentDirectory(), factorizeMin = factorizeMin),
-)
+internal fun suiteSparseCholesky(libraryPath: String?): CholmodCholesky =
+    CholmodCholesky(CholmodConfig(searchDirectory = libraryPath?.parentDirectory()))
 
 /** The directory part of a path, or null when it names no directory to look in. */
 private fun String.parentDirectory(): String? = substringBeforeLast('/', missingDelimiterValue = "").ifEmpty { null }

@@ -30,7 +30,7 @@ public open class KluSparseLu(
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 1
     final override val nativeAvailable: Boolean get() = loader.available
 
-    private val cholmod by lazy { suiteSparseCholesky(config.libraryPath, config.factorizeMin) }
+    private val cholmod by lazy { suiteSparseCholesky(config.libraryPath) }
 
     /**
      * CHOLMOD ships beside KLU in the same collection, so this backend answers the seam's Cholesky

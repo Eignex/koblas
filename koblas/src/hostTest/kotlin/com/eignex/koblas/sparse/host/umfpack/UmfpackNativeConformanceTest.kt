@@ -4,6 +4,7 @@
 package com.eignex.koblas.sparse.host.umfpack
 
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
+import com.eignex.koblas.NotPositiveDefinite
 import com.eignex.koblas.koblas
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.sparse.host.F64SparseBackends
@@ -47,6 +48,24 @@ class UmfpackNativeConformanceTest {
         )
         assertCholeskyAgreesWithReference(umfpack)
     }
+
+    /**
+     * The factorization CHOLMOD produces by default, which the Cholesky path turns off. An indefinite matrix
+     * is what tells the two apart: it has an `L·D·Lᵀ` and no `L·Lᵀ`.
+     */
+    @Test
+    fun `the LDL comes from CHOLMOD and factors a matrix the Cholesky refuses`() {
+        val a = indefiniteConformanceSystem(20, Random(20260929))
+
+        val f = umfpack.ldl(a)
+
+        assertIs<CholmodFactorization>(f, "expected CHOLMOD's factorization rather than the portable fallback")
+        assertTrue(!f.singular, "an invertible indefinite system has an L D Lt")
+        assertFailsWith<NotPositiveDefinite> { umfpack.cholesky(a) }
+    }
+
+    @Test
+    fun `LDL solutions agree with the portable one`() = assertLdlAgreesWithReference(umfpack)
 
     @Test
     fun `the reciprocal pivot condition estimate is bounded`() =
