@@ -46,6 +46,10 @@ public fun F64DenseMatrix.syr2(alpha: Double, x: F64VectorLike, y: F64VectorLike
 /**
  * Matrix 1-norm, the maximum absolute column sum (LAPACK `dlange` with norm 1). This is the `anorm`
  * rcond expects, computed before the matrix is factored.
+ *
+ * A NaN entry carries through to the result, as `dlange` carries one through. Comparison alone would drop
+ * it, since every comparison against a NaN is false, and a norm that answers a finite number for a matrix
+ * it cannot describe would go on to be an `anorm` that hides what is in the matrix.
  */
 public fun F64DenseMatrix.norm1(): Double {
     val ad = data
@@ -54,12 +58,13 @@ public fun F64DenseMatrix.norm1(): Double {
         val base = j * rows
         var s = 0.0
         for (i in 0 until rows) s += abs(ad[base + i])
-        if (s > m) m = s
+        if (s > m || s.isNaN()) m = s
     }
     return m
 }
 
-/** Matrix infinity-norm, the maximum absolute row sum (LAPACK `dlange` with norm I). */
+/** Matrix infinity-norm, the maximum absolute row sum (LAPACK `dlange` with norm I). A NaN carries through
+ *  as it does in [norm1]. */
 public fun F64DenseMatrix.normInf(workspace: Workspace? = null): Double {
     if (rows == 0 || cols == 0) return 0.0
     return workspace.borrow(rows) { sums ->
@@ -70,7 +75,7 @@ public fun F64DenseMatrix.normInf(workspace: Workspace? = null): Double {
             for (i in 0 until rows) sums[i] += abs(ad[base + i])
         }
         var m = 0.0
-        for (i in 0 until rows) if (sums[i] > m) m = sums[i]
+        for (i in 0 until rows) if (sums[i] > m || sums[i].isNaN()) m = sums[i]
         m
     }
 }

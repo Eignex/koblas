@@ -4,6 +4,7 @@ import com.eignex.koblas.core.F64DenseMatrix
 import kotlin.math.sqrt
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class MatrixNormsTest {
 
@@ -29,6 +30,37 @@ class MatrixNormsTest {
         val ws = Workspace().apply { reserve(example.rows, count = 2) }
         assertEquals(example.normInf(), example.normInf(ws), 1e-12)
         assertEquals(example.normInf(), example.normInf(ws), 1e-12)
+    }
+
+    /**
+     * `dlange` carries a NaN out through `DISNAN`. Tracking the maximum by comparison alone would drop it,
+     * since every comparison against a NaN is false, and answer for the columns that happen to be clean.
+     */
+    @Test
+    fun `norm1 and normInf carry a NaN through`() {
+        val poisoned = F64DenseMatrix.of(
+            arrayOf(
+                doubleArrayOf(1.0, -2.0, 3.0),
+                doubleArrayOf(-4.0, Double.NaN, -6.0),
+            ),
+        )
+
+        assertTrue(poisoned.norm1().isNaN(), "norm1 dropped the NaN")
+        assertTrue(poisoned.normInf().isNaN(), "normInf dropped the NaN")
+    }
+
+    @Test
+    fun `a NaN in one column does not hide behind a larger clean column`() {
+        // The clean column sums to 100, so a maximum that merely compares would answer with it.
+        val poisoned = F64DenseMatrix.of(
+            arrayOf(
+                doubleArrayOf(Double.NaN, 100.0),
+                doubleArrayOf(1.0, 0.0),
+            ),
+        )
+
+        assertTrue(poisoned.norm1().isNaN(), "norm1 answered from the clean column")
+        assertTrue(poisoned.normInf().isNaN(), "normInf answered from the clean row")
     }
 
     @Test

@@ -272,7 +272,8 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
             val runOff = if (lower) j + 1 else 0
             val len = if (lower) n - j - 1 else j
             val dot = symvOneColumn(ad, runOff + j * n, x, xOff + runOff, y, yOff + runOff, xj, len)
-            y[yOff + j] += alpha * dot + xj * ad[base]
+            val diagonal = if (xj != 0.0) xj * ad[base] else 0.0
+            y[yOff + j] += alpha * dot + diagonal
             j++
         }
     }
@@ -294,20 +295,26 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         for (c in j until j + SYMV_BLOCK) {
             val mc = mult[c - j]
             val col = c * n
-            y[yOff + c] += mc * ad[c + col]
+            if (mc != 0.0) y[yOff + c] += mc * ad[c + col]
             val from = if (lower) c + 1 else j
             val until = if (lower) j + SYMV_BLOCK else c
             for (i in from until until) {
                 val aij = ad[i + col]
                 if (mc != 0.0) y[yOff + i] += mc * aij
-                y[yOff + c] += alpha * aij * x[xOff + i]
+                if (x[xOff + i] != 0.0) y[yOff + c] += alpha * aij * x[xOff + i]
             }
         }
     }
 
     /**
      * One column's contribution to both halves, returning its dot with x. A zero multiplier takes the dot
-     * alone, since `0.0` times an infinite entry is a NaN rather than nothing.
+     * alone, since `0.0` times an infinite entry is a NaN rather than nothing. The same rule covers the
+     * diagonal at both call sites, so a zero entry of x reaches an infinite `A(j, j)` no more than [gemv]
+     * reaches an infinite column it skips.
+     *
+     * The dot itself is the one place the rule cannot reach: it carries the reflected half of the run, whose
+     * multipliers are the entries of x it reads, and telling them apart per element would cost the run its
+     * kernel. An infinite off-diagonal entry against a zero x entry is a NaN here as it is in `dsymv`.
      */
     @Suppress("LongParameterList") // three runs, the multiplier and the length
     private fun symvOneColumn(

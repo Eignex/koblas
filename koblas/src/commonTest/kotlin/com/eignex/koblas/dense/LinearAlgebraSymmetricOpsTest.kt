@@ -48,6 +48,38 @@ class LinearAlgebraSymmetricOpsTest {
     }
 
     /**
+     * A zero of x against an infinite `A(j, j)` is the one product the reference gemv never forms, since it
+     * skips the whole column, and the reference symv must not form it either: `0.0` times an infinity is a
+     * NaN that would spread through the rest of the sweep. Asked of the reference rather than of [koblas],
+     * since a host `dsymv` forms the product and answers the NaN.
+     */
+    @Test
+    fun `the reference symv matches gemv when a zero of x meets an infinite diagonal entry`() {
+        val rng = Random(20260912)
+        for (lower in booleanArrayOf(true, false)) {
+            for (n in intArrayOf(1, 4, 7, 16)) {
+                for (infiniteAt in intArrayOf(0, n / 2, n - 1)) {
+                    val (full, poisoned) = poisonedSymmetric(rng, n, lower)
+                    full[infiniteAt, infiniteAt] = Double.POSITIVE_INFINITY
+                    poisoned[infiniteAt, infiniteAt] = Double.POSITIVE_INFINITY
+                    val x = DoubleArray(n) { if (it == infiniteAt) 0.0 else rng.nextDouble(-1.0, 1.0) }
+                    val expected = DoubleArray(n)
+                    F64ReferenceLinearAlgebra.gemv(1.0, full, x, 0.0, expected)
+
+                    val actual = DoubleArray(n)
+                    F64ReferenceLinearAlgebra.symv(1.0, poisoned, x, 0.0, actual, lower)
+
+                    assertTrue(
+                        actual.all { it.isFinite() },
+                        "symv n=$n lower=$lower infiniteAt=$infiniteAt made a non-finite entry",
+                    )
+                    assertClose(expected, actual, "symv infinite diagonal n=$n lower=$lower at=$infiniteAt")
+                }
+            }
+        }
+    }
+
+    /**
      * `dsymv` derives its extent from one dimension, so a non-square matrix would have the host backend read
      * `n²` entries from a shorter array. The sizes straddle every backend's level-2 gate.
      */
