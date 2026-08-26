@@ -158,6 +158,10 @@ Acceptance criteria:
 
 ### PR 2: Add explicit immutable context resolution and fallback policies
 
+Status: implemented and fully verified on `codex/context-routing-policies`; PR publication in progress. Policy
+enforcement initially covers the representative operation families introduced by PR 1; later route families
+can opt in without changing the policy API.
+
 - Add a context builder/resolver seeded from portable defaults.
 - Add automatic, native-only, and portable-only policies plus explicit fallback handling.
 - Make expert examples use a held context directly.

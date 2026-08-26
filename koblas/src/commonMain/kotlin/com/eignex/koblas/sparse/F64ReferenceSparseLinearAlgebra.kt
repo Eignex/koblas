@@ -4,6 +4,7 @@ import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.core.F64SparseVector
+import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.dense.applyBeta
 import com.eignex.koblas.dense.forEachRow
 import com.eignex.koblas.internal.backend.BackendNames
@@ -15,16 +16,20 @@ import com.eignex.koblas.sparse.internal.transposeCsc
 import kotlin.math.abs
 
 /**
- * The portable sparse backend, available on every target. The sparse seams declare their routines and this
+ * A portable sparse backend, available on every target. The sparse seams declare their routines and this
  * implements them, so a binding that means to accelerate one cannot inherit the portable version by accident.
+ *
+ * @property configuredKernels dense vector kernels used by sparse matrix scaling, or null to follow [koblas].
  */
 @Suppress("TooManyFunctions") // the sparse surface a backend half covers
-public object F64ReferenceSparseLinearAlgebra :
+public open class F64ReferenceSparseBackend(public val configuredKernels: F64Kernels? = null) :
     F64SparseLinearAlgebra,
     F64SparseKernels {
     override val name: String get() = BackendNames.REFERENCE
 
     override val isPortable: Boolean get() = true
+
+    private val denseKernels: F64Kernels get() = configuredKernels ?: koblas.kernels
 
     /** The product form over this backend's own factorization, so the portable half stays portable. */
     override fun basisSolver(a: F64SparseMatrix): F64BasisSolver = F64ProductFormBasisSolver(a, this)
@@ -42,7 +47,7 @@ public object F64ReferenceSparseLinearAlgebra :
         val yLen = if (transpose) a.cols else a.rows
         requireShape(x.size == xLen) { "gemv: x length ${x.size} != $xLen" }
         requireShape(y.size == yLen) { "gemv: y length ${y.size} != $yLen" }
-        applyBeta(koblas.kernels, y, 0, y.size, beta)
+        applyBeta(denseKernels, y, 0, y.size, beta)
         if (alpha == 0.0) return
         if (transpose) {
             for (j in 0 until a.cols) {
@@ -90,7 +95,7 @@ public object F64ReferenceSparseLinearAlgebra :
             "gemm: $first does not meet $second"
         }
         requireShape(c.rows == m && c.cols == n) { "gemm: C is ${c.rows}x${c.cols}, expected ${m}x$n" }
-        applyBeta(koblas.kernels, c.data, 0, c.data.size, beta)
+        applyBeta(denseKernels, c.data, 0, c.data.size, beta)
         if (alpha == 0.0) return
         if (right) {
             multiplyFromTheRight(alpha, a, transposeA, b, transposeB, c, m)
@@ -190,7 +195,7 @@ public object F64ReferenceSparseLinearAlgebra :
             b.data.fill(0.0)
             return
         }
-        if (alpha != 1.0) koblas.kernels.scale(b.data, 0, alpha, b.data.size)
+        if (alpha != 1.0) denseKernels.scale(b.data, 0, alpha, b.data.size)
         if (right) {
             // Solving B·op(T)⁻¹ from the right is solving op(T)ᵀ against each row of B, so the same core runs
             // with the transpose flipped. The rows are gathered into scratch because a strided walk of a
@@ -313,3 +318,6 @@ public object F64ReferenceSparseLinearAlgebra :
         return s
     }
 }
+
+/** The shared portable sparse backend used by the process-wide registry. */
+public object F64ReferenceSparseLinearAlgebra : F64ReferenceSparseBackend()

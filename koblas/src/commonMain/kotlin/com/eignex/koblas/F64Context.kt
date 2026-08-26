@@ -1,12 +1,16 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.core.F64DenseMatrix
+import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.dense.F64Blas
 import com.eignex.koblas.dense.F64Decompositions
 import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.dense.F64LinearAlgebra
+import com.eignex.koblas.dense.F64LuDecomposition
 import com.eignex.koblas.internal.backend.BackendSlot
 import com.eignex.koblas.sparse.F64SparseBlas
 import com.eignex.koblas.sparse.F64SparseDecompositions
+import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.F64SparseKernels
 import com.eignex.koblas.sparse.F64SparseLinearAlgebra
 import com.eignex.koblas.sparse.basis.F64BasisSolvers
@@ -38,6 +42,35 @@ public class F64Context(
     F64SparseBlas by sparseBlas,
     F64SparseDecompositions by sparseDecompositions,
     F64BasisSolvers by basisSolvers {
+
+    /** The operation-level dispatch requirement for routes this context can inspect. */
+    public var dispatchPolicy: F64DispatchPolicy = F64DispatchPolicy.AUTO
+        private set
+
+    /** The action this context takes for non-native inspected routes in automatic mode. */
+    public var fallbackPolicy: F64FallbackPolicy = F64FallbackPolicy.ALLOW
+        private set
+
+    internal var fallbackWarning: (BackendRoute) -> Unit = {}
+        private set
+
+    @Suppress("LongParameterList") // the seven backend roles plus their execution policy
+    internal constructor(
+        kernels: F64Kernels,
+        blas: F64Blas,
+        decompositions: F64Decompositions,
+        sparseKernels: F64SparseKernels,
+        sparseBlas: F64SparseBlas,
+        sparseDecompositions: F64SparseDecompositions,
+        basisSolvers: F64BasisSolvers,
+        dispatchPolicy: F64DispatchPolicy,
+        fallbackPolicy: F64FallbackPolicy,
+        fallbackWarning: (BackendRoute) -> Unit,
+    ) : this(kernels, blas, decompositions, sparseKernels, sparseBlas, sparseDecompositions, basisSolvers) {
+        this.dispatchPolicy = dispatchPolicy
+        this.fallbackPolicy = fallbackPolicy
+        this.fallbackWarning = fallbackWarning
+    }
 
     /**
      * The distinct names of the backends that do the matrix work, joined, such as `"openblas+reference"`.
@@ -76,7 +109,122 @@ public class F64Context(
         sparseBlas = sparseBlas,
         sparseDecompositions = sparseDecompositions,
         basisSolvers = basisSolvers,
+        dispatchPolicy = dispatchPolicy,
+        fallbackPolicy = fallbackPolicy,
+        fallbackWarning = fallbackWarning,
     )
+
+    override fun gemv(
+        alpha: Double,
+        a: F64DenseMatrix,
+        x: DoubleArray,
+        beta: Double,
+        y: DoubleArray,
+        transpose: Boolean,
+    ) {
+        if (enforcesRoutingPolicy) {
+            val xLen = if (transpose) a.rows else a.cols
+            val yLen = if (transpose) a.cols else a.rows
+            requireShape(x.size == xLen) { "gemv: x length ${x.size} != $xLen" }
+            requireShape(y.size == yLen) { "gemv: y length ${y.size} != $yLen" }
+            beforeDispatch(F64RouteQuery.DenseGemv(a.rows, a.cols))
+        }
+        blas.gemv(alpha, a, x, beta, y, transpose)
+    }
+
+    override fun gemv(a: F64DenseMatrix, x: DoubleArray, transpose: Boolean): DoubleArray {
+        val y = DoubleArray(if (transpose) a.cols else a.rows)
+        gemv(1.0, a, x, 0.0, y, transpose)
+        return y
+    }
+
+    @Suppress("LongParameterList")
+    override fun gemm(
+        alpha: Double,
+        a: F64DenseMatrix,
+        transposeA: Boolean,
+        b: F64DenseMatrix,
+        transposeB: Boolean,
+        beta: Double,
+        c: F64DenseMatrix,
+    ) {
+        if (enforcesRoutingPolicy) {
+            val m = if (transposeA) a.cols else a.rows
+            val k = if (transposeA) a.rows else a.cols
+            val kB = if (transposeB) b.cols else b.rows
+            val n = if (transposeB) b.rows else b.cols
+            requireShape(k == kB) { "gemm: op(A) is ${m}x$k but op(B) is ${kB}x$n" }
+            requireShape(c.rows == m && c.cols == n) { "gemm: C is ${c.rows}x${c.cols}, expected ${m}x$n" }
+            beforeDispatch(F64RouteQuery.DenseGemm(m, n, k))
+        }
+        blas.gemm(alpha, a, transposeA, b, transposeB, beta, c)
+    }
+
+    override fun gemm(a: F64DenseMatrix, b: F64DenseMatrix): F64DenseMatrix {
+        val c = F64DenseMatrix(a.rows, b.cols)
+        gemm(1.0, a, false, b, false, 0.0, c)
+        return c
+    }
+
+    override fun factor(a: F64DenseMatrix): F64LuDecomposition {
+        if (enforcesRoutingPolicy) {
+            requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
+            beforeDispatch(F64RouteQuery.DenseLu(a.rows))
+        }
+        return decompositions.factor(a)
+    }
+
+    override fun factorInto(a: F64DenseMatrix, out: F64LuDecomposition): F64LuDecomposition {
+        if (enforcesRoutingPolicy) {
+            requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
+            requireShape(out.n == a.rows) { "factorInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}" }
+            beforeDispatch(F64RouteQuery.DenseLu(a.rows))
+        }
+        return decompositions.factorInto(a, out)
+    }
+
+    @Suppress("LongParameterList")
+    override fun gemm(
+        alpha: Double,
+        a: F64SparseMatrix,
+        transposeA: Boolean,
+        b: F64DenseMatrix,
+        transposeB: Boolean,
+        beta: Double,
+        c: F64DenseMatrix,
+        right: Boolean,
+    ) {
+        if (enforcesRoutingPolicy) {
+            val aRows = if (transposeA) a.cols else a.rows
+            val aCols = if (transposeA) a.rows else a.cols
+            val bRows = if (transposeB) b.cols else b.rows
+            val bCols = if (transposeB) b.rows else b.cols
+            val m = if (right) bRows else aRows
+            val n = if (right) aCols else bCols
+            requireShape(if (right) bCols == aRows else aCols == bRows) {
+                val first = if (right) "${bRows}x$bCols" else "${aRows}x$aCols"
+                val second = if (right) "${aRows}x$aCols" else "${bRows}x$bCols"
+                "gemm: $first does not meet $second"
+            }
+            requireShape(c.rows == m && c.cols == n) { "gemm: C is ${c.rows}x${c.cols}, expected ${m}x$n" }
+            beforeDispatch(F64RouteQuery.SparseDenseGemm(a.nnz, right, transposeB))
+        }
+        sparseBlas.gemm(alpha, a, transposeA, b, transposeB, beta, c, right)
+    }
+
+    override fun gemm(a: F64SparseMatrix, b: F64DenseMatrix): F64DenseMatrix {
+        val c = F64DenseMatrix.zero(a.rows, b.cols)
+        gemm(1.0, a, false, b, false, 0.0, c, false)
+        return c
+    }
+
+    override fun factor(a: F64SparseMatrix): F64SparseFactorization {
+        if (enforcesRoutingPolicy) {
+            requireSquare(a, "factor")
+            beforeDispatch(F64RouteQuery.SparseLu(a.nnz))
+        }
+        return sparseDecompositions.factor(a)
+    }
 
     override fun toString(): String = "F64Context($name)"
 }
