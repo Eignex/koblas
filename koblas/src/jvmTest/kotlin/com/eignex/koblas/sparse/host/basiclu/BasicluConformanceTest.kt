@@ -134,7 +134,7 @@ class BasicluConformanceTest {
 
         for (transpose in booleanArrayOf(false, true)) {
             assertClose(
-                F64ReferenceSparseLinearAlgebra.factor(a, equilibrate = true).solve(b, transpose),
+                F64ReferenceSparseLu(equilibrate = true).factor(a).solve(b, transpose),
                 host.solve(b, transpose),
                 "equilibrated transpose=$transpose",
                 tolerance = 1e-9,
