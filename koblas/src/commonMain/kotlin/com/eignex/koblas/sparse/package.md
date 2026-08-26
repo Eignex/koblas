@@ -17,8 +17,8 @@ mirror the dense ones.
   the type either would fill: what a sparse product discovers is its own pattern, so there is no destination
   to hand in before the multiplication has run and no `beta · C` to accumulate into. Everything else on this
   seam keeps the BLAS shape, where the caller owns the memory.
-- [F64SparseDecompositions] — the sparse factorizations, one seam over all of them as the dense
-  [com.eignex.koblas.dense.F64Decompositions] is. [F64SparseDecompositions.factor] is the general LU and
+- [F64SparseDecompositions] — the compatibility composition of the selected general LU, Cholesky, and LDL
+  roles. [F64SparseDecompositions.factor] is the general LU and
   returns [F64SparseFactorization], never null: a singular matrix yields a factorization reporting
   `singular`, matching the dense contract. [F64SparseDecompositions.cholesky] is `A = L·Lᵀ` for a symmetric
   positive-definite matrix, reading only the lower triangle, and raises where the LU reports, because a
@@ -41,37 +41,31 @@ mirror the dense ones.
   Backends may implement either matrix half; [com.eignex.koblas.registerBackend] ranks each independently,
   while [com.eignex.koblas.installBackends] supplies all three through [com.eignex.koblas.koblas].
 
-The sparse backends differ from the dense ones in a way the ranking cannot express. A dense binding is the
-same routine computed faster, so ordering them by [com.eignex.koblas.Backend.priority] and taking the
-strongest is the whole story. The sparse libraries are specialised instead: KLU wants a circuit pattern it
-can factor repeatedly, UMFPACK an unstructured system, BASICLU a basis whose columns are replaced one at a
-time, [com.eignex.koblas.sparse.basis.F64BasisSolver] a basis pivoted thousands of times. Which is best is
-a property of the matrix, not of a ranking, and one process can want two at once.
+Sparse libraries are specialized: KLU wants a circuit pattern it can factor repeatedly, UMFPACK an
+unstructured system, BASICLU a basis whose columns are replaced one at a time, and
+[com.eignex.koblas.sparse.basis.F64BasisSolver] a basis pivoted thousands of times. The registry therefore
+ranks providers only within semantic roles. [F64GeneralSparseLu] is ordinary pivoting LU,
+[F64RepeatedSparseLu] adds same-pattern refactorization, [F64SparseCholesky] and [F64SparseLdl] are symmetric
+roles, and [F64BasisFactorizations] owns column-replaceable basis factors. Adding a repeated-pattern or basis
+provider cannot change the automatic general-LU selection; UMFPACK remains the accelerated general default
+when it is available, otherwise the portable implementation does.
 
-So [com.eignex.koblas.koblas] hands out the strongest offer per half, which is the right default, and
-[com.eignex.koblas.sparseDecompositionsNamed] hands out a particular one for a caller that knows which it wants.
+An explicit [com.eignex.koblas.F64ContextBuilder] can select any provider for any role it implements. Use
+[com.eignex.koblas.F64Capabilities] with [com.eignex.koblas.backendNamed] to retrieve an exact discovered
+provider without a concrete implementation cast, and [com.eignex.koblas.capability] to retrieve
+the provider held by a context. [com.eignex.koblas.sparseDecompositionsNamed] remains as a compatibility API
+for backend-specific surface.
 
-For the same reason [F64SparseDecompositions] carries only what a factorization of each kind universally
-does. What one library has and the others do not is a routine on that library: KLU's `refactor`, which
-reuses a symbolic analysis across matrices of one pattern; BASICLU's `factorBasis`; HFactor's `basisSolver`,
-which has a half of its own because the portable backend answers it too. Row equilibration and a drop
-tolerance are policy a backend's constructor settles, beside the settings that already say how to scale; the
-portable half settles them in [F64ReferenceSparseDecompositions], whose `Default` is what the seam falls
-back to.
+Row equilibration and a drop tolerance are policy a backend's constructor settles, beside the settings that
+already say how to scale; the portable implementation settles them in [F64ReferenceSparseDecompositions].
 
 A library filling one kind and not another is the ordinary case rather than the exception, since most of
 these are unsymmetric LU and nothing else. Such a binding answers the rest portably through
 [F64SparseDecompositionsAdapter][com.eignex.koblas.sparse.host.F64SparseDecompositionsAdapter], which is the
 same fallback it already uses below its own size gate.
 
-One seam resolving to one backend is what makes that fallback matter. A library native at only one of these
-routines and registering as a backend of its own would take the half from one native at the other, and the
-loser's speciality would fall back for as long as it held. CHOLMOD is that case: it is the sparse Cholesky
-and it has no LU. So it is not a backend. It is the routine the SuiteSparse bindings fill their Cholesky
-with, `CholmodCholesky` in the `host.cholmod` package of the targets that have one, and KLU and UMFPACK each
-answer with it. One backend holds the half and answers both routines natively, whichever of them the ranking
-picked, and [com.eignex.koblas.sparseDecompositionsNamed] still hands out the particular library a caller
-asks for.
+CHOLMOD supplies the symmetric routines used by the SuiteSparse providers. Those capabilities compete only
+with other Cholesky or LDL providers, independently of which provider fills general or repeated-pattern LU.
 
 - LU: [F64SparseLuFactorization][com.eignex.koblas.sparse.factorization.lu.F64SparseLuFactorization], a
   Markowitz threshold-pivoting `P·B·Q = L·U` that keeps the factors sparse instead of filling toward `O(m²)`.

@@ -143,8 +143,10 @@ repeat(1_000) { koblas.solveInto(factor, rhs, solution, workspace = workspace) }
 ## Backends
 
 Every top-level operation uses Koblas’s process-wide backend registry. It starts with
-portable implementations and selects the strongest registered provider for each dense
-or sparse backend half.
+portable implementations and selects the strongest registered provider for each semantic
+role. Sparse general LU, repeated-pattern LU, Cholesky, LDL, basis factorization, and
+basis solving are resolved independently. UMFPACK is the stable accelerated default for
+ordinary sparse LU; registering KLU or BASICLU does not displace it from that role.
 
 On JVM, call `discoverBackends()` once at startup to probe host libraries, bundled
 providers, and service-loaded providers. Available providers register automatically;
@@ -163,10 +165,9 @@ environment variables steer discovery to custom library paths:
 | UMFPACK | `koblas.umfpack.path` | `KOBLAS_UMFPACK_PATH` |
 | BASICLU | `koblas.basiclu.path` | `KOBLAS_BASICLU_PATH` |
 
-The JVM property takes precedence. The native targets read the environment variables only,
-having no system properties, and only for the bindings they carry: CBLAS, LAPACKE and
-UMFPACK. KLU and BASICLU are bound on the JVM alone, so their variables do nothing
-elsewhere. Inspect `koblas.status` after configuration, or call
+The JVM property takes precedence. Native targets have no system properties and read the
+environment variables for the bindings they carry. Inspect `koblas.status` after
+configuration, or call
 `koblas.requireAccelerated(BackendRole.DENSE_BLAS)` to require a specific role:
 
 ```kotlin
@@ -191,6 +192,30 @@ executor, measured threshold, and fallback reason for a representative operation
 third-party backend that does not implement routing diagnostics reports `UNKNOWN`; this is distinct from a
 known portable fallback or an unavailable binding. The legacy `koblasInfo` and slot-based inspection APIs
 remain available.
+
+Use typed capabilities for specialized sparse workflows. `backendNamed` retrieves an exact discovered
+provider without narrowing to its implementation class; a role-specific context selection makes the
+algorithm choice local to one solver:
+
+```kotlin
+import com.eignex.koblas.*
+
+discoverBackends()
+val klu = checkNotNull(backendNamed("klu", F64Capabilities.repeatedSparseLu))
+val repeatedContext = F64ContextBuilder()
+    .withBackend(BackendRole.SPARSE_REPEATED_LU, klu)
+    .resolve()
+
+val repeated = checkNotNull(repeatedContext.capability(F64Capabilities.repeatedSparseLu))
+val initial = repeated.factor(a)
+val updated = repeated.refactor(initial, samePatternWithNewValues)
+```
+
+Use `F64Capabilities.generalSparseLu` for unrelated systems,
+`F64Capabilities.basisFactorizations` for BASICLU-style column replacement, and
+`F64Capabilities.basisSolvers` for stateful simplex workflows. A specialized provider can still be selected
+deliberately for general LU with `withBackend(BackendRole.SPARSE_GENERAL_LU, provider)`; only automatic
+registry selection excludes repeated-pattern and basis-specialized providers from that default.
 
 For solver-owned configuration, build and retain an explicit context. The builder is immutable: each
 `with` call returns a new configuration, and `resolve()` neither reads nor mutates the global registry.
@@ -217,7 +242,9 @@ route plan is available separately through `context.plan(query)`. Other routines
 backend behavior until their route families are added. Context policies never affect free functions, which
 continue to use the process-wide `koblas` context.
 
-These pin selection per half, the JVM property again first:
+These constrain discovery to one named provider, the JVM property again first. A sparse provider fills only
+its semantic roles: pinning KLU selects repeated-pattern LU and its symmetric capabilities, while pinning
+BASICLU selects basis factorization rather than changing general LU.
 
 | Half | JVM property | Environment variable |
 |------|--------------|----------------------|

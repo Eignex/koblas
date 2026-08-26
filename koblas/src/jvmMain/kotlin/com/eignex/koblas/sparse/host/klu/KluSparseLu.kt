@@ -18,7 +18,11 @@ import com.eignex.koblas.sparse.host.cholmod.suiteSparseCholesky
 public open class KluSparseLu(
     /** Policy for this backend instance. */
     public val config: KluConfig = KluConfig(),
-) : F64SparseDecompositionsAdapter(config.factorizeMin, config.equilibrate) {
+) : F64SparseDecompositionsAdapter(config.factorizeMin, config.equilibrate),
+    com.eignex.koblas.sparse.F64GeneralSparseLu,
+    com.eignex.koblas.sparse.F64RepeatedSparseLu,
+    com.eignex.koblas.sparse.F64SparseCholesky,
+    com.eignex.koblas.sparse.F64SparseLdl {
     private val calls = KluCalls(config)
 
     override val name: String get() = BackendNames.KLU
@@ -47,7 +51,7 @@ public open class KluSparseLu(
      * would. This is KLU's own routine rather than a seam method, since no other sparse LU koblas binds
      * carries an analysis worth reusing.
      */
-    public fun refactor(previous: F64SparseFactorization, a: F64SparseMatrix): F64SparseFactorization {
+    final override fun refactor(previous: F64SparseFactorization, a: F64SparseMatrix): F64SparseFactorization {
         requireSquare(a, "refactor")
         if (!nativeAvailable) return factor(a)
         val reusable = previous as? KluFactorization ?: return factor(a)

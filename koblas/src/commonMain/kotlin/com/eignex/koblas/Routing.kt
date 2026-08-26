@@ -53,7 +53,7 @@ public sealed interface F64RouteQuery {
 
     /** A general sparse LU factorization of a matrix with [storedEntries] stored entries. */
     public data class SparseLu(val storedEntries: Int) : F64RouteQuery {
-        override val role: BackendRole get() = BackendRole.SPARSE_DECOMPOSITIONS
+        override val role: BackendRole get() = BackendRole.SPARSE_GENERAL_LU
 
         init {
             requireNonNegative(storedEntries, "storedEntries")

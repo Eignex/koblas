@@ -35,10 +35,23 @@ public class F64ContextBuilder private constructor(
     /** Selects [backend] for [role], without consulting global registration or priority. */
     public fun withBackend(role: BackendRole, backend: Backend): F64ContextBuilder {
         require(role.accepts(backend)) { "${backend.name} does not implement $role" }
-        return copy(selections = selections + (role to backend))
+        val updated = if (role == BackendRole.SPARSE_DECOMPOSITIONS) {
+            selections + mapOf(
+                BackendRole.SPARSE_DECOMPOSITIONS to backend,
+                BackendRole.SPARSE_GENERAL_LU to backend,
+                BackendRole.SPARSE_CHOLESKY to backend,
+                BackendRole.SPARSE_LDL to backend,
+            )
+        } else {
+            selections + (role to backend)
+        }
+        return copy(selections = updated)
     }
 
-    /** Selects [backend] for every role it implements, without consulting global registration or priority. */
+    /**
+     * Selects [backend] for every role it implements, without consulting global registration or priority.
+     * Prefer the role overload when a specialized provider should not also fill its general capabilities.
+     */
     public fun withBackend(backend: Backend): F64ContextBuilder {
         val roles = BackendRole.entries.filter { it.accepts(backend) }
         require(roles.isNotEmpty()) { "${backend.name} implements no F64 backend role" }
@@ -63,6 +76,12 @@ public class F64ContextBuilder private constructor(
         val kernels = resolved.getValue(BackendRole.DENSE_KERNELS) as F64Kernels
         val denseReference = F64ReferenceBackend(kernels)
         val sparseReference = F64ReferenceSparseBackend(kernels)
+        val generalLu = resolved.semanticGeneralLu(sparseReference)
+        val cholesky = resolved.semanticCholesky(sparseReference)
+        val ldl = resolved.semanticLdl(sparseReference)
+        val sparseRoles = F64SparseDecompositionRoles(generalLu, cholesky, ldl)
+        val repeated = resolved[BackendRole.SPARSE_REPEATED_LU] as? F64RepeatedSparseLu
+        val basisFactorizations = resolved.semanticBasisFactorizations(sparseReference)
         return F64Context(
             kernels = kernels,
             blas = resolved.boundReference(BackendRole.DENSE_BLAS, denseReference) as F64Blas,
@@ -72,14 +91,16 @@ public class F64ContextBuilder private constructor(
             ) as F64Decompositions,
             sparseKernels = resolved.getValue(BackendRole.SPARSE_KERNELS) as F64SparseKernels,
             sparseBlas = resolved.boundReference(BackendRole.SPARSE_BLAS, sparseReference) as F64SparseBlas,
-            sparseDecompositions = resolved.boundReference(
-                BackendRole.SPARSE_DECOMPOSITIONS,
-                sparseReference,
-            ) as F64SparseDecompositions,
+            sparseDecompositions = sparseRoles,
             basisSolvers = resolved.boundReference(BackendRole.BASIS_SOLVERS, sparseReference) as F64BasisSolvers,
             dispatchPolicy = dispatchPolicy,
             fallbackPolicy = fallbackPolicy,
             fallbackWarning = fallbackWarning ?: {},
+            generalSparseLu = generalLu,
+            repeatedSparseLu = repeated,
+            sparseCholesky = cholesky,
+            sparseLdl = ldl,
+            basisFactorizations = basisFactorizations,
         )
     }
 
@@ -112,15 +133,78 @@ private fun portableSelections(): Map<BackendRole, Backend> = mapOf(
     BackendRole.SPARSE_KERNELS to F64PlatformSparseKernels,
     BackendRole.SPARSE_BLAS to F64ReferenceSparseLinearAlgebra,
     BackendRole.SPARSE_DECOMPOSITIONS to F64ReferenceSparseLinearAlgebra,
+    BackendRole.SPARSE_GENERAL_LU to F64ReferenceSparseLinearAlgebra,
+    BackendRole.SPARSE_REPEATED_LU to MissingRepeatedSparseLu,
+    BackendRole.SPARSE_CHOLESKY to F64ReferenceSparseLinearAlgebra,
+    BackendRole.SPARSE_LDL to F64ReferenceSparseLinearAlgebra,
+    BackendRole.BASIS_FACTORIZATIONS to F64ReferenceSparseLinearAlgebra,
     BackendRole.BASIS_SOLVERS to F64ReferenceSparseLinearAlgebra,
 )
 
 private fun BackendRole.accepts(backend: Backend): Boolean = when (this) {
     BackendRole.DENSE_KERNELS -> backend is F64Kernels
+
     BackendRole.DENSE_BLAS -> backend is F64Blas
+
     BackendRole.DENSE_DECOMPOSITIONS -> backend is F64Decompositions
+
     BackendRole.SPARSE_KERNELS -> backend is F64SparseKernels
+
     BackendRole.SPARSE_BLAS -> backend is F64SparseBlas
+
     BackendRole.SPARSE_DECOMPOSITIONS -> backend is F64SparseDecompositions
+
+    BackendRole.SPARSE_GENERAL_LU ->
+        backend is F64GeneralSparseLu ||
+            (
+                backend is F64SparseDecompositions &&
+                    backend !is F64RepeatedSparseLu &&
+                    backend !is F64BasisFactorizations
+                )
+
+    BackendRole.SPARSE_REPEATED_LU -> backend is F64RepeatedSparseLu
+
+    BackendRole.SPARSE_CHOLESKY ->
+        backend is F64SparseCholesky ||
+            (backend is F64SparseDecompositions && backend !is F64BasisFactorizations)
+
+    BackendRole.SPARSE_LDL ->
+        backend is F64SparseLdl ||
+            (backend is F64SparseDecompositions && backend !is F64BasisFactorizations)
+
+    BackendRole.BASIS_FACTORIZATIONS -> backend is F64BasisFactorizations
+
     BackendRole.BASIS_SOLVERS -> backend is F64BasisSolvers
+}
+
+private fun Map<BackendRole, Backend>.semanticGeneralLu(reference: F64ReferenceSparseBackend): F64GeneralSparseLu =
+    when (val backend = getValue(BackendRole.SPARSE_GENERAL_LU)) {
+        F64ReferenceSparseLinearAlgebra -> reference
+        is F64GeneralSparseLu -> backend
+        is F64SparseDecompositions -> LegacyGeneralSparseLu(backend)
+        else -> error("${backend.name} does not implement general sparse LU")
+    }
+
+private fun Map<BackendRole, Backend>.semanticCholesky(reference: F64ReferenceSparseBackend): F64SparseCholesky =
+    when (val backend = getValue(BackendRole.SPARSE_CHOLESKY)) {
+        F64ReferenceSparseLinearAlgebra -> reference
+        is F64SparseCholesky -> backend
+        is F64SparseDecompositions -> LegacySparseCholesky(backend)
+        else -> error("${backend.name} does not implement sparse Cholesky")
+    }
+
+private fun Map<BackendRole, Backend>.semanticLdl(reference: F64ReferenceSparseBackend): F64SparseLdl =
+    when (val backend = getValue(BackendRole.SPARSE_LDL)) {
+        F64ReferenceSparseLinearAlgebra -> reference
+        is F64SparseLdl -> backend
+        is F64SparseDecompositions -> LegacySparseLdl(backend)
+        else -> error("${backend.name} does not implement sparse LDL")
+    }
+
+private fun Map<BackendRole, Backend>.semanticBasisFactorizations(
+    reference: F64ReferenceSparseBackend,
+): F64BasisFactorizations = when (val backend = getValue(BackendRole.BASIS_FACTORIZATIONS)) {
+    F64ReferenceSparseLinearAlgebra -> reference
+    is F64BasisFactorizations -> backend
+    else -> error("${backend.name} does not implement basis factorizations")
 }
