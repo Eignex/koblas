@@ -35,8 +35,12 @@ public abstract class F64BlasAdapter internal constructor(
     // The routines below have no host binding, so they run the portable versions. Forwarded explicitly
     // rather than by class delegation, which would route a caller's convenience overloads to the portable
     // routine instead of the accelerated one, since a delegated member calls back into the delegate.
-    // A transpose is `omatcopy`, a BLAS-like extension rather than part of CBLAS, so it is not among the
-    // symbols this binding resolves.
+    // A transpose is `omatcopy`, a BLAS-like extension rather than part of CBLAS. OpenBLAS does export
+    // cblas_domatcopy, and binding it was measured against the portable loop on the JVM: it takes about a
+    // third off a 16 or a 64, which is a matter of microseconds, and from 256 up the two sit inside the
+    // run-to-run spread whichever way the shape runs, since a transpose that size is bound by memory rather
+    // than by the loop. The advantage therefore shrinks with size instead of growing, leaving no dimension
+    // from which the call starts paying, which is the only shape a dispatch gate can express.
     override fun transpose(a: F64DenseMatrix): F64DenseMatrix = portable.transpose(a)
 
     override fun syr(alpha: Double, x: F64VectorLike, a: F64DenseMatrix, uplo: Uplo): Unit = portable.syr(
