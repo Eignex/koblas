@@ -11,6 +11,14 @@ internal actual fun useShippedHost(): Boolean = installHost(HostBlasConfig())
 // Level 2, level 3 and the factorizations already dispatch to the host from size zero here, so only the
 // level-1 gate needs overriding; the kernels are installed unrouted because the benchmark sweeps the
 // lengths itself.
+// The kernel half is left alone for the reason the JVM counterpart gives.
+internal actual fun useUngatedFactorization(): Boolean {
+    if (!F64CblasBackend.isAvailable()) return false
+    val backend = F64CblasBackend(HostBlasConfig(factorizeMin = 0))
+    installBackends(koblas.with(blas = backend, decompositions = backend))
+    return true
+}
+
 internal actual fun useUngatedHost(): Boolean =
     installHost(HostBlasConfig(level1Min = 0, level2Min = 0, level3Min = 0, factorizeMin = 0))
 
