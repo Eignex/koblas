@@ -136,6 +136,65 @@ internal fun assertLuAgreesWithReference(decompositions: F64Decompositions, size
     }
 }
 
+/**
+ * The LU inverse and the triangular inverse. Both hold the reference's conventions as well as its numbers:
+ * an inverse of a singular factor is refused, and a triangular inverse returns its triangle over zeros with
+ * a unit diagonal written in.
+ */
+internal fun assertInversesAgreeWithReference(decompositions: F64Decompositions, sizes: IntArray) {
+    val rng = Random(20260826)
+    for (n in sizes) {
+        val dominant = wellConditioned(n, rng)
+        // Row-reversed as well as dominant: a diagonally dominant matrix factors to an identity pivot, so
+        // the permutation an inverse has to undo is only exercised by a matrix that actually swaps rows.
+        for (a in listOf(dominant, rowsReversed(dominant))) {
+            assertClose(
+                reference.invert(reference.factor(a)),
+                decompositions.invert(decompositions.factor(a)),
+                "invert lu n=$n",
+                tolerance = 1e-8,
+            )
+        }
+        val a = dominant
+        for (lower in booleanArrayOf(true, false)) {
+            for (unitDiag in booleanArrayOf(false, true)) {
+                val t = triangleOf(a, lower, unitDiag)
+                assertClose(
+                    reference.trtri(t, lower, unitDiag),
+                    decompositions.trtri(t, lower, unitDiag),
+                    "trtri n=$n lower=$lower unit=$unitDiag",
+                    tolerance = 1e-8,
+                )
+            }
+        }
+    }
+    val singular = F64DenseMatrix(4, 4)
+    assertFailsWith<SingularMatrix>("a singular factor has no inverse") {
+        decompositions.invert(decompositions.factor(singular))
+    }
+}
+
+/** [a] with its row order reversed, so a factorization of it has to pivot. */
+private fun rowsReversed(a: F64DenseMatrix): F64DenseMatrix {
+    val n = a.rows
+    val out = F64DenseMatrix(n, n)
+    for (j in 0 until n) for (i in 0 until n) out[i, j] = a[n - 1 - i, j]
+    return out
+}
+
+/** The [lower] or upper triangle of [a] over zeros, with the diagonal replaced when [unitDiag]. */
+private fun triangleOf(a: F64DenseMatrix, lower: Boolean, unitDiag: Boolean): F64DenseMatrix {
+    val n = a.rows
+    val t = F64DenseMatrix(n, n)
+    for (j in 0 until n) {
+        for (i in 0 until n) {
+            if (if (lower) i >= j else i <= j) t[i, j] = a[i, j]
+        }
+        t[j, j] = if (unitDiag) 1.0 else a[j, j]
+    }
+    return t
+}
+
 internal fun assertSpdSuiteAgreesWithReference(decompositions: F64Decompositions, sizes: IntArray) {
     val rng = Random(20260803)
     for (n in sizes) {

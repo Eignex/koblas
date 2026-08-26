@@ -17,6 +17,9 @@ import com.eignex.koblas.internal.backend.DispatchThresholds
 
 /** LAPACK's lower-triangle selector, which koblas asks for everywhere it has a choice. */
 private const val LOWER_UPLO: Byte = 'L'.code.toByte()
+private const val UPPER_UPLO: Byte = 'U'.code.toByte()
+private const val UNIT_DIAG: Byte = 'U'.code.toByte()
+private const val NON_UNIT_DIAG: Byte = 'N'.code.toByte()
 
 /** LAPACK's left-side selector. The same byte as [LOWER_UPLO], but a different argument. */
 private const val SIDE_LEFT: Byte = 'L'.code.toByte()
@@ -39,13 +42,90 @@ public abstract class F64DecompositionsAdapter internal constructor(
     /** A binding that calls out, whatever the portable instance it falls back to reports. */
     override val isPortable: Boolean get() = false
 
-    // No host binding for these, so they run the portable versions. Forwarded explicitly rather than by
-    // class delegation, which would route a caller's convenience overloads to the portable routine instead
-    // of the accelerated one, since a delegated member calls back into the delegate.
-    override fun invert(lu: F64LuDecomposition, workspace: Workspace?): F64DenseMatrix = portable.invert(lu, workspace)
+    // Forwarded explicitly rather than by class delegation, which would route a caller's convenience
+    // overloads to the portable routine instead of the accelerated one, since a delegated member calls back
+    // into the delegate.
+    override fun invert(lu: F64LuDecomposition, workspace: Workspace?): F64DenseMatrix {
+        // Level 3 rather than the factorization gate: an inverse is cubic but it is trsm-shaped work over a
+        // factor that already exists, and it crosses where the level-3 routines do rather than where a
+        // factorization does.
+        if (lu.n < dispatch.level3) return portable.invert(lu, workspace)
+        if (lu.singular) {
+            throw SingularMatrix(
+                lu.failedAt,
+                "invert: factorization is singular at pivot ${lu.failedAt}, so the inverse does not exist",
+            )
+        }
+        val n = lu.n
+        if (n == 0) return F64DenseMatrix(0, 0)
+        val inv = F64DenseMatrix(n, n, lu.lu.copyOf())
+        val info = f.dgetri(COL_MAJOR, n, inv.data, n, lapackPivots(lu.piv, n))
+        check(info >= 0) { "dgetri: illegal argument ${-info}" }
+        // A zero pivot is dgetri's error and the reference's division by zero, and the factorization is the
+        // caller's to hold. The reference answers with infinities, so this half answers the same way.
+        if (info > 0) return portable.invert(lu, workspace)
+        return inv
+    }
 
-    override fun trtri(a: F64DenseMatrix, lower: Boolean, unitDiag: Boolean): F64DenseMatrix =
-        portable.trtri(a, lower, unitDiag)
+    /**
+     * [F64LuDecomposition] holds the permutation, `piv(k)` being the original row now at k, where LAPACK
+     * wants the successive one-based swaps `dgetrf` reports. Replaying the permutation recovers a swap
+     * sequence that produces it.
+     */
+    private fun lapackPivots(piv: IntArray, n: Int): IntArray {
+        val row = IntArray(n) { it }
+        val position = IntArray(n) { it }
+        val ipiv = IntArray(n)
+        for (k in 0 until n) {
+            val j = position[piv[k]]
+            ipiv[k] = j + 1
+            val here = row[k]
+            val there = row[j]
+            row[k] = there
+            row[j] = here
+            position[there] = k
+            position[here] = j
+        }
+        return ipiv
+    }
+
+    override fun trtri(a: F64DenseMatrix, lower: Boolean, unitDiag: Boolean): F64DenseMatrix {
+        if (a.rows < dispatch.level3) return portable.trtri(a, lower, unitDiag)
+        requireShape(a.rows == a.cols) { "trtri requires a square matrix; got ${a.rows}x${a.cols}" }
+        val n = a.rows
+        if (n == 0) return F64DenseMatrix(0, 0)
+        if (!unitDiag) {
+            for (i in 0 until n) {
+                if (a[i, i] == 0.0) {
+                    throw SingularMatrix(i, "trtri: triangle is singular, diagonal entry $i is zero")
+                }
+            }
+        }
+        val inv = F64DenseMatrix(n, n, a.data.copyOf())
+        val info = f.dtrtri(
+            COL_MAJOR,
+            if (lower) LOWER_UPLO else UPPER_UPLO,
+            if (unitDiag) UNIT_DIAG else NON_UNIT_DIAG,
+            n,
+            inv.data,
+            n,
+        )
+        check(info >= 0) { "dtrtri: illegal argument ${-info}" }
+        if (info > 0) return portable.trtri(a, lower, unitDiag)
+        // dtrtri leaves the untouched triangle as it found it and a unit diagonal unwritten, where the
+        // reference returns the triangle alone over zeros with the diagonal filled in.
+        val invd = inv.data
+        for (j in 0 until n) {
+            val base = j * n
+            if (lower) {
+                for (i in 0 until j) invd[base + i] = 0.0
+            } else {
+                for (i in j + 1 until n) invd[base + i] = 0.0
+            }
+            if (unitDiag) invd[base + j] = 1.0
+        }
+        return inv
+    }
 
     override fun solveInto(
         qr: F64QrDecomposition,

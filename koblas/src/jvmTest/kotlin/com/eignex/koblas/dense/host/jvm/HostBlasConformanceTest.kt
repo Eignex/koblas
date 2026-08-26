@@ -83,6 +83,13 @@ class HostBlasConformanceTest {
         assertLuAgreesWithReference(F64Lapacke(HostBlasConfig(level2Min = 0, level3Min = 0)), intArrayOf(33, 256))
     }
 
+    /** Both inverses read the level-3 gate, so lowering that is what reaches them at every size here. */
+    @Test
+    fun `the host inverses match reference once their gate admits them`() {
+        Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
+        assertInversesAgreeWithReference(F64Lapacke(HostBlasConfig(level3Min = 0)), intArrayOf(7, 33, 128))
+    }
+
     @Test
     fun `symv refuses a non-square matrix`() {
         Assume.assumeTrue("host CBLAS is not installed", HostLibraries.cblas)

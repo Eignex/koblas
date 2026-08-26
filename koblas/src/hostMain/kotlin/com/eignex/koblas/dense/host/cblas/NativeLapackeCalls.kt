@@ -49,6 +49,12 @@ internal class NativeLapackeCalls(private val f: LapackeFunctions) : LapackeCall
     override fun dpotrf(order: Int, uplo: Byte, n: Int, a: DoubleArray, lda: Int): Int =
         a.usePinned { ap -> f.dpotrf(order, uplo, n, ap.addressOf(0), lda) }
 
+    override fun dgetri(order: Int, n: Int, a: DoubleArray, lda: Int, ipiv: IntArray): Int =
+        a.usePinned { ap -> ipiv.usePinned { ip -> f.dgetri(order, n, ap.addressOf(0), lda, ip.addressOf(0)) } }
+
+    override fun dtrtri(order: Int, uplo: Byte, diag: Byte, n: Int, a: DoubleArray, lda: Int): Int =
+        a.usePinned { ap -> f.dtrtri(order, uplo, diag, n, ap.addressOf(0), lda) }
+
     override fun dpotri(order: Int, uplo: Byte, n: Int, a: DoubleArray, lda: Int): Int =
         a.usePinned { ap -> f.dpotri(order, uplo, n, ap.addressOf(0), lda) }
 
