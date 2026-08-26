@@ -4,6 +4,7 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.Backend
 import com.eignex.koblas.SingularMatrix
+import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
 
 /** Sparse matrix routines as a backend half. */
@@ -43,11 +44,57 @@ public interface F64SparseBlas : Backend {
         unitDiag: Boolean = false,
     )
 
+    /**
+     * `C = alpha · op(A) · op(B) + beta · C` (Sparse BLAS `usmm`) for a sparse [a] against a dense [b] and
+     * [c], with shapes `op(A): m×k`, `op(B): k×n`, `C: m×n`. `beta == 0.0` overwrites [c] without reading it,
+     * as [gemv] does.
+     *
+     * A sparse matrix times a dense one stays dense and fills in nowhere, which is what puts this on the
+     * sparse half at all: it is [gemv] over the columns of `op(B)`, not the sparse-times-sparse product that
+     * would need a result type of its own.
+     */
+    @Suppress("LongParameterList") // the BLAS dgemm signature
+    public fun gemm(
+        alpha: Double,
+        a: F64SparseMatrix,
+        transposeA: Boolean,
+        b: F64DenseMatrix,
+        transposeB: Boolean,
+        beta: Double,
+        c: F64DenseMatrix,
+    )
+
+    /**
+     * `B = alpha · op(T)⁻¹ · B` in place, or `B = alpha · B · op(T)⁻¹` when [right] (Sparse BLAS `ussm`).
+     * The triangle flags follow [trsv]; the right-hand sides are the columns of [b] from the left and its
+     * rows from the right.
+     *
+     * @throws com.eignex.koblas.SingularMatrix as [trsv] does, from the first right-hand side to reach the
+     *  offending diagonal entry, so [b] may be partly solved when it is raised.
+     */
+    @Suppress("LongParameterList") // the BLAS dtrsm signature
+    public fun trsm(
+        a: F64SparseMatrix,
+        b: F64DenseMatrix,
+        lower: Boolean,
+        transpose: Boolean = false,
+        unitDiag: Boolean = false,
+        right: Boolean = false,
+        alpha: Double = 1.0,
+    )
+
     /** `A · x`, or `Aᵀ · x` when [transpose], into a fresh result. */
     public fun gemv(a: F64SparseMatrix, x: DoubleArray, transpose: Boolean = false): DoubleArray {
         val y = DoubleArray(if (transpose) a.cols else a.rows)
         gemv(1.0, a, x, 0.0, y, transpose)
         return y
+    }
+
+    /** [gemm] with `alpha = 1, beta = 0`, into a fresh matrix. `A.cols` must equal `B.rows`. */
+    public fun gemm(a: F64SparseMatrix, b: F64DenseMatrix): F64DenseMatrix {
+        val c = F64DenseMatrix.zero(a.rows, b.cols)
+        gemm(1.0, a, transposeA = false, b, transposeB = false, beta = 0.0, c = c)
+        return c
     }
 }
 

@@ -23,6 +23,21 @@ public interface F64SparseKernels : Backend {
      *  BLAS `ussc`). Zero-fill [out] first for a plain densification. */
     public fun scatter(x: F64SparseVector, out: DoubleArray)
 
+    /**
+     * Read [from] at [x]'s stored positions into [x]'s values (Sparse BLAS `usga`), the inverse of
+     * [scatter]. The pattern is what [x] already stores and does not change; a position of [from] that is
+     * nonzero and unstored stays unread, so this narrows a dense vector to a pattern rather than sparsifying
+     * it.
+     */
+    public fun gather(x: F64SparseVector, from: DoubleArray)
+
+    /**
+     * [gather], and zero in [from] the positions it read (Sparse BLAS `usgz`), leaving the rest of [from]
+     * alone. The pair is one pass rather than two because the caller of a gather-and-zero wants [from]
+     * emptied of exactly what it took.
+     */
+    public fun gatherZero(x: F64SparseVector, from: DoubleArray)
+
     /** Euclidean norm over the stored entries, rescaled as the dense [euclideanNorm] is. */
     public fun nrm2(x: F64SparseVector): Double
 

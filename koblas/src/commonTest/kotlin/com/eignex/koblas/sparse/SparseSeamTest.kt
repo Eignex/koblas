@@ -11,6 +11,7 @@ class SparseSeamTest {
         var dots = 0
         var axpys = 0
         var scatters = 0
+        var gathers = 0
         var nrm2s = 0
         var asums = 0
 
@@ -34,6 +35,16 @@ class SparseSeamTest {
             F64ReferenceSparseLinearAlgebra.scatter(x, out)
         }
 
+        override fun gather(x: F64SparseVector, from: DoubleArray) {
+            gathers++
+            F64ReferenceSparseLinearAlgebra.gather(x, from)
+        }
+
+        override fun gatherZero(x: F64SparseVector, from: DoubleArray) {
+            gathers++
+            F64ReferenceSparseLinearAlgebra.gatherZero(x, from)
+        }
+
         override fun nrm2(x: F64SparseVector): Double {
             nrm2s++
             return F64ReferenceSparseLinearAlgebra.nrm2(x)
@@ -48,6 +59,8 @@ class SparseSeamTest {
     private class CountingSparseBlas(override val priority: Int = 50) : F64SparseBlas {
         override val name: String get() = "counting-blas"
         var gemvs = 0
+        var gemms = 0
+        var trsms = 0
 
         @Suppress("LongParameterList")
         override fun gemv(
@@ -64,6 +77,34 @@ class SparseSeamTest {
 
         override fun trsv(a: F64SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) =
             F64ReferenceSparseLinearAlgebra.trsv(a, x, lower, transpose, unitDiag)
+
+        @Suppress("LongParameterList")
+        override fun gemm(
+            alpha: Double,
+            a: F64SparseMatrix,
+            transposeA: Boolean,
+            b: F64DenseMatrix,
+            transposeB: Boolean,
+            beta: Double,
+            c: F64DenseMatrix,
+        ) {
+            gemms++
+            F64ReferenceSparseLinearAlgebra.gemm(alpha, a, transposeA, b, transposeB, beta, c)
+        }
+
+        @Suppress("LongParameterList")
+        override fun trsm(
+            a: F64SparseMatrix,
+            b: F64DenseMatrix,
+            lower: Boolean,
+            transpose: Boolean,
+            unitDiag: Boolean,
+            right: Boolean,
+            alpha: Double,
+        ) {
+            trsms++
+            F64ReferenceSparseLinearAlgebra.trsm(a, b, lower, transpose, unitDiag, right, alpha)
+        }
     }
 
     private class CountingSparseLu(override val priority: Int = 50) : F64SparseLu {
@@ -96,6 +137,10 @@ class SparseSeamTest {
         copy(x, F64DenseVector.of(DoubleArray(6)))
         assertEquals(1, kernels.scatters, "copy from a sparse source is a scatter")
 
+        gather(sparse(), dense)
+        gatherZero(sparse(), F64DenseVector.of(DoubleArray(6)))
+        assertEquals(2, kernels.gathers, "both gathers should route")
+
         x.norm2()
         x.asum()
         assertEquals(1, kernels.nrm2s)
@@ -124,6 +169,12 @@ class SparseSeamTest {
 
         assertTrue(doubleArrayOf(2.0, 8.0).contentEquals(a.gemv(doubleArrayOf(1.0, 2.0))))
         assertEquals(1, blas.gemvs, "F64SparseMatrix.gemv should forward to the seam")
+
+        a.gemm(F64DenseMatrix.diagonal(2))
+        assertEquals(1, blas.gemms, "F64SparseMatrix.gemm should forward to the seam")
+
+        a.trsm(F64DenseMatrix.diagonal(2), lower = true)
+        assertEquals(1, blas.trsms, "F64SparseMatrix.trsm should forward to the seam")
 
         val f = a.lu()
         assertEquals(1, decompositions.factors, "F64SparseMatrix.lu should forward to the seam")

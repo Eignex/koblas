@@ -24,6 +24,12 @@ internal actual object F64PlatformSparseKernels : F64SparseKernels {
     actual override fun scatter(x: F64SparseVector, out: DoubleArray): Unit =
         F64ReferenceSparseLinearAlgebra.scatter(x, out)
 
+    actual override fun gather(x: F64SparseVector, from: DoubleArray): Unit =
+        F64ReferenceSparseLinearAlgebra.gather(x, from)
+
+    actual override fun gatherZero(x: F64SparseVector, from: DoubleArray): Unit =
+        F64ReferenceSparseLinearAlgebra.gatherZero(x, from)
+
     // As on the JVM: both reduce over the stored values alone, so the dense kernels apply unchanged. Here
     // they are the same scalar loops, so this states the shape rather than changing the arithmetic.
     actual override fun nrm2(x: F64SparseVector): Double = F64PlatformKernels.nrm2(x.values, 0, x.values.size)

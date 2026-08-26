@@ -1,9 +1,11 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
+import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.dense.applyBeta
+import com.eignex.koblas.dense.forEachRow
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import com.eignex.koblas.sparse.basis.F64BasisSolver
@@ -58,23 +60,107 @@ public object F64ReferenceSparseLinearAlgebra :
         requireSquare(a, "trsv")
         val n = a.rows
         requireShape(x.size == n) { "trsv: x length ${x.size} != $n" }
+        trsvCore(a, x, 0, lower, transpose, unitDiag)
+    }
+
+    @Suppress("LongParameterList") // the BLAS dgemm signature
+    override fun gemm(
+        alpha: Double,
+        a: F64SparseMatrix,
+        transposeA: Boolean,
+        b: F64DenseMatrix,
+        transposeB: Boolean,
+        beta: Double,
+        c: F64DenseMatrix,
+    ) {
+        val m = if (transposeA) a.cols else a.rows
+        val k = if (transposeA) a.rows else a.cols
+        val kB = if (transposeB) b.cols else b.rows
+        val n = if (transposeB) b.rows else b.cols
+        requireShape(k == kB) { "gemm: op(A) is ${m}x$k but op(B) is ${kB}x$n" }
+        requireShape(c.rows == m && c.cols == n) { "gemm: C is ${c.rows}x${c.cols}, expected ${m}x$n" }
+        val cd = c.data
+        applyBeta(koblas.kernels, cd, 0, cd.size, beta)
+        if (alpha == 0.0) return
+        val bd = b.data
+        val ld = b.rows
+        for (l in 0 until n) {
+            val cOff = l * m
+            if (transposeA) {
+                for (i in 0 until m) {
+                    var s = 0.0
+                    a.forEachInColumn(i) { j, v -> s += v * bd[if (transposeB) l + j * ld else j + l * ld] }
+                    cd[cOff + i] += alpha * s
+                }
+            } else {
+                for (j in 0 until k) {
+                    val bjl = alpha * bd[if (transposeB) l + j * ld else j + l * ld]
+                    if (bjl != 0.0) a.forEachInColumn(j) { i, v -> cd[cOff + i] += v * bjl }
+                }
+            }
+        }
+    }
+
+    @Suppress("LongParameterList") // the BLAS dtrsm signature
+    override fun trsm(
+        a: F64SparseMatrix,
+        b: F64DenseMatrix,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+        right: Boolean,
+        alpha: Double,
+    ) {
+        requireSquare(a, "trsm")
+        val n = a.rows
+        if (right) {
+            requireShape(b.cols == n) { "trsm right: B has ${b.cols} cols, expected $n" }
+        } else {
+            requireShape(b.rows == n) { "trsm: B has ${b.rows} rows, expected $n" }
+        }
+        if (alpha == 0.0) {
+            b.data.fill(0.0)
+            return
+        }
+        if (alpha != 1.0) koblas.kernels.scale(b.data, 0, alpha, b.data.size)
+        if (right) {
+            // Solving B·op(T)⁻¹ from the right is solving op(T)ᵀ against each row of B, so the same core runs
+            // with the transpose flipped. The rows are gathered into scratch because a strided walk of a
+            // column-major row would touch a cache line per entry.
+            forEachRow(n, b) { row -> trsvCore(a, row, 0, lower, !transpose, unitDiag) }
+        } else {
+            for (l in 0 until b.cols) trsvCore(a, b.data, l * n, lower, transpose, unitDiag)
+        }
+    }
+
+    /** [trsv] over the `n` entries of [x] from [offset], the columns of a right-hand side matrix being those. */
+    @Suppress("LongParameterList") // the three BLAS triangle flags plus the segment
+    private fun trsvCore(
+        a: F64SparseMatrix,
+        x: DoubleArray,
+        offset: Int,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+    ) {
+        val n = a.rows
         // Forward when a finished unknown feeds later columns, backward when it feeds earlier ones.
         val order = if (lower != transpose) 0 until n else n - 1 downTo 0
         for (j in order) {
             if (!transpose) {
-                val xj = if (unitDiag) x[j] else x[j] / diagonalOf(a, j)
-                x[j] = xj
+                val xj = if (unitDiag) x[offset + j] else x[offset + j] / diagonalOf(a, j)
+                x[offset + j] = xj
                 if (xj != 0.0) {
                     a.forEachInColumn(j) { i, v ->
-                        if (if (lower) i > j else i < j) x[i] -= v * xj
+                        if (if (lower) i > j else i < j) x[offset + i] -= v * xj
                     }
                 }
             } else {
-                var s = x[j]
+                var s = x[offset + j]
                 a.forEachInColumn(j) { i, v ->
-                    if (if (lower) i > j else i < j) s -= v * x[i]
+                    if (if (lower) i > j else i < j) s -= v * x[offset + i]
                 }
-                x[j] = if (unitDiag) s else s / diagonalOf(a, j)
+                x[offset + j] = if (unitDiag) s else s / diagonalOf(a, j)
             }
         }
     }
@@ -127,6 +213,24 @@ public object F64ReferenceSparseLinearAlgebra :
         val idx = x.indices
         val vals = x.values
         for (k in idx.indices) out[idx[k]] = vals[k]
+    }
+
+    override fun gather(x: F64SparseVector, from: DoubleArray) {
+        requireShape(x.size == from.size) { "gather: sizes differ, ${x.size} vs ${from.size}" }
+        val idx = x.indices
+        val vals = x.values
+        for (k in idx.indices) vals[k] = from[idx[k]]
+    }
+
+    override fun gatherZero(x: F64SparseVector, from: DoubleArray) {
+        requireShape(x.size == from.size) { "gatherZero: sizes differ, ${x.size} vs ${from.size}" }
+        val idx = x.indices
+        val vals = x.values
+        for (k in idx.indices) {
+            val i = idx[k]
+            vals[k] = from[i]
+            from[i] = 0.0
+        }
     }
 
     override fun nrm2(x: F64SparseVector): Double = euclideanNorm(x.values, 0, x.values.size)

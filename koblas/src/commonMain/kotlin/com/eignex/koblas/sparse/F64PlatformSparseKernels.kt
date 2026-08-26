@@ -14,6 +14,10 @@ internal expect object F64PlatformSparseKernels : F64SparseKernels {
 
     override fun scatter(x: F64SparseVector, out: DoubleArray)
 
+    override fun gather(x: F64SparseVector, from: DoubleArray)
+
+    override fun gatherZero(x: F64SparseVector, from: DoubleArray)
+
     override fun nrm2(x: F64SparseVector): Double
 
     override fun asum(x: F64SparseVector): Double

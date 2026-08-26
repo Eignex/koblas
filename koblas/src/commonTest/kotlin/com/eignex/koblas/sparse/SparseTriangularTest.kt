@@ -3,7 +3,9 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.dense.trsm
 import com.eignex.koblas.dense.trsv
+import com.eignex.koblas.randomMatrix
 import kotlin.random.Random
 import kotlin.test.*
 
@@ -60,6 +62,86 @@ class SparseTriangularTest {
                 }
             }
         }
+    }
+
+    @Test
+    fun `every direction agrees with the dense solve over several right-hand sides`() {
+        val rng = Random(20260821)
+        val n = 6
+        for (lower in booleanArrayOf(true, false)) {
+            for (transpose in booleanArrayOf(false, true)) {
+                for (right in booleanArrayOf(false, true)) {
+                    val (sparse, dense) = triangle(n, lower, rng)
+                    val b = if (right) randomMatrix(3, n, rng) else randomMatrix(n, 3, rng)
+
+                    val fromDense = F64DenseMatrix.wrap(b.rows, b.cols, b.data.copyOf())
+                    trsm(dense, fromDense, lower, transpose, right = right)
+                    val fromSparse = F64DenseMatrix.wrap(b.rows, b.cols, b.data.copyOf())
+                    sparse.trsm(fromSparse, lower, transpose, right = right)
+
+                    assertClose(
+                        fromDense,
+                        fromSparse,
+                        "n=$n lower=$lower transpose=$transpose right=$right",
+                        tolerance = 1e-9,
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `each column of a solve from the left is the one trsv gives it`() {
+        val rng = Random(20260822)
+        val n = 7
+        val (sparse, _) = triangle(n, lower = true, rng)
+        val b = randomMatrix(n, 3, rng)
+
+        val fromTrsm = F64DenseMatrix.wrap(n, 3, b.data.copyOf())
+        sparse.trsm(fromTrsm, lower = true)
+
+        for (j in 0 until 3) {
+            val column = b.data.copyOfRange(j * n, (j + 1) * n)
+            sparse.trsv(column, lower = true)
+            assertClose(column, fromTrsm.data.copyOfRange(j * n, (j + 1) * n), "column $j", tolerance = 1e-9)
+        }
+    }
+
+    @Test
+    fun `alpha scales the right-hand side before the solve`() {
+        val rng = Random(20260823)
+        val n = 5
+        val (sparse, _) = triangle(n, lower = true, rng)
+        val b = randomMatrix(n, 2, rng)
+
+        val scaled = F64DenseMatrix.wrap(n, 2, DoubleArray(b.data.size) { 2.5 * b.data[it] })
+        sparse.trsm(scaled, lower = true)
+        val withAlpha = F64DenseMatrix.wrap(n, 2, b.data.copyOf())
+        sparse.trsm(withAlpha, lower = true, alpha = 2.5)
+
+        assertClose(scaled, withAlpha, "alpha must scale B", tolerance = 1e-9)
+    }
+
+    @Test
+    fun `an alpha of zero empties the right-hand side without solving`() {
+        val n = 3
+        // A NaN diagonal, which a solve would spread through the answer.
+        val poisoned = F64SparseMatrix.ofColumns(n, n, List(n) { j -> listOf(j to Double.NaN) })
+        val b = F64DenseMatrix.wrap(n, 2, DoubleArray(n * 2) { 1.0 })
+
+        poisoned.trsm(b, lower = true, alpha = 0.0)
+
+        assertTrue(b.data.all { it == 0.0 }, "alpha = 0 must empty B without a solve")
+    }
+
+    @Test
+    fun `a right-hand side that does not meet the triangle is rejected on both sides`() {
+        val rng = Random(20260824)
+        val n = 4
+        val (sparse, _) = triangle(n, lower = true, rng)
+
+        assertFailsWith<DimensionMismatch> { sparse.trsm(randomMatrix(n + 1, 2, rng), lower = true) }
+        assertFailsWith<DimensionMismatch> { sparse.trsm(randomMatrix(2, n + 1, rng), lower = true, right = true) }
     }
 
     @Test
@@ -152,6 +234,28 @@ class SparseTriangularTest {
                 y: DoubleArray,
                 transpose: Boolean,
             ) = F64ReferenceSparseLinearAlgebra.gemv(alpha, a, x, beta, y, transpose)
+
+            @Suppress("LongParameterList")
+            override fun gemm(
+                alpha: Double,
+                a: F64SparseMatrix,
+                transposeA: Boolean,
+                b: F64DenseMatrix,
+                transposeB: Boolean,
+                beta: Double,
+                c: F64DenseMatrix,
+            ) = F64ReferenceSparseLinearAlgebra.gemm(alpha, a, transposeA, b, transposeB, beta, c)
+
+            @Suppress("LongParameterList")
+            override fun trsm(
+                a: F64SparseMatrix,
+                b: F64DenseMatrix,
+                lower: Boolean,
+                transpose: Boolean,
+                unitDiag: Boolean,
+                right: Boolean,
+                alpha: Double,
+            ) = F64ReferenceSparseLinearAlgebra.trsm(a, b, lower, transpose, unitDiag, right, alpha)
         }
         registerBackend(counting)
         val t = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 4.0)))

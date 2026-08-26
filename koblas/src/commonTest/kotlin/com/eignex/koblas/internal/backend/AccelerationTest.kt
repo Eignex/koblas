@@ -127,6 +127,9 @@ class AccelerationTest {
         override fun axpy(y: DoubleArray, alpha: Double, x: F64SparseVector) =
             F64ReferenceSparseLinearAlgebra.axpy(y, alpha, x)
         override fun scatter(x: F64SparseVector, out: DoubleArray) = F64ReferenceSparseLinearAlgebra.scatter(x, out)
+        override fun gather(x: F64SparseVector, from: DoubleArray) = F64ReferenceSparseLinearAlgebra.gather(x, from)
+        override fun gatherZero(x: F64SparseVector, from: DoubleArray) =
+            F64ReferenceSparseLinearAlgebra.gatherZero(x, from)
         override fun nrm2(x: F64SparseVector): Double = F64ReferenceSparseLinearAlgebra.nrm2(x)
         override fun asum(x: F64SparseVector): Double = F64ReferenceSparseLinearAlgebra.asum(x)
     }

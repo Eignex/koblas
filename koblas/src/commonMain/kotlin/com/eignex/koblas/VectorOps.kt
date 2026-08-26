@@ -113,6 +113,21 @@ public fun copy(src: F64VectorLike, dst: F64DenseVector) {
     }
 }
 
+/**
+ * Read [from] at [x]'s stored positions into [x] (Sparse BLAS `usga`), the inverse of [copy] from a sparse
+ * source. [x] keeps its pattern, so a nonzero of [from] at an unstored position is not read.
+ */
+public fun gather(x: F64SparseVector, from: F64DenseVector) {
+    requireSameSize(x.size, from.size)
+    koblas.sparseKernels.gather(x, from.data)
+}
+
+/** [gather], and zero in [from] the positions it read (Sparse BLAS `usgz`). */
+public fun gatherZero(x: F64SparseVector, from: F64DenseVector) {
+    requireSameSize(x.size, from.size)
+    koblas.sparseKernels.gatherZero(x, from.data)
+}
+
 /** Exchange the contents of [a] and [b] (BLAS `dswap`). */
 public fun swap(a: F64DenseVector, b: F64DenseVector) {
     requireSameSize(a.size, b.size)
