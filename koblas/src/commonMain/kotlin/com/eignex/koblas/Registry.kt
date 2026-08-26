@@ -2,6 +2,9 @@ package com.eignex.koblas
 
 import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.internal.backend.BackendRegistry
+import com.eignex.koblas.internal.backend.BackendSlot
+import com.eignex.koblas.sparse.F64SparseLu
+import com.eignex.koblas.sparse.basis.F64BasisSolvers
 
 /**
  * The process-wide default context: an [installBackends] override when set, else registered backends, else
@@ -24,6 +27,30 @@ public fun registerBackend(backend: Backend) {
 public fun discoverBackends() {
     BackendRegistry.discover()
 }
+
+/**
+ * The sparse LU registered under [name], such as `"umfpack"` or `"basiclu"`, or null when nothing did. A
+ * bundled provider answers to the plain name as well as its own.
+ *
+ * [koblas] hands out one backend per half, the strongest that registered, which is what a caller wanting
+ * the best available should take. This is for a caller that wants a particular library instead. The sparse
+ * backends are specialised rather than interchangeable, so which is best is a property of the matrix and
+ * not of a ranking: KLU wants a repeated circuit pattern, UMFPACK an unstructured system, BASICLU a basis
+ * whose columns are replaced one at a time. A solver running an interior point method beside a simplex may
+ * want two of them at once, which is what this answers and [koblas] cannot.
+ *
+ * Named rather than constructed directly so a caller keeps discovery, the configured library paths, and
+ * the bundled builds.
+ */
+public fun sparseLuNamed(name: String): F64SparseLu? = BackendRegistry.sparseLuNamed(name)
+
+/**
+ * The basis solvers registered under [name], the counterpart of [sparseLuNamed] for the basis half.
+ */
+public fun basisSolversNamed(name: String): F64BasisSolvers? = BackendRegistry.basisSolversNamed(name)
+
+/** The backends registered for [slot], strongest first, for a diagnostic naming what a lookup can find. */
+public fun registeredBackendNames(slot: BackendSlot): List<String> = BackendRegistry.namesFor(slot)
 
 /** Overrides the context [koblas] returns; null restores automatic selection. */
 public fun installBackends(context: F64Context?) {

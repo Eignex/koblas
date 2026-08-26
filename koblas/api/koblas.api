@@ -161,11 +161,14 @@ public final class com/eignex/koblas/OperatorsKt {
 }
 
 public final class com/eignex/koblas/RegistryKt {
+	public static final fun basisSolversNamed (Ljava/lang/String;)Lcom/eignex/koblas/sparse/basis/F64BasisSolvers;
 	public static final fun discoverBackends ()V
 	public static final fun getKoblas ()Lcom/eignex/koblas/F64Context;
 	public static final fun getKoblasInfo ()Ljava/lang/String;
 	public static final fun installBackends (Lcom/eignex/koblas/F64Context;)V
 	public static final fun registerBackend (Lcom/eignex/koblas/Backend;)V
+	public static final fun registeredBackendNames (Lcom/eignex/koblas/internal/backend/BackendSlot;)Ljava/util/List;
+	public static final fun sparseLuNamed (Ljava/lang/String;)Lcom/eignex/koblas/sparse/F64SparseLu;
 }
 
 public final class com/eignex/koblas/SingularMatrix : com/eignex/koblas/KoblasException {
