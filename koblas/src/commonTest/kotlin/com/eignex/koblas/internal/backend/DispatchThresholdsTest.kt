@@ -40,7 +40,6 @@ class DispatchThresholdsTest {
             assertEquals(before.level2, during.level2, "level2 followed the installed backend")
             assertEquals(before.level3, during.level3, "level3 followed the installed backend")
             assertEquals(before.factorize, during.factorize, "factorize followed the installed backend")
-            assertEquals(before.factorizeRhs, during.factorizeRhs, "factorizeRhs followed the installed backend")
         } finally {
             installBackends(null)
         }

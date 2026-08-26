@@ -782,8 +782,8 @@ public abstract class com/eignex/koblas/dense/host/F64DecompositionsAdapter : co
 
 public final class com/eignex/koblas/dense/host/cblas/HostBlasConfig {
 	public fun <init> ()V
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
 	public final fun component2 ()Ljava/lang/String;
 	public final fun component3 ()Ljava/lang/Integer;
@@ -791,12 +791,10 @@ public final class com/eignex/koblas/dense/host/cblas/HostBlasConfig {
 	public final fun component5 ()Ljava/lang/Integer;
 	public final fun component6 ()Ljava/lang/Integer;
 	public final fun component7 ()Ljava/lang/Integer;
-	public final fun component8 ()Ljava/lang/Integer;
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;)Lcom/eignex/koblas/dense/host/cblas/HostBlasConfig;
-	public static synthetic fun copy$default (Lcom/eignex/koblas/dense/host/cblas/HostBlasConfig;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;ILjava/lang/Object;)Lcom/eignex/koblas/dense/host/cblas/HostBlasConfig;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;)Lcom/eignex/koblas/dense/host/cblas/HostBlasConfig;
+	public static synthetic fun copy$default (Lcom/eignex/koblas/dense/host/cblas/HostBlasConfig;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Integer;ILjava/lang/Object;)Lcom/eignex/koblas/dense/host/cblas/HostBlasConfig;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getFactorizeMin ()Ljava/lang/Integer;
-	public final fun getFactorizeRhsMin ()Ljava/lang/Integer;
 	public final fun getLapackeLibraryPath ()Ljava/lang/String;
 	public final fun getLevel1Min ()Ljava/lang/Integer;
 	public final fun getLevel2Min ()Ljava/lang/Integer;

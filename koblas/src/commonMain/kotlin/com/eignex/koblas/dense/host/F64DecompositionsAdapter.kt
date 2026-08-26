@@ -117,7 +117,13 @@ public abstract class F64DecompositionsAdapter internal constructor(
         return out
     }
 
-    /** Delegated to the portable path for the same reason as a small `gemv`, the per-call cost. */
+    /** One right-hand side is a pair of triangular solves, a wider one a pair of `dtrsm`. */
+    private fun dispatchesSolve(n: Int, nrhs: Int): Boolean = if (nrhs <= 1) {
+        n >= dispatch.level2
+    } else {
+        n.toLong() * nrhs >= dispatch.level3.toLong() * dispatch.level3
+    }
+
     @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
     override fun solveInto(
         lu: F64LuDecomposition,
@@ -125,7 +131,16 @@ public abstract class F64DecompositionsAdapter internal constructor(
         out: DoubleArray,
         transpose: Boolean,
         workspace: Workspace?,
-    ): DoubleArray = portable.solveInto(lu, b, out, transpose, workspace)
+    ): DoubleArray {
+        requireFactored(lu.failedAt, "solve")
+        val n = lu.n
+        if (!dispatchesSolve(n, 1)) return portable.solveInto(lu, b, out, transpose, workspace)
+        requireShape(b.size == n) { "solve: b length ${b.size} != $n" }
+        requireShape(out.size == n) { "solve: out length ${out.size} != $n" }
+        if (n == 0) return out
+        nativeSolve(lu, F64DenseMatrix.wrap(n, 1, b), F64DenseMatrix.wrap(n, 1, out), transpose, workspace)
+        return out
+    }
 
     @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
     override fun solveInto(
@@ -140,7 +155,21 @@ public abstract class F64DecompositionsAdapter internal constructor(
         val nrhs = b.cols
         requireSolveShapes(n, b, out)
         if (n == 0 || nrhs == 0) return out
-        if (nrhs < dispatch.factorizeRhs) return solveColumnByColumn(lu, b, out, transpose, workspace)
+        if (!dispatchesSolve(n, nrhs)) return portable.solveInto(lu, b, out, transpose, workspace)
+        return nativeSolve(lu, b, out, transpose, workspace)
+    }
+
+    /** The `dgetrs` body both solve overloads share, once the gate has chosen to cross. */
+    @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
+    private fun nativeSolve(
+        lu: F64LuDecomposition,
+        b: F64DenseMatrix,
+        out: F64DenseMatrix,
+        transpose: Boolean,
+        workspace: Workspace?,
+    ): F64DenseMatrix {
+        val n = lu.n
+        val nrhs = b.cols
         val factor = lu.lu
         if (transpose) {
             val y = workspace?.take(n * nrhs) ?: DoubleArray(n * nrhs)
@@ -169,18 +198,6 @@ public abstract class F64DecompositionsAdapter internal constructor(
             trsmLeft(factor, n, out.data, nrhs, UPPER, NO_TRANS, NON_UNIT)
         }
         return out
-    }
-
-    /** Too few columns to cover the native call, so each is solved on its own. */
-    @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
-    private fun solveColumnByColumn(
-        lu: F64LuDecomposition,
-        b: F64DenseMatrix,
-        out: F64DenseMatrix,
-        transpose: Boolean,
-        workspace: Workspace?,
-    ): F64DenseMatrix = solveColumnwise(b, out, lu.n, b.cols, workspace) { col, dst ->
-        solveInto(lu, col, dst, transpose, workspace)
     }
 
     /** Left-side dtrsm over a packed factor buffer. */
@@ -213,7 +230,7 @@ public abstract class F64DecompositionsAdapter internal constructor(
         workspace: Workspace?,
     ): F64DenseMatrix {
         requireFactored(ldl.failedAt, "solve")
-        if (b.cols < dispatch.factorizeRhs) return portable.solveInto(ldl, b, out, workspace)
+        if (!dispatchesSolve(b.rows, b.cols)) return portable.solveInto(ldl, b, out, workspace)
         val n = ldl.n
         val nrhs = b.cols
         requireSolveShapes(n, b, out)

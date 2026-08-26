@@ -65,8 +65,6 @@ public data class HostBlasConfig(
     val level3Min: Int? = null,
     /** Smallest dimension routed to the native factorizations; null keeps the platform default. */
     val factorizeMin: Int? = null,
-    /** Smallest number of right-hand sides routed to a blocked native solve; null keeps the default. */
-    val factorizeRhsMin: Int? = null,
 ) {
     init {
         require(threadCount == null || threadCount > 0) { "threadCount must be positive" }
@@ -74,8 +72,5 @@ public data class HostBlasConfig(
         require(level2Min == null || level2Min >= 0) { "level2Min must not be negative" }
         require(level3Min == null || level3Min >= 0) { "level3Min must not be negative" }
         require(factorizeMin == null || factorizeMin >= 0) { "factorizeMin must not be negative" }
-        require(factorizeRhsMin == null || factorizeRhsMin >= 0) {
-            "factorizeRhsMin must not be negative"
-        }
     }
 }
