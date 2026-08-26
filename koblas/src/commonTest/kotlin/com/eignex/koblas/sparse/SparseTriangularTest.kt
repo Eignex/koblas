@@ -235,6 +235,8 @@ class SparseTriangularTest {
                 transpose: Boolean,
             ) = F64ReferenceSparseLinearAlgebra.gemv(alpha, a, x, beta, y, transpose)
 
+            override fun transpose(a: F64SparseMatrix) = F64ReferenceSparseLinearAlgebra.transpose(a)
+
             @Suppress("LongParameterList")
             override fun gemm(
                 alpha: Double,

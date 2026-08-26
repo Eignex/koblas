@@ -61,6 +61,7 @@ class SparseSeamTest {
         var gemvs = 0
         var gemms = 0
         var trsms = 0
+        var transposes = 0
 
         @Suppress("LongParameterList")
         override fun gemv(
@@ -77,6 +78,11 @@ class SparseSeamTest {
 
         override fun trsv(a: F64SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) =
             F64ReferenceSparseLinearAlgebra.trsv(a, x, lower, transpose, unitDiag)
+
+        override fun transpose(a: F64SparseMatrix): F64SparseMatrix {
+            transposes++
+            return F64ReferenceSparseLinearAlgebra.transpose(a)
+        }
 
         @Suppress("LongParameterList")
         override fun gemm(
@@ -182,12 +188,31 @@ class SparseSeamTest {
         a.trsm(F64DenseMatrix.diagonal(2), lower = true)
         assertEquals(1, blas.trsms, "F64SparseMatrix.trsm should forward to the seam")
 
+        a.transpose()
+        assertEquals(1, blas.transposes, "F64SparseMatrix.transpose should forward to the seam")
+
         val f = a.lu()
         assertEquals(1, decompositions.factors, "F64SparseMatrix.lu should forward to the seam")
         assertTrue(!f.singular)
 
         a.cholesky()
         assertEquals(1, decompositions.choleskys, "F64SparseMatrix.cholesky should forward to the seam")
+    }
+
+    /**
+     * The portable factorizations transpose on the way in, and the portable answer is the definition every
+     * binding is compared against. Reaching the seam for it would route that definition through whichever
+     * backend happens to be registered.
+     */
+    @Test
+    fun `the portable Cholesky transposes without reaching the seam`() = withCleanBackends {
+        val blas = CountingSparseBlas()
+        registerBackend(blas)
+        val spd = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(1 to 9.0)))
+
+        F64ReferenceSparseLinearAlgebra.cholesky(spd)
+
+        assertEquals(0, blas.transposes, "the portable factorization went through the registered backend")
     }
 
     @Test

@@ -83,6 +83,16 @@ public interface F64SparseBlas : Backend {
         alpha: Double = 1.0,
     )
 
+    /**
+     * Fresh transposed [a], still CSC, which makes this the CSC-to-CSR conversion as well. Explicitly stored
+     * zeros survive, since the transpose is structural rather than arithmetic.
+     *
+     * On the seam rather than beside the other whole-matrix operations because it is the one of them a
+     * library has its own routine for, and because the two directions of [gemv] leave a caller with no
+     * reason to materialize a transpose unless it means to hold it.
+     */
+    public fun transpose(a: F64SparseMatrix): F64SparseMatrix
+
     /** `A · x`, or `Aᵀ · x` when [transpose], into a fresh result. */
     public fun gemv(a: F64SparseMatrix, x: DoubleArray, transpose: Boolean = false): DoubleArray {
         val y = DoubleArray(if (transpose) a.cols else a.rows)
