@@ -200,6 +200,33 @@ class SparseProductTest {
         assertEquals(a, a.gemm(identity), "A times I should give A back")
     }
 
+    /**
+     * The pattern of the product is what the patterns of the operands meet at. A stored zero is a position
+     * either of them holds, so it selects and scatters like any other entry rather than being skipped for
+     * the value it carries.
+     */
+    @Test
+    fun `the sparse product keeps a stored zero of either operand`() {
+        val one = F64SparseMatrix.ofColumns(1, 1, listOf(listOf(0 to 1.0)))
+        val zero = F64SparseMatrix.ofColumns(1, 1, listOf(listOf(0 to 0.0)))
+        assertEquals(1, zero.nnz, "the operand itself has to store the zero for this to say anything")
+
+        assertEquals(1, one.gemm(zero).nnz, "a stored zero in the second operand was dropped")
+        assertEquals(1, zero.gemm(one).nnz, "a stored zero in the first operand was dropped")
+    }
+
+    @Test
+    fun `the sparse product keeps an entry the arithmetic cancels to zero`() {
+        // The single entry of the product is 1 * 1 + 1 * -1, a position the patterns meet at all the same.
+        val a = F64SparseMatrix.ofColumns(1, 2, listOf(listOf(0 to 1.0), listOf(0 to 1.0)))
+        val b = F64SparseMatrix.ofColumns(2, 1, listOf(listOf(0 to 1.0, 1 to -1.0)))
+
+        val product = a.gemm(b)
+
+        assertEquals(1, product.nnz, "the cancelled entry was dropped")
+        assertEquals(0.0, product[0, 0], 0.0)
+    }
+
     @Test
     fun `a sparse operand that does not meet the first is rejected`() {
         val rng = Random(20260922)

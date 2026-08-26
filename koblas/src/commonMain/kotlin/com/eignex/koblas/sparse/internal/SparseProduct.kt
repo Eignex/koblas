@@ -10,6 +10,10 @@ import com.eignex.koblas.core.F64SparseMatrix
  * columns of `A` that contribute to it, and each contribution scatters into the scratch; the positions
  * touched are collected as they are first written, so the column is read back without sweeping the rows that
  * stayed empty.
+ *
+ * Which positions those are is structural: an operand's stored zero selects and scatters like any other
+ * entry, so the result stores what the two patterns meet at, as an entry the arithmetic cancels to zero is
+ * also kept.
  */
 internal fun multiplySparse(a: F64SparseMatrix, b: F64SparseMatrix): F64SparseMatrix {
     val rows = a.rows
@@ -26,15 +30,15 @@ internal fun multiplySparse(a: F64SparseMatrix, b: F64SparseMatrix): F64SparseMa
     for (j in 0 until b.cols) {
         var used = 0
         b.forEachInColumn(j) { l, bv ->
-            if (bv != 0.0) {
-                a.forEachInColumn(l) { i, av ->
-                    if (touchedIn[i] != j) {
-                        touchedIn[i] = j
-                        values[i] = av * bv
-                        touched[used++] = i
-                    } else {
-                        values[i] += av * bv
-                    }
+            // A stored zero of B contributes its column of A as stored zeros rather than dropping it: the
+            // pattern of the product is the pattern of the operands, whatever the arithmetic makes of it.
+            a.forEachInColumn(l) { i, av ->
+                if (touchedIn[i] != j) {
+                    touchedIn[i] = j
+                    values[i] = av * bv
+                    touched[used++] = i
+                } else {
+                    values[i] += av * bv
                 }
             }
         }
@@ -44,9 +48,11 @@ internal fun multiplySparse(a: F64SparseMatrix, b: F64SparseMatrix): F64SparseMa
             outVal = outVal.copyOf(grown)
         }
         // Rows arrive in whatever order the contributing columns held them, and CSC wants them ascending.
-        val column = touched.copyOfRange(0, used)
-        column.sort()
-        for (i in column) {
+        // Sorted where they were collected, since the scratch is already this column's and nothing else
+        // reads it before the next column overwrites the same prefix.
+        touched.sort(0, used)
+        for (t in 0 until used) {
+            val i = touched[t]
             outIdx[count] = i
             outVal[count] = values[i]
             count++
