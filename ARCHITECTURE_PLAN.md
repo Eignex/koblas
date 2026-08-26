@@ -139,7 +139,8 @@ should mix mechanical migration with an unrelated numerical implementation.
 
 ### PR 1: Add structured backend capabilities and routing diagnostics
 
-Status: implemented and verified on `codex/backend-routing-diagnostics`; PR publication in progress.
+Status: open as [PR #309](https://github.com/Eignex/koblas/pull/309) from
+`codex/backend-routing-diagnostics`; full verification passed.
 
 - Introduce public semantic backend-role identifiers outside `internal` packages.
 - Add structured context/backend status rather than relying on `koblasInfo` strings.
