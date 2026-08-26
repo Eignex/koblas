@@ -110,6 +110,16 @@ class PlatformSparseKernelsTest {
         val actualScatter = dense.copyOf().also { F64PlatformSparseKernels.scatter(x, it) }
         assertTrue(expectedScatter.contentEquals(actualScatter), "scatter diverged from the portable loop")
 
+        val expectedGather = sparse(4096, 512, Random(11))
+            .also { F64ReferenceSparseLinearAlgebra.gather(it, dense.copyOf()) }
+        val actualGather = sparse(4096, 512, Random(11))
+            .also { F64PlatformSparseKernels.gather(it, dense.copyOf()) }
+        assertTrue(expectedGather.values.contentEquals(actualGather.values), "gather diverged from the portable loop")
+
+        val expectedZeroed = dense.copyOf().also { F64ReferenceSparseLinearAlgebra.gatherZero(x, it) }
+        val actualZeroed = dense.copyOf().also { F64PlatformSparseKernels.gatherZero(x, it) }
+        assertTrue(expectedZeroed.contentEquals(actualZeroed), "gatherZero diverged from the portable loop")
+
         val other = sparse(4096, 400, Random(12))
         assertTrue(
             F64PlatformSparseKernels.dot(x, other) == F64ReferenceSparseLinearAlgebra.dot(x, other),

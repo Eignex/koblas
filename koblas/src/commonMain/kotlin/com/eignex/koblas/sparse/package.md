@@ -4,12 +4,14 @@ Sparse linear algebra over the CSC [com.eignex.koblas.core.F64SparseMatrix], beh
 mirror the dense ones.
 
 - [F64SparseKernels] — the sparse level-1 tier: a sparse vector against a dense one (`usdot`, `usaxpy`
-  in Sparse BLAS terms) or against another sparse one, plus scatter and the reductions. Unlike the dense
+  in Sparse BLAS terms) or against another sparse one, the scatter and gather pair (`ussc`, `usga`, `usgz`)
+  that moves entries between the two representations, and the reductions. Unlike the dense
   `F64Kernels` there is no length threshold, because the fallback here is an object rather than a
   compiled-in primitive and there is no compile-time kernel to protect.
-- [F64SparseBlas] — the sparse matrix routines. `gemv` in both directions, walking columns, which is what CSC
-  stores. Deliberately thin: a sparse `gemm` fills in and is a different algorithm with a different result
-  type, so it lands here when something needs it.
+- [F64SparseBlas] — the sparse matrix routines. `gemv` and `trsv` in both directions, walking columns, which
+  is what CSC stores, and `gemm` and `trsm` over several right-hand sides at once. The level-3 pair takes a
+  dense second operand, so the product stays dense and fills in nowhere; the sparse-times-sparse product is
+  the one that needs a result type of its own, and it lands here when something asks for it.
 - [F64SparseLu] — general sparse LU factorization, and only that. [F64SparseLu.factor] returns
   [F64SparseFactorization], never null: a singular matrix yields a factorization reporting `singular`, matching
   the dense contract. Its factors support both ordinary and transposed solves.
