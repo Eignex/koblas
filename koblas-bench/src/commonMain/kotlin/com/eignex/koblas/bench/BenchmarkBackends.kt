@@ -17,6 +17,9 @@ internal const val FORCED_BACKEND = "forced"
 // paying a foreign call for each short dot and axpy inside it.
 internal const val FORCED_FACTORIZE_BACKEND = "forced-factorize"
 
+// The same for the gates a solve reads, so its crossover can be found without moving the factorization one.
+internal const val FORCED_SOLVE_BACKEND = "forced-solve"
+
 // Installs the host at its shipped gates, which is what the auto arm is for: it answers whether the value
 // the library ships pays off, where the forced arm answers where the crossover actually is.
 internal expect fun useShippedHost(): Boolean
@@ -24,6 +27,11 @@ internal expect fun useShippedHost(): Boolean
 internal expect fun useUngatedHost(): Boolean
 
 internal expect fun useUngatedFactorization(): Boolean
+
+// Ungates the level-2 and level-3 gates alone, which is what a solve over an existing factor reads. The
+// kernel half is left alone for the same reason the factorize arm leaves it: replacing it would time a
+// portable fallback against host primitives instead of the compiled-in ones.
+internal expect fun useUngatedSolves(): Boolean
 
 // The sparse LU gate counts stored entries, and the shipped value decides which side answers, so a sparse
 // crossover needs the host ungated for the same reason the dense one does.
@@ -37,6 +45,7 @@ internal fun installBackend(backend: String) {
     val installed = when (backend) {
         FORCED_BACKEND -> useUngatedHost()
         FORCED_FACTORIZE_BACKEND -> useUngatedFactorization()
+        FORCED_SOLVE_BACKEND -> useUngatedSolves()
         AUTO_BACKEND -> useShippedHost()
         else -> {
             installBackends(

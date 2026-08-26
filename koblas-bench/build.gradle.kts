@@ -106,6 +106,15 @@ benchmark {
         suite("level3Focused", "Level3Benchmark", "syr2k|gemm") {
             param("n", "256")
         }
+        // The solve rows alone, at the sizes the main suite stops short of. A solve over an existing factor
+        // is a pair of triangular solves, and those only cross around 1024, so a sweep ending at 256 cannot
+        // see the crossover the level-2 gate on solves turns on. Kept separate because carrying 1024 and
+        // 2048 through all ten of the suite's benchmarks and three arms would cost far more than the
+        // question needs.
+        suite("solveFocused", "SolveBenchmark", "luSolve|luSolveInto|ldlSolveInto") {
+            param("n", "256", "1024", "2048")
+            param("backend", "reference", "forced-solve")
+        }
         suite("sparseFocused", "SparseBenchmark", "sparseLuFactor|sparseGemv") {
             param("n", "256")
         }

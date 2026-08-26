@@ -21,13 +21,21 @@ target runs. Results are written under
 | `level2` | matrix-vector kernels |
 | `level3` | matrix-matrix kernels |
 | `solve` | dense factorization and solves |
+| `solveFocused` | the solve rows alone, out to 2048 |
 | `blockSolve` | block versus per-column solves |
 | `sparse` | sparse factorization, solve, and `gemv` |
 
 ## Compare implementations
 
 Use `reference` for portable Kotlin and `forced` for the host backend with its
-thresholds disabled. `auto` uses the shipped routing. Benchmark setup prints the
+thresholds disabled. `auto` uses the shipped routing. The factorization suites
+take `forced-factorize` instead, which moves the factorization gates alone: with
+every gate at zero a routine that stays portable has its kernels replaced too,
+and is then timed against host primitives rather than the compiled-in ones.
+
+`solve` stops at 256, and a solve over an existing factor is a pair of triangular
+solves, which only cross near 1024. Use `solveFocused` for the range where the
+level-2 gate on solves decides anything. Benchmark setup prints the
 resolved backend; check it before using the result.
 
 `level1` uses `kernels=builtin|host` instead. Run it with and without
