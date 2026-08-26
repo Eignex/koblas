@@ -36,13 +36,14 @@ public class HfactorFactorization internal constructor(
     override val failedAt: Int get() = NOT_SINGULAR
 
     override val nnz: Int get() = try {
-        calls.stats(handle, pivotRange)
+        calls.fill(handle)
     } finally {
         Reference.reachabilityFence(this)
     }
 
+    /** Reaching the pivots copies the whole factorization, so this is sampled rather than polled. */
     override val rcond: Double get() = try {
-        calls.stats(handle, pivotRange)
+        calls.pivotRange(handle, pivotRange)
         if (pivotRange[1] == 0.0) 0.0 else pivotRange[0] / pivotRange[1]
     } finally {
         Reference.reachabilityFence(this)

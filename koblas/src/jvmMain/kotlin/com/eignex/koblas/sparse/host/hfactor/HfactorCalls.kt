@@ -32,7 +32,8 @@ internal class HfactorCalls(config: HfactorConfig) {
         val btran: MethodHandle,
         val update: MethodHandle,
         val updateCount: MethodHandle,
-        val stats: MethodHandle,
+        val fill: MethodHandle,
+        val pivotRange: MethodHandle,
     )
 
     /** Whether the library resolved and exports every entry point this binding calls. */
@@ -60,7 +61,11 @@ internal class HfactorCalls(config: HfactorConfig) {
                 intOf(ADDRESS, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT),
             ) ?: return null,
             updateCount = library.handleOrNull("koblas_hfactor_update_count", intOf(ADDRESS)) ?: return null,
-            stats = library.handleOrNull("koblas_hfactor_stats", intOf(ADDRESS, ADDRESS, ADDRESS)) ?: return null,
+            fill = library.handleOrNull("koblas_hfactor_fill", intOf(ADDRESS)) ?: return null,
+            pivotRange = library.handleOrNull(
+                "koblas_hfactor_pivot_range",
+                voidOf(ADDRESS, ADDRESS, ADDRESS),
+            ) ?: return null,
         )
     }
 
@@ -126,16 +131,22 @@ internal class HfactorCalls(config: HfactorConfig) {
 
     fun updateCount(handle: MemorySegment): Int = handlesOrThrow().updateCount.invokeExact(handle) as Int
 
-    /** The fill, with the pivot magnitudes written into [range] as smallest then largest. */
-    fun stats(handle: MemorySegment, range: DoubleArray): Int {
+    /** The fill the bridge tracks, which reads a counter and so is fit to be read every iteration. */
+    fun fill(handle: MemorySegment): Int = handlesOrThrow().fill.invokeExact(handle) as Int
+
+    /**
+     * The pivot magnitudes into [range] as smallest then largest. HFactor hands its factors out only by
+     * copy, so this duplicates every L and U array; it is for a caller asking what the factors are worth
+     * rather than for one pacing its rebuilds, which reads [fill].
+     */
+    fun pivotRange(handle: MemorySegment, range: DoubleArray) {
         val h = handlesOrThrow()
-        return Arena.ofConfined().use { arena ->
+        Arena.ofConfined().use { arena ->
             val smallest = arena.allocate(JAVA_DOUBLE)
             val largest = arena.allocate(JAVA_DOUBLE)
-            val fill = h.stats.invokeExact(handle, smallest, largest) as Int
+            h.pivotRange.invokeExact(handle, smallest, largest) as Unit
             range[0] = smallest.get(JAVA_DOUBLE, 0)
             range[1] = largest.get(JAVA_DOUBLE, 0)
-            fill
         }
     }
 }

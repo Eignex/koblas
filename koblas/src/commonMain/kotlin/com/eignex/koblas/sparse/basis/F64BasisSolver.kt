@@ -77,7 +77,14 @@ public interface F64BasisSolver {
      * has already computed for its ratio test; passing it back rather than letting the solver recompute it
      * is what keeps an update to one FTRAN. [pivotEta] is `Bᵀ` solved against `e(pivotRow)`, which a dual
      * simplex likewise has in hand as its pivotal row. An implementation that needs [pivotEta] and is not
-     * given it computes it, so a primal caller may leave it out rather than manufacture one.
+     * given it computes it, so a primal caller may leave it out rather than manufacture one, and one that
+     * takes it takes it on trust: it is not checked against [pivotRow], and an eta computed for some other
+     * row folds in a transform that does not invert the basis.
+     *
+     * Both vectors must arrive as this solver left them. An implementation may recognise its own solve and
+     * reuse the form it kept, which is what makes handing them back cheaper than recomputing, so a vector
+     * edited in between is read as the value it no longer carries. A caller wanting to hand over something
+     * else builds a vector of its own and pays the solve.
      *
      * The caller has already judged the pivot `spike(pivotRow)` acceptable; a solver that disagrees answers
      * [BasisUpdate.SINGULAR] rather than folding in an update it cannot invert.
