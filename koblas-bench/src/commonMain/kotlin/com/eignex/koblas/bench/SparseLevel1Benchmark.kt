@@ -48,4 +48,14 @@ class SparseLevel1Benchmark {
     fun sparseScatter() {
         koblas.sparseKernels.scatter(sparse, dense.data)
     }
+
+    @Benchmark
+    fun sparseGather() {
+        koblas.sparseKernels.gather(sparse, dense.data)
+    }
+
+    @Benchmark
+    fun sparseGatherZero() {
+        koblas.sparseKernels.gatherZero(sparse, dense.data)
+    }
 }
