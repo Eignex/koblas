@@ -1,61 +1,31 @@
-# koblas working notes
+# koblas
 
 Kotlin Multiplatform BLAS and LAPACK.
 
-## Pre-PR gate
+## Verify
 
-Run `./gradlew check lintDocs`.
-
-- check runs tests and some light checks.
-- lintDocs runs detekt and dokka linting.
-- For new/edited files add `--rerun-tasks`, detekt caches per source-set and skips them otherwise.
-- The default run pins `koblas.backend=reference`. Add `-Pkoblas.hostTests=true` for the OpenBLAS and
-  SuiteSparse bindings, and `-Pkoblas.noSimd=true` on top for the scalar thresholds, which is the only
-  way the level-2 bindings and the small-size dispatch paths are reached.
+- Run `./gradlew check lintDocs`; add `--rerun-tasks` for edited sources.
+- Default tests use the reference backend. Use `-Pkoblas.hostTests=true` for OpenBLAS/SuiteSparse and additionally `-Pkoblas.noSimd=true` for scalar thresholds, level-2 bindings, and small-size dispatch.
 
 ## Tests
 
-- Test names within backticks, plain ascii, describing the behavior under test.
-- Class almost always named after the file under test (`<FileUnderTest>Test`).
-- One observable behavior per test; assert behavior, not implementation. Follow arrange → act → assert.
-- Mirror existing tests' framework, layout, and assertion style.
-- Reuse existing fixtures/helpers; don't add new ones unless asked.
-- Use the parameterized form for variants of the same behavior; separate tests for semantically different ones.
-- Keep comments minimal and let the test name carry the intent.
-- No JVM test over 300ms.
-- Backtick names take words only: `checkNativeSafeTestNames` rejects `(`, `)` and `#`, and a comma fails to
-  compile on JS and native.
-- Check a backend routine against the portable reference, not against hand values. The
-  `assert*AgreesWithReference` helpers are the pattern, and a new backend joins them.
-- `wellConditioned` is diagonally dominant, so it factors to an identity pivot. A test about pivoting or
-  row permutation must perturb it or it exercises nothing.
-
-## Bench
-
-Read `koblas-bench/README.md` before benchmarking. In short:
-
-- `./gradlew :koblas-bench:jvmLevel3Benchmark` runs one suite, prefixed by target: `jvm`, `linuxX64`
-  or `macosArm64`. Only the host's own target runs, so macOS numbers come from a macOS checkout.
-- Cite a crossover or a speedup in KDoc only when it came from these suites; drop the number otherwise.
+- Match existing framework, layout, fixtures, and assertion style; arrange → act → assert.
+- Name classes `<FileUnderTest>Test`; use ASCII backtick test names with words only—no `()`, `#`, or commas.
+- Test one observable behavior, parameterize variants, and keep JVM tests under 300 ms.
+- Compare backends with the portable reference via `assert*AgreesWithReference`, not hand values.
+- `wellConditioned` has identity pivots; perturb it before testing pivoting or row permutations.
 
 ## Design
 
-- Public types carry their element type: `F64DenseMatrix`, `F64Blas`. A second element type brings its own
-  registry and seams rather than widening these.
-- Dense storage is column-major, entry `(i, j)` at `i + j * rows`. Sparse is CSC with rows strictly
-  ascending within a column, which the constructors validate rather than repair.
-- The portable reference is the semantic definition. A host binding gates on a measured threshold and falls
-  back to it.
-- Backends register per half into a seam keeping the strongest offer, ties to whoever registered first.
-  Registration is compare-and-set, so any thread may register; `installBackends` still wants startup.
-- An `*Into` destination may alias its input, and that test is on the backing buffer, not the wrapper.
+- Public types include their element type (`F64DenseMatrix`, `F64Blas`); new element types need separate registries and seams.
+- Dense matrices are column-major: `A(i, j)` is `i + j * rows`. Sparse matrices are validated CSC with ascending row indices per column.
+- The portable reference defines semantics. Host bindings use measured thresholds then fall back to it.
+- Backend seams retain the strongest per half; equal offers preserve first registration. Registration is CAS; call `installBackends` at startup.
+- `*Into` destinations may alias inputs; test the backing buffer.
 
-## Style
+## Style and contributions
 
-- Prefer clear naming and types over comments. Comments explain *why* (soundness, perf, lifecycle) and never
-  restate the code. Never narrate changes, avoid "now/no longer/previously", and don't cite issues. Keep `TODO`/`FIXME`.
-- KDoc on public API only. Use functional notation for math (`A(i, j)`, not `A[i][j]`); use `[Symbol]` for links.
-- Don't edit anything under `.github/` unless asked directly.
-- Single-line conventional commits, no scope, no body/trailers:
-  `feat: `, `fix: `, `chore: `, `refactor: `, `docs: `, `test: `.
-- PR body: follow `.github/pull_request_template.md`, with `Closes #NN` on its own line at the top.
+- Prefer clear names/types. Comments explain why, never narrate changes or cite issues; retain `TODO`/`FIXME`.
+- Public APIs get KDoc. Write math as `A(i, j)` and use `[Symbol]` links.
+- Do not edit `.github/` unless asked. Read `koblas-bench/README.md` before benchmarks; cite KDoc performance figures only from its suites.
+- Commits are single-line conventional commits without scopes, bodies, or trailers (for example `fix: handle empty input`). PR bodies follow `.github/pull_request_template.md` with `Closes #NN` first.
