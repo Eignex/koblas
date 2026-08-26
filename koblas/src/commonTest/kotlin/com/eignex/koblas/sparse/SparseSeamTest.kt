@@ -60,6 +60,7 @@ class SparseSeamTest {
         override val name: String get() = "counting-blas"
         var gemvs = 0
         var gemms = 0
+        var sparseProducts = 0
         var trsms = 0
         var transposes = 0
 
@@ -93,9 +94,15 @@ class SparseSeamTest {
             transposeB: Boolean,
             beta: Double,
             c: F64DenseMatrix,
+            right: Boolean,
         ) {
             gemms++
-            F64ReferenceSparseLinearAlgebra.gemm(alpha, a, transposeA, b, transposeB, beta, c)
+            F64ReferenceSparseLinearAlgebra.gemm(alpha, a, transposeA, b, transposeB, beta, c, right)
+        }
+
+        override fun gemm(a: F64SparseMatrix, b: F64SparseMatrix): F64SparseMatrix {
+            sparseProducts++
+            return F64ReferenceSparseLinearAlgebra.gemm(a, b)
         }
 
         @Suppress("LongParameterList")
@@ -190,6 +197,9 @@ class SparseSeamTest {
 
         a.transpose()
         assertEquals(1, blas.transposes, "F64SparseMatrix.transpose should forward to the seam")
+
+        a.gemm(a)
+        assertEquals(1, blas.sparseProducts, "the sparse product should forward to the seam")
 
         val f = a.lu()
         assertEquals(1, decompositions.factors, "F64SparseMatrix.lu should forward to the seam")

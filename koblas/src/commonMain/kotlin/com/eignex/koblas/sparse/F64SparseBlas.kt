@@ -46,14 +46,19 @@ public interface F64SparseBlas : Backend {
 
     /**
      * `C = alpha · op(A) · op(B) + beta · C` (Sparse BLAS `usmm`) for a sparse [a] against a dense [b] and
-     * [c], with shapes `op(A): m×k`, `op(B): k×n`, `C: m×n`. `beta == 0.0` overwrites [c] without reading it,
-     * as [gemv] does.
+     * [c], or `C = alpha · op(B) · op(A) + beta · C` when [right]. `beta == 0.0` overwrites [c] without
+     * reading it, as [gemv] does.
      *
      * A sparse matrix times a dense one stays dense and fills in nowhere, which is what puts this on the
-     * sparse half at all: it is [gemv] over the columns of `op(B)`, not the sparse-times-sparse product that
-     * would need a result type of its own.
+     * sparse half at all: it is [gemv] over the columns of the dense operand.
+     *
+     * [right] is here for the reason `dtrsm` has a side and `dgemm` does not. `dgemm` needs none because its
+     * operands are the same kind and a caller picks which is which; here [a] is distinguished by being the
+     * sparse one and cannot be swapped, so without a side the product of a dense matrix by a sparse one is
+     * only reachable by transposing the result. A host binding may well accelerate one side and not the
+     * other, since the routines these libraries carry take the sparse operand on the left.
      */
-    @Suppress("LongParameterList") // the BLAS dgemm signature
+    @Suppress("LongParameterList") // the BLAS dgemm signature, plus the side the sparse operand sits on
     public fun gemm(
         alpha: Double,
         a: F64SparseMatrix,
@@ -62,7 +67,21 @@ public interface F64SparseBlas : Backend {
         transposeB: Boolean,
         beta: Double,
         c: F64DenseMatrix,
+        right: Boolean = false,
     )
+
+    /**
+     * `C = A · B` for two sparse operands, into a fresh matrix.
+     *
+     * The one routine here that returns its result rather than filling a destination, because the result's
+     * pattern is what the multiplication discovers: there is no destination to hand in before it is known,
+     * and no meaningful `beta · C` to accumulate into. [transpose] is the same shape and returns for the
+     * same reason.
+     *
+     * `A.cols` must equal `B.rows`. An entry the arithmetic cancels to zero is kept, as a structural
+     * operation keeps one.
+     */
+    public fun gemm(a: F64SparseMatrix, b: F64SparseMatrix): F64SparseMatrix
 
     /**
      * `B = alpha · op(T)⁻¹ · B` in place, or `B = alpha · B · op(T)⁻¹` when [right] (Sparse BLAS `ussm`).
