@@ -48,11 +48,13 @@ internal class HostBlasCalls(internal val config: HostBlasConfig) {
         "LAPACKE_dgecon",
         "LAPACKE_dgeqrf",
         "LAPACKE_dgetrf",
+        "LAPACKE_dgetri",
         "LAPACKE_dormqr",
         "LAPACKE_dpotrf",
         "LAPACKE_dpotri",
         "LAPACKE_dsytrf",
         "LAPACKE_dsytrs",
+        "LAPACKE_dtrtri",
     )
 
     init {
@@ -180,6 +182,14 @@ internal class HostBlasCalls(internal val config: HostBlasConfig) {
 
     val dpotrf: MethodHandle by lazy {
         handle("LAPACKE_dpotrf", intOf(JAVA_INT, JAVA_BYTE, JAVA_INT, ADDRESS, JAVA_INT))
+    }
+
+    val dgetri: MethodHandle by lazy {
+        handle("LAPACKE_dgetri", intOf(JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS))
+    }
+
+    val dtrtri: MethodHandle by lazy {
+        handle("LAPACKE_dtrtri", intOf(JAVA_INT, JAVA_BYTE, JAVA_BYTE, JAVA_INT, ADDRESS, JAVA_INT))
     }
 
     val dpotri: MethodHandle by lazy {

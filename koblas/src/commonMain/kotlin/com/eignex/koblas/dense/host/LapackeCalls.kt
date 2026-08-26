@@ -29,6 +29,10 @@ internal interface LapackeCalls {
         ldc: Int,
     ): Int
 
+    fun dgetri(order: Int, n: Int, a: DoubleArray, lda: Int, ipiv: IntArray): Int
+
+    fun dtrtri(order: Int, uplo: Byte, diag: Byte, n: Int, a: DoubleArray, lda: Int): Int
+
     fun dpotrf(order: Int, uplo: Byte, n: Int, a: DoubleArray, lda: Int): Int
 
     fun dpotri(order: Int, uplo: Byte, n: Int, a: DoubleArray, lda: Int): Int
