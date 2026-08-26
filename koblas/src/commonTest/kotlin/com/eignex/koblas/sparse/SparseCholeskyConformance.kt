@@ -65,3 +65,48 @@ private fun F64SparseMatrix.symmetrized(): F64SparseMatrix {
     }
     return F64SparseMatrix.ofColumns(rows, cols, columns.map { it.sortedBy(Pair<Int, Double>::first) })
 }
+
+/**
+ * The `L·D·Lᵀ` half of a backend against the portable one, on a matrix that is indefinite, since agreeing on
+ * a positive definite one would not tell this factorization apart from a Cholesky.
+ */
+internal fun assertLdlAgreesWithReference(decompositions: F64SparseDecompositions) {
+    val rng = Random(20260927)
+    for (n in intArrayOf(2, 8, 21)) {
+        val a = indefiniteConformanceSystem(n, rng)
+        val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
+
+        val host = decompositions.ldl(a)
+        val portable = F64ReferenceSparseLinearAlgebra.ldl(a)
+        assertTrue(!host.singular, "n=$n an invertible system came back singular")
+        assertClose(b, multiply(a.symmetrized(), host.solve(b)), "n=$n residual", tolerance = 1e-8)
+        assertClose(portable.solve(b), host.solve(b), "n=$n", tolerance = 1e-8)
+    }
+}
+
+/**
+ * A symmetric indefinite system as its stored lower triangle: diagonally dominant in magnitude, so it is
+ * invertible and its factorization is well behaved, with the sign of the diagonal alternating so it is not
+ * positive definite and a Cholesky would refuse it.
+ */
+internal fun indefiniteConformanceSystem(n: Int, rng: Random): F64SparseMatrix {
+    val below = Array(n) { HashMap<Int, Double>() }
+    val weight = DoubleArray(n)
+    for (j in 0 until n) {
+        for (i in j + 1 until n) {
+            if (rng.nextDouble() >= 0.25) continue
+            val v = rng.nextDouble(-1.0, 1.0)
+            below[j][i] = v
+            weight[i] += abs(v)
+            weight[j] += abs(v)
+        }
+    }
+    val columns = ArrayList<List<Pair<Int, Double>>>(n)
+    for (j in 0 until n) {
+        val column = ArrayList<Pair<Int, Double>>()
+        column.add(j to if (j % 2 == 0) weight[j] + 1.0 else -(weight[j] + 1.0))
+        for (i in j + 1 until n) below[j][i]?.let { column.add(i to it) }
+        columns.add(column)
+    }
+    return F64SparseMatrix.ofColumns(n, n, columns)
+}

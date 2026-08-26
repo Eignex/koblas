@@ -63,4 +63,15 @@ public abstract class F64SparseDecompositionsAdapter protected constructor(
      * sparse factorization, and a binding filling one half of it does not have to offer the rest.
      */
     protected open fun choleskyNative(a: F64SparseMatrix): F64SparseFactorization = portable.cholesky(a)
+
+    final override fun ldl(a: F64SparseMatrix): F64SparseFactorization {
+        requireSquare(a, "ldl")
+        if (a.nnz < factorizeGate || !nativeAvailable) {
+            return portable.ldl(a)
+        }
+        return ldlNative(a)
+    }
+
+    /** Factorizes a symmetric matrix into `L·D·Lᵀ` through the native library, portably by default. */
+    protected open fun ldlNative(a: F64SparseMatrix): F64SparseFactorization = portable.ldl(a)
 }

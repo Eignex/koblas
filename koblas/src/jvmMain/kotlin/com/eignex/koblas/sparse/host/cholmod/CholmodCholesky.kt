@@ -1,5 +1,6 @@
 package com.eignex.koblas.sparse.host.cholmod
 
+import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.NotPositiveDefinite
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.F64SparseFactorization
@@ -27,12 +28,25 @@ public class CholmodCholesky(config: CholmodConfig = CholmodConfig()) {
      * @throws NotPositiveDefinite at the column CHOLMOD stopped at, matching the portable Cholesky.
      */
     public fun factor(a: F64SparseMatrix): F64SparseFactorization? {
-        val factor = CholmodMatrix.lowerTriangleOf(a).use(calls::factorize) ?: return null
+        val factor = CholmodMatrix.lowerTriangleOf(a).use { calls.factorize(it) } ?: return null
         if (factor.minor < factor.n) {
             val column = factor.minor
             calls.free(factor)
             throw NotPositiveDefinite(column, 0.0, "cholesky: CHOLMOD stopped at column $column, which is not positive")
         }
         return CholmodFactorization(factor, calls)
+    }
+
+    /**
+     * Factor [a]'s lower triangle into `L·D·Lᵀ`, or null when the library is unusable.
+     *
+     * A zero pivot comes back as a factorization reporting `singular` at its column rather than raising,
+     * since an `L·D·Lᵀ` failing means the matrix is singular where an `L·Lᵀ` failing only means it was not
+     * positive definite.
+     */
+    public fun factorLdl(a: F64SparseMatrix): F64SparseFactorization? {
+        val factor = CholmodMatrix.lowerTriangleOf(a).use { calls.factorize(it, ldl = true) } ?: return null
+        val failedAt = if (factor.minor < factor.n) factor.minor else NOT_SINGULAR
+        return CholmodFactorization(factor, calls, failedAt)
     }
 }

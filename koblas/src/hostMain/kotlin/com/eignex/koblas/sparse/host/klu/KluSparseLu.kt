@@ -40,6 +40,9 @@ public open class KluSparseLu(
     final override fun choleskyNative(a: F64SparseMatrix): F64SparseFactorization =
         cholmod.factor(a) ?: portable.cholesky(a)
 
+    /** CHOLMOD's own default factorization, which is the one this seam's `ldl` asks for. */
+    final override fun ldlNative(a: F64SparseMatrix): F64SparseFactorization = cholmod.factorLdl(a) ?: portable.ldl(a)
+
     /**
      * Factor [a] reusing the symbolic analysis behind [previous], which supersedes it and must not be
      * solved after this call. Reuse is what KLU is for: a circuit keeps one sparsity pattern and factors it

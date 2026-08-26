@@ -6,6 +6,9 @@ import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.requireSquare
 import com.eignex.koblas.sparse.F64SparseFactorization
+import com.eignex.koblas.sparse.factorization.columnPointers
+import com.eignex.koblas.sparse.factorization.eliminationTree
+import com.eignex.koblas.sparse.factorization.ereach
 import com.eignex.koblas.sparse.internal.transposeCsc
 import com.eignex.koblas.sparse.requireSolveShapes
 import kotlin.math.abs
@@ -98,68 +101,6 @@ public class F64SparseCholeskyFactorization internal constructor(
             return F64SparseCholeskyFactorization(n, colPtr, rowIdx, values)
         }
     }
-}
-
-/**
- * The elimination tree of a symmetric matrix given its upper triangle, where `parent(i)` is the row of the
- * first subdiagonal entry of column `i` of `L` and `-1` for a root. Path compression through `ancestor`
- * keeps this near linear in the stored entries.
- */
-private fun eliminationTree(n: Int, upper: F64SparseMatrix): IntArray {
-    val parent = IntArray(n) { -1 }
-    val ancestor = IntArray(n) { -1 }
-    for (k in 0 until n) {
-        upper.forEachInColumn(k) { row, _ ->
-            var i = row
-            while (i != -1 && i < k) {
-                val next = ancestor[i]
-                ancestor[i] = k
-                if (next == -1) parent[i] = k
-                i = next
-            }
-        }
-    }
-    return parent
-}
-
-/**
- * The nonzero pattern of row [k] of `L`, written into [stack] from the returned index up to `n`, in an order
- * where a column comes before its ancestors. [mark] carries the stamp of the row already visited, so the
- * traversal never walks a subtree twice.
- */
-private fun ereach(upper: F64SparseMatrix, k: Int, parent: IntArray, stack: IntArray, mark: IntArray): Int {
-    val n = stack.size
-    var top = n
-    mark[k] = k
-    upper.forEachInColumn(k) { row, _ ->
-        if (row <= k) {
-            var length = 0
-            var i = row
-            while (i != -1 && mark[i] != k) {
-                stack[length++] = i
-                mark[i] = k
-                i = parent[i]
-            }
-            // Reversed onto the top of the stack, so a column lands after every column it depends on.
-            while (length > 0) stack[--top] = stack[--length]
-        }
-    }
-    return top
-}
-
-/** Column starts for `L`, from a symbolic pass that walks the same row patterns the numeric one will. */
-private fun columnPointers(n: Int, upper: F64SparseMatrix, parent: IntArray): IntArray {
-    val counts = IntArray(n)
-    val stack = IntArray(n)
-    val mark = IntArray(n) { -1 }
-    for (k in 0 until n) {
-        val top = ereach(upper, k, parent, stack, mark)
-        for (t in top until n) counts[stack[t]]++
-        counts[k]++ // the diagonal
-    }
-    val colPtr = IntArray(n + 1)
-    for (k in 0 until n) colPtr[k + 1] = colPtr[k] + counts[k]
-    return colPtr
 }
 
 /**

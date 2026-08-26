@@ -45,6 +45,24 @@ public interface F64SparseDecompositions : Backend {
     public fun cholesky(a: F64SparseMatrix): F64SparseFactorization
 
     /**
+     * Factorization `A = L·D·Lᵀ` of a symmetric [a], with `L` unit lower triangular. Only the lower triangle
+     * is read, as [cholesky] does.
+     *
+     * Where [cholesky] takes a square root and so demands a positive pivot, this does not, which is what it
+     * is for: an indefinite matrix has an `L·D·Lᵀ` and has no `L·Lᵀ`. A zero pivot comes back as a
+     * factorization reporting `singular` at that column, the way [factor] reports one, rather than raising
+     * the way [cholesky] does; a negative pivot is not a failure at all.
+     *
+     * Not the sparse counterpart of the dense [com.eignex.koblas.dense.F64Decompositions.ldl], whatever the
+     * shared name suggests. That one pivots for stability, and neither this nor any library behind this seam
+     * does: the permutation is chosen to limit fill and nothing reorders on the numbers. So this is the
+     * factorization for a matrix that is quasi-definite, which is what an interior point method's KKT system
+     * is, and it can be arbitrarily ill conditioned on a general indefinite one. A caller that cannot promise
+     * quasi-definiteness wants [factor], whose pivoting is numerical.
+     */
+    public fun ldl(a: F64SparseMatrix): F64SparseFactorization
+
+    /**
      * Solve `A·x = b` from [f] into [out], `Aᵀ·x = b` when [transpose]. The work belongs to the
      * factorization; this is here so the seam reads the same from the sparse side as [com.eignex.koblas
      * .dense.F64Decompositions.solveInto] does from the dense one.

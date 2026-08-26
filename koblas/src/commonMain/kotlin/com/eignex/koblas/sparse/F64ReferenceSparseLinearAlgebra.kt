@@ -238,6 +238,8 @@ public object F64ReferenceSparseLinearAlgebra :
 
     override fun cholesky(a: F64SparseMatrix): F64SparseFactorization = F64ReferenceSparseDecompositions.cholesky(a)
 
+    override fun ldl(a: F64SparseMatrix): F64SparseFactorization = F64ReferenceSparseDecompositions.ldl(a)
+
     override fun dot(x: F64SparseVector, y: DoubleArray): Double {
         requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
         var s = 0.0

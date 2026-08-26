@@ -48,15 +48,16 @@ internal class CholmodLoader(private val config: CholmodConfig) {
     }
 
     /**
-     * A started `cholmod_common`, asking for `L·Lᵀ` and for silence. The seam promises that factorization and
-     * a raise at the first non-positive pivot, where CHOLMOD's own default leaves an `L·D·Lᵀ` that an
-     * indefinite matrix factors into without complaint.
+     * A started `cholmod_common`, asking for silence and for the factorization [finalLl] names. The seam's
+     * Cholesky promises `L·Lᵀ` and a raise at the first non-positive pivot, where CHOLMOD's own default
+     * leaves an `L·D·Lᵀ` that an indefinite matrix factors into without complaint, which is what the seam's
+     * `ldl` asks for instead.
      */
-    fun common(): CPointer<ByteVar> {
+    fun common(finalLl: Int = CHOLMOD_TRUE): CPointer<ByteVar> {
         val resolved = checkNotNull(functions) { "CHOLMOD is not available" }
         val common = nativeHeap.allocArray<ByteVar>(CHOLMOD_COMMON_BYTES)
         check(resolved.start(common) == CHOLMOD_TRUE) { "cholmod_start failed" }
-        intAt(common, CHOLMOD_COMMON_FINAL_LL, CHOLMOD_TRUE)
+        intAt(common, CHOLMOD_COMMON_FINAL_LL, finalLl)
         intAt(common, CHOLMOD_COMMON_PRINT, 0)
         return common
     }
