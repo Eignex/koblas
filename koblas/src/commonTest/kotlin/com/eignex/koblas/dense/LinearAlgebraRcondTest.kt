@@ -8,6 +8,24 @@ import kotlin.test.*
 
 class LinearAlgebraRcondTest {
 
+    /**
+     * Upper bidiagonal with a unit diagonal and -2 above it: no pivoting, so back substitution grows as
+     * `2^n` and past about 1024 the solve stops producing numbers. The estimate has to report that as
+     * singular rather than let a NaN through the comparisons that pick its next probe, which reads as a
+     * well-conditioned matrix.
+     */
+    @Test
+    fun `rcond reports a matrix whose solve overflows as singular`() {
+        for (n in intArrayOf(1024, 1200, 2048)) {
+            val a = F64DenseMatrix(n, n)
+            for (i in 0 until n) {
+                a[i, i] = 1.0
+                if (i + 1 < n) a[i, i + 1] = -2.0
+            }
+            assertEquals(0.0, koblas.rcond(a.lu(), a.norm1()), "n=$n has a condition beyond this arithmetic")
+        }
+    }
+
     @Test
     fun `identity has rcond one and norm1 one`() {
         val a = F64DenseMatrix.diagonal(5)

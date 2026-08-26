@@ -190,6 +190,11 @@ internal fun hagerEstimate(
         referenceLuSolveInto(kernels, lu, x, y, workspace = workspace)
         var e = 0.0
         for (i in 0 until n) e += abs(y[i])
+        // A solve that stops producing numbers means the factor cannot be inverted in this arithmetic, so
+        // the matrix is singular for any use the estimate has. Carrying on instead lets a NaN through every
+        // comparison below, since none of them hold against it, and the search then settles on a small
+        // estimate and reports the matrix as well conditioned.
+        if (!e.isFinite()) return 0.0
         if (e > estimate) estimate = e
         for (i in 0 until n) signs[i] = if (y[i] >= 0.0) 1.0 else -1.0
         val z = referenceLuSolveInto(kernels, lu, signs, y, transpose = true, workspace = workspace)
@@ -210,6 +215,7 @@ internal fun hagerEstimate(
     val alt = referenceLuSolveInto(kernels, lu, probe, y, workspace = workspace)
     var e = 0.0
     for (i in 0 until n) e += abs(alt[i])
+    if (!e.isFinite()) return 0.0
     e = 2.0 * e / (3.0 * n)
     if (e > estimate) estimate = e
     val denominator = estimate * anorm
