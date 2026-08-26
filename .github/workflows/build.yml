@@ -117,8 +117,8 @@ jobs:
 
       - name: Build and test the bundled native packages
         run: >-
-          ./gradlew :koblas-basiclu:check :koblas-hfactor:check :koblas-klu:check
-          :koblas-openblas:check :koblas-umfpack:check
+          ./gradlew :koblas-basiclu:check :koblas-hfactor:check
+          :koblas-openblas:check :koblas-suitesparse:check
 
       - name: Upload test reports
         if: always()
@@ -130,12 +130,10 @@ jobs:
             koblas-basiclu/build/test-results/
             koblas-hfactor/build/reports/tests/
             koblas-hfactor/build/test-results/
-            koblas-klu/build/reports/tests/
-            koblas-klu/build/test-results/
             koblas-openblas/build/reports/tests/
             koblas-openblas/build/test-results/
-            koblas-umfpack/build/reports/tests/
-            koblas-umfpack/build/test-results/
+            koblas-suitesparse/build/reports/tests/
+            koblas-suitesparse/build/test-results/
           if-no-files-found: ignore
 
   # The default job pins `koblas.backend=reference` and filters the HostLibraryTest category out, so the

@@ -31,7 +31,7 @@ jobs:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     name: Build bundled native resources for ${{ matrix.platform }}
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 30
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -69,8 +69,10 @@ jobs:
         if: matrix.platform == 'linux-arm64'
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu gfortran-aarch64-linux-gnu
+          sudo apt-get install -y --no-install-recommends \
+            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu gfortran-aarch64-linux-gnu
           echo "CC=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
+          echo "CXX=aarch64-linux-gnu-g++" >> "$GITHUB_ENV"
           echo "FC=aarch64-linux-gnu-gfortran" >> "$GITHUB_ENV"
 
       - name: Cache bundled OpenBLAS resources
@@ -80,19 +82,12 @@ jobs:
           path: koblas-openblas/build/openblas
           key: release-openblas-${{ runner.os }}-${{ runner.arch }}-${{ matrix.platform }}-${{ hashFiles('koblas-openblas/openblas.lock', 'scripts/build-openblas.sh', 'scripts/third-party-notices.sh') }}
 
-      - name: Cache bundled UMFPACK resources
-        id: cache-umfpack
+      - name: Cache bundled SuiteSparse resources
+        id: cache-suitesparse
         uses: actions/cache@v5
         with:
-          path: koblas-umfpack/build/umfpack
-          key: release-umfpack-${{ runner.os }}-${{ runner.arch }}-${{ matrix.platform }}-${{ hashFiles('koblas-umfpack/umfpack.lock', 'scripts/build-umfpack.sh', 'koblas-openblas/openblas.lock', 'scripts/build-openblas.sh', 'scripts/third-party-notices.sh') }}
-
-      - name: Cache bundled KLU resources
-        id: cache-klu
-        uses: actions/cache@v5
-        with:
-          path: koblas-klu/build/klu
-          key: release-klu-${{ runner.os }}-${{ runner.arch }}-${{ matrix.platform }}-${{ hashFiles('koblas-klu/klu.lock', 'scripts/build-klu.sh', 'scripts/third-party-notices.sh') }}
+          path: koblas-suitesparse/build/suitesparse
+          key: release-suitesparse-${{ runner.os }}-${{ runner.arch }}-${{ matrix.platform }}-${{ hashFiles('koblas-suitesparse/suitesparse.lock', 'scripts/build-suitesparse.sh', 'koblas-openblas/openblas.lock', 'scripts/build-openblas.sh', 'scripts/third-party-notices.sh') }}
 
       - name: Cache bundled BASICLU resources
         id: cache-basiclu
@@ -122,40 +117,26 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
 
-      - name: Build bundled KLU
-        if: steps.cache-klu.outputs.cache-hit != 'true'
+      - name: Build bundled SuiteSparse
+        if: steps.cache-suitesparse.outputs.cache-hit != 'true' && steps.cache-openblas.outputs.cache-hit == 'true'
         run: >-
           ./gradlew --no-build-cache --no-configuration-cache --rerun-tasks
-          :koblas-klu:buildKlu -Pkoblas.klu.platform=${{ matrix.platform }}
-
-      - name: Upload bundled KLU resources
-        uses: actions/upload-artifact@v7
-        with:
-          name: klu-${{ matrix.platform }}
-          path: koblas-klu/build/klu/resources
-          include-hidden-files: true
-          if-no-files-found: error
-
-      - name: Build bundled UMFPACK
-        if: steps.cache-umfpack.outputs.cache-hit != 'true' && steps.cache-openblas.outputs.cache-hit == 'true'
-        run: >-
-          ./gradlew --no-build-cache --no-configuration-cache --rerun-tasks
-          :koblas-umfpack:buildUmfpack -x :koblas-openblas:buildOpenBlas
-          -Pkoblas.umfpack.platform=${{ matrix.platform }}
+          :koblas-suitesparse:buildSuiteSparse -x :koblas-openblas:buildOpenBlas
+          -Pkoblas.suitesparse.platform=${{ matrix.platform }}
           -Pkoblas.openblas.platform=${{ matrix.platform }}
 
-      - name: Build bundled UMFPACK with OpenBLAS
-        if: steps.cache-umfpack.outputs.cache-hit != 'true' && steps.cache-openblas.outputs.cache-hit != 'true'
+      - name: Build bundled SuiteSparse with OpenBLAS
+        if: steps.cache-suitesparse.outputs.cache-hit != 'true' && steps.cache-openblas.outputs.cache-hit != 'true'
         run: >-
           ./gradlew --no-build-cache --no-configuration-cache --rerun-tasks
-          :koblas-umfpack:buildUmfpack -Pkoblas.umfpack.platform=${{ matrix.platform }}
+          :koblas-suitesparse:buildSuiteSparse -Pkoblas.suitesparse.platform=${{ matrix.platform }}
           -Pkoblas.openblas.platform=${{ matrix.platform }}
 
-      - name: Upload bundled UMFPACK resources
+      - name: Upload bundled SuiteSparse resources
         uses: actions/upload-artifact@v7
         with:
-          name: umfpack-${{ matrix.platform }}
-          path: koblas-umfpack/build/umfpack/resources
+          name: suitesparse-${{ matrix.platform }}
+          path: koblas-suitesparse/build/suitesparse/resources
           include-hidden-files: true
           if-no-files-found: error
 
@@ -173,8 +154,8 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
 
-      # Alone among the bundled libraries this one is C++: HFactor is a class inside HiGHS rather than a
-      # library with an API, so the build compiles it against a shim and reads CXX rather than CC.
+      # HFactor is a class inside HiGHS rather than a library with an API, so the build compiles it against
+      # a shim and reads CXX rather than CC.
       - name: Build bundled HFactor
         if: steps.cache-hfactor.outputs.cache-hit != 'true'
         run: >-
@@ -228,18 +209,11 @@ jobs:
           path: koblas-openblas/build/openblas/resources
           merge-multiple: true
 
-      - name: Download bundled KLU resources
+      - name: Download bundled SuiteSparse resources
         uses: actions/download-artifact@v8
         with:
-          pattern: klu-*
-          path: koblas-klu/build/klu/resources
-          merge-multiple: true
-
-      - name: Download bundled UMFPACK resources
-        uses: actions/download-artifact@v8
-        with:
-          pattern: umfpack-*
-          path: koblas-umfpack/build/umfpack/resources
+          pattern: suitesparse-*
+          path: koblas-suitesparse/build/suitesparse/resources
           merge-multiple: true
 
       - name: Download bundled BASICLU resources
@@ -287,20 +261,18 @@ jobs:
 
       - name: Verify bundled native resources
         run: >-
-          ./gradlew :koblas-openblas:verifyOpenBlasResources :koblas-klu:verifyKluResources
-          :koblas-umfpack:verifyUmfpackResources :koblas-basiclu:verifyBasicluResources
+          ./gradlew :koblas-openblas:verifyOpenBlasResources
+          :koblas-suitesparse:verifySuiteSparseResources :koblas-basiclu:verifyBasicluResources
           :koblas-hfactor:verifyHfactorResources
-          -x :koblas-openblas:buildOpenBlas -x :koblas-klu:buildKlu
-          -x :koblas-umfpack:buildUmfpack -x :koblas-basiclu:buildBasiclu
-          -x :koblas-hfactor:buildHfactor
+          -x :koblas-openblas:buildOpenBlas -x :koblas-suitesparse:buildSuiteSparse
+          -x :koblas-basiclu:buildBasiclu -x :koblas-hfactor:buildHfactor
 
       - name: Build and Test
         if: env.IS_SNAPSHOT == 'false'
         run: >-
           ./gradlew build -PciVersion=${{ env.RELEASE_VERSION }}
-          -x :koblas-openblas:buildOpenBlas -x :koblas-klu:buildKlu
-          -x :koblas-umfpack:buildUmfpack -x :koblas-basiclu:buildBasiclu
-          -x :koblas-hfactor:buildHfactor
+          -x :koblas-openblas:buildOpenBlas -x :koblas-suitesparse:buildSuiteSparse
+          -x :koblas-basiclu:buildBasiclu -x :koblas-hfactor:buildHfactor
 
       - name: Upload test reports
         if: always() && env.IS_SNAPSHOT == 'false'
@@ -321,9 +293,8 @@ jobs:
           ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SIGNING_PASSWORD }}
         run: >-
           ./gradlew publishToMavenCentral -PciVersion=${{ env.RELEASE_VERSION }}
-          -x :koblas-openblas:buildOpenBlas -x :koblas-klu:buildKlu
-          -x :koblas-umfpack:buildUmfpack -x :koblas-basiclu:buildBasiclu
-          -x :koblas-hfactor:buildHfactor
+          -x :koblas-openblas:buildOpenBlas -x :koblas-suitesparse:buildSuiteSparse
+          -x :koblas-basiclu:buildBasiclu -x :koblas-hfactor:buildHfactor
 
       - name: Publish to Sonatype Snapshots
         if: env.IS_SNAPSHOT == 'true'
@@ -334,9 +305,8 @@ jobs:
           ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SIGNING_PASSWORD }}
         run: >-
           ./gradlew publishAllPublicationsToSonatypeSnapshotsRepository -PciVersion=${{ env.RELEASE_VERSION }}
-          -x :koblas-openblas:buildOpenBlas -x :koblas-klu:buildKlu
-          -x :koblas-umfpack:buildUmfpack -x :koblas-basiclu:buildBasiclu
-          -x :koblas-hfactor:buildHfactor
+          -x :koblas-openblas:buildOpenBlas -x :koblas-suitesparse:buildSuiteSparse
+          -x :koblas-basiclu:buildBasiclu -x :koblas-hfactor:buildHfactor
 
       - name: Detect pre-release
         if: github.ref_type == 'tag' && env.IS_SNAPSHOT == 'false'
