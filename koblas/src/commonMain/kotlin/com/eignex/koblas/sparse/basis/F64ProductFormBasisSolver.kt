@@ -70,9 +70,11 @@ public class F64ProductFormBasisSolver(
     override fun refactorize(basicIndex: IntArray): Boolean {
         requireShape(basicIndex.size == n) { "refactorize: basicIndex size ${basicIndex.size} != $n" }
         for (t in 0 until n) requireInBounds(basicIndex[t], a.cols)
+        // Factorized before any of this is committed, so a backend that throws rather than answering
+        // singular leaves the solver on the basis it already holds instead of on one it cannot solve.
+        val factors = lu.factor(basisMatrix(basicIndex))
         basicIndex.copyInto(this.basicIndex)
         dropChain()
-        val factors = lu.factor(basisMatrix())
         base = factors
         return !factors.singular
     }
@@ -102,6 +104,7 @@ public class F64ProductFormBasisSolver(
         requireInBounds(pivotRow, n)
         requireInBounds(entering, a.cols)
         requireShape(spike.size == n) { "update: spike size ${spike.size} != $n" }
+        if (singular) return BasisUpdate.SINGULAR
         val pivot = spike[pivotRow]
         if (pivot == 0.0 || !pivot.isFinite()) return BasisUpdate.SINGULAR
 
@@ -147,8 +150,8 @@ public class F64ProductFormBasisSolver(
         dense[p] = acc / etaPivot[j]
     }
 
-    /** The basis of the current [basicIndex] in CSC, its columns copied from [a] as they lie. */
-    private fun basisMatrix(): F64SparseMatrix {
+    /** The basis of [basicIndex] in CSC, its columns copied from [a] as they lie. */
+    private fun basisMatrix(basicIndex: IntArray): F64SparseMatrix {
         val colPtr = IntArray(n + 1)
         for (t in 0 until n) {
             var entries = 0

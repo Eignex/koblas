@@ -75,6 +75,9 @@ public class F64IndexedVector(public val size: Int) {
      */
     public fun store(i: Int, v: Double) {
         requireInBounds(i, size)
+        // A full index set means a position was stored twice, since there are only [size] of them. Caught
+        // here so the precondition above reads as itself rather than as an array index running off the end.
+        requireShape(count < size) { "store: all $size positions are stored, so $i is a repeat" }
         values[i] = v
         indices[count] = i
         count++

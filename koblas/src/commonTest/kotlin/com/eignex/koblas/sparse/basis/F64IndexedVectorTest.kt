@@ -116,4 +116,13 @@ class F64IndexedVectorTest {
 
         assertFailsWith<IndexOutOfBoundsException> { x.store(3, 1.0) }
     }
+
+    @Test
+    fun `storing more positions than the vector has is rejected`() {
+        val v = F64IndexedVector(2)
+        v.store(0, 1.0)
+        v.store(1, 2.0)
+
+        assertFailsWith<DimensionMismatch> { v.store(0, 3.0) }
+    }
 }

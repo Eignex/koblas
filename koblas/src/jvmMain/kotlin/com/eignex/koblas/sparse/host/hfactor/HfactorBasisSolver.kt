@@ -100,10 +100,10 @@ public class HfactorBasisSolver internal constructor(
         spike: F64IndexedVector,
         pivotEta: F64IndexedVector?,
     ): BasisUpdate {
-        checkSolvable()
         requireInBounds(pivotRow, n)
         requireInBounds(entering, columns)
         requireShape(spike.size == n) { "update: spike size ${spike.size} != $n" }
+        if (!factorized || singular) return BasisUpdate.SINGULAR
         /*
          * Judged on the spike the caller passed rather than on the one HFactor may be about to recompute,
          * so an update is refused for the same inputs the portable solver refuses it for. The bridge checks

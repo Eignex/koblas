@@ -87,7 +87,9 @@ public interface F64BasisSolver {
      * else builds a vector of its own and pays the solve.
      *
      * The caller has already judged the pivot `spike(pivotRow)` acceptable; a solver that disagrees answers
-     * [BasisUpdate.SINGULAR] rather than folding in an update it cannot invert.
+     * [BasisUpdate.SINGULAR] rather than folding in an update it cannot invert. A solver with no basis
+     * factorized, or one whose last [refactorize] failed, answers the same: there is nothing to fold into,
+     * and the answer says what the caller owes it either way.
      */
     public fun update(
         pivotRow: Int,
