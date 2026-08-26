@@ -25,10 +25,18 @@ internal class CholmodMatrix private constructor(val segment: MemorySegment, pri
          * [a]'s lower triangle as a `cholmod_sparse`, with `stype` saying so, which is what makes CHOLMOD
          * read that triangle and ignore whatever is stored above the diagonal.
          */
-        fun lowerTriangleOf(a: F64SparseMatrix): CholmodMatrix {
+        fun lowerTriangleOf(a: F64SparseMatrix): CholmodMatrix = of(a, CHOLMOD_STYPE_LOWER)
+
+        /**
+         * [a] as a `cholmod_sparse` holding every entry it stores, which is what a routine reading the whole
+         * matrix rather than a symmetric half of it needs.
+         */
+        fun generalOf(a: F64SparseMatrix): CholmodMatrix = of(a, CHOLMOD_STYPE_GENERAL)
+
+        private fun of(a: F64SparseMatrix, stype: Int): CholmodMatrix {
             val arena = Arena.ofConfined()
             return try {
-                CholmodMatrix(describe(a, arena), arena)
+                CholmodMatrix(describe(a, arena, stype), arena)
             } catch (@Suppress("TooGenericExceptionCaught") failure: Throwable) {
                 // Rethrown, and the arena has no other owner yet, so nothing else would close it.
                 arena.close()
@@ -36,7 +44,7 @@ internal class CholmodMatrix private constructor(val segment: MemorySegment, pri
             }
         }
 
-        private fun describe(a: F64SparseMatrix, arena: Arena): MemorySegment {
+        private fun describe(a: F64SparseMatrix, arena: Arena, stype: Int): MemorySegment {
             val columnPointers = arena.allocate(JAVA_INT, a.cols.toLong() + 1)
             MemorySegment.copy(a.colPtr, 0, columnPointers, JAVA_INT, 0L, a.cols + 1)
             val rowIndices = arena.allocate(JAVA_INT, maxOf(a.nnz, 1).toLong())
@@ -54,7 +62,7 @@ internal class CholmodMatrix private constructor(val segment: MemorySegment, pri
             sparse.set(ADDRESS, CHOLMOD_SPARSE_NZ, MemorySegment.NULL)
             sparse.set(ADDRESS, CHOLMOD_SPARSE_X, values)
             sparse.set(ADDRESS, CHOLMOD_SPARSE_Z, MemorySegment.NULL)
-            sparse.set(JAVA_INT, CHOLMOD_SPARSE_STYPE, CHOLMOD_STYPE_LOWER)
+            sparse.set(JAVA_INT, CHOLMOD_SPARSE_STYPE, stype)
             sparse.set(JAVA_INT, CHOLMOD_SPARSE_ITYPE, CHOLMOD_INT)
             sparse.set(JAVA_INT, CHOLMOD_SPARSE_XTYPE, CHOLMOD_REAL)
             sparse.set(JAVA_INT, CHOLMOD_SPARSE_DTYPE, CHOLMOD_DOUBLE)

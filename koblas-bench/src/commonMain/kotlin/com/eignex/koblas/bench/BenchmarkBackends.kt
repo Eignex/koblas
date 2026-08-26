@@ -37,6 +37,9 @@ internal expect fun useUngatedSolves(): Boolean
 // crossover needs the host ungated for the same reason the dense one does.
 internal expect fun useUngatedSparseLu(): Boolean
 
+/** Installs the sparse matrix half with its gate at zero, so a product of any size reaches the library. */
+internal expect fun useUngatedSparseProduct(): Boolean
+
 internal fun installBackend(backend: String) {
     // Cleared first, so an arm starts from the portable halves rather than whatever the previous one left.
     installBackends(null)

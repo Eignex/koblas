@@ -26,7 +26,16 @@ public abstract class F64SparseDecompositionsAdapter protected constructor(
     /** Whether the binding resolved every symbol needed to factor and solve. */
     protected abstract val nativeAvailable: Boolean
 
-    private val factorizeGate = hostDispatchThresholds(factorize = factorizeMin).factorize
+    private val thresholds = hostDispatchThresholds(factorize = factorizeMin, symmetricFactorize = factorizeMin)
+    private val factorizeGate = thresholds.factorize
+
+    /**
+     * The gate the two symmetric factorizations use, which is later than [factorizeGate]: they need no
+     * numerical pivoting and the portable ones stay ahead of a library well past where the general
+     * factorization has crossed. A backend naming its own `factorizeMin` moves both, since a caller asking
+     * for one gate means it.
+     */
+    private val symmetricGate = thresholds.symmetricFactorize
 
     /** The portable factorization at this backend's own policy, for everything the library will not take. */
     protected val portable: F64ReferenceSparseDecompositions =
@@ -51,7 +60,7 @@ public abstract class F64SparseDecompositionsAdapter protected constructor(
 
     final override fun cholesky(a: F64SparseMatrix): F64SparseFactorization {
         requireSquare(a, "cholesky")
-        if (a.nnz < factorizeGate || !nativeAvailable) {
+        if (a.nnz < symmetricGate || !nativeAvailable) {
             return portable.cholesky(a)
         }
         return choleskyNative(a)
@@ -66,7 +75,7 @@ public abstract class F64SparseDecompositionsAdapter protected constructor(
 
     final override fun ldl(a: F64SparseMatrix): F64SparseFactorization {
         requireSquare(a, "ldl")
-        if (a.nnz < factorizeGate || !nativeAvailable) {
+        if (a.nnz < symmetricGate || !nativeAvailable) {
             return portable.ldl(a)
         }
         return ldlNative(a)

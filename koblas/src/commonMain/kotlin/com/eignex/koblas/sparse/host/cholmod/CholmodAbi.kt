@@ -74,6 +74,9 @@ internal const val CHOLMOD_FACTOR_IS_LL = 180L
 /** The lower triangle is stored and the strict upper one is ignored, which is what this seam's Cholesky reads. */
 internal const val CHOLMOD_STYPE_LOWER = -1
 
+/** Every stored entry is the matrix, which is what a routine that is not reading a symmetric half wants. */
+internal const val CHOLMOD_STYPE_GENERAL = 0
+
 internal const val CHOLMOD_INT = 0
 internal const val CHOLMOD_REAL = 1
 internal const val CHOLMOD_DOUBLE = 0

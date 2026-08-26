@@ -345,6 +345,27 @@ abstract class com.eignex.koblas.dense.host/F64DecompositionsAdapter : com.eigne
     open fun trtri(com.eignex.koblas.core/F64DenseMatrix, kotlin/Boolean, kotlin/Boolean): com.eignex.koblas.core/F64DenseMatrix // com.eignex.koblas.dense.host/F64DecompositionsAdapter.trtri|trtri(com.eignex.koblas.core.F64DenseMatrix;kotlin.Boolean;kotlin.Boolean){}[0]
 }
 
+abstract class com.eignex.koblas.sparse.host/F64SparseBlasAdapter : com.eignex.koblas.sparse/F64SparseBlas { // com.eignex.koblas.sparse.host/F64SparseBlasAdapter|null[0]
+    constructor <init>(kotlin/Int? = ...) // com.eignex.koblas.sparse.host/F64SparseBlasAdapter.<init>|<init>(kotlin.Int?){}[0]
+
+    abstract val nativeAvailable // com.eignex.koblas.sparse.host/F64SparseBlasAdapter.nativeAvailable|{}nativeAvailable[0]
+        abstract fun <get-nativeAvailable>(): kotlin/Boolean // com.eignex.koblas.sparse.host/F64SparseBlasAdapter.nativeAvailable.<get-nativeAvailable>|<get-nativeAvailable>(){}[0]
+    final val portable // com.eignex.koblas.sparse.host/F64SparseBlasAdapter.portable|{}portable[0]
+        final fun <get-portable>(): com.eignex.koblas.sparse/F64SparseBlas // com.eignex.koblas.sparse.host/F64SparseBlasAdapter.portable.<get-portable>|<get-portable>(){}[0]
+    open val isAvailable // com.eignex.koblas.sparse.host/F64SparseBlasAdapter.isAvailable|{}isAvailable[0]
+        open fun <get-isAvailable>(): kotlin/Boolean // com.eignex.koblas.sparse.host/F64SparseBlasAdapter.isAvailable.<get-isAvailable>|<get-isAvailable>(){}[0]
+    open val isPortable // com.eignex.koblas.sparse.host/F64SparseBlasAdapter.isPortable|{}isPortable[0]
+        open fun <get-isPortable>(): kotlin/Boolean // com.eignex.koblas.sparse.host/F64SparseBlasAdapter.isPortable.<get-isPortable>|<get-isPortable>(){}[0]
+
+    abstract fun gemmNative(kotlin/Double, com.eignex.koblas.core/F64SparseMatrix, kotlin/Boolean, com.eignex.koblas.core/F64DenseMatrix, kotlin/Double, com.eignex.koblas.core/F64DenseMatrix) // com.eignex.koblas.sparse.host/F64SparseBlasAdapter.gemmNative|gemmNative(kotlin.Double;com.eignex.koblas.core.F64SparseMatrix;kotlin.Boolean;com.eignex.koblas.core.F64DenseMatrix;kotlin.Double;com.eignex.koblas.core.F64DenseMatrix){}[0]
+    final fun gemm(com.eignex.koblas.core/F64SparseMatrix, com.eignex.koblas.core/F64SparseMatrix): com.eignex.koblas.core/F64SparseMatrix // com.eignex.koblas.sparse.host/F64SparseBlasAdapter.gemm|gemm(com.eignex.koblas.core.F64SparseMatrix;com.eignex.koblas.core.F64SparseMatrix){}[0]
+    final fun gemm(kotlin/Double, com.eignex.koblas.core/F64SparseMatrix, kotlin/Boolean, com.eignex.koblas.core/F64DenseMatrix, kotlin/Boolean, kotlin/Double, com.eignex.koblas.core/F64DenseMatrix, kotlin/Boolean) // com.eignex.koblas.sparse.host/F64SparseBlasAdapter.gemm|gemm(kotlin.Double;com.eignex.koblas.core.F64SparseMatrix;kotlin.Boolean;com.eignex.koblas.core.F64DenseMatrix;kotlin.Boolean;kotlin.Double;com.eignex.koblas.core.F64DenseMatrix;kotlin.Boolean){}[0]
+    final fun gemv(kotlin/Double, com.eignex.koblas.core/F64SparseMatrix, kotlin/DoubleArray, kotlin/Double, kotlin/DoubleArray, kotlin/Boolean) // com.eignex.koblas.sparse.host/F64SparseBlasAdapter.gemv|gemv(kotlin.Double;com.eignex.koblas.core.F64SparseMatrix;kotlin.DoubleArray;kotlin.Double;kotlin.DoubleArray;kotlin.Boolean){}[0]
+    final fun transpose(com.eignex.koblas.core/F64SparseMatrix): com.eignex.koblas.core/F64SparseMatrix // com.eignex.koblas.sparse.host/F64SparseBlasAdapter.transpose|transpose(com.eignex.koblas.core.F64SparseMatrix){}[0]
+    final fun trsm(com.eignex.koblas.core/F64SparseMatrix, com.eignex.koblas.core/F64DenseMatrix, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Double) // com.eignex.koblas.sparse.host/F64SparseBlasAdapter.trsm|trsm(com.eignex.koblas.core.F64SparseMatrix;com.eignex.koblas.core.F64DenseMatrix;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Double){}[0]
+    final fun trsv(com.eignex.koblas.core/F64SparseMatrix, kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean) // com.eignex.koblas.sparse.host/F64SparseBlasAdapter.trsv|trsv(com.eignex.koblas.core.F64SparseMatrix;kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
+}
+
 abstract class com.eignex.koblas.sparse.host/F64SparseDecompositionsAdapter : com.eignex.koblas.sparse/F64SparseDecompositions { // com.eignex.koblas.sparse.host/F64SparseDecompositionsAdapter|null[0]
     constructor <init>(kotlin/Int? = ..., kotlin/Boolean = ...) // com.eignex.koblas.sparse.host/F64SparseDecompositionsAdapter.<init>|<init>(kotlin.Int?;kotlin.Boolean){}[0]
 
