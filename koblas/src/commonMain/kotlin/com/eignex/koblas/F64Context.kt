@@ -8,11 +8,20 @@ import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.dense.F64LinearAlgebra
 import com.eignex.koblas.dense.F64LuDecomposition
 import com.eignex.koblas.internal.backend.BackendSlot
+import com.eignex.koblas.sparse.F64BasisFactorizations
+import com.eignex.koblas.sparse.F64GeneralSparseLu
+import com.eignex.koblas.sparse.F64RepeatedSparseLu
 import com.eignex.koblas.sparse.F64SparseBlas
+import com.eignex.koblas.sparse.F64SparseCholesky
+import com.eignex.koblas.sparse.F64SparseDecompositionRoles
 import com.eignex.koblas.sparse.F64SparseDecompositions
 import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.F64SparseKernels
+import com.eignex.koblas.sparse.F64SparseLdl
 import com.eignex.koblas.sparse.F64SparseLinearAlgebra
+import com.eignex.koblas.sparse.LegacyGeneralSparseLu
+import com.eignex.koblas.sparse.LegacySparseCholesky
+import com.eignex.koblas.sparse.LegacySparseLdl
 import com.eignex.koblas.sparse.basis.F64BasisSolvers
 
 /**
@@ -24,7 +33,7 @@ import com.eignex.koblas.sparse.basis.F64BasisSolvers
  * @property decompositions dense factorizations.
  * @property sparseKernels sparse vector-vector routines.
  * @property sparseBlas sparse matrix routines.
- * @property sparseDecompositions sparse factorizations.
+ * @property sparseDecompositions compatibility composition of general LU, Cholesky, and LDL roles.
  * @property basisSolvers simplex basis solvers, a half of their own beside [sparseDecompositions].
  */
 public class F64Context(
@@ -54,6 +63,32 @@ public class F64Context(
     internal var fallbackWarning: (BackendRoute) -> Unit = {}
         private set
 
+    private var selectedGeneralSparseLu: F64GeneralSparseLu = sparseDecompositions.generalLuCapability()
+
+    /** Provider selected for ordinary sparse LU. */
+    public val generalSparseLu: F64GeneralSparseLu get() = selectedGeneralSparseLu
+
+    private var selectedRepeatedSparseLu: F64RepeatedSparseLu? = sparseDecompositions as? F64RepeatedSparseLu
+
+    /** Provider selected for repeated-pattern LU, or null when none was selected. */
+    public val repeatedSparseLu: F64RepeatedSparseLu? get() = selectedRepeatedSparseLu
+
+    private var selectedSparseCholesky: F64SparseCholesky = sparseDecompositions.choleskyCapability()
+
+    /** Provider selected for sparse Cholesky. */
+    public val sparseCholesky: F64SparseCholesky get() = selectedSparseCholesky
+
+    private var selectedSparseLdl: F64SparseLdl = sparseDecompositions.ldlCapability()
+
+    /** Provider selected for sparse `L * D * L^T`. */
+    public val sparseLdl: F64SparseLdl get() = selectedSparseLdl
+
+    private var selectedBasisFactorizations: F64BasisFactorizations =
+        (sparseDecompositions as? F64BasisFactorizations) ?: com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
+
+    /** Provider selected for basis factorizations with column replacement. */
+    public val basisFactorizations: F64BasisFactorizations get() = selectedBasisFactorizations
+
     @Suppress("LongParameterList") // the seven backend roles plus their execution policy
     internal constructor(
         kernels: F64Kernels,
@@ -66,10 +101,22 @@ public class F64Context(
         dispatchPolicy: F64DispatchPolicy,
         fallbackPolicy: F64FallbackPolicy,
         fallbackWarning: (BackendRoute) -> Unit,
+        generalSparseLu: F64GeneralSparseLu = sparseDecompositions.generalLuCapability(),
+        repeatedSparseLu: F64RepeatedSparseLu? = sparseDecompositions as? F64RepeatedSparseLu,
+        sparseCholesky: F64SparseCholesky = sparseDecompositions.choleskyCapability(),
+        sparseLdl: F64SparseLdl = sparseDecompositions.ldlCapability(),
+        basisFactorizations: F64BasisFactorizations =
+            (sparseDecompositions as? F64BasisFactorizations)
+                ?: com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra,
     ) : this(kernels, blas, decompositions, sparseKernels, sparseBlas, sparseDecompositions, basisSolvers) {
         this.dispatchPolicy = dispatchPolicy
         this.fallbackPolicy = fallbackPolicy
         this.fallbackWarning = fallbackWarning
+        selectedGeneralSparseLu = generalSparseLu
+        selectedRepeatedSparseLu = repeatedSparseLu
+        selectedSparseCholesky = sparseCholesky
+        selectedSparseLdl = sparseLdl
+        selectedBasisFactorizations = basisFactorizations
     }
 
     /**
@@ -112,6 +159,32 @@ public class F64Context(
         dispatchPolicy = dispatchPolicy,
         fallbackPolicy = fallbackPolicy,
         fallbackWarning = fallbackWarning,
+        generalSparseLu = if (sparseDecompositions === this.sparseDecompositions) {
+            generalSparseLu
+        } else {
+            sparseDecompositions.generalLuCapability()
+        },
+        repeatedSparseLu = if (sparseDecompositions === this.sparseDecompositions) {
+            repeatedSparseLu
+        } else {
+            sparseDecompositions as? F64RepeatedSparseLu
+        },
+        sparseCholesky = if (sparseDecompositions === this.sparseDecompositions) {
+            sparseCholesky
+        } else {
+            sparseDecompositions.choleskyCapability()
+        },
+        sparseLdl = if (sparseDecompositions === this.sparseDecompositions) {
+            sparseLdl
+        } else {
+            sparseDecompositions.ldlCapability()
+        },
+        basisFactorizations = if (sparseDecompositions === this.sparseDecompositions) {
+            basisFactorizations
+        } else {
+            (sparseDecompositions as? F64BasisFactorizations)
+                ?: com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
+        },
     )
 
     override fun gemv(
@@ -228,3 +301,14 @@ public class F64Context(
 
     override fun toString(): String = "F64Context($name)"
 }
+
+private fun F64SparseDecompositions.generalLuCapability(): F64GeneralSparseLu =
+    (this as? F64SparseDecompositionRoles)?.generalLu ?: (this as? F64GeneralSparseLu) ?: LegacyGeneralSparseLu(this)
+
+private fun F64SparseDecompositions.choleskyCapability(): F64SparseCholesky =
+    (this as? F64SparseDecompositionRoles)?.choleskyProvider
+        ?: (this as? F64SparseCholesky)
+        ?: LegacySparseCholesky(this)
+
+private fun F64SparseDecompositions.ldlCapability(): F64SparseLdl =
+    (this as? F64SparseDecompositionRoles)?.ldlProvider ?: (this as? F64SparseLdl) ?: LegacySparseLdl(this)

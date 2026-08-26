@@ -1,11 +1,12 @@
 package com.eignex.koblas.internal.backend
 
-import com.eignex.koblas.registerBackend
+import com.eignex.koblas.*
+import com.eignex.koblas.sparse.F64BasisFactorizations
+import com.eignex.koblas.sparse.F64RepeatedSparseLu
+import com.eignex.koblas.sparse.basis.F64BasisSolvers
 import com.eignex.koblas.sparse.host.basiclu.BasicluSparseLu
 import com.eignex.koblas.sparse.host.hfactor.HfactorSparseLu
 import com.eignex.koblas.sparse.host.klu.KluSparseLu
-import com.eignex.koblas.sparseDecompositionsNamed
-import com.eignex.koblas.withCleanBackends
 import kotlin.test.Test
 import kotlin.test.assertIs
 
@@ -19,26 +20,26 @@ class NamedSparseBackendTest {
     fun `BASICLU by name carries its own basis factorization`() = withCleanBackends {
         registerBackend(BasicluSparseLu())
 
-        val found = sparseDecompositionsNamed("basiclu")
+        val found = backendNamed("basiclu", F64Capabilities.basisFactorizations)
 
-        assertIs<BasicluSparseLu>(found, "factorBasis lives here and nowhere else")
+        assertIs<F64BasisFactorizations>(found)
     }
 
     @Test
     fun `KLU by name carries its own analysis reuse`() = withCleanBackends {
         registerBackend(KluSparseLu())
 
-        val found = sparseDecompositionsNamed("klu")
+        val found = backendNamed("klu", F64Capabilities.repeatedSparseLu)
 
-        assertIs<KluSparseLu>(found, "refactor lives here and nowhere else")
+        assertIs<F64RepeatedSparseLu>(found)
     }
 
     @Test
     fun `HFactor by name carries the basis solver it is here for`() = withCleanBackends {
         registerBackend(HfactorSparseLu())
 
-        val found = sparseDecompositionsNamed("hfactor")
+        val found = backendNamed("hfactor", F64Capabilities.basisSolvers)
 
-        assertIs<HfactorSparseLu>(found)
+        assertIs<F64BasisSolvers>(found)
     }
 }

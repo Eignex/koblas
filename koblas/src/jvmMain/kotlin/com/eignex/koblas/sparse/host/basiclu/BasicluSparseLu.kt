@@ -24,7 +24,9 @@ import com.eignex.koblas.withColumn
 public open class BasicluSparseLu(
     /** Policy for this backend instance. */
     public val config: BasicluConfig = BasicluConfig(),
-) : F64SparseDecompositionsAdapter(config.factorizeMin, config.equilibrate) {
+) : F64SparseDecompositionsAdapter(config.factorizeMin, config.equilibrate),
+    F64GeneralSparseLu,
+    F64BasisFactorizations {
     private val calls = BasicluCalls(config)
 
     override val name: String get() = BackendNames.BASICLU
@@ -59,7 +61,7 @@ public open class BasicluSparseLu(
      * A basis is factorized natively at any size, since what a caller wants from BASICLU is the update that
      * follows and the gate the general factorization answers to has nothing to say about it.
      */
-    public fun factorBasis(basis: F64SparseMatrix): F64BasisFactorization {
+    final override fun factorBasis(basis: F64SparseMatrix): F64BasisFactorization {
         requireSquare(basis, "factorBasis")
         if (!nativeAvailable) return F64RefactoringBasisFactorization(this, basis, factor(basis))
         val target = factored(basis, basis.copyRowIndices(), basis.values)

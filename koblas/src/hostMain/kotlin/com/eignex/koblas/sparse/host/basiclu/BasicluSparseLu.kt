@@ -23,7 +23,9 @@ import kotlinx.cinterop.*
 public open class BasicluSparseLu(
     /** Policy for this backend instance. */
     public val config: BasicluConfig = BasicluConfig(),
-) : F64SparseDecompositionsAdapter(config.factorizeMin, config.equilibrate) {
+) : F64SparseDecompositionsAdapter(config.factorizeMin, config.equilibrate),
+    F64GeneralSparseLu,
+    F64BasisFactorizations {
     private val loader = BasicluLoader(config)
 
     override val name: String get() = BackendNames.BASICLU
@@ -59,7 +61,7 @@ public open class BasicluSparseLu(
      * A basis is factorized natively at any size, since what a caller wants from BASICLU is the update that
      * follows and the gate the general factorization answers to has nothing to say about it.
      */
-    public fun factorBasis(basis: F64SparseMatrix): F64BasisFactorization {
+    final override fun factorBasis(basis: F64SparseMatrix): F64BasisFactorization {
         requireSquare(basis, "factorBasis")
         val functions = loader.functions.takeIf { nativeAvailable }
             ?: return F64RefactoringBasisFactorization(this, basis, factor(basis))

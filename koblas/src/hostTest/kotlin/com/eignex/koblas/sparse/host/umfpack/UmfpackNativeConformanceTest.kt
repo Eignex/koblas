@@ -5,6 +5,7 @@ package com.eignex.koblas.sparse.host.umfpack
 
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.NotPositiveDefinite
+import com.eignex.koblas.discoverBackends
 import com.eignex.koblas.koblas
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.sparse.host.F64SparseBackends
@@ -23,14 +24,26 @@ class UmfpackNativeConformanceTest {
 
     @Test
     fun `the binding resolves and registers`() {
+        discoverBackends()
         assertEquals("umfpack", umfpack.name)
         assertEquals(HOST_BACKEND_PRIORITY, umfpack.priority, "every koblas host binding registers at one priority")
-        // KLU and BASICLU register here too where a host has them, and rank above UMFPACK, so what
-        // discovery is asserted to have found is the strongest binding this machine offers.
-        val strongest = F64SparseBackends().let { listOf(it.umfpack, it.klu, it.basiclu) }
+        val discovered = F64SparseBackends()
+        assertEquals("umfpack", koblas.generalSparseLu.name, "UMFPACK should remain the general LU default")
+        assertEquals(
+            discovered.klu.takeIf { it.isAvailable }?.name,
+            koblas.repeatedSparseLu?.name,
+            "KLU should fill only the repeated-pattern LU role",
+        )
+        assertEquals(
+            discovered.basiclu.takeIf { it.isAvailable }?.name ?: "reference",
+            koblas.basisFactorizations.name,
+            "BASICLU should fill only the basis-factorization role",
+        )
+        val symmetric = listOf(discovered.umfpack, discovered.klu)
             .filter { it.isAvailable }
             .maxBy { it.priority }
-        assertEquals(strongest.name, koblas.sparseDecompositions.name, "discovery should have registered the backend")
+        assertEquals(symmetric.name, koblas.sparseCholesky.name)
+        assertEquals(symmetric.name, koblas.sparseLdl.name)
     }
 
     @Test

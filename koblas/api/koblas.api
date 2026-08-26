@@ -56,13 +56,18 @@ public final class com/eignex/koblas/BackendPolicyDecision : java/lang/Enum {
 }
 
 public final class com/eignex/koblas/BackendRole : java/lang/Enum {
+	public static final field BASIS_FACTORIZATIONS Lcom/eignex/koblas/BackendRole;
 	public static final field BASIS_SOLVERS Lcom/eignex/koblas/BackendRole;
 	public static final field DENSE_BLAS Lcom/eignex/koblas/BackendRole;
 	public static final field DENSE_DECOMPOSITIONS Lcom/eignex/koblas/BackendRole;
 	public static final field DENSE_KERNELS Lcom/eignex/koblas/BackendRole;
 	public static final field SPARSE_BLAS Lcom/eignex/koblas/BackendRole;
+	public static final field SPARSE_CHOLESKY Lcom/eignex/koblas/BackendRole;
 	public static final field SPARSE_DECOMPOSITIONS Lcom/eignex/koblas/BackendRole;
+	public static final field SPARSE_GENERAL_LU Lcom/eignex/koblas/BackendRole;
 	public static final field SPARSE_KERNELS Lcom/eignex/koblas/BackendRole;
+	public static final field SPARSE_LDL Lcom/eignex/koblas/BackendRole;
+	public static final field SPARSE_REPEATED_LU Lcom/eignex/koblas/BackendRole;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/BackendRole;
 	public static fun values ()[Lcom/eignex/koblas/BackendRole;
@@ -143,6 +148,11 @@ public final class com/eignex/koblas/BackendStatusKt {
 	public static final fun requireAccelerated (Lcom/eignex/koblas/F64Context;[Lcom/eignex/koblas/internal/backend/BackendSlot;)V
 }
 
+public final class com/eignex/koblas/CapabilitiesKt {
+	public static final fun backendNamed (Ljava/lang/String;Lcom/eignex/koblas/F64Capability;)Lcom/eignex/koblas/Backend;
+	public static final fun capability (Lcom/eignex/koblas/F64Context;Lcom/eignex/koblas/F64Capability;)Lcom/eignex/koblas/Backend;
+}
+
 public final class com/eignex/koblas/DimensionMismatch : com/eignex/koblas/KoblasException {
 	public fun <init> (Ljava/lang/String;)V
 }
@@ -171,6 +181,19 @@ public final class com/eignex/koblas/DispatchMetric : java/lang/Enum {
 	public static fun values ()[Lcom/eignex/koblas/DispatchMetric;
 }
 
+public final class com/eignex/koblas/F64Capabilities {
+	public static final field INSTANCE Lcom/eignex/koblas/F64Capabilities;
+	public final fun getBasisFactorizations ()Lcom/eignex/koblas/F64Capability;
+	public final fun getBasisSolvers ()Lcom/eignex/koblas/F64Capability;
+	public final fun getGeneralSparseLu ()Lcom/eignex/koblas/F64Capability;
+	public final fun getRepeatedSparseLu ()Lcom/eignex/koblas/F64Capability;
+	public final fun getSparseCholesky ()Lcom/eignex/koblas/F64Capability;
+	public final fun getSparseLdl ()Lcom/eignex/koblas/F64Capability;
+}
+
+public final class com/eignex/koblas/F64Capability {
+}
+
 public final class com/eignex/koblas/F64Context : com/eignex/koblas/dense/F64Blas, com/eignex/koblas/dense/F64Decompositions, com/eignex/koblas/dense/F64LinearAlgebra, com/eignex/koblas/sparse/F64SparseBlas, com/eignex/koblas/sparse/F64SparseDecompositions, com/eignex/koblas/sparse/F64SparseLinearAlgebra, com/eignex/koblas/sparse/basis/F64BasisSolvers {
 	public fun <init> (Lcom/eignex/koblas/dense/F64Kernels;Lcom/eignex/koblas/dense/F64Blas;Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/sparse/F64SparseKernels;Lcom/eignex/koblas/sparse/F64SparseBlas;Lcom/eignex/koblas/sparse/F64SparseDecompositions;Lcom/eignex/koblas/sparse/basis/F64BasisSolvers;)V
 	public fun applyQ (Lcom/eignex/koblas/dense/F64QrDecomposition;[DZ)[D
@@ -191,17 +214,22 @@ public final class com/eignex/koblas/F64Context : com/eignex/koblas/dense/F64Bla
 	public fun gemv (Lcom/eignex/koblas/core/F64DenseMatrix;[DZ)[D
 	public fun gemv (Lcom/eignex/koblas/core/F64SparseMatrix;[DZ)[D
 	public fun ger (D[D[DLcom/eignex/koblas/core/F64DenseMatrix;)V
+	public final fun getBasisFactorizations ()Lcom/eignex/koblas/sparse/F64BasisFactorizations;
 	public final fun getBasisSolvers ()Lcom/eignex/koblas/sparse/basis/F64BasisSolvers;
 	public final fun getBlas ()Lcom/eignex/koblas/dense/F64Blas;
 	public final fun getDecompositions ()Lcom/eignex/koblas/dense/F64Decompositions;
 	public final fun getDispatchPolicy ()Lcom/eignex/koblas/F64DispatchPolicy;
 	public final fun getFallbackPolicy ()Lcom/eignex/koblas/F64FallbackPolicy;
+	public final fun getGeneralSparseLu ()Lcom/eignex/koblas/sparse/F64GeneralSparseLu;
 	public fun getKernels ()Lcom/eignex/koblas/dense/F64Kernels;
 	public fun getName ()Ljava/lang/String;
 	public fun getPriority ()I
+	public final fun getRepeatedSparseLu ()Lcom/eignex/koblas/sparse/F64RepeatedSparseLu;
 	public final fun getSparseBlas ()Lcom/eignex/koblas/sparse/F64SparseBlas;
+	public final fun getSparseCholesky ()Lcom/eignex/koblas/sparse/F64SparseCholesky;
 	public final fun getSparseDecompositions ()Lcom/eignex/koblas/sparse/F64SparseDecompositions;
 	public fun getSparseKernels ()Lcom/eignex/koblas/sparse/F64SparseKernels;
+	public final fun getSparseLdl ()Lcom/eignex/koblas/sparse/F64SparseLdl;
 	public fun invert (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public fun invert (Lcom/eignex/koblas/dense/F64LuDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public fun isAvailable ()Z
@@ -1236,6 +1264,26 @@ public final class com/eignex/koblas/sparse/F64BasisFactorization$DefaultImpls {
 	public static fun solve (Lcom/eignex/koblas/sparse/F64BasisFactorization;[DZ)[D
 }
 
+public abstract interface class com/eignex/koblas/sparse/F64BasisFactorizations : com/eignex/koblas/Backend {
+	public abstract fun factorBasis (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64BasisFactorization;
+}
+
+public final class com/eignex/koblas/sparse/F64BasisFactorizations$DefaultImpls {
+	public static fun getPriority (Lcom/eignex/koblas/sparse/F64BasisFactorizations;)I
+	public static fun isAvailable (Lcom/eignex/koblas/sparse/F64BasisFactorizations;)Z
+	public static fun isPortable (Lcom/eignex/koblas/sparse/F64BasisFactorizations;)Z
+}
+
+public abstract interface class com/eignex/koblas/sparse/F64GeneralSparseLu : com/eignex/koblas/Backend {
+	public abstract fun factor (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
+}
+
+public final class com/eignex/koblas/sparse/F64GeneralSparseLu$DefaultImpls {
+	public static fun getPriority (Lcom/eignex/koblas/sparse/F64GeneralSparseLu;)I
+	public static fun isAvailable (Lcom/eignex/koblas/sparse/F64GeneralSparseLu;)Z
+	public static fun isPortable (Lcom/eignex/koblas/sparse/F64GeneralSparseLu;)Z
+}
+
 public final class com/eignex/koblas/sparse/F64RefactoringBasisFactorization : com/eignex/koblas/sparse/F64BasisFactorization {
 	public fun <init> (Lcom/eignex/koblas/sparse/F64SparseDecompositions;Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/sparse/F64SparseFactorization;)V
 	public fun getBasis ()Lcom/eignex/koblas/core/F64SparseMatrix;
@@ -1249,7 +1297,7 @@ public final class com/eignex/koblas/sparse/F64RefactoringBasisFactorization : c
 	public fun solveInto ([D[DZLcom/eignex/koblas/Workspace;)[D
 }
 
-public class com/eignex/koblas/sparse/F64ReferenceSparseBackend : com/eignex/koblas/sparse/F64SparseKernels, com/eignex/koblas/sparse/F64SparseLinearAlgebra {
+public class com/eignex/koblas/sparse/F64ReferenceSparseBackend : com/eignex/koblas/sparse/F64BasisFactorizations, com/eignex/koblas/sparse/F64GeneralSparseLu, com/eignex/koblas/sparse/F64SparseCholesky, com/eignex/koblas/sparse/F64SparseKernels, com/eignex/koblas/sparse/F64SparseLdl, com/eignex/koblas/sparse/F64SparseLinearAlgebra {
 	public fun <init> ()V
 	public fun <init> (Lcom/eignex/koblas/dense/F64Kernels;)V
 	public synthetic fun <init> (Lcom/eignex/koblas/dense/F64Kernels;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
@@ -1260,6 +1308,7 @@ public class com/eignex/koblas/sparse/F64ReferenceSparseBackend : com/eignex/kob
 	public fun dot (Lcom/eignex/koblas/core/F64SparseVector;Lcom/eignex/koblas/core/F64SparseVector;)D
 	public fun dot (Lcom/eignex/koblas/core/F64SparseVector;[D)D
 	public fun factor (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
+	public fun factorBasis (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64BasisFactorization;
 	public fun gather (Lcom/eignex/koblas/core/F64SparseVector;[D)V
 	public fun gatherZero (Lcom/eignex/koblas/core/F64SparseVector;[D)V
 	public fun gemm (DLcom/eignex/koblas/core/F64SparseMatrix;ZLcom/eignex/koblas/core/F64DenseMatrix;ZDLcom/eignex/koblas/core/F64DenseMatrix;Z)V
@@ -1308,6 +1357,17 @@ public final class com/eignex/koblas/sparse/F64ReferenceSparseLinearAlgebra : co
 	public static final field INSTANCE Lcom/eignex/koblas/sparse/F64ReferenceSparseLinearAlgebra;
 }
 
+public abstract interface class com/eignex/koblas/sparse/F64RepeatedSparseLu : com/eignex/koblas/Backend {
+	public abstract fun factor (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
+	public abstract fun refactor (Lcom/eignex/koblas/sparse/F64SparseFactorization;Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
+}
+
+public final class com/eignex/koblas/sparse/F64RepeatedSparseLu$DefaultImpls {
+	public static fun getPriority (Lcom/eignex/koblas/sparse/F64RepeatedSparseLu;)I
+	public static fun isAvailable (Lcom/eignex/koblas/sparse/F64RepeatedSparseLu;)Z
+	public static fun isPortable (Lcom/eignex/koblas/sparse/F64RepeatedSparseLu;)Z
+}
+
 public final class com/eignex/koblas/sparse/F64SingularSparseFactorization : com/eignex/koblas/sparse/F64SparseFactorization {
 	public fun <init> (II)V
 	public fun getFailedAt ()I
@@ -1346,6 +1406,16 @@ public final class com/eignex/koblas/sparse/F64SparseBlas$DefaultImpls {
 	public static fun isPortable (Lcom/eignex/koblas/sparse/F64SparseBlas;)Z
 	public static synthetic fun trsm$default (Lcom/eignex/koblas/sparse/F64SparseBlas;Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZZZZDILjava/lang/Object;)V
 	public static synthetic fun trsv$default (Lcom/eignex/koblas/sparse/F64SparseBlas;Lcom/eignex/koblas/core/F64SparseMatrix;[DZZZILjava/lang/Object;)V
+}
+
+public abstract interface class com/eignex/koblas/sparse/F64SparseCholesky : com/eignex/koblas/Backend {
+	public abstract fun cholesky (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
+}
+
+public final class com/eignex/koblas/sparse/F64SparseCholesky$DefaultImpls {
+	public static fun getPriority (Lcom/eignex/koblas/sparse/F64SparseCholesky;)I
+	public static fun isAvailable (Lcom/eignex/koblas/sparse/F64SparseCholesky;)Z
+	public static fun isPortable (Lcom/eignex/koblas/sparse/F64SparseCholesky;)Z
 }
 
 public abstract interface class com/eignex/koblas/sparse/F64SparseDecompositions : com/eignex/koblas/Backend {
@@ -1406,6 +1476,16 @@ public final class com/eignex/koblas/sparse/F64SparseKernels$DefaultImpls {
 	public static fun getPriority (Lcom/eignex/koblas/sparse/F64SparseKernels;)I
 	public static fun isAvailable (Lcom/eignex/koblas/sparse/F64SparseKernels;)Z
 	public static fun isPortable (Lcom/eignex/koblas/sparse/F64SparseKernels;)Z
+}
+
+public abstract interface class com/eignex/koblas/sparse/F64SparseLdl : com/eignex/koblas/Backend {
+	public abstract fun ldl (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
+}
+
+public final class com/eignex/koblas/sparse/F64SparseLdl$DefaultImpls {
+	public static fun getPriority (Lcom/eignex/koblas/sparse/F64SparseLdl;)I
+	public static fun isAvailable (Lcom/eignex/koblas/sparse/F64SparseLdl;)Z
+	public static fun isPortable (Lcom/eignex/koblas/sparse/F64SparseLdl;)Z
 }
 
 public abstract interface class com/eignex/koblas/sparse/F64SparseLinearAlgebra : com/eignex/koblas/sparse/F64SparseBlas, com/eignex/koblas/sparse/F64SparseDecompositions, com/eignex/koblas/sparse/basis/F64BasisSolvers {
@@ -1657,7 +1737,7 @@ public class com/eignex/koblas/sparse/host/basiclu/BasicluFactorization : com/ei
 	public fun solveInto ([D[DZLcom/eignex/koblas/Workspace;)[D
 }
 
-public class com/eignex/koblas/sparse/host/basiclu/BasicluSparseLu : com/eignex/koblas/sparse/host/F64SparseDecompositionsAdapter {
+public class com/eignex/koblas/sparse/host/basiclu/BasicluSparseLu : com/eignex/koblas/sparse/host/F64SparseDecompositionsAdapter, com/eignex/koblas/sparse/F64BasisFactorizations, com/eignex/koblas/sparse/F64GeneralSparseLu {
 	public fun <init> ()V
 	public fun <init> (Lcom/eignex/koblas/sparse/host/basiclu/BasicluConfig;)V
 	public synthetic fun <init> (Lcom/eignex/koblas/sparse/host/basiclu/BasicluConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
@@ -1829,7 +1909,7 @@ public final class com/eignex/koblas/sparse/host/klu/KluScaling : java/lang/Enum
 	public static fun values ()[Lcom/eignex/koblas/sparse/host/klu/KluScaling;
 }
 
-public class com/eignex/koblas/sparse/host/klu/KluSparseLu : com/eignex/koblas/sparse/host/F64SparseDecompositionsAdapter {
+public class com/eignex/koblas/sparse/host/klu/KluSparseLu : com/eignex/koblas/sparse/host/F64SparseDecompositionsAdapter, com/eignex/koblas/sparse/F64GeneralSparseLu, com/eignex/koblas/sparse/F64RepeatedSparseLu, com/eignex/koblas/sparse/F64SparseCholesky, com/eignex/koblas/sparse/F64SparseLdl {
 	public fun <init> ()V
 	public fun <init> (Lcom/eignex/koblas/sparse/host/klu/KluConfig;)V
 	public synthetic fun <init> (Lcom/eignex/koblas/sparse/host/klu/KluConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
@@ -1885,7 +1965,7 @@ public final class com/eignex/koblas/sparse/host/umfpack/UmfpackScaling : java/l
 	public static fun values ()[Lcom/eignex/koblas/sparse/host/umfpack/UmfpackScaling;
 }
 
-public class com/eignex/koblas/sparse/host/umfpack/UmfpackSparseLu : com/eignex/koblas/sparse/host/F64SparseDecompositionsAdapter {
+public class com/eignex/koblas/sparse/host/umfpack/UmfpackSparseLu : com/eignex/koblas/sparse/host/F64SparseDecompositionsAdapter, com/eignex/koblas/sparse/F64GeneralSparseLu, com/eignex/koblas/sparse/F64SparseCholesky, com/eignex/koblas/sparse/F64SparseLdl {
 	public fun <init> ()V
 	public fun <init> (Lcom/eignex/koblas/sparse/host/umfpack/UmfpackConfig;)V
 	public synthetic fun <init> (Lcom/eignex/koblas/sparse/host/umfpack/UmfpackConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V

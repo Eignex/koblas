@@ -12,7 +12,7 @@ import kotlin.concurrent.atomics.*
  * The double-precision seams and the context they compose. One element type's registrations live in one
  * of these, so an element type added later brings its own rather than widening this one: its halves are
  * different interfaces, and a backend offered to the public registry belongs to whichever registry recognises
- * it. [Seam] and the ranking are shared, so what differs between two registries is only the six types.
+ * it. [Seam] and the ranking are shared, so what differs between two registries is only their role types.
  */
 @OptIn(ExperimentalAtomicApi::class)
 internal class F64Registry {
@@ -22,6 +22,11 @@ internal class F64Registry {
     private val sparseVectorKernelSeam = Seam<F64SparseKernels>(::recompose)
     private val sparseBlasSeam = Seam<F64SparseBlas>(::recompose)
     private val sparseDecompositionsSeam = Seam<F64SparseDecompositions>(::recompose)
+    private val generalSparseLuSeam = Seam<F64GeneralSparseLu>(::recompose)
+    private val repeatedSparseLuSeam = Seam<F64RepeatedSparseLu>(::recompose)
+    private val sparseCholeskySeam = Seam<F64SparseCholesky>(::recompose)
+    private val sparseLdlSeam = Seam<F64SparseLdl>(::recompose)
+    private val basisFactorizationsSeam = Seam<F64BasisFactorizations>(::recompose)
     private val basisSolverSeam = Seam<F64BasisSolvers>(::recompose)
 
     /**
@@ -109,11 +114,64 @@ internal class F64Registry {
             if (only != null && slot !in only) continue
             if (half.offer(backend, explicit)) offered++
         }
+        if (only == null || BackendSlot.F64SparseDecompositions in only) {
+            if (offerSparseCapabilities(backend, explicit)) offered++
+        }
         return offered > 0
+    }
+
+    private fun offerSparseCapabilities(backend: Backend, explicit: Boolean): Boolean {
+        var offered = false
+        val legacy = backend as? F64SparseDecompositions
+        val general = backend
+            .takeUnless { it is F64RepeatedSparseLu || it is F64BasisFactorizations }
+            ?.let { (it as? F64GeneralSparseLu) ?: legacy?.let(::LegacyGeneralSparseLu) }
+        val cholesky = backend as? F64SparseCholesky ?: legacy
+            ?.takeUnless { backend is F64BasisFactorizations }
+            ?.let(::LegacySparseCholesky)
+        val ldl = backend as? F64SparseLdl ?: legacy
+            ?.takeUnless { backend is F64BasisFactorizations }
+            ?.let(::LegacySparseLdl)
+        general?.let {
+            generalSparseLuSeam.register(it, explicit)
+            offered = true
+        }
+        (backend as? F64RepeatedSparseLu)?.let {
+            repeatedSparseLuSeam.register(it, explicit)
+            offered = true
+        }
+        cholesky?.let {
+            sparseCholeskySeam.register(it, explicit)
+            offered = true
+        }
+        ldl?.let {
+            sparseLdlSeam.register(it, explicit)
+            offered = true
+        }
+        (backend as? F64BasisFactorizations)?.let {
+            basisFactorizationsSeam.register(it, explicit)
+            offered = true
+        }
+        return offered
     }
 
     /** The sparse LU registered under [name], or null when nothing did. */
     fun sparseDecompositionsNamed(name: String): F64SparseDecompositions? = sparseDecompositionsSeam.named(name)
+
+    /** The general sparse LU registered under [name], or null when nothing did. */
+    fun generalSparseLuNamed(name: String): F64GeneralSparseLu? = generalSparseLuSeam.named(name)
+
+    /** The repeated-pattern sparse LU registered under [name], or null when nothing did. */
+    fun repeatedSparseLuNamed(name: String): F64RepeatedSparseLu? = repeatedSparseLuSeam.named(name)
+
+    /** The sparse Cholesky provider registered under [name], or null when nothing did. */
+    fun sparseCholeskyNamed(name: String): F64SparseCholesky? = sparseCholeskySeam.named(name)
+
+    /** The sparse LDL provider registered under [name], or null when nothing did. */
+    fun sparseLdlNamed(name: String): F64SparseLdl? = sparseLdlSeam.named(name)
+
+    /** The basis factorization provider registered under [name], or null when nothing did. */
+    fun basisFactorizationsNamed(name: String): F64BasisFactorizations? = basisFactorizationsSeam.named(name)
 
     /** The basis solvers registered under [name], or null when nothing did. */
     fun basisSolversNamed(name: String): F64BasisSolvers? = basisSolverSeam.named(name)
@@ -121,24 +179,70 @@ internal class F64Registry {
     /** The names registered for [slot], strongest first. */
     fun namesFor(slot: BackendSlot): List<String> = halves.getValue(slot).names
 
+    /** Names offered for a public semantic [role], strongest first. */
+    fun namesFor(role: com.eignex.koblas.BackendRole): List<String> = when (role) {
+        com.eignex.koblas.BackendRole.SPARSE_GENERAL_LU -> generalSparseLuSeam.all.map { it.name }
+        com.eignex.koblas.BackendRole.SPARSE_REPEATED_LU -> repeatedSparseLuSeam.all.map { it.name }
+        com.eignex.koblas.BackendRole.SPARSE_CHOLESKY -> sparseCholeskySeam.all.map { it.name }
+        com.eignex.koblas.BackendRole.SPARSE_LDL -> sparseLdlSeam.all.map { it.name }
+        com.eignex.koblas.BackendRole.BASIS_FACTORIZATIONS -> basisFactorizationsSeam.all.map { it.name }
+        else -> namesFor(role.legacySlot)
+    }
+
     /** Clears the override and every registration, leaving the portable fallbacks. */
     fun reset() {
         installed = null
         halves.values.forEach { it.seam.reset() }
+        generalSparseLuSeam.reset()
+        repeatedSparseLuSeam.reset()
+        sparseCholeskySeam.reset()
+        sparseLdlSeam.reset()
+        basisFactorizationsSeam.reset()
     }
 
     /** Builds a context from the currently registered halves, falling back to the portable reference. */
-    private fun assemble(): F64Context = F64Context(
-        kernels = F64RoutedKernels(vectorKernelSeam.active),
-        blas = blasSeam.active ?: F64ReferenceLinearAlgebra,
-        decompositions = decompositionsSeam.active ?: F64ReferenceLinearAlgebra,
-        sparseKernels = sparseVectorKernelSeam.active ?: F64PlatformSparseKernels,
-        sparseBlas = sparseBlasSeam.active ?: F64ReferenceSparseLinearAlgebra,
-        sparseDecompositions = sparseDecompositionsSeam.active ?: F64ReferenceSparseLinearAlgebra,
-        basisSolvers = basisSolverSeam.active ?: F64ReferenceSparseLinearAlgebra,
-    )
+    private fun assemble(): F64Context {
+        val reference = F64ReferenceSparseLinearAlgebra
+        val general = generalSparseLuSeam.active ?: reference
+        val cholesky = sparseCholeskySeam.active ?: reference
+        val ldl = sparseLdlSeam.active ?: reference
+        val roles = if (general === cholesky && general === ldl && general is F64SparseDecompositions) {
+            general
+        } else {
+            F64SparseDecompositionRoles(general, cholesky, ldl)
+        }
+        return F64Context(
+            kernels = F64RoutedKernels(vectorKernelSeam.active),
+            blas = blasSeam.active ?: F64ReferenceLinearAlgebra,
+            decompositions = decompositionsSeam.active ?: F64ReferenceLinearAlgebra,
+            sparseKernels = sparseVectorKernelSeam.active ?: F64PlatformSparseKernels,
+            sparseBlas = sparseBlasSeam.active ?: F64ReferenceSparseLinearAlgebra,
+            sparseDecompositions = roles,
+            basisSolvers = basisSolverSeam.active ?: F64ReferenceSparseLinearAlgebra,
+            dispatchPolicy = com.eignex.koblas.F64DispatchPolicy.AUTO,
+            fallbackPolicy = com.eignex.koblas.F64FallbackPolicy.ALLOW,
+            fallbackWarning = {},
+            generalSparseLu = general,
+            repeatedSparseLu = repeatedSparseLuSeam.active,
+            sparseCholesky = cholesky,
+            sparseLdl = ldl,
+            basisFactorizations = basisFactorizationsSeam.active ?: reference,
+        )
+    }
 
     private fun recompose() {
         changes.incrementAndFetch()
     }
 }
+
+private val com.eignex.koblas.BackendRole.legacySlot: BackendSlot
+    get() = when (this) {
+        com.eignex.koblas.BackendRole.DENSE_KERNELS -> BackendSlot.F64Kernels
+        com.eignex.koblas.BackendRole.DENSE_BLAS -> BackendSlot.F64Blas
+        com.eignex.koblas.BackendRole.DENSE_DECOMPOSITIONS -> BackendSlot.F64Decompositions
+        com.eignex.koblas.BackendRole.SPARSE_KERNELS -> BackendSlot.F64SparseKernels
+        com.eignex.koblas.BackendRole.SPARSE_BLAS -> BackendSlot.F64SparseBlas
+        com.eignex.koblas.BackendRole.SPARSE_DECOMPOSITIONS -> BackendSlot.F64SparseDecompositions
+        com.eignex.koblas.BackendRole.BASIS_SOLVERS -> BackendSlot.F64BasisSolvers
+        else -> error("$this has a semantic seam")
+    }

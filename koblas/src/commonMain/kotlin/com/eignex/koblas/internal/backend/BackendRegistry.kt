@@ -1,6 +1,7 @@
 package com.eignex.koblas.internal.backend
 
 import com.eignex.koblas.Backend
+import com.eignex.koblas.BackendRole
 import com.eignex.koblas.F64Context
 import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.dense.F64PlatformKernels
@@ -53,11 +54,29 @@ internal object BackendRegistry {
     /** The sparse LU registered under [name], or null when nothing did. */
     internal fun sparseDecompositionsNamed(name: String) = f64.sparseDecompositionsNamed(name)
 
+    /** The general sparse LU registered under [name], or null when nothing did. */
+    internal fun generalSparseLuNamed(name: String) = f64.generalSparseLuNamed(name)
+
+    /** The repeated-pattern sparse LU registered under [name], or null when nothing did. */
+    internal fun repeatedSparseLuNamed(name: String) = f64.repeatedSparseLuNamed(name)
+
+    /** The sparse Cholesky provider registered under [name], or null when nothing did. */
+    internal fun sparseCholeskyNamed(name: String) = f64.sparseCholeskyNamed(name)
+
+    /** The sparse LDL provider registered under [name], or null when nothing did. */
+    internal fun sparseLdlNamed(name: String) = f64.sparseLdlNamed(name)
+
+    /** The basis factorization provider registered under [name], or null when nothing did. */
+    internal fun basisFactorizationsNamed(name: String) = f64.basisFactorizationsNamed(name)
+
     /** The basis solvers registered under [name], or null when nothing did. */
     internal fun basisSolversNamed(name: String) = f64.basisSolversNamed(name)
 
     /** The names registered for [slot], strongest first. */
     internal fun namesFor(slot: BackendSlot) = f64.namesFor(slot)
+
+    /** The names registered for [role], strongest first. */
+    internal fun namesFor(role: BackendRole) = f64.namesFor(role)
 
     /**
      * Offers one automatically discovered backend without recursively starting discovery. [only] narrows the
@@ -84,7 +103,7 @@ internal object BackendRegistry {
         f64.install(context)
     }
 
-/**
+    /**
      * Test hook: clears every override and registration, leaving the portable fallbacks. Platform discovery is
      * not replayed by this, so pair it with rediscovery to put the process back as it was.
      */

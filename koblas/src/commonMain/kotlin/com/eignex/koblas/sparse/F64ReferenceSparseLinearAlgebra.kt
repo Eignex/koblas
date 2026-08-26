@@ -24,7 +24,11 @@ import kotlin.math.abs
 @Suppress("TooManyFunctions") // the sparse surface a backend half covers
 public open class F64ReferenceSparseBackend(public val configuredKernels: F64Kernels? = null) :
     F64SparseLinearAlgebra,
-    F64SparseKernels {
+    F64SparseKernels,
+    F64GeneralSparseLu,
+    F64SparseCholesky,
+    F64SparseLdl,
+    F64BasisFactorizations {
     override val name: String get() = BackendNames.REFERENCE
 
     override val isPortable: Boolean get() = true
@@ -33,6 +37,11 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
 
     /** The product form over this backend's own factorization, so the portable half stays portable. */
     override fun basisSolver(a: F64SparseMatrix): F64BasisSolver = F64ProductFormBasisSolver(a, this)
+
+    override fun factorBasis(basis: F64SparseMatrix): F64BasisFactorization {
+        requireSquare(basis, "factorBasis")
+        return F64RefactoringBasisFactorization(this, basis, factor(basis))
+    }
 
     @Suppress("LongParameterList") // the BLAS dgemv signature
     override fun gemv(

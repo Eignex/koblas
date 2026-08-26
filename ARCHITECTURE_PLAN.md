@@ -9,6 +9,15 @@ Multiplatform support.
 
 Maven Central installation and publication choices are out of scope.
 
+## Long-session execution goal
+
+Execute this roadmap as independently reviewable stacked GitHub PRs, including the native SuiteSparse and
+sparse-BLAS work recorded below. For every completed layer, create a `codex/` branch from the preceding stack
+branch, commit it, push it, and open a PR against that preceding branch. Do not stop at recommendations or
+local commits. Preserve portable semantics, make expert policy choices explicit, use measured dispatch gates,
+and keep every PR independently verified and documented. Do not merge or close PRs without separate
+authorization.
+
 ## Architectural principles
 
 1. Do not silently change the numerical algorithm because an unrelated backend artifact is present.
@@ -177,6 +186,12 @@ Acceptance criteria:
 
 ### PR 3: Split sparse selection into semantic roles
 
+Status: implemented on `codex/sparse-semantic-roles`; focused JVM and Linux/Native host tests passed, and
+`./gradlew check lintDocs --rerun-tasks` passed all 190 tasks. The process-wide registry excludes
+repeated-pattern and basis-specialized providers from automatic general-LU selection even when they can
+perform general LU; explicit contexts can still select them for that role. Typed capability keys support
+both selected-context lookup and exact named-provider lookup without implementation casts.
+
 - Separate general LU, repeated-pattern LU, symmetric factorizations, and basis roles in context resolution.
 - Establish and document a stable general-LU default.
 - Stop specialized providers from changing unrelated sparse operations merely by being present.
@@ -187,7 +202,7 @@ Acceptance criteria:
 
 - Adding BASICLU does not change general sparse LU selection.
 - JVM and Kotlin/Native resolve the same policy to the same semantic provider role.
-- KLU repeated-pattern and basis workflows remain explicitly reachable.
+- KLU repeated-pattern and basis-factorization workflows remain explicitly reachable.
 
 ### PR 4: Unify host and bundled numerical options
 
@@ -216,7 +231,78 @@ Acceptance criteria:
 - Cleaner fallback and explicit close cannot double free.
 - Host conformance tests cover lifecycle behavior.
 
-### PR 6: Introduce symbolic/numeric sparse factorization capabilities
+### PR 6: Add Kotlin/Native CHOLMOD sparse BLAS
+
+- Bind CHOLMOD sparse BLAS in `hostMain` using the existing dynamic-symbol plumbing.
+- Add Kotlin/Native marshalling and conformance tests for the same operation families supported on JVM.
+- Set the scalar/native `sparseProduct` gate explicitly rather than inheriting the level-2 default of zero.
+- Measure single- and multiple-right-hand-side routing and enable native execution only where it wins.
+
+Acceptance criteria:
+
+- Kotlin/Native can use CHOLMOD `sdmult` when CHOLMOD is available.
+- Native and JVM implementations agree with the portable reference, including alias and edge cases.
+- No zero threshold can silently activate a newly available scalar/native operation.
+- Host tests and the benchmark evidence used for dispatch thresholds are recorded in the PR.
+
+### PR 7: Add reusable native CSC descriptors
+
+- Introduce an explicitly owned handle that marshals a validated CSC matrix into a native CHOLMOD descriptor
+  once and reuses it across compatible products.
+- Make ownership, mutation, thread-safety, and close behavior explicit; reject stale or incompatible reuse.
+- Keep one-shot convenience calls and route them through the reusable implementation where appropriate.
+- Measure repeated `gemv`, `sdmult`, and sparse-product workloads separately from one-shot calls.
+
+Acceptance criteria:
+
+- Repeated products against one matrix do not rebuild or recopy its CSC descriptor.
+- The caller controls descriptor lifetime deterministically.
+- One-shot APIs retain portable semantics and do not leak native memory.
+- Dispatch gates distinguish setup-inclusive one-shot costs from amortized handle costs.
+
+### PR 8: Bind SPQR or stop shipping it
+
+- Audit the SPQR artifact, exported ABI, transitive SuiteSparse ownership, and target coverage.
+- Prefer a typed sparse-QR capability and factor/solve seam when it can be supported coherently on JVM and
+  Kotlin/Native.
+- If binding cannot meet the public contract, remove SPQR from produced artifacts and licence notices rather
+  than retaining unreachable binary weight; record the evidence for that decision.
+
+Acceptance criteria:
+
+- Shipped SPQR code is reachable through a documented typed capability with reference-conformance tests, or
+  it is no longer built and packaged.
+- Native resources follow the deterministic lifecycle contract.
+- Artifact and licence contents match the chosen outcome.
+
+### PR 9: Reopen sparse triangular solve extension points
+
+- Remove the unnecessary `final` restriction from `trsv` and `trsm` in `F64SparseBlasAdapter`.
+- Define the capability and dispatch contract needed for backend triangular solves without claiming support
+  where no bound library implements it.
+- Evaluate CSparse `cs_lsolve` and `cs_usolve`; bind them only if their storage, aliasing, and performance
+  behavior satisfy the public contract.
+
+Acceptance criteria:
+
+- A backend can specialize sparse triangular vector and block solves without replacing unrelated operations.
+- Portable fallback and alias behavior remain tested.
+- Any CSparse implementation is enabled by measured gates, not availability alone.
+
+### PR 10: Re-evaluate `gatherZero` on AVX-512
+
+- Run the committed benchmark suite on an AVX-512 host with the relevant scatter instructions available.
+- Record CPU features, JVM/runtime, sample sizes, crossover points, and variance.
+- Change dispatch or implementation only when the measurements show a stable win; otherwise retain the
+  current route and publish the negative result in the benchmark record.
+
+Acceptance criteria:
+
+- The decision is reproducible from the repository benchmark suite.
+- AVX2 behavior does not regress.
+- Threshold and capability diagnostics explain the resulting route.
+
+### PR 11: Introduce symbolic/numeric sparse factorization capabilities
 
 - Add explicit pattern analysis, numeric factorization, and compatible-value refactorization abstractions.
 - Implement KLU first without forcing unsupported providers into fake reuse.
@@ -230,7 +316,7 @@ Acceptance criteria:
 - Pattern incompatibility is reported explicitly.
 - Resource ownership of analysis and numeric factors is unambiguous.
 
-### PR 7: Add strided dense views and explicit buffer ownership
+### PR 12: Add strided dense views and explicit buffer ownership
 
 - Add offset/stride vector views and offset/leading-dimension matrix views.
 - Adapt reference kernels first, followed by native BLAS/LAPACK paths supported by their ABI.
@@ -244,7 +330,7 @@ Acceptance criteria:
 - Existing contiguous benchmarks do not regress materially.
 - Alias behavior is documented and tested.
 
-### PR 8: Strengthen workspace and allocation contracts
+### PR 13: Strengthen workspace and allocation contracts
 
 - Add typed managed and native scratch or operation-specific reusable plans.
 - Add strict allocation policies and structured allocation capabilities.
@@ -257,7 +343,7 @@ Acceptance criteria:
 - Strict mode reports an unsupported guarantee before silently allocating.
 - Repeated supported solves/refactors honor their declared contract.
 
-### PR 9: Add sparse block solves and factorization reports
+### PR 14: Add sparse block solves and factorization reports
 
 - Add multiple-right-hand-side sparse solve and solve-into APIs.
 - Add a common extensible factorization report.
@@ -269,7 +355,7 @@ Acceptance criteria:
 - Sparse block solves avoid one foreign call per right-hand side where the backend supports a block solve.
 - Reports distinguish unavailable statistics from valid zero values.
 
-### PR 10: Complete the expert-facing API and documentation
+### PR 15: Complete the expert-facing API and documentation
 
 - Add the capability/coverage matrix and workflow guides.
 - Repair stale README/package-doc references.
@@ -311,4 +397,9 @@ The roadmap is complete when an expert user can, without process-global mutation
 7. Request and verify a precise allocation guarantee.
 8. Solve sparse systems with one or multiple right-hand sides into caller-owned destinations.
 9. Obtain useful, extensible factorization and backend diagnostics.
-10. Find all of these contracts and workflows in the public documentation.
+10. Use CHOLMOD sparse BLAS from Kotlin/Native and amortize native CSC marshalling through an explicitly
+    owned reusable descriptor.
+11. Reach every shipped SPQR implementation through a typed capability, or avoid shipping dead SPQR code.
+12. Extend sparse triangular solves without an adapter-level final-method barrier.
+13. Rely on a reproducible AVX-512 measurement for `gatherZero` routing.
+14. Find all of these contracts and workflows in the public documentation.
