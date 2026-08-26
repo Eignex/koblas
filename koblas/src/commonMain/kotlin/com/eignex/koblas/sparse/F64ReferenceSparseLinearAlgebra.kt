@@ -9,6 +9,7 @@ import com.eignex.koblas.internal.numeric.euclideanNorm
 import com.eignex.koblas.sparse.basis.F64BasisSolver
 import com.eignex.koblas.sparse.basis.F64ProductFormBasisSolver
 import com.eignex.koblas.sparse.factorization.lu.F64SparseLuFactorization
+import com.eignex.koblas.sparse.factorization.lu.NO_DROP
 import kotlin.math.abs
 
 /**
@@ -80,8 +81,26 @@ public object F64ReferenceSparseLinearAlgebra :
         }
     }
 
-    override fun factor(a: F64SparseMatrix, equilibrate: Boolean, dropTolerance: Double): F64SparseFactorization =
-        F64SparseLuFactorization.factorCsc(a, equilibrate, dropTolerance)
+    override fun factor(a: F64SparseMatrix): F64SparseFactorization = factor(a, equilibrate = false)
+
+    /**
+     * The portable factorization with the knobs only it has. A host binding settles these in its own
+     * constructor; this backend is an object with no constructor to settle them in, so they stay arguments
+     * here rather than moving onto the seam every other backend would have to decline.
+     *
+     * @param a the square matrix to factorize.
+     * @param equilibrate scale rows by a power of two first; the solves undo it.
+     * @param dropTolerance discard produced entries this far below the largest magnitude, giving an
+     *   incomplete factorization.
+     */
+    public fun factor(
+        a: F64SparseMatrix,
+        equilibrate: Boolean = false,
+        dropTolerance: Double = NO_DROP,
+    ): F64SparseFactorization {
+        require(dropTolerance >= 0.0) { "dropTolerance must not be negative" }
+        return F64SparseLuFactorization.factorCsc(a, equilibrate, dropTolerance)
+    }
 
     override fun dot(x: F64SparseVector, y: DoubleArray): Double {
         requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }

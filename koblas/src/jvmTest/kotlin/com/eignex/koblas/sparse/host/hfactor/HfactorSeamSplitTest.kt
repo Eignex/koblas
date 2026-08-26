@@ -41,12 +41,7 @@ class HfactorSeamSplitTest {
         assertTrue(hfactor.priority < HOST_BACKEND_PRIORITY, "HFactor priority ${hfactor.priority}")
     }
 
-    /** Its updates are on the basis solver, and the property is about what `factorBasis` answers with. */
-    @Test
-    fun `the HFactor backend does not claim in-place column replacement`() {
-        assertFalse(hfactor.supportsBasisUpdates)
-    }
-
+    /** The column-replacement contract is BASICLU's own routine now, not a seam method HFactor declines. */
     @Test
     fun `BASICLU still claims in-place column replacement where it is available`() {
         assertEquals(basiclu.isAvailable, basiclu.supportsBasisUpdates)

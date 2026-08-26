@@ -3,6 +3,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.gemv
 import com.eignex.koblas.sparse.lu
 import kotlin.math.abs
@@ -274,7 +275,7 @@ class BlasConformanceTest {
                 (0 until n).mapNotNull { i -> if (dense[i, j] != 0.0) i to dense[i, j] else null }
             }
             val sparse = F64SparseMatrix.ofColumns(n, n, cols)
-            val lu = sparse.lu(equilibrate = true)
+            val lu = F64ReferenceSparseLinearAlgebra.factor(sparse, equilibrate = true)
             if (lu.singular) continue
             val xTrue = DoubleArray(n) { rng.nextDouble(-2.0, 2.0) }
             val b = sparse.gemv(xTrue)

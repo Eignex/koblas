@@ -15,15 +15,17 @@ import com.eignex.koblas.sparse.host.basiclu.BasicluSparseLu
  */
 public class BundledBasiclu private constructor(private val delegate: BasicluSparseLu) : F64SparseLu by delegate {
     /** Creates a BASICLU backend from the bundled library. */
-    public constructor(factorizeMin: Int? = null) :
-        this(BasicluSparseLu(BasicluConfig(basicluLibrary.extract().toString(), factorizeMin)))
+    public constructor(factorizeMin: Int? = null, equilibrate: Boolean = false) :
+        this(BasicluSparseLu(BasicluConfig(basicluLibrary.extract().toString(), factorizeMin, equilibrate)))
 
     override val name: String get() = "basiclu-bundled"
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 3
 
-    override val supportsBasisUpdates: Boolean get() = delegate.supportsBasisUpdates
+    /** BASICLU's own routines, forwarded so the bundled provider offers what a configured one does. */
+    public val supportsBasisUpdates: Boolean get() = delegate.supportsBasisUpdates
 
-    override fun factorBasis(basis: F64SparseMatrix): F64BasisFactorization = delegate.factorBasis(basis)
+    /** Factor a simplex [basis] for column replacements, which may bring in any column at all. */
+    public fun factorBasis(basis: F64SparseMatrix): F64BasisFactorization = delegate.factorBasis(basis)
 }
 
 private val basicluLibrary = BundledNativeResources.manifestDriven(

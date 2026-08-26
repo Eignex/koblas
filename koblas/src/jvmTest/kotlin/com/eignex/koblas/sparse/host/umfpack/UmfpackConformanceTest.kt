@@ -54,9 +54,10 @@ class UmfpackConformanceTest {
     }
 
     @Test
-    fun `equilibrate stays native and an unsupported drop tolerance is rejected`() {
+    fun `a backend set to equilibrate stays native and still solves`() {
         requireSuiteSparse()
-        assertNativeEquilibrationAndUnsupportedDropToleranceIsRejected(umfpack) { it is UmfpackFactorization }
+        val equilibrating = UmfpackSparseLu(UmfpackConfig(factorizeMin = 0, equilibrate = true))
+        assertNativeEquilibration(equilibrating) { it is UmfpackFactorization }
     }
 
     @Test

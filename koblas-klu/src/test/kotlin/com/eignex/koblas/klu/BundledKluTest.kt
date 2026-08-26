@@ -32,7 +32,7 @@ class BundledKluTest {
     fun `the bundled KLU honors equilibration`() {
         val matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 8.0), listOf(1 to 0.25)))
 
-        val factorization = BundledKlu(factorizeMin = 0).factor(matrix, equilibrate = true)
+        val factorization = BundledKlu(factorizeMin = 0, equilibrate = true).factor(matrix)
 
         assertContentEquals(doubleArrayOf(2.0, 3.0), factorization.solve(doubleArrayOf(16.0, 0.75)))
     }

@@ -19,6 +19,7 @@ import kotlin.test.*
 class BasicluNativeConformanceTest {
 
     private val basiclu = BasicluSparseLu(BasicluConfig(factorizeMin = 0))
+    private val equilibratingBasiclu = BasicluSparseLu(BasicluConfig(factorizeMin = 0, equilibrate = true))
 
     @Test
     fun `the binding reports what it is`() {
@@ -70,7 +71,7 @@ class BasicluNativeConformanceTest {
         val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
         assertClose(
             F64ReferenceSparseLinearAlgebra.factor(a, equilibrate = true).solve(b),
-            basiclu.factor(a, equilibrate = true).solve(b),
+            equilibratingBasiclu.factor(a).solve(b),
             "equilibrated",
             tolerance = 1e-9,
         )

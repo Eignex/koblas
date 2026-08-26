@@ -4,7 +4,6 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.backend.hostDispatchThresholds
 import com.eignex.koblas.requireSquare
 import com.eignex.koblas.sparse.*
-import com.eignex.koblas.sparse.factorization.lu.NO_DROP
 
 /**
  * Shared routing for a host sparse LU binding, the counterpart of the dense host adapters.
@@ -16,8 +15,14 @@ import com.eignex.koblas.sparse.factorization.lu.NO_DROP
  *
  * @param factorizeMin stored entries from which this binding factorizes natively, or null for the platform
  *   default.
+ * @property equilibrate whether this backend scales rows before factorizing and undoes it in the solves. It
+ *   is settled once here rather than per call, since it is policy of a piece with the scaling each
+ *   library's own settings already choose.
  */
-public abstract class F64SparseLuAdapter protected constructor(factorizeMin: Int? = null) : F64SparseLu {
+public abstract class F64SparseLuAdapter protected constructor(
+    factorizeMin: Int? = null,
+    protected val equilibrate: Boolean = false,
+) : F64SparseLu {
     /** Whether the binding resolved every symbol needed to factor and solve. */
     protected abstract val nativeAvailable: Boolean
 
@@ -27,23 +32,16 @@ public abstract class F64SparseLuAdapter protected constructor(factorizeMin: Int
 
     override val isPortable: Boolean get() = false
 
-    final override fun factor(
-        a: F64SparseMatrix,
-        equilibrate: Boolean,
-        dropTolerance: Double,
-    ): F64SparseFactorization {
+    final override fun factor(a: F64SparseMatrix): F64SparseFactorization {
         requireSquare(a, "factor")
-        require(dropTolerance >= 0.0) { "dropTolerance must not be negative" }
-        // Rejected before the gate is read, so which exception a caller gets does not turn on the size.
-        require(dropTolerance == NO_DROP) { "$name does not support drop tolerance" }
-        // A binding whose library is absent answers portably rather than throwing, which is what lets a
-        // caller reach [factorBasis] on any backend and get the refactoring fallback instead of an error.
+        // A binding whose library is absent answers portably rather than throwing, so a caller reaching a
+        // configured backend on a host without it gets the portable answer instead of an error.
         if (a.nnz < factorizeGate || !nativeAvailable) {
-            return F64ReferenceSparseLinearAlgebra.factor(a, equilibrate, dropTolerance)
+            return F64ReferenceSparseLinearAlgebra.factor(a, equilibrate)
         }
-        return factorNative(a, equilibrate)
+        return factorNative(a)
     }
 
-    /** Factorizes a matrix without a drop tolerance through the native library. */
-    protected abstract fun factorNative(a: F64SparseMatrix, equilibrate: Boolean): F64SparseFactorization
+    /** Factorizes a matrix through the native library, equilibrating when this backend is set to. */
+    protected abstract fun factorNative(a: F64SparseMatrix): F64SparseFactorization
 }

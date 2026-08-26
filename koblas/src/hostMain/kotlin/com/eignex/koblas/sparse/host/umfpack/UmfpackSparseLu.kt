@@ -14,7 +14,7 @@ import kotlinx.cinterop.*
 public class UmfpackSparseLu(
     /** Policy for this backend instance and the factors it produces. */
     public val config: UmfpackConfig = UmfpackConfig(),
-) : F64SparseLuAdapter(config.factorizeMin) {
+) : F64SparseLuAdapter(config.factorizeMin, config.equilibrate) {
     private val loader = UmfpackLoader(config)
 
     override val name: String get() = BackendNames.UMFPACK
@@ -28,7 +28,7 @@ public class UmfpackSparseLu(
 
     internal val pivotTolerance: Double? get() = loader.pivotTolerance
 
-    override fun factorNative(a: F64SparseMatrix, equilibrate: Boolean): F64SparseFactorization {
+    override fun factorNative(a: F64SparseMatrix): F64SparseFactorization {
         val f = loader.functions ?: error("UMFPACK is not available")
 
         val info = DoubleArray(INFO)

@@ -18,6 +18,8 @@ public data class UmfpackConfig(
     val libraryPath: String? = null,
     /** Smallest stored-entry count routed to the native factorization; null keeps the platform default. */
     val factorizeMin: Int? = null,
+    /** Whether to scale rows before factorizing and undo it in the solves. */
+    val equilibrate: Boolean = false,
     /** Maximum residual-correction passes each solve may perform. */
     val iterativeRefinementSteps: Int = 0,
     /** UMFPACK's threshold-pivoting tolerance. */

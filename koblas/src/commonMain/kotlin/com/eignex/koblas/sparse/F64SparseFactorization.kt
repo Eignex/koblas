@@ -3,6 +3,7 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.core.F64SparseVector
+import com.eignex.koblas.requireSquare
 
 /** A factorization held for reuse against further right-hand sides. */
 public interface F64SparseFactorization {
@@ -82,14 +83,22 @@ public fun requireSolveShapes(n: Int, b: DoubleArray, out: DoubleArray) {
 }
 
 /**
- * What a backend without factor updates answers [F64SparseLu.factorBasis] with. A replacement refactorizes
- * the basis it produces, so the factors stay exact at the cost of a factorization per pivot.
+ * A basis factorization over any [F64SparseLu], for a backend that cannot update its own factors. A
+ * replacement refactorizes the basis it produces, so the factors stay exact at the cost of a factorization
+ * per replacement.
+ *
+ * Public because it is what a caller wanting a basis factorization from a backend that does not offer one
+ * builds it from. BASICLU offers one; nothing else koblas binds does.
  */
-internal class F64RefactoringBasisFactorization(
+public class F64RefactoringBasisFactorization(
     private val lu: F64SparseLu,
     override val basis: F64SparseMatrix,
     private val factors: F64SparseFactorization,
 ) : F64BasisFactorization {
+    init {
+        requireSquare(basis, "factorBasis")
+    }
+
     override val n: Int get() = factors.n
 
     override val failedAt: Int get() = factors.failedAt
@@ -100,7 +109,7 @@ internal class F64RefactoringBasisFactorization(
 
     override fun replaceColumn(column: Int, entering: F64SparseVector): F64BasisFactorization {
         val next = basis.withColumn(column, entering)
-        return F64RefactoringBasisFactorization(lu, next, lu.refactor(factors, next))
+        return F64RefactoringBasisFactorization(lu, next, lu.factor(next))
     }
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray =

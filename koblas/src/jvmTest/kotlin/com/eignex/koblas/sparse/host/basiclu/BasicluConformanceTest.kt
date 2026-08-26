@@ -19,6 +19,7 @@ class BasicluConformanceTest {
     // Every assertion below is about the native binding, and these systems are small enough that the
     // stored-entry gate would hand them to the portable factorization instead.
     private val basiclu = BasicluSparseLu(BasicluConfig(factorizeMin = 0))
+    private val equilibratingBasiclu = BasicluSparseLu(BasicluConfig(factorizeMin = 0, equilibrate = true))
 
     private fun requireBasiclu() {
         Assume.assumeTrue("BASICLU is not installed; basiclu conformance cannot run", basiclu.isAvailable)
@@ -119,7 +120,7 @@ class BasicluConformanceTest {
     @Test
     fun `an equilibrated factorization stays native and still solves`() {
         requireBasiclu()
-        assertNativeEquilibrationAndUnsupportedDropToleranceIsRejected(basiclu) { it is BasicluFactorization }
+        assertNativeEquilibration(equilibratingBasiclu) { it is BasicluFactorization }
     }
 
     @Test
@@ -129,7 +130,7 @@ class BasicluConformanceTest {
         val n = 14
         val a = sparseConformanceSystem(n, rng)
         val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
-        val host = basiclu.factor(a, equilibrate = true)
+        val host = equilibratingBasiclu.factor(a)
 
         for (transpose in booleanArrayOf(false, true)) {
             assertClose(
@@ -150,7 +151,7 @@ class BasicluConformanceTest {
         val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
         val untouched = b.copyOf()
 
-        basiclu.factor(a, equilibrate = true).solve(b)
+        equilibratingBasiclu.factor(a).solve(b)
 
         assertContentEquals(untouched, b, "the right-hand side was scaled in place")
     }
