@@ -51,6 +51,15 @@ these are unsymmetric LU and nothing else. Such a binding answers the rest porta
 [F64SparseDecompositionsAdapter][com.eignex.koblas.sparse.host.F64SparseDecompositionsAdapter], which is the
 same fallback it already uses below its own size gate.
 
+One seam resolving to one backend is what makes that fallback matter. A library native at only one of these
+routines and registering as a backend of its own would take the half from one native at the other, and the
+loser's speciality would fall back for as long as it held. CHOLMOD is that case: it is the sparse Cholesky
+and it has no LU. So it is not a backend. It is the routine the SuiteSparse bindings fill their Cholesky
+with, `CholmodCholesky` in the `host.cholmod` package of the targets that have one, and KLU and UMFPACK each
+answer with it. One backend holds the half and answers both routines natively, whichever of them the ranking
+picked, and [com.eignex.koblas.sparseDecompositionsNamed] still hands out the particular library a caller
+asks for.
+
 - LU: [F64SparseLuFactorization][com.eignex.koblas.sparse.factorization.lu.F64SparseLuFactorization], a
   Markowitz threshold-pivoting `P·B·Q = L·U` that keeps the factors sparse instead of filling toward `O(m²)`.
 - Cholesky:

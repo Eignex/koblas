@@ -757,6 +757,25 @@ final class com.eignex.koblas.sparse.host.basiclu/BasicluConfig { // com.eignex.
     final fun toString(): kotlin/String // com.eignex.koblas.sparse.host.basiclu/BasicluConfig.toString|toString(){}[0]
 }
 
+final class com.eignex.koblas.sparse.host.cholmod/CholmodConfig { // com.eignex.koblas.sparse.host.cholmod/CholmodConfig|null[0]
+    constructor <init>(kotlin/String? = ..., kotlin/String? = ..., kotlin/Int? = ...) // com.eignex.koblas.sparse.host.cholmod/CholmodConfig.<init>|<init>(kotlin.String?;kotlin.String?;kotlin.Int?){}[0]
+
+    final val factorizeMin // com.eignex.koblas.sparse.host.cholmod/CholmodConfig.factorizeMin|{}factorizeMin[0]
+        final fun <get-factorizeMin>(): kotlin/Int? // com.eignex.koblas.sparse.host.cholmod/CholmodConfig.factorizeMin.<get-factorizeMin>|<get-factorizeMin>(){}[0]
+    final val libraryPath // com.eignex.koblas.sparse.host.cholmod/CholmodConfig.libraryPath|{}libraryPath[0]
+        final fun <get-libraryPath>(): kotlin/String? // com.eignex.koblas.sparse.host.cholmod/CholmodConfig.libraryPath.<get-libraryPath>|<get-libraryPath>(){}[0]
+    final val searchDirectory // com.eignex.koblas.sparse.host.cholmod/CholmodConfig.searchDirectory|{}searchDirectory[0]
+        final fun <get-searchDirectory>(): kotlin/String? // com.eignex.koblas.sparse.host.cholmod/CholmodConfig.searchDirectory.<get-searchDirectory>|<get-searchDirectory>(){}[0]
+
+    final fun component1(): kotlin/String? // com.eignex.koblas.sparse.host.cholmod/CholmodConfig.component1|component1(){}[0]
+    final fun component2(): kotlin/String? // com.eignex.koblas.sparse.host.cholmod/CholmodConfig.component2|component2(){}[0]
+    final fun component3(): kotlin/Int? // com.eignex.koblas.sparse.host.cholmod/CholmodConfig.component3|component3(){}[0]
+    final fun copy(kotlin/String? = ..., kotlin/String? = ..., kotlin/Int? = ...): com.eignex.koblas.sparse.host.cholmod/CholmodConfig // com.eignex.koblas.sparse.host.cholmod/CholmodConfig.copy|copy(kotlin.String?;kotlin.String?;kotlin.Int?){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas.sparse.host.cholmod/CholmodConfig.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // com.eignex.koblas.sparse.host.cholmod/CholmodConfig.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // com.eignex.koblas.sparse.host.cholmod/CholmodConfig.toString|toString(){}[0]
+}
+
 final class com.eignex.koblas.sparse.host.hfactor/HfactorConfig { // com.eignex.koblas.sparse.host.hfactor/HfactorConfig|null[0]
     constructor <init>(kotlin/String? = ..., kotlin/Int? = ..., kotlin/Boolean = ...) // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.<init>|<init>(kotlin.String?;kotlin.Int?;kotlin.Boolean){}[0]
 
@@ -1248,6 +1267,30 @@ final class com.eignex.koblas.sparse.host.basiclu/BasicluBasisFactorization : co
 }
 
 // Targets: [linux, macosArm64]
+final class com.eignex.koblas.sparse.host.cholmod/CholmodCholesky { // com.eignex.koblas.sparse.host.cholmod/CholmodCholesky|null[0]
+    constructor <init>(com.eignex.koblas.sparse.host.cholmod/CholmodConfig = ...) // com.eignex.koblas.sparse.host.cholmod/CholmodCholesky.<init>|<init>(com.eignex.koblas.sparse.host.cholmod.CholmodConfig){}[0]
+
+    final val isAvailable // com.eignex.koblas.sparse.host.cholmod/CholmodCholesky.isAvailable|{}isAvailable[0]
+        final fun <get-isAvailable>(): kotlin/Boolean // com.eignex.koblas.sparse.host.cholmod/CholmodCholesky.isAvailable.<get-isAvailable>|<get-isAvailable>(){}[0]
+
+    final fun factor(com.eignex.koblas.core/F64SparseMatrix): com.eignex.koblas.sparse/F64SparseFactorization? // com.eignex.koblas.sparse.host.cholmod/CholmodCholesky.factor|factor(com.eignex.koblas.core.F64SparseMatrix){}[0]
+}
+
+// Targets: [linux, macosArm64]
+final class com.eignex.koblas.sparse.host.cholmod/CholmodFactorization : com.eignex.koblas.sparse/F64SparseFactorization { // com.eignex.koblas.sparse.host.cholmod/CholmodFactorization|null[0]
+    final val failedAt // com.eignex.koblas.sparse.host.cholmod/CholmodFactorization.failedAt|{}failedAt[0]
+        final fun <get-failedAt>(): kotlin/Int // com.eignex.koblas.sparse.host.cholmod/CholmodFactorization.failedAt.<get-failedAt>|<get-failedAt>(){}[0]
+    final val n // com.eignex.koblas.sparse.host.cholmod/CholmodFactorization.n|{}n[0]
+        final fun <get-n>(): kotlin/Int // com.eignex.koblas.sparse.host.cholmod/CholmodFactorization.n.<get-n>|<get-n>(){}[0]
+    final val nnz // com.eignex.koblas.sparse.host.cholmod/CholmodFactorization.nnz|{}nnz[0]
+        final fun <get-nnz>(): kotlin/Int // com.eignex.koblas.sparse.host.cholmod/CholmodFactorization.nnz.<get-nnz>|<get-nnz>(){}[0]
+    final val rcond // com.eignex.koblas.sparse.host.cholmod/CholmodFactorization.rcond|{}rcond[0]
+        final fun <get-rcond>(): kotlin/Double // com.eignex.koblas.sparse.host.cholmod/CholmodFactorization.rcond.<get-rcond>|<get-rcond>(){}[0]
+
+    final fun solveInto(kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean, com.eignex.koblas/Workspace?): kotlin/DoubleArray // com.eignex.koblas.sparse.host.cholmod/CholmodFactorization.solveInto|solveInto(kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
+}
+
+// Targets: [linux, macosArm64]
 final class com.eignex.koblas.sparse.host.klu/KluFactorization : com.eignex.koblas.sparse/F64SparseFactorization { // com.eignex.koblas.sparse.host.klu/KluFactorization|null[0]
     final val n // com.eignex.koblas.sparse.host.klu/KluFactorization.n|{}n[0]
         final fun <get-n>(): kotlin/Int // com.eignex.koblas.sparse.host.klu/KluFactorization.n.<get-n>|<get-n>(){}[0]
@@ -1335,6 +1378,7 @@ open class com.eignex.koblas.sparse.host.klu/KluSparseLu : com.eignex.koblas.spa
     open val priority // com.eignex.koblas.sparse.host.klu/KluSparseLu.priority|{}priority[0]
         open fun <get-priority>(): kotlin/Int // com.eignex.koblas.sparse.host.klu/KluSparseLu.priority.<get-priority>|<get-priority>(){}[0]
 
+    final fun choleskyNative(com.eignex.koblas.core/F64SparseMatrix): com.eignex.koblas.sparse/F64SparseFactorization // com.eignex.koblas.sparse.host.klu/KluSparseLu.choleskyNative|choleskyNative(com.eignex.koblas.core.F64SparseMatrix){}[0]
     final fun factorNative(com.eignex.koblas.core/F64SparseMatrix): com.eignex.koblas.sparse/F64SparseFactorization // com.eignex.koblas.sparse.host.klu/KluSparseLu.factorNative|factorNative(com.eignex.koblas.core.F64SparseMatrix){}[0]
     final fun refactor(com.eignex.koblas.sparse/F64SparseFactorization, com.eignex.koblas.core/F64SparseMatrix): com.eignex.koblas.sparse/F64SparseFactorization // com.eignex.koblas.sparse.host.klu/KluSparseLu.refactor|refactor(com.eignex.koblas.sparse.F64SparseFactorization;com.eignex.koblas.core.F64SparseMatrix){}[0]
 }
@@ -1352,5 +1396,6 @@ open class com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu : com.eignex.ko
     open val priority // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.priority|{}priority[0]
         open fun <get-priority>(): kotlin/Int // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.priority.<get-priority>|<get-priority>(){}[0]
 
+    final fun choleskyNative(com.eignex.koblas.core/F64SparseMatrix): com.eignex.koblas.sparse/F64SparseFactorization // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.choleskyNative|choleskyNative(com.eignex.koblas.core.F64SparseMatrix){}[0]
     final fun factorNative(com.eignex.koblas.core/F64SparseMatrix): com.eignex.koblas.sparse/F64SparseFactorization // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.factorNative|factorNative(com.eignex.koblas.core.F64SparseMatrix){}[0]
 }

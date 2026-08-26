@@ -6,6 +6,7 @@ import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.koblas
 import com.eignex.koblas.randomVector
+import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.cholesky
 import com.eignex.koblas.sparse.gemv
 import kotlin.random.Random
@@ -79,7 +80,7 @@ class SparseCholeskyTest {
         val n = 9
         val (sparse, dense) = spd(n, rng)
 
-        val l = (sparse.cholesky() as F64SparseCholeskyFactorization).l
+        val l = (F64ReferenceSparseLinearAlgebra.cholesky(sparse) as F64SparseCholeskyFactorization).l
 
         for (j in 0 until n) {
             for (i in j until n) {
@@ -96,7 +97,7 @@ class SparseCholeskyTest {
         val n = 8
         val (sparse, _) = spd(n, rng)
 
-        val l = (sparse.cholesky() as F64SparseCholeskyFactorization).l
+        val l = (F64ReferenceSparseLinearAlgebra.cholesky(sparse) as F64SparseCholeskyFactorization).l
 
         for (j in 0 until n) {
             var aboveDiagonal = 0
@@ -147,7 +148,7 @@ class SparseCholeskyTest {
         val n = 5
         val identity = F64SparseMatrix.ofColumns(n, n, List(n) { j -> listOf(j to 1.0) })
 
-        val f = identity.cholesky()
+        val f = F64ReferenceSparseLinearAlgebra.cholesky(identity)
 
         assertEquals(n, f.nnz, "an identity should fill nowhere")
         assertEquals(1.0, f.rcond)
@@ -190,7 +191,7 @@ class SparseCholeskyTest {
         }
         val arrow = F64SparseMatrix.ofColumns(n, n, columns)
 
-        val f = arrow.cholesky()
+        val f = F64ReferenceSparseLinearAlgebra.cholesky(arrow)
 
         assertTrue(f.nnz == arrow.nnz, "an arrow pointing at its last row fills nowhere, got ${f.nnz}")
     }
