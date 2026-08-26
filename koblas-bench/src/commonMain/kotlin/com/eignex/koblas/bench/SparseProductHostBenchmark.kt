@@ -29,6 +29,8 @@ class SparseProductHostBenchmark {
     private lateinit var y: DoubleArray
     private lateinit var dense: F64DenseMatrix
     private lateinit var product: F64DenseMatrix
+    private lateinit var denseSingle: F64DenseMatrix
+    private lateinit var productSingle: F64DenseMatrix
     private lateinit var triangle: F64SparseMatrix
     private lateinit var scratch: DoubleArray
 
@@ -43,6 +45,8 @@ class SparseProductHostBenchmark {
         y = randomVector(n, rng)
         dense = randomMatrix(n, RIGHT_HAND_SIDES, rng)
         product = randomMatrix(n, RIGHT_HAND_SIDES, rng)
+        denseSingle = randomMatrix(n, 1, rng)
+        productSingle = randomMatrix(n, 1, rng)
         triangle = bandUpperTriangle(n)
         scratch = randomVector(n, rng)
         println("resolved: sparseBlas=${koblas.sparseBlas.name} n=$n nnz(A)=${a.nnz}")
@@ -52,6 +56,13 @@ class SparseProductHostBenchmark {
     fun gemm(): F64DenseMatrix {
         koblas.sparseBlas.gemm(1.0, a, false, dense, false, 0.0, product)
         return product
+    }
+
+    /** The same native operation over one dense column, to expose whether its fixed marshalling cost pays. */
+    @Benchmark
+    fun gemmSingle(): F64DenseMatrix {
+        koblas.sparseBlas.gemm(1.0, a, false, denseSingle, false, 0.0, productSingle)
+        return productSingle
     }
 
     @Benchmark

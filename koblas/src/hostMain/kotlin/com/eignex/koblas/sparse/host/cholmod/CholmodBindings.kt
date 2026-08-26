@@ -26,6 +26,10 @@ internal class CholmodFunctions(private val lib: COpaquePointer) {
 
     val rcond = required("cholmod_rcond").reinterpret<CFunction<(Block, Block) -> Double>>()
 
+    val sdmult = required("cholmod_sdmult").reinterpret<
+        CFunction<(Block, Int, CPointer<DoubleVar>, CPointer<DoubleVar>, Block, Block, Block) -> Int>,
+        >()
+
     val freeFactor = required("cholmod_free_factor").reinterpret<CFunction<(HandleSlot, Block) -> Int>>()
 
     val freeDense = required("cholmod_free_dense").reinterpret<CFunction<(HandleSlot, Block) -> Int>>()
@@ -95,7 +99,12 @@ internal fun pointerAt(block: CPointer<ByteVar>, offset: Long): COpaquePointer? 
  * The copy is what taking operands as a struct costs: a struct field holds an address, and a Kotlin array
  * pinned for the length of one call has none to leave behind.
  */
-internal fun describeLowerTriangle(a: F64SparseMatrix): CPointer<ByteVar> {
+internal fun describeLowerTriangle(a: F64SparseMatrix): CPointer<ByteVar> = describeMatrix(a, CHOLMOD_STYPE_LOWER)
+
+/** [a] as a general `cholmod_sparse`, including every stored entry. */
+internal fun describeGeneral(a: F64SparseMatrix): CPointer<ByteVar> = describeMatrix(a, CHOLMOD_STYPE_GENERAL)
+
+private fun describeMatrix(a: F64SparseMatrix, stype: Int): CPointer<ByteVar> {
     val nnz = maxOf(a.nnz, 1)
     val columnPointers = nativeHeap.allocArray<IntVar>(a.cols + 1)
     for (j in 0..a.cols) columnPointers[j] = a.colPtr[j]
@@ -114,7 +123,7 @@ internal fun describeLowerTriangle(a: F64SparseMatrix): CPointer<ByteVar> {
     pointerAt(sparse, CHOLMOD_SPARSE_NZ, null)
     pointerAt(sparse, CHOLMOD_SPARSE_X, values)
     pointerAt(sparse, CHOLMOD_SPARSE_Z, null)
-    intAt(sparse, CHOLMOD_SPARSE_STYPE, CHOLMOD_STYPE_LOWER)
+    intAt(sparse, CHOLMOD_SPARSE_STYPE, stype)
     intAt(sparse, CHOLMOD_SPARSE_ITYPE, CHOLMOD_INT)
     intAt(sparse, CHOLMOD_SPARSE_XTYPE, CHOLMOD_REAL)
     intAt(sparse, CHOLMOD_SPARSE_DTYPE, CHOLMOD_DOUBLE)

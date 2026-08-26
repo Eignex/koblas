@@ -3,15 +3,12 @@ package com.eignex.koblas.sparse.host.cholmod
 /**
  * Policy for one CHOLMOD binding.
  *
- * CHOLMOD is not a backend of its own: it fills the Cholesky and `L·D·Lᵀ` routines of a SuiteSparse backend
- * whose LU comes from KLU or UMFPACK, so that the seam resolves to one library collection answering all of
- * them natively rather than to two backends each declining the other's routine. [searchDirectory] is how that
- * works without a second configured path: a SuiteSparse binding names the directory it loaded its own library
- * from, and CHOLMOD ships beside it.
+ * CHOLMOD fills the sparse BLAS seam directly and also supplies Cholesky and `L·D·Lᵀ` routines to the
+ * SuiteSparse LU backends. [searchDirectory] lets those composite backends find CHOLMOD beside the library
+ * they loaded without requiring a second configured path.
  *
- * No size gate here. What decides between this and the portable factorization is the gate on
- * [com.eignex.koblas.sparse.host.F64SparseDecompositionsAdapter], which runs before the backend reaches this
- * at all, and a second one here could only disagree with it.
+ * This object locates the library only. Sparse-product routing is configured on `CholmodSparseBlas`, while
+ * factorization routing belongs to the SuiteSparse decomposition backend that uses CHOLMOD.
  */
 public data class CholmodConfig(
     /** An absolute CHOLMOD library path, or the platform lookup chain when null. */

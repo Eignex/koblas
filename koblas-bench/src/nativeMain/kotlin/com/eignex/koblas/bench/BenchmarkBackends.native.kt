@@ -3,6 +3,7 @@ package com.eignex.koblas.bench
 import com.eignex.koblas.dense.host.cblas.*
 import com.eignex.koblas.installBackends
 import com.eignex.koblas.sparse.host.F64SparseBackends
+import com.eignex.koblas.sparse.host.cholmod.CholmodSparseBlas
 import com.eignex.koblas.sparse.host.umfpack.UmfpackConfig
 import com.eignex.koblas.koblas
 
@@ -38,8 +39,12 @@ private fun installHost(config: HostBlasConfig): Boolean {
     return true
 }
 
-/** No native sparse product binding on this target, so the portable one is what a run measures. */
-internal actual fun useUngatedSparseProduct(): Boolean = false
+internal actual fun useUngatedSparseProduct(): Boolean {
+    val cholmod = CholmodSparseBlas(level2Min = 0)
+    if (!cholmod.isAvailable) return false
+    installBackends(koblas.with(sparseBlas = cholmod))
+    return true
+}
 
 internal actual fun useUngatedSparseLu(): Boolean {
     val umfpack = F64SparseBackends(UmfpackConfig(factorizeMin = 0)).umfpack

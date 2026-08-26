@@ -4,6 +4,7 @@ import com.eignex.koblas.Backend
 import com.eignex.koblas.dense.host.cblas.*
 import com.eignex.koblas.sparse.host.F64SparseBackends
 import com.eignex.koblas.sparse.host.basiclu.BasicluConfig
+import com.eignex.koblas.sparse.host.cholmod.CholmodConfig
 import com.eignex.koblas.sparse.host.klu.KluConfig
 import com.eignex.koblas.sparse.host.umfpack.UmfpackConfig
 
@@ -55,8 +56,9 @@ private fun registerSparse(requested: String?) {
         umfpackConfig = UmfpackConfig(libraryPath = libraryPath(ConfigurationKeys.UMFPACK_PATH)),
         kluConfig = KluConfig(libraryPath(ConfigurationKeys.KLU_PATH)),
         basicluConfig = BasicluConfig(libraryPath(ConfigurationKeys.BASICLU_PATH)),
+        cholmodConfig = CholmodConfig(libraryPath = libraryPath(ConfigurationKeys.CHOLMOD_PATH)),
     )
-    for (backend in listOf(sparse.umfpack, sparse.klu, sparse.basiclu)) {
+    for (backend in listOf(sparse.umfpack, sparse.klu, sparse.basiclu, sparse.cholmod)) {
         if (backend.isAvailable && offered(backend, requested)) BackendRegistry.registerAutomatic(backend)
     }
 }

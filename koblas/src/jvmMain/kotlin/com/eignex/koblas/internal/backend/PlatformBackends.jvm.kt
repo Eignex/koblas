@@ -8,6 +8,7 @@ import com.eignex.koblas.dense.host.jvm.F64Backends
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.sparse.host.F64SparseBackends
 import com.eignex.koblas.sparse.host.basiclu.BasicluConfig
+import com.eignex.koblas.sparse.host.cholmod.CholmodConfig
 import com.eignex.koblas.sparse.host.hfactor.HfactorConfig
 import com.eignex.koblas.sparse.host.klu.KluConfig
 import com.eignex.koblas.sparse.host.umfpack.UmfpackConfig
@@ -67,6 +68,7 @@ private class AutomaticHostConfiguration {
     val umfpack = UmfpackConfig(libraryPath = libraryPath(ConfigurationKeys.UMFPACK_PATH))
     val basiclu = BasicluConfig(libraryPath(ConfigurationKeys.BASICLU_PATH))
     val hfactor = HfactorConfig(libraryPath(ConfigurationKeys.HFACTOR_PATH))
+    val cholmod = CholmodConfig(libraryPath = libraryPath(ConfigurationKeys.CHOLMOD_PATH))
 
     fun overrides(provider: Backend): Boolean = when (provider.name.removeSuffix("-bundled")) {
         BackendNames.OPENBLAS -> provider.name.endsWith("-bundled") &&
@@ -108,6 +110,7 @@ private fun registerBuiltins(
         umfpackConfig = automatic.umfpack,
         basicluConfig = automatic.basiclu,
         hfactorConfig = automatic.hfactor,
+        cholmodConfig = automatic.cholmod,
     )
     registerIfOffered(sparse.klu, sparseRequested)
     registerIfOffered(sparse.umfpack, sparseRequested)
