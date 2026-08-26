@@ -186,8 +186,9 @@ Acceptance criteria:
 
 ### PR 3: Split sparse selection into semantic roles
 
-Status: implemented on `codex/sparse-semantic-roles`; focused JVM and Linux/Native host tests passed, and
-`./gradlew check lintDocs --rerun-tasks` passed all 190 tasks. The process-wide registry excludes
+Status: open as [PR #314](https://github.com/Eignex/koblas/pull/314) from
+`codex/sparse-semantic-roles`; focused JVM and Linux/Native host tests passed, and `./gradlew check lintDocs
+--rerun-tasks` passed all 190 tasks. The process-wide registry excludes
 repeated-pattern and basis-specialized providers from automatic general-LU selection even when they can
 perform general LU; explicit contexts can still select them for that role. Typed capability keys support
 both selected-context lookup and exact named-provider lookup without implementation casts.
