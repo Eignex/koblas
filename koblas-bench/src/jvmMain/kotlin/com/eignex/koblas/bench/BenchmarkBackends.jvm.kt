@@ -24,8 +24,15 @@ internal actual fun useShippedHost(): Boolean = installHost(HostBlasConfig())
  * dot and axpy through a foreign call whatever level1Min says, and a routine that stayed portable would be
  * timed against that instead of against the compiled-in kernels.
  */
+internal actual fun useUngatedSolves(): Boolean = installHalves(HostBlasConfig(level2Min = 0, level3Min = 0))
+
 internal actual fun useUngatedFactorization(): Boolean {
-    val backends = F64Backends(HostBlasConfig(factorizeMin = 0))
+    return installHalves(HostBlasConfig(factorizeMin = 0))
+}
+
+/** Both halves a decomposition needs, and not the kernels, for the reason above. */
+private fun installHalves(config: HostBlasConfig): Boolean {
+    val backends = F64Backends(config)
     if (!backends.blas.isAvailable) return false
     installBackends(koblas.with(blas = backends.blas, decompositions = backends.decompositions))
     return true
