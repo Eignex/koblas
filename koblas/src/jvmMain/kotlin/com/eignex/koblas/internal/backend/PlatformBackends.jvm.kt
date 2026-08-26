@@ -8,6 +8,7 @@ import com.eignex.koblas.dense.host.jvm.F64Backends
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.sparse.host.F64SparseBackends
 import com.eignex.koblas.sparse.host.basiclu.BasicluConfig
+import com.eignex.koblas.sparse.host.hfactor.HfactorConfig
 import com.eignex.koblas.sparse.host.klu.KluConfig
 import com.eignex.koblas.sparse.host.umfpack.UmfpackConfig
 import java.util.ServiceLoader
@@ -56,6 +57,7 @@ private class AutomaticHostConfiguration {
     val klu = KluConfig(libraryPath(ConfigurationKeys.KLU_PATH))
     val umfpack = UmfpackConfig(libraryPath = libraryPath(ConfigurationKeys.UMFPACK_PATH))
     val basiclu = BasicluConfig(libraryPath(ConfigurationKeys.BASICLU_PATH))
+    val hfactor = HfactorConfig(libraryPath(ConfigurationKeys.HFACTOR_PATH))
 
     fun overrides(provider: Backend): Boolean = when (provider.name.removeSuffix("-bundled")) {
         BackendNames.OPENBLAS -> provider.name.endsWith("-bundled") &&
@@ -66,6 +68,8 @@ private class AutomaticHostConfiguration {
         BackendNames.UMFPACK -> provider.name.endsWith("-bundled") && umfpack.libraryPath != null
 
         BackendNames.BASICLU -> provider.name.endsWith("-bundled") && basiclu.libraryPath != null
+
+        BackendNames.HFACTOR -> provider.name.endsWith("-bundled") && hfactor.libraryPath != null
 
         else -> false
     }
@@ -90,10 +94,16 @@ private fun registerBuiltins(
         BackendRegistry.registerAutomatic(dense.kernels)
         dense.decompositions.takeIf { it.isAvailable }?.let { BackendRegistry.registerAutomatic(it) }
     }
-    val sparse = F64SparseBackends(automatic.klu, automatic.umfpack, automatic.basiclu)
+    val sparse = F64SparseBackends(
+        kluConfig = automatic.klu,
+        umfpackConfig = automatic.umfpack,
+        basicluConfig = automatic.basiclu,
+        hfactorConfig = automatic.hfactor,
+    )
     registerIfOffered(sparse.klu, sparseRequested)
     registerIfOffered(sparse.umfpack, sparseRequested)
     registerIfOffered(sparse.basiclu, sparseRequested)
+    registerIfOffered(sparse.hfactor, sparseRequested)
 }
 
 /**
@@ -126,7 +136,7 @@ private fun <T : Backend> loadProviders(type: Class<T>, providers: MutableList<B
             if (!iterator.hasNext()) break
             providers.add(iterator.next())
         } catch (_: Throwable) {
-            break // a malformed registration poisons the iterator, keep what loaded so far
+            continue // ServiceLoader advances past the bad entry before reporting it
         }
     }
 }

@@ -4,6 +4,7 @@ import com.eignex.koblas.dense.host.cblas.HostBlasConfig
 import com.eignex.koblas.dense.host.jvm.HostBlasCalls
 import com.eignex.koblas.sparse.host.F64SparseBackends
 import com.eignex.koblas.sparse.host.basiclu.BasicluConfig
+import com.eignex.koblas.sparse.host.hfactor.HfactorConfig
 import com.eignex.koblas.sparse.host.klu.KluConfig
 import com.eignex.koblas.sparse.host.umfpack.UmfpackConfig
 import com.eignex.koblas.testutil.host.HostLibraryTest
@@ -42,6 +43,7 @@ class HostCoverageTest {
                 klu = KluConfig(nowhere),
                 umfpack = UmfpackConfig(libraryPath = nowhere),
                 basiclu = BasicluConfig(nowhere),
+                hfactor = HfactorConfig(nowhere),
             ),
         )
     }
@@ -55,15 +57,17 @@ class HostCoverageTest {
         klu: KluConfig = KluConfig(libraryPath(ConfigurationKeys.KLU_PATH)),
         umfpack: UmfpackConfig = UmfpackConfig(libraryPath = libraryPath(ConfigurationKeys.UMFPACK_PATH)),
         basiclu: BasicluConfig = BasicluConfig(libraryPath(ConfigurationKeys.BASICLU_PATH)),
+        hfactor: HfactorConfig = HfactorConfig(libraryPath(ConfigurationKeys.HFACTOR_PATH)),
     ): List<String> {
         val dense = HostBlasCalls(blas)
-        val sparse = F64SparseBackends(klu, umfpack, basiclu)
+        val sparse = F64SparseBackends(klu, umfpack, basiclu, hfactor)
         return buildList {
             if (dense.available) add("cblas")
             if (dense.lapackAvailable) add("lapacke")
             if (sparse.klu.isAvailable) add("klu")
             if (sparse.umfpack.isAvailable) add("umfpack")
             if (sparse.basiclu.isAvailable) add("basiclu")
+            if (sparse.hfactor.isAvailable) add("hfactor")
         }
     }
 }

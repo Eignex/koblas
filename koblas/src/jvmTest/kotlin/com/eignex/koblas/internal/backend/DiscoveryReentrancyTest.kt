@@ -80,12 +80,29 @@ class DiscoveryReentrancyTest {
 
     @Test
     fun `a service-loaded provider does not restart discovery while being probed`() {
+        val report = discoverFromService(
+            "com.eignex.koblas.internal.backend.ProbeReentrantProvider\n",
+        )
+        assertEquals("passes=1", report.substringAfter(' '), "discovery restarted while probing: $report")
+        assertTrue("probe-reentrant" in report, "the probed provider should still register: $report")
+    }
+
+    @Test
+    fun `a malformed service provider does not hide a later provider`() {
+        val report = discoverFromService(
+            "com.eignex.koblas.internal.backend.MissingProvider\n" +
+                "com.eignex.koblas.internal.backend.ProbeReentrantProvider\n",
+        )
+        assertTrue("probe-reentrant" in report, "the valid provider should still register: $report")
+    }
+
+    private fun discoverFromService(registration: String): String {
         val services = Files.createTempDirectory("koblas-discovery")
         val registrations = services.resolve("META-INF/services")
         Files.createDirectories(registrations)
         Files.writeString(
             registrations.resolve("com.eignex.koblas.dense.F64LinearAlgebra"),
-            "com.eignex.koblas.internal.backend.ProbeReentrantProvider\n",
+            registration,
         )
         val separator = System.getProperty("path.separator")
         val process = ProcessBuilder(
@@ -104,7 +121,6 @@ class DiscoveryReentrancyTest {
         assertTrue(report != null, "the forked JVM never resolved a context:\n$head")
         // One pass. Before the guard this recursed until the stack ran out, thousands of passes deep, and
         // the StackOverflowError that ended it was swallowed by the probe's own catch.
-        assertEquals("passes=1", report.substringAfter(' '), "discovery restarted while probing: $report")
-        assertTrue("probe-reentrant" in report, "the probed provider should still register: $report")
+        return report
     }
 }
