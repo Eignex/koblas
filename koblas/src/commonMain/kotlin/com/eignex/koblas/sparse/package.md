@@ -36,7 +36,8 @@ For the same reason [F64SparseLu] carries only what every sparse LU does. What o
 others do not is a routine on that library: KLU's `refactor`, which reuses a symbolic analysis across
 matrices of one pattern; BASICLU's `factorBasis`; HFactor's `basisSolver`, which has a half of its own
 because the portable backend answers it too. Row equilibration and a drop tolerance are policy a backend's
-constructor settles, beside the settings that already say how to scale.
+constructor settles, beside the settings that already say how to scale; the portable half settles them in
+[F64ReferenceSparseLu], whose `Default` is what the seam falls back to.
 - Implementation: [F64SparseLuFactorization][com.eignex.koblas.sparse.factorization.lu.F64SparseLuFactorization], a Markowitz threshold-pivoting
   `P·B·Q = L·U` that keeps the factors sparse instead of filling toward `O(m²)`.
 

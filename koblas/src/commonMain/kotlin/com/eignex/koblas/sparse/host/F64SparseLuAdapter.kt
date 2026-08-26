@@ -28,6 +28,9 @@ public abstract class F64SparseLuAdapter protected constructor(
 
     private val factorizeGate = hostDispatchThresholds(factorize = factorizeMin).factorize
 
+    /** The portable factorization at this backend's own policy, for everything the library will not take. */
+    protected val portable: F64ReferenceSparseLu = F64ReferenceSparseLu(equilibrate = equilibrate)
+
     override val isAvailable: Boolean get() = nativeAvailable
 
     override val isPortable: Boolean get() = false
@@ -37,7 +40,7 @@ public abstract class F64SparseLuAdapter protected constructor(
         // A binding whose library is absent answers portably rather than throwing, so a caller reaching a
         // configured backend on a host without it gets the portable answer instead of an error.
         if (a.nnz < factorizeGate || !nativeAvailable) {
-            return F64ReferenceSparseLinearAlgebra.factor(a, equilibrate)
+            return portable.factor(a)
         }
         return factorNative(a)
     }

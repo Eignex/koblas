@@ -4,6 +4,7 @@ import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
+import com.eignex.koblas.sparse.F64ReferenceSparseLu
 import kotlin.test.*
 
 class BundledBasicluTest {
@@ -101,7 +102,7 @@ class BundledBasicluTest {
         val factorization = BundledBasiclu(factorizeMin = 0, equilibrate = true).factor(matrix)
 
         assertContentEquals(
-            F64ReferenceSparseLinearAlgebra.factor(matrix, equilibrate = true).solve(rhs),
+            F64ReferenceSparseLu(equilibrate = true).factor(matrix).solve(rhs),
             factorization.solve(rhs),
         )
     }
@@ -113,7 +114,7 @@ class BundledBasicluTest {
         val factorization = BundledBasiclu(factorizeMin = 0, equilibrate = true).factor(matrix)
 
         assertContentEquals(
-            F64ReferenceSparseLinearAlgebra.factor(matrix, equilibrate = true).solve(rhs, transpose = true),
+            F64ReferenceSparseLu(equilibrate = true).factor(matrix).solve(rhs, transpose = true),
             factorization.solve(rhs, transpose = true),
         )
     }

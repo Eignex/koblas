@@ -19,6 +19,9 @@ class SparseBenchmark {
 
     private lateinit var luFactored: F64SparseFactorization
 
+    /** The portable factorization set to scale rows, which is where equilibration lives now. */
+    private val equilibrating = F64ReferenceSparseLu(equilibrate = true)
+
     @Setup
     fun setup() {
         val rng = benchRng()
@@ -29,7 +32,7 @@ class SparseBenchmark {
     }
 
     @Benchmark
-    fun sparseLuSolve(): DoubleArray = F64ReferenceSparseLinearAlgebra.factor(a, equilibrate = true).solve(rhs)
+    fun sparseLuSolve(): DoubleArray = equilibrating.factor(a).solve(rhs)
 
     @Benchmark
     fun sparseLuFtran(): DoubleArray = luFactored.solveInto(rhs, x)
@@ -48,7 +51,7 @@ class SparseBenchmark {
 
     @Benchmark
     fun sparseLuFactorEquilibrated(): F64SparseFactorization =
-        F64ReferenceSparseLinearAlgebra.factor(a, equilibrate = true)
+        equilibrating.factor(a)
 
     @Benchmark
     fun sparseTrsv(): DoubleArray {

@@ -5,7 +5,6 @@ import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.requireShape
-import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.F64SingularSparseFactorization
 import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.basis.F64BasisSolver
@@ -41,7 +40,7 @@ public class HfactorSparseLu(
      * rather than reproducing it here by scaling the values on the way in.
      */
     override fun factorNative(a: F64SparseMatrix): F64SparseFactorization {
-        if (equilibrate) return F64ReferenceSparseLinearAlgebra.factor(a, equilibrate = true)
+        if (equilibrate) return portable.factor(a)
         val handle = calls.create(a.rows, a.cols, a.copyColumnPointers(), a.copyRowIndices(), a.values)
             ?: return F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
         // A square matrix is its own basis, slot t holding column t.

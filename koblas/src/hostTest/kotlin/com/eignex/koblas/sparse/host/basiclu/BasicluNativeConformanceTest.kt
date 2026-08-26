@@ -70,7 +70,7 @@ class BasicluNativeConformanceTest {
         val a = sparseConformanceSystem(n, rng)
         val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
         assertClose(
-            F64ReferenceSparseLinearAlgebra.factor(a, equilibrate = true).solve(b),
+            F64ReferenceSparseLu(equilibrate = true).factor(a).solve(b),
             equilibratingBasiclu.factor(a).solve(b),
             "equilibrated",
             tolerance = 1e-9,
