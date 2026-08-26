@@ -3,6 +3,8 @@ package com.eignex.koblas.internal.backend
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.*
+import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
+import com.eignex.koblas.sparse.F64SparseBlas
 import kotlin.test.*
 
 class BackendSelectionTest {
@@ -16,6 +18,14 @@ class BackendSelectionTest {
         F64Decompositions by F64ReferenceLinearAlgebra
 
     private class NotABackend(override val name: String = "nothing") : Backend
+
+    /** A provider carrying a dense half and a sparse one, as an add-on binding a whole library can. */
+    private class FakeBoth(override val name: String, override val priority: Int) :
+        F64Blas by F64ReferenceLinearAlgebra,
+        F64SparseBlas by F64ReferenceSparseLinearAlgebra {
+        override val isAvailable: Boolean get() = true
+        override val isPortable: Boolean get() = false
+    }
 
     @Test
     fun `an empty registry resolves to the reference backend`() {
@@ -64,6 +74,21 @@ class BackendSelectionTest {
         val before = koblas.blas.name
         withCleanBackends { assertSame(F64ReferenceLinearAlgebra, koblas.blas) }
         assertEquals(before, koblas.blas.name)
+    }
+
+    /**
+     * A deployment pinning one half names a backend for that half and says nothing about the other, so the
+     * halves it did not speak for still take what a provider offers them.
+     */
+    @Test
+    fun `an offer narrowed to some halves leaves the rest of the registry alone`() {
+        withCleanBackends {
+            BackendRegistry.registerAutomatic(FakeBoth("both-halves", 100), BackendSlot.sparseHalves)
+
+            assertTrue("both-halves" in registeredBackendNames(BackendSlot.F64SparseBlas), "the sparse half")
+            assertFalse("both-halves" in registeredBackendNames(BackendSlot.F64Blas), "the dense half")
+            assertSame(F64ReferenceLinearAlgebra, koblas.blas)
+        }
     }
 
     @Test
