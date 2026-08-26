@@ -76,6 +76,13 @@ class HostBlasConformanceTest {
         assertGerAgreesWithReference(F64Cblas())
     }
 
+    /** Lowering the gates is the only way the native solve runs; the shipped values keep it portable. */
+    @Test
+    fun `the host solves match reference once their gates admit them`() {
+        Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
+        assertLuAgreesWithReference(F64Lapacke(HostBlasConfig(level2Min = 0, level3Min = 0)), intArrayOf(33, 256))
+    }
+
     @Test
     fun `symv refuses a non-square matrix`() {
         Assume.assumeTrue("host CBLAS is not installed", HostLibraries.cblas)

@@ -22,16 +22,8 @@ import com.eignex.koblas.dense.host.cblas.HostBlasConfig
  *   the optional pivoted QR included. A dense routine reads it as a dimension and a sparse one as a count of
  *   stored entries, since that is what each one's work scales with; one number, measured against whichever
  *   quantity pays for the crossing.
- * @property factorizeRhs right-hand columns from which one blocked native solve over those factors beats
- *   a native call per column.
  */
-internal class DispatchThresholds(
-    val level1: Int,
-    val level2: Int,
-    val level3: Int,
-    val factorize: Int,
-    val factorizeRhs: Int = 1,
-)
+internal class DispatchThresholds(val level1: Int, val level2: Int, val level3: Int, val factorize: Int)
 
 /** What this platform uses for double precision absent backend-specific configuration. */
 internal expect val platformDispatchThresholds: DispatchThresholds
@@ -48,13 +40,11 @@ internal fun hostDispatchThresholds(
     level2: Int? = null,
     level3: Int? = null,
     factorize: Int? = null,
-    factorizeRhs: Int? = null,
 ): DispatchThresholds = DispatchThresholds(
     level1 = level1 ?: platformDispatchThresholds.level1,
     level2 = level2 ?: platformDispatchThresholds.level2,
     level3 = level3 ?: platformDispatchThresholds.level3,
     factorize = factorize ?: platformDispatchThresholds.factorize,
-    factorizeRhs = factorizeRhs ?: platformDispatchThresholds.factorizeRhs,
 )
 
 /** The dispatch policy for one OpenBLAS instance, every gate the configuration carries included. */
@@ -63,7 +53,6 @@ internal fun hostBlasDispatchThresholds(config: HostBlasConfig): DispatchThresho
     level2 = config.level2Min,
     level3 = config.level3Min,
     factorize = config.factorizeMin,
-    factorizeRhs = config.factorizeRhsMin,
 )
 
 /** The compiled-in vector-kernel routing policy. */

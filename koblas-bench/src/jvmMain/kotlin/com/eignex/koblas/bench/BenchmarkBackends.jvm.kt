@@ -18,7 +18,7 @@ internal actual fun useShippedHost(): Boolean = installHost(HostBlasConfig())
 // to the compiled-in path and times that twice. Installed unrouted for the reason the native binding gives,
 // that the benchmark sweeps the sizes itself.
 internal actual fun useUngatedHost(): Boolean = installHost(
-    HostBlasConfig(level1Min = 0, level2Min = 0, level3Min = 0, factorizeMin = 0, factorizeRhsMin = 1),
+    HostBlasConfig(level1Min = 0, level2Min = 0, level3Min = 0, factorizeMin = 0),
 )
 
 private fun installHost(config: HostBlasConfig): Boolean {

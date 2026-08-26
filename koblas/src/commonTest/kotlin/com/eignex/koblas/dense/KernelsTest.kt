@@ -12,10 +12,8 @@ import kotlin.test.*
 
 class KernelsTest {
 
-    private class Recording(
-        override val priority: Int = 90,
-        override val minDispatchLength: Int? = null,
-    ) : F64Kernels {
+    private class Recording(override val priority: Int = 90, override val minDispatchLength: Int? = null) :
+        F64Kernels {
         override var name: String = "recording"
             private set
 
