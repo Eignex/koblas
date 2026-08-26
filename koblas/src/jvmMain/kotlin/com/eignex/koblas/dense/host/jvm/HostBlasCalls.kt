@@ -62,8 +62,7 @@ internal class HostBlasCalls(internal val config: HostBlasConfig) {
         val resolved = blas.containsAll(requiredCblas)
         // An ILP64 build exports these same names, so the config string and then the pivot width are what
         // tell it apart from the LP64 one these bindings declare.
-        val declaredIlp64 = resolved && isIlp64OpenBlas(configString(blas))
-        val blasIlp64 = declaredIlp64 || (resolved && writesIlp64Pivots(blas))
+        val blasIlp64 = resolved && isIlp64Build(configString(blas)) { probePivots(blas) }
         available = resolved && !blasIlp64
         // A second library for the hosts that ship LAPACKE outside their OpenBLAS build.
         val lapackeInBlas = available && blas.contains(KEY_LAPACKE_SYMBOL)
@@ -76,31 +75,30 @@ internal class HostBlasCalls(internal val config: HostBlasConfig) {
         library = blas.withFallback(extra)
         // A separate liblapacke of the wrong width costs the host only its LAPACK half, since the CBLAS it
         // sits behind was judged on its own.
-        val lapackeIlp64 = extra != null && writesIlp64Pivots(extra)
+        val lapackeIlp64 = extra != null && isIlp64PivotWidth(probePivots(extra) ?: IntArray(0))
         lapackAvailable = available && !lapackeIlp64 && library.containsAll(requiredLapacke)
         if (available) configureThreads()
     }
 
     /**
-     * Whether [source] answers `LAPACKE_dgetrf` with 64-bit pivots. Every integer argument is passed as a
-     * long whose upper half is zero, which both widths read correctly, so the only thing the call turns on is
-     * how wide the pivots it writes are. A library without the routine, or one that fails the factorization,
-     * is left to the config string.
+     * The pivot words [source] writes for a probing `LAPACKE_dgetrf`, or null when it carries no such routine
+     * or the factorization failed. Every integer argument is passed as a long whose upper half is zero, which
+     * both widths read correctly, so the only thing the call turns on is how wide the pivots it writes are.
      */
-    private fun writesIlp64Pivots(source: FfmLibrary): Boolean {
+    private fun probePivots(source: FfmLibrary): IntArray? {
         val getrf = source.handleOrNull(
             "LAPACKE_dgetrf",
             intOf(JAVA_LONG, JAVA_LONG, JAVA_LONG, ADDRESS, JAVA_LONG, ADDRESS),
             critical = false,
-        ) ?: return false
+        ) ?: return null
         Arena.ofConfined().use { arena ->
             // Column-major [[0, 1], [1, 0]], so partial pivoting selects row 2 at both steps.
             val a = arena.allocateFrom(JAVA_DOUBLE, 0.0, 1.0, 1.0, 0.0)
             val pivots = arena.allocate(JAVA_LONG, PROBE_WORDS.toLong())
             val order = PROBE_ORDER.toLong()
             val status = getrf.invokeExact(Cblas.COL_MAJOR.toLong(), order, order, a, order, pivots) as Int
-            if (status != 0) return false
-            return isIlp64PivotWidth(IntArray(PROBE_WORDS) { pivots.get(JAVA_INT, it * Int.SIZE_BYTES.toLong()) })
+            if (status != 0) return null
+            return IntArray(PROBE_WORDS) { pivots.get(JAVA_INT, it * Int.SIZE_BYTES.toLong()) }
         }
     }
 

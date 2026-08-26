@@ -100,8 +100,9 @@ internal class OpenBlasLoader(private val config: HostBlasConfig = HostBlasConfi
     private val handle: COpaquePointer? = openNativeLibrary(config.libraryPath?.let(::listOf) ?: OPENBLAS_SONAMES)
 
     val cblas: CblasFunctions? = handle?.let { blas ->
-        // An ILP64 build exports these same names but takes 64-bit integers; only the config string tells.
-        if (isIlp64OpenBlas(configString(blas))) return@let null
+        // An ILP64 build exports these same names but takes 64-bit integers, so the config string and then
+        // the width of the pivots it writes are what tell it apart from the LP64 one these bindings declare.
+        if (isIlp64Build(configString(blas)) { probePivots(blas) }) return@let null
         val fns = try {
             CblasFunctions(blas)
         } catch (_: IllegalStateException) { // a required symbol is missing, treat as not installed
@@ -119,10 +120,39 @@ internal class OpenBlasLoader(private val config: HostBlasConfig = HostBlasConfi
             openNativeLibrary(config.lapackeLibraryPath?.let(::listOf) ?: LAPACKE_SONAMES)
         }
         if (dlsym(blas, "LAPACKE_dgetrf") == null && extra == null) return@let null
+        // A separate liblapacke of the wrong width costs the host only its LAPACK half, since the CBLAS it
+        // sits behind was judged on its own.
+        if (extra != null && isIlp64PivotWidth(probePivots(extra) ?: IntArray(0))) return@let null
         try {
             LapackeFunctions(blas, extra)
         } catch (_: IllegalStateException) {
             null
+        }
+    }
+
+    /**
+     * The pivot words [blas] writes for a probing `LAPACKE_dgetrf`, or null when it carries no such routine
+     * or the factorization failed. Every integer argument is passed as a long whose upper half is zero,
+     * which both widths read correctly, so the only thing the call turns on is how wide the pivots it writes
+     * are. The buffer holds two 64-bit pivots, so an ILP64 build has room for what it writes.
+     */
+    private fun probePivots(blas: COpaquePointer): IntArray? {
+        val symbol = dlsym(blas, "LAPACKE_dgetrf") ?: return null
+        val getrf = symbol.reinterpret<CFunction<(Long, Long, Long, Dp, Long, CPointer<LongVar>?) -> Int>>()
+        memScoped {
+            // Column-major [[0, 1], [1, 0]], so partial pivoting selects row 2 at both steps.
+            val a = allocArray<DoubleVar>(PROBE_ORDER * PROBE_ORDER)
+            a[0] = 0.0
+            a[1] = 1.0
+            a[2] = 1.0
+            a[3] = 0.0
+            val pivots = allocArray<LongVar>(PROBE_WORDS)
+            for (k in 0 until PROBE_WORDS) pivots[k] = 0L
+            val order = PROBE_ORDER.toLong()
+            val status = getrf(Cblas.COL_MAJOR.toLong(), order, order, a, order, pivots)
+            if (status != 0) return null
+            val words = pivots.reinterpret<IntVar>()
+            return IntArray(PROBE_WORDS) { words[it] }
         }
     }
 

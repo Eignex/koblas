@@ -19,6 +19,40 @@ class HostBlasConfigTest {
         assertTrue(isIlp64OpenBlas("OpenBLAS 0.3.28 INTERFACE64 DYNAMIC_ARCH Zen MAX_THREADS=128"))
     }
 
+    /**
+     * The config string decides on its own when it names the width, so a build that reports one is judged
+     * without the cost, and the risk, of factorizing through a library koblas has not accepted yet.
+     */
+    @Test
+    fun `a build that names its width in its config string is judged without probing`() {
+        var probes = 0
+
+        assertTrue(
+            isIlp64Build("OpenBLAS 0.3.28 INTERFACE64 DYNAMIC_ARCH Zen") {
+                probes++
+                null
+            },
+        )
+
+        assertEquals(0, probes, "the config string already said so")
+    }
+
+    /**
+     * A vendor is free to report no config string, and an ILP64 build of one exports the same unsuffixed
+     * symbols as LP64, so the width of what it writes is the only evidence left.
+     */
+    @Test
+    fun `a build with no config string is judged by the pivots it writes`() {
+        assertTrue(isIlp64Build("") { intArrayOf(2, 0, 2) }, "64-bit pivots went unnoticed")
+        assertFalse(isIlp64Build("") { intArrayOf(2, 2, 0) }, "32-bit pivots were turned away")
+    }
+
+    @Test
+    fun `a build that answers neither question is taken as LP64`() {
+        assertFalse(isIlp64Build("") { null }, "a library with no LAPACKE to ask should keep working")
+        assertFalse(isIlp64Build("OpenBLAS 0.3.21 DYNAMIC_ARCH Haswell") { null })
+    }
+
     @Test
     fun `pivots written 64 bits wide are judged ILP64`() {
         assertTrue(isIlp64PivotWidth(intArrayOf(2, 0, 2)))
