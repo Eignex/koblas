@@ -37,6 +37,14 @@ struct Handle {
     double build_synthetic_tick = 0.0;
     double total_synthetic_tick = 0.0;
     HighsInt update_count = 0;
+    /*
+     * Fill, tracked rather than read back. HFactor hands its factors out only by copy, so asking it costs a
+     * duplicate of every L and U array, and fill is what a caller reads once an iteration to pace its
+     * rebuilds. build publishes its own count and an update adds the spike it packed, which is what the
+     * Forrest-Tomlin path appends to U. Like the portable solver's count this only rises: an update also
+     * deletes the pivotal column's old entries, and following that would cost the copy this avoids.
+     */
+    HighsInt fill = 0;
 };
 
 /*
@@ -127,6 +135,7 @@ KOBLAS_HFACTOR_EXPORT int32_t koblas_hfactor_build(Handle* h, const int32_t* bas
     h->build_synthetic_tick = h->factor.build_synthetic_tick;
     h->total_synthetic_tick = 0.0;
     h->update_count = 0;
+    h->fill = h->factor.invert_num_el;
     /*
      * build reorders basic_index into its own pivot order, so a caller's slot and HFactor's stop agreeing
      * here. The two maps carry every later solve and update between the orderings, which keeps this
@@ -201,6 +210,7 @@ KOBLAS_HFACTOR_EXPORT int32_t koblas_hfactor_update(Handle* h, int32_t pivot_row
     h->factor.update(&h->aq, &h->ep, &row, &hint);
     h->basic_index[slot] = entering;
     h->update_count++;
+    h->fill += h->aq.packCount;
 
     /*
      * The Forrest-Tomlin path leaves hint alone, so the advice comes from HiGHS's own synthetic clock rule:
@@ -213,12 +223,15 @@ KOBLAS_HFACTOR_EXPORT int32_t koblas_hfactor_update(Handle* h, int32_t pivot_row
 
 KOBLAS_HFACTOR_EXPORT int32_t koblas_hfactor_update_count(const Handle* h) { return h->update_count; }
 
+/* The tracked fill, which costs nothing to read and so can be read every iteration. */
+KOBLAS_HFACTOR_EXPORT int32_t koblas_hfactor_fill(const Handle* h) { return h->fill; }
+
 /*
- * The fill and the pivot range in one call: HFactor hands out its factors only by copy, so the two are
- * read together and this is sampled rather than polled.
+ * The pivot magnitudes, apart from the fill because this is the expensive half: reaching the pivots means
+ * a copy of the whole factorization, so a caller pays it only when asking what the factors are worth.
  */
-KOBLAS_HFACTOR_EXPORT int32_t koblas_hfactor_stats(const Handle* h, double* smallest_pivot,
-                                                   double* largest_pivot) {
+KOBLAS_HFACTOR_EXPORT void koblas_hfactor_pivot_range(const Handle* h, double* smallest_pivot,
+                                                      double* largest_pivot) {
     const InvertibleRepresentation invert = h->factor.getInvert();
     double smallest = 0.0;
     double largest = 0.0;
@@ -231,6 +244,5 @@ KOBLAS_HFACTOR_EXPORT int32_t koblas_hfactor_stats(const Handle* h, double* smal
     }
     *smallest_pivot = smallest;
     *largest_pivot = largest;
-    return static_cast<int32_t>(invert.l_index.size() + invert.u_index.size());
 }
 }

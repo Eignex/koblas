@@ -25,6 +25,9 @@ import java.lang.ref.Reference
  * as HFactor left them rather than as values alone. Both are what a dual simplex has just computed, so this
  * tracks which vector each of its solves last filled and reuses the native one where the caller hands the
  * same vector back. A caller solving in some other order is still correct; it pays the solve again.
+ *
+ * The tracking is by identity, which is what [F64BasisSolver.update] asks a caller for: a vector edited
+ * between its solve and the update is read here as the solve left it, not as it now stands.
  */
 @OptIn(UnsafeKoblasApi::class)
 public class HfactorBasisSolver internal constructor(
@@ -43,7 +46,6 @@ public class HfactorBasisSolver internal constructor(
     override val n: Int = a.rows
 
     private val columns = a.cols
-    private val pivotRange = DoubleArray(2)
     private var factorized = false
     private var lastFtran: F64IndexedVector? = null
     private var lastBtran: F64IndexedVector? = null
@@ -57,9 +59,8 @@ public class HfactorBasisSolver internal constructor(
         Reference.reachabilityFence(this)
     }
 
-    /** Reads the factors, which HFactor hands out only by copy, so this is sampled rather than polled. */
     override val nnz: Int get() = try {
-        if (factorized) calls.stats(handle, pivotRange) else 0
+        if (factorized) calls.fill(handle) else 0
     } finally {
         Reference.reachabilityFence(this)
     }
