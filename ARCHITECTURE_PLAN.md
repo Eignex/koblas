@@ -376,6 +376,15 @@ Acceptance criteria:
 
 ### PR 12: Add strided dense views and explicit buffer ownership
 
+Status: open as [PR #332](https://github.com/Eignex/koblas/pull/332) from
+`codex/strided-dense-views`; portable, JVM host, and Linux/Native host tests passed, and `./gradlew check
+lintDocs --rerun-tasks` passed all 190 tasks. Borrowed vector and matrix views preserve physical offsets,
+strides, and leading dimensions through supported CBLAS GEMV/GEMM calls without changing the existing
+contiguous overloads or their measured gates. Negative vector strides remain portable because CBLAS pointer
+origin behavior is not sufficiently uniform. Actual input/output overlap is rejected before mutation, while
+disjoint views may share a buffer. Factorizations retain owned contiguous storage until a separate result
+lifetime and mutation contract can be designed.
+
 - Add offset/stride vector views and offset/leading-dimension matrix views.
 - Adapt reference kernels first, followed by native BLAS/LAPACK paths supported by their ABI.
 - Keep contiguous containers and fast paths intact.
