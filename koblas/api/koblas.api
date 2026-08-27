@@ -1,3 +1,45 @@
+public final class com/eignex/koblas/AllocationCapability {
+	public fun <init> (Lcom/eignex/koblas/AllocationGuarantee;Ljava/util/List;)V
+	public synthetic fun <init> (Lcom/eignex/koblas/AllocationGuarantee;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lcom/eignex/koblas/AllocationGuarantee;
+	public final fun component2 ()Ljava/util/List;
+	public final fun copy (Lcom/eignex/koblas/AllocationGuarantee;Ljava/util/List;)Lcom/eignex/koblas/AllocationCapability;
+	public static synthetic fun copy$default (Lcom/eignex/koblas/AllocationCapability;Lcom/eignex/koblas/AllocationGuarantee;Ljava/util/List;ILjava/lang/Object;)Lcom/eignex/koblas/AllocationCapability;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getGuarantee ()Lcom/eignex/koblas/AllocationGuarantee;
+	public final fun getScratch ()Ljava/util/List;
+	public fun hashCode ()I
+	public final fun supports (Lcom/eignex/koblas/AllocationPolicy;Lcom/eignex/koblas/Workspace;)Z
+	public static synthetic fun supports$default (Lcom/eignex/koblas/AllocationCapability;Lcom/eignex/koblas/AllocationPolicy;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/eignex/koblas/AllocationGuarantee : java/lang/Enum {
+	public static final field NO_MANAGED Lcom/eignex/koblas/AllocationGuarantee;
+	public static final field NO_MANAGED_OR_NATIVE Lcom/eignex/koblas/AllocationGuarantee;
+	public static final field NO_SIZE_DEPENDENT_MANAGED Lcom/eignex/koblas/AllocationGuarantee;
+	public static final field UNRESTRICTED Lcom/eignex/koblas/AllocationGuarantee;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/AllocationGuarantee;
+	public static fun values ()[Lcom/eignex/koblas/AllocationGuarantee;
+}
+
+public final class com/eignex/koblas/AllocationPolicy : java/lang/Enum {
+	public static final field ALLOW Lcom/eignex/koblas/AllocationPolicy;
+	public static final field REQUIRE_NO_MANAGED Lcom/eignex/koblas/AllocationPolicy;
+	public static final field REQUIRE_NO_MANAGED_OR_NATIVE Lcom/eignex/koblas/AllocationPolicy;
+	public static final field REQUIRE_NO_SIZE_DEPENDENT_MANAGED Lcom/eignex/koblas/AllocationPolicy;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/AllocationPolicy;
+	public static fun values ()[Lcom/eignex/koblas/AllocationPolicy;
+}
+
+public final class com/eignex/koblas/AllocationPolicyRejectedException : java/lang/IllegalStateException {
+	public fun <init> (Lcom/eignex/koblas/AllocationPolicy;Lcom/eignex/koblas/AllocationCapability;)V
+	public final fun getCapability ()Lcom/eignex/koblas/AllocationCapability;
+	public final fun getPolicy ()Lcom/eignex/koblas/AllocationPolicy;
+}
+
 public abstract interface class com/eignex/koblas/Backend {
 	public abstract fun getName ()Ljava/lang/String;
 	public fun getPriority ()I
@@ -555,6 +597,30 @@ public final class com/eignex/koblas/RoutingPolicyKt {
 	public static final fun plan (Lcom/eignex/koblas/F64Context;Lcom/eignex/koblas/F64RouteQuery;)Lcom/eignex/koblas/F64RoutePlan;
 }
 
+public final class com/eignex/koblas/ScratchKind : java/lang/Enum {
+	public static final field F64 Lcom/eignex/koblas/ScratchKind;
+	public static final field I32 Lcom/eignex/koblas/ScratchKind;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/ScratchKind;
+	public static fun values ()[Lcom/eignex/koblas/ScratchKind;
+}
+
+public final class com/eignex/koblas/ScratchRequirement {
+	public fun <init> (Lcom/eignex/koblas/ScratchKind;II)V
+	public synthetic fun <init> (Lcom/eignex/koblas/ScratchKind;IIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lcom/eignex/koblas/ScratchKind;
+	public final fun component2 ()I
+	public final fun component3 ()I
+	public final fun copy (Lcom/eignex/koblas/ScratchKind;II)Lcom/eignex/koblas/ScratchRequirement;
+	public static synthetic fun copy$default (Lcom/eignex/koblas/ScratchRequirement;Lcom/eignex/koblas/ScratchKind;IIILjava/lang/Object;)Lcom/eignex/koblas/ScratchRequirement;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCount ()I
+	public final fun getKind ()Lcom/eignex/koblas/ScratchKind;
+	public final fun getSize ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class com/eignex/koblas/SingularMatrix : com/eignex/koblas/KoblasException {
 	public fun <init> (ILjava/lang/String;)V
 	public final fun getPosition ()I
@@ -583,13 +649,19 @@ public final class com/eignex/koblas/VectorOpsKt {
 
 public final class com/eignex/koblas/Workspace {
 	public fun <init> ()V
+	public final fun available (Lcom/eignex/koblas/ScratchRequirement;)I
 	public final fun release ([D)V
+	public final fun release ([I)V
 	public final fun reserve (II)V
+	public final fun reserve (Lcom/eignex/koblas/ScratchRequirement;)V
+	public final fun reserveI32 (II)V
 	public final fun take (I)[D
+	public final fun takeI32 (I)[I
 }
 
 public final class com/eignex/koblas/WorkspaceKt {
 	public static final fun borrow (Lcom/eignex/koblas/Workspace;ILkotlin/jvm/functions/Function1;)Ljava/lang/Object;
+	public static final fun borrowI32 (Lcom/eignex/koblas/Workspace;ILkotlin/jvm/functions/Function1;)Ljava/lang/Object;
 }
 
 public final class com/eignex/koblas/core/BufferOwnership : java/lang/Enum {
@@ -1422,6 +1494,8 @@ public final class com/eignex/koblas/sparse/F64BasisFactorization$DefaultImpls {
 	public static fun close (Lcom/eignex/koblas/sparse/F64BasisFactorization;)V
 	public static fun getSingular (Lcom/eignex/koblas/sparse/F64BasisFactorization;)Z
 	public static fun solve (Lcom/eignex/koblas/sparse/F64BasisFactorization;[DZ)[D
+	public static fun solveAllocation (Lcom/eignex/koblas/sparse/F64BasisFactorization;ZZ)Lcom/eignex/koblas/AllocationCapability;
+	public static fun solveInto (Lcom/eignex/koblas/sparse/F64BasisFactorization;[D[DZLcom/eignex/koblas/Workspace;Lcom/eignex/koblas/AllocationPolicy;)[D
 }
 
 public abstract interface class com/eignex/koblas/sparse/F64BasisFactorizations : com/eignex/koblas/Backend {
@@ -1470,7 +1544,9 @@ public final class com/eignex/koblas/sparse/F64RefactoringBasisFactorization : c
 	public fun getSingular ()Z
 	public fun replaceColumn (ILcom/eignex/koblas/core/F64SparseVector;)Lcom/eignex/koblas/sparse/F64BasisFactorization;
 	public fun solve ([DZ)[D
+	public fun solveAllocation (ZZ)Lcom/eignex/koblas/AllocationCapability;
 	public fun solveInto ([D[DZLcom/eignex/koblas/Workspace;)[D
+	public fun solveInto ([D[DZLcom/eignex/koblas/Workspace;Lcom/eignex/koblas/AllocationPolicy;)[D
 }
 
 public class com/eignex/koblas/sparse/F64ReferenceSparseBackend : com/eignex/koblas/sparse/F64BasisFactorizations, com/eignex/koblas/sparse/F64GeneralSparseLu, com/eignex/koblas/sparse/F64SparseCholesky, com/eignex/koblas/sparse/F64SparseKernels, com/eignex/koblas/sparse/F64SparseLdl, com/eignex/koblas/sparse/F64SparseLinearAlgebra {
@@ -1556,7 +1632,9 @@ public final class com/eignex/koblas/sparse/F64SingularSparseFactorization : com
 	public fun getRcond ()D
 	public fun getSingular ()Z
 	public fun solve ([DZ)[D
+	public fun solveAllocation (ZZ)Lcom/eignex/koblas/AllocationCapability;
 	public fun solveInto ([D[DZLcom/eignex/koblas/Workspace;)[D
+	public fun solveInto ([D[DZLcom/eignex/koblas/Workspace;Lcom/eignex/koblas/AllocationPolicy;)[D
 }
 
 public abstract interface class com/eignex/koblas/sparse/F64SparseBlas : com/eignex/koblas/Backend {
@@ -1629,8 +1707,12 @@ public abstract interface class com/eignex/koblas/sparse/F64SparseFactorization 
 	public fun getSingular ()Z
 	public fun solve ([DZ)[D
 	public static synthetic fun solve$default (Lcom/eignex/koblas/sparse/F64SparseFactorization;[DZILjava/lang/Object;)[D
+	public fun solveAllocation (ZZ)Lcom/eignex/koblas/AllocationCapability;
+	public static synthetic fun solveAllocation$default (Lcom/eignex/koblas/sparse/F64SparseFactorization;ZZILjava/lang/Object;)Lcom/eignex/koblas/AllocationCapability;
 	public abstract fun solveInto ([D[DZLcom/eignex/koblas/Workspace;)[D
+	public fun solveInto ([D[DZLcom/eignex/koblas/Workspace;Lcom/eignex/koblas/AllocationPolicy;)[D
 	public static synthetic fun solveInto$default (Lcom/eignex/koblas/sparse/F64SparseFactorization;[D[DZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)[D
+	public static synthetic fun solveInto$default (Lcom/eignex/koblas/sparse/F64SparseFactorization;[D[DZLcom/eignex/koblas/Workspace;Lcom/eignex/koblas/AllocationPolicy;ILjava/lang/Object;)[D
 }
 
 public final class com/eignex/koblas/sparse/F64SparseFactorization$DefaultImpls {
@@ -1638,7 +1720,11 @@ public final class com/eignex/koblas/sparse/F64SparseFactorization$DefaultImpls 
 	public static fun getSingular (Lcom/eignex/koblas/sparse/F64SparseFactorization;)Z
 	public static fun solve (Lcom/eignex/koblas/sparse/F64SparseFactorization;[DZ)[D
 	public static synthetic fun solve$default (Lcom/eignex/koblas/sparse/F64SparseFactorization;[DZILjava/lang/Object;)[D
+	public static fun solveAllocation (Lcom/eignex/koblas/sparse/F64SparseFactorization;ZZ)Lcom/eignex/koblas/AllocationCapability;
+	public static synthetic fun solveAllocation$default (Lcom/eignex/koblas/sparse/F64SparseFactorization;ZZILjava/lang/Object;)Lcom/eignex/koblas/AllocationCapability;
+	public static fun solveInto (Lcom/eignex/koblas/sparse/F64SparseFactorization;[D[DZLcom/eignex/koblas/Workspace;Lcom/eignex/koblas/AllocationPolicy;)[D
 	public static synthetic fun solveInto$default (Lcom/eignex/koblas/sparse/F64SparseFactorization;[D[DZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)[D
+	public static synthetic fun solveInto$default (Lcom/eignex/koblas/sparse/F64SparseFactorization;[D[DZLcom/eignex/koblas/Workspace;Lcom/eignex/koblas/AllocationPolicy;ILjava/lang/Object;)[D
 }
 
 public final class com/eignex/koblas/sparse/F64SparseFactorizationKt {
@@ -1825,7 +1911,9 @@ public final class com/eignex/koblas/sparse/factorization/cholesky/F64SparseChol
 	public fun getRcond ()D
 	public fun getSingular ()Z
 	public fun solve ([DZ)[D
+	public fun solveAllocation (ZZ)Lcom/eignex/koblas/AllocationCapability;
 	public fun solveInto ([D[DZLcom/eignex/koblas/Workspace;)[D
+	public fun solveInto ([D[DZLcom/eignex/koblas/Workspace;Lcom/eignex/koblas/AllocationPolicy;)[D
 }
 
 public final class com/eignex/koblas/sparse/factorization/cholesky/F64SparseCholeskyFactorization$Companion {
@@ -1843,7 +1931,9 @@ public final class com/eignex/koblas/sparse/factorization/ldl/F64SparseLdlFactor
 	public fun getRcond ()D
 	public fun getSingular ()Z
 	public fun solve ([DZ)[D
+	public fun solveAllocation (ZZ)Lcom/eignex/koblas/AllocationCapability;
 	public fun solveInto ([D[DZLcom/eignex/koblas/Workspace;)[D
+	public fun solveInto ([D[DZLcom/eignex/koblas/Workspace;Lcom/eignex/koblas/AllocationPolicy;)[D
 }
 
 public final class com/eignex/koblas/sparse/factorization/ldl/F64SparseLdlFactorization$Companion {
@@ -1859,7 +1949,9 @@ public final class com/eignex/koblas/sparse/factorization/lu/F64SparseLuFactoriz
 	public fun getRcond ()D
 	public fun getSingular ()Z
 	public fun solve ([DZ)[D
+	public fun solveAllocation (ZZ)Lcom/eignex/koblas/AllocationCapability;
 	public fun solveInto ([D[DZLcom/eignex/koblas/Workspace;)[D
+	public fun solveInto ([D[DZLcom/eignex/koblas/Workspace;Lcom/eignex/koblas/AllocationPolicy;)[D
 }
 
 public final class com/eignex/koblas/sparse/factorization/lu/F64SparseLuFactorization$Companion {
@@ -1965,7 +2057,9 @@ public class com/eignex/koblas/sparse/host/basiclu/BasicluFactorization : com/ei
 	public fun getRcond ()D
 	public fun getSingular ()Z
 	public fun solve ([DZ)[D
+	public fun solveAllocation (ZZ)Lcom/eignex/koblas/AllocationCapability;
 	public fun solveInto ([D[DZLcom/eignex/koblas/Workspace;)[D
+	public fun solveInto ([D[DZLcom/eignex/koblas/Workspace;Lcom/eignex/koblas/AllocationPolicy;)[D
 }
 
 public final class com/eignex/koblas/sparse/host/basiclu/BasicluOptions {
@@ -2029,7 +2123,9 @@ public final class com/eignex/koblas/sparse/host/cholmod/CholmodFactorization : 
 	public fun getRcond ()D
 	public fun getSingular ()Z
 	public fun solve ([DZ)[D
+	public fun solveAllocation (ZZ)Lcom/eignex/koblas/AllocationCapability;
 	public fun solveInto ([D[DZLcom/eignex/koblas/Workspace;)[D
+	public fun solveInto ([D[DZLcom/eignex/koblas/Workspace;Lcom/eignex/koblas/AllocationPolicy;)[D
 }
 
 public class com/eignex/koblas/sparse/host/cholmod/CholmodSparseBlas : com/eignex/koblas/sparse/host/F64SparseBlasAdapter {
@@ -2089,7 +2185,9 @@ public final class com/eignex/koblas/sparse/host/hfactor/HfactorFactorization : 
 	public fun getRcond ()D
 	public fun getSingular ()Z
 	public fun solve ([DZ)[D
+	public fun solveAllocation (ZZ)Lcom/eignex/koblas/AllocationCapability;
 	public fun solveInto ([D[DZLcom/eignex/koblas/Workspace;)[D
+	public fun solveInto ([D[DZLcom/eignex/koblas/Workspace;Lcom/eignex/koblas/AllocationPolicy;)[D
 }
 
 public final class com/eignex/koblas/sparse/host/hfactor/HfactorOptions {
@@ -2165,7 +2263,9 @@ public final class com/eignex/koblas/sparse/host/klu/KluFactorization : com/eign
 	public fun getRcond ()D
 	public fun getSingular ()Z
 	public fun solve ([DZ)[D
+	public fun solveAllocation (ZZ)Lcom/eignex/koblas/AllocationCapability;
 	public fun solveInto ([D[DZLcom/eignex/koblas/Workspace;)[D
+	public fun solveInto ([D[DZLcom/eignex/koblas/Workspace;Lcom/eignex/koblas/AllocationPolicy;)[D
 }
 
 public final class com/eignex/koblas/sparse/host/klu/KluOptions {
@@ -2267,7 +2367,9 @@ public final class com/eignex/koblas/sparse/host/umfpack/UmfpackFactorization : 
 	public fun getRcond ()D
 	public fun getSingular ()Z
 	public fun solve ([DZ)[D
+	public fun solveAllocation (ZZ)Lcom/eignex/koblas/AllocationCapability;
 	public fun solveInto ([D[DZLcom/eignex/koblas/Workspace;)[D
+	public fun solveInto ([D[DZLcom/eignex/koblas/Workspace;Lcom/eignex/koblas/AllocationPolicy;)[D
 }
 
 public final class com/eignex/koblas/sparse/host/umfpack/UmfpackOptions {

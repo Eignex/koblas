@@ -1,8 +1,6 @@
 package com.eignex.koblas.sparse.host.klu
 
-import com.eignex.koblas.sparse.assertNativeFactorCloseContract
-import com.eignex.koblas.sparse.assertSymbolicAnalysisReuses
-import com.eignex.koblas.sparse.sparseConformanceSystem
+import com.eignex.koblas.sparse.*
 import com.eignex.koblas.testutil.host.HostLibraryTest
 import org.junit.Assume
 import org.junit.experimental.categories.Category
@@ -20,6 +18,12 @@ class KluConformanceTest {
         assertIs<KluFactorization>(factorization)
 
         assertNativeFactorCloseContract(factorization)
+    }
+
+    @Test
+    fun `repeated solves declare a strict allocation contract`() {
+        Assume.assumeTrue("KLU is not installed; conformance cannot run", klu.isAvailable)
+        assertStrictNativeSolveAllocationContract(klu)
     }
 
     @Test

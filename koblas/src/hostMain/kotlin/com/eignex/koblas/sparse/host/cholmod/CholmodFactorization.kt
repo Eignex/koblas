@@ -2,10 +2,8 @@
 
 package com.eignex.koblas.sparse.host.cholmod
 
-import com.eignex.koblas.NOT_SINGULAR
-import com.eignex.koblas.Workspace
+import com.eignex.koblas.*
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
-import com.eignex.koblas.singularFailure
 import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.requireSolveShapes
 import kotlinx.cinterop.*
@@ -28,12 +26,29 @@ public class CholmodFactorization internal constructor(
         val factor: COpaquePointer,
         val common: CPointer<ByteVar>,
         private val functions: CholmodFunctions,
+        n: Int,
     ) {
+        val solveRhs: CPointer<DoubleVar> = nativeHeap.allocArray(maxOf(n, 1))
+        val solveDense: CPointer<ByteVar> = nativeHeap.allocArray(CHOLMOD_DENSE_BYTES)
+        val solveSlot: COpaquePointerVar = nativeHeap.alloc()
+
+        init {
+            sizeAt(solveDense, CHOLMOD_DENSE_NROW, n.toLong())
+            sizeAt(solveDense, CHOLMOD_DENSE_NCOL, 1L)
+            sizeAt(solveDense, CHOLMOD_DENSE_NZMAX, n.toLong())
+            sizeAt(solveDense, CHOLMOD_DENSE_D, n.toLong())
+            pointerAt(solveDense, CHOLMOD_DENSE_X, solveRhs)
+            pointerAt(solveDense, CHOLMOD_DENSE_Z, null)
+            intAt(solveDense, CHOLMOD_DENSE_XTYPE, CHOLMOD_REAL)
+            intAt(solveDense, CHOLMOD_DENSE_DTYPE, CHOLMOD_DOUBLE)
+        }
+
         fun release() {
-            val slot = nativeHeap.alloc<COpaquePointerVar>()
-            slot.value = factor
-            functions.freeFactor(slot.ptr, common)
-            nativeHeap.free(slot)
+            solveSlot.value = factor
+            functions.freeFactor(solveSlot.ptr, common)
+            nativeHeap.free(solveSlot)
+            nativeHeap.free(solveDense)
+            nativeHeap.free(solveRhs)
             nativeHeap.free(common)
         }
     }
@@ -42,6 +57,8 @@ public class CholmodFactorization internal constructor(
 
     @Suppress("unused") // the cleaner runs when this property becomes unreachable, which is the point
     private val cleaner = createCleaner(lifecycle) { it.close() }
+
+    override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability = noManagedAllocation
 
     override val nnz: Int get() = anchoring {
         if (singular) {
@@ -70,29 +87,15 @@ public class CholmodFactorization internal constructor(
         requireSolveShapes(n, b, out)
         if (out !== b) b.copyInto(out)
         anchoring {
-            val rhs = nativeHeap.allocArray<DoubleVar>(n)
-            for (i in 0 until n) rhs[i] = out[i]
-            val dense = nativeHeap.allocArray<ByteVar>(CHOLMOD_DENSE_BYTES)
-            sizeAt(dense, CHOLMOD_DENSE_NROW, n.toLong())
-            sizeAt(dense, CHOLMOD_DENSE_NCOL, 1L)
-            sizeAt(dense, CHOLMOD_DENSE_NZMAX, n.toLong())
-            sizeAt(dense, CHOLMOD_DENSE_D, n.toLong())
-            pointerAt(dense, CHOLMOD_DENSE_X, rhs)
-            pointerAt(dense, CHOLMOD_DENSE_Z, null)
-            intAt(dense, CHOLMOD_DENSE_XTYPE, CHOLMOD_REAL)
-            intAt(dense, CHOLMOD_DENSE_DTYPE, CHOLMOD_DOUBLE)
+            for (i in 0 until n) handle.solveRhs[i] = out[i]
 
-            val solved = functions.solve(CHOLMOD_A, handle.factor.reinterpret(), dense, handle.common)
+            val solved = functions.solve(CHOLMOD_A, handle.factor.reinterpret(), handle.solveDense, handle.common)
             check(solved != null) { "cholmod_solve failed on a factorization it produced" }
             val answer = solved.reinterpret<ByteVar>()
             val values = pointerAt(answer, CHOLMOD_DENSE_X)!!.reinterpret<DoubleVar>()
             for (i in 0 until n) out[i] = values[i]
-            val slot = nativeHeap.alloc<COpaquePointerVar>()
-            slot.value = solved
-            functions.freeDense(slot.ptr, handle.common)
-            nativeHeap.free(slot)
-            nativeHeap.free(dense)
-            nativeHeap.free(rhs)
+            handle.solveSlot.value = solved
+            functions.freeDense(handle.solveSlot.ptr, handle.common)
         }
         return out
     }

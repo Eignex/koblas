@@ -1,10 +1,8 @@
 package com.eignex.koblas.sparse.host.cholmod
 
-import com.eignex.koblas.NOT_SINGULAR
-import com.eignex.koblas.Workspace
+import com.eignex.koblas.*
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.internal.host.nativeCleaner
-import com.eignex.koblas.singularFailure
 import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.requireSolveShapes
 import java.lang.ref.Reference
@@ -17,14 +15,30 @@ public class CholmodFactorization internal constructor(
     /** The column a zero pivot stopped an `L·D·Lᵀ` at, or [NOT_SINGULAR]; a Cholesky raises instead. */
     override val failedAt: Int = NOT_SINGULAR,
 ) : F64SparseFactorization {
-    private class Release(private val calls: CholmodCalls, private val factor: CholmodFactor) {
-        fun release(): Unit = calls.free(factor)
+    private class Release(
+        private val calls: CholmodCalls,
+        private val factor: CholmodFactor,
+        private val solveWorkspace: CholmodSolveWorkspace,
+    ) {
+        fun release() {
+            try {
+                calls.free(factor)
+            } finally {
+                solveWorkspace.close()
+            }
+        }
     }
 
-    private val lifecycle = NativeResourceLifecycle("CHOLMOD factorization", Release(calls, factor)::release)
+    private val solveWorkspace = CholmodSolveWorkspace(factor.n)
+    private val lifecycle = NativeResourceLifecycle(
+        "CHOLMOD factorization",
+        Release(calls, factor, solveWorkspace)::release,
+    )
     private val cleanable = nativeCleaner.register(this, lifecycle)
 
     override val n: Int = factor.n
+
+    override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability = noManagedAllocation
 
     override val nnz: Int get() = lifecycle.withResource {
         if (singular) {
@@ -62,7 +76,9 @@ public class CholmodFactorization internal constructor(
             requireSolveShapes(n, b, out)
             if (out !== b) b.copyInto(out)
             try {
-                check(calls.solve(factor, out)) { "cholmod_solve failed on a factorization it produced" }
+                check(calls.solve(factor, out, solveWorkspace)) {
+                    "cholmod_solve failed on a factorization it produced"
+                }
             } finally {
                 Reference.reachabilityFence(this)
             }

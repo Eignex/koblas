@@ -52,6 +52,12 @@ class BasicluConformanceTest {
     }
 
     @Test
+    fun `repeated solves declare a strict allocation contract`() {
+        requireBasiclu()
+        assertStrictNativeSolveAllocationContract(basiclu)
+    }
+
+    @Test
     fun `the reciprocal pivot condition estimate is bounded`() {
         requireBasiclu()
         assertReciprocalPivotConditionEstimateIsBounded(basiclu)

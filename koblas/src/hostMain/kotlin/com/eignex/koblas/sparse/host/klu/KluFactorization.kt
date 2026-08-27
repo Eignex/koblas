@@ -6,9 +6,7 @@
 
 package com.eignex.koblas.sparse.host.klu
 
-import com.eignex.koblas.NOT_SINGULAR
-import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
-import com.eignex.koblas.Workspace
+import com.eignex.koblas.*
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.requireFactored
@@ -27,6 +25,8 @@ public class KluFactorization internal constructor(
     private val columnPointers: IntArray,
     private val rowIndices: IntArray,
 ) : F64SparseFactorization {
+
+    override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability = noManagedAllocation
 
     /** The two holders and the common block, one object so the cleaner captures it and not the factorization. */
     internal class KluHandle(

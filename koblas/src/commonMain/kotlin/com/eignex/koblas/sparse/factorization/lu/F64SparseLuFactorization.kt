@@ -30,6 +30,11 @@ public class F64SparseLuFactorization private constructor(
     override val nnz: Int,
 ) : F64SparseFactorization {
 
+    private val solveAllocation = AllocationCapability(
+        AllocationGuarantee.NO_MANAGED_OR_NATIVE,
+        listOf(ScratchRequirement(ScratchKind.F64, m, count = 2)),
+    )
+
     override val n: Int get() = m
 
     /** Always [NOT_SINGULAR]: a [F64SparseLuFactorization] only exists for a matrix that factored completely. */
@@ -47,6 +52,8 @@ public class F64SparseLuFactorization private constructor(
             }
             return if (maximum == 0.0) 0.0 else minimum / maximum
         }
+
+    override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability = solveAllocation
 
     /**
      * Solve `B x = b`, or `Bᵀ x = b` when [transpose], into [out]. `b` is indexed by original row and the

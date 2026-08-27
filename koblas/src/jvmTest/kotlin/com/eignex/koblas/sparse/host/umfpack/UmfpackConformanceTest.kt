@@ -48,6 +48,12 @@ class UmfpackConformanceTest {
     }
 
     @Test
+    fun `repeated solves declare a strict allocation contract`() {
+        requireSuiteSparse()
+        assertStrictNativeSolveAllocationContract(umfpack)
+    }
+
+    @Test
     fun `the reciprocal pivot condition estimate is bounded`() {
         requireSuiteSparse()
         assertReciprocalPivotConditionEstimateIsBounded(umfpack)

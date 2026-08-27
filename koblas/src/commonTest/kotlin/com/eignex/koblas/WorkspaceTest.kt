@@ -69,6 +69,31 @@ class WorkspaceTest {
     }
 
     @Test
+    fun `integer scratch is reserved and pooled independently`() {
+        val ws = Workspace()
+        val f64 = ScratchRequirement(ScratchKind.F64, size = 6, count = 2)
+        val i32 = ScratchRequirement(ScratchKind.I32, size = 6, count = 1)
+        ws.reserve(f64)
+        ws.reserve(i32)
+
+        assertEquals(2, ws.available(f64))
+        assertEquals(1, ws.available(i32))
+        val integers = ws.takeI32(6)
+        assertEquals(0, ws.available(i32))
+        assertEquals(2, ws.available(f64))
+        ws.release(integers)
+        assertSame(integers, ws.takeI32(6))
+    }
+
+    @Test
+    fun `integer borrow returns reserved scratch after failure`() {
+        val ws = Workspace()
+        ws.reserveI32(4, count = 1)
+        assertFailsWith<IllegalStateException> { ws.borrowI32(4) { error("boom") } }
+        assertEquals(1, ws.available(ScratchRequirement(ScratchKind.I32, 4)))
+    }
+
+    @Test
     fun `borrow returns the buffer even when the block throws`() {
         val ws = Workspace()
         val seen = ws.borrow(4) { it }

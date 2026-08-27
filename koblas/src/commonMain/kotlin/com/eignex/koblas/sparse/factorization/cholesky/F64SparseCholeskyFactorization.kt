@@ -1,9 +1,11 @@
 package com.eignex.koblas.sparse.factorization.cholesky
 
+import com.eignex.koblas.AllocationCapability
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.NotPositiveDefinite
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.noManagedOrNativeAllocation
 import com.eignex.koblas.requireSquare
 import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.factorization.columnPointers
@@ -52,6 +54,9 @@ public class F64SparseCholeskyFactorization internal constructor(
             }
             return if (maximum == 0.0) 0.0 else minimum / maximum
         }
+
+    override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability =
+        noManagedOrNativeAllocation
 
     /**
      * Solve `A x = b` into [out], which is returned and may be [b]. [transpose] is accepted and ignored: `A`

@@ -1,7 +1,6 @@
 package com.eignex.koblas.sparse.host.hfactor
 
-import com.eignex.koblas.NOT_SINGULAR
-import com.eignex.koblas.Workspace
+import com.eignex.koblas.*
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.internal.host.nativeCleaner
 import com.eignex.koblas.sparse.F64SparseFactorization
@@ -34,6 +33,8 @@ public class HfactorFactorization internal constructor(
 
     /** Always [NOT_SINGULAR]: this exists only for a matrix HFactor factored at full rank. */
     override val failedAt: Int get() = NOT_SINGULAR
+
+    override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability = noManagedAllocation
 
     override val nnz: Int get() = lifecycle.withResource {
         try {

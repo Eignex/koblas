@@ -4,6 +4,7 @@ import com.eignex.koblas.core.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.lu
+import com.eignex.koblas.sparse.sparseConformanceSystem
 import com.eignex.koblas.testutil.allocation.bytesPerIteration
 import kotlin.random.Random
 import kotlin.test.*
@@ -175,6 +176,26 @@ class AllocationFreeTest {
         }
         assertTrue(allocating > m * Double.SIZE_BYTES * 2.0, "expected allocation, saw $allocating B")
         assertPooled(into, allocating, "sparse solve both directions")
+    }
+
+    @Test
+    fun `strict sparse allocation checks are allocation neutral`() {
+        val n = 64
+        val factor = sparseConformanceSystem(n, Random(20260828)).lu()
+        val b = DoubleArray(n) { it * 0.01 - 0.5 }
+        val out = DoubleArray(n)
+        val workspace = Workspace().apply { reserve(n, count = 2) }
+
+        val bytes = bytesPerIteration(500) {
+            factor.solveInto(
+                b,
+                out,
+                workspace = workspace,
+                allocationPolicy = AllocationPolicy.REQUIRE_NO_MANAGED_OR_NATIVE,
+            )
+        }
+
+        assertTrue(bytes <= FLOOR_BYTES, "strict sparse solve allocated $bytes B per call")
     }
 
     /**

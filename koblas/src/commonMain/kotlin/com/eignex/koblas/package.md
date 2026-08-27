@@ -16,8 +16,9 @@ BLAS/LAPACK and the deliberate deviations.
   the matrix 1-norm [norm1].
 - Shared machinery: [Backend] (what every backend of every tier reports about itself), structured
   [F64Context.status][com.eignex.koblas.status] snapshots, operation-level
-  [F64Context.route][com.eignex.koblas.route] diagnostics, the [Workspace] buffer pool, and the [mathBackend]
-  identifier. None of these is per element type.
+  [F64Context.route][com.eignex.koblas.route] diagnostics, the typed [Workspace] buffer pool,
+  [AllocationCapability] and strict [AllocationPolicy] contracts, and the [mathBackend] identifier. None of
+  these is per element type.
 - Explicit solver configuration: [F64ContextBuilder] resolves independent immutable contexts with
   [F64DispatchPolicy] and [F64FallbackPolicy], without changing the process-wide registry.
 - The element type in the names, and the unqualified aliases for the double-precision ones, are collected

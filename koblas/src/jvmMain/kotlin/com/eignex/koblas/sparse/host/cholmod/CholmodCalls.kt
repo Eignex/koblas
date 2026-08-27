@@ -140,32 +140,22 @@ internal class CholmodCalls(private val config: CholmodConfig) {
         return CholmodFactor(reinterpreted, shared)
     }
 
-    /** Solves `A x = b` in place over [x], which holds the right-hand side on entry. */
-    fun solve(factor: CholmodFactor, x: DoubleArray): Boolean {
+    /** Solves `A x = b` in place over [x], using caller-retained native [workspace]. */
+    fun solve(factor: CholmodFactor, x: DoubleArray, workspace: CholmodSolveWorkspace): Boolean {
         val bound = handles ?: return false
-        Arena.ofConfined().use { arena ->
-            val rhs = arena.allocate(JAVA_DOUBLE, x.size.toLong())
-            MemorySegment.copy(x, 0, rhs, JAVA_DOUBLE, 0L, x.size)
-            val dense = arena.allocate(CHOLMOD_DENSE_BYTES)
-            dense.set(JAVA_LONG, CHOLMOD_DENSE_NROW, x.size.toLong())
-            dense.set(JAVA_LONG, CHOLMOD_DENSE_NCOL, 1L)
-            dense.set(JAVA_LONG, CHOLMOD_DENSE_NZMAX, x.size.toLong())
-            dense.set(JAVA_LONG, CHOLMOD_DENSE_D, x.size.toLong())
-            dense.set(ADDRESS, CHOLMOD_DENSE_X, rhs)
-            dense.set(ADDRESS, CHOLMOD_DENSE_Z, MemorySegment.NULL)
-            dense.set(JAVA_INT, CHOLMOD_DENSE_XTYPE, CHOLMOD_REAL)
-            dense.set(JAVA_INT, CHOLMOD_DENSE_DTYPE, CHOLMOD_DOUBLE)
-
-            val solved = bound.solve.invokeExact(CHOLMOD_A, factor.segment, dense, factor.common) as MemorySegment
-            if (solved.address() == 0L) return false
-            val answer = solved.reinterpret(CHOLMOD_DENSE_BYTES)
-            val values = answer.get(ADDRESS, CHOLMOD_DENSE_X).reinterpret(x.size.toLong() * Double.SIZE_BYTES)
-            MemorySegment.copy(values, JAVA_DOUBLE, 0L, x, 0, x.size)
-            // cholmod_free_dense takes the address of the pointer, so the pointer needs a slot of its own.
-            val slot = arena.allocate(ADDRESS)
-            slot.set(ADDRESS, 0L, solved)
-            bound.freeDense.invokeExact(slot, factor.common) as Int
-        }
+        MemorySegment.copy(x, 0, workspace.rhs, JAVA_DOUBLE, 0L, x.size)
+        val solved = bound.solve.invokeExact(
+            CHOLMOD_A,
+            factor.segment,
+            workspace.dense,
+            factor.common,
+        ) as MemorySegment
+        if (solved.address() == 0L) return false
+        val answer = solved.reinterpret(CHOLMOD_DENSE_BYTES)
+        val values = answer.get(ADDRESS, CHOLMOD_DENSE_X).reinterpret(x.size.toLong() * Double.SIZE_BYTES)
+        MemorySegment.copy(values, JAVA_DOUBLE, 0L, x, 0, x.size)
+        workspace.slot.set(ADDRESS, 0L, solved)
+        bound.freeDense.invokeExact(workspace.slot, factor.common) as Int
         return true
     }
 
@@ -278,6 +268,27 @@ internal class CholmodCalls(private val config: CholmodConfig) {
             bound.freeFactor.invokeExact(slot, factor.common) as Int
         }
     }
+}
+
+/** Native input descriptor retained for repeated solves against one CHOLMOD factor. */
+internal class CholmodSolveWorkspace(n: Int) : AutoCloseable {
+    private val arena = Arena.ofShared()
+    val rhs: MemorySegment = arena.allocate(JAVA_DOUBLE, n.toLong())
+    val dense: MemorySegment = arena.allocate(CHOLMOD_DENSE_BYTES)
+    val slot: MemorySegment = arena.allocate(ADDRESS)
+
+    init {
+        dense.set(JAVA_LONG, CHOLMOD_DENSE_NROW, n.toLong())
+        dense.set(JAVA_LONG, CHOLMOD_DENSE_NCOL, 1L)
+        dense.set(JAVA_LONG, CHOLMOD_DENSE_NZMAX, n.toLong())
+        dense.set(JAVA_LONG, CHOLMOD_DENSE_D, n.toLong())
+        dense.set(ADDRESS, CHOLMOD_DENSE_X, rhs)
+        dense.set(ADDRESS, CHOLMOD_DENSE_Z, MemorySegment.NULL)
+        dense.set(JAVA_INT, CHOLMOD_DENSE_XTYPE, CHOLMOD_REAL)
+        dense.set(JAVA_INT, CHOLMOD_DENSE_DTYPE, CHOLMOD_DOUBLE)
+    }
+
+    override fun close(): Unit = arena.close()
 }
 
 /** One native factor, and the common it was made against and must be freed against. */

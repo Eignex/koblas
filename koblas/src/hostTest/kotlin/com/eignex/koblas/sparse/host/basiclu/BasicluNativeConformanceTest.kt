@@ -41,6 +41,12 @@ class BasicluNativeConformanceTest {
     }
 
     @Test
+    fun `repeated solves declare a strict allocation contract`() {
+        if (!basiclu.isAvailable) return
+        assertStrictNativeSolveAllocationContract(basiclu)
+    }
+
+    @Test
     fun `a native factor closes deterministically`() {
         if (!basiclu.isAvailable) return
         val factorization = basiclu.factor(sparseConformanceSystem(8, Random(20261009)))

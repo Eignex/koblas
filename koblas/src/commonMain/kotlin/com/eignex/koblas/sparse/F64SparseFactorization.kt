@@ -39,8 +39,16 @@ public interface F64SparseFactorization : AutoCloseable {
     public val rcond: Double
 
     /**
-     * Solve `B x = b`, or `Bᵀ x = b` when [transpose], into [out], which is returned. Allocates nothing
-     * when given a [workspace]. [out] may be [b].
+     * Allocation behavior of [solveInto] for this factorization and argument shape. The default is
+     * conservative for third-party implementations that have not declared a contract.
+     */
+    public fun solveAllocation(aliasing: Boolean = true, transpose: Boolean = false): AllocationCapability =
+        unrestrictedAllocation
+
+    /**
+     * Solve `B x = b`, or `Bᵀ x = b` when [transpose], into [out], which is returned. [out] may be [b].
+     * [solveAllocation] reports the precise managed scratch and intrinsic allocation guarantee; use the
+     * strict overload below when the contract must be enforced before execution.
      */
     public fun solveInto(
         b: DoubleArray,
@@ -48,6 +56,25 @@ public interface F64SparseFactorization : AutoCloseable {
         transpose: Boolean = false,
         workspace: Workspace? = null,
     ): DoubleArray
+
+    /**
+     * Strict form of [solveInto]. Rejects [allocationPolicy] before mutation when the declared capability or
+     * currently idle [workspace] buffers cannot honor it.
+     */
+    public fun solveInto(
+        b: DoubleArray,
+        out: DoubleArray,
+        transpose: Boolean = false,
+        workspace: Workspace? = null,
+        allocationPolicy: AllocationPolicy,
+    ): DoubleArray {
+        requireSolveShapes(n, b, out)
+        val capability = solveAllocation(b === out, transpose)
+        if (!capability.supports(allocationPolicy, workspace)) {
+            throw AllocationPolicyRejectedException(allocationPolicy, capability)
+        }
+        return solveInto(b, out, transpose, workspace)
+    }
 
     /** Solve `B x = b`, or `Bᵀ x = b` when [transpose], into a fresh result. */
     public fun solve(b: DoubleArray, transpose: Boolean = false): DoubleArray = solveInto(b, DoubleArray(n), transpose)
@@ -81,6 +108,9 @@ public class F64SingularSparseFactorization(override val n: Int, override val fa
     override val nnz: Int get() = 0
 
     override val rcond: Double get() = 0.0
+
+    override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability =
+        noManagedOrNativeAllocation
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray =
         throw singularFailure(failedAt, "solve")
@@ -123,6 +153,11 @@ public class F64RefactoringBasisFactorization(
     override val rcond: Double get() {
         checkOpen()
         return factors.rcond
+    }
+
+    override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability {
+        checkOpen()
+        return factors.solveAllocation(aliasing, transpose)
     }
 
     override fun replaceColumn(column: Int, entering: F64SparseVector): F64BasisFactorization {
