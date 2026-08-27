@@ -29,18 +29,18 @@ Windows Native, and Apple mobile targets are not published.
 
 | Module | Published targets | Purpose |
 |--------|-------------------|---------|
-| `koblas` | JVM, Linux x64/arm64, macOS arm64 | Dense and sparse API with a portable reference backend. |
-| `koblas-openblas` | JVM | Bundled OpenBLAS and LAPACKE. |
-| `koblas-suitesparse` | JVM | Bundled SuiteSparse and its OpenBLAS dependency. |
-| `koblas-basiclu` | JVM | Bundled BASICLU for simplex-basis factorization. |
-| `koblas-hfactor` | JVM | Bundled HFactor for hypersparse simplex workflows. |
+| koblas | JVM, Linux x64/arm64, macOS arm64 | Dense and sparse API with a portable reference backend. |
+| koblas-openblas | JVM | Bundled OpenBLAS and LAPACKE. |
+| koblas-suitesparse | JVM | Bundled SuiteSparse and its OpenBLAS dependency. |
+| koblas-basiclu | JVM | Bundled BASICLU for simplex-basis factorization. |
+| koblas-hfactor | JVM | Bundled HFactor for hypersparse simplex workflows. |
 
 On JVM, add `--add-modules=jdk.incubator.vector` to enable the built-in SIMD kernels. Host OpenBLAS and
 SuiteSparse libraries are discovered when installed; the bundled modules take precedence on JVM Linux
 x64/arm64 and macOS arm64. When an accelerated provider is unavailable, koblas retains the same semantics
 through its portable implementation.
 
-Bundled modules carry their own third-party notices. In particular, `koblas-suitesparse` includes GPL-licensed
+Bundled modules carry their own third-party notices. In particular, koblas-suitesparse includes GPL-licensed
 SuiteSparse packages and is therefore effectively GPL-3.0.
 
 ## Quick start
@@ -84,13 +84,13 @@ val solution = a.lu().use { factor ->
 ## Data and storage
 
 Koblas currently implements one numerical family. The element type is explicit in expert-facing public names,
-while unqualified aliases such as `DenseMatrix` and `SparseMatrix` name the `F64` types.
+while unqualified aliases such as DenseMatrix and SparseMatrix name the F64 types.
 
 | Family | Scalar | Dense storage | Sparse storage | Sparse index |
 |--------|--------|---------------|----------------|--------------|
-| `F64` | Kotlin `Double` | `F64DenseVector`, `F64DenseMatrix`, strided views | `F64SparseVector`, CSC `F64SparseMatrix` | Kotlin `Int` |
+| F64 | Kotlin Double | F64DenseVector, F64DenseMatrix, strided views | F64SparseVector, CSC F64SparseMatrix | Kotlin Int |
 
-Compatible `DoubleArray` and CSC buffers can be wrapped without copying. Dense matrices are column-major, and
+Compatible DoubleArray and CSC buffers can be wrapped without copying. Dense matrices are column-major, and
 native SuiteSparse bindings use 32-bit-index entry points so sparse indices do not need widening copies.
 
 Owned dense containers can expose live borrowed panels, columns, and strided rows. A view retains its physical
@@ -122,7 +122,7 @@ a strided destination must not overlap an input.
 
 ## Allocation and workspaces
 
-BLAS-style and `*Into` overloads write into caller-owned destinations. Reuse a `Workspace` for temporary storage
+BLAS-style and Into-suffixed overloads write into caller-owned destinations. Reuse a Workspace for temporary storage
 and reserve it before an allocation-sensitive loop:
 
 ```kotlin
@@ -139,16 +139,16 @@ repeat(1_000) {
 ```
 
 Sparse factors report their exact scratch requirement through `solveAllocation(aliasing, transpose)`. Reserve
-those buffers and select an `AllocationPolicy` when the guarantee should be enforced before destination
-mutation. `REQUIRE_NO_SIZE_DEPENDENT_MANAGED` permits fixed JVM/FFM overhead; stronger policies are reported
+those buffers and select an AllocationPolicy when the guarantee should be enforced before destination
+mutation. REQUIRE_NO_SIZE_DEPENDENT_MANAGED permits fixed JVM/FFM overhead; stronger policies are reported
 only where koblas controls the corresponding allocation source.
 
-Expert BLAS calls use `Uplo`, `Transpose`, `Diag`, and `Side` rather than Boolean flag clusters. Boolean overloads
+Expert BLAS calls use Uplo, Transpose, Diag, and Side rather than Boolean flag clusters. Boolean overloads
 remain for source compatibility and delegate to the same backend seam.
 
 ## Backends and routing
 
-Every operation runs through an `F64Context`. Top-level functions use the process-wide `koblas` context, whose
+Every operation runs through an F64Context. Top-level functions use the process-wide koblas context, whose
 registry selects providers independently by semantic role. General sparse LU, repeated-pattern LU, Cholesky,
 LDL, basis factorization, and basis solving are separate choices rather than one interchangeable sparse backend.
 
@@ -181,8 +181,9 @@ check(route.execution == BackendExecution.NATIVE) {
 }
 ```
 
-`registerBackend` adds a provider explicitly. `installBackends` replaces the process-wide context; passing null
-restores registry selection. For solver-local control, use an immutable `F64ContextBuilder`:
+The `registerBackend(...)` function adds a provider explicitly. The `installBackends(...)` function replaces the
+process-wide context; passing null restores registry selection. For solver-local control, use an immutable
+F64ContextBuilder:
 
 ```kotlin
 val strictDense = F64ContextBuilder()
@@ -194,9 +195,9 @@ val strictDense = F64ContextBuilder()
 val c = strictDense.gemm(a, b)
 ```
 
-`NATIVE_ONLY` rejects a known fallback before backend invocation. `PORTABLE_ONLY` resolves every role to the
-reference implementation. In `AUTO`, fallback can be allowed, reported to a handler, or rejected. Third-party
-providers without route diagnostics report `UNKNOWN` rather than being assumed native.
+NATIVE_ONLY rejects a known fallback before backend invocation. PORTABLE_ONLY resolves every role to the
+reference implementation. In AUTO, fallback can be allowed, reported to a handler, or rejected. Third-party
+providers without route diagnostics report UNKNOWN rather than being assumed native.
 
 ### Discovery configuration
 
@@ -213,7 +214,7 @@ the environment variable.
 | BASICLU | `koblas.basiclu.path` | `KOBLAS_BASICLU_PATH` |
 | HFactor | `koblas.hfactor.path` | `KOBLAS_HFACTOR_PATH` |
 
-Discovery can also be pinned by backend name. A blank value is treated as unset, and `reference` disables host
+Discovery can also be pinned by backend name. A blank value is treated as unset, and the value "reference" disables host
 selection for that half.
 
 | Half | JVM property | Environment variable |
@@ -227,12 +228,12 @@ Choose a semantic capability based on the matrix sequence and numerical structur
 
 | Workload | Capability | Typical provider | Constraint |
 |----------|------------|------------------|------------|
-| Unrelated general systems | `generalSparseLu` | UMFPACK | Numerical pivoting; stable ordinary-LU role. |
-| Same CSC pattern, changing values | `repeatedSparseLu` | KLU | Analyze once; ordered CSC pattern must match exactly. |
-| Symmetric positive-definite systems | `sparseCholesky` | CHOLMOD | Reads the lower triangle and rejects a non-positive pivot. |
-| Quasi-definite KKT systems | `sparseLdl` | CHOLMOD | Numerically unpivoted; use general LU for arbitrary indefinite matrices. |
-| Simplex basis column replacement | `basisFactorizations` | BASICLU | Each update supersedes the preceding factor. |
-| Stateful simplex solve/update loop | `basisSolvers` | HFactor | Own and close the solver; use typed `ftran`, `btran`, and `update`. |
+| Unrelated general systems | generalSparseLu | UMFPACK | Numerical pivoting; stable ordinary-LU role. |
+| Same CSC pattern, changing values | repeatedSparseLu | KLU | Analyze once; ordered CSC pattern must match exactly. |
+| Symmetric positive-definite systems | sparseCholesky | CHOLMOD | Reads the lower triangle and rejects a non-positive pivot. |
+| Quasi-definite KKT systems | sparseLdl | CHOLMOD | Numerically unpivoted; use general LU for arbitrary indefinite matrices. |
+| Simplex basis column replacement | basisFactorizations | BASICLU | Each update supersedes the preceding factor. |
+| Stateful simplex solve/update loop | basisSolvers | HFactor | Own and close the solver; use typed ftran, btran, and update. |
 
 Retrieve a provider through a typed capability rather than casting to its implementation. Repeated-pattern LU,
 for example, retains symbolic analysis across numeric factors:
@@ -268,13 +269,13 @@ a.prepare().use { prepared ->
 }
 ```
 
-Prepared handles and sparse factors are `AutoCloseable`. Native block solves accept a column-major dense matrix
+Prepared handles and sparse factors are AutoCloseable. Native block solves accept a column-major dense matrix
 of right-hand sides; `factor.report()` exposes common nullable diagnostics plus provider details.
 
 ## Native options and threading
 
-Library paths belong to the provider `*Config` type, while numerical and dispatch policy belongs to reusable
-`*Options` values. Bundled and host-backed providers accept the same options, so deployment can change without
+Library paths belong to provider configuration types, while numerical and dispatch policy belongs to reusable
+options values. Bundled and host-backed providers accept the same options, so deployment can change without
 changing numerical policy. Effective options and resolved gates appear in `backendMetadata.options`.
 
 The portable reference and JVM SIMD implementations are single-threaded. Automatic OpenBLAS discovery selects
@@ -297,15 +298,15 @@ a host UMFPACK can use threads only through the BLAS against which it was built.
 
 | Object | Contract |
 |--------|----------|
-| `F64Context`, status, and route values | Immutable after resolution and safe to share. |
+| F64Context, status, and route values | Immutable after resolution and safe to share. |
 | Global backend registry | Configure during startup; process-wide selection is intentionally global. |
 | Owned dense and sparse containers | Mutable and unsynchronized; concurrent reads require no reachable writer. |
 | Strided views | Borrow live storage; the owner must outlive every use. |
-| `Workspace` | Caller-owned scratch; use one per concurrent operation or serialize access. |
-| Sparse factors and symbolic analyses | Caller-owned `AutoCloseable` resources; do not race use or refactor with close. |
+| Workspace | Caller-owned scratch; use one per concurrent operation or serialize access. |
+| Sparse factors and symbolic analyses | Caller-owned AutoCloseable resources; do not race use or refactor with close. |
 | Prepared sparse descriptors | Immutable snapshots with externally serialized native workspace; close explicitly. |
 | Destination-passing operations | Follow the documented alias contract for that operation. |
 
-Native cleaners are leak guards only. Deterministic `close()` or `use` remains the lifecycle contract, and a
+Native cleaners are leak guards only. Deterministic close or use remains the lifecycle contract, and a
 strict allocation policy covers an operation call rather than factor construction, library initialization, or
 thread-pool startup.
