@@ -175,6 +175,12 @@ benchmark {
         }
         // The two symmetric factorizations against the portable ones, with transpose trailing as the
         // control: it sorts after both subjects and no factorization gate reaches it.
+        // Materialising the symmetric factors, which converts a copy of the native factor. Kept out of the
+        // gate suite so its window stays short; no gate reads these.
+        suite("symmetricFactorGate", "SparseSymmetricHostBenchmark", "choleskyFactors|ldlFactors|transpose") {
+            gate()
+            param("n", "128", "256")
+        }
         suite("symmetricGate", "SparseSymmetricHostBenchmark", "cholesky|ldl|transpose") {
             gate()
             // The range the crossover sits in: the portable factorization fills without an ordering, so it
@@ -199,6 +205,13 @@ benchmark {
         }
         // The sparse LU factorization against the portable one, which is what the shared factorization gate
         // is set from, with transpose trailing as the control. One shape, since the gate is one number.
+        // Materialising the LU factors, which copies them out of the library. No gate reads this row.
+        suite("sparseLuFactorGate", "SparseHostBenchmark", "factors|transpose") {
+            gate()
+            param("n", "256")
+            param("shape", "random")
+            param("backend", "reference", "forced")
+        }
         suite("sparseLuGate", "SparseHostBenchmark", "factor|transpose") {
             gate()
             param("n", "32", "64", "128", "256")
