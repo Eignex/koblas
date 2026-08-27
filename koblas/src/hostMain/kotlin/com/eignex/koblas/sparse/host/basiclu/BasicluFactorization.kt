@@ -10,7 +10,7 @@ import com.eignex.koblas.sparse.F64BasisFactorization
 import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.F64SparseFactorizationReport
 import com.eignex.koblas.sparse.basicReport
-import com.eignex.koblas.sparse.host.applyEquilibration
+import com.eignex.koblas.sparse.host.applyF64Equilibration
 import com.eignex.koblas.sparse.internal.replaceColumns
 import com.eignex.koblas.sparse.internal.snapshot
 import com.eignex.koblas.sparse.requireSolveShapes
@@ -72,7 +72,7 @@ public open class BasicluFactorization internal constructor(
         if (out === b || (rowScale != null && !transpose)) {
             return workspace.borrow(n) { rhs ->
                 b.copyInto(rhs)
-                if (rowScale != null && !transpose) applyEquilibration(rhs, rowScale)
+                if (rowScale != null && !transpose) applyF64Equilibration(rhs, rowScale)
                 solveDistinct(rhs, out, transpose)
             }
         }
@@ -89,7 +89,7 @@ public open class BasicluFactorization internal constructor(
             }
         }
         check(status == BasicluStatus.OK) { "basiclu_obj_solve_dense failed with status $status" }
-        if (rowScale != null && transpose) applyEquilibration(out, rowScale)
+        if (rowScale != null && transpose) applyF64Equilibration(out, rowScale)
         return out
     }
 

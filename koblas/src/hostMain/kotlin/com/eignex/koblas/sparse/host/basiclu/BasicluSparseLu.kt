@@ -10,8 +10,8 @@ import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.requireSquare
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.sparse.host.F64SparseDecompositionsAdapter
-import com.eignex.koblas.sparse.host.equilibrationScale
-import com.eignex.koblas.sparse.host.scaledValues
+import com.eignex.koblas.sparse.host.f64EquilibrationScale
+import com.eignex.koblas.sparse.host.f64ScaledValues
 import kotlinx.cinterop.*
 
 /**
@@ -50,8 +50,8 @@ public open class BasicluSparseLu(
      */
     final override fun factorNative(a: F64SparseMatrix): F64SparseFactorization {
         val rowIdx = a.copyRowIndices()
-        val scale = if (equilibrate) equilibrationScale(a.rows, rowIdx, a.values) else null
-        val values = if (scale == null) a.values else scaledValues(rowIdx, a.values, scale)
+        val scale = if (equilibrate) f64EquilibrationScale(a.rows, rowIdx, a.values) else null
+        val values = if (scale == null) a.values else f64ScaledValues(rowIdx, a.values, scale)
         val functions = loader.functions ?: error("BASICLU is not available")
         val handle = factored(a, rowIdx, values, functions)
             ?: return F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)

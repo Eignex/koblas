@@ -10,7 +10,7 @@ class RowEquilibrationTest {
         val rowIdx = intArrayOf(0, 0, 1, 2, 3)
         val values = doubleArrayOf(3.0, -0.75, 0.75, Double.MIN_VALUE, Double.NaN)
 
-        val scale = equilibrationScale(4, rowIdx, values)
+        val scale = f64EquilibrationScale(4, rowIdx, values)
 
         assertContentEquals(doubleArrayOf(0.5, 2.0, 1.0, 1.0), scale)
     }
@@ -19,7 +19,7 @@ class RowEquilibrationTest {
     fun `scaled values use the factor belonging to each row`() {
         val rowIdx = intArrayOf(0, 1, 0)
 
-        val scaled = scaledValues(rowIdx, doubleArrayOf(4.0, -0.25, 6.0), doubleArrayOf(0.5, 2.0))
+        val scaled = f64ScaledValues(rowIdx, doubleArrayOf(4.0, -0.25, 6.0), doubleArrayOf(0.5, 2.0))
 
         assertContentEquals(doubleArrayOf(2.0, -0.5, 3.0), scaled)
     }
@@ -28,7 +28,7 @@ class RowEquilibrationTest {
     fun `equilibration can be applied in place to a solve vector`() {
         val values = doubleArrayOf(3.0, 4.0)
 
-        applyEquilibration(values, doubleArrayOf(2.0, 0.5))
+        applyF64Equilibration(values, doubleArrayOf(2.0, 0.5))
 
         assertContentEquals(doubleArrayOf(6.0, 2.0), values)
     }
