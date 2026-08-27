@@ -399,6 +399,16 @@ Acceptance criteria:
 
 ### PR 13: Strengthen workspace and allocation contracts
 
+Status: open as [PR #334](https://github.com/Eignex/koblas/pull/334) from
+`codex/allocation-contracts`; portable allocation probes, JVM host tests, and Linux/Native host tests passed,
+and `./gradlew check lintDocs --rerun-tasks` passed all 190 tasks. `Workspace` now pools typed F64 and I32
+scratch, while sparse factors report retained structured capabilities and exact managed reservations. Strict
+solve calls reject an unsupported guarantee or unavailable reservation before mutation without allocating in
+the policy check. UMFPACK retains its solve-info storage and CHOLMOD retains its input descriptor and buffer
+on both JVM and Kotlin/Native. External providers conservatively stop at `NO_MANAGED` when their internal
+native allocation behavior cannot be proven; only fully controlled portable paths claim
+`NO_MANAGED_OR_NATIVE`.
+
 - Add typed managed and native scratch or operation-specific reusable plans.
 - Add strict allocation policies and structured allocation capabilities.
 - Remove avoidable per-solve sparse-native scratch allocation.
