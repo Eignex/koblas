@@ -2,6 +2,7 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.dense.*
 import com.eignex.koblas.koblas
 
 /** Factorize this sparse matrix with the active backend ([koblas]), the counterpart of `F64DenseMatrix.lu`. */
@@ -26,6 +27,9 @@ public fun F64SparseMatrix.gemv(x: DoubleArray, transpose: Boolean = false): Dou
     transpose,
 )
 
+/** Typed-flag form of [gemv]. */
+public fun F64SparseMatrix.gemv(x: DoubleArray, transpose: Transpose): DoubleArray = koblas.gemv(this, x, transpose)
+
 /**
  * Solve `op(T) · x = b` in place against this matrix's [lower] or upper triangle, with the active backend
  * ([koblas]). See [F64SparseBlas.trsv].
@@ -36,6 +40,14 @@ public fun F64SparseMatrix.trsv(
     transpose: Boolean = false,
     unitDiag: Boolean = false,
 ): Unit = koblas.trsv(this, x, lower, transpose, unitDiag)
+
+/** Typed-flag form of [trsv]. */
+public fun F64SparseMatrix.trsv(
+    x: DoubleArray,
+    uplo: Uplo,
+    transpose: Transpose = Transpose.NO_TRANSPOSE,
+    diag: Diag = Diag.NON_UNIT,
+): Unit = koblas.trsv(this, x, uplo, transpose, diag)
 
 /** `this · B` for a dense [b], with the active backend ([koblas]). See [F64SparseBlas.gemm]. */
 public fun F64SparseMatrix.gemm(b: F64DenseMatrix): F64DenseMatrix = koblas.sparseBlas.gemm(this, b)
@@ -59,3 +71,14 @@ public fun F64SparseMatrix.trsm(
     right: Boolean = false,
     alpha: Double = 1.0,
 ): Unit = koblas.sparseBlas.trsm(this, b, lower, transpose, unitDiag, right, alpha)
+
+/** Typed-flag form of [trsm]. */
+@Suppress("LongParameterList")
+public fun F64SparseMatrix.trsm(
+    b: F64DenseMatrix,
+    uplo: Uplo,
+    transpose: Transpose = Transpose.NO_TRANSPOSE,
+    diag: Diag = Diag.NON_UNIT,
+    side: Side = Side.LEFT,
+    alpha: Double = 1.0,
+): Unit = koblas.sparseBlas.trsm(this, b, uplo, transpose, diag, side, alpha)

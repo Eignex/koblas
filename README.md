@@ -58,6 +58,19 @@ not need it. Bundled modules have licenses in addition to Apache 2.0; see their 
 `THIRD-PARTY-NOTICES.txt` files for details. `koblas-suitesparse` carries GPL-licensed
 SuiteSparse packages, which makes that artifact effectively GPL-3.0.
 
+## Element types
+
+Koblas currently implements one numerical element family. The type is part of every public expert-facing
+name so additional precisions can be added without changing the meaning or registry of the existing one.
+
+| Family | Scalar | Dense storage | Sparse storage | Sparse index |
+|--------|--------|---------------|----------------|--------------|
+| `F64` | Kotlin `Double` | `F64DenseVector`, `F64DenseMatrix`, and strided borrowed views | `F64SparseVector` and validated CSC `F64SparseMatrix` | Kotlin `Int` (32-bit) |
+
+Unqualified aliases such as `DenseMatrix`, `SparseMatrix`, and `DenseVector` name the `F64` types. Native
+SuiteSparse bindings deliberately use their 32-bit-index entry points so CSC indices do not require widening
+copies. BF16 is a planned family, not a currently selectable precision or backend role.
+
 ## Use
 
 Containers use column-major storage. Unqualified names such as `DenseMatrix`
@@ -68,6 +81,7 @@ physical leading dimension, while a row is a strided vector view:
 ```kotlin
 import com.eignex.koblas.*
 import com.eignex.koblas.core.*
+import com.eignex.koblas.dense.Transpose
 
 val storage = DenseMatrix.zero(512, 32)
 val panel = storage.view(row = 64, rows = 128, column = 4, cols = 8)
@@ -77,7 +91,15 @@ val output = DenseMatrix.zero(128, 2)
 check(storage.ownership == BufferOwnership.OWNED)
 check(panel.ownership == BufferOwnership.BORROWED)
 
-koblas.blas.gemm(1.0, panel, false, weights.asView(), false, 0.0, output.asView())
+koblas.blas.gemm(
+    1.0,
+    panel,
+    Transpose.NO_TRANSPOSE,
+    weights.asView(),
+    Transpose.NO_TRANSPOSE,
+    0.0,
+    output.asView(),
+)
 ```
 
 Views are live and not serializable because they do not own their buffers. Strided `gemv` and `gemm` pass
@@ -116,8 +138,8 @@ val y = a * x
 ```
 
 Sparse matrices use CSC storage. Like dense matrices, they support vector operations,
-matrix-vector products, and triangular solves. Their factorization is LU only, with
-refactorization and simplex-basis column replacement for repeated solves and updates.
+matrix-vector products, and triangular solves. Their factorizations include general LU, repeated-pattern LU,
+Cholesky, and unpivoted `L·D·Lᵀ`, with separate basis-factorization and basis-solver roles for simplex updates.
 Construct them from columns or coordinate triplets:
 
 ```kotlin
@@ -157,6 +179,31 @@ The source may be changed after preparation without affecting the snapshot. Prep
 `AutoCloseable`; do not use or close one concurrently without external serialization. CHOLMOD exposes
 separate prepared `gemv`, dense-product, and sparse-product gates because amortized crossovers differ from
 one-shot calls; set the corresponding `CholmodSparseBlas` constructor gate to zero to force a measured path.
+
+## Typed BLAS flags
+
+Expert code can use `Uplo`, `Transpose`, `Diag`, and `Side` instead of Boolean flag clusters. The enums make
+call sites self-describing and prevent argument-order mistakes. Existing Boolean overloads remain available
+for source compatibility and delegate to the same backend seam.
+
+```kotlin
+import com.eignex.koblas.dense.*
+
+trsm(
+    a = triangle,
+    b = rightHandSides,
+    uplo = Uplo.LOWER,
+    transpose = Transpose.NO_TRANSPOSE,
+    diag = Diag.NON_UNIT,
+    side = Side.LEFT,
+)
+```
+
+For migration, `lower = true/false` maps to `Uplo.LOWER/UPPER`, `transpose = false/true` to
+`Transpose.NO_TRANSPOSE/TRANSPOSE`, `unitDiag = false/true` to `Diag.NON_UNIT/UNIT`, and `right = false/true`
+to `Side.LEFT/RIGHT`. `Uplo.FULL` remains valid for koblas operations that deliberately update both symmetric
+triangles, such as `syr`; BLAS operations that must select exactly one stored triangle reject it before
+mutating a destination.
 
 ## Control memory
 
@@ -216,6 +263,69 @@ repeat(1_000) {
 does not claim that an external library avoids native allocation. `NO_MANAGED_OR_NATIVE` is therefore
 reported only where koblas controls the complete hot path. Native factor objects and their retained scratch
 remain externally serialized as described above.
+
+## BLAS coverage
+
+`P` means koblas has a portable implementation on every target. `N` means the named provider has a native
+implementation, subject to availability, supported arguments, and its measured gate; below a gate it runs
+the same portable semantics. This table describes reachable implementations, not the provider a process has
+selected. Inspect `context.plan(query)` for the decision of one concrete shape.
+
+| Routine family | Reference | OpenBLAS / CBLAS | CHOLMOD sparse BLAS |
+|----------------|-----------|-------------------|----------------------|
+| `dot`, `axpy`, `scale`, `copy`, `swap`, `norm2`, `asum`, `iamax` | P | N where selected; JVM normally prefers its SIMD kernels | — |
+| Dense `gemv`, `ger`, `symv`, `trsv`, `trmv` | P | N above the level-2 gate | — |
+| Dense `gemm`, `syrk`, `symm`, `trsm`, `trmm` | P | N above the level-3 gate | — |
+| Dense `transpose`, `syr`, `syr2`, `syr2k` | P | P by measured or implementation decision | — |
+| Strided dense `gemv`, `gemm` with positive strides | P | N with offset, increment, and leading dimension preserved | — |
+| Sparse `gemv` | P | — | P automatically; native prepared entry point remains forceable for measurement |
+| Sparse-dense `gemm` | P | — | N for a left sparse operand and untransposed dense operand above its one-shot or prepared gate |
+| Sparse-sparse `gemm`, sparse `transpose`, `trsv`, `trsm` | P | — | P by measured or unsupported-operation decision |
+
+| Factorization / solve family | Reference | LAPACKE | UMFPACK | KLU | CHOLMOD | BASICLU | HFactor |
+|------------------------------|-----------|---------|---------|-----|---------|---------|---------|
+| Dense LU factor, block solve, inverse, `rcond`, `trtri` | P | N above operation-specific gates | — | — | — | — | — |
+| Dense Cholesky, LDL, QR, pivoted QR, `applyQ` | P | N above gates where the ABI is bound; QR solves and one-RHS LDL solve stay P | — | — | — | — | — |
+| General sparse LU | P | — | N, stable automatic host default | N through its explicit repeated-pattern provider | — | N through its explicit basis provider | N as a lower-priority general provider |
+| Same-pattern symbolic analysis and numeric refactor | — | — | — | N | — | — | — |
+| Sparse Cholesky and unpivoted sparse LDL | P | — | — | — | N | — | — |
+| Sparse vector solve | P | — | N | N | N | N | N through basis workflows |
+| Sparse dense-block solve | P column-wise | — | N with one call per RHS | N in one `nrhs` call | N in one dense-block call | N with one call per RHS | N with one call per RHS |
+| Basis column replacement | P by refactorization | — | — | — | — | N | N through the stateful basis-solver API |
+
+Provider code is compiled for these targets:
+
+| Provider | Targets |
+|----------|---------|
+| Portable reference | JVM, JS, Wasm JS, Wasm WASI, Linux, macOS, Windows, and iOS |
+| JVM SIMD kernels | JVM with `jdk.incubator.vector` |
+| Host OpenBLAS/LAPACKE and SuiteSparse | JVM plus Linux and macOS Kotlin/Native when the libraries resolve |
+| Bundled OpenBLAS and SuiteSparse modules | JVM Linux x64/arm64 and JVM macOS arm64 |
+| Host or bundled BASICLU | JVM; host bindings also compile for Linux and macOS Kotlin/Native |
+| HFactor | JVM |
+
+SPQR is intentionally absent: the produced SuiteSparse artifact no longer builds or packages an unreachable
+SPQR library. Windows, iOS, JS, and Wasm therefore use the portable matrix and factorization implementations.
+
+### Routing and fallback contracts
+
+Native availability never implies native execution. The effective gates are provider options and appear in
+`BackendMetadata.options`; route-aware families report their exact comparison through `DispatchGate`.
+
+| Query family | Gate metric | Common portable reasons |
+|--------------|-------------|-------------------------|
+| `DenseGemv` | smaller matrix dimension | below threshold or unavailable CBLAS |
+| `DenseGemm` | saturated `m·n·k` work against the level-3 crossover | below threshold |
+| `DenseLu` | matrix order | below factorization threshold |
+| `SparseLu` | stored CSC entries | below provider factorization threshold or unavailable provider |
+| `SparseDenseGemm` | stored CSC entries | below threshold, right-side sparse operand, or transposed dense operand |
+| `PreparedSparseProduct` | stored CSC entries with separate `GEMV`, `DENSE_GEMM`, and `SPARSE_GEMM` gates | measured portable decision or unavailable CHOLMOD |
+| `SparseTriangularSolve` | stored CSC entries plus RHS count and flags | no bound provider currently implements the caller-matrix solve |
+
+`NATIVE_ONLY` and fallback `THROW` reject a known fallback before destination mutation. `WARN` invokes the
+configured handler first. A third-party provider without route diagnostics reports `UNKNOWN`; strict native
+policy rejects that uncertainty rather than assuming acceleration. Operations without an `F64RouteQuery`
+family retain backend behavior but cannot yet be preflighted by a context policy.
 
 ## Backends
 
@@ -341,6 +451,70 @@ BASICLU selects basis factorization rather than changing general LU.
 The value is a backend name, with the `-bundled` suffix optional and `reference` selecting
 none of the host bindings. A blank setting counts as unset, leaving the half to priority.
 
+## Choosing a sparse workflow
+
+| Workload | Preferred semantic capability | Typical provider | Important constraint |
+|----------|-------------------------------|------------------|----------------------|
+| Unrelated general systems | `generalSparseLu` | UMFPACK, otherwise reference | Uses numerical pivoting; this is the stable ordinary-LU role |
+| Same CSC pattern with changing values | `repeatedSparseLu` | KLU | Analyze once, require an exact ordered CSC-pattern match, and close numeric factors before the analysis |
+| Symmetric positive-definite systems | `sparseCholesky` | CHOLMOD, otherwise reference | Reads the lower triangle and rejects the first non-positive pivot |
+| Quasi-definite interior-point KKT systems | `sparseLdl` | CHOLMOD, otherwise reference | Sparse LDL is unpivoted numerically; use general LU for an arbitrary indefinite matrix |
+| Simplex basis with column replacement | `basisFactorizations` | BASICLU | The replacement returns a superseding factor and closes the old native resource |
+| Stateful simplex factor/solve/update loop | `basisSolvers` | HFactor | Own and close the solver; use `ftran`, `btran`, and `update` through the typed capability |
+
+### Complete controlled solve
+
+This example pins the semantic provider locally, proves that the concrete matrix shape will take a native
+route, reserves the factor's declared scratch, enforces its allocation contract before mutation, samples the
+report, and releases the factor deterministically:
+
+```kotlin
+import com.eignex.koblas.*
+
+discoverBackends()
+val umfpack = checkNotNull(backendNamed("umfpack", F64Capabilities.generalSparseLu))
+val context = F64ContextBuilder()
+    .withBackend(BackendRole.SPARSE_GENERAL_LU, umfpack)
+    .withDispatchPolicy(F64DispatchPolicy.NATIVE_ONLY)
+    .resolve()
+
+val plan = context.plan(F64RouteQuery.SparseLu(a.nnz))
+check(plan.decision == BackendPolicyDecision.EXECUTE) { plan.route }
+
+val out = DoubleArray(a.rows)
+val workspace = Workspace()
+context.factor(a).use { factor ->
+    val allocation = factor.solveAllocation(aliasing = false)
+    allocation.scratch.forEach(workspace::reserve)
+    factor.solveInto(
+        b = rhs,
+        out = out,
+        workspace = workspace,
+        allocationPolicy = AllocationPolicy.REQUIRE_NO_SIZE_DEPENDENT_MANAGED,
+    )
+    check(factor.report().provider == "umfpack")
+}
+```
+
+For a repeated-pattern loop, select the KLU capability and retain its symbolic analysis. `refactor` checks
+the full ordered CSC structure before native numeric work and supersedes the preceding factor:
+
+```kotlin
+val klu = checkNotNull(backendNamed("klu", F64Capabilities.repeatedSparseLu))
+val repeatedContext = F64ContextBuilder()
+    .withBackend(BackendRole.SPARSE_REPEATED_LU, klu)
+    .resolve()
+val repeated = checkNotNull(repeatedContext.capability(F64Capabilities.repeatedSparseLu))
+
+repeated.analyze(a).use { analysis ->
+    analysis.factor(a).use { initial ->
+        analysis.refactor(initial, samePatternWithNewValues).use { updated ->
+            updated.solveInto(rhs, out, workspace = workspace)
+        }
+    }
+}
+```
+
 ## Native numerical options
 
 Host-library paths belong to the `*Config` types; numerical and dispatch policy belongs to reusable
@@ -389,3 +563,21 @@ stack and can otherwise crash the process. OpenBLAS owns this setting process-wi
 bundled OpenBLAS is built with threading disabled, so bundled UMFPACK is also
 single-threaded. KLU has no multithreaded mode; a host UMFPACK may use threads only
 through the BLAS library it was built against.
+
+## Ownership, lifecycle, and concurrency
+
+| Object or operation | Ownership and concurrency contract |
+|---------------------|------------------------------------|
+| `F64Context` and resolved status/route values | Immutable after resolution and safe to share. Construct separate contexts for different policies. |
+| Global backend registry | Configure during startup. Registration is atomic, but changing the process-wide selection while work is running makes operation-to-operation choice intentionally global. |
+| Owned dense/sparse containers | Mutable through their buffers and not synchronized. Concurrent reads are safe only while no writer can reach the storage. |
+| Strided views | Borrow their backing and remain live. The owner must outlive every use. `gemv`/`gemm` reject output overlap with an input, while disjoint views may share one buffer. |
+| `Workspace` | Caller-owned reusable scratch. Give each concurrent operation its own workspace or externally serialize access. Reserve before entering an allocation-sensitive loop. |
+| Sparse factors and symbolic analyses | Caller-owned `AutoCloseable` resources. Close numeric factors before their analysis. Do not race solve/refactor/report with close; externally serialize a shared native factor. |
+| Prepared sparse descriptors | Immutable snapshots of source CSC data, but their native common/workspace is externally serialized. Close explicitly and do not race use with close. |
+| Destination-passing operations | Follow each operation's documented alias contract. Sparse vector and block factors accept an aliased RHS/destination; strided BLAS destinations must not overlap inputs. |
+
+Native factor cleaners are leak guards only; deterministic `close()`/`use` is the lifecycle contract. A strict
+allocation policy covers one operation call, not factor construction, native-library initialization, thread
+pool startup, or a provider behavior stronger than its declared `AllocationCapability`. OpenBLAS thread
+configuration is process-wide even when the selecting `F64Context` is local.
