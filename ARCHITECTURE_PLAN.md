@@ -451,6 +451,15 @@ Acceptance criteria:
 
 ### PR 15: Complete the expert-facing API and documentation
 
+Status: open as [PR #338](https://github.com/Eignex/koblas/pull/338) from
+`codex/expert-api-documentation`; focused JVM and Linux/Native typed-flag tests passed, ABI and documentation
+checks passed, and `./gradlew check lintDocs --rerun-tasks` passed all 190 tasks. Typed `Uplo`, `Transpose`,
+`Diag`, and `Side` overloads now cover dense and sparse BLAS flag clusters while Boolean signatures remain as
+migration paths. The README now contains element-type and routine/provider/target coverage, routing and
+fallback contracts, lifecycle, allocation, ownership, concurrency, sparse workflow guides, and complete
+strict-context and symbolic-reuse examples. This completes the implementation and documentation stack; PR 10
+remains the single accepted hardware-deferred measurement.
+
 - Add the capability/coverage matrix and workflow guides.
 - Repair stale README/package-doc references.
 - Document threading, lifecycle, routing, ownership, and allocation contracts.
@@ -495,5 +504,6 @@ The roadmap is complete when an expert user can, without process-global mutation
     owned reusable descriptor.
 11. Reach every shipped SPQR implementation through a typed capability, or avoid shipping dead SPQR code.
 12. Extend sparse triangular solves without an adapter-level final-method barrier.
-13. Rely on a reproducible AVX-512 measurement for `gatherZero` routing.
+13. Rely on a reproducible AVX-512 measurement for `gatherZero` routing, or retain the recorded no-change
+    deferral until a host with the required scatter ISA is available.
 14. Find all of these contracts and workflows in the public documentation.
