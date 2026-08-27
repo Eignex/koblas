@@ -57,6 +57,17 @@ mirror the dense ones.
   one factorization. Those coherent factors outlive the native call as ordinary koblas storage, so applying
   `Q`, reading diagnostics and solving never refactor the input or retain a `cholmod_common`.
 
+  Each kind returns the factor type its own contract names, and every one of them exposes its factors:
+  [F64SparseLuFactorization] carries `l`, `u`, the two orderings and the row scaling it was factored under,
+  [F64SparseCholeskyFactorization] carries `l` and its ordering, and [F64SparseLdlFactorization] carries `l`,
+  `d` and its ordering. The identity each satisfies is written on its interface, in terms of what that
+  factorization reports rather than of any particular ordering: a backend that permuted differently satisfies
+  the same identity with its own permutation, which is what the conformance helpers check.
+
+  Reading them is materialised on first access and costs a copy out of the library, so a caller who only
+  solves never pays. A backend that keeps its factors in a form it cannot hand back raises
+  [FactorsNotExposed]; BASICLU and HFactor do, since a basis representation for updating is what they are for.
+
   Every [F64SparseFactorization] solves either one vector or all columns of a caller-owned dense RHS block.
   The default block path preserves aliasing by staging a column; KLU and CHOLMOD specialize it through one
   native call. [F64SparseFactorization.report] samples an extensible [F64SparseFactorizationReport]: null means

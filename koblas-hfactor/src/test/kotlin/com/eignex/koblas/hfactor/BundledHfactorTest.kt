@@ -7,7 +7,7 @@ import com.eignex.koblas.sparse.basis.BasisUpdate
 import com.eignex.koblas.sparse.basis.F64BasisSolver
 import com.eignex.koblas.sparse.basis.F64IndexedVector
 import com.eignex.koblas.sparse.basis.F64ProductFormBasisSolver
-import com.eignex.koblas.sparse.factorization.lu.F64SparseLuFactorization
+import com.eignex.koblas.sparse.factorization.lu.F64SparseMarkowitzLu
 import com.eignex.koblas.sparse.host.hfactor.HfactorBasisSolver
 import com.eignex.koblas.sparse.host.hfactor.HfactorFactorization
 import com.eignex.koblas.sparse.host.hfactor.HfactorOptions
@@ -126,7 +126,7 @@ class BundledHfactorTest {
 
         val factorization = equilibrated.factor(matrix)
 
-        assertIs<F64SparseLuFactorization>(factorization)
+        assertIs<F64SparseMarkowitzLu>(factorization)
         assertEquals("true", equilibrated.backendMetadata.options["equilibrate"])
     }
 

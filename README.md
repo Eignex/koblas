@@ -209,9 +209,14 @@ Choose a semantic capability based on the matrix sequence and numerical structur
 | Simplex basis column replacement | basisFactorizations | BASICLU | Each update supersedes the preceding factor. |
 | Stateful simplex solve/update loop | basisSolvers | HFactor | Own and close the solver; use typed ftran, btran, and update. |
 
-Sparse QR returns an F64SparseQrFactorization rather than an F64SparseFactorization, because an m-by-n
-factorization takes a right-hand side of length m and answers one of length n. It carries R, the column
-ordering the backend chose, the estimated rank, and Q as an operator through applyQInto.
+Each sparse factorization returns the factor type its own kind names, and each exposes its factors: an LU
+carries L, U, the two orderings and the row scaling; a Cholesky and an LDL carry L, their ordering and, for
+the LDL, D; a QR carries R, the column ordering, the estimated rank and Q as an operator through applyQInto.
+Sparse QR is the one whose factor is not an F64SparseFactorization, because an m-by-n factorization takes a
+right-hand side of length m and answers one of length n.
+
+Factors materialise on first read and cost a copy out of the library, so solving alone never pays for them. A
+provider that keeps its factors in a form it cannot return raises FactorsNotExposed.
 KluConfig and UmfpackConfig expose qrFactorizeMin separately from factorizeMin, so automatic SPQR routing can
 be overridden without moving the sparse LU gate.
 

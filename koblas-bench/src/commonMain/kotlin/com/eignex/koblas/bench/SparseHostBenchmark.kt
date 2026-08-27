@@ -42,6 +42,10 @@ class SparseHostBenchmark {
     @Benchmark
     fun factor(): F64SparseFactorization = a.lu()
 
+    // Reading the factors copies them out of the library, so it is its own row rather than part of [factor].
+    @Benchmark
+    fun factors(): Int = a.lu().use { it.l.nnz + it.u.nnz }
+
     @Benchmark
     fun solve(): DoubleArray = factored.solve(rhs)
 
