@@ -314,6 +314,14 @@ Acceptance criteria:
 
 ### PR 9: Reopen sparse triangular solve extension points
 
+Status: open as [PR #328](https://github.com/Eignex/koblas/pull/328) from
+`codex/sparse-triangular-extension`; focused routing tests, ABI generation, static analysis, and `./gradlew
+check lintDocs --rerun-tasks` passed, with the full check executing all 190 tasks. The adapter methods are open,
+and a typed query plus protected measured-gate helper covers RHS count, triangle, transpose, unit diagonal, and
+side. Existing providers explicitly report portable execution, so native-only contexts reject before mutation.
+CXSparse remains unbound because it is neither built nor shipped and therefore cannot be benchmarked as a
+koblas provider in this PR.
+
 - Remove the unnecessary `final` restriction from `trsv` and `trsm` in `F64SparseBlasAdapter`.
 - Define the capability and dispatch contract needed for backend triangular solves without claiming support
   where no bound library implements it.
