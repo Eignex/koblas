@@ -36,6 +36,12 @@ internal class KluFunctions(private val lib: COpaquePointer) {
 
     val freeNumeric =
         required("klu_free_numeric").reinterpret<CFunction<(CPointer<COpaquePointerVar>?, Common) -> Int>>()
+
+    // Optional: without it a factorization still solves and only reading its factors is refused.
+    @Suppress("MagicNumber") // the prototype's arity is an ABI fact
+    val extract = dlsym(lib, "klu_extract")?.reinterpret<
+        CFunction<(Handle, Handle, Ip, Ip, Dp, Ip, Ip, Dp, Ip, Ip, Dp, Ip, Ip, Dp, Ip, Common) -> Int>,
+        >()
 }
 
 /** Opens the host KLU and reports whether every routine these bindings need resolved. */

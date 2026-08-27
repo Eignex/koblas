@@ -1,10 +1,10 @@
 package com.eignex.koblas.sparse.host.umfpack
 
+import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.FfmLibrary
+import com.eignex.koblas.sparse.internal.transposeRaw
 import java.lang.foreign.*
 import java.lang.foreign.ValueLayout.*
-import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.sparse.internal.transposeRaw
 import java.lang.invoke.MethodHandle
 
 /**
@@ -184,7 +184,13 @@ internal class UmfpackCalls(private val config: UmfpackConfig) {
         return if (transposed) {
             transposeRaw(order, order, ptr, idx, entries)
         } else {
-            transposeRaw(order, order, ptr, idx, entries).let { transposeRaw(order, order, it.colPtr, it.rowIdx, it.values) }
+            transposeRaw(
+                order,
+                order,
+                ptr,
+                idx,
+                entries,
+            ).let { transposeRaw(order, order, it.colPtr, it.rowIdx, it.values) }
         }
     }
 

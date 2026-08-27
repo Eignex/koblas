@@ -249,11 +249,12 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
     }
 
     /** The portable factorization at its default policy; [F64ReferenceSparseDecompositions] carries the knobs. */
-    override fun factor(a: F64SparseMatrix): F64SparseFactorization = F64ReferenceSparseDecompositions.factor(a)
+    override fun factor(a: F64SparseMatrix): F64SparseLuFactorization = F64ReferenceSparseDecompositions.factor(a)
 
-    override fun cholesky(a: F64SparseMatrix): F64SparseFactorization = F64ReferenceSparseDecompositions.cholesky(a)
+    override fun cholesky(a: F64SparseMatrix): F64SparseCholeskyFactorization =
+        F64ReferenceSparseDecompositions.cholesky(a)
 
-    override fun ldl(a: F64SparseMatrix): F64SparseFactorization = F64ReferenceSparseDecompositions.ldl(a)
+    override fun ldl(a: F64SparseMatrix): F64SparseLdlFactorization = F64ReferenceSparseDecompositions.ldl(a)
 
     override fun qr(a: F64SparseMatrix): F64SparseQrFactorization = F64ReferenceSparseDecompositions.qr(a)
 

@@ -6,8 +6,8 @@ import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.internal.host.nativeCleaner
 import com.eignex.koblas.sparse.F64BasisFactorization
-import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.F64SparseFactorizationReport
+import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.basicReport
 import com.eignex.koblas.sparse.host.applyEquilibration
 import com.eignex.koblas.sparse.internal.replaceColumns
@@ -22,7 +22,7 @@ public open class BasicluFactorization internal constructor(
     internal val calls: BasicluCalls,
     /** The equilibration the values were scaled by before factorization, or null when there was none. */
     private val rowScale: DoubleArray? = null,
-) : F64SparseFactorization {
+) : F64SparseLuFactorization {
     private class Release(private val calls: BasicluCalls, private val target: BasicluObject) {
         fun release() {
             try {

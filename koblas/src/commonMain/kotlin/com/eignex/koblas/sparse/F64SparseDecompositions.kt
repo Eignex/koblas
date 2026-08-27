@@ -28,7 +28,7 @@ public interface F64SparseDecompositions : Backend {
      * than naming a column: the step that fails is the one with no acceptable pivot left, so there is no
      * column of [a] to attribute it to.
      */
-    public fun factor(a: F64SparseMatrix): F64SparseFactorization
+    public fun factor(a: F64SparseMatrix): F64SparseLuFactorization
 
     /**
      * Cholesky factorization `A = L·Lᵀ` of a symmetric positive-definite [a]. Only the lower triangle is
@@ -42,7 +42,7 @@ public interface F64SparseDecompositions : Backend {
      *
      * @throws com.eignex.koblas.NotPositiveDefinite at the first column whose pivot is not positive.
      */
-    public fun cholesky(a: F64SparseMatrix): F64SparseFactorization
+    public fun cholesky(a: F64SparseMatrix): F64SparseCholeskyFactorization
 
     /**
      * Factorization `A = L·D·Lᵀ` of a symmetric [a], with `L` unit lower triangular. Only the lower triangle
@@ -60,7 +60,7 @@ public interface F64SparseDecompositions : Backend {
      * is, and it can be arbitrarily ill conditioned on a general indefinite one. A caller that cannot promise
      * quasi-definiteness wants [factor], whose pivoting is numerical.
      */
-    public fun ldl(a: F64SparseMatrix): F64SparseFactorization
+    public fun ldl(a: F64SparseMatrix): F64SparseLdlFactorization
 
     /**
      * QR factorization of a tall or square [a], for the least-squares solve `min ‖A·x − b‖₂`. Its factor is

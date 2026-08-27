@@ -11,8 +11,8 @@ import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.requireFactored
-import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.F64SparseFactorizationReport
+import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.basicReport
 import com.eignex.koblas.sparse.requireBlockSolveShapes
 import com.eignex.koblas.sparse.requireSolveShapes
@@ -28,7 +28,7 @@ public class KluFactorization internal constructor(
     override val n: Int,
     private val columnPointers: IntArray,
     private val rowIndices: IntArray,
-) : F64SparseFactorization {
+) : F64SparseLuFactorization {
 
     override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability = noManagedAllocation
 
@@ -49,6 +49,29 @@ public class KluFactorization internal constructor(
     }
 
     private val lifecycle = NativeResourceLifecycle("KLU factorization", handle::release)
+
+    /** The factors, extracted on the first read; KLU copies them out of its numeric object. */
+    private val extracted: KluFactors by lazy {
+        checkNotNull(
+            extractKluFactors(functions, handle.symbolic.pointed.value, handle.numeric.pointed.value, handle.common, n),
+        ) {
+            "this libklu does not expose klu_extract, so its factors cannot be read"
+        }
+    }
+
+    private val factors: KluFactors get() = anchoring { extracted }
+
+    override val l: F64SparseMatrix get() = factors.lower
+
+    override val u: F64SparseMatrix get() = factors.upper
+
+    override val offDiagonal: F64SparseMatrix get() = factors.offDiagonal
+
+    override val rowOrder: IntArray get() = factors.rowOrder.copyOf()
+
+    override val columnOrder: IntArray get() = factors.columnOrder.copyOf()
+
+    override val rowScaling: DoubleArray get() = factors.rowScaling.copyOf()
 
     @Suppress("unused") // the cleaner runs when this property becomes unreachable, which is the point
     private val cleaner = createCleaner(lifecycle) { it.close() }

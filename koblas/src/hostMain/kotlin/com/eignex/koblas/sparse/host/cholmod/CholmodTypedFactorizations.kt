@@ -7,8 +7,8 @@ import com.eignex.koblas.sparse.F64SparseLdlFactorization
 
 /*
  * CHOLMOD answers both symmetric routines with one factor object, but the two are different factorizations
- * and only one of them has a `D`. Rather than one class claiming both interfaces and lying about the field it
- * does not have, each routine wraps the shared factorization in the type its own contract names.
+ * and only one of them has a `D`. Each routine wraps the shared factorization in the type its own contract
+ * names rather than one class claiming both and lying about the field it does not have.
  */
 
 /** CHOLMOD's `A = L·Lᵀ`, whose `L` carries the real diagonal. */

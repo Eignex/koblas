@@ -13,7 +13,15 @@ import com.eignex.koblas.core.F64SparseMatrix
  * Every accessor here is materialised on first read. A native binding pays a copy for it, and SPQR pays more
  * than that, so a caller who only solves never pays at all. Reads go through the same lifecycle as a solve,
  * so a closed factorization refuses them, and a singular factorization has no factors to give.
+ *
+ * A provider whose factors are not a matrix it can hand back raises [FactorsNotExposed] rather than
+ * inventing one. BASICLU and HFactor do: they keep a basis representation for updating rather than an `L` and
+ * a `U`, which is what they are for.
  */
+
+/** Raised by a factorization whose provider keeps its factors in a form it cannot hand back. */
+public class FactorsNotExposed(factor: String) :
+    UnsupportedOperationException("this factorization does not expose $factor")
 
 /**
  * The factors a general sparse LU produces, indexed by pivot position.
@@ -29,22 +37,22 @@ import com.eignex.koblas.core.F64SparseMatrix
  */
 public interface F64SparseLuFactorization : F64SparseFactorization {
     /** Unit lower triangular, its diagonal stored. */
-    public val l: F64SparseMatrix
+    public val l: F64SparseMatrix get() = throw FactorsNotExposed("l")
 
     /** Upper triangular, its diagonal stored. */
-    public val u: F64SparseMatrix
+    public val u: F64SparseMatrix get() = throw FactorsNotExposed("u")
 
     /** The original row now at each pivot position, the `P` above. */
-    public val rowOrder: IntArray
+    public val rowOrder: IntArray get() = throw FactorsNotExposed("rowOrder")
 
     /** The original column now at each pivot position, the `Q` above. */
-    public val columnOrder: IntArray
+    public val columnOrder: IntArray get() = throw FactorsNotExposed("columnOrder")
 
     /**
      * The per-original-row factor the matrix was multiplied by before factorizing. All ones where the backend
      * does not equilibrate, so the identity above needs no special case for it.
      */
-    public val rowScaling: DoubleArray
+    public val rowScaling: DoubleArray get() = throw FactorsNotExposed("rowScaling")
 
     /**
      * The entries outside the diagonal blocks, `F` in the identity above. Empty unless the provider factored

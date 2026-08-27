@@ -3,7 +3,9 @@ package com.eignex.koblas.sparse.host
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.backend.platformSparseDispatchThresholds
-import com.eignex.koblas.sparse.F64SparseFactorization
+import com.eignex.koblas.sparse.F64SparseCholeskyFactorization
+import com.eignex.koblas.sparse.F64SparseLdlFactorization
+import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.F64SparseQrFactorization
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -22,17 +24,17 @@ class SparseDecompositionsAdapterTest {
         override val name: String get() = "recording"
         override val nativeAvailable: Boolean get() = true
 
-        override fun factorNative(a: F64SparseMatrix): F64SparseFactorization {
+        override fun factorNative(a: F64SparseMatrix): F64SparseLuFactorization {
             factors++
             return portable.factor(a)
         }
 
-        override fun choleskyNative(a: F64SparseMatrix): F64SparseFactorization {
+        override fun choleskyNative(a: F64SparseMatrix): F64SparseCholeskyFactorization {
             choleskys++
             return portable.cholesky(a)
         }
 
-        override fun ldlNative(a: F64SparseMatrix): F64SparseFactorization {
+        override fun ldlNative(a: F64SparseMatrix): F64SparseLdlFactorization {
             ldls++
             return portable.ldl(a)
         }

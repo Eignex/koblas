@@ -9,7 +9,8 @@ import com.eignex.koblas.discoverBackends
 import com.eignex.koblas.koblas
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.sparse.host.F64SparseBackends
-import com.eignex.koblas.sparse.host.cholmod.CholmodFactorization
+import com.eignex.koblas.sparse.host.cholmod.CholmodCholeskyFactorization
+import com.eignex.koblas.sparse.host.cholmod.CholmodLdlFactorization
 import kotlin.random.Random
 import kotlin.test.*
 
@@ -66,7 +67,7 @@ class UmfpackNativeConformanceTest {
     @Test
     fun `a native CHOLMOD factor closes deterministically`() {
         val factorization = umfpack.cholesky(sparseSymmetricConformanceSystem(12, Random(20261008)))
-        assertIs<CholmodFactorization>(factorization)
+        assertIs<CholmodCholeskyFactorization>(factorization)
 
         assertNativeFactorCloseContract(factorization)
     }
@@ -75,7 +76,7 @@ class UmfpackNativeConformanceTest {
     fun `native CHOLMOD solves reuse their descriptor scratch`() {
         val n = 18
         val factor = umfpack.cholesky(sparseSymmetricConformanceSystem(n, Random(20261010)))
-        assertIs<CholmodFactorization>(factor)
+        assertIs<CholmodCholeskyFactorization>(factor)
 
         assertStrictNativeSolveAllocationContract(factor, DoubleArray(n) { it * 0.25 - 1.0 })
     }
@@ -83,7 +84,7 @@ class UmfpackNativeConformanceTest {
     /** CHOLMOD ships beside UMFPACK, so the collection answers this seam's Cholesky natively here too. */
     @Test
     fun `the Cholesky comes from CHOLMOD beside it`() {
-        assertIs<CholmodFactorization>(
+        assertIs<CholmodCholeskyFactorization>(
             umfpack.cholesky(sparseSymmetricConformanceSystem(24, Random(20260916))),
             "expected CHOLMOD's factorization rather than the portable fallback",
         )
@@ -115,7 +116,7 @@ class UmfpackNativeConformanceTest {
 
         val f = umfpack.ldl(a)
 
-        assertIs<CholmodFactorization>(f, "expected CHOLMOD's factorization rather than the portable fallback")
+        assertIs<CholmodLdlFactorization>(f, "expected CHOLMOD's factorization rather than the portable fallback")
         assertTrue(!f.singular, "an invertible indefinite system has an L D Lt")
         assertFailsWith<NotPositiveDefinite> { umfpack.cholesky(a) }
     }

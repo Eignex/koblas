@@ -39,6 +39,12 @@ internal class CholmodFunctions(private val lib: COpaquePointer) {
     val freeDense = required("cholmod_free_dense").reinterpret<CFunction<(HandleSlot, Block) -> Int>>()
 
     val freeSparse = required("cholmod_free_sparse").reinterpret<CFunction<(HandleSlot, Block) -> Int>>()
+
+    // Optional: without them a factorization still solves and only reading its factors is refused.
+    val copyFactor = dlsym(lib, "cholmod_copy_factor")?.reinterpret<CFunction<(Block, Block) -> Handle>>()
+
+    val changeFactor = dlsym(lib, "cholmod_change_factor")
+        ?.reinterpret<CFunction<(Int, Int, Int, Int, Int, Block, Block) -> Int>>()
 }
 
 /** Opens the host CHOLMOD and reports whether every routine these bindings need resolved. */

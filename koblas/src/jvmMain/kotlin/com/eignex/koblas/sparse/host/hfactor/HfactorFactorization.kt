@@ -3,8 +3,8 @@ package com.eignex.koblas.sparse.host.hfactor
 import com.eignex.koblas.*
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.internal.host.nativeCleaner
-import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.F64SparseFactorizationReport
+import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.basicReport
 import com.eignex.koblas.sparse.basis.F64IndexedVector
 import com.eignex.koblas.sparse.requireSolveShapes
@@ -22,7 +22,7 @@ public class HfactorFactorization internal constructor(
     override val n: Int,
     private val calls: HfactorCalls,
     private val handle: MemorySegment,
-) : F64SparseFactorization {
+) : F64SparseLuFactorization {
     private class Release(private val calls: HfactorCalls, private val handle: MemorySegment) {
         fun release(): Unit = calls.free(handle)
     }

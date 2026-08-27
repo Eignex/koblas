@@ -7,7 +7,7 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.sparse.F64SingularSparseFactorization
-import com.eignex.koblas.sparse.F64SparseFactorization
+import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.basis.F64BasisSolver
 import com.eignex.koblas.sparse.basis.F64BasisSolvers
 import com.eignex.koblas.sparse.basis.F64ProductFormBasisSolver
@@ -47,7 +47,7 @@ public open class HfactorSparseLu(
      * HFactor offers no row scaling, so a backend set to equilibrate stays with the portable factorization
      * rather than reproducing it here by scaling the values on the way in.
      */
-    final override fun factorNative(a: F64SparseMatrix): F64SparseFactorization {
+    final override fun factorNative(a: F64SparseMatrix): F64SparseLuFactorization {
         if (equilibrate) return portable.factor(a)
         val handle = calls.create(a.rows, a.cols, a.copyColumnPointers(), a.copyRowIndices(), a.values)
             ?: return F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
