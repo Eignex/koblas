@@ -10,10 +10,19 @@ internal actual val platformDispatchThresholds: DispatchThresholds =
         level2 = 0,
         level3 = 0,
         factorize = 0,
-        symmetricFactorize = NATIVE_SYMMETRIC_FACTORIZE_MIN,
-        sparseProduct = NATIVE_SPARSE_PRODUCT_MIN,
-        sparseQr = NATIVE_SPARSE_QR_MIN,
     )
+
+/** The sparse gates here, each measured against its own library rather than read off the dense ones. */
+internal actual val platformSparseDispatchThresholds: SparseDispatchThresholds =
+    SparseDispatchThresholds(
+        factorize = NATIVE_SPARSE_FACTORIZE_MIN,
+        symmetric = NATIVE_SYMMETRIC_FACTORIZE_MIN,
+        qr = NATIVE_SPARSE_QR_MIN,
+        product = NATIVE_SPARSE_PRODUCT_MIN,
+    )
+
+/** The sparse general LU against UMFPACK. Inherited from the dense gate rather than measured. */
+private const val NATIVE_SPARSE_FACTORIZE_MIN = 0
 
 /**
  * The stored-entry count from which a host library takes the symmetric sparse factorizations.

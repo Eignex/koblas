@@ -7,41 +7,38 @@ import com.eignex.koblas.dense.host.cblas.HostBlasConfig
  * The smallest problem size at which dispatching to a native backend beats staying in Kotlin.
  * [Int.MAX_VALUE] keeps a family portable.
  *
- * [level1] is honored by the routing in [F64Kernels]; the rest by the host backends, which share their
- * adapters across platforms and so read them everywhere. One gate per quantity a routine can be gated on
- * rather than one per routine: the factorizations and their inverses gate on a matrix dimension, and the
- * multi-column solves over their factors gate on a count of right-hand sides, which is not a dimension and
- * does not share a crossover with one.
- *
- * One value carries every gate an adapter reads, so a binding cannot wire one gate and forget another.
+ * Dense and kernel routing only, and every gate here is read as a dimension or a run length. The sparse
+ * gates are [SparseDispatchThresholds], because their crossings are counted in stored entries: one number
+ * cannot be both, and sharing one made a dense measurement move a sparse gate.
  *
  * @property level1 run length from which the level-1 primitives dispatch to a registered [F64Kernels].
  * @property level2 dimension from which the level-2 routines dispatch natively.
  * @property level3 dimension from which the level-3 routines dispatch natively.
- * @property factorize size from which the factorizations and the inverses built on them dispatch natively,
- *   the optional pivoted QR included. A dense routine reads it as a dimension and a sparse one as a count of
- *   stored entries, since that is what each one's work scales with; one number, measured against whichever
- *   quantity pays for the crossing.
- * @property symmetricFactorize the same, for the factorizations that need no numerical pivoting. They cross
- *   later than the general one, so they gate on a number of their own rather than dispatching early on its.
- * @property sparseProduct stored entries from which the sparse matrix products dispatch natively. Separate
- *   from [level2], which a vector-kernel platform sets beyond reach because its own kernels win the dense
- *   level-2 routines; there are no vector kernels for a sparse product, so that reasoning does not carry.
- * @property sparseQr stored entries from which sparse QR dispatches to SPQR. It has its own crossing rather
- *   than inheriting the general sparse-LU factorization gate.
+ * @property factorize dimension from which the factorizations and the inverses built on them dispatch
+ *   natively, the optional pivoted QR included.
  */
-internal class DispatchThresholds(
-    val level1: Int,
-    val level2: Int,
-    val level3: Int,
-    val factorize: Int,
-    val symmetricFactorize: Int = factorize,
-    val sparseProduct: Int = level2,
-    val sparseQr: Int = factorize,
-)
+internal class DispatchThresholds(val level1: Int, val level2: Int, val level3: Int, val factorize: Int)
+
+/**
+ * The same for the sparse routines, counted in stored entries throughout, which is what sparse work scales
+ * with: an order of a thousand with a diagonal and little else is smaller work than a dense hundred.
+ *
+ * One gate per library rather than one per routine. Each of these crosses against a different library with
+ * its own fixed cost, so they are measured apart and a value here means nothing anywhere else.
+ *
+ * @property factorize stored entries from which the general sparse LU dispatches natively.
+ * @property symmetric the same for the symmetric factorizations, which need no numerical pivoting and cross
+ *   later than the general one.
+ * @property qr the same for the sparse QR, which has its own crossing again.
+ * @property product stored entries from which the sparse matrix products dispatch natively.
+ */
+internal class SparseDispatchThresholds(val factorize: Int, val symmetric: Int, val qr: Int, val product: Int)
 
 /** What this platform uses for double precision absent backend-specific configuration. */
 internal expect val platformDispatchThresholds: DispatchThresholds
+
+/** The same for the sparse routines. Independent of the dense gates, and of whether SIMD kernels resolved. */
+internal expect val platformSparseDispatchThresholds: SparseDispatchThresholds
 
 /**
  * The dispatch policy for one host backend. A null gate retains the platform default, so a host configures
@@ -55,17 +52,24 @@ internal fun hostDispatchThresholds(
     level2: Int? = null,
     level3: Int? = null,
     factorize: Int? = null,
-    symmetricFactorize: Int? = null,
-    sparseProduct: Int? = null,
-    sparseQr: Int? = null,
 ): DispatchThresholds = DispatchThresholds(
     level1 = level1 ?: platformDispatchThresholds.level1,
     level2 = level2 ?: platformDispatchThresholds.level2,
     level3 = level3 ?: platformDispatchThresholds.level3,
     factorize = factorize ?: platformDispatchThresholds.factorize,
-    symmetricFactorize = symmetricFactorize ?: platformDispatchThresholds.symmetricFactorize,
-    sparseProduct = sparseProduct ?: platformDispatchThresholds.sparseProduct,
-    sparseQr = sparseQr ?: platformDispatchThresholds.sparseQr,
+)
+
+/** The sparse counterpart of [hostDispatchThresholds]; a null gate retains the platform default as there. */
+internal fun hostSparseDispatchThresholds(
+    factorize: Int? = null,
+    symmetric: Int? = null,
+    qr: Int? = null,
+    product: Int? = null,
+): SparseDispatchThresholds = SparseDispatchThresholds(
+    factorize = factorize ?: platformSparseDispatchThresholds.factorize,
+    symmetric = symmetric ?: platformSparseDispatchThresholds.symmetric,
+    qr = qr ?: platformSparseDispatchThresholds.qr,
+    product = product ?: platformSparseDispatchThresholds.product,
 )
 
 /** The dispatch policy for one OpenBLAS instance, every gate the configuration carries included. */

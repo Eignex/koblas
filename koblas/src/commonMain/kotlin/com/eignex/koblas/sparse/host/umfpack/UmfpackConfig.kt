@@ -1,6 +1,6 @@
 package com.eignex.koblas.sparse.host.umfpack
 
-import com.eignex.koblas.internal.backend.hostDispatchThresholds
+import com.eignex.koblas.internal.backend.hostSparseDispatchThresholds
 
 /** The row-scaling strategy UMFPACK applies while building numeric factors. */
 public enum class UmfpackScaling {
@@ -88,8 +88,8 @@ public data class UmfpackConfig(
 }
 
 internal fun UmfpackOptions.metadataOptions(): Map<String, String> = mapOf(
-    "factorizeMin" to hostDispatchThresholds(factorize = factorizeMin).factorize.toString(),
-    "qrFactorizeMin" to hostDispatchThresholds(sparseQr = qrFactorizeMin).sparseQr.toString(),
+    "factorizeMin" to hostSparseDispatchThresholds(factorize = factorizeMin).factorize.toString(),
+    "qrFactorizeMin" to hostSparseDispatchThresholds(qr = qrFactorizeMin).qr.toString(),
     "equilibrate" to equilibrate.toString(),
     "iterativeRefinementSteps" to iterativeRefinementSteps.toString(),
     "pivotTolerance" to pivotTolerance.toString(),

@@ -2,7 +2,7 @@ package com.eignex.koblas.sparse.host
 
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.internal.backend.platformDispatchThresholds
+import com.eignex.koblas.internal.backend.platformSparseDispatchThresholds
 import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.F64SparseQrFactorization
 import kotlin.test.Test
@@ -48,24 +48,24 @@ class SparseDecompositionsAdapterTest {
 
     @Test
     fun `the QR uses its independently measured gate`() {
-        val thresholds = platformDispatchThresholds
+        val thresholds = platformSparseDispatchThresholds
         val adapter = RecordingAdapter()
 
-        adapter.qr(diagonal(thresholds.sparseQr - 1))
-        adapter.qr(diagonal(thresholds.sparseQr))
+        adapter.qr(diagonal(thresholds.qr - 1))
+        adapter.qr(diagonal(thresholds.qr))
 
         assertEquals(1, adapter.qrs)
     }
 
     @Test
     fun `the symmetric factorizations gate later than the general one`() {
-        val thresholds = platformDispatchThresholds
+        val thresholds = platformSparseDispatchThresholds
         assertTrue(
-            thresholds.symmetricFactorize > thresholds.factorize,
-            "the symmetric gate should sit past the general one, got ${thresholds.symmetricFactorize} " +
+            thresholds.symmetric > thresholds.factorize,
+            "the symmetric gate should sit past the general one, got ${thresholds.symmetric} " +
                 "against ${thresholds.factorize}",
         )
-        val between = (thresholds.factorize + thresholds.symmetricFactorize) / 2
+        val between = (thresholds.factorize + thresholds.symmetric) / 2
         val adapter = RecordingAdapter()
 
         adapter.factor(diagonal(between))
@@ -106,7 +106,7 @@ class SparseDecompositionsAdapterTest {
     @Test
     fun `past the last gate all four reach the library`() {
         val adapter = RecordingAdapter()
-        val lastGate = maxOf(platformDispatchThresholds.symmetricFactorize, platformDispatchThresholds.sparseQr)
+        val lastGate = maxOf(platformSparseDispatchThresholds.symmetric, platformSparseDispatchThresholds.qr)
         val large = diagonal(lastGate + 1)
 
         adapter.factor(large)

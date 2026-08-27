@@ -17,26 +17,29 @@ private val SIMD_THRESHOLDS = DispatchThresholds(
     level2 = Int.MAX_VALUE,
     level3 = JVM_LEVEL3_MIN,
     factorize = JVM_FACTORIZE_MIN,
-    symmetricFactorize = JVM_SYMMETRIC_FACTORIZE_MIN,
-    sparseProduct = JVM_SPARSE_PRODUCT_MIN,
-    sparseQr = JVM_SPARSE_QR_MIN,
 )
 
-/**
- * For a JVM running the scalar loops, where the host library wins from the smallest sizes.
- *
- * The symmetric factorizations are the exception, and keep the gate the vector path uses. What they lose to
- * CHOLMOD is fill rather than the arithmetic in a kernel, so having scalar loops instead of vector ones does
- * not move where they cross.
- */
+/** For a JVM running the scalar loops, where the host library wins from the smallest sizes. */
 private val SCALAR_THRESHOLDS = DispatchThresholds(
     level1 = JVM_SCALAR_LEVEL1_MIN,
     level2 = 0,
     level3 = 0,
     factorize = 0,
-    symmetricFactorize = JVM_SYMMETRIC_FACTORIZE_MIN,
-    sparseProduct = JVM_SPARSE_PRODUCT_MIN,
-    sparseQr = JVM_SCALAR_SPARSE_QR_MIN,
+)
+
+/**
+ * One set whether or not the Vector API resolved.
+ *
+ * What a sparse routine loses to its library is fill and foreign-call overhead rather than the arithmetic in
+ * a dense kernel, so having scalar loops instead of vector ones does not move where it crosses. Reading these
+ * off the dense gates made the general sparse LU dispatch from zero entries on a JVM without the incubator
+ * module and from 128 with it, on a crossing neither number was measured against.
+ */
+internal actual val platformSparseDispatchThresholds: SparseDispatchThresholds = SparseDispatchThresholds(
+    factorize = JVM_SPARSE_FACTORIZE_MIN,
+    symmetric = JVM_SYMMETRIC_FACTORIZE_MIN,
+    qr = JVM_SPARSE_QR_MIN,
+    product = JVM_SPARSE_PRODUCT_MIN,
 )
 
 /**
@@ -53,6 +56,9 @@ private const val JVM_LEVEL3_MIN = 16
  * factorizations cross here, and Cholesky and QR only at 256, so this dispatches those two a little early.
  */
 private const val JVM_FACTORIZE_MIN = 128
+
+/** The sparse general LU against UMFPACK, in stored entries. Inherited from the dense gate, not measured. */
+private const val JVM_SPARSE_FACTORIZE_MIN = 128
 
 /**
  * The stored-entry count from which a host library takes the symmetric sparse factorizations.
@@ -96,6 +102,3 @@ private const val JVM_SPARSE_PRODUCT_MIN = 64
  * itself; the value wants re-deriving from it.
  */
 private const val JVM_SPARSE_QR_MIN = 384
-
-/** The sparse QR is scalar on both JVM execution modes. */
-private const val JVM_SCALAR_SPARSE_QR_MIN = JVM_SPARSE_QR_MIN

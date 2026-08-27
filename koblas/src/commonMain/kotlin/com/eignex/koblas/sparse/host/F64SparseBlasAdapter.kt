@@ -3,7 +3,7 @@ package com.eignex.koblas.sparse.host
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.internal.backend.hostDispatchThresholds
+import com.eignex.koblas.internal.backend.hostSparseDispatchThresholds
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.F64SparseBlas
 
@@ -30,7 +30,7 @@ public abstract class F64SparseBlasAdapter protected constructor(level2Min: Int?
     /** Whether the binding resolved every symbol needed to multiply. */
     protected abstract val nativeAvailable: Boolean
 
-    private val gate = hostDispatchThresholds(sparseProduct = level2Min).sparseProduct
+    private val gate = hostSparseDispatchThresholds(product = level2Min).product
 
     /** The portable routines, for everything the library will not take. */
     protected val portable: F64SparseBlas get() = F64ReferenceSparseLinearAlgebra
