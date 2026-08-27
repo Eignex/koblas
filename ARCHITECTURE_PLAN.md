@@ -355,6 +355,13 @@ Acceptance criteria:
 
 ### PR 11: Introduce symbolic/numeric sparse factorization capabilities
 
+Status: open as [PR #330](https://github.com/Eignex/koblas/pull/330) from
+`codex/sparse-symbolic-factorization`; portable, JVM KLU, and Linux/Native KLU focused tests passed, and
+`./gradlew check lintDocs --rerun-tasks` passed all 190 tasks. A typed closeable analysis owns an immutable CSC
+pattern and exposes numeric factor/refactor operations without backend casts. Pattern incompatibility is
+reported before numeric work and separately from singularity. Numeric factors remain caller-owned inside the
+analysis lifetime. Native KLU now validates full CSC compatibility, fixing its earlier order-only check.
+
 - Add explicit pattern analysis, numeric factorization, and compatible-value refactorization abstractions.
 - Implement KLU first without forcing unsupported providers into fake reuse.
 - Consider UMFPACK/CHOLMOD analysis reuse in follow-up commits within this PR only if the abstraction remains
