@@ -19,6 +19,12 @@ public fun F64SparseMatrix.cholesky(): F64SparseFactorization = koblas.cholesky(
  */
 public fun F64SparseMatrix.ldl(): F64SparseFactorization = koblas.ldl(this)
 
+/**
+ * QR-factorize this tall or square matrix with the active backend ([koblas]), for the least-squares solve
+ * `min ‖A·x − b‖₂`. See [F64SparseDecompositions.qr].
+ */
+public fun F64SparseMatrix.qr(): F64SparseQrFactorization = koblas.qr(this)
+
 /** `this · x`, or `thisᵀ · x` when [transpose], with the active backend ([koblas]). */
 public fun F64SparseMatrix.gemv(x: DoubleArray, transpose: Boolean = false): DoubleArray = koblas.gemv(
     this,

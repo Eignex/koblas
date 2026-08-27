@@ -205,8 +205,13 @@ Choose a semantic capability based on the matrix sequence and numerical structur
 | Same CSC pattern, changing values | repeatedSparseLu | KLU | Analyze once; ordered CSC pattern must match exactly. |
 | Symmetric positive-definite systems | sparseCholesky | CHOLMOD | Reads the lower triangle and rejects a non-positive pivot. |
 | Quasi-definite KKT systems | sparseLdl | CHOLMOD | Numerically unpivoted; use general LU for arbitrary indefinite matrices. |
+| Overdetermined least-squares systems | sparseQr | SPQR | Requires at least as many rows as columns. |
 | Simplex basis column replacement | basisFactorizations | BASICLU | Each update supersedes the preceding factor. |
 | Stateful simplex solve/update loop | basisSolvers | HFactor | Own and close the solver; use typed ftran, btran, and update. |
+
+Sparse QR returns an F64SparseQrFactorization rather than an F64SparseFactorization, because an m-by-n
+factorization takes a right-hand side of length m and answers one of length n. It carries R, the column
+ordering the backend chose, the estimated rank, and Q as an operator through applyQInto.
 
 Use the typed capability selected in the context rather than casting to a provider implementation.
 Repeated-pattern LU, for example, retains symbolic analysis across numeric factors:

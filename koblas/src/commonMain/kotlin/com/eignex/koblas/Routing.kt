@@ -92,6 +92,15 @@ public sealed interface F64RouteQuery {
         }
     }
 
+    /** A sparse QR factorization of a matrix with [storedEntries] stored entries. */
+    public data class SparseQr(val storedEntries: Int) : F64RouteQuery {
+        override val role: BackendRole get() = BackendRole.SPARSE_QR
+
+        init {
+            requireNonNegative(storedEntries, "storedEntries")
+        }
+    }
+
     /** A general sparse LU factorization of a matrix with [storedEntries] stored entries. */
     public data class SparseLu(val storedEntries: Int) : F64RouteQuery {
         override val role: BackendRole get() = BackendRole.SPARSE_GENERAL_LU

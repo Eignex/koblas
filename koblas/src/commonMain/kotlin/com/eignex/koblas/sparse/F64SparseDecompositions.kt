@@ -63,6 +63,14 @@ public interface F64SparseDecompositions : Backend {
     public fun ldl(a: F64SparseMatrix): F64SparseFactorization
 
     /**
+     * QR factorization of a tall or square [a], for the least-squares solve `min ‖A·x − b‖₂`. Its factor is
+     * an [F64SparseQrFactorization] rather than an [F64SparseFactorization], which is square.
+     *
+     * @throws IllegalArgumentException if [a] has fewer rows than columns.
+     */
+    public fun qr(a: F64SparseMatrix): F64SparseQrFactorization
+
+    /**
      * Solve `A·x = b` from [f] into [out], `Aᵀ·x = b` when [transpose]. The work belongs to the
      * factorization; this is here so the seam reads the same from the sparse side as [com.eignex.koblas
      * .dense.F64Decompositions.solveInto] does from the dense one.

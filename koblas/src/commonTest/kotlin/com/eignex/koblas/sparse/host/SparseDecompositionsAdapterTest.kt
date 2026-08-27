@@ -4,6 +4,7 @@ import com.eignex.koblas.*
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.backend.platformDispatchThresholds
 import com.eignex.koblas.sparse.F64SparseFactorization
+import com.eignex.koblas.sparse.F64SparseQrFactorization
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -15,6 +16,7 @@ class SparseDecompositionsAdapterTest {
         var factors = 0
         var choleskys = 0
         var ldls = 0
+        var qrs = 0
 
         override val name: String get() = "recording"
         override val nativeAvailable: Boolean get() = true
@@ -33,10 +35,28 @@ class SparseDecompositionsAdapterTest {
             ldls++
             return portable.ldl(a)
         }
+
+        override fun qrNative(a: F64SparseMatrix): F64SparseQrFactorization {
+            qrs++
+            return portable.qr(a)
+        }
     }
 
     /** A diagonal of [n] entries, whose stored count is [n] and which every factorization here accepts. */
     private fun diagonal(n: Int) = F64SparseMatrix.ofColumns(n, n, List(n) { j -> listOf(j to (j + 2.0)) })
+
+    @Test
+    fun `the QR rides the general factorization gate rather than the symmetric one`() {
+        val thresholds = platformDispatchThresholds
+        val between = (thresholds.factorize + thresholds.symmetricFactorize) / 2
+        val adapter = RecordingAdapter()
+
+        adapter.qr(diagonal(between))
+        adapter.cholesky(diagonal(between))
+
+        assertEquals(1, adapter.qrs, "the QR gates with the general factorization")
+        assertEquals(0, adapter.choleskys, "the Cholesky is not past its own gate here")
+    }
 
     @Test
     fun `the symmetric factorizations gate later than the general one`() {
@@ -59,30 +79,34 @@ class SparseDecompositionsAdapterTest {
     }
 
     @Test
-    fun `a backend naming its own gate moves all three`() {
+    fun `a backend naming its own gate moves all four`() {
         val adapter = RecordingAdapter(factorizeMin = 0)
 
         adapter.factor(diagonal(4))
         adapter.cholesky(diagonal(4))
         adapter.ldl(diagonal(4))
+        adapter.qr(diagonal(4))
 
         assertEquals(1, adapter.factors)
         assertEquals(1, adapter.choleskys, "a caller asking for one gate means it for the symmetric ones too")
         assertEquals(1, adapter.ldls)
+        assertEquals(1, adapter.qrs, "and for the QR")
     }
 
     @Test
-    fun `past the symmetric gate all three reach the library`() {
+    fun `past the last gate all four reach the library`() {
         val adapter = RecordingAdapter()
         val large = diagonal(platformDispatchThresholds.symmetricFactorize + 1)
 
         adapter.factor(large)
         adapter.cholesky(large)
         adapter.ldl(large)
+        adapter.qr(large)
 
         assertEquals(1, adapter.factors)
         assertEquals(1, adapter.choleskys)
         assertEquals(1, adapter.ldls)
+        assertEquals(1, adapter.qrs)
     }
 
     @Test
@@ -91,6 +115,20 @@ class SparseDecompositionsAdapterTest {
 
         val below = adapter.route(F64RouteQuery.SparseLu(7))!!
         val native = adapter.route(F64RouteQuery.SparseLu(8))!!
+
+        assertEquals(BackendExecution.PORTABLE, below.execution)
+        assertEquals(BackendRouteReason.BELOW_THRESHOLD, below.reason)
+        assertEquals(DispatchGate(DispatchMetric.STORED_ENTRIES, 7, 8), below.gate)
+        assertEquals(BackendExecution.NATIVE, native.execution)
+        assertEquals(BackendRouteReason.NATIVE_ROUTE, native.reason)
+    }
+
+    @Test
+    fun `the sparse QR route reports both sides of the general factorization gate`() {
+        val adapter = RecordingAdapter(factorizeMin = 8)
+
+        val below = adapter.route(F64RouteQuery.SparseQr(7))!!
+        val native = adapter.route(F64RouteQuery.SparseQr(8))!!
 
         assertEquals(BackendExecution.PORTABLE, below.execution)
         assertEquals(BackendRouteReason.BELOW_THRESHOLD, below.reason)

@@ -28,6 +28,7 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
     F64GeneralSparseLu,
     F64SparseCholesky,
     F64SparseLdl,
+    F64SparseQr,
     F64BasisFactorizations {
     override val name: String get() = BackendNames.REFERENCE
 
@@ -253,6 +254,8 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
     override fun cholesky(a: F64SparseMatrix): F64SparseFactorization = F64ReferenceSparseDecompositions.cholesky(a)
 
     override fun ldl(a: F64SparseMatrix): F64SparseFactorization = F64ReferenceSparseDecompositions.ldl(a)
+
+    override fun qr(a: F64SparseMatrix): F64SparseQrFactorization = F64ReferenceSparseDecompositions.qr(a)
 
     override fun dot(x: F64SparseVector, y: DoubleArray): Double {
         requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }

@@ -91,6 +91,11 @@ class UmfpackNativeConformanceTest {
     }
 
     @Test
+    fun `the QR reaches SPQR or the portable factorization and agrees either way`() {
+        assertQrAgreesWithReference(umfpack)
+    }
+
+    @Test
     fun `multiple right hand sides use the CHOLMOD block solve`() {
         val a = sparseSymmetricConformanceSystem(18, Random(20260831))
 

@@ -144,6 +144,12 @@ public interface F64SparseCholesky : Backend {
     public fun cholesky(a: F64SparseMatrix): F64SparseFactorization
 }
 
+/** Sparse QR factorization of a tall or square matrix, for least-squares solves. */
+public interface F64SparseQr : Backend {
+    /** Factorizes [a], which must have at least as many rows as columns, as `Q * R`. */
+    public fun qr(a: F64SparseMatrix): F64SparseQrFactorization
+}
+
 /** Unpivoted symmetric sparse `L * D * L^T` factorization. */
 public interface F64SparseLdl : Backend {
     /** Factorizes the lower triangle of [a] as `L * D * L^T`. */
@@ -162,23 +168,31 @@ public interface F64BasisFactorizations : Backend {
  * @property generalLu provider for ordinary sparse LU.
  * @property choleskyProvider provider for positive-definite symmetric factorization.
  * @property ldlProvider provider for quasi-definite symmetric factorization.
+ * @property qrProvider provider for least-squares QR.
  */
 internal class F64SparseDecompositionRoles(
     val generalLu: F64GeneralSparseLu,
     val choleskyProvider: F64SparseCholesky,
     val ldlProvider: F64SparseLdl,
+    val qrProvider: F64SparseQr,
 ) : F64SparseDecompositions {
     override val name: String
-        get() = listOf(generalLu.name, choleskyProvider.name, ldlProvider.name).distinct().joinToString("+")
-    override val priority: Int get() = maxOf(generalLu.priority, choleskyProvider.priority, ldlProvider.priority)
+        get() = listOf(generalLu.name, choleskyProvider.name, ldlProvider.name, qrProvider.name)
+            .distinct()
+            .joinToString("+")
+    override val priority: Int
+        get() = maxOf(generalLu.priority, choleskyProvider.priority, ldlProvider.priority, qrProvider.priority)
     override val isPortable: Boolean
-        get() = generalLu.isPortable && choleskyProvider.isPortable && ldlProvider.isPortable
+        get() = generalLu.isPortable && choleskyProvider.isPortable && ldlProvider.isPortable &&
+            qrProvider.isPortable
     override val isAvailable: Boolean
-        get() = generalLu.isAvailable && choleskyProvider.isAvailable && ldlProvider.isAvailable
+        get() = generalLu.isAvailable && choleskyProvider.isAvailable && ldlProvider.isAvailable &&
+            qrProvider.isAvailable
 
     override fun factor(a: F64SparseMatrix): F64SparseFactorization = generalLu.factor(a)
     override fun cholesky(a: F64SparseMatrix): F64SparseFactorization = choleskyProvider.cholesky(a)
     override fun ldl(a: F64SparseMatrix): F64SparseFactorization = ldlProvider.ldl(a)
+    override fun qr(a: F64SparseMatrix): F64SparseQrFactorization = qrProvider.qr(a)
 }
 
 internal class LegacyGeneralSparseLu(private val delegate: F64SparseDecompositions) : F64GeneralSparseLu {
@@ -195,6 +209,14 @@ internal class LegacySparseCholesky(private val delegate: F64SparseDecomposition
     override val isPortable: Boolean get() = delegate.isPortable
     override val isAvailable: Boolean get() = delegate.isAvailable
     override fun cholesky(a: F64SparseMatrix): F64SparseFactorization = delegate.cholesky(a)
+}
+
+internal class LegacySparseQr(private val delegate: F64SparseDecompositions) : F64SparseQr {
+    override val name: String get() = delegate.name
+    override val priority: Int get() = delegate.priority
+    override val isPortable: Boolean get() = delegate.isPortable
+    override val isAvailable: Boolean get() = delegate.isAvailable
+    override fun qr(a: F64SparseMatrix): F64SparseQrFactorization = delegate.qr(a)
 }
 
 internal class LegacySparseLdl(private val delegate: F64SparseDecompositions) : F64SparseLdl {
