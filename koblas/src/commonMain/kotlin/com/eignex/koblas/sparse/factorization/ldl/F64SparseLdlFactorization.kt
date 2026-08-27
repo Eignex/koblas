@@ -7,7 +7,10 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.noManagedOrNativeAllocation
 import com.eignex.koblas.requireSquare
 import com.eignex.koblas.singularFailure
+import com.eignex.koblas.sparse.F64FactorizationInertia
+import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.F64SparseFactorization
+import com.eignex.koblas.sparse.F64SparseFactorizationReport
 import com.eignex.koblas.sparse.factorization.columnPointers
 import com.eignex.koblas.sparse.factorization.eliminationTree
 import com.eignex.koblas.sparse.factorization.ereach
@@ -61,6 +64,26 @@ public class F64SparseLdlFactorization internal constructor(
 
     override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability =
         noManagedOrNativeAllocation
+
+    override fun report(): F64SparseFactorizationReport {
+        val sampledInertia = if (singular) {
+            null
+        } else {
+            F64FactorizationInertia(
+                positive = diagonal.count { it > 0.0 },
+                negative = diagonal.count { it < 0.0 },
+                zero = diagonal.count { it == 0.0 },
+            )
+        }
+        return F64SparseFactorizationReport(
+            provider = F64ReferenceSparseLinearAlgebra.name,
+            order = n,
+            factorNonzeros = nnz,
+            reciprocalPivotRange = rcond,
+            ordering = "natural",
+            inertia = sampledInertia,
+        )
+    }
 
     /**
      * Solve `A x = b` into [out], which is returned and may be [b]. [transpose] is accepted and ignored: `A`

@@ -1,6 +1,7 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
+import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.requireSquare
@@ -57,6 +58,36 @@ public interface F64SparseFactorization : AutoCloseable {
         workspace: Workspace? = null,
     ): DoubleArray
 
+    /** Solve every column of [b] into a fresh dense result. */
+    public fun solve(b: F64DenseMatrix, transpose: Boolean = false): F64DenseMatrix {
+        requireShape(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
+        return solveInto(b, F64DenseMatrix(n, b.cols), transpose)
+    }
+
+    /**
+     * Solve every right-hand-side column of [b] into [out]. The default is alias-safe and calls the vector
+     * solve once per column; providers with a block ABI override it with one foreign call.
+     */
+    public fun solveInto(
+        b: F64DenseMatrix,
+        out: F64DenseMatrix,
+        transpose: Boolean = false,
+        workspace: Workspace? = null,
+    ): F64DenseMatrix {
+        requireBlockSolveShapes(n, b, out)
+        if (b.cols == 0) return out
+        workspace.borrow(n) { rhs ->
+            workspace.borrow(n) { solved ->
+                for (column in 0 until b.cols) {
+                    b.data.copyInto(rhs, 0, column * n, (column + 1) * n)
+                    solveInto(rhs, solved, transpose, workspace)
+                    solved.copyInto(out.data, column * n, 0, n)
+                }
+            }
+        }
+        return out
+    }
+
     /**
      * Strict form of [solveInto]. Rejects [allocationPolicy] before mutation when the declared capability or
      * currently idle [workspace] buffers cannot honor it.
@@ -78,6 +109,9 @@ public interface F64SparseFactorization : AutoCloseable {
 
     /** Solve `B x = b`, or `Bᵀ x = b` when [transpose], into a fresh result. */
     public fun solve(b: DoubleArray, transpose: Boolean = false): DoubleArray = solveInto(b, DoubleArray(n), transpose)
+
+    /** Common and provider-specific diagnostics sampled from this factorization. */
+    public fun report(): F64SparseFactorizationReport = basicReport(provider = "unknown")
 
     /** Releases resources owned by this factorization. Portable implementations have nothing to release. */
     override fun close() {}
@@ -122,6 +156,14 @@ public fun requireSolveShapes(n: Int, b: DoubleArray, out: DoubleArray) {
     requireShape(out.size == n) { "solve: out size ${out.size}, expected $n" }
 }
 
+/** The shapes required by a sparse block solve. */
+public fun requireBlockSolveShapes(n: Int, b: F64DenseMatrix, out: F64DenseMatrix) {
+    requireShape(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
+    requireShape(out.rows == n && out.cols == b.cols) {
+        "solve: out is ${out.rows}x${out.cols}, expected ${n}x${b.cols}"
+    }
+}
+
 /**
  * A basis factorization over any [F64SparseDecompositions], for a backend that cannot update its own factors. A
  * replacement refactorizes the basis it produces, so the factors stay exact at the cost of a factorization
@@ -158,6 +200,11 @@ public class F64RefactoringBasisFactorization(
     override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability {
         checkOpen()
         return factors.solveAllocation(aliasing, transpose)
+    }
+
+    override fun report(): F64SparseFactorizationReport {
+        checkOpen()
+        return factors.report()
     }
 
     override fun replaceColumn(column: Int, entering: F64SparseVector): F64BasisFactorization {

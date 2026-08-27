@@ -134,6 +134,12 @@ resources immediately; cleaners remain only as protection for a factor the calle
 is idempotent. The dimension and singular status remain readable afterwards, while solves and native factor
 statistics throw `IllegalStateException`.
 
+Every sparse factor accepts a column-major `F64DenseMatrix` of right-hand sides and a caller-owned output.
+The portable default is alias-safe and solves column by column; KLU and CHOLMOD pass the whole block through
+their native ABIs in one foreign call. `factor.report()` returns common diagnostics with nullable unavailable
+fields, plus provider-specific details. A valid statistic of zero therefore remains distinguishable from one
+the provider cannot report.
+
 Repeated products can retain an immutable CSC snapshot with `prepare()` so a native backend marshals its
 sparse descriptor only once:
 

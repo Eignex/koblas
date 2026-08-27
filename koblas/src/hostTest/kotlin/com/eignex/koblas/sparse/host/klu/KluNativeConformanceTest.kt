@@ -35,6 +35,9 @@ class KluNativeConformanceTest {
     fun `repeated solves declare a strict allocation contract`() = assertStrictNativeSolveAllocationContract(klu)
 
     @Test
+    fun `multiple right hand sides use the KLU block solve`() = assertBlockSolvesAgreeWithReference(klu)
+
+    @Test
     fun `the reciprocal pivot condition estimate is bounded`() = assertReciprocalPivotConditionEstimateIsBounded(klu)
 
     @Test

@@ -7,10 +7,14 @@
 package com.eignex.koblas.sparse.host.klu
 
 import com.eignex.koblas.*
+import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.requireFactored
 import com.eignex.koblas.sparse.F64SparseFactorization
+import com.eignex.koblas.sparse.F64SparseFactorizationReport
+import com.eignex.koblas.sparse.basicReport
+import com.eignex.koblas.sparse.requireBlockSolveShapes
 import com.eignex.koblas.sparse.requireSolveShapes
 import kotlinx.cinterop.*
 import kotlin.experimental.ExperimentalNativeApi
@@ -83,6 +87,38 @@ public class KluFactorization internal constructor(
         check(status == 1) { "klu_solve failed with status ${intAt(handle.common, KLU_COMMON_STATUS)}" }
         return out
     }
+
+    override fun solveInto(
+        b: F64DenseMatrix,
+        out: F64DenseMatrix,
+        transpose: Boolean,
+        workspace: Workspace?,
+    ): F64DenseMatrix {
+        requireFactored(failedAt, "solve")
+        requireBlockSolveShapes(n, b, out)
+        if (b.cols == 0) return out
+        if (out.data !== b.data) b.data.copyInto(out.data)
+        val solve = if (transpose) functions.transposedSolve else functions.solve
+        val status = anchoring {
+            out.data.usePinned { rhs ->
+                solve(
+                    handle.symbolic.pointed.value,
+                    handle.numeric.pointed.value,
+                    n,
+                    b.cols,
+                    rhs.addressOf(0),
+                    handle.common,
+                )
+            }
+        }
+        check(status == 1) { "klu_solve failed with status ${intAt(handle.common, KLU_COMMON_STATUS)}" }
+        return out
+    }
+
+    override fun report(): F64SparseFactorizationReport = basicReport("klu").copy(
+        fillRatio = if (rowIndices.isEmpty()) 0.0 else nnz.toDouble() / rowIndices.size,
+        details = mapOf("blockSolve" to "native"),
+    )
 
     /** Refactorizes onto this factorization's pattern, rejecting another structure before calling KLU. */
     internal fun refactor(a: F64SparseMatrix): KluRefactorResult = anchoring {

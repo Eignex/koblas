@@ -33,6 +33,12 @@ mirror the dense ones.
   a zero pivot as singular the way the LU does, a negative one being no failure at all. All three solve in the
   ordinary and the transposed direction, which for the two symmetric ones is the same direction twice.
 
+  Every [F64SparseFactorization] solves either one vector or all columns of a caller-owned dense RHS block.
+  The default block path preserves aliasing by staging a column; KLU and CHOLMOD specialize it through one
+  native call. [F64SparseFactorization.report] samples an extensible [F64SparseFactorizationReport]: null means
+  unavailable for optional fields, while zero remains a valid reported value. Portable LU exposes its row and
+  column permutations and ordering; portable LDL additionally reports inertia.
+
   The sparse `ldl` is not the sparse counterpart of the dense one, whatever the shared name suggests. The
   dense one pivots for stability; neither the portable sparse one nor any library behind this seam does, the
   permutation being chosen to limit fill with nothing reordering on the numbers. It is the factorization for a
