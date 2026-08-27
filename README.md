@@ -152,18 +152,6 @@ Every operation runs through an F64Context. Top-level functions use the process-
 registry selects providers independently by semantic role. General sparse LU, repeated-pattern LU, Cholesky,
 LDL, basis factorization, and basis solving are separate choices rather than one interchangeable sparse backend.
 
-The main acceleration paths are:
-
-| Work | Default accelerated path |
-|------|--------------------------|
-| JVM vector kernels and small dense work | JDK Vector API |
-| Dense level 3 and dense factorizations | OpenBLAS/LAPACKE above measured gates |
-| Ordinary sparse LU | UMFPACK |
-| Same-pattern sparse refactorization | KLU |
-| Sparse Cholesky and unpivoted LDL | CHOLMOD |
-| Simplex basis factorization | BASICLU |
-| Stateful hypersparse simplex workflow | HFactor |
-
 Native availability does not imply native execution. Providers retain measured dispatch gates and fall back to
 portable semantics for unsupported shapes, arguments, or operations. Inspect status for the selected providers
 and route a representative problem before entering a hot loop:
