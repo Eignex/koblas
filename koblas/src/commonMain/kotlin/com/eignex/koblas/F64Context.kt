@@ -2,6 +2,8 @@ package com.eignex.koblas
 
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.core.F64StridedMatrixView
+import com.eignex.koblas.core.F64StridedVectorView
 import com.eignex.koblas.dense.F64Blas
 import com.eignex.koblas.dense.F64Decompositions
 import com.eignex.koblas.dense.F64Kernels
@@ -205,6 +207,25 @@ public class F64Context(
         blas.gemv(alpha, a, x, beta, y, transpose)
     }
 
+    @Suppress("LongParameterList") // the BLAS dgemv signature
+    override fun gemv(
+        alpha: Double,
+        a: F64StridedMatrixView,
+        x: F64StridedVectorView,
+        beta: Double,
+        y: F64StridedVectorView,
+        transpose: Boolean,
+    ) {
+        if (enforcesRoutingPolicy) {
+            val xLength = if (transpose) a.rows else a.cols
+            val yLength = if (transpose) a.cols else a.rows
+            requireShape(x.size == xLength) { "gemv: x length ${x.size} != $xLength" }
+            requireShape(y.size == yLength) { "gemv: y length ${y.size} != $yLength" }
+            beforeDispatch(F64RouteQuery.DenseGemv(a.rows, a.cols))
+        }
+        blas.gemv(alpha, a, x, beta, y, transpose)
+    }
+
     override fun gemv(a: F64DenseMatrix, x: DoubleArray, transpose: Boolean): DoubleArray {
         val y = DoubleArray(if (transpose) a.cols else a.rows)
         gemv(1.0, a, x, 0.0, y, transpose)
@@ -237,6 +258,28 @@ public class F64Context(
         val c = F64DenseMatrix(a.rows, b.cols)
         gemm(1.0, a, false, b, false, 0.0, c)
         return c
+    }
+
+    @Suppress("LongParameterList") // the BLAS dgemm signature
+    override fun gemm(
+        alpha: Double,
+        a: F64StridedMatrixView,
+        transposeA: Boolean,
+        b: F64StridedMatrixView,
+        transposeB: Boolean,
+        beta: Double,
+        c: F64StridedMatrixView,
+    ) {
+        if (enforcesRoutingPolicy) {
+            val m = if (transposeA) a.cols else a.rows
+            val k = if (transposeA) a.rows else a.cols
+            val otherK = if (transposeB) b.cols else b.rows
+            val n = if (transposeB) b.rows else b.cols
+            requireShape(k == otherK) { "gemm: op(A) is ${m}x$k but op(B) is ${otherK}x$n" }
+            requireShape(c.rows == m && c.cols == n) { "gemm: C is ${c.rows}x${c.cols}, expected ${m}x$n" }
+            beforeDispatch(F64RouteQuery.DenseGemm(m, n, k))
+        }
+        blas.gemm(alpha, a, transposeA, b, transposeB, beta, c)
     }
 
     override fun factor(a: F64DenseMatrix): F64LuDecomposition {

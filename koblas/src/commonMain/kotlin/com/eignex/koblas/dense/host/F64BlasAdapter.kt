@@ -3,8 +3,7 @@
 package com.eignex.koblas.dense.host
 
 import com.eignex.koblas.*
-import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.core.F64VectorLike
+import com.eignex.koblas.core.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.host.cblas.Cblas.COL_MAJOR
 import com.eignex.koblas.dense.host.cblas.Cblas.LOWER
@@ -228,6 +227,47 @@ public abstract class F64BlasAdapter internal constructor(
         f.dgemv(COL_MAJOR, transOf(transpose), a.rows, a.cols, alpha, a.data, a.rows, x, 1, beta, y, 1)
     }
 
+    @Suppress("LongParameterList") // the BLAS dgemv signature
+    override fun gemv(
+        alpha: Double,
+        a: F64StridedMatrixView,
+        x: F64StridedVectorView,
+        beta: Double,
+        y: F64StridedVectorView,
+        transpose: Boolean,
+    ) {
+        val xLength = if (transpose) a.rows else a.cols
+        val yLength = if (transpose) a.cols else a.rows
+        requireShape(x.size == xLength) { "gemv: x length ${x.size} != $xLength" }
+        requireShape(y.size == yLength) { "gemv: y length ${y.size} != $yLength" }
+        require(!y.overlaps(x) && !a.overlaps(y)) { "gemv: destination overlaps an input view" }
+        if (minOf(a.rows, a.cols) < dispatch.level2 || x.stride < 0 || y.stride < 0) {
+            return super<F64Blas>.gemv(alpha, a, x, beta, y, transpose)
+        }
+        if (alpha == 0.0 || xLength == 0) {
+            scaleInPlace(y, beta)
+            return
+        }
+        if (yLength == 0) return
+        f.dgemv(
+            COL_MAJOR,
+            transOf(transpose),
+            a.rows,
+            a.cols,
+            alpha,
+            a.data,
+            a.offset,
+            a.leadingDimension,
+            x.data,
+            x.offset,
+            x.stride,
+            beta,
+            y.data,
+            y.offset,
+            y.stride,
+        )
+    }
+
     override fun gemm(
         alpha: Double,
         a: F64DenseMatrix,
@@ -255,6 +295,74 @@ public abstract class F64BlasAdapter internal constructor(
             COL_MAJOR, transOf(transposeA), transOf(transposeB), m, n, k, alpha,
             a.data, a.rows, b.data, b.rows, beta, c.data, c.rows,
         )
+    }
+
+    @Suppress("LongParameterList") // the BLAS dgemm signature
+    override fun gemm(
+        alpha: Double,
+        a: F64StridedMatrixView,
+        transposeA: Boolean,
+        b: F64StridedMatrixView,
+        transposeB: Boolean,
+        beta: Double,
+        c: F64StridedMatrixView,
+    ) {
+        val m = if (transposeA) a.cols else a.rows
+        val k = if (transposeA) a.rows else a.cols
+        val otherK = if (transposeB) b.cols else b.rows
+        val n = if (transposeB) b.rows else b.cols
+        requireShape(k == otherK) { "gemm: op(A) is ${m}x$k but op(B) is ${otherK}x$n" }
+        requireShape(c.rows == m && c.cols == n) { "gemm: C is ${c.rows}x${c.cols}, expected ${m}x$n" }
+        require(!c.overlaps(a) && !c.overlaps(b)) { "gemm: destination overlaps an input view" }
+        if (alpha == 0.0 || k == 0) {
+            scaleInPlace(c, beta)
+            return
+        }
+        if (m == 0 || n == 0) return
+        if (!dispatchesLevel3(dispatch.level3, m, n, k)) {
+            return super<F64Blas>.gemm(alpha, a, transposeA, b, transposeB, beta, c)
+        }
+        f.dgemm(
+            COL_MAJOR,
+            transOf(transposeA),
+            transOf(transposeB),
+            m,
+            n,
+            k,
+            alpha,
+            a.data,
+            a.offset,
+            a.leadingDimension,
+            b.data,
+            b.offset,
+            b.leadingDimension,
+            beta,
+            c.data,
+            c.offset,
+            c.leadingDimension,
+        )
+    }
+
+    private fun scaleInPlace(view: F64StridedVectorView, beta: Double) {
+        for (i in 0 until view.size) {
+            view[i] = when (beta) {
+                0.0 -> 0.0
+                1.0 -> view[i]
+                else -> beta * view[i]
+            }
+        }
+    }
+
+    private fun scaleInPlace(view: F64StridedMatrixView, beta: Double) {
+        for (j in 0 until view.cols) {
+            for (i in 0 until view.rows) {
+                view[i, j] = when (beta) {
+                    0.0 -> 0.0
+                    1.0 -> view[i, j]
+                    else -> beta * view[i, j]
+                }
+            }
+        }
     }
 
     @Suppress("LongParameterList", "ReturnCount") // dsyrk's arguments plus scratch; guard-clause style

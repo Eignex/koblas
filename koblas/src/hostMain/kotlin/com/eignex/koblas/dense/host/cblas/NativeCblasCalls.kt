@@ -48,6 +48,35 @@ internal class NativeCblasCalls(private val f: CblasFunctions) : CblasCalls {
         }
     }
 
+    override fun dgemv(
+        order: Int,
+        trans: Int,
+        m: Int,
+        n: Int,
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        lda: Int,
+        x: DoubleArray,
+        xOffset: Int,
+        incx: Int,
+        beta: Double,
+        y: DoubleArray,
+        yOffset: Int,
+        incy: Int,
+    ) {
+        a.usePinned { ap ->
+            x.usePinned { xp ->
+                y.usePinned { yp ->
+                    f.dgemv(
+                        order, trans, m, n, alpha, ap.addressOf(aOffset), lda,
+                        xp.addressOf(xOffset), incx, beta, yp.addressOf(yOffset), incy,
+                    )
+                }
+            }
+        }
+    }
+
     override fun dger(
         order: Int,
         m: Int,
@@ -167,6 +196,37 @@ internal class NativeCblasCalls(private val f: CblasFunctions) : CblasCalls {
                     f.dgemm(
                         order, transA, transB, m, n, k, alpha,
                         ap.addressOf(0), lda, bp.addressOf(0), ldb, beta, cp.addressOf(0), ldc,
+                    )
+                }
+            }
+        }
+    }
+
+    override fun dgemm(
+        order: Int,
+        transA: Int,
+        transB: Int,
+        m: Int,
+        n: Int,
+        k: Int,
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        lda: Int,
+        b: DoubleArray,
+        bOffset: Int,
+        ldb: Int,
+        beta: Double,
+        c: DoubleArray,
+        cOffset: Int,
+        ldc: Int,
+    ) {
+        a.usePinned { ap ->
+            b.usePinned { bp ->
+                c.usePinned { cp ->
+                    f.dgemm(
+                        order, transA, transB, m, n, k, alpha, ap.addressOf(aOffset), lda,
+                        bp.addressOf(bOffset), ldb, beta, cp.addressOf(cOffset), ldc,
                     )
                 }
             }

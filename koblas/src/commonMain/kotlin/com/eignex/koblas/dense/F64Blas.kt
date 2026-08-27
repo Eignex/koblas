@@ -30,6 +30,54 @@ public interface F64Blas : Backend {
     }
 
     /**
+     * [gemv] over borrowed strided storage. The destination must not overlap [a] or [x]; disjoint views may
+     * share one backing buffer. Implementations may pass offsets, strides, and leading dimensions directly
+     * to BLAS and must not materialize a contiguous copy.
+     */
+    @Suppress("LongParameterList") // the BLAS dgemv signature
+    public fun gemv(
+        alpha: Double,
+        a: F64StridedMatrixView,
+        x: F64StridedVectorView,
+        beta: Double,
+        y: F64StridedVectorView,
+        transpose: Boolean = false,
+    ) {
+        val xLength = if (transpose) a.rows else a.cols
+        val yLength = if (transpose) a.cols else a.rows
+        requireShape(x.size == xLength) { "gemv: x length ${x.size} != $xLength" }
+        requireShape(y.size == yLength) { "gemv: y length ${y.size} != $yLength" }
+        require(!y.overlaps(x) && !a.overlaps(y)) { "gemv: destination overlaps an input view" }
+        for (i in 0 until y.size) {
+            y[i] = when (beta) {
+                0.0 -> 0.0
+                1.0 -> y[i]
+                else -> beta * y[i]
+            }
+        }
+        if (alpha == 0.0) return
+        if (transpose) {
+            for (j in 0 until a.cols) {
+                var sum = 0.0
+                for (i in 0 until a.rows) sum += a[i, j] * x[i]
+                y[j] += alpha * sum
+            }
+        } else {
+            for (j in 0 until a.cols) {
+                val multiplier = alpha * x[j]
+                if (multiplier != 0.0) for (i in 0 until a.rows) y[i] += multiplier * a[i, j]
+            }
+        }
+    }
+
+    /** [gemv] over borrowed storage into a fresh owned array. */
+    public fun gemv(a: F64StridedMatrixView, x: F64StridedVectorView, transpose: Boolean = false): DoubleArray {
+        val result = DoubleArray(if (transpose) a.cols else a.rows)
+        gemv(1.0, a, x, 0.0, F64StridedVectorView(result, 0, result.size), transpose)
+        return result
+    }
+
+    /**
      * Fresh transposed [a]. For a product prefer the transpose flags on [gemv] and [gemm], which read the
      * original storage without copying; this is for a caller that means to hold the transpose.
      *
@@ -56,6 +104,51 @@ public interface F64Blas : Backend {
         val c = F64DenseMatrix(a.rows, b.cols)
         gemm(1.0, a, transposeA = false, b, transposeB = false, beta = 0.0, c = c)
         return c
+    }
+
+    /**
+     * [gemm] over borrowed column-major panels. [c] must not overlap either input; disjoint panels may share
+     * a backing buffer. Implementations must preserve each physical leading dimension without copying.
+     */
+    @Suppress("LongParameterList") // the BLAS dgemm signature
+    public fun gemm(
+        alpha: Double,
+        a: F64StridedMatrixView,
+        transposeA: Boolean,
+        b: F64StridedMatrixView,
+        transposeB: Boolean,
+        beta: Double,
+        c: F64StridedMatrixView,
+    ) {
+        val m = if (transposeA) a.cols else a.rows
+        val k = if (transposeA) a.rows else a.cols
+        val otherK = if (transposeB) b.cols else b.rows
+        val n = if (transposeB) b.rows else b.cols
+        requireShape(k == otherK) { "gemm: op(A) is ${m}x$k but op(B) is ${otherK}x$n" }
+        requireShape(c.rows == m && c.cols == n) { "gemm: C is ${c.rows}x${c.cols}, expected ${m}x$n" }
+        require(!c.overlaps(a) && !c.overlaps(b)) { "gemm: destination overlaps an input view" }
+        for (j in 0 until n) {
+            for (i in 0 until m) {
+                var sum = 0.0
+                for (p in 0 until k) {
+                    val av = if (transposeA) a[p, i] else a[i, p]
+                    val bv = if (transposeB) b[j, p] else b[p, j]
+                    sum += av * bv
+                }
+                c[i, j] = alpha * sum + when (beta) {
+                    0.0 -> 0.0
+                    1.0 -> c[i, j]
+                    else -> beta * c[i, j]
+                }
+            }
+        }
+    }
+
+    /** [gemm] over borrowed panels into a fresh owned matrix. */
+    public fun gemm(a: F64StridedMatrixView, b: F64StridedMatrixView): F64DenseMatrix {
+        val result = F64DenseMatrix.zero(a.rows, b.cols)
+        gemm(1.0, a, false, b, false, 0.0, result.asView())
+        return result
     }
 
     /** `C = alpha · A·Aᵀ + beta · C`, or `alpha · Aᵀ·A + beta · C` when [transpose] (BLAS `dsyrk`).

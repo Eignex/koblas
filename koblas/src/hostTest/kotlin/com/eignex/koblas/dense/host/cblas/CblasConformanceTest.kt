@@ -15,6 +15,11 @@ class CblasConformanceTest {
     private val cblas = F64CblasBackend()
 
     @Test
+    fun `the native BLAS consumes strided views in place`() = assertStridedProductsAgreeWithReference(
+        F64CblasBackend(HostBlasConfig(level2Min = 0, level3Min = 0)),
+    )
+
+    @Test
     fun `discovery registers the backend and install overrides it`() {
         assertTrue(F64CblasBackend.isAvailable(), "host OpenBLAS expected in the test environment")
         assertEquals("cblas", koblas.blas.name)
