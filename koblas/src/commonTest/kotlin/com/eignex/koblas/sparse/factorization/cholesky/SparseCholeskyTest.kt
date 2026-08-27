@@ -8,7 +8,6 @@ import com.eignex.koblas.koblas
 import com.eignex.koblas.randomVector
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.cholesky
-import com.eignex.koblas.sparse.gemv
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals

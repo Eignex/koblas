@@ -1,12 +1,32 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.DimensionMismatch
+import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.factorization.ldl.F64SparseUpLookingLdl
 import kotlin.test.*
 
 class SparseBlockSolveTest {
+
+    private class BlockTrackingFactor(private val delegate: F64SparseFactorization) :
+        F64SparseFactorization by delegate {
+        var calls: Int = 0
+        var transpose: Boolean? = null
+        var receivedWorkspace: Workspace? = null
+
+        override fun solveInto(
+            b: F64DenseMatrix,
+            out: F64DenseMatrix,
+            transpose: Boolean,
+            workspace: Workspace?,
+        ): F64DenseMatrix {
+            calls++
+            this.transpose = transpose
+            receivedWorkspace = workspace
+            return delegate.solveInto(b, out, transpose, workspace)
+        }
+    }
 
     @Test
     fun `portable block solves agree with vector solves in both directions`() {
@@ -20,6 +40,19 @@ class SparseBlockSolveTest {
                 assertContentEquals(expected, DoubleArray(actual.rows) { actual[it, column] })
             }
         }
+    }
+
+    @Test
+    fun `the sparse decomposition seam delegates block solves directly`() {
+        val tracking = BlockTrackingFactor(F64ReferenceSparseLinearAlgebra.factor(matrix()))
+        val rhs = rightHandSides()
+        val out = F64DenseMatrix(3, rhs.cols)
+        val workspace = Workspace()
+
+        assertSame(out, F64ReferenceSparseLinearAlgebra.solveInto(tracking, rhs, out, transpose = true, workspace))
+        assertEquals(1, tracking.calls)
+        assertEquals(true, tracking.transpose)
+        assertSame(workspace, tracking.receivedWorkspace)
     }
 
     @Test

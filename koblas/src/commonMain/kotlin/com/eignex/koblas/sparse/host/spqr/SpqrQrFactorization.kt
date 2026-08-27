@@ -12,6 +12,7 @@ import com.eignex.koblas.requireShape
 import com.eignex.koblas.sparse.F64SparseFactorizationReport
 import com.eignex.koblas.sparse.F64SparseQrFactorization
 import com.eignex.koblas.sparse.requireLeastSquaresShapes
+import com.eignex.koblas.sparse.sparseSnapshotOf
 
 internal class SpqrFactorData(
     val rank: Int,
@@ -39,7 +40,7 @@ public class SpqrQrFactorization internal constructor(
 
     override val nnz: Int get() = checked { factors.r.nnz + factors.householder.nnz }
 
-    override val r: F64SparseMatrix get() = checked { factors.r }
+    override val r: F64SparseMatrix get() = checked { sparseSnapshotOf(factors.r) }
 
     override val columnOrder: IntArray get() = checked { factors.columnOrder.copyOf() }
 

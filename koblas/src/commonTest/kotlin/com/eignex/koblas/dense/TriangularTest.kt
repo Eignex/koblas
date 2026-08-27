@@ -28,7 +28,7 @@ class TriangularTest {
                         val (t, explicit) = poisonedTriangle(rng, n, lower, unitDiag)
                         val xTrue = DoubleArray(n) { rng.nextDouble(-2.0, 2.0) }
                         val x = naiveMultiply(explicit, transpose, xTrue)
-                        trsv(t, x, lower, transpose, unitDiag)
+                        t.trsv(x, lower, transpose, unitDiag)
                         assertClose(
                             xTrue,
                             x,
@@ -52,10 +52,10 @@ class TriangularTest {
                     val (t, _) = poisonedTriangle(rng, n, lower, unitDiag)
                     val b = randomMatrix(n, nrhs, rng)
                     val viaTrsm = F64DenseMatrix(n, nrhs, b.data.copyOf())
-                    trsm(t, viaTrsm, lower, transpose, unitDiag)
+                    t.trsm(viaTrsm, lower, transpose, unitDiag)
                     for (c in 0 until nrhs) {
                         val col = DoubleArray(n) { b[it, c] }
-                        trsv(t, col, lower, transpose, unitDiag)
+                        t.trsv(col, lower, transpose, unitDiag)
                         for (i in 0 until n) {
                             assertTrue(
                                 abs(viaTrsm[i, c] - col[i]) < 1e-12,
@@ -76,7 +76,7 @@ class TriangularTest {
         val (t, explicit) = poisonedTriangle(rng, n, lower = true, unitDiag = false)
         val xTrue = randomMatrix(n, nrhs, rng)
         val b = explicit * xTrue
-        trsm(t, b, lower = true)
+        t.trsm(b, lower = true)
         assertClose(xTrue, b, "trsm multi-RHS", tolerance = 1e-9)
     }
 
@@ -90,7 +90,7 @@ class TriangularTest {
         val x = randomMatrix(n, nrhs, rng)
         val b = explicit * x
 
-        trsm(t, b, lower = true, alpha = alpha)
+        t.trsm(b, lower = true, alpha = alpha)
 
         val expected = F64DenseMatrix(n, nrhs, DoubleArray(n * nrhs) { alpha * x.data[it] })
         assertClose(expected, b, "trsm alpha", tolerance = 1e-9)
@@ -107,7 +107,7 @@ class TriangularTest {
                         val x = randomVector(n, rng)
                         val expected = koblas.gemv(explicit, x, transpose)
                         val actual = x.copyOf()
-                        trmv(t, actual, lower, transpose, unitDiag)
+                        t.trmv(actual, lower, transpose, unitDiag)
                         assertClose(expected, actual, "trmv n=$n lower=$lower t=$transpose unit=$unitDiag")
                     }
                 }
@@ -129,7 +129,7 @@ class TriangularTest {
                         val expected = F64DenseMatrix(n, p)
                         koblas.gemm(alpha, explicit, transpose, b, false, 0.0, expected)
                         val actual = F64DenseMatrix(n, p, b.data.copyOf())
-                        trmm(t, actual, lower, transpose, unitDiag, alpha = alpha)
+                        t.trmm(actual, lower, transpose, unitDiag, alpha = alpha)
                         assertClose(expected, actual, "trmm n=$n lower=$lower t=$transpose unit=$unitDiag")
                     }
                 }
@@ -150,7 +150,7 @@ class TriangularTest {
                     val expected = F64DenseMatrix(rows, n)
                     koblas.gemm(1.0, b, false, explicit, transpose, 0.0, expected)
                     val actual = F64DenseMatrix.wrap(rows, n, b.data.copyOf())
-                    trmm(t, actual, lower, transpose, unitDiag, right = true)
+                    t.trmm(actual, lower, transpose, unitDiag, right = true)
                     assertClose(expected, actual, "trmm right l=$lower t=$transpose u=$unitDiag", tolerance = 1e-11)
                 }
             }
@@ -168,8 +168,8 @@ class TriangularTest {
                     val (t, _) = poisonedTriangle(rng, n, lower, unitDiag)
                     val x = randomMatrix(rows, n, rng)
                     val b = F64DenseMatrix.wrap(rows, n, x.data.copyOf())
-                    trmm(t, b, lower, transpose, unitDiag, right = true)
-                    trsm(t, b, lower, transpose, unitDiag, right = true)
+                    t.trmm(b, lower, transpose, unitDiag, right = true)
+                    t.trsm(b, lower, transpose, unitDiag, right = true)
                     assertClose(x, b, "trsm right l=$lower t=$transpose u=$unitDiag", tolerance = 1e-11)
                 }
             }
@@ -185,8 +185,8 @@ class TriangularTest {
                 val (t, _) = poisonedTriangle(rng, n, lower, unitDiag = false)
                 val x0 = randomVector(n, rng)
                 val x = x0.copyOf()
-                trmv(t, x, lower, transpose)
-                trsv(t, x, lower, transpose)
+                t.trmv(x, lower, transpose)
+                t.trsv(x, lower, transpose)
                 assertClose(x0, x, "roundtrip lower=$lower t=$transpose")
             }
         }
@@ -204,7 +204,7 @@ class TriangularTest {
                         if (inTriangle) t[i, j] = if (i == j) 2.0 + j else rng.nextDouble(-1.0, 1.0)
                     }
                 }
-                val inv = trtri(t, lower)
+                val inv = t.trtri(lower)
                 for (i in 0 until n) {
                     for (j in 0 until n) {
                         var s = 0.0
@@ -225,23 +225,23 @@ class TriangularTest {
     @Test
     fun `trtri rejects a zero on the diagonal`() {
         val singular = F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 0.0), doubleArrayOf(3.0, 0.0)))
-        val failure = assertFailsWith<SingularMatrix> { trtri(singular, lower = true) }
+        val failure = assertFailsWith<SingularMatrix> { singular.trtri(lower = true) }
         assertTrue("entry 1" in failure.message!!, "should name the zero position: ${failure.message}")
-        trtri(singular, lower = true, unitDiag = true)
+        singular.trtri(lower = true, unitDiag = true)
     }
 
     @Test
     fun `trsv divides by a zero diagonal instead of reporting it`() {
         val singular = F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 0.0), doubleArrayOf(3.0, 0.0)))
         val x = doubleArrayOf(1.0, 1.0)
-        trsv(singular, x, lower = true)
+        singular.trsv(x, lower = true)
         assertTrue(!x[1].isFinite(), "expected a non-finite entry from the zero pivot, got ${x[1]}")
     }
 
     @Test
     fun `trsv and trsm validate shapes`() {
-        assertFailsWith<IllegalArgumentException> { trsv(F64DenseMatrix(2, 3), DoubleArray(2), lower = true) }
-        assertFailsWith<IllegalArgumentException> { trsv(F64DenseMatrix(3, 3), DoubleArray(2), lower = true) }
-        assertFailsWith<IllegalArgumentException> { trsm(F64DenseMatrix(3, 3), F64DenseMatrix(2, 4), lower = true) }
+        assertFailsWith<IllegalArgumentException> { F64DenseMatrix(2, 3).trsv(DoubleArray(2), lower = true) }
+        assertFailsWith<IllegalArgumentException> { F64DenseMatrix(3, 3).trsv(DoubleArray(2), lower = true) }
+        assertFailsWith<IllegalArgumentException> { F64DenseMatrix(3, 3).trsm(F64DenseMatrix(2, 4), lower = true) }
     }
 }

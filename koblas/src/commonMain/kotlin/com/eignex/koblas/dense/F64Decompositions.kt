@@ -155,15 +155,38 @@ public interface F64Decompositions : Backend {
      */
     public fun cholesky(a: F64DenseMatrix, policy: CholeskyPolicy = CholeskyPolicy.Strict): F64CholeskyDecomposition
 
-    /** Solve `A · x = b` for the Cholesky factorization [chol] (LAPACK `dpotrs`). [b] is not modified. */
-    public fun solve(chol: F64CholeskyDecomposition, b: DoubleArray): DoubleArray {
+    /** Solve `A · x = b` for [chol] into a fresh vector (LAPACK `dpotrs`). */
+    public fun solve(chol: F64CholeskyDecomposition, b: DoubleArray): DoubleArray =
+        solveInto(chol, b, DoubleArray(chol.n))
+
+    /** Solve `A · x = b` for [chol] into [out], which is returned. [out] may be [b]. */
+    public fun solveInto(chol: F64CholeskyDecomposition, b: DoubleArray, out: DoubleArray): DoubleArray {
         val n = chol.n
         requireShape(b.size == n) { "solve: b size ${b.size}, expected $n" }
-        val x = b.copyOf()
+        requireShape(out.size == n) { "solve: out size ${out.size}, expected $n" }
+        if (out !== b) b.copyInto(out)
         val ld = chol.l.data
-        trsvCore(kernels, ld, n, x, lower = true, transpose = false, unitDiag = false)
-        trsvCore(kernels, ld, n, x, lower = true, transpose = true, unitDiag = false)
-        return x
+        trsvCore(kernels, ld, n, out, lower = true, transpose = false, unitDiag = false)
+        trsvCore(kernels, ld, n, out, lower = true, transpose = true, unitDiag = false)
+        return out
+    }
+
+    /** Solve `A · X = B` for every right-hand-side column of [b] into a fresh dense result. */
+    public fun solve(chol: F64CholeskyDecomposition, b: F64DenseMatrix): F64DenseMatrix =
+        solveInto(chol, b, F64DenseMatrix(b.rows, b.cols))
+
+    /** Solve `A · X = B` into [out], which is returned. [out] may be [b]; zero RHS columns return unchanged.
+     *  [workspace] provides independent per-column staging buffers. */
+    public fun solveInto(
+        chol: F64CholeskyDecomposition,
+        b: F64DenseMatrix,
+        out: F64DenseMatrix,
+        workspace: Workspace? = null,
+    ): F64DenseMatrix {
+        requireSolveShapes(chol.n, b, out)
+        return solveColumnwise(b, out, chol.n, b.cols, workspace) { column, destination ->
+            solveInto(chol, column, destination)
+        }
     }
 
     /** Invert a general matrix from its LU factorization, returning `A⁻¹` given `P·A = L·U` (LAPACK `dgetri`).

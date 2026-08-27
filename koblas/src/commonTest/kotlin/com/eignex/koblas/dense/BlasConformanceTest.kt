@@ -4,7 +4,6 @@ import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.F64ReferenceSparseDecompositions
-import com.eignex.koblas.sparse.gemv
 import com.eignex.koblas.sparse.lu
 import kotlin.math.abs
 import kotlin.random.Random
@@ -273,7 +272,7 @@ class BlasConformanceTest {
             val lu = F64ReferenceSparseDecompositions(equilibrate = true).factor(sparse)
             if (lu.singular) continue
             val xTrue = DoubleArray(n) { rng.nextDouble(-2.0, 2.0) }
-            val b = sparse.gemv(xTrue)
+            val b = koblas.gemv(sparse, xTrue)
             val x = lu.solve(b)
             assertSolveResidual(dense, x, b, "sparseLU/n=$n")
         }

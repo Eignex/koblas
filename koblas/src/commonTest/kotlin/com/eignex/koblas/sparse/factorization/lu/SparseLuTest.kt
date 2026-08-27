@@ -50,10 +50,10 @@ class SparseLuTest {
             // below is the reference's own. Through the seam a host backend would answer with different fill.
             val lu = F64ReferenceSparseDecompositions(equilibrate = true).factor(a)
             val x = DoubleArray(n) { rng.nextDouble(-3.0, 3.0) }
-            assertClose(x, lu.solve(a.gemv(x)), "forward solve n=$n", tolerance = 1e-7)
+            assertClose(x, lu.solve(koblas.gemv(a, x)), "forward solve n=$n", tolerance = 1e-7)
             assertClose(
                 x,
-                lu.solve(a.gemv(x, transpose = true), transpose = true),
+                lu.solve(koblas.gemv(a, x, transpose = true), transpose = true),
                 "transposed solve n=$n",
                 tolerance = 1e-7,
             )
@@ -69,8 +69,13 @@ class SparseLuTest {
         // below is the reference's own. Through the seam a host backend would answer with different fill.
         val lu = F64ReferenceSparseDecompositions(equilibrate = true).factor(a)
         val b = randomVector(n, rng)
-        assertClose(b, a.gemv(lu.solve(b)), "ftran residual", tolerance = 1e-8)
-        assertClose(b, a.gemv(lu.solve(b, transpose = true), transpose = true), "btran residual", tolerance = 1e-8)
+        assertClose(b, koblas.gemv(a, lu.solve(b)), "ftran residual", tolerance = 1e-8)
+        assertClose(
+            b,
+            koblas.gemv(a, lu.solve(b, transpose = true), transpose = true),
+            "btran residual",
+            tolerance = 1e-8,
+        )
         // The bound is loose because random sparsity gives the ordering no structure to exploit.
         assertTrue(lu.nnz < 15 * a.nnz, "fill blew up: factor nnz=${lu.nnz} vs input nnz=${a.nnz}")
         val dropped = F64ReferenceSparseDecompositions(equilibrate = true, dropTolerance = 1e-9).factor(a)
@@ -97,7 +102,7 @@ class SparseLuTest {
             val a = randomSparseSquare(n, rng, density = 1.0)
             val lu = assertNotNull(F64ReferenceSparseDecompositions().factor(a))
             val x = DoubleArray(n) { rng.nextDouble(-3.0, 3.0) }
-            assertClose(x, lu.solve(a.gemv(x)), "unequilibrated n=$n", tolerance = 1e-7)
+            assertClose(x, lu.solve(koblas.gemv(a, x)), "unequilibrated n=$n", tolerance = 1e-7)
         }
     }
 
@@ -194,11 +199,11 @@ class SparseLuTest {
         )
         val lu = F64ReferenceSparseLinearAlgebra.factor(a)
         assertEquals(6, lu.nnz, "the cancelled entry must not be stored")
-        assertClose(doubleArrayOf(1.0, 2.0, 3.0), lu.solve(a.gemv(doubleArrayOf(1.0, 2.0, 3.0))), "solve")
+        assertClose(doubleArrayOf(1.0, 2.0, 3.0), lu.solve(koblas.gemv(a, doubleArrayOf(1.0, 2.0, 3.0))), "solve")
     }
 
     private fun residualOf(a: F64SparseMatrix, f: F64SparseFactorization, rhs: DoubleArray): Double {
-        val residual = a.gemv(f.solve(rhs))
+        val residual = koblas.gemv(a, f.solve(rhs))
         var worst = 0.0
         for (i in rhs.indices) worst = maxOf(worst, abs(residual[i] - rhs[i]))
         return worst

@@ -206,11 +206,11 @@ class SparseSeamTest {
         registerBackend(decompositions)
         val a = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 4.0)))
 
-        assertTrue(doubleArrayOf(2.0, 8.0).contentEquals(a.gemv(doubleArrayOf(1.0, 2.0))))
-        assertEquals(1, blas.gemvs, "F64SparseMatrix.gemv should forward to the seam")
+        assertTrue(doubleArrayOf(2.0, 8.0).contentEquals(koblas.gemv(a, doubleArrayOf(1.0, 2.0))))
+        assertEquals(1, blas.gemvs, "the context gemv should forward to the seam")
 
-        a.gemm(F64DenseMatrix.diagonal(2))
-        assertEquals(1, blas.gemms, "F64SparseMatrix.gemm should forward to the seam")
+        a * F64DenseMatrix.diagonal(2)
+        assertEquals(1, blas.gemms, "the product operator should forward to the seam")
 
         a.trsm(F64DenseMatrix.diagonal(2), lower = true)
         assertEquals(1, blas.trsms, "F64SparseMatrix.trsm should forward to the seam")
@@ -218,7 +218,7 @@ class SparseSeamTest {
         a.transpose()
         assertEquals(1, blas.transposes, "F64SparseMatrix.transpose should forward to the seam")
 
-        a.gemm(a)
+        a * (a)
         assertEquals(1, blas.sparseProducts, "the sparse product should forward to the seam")
 
         val f = a.lu()

@@ -34,7 +34,7 @@ import com.eignex.koblas.sparse.basis.F64BasisSolvers
  * @property decompositions dense factorizations.
  * @property sparseKernels sparse vector-vector routines.
  * @property sparseBlas sparse matrix routines.
- * @property sparseDecompositions compatibility composition of general LU, Cholesky, and LDL roles.
+ * @property sparseDecompositions compatibility composition of general LU, Cholesky, LDL, and QR roles.
  * @property basisSolvers simplex basis solvers, a half of their own beside [sparseDecompositions].
  */
 public class F64Context(

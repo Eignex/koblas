@@ -2,9 +2,25 @@ package com.eignex.koblas
 
 import com.eignex.koblas.core.*
 import com.eignex.koblas.dense.*
+import com.eignex.koblas.sparse.*
 import kotlin.test.*
 
 class F64ContextBuilderTest {
+
+    private class TrackingSparseDecompositions :
+        F64SparseDecompositions by F64ReferenceSparseLinearAlgebra,
+        F64GeneralSparseLu,
+        F64SparseCholesky,
+        F64SparseLdl,
+        F64SparseQr {
+        override val name: String get() = "tracking sparse decompositions"
+        var qrCalls: Int = 0
+
+        override fun qr(a: F64SparseMatrix): F64SparseQrFactorization {
+            qrCalls++
+            return F64ReferenceSparseLinearAlgebra.qr(a)
+        }
+    }
 
     private class CountingKernels : F64Kernels by F64PlatformKernels {
         var axpys: Int = 0
@@ -221,5 +237,22 @@ class F64ContextBuilderTest {
         assertFailsWith<IllegalArgumentException> {
             F64ContextBuilder().withBackend(BackendRole.SPARSE_BLAS, routed)
         }
+    }
+
+    @Test
+    fun `aggregate sparse decompositions select QR with the other decomposition roles`() {
+        val backend = TrackingSparseDecompositions()
+        val context = F64ContextBuilder()
+            .withBackend(BackendRole.SPARSE_DECOMPOSITIONS, backend)
+            .resolve()
+        val matrix = F64SparseMatrix.ofColumns(2, 1, listOf(listOf(0 to 1.0, 1 to 1.0)))
+
+        context.qr(matrix).close()
+
+        assertEquals(1, backend.qrCalls)
+        assertSame(backend, context.generalSparseLu)
+        assertSame(backend, context.sparseCholesky)
+        assertSame(backend, context.sparseLdl)
+        assertSame(backend, context.sparseQr)
     }
 }
