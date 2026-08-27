@@ -5,6 +5,7 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.F64SparseDecompositions
 import com.eignex.koblas.sparse.F64SparseFactorization
+import com.eignex.koblas.sparse.basis.F64BasisSolvers
 import kotlin.test.*
 
 /**
@@ -17,6 +18,10 @@ class NamedBackendTest {
     private class FakeSparseLu(override val name: String, override val priority: Int) :
         F64SparseDecompositions by F64ReferenceSparseLinearAlgebra {
         override fun factor(a: F64SparseMatrix): F64SparseFactorization = F64ReferenceSparseLinearAlgebra.factor(a)
+    }
+
+    private class FakeBasisSolvers(override val name: String, override val priority: Int) : F64BasisSolvers {
+        override fun basisSolver(a: F64SparseMatrix) = F64ReferenceSparseLinearAlgebra.basisSolver(a)
     }
 
     @Test
@@ -46,6 +51,21 @@ class NamedBackendTest {
         registerBackend(FakeSparseLu("present", priority = 10))
 
         assertNull(sparseDecompositionsNamed("absent"))
+    }
+
+    @Test
+    fun `a basis solver is reachable by name`() = withCleanBackends {
+        registerBackend(FakeBasisSolvers("basis", priority = 10))
+
+        assertEquals("basis", basisSolversNamed("basis")?.name)
+        assertNull(basisSolversNamed("absent"))
+    }
+
+    @Test
+    fun `platform discovery leaves a usable context`() = withCleanBackends {
+        discoverBackends()
+
+        assertTrue(koblas.isAvailable)
     }
 
     /** Bundled providers add a suffix and still answer to the name a deployment configures. */
