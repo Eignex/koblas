@@ -58,6 +58,19 @@ class PortableSparseFactorsTest {
         assertEquals(true, lu.singular)
         assertFailsWith<com.eignex.koblas.SingularMatrix> { lu.l }
         assertFailsWith<com.eignex.koblas.SingularMatrix> { lu.u }
+        assertFailsWith<com.eignex.koblas.SingularMatrix> { lu.offDiagonal }
+    }
+
+    @Test
+    fun `a singular LDL factorization has no factors to give`() {
+        val a = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), emptyList()))
+
+        val ldl = F64ReferenceSparseLinearAlgebra.ldl(a)
+
+        assertEquals(true, ldl.singular)
+        assertFailsWith<com.eignex.koblas.SingularMatrix> { ldl.l }
+        assertFailsWith<com.eignex.koblas.SingularMatrix> { ldl.d }
+        assertFailsWith<com.eignex.koblas.SingularMatrix> { ldl.order }
     }
 }
 

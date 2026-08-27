@@ -7,6 +7,7 @@ import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.internal.host.nativeCleaner
 import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.F64SparseFactorizationReport
+import com.eignex.koblas.sparse.FactorsNotExposed
 import com.eignex.koblas.sparse.basicReport
 import com.eignex.koblas.sparse.requireBlockSolveShapes
 import com.eignex.koblas.sparse.requireSolveShapes
@@ -51,9 +52,7 @@ public class CholmodFactorization internal constructor(
      * caller who only solves never pays for this.
      */
     private val extracted: CholmodFactors by lazy {
-        checkNotNull(calls.extractFactor(factor, asLl = isLl)) {
-            "this libcholmod does not expose cholmod_change_factor, so its factors cannot be read"
-        }
+        calls.extractFactor(factor, asLl = isLl) ?: throw FactorsNotExposed("native factors")
     }
 
     private val factors: CholmodFactors get() = lifecycle.withResource { extracted }
@@ -64,6 +63,7 @@ public class CholmodFactorization internal constructor(
      */
     internal val lowerFactor: F64SparseMatrix
         get() {
+            requireFactors("l")
             val held = factors
             if (isLl) {
                 return F64SparseMatrix.wrap(
@@ -96,12 +96,21 @@ public class CholmodFactorization internal constructor(
     /** The diagonal factor of an `L·D·Lᵀ`, which CHOLMOD stores as the diagonal of `L`. */
     internal val diagonalFactor: DoubleArray
         get() {
+            requireFactors("d")
             val held = factors
             return DoubleArray(held.order) { held.values[held.colPtr[it]] }
         }
 
     /** The fill-reducing ordering CHOLMOD chose. */
-    internal val ordering: IntArray get() = factors.permutation.copyOf()
+    internal val ordering: IntArray
+        get() {
+            requireFactors("order")
+            return factors.permutation.copyOf()
+        }
+
+    private fun requireFactors(operation: String) {
+        if (singular) throw singularFailure(failedAt, operation)
+    }
 
     override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability = noManagedAllocation
 

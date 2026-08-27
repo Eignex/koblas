@@ -37,6 +37,8 @@ class F64SparseFactorizationTest {
 
         assertFailsWith<IllegalStateException> { factorization.nnz }
         assertFailsWith<IllegalStateException> { factorization.solve(DoubleArray(5)) }
+        assertFailsWith<IllegalStateException> { factorization.l }
+        assertFailsWith<IllegalStateException> { factorization.offDiagonal }
     }
 
     @Test
@@ -55,6 +57,15 @@ class F64SparseFactorizationTest {
         val fromBasis = refactoring(basis).solve(b)
 
         assertClose(reference.factor(basis).solve(b), fromBasis, "the factored basis", tolerance = 1e-12)
+    }
+
+    @Test
+    fun `the refactoring fallback exposes its LU factors`() {
+        val basis = sparseConformanceSystem(9, Random(20260904))
+
+        val factorization = refactoring(basis)
+
+        assertLuFactorsReproduce(basis, factorization, "basis")
     }
 
     @Test
@@ -107,5 +118,7 @@ class F64SparseFactorizationTest {
         val updated = refactoring(basis).replaceColumn(1, duplicate)
 
         assertTrue(updated.singular, "a basis with two equal columns should have been called singular")
+        assertFailsWith<com.eignex.koblas.SingularMatrix> { updated.l }
+        assertFailsWith<com.eignex.koblas.SingularMatrix> { updated.offDiagonal }
     }
 }

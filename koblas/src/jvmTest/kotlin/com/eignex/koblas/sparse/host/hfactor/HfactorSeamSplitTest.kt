@@ -2,6 +2,7 @@ package com.eignex.koblas.sparse.host.hfactor
 
 import com.eignex.koblas.Backend
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
+import com.eignex.koblas.sparse.F64GeneralSparseLu
 import com.eignex.koblas.sparse.assertStrictNativeSolveAllocationContract
 import com.eignex.koblas.sparse.basis.F64BasisSolvers
 import com.eignex.koblas.sparse.host.basiclu.BasicluSparseLu
@@ -27,6 +28,11 @@ class HfactorSeamSplitTest {
             basicluBackend is F64BasisSolvers,
             "BASICLU keeps the contract that takes any entering column",
         )
+    }
+
+    @Test
+    fun `HFactor offers the general sparse LU role`() {
+        assertTrue(hfactorBackend is F64GeneralSparseLu)
     }
 
     @Test

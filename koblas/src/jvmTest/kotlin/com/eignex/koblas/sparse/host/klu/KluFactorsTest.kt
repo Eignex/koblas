@@ -1,7 +1,6 @@
 package com.eignex.koblas.sparse.host.klu
 
 import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.assertLuFactorsReproduce
 import com.eignex.koblas.testutil.host.HostLibraryTest
 import org.junit.Assume
@@ -26,11 +25,23 @@ class KluFactorsTest {
             val a = dominant(n, rng)
 
             klu.factor(a).use { factorization ->
-                val lu = factorization as F64SparseLuFactorization
-                assertEquals(n, lu.rowOrder.size, "n=$n rowOrder")
-                assertLuFactorsReproduce(a, lu, "n=$n")
+                assertEquals(n, factorization.rowOrder.size, "n=$n rowOrder")
+                assertLuFactorsReproduce(a, factorization, "n=$n")
             }
         }
+    }
+
+    @Test
+    fun `the extracted factors follow an in place refactorization`() {
+        requireKlu()
+        val first = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 3.0)))
+        val second = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(1 to 5.0)))
+        val factorization = klu.factor(first)
+        factorization.l
+
+        val refactored = klu.refactor(factorization, second)
+
+        assertLuFactorsReproduce(second, refactored, "refactorized")
     }
 }
 

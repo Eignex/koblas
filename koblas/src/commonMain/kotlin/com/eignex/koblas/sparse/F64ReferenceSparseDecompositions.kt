@@ -22,7 +22,11 @@ import com.eignex.koblas.sparse.factorization.qr.F64SparseHouseholderQr
 public open class F64ReferenceSparseDecompositions(
     public val equilibrate: Boolean = false,
     public val dropTolerance: Double = NO_DROP,
-) : F64SparseDecompositions {
+) : F64SparseDecompositions,
+    F64GeneralSparseLu,
+    F64SparseCholesky,
+    F64SparseLdl,
+    F64SparseQr {
     init {
         require(dropTolerance >= 0.0) { "dropTolerance must not be negative" }
     }

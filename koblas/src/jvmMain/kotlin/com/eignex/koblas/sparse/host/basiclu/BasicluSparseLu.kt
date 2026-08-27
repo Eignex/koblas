@@ -9,6 +9,7 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.requireSquare
+import com.eignex.koblas.singularFailure
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.host.F64SparseDecompositionsAdapter
@@ -94,6 +95,12 @@ private class F64SingularBasisFactorization(private val owner: BasicluSparseLu, 
     F64BasisFactorization {
     override val n: Int get() = basis.rows
     override val failedAt: Int get() = SINGULAR_POSITION_UNKNOWN
+    override val l: F64SparseMatrix get() = throw singularFailure(failedAt, "l")
+    override val u: F64SparseMatrix get() = throw singularFailure(failedAt, "u")
+    override val rowOrder: IntArray get() = throw singularFailure(failedAt, "rowOrder")
+    override val columnOrder: IntArray get() = throw singularFailure(failedAt, "columnOrder")
+    override val rowScaling: DoubleArray get() = throw singularFailure(failedAt, "rowScaling")
+    override val offDiagonal: F64SparseMatrix get() = throw singularFailure(failedAt, "offDiagonal")
     override val nnz: Int get() = 0
     override val rcond: Double get() = 0.0
 

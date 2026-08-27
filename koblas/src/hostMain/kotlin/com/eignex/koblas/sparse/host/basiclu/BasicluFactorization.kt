@@ -9,6 +9,7 @@ import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.sparse.F64BasisFactorization
 import com.eignex.koblas.sparse.F64SparseFactorizationReport
 import com.eignex.koblas.sparse.F64SparseLuFactorization
+import com.eignex.koblas.sparse.FactorsNotExposed
 import com.eignex.koblas.sparse.basicReport
 import com.eignex.koblas.sparse.host.applyEquilibration
 import com.eignex.koblas.sparse.internal.replaceColumns
@@ -48,6 +49,20 @@ public open class BasicluFactorization internal constructor(
     )
 
     override val failedAt: Int get() = NOT_SINGULAR
+
+    override val l: F64SparseMatrix get() = factorNotExposed("l")
+
+    override val u: F64SparseMatrix get() = factorNotExposed("u")
+
+    override val rowOrder: IntArray get() = factorNotExposed("rowOrder")
+
+    override val columnOrder: IntArray get() = factorNotExposed("columnOrder")
+
+    override val rowScaling: DoubleArray get() = factorNotExposed("rowScaling")
+
+    override val offDiagonal: F64SparseMatrix get() = factorNotExposed("offDiagonal")
+
+    private fun factorNotExposed(factor: String): Nothing = anchoring { throw FactorsNotExposed(factor) }
 
     override val nnz: Int get() = anchoring {
         (basicluStatistic(handle.obj, BasicluStore.LNZ) + basicluStatistic(handle.obj, BasicluStore.UNZ)).toInt()
@@ -178,6 +193,12 @@ internal class BasicluSingularBasisFactorization(
 ) : F64BasisFactorization {
     override val n: Int get() = basis.rows
     override val failedAt: Int get() = com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
+    override val l: F64SparseMatrix get() = throw singularFailure(failedAt, "l")
+    override val u: F64SparseMatrix get() = throw singularFailure(failedAt, "u")
+    override val rowOrder: IntArray get() = throw singularFailure(failedAt, "rowOrder")
+    override val columnOrder: IntArray get() = throw singularFailure(failedAt, "columnOrder")
+    override val rowScaling: DoubleArray get() = throw singularFailure(failedAt, "rowScaling")
+    override val offDiagonal: F64SparseMatrix get() = throw singularFailure(failedAt, "offDiagonal")
     override val nnz: Int get() = 0
     override val rcond: Double get() = 0.0
 

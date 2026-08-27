@@ -38,19 +38,35 @@ public class F64SparseUpLookingLdl internal constructor(
     override val failedAt: Int,
 ) : F64SparseLdlFactorization {
 
-    override val l: F64SparseMatrix get() = F64SparseMatrix.wrap(
-        n,
-        n,
-        colPtr.copyOf(),
-        rowIdx.copyOf(),
-        values.copyOf(),
-    )
+    override val l: F64SparseMatrix
+        get() {
+            requireFactors("l")
+            return F64SparseMatrix.wrap(
+                n,
+                n,
+                colPtr.copyOf(),
+                rowIdx.copyOf(),
+                values.copyOf(),
+            )
+        }
 
     /** The diagonal factor `D`, which an indefinite matrix leaves entries of either sign in. */
-    override val d: DoubleArray get() = diagonal.copyOf()
+    override val d: DoubleArray
+        get() {
+            requireFactors("d")
+            return diagonal.copyOf()
+        }
 
     /** The identity: this factorization reorders nothing, for the reason its own documentation gives. */
-    override val order: IntArray get() = IntArray(n) { it }
+    override val order: IntArray
+        get() {
+            requireFactors("order")
+            return IntArray(n) { it }
+        }
+
+    private fun requireFactors(operation: String) {
+        if (singular) throw singularFailure(failedAt, operation)
+    }
 
     /** The stored entries of `L` plus the diagonal `D`, which together are what the factorization holds. */
     override val nnz: Int get() = if (singular) 0 else values.size + n

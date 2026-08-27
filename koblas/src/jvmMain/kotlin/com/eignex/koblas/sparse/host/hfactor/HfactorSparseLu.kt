@@ -6,6 +6,7 @@ import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.requireShape
+import com.eignex.koblas.sparse.F64GeneralSparseLu
 import com.eignex.koblas.sparse.F64SingularSparseFactorization
 import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.basis.F64BasisSolver
@@ -31,6 +32,7 @@ public open class HfactorSparseLu(
     config.equilibrate,
     BackendMetadata(options = config.options.metadataOptions()),
 ),
+    F64GeneralSparseLu,
     F64BasisSolvers {
     private val calls = HfactorCalls(config)
 

@@ -6,6 +6,7 @@ package com.eignex.koblas.sparse.host.klu
 
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.*
 import kotlinx.cinterop.*
 import kotlin.random.Random
@@ -105,6 +106,18 @@ class KluNativeConformanceTest {
             "refactorized",
             tolerance = 1e-9,
         )
+    }
+
+    @Test
+    fun `the extracted factors follow an in place refactorization`() {
+        val first = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 3.0)))
+        val second = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(1 to 5.0)))
+        val factorization = klu.factor(first)
+        factorization.l
+
+        val refactored = klu.refactor(factorization, second)
+
+        assertLuFactorsReproduce(second, refactored, "refactorized")
     }
 
     @Test

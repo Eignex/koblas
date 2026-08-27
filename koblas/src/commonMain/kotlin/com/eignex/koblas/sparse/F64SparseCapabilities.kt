@@ -19,10 +19,10 @@ public interface F64RepeatedSparseLu : Backend {
     public fun analyze(a: F64SparseMatrix): F64SparseLuAnalysis = RefactoringSparseLuAnalysis(this, a)
 
     /** Creates the initial factorization of [a]. */
-    public fun factor(a: F64SparseMatrix): F64SparseFactorization
+    public fun factor(a: F64SparseMatrix): F64SparseLuFactorization
 
     /** Refactorizes [a], reusing [previous] when its structure is compatible. */
-    public fun refactor(previous: F64SparseFactorization, a: F64SparseMatrix): F64SparseFactorization
+    public fun refactor(previous: F64SparseLuFactorization, a: F64SparseMatrix): F64SparseLuFactorization
 }
 
 /**
@@ -39,10 +39,10 @@ public interface F64SparseLuAnalysis : AutoCloseable {
     public val pattern: F64SparsePattern
 
     /** Creates numeric factors for [a], whose structure must match [pattern]. */
-    public fun factor(a: F64SparseMatrix): F64SparseFactorization
+    public fun factor(a: F64SparseMatrix): F64SparseLuFactorization
 
     /** Refactorizes [a] through this analysis, superseding [previous]. */
-    public fun refactor(previous: F64SparseFactorization, a: F64SparseMatrix): F64SparseFactorization
+    public fun refactor(previous: F64SparseLuFactorization, a: F64SparseMatrix): F64SparseLuFactorization
 
     /** Releases this symbolic analysis. */
     override fun close()
@@ -115,13 +115,13 @@ private class RefactoringSparseLuAnalysis(private val provider: F64RepeatedSpars
     override val pattern: F64SparsePattern = F64SparsePattern.of(a)
     private var closed = false
 
-    override fun factor(a: F64SparseMatrix): F64SparseFactorization {
+    override fun factor(a: F64SparseMatrix): F64SparseLuFactorization {
         checkOpen()
         pattern.requireMatch(a)
         return provider.factor(a)
     }
 
-    override fun refactor(previous: F64SparseFactorization, a: F64SparseMatrix): F64SparseFactorization {
+    override fun refactor(previous: F64SparseLuFactorization, a: F64SparseMatrix): F64SparseLuFactorization {
         checkOpen()
         pattern.requireMatch(a)
         val next = provider.refactor(previous, a)

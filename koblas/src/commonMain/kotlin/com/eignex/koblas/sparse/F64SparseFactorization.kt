@@ -124,7 +124,7 @@ public interface F64SparseFactorization : AutoCloseable {
  * implementation may update its factors directly or rebuild them when the replacement would be too dense or
  * numerically unsafe to update.
  */
-public interface F64BasisFactorization : F64SparseFactorization {
+public interface F64BasisFactorization : F64SparseLuFactorization {
     /** The square basis matrix represented by this factorization. */
     public val basis: F64SparseMatrix
 
@@ -154,6 +154,8 @@ public class F64SingularSparseFactorization(override val n: Int, override val fa
     override val columnOrder: IntArray get() = throw singularFailure(failedAt, "columnOrder")
 
     override val rowScaling: DoubleArray get() = throw singularFailure(failedAt, "rowScaling")
+
+    override val offDiagonal: F64SparseMatrix get() = throw singularFailure(failedAt, "offDiagonal")
 
     override val nnz: Int get() = 0
 
@@ -191,7 +193,7 @@ public fun requireBlockSolveShapes(n: Int, b: F64DenseMatrix, out: F64DenseMatri
 public class F64RefactoringBasisFactorization(
     private val lu: F64SparseDecompositions,
     override val basis: F64SparseMatrix,
-    private val factors: F64SparseFactorization,
+    private val factors: F64SparseLuFactorization,
 ) : F64BasisFactorization {
     private var closed = false
 
@@ -202,6 +204,42 @@ public class F64RefactoringBasisFactorization(
     override val n: Int get() = factors.n
 
     override val failedAt: Int get() = factors.failedAt
+
+    override val l: F64SparseMatrix
+        get() {
+            checkOpen()
+            return factors.l
+        }
+
+    override val u: F64SparseMatrix
+        get() {
+            checkOpen()
+            return factors.u
+        }
+
+    override val rowOrder: IntArray
+        get() {
+            checkOpen()
+            return factors.rowOrder
+        }
+
+    override val columnOrder: IntArray
+        get() {
+            checkOpen()
+            return factors.columnOrder
+        }
+
+    override val rowScaling: DoubleArray
+        get() {
+            checkOpen()
+            return factors.rowScaling
+        }
+
+    override val offDiagonal: F64SparseMatrix
+        get() {
+            checkOpen()
+            return factors.offDiagonal
+        }
 
     override val nnz: Int get() {
         checkOpen()

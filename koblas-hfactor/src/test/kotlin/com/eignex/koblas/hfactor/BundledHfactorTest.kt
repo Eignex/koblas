@@ -146,6 +146,12 @@ class BundledHfactorTest {
         assertFailsWith<IllegalStateException> { factorization.nnz }
         assertFailsWith<IllegalStateException> { factorization.rcond }
         assertFailsWith<IllegalStateException> { factorization.solve(DoubleArray(n)) }
+        assertFailsWith<IllegalStateException> { factorization.l }
+        assertFailsWith<IllegalStateException> { factorization.u }
+        assertFailsWith<IllegalStateException> { factorization.rowOrder }
+        assertFailsWith<IllegalStateException> { factorization.columnOrder }
+        assertFailsWith<IllegalStateException> { factorization.rowScaling }
+        assertFailsWith<IllegalStateException> { factorization.offDiagonal }
     }
 
     @Test

@@ -41,6 +41,7 @@ public class F64ContextBuilder private constructor(
                 BackendRole.SPARSE_GENERAL_LU to backend,
                 BackendRole.SPARSE_CHOLESKY to backend,
                 BackendRole.SPARSE_LDL to backend,
+                BackendRole.SPARSE_QR to backend,
             )
         } else {
             selections + (role to backend)
@@ -155,29 +156,22 @@ private fun BackendRole.accepts(backend: Backend): Boolean = when (this) {
 
     BackendRole.SPARSE_BLAS -> backend is F64SparseBlas
 
-    BackendRole.SPARSE_DECOMPOSITIONS -> backend is F64SparseDecompositions
+    BackendRole.SPARSE_DECOMPOSITIONS ->
+        backend is F64SparseDecompositions &&
+            backend is F64GeneralSparseLu &&
+            backend is F64SparseCholesky &&
+            backend is F64SparseLdl &&
+            backend is F64SparseQr
 
-    BackendRole.SPARSE_GENERAL_LU ->
-        backend is F64GeneralSparseLu ||
-            (
-                backend is F64SparseDecompositions &&
-                    backend !is F64RepeatedSparseLu &&
-                    backend !is F64BasisFactorizations
-                )
+    BackendRole.SPARSE_GENERAL_LU -> backend is F64GeneralSparseLu
 
     BackendRole.SPARSE_REPEATED_LU -> backend is F64RepeatedSparseLu
 
-    BackendRole.SPARSE_CHOLESKY ->
-        backend is F64SparseCholesky ||
-            (backend is F64SparseDecompositions && backend !is F64BasisFactorizations)
+    BackendRole.SPARSE_CHOLESKY -> backend is F64SparseCholesky
 
-    BackendRole.SPARSE_LDL ->
-        backend is F64SparseLdl ||
-            (backend is F64SparseDecompositions && backend !is F64BasisFactorizations)
+    BackendRole.SPARSE_LDL -> backend is F64SparseLdl
 
-    BackendRole.SPARSE_QR ->
-        backend is F64SparseQr ||
-            (backend is F64SparseDecompositions && backend !is F64BasisFactorizations)
+    BackendRole.SPARSE_QR -> backend is F64SparseQr
 
     BackendRole.BASIS_FACTORIZATIONS -> backend is F64BasisFactorizations
 

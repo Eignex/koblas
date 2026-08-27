@@ -5,7 +5,6 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.sparse.F64SingularSparseFactorization
 import com.eignex.koblas.sparse.F64SparseCholeskyFactorization
-import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.F64SparseLdlFactorization
 import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.F64SparseQrFactorization
@@ -69,7 +68,7 @@ public open class KluSparseLu(
      * would. This is KLU's own routine rather than a seam method, since no other sparse LU koblas binds
      * carries an analysis worth reusing.
      */
-    final override fun refactor(previous: F64SparseFactorization, a: F64SparseMatrix): F64SparseFactorization {
+    final override fun refactor(previous: F64SparseLuFactorization, a: F64SparseMatrix): F64SparseLuFactorization {
         requireSquare(a, "refactor")
         if (!nativeAvailable) return factor(a)
         val reusable = previous as? KluFactorization ?: return factor(a)
