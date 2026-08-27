@@ -269,6 +269,14 @@ Acceptance criteria:
 
 ### PR 7: Add reusable native CSC descriptors
 
+Status: open as [PR #324](https://github.com/Eignex/koblas/pull/324) from
+`codex/reusable-sparse-descriptors`; portable, JVM, and Linux/Native host tests passed, and `./gradlew check
+lintDocs --rerun-tasks` passed all 190 tasks. Repeated products reuse one immutable caller-owned descriptor
+with deterministic close semantics and independent route diagnostics. The `sparsePreparedProductGate` suite
+enables prepared dense multiplication on JVM from 50 stored entries and on Native from 11,526; prepared
+matrix-vector and sparse-sparse products remain portable by default because CHOLMOD did not win the measured
+fixtures.
+
 - Introduce an explicitly owned handle that marshals a validated CSC matrix into a native CHOLMOD descriptor
   once and reuses it across compatible products.
 - Make ownership, mutation, thread-safety, and close behavior explicit; reject stale or incompatible reuse.
