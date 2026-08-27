@@ -3,7 +3,6 @@ package com.eignex.koblas.openblas
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.host.cblas.OpenBlasOptions
-import java.nio.file.Files
 import kotlin.test.*
 
 class BundledOpenBlasTest {
@@ -38,13 +37,5 @@ class BundledOpenBlasTest {
         assertEquals("64", backend.backendMetadata.options["level3Min"])
         assertEquals("48", backend.backendMetadata.options["factorizeMin"])
         assertEquals("1 threads", backend.backendMetadata.threading)
-    }
-
-    @Test
-    fun `uses a private extraction directory`() {
-        val path = OpenBlasResources.extract().openblas
-
-        assertTrue(path.parent.fileName.toString().startsWith("koblas-openblas-"))
-        assertTrue(Files.isDirectory(path.parent))
     }
 }

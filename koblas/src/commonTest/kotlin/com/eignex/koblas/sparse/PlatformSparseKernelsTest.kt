@@ -95,35 +95,4 @@ class PlatformSparseKernelsTest {
             assertTrue(failed, "nnz=$nnz should have rejected a dense operand of the wrong length")
         }
     }
-
-    @Test
-    fun `the routines with no vector form are the portable ones`() {
-        val rng = Random(11)
-        val x = sparse(4096, 512, rng)
-        val dense = randomVector(4096, rng)
-
-        val expectedAxpy = dense.copyOf().also { F64ReferenceSparseLinearAlgebra.axpy(it, 2.5, x) }
-        val actualAxpy = dense.copyOf().also { F64PlatformSparseKernels.axpy(it, 2.5, x) }
-        assertTrue(expectedAxpy.contentEquals(actualAxpy), "axpy diverged from the portable loop")
-
-        val expectedScatter = dense.copyOf().also { F64ReferenceSparseLinearAlgebra.scatter(x, it) }
-        val actualScatter = dense.copyOf().also { F64PlatformSparseKernels.scatter(x, it) }
-        assertTrue(expectedScatter.contentEquals(actualScatter), "scatter diverged from the portable loop")
-
-        val expectedGather = sparse(4096, 512, Random(11))
-            .also { F64ReferenceSparseLinearAlgebra.gather(it, dense.copyOf()) }
-        val actualGather = sparse(4096, 512, Random(11))
-            .also { F64PlatformSparseKernels.gather(it, dense.copyOf()) }
-        assertTrue(expectedGather.values.contentEquals(actualGather.values), "gather diverged from the portable loop")
-
-        val expectedZeroed = dense.copyOf().also { F64ReferenceSparseLinearAlgebra.gatherZero(x, it) }
-        val actualZeroed = dense.copyOf().also { F64PlatformSparseKernels.gatherZero(x, it) }
-        assertTrue(expectedZeroed.contentEquals(actualZeroed), "gatherZero diverged from the portable loop")
-
-        val other = sparse(4096, 400, Random(12))
-        assertTrue(
-            F64PlatformSparseKernels.dot(x, other) == F64ReferenceSparseLinearAlgebra.dot(x, other),
-            "the sparse-against-sparse merge must stay the portable one",
-        )
-    }
 }

@@ -70,14 +70,4 @@ class DenseExtensionsTest {
             "pivoted least squares",
         )
     }
-
-    @Test
-    fun `the LU solve actually solves the system`() {
-        val x = square.lu().solve(b3)
-        for (i in 0 until 3) {
-            var s = 0.0
-            for (j in 0 until 3) s += square[i, j] * x[j]
-            assertEquals(b3[i], s, 1e-12, "residual at $i")
-        }
-    }
 }

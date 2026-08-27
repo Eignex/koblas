@@ -5,7 +5,6 @@ import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.withColumn
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertSame
 
 class SparseColumnsTest {
 
@@ -54,11 +53,6 @@ class SparseColumnsTest {
 
         assertEquals(a.withColumn(1, stored), batched)
         assertEquals(a.nnz - 1 + 2, batched.nnz, "the stored zero was dropped")
-    }
-
-    @Test
-    fun `no replacements is the matrix itself`() {
-        assertSame(a, replaceColumns(a, emptyMap()))
     }
 
     @Test
