@@ -10,21 +10,33 @@ import com.eignex.koblas.core.F64SparseMatrix
  * transpose too, and reaching the seam for it would route the definition of a routine through whichever
  * backend happens to be registered.
  */
-internal fun transposeCsc(a: F64SparseMatrix): F64SparseMatrix {
-    val outPtr = IntArray(a.rows + 1)
-    // Counts of row i land in outPtr(i + 1), then a prefix sum turns them into offsets.
-    for (k in a.rowIdx.indices) outPtr[a.rowIdx[k] + 1]++
-    for (i in 0 until a.rows) outPtr[i + 1] += outPtr[i]
-    val outIdx = IntArray(a.values.size)
-    val outVal = DoubleArray(a.values.size)
-    // Walking source columns in order leaves each destination column's row indices ascending.
+internal fun transposeCsc(a: F64SparseMatrix): F64SparseMatrix =
+    transposeRaw(a.rows, a.cols, a.colPtr, a.rowIdx, a.values)
+
+/**
+ * The same over loose arrays, which is what a native binding has: a library hands back column pointers and
+ * row indices rather than a validated matrix, and its rows need not ascend within a column. Transposing
+ * sorts them, so this is also how such a matrix is admitted at all.
+ */
+internal fun transposeRaw(
+    rows: Int,
+    cols: Int,
+    colPtr: IntArray,
+    rowIdx: IntArray,
+    values: DoubleArray,
+): F64SparseMatrix {
+    val outPtr = IntArray(rows + 1)
+    for (k in rowIdx.indices) outPtr[rowIdx[k] + 1]++
+    for (i in 0 until rows) outPtr[i + 1] += outPtr[i]
+    val outIdx = IntArray(values.size)
+    val outVal = DoubleArray(values.size)
     val next = outPtr.copyOf()
-    for (j in 0 until a.cols) {
-        for (k in a.colPtr[j] until a.colPtr[j + 1]) {
-            val slot = next[a.rowIdx[k]]++
+    for (j in 0 until cols) {
+        for (k in colPtr[j] until colPtr[j + 1]) {
+            val slot = next[rowIdx[k]]++
             outIdx[slot] = j
-            outVal[slot] = a.values[k]
+            outVal[slot] = values[k]
         }
     }
-    return F64SparseMatrix.wrap(a.cols, a.rows, outPtr, outIdx, outVal)
+    return F64SparseMatrix.wrap(cols, rows, outPtr, outIdx, outVal)
 }

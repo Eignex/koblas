@@ -3,6 +3,8 @@ package com.eignex.koblas.sparse.host.umfpack
 import com.eignex.koblas.internal.host.FfmLibrary
 import java.lang.foreign.*
 import java.lang.foreign.ValueLayout.*
+import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.sparse.internal.transposeRaw
 import java.lang.invoke.MethodHandle
 
 /**
@@ -29,6 +31,8 @@ internal class UmfpackCalls(private val config: UmfpackConfig) {
         val freeSymbolic: MethodHandle,
         val freeNumeric: MethodHandle,
         val defaults: MethodHandle,
+        val getLunz: MethodHandle?,
+        val getNumeric: MethodHandle?,
     )
 
     /** The configured scaling Control array, built lazily once the library resolves. */
@@ -97,7 +101,13 @@ internal class UmfpackCalls(private val config: UmfpackConfig) {
             bindingFailure = "the host libumfpack lacks one of the umfpack_di_ symbols koblas binds"
             return null
         }
-        return Handles(symbolic, numeric, solve, freeSymbolic, freeNumeric, defaults)
+        // int umfpack_di_get_lunz(int *lnz, int *unz, int *n_row, int *n_col, int *nz_udiag, void *Numeric)
+        val getLunz = bind("umfpack_di_get_lunz", intsThenPointers(ints = 0, pointers = 6))
+        // int umfpack_di_get_numeric(Lp, Lj, Lx, Up, Ui, Ux, P, Q, Dx, do_recip, Rs, void *Numeric)
+        val getNumeric = bind("umfpack_di_get_numeric", intsThenPointers(ints = 0, pointers = 12))
+        // These two are optional, unlike the rest: without them a factorization still solves, and only
+        // reading its factors is unavailable.
+        return Handles(symbolic, numeric, solve, freeSymbolic, freeNumeric, defaults, getLunz, getNumeric)
     }
 
     /** `int f(...)` taking [ints] leading `int` arguments then [pointers] pointers. */
@@ -110,6 +120,85 @@ internal class UmfpackCalls(private val config: UmfpackConfig) {
 
     private fun bind(name: String, descriptor: FunctionDescriptor): MethodHandle? =
         library.handleOrNull(name, descriptor)
+
+    /**
+     * `L`, `U`, the two permutations and the row scaling from [numeric], or null when this libumfpack lacks
+     * the extraction symbols.
+     *
+     * `L` arrives in row form and is transposed to reach CSC. The scaling arrives as a multiplier or a
+     * divisor depending on `do_recip`, and is normalised to a multiplier here so the identity
+     * `L·U = P·diag(rowScaling)·A·Q` holds without asking which it was.
+     */
+    fun extractFactors(numeric: MemorySegment, order: Int): UmfpackFactors? {
+        val bound = handles ?: return null
+        val lunz = bound.getLunz ?: return null
+        val getNumeric = bound.getNumeric ?: return null
+        return Arena.ofConfined().use { arena ->
+            val sizes = arena.allocate(JAVA_INT, 5)
+            val slot = { index: Long -> sizes.asSlice(index * Int.SIZE_BYTES, Int.SIZE_BYTES.toLong()) }
+            if (lunz.invokeExact(slot(0), slot(1), slot(2), slot(3), slot(4), numeric) as Int != OK) {
+                return@use null
+            }
+            val lNonzeros = sizes.getAtIndex(JAVA_INT, 0)
+            val uNonzeros = sizes.getAtIndex(JAVA_INT, 1)
+            val lRowPtr = arena.allocate(JAVA_INT, order + 1L)
+            val lColIdx = arena.allocate(JAVA_INT, maxOf(lNonzeros, 1).toLong())
+            val lValues = arena.allocate(JAVA_DOUBLE, maxOf(lNonzeros, 1).toLong())
+            val uColPtr = arena.allocate(JAVA_INT, order + 1L)
+            val uRowIdx = arena.allocate(JAVA_INT, maxOf(uNonzeros, 1).toLong())
+            val uValues = arena.allocate(JAVA_DOUBLE, maxOf(uNonzeros, 1).toLong())
+            val rowPerm = arena.allocate(JAVA_INT, order.toLong())
+            val colPerm = arena.allocate(JAVA_INT, order.toLong())
+            val reciprocal = arena.allocate(JAVA_INT, 1)
+            val scaling = arena.allocate(JAVA_DOUBLE, order.toLong())
+            val status = getNumeric.invokeExact(
+                lRowPtr, lColIdx, lValues, uColPtr, uRowIdx, uValues,
+                rowPerm, colPerm, MemorySegment.NULL, reciprocal, scaling, numeric,
+            ) as Int
+            if (status != OK) return@use null
+            UmfpackFactors(
+                lower = read(lRowPtr, lColIdx, lValues, order, lNonzeros, transposed = true),
+                upper = read(uColPtr, uRowIdx, uValues, order, uNonzeros, transposed = false),
+                rowOrder = ints(rowPerm, order),
+                columnOrder = ints(colPerm, order),
+                rowScaling = doubles(scaling, order).let { scale ->
+                    // do_recip false means UMFPACK divided by these, so the multiplier is the reciprocal.
+                    if (reciprocal.getAtIndex(JAVA_INT, 0) != 0) scale else DoubleArray(order) { 1.0 / scale[it] }
+                },
+            )
+        }
+    }
+
+    private fun read(
+        pointers: MemorySegment,
+        indices: MemorySegment,
+        values: MemorySegment,
+        order: Int,
+        nonzeros: Int,
+        transposed: Boolean,
+    ): F64SparseMatrix {
+        val ptr = ints(pointers, order + 1)
+        val idx = ints(indices, nonzeros)
+        val entries = doubles(values, nonzeros)
+        // Row form is the transpose in CSC, and transposing sorts the rows a library need not have sorted.
+        return if (transposed) {
+            transposeRaw(order, order, ptr, idx, entries)
+        } else {
+            transposeRaw(order, order, ptr, idx, entries).let { transposeRaw(order, order, it.colPtr, it.rowIdx, it.values) }
+        }
+    }
+
+    private fun ints(segment: MemorySegment, count: Int): IntArray {
+        val out = IntArray(count)
+        MemorySegment.copy(segment, JAVA_INT, 0L, out, 0, count)
+        return out
+    }
+
+    private fun doubles(segment: MemorySegment, count: Int): DoubleArray {
+        val out = DoubleArray(count)
+        MemorySegment.copy(segment, JAVA_DOUBLE, 0L, out, 0, count)
+        return out
+    }
 
     private fun handlesOrThrow(): Handles =
         checkNotNull(handles) { "umfpack is not available: ${unavailableReason ?: "unknown reason"}" }

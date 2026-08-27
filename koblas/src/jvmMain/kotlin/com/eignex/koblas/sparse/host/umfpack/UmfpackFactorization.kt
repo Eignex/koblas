@@ -4,8 +4,8 @@ import com.eignex.koblas.*
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.internal.host.nativeCleaner
-import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.F64SparseFactorizationReport
+import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.basicReport
 import com.eignex.koblas.sparse.requireSolveShapes
 import java.lang.foreign.Arena
@@ -25,7 +25,29 @@ public class UmfpackFactorization internal constructor(
     private val numericHolder: MemorySegment,
     private val calls: UmfpackCalls,
     private val control: MemorySegment?,
-) : F64SparseFactorization {
+) : F64SparseLuFactorization {
+    /**
+     * `L`, `U`, the permutations and the scaling, extracted on the first read of any of them. UMFPACK copies
+     * both factors out of its numeric object, so a caller who only solves never pays for them.
+     */
+    private val extracted: UmfpackFactors by lazy {
+        checkNotNull(calls.extractFactors(numericHolder.get(ADDRESS, 0L), matrix.rows)) {
+            "this libumfpack does not expose umfpack_di_get_numeric, so its factors cannot be read"
+        }
+    }
+
+    private val factors: UmfpackFactors get() = lifecycle.withResource { extracted }
+
+    override val l: F64SparseMatrix get() = factors.lower
+
+    override val u: F64SparseMatrix get() = factors.upper
+
+    override val rowOrder: IntArray get() = factors.rowOrder.copyOf()
+
+    override val columnOrder: IntArray get() = factors.columnOrder.copyOf()
+
+    override val rowScaling: DoubleArray get() = factors.rowScaling.copyOf()
+
     private class Release(
         private val calls: UmfpackCalls,
         private val arena: Arena,
