@@ -11,7 +11,7 @@ import com.eignex.koblas.sparse.host.umfpack.UmfpackSparseLu
  * SuiteSparse UMFPACK backend bundled in Maven-native resources.
  *
  * One of [UmfpackSparseLu] rather than a wrapper around one, so the bundled providers all answer to
- * [com.eignex.koblas.sparseDecompositionsNamed] as the type their binding is.
+ * [com.eignex.koblas.backendNamed] as the type their binding is.
  */
 public class BundledUmfpack private constructor(config: UmfpackConfig) : UmfpackSparseLu(config) {
     /** Creates bundled UMFPACK with default options. */
@@ -19,14 +19,6 @@ public class BundledUmfpack private constructor(config: UmfpackConfig) : Umfpack
 
     /** Creates bundled UMFPACK with the same numerical and execution [options] accepted by the host binding. */
     public constructor(options: UmfpackOptions) : this(bundledConfig(options))
-
-    /** Retains the original threshold-and-equilibration constructor. */
-    public constructor(factorizeMin: Int?, equilibrate: Boolean = false) : this(
-        UmfpackOptions(factorizeMin = factorizeMin, equilibrate = equilibrate),
-    )
-
-    /** Retains calls that configured only equilibration by name. */
-    public constructor(equilibrate: Boolean) : this(UmfpackOptions(equilibrate = equilibrate))
 
     override val name: String get() = "umfpack-bundled"
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 1

@@ -3,7 +3,6 @@ package com.eignex.koblas
 import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.internal.backend.BackendRegistry
 import com.eignex.koblas.internal.backend.BackendSlot
-import com.eignex.koblas.sparse.F64SparseDecompositions
 import com.eignex.koblas.sparse.basis.F64BasisSolvers
 
 /**
@@ -29,24 +28,7 @@ public fun discoverBackends() {
 }
 
 /**
- * The sparse LU registered under [name], such as `"umfpack"` or `"basiclu"`, or null when nothing did. A
- * bundled provider answers to the plain name as well as its own.
- *
- * [koblas] hands out one provider per semantic role. This is for a caller that wants a particular library
- * instead. Sparse backends are specialised rather than interchangeable: KLU wants a repeated circuit
- * pattern, UMFPACK an unstructured system, and BASICLU a basis whose columns are replaced one at a time.
- * One process may need several of them concurrently.
- *
- * Named rather than constructed directly so a caller keeps discovery, the configured library paths, and
- * the bundled builds. Prefer typed [backendNamed] lookup for semantic capabilities such as
- * `backendNamed("basiclu", F64Capabilities.basisFactorizations)`; this legacy function remains for source
- * compatibility and backend-specific APIs.
- */
-public fun sparseDecompositionsNamed(name: String): F64SparseDecompositions? =
-    BackendRegistry.sparseDecompositionsNamed(name)
-
-/**
- * The basis solvers registered under [name], the counterpart of [sparseDecompositionsNamed] for the basis half.
+ * The basis solvers registered under [name], looked up the way the semantic capabilities are.
  */
 public fun basisSolversNamed(name: String): F64BasisSolvers? = BackendRegistry.basisSolversNamed(name)
 

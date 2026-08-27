@@ -51,9 +51,6 @@ internal object BackendRegistry {
         offer(backend, explicit = true)
     }
 
-    /** The sparse LU registered under [name], or null when nothing did. */
-    internal fun sparseDecompositionsNamed(name: String) = f64.sparseDecompositionsNamed(name)
-
     /** The general sparse LU registered under [name], or null when nothing did. */
     internal fun generalSparseLuNamed(name: String) = f64.generalSparseLuNamed(name)
 

@@ -54,15 +54,18 @@ class SparseSemanticRolesTest {
         assertEquals(listOf("basis"), registeredBackendNames(BackendRole.BASIS_FACTORIZATIONS))
     }
 
+    /**
+     * A backend offers the roles it implements. Satisfying the wide seam alone offers nothing, so a provider
+     * that names no role leaves every one of them to the reference rather than silently taking all of them.
+     */
     @Test
-    fun `an untyped legacy provider remains a general LU provider`() = withCleanBackends {
-        val legacy = LegacyProvider("third-party", priority = 50)
+    fun `a provider that fills no role takes none of them`() = withCleanBackends {
+        registerBackend(LegacyProvider("third-party", priority = 50))
 
-        registerBackend(legacy)
-
-        assertEquals("third-party", koblas.generalSparseLu.name)
-        assertEquals("third-party", koblas.sparseCholesky.name)
-        assertEquals("third-party", koblas.sparseLdl.name)
+        assertEquals("reference", koblas.generalSparseLu.name)
+        assertEquals("reference", koblas.sparseCholesky.name)
+        assertEquals("reference", koblas.sparseLdl.name)
+        assertEquals("reference", koblas.sparseQr.name)
     }
 
     @Test

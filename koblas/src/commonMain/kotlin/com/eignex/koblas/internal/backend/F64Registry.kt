@@ -122,20 +122,14 @@ internal class F64Registry {
     }
 
     private fun offerSparseCapabilities(backend: Backend, explicit: Boolean): Boolean {
+        // A backend offers the roles it implements. Filling the wide seam alone no longer offers anything:
+        // the roles are the contract, and every binding here implements the ones it can answer.
         var offered = false
-        val legacy = backend as? F64SparseDecompositions
         val general = backend
-            .takeUnless { it is F64RepeatedSparseLu || it is F64BasisFactorizations }
-            ?.let { (it as? F64GeneralSparseLu) ?: legacy?.let(::LegacyGeneralSparseLu) }
-        val cholesky = backend as? F64SparseCholesky ?: legacy
-            ?.takeUnless { backend is F64BasisFactorizations }
-            ?.let(::LegacySparseCholesky)
-        val ldl = backend as? F64SparseLdl ?: legacy
-            ?.takeUnless { backend is F64BasisFactorizations }
-            ?.let(::LegacySparseLdl)
-        val qr = backend as? F64SparseQr ?: legacy
-            ?.takeUnless { backend is F64BasisFactorizations }
-            ?.let(::LegacySparseQr)
+            .takeUnless { it is F64RepeatedSparseLu || it is F64BasisFactorizations } as? F64GeneralSparseLu
+        val cholesky = backend as? F64SparseCholesky
+        val ldl = backend as? F64SparseLdl
+        val qr = backend as? F64SparseQr
         general?.let {
             generalSparseLuSeam.register(it, explicit)
             offered = true
@@ -162,9 +156,6 @@ internal class F64Registry {
         }
         return offered
     }
-
-    /** The sparse LU registered under [name], or null when nothing did. */
-    fun sparseDecompositionsNamed(name: String): F64SparseDecompositions? = sparseDecompositionsSeam.named(name)
 
     /** The general sparse LU registered under [name], or null when nothing did. */
     fun generalSparseLuNamed(name: String): F64GeneralSparseLu? = generalSparseLuSeam.named(name)

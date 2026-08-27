@@ -19,7 +19,7 @@ import com.eignex.koblas.core.F64SparseMatrix
  * say how.
  *
  * A caller wanting one of those reaches the backend by name through
- * [com.eignex.koblas.sparseDecompositionsNamed] rather than through the seam.
+ * [com.eignex.koblas.backendNamed] with the capability it fills, rather than through the seam.
  */
 public interface F64SparseDecompositions : Backend {
     /**
