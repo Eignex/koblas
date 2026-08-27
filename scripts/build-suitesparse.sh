@@ -59,13 +59,13 @@ install="$work/install"
 if [[ "$platform" == macosx-arm64 ]]; then
     export DYLD_LIBRARY_PATH="$(dirname "$blas")${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}"
 fi
-# CHOLMOD and SPQR want LAPACK where UMFPACK wanted only BLAS, and the bundled OpenBLAS carries both, so
+# CHOLMOD wants LAPACK where UMFPACK wanted only BLAS, and the bundled OpenBLAS carries both, so
 # both variables point at it. Naming LAPACK_LIBRARIES also settles where it comes from: SuiteSparseLAPACK
 # takes a supplied one as-is and returns, where falling through to cmake's own FindLAPACK searches the host
 # and takes whatever it finds, which on a machine with no system LAPACK is nothing.
 #
 # CUDA is opt-out upstream, so a build host that happens to have it would otherwise put a CUDA runtime
-# dependency into CHOLMOD and SPQR. Static archives are never copied into the bundle, so building them
+# dependency into CHOLMOD. Static archives are never copied into the bundle, so building them
 # would only cost compile time.
 #
 # BUILD_TESTING is what cmake defaults on, and CHOLMOD builds its demo programs under it as well as under
@@ -74,7 +74,7 @@ fi
 cmake -S "$source" -B "$work/build" -G "Unix Makefiles" \
     -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DBUILD_STATIC_LIBS=OFF -DBUILD_TESTING=OFF \
     -DCMAKE_INSTALL_PREFIX="$install" \
-    -DSUITESPARSE_ENABLE_PROJECTS="suitesparse_config;amd;camd;colamd;ccolamd;btf;klu;umfpack;cholmod;spqr" \
+    -DSUITESPARSE_ENABLE_PROJECTS="suitesparse_config;amd;camd;colamd;ccolamd;btf;klu;umfpack;cholmod" \
     -DKLU_USE_CHOLMOD=OFF -DUMFPACK_USE_CHOLMOD=OFF \
     -DBLAS_LIBRARIES="$blas" -DLAPACK_LIBRARIES="$blas" \
     -DBLA_VENDOR=OpenBLAS \
@@ -109,8 +109,6 @@ find "$destination" -maxdepth 1 -type f -exec basename {} \; | sort > "$destinat
 notices_init "$notices" "koblas-suitesparse" "scripts/build-suitesparse.sh"
 notices_append_file "$notices" "SuiteSparse UMFPACK $version — GPL-2.0-or-later" "SuiteSparse/UMFPACK/Doc/License.txt" "$source/UMFPACK/Doc/License.txt"
 notices_append_file "$notices" "SuiteSparse UMFPACK GPL-2.0 license text" "SuiteSparse/UMFPACK/Doc/gpl.txt" "$source/UMFPACK/Doc/gpl.txt"
-notices_append_file "$notices" "SuiteSparse SPQR $version — GPL-2.0-or-later" "SuiteSparse/SPQR/Doc/License.txt" "$source/SPQR/Doc/License.txt"
-notices_append_file "$notices" "SuiteSparse SPQR GPL-2.0 license text" "SuiteSparse/SPQR/Doc/gpl.txt" "$source/SPQR/Doc/gpl.txt"
 notices_append_file "$notices" "SuiteSparse CHOLMOD $version — LGPL-2.1-or-later and GPL-2.0-or-later, per module" "SuiteSparse/CHOLMOD/Doc/License.txt" "$source/CHOLMOD/Doc/License.txt"
 notices_append_file "$notices" "SuiteSparse CHOLMOD bundled METIS — Apache-2.0" "SuiteSparse/CHOLMOD/SuiteSparse_metis/LICENSE.txt" "$source/CHOLMOD/SuiteSparse_metis/LICENSE.txt"
 notices_append_file "$notices" "SuiteSparse KLU $version — LGPL-2.1-or-later" "SuiteSparse/KLU/Doc/License.txt" "$source/KLU/Doc/License.txt"

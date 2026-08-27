@@ -36,7 +36,7 @@ fun toolVersion(command: String) = providers.exec { commandLine(command, "--vers
 
 val cCompiler = providers.environmentVariable("CC").orElse("cc")
 
-// SPQR is C++, so this build wants a C++ compiler alongside the C one every other package uses.
+// SuiteSparse's root CMake project configures both languages even when the selected packages are C libraries.
 val cxxCompiler = providers.environmentVariable("CXX").orElse("c++")
 val buildSuiteSparse = tasks.register<Exec>("buildSuiteSparse") {
     val platform = suiteSparsePlatform.get()
@@ -71,11 +71,9 @@ sourceSets.named("main") { resources.srcDir(suiteSparseResources) }
 tasks.named("processResources") { if (!lintOnly) dependsOn(buildSuiteSparse) }
 tasks.named<Jar>("sourcesJar") { dependsOn(buildSuiteSparse) }
 
-// CHOLMOD and SPQR carry no binding yet, so this task is the only thing that would notice them going
-// missing from a platform's build.
 val bundledLibraries = mapOf(
-    "linux" to listOf("libklu.so.2", "libumfpack.so.6", "libcholmod.so.5", "libspqr.so.4"),
-    "macos" to listOf("libklu.2.dylib", "libumfpack.dylib", "libcholmod.5.dylib", "libspqr.4.dylib"),
+    "linux" to listOf("libklu.so.2", "libumfpack.so.6", "libcholmod.so.5"),
+    "macos" to listOf("libklu.2.dylib", "libumfpack.dylib", "libcholmod.5.dylib"),
 )
 
 val verifySuiteSparseResources = tasks.register("verifySuiteSparseResources") {
@@ -109,7 +107,12 @@ val verifySuiteSparseResources = tasks.register("verifySuiteSparseResources") {
                 "missing bundled SuiteSparse resources for $platform: ${missing.joinToString()}; " +
                     "build them on that platform before publishing"
             }
+            val unreachable = directory.listFiles().orEmpty().filter { it.name.contains("spqr", ignoreCase = true) }
+            check(unreachable.isEmpty()) {
+                "unreachable SPQR resources remain in the $platform bundle: ${unreachable.joinToString { it.name }}"
+            }
         }
+        check("SPQR" !in notices.readText()) { "SPQR notices remain although the library is not shipped" }
     }
 }
 
