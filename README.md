@@ -62,6 +62,27 @@ SuiteSparse packages, which makes that artifact effectively GPL-3.0.
 
 Containers use column-major storage. Unqualified names such as `DenseMatrix`
 are aliases for the implemented double-precision types (`F64DenseMatrix`).
+Owned containers may expose live borrowed panels and slices without copying. A matrix view retains its
+physical leading dimension, while a row is a strided vector view:
+
+```kotlin
+import com.eignex.koblas.*
+import com.eignex.koblas.core.*
+
+val storage = DenseMatrix.zero(512, 32)
+val panel = storage.view(row = 64, rows = 128, column = 4, cols = 8)
+val row = panel.row(7)
+val weights = DenseMatrix.zero(8, 2)
+val output = DenseMatrix.zero(128, 2)
+check(storage.ownership == BufferOwnership.OWNED)
+check(panel.ownership == BufferOwnership.BORROWED)
+
+koblas.blas.gemm(1.0, panel, false, weights.asView(), false, 0.0, output.asView())
+```
+
+Views are live and not serializable because they do not own their buffers. Strided `gemv` and `gemm` pass
+offsets, increments, and leading dimensions directly to host BLAS where the measured gate selects it; their
+destinations may share a buffer with disjoint views but must not overlap an input.
 
 Choose a factorization that matches the system:
 

@@ -1,7 +1,6 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.core.*
 import com.eignex.koblas.dense.*
 import kotlin.test.*
 
@@ -119,6 +118,26 @@ class F64ContextBuilderTest {
         assertEquals(BackendPolicyDecision.REJECT, context.plan(failure.route.query).decision)
         assertEquals(0, routed.calls)
         assertContentEquals(doubleArrayOf(7.0), y)
+    }
+
+    @Test
+    fun `native only applies the same route to borrowed views`() {
+        val routed = RoutedBlas(nativeMin = 2)
+        val context = F64ContextBuilder()
+            .withBackend(BackendRole.DENSE_BLAS, routed)
+            .withDispatchPolicy(F64DispatchPolicy.NATIVE_ONLY)
+            .resolve()
+        val matrix = F64DenseMatrix(1, 1, doubleArrayOf(2.0)).asView()
+        val x = F64DenseVector(doubleArrayOf(3.0)).asView()
+        val outputStorage = doubleArrayOf(7.0, 11.0)
+        val y = F64StridedVectorView(outputStorage, offset = 0, size = 1)
+
+        assertFailsWith<BackendRouteRejectedException> {
+            context.gemv(1.0, matrix, x, 0.0, y)
+        }
+
+        assertEquals(0, routed.calls)
+        assertContentEquals(doubleArrayOf(7.0, 11.0), outputStorage)
     }
 
     @Test

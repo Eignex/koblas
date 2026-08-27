@@ -28,6 +28,9 @@ public sealed interface F64VectorView : F64VectorLike
 @SerialName("F64DenseVector")
 public class F64DenseVector internal constructor(public val data: DoubleArray) : F64VectorView {
 
+    /** This storage owns [data], including when ownership was transferred through [wrap]. */
+    public val ownership: BufferOwnership get() = BufferOwnership.OWNED
+
     internal constructor(size: Int) : this(DoubleArray(size))
 
     override val size: Int get() = data.size

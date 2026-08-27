@@ -1,7 +1,7 @@
 package com.eignex.koblas.dense.host
 
 import com.eignex.koblas.*
-import com.eignex.koblas.core.F64DenseMatrix
+import com.eignex.koblas.core.*
 import com.eignex.koblas.dense.*
 import kotlin.math.abs
 import kotlin.random.Random
@@ -625,6 +625,37 @@ internal fun assertDegenerateShapesHonorTheBetaConventions(blas: F64Blas) {
 internal fun assertAnEmptyFactorizationSolvesEmpty(decompositions: F64Decompositions) {
     val empty = decompositions.factor(F64DenseMatrix(0, 0))
     assertEquals(0, decompositions.solve(empty, DoubleArray(0)).size)
+}
+
+/** Offset, stride, and leading-dimension calls through the same panels as the portable implementation. */
+internal fun assertStridedProductsAgreeWithReference(blas: F64Blas) {
+    val aData = DoubleArray(30) { -100.0 - it }
+    val bData = DoubleArray(30) { -200.0 - it }
+    val expectedData = DoubleArray(42) { -300.0 - it }
+    val actualData = expectedData.copyOf()
+    val a = F64StridedMatrixView(3, 2, aData, offset = 2, leadingDimension = 6)
+    val b = F64StridedMatrixView(2, 4, bData, offset = 3, leadingDimension = 5)
+    val expected = F64StridedMatrixView(3, 4, expectedData, offset = 7, leadingDimension = 7)
+    val actual = F64StridedMatrixView(3, 4, actualData, offset = 7, leadingDimension = 7)
+    for (j in 0 until a.cols) for (i in 0 until a.rows) a[i, j] = 1.0 + i + 2.0 * j
+    for (j in 0 until b.cols) for (i in 0 until b.rows) b[i, j] = 0.5 + i - j
+
+    reference.gemm(1.25, a, false, b, false, -0.5, expected)
+    blas.gemm(1.25, a, false, b, false, -0.5, actual)
+
+    assertClose(expectedData, actualData, "strided gemm", tolerance = 1e-12)
+
+    val xData = doubleArrayOf(2.0, -99.0, 3.0, -99.0)
+    val expectedY = doubleArrayOf(-1.0, -99.0, -2.0, -99.0, -3.0)
+    val actualY = expectedY.copyOf()
+    val x = F64StridedVectorView(xData, 0, 2, 2)
+    val expectedVector = F64StridedVectorView(expectedY, 0, 3, 2)
+    val actualVector = F64StridedVectorView(actualY, 0, 3, 2)
+
+    reference.gemv(0.75, a, x, -0.25, expectedVector)
+    blas.gemv(0.75, a, x, -0.25, actualVector)
+
+    assertClose(expectedY, actualY, "strided gemv", tolerance = 1e-12)
 }
 
 /**

@@ -5,9 +5,10 @@ package com.eignex.koblas.dense.host
  * they hand an array to the library, so this is the seam between that mechanism and the routines built on
  * it: the JVM implements it over `java.lang.foreign`, Kotlin/Native over `usePinned`.
  *
- * Every array is passed whole and read from its start; leading dimensions come as separate arguments, as in
- * CBLAS itself. An implementation must not copy, since [F64BlasAdapter] relies on the library writing
- * through to the caller's arrays.
+ * Contiguous calls pass an array from its start. Strided view overloads additionally advance the native
+ * pointer by an element offset; leading dimensions and increments remain separate arguments, as in CBLAS
+ * itself. An implementation must not copy, since [F64BlasAdapter] relies on the library writing through to
+ * the caller's arrays.
  */
 @Suppress("LongParameterList", "TooManyFunctions") // the CBLAS signatures, one method each
 internal interface CblasCalls {
@@ -29,6 +30,28 @@ internal interface CblasCalls {
         y: DoubleArray,
         incy: Int,
     )
+
+    /** [dgemv] with pointers advanced to logical offsets in the same Kotlin arrays. */
+    fun dgemv(
+        order: Int,
+        trans: Int,
+        m: Int,
+        n: Int,
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        lda: Int,
+        x: DoubleArray,
+        xOffset: Int,
+        incx: Int,
+        beta: Double,
+        y: DoubleArray,
+        yOffset: Int,
+        incy: Int,
+    ) {
+        check(aOffset == 0 && xOffset == 0 && yOffset == 0) { "this CBLAS bridge does not support offsets" }
+        dgemv(order, trans, m, n, alpha, a, lda, x, incx, beta, y, incy)
+    }
 
     fun dger(
         order: Int,
@@ -77,6 +100,30 @@ internal interface CblasCalls {
         c: DoubleArray,
         ldc: Int,
     )
+
+    /** [dgemm] with pointers advanced to logical matrix offsets in the same Kotlin arrays. */
+    fun dgemm(
+        order: Int,
+        transA: Int,
+        transB: Int,
+        m: Int,
+        n: Int,
+        k: Int,
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        lda: Int,
+        b: DoubleArray,
+        bOffset: Int,
+        ldb: Int,
+        beta: Double,
+        c: DoubleArray,
+        cOffset: Int,
+        ldc: Int,
+    ) {
+        check(aOffset == 0 && bOffset == 0 && cOffset == 0) { "this CBLAS bridge does not support offsets" }
+        dgemm(order, transA, transB, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc)
+    }
 
     fun dsyrk(
         order: Int,

@@ -17,6 +17,14 @@ import kotlin.test.*
 class HostBlasConformanceTest {
 
     @Test
+    fun `the host BLAS consumes strided views in place`() {
+        Assume.assumeTrue("host CBLAS is not installed", HostLibraries.cblas)
+        assertStridedProductsAgreeWithReference(
+            F64Cblas(HostBlasConfig(level2Min = 0, level3Min = 0)),
+        )
+    }
+
+    @Test
     fun `a full-uplo syrk returns its scratch buffer to the workspace`() {
         Assume.assumeTrue("host CBLAS is not installed", HostLibraries.cblas)
         val n = 64

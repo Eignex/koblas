@@ -36,6 +36,39 @@ internal class JvmCblasCalls(private val calls: HostBlasCalls) : CblasCalls {
         ) as Unit
     }
 
+    override fun dgemv(
+        order: Int,
+        trans: Int,
+        m: Int,
+        n: Int,
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        lda: Int,
+        x: DoubleArray,
+        xOffset: Int,
+        incx: Int,
+        beta: Double,
+        y: DoubleArray,
+        yOffset: Int,
+        incy: Int,
+    ) {
+        calls.dgemv.invokeExact(
+            order,
+            trans,
+            m,
+            n,
+            alpha,
+            seg(a).asSlice(aOffset.toLong() * Double.SIZE_BYTES),
+            lda,
+            seg(x).asSlice(xOffset.toLong() * Double.SIZE_BYTES),
+            incx,
+            beta,
+            seg(y).asSlice(yOffset.toLong() * Double.SIZE_BYTES),
+            incy,
+        ) as Unit
+    }
+
     override fun dger(
         order: Int,
         m: Int,
@@ -113,6 +146,43 @@ internal class JvmCblasCalls(private val calls: HostBlasCalls) : CblasCalls {
     ) {
         calls.dgemm.invokeExact(
             order, transA, transB, m, n, k, alpha, seg(a), lda, seg(b), ldb, beta, seg(c), ldc,
+        ) as Unit
+    }
+
+    override fun dgemm(
+        order: Int,
+        transA: Int,
+        transB: Int,
+        m: Int,
+        n: Int,
+        k: Int,
+        alpha: Double,
+        a: DoubleArray,
+        aOffset: Int,
+        lda: Int,
+        b: DoubleArray,
+        bOffset: Int,
+        ldb: Int,
+        beta: Double,
+        c: DoubleArray,
+        cOffset: Int,
+        ldc: Int,
+    ) {
+        calls.dgemm.invokeExact(
+            order,
+            transA,
+            transB,
+            m,
+            n,
+            k,
+            alpha,
+            seg(a).asSlice(aOffset.toLong() * Double.SIZE_BYTES),
+            lda,
+            seg(b).asSlice(bOffset.toLong() * Double.SIZE_BYTES),
+            ldb,
+            beta,
+            seg(c).asSlice(cOffset.toLong() * Double.SIZE_BYTES),
+            ldc,
         ) as Unit
     }
 

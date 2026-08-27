@@ -37,6 +37,9 @@ public class F64DenseMatrix internal constructor(
     public val data: DoubleArray,
 ) : F64MatrixView {
 
+    /** This storage owns [data], including when ownership was transferred through [wrap]. */
+    public val ownership: BufferOwnership get() = BufferOwnership.OWNED
+
     internal constructor(rows: Int, cols: Int = rows) : this(rows, cols, DoubleArray(entryCount(rows, cols)))
 
     init {
