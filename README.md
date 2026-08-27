@@ -190,25 +190,12 @@ providers without route diagnostics report UNKNOWN rather than being assumed nat
 ### Discovery configuration
 
 On JVM, a system property takes precedence over the corresponding environment variable. Kotlin/Native reads
-the environment variable.
+the environment variable. Override a library path with the JVM property `koblas.<library>.path` or environment
+variable `KOBLAS_<LIBRARY>_PATH`. Supported library identifiers are cblas, lapacke, klu, umfpack, cholmod,
+basiclu, and hfactor.
 
-| Library | JVM property | Environment variable |
-|---------|--------------|----------------------|
-| CBLAS | `koblas.cblas.path` | `KOBLAS_CBLAS_PATH` |
-| LAPACKE | `koblas.lapacke.path` | `KOBLAS_LAPACKE_PATH` |
-| KLU | `koblas.klu.path` | `KOBLAS_KLU_PATH` |
-| UMFPACK | `koblas.umfpack.path` | `KOBLAS_UMFPACK_PATH` |
-| CHOLMOD | `koblas.cholmod.path` | `KOBLAS_CHOLMOD_PATH` |
-| BASICLU | `koblas.basiclu.path` | `KOBLAS_BASICLU_PATH` |
-| HFactor | `koblas.hfactor.path` | `KOBLAS_HFACTOR_PATH` |
-
-Discovery can also be pinned by backend name. A blank value is treated as unset, and the value "reference" disables host
-selection for that half.
-
-| Half | JVM property | Environment variable |
-|------|--------------|----------------------|
-| Dense | `koblas.dense.backend` | `KOBLAS_DENSE_BACKEND` |
-| Sparse | `koblas.sparse.backend` | `KOBLAS_SPARSE_BACKEND` |
+Pin discovery by backend name with `koblas.<half>.backend` or `KOBLAS_<HALF>_BACKEND`, where the half is dense
+or sparse. A blank value is treated as unset, and the value "reference" disables host selection for that half.
 
 ## Sparse workflows
 
