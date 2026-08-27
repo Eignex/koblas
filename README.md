@@ -122,8 +122,8 @@ a strided destination must not overlap an input.
 
 ## Allocation and workspaces
 
-BLAS-style and Into-suffixed overloads write into caller-owned destinations. Reuse a Workspace for temporary storage
-and reserve it before an allocation-sensitive loop:
+BLAS-style and Into-suffixed overloads write into caller-owned destinations. A Workspace grows automatically
+and retains temporary storage for reuse:
 
 ```kotlin
 import com.eignex.koblas.*
@@ -131,7 +131,7 @@ import com.eignex.koblas.*
 val factor = koblas.factor(a)
 val rhs = doubleArrayOf(3.0, 5.0)
 val out = DoubleArray(2)
-val workspace = Workspace().apply { reserve(size = 2, count = 1) }
+val workspace = Workspace()
 
 repeat(1_000) {
     koblas.solveInto(factor, rhs, out, workspace = workspace)
