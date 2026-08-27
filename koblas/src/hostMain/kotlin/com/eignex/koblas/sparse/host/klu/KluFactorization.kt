@@ -1,10 +1,15 @@
-@file:OptIn(ExperimentalForeignApi::class, ExperimentalNativeApi::class)
+@file:OptIn(
+    ExperimentalForeignApi::class,
+    ExperimentalNativeApi::class,
+    com.eignex.koblas.UnsafeKoblasApi::class,
+)
 
 package com.eignex.koblas.sparse.host.klu
 
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.requireFactored
 import com.eignex.koblas.sparse.F64SparseFactorization
@@ -19,6 +24,8 @@ public class KluFactorization internal constructor(
     private val handle: KluHandle,
     private val functions: KluFunctions,
     override val n: Int,
+    private val columnPointers: IntArray,
+    private val rowIndices: IntArray,
 ) : F64SparseFactorization {
 
     /** The two holders and the common block, one object so the cleaner captures it and not the factorization. */
@@ -77,11 +84,14 @@ public class KluFactorization internal constructor(
         return out
     }
 
-    /** Refactorizes onto this factorization's pattern, reporting whether KLU kept it. */
-    internal fun refactor(colPtr: IntArray, rowIdx: IntArray, values: DoubleArray): Boolean = anchoring {
-        val status = colPtr.usePinned { ap ->
-            rowIdx.usePinned { ai ->
-                values.usePinned { ax ->
+    /** Refactorizes onto this factorization's pattern, rejecting another structure before calling KLU. */
+    internal fun refactor(a: F64SparseMatrix): KluRefactorResult = anchoring {
+        if (a.rows != n || !columnPointers.contentEquals(a.colPtr) || !rowIndices.contentEquals(a.rowIdx)) {
+            return@anchoring KluRefactorResult.Incompatible
+        }
+        val status = a.colPtr.usePinned { ap ->
+            a.rowIdx.usePinned { ai ->
+                a.values.usePinned { ax ->
                     functions.refactor(
                         ap.addressOf(0),
                         ai.addressOf(0),
@@ -95,7 +105,11 @@ public class KluFactorization internal constructor(
         }
         val singular = intAt(handle.common, KLU_COMMON_STATUS) == KLU_SINGULAR
         failedAt = if (singular) SINGULAR_POSITION_UNKNOWN else NOT_SINGULAR
-        status == 1 && !singular
+        when {
+            singular -> KluRefactorResult.Singular
+            status == 1 -> KluRefactorResult.Success
+            else -> error("klu_refactor failed with status ${intAt(handle.common, KLU_COMMON_STATUS)}")
+        }
     }
 
     override fun close(): Unit = lifecycle.close()

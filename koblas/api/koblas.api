@@ -1450,11 +1450,13 @@ public final class com/eignex/koblas/sparse/F64ReferenceSparseLinearAlgebra : co
 }
 
 public abstract interface class com/eignex/koblas/sparse/F64RepeatedSparseLu : com/eignex/koblas/Backend {
+	public fun analyze (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseLuAnalysis;
 	public abstract fun factor (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
 	public abstract fun refactor (Lcom/eignex/koblas/sparse/F64SparseFactorization;Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
 }
 
 public final class com/eignex/koblas/sparse/F64RepeatedSparseLu$DefaultImpls {
+	public static fun analyze (Lcom/eignex/koblas/sparse/F64RepeatedSparseLu;Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseLuAnalysis;
 	public static fun getPriority (Lcom/eignex/koblas/sparse/F64RepeatedSparseLu;)I
 	public static fun isAvailable (Lcom/eignex/koblas/sparse/F64RepeatedSparseLu;)Z
 	public static fun isPortable (Lcom/eignex/koblas/sparse/F64RepeatedSparseLu;)Z
@@ -1599,6 +1601,37 @@ public final class com/eignex/koblas/sparse/F64SparseLinearAlgebra$DefaultImpls 
 	public static fun prepare (Lcom/eignex/koblas/sparse/F64SparseLinearAlgebra;Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64PreparedSparseMatrix;
 	public static fun solve (Lcom/eignex/koblas/sparse/F64SparseLinearAlgebra;Lcom/eignex/koblas/sparse/F64SparseFactorization;[DZ)[D
 	public static fun solveInto (Lcom/eignex/koblas/sparse/F64SparseLinearAlgebra;Lcom/eignex/koblas/sparse/F64SparseFactorization;[D[DZLcom/eignex/koblas/Workspace;)[D
+}
+
+public abstract interface class com/eignex/koblas/sparse/F64SparseLuAnalysis : java/lang/AutoCloseable {
+	public abstract fun close ()V
+	public abstract fun factor (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
+	public abstract fun getPattern ()Lcom/eignex/koblas/sparse/F64SparsePattern;
+	public abstract fun refactor (Lcom/eignex/koblas/sparse/F64SparseFactorization;Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
+}
+
+public final class com/eignex/koblas/sparse/F64SparsePattern {
+	public static final field Companion Lcom/eignex/koblas/sparse/F64SparsePattern$Companion;
+	public final fun copyColumnPointers ()[I
+	public final fun copyRowIndices ()[I
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCols ()I
+	public final fun getNnz ()I
+	public final fun getRows ()I
+	public fun hashCode ()I
+	public final fun matches (Lcom/eignex/koblas/core/F64SparseMatrix;)Z
+	public final fun requireMatch (Lcom/eignex/koblas/core/F64SparseMatrix;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/eignex/koblas/sparse/F64SparsePattern$Companion {
+	public final fun of (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparsePattern;
+}
+
+public final class com/eignex/koblas/sparse/IncompatibleSparsePatternException : java/lang/IllegalArgumentException {
+	public fun <init> (Lcom/eignex/koblas/sparse/F64SparsePattern;Lcom/eignex/koblas/core/F64SparseMatrix;)V
+	public final fun getActual ()Lcom/eignex/koblas/core/F64SparseMatrix;
+	public final fun getExpected ()Lcom/eignex/koblas/sparse/F64SparsePattern;
 }
 
 public final class com/eignex/koblas/sparse/SparseOpsKt {
@@ -2104,6 +2137,7 @@ public class com/eignex/koblas/sparse/host/klu/KluSparseLu : com/eignex/koblas/s
 	public fun <init> ()V
 	public fun <init> (Lcom/eignex/koblas/sparse/host/klu/KluConfig;)V
 	public synthetic fun <init> (Lcom/eignex/koblas/sparse/host/klu/KluConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun analyze (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseLuAnalysis;
 	protected final fun choleskyNative (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
 	protected final fun factorNative (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
 	public final fun getConfig ()Lcom/eignex/koblas/sparse/host/klu/KluConfig;

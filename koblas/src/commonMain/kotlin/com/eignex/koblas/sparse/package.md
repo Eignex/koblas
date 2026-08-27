@@ -56,6 +56,13 @@ roles, and [F64BasisFactorizations] owns column-replaceable basis factors. Addin
 provider cannot change the automatic general-LU selection; UMFPACK remains the accelerated general default
 when it is available, otherwise the portable implementation does.
 
+[F64RepeatedSparseLu.analyze] returns an explicitly owned [F64SparseLuAnalysis] for one [F64SparsePattern].
+The pattern copies column pointers and row indices, not values, so coefficient arrays can change between
+numeric factorizations. A different structure raises [IncompatibleSparsePatternException] before refactoring;
+this is distinct from numerical singularity. Numeric factors stay caller-owned and must be closed before the
+analysis. KLU reuses the symbolic ordering through this typed capability, so a same-pattern loop needs no
+concrete backend cast.
+
 An explicit [com.eignex.koblas.F64ContextBuilder] can select any provider for any role it implements. Use
 [com.eignex.koblas.F64Capabilities] with [com.eignex.koblas.backendNamed] to retrieve an exact discovered
 provider without a concrete implementation cast, and [com.eignex.koblas.capability] to retrieve

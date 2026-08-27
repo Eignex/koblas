@@ -1,6 +1,7 @@
 package com.eignex.koblas.sparse.host.klu
 
 import com.eignex.koblas.sparse.assertNativeFactorCloseContract
+import com.eignex.koblas.sparse.assertSymbolicAnalysisReuses
 import com.eignex.koblas.sparse.sparseConformanceSystem
 import com.eignex.koblas.testutil.host.HostLibraryTest
 import org.junit.Assume
@@ -19,5 +20,12 @@ class KluConformanceTest {
         assertIs<KluFactorization>(factorization)
 
         assertNativeFactorCloseContract(factorization)
+    }
+
+    @Test
+    fun `a symbolic analysis refactors compatible values`() {
+        Assume.assumeTrue("KLU is not installed; conformance cannot run", klu.isAvailable)
+
+        assertSymbolicAnalysisReuses(klu)
     }
 }
