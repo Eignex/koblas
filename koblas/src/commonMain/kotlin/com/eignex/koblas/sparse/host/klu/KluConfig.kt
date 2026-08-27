@@ -158,3 +158,6 @@ internal fun KluOptions.metadataOptions(): Map<String, String> = buildMap {
     put("equilibratedScaling", equilibratedScaling.name)
     haltIfSingular?.let { put("haltIfSingular", it.toString()) }
 }
+
+/** Outcome shared by the JVM and Kotlin/Native same-pattern KLU paths. */
+internal enum class KluRefactorResult { Success, Incompatible, Singular }

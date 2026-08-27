@@ -100,4 +100,7 @@ class KluNativeConformanceTest {
             tolerance = 1e-9,
         )
     }
+
+    @Test
+    fun `a symbolic analysis refactors compatible values`() = assertSymbolicAnalysisReuses(klu)
 }

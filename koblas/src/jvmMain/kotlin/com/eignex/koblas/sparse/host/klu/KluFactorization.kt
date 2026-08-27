@@ -76,5 +76,3 @@ public class KluFactorization internal constructor(
 
     override fun close(): Unit = cleanable.clean()
 }
-
-internal enum class KluRefactorResult { Success, Incompatible, Singular }

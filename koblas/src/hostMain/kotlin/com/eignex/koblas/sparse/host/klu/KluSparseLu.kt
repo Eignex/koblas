@@ -65,12 +65,15 @@ public open class KluSparseLu(
         requireSquare(a, "refactor")
         if (!nativeAvailable) return factor(a)
         val reusable = previous as? KluFactorization ?: return factor(a)
-        if (reusable.n != a.rows) return factor(a).also { reusable.close() }
-        // KLU reuses the ordering it analyzed, so a pattern it was not analyzed for has to start over.
-        return if (reusable.refactor(a.copyColumnPointers(), a.copyRowIndices(), a.values)) {
-            reusable
-        } else {
-            F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN).also { reusable.close() }
+        return when (reusable.refactor(a)) {
+            KluRefactorResult.Success -> reusable
+
+            KluRefactorResult.Incompatible -> factor(a).also { reusable.close() }
+
+            KluRefactorResult.Singular -> F64SingularSparseFactorization(
+                a.rows,
+                SINGULAR_POSITION_UNKNOWN,
+            ).also { reusable.close() }
         }
     }
 
@@ -105,6 +108,8 @@ public open class KluSparseLu(
             KluFactorization.KluHandle(symbolic.ptr, numeric.ptr, common, functions),
             functions,
             a.rows,
+            colPtr,
+            rowIdx,
         )
     }
 

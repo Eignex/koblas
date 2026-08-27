@@ -231,9 +231,19 @@ val repeatedContext = F64ContextBuilder()
     .resolve()
 
 val repeated = checkNotNull(repeatedContext.capability(F64Capabilities.repeatedSparseLu))
-val initial = repeated.factor(a)
-val updated = repeated.refactor(initial, samePatternWithNewValues)
+val solution = DoubleArray(a.rows)
+repeated.analyze(a).use { analysis ->
+    analysis.factor(a).use { initial ->
+        analysis.refactor(initial, samePatternWithNewValues).use { updated ->
+            updated.solveInto(rhs, solution)
+        }
+    }
+}
 ```
+
+The analysis snapshots the exact CSC structure and rejects a different pattern before native numeric work.
+Numeric factors remain caller-owned and are closed inside the analysis lifetime. This keeps a repeated solve
+typed at the capability boundary; no cast to KLU or another implementation is required.
 
 Use `F64Capabilities.generalSparseLu` for unrelated systems,
 `F64Capabilities.basisFactorizations` for BASICLU-style column replacement, and
