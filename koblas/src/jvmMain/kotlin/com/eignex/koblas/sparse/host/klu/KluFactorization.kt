@@ -32,6 +32,9 @@ public class KluFactorization internal constructor(
 
     override val n: Int get() = factor.n
 
+    override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability =
+        noSizeDependentManagedAllocation
+
     /** Reads KLU's numeric object, so the fence holds this factorization past the read. */
     override val nnz: Int get() = lifecycle.withResource {
         try {

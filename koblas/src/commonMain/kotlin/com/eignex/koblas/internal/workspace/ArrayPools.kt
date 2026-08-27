@@ -24,6 +24,12 @@ internal class ArrayPools<A : Any>(private val allocate: (Int) -> A, private val
         return pool(size).take()
     }
 
+    /** Number of already allocated, idle buffers of [size], without opening a pool or allocating. */
+    fun available(size: Int): Int {
+        require(size >= 0) { "buffer size must not be negative, got $size" }
+        return findPool(size)?.available ?: 0
+    }
+
     /** Returns a buffer from [take] to its pool. */
     fun release(buffer: A) {
         val pool = findPool(widthOf(buffer)) ?: notLent(widthOf(buffer))
@@ -90,6 +96,13 @@ internal class ArrayPools<A : Any>(private val allocate: (Int) -> A, private val
     private inner class Pool(val size: Int) {
         private var buffers = arrayOfNulls<Any>(INITIAL_DEPTH)
         private var lent = BooleanArray(INITIAL_DEPTH)
+
+        val available: Int
+            get() {
+                var count = 0
+                for (i in buffers.indices) if (buffers[i] != null && !lent[i]) count++
+                return count
+            }
 
         @Suppress("UNCHECKED_CAST") // every slot this fills comes from allocate, so it holds an A
         fun take(): A {

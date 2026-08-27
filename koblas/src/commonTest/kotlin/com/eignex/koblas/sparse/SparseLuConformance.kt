@@ -63,6 +63,51 @@ internal fun assertAliasedDestinationSolves(decompositions: F64SparseDecompositi
     assertClose(expected, aliased, "aliased destination", tolerance = 1e-12)
 }
 
+/** A host factor declares and executes at least a size-independent-managed solve without hidden fallback. */
+internal fun assertStrictNativeSolveAllocationContract(decompositions: F64SparseDecompositions) {
+    val rng = Random(20260827)
+    val n = 16
+    val a = sparseConformanceSystem(n, rng)
+    val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
+    val factor = decompositions.factor(a)
+    val out = DoubleArray(n)
+
+    assertTrue(
+        factor.solveAllocation(aliasing = false).supports(AllocationPolicy.REQUIRE_NO_SIZE_DEPENDENT_MANAGED),
+        "${decompositions.name} did not declare its repeated-solve allocation contract",
+    )
+    factor.solveInto(
+        b,
+        out,
+        allocationPolicy = AllocationPolicy.REQUIRE_NO_SIZE_DEPENDENT_MANAGED,
+    )
+
+    assertClose(
+        F64ReferenceSparseLinearAlgebra.factor(a).solve(b),
+        out,
+        "strict native allocation solve",
+        tolerance = 1e-9,
+    )
+}
+
+/** Strict solve contract for a native symmetric factor reached through a different semantic seam. */
+internal fun assertStrictNativeSolveAllocationContract(factor: F64SparseFactorization, b: DoubleArray) {
+    val expected = factor.solve(b)
+    val out = DoubleArray(factor.n)
+    assertTrue(
+        factor.solveAllocation(aliasing = false).supports(AllocationPolicy.REQUIRE_NO_SIZE_DEPENDENT_MANAGED),
+        "native factor did not declare its repeated-solve allocation contract",
+    )
+
+    factor.solveInto(
+        b,
+        out,
+        allocationPolicy = AllocationPolicy.REQUIRE_NO_SIZE_DEPENDENT_MANAGED,
+    )
+
+    assertClose(expected, out, "strict native symmetric solve", tolerance = 1e-12)
+}
+
 internal fun assertReciprocalPivotConditionEstimateIsBounded(decompositions: F64SparseDecompositions) {
     val identity = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 1.0)))
     assertEquals(1.0, decompositions.factor(identity).rcond)

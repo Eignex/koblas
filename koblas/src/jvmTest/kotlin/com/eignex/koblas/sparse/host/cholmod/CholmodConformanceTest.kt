@@ -7,6 +7,7 @@ import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.assertCholeskyAgreesWithReference
 import com.eignex.koblas.sparse.assertLdlAgreesWithReference
 import com.eignex.koblas.sparse.assertNativeFactorCloseContract
+import com.eignex.koblas.sparse.assertStrictNativeSolveAllocationContract
 import com.eignex.koblas.sparse.host.klu.KluConfig
 import com.eignex.koblas.sparse.host.klu.KluSparseLu
 import com.eignex.koblas.sparse.host.umfpack.UmfpackConfig
@@ -111,6 +112,16 @@ class CholmodConformanceTest {
         f.solveInto(aliased, aliased)
 
         assertClose(expected, aliased, "aliased destination", tolerance = 1e-12)
+    }
+
+    @Test
+    fun `repeated solves reuse their managed and descriptor scratch`() {
+        requireCholmod()
+        Assume.assumeTrue("SuiteSparse is not installed", umfpack.isAvailable)
+        val n = 18
+        val factor = umfpack.cholesky(spd(n, 20260917))
+
+        assertStrictNativeSolveAllocationContract(factor, DoubleArray(n) { it * 0.25 - 1.0 })
     }
 
     @Test

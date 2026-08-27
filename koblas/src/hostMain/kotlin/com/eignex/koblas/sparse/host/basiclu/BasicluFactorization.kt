@@ -2,10 +2,7 @@
 
 package com.eignex.koblas.sparse.host.basiclu
 
-import com.eignex.koblas.NOT_SINGULAR
-import com.eignex.koblas.SingularMatrix
-import com.eignex.koblas.Workspace
-import com.eignex.koblas.borrow
+import com.eignex.koblas.*
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
@@ -43,6 +40,10 @@ public open class BasicluFactorization internal constructor(
 
     @Suppress("unused") // the cleaner runs when this property becomes unreachable, which is the point
     private val cleaner = createCleaner(lifecycle) { it.close() }
+    private val scratchSolveAllocation = AllocationCapability(
+        AllocationGuarantee.NO_MANAGED,
+        listOf(ScratchRequirement(ScratchKind.F64, n)),
+    )
 
     override val failedAt: Int get() = NOT_SINGULAR
 
@@ -53,6 +54,11 @@ public open class BasicluFactorization internal constructor(
     override val rcond: Double get() = anchoring {
         val largest = abs(basicluStatistic(handle.obj, BasicluStore.MAX_PIVOT))
         if (largest == 0.0) 0.0 else abs(basicluStatistic(handle.obj, BasicluStore.MIN_PIVOT)) / largest
+    }
+
+    override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability {
+        val needsRhs = aliasing || (rowScale != null && !transpose)
+        return if (needsRhs) scratchSolveAllocation else noManagedAllocation
     }
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray {

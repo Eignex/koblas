@@ -67,7 +67,7 @@ public class CholmodCholesky(config: CholmodConfig = CholmodConfig()) {
         val block = factor.reinterpret<ByteVar>()
         val n = sizeAt(block, CHOLMOD_FACTOR_N).toInt()
         val minor = sizeAt(block, CHOLMOD_FACTOR_MINOR).toInt()
-        val handle = CholmodFactorization.CholmodHandle(factor, common, functions)
+        val handle = CholmodFactorization.CholmodHandle(factor, common, functions, n)
         val failedAt = try {
             verdict(minor, n)
         } catch (raised: NotPositiveDefinite) {

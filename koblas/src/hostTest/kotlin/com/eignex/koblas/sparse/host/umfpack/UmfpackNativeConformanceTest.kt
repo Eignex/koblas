@@ -53,6 +53,9 @@ class UmfpackNativeConformanceTest {
     fun `an aliased destination still solves correctly`() = assertAliasedDestinationSolves(umfpack)
 
     @Test
+    fun `repeated solves declare a strict allocation contract`() = assertStrictNativeSolveAllocationContract(umfpack)
+
+    @Test
     fun `a native LU factor closes deterministically`() {
         val factorization = umfpack.factor(sparseConformanceSystem(8, Random(20261007)))
         assertIs<UmfpackFactorization>(factorization)
@@ -66,6 +69,15 @@ class UmfpackNativeConformanceTest {
         assertIs<CholmodFactorization>(factorization)
 
         assertNativeFactorCloseContract(factorization)
+    }
+
+    @Test
+    fun `native CHOLMOD solves reuse their descriptor scratch`() {
+        val n = 18
+        val factor = umfpack.cholesky(sparseSymmetricConformanceSystem(n, Random(20261010)))
+        assertIs<CholmodFactorization>(factor)
+
+        assertStrictNativeSolveAllocationContract(factor, DoubleArray(n) { it * 0.25 - 1.0 })
     }
 
     /** CHOLMOD ships beside UMFPACK, so the collection answers this seam's Cholesky natively here too. */

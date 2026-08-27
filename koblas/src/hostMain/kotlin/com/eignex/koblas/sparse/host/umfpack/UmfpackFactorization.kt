@@ -51,6 +51,16 @@ public class UmfpackFactorization internal constructor(
         get() = anchoring { field }
         internal set
 
+    /** Reused because factors are externally serialized; see the public sparse-factor lifecycle contract. */
+    private val solveInfo = DoubleArray(INFO)
+    private val aliasedSolveAllocation = AllocationCapability(
+        AllocationGuarantee.NO_MANAGED,
+        listOf(ScratchRequirement(ScratchKind.F64, n)),
+    )
+
+    override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability =
+        if (aliasing) aliasedSolveAllocation else noManagedAllocation
+
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray {
         requireFactored(failedAt, "solve")
         requireSolveShapes(n, b, out)
@@ -66,14 +76,13 @@ public class UmfpackFactorization internal constructor(
     /** The call itself, over a right-hand side that does not alias [out]. */
     @Suppress("NestedBlockDepth") // one nesting level per pinned array, the alternative is copying them
     private fun solveDistinct(rhs: DoubleArray, out: DoubleArray, transpose: Boolean): DoubleArray {
-        val info = DoubleArray(INFO)
         val status = anchoring {
             matrix.colPtr.usePinned { ap ->
                 matrix.rowIdx.usePinned { ai ->
                     matrix.values.usePinned { ax ->
                         out.usePinned { x ->
                             rhs.usePinned { rp ->
-                                info.usePinned { ip ->
+                                solveInfo.usePinned { ip ->
                                     withControl(control) { cp ->
                                         f.solve(
                                             if (transpose) SYS_AT else SYS_A,

@@ -57,6 +57,16 @@ public class UmfpackFactorization internal constructor(
         get() = lifecycle.withResource { field }
         internal set
 
+    /** Reused because factors are externally serialized; see the public sparse-factor lifecycle contract. */
+    private val solveInfo = arena.allocate(JAVA_DOUBLE, INFO.toLong())
+    private val aliasedSolveAllocation = AllocationCapability(
+        AllocationGuarantee.NO_SIZE_DEPENDENT_MANAGED,
+        listOf(ScratchRequirement(ScratchKind.F64, n)),
+    )
+
+    override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability =
+        if (aliasing) aliasedSolveAllocation else noSizeDependentManagedAllocation
+
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray =
         lifecycle.withResource {
             requireFactored(failedAt, "solve")
@@ -75,21 +85,18 @@ public class UmfpackFactorization internal constructor(
         // The factors are reached as a raw address, so nothing the call holds keeps this factorization
         // reachable and the cleaner is free to run mid-call. The fence is what holds it to the return.
         try {
-            Arena.ofConfined().use { scratch ->
-                val info = scratch.allocate(JAVA_DOUBLE, INFO.toLong())
-                val status = calls.solve(
-                    if (transpose) SYS_AT else SYS_A,
-                    MemorySegment.ofArray(matrix.colPtr),
-                    MemorySegment.ofArray(matrix.rowIdx),
-                    MemorySegment.ofArray(matrix.values),
-                    MemorySegment.ofArray(out),
-                    MemorySegment.ofArray(b),
-                    numericHolder.get(ADDRESS, 0),
-                    control,
-                    info,
-                )
-                check(status == OK) { "umfpack_di_solve failed with status $status" }
-            }
+            val status = calls.solve(
+                if (transpose) SYS_AT else SYS_A,
+                MemorySegment.ofArray(matrix.colPtr),
+                MemorySegment.ofArray(matrix.rowIdx),
+                MemorySegment.ofArray(matrix.values),
+                MemorySegment.ofArray(out),
+                MemorySegment.ofArray(b),
+                numericHolder.get(ADDRESS, 0),
+                control,
+                solveInfo,
+            )
+            check(status == OK) { "umfpack_di_solve failed with status $status" }
         } finally {
             Reference.reachabilityFence(this)
         }

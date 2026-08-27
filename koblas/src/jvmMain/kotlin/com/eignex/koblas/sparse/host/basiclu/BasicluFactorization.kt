@@ -1,7 +1,6 @@
 package com.eignex.koblas.sparse.host.basiclu
 
-import com.eignex.koblas.NOT_SINGULAR
-import com.eignex.koblas.Workspace
+import com.eignex.koblas.*
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
@@ -38,6 +37,9 @@ public open class BasicluFactorization internal constructor(
     override val n: Int get() = target.n
 
     override val failedAt: Int get() = NOT_SINGULAR
+
+    override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability =
+        noSizeDependentManagedAllocation
 
     /** Reads BASICLU's own store, so the fence holds this factorization past the read. */
     override val nnz: Int get() = withNativeFactor {

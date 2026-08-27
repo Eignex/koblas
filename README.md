@@ -185,6 +185,32 @@ val workspace = Workspace().apply { reserve(size = 2, count = 1) }
 repeat(1_000) { koblas.solveInto(factor, rhs, solution, workspace = workspace) }
 ```
 
+`Workspace` pools `DoubleArray` and `IntArray` scratch independently. Sparse factors expose a structured
+`solveAllocation(aliasing, transpose)` capability. Its scratch list is the exact managed storage that must
+already be idle in the workspace for the reported guarantee to hold. A strict call rejects an unsupported
+guarantee or missing reservation before touching the destination:
+
+```kotlin
+import com.eignex.koblas.AllocationPolicy
+import com.eignex.koblas.Workspace
+
+val solveWorkspace = Workspace()
+sparseFactor.solveAllocation(aliasing = false).scratch.forEach(solveWorkspace::reserve)
+repeat(1_000) {
+    sparseFactor.solveInto(
+        sparseRhs,
+        sparseSolution,
+        workspace = solveWorkspace,
+        allocationPolicy = AllocationPolicy.REQUIRE_NO_SIZE_DEPENDENT_MANAGED,
+    )
+}
+```
+
+`NO_SIZE_DEPENDENT_MANAGED` permits fixed JVM/FFM call overhead. `NO_MANAGED` additionally rules that out but
+does not claim that an external library avoids native allocation. `NO_MANAGED_OR_NATIVE` is therefore
+reported only where koblas controls the complete hot path. Native factor objects and their retained scratch
+remain externally serialized as described above.
+
 ## Backends
 
 Every top-level operation uses Koblas’s process-wide backend registry. It starts with

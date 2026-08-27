@@ -32,6 +32,9 @@ class KluNativeConformanceTest {
     fun `an aliased destination still solves correctly`() = assertAliasedDestinationSolves(klu)
 
     @Test
+    fun `repeated solves declare a strict allocation contract`() = assertStrictNativeSolveAllocationContract(klu)
+
+    @Test
     fun `the reciprocal pivot condition estimate is bounded`() = assertReciprocalPivotConditionEstimateIsBounded(klu)
 
     @Test

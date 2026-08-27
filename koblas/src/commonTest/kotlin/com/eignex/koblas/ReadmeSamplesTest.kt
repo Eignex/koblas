@@ -5,6 +5,7 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.sparse.gemv
 import com.eignex.koblas.sparse.lu
+import com.eignex.koblas.sparse.sparseConformanceSystem
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -83,6 +84,25 @@ class ReadmeSamplesTest {
             if (koblas.rcond(lu, anorm, ws) < threshold) koblas.factorInto(a, lu)
         }
         assertClose(b, x, "README workspace sample", tolerance = 1e-12)
+    }
+
+    @Test
+    fun `the strict sparse allocation sample reserves its declared scratch`() {
+        val n = 4
+        val sparseFactor = sparseConformanceSystem(n, Random(20260829)).lu()
+        val sparseRhs = DoubleArray(n) { it + 1.0 }
+        val sparseSolution = DoubleArray(n)
+        val solveWorkspace = Workspace()
+        sparseFactor.solveAllocation(aliasing = false).scratch.forEach(solveWorkspace::reserve)
+
+        sparseFactor.solveInto(
+            sparseRhs,
+            sparseSolution,
+            workspace = solveWorkspace,
+            allocationPolicy = AllocationPolicy.REQUIRE_NO_SIZE_DEPENDENT_MANAGED,
+        )
+
+        assertClose(sparseRhs, sparseConformanceSystem(n, Random(20260829)).gemv(sparseSolution), "strict sample")
     }
 
     @Test
