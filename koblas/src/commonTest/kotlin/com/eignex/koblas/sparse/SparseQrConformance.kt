@@ -35,8 +35,21 @@ internal fun assertQrAgreesWithReference(decompositions: F64SparseDecompositions
                 tolerance = 1e-7,
             )
             assertUpperTriangularFactor(a, host, "${m}x$n")
+            assertFactorizationIdentity(a, host, "${m}x$n")
             assertOrthogonalOperator(host, "${m}x$n", rng)
         }
+    }
+}
+
+private fun assertFactorizationIdentity(a: F64SparseMatrix, qr: F64SparseQrFactorization, context: String) {
+    val order = qr.columnOrder
+    for (j in 0 until qr.n) {
+        val embedded = DoubleArray(qr.m)
+        qr.r.forEachInColumn(j) { row, value -> embedded[row] = value }
+        val actual = qr.applyQ(embedded)
+        val expected = DoubleArray(qr.m)
+        a.forEachInColumn(order[j]) { row, value -> expected[row] = value }
+        assertClose(expected, actual, "$context Q R column $j", tolerance = 1e-7)
     }
 }
 

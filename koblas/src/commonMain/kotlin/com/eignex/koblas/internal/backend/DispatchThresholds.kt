@@ -27,6 +27,8 @@ import com.eignex.koblas.dense.host.cblas.HostBlasConfig
  * @property sparseProduct stored entries from which the sparse matrix products dispatch natively. Separate
  *   from [level2], which a vector-kernel platform sets beyond reach because its own kernels win the dense
  *   level-2 routines; there are no vector kernels for a sparse product, so that reasoning does not carry.
+ * @property sparseQr stored entries from which sparse QR dispatches to SPQR. It has its own crossing rather
+ *   than inheriting the general sparse-LU factorization gate.
  */
 internal class DispatchThresholds(
     val level1: Int,
@@ -35,6 +37,7 @@ internal class DispatchThresholds(
     val factorize: Int,
     val symmetricFactorize: Int = factorize,
     val sparseProduct: Int = level2,
+    val sparseQr: Int = factorize,
 )
 
 /** What this platform uses for double precision absent backend-specific configuration. */
@@ -54,6 +57,7 @@ internal fun hostDispatchThresholds(
     factorize: Int? = null,
     symmetricFactorize: Int? = null,
     sparseProduct: Int? = null,
+    sparseQr: Int? = null,
 ): DispatchThresholds = DispatchThresholds(
     level1 = level1 ?: platformDispatchThresholds.level1,
     level2 = level2 ?: platformDispatchThresholds.level2,
@@ -61,6 +65,7 @@ internal fun hostDispatchThresholds(
     factorize = factorize ?: platformDispatchThresholds.factorize,
     symmetricFactorize = symmetricFactorize ?: platformDispatchThresholds.symmetricFactorize,
     sparseProduct = sparseProduct ?: platformDispatchThresholds.sparseProduct,
+    sparseQr = sparseQr ?: platformDispatchThresholds.sparseQr,
 )
 
 /** The dispatch policy for one OpenBLAS instance, every gate the configuration carries included. */

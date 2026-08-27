@@ -52,7 +52,7 @@ internal actual fun useUngatedSparseProduct(): Boolean {
 }
 
 internal actual fun useUngatedSparseLu(): Boolean {
-    val umfpack = F64SparseBackends(UmfpackConfig(factorizeMin = 0)).umfpack
+    val umfpack = F64SparseBackends(UmfpackConfig(factorizeMin = 0, qrFactorizeMin = 0)).umfpack
     if (!umfpack.isAvailable) return false
     installBackends(koblas.with(sparseDecompositions = umfpack))
     return true

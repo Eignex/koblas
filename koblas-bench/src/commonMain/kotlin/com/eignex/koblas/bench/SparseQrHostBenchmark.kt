@@ -37,7 +37,7 @@ class SparseQrHostBenchmark {
 
     // Closed rather than left to the cleaner, which would measure the collector too.
     @Benchmark
-    fun qr(): Int = a.qr().use { it.n }
+    fun qr(): F64SparseMatrix = a.qr().use { it.r }
 
     @Benchmark
     fun qrSolve(): DoubleArray = a.qr().use { it.solve(b) }

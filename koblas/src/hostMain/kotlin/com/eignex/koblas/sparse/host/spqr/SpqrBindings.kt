@@ -21,6 +21,8 @@ internal class SpqrFunctions(spqr: COpaquePointer, cholmod: COpaquePointer) {
 
     val start = required(cholmod, "cholmod_start", "libcholmod").reinterpret<CFunction<(Block) -> Int>>()
 
+    val finish = required(cholmod, "cholmod_finish", "libcholmod").reinterpret<CFunction<(Block) -> Int>>()
+
     val freeDense = required(cholmod, "cholmod_free_dense", "libcholmod")
         .reinterpret<CFunction<(HandleSlot, Block) -> Int>>()
 
@@ -30,26 +32,32 @@ internal class SpqrFunctions(spqr: COpaquePointer, cholmod: COpaquePointer) {
     val free = required(cholmod, "cholmod_free", "libcholmod")
         .reinterpret<CFunction<(Long, Long, Handle, Block) -> Handle>>()
 
-    val factorize = required(spqr, "SuiteSparseQR_C_factorize", "libspqr")
-        .reinterpret<CFunction<(Int, Double, Block, Block) -> Handle>>()
-
-    val explicitQr = required(spqr, "SuiteSparseQR_i_C_QR", "libspqr").reinterpret<
-        CFunction<(Int, Double, Int, Block, HandleSlot, HandleSlot, HandleSlot, Block) -> Int>,
+    val qr = required(spqr, "SuiteSparseQR_i_C", "libspqr").reinterpret<
+        CFunction<
+            (
+                Int,
+                Double,
+                Int,
+                Int,
+                Block,
+                Block,
+                Block,
+                HandleSlot,
+                HandleSlot,
+                HandleSlot,
+                HandleSlot,
+                HandleSlot,
+                HandleSlot,
+                HandleSlot,
+                Block,
+            ) -> Int,
+            >,
         >()
-
-    val qmult = required(spqr, "SuiteSparseQR_C_qmult", "libspqr")
-        .reinterpret<CFunction<(Int, Block, Block, Block) -> Handle>>()
-
-    val solve = required(spqr, "SuiteSparseQR_C_solve", "libspqr")
-        .reinterpret<CFunction<(Int, Block, Block, Block) -> Handle>>()
-
-    val freeQr = required(spqr, "SuiteSparseQR_C_free", "libspqr")
-        .reinterpret<CFunction<(HandleSlot, Block) -> Int>>()
 }
 
 internal class SpqrLoader(private val config: SpqrConfig) {
     private val spqrLibrary: COpaquePointer? by lazy {
-        openNativeLibrary(candidates(SPQR_SONAMES, config.libraryPath), "SuiteSparseQR_C_factorize")
+        openNativeLibrary(candidates(SPQR_SONAMES, config.libraryPath), "SuiteSparseQR_i_C")
     }
 
     private val cholmodLibrary: COpaquePointer? by lazy {
@@ -83,7 +91,10 @@ internal class SpqrLoader(private val config: SpqrConfig) {
     fun common(): CPointer<ByteVar> {
         val resolved = checkNotNull(functions) { "SPQR is not available" }
         val common = nativeHeap.allocArray<ByteVar>(CHOLMOD_COMMON_BYTES)
-        check(resolved.start(common) == CHOLMOD_TRUE) { "cholmod_start failed" }
+        if (resolved.start(common) != CHOLMOD_TRUE) {
+            nativeHeap.free(common)
+            error("cholmod_start failed")
+        }
         intAt(common, CHOLMOD_COMMON_PRINT, 0)
         return common
     }

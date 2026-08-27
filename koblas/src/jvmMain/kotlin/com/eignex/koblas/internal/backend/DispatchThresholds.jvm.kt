@@ -19,6 +19,7 @@ private val SIMD_THRESHOLDS = DispatchThresholds(
     factorize = JVM_FACTORIZE_MIN,
     symmetricFactorize = JVM_SYMMETRIC_FACTORIZE_MIN,
     sparseProduct = JVM_SPARSE_PRODUCT_MIN,
+    sparseQr = JVM_SPARSE_QR_MIN,
 )
 
 /**
@@ -35,6 +36,7 @@ private val SCALAR_THRESHOLDS = DispatchThresholds(
     factorize = 0,
     symmetricFactorize = JVM_SYMMETRIC_FACTORIZE_MIN,
     sparseProduct = JVM_SPARSE_PRODUCT_MIN,
+    sparseQr = JVM_SCALAR_SPARSE_QR_MIN,
 )
 
 /**
@@ -83,3 +85,14 @@ private const val JVM_SYMMETRIC_FACTORIZE_MIN = 448
  * whatever this says.
  */
 private const val JVM_SPARSE_PRODUCT_MIN = 64
+
+/**
+ * Stored entries from which SPQR takes sparse QR. At 153 entries it was 1.69 times slower to factor and
+ * 1.15 times slower to factor and solve; at 467 it was 2.93 and 2.32 times faster. The portable sparse QR
+ * does not call the Vector API, so the same crossing applies when the JVM's dense kernels are scalar.
+ * Measured through `sparseQrGate` with `R` escaping the factor-only row so the JIT cannot discard it.
+ */
+private const val JVM_SPARSE_QR_MIN = 384
+
+/** The sparse QR is scalar on both JVM execution modes. */
+private const val JVM_SCALAR_SPARSE_QR_MIN = JVM_SPARSE_QR_MIN

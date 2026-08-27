@@ -5,6 +5,8 @@ package com.eignex.koblas.sparse.host.spqr
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.sparse.F64SparseQrFactorization
+import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_DENSE_NCOL
+import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_DENSE_X
 import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_SPARSE_I
 import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_SPARSE_NCOL
 import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_SPARSE_NROW
@@ -16,10 +18,7 @@ import com.eignex.koblas.sparse.host.cholmod.pointerAt
 import com.eignex.koblas.sparse.host.cholmod.sizeAt
 import kotlinx.cinterop.*
 
-/**
- * SPQR's sparse QR, the routine a SuiteSparse backend fills its QR half with rather than a backend of its
- * own: SPQR has no LU and no Cholesky, so one offering it alone would take the seam from one offering all.
- */
+/** SPQR's sparse QR through the 32-bit-index SuiteSparse C interface. */
 public class SpqrQr(config: SpqrConfig = SpqrConfig()) {
     private val loader = SpqrLoader(config)
     private val ordering = config.options.ordering
@@ -32,11 +31,7 @@ public class SpqrQr(config: SpqrConfig = SpqrConfig()) {
     /** Why SPQR is unusable, or null when it is usable. */
     public val unavailableReason: String? get() = loader.unavailableReason
 
-    /**
-     * Factor [a], or null when the library is unusable.
-     *
-     * @throws IllegalArgumentException if [a] has fewer rows than columns.
-     */
+    /** Factor [a], or null when the library is unusable. */
     public fun factor(a: F64SparseMatrix): F64SparseQrFactorization? {
         requireShape(a.rows >= a.cols) {
             "qr: A is ${a.rows}x${a.cols}, which is wider than it is tall; factor its transpose instead"
@@ -44,60 +39,73 @@ public class SpqrQr(config: SpqrConfig = SpqrConfig()) {
         val functions = loader.functions ?: return null
         val common = loader.common()
         val sparse = describeGeneral(a)
-        val factor = try {
-            functions.factorize(ordering.code(), tolerance, sparse, common)
-        } finally {
-            freeMatrix(sparse)
-        }
-        if (factor == null) {
-            nativeHeap.free(common)
-            return null
-        }
-        val handle = SpqrQrFactorization.SpqrHandle(factor, common, functions, a.rows)
-        return SpqrQrFactorization(handle, functions, { explicitFactors(functions, a) }, a.rows, a.cols, orderingName)
-    }
-
-    private fun explicitFactors(functions: SpqrFunctions, a: F64SparseMatrix): SpqrExplicit {
-        val common = loader.common()
-        val sparse = describeGeneral(a)
         return try {
             memScoped {
-                val rSlot = alloc<COpaquePointerVar>()
-                val eSlot = alloc<COpaquePointerVar>()
-                val rank = functions.explicitQr(
+                val rSlot = pointerSlot()
+                val eSlot = pointerSlot()
+                val hSlot = pointerSlot()
+                val hpSlot = pointerSlot()
+                val tauSlot = pointerSlot()
+                val rank = functions.qr(
                     ordering.code(),
                     tolerance,
                     a.cols,
+                    0,
                     sparse,
+                    null,
+                    null,
+                    null,
                     null,
                     rSlot.ptr,
                     eSlot.ptr,
+                    hSlot.ptr,
+                    hpSlot.ptr,
+                    tauSlot.ptr,
                     common,
                 )
-                val r = rSlot.value
-                check(rank >= 0 && r != null) { "SuiteSparseQR_i_C_QR failed on a matrix it factorized" }
                 try {
-                    val order = readPermutation(eSlot.value, a.cols)
-                    SpqrExplicit(rank, readSparse(r.reinterpret()), order)
+                    val r = rSlot.value
+                    val h = hSlot.value
+                    val tau = tauSlot.value
+                    if (rank < 0 || r == null || h == null || tau == null) return@memScoped null
+                    SpqrQrFactorization(
+                        SpqrFactorData(
+                            rank,
+                            readSparse(r.reinterpret()),
+                            readPermutation(eSlot.value, a.cols),
+                            readSparse(h.reinterpret()),
+                            readPermutation(hpSlot.value, a.rows),
+                            readDense(tau.reinterpret()),
+                        ),
+                        a.rows,
+                        a.cols,
+                        orderingName,
+                    )
                 } finally {
-                    rSlot.value = r
-                    functions.freeSparse(rSlot.ptr, common)
-                    eSlot.value?.let { functions.free(a.cols.toLong(), Int.SIZE_BYTES.toLong(), it, common) }
+                    freeSparse(functions, rSlot, common)
+                    freePermutation(functions, eSlot, a.cols, common)
+                    freeSparse(functions, hSlot, common)
+                    freePermutation(functions, hpSlot, a.rows, common)
+                    freeDense(functions, tauSlot, common)
                 }
             }
         } finally {
             freeMatrix(sparse)
-            nativeHeap.free(common)
+            try {
+                functions.finish(common)
+            } finally {
+                nativeHeap.free(common)
+            }
         }
     }
 }
 
-internal class SpqrExplicit(val rank: Int, val r: F64SparseMatrix, val columnOrder: IntArray)
+private fun MemScope.pointerSlot(): COpaquePointerVar = alloc<COpaquePointerVar>().also { it.value = null }
 
-private fun readPermutation(e: COpaquePointer?, cols: Int): IntArray {
-    if (e == null) return IntArray(cols) { it }
-    val entries = e.reinterpret<IntVar>()
-    return IntArray(cols) { entries[it] }
+private fun readPermutation(pointer: COpaquePointer?, size: Int): IntArray {
+    if (pointer == null) return IntArray(size) { it }
+    val entries = pointer.reinterpret<IntVar>()
+    return IntArray(size) { entries[it] }
 }
 
 private fun readSparse(sparse: CPointer<ByteVar>): F64SparseMatrix {
@@ -117,6 +125,24 @@ private fun readSparse(sparse: CPointer<ByteVar>): F64SparseMatrix {
         }
     }
     return F64SparseMatrix.wrap(rows, cols, colPtr, rowIdx, values)
+}
+
+private fun readDense(dense: CPointer<ByteVar>): DoubleArray {
+    val size = sizeAt(dense, CHOLMOD_DENSE_NCOL).toInt()
+    val values = pointerAt(dense, CHOLMOD_DENSE_X)!!.reinterpret<DoubleVar>()
+    return DoubleArray(size) { values[it] }
+}
+
+private fun freeSparse(functions: SpqrFunctions, slot: COpaquePointerVar, common: CPointer<ByteVar>) {
+    if (slot.value != null) functions.freeSparse(slot.ptr, common)
+}
+
+private fun freeDense(functions: SpqrFunctions, slot: COpaquePointerVar, common: CPointer<ByteVar>) {
+    if (slot.value != null) functions.freeDense(slot.ptr, common)
+}
+
+private fun freePermutation(functions: SpqrFunctions, slot: COpaquePointerVar, size: Int, common: CPointer<ByteVar>) {
+    slot.value?.let { functions.free(size.toLong(), Int.SIZE_BYTES.toLong(), it, common) }
 }
 
 internal fun suiteSparseQr(libraryPath: String?): SpqrQr =

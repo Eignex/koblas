@@ -212,6 +212,8 @@ Choose a semantic capability based on the matrix sequence and numerical structur
 Sparse QR returns an F64SparseQrFactorization rather than an F64SparseFactorization, because an m-by-n
 factorization takes a right-hand side of length m and answers one of length n. It carries R, the column
 ordering the backend chose, the estimated rank, and Q as an operator through applyQInto.
+KluConfig and UmfpackConfig expose qrFactorizeMin separately from factorizeMin, so automatic SPQR routing can
+be overridden without moving the sparse LU gate.
 
 Use the typed capability selected in the context rather than casting to a provider implementation.
 Repeated-pattern LU, for example, retains symbolic analysis across numeric factors:

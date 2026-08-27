@@ -3,6 +3,7 @@
 
 package com.eignex.koblas.sparse.host.spqr
 
+import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
@@ -86,6 +87,7 @@ class SpqrQrNativeTest {
         assertNotNull(spqr.factor(a)).use { qr ->
             assertEquals(2, qr.rank)
             assertTrue(qr.rankDeficient)
+            assertFailsWith<SingularMatrix> { qr.solve(DoubleArray(4) { 1.0 }) }
         }
     }
 
