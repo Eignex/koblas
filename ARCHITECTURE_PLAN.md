@@ -336,6 +336,12 @@ Acceptance criteria:
 
 ### PR 10: Re-evaluate `gatherZero` on AVX-512
 
+Status: hardware-deferred with no code or dispatch change. The 2026-08-27 session host is a 12th Gen Intel
+Core i9-12900H whose reported ISA stops at AVX2/AVX-VNNI and has no AVX-512 flags; its runtime is OpenJDK
+22.0.2. Running or forcing the suite here cannot exercise AVX-512 scatter and would not satisfy the acceptance
+criteria. Resume this item on a host that reports the relevant AVX-512 feature set, record the benchmark
+report, and insert the resulting independent PR into the stack without rewriting later API work.
+
 - Run the committed benchmark suite on an AVX-512 host with the relevant scatter instructions available.
 - Record CPU features, JVM/runtime, sample sizes, crossover points, and variance.
 - Change dispatch or implementation only when the measurements show a stable win; otherwise retain the
