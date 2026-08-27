@@ -230,13 +230,10 @@ for example, retains symbolic analysis across numeric factors:
 import com.eignex.koblas.*
 
 discoverBackends()
-val klu = checkNotNull(backendNamed("klu", F64Capabilities.repeatedSparseLu))
-val repeated = F64ContextBuilder()
-    .withBackend(BackendRole.SPARSE_REPEATED_LU, klu)
-    .resolve()
-    .capability(F64Capabilities.repeatedSparseLu)
+val repeated = backendNamed("klu", F64Capabilities.repeatedSparseLu)
+    ?: error("KLU is unavailable")
 
-checkNotNull(repeated).analyze(a).use { analysis ->
+repeated.analyze(a).use { analysis ->
     analysis.factor(a).use { initial ->
         analysis.refactor(initial, samePatternWithNewValues).use { updated ->
             updated.solveInto(rhs, out)
