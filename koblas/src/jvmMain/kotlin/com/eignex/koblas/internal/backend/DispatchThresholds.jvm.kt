@@ -96,9 +96,8 @@ private const val JVM_SPARSE_PRODUCT_MIN = 64
  * Stored entries from which SPQR takes sparse QR. At 153 entries it was 1.69 times slower to factor and
  * 1.15 times slower to factor and solve; at 467 it was 2.93 and 2.32 times faster. The portable sparse QR
  * does not call the Vector API, so the same crossing applies when the JVM's dense kernels are scalar.
- * Measured through `sparseQrGate` when the factor-only row read `R` to escape the JIT, which charges SPQR a
- * second factorization the portable side never performs, so the factor figures overstate what it costs and
- * this gate sits later than the factorization alone would put it. The row now escapes the factorization
- * itself; the value wants re-deriving from it.
+ * Measured through `sparseQrGate`. SPQR copies `R` and the Householder form out of the library at
+ * factorization time rather than holding them, so the figures include that copy and reading the factors
+ * afterwards costs nothing.
  */
 private const val JVM_SPARSE_QR_MIN = 384

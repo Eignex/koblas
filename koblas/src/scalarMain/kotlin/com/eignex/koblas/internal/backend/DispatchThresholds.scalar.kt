@@ -49,8 +49,7 @@ private const val NATIVE_SPARSE_PRODUCT_MIN = Int.MAX_VALUE
 /**
  * Stored entries from which SPQR takes sparse QR on Native. At 153 entries factorization was level while a
  * factor-and-solve was 1.59 times slower; at 467 SPQR was 3.75 and 4.00 times faster. Measured through the
- * linuxX64 `sparseQrGate`, whose transpose control stayed within six percent between arms. The factor
- * figures came from a row that read `R` to escape the JIT, which charges SPQR a second factorization, so
- * they overstate its cost; the row now escapes the factorization itself and this wants re-deriving.
+ * linuxX64 `sparseQrGate`, whose transpose control stayed within six percent between arms. SPQR copies the
+ * factors out at factorization time, so the figures include that copy and reading them afterwards is free.
  */
 private const val NATIVE_SPARSE_QR_MIN = 320
