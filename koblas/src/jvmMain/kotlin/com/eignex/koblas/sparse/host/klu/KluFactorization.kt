@@ -7,6 +7,7 @@ import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.internal.host.nativeCleaner
 import com.eignex.koblas.sparse.F64SparseFactorizationReport
 import com.eignex.koblas.sparse.F64SparseLuFactorization
+import com.eignex.koblas.sparse.FactorsNotExposed
 import com.eignex.koblas.sparse.basicReport
 import com.eignex.koblas.sparse.requireBlockSolveShapes
 import com.eignex.koblas.sparse.requireSolveShapes
@@ -40,13 +41,17 @@ public class KluFactorization internal constructor(
      * The factors, extracted on the first read. KLU copies them out of its numeric object, so a caller who
      * only solves or refactorizes never pays for them.
      */
-    private val extracted: KluFactors by lazy {
-        checkNotNull(calls.extract(factor)) {
-            "this libklu does not expose klu_extract, so its factors cannot be read"
-        }
+    private var extracted: Lazy<KluFactors> = freshExtraction()
+
+    private fun freshExtraction(): Lazy<KluFactors> = lazy {
+        calls.extract(factor) ?: throw FactorsNotExposed("native factors")
     }
 
-    private val factors: KluFactors get() = lifecycle.withResource { extracted }
+    private val factors: KluFactors
+        get() = lifecycle.withResource {
+            requireFactored(failedAt, "factors")
+            extracted.value
+        }
 
     override val l: F64SparseMatrix get() = factors.lower
 
@@ -80,7 +85,9 @@ public class KluFactorization internal constructor(
             return@withResource KluRefactorResult.Incompatible
         }
         try {
-            if (calls.refactor(factor, a.colPtr, a.rowIdx, a.values, equilibrate)) {
+            val succeeded = calls.refactor(factor, a.colPtr, a.rowIdx, a.values, equilibrate)
+            extracted = freshExtraction()
+            if (succeeded) {
                 failedAt = NOT_SINGULAR
                 KluRefactorResult.Success
             } else {

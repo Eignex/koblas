@@ -7,6 +7,7 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.sparse.F64SparseFactorizationReport
 import com.eignex.koblas.sparse.F64SparseLuFactorization
+import com.eignex.koblas.sparse.FactorsNotExposed
 import com.eignex.koblas.sparse.basicReport
 import com.eignex.koblas.sparse.requireSolveShapes
 import kotlinx.cinterop.*
@@ -38,9 +39,7 @@ public class UmfpackFactorization internal constructor(
 
     /** The factors, extracted on the first read; UMFPACK copies both out of its numeric object. */
     private val extracted: UmfpackFactors by lazy {
-        checkNotNull(extractUmfpackFactors(f, handle.pointer.pointed.value, matrix.rows)) {
-            "this libumfpack does not expose umfpack_di_get_numeric, so its factors cannot be read"
-        }
+        extractUmfpackFactors(f, handle.pointer.pointed.value, matrix.rows) ?: throw FactorsNotExposed("native factors")
     }
 
     private val factors: UmfpackFactors get() = lifecycle.withResource { extracted }
@@ -54,6 +53,12 @@ public class UmfpackFactorization internal constructor(
     override val columnOrder: IntArray get() = factors.columnOrder.copyOf()
 
     override val rowScaling: DoubleArray get() = factors.rowScaling.copyOf()
+
+    private val emptyOffDiagonal: F64SparseMatrix by lazy {
+        F64SparseMatrix.wrap(n, n, IntArray(n + 1), IntArray(0), DoubleArray(0))
+    }
+
+    override val offDiagonal: F64SparseMatrix get() = anchoring { emptyOffDiagonal }
 
     /** Frees the factors once this object goes away; [AnchoredFactorization] covers the calls in flight. */
     @Suppress("unused") // the cleaner runs when this property becomes unreachable, which is the point

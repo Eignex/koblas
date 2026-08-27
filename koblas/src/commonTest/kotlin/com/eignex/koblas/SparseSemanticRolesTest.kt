@@ -19,7 +19,8 @@ class SparseSemanticRolesTest {
         LegacyProvider(name, priority),
         F64GeneralSparseLu,
         F64RepeatedSparseLu {
-        override fun refactor(previous: F64SparseFactorization, a: F64SparseMatrix): F64SparseFactorization = factor(a)
+        override fun refactor(previous: F64SparseLuFactorization, a: F64SparseMatrix): F64SparseLuFactorization =
+            factor(a)
     }
 
     private class Basis(name: String = "basis", priority: Int = 200) :
@@ -29,6 +30,13 @@ class SparseSemanticRolesTest {
         override fun factorBasis(basis: F64SparseMatrix): F64BasisFactorization =
             F64ReferenceSparseLinearAlgebra.factorBasis(basis)
     }
+
+    private class Complete :
+        LegacyProvider("complete", priority = 10),
+        F64GeneralSparseLu,
+        F64SparseCholesky,
+        F64SparseLdl,
+        F64SparseQr
 
     @Test
     fun `specialized providers do not change general sparse LU`() = withCleanBackends {
@@ -66,6 +74,46 @@ class SparseSemanticRolesTest {
         assertEquals("reference", koblas.sparseCholesky.name)
         assertEquals("reference", koblas.sparseLdl.name)
         assertEquals("reference", koblas.sparseQr.name)
+    }
+
+    @Test
+    fun `a provider that fills no role is rejected by an explicit context`() {
+        val provider = LegacyProvider("third-party", priority = 50)
+
+        assertFailsWith<IllegalArgumentException> {
+            F64ContextBuilder().withBackend(BackendRole.SPARSE_DECOMPOSITIONS, provider)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            F64ContextBuilder().withBackend(BackendRole.SPARSE_GENERAL_LU, provider)
+        }
+    }
+
+    @Test
+    fun `the wide sparse role selects all four factorization providers`() {
+        val provider = Complete()
+
+        val context = F64ContextBuilder()
+            .withBackend(BackendRole.SPARSE_DECOMPOSITIONS, provider)
+            .resolve()
+
+        assertSame(provider, context.generalSparseLu)
+        assertSame(provider, context.sparseCholesky)
+        assertSame(provider, context.sparseLdl)
+        assertSame(provider, context.sparseQr)
+    }
+
+    @Test
+    fun `a configured portable decomposition fills every factorization role`() {
+        val provider = F64ReferenceSparseDecompositions(equilibrate = true)
+
+        val context = F64ContextBuilder()
+            .withBackend(BackendRole.SPARSE_DECOMPOSITIONS, provider)
+            .resolve()
+
+        assertSame(provider, context.generalSparseLu)
+        assertSame(provider, context.sparseCholesky)
+        assertSame(provider, context.sparseLdl)
+        assertSame(provider, context.sparseQr)
     }
 
     @Test

@@ -1,6 +1,6 @@
 package com.eignex.koblas.sparse.host.basiclu
 
-import com.eignex.koblas.internal.backend.hostDispatchThresholds
+import com.eignex.koblas.internal.backend.hostSparseDispatchThresholds
 
 /** Numerical and execution policy shared by host and bundled BASICLU providers. */
 public data class BasicluOptions(
@@ -42,7 +42,7 @@ public data class BasicluConfig(
 }
 
 internal fun BasicluOptions.metadataOptions(): Map<String, String> = mapOf(
-    "factorizeMin" to hostDispatchThresholds(factorize = factorizeMin).factorize.toString(),
+    "factorizeMin" to hostSparseDispatchThresholds(factorize = factorizeMin).factorize.toString(),
     "equilibrate" to equilibrate.toString(),
 )
 

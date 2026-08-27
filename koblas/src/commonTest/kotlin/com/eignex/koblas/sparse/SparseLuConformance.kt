@@ -260,6 +260,27 @@ internal fun assertNativeFactorCloseContract(factorization: F64SparseFactorizati
     assertFailsWith<IllegalStateException> { factorization.nnz }
     assertFailsWith<IllegalStateException> { factorization.rcond }
     assertFailsWith<IllegalStateException> { factorization.solve(DoubleArray(n)) }
+    when (factorization) {
+        is F64SparseLuFactorization -> {
+            assertFailsWith<IllegalStateException> { factorization.l }
+            assertFailsWith<IllegalStateException> { factorization.u }
+            assertFailsWith<IllegalStateException> { factorization.rowOrder }
+            assertFailsWith<IllegalStateException> { factorization.columnOrder }
+            assertFailsWith<IllegalStateException> { factorization.rowScaling }
+            assertFailsWith<IllegalStateException> { factorization.offDiagonal }
+        }
+
+        is F64SparseCholeskyFactorization -> {
+            assertFailsWith<IllegalStateException> { factorization.l }
+            assertFailsWith<IllegalStateException> { factorization.order }
+        }
+
+        is F64SparseLdlFactorization -> {
+            assertFailsWith<IllegalStateException> { factorization.l }
+            assertFailsWith<IllegalStateException> { factorization.d }
+            assertFailsWith<IllegalStateException> { factorization.order }
+        }
+    }
 }
 
 /** [AutoCloseable.use] closes a native factor when its body returns and when its body throws. */

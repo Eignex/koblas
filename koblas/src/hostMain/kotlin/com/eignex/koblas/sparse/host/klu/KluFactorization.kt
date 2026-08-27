@@ -13,6 +13,7 @@ import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.requireFactored
 import com.eignex.koblas.sparse.F64SparseFactorizationReport
 import com.eignex.koblas.sparse.F64SparseLuFactorization
+import com.eignex.koblas.sparse.FactorsNotExposed
 import com.eignex.koblas.sparse.basicReport
 import com.eignex.koblas.sparse.requireBlockSolveShapes
 import com.eignex.koblas.sparse.requireSolveShapes
@@ -51,15 +52,23 @@ public class KluFactorization internal constructor(
     private val lifecycle = NativeResourceLifecycle("KLU factorization", handle::release)
 
     /** The factors, extracted on the first read; KLU copies them out of its numeric object. */
-    private val extracted: KluFactors by lazy {
-        checkNotNull(
-            extractKluFactors(functions, handle.symbolic.pointed.value, handle.numeric.pointed.value, handle.common, n),
-        ) {
-            "this libklu does not expose klu_extract, so its factors cannot be read"
-        }
+    private var extracted: Lazy<KluFactors> = freshExtraction()
+
+    private fun freshExtraction(): Lazy<KluFactors> = lazy {
+        extractKluFactors(
+            functions,
+            handle.symbolic.pointed.value,
+            handle.numeric.pointed.value,
+            handle.common,
+            n,
+        ) ?: throw FactorsNotExposed("native factors")
     }
 
-    private val factors: KluFactors get() = anchoring { extracted }
+    private val factors: KluFactors
+        get() = anchoring {
+            requireFactored(failedAt, "factors")
+            extracted.value
+        }
 
     override val l: F64SparseMatrix get() = factors.lower
 
@@ -162,6 +171,7 @@ public class KluFactorization internal constructor(
                 }
             }
         }
+        extracted = freshExtraction()
         val singular = intAt(handle.common, KLU_COMMON_STATUS) == KLU_SINGULAR
         failedAt = if (singular) SINGULAR_POSITION_UNKNOWN else NOT_SINGULAR
         when {

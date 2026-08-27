@@ -8,6 +8,7 @@ import com.eignex.koblas.internal.host.nativeCleaner
 import com.eignex.koblas.sparse.F64BasisFactorization
 import com.eignex.koblas.sparse.F64SparseFactorizationReport
 import com.eignex.koblas.sparse.F64SparseLuFactorization
+import com.eignex.koblas.sparse.FactorsNotExposed
 import com.eignex.koblas.sparse.basicReport
 import com.eignex.koblas.sparse.host.applyEquilibration
 import com.eignex.koblas.sparse.internal.replaceColumns
@@ -39,6 +40,20 @@ public open class BasicluFactorization internal constructor(
     override val n: Int get() = target.n
 
     override val failedAt: Int get() = NOT_SINGULAR
+
+    override val l: F64SparseMatrix get() = factorNotExposed("l")
+
+    override val u: F64SparseMatrix get() = factorNotExposed("u")
+
+    override val rowOrder: IntArray get() = factorNotExposed("rowOrder")
+
+    override val columnOrder: IntArray get() = factorNotExposed("columnOrder")
+
+    override val rowScaling: DoubleArray get() = factorNotExposed("rowScaling")
+
+    override val offDiagonal: F64SparseMatrix get() = factorNotExposed("offDiagonal")
+
+    private fun factorNotExposed(factor: String): Nothing = withNativeFactor { throw FactorsNotExposed(factor) }
 
     override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability =
         noSizeDependentManagedAllocation

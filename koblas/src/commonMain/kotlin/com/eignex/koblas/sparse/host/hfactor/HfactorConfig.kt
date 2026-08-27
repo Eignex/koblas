@@ -1,6 +1,6 @@
 package com.eignex.koblas.sparse.host.hfactor
 
-import com.eignex.koblas.internal.backend.hostDispatchThresholds
+import com.eignex.koblas.internal.backend.hostSparseDispatchThresholds
 
 /** Numerical and execution policy shared by host and bundled HFactor providers. */
 public data class HfactorOptions(
@@ -42,7 +42,7 @@ public data class HfactorConfig(
 }
 
 internal fun HfactorOptions.metadataOptions(): Map<String, String> = mapOf(
-    "factorizeMin" to hostDispatchThresholds(factorize = factorizeMin).factorize.toString(),
+    "factorizeMin" to hostSparseDispatchThresholds(factorize = factorizeMin).factorize.toString(),
     "equilibrate" to equilibrate.toString(),
 )
 

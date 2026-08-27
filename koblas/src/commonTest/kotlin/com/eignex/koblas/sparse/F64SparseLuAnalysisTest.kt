@@ -15,7 +15,7 @@ class F64SparseLuAnalysisTest {
             return F64ReferenceSparseLinearAlgebra.factor(a)
         }
 
-        override fun refactor(previous: F64SparseFactorization, a: F64SparseMatrix): F64SparseFactorization {
+        override fun refactor(previous: F64SparseLuFactorization, a: F64SparseMatrix): F64SparseLuFactorization {
             refactors++
             previous.close()
             return F64ReferenceSparseLinearAlgebra.factor(a)

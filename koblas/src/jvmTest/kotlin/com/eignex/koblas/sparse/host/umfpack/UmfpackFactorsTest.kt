@@ -1,7 +1,6 @@
 package com.eignex.koblas.sparse.host.umfpack
 
 import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.assertLuFactorsReproduce
 import com.eignex.koblas.testutil.host.HostLibraryTest
 import org.junit.Assume
@@ -26,10 +25,9 @@ class UmfpackFactorsTest {
             val a = dominant(n, rng)
 
             umfpack.factor(a).use { factorization ->
-                val lu = factorization as F64SparseLuFactorization
-                assertEquals(n, lu.rowOrder.size, "n=$n rowOrder")
-                assertEquals(n, lu.columnOrder.size, "n=$n columnOrder")
-                assertLuFactorsReproduce(a, lu, "n=$n")
+                assertEquals(n, factorization.rowOrder.size, "n=$n rowOrder")
+                assertEquals(n, factorization.columnOrder.size, "n=$n columnOrder")
+                assertLuFactorsReproduce(a, factorization, "n=$n")
             }
         }
     }

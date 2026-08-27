@@ -9,6 +9,7 @@ import org.junit.experimental.categories.Category
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.Test
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 
 @Category(HostLibraryTest::class)
@@ -43,6 +44,17 @@ class CholmodFactorsTest {
                 assertLdlFactorsReproduce(a, factorization, "n=$n")
             }
         }
+    }
+
+    @Test
+    fun `a singular LDL factorization has no factors to give`() {
+        requireCholmod()
+        val a = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), emptyList()))
+        val factorization = assertNotNull(cholmod.factorLdl(a))
+
+        assertFailsWith<com.eignex.koblas.SingularMatrix> { factorization.l }
+        assertFailsWith<com.eignex.koblas.SingularMatrix> { factorization.d }
+        assertFailsWith<com.eignex.koblas.SingularMatrix> { factorization.order }
     }
 }
 

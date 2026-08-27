@@ -56,7 +56,7 @@ public interface F64SparseLuFactorization : F64SparseFactorization {
 
     /**
      * The entries outside the diagonal blocks, `F` in the identity above. Empty unless the provider factored
-     * a block triangular form, which is the usual case.
+     * a block triangular form, which is the unusual case.
      */
     public val offDiagonal: F64SparseMatrix
         get() = F64SparseMatrix.wrap(n, n, IntArray(n + 1), IntArray(0), DoubleArray(0))
