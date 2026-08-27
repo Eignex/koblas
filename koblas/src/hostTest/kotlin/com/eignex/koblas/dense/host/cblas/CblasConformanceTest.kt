@@ -42,7 +42,7 @@ class CblasConformanceTest {
         assertGemmAgreesWithReference(cblas, intArrayOf(6))
 
     @Test
-    fun `syrk matches reference and is exactly symmetric`() = assertSyrkAgreesWithReference(cblas, intArrayOf(6))
+    fun `syrk matches reference over the selected triangle`() = assertSyrkAgreesWithReference(cblas, intArrayOf(6))
 
     @Test
     fun `syrk triangle modes match reference and leave the other triangle untouched`() =

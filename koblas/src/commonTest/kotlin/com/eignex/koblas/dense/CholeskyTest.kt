@@ -113,7 +113,7 @@ class CholeskyTest {
             for (j in i + 1 until defaced.cols) defaced[i, j] = Double.NaN
         }
         val expected = a.cholesky().l
-        val actual = defaced.cholesky(uplo = Uplo.LOWER).l
+        val actual = defaced.cholesky(lower = true).l
         for (i in 0 until expected.rows) {
             for (j in 0..i) assertEquals(expected[i, j], actual[i, j], 0.0, "factor differs at ($i,$j)")
         }

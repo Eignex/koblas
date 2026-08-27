@@ -1,8 +1,6 @@
 package com.eignex.koblas.dense.host
 
 import com.eignex.koblas.*
-import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.dense.Uplo
 import com.eignex.koblas.internal.backend.DispatchThresholds
 import kotlin.test.*
 
@@ -12,11 +10,7 @@ import kotlin.test.*
  */
 class AdapterBorrowTest {
 
-    /**
-     * Fails the one entry point the FULL syrk contract needs; nothing else here is reached. A host binding
-     * would raise `UnsatisfiedLinkError`, which is not a type common code can name, and what the borrow needs
-     * to survive is any throw.
-     */
+    /** Calls used only to construct an adapter for routing tests; no numerical entry point should be reached. */
     private class FailingSyrk : CblasCalls {
         override fun dscal(n: Int, alpha: Double, x: DoubleArray, incx: Int) = error("unused")
 
@@ -211,25 +205,5 @@ class AdapterBorrowTest {
         assertEquals(BackendRouteReason.BELOW_THRESHOLD, belowThreshold.reason)
         assertEquals(BackendExecution.UNAVAILABLE, unavailable.execution)
         assertEquals(BackendRouteReason.BACKEND_UNAVAILABLE, unavailable.reason)
-    }
-
-    @Test
-    fun `syrk hands its borrow back when the host library raises`() {
-        val n = 64
-        val ws = Workspace()
-        val parked = ws.take(n * n)
-        ws.release(parked)
-        assertFailsWith<IllegalStateException> {
-            FailingAdapter().syrk(
-                1.0,
-                F64DenseMatrix(n, n),
-                transpose = false,
-                beta = 1.0,
-                c = F64DenseMatrix(n, n),
-                uplo = Uplo.FULL,
-                workspace = ws,
-            )
-        }
-        assertSame(parked, ws.take(n * n), "syrk kept its workspace buffer after the host call threw")
     }
 }

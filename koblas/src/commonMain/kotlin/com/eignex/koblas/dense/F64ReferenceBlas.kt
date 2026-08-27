@@ -152,32 +152,32 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         transpose: Boolean,
         beta: Double,
         c: F64DenseMatrix,
-        uplo: Uplo,
+        lower: Boolean,
         workspace: Workspace?,
     ) {
         val n = if (transpose) a.cols else a.rows
         val k = if (transpose) a.rows else a.cols
         requireShape(c.rows == n && c.cols == n) { "syrk: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
         val cd = c.data
-        scaleUplo(kernels, cd, n, beta, uplo)
+        scaleTriangle(kernels, cd, n, beta, lower)
         if (alpha == 0.0 || n == 0 || k == 0) return
         val ad = a.data
         // The dot form holds each output entry in a register, where accumulating outer products would
         // stream all of C once per column of A. So a non-transposed A is transposed first, an O(n·k) copy
         // against the product's O(n²·k/2), and both orientations run the same loop below.
         if (transpose) {
-            accumulateSyrk(alpha, ad, n, k, cd, uplo)
+            accumulateSyrk(alpha, ad, n, k, cd, lower)
             return
         }
         workspace.borrow(n * k) { at ->
             transposeIntoRows(ad, at, n, k)
-            accumulateSyrk(alpha, at, n, k, cd, uplo)
+            accumulateSyrk(alpha, at, n, k, cd, lower)
         }
     }
 
     /** The `dsyrk` accumulation with the operand stored `k×n`, so op(A) row i is column i of the buffer. */
     @Suppress("LongParameterList") // the operand and the shape, all of which the caller holds
-    private fun accumulateSyrk(alpha: Double, ad: DoubleArray, n: Int, k: Int, cd: DoubleArray, uplo: Uplo) {
+    private fun accumulateSyrk(alpha: Double, ad: DoubleArray, n: Int, k: Int, cd: DoubleArray, lower: Boolean) {
         val kernels = kernels
         // Four rows of op(A) against one column, so column j is read once for the four rather than once
         // each. The rows sit at stride k because the operand arrives transposed, which is the shape
@@ -188,14 +188,14 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
             val bound = n - 3
             while (i < bound) {
                 kernels.dot4(ad, i * k, k, ad, j * k, k, quads, 0)
-                addUplo(cd, n, i, j, alpha * quads[0], uplo)
-                addUplo(cd, n, i + 1, j, alpha * quads[1], uplo)
-                addUplo(cd, n, i + 2, j, alpha * quads[2], uplo)
-                addUplo(cd, n, i + 3, j, alpha * quads[3], uplo)
+                addTriangle(cd, n, i, j, alpha * quads[0], lower)
+                addTriangle(cd, n, i + 1, j, alpha * quads[1], lower)
+                addTriangle(cd, n, i + 2, j, alpha * quads[2], lower)
+                addTriangle(cd, n, i + 3, j, alpha * quads[3], lower)
                 i += 4
             }
             while (i < n) {
-                addUplo(cd, n, i, j, alpha * kernels.dot(ad, i * k, ad, j * k, k), uplo)
+                addTriangle(cd, n, i, j, alpha * kernels.dot(ad, i * k, ad, j * k, k), lower)
                 i++
             }
         }
@@ -396,12 +396,12 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
     }
 
     /**
-     * `A += alpha · x · xᵀ` (BLAS `dsyr`), writing the triangles [uplo] selects. [syrk] is the rank-k form.
+     * `A += alpha · x · xᵀ` (BLAS `dsyr`), writing only the [lower] or upper triangle.
      *
      * A sparse x updates the outer product of its stored positions and nothing else, which is the whole of
      * the update: a position it does not store contributes a zero row and a zero column.
      */
-    override fun syr(alpha: Double, x: F64VectorLike, a: F64DenseMatrix, uplo: Uplo) {
+    override fun syr(alpha: Double, x: F64VectorLike, a: F64DenseMatrix, lower: Boolean) {
         requireShape(a.rows == a.cols) { "syr: matrix must be square, got ${a.rows}x${a.cols}" }
         requireShape(x.size == a.rows) { "syr: x length ${x.size} != ${a.rows}" }
         if (alpha == 0.0) return
@@ -413,7 +413,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
             for (b in positions.indices) {
                 val xj = alpha * xs[b]
                 if (xj == 0.0) continue
-                for (c in b until positions.size) addUplo(ad, n, positions[c], positions[b], xj * xs[c], uplo)
+                for (c in b until positions.size) addTriangle(ad, n, positions[c], positions[b], xj * xs[c], lower)
             }
             return
         }
@@ -421,17 +421,17 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         for (j in 0 until n) {
             val xj = alpha * xs[j]
             if (xj == 0.0) continue
-            for (i in j until n) addUplo(ad, n, i, j, xj * xs[i], uplo)
+            for (i in j until n) addTriangle(ad, n, i, j, xj * xs[i], lower)
         }
     }
 
     /**
-     * `A += alpha · (x · yᵀ + y · xᵀ)` (BLAS `dsyr2`), writing the triangles [uplo] selects.
+     * `A += alpha · (x · yᵀ + y · xᵀ)` (BLAS `dsyr2`), writing only the [lower] or upper triangle.
      *
      * Sparse operands are handled as [syr] handles one, over the positions either of them stores: a position
      * neither stores has `x(i)` and `y(i)` both zero and so contributes nothing to any entry.
      */
-    override fun syr2(alpha: Double, x: F64VectorLike, y: F64VectorLike, a: F64DenseMatrix, uplo: Uplo) {
+    override fun syr2(alpha: Double, x: F64VectorLike, y: F64VectorLike, a: F64DenseMatrix, lower: Boolean) {
         requireShape(a.rows == a.cols) { "syr2: matrix must be square, got ${a.rows}x${a.cols}" }
         requireShape(x.size == a.rows && y.size == a.rows) {
             "syr2: operand lengths ${x.size} and ${y.size} must both be ${a.rows}"
@@ -440,7 +440,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         val n = a.rows
         val ad = a.data
         if (x !is F64DenseVector || y !is F64DenseVector) {
-            syr2Stored(alpha, x, y, ad, n, uplo)
+            syr2Stored(alpha, x, y, ad, n, lower)
             return
         }
         val xs = x.data
@@ -450,7 +450,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
             if (xs[j] == 0.0 && ys[j] == 0.0) continue
             for (i in j until n) {
                 val v = alpha * (xs[i] * ys[j] + ys[i] * xs[j])
-                if (v != 0.0) addUplo(ad, n, i, j, v, uplo)
+                if (v != 0.0) addTriangle(ad, n, i, j, v, lower)
             }
         }
     }
@@ -490,7 +490,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         y: F64VectorLike,
         ad: DoubleArray,
         n: Int,
-        uplo: Uplo,
+        lower: Boolean,
     ) {
         val positions = storedPositions(x, y)
         val xs = DoubleArray(positions.size) { x[positions[it]] }
@@ -499,13 +499,13 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
             if (xs[b] == 0.0 && ys[b] == 0.0) continue
             for (c in b until positions.size) {
                 val v = alpha * (xs[c] * ys[b] + ys[c] * xs[b])
-                if (v != 0.0) addUplo(ad, n, positions[c], positions[b], v, uplo)
+                if (v != 0.0) addTriangle(ad, n, positions[c], positions[b], v, lower)
             }
         }
     }
 
     /** `C = alpha · (op(A) · op(B)ᵀ + op(B) · op(A)ᵀ) + beta · C` (BLAS `dsyr2k`), where `op` transposes when
-     *  [transpose]. Writes the triangles [uplo] selects. */
+     *  [transpose]. Writes only the [lower] or upper triangle. */
     @Suppress("LongParameterList") // the BLAS dsyr2k signature plus optional scratch
     override fun syr2k(
         alpha: Double,
@@ -514,7 +514,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         transpose: Boolean,
         beta: Double,
         c: F64DenseMatrix,
-        uplo: Uplo,
+        lower: Boolean,
         workspace: Workspace?,
     ) {
         val n = if (transpose) a.cols else a.rows
@@ -523,22 +523,22 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
             "syr2k: B is ${b.rows}x${b.cols}, expected ${a.rows}x${a.cols} to match A"
         }
         requireShape(c.rows == n && c.cols == n) { "syr2k: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
-        scaleUplo(kernels, c.data, n, beta, uplo)
+        scaleTriangle(kernels, c.data, n, beta, lower)
         if (alpha == 0.0 || n == 0 || k == 0) return
         // Each entry is two dots, which hold their accumulator in a register. A transposed operand already
         // has op(X) row i as column i of its buffer; a non-transposed one has it strided, so both are
         // transposed first, an O(n·k) copy against the product's O(n²·k), as [syrk] does with its one
-        // operand. One triangle is computed and addUplo places it, which halves the dots and keeps the two
-        // halves identical even against a host dot whose value depends on which operand comes first.
+        // operand. One triangle is computed and addTriangle places it, which halves the dots and keeps the
+        // selected triangle consistent even against a host dot whose value depends on operand order.
         if (transpose) {
-            accumulateSyr2k(alpha, a.data, b.data, n, k, c.data, uplo)
+            accumulateSyr2k(alpha, a.data, b.data, n, k, c.data, lower)
             return
         }
         workspace.borrow(n * k) { at ->
             workspace.borrow(n * k) { bt ->
                 transposeIntoRows(a.data, at, n, k)
                 transposeIntoRows(b.data, bt, n, k)
-                accumulateSyr2k(alpha, at, bt, n, k, c.data, uplo)
+                accumulateSyr2k(alpha, at, bt, n, k, c.data, lower)
             }
         }
     }
@@ -560,7 +560,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         n: Int,
         k: Int,
         cd: DoubleArray,
-        uplo: Uplo,
+        lower: Boolean,
     ) {
         val kernels = kernels
         // Both halves of the pair are the shape dot4 wants, so each column is read once for four rows.
@@ -574,13 +574,13 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
                 kernels.dot4(bd, i * k, k, ad, j * k, k, fromB, 0)
                 for (r in 0 until 4) {
                     val s = fromA[r] + fromB[r]
-                    if (s != 0.0) addUplo(cd, n, i + r, j, alpha * s, uplo)
+                    if (s != 0.0) addTriangle(cd, n, i + r, j, alpha * s, lower)
                 }
                 i += 4
             }
             while (i < n) {
                 val s = kernels.dot(ad, i * k, bd, j * k, k) + kernels.dot(bd, i * k, ad, j * k, k)
-                if (s != 0.0) addUplo(cd, n, i, j, alpha * s, uplo)
+                if (s != 0.0) addTriangle(cd, n, i, j, alpha * s, lower)
                 i++
             }
         }

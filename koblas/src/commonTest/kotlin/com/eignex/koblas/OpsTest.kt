@@ -5,7 +5,6 @@ package com.eignex.koblas
 import com.eignex.koblas.core.*
 import com.eignex.koblas.dense.F64Blas
 import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
-import com.eignex.koblas.dense.Uplo
 import kotlin.math.abs
 import kotlin.math.sqrt
 import kotlin.random.Random
@@ -242,14 +241,14 @@ class OpsTest {
         viaSyr.syr(1.5, x)
         val viaGer = F64DenseMatrix(n, n)
         viaGer.ger(1.5, x, x)
-        assertClose(viaGer, viaSyr, "syr against ger")
+        assertLowerTriangleClose(viaGer, viaSyr, "syr against ger")
 
         val viaSyr2 = F64DenseMatrix(n, n)
         viaSyr2.syr2(-0.75, x, y)
         val viaGer2 = F64DenseMatrix(n, n)
         viaGer2.ger(-0.75, x, y)
         viaGer2.ger(-0.75, y, x)
-        assertClose(viaGer2, viaSyr2, "syr2 against two gers")
+        assertLowerTriangleClose(viaGer2, viaSyr2, "syr2 against two gers")
     }
 
     /**
@@ -264,20 +263,20 @@ class OpsTest {
         val xDense = F64DenseVector.of(xSparse.toDoubleArray())
         val yDense = F64DenseVector.of(ySparse.toDoubleArray())
 
-        for (uplo in Uplo.entries) {
+        for (lower in booleanArrayOf(true, false)) {
             val sparseSyr = F64DenseMatrix(n, n)
-            sparseSyr.syr(1.5, xSparse, uplo)
+            sparseSyr.syr(1.5, xSparse, lower)
             val denseSyr = F64DenseMatrix(n, n)
-            denseSyr.syr(1.5, xDense, uplo)
-            assertClose(denseSyr, sparseSyr, "syr uplo=$uplo")
+            denseSyr.syr(1.5, xDense, lower)
+            assertClose(denseSyr, sparseSyr, "syr lower=$lower")
 
             // Mixed storages as well, since only one operand of syr2 need be sparse.
             for (pair in listOf(xSparse to ySparse, xSparse to yDense, xDense to ySparse)) {
                 val sparseSyr2 = F64DenseMatrix(n, n)
-                sparseSyr2.syr2(-0.75, pair.first, pair.second, uplo)
+                sparseSyr2.syr2(-0.75, pair.first, pair.second, lower)
                 val denseSyr2 = F64DenseMatrix(n, n)
-                denseSyr2.syr2(-0.75, xDense, yDense, uplo)
-                assertClose(denseSyr2, sparseSyr2, "syr2 uplo=$uplo")
+                denseSyr2.syr2(-0.75, xDense, yDense, lower)
+                assertClose(denseSyr2, sparseSyr2, "syr2 lower=$lower")
             }
         }
     }
@@ -298,27 +297,24 @@ class OpsTest {
     }
 
     @Test
-    fun `the symmetric updates are exactly symmetric and honour uplo`() {
+    fun `the symmetric updates write only the selected triangle`() {
         val rng = Random(20260808)
         val n = 5
         val x = F64DenseVector.of(randomVector(n, rng))
-        val y = F64DenseVector.of(randomVector(n, rng))
-
-        val full = F64DenseMatrix(n, n)
-        full.syr2(0.3, x, y)
-        for (i in 0 until n) {
-            for (j in 0 until n) {
-                assertTrue(full[i, j] == full[j, i], "syr2 FULL is not exactly symmetric at [$i,$j]")
-            }
-        }
 
         val lower = F64DenseMatrix(n, n)
-        lower.syr(1.0, x, Uplo.LOWER)
+        lower.syr(1.0, x, lower = true)
         for (i in 0 until n) {
             for (j in 0 until n) {
-                if (i < j) assertEquals(0.0, lower[i, j], "syr LOWER wrote the upper triangle at [$i,$j]")
+                if (i < j) assertEquals(0.0, lower[i, j], "syr wrote the upper triangle at [$i,$j]")
                 if (i >= j) assertEquals(x[i] * x[j], lower[i, j], 1e-12, "[$i,$j]")
             }
+        }
+    }
+
+    private fun assertLowerTriangleClose(expected: F64DenseMatrix, actual: F64DenseMatrix, context: String) {
+        for (j in 0 until expected.cols) {
+            for (i in j until expected.rows) assertEquals(expected[i, j], actual[i, j], 1e-12, context)
         }
     }
 

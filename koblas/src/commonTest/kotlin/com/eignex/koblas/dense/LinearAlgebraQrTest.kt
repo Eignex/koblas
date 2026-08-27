@@ -92,7 +92,7 @@ class LinearAlgebraQrTest {
             assertClose(b, koblas.gemv(a, x), "residual ${m}x$n", tolerance = 1e-11)
             // The minimum-norm solution is the pseudoinverse solution At (A At)^-1 b.
             val g = F64DenseMatrix(m, m)
-            koblas.syrk(1.0, a, transpose = false, beta = 0.0, c = g)
+            koblas.gemm(1.0, a, false, a, true, 0.0, g)
             val z = koblas.solve(koblas.factor(g), b)
             val expected = koblas.gemv(a, z, transpose = true)
             assertClose(expected, x, "min-norm ${m}x$n", tolerance = 1e-10)

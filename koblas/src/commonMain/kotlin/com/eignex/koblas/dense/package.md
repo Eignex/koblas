@@ -7,10 +7,8 @@ Dense linear algebra: the three swappable seams and the routines behind them.
   the level-1 dispatch threshold; offered through [com.eignex.koblas.registerBackend], forced by installing a
   [com.eignex.koblas.F64Context].
 - [F64Blas] — the level-2 and level-3 routines in full BLAS alpha/beta/transpose form, plus the triangular
-  solves [trsv] / [trsm] and their multiply counterparts. Expert overloads use [Uplo], [Transpose], [Diag],
-  and [Side], as in
-  `trsm(a, b, Uplo.LOWER, Transpose.NO_TRANSPOSE, Diag.NON_UNIT, Side.LEFT)`. Boolean overloads remain as a
-  source-compatible migration path and reach the same backend methods.
+  solves [trsv] / [trsm] and their multiply counterparts. Named Boolean parameters select the triangle,
+  transpose, diagonal, and side.
 - [F64Decompositions] — the factorizations and the solves built on them: LU ([F64Decompositions.factor] / [F64Decompositions.solve],
   with [F64LuDecomposition] and [determinant]), symmetric indefinite [F64LdlDecomposition], [F64QrDecomposition]
   with the least-squares and minimum-norm solves, [F64PivotedQrDecomposition] when the rank is the question

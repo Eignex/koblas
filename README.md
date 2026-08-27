@@ -98,7 +98,6 @@ offset, leading dimension, and increment:
 
 ```kotlin
 import com.eignex.koblas.*
-import com.eignex.koblas.dense.Transpose
 
 val storage = DenseMatrix.zero(512, 32)
 val panel = storage.view(row = 64, rows = 128, column = 4, cols = 8)
@@ -106,13 +105,13 @@ val weights = DenseMatrix.zero(8, 2)
 val output = DenseMatrix.zero(128, 2)
 
 koblas.blas.gemm(
-    1.0,
-    panel,
-    Transpose.NO_TRANSPOSE,
-    weights.asView(),
-    Transpose.NO_TRANSPOSE,
-    0.0,
-    output.asView(),
+    alpha = 1.0,
+    a = panel,
+    transposeA = false,
+    b = weights.asView(),
+    transposeB = false,
+    beta = 0.0,
+    c = output.asView(),
 )
 ```
 
@@ -143,8 +142,7 @@ those buffers and select an AllocationPolicy when the guarantee should be enforc
 mutation. REQUIRE_NO_SIZE_DEPENDENT_MANAGED permits fixed JVM/FFM overhead; stronger policies are reported
 only where koblas controls the corresponding allocation source.
 
-Expert BLAS calls use Uplo, Transpose, Diag, and Side rather than Boolean flag clusters. Boolean overloads
-remain for source compatibility and delegate to the same backend seam.
+BLAS options use named Boolean parameters such as lower, transpose, unitDiag, and right.
 
 ## Backends and routing
 

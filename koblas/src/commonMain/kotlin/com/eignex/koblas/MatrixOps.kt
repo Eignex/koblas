@@ -4,7 +4,6 @@ package com.eignex.koblas
 
 import com.eignex.koblas.core.*
 import com.eignex.koblas.dense.F64Blas
-import com.eignex.koblas.dense.Uplo
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import kotlin.math.abs
 
@@ -32,16 +31,16 @@ public fun F64DenseMatrix.ger(alpha: Double, x: F64VectorLike, y: F64VectorLike)
 }
 
 /** Symmetric rank-1 update `A += alpha * x * xT` (BLAS `dsyr`) in place. See [F64Blas.syr]. */
-public fun F64DenseMatrix.syr(alpha: Double, x: F64VectorLike, uplo: Uplo = Uplo.FULL): Unit = koblas.syr(
+public fun F64DenseMatrix.syr(alpha: Double, x: F64VectorLike, lower: Boolean = true): Unit = koblas.syr(
     alpha,
     x,
     this,
-    uplo,
+    lower,
 )
 
 /** Symmetric rank-2 update `A += alpha * (x * yT + y * xT)` (BLAS `dsyr2`) in place. See [F64Blas.syr2]. */
-public fun F64DenseMatrix.syr2(alpha: Double, x: F64VectorLike, y: F64VectorLike, uplo: Uplo = Uplo.FULL): Unit =
-    koblas.syr2(alpha, x, y, this, uplo)
+public fun F64DenseMatrix.syr2(alpha: Double, x: F64VectorLike, y: F64VectorLike, lower: Boolean = true): Unit =
+    koblas.syr2(alpha, x, y, this, lower)
 
 /**
  * Matrix 1-norm, the maximum absolute column sum (LAPACK `dlange` with norm 1). This is the `anorm`

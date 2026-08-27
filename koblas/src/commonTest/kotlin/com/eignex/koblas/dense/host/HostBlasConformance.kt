@@ -32,12 +32,12 @@ internal fun assertLevel3AgreesWithReference(blas: F64Blas, sizes: IntArray) {
         val a = randomMatrix(n, n, rng)
         val b = randomMatrix(n, n, rng)
         assertClose(reference.gemm(a, b), blas.gemm(a, b), "gemm n=$n", tolerance = 1e-9 * n)
-        for (uplo in listOf(Uplo.FULL, Uplo.LOWER)) {
+        for (lower in booleanArrayOf(true, false)) {
             val expected = F64DenseMatrix(n, n)
             val actual = F64DenseMatrix(n, n)
-            reference.syrk(1.0, a, transpose = true, beta = 0.0, c = expected, uplo = uplo)
-            blas.syrk(1.0, a, transpose = true, beta = 0.0, c = actual, uplo = uplo)
-            assertClose(expected, actual, "syrk $uplo n=$n", tolerance = 1e-9 * n)
+            reference.syrk(1.0, a, transpose = true, beta = 0.0, c = expected, lower = lower)
+            blas.syrk(1.0, a, transpose = true, beta = 0.0, c = actual, lower = lower)
+            assertClose(expected, actual, "syrk lower=$lower n=$n", tolerance = 1e-9 * n)
         }
     }
 }
@@ -365,7 +365,7 @@ private fun checkGemm(blas: F64Blas, rng: Random, m: Int, k: Int, n: Int) {
     }
 }
 
-/** A rank update of a symmetric matrix is symmetric to the last bit, not just to a tolerance. */
+/** A symmetric rank update agrees with the portable implementation over its selected triangle. */
 internal fun assertSyrkAgreesWithReference(blas: F64Blas, sizes: IntArray) {
     val rng = Random(20260729)
     for (size in sizes) checkSyrk(blas, rng, rows = size, cols = maxOf(1, size - 2))
@@ -377,22 +377,17 @@ private fun checkSyrk(blas: F64Blas, rng: Random, rows: Int, cols: Int) {
             for (beta in doubleArrayOf(0.0, 1.0, -0.5)) {
                 val a = randomMatrix(rows, cols, rng)
                 val n = if (transpose) cols else rows
-                val c0 = DoubleArray(n * n) { if (beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0) }
+                val c0 = DoubleArray(n * n) { index ->
+                    val i = index % n
+                    val j = index / n
+                    if (i < j || beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0)
+                }
                 val expected = F64DenseMatrix.wrap(n, n, c0.copyOf())
                 val actual = F64DenseMatrix.wrap(n, n, c0.copyOf())
                 reference.syrk(alpha, a, transpose, beta, expected)
                 blas.syrk(alpha, a, transpose, beta, actual)
-                assertClose(expected.data, actual.data, "syrk n=$n t=$transpose a=$alpha b=$beta")
-                if (beta == 0.0) assertExactlySymmetric(actual, n, "syrk n=$n t=$transpose")
+                compareTriangle(expected, actual, n, lower = true, "syrk n=$n t=$transpose a=$alpha b=$beta")
             }
-        }
-    }
-}
-
-private fun assertExactlySymmetric(c: F64DenseMatrix, n: Int, context: String) {
-    for (i in 0 until n) {
-        for (j in 0 until i) {
-            assertEquals(c.data[i + j * n], c.data[j + i * n], "$context asymmetric at ($i;$j)")
         }
     }
 }
@@ -404,32 +399,32 @@ internal fun assertSyrkTriangleModesLeaveTheOtherTriangle(blas: F64Blas, sizes: 
 }
 
 private fun checkSyrkTriangle(blas: F64Blas, rng: Random, rows: Int, cols: Int) {
-    for (uplo in listOf(Uplo.LOWER, Uplo.UPPER)) {
+    for (lower in booleanArrayOf(true, false)) {
         for (transpose in booleanArrayOf(false, true)) {
             for (beta in doubleArrayOf(0.0, -0.5)) {
                 val a = randomMatrix(rows, cols, rng)
                 val n = if (transpose) cols else rows
                 val c0 = DoubleArray(n * n) { idx ->
-                    if (!selects(uplo, idx % n, idx / n) || beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0)
+                    if (!selects(lower, idx % n, idx / n) || beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0)
                 }
                 val expected = F64DenseMatrix.wrap(n, n, c0.copyOf())
                 val actual = F64DenseMatrix.wrap(n, n, c0.copyOf())
-                reference.syrk(0.75, a, transpose, beta, expected, uplo)
-                blas.syrk(0.75, a, transpose, beta, actual, uplo)
-                compareTriangle(expected, actual, n, uplo, "syrk $uplo t=$transpose b=$beta")
+                reference.syrk(0.75, a, transpose, beta, expected, lower)
+                blas.syrk(0.75, a, transpose, beta, actual, lower)
+                compareTriangle(expected, actual, n, lower, "syrk lower=$lower t=$transpose b=$beta")
             }
         }
     }
 }
 
-private fun selects(uplo: Uplo, i: Int, j: Int): Boolean = if (uplo == Uplo.LOWER) j <= i else j >= i
+private fun selects(lower: Boolean, i: Int, j: Int): Boolean = if (lower) j <= i else j >= i
 
 /** The bound stays relative and tight, only widened by [n] for the accumulation the larger sizes do. */
-private fun compareTriangle(expected: F64DenseMatrix, actual: F64DenseMatrix, n: Int, uplo: Uplo, context: String) {
+private fun compareTriangle(expected: F64DenseMatrix, actual: F64DenseMatrix, n: Int, lower: Boolean, context: String) {
     for (i in 0 until n) {
         for (j in 0 until n) {
             val ctx = "$context ($i;$j)"
-            if (selects(uplo, i, j)) {
+            if (selects(lower, i, j)) {
                 val e = expected.data[i + j * n]
                 val v = actual.data[i + j * n]
                 assertTrue(abs(e - v) <= 1e-12 * n * maxOf(1.0, abs(e)), "$ctx: $e vs $v")
@@ -618,7 +613,7 @@ internal fun assertDegenerateShapesHonorTheBetaConventions(blas: F64Blas) {
     assertTrue(c.data.all { it == 0.0 }, "gemm k=0 beta=0 left ${c.data.toList()}")
     val s = F64DenseMatrix.wrap(2, 2, doubleArrayOf(1.0, 2.0, 3.0, 4.0))
     blas.syrk(0.0, F64DenseMatrix(2, 5), transpose = false, beta = 2.0, c = s)
-    assertClose(doubleArrayOf(2.0, 4.0, 6.0, 8.0), s.data, "syrk alpha=0")
+    assertClose(doubleArrayOf(2.0, 4.0, 3.0, 8.0), s.data, "syrk alpha=0")
 }
 
 /** A 0x0 system has nothing to solve, so it yields an empty solution rather than failing. */

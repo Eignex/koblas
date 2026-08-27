@@ -1,7 +1,6 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.dense.Uplo
 import com.eignex.koblas.koblas
 import com.eignex.koblas.times
 import kotlinx.benchmark.*
@@ -40,20 +39,14 @@ class Level3Benchmark {
     fun gemm(): F64DenseMatrix = a * b
 
     @Benchmark
-    fun syrkFull(): F64DenseMatrix {
+    fun syrk(): F64DenseMatrix {
         koblas.syrk(1.0, a, transpose = false, beta = 0.0, c = c)
         return c
     }
 
     @Benchmark
-    fun syrkLower(): F64DenseMatrix {
-        koblas.syrk(1.0, a, transpose = false, beta = 0.0, c = c, uplo = Uplo.LOWER)
-        return c
-    }
-
-    @Benchmark
     fun syr2k(): F64DenseMatrix {
-        koblas.syr2k(1.0, a, b, transpose = false, beta = 0.0, c = c, uplo = Uplo.LOWER)
+        koblas.syr2k(1.0, a, b, transpose = false, beta = 0.0, c = c, lower = true)
         return c
     }
 
