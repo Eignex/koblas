@@ -60,6 +60,23 @@ class SpqrQrTest {
     }
 
     @Test
+    fun `R reads are independent snapshots that cannot corrupt a solve`() {
+        requireSpqr()
+        val a = tall(30, 10, Random(20260911))
+        val b = DoubleArray(30) { it.toDouble() / 10.0 }
+
+        assertNotNull(spqr.factor(a)).use { factorization ->
+            val expected = factorization.solve(b)
+            val first = factorization.r
+            first.values.fill(Double.NaN)
+            val second = factorization.r
+
+            assertTrue(second.values.none(Double::isNaN), "each R read must have independent values")
+            assertClose(expected, factorization.solve(b), "mutating R must not affect solve", tolerance = 1e-10)
+        }
+    }
+
+    @Test
     fun `the natural ordering reaches the same solution as the default one`() {
         requireSpqr()
         val rng = Random(20260902)

@@ -1,7 +1,7 @@
 package com.eignex.koblas.core
 
 import com.eignex.koblas.DimensionMismatch
-import com.eignex.koblas.sparse.gemv
+import com.eignex.koblas.koblas
 import com.eignex.koblas.times
 import com.eignex.koblas.transpose
 import com.eignex.koblas.withColumn
@@ -20,8 +20,10 @@ class SparseMatrixTest {
                 listOf(0 to 2.0),
             ),
         )
-        assertTrue(doubleArrayOf(7.0, 9.0).contentEquals(a.gemv(doubleArrayOf(1.0, 3.0, 3.0))))
-        assertTrue(doubleArrayOf(1.0, 6.0, 2.0).contentEquals(a.gemv(doubleArrayOf(1.0, 2.0), transpose = true)))
+        assertTrue(doubleArrayOf(7.0, 9.0).contentEquals(koblas.gemv(a, doubleArrayOf(1.0, 3.0, 3.0))))
+        assertTrue(
+            doubleArrayOf(1.0, 6.0, 2.0).contentEquals(koblas.gemv(a, doubleArrayOf(1.0, 2.0), transpose = true)),
+        )
     }
 
     @Test
@@ -103,7 +105,7 @@ class SparseMatrixTest {
             assertEquals(viaDense, viaSparse, "gemv disagreed for $x")
         }
         val product = a * F64DenseVector.of(doubleArrayOf(2.0, -1.0))
-        assertTrue(a.gemv(doubleArrayOf(2.0, -1.0)).contentEquals(product.data))
+        assertTrue(koblas.gemv(a, doubleArrayOf(2.0, -1.0)).contentEquals(product.data))
     }
 
     @Test

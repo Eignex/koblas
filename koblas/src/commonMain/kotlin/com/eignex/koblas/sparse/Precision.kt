@@ -1,12 +1,6 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.sparse.factorization.cholesky.F64SparseUpLookingCholesky
-import com.eignex.koblas.sparse.factorization.lu.F64SparseMarkowitzLu
-
-/*
- * The double-precision names of this package under the aliases they had before the element type reached
- * them. [com.eignex.koblas.Precision] says why they carry it.
- */
+/* Current double-precision convenience names; [com.eignex.koblas.Precision] explains the element prefix. */
 
 /** Double-precision [F64SparseKernels], the half an unqualified `SparseKernels` means. */
 public typealias SparseKernels = F64SparseKernels
@@ -27,9 +21,14 @@ public typealias SparseFactorization = F64SparseFactorization
 /** Double-precision [F64SingularSparseFactorization], what an unqualified `SingularSparseFactorization` means. */
 public typealias SingularSparseFactorization = F64SingularSparseFactorization
 
-/** Double-precision [F64SparseMarkowitzLu], the sparse LU an unqualified `SparseLu` means. */
-public typealias SparseLu = F64SparseMarkowitzLu
+/** Double-precision [F64SparseLuFactorization]. */
+public typealias SparseLuFactorization = F64SparseLuFactorization
 
-/** Double-precision [F64SparseUpLookingCholesky], the sparse Cholesky an unqualified `SparseCholesky`
- *  means. */
-public typealias SparseCholesky = F64SparseUpLookingCholesky
+/** Double-precision [F64SparseCholeskyFactorization]. */
+public typealias SparseCholeskyFactorization = F64SparseCholeskyFactorization
+
+/** Double-precision [F64SparseLdlFactorization]. */
+public typealias SparseLdlFactorization = F64SparseLdlFactorization
+
+/** Double-precision [F64SparseQrFactorization]. */
+public typealias SparseQrFactorization = F64SparseQrFactorization

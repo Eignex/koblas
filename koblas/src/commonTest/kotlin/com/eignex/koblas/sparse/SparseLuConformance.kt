@@ -47,7 +47,7 @@ internal fun assertSolvesAgreeWithReference(decompositions: F64SparseDecompositi
             val fromHost = host.solve(b, transpose)
             val fromPortable = portable.solve(b, transpose)
             assertClose(fromPortable, fromHost, "n=$n transpose=$transpose", tolerance = 1e-9)
-            assertClose(b, a.gemv(fromHost, transpose), "n=$n transpose=$transpose residual", tolerance = 1e-9)
+            assertClose(b, koblas.gemv(a, fromHost, transpose), "n=$n transpose=$transpose residual", tolerance = 1e-9)
         }
     }
 }
@@ -232,7 +232,7 @@ internal fun assertNativeEquilibration(
     val b = DoubleArray(6) { rng.nextDouble(-1.0, 1.0) }
     val equilibrated = decompositions.factor(a)
     assertTrue(hostFactorization(equilibrated), "native equilibration must retain the host factorization")
-    assertClose(b, a.gemv(equilibrated.solve(b)), "equilibrated residual", tolerance = 1e-9)
+    assertClose(b, koblas.gemv(a, equilibrated.solve(b)), "equilibrated residual", tolerance = 1e-9)
 }
 
 /** Native handles are freed per factorization, so a long loop must not grow without bound. */
