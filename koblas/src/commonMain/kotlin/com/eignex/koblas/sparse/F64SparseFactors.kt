@@ -15,7 +15,13 @@ import com.eignex.koblas.core.F64SparseMatrix
  * so a closed factorization refuses them, and a singular factorization has no factors to give.
  */
 
-/** The `P·A·Q = L·U` a general sparse LU produces, indexed by pivot position. */
+/**
+ * The factors a general sparse LU produces, indexed by pivot position.
+ *
+ * The identity they satisfy is `L·U = P·diag(rowScaling)·A·Q`, where `P` is [rowOrder] and `Q` is
+ * [columnOrder]. [rowScaling] multiplies rather than divides, whatever a library's own convention, so the
+ * identity reads one way everywhere.
+ */
 public interface F64SparseLuFactorization : F64SparseFactorization {
     /** Unit lower triangular, its diagonal stored. */
     public val l: F64SparseMatrix
@@ -30,8 +36,8 @@ public interface F64SparseLuFactorization : F64SparseFactorization {
     public val columnOrder: IntArray
 
     /**
-     * The per-original-row scaling applied before factorizing, so the factors are of the scaled matrix. All
-     * ones where the backend does not equilibrate, which keeps `P·A·Q = L·U` readable without a special case.
+     * The per-original-row factor the matrix was multiplied by before factorizing. All ones where the backend
+     * does not equilibrate, so the identity above needs no special case for it.
      */
     public val rowScaling: DoubleArray
 }
