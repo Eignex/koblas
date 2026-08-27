@@ -59,15 +59,38 @@ public class CholmodFactorization internal constructor(
     private val factors: CholmodFactors get() = lifecycle.withResource { extracted }
 
     /**
-     * The lower triangular factor. For an `L·D·Lᵀ` CHOLMOD keeps `D` on the diagonal, which this seam holds
-     * separately, so the diagonal is replaced by the implicit ones the interface documents.
+     * The lower triangular factor, in the form each kind's interface documents: an `L·Lᵀ` keeps its real
+     * diagonal, and an `L·D·Lᵀ` drops the diagonal CHOLMOD stores `D` in, leaving it implicit.
      */
     internal val lowerFactor: F64SparseMatrix
         get() {
             val held = factors
-            val values = held.values.copyOf()
-            if (!isLl) for (k in 0 until held.order) values[held.colPtr[k]] = 1.0
-            return F64SparseMatrix.wrap(held.order, held.order, held.colPtr.copyOf(), held.rowIdx.copyOf(), values)
+            if (isLl) {
+                return F64SparseMatrix.wrap(
+                    held.order,
+                    held.order,
+                    held.colPtr.copyOf(),
+                    held.rowIdx.copyOf(),
+                    held.values.copyOf(),
+                )
+            }
+            // An `L·D·Lᵀ` keeps `D` on the diagonal CHOLMOD stores, and this seam holds it separately with
+            // the unit diagonal implicit, so that entry is dropped rather than replaced by a one.
+            val colPtr = IntArray(held.order + 1)
+            for (k in 0 until held.order) {
+                colPtr[k + 1] = colPtr[k] + (held.colPtr[k + 1] - held.colPtr[k] - 1)
+            }
+            val rows = IntArray(colPtr[held.order])
+            val entries = DoubleArray(colPtr[held.order])
+            for (k in 0 until held.order) {
+                var slot = colPtr[k]
+                for (q in held.colPtr[k] + 1 until held.colPtr[k + 1]) {
+                    rows[slot] = held.rowIdx[q]
+                    entries[slot] = held.values[q]
+                    slot++
+                }
+            }
+            return F64SparseMatrix.wrap(held.order, held.order, colPtr, rows, entries)
         }
 
     /** The diagonal factor of an `L·D·Lᵀ`, which CHOLMOD stores as the diagonal of `L`. */
