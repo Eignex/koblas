@@ -40,9 +40,11 @@ class SparseQrHostBenchmark {
         println("resolved: sparseDecompositions=$half rows=${a.rows} cols=${a.cols} nnz(A)=${a.nnz}")
     }
 
-    // Closed rather than left to the cleaner, which would measure the collector too.
+    // Returned rather than reduced to a field, so the factorization escapes and the JIT cannot discard it,
+    // and closed rather than left to the cleaner, which would measure the collector. Reading `r` does both
+    // too, and charges a native binding a second factorization the portable one never performs.
     @Benchmark
-    fun qr(): Int = a.qr().use { it.n }
+    fun qr(): F64SparseQrFactorization = a.qr().also { it.close() }
 
     @Benchmark
     fun qrApplyQ(): DoubleArray = factored.applyQ(b, transpose = true)
