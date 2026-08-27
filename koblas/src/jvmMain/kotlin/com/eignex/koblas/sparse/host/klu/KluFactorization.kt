@@ -5,7 +5,7 @@ import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.internal.host.nativeCleaner
-import com.eignex.koblas.sparse.F64SparseFactorization
+import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.F64SparseFactorizationReport
 import com.eignex.koblas.sparse.basicReport
 import com.eignex.koblas.sparse.requireBlockSolveShapes
@@ -17,7 +17,7 @@ public class KluFactorization internal constructor(
     initialFailedAt: Int,
     private val factor: KluFactor,
     private val calls: KluCalls,
-) : F64SparseFactorization {
+) : F64SparseLuFactorization {
     override var failedAt: Int = initialFailedAt
         private set
 
@@ -35,6 +35,30 @@ public class KluFactorization internal constructor(
     private val cleanable = nativeCleaner.register(this, lifecycle)
 
     override val n: Int get() = factor.n
+
+    /**
+     * The factors, extracted on the first read. KLU copies them out of its numeric object, so a caller who
+     * only solves or refactorizes never pays for them.
+     */
+    private val extracted: KluFactors by lazy {
+        checkNotNull(calls.extract(factor)) {
+            "this libklu does not expose klu_extract, so its factors cannot be read"
+        }
+    }
+
+    private val factors: KluFactors get() = lifecycle.withResource { extracted }
+
+    override val l: F64SparseMatrix get() = factors.lower
+
+    override val u: F64SparseMatrix get() = factors.upper
+
+    override val offDiagonal: F64SparseMatrix get() = factors.offDiagonal
+
+    override val rowOrder: IntArray get() = factors.rowOrder.copyOf()
+
+    override val columnOrder: IntArray get() = factors.columnOrder.copyOf()
+
+    override val rowScaling: DoubleArray get() = factors.rowScaling.copyOf()
 
     override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability =
         noSizeDependentManagedAllocation

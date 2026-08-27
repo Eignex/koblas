@@ -18,9 +18,14 @@ import com.eignex.koblas.core.F64SparseMatrix
 /**
  * The factors a general sparse LU produces, indexed by pivot position.
  *
- * The identity they satisfy is `L·U = P·diag(rowScaling)·A·Q`, where `P` is [rowOrder] and `Q` is
- * [columnOrder]. [rowScaling] multiplies rather than divides, whatever a library's own convention, so the
- * identity reads one way everywhere.
+ * The identity they satisfy is `L·U + F = P·diag(rowScaling)·A·Q`, where `P` is [rowOrder], `Q` is
+ * [columnOrder] and `F` is [offDiagonal]. [rowScaling] multiplies rather than divides, whatever a library's
+ * own convention, so the identity reads one way everywhere.
+ *
+ * `F` is empty for a factorization that eliminates over the whole matrix at once, which is most of them, and
+ * the identity then reads as the `L·U` one would expect. It is there for a provider that permutes to block
+ * triangular form first and factors the blocks: KLU does, and its off-diagonal blocks are neither in `L` nor
+ * in `U`.
  */
 public interface F64SparseLuFactorization : F64SparseFactorization {
     /** Unit lower triangular, its diagonal stored. */
@@ -40,6 +45,13 @@ public interface F64SparseLuFactorization : F64SparseFactorization {
      * does not equilibrate, so the identity above needs no special case for it.
      */
     public val rowScaling: DoubleArray
+
+    /**
+     * The entries outside the diagonal blocks, `F` in the identity above. Empty unless the provider factored
+     * a block triangular form, which is the usual case.
+     */
+    public val offDiagonal: F64SparseMatrix
+        get() = F64SparseMatrix.wrap(n, n, IntArray(n + 1), IntArray(0), DoubleArray(0))
 }
 
 /** The `A = L·Lᵀ` a sparse Cholesky produces. */

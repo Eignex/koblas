@@ -28,8 +28,12 @@ internal const val KLU_COMMON_SCALE = 48L
 internal const val KLU_COMMON_HALT_IF_SINGULAR = 72L
 internal const val KLU_COMMON_STATUS = 76L
 internal const val KLU_COMMON_RCOND = 112L
+internal const val KLU_NUMERIC_NBLOCKS = 4L
 internal const val KLU_NUMERIC_LNZ = 8L
 internal const val KLU_NUMERIC_UNZ = 12L
+
+/** Entries outside the diagonal blocks, the last field of a `klu_numeric` and the size `F` needs. */
+internal const val KLU_NUMERIC_NZOFF = 160L
 internal const val KLU_SCALE_NONE = 0
 internal const val KLU_SCALE_MAX = 2
 internal const val KLU_SINGULAR = 1
