@@ -80,7 +80,7 @@ class SparseCholeskyTest {
         val n = 9
         val (sparse, dense) = spd(n, rng)
 
-        val l = (F64ReferenceSparseLinearAlgebra.cholesky(sparse) as F64SparseCholeskyFactorization).l
+        val l = (F64ReferenceSparseLinearAlgebra.cholesky(sparse) as F64SparseUpLookingCholesky).l
 
         for (j in 0 until n) {
             for (i in j until n) {
@@ -97,7 +97,7 @@ class SparseCholeskyTest {
         val n = 8
         val (sparse, _) = spd(n, rng)
 
-        val l = (F64ReferenceSparseLinearAlgebra.cholesky(sparse) as F64SparseCholeskyFactorization).l
+        val l = (F64ReferenceSparseLinearAlgebra.cholesky(sparse) as F64SparseUpLookingCholesky).l
 
         for (j in 0 until n) {
             var aboveDiagonal = 0

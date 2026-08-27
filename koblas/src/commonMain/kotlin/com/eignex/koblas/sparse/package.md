@@ -111,10 +111,10 @@ CHOLMOD supplies the symmetric routines used by the SuiteSparse providers, and S
 capabilities compete only with other providers of the same role, independently of which provider fills
 general or repeated-pattern LU.
 
-- LU: [F64SparseLuFactorization][com.eignex.koblas.sparse.factorization.lu.F64SparseLuFactorization], a
+- LU: [F64SparseMarkowitzLu][com.eignex.koblas.sparse.factorization.lu.F64SparseMarkowitzLu], a
   Markowitz threshold-pivoting `P·B·Q = L·U` that keeps the factors sparse instead of filling toward `O(m²)`.
 - Cholesky:
-  [F64SparseCholeskyFactorization][com.eignex.koblas.sparse.factorization.cholesky.F64SparseCholeskyFactorization],
+  [F64SparseUpLookingCholesky][com.eignex.koblas.sparse.factorization.cholesky.F64SparseUpLookingCholesky],
   an up-looking `A = L·Lᵀ` over the elimination tree, in the ordering the matrix arrives in.
 - QR: [F64SparseHouseholderQr][com.eignex.koblas.sparse.factorization.qr.F64SparseHouseholderQr], Householder
   reflections over the elimination tree of `AᵀA`, in the ordering the matrix arrives in. `Q` is held as the

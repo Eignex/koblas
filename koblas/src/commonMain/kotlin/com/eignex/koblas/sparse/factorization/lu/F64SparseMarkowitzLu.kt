@@ -10,7 +10,7 @@ import kotlin.math.*
  * Sparse LU factorization `P·B·Q = L·U` of an `m × m` matrix with Markowitz threshold pivoting. The factors
  * are held in both orientations, indexed by pivot position.
  */
-public class F64SparseLuFactorization private constructor(
+public class F64SparseMarkowitzLu private constructor(
     private val m: Int,
     private val perm: IntArray, // perm(k) is the original row now at pivot position k
     private val colPerm: IntArray, // colPerm(k) is the original column now at pivot position k
@@ -29,7 +29,7 @@ public class F64SparseLuFactorization private constructor(
     /** Nonzeros in L and U including the diagonal, the factorization's fill. */
     override val nnz: Int,
     private val inputNonzeros: Int,
-) : F64SparseFactorization {
+) : F64SparseLuFactorization {
 
     private val solveAllocation = AllocationCapability(
         AllocationGuarantee.NO_MANAGED_OR_NATIVE,
@@ -38,7 +38,59 @@ public class F64SparseLuFactorization private constructor(
 
     override val n: Int get() = m
 
-    /** Always [NOT_SINGULAR]: a [F64SparseLuFactorization] only exists for a matrix that factored completely. */
+    /**
+     * Unit lower triangular, built from the by-column factors this holds. The diagonal is implicit in the
+     * factorization and stored here, so `P·A·Q = L·U` reads without a special case for it.
+     */
+    override val l: F64SparseMatrix
+        get() = triangular(lColIdx, lColVal, diagonalFirst = true) { 1.0 }
+
+    /** Upper triangular, the diagonal taken from the pivots. */
+    override val u: F64SparseMatrix
+        get() = triangular(uColIdx, uColVal, diagonalFirst = false) { uDiag[it] }
+
+    override val rowOrder: IntArray get() = perm.copyOf()
+
+    override val columnOrder: IntArray get() = colPerm.copyOf()
+
+    override val rowScaling: DoubleArray get() = rowScale.copyOf()
+
+    /**
+     * One triangle as CSC with rows ascending. The off-diagonal entries of a column are held unordered, so
+     * they are sorted here; the diagonal is placed at the end it belongs to rather than sorted into them.
+     */
+    private inline fun triangular(
+        columns: Array<IntArray>,
+        values: Array<DoubleArray>,
+        diagonalFirst: Boolean,
+        diagonal: (Int) -> Double,
+    ): F64SparseMatrix {
+        val colPtr = IntArray(m + 1)
+        for (k in 0 until m) colPtr[k + 1] = colPtr[k] + columns[k].size + 1
+        val rowIdx = IntArray(colPtr[m])
+        val entries = DoubleArray(colPtr[m])
+        for (k in 0 until m) {
+            val order = columns[k].indices.sortedBy { columns[k][it] }
+            var slot = colPtr[k]
+            if (diagonalFirst) {
+                rowIdx[slot] = k
+                entries[slot] = diagonal(k)
+                slot++
+            }
+            for (position in order) {
+                rowIdx[slot] = columns[k][position]
+                entries[slot] = values[k][position]
+                slot++
+            }
+            if (!diagonalFirst) {
+                rowIdx[slot] = k
+                entries[slot] = diagonal(k)
+            }
+        }
+        return F64SparseMatrix.wrap(m, m, colPtr, rowIdx, entries)
+    }
+
+    /** Always [NOT_SINGULAR]: a [F64SparseMarkowitzLu] only exists for a matrix that factored completely. */
     override val failedAt: Int get() = NOT_SINGULAR
 
     override val rcond: Double
@@ -169,8 +221,8 @@ public class F64SparseLuFactorization private constructor(
             a: F64SparseMatrix,
             equilibrate: Boolean = false,
             dropTolerance: Double = NO_DROP,
-        ): F64SparseFactorization {
-            requireSquare(a, "F64SparseLuFactorization")
+        ): F64SparseLuFactorization {
+            requireSquare(a, "F64SparseMarkowitzLu")
             val rows = Array(a.rows) { MutableIntDoubleMap() }
             for (j in 0 until a.cols) a.forEachInColumn(j) { i, v -> rows[i].put(j, v) }
             return factorize(rows, a.rows, equilibrate, dropTolerance)
@@ -190,7 +242,7 @@ public class F64SparseLuFactorization private constructor(
             m: Int,
             equilibrate: Boolean = false,
             dropTolerance: Double = NO_DROP,
-        ): F64SparseFactorization {
+        ): F64SparseLuFactorization {
             require(dropTolerance >= 0.0) { "dropTolerance must be non-negative; got $dropTolerance" }
             val inputNonzeros = rows.sumOf { it.size }
             val rowScale = DoubleArray(m) { 1.0 }
@@ -247,7 +299,7 @@ public class F64SparseLuFactorization private constructor(
             m: Int,
             rowScale: DoubleArray,
             inputNonzeros: Int,
-        ): F64SparseLuFactorization {
+        ): F64SparseMarkowitzLu {
             val invPerm = inverseOf(perm)
             val invColPerm = inverseOf(colPerm)
             val uDiag = DoubleArray(m) { k -> u[perm[k]].getOrDefault(colPerm[k], 0.0) }
@@ -258,7 +310,7 @@ public class F64SparseLuFactorization private constructor(
             val lCol = columnOrientation(m, lRowIdx, lRowVal, strictlyAbovePivot = false)
             var nnz = 0
             for (k in 0 until m) nnz += uRowIdx[k].size + lRowIdx[k].size
-            return F64SparseLuFactorization(
+            return F64SparseMarkowitzLu(
                 m, perm, colPerm, lRowIdx, lRowVal, uRowIdx, uRowVal,
                 lCol.indices, lCol.values, uCol.indices, uCol.values,
                 uDiag, rowScale, nnz, inputNonzeros,

@@ -14,7 +14,7 @@ import kotlin.test.assertTrue
 
 class SparseLdlTest {
 
-    private fun ldl(a: F64SparseMatrix) = F64SparseLdlFactorization.factorLower(a)
+    private fun ldl(a: F64SparseMatrix) = F64SparseUpLookingLdl.factorLower(a)
 
     /** The full symmetric matrix a stored lower triangle stands for, for taking a residual against. */
     private fun multiplySymmetric(a: F64SparseMatrix, x: DoubleArray): DoubleArray {

@@ -2,7 +2,7 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.sparse.factorization.cholesky.F64SparseCholeskyFactorization
+import com.eignex.koblas.sparse.factorization.cholesky.F64SparseUpLookingCholesky
 import kotlin.test.*
 
 class SparseAllocationContractTest {
@@ -46,7 +46,7 @@ class SparseAllocationContractTest {
 
     @Test
     fun `allocation free sparse cholesky needs no workspace`() {
-        val factor = F64SparseCholeskyFactorization.factorLower(matrix())
+        val factor = F64SparseUpLookingCholesky.factorLower(matrix())
         val out = DoubleArray(2)
 
         factor.solveInto(
