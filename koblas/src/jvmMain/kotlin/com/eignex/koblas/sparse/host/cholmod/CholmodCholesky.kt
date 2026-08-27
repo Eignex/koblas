@@ -3,7 +3,8 @@ package com.eignex.koblas.sparse.host.cholmod
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.NotPositiveDefinite
 import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.sparse.F64SparseFactorization
+import com.eignex.koblas.sparse.F64SparseCholeskyFactorization
+import com.eignex.koblas.sparse.F64SparseLdlFactorization
 
 /**
  * CHOLMOD's sparse Cholesky, as the routine a SuiteSparse backend fills its Cholesky half with.
@@ -27,14 +28,14 @@ public class CholmodCholesky(config: CholmodConfig = CholmodConfig()) {
      *
      * @throws NotPositiveDefinite at the column CHOLMOD stopped at, matching the portable Cholesky.
      */
-    public fun factor(a: F64SparseMatrix): F64SparseFactorization? {
+    public fun factor(a: F64SparseMatrix): F64SparseCholeskyFactorization? {
         val factor = CholmodMatrix.lowerTriangleOf(a).use { calls.factorize(it) } ?: return null
         if (factor.minor < factor.n) {
             val column = factor.minor
             calls.free(factor)
             throw NotPositiveDefinite(column, 0.0, "cholesky: CHOLMOD stopped at column $column, which is not positive")
         }
-        return CholmodFactorization(factor, calls)
+        return CholmodCholeskyFactorization(CholmodFactorization(factor, calls))
     }
 
     /**
@@ -44,9 +45,9 @@ public class CholmodCholesky(config: CholmodConfig = CholmodConfig()) {
      * since an `L·D·Lᵀ` failing means the matrix is singular where an `L·Lᵀ` failing only means it was not
      * positive definite.
      */
-    public fun factorLdl(a: F64SparseMatrix): F64SparseFactorization? {
+    public fun factorLdl(a: F64SparseMatrix): F64SparseLdlFactorization? {
         val factor = CholmodMatrix.lowerTriangleOf(a).use { calls.factorize(it, ldl = true) } ?: return null
         val failedAt = if (factor.minor < factor.n) factor.minor else NOT_SINGULAR
-        return CholmodFactorization(factor, calls, failedAt)
+        return CholmodLdlFactorization(CholmodFactorization(factor, calls, failedAt))
     }
 }
