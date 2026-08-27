@@ -105,6 +105,7 @@ public final class com/eignex/koblas/BackendRouteReason : java/lang/Enum {
 	public static final field NOT_REPORTED Lcom/eignex/koblas/BackendRouteReason;
 	public static final field SELECTED_PORTABLE Lcom/eignex/koblas/BackendRouteReason;
 	public static final field UNSUPPORTED_ARGUMENTS Lcom/eignex/koblas/BackendRouteReason;
+	public static final field UNSUPPORTED_OPERATION Lcom/eignex/koblas/BackendRouteReason;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/BackendRouteReason;
 	public static fun values ()[Lcom/eignex/koblas/BackendRouteReason;
@@ -429,6 +430,29 @@ public final class com/eignex/koblas/F64RouteQuery$SparseLu : com/eignex/koblas/
 	public fun equals (Ljava/lang/Object;)Z
 	public fun getRole ()Lcom/eignex/koblas/BackendRole;
 	public final fun getStoredEntries ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/eignex/koblas/F64RouteQuery$SparseTriangularSolve : com/eignex/koblas/F64RouteQuery {
+	public fun <init> (IIZZZZ)V
+	public synthetic fun <init> (IIZZZZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()I
+	public final fun component2 ()I
+	public final fun component3 ()Z
+	public final fun component4 ()Z
+	public final fun component5 ()Z
+	public final fun component6 ()Z
+	public final fun copy (IIZZZZ)Lcom/eignex/koblas/F64RouteQuery$SparseTriangularSolve;
+	public static synthetic fun copy$default (Lcom/eignex/koblas/F64RouteQuery$SparseTriangularSolve;IIZZZZILjava/lang/Object;)Lcom/eignex/koblas/F64RouteQuery$SparseTriangularSolve;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getLower ()Z
+	public final fun getRight ()Z
+	public final fun getRightHandSides ()I
+	public fun getRole ()Lcom/eignex/koblas/BackendRole;
+	public final fun getStoredEntries ()I
+	public final fun getTranspose ()Z
+	public final fun getUnitDiagonal ()Z
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
@@ -1756,8 +1780,10 @@ public abstract class com/eignex/koblas/sparse/host/F64SparseBlasAdapter : com/e
 	public fun prepare (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64PreparedSparseMatrix;
 	public fun route (Lcom/eignex/koblas/F64RouteQuery;)Lcom/eignex/koblas/BackendRoute;
 	public final fun transpose (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/core/F64SparseMatrix;
-	public final fun trsm (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZZZZD)V
-	public final fun trsv (Lcom/eignex/koblas/core/F64SparseMatrix;[DZZZ)V
+	protected final fun triangularRoute (Lcom/eignex/koblas/F64RouteQuery$SparseTriangularSolve;IZ)Lcom/eignex/koblas/BackendRoute;
+	public static synthetic fun triangularRoute$default (Lcom/eignex/koblas/sparse/host/F64SparseBlasAdapter;Lcom/eignex/koblas/F64RouteQuery$SparseTriangularSolve;IZILjava/lang/Object;)Lcom/eignex/koblas/BackendRoute;
+	public fun trsm (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZZZZD)V
+	public fun trsv (Lcom/eignex/koblas/core/F64SparseMatrix;[DZZZ)V
 }
 
 public abstract class com/eignex/koblas/sparse/host/F64SparseDecompositionsAdapter : com/eignex/koblas/BackendMetadataProvider, com/eignex/koblas/F64RoutingBackend, com/eignex/koblas/sparse/F64SparseDecompositions {

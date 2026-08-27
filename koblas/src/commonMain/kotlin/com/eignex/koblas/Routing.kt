@@ -66,6 +66,32 @@ public sealed interface F64RouteQuery {
         }
     }
 
+    /**
+     * An in-place solve against a caller-supplied sparse triangle.
+     *
+     * @property storedEntries stored entries in the triangular matrix.
+     * @property rightHandSides independent vectors solved in this call.
+     * @property lower whether the lower triangle is used rather than the upper triangle.
+     * @property right whether the triangle is applied from the right.
+     * @property transpose whether the triangle is transposed.
+     * @property unitDiagonal whether the stored diagonal is ignored and treated as one.
+     */
+    public data class SparseTriangularSolve(
+        val storedEntries: Int,
+        val rightHandSides: Int = 1,
+        val lower: Boolean = true,
+        val right: Boolean = false,
+        val transpose: Boolean = false,
+        val unitDiagonal: Boolean = false,
+    ) : F64RouteQuery {
+        override val role: BackendRole get() = BackendRole.SPARSE_BLAS
+
+        init {
+            requireNonNegative(storedEntries, "storedEntries")
+            requireNonNegative(rightHandSides, "rightHandSides")
+        }
+    }
+
     /** A general sparse LU factorization of a matrix with [storedEntries] stored entries. */
     public data class SparseLu(val storedEntries: Int) : F64RouteQuery {
         override val role: BackendRole get() = BackendRole.SPARSE_GENERAL_LU
@@ -116,6 +142,9 @@ public enum class BackendRouteReason {
 
     /** This argument form is deliberately handled by the portable implementation. */
     UNSUPPORTED_ARGUMENTS,
+
+    /** The selected provider has no native implementation of this operation. */
+    UNSUPPORTED_OPERATION,
 
     /** The selected backend will execute this operation natively. */
     NATIVE_ROUTE,
@@ -252,6 +281,28 @@ internal fun thresholdRoute(
         )
     }
 }
+
+/** Builds a reported portable route that does not depend on a threshold. */
+internal fun portableRoute(
+    query: F64RouteQuery,
+    backend: Backend,
+    portableExecutor: String,
+    reason: BackendRouteReason,
+): BackendRoute = BackendRoute(
+    query,
+    BackendStatus(
+        query.role,
+        backend.name,
+        backend.priority,
+        backend.isAvailable,
+        backend.isPortable,
+        accelerated = !backend.isPortable,
+        (backend as? BackendMetadataProvider)?.backendMetadata ?: BackendMetadata(),
+    ),
+    BackendExecution.PORTABLE,
+    portableExecutor,
+    reason,
+)
 
 /** The saturated product used only for displaying a level-3 gate without overflowing. */
 internal fun saturatedProduct(a: Int, b: Int, c: Int): Long {

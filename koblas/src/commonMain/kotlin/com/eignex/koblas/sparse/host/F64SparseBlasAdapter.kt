@@ -14,9 +14,11 @@ import com.eignex.koblas.sparse.F64SparseBlas
  * work saves on a small problem. The gate counts stored entries rather than a dimension, because that is what
  * sparse work scales with.
  *
- * Only the products route natively. The libraries koblas binds carry a sparse-times-dense multiply and no
- * triangular solve over a caller's matrix, so [trsv] and [trsm] stay portable here rather than declaring a
- * hook nothing would fill.
+ * Only the products route natively by default. The libraries koblas currently binds carry no triangular
+ * solve over a caller's matrix, so [trsv] and [trsm] stay portable here. They remain open for a provider that
+ * can preserve the public storage, aliasing, singularity, and in-place contracts. Such a provider must also
+ * override [route] for [F64RouteQuery.SparseTriangularSolve] through [triangularRoute] and use a measured
+ * gate; availability alone is not a dispatch decision.
  *
  * @param level2Min stored entries from which this binding multiplies natively, or null for the platform
  *   default. It moves the sparse product gate, not the dense level-2 one, which a vector-kernel platform sets
@@ -38,6 +40,9 @@ public abstract class F64SparseBlasAdapter protected constructor(level2Min: Int?
     override val isPortable: Boolean get() = false
 
     override fun route(query: F64RouteQuery): BackendRoute? {
+        if (query is F64RouteQuery.SparseTriangularSolve) {
+            return portableRoute(query, this, portable.name, BackendRouteReason.UNSUPPORTED_OPERATION)
+        }
         if (query !is F64RouteQuery.SparseDenseGemm) return null
         val threshold = thresholdRoute(
             query,
@@ -49,6 +54,37 @@ public abstract class F64SparseBlasAdapter protected constructor(level2Min: Int?
         if (threshold.execution != BackendExecution.NATIVE || (!query.right && !query.transposeDense)) {
             return threshold
         }
+        return threshold.copy(
+            execution = BackendExecution.PORTABLE,
+            executor = portable.name,
+            reason = BackendRouteReason.UNSUPPORTED_ARGUMENTS,
+        )
+    }
+
+    /**
+     * Builds the measured route for a specialized sparse triangular solve.
+     *
+     * [supported] describes argument forms the provider cannot execute, independently of the crossover.
+     * Subclasses overriding [trsv] or [trsm] should return this from [route] for the matching queries.
+     */
+    protected fun triangularRoute(
+        query: F64RouteQuery.SparseTriangularSolve,
+        minimumStoredEntries: Int,
+        supported: Boolean = true,
+    ): BackendRoute {
+        require(minimumStoredEntries >= 0) { "minimumStoredEntries must not be negative" }
+        val threshold = thresholdRoute(
+            query,
+            this,
+            portable.name,
+            DispatchGate(
+                DispatchMetric.STORED_ENTRIES,
+                query.storedEntries.toLong(),
+                minimumStoredEntries.toLong(),
+            ),
+            query.storedEntries >= minimumStoredEntries,
+        )
+        if (supported || threshold.execution != BackendExecution.NATIVE) return threshold
         return threshold.copy(
             execution = BackendExecution.PORTABLE,
             executor = portable.name,
@@ -102,7 +138,7 @@ public abstract class F64SparseBlasAdapter protected constructor(level2Min: Int?
         c: F64DenseMatrix,
     )
 
-    final override fun trsv(
+    override fun trsv(
         a: F64SparseMatrix,
         x: DoubleArray,
         lower: Boolean,
@@ -111,7 +147,7 @@ public abstract class F64SparseBlasAdapter protected constructor(level2Min: Int?
     ): Unit = portable.trsv(a, x, lower, transpose, unitDiag)
 
     @Suppress("LongParameterList") // the BLAS dtrsm signature
-    final override fun trsm(
+    override fun trsm(
         a: F64SparseMatrix,
         b: F64DenseMatrix,
         lower: Boolean,
