@@ -17,6 +17,12 @@ mirror the dense ones.
   the type either would fill: what a sparse product discovers is its own pattern, so there is no destination
   to hand in before the multiplication has run and no `beta · C` to accumulate into. Everything else on this
   seam keeps the BLAS shape, where the caller owns the memory.
+
+  [F64SparseBlas.prepare] takes an immutable CSC snapshot for repeated products. A CHOLMOD implementation
+  retains its native descriptor until the returned [F64PreparedSparseMatrix] is closed, so iterative methods
+  do not recopy column pointers, row indices, and values on every multiply. The prepared-operation gates are
+  separate from the setup-inclusive one-shot gate. Handles reject calls after close and require external
+  serialization when shared between threads.
 - [F64SparseDecompositions] — the compatibility composition of the selected general LU, Cholesky, and LDL
   roles. [F64SparseDecompositions.factor] is the general LU and
   returns [F64SparseFactorization], never null: a singular matrix yields a factorization reporting

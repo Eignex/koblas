@@ -33,6 +33,7 @@ class SparseProductHostBenchmark {
     private lateinit var productSingle: F64DenseMatrix
     private lateinit var triangle: F64SparseMatrix
     private lateinit var scratch: DoubleArray
+    private lateinit var prepared: F64PreparedSparseMatrix
 
     @Setup
     fun setup() {
@@ -49,7 +50,13 @@ class SparseProductHostBenchmark {
         productSingle = randomMatrix(n, 1, rng)
         triangle = bandUpperTriangle(n)
         scratch = randomVector(n, rng)
+        prepared = koblas.sparseBlas.prepare(a)
         println("resolved: sparseBlas=${koblas.sparseBlas.name} n=$n nnz(A)=${a.nnz}")
+    }
+
+    @TearDown
+    fun tearDown() {
+        prepared.close()
     }
 
     @Benchmark
@@ -64,6 +71,21 @@ class SparseProductHostBenchmark {
         koblas.sparseBlas.gemm(1.0, a, false, denseSingle, false, 0.0, productSingle)
         return productSingle
     }
+
+    @Benchmark
+    fun preparedGemm(): F64DenseMatrix {
+        prepared.gemm(1.0, false, dense, 0.0, product)
+        return product
+    }
+
+    @Benchmark
+    fun preparedGemv(): DoubleArray {
+        prepared.gemv(1.0, x, 0.0, y)
+        return y
+    }
+
+    @Benchmark
+    fun preparedSparseProduct(): F64SparseMatrix = prepared.gemm(square)
 
     @Benchmark
     fun gemv(): DoubleArray {

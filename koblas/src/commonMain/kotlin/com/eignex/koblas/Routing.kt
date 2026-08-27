@@ -51,6 +51,21 @@ public sealed interface F64RouteQuery {
         }
     }
 
+    /**
+     * A product over a caller-held prepared sparse descriptor.
+     *
+     * @property storedEntries entries retained by the prepared descriptor.
+     * @property kind the product family whose amortized gate is inspected.
+     */
+    public data class PreparedSparseProduct(val storedEntries: Int, val kind: PreparedSparseProductKind) :
+        F64RouteQuery {
+        override val role: BackendRole get() = BackendRole.SPARSE_BLAS
+
+        init {
+            requireNonNegative(storedEntries, "storedEntries")
+        }
+    }
+
     /** A general sparse LU factorization of a matrix with [storedEntries] stored entries. */
     public data class SparseLu(val storedEntries: Int) : F64RouteQuery {
         override val role: BackendRole get() = BackendRole.SPARSE_GENERAL_LU
@@ -59,6 +74,18 @@ public sealed interface F64RouteQuery {
             requireNonNegative(storedEntries, "storedEntries")
         }
     }
+}
+
+/** Operation families whose amortized prepared-descriptor crossovers are measured independently. */
+public enum class PreparedSparseProductKind {
+    /** One dense right-hand side. */
+    GEMV,
+
+    /** Several dense right-hand sides in one call. */
+    DENSE_GEMM,
+
+    /** A second sparse operand and a sparse result. */
+    SPARSE_GEMM,
 }
 
 /** Where an inspected operation will execute. */

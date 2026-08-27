@@ -1,5 +1,6 @@
 package com.eignex.koblas.sparse.host.cholmod
 
+import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.FfmLibrary
 import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
@@ -34,8 +35,10 @@ internal class CholmodCalls(private val config: CholmodConfig) {
         val solve: MethodHandle,
         val rcond: MethodHandle,
         val sdmult: MethodHandle,
+        val ssmult: MethodHandle,
         val freeFactor: MethodHandle,
         val freeDense: MethodHandle,
+        val freeSparse: MethodHandle,
     )
 
     /**
@@ -99,8 +102,14 @@ internal class CholmodCalls(private val config: CholmodConfig) {
                 FfmLibrary.intOf(ADDRESS, JAVA_INT, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
                 critical = false,
             ),
+            ssmult = library.handle(
+                "cholmod_ssmult",
+                FfmLibrary.pointerOf(ADDRESS, ADDRESS, JAVA_INT, JAVA_INT, JAVA_INT, ADDRESS),
+                critical = false,
+            ),
             freeFactor = library.handle("cholmod_free_factor", FfmLibrary.intOf(ADDRESS, ADDRESS), critical = false),
             freeDense = library.handle("cholmod_free_dense", FfmLibrary.intOf(ADDRESS, ADDRESS), critical = false),
+            freeSparse = library.handle("cholmod_free_sparse", FfmLibrary.intOf(ADDRESS, ADDRESS), critical = false),
         )
     } catch (failure: IllegalStateException) {
         bindingFailure = failure.message
@@ -158,6 +167,43 @@ internal class CholmodCalls(private val config: CholmodConfig) {
             bound.freeDense.invokeExact(slot, factor.common) as Int
         }
         return true
+    }
+
+    /** Multiplies two prepared general sparse descriptors and copies the CSC result back. */
+    fun ssmult(a: CholmodMatrix, b: CholmodMatrix): F64SparseMatrix? {
+        val bound = handles ?: return null
+        val shared = common ?: return null
+        val product = bound.ssmult.invokeExact(
+            a.segment,
+            b.segment,
+            CHOLMOD_STYPE_GENERAL,
+            CHOLMOD_TRUE,
+            CHOLMOD_TRUE,
+            shared,
+        ) as MemorySegment
+        if (product.address() == 0L) return null
+        return Arena.ofConfined().use { arena ->
+            try {
+                val descriptor = product.reinterpret(CHOLMOD_SPARSE_BYTES)
+                val rows = descriptor.get(JAVA_LONG, CHOLMOD_SPARSE_NROW).toInt()
+                val cols = descriptor.get(JAVA_LONG, CHOLMOD_SPARSE_NCOL).toInt()
+                val colPtr = IntArray(cols + 1)
+                val p = descriptor.get(ADDRESS, CHOLMOD_SPARSE_P).reinterpret((cols + 1L) * Int.SIZE_BYTES)
+                MemorySegment.copy(p, JAVA_INT, 0L, colPtr, 0, colPtr.size)
+                val nnz = colPtr[cols]
+                val rowIdx = IntArray(nnz)
+                val values = DoubleArray(nnz)
+                val i = descriptor.get(ADDRESS, CHOLMOD_SPARSE_I).reinterpret(nnz.toLong() * Int.SIZE_BYTES)
+                val x = descriptor.get(ADDRESS, CHOLMOD_SPARSE_X).reinterpret(nnz.toLong() * Double.SIZE_BYTES)
+                MemorySegment.copy(i, JAVA_INT, 0L, rowIdx, 0, nnz)
+                MemorySegment.copy(x, JAVA_DOUBLE, 0L, values, 0, nnz)
+                F64SparseMatrix.wrap(rows, cols, colPtr, rowIdx, values)
+            } finally {
+                val slot = arena.allocate(ADDRESS)
+                slot.set(ADDRESS, 0L, product)
+                bound.freeSparse.invokeExact(slot, shared) as Int
+            }
+        }
     }
 
     /** CHOLMOD's own reciprocal condition estimate for [factor]. */
