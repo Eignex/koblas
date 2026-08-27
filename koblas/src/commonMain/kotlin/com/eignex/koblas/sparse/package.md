@@ -47,14 +47,15 @@ mirror the dense ones.
   unique — backends choose different column orderings and different signs — so `columnOrder` names the
   ordering this one chose and the numbers are read against it. Non-uniqueness is a property of the values
   rather than a reason to leave the factors off the type; the conformance tests compare the identities that
-  survive it, which are the least-squares solution, `RᵀR = PᵀAᵀAP`, and `Q` returning what `Qᵀ` was given.
+  survive it: the least-squares solution, `A·P = Q·R`, `RᵀR = PᵀAᵀAP`, and `Q` returning what `Qᵀ` was
+  given.
 
   `Q` is an operator rather than a matrix. It is `m×m` and dense in general even where `A` and `R` are
   sparse, and libraries hold it as the Householder vectors that build it, so `applyQInto` is the form every
-  implementation can answer without materialising something larger than the problem. SPQR holds `R` in its
-  own form too and its C interface hands back neither factor, so the binding materialises `R` and the rank on
-  first read through a second explicit factorization, and a caller who only wants the solution never pays
-  for it.
+  implementation can answer without materialising something larger than the problem. The SPQR binding asks
+  its expert entry point for `R`, the sparse Householder vectors, their coefficients and both permutations in
+  one factorization. Those coherent factors outlive the native call as ordinary koblas storage, so applying
+  `Q`, reading diagnostics and solving never refactor the input or retain a `cholmod_common`.
 
   Every [F64SparseFactorization] solves either one vector or all columns of a caller-owned dense RHS block.
   The default block path preserves aliasing by staging a column; KLU and CHOLMOD specialize it through one

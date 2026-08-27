@@ -117,6 +117,25 @@ class F64SparseHouseholderQrTest {
         assertEquals(3, qr.m)
         assertEquals(2, qr.n)
     }
+
+    @Test
+    fun `large finite values do not overflow the reflector`() {
+        val a = F64SparseMatrix.ofColumns(2, 1, listOf(listOf(0 to 1e200, 1 to 1e200)))
+
+        val x = F64SparseHouseholderQr.factor(a).solve(doubleArrayOf(1e200, 1e200))
+
+        assertTrue(x[0].isFinite())
+        assertEquals(1.0, x[0], 1e-12)
+    }
+
+    @Test
+    fun `small finite values do not lose the reflector tail`() {
+        val a = F64SparseMatrix.ofColumns(2, 1, listOf(listOf(0 to 1e-200, 1 to 1e-200)))
+
+        val x = F64SparseHouseholderQr.factor(a).solve(doubleArrayOf(0.0, 1e-200))
+
+        assertEquals(0.5, x[0], 1e-12)
+    }
 }
 
 private fun tallSparseMatrix(m: Int, n: Int, rng: Random): F64SparseMatrix {

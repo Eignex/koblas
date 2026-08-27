@@ -30,6 +30,7 @@ public open class KluSparseLu(
     config.factorizeMin,
     config.equilibrate,
     BackendMetadata(options = config.options.metadataOptions()),
+    qrFactorizeMin = config.qrFactorizeMin,
 ),
     com.eignex.koblas.sparse.F64GeneralSparseLu,
     com.eignex.koblas.sparse.F64RepeatedSparseLu,

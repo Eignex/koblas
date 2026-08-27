@@ -1,5 +1,9 @@
 package com.eignex.koblas.sparse.host.spqr
 
+import com.eignex.koblas.AllocationGuarantee
+import com.eignex.koblas.AllocationPolicy
+import com.eignex.koblas.SingularMatrix
+import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
@@ -82,6 +86,26 @@ class SpqrQrTest {
         assertNotNull(spqr.factor(a)).use { qr ->
             assertEquals(2, qr.rank)
             assertTrue(qr.rankDeficient)
+            assertFailsWith<SingularMatrix> { qr.solve(DoubleArray(4) { 1.0 }) }
+        }
+    }
+
+    @Test
+    fun `solve honors the no managed allocation contract with reserved scratch`() {
+        requireSpqr()
+        val a = tall(40, 14, Random(20260907))
+        val b = DoubleArray(40) { it.toDouble() }
+
+        assertNotNull(spqr.factor(a)).use { qr ->
+            val capability = qr.solveAllocation()
+            assertEquals(AllocationGuarantee.NO_MANAGED, capability.guarantee)
+            val workspace = Workspace().also { ws -> capability.scratch.forEach(ws::reserve) }
+            qr.solveInto(
+                b,
+                DoubleArray(14),
+                workspace,
+                allocationPolicy = AllocationPolicy.REQUIRE_NO_MANAGED,
+            )
         }
     }
 

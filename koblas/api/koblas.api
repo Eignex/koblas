@@ -2176,8 +2176,8 @@ public abstract class com/eignex/koblas/sparse/host/F64SparseBlasAdapter : com/e
 
 public abstract class com/eignex/koblas/sparse/host/F64SparseDecompositionsAdapter : com/eignex/koblas/BackendMetadataProvider, com/eignex/koblas/F64RoutingBackend, com/eignex/koblas/sparse/F64SparseDecompositions {
 	protected fun <init> ()V
-	protected fun <init> (Ljava/lang/Integer;ZLcom/eignex/koblas/BackendMetadata;)V
-	public synthetic fun <init> (Ljava/lang/Integer;ZLcom/eignex/koblas/BackendMetadata;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	protected fun <init> (Ljava/lang/Integer;ZLcom/eignex/koblas/BackendMetadata;Ljava/lang/Integer;)V
+	public synthetic fun <init> (Ljava/lang/Integer;ZLcom/eignex/koblas/BackendMetadata;Ljava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun cholesky (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
 	protected fun choleskyNative (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
 	public final fun factor (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseFactorization;
@@ -2410,12 +2410,13 @@ public final class com/eignex/koblas/sparse/host/klu/KluConfig {
 	public fun <init> ()V
 	public fun <init> (Lcom/eignex/koblas/sparse/host/klu/KluOptions;)V
 	public fun <init> (Ljava/lang/String;Lcom/eignex/koblas/sparse/host/klu/KluOptions;)V
-	public fun <init> (Ljava/lang/String;Ljava/lang/Integer;ZLjava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Boolean;Lcom/eignex/koblas/sparse/host/klu/KluOrdering;Lcom/eignex/koblas/sparse/host/klu/KluScaling;Ljava/lang/Boolean;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Integer;ZLjava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Boolean;Lcom/eignex/koblas/sparse/host/klu/KluOrdering;Lcom/eignex/koblas/sparse/host/klu/KluScaling;Ljava/lang/Boolean;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/Integer;ZLjava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Boolean;Lcom/eignex/koblas/sparse/host/klu/KluOrdering;Lcom/eignex/koblas/sparse/host/klu/KluScaling;Ljava/lang/Boolean;Ljava/lang/Integer;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Integer;ZLjava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Boolean;Lcom/eignex/koblas/sparse/host/klu/KluOrdering;Lcom/eignex/koblas/sparse/host/klu/KluScaling;Ljava/lang/Boolean;Ljava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
 	public final fun component10 ()Lcom/eignex/koblas/sparse/host/klu/KluOrdering;
 	public final fun component11 ()Lcom/eignex/koblas/sparse/host/klu/KluScaling;
 	public final fun component12 ()Ljava/lang/Boolean;
+	public final fun component13 ()Ljava/lang/Integer;
 	public final fun component2 ()Ljava/lang/Integer;
 	public final fun component3 ()Z
 	public final fun component4 ()Ljava/lang/Double;
@@ -2424,8 +2425,8 @@ public final class com/eignex/koblas/sparse/host/klu/KluConfig {
 	public final fun component7 ()Ljava/lang/Double;
 	public final fun component8 ()Ljava/lang/Double;
 	public final fun component9 ()Ljava/lang/Boolean;
-	public final fun copy (Ljava/lang/String;Ljava/lang/Integer;ZLjava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Boolean;Lcom/eignex/koblas/sparse/host/klu/KluOrdering;Lcom/eignex/koblas/sparse/host/klu/KluScaling;Ljava/lang/Boolean;)Lcom/eignex/koblas/sparse/host/klu/KluConfig;
-	public static synthetic fun copy$default (Lcom/eignex/koblas/sparse/host/klu/KluConfig;Ljava/lang/String;Ljava/lang/Integer;ZLjava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Boolean;Lcom/eignex/koblas/sparse/host/klu/KluOrdering;Lcom/eignex/koblas/sparse/host/klu/KluScaling;Ljava/lang/Boolean;ILjava/lang/Object;)Lcom/eignex/koblas/sparse/host/klu/KluConfig;
+	public final fun copy (Ljava/lang/String;Ljava/lang/Integer;ZLjava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Boolean;Lcom/eignex/koblas/sparse/host/klu/KluOrdering;Lcom/eignex/koblas/sparse/host/klu/KluScaling;Ljava/lang/Boolean;Ljava/lang/Integer;)Lcom/eignex/koblas/sparse/host/klu/KluConfig;
+	public static synthetic fun copy$default (Lcom/eignex/koblas/sparse/host/klu/KluConfig;Ljava/lang/String;Ljava/lang/Integer;ZLjava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Boolean;Lcom/eignex/koblas/sparse/host/klu/KluOrdering;Lcom/eignex/koblas/sparse/host/klu/KluScaling;Ljava/lang/Boolean;Ljava/lang/Integer;ILjava/lang/Object;)Lcom/eignex/koblas/sparse/host/klu/KluConfig;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAmdInitialMemoryFactor ()Ljava/lang/Double;
 	public final fun getEquilibrate ()Z
@@ -2439,6 +2440,7 @@ public final class com/eignex/koblas/sparse/host/klu/KluConfig {
 	public final fun getOptions ()Lcom/eignex/koblas/sparse/host/klu/KluOptions;
 	public final fun getOrdering ()Lcom/eignex/koblas/sparse/host/klu/KluOrdering;
 	public final fun getPivotTolerance ()Ljava/lang/Double;
+	public final fun getQrFactorizeMin ()Ljava/lang/Integer;
 	public final fun getUseBtf ()Ljava/lang/Boolean;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
@@ -2462,11 +2464,12 @@ public final class com/eignex/koblas/sparse/host/klu/KluFactorization : com/eign
 
 public final class com/eignex/koblas/sparse/host/klu/KluOptions {
 	public fun <init> ()V
-	public fun <init> (Ljava/lang/Integer;ZLjava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Boolean;Lcom/eignex/koblas/sparse/host/klu/KluOrdering;Lcom/eignex/koblas/sparse/host/klu/KluScaling;Ljava/lang/Boolean;)V
-	public synthetic fun <init> (Ljava/lang/Integer;ZLjava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Boolean;Lcom/eignex/koblas/sparse/host/klu/KluOrdering;Lcom/eignex/koblas/sparse/host/klu/KluScaling;Ljava/lang/Boolean;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/Integer;ZLjava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Boolean;Lcom/eignex/koblas/sparse/host/klu/KluOrdering;Lcom/eignex/koblas/sparse/host/klu/KluScaling;Ljava/lang/Boolean;Ljava/lang/Integer;)V
+	public synthetic fun <init> (Ljava/lang/Integer;ZLjava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Boolean;Lcom/eignex/koblas/sparse/host/klu/KluOrdering;Lcom/eignex/koblas/sparse/host/klu/KluScaling;Ljava/lang/Boolean;Ljava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/Integer;
 	public final fun component10 ()Lcom/eignex/koblas/sparse/host/klu/KluScaling;
 	public final fun component11 ()Ljava/lang/Boolean;
+	public final fun component12 ()Ljava/lang/Integer;
 	public final fun component2 ()Z
 	public final fun component3 ()Ljava/lang/Double;
 	public final fun component4 ()Ljava/lang/Double;
@@ -2475,8 +2478,8 @@ public final class com/eignex/koblas/sparse/host/klu/KluOptions {
 	public final fun component7 ()Ljava/lang/Double;
 	public final fun component8 ()Ljava/lang/Boolean;
 	public final fun component9 ()Lcom/eignex/koblas/sparse/host/klu/KluOrdering;
-	public final fun copy (Ljava/lang/Integer;ZLjava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Boolean;Lcom/eignex/koblas/sparse/host/klu/KluOrdering;Lcom/eignex/koblas/sparse/host/klu/KluScaling;Ljava/lang/Boolean;)Lcom/eignex/koblas/sparse/host/klu/KluOptions;
-	public static synthetic fun copy$default (Lcom/eignex/koblas/sparse/host/klu/KluOptions;Ljava/lang/Integer;ZLjava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Boolean;Lcom/eignex/koblas/sparse/host/klu/KluOrdering;Lcom/eignex/koblas/sparse/host/klu/KluScaling;Ljava/lang/Boolean;ILjava/lang/Object;)Lcom/eignex/koblas/sparse/host/klu/KluOptions;
+	public final fun copy (Ljava/lang/Integer;ZLjava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Boolean;Lcom/eignex/koblas/sparse/host/klu/KluOrdering;Lcom/eignex/koblas/sparse/host/klu/KluScaling;Ljava/lang/Boolean;Ljava/lang/Integer;)Lcom/eignex/koblas/sparse/host/klu/KluOptions;
+	public static synthetic fun copy$default (Lcom/eignex/koblas/sparse/host/klu/KluOptions;Ljava/lang/Integer;ZLjava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Boolean;Lcom/eignex/koblas/sparse/host/klu/KluOrdering;Lcom/eignex/koblas/sparse/host/klu/KluScaling;Ljava/lang/Boolean;Ljava/lang/Integer;ILjava/lang/Object;)Lcom/eignex/koblas/sparse/host/klu/KluOptions;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAmdInitialMemoryFactor ()Ljava/lang/Double;
 	public final fun getEquilibrate ()Z
@@ -2488,6 +2491,7 @@ public final class com/eignex/koblas/sparse/host/klu/KluOptions {
 	public final fun getMemoryGrowth ()Ljava/lang/Double;
 	public final fun getOrdering ()Lcom/eignex/koblas/sparse/host/klu/KluOrdering;
 	public final fun getPivotTolerance ()Ljava/lang/Double;
+	public final fun getQrFactorizeMin ()Ljava/lang/Integer;
 	public final fun getUseBtf ()Ljava/lang/Boolean;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
@@ -2599,16 +2603,17 @@ public final class com/eignex/koblas/sparse/host/umfpack/UmfpackConfig {
 	public fun <init> ()V
 	public fun <init> (Lcom/eignex/koblas/sparse/host/umfpack/UmfpackOptions;)V
 	public fun <init> (Ljava/lang/String;Lcom/eignex/koblas/sparse/host/umfpack/UmfpackOptions;)V
-	public fun <init> (Ljava/lang/String;Ljava/lang/Integer;ZIDLcom/eignex/koblas/sparse/host/umfpack/UmfpackScaling;)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Integer;ZIDLcom/eignex/koblas/sparse/host/umfpack/UmfpackScaling;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/Integer;ZIDLcom/eignex/koblas/sparse/host/umfpack/UmfpackScaling;Ljava/lang/Integer;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Integer;ZIDLcom/eignex/koblas/sparse/host/umfpack/UmfpackScaling;Ljava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
 	public final fun component2 ()Ljava/lang/Integer;
 	public final fun component3 ()Z
 	public final fun component4 ()I
 	public final fun component5 ()D
 	public final fun component6 ()Lcom/eignex/koblas/sparse/host/umfpack/UmfpackScaling;
-	public final fun copy (Ljava/lang/String;Ljava/lang/Integer;ZIDLcom/eignex/koblas/sparse/host/umfpack/UmfpackScaling;)Lcom/eignex/koblas/sparse/host/umfpack/UmfpackConfig;
-	public static synthetic fun copy$default (Lcom/eignex/koblas/sparse/host/umfpack/UmfpackConfig;Ljava/lang/String;Ljava/lang/Integer;ZIDLcom/eignex/koblas/sparse/host/umfpack/UmfpackScaling;ILjava/lang/Object;)Lcom/eignex/koblas/sparse/host/umfpack/UmfpackConfig;
+	public final fun component7 ()Ljava/lang/Integer;
+	public final fun copy (Ljava/lang/String;Ljava/lang/Integer;ZIDLcom/eignex/koblas/sparse/host/umfpack/UmfpackScaling;Ljava/lang/Integer;)Lcom/eignex/koblas/sparse/host/umfpack/UmfpackConfig;
+	public static synthetic fun copy$default (Lcom/eignex/koblas/sparse/host/umfpack/UmfpackConfig;Ljava/lang/String;Ljava/lang/Integer;ZIDLcom/eignex/koblas/sparse/host/umfpack/UmfpackScaling;Ljava/lang/Integer;ILjava/lang/Object;)Lcom/eignex/koblas/sparse/host/umfpack/UmfpackConfig;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getEquilibrate ()Z
 	public final fun getFactorizeMin ()Ljava/lang/Integer;
@@ -2616,6 +2621,7 @@ public final class com/eignex/koblas/sparse/host/umfpack/UmfpackConfig {
 	public final fun getLibraryPath ()Ljava/lang/String;
 	public final fun getOptions ()Lcom/eignex/koblas/sparse/host/umfpack/UmfpackOptions;
 	public final fun getPivotTolerance ()D
+	public final fun getQrFactorizeMin ()Ljava/lang/Integer;
 	public final fun getScaling ()Lcom/eignex/koblas/sparse/host/umfpack/UmfpackScaling;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
@@ -2639,20 +2645,22 @@ public final class com/eignex/koblas/sparse/host/umfpack/UmfpackFactorization : 
 
 public final class com/eignex/koblas/sparse/host/umfpack/UmfpackOptions {
 	public fun <init> ()V
-	public fun <init> (Ljava/lang/Integer;ZIDLcom/eignex/koblas/sparse/host/umfpack/UmfpackScaling;)V
-	public synthetic fun <init> (Ljava/lang/Integer;ZIDLcom/eignex/koblas/sparse/host/umfpack/UmfpackScaling;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/Integer;ZIDLcom/eignex/koblas/sparse/host/umfpack/UmfpackScaling;Ljava/lang/Integer;)V
+	public synthetic fun <init> (Ljava/lang/Integer;ZIDLcom/eignex/koblas/sparse/host/umfpack/UmfpackScaling;Ljava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/Integer;
 	public final fun component2 ()Z
 	public final fun component3 ()I
 	public final fun component4 ()D
 	public final fun component5 ()Lcom/eignex/koblas/sparse/host/umfpack/UmfpackScaling;
-	public final fun copy (Ljava/lang/Integer;ZIDLcom/eignex/koblas/sparse/host/umfpack/UmfpackScaling;)Lcom/eignex/koblas/sparse/host/umfpack/UmfpackOptions;
-	public static synthetic fun copy$default (Lcom/eignex/koblas/sparse/host/umfpack/UmfpackOptions;Ljava/lang/Integer;ZIDLcom/eignex/koblas/sparse/host/umfpack/UmfpackScaling;ILjava/lang/Object;)Lcom/eignex/koblas/sparse/host/umfpack/UmfpackOptions;
+	public final fun component6 ()Ljava/lang/Integer;
+	public final fun copy (Ljava/lang/Integer;ZIDLcom/eignex/koblas/sparse/host/umfpack/UmfpackScaling;Ljava/lang/Integer;)Lcom/eignex/koblas/sparse/host/umfpack/UmfpackOptions;
+	public static synthetic fun copy$default (Lcom/eignex/koblas/sparse/host/umfpack/UmfpackOptions;Ljava/lang/Integer;ZIDLcom/eignex/koblas/sparse/host/umfpack/UmfpackScaling;Ljava/lang/Integer;ILjava/lang/Object;)Lcom/eignex/koblas/sparse/host/umfpack/UmfpackOptions;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getEquilibrate ()Z
 	public final fun getFactorizeMin ()Ljava/lang/Integer;
 	public final fun getIterativeRefinementSteps ()I
 	public final fun getPivotTolerance ()D
+	public final fun getQrFactorizeMin ()Ljava/lang/Integer;
 	public final fun getScaling ()Lcom/eignex/koblas/sparse/host/umfpack/UmfpackScaling;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;

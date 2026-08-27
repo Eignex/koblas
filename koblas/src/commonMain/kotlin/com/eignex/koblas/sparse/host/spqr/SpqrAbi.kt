@@ -16,15 +16,7 @@ internal val SPQR_SONAMES: List<String> = listOf(
     "/usr/local/opt/suite-sparse/lib/libspqr.dylib",
 )
 
-internal const val SPQR_QTX = 0
-
-internal const val SPQR_QX = 1
-
-internal const val SPQR_RETX_EQUALS_B = 1
-
 internal const val SPQR_DEFAULT_TOL = -2.0
-
-internal const val SPQR_NO_TOL = -1.0
 
 internal const val SPQR_ORDERING_DEFAULT = 7
 

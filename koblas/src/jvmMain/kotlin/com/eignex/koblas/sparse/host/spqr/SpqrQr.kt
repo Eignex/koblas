@@ -29,8 +29,8 @@ public class SpqrQr(config: SpqrConfig = SpqrConfig()) {
         requireShape(a.rows >= a.cols) {
             "qr: A is ${a.rows}x${a.cols}, which is wider than it is tall; factor its transpose instead"
         }
-        val factor = CholmodMatrix.generalOf(a).use { calls.factorize(it) } ?: return null
-        return SpqrQrFactorization(factor, calls, a, a.rows, a.cols, ordering)
+        val factor = CholmodMatrix.generalOf(a).use { calls.factorize(it, a.rows, a.cols) } ?: return null
+        return SpqrQrFactorization(factor, a.rows, a.cols, ordering)
     }
 }
 

@@ -71,7 +71,10 @@ internal actual fun useUngatedSparseProduct(): Boolean {
 }
 
 internal actual fun useUngatedSparseLu(): Boolean {
-    val backends = F64SparseBackends(KluConfig(factorizeMin = 0), UmfpackConfig(factorizeMin = 0))
+    val backends = F64SparseBackends(
+        KluConfig(factorizeMin = 0, qrFactorizeMin = 0),
+        UmfpackConfig(factorizeMin = 0, qrFactorizeMin = 0),
+    )
     val chosen = listOf(backends.klu, backends.umfpack).firstOrNull { it.isAvailable } ?: return false
     installBackends(koblas.with(sparseDecompositions = chosen))
     return true

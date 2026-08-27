@@ -183,8 +183,9 @@ benchmark {
         }
         // The sparse QR against the portable one, with transpose trailing as the control: it sorts after
         // both subjects and no factorization gate reaches it. Twice as tall as wide, which is the shape a
-        // least-squares caller brings. These four columns are 21, 57, 146 and 456 stored entries, the range
-        // the QR's own crossing sits in; above it SPQR widens to twelve times by 21,996 entries.
+        // least-squares caller brings. These four columns bracket the QR crossover. The factor-only row
+        // returns R rather than a dimension or stored count, so the numeric factor escapes and the JVM
+        // cannot discard work whose result would otherwise be constant.
         suite("sparseQrGate", "SparseQrHostBenchmark", "qr|qrSolve|transpose") {
             gate()
             param("n", "16", "32", "64", "128")

@@ -14,7 +14,7 @@ import com.eignex.koblas.sparse.F64SparseFactorizationReport
 import com.eignex.koblas.sparse.F64SparseQrFactorization
 import com.eignex.koblas.sparse.requireLeastSquaresShapes
 import kotlin.math.abs
-import kotlin.math.sqrt
+import kotlin.math.hypot
 
 /**
  * Sparse QR by Householder reflections, the portable definition the bindings are measured against.
@@ -37,7 +37,7 @@ public class F64SparseHouseholderQr internal constructor(
     private val rValues: DoubleArray,
 ) : F64SparseQrFactorization {
 
-    override val rank: Int = (0 until n).count { rValues[rColPtr[it + 1] - 1] != 0.0 }
+    override val rank: Int = numericalRank(m, n, rColPtr, rValues)
 
     override val nnz: Int get() = vValues.size + rValues.size
 
@@ -91,14 +91,15 @@ public class F64SparseHouseholderQr internal constructor(
         requireShape(out.size == m) { "applyQ: out size ${out.size}, expected $m" }
         workspace.borrow(rows) { x ->
             x.fill(0.0, 0, rows)
-            for (i in 0 until m) x[rowPermutation[i]] = y[i]
-            // Qᵀ applies the reflections in the order formed, Q the other way.
             if (transpose) {
+                for (i in 0 until m) x[rowPermutation[i]] = y[i]
                 for (k in 0 until n) applyReflection(k, x)
+                x.copyInto(out, endIndex = m)
             } else {
+                y.copyInto(x, endIndex = m)
                 for (k in n - 1 downTo 0) applyReflection(k, x)
+                for (i in 0 until m) out[i] = x[rowPermutation[i]]
             }
-            for (i in 0 until m) out[i] = x[rowPermutation[i]]
         }
         return out
     }
@@ -156,6 +157,13 @@ public class F64SparseHouseholderQr internal constructor(
             )
         }
     }
+}
+
+private fun numericalRank(m: Int, n: Int, colPtr: IntArray, values: DoubleArray): Int {
+    var maximum = 0.0
+    for (k in 0 until n) maximum = maxOf(maximum, abs(values[colPtr[k + 1] - 1]))
+    val tolerance = maxOf(m, n) * 2.220446049250313e-16 * maximum
+    return (0 until n).count { abs(values[colPtr[it + 1] - 1]) > tolerance }
 }
 
 /**
@@ -254,19 +262,21 @@ private fun householder(v: DoubleArray, offset: Int, length: Int, beta: DoubleAr
         beta[k] = 0.0
         return 0.0
     }
-    var sigma = 0.0
-    for (i in offset + 1 until offset + length) sigma += v[i] * v[i]
+    var tailNorm = 0.0
+    for (i in offset + 1 until offset + length) tailNorm = hypot(tailNorm, v[i])
     val head = v[offset]
-    if (sigma == 0.0) {
-        beta[k] = if (head <= 0.0) 2.0 else 0.0
+    if (tailNorm == 0.0) {
+        beta[k] = 0.0
         v[offset] = 1.0
-        return abs(head)
+        return head
     }
-    val norm = sqrt(head * head + sigma)
-    // Subtracting the norm from a positive head would cancel, so that case is rearranged.
-    v[offset] = if (head <= 0.0) head - norm else -sigma / (head + norm)
-    beta[k] = -1.0 / (norm * v[offset])
-    return norm
+    val norm = hypot(head, tailNorm)
+    val diagonal = if (head >= 0.0) -norm else norm
+    val leading = head - diagonal
+    v[offset] = 1.0
+    for (i in offset + 1 until offset + length) v[i] /= leading
+    beta[k] = (diagonal - head) / diagonal
+    return diagonal
 }
 
 private fun sortedCsc(rows: Int, cols: Int, colPtr: IntArray, rowIdx: IntArray, values: DoubleArray): F64SparseMatrix {

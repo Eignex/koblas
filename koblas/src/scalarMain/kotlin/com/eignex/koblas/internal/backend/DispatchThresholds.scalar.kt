@@ -12,6 +12,7 @@ internal actual val platformDispatchThresholds: DispatchThresholds =
         factorize = 0,
         symmetricFactorize = NATIVE_SYMMETRIC_FACTORIZE_MIN,
         sparseProduct = NATIVE_SPARSE_PRODUCT_MIN,
+        sparseQr = NATIVE_SPARSE_QR_MIN,
     )
 
 /**
@@ -35,3 +36,10 @@ private const val NATIVE_LEVEL1_MIN = 32
  * descriptor and dense blocks. Keep automatic routing portable until reusable descriptors change that cost.
  */
 private const val NATIVE_SPARSE_PRODUCT_MIN = Int.MAX_VALUE
+
+/**
+ * Stored entries from which SPQR takes sparse QR on Native. At 153 entries factorization was level while a
+ * factor-and-solve was 1.59 times slower; at 467 SPQR was 3.75 and 4.00 times faster. Measured through the
+ * linuxX64 `sparseQrGate`, whose transpose control stayed within six percent between arms.
+ */
+private const val NATIVE_SPARSE_QR_MIN = 320

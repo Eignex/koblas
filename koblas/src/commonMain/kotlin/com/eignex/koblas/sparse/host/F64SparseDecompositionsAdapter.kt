@@ -19,18 +19,25 @@ import com.eignex.koblas.sparse.*
  *   is settled once here rather than per call, since it is policy of a piece with the scaling each
  *   library's own settings already choose.
  * @param metadata effective provider options exposed through structured diagnostics.
+ * @param qrFactorizeMin stored entries from which this binding uses SPQR, or null for the platform's
+ *   independently measured sparse-QR default.
  */
 public abstract class F64SparseDecompositionsAdapter protected constructor(
     factorizeMin: Int? = null,
     protected val equilibrate: Boolean = false,
     private val metadata: BackendMetadata = BackendMetadata(),
+    qrFactorizeMin: Int? = null,
 ) : F64SparseDecompositions,
     F64RoutingBackend,
     BackendMetadataProvider {
     /** Whether the binding resolved every symbol needed to factor and solve. */
     protected abstract val nativeAvailable: Boolean
 
-    private val thresholds = hostDispatchThresholds(factorize = factorizeMin, symmetricFactorize = factorizeMin)
+    private val thresholds = hostDispatchThresholds(
+        factorize = factorizeMin,
+        symmetricFactorize = factorizeMin,
+        sparseQr = qrFactorizeMin,
+    )
     private val factorizeGate = thresholds.factorize
 
     /**
@@ -41,11 +48,8 @@ public abstract class F64SparseDecompositionsAdapter protected constructor(
      */
     private val symmetricGate = thresholds.symmetricFactorize
 
-    /**
-     * The QR rides the general gate. Its own crossing is later, fitted at 368 stored entries on the JVM and
-     * 296 on Kotlin/Native against gates of 128 and 0; the band between is given up.
-     */
-    private val qrGate = factorizeGate
+    /** The independently measured sparse-QR gate for this platform and backend policy. */
+    private val qrGate = thresholds.sparseQr
 
     /** The portable factorization at this backend's own policy, for everything the library will not take. */
     protected val portable: F64ReferenceSparseDecompositions =
