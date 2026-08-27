@@ -2,6 +2,7 @@ package com.eignex.koblas.sparse.host.cholmod
 
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
+import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.internal.host.nativeCleaner
 import com.eignex.koblas.sparse.F64SparseFactorization
@@ -33,6 +34,9 @@ public class CholmodFactorization internal constructor(
         }
     }
 
+    /** Which factorization this holds, read once: converting a copy needs the same answer. */
+    private val isLl: Boolean = factor.isLl
+
     private val solveWorkspace = CholmodSolveWorkspace(factor.n)
     private val lifecycle = NativeResourceLifecycle(
         "CHOLMOD factorization",
@@ -41,6 +45,40 @@ public class CholmodFactorization internal constructor(
     private val cleanable = nativeCleaner.register(this, lifecycle)
 
     override val n: Int = factor.n
+
+    /**
+     * `L` and the ordering, converted on the first read. CHOLMOD copies the factor to convert it, so a
+     * caller who only solves never pays for this.
+     */
+    private val extracted: CholmodFactors by lazy {
+        checkNotNull(calls.extractFactor(factor, asLl = isLl)) {
+            "this libcholmod does not expose cholmod_change_factor, so its factors cannot be read"
+        }
+    }
+
+    private val factors: CholmodFactors get() = lifecycle.withResource { extracted }
+
+    /**
+     * The lower triangular factor. For an `L·D·Lᵀ` CHOLMOD keeps `D` on the diagonal, which this seam holds
+     * separately, so the diagonal is replaced by the implicit ones the interface documents.
+     */
+    internal val lowerFactor: F64SparseMatrix
+        get() {
+            val held = factors
+            val values = held.values.copyOf()
+            if (!isLl) for (k in 0 until held.order) values[held.colPtr[k]] = 1.0
+            return F64SparseMatrix.wrap(held.order, held.order, held.colPtr.copyOf(), held.rowIdx.copyOf(), values)
+        }
+
+    /** The diagonal factor of an `L·D·Lᵀ`, which CHOLMOD stores as the diagonal of `L`. */
+    internal val diagonalFactor: DoubleArray
+        get() {
+            val held = factors
+            return DoubleArray(held.order) { held.values[held.colPtr[it]] }
+        }
+
+    /** The fill-reducing ordering CHOLMOD chose. */
+    internal val ordering: IntArray get() = factors.permutation.copyOf()
 
     override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability = noManagedAllocation
 

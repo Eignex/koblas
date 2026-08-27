@@ -39,6 +39,8 @@ internal class CholmodCalls(private val config: CholmodConfig) {
         val freeFactor: MethodHandle,
         val freeDense: MethodHandle,
         val freeSparse: MethodHandle,
+        val copyFactor: MethodHandle?,
+        val changeFactor: MethodHandle?,
     )
 
     /**
@@ -110,6 +112,17 @@ internal class CholmodCalls(private val config: CholmodConfig) {
             freeFactor = library.handle("cholmod_free_factor", FfmLibrary.intOf(ADDRESS, ADDRESS), critical = false),
             freeDense = library.handle("cholmod_free_dense", FfmLibrary.intOf(ADDRESS, ADDRESS), critical = false),
             freeSparse = library.handle("cholmod_free_sparse", FfmLibrary.intOf(ADDRESS, ADDRESS), critical = false),
+            // Optional: without them a factorization still solves and only reading its factors is refused.
+            copyFactor = library.handleOrNull(
+                "cholmod_copy_factor",
+                FfmLibrary.pointerOf(ADDRESS, ADDRESS),
+                critical = false,
+            ),
+            changeFactor = library.handleOrNull(
+                "cholmod_change_factor",
+                FfmLibrary.intOf(JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS),
+                critical = false,
+            ),
         )
     } catch (failure: IllegalStateException) {
         bindingFailure = failure.message
@@ -194,6 +207,81 @@ internal class CholmodCalls(private val config: CholmodConfig) {
                 bound.freeSparse.invokeExact(slot, shared) as Int
             }
         }
+    }
+
+    /**
+     * `L` and the fill-reducing permutation from [factor], or null when this libcholmod lacks the conversion
+     * symbols.
+     *
+     * The factor is copied before conversion, because making it simplicial and packed rewrites it in place
+     * and the original still has solves to answer. Once packed, its `p`, `i` and `x` are `L` in CSC.
+     *
+     * [asLl] picks which factorization to read: `L·Lᵀ` keeps the real diagonal, and `L·D·Lᵀ` puts `D` on the
+     * diagonal of `L`, which the caller splits out.
+     */
+    fun extractFactor(factor: CholmodFactor, asLl: Boolean): CholmodFactors? {
+        val bound = handles ?: return null
+        val copy = bound.copyFactor ?: return null
+        val change = bound.changeFactor ?: return null
+        val duplicate = copy.invokeExact(factor.segment, factor.common) as MemorySegment
+        if (duplicate.address() == 0L) return null
+        try {
+            return readFactor(change, duplicate, factor.common, asLl)
+        } finally {
+            Arena.ofConfined().use { arena ->
+                val slot = arena.allocate(ADDRESS)
+                slot.set(ADDRESS, 0L, duplicate)
+                bound.freeFactor.invokeExact(slot, factor.common) as Int
+            }
+        }
+    }
+
+    private fun readFactor(
+        change: MethodHandle,
+        duplicate: MemorySegment,
+        common: MemorySegment,
+        asLl: Boolean,
+    ): CholmodFactors? {
+        val block = duplicate.reinterpret(CHOLMOD_FACTOR_BYTES)
+        val converted = change.invokeExact(
+            CHOLMOD_REAL_XTYPE,
+            if (asLl) CHOLMOD_TRUE else 0,
+            0,
+            CHOLMOD_TRUE,
+            CHOLMOD_TRUE,
+            block,
+            common,
+        ) as Int
+        if (converted != CHOLMOD_TRUE) return null
+        val order = block.get(JAVA_LONG, CHOLMOD_FACTOR_N).toInt()
+        val colPtr = IntArray(order + 1)
+        MemorySegment.copy(
+            block.get(ADDRESS, CHOLMOD_FACTOR_P).reinterpret((order + 1L) * Int.SIZE_BYTES),
+            JAVA_INT,
+            0L,
+            colPtr,
+            0,
+            colPtr.size,
+        )
+        val nonzeros = colPtr[order]
+        val rowIdx = IntArray(nonzeros)
+        val values = DoubleArray(nonzeros)
+        if (nonzeros > 0) {
+            val indices = block.get(ADDRESS, CHOLMOD_FACTOR_I).reinterpret(nonzeros.toLong() * Int.SIZE_BYTES)
+            val entries = block.get(ADDRESS, CHOLMOD_FACTOR_X).reinterpret(nonzeros.toLong() * Double.SIZE_BYTES)
+            MemorySegment.copy(indices, JAVA_INT, 0L, rowIdx, 0, nonzeros)
+            MemorySegment.copy(entries, JAVA_DOUBLE, 0L, values, 0, nonzeros)
+        }
+        return CholmodFactors(order, colPtr, rowIdx, values, permutation(block, order))
+    }
+
+    /** The fill-reducing ordering, or the identity where CHOLMOD did not reorder. */
+    private fun permutation(block: MemorySegment, order: Int): IntArray {
+        val perm = block.get(ADDRESS, CHOLMOD_FACTOR_PERM)
+        if (perm.address() == 0L) return IntArray(order) { it }
+        val out = IntArray(order)
+        MemorySegment.copy(perm.reinterpret(order.toLong() * Int.SIZE_BYTES), JAVA_INT, 0L, out, 0, order)
+        return out
     }
 
     /** CHOLMOD's own reciprocal condition estimate for [factor]. */

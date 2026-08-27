@@ -64,12 +64,24 @@ internal const val CHOLMOD_DENSE_Z = 40L
 internal const val CHOLMOD_DENSE_XTYPE = 48L
 internal const val CHOLMOD_DENSE_DTYPE = 52L
 
-/** Enough of a `cholmod_factor` to read the three fields below, which are the only ones this reads. */
+/**
+ * Enough of a `cholmod_factor` to read the fields below.
+ *
+ * The three `p`, `i` and `x` pointers are `L` itself in CSC once the factor has been made simplicial and
+ * packed, which is how the factors are read out without asking CHOLMOD to convert to a separate matrix.
+ */
 internal const val CHOLMOD_FACTOR_BYTES = 208L
 internal const val CHOLMOD_FACTOR_N = 0L
 internal const val CHOLMOD_FACTOR_MINOR = 8L
+internal const val CHOLMOD_FACTOR_PERM = 16L
 internal const val CHOLMOD_FACTOR_NZMAX = 40L
+internal const val CHOLMOD_FACTOR_P = 48L
+internal const val CHOLMOD_FACTOR_I = 56L
+internal const val CHOLMOD_FACTOR_X = 64L
 internal const val CHOLMOD_FACTOR_IS_LL = 180L
+
+/** `cholmod_change_factor`'s target for a factor whose numeric values are real doubles. */
+internal const val CHOLMOD_REAL_XTYPE = 1
 
 /** The lower triangle is stored and the strict upper one is ignored, which is what this seam's Cholesky reads. */
 internal const val CHOLMOD_STYPE_LOWER = -1
