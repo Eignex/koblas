@@ -90,6 +90,16 @@ class UmfpackNativeConformanceTest {
         assertCholeskyAgreesWithReference(umfpack)
     }
 
+    @Test
+    fun `multiple right hand sides use the CHOLMOD block solve`() {
+        val a = sparseSymmetricConformanceSystem(18, Random(20260831))
+
+        assertNativeBlockFactorSolvesAgreeWithReference(
+            umfpack.cholesky(a),
+            F64ReferenceSparseLinearAlgebra.cholesky(a),
+        )
+    }
+
     /**
      * The factorization CHOLMOD produces by default, which the Cholesky path turns off. An indefinite matrix
      * is what tells the two apart: it has an `L·D·Lᵀ` and no `L·Lᵀ`.
@@ -148,6 +158,11 @@ class UmfpackNativeConformanceTest {
         assertEquals(3.0, configured.refinementSteps)
         assertEquals(0.2, configured.pivotTolerance)
         assertEquals(2.0, configured.scaling)
+        val report = configured.factor(sparseConformanceSystem(8, Random(20261012))).report()
+        assertEquals("umfpack", report.provider)
+        assertEquals("max", report.scaling)
+        assertEquals(3, report.refinementSteps)
+        assertNotNull(report.fillRatio)
     }
 
     @Test

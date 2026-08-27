@@ -27,6 +27,12 @@ class KluConformanceTest {
     }
 
     @Test
+    fun `multiple right hand sides use the KLU block solve`() {
+        Assume.assumeTrue("KLU is not installed; conformance cannot run", klu.isAvailable)
+        assertBlockSolvesAgreeWithReference(klu)
+    }
+
+    @Test
     fun `a symbolic analysis refactors compatible values`() {
         Assume.assumeTrue("KLU is not installed; conformance cannot run", klu.isAvailable)
 

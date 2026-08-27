@@ -3,8 +3,12 @@
 package com.eignex.koblas.sparse.host.cholmod
 
 import com.eignex.koblas.*
+import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.sparse.F64SparseFactorization
+import com.eignex.koblas.sparse.F64SparseFactorizationReport
+import com.eignex.koblas.sparse.basicReport
+import com.eignex.koblas.sparse.requireBlockSolveShapes
 import com.eignex.koblas.sparse.requireSolveShapes
 import kotlinx.cinterop.*
 import kotlin.experimental.ExperimentalNativeApi
@@ -60,6 +64,10 @@ public class CholmodFactorization internal constructor(
 
     override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability = noManagedAllocation
 
+    override fun report(): F64SparseFactorizationReport = basicReport("cholmod").copy(
+        details = mapOf("blockSolve" to "native"),
+    )
+
     override val nnz: Int get() = anchoring {
         if (singular) {
             0
@@ -96,6 +104,47 @@ public class CholmodFactorization internal constructor(
             for (i in 0 until n) out[i] = values[i]
             handle.solveSlot.value = solved
             functions.freeDense(handle.solveSlot.ptr, handle.common)
+        }
+        return out
+    }
+
+    override fun solveInto(
+        b: F64DenseMatrix,
+        out: F64DenseMatrix,
+        transpose: Boolean,
+        workspace: Workspace?,
+    ): F64DenseMatrix {
+        if (singular) throw singularFailure(failedAt, "solve")
+        requireBlockSolveShapes(n, b, out)
+        if (b.cols == 0) return out
+        if (out.data !== b.data) b.data.copyInto(out.data)
+        anchoring {
+            memScoped {
+                val entryCount = out.data.size
+                val rhs = allocArray<DoubleVar>(maxOf(entryCount, 1))
+                val dense = allocArray<ByteVar>(CHOLMOD_DENSE_BYTES)
+                val slot = alloc<COpaquePointerVar>()
+                sizeAt(dense, CHOLMOD_DENSE_NROW, n.toLong())
+                sizeAt(dense, CHOLMOD_DENSE_NCOL, b.cols.toLong())
+                sizeAt(dense, CHOLMOD_DENSE_NZMAX, entryCount.toLong())
+                sizeAt(dense, CHOLMOD_DENSE_D, n.toLong())
+                pointerAt(dense, CHOLMOD_DENSE_X, rhs)
+                pointerAt(dense, CHOLMOD_DENSE_Z, null)
+                intAt(dense, CHOLMOD_DENSE_XTYPE, CHOLMOD_REAL)
+                intAt(dense, CHOLMOD_DENSE_DTYPE, CHOLMOD_DOUBLE)
+                for (i in 0 until entryCount) rhs[i] = out.data[i]
+
+                val solved = functions.solve(CHOLMOD_A, handle.factor.reinterpret(), dense, handle.common)
+                check(solved != null) { "cholmod_solve failed on a factorization it produced" }
+                try {
+                    val answer = solved.reinterpret<ByteVar>()
+                    val values = pointerAt(answer, CHOLMOD_DENSE_X)!!.reinterpret<DoubleVar>()
+                    for (i in 0 until entryCount) out.data[i] = values[i]
+                } finally {
+                    slot.value = solved
+                    functions.freeDense(slot.ptr, handle.common)
+                }
+            }
         }
         return out
     }

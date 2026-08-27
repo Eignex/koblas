@@ -1,6 +1,7 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
+import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
 import kotlin.math.abs
 import kotlin.random.Random
@@ -88,6 +89,49 @@ internal fun assertStrictNativeSolveAllocationContract(decompositions: F64Sparse
         "strict native allocation solve",
         tolerance = 1e-9,
     )
+}
+
+/** A provider's block solve agrees column-for-column and preserves its in-place contract. */
+internal fun assertBlockSolvesAgreeWithReference(decompositions: F64SparseDecompositions) {
+    val rng = Random(20260830)
+    val n = 12
+    val a = sparseConformanceSystem(n, rng)
+    val factor = decompositions.factor(a)
+    val portable = F64ReferenceSparseLinearAlgebra.factor(a)
+    val b = F64DenseMatrix(n, 4, DoubleArray(n * 4) { rng.nextDouble(-1.0, 1.0) })
+    val report = factor.report()
+    assertEquals(decompositions.name, report.provider)
+    assertTrue(report.factorNonzeros != null && report.factorNonzeros >= n)
+    assertTrue(report.reciprocalPivotRange != null)
+    assertEquals("native", report.details["blockSolve"])
+    for (transpose in booleanArrayOf(false, true)) {
+        val expected = portable.solve(b, transpose)
+        val actual = factor.solve(b, transpose)
+        assertClose(expected.data, actual.data, "block transpose=$transpose", tolerance = 1e-9)
+
+        val aliased = F64DenseMatrix.wrap(n, b.cols, b.data.copyOf())
+        factor.solveInto(aliased, aliased, transpose)
+        assertClose(expected.data, aliased.data, "aliased block transpose=$transpose", tolerance = 1e-9)
+    }
+}
+
+/** A factor with a native block ABI agrees with a portable factor and preserves its in-place contract. */
+internal fun assertNativeBlockFactorSolvesAgreeWithReference(
+    factor: F64SparseFactorization,
+    portable: F64SparseFactorization,
+) {
+    val rng = Random(20260831)
+    val b = F64DenseMatrix(factor.n, 4, DoubleArray(factor.n * 4) { rng.nextDouble(-1.0, 1.0) })
+    assertEquals("native", factor.report().details["blockSolve"])
+    for (transpose in booleanArrayOf(false, true)) {
+        val expected = portable.solve(b, transpose)
+        val actual = factor.solve(b, transpose)
+        assertClose(expected.data, actual.data, "symmetric block transpose=$transpose", tolerance = 1e-9)
+
+        val aliased = F64DenseMatrix.wrap(factor.n, b.cols, b.data.copyOf())
+        factor.solveInto(aliased, aliased, transpose)
+        assertClose(expected.data, aliased.data, "aliased symmetric block transpose=$transpose", tolerance = 1e-9)
+    }
 }
 
 /** Strict solve contract for a native symmetric factor reached through a different semantic seam. */

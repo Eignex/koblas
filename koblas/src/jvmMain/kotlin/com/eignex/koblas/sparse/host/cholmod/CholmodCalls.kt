@@ -271,16 +271,16 @@ internal class CholmodCalls(private val config: CholmodConfig) {
 }
 
 /** Native input descriptor retained for repeated solves against one CHOLMOD factor. */
-internal class CholmodSolveWorkspace(n: Int) : AutoCloseable {
+internal class CholmodSolveWorkspace(n: Int, columns: Int = 1) : AutoCloseable {
     private val arena = Arena.ofShared()
-    val rhs: MemorySegment = arena.allocate(JAVA_DOUBLE, n.toLong())
+    val rhs: MemorySegment = arena.allocate(JAVA_DOUBLE, maxOf(n.toLong() * columns, 1L))
     val dense: MemorySegment = arena.allocate(CHOLMOD_DENSE_BYTES)
     val slot: MemorySegment = arena.allocate(ADDRESS)
 
     init {
         dense.set(JAVA_LONG, CHOLMOD_DENSE_NROW, n.toLong())
-        dense.set(JAVA_LONG, CHOLMOD_DENSE_NCOL, 1L)
-        dense.set(JAVA_LONG, CHOLMOD_DENSE_NZMAX, n.toLong())
+        dense.set(JAVA_LONG, CHOLMOD_DENSE_NCOL, columns.toLong())
+        dense.set(JAVA_LONG, CHOLMOD_DENSE_NZMAX, n.toLong() * columns)
         dense.set(JAVA_LONG, CHOLMOD_DENSE_D, n.toLong())
         dense.set(ADDRESS, CHOLMOD_DENSE_X, rhs)
         dense.set(ADDRESS, CHOLMOD_DENSE_Z, MemorySegment.NULL)

@@ -6,6 +6,7 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.assertCholeskyAgreesWithReference
 import com.eignex.koblas.sparse.assertLdlAgreesWithReference
+import com.eignex.koblas.sparse.assertNativeBlockFactorSolvesAgreeWithReference
 import com.eignex.koblas.sparse.assertNativeFactorCloseContract
 import com.eignex.koblas.sparse.assertStrictNativeSolveAllocationContract
 import com.eignex.koblas.sparse.host.klu.KluConfig
@@ -96,6 +97,18 @@ class CholmodConformanceTest {
         requireCholmod()
         Assume.assumeTrue("SuiteSparse is not installed", umfpack.isAvailable)
         assertCholeskyAgreesWithReference(umfpack)
+    }
+
+    @Test
+    fun `multiple right hand sides use the CHOLMOD block solve`() {
+        requireCholmod()
+        Assume.assumeTrue("SuiteSparse is not installed", umfpack.isAvailable)
+        val a = spd(18, 20260831)
+
+        assertNativeBlockFactorSolvesAgreeWithReference(
+            umfpack.cholesky(a),
+            F64ReferenceSparseLinearAlgebra.cholesky(a),
+        )
     }
 
     @Test

@@ -119,14 +119,14 @@ internal class KluCalls(private val config: KluConfig) {
         common.set(JAVA_INT, KLU_COMMON_SCALE, scaling)
     }
 
-    fun solve(factor: KluFactor, rhs: DoubleArray, transpose: Boolean) {
+    fun solve(factor: KluFactor, rhs: DoubleArray, transpose: Boolean, rightHandSides: Int = 1) {
         val h = handlesOrThrow()
         val solve = if (transpose) h.transposedSolve else h.solve
         val status = solve.invokeExact(
             factor.symbolicHolder.get(ADDRESS, 0),
             factor.numericHolder.get(ADDRESS, 0),
             factor.n,
-            1,
+            rightHandSides,
             MemorySegment.ofArray(rhs),
             factor.common,
         ) as Int

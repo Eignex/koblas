@@ -1,9 +1,13 @@
 package com.eignex.koblas.sparse.host.cholmod
 
 import com.eignex.koblas.*
+import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.internal.host.nativeCleaner
 import com.eignex.koblas.sparse.F64SparseFactorization
+import com.eignex.koblas.sparse.F64SparseFactorizationReport
+import com.eignex.koblas.sparse.basicReport
+import com.eignex.koblas.sparse.requireBlockSolveShapes
 import com.eignex.koblas.sparse.requireSolveShapes
 import java.lang.ref.Reference
 import kotlin.math.sqrt
@@ -39,6 +43,10 @@ public class CholmodFactorization internal constructor(
     override val n: Int = factor.n
 
     override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability = noManagedAllocation
+
+    override fun report(): F64SparseFactorizationReport = basicReport("cholmod").copy(
+        details = mapOf("blockSolve" to "native"),
+    )
 
     override val nnz: Int get() = lifecycle.withResource {
         if (singular) {
@@ -84,6 +92,28 @@ public class CholmodFactorization internal constructor(
             }
             out
         }
+
+    override fun solveInto(
+        b: F64DenseMatrix,
+        out: F64DenseMatrix,
+        transpose: Boolean,
+        workspace: Workspace?,
+    ): F64DenseMatrix = lifecycle.withResource {
+        if (singular) throw singularFailure(failedAt, "solve")
+        requireBlockSolveShapes(n, b, out)
+        if (b.cols == 0) return@withResource out
+        if (out.data !== b.data) b.data.copyInto(out.data)
+        try {
+            CholmodSolveWorkspace(n, b.cols).use { blockWorkspace ->
+                check(calls.solve(factor, out.data, blockWorkspace)) {
+                    "cholmod_solve failed on a factorization it produced"
+                }
+            }
+        } finally {
+            Reference.reachabilityFence(this)
+        }
+        out
+    }
 
     override fun close(): Unit = cleanable.clean()
 }

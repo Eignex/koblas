@@ -8,6 +8,8 @@ import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.sparse.F64BasisFactorization
 import com.eignex.koblas.sparse.F64SparseFactorization
+import com.eignex.koblas.sparse.F64SparseFactorizationReport
+import com.eignex.koblas.sparse.basicReport
 import com.eignex.koblas.sparse.host.applyEquilibration
 import com.eignex.koblas.sparse.internal.replaceColumns
 import com.eignex.koblas.sparse.internal.snapshot
@@ -60,6 +62,8 @@ public open class BasicluFactorization internal constructor(
         val needsRhs = aliasing || (rowScale != null && !transpose)
         return if (needsRhs) scratchSolveAllocation else noManagedAllocation
     }
+
+    override fun report(): F64SparseFactorizationReport = basicReport("basiclu")
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray {
         requireSolveShapes(n, b, out)

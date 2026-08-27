@@ -4,6 +4,8 @@ import com.eignex.koblas.*
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.internal.host.nativeCleaner
 import com.eignex.koblas.sparse.F64SparseFactorization
+import com.eignex.koblas.sparse.F64SparseFactorizationReport
+import com.eignex.koblas.sparse.basicReport
 import com.eignex.koblas.sparse.basis.F64IndexedVector
 import com.eignex.koblas.sparse.requireSolveShapes
 import java.lang.foreign.MemorySegment
@@ -35,6 +37,8 @@ public class HfactorFactorization internal constructor(
     override val failedAt: Int get() = NOT_SINGULAR
 
     override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability = noManagedAllocation
+
+    override fun report(): F64SparseFactorizationReport = basicReport("hfactor")
 
     override val nnz: Int get() = lifecycle.withResource {
         try {
