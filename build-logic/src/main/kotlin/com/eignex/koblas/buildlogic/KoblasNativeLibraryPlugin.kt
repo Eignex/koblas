@@ -167,6 +167,7 @@ class KoblasNativeLibraryPlugin : Plugin<Project> {
             inputs.file(project.rootProject.layout.projectDirectory.file("scripts/third-party-notices.sh"))
             inputs.files(extension.extraInputFiles)
             inputs.property("platform", platform)
+            inputs.property("resourceLayout", "complete-resources-v1")
             inputs.property("os.name", project.providers.systemProperty("os.name"))
             inputs.property("os.arch", project.providers.systemProperty("os.arch"))
             extension.compilerDefaults.get().forEach { (environment, defaultCommand) ->
@@ -176,7 +177,7 @@ class KoblasNativeLibraryPlugin : Plugin<Project> {
             extension.toolCommands.get().forEach { (name, command) ->
                 inputs.property("tool-$name", project.providers.exec { commandLine(command, "--version") }.standardOutput.asText)
             }
-            outputs.dir(resourceRoot.map { it.dir("${extension.resourcePackage.get()}/${platform.get()}") })
+            outputs.dir(resourceRoot)
             outputs.cacheIf("the locked source, target platform, and toolchain are declared inputs") { true }
             val extraArguments = if (extension.platformArguments.getOrElse(emptyMap()).isNotEmpty()) {
                 extension.platformArguments.get().getValue(platform.get())
