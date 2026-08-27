@@ -6,6 +6,7 @@ import com.eignex.koblas.Backend
 import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.dense.*
 
 /** Sparse matrix routines as a backend half. */
 public interface F64SparseBlas : Backend {
@@ -30,6 +31,17 @@ public interface F64SparseBlas : Backend {
         transpose: Boolean = false,
     )
 
+    /** Typed-flag form of [gemv]. The Boolean overload remains as a source-compatible migration path. */
+    @Suppress("LongParameterList")
+    public fun gemv(
+        alpha: Double,
+        a: F64SparseMatrix,
+        x: DoubleArray,
+        beta: Double,
+        y: DoubleArray,
+        transpose: Transpose,
+    ): Unit = gemv(alpha, a, x, beta, y, transpose.enabled)
+
     /**
      * Solve `op(T) · x = b` in place, `op` transposing when [transpose]. [x] holds the right-hand side on
      * entry and the solution on return. Only the [lower] or upper triangle of [a] is read, and [unitDiag]
@@ -50,6 +62,15 @@ public interface F64SparseBlas : Backend {
         transpose: Boolean = false,
         unitDiag: Boolean = false,
     )
+
+    /** Typed-flag form of [trsv]. */
+    public fun trsv(
+        a: F64SparseMatrix,
+        x: DoubleArray,
+        uplo: Uplo,
+        transpose: Transpose = Transpose.NO_TRANSPOSE,
+        diag: Diag = Diag.NON_UNIT,
+    ): Unit = trsv(a, x, uplo.lowerTriangle("trsv"), transpose.enabled, diag.isUnit)
 
     /**
      * `C = alpha · op(A) · op(B) + beta · C` (Sparse BLAS `usmm`) for a sparse [a] against a dense [b] and
@@ -76,6 +97,19 @@ public interface F64SparseBlas : Backend {
         c: F64DenseMatrix,
         right: Boolean = false,
     )
+
+    /** Typed-flag form of the sparse-dense [gemm]. */
+    @Suppress("LongParameterList")
+    public fun gemm(
+        alpha: Double,
+        a: F64SparseMatrix,
+        transposeA: Transpose,
+        b: F64DenseMatrix,
+        transposeB: Transpose,
+        beta: Double,
+        c: F64DenseMatrix,
+        side: Side = Side.LEFT,
+    ): Unit = gemm(alpha, a, transposeA.enabled, b, transposeB.enabled, beta, c, side.isRight)
 
     /**
      * `C = A · B` for two sparse operands, into a fresh matrix.
@@ -109,6 +143,18 @@ public interface F64SparseBlas : Backend {
         alpha: Double = 1.0,
     )
 
+    /** Typed-flag form of [trsm]. */
+    @Suppress("LongParameterList")
+    public fun trsm(
+        a: F64SparseMatrix,
+        b: F64DenseMatrix,
+        uplo: Uplo,
+        transpose: Transpose = Transpose.NO_TRANSPOSE,
+        diag: Diag = Diag.NON_UNIT,
+        side: Side = Side.LEFT,
+        alpha: Double = 1.0,
+    ): Unit = trsm(a, b, uplo.lowerTriangle("trsm"), transpose.enabled, diag.isUnit, side.isRight, alpha)
+
     /**
      * Fresh transposed [a], still CSC, which makes this the CSC-to-CSR conversion as well. Explicitly stored
      * zeros survive, since the transpose is structural rather than arithmetic.
@@ -125,6 +171,10 @@ public interface F64SparseBlas : Backend {
         gemv(1.0, a, x, 0.0, y, transpose)
         return y
     }
+
+    /** Typed-flag allocating form of [gemv]. */
+    public fun gemv(a: F64SparseMatrix, x: DoubleArray, transpose: Transpose): DoubleArray =
+        gemv(a, x, transpose.enabled)
 
     /** [gemm] with `alpha = 1, beta = 0`, into a fresh matrix. `A.cols` must equal `B.rows`. */
     public fun gemm(a: F64SparseMatrix, b: F64DenseMatrix): F64DenseMatrix {
@@ -155,9 +205,19 @@ public interface F64PreparedSparseMatrix : AutoCloseable {
     @Suppress("LongParameterList")
     public fun gemv(alpha: Double, x: DoubleArray, beta: Double, y: DoubleArray, transpose: Boolean = false)
 
+    /** Typed-flag form of [gemv]. */
+    @Suppress("LongParameterList")
+    public fun gemv(alpha: Double, x: DoubleArray, beta: Double, y: DoubleArray, transpose: Transpose): Unit =
+        gemv(alpha, x, beta, y, transpose.enabled)
+
     /** `C = alpha · op(A) · B + beta · C` against the prepared `A`. */
     @Suppress("LongParameterList")
     public fun gemm(alpha: Double, transposeA: Boolean, b: F64DenseMatrix, beta: Double, c: F64DenseMatrix)
+
+    /** Typed-flag form of the dense [gemm]. */
+    @Suppress("LongParameterList")
+    public fun gemm(alpha: Double, transposeA: Transpose, b: F64DenseMatrix, beta: Double, c: F64DenseMatrix): Unit =
+        gemm(alpha, transposeA.enabled, b, beta, c)
 
     /** `A · B` against the prepared `A`, into a fresh sparse matrix. */
     public fun gemm(b: F64SparseMatrix): F64SparseMatrix

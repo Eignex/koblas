@@ -22,12 +22,26 @@ public interface F64Blas : Backend {
         transpose: Boolean = false,
     )
 
+    /** Typed-flag form of [gemv]. The Boolean overload remains as a source-compatible migration path. */
+    public fun gemv(
+        alpha: Double,
+        a: F64DenseMatrix,
+        x: DoubleArray,
+        beta: Double,
+        y: DoubleArray,
+        transpose: Transpose,
+    ): Unit = gemv(alpha, a, x, beta, y, transpose.enabled)
+
     /** [gemv] with `alpha = 1, beta = 0`, into a fresh result. */
     public fun gemv(a: F64DenseMatrix, x: DoubleArray, transpose: Boolean = false): DoubleArray {
         val y = DoubleArray(if (transpose) a.cols else a.rows)
         gemv(1.0, a, x, 0.0, y, transpose)
         return y
     }
+
+    /** Typed-flag allocating form of [gemv]. */
+    public fun gemv(a: F64DenseMatrix, x: DoubleArray, transpose: Transpose): DoubleArray =
+        gemv(a, x, transpose.enabled)
 
     /**
      * [gemv] over borrowed strided storage. The destination must not overlap [a] or [x]; disjoint views may
@@ -70,12 +84,26 @@ public interface F64Blas : Backend {
         }
     }
 
+    /** Typed-flag strided form of [gemv]. */
+    public fun gemv(
+        alpha: Double,
+        a: F64StridedMatrixView,
+        x: F64StridedVectorView,
+        beta: Double,
+        y: F64StridedVectorView,
+        transpose: Transpose,
+    ): Unit = gemv(alpha, a, x, beta, y, transpose.enabled)
+
     /** [gemv] over borrowed storage into a fresh owned array. */
     public fun gemv(a: F64StridedMatrixView, x: F64StridedVectorView, transpose: Boolean = false): DoubleArray {
         val result = DoubleArray(if (transpose) a.cols else a.rows)
         gemv(1.0, a, x, 0.0, F64StridedVectorView(result, 0, result.size), transpose)
         return result
     }
+
+    /** Typed-flag allocating strided form of [gemv]. */
+    public fun gemv(a: F64StridedMatrixView, x: F64StridedVectorView, transpose: Transpose): DoubleArray =
+        gemv(a, x, transpose.enabled)
 
     /**
      * Fresh transposed [a]. For a product prefer the transpose flags on [gemv] and [gemm], which read the
@@ -98,6 +126,18 @@ public interface F64Blas : Backend {
         beta: Double,
         c: F64DenseMatrix,
     )
+
+    /** Typed-flag form of [gemm]. */
+    @Suppress("LongParameterList")
+    public fun gemm(
+        alpha: Double,
+        a: F64DenseMatrix,
+        transposeA: Transpose,
+        b: F64DenseMatrix,
+        transposeB: Transpose,
+        beta: Double,
+        c: F64DenseMatrix,
+    ): Unit = gemm(alpha, a, transposeA.enabled, b, transposeB.enabled, beta, c)
 
     /** [gemm] with `alpha = 1, beta = 0`, into a fresh matrix. `A.cols` must equal `B.rows`. */
     public fun gemm(a: F64DenseMatrix, b: F64DenseMatrix): F64DenseMatrix {
@@ -144,6 +184,18 @@ public interface F64Blas : Backend {
         }
     }
 
+    /** Typed-flag strided form of [gemm]. */
+    @Suppress("LongParameterList")
+    public fun gemm(
+        alpha: Double,
+        a: F64StridedMatrixView,
+        transposeA: Transpose,
+        b: F64StridedMatrixView,
+        transposeB: Transpose,
+        beta: Double,
+        c: F64StridedMatrixView,
+    ): Unit = gemm(alpha, a, transposeA.enabled, b, transposeB.enabled, beta, c)
+
     /** [gemm] over borrowed panels into a fresh owned matrix. */
     public fun gemm(a: F64StridedMatrixView, b: F64StridedMatrixView): F64DenseMatrix {
         val result = F64DenseMatrix.zero(a.rows, b.cols)
@@ -164,6 +216,18 @@ public interface F64Blas : Backend {
         workspace: Workspace? = null,
     )
 
+    /** Typed-transpose form of [syrk]. */
+    @Suppress("LongParameterList")
+    public fun syrk(
+        alpha: Double,
+        a: F64DenseMatrix,
+        transpose: Transpose,
+        beta: Double,
+        c: F64DenseMatrix,
+        uplo: Uplo = Uplo.FULL,
+        workspace: Workspace? = null,
+    ): Unit = syrk(alpha, a, transpose.enabled, beta, c, uplo, workspace)
+
     /** `y = alpha · A · x + beta · y` for a symmetric [a] (BLAS `dsymv`). Only the [lower] triangle is read,
      *  diagonal included; `beta == 0.0` overwrites [y] without reading it. */
     @Suppress("LongParameterList") // the BLAS dsymv signature
@@ -175,6 +239,11 @@ public interface F64Blas : Backend {
         y: DoubleArray,
         lower: Boolean = true,
     )
+
+    /** Typed-triangle form of [symv]. [Uplo.FULL] is not valid for this BLAS operation. */
+    @Suppress("LongParameterList")
+    public fun symv(alpha: Double, a: F64DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, uplo: Uplo): Unit =
+        symv(alpha, a, x, beta, y, uplo.lowerTriangle("symv"))
 
     /** `C = alpha · A · B + beta · C`, or `C = alpha · B · A + beta · C` when [right] (BLAS `dsymm`). Only the
      *  [lower] triangle of [a] is read; `beta == 0.0` overwrites [c] without reading it. */
@@ -188,6 +257,18 @@ public interface F64Blas : Backend {
         lower: Boolean = true,
         right: Boolean = false,
     )
+
+    /** Typed triangle-and-side form of [symm]. [Uplo.FULL] is not valid for this BLAS operation. */
+    @Suppress("LongParameterList")
+    public fun symm(
+        alpha: Double,
+        a: F64DenseMatrix,
+        b: F64DenseMatrix,
+        beta: Double,
+        c: F64DenseMatrix,
+        uplo: Uplo,
+        side: Side = Side.LEFT,
+    ): Unit = symm(alpha, a, b, beta, c, uplo.lowerTriangle("symm"), side.isRight)
 
     /** `A = A + alpha · x · yᵀ` (BLAS `dger`), the dense form a backend can dispatch. The free `ger` accepts
      *  [F64VectorView] operands and takes a sparse fast path. */
@@ -218,6 +299,19 @@ public interface F64Blas : Backend {
         workspace: Workspace? = null,
     )
 
+    /** Typed-transpose form of [syr2k]. */
+    @Suppress("LongParameterList")
+    public fun syr2k(
+        alpha: Double,
+        a: F64DenseMatrix,
+        b: F64DenseMatrix,
+        transpose: Transpose,
+        beta: Double,
+        c: F64DenseMatrix,
+        uplo: Uplo = Uplo.FULL,
+        workspace: Workspace? = null,
+    ): Unit = syr2k(alpha, a, b, transpose.enabled, beta, c, uplo, workspace)
+
     /**
      * Solve `op(T) · x = b` in place (BLAS `dtrsv`) for the [lower] or upper triangle of the square [a],
      * `op` transposing when [transpose] and [unitDiag] taking the diagonal as 1. [x] carries b in and x out.
@@ -236,6 +330,15 @@ public interface F64Blas : Backend {
         unitDiag: Boolean = false,
     )
 
+    /** Typed-flag form of [trsv]. */
+    public fun trsv(
+        a: F64DenseMatrix,
+        x: DoubleArray,
+        uplo: Uplo,
+        transpose: Transpose = Transpose.NO_TRANSPOSE,
+        diag: Diag = Diag.NON_UNIT,
+    ): Unit = trsv(a, x, uplo.lowerTriangle("trsv"), transpose.enabled, diag.isUnit)
+
     /** `B = alpha · op(T)⁻¹ · B` in place, or `B = alpha · B · op(T)⁻¹` when [right] (BLAS `dtrsm`). Flags
      *  follow [trsv]; the right-hand sides are the columns of [b] from the left and its rows from the right. */
     @Suppress("LongParameterList") // the BLAS dtrsm signature
@@ -249,6 +352,18 @@ public interface F64Blas : Backend {
         alpha: Double = 1.0,
     )
 
+    /** Typed-flag form of [trsm]. */
+    @Suppress("LongParameterList")
+    public fun trsm(
+        a: F64DenseMatrix,
+        b: F64DenseMatrix,
+        uplo: Uplo,
+        transpose: Transpose = Transpose.NO_TRANSPOSE,
+        diag: Diag = Diag.NON_UNIT,
+        side: Side = Side.LEFT,
+        alpha: Double = 1.0,
+    ): Unit = trsm(a, b, uplo.lowerTriangle("trsm"), transpose.enabled, diag.isUnit, side.isRight, alpha)
+
     /** `x = op(T) · x` in place (BLAS `dtrmv`), the product counterpart of [trsv]. */
     public fun trmv(
         a: F64DenseMatrix,
@@ -257,6 +372,15 @@ public interface F64Blas : Backend {
         transpose: Boolean = false,
         unitDiag: Boolean = false,
     )
+
+    /** Typed-flag form of [trmv]. */
+    public fun trmv(
+        a: F64DenseMatrix,
+        x: DoubleArray,
+        uplo: Uplo,
+        transpose: Transpose = Transpose.NO_TRANSPOSE,
+        diag: Diag = Diag.NON_UNIT,
+    ): Unit = trmv(a, x, uplo.lowerTriangle("trmv"), transpose.enabled, diag.isUnit)
 
     /** `B = alpha · op(T) · B`, or `B = alpha · B · op(T)` when [right] (BLAS `dtrmm`), the counterpart of
      *  [trsm]. */
@@ -270,4 +394,16 @@ public interface F64Blas : Backend {
         right: Boolean = false,
         alpha: Double = 1.0,
     )
+
+    /** Typed-flag form of [trmm]. */
+    @Suppress("LongParameterList")
+    public fun trmm(
+        a: F64DenseMatrix,
+        b: F64DenseMatrix,
+        uplo: Uplo,
+        transpose: Transpose = Transpose.NO_TRANSPOSE,
+        diag: Diag = Diag.NON_UNIT,
+        side: Side = Side.LEFT,
+        alpha: Double = 1.0,
+    ): Unit = trmm(a, b, uplo.lowerTriangle("trmm"), transpose.enabled, diag.isUnit, side.isRight, alpha)
 }

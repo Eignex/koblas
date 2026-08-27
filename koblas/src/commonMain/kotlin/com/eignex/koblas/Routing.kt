@@ -1,5 +1,14 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.dense.Diag
+import com.eignex.koblas.dense.Side
+import com.eignex.koblas.dense.Transpose
+import com.eignex.koblas.dense.Uplo
+import com.eignex.koblas.dense.enabled
+import com.eignex.koblas.dense.isRight
+import com.eignex.koblas.dense.isUnit
+import com.eignex.koblas.dense.lowerTriangle
+
 /** An operation whose runtime route can be inspected before it is executed. */
 public sealed interface F64RouteQuery {
     /** The context role that owns this operation. */
@@ -44,6 +53,13 @@ public sealed interface F64RouteQuery {
         val right: Boolean = false,
         val transposeDense: Boolean = false,
     ) : F64RouteQuery {
+        /** Typed-flag constructor for a sparse-dense product query. */
+        public constructor(
+            storedEntries: Int,
+            side: Side,
+            transposeDense: Transpose = Transpose.NO_TRANSPOSE,
+        ) : this(storedEntries, side.isRight, transposeDense.enabled)
+
         override val role: BackendRole get() = BackendRole.SPARSE_BLAS
 
         init {
@@ -84,6 +100,23 @@ public sealed interface F64RouteQuery {
         val transpose: Boolean = false,
         val unitDiagonal: Boolean = false,
     ) : F64RouteQuery {
+        /** Typed-flag constructor for a sparse triangular solve query. */
+        public constructor(
+            storedEntries: Int,
+            rightHandSides: Int = 1,
+            uplo: Uplo,
+            side: Side = Side.LEFT,
+            transpose: Transpose = Transpose.NO_TRANSPOSE,
+            diag: Diag = Diag.NON_UNIT,
+        ) : this(
+            storedEntries,
+            rightHandSides,
+            uplo.lowerTriangle("SparseTriangularSolve"),
+            side.isRight,
+            transpose.enabled,
+            diag.isUnit,
+        )
+
         override val role: BackendRole get() = BackendRole.SPARSE_BLAS
 
         init {

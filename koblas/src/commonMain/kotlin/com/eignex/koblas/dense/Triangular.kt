@@ -15,6 +15,15 @@ public fun trsv(
     unitDiag: Boolean = false,
 ): Unit = koblas.trsv(a, x, lower, transpose, unitDiag)
 
+/** Typed-flag form of [trsv]. */
+public fun trsv(
+    a: F64DenseMatrix,
+    x: DoubleArray,
+    uplo: Uplo,
+    transpose: Transpose = Transpose.NO_TRANSPOSE,
+    diag: Diag = Diag.NON_UNIT,
+): Unit = koblas.trsv(a, x, uplo, transpose, diag)
+
 /** `B = alpha · op(T)⁻¹ · B`, or `B = alpha · B · op(T)⁻¹` when [right] (BLAS `dtrsm`); see
  *  [F64LinearAlgebra.trsm]. Reads only the triangle [lower] selects, and a singular triangle yields infinities
  *  or NaNs. */
@@ -29,6 +38,18 @@ public fun trsm(
     alpha: Double = 1.0,
 ): Unit = koblas.trsm(a, b, lower, transpose, unitDiag, right, alpha)
 
+/** Typed-flag form of [trsm]. */
+@Suppress("LongParameterList")
+public fun trsm(
+    a: F64DenseMatrix,
+    b: F64DenseMatrix,
+    uplo: Uplo,
+    transpose: Transpose = Transpose.NO_TRANSPOSE,
+    diag: Diag = Diag.NON_UNIT,
+    side: Side = Side.LEFT,
+    alpha: Double = 1.0,
+): Unit = koblas.trsm(a, b, uplo, transpose, diag, side, alpha)
+
 /** Multiply `x = op(T) · x` in place (BLAS `dtrmv`); see [F64LinearAlgebra.trmv]. Reads only the triangle
  *  [lower] selects. */
 public fun trmv(
@@ -38,6 +59,15 @@ public fun trmv(
     transpose: Boolean = false,
     unitDiag: Boolean = false,
 ): Unit = koblas.trmv(a, x, lower, transpose, unitDiag)
+
+/** Typed-flag form of [trmv]. */
+public fun trmv(
+    a: F64DenseMatrix,
+    x: DoubleArray,
+    uplo: Uplo,
+    transpose: Transpose = Transpose.NO_TRANSPOSE,
+    diag: Diag = Diag.NON_UNIT,
+): Unit = koblas.trmv(a, x, uplo, transpose, diag)
 
 /** `B = alpha · op(T) · B`, or `B = alpha · B · op(T)` when [right] (BLAS `dtrmm`); see
  *  [F64LinearAlgebra.trmm]. Reads only the triangle [lower] selects. */
@@ -52,9 +82,25 @@ public fun trmm(
     alpha: Double = 1.0,
 ): Unit = koblas.trmm(a, b, lower, transpose, unitDiag, right, alpha)
 
+/** Typed-flag form of [trmm]. */
+@Suppress("LongParameterList")
+public fun trmm(
+    a: F64DenseMatrix,
+    b: F64DenseMatrix,
+    uplo: Uplo,
+    transpose: Transpose = Transpose.NO_TRANSPOSE,
+    diag: Diag = Diag.NON_UNIT,
+    side: Side = Side.LEFT,
+    alpha: Double = 1.0,
+): Unit = koblas.trmm(a, b, uplo, transpose, diag, side, alpha)
+
 /** Invert the [lower] or upper triangle of [a] (LAPACK `dtrtri`); see [F64LinearAlgebra.trtri]. */
 public fun trtri(a: F64DenseMatrix, lower: Boolean, unitDiag: Boolean = false): F64DenseMatrix = koblas.trtri(
     a,
     lower,
     unitDiag,
 )
+
+/** Typed-flag form of [trtri]. */
+public fun trtri(a: F64DenseMatrix, uplo: Uplo, diag: Diag = Diag.NON_UNIT): F64DenseMatrix =
+    koblas.trtri(a, uplo.lowerTriangle("trtri"), diag.isUnit)
