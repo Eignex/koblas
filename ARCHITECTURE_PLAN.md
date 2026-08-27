@@ -11,12 +11,21 @@ Maven Central installation and publication choices are out of scope.
 
 ## Long-session execution goal
 
-Execute this roadmap as independently reviewable stacked GitHub PRs, including the native SuiteSparse and
-sparse-BLAS work recorded below. For every completed layer, create a `codex/` branch from the preceding stack
-branch, commit it, push it, and open a PR against that preceding branch. Do not stop at recommendations or
-local commits. Preserve portable semantics, make expert policy choices explicit, use measured dispatch gates,
-and keep every PR independently verified and documented. Do not merge or close PRs without separate
-authorization.
+Resume the existing open PR stack and complete this roadmap as independently reviewable stacked GitHub PRs.
+Do not recreate completed layers or duplicate their PRs. Finish the in-progress sparse block-solve and
+factorization-report layer, then complete the expert-facing API and documentation layer. Keep the six
+identified sparse/performance concerns in scope through their recorded layers: Kotlin/Native CHOLMOD sparse
+BLAS, reusable native CSC descriptors, shipped SPQR reachability, an explicit scalar/native sparse-product
+gate, extensible sparse triangular solves, and an AVX-512 `gatherZero` decision. Treat the recorded
+hardware-based AVX-512 deferral as the only accepted incomplete implementation unless new evidence creates a
+similarly strict external blocker.
+
+For every newly completed layer, create a `codex/` branch from the preceding stack branch, make single-line
+Conventional Commits, push it, and open a GitHub PR against that preceding branch. Do not stop at
+recommendations, a plan, local edits, commits, or pushed branches. Preserve portable reference semantics,
+make expert policy choices explicit, use measured dispatch gates, and keep every PR independently verified
+and documented. Update this file with PR links, verification evidence, decisions, and justified deviations as
+the source of truth for the session. Do not merge or close PRs without separate authorization.
 
 ## Architectural principles
 
@@ -421,6 +430,14 @@ Acceptance criteria:
 - Repeated supported solves/refactors honor their declared contract.
 
 ### PR 14: Add sparse block solves and factorization reports
+
+Status: open as [PR #336](https://github.com/Eignex/koblas/pull/336) from
+`codex/sparse-block-solves-reports`; portable, JVM host, and Linux/Native host tests passed, and
+`./gradlew check lintDocs -Pkoblas.hostTests=true --rerun-tasks` passed all 190 tasks. Every sparse factor now
+accepts a column-major dense RHS block and caller-owned destination through an alias-safe default. KLU and
+CHOLMOD specialize the operation as one native call on JVM and Kotlin/Native. The common report uses nullable
+unsupported fields, preserves valid zero values, and exposes reliable portable and native diagnostics without
+backend casts.
 
 - Add multiple-right-hand-side sparse solve and solve-into APIs.
 - Add a common extensible factorization report.
