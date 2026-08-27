@@ -73,7 +73,14 @@ public interface F64SparseCholeskyFactorization : F64SparseFactorization {
 
 /** The `A = L·D·Lᵀ` a sparse `L·D·Lᵀ` produces. */
 public interface F64SparseLdlFactorization : F64SparseFactorization {
-    /** Unit lower triangular. Its diagonal is ones and is not stored, [d] being the diagonal factor. */
+    /**
+     * Unit lower triangular, its diagonal of ones implicit rather than stored: [d] occupies that position in
+     * every library that keeps one, so storing ones there would be `n` entries carrying no information. A
+     * caller reconstructing `A` supplies them, which is what the conformance helpers do.
+     *
+     * Unlike the `L` of an [F64SparseLuFactorization], whose diagonal is stored because the libraries hand it
+     * back that way.
+     */
     public val l: F64SparseMatrix
 
     /** The diagonal factor, one entry per column of [l]. */

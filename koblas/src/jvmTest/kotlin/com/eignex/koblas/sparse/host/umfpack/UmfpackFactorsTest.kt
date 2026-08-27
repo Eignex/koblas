@@ -1,8 +1,8 @@
 package com.eignex.koblas.sparse.host.umfpack
 
-import com.eignex.koblas.assertClose
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.F64SparseLuFactorization
+import com.eignex.koblas.sparse.assertLuFactorsReproduce
 import com.eignex.koblas.testutil.host.HostLibraryTest
 import org.junit.Assume
 import org.junit.experimental.categories.Category
@@ -29,12 +29,7 @@ class UmfpackFactorsTest {
                 val lu = factorization as F64SparseLuFactorization
                 assertEquals(n, lu.rowOrder.size, "n=$n rowOrder")
                 assertEquals(n, lu.columnOrder.size, "n=$n columnOrder")
-                assertClose(
-                    permutedAndScaled(a, lu.rowOrder, lu.columnOrder, lu.rowScaling),
-                    product(lu.l, lu.u),
-                    "n=$n L*U",
-                    tolerance = 1e-9,
-                )
+                assertLuFactorsReproduce(a, lu, "n=$n")
             }
         }
     }
@@ -52,35 +47,4 @@ private fun dominant(n: Int, rng: Random): F64SparseMatrix {
         entries
     }
     return F64SparseMatrix.ofColumns(n, n, columns)
-}
-
-/** `P·diag(scaling)·A·Q` as a dense column-major array, the right-hand side of the LU identity. */
-private fun permutedAndScaled(
-    a: F64SparseMatrix,
-    rowOrder: IntArray,
-    columnOrder: IntArray,
-    scaling: DoubleArray,
-): DoubleArray {
-    val n = a.rows
-    val rowAt = IntArray(n)
-    for (position in 0 until n) rowAt[rowOrder[position]] = position
-    val out = DoubleArray(n * n)
-    for (position in 0 until n) {
-        val source = columnOrder[position]
-        a.forEachInColumn(source) { row, value ->
-            out[rowAt[row] + position * n] = value * scaling[row]
-        }
-    }
-    return out
-}
-
-private fun product(l: F64SparseMatrix, u: F64SparseMatrix): DoubleArray {
-    val n = l.rows
-    val out = DoubleArray(n * n)
-    for (j in 0 until n) {
-        u.forEachInColumn(j) { k, ukj ->
-            l.forEachInColumn(k) { i, lik -> out[i + j * n] += lik * ukj }
-        }
-    }
-    return out
 }
