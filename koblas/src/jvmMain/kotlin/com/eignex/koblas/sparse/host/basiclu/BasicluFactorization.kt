@@ -10,7 +10,7 @@ import com.eignex.koblas.sparse.F64SparseFactorizationReport
 import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.FactorsNotExposed
 import com.eignex.koblas.sparse.basicReport
-import com.eignex.koblas.sparse.host.applyEquilibration
+import com.eignex.koblas.sparse.host.applyF64Equilibration
 import com.eignex.koblas.sparse.internal.replaceColumns
 import com.eignex.koblas.sparse.internal.snapshot
 import com.eignex.koblas.sparse.requireSolveShapes
@@ -76,10 +76,10 @@ public open class BasicluFactorization internal constructor(
             // BASICLU solves through its own buffer, so the destination carries the right-hand side in.
             if (out !== b) b.copyInto(out)
             // The factors are of E·B, so a forward solve scales what goes in and a transposed one what comes out.
-            if (rowScale != null && !transpose) applyEquilibration(out, rowScale)
+            if (rowScale != null && !transpose) applyF64Equilibration(out, rowScale)
             val status = calls.solve(target, out, transpose)
             check(status == BasicluStatus.OK) { "BASICLU solve failed with status $status" }
-            if (rowScale != null && transpose) applyEquilibration(out, rowScale)
+            if (rowScale != null && transpose) applyF64Equilibration(out, rowScale)
             out
         }
 

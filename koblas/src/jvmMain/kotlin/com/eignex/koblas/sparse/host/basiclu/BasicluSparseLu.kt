@@ -13,8 +13,8 @@ import com.eignex.koblas.singularFailure
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.host.F64SparseDecompositionsAdapter
-import com.eignex.koblas.sparse.host.equilibrationScale
-import com.eignex.koblas.sparse.host.scaledValues
+import com.eignex.koblas.sparse.host.f64EquilibrationScale
+import com.eignex.koblas.sparse.host.f64ScaledValues
 import com.eignex.koblas.withColumn
 
 /**
@@ -53,8 +53,8 @@ public open class BasicluSparseLu(
      */
     final override fun factorNative(a: F64SparseMatrix): F64SparseLuFactorization {
         val rowIdx = a.copyRowIndices()
-        val scale = if (equilibrate) equilibrationScale(a.rows, rowIdx, a.values) else null
-        val values = if (scale == null) a.values else scaledValues(rowIdx, a.values, scale)
+        val scale = if (equilibrate) f64EquilibrationScale(a.rows, rowIdx, a.values) else null
+        val values = if (scale == null) a.values else f64ScaledValues(rowIdx, a.values, scale)
         val target = factored(a, rowIdx, values)
             ?: return F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
         return BasicluFactorization(target, calls, scale)
