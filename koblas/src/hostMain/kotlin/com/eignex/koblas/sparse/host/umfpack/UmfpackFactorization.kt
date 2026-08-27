@@ -15,7 +15,7 @@ import kotlin.native.concurrent.ThreadLocal
 import kotlin.native.ref.createCleaner
 
 /**
- * UMFPACK's numeric factors behind koblas's [F64SparseFactorization]. Holds its [matrix] alive because
+ * UMFPACK's numeric factors behind koblas's [F64SparseLuFactorization]. Holds its [matrix] alive because
  * `umfpack_di_solve` takes Ap, Ai and Ax alongside the factors.
  */
 public class UmfpackFactorization internal constructor(
