@@ -1,5 +1,6 @@
 package com.eignex.koblas.bench
 
+import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.installBackends
 import com.eignex.koblas.koblas
@@ -20,6 +21,8 @@ class SparseQrHostBenchmark {
 
     private lateinit var a: F64SparseMatrix
     private lateinit var b: DoubleArray
+    private lateinit var block: F64DenseMatrix
+    private lateinit var factored: F64SparseQrFactorization
 
     @Setup
     fun setup() {
@@ -31,13 +34,26 @@ class SparseQrHostBenchmark {
         val rng = benchRng()
         a = sparseTallMatrix(2 * n, n, rng)
         b = DoubleArray(2 * n) { rng.nextDouble(-1.0, 1.0) }
+        block = randomMatrix(2 * n, QR_BLOCK_COLUMNS, rng)
+        factored = a.qr()
         val half = koblas.sparseDecompositions.name
         println("resolved: sparseDecompositions=$half rows=${a.rows} cols=${a.cols} nnz(A)=${a.nnz}")
     }
 
     // Closed rather than left to the cleaner, which would measure the collector too.
     @Benchmark
-    fun qr(): F64SparseMatrix = a.qr().use { it.r }
+    fun qr(): Int = a.qr().use { it.n }
+
+    @Benchmark
+    fun qrApplyQ(): DoubleArray = factored.applyQ(b, transpose = true)
+
+    @Benchmark
+    fun qrBlockSolve(): F64DenseMatrix = factored.solve(block)
+
+    // Separate from [qr] because a native binding materialises the factors through a second factorization,
+    // which a combined row would charge to the first.
+    @Benchmark
+    fun qrFactors(): Int = a.qr().use { it.r.nnz + it.rank }
 
     @Benchmark
     fun qrSolve(): DoubleArray = a.qr().use { it.solve(b) }
@@ -45,3 +61,6 @@ class SparseQrHostBenchmark {
     @Benchmark
     fun transpose(): F64SparseMatrix = a.transpose()
 }
+
+/** Right-hand sides in the blocked solve, matching the count the other block suites use. */
+private const val QR_BLOCK_COLUMNS = 8

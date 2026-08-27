@@ -190,6 +190,22 @@ benchmark {
             gate()
             param("n", "16", "32", "64", "128")
         }
+        // The QR operations the gate does not decide, kept out of the gate suite so its window stays short.
+        // `qrFactors` is the one that matters for a native binding, which materialises them through a second
+        // factorization; `transpose` trails all three as the control.
+        suite("sparseQrFactorGate", "SparseQrHostBenchmark", "qrApplyQ|qrBlockSolve|qrFactors|transpose") {
+            gate()
+            param("n", "128", "512")
+        }
+        // The sparse LU factorization against the portable one, which is what the shared factorization gate
+        // is set from, with transpose trailing as the control. One shape, since the gate is one number.
+        suite("sparseLuGate", "SparseHostBenchmark", "factor|transpose") {
+            gate()
+            param("n", "32", "64", "128", "256")
+            param("shape", "random")
+            // This class also offers the automatic arm, which a gate reads nothing from.
+            param("backend", "reference", "forced")
+        }
         // Bracketed: sparseGemv leads, sparseTranspose trails, and it is O(nnz) so it costs little.
         suite("sweepGate", "SparseBenchmark", "sparseGemv|sparseLuBtran|sparseLuFtran|sparseTranspose") {
             gate()

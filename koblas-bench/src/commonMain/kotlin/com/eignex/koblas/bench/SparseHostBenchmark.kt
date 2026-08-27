@@ -4,6 +4,7 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.installBackends
 import com.eignex.koblas.koblas
 import com.eignex.koblas.sparse.*
+import com.eignex.koblas.transpose
 import kotlinx.benchmark.*
 
 @State(Scope.Benchmark)
@@ -46,4 +47,8 @@ class SparseHostBenchmark {
 
     @Benchmark
     fun solveTransposed(): DoubleArray = factored.solve(rhs, transpose = true)
+
+    // Sorts after the rest and no factorization gate reaches it, so a gate suite has a control.
+    @Benchmark
+    fun transpose(): F64SparseMatrix = a.transpose()
 }
