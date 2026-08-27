@@ -1,10 +1,8 @@
 package com.eignex.koblas.sparse.host.cholmod
 
-import com.eignex.koblas.assertClose
+import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.randomMatrix
-import com.eignex.koblas.randomVector
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.testutil.host.HostLibraryTest
 import org.junit.Assume
@@ -18,7 +16,12 @@ import kotlin.test.assertTrue
 class CholmodSparseBlasTest {
 
     // Gated at zero so these small operands reach the library instead of the portable routines.
-    private val cholmod = CholmodSparseBlas(level2Min = 0)
+    private val cholmod = CholmodSparseBlas(
+        level2Min = 0,
+        preparedGemvMin = 0,
+        preparedGemmMin = 0,
+        preparedSparseProductMin = 0,
+    )
 
     private fun requireCholmod() {
         Assume.assumeTrue("CHOLMOD is not installed; conformance cannot run", cholmod.isAvailable)
@@ -38,6 +41,17 @@ class CholmodSparseBlasTest {
         requireCholmod()
         assertEquals("cholmod", cholmod.name)
         assertEquals(null, cholmod.unavailableReason)
+    }
+
+    @Test
+    fun `prepared routes report their independent gates`() {
+        requireCholmod()
+        val defaults = CholmodSparseBlas()
+        val gemv = defaults.route(F64RouteQuery.PreparedSparseProduct(100, PreparedSparseProductKind.GEMV))!!
+        val gemm = defaults.route(F64RouteQuery.PreparedSparseProduct(100, PreparedSparseProductKind.DENSE_GEMM))!!
+        assertEquals(BackendExecution.PORTABLE, gemv.execution)
+        assertEquals(BackendExecution.NATIVE, gemm.execution)
+        assertTrue(gemv.gate?.minimum != gemm.gate?.minimum)
     }
 
     /**
@@ -77,6 +91,37 @@ class CholmodSparseBlasTest {
             cholmod.gemm(0.5, a, transposeA, b, false, 2.0, actual)
 
             assertClose(expected, actual, "transposeA=$transposeA", tolerance = 1e-12)
+        }
+    }
+
+    @Test
+    fun `a prepared descriptor snapshots and closes`() {
+        requireCholmod()
+        val rng = Random(20261012)
+        val source = sparse(8, 5, rng)
+        val original = F64SparseMatrix.wrap(
+            source.rows,
+            source.cols,
+            source.copyColumnPointers(),
+            source.copyRowIndices(),
+            source.values.copyOf(),
+        )
+        val prepared = cholmod.prepare(source)
+        source.values.fill(0.0)
+
+        repeat(3) { iteration ->
+            val x = randomVector(5, rng)
+            val expected = F64ReferenceSparseLinearAlgebra.gemv(original, x)
+            val actual = DoubleArray(8)
+            prepared.gemv(1.0, x, 0.0, actual)
+            assertClose(expected, actual, "iteration=$iteration", tolerance = 1e-12)
+        }
+        val right = sparse(5, 4, rng)
+        assertEquals(F64ReferenceSparseLinearAlgebra.gemm(original, right), prepared.gemm(right))
+        prepared.close()
+        prepared.close()
+        kotlin.test.assertFailsWith<IllegalStateException> {
+            prepared.gemv(1.0, DoubleArray(5), 0.0, DoubleArray(8))
         }
     }
 

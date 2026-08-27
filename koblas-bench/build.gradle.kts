@@ -164,6 +164,15 @@ benchmark {
             gate()
             param("n", "64", "256", "1024")
         }
+        // Reuses one prepared CSC descriptor across every timed invocation, excluding setup and close.
+        suite(
+            "sparsePreparedProductGate",
+            "SparseProductHostBenchmark",
+            "preparedGemm|preparedGemv|preparedSparseProduct",
+        ) {
+            gate()
+            param("n", "64", "256", "1024")
+        }
         // The two symmetric factorizations against the portable ones, with transpose trailing as the
         // control: it sorts after both subjects and no factorization gate reaches it.
         suite("symmetricGate", "SparseSymmetricHostBenchmark", "cholesky|ldl|transpose") {

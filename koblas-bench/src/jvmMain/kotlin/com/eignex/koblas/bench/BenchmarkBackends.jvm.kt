@@ -59,7 +59,12 @@ private fun installHost(config: HostBlasConfig): Boolean {
 // Whichever sparse library this JVM can load, ungated. KLU first, matching the priority the backends
 // register with, so the arm measures the half discovery would have picked.
 internal actual fun useUngatedSparseProduct(): Boolean {
-    val cholmod = CholmodSparseBlas(level2Min = 0)
+    val cholmod = CholmodSparseBlas(
+        level2Min = 0,
+        preparedGemvMin = 0,
+        preparedGemmMin = 0,
+        preparedSparseProductMin = 0,
+    )
     if (!cholmod.isAvailable) return false
     installBackends(koblas.with(sparseBlas = cholmod))
     return true

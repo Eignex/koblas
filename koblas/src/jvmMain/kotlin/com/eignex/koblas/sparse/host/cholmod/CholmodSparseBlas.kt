@@ -1,11 +1,15 @@
 package com.eignex.koblas.sparse.host.cholmod
 
-import com.eignex.koblas.HOST_BACKEND_PRIORITY
+import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.backend.BackendNames
-import com.eignex.koblas.requireShape
+import com.eignex.koblas.internal.host.NativeResourceLifecycle
+import com.eignex.koblas.internal.host.nativeCleaner
+import com.eignex.koblas.sparse.F64PreparedSparseMatrix
+import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.host.F64SparseBlasAdapter
+import com.eignex.koblas.sparse.sparseSnapshotOf
 
 /**
  * The sparse matrix products backed by CHOLMOD's `cholmod_sdmult`.
@@ -14,15 +18,24 @@ import com.eignex.koblas.sparse.host.F64SparseBlasAdapter
  * Nothing else fills the sparse BLAS half natively, so there is no library here for this one to take it from
  * and no reason to hide it behind another.
  *
- * `cholmod_sdmult` is `Y = alpha·op(A)·X + beta·Y` for a dense `X` of any column count. Only the matrix-matrix
- * product goes through it. The call costs the same whatever the column count, so one right-hand side has
- * nothing to amortise it over and measured slower than the portable loop at every size; the adapter keeps
- * `gemv` and the sparse-times-sparse product portable for that reason, and this fills what is left.
+ * `cholmod_sdmult` is `Y = alpha·op(A)·X + beta·Y` for a dense `X` of any column count. One-shot dispatch
+ * only sends matrix-matrix products through it. A prepared descriptor can also use native matrix-vector and
+ * sparse products when their independent measured gates are enabled; their default gates retain the portable
+ * implementation because CHOLMOD did not win those cases in `sparsePreparedProductGate`.
  */
 public open class CholmodSparseBlas(
     /** Policy for this backend instance. */
     public val config: CholmodConfig = CholmodConfig(),
     level2Min: Int? = null,
+    /** Stored entries from which a prepared descriptor uses native gemv. Set to zero to force it. */
+    public val preparedGemvMin: Int = Int.MAX_VALUE,
+    /**
+     * Stored entries from which a prepared descriptor uses native dense products. Set to zero to force it.
+     * The default follows the smallest fixture where CHOLMOD won in `sparsePreparedProductGate`.
+     */
+    public val preparedGemmMin: Int = 50,
+    /** Stored entries from which a prepared descriptor uses native sparse products. Set to zero to force it. */
+    public val preparedSparseProductMin: Int = Int.MAX_VALUE,
 ) : F64SparseBlasAdapter(level2Min) {
     private val calls = CholmodCalls(config)
 
@@ -32,6 +45,36 @@ public open class CholmodSparseBlas(
 
     /** Why CHOLMOD is unusable, or null when it is usable. For diagnostics, not control flow. */
     public val unavailableReason: String? get() = calls.unavailableReason
+
+    final override fun route(query: F64RouteQuery): BackendRoute? {
+        if (query !is F64RouteQuery.PreparedSparseProduct) return super.route(query)
+        val minimum = when (query.kind) {
+            PreparedSparseProductKind.GEMV -> preparedGemvMin
+            PreparedSparseProductKind.DENSE_GEMM -> preparedGemmMin
+            PreparedSparseProductKind.SPARSE_GEMM -> preparedSparseProductMin
+        }
+        return thresholdRoute(
+            query,
+            this,
+            portable.name,
+            DispatchGate(DispatchMetric.STORED_ENTRIES, query.storedEntries.toLong(), minimum.toLong()),
+            query.storedEntries >= minimum,
+        )
+    }
+
+    /** Copies [a] once into a caller-owned CHOLMOD descriptor for repeated products. */
+    final override fun prepare(a: F64SparseMatrix): F64PreparedSparseMatrix {
+        if (!nativeAvailable) return super.prepare(a)
+        val snapshot = sparseSnapshotOf(a)
+        return CholmodPreparedSparseMatrix(
+            snapshot,
+            CholmodMatrix.generalOf(snapshot),
+            calls,
+            nativeGemv = a.nnz >= preparedGemvMin,
+            nativeGemm = a.nnz >= preparedGemmMin,
+            nativeSparseProduct = a.nnz >= preparedSparseProductMin,
+        )
+    }
 
     @Suppress("LongParameterList") // the BLAS dgemm signature less the flags this one does not take
     final override fun gemmNative(
@@ -48,19 +91,62 @@ public open class CholmodSparseBlas(
         requireShape(c.rows == m && c.cols == b.cols) {
             "gemm: C is ${c.rows}x${c.cols}, expected ${m}x${b.cols}"
         }
-        val multiplied = CholmodMatrix.generalOf(a).use { matrix ->
-            calls.sdmult(
-                matrix,
-                transposeA,
-                alpha,
-                b.data,
-                beta,
-                c.data,
-                columns = b.cols,
-                xRows = b.rows,
-                yRows = c.rows,
-            )
+        prepare(a).use { prepared ->
+            prepared.gemm(alpha, transposeA, b, beta, c)
         }
-        if (!multiplied) portable.gemm(alpha, a, transposeA, b, transposeB = false, beta = beta, c = c)
     }
+}
+
+private class CholmodPreparedSparseMatrix(
+    private val snapshot: F64SparseMatrix,
+    private val matrix: CholmodMatrix,
+    private val calls: CholmodCalls,
+    private val nativeGemv: Boolean,
+    private val nativeGemm: Boolean,
+    private val nativeSparseProduct: Boolean,
+) : F64PreparedSparseMatrix {
+    private val lifecycle = NativeResourceLifecycle("prepared CHOLMOD matrix", matrix::close)
+    private val cleanable = nativeCleaner.register(this, lifecycle)
+
+    override val rows: Int get() = snapshot.rows
+    override val cols: Int get() = snapshot.cols
+    override val nnz: Int get() = snapshot.nnz
+
+    override fun gemv(alpha: Double, x: DoubleArray, beta: Double, y: DoubleArray, transpose: Boolean) {
+        val xRows = if (transpose) rows else cols
+        val yRows = if (transpose) cols else rows
+        requireShape(x.size == xRows) { "gemv: x length ${x.size} != $xRows" }
+        requireShape(y.size == yRows) { "gemv: y length ${y.size} != $yRows" }
+        lifecycle.withResource {
+            if (!nativeGemv || !calls.sdmult(matrix, transpose, alpha, x, beta, y, 1, xRows, yRows)) {
+                F64ReferenceSparseLinearAlgebra.gemv(alpha, snapshot, x, beta, y, transpose)
+            }
+        }
+    }
+
+    override fun gemm(alpha: Double, transposeA: Boolean, b: F64DenseMatrix, beta: Double, c: F64DenseMatrix) {
+        val m = if (transposeA) cols else rows
+        val k = if (transposeA) rows else cols
+        requireShape(k == b.rows) { "gemm: op(A) is ${m}x$k but B has ${b.rows} rows" }
+        requireShape(c.rows == m && c.cols == b.cols) {
+            "gemm: C is ${c.rows}x${c.cols}, expected ${m}x${b.cols}"
+        }
+        lifecycle.withResource {
+            if (!nativeGemm || !calls.sdmult(matrix, transposeA, alpha, b.data, beta, c.data, b.cols, b.rows, c.rows)) {
+                F64ReferenceSparseLinearAlgebra.gemm(alpha, snapshot, transposeA, b, false, beta, c)
+            }
+        }
+    }
+
+    override fun gemm(b: F64SparseMatrix): F64SparseMatrix = lifecycle.withResource {
+        if (!nativeSparseProduct) {
+            F64ReferenceSparseLinearAlgebra.gemm(snapshot, b)
+        } else {
+            CholmodMatrix.generalOf(b).use { right ->
+                calls.ssmult(matrix, right) ?: F64ReferenceSparseLinearAlgebra.gemm(snapshot, b)
+            }
+        }
+    }
+
+    override fun close(): Unit = cleanable.clean()
 }

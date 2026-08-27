@@ -43,6 +43,9 @@ public fun F64SparseMatrix.gemm(b: F64DenseMatrix): F64DenseMatrix = koblas.spar
 /** `this · B` for a sparse [b], into a fresh sparse matrix, with the active backend ([koblas]). */
 public fun F64SparseMatrix.gemm(b: F64SparseMatrix): F64SparseMatrix = koblas.sparseBlas.gemm(this, b)
 
+/** Prepares an immutable snapshot of this matrix for repeated products with the active backend. */
+public fun F64SparseMatrix.prepare(): F64PreparedSparseMatrix = koblas.sparseBlas.prepare(this)
+
 /**
  * Solve `op(T) · X = B` in place against this matrix's [lower] or upper triangle, for every column of [b] at
  * once, with the active backend ([koblas]). See [F64SparseBlas.trsm].

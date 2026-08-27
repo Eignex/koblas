@@ -113,6 +113,24 @@ resources immediately; cleaners remain only as protection for a factor the calle
 is idempotent. The dimension and singular status remain readable afterwards, while solves and native factor
 statistics throw `IllegalStateException`.
 
+Repeated products can retain an immutable CSC snapshot with `prepare()` so a native backend marshals its
+sparse descriptor only once:
+
+```kotlin
+import com.eignex.koblas.sparse.prepare
+
+a.prepare().use { prepared ->
+    repeat(iterations) {
+        prepared.gemv(1.0, x, 0.0, y)
+    }
+}
+```
+
+The source may be changed after preparation without affecting the snapshot. Prepared handles are
+`AutoCloseable`; do not use or close one concurrently without external serialization. CHOLMOD exposes
+separate prepared `gemv`, dense-product, and sparse-product gates because amortized crossovers differ from
+one-shot calls; set the corresponding `CholmodSparseBlas` constructor gate to zero to force a measured path.
+
 ## Control memory
 
 Use BLAS-style overloads with caller-owned arrays when a routine should write into

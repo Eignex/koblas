@@ -30,9 +30,15 @@ internal class CholmodFunctions(private val lib: COpaquePointer) {
         CFunction<(Block, Int, CPointer<DoubleVar>, CPointer<DoubleVar>, Block, Block, Block) -> Int>,
         >()
 
+    val ssmult = required("cholmod_ssmult").reinterpret<
+        CFunction<(Block, Block, Int, Int, Int, Block) -> Handle>,
+        >()
+
     val freeFactor = required("cholmod_free_factor").reinterpret<CFunction<(HandleSlot, Block) -> Int>>()
 
     val freeDense = required("cholmod_free_dense").reinterpret<CFunction<(HandleSlot, Block) -> Int>>()
+
+    val freeSparse = required("cholmod_free_sparse").reinterpret<CFunction<(HandleSlot, Block) -> Int>>()
 }
 
 /** Opens the host CHOLMOD and reports whether every routine these bindings need resolved. */

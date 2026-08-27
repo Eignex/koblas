@@ -10,6 +10,13 @@ import com.eignex.koblas.core.F64SparseMatrix
 /** Sparse matrix routines as a backend half. */
 public interface F64SparseBlas : Backend {
     /**
+     * Prepares an immutable snapshot of [a] for repeated products. The caller owns the returned resource and
+     * should close it with `use`. Portable backends retain an ordinary CSC copy; native backends may retain
+     * native descriptors and buffers.
+     */
+    public fun prepare(a: F64SparseMatrix): F64PreparedSparseMatrix = ReferencePreparedSparseMatrix(a)
+
+    /**
      * In-place `y = alpha · op(A) · x + beta · y`, where `op(A)` is `Aᵀ` when [transpose]. Per BLAS
      * convention `beta == 0.0` overwrites [y] without reading it, so it may arrive uninitialized.
      */
@@ -126,6 +133,79 @@ public interface F64SparseBlas : Backend {
         return c
     }
 }
+
+/**
+ * An explicitly owned immutable snapshot of one sparse matrix, prepared for repeated products.
+ *
+ * Changes to the matrix passed to [F64SparseBlas.prepare] after preparation do not affect this snapshot.
+ * Calls after [close] throw [IllegalStateException], and close is idempotent. A handle and close must not be
+ * used concurrently; callers that share a handle between threads must serialize its operations.
+ */
+public interface F64PreparedSparseMatrix : AutoCloseable {
+    /** Rows in the prepared sparse matrix. */
+    public val rows: Int
+
+    /** Columns in the prepared sparse matrix. */
+    public val cols: Int
+
+    /** Stored entries copied into the snapshot. */
+    public val nnz: Int
+
+    /** In-place `y = alpha · op(A) · x + beta · y` against the prepared `A`. */
+    @Suppress("LongParameterList")
+    public fun gemv(alpha: Double, x: DoubleArray, beta: Double, y: DoubleArray, transpose: Boolean = false)
+
+    /** `C = alpha · op(A) · B + beta · C` against the prepared `A`. */
+    @Suppress("LongParameterList")
+    public fun gemm(alpha: Double, transposeA: Boolean, b: F64DenseMatrix, beta: Double, c: F64DenseMatrix)
+
+    /** `A · B` against the prepared `A`, into a fresh sparse matrix. */
+    public fun gemm(b: F64SparseMatrix): F64SparseMatrix
+
+    /** Releases resources owned by this prepared snapshot. */
+    override fun close()
+}
+
+private class ReferencePreparedSparseMatrix(a: F64SparseMatrix) : F64PreparedSparseMatrix {
+    private val snapshot = sparseSnapshotOf(a)
+    private var closed = false
+
+    override val rows: Int get() = snapshot.rows
+    override val cols: Int get() = snapshot.cols
+    override val nnz: Int get() = snapshot.nnz
+
+    override fun gemv(alpha: Double, x: DoubleArray, beta: Double, y: DoubleArray, transpose: Boolean) {
+        checkOpen()
+        F64ReferenceSparseLinearAlgebra.gemv(alpha, snapshot, x, beta, y, transpose)
+    }
+
+    override fun gemm(alpha: Double, transposeA: Boolean, b: F64DenseMatrix, beta: Double, c: F64DenseMatrix) {
+        checkOpen()
+        F64ReferenceSparseLinearAlgebra.gemm(alpha, snapshot, transposeA, b, false, beta, c)
+    }
+
+    override fun gemm(b: F64SparseMatrix): F64SparseMatrix {
+        checkOpen()
+        return F64ReferenceSparseLinearAlgebra.gemm(snapshot, b)
+    }
+
+    override fun close() {
+        closed = true
+    }
+
+    private fun checkOpen() {
+        check(!closed) { "prepared sparse matrix is closed" }
+    }
+}
+
+/** Copies a validated CSC matrix so later mutation through its expert escape hatches cannot stale a handle. */
+internal fun sparseSnapshotOf(a: F64SparseMatrix): F64SparseMatrix = F64SparseMatrix.wrap(
+    a.rows,
+    a.cols,
+    a.copyColumnPointers(),
+    a.copyRowIndices(),
+    a.values.copyOf(),
+)
 
 /**
  * The diagonal entry of column [j]. A missing entry and an explicit zero are both rejected, with different
