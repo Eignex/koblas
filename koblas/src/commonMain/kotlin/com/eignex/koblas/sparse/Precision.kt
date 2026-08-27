@@ -1,7 +1,7 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.sparse.factorization.cholesky.F64SparseCholeskyFactorization
-import com.eignex.koblas.sparse.factorization.lu.F64SparseLuFactorization
+import com.eignex.koblas.sparse.factorization.cholesky.F64SparseUpLookingCholesky
+import com.eignex.koblas.sparse.factorization.lu.F64SparseMarkowitzLu
 
 /*
  * The double-precision names of this package under the aliases they had before the element type reached
@@ -27,9 +27,9 @@ public typealias SparseFactorization = F64SparseFactorization
 /** Double-precision [F64SingularSparseFactorization], what an unqualified `SingularSparseFactorization` means. */
 public typealias SingularSparseFactorization = F64SingularSparseFactorization
 
-/** Double-precision [F64SparseLuFactorization], the sparse LU an unqualified `SparseLu` means. */
-public typealias SparseLu = F64SparseLuFactorization
+/** Double-precision [F64SparseMarkowitzLu], the sparse LU an unqualified `SparseLu` means. */
+public typealias SparseLu = F64SparseMarkowitzLu
 
-/** Double-precision [F64SparseCholeskyFactorization], the sparse Cholesky an unqualified `SparseCholesky`
+/** Double-precision [F64SparseUpLookingCholesky], the sparse Cholesky an unqualified `SparseCholesky`
  *  means. */
-public typealias SparseCholesky = F64SparseCholeskyFactorization
+public typealias SparseCholesky = F64SparseUpLookingCholesky

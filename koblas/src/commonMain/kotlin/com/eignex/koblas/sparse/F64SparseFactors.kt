@@ -1,0 +1,58 @@
+package com.eignex.koblas.sparse
+
+import com.eignex.koblas.core.F64SparseMatrix
+
+/*
+ * The factors each kind of sparse factorization produces, on the interface rather than on whichever concrete
+ * class happens to implement it. A caller reaching a backend through the seam can read them whoever answered.
+ *
+ * One interface per kind rather than one shared pair of accessors, because the kinds differ in what they
+ * produce: a Cholesky has no separate `U`, an `L·D·Lᵀ` has a `D` instead, and a QR is `m×n` and holds `Q` as
+ * an operator. A single `l`/`u` pair would be null half the time.
+ *
+ * Every accessor here is materialised on first read. A native binding pays a copy for it, and SPQR pays more
+ * than that, so a caller who only solves never pays at all. Reads go through the same lifecycle as a solve,
+ * so a closed factorization refuses them, and a singular factorization has no factors to give.
+ */
+
+/** The `P·A·Q = L·U` a general sparse LU produces, indexed by pivot position. */
+public interface F64SparseLuFactorization : F64SparseFactorization {
+    /** Unit lower triangular, its diagonal stored. */
+    public val l: F64SparseMatrix
+
+    /** Upper triangular, its diagonal stored. */
+    public val u: F64SparseMatrix
+
+    /** The original row now at each pivot position, the `P` above. */
+    public val rowOrder: IntArray
+
+    /** The original column now at each pivot position, the `Q` above. */
+    public val columnOrder: IntArray
+
+    /**
+     * The per-original-row scaling applied before factorizing, so the factors are of the scaled matrix. All
+     * ones where the backend does not equilibrate, which keeps `P·A·Q = L·U` readable without a special case.
+     */
+    public val rowScaling: DoubleArray
+}
+
+/** The `A = L·Lᵀ` a sparse Cholesky produces. */
+public interface F64SparseCholeskyFactorization : F64SparseFactorization {
+    /** Lower triangular, its diagonal stored. */
+    public val l: F64SparseMatrix
+
+    /** The original row and column at each position of [l], the same permutation for both by symmetry. */
+    public val order: IntArray
+}
+
+/** The `A = L·D·Lᵀ` a sparse `L·D·Lᵀ` produces. */
+public interface F64SparseLdlFactorization : F64SparseFactorization {
+    /** Unit lower triangular. Its diagonal is ones and is not stored, [d] being the diagonal factor. */
+    public val l: F64SparseMatrix
+
+    /** The diagonal factor, one entry per column of [l]. */
+    public val d: DoubleArray
+
+    /** The original row and column at each position of [l], the same permutation for both by symmetry. */
+    public val order: IntArray
+}

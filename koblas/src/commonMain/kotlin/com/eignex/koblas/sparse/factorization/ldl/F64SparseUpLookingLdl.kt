@@ -9,8 +9,8 @@ import com.eignex.koblas.requireSquare
 import com.eignex.koblas.singularFailure
 import com.eignex.koblas.sparse.F64FactorizationInertia
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
-import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.F64SparseFactorizationReport
+import com.eignex.koblas.sparse.F64SparseLdlFactorization
 import com.eignex.koblas.sparse.factorization.columnPointers
 import com.eignex.koblas.sparse.factorization.eliminationTree
 import com.eignex.koblas.sparse.factorization.ereach
@@ -29,20 +29,28 @@ import kotlin.math.abs
  * matrix it was given and not necessarily a well conditioned one. See the seam's `ldl` for what that means
  * for a caller.
  */
-public class F64SparseLdlFactorization internal constructor(
+public class F64SparseUpLookingLdl internal constructor(
     override val n: Int,
     private val colPtr: IntArray,
     private val rowIdx: IntArray,
     private val values: DoubleArray,
     private val diagonal: DoubleArray,
     override val failedAt: Int,
-) : F64SparseFactorization {
+) : F64SparseLdlFactorization {
 
-    /** The unit lower triangular factor `L`, whose ones on the diagonal are not among its stored entries. */
-    public val l: F64SparseMatrix get() = F64SparseMatrix.wrap(n, n, colPtr.copyOf(), rowIdx.copyOf(), values.copyOf())
+    override val l: F64SparseMatrix get() = F64SparseMatrix.wrap(
+        n,
+        n,
+        colPtr.copyOf(),
+        rowIdx.copyOf(),
+        values.copyOf(),
+    )
 
     /** The diagonal factor `D`, which an indefinite matrix leaves entries of either sign in. */
-    public val d: DoubleArray get() = diagonal.copyOf()
+    override val d: DoubleArray get() = diagonal.copyOf()
+
+    /** The identity: this factorization reorders nothing, for the reason its own documentation gives. */
+    override val order: IntArray get() = IntArray(n) { it }
 
     /** The stored entries of `L` plus the diagonal `D`, which together are what the factorization holds. */
     override val nnz: Int get() = if (singular) 0 else values.size + n
@@ -119,7 +127,7 @@ public class F64SparseLdlFactorization internal constructor(
          * A zero pivot comes back as a factorization reporting `singular` at that column, as the sparse LU
          * does. A negative one does not: it is what an indefinite matrix is expected to produce.
          */
-        public fun factorLower(a: F64SparseMatrix): F64SparseLdlFactorization {
+        public fun factorLower(a: F64SparseMatrix): F64SparseUpLookingLdl {
             requireSquare(a, "ldl")
             val n = a.rows
             // The up-looking sweep reads row k of A left of the diagonal, and CSC stores columns.
@@ -130,7 +138,7 @@ public class F64SparseLdlFactorization internal constructor(
             val values = DoubleArray(colPtr[n])
             val diagonal = DoubleArray(n)
             val failedAt = factorNumeric(n, upper, parent, colPtr, rowIdx, values, diagonal)
-            return F64SparseLdlFactorization(n, colPtr, rowIdx, values, diagonal, failedAt)
+            return F64SparseUpLookingLdl(n, colPtr, rowIdx, values, diagonal, failedAt)
         }
     }
 }

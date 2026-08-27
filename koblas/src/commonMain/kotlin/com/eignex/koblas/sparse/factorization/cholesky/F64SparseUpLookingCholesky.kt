@@ -8,7 +8,7 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.noManagedOrNativeAllocation
 import com.eignex.koblas.requireSquare
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
-import com.eignex.koblas.sparse.F64SparseFactorization
+import com.eignex.koblas.sparse.F64SparseCholeskyFactorization
 import com.eignex.koblas.sparse.F64SparseFactorizationReport
 import com.eignex.koblas.sparse.factorization.columnPointers
 import com.eignex.koblas.sparse.factorization.eliminationTree
@@ -27,15 +27,18 @@ import kotlin.math.sqrt
  * fast sparse Cholesky, and it is also what a caller cannot check: this is the semantic definition the
  * bindings are compared against, so it stays the arithmetic and nothing else.
  */
-public class F64SparseCholeskyFactorization internal constructor(
+public class F64SparseUpLookingCholesky internal constructor(
     override val n: Int,
     private val colPtr: IntArray,
     private val rowIdx: IntArray,
     private val values: DoubleArray,
-) : F64SparseFactorization {
+) : F64SparseCholeskyFactorization {
 
-    /** The lower triangular factor `L`, a fresh view over the factorization's own arrays. */
-    public val l: F64SparseMatrix get() = F64SparseMatrix.wrap(n, n, colPtr.copyOf(), rowIdx.copyOf(), values.copyOf())
+    override val l: F64SparseMatrix
+        get() = F64SparseMatrix.wrap(n, n, colPtr.copyOf(), rowIdx.copyOf(), values.copyOf())
+
+    /** The identity: this factorization reorders nothing, for the reason its own documentation gives. */
+    override val order: IntArray get() = IntArray(n) { it }
 
     /** Always [NOT_SINGULAR]: a non-positive pivot is raised rather than recorded, so this only exists for a
      *  matrix that factored completely. */
@@ -102,7 +105,7 @@ public class F64SparseCholeskyFactorization internal constructor(
          *
          * @throws NotPositiveDefinite at the first column whose pivot is not positive.
          */
-        public fun factorLower(a: F64SparseMatrix): F64SparseCholeskyFactorization {
+        public fun factorLower(a: F64SparseMatrix): F64SparseUpLookingCholesky {
             requireSquare(a, "cholesky")
             val n = a.rows
             // The up-looking sweep reads row k of A left of the diagonal, and CSC stores columns. Transposing
@@ -113,7 +116,7 @@ public class F64SparseCholeskyFactorization internal constructor(
             val rowIdx = IntArray(colPtr[n])
             val values = DoubleArray(colPtr[n])
             factorNumeric(n, upper, parent, colPtr, rowIdx, values)
-            return F64SparseCholeskyFactorization(n, colPtr, rowIdx, values)
+            return F64SparseUpLookingCholesky(n, colPtr, rowIdx, values)
         }
     }
 }

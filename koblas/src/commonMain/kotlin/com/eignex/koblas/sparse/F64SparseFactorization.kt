@@ -137,8 +137,24 @@ public interface F64BasisFactorization : F64SparseFactorization {
     public fun replaceColumn(column: Int, entering: F64SparseVector): F64BasisFactorization
 }
 
-/** What [F64SparseDecompositions.factor] returns when no numerically acceptable pivot remains. */
-public class F64SingularSparseFactorization(override val n: Int, override val failedAt: Int) : F64SparseFactorization {
+/**
+ * What [F64SparseDecompositions.factor] returns when no numerically acceptable pivot remains.
+ *
+ * It fills the LU shape so a caller need not branch on the type, and raises on every factor: elimination
+ * stopped before producing them, so there is nothing to hand back.
+ */
+public class F64SingularSparseFactorization(override val n: Int, override val failedAt: Int) :
+    F64SparseLuFactorization {
+    override val l: F64SparseMatrix get() = throw singularFailure(failedAt, "l")
+
+    override val u: F64SparseMatrix get() = throw singularFailure(failedAt, "u")
+
+    override val rowOrder: IntArray get() = throw singularFailure(failedAt, "rowOrder")
+
+    override val columnOrder: IntArray get() = throw singularFailure(failedAt, "columnOrder")
+
+    override val rowScaling: DoubleArray get() = throw singularFailure(failedAt, "rowScaling")
+
     override val nnz: Int get() = 0
 
     override val rcond: Double get() = 0.0
