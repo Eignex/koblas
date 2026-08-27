@@ -1,6 +1,6 @@
 package com.eignex.koblas.sparse.host.klu
 
-import com.eignex.koblas.internal.backend.hostDispatchThresholds
+import com.eignex.koblas.internal.backend.hostSparseDispatchThresholds
 
 /** KLU's built-in fill-reducing orderings, excluding callback-based orderings that koblas does not expose. */
 public enum class KluOrdering {
@@ -154,8 +154,8 @@ public data class KluConfig(
 }
 
 internal fun KluOptions.metadataOptions(): Map<String, String> = buildMap {
-    put("factorizeMin", hostDispatchThresholds(factorize = factorizeMin).factorize.toString())
-    put("qrFactorizeMin", hostDispatchThresholds(sparseQr = qrFactorizeMin).sparseQr.toString())
+    put("factorizeMin", hostSparseDispatchThresholds(factorize = factorizeMin).factorize.toString())
+    put("qrFactorizeMin", hostSparseDispatchThresholds(qr = qrFactorizeMin).qr.toString())
     put("equilibrate", equilibrate.toString())
     pivotTolerance?.let { put("pivotTolerance", it.toString()) }
     memoryGrowth?.let { put("memoryGrowth", it.toString()) }

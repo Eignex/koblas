@@ -2,7 +2,7 @@ package com.eignex.koblas.sparse.host
 
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.internal.backend.hostDispatchThresholds
+import com.eignex.koblas.internal.backend.hostSparseDispatchThresholds
 import com.eignex.koblas.sparse.*
 
 /**
@@ -33,10 +33,10 @@ public abstract class F64SparseDecompositionsAdapter protected constructor(
     /** Whether the binding resolved every symbol needed to factor and solve. */
     protected abstract val nativeAvailable: Boolean
 
-    private val thresholds = hostDispatchThresholds(
+    private val thresholds = hostSparseDispatchThresholds(
         factorize = factorizeMin,
-        symmetricFactorize = factorizeMin,
-        sparseQr = qrFactorizeMin,
+        symmetric = factorizeMin,
+        qr = qrFactorizeMin,
     )
     private val factorizeGate = thresholds.factorize
 
@@ -46,10 +46,10 @@ public abstract class F64SparseDecompositionsAdapter protected constructor(
      * factorization has crossed. A backend naming its own `factorizeMin` moves both, since a caller asking
      * for one gate means it.
      */
-    private val symmetricGate = thresholds.symmetricFactorize
+    private val symmetricGate = thresholds.symmetric
 
     /** The independently measured sparse-QR gate for this platform and backend policy. */
-    private val qrGate = thresholds.sparseQr
+    private val qrGate = thresholds.qr
 
     /** The portable factorization at this backend's own policy, for everything the library will not take. */
     protected val portable: F64ReferenceSparseDecompositions =
