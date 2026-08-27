@@ -15,9 +15,9 @@
 [![codecov](https://codecov.io/gh/eignex/koblas/branch/main/graph/badge.svg)](https://codecov.io/gh/eignex/koblas)
 [![License](https://img.shields.io/github/license/eignex/koblas)](https://github.com/eignex/koblas/blob/main/LICENSE)
 
-Dense and sparse double-precision linear algebra for Kotlin Multiplatform.
+Dense and sparse double-precision linear algebra for JVM and Kotlin/Native compute hosts.
 Koblas provides BLAS/LAPACK operations, factorizations, and optional OpenBLAS,
-SuiteSparse KLU, SuiteSparse UMFPACK, or BASICLU acceleration.
+SuiteSparse, BASICLU, or HFactor acceleration.
 
 Koblas is for numerical and optimization routines that need predictable performance
 and precise control over matrix storage, allocations, and workspaces. It is especially
@@ -33,15 +33,22 @@ operations, and caller-managed outputs and workspaces so compatible `DoubleArray
 CSC buffers can be wrapped without copying and hot paths can avoid allocations where
 possible.
 
+## Supported platforms
+
+Koblas publishes its core API for JVM, Linux x64/arm64 Kotlin/Native, and macOS arm64
+Kotlin/Native. These are the compute hosts on which its SIMD or native-library backends
+can provide the intended performance. JavaScript, Wasm, Windows Native, and Apple mobile
+targets are not published.
+
 ## Install
 
-| Module | Purpose |
-|--------|---------|
-| koblas | Dense and sparse API with a portable backend. |
-| koblas-openblas | Accelerated dense BLAS and LAPACK operations. |
-| koblas-suitesparse | UMFPACK for general sparse LU, KLU for a fixed sparsity pattern. |
-| koblas-basiclu | Simplex-basis LU with efficient column replacements. |
-| koblas-hfactor | Simplex-basis solver with hypersparse solves and Forrest-Tomlin updates. |
+| Module | Published targets | Purpose |
+|--------|-------------------|---------|
+| koblas | JVM, Linux x64/arm64, macOS arm64 | Dense and sparse API with a portable backend. |
+| koblas-openblas | JVM | Accelerated dense BLAS and LAPACK operations. |
+| koblas-suitesparse | JVM | UMFPACK for general sparse LU, KLU for a fixed sparsity pattern. |
+| koblas-basiclu | JVM | Simplex-basis LU with efficient column replacements. |
+| koblas-hfactor | JVM | Simplex-basis solver with hypersparse solves and Forrest-Tomlin updates. |
 
 On JVM, add `--add-modules=jdk.incubator.vector` to enable the built-in SIMD kernels.
 They beat the native binding for BLAS level 1 (vector-vector work) and level 2
@@ -73,9 +80,8 @@ copies. BF16 is a planned family, not a currently selectable precision or backen
 
 ## Use
 
-Containers use column-major storage. Unqualified names such as `DenseMatrix`
-are aliases for the implemented double-precision types (`F64DenseMatrix`).
-Owned containers may expose live borrowed panels and slices without copying. A matrix view retains its
+Containers use column-major storage. Owned containers may expose live borrowed panels and slices without
+copying. A matrix view retains its
 physical leading dimension, while a row is a strided vector view:
 
 ```kotlin
@@ -297,7 +303,7 @@ Provider code is compiled for these targets:
 
 | Provider | Targets |
 |----------|---------|
-| Portable reference | JVM, JS, Wasm JS, Wasm WASI, Linux, macOS, Windows, and iOS |
+| Portable reference | JVM, Linux x64/arm64, and macOS arm64 |
 | JVM SIMD kernels | JVM with `jdk.incubator.vector` |
 | Host OpenBLAS/LAPACKE and SuiteSparse | JVM plus Linux and macOS Kotlin/Native when the libraries resolve |
 | Bundled OpenBLAS and SuiteSparse modules | JVM Linux x64/arm64 and JVM macOS arm64 |
@@ -305,7 +311,7 @@ Provider code is compiled for these targets:
 | HFactor | JVM |
 
 SPQR is intentionally absent: the produced SuiteSparse artifact no longer builds or packages an unreachable
-SPQR library. Windows, iOS, JS, and Wasm therefore use the portable matrix and factorization implementations.
+SPQR library.
 
 ### Routing and fallback contracts
 

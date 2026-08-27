@@ -1,6 +1,3 @@
-@file:OptIn(ExperimentalWasmDsl::class)
-
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 plugins {
@@ -28,25 +25,18 @@ kotlin {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_25)
         }
     }
-    js { browser(); nodejs() }
-    wasmJs { browser(); nodejs() }
-    wasmWasi { nodejs() }
     linuxX64(); linuxArm64()
-    macosArm64(); mingwX64()
-    iosX64(); iosArm64(); iosSimulatorArm64()
+    macosArm64()
 
     sourceSets {
-        // Everything that is not the JVM: scalar primitive leaves instead of Vector API ones, plus the
-        // per-platform threshold defaults and backend reporting that follow from that.
+        // Kotlin/Native keeps scalar primitive leaves as the fallback beneath its host backends.
         val scalarMain = create("scalarMain") {
             dependsOn(commonMain.get())
         }
         nativeMain.get().dependsOn(scalarMain)
 
-        // Host backends run on Linux and macOS only. The bindings resolve OpenBLAS and SuiteSparse
-        // independently, so either library may be absent. iOS has no host library to find, and mingw does
-        // not provide one. Everything else takes the no-op from noHostMain; exactly one implementation
-        // reaches each target, as `registerPlatformBackends` is an expect declaration.
+        // Every supported Native target can resolve OpenBLAS and SuiteSparse independently, so either
+        // library may still be absent at runtime and fall back to scalar code.
         val hostMain = create("hostMain") { dependsOn(nativeMain.get()) }
         linuxMain.get().dependsOn(hostMain)
         macosMain.get().dependsOn(hostMain)
@@ -54,13 +44,6 @@ kotlin {
         val hostTest = create("hostTest") { dependsOn(nativeTest.get()) }
         linuxTest.get().dependsOn(hostTest)
         macosTest.get().dependsOn(hostTest)
-
-        val noHostMain = create("noHostMain") { dependsOn(scalarMain) }
-        mingwMain.get().dependsOn(noHostMain)
-        iosMain.get().dependsOn(noHostMain)
-
-        webMain.get().dependsOn(noHostMain)
-        wasmWasiMain.get().dependsOn(webMain.get())
 
         commonMain.dependencies {
             compileOnly("org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0")
