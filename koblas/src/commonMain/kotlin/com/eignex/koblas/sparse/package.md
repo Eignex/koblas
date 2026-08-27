@@ -96,8 +96,9 @@ concrete backend cast.
 An explicit [com.eignex.koblas.F64ContextBuilder] can select any provider for any role it implements. Use
 [com.eignex.koblas.F64Capabilities] with [com.eignex.koblas.backendNamed] to retrieve an exact discovered
 provider without a concrete implementation cast, and [com.eignex.koblas.capability] to retrieve
-the provider held by a context. [com.eignex.koblas.sparseDecompositionsNamed] remains as a compatibility API
-for backend-specific surface.
+the provider held by a context. A backend is reached by name through the capability it fills; there is no
+untyped lookup, because a backend now offers the roles it implements rather than the seam it happens to
+satisfy.
 
 Row equilibration and a drop tolerance are policy a backend's constructor settles, beside the settings that
 already say how to scale; the portable implementation settles them in [F64ReferenceSparseDecompositions].

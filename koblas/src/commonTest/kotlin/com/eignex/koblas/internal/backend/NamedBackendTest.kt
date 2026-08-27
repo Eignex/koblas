@@ -2,6 +2,7 @@ package com.eignex.koblas.internal.backend
 
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.sparse.F64GeneralSparseLu
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.F64SparseDecompositions
 import com.eignex.koblas.sparse.F64SparseLuFactorization
@@ -15,8 +16,10 @@ import kotlin.test.*
  */
 class NamedBackendTest {
 
+    /** Fills the general-LU role, which is what a backend offers now that the wide seam alone offers nothing. */
     private class FakeSparseLu(override val name: String, override val priority: Int) :
-        F64SparseDecompositions by F64ReferenceSparseLinearAlgebra {
+        F64SparseDecompositions by F64ReferenceSparseLinearAlgebra,
+        F64GeneralSparseLu {
         override fun factor(a: F64SparseMatrix): F64SparseLuFactorization = F64ReferenceSparseLinearAlgebra.factor(a)
     }
 
@@ -29,8 +32,12 @@ class NamedBackendTest {
         registerBackend(FakeSparseLu("weaker", priority = 10))
         registerBackend(FakeSparseLu("stronger", priority = 20))
 
-        assertEquals("stronger", koblas.sparseDecompositions.name, "the half still goes to the strongest")
-        assertEquals("weaker", sparseDecompositionsNamed("weaker")?.name, "and the other is still there to ask for")
+        assertEquals("stronger", koblas.generalSparseLu.name, "the role still goes to the strongest")
+        assertEquals(
+            "weaker",
+            backendNamed("weaker", F64Capabilities.generalSparseLu)?.name,
+            "and the other is still there to ask for",
+        )
     }
 
     @Test
@@ -38,8 +45,8 @@ class NamedBackendTest {
         registerBackend(FakeSparseLu("basis-shaped", priority = 20))
         registerBackend(FakeSparseLu("pattern-shaped", priority = 10))
 
-        val forBases = sparseDecompositionsNamed("basis-shaped")
-        val forPatterns = sparseDecompositionsNamed("pattern-shaped")
+        val forBases = backendNamed("basis-shaped", F64Capabilities.generalSparseLu)
+        val forPatterns = backendNamed("pattern-shaped", F64Capabilities.generalSparseLu)
 
         assertNotNull(forBases)
         assertNotNull(forPatterns)
@@ -50,7 +57,7 @@ class NamedBackendTest {
     fun `an unregistered name resolves to nothing`() = withCleanBackends {
         registerBackend(FakeSparseLu("present", priority = 10))
 
-        assertNull(sparseDecompositionsNamed("absent"))
+        assertNull(backendNamed("absent", F64Capabilities.generalSparseLu))
     }
 
     @Test
@@ -73,7 +80,7 @@ class NamedBackendTest {
     fun `a bundled provider answers to its plain name`() = withCleanBackends {
         registerBackend(FakeSparseLu("umfpack-bundled", priority = 10))
 
-        assertEquals("umfpack-bundled", sparseDecompositionsNamed("umfpack")?.name)
+        assertEquals("umfpack-bundled", backendNamed("umfpack", F64Capabilities.generalSparseLu)?.name)
     }
 
     @Test
@@ -90,7 +97,7 @@ class NamedBackendTest {
         registerBackend(FakeSparseLu("same", priority = 30))
 
         assertEquals(listOf("same"), registeredBackendNames(BackendSlot.F64SparseDecompositions))
-        assertEquals(30, sparseDecompositionsNamed("same")?.priority)
+        assertEquals(30, backendNamed("same", F64Capabilities.generalSparseLu)?.priority)
     }
 
     /** Keeping one entry per name must not let a later weaker offer of that name take the half. */
@@ -99,7 +106,7 @@ class NamedBackendTest {
         registerBackend(FakeSparseLu("same", priority = 30))
         registerBackend(FakeSparseLu("same", priority = 10))
 
-        assertEquals(30, sparseDecompositionsNamed("same")?.priority)
+        assertEquals(30, backendNamed("same", F64Capabilities.generalSparseLu)?.priority)
         assertEquals(30, koblas.sparseDecompositions.priority)
     }
 
@@ -108,7 +115,7 @@ class NamedBackendTest {
         registerBackend(FakeSparseLu("stronger", priority = 20))
         registerBackend(FakeSparseLu("weaker", priority = 10))
 
-        assertEquals("stronger", koblas.sparseDecompositions.name, "a later weaker offer must not take the half")
+        assertEquals("stronger", koblas.generalSparseLu.name, "a later weaker offer must not take the role")
     }
 
     @Test
@@ -116,14 +123,17 @@ class NamedBackendTest {
         registerBackend(FakeSparseLu("present", priority = 10))
         resetBackends()
 
-        assertNull(sparseDecompositionsNamed("present"))
+        assertNull(backendNamed("present", F64Capabilities.generalSparseLu))
         assertEquals(emptyList(), registeredBackendNames(BackendSlot.F64SparseDecompositions))
     }
 
     @Test
     fun `the portable fallback is not a registration a name can find`() = withCleanBackends {
-        assertEquals(BackendNames.REFERENCE, koblas.sparseDecompositions.name)
-        assertNull(sparseDecompositionsNamed(BackendNames.REFERENCE), "nothing registered it; it is the fallback")
+        assertEquals(BackendNames.REFERENCE, koblas.generalSparseLu.name)
+        assertNull(
+            backendNamed(BackendNames.REFERENCE, F64Capabilities.generalSparseLu),
+            "nothing registered it; it is the fallback",
+        )
     }
 
     /** An explicit offer takes the half, which is what it is for, and takes nothing else. */
@@ -132,8 +142,8 @@ class NamedBackendTest {
         BackendRegistry.registerAutomatic(FakeSparseLu("discovered", priority = 30))
         registerBackend(FakeSparseLu("configured", priority = 10))
 
-        assertEquals("configured", koblas.sparseDecompositions.name, "the explicit offer holds the half")
-        val discovered = sparseDecompositionsNamed("discovered")
+        assertEquals("configured", koblas.generalSparseLu.name, "the explicit offer holds the role")
+        val discovered = backendNamed("discovered", F64Capabilities.generalSparseLu)
         assertEquals("discovered", discovered?.name, "and the discovered one is still there")
     }
 
@@ -151,7 +161,7 @@ class NamedBackendTest {
         registerBackend(FakeSparseLu("configured", priority = 10))
         BackendRegistry.registerAutomatic(FakeSparseLu("discovered", priority = 30))
 
-        assertEquals("configured", koblas.sparseDecompositions.name)
-        assertEquals("discovered", sparseDecompositionsNamed("discovered")?.name)
+        assertEquals("configured", koblas.generalSparseLu.name)
+        assertEquals("discovered", backendNamed("discovered", F64Capabilities.generalSparseLu)?.name)
     }
 }

@@ -123,7 +123,12 @@ class SparseSeamTest {
         }
     }
 
-    private class CountingSparseLu(override val priority: Int = 50) : F64SparseDecompositions {
+    private class CountingSparseLu(override val priority: Int = 50) :
+        F64SparseDecompositions,
+        F64GeneralSparseLu,
+        F64SparseCholesky,
+        F64SparseLdl,
+        F64SparseQr {
         override val name: String get() = "counting-decompositions"
         var factors = 0
         var choleskys = 0

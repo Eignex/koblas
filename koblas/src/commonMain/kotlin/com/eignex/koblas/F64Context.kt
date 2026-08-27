@@ -23,10 +23,6 @@ import com.eignex.koblas.sparse.F64SparseLinearAlgebra
 import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.F64SparseQr
 import com.eignex.koblas.sparse.F64SparseQrFactorization
-import com.eignex.koblas.sparse.LegacyGeneralSparseLu
-import com.eignex.koblas.sparse.LegacySparseCholesky
-import com.eignex.koblas.sparse.LegacySparseLdl
-import com.eignex.koblas.sparse.LegacySparseQr
 import com.eignex.koblas.sparse.basis.F64BasisSolvers
 
 /**
@@ -409,15 +405,19 @@ public class F64Context(
 }
 
 private fun F64SparseDecompositions.generalLuCapability(): F64GeneralSparseLu =
-    (this as? F64SparseDecompositionRoles)?.generalLu ?: (this as? F64GeneralSparseLu) ?: LegacyGeneralSparseLu(this)
+    (this as? F64SparseDecompositionRoles)?.generalLu
+        ?: (this as? F64GeneralSparseLu)
+        ?: error("$name fills no general sparse LU role")
 
 private fun F64SparseDecompositions.choleskyCapability(): F64SparseCholesky =
     (this as? F64SparseDecompositionRoles)?.choleskyProvider
         ?: (this as? F64SparseCholesky)
-        ?: LegacySparseCholesky(this)
+        ?: error("$name fills no sparse Cholesky role")
 
-private fun F64SparseDecompositions.ldlCapability(): F64SparseLdl =
-    (this as? F64SparseDecompositionRoles)?.ldlProvider ?: (this as? F64SparseLdl) ?: LegacySparseLdl(this)
+private fun F64SparseDecompositions.ldlCapability(): F64SparseLdl = (this as? F64SparseDecompositionRoles)?.ldlProvider
+    ?: (this as? F64SparseLdl)
+    ?: error("$name fills no sparse LDL role")
 
-private fun F64SparseDecompositions.qrCapability(): F64SparseQr =
-    (this as? F64SparseDecompositionRoles)?.qrProvider ?: (this as? F64SparseQr) ?: LegacySparseQr(this)
+private fun F64SparseDecompositions.qrCapability(): F64SparseQr = (this as? F64SparseDecompositionRoles)?.qrProvider
+    ?: (this as? F64SparseQr)
+    ?: error("$name fills no sparse QR role")

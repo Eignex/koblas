@@ -188,7 +188,6 @@ private fun Map<BackendRole, Backend>.semanticGeneralLu(reference: F64ReferenceS
     when (val backend = getValue(BackendRole.SPARSE_GENERAL_LU)) {
         F64ReferenceSparseLinearAlgebra -> reference
         is F64GeneralSparseLu -> backend
-        is F64SparseDecompositions -> LegacyGeneralSparseLu(backend)
         else -> error("${backend.name} does not implement general sparse LU")
     }
 
@@ -196,7 +195,6 @@ private fun Map<BackendRole, Backend>.semanticCholesky(reference: F64ReferenceSp
     when (val backend = getValue(BackendRole.SPARSE_CHOLESKY)) {
         F64ReferenceSparseLinearAlgebra -> reference
         is F64SparseCholesky -> backend
-        is F64SparseDecompositions -> LegacySparseCholesky(backend)
         else -> error("${backend.name} does not implement sparse Cholesky")
     }
 
@@ -204,7 +202,6 @@ private fun Map<BackendRole, Backend>.semanticLdl(reference: F64ReferenceSparseB
     when (val backend = getValue(BackendRole.SPARSE_LDL)) {
         F64ReferenceSparseLinearAlgebra -> reference
         is F64SparseLdl -> backend
-        is F64SparseDecompositions -> LegacySparseLdl(backend)
         else -> error("${backend.name} does not implement sparse LDL")
     }
 
@@ -212,7 +209,6 @@ private fun Map<BackendRole, Backend>.semanticQr(reference: F64ReferenceSparseBa
     when (val backend = getValue(BackendRole.SPARSE_QR)) {
         F64ReferenceSparseLinearAlgebra -> reference
         is F64SparseQr -> backend
-        is F64SparseDecompositions -> LegacySparseQr(backend)
         else -> error("${backend.name} does not implement sparse QR")
     }
 

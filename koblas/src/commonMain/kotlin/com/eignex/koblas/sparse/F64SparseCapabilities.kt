@@ -194,35 +194,3 @@ internal class F64SparseDecompositionRoles(
     override fun ldl(a: F64SparseMatrix): F64SparseLdlFactorization = ldlProvider.ldl(a)
     override fun qr(a: F64SparseMatrix): F64SparseQrFactorization = qrProvider.qr(a)
 }
-
-internal class LegacyGeneralSparseLu(private val delegate: F64SparseDecompositions) : F64GeneralSparseLu {
-    override val name: String get() = delegate.name
-    override val priority: Int get() = delegate.priority
-    override val isPortable: Boolean get() = delegate.isPortable
-    override val isAvailable: Boolean get() = delegate.isAvailable
-    override fun factor(a: F64SparseMatrix): F64SparseLuFactorization = delegate.factor(a)
-}
-
-internal class LegacySparseCholesky(private val delegate: F64SparseDecompositions) : F64SparseCholesky {
-    override val name: String get() = delegate.name
-    override val priority: Int get() = delegate.priority
-    override val isPortable: Boolean get() = delegate.isPortable
-    override val isAvailable: Boolean get() = delegate.isAvailable
-    override fun cholesky(a: F64SparseMatrix): F64SparseCholeskyFactorization = delegate.cholesky(a)
-}
-
-internal class LegacySparseQr(private val delegate: F64SparseDecompositions) : F64SparseQr {
-    override val name: String get() = delegate.name
-    override val priority: Int get() = delegate.priority
-    override val isPortable: Boolean get() = delegate.isPortable
-    override val isAvailable: Boolean get() = delegate.isAvailable
-    override fun qr(a: F64SparseMatrix): F64SparseQrFactorization = delegate.qr(a)
-}
-
-internal class LegacySparseLdl(private val delegate: F64SparseDecompositions) : F64SparseLdl {
-    override val name: String get() = delegate.name
-    override val priority: Int get() = delegate.priority
-    override val isPortable: Boolean get() = delegate.isPortable
-    override val isAvailable: Boolean get() = delegate.isAvailable
-    override fun ldl(a: F64SparseMatrix): F64SparseLdlFactorization = delegate.ldl(a)
-}
