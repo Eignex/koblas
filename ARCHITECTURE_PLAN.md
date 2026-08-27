@@ -292,6 +292,13 @@ Acceptance criteria:
 
 ### PR 8: Bind SPQR or stop shipping it
 
+Status: open as [PR #326](https://github.com/Eignex/koblas/pull/326) from `codex/sparse-qr`; the bundled
+SuiteSparse module check and `./gradlew check lintDocs --rerun-tasks` passed all 190 tasks. The audit found no
+SPQR entry point, sparse-QR semantic role, portable conformance contract, or factor representation on either
+JVM or Kotlin/Native, so the PR stops building and packaging the unreachable library. Packaging and runtime
+manifest tests reject its return. The regenerated Linux bundle falls from 8.7 MB to 7.8 MB uncompressed and
+omits SPQR notices while retaining KLU, UMFPACK, and CHOLMOD.
+
 - Audit the SPQR artifact, exported ABI, transitive SuiteSparse ownership, and target coverage.
 - Prefer a typed sparse-QR capability and factor/solve seam when it can be supported coherently on JVM and
   Kotlin/Native.
