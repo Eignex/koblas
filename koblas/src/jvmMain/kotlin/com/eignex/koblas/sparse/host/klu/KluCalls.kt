@@ -3,6 +3,8 @@ package com.eignex.koblas.sparse.host.klu
 import com.eignex.koblas.internal.host.FfmLibrary
 import com.eignex.koblas.internal.host.FfmLibrary.Companion.intOf
 import com.eignex.koblas.internal.host.FfmLibrary.Companion.pointerOf
+import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.sparse.internal.transposeRaw
 import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout.*
@@ -25,6 +27,7 @@ internal class KluCalls(private val config: KluConfig) {
         val transposedSolve: MethodHandle,
         val freeSymbolic: MethodHandle,
         val freeNumeric: MethodHandle,
+        val extract: MethodHandle?,
     )
 
     val libraryPresent: Boolean get() = library.present
@@ -51,7 +54,81 @@ internal class KluCalls(private val config: KluConfig) {
             ) ?: return null,
             freeSymbolic = library.handleOrNull("klu_free_symbolic", intOf(ADDRESS, ADDRESS)) ?: return null,
             freeNumeric = library.handleOrNull("klu_free_numeric", intOf(ADDRESS, ADDRESS)) ?: return null,
+            // Optional, unlike the rest: without it a factorization still solves and only reading its
+            // factors is refused.
+            extract = library.handleOrNull("klu_extract", intOf(*Array(16) { ADDRESS })),
         )
+    }
+
+    /** [extractFactors]'s implementation, which needs the bound handles. */
+    internal fun extract(factor: KluFactor): KluFactors? {
+        val bound = handles ?: return null
+        val extract = bound.extract ?: return null
+        val numeric = factor.numeric
+        val order = factor.n
+        val lNonzeros = numeric.get(JAVA_INT, KLU_NUMERIC_LNZ)
+        val uNonzeros = numeric.get(JAVA_INT, KLU_NUMERIC_UNZ)
+        val offNonzeros = numeric.get(JAVA_INT, KLU_NUMERIC_NZOFF)
+        val blocks = numeric.get(JAVA_INT, KLU_NUMERIC_NBLOCKS)
+        return Arena.ofConfined().use { arena ->
+            val lPtr = arena.allocate(JAVA_INT, order + 1L)
+            val lIdx = arena.allocate(JAVA_INT, maxOf(lNonzeros, 1).toLong())
+            val lVal = arena.allocate(JAVA_DOUBLE, maxOf(lNonzeros, 1).toLong())
+            val uPtr = arena.allocate(JAVA_INT, order + 1L)
+            val uIdx = arena.allocate(JAVA_INT, maxOf(uNonzeros, 1).toLong())
+            val uVal = arena.allocate(JAVA_DOUBLE, maxOf(uNonzeros, 1).toLong())
+            val fPtr = arena.allocate(JAVA_INT, order + 1L)
+            val fIdx = arena.allocate(JAVA_INT, maxOf(offNonzeros, 1).toLong())
+            val fVal = arena.allocate(JAVA_DOUBLE, maxOf(offNonzeros, 1).toLong())
+            val rowPerm = arena.allocate(JAVA_INT, order.toLong())
+            val colPerm = arena.allocate(JAVA_INT, order.toLong())
+            val scaling = arena.allocate(JAVA_DOUBLE, order.toLong())
+            val boundaries = arena.allocate(JAVA_INT, blocks + 1L)
+            val ok = extract.invokeExact(
+                numeric, factor.symbolicHolder.get(ADDRESS, 0),
+                lPtr, lIdx, lVal, uPtr, uIdx, uVal, fPtr, fIdx, fVal,
+                rowPerm, colPerm, scaling, boundaries, factor.common,
+            ) as Int
+            if (ok != 1) return@use null
+            KluFactors(
+                lower = matrix(order, lPtr, lIdx, lVal, lNonzeros),
+                upper = matrix(order, uPtr, uIdx, uVal, uNonzeros),
+                offDiagonal = matrix(order, fPtr, fIdx, fVal, offNonzeros),
+                rowOrder = readInts(rowPerm, order),
+                columnOrder = readInts(colPerm, order),
+                rowScaling = readDoubles(scaling, order).let { scale ->
+                    // KLU divides rows by these, so the multiplier the interface documents is the reciprocal.
+                    DoubleArray(order) { if (scale[it] == 0.0) 1.0 else 1.0 / scale[it] }
+                },
+            )
+        }
+    }
+
+    /** A CSC matrix over copies of these segments, rows sorted by the transpose pair. */
+    private fun matrix(
+        order: Int,
+        pointers: MemorySegment,
+        indices: MemorySegment,
+        values: MemorySegment,
+        nonzeros: Int,
+    ): F64SparseMatrix {
+        val ptr = readInts(pointers, order + 1)
+        val idx = readInts(indices, nonzeros)
+        val entries = readDoubles(values, nonzeros)
+        val once = transposeRaw(order, order, ptr, idx, entries)
+        return transposeRaw(order, order, once.colPtr, once.rowIdx, once.values)
+    }
+
+    private fun readInts(segment: MemorySegment, count: Int): IntArray {
+        val out = IntArray(count)
+        if (count > 0) MemorySegment.copy(segment, JAVA_INT, 0L, out, 0, count)
+        return out
+    }
+
+    private fun readDoubles(segment: MemorySegment, count: Int): DoubleArray {
+        val out = DoubleArray(count)
+        if (count > 0) MemorySegment.copy(segment, JAVA_DOUBLE, 0L, out, 0, count)
+        return out
     }
 
     private fun handlesOrThrow(): Handles = checkNotNull(handles) { "KLU 2 is not available" }
@@ -185,6 +262,16 @@ internal class KluCalls(private val config: KluConfig) {
         }
     }
 }
+
+/**
+ * `L`, `U`, the off-diagonal blocks, the two permutations and the scaling from [factor], or null when this
+ * libklu lacks `klu_extract`.
+ *
+ * KLU permutes to block triangular form and factors the blocks, so the entries outside them are in neither
+ * `L` nor `U` and come back as `F`. Its scaling divides, so it is inverted here to the multiplier the
+ * factor interface documents.
+ */
+internal fun KluCalls.extractFactors(factor: KluFactor): KluFactors? = extract(factor)
 
 internal class KluFactor(
     val n: Int,
