@@ -10,6 +10,8 @@ class RoutingTest {
         assertFailsWith<IllegalArgumentException> { F64RouteQuery.DenseGemm(1, -1, 1) }
         assertFailsWith<IllegalArgumentException> { F64RouteQuery.DenseLu(-1) }
         assertFailsWith<IllegalArgumentException> { F64RouteQuery.SparseDenseGemm(-1) }
+        assertFailsWith<IllegalArgumentException> { F64RouteQuery.SparseTriangularSolve(-1) }
+        assertFailsWith<IllegalArgumentException> { F64RouteQuery.SparseTriangularSolve(1, -1) }
         assertFailsWith<IllegalArgumentException> { F64RouteQuery.SparseLu(-1) }
     }
 
