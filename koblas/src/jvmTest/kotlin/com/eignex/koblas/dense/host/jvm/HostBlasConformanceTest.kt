@@ -1,7 +1,6 @@
 package com.eignex.koblas.dense.host.jvm
 
 import com.eignex.koblas.*
-import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.host.*
 import com.eignex.koblas.dense.host.cblas.HostBlasConfig
@@ -22,22 +21,6 @@ class HostBlasConformanceTest {
         assertStridedProductsAgreeWithReference(
             F64Cblas(HostBlasConfig(level2Min = 0, level3Min = 0)),
         )
-    }
-
-    @Test
-    fun `a full-uplo syrk returns its scratch buffer to the workspace`() {
-        Assume.assumeTrue("host CBLAS is not installed", HostLibraries.cblas)
-        val n = 64
-        val rng = Random(20260816)
-        val a = randomMatrix(n, n, rng)
-        val c = F64DenseMatrix.zero(n, n)
-        val ws = Workspace()
-        val host: F64Blas = F64Cblas()
-        // Prime the pool with the one buffer of this width, so syrk has to borrow and return that instance.
-        val scratch = ws.take(n * n)
-        ws.release(scratch)
-        host.syrk(1.0, a, transpose = false, beta = 0.0, c = c, uplo = Uplo.FULL, workspace = ws)
-        assertSame(scratch, ws.take(n * n), "syrk kept the scratch buffer instead of releasing it")
     }
 
     /**

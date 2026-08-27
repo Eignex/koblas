@@ -16,11 +16,11 @@ public interface F64LinearAlgebra :
 public fun F64DenseMatrix.lu(): F64LuDecomposition = koblas.factor(this)
 
 /**
- * Symmetric indefinite factorization `A = L·D·Lᵀ` with the active backend. [Uplo.FULL] checks that both
- * triangles agree; [Uplo.LOWER] or [Uplo.UPPER] selects one triangle without checking the other.
+ * Symmetric indefinite factorization `A = L·D·Lᵀ` with the active backend. [lower] selects the authoritative
+ * triangle without checking the other.
  */
-public fun F64DenseMatrix.ldl(workspace: Workspace? = null, uplo: Uplo = Uplo.FULL): F64LdlDecomposition =
-    koblas.ldl(asLowerSymmetricInput(uplo, "ldl"), workspace)
+public fun F64DenseMatrix.ldl(workspace: Workspace? = null, lower: Boolean = true): F64LdlDecomposition =
+    koblas.ldl(asLowerSymmetricInput(lower, "ldl"), workspace)
 
 /** QR factorization `A = Q·R` with the active backend; see [F64Decompositions.qr]. */
 public fun F64DenseMatrix.qr(workspace: Workspace? = null): F64QrDecomposition = koblas.qr(this, workspace)

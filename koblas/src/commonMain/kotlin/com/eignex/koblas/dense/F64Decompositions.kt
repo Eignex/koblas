@@ -178,10 +178,6 @@ public interface F64Decompositions : Backend {
      */
     public fun trtri(a: F64DenseMatrix, lower: Boolean, unitDiag: Boolean = false): F64DenseMatrix
 
-    /** Typed-flag form of [trtri]. */
-    public fun trtri(a: F64DenseMatrix, uplo: Uplo, diag: Diag = Diag.NON_UNIT): F64DenseMatrix =
-        trtri(a, uplo.lowerTriangle("trtri"), diag.isUnit)
-
     /** Invert an SPD matrix from its Cholesky factorization, returning `A⁻¹` given [chol] (LAPACK `dpotri`). */
     public fun invert(chol: F64CholeskyDecomposition, workspace: Workspace? = null): F64DenseMatrix
 }

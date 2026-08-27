@@ -143,11 +143,11 @@ class LinearAlgebraSymmetricOpsTest {
     @Test
     fun `syrk triangle modes write only the selected triangle with strict beta semantics`() {
         val rng = Random(20260933)
-        for (uplo in listOf(Uplo.LOWER, Uplo.UPPER)) {
+        for (lower in booleanArrayOf(true, false)) {
             for (transpose in booleanArrayOf(false, true)) {
                 for (alpha in doubleArrayOf(0.0, 0.75)) {
                     for (beta in doubleArrayOf(0.0, 1.0, -0.5)) {
-                        checkSyrk(rng, uplo, transpose, alpha, beta)
+                        checkSyrk(rng, lower, transpose, alpha, beta)
                     }
                 }
             }
@@ -155,27 +155,27 @@ class LinearAlgebraSymmetricOpsTest {
     }
 
     @Suppress("CyclomaticComplexMethod")
-    private fun checkSyrk(rng: Random, uplo: Uplo, transpose: Boolean, alpha: Double, beta: Double) {
+    private fun checkSyrk(rng: Random, lower: Boolean, transpose: Boolean, alpha: Double, beta: Double) {
         val a = randomMatrix(6, 4, rng)
         val n = if (transpose) a.cols else a.rows
         val term = F64DenseMatrix(n, n)
-        koblas.syrk(1.0, a, transpose, 0.0, term)
+        koblas.syrk(1.0, a, transpose, 0.0, term, lower = lower)
         // The output is NaN where beta == 0 must overwrite without reading, and the unselected triangle stays NaN.
         val c = F64DenseMatrix(n, n)
         val c0 = F64DenseMatrix(n, n)
         for (i in 0 until n) {
             for (j in 0 until n) {
-                val selected = if (uplo == Uplo.LOWER) j <= i else j >= i
+                val selected = if (lower) j <= i else j >= i
                 val v = if (!selected || beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0)
                 c[i, j] = v
                 c0[i, j] = v
             }
         }
-        koblas.syrk(alpha, a, transpose, beta, c, uplo)
-        val context = "syrk $uplo t=$transpose a=$alpha b=$beta"
+        koblas.syrk(alpha, a, transpose, beta, c, lower)
+        val context = "syrk lower=$lower t=$transpose a=$alpha b=$beta"
         for (i in 0 until n) {
             for (j in 0 until n) {
-                val selected = if (uplo == Uplo.LOWER) j <= i else j >= i
+                val selected = if (lower) j <= i else j >= i
                 if (selected) {
                     val expected = (if (beta == 0.0) 0.0 else beta * c0[i, j]) + alpha * term[i, j]
                     assertClose(expected, c[i, j], "$context ($i;$j)")
@@ -192,20 +192,20 @@ class LinearAlgebraSymmetricOpsTest {
         val n = 8
         val k = 5
         val ws = Workspace()
-        for (uplo in listOf(Uplo.FULL, Uplo.LOWER, Uplo.UPPER)) {
+        for (lower in booleanArrayOf(true, false)) {
             val a = randomMatrix(n, k, rng)
             val first = F64DenseMatrix(n, n)
-            koblas.syrk(0.75, a, transpose = false, beta = 0.0, c = first, uplo = uplo, workspace = ws)
+            koblas.syrk(0.75, a, transpose = false, beta = 0.0, c = first, lower = lower, workspace = ws)
             val second = F64DenseMatrix(n, n)
-            koblas.syrk(0.75, a, transpose = false, beta = 0.0, c = second, uplo = uplo, workspace = ws)
+            koblas.syrk(0.75, a, transpose = false, beta = 0.0, c = second, lower = lower, workspace = ws)
             val fresh = F64DenseMatrix(n, n)
-            koblas.syrk(0.75, a, transpose = false, beta = 0.0, c = fresh, uplo = uplo)
+            koblas.syrk(0.75, a, transpose = false, beta = 0.0, c = fresh, lower = lower)
             for (i in 0 until n) {
                 for (j in 0 until n) {
                     val f = first[i, j]
                     if (f.isNaN()) continue // an untouched triangle stays untouched; checked elsewhere
-                    assertClose(f, second[i, j], "syrk $uplo reused workspace ($i;$j)")
-                    assertClose(f, fresh[i, j], "syrk $uplo against no workspace ($i;$j)")
+                    assertClose(f, second[i, j], "syrk lower=$lower reused workspace ($i;$j)")
+                    assertClose(f, fresh[i, j], "syrk lower=$lower against no workspace ($i;$j)")
                 }
             }
         }
@@ -235,48 +235,22 @@ class LinearAlgebraSymmetricOpsTest {
         val n = 5
         val k = 3
         for (transpose in booleanArrayOf(false, true)) {
-            for (uplo in Uplo.entries) {
+            for (lower in booleanArrayOf(true, false)) {
                 val a = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
                 val b = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
                 val before = randomMatrix(n, n, rng)
                 val c = F64DenseMatrix.wrap(n, n, before.data.copyOf())
-                koblas.syr2k(0.5, a, b, transpose, beta = 2.0, c = c, uplo = uplo)
+                koblas.syr2k(0.5, a, b, transpose, beta = 2.0, c = c, lower = lower)
                 for (i in 0 until n) {
                     for (j in 0 until n) {
-                        val written = when (uplo) {
-                            Uplo.FULL -> true
-                            Uplo.LOWER -> i >= j
-                            Uplo.UPPER -> i <= j
-                        }
+                        val written = if (lower) i >= j else i <= j
                         val expected = if (written) {
                             2.0 * before[i, j] + 0.5 * syr2kEntry(a, b, transpose, k, i, j)
                         } else {
                             before[i, j]
                         }
-                        assertClose(expected, c[i, j], "transpose=$transpose uplo=$uplo at [$i,$j]")
+                        assertClose(expected, c[i, j], "transpose=$transpose lower=$lower at [$i,$j]")
                     }
-                }
-            }
-        }
-    }
-
-    /** The full mode writes both halves, so a mirror dropped from the placement shows up as an asymmetry. */
-    @Test
-    fun `syr2k writes both halves in the full mode`() {
-        val rng = Random(20260826)
-        val n = 6
-        val k = 4
-        for (transpose in booleanArrayOf(false, true)) {
-            val a = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
-            val b = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
-            val c = F64DenseMatrix(n, n)
-            koblas.syr2k(0.5, a, b, transpose, beta = 0.0, c = c, uplo = Uplo.FULL)
-            for (i in 0 until n) {
-                for (j in 0 until n) {
-                    assertTrue(
-                        c[i, j] == c[j, i],
-                        "transpose=$transpose is not exactly symmetric at [$i,$j]: ${c[i, j]} vs ${c[j, i]}",
-                    )
                 }
             }
         }
@@ -292,8 +266,8 @@ class LinearAlgebraSymmetricOpsTest {
             val b = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
             val c = F64DenseMatrix(n, n)
             koblas.syr2k(0.5, a, b, transpose, 0.0, c)
-            for (i in 0 until n) {
-                for (j in 0 until n) {
+            for (j in 0 until n) {
+                for (i in j until n) {
                     assertClose(
                         0.5 * syr2kEntry(a, b, transpose, k, i, j),
                         c[i, j],
@@ -385,12 +359,12 @@ class LinearAlgebraSymmetricOpsTest {
             // Two staging buffers of one width, so a routine that borrowed the same one twice would hold
             // one operand where the other belongs and both dots would read it.
             val pooled = F64DenseMatrix(n, n)
-            koblas.syr2k(0.75, a, b, transpose, beta = 0.0, c = pooled, uplo = Uplo.LOWER, workspace = ws)
+            koblas.syr2k(0.75, a, b, transpose, beta = 0.0, c = pooled, lower = true, workspace = ws)
             val fresh = F64DenseMatrix(n, n)
-            koblas.syr2k(0.75, a, b, transpose, beta = 0.0, c = fresh, uplo = Uplo.LOWER)
+            koblas.syr2k(0.75, a, b, transpose, beta = 0.0, c = fresh, lower = true)
             assertClose(fresh.data, pooled.data, "transpose=$transpose against the unpooled result")
             val again = F64DenseMatrix(n, n)
-            koblas.syr2k(0.75, a, b, transpose, beta = 0.0, c = again, uplo = Uplo.LOWER, workspace = ws)
+            koblas.syr2k(0.75, a, b, transpose, beta = 0.0, c = again, lower = true, workspace = ws)
             assertClose(fresh.data, again.data, "transpose=$transpose on the second pooled call")
         }
     }

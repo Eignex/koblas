@@ -147,8 +147,7 @@ Target design:
 - Document routing thresholds and fallback behavior.
 - Document aliasing, allocation, lifecycle, and thread-safety guarantees.
 - Add decision guides for general sparse LU, repeated-pattern solves, interior-point systems, and simplex.
-- Replace clusters of Boolean BLAS flags with typed `Uplo`, `Transpose`, `Diag`, and `Side` values while
-  retaining migration overloads where practical.
+- Keep binary BLAS choices as named Boolean parameters rather than duplicating the API with flag enums.
 
 ## Proposed stacked PR sequence
 
@@ -453,9 +452,9 @@ Acceptance criteria:
 
 Status: open as [PR #338](https://github.com/Eignex/koblas/pull/338) from
 `codex/expert-api-documentation`; focused JVM and Linux/Native typed-flag tests passed, ABI and documentation
-checks passed, and `./gradlew check lintDocs --rerun-tasks` passed all 190 tasks. Typed `Uplo`, `Transpose`,
-`Diag`, and `Side` overloads now cover dense and sparse BLAS flag clusters while Boolean signatures remain as
-migration paths. The README now contains element-type and routine/provider/target coverage, routing and
+checks passed, and `./gradlew check lintDocs --rerun-tasks` passed all 190 tasks. A later cleanup removed the
+temporary typed flag overloads in favor of the existing named Boolean parameters. The README now contains
+element-type and routine/provider/target coverage, routing and
 fallback contracts, lifecycle, allocation, ownership, concurrency, sparse workflow guides, and complete
 strict-context and symbolic-reuse examples. This completes the implementation and documentation stack; PR 10
 remains the single accepted hardware-deferred measurement.

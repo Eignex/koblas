@@ -24,9 +24,7 @@ mirror the dense ones.
   separate from the setup-inclusive one-shot gate. Handles reject calls after close and require external
   serialization when shared between threads.
 
-  Its transpose, triangle, diagonal, and side choices have the same typed
-  [com.eignex.koblas.dense.Transpose], [com.eignex.koblas.dense.Uplo], [com.eignex.koblas.dense.Diag], and
-  [com.eignex.koblas.dense.Side] overloads as dense BLAS. Boolean forms remain source compatible.
+  Its transpose, triangle, diagonal, and side choices use the same named Boolean parameters as dense BLAS.
 - [F64SparseDecompositions] — the compatibility composition of the selected general LU, Cholesky, and LDL
   roles. [F64SparseDecompositions.factor] is the general LU and
   returns [F64SparseFactorization], never null: a singular matrix yields a factorization reporting

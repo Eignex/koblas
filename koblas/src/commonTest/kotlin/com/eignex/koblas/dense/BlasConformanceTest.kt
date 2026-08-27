@@ -229,7 +229,7 @@ class BlasConformanceTest {
     }
 
     @Test
-    fun `syrk matches gemm with a transposed operand and stays symmetric`() {
+    fun `syrk matches gemm over the selected triangle`() {
         val rng = Random(20260731)
         for ((n, k) in listOf(1 to 1, 4 to 7, 9 to 3)) {
             for (transpose in booleanArrayOf(false, true)) {
@@ -247,17 +247,12 @@ class BlasConformanceTest {
                         val c = F64DenseMatrix(n, n, c0.data.copyOf())
                         koblas.syrk(alpha, a, transpose, beta, c)
                         val bound = 100.0 * k * eps * (infNorm(a) * infNorm(a) + infNorm(expected)) + 1e-12
-                        for (idx in c.data.indices) {
-                            assertTrue(
-                                abs(c.data[idx] - expected.data[idx]) <= bound,
-                                "syrk n=$n k=$k t=$transpose a=$alpha b=$beta at $idx",
-                            )
-                        }
-                        if (beta == 0.0 && alpha != 0.0) { // pure alpha term must be exactly symmetric
-                            for (i in 0 until n) {
-                                for (j in 0 until i) {
-                                    assertTrue(c[i, j] == c[j, i], "syrk asymmetry at ($i,$j)")
-                                }
+                        for (j in 0 until n) {
+                            for (i in j until n) {
+                                assertTrue(
+                                    abs(c[i, j] - expected[i, j]) <= bound,
+                                    "syrk n=$n k=$k t=$transpose a=$alpha b=$beta at ($i,$j)",
+                                )
                             }
                         }
                     }

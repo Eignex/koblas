@@ -92,22 +92,6 @@ class AllocationFreeTest {
     }
 
     @Test
-    fun `the symmetric rank-k mirror buffer is lent rather than allocated`() {
-        val n = 64
-        val rng = Random(20260741)
-        val a = wellConditioned(n, rng)
-        val c = F64DenseMatrix(n, n)
-        val ws = Workspace().apply { reserve(n * n, count = 1) }
-
-        val allocating = bytesPerIteration(200) { koblas.syrk(1.0, a, transpose = false, beta = 0.0, c = c) }
-        val pooled = bytesPerIteration(200) {
-            koblas.syrk(1.0, a, transpose = false, beta = 0.0, c = c, workspace = ws)
-        }
-        assertTrue(allocating > n * n * Double.SIZE_BYTES * 0.5, "expected an n² scratch, saw $allocating B")
-        assertPooled(pooled, allocating, "syrk")
-    }
-
-    @Test
     fun `a block solve loop allocates nothing per iteration`() {
         val n = 48
         val nrhs = 40 // above the crossover, so the blocked path runs rather than column-by-column
@@ -210,8 +194,8 @@ class AllocationFreeTest {
         val a = F64DenseMatrix.zero(n, n)
         val x = F64DenseVector.wrap(DoubleArray(n) { rng.nextDouble(-1.0, 1.0) })
         val y = F64DenseVector.wrap(DoubleArray(n) { rng.nextDouble(-1.0, 1.0) })
-        val syr = bytesPerIteration(500) { koblas.syr(1e-12, x, a, Uplo.LOWER) }
-        val syr2 = bytesPerIteration(500) { koblas.syr2(1e-12, x, y, a, Uplo.LOWER) }
+        val syr = bytesPerIteration(500) { koblas.syr(1e-12, x, a, lower = true) }
+        val syr2 = bytesPerIteration(500) { koblas.syr2(1e-12, x, y, a, lower = true) }
         assertTrue(syr < FLOOR_BYTES, "syr allocated $syr B per call for a dense operand it can read in place")
         assertTrue(syr2 < FLOOR_BYTES, "syr2 allocated $syr2 B per call for dense operands it can read in place")
     }

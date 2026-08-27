@@ -6,8 +6,6 @@ import com.eignex.koblas.*
 import com.eignex.koblas.core.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.host.cblas.Cblas.COL_MAJOR
-import com.eignex.koblas.dense.host.cblas.Cblas.LOWER
-import com.eignex.koblas.dense.host.cblas.Cblas.UPPER
 import com.eignex.koblas.dense.host.cblas.Cblas.diagOf
 import com.eignex.koblas.dense.host.cblas.Cblas.sideOf
 import com.eignex.koblas.dense.host.cblas.Cblas.transOf
@@ -77,15 +75,15 @@ public abstract class F64BlasAdapter internal constructor(
     // from which the call starts paying, which is the only shape a dispatch gate can express.
     override fun transpose(a: F64DenseMatrix): F64DenseMatrix = portable.transpose(a)
 
-    override fun syr(alpha: Double, x: F64VectorLike, a: F64DenseMatrix, uplo: Uplo): Unit = portable.syr(
+    override fun syr(alpha: Double, x: F64VectorLike, a: F64DenseMatrix, lower: Boolean): Unit = portable.syr(
         alpha,
         x,
         a,
-        uplo,
+        lower,
     )
 
-    override fun syr2(alpha: Double, x: F64VectorLike, y: F64VectorLike, a: F64DenseMatrix, uplo: Uplo): Unit =
-        portable.syr2(alpha, x, y, a, uplo)
+    override fun syr2(alpha: Double, x: F64VectorLike, y: F64VectorLike, a: F64DenseMatrix, lower: Boolean): Unit =
+        portable.syr2(alpha, x, y, a, lower)
 
     @Suppress("LongParameterList") // the BLAS dsyr2k signature plus optional scratch
     override fun syr2k(
@@ -95,9 +93,9 @@ public abstract class F64BlasAdapter internal constructor(
         transpose: Boolean,
         beta: Double,
         c: F64DenseMatrix,
-        uplo: Uplo,
+        lower: Boolean,
         workspace: Workspace?,
-    ): Unit = portable.syr2k(alpha, a, b, transpose, beta, c, uplo, workspace)
+    ): Unit = portable.syr2k(alpha, a, b, transpose, beta, c, lower, workspace)
 
     /** `v = beta * v`, honoring the BLAS convention that `beta == 0` overwrites without reading. */
     private fun scaleInPlace(v: DoubleArray, beta: Double) {
@@ -372,56 +370,22 @@ public abstract class F64BlasAdapter internal constructor(
         transpose: Boolean,
         beta: Double,
         c: F64DenseMatrix,
-        uplo: Uplo,
+        lower: Boolean,
         workspace: Workspace?,
     ) {
         val n = if (transpose) a.cols else a.rows
         val k = if (transpose) a.rows else a.cols
         requireShape(c.rows == n && c.cols == n) { "syrk: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
         if (minOf(n, k) < dispatch.level3) {
-            return portable.syrk(alpha, a, transpose, beta, c, uplo, workspace)
+            return portable.syrk(alpha, a, transpose, beta, c, lower, workspace)
         }
         if (alpha == 0.0 || k == 0) {
-            scaleUplo(kernels, c.data, n, beta, uplo)
+            scaleTriangle(kernels, c.data, n, beta, lower)
             return
         }
         if (n == 0) return
         val trans = transOf(transpose)
-        if (uplo != Uplo.FULL) {
-            // Strict dsyrk semantics: one triangle written and beta-scaled, the other untouched.
-            f.dsyrk(
-                COL_MAJOR,
-                if (uplo ==
-                    Uplo.LOWER
-                ) {
-                    LOWER
-                } else {
-                    UPPER
-                },
-                trans, n, k, alpha, a.data, a.rows, beta, c.data, n,
-            )
-            return
-        }
-        // dsyrk touches one triangle only, so the FULL contract needs the alpha term computed into a
-        // scratch lower triangle, mirrored, then combined with a beta scale of all of C.
-        val w = workspace?.take(n * n) ?: DoubleArray(n * n)
-        // Handed back even when the library raises: a buffer never returned is one its pool can neither lend
-        // again nor reclaim, and every call through here is a call that can fail.
-        try {
-            f.dsyrk(COL_MAJOR, LOWER, trans, n, k, alpha, a.data, a.rows, 0.0, w, n)
-            for (j in 0 until n) {
-                for (i in j + 1 until n) w[j + i * n] = w[i + j * n]
-            }
-            val cd = c.data
-            if (beta == 0.0) {
-                w.copyInto(cd)
-            } else {
-                if (beta != 1.0) f.dscal(cd.size, beta, cd, 1)
-                f.daxpy(cd.size, 1.0, w, 1, cd, 1)
-            }
-        } finally {
-            workspace?.release(w)
-        }
+        f.dsyrk(COL_MAJOR, uploOf(lower), trans, n, k, alpha, a.data, a.rows, beta, c.data, n)
     }
 
     /**
