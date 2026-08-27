@@ -12,7 +12,7 @@ import com.eignex.koblas.sparse.host.basiclu.BasicluSparseLu
  * discovery leaves this provider out of the running.
  *
  * One of [BasicluSparseLu] rather than a wrapper around one. BASICLU's own routines sit on that class rather
- * than on a seam, so a caller reaching it through [com.eignex.koblas.sparseDecompositionsNamed] can only
+ * than on a seam, so a caller reaching it through [com.eignex.koblas.backendNamed] can only
  * use them if the bundled provider and the configured binding are the same type.
  */
 public class BundledBasiclu private constructor(config: BasicluConfig) : BasicluSparseLu(config) {

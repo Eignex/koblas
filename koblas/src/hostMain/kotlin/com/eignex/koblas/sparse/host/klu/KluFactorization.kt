@@ -21,7 +21,7 @@ import kotlin.experimental.ExperimentalNativeApi
 import kotlin.native.concurrent.ThreadLocal
 import kotlin.native.ref.createCleaner
 
-/** KLU's symbolic and numeric objects behind koblas's [F64SparseFactorization]. */
+/** KLU's symbolic and numeric objects behind koblas's [F64SparseLuFactorization]. */
 public class KluFactorization internal constructor(
     private val handle: KluHandle,
     private val functions: KluFunctions,
