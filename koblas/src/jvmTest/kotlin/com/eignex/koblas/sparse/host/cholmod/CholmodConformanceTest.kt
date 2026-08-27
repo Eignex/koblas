@@ -54,8 +54,8 @@ class CholmodConformanceTest {
         Assume.assumeTrue("SuiteSparse is not installed", umfpack.isAvailable && klu.isAvailable)
         val a = spd(24, 20260912)
 
-        assertIs<CholmodFactorization>(umfpack.cholesky(a), "UMFPACK should answer with CHOLMOD's Cholesky")
-        assertIs<CholmodFactorization>(klu.cholesky(a), "KLU should answer with CHOLMOD's Cholesky")
+        assertIs<CholmodCholeskyFactorization>(umfpack.cholesky(a), "UMFPACK should answer with CHOLMOD's Cholesky")
+        assertIs<CholmodCholeskyFactorization>(klu.cholesky(a), "KLU should answer with CHOLMOD's Cholesky")
     }
 
     @Test
@@ -63,7 +63,7 @@ class CholmodConformanceTest {
         requireCholmod()
         Assume.assumeTrue("SuiteSparse is not installed", umfpack.isAvailable)
         val factorization = umfpack.cholesky(spd(12, 20261004))
-        assertIs<CholmodFactorization>(factorization)
+        assertIs<CholmodCholeskyFactorization>(factorization)
 
         assertNativeFactorCloseContract(factorization)
     }
@@ -80,7 +80,7 @@ class CholmodConformanceTest {
 
         val f = umfpack.ldl(a)
 
-        assertIs<CholmodFactorization>(f, "expected CHOLMOD's factorization rather than the portable fallback")
+        assertIs<CholmodLdlFactorization>(f, "expected CHOLMOD's factorization rather than the portable fallback")
         assertTrue(!f.singular, "an invertible indefinite system has an L D Lt")
         assertFailsWith<NotPositiveDefinite> { umfpack.cholesky(a) }
     }

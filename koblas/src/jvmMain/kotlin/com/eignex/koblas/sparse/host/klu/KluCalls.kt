@@ -1,9 +1,9 @@
 package com.eignex.koblas.sparse.host.klu
 
+import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.FfmLibrary
 import com.eignex.koblas.internal.host.FfmLibrary.Companion.intOf
 import com.eignex.koblas.internal.host.FfmLibrary.Companion.pointerOf
-import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.internal.transposeRaw
 import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment

@@ -4,7 +4,9 @@ import com.eignex.koblas.*
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.sparse.F64SingularSparseFactorization
-import com.eignex.koblas.sparse.F64SparseFactorization
+import com.eignex.koblas.sparse.F64SparseCholeskyFactorization
+import com.eignex.koblas.sparse.F64SparseLdlFactorization
+import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.F64SparseQrFactorization
 import com.eignex.koblas.sparse.host.F64SparseDecompositionsAdapter
 import com.eignex.koblas.sparse.host.cholmod.suiteSparseCholesky
@@ -52,11 +54,13 @@ public open class UmfpackSparseLu(
      * natively too rather than leaving it to the portable factorization. A machine carrying UMFPACK without
      * CHOLMOD falls back, which is what the null answer is for.
      */
-    final override fun choleskyNative(a: F64SparseMatrix): F64SparseFactorization =
+    final override fun choleskyNative(a: F64SparseMatrix): F64SparseCholeskyFactorization =
         cholmod.factor(a) ?: portable.cholesky(a)
 
     /** CHOLMOD's own default factorization, which is the one this seam's `ldl` asks for. */
-    final override fun ldlNative(a: F64SparseMatrix): F64SparseFactorization = cholmod.factorLdl(a) ?: portable.ldl(a)
+    final override fun ldlNative(a: F64SparseMatrix): F64SparseLdlFactorization = cholmod.factorLdl(
+        a,
+    ) ?: portable.ldl(a)
 
     /** SPQR ships in the same collection, so the seam's QR is answered natively too where it is installed. */
     final override fun qrNative(a: F64SparseMatrix): F64SparseQrFactorization = spqr.factor(a) ?: portable.qr(a)
@@ -68,7 +72,7 @@ public open class UmfpackSparseLu(
     internal val scaling: Double? get() = calls.scaling
 
     /** Factorizes [a] through UMFPACK's symbolic analysis and numeric factorization. */
-    final override fun factorNative(a: F64SparseMatrix): F64SparseFactorization {
+    final override fun factorNative(a: F64SparseMatrix): F64SparseLuFactorization {
         val colPtr = MemorySegment.ofArray(a.colPtr)
         val rowIdx = MemorySegment.ofArray(a.rowIdx)
         val values = MemorySegment.ofArray(a.values)

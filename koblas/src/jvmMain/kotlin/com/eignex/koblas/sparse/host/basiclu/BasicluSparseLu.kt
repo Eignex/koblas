@@ -10,6 +10,7 @@ import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.requireSquare
 import com.eignex.koblas.sparse.*
+import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.host.F64SparseDecompositionsAdapter
 import com.eignex.koblas.sparse.host.equilibrationScale
 import com.eignex.koblas.sparse.host.scaledValues
@@ -49,7 +50,7 @@ public open class BasicluSparseLu(
      * BASICLU offers no row scaling of its own, so equilibration is applied to the values handed over and
      * undone in the solves, by the same power-of-two factors the portable factorization uses.
      */
-    final override fun factorNative(a: F64SparseMatrix): F64SparseFactorization {
+    final override fun factorNative(a: F64SparseMatrix): F64SparseLuFactorization {
         val rowIdx = a.copyRowIndices()
         val scale = if (equilibrate) equilibrationScale(a.rows, rowIdx, a.values) else null
         val values = if (scale == null) a.values else scaledValues(rowIdx, a.values, scale)

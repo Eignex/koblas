@@ -16,6 +16,16 @@ internal class UmfpackFunctions(private val lib: COpaquePointer) {
     private fun required(name: String): COpaquePointer = dlsym(lib, name)
         ?: error("libumfpack is present but lacks $name")
 
+    // Optional, unlike the rest: without them a factorization still solves and only reading its factors is
+    // refused, so an older libumfpack keeps working.
+    // int umfpack_di_get_lunz(int *lnz, int *unz, int *n_row, int *n_col, int *nz_udiag, void *Numeric)
+    val getLunz = dlsym(lib, "umfpack_di_get_lunz")
+        ?.reinterpret<CFunction<(Ip, Ip, Ip, Ip, Ip, COpaquePointer?) -> Int>>()
+
+    // int umfpack_di_get_numeric(Lp, Lj, Lx, Up, Ui, Ux, P, Q, Dx, do_recip, Rs, void *Numeric)
+    val getNumeric = dlsym(lib, "umfpack_di_get_numeric")
+        ?.reinterpret<CFunction<(Ip, Ip, Dp, Ip, Ip, Dp, Ip, Ip, Dp, Ip, Dp, COpaquePointer?) -> Int>>()
+
     // int umfpack_di_symbolic(int n_row, int n_col, const int Ap[], const int Ai[], const double Ax[],
     //                         void **Symbolic, const double Control[], double Info[])
     val symbolic = required("umfpack_di_symbolic")

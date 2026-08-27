@@ -6,7 +6,7 @@ import com.eignex.koblas.assertClose
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.F64SparseDecompositions
-import com.eignex.koblas.sparse.F64SparseFactorization
+import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.sparseConformanceSystem
 import kotlin.random.Random
 import kotlin.test.*
@@ -223,7 +223,7 @@ class F64ProductFormBasisSolverTest {
         F64SparseDecompositions by delegate {
         var refuse: Boolean = false
 
-        override fun factor(a: F64SparseMatrix): F64SparseFactorization {
+        override fun factor(a: F64SparseMatrix): F64SparseLuFactorization {
             check(!refuse) { "the library gave up" }
             return delegate.factor(a)
         }
@@ -282,12 +282,12 @@ class F64ProductFormBasisSolverTest {
         F64SparseDecompositions by delegate {
         val factors = ArrayList<TrackingFactor>()
 
-        override fun factor(a: F64SparseMatrix): F64SparseFactorization =
+        override fun factor(a: F64SparseMatrix): F64SparseLuFactorization =
             TrackingFactor(delegate.factor(a)).also(factors::add)
     }
 
-    private class TrackingFactor(private val delegate: F64SparseFactorization) :
-        F64SparseFactorization by delegate {
+    private class TrackingFactor(private val delegate: F64SparseLuFactorization) :
+        F64SparseLuFactorization by delegate {
         var closes = 0
             private set
 

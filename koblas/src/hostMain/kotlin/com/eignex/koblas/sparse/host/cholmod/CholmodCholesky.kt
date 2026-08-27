@@ -5,7 +5,8 @@ package com.eignex.koblas.sparse.host.cholmod
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.NotPositiveDefinite
 import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.sparse.F64SparseFactorization
+import com.eignex.koblas.sparse.F64SparseCholeskyFactorization
+import com.eignex.koblas.sparse.F64SparseLdlFactorization
 import kotlinx.cinterop.*
 
 /**
@@ -27,12 +28,12 @@ public class CholmodCholesky(config: CholmodConfig = CholmodConfig()) {
      *
      * @throws NotPositiveDefinite at the column CHOLMOD stopped at, matching the portable Cholesky.
      */
-    public fun factor(a: F64SparseMatrix): F64SparseFactorization? = build(a, CHOLMOD_TRUE) { minor, n ->
+    public fun factor(a: F64SparseMatrix): F64SparseCholeskyFactorization? = build(a, CHOLMOD_TRUE) { minor, n ->
         if (minor < n) {
             throw NotPositiveDefinite(minor, 0.0, "cholesky: CHOLMOD stopped at column $minor, which is not positive")
         }
         NOT_SINGULAR
-    }
+    }?.let(::CholmodCholeskyFactorization)
 
     /**
      * Factor [a]'s lower triangle into `L·D·Lᵀ`, or null when the library is unusable.
@@ -41,14 +42,15 @@ public class CholmodCholesky(config: CholmodConfig = CholmodConfig()) {
      * since an `L·D·Lᵀ` failing means the matrix is singular where an `L·Lᵀ` failing only means it was not
      * positive definite.
      */
-    public fun factorLdl(a: F64SparseMatrix): F64SparseFactorization? =
+    public fun factorLdl(a: F64SparseMatrix): F64SparseLdlFactorization? =
         build(a, finalLl = 0) { minor, n -> if (minor < n) minor else NOT_SINGULAR }
+            ?.let(::CholmodLdlFactorization)
 
     private inline fun build(
         a: F64SparseMatrix,
         finalLl: Int,
         verdict: (minor: Int, n: Int) -> Int,
-    ): F64SparseFactorization? {
+    ): CholmodFactorization? {
         val functions = loader.functions ?: return null
         val common = loader.common(finalLl)
         val sparse = describeLowerTriangle(a)

@@ -17,10 +17,10 @@ import com.eignex.koblas.sparse.F64SparseBlas
 import com.eignex.koblas.sparse.F64SparseCholesky
 import com.eignex.koblas.sparse.F64SparseDecompositionRoles
 import com.eignex.koblas.sparse.F64SparseDecompositions
-import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.F64SparseKernels
 import com.eignex.koblas.sparse.F64SparseLdl
 import com.eignex.koblas.sparse.F64SparseLinearAlgebra
+import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.F64SparseQr
 import com.eignex.koblas.sparse.F64SparseQrFactorization
 import com.eignex.koblas.sparse.LegacyGeneralSparseLu
@@ -390,7 +390,7 @@ public class F64Context(
         sparseBlas.trsm(a, b, lower, transpose, unitDiag, right, alpha)
     }
 
-    override fun factor(a: F64SparseMatrix): F64SparseFactorization {
+    override fun factor(a: F64SparseMatrix): F64SparseLuFactorization {
         if (enforcesRoutingPolicy) {
             requireSquare(a, "factor")
             beforeDispatch(F64RouteQuery.SparseLu(a.nnz))

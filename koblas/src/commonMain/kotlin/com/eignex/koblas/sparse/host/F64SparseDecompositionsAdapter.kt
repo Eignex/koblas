@@ -81,7 +81,7 @@ public abstract class F64SparseDecompositionsAdapter protected constructor(
         else -> null
     }
 
-    final override fun factor(a: F64SparseMatrix): F64SparseFactorization {
+    final override fun factor(a: F64SparseMatrix): F64SparseLuFactorization {
         requireSquare(a, "factor")
         // A binding whose library is absent answers portably rather than throwing, so a caller reaching a
         // configured backend on a host without it gets the portable answer instead of an error.
@@ -92,9 +92,9 @@ public abstract class F64SparseDecompositionsAdapter protected constructor(
     }
 
     /** Factorizes a matrix through the native library, equilibrating when this backend is set to. */
-    protected abstract fun factorNative(a: F64SparseMatrix): F64SparseFactorization
+    protected abstract fun factorNative(a: F64SparseMatrix): F64SparseLuFactorization
 
-    final override fun cholesky(a: F64SparseMatrix): F64SparseFactorization {
+    final override fun cholesky(a: F64SparseMatrix): F64SparseCholeskyFactorization {
         requireSquare(a, "cholesky")
         if (a.nnz < symmetricGate || !nativeAvailable) {
             return portable.cholesky(a)
@@ -107,9 +107,9 @@ public abstract class F64SparseDecompositionsAdapter protected constructor(
      * unsymmetric LU and have none, so the default is the portable factorization: the seam carries every
      * sparse factorization, and a binding filling one half of it does not have to offer the rest.
      */
-    protected open fun choleskyNative(a: F64SparseMatrix): F64SparseFactorization = portable.cholesky(a)
+    protected open fun choleskyNative(a: F64SparseMatrix): F64SparseCholeskyFactorization = portable.cholesky(a)
 
-    final override fun ldl(a: F64SparseMatrix): F64SparseFactorization {
+    final override fun ldl(a: F64SparseMatrix): F64SparseLdlFactorization {
         requireSquare(a, "ldl")
         if (a.nnz < symmetricGate || !nativeAvailable) {
             return portable.ldl(a)
@@ -118,7 +118,7 @@ public abstract class F64SparseDecompositionsAdapter protected constructor(
     }
 
     /** Factorizes a symmetric matrix into `L·D·Lᵀ` through the native library, portably by default. */
-    protected open fun ldlNative(a: F64SparseMatrix): F64SparseFactorization = portable.ldl(a)
+    protected open fun ldlNative(a: F64SparseMatrix): F64SparseLdlFactorization = portable.ldl(a)
 
     final override fun qr(a: F64SparseMatrix): F64SparseQrFactorization {
         requireShape(a.rows >= a.cols) {

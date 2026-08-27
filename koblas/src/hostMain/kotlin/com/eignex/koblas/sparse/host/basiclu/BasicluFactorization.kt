@@ -7,8 +7,8 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.sparse.F64BasisFactorization
-import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.F64SparseFactorizationReport
+import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.basicReport
 import com.eignex.koblas.sparse.host.applyEquilibration
 import com.eignex.koblas.sparse.internal.replaceColumns
@@ -28,7 +28,7 @@ public open class BasicluFactorization internal constructor(
     override val n: Int,
     /** The equilibration the values were scaled by before factorization, or null when there was none. */
     private val rowScale: DoubleArray? = null,
-) : F64SparseFactorization {
+) : F64SparseLuFactorization {
 
     /** The object and the call that frees it, its own class so the cleaner captures it and not this. */
     internal class BasicluObjectHandle(val obj: CPointer<ByteVar>, private val functions: BasicluFunctions) {

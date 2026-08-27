@@ -4,7 +4,7 @@ import com.eignex.koblas.*
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.F64SparseDecompositions
-import com.eignex.koblas.sparse.F64SparseFactorization
+import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.basis.F64BasisSolvers
 import kotlin.test.*
 
@@ -17,7 +17,7 @@ class NamedBackendTest {
 
     private class FakeSparseLu(override val name: String, override val priority: Int) :
         F64SparseDecompositions by F64ReferenceSparseLinearAlgebra {
-        override fun factor(a: F64SparseMatrix): F64SparseFactorization = F64ReferenceSparseLinearAlgebra.factor(a)
+        override fun factor(a: F64SparseMatrix): F64SparseLuFactorization = F64ReferenceSparseLinearAlgebra.factor(a)
     }
 
     private class FakeBasisSolvers(override val name: String, override val priority: Int) : F64BasisSolvers {

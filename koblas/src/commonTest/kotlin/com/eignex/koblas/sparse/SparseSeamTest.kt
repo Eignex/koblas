@@ -2,6 +2,9 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
 import com.eignex.koblas.core.*
+import com.eignex.koblas.sparse.F64SparseCholeskyFactorization
+import com.eignex.koblas.sparse.F64SparseLdlFactorization
+import com.eignex.koblas.sparse.F64SparseLuFactorization
 import kotlin.test.*
 
 class SparseSeamTest {
@@ -127,17 +130,17 @@ class SparseSeamTest {
         var ldls = 0
         var qrs = 0
 
-        override fun factor(a: F64SparseMatrix): F64SparseFactorization {
+        override fun factor(a: F64SparseMatrix): F64SparseLuFactorization {
             factors++
             return F64ReferenceSparseLinearAlgebra.factor(a)
         }
 
-        override fun cholesky(a: F64SparseMatrix): F64SparseFactorization {
+        override fun cholesky(a: F64SparseMatrix): F64SparseCholeskyFactorization {
             choleskys++
             return F64ReferenceSparseLinearAlgebra.cholesky(a)
         }
 
-        override fun ldl(a: F64SparseMatrix): F64SparseFactorization {
+        override fun ldl(a: F64SparseMatrix): F64SparseLdlFactorization {
             ldls++
             return F64ReferenceSparseLinearAlgebra.ldl(a)
         }
