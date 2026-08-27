@@ -223,15 +223,15 @@ Choose a semantic capability based on the matrix sequence and numerical structur
 | Simplex basis column replacement | basisFactorizations | BASICLU | Each update supersedes the preceding factor. |
 | Stateful simplex solve/update loop | basisSolvers | HFactor | Own and close the solver; use typed ftran, btran, and update. |
 
-Retrieve a provider through a typed capability rather than casting to its implementation. Repeated-pattern LU,
-for example, retains symbolic analysis across numeric factors:
+Use the typed capability selected in the context rather than casting to a provider implementation.
+Repeated-pattern LU, for example, retains symbolic analysis across numeric factors:
 
 ```kotlin
 import com.eignex.koblas.*
 
 discoverBackends()
-val repeated = backendNamed("klu", F64Capabilities.repeatedSparseLu)
-    ?: error("KLU is unavailable")
+val repeated = koblas.repeatedSparseLu
+    ?: error("Repeated sparse LU is unavailable")
 
 repeated.analyze(a).use { analysis ->
     analysis.factor(a).use { initial ->
