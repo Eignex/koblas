@@ -35,6 +35,9 @@ public enum class BackendRole {
     /** Symmetric sparse `L * D * L^T`. */
     SPARSE_LDL,
 
+    /** Sparse QR for least-squares solves. */
+    SPARSE_QR,
+
     /** Simplex basis factorizations with column replacement. */
     BASIS_FACTORIZATIONS,
 
@@ -94,6 +97,7 @@ public fun F64Context.backendFor(role: BackendRole): Backend = when (role) {
     BackendRole.SPARSE_REPEATED_LU -> repeatedSparseLu ?: MissingRepeatedSparseLu
     BackendRole.SPARSE_CHOLESKY -> sparseCholesky
     BackendRole.SPARSE_LDL -> sparseLdl
+    BackendRole.SPARSE_QR -> sparseQr
     BackendRole.BASIS_FACTORIZATIONS -> basisFactorizations
     BackendRole.BASIS_SOLVERS -> basisSolvers
 }

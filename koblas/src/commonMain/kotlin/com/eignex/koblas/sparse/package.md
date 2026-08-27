@@ -25,7 +25,7 @@ mirror the dense ones.
   serialization when shared between threads.
 
   Its transpose, triangle, diagonal, and side choices use the same named Boolean parameters as dense BLAS.
-- [F64SparseDecompositions] — the compatibility composition of the selected general LU, Cholesky, and LDL
+- [F64SparseDecompositions] — the compatibility composition of the selected general LU, Cholesky, LDL, and QR
   roles. [F64SparseDecompositions.factor] is the general LU and
   returns [F64SparseFactorization], never null: a singular matrix yields a factorization reporting
   `singular`, matching the dense contract. [F64SparseDecompositions.cholesky] is `A = L·Lᵀ` for a symmetric
@@ -34,6 +34,27 @@ mirror the dense ones.
   [F64SparseDecompositions.ldl] is `A = L·D·Lᵀ` for a symmetric matrix that need not be definite, and reports
   a zero pivot as singular the way the LU does, a negative one being no failure at all. All three solve in the
   ordinary and the transposed direction, which for the two symmetric ones is the same direction twice.
+
+  [F64SparseDecompositions.qr] is `A = Q·R` of a tall or square matrix, for the least-squares solve
+  `min ‖A·x − b‖₂`. It is the one factorization on this seam whose factor is not an [F64SparseFactorization]:
+  that type carries a single order and solves between two vectors of it, where an `m×n` QR takes a
+  right-hand side of length `m` and answers one of length `n`. [F64SparseQrFactorization] is that type. A
+  matrix wider than it is tall is rejected rather than transposed, since what a caller wants from one is the
+  minimum-norm solution and that comes from the QR of `Aᵀ`.
+
+  [F64SparseQrFactorization.r], [F64SparseQrFactorization.rank], [F64SparseQrFactorization.columnOrder] and
+  [F64SparseQrFactorization.applyQInto] are on it, those being what a QR factorization is. A QR is not
+  unique — backends choose different column orderings and different signs — so `columnOrder` names the
+  ordering this one chose and the numbers are read against it. Non-uniqueness is a property of the values
+  rather than a reason to leave the factors off the type; the conformance tests compare the identities that
+  survive it, which are the least-squares solution, `RᵀR = PᵀAᵀAP`, and `Q` returning what `Qᵀ` was given.
+
+  `Q` is an operator rather than a matrix. It is `m×m` and dense in general even where `A` and `R` are
+  sparse, and libraries hold it as the Householder vectors that build it, so `applyQInto` is the form every
+  implementation can answer without materialising something larger than the problem. SPQR holds `R` in its
+  own form too and its C interface hands back neither factor, so the binding materialises `R` and the rank on
+  first read through a second explicit factorization, and a caller who only wants the solution never pays
+  for it.
 
   Every [F64SparseFactorization] solves either one vector or all columns of a caller-owned dense RHS block.
   The default block path preserves aliasing by staging a column; KLU and CHOLMOD specialize it through one
@@ -60,9 +81,9 @@ unstructured system, BASICLU a basis whose columns are replaced one at a time, a
 [com.eignex.koblas.sparse.basis.F64BasisSolver] a basis pivoted thousands of times. The registry therefore
 ranks providers only within semantic roles. [F64GeneralSparseLu] is ordinary pivoting LU,
 [F64RepeatedSparseLu] adds same-pattern refactorization, [F64SparseCholesky] and [F64SparseLdl] are symmetric
-roles, and [F64BasisFactorizations] owns column-replaceable basis factors. Adding a repeated-pattern or basis
-provider cannot change the automatic general-LU selection; UMFPACK remains the accelerated general default
-when it is available, otherwise the portable implementation does.
+roles, [F64SparseQr] is least-squares QR, and [F64BasisFactorizations] owns column-replaceable basis factors.
+Adding a repeated-pattern or basis provider cannot change the automatic general-LU selection; UMFPACK remains
+the accelerated general default when it is available, otherwise the portable implementation does.
 
 [F64RepeatedSparseLu.analyze] returns an explicitly owned [F64SparseLuAnalysis] for one [F64SparsePattern].
 The pattern copies column pointers and row indices, not values, so coefficient arrays can change between
@@ -85,14 +106,18 @@ these are unsymmetric LU and nothing else. Such a binding answers the rest porta
 [F64SparseDecompositionsAdapter][com.eignex.koblas.sparse.host.F64SparseDecompositionsAdapter], which is the
 same fallback it already uses below its own size gate.
 
-CHOLMOD supplies the symmetric routines used by the SuiteSparse providers. Those capabilities compete only
-with other Cholesky or LDL providers, independently of which provider fills general or repeated-pattern LU.
+CHOLMOD supplies the symmetric routines used by the SuiteSparse providers, and SPQR the QR. Those
+capabilities compete only with other providers of the same role, independently of which provider fills
+general or repeated-pattern LU.
 
 - LU: [F64SparseLuFactorization][com.eignex.koblas.sparse.factorization.lu.F64SparseLuFactorization], a
   Markowitz threshold-pivoting `P·B·Q = L·U` that keeps the factors sparse instead of filling toward `O(m²)`.
 - Cholesky:
   [F64SparseCholeskyFactorization][com.eignex.koblas.sparse.factorization.cholesky.F64SparseCholeskyFactorization],
   an up-looking `A = L·Lᵀ` over the elimination tree, in the ordering the matrix arrives in.
+- QR: [F64SparseHouseholderQr][com.eignex.koblas.sparse.factorization.qr.F64SparseHouseholderQr], Householder
+  reflections over the elimination tree of `AᵀA`, in the ordering the matrix arrives in. `Q` is held as the
+  reflections rather than formed, since it is `m×m` and dense in general where `A` and `R` are sparse.
 
 [F64SparseFactorization] is an interface rather than a class, which is the one place this deviates from the
 dense shape. LAPACK's packed formats are a standard, so a dense [com.eignex.koblas.dense.F64LuDecomposition]

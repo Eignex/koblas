@@ -41,6 +41,12 @@ public abstract class F64SparseDecompositionsAdapter protected constructor(
      */
     private val symmetricGate = thresholds.symmetricFactorize
 
+    /**
+     * The QR rides the general gate. Its own crossing is later, fitted at 368 stored entries on the JVM and
+     * 296 on Kotlin/Native against gates of 128 and 0; the band between is given up.
+     */
+    private val qrGate = factorizeGate
+
     /** The portable factorization at this backend's own policy, for everything the library will not take. */
     protected val portable: F64ReferenceSparseDecompositions =
         F64ReferenceSparseDecompositions(equilibrate = equilibrate)
@@ -58,6 +64,14 @@ public abstract class F64SparseDecompositionsAdapter protected constructor(
             portable.name,
             DispatchGate(DispatchMetric.STORED_ENTRIES, query.storedEntries.toLong(), factorizeGate.toLong()),
             query.storedEntries >= factorizeGate,
+        )
+
+        is F64RouteQuery.SparseQr -> thresholdRoute(
+            query,
+            this,
+            portable.name,
+            DispatchGate(DispatchMetric.STORED_ENTRIES, query.storedEntries.toLong(), qrGate.toLong()),
+            query.storedEntries >= qrGate,
         )
 
         else -> null
@@ -101,4 +115,17 @@ public abstract class F64SparseDecompositionsAdapter protected constructor(
 
     /** Factorizes a symmetric matrix into `L·D·Lᵀ` through the native library, portably by default. */
     protected open fun ldlNative(a: F64SparseMatrix): F64SparseFactorization = portable.ldl(a)
+
+    final override fun qr(a: F64SparseMatrix): F64SparseQrFactorization {
+        requireShape(a.rows >= a.cols) {
+            "qr: A is ${a.rows}x${a.cols}, which is wider than it is tall; factor its transpose instead"
+        }
+        if (a.nnz < qrGate || !nativeAvailable) {
+            return portable.qr(a)
+        }
+        return qrNative(a)
+    }
+
+    /** Factorizes into `Q·R` natively, portably by default: SPQR is the one library here with a sparse QR. */
+    protected open fun qrNative(a: F64SparseMatrix): F64SparseQrFactorization = portable.qr(a)
 }

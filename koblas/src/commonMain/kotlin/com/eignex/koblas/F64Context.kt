@@ -21,9 +21,12 @@ import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.F64SparseKernels
 import com.eignex.koblas.sparse.F64SparseLdl
 import com.eignex.koblas.sparse.F64SparseLinearAlgebra
+import com.eignex.koblas.sparse.F64SparseQr
+import com.eignex.koblas.sparse.F64SparseQrFactorization
 import com.eignex.koblas.sparse.LegacyGeneralSparseLu
 import com.eignex.koblas.sparse.LegacySparseCholesky
 import com.eignex.koblas.sparse.LegacySparseLdl
+import com.eignex.koblas.sparse.LegacySparseQr
 import com.eignex.koblas.sparse.basis.F64BasisSolvers
 
 /**
@@ -85,6 +88,11 @@ public class F64Context(
     /** Provider selected for sparse `L * D * L^T`. */
     public val sparseLdl: F64SparseLdl get() = selectedSparseLdl
 
+    private var selectedSparseQr: F64SparseQr = sparseDecompositions.qrCapability()
+
+    /** Provider selected for sparse QR. */
+    public val sparseQr: F64SparseQr get() = selectedSparseQr
+
     private var selectedBasisFactorizations: F64BasisFactorizations =
         (sparseDecompositions as? F64BasisFactorizations) ?: com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 
@@ -107,6 +115,7 @@ public class F64Context(
         repeatedSparseLu: F64RepeatedSparseLu? = sparseDecompositions as? F64RepeatedSparseLu,
         sparseCholesky: F64SparseCholesky = sparseDecompositions.choleskyCapability(),
         sparseLdl: F64SparseLdl = sparseDecompositions.ldlCapability(),
+        sparseQr: F64SparseQr = sparseDecompositions.qrCapability(),
         basisFactorizations: F64BasisFactorizations =
             (sparseDecompositions as? F64BasisFactorizations)
                 ?: com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra,
@@ -118,6 +127,7 @@ public class F64Context(
         selectedRepeatedSparseLu = repeatedSparseLu
         selectedSparseCholesky = sparseCholesky
         selectedSparseLdl = sparseLdl
+        selectedSparseQr = sparseQr
         selectedBasisFactorizations = basisFactorizations
     }
 
@@ -180,6 +190,11 @@ public class F64Context(
             sparseLdl
         } else {
             sparseDecompositions.ldlCapability()
+        },
+        sparseQr = if (sparseDecompositions === this.sparseDecompositions) {
+            sparseQr
+        } else {
+            sparseDecompositions.qrCapability()
         },
         basisFactorizations = if (sparseDecompositions === this.sparseDecompositions) {
             basisFactorizations
@@ -383,6 +398,13 @@ public class F64Context(
         return sparseDecompositions.factor(a)
     }
 
+    override fun qr(a: F64SparseMatrix): F64SparseQrFactorization {
+        if (enforcesRoutingPolicy) {
+            beforeDispatch(F64RouteQuery.SparseQr(a.nnz))
+        }
+        return sparseDecompositions.qr(a)
+    }
+
     override fun toString(): String = "F64Context($name)"
 }
 
@@ -396,3 +418,6 @@ private fun F64SparseDecompositions.choleskyCapability(): F64SparseCholesky =
 
 private fun F64SparseDecompositions.ldlCapability(): F64SparseLdl =
     (this as? F64SparseDecompositionRoles)?.ldlProvider ?: (this as? F64SparseLdl) ?: LegacySparseLdl(this)
+
+private fun F64SparseDecompositions.qrCapability(): F64SparseQr =
+    (this as? F64SparseDecompositionRoles)?.qrProvider ?: (this as? F64SparseQr) ?: LegacySparseQr(this)

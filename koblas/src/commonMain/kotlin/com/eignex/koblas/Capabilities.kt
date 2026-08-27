@@ -36,6 +36,12 @@ public object F64Capabilities {
         named = BackendRegistry::sparseLdlNamed,
     )
 
+    /** Sparse QR for least-squares solves. */
+    public val sparseQr: F64Capability<F64SparseQr> = F64Capability(
+        select = { it.sparseQr },
+        named = BackendRegistry::sparseQrNamed,
+    )
+
     /** Simplex basis factorization with column replacement. */
     public val basisFactorizations: F64Capability<F64BasisFactorizations> = F64Capability(
         select = { it.basisFactorizations },

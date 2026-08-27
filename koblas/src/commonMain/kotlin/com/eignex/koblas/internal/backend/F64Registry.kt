@@ -26,6 +26,7 @@ internal class F64Registry {
     private val repeatedSparseLuSeam = Seam<F64RepeatedSparseLu>(::recompose)
     private val sparseCholeskySeam = Seam<F64SparseCholesky>(::recompose)
     private val sparseLdlSeam = Seam<F64SparseLdl>(::recompose)
+    private val sparseQrSeam = Seam<F64SparseQr>(::recompose)
     private val basisFactorizationsSeam = Seam<F64BasisFactorizations>(::recompose)
     private val basisSolverSeam = Seam<F64BasisSolvers>(::recompose)
 
@@ -132,6 +133,9 @@ internal class F64Registry {
         val ldl = backend as? F64SparseLdl ?: legacy
             ?.takeUnless { backend is F64BasisFactorizations }
             ?.let(::LegacySparseLdl)
+        val qr = backend as? F64SparseQr ?: legacy
+            ?.takeUnless { backend is F64BasisFactorizations }
+            ?.let(::LegacySparseQr)
         general?.let {
             generalSparseLuSeam.register(it, explicit)
             offered = true
@@ -146,6 +150,10 @@ internal class F64Registry {
         }
         ldl?.let {
             sparseLdlSeam.register(it, explicit)
+            offered = true
+        }
+        qr?.let {
+            sparseQrSeam.register(it, explicit)
             offered = true
         }
         (backend as? F64BasisFactorizations)?.let {
@@ -170,6 +178,9 @@ internal class F64Registry {
     /** The sparse LDL provider registered under [name], or null when nothing did. */
     fun sparseLdlNamed(name: String): F64SparseLdl? = sparseLdlSeam.named(name)
 
+    /** The sparse QR provider registered under [name], or null when nothing did. */
+    fun sparseQrNamed(name: String): F64SparseQr? = sparseQrSeam.named(name)
+
     /** The basis factorization provider registered under [name], or null when nothing did. */
     fun basisFactorizationsNamed(name: String): F64BasisFactorizations? = basisFactorizationsSeam.named(name)
 
@@ -185,6 +196,7 @@ internal class F64Registry {
         com.eignex.koblas.BackendRole.SPARSE_REPEATED_LU -> repeatedSparseLuSeam.all.map { it.name }
         com.eignex.koblas.BackendRole.SPARSE_CHOLESKY -> sparseCholeskySeam.all.map { it.name }
         com.eignex.koblas.BackendRole.SPARSE_LDL -> sparseLdlSeam.all.map { it.name }
+        com.eignex.koblas.BackendRole.SPARSE_QR -> sparseQrSeam.all.map { it.name }
         com.eignex.koblas.BackendRole.BASIS_FACTORIZATIONS -> basisFactorizationsSeam.all.map { it.name }
         else -> namesFor(role.legacySlot)
     }
@@ -197,6 +209,7 @@ internal class F64Registry {
         repeatedSparseLuSeam.reset()
         sparseCholeskySeam.reset()
         sparseLdlSeam.reset()
+        sparseQrSeam.reset()
         basisFactorizationsSeam.reset()
     }
 
@@ -206,10 +219,12 @@ internal class F64Registry {
         val general = generalSparseLuSeam.active ?: reference
         val cholesky = sparseCholeskySeam.active ?: reference
         val ldl = sparseLdlSeam.active ?: reference
-        val roles = if (general === cholesky && general === ldl && general is F64SparseDecompositions) {
+        val qr = sparseQrSeam.active ?: reference
+        val uniform = general === cholesky && general === ldl && general === qr
+        val roles = if (uniform && general is F64SparseDecompositions) {
             general
         } else {
-            F64SparseDecompositionRoles(general, cholesky, ldl)
+            F64SparseDecompositionRoles(general, cholesky, ldl, qr)
         }
         return F64Context(
             kernels = F64RoutedKernels(vectorKernelSeam.active),

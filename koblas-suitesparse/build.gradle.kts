@@ -31,14 +31,12 @@ koblasNativeLibrary {
     supportedPlatforms = nativePlatforms
     requiredResources = nativePlatforms.associateWith { platform ->
         val libraries = if (platform.startsWith("linux")) {
-            listOf("libklu.so.2", "libumfpack.so.6", "libcholmod.so.5")
+            listOf("libklu.so.2", "libumfpack.so.6", "libcholmod.so.5", "libspqr.so.4")
         } else {
-            listOf("libklu.2.dylib", "libumfpack.dylib", "libcholmod.5.dylib")
+            listOf("libklu.2.dylib", "libumfpack.dylib", "libcholmod.5.dylib", "libspqr.4.dylib")
         }
         libraries + listOf(".libraries", ".suitesparse-source-sha256")
     }
-    forbiddenResources = nativePlatforms.associateWith { listOf("spqr") }
-    forbiddenNoticeText = listOf("SPQR")
     dependsOnTasks = listOf(":koblas-openblas:buildOpenBlas")
     extraInputFiles.from(layout.projectDirectory.file("suitesparse.lock"))
     extraInputFiles.from(blasResources.values)

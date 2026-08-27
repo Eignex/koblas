@@ -66,6 +66,9 @@ internal object BackendRegistry {
     /** The sparse LDL provider registered under [name], or null when nothing did. */
     internal fun sparseLdlNamed(name: String) = f64.sparseLdlNamed(name)
 
+    /** The sparse QR provider registered under [name], or null when nothing did. */
+    internal fun sparseQrNamed(name: String) = f64.sparseQrNamed(name)
+
     /** The basis factorization provider registered under [name], or null when nothing did. */
     internal fun basisFactorizationsNamed(name: String) = f64.basisFactorizationsNamed(name)
 

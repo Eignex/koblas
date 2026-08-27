@@ -94,6 +94,21 @@ internal fun sparseSpdMatrix(n: Int, rng: Random): F64SparseMatrix {
     )
 }
 
+/** A tall sparse matrix with full column rank, the shape a least-squares QR is for. */
+internal fun sparseTallMatrix(rows: Int, cols: Int, rng: Random): F64SparseMatrix {
+    val columns = List(cols) { j ->
+        val entries = ArrayList<Pair<Int, Double>>()
+        for (i in 0 until rows) {
+            when {
+                i == j -> entries.add(i to (rng.nextDouble(-1.0, 1.0) + cols))
+                rng.nextDouble() < SPARSE_DENSITY -> entries.add(i to rng.nextDouble(-1.0, 1.0))
+            }
+        }
+        entries
+    }
+    return F64SparseMatrix.ofColumns(rows, cols, columns)
+}
+
 internal fun randomSparseVector(n: Int, density: Double, rng: Random): F64SparseVector {
     val indices = ArrayList<Int>()
     val values = ArrayList<Double>()

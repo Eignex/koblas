@@ -181,6 +181,14 @@ benchmark {
             // goes from winning by three times to losing by two across these five sizes.
             param("n", "128", "160", "192", "224", "256")
         }
+        // The sparse QR against the portable one, with transpose trailing as the control: it sorts after
+        // both subjects and no factorization gate reaches it. Twice as tall as wide, which is the shape a
+        // least-squares caller brings. These four columns are 21, 57, 146 and 456 stored entries, the range
+        // the QR's own crossing sits in; above it SPQR widens to twelve times by 21,996 entries.
+        suite("sparseQrGate", "SparseQrHostBenchmark", "qr|qrSolve|transpose") {
+            gate()
+            param("n", "16", "32", "64", "128")
+        }
         // Bracketed: sparseGemv leads, sparseTranspose trails, and it is O(nnz) so it costs little.
         suite("sweepGate", "SparseBenchmark", "sparseGemv|sparseLuBtran|sparseLuFtran|sparseTranspose") {
             gate()

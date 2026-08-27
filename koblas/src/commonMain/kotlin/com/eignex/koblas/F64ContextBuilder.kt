@@ -79,7 +79,8 @@ public class F64ContextBuilder private constructor(
         val generalLu = resolved.semanticGeneralLu(sparseReference)
         val cholesky = resolved.semanticCholesky(sparseReference)
         val ldl = resolved.semanticLdl(sparseReference)
-        val sparseRoles = F64SparseDecompositionRoles(generalLu, cholesky, ldl)
+        val qr = resolved.semanticQr(sparseReference)
+        val sparseRoles = F64SparseDecompositionRoles(generalLu, cholesky, ldl, qr)
         val repeated = resolved[BackendRole.SPARSE_REPEATED_LU] as? F64RepeatedSparseLu
         val basisFactorizations = resolved.semanticBasisFactorizations(sparseReference)
         return F64Context(
@@ -100,6 +101,7 @@ public class F64ContextBuilder private constructor(
             repeatedSparseLu = repeated,
             sparseCholesky = cholesky,
             sparseLdl = ldl,
+            sparseQr = qr,
             basisFactorizations = basisFactorizations,
         )
     }
@@ -137,6 +139,7 @@ private fun portableSelections(): Map<BackendRole, Backend> = mapOf(
     BackendRole.SPARSE_REPEATED_LU to MissingRepeatedSparseLu,
     BackendRole.SPARSE_CHOLESKY to F64ReferenceSparseLinearAlgebra,
     BackendRole.SPARSE_LDL to F64ReferenceSparseLinearAlgebra,
+    BackendRole.SPARSE_QR to F64ReferenceSparseLinearAlgebra,
     BackendRole.BASIS_FACTORIZATIONS to F64ReferenceSparseLinearAlgebra,
     BackendRole.BASIS_SOLVERS to F64ReferenceSparseLinearAlgebra,
 )
@@ -172,6 +175,10 @@ private fun BackendRole.accepts(backend: Backend): Boolean = when (this) {
         backend is F64SparseLdl ||
             (backend is F64SparseDecompositions && backend !is F64BasisFactorizations)
 
+    BackendRole.SPARSE_QR ->
+        backend is F64SparseQr ||
+            (backend is F64SparseDecompositions && backend !is F64BasisFactorizations)
+
     BackendRole.BASIS_FACTORIZATIONS -> backend is F64BasisFactorizations
 
     BackendRole.BASIS_SOLVERS -> backend is F64BasisSolvers
@@ -199,6 +206,14 @@ private fun Map<BackendRole, Backend>.semanticLdl(reference: F64ReferenceSparseB
         is F64SparseLdl -> backend
         is F64SparseDecompositions -> LegacySparseLdl(backend)
         else -> error("${backend.name} does not implement sparse LDL")
+    }
+
+private fun Map<BackendRole, Backend>.semanticQr(reference: F64ReferenceSparseBackend): F64SparseQr =
+    when (val backend = getValue(BackendRole.SPARSE_QR)) {
+        F64ReferenceSparseLinearAlgebra -> reference
+        is F64SparseQr -> backend
+        is F64SparseDecompositions -> LegacySparseQr(backend)
+        else -> error("${backend.name} does not implement sparse QR")
     }
 
 private fun Map<BackendRole, Backend>.semanticBasisFactorizations(

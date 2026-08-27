@@ -125,6 +125,7 @@ class SparseSeamTest {
         var factors = 0
         var choleskys = 0
         var ldls = 0
+        var qrs = 0
 
         override fun factor(a: F64SparseMatrix): F64SparseFactorization {
             factors++
@@ -139,6 +140,11 @@ class SparseSeamTest {
         override fun ldl(a: F64SparseMatrix): F64SparseFactorization {
             ldls++
             return F64ReferenceSparseLinearAlgebra.ldl(a)
+        }
+
+        override fun qr(a: F64SparseMatrix): F64SparseQrFactorization {
+            qrs++
+            return F64ReferenceSparseLinearAlgebra.qr(a)
         }
     }
 

@@ -6,6 +6,7 @@ import com.eignex.koblas.sparse.factorization.cholesky.F64SparseCholeskyFactoriz
 import com.eignex.koblas.sparse.factorization.ldl.F64SparseLdlFactorization
 import com.eignex.koblas.sparse.factorization.lu.F64SparseLuFactorization
 import com.eignex.koblas.sparse.factorization.lu.NO_DROP
+import com.eignex.koblas.sparse.factorization.qr.F64SparseHouseholderQr
 
 /**
  * The portable sparse LU, with the two knobs only it has.
@@ -39,6 +40,9 @@ public open class F64ReferenceSparseDecompositions(
 
     /** The knobs stay out of this one too, for the reason above. */
     override fun ldl(a: F64SparseMatrix): F64SparseFactorization = F64SparseLdlFactorization.factorLower(a)
+
+    /** Nor do they reach this one: equilibration would change the least-squares problem being solved. */
+    override fun qr(a: F64SparseMatrix): F64SparseQrFactorization = F64SparseHouseholderQr.factor(a)
 
     /** No scaling and no drop tolerance, so `F64ReferenceSparseDecompositions.factor(a)` reads as the plain routine. */
     public companion object Default : F64ReferenceSparseDecompositions()

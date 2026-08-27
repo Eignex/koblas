@@ -42,6 +42,12 @@ class UmfpackConformanceTest {
     }
 
     @Test
+    fun `the QR reaches SPQR or the portable factorization and agrees either way`() {
+        requireSuiteSparse()
+        assertQrAgreesWithReference(umfpack)
+    }
+
+    @Test
     fun `an aliased destination still solves correctly`() {
         requireSuiteSparse()
         assertAliasedDestinationSolves(umfpack)

@@ -5,8 +5,10 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.sparse.F64SingularSparseFactorization
 import com.eignex.koblas.sparse.F64SparseFactorization
+import com.eignex.koblas.sparse.F64SparseQrFactorization
 import com.eignex.koblas.sparse.host.F64SparseDecompositionsAdapter
 import com.eignex.koblas.sparse.host.cholmod.suiteSparseCholesky
+import com.eignex.koblas.sparse.host.spqr.suiteSparseQr
 import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout.ADDRESS
@@ -29,7 +31,8 @@ public open class UmfpackSparseLu(
 ),
     com.eignex.koblas.sparse.F64GeneralSparseLu,
     com.eignex.koblas.sparse.F64SparseCholesky,
-    com.eignex.koblas.sparse.F64SparseLdl {
+    com.eignex.koblas.sparse.F64SparseLdl,
+    com.eignex.koblas.sparse.F64SparseQr {
     private val calls = UmfpackCalls(config)
 
     override val name: String get() = BackendNames.UMFPACK
@@ -41,6 +44,8 @@ public open class UmfpackSparseLu(
 
     private val cholmod by lazy { suiteSparseCholesky(config.libraryPath) }
 
+    private val spqr by lazy { suiteSparseQr(config.libraryPath) }
+
     /**
      * CHOLMOD ships beside UMFPACK in the same collection, so this backend answers the seam's Cholesky
      * natively too rather than leaving it to the portable factorization. A machine carrying UMFPACK without
@@ -51,6 +56,9 @@ public open class UmfpackSparseLu(
 
     /** CHOLMOD's own default factorization, which is the one this seam's `ldl` asks for. */
     final override fun ldlNative(a: F64SparseMatrix): F64SparseFactorization = cholmod.factorLdl(a) ?: portable.ldl(a)
+
+    /** SPQR ships in the same collection, so the seam's QR is answered natively too where it is installed. */
+    final override fun qrNative(a: F64SparseMatrix): F64SparseQrFactorization = spqr.factor(a) ?: portable.qr(a)
 
     internal val refinementSteps: Double? get() = calls.refinementSteps
 
