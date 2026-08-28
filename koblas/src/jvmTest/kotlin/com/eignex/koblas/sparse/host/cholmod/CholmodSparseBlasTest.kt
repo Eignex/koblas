@@ -197,7 +197,7 @@ class CholmodSparseBlasTest {
         assertEquals(
             cholmod.transpose(triangle).nnz,
             triangle.nnz,
-            "the transpose keeps every stored entry"
+            "the transpose keeps every stored entry",
         )
     }
 }

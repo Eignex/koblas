@@ -153,7 +153,7 @@ class LinearAlgebraLdlPivotingTest {
         assertEquals(
             1.0,
             f.ldl[1],
-            "multiplier is ${f.ldl[1]}, expected exactly 1.0"
+            "multiplier is ${f.ldl[1]}, expected exactly 1.0",
         )
         for (i in 0 until n) {
             for (j in 0..i) {

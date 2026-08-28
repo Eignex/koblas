@@ -95,7 +95,7 @@ internal class FfmLibrary private constructor(
             val linker = nativeLinker() ?: return FfmLibrary(
                 null,
                 emptyList(),
-                description
+                description,
             )
             for (candidate in candidates) {
                 val opened = try {

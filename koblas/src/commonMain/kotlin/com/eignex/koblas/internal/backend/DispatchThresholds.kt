@@ -91,9 +91,8 @@ internal fun hostBlasDispatchThresholds(config: HostBlasConfig): DispatchThresho
  * Never less permissive than the dimension it was measured as, since every side at or above [gate] is a
  * work volume at or above the cube; [Int.MAX_VALUE] keeps the family portable as it does everywhere else.
  */
-internal fun dispatchesLevel3(gate: Int, m: Int, n: Int, k: Int): Boolean {
-    return gate != Int.MAX_VALUE && m.toLong() * n * k >= gate.toLong() * gate * gate
-}
+internal fun dispatchesLevel3(gate: Int, m: Int, n: Int, k: Int): Boolean =
+    gate != Int.MAX_VALUE && m.toLong() * n * k >= gate.toLong() * gate * gate
 
 /** The compiled-in vector-kernel routing policy. */
 internal val f64DispatchThresholds: DispatchThresholds get() = platformDispatchThresholds
