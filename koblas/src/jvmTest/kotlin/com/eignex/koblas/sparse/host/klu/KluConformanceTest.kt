@@ -9,7 +9,7 @@ import kotlin.test.*
 
 @Category(HostLibraryTest::class)
 class KluConformanceTest {
-    private val klu = KluSparseLu(KluConfig(factorizeMin = 0))
+    private val klu = KluSparseLu(KluConfig())
 
     @Test
     fun `a native factor closes deterministically`() {

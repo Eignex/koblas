@@ -13,7 +13,7 @@ class Level1Benchmark {
 
     // reference is the compiled-in kernels and forced is the host ones past their gate. No auto arm: a
     // level-1 gate routes either everything to one side or everything to the other.
-    @Param(REFERENCE_BACKEND, FORCED_BACKEND)
+    @Param(REFERENCE_BACKEND, HOST_BACKEND)
     var backend: String = REFERENCE_BACKEND
 
     private lateinit var x: F64DenseVector

@@ -16,7 +16,7 @@ class UmfpackConformanceTest {
 
     // Every assertion below is about the native binding, and these systems are small enough that the
     // stored-entry gate would hand them to the portable factorization instead.
-    private val umfpack = UmfpackSparseLu(UmfpackConfig(factorizeMin = 0))
+    private val umfpack = UmfpackSparseLu(UmfpackConfig())
 
     private fun requireSuiteSparse() {
         Assume.assumeTrue("SuiteSparse is not installed; umfpack conformance cannot run", umfpack.isAvailable)
@@ -74,23 +74,8 @@ class UmfpackConformanceTest {
     @Test
     fun `a backend set to equilibrate stays native and still solves`() {
         requireSuiteSparse()
-        val equilibrating = UmfpackSparseLu(UmfpackConfig(factorizeMin = 0, equilibrate = true))
+        val equilibrating = UmfpackSparseLu(UmfpackConfig(equilibrate = true))
         assertNativeEquilibration(equilibrating) { it is UmfpackFactorization }
-    }
-
-    @Test
-    fun `below its gate the portable factorization answers`() {
-        requireSuiteSparse()
-        assertFactorizeGateFallsBackToReference(
-            { min -> UmfpackSparseLu(UmfpackConfig(factorizeMin = min)) },
-            { it is UmfpackFactorization },
-        )
-    }
-
-    @Test
-    fun `a gated fallback still agrees with the reference`() {
-        requireSuiteSparse()
-        assertGatedFallbackStillSolves { min -> UmfpackSparseLu(UmfpackConfig(factorizeMin = min)) }
     }
 
     @Test
@@ -118,7 +103,6 @@ class UmfpackConformanceTest {
             UmfpackConfig(
                 libraryPath = null,
                 options = UmfpackOptions(
-                    factorizeMin = 0,
                     equilibrate = true,
                     iterativeRefinementSteps = 3,
                     pivotTolerance = 0.2,

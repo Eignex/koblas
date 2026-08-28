@@ -121,12 +121,11 @@ class PlatformDiscoveryTest {
             !probe(GemmBackend { _, _, _ -> throw UnsatisfiedLinkError("no native library") }),
             "a backend whose native library is missing should be rejected",
         )
-        // Shaped like koblas's own adapters: portable below its gate, native at or above it. A probe that
-        // stays under every gate never reaches the half that can be broken.
+        // Shaped like koblas's own adapters: the first operation reaches the native half.
         assertTrue(
             !probe(
                 GemmBackend { a, reference, c ->
-                    if (a.rows >= f64DispatchThresholds.level3) throw UnsatisfiedLinkError("no native library")
+                    throw UnsatisfiedLinkError("no native library")
                     reference()
                     @Suppress("UNUSED_EXPRESSION")
                     c

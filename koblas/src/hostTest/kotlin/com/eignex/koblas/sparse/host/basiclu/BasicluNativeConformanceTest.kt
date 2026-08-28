@@ -18,8 +18,8 @@ import kotlin.test.*
  */
 class BasicluNativeConformanceTest {
 
-    private val basiclu = BasicluSparseLu(BasicluConfig(factorizeMin = 0))
-    private val equilibratingBasiclu = BasicluSparseLu(BasicluConfig(factorizeMin = 0, equilibrate = true))
+    private val basiclu = BasicluSparseLu(BasicluConfig())
+    private val equilibratingBasiclu = BasicluSparseLu(BasicluConfig(equilibrate = true))
 
     @Test
     fun `the binding reports what it is`() {

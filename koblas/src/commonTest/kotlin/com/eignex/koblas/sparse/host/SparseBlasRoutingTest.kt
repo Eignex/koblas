@@ -7,8 +7,7 @@ import kotlin.test.*
 
 class SparseBlasRoutingTest {
 
-    private open class RecordingAdapter(level2Min: Int, override val nativeAvailable: Boolean = true) :
-        F64SparseBlasAdapter(level2Min) {
+    private open class RecordingAdapter(override val nativeAvailable: Boolean = true) : F64SparseBlasAdapter() {
         override val name: String get() = "recording"
 
         override fun gemmNative(
@@ -22,20 +21,18 @@ class SparseBlasRoutingTest {
     }
 
     @Test
-    fun `a sparse dense product reports its measured gate`() {
-        val adapter = RecordingAdapter(level2Min = 64)
+    fun `a sparse dense product reports the selected native backend`() {
+        val adapter = RecordingAdapter()
 
-        val below = adapter.route(F64RouteQuery.SparseDenseGemm(63))!!
-        val native = adapter.route(F64RouteQuery.SparseDenseGemm(64))!!
+        val route = adapter.route(F64RouteQuery.SparseDenseGemm(1))!!
 
-        assertEquals(BackendRouteReason.BELOW_THRESHOLD, below.reason)
-        assertEquals(DispatchGate(DispatchMetric.STORED_ENTRIES, 63, 64), below.gate)
-        assertEquals(BackendExecution.NATIVE, native.execution)
+        assertEquals(BackendExecution.NATIVE, route.execution)
+        assertEquals(BackendRouteReason.NATIVE_ROUTE, route.reason)
     }
 
     @Test
     fun `unsupported sparse product arguments report their portable route`() {
-        val adapter = RecordingAdapter(level2Min = 0)
+        val adapter = RecordingAdapter()
 
         for (query in listOf(
             F64RouteQuery.SparseDenseGemm(100, right = true),
@@ -50,7 +47,7 @@ class SparseBlasRoutingTest {
 
     @Test
     fun `an unavailable sparse binding reports its fallback`() {
-        val adapter = RecordingAdapter(level2Min = 0, nativeAvailable = false)
+        val adapter = RecordingAdapter(nativeAvailable = false)
 
         val route = adapter.route(F64RouteQuery.SparseDenseGemm(100))!!
 
@@ -60,7 +57,7 @@ class SparseBlasRoutingTest {
 
     @Test
     fun `triangular solves report the portable implementation`() {
-        val adapter = RecordingAdapter(level2Min = 0)
+        val adapter = RecordingAdapter()
 
         val route = adapter.route(F64RouteQuery.SparseTriangularSolve(100, rightHandSides = 4))!!
 
@@ -74,10 +71,10 @@ class SparseBlasRoutingTest {
     fun `a sparse adapter can specialize triangular solves independently`() {
         var vectorCalls = 0
         var matrixCalls = 0
-        val adapter = object : RecordingAdapter(level2Min = 0) {
+        val adapter = object : RecordingAdapter() {
             override fun route(query: F64RouteQuery): BackendRoute? =
                 if (query is F64RouteQuery.SparseTriangularSolve) {
-                    triangularRoute(query, minimumStoredEntries = 2, supported = query.rightHandSides == 1)
+                    triangularRoute(query, supported = query.rightHandSides == 1)
                 } else {
                     super.route(query)
                 }
@@ -138,7 +135,7 @@ class SparseBlasRoutingTest {
 
     @Test
     fun `native only rejects an unimplemented triangular solve before mutation`() {
-        val adapter = RecordingAdapter(level2Min = 0)
+        val adapter = RecordingAdapter()
         val context = F64ContextBuilder()
             .withBackend(BackendRole.SPARSE_BLAS, adapter)
             .withDispatchPolicy(F64DispatchPolicy.NATIVE_ONLY)

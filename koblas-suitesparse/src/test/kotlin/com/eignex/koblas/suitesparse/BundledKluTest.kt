@@ -11,14 +11,14 @@ import kotlin.test.*
 class BundledKluTest {
     @Test
     fun `the bundled KLU is available`() {
-        assertTrue(BundledKlu(KluOptions(factorizeMin = 0)).isAvailable)
+        assertTrue(BundledKlu(KluOptions()).isAvailable)
     }
 
     @Test
     fun `the bundled KLU solves sparse systems in both directions`() {
         val matrix = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(1 to 2.0), listOf(0 to 3.0)))
 
-        val factorization = BundledKlu(KluOptions(factorizeMin = 0)).factor(matrix)
+        val factorization = BundledKlu(KluOptions()).factor(matrix)
 
         assertContentEquals(doubleArrayOf(2.0, 3.0), factorization.solve(doubleArrayOf(9.0, 4.0)))
         assertContentEquals(doubleArrayOf(2.0, 3.0), factorization.solve(doubleArrayOf(6.0, 6.0), transpose = true))
@@ -28,22 +28,21 @@ class BundledKluTest {
     fun `the bundled KLU reports reciprocal pivot condition`() {
         val matrix = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 4.0)))
 
-        assertEquals(0.25, BundledKlu(KluOptions(factorizeMin = 0)).factor(matrix).rcond)
+        assertEquals(0.25, BundledKlu(KluOptions()).factor(matrix).rcond)
     }
 
     @Test
     fun `the bundled KLU honors equilibration`() {
         val matrix = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 8.0), listOf(1 to 0.25)))
 
-        val factorization = BundledKlu(KluOptions(factorizeMin = 0, equilibrate = true)).factor(matrix)
+        val factorization = BundledKlu(KluOptions(equilibrate = true)).factor(matrix)
 
         assertContentEquals(doubleArrayOf(2.0, 3.0), factorization.solve(doubleArrayOf(16.0, 0.75)))
     }
 
     @Test
-    fun `shared options control bundled KLU routing and diagnostics`() {
+    fun `shared options control bundled KLU diagnostics`() {
         val options = KluOptions(
-            factorizeMin = 100,
             pivotTolerance = 0.25,
             useBtf = false,
             ordering = KluOrdering.COLAMD,
@@ -53,7 +52,7 @@ class BundledKluTest {
 
         val route = assertNotNull(backend.route(F64RouteQuery.SparseLu(storedEntries = 16)))
 
-        assertEquals(BackendExecution.PORTABLE, route.execution)
+        assertEquals(BackendExecution.NATIVE, route.execution)
         assertEquals("0.25", backend.backendMetadata.options["pivotTolerance"])
         assertEquals("false", backend.backendMetadata.options["useBtf"])
         assertEquals("COLAMD", backend.backendMetadata.options["ordering"])
@@ -64,14 +63,14 @@ class BundledKluTest {
     fun `the bundled KLU reports a singular matrix`() {
         val matrix = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(0 to 2.0)))
 
-        assertTrue(BundledKlu(KluOptions(factorizeMin = 0)).factor(matrix).singular)
+        assertTrue(BundledKlu(KluOptions()).factor(matrix).singular)
     }
 
     @Test
     fun `the bundled KLU refactors a basis for another solve`() {
         val first = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 3.0)))
         val second = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(1 to 5.0)))
-        val klu = BundledKlu(KluOptions(factorizeMin = 0))
+        val klu = BundledKlu(KluOptions())
         val factorization = klu.factor(first)
 
         val refactored = klu.refactor(factorization, second)
@@ -95,7 +94,7 @@ class BundledKluTest {
             2,
             listOf(listOf(0 to 2.0, 1 to 1.0), listOf(0 to 4.0, 1 to 2.0)),
         )
-        val klu = BundledKlu(KluOptions(factorizeMin = 0))
+        val klu = BundledKlu(KluOptions())
         val factorization = klu.factor(nonsingular)
 
         val refactored = klu.refactor(factorization, singular)
@@ -108,7 +107,7 @@ class BundledKluTest {
     fun `the bundled KLU retains a factorization when refactorization changes its pattern`() {
         val diagonal = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 3.0)))
         val full = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0, 1 to 1.0), listOf(0 to 1.0, 1 to 3.0)))
-        val klu = BundledKlu(KluOptions(factorizeMin = 0))
+        val klu = BundledKlu(KluOptions())
         val factorization = klu.factor(diagonal)
 
         val refactored = klu.refactor(factorization, full)

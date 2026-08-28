@@ -4,7 +4,6 @@ import com.eignex.koblas.BackendMetadata
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.dense.host.F64BlasAdapter
 import com.eignex.koblas.internal.backend.BackendNames
-import com.eignex.koblas.internal.backend.hostBlasDispatchThresholds
 
 /**
  * The host OpenBLAS through CBLAS, bound with cinterop. Every routine lives in [F64BlasAdapter]; this
@@ -17,7 +16,6 @@ internal class F64Cblas(
     config: HostBlasConfig = HostBlasConfig(),
 ) : F64BlasAdapter(
     NativeCblasCalls(f),
-    dispatch = hostBlasDispatchThresholds(config),
     metadata = BackendMetadata(
         integerAbi = "LP64",
         threading = loader.effectiveThreadCount?.let { "$it threads" },

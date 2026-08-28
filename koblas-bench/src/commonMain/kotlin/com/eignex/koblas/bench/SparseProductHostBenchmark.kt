@@ -8,7 +8,7 @@ import com.eignex.koblas.sparse.*
 import kotlinx.benchmark.*
 
 /**
- * The sparse matrix products against the portable ones, which is what their dispatch gate is set from.
+ * The sparse matrix products against the portable ones.
  *
  * `trsv` trails the three subjects alphabetically and no gate reaches it, so it is the control: a row from
  * the same run that the change under test cannot move.
@@ -20,7 +20,7 @@ class SparseProductHostBenchmark {
     @Param("64", "256", "1024")
     var n: Int = 0
 
-    @Param(REFERENCE_BACKEND, FORCED_BACKEND)
+    @Param(REFERENCE_BACKEND, HOST_BACKEND)
     var backend: String = REFERENCE_BACKEND
 
     private lateinit var a: F64SparseMatrix
@@ -38,7 +38,7 @@ class SparseProductHostBenchmark {
     @Setup
     fun setup() {
         installBackends(null)
-        if (backend == FORCED_BACKEND) useUngatedSparseProduct()
+        if (backend == HOST_BACKEND) useSparseProduct()
         val rng = benchRng()
         a = sparseDominantMatrix(n, rng)
         square = a

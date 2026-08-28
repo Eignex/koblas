@@ -108,14 +108,11 @@ benchmark {
         suite("level3Focused", "Level3Benchmark", "syr2k|gemm") {
             param("n", "64", "256", "1024")
         }
-        // The solve rows alone, at the sizes the main suite stops short of. A solve over an existing factor
-        // is a pair of triangular solves, and those only cross around 1024, so a sweep ending at 256 cannot
-        // see the crossover the level-2 gate on solves turns on. Kept separate because carrying 1024 and
-        // 2048 through all ten of the suite's benchmarks and three arms would cost far more than the
-        // question needs.
+        // The solve rows alone, at sizes beyond the main suite. Kept separate because carrying 1024 and
+        // 2048 through every solve benchmark costs far more than the focused A/B question needs.
         suite("solveFocused", "SolveBenchmark", "luSolve|luSolveInto|ldlSolveInto") {
             param("n", "256", "1024", "2048")
-            param("backend", "reference", "forced-solve")
+            param("backend", "reference", "host")
         }
         suite("sparseFocused", "SparseBenchmark", "sparseLuFactor|sparseGemv") {
             param("n", "64", "256", "1024")
@@ -210,14 +207,14 @@ benchmark {
             gate()
             param("n", "256")
             param("shape", "random")
-            param("backend", "reference", "forced")
+            param("backend", "reference", "host")
         }
         suite("sparseLuGate", "SparseHostBenchmark", "factor|transpose") {
             gate()
             param("n", "32", "64", "128", "256")
             param("shape", "random")
             // This class also offers the automatic arm, which a gate reads nothing from.
-            param("backend", "reference", "forced")
+            param("backend", "reference", "host")
         }
         // Bracketed: sparseGemv leads, sparseTranspose trails, and it is O(nnz) so it costs little.
         suite("sweepGate", "SparseBenchmark", "sparseGemv|sparseLuBtran|sparseLuFtran|sparseTranspose") {
@@ -283,8 +280,27 @@ tasks.withType<Test>().configureEach {
 // reference backend benchmarks silently run the scalar kernels (verify via the setup println).
 // -Pkoblas.noSimd=true withholds the module to measure the scalar kernels deliberately.
 tasks.withType<JavaExec>().configureEach {
-    if (project.findProperty("koblas.noSimd") != "true") {
+    val scalarReference = project.findProperty("koblas.noSimd") == "true"
+    if (!scalarReference) {
         jvmArgs("--add-modules=jdk.incubator.vector")
+    }
+    if (name.startsWith("jvm") && name.endsWith("Benchmark")) {
+        doLast {
+            val suite = name.removePrefix("jvm").removeSuffix("Benchmark")
+                .replaceFirstChar(Char::lowercaseChar)
+                .ifEmpty { "main" }
+            val report = fileTree(layout.buildDirectory.dir("reports/benchmarks/$suite")) {
+                include("**/jvm.json")
+            }.files.maxByOrNull(File::lastModified) ?: return@doLast
+            val variant = if (scalarReference) "scalar" else "simd"
+            val backend = Regex("""("backend"\s*:\s*)"reference"""")
+            val kernels = Regex("""("kernels"\s*:\s*)"builtin"""")
+            report.writeText(
+                report.readText()
+                    .replace(backend) { "${it.groupValues[1]}\"reference-$variant\"" }
+                    .replace(kernels) { "${it.groupValues[1]}\"builtin-$variant\"" },
+            )
+        }
     }
 }
 

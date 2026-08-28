@@ -19,12 +19,7 @@ import kotlin.test.*
 
 /** Checks the Kotlin/Native sparse BLAS binding against the portable implementation. */
 class CholmodSparseBlasNativeTest {
-    private val cholmod = CholmodSparseBlas(
-        level2Min = 0,
-        preparedGemvMin = 0,
-        preparedGemmMin = 0,
-        preparedSparseProductMin = 0,
-    ).also {
+    private val cholmod = CholmodSparseBlas().also {
         require(it.isAvailable) { "host CHOLMOD expected in the test environment" }
     }
 
@@ -38,13 +33,12 @@ class CholmodSparseBlasNativeTest {
     }
 
     @Test
-    fun `prepared routes report their independent gates`() {
+    fun `prepared routes report the selected native backend`() {
         val defaults = CholmodSparseBlas()
         val gemv = defaults.route(F64RouteQuery.PreparedSparseProduct(1_000, PreparedSparseProductKind.GEMV))!!
         val gemm = defaults.route(F64RouteQuery.PreparedSparseProduct(1_000, PreparedSparseProductKind.DENSE_GEMM))!!
-        assertEquals(BackendExecution.PORTABLE, gemv.execution)
-        assertEquals(BackendExecution.PORTABLE, gemm.execution)
-        assertTrue(gemv.gate?.minimum != gemm.gate?.minimum)
+        assertEquals(BackendExecution.NATIVE, gemv.execution)
+        assertEquals(BackendExecution.NATIVE, gemm.execution)
     }
 
     @Test

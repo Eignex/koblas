@@ -35,7 +35,7 @@ class BasisBenchmark {
     @Param(SPARSE_COLUMNS, SPIKED_COLUMNS)
     var shape: String = SPARSE_COLUMNS
 
-    @Param(REFERENCE_BACKEND, AUTO_BACKEND)
+    @Param(REFERENCE_BACKEND, HOST_BACKEND)
     var backend: String = REFERENCE_BACKEND
 
     private lateinit var a: F64SparseMatrix

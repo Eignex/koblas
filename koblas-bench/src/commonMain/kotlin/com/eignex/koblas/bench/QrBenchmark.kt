@@ -12,8 +12,8 @@ class QrBenchmark {
     @Param("128", "256", "512")
     var n: Int = 0
 
-    @Param(AUTO_BACKEND, REFERENCE_BACKEND, FORCED_FACTORIZE_BACKEND)
-    var backend: String = AUTO_BACKEND
+    @Param(REFERENCE_BACKEND, HOST_BACKEND)
+    var backend: String = REFERENCE_BACKEND
 
     private lateinit var square: F64DenseMatrix
     private lateinit var tall: F64DenseMatrix

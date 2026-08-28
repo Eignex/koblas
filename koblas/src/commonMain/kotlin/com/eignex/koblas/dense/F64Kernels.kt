@@ -1,7 +1,6 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.Backend
-import com.eignex.koblas.internal.backend.f64DispatchThresholds
 
 /**
  * The vector-vector routines as a backend half, alongside [F64Blas] and [F64Decompositions]. Implementations must
@@ -17,9 +16,6 @@ import com.eignex.koblas.internal.backend.f64DispatchThresholds
  * last row with an empty tail, so every routine here is called that way.
  */
 public interface F64Kernels : Backend {
-    /** The run length from which this backend replaces the compiled-in kernels, or null for the platform default. */
-    public val minDispatchLength: Int? get() = null
-
     /** Sum of a(aOff + i) * b(bOff + i) over the first [len] entries; `0` for an empty run. */
     public fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double
 
@@ -145,13 +141,12 @@ internal expect object F64PlatformKernels : F64Kernels {
 }
 
 /**
- * Picks between [F64PlatformKernels] and a registered host backend by run length. The `alpha` guards
- * live here, so `axpy` by zero and `scale` by one are no-ops whichever kernel would have run.
+ * Uses a registered host backend when present. The `alpha` guards live here, so `axpy` by zero and `scale`
+ * by one are no-ops whichever kernel runs.
  *
- * @property host a registered backend, used at or above the configured minimum; null routes nothing.
+ * @property host a registered backend; null uses the compiled-in kernels.
  */
 internal class F64RoutedKernels(internal val host: F64Kernels?) : F64Kernels {
-    private val minLength: Int = host?.minDispatchLength ?: f64DispatchThresholds.level1
     override val name: String
         get() = if (host == null) F64PlatformKernels.name else "${F64PlatformKernels.name}+${host.name}"
 
@@ -164,28 +159,24 @@ internal class F64RoutedKernels(internal val host: F64Kernels?) : F64Kernels {
 
     override val priority: Int get() = host?.priority ?: F64PlatformKernels.priority
 
-    /** The kernels for a run of [len]: the host backend only when it exists and the run is long enough. */
-    private fun forLength(len: Int): F64Kernels {
-        val h = host
-        return if (h != null && len >= minLength) h else F64PlatformKernels
-    }
+    private val selected: F64Kernels get() = host ?: F64PlatformKernels
 
     override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
-        forLength(len).dot(a, aOff, b, bOff, len)
+        selected.dot(a, aOff, b, bOff, len)
 
     override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
         if (alpha == 0.0) return
-        forLength(len).axpy(y, yOff, alpha, x, xOff, len)
+        selected.axpy(y, yOff, alpha, x, xOff, len)
     }
 
     override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
         if (alpha == 1.0) return
-        forLength(len).scale(v, vOff, alpha, len)
+        selected.scale(v, vOff, alpha, len)
     }
 
-    override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double = forLength(len).nrm2(v, vOff, len)
+    override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double = selected.nrm2(v, vOff, len)
 
-    override fun asum(v: DoubleArray, vOff: Int, len: Int): Double = forLength(len).asum(v, vOff, len)
+    override fun asum(v: DoubleArray, vOff: Int, len: Int): Double = selected.asum(v, vOff, len)
 
     /** Not routed, unlike every other routine here: only the compiled-in kernels fuse the four dots into
      *  one pass, and a host cannot, since its dot computes one at a time. */
@@ -202,7 +193,7 @@ internal class F64RoutedKernels(internal val host: F64Kernels?) : F64Kernels {
     ) = F64PlatformKernels.dot4(a, aOff, stride, b, bOff, len, out, outOff)
 
     override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) =
-        forLength(len).swap(a, aOff, b, bOff, len)
+        selected.swap(a, aOff, b, bOff, len)
 
     @Suppress("LongParameterList") // three runs and the multiplier, matching the seam
     override fun symvColumn(

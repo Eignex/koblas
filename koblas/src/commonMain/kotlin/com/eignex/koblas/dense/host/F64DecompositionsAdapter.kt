@@ -13,7 +13,6 @@ import com.eignex.koblas.dense.host.cblas.Cblas.NO_TRANS
 import com.eignex.koblas.dense.host.cblas.Cblas.TRANS
 import com.eignex.koblas.dense.host.cblas.Cblas.UNIT
 import com.eignex.koblas.dense.host.cblas.Cblas.UPPER
-import com.eignex.koblas.internal.backend.DispatchThresholds
 
 /** LAPACK's lower-triangle selector, which koblas asks for everywhere it has a choice. */
 private const val LOWER_UPLO: Byte = 'L'.code.toByte()
@@ -27,16 +26,12 @@ private const val SIDE_LEFT: Byte = 'L'.code.toByte()
 /**
  * The dense factorizations a host LAPACKE provides, over whichever [LapackeCalls] the platform supplies.
  * Both host bindings are this class plus their own FFI mechanism.
- *
- * The size at which a native call starts to pay differs by host, so every gate arrives in [dispatch],
- * resolved from the binding's own configuration. Its defaults dispatch natively at any size.
  */
 @Suppress("TooManyFunctions") // the LAPACK surface a host library covers
 public abstract class F64DecompositionsAdapter internal constructor(
     private val f: LapackeCalls,
     private val blas: CblasCalls,
     private val portable: F64ReferenceDecompositions = F64ReferenceDecompositions(),
-    private val dispatch: DispatchThresholds = DispatchThresholds(0, 0, 0, 0),
     private val metadata: BackendMetadata = BackendMetadata(integerAbi = "LP64"),
 ) : F64Decompositions,
     F64RoutingBackend,
@@ -48,15 +43,7 @@ public abstract class F64DecompositionsAdapter internal constructor(
     override val backendMetadata: BackendMetadata get() = metadata
 
     override fun route(query: F64RouteQuery): BackendRoute? = when (query) {
-        is F64RouteQuery.DenseLu -> thresholdRoute(
-            query,
-            this,
-            portable.name,
-            DispatchGate(DispatchMetric.DIMENSION, query.order.toLong(), dispatch.factorize.toLong()),
-            query.order >= dispatch.factorize,
-            fallbackWhenUnavailable = false,
-        )
-
+        is F64RouteQuery.DenseLu -> nativeRoute(query, this, fallbackWhenUnavailable = false)
         else -> null
     }
 
@@ -64,10 +51,6 @@ public abstract class F64DecompositionsAdapter internal constructor(
     // overloads to the portable routine instead of the accelerated one, since a delegated member calls back
     // into the delegate.
     override fun invert(lu: F64LuDecomposition, workspace: Workspace?): F64DenseMatrix {
-        // Level 3 rather than the factorization gate: an inverse is cubic but it is trsm-shaped work over a
-        // factor that already exists, and it crosses where the level-3 routines do rather than where a
-        // factorization does.
-        if (lu.n < dispatch.level3) return portable.invert(lu, workspace)
         if (lu.singular) {
             throw SingularMatrix(
                 lu.failedAt,
@@ -108,7 +91,6 @@ public abstract class F64DecompositionsAdapter internal constructor(
     }
 
     override fun trtri(a: F64DenseMatrix, lower: Boolean, unitDiag: Boolean): F64DenseMatrix {
-        if (a.rows < dispatch.level3) return portable.trtri(a, lower, unitDiag)
         requireShape(a.rows == a.cols) { "trtri requires a square matrix; got ${a.rows}x${a.cols}" }
         val n = a.rows
         if (n == 0) return F64DenseMatrix(0, 0)
@@ -165,9 +147,7 @@ public abstract class F64DecompositionsAdapter internal constructor(
 
     override fun qrPivoted(a: F64DenseMatrix, tolerance: Double, workspace: Workspace?): F64PivotedQrDecomposition {
         requireRankTolerance(tolerance)
-        if (minOf(a.rows, a.cols) < maxOf(1, dispatch.factorize)) {
-            return portable.qrPivoted(a, tolerance, workspace)
-        }
+        if (a.rows == 0 || a.cols == 0) return portable.qrPivoted(a, tolerance, workspace)
         val m = a.rows
         val n = a.cols
         val buf = a.data.copyOf()
@@ -181,7 +161,6 @@ public abstract class F64DecompositionsAdapter internal constructor(
     }
 
     override fun factor(a: F64DenseMatrix): F64LuDecomposition {
-        if (a.rows < dispatch.factorize) return portable.factor(a)
         requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
         val n = a.rows
         return factorInto(a, F64LuDecomposition(n, DoubleArray(n * n), IntArray(n)))
@@ -191,7 +170,6 @@ public abstract class F64DecompositionsAdapter internal constructor(
     override fun factorInto(a: F64DenseMatrix, out: F64LuDecomposition): F64LuDecomposition {
         requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
         requireShape(out.n == a.rows) { "factorInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}" }
-        if (a.rows < dispatch.factorize) return portable.factorInto(a, out)
         val n = out.n
         a.data.copyInto(out.lu)
         val piv = out.piv
@@ -215,13 +193,6 @@ public abstract class F64DecompositionsAdapter internal constructor(
         return out
     }
 
-    /** One right-hand side is a pair of triangular solves, a wider one a pair of `dtrsm`. */
-    private fun dispatchesSolve(n: Int, nrhs: Int): Boolean = if (nrhs <= 1) {
-        n >= dispatch.level2
-    } else {
-        n.toLong() * nrhs >= dispatch.level3.toLong() * dispatch.level3
-    }
-
     @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
     override fun solveInto(
         lu: F64LuDecomposition,
@@ -232,7 +203,6 @@ public abstract class F64DecompositionsAdapter internal constructor(
     ): DoubleArray {
         requireFactored(lu.failedAt, "solve")
         val n = lu.n
-        if (!dispatchesSolve(n, 1)) return portable.solveInto(lu, b, out, transpose, workspace)
         requireShape(b.size == n) { "solve: b length ${b.size} != $n" }
         requireShape(out.size == n) { "solve: out length ${out.size} != $n" }
         if (n == 0) return out
@@ -253,11 +223,10 @@ public abstract class F64DecompositionsAdapter internal constructor(
         val nrhs = b.cols
         requireSolveShapes(n, b, out)
         if (n == 0 || nrhs == 0) return out
-        if (!dispatchesSolve(n, nrhs)) return portable.solveInto(lu, b, out, transpose, workspace)
         return nativeSolve(lu, b, out, transpose, workspace)
     }
 
-    /** The `dgetrs` body both solve overloads share, once the gate has chosen to cross. */
+    /** The `dgetrs` body both solve overloads share. */
     @Suppress("LongParameterList") // destination and scratch on top of the solve's own arguments
     private fun nativeSolve(
         lu: F64LuDecomposition,
@@ -305,7 +274,6 @@ public abstract class F64DecompositionsAdapter internal constructor(
     }
 
     override fun ldl(a: F64DenseMatrix, workspace: Workspace?): F64LdlDecomposition {
-        if (a.rows < dispatch.factorize) return portable.ldl(a, workspace)
         requireShape(a.rows == a.cols) { "ldl: matrix must be square, got ${a.rows}x${a.cols}" }
         val n = a.rows
         val buf = a.data.copyOf()
@@ -320,7 +288,7 @@ public abstract class F64DecompositionsAdapter internal constructor(
     override fun solveInto(ldl: F64LdlDecomposition, b: DoubleArray, out: DoubleArray): DoubleArray =
         portable.solveInto(ldl, b, out)
 
-    /** Native only from the configured right-hand-side count, as for the LU multi-RHS solve above. */
+    /** Solves several right-hand sides with the host factorization. */
     override fun solveInto(
         ldl: F64LdlDecomposition,
         b: F64DenseMatrix,
@@ -328,7 +296,6 @@ public abstract class F64DecompositionsAdapter internal constructor(
         workspace: Workspace?,
     ): F64DenseMatrix {
         requireFactored(ldl.failedAt, "solve")
-        if (!dispatchesSolve(b.rows, b.cols)) return portable.solveInto(ldl, b, out, workspace)
         val n = ldl.n
         val nrhs = b.cols
         requireSolveShapes(n, b, out)
@@ -341,7 +308,6 @@ public abstract class F64DecompositionsAdapter internal constructor(
     }
 
     override fun qr(a: F64DenseMatrix, workspace: Workspace?): F64QrDecomposition {
-        if (minOf(a.rows, a.cols) < dispatch.factorize) return portable.qr(a, workspace)
         val m = a.rows
         val n = a.cols
         val buf = a.data.copyOf()
@@ -354,12 +320,6 @@ public abstract class F64DecompositionsAdapter internal constructor(
     }
 
     override fun applyQInto(qr: F64QrDecomposition, y: DoubleArray, out: DoubleArray, transpose: Boolean): DoubleArray {
-        // Gated on the work, m reflector applications of length k, against what the square case costs at
-        // the threshold. Gating on min(m, n) alone would keep a tall thin factorization portable however
-        // large m grows, which is the shape least-squares presents most often.
-        val reflectorWork = qr.m.toLong() * qr.tau.size
-        val gate = dispatch.factorize.toLong() * dispatch.factorize
-        if (reflectorWork < gate) return portable.applyQInto(qr, y, out, transpose)
         requireShape(y.size == qr.m) { "applyQ: y length ${y.size} != ${qr.m}" }
         requireShape(out.size == qr.m) { "applyQ: out length ${out.size} != ${qr.m}" }
         if (out !== y) y.copyInto(out)
@@ -393,7 +353,6 @@ public abstract class F64DecompositionsAdapter internal constructor(
      * which [CholeskyPolicy.Regularize] needs.
      */
     override fun cholesky(a: F64DenseMatrix, policy: CholeskyPolicy): F64CholeskyDecomposition {
-        if (a.rows < dispatch.factorize) return portable.cholesky(a, policy)
         requireSquare(a, "cholesky")
         val n = a.rows
         if (n == 0) return F64CholeskyDecomposition(F64DenseMatrix(0, 0))
@@ -413,7 +372,6 @@ public abstract class F64DecompositionsAdapter internal constructor(
      * so the factor is copied first.
      */
     override fun invert(chol: F64CholeskyDecomposition, workspace: Workspace?): F64DenseMatrix {
-        if (chol.n < dispatch.factorize) return portable.invert(chol, workspace)
         val n = chol.n
         if (n == 0) return F64DenseMatrix(0, 0)
         val inv = F64DenseMatrix(n, n, chol.l.data.copyOf())

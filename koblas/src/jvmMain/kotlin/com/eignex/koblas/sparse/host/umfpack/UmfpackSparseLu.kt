@@ -27,10 +27,8 @@ public open class UmfpackSparseLu(
     /** Policy for this backend instance and the factors it produces. */
     public val config: UmfpackConfig = UmfpackConfig(),
 ) : F64SparseDecompositionsAdapter(
-    config.factorizeMin,
-    config.equilibrate,
-    BackendMetadata(options = config.options.metadataOptions()),
-    qrFactorizeMin = config.qrFactorizeMin,
+    equilibrate = config.equilibrate,
+    metadata = BackendMetadata(options = config.options.metadataOptions()),
 ),
     com.eignex.koblas.sparse.F64GeneralSparseLu,
     com.eignex.koblas.sparse.F64SparseCholesky,

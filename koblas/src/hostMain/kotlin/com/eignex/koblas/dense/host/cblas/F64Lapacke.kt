@@ -7,7 +7,6 @@ import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.dense.host.F64DecompositionsAdapter
 import com.eignex.koblas.dense.host.cblas.Cblas.COL_MAJOR
 import com.eignex.koblas.internal.backend.BackendNames
-import com.eignex.koblas.internal.backend.hostBlasDispatchThresholds
 import kotlinx.cinterop.*
 
 /**
@@ -23,7 +22,6 @@ internal class F64Lapacke(
 ) : F64DecompositionsAdapter(
     NativeLapackeCalls(f),
     NativeCblasCalls(blas),
-    dispatch = hostBlasDispatchThresholds(config),
     metadata = BackendMetadata(
         integerAbi = "LP64",
         threading = loader.effectiveThreadCount?.let { "$it threads" },

@@ -1,7 +1,6 @@
 package com.eignex.koblas.dense.host
 
 import com.eignex.koblas.*
-import com.eignex.koblas.internal.backend.DispatchThresholds
 import kotlin.test.*
 
 /**
@@ -171,38 +170,28 @@ class AdapterBorrowTest {
         ) = error("unused")
     }
 
-    private class FailingAdapter(level2Min: Int = 0, level3Min: Int = 0, private val available: Boolean = true) :
-        F64BlasAdapter(
-            FailingSyrk(),
-            dispatch = DispatchThresholds(0, level2Min, level3Min, 0),
-        ) {
+    private class FailingAdapter(private val available: Boolean = true) : F64BlasAdapter(FailingSyrk()) {
         override val name: String get() = "failing-syrk"
         override val isAvailable: Boolean get() = available
     }
 
     @Test
-    fun `dense routes report dimension and work gates`() {
-        val adapter = FailingAdapter(level2Min = 16, level3Min = 8)
+    fun `dense routes report selected native backends`() {
+        val adapter = FailingAdapter()
 
         val gemv = adapter.route(F64RouteQuery.DenseGemv(15, 100))!!
         val gemm = adapter.route(F64RouteQuery.DenseGemm(64, 2, 4))!!
 
-        assertEquals(BackendRouteReason.BELOW_THRESHOLD, gemv.reason)
-        assertEquals(DispatchGate(DispatchMetric.DIMENSION, 15, 16), gemv.gate)
+        assertEquals(BackendRouteReason.NATIVE_ROUTE, gemv.reason)
         assertEquals(BackendExecution.NATIVE, gemm.execution)
-        assertEquals(DispatchGate(DispatchMetric.LEVEL3_WORK, 512, 512), gemm.gate)
         assertEquals("LP64", gemm.selected.metadata.integerAbi)
     }
 
     @Test
-    fun `dense routes distinguish threshold fallback from unavailable bindings`() {
-        val adapter = FailingAdapter(level2Min = 16, available = false)
+    fun `dense routes report unavailable bindings`() {
+        val adapter = FailingAdapter(available = false)
 
-        val belowThreshold = adapter.route(F64RouteQuery.DenseGemv(15, 100))!!
         val unavailable = adapter.route(F64RouteQuery.DenseGemv(16, 100))!!
-
-        assertEquals(BackendExecution.PORTABLE, belowThreshold.execution)
-        assertEquals(BackendRouteReason.BELOW_THRESHOLD, belowThreshold.reason)
         assertEquals(BackendExecution.UNAVAILABLE, unavailable.execution)
         assertEquals(BackendRouteReason.BACKEND_UNAVAILABLE, unavailable.reason)
     }

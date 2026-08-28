@@ -28,9 +28,8 @@ public open class HfactorSparseLu(
     /** Policy for this backend instance. */
     public val config: HfactorConfig = HfactorConfig(),
 ) : F64SparseDecompositionsAdapter(
-    config.factorizeMin,
-    config.equilibrate,
-    BackendMetadata(options = config.options.metadataOptions()),
+    equilibrate = config.equilibrate,
+    metadata = BackendMetadata(options = config.options.metadataOptions()),
 ),
     F64GeneralSparseLu,
     F64BasisSolvers {

@@ -3,8 +3,8 @@
 Dense linear algebra: the three swappable seams and the routines behind them.
 
 - [F64Kernels] — the level-1 kernels (`dot`, `axpy`, `scale`, `nrm2`, `asum`). These are specialized
-  at compile time rather than dispatched per call, and consult a registered backend only above
-  the level-1 dispatch threshold; offered through [com.eignex.koblas.registerBackend], forced by installing a
+  at compile time and replaced as a unit by a selected registered backend; offered through
+  [com.eignex.koblas.registerBackend], forced by installing a
   [com.eignex.koblas.F64Context].
 - [F64Blas] — the level-2 and level-3 routines in full BLAS alpha/beta/transpose form, plus the triangular
   solves [trsv] / [trsm] and their multiply counterparts. Named Boolean parameters select the triangle,

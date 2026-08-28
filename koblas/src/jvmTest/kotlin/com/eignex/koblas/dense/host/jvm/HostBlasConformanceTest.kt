@@ -19,7 +19,7 @@ class HostBlasConformanceTest {
     fun `the host BLAS consumes strided views in place`() {
         Assume.assumeTrue("host CBLAS is not installed", HostLibraries.cblas)
         assertStridedProductsAgreeWithReference(
-            F64Cblas(HostBlasConfig(level2Min = 0, level3Min = 0)),
+            F64Cblas(HostBlasConfig()),
         )
     }
 
@@ -71,14 +71,14 @@ class HostBlasConformanceTest {
     @Test
     fun `the host solves match reference once their gates admit them`() {
         Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
-        assertLuAgreesWithReference(F64Lapacke(HostBlasConfig(level2Min = 0, level3Min = 0)), intArrayOf(33, 256))
+        assertLuAgreesWithReference(F64Lapacke(HostBlasConfig()), intArrayOf(33, 256))
     }
 
     /** Both inverses read the level-3 gate, so lowering that is what reaches them at every size here. */
     @Test
     fun `the host inverses match reference once their gate admits them`() {
         Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
-        assertInversesAgreeWithReference(F64Lapacke(HostBlasConfig(level3Min = 0)), intArrayOf(7, 33, 128))
+        assertInversesAgreeWithReference(F64Lapacke(HostBlasConfig()), intArrayOf(7, 33, 128))
     }
 
     @Test
@@ -131,9 +131,8 @@ class HostBlasConformanceTest {
         assertLuAgreesWithReference(F64Lapacke(), intArrayOf(7, 64, 256))
     }
 
-    /** Both extents stay at or above the level-3 gate of 16, so the host kernels are the ones under test. */
     @Test
-    fun `the level 2 and 3 products match reference above the gates`() {
+    fun `the level 2 and 3 products match reference at moderate sizes`() {
         Assume.assumeTrue("host CBLAS is not installed", HostLibraries.cblas)
         val host = F64Cblas()
         assertGemvAgreesWithReference(host, intArrayOf(18, 64))
@@ -145,7 +144,7 @@ class HostBlasConformanceTest {
 
     /** The same properties at sizes under every gate, where the portable fallback answers instead. */
     @Test
-    fun `the level 2 and 3 products match reference below the gates`() {
+    fun `the level 2 and 3 products match reference at small sizes`() {
         Assume.assumeTrue("host CBLAS is not installed", HostLibraries.cblas)
         val host = F64Cblas()
         assertGemvAgreesWithReference(host, intArrayOf(7))
@@ -163,7 +162,7 @@ class HostBlasConformanceTest {
 
     /** Above the LAPACK gate of 64, so the host factorizations are the ones under test. */
     @Test
-    fun `the factorization family matches reference above the gate`() {
+    fun `the factorization family matches reference at moderate sizes`() {
         Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
         val host = F64Lapacke()
         assertDeterminantAgreesWithReference(host, intArrayOf(64, 96))
@@ -176,7 +175,7 @@ class HostBlasConformanceTest {
 
     /** The same properties at sizes under the gate, where the portable fallback answers instead. */
     @Test
-    fun `the factorization family matches reference below the gate`() {
+    fun `the factorization family matches reference at small sizes`() {
         Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
         val host = F64Lapacke()
         assertDeterminantAgreesWithReference(host, intArrayOf(1, 3, 8, 33))
@@ -207,7 +206,7 @@ class HostBlasConformanceTest {
     @Test
     fun `the host level-1 kernels agree with the compiled-in ones`() {
         Assume.assumeTrue("host CBLAS is not installed", HostLibraries.cblas)
-        val host = F64CblasKernels(HostBlasConfig(level1Min = 0))
+        val host = F64CblasKernels(HostBlasConfig())
         Assume.assumeTrue("host CBLAS did not bind its level-1 symbols", host.isAvailable)
         assertLevel1KernelsAgreeWithScalar(host)
         assertReductionsAgreeWithScalar(host)

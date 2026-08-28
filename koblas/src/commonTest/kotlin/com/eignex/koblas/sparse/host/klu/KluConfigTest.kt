@@ -14,9 +14,4 @@ class KluConfigTest {
     fun `rejects a nonpositive memory growth`() {
         assertFailsWith<IllegalArgumentException> { KluConfig(memoryGrowth = 0.0) }
     }
-
-    @Test
-    fun `rejects a negative sparse QR gate`() {
-        assertFailsWith<IllegalArgumentException> { KluConfig(qrFactorizeMin = -1) }
-    }
 }

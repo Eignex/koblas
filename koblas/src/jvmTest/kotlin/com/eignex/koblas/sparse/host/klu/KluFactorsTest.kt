@@ -11,7 +11,7 @@ import kotlin.test.assertEquals
 
 @Category(HostLibraryTest::class)
 class KluFactorsTest {
-    private val klu = KluSparseLu(KluConfig(KluOptions(factorizeMin = 0)))
+    private val klu = KluSparseLu(KluConfig(KluOptions()))
 
     private fun requireKlu() {
         Assume.assumeTrue("KLU is not installed", klu.isAvailable)

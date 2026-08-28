@@ -16,7 +16,7 @@ import kotlin.random.Random
 import kotlin.test.*
 
 class BundledHfactorTest {
-    private val backend = BundledHfactor(factorizeMin = 0)
+    private val backend = BundledHfactor()
 
     /** `[S | I]`, the shape a simplex hands over: structural columns and then the logical ones. */
     private fun simplexMatrix(n: Int, rng: Random): F64SparseMatrix {
@@ -120,7 +120,7 @@ class BundledHfactorTest {
 
     @Test
     fun `shared equilibration option reaches the bundled fallback policy`() {
-        val equilibrated = BundledHfactor(HfactorOptions(factorizeMin = 0, equilibrate = true))
+        val equilibrated = BundledHfactor(HfactorOptions(equilibrate = true))
         val matrix = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(1 to 8.0)))
 
         val factorization = equilibrated.factor(matrix)

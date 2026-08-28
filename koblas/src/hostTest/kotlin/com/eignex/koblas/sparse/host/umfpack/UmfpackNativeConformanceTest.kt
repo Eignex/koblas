@@ -19,7 +19,7 @@ class UmfpackNativeConformanceTest {
 
     /** Required rather than skipped, since Kotlin/Native has no Assume and a skipped suite reads as green. */
     // Ungated for the reason the JVM conformance test is: these assertions are about the native binding.
-    private val umfpack: UmfpackSparseLu = UmfpackSparseLu(UmfpackConfig(factorizeMin = 0)).also {
+    private val umfpack: UmfpackSparseLu = UmfpackSparseLu(UmfpackConfig()).also {
         require(it.isAvailable) { "host SuiteSparse expected in the test environment" }
     }
 
@@ -134,7 +134,7 @@ class UmfpackNativeConformanceTest {
 
     @Test
     fun `a backend set to equilibrate stays native and still solves`() =
-        assertNativeEquilibration(UmfpackSparseLu(UmfpackConfig(factorizeMin = 0, equilibrate = true))) {
+        assertNativeEquilibration(UmfpackSparseLu(UmfpackConfig(equilibrate = true))) {
             it is UmfpackFactorization
         }
 
@@ -152,7 +152,6 @@ class UmfpackNativeConformanceTest {
             UmfpackConfig(
                 libraryPath = null,
                 options = UmfpackOptions(
-                    factorizeMin = 0,
                     equilibrate = true,
                     iterativeRefinementSteps = 3,
                     pivotTolerance = 0.2,

@@ -115,7 +115,7 @@ already say how to scale; the portable implementation settles them in [F64Refere
 A library filling one kind and not another is the ordinary case rather than the exception, since most of
 these are unsymmetric LU and nothing else. Such a binding answers the rest portably through
 [F64SparseDecompositionsAdapter][com.eignex.koblas.sparse.host.F64SparseDecompositionsAdapter], which is the
-same fallback it already uses below its own size gate.
+same portable implementation it uses for unsupported operations.
 
 CHOLMOD supplies the symmetric routines used by the SuiteSparse providers, and SPQR the QR. Those
 capabilities compete only with other providers of the same role, independently of which provider fills

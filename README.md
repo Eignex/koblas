@@ -150,8 +150,8 @@ Every operation runs through an F64Context. Top-level functions use the process-
 registry selects providers independently by semantic role. General sparse LU, repeated-pattern LU, Cholesky,
 LDL, QR, basis factorization, and basis solving are separate choices rather than one interchangeable sparse backend.
 
-Native availability does not imply native execution. Providers retain measured dispatch gates and fall back to
-portable semantics for unsupported shapes, arguments, or operations. Inspect status for the selected providers
+Selected providers execute their native implementations at every size. They fall back only for unavailable
+libraries, unsupported arguments, or operations they do not implement. Inspect status for the selected providers
 and route a representative problem before entering a hot loop:
 
 ```kotlin
@@ -163,7 +163,7 @@ check(dense.available)
 
 val route = koblas.route(F64RouteQuery.DenseGemm(m = 256, n = 64, k = 128))
 check(route.execution == BackendExecution.NATIVE) {
-    "${route.executor}: ${route.reason}, gate=${route.gate}"
+    "${route.executor}: ${route.reason}"
 }
 ```
 
@@ -217,8 +217,6 @@ right-hand side of length m and answers one of length n.
 
 Factors materialise on first read and cost a copy out of the library, so solving alone never pays for them. A
 provider that keeps its factors in a form it cannot return raises FactorsNotExposed.
-KluConfig and UmfpackConfig expose qrFactorizeMin separately from factorizeMin, so automatic SPQR routing can
-be overridden without moving the sparse LU gate.
 
 Use the typed capability selected in the context rather than casting to a provider implementation.
 Repeated-pattern LU, for example, retains symbolic analysis across numeric factors:

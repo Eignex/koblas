@@ -10,21 +10,15 @@ import com.eignex.koblas.dense.host.cblas.Cblas.diagOf
 import com.eignex.koblas.dense.host.cblas.Cblas.sideOf
 import com.eignex.koblas.dense.host.cblas.Cblas.transOf
 import com.eignex.koblas.dense.host.cblas.Cblas.uploOf
-import com.eignex.koblas.internal.backend.DispatchThresholds
-import com.eignex.koblas.internal.backend.dispatchesLevel3
 
 /**
  * The dense matrix routines a host CBLAS provides, over whichever [CblasCalls] the platform supplies. Both
  * host bindings are this class plus their own FFI mechanism.
- *
- * Below the [DispatchThresholds] gate for its level, each routine hands back to the portable
- * implementation: crossing into a native library costs more than the work saves on a small problem.
  */
 @Suppress("TooManyFunctions") // the BLAS surface a host library covers
 public abstract class F64BlasAdapter internal constructor(
     private val f: CblasCalls,
     private val portable: F64ReferenceBlas = F64ReferenceBlas(),
-    private val dispatch: DispatchThresholds = DispatchThresholds(0, 0, 0, 0),
     private val metadata: BackendMetadata = BackendMetadata(integerAbi = "LP64"),
 ) : F64Blas,
     F64RoutingBackend,
@@ -36,28 +30,9 @@ public abstract class F64BlasAdapter internal constructor(
     override val backendMetadata: BackendMetadata get() = metadata
 
     override fun route(query: F64RouteQuery): BackendRoute? = when (query) {
-        is F64RouteQuery.DenseGemv -> {
-            val actual = minOf(query.rows, query.cols)
-            thresholdRoute(
-                query,
-                this,
-                portable.name,
-                DispatchGate(DispatchMetric.DIMENSION, actual.toLong(), dispatch.level2.toLong()),
-                actual >= dispatch.level2,
-                fallbackWhenUnavailable = false,
-            )
-        }
-
-        is F64RouteQuery.DenseGemm -> thresholdRoute(
+        is F64RouteQuery.DenseGemv, is F64RouteQuery.DenseGemm -> nativeRoute(
             query,
             this,
-            portable.name,
-            DispatchGate(
-                DispatchMetric.LEVEL3_WORK,
-                saturatedProduct(query.m, query.n, query.k),
-                saturatedProduct(dispatch.level3, dispatch.level3, dispatch.level3),
-            ),
-            dispatchesLevel3(dispatch.level3, query.m, query.n, query.k),
             fallbackWhenUnavailable = false,
         )
 
@@ -72,7 +47,7 @@ public abstract class F64BlasAdapter internal constructor(
     // third off a 16 or a 64, which is a matter of microseconds, and from 256 up the two sit inside the
     // run-to-run spread whichever way the shape runs, since a transpose that size is bound by memory rather
     // than by the loop. The advantage therefore shrinks with size instead of growing, leaving no dimension
-    // from which the call starts paying, which is the only shape a dispatch gate can express.
+    // from which the call starts paying.
     override fun transpose(a: F64DenseMatrix): F64DenseMatrix = portable.transpose(a)
 
     override fun syr(alpha: Double, x: F64VectorLike, a: F64DenseMatrix, lower: Boolean): Unit = portable.syr(
@@ -106,7 +81,6 @@ public abstract class F64BlasAdapter internal constructor(
     }
 
     override fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: F64DenseMatrix) {
-        if (minOf(a.rows, a.cols) < dispatch.level2) return portable.ger(alpha, x, y, a)
         requireShape(a.rows == x.size && a.cols == y.size) {
             "ger shape mismatch: A is ${a.rows}x${a.cols}, x ${x.size}, y ${y.size}"
         }
@@ -115,12 +89,10 @@ public abstract class F64BlasAdapter internal constructor(
     }
 
     override fun trsv(a: F64DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
-        if (a.rows < dispatch.level2) return portable.trsv(a, x, lower, transpose, unitDiag)
         nativeTriangularVector(a, x, lower, transpose, unitDiag, solve = true)
     }
 
     override fun trmv(a: F64DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
-        if (a.rows < dispatch.level2) return portable.trmv(a, x, lower, transpose, unitDiag)
         nativeTriangularVector(a, x, lower, transpose, unitDiag, solve = false)
     }
 
@@ -152,9 +124,6 @@ public abstract class F64BlasAdapter internal constructor(
         right: Boolean,
         alpha: Double,
     ) {
-        if (minOf(a.rows, b.rows, b.cols) < dispatch.level3) {
-            return portable.trsm(a, b, lower, transpose, unitDiag, right, alpha)
-        }
         nativeTriangularMatrix(a, b, lower, transpose, unitDiag, right, alpha, solve = true)
     }
 
@@ -168,9 +137,6 @@ public abstract class F64BlasAdapter internal constructor(
         right: Boolean,
         alpha: Double,
     ) {
-        if (minOf(a.rows, b.rows, b.cols) < dispatch.level3) {
-            return portable.trmm(a, b, lower, transpose, unitDiag, right, alpha)
-        }
         nativeTriangularMatrix(a, b, lower, transpose, unitDiag, right, alpha, solve = false)
     }
 
@@ -209,9 +175,6 @@ public abstract class F64BlasAdapter internal constructor(
         y: DoubleArray,
         transpose: Boolean,
     ) {
-        if (minOf(a.rows, a.cols) < dispatch.level2) {
-            return portable.gemv(alpha, a, x, beta, y, transpose)
-        }
         val xLen = if (transpose) a.rows else a.cols
         val yLen = if (transpose) a.cols else a.rows
         requireShape(x.size == xLen) { "gemv: x length ${x.size} != $xLen" }
@@ -239,7 +202,7 @@ public abstract class F64BlasAdapter internal constructor(
         requireShape(x.size == xLength) { "gemv: x length ${x.size} != $xLength" }
         requireShape(y.size == yLength) { "gemv: y length ${y.size} != $yLength" }
         require(!y.overlaps(x) && !a.overlaps(y)) { "gemv: destination overlaps an input view" }
-        if (minOf(a.rows, a.cols) < dispatch.level2 || x.stride < 0 || y.stride < 0) {
+        if (x.stride < 0 || y.stride < 0) {
             return super<F64Blas>.gemv(alpha, a, x, beta, y, transpose)
         }
         if (alpha == 0.0 || xLength == 0) {
@@ -286,9 +249,6 @@ public abstract class F64BlasAdapter internal constructor(
             return
         }
         if (m == 0 || n == 0) return
-        if (!dispatchesLevel3(dispatch.level3, m, n, k)) {
-            return portable.gemm(alpha, a, transposeA, b, transposeB, beta, c)
-        }
         f.dgemm(
             COL_MAJOR, transOf(transposeA), transOf(transposeB), m, n, k, alpha,
             a.data, a.rows, b.data, b.rows, beta, c.data, c.rows,
@@ -317,9 +277,6 @@ public abstract class F64BlasAdapter internal constructor(
             return
         }
         if (m == 0 || n == 0) return
-        if (!dispatchesLevel3(dispatch.level3, m, n, k)) {
-            return super<F64Blas>.gemm(alpha, a, transposeA, b, transposeB, beta, c)
-        }
         f.dgemm(
             COL_MAJOR,
             transOf(transposeA),
@@ -376,9 +333,6 @@ public abstract class F64BlasAdapter internal constructor(
         val n = if (transpose) a.cols else a.rows
         val k = if (transpose) a.rows else a.cols
         requireShape(c.rows == n && c.cols == n) { "syrk: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
-        if (minOf(n, k) < dispatch.level3) {
-            return portable.syrk(alpha, a, transpose, beta, c, lower, workspace)
-        }
         if (alpha == 0.0 || k == 0) {
             scaleTriangle(kernels, c.data, n, beta, lower)
             return
@@ -394,7 +348,6 @@ public abstract class F64BlasAdapter internal constructor(
      */
     override fun symv(alpha: Double, a: F64DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) {
         requireShape(a.rows == a.cols) { "symv: matrix must be square, got ${a.rows}x${a.cols}" }
-        if (a.rows < dispatch.level2) return portable.symv(alpha, a, x, beta, y, lower)
         val n = a.rows
         requireShape(x.size == n) { "symv: x length ${x.size} != $n" }
         requireShape(y.size == n) { "symv: y length ${y.size} != $n" }
@@ -415,9 +368,6 @@ public abstract class F64BlasAdapter internal constructor(
         right: Boolean,
     ) {
         requireShape(a.rows == a.cols) { "symm: matrix must be square, got ${a.rows}x${a.cols}" }
-        if (minOf(a.rows, b.rows, b.cols) < dispatch.level3) {
-            return portable.symm(alpha, a, b, beta, c, lower, right)
-        }
         val m = a.rows
         requireShape(c.rows == b.rows && c.cols == b.cols) {
             "symm: C is ${c.rows}x${c.cols} but B is ${b.rows}x${b.cols}"
