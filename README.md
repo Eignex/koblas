@@ -190,13 +190,16 @@ providers without route diagnostics report UNKNOWN rather than being assumed nat
 On JVM, a system property takes precedence over the corresponding environment variable. Kotlin/Native reads
 the environment variable. Override a library path with the JVM property `koblas.<library>.path` or environment
 variable `KOBLAS_<LIBRARY>_PATH`. Supported library identifiers are cblas, lapacke, klu, umfpack, cholmod,
-basiclu, and hfactor.
+basiclu, and hfactor. The JVM-only `koblas.jvm.vector.scatter` setting (or
+`KOBLAS_JVM_VECTOR_SCATTER`) selects indexed Vector API stores for sparse kernels: auto (the default) makes a
+conservative guess from a 512-bit x86 preferred species. Use on when you know the deployment has a profitable
+AVX-512 path; it forces indexed stores when the Vector API module is present. Off retains scalar indexed
+stores.
 
 Pin discovery by backend name per semantic role. Set a JVM property named `koblas.backend.<role>` or the
 matching `KOBLAS_<ROLE>_BACKEND` environment variable; the property takes precedence. A blank value leaves the
 role automatic, while `reference` disables host selection for that role. For example, pin general sparse LU
-with `koblas.backend.sparse.general.lu` or
-`KOBLAS_SPARSE_GENERAL_LU_BACKEND`.
+with `koblas.backend.sparse.general.lu` or `KOBLAS_SPARSE_GENERAL_LU_BACKEND`.
 
 ## Sparse workflows
 

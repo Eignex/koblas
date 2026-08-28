@@ -58,6 +58,12 @@ internal object ConfigurationKeys {
         ),
     )
 
+    /** Selects indexed JVM Vector API stores for sparse kernels. */
+    val JVM_VECTOR_SCATTER = JvmVectorScatterKeys(
+        "koblas.jvm.vector.scatter",
+        "KOBLAS_JVM_VECTOR_SCATTER",
+    )
+
     /** An absolute path to the library exporting `cblas_*`, overriding the deployment lookup chain. */
     val CBLAS_PATH = LibraryPathKeys("koblas.cblas.path", "KOBLAS_CBLAS_PATH")
 
@@ -85,6 +91,9 @@ internal class LibraryPathKeys(val property: String, val environment: String)
 
 /** The system property and environment variable that pin one semantic backend role. */
 internal class BackendSelectionKeys(val property: String, val environment: String)
+
+/** The JVM property and environment variable controlling indexed JVM Vector API stores. */
+internal class JvmVectorScatterKeys(val property: String, val environment: String)
 
 /**
  * The backend pin a deployment asked for, [property] ahead of [environment]. Blank counts as unset, since a
