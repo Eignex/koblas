@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
-"""Turn a kotlinx-benchmark JMH report into per-arm curves, for reading a dispatch crossover off.
+"""Turn a kotlinx-benchmark JMH report into per-arm curves for A/B comparisons.
 
     koblas-bench/tools/bench-curves.py koblas-bench/build/reports/benchmarks/level1/*/jvm.json
 
-Emits CSV on stdout (benchmark,arm,size,ns,error) and a fit per benchmark and arm on stderr. The fit is
-what makes a missing crossover legible: a gate only exists where two curves cross, so two arms with the
-same slope have none at any threshold however far their intercepts differ.
+Emits CSV on stdout (benchmark,arm,size,ns,error) and a fit per benchmark and arm on stderr.
 """
 import json
 import sys
@@ -13,7 +11,7 @@ from collections import defaultdict
 
 # The parameter naming the size swept, and the one naming which side answered.
 SIZE_KEYS = ("len", "n", "nrhs")
-ARM_KEYS = ("backend",)
+ARM_KEYS = ("backend", "kernels")
 
 
 def rows(path):

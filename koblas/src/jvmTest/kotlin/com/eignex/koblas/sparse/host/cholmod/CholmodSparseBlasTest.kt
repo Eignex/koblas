@@ -15,13 +15,7 @@ import kotlin.test.assertTrue
 @Category(HostLibraryTest::class)
 class CholmodSparseBlasTest {
 
-    // Gated at zero so these small operands reach the library instead of the portable routines.
-    private val cholmod = CholmodSparseBlas(
-        level2Min = 0,
-        preparedGemvMin = 0,
-        preparedGemmMin = 0,
-        preparedSparseProductMin = 0,
-    )
+    private val cholmod = CholmodSparseBlas()
 
     private fun requireCholmod() {
         Assume.assumeTrue("CHOLMOD is not installed; conformance cannot run", cholmod.isAvailable)
@@ -44,14 +38,13 @@ class CholmodSparseBlasTest {
     }
 
     @Test
-    fun `prepared routes report their independent gates`() {
+    fun `prepared routes report the selected native backend`() {
         requireCholmod()
         val defaults = CholmodSparseBlas()
         val gemv = defaults.route(F64RouteQuery.PreparedSparseProduct(100, PreparedSparseProductKind.GEMV))!!
         val gemm = defaults.route(F64RouteQuery.PreparedSparseProduct(100, PreparedSparseProductKind.DENSE_GEMM))!!
-        assertEquals(BackendExecution.PORTABLE, gemv.execution)
+        assertEquals(BackendExecution.NATIVE, gemv.execution)
         assertEquals(BackendExecution.NATIVE, gemm.execution)
-        assertTrue(gemv.gate?.minimum != gemm.gate?.minimum)
     }
 
     /**

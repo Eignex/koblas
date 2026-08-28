@@ -23,11 +23,6 @@ class BundledBasiclu private constructor(config: BasicluConfig) : BasicluSparseL
         BasicluConfig(basicluLibrary.extract().toString(), options),
     )
 
-    /** Retains the original threshold-and-equilibration constructor. */
-    constructor(factorizeMin: Int?, equilibrate: Boolean = false) : this(
-        BasicluOptions(factorizeMin = factorizeMin, equilibrate = equilibrate),
-    )
-
     override val name: String get() = "basiclu-bundled"
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 3
 }

@@ -7,7 +7,6 @@ import com.eignex.koblas.dense.host.cblas.Cblas.COL_MAJOR
 import com.eignex.koblas.dense.host.cblas.HostBlasConfig
 import com.eignex.koblas.dense.host.cblas.metadataOptions
 import com.eignex.koblas.internal.backend.BackendNames
-import com.eignex.koblas.internal.backend.hostBlasDispatchThresholds
 
 /**
  * The host LAPACKE through `java.lang.foreign`. Every shared routine lives in [F64DecompositionsAdapter]; this
@@ -17,7 +16,6 @@ public class F64Lapacke internal constructor(private val calls: HostBlasCalls, c
     F64DecompositionsAdapter(
         JvmLapackeCalls(calls),
         JvmCblasCalls(calls),
-        dispatch = hostBlasDispatchThresholds(config),
         metadata = BackendMetadata(
             integerAbi = "LP64",
             threading = calls.effectiveThreadCount?.let { "$it threads" },

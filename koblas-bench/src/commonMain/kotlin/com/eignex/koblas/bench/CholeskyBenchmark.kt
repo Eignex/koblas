@@ -11,8 +11,8 @@ class CholeskyBenchmark {
     @Param("256", "1024", "2048")
     var n: Int = 0
 
-    @Param(AUTO_BACKEND, REFERENCE_BACKEND, FORCED_FACTORIZE_BACKEND)
-    var backend: String = AUTO_BACKEND
+    @Param(REFERENCE_BACKEND, HOST_BACKEND)
+    var backend: String = REFERENCE_BACKEND
 
     private lateinit var a: F64DenseMatrix
     private lateinit var factor: F64CholeskyDecomposition

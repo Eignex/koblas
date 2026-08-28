@@ -16,7 +16,7 @@ class CblasConformanceTest {
 
     @Test
     fun `the native BLAS consumes strided views in place`() = assertStridedProductsAgreeWithReference(
-        F64CblasBackend(HostBlasConfig(level2Min = 0, level3Min = 0)),
+        F64CblasBackend(HostBlasConfig()),
     )
 
     @Test

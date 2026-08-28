@@ -16,7 +16,7 @@ class SparseQrHostBenchmark {
     @Param("128", "256", "512", "1024")
     var n: Int = 0
 
-    @Param(REFERENCE_BACKEND, FORCED_BACKEND)
+    @Param(REFERENCE_BACKEND, HOST_BACKEND)
     var backend: String = REFERENCE_BACKEND
 
     private lateinit var a: F64SparseMatrix
@@ -29,7 +29,7 @@ class SparseQrHostBenchmark {
         installBackends(null)
         when (backend) {
             REFERENCE_BACKEND -> installBackends(koblas.with(sparseDecompositions = F64ReferenceSparseLinearAlgebra))
-            FORCED_BACKEND -> useUngatedSparseLu()
+            HOST_BACKEND -> useSparseLu()
         }
         val rng = benchRng()
         a = sparseTallMatrix(2 * n, n, rng)

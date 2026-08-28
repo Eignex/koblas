@@ -5,12 +5,11 @@ package com.eignex.koblas.dense.host.cblas
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.internal.backend.BackendNames
-import com.eignex.koblas.internal.backend.hostBlasDispatchThresholds
 import kotlinx.cinterop.*
 
 /**
  * The host OpenBLAS behind koblas's level-1 primitives. koblas applies
- * the level-1 dispatch threshold, so these methods normally see only runs worth dispatching,
+ * the selected kernel backend, so these methods see every vector run,
  * but the [F64Kernels] contract makes a length of zero legal everywhere and an override of the
  * threshold routes those here. Each routine answers one itself: an empty run sits at the end of its array,
  * where there is no element to take an address of.
@@ -24,7 +23,6 @@ public class F64CblasKernels internal constructor(
     override val name: String get() = BackendNames.CBLAS
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY
-    override val minDispatchLength: Int get() = hostBlasDispatchThresholds(config).level1
 
     /** The level-1 kernels come from CBLAS. */
     override val isAvailable: Boolean get() = loader.cblas != null

@@ -146,7 +146,7 @@ public enum class BackendRouteReason {
     /** The selected binding is unavailable; [BackendExecution] says whether a fallback exists. */
     BACKEND_UNAVAILABLE,
 
-    /** The problem is below the binding's measured native crossover. */
+    /** The problem is below a third-party backend's native crossover. */
     BELOW_THRESHOLD,
 
     /** This argument form is deliberately handled by the portable implementation. */
@@ -162,7 +162,7 @@ public enum class BackendRouteReason {
     NOT_REPORTED,
 }
 
-/** The quantity compared with a dispatch threshold. */
+/** The quantity a backend may compare with a dispatch threshold. */
 public enum class DispatchMetric {
     /** A matrix dimension. */
     DIMENSION,
@@ -175,11 +175,11 @@ public enum class DispatchMetric {
 }
 
 /**
- * The measured gate used to make a route decision.
+ * A backend-specific gate reported by operation-level routing diagnostics.
  *
  * @property metric the quantity the backend compares.
  * @property actual the value for the inspected problem shape.
- * @property minimum the smallest value routed to the external provider.
+ * @property minimum the smallest value the backend routes externally.
  */
 public data class DispatchGate(val metric: DispatchMetric, val actual: Long, val minimum: Long)
 
@@ -191,7 +191,7 @@ public data class DispatchGate(val metric: DispatchMetric, val actual: Long, val
  * @property execution where the operation is predicted to run.
  * @property executor the provider expected to execute the operation.
  * @property reason why this route was selected.
- * @property gate the threshold comparison, when the route depends on one.
+ * @property gate a backend-specific threshold comparison, when one is reported.
  */
 public data class BackendRoute(
     val query: F64RouteQuery,
@@ -234,13 +234,11 @@ public fun F64Context.route(query: F64RouteQuery): BackendRoute {
     )
 }
 
-/** Builds the native or threshold fallback decision shared by the host adapters. */
-internal fun thresholdRoute(
+/** Builds the native route or unavailable fallback shared by the host adapters. */
+internal fun nativeRoute(
     query: F64RouteQuery,
     backend: Backend,
-    portableExecutor: String,
-    gate: DispatchGate,
-    dispatches: Boolean,
+    portableExecutor: String = "reference",
     fallbackWhenUnavailable: Boolean = true,
 ): BackendRoute {
     val selected = BackendStatus(
@@ -253,22 +251,12 @@ internal fun thresholdRoute(
         (backend as? BackendMetadataProvider)?.backendMetadata ?: BackendMetadata(),
     )
     return when {
-        !dispatches -> BackendRoute(
-            query,
-            selected,
-            BackendExecution.PORTABLE,
-            portableExecutor,
-            BackendRouteReason.BELOW_THRESHOLD,
-            gate,
-        )
-
         !backend.isAvailable && fallbackWhenUnavailable -> BackendRoute(
             query,
             selected,
             BackendExecution.PORTABLE,
             portableExecutor,
             BackendRouteReason.BACKEND_UNAVAILABLE,
-            gate,
         )
 
         !backend.isAvailable -> BackendRoute(
@@ -277,7 +265,6 @@ internal fun thresholdRoute(
             BackendExecution.UNAVAILABLE,
             backend.name,
             BackendRouteReason.BACKEND_UNAVAILABLE,
-            gate,
         )
 
         else -> BackendRoute(
@@ -286,7 +273,6 @@ internal fun thresholdRoute(
             BackendExecution.NATIVE,
             backend.name,
             BackendRouteReason.NATIVE_ROUTE,
-            gate,
         )
     }
 }
@@ -313,7 +299,7 @@ internal fun portableRoute(
     reason,
 )
 
-/** The saturated product used only for displaying a level-3 gate without overflowing. */
+/** Saturates a displayed work estimate instead of overflowing it. */
 internal fun saturatedProduct(a: Int, b: Int, c: Int): Long {
     if (a == 0 || b == 0 || c == 0) return 0
     val ab = a.toLong() * b

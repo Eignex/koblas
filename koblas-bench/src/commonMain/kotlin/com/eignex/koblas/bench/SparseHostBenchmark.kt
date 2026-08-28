@@ -17,7 +17,7 @@ class SparseHostBenchmark {
     @Param(BASIS_SHAPE, RANDOM_SHAPE)
     var shape: String = BASIS_SHAPE
 
-    @Param(REFERENCE_BACKEND, AUTO_BACKEND, FORCED_BACKEND)
+    @Param(REFERENCE_BACKEND, HOST_BACKEND)
     var backend: String = REFERENCE_BACKEND
 
     private lateinit var a: F64SparseMatrix
@@ -29,7 +29,7 @@ class SparseHostBenchmark {
         installBackends(null)
         when (backend) {
             REFERENCE_BACKEND -> installBackends(koblas.with(sparseDecompositions = F64ReferenceSparseLinearAlgebra))
-            FORCED_BACKEND -> useUngatedSparseLu()
+            HOST_BACKEND -> useSparseLu()
         }
         val rng = benchRng()
         a = if (shape == BASIS_SHAPE) simplexBasis(n, rng) else sparseDominantMatrix(n, rng)

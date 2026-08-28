@@ -18,17 +18,7 @@ import kotlin.native.ref.createCleaner
 public open class CholmodSparseBlas(
     /** Policy for this backend instance. */
     public val config: CholmodConfig = CholmodConfig(),
-    level2Min: Int? = null,
-    /** Stored entries from which a prepared descriptor uses native gemv. Set to zero to force it. */
-    public val preparedGemvMin: Int = Int.MAX_VALUE,
-    /**
-     * Stored entries from which a prepared descriptor uses native dense products. Set to zero to force it.
-     * The default is the first native win measured by `sparsePreparedProductGate`.
-     */
-    public val preparedGemmMin: Int = NATIVE_PREPARED_GEMM_MIN,
-    /** Stored entries from which a prepared descriptor uses native sparse products. Set to zero to force it. */
-    public val preparedSparseProductMin: Int = Int.MAX_VALUE,
-) : F64SparseBlasAdapter(level2Min) {
+) : F64SparseBlasAdapter() {
     private val loader = CholmodLoader(config)
     private val common by lazy { if (loader.available) loader.common() else null }
 
@@ -46,18 +36,7 @@ public open class CholmodSparseBlas(
 
     final override fun route(query: F64RouteQuery): BackendRoute? {
         if (query !is F64RouteQuery.PreparedSparseProduct) return super.route(query)
-        val minimum = when (query.kind) {
-            PreparedSparseProductKind.GEMV -> preparedGemvMin
-            PreparedSparseProductKind.DENSE_GEMM -> preparedGemmMin
-            PreparedSparseProductKind.SPARSE_GEMM -> preparedSparseProductMin
-        }
-        return thresholdRoute(
-            query,
-            this,
-            portable.name,
-            DispatchGate(DispatchMetric.STORED_ENTRIES, query.storedEntries.toLong(), minimum.toLong()),
-            query.storedEntries >= minimum,
-        )
+        return nativeRoute(query, this, portable.name)
     }
 
     /** Copies [a] once into a caller-owned CHOLMOD descriptor for repeated products. */
@@ -70,9 +49,9 @@ public open class CholmodSparseBlas(
             describeGeneral(snapshot),
             functions,
             shared,
-            nativeGemv = a.nnz >= preparedGemvMin,
-            nativeGemm = a.nnz >= preparedGemmMin,
-            nativeSparseProduct = a.nnz >= preparedSparseProductMin,
+            nativeGemv = true,
+            nativeGemm = true,
+            nativeSparseProduct = true,
         )
     }
 
@@ -233,6 +212,3 @@ private class CholmodPreparedSparseMatrix(
             intAt(dense, CHOLMOD_DENSE_DTYPE, CHOLMOD_DOUBLE)
         }
 }
-
-/** The measured Native crossover for an eight-column product over a retained descriptor. */
-private const val NATIVE_PREPARED_GEMM_MIN = 11_526

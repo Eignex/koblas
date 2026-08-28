@@ -26,16 +26,14 @@ class BundledOpenBlasTest {
     }
 
     @Test
-    fun `shared options control bundled routing and diagnostics`() {
+    fun `shared options control bundled diagnostics`() {
         val backend = BundledOpenBlas(
-            OpenBlasOptions(threadCount = 1, level3Min = 64, factorizeMin = 48),
+            OpenBlasOptions(threadCount = 1),
         )
 
         val route = assertNotNull(backend.route(F64RouteQuery.DenseGemm(m = 8, n = 8, k = 8)))
 
-        assertEquals(BackendExecution.PORTABLE, route.execution)
-        assertEquals("64", backend.backendMetadata.options["level3Min"])
-        assertEquals("48", backend.backendMetadata.options["factorizeMin"])
+        assertEquals(BackendExecution.NATIVE, route.execution)
         assertEquals("1 threads", backend.backendMetadata.threading)
     }
 }

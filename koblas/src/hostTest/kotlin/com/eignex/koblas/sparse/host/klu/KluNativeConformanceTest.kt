@@ -16,7 +16,7 @@ import kotlin.test.*
 class KluNativeConformanceTest {
 
     /** Required rather than skipped, since Kotlin/Native has no Assume and a skipped suite reads as green. */
-    private val klu = KluSparseLu(KluConfig(factorizeMin = 0)).also {
+    private val klu = KluSparseLu(KluConfig()).also {
         require(it.isAvailable) { "host SuiteSparse expected in the test environment" }
     }
 
@@ -58,7 +58,6 @@ class KluNativeConformanceTest {
             KluConfig(
                 libraryPath = null,
                 options = KluOptions(
-                    factorizeMin = 0,
                     equilibrate = true,
                     pivotTolerance = 0.25,
                     memoryGrowth = 1.5,

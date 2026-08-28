@@ -3,7 +3,6 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseVector
 import com.eignex.koblas.core.F64SparseVector
-import com.eignex.koblas.internal.backend.f64DispatchThresholds
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import kotlin.math.abs
 import kotlin.math.sqrt
@@ -12,8 +11,7 @@ import kotlin.test.*
 
 class KernelsTest {
 
-    private class Recording(override val priority: Int = 90, override val minDispatchLength: Int? = null) :
-        F64Kernels {
+    private class Recording(override val priority: Int = 90) : F64Kernels {
         override var name: String = "recording"
             private set
 
@@ -68,34 +66,25 @@ class KernelsTest {
     }
 
     @Test
-    fun `a registered backend is reached exactly above the level-1 threshold`() = withCleanBackends {
+    fun `a registered backend handles every vector length`() = withCleanBackends {
         val recording = Recording()
         registerBackend(recording)
-        val threshold = f64DispatchThresholds.level1
-        val long = if (threshold == Int.MAX_VALUE) 4096 else threshold
-        val x = F64DenseVector.of(DoubleArray(long) { 1.0 })
-        val y = F64DenseVector.of(DoubleArray(long) { 2.0 })
-        assertEquals(2.0 * long, x dot y, "the arithmetic must be right whichever path ran")
-        if (threshold == Int.MAX_VALUE) {
-            assertEquals(0, recording.dots, "nothing should route when the platform keeps level 1 portable")
-        } else {
-            assertEquals(1, recording.dots, "a run at the threshold should route")
-        }
-        val before = recording.dots
+        val x = F64DenseVector.of(DoubleArray(16) { 1.0 })
+        val y = F64DenseVector.of(DoubleArray(16) { 2.0 })
+        assertEquals(32.0, x dot y)
+        assertEquals(1, recording.dots)
         val short1 = F64DenseVector.of(doubleArrayOf(3.0))
         val short2 = F64DenseVector.of(doubleArrayOf(4.0))
         assertEquals(12.0, short1 dot short2)
-        assertEquals(before, recording.dots, "a length-1 dot should stay portable, but it reached the backend")
+        assertEquals(2, recording.dots, "a length-1 dot did not reach the selected backend")
     }
 
     @Test
-    fun `axpy and scale route on the same threshold as dot`() = withCleanBackends {
+    fun `axpy and scale route to the selected backend`() = withCleanBackends {
         val recording = Recording()
         registerBackend(recording)
-        val threshold = f64DispatchThresholds.level1
-        if (threshold == Int.MAX_VALUE) return@withCleanBackends
-        val v = F64DenseVector.of(DoubleArray(threshold) { 1.0 })
-        val x = F64DenseVector.of(DoubleArray(threshold) { 2.0 })
+        val v = F64DenseVector.of(DoubleArray(8) { 1.0 })
+        val x = F64DenseVector.of(DoubleArray(8) { 2.0 })
         v.axpy(3.0, x)
         v.scale(0.5)
         assertEquals(1, recording.axpys, "axpy did not route")
@@ -107,14 +96,12 @@ class KernelsTest {
     fun `the dense reductions route but the sparse ones cannot`() = withCleanBackends {
         val recording = Recording()
         registerBackend(recording)
-        val threshold = f64DispatchThresholds.level1
-        if (threshold == Int.MAX_VALUE) return@withCleanBackends
-        val dense = F64DenseVector.of(DoubleArray(threshold) { 3.0 })
+        val dense = F64DenseVector.of(DoubleArray(8) { 3.0 })
         dense.norm2()
         dense.asum()
         assertEquals(1, recording.nrm2s, "norm2 on a dense vector did not route")
         assertEquals(1, recording.asums, "asum on a dense vector did not route")
-        val sparse = F64SparseVector(threshold, IntArray(threshold) { it }, DoubleArray(threshold) { 3.0 })
+        val sparse = F64SparseVector(8, IntArray(8) { it }, DoubleArray(8) { 3.0 })
         sparse.norm2()
         sparse.asum()
         assertEquals(1, recording.nrm2s, "norm2 routed a sparse vector")
@@ -126,8 +113,7 @@ class KernelsTest {
     fun `iamax does not route`() = withCleanBackends {
         val recording = Recording()
         registerBackend(recording)
-        val threshold = f64DispatchThresholds.level1
-        val len = if (threshold == Int.MAX_VALUE) 4096 else threshold
+        val len = 16
         val v = F64DenseVector.of(DoubleArray(len) { if (it == 7) -9.0 else 1.0 })
         assertEquals(7, v.iamax())
         assertEquals(0, recording.dots + recording.nrm2s + recording.asums, "iamax reached the seam")
@@ -187,13 +173,11 @@ class KernelsTest {
 
     /**
      * The router carries one override per seam member it routes, and a member it forgets falls through to
-     * the interface default rather than reaching anything. That is invisible through the platform gate,
-     * which is [Int.MAX_VALUE] where the kernels are SIMD, so this drives the router with a host that takes
-     * every length.
+     * the interface default rather than reaching anything.
      */
     @Test
     fun `every routed kernel reaches the host it was given`() {
-        val recording = Recording(minDispatchLength = 0)
+        val recording = Recording()
         val routed: F64Kernels = F64RoutedKernels(recording)
         val a = DoubleArray(8) { it.toDouble() }
         val b = DoubleArray(8) { 1.0 }

@@ -18,8 +18,8 @@ class BasicluConformanceTest {
 
     // Every assertion below is about the native binding, and these systems are small enough that the
     // stored-entry gate would hand them to the portable factorization instead.
-    private val basiclu = BasicluSparseLu(BasicluConfig(factorizeMin = 0))
-    private val equilibratingBasiclu = BasicluSparseLu(BasicluConfig(factorizeMin = 0, equilibrate = true))
+    private val basiclu = BasicluSparseLu(BasicluConfig())
+    private val equilibratingBasiclu = BasicluSparseLu(BasicluConfig(equilibrate = true))
 
     private fun requireBasiclu() {
         Assume.assumeTrue("BASICLU is not installed; basiclu conformance cannot run", basiclu.isAvailable)
@@ -185,7 +185,7 @@ class BasicluConformanceTest {
     fun `a provider of the wrong integer width is refused`() {
         val highs = File("/usr/lib/x86_64-linux-gnu/libhighs.so.1")
         Assume.assumeTrue("no 32-bit BASICLU on this machine to be refused", highs.isFile)
-        assertFalse(BasicluSparseLu(BasicluConfig(highs.path, factorizeMin = 0)).isAvailable)
+        assertFalse(BasicluSparseLu(BasicluConfig(highs.path)).isAvailable)
     }
 
     @Test

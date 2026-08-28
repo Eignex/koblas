@@ -12,8 +12,8 @@ class PivotedQrGateBenchmark {
     @Param("4", "8", "12", "16", "32", "64")
     var n: Int = 0
 
-    @Param(AUTO_BACKEND, REFERENCE_BACKEND)
-    var backend: String = AUTO_BACKEND
+    @Param(REFERENCE_BACKEND, HOST_BACKEND)
+    var backend: String = REFERENCE_BACKEND
 
     private lateinit var square: F64DenseMatrix
 

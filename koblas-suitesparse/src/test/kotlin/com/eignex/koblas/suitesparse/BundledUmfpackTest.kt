@@ -18,10 +18,9 @@ class BundledUmfpackTest {
     }
 
     @Test
-    fun `shared options control bundled UMFPACK routing and diagnostics`() {
+    fun `shared options control bundled UMFPACK diagnostics`() {
         val backend = BundledUmfpack(
             UmfpackOptions(
-                factorizeMin = 100,
                 iterativeRefinementSteps = 3,
                 pivotTolerance = 0.2,
                 scaling = UmfpackScaling.MAX,
@@ -30,7 +29,7 @@ class BundledUmfpackTest {
 
         val route = assertNotNull(backend.route(F64RouteQuery.SparseLu(storedEntries = 16)))
 
-        assertEquals(BackendExecution.PORTABLE, route.execution)
+        assertEquals(BackendExecution.NATIVE, route.execution)
         assertEquals("3", backend.backendMetadata.options["iterativeRefinementSteps"])
         assertEquals("0.2", backend.backendMetadata.options["pivotTolerance"])
         assertEquals("MAX", backend.backendMetadata.options["scaling"])

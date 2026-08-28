@@ -23,10 +23,8 @@ public open class KluSparseLu(
     /** Policy for this backend instance. */
     public val config: KluConfig = KluConfig(),
 ) : F64SparseDecompositionsAdapter(
-    config.factorizeMin,
-    config.equilibrate,
-    BackendMetadata(options = config.options.metadataOptions()),
-    qrFactorizeMin = config.qrFactorizeMin,
+    equilibrate = config.equilibrate,
+    metadata = BackendMetadata(options = config.options.metadataOptions()),
 ),
     com.eignex.koblas.sparse.F64GeneralSparseLu,
     com.eignex.koblas.sparse.F64RepeatedSparseLu,

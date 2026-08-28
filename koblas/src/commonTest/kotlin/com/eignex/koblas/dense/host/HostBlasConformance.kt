@@ -234,7 +234,7 @@ internal fun assertSpdSuiteAgreesWithReference(decompositions: F64Decompositions
 
 /**
  * A non-positive-definite input has no LAPACK equivalent, so the host hands the factorization back.
- * Keep [n] above the gate, since below it the host path is not involved.
+ * Uses a moderate [n] so the host path performs representative work.
  */
 internal fun assertNonPositiveDefiniteFallsBack(decompositions: F64Decompositions, n: Int) {
     val bad = poisonedSpd(n, Random(20260808))
@@ -557,7 +557,7 @@ internal fun assertLdlFactorsInterchange(decompositions: F64Decompositions, size
 internal fun assertQrFactorsInterchange(decompositions: F64Decompositions, shapes: List<Pair<Int, Int>>) {
     // A column whose tail is already zero is where the two can differ without either being wrong: both
     // factor it, and only a zero reflector leaves R's diagonal as it found it. Sized past the LAPACK
-    // dispatch threshold so the binding rather than the fallback answers.
+    // size used by every binding conformance run.
     val triangular = F64DenseMatrix.diagonal(80)
     assertClose(reference.qr(triangular).tau, decompositions.qr(triangular).tau, "tau on a triangular operand")
     assertClose(reference.qr(triangular).qr, decompositions.qr(triangular).qr, "R on a triangular operand")

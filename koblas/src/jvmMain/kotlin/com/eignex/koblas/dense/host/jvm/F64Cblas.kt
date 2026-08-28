@@ -6,7 +6,6 @@ import com.eignex.koblas.dense.host.F64BlasAdapter
 import com.eignex.koblas.dense.host.cblas.HostBlasConfig
 import com.eignex.koblas.dense.host.cblas.metadataOptions
 import com.eignex.koblas.internal.backend.BackendNames
-import com.eignex.koblas.internal.backend.hostBlasDispatchThresholds
 
 /**
  * The host OpenBLAS through CBLAS, bound with `java.lang.foreign`. Every routine lives in
@@ -15,7 +14,6 @@ import com.eignex.koblas.internal.backend.hostBlasDispatchThresholds
 public class F64Cblas internal constructor(private val calls: HostBlasCalls) :
     F64BlasAdapter(
         JvmCblasCalls(calls),
-        dispatch = hostBlasDispatchThresholds(calls.config),
         metadata = BackendMetadata(
             integerAbi = "LP64",
             threading = calls.effectiveThreadCount?.let { "$it threads" },

@@ -29,8 +29,8 @@ import kotlin.test.assertTrue
 class CholmodConformanceTest {
 
     // Gated at zero so these small systems reach the library instead of the portable factorization.
-    private val umfpack = UmfpackSparseLu(UmfpackConfig(factorizeMin = 0))
-    private val klu = KluSparseLu(KluConfig(factorizeMin = 0))
+    private val umfpack = UmfpackSparseLu(UmfpackConfig())
+    private val klu = KluSparseLu(KluConfig())
 
     private fun requireCholmod() {
         Assume.assumeTrue("CHOLMOD is not installed; conformance cannot run", CholmodCholesky().isAvailable)

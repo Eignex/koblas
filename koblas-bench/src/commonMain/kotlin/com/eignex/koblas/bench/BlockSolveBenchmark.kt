@@ -16,8 +16,8 @@ class BlockSolveBenchmark {
     @Param("1", "2", "4", "8", "16", "32", "64")
     var nrhs: Int = 0
 
-    @Param(AUTO_BACKEND, REFERENCE_BACKEND, FORCED_FACTORIZE_BACKEND)
-    var backend: String = AUTO_BACKEND
+    @Param(REFERENCE_BACKEND, HOST_BACKEND)
+    var backend: String = REFERENCE_BACKEND
 
     private lateinit var factored: F64LuDecomposition
     private lateinit var block: F64DenseMatrix

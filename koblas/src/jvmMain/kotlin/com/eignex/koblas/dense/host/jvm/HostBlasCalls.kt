@@ -36,7 +36,7 @@ internal class HostBlasCalls(internal val config: HostBlasConfig) {
 
     /**
      * Every CBLAS entry point these bindings resolve. Availability is the whole set rather than one symbol,
-     * because the handles bind lazily and a missing one raises past the dispatch gate, where nothing is left
+     * because the handles bind lazily and a missing one raises on the first call, where nothing is left
      * to fall back to. A host offering part of the library has to leave the half portable instead. Presence
      * is read with `find`, which is a lookup; binding would be the stack-hungry thing discovery avoids.
      */

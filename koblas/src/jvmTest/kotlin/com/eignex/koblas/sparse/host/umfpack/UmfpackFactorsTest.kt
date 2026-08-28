@@ -11,7 +11,7 @@ import kotlin.test.assertEquals
 
 @Category(HostLibraryTest::class)
 class UmfpackFactorsTest {
-    private val umfpack = UmfpackSparseLu(UmfpackConfig(UmfpackOptions(factorizeMin = 0)))
+    private val umfpack = UmfpackSparseLu(UmfpackConfig(UmfpackOptions()))
 
     private fun requireUmfpack() {
         Assume.assumeTrue("UMFPACK is not installed", umfpack.isAvailable)

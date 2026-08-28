@@ -18,25 +18,12 @@ import com.eignex.koblas.sparse.sparseSnapshotOf
  * Nothing else fills the sparse BLAS half natively, so there is no library here for this one to take it from
  * and no reason to hide it behind another.
  *
- * `cholmod_sdmult` is `Y = alpha·op(A)·X + beta·Y` for a dense `X` of any column count. One-shot dispatch
- * only sends matrix-matrix products through it. A prepared descriptor can also use native matrix-vector and
- * sparse products when their independent measured gates are enabled; their default gates retain the portable
- * implementation because CHOLMOD did not win those cases in `sparsePreparedProductGate`.
+ * `cholmod_sdmult` is `Y = alpha·op(A)·X + beta·Y` for a dense `X` of any column count.
  */
 public open class CholmodSparseBlas(
     /** Policy for this backend instance. */
     public val config: CholmodConfig = CholmodConfig(),
-    level2Min: Int? = null,
-    /** Stored entries from which a prepared descriptor uses native gemv. Set to zero to force it. */
-    public val preparedGemvMin: Int = Int.MAX_VALUE,
-    /**
-     * Stored entries from which a prepared descriptor uses native dense products. Set to zero to force it.
-     * The default follows the smallest fixture where CHOLMOD won in `sparsePreparedProductGate`.
-     */
-    public val preparedGemmMin: Int = 50,
-    /** Stored entries from which a prepared descriptor uses native sparse products. Set to zero to force it. */
-    public val preparedSparseProductMin: Int = Int.MAX_VALUE,
-) : F64SparseBlasAdapter(level2Min) {
+) : F64SparseBlasAdapter() {
     private val calls = CholmodCalls(config)
 
     override val name: String get() = BackendNames.CHOLMOD
@@ -48,18 +35,7 @@ public open class CholmodSparseBlas(
 
     final override fun route(query: F64RouteQuery): BackendRoute? {
         if (query !is F64RouteQuery.PreparedSparseProduct) return super.route(query)
-        val minimum = when (query.kind) {
-            PreparedSparseProductKind.GEMV -> preparedGemvMin
-            PreparedSparseProductKind.DENSE_GEMM -> preparedGemmMin
-            PreparedSparseProductKind.SPARSE_GEMM -> preparedSparseProductMin
-        }
-        return thresholdRoute(
-            query,
-            this,
-            portable.name,
-            DispatchGate(DispatchMetric.STORED_ENTRIES, query.storedEntries.toLong(), minimum.toLong()),
-            query.storedEntries >= minimum,
-        )
+        return nativeRoute(query, this, portable.name)
     }
 
     /** Copies [a] once into a caller-owned CHOLMOD descriptor for repeated products. */
@@ -70,9 +46,9 @@ public open class CholmodSparseBlas(
             snapshot,
             CholmodMatrix.generalOf(snapshot),
             calls,
-            nativeGemv = a.nnz >= preparedGemvMin,
-            nativeGemm = a.nnz >= preparedGemmMin,
-            nativeSparseProduct = a.nnz >= preparedSparseProductMin,
+            nativeGemv = true,
+            nativeGemm = true,
+            nativeSparseProduct = true,
         )
     }
 

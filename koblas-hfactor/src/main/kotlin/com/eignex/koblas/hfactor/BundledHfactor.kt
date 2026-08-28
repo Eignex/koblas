@@ -22,11 +22,6 @@ class BundledHfactor private constructor(config: HfactorConfig) : HfactorSparseL
         HfactorConfig(hfactorLibrary.extract().toString(), options),
     )
 
-    /** Retains the original threshold-and-equilibration constructor. */
-    constructor(factorizeMin: Int?, equilibrate: Boolean = false) : this(
-        HfactorOptions(factorizeMin = factorizeMin, equilibrate = equilibrate),
-    )
-
     override val name: String get() = "hfactor-bundled"
     override val priority: Int get() = HOST_BACKEND_PRIORITY - 1
 }
