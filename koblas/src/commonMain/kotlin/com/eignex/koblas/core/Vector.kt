@@ -18,7 +18,7 @@ public interface F64VectorLike {
 
 /** The vector storages koblas itself defines, [F64DenseVector] and [F64SparseVector]. */
 @Serializable
-public sealed interface F64VectorView : F64VectorLike
+public sealed interface F64VectorStorage : F64VectorLike
 
 /**
  * @property data the flat backing array. The vector is mutable through it and [set]; do not use the vector as
@@ -26,7 +26,7 @@ public sealed interface F64VectorView : F64VectorLike
  */
 @Serializable
 @SerialName("F64DenseVector")
-public class F64DenseVector internal constructor(public val data: DoubleArray) : F64VectorView {
+public class F64DenseVector internal constructor(public val data: DoubleArray) : F64VectorStorage {
     internal constructor(size: Int) : this(DoubleArray(size))
 
     override val size: Int get() = data.size
@@ -83,7 +83,7 @@ public class F64SparseVector internal constructor(
     override val size: Int,
     @property:UnsafeKoblasApi public val indices: IntArray,
     public val values: DoubleArray,
-) : F64VectorView {
+) : F64VectorStorage {
 
     init {
         requireShape(size >= 0) { "negative size: $size" }

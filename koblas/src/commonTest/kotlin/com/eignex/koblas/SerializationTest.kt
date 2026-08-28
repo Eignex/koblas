@@ -58,15 +58,17 @@ class SerializationTest {
     }
 
     @Test
-    fun `F64VectorView round-trips polymorphically preserving dense and sparse types`() {
-        val dense: F64VectorView = F64DenseVector.of(doubleArrayOf(1.0, 2.0))
-        val sparse: F64VectorView = F64SparseVector.of(4, intArrayOf(0, 3), doubleArrayOf(1.0, 2.0))
+    fun `F64VectorStorage round-trips polymorphically preserving dense and sparse types`() {
+        val dense: F64VectorStorage = F64DenseVector.of(doubleArrayOf(1.0, 2.0))
+        val sparse: F64VectorStorage = F64SparseVector.of(4, intArrayOf(0, 3), doubleArrayOf(1.0, 2.0))
         val backDense = json.decodeFromString(
-            F64VectorView.serializer(),
-            json.encodeToString(F64VectorView.serializer(), dense),
+            F64VectorStorage.serializer(),
+            json.encodeToString(F64VectorStorage.serializer(), dense),
         )
-        val backSparse =
-            json.decodeFromString(F64VectorView.serializer(), json.encodeToString(F64VectorView.serializer(), sparse))
+        val backSparse = json.decodeFromString(
+            F64VectorStorage.serializer(),
+            json.encodeToString(F64VectorStorage.serializer(), sparse),
+        )
         assertTrue(backDense is F64DenseVector)
         assertTrue(backSparse is F64SparseVector)
         assertEquals(dense, backDense)
@@ -99,19 +101,19 @@ class SerializationTest {
     }
 
     @Test
-    fun `both matrix storages round-trip polymorphically through F64MatrixView`() {
-        val views: List<F64MatrixView> = listOf(
+    fun `both matrix storages round-trip polymorphically through F64MatrixStorage`() {
+        val storages: List<F64MatrixStorage> = listOf(
             F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 2.0))),
             F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0))),
             F64DenseMatrix(0, 0),
         )
-        for (v in views) {
-            val encoded = json.encodeToString(F64MatrixView.serializer(), v)
+        for (storage in storages) {
+            val encoded = json.encodeToString(F64MatrixStorage.serializer(), storage)
             // The serial name of each storage is its class name, so the discriminator is that name.
-            assertTrue(v::class.simpleName!! in encoded, "expected a type discriminator in $encoded")
-            val back = json.decodeFromString(F64MatrixView.serializer(), encoded)
-            assertEquals(v::class, back::class, "storage was not preserved for $encoded")
-            assertEquals(v, back)
+            assertTrue(storage::class.simpleName!! in encoded, "expected a type discriminator in $encoded")
+            val back = json.decodeFromString(F64MatrixStorage.serializer(), encoded)
+            assertEquals(storage::class, back::class, "storage was not preserved for $encoded")
+            assertEquals(storage, back)
         }
     }
 }

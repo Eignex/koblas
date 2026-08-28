@@ -27,7 +27,7 @@ public class F64SparseMatrix internal constructor(
     @property:UnsafeKoblasApi public val colPtr: IntArray,
     @property:UnsafeKoblasApi public val rowIdx: IntArray,
     public val values: DoubleArray,
-) : F64MatrixView {
+) : F64MatrixStorage {
     init {
         requireNonNegativeShape(rows, cols)
         requireShape(colPtr.size == cols + 1) { "colPtr length ${colPtr.size} != cols+1 ${cols + 1}" }

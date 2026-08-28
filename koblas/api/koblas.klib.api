@@ -530,17 +530,17 @@ abstract interface com.eignex.koblas/F64RoutingBackend : com.eignex.koblas/Backe
     abstract fun route(com.eignex.koblas/F64RouteQuery): com.eignex.koblas/BackendRoute? // com.eignex.koblas/F64RoutingBackend.route|route(com.eignex.koblas.F64RouteQuery){}[0]
 }
 
-sealed interface com.eignex.koblas.core/F64MatrixView : com.eignex.koblas.core/F64MatrixLike { // com.eignex.koblas.core/F64MatrixView|null[0]
-    final object Companion : kotlinx.serialization.internal/SerializerFactory { // com.eignex.koblas.core/F64MatrixView.Companion|null[0]
-        final fun serializer(): kotlinx.serialization/KSerializer<com.eignex.koblas.core/F64MatrixView> // com.eignex.koblas.core/F64MatrixView.Companion.serializer|serializer(){}[0]
-        final fun serializer(kotlin/Array<out kotlinx.serialization/KSerializer<*>>...): kotlinx.serialization/KSerializer<*> // com.eignex.koblas.core/F64MatrixView.Companion.serializer|serializer(kotlin.Array<out|kotlinx.serialization.KSerializer<*>>...){}[0]
+sealed interface com.eignex.koblas.core/F64MatrixStorage : com.eignex.koblas.core/F64MatrixLike { // com.eignex.koblas.core/F64MatrixStorage|null[0]
+    final object Companion : kotlinx.serialization.internal/SerializerFactory { // com.eignex.koblas.core/F64MatrixStorage.Companion|null[0]
+        final fun serializer(): kotlinx.serialization/KSerializer<com.eignex.koblas.core/F64MatrixStorage> // com.eignex.koblas.core/F64MatrixStorage.Companion.serializer|serializer(){}[0]
+        final fun serializer(kotlin/Array<out kotlinx.serialization/KSerializer<*>>...): kotlinx.serialization/KSerializer<*> // com.eignex.koblas.core/F64MatrixStorage.Companion.serializer|serializer(kotlin.Array<out|kotlinx.serialization.KSerializer<*>>...){}[0]
     }
 }
 
-sealed interface com.eignex.koblas.core/F64VectorView : com.eignex.koblas.core/F64VectorLike { // com.eignex.koblas.core/F64VectorView|null[0]
-    final object Companion : kotlinx.serialization.internal/SerializerFactory { // com.eignex.koblas.core/F64VectorView.Companion|null[0]
-        final fun serializer(): kotlinx.serialization/KSerializer<com.eignex.koblas.core/F64VectorView> // com.eignex.koblas.core/F64VectorView.Companion.serializer|serializer(){}[0]
-        final fun serializer(kotlin/Array<out kotlinx.serialization/KSerializer<*>>...): kotlinx.serialization/KSerializer<*> // com.eignex.koblas.core/F64VectorView.Companion.serializer|serializer(kotlin.Array<out|kotlinx.serialization.KSerializer<*>>...){}[0]
+sealed interface com.eignex.koblas.core/F64VectorStorage : com.eignex.koblas.core/F64VectorLike { // com.eignex.koblas.core/F64VectorStorage|null[0]
+    final object Companion : kotlinx.serialization.internal/SerializerFactory { // com.eignex.koblas.core/F64VectorStorage.Companion|null[0]
+        final fun serializer(): kotlinx.serialization/KSerializer<com.eignex.koblas.core/F64VectorStorage> // com.eignex.koblas.core/F64VectorStorage.Companion.serializer|serializer(){}[0]
+        final fun serializer(kotlin/Array<out kotlinx.serialization/KSerializer<*>>...): kotlinx.serialization/KSerializer<*> // com.eignex.koblas.core/F64VectorStorage.Companion.serializer|serializer(kotlin.Array<out|kotlinx.serialization.KSerializer<*>>...){}[0]
     }
 }
 
@@ -827,7 +827,7 @@ abstract class com.eignex.koblas.sparse.host/F64SparseDecompositionsAdapter : co
 
 final class <#A: com.eignex.koblas/Backend> com.eignex.koblas/F64Capability // com.eignex.koblas/F64Capability|null[0]
 
-final class com.eignex.koblas.core/F64DenseMatrix : com.eignex.koblas.core/F64MatrixView { // com.eignex.koblas.core/F64DenseMatrix|null[0]
+final class com.eignex.koblas.core/F64DenseMatrix : com.eignex.koblas.core/F64MatrixStorage { // com.eignex.koblas.core/F64DenseMatrix|null[0]
     final val cols // com.eignex.koblas.core/F64DenseMatrix.cols|{}cols[0]
         final fun <get-cols>(): kotlin/Int // com.eignex.koblas.core/F64DenseMatrix.cols.<get-cols>|<get-cols>(){}[0]
     final val data // com.eignex.koblas.core/F64DenseMatrix.data|{}data[0]
@@ -862,7 +862,7 @@ final class com.eignex.koblas.core/F64DenseMatrix : com.eignex.koblas.core/F64Ma
     }
 }
 
-final class com.eignex.koblas.core/F64DenseVector : com.eignex.koblas.core/F64VectorView { // com.eignex.koblas.core/F64DenseVector|null[0]
+final class com.eignex.koblas.core/F64DenseVector : com.eignex.koblas.core/F64VectorStorage { // com.eignex.koblas.core/F64DenseVector|null[0]
     final val data // com.eignex.koblas.core/F64DenseVector.data|{}data[0]
         final fun <get-data>(): kotlin/DoubleArray // com.eignex.koblas.core/F64DenseVector.data.<get-data>|<get-data>(){}[0]
     final val size // com.eignex.koblas.core/F64DenseVector.size|{}size[0]
@@ -892,7 +892,7 @@ final class com.eignex.koblas.core/F64DenseVector : com.eignex.koblas.core/F64Ve
     }
 }
 
-final class com.eignex.koblas.core/F64SparseMatrix : com.eignex.koblas.core/F64MatrixView { // com.eignex.koblas.core/F64SparseMatrix|null[0]
+final class com.eignex.koblas.core/F64SparseMatrix : com.eignex.koblas.core/F64MatrixStorage { // com.eignex.koblas.core/F64SparseMatrix|null[0]
     final val colPtr // com.eignex.koblas.core/F64SparseMatrix.colPtr|{}colPtr[0]
         final fun <get-colPtr>(): kotlin/IntArray // com.eignex.koblas.core/F64SparseMatrix.colPtr.<get-colPtr>|<get-colPtr>(){}[0]
     final val cols // com.eignex.koblas.core/F64SparseMatrix.cols|{}cols[0]
@@ -932,7 +932,7 @@ final class com.eignex.koblas.core/F64SparseMatrix : com.eignex.koblas.core/F64M
     }
 }
 
-final class com.eignex.koblas.core/F64SparseVector : com.eignex.koblas.core/F64VectorView { // com.eignex.koblas.core/F64SparseVector|null[0]
+final class com.eignex.koblas.core/F64SparseVector : com.eignex.koblas.core/F64VectorStorage { // com.eignex.koblas.core/F64SparseVector|null[0]
     final val indices // com.eignex.koblas.core/F64SparseVector.indices|{}indices[0]
         final fun <get-indices>(): kotlin/IntArray // com.eignex.koblas.core/F64SparseVector.indices.<get-indices>|<get-indices>(){}[0]
     final val size // com.eignex.koblas.core/F64SparseVector.size|{}size[0]
