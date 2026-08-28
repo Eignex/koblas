@@ -34,8 +34,11 @@ import com.eignex.koblas.sparse.basis.F64BasisSolvers
  * @property decompositions dense factorizations.
  * @property sparseKernels sparse vector-vector routines.
  * @property sparseBlas sparse matrix routines.
- * @property sparseDecompositions compatibility composition of general LU, Cholesky, LDL, and QR roles.
+ * @param sparseDecompositions providers used to seed the derived compatibility composition.
  * @property basisSolvers simplex basis solvers, a half of their own beside [sparseDecompositions].
+ *
+ * [sparseDecompositions] is a derived compatibility composition of the selected general LU, Cholesky, LDL,
+ * and QR roles.
  */
 public class F64Context(
     override val kernels: F64Kernels,
@@ -43,7 +46,7 @@ public class F64Context(
     public val decompositions: F64Decompositions,
     override val sparseKernels: F64SparseKernels,
     public val sparseBlas: F64SparseBlas,
-    public val sparseDecompositions: F64SparseDecompositions,
+    sparseDecompositions: F64SparseDecompositions,
     public val basisSolvers: F64BasisSolvers,
 ) : F64LinearAlgebra,
     F64Blas by blas,
@@ -88,6 +91,11 @@ public class F64Context(
 
     /** Provider selected for sparse QR. */
     public val sparseQr: F64SparseQr get() = selectedSparseQr
+
+    /** A compatibility operation surface derived from the four selected sparse factorization providers. */
+    public val sparseDecompositions: F64SparseDecompositions by lazy {
+        F64SparseDecompositionRoles(generalSparseLu, sparseCholesky, sparseLdl, sparseQr)
+    }
 
     private var selectedBasisFactorizations: F64BasisFactorizations =
         (sparseDecompositions as? F64BasisFactorizations) ?: com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
@@ -135,13 +143,13 @@ public class F64Context(
         get() = BackendSlot.matrixHalves.map { it.from(this).name }.distinct().joinToString("+")
 
     /** True when every half is koblas's own, so the context calls out to nothing. */
-    override val isPortable: Boolean get() = BackendSlot.entries.all { it.from(this).isPortable }
+    override val isPortable: Boolean get() = BackendSlot.contextHalves.all { it.from(this).isPortable }
 
     /** True when every half can run, which a context assembled from resolved backends always can. */
-    override val isAvailable: Boolean get() = BackendSlot.entries.all { it.from(this).isAvailable }
+    override val isAvailable: Boolean get() = BackendSlot.contextHalves.all { it.from(this).isAvailable }
 
     /** The strongest half's priority, so a context is at least as preferred as the best thing in it. */
-    override val priority: Int get() = BackendSlot.entries.maxOf { it.from(this).priority }
+    override val priority: Int get() = BackendSlot.contextHalves.maxOf { it.from(this).priority }
 
     /**
      * A copy with the named halves replaced and the rest kept. A replaced [kernels] reaches the

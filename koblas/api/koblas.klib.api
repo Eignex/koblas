@@ -10,17 +10,6 @@ open annotation class com.eignex.koblas/UnsafeKoblasApi : kotlin/Annotation { //
     constructor <init>() // com.eignex.koblas/UnsafeKoblasApi.<init>|<init>(){}[0]
 }
 
-final enum class com.eignex.koblas.core/BufferOwnership : kotlin/Enum<com.eignex.koblas.core/BufferOwnership> { // com.eignex.koblas.core/BufferOwnership|null[0]
-    enum entry BORROWED // com.eignex.koblas.core/BufferOwnership.BORROWED|null[0]
-    enum entry OWNED // com.eignex.koblas.core/BufferOwnership.OWNED|null[0]
-
-    final val entries // com.eignex.koblas.core/BufferOwnership.entries|#static{}entries[0]
-        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas.core/BufferOwnership> // com.eignex.koblas.core/BufferOwnership.entries.<get-entries>|<get-entries>#static(){}[0]
-
-    final fun valueOf(kotlin/String): com.eignex.koblas.core/BufferOwnership // com.eignex.koblas.core/BufferOwnership.valueOf|valueOf#static(kotlin.String){}[0]
-    final fun values(): kotlin/Array<com.eignex.koblas.core/BufferOwnership> // com.eignex.koblas.core/BufferOwnership.values|values#static(){}[0]
-}
-
 final enum class com.eignex.koblas.sparse.basis/BasisUpdate : kotlin/Enum<com.eignex.koblas.sparse.basis/BasisUpdate> { // com.eignex.koblas.sparse.basis/BasisUpdate|null[0]
     enum entry APPLIED // com.eignex.koblas.sparse.basis/BasisUpdate.APPLIED|null[0]
     enum entry REFACTORIZE // com.eignex.koblas.sparse.basis/BasisUpdate.REFACTORIZE|null[0]
@@ -138,7 +127,6 @@ final enum class com.eignex.koblas/BackendRole : kotlin/Enum<com.eignex.koblas/B
     enum entry DENSE_KERNELS // com.eignex.koblas/BackendRole.DENSE_KERNELS|null[0]
     enum entry SPARSE_BLAS // com.eignex.koblas/BackendRole.SPARSE_BLAS|null[0]
     enum entry SPARSE_CHOLESKY // com.eignex.koblas/BackendRole.SPARSE_CHOLESKY|null[0]
-    enum entry SPARSE_DECOMPOSITIONS // com.eignex.koblas/BackendRole.SPARSE_DECOMPOSITIONS|null[0]
     enum entry SPARSE_GENERAL_LU // com.eignex.koblas/BackendRole.SPARSE_GENERAL_LU|null[0]
     enum entry SPARSE_KERNELS // com.eignex.koblas/BackendRole.SPARSE_KERNELS|null[0]
     enum entry SPARSE_LDL // com.eignex.koblas/BackendRole.SPARSE_LDL|null[0]
@@ -844,8 +832,6 @@ final class com.eignex.koblas.core/F64DenseMatrix : com.eignex.koblas.core/F64Ma
         final fun <get-cols>(): kotlin/Int // com.eignex.koblas.core/F64DenseMatrix.cols.<get-cols>|<get-cols>(){}[0]
     final val data // com.eignex.koblas.core/F64DenseMatrix.data|{}data[0]
         final fun <get-data>(): kotlin/DoubleArray // com.eignex.koblas.core/F64DenseMatrix.data.<get-data>|<get-data>(){}[0]
-    final val ownership // com.eignex.koblas.core/F64DenseMatrix.ownership|{}ownership[0]
-        final fun <get-ownership>(): com.eignex.koblas.core/BufferOwnership // com.eignex.koblas.core/F64DenseMatrix.ownership.<get-ownership>|<get-ownership>(){}[0]
     final val rows // com.eignex.koblas.core/F64DenseMatrix.rows|{}rows[0]
         final fun <get-rows>(): kotlin/Int // com.eignex.koblas.core/F64DenseMatrix.rows.<get-rows>|<get-rows>(){}[0]
 
@@ -879,8 +865,6 @@ final class com.eignex.koblas.core/F64DenseMatrix : com.eignex.koblas.core/F64Ma
 final class com.eignex.koblas.core/F64DenseVector : com.eignex.koblas.core/F64VectorView { // com.eignex.koblas.core/F64DenseVector|null[0]
     final val data // com.eignex.koblas.core/F64DenseVector.data|{}data[0]
         final fun <get-data>(): kotlin/DoubleArray // com.eignex.koblas.core/F64DenseVector.data.<get-data>|<get-data>(){}[0]
-    final val ownership // com.eignex.koblas.core/F64DenseVector.ownership|{}ownership[0]
-        final fun <get-ownership>(): com.eignex.koblas.core/BufferOwnership // com.eignex.koblas.core/F64DenseVector.ownership.<get-ownership>|<get-ownership>(){}[0]
     final val size // com.eignex.koblas.core/F64DenseVector.size|{}size[0]
         final fun <get-size>(): kotlin/Int // com.eignex.koblas.core/F64DenseVector.size.<get-size>|<get-size>(){}[0]
 
@@ -990,8 +974,6 @@ final class com.eignex.koblas.core/F64StridedMatrixView : com.eignex.koblas.core
         final fun <get-leadingDimension>(): kotlin/Int // com.eignex.koblas.core/F64StridedMatrixView.leadingDimension.<get-leadingDimension>|<get-leadingDimension>(){}[0]
     final val offset // com.eignex.koblas.core/F64StridedMatrixView.offset|{}offset[0]
         final fun <get-offset>(): kotlin/Int // com.eignex.koblas.core/F64StridedMatrixView.offset.<get-offset>|<get-offset>(){}[0]
-    final val ownership // com.eignex.koblas.core/F64StridedMatrixView.ownership|{}ownership[0]
-        final fun <get-ownership>(): com.eignex.koblas.core/BufferOwnership // com.eignex.koblas.core/F64StridedMatrixView.ownership.<get-ownership>|<get-ownership>(){}[0]
     final val rows // com.eignex.koblas.core/F64StridedMatrixView.rows|{}rows[0]
         final fun <get-rows>(): kotlin/Int // com.eignex.koblas.core/F64StridedMatrixView.rows.<get-rows>|<get-rows>(){}[0]
 
@@ -1013,8 +995,6 @@ final class com.eignex.koblas.core/F64StridedVectorView : com.eignex.koblas.core
         final fun <get-data>(): kotlin/DoubleArray // com.eignex.koblas.core/F64StridedVectorView.data.<get-data>|<get-data>(){}[0]
     final val offset // com.eignex.koblas.core/F64StridedVectorView.offset|{}offset[0]
         final fun <get-offset>(): kotlin/Int // com.eignex.koblas.core/F64StridedVectorView.offset.<get-offset>|<get-offset>(){}[0]
-    final val ownership // com.eignex.koblas.core/F64StridedVectorView.ownership|{}ownership[0]
-        final fun <get-ownership>(): com.eignex.koblas.core/BufferOwnership // com.eignex.koblas.core/F64StridedVectorView.ownership.<get-ownership>|<get-ownership>(){}[0]
     final val size // com.eignex.koblas.core/F64StridedVectorView.size|{}size[0]
         final fun <get-size>(): kotlin/Int // com.eignex.koblas.core/F64StridedVectorView.size.<get-size>|<get-size>(){}[0]
     final val stride // com.eignex.koblas.core/F64StridedVectorView.stride|{}stride[0]

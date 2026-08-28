@@ -36,10 +36,6 @@ public class F64DenseMatrix internal constructor(
     override val cols: Int,
     public val data: DoubleArray,
 ) : F64MatrixView {
-
-    /** This storage owns [data], including when ownership was transferred through [wrap]. */
-    public val ownership: BufferOwnership get() = BufferOwnership.OWNED
-
     internal constructor(rows: Int, cols: Int = rows) : this(rows, cols, DoubleArray(entryCount(rows, cols)))
 
     init {
@@ -122,7 +118,7 @@ public class F64DenseMatrix internal constructor(
             return m
         }
 
-        /** Wrap an existing flat `DoubleArray` without copying. The caller relinquishes ownership. */
+        /** Wrap an existing flat `DoubleArray` without copying; mutations remain visible through both references. */
         public fun wrap(rows: Int, cols: Int, data: DoubleArray): F64DenseMatrix = F64DenseMatrix(rows, cols, data)
 
         /** Entry count for a shape, validated first so a negative dimension reports a shape error. */

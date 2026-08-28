@@ -22,12 +22,12 @@ Dense linear algebra: the three swappable seams and the routines behind them.
 - Ergonomic entry points: [lu] and Kotlin arithmetic operators.
 
 [F64StridedMatrixView][com.eignex.koblas.core.F64StridedMatrixView] and
-[F64StridedVectorView][com.eignex.koblas.core.F64StridedVectorView] are live borrowed storage. Panels retain
+[F64StridedVectorView][com.eignex.koblas.core.F64StridedVectorView] are live zero-copy views. Panels retain
 their parent's column-major leading dimension; their [row][com.eignex.koblas.core.F64StridedMatrixView.row]
 and [column][com.eignex.koblas.core.F64StridedMatrixView.column] views retain the corresponding stride.
-[BufferOwnership][com.eignex.koblas.core.BufferOwnership] distinguishes these views from owned dense
-containers. View `gemv` and `gemm` preserve offsets and strides through JVM and Kotlin/Native CBLAS; negative
+Mutations through a view or another reference to its backing array are visible to each other. View `gemv` and
+`gemm` preserve offsets and strides through JVM and Kotlin/Native CBLAS; negative
 vector strides use the portable loop. Output views may share a buffer with disjoint inputs, but an actual
 overlap is rejected before mutation because BLAS does not define input/output aliasing for these routines.
-Factorizations continue to accept owned contiguous matrices: their result objects own in-place factor storage,
-so a borrowed decomposition view would need a separate lifetime and mutation contract.
+Factorizations continue to accept contiguous matrices: their result objects keep private in-place factor storage,
+so a decomposition view would need a separate mutation contract.

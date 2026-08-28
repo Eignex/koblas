@@ -240,10 +240,10 @@ class F64ContextBuilderTest {
     }
 
     @Test
-    fun `aggregate sparse decompositions select QR with the other decomposition roles`() {
+    fun `a complete sparse backend selects QR with the other decomposition roles`() {
         val backend = TrackingSparseDecompositions()
         val context = F64ContextBuilder()
-            .withBackend(BackendRole.SPARSE_DECOMPOSITIONS, backend)
+            .withBackend(backend)
             .resolve()
         val matrix = F64SparseMatrix.ofColumns(2, 1, listOf(listOf(0 to 1.0, 1 to 1.0)))
 

@@ -112,10 +112,10 @@ class AccelerationTest {
     fun `requireAccelerated names the roles that fell back and what filled them`() = withCleanBackends {
         registerBackend(FakeHost("openblas"))
         val failure = assertFailsWith<IllegalStateException> {
-            koblas.requireAccelerated(BackendRole.DENSE_BLAS, BackendRole.SPARSE_DECOMPOSITIONS)
+            koblas.requireAccelerated(BackendRole.DENSE_BLAS, BackendRole.SPARSE_GENERAL_LU)
         }
         val message = failure.message!!
-        assertTrue("SPARSE_DECOMPOSITIONS=reference" in message, "should name the role and its backend: $message")
+        assertTrue("SPARSE_GENERAL_LU=reference" in message, "should name the role and its backend: $message")
         assertTrue("DENSE_BLAS=" !in message, "should not name a role that is accelerated: $message")
         assertTrue("backend=" in message, "should include the resolved summary: $message")
     }

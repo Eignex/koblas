@@ -107,7 +107,6 @@ public final class com/eignex/koblas/BackendRole : java/lang/Enum {
 	public static final field DENSE_KERNELS Lcom/eignex/koblas/BackendRole;
 	public static final field SPARSE_BLAS Lcom/eignex/koblas/BackendRole;
 	public static final field SPARSE_CHOLESKY Lcom/eignex/koblas/BackendRole;
-	public static final field SPARSE_DECOMPOSITIONS Lcom/eignex/koblas/BackendRole;
 	public static final field SPARSE_GENERAL_LU Lcom/eignex/koblas/BackendRole;
 	public static final field SPARSE_KERNELS Lcom/eignex/koblas/BackendRole;
 	public static final field SPARSE_LDL Lcom/eignex/koblas/BackendRole;
@@ -681,21 +680,12 @@ public final class com/eignex/koblas/WorkspaceKt {
 	public static final fun borrowI32 (Lcom/eignex/koblas/Workspace;ILkotlin/jvm/functions/Function1;)Ljava/lang/Object;
 }
 
-public final class com/eignex/koblas/core/BufferOwnership : java/lang/Enum {
-	public static final field BORROWED Lcom/eignex/koblas/core/BufferOwnership;
-	public static final field OWNED Lcom/eignex/koblas/core/BufferOwnership;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/core/BufferOwnership;
-	public static fun values ()[Lcom/eignex/koblas/core/BufferOwnership;
-}
-
 public final class com/eignex/koblas/core/F64DenseMatrix : com/eignex/koblas/core/F64MatrixView {
 	public static final field Companion Lcom/eignex/koblas/core/F64DenseMatrix$Companion;
 	public fun equals (Ljava/lang/Object;)Z
 	public fun get (II)D
 	public fun getCols ()I
 	public final fun getData ()[D
-	public final fun getOwnership ()Lcom/eignex/koblas/core/BufferOwnership;
 	public fun getRows ()I
 	public fun hashCode ()I
 	public final fun set (IID)V
@@ -731,7 +721,6 @@ public final class com/eignex/koblas/core/F64DenseVector : com/eignex/koblas/cor
 	public fun equals (Ljava/lang/Object;)Z
 	public fun get (I)D
 	public final fun getData ()[D
-	public final fun getOwnership ()Lcom/eignex/koblas/core/BufferOwnership;
 	public fun getSize ()I
 	public fun hashCode ()I
 	public final fun set (ID)V
@@ -847,7 +836,6 @@ public final class com/eignex/koblas/core/F64StridedMatrixView : com/eignex/kobl
 	public final fun getData ()[D
 	public final fun getLeadingDimension ()I
 	public final fun getOffset ()I
-	public final fun getOwnership ()Lcom/eignex/koblas/core/BufferOwnership;
 	public fun getRows ()I
 	public final fun overlaps (Lcom/eignex/koblas/core/F64StridedMatrixView;)Z
 	public final fun overlaps (Lcom/eignex/koblas/core/F64StridedVectorView;)Z
@@ -864,7 +852,6 @@ public final class com/eignex/koblas/core/F64StridedVectorView : com/eignex/kobl
 	public fun get (I)D
 	public final fun getData ()[D
 	public final fun getOffset ()I
-	public final fun getOwnership ()Lcom/eignex/koblas/core/BufferOwnership;
 	public fun getSize ()I
 	public final fun getStride ()I
 	public final fun set (ID)V
