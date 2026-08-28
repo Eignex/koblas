@@ -21,7 +21,7 @@ public interface F64MatrixLike {
 
 /** The matrix storages koblas itself defines, [F64DenseMatrix] and [F64SparseMatrix]. */
 @Serializable
-public sealed interface F64MatrixView : F64MatrixLike
+public sealed interface F64MatrixStorage : F64MatrixLike
 
 /**
  * @property rows the number of rows.
@@ -35,7 +35,7 @@ public class F64DenseMatrix internal constructor(
     override val rows: Int,
     override val cols: Int,
     public val data: DoubleArray,
-) : F64MatrixView {
+) : F64MatrixStorage {
     internal constructor(rows: Int, cols: Int = rows) : this(rows, cols, DoubleArray(entryCount(rows, cols)))
 
     init {

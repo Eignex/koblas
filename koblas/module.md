@@ -8,8 +8,8 @@ added later brings and what stays shared.
 
 Koblas provides mutable owning containers through read-only matrix/vector contracts, with sealed dense and
 sparse backings —
-[F64MatrixView][com.eignex.koblas.core.F64MatrixView] / [F64DenseMatrix][com.eignex.koblas.core.F64DenseMatrix] and
-[F64VectorView][com.eignex.koblas.core.F64VectorView] / [F64DenseVector][com.eignex.koblas.core.F64DenseVector] /
+[F64MatrixStorage][com.eignex.koblas.core.F64MatrixStorage] / [F64DenseMatrix][com.eignex.koblas.core.F64DenseMatrix] and
+[F64VectorStorage][com.eignex.koblas.core.F64VectorStorage] / [F64DenseVector][com.eignex.koblas.core.F64DenseVector] /
 [F64SparseVector][com.eignex.koblas.core.F64SparseVector], all `@Serializable` so snapshots round-trip through
 `kotlinx.serialization` with their concrete storage preserved.
 

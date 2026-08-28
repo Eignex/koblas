@@ -92,7 +92,7 @@ class SparseMatrixTest {
     }
 
     @Test
-    fun `the F64MatrixView gemv overload agrees with the dense equivalent`() {
+    fun `the F64MatrixStorage gemv overload agrees with the dense equivalent`() {
         val a = F64SparseMatrix.ofColumns(3, 2, listOf(listOf(0 to 1.0, 2 to 3.0), listOf(1 to 2.0)))
         val dense = F64DenseMatrix.of(a.toArray())
         for (x in listOf(

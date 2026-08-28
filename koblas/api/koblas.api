@@ -680,7 +680,7 @@ public final class com/eignex/koblas/WorkspaceKt {
 	public static final fun borrowI32 (Lcom/eignex/koblas/Workspace;ILkotlin/jvm/functions/Function1;)Ljava/lang/Object;
 }
 
-public final class com/eignex/koblas/core/F64DenseMatrix : com/eignex/koblas/core/F64MatrixView {
+public final class com/eignex/koblas/core/F64DenseMatrix : com/eignex/koblas/core/F64MatrixStorage {
 	public static final field Companion Lcom/eignex/koblas/core/F64DenseMatrix$Companion;
 	public fun equals (Ljava/lang/Object;)Z
 	public fun get (II)D
@@ -716,7 +716,7 @@ public final class com/eignex/koblas/core/F64DenseMatrix$Companion {
 	public static synthetic fun zero$default (Lcom/eignex/koblas/core/F64DenseMatrix$Companion;IIILjava/lang/Object;)Lcom/eignex/koblas/core/F64DenseMatrix;
 }
 
-public final class com/eignex/koblas/core/F64DenseVector : com/eignex/koblas/core/F64VectorView {
+public final class com/eignex/koblas/core/F64DenseVector : com/eignex/koblas/core/F64VectorStorage {
 	public static final field Companion Lcom/eignex/koblas/core/F64DenseVector$Companion;
 	public fun equals (Ljava/lang/Object;)Z
 	public fun get (I)D
@@ -753,15 +753,15 @@ public abstract interface class com/eignex/koblas/core/F64MatrixLike {
 	public abstract fun toArray ()[[D
 }
 
-public abstract interface class com/eignex/koblas/core/F64MatrixView : com/eignex/koblas/core/F64MatrixLike {
-	public static final field Companion Lcom/eignex/koblas/core/F64MatrixView$Companion;
+public abstract interface class com/eignex/koblas/core/F64MatrixStorage : com/eignex/koblas/core/F64MatrixLike {
+	public static final field Companion Lcom/eignex/koblas/core/F64MatrixStorage$Companion;
 }
 
-public final class com/eignex/koblas/core/F64MatrixView$Companion {
+public final class com/eignex/koblas/core/F64MatrixStorage$Companion {
 	public final fun serializer ()Lkotlinx/serialization/KSerializer;
 }
 
-public final class com/eignex/koblas/core/F64SparseMatrix : com/eignex/koblas/core/F64MatrixView {
+public final class com/eignex/koblas/core/F64SparseMatrix : com/eignex/koblas/core/F64MatrixStorage {
 	public static final field Companion Lcom/eignex/koblas/core/F64SparseMatrix$Companion;
 	public final fun copyColumnPointers ()[I
 	public final fun copyRowIndices ()[I
@@ -797,7 +797,7 @@ public final class com/eignex/koblas/core/F64SparseMatrix$Companion {
 	public final fun wrap (II[I[I[D)Lcom/eignex/koblas/core/F64SparseMatrix;
 }
 
-public final class com/eignex/koblas/core/F64SparseVector : com/eignex/koblas/core/F64VectorView {
+public final class com/eignex/koblas/core/F64SparseVector : com/eignex/koblas/core/F64VectorStorage {
 	public static final field Companion Lcom/eignex/koblas/core/F64SparseVector$Companion;
 	public final fun copyIndices ()[I
 	public fun equals (Ljava/lang/Object;)Z
@@ -874,11 +874,11 @@ public abstract interface class com/eignex/koblas/core/F64VectorLike {
 	public abstract fun toDoubleArray ()[D
 }
 
-public abstract interface class com/eignex/koblas/core/F64VectorView : com/eignex/koblas/core/F64VectorLike {
-	public static final field Companion Lcom/eignex/koblas/core/F64VectorView$Companion;
+public abstract interface class com/eignex/koblas/core/F64VectorStorage : com/eignex/koblas/core/F64VectorLike {
+	public static final field Companion Lcom/eignex/koblas/core/F64VectorStorage$Companion;
 }
 
-public final class com/eignex/koblas/core/F64VectorView$Companion {
+public final class com/eignex/koblas/core/F64VectorStorage$Companion {
 	public final fun serializer ()Lkotlinx/serialization/KSerializer;
 }
 

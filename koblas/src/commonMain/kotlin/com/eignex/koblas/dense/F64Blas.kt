@@ -190,7 +190,7 @@ public interface F64Blas : Backend {
     )
 
     /** `A = A + alpha · x · yᵀ` (BLAS `dger`), the dense form a backend can dispatch. The free `ger` accepts
-     *  [F64VectorView] operands and takes a sparse fast path. */
+     *  [F64VectorStorage] operands and takes a sparse fast path. */
     public fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: F64DenseMatrix)
 
     /** `A += alpha · x · xᵀ` (BLAS `dsyr`), writing only the [lower] or upper triangle. */

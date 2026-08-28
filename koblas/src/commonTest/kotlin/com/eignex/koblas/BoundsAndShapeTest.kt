@@ -81,7 +81,9 @@ class BoundsAndShapeTest {
     @Test
     fun `a negative size cannot arrive through deserialization either`() {
         assertFailsWith<DimensionMismatch> {
-            Json.decodeFromString<F64VectorView>("""{"type":"F64SparseVector","size":-5,"indices":[],"values":[]}""")
+            Json.decodeFromString<F64VectorStorage>(
+                """{"type":"F64SparseVector","size":-5,"indices":[],"values":[]}""",
+            )
         }
     }
 }
