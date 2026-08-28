@@ -1,7 +1,6 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.dense.F64RoutedKernels
-import com.eignex.koblas.internal.backend.BackendSlot
 
 /** A public role in an [F64Context], independent of the registry's internal seam representation. */
 public enum class BackendRole {
@@ -133,28 +132,6 @@ public val F64Context.portableRoles: Set<BackendRole>
 public fun F64Context.requireAccelerated(role: BackendRole, vararg otherRoles: BackendRole) {
     val roles = listOf(role, *otherRoles)
     val fallen = roles.filterNot { isAccelerated(it) }
-    check(fallen.isEmpty()) {
-        val detail = fallen.joinToString(", ") { "$it=${backendFor(it).name}" }
-        accelerationFailure(detail)
-    }
-}
-
-/** The backend installed in [slot]. */
-public fun F64Context.backendFor(slot: BackendSlot): Backend = slot.from(this)
-
-/** Whether [slot] is filled by something other than koblas's own portable implementation. */
-public fun F64Context.isAccelerated(slot: BackendSlot): Boolean = when (val backend = backendFor(slot)) {
-    is F64RoutedKernels -> backend.host != null
-    else -> !backend.isPortable
-}
-
-/** The slots still running koblas's own portable implementation, in declaration order. */
-public val F64Context.portableSlots: Set<BackendSlot>
-    get() = BackendSlot.entries.filterNot { isAccelerated(it) }.toSet()
-
-/** Throws unless every one of [slots] is filled by an accelerated backend. */
-public fun F64Context.requireAccelerated(vararg slots: BackendSlot) {
-    val fallen = slots.filterNot { isAccelerated(it) }
     check(fallen.isEmpty()) {
         val detail = fallen.joinToString(", ") { "$it=${backendFor(it).name}" }
         accelerationFailure(detail)

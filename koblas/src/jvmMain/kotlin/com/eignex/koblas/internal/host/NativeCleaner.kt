@@ -6,7 +6,7 @@ import java.lang.ref.Cleaner
  * The cleaner every koblas binding registers a native free with, one for the whole process.
  *
  * A cleaner owns a thread, so one per factorization type would be one thread per type for work that is a
- * handful of frees. Public because the bindings that register with it ship as their own artifacts.
+ * handful of frees.
  *
  * Register a named class built from the native state, never a lambda that reads a member of the object being
  * registered: an unqualified member read captures that object, which keeps it strongly reachable from here
@@ -16,4 +16,4 @@ import java.lang.ref.Cleaner
  * dereferences a native handle needs `Reference.reachabilityFence` around it, or the object can be collected
  * while the call is still in flight.
  */
-public val nativeCleaner: Cleaner = Cleaner.create()
+internal val nativeCleaner: Cleaner = Cleaner.create()

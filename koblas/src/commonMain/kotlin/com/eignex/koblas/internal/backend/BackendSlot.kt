@@ -11,7 +11,7 @@ import com.eignex.koblas.F64Context
  * is what makes them usable in a diagnostic. A vector half is one sitting below the matrix routines, as the
  * vector-vector kernels do.
  */
-public enum class BackendSlot(
+internal enum class BackendSlot(
     internal val from: (F64Context) -> Backend,
     internal val vectorHalf: Boolean = false,
     internal val sparse: Boolean = false,

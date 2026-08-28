@@ -77,53 +77,46 @@ class AccelerationTest {
     }
 
     @Test
-    fun `an empty registry reports every slot as portable`() = withCleanBackends {
-        assertEquals(BackendSlot.entries.toSet(), koblas.portableSlots)
-        for (slot in BackendSlot.entries) {
-            assertTrue(!koblas.isAccelerated(slot), "$slot claimed acceleration with nothing registered")
+    fun `an empty registry reports every role as portable`() = withCleanBackends {
+        assertEquals(BackendRole.entries.toSet(), koblas.portableRoles)
+        for (role in BackendRole.entries) {
+            assertTrue(!koblas.isAccelerated(role), "$role claimed acceleration with nothing registered")
         }
     }
 
     @Test
-    fun `registering a host backend accelerates exactly its own slots`() = withCleanBackends {
+    fun `registering a host backend accelerates exactly its own roles`() = withCleanBackends {
         registerBackend(FakeHost("openblas"))
-        assertTrue(koblas.isAccelerated(BackendSlot.F64Blas))
-        assertTrue(koblas.isAccelerated(BackendSlot.F64Decompositions))
+        assertTrue(koblas.isAccelerated(BackendRole.DENSE_BLAS))
+        assertTrue(koblas.isAccelerated(BackendRole.DENSE_DECOMPOSITIONS))
         assertEquals(
-            setOf(
-                BackendSlot.F64Kernels,
-                BackendSlot.F64SparseKernels,
-                BackendSlot.F64SparseBlas,
-                BackendSlot.F64SparseDecompositions,
-                BackendSlot.F64BasisSolvers,
-            ),
-            koblas.portableSlots,
+            BackendRole.entries.toSet() - setOf(BackendRole.DENSE_BLAS, BackendRole.DENSE_DECOMPOSITIONS),
+            koblas.portableRoles,
         )
     }
 
     @Test
     fun `the compiled-in kernels do not count as acceleration`() = withCleanBackends {
-        assertTrue(!koblas.isAccelerated(BackendSlot.F64Kernels), "the platform kernels are portable koblas")
+        assertTrue(!koblas.isAccelerated(BackendRole.DENSE_KERNELS), "the platform kernels are portable koblas")
         registerBackend(FakeKernels())
-        assertTrue(koblas.isAccelerated(BackendSlot.F64Kernels), "a registered host half is acceleration")
+        assertTrue(koblas.isAccelerated(BackendRole.DENSE_KERNELS), "a registered host half is acceleration")
     }
 
     @Test
-    fun `requireAccelerated passes for the slots that are covered`() = withCleanBackends {
+    fun `requireAccelerated passes for the roles that are covered`() = withCleanBackends {
         registerBackend(FakeHost("openblas"))
-        koblas.requireAccelerated(BackendSlot.F64Blas, BackendSlot.F64Decompositions)
-        koblas.requireAccelerated()
+        koblas.requireAccelerated(BackendRole.DENSE_BLAS, BackendRole.DENSE_DECOMPOSITIONS)
     }
 
     @Test
-    fun `requireAccelerated names the slots that fell back and what filled them`() = withCleanBackends {
+    fun `requireAccelerated names the roles that fell back and what filled them`() = withCleanBackends {
         registerBackend(FakeHost("openblas"))
         val failure = assertFailsWith<IllegalStateException> {
-            koblas.requireAccelerated(BackendSlot.F64Blas, BackendSlot.F64SparseDecompositions)
+            koblas.requireAccelerated(BackendRole.DENSE_BLAS, BackendRole.SPARSE_DECOMPOSITIONS)
         }
         val message = failure.message!!
-        assertTrue("F64SparseDecompositions=reference" in message, "should name the slot and its backend: $message")
-        assertTrue("F64Blas=" !in message, "should not name a slot that is accelerated: $message")
+        assertTrue("SPARSE_DECOMPOSITIONS=reference" in message, "should name the role and its backend: $message")
+        assertTrue("DENSE_BLAS=" !in message, "should not name a role that is accelerated: $message")
         assertTrue("backend=" in message, "should include the resolved summary: $message")
     }
 
@@ -131,19 +124,19 @@ class AccelerationTest {
     fun `a context reports its own halves rather than the global registry`() = withCleanBackends {
         registerBackend(FakeHost("openblas"))
         val portable = koblas.with(blas = F64ReferenceLinearAlgebra, decompositions = F64ReferenceLinearAlgebra)
-        assertTrue(!portable.isAccelerated(BackendSlot.F64Blas), "the context's own half is the portable one")
-        assertTrue(koblas.isAccelerated(BackendSlot.F64Blas), "the registry is still accelerated")
-        assertFailsWith<IllegalStateException> { portable.requireAccelerated(BackendSlot.F64Blas) }
+        assertTrue(!portable.isAccelerated(BackendRole.DENSE_BLAS), "the context's own half is the portable one")
+        assertTrue(koblas.isAccelerated(BackendRole.DENSE_BLAS), "the registry is still accelerated")
+        assertFailsWith<IllegalStateException> { portable.requireAccelerated(BackendRole.DENSE_BLAS) }
     }
 
     @Test
-    fun `backendFor returns the half filling each slot`() = withCleanBackends {
+    fun `backendFor returns the backend filling each role`() = withCleanBackends {
         val host = FakeHost("openblas")
         registerBackend(host)
-        assertSame(host, koblas.backendFor(BackendSlot.F64Blas))
-        assertSame(host, koblas.backendFor(BackendSlot.F64Decompositions))
-        assertSame(koblas.kernels, koblas.backendFor(BackendSlot.F64Kernels))
-        assertSame(koblas.sparseBlas, koblas.backendFor(BackendSlot.F64SparseBlas))
+        assertSame(host, koblas.backendFor(BackendRole.DENSE_BLAS))
+        assertSame(host, koblas.backendFor(BackendRole.DENSE_DECOMPOSITIONS))
+        assertSame(koblas.kernels, koblas.backendFor(BackendRole.DENSE_KERNELS))
+        assertSame(koblas.sparseBlas, koblas.backendFor(BackendRole.SPARSE_BLAS))
     }
 
     @Test

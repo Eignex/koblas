@@ -13,7 +13,7 @@ public const val SINGULAR_POSITION_UNKNOWN: Int = -2
  * Translates a LAPACK `info` return into a `failedAt` position. A positive `info` is the 1-based pivot
  * index; a negative one is an illegal-argument report and maps to [NOT_SINGULAR].
  */
-public fun lapackFailedAt(info: Int): Int = if (info > 0) info - 1 else NOT_SINGULAR
+internal fun lapackFailedAt(info: Int): Int = if (info > 0) info - 1 else NOT_SINGULAR
 
 /**
  * Rejects a solve against a singular factorization, naming the pivot that failed.

@@ -1,6 +1,5 @@
 package com.eignex.koblas.hfactor
 
-import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.basis.BasisUpdate
@@ -35,7 +34,7 @@ class BundledHfactorTest {
             columns.add(column)
         }
         for (i in 0 until n) columns.add(listOf(i to 1.0))
-        return SparseMatrix.ofColumns(n, 2 * n, columns)
+        return F64SparseMatrix.ofColumns(n, 2 * n, columns)
     }
 
     private fun logicalBasis(n: Int) = IntArray(n) { n + it }
@@ -122,7 +121,7 @@ class BundledHfactorTest {
     @Test
     fun `shared equilibration option reaches the bundled fallback policy`() {
         val equilibrated = BundledHfactor(HfactorOptions(factorizeMin = 0, equilibrate = true))
-        val matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(1 to 8.0)))
+        val matrix = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(1 to 8.0)))
 
         val factorization = equilibrated.factor(matrix)
 
@@ -132,7 +131,7 @@ class BundledHfactorTest {
 
     @Test
     fun `a native factor closes deterministically`() {
-        val matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(1 to 8.0)))
+        val matrix = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(1 to 8.0)))
         val factorization = backend.factor(matrix)
         assertIs<HfactorFactorization>(factorization)
         val n = factorization.n
@@ -218,7 +217,7 @@ class BundledHfactorTest {
     @Test
     fun `a singular basis is reported rather than solved against`() {
         val n = 3
-        val a = SparseMatrix.ofColumns(n, n, listOf(listOf(0 to 1.0), listOf(0 to 2.0), listOf(2 to 1.0)))
+        val a = F64SparseMatrix.ofColumns(n, n, listOf(listOf(0 to 1.0), listOf(0 to 2.0), listOf(2 to 1.0)))
         val solver = backend.basisSolver(a)
 
         assertFalse(solver.refactorize(IntArray(n) { it }))
@@ -239,7 +238,7 @@ class BundledHfactorTest {
     @Test
     fun `an update on a singular basis is refused`() {
         val n = 3
-        val a = SparseMatrix.ofColumns(n, n, listOf(listOf(0 to 1.0), listOf(0 to 2.0), listOf(2 to 1.0)))
+        val a = F64SparseMatrix.ofColumns(n, n, listOf(listOf(0 to 1.0), listOf(0 to 2.0), listOf(2 to 1.0)))
         val solver = backend.basisSolver(a)
         assertFalse(solver.refactorize(IntArray(n) { it }))
         val spike = F64IndexedVector(n)
@@ -294,7 +293,7 @@ class BundledHfactorTest {
 
     @Test
     fun `the bundled HFactor solves sparse systems in both directions`() {
-        val matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(1 to 2.0), listOf(0 to 3.0)))
+        val matrix = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(1 to 2.0), listOf(0 to 3.0)))
         val factorization = backend.factor(matrix)
 
         assertContentEquals(doubleArrayOf(2.0, 3.0), factorization.solve(doubleArrayOf(9.0, 4.0)))
@@ -303,7 +302,7 @@ class BundledHfactorTest {
 
     @Test
     fun `the bundled HFactor reports its fill and pivot ratio`() {
-        val matrix = SparseMatrix.ofColumns(
+        val matrix = F64SparseMatrix.ofColumns(
             2,
             2,
             listOf(listOf(0 to 2.0, 1 to 1.0), listOf(0 to 1.0, 1 to 3.0)),

@@ -1,7 +1,7 @@
 package com.eignex.koblas.basiclu
 
-import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.sparse.F64ReferenceSparseDecompositions
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
@@ -19,7 +19,7 @@ class BundledBasicluTest {
 
     @Test
     fun `the bundled BASICLU solves sparse systems in both directions`() {
-        val matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(1 to 2.0), listOf(0 to 3.0)))
+        val matrix = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(1 to 2.0), listOf(0 to 3.0)))
         val factorization = BundledBasiclu(factorizeMin = 0).factor(matrix)
 
         assertContentEquals(doubleArrayOf(2.0, 3.0), factorization.solve(doubleArrayOf(9.0, 4.0)))
@@ -28,7 +28,7 @@ class BundledBasicluTest {
 
     @Test
     fun `the bundled BASICLU solves in place with a workspace`() {
-        val matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(1 to 2.0), listOf(0 to 3.0)))
+        val matrix = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(1 to 2.0), listOf(0 to 3.0)))
         val values = doubleArrayOf(9.0, 4.0)
 
         BundledBasiclu(factorizeMin = 0).factor(matrix).solveInto(values, values, workspace = Workspace())
@@ -38,9 +38,9 @@ class BundledBasicluTest {
 
     @Test
     fun `the bundled BASICLU replaces a basis column`() {
-        val basis = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 1.0)))
+        val basis = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 1.0)))
         val entering = F64SparseVector.of(2, intArrayOf(0, 1), doubleArrayOf(1.0, 2.0))
-        val expected = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(0 to 1.0, 1 to 2.0)))
+        val expected = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(0 to 1.0, 1 to 2.0)))
         val factorization = BundledBasiclu(factorizeMin = 0).factorBasis(basis).replaceColumn(1, entering)
 
         assertContentEquals(
@@ -55,7 +55,7 @@ class BundledBasicluTest {
      */
     @Test
     fun `the bundled BASICLU follows a run of replacements to the basis they leave`() {
-        val basis = SparseMatrix.ofColumns(3, 3, listOf(listOf(0 to 1.0), listOf(1 to 1.0), listOf(2 to 1.0)))
+        val basis = F64SparseMatrix.ofColumns(3, 3, listOf(listOf(0 to 1.0), listOf(1 to 1.0), listOf(2 to 1.0)))
         val first = F64SparseVector.of(3, intArrayOf(0, 1), doubleArrayOf(1.0, 2.0))
         val second = F64SparseVector.of(3, intArrayOf(1, 2), doubleArrayOf(3.0, 1.0))
         val third = F64SparseVector.of(3, intArrayOf(0, 2), doubleArrayOf(4.0, 5.0))
@@ -76,7 +76,7 @@ class BundledBasicluTest {
      */
     @Test
     fun `the bundled BASICLU reports its fill and pivot ratio`() {
-        val matrix = SparseMatrix.ofColumns(
+        val matrix = F64SparseMatrix.ofColumns(
             2,
             2,
             listOf(listOf(0 to 2.0, 1 to 1.0), listOf(0 to 1.0, 1 to 3.0)),
@@ -121,7 +121,7 @@ class BundledBasicluTest {
      */
     @Test
     fun `an equilibrated factorization solves as the portable one does`() {
-        val matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(0 to 2.0, 1 to 8.0)))
+        val matrix = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(0 to 2.0, 1 to 8.0)))
         val rhs = doubleArrayOf(8.0, 8.0)
         val factorization = BundledBasiclu(factorizeMin = 0, equilibrate = true).factor(matrix)
 
@@ -135,7 +135,7 @@ class BundledBasicluTest {
     fun `shared options reach bundled BASICLU routing and equilibration`() {
         val options = BasicluOptions(factorizeMin = 0, equilibrate = true)
         val backend = BundledBasiclu(options)
-        val matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(1 to 8.0)))
+        val matrix = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(1 to 8.0)))
 
         val factorization = backend.factor(matrix)
 
@@ -147,7 +147,7 @@ class BundledBasicluTest {
     @Test
     fun `a bundled native factor closes deterministically`() {
         val backend = BundledBasiclu(BasicluOptions(factorizeMin = 0))
-        val matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(1 to 8.0)))
+        val matrix = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(1 to 8.0)))
         val factorization = backend.factor(matrix)
         assertIs<BasicluFactorization>(factorization)
         val n = factorization.n
@@ -163,7 +163,7 @@ class BundledBasicluTest {
 
     @Test
     fun `an equilibrated transposed solve agrees with the portable one`() {
-        val matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(0 to 2.0, 1 to 8.0)))
+        val matrix = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(0 to 2.0, 1 to 8.0)))
         val rhs = doubleArrayOf(8.0, 8.0)
         val factorization = BundledBasiclu(factorizeMin = 0, equilibrate = true).factor(matrix)
 
@@ -175,7 +175,7 @@ class BundledBasicluTest {
 
     @Test
     fun `an equilibrated solve leaves its right-hand side alone`() {
-        val matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4e8), listOf(1 to 3e-7)))
+        val matrix = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4e8), listOf(1 to 3e-7)))
         val rhs = doubleArrayOf(1.0, 2.0)
 
         BundledBasiclu(factorizeMin = 0, equilibrate = true).factor(matrix).solve(rhs)

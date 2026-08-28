@@ -34,7 +34,7 @@ import java.lang.invoke.MethodHandle
  * that will not match; and a safe-call chain has to be resolved to a local first, because `as Unit?` is the
  * boxed `Unit` rather than void.
  */
-public class FfmLibrary private constructor(
+internal class FfmLibrary private constructor(
     private val linker: Linker?,
     private val lookups: List<SymbolLookup>,
     private val description: String,

@@ -21,5 +21,3 @@ BLAS/LAPACK and the deliberate deviations.
   these is per element type.
 - Explicit solver configuration: [F64ContextBuilder] resolves independent immutable contexts with
   [F64DispatchPolicy] and [F64FallbackPolicy], without changing the process-wide registry.
-- The element type in the names, and the unqualified aliases for the double-precision ones, are collected
-  in `Precision.kt`; the `dense` and `sparse` packages each have the same file for their own names.

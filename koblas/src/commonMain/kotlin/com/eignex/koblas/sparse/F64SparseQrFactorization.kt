@@ -112,13 +112,13 @@ public interface F64SparseQrFactorization : AutoCloseable {
 }
 
 /** The shapes a least-squares solve requires. */
-public fun requireLeastSquaresShapes(m: Int, n: Int, b: DoubleArray, out: DoubleArray) {
+internal fun requireLeastSquaresShapes(m: Int, n: Int, b: DoubleArray, out: DoubleArray) {
     requireShape(b.size == m) { "solve: b size ${b.size}, expected $m" }
     requireShape(out.size == n) { "solve: out size ${out.size}, expected $n" }
 }
 
 /** The shapes a blocked least-squares solve requires. */
-public fun requireLeastSquaresBlockShapes(m: Int, n: Int, b: F64DenseMatrix, out: F64DenseMatrix) {
+internal fun requireLeastSquaresBlockShapes(m: Int, n: Int, b: F64DenseMatrix, out: F64DenseMatrix) {
     requireShape(b.rows == m) { "solve: B has ${b.rows} rows, expected $m" }
     requireShape(out.rows == n && out.cols == b.cols) {
         "solve: out is ${out.rows}x${out.cols}, expected ${n}x${b.cols}"

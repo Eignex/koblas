@@ -184,14 +184,10 @@ public final class com/eignex/koblas/BackendStatus {
 
 public final class com/eignex/koblas/BackendStatusKt {
 	public static final fun backendFor (Lcom/eignex/koblas/F64Context;Lcom/eignex/koblas/BackendRole;)Lcom/eignex/koblas/Backend;
-	public static final fun backendFor (Lcom/eignex/koblas/F64Context;Lcom/eignex/koblas/internal/backend/BackendSlot;)Lcom/eignex/koblas/Backend;
 	public static final fun getPortableRoles (Lcom/eignex/koblas/F64Context;)Ljava/util/Set;
-	public static final fun getPortableSlots (Lcom/eignex/koblas/F64Context;)Ljava/util/Set;
 	public static final fun getStatus (Lcom/eignex/koblas/F64Context;)Lcom/eignex/koblas/F64ContextStatus;
 	public static final fun isAccelerated (Lcom/eignex/koblas/F64Context;Lcom/eignex/koblas/BackendRole;)Z
-	public static final fun isAccelerated (Lcom/eignex/koblas/F64Context;Lcom/eignex/koblas/internal/backend/BackendSlot;)Z
 	public static final fun requireAccelerated (Lcom/eignex/koblas/F64Context;Lcom/eignex/koblas/BackendRole;[Lcom/eignex/koblas/BackendRole;)V
-	public static final fun requireAccelerated (Lcom/eignex/koblas/F64Context;[Lcom/eignex/koblas/internal/backend/BackendSlot;)V
 }
 
 public final class com/eignex/koblas/CapabilitiesKt {
@@ -532,7 +528,6 @@ public final class com/eignex/koblas/F64RoutingBackend$DefaultImpls {
 public final class com/eignex/koblas/FactorizationKt {
 	public static final field NOT_SINGULAR I
 	public static final field SINGULAR_POSITION_UNKNOWN I
-	public static final fun lapackFailedAt (I)I
 }
 
 public abstract class com/eignex/koblas/KoblasException : java/lang/IllegalArgumentException {
@@ -601,7 +596,6 @@ public final class com/eignex/koblas/RegistryKt {
 	public static final fun installBackends (Lcom/eignex/koblas/F64Context;)V
 	public static final fun registerBackend (Lcom/eignex/koblas/Backend;)V
 	public static final fun registeredBackendNames (Lcom/eignex/koblas/BackendRole;)Ljava/util/List;
-	public static final fun registeredBackendNames (Lcom/eignex/koblas/internal/backend/BackendSlot;)Ljava/util/List;
 }
 
 public final class com/eignex/koblas/RoutingKt {
@@ -1435,19 +1429,6 @@ public final class com/eignex/koblas/dense/host/jvm/F64Lapacke : com/eignex/kobl
 	public fun isAvailable ()Z
 }
 
-public final class com/eignex/koblas/internal/backend/BackendSlot : java/lang/Enum {
-	public static final field F64BasisSolvers Lcom/eignex/koblas/internal/backend/BackendSlot;
-	public static final field F64Blas Lcom/eignex/koblas/internal/backend/BackendSlot;
-	public static final field F64Decompositions Lcom/eignex/koblas/internal/backend/BackendSlot;
-	public static final field F64Kernels Lcom/eignex/koblas/internal/backend/BackendSlot;
-	public static final field F64SparseBlas Lcom/eignex/koblas/internal/backend/BackendSlot;
-	public static final field F64SparseDecompositions Lcom/eignex/koblas/internal/backend/BackendSlot;
-	public static final field F64SparseKernels Lcom/eignex/koblas/internal/backend/BackendSlot;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/internal/backend/BackendSlot;
-	public static fun values ()[Lcom/eignex/koblas/internal/backend/BackendSlot;
-}
-
 public final class com/eignex/koblas/internal/backend/BundledLibrary {
 	public final fun extract ()Ljava/nio/file/Path;
 }
@@ -1464,31 +1445,6 @@ public final class com/eignex/koblas/internal/backend/BundledNativeResources {
 public final class com/eignex/koblas/internal/backend/BundledNativeResources$Companion {
 	public final fun manifestDriven (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;)Lcom/eignex/koblas/internal/backend/BundledLibrary;
 	public final fun supportedPlatform (Lkotlin/jvm/functions/Function2;)Ljava/lang/String;
-}
-
-public final class com/eignex/koblas/internal/host/FfmLibrary {
-	public static final field Companion Lcom/eignex/koblas/internal/host/FfmLibrary$Companion;
-	public final fun contains (Ljava/lang/String;)Z
-	public final fun containsAll (Ljava/lang/Iterable;)Z
-	public final fun getPresent ()Z
-	public final fun handle (Ljava/lang/String;Ljava/lang/foreign/FunctionDescriptor;Z)Ljava/lang/invoke/MethodHandle;
-	public static synthetic fun handle$default (Lcom/eignex/koblas/internal/host/FfmLibrary;Ljava/lang/String;Ljava/lang/foreign/FunctionDescriptor;ZILjava/lang/Object;)Ljava/lang/invoke/MethodHandle;
-	public final fun handleOrNull (Ljava/lang/String;Ljava/lang/foreign/FunctionDescriptor;Z)Ljava/lang/invoke/MethodHandle;
-	public static synthetic fun handleOrNull$default (Lcom/eignex/koblas/internal/host/FfmLibrary;Ljava/lang/String;Ljava/lang/foreign/FunctionDescriptor;ZILjava/lang/Object;)Ljava/lang/invoke/MethodHandle;
-	public final fun withFallback (Lcom/eignex/koblas/internal/host/FfmLibrary;)Lcom/eignex/koblas/internal/host/FfmLibrary;
-}
-
-public final class com/eignex/koblas/internal/host/FfmLibrary$Companion {
-	public final fun doubleOf ([Ljava/lang/foreign/MemoryLayout;)Ljava/lang/foreign/FunctionDescriptor;
-	public final fun intOf ([Ljava/lang/foreign/MemoryLayout;)Ljava/lang/foreign/FunctionDescriptor;
-	public final fun longOf ([Ljava/lang/foreign/MemoryLayout;)Ljava/lang/foreign/FunctionDescriptor;
-	public final fun open (Ljava/util/List;Ljava/lang/String;Ljava/lang/String;)Lcom/eignex/koblas/internal/host/FfmLibrary;
-	public final fun pointerOf ([Ljava/lang/foreign/MemoryLayout;)Ljava/lang/foreign/FunctionDescriptor;
-	public final fun voidOf ([Ljava/lang/foreign/MemoryLayout;)Ljava/lang/foreign/FunctionDescriptor;
-}
-
-public final class com/eignex/koblas/internal/host/NativeCleanerKt {
-	public static final fun getNativeCleaner ()Ljava/lang/ref/Cleaner;
 }
 
 public abstract interface class com/eignex/koblas/sparse/F64BasisFactorization : com/eignex/koblas/sparse/F64SparseLuFactorization {
@@ -1804,11 +1760,6 @@ public final class com/eignex/koblas/sparse/F64SparseFactorization$DefaultImpls 
 	public static synthetic fun solveInto$default (Lcom/eignex/koblas/sparse/F64SparseFactorization;[D[DZLcom/eignex/koblas/Workspace;Lcom/eignex/koblas/AllocationPolicy;ILjava/lang/Object;)[D
 }
 
-public final class com/eignex/koblas/sparse/F64SparseFactorizationKt {
-	public static final fun requireBlockSolveShapes (ILcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;)V
-	public static final fun requireSolveShapes (I[D[D)V
-}
-
 public final class com/eignex/koblas/sparse/F64SparseFactorizationReport {
 	public fun <init> (Ljava/lang/String;ILjava/lang/Integer;Ljava/lang/Double;Ljava/lang/Double;Ljava/util/List;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/Long;Lcom/eignex/koblas/sparse/F64FactorizationInertia;Ljava/util/Map;)V
 	public synthetic fun <init> (Ljava/lang/String;ILjava/lang/Integer;Ljava/lang/Double;Ljava/lang/Double;Ljava/util/List;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/Long;Lcom/eignex/koblas/sparse/F64FactorizationInertia;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
@@ -2010,11 +1961,6 @@ public final class com/eignex/koblas/sparse/F64SparseQrFactorization$DefaultImpl
 	public static synthetic fun solveInto$default (Lcom/eignex/koblas/sparse/F64SparseQrFactorization;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public static synthetic fun solveInto$default (Lcom/eignex/koblas/sparse/F64SparseQrFactorization;[D[DLcom/eignex/koblas/Workspace;ILjava/lang/Object;)[D
 	public static synthetic fun solveInto$default (Lcom/eignex/koblas/sparse/F64SparseQrFactorization;[D[DLcom/eignex/koblas/Workspace;Lcom/eignex/koblas/AllocationPolicy;ILjava/lang/Object;)[D
-}
-
-public final class com/eignex/koblas/sparse/F64SparseQrFactorizationKt {
-	public static final fun requireLeastSquaresBlockShapes (IILcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;)V
-	public static final fun requireLeastSquaresShapes (II[D[D)V
 }
 
 public final class com/eignex/koblas/sparse/FactorsNotExposed : java/lang/UnsupportedOperationException {
