@@ -42,6 +42,7 @@ public class F64ContextBuilder private constructor(
                 BackendRole.SPARSE_CHOLESKY to backend,
                 BackendRole.SPARSE_LDL to backend,
                 BackendRole.SPARSE_QR to backend,
+                BackendRole.SPARSE_QR to backend,
             )
         } else {
             selections + (role to backend)

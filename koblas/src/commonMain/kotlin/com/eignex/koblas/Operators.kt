@@ -5,6 +5,21 @@ import com.eignex.koblas.core.*
 /** `A * B` (BLAS `dgemm`), allocating. gemm accumulates into an existing C instead. */
 public operator fun F64DenseMatrix.times(other: F64DenseMatrix): F64DenseMatrix = koblas.gemm(this, other)
 
+/** `A * B` for a sparse left operand and dense right operand, allocating dense storage through the active
+ *  sparse backend. */
+public operator fun F64SparseMatrix.times(other: F64DenseMatrix): F64DenseMatrix = koblas.sparseBlas.gemm(this, other)
+
+/** `A * B` for a dense left operand and sparse right operand, allocating dense storage through the active
+ *  sparse backend. */
+public operator fun F64DenseMatrix.times(other: F64SparseMatrix): F64DenseMatrix {
+    val out = F64DenseMatrix.zero(rows, other.cols)
+    koblas.sparseBlas.gemm(1.0, other, false, this, false, 0.0, out, right = true)
+    return out
+}
+
+/** `A * B` for sparse matrices, allocating the discovered sparse structure through the active backend. */
+public operator fun F64SparseMatrix.times(other: F64SparseMatrix): F64SparseMatrix = koblas.sparseBlas.gemm(this, other)
+
 /**
  * Matrix-vector product into a fresh dense result for any [F64MatrixLike] against any [F64VectorLike].
  * gemv provide transpose and destination-buffer variants.

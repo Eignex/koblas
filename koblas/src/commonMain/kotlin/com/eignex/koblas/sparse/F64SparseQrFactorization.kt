@@ -32,7 +32,8 @@ public interface F64SparseQrFactorization : AutoCloseable {
     /** Stored entries in the factors this implementation retains. */
     public val nnz: Int
 
-    /** The upper triangular `n×n` factor, in this factorization's column ordering. */
+    /** A defensive snapshot of the upper triangular `n×n` factor, in this factorization's column ordering.
+     *  Mutating the returned matrix cannot affect this factorization or later reads of this property. */
     public val r: F64SparseMatrix
 
     /** The column of `A` that is column `k` here. */

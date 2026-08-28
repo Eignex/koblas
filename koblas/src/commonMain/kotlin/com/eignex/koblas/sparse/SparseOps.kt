@@ -25,13 +25,6 @@ public fun F64SparseMatrix.ldl(): F64SparseLdlFactorization = koblas.ldl(this)
  */
 public fun F64SparseMatrix.qr(): F64SparseQrFactorization = koblas.qr(this)
 
-/** `this · x`, or `thisᵀ · x` when [transpose], with the active backend ([koblas]). */
-public fun F64SparseMatrix.gemv(x: DoubleArray, transpose: Boolean = false): DoubleArray = koblas.gemv(
-    this,
-    x,
-    transpose,
-)
-
 /**
  * Solve `op(T) · x = b` in place against this matrix's [lower] or upper triangle, with the active backend
  * ([koblas]). See [F64SparseBlas.trsv].
@@ -42,12 +35,6 @@ public fun F64SparseMatrix.trsv(
     transpose: Boolean = false,
     unitDiag: Boolean = false,
 ): Unit = koblas.trsv(this, x, lower, transpose, unitDiag)
-
-/** `this · B` for a dense [b], with the active backend ([koblas]). See [F64SparseBlas.gemm]. */
-public fun F64SparseMatrix.gemm(b: F64DenseMatrix): F64DenseMatrix = koblas.sparseBlas.gemm(this, b)
-
-/** `this · B` for a sparse [b], into a fresh sparse matrix, with the active backend ([koblas]). */
-public fun F64SparseMatrix.gemm(b: F64SparseMatrix): F64SparseMatrix = koblas.sparseBlas.gemm(this, b)
 
 /** Prepares an immutable snapshot of this matrix for repeated products with the active backend. */
 public fun F64SparseMatrix.prepare(): F64PreparedSparseMatrix = koblas.sparseBlas.prepare(this)

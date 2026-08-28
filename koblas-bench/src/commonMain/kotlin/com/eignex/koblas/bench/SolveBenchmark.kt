@@ -70,5 +70,5 @@ class SolveBenchmark {
     fun invertLu(): F64DenseMatrix = koblas.invert(factored)
 
     @Benchmark
-    fun trtri(): F64DenseMatrix = koblas.trtri(triangular, lower = true)
+    fun trtri(): F64DenseMatrix = triangular.trtri(lower = true)
 }

@@ -49,7 +49,7 @@ class SparseTriangularTest {
                     val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
 
                     val fromDense = b.copyOf()
-                    trsv(dense, fromDense, lower, transpose)
+                    dense.trsv(fromDense, lower, transpose)
                     val fromSparse = b.copyOf()
                     sparse.trsv(fromSparse, lower, transpose)
 
@@ -75,7 +75,7 @@ class SparseTriangularTest {
                     val b = if (right) randomMatrix(3, n, rng) else randomMatrix(n, 3, rng)
 
                     val fromDense = F64DenseMatrix.wrap(b.rows, b.cols, b.data.copyOf())
-                    trsm(dense, fromDense, lower, transpose, right = right)
+                    dense.trsm(fromDense, lower, transpose, right = right)
                     val fromSparse = F64DenseMatrix.wrap(b.rows, b.cols, b.data.copyOf())
                     sparse.trsm(fromSparse, lower, transpose, right = right)
 
@@ -152,11 +152,11 @@ class SparseTriangularTest {
         val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
         val x = b.copyOf()
         sparse.trsv(x, lower = true)
-        assertClose(b, sparse.gemv(x), "lower residual", tolerance = 1e-9)
+        assertClose(b, koblas.gemv(sparse, x), "lower residual", tolerance = 1e-9)
 
         val xt = b.copyOf()
         sparse.trsv(xt, lower = true, transpose = true)
-        assertClose(b, sparse.gemv(xt, transpose = true), "transposed residual", tolerance = 1e-9)
+        assertClose(b, koblas.gemv(sparse, xt, transpose = true), "transposed residual", tolerance = 1e-9)
     }
 
     @Test

@@ -3,7 +3,6 @@ package com.eignex.koblas
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.sparse.gemv
 import com.eignex.koblas.sparse.lu
 import com.eignex.koblas.sparse.sparseConformanceSystem
 import kotlin.random.Random
@@ -36,7 +35,7 @@ class ReadmeSamplesTest {
         val forward = lu.solve(doubleArrayOf(3.0, 5.0)) // B x = b
         val backward = lu.solve(doubleArrayOf(3.0, 5.0), transpose = true) // Bᵀ x = b
         assertClose(doubleArrayOf(0.8, 1.4), forward, "README ftran sample", tolerance = 1e-9)
-        assertClose(s.gemv(backward, transpose = true), doubleArrayOf(3.0, 5.0), "README btran", 1e-9)
+        assertClose(koblas.gemv(s, backward, transpose = true), doubleArrayOf(3.0, 5.0), "README btran", 1e-9)
     }
 
     @Test
@@ -102,7 +101,11 @@ class ReadmeSamplesTest {
             allocationPolicy = AllocationPolicy.REQUIRE_NO_SIZE_DEPENDENT_MANAGED,
         )
 
-        assertClose(sparseRhs, sparseConformanceSystem(n, Random(20260829)).gemv(sparseSolution), "strict sample")
+        assertClose(
+            sparseRhs,
+            koblas.gemv(sparseConformanceSystem(n, Random(20260829)), sparseSolution),
+            "strict sample",
+        )
     }
 
     @Test

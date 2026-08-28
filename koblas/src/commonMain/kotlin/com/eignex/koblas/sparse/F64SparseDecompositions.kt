@@ -2,6 +2,7 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.Backend
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
 
 /**
@@ -86,4 +87,26 @@ public interface F64SparseDecompositions : Backend {
     /** [solveInto] into a fresh vector. */
     public fun solve(f: F64SparseFactorization, b: DoubleArray, transpose: Boolean = false): DoubleArray =
         f.solve(b, transpose)
+
+    /** Solve `A · X = B` from [f] into a fresh dense result. */
+    public fun solve(
+        f: F64SparseFactorization,
+        b: F64DenseMatrix,
+        transpose: Boolean = false,
+        workspace: Workspace? = null,
+    ): F64DenseMatrix = f.solveInto(
+        b,
+        F64DenseMatrix(if (transpose) f.n else f.n, b.cols),
+        transpose,
+        workspace,
+    )
+
+    /** Solve `A · X = B` from [f] into [out], which is returned. [out] may be [b]. */
+    public fun solveInto(
+        f: F64SparseFactorization,
+        b: F64DenseMatrix,
+        out: F64DenseMatrix,
+        transpose: Boolean = false,
+        workspace: Workspace? = null,
+    ): F64DenseMatrix = f.solveInto(b, out, transpose, workspace)
 }

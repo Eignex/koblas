@@ -149,7 +149,7 @@ BLAS options use named Boolean parameters such as lower, transpose, unitDiag, an
 
 Every operation runs through an F64Context. Top-level functions use the process-wide koblas context, whose
 registry selects providers independently by semantic role. General sparse LU, repeated-pattern LU, Cholesky,
-LDL, basis factorization, and basis solving are separate choices rather than one interchangeable sparse backend.
+LDL, QR, basis factorization, and basis solving are separate choices rather than one interchangeable sparse backend.
 
 Native availability does not imply native execution. Providers retain measured dispatch gates and fall back to
 portable semantics for unsupported shapes, arguments, or operations. Inspect status for the selected providers

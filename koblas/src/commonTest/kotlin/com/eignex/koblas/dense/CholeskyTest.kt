@@ -53,6 +53,26 @@ class CholeskyTest {
     }
 
     @Test
+    fun `cholesky destination solves support aliases and blocks`() {
+        val factor = spdExample().cholesky()
+        val rhs = doubleArrayOf(1.0, 0.5, -1.0)
+        val distinct = DoubleArray(3)
+
+        assertSame(distinct, koblas.solveInto(factor, rhs, distinct))
+        assertContentEquals(factor.solve(rhs), distinct)
+        assertSame(rhs, koblas.solveInto(factor, rhs, rhs))
+        assertContentEquals(distinct, rhs)
+
+        val block = F64DenseMatrix(3, 2, rhs + doubleArrayOf(2.0, 1.0, 0.0))
+        val out = F64DenseMatrix(3, 2)
+        assertSame(out, koblas.solveInto(factor, block, out))
+        assertContentEquals(factor.solve(block).data, out.data)
+        assertEquals(0, koblas.solve(factor, F64DenseMatrix(3, 0)).cols)
+        assertFailsWith<IllegalArgumentException> { koblas.solveInto(factor, DoubleArray(2), DoubleArray(3)) }
+        assertFailsWith<IllegalArgumentException> { koblas.solveInto(factor, F64DenseMatrix(2, 1), out) }
+    }
+
+    @Test
     fun `invertSpd produces A inverse for a non-diagonal matrix`() {
         val A = spdExample()
         val Ainv = A.cholesky().invert()

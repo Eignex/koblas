@@ -7,6 +7,7 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.koblas
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.randomVector
+import com.eignex.koblas.times
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -68,7 +69,7 @@ class SparseProductTest {
 
         koblas.sparseBlas.gemm(1.0, sparse, false, F64DenseMatrix.wrap(4, 1, x.copyOf()), false, 0.0, c)
 
-        assertClose(sparse.gemv(x), c.data, "gemm over one column is gemv")
+        assertClose(koblas.gemv(sparse, x), c.data, "gemm over one column is gemv")
     }
 
     @Test
@@ -102,7 +103,7 @@ class SparseProductTest {
         val rng = Random(20260830)
         val (sparse, dense) = sparseAndDense(5, 4, rng)
 
-        assertClose(dense, sparse.gemm(F64DenseMatrix.diagonal(4)), "A times I")
+        assertClose(dense, sparse * F64DenseMatrix.diagonal(4), "A times I")
     }
 
     @Test
@@ -110,7 +111,7 @@ class SparseProductTest {
         val rng = Random(20260831)
         val (sparse, _) = sparseAndDense(5, 4, rng)
 
-        val c = sparse.gemm(randomMatrix(4, 3, rng))
+        val c = sparse * randomMatrix(4, 3, rng)
 
         assertEquals(5, c.rows)
         assertEquals(3, c.cols)
@@ -163,7 +164,7 @@ class SparseProductTest {
             val (left, leftDense) = sparseAndDense(shape.first, shape.second, rng)
             val (right, rightDense) = sparseAndDense(shape.second, shape.third, rng)
 
-            val product = left.gemm(right)
+            val product = left * (right)
 
             val expected = koblas.gemm(leftDense, rightDense)
             for (i in 0 until shape.first) {
@@ -180,7 +181,7 @@ class SparseProductTest {
         val (left, _) = sparseAndDense(12, 9, rng, density = 0.5)
         val (right, _) = sparseAndDense(9, 7, rng, density = 0.5)
 
-        val product = left.gemm(right)
+        val product = left * (right)
 
         for (j in 0 until product.cols) {
             var previous = -1
@@ -197,7 +198,7 @@ class SparseProductTest {
         val (a, _) = sparseAndDense(6, 5, rng)
         val identity = F64SparseMatrix.ofColumns(5, 5, List(5) { j -> listOf(j to 1.0) })
 
-        assertEquals(a, a.gemm(identity), "A times I should give A back")
+        assertEquals(a, a * (identity), "A times I should give A back")
     }
 
     /**
@@ -211,8 +212,8 @@ class SparseProductTest {
         val zero = F64SparseMatrix.ofColumns(1, 1, listOf(listOf(0 to 0.0)))
         assertEquals(1, zero.nnz, "the operand itself has to store the zero for this to say anything")
 
-        assertEquals(1, one.gemm(zero).nnz, "a stored zero in the second operand was dropped")
-        assertEquals(1, zero.gemm(one).nnz, "a stored zero in the first operand was dropped")
+        assertEquals(1, (one * zero).nnz, "a stored zero in the second operand was dropped")
+        assertEquals(1, (zero * one).nnz, "a stored zero in the first operand was dropped")
     }
 
     @Test
@@ -221,7 +222,7 @@ class SparseProductTest {
         val a = F64SparseMatrix.ofColumns(1, 2, listOf(listOf(0 to 1.0), listOf(0 to 1.0)))
         val b = F64SparseMatrix.ofColumns(2, 1, listOf(listOf(0 to 1.0, 1 to -1.0)))
 
-        val product = a.gemm(b)
+        val product = a * (b)
 
         assertEquals(1, product.nnz, "the cancelled entry was dropped")
         assertEquals(0.0, product[0, 0], 0.0)
@@ -233,7 +234,7 @@ class SparseProductTest {
         val (a, _) = sparseAndDense(5, 4, rng)
         val (b, _) = sparseAndDense(3, 4, rng)
 
-        assertFailsWith<DimensionMismatch> { a.gemm(b) }
+        assertFailsWith<DimensionMismatch> { a * (b) }
     }
 
     @Test
@@ -252,6 +253,6 @@ class SparseProductTest {
         val rng = Random(20260902)
         val (sparse, _) = sparseAndDense(5, 4, rng)
 
-        assertFailsWith<DimensionMismatch> { sparse.gemm(randomMatrix(3, 3, rng)) }
+        assertFailsWith<DimensionMismatch> { sparse * randomMatrix(3, 3, rng) }
     }
 }
