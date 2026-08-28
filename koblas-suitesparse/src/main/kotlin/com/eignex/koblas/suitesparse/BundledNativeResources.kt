@@ -1,4 +1,4 @@
-package com.eignex.koblas.internal.backend
+package com.eignex.koblas.suitesparse
 
 import java.io.InputStream
 import java.nio.file.Files
@@ -7,24 +7,17 @@ import java.nio.file.attribute.PosixFilePermissions
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 
-/** Shared extraction support for optional JVM artifacts that bundle native Maven resources. */
-public class BundledNativeResources(
+internal class BundledNativeResources(
     private val directoryPrefix: String,
     private val platform: String,
     private val resourceRoot: String,
     private val anchor: Class<*>,
     private val libraryDescription: String,
 ) {
-    /** What identifies one bundle, so two libraries out of the same one share a single extraction. */
     private val key: String get() = "$directoryPrefix|$resourceRoot|$platform"
 
-    /**
-     * The whole manifest, extracted once per bundle per process. An artifact bundling several libraries has
-     * a handle per library and each asks for the whole manifest, since a library's dependencies ship beside
-     * it; without this they would each lay the bundle down in a directory of their own.
-     */
-    @Suppress("TooGenericExceptionCaught") // every extraction failure must release the callers waiting on its future
-    internal fun extractManifest(): Map<String, Path> {
+    @Suppress("TooGenericExceptionCaught")
+    private fun extractManifest(): Map<String, Path> {
         val pending = CompletableFuture<Map<String, Path>>()
         val existing = extractions.putIfAbsent(key, pending)
         if (existing != null) return existing.join()
@@ -32,18 +25,12 @@ public class BundledNativeResources(
             return extract(manifestNames(), required = true).also(pending::complete)
         } catch (cause: Throwable) {
             pending.completeExceptionally(cause)
-            // A missing or corrupt bundle can be repaired while this process remains alive, so do not retain
-            // its failure and prevent a later construction from trying again.
             extractions.remove(key, pending)
             throw cause
         }
     }
 
-    /**
-     * Extracts [names] into a private directory. A name this bundle does not carry is skipped, or fails when
-     * [required], which is what a manifest listing exactly what shipped calls for.
-     */
-    public fun extract(names: Iterable<String>, required: Boolean = false): Map<String, Path> {
+    private fun extract(names: Iterable<String>, required: Boolean = false): Map<String, Path> {
         val directory = Files.createTempDirectory("$directoryPrefix-$platform-")
         secure(directory, "rwx------")
         return names.mapNotNull { name ->
@@ -58,13 +45,11 @@ public class BundledNativeResources(
         }.toMap()
     }
 
-    /** The names in this bundle's `.libraries` manifest, which lists what shipped for this platform. */
-    public fun manifestNames(): List<String> = checkNotNull(resource(".libraries")) {
+    private fun manifestNames(): List<String> = checkNotNull(resource(".libraries")) {
         "$libraryDescription resources are absent for $platform"
     }.bufferedReader().useLines { lines -> lines.filter(String::isNotBlank).toList() }
 
-    /** Opens a resource, preferring the context class loader. */
-    public fun resource(name: String): InputStream? {
+    private fun resource(name: String): InputStream? {
         val path = "$resourceRoot/$platform/$name"
         return Thread.currentThread().contextClassLoader.getResourceAsStream(path)
             ?: anchor.classLoader.getResourceAsStream(path)
@@ -78,22 +63,11 @@ public class BundledNativeResources(
             }
     }
 
-    /** Platform detection and the manifest-driven bundle shared by bundled artifacts. */
-    public companion object {
-        /**
-         * One extraction per bundle, keyed by what identifies it. Held for the life of the process because
-         * the paths it hands out stay loaded, and shared across threads because two backends out of one
-         * artifact may be constructed at once.
-         */
+    internal companion object {
         private val extractions = ConcurrentHashMap<String, CompletableFuture<Map<String, Path>>>()
 
-        /**
-         * A bundle whose contents are listed by a `.libraries` manifest and whose one library of interest is
-         * [linuxSoname] or [macosSoname]. Every optional artifact koblas ships that wraps a single library is
-         * this, so each contributes only its names.
-         */
-        @Suppress("LongParameterList") // one parameter per thing that differs between the bundles
-        public fun manifestDriven(
+        @Suppress("LongParameterList")
+        fun manifestDriven(
             directoryPrefix: String,
             resourceRoot: String,
             anchor: Class<*>,
@@ -104,18 +78,17 @@ public class BundledNativeResources(
         ): BundledLibrary {
             val platform = supportedPlatform(unsupported)
             val resources = BundledNativeResources(
-                directoryPrefix = directoryPrefix,
-                platform = platform,
-                resourceRoot = resourceRoot,
-                anchor = anchor,
-                libraryDescription = libraryDescription,
+                directoryPrefix,
+                platform,
+                resourceRoot,
+                anchor,
+                libraryDescription,
             )
             val soname = if (platform.startsWith("linux")) linuxSoname else macosSoname
             return BundledLibrary(resources, soname, libraryDescription, platform)
         }
 
-        /** Returns the Maven-native platform name supported by all bundled artifacts. */
-        public fun supportedPlatform(unsupported: (os: String, architecture: String) -> String): String {
+        private fun supportedPlatform(unsupported: (os: String, architecture: String) -> String): String {
             val os = System.getProperty("os.name")
             val architecture = System.getProperty("os.arch")
             return when {
@@ -129,26 +102,19 @@ public class BundledNativeResources(
         private val x64Architectures: Set<String> = setOf("amd64", "x86_64")
         private val arm64Architectures: Set<String> = setOf("aarch64", "arm64")
     }
-}
 
-/**
- * One bundled native library, extracted from the classpath on first use.
- *
- * The whole manifest is extracted, since a library's dependencies ship beside it and the loader needs them
- * in the same directory, and [extract] hands back the path of the library itself.
- */
-public class BundledLibrary internal constructor(
-    private val resources: BundledNativeResources,
-    private val soname: String,
-    private val description: String,
-    private val platform: String,
-) {
-    private val extracted: Path by lazy {
-        checkNotNull(resources.extractManifest()[soname]) {
-            "$description resource $soname is absent for $platform"
+    internal class BundledLibrary(
+        private val resources: BundledNativeResources,
+        private val soname: String,
+        private val description: String,
+        private val platform: String,
+    ) {
+        private val extracted: Path by lazy {
+            checkNotNull(resources.extractManifest()[soname]) {
+                "$description resource $soname is absent for $platform"
+            }
         }
-    }
 
-    /** The extracted library's absolute path, extracting the bundle the first time it is asked for. */
-    public fun extract(): Path = extracted
+        fun extract(): Path = extracted
+    }
 }

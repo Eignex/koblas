@@ -5,7 +5,6 @@ import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.host.cblas.HostBlasConfig
 import com.eignex.koblas.dense.host.cblas.OpenBlasOptions
 import com.eignex.koblas.dense.host.jvm.*
-import com.eignex.koblas.internal.backend.BundledNativeResources
 import java.nio.file.Path
 
 /** OpenBLAS backend bundled in Maven-native resources. */

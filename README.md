@@ -50,15 +50,14 @@ factorizations expose solve operations:
 
 ```kotlin
 import com.eignex.koblas.*
-import com.eignex.koblas.core.*
 import com.eignex.koblas.dense.*
 
-val a = F64DenseMatrix.of(arrayOf(
+val a = DenseMatrix.of(arrayOf(
     doubleArrayOf(2.0, 1.0),
     doubleArrayOf(1.0, 3.0),
 ))
-val b = F64DenseMatrix.diagonal(2)
-val x = F64DenseVector.of(doubleArrayOf(3.0, 5.0))
+val b = DenseMatrix.diagonal(2)
+val x = DenseVector.of(doubleArrayOf(3.0, 5.0))
 
 val product = a * b
 val y = a * x
@@ -69,10 +68,10 @@ Sparse matrices are validated CSC with ascending row indices in each column. Con
 coordinate triplets and close native-backed factors deterministically:
 
 ```kotlin
-import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.sparse.lu
 
-val a = F64SparseMatrix.ofColumns(
+val a = SparseMatrix.ofColumns(
     rows = 2,
     cols = 2,
     columns = listOf(listOf(0 to 2.0), listOf(1 to 3.0)),
@@ -84,7 +83,8 @@ val solution = a.lu().use { factor ->
 
 ## Data and storage
 
-Koblas currently implements one numerical family, and the element type is explicit in every public type name.
+Koblas currently implements one numerical family. The element type is explicit in expert-facing public names,
+while unqualified aliases such as `DenseMatrix` and `SparseMatrix` name the F64 types.
 
 | Family | Scalar | Dense storage | Sparse storage | Sparse index |
 |--------|--------|---------------|----------------|--------------|
@@ -98,12 +98,11 @@ offset, leading dimension, and increment:
 
 ```kotlin
 import com.eignex.koblas.*
-import com.eignex.koblas.core.F64DenseMatrix
 
-val storage = F64DenseMatrix.zero(512, 32)
+val storage = DenseMatrix.zero(512, 32)
 val panel = storage.view(row = 64, rows = 128, column = 4, cols = 8)
-val weights = F64DenseMatrix.zero(8, 2)
-val output = F64DenseMatrix.zero(128, 2)
+val weights = DenseMatrix.zero(8, 2)
+val output = DenseMatrix.zero(128, 2)
 
 koblas.blas.gemm(
     alpha = 1.0,
