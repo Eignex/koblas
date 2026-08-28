@@ -16,20 +16,13 @@ import com.eignex.koblas.sparse.host.umfpack.UmfpackConfig
  * the JVM honours name a library path or pin a half to one backend.
  */
 internal actual fun registerPlatformBackends() {
-    val denseRequested = requestedBackend(
-        ConfigurationKeys.DENSE_BACKEND_PROPERTY,
-        ConfigurationKeys.DENSE_BACKEND_ENVIRONMENT,
-    )
-    val sparseRequested = requestedBackend(
-        ConfigurationKeys.SPARSE_BACKEND_PROPERTY,
-        ConfigurationKeys.SPARSE_BACKEND_ENVIRONMENT,
-    )
-    registerHostBlas(denseRequested)
-    registerSparse(sparseRequested)
+    val requested = requestedBackends()
+    registerHostBlas(requested)
+    registerSparse(requested)
 }
 
 /** koblas's CBLAS binding, when this host has OpenBLAS and the deployment did not pin another backend. */
-private fun registerHostBlas(requested: String?) {
+private fun registerHostBlas(requested: Map<BackendSlot, String?>) {
     val config = HostBlasConfig(
         libraryPath = libraryPath(ConfigurationKeys.CBLAS_PATH),
         lapackeLibraryPath = libraryPath(ConfigurationKeys.LAPACKE_PATH),
@@ -37,13 +30,12 @@ private fun registerHostBlas(requested: String?) {
     val loader = OpenBlasLoader(config)
     val cblas = loader.cblas ?: return
     val blas = F64Cblas(cblas, loader, config)
-    if (!offered(blas, requested)) return
-    BackendRegistry.registerAutomatic(blas)
+    registerIfOffered(blas, requested)
     // The level-1 primitives sit below the F64Blas seam, so they register as their own half.
-    BackendRegistry.registerAutomatic(F64CblasKernels(loader, config))
+    registerIfOffered(F64CblasKernels(loader, config), requested)
     // Without LAPACKE the factorizations stay portable while everything above keeps the host BLAS.
     val lapacke = loader.lapacke ?: return
-    BackendRegistry.registerAutomatic(F64Lapacke(lapacke, cblas, loader, config))
+    registerIfOffered(F64Lapacke(lapacke, cblas, loader, config), requested)
 }
 
 /**
@@ -51,7 +43,7 @@ private fun registerHostBlas(requested: String?) {
  * without BASICLU, or one of KLU and UMFPACK without the other. Priority picks the winner among those that
  * resolve, and only BASICLU offers basis updates whatever the priorities say.
  */
-private fun registerSparse(requested: String?) {
+private fun registerSparse(requested: Map<BackendSlot, String?>) {
     val sparse = F64SparseBackends(
         umfpackConfig = UmfpackConfig(libraryPath = libraryPath(ConfigurationKeys.UMFPACK_PATH)),
         kluConfig = KluConfig(libraryPath(ConfigurationKeys.KLU_PATH)),
@@ -59,10 +51,15 @@ private fun registerSparse(requested: String?) {
         cholmodConfig = CholmodConfig(libraryPath = libraryPath(ConfigurationKeys.CHOLMOD_PATH)),
     )
     for (backend in listOf(sparse.umfpack, sparse.klu, sparse.basiclu, sparse.cholmod)) {
-        if (backend.isAvailable && offered(backend, requested)) BackendRegistry.registerAutomatic(backend)
+        registerIfOffered(backend, requested)
     }
 }
 
 /** Whether [backend] is what the deployment asked for, or asked for nothing in particular. */
-private fun offered(backend: Backend, requested: String?): Boolean =
-    requested == null || matchesRequested(backend.name, requested)
+private fun registerIfOffered(backend: Backend, requested: Map<BackendSlot, String?>) {
+    if (!backend.isAvailable) return
+    val offered = BackendSlot.entries.filterTo(mutableSetOf()) { slot ->
+        requested.getValue(slot)?.let { matchesRequested(backend.name, it) } ?: true
+    }
+    if (offered.isNotEmpty()) BackendRegistry.registerAutomatic(backend, offered)
+}

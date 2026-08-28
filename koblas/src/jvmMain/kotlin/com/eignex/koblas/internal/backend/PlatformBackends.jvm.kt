@@ -18,44 +18,27 @@ import java.util.ServiceLoader
  * halves first, then [ServiceLoader] providers; [Backend.priority] picks the winner on each half.
  */
 internal actual fun registerPlatformBackends() {
-    val denseRequested = requestedBackend(
-        ConfigurationKeys.DENSE_BACKEND_PROPERTY,
-        ConfigurationKeys.DENSE_BACKEND_ENVIRONMENT,
-    )
-    val sparseRequested = requestedBackend(
-        ConfigurationKeys.SPARSE_BACKEND_PROPERTY,
-        ConfigurationKeys.SPARSE_BACKEND_ENVIRONMENT,
-    )
+    val requested = requestedBackends()
     val automatic = AutomaticHostConfiguration()
     for (provider in loadProviders().sortedByDescending { it.priority }) {
         if (automatic.overrides(provider)) continue
-        val offered = offeredHalves(provider.name, denseRequested, sparseRequested)
+        val offered = offeredHalves(provider.name, requested)
         if (offered.isEmpty()) continue
         if (!probe(provider, offered)) continue
         // Once, not per half, since registerBackend offers the object as every half it implements, less
         // whatever a pin on one half left out.
         BackendRegistry.registerAutomatic(provider, offered)
     }
-    registerBuiltins(automatic, denseRequested, sparseRequested)
+    registerBuiltins(automatic, requested)
 }
 
 /**
- * The halves of the provider named [name] this deployment will take.
- *
- * A pin names one backend for one half and says nothing about the other, so a provider carrying both halves
- * keeps the half no pin spoke for. Turning the whole provider away instead costs a deployment that pinned
- * its dense backend the sparse backends of everything else it installed.
+ * The roles the provider named [name] may fill under the deployment's independent role pins.
  */
-internal fun offeredHalves(name: String, denseRequested: String?, sparseRequested: String?): Set<BackendSlot> {
-    val dense = denseRequested == null || matchesRequested(name, denseRequested)
-    val sparse = sparseRequested == null || matchesRequested(name, sparseRequested)
-    return when {
-        dense && sparse -> BackendSlot.entries.toSet()
-        dense -> BackendSlot.denseHalves
-        sparse -> BackendSlot.sparseHalves
-        else -> emptySet()
+internal fun offeredHalves(name: String, requested: Map<BackendSlot, String?>): Set<BackendSlot> =
+    BackendSlot.entries.filterTo(mutableSetOf()) { slot ->
+        requested.getValue(slot)?.let { matchesRequested(name, it) } ?: true
     }
-}
 
 /** Deployment overrides are read only while automatic discovery chooses its candidates. */
 private class AutomaticHostConfiguration {
@@ -93,17 +76,11 @@ private class AutomaticHostConfiguration {
  * The backends are built once for this pass and handed over, rather than looked up per question, since
  * constructing them twice would open the library twice.
  */
-private fun registerBuiltins(
-    automatic: AutomaticHostConfiguration,
-    denseRequested: String?,
-    sparseRequested: String?,
-) {
+private fun registerBuiltins(automatic: AutomaticHostConfiguration, requested: Map<BackendSlot, String?>) {
     val dense = F64Backends(automatic.openBlas)
-    registerIfOffered(dense.blas, denseRequested) {
-        // The level-1 primitives and the factorizations are their own halves of the seam.
-        BackendRegistry.registerAutomatic(dense.kernels)
-        dense.decompositions.takeIf { it.isAvailable }?.let { BackendRegistry.registerAutomatic(it) }
-    }
+    registerIfOffered(dense.blas, requested)
+    registerIfOffered(dense.kernels, requested)
+    dense.decompositions.takeIf { it.isAvailable }?.let { registerIfOffered(it, requested) }
     val sparse = F64SparseBackends(
         kluConfig = automatic.klu,
         umfpackConfig = automatic.umfpack,
@@ -111,24 +88,22 @@ private fun registerBuiltins(
         hfactorConfig = automatic.hfactor,
         cholmodConfig = automatic.cholmod,
     )
-    registerIfOffered(sparse.klu, sparseRequested)
-    registerIfOffered(sparse.umfpack, sparseRequested)
-    registerIfOffered(sparse.basiclu, sparseRequested)
-    registerIfOffered(sparse.hfactor, sparseRequested)
+    registerIfOffered(sparse.klu, requested)
+    registerIfOffered(sparse.umfpack, requested)
+    registerIfOffered(sparse.basiclu, requested)
+    registerIfOffered(sparse.hfactor, requested)
     // Fills the sparse matrix half rather than the factorization one, so it takes nothing from the four
     // above and they take nothing from it.
-    registerIfOffered(sparse.cholmod, sparseRequested)
+    registerIfOffered(sparse.cholmod, requested)
 }
 
 /**
- * Registers [backend] when its library loaded and the deployment did not pin a different one, then runs
- * [alsoRegister] for the halves that come with it.
+ * Registers [backend]'s roles when its library loaded and the deployment did not pin those roles elsewhere.
  */
-private fun registerIfOffered(backend: Backend, requested: String?, alsoRegister: () -> Unit = {}) {
+private fun registerIfOffered(backend: Backend, requested: Map<BackendSlot, String?>) {
     if (!backend.isAvailable) return
-    if (requested != null && requested != backend.name) return
-    BackendRegistry.registerAutomatic(backend)
-    alsoRegister()
+    val offered = offeredHalves(backend.name, requested)
+    if (offered.isNotEmpty()) BackendRegistry.registerAutomatic(backend, offered)
 }
 
 /** Instantiate all registered providers, dropping any whose construction fails. */

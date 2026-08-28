@@ -94,11 +94,21 @@ tasks.withType<Test>().configureEach {
     // Tests marked @Category(HostLibraryTest) need a real OpenBLAS or SuiteSparse, so they are out of the
     // default run and opted into with -Pkoblas.hostTests=true. They measure the machine as much as the library,
     // so including them would make the everyday result mean different things on a box with SuiteSparse and one
-    // without. Excluding them and pinning dense and sparse backends to `reference` keeps that out; the opt-in
+    // without. Excluding them and pinning every backend role to `reference` keeps that out; the opt-in
     // run accepts the noise in exchange for exercising the bindings, and reports coverage like any other run.
     if (project.findProperty("koblas.hostTests") == "true") return@configureEach
-    systemProperty("koblas.dense.backend", "reference")
-    systemProperty("koblas.sparse.backend", "reference")
+    systemProperty("koblas.backend.dense.kernels", "reference")
+    systemProperty("koblas.backend.dense.blas", "reference")
+    systemProperty("koblas.backend.dense.decompositions", "reference")
+    systemProperty("koblas.backend.sparse.kernels", "reference")
+    systemProperty("koblas.backend.sparse.blas", "reference")
+    systemProperty("koblas.backend.sparse.general.lu", "reference")
+    systemProperty("koblas.backend.sparse.repeated.lu", "reference")
+    systemProperty("koblas.backend.sparse.cholesky", "reference")
+    systemProperty("koblas.backend.sparse.ldl", "reference")
+    systemProperty("koblas.backend.sparse.qr", "reference")
+    systemProperty("koblas.backend.basis.factorizations", "reference")
+    systemProperty("koblas.backend.basis.solvers", "reference")
     useJUnit {
         excludeCategories("com.eignex.koblas.testutil.host.HostLibraryTest")
     }

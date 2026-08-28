@@ -18,6 +18,10 @@ internal fun libraryPath(keys: LibraryPathKeys): String? =
 internal fun requestedBackend(property: String, environment: String): String? =
     pinnedBackend(systemPropertyOrNull(property), environmentVariableOrNull(environment))
 
+/** The backend pins for every semantic role, read independently. */
+internal fun requestedBackends(): Map<BackendSlot, String?> =
+    ConfigurationKeys.BACKENDS.mapValues { (_, keys) -> requestedBackend(keys.property, keys.environment) }
+
 /**
  * Whether a configured path is absolute. This is the shape the keys accept rather than full path semantics:
  * a leading separator, or a drive letter for the Windows spelling.

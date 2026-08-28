@@ -66,7 +66,7 @@ internal enum class BackendSlot(
         val contextHalves: List<BackendSlot> = entries.filter { it.required }
         val matrixHalves: List<BackendSlot> = contextHalves.filterNot { it.vectorHalf }
 
-        /** The halves a dense pin speaks for, and the rest, which a sparse pin speaks for. */
+        /** The dense halves, retained for callers that need to offer a dense-only backend. */
         val denseHalves: Set<BackendSlot> = entries.filterNotTo(mutableSetOf()) { it.sparse }
         val sparseHalves: Set<BackendSlot> = entries.filterTo(mutableSetOf()) { it.sparse }
     }
