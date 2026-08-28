@@ -88,7 +88,7 @@ class NamedBackendTest {
         registerBackend(FakeSparseLu("weaker", priority = 10))
         registerBackend(FakeSparseLu("stronger", priority = 20))
 
-        assertEquals(listOf("stronger", "weaker"), registeredBackendNames(BackendSlot.F64SparseDecompositions))
+        assertEquals(listOf("stronger", "weaker"), registeredBackendNames(BackendRole.SPARSE_GENERAL_LU))
     }
 
     @Test
@@ -96,7 +96,7 @@ class NamedBackendTest {
         registerBackend(FakeSparseLu("same", priority = 10))
         registerBackend(FakeSparseLu("same", priority = 30))
 
-        assertEquals(listOf("same"), registeredBackendNames(BackendSlot.F64SparseDecompositions))
+        assertEquals(listOf("same"), registeredBackendNames(BackendRole.SPARSE_GENERAL_LU))
         assertEquals(30, backendNamed("same", F64Capabilities.generalSparseLu)?.priority)
     }
 
@@ -124,7 +124,7 @@ class NamedBackendTest {
         resetBackends()
 
         assertNull(backendNamed("present", F64Capabilities.generalSparseLu))
-        assertEquals(emptyList(), registeredBackendNames(BackendSlot.F64SparseDecompositions))
+        assertEquals(emptyList(), registeredBackendNames(BackendRole.SPARSE_GENERAL_LU))
     }
 
     @Test
@@ -152,7 +152,7 @@ class NamedBackendTest {
         BackendRegistry.registerAutomatic(FakeSparseLu("discovered", priority = 30))
         registerBackend(FakeSparseLu("configured", priority = 10))
 
-        assertEquals(listOf("configured", "discovered"), registeredBackendNames(BackendSlot.F64SparseDecompositions))
+        assertEquals(listOf("configured", "discovered"), registeredBackendNames(BackendRole.SPARSE_GENERAL_LU))
     }
 
     /** Order of arrival must not change either answer. */

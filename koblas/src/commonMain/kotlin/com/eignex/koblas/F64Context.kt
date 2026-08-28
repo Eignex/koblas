@@ -132,16 +132,16 @@ public class F64Context(
      * The vector-kernel halves are left out; [koblasInfo] prints both parts.
      */
     override val name: String
-        get() = BackendSlot.matrixHalves.map { backendFor(it).name }.distinct().joinToString("+")
+        get() = BackendSlot.matrixHalves.map { it.from(this).name }.distinct().joinToString("+")
 
     /** True when every half is koblas's own, so the context calls out to nothing. */
-    override val isPortable: Boolean get() = BackendSlot.entries.all { backendFor(it).isPortable }
+    override val isPortable: Boolean get() = BackendSlot.entries.all { it.from(this).isPortable }
 
     /** True when every half can run, which a context assembled from resolved backends always can. */
-    override val isAvailable: Boolean get() = BackendSlot.entries.all { backendFor(it).isAvailable }
+    override val isAvailable: Boolean get() = BackendSlot.entries.all { it.from(this).isAvailable }
 
     /** The strongest half's priority, so a context is at least as preferred as the best thing in it. */
-    override val priority: Int get() = BackendSlot.entries.maxOf { backendFor(it).priority }
+    override val priority: Int get() = BackendSlot.entries.maxOf { it.from(this).priority }
 
     /**
      * A copy with the named halves replaced and the rest kept. A replaced [kernels] reaches the

@@ -2,7 +2,6 @@ package com.eignex.koblas
 
 import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.internal.backend.BackendRegistry
-import com.eignex.koblas.internal.backend.BackendSlot
 import com.eignex.koblas.sparse.basis.F64BasisSolvers
 
 /**
@@ -31,9 +30,6 @@ public fun discoverBackends() {
  * The basis solvers registered under [name], looked up the way the semantic capabilities are.
  */
 public fun basisSolversNamed(name: String): F64BasisSolvers? = BackendRegistry.basisSolversNamed(name)
-
-/** The backends registered for [slot], strongest first, for a diagnostic naming what a lookup can find. */
-public fun registeredBackendNames(slot: BackendSlot): List<String> = BackendRegistry.namesFor(slot)
 
 /** The backends registered for [role], strongest first. */
 public fun registeredBackendNames(role: BackendRole): List<String> = BackendRegistry.namesFor(role)

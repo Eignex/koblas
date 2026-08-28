@@ -85,8 +85,8 @@ class BackendSelectionTest {
         withCleanBackends {
             BackendRegistry.registerAutomatic(FakeBoth("both-halves", 100), BackendSlot.sparseHalves)
 
-            assertTrue("both-halves" in registeredBackendNames(BackendSlot.F64SparseBlas), "the sparse half")
-            assertFalse("both-halves" in registeredBackendNames(BackendSlot.F64Blas), "the dense half")
+            assertTrue("both-halves" in BackendRegistry.namesFor(BackendSlot.F64SparseBlas), "the sparse half")
+            assertFalse("both-halves" in BackendRegistry.namesFor(BackendSlot.F64Blas), "the dense half")
             assertSame(F64ReferenceLinearAlgebra, koblas.blas)
         }
     }

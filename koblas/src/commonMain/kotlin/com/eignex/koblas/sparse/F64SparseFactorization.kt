@@ -169,13 +169,13 @@ public class F64SingularSparseFactorization(override val n: Int, override val fa
 }
 
 /** The shapes [F64SparseFactorization.solveInto] requires of its right-hand side and its destination. */
-public fun requireSolveShapes(n: Int, b: DoubleArray, out: DoubleArray) {
+internal fun requireSolveShapes(n: Int, b: DoubleArray, out: DoubleArray) {
     requireShape(b.size == n) { "solve: b size ${b.size}, expected $n" }
     requireShape(out.size == n) { "solve: out size ${out.size}, expected $n" }
 }
 
 /** The shapes required by a sparse block solve. */
-public fun requireBlockSolveShapes(n: Int, b: F64DenseMatrix, out: F64DenseMatrix) {
+internal fun requireBlockSolveShapes(n: Int, b: F64DenseMatrix, out: F64DenseMatrix) {
     requireShape(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
     requireShape(out.rows == n && out.cols == b.cols) {
         "solve: out is ${out.rows}x${out.cols}, expected ${n}x${b.cols}"

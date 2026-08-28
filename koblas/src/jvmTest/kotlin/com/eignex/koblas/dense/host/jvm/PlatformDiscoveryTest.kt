@@ -40,9 +40,9 @@ class PlatformDiscoveryTest {
         withRequestedBackend("reference") {
             registerPlatformBackends()
             assertEquals(
-                BackendSlot.entries.toSet(),
-                koblas.portableSlots,
-                "reference was requested, so every slot should still be portable",
+                BackendRole.entries.toSet(),
+                koblas.portableRoles,
+                "reference was requested, so every role should still be portable",
             )
         }
     }
@@ -53,9 +53,9 @@ class PlatformDiscoveryTest {
         withRequestedBackend("no-such-backend") {
             registerPlatformBackends()
             assertEquals(
-                BackendSlot.entries.toSet(),
-                koblas.portableSlots,
-                "an unmatched name should leave every slot portable",
+                BackendRole.entries.toSet(),
+                koblas.portableRoles,
+                "an unmatched name should leave every role portable",
             )
         }
     }
@@ -70,17 +70,17 @@ class PlatformDiscoveryTest {
             registerPlatformBackends()
             assertEquals(
                 HostLibraries.cblas,
-                koblas.isAccelerated(BackendSlot.F64Blas),
+                koblas.isAccelerated(BackendRole.DENSE_BLAS),
                 "the F64Blas slot should be accelerated exactly when a host CBLAS resolved",
             )
             assertEquals(
                 HostLibraries.lapacke,
-                koblas.isAccelerated(BackendSlot.F64Decompositions),
+                koblas.isAccelerated(BackendRole.DENSE_DECOMPOSITIONS),
                 "the F64Decompositions slot should be accelerated exactly when a host LAPACKE resolved",
             )
             assertEquals(
                 HostLibraries.cblas,
-                koblas.isAccelerated(BackendSlot.F64Kernels),
+                koblas.isAccelerated(BackendRole.DENSE_KERNELS),
                 "the F64Kernels slot should be accelerated exactly when a host CBLAS resolved",
             )
         }
@@ -91,11 +91,11 @@ class PlatformDiscoveryTest {
         val backends = F64Backends()
         registerBackend(backends)
 
-        assertEquals(backends.blas.isAvailable, koblas.isAccelerated(BackendSlot.F64Blas), "BLAS")
-        assertEquals(backends.blas.isAvailable, koblas.isAccelerated(BackendSlot.F64Kernels), "kernels")
+        assertEquals(backends.blas.isAvailable, koblas.isAccelerated(BackendRole.DENSE_BLAS), "BLAS")
+        assertEquals(backends.blas.isAvailable, koblas.isAccelerated(BackendRole.DENSE_KERNELS), "kernels")
         assertEquals(
             backends.decompositions.isAvailable,
-            koblas.isAccelerated(BackendSlot.F64Decompositions),
+            koblas.isAccelerated(BackendRole.DENSE_DECOMPOSITIONS),
             "decompositions",
         )
     }

@@ -14,7 +14,7 @@ class ReadmeSamplesTest {
     @Test
     fun `the LU sample solves the system it claims`() {
         val rows = arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0))
-        val a = DenseMatrix.of(rows)
+        val a = F64DenseMatrix.of(rows)
         val x = a.lu().solve(doubleArrayOf(3.0, 5.0))
         assertClose(doubleArrayOf(0.8, 1.4), x, "README LU sample", tolerance = 1e-12)
     }
