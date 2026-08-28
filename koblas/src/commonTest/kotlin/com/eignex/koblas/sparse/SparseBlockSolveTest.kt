@@ -77,29 +77,15 @@ class SparseBlockSolveTest {
     }
 
     @Test
-    fun `portable reports expose permutations and distinguish missing statistics`() {
-        val report = F64ReferenceSparseLinearAlgebra.factor(matrix()).report()
-
-        assertEquals("reference", report.provider)
-        assertEquals(3, report.order)
-        assertNotNull(report.factorNonzeros)
-        assertEquals(3, report.rowPermutation?.size)
-        assertEquals(3, report.columnPermutation?.size)
-        assertEquals("markowitz-threshold", report.ordering)
-        assertNull(report.memoryBytes)
-        assertNull(report.inertia)
-    }
-
-    @Test
-    fun `ldl report exposes valid zero inertia separately from unavailable`() {
+    fun `ldl exposes pivot inertia`() {
         val diagonal = F64SparseMatrix.ofColumns(
             3,
             3,
             listOf(listOf(0 to 2.0), listOf(1 to -3.0), listOf(2 to 4.0)),
         )
-        val report = F64SparseUpLookingLdl.factorLower(diagonal).report()
+        val factor = F64SparseUpLookingLdl.factorLower(diagonal)
 
-        assertEquals(F64FactorizationInertia(positive = 2, negative = 1, zero = 0), report.inertia)
+        assertEquals(FactorizationInertia(positive = 2, negative = 1, zero = 0), factor.inertia)
     }
 
     private fun matrix() = F64SparseMatrix.ofColumns(

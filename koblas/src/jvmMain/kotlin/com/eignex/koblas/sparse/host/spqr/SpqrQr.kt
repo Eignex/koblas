@@ -12,7 +12,6 @@ import java.io.File
  */
 public class SpqrQr(config: SpqrConfig = SpqrConfig()) {
     private val calls = SpqrCalls(config)
-    private val ordering = config.options.ordering.name.lowercase()
 
     /** Whether both libraries opened and every symbol resolved. */
     public val isAvailable: Boolean get() = calls.available
@@ -30,7 +29,7 @@ public class SpqrQr(config: SpqrConfig = SpqrConfig()) {
             "qr: A is ${a.rows}x${a.cols}, which is wider than it is tall; factor its transpose instead"
         }
         val factor = CholmodMatrix.generalOf(a).use { calls.factorize(it, a.rows, a.cols) } ?: return null
-        return SpqrQrFactorization(factor, a.rows, a.cols, ordering)
+        return SpqrQrFactorization(factor, a.rows, a.cols)
     }
 }
 

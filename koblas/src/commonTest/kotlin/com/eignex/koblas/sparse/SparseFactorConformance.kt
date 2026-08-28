@@ -2,6 +2,7 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.core.F64SparseMatrix
+import kotlin.test.assertEquals
 
 /*
  * The identity each kind of factorization satisfies, checked against the matrix rather than against another
@@ -45,6 +46,15 @@ internal fun assertCholeskyFactorReproduces(
  */
 internal fun assertLdlFactorsReproduce(a: F64SparseMatrix, ldl: F64SparseLdlFactorization, context: String) {
     val d = ldl.d
+    assertEquals(
+        FactorizationInertia(
+            positive = d.count { it > 0.0 },
+            negative = d.count { it < 0.0 },
+            zero = d.count { it == 0.0 },
+        ),
+        ldl.inertia,
+        "$context inertia",
+    )
     assertClose(
         permuted(symmetrized(a), ldl.order),
         gram(withUnitDiagonal(ldl.l)) { d[it] },

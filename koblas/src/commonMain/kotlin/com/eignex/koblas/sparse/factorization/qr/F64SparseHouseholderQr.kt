@@ -9,8 +9,6 @@ import com.eignex.koblas.Workspace
 import com.eignex.koblas.borrow
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.requireShape
-import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
-import com.eignex.koblas.sparse.F64SparseFactorizationReport
 import com.eignex.koblas.sparse.F64SparseQrFactorization
 import com.eignex.koblas.sparse.requireLeastSquaresShapes
 import kotlin.math.abs
@@ -51,17 +49,6 @@ public class F64SparseHouseholderQr internal constructor(
     override fun solveAllocation(): AllocationCapability = AllocationCapability(
         AllocationGuarantee.NO_MANAGED,
         listOf(ScratchRequirement(ScratchKind.F64, rows)),
-    )
-
-    override fun report(): F64SparseFactorizationReport = F64SparseFactorizationReport(
-        provider = F64ReferenceSparseLinearAlgebra.name,
-        order = n,
-        factorNonzeros = nnz,
-        reciprocalPivotRange = reciprocalPivotRange(),
-        ordering = "natural",
-        rowPermutation = rowPermutation.take(m),
-        columnPermutation = columnOrder.toList(),
-        details = mapOf("rows" to m.toString(), "rank" to rank.toString()),
     )
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, workspace: Workspace?): DoubleArray {
@@ -110,18 +97,6 @@ public class F64SparseHouseholderQr internal constructor(
         tau *= beta[k]
         if (tau == 0.0) return
         for (p in vColPtr[k] until vColPtr[k + 1]) x[vRowIdx[p]] -= vValues[p] * tau
-    }
-
-    private fun reciprocalPivotRange(): Double {
-        if (n == 0) return 1.0
-        var minimum = Double.POSITIVE_INFINITY
-        var maximum = 0.0
-        for (k in 0 until n) {
-            val magnitude = abs(rValues[rColPtr[k + 1] - 1])
-            minimum = minOf(minimum, magnitude)
-            maximum = maxOf(maximum, magnitude)
-        }
-        return if (maximum == 0.0) 0.0 else minimum / maximum
     }
 
     /** Factories. */

@@ -48,9 +48,9 @@ class F64SparseLuAnalysisTest {
         val changed = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(1 to 3.0)))
         val analysis = provider.analyze(first)
 
-        val failure = assertFailsWith<IncompatibleSparsePatternException> { analysis.factor(changed) }
+        val failure = assertFailsWith<IllegalArgumentException> { analysis.factor(changed) }
 
-        assertSame(changed, failure.actual)
+        assertTrue(failure.message.orEmpty().contains("does not match"))
         assertEquals(0, provider.factors)
         analysis.close()
     }
@@ -94,7 +94,7 @@ internal fun assertSymbolicAnalysisReuses(provider: F64RepeatedSparseLu) {
             val expected = F64ReferenceSparseLinearAlgebra.factor(changed).solve(doubleArrayOf(8.0, 12.0))
             val actual = it.solve(doubleArrayOf(8.0, 12.0))
             for (i in expected.indices) assertEquals(expected[i], actual[i], 1e-12, "solution at $i")
-            assertFailsWith<IncompatibleSparsePatternException> { analysis.refactor(it, incompatible) }
+            assertFailsWith<IllegalArgumentException> { analysis.refactor(it, incompatible) }
         }
     }
 }

@@ -28,7 +28,6 @@ public class F64SparseMarkowitzLu private constructor(
     private val rowScale: DoubleArray,
     /** Nonzeros in L and U including the diagonal, the factorization's fill. */
     override val nnz: Int,
-    private val inputNonzeros: Int,
 ) : F64SparseLuFactorization {
 
     private val solveAllocation = AllocationCapability(
@@ -107,18 +106,6 @@ public class F64SparseMarkowitzLu private constructor(
         }
 
     override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability = solveAllocation
-
-    override fun report(): F64SparseFactorizationReport = F64SparseFactorizationReport(
-        provider = F64ReferenceSparseLinearAlgebra.name,
-        order = m,
-        factorNonzeros = nnz,
-        reciprocalPivotRange = rcond,
-        fillRatio = if (inputNonzeros == 0) 0.0 else nnz.toDouble() / inputNonzeros,
-        rowPermutation = perm.toList(),
-        columnPermutation = colPerm.toList(),
-        ordering = "markowitz-threshold",
-        scaling = if (rowScale.any { it != 1.0 }) "power-of-two-row" else "none",
-    )
 
     /**
      * Solve `B x = b`, or `Bᵀ x = b` when [transpose], into [out]. `b` is indexed by original row and the
@@ -244,7 +231,6 @@ public class F64SparseMarkowitzLu private constructor(
             dropTolerance: Double = NO_DROP,
         ): F64SparseLuFactorization {
             require(dropTolerance >= 0.0) { "dropTolerance must be non-negative; got $dropTolerance" }
-            val inputNonzeros = rows.sumOf { it.size }
             val rowScale = DoubleArray(m) { 1.0 }
             if (equilibrate) {
                 for (i in 0 until m) {
@@ -278,7 +264,7 @@ public class F64SparseMarkowitzLu private constructor(
                 colPerm[k] = state.pivotCol
                 state.eliminate(lAtStep[k])
             }
-            return freeze(u, lAtStep, perm, colPerm, m, rowScale, inputNonzeros)
+            return freeze(u, lAtStep, perm, colPerm, m, rowScale)
         }
 
         /** The keys of [map] passed through [transform], sorted ascending. */
@@ -298,7 +284,6 @@ public class F64SparseMarkowitzLu private constructor(
             colPerm: IntArray,
             m: Int,
             rowScale: DoubleArray,
-            inputNonzeros: Int,
         ): F64SparseMarkowitzLu {
             val invPerm = inverseOf(perm)
             val invColPerm = inverseOf(colPerm)
@@ -313,7 +298,7 @@ public class F64SparseMarkowitzLu private constructor(
             return F64SparseMarkowitzLu(
                 m, perm, colPerm, lRowIdx, lRowVal, uRowIdx, uRowVal,
                 lCol.indices, lCol.values, uCol.indices, uCol.values,
-                uDiag, rowScale, nnz, inputNonzeros,
+                uDiag, rowScale, nnz,
             )
         }
 

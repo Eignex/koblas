@@ -98,16 +98,6 @@ public interface F64SparseQrFactorization : AutoCloseable {
         return solveInto(b, F64DenseMatrix(n, b.cols), workspace)
     }
 
-    /** Common and provider-specific diagnostics. */
-    public fun report(): F64SparseFactorizationReport = F64SparseFactorizationReport(
-        provider = "unknown",
-        order = n,
-        factorNonzeros = nnz,
-        reciprocalPivotRange = null,
-        columnPermutation = columnOrder.toList(),
-        details = mapOf("rows" to m.toString(), "rank" to rank.toString()),
-    )
-
     /** Releases resources owned by this factorization. */
     override fun close() {}
 }

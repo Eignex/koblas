@@ -110,9 +110,6 @@ public interface F64SparseFactorization : AutoCloseable {
     /** Solve `B x = b`, or `Bᵀ x = b` when [transpose], into a fresh result. */
     public fun solve(b: DoubleArray, transpose: Boolean = false): DoubleArray = solveInto(b, DoubleArray(n), transpose)
 
-    /** Common and provider-specific diagnostics sampled from this factorization. */
-    public fun report(): F64SparseFactorizationReport = basicReport(provider = "unknown")
-
     /** Releases resources owned by this factorization. Portable implementations have nothing to release. */
     override fun close() {}
 }
@@ -254,11 +251,6 @@ public class F64RefactoringBasisFactorization(
     override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability {
         checkOpen()
         return factors.solveAllocation(aliasing, transpose)
-    }
-
-    override fun report(): F64SparseFactorizationReport {
-        checkOpen()
-        return factors.report()
     }
 
     override fun replaceColumn(column: Int, entering: F64SparseVector): F64BasisFactorization {

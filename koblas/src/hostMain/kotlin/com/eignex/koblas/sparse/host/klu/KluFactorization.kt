@@ -11,10 +11,8 @@ import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.requireFactored
-import com.eignex.koblas.sparse.F64SparseFactorizationReport
 import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.FactorsNotExposed
-import com.eignex.koblas.sparse.basicReport
 import com.eignex.koblas.sparse.requireBlockSolveShapes
 import com.eignex.koblas.sparse.requireSolveShapes
 import kotlinx.cinterop.*
@@ -146,11 +144,6 @@ public class KluFactorization internal constructor(
         check(status == 1) { "klu_solve failed with status ${intAt(handle.common, KLU_COMMON_STATUS)}" }
         return out
     }
-
-    override fun report(): F64SparseFactorizationReport = basicReport("klu").copy(
-        fillRatio = if (rowIndices.isEmpty()) 0.0 else nnz.toDouble() / rowIndices.size,
-        details = mapOf("blockSolve" to "native"),
-    )
 
     /** Refactorizes onto this factorization's pattern, rejecting another structure before calling KLU. */
     internal fun refactor(a: F64SparseMatrix): KluRefactorResult = anchoring {

@@ -23,7 +23,6 @@ public class SpqrQr(config: SpqrConfig = SpqrConfig()) {
     private val loader = SpqrLoader(config)
     private val ordering = config.options.ordering
     private val tolerance = config.options.rankTolerance
-    private val orderingName = ordering.name.lowercase()
 
     /** Whether both libraries opened and every symbol resolved. */
     public val isAvailable: Boolean get() = loader.available
@@ -79,7 +78,6 @@ public class SpqrQr(config: SpqrConfig = SpqrConfig()) {
                         ),
                         a.rows,
                         a.cols,
-                        orderingName,
                     )
                 } finally {
                     freeSparse(functions, rSlot, common)

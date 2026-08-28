@@ -6,10 +6,8 @@ import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.internal.host.nativeCleaner
 import com.eignex.koblas.sparse.F64BasisFactorization
-import com.eignex.koblas.sparse.F64SparseFactorizationReport
 import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.FactorsNotExposed
-import com.eignex.koblas.sparse.basicReport
 import com.eignex.koblas.sparse.host.applyF64Equilibration
 import com.eignex.koblas.sparse.internal.replaceColumns
 import com.eignex.koblas.sparse.internal.snapshot
@@ -57,8 +55,6 @@ public open class BasicluFactorization internal constructor(
 
     override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability =
         noSizeDependentManagedAllocation
-
-    override fun report(): F64SparseFactorizationReport = basicReport("basiclu")
 
     /** Reads BASICLU's own store, so the fence holds this factorization past the read. */
     override val nnz: Int get() = withNativeFactor {

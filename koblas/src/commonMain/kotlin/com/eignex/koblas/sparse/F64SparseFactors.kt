@@ -86,6 +86,9 @@ public interface F64SparseLdlFactorization : F64SparseFactorization {
     /** The diagonal factor, one entry per column of [l]. */
     public val d: DoubleArray
 
+    /** Counts of positive, negative, and zero entries in [d]. */
+    public val inertia: FactorizationInertia
+
     /** The original row and column at each position of [l], the same permutation for both by symmetry. */
     public val order: IntArray
 }

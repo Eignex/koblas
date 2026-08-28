@@ -9,7 +9,6 @@ import com.eignex.koblas.Workspace
 import com.eignex.koblas.borrow
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.requireShape
-import com.eignex.koblas.sparse.F64SparseFactorizationReport
 import com.eignex.koblas.sparse.F64SparseQrFactorization
 import com.eignex.koblas.sparse.requireLeastSquaresShapes
 import com.eignex.koblas.sparse.sparseSnapshotOf
@@ -28,7 +27,6 @@ public class SpqrQrFactorization internal constructor(
     private val factors: SpqrFactorData,
     override val m: Int,
     override val n: Int,
-    private val ordering: String,
 ) : F64SparseQrFactorization {
     private var closed = false
     private val solveCapability = AllocationCapability(
@@ -92,16 +90,6 @@ public class SpqrQrFactorization internal constructor(
         }
         return out
     }
-
-    override fun report(): F64SparseFactorizationReport = F64SparseFactorizationReport(
-        provider = "spqr",
-        order = n,
-        factorNonzeros = nnz,
-        reciprocalPivotRange = null,
-        ordering = ordering,
-        columnPermutation = factors.columnOrder.toList(),
-        details = mapOf("rows" to m.toString(), "rank" to rank.toString()),
-    )
 
     override fun close() {
         closed = true

@@ -252,7 +252,7 @@ a.prepare().use { prepared ->
 ```
 
 Prepared handles and sparse factors are AutoCloseable. Native block solves accept a column-major dense matrix
-of right-hand sides; `factor.report()` exposes common nullable diagnostics plus provider details.
+of right-hand sides. Sparse LDL factors expose their pivot-sign inertia directly.
 
 ## Native options and threading
 

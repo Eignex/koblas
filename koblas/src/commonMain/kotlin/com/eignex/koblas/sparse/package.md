@@ -70,9 +70,7 @@ mirror the dense ones.
 
   Every [F64SparseFactorization] solves either one vector or all columns of a caller-owned dense RHS block.
   The default block path preserves aliasing by staging a column; KLU and CHOLMOD specialize it through one
-  native call. [F64SparseFactorization.report] samples an extensible [F64SparseFactorizationReport]: null means
-  unavailable for optional fields, while zero remains a valid reported value. Portable LU exposes its row and
-  column permutations and ordering; portable LDL additionally reports inertia.
+  native call. An [F64SparseLdlFactorization] additionally exposes its pivot-sign [FactorizationInertia].
 
   The sparse `ldl` is not the sparse counterpart of the dense one, whatever the shared name suggests. The
   dense one pivots for stability; neither the portable sparse one nor any library behind this seam does, the
@@ -97,12 +95,12 @@ roles, [F64SparseQr] is least-squares QR, and [F64BasisFactorizations] owns colu
 Adding a repeated-pattern or basis provider cannot change the automatic general-LU selection; UMFPACK remains
 the accelerated general default when it is available, otherwise the portable implementation does.
 
-[F64RepeatedSparseLu.analyze] returns an explicitly owned [F64SparseLuAnalysis] for one [F64SparsePattern].
-The pattern copies column pointers and row indices, not values, so coefficient arrays can change between
-numeric factorizations. A different structure raises [IncompatibleSparsePatternException] before refactoring;
-this is distinct from numerical singularity. Numeric factors stay caller-owned and must be closed before the
-analysis. KLU reuses the symbolic ordering through this typed capability, so a same-pattern loop needs no
-concrete backend cast.
+[F64RepeatedSparseLu.analyze] returns an explicitly owned [F64SparseLuAnalysis] for one matrix structure. The
+analysis privately copies column pointers and row indices, not values, so coefficient arrays can change between
+numeric factorizations. A different structure raises [IllegalArgumentException] before refactoring; this is
+distinct from numerical singularity. Numeric factors stay caller-owned and must be closed before the analysis.
+KLU reuses the symbolic ordering through this typed capability, so a same-pattern loop needs no concrete backend
+cast.
 
 An explicit [com.eignex.koblas.F64ContextBuilder] can select any provider for any role it implements. Use
 [com.eignex.koblas.F64Capabilities] with [com.eignex.koblas.backendNamed] to retrieve an exact discovered
