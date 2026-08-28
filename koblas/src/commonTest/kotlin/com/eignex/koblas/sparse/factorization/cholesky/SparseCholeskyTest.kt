@@ -13,7 +13,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
-import kotlin.test.assertTrue
 
 class SparseCholeskyTest {
 
@@ -192,6 +191,10 @@ class SparseCholeskyTest {
 
         val f = F64ReferenceSparseLinearAlgebra.cholesky(arrow)
 
-        assertTrue(f.nnz == arrow.nnz, "an arrow pointing at its last row fills nowhere, got ${f.nnz}")
+        assertEquals(
+            f.nnz,
+            arrow.nnz,
+            "an arrow pointing at its last row fills nowhere, got ${f.nnz}"
+        )
     }
 }

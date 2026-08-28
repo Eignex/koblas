@@ -9,7 +9,7 @@ import com.eignex.koblas.internal.backend.BundledNativeResources
 import java.nio.file.Path
 
 /** OpenBLAS backend bundled in Maven-native resources. */
-public class BundledOpenBlas private constructor(private val blas: F64Cblas, private val decompositions: F64Lapacke) :
+class BundledOpenBlas private constructor(private val blas: F64Cblas, private val decompositions: F64Lapacke) :
     F64LinearAlgebra,
     F64Blas by blas,
     F64Decompositions by decompositions,
@@ -17,10 +17,10 @@ public class BundledOpenBlas private constructor(private val blas: F64Cblas, pri
     BackendMetadataProvider {
 
     /** Creates an OpenBLAS backend from bundled native resources with default options. */
-    public constructor() : this(OpenBlasOptions())
+    constructor() : this(OpenBlasOptions())
 
     /** Creates an OpenBLAS backend from bundled native resources with shared [options]. */
-    public constructor(options: OpenBlasOptions) : this(loadHostBackends(options))
+    constructor(options: OpenBlasOptions) : this(loadHostBackends(options))
 
     private constructor(backends: F64Backends) : this(backends.blas, backends.decompositions)
 

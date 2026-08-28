@@ -7,6 +7,7 @@ import com.eignex.koblas.sparse.lu
 import com.eignex.koblas.sparse.sparseConformanceSystem
 import kotlin.random.Random
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class ReadmeSamplesTest {
@@ -47,7 +48,7 @@ class ReadmeSamplesTest {
             assertTrue(e.position >= 0, "the sample relies on the reported position")
             a.cholesky(CholeskyPolicy.Regularize())
         }
-        assertTrue(chol.n == 2)
+        assertEquals(2, chol.n)
     }
 
     @Test
@@ -60,7 +61,11 @@ class ReadmeSamplesTest {
             values = doubleArrayOf(2.0, 1.0, 1.0, 3.0),
         )
         val cols = listOf(listOf(0 to 2.0, 1 to 1.0), listOf(0 to 1.0, 1 to 3.0))
-        assertTrue(s == F64SparseMatrix.ofColumns(2, 2, cols), "README triplet sample should match the column one")
+        assertEquals(
+            s,
+            F64SparseMatrix.ofColumns(2, 2, cols),
+            "README triplet sample should match the column one"
+        )
     }
 
     @Test

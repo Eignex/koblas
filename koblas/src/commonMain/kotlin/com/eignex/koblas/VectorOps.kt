@@ -7,7 +7,6 @@ import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.core.F64StridedVectorView
 import com.eignex.koblas.core.F64VectorLike
 import com.eignex.koblas.internal.numeric.euclideanNorm
-import com.eignex.koblas.requireSameSize
 import com.eignex.koblas.sparse.F64SparseKernels
 import kotlin.math.abs
 

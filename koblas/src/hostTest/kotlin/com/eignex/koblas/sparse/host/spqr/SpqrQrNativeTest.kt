@@ -19,8 +19,7 @@ class SpqrQrNativeTest {
     @Test
     fun `the least squares solution matches the portable factorization`() {
         val rng = Random(20260827)
-        for (shape in listOf(1 to 1, 9 to 4, 60 to 25, 400 to 180)) {
-            val (m, n) = shape
+        for ((m, n) in listOf(1 to 1, 9 to 4, 60 to 25, 400 to 180)) {
             val a = tall(m, n, rng)
             val b = DoubleArray(m) { rng.nextDouble(-1.0, 1.0) }
 

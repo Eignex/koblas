@@ -190,4 +190,4 @@ internal fun mixIntKey(x: Int): Int = x * -0x61c88647
  * home slot lies cyclically within `(i, j]` stays; anything else would be stranded and shifts down.
  */
 internal fun mustStayDuringShift(home: Int, i: Int, j: Int): Boolean =
-    if (i <= j) home > i && home <= j else home > i || home <= j
+    if (i <= j) home in (i + 1)..j else home !in (j + 1)..i

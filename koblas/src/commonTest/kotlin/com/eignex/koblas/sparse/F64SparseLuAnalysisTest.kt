@@ -1,7 +1,6 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.sparse.F64SparseLuFactorization
 import kotlin.test.*
 
 class F64SparseLuAnalysisTest {

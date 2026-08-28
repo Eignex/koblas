@@ -6,6 +6,7 @@ import com.eignex.koblas.koblas
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
@@ -149,7 +150,11 @@ class LinearAlgebraLdlPivotingTest {
         lowerOnly[0, 1] = Double.NaN
         val f = F64ReferenceLinearAlgebra.ldl(lowerOnly)
         assertTrue(!f.singular, "a subnormal pivot is not a zero pivot")
-        assertTrue(f.ldl[1] == 1.0, "multiplier is ${f.ldl[1]}, expected exactly 1.0")
+        assertEquals(
+            1.0,
+            f.ldl[1],
+            "multiplier is ${f.ldl[1]}, expected exactly 1.0"
+        )
         for (i in 0 until n) {
             for (j in 0..i) {
                 assertTrue(

@@ -194,5 +194,5 @@ internal object AnchoredFactorization {
 }
 
 /** Runs [body] with a pointer to [control], or with null, which means UMFPACK's own defaults. */
-internal inline fun <R> withControl(control: DoubleArray?, body: (CPointer<kotlinx.cinterop.DoubleVar>?) -> R): R =
+internal inline fun <R> withControl(control: DoubleArray?, body: (CPointer<DoubleVar>?) -> R): R =
     if (control == null) body(null) else control.usePinned { body(it.addressOf(0)) }

@@ -4,10 +4,10 @@ import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.F64ReferenceSparseDecompositions
-import com.eignex.koblas.sparse.lu
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class BlasConformanceTest {
@@ -166,7 +166,7 @@ class BlasConformanceTest {
         for (n in intArrayOf(1, 4, 16)) {
             val a = wellConditioned(n, rng)
             val id = F64DenseMatrix.diagonal(n)
-            assertTrue(a * id == a, "A·I != A at n=$n")
+            assertEquals(a * id, a, "A·I != A at n=$n")
             val b = F64DenseMatrix(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
             val c = F64DenseMatrix(n, n, DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) })
             val left = a * b * c

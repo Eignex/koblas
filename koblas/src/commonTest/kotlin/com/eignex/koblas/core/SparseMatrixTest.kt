@@ -95,7 +95,7 @@ class SparseMatrixTest {
     fun `the F64MatrixView gemv overload agrees with the dense equivalent`() {
         val a = F64SparseMatrix.ofColumns(3, 2, listOf(listOf(0 to 1.0, 2 to 3.0), listOf(1 to 2.0)))
         val dense = F64DenseMatrix.of(a.toArray())
-        for (x in listOf<F64VectorView>(
+        for (x in listOf(
             F64DenseVector.of(doubleArrayOf(2.0, -1.0)),
             F64SparseVector.of(2, intArrayOf(1), doubleArrayOf(-1.0)),
             F64SparseVector.of(2, IntArray(0), DoubleArray(0)),
@@ -130,7 +130,7 @@ class SparseMatrixTest {
             colIdx = intArrayOf(0, 1, 2),
             values = doubleArrayOf(1.0, 3.0, 2.0),
         )
-        assertEquals(viaColumns, viaTriplets)
+        assertEquals(viaTriplets, viaColumns)
     }
 
     @Test

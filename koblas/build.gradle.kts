@@ -112,7 +112,7 @@ kover {
     reports {
         filters {
             excludes {
-                classes("*\$DefaultImpls")
+                classes($$"*$DefaultImpls")
             }
         }
     }

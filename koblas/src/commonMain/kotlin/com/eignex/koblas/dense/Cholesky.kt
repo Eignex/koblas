@@ -1,5 +1,5 @@
 // math convention: single-letter matrices L, M, etc.
-@file:Suppress("VariableNaming", "FunctionParameterNaming", "PropertyName")
+@file:Suppress("VariableNaming", "FunctionParameterNaming")
 
 package com.eignex.koblas.dense
 

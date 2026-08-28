@@ -12,12 +12,12 @@ import com.eignex.koblas.sparse.host.klu.KluSparseLu
  * One of [KluSparseLu] rather than a wrapper around one, so the analysis reuse that sits on that class stays
  * reachable through [com.eignex.koblas.backendNamed] whichever of the two answered to the name.
  */
-public class BundledKlu private constructor(config: KluConfig) : KluSparseLu(config) {
+class BundledKlu private constructor(config: KluConfig) : KluSparseLu(config) {
     /** Creates bundled KLU with default options. */
-    public constructor() : this(KluOptions())
+    constructor() : this(KluOptions())
 
     /** Creates bundled KLU with the same numerical and execution [options] accepted by the host binding. */
-    public constructor(options: KluOptions) : this(KluConfig(kluLibrary.extract().toString(), options))
+    constructor(options: KluOptions) : this(KluConfig(kluLibrary.extract().toString(), options))
 
     override val name: String get() = "klu-bundled"
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 2

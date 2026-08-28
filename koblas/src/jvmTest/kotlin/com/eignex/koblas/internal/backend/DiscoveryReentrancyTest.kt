@@ -4,6 +4,7 @@ import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.discoverBackends
 import com.eignex.koblas.koblas
+import java.io.File
 import java.nio.file.Files
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.*
@@ -13,7 +14,7 @@ import kotlin.test.*
  * and what the discovery probe calls. It does not override [F64Blas.kernels], so that read resolves
  * through [koblas]: a read of the very value discovery is computing.
  */
-public class ProbeReentrantProvider :
+class ProbeReentrantProvider :
     F64LinearAlgebra,
     F64Blas by F64ReferenceLinearAlgebra,
     F64Decompositions by F64ReferenceLinearAlgebra {
@@ -55,13 +56,13 @@ public class ProbeReentrantProvider :
     }
 
     /** How many of these the process has built, which is one per discovery pass. */
-    public companion object {
-        public val instantiations: AtomicInteger = AtomicInteger()
+    companion object {
+        val instantiations: AtomicInteger = AtomicInteger()
     }
 }
 
 /** Reads [koblas] on a JVM where [ProbeReentrantProvider] is service-loaded, and reports what happened. */
-public fun main() {
+fun main() {
     discoverBackends()
     val resolved = koblas.name
     println("resolved=$resolved passes=${ProbeReentrantProvider.instantiations.get()}")
@@ -104,7 +105,7 @@ class DiscoveryReentrancyTest {
             registrations.resolve("com.eignex.koblas.dense.F64LinearAlgebra"),
             registration,
         )
-        val separator = System.getProperty("path.separator")
+        val separator = File.pathSeparator
         val process = ProcessBuilder(
             "${System.getProperty("java.home")}/bin/java",
             "--enable-native-access=ALL-UNNAMED",

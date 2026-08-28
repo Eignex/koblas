@@ -194,6 +194,10 @@ class CholmodSparseBlasTest {
         val actual = b.copyOf().also { cholmod.trsv(triangle, it, lower = true) }
 
         assertClose(expected, actual, "trsv", tolerance = 1e-12)
-        assertTrue(cholmod.transpose(triangle).nnz == triangle.nnz, "the transpose keeps every stored entry")
+        assertEquals(
+            cholmod.transpose(triangle).nnz,
+            triangle.nnz,
+            "the transpose keeps every stored entry"
+        )
     }
 }

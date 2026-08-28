@@ -193,31 +193,3 @@ internal fun bandUpperTriangle(n: Int): F64SparseMatrix {
     }
     return F64SparseMatrix.ofTriplets(n, n, rowIdx, colIdx, values)
 }
-
-internal fun gridUpperTriangle(n: Int): F64SparseMatrix {
-    var side = 1
-    while ((side + 1) * (side + 1) <= n) side++
-    val points = side * side
-    val rowIdx = ArrayList<Int>()
-    val colIdx = ArrayList<Int>()
-    val values = ArrayList<Double>()
-    for (y in 0 until side) {
-        for (x in 0 until side) {
-            val i = y * side + x
-            rowIdx.add(i)
-            colIdx.add(i)
-            values.add(8.0)
-            if (x + 1 < side) {
-                rowIdx.add(i)
-                colIdx.add(i + 1)
-                values.add(-1.0)
-            }
-            if (y + 1 < side) {
-                rowIdx.add(i)
-                colIdx.add(i + side)
-                values.add(-1.0)
-            }
-        }
-    }
-    return F64SparseMatrix.ofTriplets(points, points, rowIdx.toIntArray(), colIdx.toIntArray(), values.toDoubleArray())
-}

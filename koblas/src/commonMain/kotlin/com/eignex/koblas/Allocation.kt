@@ -64,9 +64,9 @@ public data class AllocationCapability(
 ) {
     init {
         val keys = HashSet<Pair<ScratchKind, Int>>()
-        for (requirement in scratch) {
-            require(keys.add(requirement.kind to requirement.size)) {
-                "duplicate ${requirement.kind} scratch requirement of size ${requirement.size}"
+        for ((kind, size) in scratch) {
+            require(keys.add(kind to size)) {
+                "duplicate $kind scratch requirement of size $size"
             }
         }
     }
@@ -74,8 +74,7 @@ public data class AllocationCapability(
     /** Whether this capability can honor [policy] with buffers currently idle in [workspace]. */
     public fun supports(policy: AllocationPolicy, workspace: Workspace? = null): Boolean {
         val required = policy.guarantee ?: return true
-        if (guarantee.ordinal < required.ordinal) return false
-        return scratch.all { workspace != null && workspace.available(it) >= it.count }
+        return guarantee.ordinal >= required.ordinal && scratch.all { workspace != null && workspace.available(it) >= it.count }
     }
 }
 

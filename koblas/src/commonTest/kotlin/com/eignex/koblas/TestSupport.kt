@@ -3,6 +3,7 @@ package com.eignex.koblas
 import com.eignex.koblas.core.F64DenseMatrix
 import kotlin.math.abs
 import kotlin.random.Random
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /** Tolerance for a chain of a few dozen flops, relative to `max(1, |expected|)`. */
@@ -21,7 +22,11 @@ internal fun assertClose(
     context: String,
     tolerance: Double = TIGHT_TOLERANCE,
 ) {
-    assertTrue(expected.size == actual.size, "$context: size ${actual.size}, expected ${expected.size}")
+    assertEquals(
+        expected.size,
+        actual.size,
+        "$context: size ${actual.size}, expected ${expected.size}"
+    )
     for (i in expected.indices) assertClose(expected[i], actual[i], "$context index $i", tolerance)
 }
 
