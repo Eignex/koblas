@@ -48,7 +48,7 @@ public fun F64DenseMatrix.trmm(
     alpha: Double = 1.0,
 ): Unit = koblas.trmm(this, b, lower, transpose, unitDiag, right, alpha)
 
-/** Invert the [lower] or upper triangle of [a] (LAPACK `dtrtri`); see [F64LinearAlgebra.trtri]. */
+/** Invert this matrix's [lower] or upper triangle (LAPACK `dtrtri`); see [F64LinearAlgebra.trtri]. */
 public fun F64DenseMatrix.trtri(lower: Boolean, unitDiag: Boolean = false): F64DenseMatrix = koblas.trtri(
     this,
     lower,
