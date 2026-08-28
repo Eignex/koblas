@@ -192,8 +192,11 @@ the environment variable. Override a library path with the JVM property `koblas.
 variable `KOBLAS_<LIBRARY>_PATH`. Supported library identifiers are cblas, lapacke, klu, umfpack, cholmod,
 basiclu, and hfactor.
 
-Pin discovery by backend name with `koblas.<half>.backend` or `KOBLAS_<HALF>_BACKEND`, where the half is dense
-or sparse. A blank value is treated as unset, and the value "reference" disables host selection for that half.
+Pin discovery by backend name per semantic role. Set a JVM property named `koblas.backend.<role>` or the
+matching `KOBLAS_<ROLE>_BACKEND` environment variable; the property takes precedence. A blank value leaves the
+role automatic, while `reference` disables host selection for that role. For example, pin general sparse LU
+with `koblas.backend.sparse.general.lu` or
+`KOBLAS_SPARSE_GENERAL_LU_BACKEND`.
 
 ## Sparse workflows
 

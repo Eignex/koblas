@@ -6,17 +6,57 @@ package com.eignex.koblas.internal.backend
  * them. Which platform honors which is up to that platform: there are no system properties outside the JVM.
  */
 internal object ConfigurationKeys {
-    /** Pins dense backend selection to one [BackendNames] value instead of taking the highest priority offered. */
-    const val DENSE_BACKEND_PROPERTY = "koblas.dense.backend"
-
-    /** The environment variable behind [DENSE_BACKEND_PROPERTY], for a deployment that sets no properties. */
-    const val DENSE_BACKEND_ENVIRONMENT = "KOBLAS_DENSE_BACKEND"
-
-    /** Pins sparse backend selection to one [BackendNames] value instead of taking the highest priority offered. */
-    const val SPARSE_BACKEND_PROPERTY = "koblas.sparse.backend"
-
-    /** The environment variable behind [SPARSE_BACKEND_PROPERTY]. */
-    const val SPARSE_BACKEND_ENVIRONMENT = "KOBLAS_SPARSE_BACKEND"
+    /** Pins one semantic backend role to one [BackendNames] value instead of taking the highest offer. */
+    val BACKENDS: Map<BackendSlot, BackendSelectionKeys> = mapOf(
+        BackendSlot.F64Kernels to BackendSelectionKeys(
+            "koblas.backend.dense.kernels",
+            "KOBLAS_DENSE_KERNELS_BACKEND",
+        ),
+        BackendSlot.F64Blas to BackendSelectionKeys(
+            "koblas.backend.dense.blas",
+            "KOBLAS_DENSE_BLAS_BACKEND",
+        ),
+        BackendSlot.F64Decompositions to BackendSelectionKeys(
+            "koblas.backend.dense.decompositions",
+            "KOBLAS_DENSE_DECOMPOSITIONS_BACKEND",
+        ),
+        BackendSlot.F64SparseKernels to BackendSelectionKeys(
+            "koblas.backend.sparse.kernels",
+            "KOBLAS_SPARSE_KERNELS_BACKEND",
+        ),
+        BackendSlot.F64SparseBlas to BackendSelectionKeys(
+            "koblas.backend.sparse.blas",
+            "KOBLAS_SPARSE_BLAS_BACKEND",
+        ),
+        BackendSlot.F64GeneralSparseLu to BackendSelectionKeys(
+            "koblas.backend.sparse.general.lu",
+            "KOBLAS_SPARSE_GENERAL_LU_BACKEND",
+        ),
+        BackendSlot.F64RepeatedSparseLu to BackendSelectionKeys(
+            "koblas.backend.sparse.repeated.lu",
+            "KOBLAS_SPARSE_REPEATED_LU_BACKEND",
+        ),
+        BackendSlot.F64SparseCholesky to BackendSelectionKeys(
+            "koblas.backend.sparse.cholesky",
+            "KOBLAS_SPARSE_CHOLESKY_BACKEND",
+        ),
+        BackendSlot.F64SparseLdl to BackendSelectionKeys(
+            "koblas.backend.sparse.ldl",
+            "KOBLAS_SPARSE_LDL_BACKEND",
+        ),
+        BackendSlot.F64SparseQr to BackendSelectionKeys(
+            "koblas.backend.sparse.qr",
+            "KOBLAS_SPARSE_QR_BACKEND",
+        ),
+        BackendSlot.F64BasisFactorizations to BackendSelectionKeys(
+            "koblas.backend.basis.factorizations",
+            "KOBLAS_BASIS_FACTORIZATIONS_BACKEND",
+        ),
+        BackendSlot.F64BasisSolvers to BackendSelectionKeys(
+            "koblas.backend.basis.solvers",
+            "KOBLAS_BASIS_SOLVERS_BACKEND",
+        ),
+    )
 
     /** An absolute path to the library exporting `cblas_*`, overriding the deployment lookup chain. */
     val CBLAS_PATH = LibraryPathKeys("koblas.cblas.path", "KOBLAS_CBLAS_PATH")
@@ -42,6 +82,9 @@ internal object ConfigurationKeys {
 
 /** The system property and the environment variable a deployment can point one library path at. */
 internal class LibraryPathKeys(val property: String, val environment: String)
+
+/** The system property and environment variable that pin one semantic backend role. */
+internal class BackendSelectionKeys(val property: String, val environment: String)
 
 /**
  * The backend pin a deployment asked for, [property] ahead of [environment]. Blank counts as unset, since a

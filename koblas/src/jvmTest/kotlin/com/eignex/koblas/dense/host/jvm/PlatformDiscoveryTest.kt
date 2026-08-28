@@ -10,24 +10,23 @@ import org.junit.experimental.categories.Category
 import kotlin.test.*
 
 /**
- * Discovery itself, which the everyday run never reaches: it pins both backend domains to `reference`.
+ * Discovery itself, which the everyday run never reaches: it pins every backend role to `reference`.
  * Carries the host-library category because every path past that line consults [HostLibraries], and loading a
  * host library is what the default run is kept away from.
  */
 @Category(HostLibraryTest::class)
 class PlatformDiscoveryTest {
 
-    /** Runs [block] with both backend-domain properties set to [value], or absent when null, then restores them. */
+    /** Runs [block] with every role property set to [value], or absent when null, then restores them. */
     private fun withRequestedBackend(value: String?, block: () -> Unit) {
-        val previousDense: String? = System.getProperty(DENSE_PROPERTY)
-        val previousSparse: String? = System.getProperty(SPARSE_PROPERTY)
-        setRequestedBackend(DENSE_PROPERTY, value)
-        setRequestedBackend(SPARSE_PROPERTY, value)
+        val previous = ConfigurationKeys.BACKENDS.values.associate { keys ->
+            keys.property to System.getProperty(keys.property)
+        }
+        ConfigurationKeys.BACKENDS.values.forEach { keys -> setRequestedBackend(keys.property, value) }
         try {
             block()
         } finally {
-            setRequestedBackend(DENSE_PROPERTY, previousDense)
-            setRequestedBackend(SPARSE_PROPERTY, previousSparse)
+            previous.forEach { (property, previousValue) -> setRequestedBackend(property, previousValue) }
         }
     }
 
@@ -155,10 +154,5 @@ class PlatformDiscoveryTest {
             { F64ReferenceLinearAlgebra.gemm(alpha, a, transposeA, b, transposeB, beta, c) },
             c,
         )
-    }
-
-    private companion object {
-        const val DENSE_PROPERTY = "koblas.dense.backend"
-        const val SPARSE_PROPERTY = "koblas.sparse.backend"
     }
 }
