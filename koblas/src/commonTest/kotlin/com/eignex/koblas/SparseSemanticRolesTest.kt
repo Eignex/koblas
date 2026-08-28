@@ -67,8 +67,10 @@ class SparseSemanticRolesTest {
      * that names no role leaves every one of them to the reference rather than silently taking all of them.
      */
     @Test
-    fun `a provider that fills no role takes none of them`() = withCleanBackends {
-        registerBackend(LegacyProvider("third-party", priority = 50))
+    fun `a provider that fills no role is rejected by registration`() = withCleanBackends {
+        assertFailsWith<IllegalArgumentException> {
+            registerBackend(LegacyProvider("third-party", priority = 50))
+        }
 
         assertEquals("reference", koblas.generalSparseLu.name)
         assertEquals("reference", koblas.sparseCholesky.name)
@@ -81,25 +83,23 @@ class SparseSemanticRolesTest {
         val provider = LegacyProvider("third-party", priority = 50)
 
         assertFailsWith<IllegalArgumentException> {
-            F64ContextBuilder().withBackend(BackendRole.SPARSE_DECOMPOSITIONS, provider)
-        }
-        assertFailsWith<IllegalArgumentException> {
             F64ContextBuilder().withBackend(BackendRole.SPARSE_GENERAL_LU, provider)
         }
     }
 
     @Test
-    fun `the wide sparse role selects all four factorization providers`() {
+    fun `a complete backend selects all four factorization providers`() {
         val provider = Complete()
 
         val context = F64ContextBuilder()
-            .withBackend(BackendRole.SPARSE_DECOMPOSITIONS, provider)
+            .withBackend(provider)
             .resolve()
 
         assertSame(provider, context.generalSparseLu)
         assertSame(provider, context.sparseCholesky)
         assertSame(provider, context.sparseLdl)
         assertSame(provider, context.sparseQr)
+        assertNotSame(provider, context.sparseDecompositions)
     }
 
     @Test
@@ -107,7 +107,7 @@ class SparseSemanticRolesTest {
         val provider = F64ReferenceSparseDecompositions(equilibrate = true)
 
         val context = F64ContextBuilder()
-            .withBackend(BackendRole.SPARSE_DECOMPOSITIONS, provider)
+            .withBackend(provider)
             .resolve()
 
         assertSame(provider, context.generalSparseLu)

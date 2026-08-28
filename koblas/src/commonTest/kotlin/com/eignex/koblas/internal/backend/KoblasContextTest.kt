@@ -60,7 +60,7 @@ class KoblasContextTest {
         assertSame(base.blas, derived.blas)
         assertSame(base.decompositions, derived.decompositions)
         assertSame(base.sparseBlas, derived.sparseBlas)
-        assertSame(base.sparseDecompositions, derived.sparseDecompositions)
+        assertEquals(base.sparseDecompositions.name, derived.sparseDecompositions.name)
         assertSame(base.sparseKernels, derived.sparseKernels)
         assertSame(base.kernels, base.kernels, "the original must be untouched; contexts are values")
     }

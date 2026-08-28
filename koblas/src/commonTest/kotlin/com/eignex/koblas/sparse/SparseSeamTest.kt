@@ -257,7 +257,7 @@ class SparseSeamTest {
         resetBackends()
         registerBackend(F64ReferenceSparseLinearAlgebra)
         assertSame(F64ReferenceSparseLinearAlgebra, koblas.sparseBlas)
-        assertSame(F64ReferenceSparseLinearAlgebra, koblas.sparseDecompositions)
+        assertEquals("reference", koblas.sparseDecompositions.name)
     }
 
     @Test
@@ -283,7 +283,7 @@ class SparseSeamTest {
     @Test
     fun `an empty registry resolves to the portable implementation on all three sparse halves`() = withCleanBackends {
         assertSame(F64ReferenceSparseLinearAlgebra, koblas.sparseBlas)
-        assertSame(F64ReferenceSparseLinearAlgebra, koblas.sparseDecompositions)
+        assertEquals("reference", koblas.sparseDecompositions.name)
         assertSame(F64PlatformSparseKernels, koblas.sparseKernels)
     }
 }

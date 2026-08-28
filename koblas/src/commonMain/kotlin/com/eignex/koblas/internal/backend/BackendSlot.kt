@@ -15,6 +15,7 @@ internal enum class BackendSlot(
     internal val from: (F64Context) -> Backend,
     internal val vectorHalf: Boolean = false,
     internal val sparse: Boolean = false,
+    internal val required: Boolean = true,
 ) {
     /** Dense vector-vector routines. */
     F64Kernels({ it.kernels }, vectorHalf = true),
@@ -31,8 +32,27 @@ internal enum class BackendSlot(
     /** Sparse matrix routines. */
     F64SparseBlas({ it.sparseBlas }, sparse = true),
 
-    /** Sparse factorizations. */
-    F64SparseDecompositions({ it.sparseDecompositions }, sparse = true),
+    /** General pivoting sparse LU. */
+    F64GeneralSparseLu({ it.generalSparseLu }, sparse = true),
+
+    /** Repeated-pattern sparse LU. */
+    F64RepeatedSparseLu(
+        { it.repeatedSparseLu ?: com.eignex.koblas.MissingRepeatedSparseLu },
+        sparse = true,
+        required = false,
+    ),
+
+    /** Sparse Cholesky. */
+    F64SparseCholesky({ it.sparseCholesky }, sparse = true),
+
+    /** Sparse LDL. */
+    F64SparseLdl({ it.sparseLdl }, sparse = true),
+
+    /** Sparse QR. */
+    F64SparseQr({ it.sparseQr }, sparse = true),
+
+    /** Simplex basis factorizations. */
+    F64BasisFactorizations({ it.basisFactorizations }, sparse = true),
 
     /** Simplex basis solvers. */
     F64BasisSolvers({ it.basisSolvers }, sparse = true),
@@ -43,7 +63,8 @@ internal enum class BackendSlot(
         val names: String = entries.dropLast(1).joinToString(", ") { it.name } + " or " + entries.last().name
 
         /** The halves that do the matrix work, the ones a context is named after. */
-        val matrixHalves: List<BackendSlot> = entries.filterNot { it.vectorHalf }
+        val contextHalves: List<BackendSlot> = entries.filter { it.required }
+        val matrixHalves: List<BackendSlot> = contextHalves.filterNot { it.vectorHalf }
 
         /** The halves a dense pin speaks for, and the rest, which a sparse pin speaks for. */
         val denseHalves: Set<BackendSlot> = entries.filterNotTo(mutableSetOf()) { it.sparse }

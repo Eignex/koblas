@@ -24,7 +24,7 @@ class VectorTest {
     fun `F64DenseVector wrap aliases the backing array without copying`() {
         val data = doubleArrayOf(1.0, 2.0)
         val v = F64DenseVector.wrap(data)
-        data[1] = 42.0 // mutating the source is visible through the view (ownership relinquished)
+        data[1] = 42.0 // mutating the source is visible through the wrapped vector
         assertEquals(42.0, v[1], 0.0)
     }
 

@@ -19,9 +19,6 @@ public enum class BackendRole {
     /** Sparse matrix operations. */
     SPARSE_BLAS,
 
-    /** Sparse factorizations and their solves. */
-    SPARSE_DECOMPOSITIONS,
-
     /** General pivoting sparse LU for unrelated patterns. */
     SPARSE_GENERAL_LU,
 
@@ -91,7 +88,6 @@ public fun F64Context.backendFor(role: BackendRole): Backend = when (role) {
     BackendRole.DENSE_DECOMPOSITIONS -> decompositions
     BackendRole.SPARSE_KERNELS -> sparseKernels
     BackendRole.SPARSE_BLAS -> sparseBlas
-    BackendRole.SPARSE_DECOMPOSITIONS -> sparseDecompositions
     BackendRole.SPARSE_GENERAL_LU -> generalSparseLu
     BackendRole.SPARSE_REPEATED_LU -> repeatedSparseLu ?: MissingRepeatedSparseLu
     BackendRole.SPARSE_CHOLESKY -> sparseCholesky

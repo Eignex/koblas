@@ -39,7 +39,7 @@ class MatrixTest {
     fun `F64DenseMatrix wrap aliases the backing array without copying`() {
         val data = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
         val m = F64DenseMatrix.wrap(2, 2, data)
-        data[0] = 99.0 // mutating the source is visible through the view (ownership relinquished)
+        data[0] = 99.0 // mutating the source is visible through the wrapped matrix
         assertEquals(99.0, m[0, 0], 0.0)
     }
 

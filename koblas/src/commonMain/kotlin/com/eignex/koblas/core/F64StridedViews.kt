@@ -4,18 +4,10 @@ import com.eignex.koblas.requireInBounds
 import com.eignex.koblas.requireNonNegativeShape
 import com.eignex.koblas.requireShape
 
-/** Whether a dense storage object owns its buffer or borrows it from another object. */
-public enum class BufferOwnership {
-    /** The storage owns the buffer passed to it; callers must not independently mutate it. */
-    OWNED,
-
-    /** The storage is a live view; the source owner and every overlapping view observe mutations. */
-    BORROWED,
-}
-
 /**
- * A mutable borrowed view of [size] entries in [data], starting at [offset] and separated by [stride].
- * Negative stride is supported when both ends remain in the buffer. The view never copies or owns [data].
+ * A mutable live view of [size] entries in [data], starting at [offset] and separated by [stride].
+ * Negative stride is supported when both ends remain in the buffer. The view never copies [data], so mutations
+ * through the view or any other reference to the array are visible to each other.
  */
 public class F64StridedVectorView(
     public val data: DoubleArray,
@@ -23,9 +15,6 @@ public class F64StridedVectorView(
     override val size: Int,
     public val stride: Int = 1,
 ) : F64VectorLike {
-    /** This view borrows [data]. */
-    public val ownership: BufferOwnership get() = BufferOwnership.BORROWED
-
     init {
         requireShape(size >= 0) { "negative size: $size" }
         require(stride != 0) { "stride must not be zero" }
@@ -49,8 +38,10 @@ public class F64StridedVectorView(
 }
 
 /**
- * A mutable borrowed column-major matrix view. Entry `(i, j)` is at
+ * A mutable live column-major matrix view. Entry `(i, j)` is at
  * `offset + i + j * leadingDimension` in [data], so panels can retain their parent's physical column stride.
+ * The view never copies [data], so mutations through the view or any other reference to the array are visible
+ * to each other.
  */
 public class F64StridedMatrixView(
     override val rows: Int,
@@ -61,9 +52,6 @@ public class F64StridedMatrixView(
     /** Physical distance between the starts of adjacent columns. */
     public val leadingDimension: Int = maxOf(1, rows),
 ) : F64MatrixLike {
-    /** This view borrows [data]. */
-    public val ownership: BufferOwnership get() = BufferOwnership.BORROWED
-
     init {
         requireNonNegativeShape(rows, cols)
         require(leadingDimension >= maxOf(1, rows)) {

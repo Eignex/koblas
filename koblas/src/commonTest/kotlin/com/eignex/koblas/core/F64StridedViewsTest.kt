@@ -17,8 +17,6 @@ class F64StridedViewsTest {
         val panel = matrix.view(row = 1, rows = 2, column = 1, cols = 2)
         panel[1, 1] = -1.0
 
-        assertEquals(BufferOwnership.OWNED, matrix.ownership)
-        assertEquals(BufferOwnership.BORROWED, panel.ownership)
         assertSame(matrix.data, panel.data)
         assertEquals(4, panel.leadingDimension)
         assertTrue(

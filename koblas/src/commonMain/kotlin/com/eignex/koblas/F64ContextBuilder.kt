@@ -35,19 +35,7 @@ public class F64ContextBuilder private constructor(
     /** Selects [backend] for [role], without consulting global registration or priority. */
     public fun withBackend(role: BackendRole, backend: Backend): F64ContextBuilder {
         require(role.accepts(backend)) { "${backend.name} does not implement $role" }
-        val updated = if (role == BackendRole.SPARSE_DECOMPOSITIONS) {
-            selections + mapOf(
-                BackendRole.SPARSE_DECOMPOSITIONS to backend,
-                BackendRole.SPARSE_GENERAL_LU to backend,
-                BackendRole.SPARSE_CHOLESKY to backend,
-                BackendRole.SPARSE_LDL to backend,
-                BackendRole.SPARSE_QR to backend,
-                BackendRole.SPARSE_QR to backend,
-            )
-        } else {
-            selections + (role to backend)
-        }
-        return copy(selections = updated)
+        return copy(selections = selections + (role to backend))
     }
 
     /**
@@ -136,7 +124,6 @@ private fun portableSelections(): Map<BackendRole, Backend> = mapOf(
     BackendRole.DENSE_DECOMPOSITIONS to F64ReferenceLinearAlgebra,
     BackendRole.SPARSE_KERNELS to F64PlatformSparseKernels,
     BackendRole.SPARSE_BLAS to F64ReferenceSparseLinearAlgebra,
-    BackendRole.SPARSE_DECOMPOSITIONS to F64ReferenceSparseLinearAlgebra,
     BackendRole.SPARSE_GENERAL_LU to F64ReferenceSparseLinearAlgebra,
     BackendRole.SPARSE_REPEATED_LU to MissingRepeatedSparseLu,
     BackendRole.SPARSE_CHOLESKY to F64ReferenceSparseLinearAlgebra,
@@ -148,34 +135,16 @@ private fun portableSelections(): Map<BackendRole, Backend> = mapOf(
 
 private fun BackendRole.accepts(backend: Backend): Boolean = when (this) {
     BackendRole.DENSE_KERNELS -> backend is F64Kernels
-
     BackendRole.DENSE_BLAS -> backend is F64Blas
-
     BackendRole.DENSE_DECOMPOSITIONS -> backend is F64Decompositions
-
     BackendRole.SPARSE_KERNELS -> backend is F64SparseKernels
-
     BackendRole.SPARSE_BLAS -> backend is F64SparseBlas
-
-    BackendRole.SPARSE_DECOMPOSITIONS ->
-        backend is F64SparseDecompositions &&
-            backend is F64GeneralSparseLu &&
-            backend is F64SparseCholesky &&
-            backend is F64SparseLdl &&
-            backend is F64SparseQr
-
     BackendRole.SPARSE_GENERAL_LU -> backend is F64GeneralSparseLu
-
     BackendRole.SPARSE_REPEATED_LU -> backend is F64RepeatedSparseLu
-
     BackendRole.SPARSE_CHOLESKY -> backend is F64SparseCholesky
-
     BackendRole.SPARSE_LDL -> backend is F64SparseLdl
-
     BackendRole.SPARSE_QR -> backend is F64SparseQr
-
     BackendRole.BASIS_FACTORIZATIONS -> backend is F64BasisFactorizations
-
     BackendRole.BASIS_SOLVERS -> backend is F64BasisSolvers
 }
 
