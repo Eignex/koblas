@@ -1,7 +1,6 @@
 package com.eignex.koblas.basiclu
 
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
-import com.eignex.koblas.internal.backend.BundledNativeResources
 import com.eignex.koblas.sparse.host.basiclu.BasicluConfig
 import com.eignex.koblas.sparse.host.basiclu.BasicluOptions
 import com.eignex.koblas.sparse.host.basiclu.BasicluSparseLu

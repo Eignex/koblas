@@ -1,7 +1,6 @@
 package com.eignex.koblas.suitesparse
 
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
-import com.eignex.koblas.internal.backend.BundledNativeResources
 import com.eignex.koblas.openblas.BundledOpenBlas
 import com.eignex.koblas.sparse.host.umfpack.UmfpackConfig
 import com.eignex.koblas.sparse.host.umfpack.UmfpackOptions

@@ -1,7 +1,5 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.sparse.lu
 import com.eignex.koblas.sparse.sparseConformanceSystem
@@ -15,14 +13,14 @@ class ReadmeSamplesTest {
     @Test
     fun `the LU sample solves the system it claims`() {
         val rows = arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0))
-        val a = F64DenseMatrix.of(rows)
+        val a = DenseMatrix.of(rows)
         val x = a.lu().solve(doubleArrayOf(3.0, 5.0))
         assertClose(doubleArrayOf(0.8, 1.4), x, "README LU sample", tolerance = 1e-12)
     }
 
     @Test
     fun `the Cholesky sample factors and solves`() {
-        val a = F64DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0)))
+        val a = DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0)))
         val chol = a.cholesky() // A = L·Lᵀ
         val xs = chol.solve(doubleArrayOf(3.0, 5.0))
         assertClose(doubleArrayOf(0.8, 1.4), xs, "README Cholesky sample", tolerance = 1e-12)
@@ -31,7 +29,7 @@ class ReadmeSamplesTest {
     @Test
     fun `the sparse sample factorizes and solves both directions`() {
         val cols = listOf(listOf(0 to 2.0, 1 to 1.0), listOf(0 to 1.0, 1 to 3.0))
-        val s = F64SparseMatrix.ofColumns(2, 2, cols)
+        val s = SparseMatrix.ofColumns(2, 2, cols)
         val lu = s.lu()
         val forward = lu.solve(doubleArrayOf(3.0, 5.0)) // B x = b
         val backward = lu.solve(doubleArrayOf(3.0, 5.0), transpose = true) // Bᵀ x = b
@@ -41,7 +39,7 @@ class ReadmeSamplesTest {
 
     @Test
     fun `the README's failure-recovery sample compiles and recovers`() {
-        val a = F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 1.0)))
+        val a = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 1.0)))
         val chol = try {
             a.cholesky()
         } catch (e: NotPositiveDefinite) {
@@ -53,7 +51,7 @@ class ReadmeSamplesTest {
 
     @Test
     fun `the triplet sample builds the same matrix the column sample does`() {
-        val s = F64SparseMatrix.ofTriplets(
+        val s = SparseMatrix.ofTriplets(
             rows = 2,
             cols = 2,
             rowIdx = intArrayOf(0, 1, 0, 1),
@@ -63,7 +61,7 @@ class ReadmeSamplesTest {
         val cols = listOf(listOf(0 to 2.0, 1 to 1.0), listOf(0 to 1.0, 1 to 3.0))
         assertEquals(
             s,
-            F64SparseMatrix.ofColumns(2, 2, cols),
+            SparseMatrix.ofColumns(2, 2, cols),
             "README triplet sample should match the column one",
         )
     }
@@ -74,7 +72,7 @@ class ReadmeSamplesTest {
         val rng = Random(20260803)
         val a = wellConditioned(n, rng)
         val b = randomVector(n, rng)
-        val identity = F64SparseMatrix.ofColumns(n, n, List(n) { j -> listOf(j to 1.0) })
+        val identity = SparseMatrix.ofColumns(n, n, List(n) { j -> listOf(j to 1.0) })
         val basis = identity.lu()
         val lu = a.lu()
         val anorm = a.norm1()

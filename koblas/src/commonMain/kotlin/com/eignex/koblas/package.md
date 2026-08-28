@@ -8,10 +8,10 @@ BLAS/LAPACK and the deliberate deviations.
 - Containers: [F64MatrixStorage][com.eignex.koblas.core.F64MatrixStorage] / [F64DenseMatrix][com.eignex.koblas.core.F64DenseMatrix]
   and [F64VectorStorage][com.eignex.koblas.core.F64VectorStorage] / [F64DenseVector][com.eignex.koblas.core.F64DenseVector] /
   [F64SparseVector][com.eignex.koblas.core.F64SparseVector], all `@Serializable`, plus the CSC
-  [F64SparseMatrix][com.eignex.koblas.core.F64SparseMatrix]. The view roots are sealed, which is what gives the
+  [F64SparseMatrix][com.eignex.koblas.core.F64SparseMatrix]. The storage roots are sealed, which gives the
   concrete storage a closed set and lets a snapshot round-trip with its type preserved — and is why the
   containers stay in one package rather than splitting with the operations that consume them.
-- Free-function arithmetic over the views, dispatching dense or sparse by operand type: [dot], [axpy],
+- Free-function arithmetic over the read-only contracts, dispatching dense or sparse by operand type: [dot], [axpy],
   [scale], [norm2], [asum], [iamax], [copy], [swap], [ger], [times], [transpose], [forEachStored], and
   the matrix 1-norm [norm1].
 - Shared machinery: [Backend] (what every backend of every tier reports about itself), structured
@@ -21,3 +21,5 @@ BLAS/LAPACK and the deliberate deviations.
   these is per element type.
 - Explicit solver configuration: [F64ContextBuilder] resolves independent immutable contexts with
   [F64DispatchPolicy] and [F64FallbackPolicy], without changing the process-wide registry.
+- The element type in the expert names, and the unqualified aliases for the double-precision ones, are
+  collected in `Precision.kt`; the `dense` and `sparse` packages each have the same file for their own names.

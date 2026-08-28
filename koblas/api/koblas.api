@@ -1442,24 +1442,6 @@ public final class com/eignex/koblas/dense/host/jvm/F64Lapacke : com/eignex/kobl
 	public fun isAvailable ()Z
 }
 
-public final class com/eignex/koblas/internal/backend/BundledLibrary {
-	public final fun extract ()Ljava/nio/file/Path;
-}
-
-public final class com/eignex/koblas/internal/backend/BundledNativeResources {
-	public static final field Companion Lcom/eignex/koblas/internal/backend/BundledNativeResources$Companion;
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Class;Ljava/lang/String;)V
-	public final fun extract (Ljava/lang/Iterable;Z)Ljava/util/Map;
-	public static synthetic fun extract$default (Lcom/eignex/koblas/internal/backend/BundledNativeResources;Ljava/lang/Iterable;ZILjava/lang/Object;)Ljava/util/Map;
-	public final fun manifestNames ()Ljava/util/List;
-	public final fun resource (Ljava/lang/String;)Ljava/io/InputStream;
-}
-
-public final class com/eignex/koblas/internal/backend/BundledNativeResources$Companion {
-	public final fun manifestDriven (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;)Lcom/eignex/koblas/internal/backend/BundledLibrary;
-	public final fun supportedPlatform (Lkotlin/jvm/functions/Function2;)Ljava/lang/String;
-}
-
 public abstract interface class com/eignex/koblas/sparse/F64BasisFactorization : com/eignex/koblas/sparse/F64SparseLuFactorization {
 	public abstract fun getBasis ()Lcom/eignex/koblas/core/F64SparseMatrix;
 	public abstract fun replaceColumn (ILcom/eignex/koblas/core/F64SparseVector;)Lcom/eignex/koblas/sparse/F64BasisFactorization;
