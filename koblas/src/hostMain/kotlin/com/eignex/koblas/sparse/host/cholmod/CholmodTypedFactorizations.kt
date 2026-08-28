@@ -4,6 +4,7 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.F64SparseCholeskyFactorization
 import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.F64SparseLdlFactorization
+import com.eignex.koblas.sparse.FactorizationInertia
 
 /*
  * CHOLMOD answers both symmetric routines with one factor object, but the two are different factorizations
@@ -30,7 +31,16 @@ public class CholmodLdlFactorization internal constructor(private val base: Chol
 
     override val d: DoubleArray get() = base.diagonalFactor
 
+    override val inertia: FactorizationInertia
+        get() = d.inertia()
+
     override val order: IntArray get() = base.ordering
 
     override fun close(): Unit = base.close()
 }
+
+private fun DoubleArray.inertia(): FactorizationInertia = FactorizationInertia(
+    positive = count { it > 0.0 },
+    negative = count { it < 0.0 },
+    zero = count { it == 0.0 },
+)

@@ -5,10 +5,8 @@ import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.internal.host.nativeCleaner
-import com.eignex.koblas.sparse.F64SparseFactorizationReport
 import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.FactorsNotExposed
-import com.eignex.koblas.sparse.basicReport
 import com.eignex.koblas.sparse.requireBlockSolveShapes
 import com.eignex.koblas.sparse.requireSolveShapes
 import java.lang.ref.Reference
@@ -129,11 +127,6 @@ public class KluFactorization internal constructor(
         }
         out
     }
-
-    override fun report(): F64SparseFactorizationReport = basicReport("klu").copy(
-        fillRatio = if (factor.rowIdx.isEmpty()) 0.0 else nnz.toDouble() / factor.rowIdx.size,
-        details = mapOf("blockSolve" to "native"),
-    )
 
     override fun close(): Unit = cleanable.clean()
 }

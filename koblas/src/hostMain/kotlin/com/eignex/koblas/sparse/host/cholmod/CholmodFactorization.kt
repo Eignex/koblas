@@ -7,9 +7,7 @@ import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.sparse.F64SparseFactorization
-import com.eignex.koblas.sparse.F64SparseFactorizationReport
 import com.eignex.koblas.sparse.FactorsNotExposed
-import com.eignex.koblas.sparse.basicReport
 import com.eignex.koblas.sparse.requireBlockSolveShapes
 import com.eignex.koblas.sparse.requireSolveShapes
 import kotlinx.cinterop.*
@@ -130,10 +128,6 @@ public class CholmodFactorization internal constructor(
     }
 
     override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability = noManagedAllocation
-
-    override fun report(): F64SparseFactorizationReport = basicReport("cholmod").copy(
-        details = mapOf("blockSolve" to "native"),
-    )
 
     override val nnz: Int get() = anchoring {
         if (singular) {

@@ -130,11 +130,6 @@ class UmfpackConformanceTest {
         assertEquals(3.0, configured.refinementSteps)
         assertEquals(0.2, configured.pivotTolerance)
         assertEquals(2.0, configured.scaling)
-        val report = configured.factor(sparseConformanceSystem(8, Random(20261011))).report()
-        assertEquals("umfpack", report.provider)
-        assertEquals("max", report.scaling)
-        assertEquals(3, report.refinementSteps)
-        assertNotNull(report.fillRatio)
     }
 
     @Test

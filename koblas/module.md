@@ -22,7 +22,7 @@ Light arithmetic lives as free functions over the views: BLAS-1/2 (`dot`, `axpy`
 Sparse linear algebra is a first-class peer: a CSC [F64SparseMatrix][com.eignex.koblas.core.F64SparseMatrix]
 with matrix-vector and matrix-matrix products, general and repeated-pattern LU, Cholesky, LDL, and distinct
 simplex-basis capabilities. Sparse factors provide vector and block solves, deterministic lifecycle, allocation
-contracts, and extensible reports. The README's "BLAS coverage" and "Choosing a sparse workflow" sections map
+contracts, and typed factor access. The README's "BLAS coverage" and "Choosing a sparse workflow" sections map
 these semantic roles to portable and native providers.
 
 The heavier level-2/3 and factorization work — [gemv][com.eignex.koblas.dense.F64LinearAlgebra.gemv],

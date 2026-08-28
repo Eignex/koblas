@@ -35,13 +35,12 @@ public interface F64RepeatedSparseLu : Backend {
  * factorization and close calls.
  */
 public interface F64SparseLuAnalysis : AutoCloseable {
-    /** The exact CSC structure accepted by this analysis. */
-    public val pattern: F64SparsePattern
-
-    /** Creates numeric factors for [a], whose structure must match [pattern]. */
+    /** Creates numeric factors for [a].
+     *  @throws IllegalArgumentException when [a] does not have the analyzed structure. */
     public fun factor(a: F64SparseMatrix): F64SparseLuFactorization
 
-    /** Refactorizes [a] through this analysis, superseding [previous]. */
+    /** Refactorizes [a] through this analysis, superseding [previous].
+     *  @throws IllegalArgumentException when [a] does not have the analyzed structure. */
     public fun refactor(previous: F64SparseLuFactorization, a: F64SparseMatrix): F64SparseLuFactorization
 
     /** Releases this symbolic analysis. */
@@ -49,48 +48,25 @@ public interface F64SparseLuAnalysis : AutoCloseable {
 }
 
 /** An immutable snapshot of a validated CSC structure, without its numeric values. */
-public class F64SparsePattern private constructor(
-    /** Rows in matrices matching this pattern. */
-    public val rows: Int,
-    /** Columns in matrices matching this pattern. */
-    public val cols: Int,
-    internal val columnPointers: IntArray,
-    internal val rowIndices: IntArray,
+internal class SparsePattern private constructor(
+    private val rows: Int,
+    private val cols: Int,
+    private val columnPointers: IntArray,
+    private val rowIndices: IntArray,
 ) {
-    /** Stored positions in this pattern. */
-    public val nnz: Int get() = rowIndices.size
-
-    /** A copy of the CSC column pointers retained by this pattern. */
-    public fun copyColumnPointers(): IntArray = columnPointers.copyOf()
-
-    /** A copy of the CSC row indices retained by this pattern. */
-    public fun copyRowIndices(): IntArray = rowIndices.copyOf()
-
-    /** Whether [a] has exactly this shape and ordered CSC structure. */
     @OptIn(UnsafeKoblasApi::class)
-    public fun matches(a: F64SparseMatrix): Boolean = rows == a.rows && cols == a.cols &&
+    private fun matches(a: F64SparseMatrix): Boolean = rows == a.rows && cols == a.cols &&
         columnPointers.contentEquals(a.colPtr) && rowIndices.contentEquals(a.rowIdx)
 
-    /** Throws [IncompatibleSparsePatternException] unless [a] has exactly this structure. */
-    public fun requireMatch(a: F64SparseMatrix) {
-        if (!matches(a)) throw IncompatibleSparsePatternException(this, a)
+    fun requireMatch(a: F64SparseMatrix) {
+        require(matches(a)) {
+            "sparse pattern ${a.rows}x${a.cols} with ${a.nnz} entries does not match " +
+                "${rows}x$cols with ${rowIndices.size} entries"
+        }
     }
 
-    override fun equals(other: Any?): Boolean = other is F64SparsePattern && rows == other.rows && cols == other.cols &&
-        columnPointers.contentEquals(other.columnPointers) && rowIndices.contentEquals(other.rowIndices)
-
-    override fun hashCode(): Int {
-        var hash = 31 * rows + cols
-        hash = 31 * hash + columnPointers.contentHashCode()
-        return 31 * hash + rowIndices.contentHashCode()
-    }
-
-    override fun toString(): String = "F64SparsePattern(${rows}x$cols, nnz=$nnz)"
-
-    /** Pattern factories. */
-    public companion object {
-        /** Copies the shape and structural arrays of [a], excluding its values. */
-        public fun of(a: F64SparseMatrix): F64SparsePattern = F64SparsePattern(
+    companion object {
+        fun of(a: F64SparseMatrix): SparsePattern = SparsePattern(
             a.rows,
             a.cols,
             a.copyColumnPointers(),
@@ -99,20 +75,9 @@ public class F64SparsePattern private constructor(
     }
 }
 
-/** Raised before numeric work when a matrix does not match a symbolic analysis. */
-public class IncompatibleSparsePatternException(
-    /** Pattern required by the analysis. */
-    public val expected: F64SparsePattern,
-    /** Matrix rejected by the analysis. */
-    public val actual: F64SparseMatrix,
-) : IllegalArgumentException(
-    "sparse pattern ${actual.rows}x${actual.cols} with ${actual.nnz} entries does not match " +
-        "${expected.rows}x${expected.cols} with ${expected.nnz} entries",
-)
-
 private class RefactoringSparseLuAnalysis(private val provider: F64RepeatedSparseLu, a: F64SparseMatrix) :
     F64SparseLuAnalysis {
-    override val pattern: F64SparsePattern = F64SparsePattern.of(a)
+    private val pattern: SparsePattern = SparsePattern.of(a)
     private var closed = false
 
     override fun factor(a: F64SparseMatrix): F64SparseLuFactorization {

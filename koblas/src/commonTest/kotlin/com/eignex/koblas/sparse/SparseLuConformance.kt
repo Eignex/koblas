@@ -99,11 +99,8 @@ internal fun assertBlockSolvesAgreeWithReference(decompositions: F64SparseDecomp
     val factor = decompositions.factor(a)
     val portable = F64ReferenceSparseLinearAlgebra.factor(a)
     val b = F64DenseMatrix(n, 4, DoubleArray(n * 4) { rng.nextDouble(-1.0, 1.0) })
-    val report = factor.report()
-    assertEquals(decompositions.name, report.provider)
-    assertTrue(report.factorNonzeros != null && report.factorNonzeros >= n)
-    assertTrue(report.reciprocalPivotRange != null)
-    assertEquals("native", report.details["blockSolve"])
+    assertTrue(factor.nnz >= n)
+    assertTrue(factor.rcond > 0.0)
     for (transpose in booleanArrayOf(false, true)) {
         val expected = portable.solve(b, transpose)
         val actual = factor.solve(b, transpose)
@@ -122,7 +119,6 @@ internal fun assertNativeBlockFactorSolvesAgreeWithReference(
 ) {
     val rng = Random(20260831)
     val b = F64DenseMatrix(factor.n, 4, DoubleArray(factor.n * 4) { rng.nextDouble(-1.0, 1.0) })
-    assertEquals("native", factor.report().details["blockSolve"])
     for (transpose in booleanArrayOf(false, true)) {
         val expected = portable.solve(b, transpose)
         val actual = factor.solve(b, transpose)
