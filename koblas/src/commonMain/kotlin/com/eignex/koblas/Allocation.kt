@@ -74,7 +74,8 @@ public data class AllocationCapability(
     /** Whether this capability can honor [policy] with buffers currently idle in [workspace]. */
     public fun supports(policy: AllocationPolicy, workspace: Workspace? = null): Boolean {
         val required = policy.guarantee ?: return true
-        return guarantee.ordinal >= required.ordinal && scratch.all { workspace != null && workspace.available(it) >= it.count }
+        if (guarantee.ordinal < required.ordinal) return false
+        return scratch.all { workspace != null && workspace.available(it) >= it.count }
     }
 }
 

@@ -194,7 +194,7 @@ class SparseCholeskyTest {
         assertEquals(
             f.nnz,
             arrow.nnz,
-            "an arrow pointing at its last row fills nowhere, got ${f.nnz}"
+            "an arrow pointing at its last row fills nowhere, got ${f.nnz}",
         )
     }
 }

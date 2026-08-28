@@ -89,7 +89,7 @@ class DispatchThresholdsTest {
             assertEquals(
                 Int.MAX_VALUE,
                 defaults.level2,
-                "SIMD level 2 should stay portable, got ${defaults.level2}"
+                "SIMD level 2 should stay portable, got ${defaults.level2}",
             )
             assertTrue(defaults.level3 in 1..1024, "SIMD level 3 threshold looks wrong: ${defaults.level3}")
             assertTrue(
@@ -100,12 +100,12 @@ class DispatchThresholdsTest {
             assertEquals(
                 0,
                 defaults.level3,
-                "scalar kernels should dispatch level 3 from the start"
+                "scalar kernels should dispatch level 3 from the start",
             )
             assertEquals(
                 0,
                 defaults.level2,
-                "scalar kernels should dispatch level 2 from the start"
+                "scalar kernels should dispatch level 2 from the start",
             )
         }
     }

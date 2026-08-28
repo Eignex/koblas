@@ -25,7 +25,7 @@ internal fun assertClose(
     assertEquals(
         expected.size,
         actual.size,
-        "$context: size ${actual.size}, expected ${expected.size}"
+        "$context: size ${actual.size}, expected ${expected.size}",
     )
     for (i in expected.indices) assertClose(expected[i], actual[i], "$context index $i", tolerance)
 }

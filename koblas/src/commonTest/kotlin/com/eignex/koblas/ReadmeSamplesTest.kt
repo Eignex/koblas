@@ -64,7 +64,7 @@ class ReadmeSamplesTest {
         assertEquals(
             s,
             F64SparseMatrix.ofColumns(2, 2, cols),
-            "README triplet sample should match the column one"
+            "README triplet sample should match the column one",
         )
     }
 
