@@ -1,6 +1,7 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.koblas
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.transpose
 import kotlinx.benchmark.*
@@ -41,10 +42,10 @@ class SparseBenchmark {
     fun sparseLuBtran(): DoubleArray = luFactored.solveInto(rhs, x, transpose = true)
 
     @Benchmark
-    fun sparseGemv(): DoubleArray = a.gemv(rhs)
+    fun sparseGemv(): DoubleArray = koblas.gemv(a, rhs)
 
     @Benchmark
-    fun sparseGemvTransposed(): DoubleArray = a.gemv(rhs, transpose = true)
+    fun sparseGemvTransposed(): DoubleArray = koblas.gemv(a, rhs, transpose = true)
 
     @Benchmark
     fun sparseLuFactor(): F64SparseFactorization = a.lu()
