@@ -92,8 +92,11 @@ internal class FfmLibrary private constructor(
          * crash startup while a StackOverflowError is never read as a missing library.
          */
         public fun open(candidates: List<String>, keySymbol: String, description: String): FfmLibrary {
-            val linker = nativeLinker()
-            if (linker == null) return FfmLibrary(null, emptyList(), description)
+            val linker = nativeLinker() ?: return FfmLibrary(
+                null,
+                emptyList(),
+                description
+            )
             for (candidate in candidates) {
                 val opened = try {
                     SymbolLookup.libraryLookup(candidate, Arena.global())

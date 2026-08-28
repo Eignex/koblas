@@ -92,8 +92,7 @@ internal fun hostBlasDispatchThresholds(config: HostBlasConfig): DispatchThresho
  * work volume at or above the cube; [Int.MAX_VALUE] keeps the family portable as it does everywhere else.
  */
 internal fun dispatchesLevel3(gate: Int, m: Int, n: Int, k: Int): Boolean {
-    if (gate == Int.MAX_VALUE) return false
-    return m.toLong() * n * k >= gate.toLong() * gate * gate
+    return gate != Int.MAX_VALUE && m.toLong() * n * k >= gate.toLong() * gate * gate
 }
 
 /** The compiled-in vector-kernel routing policy. */

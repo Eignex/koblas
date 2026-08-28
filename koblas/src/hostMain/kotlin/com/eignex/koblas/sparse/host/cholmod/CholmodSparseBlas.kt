@@ -62,10 +62,8 @@ public open class CholmodSparseBlas(
 
     /** Copies [a] once into a caller-owned CHOLMOD descriptor for repeated products. */
     final override fun prepare(a: F64SparseMatrix): F64PreparedSparseMatrix {
-        val functions = loader.functions
-        if (functions == null) return super.prepare(a)
-        val shared = common
-        if (shared == null) return super.prepare(a)
+        val functions = loader.functions ?: return super.prepare(a)
+        val shared = common ?: return super.prepare(a)
         val snapshot = sparseSnapshotOf(a)
         return CholmodPreparedSparseMatrix(
             snapshot,

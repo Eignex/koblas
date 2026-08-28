@@ -1,5 +1,5 @@
 // detekt's default test exclusions cover the standard source-set names, not this custom one.
-@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
+@file:OptIn(ExperimentalForeignApi::class)
 @file:Suppress("UndocumentedPublicFunction", "FunctionNaming")
 
 package com.eignex.koblas.sparse.host.klu

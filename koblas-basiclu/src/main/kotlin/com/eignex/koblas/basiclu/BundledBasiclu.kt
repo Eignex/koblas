@@ -15,22 +15,19 @@ import com.eignex.koblas.sparse.host.basiclu.BasicluSparseLu
  * than on a seam, so a caller reaching it through [com.eignex.koblas.backendNamed] can only
  * use them if the bundled provider and the configured binding are the same type.
  */
-public class BundledBasiclu private constructor(config: BasicluConfig) : BasicluSparseLu(config) {
+class BundledBasiclu private constructor(config: BasicluConfig) : BasicluSparseLu(config) {
     /** Creates bundled BASICLU with default options. */
-    public constructor() : this(BasicluOptions())
+    constructor() : this(BasicluOptions())
 
     /** Creates bundled BASICLU with the same numerical and execution [options] accepted by the host binding. */
-    public constructor(options: BasicluOptions) : this(
+    constructor(options: BasicluOptions) : this(
         BasicluConfig(basicluLibrary.extract().toString(), options),
     )
 
     /** Retains the original threshold-and-equilibration constructor. */
-    public constructor(factorizeMin: Int?, equilibrate: Boolean = false) : this(
+    constructor(factorizeMin: Int?, equilibrate: Boolean = false) : this(
         BasicluOptions(factorizeMin = factorizeMin, equilibrate = equilibrate),
     )
-
-    /** Retains calls that configured only equilibration by name. */
-    public constructor(equilibrate: Boolean) : this(BasicluOptions(equilibrate = equilibrate))
 
     override val name: String get() = "basiclu-bundled"
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 3

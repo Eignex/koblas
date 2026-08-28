@@ -192,7 +192,7 @@ internal class BasicluSingularBasisFactorization(
     override val basis: F64SparseMatrix,
 ) : F64BasisFactorization {
     override val n: Int get() = basis.rows
-    override val failedAt: Int get() = com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
+    override val failedAt: Int get() = SINGULAR_POSITION_UNKNOWN
     override val l: F64SparseMatrix get() = throw singularFailure(failedAt, "l")
     override val u: F64SparseMatrix get() = throw singularFailure(failedAt, "u")
     override val rowOrder: IntArray get() = throw singularFailure(failedAt, "rowOrder")

@@ -31,21 +31,27 @@ public operator fun F64MatrixLike.times(x: F64VectorLike): F64DenseVector {
     if (a is F64SparseMatrix && x is F64DenseVector) return F64DenseVector.wrap(koblas.gemv(a, x.data))
     val out = F64DenseVector(a.rows)
     val od = out.data
-    if (a is F64DenseMatrix) {
-        val ad = a.data
-        val rows = a.rows
-        x.forEachStored { j, v ->
-            if (v != 0.0) koblas.kernels.axpy(od, 0, v, ad, j * rows, rows)
+    when (a) {
+        is F64DenseMatrix -> {
+            val ad = a.data
+            val rows = a.rows
+            x.forEachStored { j, v ->
+                if (v != 0.0) koblas.kernels.axpy(od, 0, v, ad, j * rows, rows)
+            }
         }
-    } else if (a is F64SparseMatrix) {
-        x.forEachStored { j, v ->
-            if (v != 0.0) a.forEachInColumn(j) { i, aij -> od[i] += aij * v }
+
+        is F64SparseMatrix -> {
+            x.forEachStored { j, v ->
+                if (v != 0.0) a.forEachInColumn(j) { i, aij -> od[i] += aij * v }
+            }
         }
-    } else {
-        for (i in 0 until a.rows) {
-            var sum = 0.0
-            x.forEachStored { j, v -> sum += a[i, j] * v }
-            od[i] = sum
+
+        else -> {
+            for (i in 0 until a.rows) {
+                var sum = 0.0
+                x.forEachStored { j, v -> sum += a[i, j] * v }
+                od[i] = sum
+            }
         }
     }
     return out

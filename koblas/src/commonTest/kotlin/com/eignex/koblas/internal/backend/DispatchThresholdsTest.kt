@@ -86,15 +86,27 @@ class DispatchThresholdsTest {
         val defaults = platformDispatchThresholds
         // Scalar kernels never win level 1; SIMD kernels win level 2 at every size.
         if (mathBackend.startsWith("simd")) {
-            assertTrue(defaults.level2 == Int.MAX_VALUE, "SIMD level 2 should stay portable, got ${defaults.level2}")
+            assertEquals(
+                Int.MAX_VALUE,
+                defaults.level2,
+                "SIMD level 2 should stay portable, got ${defaults.level2}"
+            )
             assertTrue(defaults.level3 in 1..1024, "SIMD level 3 threshold looks wrong: ${defaults.level3}")
             assertTrue(
                 defaults.factorize in 1..1024,
                 "SIMD factorize threshold looks wrong: ${defaults.factorize}",
             )
         } else {
-            assertTrue(defaults.level3 == 0, "scalar kernels should dispatch level 3 from the start")
-            assertTrue(defaults.level2 == 0, "scalar kernels should dispatch level 2 from the start")
+            assertEquals(
+                0,
+                defaults.level3,
+                "scalar kernels should dispatch level 3 from the start"
+            )
+            assertEquals(
+                0,
+                defaults.level2,
+                "scalar kernels should dispatch level 2 from the start"
+            )
         }
     }
 }

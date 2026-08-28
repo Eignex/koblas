@@ -19,7 +19,7 @@ private const val DEFAULT_THREADS = 4
 
 private const val BAND = 100
 
-public fun main(args: Array<String>) {
+fun main(args: Array<String>) {
     val rounds = args.intArg("--rounds") ?: DEFAULT_ROUNDS
     val threads = args.intArg("--threads") ?: DEFAULT_THREADS
     println("stressing registration: rounds=$rounds threads=$threads")

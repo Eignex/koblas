@@ -1,7 +1,7 @@
 @file:OptIn(
     ExperimentalForeignApi::class,
     ExperimentalNativeApi::class,
-    com.eignex.koblas.UnsafeKoblasApi::class,
+    UnsafeKoblasApi::class,
 )
 
 package com.eignex.koblas.sparse.host.klu

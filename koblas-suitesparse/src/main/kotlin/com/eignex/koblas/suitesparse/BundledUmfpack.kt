@@ -13,12 +13,12 @@ import com.eignex.koblas.sparse.host.umfpack.UmfpackSparseLu
  * One of [UmfpackSparseLu] rather than a wrapper around one, so the bundled providers all answer to
  * [com.eignex.koblas.backendNamed] as the type their binding is.
  */
-public class BundledUmfpack private constructor(config: UmfpackConfig) : UmfpackSparseLu(config) {
+class BundledUmfpack private constructor(config: UmfpackConfig) : UmfpackSparseLu(config) {
     /** Creates bundled UMFPACK with default options. */
-    public constructor() : this(UmfpackOptions())
+    constructor() : this(UmfpackOptions())
 
     /** Creates bundled UMFPACK with the same numerical and execution [options] accepted by the host binding. */
-    public constructor(options: UmfpackOptions) : this(bundledConfig(options))
+    constructor(options: UmfpackOptions) : this(bundledConfig(options))
 
     override val name: String get() = "umfpack-bundled"
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 1

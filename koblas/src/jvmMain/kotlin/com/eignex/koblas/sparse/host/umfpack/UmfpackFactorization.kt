@@ -22,7 +22,7 @@ import java.lang.ref.Reference
 public class UmfpackFactorization internal constructor(
     private val matrix: F64SparseMatrix,
     override val failedAt: Int,
-    private val arena: Arena,
+    arena: Arena,
     private val numericHolder: MemorySegment,
     private val calls: UmfpackCalls,
     private val control: MemorySegment?,
@@ -59,10 +59,8 @@ public class UmfpackFactorization internal constructor(
         private val numericHolder: MemorySegment,
     ) {
         fun release() {
-            try {
+            arena.use {
                 calls.freeNumeric(numericHolder)
-            } finally {
-                arena.close()
             }
         }
     }

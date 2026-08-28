@@ -14,22 +14,19 @@ import com.eignex.koblas.sparse.host.hfactor.HfactorSparseLu
  * One of [HfactorSparseLu] rather than a wrapper around one, which is how the bundled providers reach the
  * routines their bindings carry outside a seam.
  */
-public class BundledHfactor private constructor(config: HfactorConfig) : HfactorSparseLu(config) {
+class BundledHfactor private constructor(config: HfactorConfig) : HfactorSparseLu(config) {
     /** Creates bundled HFactor with default options. */
-    public constructor() : this(HfactorOptions())
+    constructor() : this(HfactorOptions())
 
     /** Creates bundled HFactor with the same numerical and execution [options] accepted by the host binding. */
-    public constructor(options: HfactorOptions) : this(
+    constructor(options: HfactorOptions) : this(
         HfactorConfig(hfactorLibrary.extract().toString(), options),
     )
 
     /** Retains the original threshold-and-equilibration constructor. */
-    public constructor(factorizeMin: Int?, equilibrate: Boolean = false) : this(
+    constructor(factorizeMin: Int?, equilibrate: Boolean = false) : this(
         HfactorOptions(factorizeMin = factorizeMin, equilibrate = equilibrate),
     )
-
-    /** Retains calls that configured only equilibration by name. */
-    public constructor(equilibrate: Boolean) : this(HfactorOptions(equilibrate = equilibrate))
 
     override val name: String get() = "hfactor-bundled"
     override val priority: Int get() = HOST_BACKEND_PRIORITY - 1

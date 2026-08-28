@@ -27,10 +27,8 @@ public class CholmodFactorization internal constructor(
         private val solveWorkspace: CholmodSolveWorkspace,
     ) {
         fun release() {
-            try {
+            solveWorkspace.use { solveWorkspace ->
                 calls.free(factor)
-            } finally {
-                solveWorkspace.close()
             }
         }
     }

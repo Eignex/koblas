@@ -103,7 +103,7 @@ class BranchCoverageTest {
         val sparseX = F64SparseVector.of(3, intArrayOf(0, 2), doubleArrayOf(2.0, 0.5))
         val expectedDense = doubleArrayOf(3.0, 0.0, -10.0, 0.25)
         val expectedSparse = doubleArrayOf(3.0, 0.0, -6.0, 0.75)
-        for ((name, matrix) in listOf<Pair<String, F64MatrixLike>>(
+        for ((name, matrix) in listOf(
             "dense" to dense,
             "sparse" to sparse,
             "foreign" to foreign,

@@ -5,7 +5,6 @@ import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.F64Blas
 import com.eignex.koblas.dense.host.cblas.HostBlasConfig
 import com.eignex.koblas.dense.host.jvm.F64Backends
-import com.eignex.koblas.sparse.*
 import com.eignex.koblas.sparse.host.F64SparseBackends
 import com.eignex.koblas.sparse.host.basiclu.BasicluConfig
 import com.eignex.koblas.sparse.host.cholmod.CholmodConfig
