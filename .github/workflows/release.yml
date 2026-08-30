@@ -47,6 +47,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 0
 
       - uses: actions/setup-java@v5
         with:
@@ -74,6 +75,18 @@ jobs:
           echo "CC=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
           echo "CXX=aarch64-linux-gnu-g++" >> "$GITHUB_ENV"
           echo "FC=aarch64-linux-gnu-gfortran" >> "$GITHUB_ENV"
+
+      - name: Build core JVM kernels
+        run: >-
+          ./gradlew --no-build-cache --no-configuration-cache --rerun-tasks
+          :koblas:buildJvmKernels -Pkoblas.kernels.platform=${{ matrix.platform }}
+
+      - name: Upload core JVM kernels
+        uses: actions/upload-artifact@v7
+        with:
+          name: kernels-${{ matrix.platform }}
+          path: koblas/build/kernels/resources
+          if-no-files-found: error
 
       - name: Cache bundled OpenBLAS resources
         id: cache-openblas
@@ -170,6 +183,60 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
 
+      - name: Resolve publication version
+        if: matrix.platform == 'macosx-arm64'
+        run: |
+          next_patch() {
+            local last base major minor patch
+            last=$(git tag --list 'v*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1)
+            base="${last:-v0.0.0}"
+            base="${base#v}"
+            IFS=. read -r major minor patch <<<"$base"
+            echo "${major:-0}.${minor:-0}.$(( ${patch:-0} + 1 ))"
+          }
+          if [[ "${{ inputs.dryRun }}" == "true" ]]; then
+            version="$(next_patch)"
+          elif [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="$(next_patch)-SNAPSHOT"
+          fi
+          echo "RELEASE_VERSION=$version" >> "$GITHUB_ENV"
+          if [[ "$version" == *-SNAPSHOT ]]; then
+            echo "IS_SNAPSHOT=true" >> "$GITHUB_ENV"
+          else
+            echo "IS_SNAPSHOT=false" >> "$GITHUB_ENV"
+          fi
+
+      - name: Stage the macOS Native publication
+        if: matrix.platform == 'macosx-arm64' && env.IS_SNAPSHOT == 'false'
+        env:
+          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SIGNING_PASSWORD }}
+        run: >-
+          ./gradlew :koblas:publishMacosArm64PublicationToMavenCentralStagingRepository
+          -PciVersion=${{ env.RELEASE_VERSION }}
+
+      - name: Upload the macOS Native publication
+        if: matrix.platform == 'macosx-arm64' && env.IS_SNAPSHOT == 'false'
+        uses: actions/upload-artifact@v7
+        with:
+          name: koblas-macos-publication
+          path: koblas/build/maven-central-publishing/staging-repository
+          include-hidden-files: true
+          if-no-files-found: error
+
+      - name: Publish the macOS Native snapshot
+        if: matrix.platform == 'macosx-arm64' && env.IS_SNAPSHOT == 'true'
+        env:
+          ORG_GRADLE_PROJECT_sonatypeSnapshotsUsername: ${{ secrets.CENTRAL_PORTAL_USER }}
+          ORG_GRADLE_PROJECT_sonatypeSnapshotsPassword: ${{ secrets.CENTRAL_PORTAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SIGNING_PASSWORD }}
+        run: >-
+          ./gradlew :koblas:publishMacosArm64PublicationToSonatypeSnapshotsRepository
+          -PciVersion=${{ env.RELEASE_VERSION }}
+
   publish:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     needs: build-native-resources
@@ -230,6 +297,20 @@ jobs:
           path: koblas-hfactor/build/hfactor/resources
           merge-multiple: true
 
+      - name: Download core JVM kernels
+        uses: actions/download-artifact@v8
+        with:
+          pattern: kernels-*
+          path: koblas/build/kernels/resources
+          merge-multiple: true
+
+      - name: Download the macOS Native publication
+        if: github.event_name != 'workflow_run'
+        uses: actions/download-artifact@v8
+        with:
+          name: koblas-macos-publication
+          path: build/macos-staging
+
       # A tag publishes that exact version as a release. Any other ref publishes a snapshot of the
       # next patch, so main always has a consumable build. A dry run takes the release path as far
       # as the tests and stops, so the tag path can be exercised on demand.
@@ -267,10 +348,14 @@ jobs:
           -x :koblas-openblas:buildOpenBlas -x :koblas-suitesparse:buildSuiteSparse
           -x :koblas-basiclu:buildBasiclu -x :koblas-hfactor:buildHfactor
 
+      - name: Verify core JVM kernels
+        run: ./gradlew :koblas:verifyJvmKernelResources -Pkoblas.kernels.prebuilt=true
+
       - name: Build and Test
         if: env.IS_SNAPSHOT == 'false'
         run: >-
           ./gradlew build -PciVersion=${{ env.RELEASE_VERSION }}
+          -Pkoblas.kernels.prebuilt=true
           -x :koblas-openblas:buildOpenBlas -x :koblas-suitesparse:buildSuiteSparse
           -x :koblas-basiclu:buildBasiclu -x :koblas-hfactor:buildHfactor
 
@@ -284,7 +369,7 @@ jobs:
             build/test-results/
           if-no-files-found: ignore
 
-      - name: Publish to Maven Central (Portal)
+      - name: Stage publications for Maven Central
         if: env.IS_SNAPSHOT == 'false' && env.DRY_RUN != 'true'
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.CENTRAL_PORTAL_USER }}
@@ -292,9 +377,21 @@ jobs:
           ORG_GRADLE_PROJECT_signingKey: ${{ secrets.SIGNING_KEY }}
           ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SIGNING_PASSWORD }}
         run: >-
-          ./gradlew publishToMavenCentral -PciVersion=${{ env.RELEASE_VERSION }}
+          ./gradlew publishAllPublicationsToMavenCentralStagingRepository
+          -PciVersion=${{ env.RELEASE_VERSION }} -Pkoblas.kernels.prebuilt=true
           -x :koblas-openblas:buildOpenBlas -x :koblas-suitesparse:buildSuiteSparse
           -x :koblas-basiclu:buildBasiclu -x :koblas-hfactor:buildHfactor
+
+      - name: Substitute the host-built macOS Native publication
+        if: env.IS_SNAPSHOT == 'false' && env.DRY_RUN != 'true'
+        run: cp -R build/macos-staging/. koblas/build/maven-central-publishing/staging-repository/
+
+      - name: Publish to Maven Central (Portal)
+        if: env.IS_SNAPSHOT == 'false' && env.DRY_RUN != 'true'
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.CENTRAL_PORTAL_USER }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.CENTRAL_PORTAL_PASSWORD }}
+        run: ./gradlew mavenCentralBundle uploadMavenCentralBundle
 
       - name: Publish to Sonatype Snapshots
         if: env.IS_SNAPSHOT == 'true'
@@ -305,8 +402,10 @@ jobs:
           ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SIGNING_PASSWORD }}
         run: >-
           ./gradlew publishAllPublicationsToSonatypeSnapshotsRepository -PciVersion=${{ env.RELEASE_VERSION }}
+          -Pkoblas.kernels.prebuilt=true
           -x :koblas-openblas:buildOpenBlas -x :koblas-suitesparse:buildSuiteSparse
           -x :koblas-basiclu:buildBasiclu -x :koblas-hfactor:buildHfactor
+          -x :koblas:publishMacosArm64PublicationToSonatypeSnapshotsRepository
 
       - name: Detect pre-release
         if: github.ref_type == 'tag' && env.IS_SNAPSHOT == 'false'

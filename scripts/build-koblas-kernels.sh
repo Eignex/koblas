@@ -13,7 +13,7 @@ done
 
 [[ -n "$platform" && -n "$output" ]] || { echo "--platform and --output are required" >&2; exit 2; }
 
-source_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../koblas/native" && pwd)"
+source_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../koblas/src/nativeInterop/cinterop" && pwd)"
 resource_dir="$output/com/eignex/koblas/internal/kernels/$platform"
 mkdir -p "$resource_dir"
 

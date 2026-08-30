@@ -24,6 +24,7 @@ class AllocationFreeTest {
     fun usePortableKernels() {
         installBackends(
             koblas.with(
+                kernels = F64ScalarKernels,
                 blas = F64ReferenceLinearAlgebra,
                 decompositions = F64ReferenceLinearAlgebra,
                 sparseBlas = F64ReferenceSparseLinearAlgebra,

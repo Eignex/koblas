@@ -11,84 +11,130 @@ import java.nio.file.attribute.PosixFilePermissions
 
 /** FFM bindings to the C kernels bundled in the JVM artifact. */
 internal object JvmCKernelBindings {
-    private val extractedLibrary: Path = extractLibrary()
-    private val library = FfmLibrary.open(
-        listOf(extractedLibrary.toString()),
+    private val symbolNames = listOf(
         "koblas_dense_dot",
-        "bundled koblas C kernels",
-    )
-
-    private val denseDot = library.handle(
-        "koblas_dense_dot",
-        FfmLibrary.doubleOf(ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT),
-    )
-    private val denseAxpy = library.handle(
         "koblas_dense_axpy",
-        FfmLibrary.voidOf(ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT, JAVA_INT),
-    )
-    private val denseScale = library.handle(
         "koblas_dense_scale",
-        FfmLibrary.voidOf(ADDRESS, JAVA_INT, JAVA_DOUBLE, JAVA_INT),
-    )
-    private val denseNrm2 = library.handle(
         "koblas_dense_nrm2",
-        FfmLibrary.doubleOf(ADDRESS, JAVA_INT, JAVA_INT),
-    )
-    private val denseAsum = library.handle(
         "koblas_dense_asum",
-        FfmLibrary.doubleOf(ADDRESS, JAVA_INT, JAVA_INT),
-    )
-    private val denseSwap = library.handle(
         "koblas_dense_swap",
-        FfmLibrary.voidOf(ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT),
-    )
-    private val denseSymvColumn = library.handle(
         "koblas_dense_symv_column",
-        FfmLibrary.doubleOf(ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, JAVA_INT),
-    )
-    private val denseSymvColumn4 = library.handle(
         "koblas_dense_symv_column4",
-        FfmLibrary.voidOf(
-            ADDRESS,
-            JAVA_INT,
-            JAVA_INT,
-            ADDRESS,
-            JAVA_INT,
-            ADDRESS,
-            JAVA_INT,
-            ADDRESS,
-            ADDRESS,
-            JAVA_INT,
-        ),
-    )
-    private val denseDot4 = library.handle(
         "koblas_dense_dot4",
-        FfmLibrary.voidOf(ADDRESS, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT),
-    )
-    private val sparseDotDense = library.handle(
         "koblas_sparse_dot_dense",
-        FfmLibrary.doubleOf(ADDRESS, ADDRESS, JAVA_INT, ADDRESS),
-    )
-    private val sparseDotSparse = library.handle(
         "koblas_sparse_dot_sparse",
-        FfmLibrary.doubleOf(ADDRESS, ADDRESS, JAVA_INT, ADDRESS, ADDRESS, JAVA_INT),
-    )
-    private val sparseAxpy = library.handle(
         "koblas_sparse_axpy",
-        FfmLibrary.voidOf(ADDRESS, ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS),
-    )
-    private val sparseScatter = library.handle(
         "koblas_sparse_scatter",
-        FfmLibrary.voidOf(ADDRESS, ADDRESS, JAVA_INT, ADDRESS),
-    )
-    private val sparseGather = library.handle(
         "koblas_sparse_gather",
-        FfmLibrary.voidOf(ADDRESS, ADDRESS, JAVA_INT, ADDRESS),
-    )
-    private val sparseGatherZero = library.handle(
         "koblas_sparse_gather_zero",
-        FfmLibrary.voidOf(ADDRESS, ADDRESS, JAVA_INT, ADDRESS),
     )
+    private val library: FfmLibrary? = loadLibraryOrNull()
+
+    val isAvailable: Boolean get() = library != null
+
+    private fun requiredLibrary(): FfmLibrary = checkNotNull(library) { "bundled koblas C kernels are unavailable" }
+
+    private val denseDot by lazy {
+        requiredLibrary().handle(
+            "koblas_dense_dot",
+            FfmLibrary.doubleOf(ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT),
+        )
+    }
+    private val denseAxpy by lazy {
+        requiredLibrary().handle(
+            "koblas_dense_axpy",
+            FfmLibrary.voidOf(ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT, JAVA_INT),
+        )
+    }
+    private val denseScale by lazy {
+        requiredLibrary().handle(
+            "koblas_dense_scale",
+            FfmLibrary.voidOf(ADDRESS, JAVA_INT, JAVA_DOUBLE, JAVA_INT),
+        )
+    }
+    private val denseNrm2 by lazy {
+        requiredLibrary().handle(
+            "koblas_dense_nrm2",
+            FfmLibrary.doubleOf(ADDRESS, JAVA_INT, JAVA_INT),
+        )
+    }
+    private val denseAsum by lazy {
+        requiredLibrary().handle(
+            "koblas_dense_asum",
+            FfmLibrary.doubleOf(ADDRESS, JAVA_INT, JAVA_INT),
+        )
+    }
+    private val denseSwap by lazy {
+        requiredLibrary().handle(
+            "koblas_dense_swap",
+            FfmLibrary.voidOf(ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT),
+        )
+    }
+    private val denseSymvColumn by lazy {
+        requiredLibrary().handle(
+            "koblas_dense_symv_column",
+            FfmLibrary.doubleOf(ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, JAVA_INT),
+        )
+    }
+    private val denseSymvColumn4 by lazy {
+        requiredLibrary().handle(
+            "koblas_dense_symv_column4",
+            FfmLibrary.voidOf(
+                ADDRESS,
+                JAVA_INT,
+                JAVA_INT,
+                ADDRESS,
+                JAVA_INT,
+                ADDRESS,
+                JAVA_INT,
+                ADDRESS,
+                ADDRESS,
+                JAVA_INT,
+            ),
+        )
+    }
+    private val denseDot4 by lazy {
+        requiredLibrary().handle(
+            "koblas_dense_dot4",
+            FfmLibrary.voidOf(ADDRESS, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT),
+        )
+    }
+    private val sparseDotDense by lazy {
+        requiredLibrary().handle(
+            "koblas_sparse_dot_dense",
+            FfmLibrary.doubleOf(ADDRESS, ADDRESS, JAVA_INT, ADDRESS),
+        )
+    }
+    private val sparseDotSparse by lazy {
+        requiredLibrary().handle(
+            "koblas_sparse_dot_sparse",
+            FfmLibrary.doubleOf(ADDRESS, ADDRESS, JAVA_INT, ADDRESS, ADDRESS, JAVA_INT),
+        )
+    }
+    private val sparseAxpy by lazy {
+        requiredLibrary().handle(
+            "koblas_sparse_axpy",
+            FfmLibrary.voidOf(ADDRESS, ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS),
+        )
+    }
+    private val sparseScatter by lazy {
+        requiredLibrary().handle(
+            "koblas_sparse_scatter",
+            FfmLibrary.voidOf(ADDRESS, ADDRESS, JAVA_INT, ADDRESS),
+        )
+    }
+    private val sparseGather by lazy {
+        requiredLibrary().handle(
+            "koblas_sparse_gather",
+            FfmLibrary.voidOf(ADDRESS, ADDRESS, JAVA_INT, ADDRESS),
+        )
+    }
+    private val sparseGatherZero by lazy {
+        requiredLibrary().handle(
+            "koblas_sparse_gather_zero",
+            FfmLibrary.voidOf(ADDRESS, ADDRESS, JAVA_INT, ADDRESS),
+        )
+    }
 
     fun denseDot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
         denseDot.invokeExact(MemorySegment.ofArray(a), aOff, MemorySegment.ofArray(b), bOff, len) as Double
@@ -241,6 +287,19 @@ internal object JvmCKernelBindings {
             indices.size,
             MemorySegment.ofArray(dense),
         ) as Unit
+    }
+
+    private fun loadLibraryOrNull(): FfmLibrary? = try {
+        val extractedLibrary = extractLibrary()
+        FfmLibrary.open(
+            listOf(extractedLibrary.toString()),
+            "koblas_dense_dot",
+            "bundled koblas C kernels",
+        ).takeIf { it.containsAll(symbolNames) }
+    } catch (_: RuntimeException) {
+        null
+    } catch (_: UnsatisfiedLinkError) {
+        null
     }
 
     private fun extractLibrary(): Path {

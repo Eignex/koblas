@@ -26,10 +26,15 @@ internal val simdAvailable: Boolean = try {
  * body at all, so short runs take the scalar kernels rather than pay the vector prologue.
  */
 private val simdLanes: Int = if (simdAvailable) Simd.lanes() else 0
+internal val cKernelsAvailable: Boolean = !simdAvailable && JvmCKernelBindings.isAvailable
 
 internal actual object F64PlatformKernels : F64Kernels {
     actual override val name: String
-        get() = if (simdAvailable) "${BackendNames.SIMD}($simdLanes lanes)" else BackendNames.C
+        get() = when {
+            simdAvailable -> "${BackendNames.SIMD}($simdLanes lanes)"
+            cKernelsAvailable -> BackendNames.C
+            else -> BackendNames.SCALAR
+        }
 
     override val isPortable: Boolean get() = true
 
@@ -44,8 +49,10 @@ internal actual object F64PlatformKernels : F64Kernels {
     actual override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
         if (simdAvailable) {
             if (vectorizes(len)) Simd.dot(a, aOff, b, bOff, len) else scalarDot(a, aOff, b, bOff, len)
-        } else {
+        } else if (cKernelsAvailable) {
             JvmCKernelBindings.denseDot(a, aOff, b, bOff, len)
+        } else {
+            scalarDot(a, aOff, b, bOff, len)
         }
 
     actual override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
@@ -53,8 +60,10 @@ internal actual object F64PlatformKernels : F64Kernels {
             Simd.axpy(y, yOff, alpha, x, xOff, len)
         } else if (simdAvailable) {
             scalarAxpy(y, yOff, alpha, x, xOff, len)
-        } else {
+        } else if (cKernelsAvailable) {
             JvmCKernelBindings.denseAxpy(y, yOff, alpha, x, xOff, len)
+        } else {
+            scalarAxpy(y, yOff, alpha, x, xOff, len)
         }
     }
 
@@ -63,8 +72,10 @@ internal actual object F64PlatformKernels : F64Kernels {
             Simd.scale(v, vOff, alpha, len)
         } else if (simdAvailable) {
             scalarScale(v, vOff, alpha, len)
-        } else {
+        } else if (cKernelsAvailable) {
             JvmCKernelBindings.denseScale(v, vOff, alpha, len)
+        } else {
+            scalarScale(v, vOff, alpha, len)
         }
     }
 
@@ -73,7 +84,9 @@ internal actual object F64PlatformKernels : F64Kernels {
      * and that path defers to the shared implementation.
      */
     actual override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double {
-        if (!simdAvailable) return JvmCKernelBindings.denseNrm2(v, vOff, len)
+        if (!simdAvailable) {
+            return if (cKernelsAvailable) JvmCKernelBindings.denseNrm2(v, vOff, len) else euclideanNorm(v, vOff, len)
+        }
         if (vectorizes(len)) {
             val squares = Simd.dot(v, vOff, v, vOff, len)
             if (squares.isFinite() && squares >= F64_MIN_NORMAL) return sqrt(squares)
@@ -86,8 +99,10 @@ internal actual object F64PlatformKernels : F64Kernels {
             Simd.swap(a, aOff, b, bOff, len)
         } else if (simdAvailable) {
             super.swap(a, aOff, b, bOff, len)
-        } else {
+        } else if (cKernelsAvailable) {
             JvmCKernelBindings.denseSwap(a, aOff, b, bOff, len)
+        } else {
+            super.swap(a, aOff, b, bOff, len)
         }
     }
 
@@ -104,7 +119,8 @@ internal actual object F64PlatformKernels : F64Kernels {
     ): Double = when {
         vectorizes(len) -> Simd.symvColumn(a, aOff, x, xOff, y, yOff, mult, len)
         simdAvailable -> super.symvColumn(a, aOff, x, xOff, y, yOff, mult, len)
-        else -> JvmCKernelBindings.denseSymvColumn(a, aOff, x, xOff, y, yOff, mult, len)
+        cKernelsAvailable -> JvmCKernelBindings.denseSymvColumn(a, aOff, x, xOff, y, yOff, mult, len)
+        else -> super.symvColumn(a, aOff, x, xOff, y, yOff, mult, len)
     }
 
     /** Overridden because [Simd.symvColumn4] reads x and y once for all four columns. */
@@ -125,12 +141,14 @@ internal actual object F64PlatformKernels : F64Kernels {
             Simd.symvColumn4(a, aOff, stride, x, xOff, y, yOff, mult, out, len)
         } else if (simdAvailable) {
             super.symvColumn4(a, aOff, stride, x, xOff, y, yOff, mult, out, len)
-        } else {
+        } else if (cKernelsAvailable) {
             JvmCKernelBindings.denseSymvColumn4(a, aOff, stride, x, xOff, y, yOff, mult, out, len)
+        } else {
+            super.symvColumn4(a, aOff, stride, x, xOff, y, yOff, mult, out, len)
         }
     }
 
-    actual override fun asum(v: DoubleArray, vOff: Int, len: Int): Double = if (!simdAvailable) {
+    actual override fun asum(v: DoubleArray, vOff: Int, len: Int): Double = if (cKernelsAvailable) {
         JvmCKernelBindings.denseAsum(v, vOff, len)
     } else if (vectorizes(len)) {
         Simd.asum(v, vOff, len)
@@ -154,8 +172,10 @@ internal actual object F64PlatformKernels : F64Kernels {
             Simd.dot4(a, aOff, stride, b, bOff, len, out, outOff)
         } else if (simdAvailable) {
             scalarDot4(a, aOff, stride, b, bOff, len, out, outOff)
-        } else {
+        } else if (cKernelsAvailable) {
             JvmCKernelBindings.denseDot4(a, aOff, stride, b, bOff, len, out, outOff)
+        } else {
+            scalarDot4(a, aOff, stride, b, bOff, len, out, outOff)
         }
     }
 }

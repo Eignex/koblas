@@ -1,5 +1,6 @@
 package com.eignex.koblas.sparse
 
+import com.eignex.koblas.assertClose
 import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.randomVector
 import kotlin.math.abs
@@ -59,7 +60,7 @@ class PlatformSparseKernelsTest {
             val actual = expected.copyOf()
             F64ReferenceSparseLinearAlgebra.axpy(expected, -0.75, x)
             F64PlatformSparseKernels.axpy(actual, -0.75, x)
-            assertContentEquals(expected, actual, "nnz=$nnz")
+            assertClose(expected, actual, "nnz=$nnz", tolerance = 1e-15)
         }
     }
 

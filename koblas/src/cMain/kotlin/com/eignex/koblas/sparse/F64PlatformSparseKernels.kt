@@ -10,7 +10,7 @@ import com.eignex.koblas.requireShape
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 
-/** The C sparse level-1 kernels compiled into every Kotlin/Native target. */
+/** The C sparse level-1 kernels compiled into each Kotlin/Native host artifact. */
 internal actual object F64PlatformSparseKernels : F64SparseKernels {
     actual override val name: String get() = BackendNames.C_SPARSE
 
