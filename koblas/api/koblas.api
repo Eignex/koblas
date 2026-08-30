@@ -222,6 +222,21 @@ public final class com/eignex/koblas/DispatchMetric : java/lang/Enum {
 	public static fun values ()[Lcom/eignex/koblas/DispatchMetric;
 }
 
+public abstract interface annotation class com/eignex/koblas/ExperimentalKoblasApi : java/lang/annotation/Annotation {
+}
+
+public final class com/eignex/koblas/F64BuiltinKernelProvider {
+	public final fun getKernels ()Lcom/eignex/koblas/dense/F64Kernels;
+	public final fun getSparseKernels ()Lcom/eignex/koblas/sparse/F64SparseKernels;
+}
+
+public final class com/eignex/koblas/F64BuiltinKernels {
+	public static final field INSTANCE Lcom/eignex/koblas/F64BuiltinKernels;
+	public final fun getC ()Lcom/eignex/koblas/F64BuiltinKernelProvider;
+	public final fun getScalar ()Lcom/eignex/koblas/F64BuiltinKernelProvider;
+	public final fun getSimd ()Lcom/eignex/koblas/F64BuiltinKernelProvider;
+}
+
 public final class com/eignex/koblas/F64Capabilities {
 	public static final field INSTANCE Lcom/eignex/koblas/F64Capabilities;
 	public final fun getBasisFactorizations ()Lcom/eignex/koblas/F64Capability;
@@ -337,6 +352,7 @@ public final class com/eignex/koblas/F64ContextBuilder {
 	public final fun resolve ()Lcom/eignex/koblas/F64Context;
 	public final fun withBackend (Lcom/eignex/koblas/Backend;)Lcom/eignex/koblas/F64ContextBuilder;
 	public final fun withBackend (Lcom/eignex/koblas/BackendRole;Lcom/eignex/koblas/Backend;)Lcom/eignex/koblas/F64ContextBuilder;
+	public final fun withBuiltinKernels (Lcom/eignex/koblas/F64BuiltinKernelProvider;)Lcom/eignex/koblas/F64ContextBuilder;
 	public final fun withDispatchPolicy (Lcom/eignex/koblas/F64DispatchPolicy;)Lcom/eignex/koblas/F64ContextBuilder;
 	public final fun withFallbackPolicy (Lcom/eignex/koblas/F64FallbackPolicy;)Lcom/eignex/koblas/F64ContextBuilder;
 }

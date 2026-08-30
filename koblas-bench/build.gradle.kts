@@ -141,13 +141,13 @@ benchmark {
         suite("scalarKernelsGate", "Level1Benchmark", "asumBench|axpyBench|dot|dot4|iamaxBench") {
             gate()
             param("len", "64", "1024")
-            param("kernels", "builtin")
+            param("kernels", "scalar", "c")
         }
         // scaleBench sorts last in its class, so nrm2 can only lead. Two rows keep the window short.
         suite("scaleGate", "Level1Benchmark", "nrm2|scaleBench") {
             gate()
             param("len", "64", "1024")
-            param("kernels", "builtin")
+            param("kernels", "scalar", "c")
         }
         // The sparse products against the portable ones, with trsv trailing as the control: it sorts after
         // all three subjects and no product gate reaches it.
@@ -229,6 +229,7 @@ benchmark {
             gate()
             param("density", "0.01")
             param("len", "4096")
+            param("kernels", "scalar", "c")
         }
         // The two gathering kernels against sparseNrm2, which sorts after both and reduces over the stored
         // values alone, so it never touches the dense operand a gather reads. Two lengths at one density,
@@ -240,6 +241,7 @@ benchmark {
             gate()
             param("density", "0.01")
             param("len", "4096", "65536")
+            param("kernels", "scalar", "c")
         }
         suite("pivotedQrGate", "PivotedQrGateBenchmark") {
             gate()
@@ -276,32 +278,10 @@ tasks.withType<KotlinJvmCompile>().configureEach {
 tasks.withType<Test>().configureEach {
     jvmArgs("--add-modules=jdk.incubator.vector")
 }
-// The benchmark runner is a JavaExec whose JVM args the JMH forks inherit; without this the
-// reference backend benchmarks silently run the scalar kernels (verify via the setup println).
-// -Pkoblas.noSimd=true withholds the module to measure the scalar kernels deliberately.
+// The benchmark runner is a JavaExec whose JVM args the JMH forks inherit. Keeping every built-in
+// implementation available lets benchmark parameters select the exact provider in one invocation.
 tasks.withType<JavaExec>().configureEach {
-    val scalarReference = project.findProperty("koblas.noSimd") == "true"
-    if (!scalarReference) {
-        jvmArgs("--add-modules=jdk.incubator.vector")
-    }
-    if (name.startsWith("jvm") && name.endsWith("Benchmark")) {
-        doLast {
-            val suite = name.removePrefix("jvm").removeSuffix("Benchmark")
-                .replaceFirstChar(Char::lowercaseChar)
-                .ifEmpty { "main" }
-            val report = fileTree(layout.buildDirectory.dir("reports/benchmarks/$suite")) {
-                include("**/jvm.json")
-            }.files.maxByOrNull(File::lastModified) ?: return@doLast
-            val variant = if (scalarReference) "scalar" else "simd"
-            val backend = Regex("""("backend"\s*:\s*)"reference"""")
-            val kernels = Regex("""("kernels"\s*:\s*)"builtin"""")
-            report.writeText(
-                report.readText()
-                    .replace(backend) { "${it.groupValues[1]}\"reference-$variant\"" }
-                    .replace(kernels) { "${it.groupValues[1]}\"builtin-$variant\"" },
-            )
-        }
-    }
+    jvmArgs("--add-modules=jdk.incubator.vector", "--enable-native-access=ALL-UNNAMED")
 }
 
 // A soak rather than a benchmark: it looks for a wrong answer under contention, not for a time. Kept out of

@@ -48,6 +48,12 @@ public class F64ContextBuilder private constructor(
         return copy(selections = selections + roles.associateWith { backend })
     }
 
+    /** Selects both level-1 halves from an exact built-in [provider]. */
+    @ExperimentalKoblasApi
+    public fun withBuiltinKernels(provider: F64BuiltinKernelProvider): F64ContextBuilder =
+        withBackend(BackendRole.DENSE_KERNELS, provider.kernels)
+            .withBackend(BackendRole.SPARSE_KERNELS, provider.sparseKernels)
+
     /** Returns a resolver using [policy] for operation-level dispatch. */
     public fun withDispatchPolicy(policy: F64DispatchPolicy): F64ContextBuilder = copy(dispatchPolicy = policy)
 

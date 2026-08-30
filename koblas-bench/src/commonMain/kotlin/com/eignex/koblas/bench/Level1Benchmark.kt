@@ -11,10 +11,8 @@ class Level1Benchmark {
     @Param("2", "4", "8", "16", "32", "64", "128", "256", "1024", "4096")
     var len: Int = 0
 
-    // reference is the compiled-in kernels and forced is the host ones past their gate. No auto arm: a
-    // level-1 gate routes either everything to one side or everything to the other.
-    @Param(REFERENCE_BACKEND, HOST_BACKEND)
-    var backend: String = REFERENCE_BACKEND
+    @Param(AUTOMATIC_KERNELS, SCALAR_KERNELS, C_KERNELS, HOST_BACKEND)
+    var kernels: String = AUTOMATIC_KERNELS
 
     private lateinit var x: F64DenseVector
     private lateinit var y: F64DenseVector
@@ -24,7 +22,7 @@ class Level1Benchmark {
 
     @Setup
     fun setup() {
-        installBackend(backend)
+        installKernelProvider(kernels)
         println("resolved: primitives=$mathBackend")
         val rng = benchRng()
         x = F64DenseVector.of(randomVector(len, rng))
