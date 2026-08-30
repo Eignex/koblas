@@ -7,7 +7,7 @@ import com.eignex.koblas.internal.kernels.*
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 
-/** The C level-1 kernels compiled into every Kotlin/Native target. */
+/** The C level-1 kernels compiled into each Kotlin/Native host artifact. */
 internal actual object F64PlatformKernels : F64Kernels {
     actual override val name: String get() = BackendNames.C
 

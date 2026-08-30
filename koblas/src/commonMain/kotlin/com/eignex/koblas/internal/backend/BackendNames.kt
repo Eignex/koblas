@@ -37,6 +37,9 @@ internal object BackendNames {
     /** The compiled-in C kernels for sparse vectors. */
     const val C_SPARSE = "c-sparse"
 
+    /** Scalar kernels used while cross-compiling for a foreign host or when JVM C kernels are unavailable. */
+    const val SCALAR = "scalar"
+
     /** The compiled-in SIMD kernels, which report a lane count after this prefix. */
     const val SIMD = "simd"
 

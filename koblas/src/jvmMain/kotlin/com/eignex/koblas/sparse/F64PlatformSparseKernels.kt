@@ -3,6 +3,7 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.BackendMetadataProvider
 import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.dense.F64PlatformKernels
+import com.eignex.koblas.dense.cKernelsAvailable
 import com.eignex.koblas.dense.simdAvailable
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.kernels.JvmCKernelBindings
@@ -12,7 +13,11 @@ import jdk.incubator.vector.VectorOperators
 
 /** Sparse SIMD kernels where the Vector API is present, the bundled C kernels otherwise. */
 internal actual object F64PlatformSparseKernels : F64SparseKernels, BackendMetadataProvider {
-    actual override val name: String get() = if (simdAvailable) BackendNames.SIMD_SPARSE else BackendNames.C_SPARSE
+    actual override val name: String get() = when {
+        simdAvailable -> BackendNames.SIMD_SPARSE
+        cKernelsAvailable -> BackendNames.C_SPARSE
+        else -> BackendNames.REFERENCE
+    }
 
     override val isPortable: Boolean get() = true
 
@@ -23,8 +28,11 @@ internal actual object F64PlatformSparseKernels : F64SparseKernels, BackendMetad
     /** Computes usdot with the dense operand gathered a register at a time. */
     actual override fun dot(x: F64SparseVector, y: DoubleArray): Double {
         requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
-        if (!simdAvailable) return JvmCKernelBindings.sparseDotDense(x.indices, x.values, y)
-        return SparseSimd.dot(x.indices, x.values, y)
+        return when {
+            simdAvailable -> SparseSimd.dot(x.indices, x.values, y)
+            cKernelsAvailable -> JvmCKernelBindings.sparseDotDense(x.indices, x.values, y)
+            else -> F64ReferenceSparseLinearAlgebra.dot(x, y)
+        }
     }
 
     // Sparse-sparse dot keeps the portable merge. Forwarded explicitly rather than by class delegation, which
@@ -32,10 +40,10 @@ internal actual object F64PlatformSparseKernels : F64SparseKernels, BackendMetad
     // delegated member calls back into the delegate.
     actual override fun dot(x: F64SparseVector, y: F64SparseVector): Double {
         requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
-        return if (simdAvailable) {
-            F64ReferenceSparseLinearAlgebra.dot(x, y)
-        } else {
+        return if (cKernelsAvailable) {
             JvmCKernelBindings.sparseDotSparse(x.indices, x.values, y.indices, y.values)
+        } else {
+            F64ReferenceSparseLinearAlgebra.dot(x, y)
         }
     }
 
@@ -46,8 +54,10 @@ internal actual object F64PlatformSparseKernels : F64SparseKernels, BackendMetad
             SparseSimd.axpy(x.indices, x.values, y, alpha)
         } else if (simdAvailable) {
             F64ReferenceSparseLinearAlgebra.axpy(y, alpha, x)
-        } else {
+        } else if (cKernelsAvailable) {
             JvmCKernelBindings.sparseAxpy(x.indices, x.values, alpha, y)
+        } else {
+            F64ReferenceSparseLinearAlgebra.axpy(y, alpha, x)
         }
     }
 
@@ -57,8 +67,10 @@ internal actual object F64PlatformSparseKernels : F64SparseKernels, BackendMetad
             SparseSimd.scatter(x.indices, x.values, out)
         } else if (simdAvailable) {
             F64ReferenceSparseLinearAlgebra.scatter(x, out)
-        } else {
+        } else if (cKernelsAvailable) {
             JvmCKernelBindings.sparseScatter(x.indices, x.values, out)
+        } else {
+            F64ReferenceSparseLinearAlgebra.scatter(x, out)
         }
     }
 
@@ -66,8 +78,10 @@ internal actual object F64PlatformSparseKernels : F64SparseKernels, BackendMetad
         requireShape(from.size == x.size) { "gather: sizes differ, ${from.size} vs ${x.size}" }
         if (simdAvailable) {
             SparseSimd.gather(x.indices, x.values, from)
-        } else {
+        } else if (cKernelsAvailable) {
             JvmCKernelBindings.sparseGather(x.indices, x.values, from)
+        } else {
+            F64ReferenceSparseLinearAlgebra.gather(x, from)
         }
     }
 
@@ -77,8 +91,10 @@ internal actual object F64PlatformSparseKernels : F64SparseKernels, BackendMetad
             SparseSimd.gatherZero(x.indices, x.values, from)
         } else if (simdAvailable) {
             F64ReferenceSparseLinearAlgebra.gatherZero(x, from)
-        } else {
+        } else if (cKernelsAvailable) {
             JvmCKernelBindings.sparseGatherZero(x.indices, x.values, from)
+        } else {
+            F64ReferenceSparseLinearAlgebra.gatherZero(x, from)
         }
     }
 

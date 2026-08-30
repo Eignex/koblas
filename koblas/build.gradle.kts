@@ -12,6 +12,7 @@ eignexPublish {
 }
 
 kotlin {
+    val nativeHostIsMacos = System.getProperty("os.name").startsWith("Mac", ignoreCase = true)
     explicitApi()
     applyDefaultHierarchyTemplate()
     compilerOptions {
@@ -30,18 +31,23 @@ kotlin {
     macosArm64()
 
     targets.withType<KotlinNativeTarget>().configureEach {
-        compilations.getByName("main").cinterops.create("koblasKernels") {
-            definitionFile.set(project.file("src/nativeInterop/cinterop/koblas_kernels.def"))
-            includeDirs(project.file("native"))
+        if (name != "macosArm64" || nativeHostIsMacos) {
+            compilations.getByName("main").cinterops.create("koblasKernels") {
+                definitionFile.set(project.file("src/nativeInterop/cinterop/koblas_kernels.def"))
+                includeDirs(project.file("src/nativeInterop/cinterop"))
+            }
         }
     }
 
     sourceSets {
-        // Kotlin/Native compiles the shared C level-1 leaves beneath its host backends.
-        val scalarMain = create("scalarMain") {
+        val cMain = create("cMain") {
             dependsOn(commonMain.get())
         }
-        nativeMain.get().dependsOn(scalarMain)
+        val crossScalarMain = create("crossScalarMain") {
+            dependsOn(commonMain.get())
+        }
+        linuxMain.get().dependsOn(cMain)
+        macosMain.get().dependsOn(if (nativeHostIsMacos) cMain else crossScalarMain)
 
         // Every supported Native target can resolve OpenBLAS and SuiteSparse independently, so either
         // library may still be absent at runtime and fall back to scalar code.
@@ -72,13 +78,18 @@ val jvmKernelsPlatform = providers.gradleProperty("koblas.kernels.platform").orE
                 "linux-arm64"
             osName.startsWith("Mac", ignoreCase = true) && architecture in setOf("aarch64", "arm64") ->
                 "macosx-arm64"
-            else -> error("unsupported koblas kernel host $osName/$architecture")
+            else -> "unsupported"
         }
     },
 )
 val jvmKernelsResources = layout.buildDirectory.dir("kernels/resources")
+val prebuiltJvmKernels = providers.gradleProperty("koblas.kernels.prebuilt").map(String::toBoolean).orElse(false)
 val buildJvmKernels = tasks.register<Exec>("buildJvmKernels") {
-    inputs.files("native/koblas_kernels.c", "native/koblas_kernels.h", "../scripts/build-koblas-kernels.sh")
+    inputs.files(
+        "src/nativeInterop/cinterop/koblas_kernels.c",
+        "src/nativeInterop/cinterop/koblas_kernels.h",
+        "../scripts/build-koblas-kernels.sh",
+    )
     inputs.property("platform", jvmKernelsPlatform)
     inputs.property("CC", providers.environmentVariable("CC").orElse("cc"))
     outputs.dir(jvmKernelsResources)
@@ -91,9 +102,29 @@ val buildJvmKernels = tasks.register<Exec>("buildJvmKernels") {
         jvmKernelsResources.get().asFile.absolutePath,
     )
     environment("CC", providers.environmentVariable("CC").orElse("cc").get())
+    enabled = !prebuiltJvmKernels.get() && jvmKernelsPlatform.get() != "unsupported"
+}
+val verifyJvmKernelResources = tasks.register<Exec>("verifyJvmKernelResources") {
+    val root = jvmKernelsResources.get().asFile.absolutePath
+    val required = listOf(
+        "com/eignex/koblas/internal/kernels/linux-x86_64/libkoblas_kernels.so",
+        "com/eignex/koblas/internal/kernels/linux-arm64/libkoblas_kernels.so",
+        "com/eignex/koblas/internal/kernels/macosx-arm64/libkoblas_kernels.dylib",
+    )
+    inputs.files(required.map { "$root/$it" })
+    commandLine(
+        "bash",
+        "-c",
+        "set -euo pipefail; root=\"\$1\"; shift; for resource in \"\$@\"; do " +
+            "test -f \"\$root/\$resource\" || { echo \"missing prebuilt JVM kernel resource: \$resource\" >&2; exit 1; }; done",
+        "verify-jvm-kernels",
+        root,
+        *required.toTypedArray(),
+    )
+    enabled = prebuiltJvmKernels.get()
 }
 kotlin.sourceSets.named("jvmMain") { resources.srcDir(jvmKernelsResources) }
-tasks.named("jvmProcessResources") { dependsOn(buildJvmKernels) }
+tasks.named("jvmProcessResources") { dependsOn(buildJvmKernels, verifyJvmKernelResources) }
 
 // Dokka site is the canonical user documentation. Module-level and per-package prose live in
 // adjacent .md files referenced here.
