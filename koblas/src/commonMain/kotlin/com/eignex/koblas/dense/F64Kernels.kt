@@ -111,8 +111,8 @@ public interface F64Kernels : Backend {
 }
 
 /**
- * The kernels compiled into this target, `jdk.incubator.vector` SIMD on the JVM and scalar loops
- * elsewhere. Its [Backend.name] is what `mathBackend` reports.
+ * The kernels compiled into this target: C on Native and on a JVM without `jdk.incubator.vector`, SIMD on
+ * a JVM with the module. Its [Backend.name] is what `mathBackend` reports.
  */
 internal expect object F64PlatformKernels : F64Kernels {
     override val name: String

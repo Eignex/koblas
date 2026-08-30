@@ -5,13 +5,14 @@ import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.dense.F64PlatformKernels
 import com.eignex.koblas.dense.simdAvailable
 import com.eignex.koblas.internal.backend.BackendNames
+import com.eignex.koblas.internal.kernels.JvmCKernelBindings
 import com.eignex.koblas.requireShape
 import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
 
-/** Sparse SIMD kernels where the Vector API is present, the portable loop otherwise. */
+/** Sparse SIMD kernels where the Vector API is present, the bundled C kernels otherwise. */
 internal actual object F64PlatformSparseKernels : F64SparseKernels, BackendMetadataProvider {
-    actual override val name: String get() = if (simdAvailable) BackendNames.SIMD_SPARSE else BackendNames.REFERENCE
+    actual override val name: String get() = if (simdAvailable) BackendNames.SIMD_SPARSE else BackendNames.C_SPARSE
 
     override val isPortable: Boolean get() = true
 
@@ -22,22 +23,31 @@ internal actual object F64PlatformSparseKernels : F64SparseKernels, BackendMetad
     /** Computes usdot with the dense operand gathered a register at a time. */
     actual override fun dot(x: F64SparseVector, y: DoubleArray): Double {
         requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
-        if (!simdAvailable) return F64ReferenceSparseLinearAlgebra.dot(x, y)
+        if (!simdAvailable) return JvmCKernelBindings.sparseDotDense(x.indices, x.values, y)
         return SparseSimd.dot(x.indices, x.values, y)
     }
 
     // Sparse-sparse dot keeps the portable merge. Forwarded explicitly rather than by class delegation, which
     // would route a caller's convenience overloads to the portable routine instead of this one, since a
     // delegated member calls back into the delegate.
-    actual override fun dot(x: F64SparseVector, y: F64SparseVector): Double = F64ReferenceSparseLinearAlgebra.dot(x, y)
+    actual override fun dot(x: F64SparseVector, y: F64SparseVector): Double {
+        requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
+        return if (simdAvailable) {
+            F64ReferenceSparseLinearAlgebra.dot(x, y)
+        } else {
+            JvmCKernelBindings.sparseDotSparse(x.indices, x.values, y.indices, y.values)
+        }
+    }
 
     actual override fun axpy(y: DoubleArray, alpha: Double, x: F64SparseVector) {
         requireShape(y.size == x.size) { "axpy: sizes differ, ${y.size} vs ${x.size}" }
         if (alpha == 0.0) return
         if (scatter.enabled) {
             SparseSimd.axpy(x.indices, x.values, y, alpha)
-        } else {
+        } else if (simdAvailable) {
             F64ReferenceSparseLinearAlgebra.axpy(y, alpha, x)
+        } else {
+            JvmCKernelBindings.sparseAxpy(x.indices, x.values, alpha, y)
         }
     }
 
@@ -45,8 +55,10 @@ internal actual object F64PlatformSparseKernels : F64SparseKernels, BackendMetad
         requireShape(out.size == x.size) { "scatter: sizes differ, ${out.size} vs ${x.size}" }
         if (scatter.enabled) {
             SparseSimd.scatter(x.indices, x.values, out)
-        } else {
+        } else if (simdAvailable) {
             F64ReferenceSparseLinearAlgebra.scatter(x, out)
+        } else {
+            JvmCKernelBindings.sparseScatter(x.indices, x.values, out)
         }
     }
 
@@ -55,7 +67,7 @@ internal actual object F64PlatformSparseKernels : F64SparseKernels, BackendMetad
         if (simdAvailable) {
             SparseSimd.gather(x.indices, x.values, from)
         } else {
-            F64ReferenceSparseLinearAlgebra.gather(x, from)
+            JvmCKernelBindings.sparseGather(x.indices, x.values, from)
         }
     }
 
@@ -63,8 +75,10 @@ internal actual object F64PlatformSparseKernels : F64SparseKernels, BackendMetad
         requireShape(from.size == x.size) { "gatherZero: sizes differ, ${from.size} vs ${x.size}" }
         if (scatter.enabled) {
             SparseSimd.gatherZero(x.indices, x.values, from)
-        } else {
+        } else if (simdAvailable) {
             F64ReferenceSparseLinearAlgebra.gatherZero(x, from)
+        } else {
+            JvmCKernelBindings.sparseGatherZero(x.indices, x.values, from)
         }
     }
 

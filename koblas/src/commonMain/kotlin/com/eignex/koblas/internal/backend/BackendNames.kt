@@ -31,8 +31,11 @@ internal object BackendNames {
     /** SuiteSparse CHOLMOD, which fills the sparse matrix products. */
     const val CHOLMOD = "cholmod"
 
-    /** The compiled-in scalar kernels. */
-    const val SCALAR = "scalar"
+    /** The compiled-in C kernels used by Native and by a JVM without the Vector API. */
+    const val C = "c"
+
+    /** The compiled-in C kernels for sparse vectors. */
+    const val C_SPARSE = "c-sparse"
 
     /** The compiled-in SIMD kernels, which report a lane count after this prefix. */
     const val SIMD = "simd"
