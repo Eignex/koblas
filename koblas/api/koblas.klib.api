@@ -6,6 +6,10 @@
 // - Show declarations: true
 
 // Library unique name: <com.eignex:koblas>
+open annotation class com.eignex.koblas/ExperimentalKoblasApi : kotlin/Annotation { // com.eignex.koblas/ExperimentalKoblasApi|null[0]
+    constructor <init>() // com.eignex.koblas/ExperimentalKoblasApi.<init>|<init>(){}[0]
+}
+
 open annotation class com.eignex.koblas/UnsafeKoblasApi : kotlin/Annotation { // com.eignex.koblas/UnsafeKoblasApi|null[0]
     constructor <init>() // com.eignex.koblas/UnsafeKoblasApi.<init>|<init>(){}[0]
 }
@@ -2073,6 +2077,13 @@ final class com.eignex.koblas/DispatchGate { // com.eignex.koblas/DispatchGate|n
     final fun toString(): kotlin/String // com.eignex.koblas/DispatchGate.toString|toString(){}[0]
 }
 
+final class com.eignex.koblas/F64BuiltinKernelProvider { // com.eignex.koblas/F64BuiltinKernelProvider|null[0]
+    final val kernels // com.eignex.koblas/F64BuiltinKernelProvider.kernels|{}kernels[0]
+        final fun <get-kernels>(): com.eignex.koblas.dense/F64Kernels // com.eignex.koblas/F64BuiltinKernelProvider.kernels.<get-kernels>|<get-kernels>(){}[0]
+    final val sparseKernels // com.eignex.koblas/F64BuiltinKernelProvider.sparseKernels|{}sparseKernels[0]
+        final fun <get-sparseKernels>(): com.eignex.koblas.sparse/F64SparseKernels // com.eignex.koblas/F64BuiltinKernelProvider.sparseKernels.<get-sparseKernels>|<get-sparseKernels>(){}[0]
+}
+
 final class com.eignex.koblas/F64Context : com.eignex.koblas.dense/F64Blas, com.eignex.koblas.dense/F64Decompositions, com.eignex.koblas.dense/F64LinearAlgebra, com.eignex.koblas.sparse.basis/F64BasisSolvers, com.eignex.koblas.sparse/F64SparseBlas, com.eignex.koblas.sparse/F64SparseDecompositions, com.eignex.koblas.sparse/F64SparseLinearAlgebra { // com.eignex.koblas/F64Context|null[0]
     constructor <init>(com.eignex.koblas.dense/F64Kernels, com.eignex.koblas.dense/F64Blas, com.eignex.koblas.dense/F64Decompositions, com.eignex.koblas.sparse/F64SparseKernels, com.eignex.koblas.sparse/F64SparseBlas, com.eignex.koblas.sparse/F64SparseDecompositions, com.eignex.koblas.sparse.basis/F64BasisSolvers) // com.eignex.koblas/F64Context.<init>|<init>(com.eignex.koblas.dense.F64Kernels;com.eignex.koblas.dense.F64Blas;com.eignex.koblas.dense.F64Decompositions;com.eignex.koblas.sparse.F64SparseKernels;com.eignex.koblas.sparse.F64SparseBlas;com.eignex.koblas.sparse.F64SparseDecompositions;com.eignex.koblas.sparse.basis.F64BasisSolvers){}[0]
 
@@ -2199,6 +2210,7 @@ final class com.eignex.koblas/F64ContextBuilder { // com.eignex.koblas/F64Contex
     final fun resolve(): com.eignex.koblas/F64Context // com.eignex.koblas/F64ContextBuilder.resolve|resolve(){}[0]
     final fun withBackend(com.eignex.koblas/Backend): com.eignex.koblas/F64ContextBuilder // com.eignex.koblas/F64ContextBuilder.withBackend|withBackend(com.eignex.koblas.Backend){}[0]
     final fun withBackend(com.eignex.koblas/BackendRole, com.eignex.koblas/Backend): com.eignex.koblas/F64ContextBuilder // com.eignex.koblas/F64ContextBuilder.withBackend|withBackend(com.eignex.koblas.BackendRole;com.eignex.koblas.Backend){}[0]
+    final fun withBuiltinKernels(com.eignex.koblas/F64BuiltinKernelProvider): com.eignex.koblas/F64ContextBuilder // com.eignex.koblas/F64ContextBuilder.withBuiltinKernels|withBuiltinKernels(com.eignex.koblas.F64BuiltinKernelProvider){}[0]
     final fun withDispatchPolicy(com.eignex.koblas/F64DispatchPolicy): com.eignex.koblas/F64ContextBuilder // com.eignex.koblas/F64ContextBuilder.withDispatchPolicy|withDispatchPolicy(com.eignex.koblas.F64DispatchPolicy){}[0]
     final fun withFallbackPolicy(com.eignex.koblas/F64FallbackPolicy): com.eignex.koblas/F64ContextBuilder // com.eignex.koblas/F64ContextBuilder.withFallbackPolicy|withFallbackPolicy(com.eignex.koblas.F64FallbackPolicy){}[0]
 }
@@ -2446,6 +2458,15 @@ open class com.eignex.koblas.sparse/F64ReferenceSparseDecompositions : com.eigne
 sealed class com.eignex.koblas/KoblasException : kotlin/IllegalArgumentException // com.eignex.koblas/KoblasException|null[0]
 
 final object com.eignex.koblas.sparse/F64ReferenceSparseLinearAlgebra : com.eignex.koblas.sparse/F64ReferenceSparseBackend // com.eignex.koblas.sparse/F64ReferenceSparseLinearAlgebra|null[0]
+
+final object com.eignex.koblas/F64BuiltinKernels { // com.eignex.koblas/F64BuiltinKernels|null[0]
+    final val c // com.eignex.koblas/F64BuiltinKernels.c|{}c[0]
+        final fun <get-c>(): com.eignex.koblas/F64BuiltinKernelProvider? // com.eignex.koblas/F64BuiltinKernels.c.<get-c>|<get-c>(){}[0]
+    final val scalar // com.eignex.koblas/F64BuiltinKernels.scalar|{}scalar[0]
+        final fun <get-scalar>(): com.eignex.koblas/F64BuiltinKernelProvider // com.eignex.koblas/F64BuiltinKernels.scalar.<get-scalar>|<get-scalar>(){}[0]
+    final val simd // com.eignex.koblas/F64BuiltinKernels.simd|{}simd[0]
+        final fun <get-simd>(): com.eignex.koblas/F64BuiltinKernelProvider? // com.eignex.koblas/F64BuiltinKernels.simd.<get-simd>|<get-simd>(){}[0]
+}
 
 final object com.eignex.koblas/F64Capabilities { // com.eignex.koblas/F64Capabilities|null[0]
     final val basisFactorizations // com.eignex.koblas/F64Capabilities.basisFactorizations|{}basisFactorizations[0]

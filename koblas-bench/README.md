@@ -31,13 +31,13 @@ Use `reference` for portable Kotlin and `host` for the selected host backend.
 Benchmark setup prints the resolved backend; check it before using the result.
 Suites compare complete implementations. They do not tune runtime size routing.
 
-`level1` uses `kernels=builtin|host` instead. On the JVM, portable SIMD and
-portable scalar are separate benchmark datasets: run once normally and once
-with `-Pkoblas.noSimd=true`. The JVM benchmark task rewrites the saved result
-arm as `reference-simd` or `reference-scalar` (and the level-1 arm as
-`builtin-simd` or `builtin-scalar`). These are execution variants of the same
-reference backend, not separate runtime providers. Setup output names the
-resolved kernel variant; verify it before keeping a report.
+`level1` uses `kernels=automatic|scalar|c|host` instead, and `sparseLevel1` uses
+`kernels=automatic|scalar|c`. Each arm installs that exact provider in code, so
+the JVM compares scalar and C under the same process configuration. The
+automatic arm records normal production selection, including SIMD on a JVM
+with the Vector API module. Focused suites can also request `kernels=simd`.
+Setup output names the resolved kernel variant; verify it before keeping a
+report.
 
 Measure on the platform whose routing you are changing. JVM and native have
 different Kotlin and FFI costs.

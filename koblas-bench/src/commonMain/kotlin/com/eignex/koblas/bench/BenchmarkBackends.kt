@@ -5,6 +5,10 @@ import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
 
 internal const val REFERENCE_BACKEND = "reference"
 internal const val HOST_BACKEND = "host"
+internal const val AUTOMATIC_KERNELS = "automatic"
+internal const val SCALAR_KERNELS = "scalar"
+internal const val C_KERNELS = "c"
+internal const val SIMD_KERNELS = "simd"
 
 internal expect fun useHost(): Boolean
 
@@ -27,4 +31,22 @@ internal fun installBackend(backend: String) {
         }
     }
     println("resolved: $koblasInfo (installed=$installed)")
+}
+
+@OptIn(ExperimentalKoblasApi::class)
+internal fun installKernelProvider(provider: String) {
+    installBackends(null)
+    if (provider == AUTOMATIC_KERNELS) return
+    if (provider == HOST_BACKEND) {
+        check(useHost()) { "the host kernel provider is unavailable" }
+        return
+    }
+    val builtIn = when (provider) {
+        SCALAR_KERNELS -> F64BuiltinKernels.scalar
+        C_KERNELS -> F64BuiltinKernels.c
+        SIMD_KERNELS -> F64BuiltinKernels.simd
+        else -> error("unknown kernel provider: $provider")
+    }
+    checkNotNull(builtIn) { "$provider kernel provider is unavailable" }
+    installBackends(F64ContextBuilder(koblas).withBuiltinKernels(builtIn).resolve())
 }

@@ -1,108 +1,43 @@
 package com.eignex.koblas.sparse
 
+import com.eignex.koblas.BackendMetadata
 import com.eignex.koblas.BackendMetadataProvider
 import com.eignex.koblas.core.F64SparseVector
-import com.eignex.koblas.dense.F64PlatformKernels
 import com.eignex.koblas.dense.cKernelsAvailable
 import com.eignex.koblas.dense.simdAvailable
-import com.eignex.koblas.internal.backend.BackendNames
-import com.eignex.koblas.internal.kernels.JvmCKernelBindings
-import com.eignex.koblas.requireShape
 import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
 
 /** Sparse SIMD kernels where the Vector API is present, the bundled C kernels otherwise. */
 internal actual object F64PlatformSparseKernels : F64SparseKernels, BackendMetadataProvider {
-    actual override val name: String get() = when {
-        simdAvailable -> BackendNames.SIMD_SPARSE
-        cKernelsAvailable -> BackendNames.C_SPARSE
-        else -> BackendNames.REFERENCE
+    private val selected: F64SparseKernels = when {
+        simdAvailable -> F64SimdSparseKernels
+        cKernelsAvailable -> F64CSparseKernels
+        else -> F64ReferenceSparseLinearAlgebra
     }
 
-    override val isPortable: Boolean get() = true
+    actual override val name: String get() = selected.name
 
-    private val scatter = JvmVectorScatter.configured()
+    override val isPortable: Boolean get() = selected.isPortable
 
-    override val backendMetadata get() = scatter.metadata
+    override val backendMetadata: BackendMetadata
+        get() = (selected as? BackendMetadataProvider)?.backendMetadata ?: BackendMetadata()
 
-    /** Computes usdot with the dense operand gathered a register at a time. */
-    actual override fun dot(x: F64SparseVector, y: DoubleArray): Double {
-        requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
-        return when {
-            simdAvailable -> SparseSimd.dot(x.indices, x.values, y)
-            cKernelsAvailable -> JvmCKernelBindings.sparseDotDense(x.indices, x.values, y)
-            else -> F64ReferenceSparseLinearAlgebra.dot(x, y)
-        }
-    }
+    actual override fun dot(x: F64SparseVector, y: DoubleArray): Double = selected.dot(x, y)
 
-    // Sparse-sparse dot keeps the portable merge. Forwarded explicitly rather than by class delegation, which
-    // would route a caller's convenience overloads to the portable routine instead of this one, since a
-    // delegated member calls back into the delegate.
-    actual override fun dot(x: F64SparseVector, y: F64SparseVector): Double {
-        requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
-        return if (cKernelsAvailable) {
-            JvmCKernelBindings.sparseDotSparse(x.indices, x.values, y.indices, y.values)
-        } else {
-            F64ReferenceSparseLinearAlgebra.dot(x, y)
-        }
-    }
+    actual override fun dot(x: F64SparseVector, y: F64SparseVector): Double = selected.dot(x, y)
 
-    actual override fun axpy(y: DoubleArray, alpha: Double, x: F64SparseVector) {
-        requireShape(y.size == x.size) { "axpy: sizes differ, ${y.size} vs ${x.size}" }
-        if (alpha == 0.0) return
-        if (scatter.enabled) {
-            SparseSimd.axpy(x.indices, x.values, y, alpha)
-        } else if (simdAvailable) {
-            F64ReferenceSparseLinearAlgebra.axpy(y, alpha, x)
-        } else if (cKernelsAvailable) {
-            JvmCKernelBindings.sparseAxpy(x.indices, x.values, alpha, y)
-        } else {
-            F64ReferenceSparseLinearAlgebra.axpy(y, alpha, x)
-        }
-    }
+    actual override fun axpy(y: DoubleArray, alpha: Double, x: F64SparseVector) = selected.axpy(y, alpha, x)
 
-    actual override fun scatter(x: F64SparseVector, out: DoubleArray) {
-        requireShape(out.size == x.size) { "scatter: sizes differ, ${out.size} vs ${x.size}" }
-        if (scatter.enabled) {
-            SparseSimd.scatter(x.indices, x.values, out)
-        } else if (simdAvailable) {
-            F64ReferenceSparseLinearAlgebra.scatter(x, out)
-        } else if (cKernelsAvailable) {
-            JvmCKernelBindings.sparseScatter(x.indices, x.values, out)
-        } else {
-            F64ReferenceSparseLinearAlgebra.scatter(x, out)
-        }
-    }
+    actual override fun scatter(x: F64SparseVector, out: DoubleArray) = selected.scatter(x, out)
 
-    actual override fun gather(x: F64SparseVector, from: DoubleArray) {
-        requireShape(from.size == x.size) { "gather: sizes differ, ${from.size} vs ${x.size}" }
-        if (simdAvailable) {
-            SparseSimd.gather(x.indices, x.values, from)
-        } else if (cKernelsAvailable) {
-            JvmCKernelBindings.sparseGather(x.indices, x.values, from)
-        } else {
-            F64ReferenceSparseLinearAlgebra.gather(x, from)
-        }
-    }
+    actual override fun gather(x: F64SparseVector, from: DoubleArray) = selected.gather(x, from)
 
-    actual override fun gatherZero(x: F64SparseVector, from: DoubleArray) {
-        requireShape(from.size == x.size) { "gatherZero: sizes differ, ${from.size} vs ${x.size}" }
-        if (scatter.enabled) {
-            SparseSimd.gatherZero(x.indices, x.values, from)
-        } else if (simdAvailable) {
-            F64ReferenceSparseLinearAlgebra.gatherZero(x, from)
-        } else if (cKernelsAvailable) {
-            JvmCKernelBindings.sparseGatherZero(x.indices, x.values, from)
-        } else {
-            F64ReferenceSparseLinearAlgebra.gatherZero(x, from)
-        }
-    }
+    actual override fun gatherZero(x: F64SparseVector, from: DoubleArray) = selected.gatherZero(x, from)
 
-    // Both reduce over the stored values alone, so the indices are beside the point and the dense kernels
-    // apply unchanged. They branch on lane width themselves, so this needs no `simdAvailable` guard.
-    actual override fun nrm2(x: F64SparseVector): Double = F64PlatformKernels.nrm2(x.values, 0, x.values.size)
+    actual override fun nrm2(x: F64SparseVector): Double = selected.nrm2(x)
 
-    actual override fun asum(x: F64SparseVector): Double = F64PlatformKernels.asum(x.values, 0, x.values.size)
+    actual override fun asum(x: F64SparseVector): Double = selected.asum(x)
 }
 
 /** Its own object so the initializer, which touches DoubleVector, runs only once the module is present. */

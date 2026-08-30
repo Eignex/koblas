@@ -15,12 +15,17 @@ class SparseLevel1Benchmark {
     @Param("0.001", "0.01", "0.1")
     var density: Double = 0.0
 
+    @Param(AUTOMATIC_KERNELS, SCALAR_KERNELS, C_KERNELS)
+    var kernels: String = AUTOMATIC_KERNELS
+
     private lateinit var sparse: F64SparseVector
     private lateinit var other: F64SparseVector
     private lateinit var dense: F64DenseVector
 
     @Setup
     fun setup() {
+        installKernelProvider(kernels)
+        println("resolved: sparseKernels=${koblas.sparseKernels.name}")
         val rng = benchRng()
         sparse = randomSparseVector(len, density, rng)
         other = randomSparseVector(len, density, rng)

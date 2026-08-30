@@ -1,13 +1,10 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.dense.Simd.UNROLL_MIN
-import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.kernels.JvmCKernelBindings
-import com.eignex.koblas.internal.numeric.*
 import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
 import kotlin.math.abs
-import kotlin.math.sqrt
 
 /**
  * Whether the `jdk.incubator.vector` module resolved at runtime. The SIMD code lives in [Simd] so its
@@ -21,20 +18,16 @@ internal val simdAvailable: Boolean = try {
     false
 }
 
-/**
- * Lane width of the vector path, or 0 when it is unavailable. A run below one lane executes no vector
- * body at all, so short runs take the scalar kernels rather than pay the vector prologue.
- */
-private val simdLanes: Int = if (simdAvailable) Simd.lanes() else 0
 internal val cKernelsAvailable: Boolean = !simdAvailable && JvmCKernelBindings.isAvailable
 
 internal actual object F64PlatformKernels : F64Kernels {
-    actual override val name: String
-        get() = when {
-            simdAvailable -> "${BackendNames.SIMD}($simdLanes lanes)"
-            cKernelsAvailable -> BackendNames.C
-            else -> BackendNames.SCALAR
-        }
+    private val selected: F64Kernels = when {
+        simdAvailable -> F64SimdKernels
+        cKernelsAvailable -> F64CKernels
+        else -> F64ScalarKernels
+    }
+
+    actual override val name: String get() = selected.name
 
     override val isPortable: Boolean get() = true
 
@@ -44,67 +37,18 @@ internal actual object F64PlatformKernels : F64Kernels {
      */
     override val isAvailable: Boolean get() = true
 
-    private fun vectorizes(len: Int): Boolean = simdAvailable && len >= simdLanes
-
     actual override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
-        if (simdAvailable) {
-            if (vectorizes(len)) Simd.dot(a, aOff, b, bOff, len) else scalarDot(a, aOff, b, bOff, len)
-        } else if (cKernelsAvailable) {
-            JvmCKernelBindings.denseDot(a, aOff, b, bOff, len)
-        } else {
-            scalarDot(a, aOff, b, bOff, len)
-        }
+        selected.dot(a, aOff, b, bOff, len)
 
-    actual override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
-        if (vectorizes(len)) {
-            Simd.axpy(y, yOff, alpha, x, xOff, len)
-        } else if (simdAvailable) {
-            scalarAxpy(y, yOff, alpha, x, xOff, len)
-        } else if (cKernelsAvailable) {
-            JvmCKernelBindings.denseAxpy(y, yOff, alpha, x, xOff, len)
-        } else {
-            scalarAxpy(y, yOff, alpha, x, xOff, len)
-        }
-    }
+    actual override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) =
+        selected.axpy(y, yOff, alpha, x, xOff, len)
 
-    actual override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
-        if (vectorizes(len)) {
-            Simd.scale(v, vOff, alpha, len)
-        } else if (simdAvailable) {
-            scalarScale(v, vOff, alpha, len)
-        } else if (cKernelsAvailable) {
-            JvmCKernelBindings.denseScale(v, vOff, alpha, len)
-        } else {
-            scalarScale(v, vOff, alpha, len)
-        }
-    }
+    actual override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) = selected.scale(v, vOff, alpha, len)
 
-    /**
-     * The plain sum of squares vectorizes; only the rescaling that overflow or underflow forces does not,
-     * and that path defers to the shared implementation.
-     */
-    actual override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double {
-        if (!simdAvailable) {
-            return if (cKernelsAvailable) JvmCKernelBindings.denseNrm2(v, vOff, len) else euclideanNorm(v, vOff, len)
-        }
-        if (vectorizes(len)) {
-            val squares = Simd.dot(v, vOff, v, vOff, len)
-            if (squares.isFinite() && squares >= F64_MIN_NORMAL) return sqrt(squares)
-        }
-        return euclideanNorm(v, vOff, len)
-    }
+    actual override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double = selected.nrm2(v, vOff, len)
 
-    override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) {
-        if (vectorizes(len)) {
-            Simd.swap(a, aOff, b, bOff, len)
-        } else if (simdAvailable) {
-            super.swap(a, aOff, b, bOff, len)
-        } else if (cKernelsAvailable) {
-            JvmCKernelBindings.denseSwap(a, aOff, b, bOff, len)
-        } else {
-            super.swap(a, aOff, b, bOff, len)
-        }
-    }
+    override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) =
+        selected.swap(a, aOff, b, bOff, len)
 
     @Suppress("LongParameterList") // three runs and the multiplier, matching the seam
     override fun symvColumn(
@@ -116,14 +60,8 @@ internal actual object F64PlatformKernels : F64Kernels {
         yOff: Int,
         mult: Double,
         len: Int,
-    ): Double = when {
-        vectorizes(len) -> Simd.symvColumn(a, aOff, x, xOff, y, yOff, mult, len)
-        simdAvailable -> super.symvColumn(a, aOff, x, xOff, y, yOff, mult, len)
-        cKernelsAvailable -> JvmCKernelBindings.denseSymvColumn(a, aOff, x, xOff, y, yOff, mult, len)
-        else -> super.symvColumn(a, aOff, x, xOff, y, yOff, mult, len)
-    }
+    ): Double = selected.symvColumn(a, aOff, x, xOff, y, yOff, mult, len)
 
-    /** Overridden because [Simd.symvColumn4] reads x and y once for all four columns. */
     @Suppress("LongParameterList") // four column offsets over three runs, matching the seam
     override fun symvColumn4(
         a: DoubleArray,
@@ -136,27 +74,10 @@ internal actual object F64PlatformKernels : F64Kernels {
         mult: DoubleArray,
         out: DoubleArray,
         len: Int,
-    ) {
-        if (vectorizes(len)) {
-            Simd.symvColumn4(a, aOff, stride, x, xOff, y, yOff, mult, out, len)
-        } else if (simdAvailable) {
-            super.symvColumn4(a, aOff, stride, x, xOff, y, yOff, mult, out, len)
-        } else if (cKernelsAvailable) {
-            JvmCKernelBindings.denseSymvColumn4(a, aOff, stride, x, xOff, y, yOff, mult, out, len)
-        } else {
-            super.symvColumn4(a, aOff, stride, x, xOff, y, yOff, mult, out, len)
-        }
-    }
+    ) = selected.symvColumn4(a, aOff, stride, x, xOff, y, yOff, mult, out, len)
 
-    actual override fun asum(v: DoubleArray, vOff: Int, len: Int): Double = if (cKernelsAvailable) {
-        JvmCKernelBindings.denseAsum(v, vOff, len)
-    } else if (vectorizes(len)) {
-        Simd.asum(v, vOff, len)
-    } else {
-        absoluteSum(v, vOff, len)
-    }
+    actual override fun asum(v: DoubleArray, vOff: Int, len: Int): Double = selected.asum(v, vOff, len)
 
-    /** Overridden because [Simd.dot4] loads each b segment once for all four columns. */
     @Suppress("LongParameterList") // four column offsets plus the shared operand
     actual override fun dot4(
         a: DoubleArray,
@@ -167,17 +88,7 @@ internal actual object F64PlatformKernels : F64Kernels {
         len: Int,
         out: DoubleArray,
         outOff: Int,
-    ) {
-        if (vectorizes(len)) {
-            Simd.dot4(a, aOff, stride, b, bOff, len, out, outOff)
-        } else if (simdAvailable) {
-            scalarDot4(a, aOff, stride, b, bOff, len, out, outOff)
-        } else if (cKernelsAvailable) {
-            JvmCKernelBindings.denseDot4(a, aOff, stride, b, bOff, len, out, outOff)
-        } else {
-            scalarDot4(a, aOff, stride, b, bOff, len, out, outOff)
-        }
-    }
+    ) = selected.dot4(a, aOff, stride, b, bOff, len, out, outOff)
 }
 
 internal object Simd {
