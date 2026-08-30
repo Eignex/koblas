@@ -5,6 +5,7 @@ import com.eignex.koblas.randomVector
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertTrue
 
 class PlatformSparseKernelsTest {
@@ -30,6 +31,78 @@ class PlatformSparseKernelsTest {
                 abs(actual - expected) <= 1e-13 * nnz * (1.0 + abs(expected)),
                 "nnz=$nnz: $actual vs $expected",
             )
+        }
+    }
+
+    @Test
+    fun `dot against a sparse operand matches the portable merge`() {
+        val rng = Random(20260830)
+        for (nnz in listOf(1, 7, 32, 129, 512)) {
+            val size = nnz * 8
+            val x = sparse(size, nnz, rng)
+            val y = sparse(size, nnz, rng)
+            val expected = F64ReferenceSparseLinearAlgebra.dot(x, y)
+            val actual = F64PlatformSparseKernels.dot(x, y)
+            assertTrue(
+                abs(actual - expected) <= 1e-13 * nnz * (1.0 + abs(expected)),
+                "nnz=$nnz: $actual vs $expected",
+            )
+        }
+    }
+
+    @Test
+    fun `axpy matches the portable sparse update`() {
+        val rng = Random(20260831)
+        for (nnz in listOf(1, 7, 32, 129, 512)) {
+            val x = sparse(nnz * 8, nnz, rng)
+            val expected = randomVector(x.size, rng)
+            val actual = expected.copyOf()
+            F64ReferenceSparseLinearAlgebra.axpy(expected, -0.75, x)
+            F64PlatformSparseKernels.axpy(actual, -0.75, x)
+            assertContentEquals(expected, actual, "nnz=$nnz")
+        }
+    }
+
+    @Test
+    fun `scatter matches the portable sparse write`() {
+        val rng = Random(20260901)
+        for (nnz in listOf(1, 7, 32, 129, 512)) {
+            val x = sparse(nnz * 8, nnz, rng)
+            val expected = randomVector(x.size, rng)
+            val actual = expected.copyOf()
+            F64ReferenceSparseLinearAlgebra.scatter(x, expected)
+            F64PlatformSparseKernels.scatter(x, actual)
+            assertContentEquals(expected, actual, "nnz=$nnz")
+        }
+    }
+
+    @Test
+    fun `gather matches the portable sparse read`() {
+        val rng = Random(20260902)
+        for (nnz in listOf(1, 7, 32, 129, 512)) {
+            val pattern = sparse(nnz * 8, nnz, rng)
+            val expected = F64SparseVector.of(pattern.size, pattern.indices, pattern.values)
+            val actual = F64SparseVector.of(pattern.size, pattern.indices, pattern.values)
+            val from = randomVector(pattern.size, rng)
+            F64ReferenceSparseLinearAlgebra.gather(expected, from)
+            F64PlatformSparseKernels.gather(actual, from)
+            assertContentEquals(expected.values, actual.values, "nnz=$nnz")
+        }
+    }
+
+    @Test
+    fun `gather zero matches the portable sparse move`() {
+        val rng = Random(20260903)
+        for (nnz in listOf(1, 7, 32, 129, 512)) {
+            val pattern = sparse(nnz * 8, nnz, rng)
+            val expected = F64SparseVector.of(pattern.size, pattern.indices, pattern.values)
+            val actual = F64SparseVector.of(pattern.size, pattern.indices, pattern.values)
+            val expectedFrom = randomVector(pattern.size, rng)
+            val actualFrom = expectedFrom.copyOf()
+            F64ReferenceSparseLinearAlgebra.gatherZero(expected, expectedFrom)
+            F64PlatformSparseKernels.gatherZero(actual, actualFrom)
+            assertContentEquals(expected.values, actual.values, "values nnz=$nnz")
+            assertContentEquals(expectedFrom, actualFrom, "source nnz=$nnz")
         }
     }
 

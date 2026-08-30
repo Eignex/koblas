@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
+import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 
 plugins {
     id("com.eignex.kmp") version "1.3.2"
@@ -28,8 +29,15 @@ kotlin {
     linuxX64(); linuxArm64()
     macosArm64()
 
+    targets.withType<KotlinNativeTarget>().configureEach {
+        compilations.getByName("main").cinterops.create("koblasKernels") {
+            definitionFile.set(project.file("src/nativeInterop/cinterop/koblas_kernels.def"))
+            includeDirs(project.file("native"))
+        }
+    }
+
     sourceSets {
-        // Kotlin/Native keeps scalar primitive leaves as the fallback beneath its host backends.
+        // Kotlin/Native compiles the shared C level-1 leaves beneath its host backends.
         val scalarMain = create("scalarMain") {
             dependsOn(commonMain.get())
         }
@@ -54,6 +62,38 @@ kotlin {
         }
     }
 }
+
+val jvmKernelsPlatform = providers.gradleProperty("koblas.kernels.platform").orElse(
+    providers.systemProperty("os.name").zip(providers.systemProperty("os.arch")) { osName, architecture ->
+        when {
+            osName.startsWith("Linux", ignoreCase = true) && architecture in setOf("amd64", "x86_64") ->
+                "linux-x86_64"
+            osName.startsWith("Linux", ignoreCase = true) && architecture in setOf("aarch64", "arm64") ->
+                "linux-arm64"
+            osName.startsWith("Mac", ignoreCase = true) && architecture in setOf("aarch64", "arm64") ->
+                "macosx-arm64"
+            else -> error("unsupported koblas kernel host $osName/$architecture")
+        }
+    },
+)
+val jvmKernelsResources = layout.buildDirectory.dir("kernels/resources")
+val buildJvmKernels = tasks.register<Exec>("buildJvmKernels") {
+    inputs.files("native/koblas_kernels.c", "native/koblas_kernels.h", "../scripts/build-koblas-kernels.sh")
+    inputs.property("platform", jvmKernelsPlatform)
+    inputs.property("CC", providers.environmentVariable("CC").orElse("cc"))
+    outputs.dir(jvmKernelsResources)
+    commandLine(
+        "bash",
+        rootProject.file("scripts/build-koblas-kernels.sh").absolutePath,
+        "--platform",
+        jvmKernelsPlatform.get(),
+        "--output",
+        jvmKernelsResources.get().asFile.absolutePath,
+    )
+    environment("CC", providers.environmentVariable("CC").orElse("cc").get())
+}
+kotlin.sourceSets.named("jvmMain") { resources.srcDir(jvmKernelsResources) }
+tasks.named("jvmProcessResources") { dependsOn(buildJvmKernels) }
 
 // Dokka site is the canonical user documentation. Module-level and per-package prose live in
 // adjacent .md files referenced here.
