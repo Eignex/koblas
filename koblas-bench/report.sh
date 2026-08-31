@@ -26,10 +26,13 @@ if [[ -n ${CORES:-} && $(uname -s) == Linux && -x $(command -v taskset) ]]; then
     command=(taskset -c "$CORES" "${command[@]}")
     affinity="taskset -c $CORES"
 else affinity=none; fi
+if command -v rg &>/dev/null; then resolved_grep() { rg "$@"; }
+else resolved_grep() { grep -E "$@"; }
+fi
 cd "$root"
-"$root/gradlew" ":koblas-bench:${target}BenchmarkCompile" --no-daemon
+"$root/gradlew" ":koblas-bench:${target}BenchmarkCompile"
 if ! "${command[@]}" 2>&1 | tee "$log"; then
-    if rg -q '/tmp/jmh\.lock|jmh\.lock' "$log"; then echo "A stale JMH lock was detected; inspect it before removing it." >&2; fi
+    if resolved_grep -q '/tmp/jmh\.lock|jmh\.lock' "$log"; then echo "A stale JMH lock was detected; inspect it before removing it." >&2; fi
     exit 1
 fi
 reports=()
@@ -40,13 +43,15 @@ if ((${#reports[@]} == 0)); then echo "No fresh benchmark JSON was produced; a s
 python3 "$root/koblas-bench/tools/check-benchmark-coverage.py" "$root/koblas-bench/benchmark-coverage.tsv" "${reports[@]}"
 stage=$(mktemp -d "$output/.koblas-report-${target}-${timestamp}.XXXXXX")
 archive="$output/koblas-report-${target}-${timestamp}.tar.gz"
+git_commit=$(git rev-parse HEAD) || git_commit=unknown
+gradle_version=$("$root/gradlew" --version --quiet | awk '/Gradle / { print $2; exit }') || gradle_version=unknown
 {
     echo "timestamp_utc=$timestamp"
-    echo "git_commit=$(git rev-parse HEAD)"
+    echo "git_commit=$git_commit"
     echo "git_dirty=$(test -n "$(git status --porcelain)" && echo yes || echo no)"
     echo "os=$(uname -srm)"
     echo "architecture=$(uname -m)"
-    echo "gradle_version=$("$root/gradlew" --version --quiet | awk '/Gradle / { print $2; exit }')"
+    echo "gradle_version=$gradle_version"
     echo "target=$target"
     echo "command=${command[*]}"
     echo "cpu_model=$(lscpu 2>/dev/null | awk -F: '/Model name/ { sub(/^ +/, "", $2); print $2; exit }' || true)"
@@ -54,7 +59,7 @@ archive="$output/koblas-report-${target}-${timestamp}.tar.gz"
     echo "affinity=$affinity"
     if [[ $target == jvm ]]; then echo "jvm_version=$(java -version 2>&1 | head -n 1)"; fi
     echo "resolved_backends:"
-    rg '^resolved:' "$log" || true
+    resolved_grep '^resolved:' "$log" || true
 } > "$stage/metadata.txt"
 cp "$log" "$stage/benchmark.log"
 cp "$root/koblas-bench/benchmark-coverage.tsv" "$stage/"
