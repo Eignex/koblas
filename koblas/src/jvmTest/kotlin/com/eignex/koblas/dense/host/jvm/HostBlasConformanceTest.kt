@@ -66,6 +66,7 @@ class HostBlasConformanceTest {
         assertTriangularAgreesWithReference(F64Cblas(), intArrayOf(1, 5, 12, 24))
         assertGerAgreesWithReference(F64Cblas())
         assertSyrAgreesWithReference(F64Cblas())
+        assertSyr2kAgreesWithReference(F64Cblas(), intArrayOf(1, 5, 12, 24))
     }
 
     /** Lowering the gates is the only way the native solve runs; the shipped values keep it portable. */
@@ -140,6 +141,7 @@ class HostBlasConformanceTest {
         assertGemmAgreesWithReference(host, intArrayOf(18, 64))
         assertSyrkAgreesWithReference(host, intArrayOf(18, 64))
         assertSyrkTriangleModesLeaveTheOtherTriangle(host, intArrayOf(18, 64))
+        assertSyr2kAgreesWithReference(host, intArrayOf(18, 64))
         assertSymmetricProductsAgreeWithReference(host, intArrayOf(18, 64))
     }
 
@@ -152,6 +154,7 @@ class HostBlasConformanceTest {
         assertGemmAgreesWithReference(host, intArrayOf(6))
         assertSyrkAgreesWithReference(host, intArrayOf(6))
         assertSyrkTriangleModesLeaveTheOtherTriangle(host, intArrayOf(6))
+        assertSyr2kAgreesWithReference(host, intArrayOf(6))
         assertSymmetricProductsAgreeWithReference(host, intArrayOf(1, 6, 13))
     }
 
