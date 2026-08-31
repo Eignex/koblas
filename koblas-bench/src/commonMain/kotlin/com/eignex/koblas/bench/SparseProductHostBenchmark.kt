@@ -2,16 +2,12 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.installBackends
 import com.eignex.koblas.koblas
 import com.eignex.koblas.sparse.*
 import kotlinx.benchmark.*
 
 /**
  * The sparse matrix products against the portable ones.
- *
- * `trsv` trails the three subjects alphabetically and no gate reaches it, so it is the control: a row from
- * the same run that the change under test cannot move.
  */
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
@@ -20,7 +16,7 @@ class SparseProductHostBenchmark {
     @Param("64", "256", "1024")
     var n: Int = 0
 
-    @Param(REFERENCE_BACKEND, HOST_BACKEND)
+    @Param(AUTOMATIC_BACKEND, REFERENCE_BACKEND, HOST_BACKEND)
     var backend: String = REFERENCE_BACKEND
 
     private lateinit var a: F64SparseMatrix
@@ -37,8 +33,7 @@ class SparseProductHostBenchmark {
 
     @Setup
     fun setup() {
-        installBackends(null)
-        if (backend == HOST_BACKEND) useSparseProduct()
+        installSparseBlasBackend(backend)
         val rng = benchRng()
         a = sparseDominantMatrix(n, rng)
         square = a
