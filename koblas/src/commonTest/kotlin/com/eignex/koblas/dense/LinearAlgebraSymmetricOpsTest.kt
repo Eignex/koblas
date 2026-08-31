@@ -279,6 +279,52 @@ class LinearAlgebraSymmetricOpsTest {
     }
 
     @Test
+    fun `symmetric level three operations cross their cache tile boundaries`() {
+        val rng = Random(20261031)
+        for ((n, k) in listOf((REFERENCE_MC + 1) to 3, (REFERENCE_NC + 3) to (REFERENCE_KC + 2))) {
+            for (transpose in booleanArrayOf(false, true)) {
+                val a = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
+                val b = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
+                for (lower in booleanArrayOf(false, true)) {
+                    val rankOne = F64DenseMatrix(n, n)
+                    F64ReferenceLinearAlgebra.syrk(0.75, a, transpose, 0.0, rankOne, lower)
+                    val rankTwo = F64DenseMatrix(n, n)
+                    F64ReferenceLinearAlgebra.syr2k(0.75, a, b, transpose, 0.0, rankTwo, lower)
+                    for (j in 0 until n) {
+                        val range = if (lower) j until n else 0..j
+                        for (i in range) {
+                            var aa = 0.0
+                            for (p in 0 until k) {
+                                val ai = if (transpose) a[p, i] else a[i, p]
+                                val aj = if (transpose) a[p, j] else a[j, p]
+                                aa += ai * aj
+                            }
+                            assertClose(0.75 * aa, rankOne[i, j], "syrk n=$n t=$transpose l=$lower")
+                            assertClose(
+                                0.75 * syr2kEntry(a, b, transpose, k, i, j),
+                                rankTwo[i, j],
+                                "syr2k n=$n t=$transpose l=$lower",
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        val n = REFERENCE_MC + 1
+        val columns = REFERENCE_NC + 1
+        for (lower in booleanArrayOf(false, true)) {
+            val (full, selected) = poisonedSymmetric(rng, n, lower)
+            val b = randomMatrix(n, columns, rng)
+            val expected = F64DenseMatrix(n, columns)
+            F64ReferenceLinearAlgebra.gemm(0.75, full, false, b, false, 0.0, expected)
+            val actual = F64DenseMatrix(n, columns)
+            F64ReferenceLinearAlgebra.symm(0.75, selected, b, 0.0, actual, lower)
+            assertClose(expected, actual, "symm n=$n lower=$lower", tolerance = 1e-10)
+        }
+    }
+
+    @Test
     fun `symmetric ops handle empty shapes`() {
         koblas.symm(1.0, F64DenseMatrix(0, 0), F64DenseMatrix(0, 3), 0.0, F64DenseMatrix(0, 3))
         val c = F64DenseMatrix(2, 0)
@@ -310,14 +356,16 @@ class LinearAlgebraSymmetricOpsTest {
         }
     }
 
-    /** Kernels whose `dot` fails, standing in for a host backend that cannot complete a call. */
-    private class FailingDot : F64Kernels {
-        override val name: String get() = "failing-dot"
-        override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
-            error("kernel failed")
-        override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
-            for (i in 0 until len) y[yOff + i] += alpha * x[xOff + i]
+    /** Kernels whose `axpy` fails, standing in for a backend that cannot complete a blocked update. */
+    private class FailingAxpy : F64Kernels {
+        override val name: String get() = "failing-axpy"
+        override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
+            var sum = 0.0
+            for (i in 0 until len) sum += a[aOff + i] * b[bOff + i]
+            return sum
         }
+        override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) =
+            error("kernel failed")
         override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
             for (i in 0 until len) v[vOff + i] *= alpha
         }
@@ -333,12 +381,12 @@ class LinearAlgebraSymmetricOpsTest {
         // Park one buffer of the staging width in the pool, so syrk borrows this exact instance.
         val parked = ws.take(n * k)
         ws.release(parked)
-        val blas = F64ReferenceBlas(FailingDot())
+        val blas = F64ReferenceBlas(FailingAxpy())
         assertFailsWith<IllegalStateException> {
             blas.syrk(
                 1.0,
-                F64DenseMatrix(n, k),
-                transpose = false,
+                F64DenseMatrix(k, n, DoubleArray(k * n).also { it.fill(1.0) }),
+                transpose = true,
                 beta = 0.0,
                 c = F64DenseMatrix(n, n),
                 workspace = ws,
@@ -376,13 +424,13 @@ class LinearAlgebraSymmetricOpsTest {
         val ws = Workspace()
         val parked = listOf(ws.take(n * k), ws.take(n * k))
         parked.forEach { ws.release(it) }
-        val blas = F64ReferenceBlas(FailingDot())
+        val blas = F64ReferenceBlas(FailingAxpy())
         assertFailsWith<IllegalStateException> {
             blas.syr2k(
                 1.0,
-                F64DenseMatrix(n, k),
-                F64DenseMatrix(n, k),
-                transpose = false,
+                F64DenseMatrix(k, n, DoubleArray(k * n).also { it.fill(1.0) }),
+                F64DenseMatrix(k, n, DoubleArray(k * n).also { it.fill(1.0) }),
+                transpose = true,
                 beta = 0.0,
                 c = F64DenseMatrix(n, n),
                 workspace = ws,

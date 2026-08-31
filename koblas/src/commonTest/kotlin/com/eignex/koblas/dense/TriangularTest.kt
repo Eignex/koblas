@@ -177,6 +177,46 @@ class TriangularTest {
     }
 
     @Test
+    fun `triangular matrix operations cross the diagonal block boundary`() {
+        val rng = Random(20261031)
+        val n = REFERENCE_TRIANGULAR_BLOCK + 5
+        val width = 3
+        for (lower in booleanArrayOf(false, true)) {
+            for (transpose in booleanArrayOf(false, true)) {
+                for (unitDiag in booleanArrayOf(false, true)) {
+                    val (triangle, explicit) = poisonedTriangle(rng, n, lower, unitDiag)
+                    val original = randomMatrix(n, width, rng)
+                    val multiplied = F64DenseMatrix(n, width, original.data.copyOf())
+                    triangle.trmm(multiplied, lower, transpose, unitDiag)
+                    for (column in 0 until width) {
+                        val expected = DoubleArray(n) { original[it, column] }
+                        triangle.trmv(expected, lower, transpose, unitDiag)
+                        assertClose(expected, DoubleArray(n) { multiplied[it, column] }, "left multiply")
+                    }
+                    triangle.trsm(multiplied, lower, transpose, unitDiag)
+                    assertClose(original, multiplied, "left round trip", tolerance = 1e-9)
+
+                    val rightOriginal = randomMatrix(width, n, rng)
+                    val right = F64DenseMatrix(width, n, rightOriginal.data.copyOf())
+                    triangle.trmm(right, lower, transpose, unitDiag, right = true)
+                    val expectedRight = F64DenseMatrix(width, n)
+                    for (j in 0 until n) {
+                        for (i in 0 until width) {
+                            for (p in 0 until n) {
+                                expectedRight[i, j] += rightOriginal[i, p] *
+                                    (if (transpose) explicit[j, p] else explicit[p, j])
+                            }
+                        }
+                    }
+                    assertClose(expectedRight, right, "right multiply", tolerance = 1e-10)
+                    triangle.trsm(right, lower, transpose, unitDiag, right = true)
+                    assertClose(rightOriginal, right, "right round trip", tolerance = 1e-9)
+                }
+            }
+        }
+    }
+
+    @Test
     fun `trmv round-trips with trsv`() {
         val rng = Random(20260917)
         val n = 9

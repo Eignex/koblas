@@ -63,12 +63,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
 
     override fun transpose(a: F64DenseMatrix): F64DenseMatrix {
         val t = F64DenseMatrix(a.cols, a.rows)
-        val td = t.data
-        val ad = a.data
-        for (j in 0 until a.cols) {
-            val base = j * a.rows
-            for (i in 0 until a.rows) td[j + i * a.cols] = ad[base + i]
-        }
+        transposeBlocked(a.data, a.rows, a.cols, t.data)
         return t
     }
 
@@ -91,57 +86,13 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         val cd = c.data
         applyBeta(kernels, cd, 0, cd.size, beta)
         if (alpha == 0.0 || m == 0 || n == 0 || k == 0) return
-        val ad = a.data
-        val bd = b.data
         val kernels = kernels
-        if (transposeA && transposeB) {
-            // With both transposed one operand is strided whichever way the loops run, so the smaller one
-            // is transposed first. That copy is O(k·n) or O(k·m) against the product's O(m·k·n).
-            if (b.rows * b.cols <= a.rows * a.cols) {
-                val bt = DoubleArray(k * n)
-                for (j in 0 until n) for (p in 0 until k) bt[p + j * k] = bd[j + p * n]
-                gemm(alpha, a, true, F64DenseMatrix.wrap(k, n, bt), false, 1.0, c)
-            } else {
-                val at = DoubleArray(m * k)
-                for (i in 0 until m) for (p in 0 until k) at[i + p * m] = ad[p + i * k]
-                gemm(alpha, F64DenseMatrix.wrap(m, k, at), false, b, true, 1.0, c)
-            }
-            return
-        }
-        when {
-            transposeA -> {
-                val quads = DoubleArray(4)
-                for (j in 0 until n) {
-                    var i = 0
-                    val bound = m - 3
-                    while (i < bound) {
-                        kernels.dot4(ad, i * k, k, bd, j * k, k, quads, 0)
-                        cd[i + j * m] += alpha * quads[0]
-                        cd[i + 1 + j * m] += alpha * quads[1]
-                        cd[i + 2 + j * m] += alpha * quads[2]
-                        cd[i + 3 + j * m] += alpha * quads[3]
-                        i += 4
-                    }
-                    while (i < m) {
-                        cd[i + j * m] += alpha * kernels.dot(ad, i * k, bd, j * k, k)
-                        i++
-                    }
-                }
-            }
-
-            !transposeB -> for (j in 0 until n) {
-                for (p in 0 until k) {
-                    val bpj = alpha * bd[p + j * k]
-                    if (bpj != 0.0) kernels.axpy(cd, j * m, bpj, ad, p * m, m)
-                }
-            }
-
-            else -> for (j in 0 until n) {
-                for (p in 0 until k) {
-                    val bjp = alpha * bd[j + p * n]
-                    if (bjp != 0.0) kernels.axpy(cd, j * m, bjp, ad, p * m, m)
-                }
-            }
+        if (transposeA) {
+            val packed = DoubleArray(m * k)
+            transposeBlocked(a.data, a.rows, a.cols, packed)
+            blockedGemmUpdate(kernels, alpha, packed, b.data, b.rows, transposeB, cd, m, n, k)
+        } else {
+            blockedGemmUpdate(kernels, alpha, a.data, b.data, b.rows, transposeB, cd, m, n, k)
         }
     }
 
@@ -161,42 +112,12 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         val cd = c.data
         scaleTriangle(kernels, cd, n, beta, lower)
         if (alpha == 0.0 || n == 0 || k == 0) return
-        val ad = a.data
-        // The dot form holds each output entry in a register, where accumulating outer products would
-        // stream all of C once per column of A. So a non-transposed A is transposed first, an O(n·k) copy
-        // against the product's O(n²·k/2), and both orientations run the same loop below.
-        if (transpose) {
-            accumulateSyrk(alpha, ad, n, k, cd, lower)
-            return
-        }
-        workspace.borrow(n * k) { at ->
-            transposeIntoRows(ad, at, n, k)
-            accumulateSyrk(alpha, at, n, k, cd, lower)
-        }
-    }
-
-    /** The `dsyrk` accumulation with the operand stored `k×n`, so op(A) row i is column i of the buffer. */
-    @Suppress("LongParameterList") // the operand and the shape, all of which the caller holds
-    private fun accumulateSyrk(alpha: Double, ad: DoubleArray, n: Int, k: Int, cd: DoubleArray, lower: Boolean) {
-        val kernels = kernels
-        // Four rows of op(A) against one column, so column j is read once for the four rather than once
-        // each. The rows sit at stride k because the operand arrives transposed, which is the shape
-        // [F64Kernels.dot4] is for.
-        val quads = DoubleArray(4)
-        for (j in 0 until n) {
-            var i = j
-            val bound = n - 3
-            while (i < bound) {
-                kernels.dot4(ad, i * k, k, ad, j * k, k, quads, 0)
-                addTriangle(cd, n, i, j, alpha * quads[0], lower)
-                addTriangle(cd, n, i + 1, j, alpha * quads[1], lower)
-                addTriangle(cd, n, i + 2, j, alpha * quads[2], lower)
-                addTriangle(cd, n, i + 3, j, alpha * quads[3], lower)
-                i += 4
-            }
-            while (i < n) {
-                addTriangle(cd, n, i, j, alpha * kernels.dot(ad, i * k, ad, j * k, k), lower)
-                i++
+        if (!transpose) {
+            blockedSyrkUpdate(kernels, alpha, a.data, cd, n, k, lower)
+        } else {
+            workspace.borrow(n * k) { packed ->
+                transposeBlocked(a.data, a.rows, a.cols, packed)
+                blockedSyrkUpdate(kernels, alpha, packed, cd, n, k, lower)
             }
         }
     }
@@ -333,13 +254,6 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         kernels.dot(ad, aOff, x, xOff, len)
     }
 
-    /** A(i, j) of a symmetric `n×n` matrix stored in its [lower] or upper triangle only. */
-    private fun symEntry(ad: DoubleArray, n: Int, i: Int, j: Int, lower: Boolean): Double {
-        val hi = if (i > j) i else j
-        val lo = if (i > j) j else i
-        return if (lower) ad[hi + lo * n] else ad[lo + hi * n]
-    }
-
     @Suppress("LongParameterList", "CyclomaticComplexMethod") // the BLAS dsymm signature
     override fun symm(
         alpha: Double,
@@ -364,22 +278,11 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         }
         val cd = c.data
         applyBeta(kernels, cd, 0, cd.size, beta)
+        if (alpha == 0.0 || m == 0 || b.rows == 0 || b.cols == 0) return
         if (right) {
-            if (alpha == 0.0 || m == 0 || b.rows == 0) return
-            val rows = b.rows
-            val ad = a.data
-            val bd = b.data
-            for (j in 0 until m) {
-                for (p in 0 until m) {
-                    val apj = alpha * symEntry(ad, m, p, j, lower)
-                    if (apj != 0.0) kernels.axpy(cd, j * rows, apj, bd, p * rows, rows)
-                }
-            }
-            return
-        }
-        if (alpha == 0.0 || m == 0 || b.cols == 0) return
-        for (j in 0 until b.cols) {
-            symvAccumulate(alpha, a.data, m, b.data, j * m, cd, j * m, lower)
+            blockedSymmRightUpdate(kernels, alpha, a.data, b.data, cd, b.rows, m, lower)
+        } else {
+            blockedSymmLeftUpdate(kernels, alpha, a.data, b.data, cd, m, b.cols, lower)
         }
     }
 
@@ -525,63 +428,15 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         requireShape(c.rows == n && c.cols == n) { "syr2k: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
         scaleTriangle(kernels, c.data, n, beta, lower)
         if (alpha == 0.0 || n == 0 || k == 0) return
-        // Each entry is two dots, which hold their accumulator in a register. A transposed operand already
-        // has op(X) row i as column i of its buffer; a non-transposed one has it strided, so both are
-        // transposed first, an O(n·k) copy against the product's O(n²·k), as [syrk] does with its one
-        // operand. One triangle is computed and addTriangle places it, which halves the dots and keeps the
-        // selected triangle consistent even against a host dot whose value depends on operand order.
-        if (transpose) {
-            accumulateSyr2k(alpha, a.data, b.data, n, k, c.data, lower)
-            return
-        }
-        workspace.borrow(n * k) { at ->
-            workspace.borrow(n * k) { bt ->
-                transposeIntoRows(a.data, at, n, k)
-                transposeIntoRows(b.data, bt, n, k)
-                accumulateSyr2k(alpha, at, bt, n, k, c.data, lower)
-            }
-        }
-    }
-
-    /** Column p of the `n×k` [src] becomes row p of the `k×n` [dst], so a row read turns into a column read. */
-    private fun transposeIntoRows(src: DoubleArray, dst: DoubleArray, n: Int, k: Int) {
-        for (p in 0 until k) {
-            val base = p * n
-            for (j in 0 until n) dst[p + j * k] = src[base + j]
-        }
-    }
-
-    /** The `dsyr2k` accumulation with both operands stored `k×n`, so op(X) row i is column i of the buffer. */
-    @Suppress("LongParameterList") // two operands and the shape, all of which the caller holds
-    private fun accumulateSyr2k(
-        alpha: Double,
-        ad: DoubleArray,
-        bd: DoubleArray,
-        n: Int,
-        k: Int,
-        cd: DoubleArray,
-        lower: Boolean,
-    ) {
-        val kernels = kernels
-        // Both halves of the pair are the shape dot4 wants, so each column is read once for four rows.
-        val fromA = DoubleArray(4)
-        val fromB = DoubleArray(4)
-        for (j in 0 until n) {
-            var i = j
-            val bound = n - 3
-            while (i < bound) {
-                kernels.dot4(ad, i * k, k, bd, j * k, k, fromA, 0)
-                kernels.dot4(bd, i * k, k, ad, j * k, k, fromB, 0)
-                for (r in 0 until 4) {
-                    val s = fromA[r] + fromB[r]
-                    if (s != 0.0) addTriangle(cd, n, i + r, j, alpha * s, lower)
+        if (!transpose) {
+            blockedSyr2kUpdate(kernels, alpha, a.data, b.data, c.data, n, k, lower)
+        } else {
+            workspace.borrow(n * k) { packedA ->
+                workspace.borrow(n * k) { packedB ->
+                    transposeBlocked(a.data, a.rows, a.cols, packedA)
+                    transposeBlocked(b.data, b.rows, b.cols, packedB)
+                    blockedSyr2kUpdate(kernels, alpha, packedA, packedB, c.data, n, k, lower)
                 }
-                i += 4
-            }
-            while (i < n) {
-                val s = kernels.dot(ad, i * k, bd, j * k, k) + kernels.dot(bd, i * k, ad, j * k, k)
-                if (s != 0.0) addTriangle(cd, n, i, j, alpha * s, lower)
-                i++
             }
         }
     }

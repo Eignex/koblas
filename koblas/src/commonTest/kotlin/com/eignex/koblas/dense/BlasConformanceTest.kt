@@ -188,6 +188,35 @@ class BlasConformanceTest {
         }
     }
 
+    @Test
+    fun `gemm agrees with a naive product across every cache tile boundary`() {
+        val rng = Random(20261031)
+        val m = REFERENCE_MC + 7
+        val k = REFERENCE_KC + 3
+        val n = REFERENCE_NC + 3
+        for (transposeA in booleanArrayOf(false, true)) {
+            for (transposeB in booleanArrayOf(false, true)) {
+                val a = if (transposeA) randomMatrix(k, m, rng) else randomMatrix(m, k, rng)
+                val b = if (transposeB) randomMatrix(n, k, rng) else randomMatrix(k, n, rng)
+                val expected = F64DenseMatrix(m, n)
+                for (j in 0 until n) {
+                    for (i in 0 until m) {
+                        var sum = 0.0
+                        for (p in 0 until k) {
+                            val av = if (transposeA) a[p, i] else a[i, p]
+                            val bv = if (transposeB) b[j, p] else b[p, j]
+                            sum += av * bv
+                        }
+                        expected[i, j] = sum
+                    }
+                }
+                val actual = F64DenseMatrix(m, n)
+                F64ReferenceLinearAlgebra.gemm(1.0, a, transposeA, b, transposeB, 0.0, actual)
+                assertClose(expected, actual, "gemm tA=$transposeA tB=$transposeB", tolerance = 1e-10)
+            }
+        }
+    }
+
     private fun checkGemmShape(rng: Random, m: Int, k: Int, n: Int) {
         for (tA in booleanArrayOf(false, true)) {
             for (tB in booleanArrayOf(false, true)) {
