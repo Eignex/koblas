@@ -63,9 +63,9 @@ public abstract class F64BlasAdapter internal constructor(
             f.dsyr2(
                 COL_MAJOR,
                 uploOf(
-            lower,
-        ),
-            a.rows, alpha, x.data, 1, y.data, 1, a.data, a.rows
+                    lower,
+                ),
+                a.rows, alpha, x.data, 1, y.data, 1, a.data, a.rows,
             )
         }
     }

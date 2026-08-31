@@ -42,7 +42,8 @@ internal class HostBlasCalls(internal val config: HostBlasConfig) {
      */
     private val requiredCblas = listOf(
         "cblas_dasum", "cblas_daxpy", "cblas_ddot", "cblas_dgemm", "cblas_dgemv", "cblas_dger", "cblas_dswap",
-        "cblas_dnrm2", "cblas_dscal", "cblas_dsymm", "cblas_dsymv", "cblas_dsyr", "cblas_dsyr2", "cblas_dsyrk", "cblas_dtrmm",
+        "cblas_dnrm2", "cblas_dscal", "cblas_dsymm", "cblas_dsymv", "cblas_dsyr", "cblas_dsyr2",
+        "cblas_dsyrk", "cblas_dtrmm",
         "cblas_dtrmv", "cblas_dtrsm", "cblas_dtrsv",
     )
 

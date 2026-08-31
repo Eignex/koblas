@@ -104,6 +104,51 @@ class BlasConformanceTest {
     }
 
     @Test
+    fun `reference symv composes dot and axpy kernels`() {
+        var dots = 0
+        var axpys = 0
+        val recording = object : F64Kernels by F64ScalarKernels {
+            override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
+                dots++
+                return F64ScalarKernels.dot(a, aOff, b, bOff, len)
+            }
+
+            override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
+                axpys++
+                F64ScalarKernels.axpy(y, yOff, alpha, x, xOff, len)
+            }
+        }
+        val a = F64DenseMatrix(3, 3, doubleArrayOf(2.0, 3.0, 5.0, 0.0, 7.0, 11.0, 0.0, 0.0, 13.0))
+        val y = DoubleArray(3)
+
+        F64ReferenceBlas(recording).symv(1.0, a, doubleArrayOf(17.0, 19.0, 23.0), 0.0, y, lower = true)
+
+        assertEquals(3, dots)
+        assertEquals(3, axpys)
+        assertEquals(doubleArrayOf(206.0, 437.0, 593.0).toList(), y.toList())
+    }
+
+    @Test
+    fun `reference syr2 uses two axpy kernels per column`() {
+        var axpys = 0
+        val recording = object : F64Kernels by F64ScalarKernels {
+            override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
+                axpys++
+                F64ScalarKernels.axpy(y, yOff, alpha, x, xOff, len)
+            }
+        }
+
+        F64ReferenceBlas(recording).syr2(
+            1.0,
+            F64DenseVector.wrap(doubleArrayOf(2.0, 3.0, 5.0)),
+            F64DenseVector.wrap(doubleArrayOf(7.0, 11.0, 13.0)),
+            F64DenseMatrix(3, 3),
+        )
+
+        assertEquals(6, axpys)
+    }
+
+    @Test
     fun `dense LU solve has a small residual on the standard test matrices`() {
         val rng = Random(20260716)
         for (n in intArrayOf(1, 2, 5, 12, 40)) {
