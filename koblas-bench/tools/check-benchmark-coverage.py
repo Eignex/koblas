@@ -8,7 +8,8 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "src" / "commonMain"
-BENCHMARK = re.compile(r"@Benchmark(?:\([^)]*\))?\s*(?:public\s+)?fun\s+(\w+)")
+MODIFIER = r"(?:public|internal|private|protected|open|override|suspend|inline)"
+BENCHMARK = re.compile(rf"@Benchmark(?:\([^)]*\))?\s*(?:{MODIFIER}\s+)*fun\s+(\w+)")
 CLASS = re.compile(r"class\s+(\w+Benchmark)\b")
 
 def fail(message):
@@ -16,11 +17,14 @@ def fail(message):
 
 def manifest(path):
     with path.open(encoding="utf-8", newline="") as file:
-        rows = list(csv.DictReader(file, delimiter="\t"))
-    required = ["api_signature", "benchmark_id", "status", "notes"]
-    if not rows or list(rows[0]) != required:
-        fail("manifest header must be " + "\t".join(required))
-    signatures, benchmarked = set(), set()
+        reader = csv.DictReader(file, delimiter="\t")
+        required = ["api_signature", "benchmark_id", "status", "notes"]
+        if reader.fieldnames != required:
+            fail("manifest header must be " + "\t".join(required))
+        rows = list(reader)
+    if not rows:
+        fail("manifest has no data rows")
+    signatures, listed, benchmarked = set(), set(), set()
     for number, row in enumerate(rows, 2):
         if None in row or any(value is None for value in row.values()):
             fail(f"malformed row {number}")
@@ -32,19 +36,23 @@ def manifest(path):
         if status == "excluded" and not notes:
             fail(f"excluded row {number} needs notes")
         signatures.add(signature)
+        listed.add(identifier)
         if status == "benchmarked":
             benchmarked.add(identifier)
-    return benchmarked
+    return listed, benchmarked
 
 def source_benchmarks():
     found = set()
     for source in SOURCE.rglob("*.kt"):
         text = source.read_text(encoding="utf-8")
-        class_match = CLASS.search(text)
-        if not class_match:
+        class_matches = list(CLASS.finditer(text))
+        if not class_matches:
             continue
-        for method in BENCHMARK.findall(text):
-            found.add(f"com.eignex.koblas.bench.{class_match.group(1)}.{method}")
+        bounds = [match.start() for match in class_matches] + [len(text)]
+        for index, class_match in enumerate(class_matches):
+            body = text[bounds[index] : bounds[index + 1]]
+            for method in BENCHMARK.findall(body):
+                found.add(f"com.eignex.koblas.bench.{class_match.group(1)}.{method}")
     return found
 
 def report_benchmarks(paths):
@@ -54,9 +62,8 @@ def report_benchmarks(paths):
             document = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as error:
             fail(f"cannot read JSON report {path}: {error}")
-        rows = document if isinstance(document, list) else document.get("benchmarks", [])
-        for row in rows:
-            identifier = row.get("benchmark") or row.get("benchmark_id")
+        for row in document:
+            identifier = row.get("benchmark")
             if identifier:
                 found.add(identifier)
     return found
@@ -64,19 +71,19 @@ def report_benchmarks(paths):
 def main(arguments):
     if not arguments:
         fail("usage: check-benchmark-coverage.py MANIFEST [REPORT.json ...]")
-    declared = manifest(pathlib.Path(arguments[0]))
+    listed, benchmarked = manifest(pathlib.Path(arguments[0]))
     discovered = source_benchmarks()
-    missing_methods = declared - discovered
-    unlisted_methods = discovered - declared
+    missing_methods = listed - discovered
+    unlisted_methods = discovered - listed
     if missing_methods:
         fail("manifest names nonexistent benchmark methods: " + ", ".join(sorted(missing_methods)))
     if unlisted_methods:
         fail("benchmark methods absent from manifest: " + ", ".join(sorted(unlisted_methods)))
     if len(arguments) > 1:
-        missing = declared - report_benchmarks([pathlib.Path(path) for path in arguments[1:]])
+        missing = benchmarked - report_benchmarks([pathlib.Path(path) for path in arguments[1:]])
         if missing:
             fail("report is missing benchmark methods: " + ", ".join(sorted(missing)))
-    print(f"benchmark coverage OK: {len(declared)} benchmarked methods")
+    print(f"benchmark coverage OK: {len(benchmarked)} benchmarked methods")
 
 if __name__ == "__main__":
     main(sys.argv[1:])
