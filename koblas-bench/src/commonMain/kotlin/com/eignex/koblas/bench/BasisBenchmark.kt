@@ -44,7 +44,7 @@ class BasisBenchmark {
 
     @Setup
     fun setup() {
-        installSparseDecompositionBackend(backend)
+        installBasisSolverBackend(backend)
         val rng = benchRng()
         a = simplexProblem(n, rng, spikeFraction = if (shape == SPIKED_COLUMNS) 0.5 else 0.0)
         logical = IntArray(n) { n + it }

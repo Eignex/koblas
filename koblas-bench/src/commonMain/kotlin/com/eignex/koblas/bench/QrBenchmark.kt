@@ -26,7 +26,7 @@ class QrBenchmark {
 
     @Setup
     fun setup() {
-        installBackend(backend)
+        installDenseBackend(backend)
         val rng = benchRng()
         square = randomMatrix(n, n, rng)
         tall = randomMatrix(2 * n, n, rng)

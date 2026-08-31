@@ -10,7 +10,7 @@ internal const val BENCH_SEED = 20260730
 internal const val SPARSE_DENSITY = 0.01
 
 // This avoids folding repeated updates away while keeping values in range.
-internal const val NEAR_UNIT_SCALE = 1.0
+internal const val NEAR_UNIT_SCALE = 1.000001
 
 internal const val BASIS_SHAPE = "basis"
 

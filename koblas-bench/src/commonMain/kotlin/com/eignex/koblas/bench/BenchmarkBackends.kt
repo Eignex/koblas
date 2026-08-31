@@ -21,7 +21,7 @@ internal expect fun useSparseProduct(): Boolean
 internal fun installDenseBackend(backend: String) {
     installBackends(null)
     when (backend) {
-        AUTOMATIC_BACKEND -> Unit
+        AUTOMATIC_BACKEND -> discoverBackends()
         REFERENCE_BACKEND ->
             installBackends(
                 koblas.with(blas = F64ReferenceLinearAlgebra, decompositions = F64ReferenceLinearAlgebra),
@@ -35,7 +35,7 @@ internal fun installDenseBackend(backend: String) {
 internal fun installSparseDecompositionBackend(backend: String) {
     installBackends(null)
     when (backend) {
-        AUTOMATIC_BACKEND -> Unit
+        AUTOMATIC_BACKEND -> discoverBackends()
         REFERENCE_BACKEND -> installBackends(koblas.with(sparseDecompositions = F64ReferenceSparseLinearAlgebra))
         HOST_BACKEND -> check(useSparseLu()) { "the host sparse decomposition backend is unavailable" }
         else -> error("unknown backend: $backend")
@@ -46,14 +46,32 @@ internal fun installSparseDecompositionBackend(backend: String) {
 internal fun installSparseBlasBackend(backend: String) {
     installBackends(null)
     when (backend) {
-        AUTOMATIC_BACKEND, REFERENCE_BACKEND -> Unit
+        AUTOMATIC_BACKEND -> discoverBackends()
+        REFERENCE_BACKEND -> Unit
         HOST_BACKEND -> check(useSparseProduct()) { "the host sparse BLAS backend is unavailable" }
         else -> error("unknown backend: $backend")
     }
     println("resolved: sparseBlas=${koblas.sparseBlas.name}")
 }
 
-internal fun installBackend(backend: String) = installDenseBackend(backend)
+/**
+ * Basis solvers are their own half, distinct from [installSparseDecompositionBackend]'s
+ * [koblas.sparseDecompositions]: [koblas-bench] carries no `koblas-hfactor` dependency, so a host
+ * implementation surfaces only if automatic discovery finds one already on the classpath.
+ */
+internal fun installBasisSolverBackend(backend: String) {
+    installBackends(null)
+    when (backend) {
+        AUTOMATIC_BACKEND -> discoverBackends()
+        REFERENCE_BACKEND -> Unit
+        HOST_BACKEND -> {
+            discoverBackends()
+            check(koblas.basisSolvers.name != REFERENCE_BACKEND) { "the host basis solver backend is unavailable" }
+        }
+        else -> error("unknown backend: $backend")
+    }
+    println("resolved: basisSolvers=${koblas.basisSolvers.name}")
+}
 
 @OptIn(ExperimentalKoblasApi::class)
 internal fun installKernelProvider(provider: String) {

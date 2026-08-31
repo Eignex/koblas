@@ -25,7 +25,7 @@ class Level3Benchmark {
 
     @Setup
     fun setup() {
-        installBackend(backend)
+        installDenseBackend(backend)
         val rng = benchRng()
         a = randomMatrix(n, n, rng)
         b = randomMatrix(n, n, rng)

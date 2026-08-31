@@ -30,7 +30,7 @@ class Level2Benchmark {
 
     @Setup
     fun setup() {
-        installBackend(backend)
+        installDenseBackend(backend)
         val rng = benchRng()
         a = randomMatrix(n, n, rng)
         sym = lowerSymmetricMatrix(n, rng)
