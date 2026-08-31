@@ -139,3 +139,10 @@ internal fun withCleanBackends(block: () -> Unit) {
         rediscoverBackends()
     }
 }
+
+/** A dense-only offer at [priority], for tests that just need to rank offers against each other. */
+internal class RankedBlas(override val name: String, override val priority: Int) :
+    com.eignex.koblas.dense.F64Blas by com.eignex.koblas.dense.F64ReferenceLinearAlgebra {
+    override val isAvailable: Boolean get() = true
+    override val isPortable: Boolean get() = false
+}

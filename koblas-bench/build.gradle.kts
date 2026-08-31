@@ -45,7 +45,11 @@ benchmark {
     }
     configurations {
         register("report") {
-            defaults()
+            warmups = 1
+            iterations = 3
+            iterationTime = 300
+            iterationTimeUnit = "ms"
+            advanced("jvmForks", "1")
             include(".*")
             param("n", "256")
             param("len", "4096")
@@ -61,12 +65,12 @@ benchmark {
         }
         register("selected") {
             defaults()
-            val requestedInclude = providers.gradleProperty("bench.include").orNull ?: "(?!)"
-            include("(?:$requestedInclude)$")
+            val requestedInclude = providers.gradleProperty("bench.include").orNull?.takeIf { it.isNotBlank() }
+            include(if (requestedInclude != null) "\\.(?:$requestedInclude)$" else "(?!)")
             gradle.startParameter.projectProperties
                 .filterKeys { it.startsWith("bench.param.") }
                 .forEach { (key, value) ->
-                    param(key.removePrefix("bench.param."), *value.split(',').toTypedArray())
+                    param(key.removePrefix("bench.param."), *value.split(',').map { it.trim() }.toTypedArray())
                 }
         }
     }
@@ -77,7 +81,9 @@ val checkBenchmarkCoverage = tasks.register<Exec>("checkBenchmarkCoverage") {
     description = "Validates the reviewed benchmark coverage manifest."
     inputs.file("benchmark-coverage.tsv")
     inputs.dir("src/commonMain")
+    outputs.file(layout.buildDirectory.file("checkBenchmarkCoverage/ok.txt"))
     commandLine("python3", "tools/check-benchmark-coverage.py", "benchmark-coverage.tsv")
+    doLast { outputs.files.singleFile.apply { parentFile.mkdirs(); writeText("ok") } }
 }
 tasks.named("check") { dependsOn(checkBenchmarkCoverage) }
 
@@ -86,4 +92,7 @@ tasks.withType<KotlinJvmCompile>().configureEach {
 }
 tasks.withType<Test>().configureEach {
     jvmArgs("--add-modules=jdk.incubator.vector")
+}
+tasks.withType<JavaExec>().configureEach {
+    jvmArgs("--add-modules=jdk.incubator.vector", "--enable-native-access=ALL-UNNAMED")
 }
