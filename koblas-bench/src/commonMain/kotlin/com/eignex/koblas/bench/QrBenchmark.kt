@@ -3,13 +3,14 @@ package com.eignex.koblas.bench
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.koblas
+import com.eignex.koblas.transpose
 import kotlinx.benchmark.*
 
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(BenchmarkTimeUnit.MICROSECONDS)
 class QrBenchmark {
-    @Param("128", "256", "512")
+    @Param("4", "8", "12", "16", "32", "64", "128", "256", "512")
     var n: Int = 0
 
     @Param(REFERENCE_BACKEND, HOST_BACKEND)
@@ -31,7 +32,7 @@ class QrBenchmark {
         tall = randomMatrix(2 * n, n, rng)
         factored = tall.qr()
         rhs = randomVector(2 * n, rng)
-        wide = randomMatrix(n, 2 * n, rng).qr()
+        wide = randomMatrix(n, 2 * n, rng).transpose().qr()
         wideRhs = randomVector(n, rng)
     }
 

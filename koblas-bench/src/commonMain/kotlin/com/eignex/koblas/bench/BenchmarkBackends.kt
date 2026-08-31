@@ -2,9 +2,11 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
+import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 
 internal const val REFERENCE_BACKEND = "reference"
 internal const val HOST_BACKEND = "host"
+internal const val AUTOMATIC_BACKEND = "automatic"
 internal const val AUTOMATIC_KERNELS = "automatic"
 internal const val SCALAR_KERNELS = "scalar"
 internal const val C_KERNELS = "c"
@@ -16,22 +18,42 @@ internal expect fun useSparseLu(): Boolean
 
 internal expect fun useSparseProduct(): Boolean
 
-internal fun installBackend(backend: String) {
-    // Cleared first, so an arm starts from the portable halves rather than whatever the previous one left.
+internal fun installDenseBackend(backend: String) {
     installBackends(null)
-    // Each branch installs before reporting: an interpolation reads koblasInfo before the call beside it
-    // runs, which would describe the state the arm was replacing.
-    val installed = when (backend) {
-        HOST_BACKEND -> useHost()
-        else -> {
+    when (backend) {
+        AUTOMATIC_BACKEND -> Unit
+        REFERENCE_BACKEND ->
             installBackends(
                 koblas.with(blas = F64ReferenceLinearAlgebra, decompositions = F64ReferenceLinearAlgebra),
             )
-            true
-        }
+        HOST_BACKEND -> check(useHost()) { "the host dense backend is unavailable" }
+        else -> error("unknown backend: $backend")
     }
-    println("resolved: $koblasInfo (installed=$installed)")
+    println("resolved: $koblasInfo")
 }
+
+internal fun installSparseDecompositionBackend(backend: String) {
+    installBackends(null)
+    when (backend) {
+        AUTOMATIC_BACKEND -> Unit
+        REFERENCE_BACKEND -> installBackends(koblas.with(sparseDecompositions = F64ReferenceSparseLinearAlgebra))
+        HOST_BACKEND -> check(useSparseLu()) { "the host sparse decomposition backend is unavailable" }
+        else -> error("unknown backend: $backend")
+    }
+    println("resolved: sparseDecompositions=${koblas.sparseDecompositions.name}")
+}
+
+internal fun installSparseBlasBackend(backend: String) {
+    installBackends(null)
+    when (backend) {
+        AUTOMATIC_BACKEND, REFERENCE_BACKEND -> Unit
+        HOST_BACKEND -> check(useSparseProduct()) { "the host sparse BLAS backend is unavailable" }
+        else -> error("unknown backend: $backend")
+    }
+    println("resolved: sparseBlas=${koblas.sparseBlas.name}")
+}
+
+internal fun installBackend(backend: String) = installDenseBackend(backend)
 
 @OptIn(ExperimentalKoblasApi::class)
 internal fun installKernelProvider(provider: String) {

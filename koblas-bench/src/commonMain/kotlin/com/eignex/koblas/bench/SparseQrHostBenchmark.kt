@@ -2,13 +2,12 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.installBackends
 import com.eignex.koblas.koblas
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.transpose
 import kotlinx.benchmark.*
 
-/** The sparse QR against the portable one, with `transpose` as the control no gate reaches. */
+/** Sparse QR operations on portable and explicitly selected host decompositions. */
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(BenchmarkTimeUnit.MICROSECONDS)
@@ -16,7 +15,7 @@ class SparseQrHostBenchmark {
     @Param("128", "256", "512", "1024")
     var n: Int = 0
 
-    @Param(REFERENCE_BACKEND, HOST_BACKEND)
+    @Param(AUTOMATIC_BACKEND, REFERENCE_BACKEND, HOST_BACKEND)
     var backend: String = REFERENCE_BACKEND
 
     private lateinit var a: F64SparseMatrix
@@ -26,11 +25,7 @@ class SparseQrHostBenchmark {
 
     @Setup
     fun setup() {
-        installBackends(null)
-        when (backend) {
-            REFERENCE_BACKEND -> installBackends(koblas.with(sparseDecompositions = F64ReferenceSparseLinearAlgebra))
-            HOST_BACKEND -> useSparseLu()
-        }
+        installSparseDecompositionBackend(backend)
         val rng = benchRng()
         a = sparseTallMatrix(2 * n, n, rng)
         b = DoubleArray(2 * n) { rng.nextDouble(-1.0, 1.0) }

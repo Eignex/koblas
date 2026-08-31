@@ -1,9 +1,7 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.installBackends
 import com.eignex.koblas.koblas
-import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.basis.BasisUpdate
 import com.eignex.koblas.sparse.basis.F64BasisSolver
 import com.eignex.koblas.sparse.basis.F64IndexedVector
@@ -35,7 +33,7 @@ class BasisBenchmark {
     @Param(SPARSE_COLUMNS, SPIKED_COLUMNS)
     var shape: String = SPARSE_COLUMNS
 
-    @Param(REFERENCE_BACKEND, HOST_BACKEND)
+    @Param(AUTOMATIC_BACKEND, REFERENCE_BACKEND, HOST_BACKEND)
     var backend: String = REFERENCE_BACKEND
 
     private lateinit var a: F64SparseMatrix
@@ -46,8 +44,7 @@ class BasisBenchmark {
 
     @Setup
     fun setup() {
-        val portable = koblas.with(sparseDecompositions = F64ReferenceSparseLinearAlgebra)
-        installBackends(if (backend == REFERENCE_BACKEND) portable else null)
+        installSparseDecompositionBackend(backend)
         val rng = benchRng()
         a = simplexProblem(n, rng, spikeFraction = if (shape == SPIKED_COLUMNS) 0.5 else 0.0)
         logical = IntArray(n) { n + it }
