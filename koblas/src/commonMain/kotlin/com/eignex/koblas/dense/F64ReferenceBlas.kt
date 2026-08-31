@@ -5,6 +5,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64DenseVector
+import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.core.F64VectorLike
 import com.eignex.koblas.internal.backend.BackendNames
 
@@ -226,7 +227,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
             val xj = alpha * x[xOff + j]
             val runOff = if (lower) j + 1 else 0
             val len = if (lower) n - j - 1 else j
-            y[yOff + j] += xj * ad[base]
+            if (xj != 0.0) y[yOff + j] += xj * ad[base]
             kernels.axpy(y, yOff + runOff, xj, ad, runOff + j * n, len)
             y[yOff + j] += alpha * kernels.dot(ad, runOff + j * n, x, xOff + runOff, len)
         }
@@ -306,14 +307,14 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         val n = a.rows
         val ad = a.data
         val xs = rankUpdateData(x)
-        val kernels = kernels
-        for (j in 0 until n) {
+        val active = rankUpdatePositions(x)
+        forEachRankUpdateColumn(active, n) { j ->
             val xj = alpha * xs[j]
-            if (xj == 0.0) continue
-            if (lower) {
-                kernels.axpy(ad, j + j * n, xj, xs, j, n - j)
-            } else {
-                kernels.axpy(ad, j * n, xj, xs, 0, j + 1)
+            if (xj == 0.0) return@forEachRankUpdateColumn
+            val from = if (lower) j else 0
+            val until = if (lower) n else j + 1
+            forEachRankUpdateRun(active, from, until) { runStart, runLength ->
+                kernels.axpy(ad, runStart + j * n, xj, xs, runStart, runLength)
             }
         }
     }
@@ -333,22 +334,71 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         val ad = a.data
         val xs = rankUpdateData(x)
         val ys = rankUpdateData(y)
-        val kernels = kernels
-        for (j in 0 until n) {
-            val off = if (lower) j + j * n else j * n
-            val len = if (lower) n - j else j + 1
-            val xOff = if (lower) j else 0
-            // BLAS dsyr2 is two rank-one updates. Keeping them as separate axpys reaches the selected
-            // contiguous kernel and agrees with OpenBLAS's own dsyr2 implementation.
-            kernels.axpy(ad, off, alpha * ys[j], xs, xOff, len)
-            kernels.axpy(ad, off, alpha * xs[j], ys, xOff, len)
-        }
+        val xActive = rankUpdatePositions(x)
+        val yActive = rankUpdatePositions(y)
+        // BLAS dsyr2 is two rank-one updates. Keeping them separate lets each sparse operand constrain
+        // both its source runs and the columns where it supplies the multiplier.
+        rankOneTriangleUpdate(ad, n, xs, xActive, ys, yActive, alpha, lower)
+        rankOneTriangleUpdate(ad, n, ys, yActive, xs, xActive, alpha, lower)
     }
 
     /** Returns contiguous rank-update operands; sparse copies use the registered sparse Level 1 scatter. */
     private fun rankUpdateData(x: F64VectorLike): DoubleArray = when (x) {
         is F64DenseVector -> x.data
         else -> DoubleArray(x.size).also { copy(x, F64DenseVector.wrap(it)) }
+    }
+
+    /** Sparse operands retain their structure; all other vector representations cover every position. */
+    private fun rankUpdatePositions(x: F64VectorLike): IntArray? = if (x is F64SparseVector) x.copyIndices() else null
+
+    /** Adds one selected-triangle rank-one term, retaining sparse source and multiplier structure. */
+    @Suppress("LongParameterList") // matrix and vector buffers each carry the shape or structural positions
+    private fun rankOneTriangleUpdate(
+        ad: DoubleArray,
+        n: Int,
+        source: DoubleArray,
+        sourceActive: IntArray?,
+        multipliers: DoubleArray,
+        multiplierActive: IntArray?,
+        alpha: Double,
+        lower: Boolean,
+    ) {
+        forEachRankUpdateColumn(multiplierActive, n) { j ->
+            val from = if (lower) j else 0
+            val until = if (lower) n else j + 1
+            forEachRankUpdateRun(sourceActive, from, until) { runStart, runLength ->
+                kernels.axpy(ad, runStart + j * n, alpha * multipliers[j], source, runStart, runLength)
+            }
+        }
+    }
+
+    /** Visits every dense column or the explicitly stored columns of a non-dense multiplier. */
+    private inline fun forEachRankUpdateColumn(active: IntArray?, n: Int, action: (Int) -> Unit) {
+        if (active == null) for (j in 0 until n) action(j) else for (j in active) action(j)
+    }
+
+    /** Visits contiguous runs of active positions inside `[from, until)`, keeping sparse work on Level 1 kernels. */
+    private inline fun forEachRankUpdateRun(
+        active: IntArray?,
+        from: Int,
+        until: Int,
+        action: (start: Int, length: Int) -> Unit,
+    ) {
+        if (active == null) {
+            action(from, until - from)
+            return
+        }
+        var at = 0
+        while (at < active.size && active[at] < from) at++
+        while (at < active.size && active[at] < until) {
+            val start = active[at++]
+            var end = start + 1
+            while (at < active.size && active[at] == end && end < until) {
+                at++
+                end++
+            }
+            action(start, end - start)
+        }
     }
 
     /** `C = alpha · (op(A) · op(B)ᵀ + op(B) · op(A)ᵀ) + beta · C` (BLAS `dsyr2k`), where `op` transposes when
