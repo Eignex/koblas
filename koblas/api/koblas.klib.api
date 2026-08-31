@@ -305,8 +305,6 @@ abstract interface com.eignex.koblas.dense/F64Kernels : com.eignex.koblas/Backen
     abstract fun scale(kotlin/DoubleArray, kotlin/Int, kotlin/Double, kotlin/Int) // com.eignex.koblas.dense/F64Kernels.scale|scale(kotlin.DoubleArray;kotlin.Int;kotlin.Double;kotlin.Int){}[0]
     open fun dot4(kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/DoubleArray, kotlin/Int) // com.eignex.koblas.dense/F64Kernels.dot4|dot4(kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.DoubleArray;kotlin.Int){}[0]
     open fun swap(kotlin/DoubleArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int) // com.eignex.koblas.dense/F64Kernels.swap|swap(kotlin.DoubleArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
-    open fun symvColumn(kotlin/DoubleArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Double, kotlin/Int): kotlin/Double // com.eignex.koblas.dense/F64Kernels.symvColumn|symvColumn(kotlin.DoubleArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Double;kotlin.Int){}[0]
-    open fun symvColumn4(kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Int) // com.eignex.koblas.dense/F64Kernels.symvColumn4|symvColumn4(kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Int){}[0]
 }
 
 abstract interface com.eignex.koblas.dense/F64LinearAlgebra : com.eignex.koblas.dense/F64Blas, com.eignex.koblas.dense/F64Decompositions { // com.eignex.koblas.dense/F64LinearAlgebra|null[0]

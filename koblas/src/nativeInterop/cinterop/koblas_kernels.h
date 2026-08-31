@@ -69,46 +69,6 @@ KOBLAS_KERNEL void koblas_dense_swap(
     }
 }
 
-KOBLAS_KERNEL double koblas_dense_symv_column(
-    const double *a, int32_t a_off, const double *x, int32_t x_off,
-    double *y, int32_t y_off, double multiplier, int32_t len
-) {
-    double sum = 0.0;
-    for (int32_t i = 0; i < len; i++) {
-        const double ai = a[a_off + i];
-        sum += ai * x[x_off + i];
-        y[y_off + i] += multiplier * ai;
-    }
-    return sum;
-}
-
-KOBLAS_KERNEL void koblas_dense_symv_column4(
-    const double *a, int32_t a_off, int32_t stride, const double *x, int32_t x_off,
-    double *y, int32_t y_off, const double *multipliers, double *out, int32_t len
-) {
-    double r0 = 0.0;
-    double r1 = 0.0;
-    double r2 = 0.0;
-    double r3 = 0.0;
-    for (int32_t i = 0; i < len; i++) {
-        const double a0 = a[a_off + i];
-        const double a1 = a[a_off + stride + i];
-        const double a2 = a[a_off + 2 * stride + i];
-        const double a3 = a[a_off + 3 * stride + i];
-        const double xi = x[x_off + i];
-        r0 += a0 * xi;
-        r1 += a1 * xi;
-        r2 += a2 * xi;
-        r3 += a3 * xi;
-        y[y_off + i] += multipliers[0] * a0 + multipliers[1] * a1 +
-            multipliers[2] * a2 + multipliers[3] * a3;
-    }
-    out[0] = r0;
-    out[1] = r1;
-    out[2] = r2;
-    out[3] = r3;
-}
-
 KOBLAS_KERNEL void koblas_dense_dot4(
     const double *a, int32_t a_off, int32_t stride, const double *b, int32_t b_off,
     int32_t len, double *out, int32_t out_off

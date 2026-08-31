@@ -30,32 +30,6 @@ internal object F64CKernels : F64Kernels {
         JvmCKernelBindings.denseSwap(a, aOff, b, bOff, len)
 
     @Suppress("LongParameterList")
-    override fun symvColumn(
-        a: DoubleArray,
-        aOff: Int,
-        x: DoubleArray,
-        xOff: Int,
-        y: DoubleArray,
-        yOff: Int,
-        mult: Double,
-        len: Int,
-    ): Double = JvmCKernelBindings.denseSymvColumn(a, aOff, x, xOff, y, yOff, mult, len)
-
-    @Suppress("LongParameterList")
-    override fun symvColumn4(
-        a: DoubleArray,
-        aOff: Int,
-        stride: Int,
-        x: DoubleArray,
-        xOff: Int,
-        y: DoubleArray,
-        yOff: Int,
-        mult: DoubleArray,
-        out: DoubleArray,
-        len: Int,
-    ) = JvmCKernelBindings.denseSymvColumn4(a, aOff, stride, x, xOff, y, yOff, mult, out, len)
-
-    @Suppress("LongParameterList")
     override fun dot4(
         a: DoubleArray,
         aOff: Int,
@@ -104,42 +78,6 @@ internal object F64SimdKernels : F64Kernels {
 
     override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) {
         if (vectorizes(len)) Simd.swap(a, aOff, b, bOff, len) else super.swap(a, aOff, b, bOff, len)
-    }
-
-    @Suppress("LongParameterList")
-    override fun symvColumn(
-        a: DoubleArray,
-        aOff: Int,
-        x: DoubleArray,
-        xOff: Int,
-        y: DoubleArray,
-        yOff: Int,
-        mult: Double,
-        len: Int,
-    ): Double = if (vectorizes(len)) {
-        Simd.symvColumn(a, aOff, x, xOff, y, yOff, mult, len)
-    } else {
-        super.symvColumn(a, aOff, x, xOff, y, yOff, mult, len)
-    }
-
-    @Suppress("LongParameterList")
-    override fun symvColumn4(
-        a: DoubleArray,
-        aOff: Int,
-        stride: Int,
-        x: DoubleArray,
-        xOff: Int,
-        y: DoubleArray,
-        yOff: Int,
-        mult: DoubleArray,
-        out: DoubleArray,
-        len: Int,
-    ) {
-        if (vectorizes(len)) {
-            Simd.symvColumn4(a, aOff, stride, x, xOff, y, yOff, mult, out, len)
-        } else {
-            super.symvColumn4(a, aOff, stride, x, xOff, y, yOff, mult, out, len)
-        }
     }
 
     @Suppress("LongParameterList")
