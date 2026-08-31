@@ -184,14 +184,46 @@ class SparseTriangularTest {
     }
 
     @Test
-    fun `a missing or zero diagonal is reported with its position`() {
+    fun `a missing or zero diagonal follows IEEE division`() {
         val missing = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf()))
-        val absent = assertFailsWith<IllegalArgumentException> { missing.trsv(DoubleArray(2), lower = true) }
-        assertTrue("no diagonal entry at 1" in absent.message!!, absent.message!!)
+        val absent = doubleArrayOf(0.0, 1.0)
+        missing.trsv(absent, lower = true)
+        assertEquals(Double.POSITIVE_INFINITY, absent[1])
 
         val zeroed = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 0.0)))
-        val explicit = assertFailsWith<IllegalArgumentException> { zeroed.trsv(DoubleArray(2), lower = true) }
-        assertTrue("explicit zero" in explicit.message!!, explicit.message!!)
+        val explicit = doubleArrayOf(0.0, -1.0)
+        zeroed.trsv(explicit, lower = true)
+        assertEquals(Double.NEGATIVE_INFINITY, explicit[1])
+    }
+
+    @Test
+    fun `sparse trsm retains stored products after a quotient underflows`() {
+        val triangle = F64SparseMatrix.ofColumns(
+            2,
+            2,
+            listOf(listOf(0 to Double.POSITIVE_INFINITY, 1 to Double.POSITIVE_INFINITY), listOf(1 to 1.0)),
+        )
+        val b = F64DenseMatrix(2, 2, doubleArrayOf(Double.MIN_VALUE, 0.0, 0.0, 0.0))
+
+        triangle.trsm(b, lower = true)
+
+        assertTrue(b[1, 0].isNaN(), "the active underflowed pivot did not form its stored product")
+        assertEquals(0.0, b[1, 1], "the zero right hand side was not skipped")
+    }
+
+    @Test
+    fun `right sparse trsm skips explicit zero triangle coefficients`() {
+        val triangle = F64SparseMatrix.ofColumns(
+            2,
+            2,
+            listOf(listOf(0 to 1.0, 1 to 0.0), listOf(1 to 1.0)),
+        )
+        val b = F64DenseMatrix(1, 2, doubleArrayOf(Double.POSITIVE_INFINITY, 1.0))
+
+        triangle.trsm(b, lower = true, right = true)
+
+        assertEquals(Double.POSITIVE_INFINITY, b[0, 0])
+        assertEquals(1.0, b[0, 1])
     }
 
     @Test

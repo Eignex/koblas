@@ -27,6 +27,45 @@ internal inline fun forEachRow(n: Int, b: F64DenseMatrix, op: (DoubleArray) -> U
     }
 }
 
+/** Adds only runs whose source coefficients are nonzero, retaining vector kernels for every nonzero run. */
+private fun axpySkippingZeroSource(
+    k: F64Kernels,
+    y: DoubleArray,
+    yOff: Int,
+    alpha: Double,
+    x: DoubleArray,
+    xOff: Int,
+    len: Int,
+) {
+    var at = 0
+    while (at < len) {
+        while (at < len && x[xOff + at] == 0.0) at++
+        val start = at
+        while (at < len && x[xOff + at] != 0.0) at++
+        if (at > start) axpyArithmetic(k, y, yOff + start, alpha, x, xOff + start, at - start)
+    }
+}
+
+/** Dots only runs whose matrix coefficients are nonzero, retaining vector kernels for every nonzero run. */
+private fun dotSkippingZeroMatrix(
+    k: F64Kernels,
+    a: DoubleArray,
+    aOff: Int,
+    x: DoubleArray,
+    xOff: Int,
+    len: Int,
+): Double {
+    var sum = 0.0
+    var at = 0
+    while (at < len) {
+        while (at < len && a[aOff + at] == 0.0) at++
+        val start = at
+        while (at < len && a[aOff + at] != 0.0) at++
+        if (at > start) sum += k.dot(a, aOff + start, x, xOff + start, at - start)
+    }
+    return sum
+}
+
 /**
  * [trmv] over the leading `n×n` triangle of a column-major [a] whose columns are [lda] apart, applied to
  * x(xOff until xOff + n). [lda] defaults to [n] and is the BLAS `lda` otherwise.
@@ -42,20 +81,34 @@ internal fun trmvCore(
     lower: Boolean,
     transpose: Boolean,
     unitDiag: Boolean,
+    guardZeroInput: Boolean = true,
+    guardZeroMatrix: Boolean = false,
 ) {
     if (!transpose) {
         if (lower) { // column j contributes to x(j..), so descending keeps x(j) original
             for (j in n - 1 downTo 0) {
                 val base = j + j * lda
                 val xj = x[xOff + j]
-                x[xOff + j] = if (unitDiag) xj else a[base] * xj
-                if (xj != 0.0) k.axpy(x, xOff + j + 1, xj, a, base + 1, n - j - 1)
+                if (!guardZeroInput || xj != 0.0) {
+                    x[xOff + j] = if (unitDiag) xj else a[base] * xj
+                    if (guardZeroMatrix) {
+                        axpySkippingZeroSource(k, x, xOff + j + 1, xj, a, base + 1, n - j - 1)
+                    } else {
+                        axpyArithmetic(k, x, xOff + j + 1, xj, a, base + 1, n - j - 1)
+                    }
+                }
             }
         } else { // column j contributes to x(0..j), so ascending keeps x(j) original
             for (j in 0 until n) {
                 val xj = x[xOff + j]
-                x[xOff + j] = if (unitDiag) xj else a[j + j * lda] * xj
-                if (xj != 0.0) k.axpy(x, xOff, xj, a, j * lda, j)
+                if (!guardZeroInput || xj != 0.0) {
+                    x[xOff + j] = if (unitDiag) xj else a[j + j * lda] * xj
+                    if (guardZeroMatrix) {
+                        axpySkippingZeroSource(k, x, xOff, xj, a, j * lda, j)
+                    } else {
+                        axpyArithmetic(k, x, xOff, xj, a, j * lda, j)
+                    }
+                }
             }
         }
     } else {
@@ -63,12 +116,22 @@ internal fun trmvCore(
             for (i in 0 until n) {
                 val base = i + i * lda
                 val diag = if (unitDiag) x[xOff + i] else a[base] * x[xOff + i]
-                x[xOff + i] = diag + k.dot(a, base + 1, x, xOff + i + 1, n - i - 1)
+                val offDiagonal = if (guardZeroMatrix) {
+                    dotSkippingZeroMatrix(k, a, base + 1, x, xOff + i + 1, n - i - 1)
+                } else {
+                    k.dot(a, base + 1, x, xOff + i + 1, n - i - 1)
+                }
+                x[xOff + i] = diag + offDiagonal
             }
         } else { // Tᵀ is lower: row i of Tᵀ is column i of T, read up to the diagonal
             for (i in n - 1 downTo 0) {
                 val diag = if (unitDiag) x[xOff + i] else a[i + i * lda] * x[xOff + i]
-                x[xOff + i] = diag + k.dot(a, i * lda, x, xOff, i)
+                val offDiagonal = if (guardZeroMatrix) {
+                    dotSkippingZeroMatrix(k, a, i * lda, x, xOff, i)
+                } else {
+                    k.dot(a, i * lda, x, xOff, i)
+                }
+                x[xOff + i] = diag + offDiagonal
             }
         }
     }
@@ -104,32 +167,54 @@ internal fun trsvCore(
     lower: Boolean,
     transpose: Boolean,
     unitDiag: Boolean,
+    guardZeroPivot: Boolean = true,
+    guardZeroMatrix: Boolean = false,
 ) {
     if (!transpose) {
         if (lower) { // forward substitution, finalizing x(j) then pushing it down column j
             for (j in 0 until n) {
                 val base = j + j * lda
+                if (guardZeroPivot && x[xOff + j] == 0.0) continue
                 val xj = if (unitDiag) x[xOff + j] else x[xOff + j] / a[base]
                 x[xOff + j] = xj
-                if (xj != 0.0) k.axpy(x, xOff + j + 1, -xj, a, base + 1, n - j - 1)
+                if (guardZeroMatrix) {
+                    axpySkippingZeroSource(k, x, xOff + j + 1, -xj, a, base + 1, n - j - 1)
+                } else {
+                    axpyArithmetic(k, x, xOff + j + 1, -xj, a, base + 1, n - j - 1)
+                }
             }
         } else { // back substitution, finalizing x(j) then pushing it up column j
             for (j in n - 1 downTo 0) {
+                if (guardZeroPivot && x[xOff + j] == 0.0) continue
                 val xj = if (unitDiag) x[xOff + j] else x[xOff + j] / a[j + j * lda]
                 x[xOff + j] = xj
-                if (xj != 0.0) k.axpy(x, xOff, -xj, a, j * lda, j)
+                if (guardZeroMatrix) {
+                    axpySkippingZeroSource(k, x, xOff, -xj, a, j * lda, j)
+                } else {
+                    axpyArithmetic(k, x, xOff, -xj, a, j * lda, j)
+                }
             }
         }
     } else {
         if (lower) { // Tᵀ is upper: back substitution, dotting column i of T behind the frontier
             for (i in n - 1 downTo 0) {
                 val base = i + i * lda
-                val s = x[xOff + i] - k.dot(a, base + 1, x, xOff + i + 1, n - i - 1)
+                val product = if (guardZeroMatrix) {
+                    dotSkippingZeroMatrix(k, a, base + 1, x, xOff + i + 1, n - i - 1)
+                } else {
+                    k.dot(a, base + 1, x, xOff + i + 1, n - i - 1)
+                }
+                val s = x[xOff + i] - product
                 x[xOff + i] = if (unitDiag) s else s / a[base]
             }
         } else { // Tᵀ is lower: forward substitution, dotting column i of T behind the frontier
             for (i in 0 until n) {
-                val s = x[xOff + i] - k.dot(a, i * lda, x, xOff, i)
+                val product = if (guardZeroMatrix) {
+                    dotSkippingZeroMatrix(k, a, i * lda, x, xOff, i)
+                } else {
+                    k.dot(a, i * lda, x, xOff, i)
+                }
+                val s = x[xOff + i] - product
                 x[xOff + i] = if (unitDiag) s else s / a[i + i * lda]
             }
         }
@@ -192,9 +277,15 @@ internal fun triangularMatrix(
         if (alpha != 1.0) k.scale(b.data, 0, alpha, b.data.size)
         forEachRow(a.rows, b) { row ->
             if (solve) {
-                trsvCore(k, a.data, a.rows, row, lower = lower, transpose = !transpose, unitDiag = unitDiag)
+                trsvCore(
+                    k, a.data, a.rows, row, lower = lower, transpose = !transpose, unitDiag = unitDiag,
+                    guardZeroPivot = false, guardZeroMatrix = true,
+                )
             } else {
-                trmvCore(k, a.data, a.rows, row, lower = lower, transpose = !transpose, unitDiag = unitDiag)
+                trmvCore(
+                    k, a.data, a.rows, row, lower = lower, transpose = !transpose, unitDiag = unitDiag,
+                    guardZeroInput = false, guardZeroMatrix = true,
+                )
             }
         }
     } else {

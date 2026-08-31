@@ -25,6 +25,12 @@ KOBLAS_KERNEL void koblas_dense_axpy(
     for (int32_t i = 0; i < len; i++) y[y_off + i] += alpha * x[x_off + i];
 }
 
+KOBLAS_KERNEL void koblas_dense_axpy_arithmetic(
+    double *y, int32_t y_off, double alpha, const double *x, int32_t x_off, int32_t len
+) {
+    for (int32_t i = 0; i < len; i++) y[y_off + i] += alpha * x[x_off + i];
+}
+
 KOBLAS_KERNEL void koblas_dense_scale(double *v, int32_t v_off, double alpha, int32_t len) {
     if (alpha == 1.0) return;
     for (int32_t i = 0; i < len; i++) v[v_off + i] *= alpha;

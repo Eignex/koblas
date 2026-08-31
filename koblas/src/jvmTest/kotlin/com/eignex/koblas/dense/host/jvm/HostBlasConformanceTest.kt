@@ -159,9 +159,9 @@ class HostBlasConformanceTest {
     }
 
     @Test
-    fun `degenerate shapes honor the beta conventions`() {
+    fun `degenerate shapes follow BLAS quick returns`() {
         Assume.assumeTrue("host CBLAS is not installed", HostLibraries.cblas)
-        assertDegenerateShapesHonorTheBetaConventions(F64Cblas())
+        assertDegenerateShapesFollowBlasQuickReturns(F64Cblas())
     }
 
     /** Above the LAPACK gate of 64, so the host factorizations are the ones under test. */

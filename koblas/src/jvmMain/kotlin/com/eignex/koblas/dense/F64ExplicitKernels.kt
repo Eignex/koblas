@@ -6,7 +6,7 @@ import com.eignex.koblas.internal.numeric.*
 import kotlin.math.sqrt
 
 /** The bundled C kernels without automatic SIMD selection. */
-internal object F64CKernels : F64Kernels {
+internal object F64CKernels : F64Kernels, F64ArithmeticKernels {
     override val name: String get() = BackendNames.C
 
     override val isPortable: Boolean get() = true
@@ -18,6 +18,9 @@ internal object F64CKernels : F64Kernels {
 
     override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) =
         JvmCKernelBindings.denseAxpy(y, yOff, alpha, x, xOff, len)
+
+    override fun axpyArithmetic(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) =
+        JvmCKernelBindings.denseAxpyArithmetic(y, yOff, alpha, x, xOff, len)
 
     override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) =
         JvmCKernelBindings.denseScale(v, vOff, alpha, len)
@@ -43,7 +46,7 @@ internal object F64CKernels : F64Kernels {
 }
 
 /** The JVM Vector API kernels without automatic C selection. */
-internal object F64SimdKernels : F64Kernels {
+internal object F64SimdKernels : F64Kernels, F64ArithmeticKernels {
     private val lanes: Int = if (simdAvailable) Simd.lanes() else 0
 
     override val name: String get() = "${BackendNames.SIMD}($lanes lanes)"
@@ -59,6 +62,14 @@ internal object F64SimdKernels : F64Kernels {
 
     override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
         if (vectorizes(len)) Simd.axpy(y, yOff, alpha, x, xOff, len) else scalarAxpy(y, yOff, alpha, x, xOff, len)
+    }
+
+    override fun axpyArithmetic(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
+        if (vectorizes(len)) {
+            Simd.axpyArithmetic(y, yOff, alpha, x, xOff, len)
+        } else {
+            scalarAxpyArithmetic(y, yOff, alpha, x, xOff, len)
+        }
     }
 
     override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {

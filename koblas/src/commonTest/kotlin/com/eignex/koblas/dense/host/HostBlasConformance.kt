@@ -662,11 +662,11 @@ internal fun assertQrFactorsInterchange(decompositions: F64Decompositions, shape
     }
 }
 
-/** With beta zero the destination is written rather than read, so an empty sum has to leave exact zeros. */
-internal fun assertDegenerateShapesHonorTheBetaConventions(blas: F64Blas) {
+/** A zero matrix dimension takes the BLAS quick return before beta is applied. */
+internal fun assertDegenerateShapesFollowBlasQuickReturns(blas: F64Blas) {
     val y = DoubleArray(3) { Double.NaN }
     blas.gemv(1.0, F64DenseMatrix(0, 3), DoubleArray(0), 0.0, y, transpose = true)
-    assertTrue(y.all { it == 0.0 }, "gemv beta=0 with an empty sum left ${y.toList()}")
+    assertTrue(y.all(Double::isNaN), "gemv with a zero dimension changed ${y.toList()}")
     val c = F64DenseMatrix.wrap(2, 2, DoubleArray(4) { Double.NaN })
     blas.gemm(1.0, F64DenseMatrix(2, 0), false, F64DenseMatrix(0, 2), false, 0.0, c)
     assertTrue(c.data.all { it == 0.0 }, "gemm k=0 beta=0 left ${c.data.toList()}")

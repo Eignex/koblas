@@ -14,6 +14,7 @@ internal object JvmCKernelBindings {
     private val symbolNames = listOf(
         "koblas_dense_dot",
         "koblas_dense_axpy",
+        "koblas_dense_axpy_arithmetic",
         "koblas_dense_scale",
         "koblas_dense_nrm2",
         "koblas_dense_asum",
@@ -41,6 +42,12 @@ internal object JvmCKernelBindings {
     private val denseAxpy by lazy {
         requiredLibrary().handle(
             "koblas_dense_axpy",
+            FfmLibrary.voidOf(ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT, JAVA_INT),
+        )
+    }
+    private val denseAxpyArithmetic by lazy {
+        requiredLibrary().handle(
+            "koblas_dense_axpy_arithmetic",
             FfmLibrary.voidOf(ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT, JAVA_INT),
         )
     }
@@ -116,6 +123,17 @@ internal object JvmCKernelBindings {
 
     fun denseAxpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
         denseAxpy.invokeExact(
+            MemorySegment.ofArray(y),
+            yOff,
+            alpha,
+            MemorySegment.ofArray(x),
+            xOff,
+            len,
+        ) as Unit
+    }
+
+    fun denseAxpyArithmetic(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
+        denseAxpyArithmetic.invokeExact(
             MemorySegment.ofArray(y),
             yOff,
             alpha,

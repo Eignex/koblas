@@ -4,7 +4,7 @@ import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.numeric.*
 
 /** Pure Kotlin scalar kernels retained as the portable fallback and semantic reference for compiled leaves. */
-internal object F64ScalarKernels : F64Kernels {
+internal object F64ScalarKernels : F64Kernels, F64ArithmeticKernels {
     override val name: String get() = BackendNames.SCALAR
 
     override val isPortable: Boolean get() = true
@@ -14,6 +14,9 @@ internal object F64ScalarKernels : F64Kernels {
 
     override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) =
         scalarAxpy(y, yOff, alpha, x, xOff, len)
+
+    override fun axpyArithmetic(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) =
+        scalarAxpyArithmetic(y, yOff, alpha, x, xOff, len)
 
     override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) = scalarScale(v, vOff, alpha, len)
 

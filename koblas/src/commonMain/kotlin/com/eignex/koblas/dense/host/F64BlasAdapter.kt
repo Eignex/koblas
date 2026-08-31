@@ -205,12 +205,11 @@ public abstract class F64BlasAdapter internal constructor(
         val yLen = if (transpose) a.cols else a.rows
         requireShape(x.size == xLen) { "gemv: x length ${x.size} != $xLen" }
         requireShape(y.size == yLen) { "gemv: y length ${y.size} != $yLen" }
-        // The BLAS quick-return paths do not honor the beta == 0 overwrite when a dimension is zero.
-        if (alpha == 0.0 || xLen == 0) {
+        if (a.rows == 0 || a.cols == 0) return
+        if (alpha == 0.0) {
             scaleInPlace(y, beta)
             return
         }
-        if (yLen == 0) return
         f.dgemv(COL_MAJOR, transOf(transpose), a.rows, a.cols, alpha, a.data, a.rows, x, 1, beta, y, 1)
     }
 
@@ -231,11 +230,11 @@ public abstract class F64BlasAdapter internal constructor(
         if (x.stride < 0 || y.stride < 0) {
             return super<F64Blas>.gemv(alpha, a, x, beta, y, transpose)
         }
-        if (alpha == 0.0 || xLength == 0) {
+        if (a.rows == 0 || a.cols == 0) return
+        if (alpha == 0.0) {
             scaleInPlace(y, beta)
             return
         }
-        if (yLength == 0) return
         f.dgemv(
             COL_MAJOR,
             transOf(transpose),

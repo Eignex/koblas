@@ -5,7 +5,6 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64DenseVector
-import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.core.F64VectorLike
 import com.eignex.koblas.internal.backend.BackendNames
 
@@ -34,14 +33,14 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         val yLen = if (transpose) a.cols else a.rows
         requireShape(x.size == xLen) { "gemv: x length ${x.size} != $xLen" }
         requireShape(y.size == yLen) { "gemv: y length ${y.size} != $yLen" }
+        if (a.rows == 0 || a.cols == 0) return
         applyBeta(kernels, y, 0, y.size, beta)
         if (alpha == 0.0) return
         val ad = a.data
         val rows = a.rows
         if (!transpose) {
             for (j in 0 until a.cols) {
-                val xj = alpha * x[j]
-                if (xj != 0.0) kernels.axpy(y, 0, xj, ad, j * rows, rows)
+                axpyArithmetic(kernels, y, 0, alpha * x[j], ad, j * rows, rows)
             }
         } else {
             val quads = DoubleArray(4)
@@ -127,15 +126,13 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
 
             !transposeB -> for (j in 0 until n) {
                 for (p in 0 until k) {
-                    val bpj = alpha * bd[p + j * k]
-                    if (bpj != 0.0) kernels.axpy(cd, j * m, bpj, ad, p * m, m)
+                    axpyArithmetic(kernels, cd, j * m, alpha * bd[p + j * k], ad, p * m, m)
                 }
             }
 
             else -> for (j in 0 until n) {
                 for (p in 0 until k) {
-                    val bjp = alpha * bd[j + p * n]
-                    if (bjp != 0.0) kernels.axpy(cd, j * m, bjp, ad, p * m, m)
+                    axpyArithmetic(kernels, cd, j * m, alpha * bd[j + p * n], ad, p * m, m)
                 }
             }
         }
@@ -158,16 +155,38 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         scaleTriangle(kernels, cd, n, beta, lower)
         if (alpha == 0.0 || n == 0 || k == 0) return
         val ad = a.data
-        // The dot form holds each output entry in a register, where accumulating outer products would
-        // stream all of C once per column of A. So a non-transposed A is transposed first, an O(n·k) copy
-        // against the product's O(n²·k/2), and both orientations run the same loop below.
-        if (transpose) {
-            accumulateSyrk(alpha, ad, n, k, cd, lower)
+        // Netlib's non-transposed form skips a column only when its raw multiplier is zero. Keeping that
+        // outer-product form preserves its IEEE behavior and sends every active run through vector AXPY.
+        if (!transpose) {
+            accumulateSyrkOuter(alpha, ad, n, k, cd, lower)
             return
         }
-        workspace.borrow(n * k) { at ->
-            transposeIntoRows(ad, at, n, k)
-            accumulateSyrk(alpha, at, n, k, cd, lower)
+        // Staging turns the transposed dot form into the same vector traversal without introducing a zero guard.
+        workspace.borrow(n * k) { packed ->
+            transposeIntoRows(ad, packed, k, n)
+            accumulateSyrkOuter(alpha, packed, n, k, cd, lower, guardZeroColumns = false)
+        }
+    }
+
+    /** Netlib's non-transposed `dsyrk` traversal, with contiguous SIMD updates of the selected triangle. */
+    @Suppress("LongParameterList")
+    private fun accumulateSyrkOuter(
+        alpha: Double,
+        ad: DoubleArray,
+        n: Int,
+        k: Int,
+        cd: DoubleArray,
+        lower: Boolean,
+        guardZeroColumns: Boolean = true,
+    ) {
+        for (p in 0 until k) {
+            val source = p * n
+            for (j in 0 until n) {
+                if (guardZeroColumns && ad[source + j] == 0.0) continue
+                val from = if (lower) j else 0
+                val length = if (lower) n - j else j + 1
+                axpyArithmetic(kernels, cd, from + j * n, alpha * ad[source + j], ad, source + from, length)
+            }
         }
     }
 
@@ -227,8 +246,8 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
             val xj = alpha * x[xOff + j]
             val runOff = if (lower) j + 1 else 0
             val len = if (lower) n - j - 1 else j
-            if (xj != 0.0) y[yOff + j] += xj * ad[base]
-            kernels.axpy(y, yOff + runOff, xj, ad, runOff + j * n, len)
+            y[yOff + j] += xj * ad[base]
+            axpyArithmetic(kernels, y, yOff + runOff, xj, ad, runOff + j * n, len)
             y[yOff + j] += alpha * kernels.dot(ad, runOff + j * n, x, xOff + runOff, len)
         }
     }
@@ -271,8 +290,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
             val bd = b.data
             for (j in 0 until m) {
                 for (p in 0 until m) {
-                    val apj = alpha * symEntry(ad, m, p, j, lower)
-                    if (apj != 0.0) kernels.axpy(cd, j * rows, apj, bd, p * rows, rows)
+                    axpyArithmetic(kernels, cd, j * rows, alpha * symEntry(ad, m, p, j, lower), bd, p * rows, rows)
                 }
             }
             return
@@ -290,8 +308,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         if (alpha == 0.0) return
         val kernels = kernels
         for (j in 0 until a.cols) {
-            val scaled = alpha * y[j]
-            if (scaled != 0.0) kernels.axpy(a.data, a.colOffset(j), scaled, x, 0, a.rows)
+            if (y[j] != 0.0) axpyArithmetic(kernels, a.data, a.colOffset(j), alpha * y[j], x, 0, a.rows)
         }
     }
 
@@ -307,15 +324,12 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         val n = a.rows
         val ad = a.data
         val xs = rankUpdateData(x)
-        val active = rankUpdatePositions(x)
-        forEachRankUpdateColumn(active, n) { j ->
+        for (j in 0 until n) {
+            if (xs[j] == 0.0) continue
             val xj = alpha * xs[j]
-            if (xj == 0.0) return@forEachRankUpdateColumn
             val from = if (lower) j else 0
-            val until = if (lower) n else j + 1
-            forEachRankUpdateRun(active, from, until) { runStart, runLength ->
-                kernels.axpy(ad, runStart + j * n, xj, xs, runStart, runLength)
-            }
+            val length = if (lower) n - j else j + 1
+            axpyArithmetic(kernels, ad, from + j * n, xj, xs, from, length)
         }
     }
 
@@ -334,71 +348,20 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         val ad = a.data
         val xs = rankUpdateData(x)
         val ys = rankUpdateData(y)
-        val xActive = rankUpdatePositions(x)
-        val yActive = rankUpdatePositions(y)
-        // BLAS dsyr2 is two rank-one updates. Keeping them separate lets each sparse operand constrain
-        // both its source runs and the columns where it supplies the multiplier.
-        rankOneTriangleUpdate(ad, n, xs, xActive, ys, yActive, alpha, lower)
-        rankOneTriangleUpdate(ad, n, ys, yActive, xs, xActive, alpha, lower)
+        for (j in 0 until n) {
+            if (xs[j] == 0.0 && ys[j] == 0.0) continue
+            val from = if (lower) j else 0
+            val length = if (lower) n - j else j + 1
+            val matrixOffset = from + j * n
+            axpyArithmetic(kernels, ad, matrixOffset, alpha * ys[j], xs, from, length)
+            axpyArithmetic(kernels, ad, matrixOffset, alpha * xs[j], ys, from, length)
+        }
     }
 
     /** Returns contiguous rank-update operands; sparse copies use the registered sparse Level 1 scatter. */
     private fun rankUpdateData(x: F64VectorLike): DoubleArray = when (x) {
         is F64DenseVector -> x.data
         else -> DoubleArray(x.size).also { copy(x, F64DenseVector.wrap(it)) }
-    }
-
-    /** Sparse operands retain their structure; all other vector representations cover every position. */
-    private fun rankUpdatePositions(x: F64VectorLike): IntArray? = if (x is F64SparseVector) x.copyIndices() else null
-
-    /** Adds one selected-triangle rank-one term, retaining sparse source and multiplier structure. */
-    @Suppress("LongParameterList") // matrix and vector buffers each carry the shape or structural positions
-    private fun rankOneTriangleUpdate(
-        ad: DoubleArray,
-        n: Int,
-        source: DoubleArray,
-        sourceActive: IntArray?,
-        multipliers: DoubleArray,
-        multiplierActive: IntArray?,
-        alpha: Double,
-        lower: Boolean,
-    ) {
-        forEachRankUpdateColumn(multiplierActive, n) { j ->
-            val from = if (lower) j else 0
-            val until = if (lower) n else j + 1
-            forEachRankUpdateRun(sourceActive, from, until) { runStart, runLength ->
-                kernels.axpy(ad, runStart + j * n, alpha * multipliers[j], source, runStart, runLength)
-            }
-        }
-    }
-
-    /** Visits every dense column or the explicitly stored columns of a non-dense multiplier. */
-    private inline fun forEachRankUpdateColumn(active: IntArray?, n: Int, action: (Int) -> Unit) {
-        if (active == null) for (j in 0 until n) action(j) else for (j in active) action(j)
-    }
-
-    /** Visits contiguous runs of active positions inside `[from, until)`, keeping sparse work on Level 1 kernels. */
-    private inline fun forEachRankUpdateRun(
-        active: IntArray?,
-        from: Int,
-        until: Int,
-        action: (start: Int, length: Int) -> Unit,
-    ) {
-        if (active == null) {
-            action(from, until - from)
-            return
-        }
-        var at = 0
-        while (at < active.size && active[at] < from) at++
-        while (at < active.size && active[at] < until) {
-            val start = active[at++]
-            var end = start + 1
-            while (at < active.size && active[at] == end && end < until) {
-                at++
-                end++
-            }
-            action(start, end - start)
-        }
     }
 
     /** `C = alpha · (op(A) · op(B)ᵀ + op(B) · op(A)ᵀ) + beta · C` (BLAS `dsyr2k`), where `op` transposes when
@@ -422,20 +385,54 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         requireShape(c.rows == n && c.cols == n) { "syr2k: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
         scaleTriangle(kernels, c.data, n, beta, lower)
         if (alpha == 0.0 || n == 0 || k == 0) return
-        // Each entry is two dots, which hold their accumulator in a register. A transposed operand already
-        // has op(X) row i as column i of its buffer; a non-transposed one has it strided, so both are
-        // transposed first, an O(n·k) copy against the product's O(n²·k), as [syrk] does with its one
-        // operand. One triangle is computed and addTriangle places it, which halves the dots and keeps the
-        // selected triangle consistent even against a host dot whose value depends on operand order.
-        if (transpose) {
-            accumulateSyr2k(alpha, a.data, b.data, n, k, c.data, lower)
+        // Netlib's non-transposed form skips a column only when both raw multipliers are zero. Preserve that
+        // traversal while using two vector updates for every active column.
+        if (!transpose) {
+            accumulateSyr2kOuter(alpha, a.data, b.data, n, k, c.data, lower)
             return
         }
-        workspace.borrow(n * k) { at ->
-            workspace.borrow(n * k) { bt ->
-                transposeIntoRows(a.data, at, n, k)
-                transposeIntoRows(b.data, bt, n, k)
-                accumulateSyr2k(alpha, at, bt, n, k, c.data, lower)
+        // Staging turns the transposed dot form into paired vector updates without introducing its zero guard.
+        workspace.borrow(n * k) { packedA ->
+            workspace.borrow(n * k) { packedB ->
+                transposeIntoRows(a.data, packedA, k, n)
+                transposeIntoRows(b.data, packedB, k, n)
+                accumulateSyr2kOuter(
+                    alpha,
+                    packedA,
+                    packedB,
+                    n,
+                    k,
+                    c.data,
+                    lower,
+                    guardZeroColumns = false,
+                )
+            }
+        }
+    }
+
+    /** Netlib's non-transposed `dsyr2k` traversal, expressed as paired contiguous SIMD updates. */
+    @Suppress("LongParameterList")
+    private fun accumulateSyr2kOuter(
+        alpha: Double,
+        ad: DoubleArray,
+        bd: DoubleArray,
+        n: Int,
+        k: Int,
+        cd: DoubleArray,
+        lower: Boolean,
+        guardZeroColumns: Boolean = true,
+    ) {
+        for (p in 0 until k) {
+            val source = p * n
+            for (j in 0 until n) {
+                val aj = ad[source + j]
+                val bj = bd[source + j]
+                if (guardZeroColumns && aj == 0.0 && bj == 0.0) continue
+                val from = if (lower) j else 0
+                val length = if (lower) n - j else j + 1
+                val destination = from + j * n
+                axpyArithmetic(kernels, cd, destination, alpha * bj, ad, source + from, length)
+                axpyArithmetic(kernels, cd, destination, alpha * aj, bd, source + from, length)
             }
         }
     }
@@ -484,13 +481,13 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
                 kernels.dot4(bd, i * k, k, ad, j * k, k, fromB, 0)
                 for (r in 0 until 4) {
                     val s = fromA[r] + fromB[r]
-                    if (s != 0.0) addTriangle(cd, n, i + r, j, alpha * s, lower)
+                    addTriangle(cd, n, i + r, j, alpha * s, lower)
                 }
                 i += 4
             }
             while (i < n) {
                 val s = kernels.dot(ad, i * k, bd, j * k, k) + kernels.dot(bd, i * k, ad, j * k, k)
-                if (s != 0.0) addTriangle(cd, n, i, j, alpha * s, lower)
+                addTriangle(cd, n, i, j, alpha * s, lower)
                 i++
             }
         }
