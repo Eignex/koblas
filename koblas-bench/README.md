@@ -1,84 +1,38 @@
 # koblas-bench
 
-Development benchmarks for koblas. They use JMH on the JVM and the
-kotlinx-benchmark native harness. This module is not published.
+Development benchmarks for every reviewed public numerical operation in koblas. This module is not published.
 
-## Run a suite
-
-```bash
-./gradlew :koblas-bench:jvmLevel3Benchmark
-./gradlew :koblas-bench:linuxX64Level3Benchmark
-./gradlew :koblas-bench:jvmBenchmark
-```
-
-Suite tasks are prefixed with `jvm`, `linuxX64`, or `macosArm64`; only the host
-target runs. Results are written under
-`koblas-bench/build/reports/benchmarks/<suite>/`.
-
-| Suite | Measures |
-| --- | --- |
-| `level1` | vector kernels |
-| `level2` | matrix-vector kernels |
-| `level3` | matrix-matrix kernels |
-| `solve` | dense factorization and solves |
-| `solveFocused` | the solve rows alone, out to 2048 |
-| `blockSolve` | block versus per-column solves |
-| `sparse` | sparse factorization, solve, and `gemv` |
-
-## Compare implementations
-
-Use `reference` for portable Kotlin and `host` for the selected host backend.
-Benchmark setup prints the resolved backend; check it before using the result.
-Suites compare complete implementations. They do not tune runtime size routing.
-
-`level1` uses `kernels=automatic|scalar|c|host` instead, and `sparseLevel1` uses
-`kernels=automatic|scalar|c`. Each arm installs that exact provider in code, so
-the JVM compares scalar and C under the same process configuration. The
-automatic arm records normal production selection, including SIMD on a JVM
-with the Vector API module. Focused suites can also request `kernels=simd`.
-Setup output names the resolved kernel variant; verify it before keeping a
-report.
-
-Measure on the platform whose routing you are changing. JVM and native have
-different Kotlin and FFI costs.
-
-`tools/bench-curves.py` exports CSV and fits each arm. Use the comparison to
-accept or reject an implementation and to rank further work by representative
-workload impact. A small-size crossover is not a reason to add a dispatch gate.
-
-## Priorities from existing runs
-
-| Priority | Work | Evidence |
-| --- | --- | --- |
-| 1 | Reuse native sparse descriptors and factors | Copying CSC descriptors and factors dominates several sparse product and solve rows; retaining them changes the comparison materially. |
-| 2 | Improve sparse factorization and repeated solves | KLU, UMFPACK, CHOLMOD, and SPQR produce sustained wins once the problems contain meaningful sparse work. |
-| 3 | Improve portable kernels where they remain the implementation | Sparse triangular operations and unsupported product shapes have no host path to select, so portable improvements benefit every backend. |
-| Later | Small dense and vector-call overhead | The measured differences are confined to tiny inputs and do not matter enough to justify runtime routing complexity. |
-
-When two providers implement the same semantic role, use representative A/B
-runs to set their registration priority. Do not turn individual curve crossings
-into per-call policy.
-
-## Verify the run
-
-`BUILD SUCCESSFUL` does not prove JMH ran: a stale `/tmp/jmh.lock` can make it
-exit zero. Mark the time before running, then find a newer report:
+## Send a report
 
 ```bash
-marker=$(mktemp)
-./gradlew :koblas-bench:jvmLevel1Benchmark
-find koblas-bench/build/reports/benchmarks/level1 -name '*.json' -newer "$marker"
+koblas-bench/report.sh jvm
+koblas-bench/report.sh native
 ```
 
-No output means no measurement. Remove the stale lock and any stray `ForkedMain`
-before retrying. Report directories may be reused with Gradle's configuration
-cache, so copy results you need before the next run.
+The command creates one archive containing fresh raw JSON, the benchmark log, metadata, and the coverage manifest. Metadata includes the UTC timestamp, commit and dirty status, OS, architecture, CPU model/count, Gradle/JVM versions, target, command, affinity, and resolved backend output. Inspect the archive before sending it: these details can identify your machine and checkout.
 
-## Registration soak
+## Run benchmarks
 
 ```bash
-./gradlew :koblas-bench:stressRegistration
-./gradlew :koblas-bench:stressRegistration -Prounds=1000000 -Pthreads=8
+./gradlew :koblas-bench:jvmFullBenchmark
 ```
 
-This checks concurrent backend registration. It fails if a weaker offer wins.
+For local A/B work:
+
+```bash
+./gradlew :koblas-bench:jvmSelectedBenchmark \\
+  -Pbench.include='Level3Benchmark.gemm|Level3Benchmark.syrk' \\
+  -Pbench.param.n=256 \\
+  -Pbench.param.backend=reference,host
+```
+
+`automatic` measures normal production discovery, `reference` installs the
+portable implementation, and `host` explicitly installs a host backend and
+fails if unavailable. The report profile compares `automatic` with `reference`
+for backend benchmarks and with `scalar` for kernel benchmarks.
+
+## Troubleshooting and maintenance
+
+A successful Gradle task without fresh JSON can mean a stale JMH lock. `report.sh` checks for JSON newer than its marker and reports a detected lock; confirm no benchmark is running before removing a stale lock.
+
+When adding or changing a public numerical API, update `benchmark-coverage.tsv` and run `./gradlew :koblas-bench:checkBenchmarkCoverage`. It fails for either an unlisted benchmark method or a manifest method that no longer exists.

@@ -24,7 +24,7 @@ class BlockSolveBenchmark {
 
     @Setup
     fun setup() {
-        installBackend(backend)
+        installDenseBackend(backend)
         val rng = benchRng()
         factored = dominantMatrix(n, rng).lu()
         block = randomMatrix(n, nrhs, rng)

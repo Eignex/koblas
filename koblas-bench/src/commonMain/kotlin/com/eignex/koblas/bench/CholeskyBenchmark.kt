@@ -20,7 +20,7 @@ class CholeskyBenchmark {
 
     @Setup
     fun setup() {
-        installBackend(backend)
+        installDenseBackend(backend)
         val rng = benchRng()
         a = spdMatrix(n, rng)
         factor = a.cholesky()
