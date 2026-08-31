@@ -68,11 +68,12 @@ class SparseTriangularTest {
     fun `every direction agrees with the dense solve over several right-hand sides`() {
         val rng = Random(20260821)
         val n = 6
+        val rightHandSides = REFERENCE_SPARSE_RHS_WIDTH + 1
         for (lower in booleanArrayOf(true, false)) {
             for (transpose in booleanArrayOf(false, true)) {
                 for (right in booleanArrayOf(false, true)) {
                     val (sparse, dense) = triangle(n, lower, rng)
-                    val b = if (right) randomMatrix(3, n, rng) else randomMatrix(n, 3, rng)
+                    val b = if (right) randomMatrix(rightHandSides, n, rng) else randomMatrix(n, rightHandSides, rng)
 
                     val fromDense = F64DenseMatrix.wrap(b.rows, b.cols, b.data.copyOf())
                     dense.trsm(fromDense, lower, transpose, right = right)
@@ -224,6 +225,43 @@ class SparseTriangularTest {
 
         assertEquals(Double.POSITIVE_INFINITY, b[0, 0])
         assertEquals(1.0, b[0, 1])
+    }
+
+    @Test
+    fun `a singular left block solve follows IEEE division`() {
+        val singular = F64SparseMatrix.ofColumns(
+            3,
+            3,
+            listOf(listOf(0 to 2.0, 1 to 1.0), listOf(), listOf(2 to 4.0)),
+        )
+        val left = F64DenseMatrix(3, 2, doubleArrayOf(2.0, 6.0, 8.0, 4.0, 10.0, 12.0))
+        singular.trsm(left, lower = true)
+        assertContentEquals(
+            doubleArrayOf(1.0, Double.POSITIVE_INFINITY, 2.0, 2.0, Double.POSITIVE_INFINITY, 3.0),
+            left.data,
+        )
+    }
+
+    @Test
+    fun `a singular right block solve follows IEEE division`() {
+        val singular = F64SparseMatrix.ofColumns(
+            3,
+            3,
+            listOf(listOf(0 to 2.0, 1 to 1.0), listOf(), listOf(2 to 4.0)),
+        )
+        val right = F64DenseMatrix(2, 3, doubleArrayOf(2.0, 4.0, 6.0, 10.0, 8.0, 12.0))
+        singular.trsm(right, lower = true, right = true)
+        assertContentEquals(
+            doubleArrayOf(
+                Double.NEGATIVE_INFINITY,
+                Double.NEGATIVE_INFINITY,
+                Double.POSITIVE_INFINITY,
+                Double.POSITIVE_INFINITY,
+                2.0,
+                3.0,
+            ),
+            right.data,
+        )
     }
 
     @Test

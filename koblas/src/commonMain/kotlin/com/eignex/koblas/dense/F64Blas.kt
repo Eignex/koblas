@@ -78,8 +78,8 @@ public interface F64Blas : Backend {
     }
 
     /**
-     * Fresh transposed [a]. For a product prefer the transpose flags on [gemv] and [gemm], which read the
-     * original storage without copying; this is for a caller that means to hold the transpose.
+     * Fresh transposed [a]. For a product prefer the transpose flags on [gemv] and [gemm], which avoid a
+     * caller-visible intermediate; this is for a caller that means to hold the transpose.
      *
      * On the seam rather than beside the other whole-matrix operations because a library has its own routine
      * for it, `omatcopy` in the BLAS-like extensions, where the standard has none.
@@ -151,8 +151,12 @@ public interface F64Blas : Backend {
         return result
     }
 
-    /** `C = alpha · A·Aᵀ + beta · C`, or `alpha · Aᵀ·A + beta · C` when [transpose] (BLAS `dsyrk`).
-     *  Only the [lower] or upper triangle is written; `beta == 0.0` overwrites it without reading. */
+    /**
+     * `C = alpha · A·Aᵀ + beta · C`, or `alpha · Aᵀ·A + beta · C` when [transpose] (BLAS `dsyrk`).
+     * Only the [lower] or upper triangle is written; `beta == 0.0` overwrites it without reading.
+     *
+     * A transposed operand is packed into scratch, so pass a [workspace] to reuse its `n·k` doubles.
+     */
     @Suppress("LongParameterList") // the BLAS dsyrk signature plus optional scratch
     public fun syrk(
         alpha: Double,
@@ -203,8 +207,8 @@ public interface F64Blas : Backend {
      * `C = alpha · (op(A) · op(B)ᵀ + op(B) · op(A)ᵀ) + beta · C` (BLAS `dsyr2k`), where `op` transposes when
      * [transpose]. Writes only the [lower] or upper triangle.
      *
-     * A non-transposed pair is transposed into scratch first, so pass a [workspace] to keep a loop over this
-     * routine from allocating `2·n·k` doubles per call. [syrk] borrows the same way for its one operand.
+     * A transposed pair is packed into scratch first, so pass a [workspace] to keep a loop over this routine
+     * from allocating `2·n·k` doubles per call. [syrk] borrows the same way for its one operand.
      */
     @Suppress("LongParameterList") // the BLAS dsyr2k signature plus optional scratch
     public fun syr2k(

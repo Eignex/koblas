@@ -7,6 +7,7 @@ import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.dense.applyBeta
 import com.eignex.koblas.dense.axpyArithmetic
+import com.eignex.koblas.dense.transposeBlocked
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import com.eignex.koblas.sparse.basis.F64BasisSolver
@@ -14,6 +15,20 @@ import com.eignex.koblas.sparse.basis.F64ProductFormBasisSolver
 import com.eignex.koblas.sparse.internal.multiplySparse
 import com.eignex.koblas.sparse.internal.transposeCsc
 import kotlin.math.abs
+import kotlin.math.min
+
+/** Dense right-hand sides processed per walk of portable CSC storage. */
+internal const val REFERENCE_SPARSE_RHS_WIDTH: Int = 4
+
+/** Visits dense right-hand sides in cache-sized panels. */
+private inline fun forEachRhsPanel(columns: Int, action: (start: Int, width: Int) -> Unit) {
+    var start = 0
+    while (start < columns) {
+        val width = min(REFERENCE_SPARSE_RHS_WIDTH, columns - start)
+        action(start, width)
+        start += width
+    }
+}
 
 /**
  * A portable sparse backend, available on every target. The sparse seams declare their routines and this
@@ -115,7 +130,7 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         }
     }
 
-    /** `C += alpha · op(A) · op(B)`, which is [gemv] over the columns of the dense operand. */
+    /** `C += alpha · op(A) · op(B)`, reusing each walk of the sparse operand over a small RHS panel. */
     @Suppress("LongParameterList") // the operands, their flags, and the shape already worked out
     private fun multiplyFromTheLeft(
         alpha: Double,
@@ -131,18 +146,32 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         val cd = c.data
         val bd = b.data
         val ld = b.rows
-        for (l in 0 until n) {
-            val cOff = l * m
+        val work = DoubleArray(REFERENCE_SPARSE_RHS_WIDTH)
+        forEachRhsPanel(n) { columnStart, width ->
+            val columnEnd = columnStart + width
             if (transposeA) {
                 for (i in 0 until m) {
-                    var s = 0.0
-                    a.forEachInColumn(i) { j, v -> s += v * bd[if (transposeB) l + j * ld else j + l * ld] }
-                    cd[cOff + i] += alpha * s
+                    work.fill(0.0, 0, width)
+                    a.forEachInColumn(i) { j, v ->
+                        for (rhs in 0 until width) {
+                            val l = columnStart + rhs
+                            work[rhs] += v * bd[if (transposeB) l + j * ld else j + l * ld]
+                        }
+                    }
+                    for (rhs in 0 until width) cd[(columnStart + rhs) * m + i] += alpha * work[rhs]
                 }
             } else {
                 for (j in 0 until k) {
-                    val bjl = alpha * bd[if (transposeB) l + j * ld else j + l * ld]
-                    a.forEachInColumn(j) { i, v -> cd[cOff + i] += v * bjl }
+                    for (rhs in 0 until width) {
+                        val l = columnStart + rhs
+                        val raw = bd[if (transposeB) l + j * ld else j + l * ld]
+                        work[rhs] = alpha * raw
+                    }
+                    a.forEachInColumn(j) { i, v ->
+                        for (rhs in 0 until width) {
+                            cd[(columnStart + rhs) * m + i] += v * work[rhs]
+                        }
+                    }
                 }
             }
         }
@@ -165,7 +194,7 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
     ) {
         val cd = c.data
         val bd = if (transposeB) {
-            DoubleArray(b.data.size).also { transposeDense(b, it) }
+            DoubleArray(b.data.size).also { transposeBlocked(b.data, b.rows, b.cols, it) }
         } else {
             b.data
         }
@@ -206,20 +235,71 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
             return
         }
         if (alpha != 1.0) denseKernels.scale(b.data, 0, alpha, b.data.size)
+        val rightHandSides = if (right) b.rows else b.cols
+        if (rightHandSides == 0) return
+        val diagonal = if (unitDiag) null else DoubleArray(n) { a[it, it] }
         if (right) {
-            trsmRightCore(a, b, lower, !transpose, unitDiag)
+            trsmRightCore(a, b, lower, !transpose, diagonal)
         } else {
-            for (l in 0 until b.cols) trsvCore(a, b.data, l * n, lower, transpose, unitDiag)
+            trsmLeftCore(a, b, lower, transpose, diagonal)
         }
     }
 
-    /** Right solve over contiguous dense columns, preserving Netlib's zero-matrix coefficient guards. */
+    /** Sparse substitution over RHS panels, so values and indices are read once for several dense columns. */
+    private fun trsmLeftCore(
+        a: F64SparseMatrix,
+        b: F64DenseMatrix,
+        lower: Boolean,
+        transpose: Boolean,
+        diagonal: DoubleArray?,
+    ) {
+        val n = a.rows
+        val bd = b.data
+        val work = DoubleArray(REFERENCE_SPARSE_RHS_WIDTH)
+        val order = if (lower != transpose) 0 until n else n - 1 downTo 0
+        forEachRhsPanel(b.cols) { columnStart, width ->
+            for (j in order) {
+                if (!transpose) {
+                    val divisor = diagonal?.get(j) ?: 1.0
+                    var active = 0
+                    for (rhs in 0 until width) {
+                        val at = (columnStart + rhs) * n + j
+                        val raw = bd[at]
+                        work[rhs] = if (raw == 0.0) 0.0 else raw / divisor
+                        if (raw != 0.0) {
+                            active = active or (1 shl rhs)
+                            bd[at] = work[rhs]
+                        }
+                    }
+                    a.forEachInColumn(j) { i, v ->
+                        if (if (lower) i > j else i < j) {
+                            for (rhs in 0 until width) {
+                                val xj = work[rhs]
+                                if (active and (1 shl rhs) != 0) bd[(columnStart + rhs) * n + i] -= v * xj
+                            }
+                        }
+                    }
+                } else {
+                    for (rhs in 0 until width) work[rhs] = bd[(columnStart + rhs) * n + j]
+                    a.forEachInColumn(j) { i, v ->
+                        if (if (lower) i > j else i < j) {
+                            for (rhs in 0 until width) work[rhs] -= v * bd[(columnStart + rhs) * n + i]
+                        }
+                    }
+                    val divisor = diagonal?.get(j) ?: 1.0
+                    for (rhs in 0 until width) bd[(columnStart + rhs) * n + j] = work[rhs] / divisor
+                }
+            }
+        }
+    }
+
+    /** Right solve over contiguous dense columns, which turns every sparse update into a Level 1 operation. */
     private fun trsmRightCore(
         a: F64SparseMatrix,
         b: F64DenseMatrix,
         lower: Boolean,
         transpose: Boolean,
-        unitDiag: Boolean,
+        diagonal: DoubleArray?,
     ) {
         val rows = b.rows
         if (rows == 0) return
@@ -228,7 +308,7 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         for (j in order) {
             val jOff = j * rows
             if (!transpose) {
-                if (!unitDiag) denseKernels.scale(bd, jOff, 1.0 / a[j, j], rows)
+                if (diagonal != null) denseKernels.scale(bd, jOff, 1.0 / diagonal[j], rows)
                 a.forEachInColumn(j) { i, v ->
                     if (v != 0.0 && (if (lower) i > j else i < j)) {
                         denseKernels.axpy(bd, i * rows, -v, bd, jOff, rows)
@@ -240,7 +320,7 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
                         denseKernels.axpy(bd, jOff, -v, bd, i * rows, rows)
                     }
                 }
-                if (!unitDiag) denseKernels.scale(bd, jOff, 1.0 / a[j, j], rows)
+                if (diagonal != null) denseKernels.scale(bd, jOff, 1.0 / diagonal[j], rows)
             }
         }
     }
@@ -358,13 +438,6 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         var s = 0.0
         for (v in x.values) s += abs(v)
         return s
-    }
-}
-
-/** Packs a dense transpose so sparse right products retain contiguous SIMD updates. */
-private fun transposeDense(source: F64DenseMatrix, destination: DoubleArray) {
-    for (j in 0 until source.cols) {
-        for (i in 0 until source.rows) destination[j + i * source.cols] = source.data[i + j * source.rows]
     }
 }
 

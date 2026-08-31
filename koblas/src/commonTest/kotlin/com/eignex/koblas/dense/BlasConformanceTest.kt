@@ -304,6 +304,111 @@ class BlasConformanceTest {
         }
     }
 
+    @Test
+    fun `gemm agrees with a naive product across every cache tile boundary`() {
+        val rng = Random(20261031)
+        val m = REFERENCE_MC + 7
+        val k = REFERENCE_KC + 3
+        val n = REFERENCE_NC + 3
+        for (transposeA in booleanArrayOf(false, true)) {
+            for (transposeB in booleanArrayOf(false, true)) {
+                val a = if (transposeA) randomMatrix(k, m, rng) else randomMatrix(m, k, rng)
+                val b = if (transposeB) randomMatrix(n, k, rng) else randomMatrix(k, n, rng)
+                val expected = F64DenseMatrix(m, n)
+                for (j in 0 until n) {
+                    for (i in 0 until m) {
+                        var sum = 0.0
+                        for (p in 0 until k) {
+                            val av = if (transposeA) a[p, i] else a[i, p]
+                            val bv = if (transposeB) b[j, p] else b[p, j]
+                            sum += av * bv
+                        }
+                        expected[i, j] = sum
+                    }
+                }
+                val actual = F64DenseMatrix(m, n)
+                F64ReferenceLinearAlgebra.gemm(1.0, a, transposeA, b, transposeB, 0.0, actual)
+                assertClose(expected, actual, "gemm tA=$transposeA tB=$transposeB", tolerance = 1e-10)
+            }
+        }
+    }
+
+    @Test
+    fun `gemm with a transposed left operand uses dot kernels`() {
+        var dots = 0
+        var dotFours = 0
+        val recording = object : F64Kernels by F64ScalarKernels {
+            override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
+                dots++
+                return F64ScalarKernels.dot(a, aOff, b, bOff, len)
+            }
+
+            override fun dot4(
+                a: DoubleArray,
+                aOff: Int,
+                stride: Int,
+                b: DoubleArray,
+                bOff: Int,
+                len: Int,
+                out: DoubleArray,
+                outOff: Int,
+            ) {
+                dotFours++
+                F64ScalarKernels.dot4(a, aOff, stride, b, bOff, len, out, outOff)
+            }
+        }
+        val a = F64DenseMatrix(7, 9, DoubleArray(63) { it.toDouble() / 31.0 })
+        val b = F64DenseMatrix(7, 3, DoubleArray(21) { it.toDouble() / 17.0 })
+
+        F64ReferenceBlas(recording).gemm(1.0, a, true, b, false, 0.0, F64DenseMatrix(9, 3))
+
+        assertTrue(dots > 0 || dotFours > 0, "transposed A did not use dot kernels")
+    }
+
+    @Test
+    fun `double transpose gemm packs the smaller operand`() {
+        fun kernelCalls(m: Int, n: Int): Pair<Int, Int> {
+            var dots = 0
+            var axpys = 0
+            val recording = object : F64Kernels by F64ScalarKernels {
+                override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
+                    dots++
+                    return F64ScalarKernels.dot(a, aOff, b, bOff, len)
+                }
+
+                override fun dot4(
+                    a: DoubleArray,
+                    aOff: Int,
+                    stride: Int,
+                    b: DoubleArray,
+                    bOff: Int,
+                    len: Int,
+                    out: DoubleArray,
+                    outOff: Int,
+                ) {
+                    dots++
+                    F64ScalarKernels.dot4(a, aOff, stride, b, bOff, len, out, outOff)
+                }
+
+                override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
+                    axpys++
+                    F64ScalarKernels.axpy(y, yOff, alpha, x, xOff, len)
+                }
+            }
+            val k = 5
+            val a = F64DenseMatrix(k, m, DoubleArray(k * m) { (it + 1).toDouble() })
+            val b = F64DenseMatrix(n, k, DoubleArray(n * k) { (it + 1).toDouble() })
+            F64ReferenceBlas(recording).gemm(1.0, a, true, b, true, 0.0, F64DenseMatrix(m, n))
+            return dots to axpys
+        }
+
+        val packedB = kernelCalls(m = 9, n = 3)
+        val packedA = kernelCalls(m = 3, n = 9)
+
+        assertTrue(packedB.first > 0 && packedB.second == 0, "smaller B was not packed")
+        assertTrue(packedA.first == 0 && packedA.second > 0, "smaller A was not packed")
+    }
+
     private fun checkGemmShape(rng: Random, m: Int, k: Int, n: Int) {
         for (tA in booleanArrayOf(false, true)) {
             for (tB in booleanArrayOf(false, true)) {

@@ -63,7 +63,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
 
     override fun transpose(a: F64DenseMatrix): F64DenseMatrix {
         val t = F64DenseMatrix(a.cols, a.rows)
-        transposeIntoRows(a.data, t.data, a.rows, a.cols)
+        transposeBlocked(a.data, a.rows, a.cols, t.data)
         return t
     }
 
@@ -86,54 +86,32 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         val cd = c.data
         applyBeta(kernels, cd, 0, cd.size, beta)
         if (alpha == 0.0 || m == 0 || n == 0 || k == 0) return
-        val ad = a.data
-        val bd = b.data
         val kernels = kernels
-        if (transposeA && transposeB) {
-            // With both transposed one operand is strided whichever way the loops run, so the smaller one
-            // is transposed first. That copy is O(k·n) or O(k·m) against the product's O(m·k·n).
-            if (b.rows * b.cols <= a.rows * a.cols) {
-                val bt = DoubleArray(k * n)
-                for (j in 0 until n) for (p in 0 until k) bt[p + j * k] = bd[j + p * n]
-                gemm(alpha, a, true, F64DenseMatrix.wrap(k, n, bt), false, 1.0, c)
-            } else {
-                val at = DoubleArray(m * k)
-                for (i in 0 until m) for (p in 0 until k) at[i + p * m] = ad[p + i * k]
-                gemm(alpha, F64DenseMatrix.wrap(m, k, at), false, b, true, 1.0, c)
-            }
-            return
-        }
         when {
-            transposeA -> {
-                val quads = DoubleArray(4)
-                for (j in 0 until n) {
-                    var i = 0
-                    val bound = m - 3
-                    while (i < bound) {
-                        kernels.dot4(ad, i * k, k, bd, j * k, k, quads, 0)
-                        cd[i + j * m] += alpha * quads[0]
-                        cd[i + 1 + j * m] += alpha * quads[1]
-                        cd[i + 2 + j * m] += alpha * quads[2]
-                        cd[i + 3 + j * m] += alpha * quads[3]
-                        i += 4
-                    }
-                    while (i < m) {
-                        cd[i + j * m] += alpha * kernels.dot(ad, i * k, bd, j * k, k)
-                        i++
-                    }
-                }
+            !transposeA -> blockedGemmUpdate(
+                kernels, alpha, a.data, b.data, b.rows, transposeB, cd, m, n, k,
+                skipZeroCoefficient = false,
+            )
+
+            !transposeB -> blockedTransposedLeftUpdate(
+                kernels, alpha, a.data, 0, a.rows, b.data, 0, b.rows, cd, 0, m, m, n, k,
+            )
+
+            b.data.size <= a.data.size -> {
+                val packedB = DoubleArray(k * n)
+                transposeBlocked(b.data, b.rows, b.cols, packedB)
+                blockedTransposedLeftUpdate(
+                    kernels, alpha, a.data, 0, a.rows, packedB, 0, k, cd, 0, m, m, n, k,
+                )
             }
 
-            !transposeB -> for (j in 0 until n) {
-                for (p in 0 until k) {
-                    axpyArithmetic(kernels, cd, j * m, alpha * bd[p + j * k], ad, p * m, m)
-                }
-            }
-
-            else -> for (j in 0 until n) {
-                for (p in 0 until k) {
-                    axpyArithmetic(kernels, cd, j * m, alpha * bd[j + p * n], ad, p * m, m)
-                }
+            else -> {
+                val packedA = DoubleArray(m * k)
+                transposeBlocked(a.data, a.rows, a.cols, packedA)
+                blockedGemmUpdate(
+                    kernels, alpha, packedA, b.data, b.rows, true, cd, m, n, k,
+                    skipZeroCoefficient = false,
+                )
             }
         }
     }
@@ -154,64 +132,12 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         val cd = c.data
         scaleTriangle(kernels, cd, n, beta, lower)
         if (alpha == 0.0 || n == 0 || k == 0) return
-        val ad = a.data
-        // Netlib's non-transposed form skips a column only when its raw multiplier is zero. Keeping that
-        // outer-product form preserves its IEEE behavior and sends every active run through vector AXPY.
         if (!transpose) {
-            accumulateSyrkOuter(alpha, ad, n, k, cd, lower)
-            return
-        }
-        // Staging turns the transposed dot form into the same vector traversal without introducing a zero guard.
-        workspace.borrow(n * k) { packed ->
-            transposeIntoRows(ad, packed, k, n)
-            accumulateSyrkOuter(alpha, packed, n, k, cd, lower, guardZeroColumns = false)
-        }
-    }
-
-    /** Netlib's non-transposed `dsyrk` traversal, with contiguous SIMD updates of the selected triangle. */
-    @Suppress("LongParameterList")
-    private fun accumulateSyrkOuter(
-        alpha: Double,
-        ad: DoubleArray,
-        n: Int,
-        k: Int,
-        cd: DoubleArray,
-        lower: Boolean,
-        guardZeroColumns: Boolean = true,
-    ) {
-        for (p in 0 until k) {
-            val source = p * n
-            for (j in 0 until n) {
-                if (guardZeroColumns && ad[source + j] == 0.0) continue
-                val from = if (lower) j else 0
-                val length = if (lower) n - j else j + 1
-                axpyArithmetic(kernels, cd, from + j * n, alpha * ad[source + j], ad, source + from, length)
-            }
-        }
-    }
-
-    /** The `dsyrk` accumulation with the operand stored `k×n`, so op(A) row i is column i of the buffer. */
-    @Suppress("LongParameterList") // the operand and the shape, all of which the caller holds
-    private fun accumulateSyrk(alpha: Double, ad: DoubleArray, n: Int, k: Int, cd: DoubleArray, lower: Boolean) {
-        val kernels = kernels
-        // Four rows of op(A) against one column, so column j is read once for the four rather than once
-        // each. The rows sit at stride k because the operand arrives transposed, which is the shape
-        // [F64Kernels.dot4] is for.
-        val quads = DoubleArray(4)
-        for (j in 0 until n) {
-            var i = j
-            val bound = n - 3
-            while (i < bound) {
-                kernels.dot4(ad, i * k, k, ad, j * k, k, quads, 0)
-                addTriangle(cd, n, i, j, alpha * quads[0], lower)
-                addTriangle(cd, n, i + 1, j, alpha * quads[1], lower)
-                addTriangle(cd, n, i + 2, j, alpha * quads[2], lower)
-                addTriangle(cd, n, i + 3, j, alpha * quads[3], lower)
-                i += 4
-            }
-            while (i < n) {
-                addTriangle(cd, n, i, j, alpha * kernels.dot(ad, i * k, ad, j * k, k), lower)
-                i++
+            blockedSyrkUpdate(kernels, alpha, a.data, cd, n, k, lower)
+        } else {
+            workspace.borrow(n * k) { packed ->
+                transposeBlocked(a.data, a.rows, a.cols, packed)
+                blockedSyrkUpdate(kernels, alpha, packed, cd, n, k, lower, guardZeroColumns = false)
             }
         }
     }
@@ -252,13 +178,6 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         }
     }
 
-    /** A(i, j) of a symmetric `n×n` matrix stored in its [lower] or upper triangle only. */
-    private fun symEntry(ad: DoubleArray, n: Int, i: Int, j: Int, lower: Boolean): Double {
-        val hi = if (i > j) i else j
-        val lo = if (i > j) j else i
-        return if (lower) ad[hi + lo * n] else ad[lo + hi * n]
-    }
-
     @Suppress("LongParameterList", "CyclomaticComplexMethod") // the BLAS dsymm signature
     override fun symm(
         alpha: Double,
@@ -283,21 +202,11 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         }
         val cd = c.data
         applyBeta(kernels, cd, 0, cd.size, beta)
+        if (alpha == 0.0 || m == 0 || b.rows == 0 || b.cols == 0) return
         if (right) {
-            if (alpha == 0.0 || m == 0 || b.rows == 0) return
-            val rows = b.rows
-            val ad = a.data
-            val bd = b.data
-            for (j in 0 until m) {
-                for (p in 0 until m) {
-                    axpyArithmetic(kernels, cd, j * rows, alpha * symEntry(ad, m, p, j, lower), bd, p * rows, rows)
-                }
-            }
-            return
-        }
-        if (alpha == 0.0 || m == 0 || b.cols == 0) return
-        for (j in 0 until b.cols) {
-            symvAccumulate(alpha, a.data, m, b.data, j * m, cd, j * m, lower)
+            blockedSymmRightUpdate(kernels, alpha, a.data, b.data, cd, b.rows, m, lower)
+        } else {
+            blockedSymmLeftUpdate(kernels, alpha, a.data, b.data, cd, m, b.cols, lower)
         }
     }
 
@@ -385,110 +294,18 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         requireShape(c.rows == n && c.cols == n) { "syr2k: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
         scaleTriangle(kernels, c.data, n, beta, lower)
         if (alpha == 0.0 || n == 0 || k == 0) return
-        // Netlib's non-transposed form skips a column only when both raw multipliers are zero. Preserve that
-        // traversal while using two vector updates for every active column.
         if (!transpose) {
-            accumulateSyr2kOuter(alpha, a.data, b.data, n, k, c.data, lower)
-            return
-        }
-        // Staging turns the transposed dot form into paired vector updates without introducing its zero guard.
-        workspace.borrow(n * k) { packedA ->
-            workspace.borrow(n * k) { packedB ->
-                transposeIntoRows(a.data, packedA, k, n)
-                transposeIntoRows(b.data, packedB, k, n)
-                accumulateSyr2kOuter(
-                    alpha,
-                    packedA,
-                    packedB,
-                    n,
-                    k,
-                    c.data,
-                    lower,
-                    guardZeroColumns = false,
-                )
-            }
-        }
-    }
-
-    /** Netlib's non-transposed `dsyr2k` traversal, expressed as paired contiguous SIMD updates. */
-    @Suppress("LongParameterList")
-    private fun accumulateSyr2kOuter(
-        alpha: Double,
-        ad: DoubleArray,
-        bd: DoubleArray,
-        n: Int,
-        k: Int,
-        cd: DoubleArray,
-        lower: Boolean,
-        guardZeroColumns: Boolean = true,
-    ) {
-        for (p in 0 until k) {
-            val source = p * n
-            for (j in 0 until n) {
-                val aj = ad[source + j]
-                val bj = bd[source + j]
-                if (guardZeroColumns && aj == 0.0 && bj == 0.0) continue
-                val from = if (lower) j else 0
-                val length = if (lower) n - j else j + 1
-                val destination = from + j * n
-                axpyArithmetic(kernels, cd, destination, alpha * bj, ad, source + from, length)
-                axpyArithmetic(kernels, cd, destination, alpha * aj, bd, source + from, length)
-            }
-        }
-    }
-
-    /** Column p of the `n×k` [src] becomes row p of the `k×n` [dst], so a row read turns into a column read. */
-    private fun transposeIntoRows(src: DoubleArray, dst: DoubleArray, n: Int, k: Int) {
-        // A tile keeps both the source read and destination write runs in cache. This also backs the public
-        // transpose, while syrk and syr2k use it to stage rows as contiguous dot operands.
-        for (p0 in 0 until k step TRANSPOSE_TILE) {
-            val pEnd = minOf(p0 + TRANSPOSE_TILE, k)
-            for (j0 in 0 until n step TRANSPOSE_TILE) {
-                val jEnd = minOf(j0 + TRANSPOSE_TILE, n)
-                for (p in p0 until pEnd) {
-                    var source = p * n + j0
-                    var destination = p + j0 * k
-                    for (j in j0 until jEnd) {
-                        dst[destination] = src[source]
-                        source++
-                        destination += k
-                    }
+            blockedSyr2kUpdate(kernels, alpha, a.data, b.data, c.data, n, k, lower)
+        } else {
+            workspace.borrow(n * k) { packedA ->
+                workspace.borrow(n * k) { packedB ->
+                    transposeBlocked(a.data, a.rows, a.cols, packedA)
+                    transposeBlocked(b.data, b.rows, b.cols, packedB)
+                    blockedSyr2kUpdate(
+                        kernels, alpha, packedA, packedB, c.data, n, k, lower,
+                        guardZeroColumns = false,
+                    )
                 }
-            }
-        }
-    }
-
-    /** The `dsyr2k` accumulation with both operands stored `k×n`, so op(X) row i is column i of the buffer. */
-    @Suppress("LongParameterList") // two operands and the shape, all of which the caller holds
-    private fun accumulateSyr2k(
-        alpha: Double,
-        ad: DoubleArray,
-        bd: DoubleArray,
-        n: Int,
-        k: Int,
-        cd: DoubleArray,
-        lower: Boolean,
-    ) {
-        val kernels = kernels
-        // Both halves of the pair are the shape dot4 wants, so each column is read once for four rows.
-        val fromA = DoubleArray(4)
-        val fromB = DoubleArray(4)
-        for (j in 0 until n) {
-            var i = j
-            val bound = n - 3
-            while (i < bound) {
-                kernels.dot4(ad, i * k, k, bd, j * k, k, fromA, 0)
-                kernels.dot4(bd, i * k, k, ad, j * k, k, fromB, 0)
-                for (r in 0 until 4) {
-                    val s = fromA[r] + fromB[r]
-                    addTriangle(cd, n, i + r, j, alpha * s, lower)
-                }
-                i += 4
-            }
-            while (i < n) {
-                val s = kernels.dot(ad, i * k, bd, j * k, k) + kernels.dot(bd, i * k, ad, j * k, k)
-                addTriangle(cd, n, i, j, alpha * s, lower)
-                i++
             }
         }
     }
