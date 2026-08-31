@@ -47,50 +47,6 @@ public interface F64Kernels : Backend {
     }
 
     /**
-     * Adds `mult * a(k)` into y and returns the dot of the same run with x, in one pass. A symmetric
-     * product needs both halves of every column, and one pass reads the column once rather than twice.
-     */
-    @Suppress("LongParameterList") // three runs and the multiplier, all of which the caller holds
-    public fun symvColumn(
-        a: DoubleArray,
-        aOff: Int,
-        x: DoubleArray,
-        xOff: Int,
-        y: DoubleArray,
-        yOff: Int,
-        mult: Double,
-        len: Int,
-    ): Double {
-        var s = 0.0
-        for (i in 0 until len) {
-            val ai = a[aOff + i]
-            s += ai * x[xOff + i]
-            y[yOff + i] += mult * ai
-        }
-        return s
-    }
-
-    /**
-     * Four [symvColumn] runs at `aOff + r * stride`, their dots landing in `out(r)`. Defaults to four
-     * calls, so an implementation that can read x and y once for all four should override it.
-     */
-    @Suppress("LongParameterList") // four column offsets over three runs, plus the multipliers
-    public fun symvColumn4(
-        a: DoubleArray,
-        aOff: Int,
-        stride: Int,
-        x: DoubleArray,
-        xOff: Int,
-        y: DoubleArray,
-        yOff: Int,
-        mult: DoubleArray,
-        out: DoubleArray,
-        len: Int,
-    ) {
-        for (r in 0 until 4) out[r] = symvColumn(a, aOff + r * stride, x, xOff, y, yOff, mult[r], len)
-    }
-
-    /**
      * Four dots against a shared right operand. For r in 0..3, out(outOff + r) is the dot of the run at
      * aOff + r * stride with the run at bOff. Defaults to four [dot] calls, so an implementation that can
      * read the shared operand once for all four should override it.
@@ -194,30 +150,4 @@ internal class F64RoutedKernels(internal val host: F64Kernels?) : F64Kernels {
 
     override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) =
         selected.swap(a, aOff, b, bOff, len)
-
-    @Suppress("LongParameterList") // three runs and the multiplier, matching the seam
-    override fun symvColumn(
-        a: DoubleArray,
-        aOff: Int,
-        x: DoubleArray,
-        xOff: Int,
-        y: DoubleArray,
-        yOff: Int,
-        mult: Double,
-        len: Int,
-    ): Double = F64PlatformKernels.symvColumn(a, aOff, x, xOff, y, yOff, mult, len)
-
-    @Suppress("LongParameterList") // four column offsets over three runs, matching the seam
-    override fun symvColumn4(
-        a: DoubleArray,
-        aOff: Int,
-        stride: Int,
-        x: DoubleArray,
-        xOff: Int,
-        y: DoubleArray,
-        yOff: Int,
-        mult: DoubleArray,
-        out: DoubleArray,
-        len: Int,
-    ) = F64PlatformKernels.symvColumn4(a, aOff, stride, x, xOff, y, yOff, mult, out, len)
 }
