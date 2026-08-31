@@ -1,7 +1,6 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.installBackends
 import com.eignex.koblas.koblas
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.transpose
@@ -9,9 +8,6 @@ import kotlinx.benchmark.*
 
 /**
  * The two symmetric factorizations against the portable ones.
- *
- * `transpose` trails the two subjects alphabetically and no gate reaches it, so it is the control: a row
- * from the same run that the change under test cannot move.
  */
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
@@ -20,18 +16,14 @@ class SparseSymmetricHostBenchmark {
     @Param("128", "192", "256", "1024")
     var n: Int = 0
 
-    @Param(REFERENCE_BACKEND, HOST_BACKEND)
+    @Param(AUTOMATIC_BACKEND, REFERENCE_BACKEND, HOST_BACKEND)
     var backend: String = REFERENCE_BACKEND
 
     private lateinit var a: F64SparseMatrix
 
     @Setup
     fun setup() {
-        installBackends(null)
-        when (backend) {
-            REFERENCE_BACKEND -> installBackends(koblas.with(sparseDecompositions = F64ReferenceSparseLinearAlgebra))
-            HOST_BACKEND -> useSparseLu()
-        }
+        installSparseDecompositionBackend(backend)
         val rng = benchRng()
         a = sparseSpdMatrix(n, rng)
         val half = koblas.sparseDecompositions.name
