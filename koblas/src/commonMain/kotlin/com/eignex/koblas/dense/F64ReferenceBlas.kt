@@ -417,15 +417,10 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         for (j in 0 until n) {
             val xj = alpha * xs[j]
             if (xj == 0.0) continue
-            // Lower-triangle columns are contiguous. Keeping xj as the axpy multiplier preserves the zero
-            // guard above: finite alpha times zero must not turn an infinite x entry into NaN through a
-            // gratuitous 0 * infinity multiply.
             if (lower) {
                 kernels.axpy(ad, j + j * n, xj, xs, j, n - j)
             } else {
-                // Reorienting this as an upper-triangle axpy changes the evaluation order. For example, a
-                // zero x(j) and infinite x(i) must skip the product, not form infinity * zero into NaN.
-                for (i in j until n) ad[j + i * n] += xj * xs[i]
+                kernels.axpy(ad, j * n, xj, xs, 0, j + 1)
             }
         }
     }

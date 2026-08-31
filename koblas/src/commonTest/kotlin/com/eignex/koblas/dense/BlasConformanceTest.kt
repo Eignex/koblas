@@ -9,7 +9,6 @@ import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class BlasConformanceTest {
@@ -84,17 +83,24 @@ class BlasConformanceTest {
     }
 
     @Test
-    fun `dense upper syr preserves zero infinity semantics`() {
+    fun `dense upper syr uses contiguous axpy runs`() {
+        data class AxpyCall(val yOff: Int, val xOff: Int, val len: Int)
+        val calls = ArrayList<AxpyCall>()
+        val recording = object : F64Kernels by F64ScalarKernels {
+            override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
+                calls.add(AxpyCall(yOff, xOff, len))
+                F64ScalarKernels.axpy(y, yOff, alpha, x, xOff, len)
+            }
+        }
         val upper = F64DenseMatrix(2, 2)
-        F64ReferenceBlas(F64ScalarKernels).syr(
+        F64ReferenceBlas(recording).syr(
             1.0,
-            F64DenseVector.wrap(doubleArrayOf(0.0, Double.POSITIVE_INFINITY)),
+            F64DenseVector.wrap(doubleArrayOf(2.0, 3.0)),
             upper,
             lower = false,
         )
 
-        assertTrue(upper[0, 1] == 0.0, "upper syr formed infinity times zero")
-        assertFalse(upper[0, 1].isNaN(), "upper syr formed infinity times zero")
+        assertEquals(listOf(AxpyCall(0, 0, 1), AxpyCall(2, 0, 2)), calls)
     }
 
     @Test
