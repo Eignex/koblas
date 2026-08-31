@@ -98,7 +98,7 @@ class CblasConformanceTest {
     fun `singular matrix sets the flag and zero determinant`() = assertSingularLuIsFlagged(cblas)
 
     @Test
-    fun `degenerate shapes honor the beta conventions`() = assertDegenerateShapesHonorTheBetaConventions(cblas)
+    fun `degenerate shapes follow BLAS quick returns`() = assertDegenerateShapesFollowBlasQuickReturns(cblas)
 
     @Test
     fun `an empty factorization solves an empty right-hand side`() = assertAnEmptyFactorizationSolvesEmpty(cblas)

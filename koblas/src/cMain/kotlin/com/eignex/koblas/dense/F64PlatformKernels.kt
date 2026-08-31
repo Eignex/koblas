@@ -8,7 +8,7 @@ import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 
 /** The C level-1 kernels compiled into each Kotlin/Native host artifact. */
-internal actual object F64PlatformKernels : F64Kernels {
+internal actual object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
     actual override val name: String get() = BackendNames.C
 
     override val isPortable: Boolean get() = true
@@ -25,6 +25,13 @@ internal actual object F64PlatformKernels : F64Kernels {
         if (len == 0 || alpha == 0.0) return
         y.usePinned { yp ->
             x.usePinned { xp -> koblas_dense_axpy(yp.addressOf(0), yOff, alpha, xp.addressOf(0), xOff, len) }
+        }
+    }
+
+    actual override fun axpyArithmetic(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
+        if (len == 0) return
+        y.usePinned { yp ->
+            x.usePinned { xp -> koblas_dense_axpy_arithmetic(yp.addressOf(0), yOff, alpha, xp.addressOf(0), xOff, len) }
         }
     }
 

@@ -234,8 +234,73 @@ class TriangularTest {
     fun `trsv divides by a zero diagonal instead of reporting it`() {
         val singular = F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 0.0), doubleArrayOf(3.0, 0.0)))
         val x = doubleArrayOf(1.0, 1.0)
-        singular.trsv(x, lower = true)
+        F64ReferenceLinearAlgebra.trsv(singular, x, lower = true)
         assertTrue(!x[1].isFinite(), "expected a non-finite entry from the zero pivot, got ${x[1]}")
+    }
+
+    @Test
+    fun `nontransposed trsv skips a zero right hand side pivot`() {
+        val singular = F64DenseMatrix.of(arrayOf(doubleArrayOf(0.0, 0.0), doubleArrayOf(Double.NaN, 1.0)))
+        val x = DoubleArray(2)
+
+        F64ReferenceLinearAlgebra.trsv(singular, x, lower = true)
+
+        assertContentEquals(DoubleArray(2), x)
+    }
+
+    @Test
+    fun `transposed trsv divides a zero right hand side pivot`() {
+        val singular = F64DenseMatrix.of(arrayOf(doubleArrayOf(0.0, 0.0), doubleArrayOf(0.0, 1.0)))
+        val x = DoubleArray(2)
+
+        F64ReferenceLinearAlgebra.trsv(singular, x, lower = true, transpose = true)
+
+        assertTrue(x[0].isNaN())
+    }
+
+    @Test
+    fun `transposed trsv forms products with zero triangle entries`() {
+        val triangle = F64DenseMatrix.diagonal(2)
+        val x = doubleArrayOf(0.0, Double.POSITIVE_INFINITY)
+
+        F64ReferenceLinearAlgebra.trsv(triangle, x, lower = true, transpose = true)
+
+        assertTrue(x[0].isNaN())
+    }
+
+    @Test
+    fun `right trsm skips zero triangle coefficients`() {
+        val triangle = F64DenseMatrix.diagonal(2)
+        val b = F64DenseMatrix(1, 2, doubleArrayOf(Double.POSITIVE_INFINITY, 1.0))
+
+        F64ReferenceLinearAlgebra.trsm(triangle, b, lower = true, right = true)
+
+        assertEquals(Double.POSITIVE_INFINITY, b[0, 0])
+        assertEquals(1.0, b[0, 1])
+    }
+
+    @Test
+    fun `right trmm skips zero triangle coefficients`() {
+        val triangle = F64DenseMatrix.diagonal(2)
+        val b = F64DenseMatrix(1, 2, doubleArrayOf(Double.POSITIVE_INFINITY, 1.0))
+
+        F64ReferenceLinearAlgebra.trmm(triangle, b, lower = true, right = true)
+
+        assertEquals(Double.POSITIVE_INFINITY, b[0, 0])
+        assertEquals(1.0, b[0, 1])
+    }
+
+    @Test
+    fun `trsm retains products after a quotient underflows`() {
+        val n = 2
+        val triangle = F64DenseMatrix.diagonal(n)
+        triangle[0, 0] = Double.POSITIVE_INFINITY
+        triangle[n - 1, 0] = Double.POSITIVE_INFINITY
+        val b = F64DenseMatrix(n, 1).also { it[0, 0] = Double.MIN_VALUE }
+
+        F64ReferenceLinearAlgebra.trsm(triangle, b, lower = true)
+
+        assertTrue(b[n - 1, 0].isNaN(), "underflowed pivot did not form its product")
     }
 
     @Test

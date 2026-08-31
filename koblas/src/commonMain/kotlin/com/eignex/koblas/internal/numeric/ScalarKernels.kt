@@ -10,6 +10,11 @@ internal fun scalarDot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len
 /** `y += alpha * x` over [len] elements. A zero [alpha] leaves y alone rather than adding zeroes. */
 internal fun scalarAxpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
     if (alpha == 0.0) return
+    scalarAxpyArithmetic(y, yOff, alpha, x, xOff, len)
+}
+
+/** AXPY arithmetic without the standalone BLAS routine's zero-scalar quick return. */
+internal fun scalarAxpyArithmetic(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
     for (i in 0 until len) y[yOff + i] += alpha * x[xOff + i]
 }
 

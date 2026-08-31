@@ -2,6 +2,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
+import com.eignex.koblas.core.F64DenseVector
 import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.internal.numeric.absoluteSum
 import com.eignex.koblas.internal.numeric.euclideanNorm
@@ -48,61 +49,57 @@ class LinearAlgebraSymmetricOpsTest {
         }
     }
 
-    /**
-     * A zero of x against an infinite `A(j, j)` is the one product the reference gemv never forms, since it
-     * skips the whole column, and the reference symv must not form it either.
-     */
     @Test
-    fun `reference symv skips an infinite diagonal behind a zero multiplier`() {
+    fun `reference symv evaluates its diagonal product for a zero multiplier`() {
         for (lower in booleanArrayOf(true, false)) {
             val a = F64DenseMatrix.diagonal(3)
             a[1, 1] = Double.POSITIVE_INFINITY
             val x = doubleArrayOf(2.0, 0.0, -3.0)
-            val expected = DoubleArray(3)
-            F64ReferenceLinearAlgebra.gemv(1.0, a, x, 0.0, expected)
             val actual = DoubleArray(3)
 
             F64ReferenceLinearAlgebra.symv(1.0, a, x, 0.0, actual, lower)
 
-            assertTrue(actual.all(Double::isFinite), "symv lower=$lower produced ${actual.toList()}")
-            assertClose(expected, actual, "symv lower=$lower")
+            assertEquals(2.0, actual[0], "lower=$lower first diagonal")
+            assertTrue(actual[1].isNaN(), "lower=$lower middle diagonal was ${actual[1]}")
+            assertEquals(-3.0, actual[2], "lower=$lower last diagonal")
         }
     }
 
     @Test
-    fun `sparse syr never updates unstored zero positions`() {
-        val x = F64SparseVector.of(3, intArrayOf(0, 2), doubleArrayOf(Double.POSITIVE_INFINITY, 2.0))
+    fun `sparse syr follows dense BLAS arithmetic for implicit zeros`() {
+        val values = doubleArrayOf(Double.POSITIVE_INFINITY, 0.0, 2.0)
+        val sparse = F64SparseVector.of(3, intArrayOf(0, 2), doubleArrayOf(values[0], values[2]))
         for (lower in booleanArrayOf(true, false)) {
-            val a = F64DenseMatrix(3, 3)
+            val expected = F64DenseMatrix(3, 3)
+            val actual = F64DenseMatrix(3, 3)
 
-            F64ReferenceLinearAlgebra.syr(1.0, x, a, lower)
+            F64ReferenceLinearAlgebra.syr(1.0, F64DenseVector.wrap(values), expected, lower)
+            F64ReferenceLinearAlgebra.syr(1.0, sparse, actual, lower)
 
-            assertEquals(0.0, a[1, 0], "lower=$lower row one")
-            assertEquals(0.0, a[0, 1], "lower=$lower column one")
-            assertEquals(0.0, a[1, 1], "lower=$lower diagonal one")
-            assertEquals(0.0, a[2, 1], "lower=$lower row two")
-            assertEquals(0.0, a[1, 2], "lower=$lower column two")
+            assertContentEquals(expected.data, actual.data, "lower=$lower")
         }
     }
 
     @Test
-    fun `sparse syr2 never updates positions neither operand stores`() {
-        val x = F64SparseVector.of(3, intArrayOf(0), doubleArrayOf(Double.POSITIVE_INFINITY))
-        val y = F64SparseVector.of(3, intArrayOf(2), doubleArrayOf(2.0))
+    fun `sparse syr2 follows dense BLAS arithmetic for implicit zeros`() {
+        val xValues = doubleArrayOf(Double.POSITIVE_INFINITY, 0.0, 0.0)
+        val yValues = doubleArrayOf(0.0, 0.0, 2.0)
+        val sparseX = F64SparseVector.of(3, intArrayOf(0), doubleArrayOf(xValues[0]))
+        val sparseY = F64SparseVector.of(3, intArrayOf(2), doubleArrayOf(yValues[2]))
         for (lower in booleanArrayOf(true, false)) {
-            val a = F64DenseMatrix(3, 3)
+            val expected = F64DenseMatrix(3, 3)
+            val actual = F64DenseMatrix(3, 3)
 
-            F64ReferenceLinearAlgebra.syr2(1.0, x, y, a, lower)
+            F64ReferenceLinearAlgebra.syr2(
+                1.0,
+                F64DenseVector.wrap(xValues),
+                F64DenseVector.wrap(yValues),
+                expected,
+                lower,
+            )
+            F64ReferenceLinearAlgebra.syr2(1.0, sparseX, sparseY, actual, lower)
 
-            assertEquals(0.0, a[0, 0], "lower=$lower diagonal zero")
-            assertEquals(0.0, a[1, 0], "lower=$lower row one")
-            assertEquals(0.0, a[0, 1], "lower=$lower column one")
-            assertEquals(0.0, a[1, 1], "lower=$lower diagonal one")
-            assertEquals(0.0, a[2, 1], "lower=$lower row two")
-            assertEquals(0.0, a[1, 2], "lower=$lower column two")
-            assertEquals(0.0, a[2, 2], "lower=$lower diagonal two")
-            val updated = if (lower) a[2, 0] else a[0, 2]
-            assertEquals(Double.POSITIVE_INFINITY, updated, "lower=$lower stored cross product")
+            assertContentEquals(expected.data, actual.data, "lower=$lower")
         }
     }
 
@@ -337,14 +334,16 @@ class LinearAlgebraSymmetricOpsTest {
         }
     }
 
-    /** Kernels whose `dot` fails, standing in for a host backend that cannot complete a call. */
-    private class FailingDot : F64Kernels {
-        override val name: String get() = "failing-dot"
-        override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
-            error("kernel failed")
-        override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
-            for (i in 0 until len) y[yOff + i] += alpha * x[xOff + i]
+    /** Kernels whose `axpy` fails, standing in for a backend that cannot complete a vector update. */
+    private class FailingAxpy : F64Kernels {
+        override val name: String get() = "failing-axpy"
+        override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
+            var sum = 0.0
+            for (i in 0 until len) sum += a[aOff + i] * b[bOff + i]
+            return sum
         }
+        override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) =
+            error("kernel failed")
         override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
             for (i in 0 until len) v[vOff + i] *= alpha
         }
@@ -360,12 +359,12 @@ class LinearAlgebraSymmetricOpsTest {
         // Park one buffer of the staging width in the pool, so syrk borrows this exact instance.
         val parked = ws.take(n * k)
         ws.release(parked)
-        val blas = F64ReferenceBlas(FailingDot())
+        val blas = F64ReferenceBlas(FailingAxpy())
         assertFailsWith<IllegalStateException> {
             blas.syrk(
                 1.0,
-                F64DenseMatrix(n, k),
-                transpose = false,
+                F64DenseMatrix(k, n, DoubleArray(k * n) { 1.0 }),
+                transpose = true,
                 beta = 0.0,
                 c = F64DenseMatrix(n, n),
                 workspace = ws,
@@ -403,13 +402,13 @@ class LinearAlgebraSymmetricOpsTest {
         val ws = Workspace()
         val parked = listOf(ws.take(n * k), ws.take(n * k))
         parked.forEach { ws.release(it) }
-        val blas = F64ReferenceBlas(FailingDot())
+        val blas = F64ReferenceBlas(FailingAxpy())
         assertFailsWith<IllegalStateException> {
             blas.syr2k(
                 1.0,
-                F64DenseMatrix(n, k),
-                F64DenseMatrix(n, k),
-                transpose = false,
+                F64DenseMatrix(k, n, DoubleArray(k * n) { 1.0 }),
+                F64DenseMatrix(k, n, DoubleArray(k * n) { 1.0 }),
+                transpose = true,
                 beta = 0.0,
                 c = F64DenseMatrix(n, n),
                 workspace = ws,

@@ -93,6 +93,16 @@ class KernelsTest {
     }
 
     @Test
+    fun `the platform arithmetic axpy does not take the DAXPY zero return`() {
+        val x = DoubleArray(64).also { it[17] = Double.POSITIVE_INFINITY }
+        val y = DoubleArray(64)
+
+        axpyArithmetic(F64PlatformKernels, y, 0, 0.0, x, 0, x.size)
+
+        assertTrue(y[17].isNaN())
+    }
+
+    @Test
     fun `the dense reductions route but the sparse ones cannot`() = withCleanBackends {
         val recording = Recording()
         registerBackend(recording)

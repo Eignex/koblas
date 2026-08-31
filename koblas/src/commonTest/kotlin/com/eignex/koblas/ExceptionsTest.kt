@@ -3,7 +3,6 @@ package com.eignex.koblas
 import com.eignex.koblas.core.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.sparse.F64SingularSparseFactorization
-import com.eignex.koblas.sparse.trsv
 import kotlin.test.*
 
 class ExceptionsTest {
@@ -25,19 +24,6 @@ class ExceptionsTest {
         assertEquals(singular.lu().failedAt, e.position, "position should match the factorization's failedAt")
         assertTrue(e.position >= 0)
         assertTrue("pivot 1" in e.message!!, "the message should name the failing pivot: ${e.message}")
-    }
-
-    @Test
-    fun `a singular sparse triangle reports the column`() {
-        val t = F64SparseMatrix.ofTriplets(
-            rows = 2,
-            cols = 2,
-            rowIdx = intArrayOf(0, 1, 1),
-            colIdx = intArrayOf(0, 0, 1),
-            values = doubleArrayOf(1.0, 3.0, 0.0),
-        )
-        val e = assertFailsWith<SingularMatrix> { t.trsv(doubleArrayOf(1.0, 1.0), lower = true) }
-        assertEquals(1, e.position)
     }
 
     @Test
