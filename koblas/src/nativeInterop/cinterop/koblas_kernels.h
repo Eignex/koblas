@@ -18,17 +18,23 @@ KOBLAS_KERNEL double koblas_dense_dot(
     return sum;
 }
 
+static inline void koblas_dense_axpy_loop(
+    double *y, int32_t y_off, double alpha, const double *x, int32_t x_off, int32_t len
+) {
+    for (int32_t i = 0; i < len; i++) y[y_off + i] += alpha * x[x_off + i];
+}
+
 KOBLAS_KERNEL void koblas_dense_axpy(
     double *y, int32_t y_off, double alpha, const double *x, int32_t x_off, int32_t len
 ) {
     if (alpha == 0.0) return;
-    for (int32_t i = 0; i < len; i++) y[y_off + i] += alpha * x[x_off + i];
+    koblas_dense_axpy_loop(y, y_off, alpha, x, x_off, len);
 }
 
 KOBLAS_KERNEL void koblas_dense_axpy_arithmetic(
     double *y, int32_t y_off, double alpha, const double *x, int32_t x_off, int32_t len
 ) {
-    for (int32_t i = 0; i < len; i++) y[y_off + i] += alpha * x[x_off + i];
+    koblas_dense_axpy_loop(y, y_off, alpha, x, x_off, len);
 }
 
 KOBLAS_KERNEL void koblas_dense_scale(double *v, int32_t v_off, double alpha, int32_t len) {
