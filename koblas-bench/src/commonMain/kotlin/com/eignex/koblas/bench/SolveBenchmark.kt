@@ -29,7 +29,7 @@ class SolveBenchmark {
 
     @Setup
     fun setup() {
-        installBackend(backend)
+        installDenseBackend(backend)
         val rng = benchRng()
         a = dominantMatrix(n, rng)
         factored = a.lu()
