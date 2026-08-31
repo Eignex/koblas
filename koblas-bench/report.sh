@@ -12,7 +12,10 @@ if [[ $target == native ]]; then
         *) echo "native reports require Linux x86-64 or Apple Silicon" >&2; exit 1 ;;
     esac
 fi
-case $target in jvm|linuxX64|macosArm64) ;; *) echo "target must be jvm or native" >&2; exit 1 ;; esac
+case $target in
+    jvm|linuxX64|macosArm64) ;;
+    *) echo "target must be jvm, native, linuxX64, or macosArm64" >&2; exit 1 ;;
+esac
 mkdir -p "$output"
 marker=$(mktemp "$output/.benchmark-marker.XXXXXX")
 log=$(mktemp "$output/.benchmark-log.XXXXXX")
@@ -29,7 +32,10 @@ if ! "${command[@]}" 2>&1 | tee "$log"; then
     if rg -q '/tmp/jmh\.lock|jmh\.lock' "$log"; then echo "A stale JMH lock was detected; inspect it before removing it." >&2; fi
     exit 1
 fi
-mapfile -t reports < <(find "$root/koblas-bench/build/reports" -name '*.json' -newer "$marker" -print)
+reports=()
+while IFS= read -r report; do
+    reports+=("$report")
+done < <(find "$root/koblas-bench/build/reports" -name '*.json' -newer "$marker" -print)
 if ((${#reports[@]} == 0)); then echo "No fresh benchmark JSON was produced; a stale JMH lock may have prevented measurement." >&2; exit 1; fi
 python3 "$root/koblas-bench/tools/check-benchmark-coverage.py" "$root/koblas-bench/benchmark-coverage.tsv" "${reports[@]}"
 stage=$(mktemp -d "$output/.koblas-report-${target}-${timestamp}.XXXXXX")

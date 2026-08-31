@@ -53,7 +53,7 @@ benchmark {
             param("density", "0.01")
             param("shape", "random")
             param("backend", "automatic", "reference")
-            param("kernels", "automatic")
+            param("kernels", "automatic", "scalar")
         }
         register("full") {
             defaults()

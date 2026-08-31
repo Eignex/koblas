@@ -76,7 +76,10 @@ internal fun installBasisSolverBackend(backend: String) {
 @OptIn(ExperimentalKoblasApi::class)
 internal fun installKernelProvider(provider: String) {
     installBackends(null)
-    if (provider == AUTOMATIC_KERNELS) return
+    if (provider == AUTOMATIC_KERNELS) {
+        discoverBackends()
+        return
+    }
     if (provider == HOST_BACKEND) {
         check(useHost()) { "the host kernel provider is unavailable" }
         return
