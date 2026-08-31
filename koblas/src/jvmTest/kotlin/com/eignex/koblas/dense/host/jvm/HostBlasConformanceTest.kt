@@ -65,6 +65,7 @@ class HostBlasConformanceTest {
         Assume.assumeTrue("host CBLAS is not installed", HostLibraries.cblas)
         assertTriangularAgreesWithReference(F64Cblas(), intArrayOf(1, 5, 12, 24))
         assertGerAgreesWithReference(F64Cblas())
+        assertSyrAgreesWithReference(F64Cblas())
     }
 
     /** Lowering the gates is the only way the native solve runs; the shipped values keep it portable. */

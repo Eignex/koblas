@@ -50,15 +50,25 @@ public abstract class F64BlasAdapter internal constructor(
     // from which the call starts paying.
     override fun transpose(a: F64DenseMatrix): F64DenseMatrix = portable.transpose(a)
 
-    override fun syr(alpha: Double, x: F64VectorLike, a: F64DenseMatrix, lower: Boolean): Unit = portable.syr(
-        alpha,
-        x,
-        a,
-        lower,
-    )
+    override fun syr(alpha: Double, x: F64VectorLike, a: F64DenseMatrix, lower: Boolean) {
+        if (x !is F64DenseVector) return portable.syr(alpha, x, a, lower)
+        requireShape(a.rows == a.cols && x.size == a.rows) { "syr shape mismatch" }
+        if (alpha != 0.0 && a.rows != 0) f.dsyr(COL_MAJOR, uploOf(lower), a.rows, alpha, x.data, 1, a.data, a.rows)
+    }
 
-    override fun syr2(alpha: Double, x: F64VectorLike, y: F64VectorLike, a: F64DenseMatrix, lower: Boolean): Unit =
-        portable.syr2(alpha, x, y, a, lower)
+    override fun syr2(alpha: Double, x: F64VectorLike, y: F64VectorLike, a: F64DenseMatrix, lower: Boolean) {
+        if (x !is F64DenseVector || y !is F64DenseVector) return portable.syr2(alpha, x, y, a, lower)
+        requireShape(a.rows == a.cols && x.size == a.rows && y.size == a.rows) { "syr2 shape mismatch" }
+        if (alpha != 0.0 && a.rows != 0) {
+            f.dsyr2(
+                COL_MAJOR,
+                uploOf(
+            lower,
+        ),
+            a.rows, alpha, x.data, 1, y.data, 1, a.data, a.rows
+            )
+        }
+    }
 
     @Suppress("LongParameterList") // the BLAS dsyr2k signature plus optional scratch
     override fun syr2k(

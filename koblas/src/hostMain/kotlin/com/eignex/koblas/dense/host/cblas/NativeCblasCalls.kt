@@ -98,6 +98,53 @@ internal class NativeCblasCalls(private val f: CblasFunctions) : CblasCalls {
         }
     }
 
+    override fun dsyr(
+        order: Int,
+        uplo: Int,
+        n: Int,
+        alpha: Double,
+        x: DoubleArray,
+        incx: Int,
+        a: DoubleArray,
+        lda: Int,
+    ) {
+        x.usePinned { xp ->
+            a.usePinned { ap ->
+                f.dsyr(
+                    order,
+                    uplo,
+                    n,
+                    alpha,
+                    xp.addressOf(0),
+                    incx,
+                    ap.addressOf(0),
+                    lda,
+                )
+            }
+        }
+    }
+
+    override fun dsyr2(
+        order: Int,
+        uplo: Int,
+        n: Int,
+        alpha: Double,
+        x: DoubleArray,
+        incx: Int,
+        y: DoubleArray,
+        incy: Int,
+        a: DoubleArray,
+        lda: Int,
+    ) {
+        x.usePinned { xp ->
+            y.usePinned { yp ->
+                a.usePinned { ap ->
+                    f.dsyr2(order, uplo, n, alpha, xp.addressOf(0), incx, yp.addressOf(0), incy, ap.addressOf(0), lda)
+                }
+            }
+        }
+    }
+
     override fun dsymv(
         order: Int,
         uplo: Int,
