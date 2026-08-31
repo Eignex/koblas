@@ -229,8 +229,7 @@ public interface F64Blas : Backend {
      * The diagonal is divided by, not tested: `dtrsv` carries no `info` and reports nothing, so a singular
      * triangle yields infinities or NaNs and the caller who needs the distinction tests the diagonal first.
      * That is the convention rather than a cost, and [trtri] shows it: having an `info` to return, it throws
-     * on a zero diagonal. The sparse [com.eignex.koblas.sparse.F64SparseBlas.trsv] throws too, having no
-     * BLAS routine whose silence it has to match.
+     * on a zero diagonal. The sparse [com.eignex.koblas.sparse.F64SparseBlas.trsv] follows the same rule.
      */
     public fun trsv(
         a: F64DenseMatrix,

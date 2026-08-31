@@ -6,7 +6,7 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.dense.applyBeta
-import com.eignex.koblas.dense.forEachRow
+import com.eignex.koblas.dense.axpyArithmetic
 import com.eignex.koblas.dense.transposeBlocked
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.numeric.euclideanNorm
@@ -72,6 +72,7 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         val yLen = if (transpose) a.cols else a.rows
         requireShape(x.size == xLen) { "gemv: x length ${x.size} != $xLen" }
         requireShape(y.size == yLen) { "gemv: y length ${y.size} != $yLen" }
+        if (a.rows == 0 || a.cols == 0) return
         applyBeta(denseKernels, y, 0, y.size, beta)
         if (alpha == 0.0) return
         if (transpose) {
@@ -83,7 +84,7 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         } else {
             for (j in 0 until a.cols) {
                 val xj = alpha * x[j]
-                if (xj != 0.0) a.forEachInColumn(j) { i, v -> y[i] += v * xj }
+                a.forEachInColumn(j) { i, v -> y[i] += v * xj }
             }
         }
     }
@@ -161,19 +162,14 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
                 }
             } else {
                 for (j in 0 until k) {
-                    var any = false
                     for (rhs in 0 until width) {
                         val l = columnStart + rhs
-                        val scaled = alpha * bd[if (transposeB) l + j * ld else j + l * ld]
-                        work[rhs] = scaled
-                        any = any || scaled != 0.0
+                        val raw = bd[if (transposeB) l + j * ld else j + l * ld]
+                        work[rhs] = alpha * raw
                     }
-                    if (any) {
-                        a.forEachInColumn(j) { i, v ->
-                            for (rhs in 0 until width) {
-                                val scaled = work[rhs]
-                                if (scaled != 0.0) cd[(columnStart + rhs) * m + i] += v * scaled
-                            }
+                    a.forEachInColumn(j) { i, v ->
+                        for (rhs in 0 until width) {
+                            cd[(columnStart + rhs) * m + i] += v * work[rhs]
                         }
                     }
                 }
@@ -205,12 +201,9 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         val ld = if (transposeB) m else b.rows
         for (column in 0 until a.cols) {
             a.forEachInColumn(column) { row, v ->
-                val scaled = alpha * v
-                if (scaled != 0.0) {
-                    val cOff = (if (transposeA) row else column) * m
-                    val bColumn = if (transposeA) column else row
-                    denseKernels.axpy(cd, cOff, scaled, bd, bColumn * ld, m)
-                }
+                val cOff = (if (transposeA) row else column) * m
+                val bColumn = if (transposeA) column else row
+                axpyArithmetic(denseKernels, cd, cOff, alpha * v, bd, bColumn * ld, m)
             }
         }
     }
@@ -244,17 +237,7 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         if (alpha != 1.0) denseKernels.scale(b.data, 0, alpha, b.data.size)
         val rightHandSides = if (right) b.rows else b.cols
         if (rightHandSides == 0) return
-        val diagonal = if (unitDiag) {
-            null
-        } else {
-            try {
-                DoubleArray(n) { diagonalOf(a, it) }
-            } catch (singular: SingularMatrix) {
-                // Preserve the documented per-RHS partial mutation when a solve fails. Healthy matrices keep
-                // the cached diagonal and avoid looking it up again in every panel.
-                replaySingularSolve(a, b, lower, transpose, right, singular)
-            }
-        }
+        val diagonal = if (unitDiag) null else DoubleArray(n) { a[it, it] }
         if (right) {
             trsmRightCore(a, b, lower, !transpose, diagonal)
         } else {
@@ -278,16 +261,21 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
             for (j in order) {
                 if (!transpose) {
                     val divisor = diagonal?.get(j) ?: 1.0
+                    var active = 0
                     for (rhs in 0 until width) {
                         val at = (columnStart + rhs) * n + j
-                        work[rhs] = bd[at] / divisor
-                        bd[at] = work[rhs]
+                        val raw = bd[at]
+                        work[rhs] = if (raw == 0.0) 0.0 else raw / divisor
+                        if (raw != 0.0) {
+                            active = active or (1 shl rhs)
+                            bd[at] = work[rhs]
+                        }
                     }
                     a.forEachInColumn(j) { i, v ->
                         if (if (lower) i > j else i < j) {
                             for (rhs in 0 until width) {
                                 val xj = work[rhs]
-                                if (xj != 0.0) bd[(columnStart + rhs) * n + i] -= v * xj
+                                if (active and (1 shl rhs) != 0) bd[(columnStart + rhs) * n + i] -= v * xj
                             }
                         }
                     }
@@ -303,23 +291,6 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
                 }
             }
         }
-    }
-
-    /** Replays the original per-RHS solve to retain its partial-mutation contract, then propagates failure. */
-    private fun replaySingularSolve(
-        a: F64SparseMatrix,
-        b: F64DenseMatrix,
-        lower: Boolean,
-        transpose: Boolean,
-        right: Boolean,
-        original: SingularMatrix,
-    ): Nothing {
-        if (right) {
-            forEachRow(a.rows, b) { row -> trsvCore(a, row, 0, lower, !transpose, false) }
-        } else {
-            for (column in 0 until b.cols) trsvCore(a, b.data, column * a.rows, lower, transpose, false)
-        }
-        throw IllegalStateException("sparse triangle changed while replaying a singular solve", original)
     }
 
     /** Right solve over contiguous dense columns, which turns every sparse update into a Level 1 operation. */
@@ -339,11 +310,15 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
             if (!transpose) {
                 if (diagonal != null) denseKernels.scale(bd, jOff, 1.0 / diagonal[j], rows)
                 a.forEachInColumn(j) { i, v ->
-                    if (if (lower) i > j else i < j) denseKernels.axpy(bd, i * rows, -v, bd, jOff, rows)
+                    if (v != 0.0 && (if (lower) i > j else i < j)) {
+                        denseKernels.axpy(bd, i * rows, -v, bd, jOff, rows)
+                    }
                 }
             } else {
                 a.forEachInColumn(j) { i, v ->
-                    if (if (lower) i > j else i < j) denseKernels.axpy(bd, jOff, -v, bd, i * rows, rows)
+                    if (v != 0.0 && (if (lower) i > j else i < j)) {
+                        denseKernels.axpy(bd, jOff, -v, bd, i * rows, rows)
+                    }
                 }
                 if (diagonal != null) denseKernels.scale(bd, jOff, 1.0 / diagonal[j], rows)
             }
@@ -365,19 +340,19 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         val order = if (lower != transpose) 0 until n else n - 1 downTo 0
         for (j in order) {
             if (!transpose) {
-                val xj = if (unitDiag) x[offset + j] else x[offset + j] / diagonalOf(a, j)
+                val raw = x[offset + j]
+                if (raw == 0.0) continue
+                val xj = if (unitDiag) raw else raw / a[j, j]
                 x[offset + j] = xj
-                if (xj != 0.0) {
-                    a.forEachInColumn(j) { i, v ->
-                        if (if (lower) i > j else i < j) x[offset + i] -= v * xj
-                    }
+                a.forEachInColumn(j) { i, v ->
+                    if (if (lower) i > j else i < j) x[offset + i] -= v * xj
                 }
             } else {
                 var s = x[offset + j]
                 a.forEachInColumn(j) { i, v ->
                     if (if (lower) i > j else i < j) s -= v * x[offset + i]
                 }
-                x[offset + j] = if (unitDiag) s else s / diagonalOf(a, j)
+                x[offset + j] = if (unitDiag) s else s / a[j, j]
             }
         }
     }

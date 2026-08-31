@@ -233,6 +233,17 @@ class BlasConformanceTest {
     }
 
     @Test
+    fun `gemv forms zero products from nonzero alpha`() {
+        val a = F64DenseMatrix(2, 2, doubleArrayOf(Double.POSITIVE_INFINITY, 1.0, 2.0, 3.0))
+        val y = DoubleArray(2)
+
+        F64ReferenceLinearAlgebra.gemv(1.0, a, doubleArrayOf(0.0, 1.0), 0.0, y)
+
+        assertTrue(y[0].isNaN(), "zero times infinity was ${y[0]}")
+        assertEquals(3.0, y[1])
+    }
+
+    @Test
     fun `invertSpd produces an inverse with a small identity residual`() {
         val rng = Random(20260805)
         for (n in intArrayOf(1, 3, 10, 30)) {
@@ -265,6 +276,21 @@ class BlasConformanceTest {
             var maxDiff = 0.0
             for (k in left.data.indices) maxDiff = maxOf(maxDiff, abs(left.data[k] - right.data[k]))
             assertTrue(maxDiff <= bound + 1e-9, "gemm associativity n=$n: $maxDiff > $bound")
+        }
+    }
+
+    @Test
+    fun `gemm forms zero products in every transpose mode`() {
+        val a = F64DenseMatrix.diagonal(2).also { it[0, 0] = Double.POSITIVE_INFINITY }
+        val b = F64DenseMatrix(2, 2)
+        for (transposeA in booleanArrayOf(false, true)) {
+            for (transposeB in booleanArrayOf(false, true)) {
+                val c = F64DenseMatrix(2, 2)
+
+                F64ReferenceLinearAlgebra.gemm(1.0, a, transposeA, b, transposeB, 0.0, c)
+
+                assertTrue(c[0, 0].isNaN(), "transposeA=$transposeA transposeB=$transposeB produced ${c[0, 0]}")
+            }
         }
     }
 

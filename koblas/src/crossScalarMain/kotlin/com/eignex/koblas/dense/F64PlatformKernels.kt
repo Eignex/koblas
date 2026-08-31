@@ -4,7 +4,7 @@ import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.numeric.*
 
 /** Scalar leaves used only when cross-compiling a Native publication for a foreign host. */
-internal actual object F64PlatformKernels : F64Kernels {
+internal actual object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
     actual override val name: String get() = BackendNames.SCALAR
 
     override val isPortable: Boolean get() = true
@@ -14,6 +14,9 @@ internal actual object F64PlatformKernels : F64Kernels {
 
     actual override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) =
         scalarAxpy(y, yOff, alpha, x, xOff, len)
+
+    actual override fun axpyArithmetic(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) =
+        scalarAxpyArithmetic(y, yOff, alpha, x, xOff, len)
 
     actual override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) = scalarScale(v, vOff, alpha, len)
 

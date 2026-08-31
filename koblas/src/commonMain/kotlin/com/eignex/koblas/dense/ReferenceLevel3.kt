@@ -47,7 +47,11 @@ internal fun blockedUpdate(
     m: Int,
     n: Int,
     depth: Int,
-): Unit = blockedAxpyUpdate(kernels, alpha, a, aOff, lda, c, cOff, ldc, m, n, depth) { p, j ->
+    skipZeroCoefficient: Boolean = true,
+    zeroCoefficientMasks: LongArray? = null,
+): Unit = blockedAxpyUpdate(
+    kernels, alpha, a, aOff, lda, c, cOff, ldc, m, n, depth, skipZeroCoefficient, zeroCoefficientMasks,
+) { p, j ->
     b[bOff + p + j * ldb]
 }
 
@@ -65,6 +69,8 @@ private inline fun blockedAxpyUpdate(
     m: Int,
     n: Int,
     depth: Int,
+    skipZeroCoefficient: Boolean = true,
+    zeroCoefficientMasks: LongArray? = null,
     coefficient: (p: Int, j: Int) -> Double,
 ) {
     var column = 0
@@ -75,13 +81,15 @@ private inline fun blockedAxpyUpdate(
             val innerEnd = min(inner + REFERENCE_KC, depth)
             for (p in inner until innerEnd) {
                 for (j in column until columnEnd) {
-                    val multiplier = alpha * coefficient(p, j)
-                    if (multiplier != 0.0) {
+                    val value = coefficient(p, j)
+                    val forcedZero = zeroCoefficientMasks != null && zeroCoefficientMasks[j] and (1L shl p) != 0L
+                    if (!skipZeroCoefficient || value != 0.0 || forcedZero) {
+                        val multiplier = alpha * value
                         var row = 0
                         while (row < m) {
                             val length = min(row + REFERENCE_MC, m) - row
                             val source = aOff + row + p * lda
-                            kernels.axpy(c, cOff + row + j * ldc, multiplier, a, source, length)
+                            axpyArithmetic(kernels, c, cOff + row + j * ldc, multiplier, a, source, length)
                             row += length
                         }
                     }
@@ -106,12 +114,19 @@ internal fun blockedGemmUpdate(
     m: Int,
     n: Int,
     depth: Int,
+    skipZeroCoefficient: Boolean = true,
 ) {
     if (!transposeB) {
-        blockedUpdate(kernels, alpha, a, 0, m, b, 0, bRows, c, 0, m, m, n, depth)
+        blockedAxpyUpdate(
+            kernels, alpha, a, 0, m, c, 0, m, m, n, depth, skipZeroCoefficient,
+        ) { p, j ->
+            b[p + j * bRows]
+        }
         return
     }
-    blockedAxpyUpdate(kernels, alpha, a, 0, m, c, 0, m, m, n, depth) { p, j ->
+    blockedAxpyUpdate(
+        kernels, alpha, a, 0, m, c, 0, m, m, n, depth, skipZeroCoefficient,
+    ) { p, j ->
         b[j + p * bRows]
     }
 }
@@ -213,6 +228,7 @@ internal fun blockedRightTriangularUpdate(
     rows,
     columns,
     depth,
+    zeroCoefficientMasks = null,
 ) { p, j ->
     val factorRow = innerStart + p
     val factorColumn = columnStart + j
@@ -233,7 +249,8 @@ internal fun blockedSyrkUpdate(
     n: Int,
     depth: Int,
     lower: Boolean,
-): Unit = blockedSymmetricRankUpdate(kernels, alpha, a, null, c, n, depth, lower)
+    guardZeroColumns: Boolean = true,
+): Unit = blockedSymmetricRankUpdate(kernels, alpha, a, null, c, n, depth, lower, guardZeroColumns)
 
 /** Adds a symmetric rank-2k product from two `n x depth` column-major operands to one triangle of C. */
 @Suppress("LongParameterList")
@@ -246,7 +263,8 @@ internal fun blockedSyr2kUpdate(
     n: Int,
     depth: Int,
     lower: Boolean,
-): Unit = blockedSymmetricRankUpdate(kernels, alpha, a, b, c, n, depth, lower)
+    guardZeroColumns: Boolean = true,
+): Unit = blockedSymmetricRankUpdate(kernels, alpha, a, b, c, n, depth, lower, guardZeroColumns)
 
 /** Shared cache traversal for rank-k and rank-2k updates. */
 @Suppress("LongParameterList")
@@ -259,6 +277,7 @@ private fun blockedSymmetricRankUpdate(
     n: Int,
     depth: Int,
     lower: Boolean,
+    guardZeroColumns: Boolean,
 ) {
     var column = 0
     while (column < n) {
@@ -269,18 +288,24 @@ private fun blockedSymmetricRankUpdate(
             for (p in inner until innerEnd) {
                 val sourceColumn = p * n
                 for (j in column until columnEnd) {
-                    val firstMultiplier = alpha * (b?.get(j + sourceColumn) ?: a[j + sourceColumn])
-                    val secondMultiplier = if (b == null) 0.0 else alpha * a[j + sourceColumn]
+                    val firstValue = b?.get(j + sourceColumn) ?: a[j + sourceColumn]
+                    val secondValue = if (b == null) 0.0 else a[j + sourceColumn]
+                    val skip = guardZeroColumns && if (b == null) {
+                        firstValue == 0.0
+                    } else {
+                        firstValue == 0.0 && secondValue == 0.0
+                    }
+                    if (skip) continue
+                    val firstMultiplier = alpha * firstValue
+                    val secondMultiplier = alpha * secondValue
                     val triangleFrom = if (lower) j else 0
                     val triangleUntil = if (lower) n else j + 1
                     var row = triangleFrom
                     while (row < triangleUntil) {
                         val length = min(row + REFERENCE_MC, triangleUntil) - row
-                        if (firstMultiplier != 0.0) {
-                            kernels.axpy(c, row + j * n, firstMultiplier, a, row + sourceColumn, length)
-                        }
-                        if (secondMultiplier != 0.0) {
-                            kernels.axpy(c, row + j * n, secondMultiplier, b!!, row + sourceColumn, length)
+                        axpyArithmetic(kernels, c, row + j * n, firstMultiplier, a, row + sourceColumn, length)
+                        if (b != null) {
+                            axpyArithmetic(kernels, c, row + j * n, secondMultiplier, b, row + sourceColumn, length)
                         }
                         row += length
                     }
@@ -340,6 +365,7 @@ internal fun blockedSymmLeftUpdate(
                 rowCount,
                 columns,
                 innerCount,
+                skipZeroCoefficient = false,
             )
             inner = innerEnd
         }
@@ -358,7 +384,9 @@ internal fun blockedSymmRightUpdate(
     rows: Int,
     n: Int,
     lower: Boolean,
-): Unit = blockedAxpyUpdate(kernels, alpha, b, 0, rows, c, 0, rows, rows, n, n) { p, j ->
+): Unit = blockedAxpyUpdate(
+    kernels, alpha, b, 0, rows, c, 0, rows, rows, n, n, false,
+) { p, j ->
     val hi = maxOf(p, j)
     val lo = minOf(p, j)
     if (lower) symmetric[hi + lo * n] else symmetric[lo + hi * n]

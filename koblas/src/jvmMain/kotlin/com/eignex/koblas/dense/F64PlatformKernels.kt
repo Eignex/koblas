@@ -20,7 +20,7 @@ internal val simdAvailable: Boolean = try {
 
 internal val cKernelsAvailable: Boolean = !simdAvailable && JvmCKernelBindings.isAvailable
 
-internal actual object F64PlatformKernels : F64Kernels {
+internal actual object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
     private val selected: F64Kernels = when {
         simdAvailable -> F64SimdKernels
         cKernelsAvailable -> F64CKernels
@@ -42,6 +42,9 @@ internal actual object F64PlatformKernels : F64Kernels {
 
     actual override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) =
         selected.axpy(y, yOff, alpha, x, xOff, len)
+
+    actual override fun axpyArithmetic(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) =
+        (selected as F64ArithmeticKernels).axpyArithmetic(y, yOff, alpha, x, xOff, len)
 
     actual override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) = selected.scale(v, vOff, alpha, len)
 
@@ -231,6 +234,10 @@ internal object Simd {
 
     fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
         if (alpha == 0.0) return
+        axpyArithmetic(y, yOff, alpha, x, xOff, len)
+    }
+
+    fun axpyArithmetic(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
         val alphaVec = DoubleVector.broadcast(SPECIES, alpha)
         var i = 0
         val bound = SPECIES.loopBound(len)

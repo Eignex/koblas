@@ -185,30 +185,83 @@ class SparseTriangularTest {
     }
 
     @Test
-    fun `a missing or zero diagonal is reported with its position`() {
+    fun `a missing or zero diagonal follows IEEE division`() {
         val missing = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf()))
-        val absent = assertFailsWith<IllegalArgumentException> { missing.trsv(DoubleArray(2), lower = true) }
-        assertTrue("no diagonal entry at 1" in absent.message!!, absent.message!!)
+        val absent = doubleArrayOf(0.0, 1.0)
+        missing.trsv(absent, lower = true)
+        assertEquals(Double.POSITIVE_INFINITY, absent[1])
 
         val zeroed = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 0.0)))
-        val explicit = assertFailsWith<IllegalArgumentException> { zeroed.trsv(DoubleArray(2), lower = true) }
-        assertTrue("explicit zero" in explicit.message!!, explicit.message!!)
+        val explicit = doubleArrayOf(0.0, -1.0)
+        zeroed.trsv(explicit, lower = true)
+        assertEquals(Double.NEGATIVE_INFINITY, explicit[1])
     }
 
     @Test
-    fun `a singular block solve retains per right hand side mutation order`() {
+    fun `sparse trsm retains stored products after a quotient underflows`() {
+        val triangle = F64SparseMatrix.ofColumns(
+            2,
+            2,
+            listOf(listOf(0 to Double.POSITIVE_INFINITY, 1 to Double.POSITIVE_INFINITY), listOf(1 to 1.0)),
+        )
+        val b = F64DenseMatrix(2, 2, doubleArrayOf(Double.MIN_VALUE, 0.0, 0.0, 0.0))
+
+        triangle.trsm(b, lower = true)
+
+        assertTrue(b[1, 0].isNaN(), "the active underflowed pivot did not form its stored product")
+        assertEquals(0.0, b[1, 1], "the zero right hand side was not skipped")
+    }
+
+    @Test
+    fun `right sparse trsm skips explicit zero triangle coefficients`() {
+        val triangle = F64SparseMatrix.ofColumns(
+            2,
+            2,
+            listOf(listOf(0 to 1.0, 1 to 0.0), listOf(1 to 1.0)),
+        )
+        val b = F64DenseMatrix(1, 2, doubleArrayOf(Double.POSITIVE_INFINITY, 1.0))
+
+        triangle.trsm(b, lower = true, right = true)
+
+        assertEquals(Double.POSITIVE_INFINITY, b[0, 0])
+        assertEquals(1.0, b[0, 1])
+    }
+
+    @Test
+    fun `a singular left block solve follows IEEE division`() {
         val singular = F64SparseMatrix.ofColumns(
             3,
             3,
             listOf(listOf(0 to 2.0, 1 to 1.0), listOf(), listOf(2 to 4.0)),
         )
         val left = F64DenseMatrix(3, 2, doubleArrayOf(2.0, 6.0, 8.0, 4.0, 10.0, 12.0))
-        assertFailsWith<SingularMatrix> { singular.trsm(left, lower = true) }
-        assertContentEquals(doubleArrayOf(1.0, 5.0, 8.0, 4.0, 10.0, 12.0), left.data)
+        singular.trsm(left, lower = true)
+        assertContentEquals(
+            doubleArrayOf(1.0, Double.POSITIVE_INFINITY, 2.0, 2.0, Double.POSITIVE_INFINITY, 3.0),
+            left.data,
+        )
+    }
 
+    @Test
+    fun `a singular right block solve follows IEEE division`() {
+        val singular = F64SparseMatrix.ofColumns(
+            3,
+            3,
+            listOf(listOf(0 to 2.0, 1 to 1.0), listOf(), listOf(2 to 4.0)),
+        )
         val right = F64DenseMatrix(2, 3, doubleArrayOf(2.0, 4.0, 6.0, 10.0, 8.0, 12.0))
-        assertFailsWith<SingularMatrix> { singular.trsm(right, lower = true, right = true) }
-        assertContentEquals(doubleArrayOf(2.0, 4.0, 6.0, 10.0, 8.0, 12.0), right.data)
+        singular.trsm(right, lower = true, right = true)
+        assertContentEquals(
+            doubleArrayOf(
+                Double.NEGATIVE_INFINITY,
+                Double.NEGATIVE_INFINITY,
+                Double.POSITIVE_INFINITY,
+                Double.POSITIVE_INFINITY,
+                2.0,
+                3.0,
+            ),
+            right.data,
+        )
     }
 
     @Test

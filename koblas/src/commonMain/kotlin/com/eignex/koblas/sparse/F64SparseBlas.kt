@@ -3,7 +3,6 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.Backend
-import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.dense.*
@@ -36,13 +35,8 @@ public interface F64SparseBlas : Backend {
      * entry and the solution on return. Only the [lower] or upper triangle of [a] is read, and [unitDiag]
      * takes the diagonal as 1 without reading it, as the dense [com.eignex.koblas.dense.F64Blas.trsv] does.
      *
-     * Unlike the dense half, which follows `dtrsv` in reporting nothing and answering a singular triangle
-     * with infinities, this reports it. There is no sparse BLAS routine whose silence it has to match, and
-     * the value is looked up to divide by it anyway, so a healthy solve pays nothing; only the failing
-     * column pays the extra scan that tells a stored zero from a missing entry.
-     *
-     * @throws com.eignex.koblas.SingularMatrix if a diagonal entry is missing or zero and [unitDiag] is
-     *  false, naming its position.
+     * A missing diagonal entry is the sparse representation of zero. As in dense `dtrsv`, singularity is
+     * not reported: division by a zero diagonal follows IEEE 754 arithmetic when that diagonal is reached.
      */
     public fun trsv(
         a: F64SparseMatrix,
@@ -95,9 +89,7 @@ public interface F64SparseBlas : Backend {
      * `B = alpha · op(T)⁻¹ · B` in place, or `B = alpha · B · op(T)⁻¹` when [right] (Sparse BLAS `ussm`).
      * The triangle flags follow [trsv]; the right-hand sides are the columns of [b] from the left and its
      * rows from the right.
-     *
-     * @throws com.eignex.koblas.SingularMatrix as [trsv] does, from the first right-hand side to reach the
-     *  offending diagonal entry, so [b] may be partly solved when it is raised.
+     * A missing diagonal entry behaves as zero, and singularity is not reported, as in dense `dtrsm`.
      */
     @Suppress("LongParameterList") // the BLAS dtrsm signature
     public fun trsm(
@@ -207,23 +199,3 @@ internal fun sparseSnapshotOf(a: F64SparseMatrix): F64SparseMatrix = F64SparseMa
     a.copyRowIndices(),
     a.values.copyOf(),
 )
-
-/**
- * The diagonal entry of column [j]. A missing entry and an explicit zero are both rejected, with different
- * messages, since a missing one is usually a construction mistake.
- */
-internal fun diagonalOf(a: F64SparseMatrix, j: Int): Double {
-    val d = a[j, j]
-    if (d == 0.0) {
-        val stored = (a.colPtr[j] until a.colPtr[j + 1]).any { a.rowIdx[it] == j }
-        throw SingularMatrix(
-            j,
-            if (stored) {
-                "trsv: triangle is singular, diagonal entry $j is an explicit zero"
-            } else {
-                "trsv: triangle has no diagonal entry at $j, so it is singular"
-            },
-        )
-    }
-    return d
-}

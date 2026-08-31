@@ -66,16 +66,24 @@ public interface F64Kernels : Backend {
     }
 }
 
+/** Internal vector leaf for parent routines whose arithmetic does not have DAXPY's zero-scalar return. */
+internal interface F64ArithmeticKernels {
+    @Suppress("LongParameterList")
+    fun axpyArithmetic(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int)
+}
+
 /**
  * The kernels compiled into this target: C on Native and on a JVM without `jdk.incubator.vector`, SIMD on
  * a JVM with the module. Its [Backend.name] is what `mathBackend` reports.
  */
-internal expect object F64PlatformKernels : F64Kernels {
+internal expect object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
     override val name: String
 
     override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double
 
     override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int)
+
+    override fun axpyArithmetic(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int)
 
     override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int)
 
@@ -102,7 +110,9 @@ internal expect object F64PlatformKernels : F64Kernels {
  *
  * @property host a registered backend; null uses the compiled-in kernels.
  */
-internal class F64RoutedKernels(internal val host: F64Kernels?) : F64Kernels {
+internal class F64RoutedKernels(internal val host: F64Kernels?) :
+    F64Kernels,
+    F64ArithmeticKernels {
     override val name: String
         get() = if (host == null) F64PlatformKernels.name else "${F64PlatformKernels.name}+${host.name}"
 
@@ -124,6 +134,9 @@ internal class F64RoutedKernels(internal val host: F64Kernels?) : F64Kernels {
         if (alpha == 0.0) return
         selected.axpy(y, yOff, alpha, x, xOff, len)
     }
+
+    override fun axpyArithmetic(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) =
+        F64PlatformKernels.axpyArithmetic(y, yOff, alpha, x, xOff, len)
 
     override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
         if (alpha == 1.0) return

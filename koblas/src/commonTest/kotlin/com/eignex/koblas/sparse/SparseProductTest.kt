@@ -74,6 +74,38 @@ class SparseProductTest {
     }
 
     @Test
+    fun `gemv forms zero products for stored entries only`() {
+        val a = F64SparseMatrix.ofColumns(2, 1, listOf(listOf(0 to Double.POSITIVE_INFINITY)))
+        val y = DoubleArray(2)
+
+        F64ReferenceSparseLinearAlgebra.gemv(1.0, a, doubleArrayOf(0.0), 0.0, y)
+
+        assertTrue(y[0].isNaN(), "the stored infinity produced ${y[0]}")
+        assertEquals(0.0, y[1], "the missing entry was not structural zero")
+    }
+
+    @Test
+    fun `left sparse gemm forms zero products for stored entries`() {
+        val a = F64SparseMatrix.ofColumns(1, 1, listOf(listOf(0 to Double.POSITIVE_INFINITY)))
+        val c = F64DenseMatrix(1, 1)
+
+        F64ReferenceSparseLinearAlgebra.gemm(1.0, a, false, F64DenseMatrix(1, 1), false, 0.0, c)
+
+        assertTrue(c[0, 0].isNaN())
+    }
+
+    @Test
+    fun `right sparse gemm forms zero products for stored entries`() {
+        val a = F64SparseMatrix.ofColumns(1, 1, listOf(listOf(0 to 0.0)))
+        val b = F64DenseMatrix(1, 1, doubleArrayOf(Double.POSITIVE_INFINITY))
+        val c = F64DenseMatrix(1, 1)
+
+        F64ReferenceSparseLinearAlgebra.gemm(1.0, a, false, b, false, 0.0, c, right = true)
+
+        assertTrue(c[0, 0].isNaN())
+    }
+
+    @Test
     fun `a beta of zero overwrites a destination it never reads`() {
         val rng = Random(20260828)
         val (sparse, _) = sparseAndDense(4, 3, rng)

@@ -5,7 +5,6 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64DenseVector
-import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.core.F64VectorLike
 import com.eignex.koblas.internal.backend.BackendNames
 
@@ -34,14 +33,14 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         val yLen = if (transpose) a.cols else a.rows
         requireShape(x.size == xLen) { "gemv: x length ${x.size} != $xLen" }
         requireShape(y.size == yLen) { "gemv: y length ${y.size} != $yLen" }
+        if (a.rows == 0 || a.cols == 0) return
         applyBeta(kernels, y, 0, y.size, beta)
         if (alpha == 0.0) return
         val ad = a.data
         val rows = a.rows
         if (!transpose) {
             for (j in 0 until a.cols) {
-                val xj = alpha * x[j]
-                if (xj != 0.0) kernels.axpy(y, 0, xj, ad, j * rows, rows)
+                axpyArithmetic(kernels, y, 0, alpha * x[j], ad, j * rows, rows)
             }
         } else {
             val quads = DoubleArray(4)
@@ -89,7 +88,10 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         if (alpha == 0.0 || m == 0 || n == 0 || k == 0) return
         val kernels = kernels
         when {
-            !transposeA -> blockedGemmUpdate(kernels, alpha, a.data, b.data, b.rows, transposeB, cd, m, n, k)
+            !transposeA -> blockedGemmUpdate(
+                kernels, alpha, a.data, b.data, b.rows, transposeB, cd, m, n, k,
+                skipZeroCoefficient = false,
+            )
 
             !transposeB -> blockedTransposedLeftUpdate(
                 kernels, alpha, a.data, 0, a.rows, b.data, 0, b.rows, cd, 0, m, m, n, k,
@@ -106,7 +108,10 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
             else -> {
                 val packedA = DoubleArray(m * k)
                 transposeBlocked(a.data, a.rows, a.cols, packedA)
-                blockedGemmUpdate(kernels, alpha, packedA, b.data, b.rows, true, cd, m, n, k)
+                blockedGemmUpdate(
+                    kernels, alpha, packedA, b.data, b.rows, true, cd, m, n, k,
+                    skipZeroCoefficient = false,
+                )
             }
         }
     }
@@ -132,7 +137,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         } else {
             workspace.borrow(n * k) { packed ->
                 transposeBlocked(a.data, a.rows, a.cols, packed)
-                blockedSyrkUpdate(kernels, alpha, packed, cd, n, k, lower)
+                blockedSyrkUpdate(kernels, alpha, packed, cd, n, k, lower, guardZeroColumns = false)
             }
         }
     }
@@ -167,8 +172,8 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
             val xj = alpha * x[xOff + j]
             val runOff = if (lower) j + 1 else 0
             val len = if (lower) n - j - 1 else j
-            if (xj != 0.0) y[yOff + j] += xj * ad[base]
-            kernels.axpy(y, yOff + runOff, xj, ad, runOff + j * n, len)
+            y[yOff + j] += xj * ad[base]
+            axpyArithmetic(kernels, y, yOff + runOff, xj, ad, runOff + j * n, len)
             y[yOff + j] += alpha * kernels.dot(ad, runOff + j * n, x, xOff + runOff, len)
         }
     }
@@ -212,8 +217,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         if (alpha == 0.0) return
         val kernels = kernels
         for (j in 0 until a.cols) {
-            val scaled = alpha * y[j]
-            if (scaled != 0.0) kernels.axpy(a.data, a.colOffset(j), scaled, x, 0, a.rows)
+            if (y[j] != 0.0) axpyArithmetic(kernels, a.data, a.colOffset(j), alpha * y[j], x, 0, a.rows)
         }
     }
 
@@ -229,15 +233,12 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         val n = a.rows
         val ad = a.data
         val xs = rankUpdateData(x)
-        val active = rankUpdatePositions(x)
-        forEachRankUpdateColumn(active, n) { j ->
+        for (j in 0 until n) {
+            if (xs[j] == 0.0) continue
             val xj = alpha * xs[j]
-            if (xj == 0.0) return@forEachRankUpdateColumn
             val from = if (lower) j else 0
-            val until = if (lower) n else j + 1
-            forEachRankUpdateRun(active, from, until) { runStart, runLength ->
-                kernels.axpy(ad, runStart + j * n, xj, xs, runStart, runLength)
-            }
+            val length = if (lower) n - j else j + 1
+            axpyArithmetic(kernels, ad, from + j * n, xj, xs, from, length)
         }
     }
 
@@ -256,71 +257,20 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         val ad = a.data
         val xs = rankUpdateData(x)
         val ys = rankUpdateData(y)
-        val xActive = rankUpdatePositions(x)
-        val yActive = rankUpdatePositions(y)
-        // BLAS dsyr2 is two rank-one updates. Keeping them separate lets each sparse operand constrain
-        // both its source runs and the columns where it supplies the multiplier.
-        rankOneTriangleUpdate(ad, n, xs, xActive, ys, yActive, alpha, lower)
-        rankOneTriangleUpdate(ad, n, ys, yActive, xs, xActive, alpha, lower)
+        for (j in 0 until n) {
+            if (xs[j] == 0.0 && ys[j] == 0.0) continue
+            val from = if (lower) j else 0
+            val length = if (lower) n - j else j + 1
+            val matrixOffset = from + j * n
+            axpyArithmetic(kernels, ad, matrixOffset, alpha * ys[j], xs, from, length)
+            axpyArithmetic(kernels, ad, matrixOffset, alpha * xs[j], ys, from, length)
+        }
     }
 
     /** Returns contiguous rank-update operands; sparse copies use the registered sparse Level 1 scatter. */
     private fun rankUpdateData(x: F64VectorLike): DoubleArray = when (x) {
         is F64DenseVector -> x.data
         else -> DoubleArray(x.size).also { copy(x, F64DenseVector.wrap(it)) }
-    }
-
-    /** Sparse operands retain their structure; all other vector representations cover every position. */
-    private fun rankUpdatePositions(x: F64VectorLike): IntArray? = if (x is F64SparseVector) x.copyIndices() else null
-
-    /** Adds one selected-triangle rank-one term, retaining sparse source and multiplier structure. */
-    @Suppress("LongParameterList") // matrix and vector buffers each carry the shape or structural positions
-    private fun rankOneTriangleUpdate(
-        ad: DoubleArray,
-        n: Int,
-        source: DoubleArray,
-        sourceActive: IntArray?,
-        multipliers: DoubleArray,
-        multiplierActive: IntArray?,
-        alpha: Double,
-        lower: Boolean,
-    ) {
-        forEachRankUpdateColumn(multiplierActive, n) { j ->
-            val from = if (lower) j else 0
-            val until = if (lower) n else j + 1
-            forEachRankUpdateRun(sourceActive, from, until) { runStart, runLength ->
-                kernels.axpy(ad, runStart + j * n, alpha * multipliers[j], source, runStart, runLength)
-            }
-        }
-    }
-
-    /** Visits every dense column or the explicitly stored columns of a non-dense multiplier. */
-    private inline fun forEachRankUpdateColumn(active: IntArray?, n: Int, action: (Int) -> Unit) {
-        if (active == null) for (j in 0 until n) action(j) else for (j in active) action(j)
-    }
-
-    /** Visits contiguous runs of active positions inside `[from, until)`, keeping sparse work on Level 1 kernels. */
-    private inline fun forEachRankUpdateRun(
-        active: IntArray?,
-        from: Int,
-        until: Int,
-        action: (start: Int, length: Int) -> Unit,
-    ) {
-        if (active == null) {
-            action(from, until - from)
-            return
-        }
-        var at = 0
-        while (at < active.size && active[at] < from) at++
-        while (at < active.size && active[at] < until) {
-            val start = active[at++]
-            var end = start + 1
-            while (at < active.size && active[at] == end && end < until) {
-                at++
-                end++
-            }
-            action(start, end - start)
-        }
     }
 
     /** `C = alpha · (op(A) · op(B)ᵀ + op(B) · op(A)ᵀ) + beta · C` (BLAS `dsyr2k`), where `op` transposes when
@@ -351,7 +301,10 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
                 workspace.borrow(n * k) { packedB ->
                     transposeBlocked(a.data, a.rows, a.cols, packedA)
                     transposeBlocked(b.data, b.rows, b.cols, packedB)
-                    blockedSyr2kUpdate(kernels, alpha, packedA, packedB, c.data, n, k, lower)
+                    blockedSyr2kUpdate(
+                        kernels, alpha, packedA, packedB, c.data, n, k, lower,
+                        guardZeroColumns = false,
+                    )
                 }
             }
         }
