@@ -26,7 +26,10 @@ For local A/B work:
   -Pbench.param.backend=reference,host
 ```
 
-`automatic` measures normal production discovery, `reference` installs the portable implementation, and `host` explicitly installs a host backend and fails if unavailable. The report profile uses `automatic` and `reference`.
+`automatic` measures normal production discovery, `reference` installs the
+portable implementation, and `host` explicitly installs a host backend and
+fails if unavailable. The report profile compares `automatic` with `reference`
+for backend benchmarks and with `scalar` for kernel benchmarks.
 
 ## Troubleshooting and maintenance
 
