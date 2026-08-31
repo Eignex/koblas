@@ -1924,6 +1924,19 @@ public final class com/eignex/koblas/sparse/basis/BasisUpdate : java/lang/Enum {
 	public static fun values ()[Lcom/eignex/koblas/sparse/basis/BasisUpdate;
 }
 
+public final class com/eignex/koblas/sparse/basis/F64BasisSolveQuality {
+	public fun <init> (DD)V
+	public final fun component1 ()D
+	public final fun component2 ()D
+	public final fun copy (DD)Lcom/eignex/koblas/sparse/basis/F64BasisSolveQuality;
+	public static synthetic fun copy$default (Lcom/eignex/koblas/sparse/basis/F64BasisSolveQuality;DDILjava/lang/Object;)Lcom/eignex/koblas/sparse/basis/F64BasisSolveQuality;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getRelativeResidual ()D
+	public final fun getResidualInfinityNorm ()D
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public abstract interface class com/eignex/koblas/sparse/basis/F64BasisSolver : java/lang/AutoCloseable {
 	public abstract fun btran (Lcom/eignex/koblas/sparse/basis/F64IndexedVector;D)V
 	public static synthetic fun btran$default (Lcom/eignex/koblas/sparse/basis/F64BasisSolver;Lcom/eignex/koblas/sparse/basis/F64IndexedVector;DILjava/lang/Object;)V
@@ -1932,9 +1945,12 @@ public abstract interface class com/eignex/koblas/sparse/basis/F64BasisSolver : 
 	public static synthetic fun ftran$default (Lcom/eignex/koblas/sparse/basis/F64BasisSolver;Lcom/eignex/koblas/sparse/basis/F64IndexedVector;DILjava/lang/Object;)V
 	public abstract fun getN ()I
 	public abstract fun getNnz ()I
+	public abstract fun getRcond ()D
 	public abstract fun getSingular ()Z
 	public abstract fun getUpdateCount ()I
 	public abstract fun refactorize ([I)Z
+	public abstract fun solveQuality ([DLcom/eignex/koblas/sparse/basis/F64IndexedVector;Z)Lcom/eignex/koblas/sparse/basis/F64BasisSolveQuality;
+	public static synthetic fun solveQuality$default (Lcom/eignex/koblas/sparse/basis/F64BasisSolver;[DLcom/eignex/koblas/sparse/basis/F64IndexedVector;ZILjava/lang/Object;)Lcom/eignex/koblas/sparse/basis/F64BasisSolveQuality;
 	public abstract fun update (IILcom/eignex/koblas/sparse/basis/F64IndexedVector;Lcom/eignex/koblas/sparse/basis/F64IndexedVector;)Lcom/eignex/koblas/sparse/basis/BasisUpdate;
 	public static synthetic fun update$default (Lcom/eignex/koblas/sparse/basis/F64BasisSolver;IILcom/eignex/koblas/sparse/basis/F64IndexedVector;Lcom/eignex/koblas/sparse/basis/F64IndexedVector;ILjava/lang/Object;)Lcom/eignex/koblas/sparse/basis/BasisUpdate;
 }
@@ -1943,6 +1959,7 @@ public final class com/eignex/koblas/sparse/basis/F64BasisSolver$DefaultImpls {
 	public static synthetic fun btran$default (Lcom/eignex/koblas/sparse/basis/F64BasisSolver;Lcom/eignex/koblas/sparse/basis/F64IndexedVector;DILjava/lang/Object;)V
 	public static fun close (Lcom/eignex/koblas/sparse/basis/F64BasisSolver;)V
 	public static synthetic fun ftran$default (Lcom/eignex/koblas/sparse/basis/F64BasisSolver;Lcom/eignex/koblas/sparse/basis/F64IndexedVector;DILjava/lang/Object;)V
+	public static synthetic fun solveQuality$default (Lcom/eignex/koblas/sparse/basis/F64BasisSolver;[DLcom/eignex/koblas/sparse/basis/F64IndexedVector;ZILjava/lang/Object;)Lcom/eignex/koblas/sparse/basis/F64BasisSolveQuality;
 	public static synthetic fun update$default (Lcom/eignex/koblas/sparse/basis/F64BasisSolver;IILcom/eignex/koblas/sparse/basis/F64IndexedVector;Lcom/eignex/koblas/sparse/basis/F64IndexedVector;ILjava/lang/Object;)Lcom/eignex/koblas/sparse/basis/BasisUpdate;
 }
 
@@ -1986,9 +2003,11 @@ public final class com/eignex/koblas/sparse/basis/F64ProductFormBasisSolver : co
 	public fun ftran (Lcom/eignex/koblas/sparse/basis/F64IndexedVector;D)V
 	public fun getN ()I
 	public fun getNnz ()I
+	public fun getRcond ()D
 	public fun getSingular ()Z
 	public fun getUpdateCount ()I
 	public fun refactorize ([I)Z
+	public fun solveQuality ([DLcom/eignex/koblas/sparse/basis/F64IndexedVector;Z)Lcom/eignex/koblas/sparse/basis/F64BasisSolveQuality;
 	public fun update (IILcom/eignex/koblas/sparse/basis/F64IndexedVector;Lcom/eignex/koblas/sparse/basis/F64IndexedVector;)Lcom/eignex/koblas/sparse/basis/BasisUpdate;
 }
 
@@ -2321,9 +2340,11 @@ public final class com/eignex/koblas/sparse/host/hfactor/HfactorBasisSolver : co
 	public fun ftran (Lcom/eignex/koblas/sparse/basis/F64IndexedVector;D)V
 	public fun getN ()I
 	public fun getNnz ()I
+	public fun getRcond ()D
 	public fun getSingular ()Z
 	public fun getUpdateCount ()I
 	public fun refactorize ([I)Z
+	public fun solveQuality ([DLcom/eignex/koblas/sparse/basis/F64IndexedVector;Z)Lcom/eignex/koblas/sparse/basis/F64BasisSolveQuality;
 	public fun update (IILcom/eignex/koblas/sparse/basis/F64IndexedVector;Lcom/eignex/koblas/sparse/basis/F64IndexedVector;)Lcom/eignex/koblas/sparse/basis/BasisUpdate;
 }
 
@@ -2331,16 +2352,22 @@ public final class com/eignex/koblas/sparse/host/hfactor/HfactorConfig {
 	public fun <init> ()V
 	public fun <init> (Lcom/eignex/koblas/sparse/host/hfactor/HfactorOptions;)V
 	public fun <init> (Ljava/lang/String;Lcom/eignex/koblas/sparse/host/hfactor/HfactorOptions;)V
-	public fun <init> (Ljava/lang/String;Z)V
-	public synthetic fun <init> (Ljava/lang/String;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;ZDDLcom/eignex/koblas/sparse/host/hfactor/HfactorUpdateMethod;)V
+	public synthetic fun <init> (Ljava/lang/String;ZDDLcom/eignex/koblas/sparse/host/hfactor/HfactorUpdateMethod;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
 	public final fun component2 ()Z
-	public final fun copy (Ljava/lang/String;Z)Lcom/eignex/koblas/sparse/host/hfactor/HfactorConfig;
-	public static synthetic fun copy$default (Lcom/eignex/koblas/sparse/host/hfactor/HfactorConfig;Ljava/lang/String;ZILjava/lang/Object;)Lcom/eignex/koblas/sparse/host/hfactor/HfactorConfig;
+	public final fun component3 ()D
+	public final fun component4 ()D
+	public final fun component5 ()Lcom/eignex/koblas/sparse/host/hfactor/HfactorUpdateMethod;
+	public final fun copy (Ljava/lang/String;ZDDLcom/eignex/koblas/sparse/host/hfactor/HfactorUpdateMethod;)Lcom/eignex/koblas/sparse/host/hfactor/HfactorConfig;
+	public static synthetic fun copy$default (Lcom/eignex/koblas/sparse/host/hfactor/HfactorConfig;Ljava/lang/String;ZDDLcom/eignex/koblas/sparse/host/hfactor/HfactorUpdateMethod;ILjava/lang/Object;)Lcom/eignex/koblas/sparse/host/hfactor/HfactorConfig;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getEquilibrate ()Z
 	public final fun getLibraryPath ()Ljava/lang/String;
 	public final fun getOptions ()Lcom/eignex/koblas/sparse/host/hfactor/HfactorOptions;
+	public final fun getPivotThreshold ()D
+	public final fun getPivotTolerance ()D
+	public final fun getUpdateMethod ()Lcom/eignex/koblas/sparse/host/hfactor/HfactorUpdateMethod;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
@@ -2368,13 +2395,19 @@ public final class com/eignex/koblas/sparse/host/hfactor/HfactorFactorization : 
 
 public final class com/eignex/koblas/sparse/host/hfactor/HfactorOptions {
 	public fun <init> ()V
-	public fun <init> (Z)V
-	public synthetic fun <init> (ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (ZDDLcom/eignex/koblas/sparse/host/hfactor/HfactorUpdateMethod;)V
+	public synthetic fun <init> (ZDDLcom/eignex/koblas/sparse/host/hfactor/HfactorUpdateMethod;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Z
-	public final fun copy (Z)Lcom/eignex/koblas/sparse/host/hfactor/HfactorOptions;
-	public static synthetic fun copy$default (Lcom/eignex/koblas/sparse/host/hfactor/HfactorOptions;ZILjava/lang/Object;)Lcom/eignex/koblas/sparse/host/hfactor/HfactorOptions;
+	public final fun component2 ()D
+	public final fun component3 ()D
+	public final fun component4 ()Lcom/eignex/koblas/sparse/host/hfactor/HfactorUpdateMethod;
+	public final fun copy (ZDDLcom/eignex/koblas/sparse/host/hfactor/HfactorUpdateMethod;)Lcom/eignex/koblas/sparse/host/hfactor/HfactorOptions;
+	public static synthetic fun copy$default (Lcom/eignex/koblas/sparse/host/hfactor/HfactorOptions;ZDDLcom/eignex/koblas/sparse/host/hfactor/HfactorUpdateMethod;ILjava/lang/Object;)Lcom/eignex/koblas/sparse/host/hfactor/HfactorOptions;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getEquilibrate ()Z
+	public final fun getPivotThreshold ()D
+	public final fun getPivotTolerance ()D
+	public final fun getUpdateMethod ()Lcom/eignex/koblas/sparse/host/hfactor/HfactorUpdateMethod;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
@@ -2389,6 +2422,16 @@ public class com/eignex/koblas/sparse/host/hfactor/HfactorSparseLu : com/eignex/
 	public fun getName ()Ljava/lang/String;
 	protected final fun getNativeAvailable ()Z
 	public fun getPriority ()I
+}
+
+public final class com/eignex/koblas/sparse/host/hfactor/HfactorUpdateMethod : java/lang/Enum {
+	public static final field ALTERNATE_PRODUCT_FORM Lcom/eignex/koblas/sparse/host/hfactor/HfactorUpdateMethod;
+	public static final field FORREST_TOMLIN Lcom/eignex/koblas/sparse/host/hfactor/HfactorUpdateMethod;
+	public static final field MIDDLE_PRODUCT_FORM Lcom/eignex/koblas/sparse/host/hfactor/HfactorUpdateMethod;
+	public static final field PRODUCT_FORM Lcom/eignex/koblas/sparse/host/hfactor/HfactorUpdateMethod;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/sparse/host/hfactor/HfactorUpdateMethod;
+	public static fun values ()[Lcom/eignex/koblas/sparse/host/hfactor/HfactorUpdateMethod;
 }
 
 public final class com/eignex/koblas/sparse/host/klu/KluConfig {

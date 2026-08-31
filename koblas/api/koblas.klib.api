@@ -26,6 +26,19 @@ final enum class com.eignex.koblas.sparse.basis/BasisUpdate : kotlin/Enum<com.ei
     final fun values(): kotlin/Array<com.eignex.koblas.sparse.basis/BasisUpdate> // com.eignex.koblas.sparse.basis/BasisUpdate.values|values#static(){}[0]
 }
 
+final enum class com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod : kotlin/Enum<com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod> { // com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod|null[0]
+    enum entry ALTERNATE_PRODUCT_FORM // com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod.ALTERNATE_PRODUCT_FORM|null[0]
+    enum entry FORREST_TOMLIN // com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod.FORREST_TOMLIN|null[0]
+    enum entry MIDDLE_PRODUCT_FORM // com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod.MIDDLE_PRODUCT_FORM|null[0]
+    enum entry PRODUCT_FORM // com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod.PRODUCT_FORM|null[0]
+
+    final val entries // com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod> // com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod // com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod> // com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod.values|values#static(){}[0]
+}
+
 final enum class com.eignex.koblas.sparse.host.klu/KluOrdering : kotlin/Enum<com.eignex.koblas.sparse.host.klu/KluOrdering> { // com.eignex.koblas.sparse.host.klu/KluOrdering|null[0]
     enum entry AMD // com.eignex.koblas.sparse.host.klu/KluOrdering.AMD|null[0]
     enum entry COLAMD // com.eignex.koblas.sparse.host.klu/KluOrdering.COLAMD|null[0]
@@ -317,6 +330,8 @@ abstract interface com.eignex.koblas.sparse.basis/F64BasisSolver : kotlin/AutoCl
         abstract fun <get-n>(): kotlin/Int // com.eignex.koblas.sparse.basis/F64BasisSolver.n.<get-n>|<get-n>(){}[0]
     abstract val nnz // com.eignex.koblas.sparse.basis/F64BasisSolver.nnz|{}nnz[0]
         abstract fun <get-nnz>(): kotlin/Int // com.eignex.koblas.sparse.basis/F64BasisSolver.nnz.<get-nnz>|<get-nnz>(){}[0]
+    abstract val rcond // com.eignex.koblas.sparse.basis/F64BasisSolver.rcond|{}rcond[0]
+        abstract fun <get-rcond>(): kotlin/Double // com.eignex.koblas.sparse.basis/F64BasisSolver.rcond.<get-rcond>|<get-rcond>(){}[0]
     abstract val singular // com.eignex.koblas.sparse.basis/F64BasisSolver.singular|{}singular[0]
         abstract fun <get-singular>(): kotlin/Boolean // com.eignex.koblas.sparse.basis/F64BasisSolver.singular.<get-singular>|<get-singular>(){}[0]
     abstract val updateCount // com.eignex.koblas.sparse.basis/F64BasisSolver.updateCount|{}updateCount[0]
@@ -325,6 +340,7 @@ abstract interface com.eignex.koblas.sparse.basis/F64BasisSolver : kotlin/AutoCl
     abstract fun btran(com.eignex.koblas.sparse.basis/F64IndexedVector, kotlin/Double = ...) // com.eignex.koblas.sparse.basis/F64BasisSolver.btran|btran(com.eignex.koblas.sparse.basis.F64IndexedVector;kotlin.Double){}[0]
     abstract fun ftran(com.eignex.koblas.sparse.basis/F64IndexedVector, kotlin/Double = ...) // com.eignex.koblas.sparse.basis/F64BasisSolver.ftran|ftran(com.eignex.koblas.sparse.basis.F64IndexedVector;kotlin.Double){}[0]
     abstract fun refactorize(kotlin/IntArray): kotlin/Boolean // com.eignex.koblas.sparse.basis/F64BasisSolver.refactorize|refactorize(kotlin.IntArray){}[0]
+    abstract fun solveQuality(kotlin/DoubleArray, com.eignex.koblas.sparse.basis/F64IndexedVector, kotlin/Boolean = ...): com.eignex.koblas.sparse.basis/F64BasisSolveQuality // com.eignex.koblas.sparse.basis/F64BasisSolver.solveQuality|solveQuality(kotlin.DoubleArray;com.eignex.koblas.sparse.basis.F64IndexedVector;kotlin.Boolean){}[0]
     abstract fun update(kotlin/Int, kotlin/Int, com.eignex.koblas.sparse.basis/F64IndexedVector, com.eignex.koblas.sparse.basis/F64IndexedVector? = ...): com.eignex.koblas.sparse.basis/BasisUpdate // com.eignex.koblas.sparse.basis/F64BasisSolver.update|update(kotlin.Int;kotlin.Int;com.eignex.koblas.sparse.basis.F64IndexedVector;com.eignex.koblas.sparse.basis.F64IndexedVector?){}[0]
     open fun close() // com.eignex.koblas.sparse.basis/F64BasisSolver.close|close(){}[0]
 }
@@ -1263,6 +1279,22 @@ final class com.eignex.koblas.dense/F64ReferenceBackend : com.eignex.koblas.dens
     final fun trtri(com.eignex.koblas.core/F64DenseMatrix, kotlin/Boolean, kotlin/Boolean): com.eignex.koblas.core/F64DenseMatrix // com.eignex.koblas.dense/F64ReferenceBackend.trtri|trtri(com.eignex.koblas.core.F64DenseMatrix;kotlin.Boolean;kotlin.Boolean){}[0]
 }
 
+final class com.eignex.koblas.sparse.basis/F64BasisSolveQuality { // com.eignex.koblas.sparse.basis/F64BasisSolveQuality|null[0]
+    constructor <init>(kotlin/Double, kotlin/Double) // com.eignex.koblas.sparse.basis/F64BasisSolveQuality.<init>|<init>(kotlin.Double;kotlin.Double){}[0]
+
+    final val relativeResidual // com.eignex.koblas.sparse.basis/F64BasisSolveQuality.relativeResidual|{}relativeResidual[0]
+        final fun <get-relativeResidual>(): kotlin/Double // com.eignex.koblas.sparse.basis/F64BasisSolveQuality.relativeResidual.<get-relativeResidual>|<get-relativeResidual>(){}[0]
+    final val residualInfinityNorm // com.eignex.koblas.sparse.basis/F64BasisSolveQuality.residualInfinityNorm|{}residualInfinityNorm[0]
+        final fun <get-residualInfinityNorm>(): kotlin/Double // com.eignex.koblas.sparse.basis/F64BasisSolveQuality.residualInfinityNorm.<get-residualInfinityNorm>|<get-residualInfinityNorm>(){}[0]
+
+    final fun component1(): kotlin/Double // com.eignex.koblas.sparse.basis/F64BasisSolveQuality.component1|component1(){}[0]
+    final fun component2(): kotlin/Double // com.eignex.koblas.sparse.basis/F64BasisSolveQuality.component2|component2(){}[0]
+    final fun copy(kotlin/Double = ..., kotlin/Double = ...): com.eignex.koblas.sparse.basis/F64BasisSolveQuality // com.eignex.koblas.sparse.basis/F64BasisSolveQuality.copy|copy(kotlin.Double;kotlin.Double){}[0]
+    final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas.sparse.basis/F64BasisSolveQuality.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // com.eignex.koblas.sparse.basis/F64BasisSolveQuality.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // com.eignex.koblas.sparse.basis/F64BasisSolveQuality.toString|toString(){}[0]
+}
+
 final class com.eignex.koblas.sparse.basis/F64IndexedVector { // com.eignex.koblas.sparse.basis/F64IndexedVector|null[0]
     constructor <init>(kotlin/Int) // com.eignex.koblas.sparse.basis/F64IndexedVector.<init>|<init>(kotlin.Int){}[0]
 
@@ -1299,6 +1331,8 @@ final class com.eignex.koblas.sparse.basis/F64ProductFormBasisSolver : com.eigne
         final fun <get-n>(): kotlin/Int // com.eignex.koblas.sparse.basis/F64ProductFormBasisSolver.n.<get-n>|<get-n>(){}[0]
     final val nnz // com.eignex.koblas.sparse.basis/F64ProductFormBasisSolver.nnz|{}nnz[0]
         final fun <get-nnz>(): kotlin/Int // com.eignex.koblas.sparse.basis/F64ProductFormBasisSolver.nnz.<get-nnz>|<get-nnz>(){}[0]
+    final val rcond // com.eignex.koblas.sparse.basis/F64ProductFormBasisSolver.rcond|{}rcond[0]
+        final fun <get-rcond>(): kotlin/Double // com.eignex.koblas.sparse.basis/F64ProductFormBasisSolver.rcond.<get-rcond>|<get-rcond>(){}[0]
     final val singular // com.eignex.koblas.sparse.basis/F64ProductFormBasisSolver.singular|{}singular[0]
         final fun <get-singular>(): kotlin/Boolean // com.eignex.koblas.sparse.basis/F64ProductFormBasisSolver.singular.<get-singular>|<get-singular>(){}[0]
     final val updateCount // com.eignex.koblas.sparse.basis/F64ProductFormBasisSolver.updateCount|{}updateCount[0]
@@ -1308,6 +1342,7 @@ final class com.eignex.koblas.sparse.basis/F64ProductFormBasisSolver : com.eigne
     final fun close() // com.eignex.koblas.sparse.basis/F64ProductFormBasisSolver.close|close(){}[0]
     final fun ftran(com.eignex.koblas.sparse.basis/F64IndexedVector, kotlin/Double) // com.eignex.koblas.sparse.basis/F64ProductFormBasisSolver.ftran|ftran(com.eignex.koblas.sparse.basis.F64IndexedVector;kotlin.Double){}[0]
     final fun refactorize(kotlin/IntArray): kotlin/Boolean // com.eignex.koblas.sparse.basis/F64ProductFormBasisSolver.refactorize|refactorize(kotlin.IntArray){}[0]
+    final fun solveQuality(kotlin/DoubleArray, com.eignex.koblas.sparse.basis/F64IndexedVector, kotlin/Boolean): com.eignex.koblas.sparse.basis/F64BasisSolveQuality // com.eignex.koblas.sparse.basis/F64ProductFormBasisSolver.solveQuality|solveQuality(kotlin.DoubleArray;com.eignex.koblas.sparse.basis.F64IndexedVector;kotlin.Boolean){}[0]
     final fun update(kotlin/Int, kotlin/Int, com.eignex.koblas.sparse.basis/F64IndexedVector, com.eignex.koblas.sparse.basis/F64IndexedVector?): com.eignex.koblas.sparse.basis/BasisUpdate // com.eignex.koblas.sparse.basis/F64ProductFormBasisSolver.update|update(kotlin.Int;kotlin.Int;com.eignex.koblas.sparse.basis.F64IndexedVector;com.eignex.koblas.sparse.basis.F64IndexedVector?){}[0]
 }
 
@@ -1548,7 +1583,7 @@ final class com.eignex.koblas.sparse.host.cholmod/CholmodLdlFactorization : com.
 
 final class com.eignex.koblas.sparse.host.hfactor/HfactorConfig { // com.eignex.koblas.sparse.host.hfactor/HfactorConfig|null[0]
     constructor <init>(com.eignex.koblas.sparse.host.hfactor/HfactorOptions) // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.<init>|<init>(com.eignex.koblas.sparse.host.hfactor.HfactorOptions){}[0]
-    constructor <init>(kotlin/String? = ..., kotlin/Boolean = ...) // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.<init>|<init>(kotlin.String?;kotlin.Boolean){}[0]
+    constructor <init>(kotlin/String? = ..., kotlin/Boolean = ..., kotlin/Double = ..., kotlin/Double = ..., com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod = ...) // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.<init>|<init>(kotlin.String?;kotlin.Boolean;kotlin.Double;kotlin.Double;com.eignex.koblas.sparse.host.hfactor.HfactorUpdateMethod){}[0]
     constructor <init>(kotlin/String?, com.eignex.koblas.sparse.host.hfactor/HfactorOptions) // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.<init>|<init>(kotlin.String?;com.eignex.koblas.sparse.host.hfactor.HfactorOptions){}[0]
 
     final val equilibrate // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.equilibrate|{}equilibrate[0]
@@ -1557,23 +1592,41 @@ final class com.eignex.koblas.sparse.host.hfactor/HfactorConfig { // com.eignex.
         final fun <get-libraryPath>(): kotlin/String? // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.libraryPath.<get-libraryPath>|<get-libraryPath>(){}[0]
     final val options // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.options|{}options[0]
         final fun <get-options>(): com.eignex.koblas.sparse.host.hfactor/HfactorOptions // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.options.<get-options>|<get-options>(){}[0]
+    final val pivotThreshold // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.pivotThreshold|{}pivotThreshold[0]
+        final fun <get-pivotThreshold>(): kotlin/Double // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.pivotThreshold.<get-pivotThreshold>|<get-pivotThreshold>(){}[0]
+    final val pivotTolerance // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.pivotTolerance|{}pivotTolerance[0]
+        final fun <get-pivotTolerance>(): kotlin/Double // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.pivotTolerance.<get-pivotTolerance>|<get-pivotTolerance>(){}[0]
+    final val updateMethod // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.updateMethod|{}updateMethod[0]
+        final fun <get-updateMethod>(): com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.updateMethod.<get-updateMethod>|<get-updateMethod>(){}[0]
 
     final fun component1(): kotlin/String? // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.component1|component1(){}[0]
     final fun component2(): kotlin/Boolean // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.component2|component2(){}[0]
-    final fun copy(kotlin/String? = ..., kotlin/Boolean = ...): com.eignex.koblas.sparse.host.hfactor/HfactorConfig // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.copy|copy(kotlin.String?;kotlin.Boolean){}[0]
+    final fun component3(): kotlin/Double // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.component3|component3(){}[0]
+    final fun component4(): kotlin/Double // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.component4|component4(){}[0]
+    final fun component5(): com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.component5|component5(){}[0]
+    final fun copy(kotlin/String? = ..., kotlin/Boolean = ..., kotlin/Double = ..., kotlin/Double = ..., com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod = ...): com.eignex.koblas.sparse.host.hfactor/HfactorConfig // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.copy|copy(kotlin.String?;kotlin.Boolean;kotlin.Double;kotlin.Double;com.eignex.koblas.sparse.host.hfactor.HfactorUpdateMethod){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // com.eignex.koblas.sparse.host.hfactor/HfactorConfig.toString|toString(){}[0]
 }
 
 final class com.eignex.koblas.sparse.host.hfactor/HfactorOptions { // com.eignex.koblas.sparse.host.hfactor/HfactorOptions|null[0]
-    constructor <init>(kotlin/Boolean = ...) // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.<init>|<init>(kotlin.Boolean){}[0]
+    constructor <init>(kotlin/Boolean = ..., kotlin/Double = ..., kotlin/Double = ..., com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod = ...) // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.<init>|<init>(kotlin.Boolean;kotlin.Double;kotlin.Double;com.eignex.koblas.sparse.host.hfactor.HfactorUpdateMethod){}[0]
 
     final val equilibrate // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.equilibrate|{}equilibrate[0]
         final fun <get-equilibrate>(): kotlin/Boolean // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.equilibrate.<get-equilibrate>|<get-equilibrate>(){}[0]
+    final val pivotThreshold // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.pivotThreshold|{}pivotThreshold[0]
+        final fun <get-pivotThreshold>(): kotlin/Double // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.pivotThreshold.<get-pivotThreshold>|<get-pivotThreshold>(){}[0]
+    final val pivotTolerance // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.pivotTolerance|{}pivotTolerance[0]
+        final fun <get-pivotTolerance>(): kotlin/Double // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.pivotTolerance.<get-pivotTolerance>|<get-pivotTolerance>(){}[0]
+    final val updateMethod // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.updateMethod|{}updateMethod[0]
+        final fun <get-updateMethod>(): com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.updateMethod.<get-updateMethod>|<get-updateMethod>(){}[0]
 
     final fun component1(): kotlin/Boolean // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.component1|component1(){}[0]
-    final fun copy(kotlin/Boolean = ...): com.eignex.koblas.sparse.host.hfactor/HfactorOptions // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.copy|copy(kotlin.Boolean){}[0]
+    final fun component2(): kotlin/Double // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.component2|component2(){}[0]
+    final fun component3(): kotlin/Double // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.component3|component3(){}[0]
+    final fun component4(): com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.component4|component4(){}[0]
+    final fun copy(kotlin/Boolean = ..., kotlin/Double = ..., kotlin/Double = ..., com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod = ...): com.eignex.koblas.sparse.host.hfactor/HfactorOptions // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.copy|copy(kotlin.Boolean;kotlin.Double;kotlin.Double;com.eignex.koblas.sparse.host.hfactor.HfactorUpdateMethod){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // com.eignex.koblas.sparse.host.hfactor/HfactorOptions.toString|toString(){}[0]
