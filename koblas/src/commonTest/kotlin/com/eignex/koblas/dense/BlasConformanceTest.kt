@@ -2,6 +2,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
+import com.eignex.koblas.core.F64DenseVector
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.F64ReferenceSparseDecompositions
 import kotlin.math.abs
@@ -56,6 +57,95 @@ class BlasConformanceTest {
         val residual = DoubleArray(a.rows) { ax[it] - b[it] }
         val bound = 100.0 * a.rows * eps * (infNorm(a) * infNorm(x) + infNorm(b))
         assertTrue(infNorm(residual) <= bound + 1e-12, "$name: residual ${infNorm(residual)} > bound $bound")
+    }
+
+    @Test
+    fun `dense lower syr uses contiguous axpy runs`() {
+        data class AxpyCall(val yOff: Int, val xOff: Int, val len: Int)
+        val calls = ArrayList<AxpyCall>()
+        val recording = object : F64Kernels by F64ScalarKernels {
+            override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
+                calls.add(AxpyCall(yOff, xOff, len))
+                F64ScalarKernels.axpy(y, yOff, alpha, x, xOff, len)
+            }
+        }
+        val blas = F64ReferenceBlas(recording)
+        val x = F64DenseVector.wrap(doubleArrayOf(2.0, -3.0, 5.0, 7.0))
+
+        val lower = F64DenseMatrix(4, 4)
+        blas.syr(1.5, x, lower, lower = true)
+
+        assertEquals(
+            listOf(AxpyCall(0, 0, 4), AxpyCall(5, 1, 3), AxpyCall(10, 2, 2), AxpyCall(15, 3, 1)),
+            calls,
+        )
+        for (j in 0 until 4) for (i in j until 4) assertEquals(1.5 * x[i] * x[j], lower[i, j])
+    }
+
+    @Test
+    fun `dense upper syr uses contiguous axpy runs`() {
+        data class AxpyCall(val yOff: Int, val xOff: Int, val len: Int)
+        val calls = ArrayList<AxpyCall>()
+        val recording = object : F64Kernels by F64ScalarKernels {
+            override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
+                calls.add(AxpyCall(yOff, xOff, len))
+                F64ScalarKernels.axpy(y, yOff, alpha, x, xOff, len)
+            }
+        }
+        val upper = F64DenseMatrix(2, 2)
+        F64ReferenceBlas(recording).syr(
+            1.0,
+            F64DenseVector.wrap(doubleArrayOf(2.0, 3.0)),
+            upper,
+            lower = false,
+        )
+
+        assertEquals(listOf(AxpyCall(0, 0, 1), AxpyCall(2, 0, 2)), calls)
+    }
+
+    @Test
+    fun `reference symv composes dot and axpy kernels`() {
+        var dots = 0
+        var axpys = 0
+        val recording = object : F64Kernels by F64ScalarKernels {
+            override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
+                dots++
+                return F64ScalarKernels.dot(a, aOff, b, bOff, len)
+            }
+
+            override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
+                axpys++
+                F64ScalarKernels.axpy(y, yOff, alpha, x, xOff, len)
+            }
+        }
+        val a = F64DenseMatrix(3, 3, doubleArrayOf(2.0, 3.0, 5.0, 0.0, 7.0, 11.0, 0.0, 0.0, 13.0))
+        val y = DoubleArray(3)
+
+        F64ReferenceBlas(recording).symv(1.0, a, doubleArrayOf(17.0, 19.0, 23.0), 0.0, y, lower = true)
+
+        assertEquals(3, dots)
+        assertEquals(3, axpys)
+        assertEquals(doubleArrayOf(206.0, 437.0, 593.0).toList(), y.toList())
+    }
+
+    @Test
+    fun `reference syr2 uses two axpy kernels per column`() {
+        var axpys = 0
+        val recording = object : F64Kernels by F64ScalarKernels {
+            override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
+                axpys++
+                F64ScalarKernels.axpy(y, yOff, alpha, x, xOff, len)
+            }
+        }
+
+        F64ReferenceBlas(recording).syr2(
+            1.0,
+            F64DenseVector.wrap(doubleArrayOf(2.0, 3.0, 5.0)),
+            F64DenseVector.wrap(doubleArrayOf(7.0, 11.0, 13.0)),
+            F64DenseMatrix(3, 3),
+        )
+
+        assertEquals(6, axpys)
     }
 
     @Test

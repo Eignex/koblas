@@ -84,6 +84,34 @@ internal class JvmCblasCalls(private val calls: HostBlasCalls) : CblasCalls {
         calls.dger.invokeExact(order, m, n, alpha, seg(x), incx, seg(y), incy, seg(a), lda) as Unit
     }
 
+    override fun dsyr(
+        order: Int,
+        uplo: Int,
+        n: Int,
+        alpha: Double,
+        x: DoubleArray,
+        incx: Int,
+        a: DoubleArray,
+        lda: Int,
+    ) {
+        calls.dsyr.invokeExact(order, uplo, n, alpha, seg(x), incx, seg(a), lda) as Unit
+    }
+
+    override fun dsyr2(
+        order: Int,
+        uplo: Int,
+        n: Int,
+        alpha: Double,
+        x: DoubleArray,
+        incx: Int,
+        y: DoubleArray,
+        incy: Int,
+        a: DoubleArray,
+        lda: Int,
+    ) {
+        calls.dsyr2.invokeExact(order, uplo, n, alpha, seg(x), incx, seg(y), incy, seg(a), lda) as Unit
+    }
+
     override fun dsymv(
         order: Int,
         uplo: Int,
@@ -200,6 +228,26 @@ internal class JvmCblasCalls(private val calls: HostBlasCalls) : CblasCalls {
         ldc: Int,
     ) {
         calls.dsyrk.invokeExact(order, uplo, trans, n, k, alpha, seg(a), lda, beta, seg(c), ldc) as Unit
+    }
+
+    override fun dsyr2k(
+        order: Int,
+        uplo: Int,
+        trans: Int,
+        n: Int,
+        k: Int,
+        alpha: Double,
+        a: DoubleArray,
+        lda: Int,
+        b: DoubleArray,
+        ldb: Int,
+        beta: Double,
+        c: DoubleArray,
+        ldc: Int,
+    ) {
+        calls.dsyr2k.invokeExact(
+            order, uplo, trans, n, k, alpha, seg(a), lda, seg(b), ldb, beta, seg(c), ldc,
+        ) as Unit
     }
 
     override fun dsymm(

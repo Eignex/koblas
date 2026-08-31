@@ -42,7 +42,8 @@ internal class HostBlasCalls(internal val config: HostBlasConfig) {
      */
     private val requiredCblas = listOf(
         "cblas_dasum", "cblas_daxpy", "cblas_ddot", "cblas_dgemm", "cblas_dgemv", "cblas_dger", "cblas_dswap",
-        "cblas_dnrm2", "cblas_dscal", "cblas_dsymm", "cblas_dsymv", "cblas_dsyrk", "cblas_dtrmm",
+        "cblas_dnrm2", "cblas_dscal", "cblas_dsymm", "cblas_dsymv", "cblas_dsyr", "cblas_dsyr2",
+        "cblas_dsyr2k", "cblas_dsyrk", "cblas_dtrmm",
         "cblas_dtrmv", "cblas_dtrsm", "cblas_dtrsv",
     )
 
@@ -158,6 +159,17 @@ internal class HostBlasCalls(internal val config: HostBlasConfig) {
         )
     }
 
+    val dsyr: MethodHandle by lazy {
+        handle("cblas_dsyr", voidOf(JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT))
+    }
+
+    val dsyr2: MethodHandle by lazy {
+        handle(
+            "cblas_dsyr2",
+            voidOf(JAVA_INT, JAVA_INT, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT),
+        )
+    }
+
     val dtrsv: MethodHandle by lazy {
         handle(
             "cblas_dtrsv",
@@ -214,6 +226,16 @@ internal class HostBlasCalls(internal val config: HostBlasConfig) {
             voidOf(
                 JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT,
                 JAVA_DOUBLE, ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
+            ),
+        )
+    }
+
+    val dsyr2k: MethodHandle by lazy {
+        handle(
+            "cblas_dsyr2k",
+            voidOf(
+                JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT,
+                JAVA_DOUBLE, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT,
             ),
         )
     }

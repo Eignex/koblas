@@ -98,6 +98,53 @@ internal class NativeCblasCalls(private val f: CblasFunctions) : CblasCalls {
         }
     }
 
+    override fun dsyr(
+        order: Int,
+        uplo: Int,
+        n: Int,
+        alpha: Double,
+        x: DoubleArray,
+        incx: Int,
+        a: DoubleArray,
+        lda: Int,
+    ) {
+        x.usePinned { xp ->
+            a.usePinned { ap ->
+                f.dsyr(
+                    order,
+                    uplo,
+                    n,
+                    alpha,
+                    xp.addressOf(0),
+                    incx,
+                    ap.addressOf(0),
+                    lda,
+                )
+            }
+        }
+    }
+
+    override fun dsyr2(
+        order: Int,
+        uplo: Int,
+        n: Int,
+        alpha: Double,
+        x: DoubleArray,
+        incx: Int,
+        y: DoubleArray,
+        incy: Int,
+        a: DoubleArray,
+        lda: Int,
+    ) {
+        x.usePinned { xp ->
+            y.usePinned { yp ->
+                a.usePinned { ap ->
+                    f.dsyr2(order, uplo, n, alpha, xp.addressOf(0), incx, yp.addressOf(0), incy, ap.addressOf(0), lda)
+                }
+            }
+        }
+    }
+
     override fun dsymv(
         order: Int,
         uplo: Int,
@@ -249,6 +296,33 @@ internal class NativeCblasCalls(private val f: CblasFunctions) : CblasCalls {
         a.usePinned { ap ->
             c.usePinned { cp ->
                 f.dsyrk(order, uplo, trans, n, k, alpha, ap.addressOf(0), lda, beta, cp.addressOf(0), ldc)
+            }
+        }
+    }
+
+    override fun dsyr2k(
+        order: Int,
+        uplo: Int,
+        trans: Int,
+        n: Int,
+        k: Int,
+        alpha: Double,
+        a: DoubleArray,
+        lda: Int,
+        b: DoubleArray,
+        ldb: Int,
+        beta: Double,
+        c: DoubleArray,
+        ldc: Int,
+    ) {
+        a.usePinned { ap ->
+            b.usePinned { bp ->
+                c.usePinned { cp ->
+                    f.dsyr2k(
+                        order, uplo, trans, n, k, alpha,
+                        ap.addressOf(0), lda, bp.addressOf(0), ldb, beta, cp.addressOf(0), ldc,
+                    )
+                }
             }
         }
     }

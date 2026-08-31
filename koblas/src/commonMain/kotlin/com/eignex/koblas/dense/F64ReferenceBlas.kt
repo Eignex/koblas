@@ -5,6 +5,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64DenseVector
+import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.core.F64VectorLike
 import com.eignex.koblas.internal.backend.BackendNames
 
@@ -160,112 +161,16 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         yOff: Int,
         lower: Boolean,
     ) {
-        val mult = DoubleArray(SYMV_BLOCK)
-        val dots = DoubleArray(SYMV_BLOCK)
-        var j = 0
-        while (j + SYMV_BLOCK <= n) {
-            for (r in 0 until SYMV_BLOCK) mult[r] = alpha * x[xOff + j + r]
-            symvCorner(alpha, ad, n, x, xOff, y, yOff, j, mult, lower)
-            // Below the corner for a lower triangle, above it for an upper.
-            val runOff = if (lower) j + SYMV_BLOCK else 0
-            val len = if (lower) n - j - SYMV_BLOCK else j
-            if (len > 0) {
-                if (mult.none { it == 0.0 }) {
-                    kernels.symvColumn4(
-                        ad,
-                        runOff + j * n,
-                        n,
-                        x,
-                        xOff + runOff,
-                        y,
-                        yOff + runOff,
-                        mult,
-                        dots,
-                        len,
-                    )
-                } else {
-                    // A zero multiplier must not write into y.
-                    for (r in 0 until SYMV_BLOCK) {
-                        dots[r] = symvOneColumn(
-                            ad,
-                            runOff + (j + r) * n,
-                            x,
-                            xOff + runOff,
-                            y,
-                            yOff + runOff,
-                            mult[r],
-                            len,
-                        )
-                    }
-                }
-                for (r in 0 until SYMV_BLOCK) y[yOff + j + r] += alpha * dots[r]
-            }
-            j += SYMV_BLOCK
-        }
-        while (j < n) {
+        val kernels = kernels
+        for (j in 0 until n) {
             val base = j + j * n
             val xj = alpha * x[xOff + j]
             val runOff = if (lower) j + 1 else 0
             val len = if (lower) n - j - 1 else j
-            val dot = symvOneColumn(ad, runOff + j * n, x, xOff + runOff, y, yOff + runOff, xj, len)
-            val diagonal = if (xj != 0.0) xj * ad[base] else 0.0
-            y[yOff + j] += alpha * dot + diagonal
-            j++
+            if (xj != 0.0) y[yOff + j] += xj * ad[base]
+            kernels.axpy(y, yOff + runOff, xj, ad, runOff + j * n, len)
+            y[yOff + j] += alpha * kernels.dot(ad, runOff + j * n, x, xOff + runOff, len)
         }
-    }
-
-    /** The corner at [j], where the block's columns have ragged extents and cannot share one run. */
-    @Suppress("LongParameterList") // the operand, both vectors and the block position
-    private fun symvCorner(
-        alpha: Double,
-        ad: DoubleArray,
-        n: Int,
-        x: DoubleArray,
-        xOff: Int,
-        y: DoubleArray,
-        yOff: Int,
-        j: Int,
-        mult: DoubleArray,
-        lower: Boolean,
-    ) {
-        for (c in j until j + SYMV_BLOCK) {
-            val mc = mult[c - j]
-            val col = c * n
-            if (mc != 0.0) y[yOff + c] += mc * ad[c + col]
-            val from = if (lower) c + 1 else j
-            val until = if (lower) j + SYMV_BLOCK else c
-            for (i in from until until) {
-                val aij = ad[i + col]
-                if (mc != 0.0) y[yOff + i] += mc * aij
-                if (x[xOff + i] != 0.0) y[yOff + c] += alpha * aij * x[xOff + i]
-            }
-        }
-    }
-
-    /**
-     * One column's contribution to both halves, returning its dot with x. A zero multiplier takes the dot
-     * alone, since `0.0` times an infinite entry is a NaN rather than nothing. The same rule covers the
-     * diagonal at both call sites, so a zero entry of x reaches an infinite `A(j, j)` no more than [gemv]
-     * reaches an infinite column it skips.
-     *
-     * The dot itself is the one place the rule cannot reach: it carries the reflected half of the run, whose
-     * multipliers are the entries of x it reads, and telling them apart per element would cost the run its
-     * kernel. An infinite off-diagonal entry against a zero x entry is a NaN here as it is in `dsymv`.
-     */
-    @Suppress("LongParameterList") // three runs, the multiplier and the length
-    private fun symvOneColumn(
-        ad: DoubleArray,
-        aOff: Int,
-        x: DoubleArray,
-        xOff: Int,
-        y: DoubleArray,
-        yOff: Int,
-        mult: Double,
-        len: Int,
-    ): Double = if (mult != 0.0) {
-        kernels.symvColumn(ad, aOff, x, xOff, y, yOff, mult, len)
-    } else {
-        kernels.dot(ad, aOff, x, xOff, len)
     }
 
     @Suppress("LongParameterList", "CyclomaticComplexMethod") // the BLAS dsymm signature
@@ -315,8 +220,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
     /**
      * `A += alpha · x · xᵀ` (BLAS `dsyr`), writing only the [lower] or upper triangle.
      *
-     * A sparse x updates the outer product of its stored positions and nothing else, which is the whole of
-     * the update: a position it does not store contributes a zero row and a zero column.
+     * Non-dense vectors are staged once so the rank update itself is a sequence of contiguous Level 1 calls.
      */
     override fun syr(alpha: Double, x: F64VectorLike, a: F64DenseMatrix, lower: Boolean) {
         requireShape(a.rows == a.cols) { "syr: matrix must be square, got ${a.rows}x${a.cols}" }
@@ -324,29 +228,23 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         if (alpha == 0.0) return
         val n = a.rows
         val ad = a.data
-        if (x !is F64DenseVector) {
-            val positions = storedPositions(x)
-            val xs = DoubleArray(positions.size) { x[positions[it]] }
-            for (b in positions.indices) {
-                val xj = alpha * xs[b]
-                if (xj == 0.0) continue
-                for (c in b until positions.size) addTriangle(ad, n, positions[c], positions[b], xj * xs[c], lower)
-            }
-            return
-        }
-        val xs = x.data
-        for (j in 0 until n) {
+        val xs = rankUpdateData(x)
+        val active = rankUpdatePositions(x)
+        forEachRankUpdateColumn(active, n) { j ->
             val xj = alpha * xs[j]
-            if (xj == 0.0) continue
-            for (i in j until n) addTriangle(ad, n, i, j, xj * xs[i], lower)
+            if (xj == 0.0) return@forEachRankUpdateColumn
+            val from = if (lower) j else 0
+            val until = if (lower) n else j + 1
+            forEachRankUpdateRun(active, from, until) { runStart, runLength ->
+                kernels.axpy(ad, runStart + j * n, xj, xs, runStart, runLength)
+            }
         }
     }
 
     /**
      * `A += alpha · (x · yᵀ + y · xᵀ)` (BLAS `dsyr2`), writing only the [lower] or upper triangle.
      *
-     * Sparse operands are handled as [syr] handles one, over the positions either of them stores: a position
-     * neither stores has `x(i)` and `y(i)` both zero and so contributes nothing to any entry.
+     * Non-dense operands are staged once so the rank update itself is a sequence of contiguous Level 1 calls.
      */
     override fun syr2(alpha: Double, x: F64VectorLike, y: F64VectorLike, a: F64DenseMatrix, lower: Boolean) {
         requireShape(a.rows == a.cols) { "syr2: matrix must be square, got ${a.rows}x${a.cols}" }
@@ -356,68 +254,72 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         if (alpha == 0.0) return
         val n = a.rows
         val ad = a.data
-        if (x !is F64DenseVector || y !is F64DenseVector) {
-            syr2Stored(alpha, x, y, ad, n, lower)
-            return
-        }
-        val xs = x.data
-        val ys = y.data
-        for (j in 0 until n) {
-            // Column j of the update is x(j) times y plus y(j) times x, so both being zero empties it.
-            if (xs[j] == 0.0 && ys[j] == 0.0) continue
-            for (i in j until n) {
-                val v = alpha * (xs[i] * ys[j] + ys[i] * xs[j])
-                if (v != 0.0) addTriangle(ad, n, i, j, v, lower)
-            }
-        }
+        val xs = rankUpdateData(x)
+        val ys = rankUpdateData(y)
+        val xActive = rankUpdatePositions(x)
+        val yActive = rankUpdatePositions(y)
+        // BLAS dsyr2 is two rank-one updates. Keeping them separate lets each sparse operand constrain
+        // both its source runs and the columns where it supplies the multiplier.
+        rankOneTriangleUpdate(ad, n, xs, xActive, ys, yActive, alpha, lower)
+        rankOneTriangleUpdate(ad, n, ys, yActive, xs, xActive, alpha, lower)
     }
 
-    /** The positions [x] stores, ascending, which [forEachStored] visits in that order for any storage. */
-    private fun storedPositions(x: F64VectorLike): IntArray {
-        val gathered = ArrayList<Int>()
-        x.forEachStored { i, _ -> gathered.add(i) }
-        return gathered.toIntArray()
+    /** Returns contiguous rank-update operands; sparse copies use the registered sparse Level 1 scatter. */
+    private fun rankUpdateData(x: F64VectorLike): DoubleArray = when (x) {
+        is F64DenseVector -> x.data
+        else -> DoubleArray(x.size).also { copy(x, F64DenseVector.wrap(it)) }
     }
 
-    /** The positions [x] or [y] stores, ascending and without repeats, merged from the two ascending runs. */
-    private fun storedPositions(x: F64VectorLike, y: F64VectorLike): IntArray {
-        val left = storedPositions(x)
-        val right = storedPositions(y)
-        val merged = IntArray(left.size + right.size)
-        var a = 0
-        var b = 0
-        var count = 0
-        while (a < left.size || b < right.size) {
-            merged[count++] = when {
-                b == right.size -> left[a++]
-                a == left.size -> right[b++]
-                left[a] < right[b] -> left[a++]
-                left[a] > right[b] -> right[b++]
-                else -> left[a++].also { b++ }
-            }
-        }
-        return merged.copyOf(count)
-    }
+    /** Sparse operands retain their structure; all other vector representations cover every position. */
+    private fun rankUpdatePositions(x: F64VectorLike): IntArray? = if (x is F64SparseVector) x.copyIndices() else null
 
-    /** [syr2] over the positions [x] or [y] stores, gathered so each is read once rather than searched for. */
-    @Suppress("LongParameterList") // the dsyr2 operands, less the matrix it has already been taken out of
-    private fun syr2Stored(
-        alpha: Double,
-        x: F64VectorLike,
-        y: F64VectorLike,
+    /** Adds one selected-triangle rank-one term, retaining sparse source and multiplier structure. */
+    @Suppress("LongParameterList") // matrix and vector buffers each carry the shape or structural positions
+    private fun rankOneTriangleUpdate(
         ad: DoubleArray,
         n: Int,
+        source: DoubleArray,
+        sourceActive: IntArray?,
+        multipliers: DoubleArray,
+        multiplierActive: IntArray?,
+        alpha: Double,
         lower: Boolean,
     ) {
-        val positions = storedPositions(x, y)
-        val xs = DoubleArray(positions.size) { x[positions[it]] }
-        val ys = DoubleArray(positions.size) { y[positions[it]] }
-        for (b in positions.indices) {
-            if (xs[b] == 0.0 && ys[b] == 0.0) continue
-            for (c in b until positions.size) {
-                val v = alpha * (xs[c] * ys[b] + ys[c] * xs[b])
-                if (v != 0.0) addTriangle(ad, n, positions[c], positions[b], v, lower)
+        forEachRankUpdateColumn(multiplierActive, n) { j ->
+            val from = if (lower) j else 0
+            val until = if (lower) n else j + 1
+            forEachRankUpdateRun(sourceActive, from, until) { runStart, runLength ->
+                kernels.axpy(ad, runStart + j * n, alpha * multipliers[j], source, runStart, runLength)
             }
+        }
+    }
+
+    /** Visits every dense column or the explicitly stored columns of a non-dense multiplier. */
+    private inline fun forEachRankUpdateColumn(active: IntArray?, n: Int, action: (Int) -> Unit) {
+        if (active == null) for (j in 0 until n) action(j) else for (j in active) action(j)
+    }
+
+    /** Visits contiguous runs of active positions inside `[from, until)`, keeping sparse work on Level 1 kernels. */
+    private inline fun forEachRankUpdateRun(
+        active: IntArray?,
+        from: Int,
+        until: Int,
+        action: (start: Int, length: Int) -> Unit,
+    ) {
+        if (active == null) {
+            action(from, until - from)
+            return
+        }
+        var at = 0
+        while (at < active.size && active[at] < from) at++
+        while (at < active.size && active[at] < until) {
+            val start = active[at++]
+            var end = start + 1
+            while (at < active.size && active[at] == end && end < until) {
+                at++
+                end++
+            }
+            action(start, end - start)
         }
     }
 
@@ -492,5 +394,5 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         triangularMatrix(kernels, a, b, lower, transpose, unitDiag, right, alpha, solve = false)
 }
 
-/** Columns a symmetric product takes per pass, matching the width [F64Kernels.symvColumn4] serves. */
-private const val SYMV_BLOCK = 4
+/** Square transpose tile, small enough to keep source and destination working sets in L1 cache. */
+private const val TRANSPOSE_TILE = 32

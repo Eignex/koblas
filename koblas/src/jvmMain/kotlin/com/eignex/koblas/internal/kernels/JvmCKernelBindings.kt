@@ -18,8 +18,6 @@ internal object JvmCKernelBindings {
         "koblas_dense_nrm2",
         "koblas_dense_asum",
         "koblas_dense_swap",
-        "koblas_dense_symv_column",
-        "koblas_dense_symv_column4",
         "koblas_dense_dot4",
         "koblas_sparse_dot_dense",
         "koblas_sparse_dot_sparse",
@@ -68,29 +66,6 @@ internal object JvmCKernelBindings {
         requiredLibrary().handle(
             "koblas_dense_swap",
             FfmLibrary.voidOf(ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT),
-        )
-    }
-    private val denseSymvColumn by lazy {
-        requiredLibrary().handle(
-            "koblas_dense_symv_column",
-            FfmLibrary.doubleOf(ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_DOUBLE, JAVA_INT),
-        )
-    }
-    private val denseSymvColumn4 by lazy {
-        requiredLibrary().handle(
-            "koblas_dense_symv_column4",
-            FfmLibrary.voidOf(
-                ADDRESS,
-                JAVA_INT,
-                JAVA_INT,
-                ADDRESS,
-                JAVA_INT,
-                ADDRESS,
-                JAVA_INT,
-                ADDRESS,
-                ADDRESS,
-                JAVA_INT,
-            ),
         )
     }
     private val denseDot4 by lazy {
@@ -162,54 +137,6 @@ internal object JvmCKernelBindings {
 
     fun denseSwap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) {
         denseSwap.invokeExact(MemorySegment.ofArray(a), aOff, MemorySegment.ofArray(b), bOff, len) as Unit
-    }
-
-    @Suppress("LongParameterList")
-    fun denseSymvColumn(
-        a: DoubleArray,
-        aOff: Int,
-        x: DoubleArray,
-        xOff: Int,
-        y: DoubleArray,
-        yOff: Int,
-        multiplier: Double,
-        len: Int,
-    ): Double = denseSymvColumn.invokeExact(
-        MemorySegment.ofArray(a),
-        aOff,
-        MemorySegment.ofArray(x),
-        xOff,
-        MemorySegment.ofArray(y),
-        yOff,
-        multiplier,
-        len,
-    ) as Double
-
-    @Suppress("LongParameterList")
-    fun denseSymvColumn4(
-        a: DoubleArray,
-        aOff: Int,
-        stride: Int,
-        x: DoubleArray,
-        xOff: Int,
-        y: DoubleArray,
-        yOff: Int,
-        multipliers: DoubleArray,
-        out: DoubleArray,
-        len: Int,
-    ) {
-        denseSymvColumn4.invokeExact(
-            MemorySegment.ofArray(a),
-            aOff,
-            stride,
-            MemorySegment.ofArray(x),
-            xOff,
-            MemorySegment.ofArray(y),
-            yOff,
-            MemorySegment.ofArray(multipliers),
-            MemorySegment.ofArray(out),
-            len,
-        ) as Unit
     }
 
     @Suppress("LongParameterList")

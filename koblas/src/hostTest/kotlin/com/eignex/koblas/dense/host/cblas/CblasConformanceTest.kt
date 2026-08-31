@@ -49,6 +49,9 @@ class CblasConformanceTest {
         assertSyrkTriangleModesLeaveTheOtherTriangle(cblas, intArrayOf(6))
 
     @Test
+    fun `syr2k matches reference over both triangles`() = assertSyr2kAgreesWithReference(cblas, intArrayOf(6))
+
+    @Test
     fun `symv and symm match reference with the unselected triangle poisoned`() =
         assertSymmetricProductsAgreeWithReference(cblas, intArrayOf(1, 6, 13))
 
@@ -118,6 +121,9 @@ class CblasConformanceTest {
 
     @Test
     fun `ger matches reference`() = assertGerAgreesWithReference(cblas)
+
+    @Test
+    fun `syr and syr2 match reference`() = assertSyrAgreesWithReference(cblas)
 
     @Test
     fun `installed level-1 kernels agree with the scalar ones`() = assertLevel1KernelsAgreeWithScalar(F64CblasKernels())

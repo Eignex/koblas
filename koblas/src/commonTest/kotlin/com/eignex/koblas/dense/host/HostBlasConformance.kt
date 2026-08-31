@@ -58,6 +58,27 @@ internal fun assertGerAgreesWithReference(blas: F64Blas) {
     }
 }
 
+internal fun assertSyrAgreesWithReference(blas: F64Blas) {
+    val rng = Random(20260831)
+    for (n in intArrayOf(1, 7, 31)) {
+        for (lower in booleanArrayOf(true, false)) {
+            val x = F64DenseVector.of(DoubleArray(n) { rng.nextDouble(-1.0, 1.0) })
+            val y = F64DenseVector.of(DoubleArray(n) { rng.nextDouble(-1.0, 1.0) })
+            val seed = randomMatrix(n, n, rng)
+            val syrExpected = F64DenseMatrix(n, n, seed.data.copyOf())
+            val syrActual = F64DenseMatrix(n, n, seed.data.copyOf())
+            reference.syr(0.75, x, syrExpected, lower)
+            blas.syr(0.75, x, syrActual, lower)
+            assertClose(syrExpected, syrActual, "syr n=$n lower=$lower")
+            val syr2Expected = F64DenseMatrix(n, n, seed.data.copyOf())
+            val syr2Actual = F64DenseMatrix(n, n, seed.data.copyOf())
+            reference.syr2(-0.5, x, y, syr2Expected, lower)
+            blas.syr2(-0.5, x, y, syr2Actual, lower)
+            assertClose(syr2Expected, syr2Actual, "syr2 n=$n lower=$lower")
+        }
+    }
+}
+
 /** The unselected triangle is NaN, so reading outside the promised one fails the comparison. */
 internal fun assertTriangularAgreesWithReference(blas: F64Blas, sizes: IntArray) {
     val rng = Random(20260801)
@@ -396,6 +417,44 @@ private fun checkSyrk(blas: F64Blas, rng: Random, rows: Int, cols: Int) {
 internal fun assertSyrkTriangleModesLeaveTheOtherTriangle(blas: F64Blas, sizes: IntArray) {
     val rng = Random(20260934)
     for (size in sizes) checkSyrkTriangle(blas, rng, rows = size, cols = maxOf(1, size - 2))
+}
+
+/** A symmetric rank-2k update agrees with the portable implementation and leaves the other triangle alone. */
+internal fun assertSyr2kAgreesWithReference(blas: F64Blas, sizes: IntArray) {
+    val rng = Random(20261031)
+    for (size in sizes) {
+        val rows = size
+        val cols = maxOf(1, size - 2)
+        for (lower in booleanArrayOf(true, false)) {
+            for (transpose in booleanArrayOf(false, true)) {
+                for (alpha in doubleArrayOf(0.0, 0.75)) {
+                    for (beta in doubleArrayOf(0.0, -0.5)) {
+                        val a = randomMatrix(rows, cols, rng)
+                        val b = randomMatrix(rows, cols, rng)
+                        val n = if (transpose) cols else rows
+                        val c0 = DoubleArray(n * n) { idx ->
+                            if (!selects(lower, idx % n, idx / n) || beta == 0.0) {
+                                Double.NaN
+                            } else {
+                                rng.nextDouble(-1.0, 1.0)
+                            }
+                        }
+                        val expected = F64DenseMatrix.wrap(n, n, c0.copyOf())
+                        val actual = F64DenseMatrix.wrap(n, n, c0.copyOf())
+                        reference.syr2k(alpha, a, b, transpose, beta, expected, lower)
+                        blas.syr2k(alpha, a, b, transpose, beta, actual, lower)
+                        compareTriangle(
+                            expected,
+                            actual,
+                            n,
+                            lower,
+                            "syr2k n=$n lower=$lower t=$transpose a=$alpha b=$beta",
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 private fun checkSyrkTriangle(blas: F64Blas, rng: Random, rows: Int, cols: Int) {
