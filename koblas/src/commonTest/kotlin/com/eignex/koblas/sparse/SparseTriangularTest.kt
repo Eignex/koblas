@@ -68,11 +68,12 @@ class SparseTriangularTest {
     fun `every direction agrees with the dense solve over several right-hand sides`() {
         val rng = Random(20260821)
         val n = 6
+        val rightHandSides = REFERENCE_SPARSE_RHS_WIDTH + 1
         for (lower in booleanArrayOf(true, false)) {
             for (transpose in booleanArrayOf(false, true)) {
                 for (right in booleanArrayOf(false, true)) {
                     val (sparse, dense) = triangle(n, lower, rng)
-                    val b = if (right) randomMatrix(3, n, rng) else randomMatrix(n, 3, rng)
+                    val b = if (right) randomMatrix(rightHandSides, n, rng) else randomMatrix(n, rightHandSides, rng)
 
                     val fromDense = F64DenseMatrix.wrap(b.rows, b.cols, b.data.copyOf())
                     dense.trsm(fromDense, lower, transpose, right = right)
@@ -192,6 +193,22 @@ class SparseTriangularTest {
         val zeroed = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 0.0)))
         val explicit = assertFailsWith<IllegalArgumentException> { zeroed.trsv(DoubleArray(2), lower = true) }
         assertTrue("explicit zero" in explicit.message!!, explicit.message!!)
+    }
+
+    @Test
+    fun `a singular block solve retains per right hand side mutation order`() {
+        val singular = F64SparseMatrix.ofColumns(
+            3,
+            3,
+            listOf(listOf(0 to 2.0, 1 to 1.0), listOf(), listOf(2 to 4.0)),
+        )
+        val left = F64DenseMatrix(3, 2, doubleArrayOf(2.0, 6.0, 8.0, 4.0, 10.0, 12.0))
+        assertFailsWith<SingularMatrix> { singular.trsm(left, lower = true) }
+        assertContentEquals(doubleArrayOf(1.0, 5.0, 8.0, 4.0, 10.0, 12.0), left.data)
+
+        val right = F64DenseMatrix(2, 3, doubleArrayOf(2.0, 4.0, 6.0, 10.0, 8.0, 12.0))
+        assertFailsWith<SingularMatrix> { singular.trsm(right, lower = true, right = true) }
+        assertContentEquals(doubleArrayOf(2.0, 4.0, 6.0, 10.0, 8.0, 12.0), right.data)
     }
 
     @Test

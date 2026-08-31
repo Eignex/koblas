@@ -42,13 +42,14 @@ class SparseProductTest {
     @Test
     fun `every transpose combination agrees with the dense product`() {
         val rng = Random(20260826)
+        val rightHandSides = REFERENCE_SPARSE_RHS_WIDTH + 1
         for (transposeA in booleanArrayOf(false, true)) {
             for (transposeB in booleanArrayOf(false, true)) {
                 val (sparse, dense) = sparseAndDense(5, 3, rng)
                 val m = if (transposeA) 3 else 5
                 val k = if (transposeA) 5 else 3
-                val b = if (transposeB) randomMatrix(4, k, rng) else randomMatrix(k, 4, rng)
-                val c = randomMatrix(m, 4, rng)
+                val b = if (transposeB) randomMatrix(rightHandSides, k, rng) else randomMatrix(k, rightHandSides, rng)
+                val c = randomMatrix(m, rightHandSides, rng)
 
                 val fromDense = copyOf(c)
                 koblas.gemm(0.75, dense, transposeA, b, transposeB, -0.5, fromDense)
