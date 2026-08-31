@@ -63,12 +63,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
 
     override fun transpose(a: F64DenseMatrix): F64DenseMatrix {
         val t = F64DenseMatrix(a.cols, a.rows)
-        val td = t.data
-        val ad = a.data
-        for (j in 0 until a.cols) {
-            val base = j * a.rows
-            for (i in 0 until a.rows) td[j + i * a.cols] = ad[base + i]
-        }
+        transposeIntoRows(a.data, t.data, a.rows, a.cols)
         return t
     }
 
@@ -418,10 +413,20 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
             return
         }
         val xs = x.data
+        val kernels = kernels
         for (j in 0 until n) {
             val xj = alpha * xs[j]
             if (xj == 0.0) continue
-            for (i in j until n) addTriangle(ad, n, i, j, xj * xs[i], lower)
+            // Lower-triangle columns are contiguous. Keeping xj as the axpy multiplier preserves the zero
+            // guard above: finite alpha times zero must not turn an infinite x entry into NaN through a
+            // gratuitous 0 * infinity multiply.
+            if (lower) {
+                kernels.axpy(ad, j + j * n, xj, xs, j, n - j)
+            } else {
+                // Reorienting this as an upper-triangle axpy changes the evaluation order. For example, a
+                // zero x(j) and infinite x(i) must skip the product, not form infinity * zero into NaN.
+                for (i in j until n) ad[j + i * n] += xj * xs[i]
+            }
         }
     }
 
@@ -545,9 +550,22 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
 
     /** Column p of the `n×k` [src] becomes row p of the `k×n` [dst], so a row read turns into a column read. */
     private fun transposeIntoRows(src: DoubleArray, dst: DoubleArray, n: Int, k: Int) {
-        for (p in 0 until k) {
-            val base = p * n
-            for (j in 0 until n) dst[p + j * k] = src[base + j]
+        // A tile keeps both the source read and destination write runs in cache. This also backs the public
+        // transpose, while syrk and syr2k use it to stage rows as contiguous dot operands.
+        for (p0 in 0 until k step TRANSPOSE_TILE) {
+            val pEnd = minOf(p0 + TRANSPOSE_TILE, k)
+            for (j0 in 0 until n step TRANSPOSE_TILE) {
+                val jEnd = minOf(j0 + TRANSPOSE_TILE, n)
+                for (p in p0 until pEnd) {
+                    var source = p * n + j0
+                    var destination = p + j0 * k
+                    for (j in j0 until jEnd) {
+                        dst[destination] = src[source]
+                        source++
+                        destination += k
+                    }
+                }
+            }
         }
     }
 
@@ -625,3 +643,6 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
 
 /** Columns a symmetric product takes per pass, matching the width [F64Kernels.symvColumn4] serves. */
 private const val SYMV_BLOCK = 4
+
+/** Square transpose tile, small enough to keep source and destination working sets in L1 cache. */
+private const val TRANSPOSE_TILE = 32
