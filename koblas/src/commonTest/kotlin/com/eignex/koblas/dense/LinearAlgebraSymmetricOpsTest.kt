@@ -2,6 +2,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
+import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.internal.numeric.absoluteSum
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import kotlin.random.Random
@@ -44,6 +45,64 @@ class LinearAlgebraSymmetricOpsTest {
                 koblas.symv(1.0, poisoned, x, 0.0, actual, lower)
                 assertClose(expected, actual, "symv zeros n=$n lower=$lower")
             }
+        }
+    }
+
+    /**
+     * A zero of x against an infinite `A(j, j)` is the one product the reference gemv never forms, since it
+     * skips the whole column, and the reference symv must not form it either.
+     */
+    @Test
+    fun `reference symv skips an infinite diagonal behind a zero multiplier`() {
+        for (lower in booleanArrayOf(true, false)) {
+            val a = F64DenseMatrix.diagonal(3)
+            a[1, 1] = Double.POSITIVE_INFINITY
+            val x = doubleArrayOf(2.0, 0.0, -3.0)
+            val expected = DoubleArray(3)
+            F64ReferenceLinearAlgebra.gemv(1.0, a, x, 0.0, expected)
+            val actual = DoubleArray(3)
+
+            F64ReferenceLinearAlgebra.symv(1.0, a, x, 0.0, actual, lower)
+
+            assertTrue(actual.all(Double::isFinite), "symv lower=$lower produced ${actual.toList()}")
+            assertClose(expected, actual, "symv lower=$lower")
+        }
+    }
+
+    @Test
+    fun `sparse syr never updates unstored zero positions`() {
+        val x = F64SparseVector.of(3, intArrayOf(0, 2), doubleArrayOf(Double.POSITIVE_INFINITY, 2.0))
+        for (lower in booleanArrayOf(true, false)) {
+            val a = F64DenseMatrix(3, 3)
+
+            F64ReferenceLinearAlgebra.syr(1.0, x, a, lower)
+
+            assertEquals(0.0, a[1, 0], "lower=$lower row one")
+            assertEquals(0.0, a[0, 1], "lower=$lower column one")
+            assertEquals(0.0, a[1, 1], "lower=$lower diagonal one")
+            assertEquals(0.0, a[2, 1], "lower=$lower row two")
+            assertEquals(0.0, a[1, 2], "lower=$lower column two")
+        }
+    }
+
+    @Test
+    fun `sparse syr2 never updates positions neither operand stores`() {
+        val x = F64SparseVector.of(3, intArrayOf(0), doubleArrayOf(Double.POSITIVE_INFINITY))
+        val y = F64SparseVector.of(3, intArrayOf(2), doubleArrayOf(2.0))
+        for (lower in booleanArrayOf(true, false)) {
+            val a = F64DenseMatrix(3, 3)
+
+            F64ReferenceLinearAlgebra.syr2(1.0, x, y, a, lower)
+
+            assertEquals(0.0, a[0, 0], "lower=$lower diagonal zero")
+            assertEquals(0.0, a[1, 0], "lower=$lower row one")
+            assertEquals(0.0, a[0, 1], "lower=$lower column one")
+            assertEquals(0.0, a[1, 1], "lower=$lower diagonal one")
+            assertEquals(0.0, a[2, 1], "lower=$lower row two")
+            assertEquals(0.0, a[1, 2], "lower=$lower column two")
+            assertEquals(0.0, a[2, 2], "lower=$lower diagonal two")
+            val updated = if (lower) a[2, 0] else a[0, 2]
+            assertEquals(Double.POSITIVE_INFINITY, updated, "lower=$lower stored cross product")
         }
     }
 
