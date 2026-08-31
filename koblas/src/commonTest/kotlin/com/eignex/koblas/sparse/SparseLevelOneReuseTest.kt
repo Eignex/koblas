@@ -35,14 +35,20 @@ class SparseLevelOneReuseTest {
     )
 
     @Test
-    fun `right product sends contiguous dense columns through axpy`() {
-        val kernels = RecordingKernels()
-        val backend = F64ReferenceSparseBackend(kernels)
-        val b = F64DenseMatrix(5, 3, DoubleArray(15) { (it + 1).toDouble() })
+    fun `right products send contiguous dense columns through axpy`() {
+        for (transposeB in booleanArrayOf(false, true)) {
+            val kernels = RecordingKernels()
+            val backend = F64ReferenceSparseBackend(kernels)
+            val b = if (transposeB) {
+                F64DenseMatrix(3, 5, DoubleArray(15) { (it + 1).toDouble() })
+            } else {
+                F64DenseMatrix(5, 3, DoubleArray(15) { (it + 1).toDouble() })
+            }
 
-        backend.gemm(0.75, lower, false, b, false, 0.0, F64DenseMatrix.zero(5, 3), right = true)
+            backend.gemm(0.75, lower, false, b, transposeB, 0.0, F64DenseMatrix.zero(5, 3), right = true)
 
-        assertTrue(kernels.axpys > 0, "right gemm did not use dense axpy")
+            assertTrue(kernels.axpys > 0, "right gemm transposeB=$transposeB did not use dense axpy")
+        }
     }
 
     @Test

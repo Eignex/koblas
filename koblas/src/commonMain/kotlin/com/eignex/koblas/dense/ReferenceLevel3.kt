@@ -47,29 +47,47 @@ internal fun blockedUpdate(
     m: Int,
     n: Int,
     depth: Int,
+): Unit = blockedAxpyUpdate(kernels, alpha, a, aOff, lda, c, cOff, ldc, m, n, depth) { p, j ->
+    b[bOff + p + j * ldb]
+}
+
+/** Shared cache traversal for products whose left operand has contiguous columns. */
+@Suppress("LongParameterList")
+private inline fun blockedAxpyUpdate(
+    kernels: F64Kernels,
+    alpha: Double,
+    a: DoubleArray,
+    aOff: Int,
+    lda: Int,
+    c: DoubleArray,
+    cOff: Int,
+    ldc: Int,
+    m: Int,
+    n: Int,
+    depth: Int,
+    coefficient: (p: Int, j: Int) -> Double,
 ) {
     var column = 0
     while (column < n) {
         val columnEnd = min(column + REFERENCE_NC, n)
-        var row = 0
-        while (row < m) {
-            val rowEnd = min(row + REFERENCE_MC, m)
-            val length = rowEnd - row
-            var inner = 0
-            while (inner < depth) {
-                val innerEnd = min(inner + REFERENCE_KC, depth)
-                for (p in inner until innerEnd) {
-                    val source = aOff + row + p * lda
-                    for (j in column until columnEnd) {
-                        val multiplier = alpha * b[bOff + p + j * ldb]
-                        if (multiplier != 0.0) {
+        var inner = 0
+        while (inner < depth) {
+            val innerEnd = min(inner + REFERENCE_KC, depth)
+            for (p in inner until innerEnd) {
+                for (j in column until columnEnd) {
+                    val multiplier = alpha * coefficient(p, j)
+                    if (multiplier != 0.0) {
+                        var row = 0
+                        while (row < m) {
+                            val length = min(row + REFERENCE_MC, m) - row
+                            val source = aOff + row + p * lda
                             kernels.axpy(c, cOff + row + j * ldc, multiplier, a, source, length)
+                            row += length
                         }
                     }
                 }
-                inner = innerEnd
             }
-            row = rowEnd
+            inner = innerEnd
         }
         column = columnEnd
     }
@@ -89,29 +107,119 @@ internal fun blockedGemmUpdate(
     n: Int,
     depth: Int,
 ) {
+    if (!transposeB) {
+        blockedUpdate(kernels, alpha, a, 0, m, b, 0, bRows, c, 0, m, m, n, depth)
+        return
+    }
+    blockedAxpyUpdate(kernels, alpha, a, 0, m, c, 0, m, m, n, depth) { p, j ->
+        b[j + p * bRows]
+    }
+}
+
+/**
+ * Adds `alpha * A transpose * B` to C without packing A. Columns of A and B are contiguous dot operands;
+ * four output rows share each B column through [F64Kernels.dot4].
+ */
+@Suppress("LongParameterList")
+internal fun blockedTransposedLeftUpdate(
+    kernels: F64Kernels,
+    alpha: Double,
+    a: DoubleArray,
+    aOff: Int,
+    lda: Int,
+    b: DoubleArray,
+    bOff: Int,
+    ldb: Int,
+    c: DoubleArray,
+    cOff: Int,
+    ldc: Int,
+    m: Int,
+    n: Int,
+    depth: Int,
+) {
+    val sums = DoubleArray(4)
     var column = 0
     while (column < n) {
         val columnEnd = min(column + REFERENCE_NC, n)
         var row = 0
         while (row < m) {
             val rowEnd = min(row + REFERENCE_MC, m)
-            val length = rowEnd - row
-            var inner = 0
-            while (inner < depth) {
-                val innerEnd = min(inner + REFERENCE_KC, depth)
-                for (p in inner until innerEnd) {
-                    val source = row + p * m
-                    for (j in column until columnEnd) {
-                        val bv = if (transposeB) b[j + p * bRows] else b[p + j * bRows]
-                        val multiplier = alpha * bv
-                        if (multiplier != 0.0) kernels.axpy(c, row + j * m, multiplier, a, source, length)
+            for (j in column until columnEnd) {
+                var i = row
+                while (i + 4 <= rowEnd) {
+                    var inner = 0
+                    while (inner < depth) {
+                        val length = min(inner + REFERENCE_KC, depth) - inner
+                        kernels.dot4(
+                            a,
+                            aOff + inner + i * lda,
+                            lda,
+                            b,
+                            bOff + inner + j * ldb,
+                            length,
+                            sums,
+                            0,
+                        )
+                        for (r in 0 until 4) c[cOff + i + r + j * ldc] += alpha * sums[r]
+                        inner += length
                     }
+                    i += 4
                 }
-                inner = innerEnd
+                while (i < rowEnd) {
+                    var inner = 0
+                    while (inner < depth) {
+                        val length = min(inner + REFERENCE_KC, depth) - inner
+                        c[cOff + i + j * ldc] += alpha * kernels.dot(
+                            a,
+                            aOff + inner + i * lda,
+                            b,
+                            bOff + inner + j * ldb,
+                            length,
+                        )
+                        inner += length
+                    }
+                    i++
+                }
             }
             row = rowEnd
         }
         column = columnEnd
+    }
+}
+
+/** Adds a right-side triangular panel product, reading `op(T)` without packing a transposed triangle. */
+@Suppress("LongParameterList")
+internal fun blockedRightTriangularUpdate(
+    kernels: F64Kernels,
+    alpha: Double,
+    b: DoubleArray,
+    rows: Int,
+    triangle: DoubleArray,
+    triangleOrder: Int,
+    transpose: Boolean,
+    innerStart: Int,
+    depth: Int,
+    columnStart: Int,
+    columns: Int,
+) = blockedAxpyUpdate(
+    kernels,
+    alpha,
+    b,
+    innerStart * rows,
+    rows,
+    b,
+    columnStart * rows,
+    rows,
+    rows,
+    columns,
+    depth,
+) { p, j ->
+    val factorRow = innerStart + p
+    val factorColumn = columnStart + j
+    if (transpose) {
+        triangle[factorColumn + factorRow * triangleOrder]
+    } else {
+        triangle[factorRow + factorColumn * triangleOrder]
     }
 }
 
@@ -125,37 +233,7 @@ internal fun blockedSyrkUpdate(
     n: Int,
     depth: Int,
     lower: Boolean,
-) {
-    var column = 0
-    while (column < n) {
-        val columnEnd = min(column + REFERENCE_NC, n)
-        var row = if (lower) column else 0
-        val rowLimit = if (lower) n else columnEnd
-        while (row < rowLimit) {
-            val rowEnd = min(row + REFERENCE_MC, n)
-            var inner = 0
-            while (inner < depth) {
-                val innerEnd = min(inner + REFERENCE_KC, depth)
-                for (p in inner until innerEnd) {
-                    val sourceColumn = p * n
-                    for (j in column until columnEnd) {
-                        val from = maxOf(row, if (lower) j else 0)
-                        val until = min(rowEnd, if (lower) n else j + 1)
-                        if (from < until) {
-                            val multiplier = alpha * a[j + sourceColumn]
-                            if (multiplier != 0.0) {
-                                kernels.axpy(c, from + j * n, multiplier, a, from + sourceColumn, until - from)
-                            }
-                        }
-                    }
-                }
-                inner = innerEnd
-            }
-            row = rowEnd
-        }
-        column = columnEnd
-    }
-}
+): Unit = blockedSymmetricRankUpdate(kernels, alpha, a, null, c, n, depth, lower)
 
 /** Adds a symmetric rank-2k product from two `n x depth` column-major operands to one triangle of C. */
 @Suppress("LongParameterList")
@@ -168,37 +246,47 @@ internal fun blockedSyr2kUpdate(
     n: Int,
     depth: Int,
     lower: Boolean,
+): Unit = blockedSymmetricRankUpdate(kernels, alpha, a, b, c, n, depth, lower)
+
+/** Shared cache traversal for rank-k and rank-2k updates. */
+@Suppress("LongParameterList")
+private fun blockedSymmetricRankUpdate(
+    kernels: F64Kernels,
+    alpha: Double,
+    a: DoubleArray,
+    b: DoubleArray?,
+    c: DoubleArray,
+    n: Int,
+    depth: Int,
+    lower: Boolean,
 ) {
     var column = 0
     while (column < n) {
         val columnEnd = min(column + REFERENCE_NC, n)
-        var row = if (lower) column else 0
-        val rowLimit = if (lower) n else columnEnd
-        while (row < rowLimit) {
-            val rowEnd = min(row + REFERENCE_MC, n)
-            var inner = 0
-            while (inner < depth) {
-                val innerEnd = min(inner + REFERENCE_KC, depth)
-                for (p in inner until innerEnd) {
-                    val sourceColumn = p * n
-                    for (j in column until columnEnd) {
-                        val from = maxOf(row, if (lower) j else 0)
-                        val until = min(rowEnd, if (lower) n else j + 1)
-                        if (from < until) {
-                            val fromA = alpha * b[j + sourceColumn]
-                            val fromB = alpha * a[j + sourceColumn]
-                            if (fromA != 0.0) {
-                                kernels.axpy(c, from + j * n, fromA, a, from + sourceColumn, until - from)
-                            }
-                            if (fromB != 0.0) {
-                                kernels.axpy(c, from + j * n, fromB, b, from + sourceColumn, until - from)
-                            }
+        var inner = 0
+        while (inner < depth) {
+            val innerEnd = min(inner + REFERENCE_KC, depth)
+            for (p in inner until innerEnd) {
+                val sourceColumn = p * n
+                for (j in column until columnEnd) {
+                    val firstMultiplier = alpha * (b?.get(j + sourceColumn) ?: a[j + sourceColumn])
+                    val secondMultiplier = if (b == null) 0.0 else alpha * a[j + sourceColumn]
+                    val triangleFrom = if (lower) j else 0
+                    val triangleUntil = if (lower) n else j + 1
+                    var row = triangleFrom
+                    while (row < triangleUntil) {
+                        val length = min(row + REFERENCE_MC, triangleUntil) - row
+                        if (firstMultiplier != 0.0) {
+                            kernels.axpy(c, row + j * n, firstMultiplier, a, row + sourceColumn, length)
                         }
+                        if (secondMultiplier != 0.0) {
+                            kernels.axpy(c, row + j * n, secondMultiplier, b!!, row + sourceColumn, length)
+                        }
+                        row += length
                     }
                 }
-                inner = innerEnd
             }
-            row = rowEnd
+            inner = innerEnd
         }
         column = columnEnd
     }
@@ -216,7 +304,9 @@ internal fun blockedSymmLeftUpdate(
     columns: Int,
     lower: Boolean,
 ) {
-    val panel = DoubleArray(REFERENCE_MC * REFERENCE_KC)
+    val panelRows = min(REFERENCE_MC, n)
+    val panelDepth = min(REFERENCE_KC, n)
+    val panel = DoubleArray(panelRows * panelDepth)
     var row = 0
     while (row < n) {
         val rowEnd = min(row + REFERENCE_MC, n)
@@ -268,55 +358,8 @@ internal fun blockedSymmRightUpdate(
     rows: Int,
     n: Int,
     lower: Boolean,
-) {
-    var column = 0
-    while (column < n) {
-        val columnEnd = min(column + REFERENCE_NC, n)
-        var row = 0
-        while (row < rows) {
-            val rowEnd = min(row + REFERENCE_MC, rows)
-            var inner = 0
-            while (inner < n) {
-                val innerEnd = min(inner + REFERENCE_KC, n)
-                for (p in inner until innerEnd) {
-                    for (j in column until columnEnd) {
-                        val hi = maxOf(p, j)
-                        val lo = minOf(p, j)
-                        val av = if (lower) symmetric[hi + lo * n] else symmetric[lo + hi * n]
-                        val multiplier = alpha * av
-                        if (multiplier != 0.0) {
-                            kernels.axpy(c, row + j * rows, multiplier, b, row + p * rows, rowEnd - row)
-                        }
-                    }
-                }
-                inner = innerEnd
-            }
-            row = rowEnd
-        }
-        column = columnEnd
-    }
-}
-
-/** Packs `op(T)` while reading only T's selected triangle. */
-internal fun packTriangularOp(
-    source: DoubleArray,
-    n: Int,
-    lower: Boolean,
-    transpose: Boolean,
-    unitDiag: Boolean,
-): DoubleArray {
-    val packed = DoubleArray(n * n)
-    val effectiveLower = if (transpose) !lower else lower
-    for (j in 0 until n) {
-        val from = if (effectiveLower) j else 0
-        val until = if (effectiveLower) n else j + 1
-        for (i in from until until) {
-            packed[i + j * n] = when {
-                i == j && unitDiag -> 1.0
-                transpose -> source[j + i * n]
-                else -> source[i + j * n]
-            }
-        }
-    }
-    return packed
+): Unit = blockedAxpyUpdate(kernels, alpha, b, 0, rows, c, 0, rows, rows, n, n) { p, j ->
+    val hi = maxOf(p, j)
+    val lo = minOf(p, j)
+    if (lower) symmetric[hi + lo * n] else symmetric[lo + hi * n]
 }

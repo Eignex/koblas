@@ -7,6 +7,7 @@ import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.dense.applyBeta
 import com.eignex.koblas.dense.forEachRow
+import com.eignex.koblas.dense.transposeBlocked
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import com.eignex.koblas.sparse.basis.F64BasisSolver
@@ -18,6 +19,16 @@ import kotlin.math.min
 
 /** Dense right-hand sides processed per walk of portable CSC storage. */
 internal const val REFERENCE_SPARSE_RHS_WIDTH: Int = 4
+
+/** Visits dense right-hand sides in cache-sized panels. */
+private inline fun forEachRhsPanel(columns: Int, action: (start: Int, width: Int) -> Unit) {
+    var start = 0
+    while (start < columns) {
+        val width = min(REFERENCE_SPARSE_RHS_WIDTH, columns - start)
+        action(start, width)
+        start += width
+    }
+}
 
 /**
  * A portable sparse backend, available on every target. The sparse seams declare their routines and this
@@ -135,12 +146,10 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         val bd = b.data
         val ld = b.rows
         val work = DoubleArray(REFERENCE_SPARSE_RHS_WIDTH)
-        var columnStart = 0
-        while (columnStart < n) {
-            val columnEnd = min(columnStart + REFERENCE_SPARSE_RHS_WIDTH, n)
+        forEachRhsPanel(n) { columnStart, width ->
+            val columnEnd = columnStart + width
             if (transposeA) {
                 for (i in 0 until m) {
-                    val width = columnEnd - columnStart
                     work.fill(0.0, 0, width)
                     a.forEachInColumn(i) { j, v ->
                         for (rhs in 0 until width) {
@@ -152,7 +161,6 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
                 }
             } else {
                 for (j in 0 until k) {
-                    val width = columnEnd - columnStart
                     var any = false
                     for (rhs in 0 until width) {
                         val l = columnStart + rhs
@@ -170,7 +178,6 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
                     }
                 }
             }
-            columnStart = columnEnd
         }
     }
 
@@ -190,19 +197,19 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         m: Int,
     ) {
         val cd = c.data
-        val bd = b.data
-        val ld = b.rows
+        val bd = if (transposeB) {
+            DoubleArray(b.data.size).also { transposeBlocked(b.data, b.rows, b.cols, it) }
+        } else {
+            b.data
+        }
+        val ld = if (transposeB) m else b.rows
         for (column in 0 until a.cols) {
             a.forEachInColumn(column) { row, v ->
                 val scaled = alpha * v
                 if (scaled != 0.0) {
                     val cOff = (if (transposeA) row else column) * m
                     val bColumn = if (transposeA) column else row
-                    if (transposeB) {
-                        for (i in 0 until m) cd[cOff + i] += scaled * bd[bColumn + i * ld]
-                    } else {
-                        denseKernels.axpy(cd, cOff, scaled, bd, bColumn * ld, m)
-                    }
+                    denseKernels.axpy(cd, cOff, scaled, bd, bColumn * ld, m)
                 }
             }
         }
@@ -245,12 +252,7 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
             } catch (singular: SingularMatrix) {
                 // Preserve the documented per-RHS partial mutation when a solve fails. Healthy matrices keep
                 // the cached diagonal and avoid looking it up again in every panel.
-                if (right) {
-                    forEachRow(n, b) { row -> trsvCore(a, row, 0, lower, !transpose, false) }
-                } else {
-                    for (column in 0 until b.cols) trsvCore(a, b.data, column * n, lower, transpose, false)
-                }
-                throw singular
+                replaySingularSolve(a, b, lower, transpose, right, singular)
             }
         }
         if (right) {
@@ -272,9 +274,7 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         val bd = b.data
         val work = DoubleArray(REFERENCE_SPARSE_RHS_WIDTH)
         val order = if (lower != transpose) 0 until n else n - 1 downTo 0
-        var columnStart = 0
-        while (columnStart < b.cols) {
-            val width = min(REFERENCE_SPARSE_RHS_WIDTH, b.cols - columnStart)
+        forEachRhsPanel(b.cols) { columnStart, width ->
             for (j in order) {
                 if (!transpose) {
                     val divisor = diagonal?.get(j) ?: 1.0
@@ -302,8 +302,24 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
                     for (rhs in 0 until width) bd[(columnStart + rhs) * n + j] = work[rhs] / divisor
                 }
             }
-            columnStart += width
         }
+    }
+
+    /** Replays the original per-RHS solve to retain its partial-mutation contract, then propagates failure. */
+    private fun replaySingularSolve(
+        a: F64SparseMatrix,
+        b: F64DenseMatrix,
+        lower: Boolean,
+        transpose: Boolean,
+        right: Boolean,
+        original: SingularMatrix,
+    ): Nothing {
+        if (right) {
+            forEachRow(a.rows, b) { row -> trsvCore(a, row, 0, lower, !transpose, false) }
+        } else {
+            for (column in 0 until b.cols) trsvCore(a, b.data, column * a.rows, lower, transpose, false)
+        }
+        throw IllegalStateException("sparse triangle changed while replaying a singular solve", original)
     }
 
     /** Right solve over contiguous dense columns, which turns every sparse update into a Level 1 operation. */

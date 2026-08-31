@@ -17,15 +17,15 @@ import kotlin.math.min
 
 /** Stages each row of [b] through a scratch vector and applies [op] to it, with the transpose flag
  *  flipped. */
-internal inline fun forEachRow(n: Int, b: F64DenseMatrix, op: (DoubleArray) -> Unit) {
+internal inline fun forEachRow(n: Int, b: F64DenseMatrix, columnOffset: Int = 0, op: (DoubleArray) -> Unit) {
     if (n == 0) return
     val rows = b.rows
     val bd = b.data
     val row = DoubleArray(n)
     for (i in 0 until rows) {
-        for (j in 0 until n) row[j] = bd[i + j * rows]
+        for (j in 0 until n) row[j] = bd[i + (columnOffset + j) * rows]
         op(row)
-        for (j in 0 until n) bd[i + j * rows] = row[j]
+        for (j in 0 until n) bd[i + (columnOffset + j) * rows] = row[j]
     }
 }
 
@@ -152,8 +152,8 @@ internal fun triangularVector(
 /**
  * The body [F64Blas.trsm] and [F64Blas.trmm] share, with [solve] selecting the core as in [triangularVector].
  *
- * Matrix operations pack a transposed triangle once, solve or multiply diagonal blocks with the vector
- * cores, and send off-diagonal updates through the shared blocked level-3 kernel.
+ * Matrix operations solve or multiply diagonal blocks with the vector cores and send off-diagonal updates
+ * through shared blocked level-3 kernels. A transposed triangle is read in its original storage orientation.
  */
 @Suppress("LongParameterList") // the shared BLAS signature plus the entry-point flag
 internal fun triangularMatrix(
@@ -184,30 +184,28 @@ internal fun triangularMatrix(
         }
         if (alpha != 1.0) k.scale(b.data, 0, alpha, b.data.size)
     }
-    val packed = if (transpose) packTriangularOp(a.data, a.rows, lower, true, unitDiag) else a.data
-    val effectiveLower = if (transpose) !lower else lower
-    val packedUnitDiag = unitDiag && !transpose
     if (solve) {
-        blockedTriangularSolve(k, packed, a.rows, b, effectiveLower, packedUnitDiag, right)
+        blockedTriangularSolve(k, a.data, a.rows, b, lower, transpose, unitDiag, right)
     } else {
-        blockedTriangularMultiply(k, packed, a.rows, b, effectiveLower, packedUnitDiag, right)
+        blockedTriangularMultiply(k, a.data, a.rows, b, lower, transpose, unitDiag, right)
     }
 }
 
-/** Blocked TRSM over a column-major `op(T)`, packed when the public operation requested a transpose. */
+/** Blocked TRSM over a column-major triangle. */
 private fun blockedTriangularSolve(
     k: F64Kernels,
     triangle: DoubleArray,
     n: Int,
     b: F64DenseMatrix,
     lower: Boolean,
+    transpose: Boolean,
     unitDiag: Boolean,
     right: Boolean,
 ) {
     if (right) {
-        blockedRightSolve(k, triangle, n, b, lower, unitDiag)
+        blockedRightSolve(k, triangle, n, b, lower, transpose, unitDiag)
     } else {
-        blockedLeftSolve(k, triangle, n, b, lower, unitDiag)
+        blockedLeftSolve(k, triangle, n, b, lower, transpose, unitDiag)
     }
 }
 
@@ -217,20 +215,27 @@ private fun blockedLeftSolve(
     n: Int,
     b: F64DenseMatrix,
     lower: Boolean,
+    transpose: Boolean,
     unitDiag: Boolean,
 ) {
     val bd = b.data
     val nrhs = b.cols
-    if (lower) {
+    val effectiveLower = if (transpose) !lower else lower
+    if (effectiveLower) {
         var start = 0
         while (start < n) {
             val end = min(start + REFERENCE_TRIANGULAR_BLOCK, n)
             val size = end - start
             for (column in 0 until nrhs) {
-                trsvCore(k, triangle, size, bd, start + start * n, column * n + start, n, true, false, unitDiag)
+                trsvCore(
+                    k, triangle, size, bd, start + start * n, column * n + start, n,
+                    lower, transpose, unitDiag,
+                )
             }
             if (end < n) {
-                blockedUpdate(k, -1.0, triangle, end + start * n, n, bd, start, n, bd, end, n, n - end, nrhs, size)
+                blockedLeftTriangularUpdate(
+                    k, -1.0, triangle, n, transpose, bd, end, n - end, start, size, nrhs,
+                )
             }
             start = end
         }
@@ -240,13 +245,43 @@ private fun blockedLeftSolve(
             val start = max(0, end - REFERENCE_TRIANGULAR_BLOCK)
             val size = end - start
             for (column in 0 until nrhs) {
-                trsvCore(k, triangle, size, bd, start + start * n, column * n + start, n, false, false, unitDiag)
+                trsvCore(
+                    k, triangle, size, bd, start + start * n, column * n + start, n,
+                    lower, transpose, unitDiag,
+                )
             }
             if (start > 0) {
-                blockedUpdate(k, -1.0, triangle, start * n, n, bd, start, n, bd, 0, n, start, nrhs, size)
+                blockedLeftTriangularUpdate(k, -1.0, triangle, n, transpose, bd, 0, start, start, size, nrhs)
             }
             end = start
         }
+    }
+}
+
+@Suppress("LongParameterList")
+private fun blockedLeftTriangularUpdate(
+    k: F64Kernels,
+    alpha: Double,
+    triangle: DoubleArray,
+    n: Int,
+    transpose: Boolean,
+    b: DoubleArray,
+    rowStart: Int,
+    rowCount: Int,
+    innerStart: Int,
+    innerCount: Int,
+    columns: Int,
+) {
+    if (transpose) {
+        blockedTransposedLeftUpdate(
+            k, alpha, triangle, innerStart + rowStart * n, n,
+            b, innerStart, n, b, rowStart, n, rowCount, columns, innerCount,
+        )
+    } else {
+        blockedUpdate(
+            k, alpha, triangle, rowStart + innerStart * n, n,
+            b, innerStart, n, b, rowStart, n, rowCount, columns, innerCount,
+        )
     }
 }
 
@@ -256,47 +291,48 @@ private fun blockedRightSolve(
     n: Int,
     b: F64DenseMatrix,
     lower: Boolean,
+    transpose: Boolean,
     unitDiag: Boolean,
 ) {
     val rows = b.rows
     val bd = b.data
-    val row = DoubleArray(REFERENCE_TRIANGULAR_BLOCK)
-    var boundary = if (lower) n else 0
-    while (if (lower) boundary > 0 else boundary < n) {
-        val start = if (lower) max(0, boundary - REFERENCE_TRIANGULAR_BLOCK) else boundary
-        val end = if (lower) boundary else min(boundary + REFERENCE_TRIANGULAR_BLOCK, n)
+    val effectiveLower = if (transpose) !lower else lower
+    var boundary = if (effectiveLower) n else 0
+    while (if (effectiveLower) boundary > 0 else boundary < n) {
+        val start = if (effectiveLower) max(0, boundary - REFERENCE_TRIANGULAR_BLOCK) else boundary
+        val end = if (effectiveLower) boundary else min(boundary + REFERENCE_TRIANGULAR_BLOCK, n)
         val size = end - start
-        for (i in 0 until rows) {
-            for (j in 0 until size) row[j] = bd[i + (start + j) * rows]
-            trsvCore(k, triangle, size, row, start + start * n, 0, n, lower, true, unitDiag)
-            for (j in 0 until size) bd[i + (start + j) * rows] = row[j]
+        forEachRow(size, b, start) { row ->
+            trsvCore(k, triangle, size, row, start + start * n, 0, n, lower, !transpose, unitDiag)
         }
-        if (lower && start > 0) {
-            blockedUpdate(k, -1.0, bd, start * rows, rows, triangle, start, n, bd, 0, rows, rows, start, size)
-        } else if (!lower && end < n) {
-            blockedUpdate(
-                k, -1.0, bd, start * rows, rows, triangle, start + end * n, n,
-                bd, end * rows, rows, rows, n - end, size,
+        if (effectiveLower && start > 0) {
+            blockedRightTriangularUpdate(
+                k, -1.0, bd, rows, triangle, n, transpose, start, size, 0, start,
+            )
+        } else if (!effectiveLower && end < n) {
+            blockedRightTriangularUpdate(
+                k, -1.0, bd, rows, triangle, n, transpose, start, size, end, n - end,
             )
         }
-        boundary = if (lower) start else end
+        boundary = if (effectiveLower) start else end
     }
 }
 
-/** Blocked TRMM over a column-major `op(T)`, packed when the public operation requested a transpose. */
+/** Blocked TRMM over a column-major triangle. */
 private fun blockedTriangularMultiply(
     k: F64Kernels,
     triangle: DoubleArray,
     n: Int,
     b: F64DenseMatrix,
     lower: Boolean,
+    transpose: Boolean,
     unitDiag: Boolean,
     right: Boolean,
 ) {
     if (right) {
-        blockedRightMultiply(k, triangle, n, b, lower, unitDiag)
+        blockedRightMultiply(k, triangle, n, b, lower, transpose, unitDiag)
     } else {
-        blockedLeftMultiply(k, triangle, n, b, lower, unitDiag)
+        blockedLeftMultiply(k, triangle, n, b, lower, transpose, unitDiag)
     }
 }
 
@@ -306,27 +342,31 @@ private fun blockedLeftMultiply(
     n: Int,
     b: F64DenseMatrix,
     lower: Boolean,
+    transpose: Boolean,
     unitDiag: Boolean,
 ) {
     val bd = b.data
     val nrhs = b.cols
-    var boundary = if (lower) n else 0
-    while (if (lower) boundary > 0 else boundary < n) {
-        val start = if (lower) max(0, boundary - REFERENCE_TRIANGULAR_BLOCK) else boundary
-        val end = if (lower) boundary else min(boundary + REFERENCE_TRIANGULAR_BLOCK, n)
+    val effectiveLower = if (transpose) !lower else lower
+    var boundary = if (effectiveLower) n else 0
+    while (if (effectiveLower) boundary > 0 else boundary < n) {
+        val start = if (effectiveLower) max(0, boundary - REFERENCE_TRIANGULAR_BLOCK) else boundary
+        val end = if (effectiveLower) boundary else min(boundary + REFERENCE_TRIANGULAR_BLOCK, n)
         val size = end - start
         for (column in 0 until nrhs) {
-            trmvCore(k, triangle, size, bd, start + start * n, column * n + start, n, lower, false, unitDiag)
-        }
-        if (lower && start > 0) {
-            blockedUpdate(k, 1.0, triangle, start, n, bd, 0, n, bd, start, n, size, nrhs, start)
-        } else if (!lower && end < n) {
-            blockedUpdate(
-                k, 1.0, triangle, start + end * n, n, bd, end, n,
-                bd, start, n, size, nrhs, n - end,
+            trmvCore(
+                k, triangle, size, bd, start + start * n, column * n + start, n,
+                lower, transpose, unitDiag,
             )
         }
-        boundary = if (lower) start else end
+        if (effectiveLower && start > 0) {
+            blockedLeftTriangularUpdate(k, 1.0, triangle, n, transpose, bd, start, size, 0, start, nrhs)
+        } else if (!effectiveLower && end < n) {
+            blockedLeftTriangularUpdate(
+                k, 1.0, triangle, n, transpose, bd, start, size, end, n - end, nrhs,
+            )
+        }
+        boundary = if (effectiveLower) start else end
     }
 }
 
@@ -336,30 +376,27 @@ private fun blockedRightMultiply(
     n: Int,
     b: F64DenseMatrix,
     lower: Boolean,
+    transpose: Boolean,
     unitDiag: Boolean,
 ) {
-    val rows = b.rows
     val bd = b.data
-    val row = DoubleArray(REFERENCE_TRIANGULAR_BLOCK)
-    var boundary = if (lower) 0 else n
-    while (if (lower) boundary < n else boundary > 0) {
-        val start = if (lower) boundary else max(0, boundary - REFERENCE_TRIANGULAR_BLOCK)
-        val end = if (lower) min(boundary + REFERENCE_TRIANGULAR_BLOCK, n) else boundary
+    val effectiveLower = if (transpose) !lower else lower
+    var boundary = if (effectiveLower) 0 else n
+    while (if (effectiveLower) boundary < n else boundary > 0) {
+        val start = if (effectiveLower) boundary else max(0, boundary - REFERENCE_TRIANGULAR_BLOCK)
+        val end = if (effectiveLower) min(boundary + REFERENCE_TRIANGULAR_BLOCK, n) else boundary
         val size = end - start
-        for (i in 0 until rows) {
-            for (j in 0 until size) row[j] = bd[i + (start + j) * rows]
-            trmvCore(k, triangle, size, row, start + start * n, 0, n, lower, true, unitDiag)
-            for (j in 0 until size) bd[i + (start + j) * rows] = row[j]
+        forEachRow(size, b, start) { row ->
+            trmvCore(k, triangle, size, row, start + start * n, 0, n, lower, !transpose, unitDiag)
         }
-        if (lower && end < n) {
-            blockedUpdate(
-                k, 1.0, bd, end * rows, rows, triangle, end + start * n, n,
-                bd, start * rows, rows, rows, size, n - end,
+        if (effectiveLower && end < n) {
+            blockedRightTriangularUpdate(
+                k, 1.0, bd, b.rows, triangle, n, transpose, end, n - end, start, size,
             )
-        } else if (!lower && start > 0) {
-            blockedUpdate(k, 1.0, bd, 0, rows, triangle, start * n, n, bd, start * rows, rows, rows, size, start)
+        } else if (!effectiveLower && start > 0) {
+            blockedRightTriangularUpdate(k, 1.0, bd, b.rows, triangle, n, transpose, 0, start, start, size)
         }
-        boundary = if (lower) end else start
+        boundary = if (effectiveLower) end else start
     }
 }
 

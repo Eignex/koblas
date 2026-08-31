@@ -279,17 +279,14 @@ class LinearAlgebraSymmetricOpsTest {
     }
 
     @Test
-    fun `symmetric level three operations cross their cache tile boundaries`() {
+    fun `syrk crosses its cache tile boundaries`() {
         val rng = Random(20261031)
         for ((n, k) in listOf((REFERENCE_MC + 1) to 3, (REFERENCE_NC + 3) to (REFERENCE_KC + 2))) {
             for (transpose in booleanArrayOf(false, true)) {
                 val a = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
-                val b = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
                 for (lower in booleanArrayOf(false, true)) {
                     val rankOne = F64DenseMatrix(n, n)
                     F64ReferenceLinearAlgebra.syrk(0.75, a, transpose, 0.0, rankOne, lower)
-                    val rankTwo = F64DenseMatrix(n, n)
-                    F64ReferenceLinearAlgebra.syr2k(0.75, a, b, transpose, 0.0, rankTwo, lower)
                     for (j in 0 until n) {
                         val range = if (lower) j until n else 0..j
                         for (i in range) {
@@ -300,6 +297,26 @@ class LinearAlgebraSymmetricOpsTest {
                                 aa += ai * aj
                             }
                             assertClose(0.75 * aa, rankOne[i, j], "syrk n=$n t=$transpose l=$lower")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `syr2k crosses its cache tile boundaries`() {
+        val rng = Random(20261031)
+        for ((n, k) in listOf((REFERENCE_MC + 1) to 3, (REFERENCE_NC + 3) to (REFERENCE_KC + 2))) {
+            for (transpose in booleanArrayOf(false, true)) {
+                val a = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
+                val b = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
+                for (lower in booleanArrayOf(false, true)) {
+                    val rankTwo = F64DenseMatrix(n, n)
+                    F64ReferenceLinearAlgebra.syr2k(0.75, a, b, transpose, 0.0, rankTwo, lower)
+                    for (j in 0 until n) {
+                        val range = if (lower) j until n else 0..j
+                        for (i in range) {
                             assertClose(
                                 0.75 * syr2kEntry(a, b, transpose, k, i, j),
                                 rankTwo[i, j],
@@ -310,7 +327,11 @@ class LinearAlgebraSymmetricOpsTest {
                 }
             }
         }
+    }
 
+    @Test
+    fun `left symm crosses its cache tile boundaries`() {
+        val rng = Random(20261031)
         val n = REFERENCE_MC + 1
         val columns = REFERENCE_NC + 1
         for (lower in booleanArrayOf(false, true)) {
@@ -321,6 +342,22 @@ class LinearAlgebraSymmetricOpsTest {
             val actual = F64DenseMatrix(n, columns)
             F64ReferenceLinearAlgebra.symm(0.75, selected, b, 0.0, actual, lower)
             assertClose(expected, actual, "symm n=$n lower=$lower", tolerance = 1e-10)
+        }
+    }
+
+    @Test
+    fun `right symm crosses its cache tile boundaries`() {
+        val rng = Random(20261031)
+        val rows = REFERENCE_MC + 1
+        val n = REFERENCE_NC + 1
+        for (lower in booleanArrayOf(false, true)) {
+            val (full, selected) = poisonedSymmetric(rng, n, lower)
+            val b = randomMatrix(rows, n, rng)
+            val expected = F64DenseMatrix(rows, n)
+            F64ReferenceLinearAlgebra.gemm(0.75, b, false, full, false, 0.0, expected)
+            val actual = F64DenseMatrix(rows, n)
+            F64ReferenceLinearAlgebra.symm(0.75, selected, b, 0.0, actual, lower, right = true)
+            assertClose(expected, actual, "right symm n=$n lower=$lower", tolerance = 1e-10)
         }
     }
 

@@ -87,12 +87,26 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         applyBeta(kernels, cd, 0, cd.size, beta)
         if (alpha == 0.0 || m == 0 || n == 0 || k == 0) return
         val kernels = kernels
-        if (transposeA) {
-            val packed = DoubleArray(m * k)
-            transposeBlocked(a.data, a.rows, a.cols, packed)
-            blockedGemmUpdate(kernels, alpha, packed, b.data, b.rows, transposeB, cd, m, n, k)
-        } else {
-            blockedGemmUpdate(kernels, alpha, a.data, b.data, b.rows, transposeB, cd, m, n, k)
+        when {
+            !transposeA -> blockedGemmUpdate(kernels, alpha, a.data, b.data, b.rows, transposeB, cd, m, n, k)
+
+            !transposeB -> blockedTransposedLeftUpdate(
+                kernels, alpha, a.data, 0, a.rows, b.data, 0, b.rows, cd, 0, m, m, n, k,
+            )
+
+            b.data.size <= a.data.size -> {
+                val packedB = DoubleArray(k * n)
+                transposeBlocked(b.data, b.rows, b.cols, packedB)
+                blockedTransposedLeftUpdate(
+                    kernels, alpha, a.data, 0, a.rows, packedB, 0, k, cd, 0, m, m, n, k,
+                )
+            }
+
+            else -> {
+                val packedA = DoubleArray(m * k)
+                transposeBlocked(a.data, a.rows, a.cols, packedA)
+                blockedGemmUpdate(kernels, alpha, packedA, b.data, b.rows, true, cd, m, n, k)
+            }
         }
     }
 
