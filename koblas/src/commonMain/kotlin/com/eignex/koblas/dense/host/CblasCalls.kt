@@ -154,6 +154,22 @@ internal interface CblasCalls {
         ldc: Int,
     )
 
+    fun dsyr2k(
+        order: Int,
+        uplo: Int,
+        trans: Int,
+        n: Int,
+        k: Int,
+        alpha: Double,
+        a: DoubleArray,
+        lda: Int,
+        b: DoubleArray,
+        ldb: Int,
+        beta: Double,
+        c: DoubleArray,
+        ldc: Int,
+    )
+
     fun dsymm(
         order: Int,
         side: Int,

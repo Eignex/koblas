@@ -70,7 +70,7 @@ public abstract class F64BlasAdapter internal constructor(
         }
     }
 
-    @Suppress("LongParameterList") // the BLAS dsyr2k signature plus optional scratch
+    @Suppress("LongParameterList", "ReturnCount") // dsyr2k's arguments plus scratch; guard-clause style
     override fun syr2k(
         alpha: Double,
         a: F64DenseMatrix,
@@ -80,7 +80,23 @@ public abstract class F64BlasAdapter internal constructor(
         c: F64DenseMatrix,
         lower: Boolean,
         workspace: Workspace?,
-    ): Unit = portable.syr2k(alpha, a, b, transpose, beta, c, lower, workspace)
+    ) {
+        val n = if (transpose) a.cols else a.rows
+        val k = if (transpose) a.rows else a.cols
+        requireShape(b.rows == a.rows && b.cols == a.cols) {
+            "syr2k: B is ${b.rows}x${b.cols}, expected ${a.rows}x${a.cols} to match A"
+        }
+        requireShape(c.rows == n && c.cols == n) { "syr2k: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
+        if (alpha == 0.0 || k == 0) {
+            scaleTriangle(kernels, c.data, n, beta, lower)
+            return
+        }
+        if (n == 0) return
+        f.dsyr2k(
+            COL_MAJOR, uploOf(lower), transOf(transpose), n, k, alpha,
+            a.data, a.rows, b.data, b.rows, beta, c.data, n,
+        )
+    }
 
     /** `v = beta * v`, honoring the BLAS convention that `beta == 0` overwrites without reading. */
     private fun scaleInPlace(v: DoubleArray, beta: Double) {

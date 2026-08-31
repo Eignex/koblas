@@ -145,6 +145,23 @@ class AdapterBorrowTest {
         ): Unit = error("libopenblas.so.0: cannot open shared object file")
 
         @Suppress("LongParameterList")
+        override fun dsyr2k(
+            order: Int,
+            uplo: Int,
+            trans: Int,
+            n: Int,
+            k: Int,
+            alpha: Double,
+            a: DoubleArray,
+            lda: Int,
+            b: DoubleArray,
+            ldb: Int,
+            beta: Double,
+            c: DoubleArray,
+            ldc: Int,
+        ) = error("unused")
+
+        @Suppress("LongParameterList")
         override fun dsymm(
             order: Int,
             side: Int,
