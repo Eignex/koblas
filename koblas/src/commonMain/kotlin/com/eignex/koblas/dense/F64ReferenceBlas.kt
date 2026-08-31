@@ -450,13 +450,15 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         }
         val xs = x.data
         val ys = y.data
+        val kernels = kernels
         for (j in 0 until n) {
-            // Column j of the update is x(j) times y plus y(j) times x, so both being zero empties it.
-            if (xs[j] == 0.0 && ys[j] == 0.0) continue
-            for (i in j until n) {
-                val v = alpha * (xs[i] * ys[j] + ys[i] * xs[j])
-                if (v != 0.0) addTriangle(ad, n, i, j, v, lower)
-            }
+            val off = if (lower) j + j * n else j * n
+            val len = if (lower) n - j else j + 1
+            val xOff = if (lower) j else 0
+            // BLAS dsyr2 is two rank-one updates. Keeping them as separate axpys reaches the selected
+            // contiguous kernel and agrees with OpenBLAS's own dsyr2 implementation.
+            kernels.axpy(ad, off, alpha * ys[j], xs, xOff, len)
+            kernels.axpy(ad, off, alpha * xs[j], ys, xOff, len)
         }
     }
 

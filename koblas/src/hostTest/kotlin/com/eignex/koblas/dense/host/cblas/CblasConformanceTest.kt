@@ -120,6 +120,9 @@ class CblasConformanceTest {
     fun `ger matches reference`() = assertGerAgreesWithReference(cblas)
 
     @Test
+    fun `syr and syr2 match reference`() = assertSyrAgreesWithReference(cblas)
+
+    @Test
     fun `installed level-1 kernels agree with the scalar ones`() = assertLevel1KernelsAgreeWithScalar(F64CblasKernels())
 
     @Test

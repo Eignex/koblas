@@ -46,6 +46,30 @@ class AdapterBorrowTest {
             lda: Int,
         ) = error("unused")
 
+        override fun dsyr(
+            order: Int,
+            uplo: Int,
+            n: Int,
+            alpha: Double,
+            x: DoubleArray,
+            incx: Int,
+            a: DoubleArray,
+            lda: Int,
+        ) = error("unused")
+
+        override fun dsyr2(
+            order: Int,
+            uplo: Int,
+            n: Int,
+            alpha: Double,
+            x: DoubleArray,
+            incx: Int,
+            y: DoubleArray,
+            incy: Int,
+            a: DoubleArray,
+            lda: Int,
+        ) = error("unused")
+
         @Suppress("LongParameterList")
         override fun dsymv(
             order: Int,

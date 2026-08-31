@@ -58,6 +58,27 @@ internal fun assertGerAgreesWithReference(blas: F64Blas) {
     }
 }
 
+internal fun assertSyrAgreesWithReference(blas: F64Blas) {
+    val rng = Random(20260831)
+    for (n in intArrayOf(1, 7, 31)) {
+        for (lower in booleanArrayOf(true, false)) {
+            val x = F64DenseVector.of(DoubleArray(n) { rng.nextDouble(-1.0, 1.0) })
+            val y = F64DenseVector.of(DoubleArray(n) { rng.nextDouble(-1.0, 1.0) })
+            val seed = randomMatrix(n, n, rng)
+            val syrExpected = F64DenseMatrix(n, n, seed.data.copyOf())
+            val syrActual = F64DenseMatrix(n, n, seed.data.copyOf())
+            reference.syr(0.75, x, syrExpected, lower)
+            blas.syr(0.75, x, syrActual, lower)
+            assertClose(syrExpected, syrActual, "syr n=$n lower=$lower")
+            val syr2Expected = F64DenseMatrix(n, n, seed.data.copyOf())
+            val syr2Actual = F64DenseMatrix(n, n, seed.data.copyOf())
+            reference.syr2(-0.5, x, y, syr2Expected, lower)
+            blas.syr2(-0.5, x, y, syr2Actual, lower)
+            assertClose(syr2Expected, syr2Actual, "syr2 n=$n lower=$lower")
+        }
+    }
+}
+
 /** The unselected triangle is NaN, so reading outside the promised one fails the comparison. */
 internal fun assertTriangularAgreesWithReference(blas: F64Blas, sizes: IntArray) {
     val rng = Random(20260801)
