@@ -12,19 +12,28 @@ import com.eignex.koblas.koblas
  *
  * The returned matrix is a copy: changing it cannot change this factorization or later solves.
  */
-public fun F64LuDecomposition.lowerFactor(): F64DenseMatrix = lower()
+public fun F64LuDecomposition.lowerFactor(): F64DenseMatrix = F64DenseMatrix(rows, order).also { lower ->
+    for (column in 0 until order) {
+        lower[column, column] = 1.0
+        for (row in column + 1 until rows) lower[row, column] = lu[row + column * rows]
+    }
+}
 
 /**
  * A standalone upper-trapezoidal `U` from this `P·A = L·U` factorization.
  *
  * The returned matrix is a copy: changing it cannot change this factorization or later solves.
  */
-public fun F64LuDecomposition.upperFactor(): F64DenseMatrix = upper()
+public fun F64LuDecomposition.upperFactor(): F64DenseMatrix = F64DenseMatrix(order, cols).also { upper ->
+    for (column in 0 until cols) {
+        for (row in 0..minOf(column, order - 1)) upper[row, column] = lu[row + column * rows]
+    }
+}
 
 /**
  * A defensive copy of the row permutation, where entry `k` is the original row at pivot position `k`.
  */
-public fun F64LuDecomposition.rowOrder(): IntArray = rowPermutation
+public fun F64LuDecomposition.rowOrder(): IntArray = mutablePivots.copyOf()
 
 /**
  * The sign of `det(A)`, including the row permutation. It is zero when this factorization is singular or

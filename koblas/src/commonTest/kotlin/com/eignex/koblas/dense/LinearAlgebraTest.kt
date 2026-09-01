@@ -58,7 +58,7 @@ class LinearAlgebraTest {
             assertEquals(expected.rows, actual.rows, "rows ${rows}x$cols")
             assertEquals(expected.cols, actual.cols, "cols ${rows}x$cols")
             assertClose(expected.lu, actual.lu, "factors ${rows}x$cols")
-            assertEquals(expected.rowPermutation.toList(), actual.rowPermutation.toList(), "pivots ${rows}x$cols")
+            assertEquals(expected.rowOrder().toList(), actual.rowOrder().toList(), "pivots ${rows}x$cols")
         }
     }
 
@@ -75,9 +75,9 @@ class LinearAlgebraTest {
     fun `LU exposes a zero based defensive row permutation`() {
         val factor = F64DenseMatrix.of(arrayOf(doubleArrayOf(0.0, 1.0), doubleArrayOf(1.0, 0.0))).lu()
 
-        assertContentEquals(intArrayOf(1, 0), factor.rowPermutation)
+        assertContentEquals(intArrayOf(1, 0), factor.rowOrder())
         assertEquals(1, factor.rowAt(0))
-        val copy = factor.rowPermutation
+        val copy = factor.rowOrder()
         copy[0] = 0
         assertEquals(1, factor.rowAt(0), "changing the returned permutation must not alter the factor")
     }
