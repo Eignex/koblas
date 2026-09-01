@@ -118,7 +118,7 @@ class KernelsTest {
     }
 
     @Test
-    fun `modified Givens operations route to the selected backend`() = withCleanBackends {
+    fun `rotmg routes to the selected backend while rotm stays on the compiled-in kernels`() = withCleanBackends {
         val recording = Recording()
         registerBackend(recording)
         val transformation = rotmg(1.0, 1.0, 1.0, 2.0)
@@ -128,9 +128,23 @@ class KernelsTest {
         rotm(x, y, transformation)
 
         assertEquals(1, recording.rotmgs, "rotmg did not route")
-        assertEquals(1, recording.rotms, "rotm did not route")
+        assertEquals(0, recording.rotms, "rotm measured slower on a host at every length, so it must not route")
         assertContentEquals(doubleArrayOf(2.0, 3.5), x.data)
         assertContentEquals(doubleArrayOf(-1.5, 3.0), y.data)
+    }
+
+    @Test
+    fun `a long rotm run stays on the compiled-in kernels too`() = withCleanBackends {
+        val recording = Recording()
+        registerBackend(recording)
+        val transformation = rotmg(1.0, 1.0, 1.0, 2.0)
+        val long = 4096
+        val x = F64DenseVector.of(DoubleArray(long) { 2.0 })
+        val y = F64DenseVector.of(DoubleArray(long) { 1.0 })
+
+        rotm(x, y, transformation)
+
+        assertEquals(0, recording.rotms, "no length hands rotm to a host, unlike the crossover-gated routines")
     }
 
     @Test

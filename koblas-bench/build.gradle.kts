@@ -67,6 +67,10 @@ benchmark {
             defaults()
             val requestedInclude = providers.gradleProperty("bench.include").orNull?.takeIf { it.isNotBlank() }
             include(if (requestedInclude != null) "\\.(?:$requestedInclude)$" else "(?!)")
+            // A crossover measurement needs longer runs than the defaults to separate two close arms.
+            providers.gradleProperty("bench.warmups").orNull?.let { warmups = it.trim().toInt() }
+            providers.gradleProperty("bench.iterations").orNull?.let { iterations = it.trim().toInt() }
+            providers.gradleProperty("bench.iterationTime").orNull?.let { iterationTime = it.trim().toLong() }
             gradle.startParameter.projectProperties
                 .filterKeys { it.startsWith("bench.param.") }
                 .forEach { (key, value) ->

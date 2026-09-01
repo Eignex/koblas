@@ -26,6 +26,9 @@ For local A/B work:
   -Pbench.param.backend=reference,host
 ```
 
+Add `-Pbench.warmups`, `-Pbench.iterations`, or `-Pbench.iterationTime` (in milliseconds) when a comparison
+needs longer runs than the defaults to separate two close arms; a crossover measurement usually does.
+
 `automatic` measures normal production discovery, `reference` installs the
 portable implementation, and `host` explicitly installs a host backend and
 fails if unavailable. The report profile compares `automatic` with `reference`
