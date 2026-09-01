@@ -5,8 +5,8 @@ package com.eignex.koblas.sparse.host.cholmod
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.NotPositiveDefinite
 import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.sparse.F64QuasiDefiniteLdlFactorization
 import com.eignex.koblas.sparse.F64SparseCholeskyFactorization
-import com.eignex.koblas.sparse.F64SparseLdlFactorization
 import kotlinx.cinterop.*
 
 /**
@@ -42,7 +42,7 @@ public class CholmodCholesky(config: CholmodConfig = CholmodConfig()) {
      * since an `L·D·Lᵀ` failing means the matrix is singular where an `L·Lᵀ` failing only means it was not
      * positive definite.
      */
-    public fun factorLdl(a: F64SparseMatrix): F64SparseLdlFactorization? =
+    public fun factorQuasiDefiniteLdl(a: F64SparseMatrix): F64QuasiDefiniteLdlFactorization? =
         build(a, finalLl = 0) { minor, n -> if (minor < n) minor else NOT_SINGULAR }
             ?.let(::CholmodLdlFactorization)
 

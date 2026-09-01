@@ -3,7 +3,7 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.sparse.factorization.cholesky.F64SparseUpLookingCholesky
-import com.eignex.koblas.sparse.factorization.ldl.F64SparseUpLookingLdl
+import com.eignex.koblas.sparse.factorization.ldl.F64QuasiDefiniteUpLookingLdl
 import com.eignex.koblas.sparse.factorization.lu.F64SparseMarkowitzLu
 import com.eignex.koblas.sparse.factorization.lu.NO_DROP
 import com.eignex.koblas.sparse.factorization.qr.F64SparseHouseholderQr
@@ -25,7 +25,7 @@ public open class F64ReferenceSparseDecompositions(
 ) : F64SparseDecompositions,
     F64GeneralSparseLu,
     F64SparseCholesky,
-    F64SparseLdl,
+    F64QuasiDefiniteLdl,
     F64SparseQr {
     init {
         require(dropTolerance >= 0.0) { "dropTolerance must not be negative" }
@@ -45,7 +45,8 @@ public open class F64ReferenceSparseDecompositions(
     )
 
     /** The knobs stay out of this one too, for the reason above. */
-    override fun ldl(a: F64SparseMatrix): F64SparseLdlFactorization = F64SparseUpLookingLdl.factorLower(a)
+    override fun quasiDefiniteLdl(a: F64SparseMatrix): F64QuasiDefiniteLdlFactorization =
+        F64QuasiDefiniteUpLookingLdl.factorLower(a)
 
     /** Nor do they reach this one: equilibration would change the least-squares problem being solved. */
     override fun qr(a: F64SparseMatrix): F64SparseQrFactorization = F64SparseHouseholderQr.factor(a)

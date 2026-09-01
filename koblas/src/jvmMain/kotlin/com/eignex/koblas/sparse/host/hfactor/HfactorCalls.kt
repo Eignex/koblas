@@ -14,11 +14,11 @@ import java.lang.invoke.MethodHandle
  * unless HiGHS is built for 64, so koblas's own CSC arrays and the vectors a solve carries cross without a
  * widening copy.
  */
-internal class HfactorCalls(config: HfactorConfig) {
+internal class HfactorCalls(private val config: HfactorConfig) {
     private val library: FfmLibrary by lazy {
         FfmLibrary.open(
             config.libraryPath?.let(::listOf) ?: HFACTOR_SONAMES,
-            "koblas_hfactor_create",
+            "koblas_hfactor_create_v2",
             "HFactor",
         )
     }
@@ -43,8 +43,8 @@ internal class HfactorCalls(config: HfactorConfig) {
         if (!library.present) return null
         return Handles(
             create = library.handleOrNull(
-                "koblas_hfactor_create",
-                pointerOf(JAVA_INT, JAVA_INT, ADDRESS, ADDRESS, ADDRESS),
+                "koblas_hfactor_create_v2",
+                pointerOf(JAVA_INT, JAVA_INT, ADDRESS, ADDRESS, ADDRESS, JAVA_DOUBLE, JAVA_DOUBLE, JAVA_INT),
             ) ?: return null,
             free = library.handleOrNull("koblas_hfactor_free", voidOf(ADDRESS)) ?: return null,
             build = library.handleOrNull("koblas_hfactor_build", intOf(ADDRESS, ADDRESS)) ?: return null,
@@ -83,6 +83,9 @@ internal class HfactorCalls(config: HfactorConfig) {
             MemorySegment.ofArray(colPtr),
             MemorySegment.ofArray(rowIdx),
             MemorySegment.ofArray(values),
+            config.pivotThreshold,
+            config.pivotTolerance,
+            config.updateMethod.nativeValue,
         ) as MemorySegment
         return handle.takeUnless { it.address() == 0L }
     }

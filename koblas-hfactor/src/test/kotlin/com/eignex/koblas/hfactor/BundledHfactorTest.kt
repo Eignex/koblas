@@ -11,6 +11,7 @@ import com.eignex.koblas.sparse.host.hfactor.HfactorBasisSolver
 import com.eignex.koblas.sparse.host.hfactor.HfactorFactorization
 import com.eignex.koblas.sparse.host.hfactor.HfactorOptions
 import com.eignex.koblas.sparse.host.hfactor.HfactorSparseLu
+import com.eignex.koblas.sparse.host.hfactor.HfactorUpdateMethod
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.*
@@ -120,13 +121,55 @@ class BundledHfactorTest {
 
     @Test
     fun `shared equilibration option reaches the bundled fallback policy`() {
-        val equilibrated = BundledHfactor(HfactorOptions(equilibrate = true))
+        val equilibrated = BundledHfactor(
+            HfactorOptions(
+                equilibrate = true,
+                pivotThreshold = 0.2,
+                pivotTolerance = 1e-8,
+                updateMethod = HfactorUpdateMethod.MIDDLE_PRODUCT_FORM,
+            ),
+        )
         val matrix = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(1 to 8.0)))
 
         val factorization = equilibrated.factor(matrix)
 
         assertIs<F64SparseMarkowitzLu>(factorization)
         assertEquals("true", equilibrated.backendMetadata.options["equilibrate"])
+        assertEquals("0.2", equilibrated.backendMetadata.options["pivotThreshold"])
+        assertEquals("1.0E-8", equilibrated.backendMetadata.options["pivotTolerance"])
+        assertEquals("MIDDLE_PRODUCT_FORM", equilibrated.backendMetadata.options["updateMethod"])
+    }
+
+    @Test
+    fun `the bundled HFactor reports basis quality and solve residual`() {
+        val n = 8
+        val matrix = simplexMatrix(n, Random(20261102))
+        val rhs = DoubleArray(n) { (it - 2).toDouble() }
+        val solution = F64IndexedVector(n)
+        val solver = backend.basisSolver(matrix)
+
+        assertTrue(solver.refactorize(logicalBasis(n)))
+        solution.scatter(rhs)
+        solver.ftran(solution)
+
+        assertTrue(solver.rcond > 0.0)
+        assertTrue(solver.solveQuality(rhs, solution).relativeResidual <= 1e-12)
+    }
+
+    @Test
+    fun `the bundled HFactor accepts numerical update controls`() {
+        val configured = BundledHfactor(
+            HfactorOptions(
+                pivotThreshold = 0.2,
+                pivotTolerance = 1e-8,
+                updateMethod = HfactorUpdateMethod.PRODUCT_FORM,
+            ),
+        )
+        val n = 6
+        val solver = configured.basisSolver(simplexMatrix(n, Random(20261103)))
+
+        assertIs<HfactorBasisSolver>(solver)
+        assertTrue(solver.refactorize(logicalBasis(n)))
     }
 
     @Test

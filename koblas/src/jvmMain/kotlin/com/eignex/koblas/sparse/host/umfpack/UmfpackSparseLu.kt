@@ -3,9 +3,9 @@ package com.eignex.koblas.sparse.host.umfpack
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.backend.BackendNames
+import com.eignex.koblas.sparse.F64QuasiDefiniteLdlFactorization
 import com.eignex.koblas.sparse.F64SingularSparseFactorization
 import com.eignex.koblas.sparse.F64SparseCholeskyFactorization
-import com.eignex.koblas.sparse.F64SparseLdlFactorization
 import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.F64SparseQrFactorization
 import com.eignex.koblas.sparse.host.F64SparseDecompositionsAdapter
@@ -32,7 +32,7 @@ public open class UmfpackSparseLu(
 ),
     com.eignex.koblas.sparse.F64GeneralSparseLu,
     com.eignex.koblas.sparse.F64SparseCholesky,
-    com.eignex.koblas.sparse.F64SparseLdl,
+    com.eignex.koblas.sparse.F64QuasiDefiniteLdl,
     com.eignex.koblas.sparse.F64SparseQr {
     private val calls = UmfpackCalls(config)
 
@@ -55,10 +55,11 @@ public open class UmfpackSparseLu(
     final override fun choleskyNative(a: F64SparseMatrix): F64SparseCholeskyFactorization =
         cholmod.factor(a) ?: portable.cholesky(a)
 
-    /** CHOLMOD's own default factorization, which is the one this seam's `ldl` asks for. */
-    final override fun ldlNative(a: F64SparseMatrix): F64SparseLdlFactorization = cholmod.factorLdl(
-        a,
-    ) ?: portable.ldl(a)
+    /** CHOLMOD's quasi-definite factorization, retaining the fill-reducing ordering. */
+    final override fun quasiDefiniteLdlNative(a: F64SparseMatrix): F64QuasiDefiniteLdlFactorization =
+        cholmod.factorQuasiDefiniteLdl(
+            a,
+        ) ?: portable.quasiDefiniteLdl(a)
 
     /** SPQR ships in the same collection, so the seam's QR is answered natively too where it is installed. */
     final override fun qrNative(a: F64SparseMatrix): F64SparseQrFactorization = spqr.factor(a) ?: portable.qr(a)

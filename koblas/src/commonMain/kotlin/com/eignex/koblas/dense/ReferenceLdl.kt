@@ -9,8 +9,8 @@ import kotlin.math.abs
 
 /*
  * The portable Bunch-Kaufman factorization and the solve over its factors, netlib dsytf2 and dsytrs. This is
- * the semantic definition a native LDL is validated against; [F64ReferenceDecompositions] is the
- * F64Decompositions surface over it.
+ * the semantic definition a native pivoted symmetric-indefinite factorization is validated against;
+ * [F64ReferenceDecompositions] is the F64Decompositions surface over it.
  *
  * One deliberate departure: the 1x1 elimination takes dsytf2_rook's guarded scaling rather than plain
  * dsytf2's unguarded reciprocal, so a subnormal pivot factors here where a host dsytrf answers with
@@ -21,8 +21,12 @@ import kotlin.math.abs
 private const val BUNCH_KAUFMAN_ALPHA = 0.6403882032022076
 
 @Suppress("CyclomaticComplexMethod") // netlib dsytf2's control flow, kept recognizable
-internal fun referenceLdl(kernels: F64Kernels, a: F64DenseMatrix, workspace: Workspace?): F64LdlDecomposition {
-    requireShape(a.rows == a.cols) { "ldl: matrix must be square, got ${a.rows}x${a.cols}" }
+internal fun referenceLdl(
+    kernels: F64Kernels,
+    a: F64DenseMatrix,
+    workspace: Workspace?,
+): F64PivotedSymmetricIndefiniteDecomposition {
+    requireShape(a.rows == a.cols) { "pivotedSymmetricIndefinite: matrix must be square, got ${a.rows}x${a.cols}" }
     val n = a.rows
     val w = a.data.copyOf()
     val ipiv = IntArray(n)
@@ -107,7 +111,7 @@ internal fun referenceLdl(kernels: F64Kernels, a: F64DenseMatrix, workspace: Wor
             }
         }
     }
-    return F64LdlDecomposition(n, w, ipiv, failedAt)
+    return F64PivotedSymmetricIndefiniteDecomposition(n, w, ipiv, failedAt)
 }
 
 /**
@@ -167,7 +171,7 @@ private fun swapSymmetric(w: DoubleArray, n: Int, k: Int, kk: Int, kp: Int, kste
 
 internal fun referenceLdlSolveInto(
     kernels: F64Kernels,
-    ldl: F64LdlDecomposition,
+    ldl: F64PivotedSymmetricIndefiniteDecomposition,
     b: DoubleArray,
     out: DoubleArray,
 ): DoubleArray {

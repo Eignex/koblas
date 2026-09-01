@@ -44,7 +44,7 @@ internal fun assertCholeskyFactorReproduces(
  * `L`'s unit diagonal is implicit, so it is supplied here rather than read; that is the whole difference
  * between this and the Cholesky identity above.
  */
-internal fun assertLdlFactorsReproduce(a: F64SparseMatrix, ldl: F64SparseLdlFactorization, context: String) {
+internal fun assertLdlFactorsReproduce(a: F64SparseMatrix, ldl: F64QuasiDefiniteLdlFactorization, context: String) {
     val d = ldl.d
     assertEquals(
         FactorizationInertia(
