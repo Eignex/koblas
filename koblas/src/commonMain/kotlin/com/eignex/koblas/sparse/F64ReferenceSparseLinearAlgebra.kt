@@ -7,7 +7,7 @@ import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.dense.applyBeta
 import com.eignex.koblas.dense.axpyArithmetic
-import com.eignex.koblas.dense.transposeBlocked
+import com.eignex.koblas.dense.borrowTransposed
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import com.eignex.koblas.sparse.basis.F64BasisSolver
@@ -198,8 +198,7 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
     ) {
         val cd = c.data
         if (transposeB) {
-            workspace.borrow(b.data.size) { packed ->
-                transposeBlocked(b.data, b.rows, b.cols, packed)
+            workspace.borrowTransposed(b.data, b.rows, b.cols) { packed ->
                 multiplyFromTheRightColumns(alpha, a, transposeA, cd, packed, m, m)
             }
         } else {

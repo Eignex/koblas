@@ -103,9 +103,8 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
             }
 
             b.data.size <= a.data.size -> {
-                workspace.borrow(k * n) { packedB ->
+                workspace.borrowTransposed(b.data, b.rows, b.cols) { packedB ->
                     workspace.borrow(4) { sums ->
-                        transposeBlocked(b.data, b.rows, b.cols, packedB)
                         blockedTransposedLeftUpdate(
                             kernels, alpha, a.data, 0, a.rows, packedB, 0, k, cd, 0, m, m, n, k, sums,
                         )
@@ -114,8 +113,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
             }
 
             else -> {
-                workspace.borrow(m * k) { packedA ->
-                    transposeBlocked(a.data, a.rows, a.cols, packedA)
+                workspace.borrowTransposed(a.data, a.rows, a.cols) { packedA ->
                     blockedGemmUpdate(
                         kernels, alpha, packedA, b.data, b.rows, true, cd, m, n, k,
                         skipZeroCoefficient = false,
@@ -144,8 +142,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         if (!transpose) {
             blockedSyrkUpdate(kernels, alpha, a.data, cd, n, k, lower)
         } else {
-            workspace.borrow(n * k) { packed ->
-                transposeBlocked(a.data, a.rows, a.cols, packed)
+            workspace.borrowTransposed(a.data, a.rows, a.cols) { packed ->
                 blockedSyrkUpdate(kernels, alpha, packed, cd, n, k, lower, guardZeroColumns = false)
             }
         }
@@ -309,10 +306,8 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         if (!transpose) {
             blockedSyr2kUpdate(kernels, alpha, a.data, b.data, c.data, n, k, lower)
         } else {
-            workspace.borrow(n * k) { packedA ->
-                workspace.borrow(n * k) { packedB ->
-                    transposeBlocked(a.data, a.rows, a.cols, packedA)
-                    transposeBlocked(b.data, b.rows, b.cols, packedB)
+            workspace.borrowTransposed(a.data, a.rows, a.cols) { packedA ->
+                workspace.borrowTransposed(b.data, b.rows, b.cols) { packedB ->
                     blockedSyr2kUpdate(
                         kernels, alpha, packedA, packedB, c.data, n, k, lower,
                         guardZeroColumns = false,
