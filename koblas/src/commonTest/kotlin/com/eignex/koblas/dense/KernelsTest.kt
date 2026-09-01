@@ -66,25 +66,28 @@ class KernelsTest {
     }
 
     @Test
-    fun `a registered backend handles every vector length`() = withCleanBackends {
+    fun `a registered backend handles vector runs at and above the crossover`() = withCleanBackends {
         val recording = Recording()
         registerBackend(recording)
         val x = F64DenseVector.of(DoubleArray(16) { 1.0 })
         val y = F64DenseVector.of(DoubleArray(16) { 2.0 })
         assertEquals(32.0, x dot y)
-        assertEquals(1, recording.dots)
+        assertEquals(0, recording.dots, "a tiny dot must stay on compiled-in kernels")
         val short1 = F64DenseVector.of(doubleArrayOf(3.0))
         val short2 = F64DenseVector.of(doubleArrayOf(4.0))
         assertEquals(12.0, short1 dot short2)
-        assertEquals(2, recording.dots, "a length-1 dot did not reach the selected backend")
+        assertEquals(0, recording.dots, "a length-1 dot must stay on compiled-in kernels")
+        val boundary = F64DenseVector.of(DoubleArray(64) { 1.0 })
+        assertEquals(64.0, boundary dot boundary)
+        assertEquals(1, recording.dots, "a length-64 dot did not reach the selected backend")
     }
 
     @Test
-    fun `axpy and scale route to the selected backend`() = withCleanBackends {
+    fun `axpy and scale route to the selected backend at the crossover`() = withCleanBackends {
         val recording = Recording()
         registerBackend(recording)
-        val v = F64DenseVector.of(DoubleArray(8) { 1.0 })
-        val x = F64DenseVector.of(DoubleArray(8) { 2.0 })
+        val v = F64DenseVector.of(DoubleArray(64) { 1.0 })
+        val x = F64DenseVector.of(DoubleArray(64) { 2.0 })
         v.axpy(3.0, x)
         v.scale(0.5)
         assertEquals(1, recording.axpys, "axpy did not route")
@@ -106,7 +109,7 @@ class KernelsTest {
     fun `the dense reductions route but the sparse ones cannot`() = withCleanBackends {
         val recording = Recording()
         registerBackend(recording)
-        val dense = F64DenseVector.of(DoubleArray(8) { 3.0 })
+        val dense = F64DenseVector.of(DoubleArray(64) { 3.0 })
         dense.norm2()
         dense.asum()
         assertEquals(1, recording.nrm2s, "norm2 on a dense vector did not route")
@@ -189,20 +192,81 @@ class KernelsTest {
     fun `every routed kernel reaches the host it was given`() {
         val recording = Recording()
         val routed: F64Kernels = F64RoutedKernels(recording)
-        val a = DoubleArray(8) { it.toDouble() }
-        val b = DoubleArray(8) { 1.0 }
-        routed.dot(a, 0, b, 0, 8)
-        routed.axpy(a, 0, 2.0, b, 0, 8)
-        routed.scale(a, 0, 2.0, 8)
-        routed.nrm2(a, 0, 8)
-        routed.asum(a, 0, 8)
-        routed.swap(a, 0, b, 0, 8)
+        val a = DoubleArray(64) { it.toDouble() }
+        val b = DoubleArray(64) { 1.0 }
+        routed.dot(a, 0, b, 0, 64)
+        routed.axpy(a, 0, 2.0, b, 0, 64)
+        routed.scale(a, 0, 2.0, 64)
+        routed.nrm2(a, 0, 64)
+        routed.asum(a, 0, 64)
+        routed.swap(a, 0, b, 0, 64)
         assertEquals(1, recording.dots, "dot did not reach the host")
         assertEquals(1, recording.axpys, "axpy did not reach the host")
         assertEquals(1, recording.scales, "scale did not reach the host")
         assertEquals(1, recording.nrm2s, "nrm2 did not reach the host")
         assertEquals(1, recording.asums, "asum did not reach the host")
         assertEquals(1, recording.swaps, "swap did not reach the host, so the router is missing an override")
+    }
+
+    @Test
+    fun `routed kernels respect the crossover boundary`() {
+        val recording = Recording()
+        val routed: F64Kernels = F64RoutedKernels(recording)
+        val a = DoubleArray(65) { it.toDouble() }
+        val b = DoubleArray(65) { 1.0 }
+
+        routed.dot(a, 0, b, 0, 63)
+        routed.axpy(a, 0, 2.0, b, 0, 63)
+        routed.scale(a, 0, 2.0, 63)
+        routed.nrm2(a, 0, 63)
+        routed.asum(a, 0, 63)
+        routed.swap(a, 0, b, 0, 63)
+        assertEquals(
+            0,
+            recording.dots + recording.axpys + recording.scales + recording.nrm2s + recording.asums + recording.swaps,
+        )
+
+        routed.dot(a, 0, b, 0, 64)
+        routed.axpy(a, 0, 2.0, b, 0, 64)
+        routed.scale(a, 0, 2.0, 64)
+        routed.nrm2(a, 0, 64)
+        routed.asum(a, 0, 64)
+        routed.swap(a, 0, b, 0, 64)
+        assertEquals(1, recording.dots, "dot at the crossover did not reach the host")
+        assertEquals(1, recording.axpys, "axpy at the crossover did not reach the host")
+        assertEquals(1, recording.scales, "scale at the crossover did not reach the host")
+        assertEquals(1, recording.nrm2s, "nrm2 at the crossover did not reach the host")
+        assertEquals(1, recording.asums, "asum at the crossover did not reach the host")
+        assertEquals(1, recording.swaps, "swap at the crossover did not reach the host")
+
+        routed.dot(a, 0, b, 0, 65)
+        routed.axpy(a, 0, 2.0, b, 0, 65)
+        routed.scale(a, 0, 2.0, 65)
+        routed.nrm2(a, 0, 65)
+        routed.asum(a, 0, 65)
+        routed.swap(a, 0, b, 0, 65)
+        assertEquals(2, recording.dots, "dot above the crossover did not reach the host")
+        assertEquals(2, recording.axpys, "axpy above the crossover did not reach the host")
+        assertEquals(2, recording.scales, "scale above the crossover did not reach the host")
+        assertEquals(2, recording.nrm2s, "nrm2 above the crossover did not reach the host")
+        assertEquals(2, recording.asums, "asum above the crossover did not reach the host")
+        assertEquals(2, recording.swaps, "swap above the crossover did not reach the host")
+    }
+
+    @Test
+    fun `routed kernels keep public scale and axpy noops`() {
+        val recording = Recording()
+        val routed: F64Kernels = F64RoutedKernels(recording)
+        val x = DoubleArray(64) { Double.POSITIVE_INFINITY }
+        val y = DoubleArray(64)
+
+        routed.axpy(y, 0, 0.0, x, 0, 64)
+        routed.scale(x, 0, 1.0, 64)
+
+        assertEquals(0, recording.axpys, "zero axpy reached the host")
+        assertEquals(0, recording.scales, "unit scale reached the host")
+        assertTrue(y.all { it == 0.0 }, "zero axpy must not evaluate infinity times zero")
+        assertTrue(x.all { it == Double.POSITIVE_INFINITY }, "unit scale changed the vector")
     }
 
     @Test
