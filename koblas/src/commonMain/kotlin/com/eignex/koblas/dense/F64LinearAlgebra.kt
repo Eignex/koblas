@@ -19,8 +19,23 @@ public fun F64DenseMatrix.lu(): F64LuDecomposition = koblas.factor(this)
  * Symmetric indefinite factorization `A = L·D·Lᵀ` with the active backend. [lower] selects the authoritative
  * triangle without checking the other.
  */
-public fun F64DenseMatrix.ldl(workspace: Workspace? = null, lower: Boolean = true): F64LdlDecomposition =
-    koblas.ldl(asLowerSymmetricInput(lower, "ldl"), workspace)
+public fun F64DenseMatrix.pivotedSymmetricIndefinite(
+    workspace: Workspace? = null,
+    lower: Boolean = true,
+): F64PivotedSymmetricIndefiniteDecomposition = koblas.pivotedSymmetricIndefinite(
+    asLowerSymmetricInput(lower, "pivotedSymmetricIndefinite"),
+    workspace,
+)
+
+/**
+ * @deprecated Dense LDL is Bunch-Kaufman pivoted. Use [pivotedSymmetricIndefinite].
+ */
+@Deprecated(
+    "Dense LDL is Bunch-Kaufman pivoted; use pivotedSymmetricIndefinite.",
+    ReplaceWith("pivotedSymmetricIndefinite(workspace, lower)"),
+)
+public fun F64DenseMatrix.ldl(workspace: Workspace? = null, lower: Boolean = true): F64PivotedSymmetricIndefiniteDecomposition =
+    pivotedSymmetricIndefinite(workspace, lower)
 
 /** QR factorization `A = Q·R` with the active backend; see [F64Decompositions.qr]. */
 public fun F64DenseMatrix.qr(workspace: Workspace? = null): F64QrDecomposition = koblas.qr(this, workspace)
@@ -59,10 +74,10 @@ public fun F64LuDecomposition.rcond(anorm: Double, workspace: Workspace? = null)
 )
 
 /** Solve `A · x = b` for this symmetric indefinite factorization; see [F64Decompositions.solve]. */
-public fun F64LdlDecomposition.solve(b: DoubleArray): DoubleArray = koblas.solve(this, b)
+public fun F64PivotedSymmetricIndefiniteDecomposition.solve(b: DoubleArray): DoubleArray = koblas.solve(this, b)
 
 /** Solve `A · X = B` for the columns of [b] at once (LAPACK `dsytrs` with `nrhs`). */
-public fun F64LdlDecomposition.solve(b: F64DenseMatrix): F64DenseMatrix = koblas.solve(this, b)
+public fun F64PivotedSymmetricIndefiniteDecomposition.solve(b: F64DenseMatrix): F64DenseMatrix = koblas.solve(this, b)
 
 /** Solve this QR factorization; [minimumNorm] solves a wide original system from `qr(Aᵀ)`. */
 public fun F64QrDecomposition.solve(

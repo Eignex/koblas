@@ -11,7 +11,7 @@ import com.eignex.koblas.*
  * @property ipiv LAPACK `dsytrf` 1-based pivots: positive marks a 1×1 block, a negative pair a 2×2 block.
  * @property failedAt the zero pivot position, or [NOT_SINGULAR]; `dsytrf`'s positive `info`, made 0-based.
  */
-public class F64LdlDecomposition @UnsafeKoblasApi constructor(
+public class F64PivotedSymmetricIndefiniteDecomposition @UnsafeKoblasApi constructor(
     public val n: Int,
     @property:UnsafeKoblasApi public val ldl: DoubleArray,
     @property:UnsafeKoblasApi public val ipiv: IntArray,
@@ -25,3 +25,13 @@ public class F64LdlDecomposition @UnsafeKoblasApi constructor(
         requireShape(ipiv.size == n) { "ipiv length ${ipiv.size} != $n" }
     }
 }
+
+/**
+ * @deprecated Dense LDL uses Bunch-Kaufman numerical pivoting. Use
+ * [F64PivotedSymmetricIndefiniteDecomposition] to make that requirement visible at the call site.
+ */
+@Deprecated(
+    "Dense LDL is Bunch-Kaufman pivoted; use F64PivotedSymmetricIndefiniteDecomposition.",
+    ReplaceWith("F64PivotedSymmetricIndefiniteDecomposition"),
+)
+public typealias F64LdlDecomposition = F64PivotedSymmetricIndefiniteDecomposition

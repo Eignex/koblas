@@ -176,7 +176,7 @@ tasks.withType<Test>().configureEach {
     systemProperty("koblas.backend.sparse.general.lu", "reference")
     systemProperty("koblas.backend.sparse.repeated.lu", "reference")
     systemProperty("koblas.backend.sparse.cholesky", "reference")
-    systemProperty("koblas.backend.sparse.ldl", "reference")
+    systemProperty("koblas.backend.sparse.quasi-definite-ldl", "reference")
     systemProperty("koblas.backend.sparse.qr", "reference")
     systemProperty("koblas.backend.basis.factorizations", "reference")
     systemProperty("koblas.backend.basis.solvers", "reference")

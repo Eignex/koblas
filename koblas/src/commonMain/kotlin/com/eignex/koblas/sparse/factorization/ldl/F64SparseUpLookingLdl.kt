@@ -7,7 +7,7 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.noManagedOrNativeAllocation
 import com.eignex.koblas.requireSquare
 import com.eignex.koblas.singularFailure
-import com.eignex.koblas.sparse.F64SparseLdlFactorization
+import com.eignex.koblas.sparse.F64QuasiDefiniteLdlFactorization
 import com.eignex.koblas.sparse.FactorizationInertia
 import com.eignex.koblas.sparse.factorization.columnPointers
 import com.eignex.koblas.sparse.factorization.eliminationTree
@@ -24,17 +24,17 @@ import kotlin.math.abs
  * is the whole reason it exists: an indefinite matrix has an `L·D·Lᵀ` and has no `L·Lᵀ`.
  *
  * No numerical pivoting, so what it produces for an indefinite matrix is the exact factorization of the
- * matrix it was given and not necessarily a well conditioned one. See the seam's `ldl` for what that means
- * for a caller.
+ * matrix it was given and not necessarily a well conditioned one. It is for quasi-definite systems, whose
+ * fill-reducing ordering must be retained.
  */
-public class F64SparseUpLookingLdl internal constructor(
+public class F64QuasiDefiniteUpLookingLdl internal constructor(
     override val n: Int,
     private val colPtr: IntArray,
     private val rowIdx: IntArray,
     private val values: DoubleArray,
     private val diagonal: DoubleArray,
     override val failedAt: Int,
-) : F64SparseLdlFactorization {
+) : F64QuasiDefiniteLdlFactorization {
 
     override val l: F64SparseMatrix
         get() {
@@ -131,7 +131,7 @@ public class F64SparseUpLookingLdl internal constructor(
          * A zero pivot comes back as a factorization reporting `singular` at that column, as the sparse LU
          * does. A negative one does not: it is what an indefinite matrix is expected to produce.
          */
-        public fun factorLower(a: F64SparseMatrix): F64SparseUpLookingLdl {
+        public fun factorLower(a: F64SparseMatrix): F64QuasiDefiniteUpLookingLdl {
             requireSquare(a, "ldl")
             val n = a.rows
             // The up-looking sweep reads row k of A left of the diagonal, and CSC stores columns.
@@ -142,10 +142,20 @@ public class F64SparseUpLookingLdl internal constructor(
             val values = DoubleArray(colPtr[n])
             val diagonal = DoubleArray(n)
             val failedAt = factorNumeric(n, upper, parent, colPtr, rowIdx, values, diagonal)
-            return F64SparseUpLookingLdl(n, colPtr, rowIdx, values, diagonal, failedAt)
+            return F64QuasiDefiniteUpLookingLdl(n, colPtr, rowIdx, values, diagonal, failedAt)
         }
     }
 }
+
+/**
+ * @deprecated This up-looking sparse LDL implementation is quasi-definite and numerically unpivoted. Use
+ * [F64QuasiDefiniteUpLookingLdl].
+ */
+@Deprecated(
+    "Sparse LDL is quasi-definite and numerically unpivoted; use F64QuasiDefiniteUpLookingLdl.",
+    ReplaceWith("F64QuasiDefiniteUpLookingLdl"),
+)
+public typealias F64SparseUpLookingLdl = F64QuasiDefiniteUpLookingLdl
 
 /**
  * The up-looking numeric factorization: row `k` of `L` is a sparse triangular solve against the rows already

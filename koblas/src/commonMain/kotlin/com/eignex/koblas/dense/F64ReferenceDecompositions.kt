@@ -19,11 +19,18 @@ internal class F64ReferenceDecompositions(private val configured: F64Kernels? = 
     /** These routines' kernels, or the process default when they were given none. */
     override val kernels: F64Kernels get() = configured ?: koblas.kernels
 
-    override fun ldl(a: F64DenseMatrix, workspace: Workspace?): F64LdlDecomposition =
+    override fun pivotedSymmetricIndefinite(
+        a: F64DenseMatrix,
+        workspace: Workspace?,
+    ): F64PivotedSymmetricIndefiniteDecomposition =
         referenceLdl(kernels, a, workspace)
 
-    override fun solveInto(ldl: F64LdlDecomposition, b: DoubleArray, out: DoubleArray): DoubleArray =
-        referenceLdlSolveInto(kernels, ldl, b, out)
+    override fun solveInto(
+        factor: F64PivotedSymmetricIndefiniteDecomposition,
+        b: DoubleArray,
+        out: DoubleArray,
+    ): DoubleArray =
+        referenceLdlSolveInto(kernels, factor, b, out)
 
     override fun qr(a: F64DenseMatrix, workspace: Workspace?): F64QrDecomposition = referenceQr(kernels, a)
 
@@ -66,16 +73,16 @@ internal class F64ReferenceDecompositions(private val configured: F64Kernels? = 
 
     /** Solve `A · X = B` into [out], which is returned. [out] may be [b]. */
     override fun solveInto(
-        ldl: F64LdlDecomposition,
+        factor: F64PivotedSymmetricIndefiniteDecomposition,
         b: F64DenseMatrix,
         out: F64DenseMatrix,
         workspace: Workspace?,
     ): F64DenseMatrix {
-        requireFactored(ldl.failedAt, "solve")
-        val n = ldl.n
+        requireFactored(factor.failedAt, "solve")
+        val n = factor.n
         val nrhs = b.cols
         requireSolveShapes(n, b, out)
-        return solveColumnwise(b, out, n, nrhs, workspace) { col, dst -> solveInto(ldl, col, dst) }
+        return solveColumnwise(b, out, n, nrhs, workspace) { col, dst -> solveInto(factor, col, dst) }
     }
 
     override fun solveInto(

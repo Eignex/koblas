@@ -40,9 +40,9 @@ internal object ConfigurationKeys {
             "koblas.backend.sparse.cholesky",
             "KOBLAS_SPARSE_CHOLESKY_BACKEND",
         ),
-        BackendSlot.F64SparseLdl to BackendSelectionKeys(
-            "koblas.backend.sparse.ldl",
-            "KOBLAS_SPARSE_LDL_BACKEND",
+        BackendSlot.F64QuasiDefiniteLdl to BackendSelectionKeys(
+            "koblas.backend.sparse.quasi-definite-ldl",
+            "KOBLAS_SPARSE_QUASI_DEFINITE_LDL_BACKEND",
         ),
         BackendSlot.F64SparseQr to BackendSelectionKeys(
             "koblas.backend.sparse.qr",

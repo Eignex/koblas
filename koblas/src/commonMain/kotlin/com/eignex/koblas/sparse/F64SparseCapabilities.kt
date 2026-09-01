@@ -115,11 +115,26 @@ public interface F64SparseQr : Backend {
     public fun qr(a: F64SparseMatrix): F64SparseQrFactorization
 }
 
-/** Unpivoted symmetric sparse `L * D * L^T` factorization. */
-public interface F64SparseLdl : Backend {
-    /** Factorizes the lower triangle of [a] as `L * D * L^T`. */
-    public fun ldl(a: F64SparseMatrix): F64SparseLdlFactorization
+/**
+ * Unpivoted numerically sparse `L * D * L^T` factorization for quasi-definite systems.
+ *
+ * The ordering may reduce fill, but no numerical pivoting occurs. Use [F64GeneralSparseLu] for a general
+ * indefinite system that needs numerical pivoting.
+ */
+public interface F64QuasiDefiniteLdl : Backend {
+    /** Factorizes [a]'s lower triangle as quasi-definite `L * D * L^T`. */
+    public fun quasiDefiniteLdl(a: F64SparseMatrix): F64QuasiDefiniteLdlFactorization
 }
+
+/**
+ * @deprecated Sparse LDL is specifically quasi-definite and numerically unpivoted. Use
+ * [F64QuasiDefiniteLdl].
+ */
+@Deprecated(
+    "Sparse LDL is quasi-definite and numerically unpivoted; use F64QuasiDefiniteLdl.",
+    ReplaceWith("F64QuasiDefiniteLdl"),
+)
+public typealias F64SparseLdl = F64QuasiDefiniteLdl
 
 /** Sparse factorization of a simplex basis that supports column replacement. */
 public interface F64BasisFactorizations : Backend {
@@ -132,30 +147,31 @@ public interface F64BasisFactorizations : Backend {
  *
  * @property generalLu provider for ordinary sparse LU.
  * @property choleskyProvider provider for positive-definite symmetric factorization.
- * @property ldlProvider provider for quasi-definite symmetric factorization.
+ * @property quasiDefiniteLdlProvider provider for quasi-definite symmetric factorization.
  * @property qrProvider provider for least-squares QR.
  */
 internal class F64SparseDecompositionRoles(
     val generalLu: F64GeneralSparseLu,
     val choleskyProvider: F64SparseCholesky,
-    val ldlProvider: F64SparseLdl,
+    val quasiDefiniteLdlProvider: F64QuasiDefiniteLdl,
     val qrProvider: F64SparseQr,
 ) : F64SparseDecompositions {
     override val name: String
-        get() = listOf(generalLu.name, choleskyProvider.name, ldlProvider.name, qrProvider.name)
+        get() = listOf(generalLu.name, choleskyProvider.name, quasiDefiniteLdlProvider.name, qrProvider.name)
             .distinct()
             .joinToString("+")
     override val priority: Int
-        get() = maxOf(generalLu.priority, choleskyProvider.priority, ldlProvider.priority, qrProvider.priority)
+        get() = maxOf(generalLu.priority, choleskyProvider.priority, quasiDefiniteLdlProvider.priority, qrProvider.priority)
     override val isPortable: Boolean
-        get() = generalLu.isPortable && choleskyProvider.isPortable && ldlProvider.isPortable &&
+        get() = generalLu.isPortable && choleskyProvider.isPortable && quasiDefiniteLdlProvider.isPortable &&
             qrProvider.isPortable
     override val isAvailable: Boolean
-        get() = generalLu.isAvailable && choleskyProvider.isAvailable && ldlProvider.isAvailable &&
+        get() = generalLu.isAvailable && choleskyProvider.isAvailable && quasiDefiniteLdlProvider.isAvailable &&
             qrProvider.isAvailable
 
     override fun factor(a: F64SparseMatrix): F64SparseLuFactorization = generalLu.factor(a)
     override fun cholesky(a: F64SparseMatrix): F64SparseCholeskyFactorization = choleskyProvider.cholesky(a)
-    override fun ldl(a: F64SparseMatrix): F64SparseLdlFactorization = ldlProvider.ldl(a)
+    override fun quasiDefiniteLdl(a: F64SparseMatrix): F64QuasiDefiniteLdlFactorization =
+        quasiDefiniteLdlProvider.quasiDefiniteLdl(a)
     override fun qr(a: F64SparseMatrix): F64SparseQrFactorization = qrProvider.qr(a)
 }

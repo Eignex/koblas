@@ -60,27 +60,52 @@ public interface F64Decompositions : Backend {
         workspace: Workspace? = null,
     ): F64DenseMatrix
 
-    /** Symmetric indefinite factorization `A = L·D·Lᵀ` with Bunch-Kaufman pivoting (LAPACK `dsytrf`, lower).
-     *  Reads only the lower triangle of [a], so an upper-only matrix factors to silent nonsense. */
-    public fun ldl(a: F64DenseMatrix, workspace: Workspace? = null): F64LdlDecomposition
+    /**
+     * Bunch-Kaufman numerically pivoted symmetric-indefinite factorization (LAPACK `dsytrf`, lower).
+     *
+     * It reads only [a]'s lower triangle. This is deliberately distinct from sparse
+     * quasi-definite LDL: its pivots are selected from the numeric values for stability, not only from a
+     * fill-reducing ordering.
+     */
+    public fun pivotedSymmetricIndefinite(
+        a: F64DenseMatrix,
+        workspace: Workspace? = null,
+    ): F64PivotedSymmetricIndefiniteDecomposition
 
-    /** Solve `A · x = b` for a symmetric indefinite factorization [ldl] (LAPACK `dsytrs`). */
-    public fun solve(ldl: F64LdlDecomposition, b: DoubleArray): DoubleArray = solveInto(ldl, b, DoubleArray(ldl.n))
+    /**
+     * @deprecated Dense LDL is Bunch-Kaufman pivoted. Use [pivotedSymmetricIndefinite].
+     */
+    @Deprecated(
+        "Dense LDL is Bunch-Kaufman pivoted; use pivotedSymmetricIndefinite.",
+        ReplaceWith("pivotedSymmetricIndefinite(a, workspace)"),
+    )
+    public fun ldl(a: F64DenseMatrix, workspace: Workspace? = null): F64PivotedSymmetricIndefiniteDecomposition =
+        pivotedSymmetricIndefinite(a, workspace)
+
+    /** Solve `A · x = b` for [factor] (LAPACK `dsytrs`). */
+    public fun solve(
+        factor: F64PivotedSymmetricIndefiniteDecomposition,
+        b: DoubleArray,
+    ): DoubleArray = solveInto(factor, b, DoubleArray(factor.n))
 
     /** Solve `A · x = b` into [out], which is returned. [out] may be [b]. */
-    public fun solveInto(ldl: F64LdlDecomposition, b: DoubleArray, out: DoubleArray): DoubleArray
+    public fun solveInto(
+        factor: F64PivotedSymmetricIndefiniteDecomposition,
+        b: DoubleArray,
+        out: DoubleArray,
+    ): DoubleArray
 
     /** Solve `A · X = B` for all right-hand-side columns of [b] at once against a symmetric indefinite
      *  factorization (LAPACK `dsytrs` with `nrhs`). */
-    public fun solve(ldl: F64LdlDecomposition, b: F64DenseMatrix): F64DenseMatrix = solveInto(
-        ldl,
+    public fun solve(factor: F64PivotedSymmetricIndefiniteDecomposition, b: F64DenseMatrix): F64DenseMatrix = solveInto(
+        factor,
         b,
         F64DenseMatrix(b.rows, b.cols),
     )
 
     /** Solve `A · X = B` into [out], which is returned. [out] may be [b]. */
     public fun solveInto(
-        ldl: F64LdlDecomposition,
+        factor: F64PivotedSymmetricIndefiniteDecomposition,
         b: F64DenseMatrix,
         out: F64DenseMatrix,
         workspace: Workspace? = null,

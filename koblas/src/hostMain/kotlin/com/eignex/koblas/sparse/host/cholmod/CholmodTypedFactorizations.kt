@@ -3,7 +3,7 @@ package com.eignex.koblas.sparse.host.cholmod
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.F64SparseCholeskyFactorization
 import com.eignex.koblas.sparse.F64SparseFactorization
-import com.eignex.koblas.sparse.F64SparseLdlFactorization
+import com.eignex.koblas.sparse.F64QuasiDefiniteLdlFactorization
 import com.eignex.koblas.sparse.FactorizationInertia
 
 /*
@@ -25,7 +25,7 @@ public class CholmodCholeskyFactorization internal constructor(private val base:
 
 /** CHOLMOD's `A = L·D·Lᵀ`, whose diagonal is split out of the factor it stores it in. */
 public class CholmodLdlFactorization internal constructor(private val base: CholmodFactorization) :
-    F64SparseLdlFactorization,
+    F64QuasiDefiniteLdlFactorization,
     F64SparseFactorization by base {
     override val l: F64SparseMatrix get() = base.lowerFactor
 
