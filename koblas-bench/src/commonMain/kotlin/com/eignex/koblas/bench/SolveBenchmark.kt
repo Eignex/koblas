@@ -33,7 +33,7 @@ class SolveBenchmark {
         installDenseBackend(backend)
         val rng = benchRng()
         a = dominantMatrix(n, rng)
-        rectangular = F64DenseMatrix(2 * n, n)
+        rectangular = F64DenseMatrix.zero(2 * n, n)
         for (j in 0 until n) for (i in 0 until 2 * n) {
             rectangular[i, j] = if (i == j) 2.0 else rng.nextDouble(-1.0, 1.0)
         }

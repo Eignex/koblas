@@ -50,7 +50,7 @@ F64LinearAlgebra.solve(F64LuDecomposition,DoubleArray)	com.eignex.koblas.bench.S
 F64LinearAlgebra.solveInto(F64LuDecomposition,DoubleArray,DoubleArray)	com.eignex.koblas.bench.SolveBenchmark.luSolveInto	benchmarked	
 F64LinearAlgebra.solveInto(F64LdlDecomposition,DoubleArray,DoubleArray)	com.eignex.koblas.bench.SolveBenchmark.ldlSolveInto	benchmarked	
 F64DenseMatrix.lu()	com.eignex.koblas.bench.SolveBenchmark.luFactor	benchmarked	
-F64DenseMatrix.lu(rectangular)	com.eignex.koblas.bench.SolveBenchmark.rectangularLuFactor	benchmarked
+F64DenseMatrix.lu(rectangular)	com.eignex.koblas.bench.SolveBenchmark.rectangularLuFactor	benchmarked	
 F64LinearAlgebra.factorInto(F64DenseMatrix,F64LuDecomposition)	com.eignex.koblas.bench.SolveBenchmark.luFactorInto	benchmarked	
 F64LinearAlgebra.ldl(F64DenseMatrix)	com.eignex.koblas.bench.SolveBenchmark.ldlFactor	benchmarked	
 F64LinearAlgebra.rcond(F64LuDecomposition,Double)	com.eignex.koblas.bench.SolveBenchmark.rcond	benchmarked	
