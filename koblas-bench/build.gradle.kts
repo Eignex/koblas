@@ -80,12 +80,22 @@ val checkBenchmarkCoverage = tasks.register<Exec>("checkBenchmarkCoverage") {
     group = "verification"
     description = "Validates the reviewed benchmark coverage manifest."
     inputs.file("benchmark-coverage.tsv")
+    inputs.file("public-numerical-api.tsv")
     inputs.dir("src/commonMain")
+    inputs.dir("../koblas/src/commonMain")
     outputs.file(layout.buildDirectory.file("checkBenchmarkCoverage/ok.txt"))
     commandLine("python3", "tools/check-benchmark-coverage.py", "benchmark-coverage.tsv")
     doLast { outputs.files.singleFile.apply { parentFile.mkdirs(); writeText("ok") } }
 }
-tasks.named("check") { dependsOn(checkBenchmarkCoverage) }
+val testBenchmarkCoverageChecker = tasks.register<Exec>("testBenchmarkCoverageChecker") {
+    group = "verification"
+    description = "Tests the benchmark coverage checker."
+    inputs.file("tools/check-benchmark-coverage.py")
+    inputs.dir("tools/test")
+    environment("PYTHONDONTWRITEBYTECODE", "1")
+    commandLine("python3", "-m", "unittest", "discover", "-s", "tools/test")
+}
+tasks.named("check") { dependsOn(checkBenchmarkCoverage, testBenchmarkCoverageChecker) }
 
 tasks.withType<KotlinJvmCompile>().configureEach {
     compilerOptions.freeCompilerArgs.add("-Xadd-modules=jdk.incubator.vector")

@@ -351,6 +351,7 @@ public abstract class F64DecompositionsAdapter internal constructor(
      */
     override fun rcond(lu: F64LuDecomposition, anorm: Double, workspace: Workspace?): Double {
         requireLuSquare(lu, "rcond")
+        requireRcondAnorm(anorm)
         val n = lu.n
         if (n == 0) return 1.0
         if (lu.singular || anorm == 0.0) return 0.0

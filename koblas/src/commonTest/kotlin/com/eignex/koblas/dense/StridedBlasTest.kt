@@ -27,6 +27,22 @@ class StridedBlasTest {
     }
 
     @Test
+    fun `strided gemv leaves its destination alone for an empty matrix`() {
+        val yBuffer = DoubleArray(3) { Double.NaN }
+
+        F64ReferenceLinearAlgebra.gemv(
+            1.0,
+            F64StridedMatrixView(0, 3, DoubleArray(0)),
+            F64StridedVectorView(DoubleArray(0), 0, 0),
+            0.0,
+            F64StridedVectorView(yBuffer, 2, 3, -1),
+            transpose = true,
+        )
+
+        assertTrue(yBuffer.all(Double::isNaN), "strided quick return changed ${yBuffer.toList()}")
+    }
+
+    @Test
     fun `gemm writes a panel while preserving its surrounding buffer`() {
         val aOwner = F64DenseMatrix.of(
             arrayOf(

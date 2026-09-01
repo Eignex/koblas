@@ -597,6 +597,10 @@ internal fun assertRcondAgreesWithReference(decompositions: F64Decompositions, s
     val singular = F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 4.0)))
     assertEquals(0.0, decompositions.rcond(decompositions.factor(singular), singular.norm1()))
     assertEquals(1.0, decompositions.rcond(decompositions.factor(F64DenseMatrix(0, 0)), 0.0))
+    val lu = decompositions.factor(F64DenseMatrix.diagonal(1))
+    for (anorm in doubleArrayOf(-1.0, Double.NaN, Double.POSITIVE_INFINITY)) {
+        assertFailsWith<IllegalArgumentException>("anorm=$anorm") { decompositions.rcond(lu, anorm) }
+    }
 }
 
 /**
@@ -694,6 +698,16 @@ internal fun assertDegenerateShapesFollowBlasQuickReturns(blas: F64Blas) {
     val y = DoubleArray(3) { Double.NaN }
     blas.gemv(1.0, F64DenseMatrix(0, 3), DoubleArray(0), 0.0, y, transpose = true)
     assertTrue(y.all(Double::isNaN), "gemv with a zero dimension changed ${y.toList()}")
+    val stridedY = DoubleArray(3) { Double.NaN }
+    blas.gemv(
+        1.0,
+        F64StridedMatrixView(0, 3, DoubleArray(0)),
+        F64StridedVectorView(DoubleArray(0), 0, 0),
+        0.0,
+        F64StridedVectorView(stridedY, 2, 3, -1),
+        transpose = true,
+    )
+    assertTrue(stridedY.all(Double::isNaN), "strided gemv with a zero dimension changed ${stridedY.toList()}")
     val c = F64DenseMatrix.wrap(2, 2, DoubleArray(4) { Double.NaN })
     blas.gemm(1.0, F64DenseMatrix(2, 0), false, F64DenseMatrix(0, 2), false, 0.0, c)
     assertTrue(c.data.all { it == 0.0 }, "gemm k=0 beta=0 left ${c.data.toList()}")

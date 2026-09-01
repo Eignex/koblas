@@ -192,9 +192,10 @@ public interface F64Decompositions : Backend {
     ): DoubleArray
 
     /** Order-of-magnitude estimate of `1 / (anorm · est(‖A⁻¹‖₁))` (LAPACK `dgecon`) for a square factor, where
-     *  [anorm] is the 1-norm of the unfactored matrix (see [norm1]). Returns `1.0` when `n == 0` and `0.0`
-     *  when singular.
-     *  @throws com.eignex.koblas.DimensionMismatch if [lu] is rectangular. */
+     *  [anorm] is the finite, non-negative 1-norm of the unfactored matrix (see [norm1]). For a valid [anorm],
+     *  returns `1.0` when `n == 0` and `0.0` when singular.
+     *  @throws com.eignex.koblas.DimensionMismatch if [lu] is rectangular.
+     *  @throws IllegalArgumentException if [anorm] is negative or non-finite. */
     public fun rcond(lu: F64LuDecomposition, anorm: Double, workspace: Workspace? = null): Double
 
     /** Cholesky factorization `A = L·Lᵀ` of a symmetric positive-definite [a] (`dpotrf` with `uplo = 'L'`).
@@ -268,6 +269,11 @@ public interface F64Decompositions : Backend {
 
     /** Invert an SPD matrix from its Cholesky factorization, returning `A⁻¹` given [chol] (LAPACK `dpotri`). */
     public fun invert(chol: F64CholeskyDecomposition, workspace: Workspace? = null): F64DenseMatrix
+}
+
+/** The [F64Decompositions.rcond] input contract shared by portable and LAPACKE implementations. */
+internal fun requireRcondAnorm(anorm: Double) {
+    require(anorm >= 0.0 && anorm.isFinite()) { "rcond: anorm must be finite and non-negative, got $anorm" }
 }
 
 /** Sweep cap for the [F64Decompositions.rcond] estimator. */
