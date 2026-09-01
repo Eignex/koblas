@@ -560,15 +560,22 @@ public final class com/eignex/koblas/MathBackendKt {
 
 public final class com/eignex/koblas/MatrixOpsKt {
 	public static final fun column (Lcom/eignex/koblas/core/F64DenseMatrix;I)Lcom/eignex/koblas/core/F64DenseVector;
+	public static final fun column (Lcom/eignex/koblas/core/F64SparseMatrix;I)Lcom/eignex/koblas/core/F64SparseVector;
 	public static final fun ger (Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/core/F64VectorLike;Lcom/eignex/koblas/core/F64VectorLike;)V
 	public static final fun norm1 (Lcom/eignex/koblas/core/F64DenseMatrix;)D
+	public static final fun norm1 (Lcom/eignex/koblas/core/F64SparseMatrix;)D
 	public static final fun normFro (Lcom/eignex/koblas/core/F64DenseMatrix;)D
+	public static final fun normFro (Lcom/eignex/koblas/core/F64SparseMatrix;)D
 	public static final fun normInf (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)D
+	public static final fun normInf (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/Workspace;)D
 	public static synthetic fun normInf$default (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)D
+	public static synthetic fun normInf$default (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)D
 	public static final fun row (Lcom/eignex/koblas/core/F64DenseMatrix;I)Lcom/eignex/koblas/core/F64DenseVector;
+	public static final fun row (Lcom/eignex/koblas/core/F64SparseMatrix;I)Lcom/eignex/koblas/core/F64SparseVector;
 	public static final fun scaleColumns (Lcom/eignex/koblas/core/F64DenseMatrix;[D)V
 	public static final fun scaleColumns (Lcom/eignex/koblas/core/F64SparseMatrix;[D)V
 	public static final fun scaleRows (Lcom/eignex/koblas/core/F64DenseMatrix;[D)V
+	public static final fun scaleRows (Lcom/eignex/koblas/core/F64SparseMatrix;[D)V
 	public static final fun syr (Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/core/F64VectorLike;Z)V
 	public static synthetic fun syr$default (Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/core/F64VectorLike;ZILjava/lang/Object;)V
 	public static final fun syr2 (Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/core/F64VectorLike;Lcom/eignex/koblas/core/F64VectorLike;Z)V

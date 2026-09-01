@@ -4,8 +4,13 @@ package com.eignex.koblas
 
 import com.eignex.koblas.core.*
 import com.eignex.koblas.dense.F64Blas
+import com.eignex.koblas.internal.numeric.absoluteSum
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import kotlin.math.abs
+
+/** The larger of [current] and [candidate], except a NaN [candidate] always wins, so it carries through. */
+private fun carryingMax(current: Double, candidate: Double): Double =
+    if (candidate > current || candidate.isNaN()) candidate else current
 
 /**
  * Rank-one update `A = A + alpha * x * yT` (BLAS `dger`) in place. Subtract by passing
@@ -57,7 +62,7 @@ public fun F64DenseMatrix.norm1(): Double {
         val base = j * rows
         var s = 0.0
         for (i in 0 until rows) s += abs(ad[base + i])
-        if (s > m || s.isNaN()) m = s
+        m = carryingMax(m, s)
     }
     return m
 }
@@ -74,7 +79,7 @@ public fun F64DenseMatrix.normInf(workspace: Workspace? = null): Double {
             for (i in 0 until rows) sums[i] += abs(ad[base + i])
         }
         var m = 0.0
-        for (i in 0 until rows) if (sums[i] > m || sums[i].isNaN()) m = sums[i]
+        for (i in 0 until rows) m = carryingMax(m, sums[i])
         m
     }
 }
@@ -131,9 +136,8 @@ public fun F64SparseMatrix.scaleRows(d: DoubleArray) {
 public fun F64SparseMatrix.norm1(): Double {
     var maximum = 0.0
     for (j in 0 until cols) {
-        var sum = 0.0
-        for (k in colPtr[j] until colPtr[j + 1]) sum += abs(values[k])
-        if (sum > maximum || sum.isNaN()) maximum = sum
+        val sum = absoluteSum(values, colPtr[j], colPtr[j + 1] - colPtr[j])
+        maximum = carryingMax(maximum, sum)
     }
     return maximum
 }
@@ -150,7 +154,7 @@ public fun F64SparseMatrix.normInf(workspace: Workspace? = null): Double {
         sums.fill(0.0, 0, rows)
         for (k in values.indices) sums[rowIdx[k]] += abs(values[k])
         var maximum = 0.0
-        for (i in 0 until rows) if (sums[i] > maximum || sums[i].isNaN()) maximum = sums[i]
+        for (i in 0 until rows) maximum = carryingMax(maximum, sums[i])
         maximum
     }
 }
@@ -180,8 +184,8 @@ public fun F64DenseMatrix.row(i: Int): F64DenseVector {
 
 /**
  * Column [j] as a fresh sparse vector. Runs in `O(nnzⱼ)` time and allocates copies of its stored indices and
- * values, so later mutations to the returned vector's values cannot affect this matrix. Explicitly stored zeros
- * are preserved.
+ * values, so later mutations to the returned vector's indices or values cannot affect this matrix. Explicitly
+ * stored zeros are preserved.
  */
 public fun F64SparseMatrix.column(j: Int): F64SparseVector {
     requireIndex(j in 0 until cols) { "column $j outside [0,$cols)" }
@@ -191,9 +195,12 @@ public fun F64SparseMatrix.column(j: Int): F64SparseVector {
 }
 
 /**
- * Row [i] as a fresh sparse vector whose stored positions are the source columns. Runs in `O(nnz)` time and
- * allocates arrays sized to its stored entries. The returned vector is independent of this matrix, and explicitly
- * stored zeros are preserved.
+ * Row [i] as a fresh sparse vector whose stored positions are the source columns. Runs in `O(nnz)` time, scanning
+ * every stored entry in the matrix to gather the ones in this row, and allocates arrays sized to its stored
+ * entries. The returned vector is independent of this matrix, and explicitly stored zeros are preserved.
+ *
+ * Extracting every row this way costs `O(nnz * rows)`; use [transpose] once and read its columns instead when
+ * the algorithm needs many rows.
  */
 public fun F64SparseMatrix.row(i: Int): F64SparseVector {
     requireIndex(i in 0 until rows) { "row $i outside [0,$rows)" }
