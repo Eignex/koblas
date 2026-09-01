@@ -12,9 +12,9 @@ import kotlin.test.assertEquals
 
 /**
  * The level-1 kernels against loops written out here, at a non-zero offset so an implementation that ignores
- * the offset fails. Lengths 63, 64 and 65 straddle the level-1 routing threshold, so both the dispatched and
- * the direct path are covered. 600 clears any unrolled body a wide-lane host takes, whose own threshold
- * scales with the lane count and so sits above the shorter lengths here.
+ * the offset fails. Lengths 63, 64 and 65 straddle the router's inclusive level-1 crossover, so both the
+ * compiled-in and host paths are covered. 600 clears any unrolled body a wide-lane host takes, whose own
+ * threshold scales with the lane count and so sits above the shorter lengths here.
  */
 internal fun assertLevel1KernelsAgreeWithScalar(kernels: F64Kernels) {
     val rng = Random(20260731)

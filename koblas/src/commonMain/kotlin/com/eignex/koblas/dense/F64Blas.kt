@@ -32,7 +32,8 @@ public interface F64Blas : Backend {
     /**
      * [gemv] over borrowed strided storage. The destination must not overlap [a] or [x]; disjoint views may
      * share one backing buffer. Implementations may pass offsets, strides, and leading dimensions directly
-     * to BLAS and must not materialize a contiguous copy.
+     * to BLAS and must not materialize a contiguous copy. Like BLAS `dgemv`, a zero row or column count
+     * returns without reading or changing [y].
      */
     @Suppress("LongParameterList") // the BLAS dgemv signature
     public fun gemv(
@@ -48,6 +49,7 @@ public interface F64Blas : Backend {
         requireShape(x.size == xLength) { "gemv: x length ${x.size} != $xLength" }
         requireShape(y.size == yLength) { "gemv: y length ${y.size} != $yLength" }
         require(!y.overlaps(x) && !a.overlaps(y)) { "gemv: destination overlaps an input view" }
+        if (a.rows == 0 || a.cols == 0) return
         for (i in 0 until y.size) {
             y[i] = when (beta) {
                 0.0 -> 0.0

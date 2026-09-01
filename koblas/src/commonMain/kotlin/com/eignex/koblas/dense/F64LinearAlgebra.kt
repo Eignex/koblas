@@ -85,8 +85,8 @@ public fun F64LuDecomposition.solveInto(
 public fun F64LuDecomposition.invert(workspace: Workspace? = null): F64DenseMatrix = koblas.invert(this, workspace)
 
 /**
- * Reciprocal condition estimate, given the 1-norm [anorm] of the matrix it came from; see [F64Decompositions.rcond].
- * Pair it with [com.eignex.koblas.norm1], computed before factoring.
+ * Reciprocal condition estimate, given the finite, non-negative 1-norm [anorm] of the matrix it came from;
+ * see [F64Decompositions.rcond]. Pair it with [com.eignex.koblas.norm1], computed before factoring.
  */
 public fun F64LuDecomposition.rcond(anorm: Double, workspace: Workspace? = null): Double = koblas.rcond(
     this,
