@@ -3,6 +3,7 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.Backend
+import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.dense.*
@@ -58,7 +59,8 @@ public interface F64SparseBlas : Backend {
      * operands are the same kind and a caller picks which is which; here [a] is distinguished by being the
      * sparse one and cannot be swapped, so without a side the product of a dense matrix by a sparse one is
      * only reachable by transposing the result. A host binding may well accelerate one side and not the
-     * other, since the routines these libraries carry take the sparse operand on the left.
+     * other, since the routines these libraries carry take the sparse operand on the left. [workspace] reuses
+     * portable dense-panel and transpose staging.
      */
     @Suppress("LongParameterList") // the BLAS dgemm signature, plus the side the sparse operand sits on
     public fun gemm(
@@ -70,6 +72,7 @@ public interface F64SparseBlas : Backend {
         beta: Double,
         c: F64DenseMatrix,
         right: Boolean = false,
+        workspace: Workspace? = null,
     )
 
     /**
@@ -88,7 +91,7 @@ public interface F64SparseBlas : Backend {
     /**
      * `B = alpha · op(T)⁻¹ · B` in place, or `B = alpha · B · op(T)⁻¹` when [right] (Sparse BLAS `ussm`).
      * The triangle flags follow [trsv]; the right-hand sides are the columns of [b] from the left and its
-     * rows from the right.
+     * rows from the right. [workspace] reuses portable diagonal and RHS-panel staging.
      * A missing diagonal entry behaves as zero, and singularity is not reported, as in dense `dtrsm`.
      */
     @Suppress("LongParameterList") // the BLAS dtrsm signature
@@ -100,6 +103,7 @@ public interface F64SparseBlas : Backend {
         unitDiag: Boolean = false,
         right: Boolean = false,
         alpha: Double = 1.0,
+        workspace: Workspace? = null,
     )
 
     /**
@@ -150,7 +154,14 @@ public interface F64PreparedSparseMatrix : AutoCloseable {
 
     /** `C = alpha · op(A) · B + beta · C` against the prepared `A`. */
     @Suppress("LongParameterList")
-    public fun gemm(alpha: Double, transposeA: Boolean, b: F64DenseMatrix, beta: Double, c: F64DenseMatrix)
+    public fun gemm(
+        alpha: Double,
+        transposeA: Boolean,
+        b: F64DenseMatrix,
+        beta: Double,
+        c: F64DenseMatrix,
+        workspace: Workspace? = null,
+    )
 
     /** `A · B` against the prepared `A`, into a fresh sparse matrix. */
     public fun gemm(b: F64SparseMatrix): F64SparseMatrix
@@ -172,9 +183,16 @@ private class ReferencePreparedSparseMatrix(a: F64SparseMatrix) : F64PreparedSpa
         F64ReferenceSparseLinearAlgebra.gemv(alpha, snapshot, x, beta, y, transpose)
     }
 
-    override fun gemm(alpha: Double, transposeA: Boolean, b: F64DenseMatrix, beta: Double, c: F64DenseMatrix) {
+    override fun gemm(
+        alpha: Double,
+        transposeA: Boolean,
+        b: F64DenseMatrix,
+        beta: Double,
+        c: F64DenseMatrix,
+        workspace: Workspace?,
+    ) {
         checkOpen()
-        F64ReferenceSparseLinearAlgebra.gemm(alpha, snapshot, transposeA, b, false, beta, c)
+        F64ReferenceSparseLinearAlgebra.gemm(alpha, snapshot, transposeA, b, false, beta, c, workspace = workspace)
     }
 
     override fun gemm(b: F64SparseMatrix): F64SparseMatrix {

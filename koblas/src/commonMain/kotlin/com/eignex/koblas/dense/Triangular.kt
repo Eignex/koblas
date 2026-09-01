@@ -2,6 +2,7 @@
 
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.koblas
 
@@ -25,7 +26,8 @@ public fun F64DenseMatrix.trsm(
     unitDiag: Boolean = false,
     right: Boolean = false,
     alpha: Double = 1.0,
-): Unit = koblas.trsm(this, b, lower, transpose, unitDiag, right, alpha)
+    workspace: Workspace? = null,
+): Unit = koblas.trsm(this, b, lower, transpose, unitDiag, right, alpha, workspace)
 
 /** Multiply `x = op(T) · x` in place (BLAS `dtrmv`); see [F64LinearAlgebra.trmv]. Reads only the triangle
  *  [lower] selects. */

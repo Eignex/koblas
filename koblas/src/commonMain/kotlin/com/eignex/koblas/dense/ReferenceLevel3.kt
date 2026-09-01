@@ -151,8 +151,8 @@ internal fun blockedTransposedLeftUpdate(
     m: Int,
     n: Int,
     depth: Int,
+    sums: DoubleArray,
 ) {
-    val sums = DoubleArray(4)
     var column = 0
     while (column < n) {
         val columnEnd = min(column + REFERENCE_NC, n)
@@ -328,10 +328,8 @@ internal fun blockedSymmLeftUpdate(
     n: Int,
     columns: Int,
     lower: Boolean,
+    panel: DoubleArray,
 ) {
-    val panelRows = min(REFERENCE_MC, n)
-    val panelDepth = min(REFERENCE_KC, n)
-    val panel = DoubleArray(panelRows * panelDepth)
     var row = 0
     while (row < n) {
         val rowEnd = min(row + REFERENCE_MC, n)

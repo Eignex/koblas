@@ -149,6 +149,7 @@ class PlatformDiscoveryTest {
             transposeB: Boolean,
             beta: Double,
             c: F64DenseMatrix,
+            workspace: Workspace?,
         ) = gemm(
             a,
             { F64ReferenceLinearAlgebra.gemm(alpha, a, transposeA, b, transposeB, beta, c) },

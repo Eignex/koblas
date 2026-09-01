@@ -87,11 +87,12 @@ public abstract class F64SparseBlasAdapter protected constructor() :
         beta: Double,
         c: F64DenseMatrix,
         right: Boolean,
+        workspace: Workspace?,
     ) {
         // The libraries take the sparse operand on the left and a dense operand it can read as it stands, so
         // a product from the right or against a transposed dense operand is answered portably.
         if (!nativeAvailable || right || transposeB) {
-            return portable.gemm(alpha, a, transposeA, b, transposeB, beta, c, right)
+            return portable.gemm(alpha, a, transposeA, b, transposeB, beta, c, right, workspace)
         }
         gemmNative(alpha, a, transposeA, b, beta, c)
     }
@@ -124,7 +125,8 @@ public abstract class F64SparseBlasAdapter protected constructor() :
         unitDiag: Boolean,
         right: Boolean,
         alpha: Double,
-    ): Unit = portable.trsm(a, b, lower, transpose, unitDiag, right, alpha)
+        workspace: Workspace?,
+    ): Unit = portable.trsm(a, b, lower, transpose, unitDiag, right, alpha, workspace)
 
     /**
      * Portable, deliberately. CHOLMOD has `cholmod_ssmult` and it was bound and measured; against the

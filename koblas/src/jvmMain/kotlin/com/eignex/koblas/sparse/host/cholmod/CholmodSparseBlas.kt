@@ -100,7 +100,14 @@ private class CholmodPreparedSparseMatrix(
         }
     }
 
-    override fun gemm(alpha: Double, transposeA: Boolean, b: F64DenseMatrix, beta: Double, c: F64DenseMatrix) {
+    override fun gemm(
+        alpha: Double,
+        transposeA: Boolean,
+        b: F64DenseMatrix,
+        beta: Double,
+        c: F64DenseMatrix,
+        workspace: Workspace?,
+    ) {
         val m = if (transposeA) cols else rows
         val k = if (transposeA) rows else cols
         requireShape(k == b.rows) { "gemm: op(A) is ${m}x$k but B has ${b.rows} rows" }
@@ -109,7 +116,16 @@ private class CholmodPreparedSparseMatrix(
         }
         lifecycle.withResource {
             if (!nativeGemm || !calls.sdmult(matrix, transposeA, alpha, b.data, beta, c.data, b.cols, b.rows, c.rows)) {
-                F64ReferenceSparseLinearAlgebra.gemm(alpha, snapshot, transposeA, b, false, beta, c)
+                F64ReferenceSparseLinearAlgebra.gemm(
+                    alpha,
+                    snapshot,
+                    transposeA,
+                    b,
+                    false,
+                    beta,
+                    c,
+                    workspace = workspace,
+                )
             }
         }
     }

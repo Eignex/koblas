@@ -99,9 +99,10 @@ class SparseBlasRoutingTest {
                 unitDiag: Boolean,
                 right: Boolean,
                 alpha: Double,
+                workspace: Workspace?,
             ) {
                 matrixCalls++
-                portable.trsm(a, b, lower, transpose, unitDiag, right, alpha)
+                portable.trsm(a, b, lower, transpose, unitDiag, right, alpha, workspace)
             }
         }
         val triangle = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 4.0)))

@@ -135,7 +135,7 @@ class LinearAlgebraSymmetricOpsTest {
                         val expected = F64DenseMatrix(n, p, c0.copyOf())
                         koblas.gemm(alpha, full, transposeA = false, b, transposeB = false, beta, expected)
                         val actual = F64DenseMatrix(n, p, c0.copyOf())
-                        koblas.symm(alpha, poisoned, b, beta, actual, lower)
+                        koblas.symm(alpha, poisoned, b, beta, actual, lower, workspace = Workspace())
                         assertClose(expected, actual, "symm n=$n a=$alpha b=$beta lower=$lower")
                     }
                 }
@@ -157,7 +157,7 @@ class LinearAlgebraSymmetricOpsTest {
                     val expected = F64DenseMatrix.wrap(rows, n, c0.copyOf())
                     koblas.gemm(alpha, b, false, full, false, beta, expected)
                     val actual = F64DenseMatrix.wrap(rows, n, c0.copyOf())
-                    koblas.symm(alpha, poisoned, b, beta, actual, lower, right = true)
+                    koblas.symm(alpha, poisoned, b, beta, actual, lower, right = true, workspace = Workspace())
                     assertClose(expected, actual, "symm right l=$lower a=$alpha b=$beta", tolerance = 1e-11)
                 }
             }

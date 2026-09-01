@@ -1,5 +1,6 @@
 package com.eignex.koblas.internal.backend
 
+import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.discoverBackends
@@ -49,6 +50,7 @@ class ProbeReentrantProvider :
         beta: Double,
         y: DoubleArray,
         transpose: Boolean,
+        workspace: Workspace?,
     ) {
         val kernels = kernels // the read that closes the loop back onto discovery
         y.fill(0.0)

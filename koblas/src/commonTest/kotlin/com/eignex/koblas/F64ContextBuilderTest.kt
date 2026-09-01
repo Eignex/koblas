@@ -74,6 +74,7 @@ class F64ContextBuilderTest {
             beta: Double,
             y: DoubleArray,
             transpose: Boolean,
+            workspace: Workspace?,
         ) {
             calls++
             F64ReferenceLinearAlgebra.gemv(alpha, a, x, beta, y, transpose)

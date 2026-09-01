@@ -12,7 +12,7 @@ public interface F64Blas : Backend {
     public val kernels: F64Kernels get() = koblas.kernels
 
     /** `y = alpha · op(A) · x + beta · y` (BLAS `dgemv`), with `op(A)` being `Aᵀ` when [transpose].
-     *  `beta == 0.0` overwrites [y] without reading it. */
+     *  `beta == 0.0` overwrites [y] without reading it. Supply [workspace] to reuse transposed dot scratch. */
     public fun gemv(
         alpha: Double,
         a: F64DenseMatrix,
@@ -20,6 +20,7 @@ public interface F64Blas : Backend {
         beta: Double,
         y: DoubleArray,
         transpose: Boolean = false,
+        workspace: Workspace? = null,
     )
 
     /** [gemv] with `alpha = 1, beta = 0`, into a fresh result. */
@@ -87,7 +88,7 @@ public interface F64Blas : Backend {
     public fun transpose(a: F64DenseMatrix): F64DenseMatrix
 
     /** `C = alpha · op(A) · op(B) + beta · C` (BLAS `dgemm`), with shapes `op(A): m×k`, `op(B): k×n`, `C: m×n`.
-     *  `beta == 0.0` overwrites [c] without reading it. */
+     *  `beta == 0.0` overwrites [c] without reading it. [workspace] reuses any needed transpose packing. */
     @Suppress("LongParameterList") // the BLAS dgemm signature
     public fun gemm(
         alpha: Double,
@@ -97,6 +98,7 @@ public interface F64Blas : Backend {
         transposeB: Boolean,
         beta: Double,
         c: F64DenseMatrix,
+        workspace: Workspace? = null,
     )
 
     /** [gemm] with `alpha = 1, beta = 0`, into a fresh matrix. `A.cols` must equal `B.rows`. */
@@ -181,7 +183,8 @@ public interface F64Blas : Backend {
     )
 
     /** `C = alpha · A · B + beta · C`, or `C = alpha · B · A + beta · C` when [right] (BLAS `dsymm`). Only the
-     *  [lower] triangle of [a] is read; `beta == 0.0` overwrites [c] without reading it. */
+     *  [lower] triangle of [a] is read; `beta == 0.0` overwrites [c] without reading it. [workspace] reuses the
+     *  left-side symmetric panel. */
     @Suppress("LongParameterList") // the BLAS dsymm signature
     public fun symm(
         alpha: Double,
@@ -191,6 +194,7 @@ public interface F64Blas : Backend {
         c: F64DenseMatrix,
         lower: Boolean = true,
         right: Boolean = false,
+        workspace: Workspace? = null,
     )
 
     /** `A = A + alpha · x · yᵀ` (BLAS `dger`), the dense form a backend can dispatch. The free `ger` accepts
@@ -240,7 +244,8 @@ public interface F64Blas : Backend {
     )
 
     /** `B = alpha · op(T)⁻¹ · B` in place, or `B = alpha · B · op(T)⁻¹` when [right] (BLAS `dtrsm`). Flags
-     *  follow [trsv]; the right-hand sides are the columns of [b] from the left and its rows from the right. */
+     *  follow [trsv]; the right-hand sides are the columns of [b] from the left and its rows from the right.
+     *  [workspace] reuses portable staging. */
     @Suppress("LongParameterList") // the BLAS dtrsm signature
     public fun trsm(
         a: F64DenseMatrix,
@@ -250,6 +255,7 @@ public interface F64Blas : Backend {
         unitDiag: Boolean = false,
         right: Boolean = false,
         alpha: Double = 1.0,
+        workspace: Workspace? = null,
     )
 
     /** `x = op(T) · x` in place (BLAS `dtrmv`), the product counterpart of [trsv]. */

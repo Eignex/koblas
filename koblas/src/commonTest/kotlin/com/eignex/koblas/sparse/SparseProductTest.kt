@@ -1,6 +1,7 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.DimensionMismatch
+import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
@@ -54,7 +55,16 @@ class SparseProductTest {
                 val fromDense = copyOf(c)
                 koblas.gemm(0.75, dense, transposeA, b, transposeB, -0.5, fromDense)
                 val fromSparse = copyOf(c)
-                koblas.sparseBlas.gemm(0.75, sparse, transposeA, b, transposeB, -0.5, fromSparse)
+                koblas.sparseBlas.gemm(
+                    0.75,
+                    sparse,
+                    transposeA,
+                    b,
+                    transposeB,
+                    -0.5,
+                    fromSparse,
+                    workspace = Workspace(),
+                )
 
                 assertClose(fromDense, fromSparse, "transposeA=$transposeA transposeB=$transposeB")
             }
@@ -164,7 +174,11 @@ class SparseProductTest {
                 val fromDense = copyOf(c)
                 koblas.gemm(0.75, b, transposeB, dense, transposeA, -0.5, fromDense)
                 val fromSparse = copyOf(c)
-                koblas.sparseBlas.gemm(0.75, sparse, transposeA, b, transposeB, -0.5, fromSparse, right = true)
+                koblas.sparseBlas.gemm(
+                    0.75, sparse, transposeA, b, transposeB, -0.5, fromSparse,
+                    right = true,
+                    workspace = Workspace(),
+                )
 
                 assertClose(fromDense, fromSparse, "right transposeA=$transposeA transposeB=$transposeB")
             }
