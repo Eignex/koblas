@@ -85,18 +85,14 @@ public sealed interface F64PivotedSymmetricIndefinitePivotBlock {
     public val interchangePosition: Int
 
     /** A 1×1 pivot at [position]. */
-    public data class OneByOne(
-        override val position: Int,
-        override val interchangedWith: Int,
-    ) : F64PivotedSymmetricIndefinitePivotBlock {
+    public data class OneByOne(override val position: Int, override val interchangedWith: Int) :
+        F64PivotedSymmetricIndefinitePivotBlock {
         override val interchangePosition: Int get() = position
     }
 
     /** A 2×2 pivot covering [position] and `position + 1`. */
-    public data class TwoByTwo(
-        override val position: Int,
-        override val interchangedWith: Int,
-    ) : F64PivotedSymmetricIndefinitePivotBlock {
+    public data class TwoByTwo(override val position: Int, override val interchangedWith: Int) :
+        F64PivotedSymmetricIndefinitePivotBlock {
         override val interchangePosition: Int get() = position + 1
     }
 }
