@@ -1,13 +1,15 @@
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.koblas
 import com.eignex.koblas.randomMatrix
-import com.eignex.koblas.core.F64DenseMatrix
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class FactorSnapshotsTest {
 
@@ -38,9 +40,9 @@ class FactorSnapshotsTest {
 
     @Test
     fun `LU signed log determinant avoids product overflow`() {
-        val huge = koblas.factor(F64DenseMatrix(200, 200).also { matrix ->
-            for (i in 0 until 200) matrix[i, i] = -100.0
-        })
+        val hugeMatrix = F64DenseMatrix(200, 200)
+        for (i in 0 until 200) hugeMatrix[i, i] = -100.0
+        val huge = koblas.factor(hugeMatrix)
 
         assertEquals(1, huge.determinantSign())
         assertClose(200.0 * kotlin.math.ln(100.0), huge.logAbsDeterminant(), "log absolute determinant")
@@ -49,6 +51,14 @@ class FactorSnapshotsTest {
         val singular = koblas.factor(F64DenseMatrix(2, 2))
         assertEquals(0, singular.determinantSign())
         assertEquals(Double.NEGATIVE_INFINITY, singular.logAbsDeterminant())
+    }
+
+    @OptIn(UnsafeKoblasApi::class)
+    @Test
+    fun `LU determinant sign is undefined rather than a stale sign for a NaN diagonal`() {
+        val nanDiagonal = F64LuDecomposition(2, doubleArrayOf(1.0, 0.5, 0.5, Double.NaN), intArrayOf(0, 1))
+        assertEquals(0, nanDiagonal.determinantSign())
+        assertTrue(nanDiagonal.logAbsDeterminant().isNaN())
     }
 
     @Test
