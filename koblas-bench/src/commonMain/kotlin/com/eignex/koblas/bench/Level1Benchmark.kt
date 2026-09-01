@@ -8,7 +8,8 @@ import kotlinx.benchmark.*
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(BenchmarkTimeUnit.NANOSECONDS)
 class Level1Benchmark {
-    @Param("2", "4", "8", "16", "32", "64", "128", "256", "1024", "4096")
+    // 63, 64, and 65 make the host-router crossover explicit in scalar/host comparisons.
+    @Param("2", "4", "8", "16", "32", "63", "64", "65", "128", "256", "1024", "4096")
     var len: Int = 0
 
     @Param(AUTOMATIC_KERNELS, SCALAR_KERNELS, C_KERNELS, HOST_BACKEND)
