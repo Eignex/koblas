@@ -129,6 +129,9 @@ class SparseSymmetricRankUpdateTest {
         )
         assertFailsWith<DimensionMismatch> { rectangular.syr(1.0, F64DenseVector.zero(2)) }
         assertFailsWith<DimensionMismatch> {
+            F64SparseMatrix.ofColumns(2, 2, listOf(emptyList(), emptyList())).syr(1.0, F64DenseVector.zero(3))
+        }
+        assertFailsWith<DimensionMismatch> {
             F64SparseMatrix.ofColumns(2, 2, listOf(emptyList(), emptyList())).syr2(
                 1.0,
                 F64DenseVector.zero(2),
