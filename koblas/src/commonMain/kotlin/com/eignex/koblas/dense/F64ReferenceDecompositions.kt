@@ -33,15 +33,16 @@ internal class F64ReferenceDecompositions(private val configured: F64Kernels? = 
     override fun applyQInto(qr: F64QrDecomposition, y: DoubleArray, out: DoubleArray, transpose: Boolean): DoubleArray =
         referenceApplyQInto(kernels, qr, y, out, transpose)
 
-    override fun factor(a: F64DenseMatrix): F64LuDecomposition {
-        requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
-        val n = a.rows
-        return referenceLuFactorInto(kernels, a, F64LuDecomposition(n, DoubleArray(n * n), IntArray(n)))
-    }
+    override fun factor(a: F64DenseMatrix): F64LuDecomposition = referenceLuFactorInto(
+        kernels,
+        a,
+        F64LuDecomposition(a.rows, a.cols, DoubleArray(a.data.size), IntArray(a.rows)),
+    )
 
     override fun factorInto(a: F64DenseMatrix, out: F64LuDecomposition): F64LuDecomposition {
-        requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
-        requireShape(out.n == a.rows) { "factorInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}" }
+        requireShape(out.rows == a.rows && out.cols == a.cols) {
+            "factorInto: out is ${out.rows}x${out.cols}, expected ${a.rows}x${a.cols}"
+        }
         return referenceLuFactorInto(kernels, a, out)
     }
 
@@ -97,6 +98,7 @@ internal class F64ReferenceDecompositions(private val configured: F64Kernels? = 
     }
 
     override fun rcond(lu: F64LuDecomposition, anorm: Double, workspace: Workspace?): Double {
+        requireLuSquare(lu, "rcond")
         val n = lu.n
         if (n == 0) return 1.0
         if (lu.singular || anorm == 0.0) return 0.0
@@ -122,6 +124,7 @@ internal class F64ReferenceDecompositions(private val configured: F64Kernels? = 
      *  @throws com.eignex.koblas.SingularMatrix if [lu] is singular; the position is [F64LuDecomposition.failedAt].
      */
     override fun invert(lu: F64LuDecomposition, workspace: Workspace?): F64DenseMatrix {
+        requireLuSquare(lu, "invert")
         if (lu.singular) {
             throw SingularMatrix(
                 lu.failedAt,

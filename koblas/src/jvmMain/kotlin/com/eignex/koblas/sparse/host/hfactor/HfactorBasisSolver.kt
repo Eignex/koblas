@@ -9,8 +9,10 @@ import com.eignex.koblas.internal.host.nativeCleaner
 import com.eignex.koblas.requireInBounds
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.sparse.basis.BasisUpdate
+import com.eignex.koblas.sparse.basis.F64BasisSolveQuality
 import com.eignex.koblas.sparse.basis.F64BasisSolver
 import com.eignex.koblas.sparse.basis.F64IndexedVector
+import com.eignex.koblas.sparse.basis.basisSolveQuality
 import java.lang.foreign.MemorySegment
 import java.lang.ref.Reference
 
@@ -32,7 +34,7 @@ import java.lang.ref.Reference
  */
 @OptIn(UnsafeKoblasApi::class)
 public class HfactorBasisSolver internal constructor(
-    a: F64SparseMatrix,
+    private val a: F64SparseMatrix,
     private val calls: HfactorCalls,
     private val handle: MemorySegment,
 ) : F64BasisSolver {
@@ -46,12 +48,24 @@ public class HfactorBasisSolver internal constructor(
     override val n: Int = a.rows
 
     private val columns = a.cols
+    private val basicIndex = IntArray(n)
+    private val pivotRange = DoubleArray(2)
     private var factorized = false
     private var lastFtran: F64IndexedVector? = null
     private var lastBtran: F64IndexedVector? = null
 
     override var singular: Boolean = true
         private set
+
+    override val rcond: Double get() = lifecycle.withResource {
+        if (!factorized || singular) return@withResource 0.0
+        try {
+            calls.pivotRange(handle, pivotRange)
+            if (pivotRange[1] == 0.0) 0.0 else pivotRange[0] / pivotRange[1]
+        } finally {
+            Reference.reachabilityFence(this)
+        }
+    }
 
     override val updateCount: Int get() = lifecycle.withResource {
         try {
@@ -77,6 +91,7 @@ public class HfactorBasisSolver internal constructor(
         } finally {
             Reference.reachabilityFence(this)
         }
+        basicIndex.copyInto(this.basicIndex)
         forgetSolves()
         factorized = true
         /*
@@ -97,6 +112,12 @@ public class HfactorBasisSolver internal constructor(
         solveNative(x, expectedDensity, transpose = true)
         lastBtran = x
     }
+
+    override fun solveQuality(rhs: DoubleArray, solution: F64IndexedVector, transpose: Boolean): F64BasisSolveQuality =
+        lifecycle.withResource {
+            checkSolvable()
+            basisSolveQuality(a, basicIndex, rhs, solution, transpose)
+        }
 
     override fun update(
         pivotRow: Int,
@@ -124,8 +145,11 @@ public class HfactorBasisSolver internal constructor(
         forgetSolves()
         when (advice) {
             HfactorUpdate.REFUSED -> BasisUpdate.SINGULAR
-            HfactorUpdate.REFACTORIZE -> BasisUpdate.REFACTORIZE
-            else -> BasisUpdate.APPLIED
+
+            else -> {
+                basicIndex[pivotRow] = entering
+                if (advice == HfactorUpdate.REFACTORIZE) BasisUpdate.REFACTORIZE else BasisUpdate.APPLIED
+            }
         }
     }
 

@@ -303,17 +303,17 @@ public class F64Context(
 
     override fun factor(a: F64DenseMatrix): F64LuDecomposition {
         if (enforcesRoutingPolicy) {
-            requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
-            beforeDispatch(F64RouteQuery.DenseLu(a.rows))
+            beforeDispatch(F64RouteQuery.DenseLu(minOf(a.rows, a.cols)))
         }
         return decompositions.factor(a)
     }
 
     override fun factorInto(a: F64DenseMatrix, out: F64LuDecomposition): F64LuDecomposition {
         if (enforcesRoutingPolicy) {
-            requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
-            requireShape(out.n == a.rows) { "factorInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}" }
-            beforeDispatch(F64RouteQuery.DenseLu(a.rows))
+            requireShape(out.rows == a.rows && out.cols == a.cols) {
+                "factorInto: out is ${out.rows}x${out.cols}, expected ${a.rows}x${a.cols}"
+            }
+            beforeDispatch(F64RouteQuery.DenseLu(minOf(a.rows, a.cols)))
         }
         return decompositions.factorInto(a, out)
     }

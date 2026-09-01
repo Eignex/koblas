@@ -17,6 +17,7 @@ class SolveBenchmark {
     var backend: String = REFERENCE_BACKEND
 
     private lateinit var a: F64DenseMatrix
+    private lateinit var rectangular: F64DenseMatrix
     private lateinit var factored: F64LuDecomposition
     private lateinit var indefinite: F64LdlDecomposition
     private lateinit var rhs: DoubleArray
@@ -32,6 +33,10 @@ class SolveBenchmark {
         installDenseBackend(backend)
         val rng = benchRng()
         a = dominantMatrix(n, rng)
+        rectangular = F64DenseMatrix.zero(2 * n, n)
+        for (j in 0 until n) for (i in 0 until 2 * n) {
+            rectangular[i, j] = if (i == j) 2.0 else rng.nextDouble(-1.0, 1.0)
+        }
         factored = a.lu()
         indefinite = koblas.ldl(indefiniteMatrix(n, rng))
         rhs = randomVector(n, rng)
@@ -56,6 +61,9 @@ class SolveBenchmark {
 
     @Benchmark
     fun luFactor(): F64LuDecomposition = a.lu()
+
+    @Benchmark
+    fun rectangularLuFactor(): F64LuDecomposition = rectangular.lu()
 
     @Benchmark
     fun luFactorInto(): F64LuDecomposition = koblas.factorInto(a, reusable)

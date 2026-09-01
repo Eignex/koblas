@@ -64,6 +64,20 @@ public class F64ProductFormBasisSolver(
 
     override val singular: Boolean get() = base.let { it == null || it.singular }
 
+    override val rcond: Double
+        get() {
+            checkOpen()
+            val baseQuality = base?.rcond ?: return 0.0
+            var smallest = 1.0
+            var largest = 1.0
+            for (pivot in etaPivot) {
+                val magnitude = kotlin.math.abs(pivot)
+                smallest = minOf(smallest, magnitude)
+                largest = maxOf(largest, magnitude)
+            }
+            return minOf(baseQuality, smallest / largest)
+        }
+
     override val nnz: Int
         get() {
             checkOpen()
@@ -105,6 +119,12 @@ public class F64ProductFormBasisSolver(
         for (j in etaPivotRow.indices.reversed()) applyEtaTransposed(j)
         factors.solveInto(dense, dense, transpose = true, workspace = workspace)
         x.scatter(dense)
+    }
+
+    override fun solveQuality(rhs: DoubleArray, solution: F64IndexedVector, transpose: Boolean): F64BasisSolveQuality {
+        checkOpen()
+        check(!singular) { "solveQuality: the basis is singular" }
+        return basisSolveQuality(a, basicIndex, rhs, solution, transpose)
     }
 
     override fun update(
