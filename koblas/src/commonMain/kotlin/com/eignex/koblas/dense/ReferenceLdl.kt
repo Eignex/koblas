@@ -180,7 +180,7 @@ internal fun referenceLdlSolveInto(
     requireShape(b.size == n) { "solve: b length ${b.size} != $n" }
     requireShape(out.size == n) { "solve: out length ${out.size} != $n" }
     val w = ldl.ldl
-    val ipiv = ldl.ipiv
+    val ipiv = ldl.rawLapackIpiv
     val x = out
     if (out !== b) b.copyInto(out)
     var k = 0

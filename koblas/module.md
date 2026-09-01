@@ -4,7 +4,7 @@ Dense and sparse linear algebra for Kotlin Multiplatform.
 
 Every container and every backend half names its element type. Double precision is the only one
 implemented, so those names begin `F64`, with unqualified aliases for convenient use: `DenseMatrix` is
-[F64DenseMatrix][com.eignex.koblas.core.F64DenseMatrix]. The README's "Element types" section says what an
+[F64DenseMatrix][com.eignex.koblas.core.F64DenseMatrix]. The README's "Data and storage" section says what an
 element type added later brings and what stays shared.
 
 Koblas provides mutable owning containers through read-only matrix/vector contracts, with sealed dense and
@@ -23,8 +23,8 @@ Sparse linear algebra is a first-class peer: a CSC [F64SparseMatrix][com.eignex.
 with matrix-vector and matrix-matrix products, general and repeated-pattern LU, Cholesky, quasi-definite LDL,
 and distinct simplex-basis capabilities. Dense symmetric-indefinite factorization is Bunch-Kaufman numerically
 pivoted; sparse quasi-definite LDL instead preserves a fill-reducing ordering. Sparse factors provide vector and
-block solves, deterministic lifecycle, allocation contracts, and typed factor access. The README's "BLAS
-coverage" and "Choosing a sparse workflow" sections map these semantic roles to portable and native providers.
+block solves, deterministic lifecycle, allocation contracts, and typed factor access. The README's "Numerical
+routine coverage" and "Sparse workflows" sections map these semantic roles to portable and native providers.
 
 The heavier level-2/3 and factorization work — [gemv][com.eignex.koblas.dense.F64LinearAlgebra.gemv],
 [gemm][com.eignex.koblas.dense.F64LinearAlgebra.gemm] and a general LU

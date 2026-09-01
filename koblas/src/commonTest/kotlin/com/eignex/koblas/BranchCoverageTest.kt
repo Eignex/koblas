@@ -1,6 +1,7 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.core.*
+import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
 import com.eignex.koblas.dense.lu
 import kotlin.math.abs
 import kotlin.random.Random
@@ -190,5 +191,16 @@ class BranchCoverageTest {
         // A zero matrix is singular, and a zero norm reports zero instead of dividing.
         assertEquals(0.0, koblas.rcond(F64DenseMatrix.zero(3, 3).lu(), 0.0))
         assertEquals(1.0, koblas.rcond(F64DenseMatrix.zero(0, 0).lu(), 0.0), "an empty matrix is perfectly conditioned")
+    }
+
+    @Test
+    fun `rcond rejects a non finite or negative matrix norm`() {
+        val lu = F64ReferenceLinearAlgebra.factor(F64DenseMatrix.diagonal(1))
+
+        for (anorm in doubleArrayOf(-1.0, Double.NaN, Double.POSITIVE_INFINITY)) {
+            assertFailsWith<IllegalArgumentException>("anorm=$anorm") {
+                F64ReferenceLinearAlgebra.rcond(lu, anorm)
+            }
+        }
     }
 }

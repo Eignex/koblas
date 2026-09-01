@@ -8,38 +8,32 @@ import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.koblas
 
 /**
- * A standalone lower-triangular `L` with unit diagonal from this `P·A = L·U` factorization.
+ * A standalone lower-trapezoidal `L` with unit diagonal from this `P·A = L·U` factorization.
  *
  * The returned matrix is a copy: changing it cannot change this factorization or later solves.
  */
-public fun F64LuDecomposition.lowerFactor(): F64DenseMatrix = F64DenseMatrix(n, n).also { lower ->
-    for (column in 0 until n) {
-        lower[column, column] = 1.0
-        for (row in column + 1 until n) lower[row, column] = lu[row + column * n]
-    }
-}
+public fun F64LuDecomposition.lowerFactor(): F64DenseMatrix = lower()
 
 /**
- * A standalone upper-triangular `U` from this `P·A = L·U` factorization.
+ * A standalone upper-trapezoidal `U` from this `P·A = L·U` factorization.
  *
  * The returned matrix is a copy: changing it cannot change this factorization or later solves.
  */
-public fun F64LuDecomposition.upperFactor(): F64DenseMatrix = F64DenseMatrix(n, n).also { upper ->
-    for (column in 0 until n) for (row in 0..column) upper[row, column] = lu[row + column * n]
-}
+public fun F64LuDecomposition.upperFactor(): F64DenseMatrix = upper()
 
 /**
  * A defensive copy of the row permutation, where entry `k` is the original row at pivot position `k`.
  */
-public fun F64LuDecomposition.rowOrder(): IntArray = piv.copyOf()
+public fun F64LuDecomposition.rowOrder(): IntArray = rowPermutation
 
 /**
  * The sign of `det(A)`, including the row permutation. It is zero when this factorization is singular or
  * when a diagonal entry is `NaN`, since neither has a well-defined sign.
  */
 public fun F64LuDecomposition.determinantSign(): Int {
+    requireLuSquare(this, "determinantSign")
     if (singular) return 0
-    var sign = if (permutationSign(piv) > 0.0) 1 else -1
+    var sign = if (permutationSign(mutablePivots) > 0.0) 1 else -1
     for (k in 0 until n) {
         val diagonal = lu[k + k * n]
         when {
@@ -57,6 +51,7 @@ public fun F64LuDecomposition.determinantSign(): Int {
  * determinant's sign matters.
  */
 public fun F64LuDecomposition.logAbsDeterminant(): Double {
+    requireLuSquare(this, "logAbsDeterminant")
     if (singular) return Double.NEGATIVE_INFINITY
     var logAbs = 0.0
     for (k in 0 until n) {
@@ -87,9 +82,6 @@ public fun F64CholeskyDecomposition.lowerFactor(): F64DenseMatrix = F64DenseMatr
  */
 public fun F64PivotedSymmetricIndefiniteDecomposition.packedFactor(): F64DenseMatrix =
     F64DenseMatrix(n, n, ldl.copyOf())
-
-/** A defensive copy of this factorization's LAPACK `dsytrf` pivot description. */
-public fun F64PivotedSymmetricIndefiniteDecomposition.pivotBlocks(): IntArray = ipiv.copyOf()
 
 /**
  * The explicit orthogonal `m×m` matrix `Q` represented by this factorization.

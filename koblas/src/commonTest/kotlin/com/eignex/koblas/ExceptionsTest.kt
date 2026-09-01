@@ -45,14 +45,11 @@ class ExceptionsTest {
     }
 
     @Test
-    fun `every koblas failure stays an IllegalArgumentException`() {
-        for (block in listOf<() -> Unit>(
-            { koblas.invert(koblas.factor(F64DenseMatrix.zero(2, 3))) },
-            { singular.lu().invert() },
-            { indefinite.cholesky() },
-        )) {
-            val e = assertFailsWith<IllegalArgumentException> { block() }
-            assertTrue(e is KoblasException, "expected a typed koblas failure, got ${e::class.simpleName}")
-        }
+    fun `input errors and numerical outcomes use distinct standard exception families`() {
+        assertFailsWith<IllegalArgumentException> { koblas.invert(koblas.factor(F64DenseMatrix.zero(2, 3))) }
+        val singularFailure = assertFailsWith<ArithmeticException> { singular.lu().invert() }
+        val positiveDefiniteFailure = assertFailsWith<ArithmeticException> { indefinite.cholesky() }
+        assertTrue(singularFailure is KoblasException)
+        assertTrue(positiveDefiniteFailure is KoblasException)
     }
 }

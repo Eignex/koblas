@@ -194,7 +194,7 @@ public final class com/eignex/koblas/CapabilitiesKt {
 	public static final fun capability (Lcom/eignex/koblas/F64Context;Lcom/eignex/koblas/F64Capability;)Lcom/eignex/koblas/Backend;
 }
 
-public final class com/eignex/koblas/DimensionMismatch : com/eignex/koblas/KoblasException {
+public final class com/eignex/koblas/DimensionMismatch : java/lang/IllegalArgumentException {
 	public fun <init> (Ljava/lang/String;)V
 }
 
@@ -570,7 +570,7 @@ public final class com/eignex/koblas/FactorizationKt {
 	public static final field SINGULAR_POSITION_UNKNOWN I
 }
 
-public abstract class com/eignex/koblas/KoblasException : java/lang/IllegalArgumentException {
+public abstract class com/eignex/koblas/KoblasException : java/lang/ArithmeticException {
 	public synthetic fun <init> (Ljava/lang/String;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
 
@@ -1249,7 +1249,6 @@ public final class com/eignex/koblas/dense/F64LuDecomposition {
 	public final fun getLu ()[D
 	public final fun getN ()I
 	public final fun getOrder ()I
-	public final fun getPiv ()[I
 	public final fun getRank ()I
 	public final fun getRankDeficient ()Z
 	public final fun getRowPermutation ()[I
@@ -1259,6 +1258,7 @@ public final class com/eignex/koblas/dense/F64LuDecomposition {
 	public final fun getU ()Lcom/eignex/koblas/core/F64DenseMatrix;
 	public final fun lower ()Lcom/eignex/koblas/core/F64DenseMatrix;
 	public final fun permutation ()[I
+	public final fun rowAt (I)I
 	public final fun upper ()Lcom/eignex/koblas/core/F64DenseMatrix;
 }
 
@@ -1284,10 +1284,45 @@ public final class com/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecompos
 	public fun <init> (I[D[II)V
 	public synthetic fun <init> (I[D[IIILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun getFailedAt ()I
-	public final fun getIpiv ()[I
 	public final fun getLdl ()[D
 	public final fun getN ()I
+	public final fun getPivotBlocks ()Ljava/util/List;
+	public final fun getRawLapackIpiv ()[I
 	public final fun getSingular ()Z
+}
+
+public abstract interface class com/eignex/koblas/dense/F64PivotedSymmetricIndefinitePivotBlock {
+	public abstract fun getInterchangePosition ()I
+	public abstract fun getInterchangedWith ()I
+	public abstract fun getPosition ()I
+}
+
+public final class com/eignex/koblas/dense/F64PivotedSymmetricIndefinitePivotBlock$OneByOne : com/eignex/koblas/dense/F64PivotedSymmetricIndefinitePivotBlock {
+	public fun <init> (II)V
+	public final fun component1 ()I
+	public final fun component2 ()I
+	public final fun copy (II)Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefinitePivotBlock$OneByOne;
+	public static synthetic fun copy$default (Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefinitePivotBlock$OneByOne;IIILjava/lang/Object;)Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefinitePivotBlock$OneByOne;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getInterchangePosition ()I
+	public fun getInterchangedWith ()I
+	public fun getPosition ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/eignex/koblas/dense/F64PivotedSymmetricIndefinitePivotBlock$TwoByTwo : com/eignex/koblas/dense/F64PivotedSymmetricIndefinitePivotBlock {
+	public fun <init> (II)V
+	public final fun component1 ()I
+	public final fun component2 ()I
+	public final fun copy (II)Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefinitePivotBlock$TwoByTwo;
+	public static synthetic fun copy$default (Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefinitePivotBlock$TwoByTwo;IIILjava/lang/Object;)Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefinitePivotBlock$TwoByTwo;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getInterchangePosition ()I
+	public fun getInterchangedWith ()I
+	public fun getPosition ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
 }
 
 public final class com/eignex/koblas/dense/F64QrDecomposition {
@@ -1377,7 +1412,6 @@ public final class com/eignex/koblas/dense/FactorSnapshotsKt {
 	public static final fun lowerFactor (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public static final fun lowerFactor (Lcom/eignex/koblas/dense/F64LuDecomposition;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public static final fun packedFactor (Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static final fun pivotBlocks (Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;)[I
 	public static final fun rowOrder (Lcom/eignex/koblas/dense/F64LuDecomposition;)[I
 	public static final fun upperFactor (Lcom/eignex/koblas/dense/F64LuDecomposition;)Lcom/eignex/koblas/core/F64DenseMatrix;
 }

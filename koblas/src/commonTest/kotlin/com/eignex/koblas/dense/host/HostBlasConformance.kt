@@ -266,7 +266,7 @@ internal fun assertNonPositiveDefiniteFallsBack(decompositions: F64Decomposition
         decompositions.cholesky(bad, policy).l[n - 1, n - 1],
         1e-15,
     )
-    assertFailsWith<IllegalArgumentException> { decompositions.cholesky(bad) }
+    assertFailsWith<NotPositiveDefinite> { decompositions.cholesky(bad) }
 }
 
 /**
@@ -314,15 +314,15 @@ internal fun assertFactorIntoUsesItsDestination(decompositions: F64Decomposition
 
     val out = decompositions.factor(first)
     val luBuffer = out.lu
-    val pivBuffer = out.piv
+    val pivBuffer = out.mutablePivots
     val returned = decompositions.factorInto(second, out)
     assertSame(out, returned, "factorInto must return its destination")
     assertSame(luBuffer, returned.lu, "factorInto must keep the destination's factor buffer")
-    assertSame(pivBuffer, returned.piv, "factorInto must keep the destination's pivot buffer")
+    assertSame(pivBuffer, returned.mutablePivots, "factorInto must keep the destination's pivot buffer")
 
     val fresh = decompositions.factor(second)
     assertClose(fresh.lu, returned.lu, "factorInto factors n=$n", tolerance = 1e-12)
-    assertEquals(fresh.piv.toList(), returned.piv.toList(), "factorInto pivots n=$n")
+    assertEquals(fresh.rowPermutation.toList(), returned.rowPermutation.toList(), "factorInto pivots n=$n")
     assertEquals(fresh.failedAt, returned.failedAt, "factorInto singularity n=$n")
 
     // A singular matrix must update failedAt, not keep the previous factorization's verdict.
@@ -348,7 +348,7 @@ internal fun assertRectangularLuAgreesWithReference(decompositions: F64Decomposi
         assertEquals(expected.rows, actual.rows, "rows ${a.rows}x${a.cols}")
         assertEquals(expected.cols, actual.cols, "cols ${a.rows}x${a.cols}")
         assertClose(expected.lu, actual.lu, "factors ${a.rows}x${a.cols}", tolerance = 1e-12)
-        assertEquals(expected.piv.toList(), actual.piv.toList(), "pivots ${a.rows}x${a.cols}")
+        assertEquals(expected.rowPermutation.toList(), actual.rowPermutation.toList(), "pivots ${a.rows}x${a.cols}")
         assertEquals(expected.failedAt, actual.failedAt, "singularity ${a.rows}x${a.cols}")
         val reused = decompositions.factor(a)
         val buffer = reused.lu
@@ -597,6 +597,10 @@ internal fun assertRcondAgreesWithReference(decompositions: F64Decompositions, s
     val singular = F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 4.0)))
     assertEquals(0.0, decompositions.rcond(decompositions.factor(singular), singular.norm1()))
     assertEquals(1.0, decompositions.rcond(decompositions.factor(F64DenseMatrix(0, 0)), 0.0))
+    val lu = decompositions.factor(F64DenseMatrix.diagonal(1))
+    for (anorm in doubleArrayOf(-1.0, Double.NaN, Double.POSITIVE_INFINITY)) {
+        assertFailsWith<IllegalArgumentException>("anorm=$anorm") { decompositions.rcond(lu, anorm) }
+    }
 }
 
 /**
@@ -694,6 +698,16 @@ internal fun assertDegenerateShapesFollowBlasQuickReturns(blas: F64Blas) {
     val y = DoubleArray(3) { Double.NaN }
     blas.gemv(1.0, F64DenseMatrix(0, 3), DoubleArray(0), 0.0, y, transpose = true)
     assertTrue(y.all(Double::isNaN), "gemv with a zero dimension changed ${y.toList()}")
+    val stridedY = DoubleArray(3) { Double.NaN }
+    blas.gemv(
+        1.0,
+        F64StridedMatrixView(0, 3, DoubleArray(0)),
+        F64StridedVectorView(DoubleArray(0), 0, 0),
+        0.0,
+        F64StridedVectorView(stridedY, 2, 3, -1),
+        transpose = true,
+    )
+    assertTrue(stridedY.all(Double::isNaN), "strided gemv with a zero dimension changed ${stridedY.toList()}")
     val c = F64DenseMatrix.wrap(2, 2, DoubleArray(4) { Double.NaN })
     blas.gemm(1.0, F64DenseMatrix(2, 0), false, F64DenseMatrix(0, 2), false, 0.0, c)
     assertTrue(c.data.all { it == 0.0 }, "gemm k=0 beta=0 left ${c.data.toList()}")

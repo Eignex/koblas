@@ -35,4 +35,8 @@ for backend benchmarks and with `scalar` for kernel benchmarks.
 
 A successful Gradle task without fresh JSON can mean a stale JMH lock. `report.sh` checks for JSON newer than its marker and reports a detected lock; confirm no benchmark is running before removing a stale lock.
 
-When adding or changing a public numerical API, update `benchmark-coverage.tsv` and run `./gradlew :koblas-bench:checkBenchmarkCoverage`. It fails for either an unlisted benchmark method or a manifest method that no longer exists.
+When adding or changing a public numerical API, update `public-numerical-api.tsv` and `benchmark-coverage.tsv`, then
+run `./gradlew :koblas-bench:checkBenchmarkCoverage`. The inventory names each reviewed public operation and maps it
+to a benchmarked manifest row or an explicitly justified exclusion. The check fails for a public operation absent
+from the inventory, an inventory entry without a manifest row, an unlisted benchmark method, or a manifest method
+that no longer exists.

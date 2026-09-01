@@ -1,6 +1,61 @@
 api_signature	benchmark_id	status	notes
 F64BasisSolver.refactorize(F64SparseMatrix)	com.eignex.koblas.bench.BasisBenchmark.refactorize	benchmarked	
 F64BasisSolver.pivots()	com.eignex.koblas.bench.BasisBenchmark.pivots	benchmarked	
+F64CholeskyDecomposition.refactorInto(F64DenseMatrix)		excluded	Refactorization shares the benchmarked Cholesky factorization kernel and is covered by buffer-reuse tests.
+F64CholeskyDecomposition.solveInto(DoubleArray,DoubleArray)		excluded	The destination-passing variant shares the benchmarked Cholesky solve kernel and is covered by aliasing tests.
+F64Decompositions.choleskyInto(F64DenseMatrix,F64CholeskyDecomposition)		excluded	The backend destination-passing variant shares the benchmarked Cholesky factorization kernel.
+F64Decompositions.pivotedSymmetricIndefiniteInto(F64DenseMatrix,F64PivotedSymmetricIndefiniteDecomposition)		excluded	The backend destination-passing variant shares the benchmarked pivoted symmetric-indefinite factorization kernel.
+F64Decompositions.qrInto(F64DenseMatrix,F64QrDecomposition)		excluded	The backend destination-passing variant shares the benchmarked QR factorization kernel.
+F64QrDecomposition.applyQInto(DoubleArray,DoubleArray)		excluded	The destination-passing variant shares the benchmarked applyQ kernel and is covered by aliasing tests.
+F64Decomposition.refactorInto(F64DenseMatrix)		excluded	The family-specific refactorization extensions share their corresponding benchmarked factorization kernels.
+F64LuDecomposition.lower()		excluded	Extracting a factor snapshot is inspection work rather than a dispatched numerical kernel.
+F64LuDecomposition.permutation()		excluded	Copying the pivot permutation is inspection work rather than a dispatched numerical kernel.
+F64LuDecomposition.upper()		excluded	Extracting a factor snapshot is inspection work rather than a dispatched numerical kernel.
+F64LuDecomposition.rowAt(Int)		excluded	Reading one permutation entry is inspection work rather than a dispatched numerical kernel.
+F64BasisSolver.solveQuality(DoubleArray,F64IndexedVector)		excluded	Residual diagnostics deliberately do extra sparse work and are intended for checks rather than hot loops.
+rot(F64DenseVector,F64DenseVector,F64Givens)		excluded	Plane rotation is a scalar helper rather than a backend-dispatch benchmark.
+rotg(Double,Double)		excluded	Plane rotation generation is a scalar helper rather than a backend-dispatch benchmark.
+F64DenseMatrix.column(Int)		excluded	Column extraction is a storage view helper, not a numerical kernel.
+F64DenseMatrix.row(Int)		excluded	Row extraction is a storage copy helper, not a numerical kernel.
+F64SparseMatrix.withColumn(Int,F64SparseVector)		excluded	Column replacement constructs a CSC value and is covered by sparse correctness tests.
+F64DenseMatrix.minus(F64DenseMatrix)		excluded	Elementwise arithmetic allocates a result and does not select a numerical backend.
+F64DenseMatrix.plus(F64DenseMatrix)		excluded	Elementwise arithmetic allocates a result and does not select a numerical backend.
+F64DenseMatrix.unaryMinus()		excluded	Elementwise arithmetic allocates a result and does not select a numerical backend.
+copy(F64VectorLike,F64DenseVector)		excluded	Copy is a storage transfer rather than a numerical operation dispatched by a backend.
+F64VectorLike.forEachStored((Int,Double)->Unit)		excluded	Stored-entry iteration is a traversal helper and depends on caller work.
+F64Decompositions.applyQInto(F64QrDecomposition,DoubleArray,DoubleArray)		excluded	The destination-passing variant shares the benchmarked applyQ kernel and is covered by aliasing tests.
+F64LuDecomposition.determinant()		excluded	Determinant is a linear scan over existing LU factors.
+F64SparseFactorization.replaceColumn(Int,F64SparseVector)		excluded	Column replacement is an optional factorization inspection capability, not a solve kernel.
+F64SparseFactorization.solveAllocation(Boolean,Boolean)		excluded	Allocation reporting is metadata and performs no numerical work.
+F64SparseQrFactorization.applyQInto(DoubleArray,DoubleArray)		excluded	The destination-passing variant shares the benchmarked sparse QR applyQ kernel and is covered by aliasing tests.
+F64SparseQrFactorization.solveAllocation(Boolean)		excluded	Allocation reporting is metadata and performs no numerical work.
+F64SparseQrFactorization.solveInto(DoubleArray,DoubleArray)		excluded	The destination-passing variant shares the benchmarked sparse QR solve kernel and is covered by aliasing tests.
+F64SparseBlas.trsm(F64SparseMatrix,F64DenseMatrix)		excluded	Sparse triangular block solve has no distinct host implementation and shares the triangular solve path.
+F64BasisSolver.btran(F64IndexedVector)		excluded	Basis-solver state and sparsity evolve across calls, so a standalone benchmark would not be representative.
+F64BasisSolver.ftran(F64IndexedVector)		excluded	Basis-solver state and sparsity evolve across calls, so a standalone benchmark would not be representative.
+F64BasisSolver.update(Int,Int,F64IndexedVector)		excluded	Basis updates require a meaningful simplex sequence rather than an isolated call.
+F64BasisSolvers.basisSolver(F64SparseMatrix)		excluded	Constructing a basis solver is setup work; refactorization is the reviewed numerical benchmark.
+F64Kernels.asum(DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.asum facade.
+F64Kernels.axpy(DoubleArray,Int,Double,DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.axpy facade.
+F64Kernels.dot(DoubleArray,Int,DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.dot facade.
+F64Kernels.nrm2(DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.norm2 facade.
+F64Kernels.scale(DoubleArray,Int,Double,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.scale facade.
+F64Kernels.swap(DoubleArray,Int,DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public swap facade.
+F64SparseKernels.asum(SparseVector)		excluded	The raw kernel shares the dispatch path benchmarked through the public SparseVector.asum facade.
+F64SparseKernels.axpy(DoubleArray,Double,SparseVector)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.axpy(SparseVector) facade.
+F64SparseKernels.dot(SparseVector,DoubleArray)		excluded	The raw kernel shares the dispatch path benchmarked through the public SparseVector.dot facades.
+F64SparseKernels.nrm2(SparseVector)		excluded	The raw kernel shares the dispatch path benchmarked through the public SparseVector.norm2 facade.
+F64LuDecomposition.determinantSign()		excluded	Determinant sign is a linear scan over existing LU factors.
+F64LuDecomposition.logAbsDeterminant()		excluded	Log-absolute determinant is a linear scan over existing LU factors.
+F64LuDecomposition.lowerFactor()		excluded	Extracting a factor snapshot is inspection work rather than a dispatched numerical kernel.
+F64LuDecomposition.rowOrder()		excluded	Copying the row order is inspection work rather than a dispatched numerical kernel.
+F64LuDecomposition.upperFactor()		excluded	Extracting a factor snapshot is inspection work rather than a dispatched numerical kernel.
+F64PivotedSymmetricIndefiniteDecomposition.packedFactor()		excluded	Extracting a factor snapshot is inspection work rather than a dispatched numerical kernel.
+F64PivotedQrDecomposition.columnOrder()		excluded	Copying the column order is inspection work rather than a dispatched numerical kernel.
+F64QrDecomposition.explicitQ()		excluded	Materializing Q from the packed factors is inspection work rather than a dispatched numerical kernel.
+F64QrDecomposition.explicitR()		excluded	Extracting a factor snapshot is inspection work rather than a dispatched numerical kernel.
+gather(F64SparseVector,F64DenseVector)	com.eignex.koblas.bench.SparseLevel1Benchmark.sparseGather	benchmarked	Benchmarks the public sparse gather facade.
+gatherZero(F64SparseVector,F64DenseVector)	com.eignex.koblas.bench.SparseLevel1Benchmark.sparseGatherZero	benchmarked	Benchmarks the public sparse gather-and-zero facade.
 F64LinearAlgebra.solve(F64LuDecomposition,F64DenseMatrix)	com.eignex.koblas.bench.BlockSolveBenchmark.blockSolve	benchmarked	
 F64LuDecomposition.solve(DoubleArray)	com.eignex.koblas.bench.BlockSolveBenchmark.columnSolves	benchmarked	
 F64DenseMatrix.cholesky()	com.eignex.koblas.bench.CholeskyBenchmark.cholesky	benchmarked	

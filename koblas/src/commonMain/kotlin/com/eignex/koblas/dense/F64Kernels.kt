@@ -144,10 +144,10 @@ internal expect object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
 }
 
 /**
- * Uses a registered host backend when present. The `alpha` guards live here, so `axpy` by zero and `scale`
- * by one are no-ops whichever kernel runs.
+ * Uses a registered host backend when present, above its per-operation crossover. The `alpha` guards live
+ * here, so `axpy` by zero and `scale` by one are no-ops whichever kernel runs.
  *
- * @property host a registered backend; null uses the compiled-in kernels.
+ * @property host a registered backend; null uses the compiled-in kernels, as does a run below the crossover.
  */
 internal class F64RoutedKernels(internal val host: F64Kernels?) :
     F64Kernels,
@@ -155,23 +155,40 @@ internal class F64RoutedKernels(internal val host: F64Kernels?) :
     override val name: String
         get() = if (host == null) F64PlatformKernels.name else "${F64PlatformKernels.name}+${host.name}"
 
-    // Routing is all this class does, so what it reports about itself is what it routes to. Left to the
-    // Backend defaults these describe the wrapper instead, which reads as an unaccelerated priority-0 half
-    // whatever it holds, and [F64Context] composes all three from its halves.
+    // These describe the host this class was given, not what any one call routes to below its crossover:
+    // a run under the crossover still executes on the compiled-in kernels even when host is non-null. Left
+    // to the Backend defaults these describe the wrapper instead, which reads as an unaccelerated
+    // priority-0 half whatever it holds, and [F64Context] composes all three from its halves.
     override val isPortable: Boolean get() = host?.isPortable ?: F64PlatformKernels.isPortable
 
     override val isAvailable: Boolean get() = host?.isAvailable ?: F64PlatformKernels.isAvailable
 
     override val priority: Int get() = host?.priority ?: F64PlatformKernels.priority
 
-    private val selected: F64Kernels get() = host ?: F64PlatformKernels
+    /**
+     * Crossing the host boundary costs more than the Level-1 work below this size. The Level1Benchmark
+     * scalar/host runs at 63, 64, and 65 elements put the crossover at 64 for every routed primitive.
+     * Keep these per-operation constants: a future measurement can move one without silently changing the
+     * others.
+     */
+    private companion object {
+        const val DOT_HOST_CROSSOVER = 64
+        const val AXPY_HOST_CROSSOVER = 64
+        const val SCALE_HOST_CROSSOVER = 64
+        const val NRM2_HOST_CROSSOVER = 64
+        const val ASUM_HOST_CROSSOVER = 64
+        const val SWAP_HOST_CROSSOVER = 64
+    }
+
+    private fun selected(len: Int, crossover: Int): F64Kernels =
+        if (len < crossover) F64PlatformKernels else host ?: F64PlatformKernels
 
     override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
-        selected.dot(a, aOff, b, bOff, len)
+        selected(len, DOT_HOST_CROSSOVER).dot(a, aOff, b, bOff, len)
 
     override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
         if (alpha == 0.0) return
-        selected.axpy(y, yOff, alpha, x, xOff, len)
+        selected(len, AXPY_HOST_CROSSOVER).axpy(y, yOff, alpha, x, xOff, len)
     }
 
     override fun axpyArithmetic(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) =
@@ -179,12 +196,14 @@ internal class F64RoutedKernels(internal val host: F64Kernels?) :
 
     override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
         if (alpha == 1.0) return
-        selected.scale(v, vOff, alpha, len)
+        selected(len, SCALE_HOST_CROSSOVER).scale(v, vOff, alpha, len)
     }
 
-    override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double = selected.nrm2(v, vOff, len)
+    override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double =
+        selected(len, NRM2_HOST_CROSSOVER).nrm2(v, vOff, len)
 
-    override fun asum(v: DoubleArray, vOff: Int, len: Int): Double = selected.asum(v, vOff, len)
+    override fun asum(v: DoubleArray, vOff: Int, len: Int): Double =
+        selected(len, ASUM_HOST_CROSSOVER).asum(v, vOff, len)
 
     override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64ModifiedGivens =
         selected.rotmg(d1, d2, x1, y1)
@@ -216,5 +235,5 @@ internal class F64RoutedKernels(internal val host: F64Kernels?) :
     ) = F64PlatformKernels.dot4(a, aOff, stride, b, bOff, len, out, outOff)
 
     override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) =
-        selected.swap(a, aOff, b, bOff, len)
+        selected(len, SWAP_HOST_CROSSOVER).swap(a, aOff, b, bOff, len)
 }
