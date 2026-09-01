@@ -31,11 +31,15 @@ internal fun transposeBlocked(src: DoubleArray, rows: Int, cols: Int, dst: Doubl
 
 /** Borrows a `[rows]x[cols]` buffer and packs it with the transpose of [src], for a caller that only ever
  *  wants the transposed layout on scratch. */
-internal inline fun <T> Workspace?.borrowTransposed(src: DoubleArray, rows: Int, cols: Int, block: (DoubleArray) -> T): T =
-    borrow(rows * cols) { packed ->
-        transposeBlocked(src, rows, cols, packed)
-        block(packed)
-    }
+internal inline fun <T> Workspace?.borrowTransposed(
+    src: DoubleArray,
+    rows: Int,
+    cols: Int,
+    block: (DoubleArray) -> T,
+): T = borrow(rows * cols) { packed ->
+    transposeBlocked(src, rows, cols, packed)
+    block(packed)
+}
 
 /**
  * Adds `alpha * A * B` to C. All three operands are column-major panels with explicit offsets and leading
