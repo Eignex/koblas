@@ -8,9 +8,6 @@ F64Decompositions.pivotedSymmetricIndefiniteInto(F64DenseMatrix,F64PivotedSymmet
 F64Decompositions.qrInto(F64DenseMatrix,F64QrDecomposition)		excluded	The backend destination-passing variant shares the benchmarked QR factorization kernel.
 F64QrDecomposition.applyQInto(DoubleArray,DoubleArray)		excluded	The destination-passing variant shares the benchmarked applyQ kernel and is covered by aliasing tests.
 F64Decomposition.refactorInto(F64DenseMatrix)		excluded	The family-specific refactorization extensions share their corresponding benchmarked factorization kernels.
-F64LuDecomposition.lower()		excluded	Extracting a factor snapshot is inspection work rather than a dispatched numerical kernel.
-F64LuDecomposition.permutation()		excluded	Copying the pivot permutation is inspection work rather than a dispatched numerical kernel.
-F64LuDecomposition.upper()		excluded	Extracting a factor snapshot is inspection work rather than a dispatched numerical kernel.
 F64LuDecomposition.rowAt(Int)		excluded	Reading one permutation entry is inspection work rather than a dispatched numerical kernel.
 F64BasisSolver.solveQuality(DoubleArray,F64IndexedVector)		excluded	Residual diagnostics deliberately do extra sparse work and are intended for checks rather than hot loops.
 rot(F64DenseVector,F64DenseVector,F64Givens)		excluded	Plane rotation is a scalar helper rather than a backend-dispatch benchmark.
@@ -56,6 +53,37 @@ F64PivotedSymmetricIndefiniteDecomposition.packedFactor()		excluded	Extracting a
 F64PivotedQrDecomposition.columnOrder()		excluded	Copying the column order is inspection work rather than a dispatched numerical kernel.
 F64QrDecomposition.explicitQ()		excluded	Materializing Q from the packed factors is inspection work rather than a dispatched numerical kernel.
 F64QrDecomposition.explicitR()		excluded	Extracting a factor snapshot is inspection work rather than a dispatched numerical kernel.
+rotm(StridedVectorView,StridedVectorView,F64ModifiedGivens)		excluded	The strided-view overload reaches the same rotm kernel as the benchmarked dense facade.
+F64StridedVectorView.axpy(Double,F64VectorLike)		excluded	The strided-view overload reaches the same axpy kernel as the benchmarked dense facade.
+F64StridedVectorView.scale(Double)		excluded	The strided-view overload reaches the same scale kernel as the benchmarked dense facade.
+swap(F64StridedVectorView,F64StridedVectorView)		excluded	The strided-view overload reaches the same swap kernel as the benchmarked dense facade.
+copy(F64VectorLike,F64StridedVectorView)		excluded	Copy is a storage transfer rather than a numerical operation dispatched by a backend.
+F64Blas.gemm(F64StridedMatrixView,F64StridedMatrixView)		excluded	The strided-view overloads reach the same gemm kernel as the benchmarked dense facade.
+F64Blas.gemv(F64StridedMatrixView,F64StridedVectorView)		excluded	The strided-view overloads reach the same gemv kernel as the benchmarked dense facade.
+F64DenseMatrix.times(Double)		excluded	Scalar multiplication copies the operand and then runs the benchmarked scale kernel.
+F64DenseVector.times(Double)		excluded	Scalar multiplication copies the operand and then runs the benchmarked scale kernel.
+F64DenseVector.unaryMinus()		excluded	Elementwise arithmetic allocates a result and does not select a numerical backend.
+F64DenseVector.plus(F64DenseVector)		excluded	Elementwise arithmetic allocates a result and does not select a numerical backend.
+F64DenseVector.minus(F64DenseVector)		excluded	Elementwise arithmetic allocates a result and does not select a numerical backend.
+F64MatrixLike.times(F64VectorLike)		excluded	The operator form dispatches to the benchmarked dense and sparse gemv facades.
+F64DenseMatrix.times(F64SparseMatrix)		excluded	A dense left operand is the right = true arm of the benchmarked sparse gemm.
+F64CholeskyDecomposition.solve(F64DenseMatrix)		excluded	The multi-right-hand-side solve repeats the benchmarked Cholesky solve kernel over the columns of B.
+F64CholeskyDecomposition.solveInto(F64DenseMatrix,F64DenseMatrix)		excluded	The destination-passing multi-right-hand-side solve shares the benchmarked Cholesky solve kernel.
+F64CholeskyDecomposition.lowerFactor()		excluded	Extracting a factor snapshot is inspection work rather than a dispatched numerical kernel.
+F64LinearAlgebra.solveInto(F64LuDecomposition,F64DenseMatrix,F64DenseMatrix)		excluded	The destination-passing block solve shares the benchmarked LU block solve kernel.
+F64QrDecomposition.solveInto(DoubleArray,DoubleArray)		excluded	The destination-passing variant shares the benchmarked least-squares kernel and is covered by aliasing tests.
+F64PivotedQrDecomposition.solveInto(DoubleArray,DoubleArray)		excluded	The destination-passing variant shares the benchmarked pivoted least-squares kernel and is covered by aliasing tests.
+F64PivotedQrDecomposition.explicitQ()		excluded	Materializing Q from the packed factors is inspection work rather than a dispatched numerical kernel.
+F64PivotedQrDecomposition.explicitR()		excluded	Extracting a factor snapshot is inspection work rather than a dispatched numerical kernel.
+F64PivotedSymmetricIndefiniteDecomposition.solve(DoubleArray)		excluded	The allocating solve wraps the benchmarked LDL destination-passing solve.
+F64PivotedSymmetricIndefiniteDecomposition.solve(F64DenseMatrix)		excluded	The multi-right-hand-side solve repeats the benchmarked LDL solve kernel over the columns of B.
+F64PivotedSymmetricIndefiniteDecomposition.solveInto(F64DenseMatrix,F64DenseMatrix)		excluded	The destination-passing multi-right-hand-side solve shares the benchmarked LDL solve kernel.
+F64SparseFactorization.solve(F64DenseMatrix)		excluded	The multi-right-hand-side sparse solve repeats the benchmarked sparse solve kernel over the columns of B.
+F64SparseFactorization.solveInto(F64DenseMatrix,F64DenseMatrix)		excluded	The destination-passing multi-right-hand-side sparse solve shares the benchmarked sparse solve kernel.
+F64SparseFactorization.solveInto(DoubleArray,DoubleArray,AllocationPolicy)		excluded	The strict overload adds an allocation-contract check around the benchmarked sparse solve.
+F64SparseQrFactorization.solveInto(F64DenseMatrix,F64DenseMatrix)		excluded	The destination-passing block solve shares the benchmarked sparse QR block solve kernel.
+F64SparseQrFactorization.solveInto(DoubleArray,DoubleArray,AllocationPolicy)		excluded	The strict overload adds an allocation-contract check around the benchmarked sparse QR solve.
+F64SparseKernels.dot(SparseVector,SparseVector)		excluded	The raw kernel shares the dispatch path benchmarked through the public SparseVector.dot facades.
 gather(F64SparseVector,F64DenseVector)	com.eignex.koblas.bench.SparseLevel1Benchmark.sparseGather	benchmarked	Benchmarks the public sparse gather facade.
 gatherZero(F64SparseVector,F64DenseVector)	com.eignex.koblas.bench.SparseLevel1Benchmark.sparseGatherZero	benchmarked	Benchmarks the public sparse gather-and-zero facade.
 F64LinearAlgebra.solve(F64LuDecomposition,F64DenseMatrix)	com.eignex.koblas.bench.BlockSolveBenchmark.blockSolve	benchmarked	
@@ -100,6 +128,7 @@ F64SparseMatrix.norm1()	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.norm1	b
 F64SparseMatrix.normInf()	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.normInf	benchmarked	
 F64SparseMatrix.normFro()	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.normFro	benchmarked	
 F64SparseMatrix.scaleRows(DoubleArray)	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.scaleRowsBench	benchmarked	
+F64SparseMatrix.scaleColumns(DoubleArray)	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.scaleColumnsBench	benchmarked	
 F64SparseMatrix.column(Int)	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.column	benchmarked	
 F64SparseMatrix.row(Int)	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.row	benchmarked	
 F64DenseMatrix.qr()	com.eignex.koblas.bench.QrBenchmark.qrSquare	benchmarked	
@@ -107,6 +136,7 @@ F64DenseMatrix.qr(tall)	com.eignex.koblas.bench.QrBenchmark.qrTall	benchmarked
 F64DenseMatrix.qrPivoted(square)	com.eignex.koblas.bench.QrBenchmark.qrPivotedSquare	benchmarked	
 F64DenseMatrix.qrPivoted(tall)	com.eignex.koblas.bench.QrBenchmark.qrPivotedTall	benchmarked	
 F64QrDecomposition.solve(DoubleArray)	com.eignex.koblas.bench.QrBenchmark.leastSquares	benchmarked	
+F64PivotedQrDecomposition.solve(DoubleArray)	com.eignex.koblas.bench.QrBenchmark.pivotedLeastSquares	benchmarked	
 F64LinearAlgebra.applyQ(F64QrDecomposition,transpose=false)	com.eignex.koblas.bench.QrBenchmark.applyQ	benchmarked	
 F64LinearAlgebra.applyQ(F64QrDecomposition,transpose=true)	com.eignex.koblas.bench.QrBenchmark.applyQTransposed	benchmarked	
 F64LinearAlgebra.solve(F64DenseMatrix,minimumNorm=true)	com.eignex.koblas.bench.QrBenchmark.minimumNorm	benchmarked	

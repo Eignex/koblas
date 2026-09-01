@@ -38,6 +38,12 @@ class SparseMatrixOpsBenchmark {
     }
 
     @Benchmark
+    fun scaleColumnsBench(): F64SparseMatrix {
+        a.scaleColumns(factors)
+        return a
+    }
+
+    @Benchmark
     fun column(): F64SparseVector = a.column(n / 2)
 
     @Benchmark

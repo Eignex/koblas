@@ -322,7 +322,7 @@ internal fun assertFactorIntoUsesItsDestination(decompositions: F64Decomposition
 
     val fresh = decompositions.factor(second)
     assertClose(fresh.lu, returned.lu, "factorInto factors n=$n", tolerance = 1e-12)
-    assertEquals(fresh.rowPermutation.toList(), returned.rowPermutation.toList(), "factorInto pivots n=$n")
+    assertEquals(fresh.rowOrder().toList(), returned.rowOrder().toList(), "factorInto pivots n=$n")
     assertEquals(fresh.failedAt, returned.failedAt, "factorInto singularity n=$n")
 
     // A singular matrix must update failedAt, not keep the previous factorization's verdict.
@@ -348,7 +348,7 @@ internal fun assertRectangularLuAgreesWithReference(decompositions: F64Decomposi
         assertEquals(expected.rows, actual.rows, "rows ${a.rows}x${a.cols}")
         assertEquals(expected.cols, actual.cols, "cols ${a.rows}x${a.cols}")
         assertClose(expected.lu, actual.lu, "factors ${a.rows}x${a.cols}", tolerance = 1e-12)
-        assertEquals(expected.rowPermutation.toList(), actual.rowPermutation.toList(), "pivots ${a.rows}x${a.cols}")
+        assertEquals(expected.rowOrder().toList(), actual.rowOrder().toList(), "pivots ${a.rows}x${a.cols}")
         assertEquals(expected.failedAt, actual.failedAt, "singularity ${a.rows}x${a.cols}")
         val reused = decompositions.factor(a)
         val buffer = reused.lu

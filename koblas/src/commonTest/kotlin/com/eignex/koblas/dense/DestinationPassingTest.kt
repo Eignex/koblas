@@ -292,7 +292,7 @@ class DestinationPassingTest {
                 }
                 val lu = a.lu()
                 assertTrue(
-                    lu.rowPermutation.withIndex().any { (k, p) -> k != p },
+                    lu.rowOrder().withIndex().any { (k, p) -> k != p },
                     "n=$n must permute to exercise the gather",
                 )
                 val b = F64DenseMatrix(n, nrhs)

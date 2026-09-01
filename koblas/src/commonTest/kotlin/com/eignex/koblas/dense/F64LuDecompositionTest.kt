@@ -18,10 +18,10 @@ class F64LuDecompositionTest {
             assertEquals(a.cols, factor.cols)
             assertEquals(minOf(a.rows, a.cols), factor.order)
             assertEquals(factor.order, factor.n, "legacy n is the pivot order")
-            assertEquals((0 until a.rows).toList(), factor.permutation().sorted())
+            assertEquals((0 until a.rows).toList(), factor.rowOrder().sorted())
             assertClose(
-                product(factor.lower(), factor.upper()).data,
-                permutedRows(a, factor.rowPermutation).data,
+                product(factor.lowerFactor(), factor.upperFactor()).data,
+                permutedRows(a, factor.rowOrder()).data,
                 "${a.rows}x${a.cols}",
             )
         }
@@ -42,7 +42,7 @@ class F64LuDecompositionTest {
             assertEquals(0, factor.rank)
             assertFalse(factor.rankDeficient)
             assertEquals(rows * cols, factor.lu.size)
-            assertEquals(rows, factor.rowPermutation.size)
+            assertEquals(rows, factor.rowOrder().size)
         }
     }
 

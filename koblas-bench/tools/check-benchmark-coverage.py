@@ -14,14 +14,18 @@ INVENTORY = ROOT / "public-numerical-api.tsv"
 MODIFIER = r"(?:public|internal|private|protected|open|override|suspend|inline)"
 BENCHMARK = re.compile(rf"@Benchmark(?:\([^)]*\))?\s*(?:{MODIFIER}\s+)*fun\s+(\w+)")
 CLASS = re.compile(r"class\s+(\w+Benchmark)\b")
-PUBLIC_FUNCTION = re.compile(
-    r"public\s+(?:[A-Za-z]+\s+)*fun\s+(?:<[^>]*>\s+)?(?:[A-Za-z0-9_<>?.]+\s*\.)?(\w+)\s*\("
-)
+PUBLIC_FUNCTION = re.compile(r"\bpublic\s+(?:[A-Za-z]+\s+)*fun\s+")
+TYPE_DECLARATION = re.compile(r"\b(?:class|interface|object)\s+(\w+)")
+BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
+LINE_COMMENT = re.compile(r"//[^\n]*")
+FUNCTION_TYPE_PARAMETER_NAME = re.compile(r"(?<=[(,])\s*\w+\s*:\s*")
+HEADER_END = re.compile(r"\b(?:fun|class|interface|object|typealias|val|var)\b")
 
 # These are the public operation facades. Storage construction, backend configuration, and lifecycle methods are
 # intentionally not numerical operations. Keep this list alongside a new facade so the inventory remains complete.
 PUBLIC_NUMERICAL_SOURCES = (
     "F64Givens.kt",
+    "F64ModifiedGivens.kt",
     "MatrixOps.kt",
     "Operators.kt",
     "VectorOps.kt",
@@ -75,14 +79,101 @@ def manifest(path):
     return signatures, listed, benchmarked
 
 
+def without_comments(text):
+    """KDoc and ordinary comments quote declarations, so they are removed before anything is scanned."""
+    return LINE_COMMENT.sub("", BLOCK_COMMENT.sub("", text))
+
+
+def matching(text, index, opening, closing):
+    depth = 0
+    while index < len(text):
+        if text[index] == opening:
+            depth += 1
+        elif text[index] == closing:
+            depth -= 1
+            if depth == 0:
+                return index
+        index += 1
+    fail(f"unbalanced {opening}{closing} in {text[:40]!r}")
+
+
+def top_level_split(text, separator):
+    parts, depth, current = [], 0, []
+    for character in text:
+        if character in "(<[":
+            depth += 1
+        elif character in ")>]":
+            depth -= 1
+        if character == separator and depth == 0:
+            parts.append("".join(current))
+            current = []
+        else:
+            current.append(character)
+    parts.append("".join(current))
+    return [part.strip() for part in parts if part.strip()]
+
+
+def parameter_type(parameter):
+    """One parameter reduced to its declared type: no name, no default, no names inside a function type."""
+    declared = top_level_split(parameter, ":")
+    if len(declared) < 2:
+        fail(f"parameter without a declared type: {parameter}")
+    without_default = top_level_split(declared[1], "=")[0]
+    return FUNCTION_TYPE_PARAMETER_NAME.sub("", without_default).replace(" ", "").replace("\n", "")
+
+
+def type_bodies(text):
+    """Brace ranges of the named classes, interfaces, and objects, so a member can be attributed to its type."""
+    bodies = []
+    for match in TYPE_DECLARATION.finditer(text):
+        index, depth = match.end(), 0
+        while index < len(text):
+            character = text[index]
+            if character == "(":
+                depth += 1
+            elif character == ")":
+                depth -= 1
+            elif depth == 0 and character == "{":
+                bodies.append((index, matching(text, index, "{", "}"), match.group(1)))
+                break
+            elif depth == 0 and HEADER_END.match(text, index):
+                # A declaration with no body of its own; the next brace opens something else entirely.
+                break
+            index += 1
+    return bodies
+
+
+def declared_operations(text):
+    """Every public function as `Qualifier.name(ParameterTypes)`, which keeps overloads distinct."""
+    text = without_comments(text)
+    bodies = type_bodies(text)
+    operations = []
+    for match in PUBLIC_FUNCTION.finditer(text):
+        start = match.end()
+        if text[start] == "<":
+            start = matching(text, start, "<", ">") + 1
+        opening = text.find("(", start)
+        head = " ".join(text[start:opening].split())
+        closing = matching(text, opening, "(", ")")
+        types = [parameter_type(parameter) for parameter in top_level_split(text[opening + 1 : closing], ",")]
+        receiver, _, name = head.rpartition(".")
+        enclosing = [name for start, end, name in bodies if start < match.start() < end]
+        qualifier = receiver or (enclosing[-1] if enclosing else "")
+        operations.append(f"{qualifier}.{name}({','.join(types)})" if qualifier else f"{name}({','.join(types)})")
+    return operations
+
+
 def public_numerical_operations(source_root=NUMERICAL_SOURCE):
     found = set()
     for relative in PUBLIC_NUMERICAL_SOURCES:
         source = source_root / relative
         if not source.is_file():
             fail(f"public numerical API source is missing: {source}")
-        for method in PUBLIC_FUNCTION.findall(source.read_text(encoding="utf-8")):
-            found.add(f"{relative}:{method}")
+        for operation in declared_operations(source.read_text(encoding="utf-8")):
+            key = f"{relative}:{operation}"
+            if key in found:
+                fail(f"two public declarations share the operation key {key}")
+            found.add(key)
     return found
 
 

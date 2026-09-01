@@ -1,7 +1,6 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.core.F64DenseMatrix
 
 /**
  * A general LU factorization with partial pivoting, `P·A = L·U`, packed column-major with `L` below the
@@ -10,7 +9,7 @@ import com.eignex.koblas.core.F64DenseMatrix
  * @property rows the factored matrix's row count.
  * @property cols the factored matrix's column count.
  * @property lu the packed `L`\`U` factors, column-major, length `rows * cols`.
- * @param piv the live normalized 0-based row permutation, kept internally for [rowPermutation] and [rowAt].
+ * @param piv the live normalized 0-based row permutation, kept internally for [rowOrder] and [rowAt].
  * @param failedAt the position of the zero pivot, or [NOT_SINGULAR]; readable afterwards through [failedAt].
  */
 public class F64LuDecomposition @UnsafeKoblasApi constructor(
@@ -63,32 +62,6 @@ public class F64LuDecomposition @UnsafeKoblasApi constructor(
         requireShape(lu.size == rows * cols) { "lu length ${lu.size} != ${rows * cols}" }
         requireShape(mutablePivots.size == rows) { "piv length ${mutablePivots.size} != $rows" }
     }
-
-    /** Extracts the `rows × order` unit-lower trapezoid `L` as an independent matrix. */
-    public fun lower(): F64DenseMatrix = F64DenseMatrix(rows, order).also { lower ->
-        for (j in 0 until order) {
-            lower[j, j] = 1.0
-            for (i in j + 1 until rows) lower[i, j] = lu[i + j * rows]
-        }
-    }
-
-    /** Extracts the `order × cols` upper trapezoid `U` as an independent matrix. */
-    public fun upper(): F64DenseMatrix = F64DenseMatrix(order, cols).also { upper ->
-        for (j in 0 until cols) for (i in 0..minOf(j, order - 1)) upper[i, j] = lu[i + j * rows]
-    }
-
-    /** A safe extracted copy of the lower trapezoid; shorthand for [lower]. */
-    public val l: F64DenseMatrix get() = lower()
-
-    /** A safe extracted copy of the upper trapezoid; shorthand for [upper]. */
-    public val u: F64DenseMatrix get() = upper()
-
-    /** Returns a safe copy of the normalized row permutation, where entry `k` is the original row now at
-     *  position `k`. */
-    public fun permutation(): IntArray = mutablePivots.copyOf()
-
-    /** A safe snapshot of the original row at every current row position; shorthand for [permutation]. */
-    public val rowPermutation: IntArray get() = permutation()
 
     /** The original 0-based row now at factor row [position]. */
     public fun rowAt(position: Int): Int {

@@ -19,6 +19,7 @@ class QrBenchmark {
     private lateinit var square: F64DenseMatrix
     private lateinit var tall: F64DenseMatrix
     private lateinit var factored: F64QrDecomposition
+    private lateinit var pivoted: F64PivotedQrDecomposition
     private lateinit var rhs: DoubleArray
 
     private lateinit var wide: F64QrDecomposition
@@ -31,6 +32,7 @@ class QrBenchmark {
         square = randomMatrix(n, n, rng)
         tall = randomMatrix(2 * n, n, rng)
         factored = tall.qr()
+        pivoted = tall.qrPivoted()
         rhs = randomVector(2 * n, rng)
         wide = randomMatrix(n, 2 * n, rng).transpose().qr()
         wideRhs = randomVector(n, rng)
@@ -50,6 +52,9 @@ class QrBenchmark {
 
     @Benchmark
     fun leastSquares(): DoubleArray = factored.solve(rhs)
+
+    @Benchmark
+    fun pivotedLeastSquares(): DoubleArray = pivoted.solve(rhs)
 
     @Benchmark
     fun applyQ(): DoubleArray = koblas.applyQ(factored, rhs)
