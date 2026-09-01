@@ -16,6 +16,17 @@ public fun F64DenseMatrix.cholesky(
     lower: Boolean = true,
 ): F64CholeskyDecomposition = koblas.cholesky(asLowerSymmetricInput(lower, "cholesky"), policy)
 
+/**
+ * Replaces this Cholesky factorization with that of [a], retaining this decomposition's factor buffer. [a]'s
+ * dimension must match this factorization's; implementations may still need provider-local scratch, so this
+ * is a buffer-reuse contract rather than an allocation guarantee.
+ * @throws NotPositiveDefinite at the first non-positive pivot unless [policy] regularizes.
+ */
+public fun F64CholeskyDecomposition.refactorInto(
+    a: F64DenseMatrix,
+    policy: CholeskyPolicy = CholeskyPolicy.Strict,
+): F64CholeskyDecomposition = koblas.choleskyInto(a, this, policy)
+
 /** Solve `A · x = b` for this factorization with the active backend; see [F64Decompositions.solve]. */
 public fun F64CholeskyDecomposition.solve(b: DoubleArray): DoubleArray = koblas.solve(this, b)
 

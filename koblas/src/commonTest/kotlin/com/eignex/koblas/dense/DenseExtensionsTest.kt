@@ -13,11 +13,25 @@ class DenseExtensionsTest {
             doubleArrayOf(0.0, 1.0, 2.0),
         ),
     )
+    private val squareNext = F64DenseMatrix.of(
+        arrayOf(
+            doubleArrayOf(2.0, 1.0, 0.0),
+            doubleArrayOf(1.0, 2.0, 1.0),
+            doubleArrayOf(0.0, 1.0, 2.0),
+        ),
+    )
     private val tall = F64DenseMatrix.of(
         arrayOf(
             doubleArrayOf(1.0, 0.0),
             doubleArrayOf(1.0, 1.0),
             doubleArrayOf(1.0, 2.0),
+        ),
+    )
+    private val tallNext = F64DenseMatrix.of(
+        arrayOf(
+            doubleArrayOf(2.0, 1.0),
+            doubleArrayOf(1.0, 1.0),
+            doubleArrayOf(0.0, 2.0),
         ),
     )
     private val b3 = doubleArrayOf(1.0, 2.0, 3.0)
@@ -138,17 +152,44 @@ class DenseExtensionsTest {
         val factor = square.lu()
         val factors = factor.lu
         val pivots = factor.piv
-        val next = F64DenseMatrix.of(
-            arrayOf(
-                doubleArrayOf(2.0, 1.0, 0.0),
-                doubleArrayOf(1.0, 2.0, 1.0),
-                doubleArrayOf(0.0, 1.0, 2.0),
-            ),
-        )
 
-        assertSame(factor, factor.refactorInto(next), "refactor destination")
+        assertSame(factor, factor.refactorInto(squareNext), "refactor destination")
         assertSame(factors, factor.lu, "refactor factor buffer")
         assertSame(pivots, factor.piv, "refactor pivot buffer")
-        assertClose(koblas.solve(koblas.factor(next), b3), factor.solve(b3), "refactored solve")
+        assertClose(koblas.solve(koblas.factor(squareNext), b3), factor.solve(b3), "refactored solve")
+    }
+
+    @Test
+    fun `a cholesky refactors through its factor owned reusable buffer`() {
+        val factor = square.cholesky()
+        val l = factor.l
+
+        assertSame(factor, factor.refactorInto(squareNext), "refactor destination")
+        assertSame(l, factor.l, "refactor factor buffer")
+        assertClose(koblas.solve(koblas.cholesky(squareNext), b3), factor.solve(b3), "refactored solve")
+    }
+
+    @Test
+    fun `an LDL refactors through its factor owned reusable buffers`() {
+        val factor = square.ldl()
+        val factors = factor.ldl
+        val pivots = factor.ipiv
+
+        assertSame(factor, factor.refactorInto(squareNext), "refactor destination")
+        assertSame(factors, factor.ldl, "refactor factor buffer")
+        assertSame(pivots, factor.ipiv, "refactor pivot buffer")
+        assertClose(koblas.solve(koblas.ldl(squareNext), b3), factor.solve(b3), "refactored solve")
+    }
+
+    @Test
+    fun `a QR refactors through its factor owned reusable buffers`() {
+        val factor = tall.qr()
+        val factors = factor.qr
+        val taus = factor.tau
+
+        assertSame(factor, factor.refactorInto(tallNext), "refactor destination")
+        assertSame(factors, factor.qr, "refactor factor buffer")
+        assertSame(taus, factor.tau, "refactor tau buffer")
+        assertClose(koblas.solve(koblas.qr(tallNext), b3), factor.solve(b3), "refactored solve")
     }
 }

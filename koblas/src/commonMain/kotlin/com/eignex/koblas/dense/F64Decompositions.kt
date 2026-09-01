@@ -76,6 +76,24 @@ public interface F64Decompositions : Backend {
     public fun solve(factor: F64PivotedSymmetricIndefiniteDecomposition, b: DoubleArray): DoubleArray =
         solveInto(factor, b, DoubleArray(factor.n))
 
+    /** Refactorize [a] into [out]'s existing buffers, returning [out]. [out] must have [a]'s dimension and
+     *  its previous contents are discarded. Reads only the lower triangle of [a]. */
+    public fun pivotedSymmetricIndefiniteInto(
+        a: F64DenseMatrix,
+        out: F64PivotedSymmetricIndefiniteDecomposition,
+        workspace: Workspace? = null,
+    ): F64PivotedSymmetricIndefiniteDecomposition {
+        requireShape(a.rows == a.cols) { "pivotedSymmetricIndefinite: matrix must be square, got ${a.rows}x${a.cols}" }
+        requireShape(out.n == a.rows) {
+            "pivotedSymmetricIndefiniteInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}"
+        }
+        val fresh = pivotedSymmetricIndefinite(a, workspace)
+        fresh.ldl.copyInto(out.ldl)
+        fresh.ipiv.copyInto(out.ipiv)
+        out.failedAt = fresh.failedAt
+        return out
+    }
+
     /** Solve `A · x = b` into [out], which is returned. [out] may be [b]. */
     public fun solveInto(
         factor: F64PivotedSymmetricIndefiniteDecomposition,
@@ -102,6 +120,18 @@ public interface F64Decompositions : Backend {
     /** QR factorization `A = Q·R` of an `m×n` [a] via Householder reflections (LAPACK `dgeqrf`). [a] is not
      *  modified, any shape is accepted, and rank deficiency is not detected. */
     public fun qr(a: F64DenseMatrix, workspace: Workspace? = null): F64QrDecomposition
+
+    /** Refactorize [a] into [out]'s existing buffers, returning [out]. [out] must have [a]'s shape and its
+     *  previous contents are discarded. */
+    public fun qrInto(a: F64DenseMatrix, out: F64QrDecomposition, workspace: Workspace? = null): F64QrDecomposition {
+        requireShape(out.m == a.rows && out.n == a.cols) {
+            "qrInto: out is ${out.m}x${out.n}, expected ${a.rows}x${a.cols}"
+        }
+        val fresh = qr(a, workspace)
+        fresh.qr.copyInto(out.qr)
+        fresh.tau.copyInto(out.tau)
+        return out
+    }
 
     /** QR with column pivoting, `A·P = Q·R` (LAPACK `dgeqp3`), reporting [F64PivotedQrDecomposition.rank] as the
      *  count of leading diagonal entries with `|R_kk| > tolerance · |R₀₀|`. [tolerance] is a fraction of
@@ -172,6 +202,22 @@ public interface F64Decompositions : Backend {
      *  @throws com.eignex.koblas.NotPositiveDefinite at the first non-positive pivot unless [policy] allows it.
      */
     public fun cholesky(a: F64DenseMatrix, policy: CholeskyPolicy = CholeskyPolicy.Strict): F64CholeskyDecomposition
+
+    /** Refactorize [a] into [out]'s existing buffer, returning [out]. [out] must have [a]'s dimension and its
+     *  previous contents are discarded. Reads only the lower triangle of [a].
+     *  @throws com.eignex.koblas.NotPositiveDefinite at the first non-positive pivot unless [policy] allows it.
+     */
+    public fun choleskyInto(
+        a: F64DenseMatrix,
+        out: F64CholeskyDecomposition,
+        policy: CholeskyPolicy = CholeskyPolicy.Strict,
+    ): F64CholeskyDecomposition {
+        requireShape(a.rows == a.cols) { "cholesky: matrix must be square, got ${a.rows}x${a.cols}" }
+        requireShape(out.n == a.rows) { "choleskyInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}" }
+        val fresh = cholesky(a, policy)
+        fresh.l.data.copyInto(out.l.data)
+        return out
+    }
 
     /** Solve `A · x = b` for [chol] into a fresh vector (LAPACK `dpotrs`). */
     public fun solve(chol: F64CholeskyDecomposition, b: DoubleArray): DoubleArray =
