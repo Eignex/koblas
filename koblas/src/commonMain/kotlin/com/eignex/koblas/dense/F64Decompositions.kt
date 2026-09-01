@@ -22,7 +22,7 @@ public interface F64Decompositions : Backend {
         }
         val fresh = factor(a)
         fresh.lu.copyInto(out.lu)
-        fresh.piv.copyInto(out.piv)
+        fresh.mutablePivots.copyInto(out.mutablePivots)
         out.failedAt = fresh.failedAt
         return out
     }
@@ -89,7 +89,7 @@ public interface F64Decompositions : Backend {
         }
         val fresh = pivotedSymmetricIndefinite(a, workspace)
         fresh.ldl.copyInto(out.ldl)
-        fresh.ipiv.copyInto(out.ipiv)
+        fresh.rawLapackIpiv.copyInto(out.rawLapackIpiv)
         out.failedAt = fresh.failedAt
         return out
     }

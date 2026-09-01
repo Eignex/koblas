@@ -61,6 +61,7 @@ class FactorSnapshotsTest {
         assertTrue(nanDiagonal.logAbsDeterminant().isNaN())
     }
 
+    @OptIn(UnsafeKoblasApi::class)
     @Test
     fun `Cholesky and LDL snapshots are independent`() {
         val a = F64DenseMatrix.of(
@@ -81,11 +82,11 @@ class FactorSnapshotsTest {
 
         val ldl = a.pivotedSymmetricIndefinite()
         val packed = ldl.packedFactor()
-        val pivots = ldl.pivotBlocks()
+        val pivots = ldl.rawLapackIpiv.copyOf()
         packed[0, 0] = 99.0
         pivots[0] = 99
         assertFalse(ldl.packedFactor()[0, 0] == 99.0)
-        assertFalse(ldl.pivotBlocks().contains(99))
+        assertFalse(ldl.rawLapackIpiv.contains(99))
     }
 
     @Test

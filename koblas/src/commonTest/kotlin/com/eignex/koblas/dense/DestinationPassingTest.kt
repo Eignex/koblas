@@ -59,12 +59,12 @@ class DestinationPassingTest {
         val first = wellConditioned(n, rng)
         val reused = koblas.factor(first)
         val luBuffer = reused.lu
-        val pivBuffer = reused.piv
+        val pivBuffer = reused.mutablePivots
         val second = wellConditioned(n, rng)
         val returned = koblas.factorInto(second, reused)
         assertSame(reused, returned, "factorInto must return its destination")
         assertSame(luBuffer, reused.lu, "factorInto must not replace the factor buffer")
-        assertSame(pivBuffer, reused.piv, "factorInto must not replace the pivot buffer")
+        assertSame(pivBuffer, reused.mutablePivots, "factorInto must not replace the pivot buffer")
         val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
         assertClose(koblas.solve(koblas.factor(second), b), koblas.solve(reused, b), "refactorized solve")
         val singular = F64DenseMatrix(n, n) // all zeros
@@ -291,7 +291,10 @@ class DestinationPassingTest {
                     a[n - 1, j] = top
                 }
                 val lu = a.lu()
-                assertTrue(lu.piv.withIndex().any { (k, p) -> k != p }, "n=$n must permute to exercise the gather")
+                assertTrue(
+                    lu.rowPermutation.withIndex().any { (k, p) -> k != p },
+                    "n=$n must permute to exercise the gather",
+                )
                 val b = F64DenseMatrix(n, nrhs)
                 for (i in 0 until n) for (j in 0 until nrhs) b[i, j] = rng.nextDouble(-1.0, 1.0)
                 for (transpose in booleanArrayOf(false, true)) {
