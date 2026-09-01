@@ -97,6 +97,7 @@ internal class F64ReferenceDecompositions(private val configured: F64Kernels? = 
     }
 
     override fun rcond(lu: F64LuDecomposition, anorm: Double, workspace: Workspace?): Double {
+        requireRcondAnorm(anorm)
         val n = lu.n
         if (n == 0) return 1.0
         if (lu.singular || anorm == 0.0) return 0.0
