@@ -4,7 +4,7 @@ Kotlin Multiplatform BLAS and LAPACK.
 
 ## Verify
 
-- Run `./gradlew check lintDocs`; add `--rerun-tasks` for edited sources.
+- Run `./gradlew :koblas:check :koblas-bench:check lintDocs`; add `--rerun-tasks` for edited sources. Bare `./gradlew check` also rebuilds the native libs in `koblas-openblas`/`koblas-suitesparse`/`koblas-basiclu`/`koblas-hfactor` from source; reserve it for touching those modules or before pushing.
 - Default tests use the reference backend. Use `-Pkoblas.hostTests=true` for OpenBLAS/SuiteSparse and additionally `-Pkoblas.noSimd=true` for scalar thresholds, level-2 bindings, and small-size dispatch.
 
 ## Tests
