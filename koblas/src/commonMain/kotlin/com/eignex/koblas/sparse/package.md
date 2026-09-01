@@ -8,8 +8,8 @@ mirror the dense ones.
   that moves entries between the two representations, and the reductions. Unlike the dense
   `F64Kernels` there is no length threshold, because the fallback here is an object rather than a
   compiled-in primitive and there is no compile-time kernel to protect.
-- [F64SparseBlas] — the sparse matrix routines. `gemv` and `trsv` in both directions, walking columns, which
-  is what CSC stores; `gemm` and `trsm` over several right-hand sides at once, from either side; the
+- [F64SparseBlas] — the sparse matrix routines. `gemv`, `trsv`, and `trmv` in both directions, walking columns,
+  which is what CSC stores; `gemm`, `trsm`, and `trmm` over several right-hand sides at once, from either side; the
   sparse-times-sparse product; and `transpose`, which is also the CSC-to-CSR conversion.
 
   The product of two sparse matrices and the transpose are the two routines here that return their result

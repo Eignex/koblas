@@ -9,9 +9,9 @@ import com.eignex.koblas.sparse.F64SparseBlas
 /**
  * Shared routing for a host sparse BLAS binding, the counterpart of the sparse factorization adapter.
  * Only the products route natively by default. The libraries koblas currently binds carry no triangular
- * solve over a caller's matrix, so [trsv] and [trsm] stay portable here. They remain open for a provider that
- * can preserve the public storage, aliasing, singularity, and in-place contracts. Such a provider must also
- * override [route] for [F64RouteQuery.SparseTriangularSolve] through [triangularRoute].
+ * solve or multiply over a caller's matrix, so [trsv], [trsm], [trmv], and [trmm] stay portable here. They
+ * remain open for a provider that can preserve the public storage, aliasing, singularity, and in-place
+ * contracts. Such a provider must also override [route] for the matching triangular route query.
  */
 public abstract class F64SparseBlasAdapter protected constructor() :
     F64SparseBlas,
@@ -27,7 +27,7 @@ public abstract class F64SparseBlasAdapter protected constructor() :
     override val isPortable: Boolean get() = false
 
     override fun route(query: F64RouteQuery): BackendRoute? {
-        if (query is F64RouteQuery.SparseTriangularSolve) {
+        if (query is F64RouteQuery.SparseTriangularSolve || query is F64RouteQuery.SparseTriangularMultiply) {
             return portableRoute(query, this, portable.name, BackendRouteReason.UNSUPPORTED_OPERATION)
         }
         if (query !is F64RouteQuery.SparseDenseGemm) return null
@@ -50,6 +50,20 @@ public abstract class F64SparseBlasAdapter protected constructor() :
      */
     protected fun triangularRoute(
         query: F64RouteQuery.SparseTriangularSolve,
+        supported: Boolean = true,
+    ): BackendRoute {
+        val native = nativeRoute(query, this, portable.name)
+        if (supported || native.execution != BackendExecution.NATIVE) return native
+        return native.copy(
+            execution = BackendExecution.PORTABLE,
+            executor = portable.name,
+            reason = BackendRouteReason.UNSUPPORTED_ARGUMENTS,
+        )
+    }
+
+    /** The multiply counterpart of [triangularRoute], independently specialized by providers that support it. */
+    protected fun triangularMultiplyRoute(
+        query: F64RouteQuery.SparseTriangularMultiply,
         supported: Boolean = true,
     ): BackendRoute {
         val native = nativeRoute(query, this, portable.name)
@@ -115,6 +129,14 @@ public abstract class F64SparseBlasAdapter protected constructor() :
         unitDiag: Boolean,
     ): Unit = portable.trsv(a, x, lower, transpose, unitDiag)
 
+    override fun trmv(
+        a: F64SparseMatrix,
+        x: DoubleArray,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+    ): Unit = portable.trmv(a, x, lower, transpose, unitDiag)
+
     @Suppress("LongParameterList") // the BLAS dtrsm signature
     override fun trsm(
         a: F64SparseMatrix,
@@ -125,6 +147,17 @@ public abstract class F64SparseBlasAdapter protected constructor() :
         right: Boolean,
         alpha: Double,
     ): Unit = portable.trsm(a, b, lower, transpose, unitDiag, right, alpha)
+
+    @Suppress("LongParameterList") // the BLAS dtrmm signature
+    override fun trmm(
+        a: F64SparseMatrix,
+        b: F64DenseMatrix,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+        right: Boolean,
+        alpha: Double,
+    ): Unit = portable.trmm(a, b, lower, transpose, unitDiag, right, alpha)
 
     /**
      * Portable, deliberately. CHOLMOD has `cholmod_ssmult` and it was bound and measured; against the

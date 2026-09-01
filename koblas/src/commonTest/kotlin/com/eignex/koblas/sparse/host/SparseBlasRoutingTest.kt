@@ -68,6 +68,18 @@ class SparseBlasRoutingTest {
     }
 
     @Test
+    fun `triangular multiplication reports the portable implementation`() {
+        val adapter = RecordingAdapter()
+
+        val route = adapter.route(F64RouteQuery.SparseTriangularMultiply(100, rightHandSides = 4))!!
+
+        assertEquals(BackendExecution.PORTABLE, route.execution)
+        assertEquals(BackendRouteReason.UNSUPPORTED_OPERATION, route.reason)
+        assertEquals("reference", route.executor)
+        assertNull(route.gate)
+    }
+
+    @Test
     fun `a sparse adapter can specialize triangular solves independently`() {
         var vectorCalls = 0
         var matrixCalls = 0

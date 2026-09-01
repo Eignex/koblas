@@ -29,6 +29,8 @@ class SparseProductHostBenchmark {
     private lateinit var productSingle: F64DenseMatrix
     private lateinit var triangle: F64SparseMatrix
     private lateinit var scratch: DoubleArray
+    private lateinit var triangularProduct: F64DenseMatrix
+    private lateinit var triangularProductRight: F64DenseMatrix
     private lateinit var prepared: F64PreparedSparseMatrix
 
     @Setup
@@ -45,6 +47,8 @@ class SparseProductHostBenchmark {
         productSingle = randomMatrix(n, 1, rng)
         triangle = bandUpperTriangle(n)
         scratch = randomVector(n, rng)
+        triangularProduct = randomMatrix(n, RIGHT_HAND_SIDES, rng)
+        triangularProductRight = randomMatrix(RIGHT_HAND_SIDES, n, rng)
         prepared = koblas.sparseBlas.prepare(a)
         println("resolved: sparseBlas=${koblas.sparseBlas.name} n=$n nnz(A)=${a.nnz}")
     }
@@ -96,6 +100,27 @@ class SparseProductHostBenchmark {
         x.copyInto(scratch)
         koblas.sparseBlas.trsv(triangle, scratch, lower = false)
         return scratch
+    }
+
+    @Benchmark
+    fun trmv(): DoubleArray {
+        x.copyInto(scratch)
+        koblas.sparseBlas.trmv(triangle, scratch, lower = false)
+        return scratch
+    }
+
+    @Benchmark
+    fun trmm(): F64DenseMatrix {
+        dense.data.copyInto(triangularProduct.data)
+        koblas.sparseBlas.trmm(triangle, triangularProduct, lower = false)
+        return triangularProduct
+    }
+
+    @Benchmark
+    fun trmmRight(): F64DenseMatrix {
+        triangularProductRight.data.fill(1.0)
+        koblas.sparseBlas.trmm(triangle, triangularProductRight, lower = false, right = true)
+        return triangularProductRight
     }
 }
 

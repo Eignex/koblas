@@ -98,6 +98,13 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         trsvCore(a, x, 0, lower, transpose, unitDiag)
     }
 
+    override fun trmv(a: F64SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
+        requireSquare(a, "trmv")
+        val n = a.rows
+        requireShape(x.size == n) { "trmv: x length ${x.size} != $n" }
+        triangularMultiply(a.stableFor(x), x, 0, 1, lower, transpose, unitDiag)
+    }
+
     @Suppress("LongParameterList") // the BLAS dgemm signature, plus the side the sparse operand sits on
     override fun gemm(
         alpha: Double,
@@ -243,6 +250,103 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         } else {
             trsmLeftCore(a, b, lower, transpose, diagonal)
         }
+    }
+
+    @Suppress("LongParameterList") // the BLAS dtrmm signature
+    override fun trmm(
+        a: F64SparseMatrix,
+        b: F64DenseMatrix,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+        right: Boolean,
+        alpha: Double,
+    ) {
+        requireSquare(a, "trmm")
+        val n = a.rows
+        if (right) {
+            requireShape(b.cols == n) { "trmm right: B has ${b.cols} cols, expected $n" }
+        } else {
+            requireShape(b.rows == n) { "trmm: B has ${b.rows} rows, expected $n" }
+        }
+        if (alpha == 0.0) {
+            b.data.fill(0.0)
+            return
+        }
+        val triangle = a.stableFor(b.data)
+        if (alpha != 1.0) denseKernels.scale(b.data, 0, alpha, b.data.size)
+        if (right) {
+            for (row in 0 until b.rows) {
+                // A row times op(T) is op(T)ᵀ times its column-shaped view.
+                triangularMultiply(
+                    triangle,
+                    b.data,
+                    row,
+                    b.rows,
+                    lower,
+                    !transpose,
+                    unitDiag,
+                    guardZeroInput = false,
+                    guardZeroMatrix = true,
+                )
+            }
+        } else {
+            for (column in 0 until b.cols) {
+                triangularMultiply(triangle, b.data, column * n, 1, lower, transpose, unitDiag)
+            }
+        }
+    }
+
+    /**
+     * Sparse dtrmv over a strided vector. Direction preserves each source before its destination is written,
+     * so no work buffer is needed for the ordinary in-place case.
+     */
+    @Suppress("LongParameterList") // the strided vector and BLAS triangle selectors
+    private fun triangularMultiply(
+        a: F64SparseMatrix,
+        x: DoubleArray,
+        offset: Int,
+        stride: Int,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+        guardZeroInput: Boolean = true,
+        guardZeroMatrix: Boolean = false,
+    ) {
+        val n = a.rows
+        if (!transpose) {
+            val order = if (lower) n - 1 downTo 0 else 0 until n
+            for (j in order) {
+                val xj = x[offset + j * stride]
+                if (!guardZeroInput || xj != 0.0) {
+                    x[offset + j * stride] = if (unitDiag) xj else a[j, j] * xj
+                    a.forEachInColumn(j) { i, v ->
+                        if ((if (lower) i > j else i < j) && (!guardZeroMatrix || v != 0.0)) {
+                            val at = offset + i * stride
+                            x[at] += v * xj
+                        }
+                    }
+                }
+            }
+        } else {
+            val order = if (lower) 0 until n else n - 1 downTo 0
+            for (j in order) {
+                var sum = if (unitDiag) x[offset + j * stride] else a[j, j] * x[offset + j * stride]
+                a.forEachInColumn(j) { i, v ->
+                    if ((if (lower) i > j else i < j) && (!guardZeroMatrix || v != 0.0)) {
+                        sum += v * x[offset + i * stride]
+                    }
+                }
+                x[offset + j * stride] = sum
+            }
+        }
+    }
+
+    /** Snapshots CSC storage only when the in-place destination aliases this matrix's live coefficient array. */
+    private fun F64SparseMatrix.stableFor(destination: DoubleArray): F64SparseMatrix = if (values === destination) {
+        F64SparseMatrix.wrap(rows, cols, copyColumnPointers(), copyRowIndices(), values.copyOf())
+    } else {
+        this
     }
 
     /** Sparse substitution over RHS panels, so values and indices are read once for several dense columns. */

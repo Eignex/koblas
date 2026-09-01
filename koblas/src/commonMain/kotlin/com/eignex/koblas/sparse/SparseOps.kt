@@ -36,6 +36,14 @@ public fun F64SparseMatrix.trsv(
     unitDiag: Boolean = false,
 ): Unit = koblas.trsv(this, x, lower, transpose, unitDiag)
 
+/** Multiply `x = op(T) · x` in place against this matrix's selected triangle with the active backend ([koblas]). */
+public fun F64SparseMatrix.trmv(
+    x: DoubleArray,
+    lower: Boolean,
+    transpose: Boolean = false,
+    unitDiag: Boolean = false,
+): Unit = koblas.trmv(this, x, lower, transpose, unitDiag)
+
 /** Prepares an immutable snapshot of this matrix for repeated products with the active backend. */
 public fun F64SparseMatrix.prepare(): F64PreparedSparseMatrix = koblas.sparseBlas.prepare(this)
 
@@ -52,3 +60,14 @@ public fun F64SparseMatrix.trsm(
     right: Boolean = false,
     alpha: Double = 1.0,
 ): Unit = koblas.sparseBlas.trsm(this, b, lower, transpose, unitDiag, right, alpha)
+
+/** `B = alpha · op(T) · B`, or `B = alpha · B · op(T)` when [right], in place with the active backend ([koblas]). */
+@Suppress("LongParameterList") // the BLAS dtrmm signature
+public fun F64SparseMatrix.trmm(
+    b: F64DenseMatrix,
+    lower: Boolean,
+    transpose: Boolean = false,
+    unitDiag: Boolean = false,
+    right: Boolean = false,
+    alpha: Double = 1.0,
+): Unit = koblas.sparseBlas.trmm(this, b, lower, transpose, unitDiag, right, alpha)

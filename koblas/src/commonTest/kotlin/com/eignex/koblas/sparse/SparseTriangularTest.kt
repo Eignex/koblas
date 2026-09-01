@@ -3,6 +3,8 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.dense.trmm
+import com.eignex.koblas.dense.trmv
 import com.eignex.koblas.dense.trsm
 import com.eignex.koblas.dense.trsv
 import com.eignex.koblas.randomMatrix
@@ -65,6 +67,25 @@ class SparseTriangularTest {
     }
 
     @Test
+    fun `every direction agrees with dense triangular multiplication`() {
+        val rng = Random(20260901)
+        for (n in intArrayOf(0, 1, 2, 6, 11)) {
+            for (lower in booleanArrayOf(true, false)) {
+                for (transpose in booleanArrayOf(false, true)) {
+                    for (unitDiag in booleanArrayOf(false, true)) {
+                        val (sparse, dense) = triangle(n, lower, rng)
+                        val input = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
+                        val expected = input.copyOf().also { dense.trmv(it, lower, transpose, unitDiag) }
+                        val actual = input.copyOf().also { sparse.trmv(it, lower, transpose, unitDiag) }
+
+                        assertClose(expected, actual, "n=$n lower=$lower transpose=$transpose unit=$unitDiag")
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
     fun `every direction agrees with the dense solve over several right-hand sides`() {
         val rng = Random(20260821)
         val n = 6
@@ -89,6 +110,75 @@ class SparseTriangularTest {
                 }
             }
         }
+    }
+
+    @Test
+    fun `every matrix multiplication direction agrees with dense triangular multiplication`() {
+        val rng = Random(20260902)
+        val n = 6
+        val rightHandSides = REFERENCE_SPARSE_RHS_WIDTH + 1
+        for (lower in booleanArrayOf(true, false)) {
+            for (transpose in booleanArrayOf(false, true)) {
+                for (unitDiag in booleanArrayOf(false, true)) {
+                    for (right in booleanArrayOf(false, true)) {
+                        val (sparse, dense) = triangle(n, lower, rng)
+                        val b = if (right) {
+                            randomMatrix(
+                                rightHandSides,
+                                n,
+                                rng,
+                            )
+                        } else {
+                            randomMatrix(n, rightHandSides, rng)
+                        }
+                        val expected = F64DenseMatrix.wrap(b.rows, b.cols, b.data.copyOf())
+                        dense.trmm(expected, lower, transpose, unitDiag, right, alpha = -0.75)
+                        val actual = F64DenseMatrix.wrap(b.rows, b.cols, b.data.copyOf())
+                        sparse.trmm(actual, lower, transpose, unitDiag, right, alpha = -0.75)
+
+                        assertClose(
+                            expected,
+                            actual,
+                            "lower=$lower transpose=$transpose unit=$unitDiag right=$right",
+                            tolerance = 1e-9,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `triangular multiplication treats a missing diagonal as zero without division`() {
+        val triangle = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0, 1 to 3.0), listOf()))
+        val vector = doubleArrayOf(2.0, 4.0)
+        triangle.trmv(vector, lower = true)
+
+        assertContentEquals(doubleArrayOf(4.0, 6.0), vector)
+    }
+
+    @Test
+    fun `triangular multiplication snapshots an aliased triangular value buffer`() {
+        val triangle = F64SparseMatrix.ofColumns(
+            2,
+            2,
+            listOf(listOf(0 to 2.0, 1 to 3.0), listOf(0 to 0.0, 1 to 4.0)),
+        )
+        val b = F64DenseMatrix.wrap(2, 2, triangle.values)
+
+        triangle.trmm(b, lower = true)
+
+        assertContentEquals(doubleArrayOf(4.0, 18.0, 0.0, 16.0), b.data)
+    }
+
+    @Test
+    fun `an alpha of zero empties a multiply destination without reading the triangle`() {
+        val poisoned = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to Double.NaN), listOf(1 to Double.NaN)))
+        val b = F64DenseMatrix.wrap(2, 1, doubleArrayOf(1.0, 1.0))
+
+        poisoned.trmm(b, lower = true, alpha = 0.0)
+
+        assertContentEquals(doubleArrayOf(0.0, 0.0), b.data)
     }
 
     @Test
@@ -281,7 +371,8 @@ class SparseTriangularTest {
 
     @Test
     fun `it reaches the registered backend`() = withCleanBackends {
-        var calls = 0
+        var solveCalls = 0
+        var multiplyCalls = 0
         val counting = object : F64SparseBlas {
             override val name: String get() = "counting"
             override fun trsv(
@@ -291,8 +382,19 @@ class SparseTriangularTest {
                 transpose: Boolean,
                 unitDiag: Boolean,
             ) {
-                calls++
+                solveCalls++
                 F64ReferenceSparseLinearAlgebra.trsv(a, x, lower, transpose, unitDiag)
+            }
+
+            override fun trmv(
+                a: F64SparseMatrix,
+                x: DoubleArray,
+                lower: Boolean,
+                transpose: Boolean,
+                unitDiag: Boolean,
+            ) {
+                multiplyCalls++
+                F64ReferenceSparseLinearAlgebra.trmv(a, x, lower, transpose, unitDiag)
             }
 
             @Suppress("LongParameterList")
@@ -331,10 +433,23 @@ class SparseTriangularTest {
                 right: Boolean,
                 alpha: Double,
             ) = F64ReferenceSparseLinearAlgebra.trsm(a, b, lower, transpose, unitDiag, right, alpha)
+
+            @Suppress("LongParameterList")
+            override fun trmm(
+                a: F64SparseMatrix,
+                b: F64DenseMatrix,
+                lower: Boolean,
+                transpose: Boolean,
+                unitDiag: Boolean,
+                right: Boolean,
+                alpha: Double,
+            ) = F64ReferenceSparseLinearAlgebra.trmm(a, b, lower, transpose, unitDiag, right, alpha)
         }
         registerBackend(counting)
         val t = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 4.0)))
         t.trsv(doubleArrayOf(2.0, 4.0), lower = true)
-        assertEquals(1, calls, "the extension must forward to the seam")
+        t.trmv(doubleArrayOf(2.0, 4.0), lower = true)
+        assertEquals(1, solveCalls, "the solve extension must forward to the seam")
+        assertEquals(1, multiplyCalls, "the multiply extension must forward to the seam")
     }
 }

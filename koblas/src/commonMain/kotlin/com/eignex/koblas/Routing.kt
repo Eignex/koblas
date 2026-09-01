@@ -92,6 +92,32 @@ public sealed interface F64RouteQuery {
         }
     }
 
+    /**
+     * An in-place multiplication by a caller-supplied sparse triangle.
+     *
+     * @property storedEntries stored entries in the triangular matrix.
+     * @property rightHandSides independent vectors multiplied in this call.
+     * @property lower whether the lower triangle is used rather than the upper triangle.
+     * @property right whether the triangle is applied from the right.
+     * @property transpose whether the triangle is transposed.
+     * @property unitDiagonal whether the stored diagonal is ignored and treated as one.
+     */
+    public data class SparseTriangularMultiply(
+        val storedEntries: Int,
+        val rightHandSides: Int = 1,
+        val lower: Boolean = true,
+        val right: Boolean = false,
+        val transpose: Boolean = false,
+        val unitDiagonal: Boolean = false,
+    ) : F64RouteQuery {
+        override val role: BackendRole get() = BackendRole.SPARSE_BLAS
+
+        init {
+            requireNonNegative(storedEntries, "storedEntries")
+            requireNonNegative(rightHandSides, "rightHandSides")
+        }
+    }
+
     /** A sparse QR factorization of a matrix with [storedEntries] stored entries. */
     public data class SparseQr(val storedEntries: Int) : F64RouteQuery {
         override val role: BackendRole get() = BackendRole.SPARSE_QR
