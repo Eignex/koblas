@@ -1,10 +1,40 @@
 package com.eignex.koblas.sparse.host.hfactor
 
+/** HFactor's basis-update representations. */
+public enum class HfactorUpdateMethod(internal val nativeValue: Int) {
+    /** Forrest-Tomlin updates: the usual sparse-simplex default. */
+    FORREST_TOMLIN(1),
+
+    /** Product-form updates. */
+    PRODUCT_FORM(2),
+
+    /** Middle product-form updates. */
+    MIDDLE_PRODUCT_FORM(3),
+
+    /** Alternate product-form updates. */
+    ALTERNATE_PRODUCT_FORM(4),
+}
+
 /** Numerical and execution policy shared by host and bundled HFactor providers. */
 public data class HfactorOptions(
     /** Whether the binding scales rows before factorization. */
     val equilibrate: Boolean = false,
-)
+    /** Markowitz pivot acceptance as a fraction of the largest entry in its column. */
+    val pivotThreshold: Double = 0.1,
+    /** Smallest acceptable absolute pivot. */
+    val pivotTolerance: Double = 1e-10,
+    /** Factor update representation retained between reinversions. */
+    val updateMethod: HfactorUpdateMethod = HfactorUpdateMethod.FORREST_TOMLIN,
+) {
+    init {
+        require(pivotThreshold in 8e-4..0.5 && pivotThreshold.isFinite()) {
+            "pivotThreshold must be finite and in [8e-4, 0.5]: $pivotThreshold"
+        }
+        require(pivotTolerance in 0.0..1.0 && pivotTolerance.isFinite()) {
+            "pivotTolerance must be finite and in [0, 1]: $pivotTolerance"
+        }
+    }
+}
 
 /** Policy for one host HFactor backend instance. */
 public data class HfactorConfig(
@@ -12,7 +42,17 @@ public data class HfactorConfig(
     val libraryPath: String? = null,
     /** Whether to scale rows before factorizing and undo it in the solves. */
     val equilibrate: Boolean = false,
+    /** Markowitz pivot acceptance as a fraction of the largest entry in its column. */
+    val pivotThreshold: Double = 0.1,
+    /** Smallest acceptable absolute pivot. */
+    val pivotTolerance: Double = 1e-10,
+    /** Factor update representation retained between reinversions. */
+    val updateMethod: HfactorUpdateMethod = HfactorUpdateMethod.FORREST_TOMLIN,
 ) {
+    init {
+        HfactorOptions(equilibrate, pivotThreshold, pivotTolerance, updateMethod)
+    }
+
     /** Creates a deployment-discovered HFactor configuration from shared [options]. */
     public constructor(options: HfactorOptions) : this(null, options)
 
@@ -20,13 +60,21 @@ public data class HfactorConfig(
     public constructor(libraryPath: String?, options: HfactorOptions) : this(
         libraryPath,
         options.equilibrate,
+        options.pivotThreshold,
+        options.pivotTolerance,
+        options.updateMethod,
     )
 
     /** Numerical and execution policy, independent of [libraryPath]. */
-    public val options: HfactorOptions get() = HfactorOptions(equilibrate)
+    public val options: HfactorOptions get() = HfactorOptions(equilibrate, pivotThreshold, pivotTolerance, updateMethod)
 }
 
-internal fun HfactorOptions.metadataOptions(): Map<String, String> = mapOf("equilibrate" to equilibrate.toString())
+internal fun HfactorOptions.metadataOptions(): Map<String, String> = mapOf(
+    "equilibrate" to equilibrate.toString(),
+    "pivotThreshold" to pivotThreshold.toString(),
+    "pivotTolerance" to pivotTolerance.toString(),
+    "updateMethod" to updateMethod.name,
+)
 
 /**
  * Names the platform loader looks for. HFactor is a C++ class inside HiGHS rather than a library with an

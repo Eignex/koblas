@@ -1,7 +1,11 @@
 package com.eignex.koblas.bench
 
+import com.eignex.koblas.core.F64DenseVector
 import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.koblas
+import com.eignex.koblas.syr
+import com.eignex.koblas.syr2
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.transpose
 import kotlinx.benchmark.*
@@ -18,6 +22,8 @@ class SparseBenchmark {
 
     private lateinit var x: DoubleArray
     private lateinit var multiplied: DoubleArray
+    private lateinit var rankX: F64SparseVector
+    private lateinit var rankY: F64DenseVector
 
     private lateinit var luFactored: F64SparseFactorization
 
@@ -32,6 +38,13 @@ class SparseBenchmark {
         luFactored = a.lu()
         x = DoubleArray(n)
         multiplied = DoubleArray(n)
+        val rankNnz = (n + 3) / 4
+        rankX = F64SparseVector.of(
+            n,
+            IntArray(rankNnz) { it * 4 },
+            DoubleArray(rankNnz) { rng.nextDouble(-1.0, 1.0) },
+        )
+        rankY = F64DenseVector.of(randomVector(n, rng))
     }
 
     @Benchmark
@@ -72,4 +85,10 @@ class SparseBenchmark {
 
     @Benchmark
     fun sparseTranspose(): F64SparseMatrix = a.transpose()
+
+    @Benchmark
+    fun sparseSyr(): F64SparseMatrix = a.syr(NEAR_UNIT_SCALE, rankX)
+
+    @Benchmark
+    fun sparseSyr2(): F64SparseMatrix = a.syr2(NEAR_UNIT_SCALE, rankX, rankY)
 }

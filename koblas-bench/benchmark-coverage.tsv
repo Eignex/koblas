@@ -37,6 +37,12 @@ F64DenseMatrix.normFro()	com.eignex.koblas.bench.MatrixOpsBenchmark.normFro	benc
 F64DenseMatrix.scaleRows(DoubleArray)	com.eignex.koblas.bench.MatrixOpsBenchmark.scaleRowsBench	benchmarked	
 F64DenseMatrix.scaleColumns(DoubleArray)	com.eignex.koblas.bench.MatrixOpsBenchmark.scaleColumnsBench	benchmarked	
 F64DenseMatrix.transpose()	com.eignex.koblas.bench.MatrixOpsBenchmark.transposeDense	benchmarked	
+F64SparseMatrix.norm1()	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.norm1	benchmarked	
+F64SparseMatrix.normInf()	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.normInf	benchmarked	
+F64SparseMatrix.normFro()	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.normFro	benchmarked	
+F64SparseMatrix.scaleRows(DoubleArray)	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.scaleRowsBench	benchmarked	
+F64SparseMatrix.column(Int)	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.column	benchmarked	
+F64SparseMatrix.row(Int)	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.row	benchmarked	
 F64DenseMatrix.qr()	com.eignex.koblas.bench.QrBenchmark.qrSquare	benchmarked	
 F64DenseMatrix.qr(tall)	com.eignex.koblas.bench.QrBenchmark.qrTall	benchmarked	
 F64DenseMatrix.qrPivoted(square)	com.eignex.koblas.bench.QrBenchmark.qrPivotedSquare	benchmarked	
@@ -48,10 +54,11 @@ F64LinearAlgebra.solve(F64DenseMatrix,minimumNorm=true)	com.eignex.koblas.bench.
 F64DenseMatrix.lu().solve(DoubleArray)	com.eignex.koblas.bench.SolveBenchmark.luFactorAndSolve	benchmarked	
 F64LinearAlgebra.solve(F64LuDecomposition,DoubleArray)	com.eignex.koblas.bench.SolveBenchmark.luSolve	benchmarked	
 F64LinearAlgebra.solveInto(F64LuDecomposition,DoubleArray,DoubleArray)	com.eignex.koblas.bench.SolveBenchmark.luSolveInto	benchmarked	
-F64LinearAlgebra.solveInto(F64LdlDecomposition,DoubleArray,DoubleArray)	com.eignex.koblas.bench.SolveBenchmark.ldlSolveInto	benchmarked	
+F64LinearAlgebra.solveInto(F64PivotedSymmetricIndefiniteDecomposition,DoubleArray,DoubleArray)	com.eignex.koblas.bench.SolveBenchmark.ldlSolveInto	benchmarked	
 F64DenseMatrix.lu()	com.eignex.koblas.bench.SolveBenchmark.luFactor	benchmarked	
+F64DenseMatrix.lu(rectangular)	com.eignex.koblas.bench.SolveBenchmark.rectangularLuFactor	benchmarked	
 F64LinearAlgebra.factorInto(F64DenseMatrix,F64LuDecomposition)	com.eignex.koblas.bench.SolveBenchmark.luFactorInto	benchmarked	
-F64LinearAlgebra.ldl(F64DenseMatrix)	com.eignex.koblas.bench.SolveBenchmark.ldlFactor	benchmarked	
+F64LinearAlgebra.pivotedSymmetricIndefinite(F64DenseMatrix)	com.eignex.koblas.bench.SolveBenchmark.pivotedSymmetricIndefiniteFactor	benchmarked	
 F64LinearAlgebra.rcond(F64LuDecomposition,Double)	com.eignex.koblas.bench.SolveBenchmark.rcond	benchmarked	
 F64LinearAlgebra.invert(F64LuDecomposition)	com.eignex.koblas.bench.SolveBenchmark.invertLu	benchmarked	
 F64DenseMatrix.trtri(lower=true)	com.eignex.koblas.bench.SolveBenchmark.trtri	benchmarked	
@@ -65,6 +72,8 @@ F64EquilibratingSparseLu.factor(F64SparseMatrix)	com.eignex.koblas.bench.SparseB
 F64SparseBlas.trsv(F64SparseMatrix,DoubleArray)	com.eignex.koblas.bench.SparseBenchmark.sparseTrsv	benchmarked	
 F64SparseBlas.trmv(F64SparseMatrix,DoubleArray)	com.eignex.koblas.bench.SparseBenchmark.sparseTrmv	benchmarked	portable
 F64SparseMatrix.transpose()	com.eignex.koblas.bench.SparseBenchmark.sparseTranspose	benchmarked	
+F64SparseMatrix.syr(Double,Vector)	com.eignex.koblas.bench.SparseBenchmark.sparseSyr	benchmarked	fresh structural result
+F64SparseMatrix.syr2(Double,Vector,Vector)	com.eignex.koblas.bench.SparseBenchmark.sparseSyr2	benchmarked	fresh structural result
 F64SparseMatrix.lu(host)	com.eignex.koblas.bench.SparseHostBenchmark.factor	benchmarked	
 F64SparseFactorization.factors()	com.eignex.koblas.bench.SparseHostBenchmark.factors	benchmarked	
 F64SparseFactorization.solve(DoubleArray)	com.eignex.koblas.bench.SparseHostBenchmark.solve	benchmarked	
@@ -96,7 +105,7 @@ F64SparseQrFactorization.factors()	com.eignex.koblas.bench.SparseQrHostBenchmark
 F64SparseQrFactorization.solve(DoubleArray)	com.eignex.koblas.bench.SparseQrHostBenchmark.qrSolve	benchmarked	
 F64SparseMatrix.transpose(qr arm)	com.eignex.koblas.bench.SparseQrHostBenchmark.transpose	benchmarked	
 F64SparseMatrix.cholesky()	com.eignex.koblas.bench.SparseSymmetricHostBenchmark.cholesky	benchmarked	
-F64SparseMatrix.ldl()	com.eignex.koblas.bench.SparseSymmetricHostBenchmark.ldl	benchmarked	
+F64SparseMatrix.quasiDefiniteLdl()	com.eignex.koblas.bench.SparseSymmetricHostBenchmark.quasiDefiniteLdl	benchmarked	
 F64CholeskySparseFactorization.factors()	com.eignex.koblas.bench.SparseSymmetricHostBenchmark.choleskyFactors	benchmarked	
-F64LdlSparseFactorization.factors()	com.eignex.koblas.bench.SparseSymmetricHostBenchmark.ldlFactors	benchmarked	
+F64QuasiDefiniteLdlFactorization.factors()	com.eignex.koblas.bench.SparseSymmetricHostBenchmark.quasiDefiniteLdlFactors	benchmarked	
 F64SparseMatrix.transpose(symmetric arm)	com.eignex.koblas.bench.SparseSymmetricHostBenchmark.transpose	benchmarked	

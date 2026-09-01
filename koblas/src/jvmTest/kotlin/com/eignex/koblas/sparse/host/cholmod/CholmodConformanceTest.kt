@@ -78,7 +78,7 @@ class CholmodConformanceTest {
         Assume.assumeTrue("SuiteSparse is not installed", umfpack.isAvailable)
         val a = indefiniteConformanceSystem(20, Random(20260928))
 
-        val f = umfpack.ldl(a)
+        val f = umfpack.quasiDefiniteLdl(a)
 
         assertIs<CholmodLdlFactorization>(f, "expected CHOLMOD's factorization rather than the portable fallback")
         assertTrue(!f.singular, "an invertible indefinite system has an L D Lt")

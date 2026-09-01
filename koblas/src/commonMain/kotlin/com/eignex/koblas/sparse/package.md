@@ -25,13 +25,15 @@ mirror the dense ones.
   serialization when shared between threads.
 
   Its transpose, triangle, diagonal, and side choices use the same named Boolean parameters as dense BLAS.
-- [F64SparseDecompositions] — the compatibility composition of the selected general LU, Cholesky, LDL, and QR
+- [F64SparseDecompositions] — the compatibility composition of the selected general LU, Cholesky,
+  quasi-definite LDL, and QR
   roles. [F64SparseDecompositions.factor] is the general LU and
   returns [F64SparseFactorization], never null: a singular matrix yields a factorization reporting
   `singular`, matching the dense contract. [F64SparseDecompositions.cholesky] is `A = L·Lᵀ` for a symmetric
   positive-definite matrix, reading only the lower triangle, and raises where the LU reports, because a
   non-positive pivot says the matrix was not the one the caller described.
-  [F64SparseDecompositions.ldl] is `A = L·D·Lᵀ` for a symmetric matrix that need not be definite, and reports
+  [F64SparseDecompositions.quasiDefiniteLdl] is unpivoted numerically `A = L·D·Lᵀ` for a quasi-definite
+  symmetric matrix, and reports
   a zero pivot as singular the way the LU does, a negative one being no failure at all. All three solve in the
   ordinary and the transposed direction, which for the two symmetric ones is the same direction twice.
 
@@ -59,7 +61,7 @@ mirror the dense ones.
 
   Each kind returns the factor type its own contract names, and every one of them exposes its factors:
   [F64SparseLuFactorization] carries `l`, `u`, the two orderings and the row scaling it was factored under,
-  [F64SparseCholeskyFactorization] carries `l` and its ordering, and [F64SparseLdlFactorization] carries `l`,
+  [F64SparseCholeskyFactorization] carries `l` and its ordering, and [F64QuasiDefiniteLdlFactorization] carries `l`,
   `d` and its ordering. The identity each satisfies is written on its interface, in terms of what that
   factorization reports rather than of any particular ordering: a backend that permuted differently satisfies
   the same identity with its own permutation, which is what the conformance helpers check.
@@ -70,13 +72,14 @@ mirror the dense ones.
 
   Every [F64SparseFactorization] solves either one vector or all columns of a caller-owned dense RHS block.
   The default block path preserves aliasing by staging a column; KLU and CHOLMOD specialize it through one
-  native call. An [F64SparseLdlFactorization] additionally exposes its pivot-sign [FactorizationInertia].
+  native call. An [F64QuasiDefiniteLdlFactorization] additionally exposes its pivot-sign [FactorizationInertia].
 
-  The sparse `ldl` is not the sparse counterpart of the dense one, whatever the shared name suggests. The
-  dense one pivots for stability; neither the portable sparse one nor any library behind this seam does, the
-  permutation being chosen to limit fill with nothing reordering on the numbers. It is the factorization for a
-  quasi-definite matrix, which is what an interior point method's KKT system is, and a caller who cannot
-  promise that wants [F64SparseDecompositions.factor], whose pivoting is numerical.
+  Sparse [F64SparseDecompositions.quasiDefiniteLdl] is intentionally not the dense
+  [com.eignex.koblas.dense.F64Decompositions.pivotedSymmetricIndefinite]. Dense Bunch-Kaufman pivots for
+  stability; sparse quasi-definite LDL does not numerically pivot, because its permutation is selected to
+  limit fill. It is the factorization for a quasi-definite matrix, which is what an interior point method's
+  KKT system is; a caller who cannot promise that wants [F64SparseDecompositions.factor], whose pivoting is
+  numerical.
 - [F64BasisFactorization] — a sparse LU factorization of a simplex basis. It retains the basis matrix and
   can produce the factorization after one column replacement, which may be any column at all. BASICLU
   answers it; [F64RefactoringBasisFactorization] wraps any other backend at the cost of a factorization per
@@ -90,7 +93,7 @@ Sparse libraries are specialized: KLU wants a circuit pattern it can factor repe
 unstructured system, BASICLU a basis whose columns are replaced one at a time, and
 [com.eignex.koblas.sparse.basis.F64BasisSolver] a basis pivoted thousands of times. The registry therefore
 ranks providers only within semantic roles. [F64GeneralSparseLu] is ordinary pivoting LU,
-[F64RepeatedSparseLu] adds same-pattern refactorization, [F64SparseCholesky] and [F64SparseLdl] are symmetric
+[F64RepeatedSparseLu] adds same-pattern refactorization, [F64SparseCholesky] and [F64QuasiDefiniteLdl] are symmetric
 roles, [F64SparseQr] is least-squares QR, and [F64BasisFactorizations] owns column-replaceable basis factors.
 Adding a repeated-pattern or basis provider cannot change the automatic general-LU selection; UMFPACK remains
 the accelerated general default when it is available, otherwise the portable implementation does.

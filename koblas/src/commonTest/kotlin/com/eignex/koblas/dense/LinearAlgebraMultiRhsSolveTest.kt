@@ -44,7 +44,7 @@ class LinearAlgebraMultiRhsSolveTest {
         val rng = Random(20260951)
         for (n in intArrayOf(1, 2, 5, 14)) {
             val (_, a) = poisonedIndefinite(rng, n)
-            val f = koblas.ldl(a)
+            val f = koblas.pivotedSymmetricIndefinite(a)
             assertTrue(!f.singular, "n=$n flagged singular")
             val nrhs = 3
             val b = F64DenseMatrix(n, nrhs)
@@ -65,7 +65,7 @@ class LinearAlgebraMultiRhsSolveTest {
         val a = F64DenseMatrix(2)
         a[1, 0] = 1.0
         a[0, 1] = Double.NaN
-        val f = koblas.ldl(a)
+        val f = koblas.pivotedSymmetricIndefinite(a)
         // A swaps the rows, so the column-major columns (2, 3) and (1, -1) map to (3, 2) and (-1, 1).
         val b = F64DenseMatrix.wrap(2, 2, doubleArrayOf(2.0, 3.0, 1.0, -1.0))
         val x = koblas.solve(f, b)
@@ -82,7 +82,7 @@ class LinearAlgebraMultiRhsSolveTest {
         val xn = koblas.solve(lu, F64DenseMatrix(1, 0))
         assertEquals(1, xn.rows)
         assertEquals(0, xn.cols)
-        val ldl0 = koblas.ldl(F64DenseMatrix(0, 0))
+        val ldl0 = koblas.pivotedSymmetricIndefinite(F64DenseMatrix(0, 0))
         assertEquals(0, koblas.solve(ldl0, F64DenseMatrix(0, 2)).rows)
     }
 
