@@ -51,6 +51,7 @@ public abstract class F64DecompositionsAdapter internal constructor(
     // overloads to the portable routine instead of the accelerated one, since a delegated member calls back
     // into the delegate.
     override fun invert(lu: F64LuDecomposition, workspace: Workspace?): F64DenseMatrix {
+        requireLuSquare(lu, "invert")
         if (lu.singular) {
             throw SingularMatrix(
                 lu.failedAt,
@@ -160,28 +161,28 @@ public abstract class F64DecompositionsAdapter internal constructor(
         return F64PivotedQrDecomposition(F64QrDecomposition(m, n, buf, tau), pivots, rank)
     }
 
-    override fun factor(a: F64DenseMatrix): F64LuDecomposition {
-        requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
-        val n = a.rows
-        return factorInto(a, F64LuDecomposition(n, DoubleArray(n * n), IntArray(n)))
-    }
+    override fun factor(a: F64DenseMatrix): F64LuDecomposition =
+        factorInto(a, F64LuDecomposition(a.rows, a.cols, DoubleArray(a.data.size), IntArray(a.rows)))
 
     /** `dgetrf` works in place, so [out]'s buffers take the copy of [a] and the factorization overwrites it. */
     override fun factorInto(a: F64DenseMatrix, out: F64LuDecomposition): F64LuDecomposition {
-        requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
-        requireShape(out.n == a.rows) { "factorInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}" }
-        val n = out.n
+        requireShape(out.rows == a.rows && out.cols == a.cols) {
+            "factorInto: out is ${out.rows}x${out.cols}, expected ${a.rows}x${a.cols}"
+        }
+        val m = out.rows
+        val n = out.cols
+        val order = out.order
         a.data.copyInto(out.lu)
         val piv = out.piv
-        for (i in 0 until n) piv[i] = i
+        for (i in 0 until m) piv[i] = i
         out.failedAt = NOT_SINGULAR
-        if (n == 0) return out
-        val ipiv = IntArray(n)
-        val info = f.dgetrf(COL_MAJOR, n, n, out.lu, n, ipiv)
+        if (order == 0) return out
+        val ipiv = IntArray(order)
+        val info = f.dgetrf(COL_MAJOR, m, n, out.lu, m, ipiv)
         check(info >= 0) { "dgetrf: illegal argument ${-info}" }
         // dgetrf reports successive 1-based row swaps, so replaying them gives the permutation form
         // F64LuDecomposition uses, where `piv(k)` is the original row now at position k.
-        for (k in 0 until n) {
+        for (k in 0 until order) {
             val p = ipiv[k] - 1
             if (p != k) {
                 val t = piv[k]
@@ -201,6 +202,7 @@ public abstract class F64DecompositionsAdapter internal constructor(
         transpose: Boolean,
         workspace: Workspace?,
     ): DoubleArray {
+        requireLuSquare(lu, "solve")
         requireFactored(lu.failedAt, "solve")
         val n = lu.n
         requireShape(b.size == n) { "solve: b length ${b.size} != $n" }
@@ -218,6 +220,7 @@ public abstract class F64DecompositionsAdapter internal constructor(
         transpose: Boolean,
         workspace: Workspace?,
     ): F64DenseMatrix {
+        requireLuSquare(lu, "solve")
         requireFactored(lu.failedAt, "solve")
         val n = lu.n
         val nrhs = b.cols
@@ -339,6 +342,7 @@ public abstract class F64DecompositionsAdapter internal constructor(
      * trusting a solve, which is worth more than the call.
      */
     override fun rcond(lu: F64LuDecomposition, anorm: Double, workspace: Workspace?): Double {
+        requireLuSquare(lu, "rcond")
         val n = lu.n
         if (n == 0) return 1.0
         if (lu.singular || anorm == 0.0) return 0.0

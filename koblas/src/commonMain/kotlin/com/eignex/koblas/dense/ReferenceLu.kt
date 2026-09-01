@@ -18,17 +18,19 @@ internal fun referenceLuFactorInto(
     a: F64DenseMatrix,
     out: F64LuDecomposition,
 ): F64LuDecomposition {
-    val n = out.n
+    val m = out.rows
+    val n = out.cols
+    val order = out.order
     val lu = out.lu
     a.data.copyInto(lu)
     val piv = out.piv
-    for (i in 0 until n) piv[i] = i
+    for (i in 0 until m) piv[i] = i
     var failedAt = NOT_SINGULAR
-    for (k in 0 until n) {
+    for (k in 0 until order) {
         var p = k
-        var max = abs(lu[k + k * n])
-        for (i in k + 1 until n) {
-            val v = abs(lu[i + k * n])
+        var max = abs(lu[k + k * m])
+        for (i in k + 1 until m) {
+            val v = abs(lu[i + k * m])
             if (v > max) {
                 max = v
                 p = i
@@ -40,22 +42,22 @@ internal fun referenceLuFactorInto(
         }
         if (p != k) {
             for (j in 0 until n) {
-                val t = lu[k + j * n]
-                lu[k + j * n] = lu[p + j * n]
-                lu[p + j * n] = t
+                val t = lu[k + j * m]
+                lu[k + j * m] = lu[p + j * m]
+                lu[p + j * m] = t
             }
             val tp = piv[k]
             piv[k] = piv[p]
             piv[p] = tp
         }
         // Division keeps a subnormal pivot from becoming an infinity.
-        val pivot = lu[k + k * n]
-        val len = n - k - 1
-        val colBase = k + 1 + k * n
-        for (i in k + 1 until n) lu[i + k * n] = lu[i + k * n] / pivot
+        val pivot = lu[k + k * m]
+        val len = m - k - 1
+        val colBase = k + 1 + k * m
+        for (i in k + 1 until m) lu[i + k * m] = lu[i + k * m] / pivot
         for (j in k + 1 until n) {
-            val ukj = lu[k + j * n]
-            if (ukj != 0.0) kernels.axpy(lu, k + 1 + j * n, -ukj, lu, colBase, len)
+            val ukj = lu[k + j * m]
+            if (ukj != 0.0) kernels.axpy(lu, k + 1 + j * m, -ukj, lu, colBase, len)
         }
     }
     out.failedAt = failedAt
@@ -71,6 +73,7 @@ internal fun referenceLuSolveInto(
     transpose: Boolean = false,
     workspace: Workspace? = null,
 ): DoubleArray {
+    requireLuSquare(lu, "solve")
     requireFactored(lu.failedAt, "solve")
     val n = lu.n
     requireShape(b.size == n) { "solve: b length ${b.size} != $n" }
@@ -138,6 +141,7 @@ internal fun referenceLuSolveInto(
     transpose: Boolean,
     workspace: Workspace?,
 ): F64DenseMatrix {
+    requireLuSquare(lu, "solve")
     requireFactored(lu.failedAt, "solve")
     val n = lu.n
     val nrhs = b.cols

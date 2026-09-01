@@ -96,7 +96,6 @@ class LinearAlgebraTest {
 
     @Test
     fun `the dense routines reject mismatched shapes`() {
-        assertFailsWith<IllegalArgumentException> { F64DenseMatrix(2, 3).lu() }
         assertFailsWith<IllegalArgumentException> { F64DenseMatrix(2, 3) * F64DenseMatrix(2, 2) }
         assertFailsWith<IllegalArgumentException> { koblas.gemv(F64DenseMatrix(2, 3), DoubleArray(2)) }
         assertFailsWith<IllegalArgumentException> {

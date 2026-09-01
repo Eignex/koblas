@@ -11,14 +11,15 @@ public interface F64Decompositions : Backend {
     /** The vector kernels this half's inherited routines run on; the installed ones by default. */
     public val kernels: F64Kernels get() = koblas.kernels
 
-    /** LU factorization with partial pivoting of a square [a] (LAPACK `dgetrf`). [a] is not modified. */
+    /** LU factorization with partial pivoting of any `m×n` [a] (LAPACK `dgetrf`). [a] is not modified. */
     public fun factor(a: F64DenseMatrix): F64LuDecomposition
 
-    /** Refactorize [a] into [out]'s existing buffers, returning [out]. [out] must have [a]'s dimension and
+    /** Refactorize [a] into [out]'s existing buffers, returning [out]. [out] must have [a]'s shape and
      *  its previous contents are discarded. */
     public fun factorInto(a: F64DenseMatrix, out: F64LuDecomposition): F64LuDecomposition {
-        requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
-        requireShape(out.n == a.rows) { "factorInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}" }
+        requireShape(out.rows == a.rows && out.cols == a.cols) {
+            "factorInto: out is ${out.rows}x${out.cols}, expected ${a.rows}x${a.cols}"
+        }
         val fresh = factor(a)
         fresh.lu.copyInto(out.lu)
         fresh.piv.copyInto(out.piv)
@@ -26,9 +27,10 @@ public interface F64Decompositions : Backend {
         return out
     }
 
-    /** Solve `A · x = b`, or `Aᵀ · x = b` when [transpose], for the factorization [lu] (LAPACK `dgetrs`). */
+    /** Solve `A · x = b`, or `Aᵀ · x = b` when [transpose], for a square factorization [lu] (LAPACK `dgetrs`).
+     *  @throws com.eignex.koblas.DimensionMismatch if [lu] is rectangular. */
     public fun solve(lu: F64LuDecomposition, b: DoubleArray, transpose: Boolean = false): DoubleArray =
-        solveInto(lu, b, DoubleArray(lu.n), transpose)
+        solveInto(lu, b, DoubleArray(lu.rows), transpose)
 
     /** Solve `A · x = b`, or `Aᵀ · x = b` when [transpose], into [out], which is returned. [out] may be [b],
      *  and a [workspace] lends the transposed direction's staging buffer. */
@@ -42,7 +44,8 @@ public interface F64Decompositions : Backend {
     ): DoubleArray
 
     /** Solve `A · X = B`, or `Aᵀ · X = B` when [transpose], for all right-hand-side columns of [b] at once
-     *  (LAPACK `dgetrs` with `nrhs`). */
+     *  against a square factorization [lu] (LAPACK `dgetrs` with `nrhs`).
+     *  @throws com.eignex.koblas.DimensionMismatch if [lu] is rectangular. */
     public fun solve(lu: F64LuDecomposition, b: F64DenseMatrix, transpose: Boolean = false): F64DenseMatrix =
         solveInto(lu, b, F64DenseMatrix(b.rows, b.cols), transpose)
 
@@ -145,8 +148,10 @@ public interface F64Decompositions : Backend {
         workspace: Workspace? = null,
     ): DoubleArray
 
-    /** Order-of-magnitude estimate of `1 / (anorm · est(‖A⁻¹‖₁))` (LAPACK `dgecon`), where [anorm] is the
-     *  1-norm of the unfactored matrix (see [norm1]). Returns `1.0` when `n == 0` and `0.0` when singular. */
+    /** Order-of-magnitude estimate of `1 / (anorm · est(‖A⁻¹‖₁))` (LAPACK `dgecon`) for a square factor, where
+     *  [anorm] is the 1-norm of the unfactored matrix (see [norm1]). Returns `1.0` when `n == 0` and `0.0`
+     *  when singular.
+     *  @throws com.eignex.koblas.DimensionMismatch if [lu] is rectangular. */
     public fun rcond(lu: F64LuDecomposition, anorm: Double, workspace: Workspace? = null): Double
 
     /** Cholesky factorization `A = L·Lᵀ` of a symmetric positive-definite [a] (`dpotrf` with `uplo = 'L'`).
@@ -189,9 +194,10 @@ public interface F64Decompositions : Backend {
         }
     }
 
-    /** Invert a general matrix from its LU factorization, returning `A⁻¹` given `P·A = L·U` (LAPACK `dgetri`).
+    /** Invert a square matrix from its LU factorization, returning `A⁻¹` given `P·A = L·U` (LAPACK `dgetri`).
      *  Prefer [solve] to apply `A⁻¹`, which costs less and is more accurate.
      *  @throws com.eignex.koblas.SingularMatrix if [lu] is singular; the position is [F64LuDecomposition.failedAt].
+     *  @throws com.eignex.koblas.DimensionMismatch if [lu] is rectangular.
      */
     public fun invert(lu: F64LuDecomposition, workspace: Workspace? = null): F64DenseMatrix
 

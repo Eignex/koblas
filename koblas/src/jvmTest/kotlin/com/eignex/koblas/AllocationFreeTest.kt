@@ -83,12 +83,17 @@ class AllocationFreeTest {
     fun `refactorizing in place allocates nothing per iteration`() {
         val n = 48
         val rng = Random(20260738)
-        val a = wellConditioned(n, rng)
+        val a = F64DenseMatrix(2 * n, n)
+        for (j in 0 until n) {
+            for (i in 0 until 2 * n) {
+                a[i, j] = if (i == j) 2.0 else rng.nextDouble(-1.0, 1.0)
+            }
+        }
         val reused = koblas.factor(a)
 
         val allocating = bytesPerIteration(300) { koblas.factor(a) }
         val into = bytesPerIteration(300) { koblas.factorInto(a, reused) }
-        assertTrue(allocating > n * n * Double.SIZE_BYTES * 0.5, "expected an n² copy, saw $allocating B")
+        assertTrue(allocating > n * n * Double.SIZE_BYTES, "expected a rectangular factor copy, saw $allocating B")
         assertPooled(into, allocating, "factorInto")
     }
 

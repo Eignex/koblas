@@ -12,7 +12,7 @@ public interface F64LinearAlgebra :
     override val kernels: F64Kernels get() = koblas.kernels
 }
 
-/** LU-factorize this square matrix with the active backend ([koblas]); see [F64Decompositions.factor]. */
+/** LU-factorize this matrix with the active backend ([koblas]); see [F64Decompositions.factor]. */
 public fun F64DenseMatrix.lu(): F64LuDecomposition = koblas.factor(this)
 
 /**
