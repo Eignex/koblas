@@ -60,8 +60,8 @@ internal object BackendRegistry {
     /** The sparse Cholesky provider registered under [name], or null when nothing did. */
     internal fun sparseCholeskyNamed(name: String) = f64.sparseCholeskyNamed(name)
 
-    /** The sparse LDL provider registered under [name], or null when nothing did. */
-    internal fun sparseLdlNamed(name: String) = f64.sparseLdlNamed(name)
+    /** The sparse quasi-definite LDL provider registered under [name], or null when nothing did. */
+    internal fun quasiDefiniteLdlNamed(name: String) = f64.quasiDefiniteLdlNamed(name)
 
     /** The sparse QR provider registered under [name], or null when nothing did. */
     internal fun sparseQrNamed(name: String) = f64.sparseQrNamed(name)

@@ -44,7 +44,7 @@ class UmfpackNativeConformanceTest {
             .filter { it.isAvailable }
             .maxBy { it.priority }
         assertEquals(symmetric.name, koblas.sparseCholesky.name)
-        assertEquals(symmetric.name, koblas.sparseLdl.name)
+        assertEquals(symmetric.name, koblas.quasiDefiniteLdl.name)
     }
 
     @Test
@@ -114,7 +114,7 @@ class UmfpackNativeConformanceTest {
     fun `the LDL comes from CHOLMOD and factors a matrix the Cholesky refuses`() {
         val a = indefiniteConformanceSystem(20, Random(20260929))
 
-        val f = umfpack.ldl(a)
+        val f = umfpack.quasiDefiniteLdl(a)
 
         assertIs<CholmodLdlFactorization>(f, "expected CHOLMOD's factorization rather than the portable fallback")
         assertTrue(!f.singular, "an invertible indefinite system has an L D Lt")

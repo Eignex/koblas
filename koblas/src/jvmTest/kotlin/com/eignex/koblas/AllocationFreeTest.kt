@@ -56,7 +56,7 @@ class AllocationFreeTest {
         val x = DoubleArray(n)
 
         val allocating = bytesPerIteration(2000) { koblas.solve(lu, b) }
-        val into = bytesPerIteration(2000) { koblas.solveInto(lu, b, x) }
+        val into = bytesPerIteration(2000) { lu.solveInto(b, x) }
         assertTrue(
             allocating > n * Double.SIZE_BYTES * 0.5,
             "expected the allocating form to allocate, saw $allocating B",
@@ -83,12 +83,17 @@ class AllocationFreeTest {
     fun `refactorizing in place allocates nothing per iteration`() {
         val n = 48
         val rng = Random(20260738)
-        val a = wellConditioned(n, rng)
+        val a = F64DenseMatrix(2 * n, n)
+        for (j in 0 until n) {
+            for (i in 0 until 2 * n) {
+                a[i, j] = if (i == j) 2.0 else rng.nextDouble(-1.0, 1.0)
+            }
+        }
         val reused = koblas.factor(a)
 
         val allocating = bytesPerIteration(300) { koblas.factor(a) }
-        val into = bytesPerIteration(300) { koblas.factorInto(a, reused) }
-        assertTrue(allocating > n * n * Double.SIZE_BYTES * 0.5, "expected an n² copy, saw $allocating B")
+        val into = bytesPerIteration(300) { reused.refactorInto(a) }
+        assertTrue(allocating > n * n * Double.SIZE_BYTES, "expected a rectangular factor copy, saw $allocating B")
         assertPooled(into, allocating, "factorInto")
     }
 
@@ -104,7 +109,7 @@ class AllocationFreeTest {
         val ws = Workspace().apply { reserve(n * nrhs, count = 1) }
 
         val allocating = bytesPerIteration(200) { koblas.solve(lu, b) }
-        val into = bytesPerIteration(200) { koblas.solveInto(lu, b, out, workspace = ws) }
+        val into = bytesPerIteration(200) { lu.solveInto(b, out, workspace = ws) }
         assertTrue(allocating > n * nrhs * Double.SIZE_BYTES * 0.5, "expected allocation, saw $allocating B")
         assertPooled(into, allocating, "block solveInto")
     }
@@ -122,7 +127,7 @@ class AllocationFreeTest {
         val ws = Workspace().apply { reserve(m, count = 1) }
 
         val allocating = bytesPerIteration(500) { koblas.solve(f, b) }
-        val into = bytesPerIteration(500) { koblas.solveInto(f, b, x, workspace = ws) }
+        val into = bytesPerIteration(500) { f.solveInto(b, x, workspace = ws) }
         assertTrue(allocating > m * Double.SIZE_BYTES * 0.5, "expected allocation, saw $allocating B")
         assertPooled(into, allocating, "least squares")
     }

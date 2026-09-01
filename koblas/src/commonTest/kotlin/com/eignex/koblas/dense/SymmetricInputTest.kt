@@ -18,7 +18,7 @@ class SymmetricInputTest {
         )
 
         assertClose(doubleArrayOf(0.8, 1.4), lower.cholesky().solve(rhs), "Cholesky")
-        assertClose(doubleArrayOf(0.8, 1.4), lower.ldl().solve(rhs), "LDL")
+        assertClose(doubleArrayOf(0.8, 1.4), lower.pivotedSymmetricIndefinite().solve(rhs), "LDL")
     }
 
     @Test
@@ -31,6 +31,6 @@ class SymmetricInputTest {
         )
 
         assertClose(doubleArrayOf(0.8, 1.4), upper.cholesky(lower = false).solve(rhs), "Cholesky")
-        assertClose(doubleArrayOf(0.8, 1.4), upper.ldl(lower = false).solve(rhs), "LDL")
+        assertClose(doubleArrayOf(0.8, 1.4), upper.pivotedSymmetricIndefinite(lower = false).solve(rhs), "LDL")
     }
 }

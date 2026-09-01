@@ -44,7 +44,7 @@ class PortableSparseFactorsTest {
         for (n in intArrayOf(1, 6, 30)) {
             val a = spdLowerTriangle(n, rng)
 
-            assertLdlFactorsReproduce(a, F64ReferenceSparseLinearAlgebra.ldl(a), "n=$n")
+            assertLdlFactorsReproduce(a, F64ReferenceSparseLinearAlgebra.quasiDefiniteLdl(a), "n=$n")
         }
     }
 
@@ -65,7 +65,7 @@ class PortableSparseFactorsTest {
     fun `a singular LDL factorization has no factors to give`() {
         val a = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), emptyList()))
 
-        val ldl = F64ReferenceSparseLinearAlgebra.ldl(a)
+        val ldl = F64ReferenceSparseLinearAlgebra.quasiDefiniteLdl(a)
 
         assertEquals(true, ldl.singular)
         assertFailsWith<com.eignex.koblas.SingularMatrix> { ldl.l }

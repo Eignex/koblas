@@ -20,10 +20,11 @@ Light arithmetic lives as free functions over the views: BLAS-1/2 (`dot`, `axpy`
 (`jdk.incubator.vector`) on the JVM when present and compiled C kernels on Native and non-SIMD JVMs.
 
 Sparse linear algebra is a first-class peer: a CSC [F64SparseMatrix][com.eignex.koblas.core.F64SparseMatrix]
-with matrix-vector and matrix-matrix products, general and repeated-pattern LU, Cholesky, LDL, and distinct
-simplex-basis capabilities. Sparse factors provide vector and block solves, deterministic lifecycle, allocation
-contracts, and typed factor access. The README's "Numerical routine coverage" and "Sparse workflows" sections map
-these semantic roles to portable and native providers.
+with matrix-vector and matrix-matrix products, general and repeated-pattern LU, Cholesky, quasi-definite LDL,
+and distinct simplex-basis capabilities. Dense symmetric-indefinite factorization is Bunch-Kaufman numerically
+pivoted; sparse quasi-definite LDL instead preserves a fill-reducing ordering. Sparse factors provide vector and
+block solves, deterministic lifecycle, allocation contracts, and typed factor access. The README's "Numerical
+routine coverage" and "Sparse workflows" sections map these semantic roles to portable and native providers.
 
 The heavier level-2/3 and factorization work — [gemv][com.eignex.koblas.dense.F64LinearAlgebra.gemv],
 [gemm][com.eignex.koblas.dense.F64LinearAlgebra.gemm] and a general LU

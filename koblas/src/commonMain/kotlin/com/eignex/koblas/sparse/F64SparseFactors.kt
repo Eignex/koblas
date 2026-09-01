@@ -71,8 +71,13 @@ public interface F64SparseCholeskyFactorization : F64SparseFactorization {
     public val order: IntArray
 }
 
-/** The `A = L·D·Lᵀ` a sparse `L·D·Lᵀ` produces. */
-public interface F64SparseLdlFactorization : F64SparseFactorization {
+/**
+ * The unpivoted `A = L·D·Lᵀ` factorization for a quasi-definite sparse matrix.
+ *
+ * Its [order] is structural and controls fill. It is not a dense-style Bunch-Kaufman numerical pivoting
+ * factorization, so it is unsuitable when quasi-definiteness cannot be promised.
+ */
+public interface F64QuasiDefiniteLdlFactorization : F64SparseFactorization {
     /**
      * Unit lower triangular, its diagonal of ones implicit rather than stored: [d] occupies that position in
      * every library that keeps one, so storing ones there would be `n` entries carrying no information. A
