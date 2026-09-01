@@ -16,9 +16,9 @@ public fun F64SparseMatrix.cholesky(): F64SparseCholeskyFactorization = koblas.c
 
 /**
  * Factorize this symmetric matrix into `L·D·Lᵀ` with the active backend ([koblas]), reading only its lower
- * triangle. See [F64SparseDecompositions.ldl], which says what it does and does not promise.
+ * triangle. See [F64SparseDecompositions.quasiDefiniteLdl], which says what it does and does not promise.
  */
-public fun F64SparseMatrix.ldl(): F64SparseLdlFactorization = koblas.ldl(this)
+public fun F64SparseMatrix.quasiDefiniteLdl(): F64QuasiDefiniteLdlFactorization = koblas.quasiDefiniteLdl(this)
 
 /**
  * QR-factorize this tall or square matrix with the active backend ([koblas]), for the least-squares solve

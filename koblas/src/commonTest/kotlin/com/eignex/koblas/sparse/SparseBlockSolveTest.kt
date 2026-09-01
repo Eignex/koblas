@@ -4,7 +4,7 @@ import com.eignex.koblas.DimensionMismatch
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.sparse.factorization.ldl.F64SparseUpLookingLdl
+import com.eignex.koblas.sparse.factorization.ldl.F64QuasiDefiniteUpLookingLdl
 import kotlin.test.*
 
 class SparseBlockSolveTest {
@@ -83,7 +83,7 @@ class SparseBlockSolveTest {
             3,
             listOf(listOf(0 to 2.0), listOf(1 to -3.0), listOf(2 to 4.0)),
         )
-        val factor = F64SparseUpLookingLdl.factorLower(diagonal)
+        val factor = F64QuasiDefiniteUpLookingLdl.factorLower(diagonal)
 
         assertEquals(FactorizationInertia(positive = 2, negative = 1, zero = 0), factor.inertia)
     }

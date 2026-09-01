@@ -14,7 +14,7 @@ class LinearAlgebraLdlTest {
             val (full, poisoned) = poisonedIndefinite(rng, n)
             val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
             val viaLu = koblas.solve(full.lu(), b)
-            val f = koblas.ldl(poisoned)
+            val f = koblas.pivotedSymmetricIndefinite(poisoned)
             assertTrue(!f.singular, "n=$n flagged singular")
             val viaLdl = koblas.solve(f, b)
             assertClose(viaLu, viaLdl, "ldl n=$n", tolerance = 1e-9)
@@ -26,7 +26,7 @@ class LinearAlgebraLdlTest {
         val a = F64DenseMatrix(2)
         a[1, 0] = 1.0
         a[0, 1] = Double.NaN
-        val f = koblas.ldl(a)
+        val f = koblas.pivotedSymmetricIndefinite(a)
         assertTrue(!f.singular)
         assertTrue(f.ipiv[0] < 0 && f.ipiv[1] == f.ipiv[0], "expected a 2x2 block, got ${f.ipiv.toList()}")
         val x = koblas.solve(f, doubleArrayOf(2.0, 3.0))
@@ -39,7 +39,7 @@ class LinearAlgebraLdlTest {
             F64DenseMatrix(2, 2, doubleArrayOf(1e100, 1e250, 1e250, 1.0)),
             F64DenseMatrix(2, 2, doubleArrayOf(1e-310, 1e-200, 1e-200, 0.0)),
         )) {
-            val f = koblas.ldl(a)
+            val f = koblas.pivotedSymmetricIndefinite(a)
             assertTrue(f.ldl.all { it.isFinite() }, "factor of ${a.data.toList()} holds ${f.ldl.toList()}")
         }
     }
@@ -48,7 +48,7 @@ class LinearAlgebraLdlTest {
     fun `a solve over a wide exponent range reproduces its right-hand side`() {
         val a = F64DenseMatrix(2, 2, doubleArrayOf(1e100, 1e250, 1e250, 1.0))
         val b = doubleArrayOf(1.0, 1.0)
-        val x = koblas.solve(koblas.ldl(a), b)
+        val x = koblas.solve(koblas.pivotedSymmetricIndefinite(a), b)
         assertClose(b, koblas.gemv(a, x), "residual", tolerance = 1e-9)
     }
 
@@ -66,17 +66,21 @@ class LinearAlgebraLdlTest {
         }
         val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
         val viaCholesky = a.cholesky().solve(b)
-        val viaLdl = koblas.solve(koblas.ldl(a), b)
+        val viaLdl = koblas.solve(koblas.pivotedSymmetricIndefinite(a), b)
         assertClose(viaCholesky, viaLdl, "spd", tolerance = 1e-10)
     }
 
     @Test
     fun `singular and empty conventions`() {
-        assertTrue(koblas.ldl(F64DenseMatrix(3, 3)).singular)
-        val empty = koblas.ldl(F64DenseMatrix(0, 0))
+        assertTrue(koblas.pivotedSymmetricIndefinite(F64DenseMatrix(3, 3)).singular)
+        val empty = koblas.pivotedSymmetricIndefinite(F64DenseMatrix(0, 0))
         assertTrue(!empty.singular)
         assertTrue(koblas.solve(empty, DoubleArray(0)).isEmpty())
-        assertEquals(0, koblas.ldl(F64DenseMatrix(3, 3)).failedAt, "the first of three zero pivots")
+        assertEquals(
+            0,
+            koblas.pivotedSymmetricIndefinite(F64DenseMatrix(3, 3)).failedAt,
+            "the first of three zero pivots",
+        )
         assertEquals(NOT_SINGULAR, empty.failedAt)
     }
 }

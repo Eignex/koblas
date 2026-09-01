@@ -28,8 +28,8 @@ public enum class BackendRole {
     /** Symmetric positive-definite sparse Cholesky. */
     SPARSE_CHOLESKY,
 
-    /** Symmetric sparse `L * D * L^T`. */
-    SPARSE_LDL,
+    /** Symmetric sparse quasi-definite, numerically unpivoted `L * D * L^T`. */
+    SPARSE_QUASI_DEFINITE_LDL,
 
     /** Sparse QR for least-squares solves. */
     SPARSE_QR,
@@ -91,7 +91,7 @@ public fun F64Context.backendFor(role: BackendRole): Backend = when (role) {
     BackendRole.SPARSE_GENERAL_LU -> generalSparseLu
     BackendRole.SPARSE_REPEATED_LU -> repeatedSparseLu ?: MissingRepeatedSparseLu
     BackendRole.SPARSE_CHOLESKY -> sparseCholesky
-    BackendRole.SPARSE_LDL -> sparseLdl
+    BackendRole.SPARSE_QUASI_DEFINITE_LDL -> quasiDefiniteLdl
     BackendRole.SPARSE_QR -> sparseQr
     BackendRole.BASIS_FACTORIZATIONS -> basisFactorizations
     BackendRole.BASIS_SOLVERS -> basisSolvers

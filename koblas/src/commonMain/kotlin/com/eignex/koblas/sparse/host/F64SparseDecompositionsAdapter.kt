@@ -63,16 +63,17 @@ public abstract class F64SparseDecompositionsAdapter protected constructor(
      */
     protected open fun choleskyNative(a: F64SparseMatrix): F64SparseCholeskyFactorization = portable.cholesky(a)
 
-    final override fun ldl(a: F64SparseMatrix): F64SparseLdlFactorization {
-        requireSquare(a, "ldl")
+    final override fun quasiDefiniteLdl(a: F64SparseMatrix): F64QuasiDefiniteLdlFactorization {
+        requireSquare(a, "quasiDefiniteLdl")
         if (!nativeAvailable) {
-            return portable.ldl(a)
+            return portable.quasiDefiniteLdl(a)
         }
-        return ldlNative(a)
+        return quasiDefiniteLdlNative(a)
     }
 
     /** Factorizes a symmetric matrix into `L·D·Lᵀ` through the native library, portably by default. */
-    protected open fun ldlNative(a: F64SparseMatrix): F64SparseLdlFactorization = portable.ldl(a)
+    protected open fun quasiDefiniteLdlNative(a: F64SparseMatrix): F64QuasiDefiniteLdlFactorization =
+        portable.quasiDefiniteLdl(a)
 
     final override fun qr(a: F64SparseMatrix): F64SparseQrFactorization {
         requireShape(a.rows >= a.cols) {

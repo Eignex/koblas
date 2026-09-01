@@ -11,7 +11,7 @@ class F64ContextBuilderTest {
         F64SparseDecompositions by F64ReferenceSparseLinearAlgebra,
         F64GeneralSparseLu,
         F64SparseCholesky,
-        F64SparseLdl,
+        F64QuasiDefiniteLdl,
         F64SparseQr {
         override val name: String get() = "tracking sparse decompositions"
         var qrCalls: Int = 0
@@ -253,7 +253,7 @@ class F64ContextBuilderTest {
         assertEquals(1, backend.qrCalls)
         assertSame(backend, context.generalSparseLu)
         assertSame(backend, context.sparseCholesky)
-        assertSame(backend, context.sparseLdl)
+        assertSame(backend, context.quasiDefiniteLdl)
         assertSame(backend, context.sparseQr)
     }
 }

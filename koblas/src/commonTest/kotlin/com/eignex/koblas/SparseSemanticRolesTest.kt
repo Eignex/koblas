@@ -35,7 +35,7 @@ class SparseSemanticRolesTest {
         LegacyProvider("complete", priority = 10),
         F64GeneralSparseLu,
         F64SparseCholesky,
-        F64SparseLdl,
+        F64QuasiDefiniteLdl,
         F64SparseQr
 
     @Test
@@ -74,7 +74,7 @@ class SparseSemanticRolesTest {
 
         assertEquals("reference", koblas.generalSparseLu.name)
         assertEquals("reference", koblas.sparseCholesky.name)
-        assertEquals("reference", koblas.sparseLdl.name)
+        assertEquals("reference", koblas.quasiDefiniteLdl.name)
         assertEquals("reference", koblas.sparseQr.name)
     }
 
@@ -97,7 +97,7 @@ class SparseSemanticRolesTest {
 
         assertSame(provider, context.generalSparseLu)
         assertSame(provider, context.sparseCholesky)
-        assertSame(provider, context.sparseLdl)
+        assertSame(provider, context.quasiDefiniteLdl)
         assertSame(provider, context.sparseQr)
         assertNotSame(provider, context.sparseDecompositions)
     }
@@ -112,7 +112,7 @@ class SparseSemanticRolesTest {
 
         assertSame(provider, context.generalSparseLu)
         assertSame(provider, context.sparseCholesky)
-        assertSame(provider, context.sparseLdl)
+        assertSame(provider, context.quasiDefiniteLdl)
         assertSame(provider, context.sparseQr)
     }
 
