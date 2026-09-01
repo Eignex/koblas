@@ -152,7 +152,8 @@ public interface F64PreparedSparseMatrix : AutoCloseable {
     @Suppress("LongParameterList")
     public fun gemv(alpha: Double, x: DoubleArray, beta: Double, y: DoubleArray, transpose: Boolean = false)
 
-    /** `C = alpha · op(A) · B + beta · C` against the prepared `A`. */
+    /** `C = alpha · op(A) · B + beta · C` against the prepared `A`. [workspace] reuses portable staging on
+     *  the software fallback a native binding keeps for itself. */
     @Suppress("LongParameterList")
     public fun gemm(
         alpha: Double,
