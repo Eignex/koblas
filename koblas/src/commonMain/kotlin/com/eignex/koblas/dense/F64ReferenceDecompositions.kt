@@ -48,6 +48,18 @@ internal class F64ReferenceDecompositions(private val configured: F64Kernels? = 
     override fun qrPivoted(a: F64DenseMatrix, tolerance: Double, workspace: Workspace?): F64PivotedQrDecomposition =
         referenceQrPivoted(kernels, a, tolerance)
 
+    override fun qrPivotedInto(
+        a: F64DenseMatrix,
+        out: F64PivotedQrDecomposition,
+        tolerance: Double,
+        workspace: Workspace?,
+    ): F64PivotedQrDecomposition {
+        requireShape(out.m == a.rows && out.n == a.cols) {
+            "qrPivotedInto: out is ${out.m}x${out.n}, expected ${a.rows}x${a.cols}"
+        }
+        return referenceQrPivotedInto(kernels, a, out, tolerance)
+    }
+
     override fun applyQInto(qr: F64QrDecomposition, y: DoubleArray, out: DoubleArray, transpose: Boolean): DoubleArray =
         referenceApplyQInto(kernels, qr, y, out, transpose)
 

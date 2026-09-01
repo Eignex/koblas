@@ -148,6 +148,28 @@ public interface F64Decompositions : Backend {
         workspace: Workspace? = null,
     ): F64PivotedQrDecomposition
 
+    /** Refactorize [a] into [out]'s existing buffers, returning [out], with [F64PivotedQrDecomposition.rank]
+     *  and the pivots recomputed for [a]. [out] must have [a]'s shape and its previous contents are
+     *  discarded. The portable and host backends factor straight into those buffers; this default is the
+     *  fallback for a backend that offers only the allocating form.
+     *  @throws IllegalArgumentException if [tolerance] is negative. */
+    public fun qrPivotedInto(
+        a: F64DenseMatrix,
+        out: F64PivotedQrDecomposition,
+        tolerance: Double = AUTOMATIC_RANK_TOLERANCE,
+        workspace: Workspace? = null,
+    ): F64PivotedQrDecomposition {
+        requireShape(out.m == a.rows && out.n == a.cols) {
+            "qrPivotedInto: out is ${out.m}x${out.n}, expected ${a.rows}x${a.cols}"
+        }
+        val fresh = qrPivoted(a, tolerance, workspace)
+        fresh.factorization.qr.copyInto(out.factorization.qr)
+        fresh.factorization.tau.copyInto(out.factorization.tau)
+        fresh.pivots.copyInto(out.pivots)
+        out.rank = fresh.rank
+        return out
+    }
+
     /** Least-squares solve from a pivoted factorization, with the column permutation undone. A rank-deficient
      *  factorization returns the basic solution, not the minimum-norm one: zero outside the pivoted rank. */
     public fun solve(qr: F64PivotedQrDecomposition, b: DoubleArray, workspace: Workspace? = null): DoubleArray =
@@ -161,10 +183,41 @@ public interface F64Decompositions : Backend {
         workspace: Workspace? = null,
     ): DoubleArray
 
+    /** Least-squares solve for every right-hand-side column of [b] at once, `m × nrhs` in and `n × nrhs`
+     *  out, each column as the vector [solve] gives it. */
+    public fun solve(qr: F64PivotedQrDecomposition, b: F64DenseMatrix, workspace: Workspace? = null): F64DenseMatrix =
+        solveInto(qr, b, F64DenseMatrix(qr.n, b.cols), workspace)
+
+    /** [solve] into [out], which is returned. [out] may be [b] when the factorization is square. */
+    public fun solveInto(
+        qr: F64PivotedQrDecomposition,
+        b: F64DenseMatrix,
+        out: F64DenseMatrix,
+        workspace: Workspace? = null,
+    ): F64DenseMatrix {
+        requireRectangularSolveShapes(qr.m, qr.n, b, out)
+        return solveColumnwise(b, out, qr.m, qr.n, b.cols, workspace) { column, destination ->
+            solveInto(qr, column, destination, workspace)
+        }
+    }
+
     /** Apply `Q`, or `Qᵀ` when [transpose], from [qr] to a length-`m` [y], into a fresh result
      *  (LAPACK `dormqr` restricted to a single column). */
     public fun applyQ(qr: F64QrDecomposition, y: DoubleArray, transpose: Boolean = false): DoubleArray =
         applyQInto(qr, y, DoubleArray(qr.m), transpose)
+
+    /** [applyQ] over the nested [F64PivotedQrDecomposition.factorization]. Column pivoting permutes the
+     *  columns of `R`, not `Q`, so this is the same operator the unpivoted factorization carries. */
+    public fun applyQ(qr: F64PivotedQrDecomposition, y: DoubleArray, transpose: Boolean = false): DoubleArray =
+        applyQ(qr.factorization, y, transpose)
+
+    /** [applyQInto] over the nested [F64PivotedQrDecomposition.factorization]. */
+    public fun applyQInto(
+        qr: F64PivotedQrDecomposition,
+        y: DoubleArray,
+        out: DoubleArray,
+        transpose: Boolean = false,
+    ): DoubleArray = applyQInto(qr.factorization, y, out, transpose)
 
     /** Apply `Q`, or `Qᵀ` when [transpose], from [qr] to [y] into [out], which is returned. [out] may
      *  be [y]. */
@@ -194,6 +247,37 @@ public interface F64Decompositions : Backend {
         minimumNorm: Boolean = false,
         workspace: Workspace? = null,
     ): DoubleArray
+
+    /** Solve every right-hand-side column of [b] at once, each column as the vector [solve] gives it. The
+     *  right-hand side is `m × nrhs` and the solution `n × nrhs`, the two swapping with [minimumNorm]. */
+    public fun solve(
+        qr: F64QrDecomposition,
+        b: F64DenseMatrix,
+        minimumNorm: Boolean = false,
+        workspace: Workspace? = null,
+    ): F64DenseMatrix = solveInto(
+        qr,
+        b,
+        F64DenseMatrix(if (minimumNorm) qr.m else qr.n, b.cols),
+        minimumNorm,
+        workspace,
+    )
+
+    /** [solve] into [out], which is returned. [out] may be [b] when the two have the same shape. */
+    public fun solveInto(
+        qr: F64QrDecomposition,
+        b: F64DenseMatrix,
+        out: F64DenseMatrix,
+        minimumNorm: Boolean = false,
+        workspace: Workspace? = null,
+    ): F64DenseMatrix {
+        val rows = if (minimumNorm) qr.n else qr.m
+        val solutionRows = if (minimumNorm) qr.m else qr.n
+        requireRectangularSolveShapes(rows, solutionRows, b, out)
+        return solveColumnwise(b, out, rows, solutionRows, b.cols, workspace) { column, destination ->
+            solveInto(qr, column, destination, minimumNorm, workspace)
+        }
+    }
 
     /** Order-of-magnitude estimate of `1 / (anorm · est(‖A⁻¹‖₁))` (LAPACK `dgecon`) for a square factor, where
      *  [anorm] is the finite, non-negative 1-norm of the unfactored matrix (see [norm1]). For a valid [anorm],
@@ -291,6 +375,39 @@ internal fun requireSolveShapes(n: Int, b: F64DenseMatrix, out: F64DenseMatrix) 
     requireShape(out.rows == n && out.cols == b.cols) {
         "solve: out is ${out.rows}x${out.cols}, expected ${n}x${b.cols}"
     }
+}
+
+/** The shapes required by a block solve whose right-hand side and solution have different heights. */
+internal fun requireRectangularSolveShapes(rows: Int, solutionRows: Int, b: F64DenseMatrix, out: F64DenseMatrix) {
+    requireShape(b.rows == rows) { "solve: B has ${b.rows} rows, expected $rows" }
+    requireShape(out.rows == solutionRows && out.cols == b.cols) {
+        "solve: out is ${out.rows}x${out.cols}, expected ${solutionRows}x${b.cols}"
+    }
+}
+
+/** [solveColumnwise] where the right-hand side is `rows` tall and the solution `solutionRows`, as a
+ *  least-squares or minimum-norm QR solve is. */
+@Suppress("LongParameterList") // both heights, destination and scratch alongside the per-column solve
+internal inline fun solveColumnwise(
+    b: F64DenseMatrix,
+    out: F64DenseMatrix,
+    rows: Int,
+    solutionRows: Int,
+    nrhs: Int,
+    workspace: Workspace?,
+    solveOne: (column: DoubleArray, destination: DoubleArray) -> DoubleArray,
+): F64DenseMatrix {
+    if (nrhs == 0) return out
+    workspace.borrow(rows) { col ->
+        workspace.borrow(solutionRows) { solved ->
+            for (c in 0 until nrhs) {
+                b.data.copyInto(col, 0, c * rows, (c + 1) * rows)
+                val x = solveOne(col, solved)
+                x.copyInto(out.data, c * solutionRows, 0, solutionRows)
+            }
+        }
+    }
+    return out
 }
 
 /** Run [solveOne] over each column of [b], reassembling the results into an `n × nrhs` matrix. */

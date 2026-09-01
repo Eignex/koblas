@@ -150,6 +150,21 @@ public fun F64QrDecomposition.solveInto(
     workspace: Workspace? = null,
 ): DoubleArray = koblas.solveInto(this, b, out, minimumNorm, workspace)
 
+/** Solve every right-hand-side column at once; [minimumNorm] solves a wide original system from `qr(Aᵀ)`. */
+public fun F64QrDecomposition.solve(
+    b: F64DenseMatrix,
+    minimumNorm: Boolean = false,
+    workspace: Workspace? = null,
+): F64DenseMatrix = koblas.solve(this, b, minimumNorm, workspace)
+
+/** Solve every right-hand-side column into [out], retaining the caller's destination. */
+public fun F64QrDecomposition.solveInto(
+    b: F64DenseMatrix,
+    out: F64DenseMatrix,
+    minimumNorm: Boolean = false,
+    workspace: Workspace? = null,
+): F64DenseMatrix = koblas.solveInto(this, b, out, minimumNorm, workspace)
+
 /** `Q · y`, or `Qᵀ · y` when [transpose], without forming `Q`; see [F64Decompositions.applyQ]. */
 public fun F64QrDecomposition.applyQ(y: DoubleArray, transpose: Boolean = false): DoubleArray = koblas.applyQ(
     this,
@@ -174,3 +189,37 @@ public fun F64PivotedQrDecomposition.solveInto(
     out: DoubleArray,
     workspace: Workspace? = null,
 ): DoubleArray = koblas.solveInto(this, b, out, workspace)
+
+/**
+ * Replaces this pivoted factorization with that of [a], retaining this decomposition's factor and pivot
+ * buffers and recomputing [F64PivotedQrDecomposition.rank]. [a] must have this factorization's shape;
+ * implementations may still need provider-local scratch, so this is a buffer-reuse contract rather than an
+ * allocation guarantee.
+ */
+public fun F64PivotedQrDecomposition.refactorInto(
+    a: F64DenseMatrix,
+    tolerance: Double = AUTOMATIC_RANK_TOLERANCE,
+    workspace: Workspace? = null,
+): F64PivotedQrDecomposition = koblas.qrPivotedInto(a, this, tolerance, workspace)
+
+/** Least-squares solution for every right-hand-side column at once; see [F64Decompositions.solve]. */
+public fun F64PivotedQrDecomposition.solve(b: F64DenseMatrix, workspace: Workspace? = null): F64DenseMatrix =
+    koblas.solve(this, b, workspace)
+
+/** Solve every right-hand-side column into [out], retaining the caller's destination. */
+public fun F64PivotedQrDecomposition.solveInto(
+    b: F64DenseMatrix,
+    out: F64DenseMatrix,
+    workspace: Workspace? = null,
+): F64DenseMatrix = koblas.solveInto(this, b, out, workspace)
+
+/** `Q · y`, or `Qᵀ · y` when [transpose], from the nested factorization; see [F64Decompositions.applyQ]. */
+public fun F64PivotedQrDecomposition.applyQ(y: DoubleArray, transpose: Boolean = false): DoubleArray =
+    koblas.applyQ(this, y, transpose)
+
+/** Apply `Q`, or `Qᵀ` when [transpose], into [out], which may alias [y]. */
+public fun F64PivotedQrDecomposition.applyQInto(
+    y: DoubleArray,
+    out: DoubleArray,
+    transpose: Boolean = false,
+): DoubleArray = koblas.applyQInto(this, y, out, transpose)

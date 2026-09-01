@@ -84,6 +84,12 @@ F64SparseFactorization.solveInto(DoubleArray,DoubleArray,AllocationPolicy)		excl
 F64SparseQrFactorization.solveInto(F64DenseMatrix,F64DenseMatrix)		excluded	The destination-passing block solve shares the benchmarked sparse QR block solve kernel.
 F64SparseQrFactorization.solveInto(DoubleArray,DoubleArray,AllocationPolicy)		excluded	The strict overload adds an allocation-contract check around the benchmarked sparse QR solve.
 F64SparseKernels.dot(SparseVector,SparseVector)		excluded	The raw kernel shares the dispatch path benchmarked through the public SparseVector.dot facades.
+F64QrDecomposition.solve(F64DenseMatrix)		excluded	The multi-right-hand-side least-squares solve repeats the benchmarked QR solve kernel over the columns of B.
+F64QrDecomposition.solveInto(F64DenseMatrix,F64DenseMatrix)		excluded	The destination-passing block solve shares the benchmarked QR solve kernel.
+F64PivotedQrDecomposition.solve(F64DenseMatrix)		excluded	The multi-right-hand-side solve repeats the benchmarked pivoted least-squares kernel over the columns of B.
+F64PivotedQrDecomposition.solveInto(F64DenseMatrix,F64DenseMatrix)		excluded	The destination-passing block solve shares the benchmarked pivoted least-squares kernel.
+F64PivotedQrDecomposition.applyQ(DoubleArray)		excluded	The pivoted receiver applies the nested factorization's benchmarked Q operator; pivoting permutes R, not Q.
+F64PivotedQrDecomposition.applyQInto(DoubleArray,DoubleArray)		excluded	The destination-passing variant shares the benchmarked applyQ kernel and is covered by aliasing tests.
 gather(F64SparseVector,F64DenseVector)	com.eignex.koblas.bench.SparseLevel1Benchmark.sparseGather	benchmarked	Benchmarks the public sparse gather facade.
 gatherZero(F64SparseVector,F64DenseVector)	com.eignex.koblas.bench.SparseLevel1Benchmark.sparseGatherZero	benchmarked	Benchmarks the public sparse gather-and-zero facade.
 F64LinearAlgebra.solve(F64LuDecomposition,F64DenseMatrix)	com.eignex.koblas.bench.BlockSolveBenchmark.blockSolve	benchmarked	

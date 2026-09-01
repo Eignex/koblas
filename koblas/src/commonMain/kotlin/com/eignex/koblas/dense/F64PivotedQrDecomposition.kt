@@ -22,13 +22,19 @@ internal const val F64_NORM_RECOMPUTE_THRESHOLD = 1.4901161193847656e-8
  *
  * @property factorization the `Q` and `R` of `A·P`, in the packed `dgeqrf` form.
  * @property pivots pivots(k) is the column of `A` at position k of `A·P`, LAPACK `jpvt` made 0-based.
- * @property rank the number of `R` diagonal entries above the tolerance, in `0..min(m, n)`.
+ * @param rank the number of `R` diagonal entries above the tolerance, in `0..min(m, n)`; readable
+ * afterwards through [rank].
  */
 public class F64PivotedQrDecomposition @UnsafeKoblasApi constructor(
     public val factorization: F64QrDecomposition,
     @property:UnsafeKoblasApi public val pivots: IntArray,
-    public val rank: Int,
+    rank: Int,
 ) {
+    /** The number of `R` diagonal entries above the tolerance, in `0..min(m, n)`. A refactorization into
+     *  this decomposition recomputes it, so it is not fixed for the life of the object. */
+    public var rank: Int = rank
+        internal set
+
     /** The row count of the factored matrix. */
     public val m: Int get() = factorization.m
 

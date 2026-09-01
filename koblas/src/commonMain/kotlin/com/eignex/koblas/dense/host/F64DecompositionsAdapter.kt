@@ -151,14 +151,42 @@ public abstract class F64DecompositionsAdapter internal constructor(
         if (a.rows == 0 || a.cols == 0) return portable.qrPivoted(a, tolerance, workspace)
         val m = a.rows
         val n = a.cols
-        val buf = a.data.copyOf()
-        val tau = DoubleArray(minOf(m, n))
+        return qrPivotedInto(
+            a,
+            F64PivotedQrDecomposition(
+                F64QrDecomposition(m, n, DoubleArray(a.data.size), DoubleArray(minOf(m, n))),
+                IntArray(n),
+                rank = 0,
+            ),
+            tolerance,
+            workspace,
+        )
+    }
+
+    /** `dgeqp3` works in place, so [out]'s buffers take the copy of [a] and the factorization overwrites it. */
+    override fun qrPivotedInto(
+        a: F64DenseMatrix,
+        out: F64PivotedQrDecomposition,
+        tolerance: Double,
+        workspace: Workspace?,
+    ): F64PivotedQrDecomposition {
+        requireRankTolerance(tolerance)
+        requireShape(out.m == a.rows && out.n == a.cols) {
+            "qrPivotedInto: out is ${out.m}x${out.n}, expected ${a.rows}x${a.cols}"
+        }
+        val m = a.rows
+        val n = a.cols
+        if (m == 0 || n == 0) return portable.qrPivotedInto(a, out, tolerance, workspace)
+        val buf = out.factorization.qr
+        a.data.copyInto(buf)
+        // dgeqp3 reads jpvt as the caller's leading-column request, so it starts at "no column is fixed".
         val jpvt = IntArray(n)
-        val info = dgeqp3(m, n, buf, jpvt, tau) ?: return portable.qrPivoted(a, tolerance, workspace)
+        val info = dgeqp3(m, n, buf, jpvt, out.factorization.tau)
+            ?: return portable.qrPivotedInto(a, out, tolerance, workspace)
         check(info == 0) { "dgeqp3: illegal argument ${-info}" }
-        val pivots = IntArray(n) { jpvt[it] - 1 }
-        val rank = rankOfPivotedR(buf, m, n, minOf(m, n), tolerance)
-        return F64PivotedQrDecomposition(F64QrDecomposition(m, n, buf, tau), pivots, rank)
+        for (c in 0 until n) out.pivots[c] = jpvt[c] - 1
+        out.rank = rankOfPivotedR(buf, m, n, minOf(m, n), tolerance)
+        return out
     }
 
     override fun factor(a: F64DenseMatrix): F64LuDecomposition =

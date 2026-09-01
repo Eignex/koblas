@@ -38,10 +38,34 @@ internal fun referenceQrPivoted(kernels: F64Kernels, a: F64DenseMatrix, toleranc
     requireRankTolerance(tolerance)
     val m = a.rows
     val n = a.cols
+    return referenceQrPivotedInto(
+        kernels,
+        a,
+        F64PivotedQrDecomposition(
+            F64QrDecomposition(m, n, DoubleArray(a.data.size), DoubleArray(minOf(m, n))),
+            IntArray(n),
+            rank = 0,
+        ),
+        tolerance,
+    )
+}
+
+/** [referenceQrPivoted] over [out]'s own buffers, which take the copy of [a] the factorization overwrites. */
+internal fun referenceQrPivotedInto(
+    kernels: F64Kernels,
+    a: F64DenseMatrix,
+    out: F64PivotedQrDecomposition,
+    tolerance: Double,
+): F64PivotedQrDecomposition {
+    requireRankTolerance(tolerance)
+    val m = a.rows
+    val n = a.cols
     val k = minOf(m, n)
-    val buf = a.data.copyOf()
-    val tau = DoubleArray(k)
-    val pivots = IntArray(n) { it }
+    val buf = out.factorization.qr
+    val tau = out.factorization.tau
+    val pivots = out.pivots
+    a.data.copyInto(buf)
+    for (c in 0 until n) pivots[c] = c
     val current = DoubleArray(n) { c -> kernels.nrm2(buf, c * m, m) }
     val computed = current.copyOf()
     for (col in 0 until k) {
@@ -52,11 +76,8 @@ internal fun referenceQrPivoted(kernels: F64Kernels, a: F64DenseMatrix, toleranc
         applyReflectorToTrailing(kernels, buf, m, n, col, tau[col])
         downdateNorms(kernels, buf, m, n, col, current, computed)
     }
-    return F64PivotedQrDecomposition(
-        F64QrDecomposition(m, n, buf, tau),
-        pivots,
-        rankOfPivotedR(buf, m, n, k, tolerance),
-    )
+    out.rank = rankOfPivotedR(buf, m, n, k, tolerance)
+    return out
 }
 
 /** Exchange columns [i] and [j] of [buf] and every per-column quantity that tracks them. */

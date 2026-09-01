@@ -86,6 +86,76 @@ class LinearAlgebraMultiRhsSolveTest {
         assertEquals(0, koblas.solve(ldl0, F64DenseMatrix(0, 2)).rows)
     }
 
+    @Test
+    fun `qr block solve matches column-by-column vector solves`() {
+        val rng = Random(20260904)
+        for ((m, n) in listOf(1 to 1, 6 to 6, 11 to 4)) {
+            val f = koblas.qr(randomMatrix(m, n, rng))
+            val nrhs = 3
+            val b = randomMatrix(m, nrhs, rng)
+
+            val block = koblas.solve(f, b)
+
+            assertEquals(n, block.rows, "block rows for ${m}x$n")
+            assertEquals(nrhs, block.cols, "block cols for ${m}x$n")
+            for (c in 0 until nrhs) {
+                val expected = koblas.solve(f, DoubleArray(m) { b[it, c] })
+                assertClose(expected, DoubleArray(n) { block[it, c] }, "qr ${m}x$n col=$c", tolerance = 1e-11)
+            }
+        }
+    }
+
+    @Test
+    fun `minimum-norm block solve matches column-by-column vector solves`() {
+        val rng = Random(20260905)
+        for ((m, n) in listOf(1 to 1, 7 to 3)) {
+            val f = koblas.qr(randomMatrix(m, n, rng))
+            val nrhs = 2
+            val b = randomMatrix(n, nrhs, rng)
+
+            val block = koblas.solve(f, b, minimumNorm = true)
+
+            assertEquals(m, block.rows, "block rows for ${m}x$n")
+            for (c in 0 until nrhs) {
+                val expected = koblas.solve(f, DoubleArray(n) { b[it, c] }, minimumNorm = true)
+                assertClose(expected, DoubleArray(m) { block[it, c] }, "minimum norm ${m}x$n col=$c", tolerance = 1e-11)
+            }
+        }
+    }
+
+    @Test
+    fun `pivoted qr block solve matches column-by-column vector solves`() {
+        val rng = Random(20260906)
+        for ((m, n) in listOf(1 to 1, 6 to 6, 11 to 4)) {
+            val f = koblas.qrPivoted(randomMatrix(m, n, rng))
+            val nrhs = 3
+            val b = randomMatrix(m, nrhs, rng)
+
+            val block = f.solve(b)
+
+            assertEquals(n, block.rows, "block rows for ${m}x$n")
+            assertEquals(nrhs, block.cols, "block cols for ${m}x$n")
+            for (c in 0 until nrhs) {
+                val expected = f.solve(DoubleArray(m) { b[it, c] })
+                assertClose(expected, DoubleArray(n) { block[it, c] }, "pivoted ${m}x$n col=$c", tolerance = 1e-11)
+            }
+        }
+    }
+
+    @Test
+    fun `a qr block solve returns its destination and rejects a mismatched one`() {
+        val rng = Random(20260907)
+        val m = 8
+        val n = 5
+        val f = koblas.qr(randomMatrix(m, n, rng))
+        val b = randomMatrix(m, 2, rng)
+        val out = F64DenseMatrix(n, 2)
+
+        assertSame(out, koblas.solveInto(f, b, out), "solveInto must return its destination")
+        assertFailsWith<DimensionMismatch> { koblas.solveInto(f, b, F64DenseMatrix(m, 2)) }
+        assertFailsWith<DimensionMismatch> { koblas.solveInto(f, randomMatrix(n, 2, rng), out) }
+    }
+
     /**
      * The per-column callback is the caller's, and a native solve in it reports failure by throwing, so the
      * two borrows must come back. A stranded borrow is invisible: its pool can neither lend that buffer

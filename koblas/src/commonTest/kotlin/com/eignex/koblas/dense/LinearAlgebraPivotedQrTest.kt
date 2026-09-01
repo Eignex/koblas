@@ -46,6 +46,44 @@ class LinearAlgebraPivotedQrTest {
     }
 
     @Test
+    fun `refactorInto reuses the buffers and recomputes the pivots and rank`() {
+        val rng = Random(20260908)
+        val m = 9
+        val n = 5
+        val reused = koblas.qrPivoted(ofRank(m, n, n, rng))
+        val packed = reused.factorization.qr
+        val tau = reused.factorization.tau
+        val pivots = reused.pivots
+        assertEquals(n, reused.rank, "the first factorization has full rank")
+        val second = ofRank(m, n, 2, rng)
+
+        val returned = reused.refactorInto(second)
+
+        assertSame(reused, returned, "refactorInto must return its destination")
+        assertSame(packed, reused.factorization.qr, "refactorInto must not replace the factor buffer")
+        assertSame(tau, reused.factorization.tau, "refactorInto must not replace the tau buffer")
+        assertSame(pivots, reused.pivots, "refactorInto must not replace the pivot buffer")
+        val fresh = koblas.qrPivoted(second)
+        assertEquals(fresh.rank, reused.rank, "rank must follow the refactorization")
+        assertContentEquals(fresh.pivots, reused.pivots, "pivots must follow the refactorization")
+        assertClose(fresh.factorization.qr, reused.factorization.qr, "refactorized packed factors")
+    }
+
+    @Test
+    fun `applyQ on the pivoted receiver matches its nested factorization`() {
+        val rng = Random(20260909)
+        val m = 7
+        val f = koblas.qrPivoted(randomMatrix(m, 4, rng))
+        val y = randomVector(m, rng)
+        for (transpose in booleanArrayOf(false, true)) {
+            assertClose(f.factorization.applyQ(y, transpose), f.applyQ(y, transpose), "applyQ t=$transpose")
+            val aliased = y.copyOf()
+            assertSame(aliased, f.applyQInto(aliased, aliased, transpose), "applyQInto must return its destination")
+            assertClose(f.factorization.applyQ(y, transpose), aliased, "applyQInto aliased t=$transpose")
+        }
+    }
+
+    @Test
     fun `the pivots are a permutation and the R diagonal is non-increasing`() {
         val rng = Random(4242)
         val a = randomMatrix(10, 6, rng)
