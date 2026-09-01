@@ -115,6 +115,22 @@ class DestinationPassingTest {
     }
 
     @Test
+    fun `choleskyInto accepts an input sharing the destination buffer`() {
+        val rng = Random(20260910)
+        val n = 8
+        val reused = koblas.cholesky(diagonallyDominantSymmetric(n, rng))
+        val second = diagonallyDominantSymmetric(n, rng)
+        val expected = koblas.cholesky(second)
+        second.data.copyInto(reused.l.data)
+        val aliased = F64DenseMatrix(n, n, reused.l.data)
+
+        val returned = koblas.choleskyInto(aliased, reused)
+
+        assertSame(reused, returned, "choleskyInto must return its destination")
+        assertClose(expected.l.data, reused.l.data, "aliased Cholesky factor")
+    }
+
+    @Test
     fun `pivotedSymmetricIndefiniteInto reuses the buffers and matches a fresh factorization`() {
         val rng = Random(20260903)
         val n = 8

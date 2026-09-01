@@ -230,6 +230,18 @@ internal fun assertSpdSuiteAgreesWithReference(decompositions: F64Decompositions
             }
         }
 
+        val second = poisonedSpd(n, rng)
+        val aliasedExpected = reference.cholesky(second)
+        val aliasedDestination = decompositions.cholesky(a)
+        second.data.copyInto(aliasedDestination.l.data)
+        val aliasedInput = F64DenseMatrix(n, n, aliasedDestination.l.data)
+        assertSame(
+            aliasedDestination,
+            decompositions.choleskyInto(aliasedInput, aliasedDestination),
+            "choleskyInto n=$n destination",
+        )
+        assertClose(aliasedExpected.l, aliasedDestination.l, "choleskyInto n=$n aliased input", tolerance = 1e-9)
+
         val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
         assertClose(reference.solve(expected, b), decompositions.solve(actual, b), "solveSpd n=$n", tolerance = 1e-9)
 
@@ -267,6 +279,16 @@ internal fun assertNonPositiveDefiniteFallsBack(decompositions: F64Decomposition
         1e-15,
     )
     assertFailsWith<NotPositiveDefinite> { decompositions.cholesky(bad) }
+
+    val destination = decompositions.cholesky(poisonedSpd(n, Random(20260911)))
+    bad.data.copyInto(destination.l.data)
+    val aliased = F64DenseMatrix(n, n, destination.l.data)
+    val expected = reference.cholesky(bad, policy)
+
+    val returned = decompositions.choleskyInto(aliased, destination, policy)
+
+    assertSame(destination, returned, "fallback must retain the destination")
+    assertClose(expected.l, destination.l, "aliased fallback n=$n", tolerance = 1e-9)
 }
 
 /**

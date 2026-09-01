@@ -38,9 +38,12 @@ internal fun referenceCholeskyInto(
     val n = a.rows
     requireShape(out.n == n) { "choleskyInto: out is ${out.n}x${out.n}, expected ${n}x$n" }
     val ld = out.l.data
-    // The strict upper triangle is the zero the factor promises, and out arrives holding an older factor.
-    ld.fill(0.0)
-    for (j in 0 until n) a.data.copyInto(ld, j + j * n, j + j * n, (j + 1) * n)
+    for (j in 0 until n) {
+        // Clear only the part the factor promises not to use. Clearing the whole destination first would
+        // destroy the lower triangle when the input shares this backing buffer.
+        for (i in 0 until j) ld[i + j * n] = 0.0
+        a.data.copyInto(ld, j + j * n, j + j * n, (j + 1) * n)
+    }
     // Left-looking column Cholesky: column j gathers what every column before it owes, rather than
     // each column pushing its contribution out to the ones after it.
     for (j in 0 until n) {

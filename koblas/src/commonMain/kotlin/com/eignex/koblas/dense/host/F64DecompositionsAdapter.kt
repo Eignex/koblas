@@ -412,13 +412,20 @@ public abstract class F64DecompositionsAdapter internal constructor(
         requireShape(out.n == n) { "choleskyInto: out is ${out.n}x${out.n}, expected ${n}x$n" }
         if (n == 0) return out
         val ld = out.l.data
-        // `dpotrf` with `uplo = L` never writes the strict upper triangle, which the factor promises is zero.
-        ld.fill(0.0)
-        // One bulk copy per column of the lower triangle; dpotrf reads no further.
-        for (j in 0 until n) a.data.copyInto(ld, j + j * n, j + j * n, (j + 1) * n)
+        // `dpotrf` may partly overwrite an aliased input before reporting the failure that sends it to the
+        // portable policy path, so that exceptional aliasing case needs an original snapshot.
+        val source = if (a.data === ld) a.data.copyOf() else a.data
+        for (j in 0 until n) {
+            // `dpotrf` never writes the strict upper triangle, which the factor promises is zero.
+            for (i in 0 until j) ld[i + j * n] = 0.0
+            source.copyInto(ld, j + j * n, j + j * n, (j + 1) * n)
+        }
         val info = f.dpotrf(COL_MAJOR, LOWER_UPLO, n, ld, n)
         check(info >= 0) { "dpotrf: illegal argument ${-info}" }
-        if (info > 0) return portable.choleskyInto(a, out, policy)
+        if (info > 0) {
+            val original = if (source === a.data) a else F64DenseMatrix(n, n, source)
+            return portable.choleskyInto(original, out, policy)
+        }
         return out
     }
 
