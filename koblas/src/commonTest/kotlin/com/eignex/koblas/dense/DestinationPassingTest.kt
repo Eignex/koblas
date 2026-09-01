@@ -187,7 +187,7 @@ class DestinationPassingTest {
         val rng = Random(20260761)
         val n = 9
         val (a, _) = poisonedIndefinite(rng, n)
-        val f = koblas.ldl(a)
+        val f = koblas.pivotedSymmetricIndefinite(a)
         val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
         val expected = koblas.solve(f, b)
         assertClose(expected, f.solveInto(b, DoubleArray(n)), "ldl receiver n=$n")
