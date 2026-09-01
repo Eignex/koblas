@@ -43,7 +43,16 @@ public class F64ModifiedGivens internal constructor(
  * that state.
  */
 @Suppress("CyclomaticComplexMethod") // literal translation of the four Netlib DROTMG cases
-public fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64ModifiedGivens {
+public fun rotmg(
+    d1: Double,
+    d2: Double,
+    x1: Double,
+    y1: Double,
+): F64ModifiedGivens = koblas.kernels.rotmg(d1, d2, x1, y1)
+
+/** Portable Netlib-reference implementation used by the scalar and fallback kernel backends. */
+@Suppress("CyclomaticComplexMethod") // literal translation of the four Netlib DROTMG cases
+internal fun portableRotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64ModifiedGivens {
     var dd1 = d1
     var dd2 = d2
     var dx1 = x1
@@ -150,12 +159,7 @@ public fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64ModifiedGiv
         }
     }
 
-    return when (flag) {
-        -2.0 -> F64ModifiedGivens(dd1, dd2, dx1, flag, 1.0, 0.0, 0.0, 1.0)
-        0.0 -> F64ModifiedGivens(dd1, dd2, dx1, flag, 1.0, h21, h12, 1.0)
-        1.0 -> F64ModifiedGivens(dd1, dd2, dx1, flag, h11, -1.0, 1.0, h22)
-        else -> F64ModifiedGivens(dd1, dd2, dx1, flag, h11, h21, h12, h22)
-    }
+    return modifiedGivens(dd1, dd2, dx1, flag, h11, h21, h12, h22)
 }
 
 /**
@@ -167,9 +171,16 @@ public fun rotm(x: F64DenseVector, y: F64DenseVector, transformation: F64Modifie
     requireSameSize(x.size, y.size)
     if (transformation.flag == -2.0) return
     if (x.data === y.data) {
-        applyModifiedGivens(x.data.copyOf(), y.data.copyOf(), x.data, y.data, transformation)
+        applyModifiedGivens(
+            x.data.copyOf(), 0, 1,
+            y.data.copyOf(), 0, 1,
+            x.data, 0, 1,
+            y.data, 0, 1,
+            x.size,
+            transformation,
+        )
     } else {
-        applyModifiedGivens(x.data, y.data, x.data, y.data, transformation)
+        koblas.kernels.rotm(x.data, 0, 1, y.data, 0, 1, x.size, transformation)
     }
 }
 
@@ -192,27 +203,104 @@ public fun rotm(x: F64StridedVectorView, y: F64StridedVectorView, transformation
         for (i in 0 until x.size) x[i] = destinationX[i]
         for (i in 0 until y.size) y[i] = destinationY[i]
     } else {
-        for (i in 0 until x.size) {
-            val xi = x[i]
-            val yi = y[i]
-            x[i] = transformation.h11 * xi + transformation.h12 * yi
-            y[i] = transformation.h21 * xi + transformation.h22 * yi
+        koblas.kernels.rotm(
+            x.data,
+            x.offset,
+            x.stride,
+            y.data,
+            y.offset,
+            y.stride,
+            x.size,
+            transformation,
+        )
+    }
+}
+
+/** Convert the materialized matrix back to BLAS's flag-dependent `dparam` layout. */
+internal fun F64ModifiedGivens.toBlasParameters(): DoubleArray = DoubleArray(5).also { parameters ->
+    parameters[0] = flag
+    when (flag) {
+        -1.0 -> {
+            parameters[1] = h11
+            parameters[2] = h21
+            parameters[3] = h12
+            parameters[4] = h22
+        }
+
+        0.0 -> {
+            parameters[2] = h21
+            parameters[3] = h12
+        }
+
+        1.0 -> {
+            parameters[1] = h11
+            parameters[4] = h22
         }
     }
 }
 
-private fun applyModifiedGivens(
-    sourceX: DoubleArray,
-    sourceY: DoubleArray,
-    destinationX: DoubleArray,
-    destinationY: DoubleArray,
+private fun modifiedGivens(
+    d1: Double,
+    d2: Double,
+    x1: Double,
+    flag: Double,
+    h11: Double,
+    h21: Double,
+    h12: Double,
+    h22: Double,
+): F64ModifiedGivens = when (flag) {
+    -2.0 -> F64ModifiedGivens(d1, d2, x1, flag, 1.0, 0.0, 0.0, 1.0)
+    0.0 -> F64ModifiedGivens(d1, d2, x1, flag, 1.0, h21, h12, 1.0)
+    1.0 -> F64ModifiedGivens(d1, d2, x1, flag, h11, -1.0, 1.0, h22)
+    else -> F64ModifiedGivens(d1, d2, x1, flag, h11, h21, h12, h22)
+}
+
+/** Portable backend implementation of modified Givens application. */
+@Suppress("LongParameterList")
+internal fun portableRotm(
+    x: DoubleArray,
+    xOff: Int,
+    xStride: Int,
+    y: DoubleArray,
+    yOff: Int,
+    yStride: Int,
+    len: Int,
     transformation: F64ModifiedGivens,
 ) {
-    for (i in sourceX.indices) {
-        val xi = sourceX[i]
-        val yi = sourceY[i]
-        destinationX[i] = transformation.h11 * xi + transformation.h12 * yi
-        destinationY[i] = transformation.h21 * xi + transformation.h22 * yi
+    if (transformation.flag == -2.0) return
+    applyModifiedGivens(
+        x, xOff, xStride,
+        y, yOff, yStride,
+        x, xOff, xStride,
+        y, yOff, yStride,
+        len,
+        transformation,
+    )
+}
+
+/** Apply [transformation] to the strided input runs, loading each pair before writing either result. */
+@Suppress("LongParameterList")
+internal fun applyModifiedGivens(
+    sourceX: DoubleArray,
+    sourceXOffset: Int,
+    sourceXStride: Int,
+    sourceY: DoubleArray,
+    sourceYOffset: Int,
+    sourceYStride: Int,
+    destinationX: DoubleArray,
+    destinationXOffset: Int,
+    destinationXStride: Int,
+    destinationY: DoubleArray,
+    destinationYOffset: Int,
+    destinationYStride: Int,
+    len: Int,
+    transformation: F64ModifiedGivens,
+) {
+    for (i in 0 until len) {
+        val xi = sourceX[sourceXOffset + i * sourceXStride]
+        val yi = sourceY[sourceYOffset + i * sourceYStride]
+        destinationX[destinationXOffset + i * destinationXStride] = transformation.h11 * xi + transformation.h12 * yi
+        destinationY[destinationYOffset + i * destinationYStride] = transformation.h21 * xi + transformation.h22 * yi
     }
 }
 

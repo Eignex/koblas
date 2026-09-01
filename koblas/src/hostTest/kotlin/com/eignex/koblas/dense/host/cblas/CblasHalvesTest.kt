@@ -22,6 +22,7 @@ class CblasHalvesTest {
         assertEquals(0.0, kernels.asum(v, end, 0), "asum")
         kernels.axpy(v, end, 2.0, v, end, 0)
         kernels.scale(v, end, 2.0, 0)
+        kernels.rotm(v, end, 1, v, end, 1, 0, rotmg(1.0, 1.0, 2.0, 1.0))
         assertEquals(listOf(1.0, 2.0, 3.0), v.toList(), "an empty run wrote something")
     }
 

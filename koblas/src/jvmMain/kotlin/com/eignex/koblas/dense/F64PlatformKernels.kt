@@ -1,5 +1,6 @@
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.F64ModifiedGivens
 import com.eignex.koblas.dense.Simd.UNROLL_MIN
 import com.eignex.koblas.internal.kernels.JvmCKernelBindings
 import jdk.incubator.vector.DoubleVector
@@ -54,6 +55,21 @@ internal actual object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
         selected.swap(a, aOff, b, bOff, len)
 
     actual override fun asum(v: DoubleArray, vOff: Int, len: Int): Double = selected.asum(v, vOff, len)
+
+    actual override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64ModifiedGivens =
+        selected.rotmg(d1, d2, x1, y1)
+
+    @Suppress("LongParameterList")
+    actual override fun rotm(
+        x: DoubleArray,
+        xOff: Int,
+        xStride: Int,
+        y: DoubleArray,
+        yOff: Int,
+        yStride: Int,
+        len: Int,
+        transformation: F64ModifiedGivens,
+    ) = selected.rotm(x, xOff, xStride, y, yOff, yStride, len, transformation)
 
     @Suppress("LongParameterList") // four column offsets plus the shared operand
     actual override fun dot4(

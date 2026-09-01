@@ -2,8 +2,11 @@
 
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.F64ModifiedGivens
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.kernels.*
+import com.eignex.koblas.portableRotm
+import com.eignex.koblas.portableRotmg
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 
@@ -45,6 +48,21 @@ internal actual object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
 
     actual override fun asum(v: DoubleArray, vOff: Int, len: Int): Double =
         if (len == 0) 0.0 else v.usePinned { vp -> koblas_dense_asum(vp.addressOf(0), vOff, len) }
+
+    actual override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64ModifiedGivens =
+        portableRotmg(d1, d2, x1, y1)
+
+    @Suppress("LongParameterList")
+    actual override fun rotm(
+        x: DoubleArray,
+        xOff: Int,
+        xStride: Int,
+        y: DoubleArray,
+        yOff: Int,
+        yStride: Int,
+        len: Int,
+        transformation: F64ModifiedGivens,
+    ) = portableRotm(x, xOff, xStride, y, yOff, yStride, len, transformation)
 
     override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) {
         if (len == 0) return
