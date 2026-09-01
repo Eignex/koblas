@@ -21,6 +21,7 @@ class DenseExtensionsTest {
         ),
     )
     private val b3 = doubleArrayOf(1.0, 2.0, 3.0)
+    private val multiRhs = F64DenseMatrix.ofColumns(arrayOf(b3, doubleArrayOf(0.0, 1.0, 0.0)))
 
     @Test
     fun `every factorize extension agrees with the member`() {
@@ -50,8 +51,7 @@ class DenseExtensionsTest {
         val anorm = square.norm1()
         assertEquals(koblas.rcond(lu, anorm), lu.rcond(anorm), "lu rcond")
         assertClose(koblas.solve(lu, b3, transpose = true), lu.solve(b3, transpose = true), "lu solve transposed")
-        val rhs = F64DenseMatrix.ofColumns(arrayOf(b3, doubleArrayOf(0.0, 1.0, 0.0)))
-        assertClose(koblas.solve(lu, rhs).data, lu.solve(rhs).data, "lu blocked solve")
+        assertClose(koblas.solve(lu, multiRhs).data, lu.solve(multiRhs).data, "lu blocked solve")
     }
 
     @Test
@@ -82,44 +82,55 @@ class DenseExtensionsTest {
     }
 
     @Test
-    fun `factor owned Into operations retain their destinations and agree with the seam`() {
+    fun `lu solveInto retains its destination and agrees with the seam`() {
         val lu = square.lu()
-        val luOut = DoubleArray(lu.n)
-        assertSame(luOut, lu.solveInto(b3, luOut), "lu vector destination")
-        assertClose(koblas.solve(lu, b3), luOut, "lu vector solve")
-        val block = F64DenseMatrix.ofColumns(arrayOf(b3, doubleArrayOf(0.0, 1.0, 0.0)))
-        val luBlockOut = F64DenseMatrix(lu.n, block.cols)
-        assertSame(luBlockOut, lu.solveInto(block, luBlockOut), "lu block destination")
-        assertClose(koblas.solve(lu, block).data, luBlockOut.data, "lu block solve")
+        val out = DoubleArray(lu.n)
+        assertSame(out, lu.solveInto(b3, out), "vector destination")
+        assertClose(koblas.solve(lu, b3), out, "vector solve")
+        val blockOut = F64DenseMatrix(lu.n, multiRhs.cols)
+        assertSame(blockOut, lu.solveInto(multiRhs, blockOut), "block destination")
+        assertClose(koblas.solve(lu, multiRhs).data, blockOut.data, "block solve")
+    }
 
+    @Test
+    fun `ldl solveInto retains its destination and agrees with the seam`() {
         val ldl = square.ldl()
-        val ldlOut = DoubleArray(ldl.n)
-        assertSame(ldlOut, ldl.solveInto(b3, ldlOut), "ldl vector destination")
-        assertClose(koblas.solve(ldl, b3), ldlOut, "ldl vector solve")
-        val ldlBlockOut = F64DenseMatrix(ldl.n, block.cols)
-        assertSame(ldlBlockOut, ldl.solveInto(block, ldlBlockOut), "ldl block destination")
-        assertClose(koblas.solve(ldl, block).data, ldlBlockOut.data, "ldl block solve")
+        val out = DoubleArray(ldl.n)
+        assertSame(out, ldl.solveInto(b3, out), "vector destination")
+        assertClose(koblas.solve(ldl, b3), out, "vector solve")
+        val blockOut = F64DenseMatrix(ldl.n, multiRhs.cols)
+        assertSame(blockOut, ldl.solveInto(multiRhs, blockOut), "block destination")
+        assertClose(koblas.solve(ldl, multiRhs).data, blockOut.data, "block solve")
+    }
 
+    @Test
+    fun `cholesky solveInto retains its destination and agrees with the seam`() {
         val chol = square.cholesky()
-        val cholOut = DoubleArray(chol.n)
-        assertSame(cholOut, chol.solveInto(b3, cholOut), "cholesky vector destination")
-        assertClose(koblas.solve(chol, b3), cholOut, "cholesky vector solve")
-        val cholBlockOut = F64DenseMatrix(chol.n, block.cols)
-        assertSame(cholBlockOut, chol.solveInto(block, cholBlockOut), "cholesky block destination")
-        assertClose(koblas.solve(chol, block).data, cholBlockOut.data, "cholesky block solve")
+        val out = DoubleArray(chol.n)
+        assertSame(out, chol.solveInto(b3, out), "vector destination")
+        assertClose(koblas.solve(chol, b3), out, "vector solve")
+        val blockOut = F64DenseMatrix(chol.n, multiRhs.cols)
+        assertSame(blockOut, chol.solveInto(multiRhs, blockOut), "block destination")
+        assertClose(koblas.solve(chol, multiRhs).data, blockOut.data, "block solve")
+    }
 
+    @Test
+    fun `qr solveInto and applyQInto retain their destinations and agree with the seam`() {
         val qr = tall.qr()
-        val qrOut = DoubleArray(qr.n)
-        assertSame(qrOut, qr.solveInto(b3, qrOut), "qr destination")
-        assertClose(koblas.solve(qr, b3), qrOut, "qr solve")
-        val qOut = DoubleArray(qr.m)
-        assertSame(qOut, qr.applyQInto(b3, qOut), "applyQ destination")
-        assertClose(koblas.applyQ(qr, b3), qOut, "applyQ")
+        val solveOut = DoubleArray(qr.n)
+        assertSame(solveOut, qr.solveInto(b3, solveOut), "solve destination")
+        assertClose(koblas.solve(qr, b3), solveOut, "solve")
+        val applyOut = DoubleArray(qr.m)
+        assertSame(applyOut, qr.applyQInto(b3, applyOut), "applyQ destination")
+        assertClose(koblas.applyQ(qr, b3), applyOut, "applyQ")
+    }
 
+    @Test
+    fun `pivoted qr solveInto retains its destination and agrees with the seam`() {
         val pivoted = tall.qrPivoted()
-        val pivotedOut = DoubleArray(pivoted.n)
-        assertSame(pivotedOut, pivoted.solveInto(b3, pivotedOut), "pivoted qr destination")
-        assertClose(koblas.solve(pivoted, b3), pivotedOut, "pivoted qr solve")
+        val out = DoubleArray(pivoted.n)
+        assertSame(out, pivoted.solveInto(b3, out), "destination")
+        assertClose(koblas.solve(pivoted, b3), out, "solve")
     }
 
     @Test
