@@ -60,6 +60,7 @@ public open class CholmodSparseBlas(
         b: F64DenseMatrix,
         beta: Double,
         c: F64DenseMatrix,
+        workspace: Workspace?,
     ) {
         val m = if (transposeA) a.cols else a.rows
         val k = if (transposeA) a.rows else a.cols
@@ -68,7 +69,7 @@ public open class CholmodSparseBlas(
             "gemm: C is ${c.rows}x${c.cols}, expected ${m}x${b.cols}"
         }
         prepare(a).use { prepared ->
-            prepared.gemm(alpha, transposeA, b, beta, c)
+            prepared.gemm(alpha, transposeA, b, beta, c, workspace)
         }
     }
 }
@@ -100,7 +101,14 @@ private class CholmodPreparedSparseMatrix(
         }
     }
 
-    override fun gemm(alpha: Double, transposeA: Boolean, b: F64DenseMatrix, beta: Double, c: F64DenseMatrix) {
+    override fun gemm(
+        alpha: Double,
+        transposeA: Boolean,
+        b: F64DenseMatrix,
+        beta: Double,
+        c: F64DenseMatrix,
+        workspace: Workspace?,
+    ) {
         val m = if (transposeA) cols else rows
         val k = if (transposeA) rows else cols
         requireShape(k == b.rows) { "gemm: op(A) is ${m}x$k but B has ${b.rows} rows" }
@@ -109,7 +117,16 @@ private class CholmodPreparedSparseMatrix(
         }
         lifecycle.withResource {
             if (!nativeGemm || !calls.sdmult(matrix, transposeA, alpha, b.data, beta, c.data, b.cols, b.rows, c.rows)) {
-                F64ReferenceSparseLinearAlgebra.gemm(alpha, snapshot, transposeA, b, false, beta, c)
+                F64ReferenceSparseLinearAlgebra.gemm(
+                    alpha,
+                    snapshot,
+                    transposeA,
+                    b,
+                    false,
+                    beta,
+                    c,
+                    workspace = workspace,
+                )
             }
         }
     }

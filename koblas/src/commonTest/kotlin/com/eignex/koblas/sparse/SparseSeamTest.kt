@@ -98,9 +98,10 @@ class SparseSeamTest {
             beta: Double,
             c: F64DenseMatrix,
             right: Boolean,
+            workspace: Workspace?,
         ) {
             gemms++
-            F64ReferenceSparseLinearAlgebra.gemm(alpha, a, transposeA, b, transposeB, beta, c, right)
+            F64ReferenceSparseLinearAlgebra.gemm(alpha, a, transposeA, b, transposeB, beta, c, right, workspace)
         }
 
         override fun gemm(a: F64SparseMatrix, b: F64SparseMatrix): F64SparseMatrix {
@@ -117,9 +118,10 @@ class SparseSeamTest {
             unitDiag: Boolean,
             right: Boolean,
             alpha: Double,
+            workspace: Workspace?,
         ) {
             trsms++
-            F64ReferenceSparseLinearAlgebra.trsm(a, b, lower, transpose, unitDiag, right, alpha)
+            F64ReferenceSparseLinearAlgebra.trsm(a, b, lower, transpose, unitDiag, right, alpha, workspace)
         }
     }
 

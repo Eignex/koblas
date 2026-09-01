@@ -149,6 +149,7 @@ public abstract class F64BlasAdapter internal constructor(
         unitDiag: Boolean,
         right: Boolean,
         alpha: Double,
+        workspace: Workspace?,
     ) {
         nativeTriangularMatrix(a, b, lower, transpose, unitDiag, right, alpha, solve = true)
     }
@@ -162,6 +163,7 @@ public abstract class F64BlasAdapter internal constructor(
         unitDiag: Boolean,
         right: Boolean,
         alpha: Double,
+        workspace: Workspace?,
     ) {
         nativeTriangularMatrix(a, b, lower, transpose, unitDiag, right, alpha, solve = false)
     }
@@ -200,6 +202,7 @@ public abstract class F64BlasAdapter internal constructor(
         beta: Double,
         y: DoubleArray,
         transpose: Boolean,
+        workspace: Workspace?,
     ) {
         val xLen = if (transpose) a.rows else a.cols
         val yLen = if (transpose) a.cols else a.rows
@@ -262,6 +265,7 @@ public abstract class F64BlasAdapter internal constructor(
         transposeB: Boolean,
         beta: Double,
         c: F64DenseMatrix,
+        workspace: Workspace?,
     ) {
         val m = if (transposeA) a.cols else a.rows
         val k = if (transposeA) a.rows else a.cols
@@ -391,6 +395,7 @@ public abstract class F64BlasAdapter internal constructor(
         c: F64DenseMatrix,
         lower: Boolean,
         right: Boolean,
+        workspace: Workspace?,
     ) {
         requireShape(a.rows == a.cols) { "symm: matrix must be square, got ${a.rows}x${a.cols}" }
         val m = a.rows

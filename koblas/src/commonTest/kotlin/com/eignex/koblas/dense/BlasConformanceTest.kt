@@ -218,7 +218,7 @@ class BlasConformanceTest {
                             alpha * s + (if (beta == 0.0) 0.0 else beta * y0[i])
                         }
                         val y = y0.copyOf()
-                        koblas.gemv(alpha, a, x, beta, y, transpose)
+                        koblas.gemv(alpha, a, x, beta, y, transpose, workspace = Workspace())
                         val bound = 100.0 * maxOf(m, n) * eps * (infNorm(a) * infNorm(x) + infNorm(expected))
                         for (i in 0 until yLen) {
                             assertTrue(
@@ -327,7 +327,16 @@ class BlasConformanceTest {
                     }
                 }
                 val actual = F64DenseMatrix(m, n)
-                F64ReferenceLinearAlgebra.gemm(1.0, a, transposeA, b, transposeB, 0.0, actual)
+                F64ReferenceLinearAlgebra.gemm(
+                    1.0,
+                    a,
+                    transposeA,
+                    b,
+                    transposeB,
+                    0.0,
+                    actual,
+                    workspace = Workspace(),
+                )
                 assertClose(expected, actual, "gemm tA=$transposeA tB=$transposeB", tolerance = 1e-10)
             }
         }

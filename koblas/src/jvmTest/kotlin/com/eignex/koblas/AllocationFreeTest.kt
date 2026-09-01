@@ -3,6 +3,7 @@ package com.eignex.koblas
 import com.eignex.koblas.core.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
+import com.eignex.koblas.sparse.REFERENCE_SPARSE_RHS_WIDTH
 import com.eignex.koblas.sparse.lu
 import com.eignex.koblas.sparse.sparseConformanceSystem
 import com.eignex.koblas.testutil.allocation.bytesPerIteration
@@ -204,5 +205,109 @@ class AllocationFreeTest {
         val syr2 = bytesPerIteration(500) { koblas.syr2(1e-12, x, y, a, lower = true) }
         assertTrue(syr < FLOOR_BYTES, "syr allocated $syr B per call for a dense operand it can read in place")
         assertTrue(syr2 < FLOOR_BYTES, "syr2 allocated $syr2 B per call for dense operands it can read in place")
+    }
+
+    @Test
+    fun `a transposed dense gemv workspace is allocation neutral`() {
+        val rows = 64
+        val columns = 72
+        val a = F64DenseMatrix(rows, columns)
+        val x = DoubleArray(rows) { it * 0.01 }
+        val y = DoubleArray(columns)
+        val workspace = Workspace().apply { reserve(4, count = 1) }
+
+        val bytes = bytesPerIteration(1_000) {
+            koblas.gemv(1e-8, a, x, 1.0, y, transpose = true, workspace = workspace)
+            y
+        }
+
+        assertTrue(bytes <= FLOOR_BYTES, "transposed gemv allocated $bytes B per call")
+    }
+
+    @Test
+    fun `transposed dense gemm workspace is allocation neutral`() {
+        val m = 32
+        val k = 48
+        val n = 24
+        val a = F64DenseMatrix(k, m)
+        val b = F64DenseMatrix(n, k)
+        val c = F64DenseMatrix(m, n)
+        val workspace = Workspace().apply {
+            reserve(k * n, count = 1)
+            reserve(4, count = 1)
+        }
+
+        val bytes = bytesPerIteration(300) {
+            koblas.gemm(1e-8, a, true, b, true, 1.0, c, workspace)
+            c
+        }
+
+        assertTrue(bytes <= FLOOR_BYTES, "transposed gemm allocated $bytes B per call")
+    }
+
+    @Test
+    fun `left symmetric matrix workspace is allocation neutral`() {
+        val n = 96
+        val a = F64DenseMatrix.diagonal(n)
+        val b = F64DenseMatrix(n, 12)
+        val c = F64DenseMatrix(n, 12)
+        val workspace = Workspace().apply { reserve(n * n, count = 1) }
+
+        val bytes = bytesPerIteration(300) {
+            koblas.symm(1e-8, a, b, 1.0, c, workspace = workspace)
+            c
+        }
+
+        assertTrue(bytes <= FLOOR_BYTES, "left symm allocated $bytes B per call")
+    }
+
+    @Test
+    fun `right dense triangular solve workspace is allocation neutral`() {
+        val n = 80
+        val triangle = F64DenseMatrix.diagonal(n)
+        val b = F64DenseMatrix(20, n)
+        val workspace = Workspace().apply { reserve(n, count = 1) }
+
+        val bytes = bytesPerIteration(500) {
+            triangle.trsm(b, lower = true, right = true, workspace = workspace)
+            b
+        }
+
+        assertTrue(bytes <= FLOOR_BYTES, "right dense trsm allocated $bytes B per call")
+    }
+
+    @Test
+    fun `sparse dense product workspace is allocation neutral`() {
+        val n = 64
+        val rows = 16
+        val sparse = F64SparseMatrix.ofColumns(n, n, List(n) { j -> listOf(j to 1.0) })
+        val b = F64DenseMatrix(n, rows)
+        val c = F64DenseMatrix(rows, n)
+        val workspace = Workspace().apply { reserve(b.data.size, count = 1) }
+
+        val bytes = bytesPerIteration(300) {
+            koblas.sparseBlas.gemm(1e-8, sparse, false, b, true, 1.0, c, right = true, workspace = workspace)
+            c
+        }
+
+        assertTrue(bytes <= FLOOR_BYTES, "right transposed sparse gemm allocated $bytes B per call")
+    }
+
+    @Test
+    fun `left sparse triangular solve workspace is allocation neutral`() {
+        val n = 64
+        val sparse = F64SparseMatrix.ofColumns(n, n, List(n) { j -> listOf(j to 1.0) })
+        val b = F64DenseMatrix(n, 12)
+        val workspace = Workspace().apply {
+            reserve(n, count = 1)
+            reserve(REFERENCE_SPARSE_RHS_WIDTH, count = 1)
+        }
+
+        val bytes = bytesPerIteration(500) {
+            koblas.sparseBlas.trsm(sparse, b, lower = true, workspace = workspace)
+            b
+        }
+
+        assertTrue(bytes <= FLOOR_BYTES, "left sparse trsm allocated $bytes B per call")
     }
 }

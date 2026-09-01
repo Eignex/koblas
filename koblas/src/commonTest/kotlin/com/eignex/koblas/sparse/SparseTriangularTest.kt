@@ -78,7 +78,7 @@ class SparseTriangularTest {
                     val fromDense = F64DenseMatrix.wrap(b.rows, b.cols, b.data.copyOf())
                     dense.trsm(fromDense, lower, transpose, right = right)
                     val fromSparse = F64DenseMatrix.wrap(b.rows, b.cols, b.data.copyOf())
-                    sparse.trsm(fromSparse, lower, transpose, right = right)
+                    sparse.trsm(fromSparse, lower, transpose, right = right, workspace = Workspace())
 
                     assertClose(
                         fromDense,
@@ -317,7 +317,8 @@ class SparseTriangularTest {
                 beta: Double,
                 c: F64DenseMatrix,
                 right: Boolean,
-            ) = F64ReferenceSparseLinearAlgebra.gemm(alpha, a, transposeA, b, transposeB, beta, c, right)
+                workspace: Workspace?,
+            ) = F64ReferenceSparseLinearAlgebra.gemm(alpha, a, transposeA, b, transposeB, beta, c, right, workspace)
 
             override fun gemm(a: F64SparseMatrix, b: F64SparseMatrix) = F64ReferenceSparseLinearAlgebra.gemm(a, b)
 
@@ -330,7 +331,8 @@ class SparseTriangularTest {
                 unitDiag: Boolean,
                 right: Boolean,
                 alpha: Double,
-            ) = F64ReferenceSparseLinearAlgebra.trsm(a, b, lower, transpose, unitDiag, right, alpha)
+                workspace: Workspace?,
+            ) = F64ReferenceSparseLinearAlgebra.trsm(a, b, lower, transpose, unitDiag, right, alpha, workspace)
         }
         registerBackend(counting)
         val t = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 4.0)))

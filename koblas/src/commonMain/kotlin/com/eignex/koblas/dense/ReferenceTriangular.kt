@@ -2,6 +2,8 @@
 
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.Workspace
+import com.eignex.koblas.borrow
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.requireSquare
@@ -17,11 +19,16 @@ import kotlin.math.min
 
 /** Stages each row of [b] through a scratch vector and applies [op] to it, with the transpose flag
  *  flipped. */
-internal inline fun forEachRow(n: Int, b: F64DenseMatrix, columnOffset: Int = 0, op: (DoubleArray) -> Unit) {
+internal inline fun forEachRow(
+    n: Int,
+    b: F64DenseMatrix,
+    row: DoubleArray,
+    columnOffset: Int = 0,
+    op: (DoubleArray) -> Unit,
+) {
     if (n == 0) return
     val rows = b.rows
     val bd = b.data
-    val row = DoubleArray(n)
     for (i in 0 until rows) {
         for (j in 0 until n) row[j] = bd[i + (columnOffset + j) * rows]
         op(row)
@@ -255,6 +262,7 @@ internal fun triangularMatrix(
     right: Boolean,
     alpha: Double,
     solve: Boolean,
+    workspace: Workspace? = null,
 ) {
     val what = if (solve) "trsm" else "trmm"
     requireSquare(a, what)
@@ -273,14 +281,23 @@ internal fun triangularMatrix(
         }
         if (alpha != 1.0) k.scale(b.data, 0, alpha, b.data.size)
     }
-    if (solve) {
-        blockedTriangularSolve(k, a.data, a.rows, b, lower, transpose, unitDiag, right)
-    } else {
-        blockedTriangularMultiply(k, a.data, a.rows, b, lower, transpose, unitDiag, right)
+    if (a.rows == 0) return
+    fun dispatch(scratch: DoubleArray?) {
+        if (solve) {
+            blockedTriangularSolve(k, a.data, a.rows, b, lower, transpose, unitDiag, right, scratch)
+        } else {
+            blockedTriangularMultiply(k, a.data, a.rows, b, lower, transpose, unitDiag, right, scratch)
+        }
+    }
+    when {
+        right -> workspace.borrow(a.rows) { row -> dispatch(row) }
+        transpose -> workspace.borrow(4) { sums -> dispatch(sums) }
+        else -> dispatch(null)
     }
 }
 
-/** Blocked TRSM over a column-major triangle. */
+/** Blocked TRSM over a column-major triangle. [scratch] is the row buffer when [right], the transposed-update
+ *  sums buffer otherwise (or null when the left, non-transposed path needs no scratch at all). */
 private fun blockedTriangularSolve(
     k: F64Kernels,
     triangle: DoubleArray,
@@ -290,11 +307,12 @@ private fun blockedTriangularSolve(
     transpose: Boolean,
     unitDiag: Boolean,
     right: Boolean,
+    scratch: DoubleArray?,
 ) {
     if (right) {
-        blockedRightSolve(k, triangle, n, b, lower, transpose, unitDiag)
+        blockedRightSolve(k, triangle, n, b, lower, transpose, unitDiag, requireNotNull(scratch))
     } else {
-        blockedLeftSolve(k, triangle, n, b, lower, transpose, unitDiag)
+        blockedLeftSolve(k, triangle, n, b, lower, transpose, unitDiag, scratch)
     }
 }
 
@@ -306,6 +324,7 @@ private fun blockedLeftSolve(
     lower: Boolean,
     transpose: Boolean,
     unitDiag: Boolean,
+    sums: DoubleArray?,
 ) {
     val bd = b.data
     val nrhs = b.cols
@@ -329,7 +348,7 @@ private fun blockedLeftSolve(
             if (end < n) {
                 blockedLeftTriangularUpdate(
                     k, -1.0, triangle, n, transpose, bd, end, n - end, start, size, nrhs,
-                    zeroCoefficientMasks,
+                    zeroCoefficientMasks, sums,
                 )
             }
             start = end
@@ -353,7 +372,7 @@ private fun blockedLeftSolve(
             if (start > 0) {
                 blockedLeftTriangularUpdate(
                     k, -1.0, triangle, n, transpose, bd, 0, start, start, size, nrhs,
-                    zeroCoefficientMasks,
+                    zeroCoefficientMasks, sums,
                 )
             }
             end = start
@@ -375,11 +394,13 @@ private fun blockedLeftTriangularUpdate(
     innerCount: Int,
     columns: Int,
     zeroCoefficientMasks: LongArray? = null,
+    sums: DoubleArray?,
 ) {
     if (transpose) {
         blockedTransposedLeftUpdate(
             k, alpha, triangle, innerStart + rowStart * n, n,
             b, innerStart, n, b, rowStart, n, rowCount, columns, innerCount,
+            requireNotNull(sums),
         )
     } else {
         blockedUpdate(
@@ -398,6 +419,7 @@ private fun blockedRightSolve(
     lower: Boolean,
     transpose: Boolean,
     unitDiag: Boolean,
+    row: DoubleArray,
 ) {
     val rows = b.rows
     val bd = b.data
@@ -407,7 +429,7 @@ private fun blockedRightSolve(
         val start = if (effectiveLower) max(0, boundary - REFERENCE_TRIANGULAR_BLOCK) else boundary
         val end = if (effectiveLower) boundary else min(boundary + REFERENCE_TRIANGULAR_BLOCK, n)
         val size = end - start
-        forEachRow(size, b, start) { row ->
+        forEachRow(size, b, row, start) { row ->
             trsvCore(
                 k, triangle, size, row, start + start * n, 0, n, lower, !transpose, unitDiag,
                 guardZeroPivot = false,
@@ -427,7 +449,8 @@ private fun blockedRightSolve(
     }
 }
 
-/** Blocked TRMM over a column-major triangle. */
+/** Blocked TRMM over a column-major triangle. [scratch] is the row buffer when [right], the transposed-update
+ *  sums buffer otherwise (or null when the left, non-transposed path needs no scratch at all). */
 private fun blockedTriangularMultiply(
     k: F64Kernels,
     triangle: DoubleArray,
@@ -437,11 +460,12 @@ private fun blockedTriangularMultiply(
     transpose: Boolean,
     unitDiag: Boolean,
     right: Boolean,
+    scratch: DoubleArray?,
 ) {
     if (right) {
-        blockedRightMultiply(k, triangle, n, b, lower, transpose, unitDiag)
+        blockedRightMultiply(k, triangle, n, b, lower, transpose, unitDiag, requireNotNull(scratch))
     } else {
-        blockedLeftMultiply(k, triangle, n, b, lower, transpose, unitDiag)
+        blockedLeftMultiply(k, triangle, n, b, lower, transpose, unitDiag, scratch)
     }
 }
 
@@ -453,6 +477,7 @@ private fun blockedLeftMultiply(
     lower: Boolean,
     transpose: Boolean,
     unitDiag: Boolean,
+    sums: DoubleArray?,
 ) {
     val bd = b.data
     val nrhs = b.cols
@@ -469,10 +494,10 @@ private fun blockedLeftMultiply(
             )
         }
         if (effectiveLower && start > 0) {
-            blockedLeftTriangularUpdate(k, 1.0, triangle, n, transpose, bd, start, size, 0, start, nrhs)
+            blockedLeftTriangularUpdate(k, 1.0, triangle, n, transpose, bd, start, size, 0, start, nrhs, sums = sums)
         } else if (!effectiveLower && end < n) {
             blockedLeftTriangularUpdate(
-                k, 1.0, triangle, n, transpose, bd, start, size, end, n - end, nrhs,
+                k, 1.0, triangle, n, transpose, bd, start, size, end, n - end, nrhs, sums = sums,
             )
         }
         boundary = if (effectiveLower) start else end
@@ -487,6 +512,7 @@ private fun blockedRightMultiply(
     lower: Boolean,
     transpose: Boolean,
     unitDiag: Boolean,
+    row: DoubleArray,
 ) {
     val bd = b.data
     val effectiveLower = if (transpose) !lower else lower
@@ -495,7 +521,7 @@ private fun blockedRightMultiply(
         val start = if (effectiveLower) boundary else max(0, boundary - REFERENCE_TRIANGULAR_BLOCK)
         val end = if (effectiveLower) min(boundary + REFERENCE_TRIANGULAR_BLOCK, n) else boundary
         val size = end - start
-        forEachRow(size, b, start) { row ->
+        forEachRow(size, b, row, start) { row ->
             trmvCore(
                 k, triangle, size, row, start + start * n, 0, n, lower, !transpose, unitDiag,
                 guardZeroInput = false,
