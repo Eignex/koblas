@@ -255,24 +255,33 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         if (alpha != 1.0) denseKernels.scale(b.data, 0, alpha, b.data.size)
         val rightHandSides = if (right) b.rows else b.cols
         if (rightHandSides == 0) return
-        if (unitDiag) {
-            if (right) {
-                trsmRightCore(a, b, lower, !transpose, null)
-            } else {
-                workspace.borrow(
-                    REFERENCE_SPARSE_RHS_WIDTH,
-                ) { work -> trsmLeftCore(a, b, lower, transpose, null, work) }
+        if (right) {
+            withExplicitDiagonal(a, n, unitDiag, workspace) { diagonal ->
+                trsmRightCore(a, b, lower, !transpose, diagonal)
             }
+        } else {
+            workspace.borrow(REFERENCE_SPARSE_RHS_WIDTH) { work ->
+                withExplicitDiagonal(a, n, unitDiag, workspace) { diagonal ->
+                    trsmLeftCore(a, b, lower, transpose, diagonal, work)
+                }
+            }
+        }
+    }
+
+    /** Runs [block] with the diagonal of [a] borrowed from [workspace], or null when [unitDiag] takes it as 1. */
+    private inline fun withExplicitDiagonal(
+        a: F64SparseMatrix,
+        n: Int,
+        unitDiag: Boolean,
+        workspace: Workspace?,
+        block: (DoubleArray?) -> Unit,
+    ) {
+        if (unitDiag) {
+            block(null)
         } else {
             workspace.borrow(n) { diagonal ->
                 for (j in 0 until n) diagonal[j] = a[j, j]
-                if (right) {
-                    trsmRightCore(a, b, lower, !transpose, diagonal)
-                } else {
-                    workspace.borrow(REFERENCE_SPARSE_RHS_WIDTH) { work ->
-                        trsmLeftCore(a, b, lower, transpose, diagonal, work)
-                    }
-                }
+                block(diagonal)
             }
         }
     }
