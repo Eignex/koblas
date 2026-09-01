@@ -151,11 +151,11 @@ class DenseExtensionsTest {
     fun `an LU refactors through its factor owned reusable buffers`() {
         val factor = square.lu()
         val factors = factor.lu
-        val pivots = factor.piv
+        val pivots = factor.mutablePivots
 
         assertSame(factor, factor.refactorInto(squareNext), "refactor destination")
         assertSame(factors, factor.lu, "refactor factor buffer")
-        assertSame(pivots, factor.piv, "refactor pivot buffer")
+        assertSame(pivots, factor.mutablePivots, "refactor pivot buffer")
         assertClose(koblas.solve(koblas.factor(squareNext), b3), factor.solve(b3), "refactored solve")
     }
 
@@ -173,11 +173,11 @@ class DenseExtensionsTest {
     fun `an LDL refactors through its factor owned reusable buffers`() {
         val factor = square.pivotedSymmetricIndefinite()
         val factors = factor.ldl
-        val pivots = factor.ipiv
+        val pivots = factor.rawLapackIpiv
 
         assertSame(factor, factor.refactorInto(squareNext), "refactor destination")
         assertSame(factors, factor.ldl, "refactor factor buffer")
-        assertSame(pivots, factor.ipiv, "refactor pivot buffer")
+        assertSame(pivots, factor.rawLapackIpiv, "refactor pivot buffer")
         assertClose(
             koblas.solve(koblas.pivotedSymmetricIndefinite(squareNext), b3),
             factor.solve(b3),

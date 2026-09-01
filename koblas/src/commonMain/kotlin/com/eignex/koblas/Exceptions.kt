@@ -1,11 +1,12 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.core.*
-/** What koblas throws when a routine cannot do what was asked. Every one is an [IllegalArgumentException]. */
-public sealed class KoblasException(message: String) : IllegalArgumentException(message)
 
 /** Operands whose shapes do not fit the routine. */
-public class DimensionMismatch(message: String) : KoblasException(message)
+public class DimensionMismatch(message: String) : IllegalArgumentException(message)
+
+/** A numerical outcome that prevents a requested factorization or solve from completing. */
+public sealed class KoblasException(message: String) : ArithmeticException(message)
 
 /**
  * A factorization met an exactly zero pivot, so the matrix it came from has no inverse.

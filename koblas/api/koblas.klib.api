@@ -593,6 +593,51 @@ sealed interface com.eignex.koblas.dense/CholeskyPolicy { // com.eignex.koblas.d
     }
 }
 
+sealed interface com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock { // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock|null[0]
+    abstract val interchangePosition // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.interchangePosition|{}interchangePosition[0]
+        abstract fun <get-interchangePosition>(): kotlin/Int // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.interchangePosition.<get-interchangePosition>|<get-interchangePosition>(){}[0]
+    abstract val interchangedWith // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.interchangedWith|{}interchangedWith[0]
+        abstract fun <get-interchangedWith>(): kotlin/Int // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.interchangedWith.<get-interchangedWith>|<get-interchangedWith>(){}[0]
+    abstract val position // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.position|{}position[0]
+        abstract fun <get-position>(): kotlin/Int // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.position.<get-position>|<get-position>(){}[0]
+
+    final class OneByOne : com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock { // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.OneByOne|null[0]
+        constructor <init>(kotlin/Int, kotlin/Int) // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.OneByOne.<init>|<init>(kotlin.Int;kotlin.Int){}[0]
+
+        final val interchangePosition // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.OneByOne.interchangePosition|{}interchangePosition[0]
+            final fun <get-interchangePosition>(): kotlin/Int // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.OneByOne.interchangePosition.<get-interchangePosition>|<get-interchangePosition>(){}[0]
+        final val interchangedWith // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.OneByOne.interchangedWith|{}interchangedWith[0]
+            final fun <get-interchangedWith>(): kotlin/Int // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.OneByOne.interchangedWith.<get-interchangedWith>|<get-interchangedWith>(){}[0]
+        final val position // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.OneByOne.position|{}position[0]
+            final fun <get-position>(): kotlin/Int // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.OneByOne.position.<get-position>|<get-position>(){}[0]
+
+        final fun component1(): kotlin/Int // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.OneByOne.component1|component1(){}[0]
+        final fun component2(): kotlin/Int // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.OneByOne.component2|component2(){}[0]
+        final fun copy(kotlin/Int = ..., kotlin/Int = ...): com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.OneByOne // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.OneByOne.copy|copy(kotlin.Int;kotlin.Int){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.OneByOne.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.OneByOne.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.OneByOne.toString|toString(){}[0]
+    }
+
+    final class TwoByTwo : com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock { // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.TwoByTwo|null[0]
+        constructor <init>(kotlin/Int, kotlin/Int) // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.TwoByTwo.<init>|<init>(kotlin.Int;kotlin.Int){}[0]
+
+        final val interchangePosition // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.TwoByTwo.interchangePosition|{}interchangePosition[0]
+            final fun <get-interchangePosition>(): kotlin/Int // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.TwoByTwo.interchangePosition.<get-interchangePosition>|<get-interchangePosition>(){}[0]
+        final val interchangedWith // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.TwoByTwo.interchangedWith|{}interchangedWith[0]
+            final fun <get-interchangedWith>(): kotlin/Int // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.TwoByTwo.interchangedWith.<get-interchangedWith>|<get-interchangedWith>(){}[0]
+        final val position // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.TwoByTwo.position|{}position[0]
+            final fun <get-position>(): kotlin/Int // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.TwoByTwo.position.<get-position>|<get-position>(){}[0]
+
+        final fun component1(): kotlin/Int // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.TwoByTwo.component1|component1(){}[0]
+        final fun component2(): kotlin/Int // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.TwoByTwo.component2|component2(){}[0]
+        final fun copy(kotlin/Int = ..., kotlin/Int = ...): com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.TwoByTwo // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.TwoByTwo.copy|copy(kotlin.Int;kotlin.Int){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.TwoByTwo.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.TwoByTwo.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock.TwoByTwo.toString|toString(){}[0]
+    }
+}
+
 sealed interface com.eignex.koblas/F64RouteQuery { // com.eignex.koblas/F64RouteQuery|null[0]
     abstract val role // com.eignex.koblas/F64RouteQuery.role|{}role[0]
         abstract fun <get-role>(): com.eignex.koblas/BackendRole // com.eignex.koblas/F64RouteQuery.role.<get-role>|<get-role>(){}[0]
@@ -1192,8 +1237,6 @@ final class com.eignex.koblas.dense/F64LuDecomposition { // com.eignex.koblas.de
         final fun <get-n>(): kotlin/Int // com.eignex.koblas.dense/F64LuDecomposition.n.<get-n>|<get-n>(){}[0]
     final val order // com.eignex.koblas.dense/F64LuDecomposition.order|{}order[0]
         final fun <get-order>(): kotlin/Int // com.eignex.koblas.dense/F64LuDecomposition.order.<get-order>|<get-order>(){}[0]
-    final val piv // com.eignex.koblas.dense/F64LuDecomposition.piv|{}piv[0]
-        final fun <get-piv>(): kotlin/IntArray // com.eignex.koblas.dense/F64LuDecomposition.piv.<get-piv>|<get-piv>(){}[0]
     final val rank // com.eignex.koblas.dense/F64LuDecomposition.rank|{}rank[0]
         final fun <get-rank>(): kotlin/Int // com.eignex.koblas.dense/F64LuDecomposition.rank.<get-rank>|<get-rank>(){}[0]
     final val rankDeficient // com.eignex.koblas.dense/F64LuDecomposition.rankDeficient|{}rankDeficient[0]
@@ -1214,6 +1257,7 @@ final class com.eignex.koblas.dense/F64LuDecomposition { // com.eignex.koblas.de
 
     final fun lower(): com.eignex.koblas.core/F64DenseMatrix // com.eignex.koblas.dense/F64LuDecomposition.lower|lower(){}[0]
     final fun permutation(): kotlin/IntArray // com.eignex.koblas.dense/F64LuDecomposition.permutation|permutation(){}[0]
+    final fun rowAt(kotlin/Int): kotlin/Int // com.eignex.koblas.dense/F64LuDecomposition.rowAt|rowAt(kotlin.Int){}[0]
     final fun upper(): com.eignex.koblas.core/F64DenseMatrix // com.eignex.koblas.dense/F64LuDecomposition.upper|upper(){}[0]
 }
 
@@ -1237,12 +1281,14 @@ final class com.eignex.koblas.dense/F64PivotedQrDecomposition { // com.eignex.ko
 final class com.eignex.koblas.dense/F64PivotedSymmetricIndefiniteDecomposition { // com.eignex.koblas.dense/F64PivotedSymmetricIndefiniteDecomposition|null[0]
     constructor <init>(kotlin/Int, kotlin/DoubleArray, kotlin/IntArray, kotlin/Int = ...) // com.eignex.koblas.dense/F64PivotedSymmetricIndefiniteDecomposition.<init>|<init>(kotlin.Int;kotlin.DoubleArray;kotlin.IntArray;kotlin.Int){}[0]
 
-    final val ipiv // com.eignex.koblas.dense/F64PivotedSymmetricIndefiniteDecomposition.ipiv|{}ipiv[0]
-        final fun <get-ipiv>(): kotlin/IntArray // com.eignex.koblas.dense/F64PivotedSymmetricIndefiniteDecomposition.ipiv.<get-ipiv>|<get-ipiv>(){}[0]
     final val ldl // com.eignex.koblas.dense/F64PivotedSymmetricIndefiniteDecomposition.ldl|{}ldl[0]
         final fun <get-ldl>(): kotlin/DoubleArray // com.eignex.koblas.dense/F64PivotedSymmetricIndefiniteDecomposition.ldl.<get-ldl>|<get-ldl>(){}[0]
     final val n // com.eignex.koblas.dense/F64PivotedSymmetricIndefiniteDecomposition.n|{}n[0]
         final fun <get-n>(): kotlin/Int // com.eignex.koblas.dense/F64PivotedSymmetricIndefiniteDecomposition.n.<get-n>|<get-n>(){}[0]
+    final val pivotBlocks // com.eignex.koblas.dense/F64PivotedSymmetricIndefiniteDecomposition.pivotBlocks|{}pivotBlocks[0]
+        final fun <get-pivotBlocks>(): kotlin.collections/List<com.eignex.koblas.dense/F64PivotedSymmetricIndefinitePivotBlock> // com.eignex.koblas.dense/F64PivotedSymmetricIndefiniteDecomposition.pivotBlocks.<get-pivotBlocks>|<get-pivotBlocks>(){}[0]
+    final val rawLapackIpiv // com.eignex.koblas.dense/F64PivotedSymmetricIndefiniteDecomposition.rawLapackIpiv|{}rawLapackIpiv[0]
+        final fun <get-rawLapackIpiv>(): kotlin/IntArray // com.eignex.koblas.dense/F64PivotedSymmetricIndefiniteDecomposition.rawLapackIpiv.<get-rawLapackIpiv>|<get-rawLapackIpiv>(){}[0]
     final val singular // com.eignex.koblas.dense/F64PivotedSymmetricIndefiniteDecomposition.singular|{}singular[0]
         final fun <get-singular>(): kotlin/Boolean // com.eignex.koblas.dense/F64PivotedSymmetricIndefiniteDecomposition.singular.<get-singular>|<get-singular>(){}[0]
 
@@ -2156,7 +2202,7 @@ final class com.eignex.koblas/BackendStatus { // com.eignex.koblas/BackendStatus
     final fun toString(): kotlin/String // com.eignex.koblas/BackendStatus.toString|toString(){}[0]
 }
 
-final class com.eignex.koblas/DimensionMismatch : com.eignex.koblas/KoblasException { // com.eignex.koblas/DimensionMismatch|null[0]
+final class com.eignex.koblas/DimensionMismatch : kotlin/IllegalArgumentException { // com.eignex.koblas/DimensionMismatch|null[0]
     constructor <init>(kotlin/String) // com.eignex.koblas/DimensionMismatch.<init>|<init>(kotlin.String){}[0]
 }
 
@@ -2564,7 +2610,7 @@ open class com.eignex.koblas.sparse/F64ReferenceSparseDecompositions : com.eigne
     final object Default : com.eignex.koblas.sparse/F64ReferenceSparseDecompositions // com.eignex.koblas.sparse/F64ReferenceSparseDecompositions.Default|null[0]
 }
 
-sealed class com.eignex.koblas/KoblasException : kotlin/IllegalArgumentException // com.eignex.koblas/KoblasException|null[0]
+sealed class com.eignex.koblas/KoblasException : kotlin/ArithmeticException // com.eignex.koblas/KoblasException|null[0]
 
 final object com.eignex.koblas.sparse/F64ReferenceSparseLinearAlgebra : com.eignex.koblas.sparse/F64ReferenceSparseBackend // com.eignex.koblas.sparse/F64ReferenceSparseLinearAlgebra|null[0]
 
@@ -2713,7 +2759,6 @@ final fun (com.eignex.koblas.dense/F64PivotedQrDecomposition).com.eignex.koblas.
 final fun (com.eignex.koblas.dense/F64PivotedQrDecomposition).com.eignex.koblas.dense/solve(kotlin/DoubleArray, com.eignex.koblas/Workspace? = ...): kotlin/DoubleArray // com.eignex.koblas.dense/solve|solve@com.eignex.koblas.dense.F64PivotedQrDecomposition(kotlin.DoubleArray;com.eignex.koblas.Workspace?){}[0]
 final fun (com.eignex.koblas.dense/F64PivotedQrDecomposition).com.eignex.koblas.dense/solveInto(kotlin/DoubleArray, kotlin/DoubleArray, com.eignex.koblas/Workspace? = ...): kotlin/DoubleArray // com.eignex.koblas.dense/solveInto|solveInto@com.eignex.koblas.dense.F64PivotedQrDecomposition(kotlin.DoubleArray;kotlin.DoubleArray;com.eignex.koblas.Workspace?){}[0]
 final fun (com.eignex.koblas.dense/F64PivotedSymmetricIndefiniteDecomposition).com.eignex.koblas.dense/packedFactor(): com.eignex.koblas.core/F64DenseMatrix // com.eignex.koblas.dense/packedFactor|packedFactor@com.eignex.koblas.dense.F64PivotedSymmetricIndefiniteDecomposition(){}[0]
-final fun (com.eignex.koblas.dense/F64PivotedSymmetricIndefiniteDecomposition).com.eignex.koblas.dense/pivotBlocks(): kotlin/IntArray // com.eignex.koblas.dense/pivotBlocks|pivotBlocks@com.eignex.koblas.dense.F64PivotedSymmetricIndefiniteDecomposition(){}[0]
 final fun (com.eignex.koblas.dense/F64PivotedSymmetricIndefiniteDecomposition).com.eignex.koblas.dense/refactorInto(com.eignex.koblas.core/F64DenseMatrix, com.eignex.koblas/Workspace? = ...): com.eignex.koblas.dense/F64PivotedSymmetricIndefiniteDecomposition // com.eignex.koblas.dense/refactorInto|refactorInto@com.eignex.koblas.dense.F64PivotedSymmetricIndefiniteDecomposition(com.eignex.koblas.core.F64DenseMatrix;com.eignex.koblas.Workspace?){}[0]
 final fun (com.eignex.koblas.dense/F64PivotedSymmetricIndefiniteDecomposition).com.eignex.koblas.dense/solve(com.eignex.koblas.core/F64DenseMatrix): com.eignex.koblas.core/F64DenseMatrix // com.eignex.koblas.dense/solve|solve@com.eignex.koblas.dense.F64PivotedSymmetricIndefiniteDecomposition(com.eignex.koblas.core.F64DenseMatrix){}[0]
 final fun (com.eignex.koblas.dense/F64PivotedSymmetricIndefiniteDecomposition).com.eignex.koblas.dense/solve(kotlin/DoubleArray): kotlin/DoubleArray // com.eignex.koblas.dense/solve|solve@com.eignex.koblas.dense.F64PivotedSymmetricIndefiniteDecomposition(kotlin.DoubleArray){}[0]

@@ -91,7 +91,7 @@ class CholeskyTest {
         val message = failure.message!!
         assertTrue("pivot 1" in message, "the message should name the position: $message")
         assertTrue("Regularize" in message, "the message should name the way out: $message")
-        assertFailsWith<IllegalArgumentException> { koblas.cholesky(notPositiveDefinite()) }
+        assertFailsWith<NotPositiveDefinite> { koblas.cholesky(notPositiveDefinite()) }
     }
 
     @Test

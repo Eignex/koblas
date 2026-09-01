@@ -11,6 +11,7 @@ F64Decomposition.refactorInto(F64DenseMatrix)		excluded	The family-specific refa
 F64LuDecomposition.lower()		excluded	Extracting a factor snapshot is inspection work rather than a dispatched numerical kernel.
 F64LuDecomposition.permutation()		excluded	Copying the pivot permutation is inspection work rather than a dispatched numerical kernel.
 F64LuDecomposition.upper()		excluded	Extracting a factor snapshot is inspection work rather than a dispatched numerical kernel.
+F64LuDecomposition.rowAt(Int)		excluded	Reading one permutation entry is inspection work rather than a dispatched numerical kernel.
 F64BasisSolver.solveQuality(DoubleArray,F64IndexedVector)		excluded	Residual diagnostics deliberately do extra sparse work and are intended for checks rather than hot loops.
 rot(F64DenseVector,F64DenseVector,F64Givens)		excluded	Plane rotation is a scalar helper rather than a backend-dispatch benchmark.
 rotg(Double,Double)		excluded	Plane rotation generation is a scalar helper rather than a backend-dispatch benchmark.
@@ -50,7 +51,6 @@ F64LuDecomposition.lowerFactor()		excluded	Extracting a factor snapshot is inspe
 F64LuDecomposition.rowOrder()		excluded	Copying the row order is inspection work rather than a dispatched numerical kernel.
 F64LuDecomposition.upperFactor()		excluded	Extracting a factor snapshot is inspection work rather than a dispatched numerical kernel.
 F64PivotedSymmetricIndefiniteDecomposition.packedFactor()		excluded	Extracting a factor snapshot is inspection work rather than a dispatched numerical kernel.
-F64PivotedSymmetricIndefiniteDecomposition.pivotBlocks()		excluded	Copying the pivot blocks is inspection work rather than a dispatched numerical kernel.
 F64PivotedQrDecomposition.columnOrder()		excluded	Copying the column order is inspection work rather than a dispatched numerical kernel.
 F64QrDecomposition.explicitQ()		excluded	Materializing Q from the packed factors is inspection work rather than a dispatched numerical kernel.
 F64QrDecomposition.explicitR()		excluded	Extracting a factor snapshot is inspection work rather than a dispatched numerical kernel.

@@ -21,7 +21,7 @@ class F64LuDecompositionTest {
             assertEquals((0 until a.rows).toList(), factor.permutation().sorted())
             assertClose(
                 product(factor.lower(), factor.upper()).data,
-                permutedRows(a, factor.piv).data,
+                permutedRows(a, factor.rowPermutation).data,
                 "${a.rows}x${a.cols}",
             )
         }
@@ -42,7 +42,7 @@ class F64LuDecompositionTest {
             assertEquals(0, factor.rank)
             assertFalse(factor.rankDeficient)
             assertEquals(rows * cols, factor.lu.size)
-            assertEquals(rows, factor.piv.size)
+            assertEquals(rows, factor.rowPermutation.size)
         }
     }
 
@@ -53,13 +53,13 @@ class F64LuDecompositionTest {
         )
         val out = F64ReferenceLinearAlgebra.factor(first)
         val factors = out.lu
-        val pivots = out.piv
+        val pivots = out.mutablePivots
         val second = F64DenseMatrix.of(
             arrayOf(doubleArrayOf(0.0, 2.0), doubleArrayOf(3.0, 4.0), doubleArrayOf(5.0, 6.0)),
         )
         assertSame(out, F64ReferenceLinearAlgebra.factorInto(second, out))
         assertSame(factors, out.lu)
-        assertSame(pivots, out.piv)
+        assertSame(pivots, out.mutablePivots)
         assertClose(F64ReferenceLinearAlgebra.factor(second).lu, out.lu, "rectangular factorInto")
         assertFailsWith<DimensionMismatch> {
             F64ReferenceLinearAlgebra.factorInto(F64DenseMatrix(2, 3), out)
