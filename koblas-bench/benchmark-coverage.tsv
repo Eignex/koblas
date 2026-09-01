@@ -1,6 +1,17 @@
 api_signature	benchmark_id	status	notes
 F64BasisSolver.refactorize(F64SparseMatrix)	com.eignex.koblas.bench.BasisBenchmark.refactorize	benchmarked	
 F64BasisSolver.pivots()	com.eignex.koblas.bench.BasisBenchmark.pivots	benchmarked	
+F64CholeskyDecomposition.refactorInto(F64DenseMatrix)		excluded	Refactorization shares the benchmarked Cholesky factorization kernel and is covered by buffer-reuse tests.
+F64CholeskyDecomposition.solveInto(DoubleArray,DoubleArray)		excluded	The destination-passing variant shares the benchmarked Cholesky solve kernel and is covered by aliasing tests.
+F64Decompositions.choleskyInto(F64DenseMatrix,F64CholeskyDecomposition)		excluded	The backend destination-passing variant shares the benchmarked Cholesky factorization kernel.
+F64Decompositions.pivotedSymmetricIndefiniteInto(F64DenseMatrix,F64PivotedSymmetricIndefiniteDecomposition)		excluded	The backend destination-passing variant shares the benchmarked pivoted symmetric-indefinite factorization kernel.
+F64Decompositions.qrInto(F64DenseMatrix,F64QrDecomposition)		excluded	The backend destination-passing variant shares the benchmarked QR factorization kernel.
+F64QrDecomposition.applyQInto(DoubleArray,DoubleArray)		excluded	The destination-passing variant shares the benchmarked applyQ kernel and is covered by aliasing tests.
+F64Decomposition.refactorInto(F64DenseMatrix)		excluded	The family-specific refactorization extensions share their corresponding benchmarked factorization kernels.
+F64LuDecomposition.lower()		excluded	Extracting a factor snapshot is inspection work rather than a dispatched numerical kernel.
+F64LuDecomposition.permutation()		excluded	Copying the pivot permutation is inspection work rather than a dispatched numerical kernel.
+F64LuDecomposition.upper()		excluded	Extracting a factor snapshot is inspection work rather than a dispatched numerical kernel.
+F64BasisSolver.solveQuality(DoubleArray,F64IndexedVector)		excluded	Residual diagnostics deliberately do extra sparse work and are intended for checks rather than hot loops.
 rot(F64DenseVector,F64DenseVector,F64Givens)		excluded	Plane rotation is a scalar helper rather than a backend-dispatch benchmark.
 rotg(Double,Double)		excluded	Plane rotation generation is a scalar helper rather than a backend-dispatch benchmark.
 F64DenseMatrix.column(Int)		excluded	Column extraction is a storage view helper, not a numerical kernel.
