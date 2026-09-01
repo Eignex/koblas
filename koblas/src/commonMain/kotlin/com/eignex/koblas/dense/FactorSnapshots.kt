@@ -34,15 +34,17 @@ public fun F64LuDecomposition.upperFactor(): F64DenseMatrix = F64DenseMatrix(n, 
 public fun F64LuDecomposition.rowOrder(): IntArray = piv.copyOf()
 
 /**
- * The sign of `det(A)`, including the row permutation. It is zero exactly when this factorization is singular.
+ * The sign of `det(A)`, including the row permutation. It is zero when this factorization is singular or
+ * when a diagonal entry is `NaN`, since neither has a well-defined sign.
  */
 public fun F64LuDecomposition.determinantSign(): Int {
     if (singular) return 0
     var sign = if (permutationSign(piv) > 0.0) 1 else -1
     for (k in 0 until n) {
+        val diagonal = lu[k + k * n]
         when {
-            lu[k + k * n] < 0.0 -> sign = -sign
-            lu[k + k * n] == 0.0 -> return 0
+            diagonal.isNaN() || diagonal == 0.0 -> return 0
+            diagonal < 0.0 -> sign = -sign
         }
     }
     return sign
@@ -79,6 +81,9 @@ public fun F64CholeskyDecomposition.lowerFactor(): F64DenseMatrix = F64DenseMatr
  *
  * Bunch-Kaufman interleaves the `D` blocks, multipliers, and pivoting in this representation, so it has no
  * independent conventional `L` and diagonal `D` matrix to expose without changing its numerical contract.
+ * Unlike [F64LuDecomposition.lowerFactor] or [F64CholeskyDecomposition.lowerFactor], the strict upper
+ * triangle here is not zeroed: [ldl] never writes above the diagonal, so those entries are whatever the
+ * factored matrix held there, not factorization data.
  */
 public fun F64LdlDecomposition.packedFactor(): F64DenseMatrix = F64DenseMatrix(n, n, ldl.copyOf())
 
