@@ -80,4 +80,64 @@ class DenseExtensionsTest {
             "pivoted least squares",
         )
     }
+
+    @Test
+    fun `factor owned Into operations retain their destinations and agree with the seam`() {
+        val lu = square.lu()
+        val luOut = DoubleArray(lu.n)
+        assertSame(luOut, lu.solveInto(b3, luOut), "lu vector destination")
+        assertClose(koblas.solve(lu, b3), luOut, "lu vector solve")
+        val block = F64DenseMatrix.ofColumns(arrayOf(b3, doubleArrayOf(0.0, 1.0, 0.0)))
+        val luBlockOut = F64DenseMatrix(lu.n, block.cols)
+        assertSame(luBlockOut, lu.solveInto(block, luBlockOut), "lu block destination")
+        assertClose(koblas.solve(lu, block).data, luBlockOut.data, "lu block solve")
+
+        val ldl = square.ldl()
+        val ldlOut = DoubleArray(ldl.n)
+        assertSame(ldlOut, ldl.solveInto(b3, ldlOut), "ldl vector destination")
+        assertClose(koblas.solve(ldl, b3), ldlOut, "ldl vector solve")
+        val ldlBlockOut = F64DenseMatrix(ldl.n, block.cols)
+        assertSame(ldlBlockOut, ldl.solveInto(block, ldlBlockOut), "ldl block destination")
+        assertClose(koblas.solve(ldl, block).data, ldlBlockOut.data, "ldl block solve")
+
+        val chol = square.cholesky()
+        val cholOut = DoubleArray(chol.n)
+        assertSame(cholOut, chol.solveInto(b3, cholOut), "cholesky vector destination")
+        assertClose(koblas.solve(chol, b3), cholOut, "cholesky vector solve")
+        val cholBlockOut = F64DenseMatrix(chol.n, block.cols)
+        assertSame(cholBlockOut, chol.solveInto(block, cholBlockOut), "cholesky block destination")
+        assertClose(koblas.solve(chol, block).data, cholBlockOut.data, "cholesky block solve")
+
+        val qr = tall.qr()
+        val qrOut = DoubleArray(qr.n)
+        assertSame(qrOut, qr.solveInto(b3, qrOut), "qr destination")
+        assertClose(koblas.solve(qr, b3), qrOut, "qr solve")
+        val qOut = DoubleArray(qr.m)
+        assertSame(qOut, qr.applyQInto(b3, qOut), "applyQ destination")
+        assertClose(koblas.applyQ(qr, b3), qOut, "applyQ")
+
+        val pivoted = tall.qrPivoted()
+        val pivotedOut = DoubleArray(pivoted.n)
+        assertSame(pivotedOut, pivoted.solveInto(b3, pivotedOut), "pivoted qr destination")
+        assertClose(koblas.solve(pivoted, b3), pivotedOut, "pivoted qr solve")
+    }
+
+    @Test
+    fun `an LU refactors through its factor owned reusable buffers`() {
+        val factor = square.lu()
+        val factors = factor.lu
+        val pivots = factor.piv
+        val next = F64DenseMatrix.of(
+            arrayOf(
+                doubleArrayOf(2.0, 1.0, 0.0),
+                doubleArrayOf(1.0, 2.0, 1.0),
+                doubleArrayOf(0.0, 1.0, 2.0),
+            ),
+        )
+
+        assertSame(factor, factor.refactorInto(next), "refactor destination")
+        assertSame(factors, factor.lu, "refactor factor buffer")
+        assertSame(pivots, factor.piv, "refactor pivot buffer")
+        assertClose(koblas.solve(koblas.factor(next), b3), factor.solve(b3), "refactored solve")
+    }
 }

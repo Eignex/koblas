@@ -142,6 +142,12 @@ those buffers and select an AllocationPolicy when the guarantee should be enforc
 mutation. REQUIRE_NO_SIZE_DEPENDENT_MANAGED permits fixed JVM/FFM overhead; stronger policies are reported
 only where koblas controls the corresponding allocation source.
 
+Dense decompositions hold only Kotlin arrays, so they have no `close()`, native resource lifecycle, symbolic
+analysis, or prepared-handle API. Reuse a dense factor for repeated right-hand sides; for same-sized changing
+matrices, refactor it in place with `factor.refactorInto(nextMatrix)`. The dense `solveInto` extensions retain
+the destination you pass and accept a Workspace whenever their backend needs staging, but do not advertise a
+cross-backend allocation guarantee: a selected native LAPACK provider may own additional temporary storage.
+
 BLAS options use named Boolean parameters such as lower, transpose, unitDiag, and right.
 
 ## Backends and routing
