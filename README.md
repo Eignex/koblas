@@ -127,12 +127,12 @@ host provider does not. Routines not listed here are not part of the supported n
 
 | Family | Koblas operations | Standard routines |
 |--------|-------------------|-------------------|
-| BLAS level 1 | `dot`, `axpy`, `scale`, `asum`, `iamax`, `copy`, `swap`, `rotg`, `rot` | `ddot`, `daxpy`, `dscal`, `dasum`, `idamax`, `dcopy`, `dswap`, `drotg`, `drot` |
+| BLAS level 1 | `dot`, `axpy`, `scale`, `norm2`, `asum`, `iamax`, `copy`, `swap`, `rotg`, `rot`, `rotmg`, `rotm` | `ddot`, `daxpy`, `dscal`, `dnrm2`, `dasum`, `idamax`, `dcopy`, `dswap`, `drotg`, `drot`, `drotmg`, `drotm` |
 | BLAS level 2 | `gemv`, `symv`, `ger`, `syr`, `syr2`, `trsv`, `trmv` | `dgemv`, `dsymv`, `dger`, `dsyr`, `dsyr2`, `dtrsv`, `dtrmv` |
 | BLAS level 3 | `gemm`, `symm`, `syrk`, `syr2k`, `trsm`, `trmm` | `dgemm`, `dsymm`, `dsyrk`, `dsyr2k`, `dtrsm`, `dtrmm` |
 | Dense utility | `transpose`, `norm1`, `normInf`, `normFro`, row/column scaling | No direct BLAS routine |
 | Dense LAPACK | LU (`factor`, `solve`, `invert`, `rcond`), pivoted LDL, QR and pivoted QR, Cholesky, triangular inverse | `dgetrf`, `dgetrs`, `dgetri`, `dgecon`, `dsytrf`, `dsytrs`, `dgeqrf`, `dgeqp3`, `dormqr`, `dpotrf`, `dpotrs`, `dpotri`, `dtrtri` |
-| Sparse BLAS | CSC `gemv`, triangular `trsv`/`trsm`, sparse–dense `gemm`, sparse–sparse product, `transpose`, prepared repeated products | Sparse BLAS `usmv`, `ussv`, `ussm`, `usmm`; product and preparation are Koblas operations |
+| Sparse BLAS | CSC `gemv`, triangular `trsv`/`trsm` and `trmv`/`trmm`, sparse–dense `gemm`, sparse–sparse product, `transpose`, prepared repeated products | Sparse BLAS `usmv`, `ussv`, `ussm`, `usmm`; triangular multiply is `usmv`/`usmm` over a triangle, and product and preparation are Koblas operations |
 | Sparse factorizations | General LU, repeated-pattern LU, Cholesky, LDL, QR, and simplex basis operations | Provider-specific SuiteSparse, BASICLU, and HFactor capabilities |
 
 This table documents the subset, not a roadmap. In particular, it does not imply support for the other routines in
