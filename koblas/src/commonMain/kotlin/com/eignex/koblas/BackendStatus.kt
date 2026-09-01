@@ -97,7 +97,13 @@ public fun F64Context.backendFor(role: BackendRole): Backend = when (role) {
     BackendRole.BASIS_SOLVERS -> basisSolvers
 }
 
-/** Whether [role] is filled by something other than koblas's own portable implementation. */
+/**
+ * Whether [role] is filled by something other than koblas's own portable implementation.
+ *
+ * For [BackendRole.DENSE_KERNELS] this reports whether a host is registered, not whether a given call
+ * reaches it: a run below that operation's crossover still executes on the compiled-in kernels even when
+ * this is true.
+ */
 public fun F64Context.isAccelerated(role: BackendRole): Boolean = when (val backend = backendFor(role)) {
     is F64RoutedKernels -> backend.host != null
     else -> !backend.isPortable
