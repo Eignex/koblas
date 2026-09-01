@@ -215,6 +215,7 @@ public class F64Context(
         beta: Double,
         y: DoubleArray,
         transpose: Boolean,
+        workspace: Workspace?,
     ) {
         if (enforcesRoutingPolicy) {
             val xLen = if (transpose) a.rows else a.cols
@@ -223,7 +224,7 @@ public class F64Context(
             requireShape(y.size == yLen) { "gemv: y length ${y.size} != $yLen" }
             beforeDispatch(F64RouteQuery.DenseGemv(a.rows, a.cols))
         }
-        blas.gemv(alpha, a, x, beta, y, transpose)
+        blas.gemv(alpha, a, x, beta, y, transpose, workspace)
     }
 
     @Suppress("LongParameterList") // the BLAS dgemv signature
@@ -260,6 +261,7 @@ public class F64Context(
         transposeB: Boolean,
         beta: Double,
         c: F64DenseMatrix,
+        workspace: Workspace?,
     ) {
         if (enforcesRoutingPolicy) {
             val m = if (transposeA) a.cols else a.rows
@@ -270,7 +272,7 @@ public class F64Context(
             requireShape(c.rows == m && c.cols == n) { "gemm: C is ${c.rows}x${c.cols}, expected ${m}x$n" }
             beforeDispatch(F64RouteQuery.DenseGemm(m, n, k))
         }
-        blas.gemm(alpha, a, transposeA, b, transposeB, beta, c)
+        blas.gemm(alpha, a, transposeA, b, transposeB, beta, c, workspace)
     }
 
     override fun gemm(a: F64DenseMatrix, b: F64DenseMatrix): F64DenseMatrix {
@@ -328,6 +330,7 @@ public class F64Context(
         beta: Double,
         c: F64DenseMatrix,
         right: Boolean,
+        workspace: Workspace?,
     ) {
         if (enforcesRoutingPolicy) {
             val aRows = if (transposeA) a.cols else a.rows
@@ -344,7 +347,7 @@ public class F64Context(
             requireShape(c.rows == m && c.cols == n) { "gemm: C is ${c.rows}x${c.cols}, expected ${m}x$n" }
             beforeDispatch(F64RouteQuery.SparseDenseGemm(a.nnz, right, transposeB))
         }
-        sparseBlas.gemm(alpha, a, transposeA, b, transposeB, beta, c, right)
+        sparseBlas.gemm(alpha, a, transposeA, b, transposeB, beta, c, right, workspace)
     }
 
     override fun gemm(a: F64SparseMatrix, b: F64DenseMatrix): F64DenseMatrix {
@@ -396,6 +399,7 @@ public class F64Context(
         unitDiag: Boolean,
         right: Boolean,
         alpha: Double,
+        workspace: Workspace?,
     ) {
         if (enforcesRoutingPolicy) {
             requireShape(a.rows == a.cols) { "trsm: matrix must be square, got ${a.rows}x${a.cols}" }
@@ -417,7 +421,7 @@ public class F64Context(
                 ),
             )
         }
-        sparseBlas.trsm(a, b, lower, transpose, unitDiag, right, alpha)
+        sparseBlas.trsm(a, b, lower, transpose, unitDiag, right, alpha, workspace)
     }
 
     @Suppress("LongParameterList") // the BLAS dtrmm signature

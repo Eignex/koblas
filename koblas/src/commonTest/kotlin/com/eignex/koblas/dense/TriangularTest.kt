@@ -52,7 +52,7 @@ class TriangularTest {
                     val (t, _) = poisonedTriangle(rng, n, lower, unitDiag)
                     val b = randomMatrix(n, nrhs, rng)
                     val viaTrsm = F64DenseMatrix(n, nrhs, b.data.copyOf())
-                    t.trsm(viaTrsm, lower, transpose, unitDiag)
+                    t.trsm(viaTrsm, lower, transpose, unitDiag, workspace = Workspace())
                     for (c in 0 until nrhs) {
                         val col = DoubleArray(n) { b[it, c] }
                         t.trsv(col, lower, transpose, unitDiag)
@@ -169,7 +169,7 @@ class TriangularTest {
                     val x = randomMatrix(rows, n, rng)
                     val b = F64DenseMatrix.wrap(rows, n, x.data.copyOf())
                     t.trmm(b, lower, transpose, unitDiag, right = true)
-                    t.trsm(b, lower, transpose, unitDiag, right = true)
+                    t.trsm(b, lower, transpose, unitDiag, right = true, workspace = Workspace())
                     assertClose(x, b, "trsm right l=$lower t=$transpose u=$unitDiag", tolerance = 1e-11)
                 }
             }

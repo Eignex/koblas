@@ -40,6 +40,8 @@ class KernelsTest {
         var nrm2s = 0
         var asums = 0
         var swaps = 0
+        var rotmgs = 0
+        var rotms = 0
 
         override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) {
             swaps++
@@ -62,6 +64,26 @@ class KernelsTest {
             var s = 0.0
             for (i in 0 until len) s += abs(v[vOff + i])
             return s
+        }
+
+        override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64ModifiedGivens {
+            rotmgs++
+            return super.rotmg(d1, d2, x1, y1)
+        }
+
+        @Suppress("LongParameterList")
+        override fun rotm(
+            x: DoubleArray,
+            xOff: Int,
+            xStride: Int,
+            y: DoubleArray,
+            yOff: Int,
+            yStride: Int,
+            len: Int,
+            transformation: F64ModifiedGivens,
+        ) {
+            rotms++
+            super.rotm(x, xOff, xStride, y, yOff, yStride, len, transformation)
         }
     }
 
@@ -93,6 +115,22 @@ class KernelsTest {
         assertEquals(1, recording.axpys, "axpy did not route")
         assertEquals(1, recording.scales, "scale did not route")
         assertTrue(v.data.all { it == 3.5 }, "routed arithmetic is wrong: ${v.data[0]}")
+    }
+
+    @Test
+    fun `modified Givens operations route to the selected backend`() = withCleanBackends {
+        val recording = Recording()
+        registerBackend(recording)
+        val transformation = rotmg(1.0, 1.0, 1.0, 2.0)
+        val x = F64DenseVector.of(doubleArrayOf(2.0, -1.0))
+        val y = F64DenseVector.of(doubleArrayOf(1.0, 4.0))
+
+        rotm(x, y, transformation)
+
+        assertEquals(1, recording.rotmgs, "rotmg did not route")
+        assertEquals(1, recording.rotms, "rotm did not route")
+        assertContentEquals(doubleArrayOf(2.0, 3.5), x.data)
+        assertContentEquals(doubleArrayOf(-1.5, 3.0), y.data)
     }
 
     @Test
@@ -378,4 +416,8 @@ class KernelsTest {
 
     @Test
     fun `the compiled-in swap agrees with the scalar loop`() = assertSwapAgreesWithScalar(F64PlatformKernels)
+
+    @Test
+    fun `the compiled-in modified Givens kernels agree with the portable ones`() =
+        assertModifiedGivensKernelsAgreeWithPortable(F64PlatformKernels)
 }

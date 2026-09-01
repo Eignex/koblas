@@ -17,6 +17,7 @@ class Level1Benchmark {
 
     private lateinit var x: F64DenseVector
     private lateinit var y: F64DenseVector
+    private lateinit var modifiedRotation: F64ModifiedGivens
 
     private lateinit var quad: DoubleArray
     private val quadOut = DoubleArray(4)
@@ -28,6 +29,10 @@ class Level1Benchmark {
         val rng = benchRng()
         x = F64DenseVector.of(randomVector(len, rng))
         y = F64DenseVector.of(randomVector(len, rng))
+        // Near-identity, like NEAR_UNIT_SCALE: rotmBench applies this every invocation with no per-call
+        // reset, so a transformation with eigenvalues away from unit magnitude would blow x/y up to
+        // Infinity/NaN partway through a trial.
+        modifiedRotation = rotmg(1.0, 1.0, 1.0, NEAR_UNIT_SCALE - 1.0)
         quad = randomVector(4 * len, rng)
     }
 
@@ -59,6 +64,14 @@ class Level1Benchmark {
     @Benchmark
     fun swapBench() {
         swap(x, y)
+    }
+
+    @Benchmark
+    fun rotmgBench(): F64ModifiedGivens = rotmg(1.0, 1.0, 2.0, 1.0)
+
+    @Benchmark
+    fun rotmBench() {
+        rotm(x, y, modifiedRotation)
     }
 
     @Benchmark

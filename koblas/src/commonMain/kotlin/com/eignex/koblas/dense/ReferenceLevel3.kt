@@ -1,5 +1,7 @@
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.Workspace
+import com.eignex.koblas.borrow
 import kotlin.math.min
 
 /** Cache tiles for the portable level-3 routines. They are deliberately target-neutral starting values. */
@@ -25,6 +27,18 @@ internal fun transposeBlocked(src: DoubleArray, rows: Int, cols: Int, dst: Doubl
         }
         column = columnEnd
     }
+}
+
+/** Borrows a `[rows]x[cols]` buffer and packs it with the transpose of [src], for a caller that only ever
+ *  wants the transposed layout on scratch. */
+internal inline fun <T> Workspace?.borrowTransposed(
+    src: DoubleArray,
+    rows: Int,
+    cols: Int,
+    block: (DoubleArray) -> T,
+): T = borrow(rows * cols) { packed ->
+    transposeBlocked(src, rows, cols, packed)
+    block(packed)
 }
 
 /**
@@ -151,8 +165,8 @@ internal fun blockedTransposedLeftUpdate(
     m: Int,
     n: Int,
     depth: Int,
+    sums: DoubleArray,
 ) {
-    val sums = DoubleArray(4)
     var column = 0
     while (column < n) {
         val columnEnd = min(column + REFERENCE_NC, n)
@@ -328,10 +342,8 @@ internal fun blockedSymmLeftUpdate(
     n: Int,
     columns: Int,
     lower: Boolean,
+    panel: DoubleArray,
 ) {
-    val panelRows = min(REFERENCE_MC, n)
-    val panelDepth = min(REFERENCE_KC, n)
-    val panel = DoubleArray(panelRows * panelDepth)
     var row = 0
     while (row < n) {
         val rowEnd = min(row + REFERENCE_MC, n)

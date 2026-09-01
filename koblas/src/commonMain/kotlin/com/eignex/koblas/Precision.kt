@@ -34,5 +34,8 @@ public typealias SparseMatrix = F64SparseMatrix
 /** Double-precision [F64Givens], the rotation an unqualified `Givens` means. */
 public typealias Givens = F64Givens
 
+/** Double-precision [F64ModifiedGivens], the modified rotation an unqualified `ModifiedGivens` means. */
+public typealias ModifiedGivens = F64ModifiedGivens
+
 /** The double-precision [F64Context], the context an unqualified `KoblasContext` means. */
 public typealias KoblasContext = F64Context

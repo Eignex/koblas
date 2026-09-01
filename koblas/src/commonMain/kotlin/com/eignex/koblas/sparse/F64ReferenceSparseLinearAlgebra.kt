@@ -7,7 +7,7 @@ import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.dense.applyBeta
 import com.eignex.koblas.dense.axpyArithmetic
-import com.eignex.koblas.dense.transposeBlocked
+import com.eignex.koblas.dense.borrowTransposed
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import com.eignex.koblas.sparse.basis.F64BasisSolver
@@ -115,6 +115,7 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         beta: Double,
         c: F64DenseMatrix,
         right: Boolean,
+        workspace: Workspace?,
     ) {
         val aRows = if (transposeA) a.cols else a.rows
         val aCols = if (transposeA) a.rows else a.cols
@@ -131,9 +132,9 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         applyBeta(denseKernels, c.data, 0, c.data.size, beta)
         if (alpha == 0.0) return
         if (right) {
-            multiplyFromTheRight(alpha, a, transposeA, b, transposeB, c, m)
+            multiplyFromTheRight(alpha, a, transposeA, b, transposeB, c, m, workspace)
         } else {
-            multiplyFromTheLeft(alpha, a, transposeA, b, transposeB, c, m, n, aCols)
+            multiplyFromTheLeft(alpha, a, transposeA, b, transposeB, c, m, n, aCols, workspace)
         }
     }
 
@@ -149,34 +150,36 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         m: Int,
         n: Int,
         k: Int,
+        workspace: Workspace?,
     ) {
         val cd = c.data
         val bd = b.data
         val ld = b.rows
-        val work = DoubleArray(REFERENCE_SPARSE_RHS_WIDTH)
-        forEachRhsPanel(n) { columnStart, width ->
-            val columnEnd = columnStart + width
-            if (transposeA) {
-                for (i in 0 until m) {
-                    work.fill(0.0, 0, width)
-                    a.forEachInColumn(i) { j, v ->
+        workspace.borrow(REFERENCE_SPARSE_RHS_WIDTH) { work ->
+            forEachRhsPanel(n) { columnStart, width ->
+                val columnEnd = columnStart + width
+                if (transposeA) {
+                    for (i in 0 until m) {
+                        work.fill(0.0, 0, width)
+                        a.forEachInColumn(i) { j, v ->
+                            for (rhs in 0 until width) {
+                                val l = columnStart + rhs
+                                work[rhs] += v * bd[if (transposeB) l + j * ld else j + l * ld]
+                            }
+                        }
+                        for (rhs in 0 until width) cd[(columnStart + rhs) * m + i] += alpha * work[rhs]
+                    }
+                } else {
+                    for (j in 0 until k) {
                         for (rhs in 0 until width) {
                             val l = columnStart + rhs
-                            work[rhs] += v * bd[if (transposeB) l + j * ld else j + l * ld]
+                            val raw = bd[if (transposeB) l + j * ld else j + l * ld]
+                            work[rhs] = alpha * raw
                         }
-                    }
-                    for (rhs in 0 until width) cd[(columnStart + rhs) * m + i] += alpha * work[rhs]
-                }
-            } else {
-                for (j in 0 until k) {
-                    for (rhs in 0 until width) {
-                        val l = columnStart + rhs
-                        val raw = bd[if (transposeB) l + j * ld else j + l * ld]
-                        work[rhs] = alpha * raw
-                    }
-                    a.forEachInColumn(j) { i, v ->
-                        for (rhs in 0 until width) {
-                            cd[(columnStart + rhs) * m + i] += v * work[rhs]
+                        a.forEachInColumn(j) { i, v ->
+                            for (rhs in 0 until width) {
+                                cd[(columnStart + rhs) * m + i] += v * work[rhs]
+                            }
                         }
                     }
                 }
@@ -198,19 +201,32 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         transposeB: Boolean,
         c: F64DenseMatrix,
         m: Int,
+        workspace: Workspace?,
     ) {
         val cd = c.data
-        val bd = if (transposeB) {
-            DoubleArray(b.data.size).also { transposeBlocked(b.data, b.rows, b.cols, it) }
+        if (transposeB) {
+            workspace.borrowTransposed(b.data, b.rows, b.cols) { packed ->
+                multiplyFromTheRightColumns(alpha, a, transposeA, cd, packed, m, m)
+            }
         } else {
-            b.data
+            multiplyFromTheRightColumns(alpha, a, transposeA, cd, b.data, m, b.rows)
         }
-        val ld = if (transposeB) m else b.rows
+    }
+
+    private fun multiplyFromTheRightColumns(
+        alpha: Double,
+        a: F64SparseMatrix,
+        transposeA: Boolean,
+        c: DoubleArray,
+        b: DoubleArray,
+        rows: Int,
+        leadingDimension: Int,
+    ) {
         for (column in 0 until a.cols) {
             a.forEachInColumn(column) { row, v ->
-                val cOff = (if (transposeA) row else column) * m
+                val cOff = (if (transposeA) row else column) * rows
                 val bColumn = if (transposeA) column else row
-                axpyArithmetic(denseKernels, cd, cOff, alpha * v, bd, bColumn * ld, m)
+                axpyArithmetic(denseKernels, c, cOff, alpha * v, b, bColumn * leadingDimension, rows)
             }
         }
     }
@@ -229,6 +245,7 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         unitDiag: Boolean,
         right: Boolean,
         alpha: Double,
+        workspace: Workspace?,
     ) {
         requireSquare(a, "trsm")
         val n = a.rows
@@ -241,14 +258,38 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
             b.data.fill(0.0)
             return
         }
+        if (n == 0) return
         if (alpha != 1.0) denseKernels.scale(b.data, 0, alpha, b.data.size)
         val rightHandSides = if (right) b.rows else b.cols
         if (rightHandSides == 0) return
-        val diagonal = if (unitDiag) null else DoubleArray(n) { a[it, it] }
         if (right) {
-            trsmRightCore(a, b, lower, !transpose, diagonal)
+            withExplicitDiagonal(a, n, unitDiag, workspace) { diagonal ->
+                trsmRightCore(a, b, lower, !transpose, diagonal)
+            }
         } else {
-            trsmLeftCore(a, b, lower, transpose, diagonal)
+            workspace.borrow(REFERENCE_SPARSE_RHS_WIDTH) { work ->
+                withExplicitDiagonal(a, n, unitDiag, workspace) { diagonal ->
+                    trsmLeftCore(a, b, lower, transpose, diagonal, work)
+                }
+            }
+        }
+    }
+
+    /** Runs [block] with the diagonal of [a] borrowed from [workspace], or null when [unitDiag] takes it as 1. */
+    private inline fun withExplicitDiagonal(
+        a: F64SparseMatrix,
+        n: Int,
+        unitDiag: Boolean,
+        workspace: Workspace?,
+        block: (DoubleArray?) -> Unit,
+    ) {
+        if (unitDiag) {
+            block(null)
+        } else {
+            workspace.borrow(n) { diagonal ->
+                for (j in 0 until n) diagonal[j] = a[j, j]
+                block(diagonal)
+            }
         }
     }
 
@@ -452,10 +493,10 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         lower: Boolean,
         transpose: Boolean,
         diagonal: DoubleArray?,
+        work: DoubleArray,
     ) {
         val n = a.rows
         val bd = b.data
-        val work = DoubleArray(REFERENCE_SPARSE_RHS_WIDTH)
         val order = if (lower != transpose) 0 until n else n - 1 downTo 0
         forEachRhsPanel(b.cols) { columnStart, width ->
             for (j in order) {

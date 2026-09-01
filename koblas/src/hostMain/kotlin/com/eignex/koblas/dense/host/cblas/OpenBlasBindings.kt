@@ -29,6 +29,8 @@ internal class CblasFunctions(private val blas: COpaquePointer) {
         .reinterpret<CFunction<(Int, Dp, Int, Dp, Int) -> Unit>>()
     val daxpy = required("cblas_daxpy")
         .reinterpret<CFunction<(Int, Double, Dp, Int, Dp, Int) -> Unit>>()
+    val drotm = required("cblas_drotm")
+        .reinterpret<CFunction<(Int, Dp, Int, Dp, Int, Dp) -> Unit>>()
     val dgemv = required("cblas_dgemv")
         .reinterpret<CFunction<(Int, Int, Int, Int, Double, Dp, Int, Dp, Int, Double, Dp, Int) -> Unit>>()
     val dgemm = required("cblas_dgemm")

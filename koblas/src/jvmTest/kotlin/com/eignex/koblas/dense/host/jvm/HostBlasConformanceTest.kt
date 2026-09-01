@@ -219,6 +219,7 @@ class HostBlasConformanceTest {
         val host = F64CblasKernels(HostBlasConfig())
         Assume.assumeTrue("host CBLAS did not bind its level-1 symbols", host.isAvailable)
         assertLevel1KernelsAgreeWithScalar(host)
+        assertModifiedGivensKernelsAgreeWithPortable(host)
         assertReductionsAgreeWithScalar(host)
         assertSwapAgreesWithScalar(host)
     }

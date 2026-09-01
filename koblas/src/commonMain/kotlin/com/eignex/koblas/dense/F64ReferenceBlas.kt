@@ -28,6 +28,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         beta: Double,
         y: DoubleArray,
         transpose: Boolean,
+        workspace: Workspace?,
     ) {
         val xLen = if (transpose) a.rows else a.cols
         val yLen = if (transpose) a.cols else a.rows
@@ -43,20 +44,21 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
                 axpyArithmetic(kernels, y, 0, alpha * x[j], ad, j * rows, rows)
             }
         } else {
-            val quads = DoubleArray(4)
-            var j = 0
-            val bound = a.cols - 3
-            while (j < bound) {
-                kernels.dot4(ad, j * rows, rows, x, 0, rows, quads, 0)
-                y[j] += alpha * quads[0]
-                y[j + 1] += alpha * quads[1]
-                y[j + 2] += alpha * quads[2]
-                y[j + 3] += alpha * quads[3]
-                j += 4
-            }
-            while (j < a.cols) {
-                y[j] += alpha * kernels.dot(ad, j * rows, x, 0, rows)
-                j++
+            workspace.borrow(4) { quads ->
+                var j = 0
+                val bound = a.cols - 3
+                while (j < bound) {
+                    kernels.dot4(ad, j * rows, rows, x, 0, rows, quads, 0)
+                    y[j] += alpha * quads[0]
+                    y[j + 1] += alpha * quads[1]
+                    y[j + 2] += alpha * quads[2]
+                    y[j + 3] += alpha * quads[3]
+                    j += 4
+                }
+                while (j < a.cols) {
+                    y[j] += alpha * kernels.dot(ad, j * rows, x, 0, rows)
+                    j++
+                }
             }
         }
     }
@@ -76,6 +78,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         transposeB: Boolean,
         beta: Double,
         c: F64DenseMatrix,
+        workspace: Workspace?,
     ) {
         val m = if (transposeA) a.cols else a.rows
         val k = if (transposeA) a.rows else a.cols
@@ -93,25 +96,29 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
                 skipZeroCoefficient = false,
             )
 
-            !transposeB -> blockedTransposedLeftUpdate(
-                kernels, alpha, a.data, 0, a.rows, b.data, 0, b.rows, cd, 0, m, m, n, k,
-            )
-
-            b.data.size <= a.data.size -> {
-                val packedB = DoubleArray(k * n)
-                transposeBlocked(b.data, b.rows, b.cols, packedB)
+            !transposeB -> workspace.borrow(4) { sums ->
                 blockedTransposedLeftUpdate(
-                    kernels, alpha, a.data, 0, a.rows, packedB, 0, k, cd, 0, m, m, n, k,
+                    kernels, alpha, a.data, 0, a.rows, b.data, 0, b.rows, cd, 0, m, m, n, k, sums,
                 )
             }
 
+            b.data.size <= a.data.size -> {
+                workspace.borrowTransposed(b.data, b.rows, b.cols) { packedB ->
+                    workspace.borrow(4) { sums ->
+                        blockedTransposedLeftUpdate(
+                            kernels, alpha, a.data, 0, a.rows, packedB, 0, k, cd, 0, m, m, n, k, sums,
+                        )
+                    }
+                }
+            }
+
             else -> {
-                val packedA = DoubleArray(m * k)
-                transposeBlocked(a.data, a.rows, a.cols, packedA)
-                blockedGemmUpdate(
-                    kernels, alpha, packedA, b.data, b.rows, true, cd, m, n, k,
-                    skipZeroCoefficient = false,
-                )
+                workspace.borrowTransposed(a.data, a.rows, a.cols) { packedA ->
+                    blockedGemmUpdate(
+                        kernels, alpha, packedA, b.data, b.rows, true, cd, m, n, k,
+                        skipZeroCoefficient = false,
+                    )
+                }
             }
         }
     }
@@ -135,8 +142,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         if (!transpose) {
             blockedSyrkUpdate(kernels, alpha, a.data, cd, n, k, lower)
         } else {
-            workspace.borrow(n * k) { packed ->
-                transposeBlocked(a.data, a.rows, a.cols, packed)
+            workspace.borrowTransposed(a.data, a.rows, a.cols) { packed ->
                 blockedSyrkUpdate(kernels, alpha, packed, cd, n, k, lower, guardZeroColumns = false)
             }
         }
@@ -187,6 +193,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         c: F64DenseMatrix,
         lower: Boolean,
         right: Boolean,
+        workspace: Workspace?,
     ) {
         requireShape(a.rows == a.cols) { "symm: matrix must be square, got ${a.rows}x${a.cols}" }
         val m = a.rows
@@ -206,7 +213,9 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         if (right) {
             blockedSymmRightUpdate(kernels, alpha, a.data, b.data, cd, b.rows, m, lower)
         } else {
-            blockedSymmLeftUpdate(kernels, alpha, a.data, b.data, cd, m, b.cols, lower)
+            workspace.borrow(minOf(REFERENCE_MC, m) * minOf(REFERENCE_KC, m)) { panel ->
+                blockedSymmLeftUpdate(kernels, alpha, a.data, b.data, cd, m, b.cols, lower, panel)
+            }
         }
     }
 
@@ -297,10 +306,8 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         if (!transpose) {
             blockedSyr2kUpdate(kernels, alpha, a.data, b.data, c.data, n, k, lower)
         } else {
-            workspace.borrow(n * k) { packedA ->
-                workspace.borrow(n * k) { packedB ->
-                    transposeBlocked(a.data, a.rows, a.cols, packedA)
-                    transposeBlocked(b.data, b.rows, b.cols, packedB)
+            workspace.borrowTransposed(a.data, a.rows, a.cols) { packedA ->
+                workspace.borrowTransposed(b.data, b.rows, b.cols) { packedB ->
                     blockedSyr2kUpdate(
                         kernels, alpha, packedA, packedB, c.data, n, k, lower,
                         guardZeroColumns = false,
@@ -326,8 +333,9 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         unitDiag: Boolean,
         right: Boolean,
         alpha: Double,
+        workspace: Workspace?,
     ) =
-        triangularMatrix(kernels, a, b, lower, transpose, unitDiag, right, alpha, solve = true)
+        triangularMatrix(kernels, a, b, lower, transpose, unitDiag, right, alpha, solve = true, workspace = workspace)
 
     /** `x = op(T) · x` in place (BLAS `dtrmv`), the product counterpart of [trsv]. */
     override fun trmv(a: F64DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) =
@@ -343,8 +351,9 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         unitDiag: Boolean,
         right: Boolean,
         alpha: Double,
+        workspace: Workspace?,
     ) =
-        triangularMatrix(kernels, a, b, lower, transpose, unitDiag, right, alpha, solve = false)
+        triangularMatrix(kernels, a, b, lower, transpose, unitDiag, right, alpha, solve = false, workspace = workspace)
 }
 
 /** Square transpose tile, small enough to keep source and destination working sets in L1 cache. */

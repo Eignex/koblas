@@ -1,5 +1,6 @@
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.F64ModifiedGivens
 import com.eignex.koblas.dense.Simd.UNROLL_MIN
 import com.eignex.koblas.internal.kernels.JvmCKernelBindings
 import jdk.incubator.vector.DoubleVector
@@ -54,6 +55,21 @@ internal actual object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
         selected.swap(a, aOff, b, bOff, len)
 
     actual override fun asum(v: DoubleArray, vOff: Int, len: Int): Double = selected.asum(v, vOff, len)
+
+    actual override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64ModifiedGivens =
+        selected.rotmg(d1, d2, x1, y1)
+
+    @Suppress("LongParameterList")
+    actual override fun rotm(
+        x: DoubleArray,
+        xOff: Int,
+        xStride: Int,
+        y: DoubleArray,
+        yOff: Int,
+        yStride: Int,
+        len: Int,
+        transformation: F64ModifiedGivens,
+    ) = selected.rotm(x, xOff, xStride, y, yOff, yStride, len, transformation)
 
     @Suppress("LongParameterList") // four column offsets plus the shared operand
     actual override fun dot4(
@@ -287,6 +303,47 @@ internal object Simd {
         }
         while (i < len) {
             v[vOff + i] *= alpha
+            i++
+        }
+    }
+
+    /**
+     * Apply the modified Givens matrix ([h11]/[h12]/[h21]/[h22]) to each pair in [x]/[y] a vector at a time,
+     * at unit stride only. Both operands of a lane are loaded before either is stored, so this stays correct
+     * even when [x] and [y] are the same array at the same offset.
+     */
+    @Suppress("LongParameterList")
+    fun rotm(
+        x: DoubleArray,
+        xOff: Int,
+        y: DoubleArray,
+        yOff: Int,
+        len: Int,
+        h11: Double,
+        h12: Double,
+        h21: Double,
+        h22: Double,
+    ) {
+        val h11Vec = DoubleVector.broadcast(SPECIES, h11)
+        val h12Vec = DoubleVector.broadcast(SPECIES, h12)
+        val h21Vec = DoubleVector.broadcast(SPECIES, h21)
+        val h22Vec = DoubleVector.broadcast(SPECIES, h22)
+        var i = 0
+        val bound = SPECIES.loopBound(len)
+        while (i < bound) {
+            val vx = DoubleVector.fromArray(SPECIES, x, xOff + i)
+            val vy = DoubleVector.fromArray(SPECIES, y, yOff + i)
+            val newX = vx.fma(h11Vec, vy.mul(h12Vec))
+            val newY = vx.fma(h21Vec, vy.mul(h22Vec))
+            newX.intoArray(x, xOff + i)
+            newY.intoArray(y, yOff + i)
+            i += LANE
+        }
+        while (i < len) {
+            val xi = x[xOff + i]
+            val yi = y[yOff + i]
+            x[xOff + i] = h11 * xi + h12 * yi
+            y[yOff + i] = h21 * xi + h22 * yi
             i++
         }
     }

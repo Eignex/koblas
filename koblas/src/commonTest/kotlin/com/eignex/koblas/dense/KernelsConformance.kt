@@ -1,5 +1,6 @@
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.F64ModifiedGivens
 import com.eignex.koblas.assertClose
 import kotlin.math.abs
 import kotlin.math.sqrt
@@ -40,6 +41,81 @@ internal fun assertLevel1KernelsAgreeWithScalar(kernels: F64Kernels) {
         kernels.scale(actualScale, pad, -0.5, len)
         assertClose(expectedScale, actualScale, context = "scale len=$len")
     }
+}
+
+/** Modified Givens construction and strided application against the portable kernel implementation. */
+internal fun assertModifiedGivensKernelsAgreeWithPortable(kernels: F64Kernels) {
+    val inputs = listOf(
+        doubleArrayOf(-1.0, 3.0, 2.0, 4.0),
+        doubleArrayOf(1.0, 0.0, 2.0, 4.0),
+        doubleArrayOf(1.0, 1.0, 2.0, 1.0),
+        doubleArrayOf(1.0, 1.0, 1.0, 2.0),
+        doubleArrayOf(1.0, -1.0, 1.0, 2.0),
+    )
+    for (input in inputs) {
+        val expected = F64ScalarKernels.rotmg(input[0], input[1], input[2], input[3])
+        val actual = kernels.rotmg(input[0], input[1], input[2], input[3])
+        assertModifiedGivensClose(expected, actual, "rotmg input=${input.toList()}")
+    }
+
+    val transformation = F64ScalarKernels.rotmg(1.0, 1.0, 1.0, 2.0)
+    for (len in intArrayOf(1, 7, 63, 64, 65, 200)) {
+        val pad = 3
+        val x = DoubleArray(2 * len + 2 * pad) { it * 0.25 - 4.0 }
+        val y = DoubleArray(2 * len + 2 * pad) { 3.0 - it * 0.125 }
+        val expectedX = x.copyOf()
+        val expectedY = y.copyOf()
+        val actualX = x.copyOf()
+        val actualY = y.copyOf()
+        F64ScalarKernels.rotm(
+            expectedX,
+            pad,
+            2,
+            expectedY,
+            pad + 2 * (len - 1),
+            -2,
+            len,
+            transformation,
+        )
+        kernels.rotm(
+            actualX,
+            pad,
+            2,
+            actualY,
+            pad + 2 * (len - 1),
+            -2,
+            len,
+            transformation,
+        )
+        assertClose(expectedX, actualX, context = "rotm x len=$len")
+        assertClose(expectedY, actualY, context = "rotm y len=$len")
+    }
+}
+
+private fun assertModifiedGivensClose(expected: F64ModifiedGivens, actual: F64ModifiedGivens, context: String) {
+    assertClose(
+        doubleArrayOf(
+            expected.d1,
+            expected.d2,
+            expected.x1,
+            expected.flag,
+            expected.h11,
+            expected.h21,
+            expected.h12,
+            expected.h22,
+        ),
+        doubleArrayOf(
+            actual.d1,
+            actual.d2,
+            actual.x1,
+            actual.flag,
+            actual.h11,
+            actual.h21,
+            actual.h12,
+            actual.h22,
+        ),
+        context = context,
+    )
 }
 
 /**
