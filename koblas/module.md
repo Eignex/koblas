@@ -15,8 +15,8 @@ sparse backings —
 `kotlinx.serialization` with their concrete storage preserved.
 
 Light arithmetic lives as free functions over the views: BLAS-1/2 (`dot`, `axpy`, `scale`, `ger`,
-`gemv`, `forEachStored`) and an SPD suite (`cholesky`, `solveSpd`,
-`invertSpd`). Their inner loops route through an `expect`/`actual` primitive seam that uses SIMD
+`gemv`, `forEachStored`) and an SPD suite (`cholesky`, then `solve` and `invert` on the returned
+[F64CholeskyDecomposition][com.eignex.koblas.dense.F64CholeskyDecomposition]). Their inner loops route through an `expect`/`actual` primitive seam that uses SIMD
 (`jdk.incubator.vector`) on the JVM when present and compiled C kernels on Native and non-SIMD JVMs.
 
 Sparse linear algebra is a first-class peer: a CSC [F64SparseMatrix][com.eignex.koblas.core.F64SparseMatrix]
