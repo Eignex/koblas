@@ -233,6 +233,9 @@ class SparseSeamTest {
         a.trsm(F64DenseMatrix.diagonal(2), lower = true)
         assertEquals(1, blas.trsms, "F64SparseMatrix.trsm should forward to the seam")
 
+        a.trmm(F64DenseMatrix.diagonal(2), lower = true)
+        assertEquals(1, blas.trmms, "F64SparseMatrix.trmm should forward to the seam")
+
         a.transpose()
         assertEquals(1, blas.transposes, "F64SparseMatrix.transpose should forward to the seam")
 

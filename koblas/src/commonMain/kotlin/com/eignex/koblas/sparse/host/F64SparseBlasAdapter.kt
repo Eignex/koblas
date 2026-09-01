@@ -51,21 +51,16 @@ public abstract class F64SparseBlasAdapter protected constructor() :
     protected fun triangularRoute(
         query: F64RouteQuery.SparseTriangularSolve,
         supported: Boolean = true,
-    ): BackendRoute {
-        val native = nativeRoute(query, this, portable.name)
-        if (supported || native.execution != BackendExecution.NATIVE) return native
-        return native.copy(
-            execution = BackendExecution.PORTABLE,
-            executor = portable.name,
-            reason = BackendRouteReason.UNSUPPORTED_ARGUMENTS,
-        )
-    }
+    ): BackendRoute = specializedTriangularRoute(query, supported)
 
     /** The multiply counterpart of [triangularRoute], independently specialized by providers that support it. */
     protected fun triangularMultiplyRoute(
         query: F64RouteQuery.SparseTriangularMultiply,
         supported: Boolean = true,
-    ): BackendRoute {
+    ): BackendRoute = specializedTriangularRoute(query, supported)
+
+    /** The fallback shape [triangularRoute] and [triangularMultiplyRoute] both build for their query. */
+    private fun specializedTriangularRoute(query: F64RouteQuery, supported: Boolean): BackendRoute {
         val native = nativeRoute(query, this, portable.name)
         if (supported || native.execution != BackendExecution.NATIVE) return native
         return native.copy(

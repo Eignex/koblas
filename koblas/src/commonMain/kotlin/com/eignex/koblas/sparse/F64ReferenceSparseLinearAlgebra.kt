@@ -275,6 +275,8 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         }
         val triangle = a.stableFor(b.data)
         if (alpha != 1.0) denseKernels.scale(b.data, 0, alpha, b.data.size)
+        // Read once for every right-hand side rather than once per triangularMultiply call, as trsm does.
+        val diagonal = if (unitDiag) null else DoubleArray(n) { triangle[it, it] }
         if (right) {
             for (row in 0 until b.rows) {
                 // A row times op(T) is op(T)ᵀ times its column-shaped view.
@@ -286,13 +288,14 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
                     lower,
                     !transpose,
                     unitDiag,
+                    diagonal,
                     guardZeroInput = false,
                     guardZeroMatrix = true,
                 )
             }
         } else {
             for (column in 0 until b.cols) {
-                triangularMultiply(triangle, b.data, column * n, 1, lower, transpose, unitDiag)
+                triangularMultiply(triangle, b.data, column * n, 1, lower, transpose, unitDiag, diagonal)
             }
         }
     }
@@ -300,6 +303,10 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
     /**
      * Sparse dtrmv over a strided vector. Direction preserves each source before its destination is written,
      * so no work buffer is needed for the ordinary in-place case.
+     *
+     * [diagonal], when given, is read instead of probing [a] for `a[j, j]`; callers that walk several
+     * right-hand sides against the same triangle (see [trmm]) precompute it once rather than paying a
+     * binary search per column per call.
      */
     @Suppress("LongParameterList") // the strided vector and BLAS triangle selectors
     private fun triangularMultiply(
@@ -310,6 +317,7 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         lower: Boolean,
         transpose: Boolean,
         unitDiag: Boolean,
+        diagonal: DoubleArray? = null,
         guardZeroInput: Boolean = true,
         guardZeroMatrix: Boolean = false,
     ) {
@@ -319,7 +327,7 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
             for (j in order) {
                 val xj = x[offset + j * stride]
                 if (!guardZeroInput || xj != 0.0) {
-                    x[offset + j * stride] = if (unitDiag) xj else a[j, j] * xj
+                    x[offset + j * stride] = if (unitDiag) xj else (diagonal?.get(j) ?: a[j, j]) * xj
                     a.forEachInColumn(j) { i, v ->
                         if ((if (lower) i > j else i < j) && (!guardZeroMatrix || v != 0.0)) {
                             val at = offset + i * stride
@@ -331,7 +339,11 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         } else {
             val order = if (lower) 0 until n else n - 1 downTo 0
             for (j in order) {
-                var sum = if (unitDiag) x[offset + j * stride] else a[j, j] * x[offset + j * stride]
+                var sum = if (unitDiag) {
+                    x[offset + j * stride]
+                } else {
+                    (diagonal?.get(j) ?: a[j, j]) * x[offset + j * stride]
+                }
                 a.forEachInColumn(j) { i, v ->
                     if ((if (lower) i > j else i < j) && (!guardZeroMatrix || v != 0.0)) {
                         sum += v * x[offset + i * stride]
@@ -342,9 +354,14 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         }
     }
 
-    /** Snapshots CSC storage only when the in-place destination aliases this matrix's live coefficient array. */
+    /**
+     * Snapshots the coefficient array only when the in-place destination aliases this matrix's live values.
+     * The column pointers and row indices are shared live rather than copied: [triangularMultiply] never
+     * mutates them, and they are documented immutable for the life of a [F64SparseMatrix].
+     */
+    @OptIn(UnsafeKoblasApi::class)
     private fun F64SparseMatrix.stableFor(destination: DoubleArray): F64SparseMatrix = if (values === destination) {
-        F64SparseMatrix.wrap(rows, cols, copyColumnPointers(), copyRowIndices(), values.copyOf())
+        F64SparseMatrix.wrap(rows, cols, colPtr, rowIdx, values.copyOf())
     } else {
         this
     }
