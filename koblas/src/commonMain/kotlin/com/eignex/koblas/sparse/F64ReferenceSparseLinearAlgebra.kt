@@ -302,6 +302,7 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         unitDiag: Boolean,
         right: Boolean,
         alpha: Double,
+        workspace: Workspace?,
     ) {
         requireSquare(a, "trmm")
         val n = a.rows
@@ -317,15 +318,21 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         val triangle = a.stableFor(b.data)
         if (alpha != 1.0) denseKernels.scale(b.data, 0, alpha, b.data.size)
         // Read once for every right-hand side rather than once per triangularMultiply call, as trsm does.
-        val diagonal = if (unitDiag) null else DoubleArray(n) { triangle[it, it] }
         if (right) {
-            trmmRightCore(triangle, b, lower, transpose, unitDiag, diagonal)
+            withExplicitDiagonal(triangle, n, unitDiag, workspace) { diagonal ->
+                trmmRightCore(triangle, b, lower, transpose, unitDiag, diagonal)
+            }
         } else {
-            trmmLeftCore(triangle, b, lower, transpose, unitDiag, diagonal)
+            workspace.borrow(REFERENCE_SPARSE_RHS_WIDTH) { work ->
+                withExplicitDiagonal(triangle, n, unitDiag, workspace) { diagonal ->
+                    trmmLeftCore(triangle, b, lower, transpose, unitDiag, diagonal, work)
+                }
+            }
         }
     }
 
     /** Sparse triangular multiply over RHS panels, so values and indices are read once for several dense columns. */
+    @Suppress("LongParameterList") // the triangle flags plus the two borrowed staging buffers
     private fun trmmLeftCore(
         a: F64SparseMatrix,
         b: F64DenseMatrix,
@@ -333,10 +340,10 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         transpose: Boolean,
         unitDiag: Boolean,
         diagonal: DoubleArray?,
+        work: DoubleArray,
     ) {
         val n = a.rows
         val bd = b.data
-        val work = DoubleArray(REFERENCE_SPARSE_RHS_WIDTH)
         val order = if (lower != transpose) n - 1 downTo 0 else 0 until n
         forEachRhsPanel(b.cols) { columnStart, width ->
             for (j in order) {

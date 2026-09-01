@@ -72,4 +72,5 @@ public fun F64SparseMatrix.trmm(
     unitDiag: Boolean = false,
     right: Boolean = false,
     alpha: Double = 1.0,
-): Unit = koblas.trmm(this, b, lower, transpose, unitDiag, right, alpha)
+    workspace: Workspace? = null,
+): Unit = koblas.trmm(this, b, lower, transpose, unitDiag, right, alpha, workspace)

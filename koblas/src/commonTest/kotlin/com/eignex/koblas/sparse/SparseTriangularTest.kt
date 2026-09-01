@@ -150,6 +150,39 @@ class SparseTriangularTest {
     }
 
     @Test
+    fun `a workspace reused across multiplications leaves every direction unchanged`() {
+        val rng = Random(20260901)
+        val n = 6
+        val rightHandSides = REFERENCE_SPARSE_RHS_WIDTH + 1
+        val workspace = Workspace()
+        for (lower in booleanArrayOf(true, false)) {
+            for (transpose in booleanArrayOf(false, true)) {
+                for (unitDiag in booleanArrayOf(false, true)) {
+                    for (right in booleanArrayOf(false, true)) {
+                        val (sparse, _) = triangle(n, lower, rng)
+                        val b = if (right) {
+                            randomMatrix(rightHandSides, n, rng)
+                        } else {
+                            randomMatrix(n, rightHandSides, rng)
+                        }
+                        val fresh = F64DenseMatrix.wrap(b.rows, b.cols, b.data.copyOf())
+                        sparse.trmm(fresh, lower, transpose, unitDiag, right, alpha = -0.75)
+                        val reused = F64DenseMatrix.wrap(b.rows, b.cols, b.data.copyOf())
+                        sparse.trmm(reused, lower, transpose, unitDiag, right, alpha = -0.75, workspace = workspace)
+
+                        assertClose(
+                            fresh,
+                            reused,
+                            "n=$n lower=$lower transpose=$transpose unit=$unitDiag right=$right",
+                            tolerance = 0.0,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
     fun `triangular multiplication treats a missing diagonal as zero without division`() {
         val triangle = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0, 1 to 3.0), listOf()))
         val vector = doubleArrayOf(2.0, 4.0)
@@ -446,7 +479,8 @@ class SparseTriangularTest {
                 unitDiag: Boolean,
                 right: Boolean,
                 alpha: Double,
-            ) = F64ReferenceSparseLinearAlgebra.trmm(a, b, lower, transpose, unitDiag, right, alpha)
+                workspace: Workspace?,
+            ) = F64ReferenceSparseLinearAlgebra.trmm(a, b, lower, transpose, unitDiag, right, alpha, workspace)
         }
         registerBackend(counting)
         val t = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 4.0)))

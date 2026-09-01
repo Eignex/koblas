@@ -137,9 +137,10 @@ class SparseSeamTest {
             unitDiag: Boolean,
             right: Boolean,
             alpha: Double,
+            workspace: Workspace?,
         ) {
             trmms++
-            F64ReferenceSparseLinearAlgebra.trmm(a, b, lower, transpose, unitDiag, right, alpha)
+            F64ReferenceSparseLinearAlgebra.trmm(a, b, lower, transpose, unitDiag, right, alpha, workspace)
         }
     }
 

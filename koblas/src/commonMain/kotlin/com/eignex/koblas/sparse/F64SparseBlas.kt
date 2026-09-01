@@ -125,6 +125,7 @@ public interface F64SparseBlas : Backend {
      * `B = alpha · op(T) · B` in place, or `B = alpha · B · op(T)` when [right] (BLAS `dtrmm`). The triangle
      * flags follow [trmv]. This is multiplication rather than a solve, so zero or missing diagonal entries
      * participate normally and are never treated as singular. The destination may share [a]'s value buffer.
+     * [workspace] reuses portable diagonal and RHS-panel staging, as in [trsm].
      */
     @Suppress("LongParameterList") // the BLAS dtrmm signature
     public fun trmm(
@@ -135,6 +136,7 @@ public interface F64SparseBlas : Backend {
         unitDiag: Boolean = false,
         right: Boolean = false,
         alpha: Double = 1.0,
+        workspace: Workspace? = null,
     )
 
     /**

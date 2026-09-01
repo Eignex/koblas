@@ -433,6 +433,7 @@ public class F64Context(
         unitDiag: Boolean,
         right: Boolean,
         alpha: Double,
+        workspace: Workspace?,
     ) {
         if (enforcesRoutingPolicy) {
             requireShape(a.rows == a.cols) { "trmm: matrix must be square, got ${a.rows}x${a.cols}" }
@@ -453,7 +454,7 @@ public class F64Context(
                 ),
             )
         }
-        sparseBlas.trmm(a, b, lower, transpose, unitDiag, right, alpha)
+        sparseBlas.trmm(a, b, lower, transpose, unitDiag, right, alpha, workspace)
     }
 
     override fun factor(a: F64SparseMatrix): F64SparseLuFactorization {

@@ -145,7 +145,8 @@ public abstract class F64SparseBlasAdapter protected constructor() :
         unitDiag: Boolean,
         right: Boolean,
         alpha: Double,
-    ): Unit = portable.trmm(a, b, lower, transpose, unitDiag, right, alpha)
+        workspace: Workspace?,
+    ): Unit = portable.trmm(a, b, lower, transpose, unitDiag, right, alpha, workspace)
 
     /**
      * Portable, deliberately. CHOLMOD has `cholmod_ssmult` and it was bound and measured; against the

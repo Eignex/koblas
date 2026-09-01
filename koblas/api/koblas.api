@@ -336,7 +336,7 @@ public final class com/eignex/koblas/F64Context : com/eignex/koblas/dense/F64Bla
 	public fun transpose (Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public fun transpose (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/core/F64SparseMatrix;
 	public fun trmm (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZZZZDLcom/eignex/koblas/Workspace;)V
-	public fun trmm (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZZZZD)V
+	public fun trmm (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZZZZDLcom/eignex/koblas/Workspace;)V
 	public fun trmv (Lcom/eignex/koblas/core/F64DenseMatrix;[DZZZ)V
 	public fun trmv (Lcom/eignex/koblas/core/F64SparseMatrix;[DZZZ)V
 	public fun trsm (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZZZZDLcom/eignex/koblas/Workspace;)V
@@ -1732,7 +1732,7 @@ public class com/eignex/koblas/sparse/F64ReferenceSparseBackend : com/eignex/kob
 	public fun solveInto (Lcom/eignex/koblas/sparse/F64SparseFactorization;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public fun solveInto (Lcom/eignex/koblas/sparse/F64SparseFactorization;[D[DZLcom/eignex/koblas/Workspace;)[D
 	public fun transpose (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/core/F64SparseMatrix;
-	public fun trmm (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZZZZD)V
+	public fun trmm (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZZZZDLcom/eignex/koblas/Workspace;)V
 	public fun trmv (Lcom/eignex/koblas/core/F64SparseMatrix;[DZZZ)V
 	public fun trsm (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZZZZDLcom/eignex/koblas/Workspace;)V
 	public fun trsv (Lcom/eignex/koblas/core/F64SparseMatrix;[DZZZ)V
@@ -1812,8 +1812,8 @@ public abstract interface class com/eignex/koblas/sparse/F64SparseBlas : com/eig
 	public static synthetic fun gemv$default (Lcom/eignex/koblas/sparse/F64SparseBlas;Lcom/eignex/koblas/core/F64SparseMatrix;[DZILjava/lang/Object;)[D
 	public fun prepare (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64PreparedSparseMatrix;
 	public abstract fun transpose (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/core/F64SparseMatrix;
-	public abstract fun trmm (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZZZZD)V
-	public static synthetic fun trmm$default (Lcom/eignex/koblas/sparse/F64SparseBlas;Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZZZZDILjava/lang/Object;)V
+	public abstract fun trmm (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZZZZDLcom/eignex/koblas/Workspace;)V
+	public static synthetic fun trmm$default (Lcom/eignex/koblas/sparse/F64SparseBlas;Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZZZZDLcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
 	public abstract fun trmv (Lcom/eignex/koblas/core/F64SparseMatrix;[DZZZ)V
 	public static synthetic fun trmv$default (Lcom/eignex/koblas/sparse/F64SparseBlas;Lcom/eignex/koblas/core/F64SparseMatrix;[DZZZILjava/lang/Object;)V
 	public abstract fun trsm (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZZZZDLcom/eignex/koblas/Workspace;)V
@@ -1832,7 +1832,7 @@ public final class com/eignex/koblas/sparse/F64SparseBlas$DefaultImpls {
 	public static fun isAvailable (Lcom/eignex/koblas/sparse/F64SparseBlas;)Z
 	public static fun isPortable (Lcom/eignex/koblas/sparse/F64SparseBlas;)Z
 	public static fun prepare (Lcom/eignex/koblas/sparse/F64SparseBlas;Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64PreparedSparseMatrix;
-	public static synthetic fun trmm$default (Lcom/eignex/koblas/sparse/F64SparseBlas;Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZZZZDILjava/lang/Object;)V
+	public static synthetic fun trmm$default (Lcom/eignex/koblas/sparse/F64SparseBlas;Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZZZZDLcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
 	public static synthetic fun trmv$default (Lcom/eignex/koblas/sparse/F64SparseBlas;Lcom/eignex/koblas/core/F64SparseMatrix;[DZZZILjava/lang/Object;)V
 	public static synthetic fun trsm$default (Lcom/eignex/koblas/sparse/F64SparseBlas;Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZZZZDLcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
 	public static synthetic fun trsv$default (Lcom/eignex/koblas/sparse/F64SparseBlas;Lcom/eignex/koblas/core/F64SparseMatrix;[DZZZILjava/lang/Object;)V
@@ -2074,8 +2074,8 @@ public final class com/eignex/koblas/sparse/SparseOpsKt {
 	public static final fun prepare (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64PreparedSparseMatrix;
 	public static final fun qr (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseQrFactorization;
 	public static final fun quasiDefiniteLdl (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64QuasiDefiniteLdlFactorization;
-	public static final fun trmm (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZZZZD)V
-	public static synthetic fun trmm$default (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZZZZDILjava/lang/Object;)V
+	public static final fun trmm (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZZZZDLcom/eignex/koblas/Workspace;)V
+	public static synthetic fun trmm$default (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZZZZDLcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
 	public static final fun trmv (Lcom/eignex/koblas/core/F64SparseMatrix;[DZZZ)V
 	public static synthetic fun trmv$default (Lcom/eignex/koblas/core/F64SparseMatrix;[DZZZILjava/lang/Object;)V
 	public static final fun trsm (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZZZZDLcom/eignex/koblas/Workspace;)V
@@ -2313,7 +2313,7 @@ public abstract class com/eignex/koblas/sparse/host/F64SparseBlasAdapter : com/e
 	public final fun transpose (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/core/F64SparseMatrix;
 	protected final fun triangularRoute (Lcom/eignex/koblas/F64RouteQuery$SparseTriangular;Z)Lcom/eignex/koblas/BackendRoute;
 	public static synthetic fun triangularRoute$default (Lcom/eignex/koblas/sparse/host/F64SparseBlasAdapter;Lcom/eignex/koblas/F64RouteQuery$SparseTriangular;ZILjava/lang/Object;)Lcom/eignex/koblas/BackendRoute;
-	public fun trmm (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZZZZD)V
+	public fun trmm (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZZZZDLcom/eignex/koblas/Workspace;)V
 	public fun trmv (Lcom/eignex/koblas/core/F64SparseMatrix;[DZZZ)V
 	public fun trsm (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZZZZDLcom/eignex/koblas/Workspace;)V
 	public fun trsv (Lcom/eignex/koblas/core/F64SparseMatrix;[DZZZ)V
