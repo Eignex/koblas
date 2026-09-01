@@ -157,7 +157,7 @@ class DestinationPassingTest {
     }
 
     @Test
-    fun `LU decomposition-receiver solveInto matches the koblas dispatch form, aliased or not`() {
+    fun `LU decomposition-receiver solveInto matches the koblas dispatch form aliased or not`() {
         val rng = Random(20260760)
         val n = 11
         val lu = wellConditioned(n, rng).lu()
@@ -183,7 +183,7 @@ class DestinationPassingTest {
     }
 
     @Test
-    fun `LDL decomposition-receiver solveInto matches the koblas dispatch form, aliased or not`() {
+    fun `LDL decomposition-receiver solveInto matches the koblas dispatch form aliased or not`() {
         val rng = Random(20260761)
         val n = 9
         val (a, _) = poisonedIndefinite(rng, n)
@@ -205,7 +205,7 @@ class DestinationPassingTest {
     }
 
     @Test
-    fun `Cholesky decomposition-receiver solveInto matches the koblas dispatch form, aliased or not`() {
+    fun `Cholesky decomposition-receiver solveInto matches the koblas dispatch form aliased or not`() {
         val rng = Random(20260762)
         val n = 8
         val chol = wellConditioned(n, rng).cholesky()
