@@ -63,6 +63,7 @@ public open class CholmodSparseBlas(
         b: F64DenseMatrix,
         beta: Double,
         c: F64DenseMatrix,
+        workspace: Workspace?,
     ) {
         val m = if (transposeA) a.cols else a.rows
         val k = if (transposeA) a.rows else a.cols
@@ -70,7 +71,7 @@ public open class CholmodSparseBlas(
         requireShape(c.rows == m && c.cols == b.cols) {
             "gemm: C is ${c.rows}x${c.cols}, expected ${m}x${b.cols}"
         }
-        prepare(a).use { it.gemm(alpha, transposeA, b, beta, c) }
+        prepare(a).use { it.gemm(alpha, transposeA, b, beta, c, workspace) }
     }
 }
 

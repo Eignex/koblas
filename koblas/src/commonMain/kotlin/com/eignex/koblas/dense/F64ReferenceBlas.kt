@@ -356,8 +356,9 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         unitDiag: Boolean,
         right: Boolean,
         alpha: Double,
+        workspace: Workspace?,
     ) =
-        triangularMatrix(kernels, a, b, lower, transpose, unitDiag, right, alpha, solve = false)
+        triangularMatrix(kernels, a, b, lower, transpose, unitDiag, right, alpha, solve = false, workspace = workspace)
 }
 
 /** Square transpose tile, small enough to keep source and destination working sets in L1 cache. */

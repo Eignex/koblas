@@ -94,10 +94,11 @@ public abstract class F64SparseBlasAdapter protected constructor() :
         if (!nativeAvailable || right || transposeB) {
             return portable.gemm(alpha, a, transposeA, b, transposeB, beta, c, right, workspace)
         }
-        gemmNative(alpha, a, transposeA, b, beta, c)
+        gemmNative(alpha, a, transposeA, b, beta, c, workspace)
     }
 
-    /** `C = alpha · op(A) · B + beta · C` through the native library, with `B` read as it stands. */
+    /** `C = alpha · op(A) · B + beta · C` through the native library, with `B` read as it stands. [workspace]
+     *  reuses portable staging on the software fallback the native call keeps for itself. */
     @Suppress("LongParameterList") // the BLAS dgemm signature less the flags this one does not take
     protected abstract fun gemmNative(
         alpha: Double,
@@ -106,6 +107,7 @@ public abstract class F64SparseBlasAdapter protected constructor() :
         b: F64DenseMatrix,
         beta: Double,
         c: F64DenseMatrix,
+        workspace: Workspace?,
     )
 
     override fun trsv(

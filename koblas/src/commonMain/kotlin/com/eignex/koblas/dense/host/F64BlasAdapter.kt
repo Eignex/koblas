@@ -163,6 +163,7 @@ public abstract class F64BlasAdapter internal constructor(
         unitDiag: Boolean,
         right: Boolean,
         alpha: Double,
+        workspace: Workspace?,
     ) {
         nativeTriangularMatrix(a, b, lower, transpose, unitDiag, right, alpha, solve = false)
     }

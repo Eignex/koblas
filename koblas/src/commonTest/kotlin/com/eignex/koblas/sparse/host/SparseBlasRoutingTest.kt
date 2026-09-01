@@ -17,6 +17,7 @@ class SparseBlasRoutingTest {
             b: F64DenseMatrix,
             beta: Double,
             c: F64DenseMatrix,
+            workspace: Workspace?,
         ) = error("not reached by routing diagnostics")
     }
 

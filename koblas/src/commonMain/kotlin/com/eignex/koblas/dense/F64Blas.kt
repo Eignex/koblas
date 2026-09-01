@@ -268,7 +268,7 @@ public interface F64Blas : Backend {
     )
 
     /** `B = alpha · op(T) · B`, or `B = alpha · B · op(T)` when [right] (BLAS `dtrmm`), the counterpart of
-     *  [trsm]. */
+     *  [trsm]. [workspace] reuses portable staging. */
     @Suppress("LongParameterList") // the BLAS dtrmm signature
     public fun trmm(
         a: F64DenseMatrix,
@@ -278,5 +278,6 @@ public interface F64Blas : Backend {
         unitDiag: Boolean = false,
         right: Boolean = false,
         alpha: Double = 1.0,
+        workspace: Workspace? = null,
     )
 }
