@@ -5,21 +5,24 @@ import com.eignex.koblas.core.F64DenseMatrix
 
 /**
  * A general LU factorization with partial pivoting, `P·A = L·U`, packed column-major with `L` below the
- * diagonal and `U` on and above. [lu] and [piv] are live buffers, not copies, so treat them as read-only.
+ * diagonal and `U` on and above. [lu] is a live buffer, not a copy, so treat it as read-only.
  *
  * @property rows the factored matrix's row count.
  * @property cols the factored matrix's column count.
  * @property lu the packed `L`\`U` factors, column-major, length `rows * cols`.
- * @property piv the normalized row permutation, where piv(k) is the original row now at position k.
+ * @param piv the live normalized 0-based row permutation, kept internally for [rowPermutation] and [rowAt].
  * @param failedAt the position of the zero pivot, or [NOT_SINGULAR]; readable afterwards through [failedAt].
  */
 public class F64LuDecomposition @UnsafeKoblasApi constructor(
     public val rows: Int,
     public val cols: Int,
     @property:UnsafeKoblasApi public val lu: DoubleArray,
-    @property:UnsafeKoblasApi public val piv: IntArray,
+    piv: IntArray,
     failedAt: Int = NOT_SINGULAR,
 ) {
+    /** The mutable factorization buffer for internal implementations. */
+    internal val mutablePivots: IntArray = piv
+
     /** Compatibility name for the number of DGETRF pivot steps, [order]. */
     public val n: Int get() = order
 
@@ -58,7 +61,7 @@ public class F64LuDecomposition @UnsafeKoblasApi constructor(
 
     init {
         requireShape(lu.size == rows * cols) { "lu length ${lu.size} != ${rows * cols}" }
-        requireShape(piv.size == rows) { "piv length ${piv.size} != $rows" }
+        requireShape(mutablePivots.size == rows) { "piv length ${mutablePivots.size} != $rows" }
     }
 
     /** Extracts the `rows × order` unit-lower trapezoid `L` as an independent matrix. */
@@ -80,11 +83,18 @@ public class F64LuDecomposition @UnsafeKoblasApi constructor(
     /** A safe extracted copy of the upper trapezoid; shorthand for [upper]. */
     public val u: F64DenseMatrix get() = upper()
 
-    /** Returns a safe copy of the normalized row permutation represented by [piv]. */
-    public fun permutation(): IntArray = piv.copyOf()
+    /** Returns a safe copy of the normalized row permutation, where entry `k` is the original row now at
+     *  position `k`. */
+    public fun permutation(): IntArray = mutablePivots.copyOf()
 
     /** A safe snapshot of the original row at every current row position; shorthand for [permutation]. */
     public val rowPermutation: IntArray get() = permutation()
+
+    /** The original 0-based row now at factor row [position]. */
+    public fun rowAt(position: Int): Int {
+        requireInBounds(position, rows)
+        return mutablePivots[position]
+    }
 }
 
 /**
@@ -99,7 +109,7 @@ public class F64LuDecomposition @UnsafeKoblasApi constructor(
 public fun F64LuDecomposition.determinant(): Double {
     requireLuSquare(this, "determinant")
     if (singular) return 0.0
-    var d = permutationSign(piv)
+    var d = permutationSign(mutablePivots)
     for (k in 0 until order) d *= lu[k + k * rows]
     return d
 }
