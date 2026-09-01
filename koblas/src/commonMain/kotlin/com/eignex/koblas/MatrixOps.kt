@@ -232,7 +232,9 @@ private fun F64SparseMatrix.syrFinite(alpha: Double, x: DoubleArray, lower: Bool
                 }
 
                 updateRow < sourceRow -> {
-                    out.add(updateRow, (alpha * x[j]) * x[updateRow])
+                    // Adding onto 0.0 rather than storing the bare term keeps an underflowing product at
+                    // +0.0, the sign IEEE addition to a zero-initialized entry would produce.
+                    out.add(updateRow, 0.0 + (alpha * x[j]) * x[updateRow])
                     update++
                 }
 

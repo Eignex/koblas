@@ -97,6 +97,18 @@ class SparseSymmetricRankUpdateTest {
     }
 
     @Test
+    fun `sparse syr keeps a positive sign on an underflowing pure fill entry`() {
+        val alpha = 1e-200
+        val x = F64DenseVector.of(doubleArrayOf(-1e-200, 1.0))
+        val source = F64SparseMatrix.ofColumns(2, 2, listOf(emptyList(), emptyList()))
+
+        val actual = source.syr(alpha, x, lower = true)
+
+        val expected = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 0.0, 1 to 0.0), listOf(1 to alpha)))
+        assertEquals(expected, actual, "underflowing fill must land on +0.0, not -0.0")
+    }
+
+    @Test
     fun `sparse rank updates support empty shapes and reject incompatible operands`() {
         val empty = F64SparseMatrix.ofColumns(0, 0, emptyList())
 
