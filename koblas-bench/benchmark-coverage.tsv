@@ -37,12 +37,12 @@ F64DenseMatrix.normFro()	com.eignex.koblas.bench.MatrixOpsBenchmark.normFro	benc
 F64DenseMatrix.scaleRows(DoubleArray)	com.eignex.koblas.bench.MatrixOpsBenchmark.scaleRowsBench	benchmarked	
 F64DenseMatrix.scaleColumns(DoubleArray)	com.eignex.koblas.bench.MatrixOpsBenchmark.scaleColumnsBench	benchmarked	
 F64DenseMatrix.transpose()	com.eignex.koblas.bench.MatrixOpsBenchmark.transposeDense	benchmarked	
-F64SparseMatrix.norm1()	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.norm1	benchmarked	-
-F64SparseMatrix.normInf()	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.normInf	benchmarked	-
-F64SparseMatrix.normFro()	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.normFro	benchmarked	-
-F64SparseMatrix.scaleRows(DoubleArray)	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.scaleRowsBench	benchmarked	-
-F64SparseMatrix.column(Int)	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.column	benchmarked	-
-F64SparseMatrix.row(Int)	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.row	benchmarked	-
+F64SparseMatrix.norm1()	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.norm1	benchmarked	
+F64SparseMatrix.normInf()	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.normInf	benchmarked	
+F64SparseMatrix.normFro()	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.normFro	benchmarked	
+F64SparseMatrix.scaleRows(DoubleArray)	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.scaleRowsBench	benchmarked	
+F64SparseMatrix.column(Int)	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.column	benchmarked	
+F64SparseMatrix.row(Int)	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.row	benchmarked	
 F64DenseMatrix.qr()	com.eignex.koblas.bench.QrBenchmark.qrSquare	benchmarked	
 F64DenseMatrix.qr(tall)	com.eignex.koblas.bench.QrBenchmark.qrTall	benchmarked	
 F64DenseMatrix.qrPivoted(square)	com.eignex.koblas.bench.QrBenchmark.qrPivotedSquare	benchmarked	
