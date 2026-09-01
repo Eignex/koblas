@@ -18,15 +18,41 @@ class SparseMatrixOpsTest {
     private fun dense(a: F64SparseMatrix): F64DenseMatrix = F64DenseMatrix.of(a.toArray())
 
     @Test
-    fun `sparse matrix operations agree with dense reference`() {
+    fun `sparse norm1 agrees with dense reference`() {
+        val sparse = example()
+        assertEquals(dense(sparse).norm1(), sparse.norm1())
+    }
+
+    @Test
+    fun `sparse normInf agrees with dense reference`() {
+        val sparse = example()
+        assertEquals(dense(sparse).normInf(), sparse.normInf())
+    }
+
+    @Test
+    fun `sparse normFro agrees with dense reference`() {
+        val sparse = example()
+        assertEquals(dense(sparse).normFro(), sparse.normFro())
+    }
+
+    @Test
+    fun `sparse column agrees with dense reference`() {
         val sparse = example()
         val dense = dense(sparse)
-
-        assertEquals(dense.norm1(), sparse.norm1())
-        assertEquals(dense.normInf(), sparse.normInf())
-        assertEquals(dense.normFro(), sparse.normFro())
         for (j in 0 until sparse.cols) assertContentEquals(dense.column(j).data, sparse.column(j).toDoubleArray())
+    }
+
+    @Test
+    fun `sparse row agrees with dense reference`() {
+        val sparse = example()
+        val dense = dense(sparse)
         for (i in 0 until sparse.rows) assertContentEquals(dense.row(i).data, sparse.row(i).toDoubleArray())
+    }
+
+    @Test
+    fun `sparse scaleRows agrees with dense reference`() {
+        val sparse = example()
+        val dense = dense(sparse)
 
         val factors = doubleArrayOf(-2.0, 0.5, 3.0)
         sparse.scaleRows(factors)
@@ -69,14 +95,47 @@ class SparseMatrixOpsTest {
     }
 
     @Test
-    fun `sparse norms handle empty shapes and NaN`() {
+    fun `row and column return no stored entries for a row or column with none`() {
+        val sparse = F64SparseMatrix.ofTriplets(
+            rows = 4,
+            cols = 3,
+            rowIdx = intArrayOf(0, 3),
+            colIdx = intArrayOf(0, 2),
+            values = doubleArrayOf(1.0, 2.0),
+        )
+
+        val emptyRow = sparse.row(1)
+        assertContentEquals(IntArray(0), emptyRow.copyIndices())
+        assertContentEquals(DoubleArray(3), emptyRow.toDoubleArray())
+
+        val emptyColumn = sparse.column(1)
+        assertContentEquals(IntArray(0), emptyColumn.copyIndices())
+        assertContentEquals(DoubleArray(4), emptyColumn.toDoubleArray())
+    }
+
+    @Test
+    fun `sparse norms are zero for empty shapes`() {
         for ((rows, cols) in listOf(0 to 0, 0 to 3, 4 to 0)) {
             val empty = F64SparseMatrix.ofTriplets(rows, cols, IntArray(0), IntArray(0), DoubleArray(0))
             assertEquals(0.0, empty.norm1())
             assertEquals(0.0, empty.normInf())
             assertEquals(0.0, empty.normFro())
         }
+    }
 
+    @Test
+    fun `row and column and scaleRows handle empty shapes`() {
+        val noRows = F64SparseMatrix.ofTriplets(0, 3, IntArray(0), IntArray(0), DoubleArray(0))
+        noRows.scaleRows(DoubleArray(0))
+        for (j in 0 until noRows.cols) assertContentEquals(DoubleArray(0), noRows.column(j).toDoubleArray())
+
+        val noCols = F64SparseMatrix.ofTriplets(4, 0, IntArray(0), IntArray(0), DoubleArray(0))
+        noCols.scaleRows(DoubleArray(4))
+        for (i in 0 until noCols.rows) assertContentEquals(DoubleArray(0), noCols.row(i).toDoubleArray())
+    }
+
+    @Test
+    fun `sparse norm1 and normInf and normFro carry a NaN through`() {
         val poisoned = F64SparseMatrix.ofTriplets(
             2,
             2,
@@ -87,11 +146,12 @@ class SparseMatrixOpsTest {
         assertTrue(poisoned.norm1().isNaN())
         assertTrue(poisoned.normInf().isNaN())
         assertTrue(poisoned.normFro().isNaN())
-        assertEquals(
-            5e200,
-            F64SparseMatrix.ofTriplets(1, 2, intArrayOf(0, 0), intArrayOf(0, 1), doubleArrayOf(3e200, 4e200)).normFro(),
-            1e188,
-        )
+    }
+
+    @Test
+    fun `sparse normFro survives entries that square out of range`() {
+        val big = F64SparseMatrix.ofTriplets(1, 2, intArrayOf(0, 0), intArrayOf(0, 1), doubleArrayOf(3e200, 4e200))
+        assertEquals(5e200, big.normFro(), 1e188)
     }
 
     @Test
