@@ -16,6 +16,7 @@ class Level1Benchmark {
 
     private lateinit var x: F64DenseVector
     private lateinit var y: F64DenseVector
+    private lateinit var modifiedRotation: F64ModifiedGivens
 
     private lateinit var quad: DoubleArray
     private val quadOut = DoubleArray(4)
@@ -27,6 +28,7 @@ class Level1Benchmark {
         val rng = benchRng()
         x = F64DenseVector.of(randomVector(len, rng))
         y = F64DenseVector.of(randomVector(len, rng))
+        modifiedRotation = rotmg(1.0, 1.0, 2.0, 1.0)
         quad = randomVector(4 * len, rng)
     }
 
@@ -58,6 +60,14 @@ class Level1Benchmark {
     @Benchmark
     fun swapBench() {
         swap(x, y)
+    }
+
+    @Benchmark
+    fun rotmgBench(): F64ModifiedGivens = rotmg(1.0, 1.0, 2.0, 1.0)
+
+    @Benchmark
+    fun rotmBench() {
+        rotm(x, y, modifiedRotation)
     }
 
     @Benchmark

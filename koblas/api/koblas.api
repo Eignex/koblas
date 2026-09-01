@@ -398,6 +398,23 @@ public final class com/eignex/koblas/F64GivensKt {
 	public static final fun rotg (DD)Lcom/eignex/koblas/F64Givens;
 }
 
+public final class com/eignex/koblas/F64ModifiedGivens {
+	public final fun getD1 ()D
+	public final fun getD2 ()D
+	public final fun getFlag ()D
+	public final fun getH11 ()D
+	public final fun getH12 ()D
+	public final fun getH21 ()D
+	public final fun getH22 ()D
+	public final fun getX1 ()D
+}
+
+public final class com/eignex/koblas/F64ModifiedGivensKt {
+	public static final fun rotm (Lcom/eignex/koblas/core/F64DenseVector;Lcom/eignex/koblas/core/F64DenseVector;Lcom/eignex/koblas/F64ModifiedGivens;)V
+	public static final fun rotm (Lcom/eignex/koblas/core/F64StridedVectorView;Lcom/eignex/koblas/core/F64StridedVectorView;Lcom/eignex/koblas/F64ModifiedGivens;)V
+	public static final fun rotmg (DDDD)Lcom/eignex/koblas/F64ModifiedGivens;
+}
+
 public final class com/eignex/koblas/F64RoutePlan {
 	public fun <init> (Lcom/eignex/koblas/BackendRoute;Lcom/eignex/koblas/BackendPolicyDecision;)V
 	public final fun component1 ()Lcom/eignex/koblas/BackendRoute;
