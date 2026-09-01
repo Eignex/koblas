@@ -22,15 +22,13 @@ internal class F64ReferenceDecompositions(private val configured: F64Kernels? = 
     override fun pivotedSymmetricIndefinite(
         a: F64DenseMatrix,
         workspace: Workspace?,
-    ): F64PivotedSymmetricIndefiniteDecomposition =
-        referenceLdl(kernels, a, workspace)
+    ): F64PivotedSymmetricIndefiniteDecomposition = referenceLdl(kernels, a, workspace)
 
     override fun solveInto(
         factor: F64PivotedSymmetricIndefiniteDecomposition,
         b: DoubleArray,
         out: DoubleArray,
-    ): DoubleArray =
-        referenceLdlSolveInto(kernels, factor, b, out)
+    ): DoubleArray = referenceLdlSolveInto(kernels, factor, b, out)
 
     override fun qr(a: F64DenseMatrix, workspace: Workspace?): F64QrDecomposition = referenceQr(kernels, a)
 

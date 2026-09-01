@@ -171,10 +171,10 @@ private fun Map<BackendRole, Backend>.semanticCholesky(reference: F64ReferenceSp
 private fun Map<BackendRole, Backend>.semanticQuasiDefiniteLdl(
     reference: F64ReferenceSparseBackend,
 ): F64QuasiDefiniteLdl = when (val backend = getValue(BackendRole.SPARSE_QUASI_DEFINITE_LDL)) {
-        F64ReferenceSparseLinearAlgebra -> reference
-        is F64QuasiDefiniteLdl -> backend
-        else -> error("${backend.name} does not implement sparse quasi-definite LDL")
-    }
+    F64ReferenceSparseLinearAlgebra -> reference
+    is F64QuasiDefiniteLdl -> backend
+    else -> error("${backend.name} does not implement sparse quasi-definite LDL")
+}
 
 private fun Map<BackendRole, Backend>.semanticQr(reference: F64ReferenceSparseBackend): F64SparseQr =
     when (val backend = getValue(BackendRole.SPARSE_QR)) {

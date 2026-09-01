@@ -132,7 +132,7 @@ public class F64QuasiDefiniteUpLookingLdl internal constructor(
          * does. A negative one does not: it is what an indefinite matrix is expected to produce.
          */
         public fun factorLower(a: F64SparseMatrix): F64QuasiDefiniteUpLookingLdl {
-            requireSquare(a, "ldl")
+            requireSquare(a, "quasiDefiniteLdl")
             val n = a.rows
             // The up-looking sweep reads row k of A left of the diagonal, and CSC stores columns.
             val upper = transposeCsc(a)
@@ -146,16 +146,6 @@ public class F64QuasiDefiniteUpLookingLdl internal constructor(
         }
     }
 }
-
-/**
- * @deprecated This up-looking sparse LDL implementation is quasi-definite and numerically unpivoted. Use
- * [F64QuasiDefiniteUpLookingLdl].
- */
-@Deprecated(
-    "Sparse LDL is quasi-definite and numerically unpivoted; use F64QuasiDefiniteUpLookingLdl.",
-    ReplaceWith("F64QuasiDefiniteUpLookingLdl"),
-)
-public typealias F64SparseUpLookingLdl = F64QuasiDefiniteUpLookingLdl
 
 /**
  * The up-looking numeric factorization: row `k` of `L` is a sparse triangular solve against the rows already

@@ -12,13 +12,13 @@ import com.eignex.koblas.dense.F64LuDecomposition
 import com.eignex.koblas.internal.backend.BackendSlot
 import com.eignex.koblas.sparse.F64BasisFactorizations
 import com.eignex.koblas.sparse.F64GeneralSparseLu
+import com.eignex.koblas.sparse.F64QuasiDefiniteLdl
 import com.eignex.koblas.sparse.F64RepeatedSparseLu
 import com.eignex.koblas.sparse.F64SparseBlas
 import com.eignex.koblas.sparse.F64SparseCholesky
 import com.eignex.koblas.sparse.F64SparseDecompositionRoles
 import com.eignex.koblas.sparse.F64SparseDecompositions
 import com.eignex.koblas.sparse.F64SparseKernels
-import com.eignex.koblas.sparse.F64QuasiDefiniteLdl
 import com.eignex.koblas.sparse.F64SparseLinearAlgebra
 import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.F64SparseQr
@@ -86,16 +86,6 @@ public class F64Context(
 
     /** Provider selected for sparse quasi-definite, numerically unpivoted `L * D * L^T`. */
     public val quasiDefiniteLdl: F64QuasiDefiniteLdl get() = selectedQuasiDefiniteLdl
-
-    /**
-     * @deprecated Sparse LDL is specifically quasi-definite and numerically unpivoted. Use
-     * [quasiDefiniteLdl].
-     */
-    @Deprecated(
-        "Sparse LDL is quasi-definite and numerically unpivoted; use quasiDefiniteLdl.",
-        ReplaceWith("quasiDefiniteLdl"),
-    )
-    public val sparseLdl: F64QuasiDefiniteLdl get() = quasiDefiniteLdl
 
     private var selectedSparseQr: F64SparseQr = sparseDecompositions.qrCapability()
 

@@ -39,20 +39,6 @@ public enum class BackendRole {
 
     /** Simplex basis solvers. */
     BASIS_SOLVERS,
-
-    ;
-
-    public companion object {
-        /**
-         * @deprecated Sparse LDL is specifically quasi-definite and numerically unpivoted. Use
-         * [SPARSE_QUASI_DEFINITE_LDL].
-         */
-        @Deprecated(
-            "Sparse LDL is quasi-definite and numerically unpivoted; use SPARSE_QUASI_DEFINITE_LDL.",
-            ReplaceWith("BackendRole.SPARSE_QUASI_DEFINITE_LDL"),
-        )
-        public val SPARSE_LDL: BackendRole get() = SPARSE_QUASI_DEFINITE_LDL
-    }
 }
 
 /**

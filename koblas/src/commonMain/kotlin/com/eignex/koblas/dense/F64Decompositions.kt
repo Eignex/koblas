@@ -69,21 +69,9 @@ public interface F64Decompositions : Backend {
         workspace: Workspace? = null,
     ): F64PivotedSymmetricIndefiniteDecomposition
 
-    /**
-     * @deprecated Dense LDL is Bunch-Kaufman pivoted. Use [pivotedSymmetricIndefinite].
-     */
-    @Deprecated(
-        "Dense LDL is Bunch-Kaufman pivoted; use pivotedSymmetricIndefinite.",
-        ReplaceWith("pivotedSymmetricIndefinite(a, workspace)"),
-    )
-    public fun ldl(a: F64DenseMatrix, workspace: Workspace? = null): F64PivotedSymmetricIndefiniteDecomposition =
-        pivotedSymmetricIndefinite(a, workspace)
-
     /** Solve `A · x = b` for [factor] (LAPACK `dsytrs`). */
-    public fun solve(
-        factor: F64PivotedSymmetricIndefiniteDecomposition,
-        b: DoubleArray,
-    ): DoubleArray = solveInto(factor, b, DoubleArray(factor.n))
+    public fun solve(factor: F64PivotedSymmetricIndefiniteDecomposition, b: DoubleArray): DoubleArray =
+        solveInto(factor, b, DoubleArray(factor.n))
 
     /** Solve `A · x = b` into [out], which is returned. [out] may be [b]. */
     public fun solveInto(

@@ -25,13 +25,3 @@ public class F64PivotedSymmetricIndefiniteDecomposition @UnsafeKoblasApi constru
         requireShape(ipiv.size == n) { "ipiv length ${ipiv.size} != $n" }
     }
 }
-
-/**
- * @deprecated Dense LDL uses Bunch-Kaufman numerical pivoting. Use
- * [F64PivotedSymmetricIndefiniteDecomposition] to make that requirement visible at the call site.
- */
-@Deprecated(
-    "Dense LDL is Bunch-Kaufman pivoted; use F64PivotedSymmetricIndefiniteDecomposition.",
-    ReplaceWith("F64PivotedSymmetricIndefiniteDecomposition"),
-)
-public typealias F64LdlDecomposition = F64PivotedSymmetricIndefiniteDecomposition

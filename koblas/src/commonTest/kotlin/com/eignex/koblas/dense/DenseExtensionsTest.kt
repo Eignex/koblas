@@ -60,7 +60,11 @@ class DenseExtensionsTest {
         assertClose(koblas.solve(factor, b3), factor.solve(b3), "pivoted symmetric indefinite solve")
 
         @Suppress("DEPRECATION")
-        assertEquals(square.pivotedSymmetricIndefinite().n, square.ldl().n, "the LDL alias stays compatible")
+        run {
+            val deprecatedFactor = square.pivotedSymmetricIndefinite()
+            assertEquals(factor.n, deprecatedFactor.n, "the LDL alias stays compatible")
+            assertClose(koblas.solve(factor, b3), deprecatedFactor.solve(b3), "the LDL alias solves the same way")
+        }
 
         val qr = tall.qr()
         assertClose(koblas.solve(qr, b3), qr.solve(b3), "qr least squares")

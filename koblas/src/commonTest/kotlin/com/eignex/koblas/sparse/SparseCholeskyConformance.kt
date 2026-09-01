@@ -76,8 +76,8 @@ internal fun assertLdlAgreesWithReference(decompositions: F64SparseDecomposition
         val a = indefiniteConformanceSystem(n, rng)
         val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
 
-        val host = decompositions.ldl(a)
-        val portable = F64ReferenceSparseLinearAlgebra.ldl(a)
+        val host = decompositions.quasiDefiniteLdl(a)
+        val portable = F64ReferenceSparseLinearAlgebra.quasiDefiniteLdl(a)
         assertTrue(!host.singular, "n=$n an invertible system came back singular")
         assertClose(b, multiply(a.symmetrized(), host.solve(b)), "n=$n residual", tolerance = 1e-8)
         assertClose(portable.solve(b), host.solve(b), "n=$n", tolerance = 1e-8)

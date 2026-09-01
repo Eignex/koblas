@@ -64,15 +64,6 @@ public interface F64SparseDecompositions : Backend {
     public fun quasiDefiniteLdl(a: F64SparseMatrix): F64QuasiDefiniteLdlFactorization
 
     /**
-     * @deprecated Sparse LDL is quasi-definite and numerically unpivoted. Use [quasiDefiniteLdl].
-     */
-    @Deprecated(
-        "Sparse LDL is quasi-definite and numerically unpivoted; use quasiDefiniteLdl.",
-        ReplaceWith("quasiDefiniteLdl(a)"),
-    )
-    public fun ldl(a: F64SparseMatrix): F64QuasiDefiniteLdlFactorization = quasiDefiniteLdl(a)
-
-    /**
      * QR factorization of a tall or square [a], for the least-squares solve `min ‖A·x − b‖₂`. Its factor is
      * an [F64SparseQrFactorization] rather than an [F64SparseFactorization], which is square.
      *
