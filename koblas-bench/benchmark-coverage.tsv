@@ -39,6 +39,8 @@ F64Kernels.asum(DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatc
 F64Kernels.axpy(DoubleArray,Int,Double,DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.axpy facade.
 F64Kernels.dot(DoubleArray,Int,DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.dot facade.
 F64Kernels.nrm2(DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.norm2 facade.
+F64Kernels.rotm(DoubleArray,Int,Int,DoubleArray,Int,Int,Int,F64ModifiedGivens)		excluded	The raw kernel shares the dispatch path benchmarked through the public rotm facade.
+F64Kernels.rotmg(Double,Double,Double,Double)		excluded	The raw kernel shares the dispatch path benchmarked through the public rotmg facade.
 F64Kernels.scale(DoubleArray,Int,Double,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.scale facade.
 F64Kernels.swap(DoubleArray,Int,DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public swap facade.
 F64SparseKernels.asum(SparseVector)		excluded	The raw kernel shares the dispatch path benchmarked through the public SparseVector.asum facade.
