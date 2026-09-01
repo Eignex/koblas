@@ -1393,7 +1393,6 @@ public final class com/eignex/koblas/dense/FactorSnapshotsKt {
 	public static final fun lowerFactor (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public static final fun lowerFactor (Lcom/eignex/koblas/dense/F64LuDecomposition;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public static final fun packedFactor (Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static final fun pivotBlocks (Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;)[I
 	public static final fun rowOrder (Lcom/eignex/koblas/dense/F64LuDecomposition;)[I
 	public static final fun upperFactor (Lcom/eignex/koblas/dense/F64LuDecomposition;)Lcom/eignex/koblas/core/F64DenseMatrix;
 }

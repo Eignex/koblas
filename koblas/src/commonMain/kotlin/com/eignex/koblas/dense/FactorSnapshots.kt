@@ -84,19 +84,6 @@ public fun F64PivotedSymmetricIndefiniteDecomposition.packedFactor(): F64DenseMa
     F64DenseMatrix(n, n, ldl.copyOf())
 
 /**
- * A defensive copy of this factorization's raw LAPACK `dsytrf` pivot description.
- *
- * This function is deprecated. Use the 0-based typed [F64PivotedSymmetricIndefiniteDecomposition.pivotBlocks]
- * property instead. For intentional LAPACK interoperability, use [F64PivotedSymmetricIndefiniteDecomposition.rawLapackIpiv].
- */
-@Deprecated(
-    message = "Use the pivotBlocks property, or rawLapackIpiv for intentional LAPACK interoperability.",
-    replaceWith = ReplaceWith("pivotBlocks"),
-)
-@UnsafeKoblasApi
-public fun F64PivotedSymmetricIndefiniteDecomposition.pivotBlocks(): IntArray = rawLapackIpiv.copyOf()
-
-/**
  * The explicit orthogonal `m×m` matrix `Q` represented by this factorization.
  *
  * This applies the backend's existing `Q` operator to identity columns; it does not reimplement the
