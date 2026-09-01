@@ -36,10 +36,11 @@ public class F64LuDecomposition @UnsafeKoblasApi constructor(
     public val rankDeficient: Boolean get() = rank < order
 
     /**
-     * Legacy spelling for [rankDeficient]. For a rectangular factor this means a zero DGETRF pivot, not that
-     * the rectangular matrix lacks a two-sided inverse.
+     * Legacy spelling for [rankDeficient], read straight off [failedAt] rather than rescanning the diagonal
+     * so hot paths like [F64Decompositions.rcond] stay allocation-free. For a rectangular factor this means
+     * a zero DGETRF pivot, not that the rectangular matrix lacks a two-sided inverse.
      */
-    public val singular: Boolean get() = rankDeficient
+    public val singular: Boolean get() = failedAt != NOT_SINGULAR
 
     /**
      * Compatibility constructor for square factors. New code should provide [rows] and [cols] explicitly.
