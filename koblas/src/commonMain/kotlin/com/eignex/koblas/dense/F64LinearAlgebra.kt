@@ -94,6 +94,16 @@ public fun F64LuDecomposition.rcond(anorm: Double, workspace: Workspace? = null)
     workspace,
 )
 
+/**
+ * Replaces this LDL factorization with that of [a], retaining this decomposition's factor and pivot buffers.
+ * [a]'s dimension must match this factorization's; implementations may still need provider-local scratch, so
+ * this is a buffer-reuse contract rather than an allocation guarantee.
+ */
+public fun F64PivotedSymmetricIndefiniteDecomposition.refactorInto(
+    a: F64DenseMatrix,
+    workspace: Workspace? = null,
+): F64PivotedSymmetricIndefiniteDecomposition = koblas.pivotedSymmetricIndefiniteInto(a, this, workspace)
+
 /** Solve `A · x = b` for this symmetric indefinite factorization; see [F64Decompositions.solve]. */
 public fun F64PivotedSymmetricIndefiniteDecomposition.solve(b: DoubleArray): DoubleArray = koblas.solve(this, b)
 
@@ -113,6 +123,14 @@ public fun F64PivotedSymmetricIndefiniteDecomposition.solveInto(
     out: F64DenseMatrix,
     workspace: Workspace? = null,
 ): F64DenseMatrix = koblas.solveInto(this, b, out, workspace)
+
+/**
+ * Replaces this QR factorization with that of [a], retaining this decomposition's factor buffers. [a] must
+ * have this factorization's shape; implementations may still need provider-local scratch, so this is a
+ * buffer-reuse contract rather than an allocation guarantee.
+ */
+public fun F64QrDecomposition.refactorInto(a: F64DenseMatrix, workspace: Workspace? = null): F64QrDecomposition =
+    koblas.qrInto(a, this, workspace)
 
 /** Solve this QR factorization; [minimumNorm] solves a wide original system from `qr(Aᵀ)`. */
 public fun F64QrDecomposition.solve(
