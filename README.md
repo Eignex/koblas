@@ -132,7 +132,7 @@ host provider does not. Routines not listed here are not part of the supported n
 | BLAS level 3 | `gemm`, `symm`, `syrk`, `syr2k`, `trsm`, `trmm` | `dgemm`, `dsymm`, `dsyrk`, `dsyr2k`, `dtrsm`, `dtrmm` |
 | Dense utility | `transpose`, `norm1`, `normInf`, `normFro`, row/column scaling | No direct BLAS routine |
 | Dense LAPACK | LU (`factor`, `solve`, `invert`, `rcond`), pivoted LDL, QR and pivoted QR, Cholesky, triangular inverse | `dgetrf`, `dgetrs`, `dgetri`, `dgecon`, `dsytrf`, `dsytrs`, `dgeqrf`, `dgeqp3`, `dormqr`, `dpotrf`, `dpotrs`, `dpotri`, `dtrtri` |
-| Sparse BLAS | CSC `gemv`, triangular `trsv`/`trsm` and `trmv`/`trmm`, sparse–dense `gemm`, sparse–sparse product, `transpose`, prepared repeated products | Sparse BLAS `usmv`, `ussv`, `ussm`, `usmm`; triangular multiply is `usmv`/`usmm` over a triangle, and product and preparation are Koblas operations |
+| Sparse BLAS | CSC `gemv`, triangular `trsv`/`trsm` and `trmv`/`trmm`, sparse–dense `gemm`, sparse–sparse product, `transpose`, prepared repeated products, allocating rank updates `withRankOne`/`withSymmetricRankOne`/`withSymmetricRankTwo` | Sparse BLAS `usmv`, `ussv`, `ussm`, `usmm`; triangular multiply is `usmv`/`usmm` over a triangle, the rank updates are allocating `dger`/`dsyr`/`dsyr2`, and product and preparation are Koblas operations |
 | Sparse factorizations | General LU, repeated-pattern LU, Cholesky, LDL, QR, and simplex basis operations | Provider-specific SuiteSparse, BASICLU, and HFactor capabilities |
 
 This table documents the subset, not a roadmap. In particular, it does not imply support for the other routines in

@@ -31,7 +31,7 @@ class SparseSymmetricRankUpdateTest {
             val expected = denseCopy(source)
             F64ReferenceLinearAlgebra.syr(0.5, x, expected, lower)
 
-            val actual = source.syr(0.5, x, lower)
+            val actual = source.withSymmetricRankOne(0.5, x, lower)
 
             assertMatrixEquals(expected, actual, "lower=$lower")
             assertCanonical(actual)
@@ -53,7 +53,7 @@ class SparseSymmetricRankUpdateTest {
             val expected = denseCopy(source)
             F64ReferenceLinearAlgebra.syr2(-0.75, x, y, expected, lower)
 
-            val actual = source.syr2(-0.75, x, y, lower)
+            val actual = source.withSymmetricRankTwo(-0.75, x, y, lower)
 
             assertMatrixEquals(expected, actual, "lower=$lower")
             assertCanonical(actual)
@@ -66,8 +66,8 @@ class SparseSymmetricRankUpdateTest {
         val x = F64DenseVector.wrap(doubleArrayOf(1.0, 1.0))
         val y = F64SparseVector.of(2, intArrayOf(0, 1), doubleArrayOf(1.0, -1.0))
 
-        val rankOne = source.syr(0.0, x)
-        val rankTwo = source.syr2(1.0, x, y)
+        val rankOne = source.withSymmetricRankOne(0.0, x)
+        val rankTwo = source.withSymmetricRankTwo(1.0, x, y)
         source.values[0] = 8.0
         x[0] = 9.0
         y.values[0] = 7.0
@@ -90,7 +90,7 @@ class SparseSymmetricRankUpdateTest {
             val expected = denseCopy(source)
             F64ReferenceLinearAlgebra.syr2(1.0, x, y, expected, lower)
 
-            val actual = source.syr2(1.0, x, y, lower)
+            val actual = source.withSymmetricRankTwo(1.0, x, y, lower)
 
             assertMatrixEquals(expected, actual, "lower=$lower")
         }
@@ -105,7 +105,7 @@ class SparseSymmetricRankUpdateTest {
             val expected = denseCopy(source)
             F64ReferenceLinearAlgebra.syr(1.0, x, expected, lower)
 
-            val actual = source.syr(1.0, x, lower)
+            val actual = source.withSymmetricRankOne(1.0, x, lower)
 
             assertMatrixEquals(expected, actual, "lower=$lower")
             assertCanonical(actual)
@@ -123,7 +123,7 @@ class SparseSymmetricRankUpdateTest {
             val expected = denseCopy(source)
             F64ReferenceLinearAlgebra.syr2(1.0, x, y, expected, lower)
 
-            val actual = source.syr2(1.0, x, y, lower)
+            val actual = source.withSymmetricRankTwo(1.0, x, y, lower)
 
             assertMatrixEquals(expected, actual, "lower=$lower")
             assertCanonical(actual)
@@ -137,7 +137,7 @@ class SparseSymmetricRankUpdateTest {
         val x = F64DenseVector.of(doubleArrayOf(-1e-200, 1.0))
         val source = F64SparseMatrix.ofColumns(2, 2, listOf(emptyList(), emptyList()))
 
-        val actual = source.syr(alpha, x, lower = true)
+        val actual = source.withSymmetricRankOne(alpha, x, lower = true)
 
         val expected = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 0.0, 1 to 0.0), listOf(1 to alpha)))
         assertEquals(expected, actual, "underflowing fill must land on +0.0, not -0.0")
@@ -147,10 +147,10 @@ class SparseSymmetricRankUpdateTest {
     fun `sparse rank updates support empty shapes and reject incompatible operands`() {
         val empty = F64SparseMatrix.ofColumns(0, 0, emptyList())
 
-        assertEquals(empty, empty.syr(1.0, F64DenseVector.zero(0)))
+        assertEquals(empty, empty.withSymmetricRankOne(1.0, F64DenseVector.zero(0)))
         assertEquals(
             empty,
-            empty.syr2(
+            empty.withSymmetricRankTwo(
                 1.0,
                 F64DenseVector.zero(0),
                 F64SparseVector.of(0, IntArray(0), DoubleArray(0)),
@@ -162,12 +162,16 @@ class SparseSymmetricRankUpdateTest {
             3,
             listOf(emptyList(), emptyList(), emptyList()),
         )
-        assertFailsWith<DimensionMismatch> { rectangular.syr(1.0, F64DenseVector.zero(2)) }
+        assertFailsWith<DimensionMismatch> { rectangular.withSymmetricRankOne(1.0, F64DenseVector.zero(2)) }
         assertFailsWith<DimensionMismatch> {
-            F64SparseMatrix.ofColumns(2, 2, listOf(emptyList(), emptyList())).syr(1.0, F64DenseVector.zero(3))
+            F64SparseMatrix.ofColumns(
+                2,
+                2,
+                listOf(emptyList(), emptyList()),
+            ).withSymmetricRankOne(1.0, F64DenseVector.zero(3))
         }
         assertFailsWith<DimensionMismatch> {
-            F64SparseMatrix.ofColumns(2, 2, listOf(emptyList(), emptyList())).syr2(
+            F64SparseMatrix.ofColumns(2, 2, listOf(emptyList(), emptyList())).withSymmetricRankTwo(
                 1.0,
                 F64DenseVector.zero(2),
                 F64DenseVector.zero(3),

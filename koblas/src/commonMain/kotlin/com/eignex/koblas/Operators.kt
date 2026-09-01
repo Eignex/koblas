@@ -91,6 +91,113 @@ public operator fun Double.times(x: F64DenseVector): F64DenseVector = x * this
 /** `-x`, allocating. */
 public operator fun F64DenseVector.unaryMinus(): F64DenseVector = this * -1.0
 
+/**
+ * `alpha * A`, allocating. The CSC pattern carries over untouched, explicitly stored zeros included, so a
+ * zero [alpha] returns a matrix of stored zeros rather than an empty one. [scaleColumns] multiplies in place.
+ */
+public operator fun F64SparseMatrix.times(alpha: Double): F64SparseMatrix = F64SparseMatrix.wrap(
+    rows,
+    cols,
+    copyColumnPointers(),
+    copyRowIndices(),
+    scaledCopy(values, alpha),
+)
+
+/** `alpha * A`, allocating; see [F64SparseMatrix.times]. */
+public operator fun Double.times(a: F64SparseMatrix): F64SparseMatrix = a * this
+
+/** `-A`, allocating, over the same CSC pattern. */
+public operator fun F64SparseMatrix.unaryMinus(): F64SparseMatrix = this * -1.0
+
+/** `A + B`, allocating, over the union of the two CSC patterns; see [combine] for what the union stores. */
+public operator fun F64SparseMatrix.plus(other: F64SparseMatrix): F64SparseMatrix = combine(other, 1.0, "plus")
+
+/** `A - B`, allocating, over the union of the two CSC patterns; see [combine] for what the union stores. */
+public operator fun F64SparseMatrix.minus(other: F64SparseMatrix): F64SparseMatrix = combine(other, -1.0, "minus")
+
+/** `alpha * x`, allocating. The stored pattern carries over untouched. [scale] multiplies in place. */
+public operator fun F64SparseVector.times(alpha: Double): F64SparseVector =
+    F64SparseVector(size, indices.copyOf(), scaledCopy(values, alpha))
+
+/** `alpha * x`, allocating; see [F64SparseVector.times]. */
+public operator fun Double.times(x: F64SparseVector): F64SparseVector = x * this
+
+/** `-x`, allocating, over the same stored pattern. */
+public operator fun F64SparseVector.unaryMinus(): F64SparseVector = this * -1.0
+
+/** `x + y`, allocating, over the union of the two stored patterns; see [combine]. */
+public operator fun F64SparseVector.plus(other: F64SparseVector): F64SparseVector = combine(other, 1.0, "plus")
+
+/** `x - y`, allocating, over the union of the two stored patterns; see [combine]. */
+public operator fun F64SparseVector.minus(other: F64SparseVector): F64SparseVector = combine(other, -1.0, "minus")
+
+/**
+ * `A + alpha * B` over the union of the two CSC patterns.
+ *
+ * The union is structural: a position either side stores is stored in the result, even where the two values
+ * cancel to zero, so the pattern never depends on the numbers. That matches the rest of the sparse surface,
+ * where a fresh structural result keeps discovered fill rather than pruning it.
+ */
+private fun F64SparseMatrix.combine(other: F64SparseMatrix, alpha: Double, op: String): F64SparseMatrix {
+    requireShape(rows == other.rows && cols == other.cols) {
+        "$op shape mismatch: ${rows}x$cols and ${other.rows}x${other.cols}"
+    }
+    val out = SparseUnionBuilder(nnz + other.nnz)
+    val pointers = IntArray(cols + 1)
+    for (j in 0 until cols) {
+        pointers[j] = out.size
+        var mine = colPtr[j]
+        var theirs = other.colPtr[j]
+        while (mine < colPtr[j + 1] || theirs < other.colPtr[j + 1]) {
+            val myRow = if (mine < colPtr[j + 1]) rowIdx[mine] else Int.MAX_VALUE
+            val theirRow = if (theirs < other.colPtr[j + 1]) other.rowIdx[theirs] else Int.MAX_VALUE
+            when {
+                myRow < theirRow -> out.add(myRow, values[mine++])
+                theirRow < myRow -> out.add(theirRow, alpha * other.values[theirs++])
+                else -> out.add(myRow, values[mine++] + alpha * other.values[theirs++])
+            }
+        }
+    }
+    pointers[cols] = out.size
+    return F64SparseMatrix.wrap(rows, cols, pointers, out.indices(), out.values())
+}
+
+/** `x + alpha * y` over the union of the two stored patterns, storing a cancellation as [combine] does. */
+private fun F64SparseVector.combine(other: F64SparseVector, alpha: Double, op: String): F64SparseVector {
+    requireShape(size == other.size) { "$op size mismatch: $size vs ${other.size}" }
+    val out = SparseUnionBuilder(values.size + other.values.size)
+    var mine = 0
+    var theirs = 0
+    while (mine < indices.size || theirs < other.indices.size) {
+        val myIndex = if (mine < indices.size) indices[mine] else Int.MAX_VALUE
+        val theirIndex = if (theirs < other.indices.size) other.indices[theirs] else Int.MAX_VALUE
+        when {
+            myIndex < theirIndex -> out.add(myIndex, values[mine++])
+            theirIndex < myIndex -> out.add(theirIndex, alpha * other.values[theirs++])
+            else -> out.add(myIndex, values[mine++] + alpha * other.values[theirs++])
+        }
+    }
+    return F64SparseVector(size, out.indices(), out.values())
+}
+
+/** Collects the merged entries of a sparse union, sized up front from the two operands' stored counts. */
+private class SparseUnionBuilder(capacity: Int) {
+    private val positions = IntArray(capacity)
+    private val coefficients = DoubleArray(capacity)
+    var size: Int = 0
+        private set
+
+    fun add(position: Int, value: Double) {
+        positions[size] = position
+        coefficients[size] = value
+        size++
+    }
+
+    fun indices(): IntArray = positions.copyOf(size)
+
+    fun values(): DoubleArray = coefficients.copyOf(size)
+}
+
 /** `A + alpha * B` as a single `axpy` over the flat backings. */
 private fun F64DenseMatrix.combine(other: F64DenseMatrix, alpha: Double, op: String): F64DenseMatrix {
     requireShape(rows == other.rows && cols == other.cols) {

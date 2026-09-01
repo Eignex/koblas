@@ -4,8 +4,9 @@ import com.eignex.koblas.core.F64DenseVector
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.koblas
-import com.eignex.koblas.syr
-import com.eignex.koblas.syr2
+import com.eignex.koblas.withRankOne
+import com.eignex.koblas.withSymmetricRankOne
+import com.eignex.koblas.withSymmetricRankTwo
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.transpose
 import kotlinx.benchmark.*
@@ -87,8 +88,11 @@ class SparseBenchmark {
     fun sparseTranspose(): F64SparseMatrix = a.transpose()
 
     @Benchmark
-    fun sparseSyr(): F64SparseMatrix = a.syr(NEAR_UNIT_SCALE, rankX)
+    fun sparseSyr(): F64SparseMatrix = a.withSymmetricRankOne(NEAR_UNIT_SCALE, rankX)
 
     @Benchmark
-    fun sparseSyr2(): F64SparseMatrix = a.syr2(NEAR_UNIT_SCALE, rankX, rankY)
+    fun sparseSyr2(): F64SparseMatrix = a.withSymmetricRankTwo(NEAR_UNIT_SCALE, rankX, rankY)
+
+    @Benchmark
+    fun sparseGer(): F64SparseMatrix = a.withRankOne(NEAR_UNIT_SCALE, rankX, rankY)
 }

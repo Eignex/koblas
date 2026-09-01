@@ -48,17 +48,23 @@ public fun F64DenseMatrix.syr2(alpha: Double, x: F64VectorLike, y: F64VectorLike
     koblas.syr2(alpha, x, y, this, lower)
 
 /**
- * Fresh CSC matrix holding `A + alpha * x * xT` in its [lower] or upper triangle. The other triangle is
- * copied unchanged. Unlike dense [F64DenseMatrix.syr], this is not in place: a rank update can introduce
- * entries that the source CSC pattern has no room to store.
+ * Fresh CSC matrix holding `A + alpha * x * xT` in its [lower] or upper triangle (the allocating sparse
+ * analogue of BLAS `dsyr`). The other triangle is copied unchanged. This cannot be in place, as dense
+ * [F64DenseMatrix.syr] is: a rank update can introduce entries the source CSC pattern has no room to store.
+ * It is named for the copy it returns rather than after `syr`, so that discarding the result reads as the
+ * mistake it is, the way [withColumn] does.
  *
  * Existing explicit zeros survive. A coordinate reached by nonzero vector support is stored even when its
  * arithmetic cancels or underflows to zero, so the returned matrix never silently drops discovered fill.
  * The result owns independent structural and value arrays, and its rows ascend within every column.
  */
-public fun F64SparseMatrix.syr(alpha: Double, x: F64VectorLike, lower: Boolean = true): F64SparseMatrix {
-    requireShape(rows == cols) { "syr: matrix must be square, got ${rows}x$cols" }
-    requireShape(x.size == rows) { "syr: x length ${x.size} != $rows" }
+public fun F64SparseMatrix.withSymmetricRankOne(
+    alpha: Double,
+    x: F64VectorLike,
+    lower: Boolean = true,
+): F64SparseMatrix {
+    requireShape(rows == cols) { "withSymmetricRankOne: matrix must be square, got ${rows}x$cols" }
+    requireShape(x.size == rows) { "withSymmetricRankOne: x length ${x.size} != $rows" }
     val xs = x.toDoubleArray()
     if (alpha == 0.0) return sparseCopy()
     if (!alpha.isFinite() || xs.any { !it.isFinite() }) return syrWithNonFinite(alpha, xs, lower)
@@ -66,22 +72,23 @@ public fun F64SparseMatrix.syr(alpha: Double, x: F64VectorLike, lower: Boolean =
 }
 
 /**
- * Fresh CSC matrix holding `A + alpha * (x * yT + y * xT)` in its [lower] or upper triangle. The other
- * triangle is copied unchanged. This structural counterpart of dense [F64DenseMatrix.syr2] never mutates
- * its source, because newly nonzero entries may require CSC fill.
+ * Fresh CSC matrix holding `A + alpha * (x * yT + y * xT)` in its [lower] or upper triangle (the allocating
+ * sparse analogue of BLAS `dsyr2`). The other triangle is copied unchanged. This structural counterpart of
+ * dense [F64DenseMatrix.syr2] never mutates its source, because newly nonzero entries may require CSC fill,
+ * and it is named for the copy it returns for the reason [withSymmetricRankOne] gives.
  *
  * Existing explicit zeros survive. A coordinate reached by nonzero vector support is stored even when its
  * two terms cancel or underflow to zero. The result has independent arrays and canonical ascending CSC rows.
  */
-public fun F64SparseMatrix.syr2(
+public fun F64SparseMatrix.withSymmetricRankTwo(
     alpha: Double,
     x: F64VectorLike,
     y: F64VectorLike,
     lower: Boolean = true,
 ): F64SparseMatrix {
-    requireShape(rows == cols) { "syr2: matrix must be square, got ${rows}x$cols" }
+    requireShape(rows == cols) { "withSymmetricRankTwo: matrix must be square, got ${rows}x$cols" }
     requireShape(x.size == rows && y.size == rows) {
-        "syr2: operand lengths ${x.size} and ${y.size} must both be $rows"
+        "withSymmetricRankTwo: operand lengths ${x.size} and ${y.size} must both be $rows"
     }
     val xs = x.toDoubleArray()
     val ys = y.toDoubleArray()
@@ -90,6 +97,28 @@ public fun F64SparseMatrix.syr2(
         return syr2WithNonFinite(alpha, xs, ys, lower)
     }
     return syr2Finite(alpha, xs, x.nonzeroSupport(xs), ys, y.nonzeroSupport(ys), lower)
+}
+
+/**
+ * Fresh CSC matrix holding `A + alpha * x * yT` (the allocating sparse analogue of BLAS `dger`), with [x]
+ * indexing rows and [y] columns. Like [withSymmetricRankOne] this cannot be in place, and is named for the
+ * copy it returns rather than after `ger`.
+ *
+ * Existing explicit zeros survive. A coordinate reached by nonzero support on both sides is stored even when
+ * its product cancels or underflows to zero, so the returned matrix never silently drops discovered fill.
+ * The result owns independent structural and value arrays, and its rows ascend within every column.
+ */
+public fun F64SparseMatrix.withRankOne(alpha: Double, x: F64VectorLike, y: F64VectorLike): F64SparseMatrix {
+    requireShape(rows == x.size && cols == y.size) {
+        "withRankOne shape mismatch: A is ${rows}x$cols, x ${x.size}, y ${y.size}"
+    }
+    val xs = x.toDoubleArray()
+    val ys = y.toDoubleArray()
+    if (alpha == 0.0) return sparseCopy()
+    if (!alpha.isFinite() || xs.any { !it.isFinite() } || ys.any { !it.isFinite() }) {
+        return rankOneWithNonFinite(alpha, xs, ys)
+    }
+    return rankOneFinite(alpha, xs, x.nonzeroSupport(xs), ys)
 }
 
 /**
@@ -397,6 +426,43 @@ private fun F64SparseMatrix.syr2Finite(
     return out.build()
 }
 
+private fun F64SparseMatrix.rankOneFinite(
+    alpha: Double,
+    x: DoubleArray,
+    xSupport: IntArray,
+    y: DoubleArray,
+): F64SparseMatrix {
+    val out = SparseRankMatrixBuilder(rows, cols, nnz)
+    for (j in 0 until cols) {
+        out.beginColumn(j)
+        var source = colPtr[j]
+        var update = if (y[j] == 0.0) xSupport.size else 0
+        while (source < colPtr[j + 1] || update < xSupport.size) {
+            val sourceRow = if (source < colPtr[j + 1]) rowIdx[source] else Int.MAX_VALUE
+            val updateRow = if (update < xSupport.size) xSupport[update] else Int.MAX_VALUE
+            when {
+                sourceRow < updateRow -> {
+                    out.add(sourceRow, values[source])
+                    source++
+                }
+
+                updateRow < sourceRow -> {
+                    // Added onto 0.0 for the sign an underflowing product picks up, as syrFinite does.
+                    out.add(updateRow, 0.0 + (alpha * y[j]) * x[updateRow])
+                    update++
+                }
+
+                else -> {
+                    out.add(sourceRow, values[source] + (alpha * y[j]) * x[sourceRow])
+                    source++
+                    update++
+                }
+            }
+        }
+    }
+    return out.build()
+}
+
 /* Non-finite operands need the dense BLAS visitation order: zero times infinity can itself introduce NaN fill. */
 private inline fun F64SparseMatrix.scanTriangleWithFallback(
     lower: Boolean,
@@ -416,6 +482,27 @@ private inline fun F64SparseMatrix.scanTriangleWithFallback(
                 if (stored) source++
             } else if (stored) {
                 out.add(i, values[source])
+                source++
+            }
+        }
+    }
+    return out.build()
+}
+
+private fun F64SparseMatrix.rankOneWithNonFinite(alpha: Double, x: DoubleArray, y: DoubleArray): F64SparseMatrix {
+    val out = SparseRankMatrixBuilder(rows, cols, nnz)
+    for (j in 0 until cols) {
+        out.beginColumn(j)
+        var source = colPtr[j]
+        val columnActive = y[j] != 0.0
+        for (i in 0 until rows) {
+            val stored = source < colPtr[j + 1] && rowIdx[source] == i
+            val current = if (stored) values[source] else 0.0
+            if (columnActive) {
+                out.add(i, current + (alpha * y[j]) * x[i])
+                if (stored) source++
+            } else if (stored) {
+                out.add(i, current)
                 source++
             }
         }

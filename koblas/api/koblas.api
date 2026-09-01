@@ -608,16 +608,17 @@ public final class com/eignex/koblas/MatrixOpsKt {
 	public static final fun scaleRows (Lcom/eignex/koblas/core/F64DenseMatrix;[D)V
 	public static final fun scaleRows (Lcom/eignex/koblas/core/F64SparseMatrix;[D)V
 	public static final fun syr (Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/core/F64VectorLike;Z)V
-	public static final fun syr (Lcom/eignex/koblas/core/F64SparseMatrix;DLcom/eignex/koblas/core/F64VectorLike;Z)Lcom/eignex/koblas/core/F64SparseMatrix;
 	public static synthetic fun syr$default (Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/core/F64VectorLike;ZILjava/lang/Object;)V
-	public static synthetic fun syr$default (Lcom/eignex/koblas/core/F64SparseMatrix;DLcom/eignex/koblas/core/F64VectorLike;ZILjava/lang/Object;)Lcom/eignex/koblas/core/F64SparseMatrix;
 	public static final fun syr2 (Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/core/F64VectorLike;Lcom/eignex/koblas/core/F64VectorLike;Z)V
-	public static final fun syr2 (Lcom/eignex/koblas/core/F64SparseMatrix;DLcom/eignex/koblas/core/F64VectorLike;Lcom/eignex/koblas/core/F64VectorLike;Z)Lcom/eignex/koblas/core/F64SparseMatrix;
 	public static synthetic fun syr2$default (Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/core/F64VectorLike;Lcom/eignex/koblas/core/F64VectorLike;ZILjava/lang/Object;)V
-	public static synthetic fun syr2$default (Lcom/eignex/koblas/core/F64SparseMatrix;DLcom/eignex/koblas/core/F64VectorLike;Lcom/eignex/koblas/core/F64VectorLike;ZILjava/lang/Object;)Lcom/eignex/koblas/core/F64SparseMatrix;
 	public static final fun transpose (Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public static final fun transpose (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/core/F64SparseMatrix;
 	public static final fun withColumn (Lcom/eignex/koblas/core/F64SparseMatrix;ILcom/eignex/koblas/core/F64SparseVector;)Lcom/eignex/koblas/core/F64SparseMatrix;
+	public static final fun withRankOne (Lcom/eignex/koblas/core/F64SparseMatrix;DLcom/eignex/koblas/core/F64VectorLike;Lcom/eignex/koblas/core/F64VectorLike;)Lcom/eignex/koblas/core/F64SparseMatrix;
+	public static final fun withSymmetricRankOne (Lcom/eignex/koblas/core/F64SparseMatrix;DLcom/eignex/koblas/core/F64VectorLike;Z)Lcom/eignex/koblas/core/F64SparseMatrix;
+	public static synthetic fun withSymmetricRankOne$default (Lcom/eignex/koblas/core/F64SparseMatrix;DLcom/eignex/koblas/core/F64VectorLike;ZILjava/lang/Object;)Lcom/eignex/koblas/core/F64SparseMatrix;
+	public static final fun withSymmetricRankTwo (Lcom/eignex/koblas/core/F64SparseMatrix;DLcom/eignex/koblas/core/F64VectorLike;Lcom/eignex/koblas/core/F64VectorLike;Z)Lcom/eignex/koblas/core/F64SparseMatrix;
+	public static synthetic fun withSymmetricRankTwo$default (Lcom/eignex/koblas/core/F64SparseMatrix;DLcom/eignex/koblas/core/F64VectorLike;Lcom/eignex/koblas/core/F64VectorLike;ZILjava/lang/Object;)Lcom/eignex/koblas/core/F64SparseMatrix;
 }
 
 public final class com/eignex/koblas/NotPositiveDefinite : com/eignex/koblas/KoblasException {
@@ -629,19 +630,29 @@ public final class com/eignex/koblas/NotPositiveDefinite : com/eignex/koblas/Kob
 public final class com/eignex/koblas/OperatorsKt {
 	public static final fun minus (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public static final fun minus (Lcom/eignex/koblas/core/F64DenseVector;Lcom/eignex/koblas/core/F64DenseVector;)Lcom/eignex/koblas/core/F64DenseVector;
+	public static final fun minus (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/core/F64SparseMatrix;
+	public static final fun minus (Lcom/eignex/koblas/core/F64SparseVector;Lcom/eignex/koblas/core/F64SparseVector;)Lcom/eignex/koblas/core/F64SparseVector;
 	public static final fun plus (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public static final fun plus (Lcom/eignex/koblas/core/F64DenseVector;Lcom/eignex/koblas/core/F64DenseVector;)Lcom/eignex/koblas/core/F64DenseVector;
+	public static final fun plus (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/core/F64SparseMatrix;
+	public static final fun plus (Lcom/eignex/koblas/core/F64SparseVector;Lcom/eignex/koblas/core/F64SparseVector;)Lcom/eignex/koblas/core/F64SparseVector;
 	public static final fun times (DLcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public static final fun times (DLcom/eignex/koblas/core/F64DenseVector;)Lcom/eignex/koblas/core/F64DenseVector;
+	public static final fun times (DLcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/core/F64SparseMatrix;
+	public static final fun times (DLcom/eignex/koblas/core/F64SparseVector;)Lcom/eignex/koblas/core/F64SparseVector;
 	public static final fun times (Lcom/eignex/koblas/core/F64DenseMatrix;D)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public static final fun times (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public static final fun times (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public static final fun times (Lcom/eignex/koblas/core/F64DenseVector;D)Lcom/eignex/koblas/core/F64DenseVector;
 	public static final fun times (Lcom/eignex/koblas/core/F64MatrixLike;Lcom/eignex/koblas/core/F64VectorLike;)Lcom/eignex/koblas/core/F64DenseVector;
+	public static final fun times (Lcom/eignex/koblas/core/F64SparseMatrix;D)Lcom/eignex/koblas/core/F64SparseMatrix;
 	public static final fun times (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public static final fun times (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/core/F64SparseMatrix;
+	public static final fun times (Lcom/eignex/koblas/core/F64SparseVector;D)Lcom/eignex/koblas/core/F64SparseVector;
 	public static final fun unaryMinus (Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public static final fun unaryMinus (Lcom/eignex/koblas/core/F64DenseVector;)Lcom/eignex/koblas/core/F64DenseVector;
+	public static final fun unaryMinus (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/core/F64SparseMatrix;
+	public static final fun unaryMinus (Lcom/eignex/koblas/core/F64SparseVector;)Lcom/eignex/koblas/core/F64SparseVector;
 }
 
 public final class com/eignex/koblas/PreparedSparseProductKind : java/lang/Enum {
