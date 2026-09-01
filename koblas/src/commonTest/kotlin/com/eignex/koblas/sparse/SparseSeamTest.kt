@@ -65,6 +65,7 @@ class SparseSeamTest {
         var gemms = 0
         var sparseProducts = 0
         var trsms = 0
+        var trmms = 0
         var transposes = 0
 
         @Suppress("LongParameterList")
@@ -82,6 +83,9 @@ class SparseSeamTest {
 
         override fun trsv(a: F64SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) =
             F64ReferenceSparseLinearAlgebra.trsv(a, x, lower, transpose, unitDiag)
+
+        override fun trmv(a: F64SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) =
+            F64ReferenceSparseLinearAlgebra.trmv(a, x, lower, transpose, unitDiag)
 
         override fun transpose(a: F64SparseMatrix): F64SparseMatrix {
             transposes++
@@ -122,6 +126,20 @@ class SparseSeamTest {
         ) {
             trsms++
             F64ReferenceSparseLinearAlgebra.trsm(a, b, lower, transpose, unitDiag, right, alpha, workspace)
+        }
+
+        @Suppress("LongParameterList")
+        override fun trmm(
+            a: F64SparseMatrix,
+            b: F64DenseMatrix,
+            lower: Boolean,
+            transpose: Boolean,
+            unitDiag: Boolean,
+            right: Boolean,
+            alpha: Double,
+        ) {
+            trmms++
+            F64ReferenceSparseLinearAlgebra.trmm(a, b, lower, transpose, unitDiag, right, alpha)
         }
     }
 
@@ -216,6 +234,9 @@ class SparseSeamTest {
 
         a.trsm(F64DenseMatrix.diagonal(2), lower = true)
         assertEquals(1, blas.trsms, "F64SparseMatrix.trsm should forward to the seam")
+
+        a.trmm(F64DenseMatrix.diagonal(2), lower = true)
+        assertEquals(1, blas.trmms, "F64SparseMatrix.trmm should forward to the seam")
 
         a.transpose()
         assertEquals(1, blas.transposes, "F64SparseMatrix.transpose should forward to the seam")

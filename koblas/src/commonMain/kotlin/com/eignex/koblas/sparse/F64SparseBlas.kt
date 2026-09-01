@@ -48,6 +48,21 @@ public interface F64SparseBlas : Backend {
     )
 
     /**
+     * Multiply `x = op(T) · x` in place (BLAS `dtrmv`), where `op` transposes when [transpose]. Only the
+     * [lower] or upper triangle is read; [unitDiag] treats its diagonal as one without reading it.
+     *
+     * Unlike [trsv], this performs no division and therefore has no singularity behavior: a missing diagonal
+     * is simply zero. The destination may share [a]'s value buffer.
+     */
+    public fun trmv(
+        a: F64SparseMatrix,
+        x: DoubleArray,
+        lower: Boolean,
+        transpose: Boolean = false,
+        unitDiag: Boolean = false,
+    )
+
+    /**
      * `C = alpha · op(A) · op(B) + beta · C` (Sparse BLAS `usmm`) for a sparse [a] against a dense [b] and
      * [c], or `C = alpha · op(B) · op(A) + beta · C` when [right]. `beta == 0.0` overwrites [c] without
      * reading it, as [gemv] does.
@@ -104,6 +119,22 @@ public interface F64SparseBlas : Backend {
         right: Boolean = false,
         alpha: Double = 1.0,
         workspace: Workspace? = null,
+    )
+
+    /**
+     * `B = alpha · op(T) · B` in place, or `B = alpha · B · op(T)` when [right] (BLAS `dtrmm`). The triangle
+     * flags follow [trmv]. This is multiplication rather than a solve, so zero or missing diagonal entries
+     * participate normally and are never treated as singular. The destination may share [a]'s value buffer.
+     */
+    @Suppress("LongParameterList") // the BLAS dtrmm signature
+    public fun trmm(
+        a: F64SparseMatrix,
+        b: F64DenseMatrix,
+        lower: Boolean,
+        transpose: Boolean = false,
+        unitDiag: Boolean = false,
+        right: Boolean = false,
+        alpha: Double = 1.0,
     )
 
     /**

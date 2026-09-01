@@ -67,17 +67,20 @@ public sealed interface F64RouteQuery {
     }
 
     /**
-     * An in-place solve against a caller-supplied sparse triangle.
+     * An in-place operation against a caller-supplied sparse triangle, either eliminating it ([kind] of
+     * [SparseTriangularKind.SOLVE]) or applying it directly ([kind] of [SparseTriangularKind.MULTIPLY]).
      *
      * @property storedEntries stored entries in the triangular matrix.
-     * @property rightHandSides independent vectors solved in this call.
+     * @property kind whether the triangle is solved against or multiplied by.
+     * @property rightHandSides independent vectors processed in this call.
      * @property lower whether the lower triangle is used rather than the upper triangle.
      * @property right whether the triangle is applied from the right.
      * @property transpose whether the triangle is transposed.
      * @property unitDiagonal whether the stored diagonal is ignored and treated as one.
      */
-    public data class SparseTriangularSolve(
+    public data class SparseTriangular(
         val storedEntries: Int,
+        val kind: SparseTriangularKind,
         val rightHandSides: Int = 1,
         val lower: Boolean = true,
         val right: Boolean = false,
@@ -121,6 +124,15 @@ public enum class PreparedSparseProductKind {
 
     /** A second sparse operand and a sparse result. */
     SPARSE_GEMM,
+}
+
+/** Whether an [F64RouteQuery.SparseTriangular] eliminates the triangle or applies it directly. */
+public enum class SparseTriangularKind {
+    /** The triangle is solved against, as in `trsv`/`trsm`. */
+    SOLVE,
+
+    /** The triangle is multiplied by, as in `trmv`/`trmm`. */
+    MULTIPLY,
 }
 
 /** Where an inspected operation will execute. */

@@ -129,6 +129,7 @@ F64SparseLinearAlgebra.gemv(F64SparseMatrix,transpose=true)	com.eignex.koblas.be
 F64SparseMatrix.lu()	com.eignex.koblas.bench.SparseBenchmark.sparseLuFactor	benchmarked	
 F64EquilibratingSparseLu.factor(F64SparseMatrix)	com.eignex.koblas.bench.SparseBenchmark.sparseLuFactorEquilibrated	benchmarked	
 F64SparseBlas.trsv(F64SparseMatrix,DoubleArray)	com.eignex.koblas.bench.SparseBenchmark.sparseTrsv	benchmarked	
+F64SparseBlas.trmv(F64SparseMatrix,DoubleArray)	com.eignex.koblas.bench.SparseBenchmark.sparseTrmv	benchmarked	portable
 F64SparseMatrix.transpose()	com.eignex.koblas.bench.SparseBenchmark.sparseTranspose	benchmarked	
 F64SparseMatrix.syr(Double,Vector)	com.eignex.koblas.bench.SparseBenchmark.sparseSyr	benchmarked	fresh structural result
 F64SparseMatrix.syr2(Double,Vector,Vector)	com.eignex.koblas.bench.SparseBenchmark.sparseSyr2	benchmarked	fresh structural result
@@ -153,6 +154,9 @@ F64PreparedSparseMatrix.gemm(F64SparseMatrix)	com.eignex.koblas.bench.SparseProd
 F64SparseBlas.gemv(F64SparseMatrix,DoubleArray)	com.eignex.koblas.bench.SparseProductHostBenchmark.gemv	benchmarked	
 F64SparseBlas.gemm(F64SparseMatrix,F64SparseMatrix)	com.eignex.koblas.bench.SparseProductHostBenchmark.sparseProduct	benchmarked	
 F64SparseBlas.trsv(F64SparseMatrix,DoubleArray,host)	com.eignex.koblas.bench.SparseProductHostBenchmark.trsv	benchmarked	
+F64SparseBlas.trmv(F64SparseMatrix,DoubleArray,host)	com.eignex.koblas.bench.SparseProductHostBenchmark.trmv	benchmarked	portable host fallback
+F64SparseBlas.trmm(F64SparseMatrix,F64DenseMatrix)	com.eignex.koblas.bench.SparseProductHostBenchmark.trmm	benchmarked	portable host fallback
+F64SparseBlas.trmm(F64SparseMatrix,F64DenseMatrix,right=true)	com.eignex.koblas.bench.SparseProductHostBenchmark.trmmRight	benchmarked	portable host fallback
 F64SparseMatrix.qr()	com.eignex.koblas.bench.SparseQrHostBenchmark.qr	benchmarked	
 F64SparseQrFactorization.applyQ(DoubleArray,transpose=true)	com.eignex.koblas.bench.SparseQrHostBenchmark.qrApplyQ	benchmarked	
 F64SparseQrFactorization.solve(F64DenseMatrix)	com.eignex.koblas.bench.SparseQrHostBenchmark.qrBlockSolve	benchmarked	

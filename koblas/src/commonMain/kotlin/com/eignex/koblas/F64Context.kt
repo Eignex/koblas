@@ -361,8 +361,9 @@ public class F64Context(
             requireShape(a.rows == a.cols) { "trsv: matrix must be square, got ${a.rows}x${a.cols}" }
             requireShape(x.size == a.rows) { "trsv: x length ${x.size} != ${a.rows}" }
             beforeDispatch(
-                F64RouteQuery.SparseTriangularSolve(
+                F64RouteQuery.SparseTriangular(
                     a.nnz,
+                    kind = SparseTriangularKind.SOLVE,
                     lower = lower,
                     transpose = transpose,
                     unitDiagonal = unitDiag,
@@ -370,6 +371,23 @@ public class F64Context(
             )
         }
         sparseBlas.trsv(a, x, lower, transpose, unitDiag)
+    }
+
+    override fun trmv(a: F64SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
+        if (enforcesRoutingPolicy) {
+            requireShape(a.rows == a.cols) { "trmv: matrix must be square, got ${a.rows}x${a.cols}" }
+            requireShape(x.size == a.rows) { "trmv: x length ${x.size} != ${a.rows}" }
+            beforeDispatch(
+                F64RouteQuery.SparseTriangular(
+                    a.nnz,
+                    kind = SparseTriangularKind.MULTIPLY,
+                    lower = lower,
+                    transpose = transpose,
+                    unitDiagonal = unitDiag,
+                ),
+            )
+        }
+        sparseBlas.trmv(a, x, lower, transpose, unitDiag)
     }
 
     @Suppress("LongParameterList") // the BLAS dtrsm signature
@@ -392,10 +410,50 @@ public class F64Context(
             }
             val rightHandSides = if (right) b.rows else b.cols
             beforeDispatch(
-                F64RouteQuery.SparseTriangularSolve(a.nnz, rightHandSides, lower, right, transpose, unitDiag),
+                F64RouteQuery.SparseTriangular(
+                    a.nnz,
+                    kind = SparseTriangularKind.SOLVE,
+                    rightHandSides = rightHandSides,
+                    lower = lower,
+                    right = right,
+                    transpose = transpose,
+                    unitDiagonal = unitDiag,
+                ),
             )
         }
         sparseBlas.trsm(a, b, lower, transpose, unitDiag, right, alpha, workspace)
+    }
+
+    @Suppress("LongParameterList") // the BLAS dtrmm signature
+    override fun trmm(
+        a: F64SparseMatrix,
+        b: F64DenseMatrix,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+        right: Boolean,
+        alpha: Double,
+    ) {
+        if (enforcesRoutingPolicy) {
+            requireShape(a.rows == a.cols) { "trmm: matrix must be square, got ${a.rows}x${a.cols}" }
+            if (right) {
+                requireShape(b.cols == a.rows) { "trmm right: B has ${b.cols} cols, expected ${a.rows}" }
+            } else {
+                requireShape(b.rows == a.rows) { "trmm: B has ${b.rows} rows, expected ${a.rows}" }
+            }
+            beforeDispatch(
+                F64RouteQuery.SparseTriangular(
+                    a.nnz,
+                    kind = SparseTriangularKind.MULTIPLY,
+                    rightHandSides = if (right) b.rows else b.cols,
+                    lower = lower,
+                    right = right,
+                    transpose = transpose,
+                    unitDiagonal = unitDiag,
+                ),
+            )
+        }
+        sparseBlas.trmm(a, b, lower, transpose, unitDiag, right, alpha)
     }
 
     override fun factor(a: F64SparseMatrix): F64SparseLuFactorization {

@@ -21,6 +21,7 @@ class SparseBenchmark {
     private lateinit var rhs: DoubleArray
 
     private lateinit var x: DoubleArray
+    private lateinit var multiplied: DoubleArray
     private lateinit var rankX: F64SparseVector
     private lateinit var rankY: F64DenseVector
 
@@ -36,6 +37,7 @@ class SparseBenchmark {
         rhs = randomVector(n, rng)
         luFactored = a.lu()
         x = DoubleArray(n)
+        multiplied = DoubleArray(n)
         val rankNnz = (n + 3) / 4
         rankX = F64SparseVector.of(
             n,
@@ -72,6 +74,13 @@ class SparseBenchmark {
         rhs.copyInto(x)
         a.trsv(x, lower = true)
         return x
+    }
+
+    @Benchmark
+    fun sparseTrmv(): DoubleArray {
+        rhs.copyInto(multiplied)
+        a.trmv(multiplied, lower = true)
+        return multiplied
     }
 
     @Benchmark
