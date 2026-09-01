@@ -205,6 +205,10 @@ public fun rotm(x: F64StridedVectorView, y: F64StridedVectorView, transformation
 internal fun F64ModifiedGivens.toBlasParameters(): DoubleArray = DoubleArray(5).also { parameters ->
     parameters[0] = flag
     when (flag) {
+        -2.0 -> {
+            // BLAS never reads dparam[1..4] for the identity flag, so nothing to populate.
+        }
+
         -1.0 -> {
             parameters[1] = h11
             parameters[2] = h21
@@ -221,6 +225,8 @@ internal fun F64ModifiedGivens.toBlasParameters(): DoubleArray = DoubleArray(5).
             parameters[1] = h11
             parameters[4] = h22
         }
+
+        else -> error("unexpected modified Givens flag $flag")
     }
 }
 
@@ -234,10 +240,16 @@ private fun modifiedGivens(
     h12: Double,
     h22: Double,
 ): F64ModifiedGivens = when (flag) {
-    -2.0 -> F64ModifiedGivens(d1, d2, x1, flag, 1.0, 0.0, 0.0, 1.0)
+    // portableRotmg returns the -2.0 identity directly, before reaching this factory.
+    -1.0 -> F64ModifiedGivens(d1, d2, x1, flag, h11, h21, h12, h22)
+
+    // BLAS fixes these off-diagonal entries at 1.0/-1.0 for flag 0/1; h21/h12 (flag 0) and h11/h22
+    // (flag 1) are the only entries flag leaves for the caller to have computed.
     0.0 -> F64ModifiedGivens(d1, d2, x1, flag, 1.0, h21, h12, 1.0)
+
     1.0 -> F64ModifiedGivens(d1, d2, x1, flag, h11, -1.0, 1.0, h22)
-    else -> F64ModifiedGivens(d1, d2, x1, flag, h11, h21, h12, h22)
+
+    else -> error("unexpected modified Givens flag $flag")
 }
 
 /** Portable backend implementation of modified Givens application. */
