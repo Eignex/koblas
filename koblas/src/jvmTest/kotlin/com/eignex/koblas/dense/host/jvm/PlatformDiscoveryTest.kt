@@ -152,7 +152,7 @@ class PlatformDiscoveryTest {
             workspace: Workspace?,
         ) = gemm(
             a,
-            { F64ReferenceLinearAlgebra.gemm(alpha, a, transposeA, b, transposeB, beta, c) },
+            { F64ReferenceLinearAlgebra.gemm(alpha, a, transposeA, b, transposeB, beta, c, workspace) },
             c,
         )
     }

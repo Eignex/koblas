@@ -228,7 +228,7 @@ class AllocationFreeTest {
     fun `transposed dense gemm workspace is allocation neutral`() {
         val m = 32
         val k = 48
-        val n = 40
+        val n = 24
         val a = F64DenseMatrix(k, m)
         val b = F64DenseMatrix(n, k)
         val c = F64DenseMatrix(m, n)

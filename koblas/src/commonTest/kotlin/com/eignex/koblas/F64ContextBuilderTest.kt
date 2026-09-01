@@ -77,7 +77,7 @@ class F64ContextBuilderTest {
             workspace: Workspace?,
         ) {
             calls++
-            F64ReferenceLinearAlgebra.gemv(alpha, a, x, beta, y, transpose)
+            F64ReferenceLinearAlgebra.gemv(alpha, a, x, beta, y, transpose, workspace)
         }
     }
 
