@@ -5,7 +5,6 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.F64ModifiedGivens
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.kernels.*
-import com.eignex.koblas.portableRotm
 import com.eignex.koblas.portableRotmg
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
@@ -62,7 +61,26 @@ internal actual object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
         yStride: Int,
         len: Int,
         transformation: F64ModifiedGivens,
-    ) = portableRotm(x, xOff, xStride, y, yOff, yStride, len, transformation)
+    ) {
+        if (transformation.flag == -2.0 || len == 0) return
+        x.usePinned { xp ->
+            y.usePinned { yp ->
+                koblas_dense_rotm(
+                    xp.addressOf(0),
+                    xOff,
+                    xStride,
+                    yp.addressOf(0),
+                    yOff,
+                    yStride,
+                    len,
+                    transformation.h11,
+                    transformation.h12,
+                    transformation.h21,
+                    transformation.h22,
+                )
+            }
+        }
+    }
 
     override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) {
         if (len == 0) return

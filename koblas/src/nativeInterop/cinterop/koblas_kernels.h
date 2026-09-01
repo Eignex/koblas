@@ -102,6 +102,18 @@ KOBLAS_KERNEL void koblas_dense_dot4(
     out[out_off + 3] = r3;
 }
 
+KOBLAS_KERNEL void koblas_dense_rotm(
+    double *x, int32_t x_off, int32_t x_stride, double *y, int32_t y_off, int32_t y_stride,
+    int32_t len, double h11, double h12, double h21, double h22
+) {
+    for (int32_t i = 0; i < len; i++) {
+        const double xi = x[x_off + i * x_stride];
+        const double yi = y[y_off + i * y_stride];
+        x[x_off + i * x_stride] = h11 * xi + h12 * yi;
+        y[y_off + i * y_stride] = h21 * xi + h22 * yi;
+    }
+}
+
 KOBLAS_KERNEL double koblas_sparse_dot_dense(
     const int32_t *indices, const double *values, int32_t len, const double *dense
 ) {

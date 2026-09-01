@@ -352,4 +352,8 @@ class KernelsTest {
 
     @Test
     fun `the compiled-in swap agrees with the scalar loop`() = assertSwapAgreesWithScalar(F64PlatformKernels)
+
+    @Test
+    fun `the compiled-in modified Givens kernels agree with the portable ones`() =
+        assertModifiedGivensKernelsAgreeWithPortable(F64PlatformKernels)
 }
