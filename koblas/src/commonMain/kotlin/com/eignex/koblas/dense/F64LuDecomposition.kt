@@ -10,8 +10,7 @@ import com.eignex.koblas.core.F64DenseMatrix
  * @property rows the factored matrix's row count.
  * @property cols the factored matrix's column count.
  * @property lu the packed `L`\`U` factors, column-major, length `rows * cols`.
- * @param piv the live normalized 0-based row permutation; kept for source compatibility and exposed as the
- * deprecated [piv] property. Prefer [rowPermutation] or [rowAt].
+ * @param piv the live normalized 0-based row permutation, kept internally for [rowPermutation] and [rowAt].
  * @param failedAt the position of the zero pivot, or [NOT_SINGULAR]; readable afterwards through [failedAt].
  */
 public class F64LuDecomposition @UnsafeKoblasApi constructor(
@@ -21,20 +20,8 @@ public class F64LuDecomposition @UnsafeKoblasApi constructor(
     piv: IntArray,
     failedAt: Int = NOT_SINGULAR,
 ) {
-    private val pivotBuffer: IntArray = piv
-
-    /**
-     * The live, normalized 0-based row permutation.
-     *
-     * This property is deprecated. Use [rowPermutation] for a copy or [rowAt] for one position. This live
-     * buffer remains only for source compatibility.
-     */
-    @Deprecated(
-        message = "Use rowPermutation or rowAt; piv is a live compatibility buffer.",
-        replaceWith = ReplaceWith("rowPermutation"),
-    )
-    @UnsafeKoblasApi
-    public val piv: IntArray get() = pivotBuffer
+    /** The mutable factorization buffer for internal implementations. */
+    internal val mutablePivots: IntArray = piv
 
     /** Compatibility name for the number of DGETRF pivot steps, [order]. */
     public val n: Int get() = order
@@ -74,7 +61,7 @@ public class F64LuDecomposition @UnsafeKoblasApi constructor(
 
     init {
         requireShape(lu.size == rows * cols) { "lu length ${lu.size} != ${rows * cols}" }
-        requireShape(pivotBuffer.size == rows) { "piv length ${pivotBuffer.size} != $rows" }
+        requireShape(mutablePivots.size == rows) { "piv length ${mutablePivots.size} != $rows" }
     }
 
     /** Extracts the `rows × order` unit-lower trapezoid `L` as an independent matrix. */
@@ -96,8 +83,9 @@ public class F64LuDecomposition @UnsafeKoblasApi constructor(
     /** A safe extracted copy of the upper trapezoid; shorthand for [upper]. */
     public val u: F64DenseMatrix get() = upper()
 
-    /** Returns a safe copy of the normalized row permutation represented by [piv]. */
-    public fun permutation(): IntArray = pivotBuffer.copyOf()
+    /** Returns a safe copy of the normalized row permutation, where entry `k` is the original row now at
+     *  position `k`. */
+    public fun permutation(): IntArray = mutablePivots.copyOf()
 
     /** A safe snapshot of the original row at every current row position; shorthand for [permutation]. */
     public val rowPermutation: IntArray get() = permutation()
@@ -105,11 +93,8 @@ public class F64LuDecomposition @UnsafeKoblasApi constructor(
     /** The original 0-based row now at factor row [position]. */
     public fun rowAt(position: Int): Int {
         requireInBounds(position, rows)
-        return pivotBuffer[position]
+        return mutablePivots[position]
     }
-
-    /** The mutable factorization buffer for internal implementations. */
-    internal val mutablePivots: IntArray get() = pivotBuffer
 }
 
 /**

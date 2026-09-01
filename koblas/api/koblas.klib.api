@@ -1219,8 +1219,6 @@ final class com.eignex.koblas.dense/F64LuDecomposition { // com.eignex.koblas.de
         final fun <get-n>(): kotlin/Int // com.eignex.koblas.dense/F64LuDecomposition.n.<get-n>|<get-n>(){}[0]
     final val order // com.eignex.koblas.dense/F64LuDecomposition.order|{}order[0]
         final fun <get-order>(): kotlin/Int // com.eignex.koblas.dense/F64LuDecomposition.order.<get-order>|<get-order>(){}[0]
-    final val piv // com.eignex.koblas.dense/F64LuDecomposition.piv|{}piv[0]
-        final fun <get-piv>(): kotlin/IntArray // com.eignex.koblas.dense/F64LuDecomposition.piv.<get-piv>|<get-piv>(){}[0]
     final val rank // com.eignex.koblas.dense/F64LuDecomposition.rank|{}rank[0]
         final fun <get-rank>(): kotlin/Int // com.eignex.koblas.dense/F64LuDecomposition.rank.<get-rank>|<get-rank>(){}[0]
     final val rankDeficient // com.eignex.koblas.dense/F64LuDecomposition.rankDeficient|{}rankDeficient[0]
@@ -1265,8 +1263,6 @@ final class com.eignex.koblas.dense/F64PivotedQrDecomposition { // com.eignex.ko
 final class com.eignex.koblas.dense/F64PivotedSymmetricIndefiniteDecomposition { // com.eignex.koblas.dense/F64PivotedSymmetricIndefiniteDecomposition|null[0]
     constructor <init>(kotlin/Int, kotlin/DoubleArray, kotlin/IntArray, kotlin/Int = ...) // com.eignex.koblas.dense/F64PivotedSymmetricIndefiniteDecomposition.<init>|<init>(kotlin.Int;kotlin.DoubleArray;kotlin.IntArray;kotlin.Int){}[0]
 
-    final val ipiv // com.eignex.koblas.dense/F64PivotedSymmetricIndefiniteDecomposition.ipiv|{}ipiv[0]
-        final fun <get-ipiv>(): kotlin/IntArray // com.eignex.koblas.dense/F64PivotedSymmetricIndefiniteDecomposition.ipiv.<get-ipiv>|<get-ipiv>(){}[0]
     final val ldl // com.eignex.koblas.dense/F64PivotedSymmetricIndefiniteDecomposition.ldl|{}ldl[0]
         final fun <get-ldl>(): kotlin/DoubleArray // com.eignex.koblas.dense/F64PivotedSymmetricIndefiniteDecomposition.ldl.<get-ldl>|<get-ldl>(){}[0]
     final val n // com.eignex.koblas.dense/F64PivotedSymmetricIndefiniteDecomposition.n|{}n[0]

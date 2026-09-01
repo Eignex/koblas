@@ -80,8 +80,9 @@ class LinearAlgebraLdlPivotingTest {
             val (full, lowerOnly) = poisoned(rng, n, diagonalScale = 0.05)
             val f = koblas.pivotedSymmetricIndefinite(lowerOnly)
             if (f.singular) continue
-            blocksSeen += twoByTwoBlocks(f.pivotBlocks)
-            interchanges += f.pivotBlocks.count { it.interchangePosition != it.interchangedWith }
+            val blocks = f.pivotBlocks
+            blocksSeen += twoByTwoBlocks(blocks)
+            interchanges += blocks.count { it.interchangePosition != it.interchangedWith }
             val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
             val x = koblas.solve(f, b)
             assertTrue(residual(full, x, b) <= 1e-7, "seed=$seed n=$n residual ${residual(full, x, b)}")
