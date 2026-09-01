@@ -2,6 +2,7 @@ package com.eignex.koblas
 
 import com.eignex.koblas.core.F64DenseVector
 import com.eignex.koblas.core.F64StridedVectorView
+import com.eignex.koblas.core.asView
 import com.eignex.koblas.core.overlaps
 import kotlin.math.abs
 
@@ -114,7 +115,9 @@ internal fun portableRotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64M
         }
 
         if (dd1 != 0.0) {
-            while (dd1 <= R_GAMSQ || dd1 >= GAMSQ) {
+            // Scaling by GAM/GAMSQ never brings an infinite dd1 back into range, so require finiteness too;
+            // otherwise a non-finite d1 or d2 input spins this loop forever instead of returning.
+            while (dd1.isFinite() && (dd1 <= R_GAMSQ || dd1 >= GAMSQ)) {
                 if (flag == 0.0) {
                     h11 = 1.0
                     h22 = 1.0
@@ -137,7 +140,7 @@ internal fun portableRotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64M
             }
         }
         if (dd2 != 0.0) {
-            while (abs(dd2) <= R_GAMSQ || abs(dd2) >= GAMSQ) {
+            while (dd2.isFinite() && (abs(dd2) <= R_GAMSQ || abs(dd2) >= GAMSQ)) {
                 if (flag == 0.0) {
                     h11 = 1.0
                     h22 = 1.0
@@ -164,24 +167,11 @@ internal fun portableRotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64M
 
 /**
  * Apply a modified Givens [transformation] to each pair in [x] and [y] (BLAS `drotm`). Both vectors are
- * overwritten in place. When both vectors wrap the same backing array, values are read before either output
- * is written, so each pair uses its original inputs.
+ * overwritten in place; when they share a backing array, the [F64StridedVectorView] overload's overlap
+ * handling applies, so at a shared physical entry the final write is from [y].
  */
 public fun rotm(x: F64DenseVector, y: F64DenseVector, transformation: F64ModifiedGivens) {
-    requireSameSize(x.size, y.size)
-    if (transformation.flag == -2.0) return
-    if (x.data === y.data) {
-        applyModifiedGivens(
-            x.data.copyOf(), 0, 1,
-            y.data.copyOf(), 0, 1,
-            x.data, 0, 1,
-            y.data, 0, 1,
-            x.size,
-            transformation,
-        )
-    } else {
-        koblas.kernels.rotm(x.data, 0, 1, y.data, 0, 1, x.size, transformation)
-    }
+    rotm(x.asView(), y.asView(), transformation)
 }
 
 /**
@@ -192,16 +182,11 @@ public fun rotm(x: F64StridedVectorView, y: F64StridedVectorView, transformation
     requireSameSize(x.size, y.size)
     if (transformation.flag == -2.0) return
     if (x.overlaps(y)) {
-        val sourceX = x.toDoubleArray()
-        val sourceY = y.toDoubleArray()
-        val destinationX = DoubleArray(x.size)
-        val destinationY = DoubleArray(y.size)
-        for (i in 0 until x.size) {
-            destinationX[i] = transformation.h11 * sourceX[i] + transformation.h12 * sourceY[i]
-            destinationY[i] = transformation.h21 * sourceX[i] + transformation.h22 * sourceY[i]
-        }
-        for (i in 0 until x.size) x[i] = destinationX[i]
-        for (i in 0 until y.size) y[i] = destinationY[i]
+        val snapshotX = x.toDoubleArray()
+        val snapshotY = y.toDoubleArray()
+        applyModifiedGivens(snapshotX, 0, 1, snapshotY, 0, 1, x.size, transformation)
+        for (i in 0 until x.size) x[i] = snapshotX[i]
+        for (i in 0 until y.size) y[i] = snapshotY[i]
     } else {
         koblas.kernels.rotm(
             x.data,
@@ -268,39 +253,33 @@ internal fun portableRotm(
     transformation: F64ModifiedGivens,
 ) {
     if (transformation.flag == -2.0) return
-    applyModifiedGivens(
-        x, xOff, xStride,
-        y, yOff, yStride,
-        x, xOff, xStride,
-        y, yOff, yStride,
-        len,
-        transformation,
-    )
+    applyModifiedGivens(x, xOff, xStride, y, yOff, yStride, len, transformation)
 }
 
-/** Apply [transformation] to the strided input runs, loading each pair before writing either result. */
+/**
+ * Apply [transformation] in place to the strided [x]/[y] runs, loading each pair before writing either
+ * result, so this is safe even when [x] and [y] are the same array at the same offset and stride.
+ */
 @Suppress("LongParameterList")
 internal fun applyModifiedGivens(
-    sourceX: DoubleArray,
-    sourceXOffset: Int,
-    sourceXStride: Int,
-    sourceY: DoubleArray,
-    sourceYOffset: Int,
-    sourceYStride: Int,
-    destinationX: DoubleArray,
-    destinationXOffset: Int,
-    destinationXStride: Int,
-    destinationY: DoubleArray,
-    destinationYOffset: Int,
-    destinationYStride: Int,
+    x: DoubleArray,
+    xOffset: Int,
+    xStride: Int,
+    y: DoubleArray,
+    yOffset: Int,
+    yStride: Int,
     len: Int,
     transformation: F64ModifiedGivens,
 ) {
+    val h11 = transformation.h11
+    val h12 = transformation.h12
+    val h21 = transformation.h21
+    val h22 = transformation.h22
     for (i in 0 until len) {
-        val xi = sourceX[sourceXOffset + i * sourceXStride]
-        val yi = sourceY[sourceYOffset + i * sourceYStride]
-        destinationX[destinationXOffset + i * destinationXStride] = transformation.h11 * xi + transformation.h12 * yi
-        destinationY[destinationYOffset + i * destinationYStride] = transformation.h21 * xi + transformation.h22 * yi
+        val xi = x[xOffset + i * xStride]
+        val yi = y[yOffset + i * yStride]
+        x[xOffset + i * xStride] = h11 * xi + h12 * yi
+        y[yOffset + i * yStride] = h21 * xi + h22 * yi
     }
 }
 
