@@ -13,7 +13,7 @@ class ExceptionsTest {
     @Test
     fun `a shape mismatch is a DimensionMismatch`() {
         val a = F64DenseMatrix.zero(2, 3)
-        assertFailsWith<DimensionMismatch> { koblas.factor(a) }
+        assertFailsWith<DimensionMismatch> { koblas.invert(koblas.factor(a)) }
         assertFailsWith<DimensionMismatch> { F64DenseVector.zero(2) dot F64DenseVector.zero(3) }
         assertFailsWith<DimensionMismatch> { koblas.gemm(a, F64DenseMatrix.zero(2, 2)) }
     }
@@ -47,7 +47,7 @@ class ExceptionsTest {
     @Test
     fun `every koblas failure stays an IllegalArgumentException`() {
         for (block in listOf<() -> Unit>(
-            { koblas.factor(F64DenseMatrix.zero(2, 3)) },
+            { koblas.invert(koblas.factor(F64DenseMatrix.zero(2, 3))) },
             { singular.lu().invert() },
             { indefinite.cholesky() },
         )) {

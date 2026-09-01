@@ -44,7 +44,7 @@ class SingularSolveTest {
     /** Four right-hand sides, the width from which the host backend takes its native `dsytrs` path. */
     @Test
     fun `every LDL solve refuses a singular factorization`() {
-        val ldl = koblas.ldl(F64DenseMatrix.zero(3, 3))
+        val ldl = koblas.pivotedSymmetricIndefinite(F64DenseMatrix.zero(3, 3))
         assertTrue(ldl.singular)
         val rhs = F64DenseMatrix.zero(3, 4)
         val cases = listOf<Pair<String, () -> Unit>>(

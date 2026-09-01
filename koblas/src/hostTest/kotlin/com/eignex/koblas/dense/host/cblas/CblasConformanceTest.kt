@@ -67,6 +67,9 @@ class CblasConformanceTest {
         assertFactorIntoUsesItsDestination(cblas, n = 24)
 
     @Test
+    fun `rectangular LU matches the portable DGETRF form`() = assertRectangularLuAgreesWithReference(cblas)
+
+    @Test
     fun `the determinant matches reference`() = assertDeterminantAgreesWithReference(cblas, intArrayOf(1, 3, 8, 33))
 
     @Test

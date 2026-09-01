@@ -128,6 +128,12 @@ class HostBlasConformanceTest {
     }
 
     @Test
+    fun `rectangular LU matches the portable DGETRF form`() {
+        Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
+        assertRectangularLuAgreesWithReference(F64Lapacke())
+    }
+
+    @Test
     fun `the factorizations match reference at blocked sizes`() {
         Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
         assertLuAgreesWithReference(F64Lapacke(), intArrayOf(7, 64, 256))

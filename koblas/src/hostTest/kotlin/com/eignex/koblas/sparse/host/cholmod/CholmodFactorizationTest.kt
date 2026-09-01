@@ -18,7 +18,7 @@ class CholmodFactorizationTest {
     @Test
     fun `a singular LDL factorization has no factors to give`() {
         val a = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), emptyList()))
-        val factorization = assertNotNull(cholmod.factorLdl(a))
+        val factorization = assertNotNull(cholmod.factorQuasiDefiniteLdl(a))
 
         assertFailsWith<SingularMatrix> { factorization.l }
         assertFailsWith<SingularMatrix> { factorization.d }
