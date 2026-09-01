@@ -284,12 +284,33 @@ public abstract class F64DecompositionsAdapter internal constructor(
             "pivotedSymmetricIndefinite: matrix must be square, got ${a.rows}x${a.cols}"
         }
         val n = a.rows
-        val buf = a.data.copyOf()
-        val ipiv = IntArray(n)
-        if (n == 0) return F64PivotedSymmetricIndefiniteDecomposition(0, buf, ipiv)
-        val info = f.dsytrf(COL_MAJOR, LOWER_UPLO, n, buf, n, ipiv)
+        return pivotedSymmetricIndefiniteInto(
+            a,
+            F64PivotedSymmetricIndefiniteDecomposition(n, DoubleArray(n * n), IntArray(n)),
+            workspace,
+        )
+    }
+
+    /** `dsytrf` works in place, so [out]'s buffers take the copy of [a] and the factorization overwrites it. */
+    override fun pivotedSymmetricIndefiniteInto(
+        a: F64DenseMatrix,
+        out: F64PivotedSymmetricIndefiniteDecomposition,
+        workspace: Workspace?,
+    ): F64PivotedSymmetricIndefiniteDecomposition {
+        requireShape(a.rows == a.cols) {
+            "pivotedSymmetricIndefinite: matrix must be square, got ${a.rows}x${a.cols}"
+        }
+        val n = a.rows
+        requireShape(out.n == n) {
+            "pivotedSymmetricIndefiniteInto: out is ${out.n}x${out.n}, expected ${n}x$n"
+        }
+        a.data.copyInto(out.ldl)
+        out.failedAt = NOT_SINGULAR
+        if (n == 0) return out
+        val info = f.dsytrf(COL_MAJOR, LOWER_UPLO, n, out.ldl, n, out.rawLapackIpiv)
         check(info >= 0) { "dsytrf: illegal argument ${-info}" }
-        return F64PivotedSymmetricIndefiniteDecomposition(n, buf, ipiv, lapackFailedAt(info))
+        out.failedAt = lapackFailedAt(info)
+        return out
     }
 
     /** The vector solve stays portable on both bindings: one `dsytrs` call does not cover its own cost. */
@@ -318,16 +339,25 @@ public abstract class F64DecompositionsAdapter internal constructor(
         return out
     }
 
-    override fun qr(a: F64DenseMatrix, workspace: Workspace?): F64QrDecomposition {
+    override fun qr(a: F64DenseMatrix, workspace: Workspace?): F64QrDecomposition = qrInto(
+        a,
+        F64QrDecomposition(a.rows, a.cols, DoubleArray(a.data.size), DoubleArray(minOf(a.rows, a.cols))),
+        workspace,
+    )
+
+    /** `dgeqrf` works in place, so [out]'s buffers take the copy of [a] and the factorization overwrites it. */
+    override fun qrInto(a: F64DenseMatrix, out: F64QrDecomposition, workspace: Workspace?): F64QrDecomposition {
+        requireShape(out.m == a.rows && out.n == a.cols) {
+            "qrInto: out is ${out.m}x${out.n}, expected ${a.rows}x${a.cols}"
+        }
         val m = a.rows
         val n = a.cols
-        val buf = a.data.copyOf()
-        val tau = DoubleArray(minOf(m, n))
+        a.data.copyInto(out.qr)
         if (m > 0 && n > 0) {
-            val info = f.dgeqrf(COL_MAJOR, m, n, buf, m, tau)
+            val info = f.dgeqrf(COL_MAJOR, m, n, out.qr, m, out.tau)
             check(info == 0) { "dgeqrf: illegal argument ${-info}" }
         }
-        return F64QrDecomposition(m, n, buf, tau)
+        return out
     }
 
     override fun applyQInto(qr: F64QrDecomposition, y: DoubleArray, out: DoubleArray, transpose: Boolean): DoubleArray {
@@ -367,17 +397,29 @@ public abstract class F64DecompositionsAdapter internal constructor(
      */
     override fun cholesky(a: F64DenseMatrix, policy: CholeskyPolicy): F64CholeskyDecomposition {
         requireSquare(a, "cholesky")
+        return choleskyInto(a, F64CholeskyDecomposition(F64DenseMatrix(a.rows, a.rows)), policy)
+    }
+
+    /** `dpotrf` works in place, so [out]'s buffer takes the lower triangle of [a] and is factored over.
+     *  A non-positive pivot leaves it partly written before the portable path refactors into it. */
+    override fun choleskyInto(
+        a: F64DenseMatrix,
+        out: F64CholeskyDecomposition,
+        policy: CholeskyPolicy,
+    ): F64CholeskyDecomposition {
+        requireSquare(a, "cholesky")
         val n = a.rows
-        if (n == 0) return F64CholeskyDecomposition(F64DenseMatrix(0, 0))
-        val l = F64DenseMatrix(n, n)
+        requireShape(out.n == n) { "choleskyInto: out is ${out.n}x${out.n}, expected ${n}x$n" }
+        if (n == 0) return out
+        val ld = out.l.data
+        // `dpotrf` with `uplo = L` never writes the strict upper triangle, which the factor promises is zero.
+        ld.fill(0.0)
         // One bulk copy per column of the lower triangle; dpotrf reads no further.
-        for (j in 0 until n) a.data.copyInto(l.data, j + j * n, j + j * n, (j + 1) * n)
-        val info = f.dpotrf(COL_MAJOR, LOWER_UPLO, n, l.data, n)
+        for (j in 0 until n) a.data.copyInto(ld, j + j * n, j + j * n, (j + 1) * n)
+        val info = f.dpotrf(COL_MAJOR, LOWER_UPLO, n, ld, n)
         check(info >= 0) { "dpotrf: illegal argument ${-info}" }
-        if (info > 0) return portable.cholesky(a, policy)
-        // The destination is allocated zeroed and `dpotrf` with `uplo = L` leaves the strict upper triangle
-        // untouched, so it is already the zero this returns.
-        return F64CholeskyDecomposition(l)
+        if (info > 0) return portable.choleskyInto(a, out, policy)
+        return out
     }
 
     /**

@@ -72,6 +72,68 @@ class DestinationPassingTest {
         assertTrue(reused.singular, "singular flag must follow the refactorization")
     }
 
+    /** A symmetric matrix whose diagonal dominance makes it positive definite. */
+    private fun diagonallyDominantSymmetric(n: Int, rng: Random): F64DenseMatrix {
+        val (full, _) = poisonedSymmetric(rng, n, lower = true)
+        for (i in 0 until n) full[i, i] = full[i, i] + n
+        return full
+    }
+
+    @Test
+    fun `qrInto reuses the buffers and matches a fresh factorization`() {
+        val rng = Random(20260901)
+        val m = 9
+        val n = 5
+        val reused = koblas.qr(randomMatrix(m, n, rng))
+        val qrBuffer = reused.qr
+        val tauBuffer = reused.tau
+        val second = randomMatrix(m, n, rng)
+
+        val returned = koblas.qrInto(second, reused)
+
+        assertSame(reused, returned, "qrInto must return its destination")
+        assertSame(qrBuffer, reused.qr, "qrInto must not replace the factor buffer")
+        assertSame(tauBuffer, reused.tau, "qrInto must not replace the tau buffer")
+        val fresh = koblas.qr(second)
+        assertClose(fresh.qr, reused.qr, "refactorized packed factors")
+        assertClose(fresh.tau, reused.tau, "refactorized tau")
+    }
+
+    @Test
+    fun `choleskyInto reuses the buffer and matches a fresh factorization`() {
+        val rng = Random(20260902)
+        val n = 8
+        val reused = koblas.cholesky(diagonallyDominantSymmetric(n, rng))
+        val factorBuffer = reused.l.data
+        val second = diagonallyDominantSymmetric(n, rng)
+
+        val returned = koblas.choleskyInto(second, reused)
+
+        assertSame(reused, returned, "choleskyInto must return its destination")
+        assertSame(factorBuffer, reused.l.data, "choleskyInto must not replace the factor buffer")
+        assertClose(koblas.cholesky(second).l.data, reused.l.data, "refactorized Cholesky factor")
+    }
+
+    @Test
+    fun `pivotedSymmetricIndefiniteInto reuses the buffers and matches a fresh factorization`() {
+        val rng = Random(20260903)
+        val n = 8
+        val reused = koblas.pivotedSymmetricIndefinite(poisonedIndefinite(rng, n).first)
+        val ldlBuffer = reused.ldl
+        val ipivBuffer = reused.rawLapackIpiv
+        val second = poisonedIndefinite(rng, n).first
+
+        val returned = koblas.pivotedSymmetricIndefiniteInto(second, reused)
+
+        assertSame(reused, returned, "pivotedSymmetricIndefiniteInto must return its destination")
+        assertSame(ldlBuffer, reused.ldl, "pivotedSymmetricIndefiniteInto must not replace the factor buffer")
+        assertSame(ipivBuffer, reused.rawLapackIpiv, "pivotedSymmetricIndefiniteInto must not replace the pivots")
+        val fresh = koblas.pivotedSymmetricIndefinite(second)
+        assertClose(fresh.ldl, reused.ldl, "refactorized packed factors")
+        assertContentEquals(fresh.rawLapackIpiv, reused.rawLapackIpiv, "refactorized pivots")
+        assertEquals(fresh.failedAt, reused.failedAt, "refactorized singularity")
+    }
+
     @Test
     fun `rcond with a workspace matches rcond without one when repeated`() {
         val rng = Random(20260734)

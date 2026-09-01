@@ -20,7 +20,6 @@ import kotlin.math.abs
 /** Bunch-Kaufman pivot threshold `(1 + sqrt(17)) / 8`, the value minimizing element growth (netlib dsytf2). */
 private const val BUNCH_KAUFMAN_ALPHA = 0.6403882032022076
 
-@Suppress("CyclomaticComplexMethod") // netlib dsytf2's control flow, kept recognizable
 internal fun referenceLdl(
     kernels: F64Kernels,
     a: F64DenseMatrix,
@@ -28,8 +27,30 @@ internal fun referenceLdl(
 ): F64PivotedSymmetricIndefiniteDecomposition {
     requireShape(a.rows == a.cols) { "pivotedSymmetricIndefinite: matrix must be square, got ${a.rows}x${a.cols}" }
     val n = a.rows
-    val w = a.data.copyOf()
-    val ipiv = IntArray(n)
+    return referenceLdlInto(
+        kernels,
+        a,
+        F64PivotedSymmetricIndefiniteDecomposition(n, DoubleArray(n * n), IntArray(n)),
+        workspace,
+    )
+}
+
+/** [referenceLdl] over [out]'s own buffers, which take the copy of [a] the factorization then overwrites. */
+@Suppress("CyclomaticComplexMethod") // netlib dsytf2's control flow, kept recognizable
+internal fun referenceLdlInto(
+    kernels: F64Kernels,
+    a: F64DenseMatrix,
+    out: F64PivotedSymmetricIndefiniteDecomposition,
+    workspace: Workspace?,
+): F64PivotedSymmetricIndefiniteDecomposition {
+    requireShape(a.rows == a.cols) { "pivotedSymmetricIndefinite: matrix must be square, got ${a.rows}x${a.cols}" }
+    val n = a.rows
+    requireShape(out.n == n) {
+        "pivotedSymmetricIndefiniteInto: out is ${out.n}x${out.n}, expected ${n}x$n"
+    }
+    val w = out.ldl
+    val ipiv = out.rawLapackIpiv
+    a.data.copyInto(w)
     var failedAt = NOT_SINGULAR
     workspace.borrow(n) { colK ->
         workspace.borrow(n) { colK1 ->
@@ -111,7 +132,8 @@ internal fun referenceLdl(
             }
         }
     }
-    return F64PivotedSymmetricIndefiniteDecomposition(n, w, ipiv, failedAt)
+    out.failedAt = failedAt
+    return out
 }
 
 /**

@@ -24,6 +24,12 @@ internal class F64ReferenceDecompositions(private val configured: F64Kernels? = 
         workspace: Workspace?,
     ): F64PivotedSymmetricIndefiniteDecomposition = referenceLdl(kernels, a, workspace)
 
+    override fun pivotedSymmetricIndefiniteInto(
+        a: F64DenseMatrix,
+        out: F64PivotedSymmetricIndefiniteDecomposition,
+        workspace: Workspace?,
+    ): F64PivotedSymmetricIndefiniteDecomposition = referenceLdlInto(kernels, a, out, workspace)
+
     override fun solveInto(
         factor: F64PivotedSymmetricIndefiniteDecomposition,
         b: DoubleArray,
@@ -31,6 +37,13 @@ internal class F64ReferenceDecompositions(private val configured: F64Kernels? = 
     ): DoubleArray = referenceLdlSolveInto(kernels, factor, b, out)
 
     override fun qr(a: F64DenseMatrix, workspace: Workspace?): F64QrDecomposition = referenceQr(kernels, a)
+
+    override fun qrInto(a: F64DenseMatrix, out: F64QrDecomposition, workspace: Workspace?): F64QrDecomposition {
+        requireShape(out.m == a.rows && out.n == a.cols) {
+            "qrInto: out is ${out.m}x${out.n}, expected ${a.rows}x${a.cols}"
+        }
+        return referenceQrInto(kernels, a, out)
+    }
 
     override fun qrPivoted(a: F64DenseMatrix, tolerance: Double, workspace: Workspace?): F64PivotedQrDecomposition =
         referenceQrPivoted(kernels, a, tolerance)
@@ -124,6 +137,12 @@ internal class F64ReferenceDecompositions(private val configured: F64Kernels? = 
 
     override fun cholesky(a: F64DenseMatrix, policy: CholeskyPolicy): F64CholeskyDecomposition =
         referenceCholesky(kernels, a, policy)
+
+    override fun choleskyInto(
+        a: F64DenseMatrix,
+        out: F64CholeskyDecomposition,
+        policy: CholeskyPolicy,
+    ): F64CholeskyDecomposition = referenceCholeskyInto(kernels, a, out, policy)
 
     /** Invert a general matrix from its LU factorization, returning `A⁻¹` given `P·A = L·U` (LAPACK `dgetri`).
      *  Prefer [solve] to apply `A⁻¹`, which costs less and is more accurate.

@@ -13,17 +13,25 @@ import kotlin.math.sqrt
  * [F64ReferenceDecompositions] is the F64Decompositions surface over it.
  */
 
-internal fun referenceQr(kernels: F64Kernels, a: F64DenseMatrix): F64QrDecomposition {
+internal fun referenceQr(kernels: F64Kernels, a: F64DenseMatrix): F64QrDecomposition = referenceQrInto(
+    kernels,
+    a,
+    F64QrDecomposition(a.rows, a.cols, DoubleArray(a.data.size), DoubleArray(minOf(a.rows, a.cols))),
+)
+
+/** [referenceQr] over [out]'s own buffers, which take the copy of [a] the factorization then overwrites. */
+internal fun referenceQrInto(kernels: F64Kernels, a: F64DenseMatrix, out: F64QrDecomposition): F64QrDecomposition {
     val m = a.rows
     val n = a.cols
     val k = minOf(m, n)
-    val buf = a.data.copyOf()
-    val tau = DoubleArray(k)
+    val buf = out.qr
+    val tau = out.tau
+    a.data.copyInto(buf)
     for (col in 0 until k) {
         tau[col] = householderColumn(kernels, buf, m, col)
         applyReflectorToTrailing(kernels, buf, m, n, col, tau[col])
     }
-    return F64QrDecomposition(m, n, buf, tau)
+    return out
 }
 
 internal fun referenceQrPivoted(kernels: F64Kernels, a: F64DenseMatrix, tolerance: Double): F64PivotedQrDecomposition {

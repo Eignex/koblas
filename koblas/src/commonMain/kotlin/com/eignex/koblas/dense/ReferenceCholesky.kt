@@ -22,9 +22,24 @@ internal fun referenceCholesky(
     policy: CholeskyPolicy,
 ): F64CholeskyDecomposition {
     requireShape(a.rows == a.cols) { "cholesky requires a square matrix; got ${a.rows}x${a.cols}" }
+    return referenceCholeskyInto(kernels, a, F64CholeskyDecomposition(F64DenseMatrix(a.rows, a.rows)), policy)
+}
+
+/** [referenceCholesky] over [out]'s own buffer, which takes the lower triangle the factorization overwrites.
+ *  A non-positive pivot leaves that buffer partly written, since it is the working storage rather than a copy.
+ */
+internal fun referenceCholeskyInto(
+    kernels: F64Kernels,
+    a: F64DenseMatrix,
+    out: F64CholeskyDecomposition,
+    policy: CholeskyPolicy,
+): F64CholeskyDecomposition {
+    requireShape(a.rows == a.cols) { "cholesky requires a square matrix; got ${a.rows}x${a.cols}" }
     val n = a.rows
-    val l = F64DenseMatrix(n, n)
-    val ld = l.data
+    requireShape(out.n == n) { "choleskyInto: out is ${out.n}x${out.n}, expected ${n}x$n" }
+    val ld = out.l.data
+    // The strict upper triangle is the zero the factor promises, and out arrives holding an older factor.
+    ld.fill(0.0)
     for (j in 0 until n) a.data.copyInto(ld, j + j * n, j + j * n, (j + 1) * n)
     // Left-looking column Cholesky: column j gathers what every column before it owes, rather than
     // each column pushing its contribution out to the ones after it.
@@ -52,7 +67,7 @@ internal fun referenceCholesky(
         val diag = ld[base]
         for (i in base + 1 until base + len) ld[i] = ld[i] / diag
     }
-    return F64CholeskyDecomposition(l)
+    return out
 }
 
 /** Invert an SPD matrix from its Cholesky factorization, returning `A⁻¹` given [chol] (LAPACK `dpotri`). */

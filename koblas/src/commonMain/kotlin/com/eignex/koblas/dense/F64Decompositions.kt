@@ -14,8 +14,9 @@ public interface F64Decompositions : Backend {
     /** LU factorization with partial pivoting of any `m×n` [a] (LAPACK `dgetrf`). [a] is not modified. */
     public fun factor(a: F64DenseMatrix): F64LuDecomposition
 
-    /** Refactorize [a] into [out]'s existing buffers, returning [out]. [out] must have [a]'s shape and
-     *  its previous contents are discarded. */
+    /** Refactorize [a] into [out]'s existing buffers, returning [out]. [out] must have [a]'s shape and its
+     *  previous contents are discarded. The portable and host backends factor straight into those buffers;
+     *  this default is the fallback for a backend that offers only the allocating form. */
     public fun factorInto(a: F64DenseMatrix, out: F64LuDecomposition): F64LuDecomposition {
         requireShape(out.rows == a.rows && out.cols == a.cols) {
             "factorInto: out is ${out.rows}x${out.cols}, expected ${a.rows}x${a.cols}"
@@ -77,7 +78,9 @@ public interface F64Decompositions : Backend {
         solveInto(factor, b, DoubleArray(factor.n))
 
     /** Refactorize [a] into [out]'s existing buffers, returning [out]. [out] must have [a]'s dimension and
-     *  its previous contents are discarded. Reads only the lower triangle of [a]. */
+     *  its previous contents are discarded. Reads only the lower triangle of [a]. The portable and host
+     *  backends factor straight into those buffers; this default is the fallback for a backend that offers
+     *  only the allocating form. */
     public fun pivotedSymmetricIndefiniteInto(
         a: F64DenseMatrix,
         out: F64PivotedSymmetricIndefiniteDecomposition,
@@ -122,7 +125,8 @@ public interface F64Decompositions : Backend {
     public fun qr(a: F64DenseMatrix, workspace: Workspace? = null): F64QrDecomposition
 
     /** Refactorize [a] into [out]'s existing buffers, returning [out]. [out] must have [a]'s shape and its
-     *  previous contents are discarded. */
+     *  previous contents are discarded. The portable and host backends factor straight into those buffers;
+     *  this default is the fallback for a backend that offers only the allocating form. */
     public fun qrInto(a: F64DenseMatrix, out: F64QrDecomposition, workspace: Workspace? = null): F64QrDecomposition {
         requireShape(out.m == a.rows && out.n == a.cols) {
             "qrInto: out is ${out.m}x${out.n}, expected ${a.rows}x${a.cols}"
@@ -205,7 +209,9 @@ public interface F64Decompositions : Backend {
     public fun cholesky(a: F64DenseMatrix, policy: CholeskyPolicy = CholeskyPolicy.Strict): F64CholeskyDecomposition
 
     /** Refactorize [a] into [out]'s existing buffer, returning [out]. [out] must have [a]'s dimension and its
-     *  previous contents are discarded. Reads only the lower triangle of [a].
+     *  previous contents are discarded. Reads only the lower triangle of [a]. The portable and host backends
+     *  factor straight into that buffer, so a failed pivot leaves it partly written; this default is the
+     *  fallback for a backend that offers only the allocating form.
      *  @throws com.eignex.koblas.NotPositiveDefinite at the first non-positive pivot unless [policy] allows it.
      */
     public fun choleskyInto(
