@@ -19,11 +19,16 @@ internal class F64ReferenceDecompositions(private val configured: F64Kernels? = 
     /** These routines' kernels, or the process default when they were given none. */
     override val kernels: F64Kernels get() = configured ?: koblas.kernels
 
-    override fun ldl(a: F64DenseMatrix, workspace: Workspace?): F64LdlDecomposition =
-        referenceLdl(kernels, a, workspace)
+    override fun pivotedSymmetricIndefinite(
+        a: F64DenseMatrix,
+        workspace: Workspace?,
+    ): F64PivotedSymmetricIndefiniteDecomposition = referenceLdl(kernels, a, workspace)
 
-    override fun solveInto(ldl: F64LdlDecomposition, b: DoubleArray, out: DoubleArray): DoubleArray =
-        referenceLdlSolveInto(kernels, ldl, b, out)
+    override fun solveInto(
+        factor: F64PivotedSymmetricIndefiniteDecomposition,
+        b: DoubleArray,
+        out: DoubleArray,
+    ): DoubleArray = referenceLdlSolveInto(kernels, factor, b, out)
 
     override fun qr(a: F64DenseMatrix, workspace: Workspace?): F64QrDecomposition = referenceQr(kernels, a)
 
@@ -33,15 +38,16 @@ internal class F64ReferenceDecompositions(private val configured: F64Kernels? = 
     override fun applyQInto(qr: F64QrDecomposition, y: DoubleArray, out: DoubleArray, transpose: Boolean): DoubleArray =
         referenceApplyQInto(kernels, qr, y, out, transpose)
 
-    override fun factor(a: F64DenseMatrix): F64LuDecomposition {
-        requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
-        val n = a.rows
-        return referenceLuFactorInto(kernels, a, F64LuDecomposition(n, DoubleArray(n * n), IntArray(n)))
-    }
+    override fun factor(a: F64DenseMatrix): F64LuDecomposition = referenceLuFactorInto(
+        kernels,
+        a,
+        F64LuDecomposition(a.rows, a.cols, DoubleArray(a.data.size), IntArray(a.rows)),
+    )
 
     override fun factorInto(a: F64DenseMatrix, out: F64LuDecomposition): F64LuDecomposition {
-        requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
-        requireShape(out.n == a.rows) { "factorInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}" }
+        requireShape(out.rows == a.rows && out.cols == a.cols) {
+            "factorInto: out is ${out.rows}x${out.cols}, expected ${a.rows}x${a.cols}"
+        }
         return referenceLuFactorInto(kernels, a, out)
     }
 
@@ -65,16 +71,16 @@ internal class F64ReferenceDecompositions(private val configured: F64Kernels? = 
 
     /** Solve `A · X = B` into [out], which is returned. [out] may be [b]. */
     override fun solveInto(
-        ldl: F64LdlDecomposition,
+        factor: F64PivotedSymmetricIndefiniteDecomposition,
         b: F64DenseMatrix,
         out: F64DenseMatrix,
         workspace: Workspace?,
     ): F64DenseMatrix {
-        requireFactored(ldl.failedAt, "solve")
-        val n = ldl.n
+        requireFactored(factor.failedAt, "solve")
+        val n = factor.n
         val nrhs = b.cols
         requireSolveShapes(n, b, out)
-        return solveColumnwise(b, out, n, nrhs, workspace) { col, dst -> solveInto(ldl, col, dst) }
+        return solveColumnwise(b, out, n, nrhs, workspace) { col, dst -> solveInto(factor, col, dst) }
     }
 
     override fun solveInto(
@@ -97,6 +103,7 @@ internal class F64ReferenceDecompositions(private val configured: F64Kernels? = 
     }
 
     override fun rcond(lu: F64LuDecomposition, anorm: Double, workspace: Workspace?): Double {
+        requireLuSquare(lu, "rcond")
         requireRcondAnorm(anorm)
         val n = lu.n
         if (n == 0) return 1.0
@@ -123,6 +130,7 @@ internal class F64ReferenceDecompositions(private val configured: F64Kernels? = 
      *  @throws com.eignex.koblas.SingularMatrix if [lu] is singular; the position is [F64LuDecomposition.failedAt].
      */
     override fun invert(lu: F64LuDecomposition, workspace: Workspace?): F64DenseMatrix {
+        requireLuSquare(lu, "invert")
         if (lu.singular) {
             throw SingularMatrix(
                 lu.failedAt,

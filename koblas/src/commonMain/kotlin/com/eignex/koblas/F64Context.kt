@@ -12,13 +12,13 @@ import com.eignex.koblas.dense.F64LuDecomposition
 import com.eignex.koblas.internal.backend.BackendSlot
 import com.eignex.koblas.sparse.F64BasisFactorizations
 import com.eignex.koblas.sparse.F64GeneralSparseLu
+import com.eignex.koblas.sparse.F64QuasiDefiniteLdl
 import com.eignex.koblas.sparse.F64RepeatedSparseLu
 import com.eignex.koblas.sparse.F64SparseBlas
 import com.eignex.koblas.sparse.F64SparseCholesky
 import com.eignex.koblas.sparse.F64SparseDecompositionRoles
 import com.eignex.koblas.sparse.F64SparseDecompositions
 import com.eignex.koblas.sparse.F64SparseKernels
-import com.eignex.koblas.sparse.F64SparseLdl
 import com.eignex.koblas.sparse.F64SparseLinearAlgebra
 import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.F64SparseQr
@@ -37,8 +37,8 @@ import com.eignex.koblas.sparse.basis.F64BasisSolvers
  * @param sparseDecompositions providers used to seed the derived compatibility composition.
  * @property basisSolvers simplex basis solvers, a half of their own beside [sparseDecompositions].
  *
- * [sparseDecompositions] is a derived compatibility composition of the selected general LU, Cholesky, LDL,
- * and QR roles.
+ * [sparseDecompositions] is a derived compatibility composition of the selected general LU, Cholesky,
+ * quasi-definite LDL, and QR roles.
  */
 public class F64Context(
     override val kernels: F64Kernels,
@@ -82,10 +82,10 @@ public class F64Context(
     /** Provider selected for sparse Cholesky. */
     public val sparseCholesky: F64SparseCholesky get() = selectedSparseCholesky
 
-    private var selectedSparseLdl: F64SparseLdl = sparseDecompositions.ldlCapability()
+    private var selectedQuasiDefiniteLdl: F64QuasiDefiniteLdl = sparseDecompositions.quasiDefiniteLdlCapability()
 
-    /** Provider selected for sparse `L * D * L^T`. */
-    public val sparseLdl: F64SparseLdl get() = selectedSparseLdl
+    /** Provider selected for sparse quasi-definite, numerically unpivoted `L * D * L^T`. */
+    public val quasiDefiniteLdl: F64QuasiDefiniteLdl get() = selectedQuasiDefiniteLdl
 
     private var selectedSparseQr: F64SparseQr = sparseDecompositions.qrCapability()
 
@@ -94,7 +94,7 @@ public class F64Context(
 
     /** A compatibility operation surface derived from the four selected sparse factorization providers. */
     public val sparseDecompositions: F64SparseDecompositions by lazy {
-        F64SparseDecompositionRoles(generalSparseLu, sparseCholesky, sparseLdl, sparseQr)
+        F64SparseDecompositionRoles(generalSparseLu, sparseCholesky, quasiDefiniteLdl, sparseQr)
     }
 
     private var selectedBasisFactorizations: F64BasisFactorizations =
@@ -118,7 +118,7 @@ public class F64Context(
         generalSparseLu: F64GeneralSparseLu = sparseDecompositions.generalLuCapability(),
         repeatedSparseLu: F64RepeatedSparseLu? = sparseDecompositions as? F64RepeatedSparseLu,
         sparseCholesky: F64SparseCholesky = sparseDecompositions.choleskyCapability(),
-        sparseLdl: F64SparseLdl = sparseDecompositions.ldlCapability(),
+        quasiDefiniteLdl: F64QuasiDefiniteLdl = sparseDecompositions.quasiDefiniteLdlCapability(),
         sparseQr: F64SparseQr = sparseDecompositions.qrCapability(),
         basisFactorizations: F64BasisFactorizations =
             (sparseDecompositions as? F64BasisFactorizations)
@@ -130,7 +130,7 @@ public class F64Context(
         selectedGeneralSparseLu = generalSparseLu
         selectedRepeatedSparseLu = repeatedSparseLu
         selectedSparseCholesky = sparseCholesky
-        selectedSparseLdl = sparseLdl
+        selectedQuasiDefiniteLdl = quasiDefiniteLdl
         selectedSparseQr = sparseQr
         selectedBasisFactorizations = basisFactorizations
     }
@@ -190,10 +190,10 @@ public class F64Context(
         } else {
             sparseDecompositions.choleskyCapability()
         },
-        sparseLdl = if (sparseDecompositions === this.sparseDecompositions) {
-            sparseLdl
+        quasiDefiniteLdl = if (sparseDecompositions === this.sparseDecompositions) {
+            quasiDefiniteLdl
         } else {
-            sparseDecompositions.ldlCapability()
+            sparseDecompositions.quasiDefiniteLdlCapability()
         },
         sparseQr = if (sparseDecompositions === this.sparseDecompositions) {
             sparseQr
@@ -303,17 +303,17 @@ public class F64Context(
 
     override fun factor(a: F64DenseMatrix): F64LuDecomposition {
         if (enforcesRoutingPolicy) {
-            requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
-            beforeDispatch(F64RouteQuery.DenseLu(a.rows))
+            beforeDispatch(F64RouteQuery.DenseLu(minOf(a.rows, a.cols)))
         }
         return decompositions.factor(a)
     }
 
     override fun factorInto(a: F64DenseMatrix, out: F64LuDecomposition): F64LuDecomposition {
         if (enforcesRoutingPolicy) {
-            requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
-            requireShape(out.n == a.rows) { "factorInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}" }
-            beforeDispatch(F64RouteQuery.DenseLu(a.rows))
+            requireShape(out.rows == a.rows && out.cols == a.cols) {
+                "factorInto: out is ${out.rows}x${out.cols}, expected ${a.rows}x${a.cols}"
+            }
+            beforeDispatch(F64RouteQuery.DenseLu(minOf(a.rows, a.cols)))
         }
         return decompositions.factorInto(a, out)
     }
@@ -422,9 +422,10 @@ private fun F64SparseDecompositions.choleskyCapability(): F64SparseCholesky =
         ?: (this as? F64SparseCholesky)
         ?: error("$name fills no sparse Cholesky role")
 
-private fun F64SparseDecompositions.ldlCapability(): F64SparseLdl = (this as? F64SparseDecompositionRoles)?.ldlProvider
-    ?: (this as? F64SparseLdl)
-    ?: error("$name fills no sparse LDL role")
+private fun F64SparseDecompositions.quasiDefiniteLdlCapability(): F64QuasiDefiniteLdl =
+    (this as? F64SparseDecompositionRoles)?.quasiDefiniteLdlProvider
+        ?: (this as? F64QuasiDefiniteLdl)
+        ?: error("$name fills no sparse quasi-definite LDL role")
 
 private fun F64SparseDecompositions.qrCapability(): F64SparseQr = (this as? F64SparseDecompositionRoles)?.qrProvider
     ?: (this as? F64SparseQr)

@@ -48,6 +48,21 @@ class LinearAlgebraTest {
     }
 
     @Test
+    fun `routed LU factor agrees with the reference for rectangular matrices`() {
+        val rng = Random(20260901)
+        for ((rows, cols) in listOf(5 to 3, 3 to 5)) {
+            val a = F64DenseMatrix(rows, cols)
+            for (j in 0 until cols) for (i in 0 until rows) a[i, j] = rng.nextDouble(-3.0, 3.0)
+            val expected = F64ReferenceLinearAlgebra.factor(a)
+            val actual = a.lu()
+            assertEquals(expected.rows, actual.rows, "rows ${rows}x$cols")
+            assertEquals(expected.cols, actual.cols, "cols ${rows}x$cols")
+            assertClose(expected.lu, actual.lu, "factors ${rows}x$cols")
+            assertEquals(expected.piv.toList(), actual.piv.toList(), "pivots ${rows}x$cols")
+        }
+    }
+
+    @Test
     fun `factor reports the first zero pivot position`() {
         assertEquals(NOT_SINGULAR, F64DenseMatrix.diagonal(3).lu().failedAt, "a good factorization has no position")
         val rank1 = F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(2.0, 4.0)))
@@ -96,7 +111,6 @@ class LinearAlgebraTest {
 
     @Test
     fun `the dense routines reject mismatched shapes`() {
-        assertFailsWith<IllegalArgumentException> { F64DenseMatrix(2, 3).lu() }
         assertFailsWith<IllegalArgumentException> { F64DenseMatrix(2, 3) * F64DenseMatrix(2, 2) }
         assertFailsWith<IllegalArgumentException> { koblas.gemv(F64DenseMatrix(2, 3), DoubleArray(2)) }
         assertFailsWith<IllegalArgumentException> {

@@ -64,6 +64,23 @@ class F64ProductFormBasisSolverTest {
     }
 
     @Test
+    fun `basis quality measures a completed solve`() {
+        val n = 8
+        val a = simplexMatrix(n, Random(20261101))
+        val basicIndex = IntArray(n) { it }
+        val rhs = DoubleArray(n) { (it - 3).toDouble() }
+        val solution = F64IndexedVector(n)
+        val solver = reference.basisSolver(a)
+
+        assertTrue(solver.refactorize(basicIndex))
+        solution.scatter(rhs)
+        solver.ftran(solution)
+
+        assertTrue(solver.rcond > 0.0)
+        assertTrue(solver.solveQuality(rhs, solution).relativeResidual <= 1e-12)
+    }
+
+    @Test
     fun `an update solves as the basis it names`() {
         val rng = Random(20260902)
         val n = 9

@@ -26,7 +26,7 @@ public sealed interface F64RouteQuery {
         }
     }
 
-    /** A dense LU factorization of a square matrix of [order]. */
+    /** A dense LU factorization with [order] DGETRF pivot steps. */
     public data class DenseLu(val order: Int) : F64RouteQuery {
         override val role: BackendRole get() = BackendRole.DENSE_DECOMPOSITIONS
 

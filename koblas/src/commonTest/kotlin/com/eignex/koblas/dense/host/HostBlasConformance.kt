@@ -291,7 +291,7 @@ internal fun assertSymvRefusesNonSquare(blas: F64Blas) {
  * multi-right-hand-side path takes over.
  */
 internal fun assertSingularLdlIsRefused(decompositions: F64Decompositions, nrhs: Int = 4) {
-    val ldl = decompositions.ldl(F64DenseMatrix.zero(3, 3))
+    val ldl = decompositions.pivotedSymmetricIndefinite(F64DenseMatrix.zero(3, 3))
     assertTrue(ldl.singular, "a zero matrix factors to a singular LDL")
     assertFailsWith<SingularMatrix>("vector solve") { decompositions.solve(ldl, DoubleArray(3)) }
     assertFailsWith<SingularMatrix>(
@@ -331,6 +331,30 @@ internal fun assertFactorIntoUsesItsDestination(decompositions: F64Decomposition
     assertTrue(returned.singular, "factorInto must report a singular refactorization")
     decompositions.factorInto(second, returned)
     assertEquals(fresh.failedAt, returned.failedAt, "factorInto must clear a stale singular verdict")
+}
+
+/** DGETRF accepts any shape; compare native packed factors and normalized row permutations with the portable form. */
+internal fun assertRectangularLuAgreesWithReference(decompositions: F64Decompositions) {
+    val cases = listOf(
+        F64DenseMatrix.of(arrayOf(doubleArrayOf(0.0, 2.0), doubleArrayOf(3.0, 4.0), doubleArrayOf(5.0, 6.0))),
+        F64DenseMatrix.of(arrayOf(doubleArrayOf(0.0, 2.0, 7.0), doubleArrayOf(3.0, 4.0, 8.0))),
+        F64DenseMatrix(3, 0),
+        F64DenseMatrix(0, 3),
+        F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0, 3.0), doubleArrayOf(2.0, 4.0, 6.0))),
+    )
+    for (a in cases) {
+        val expected = F64ReferenceLinearAlgebra.factor(a)
+        val actual = decompositions.factor(a)
+        assertEquals(expected.rows, actual.rows, "rows ${a.rows}x${a.cols}")
+        assertEquals(expected.cols, actual.cols, "cols ${a.rows}x${a.cols}")
+        assertClose(expected.lu, actual.lu, "factors ${a.rows}x${a.cols}", tolerance = 1e-12)
+        assertEquals(expected.piv.toList(), actual.piv.toList(), "pivots ${a.rows}x${a.cols}")
+        assertEquals(expected.failedAt, actual.failedAt, "singularity ${a.rows}x${a.cols}")
+        val reused = decompositions.factor(a)
+        val buffer = reused.lu
+        assertSame(reused, decompositions.factorInto(a, reused))
+        assertSame(buffer, reused.lu, "factorInto keeps rectangular factors ${a.rows}x${a.cols}")
+    }
 }
 
 /** The destination starts as NaN wherever beta is zero, so a backend that reads it instead of writing it fails. */
@@ -587,8 +611,8 @@ internal fun assertLdlBlockSolveAgreesWithReference(decompositions: F64Decomposi
     val rng = Random(20260952)
     val b = randomMatrix(n, nrhs, rng)
     val (_, a) = poisonedIndefinite(rng, n)
-    val expected = reference.solve(reference.ldl(a), b)
-    val actual = decompositions.solve(decompositions.ldl(a), b)
+    val expected = reference.solve(reference.pivotedSymmetricIndefinite(a), b)
+    val actual = decompositions.solve(decompositions.pivotedSymmetricIndefinite(a), b)
     assertClose(expected.data, actual.data, "ldl block n=$n nrhs=$nrhs", tolerance = 1e-9)
 }
 
@@ -597,8 +621,8 @@ internal fun assertLdlFactorsInterchange(decompositions: F64Decompositions, size
     for (n in sizes) {
         val (_, a) = poisonedIndefinite(rng, n)
         val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
-        val fReference = reference.ldl(a)
-        val fHost = decompositions.ldl(a)
+        val fReference = reference.pivotedSymmetricIndefinite(a)
+        val fHost = decompositions.pivotedSymmetricIndefinite(a)
         val xs = listOf(
             reference.solve(fReference, b),
             reference.solve(fHost, b),
@@ -609,9 +633,12 @@ internal fun assertLdlFactorsInterchange(decompositions: F64Decompositions, size
             assertClose(xs[0], x, "ldl interchange n=$n variant $i", tolerance = 1e-9)
         }
     }
-    assertTrue(decompositions.ldl(F64DenseMatrix(3, 3)).singular, "a zero matrix factors to a singular LDL")
     assertTrue(
-        decompositions.solve(decompositions.ldl(F64DenseMatrix(0, 0)), DoubleArray(0)).isEmpty(),
+        decompositions.pivotedSymmetricIndefinite(F64DenseMatrix(3, 3)).singular,
+        "a zero matrix factors to a singular LDL",
+    )
+    assertTrue(
+        decompositions.solve(decompositions.pivotedSymmetricIndefinite(F64DenseMatrix(0, 0)), DoubleArray(0)).isEmpty(),
         "an empty solve is empty",
     )
 }
