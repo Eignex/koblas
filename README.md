@@ -268,6 +268,23 @@ of right-hand sides. Sparse quasi-definite LDL factors expose their pivot-sign i
 `pivotedSymmetricIndefinite` is Bunch-Kaufman numerically pivoted for stability; it is not interchangeable
 with sparse `quasiDefiniteLdl`, whose ordering controls fill.
 
+## Factorization coverage
+
+The implemented factor families deliberately have different capabilities: matrix shape, numerical meaning,
+and ownership determine what is useful rather than forcing every factor into one interface.
+
+| Family | Solve / transpose / blocks | Reuse and lifecycle | Safe factor inspection | Deliberate non-applicability |
+|--------|----------------------------|---------------------|------------------------|------------------------------|
+| Dense LU | Vector and column-major multi-RHS `solve`/`solveInto`, including transpose | `factorInto` reuses packed buffers; Kotlin-owned factors do not close | `lowerFactor`, `upperFactor`, `rowOrder`, singularity, determinant/sign/log-absolute determinant, inverse and `rcond` | — |
+| Dense Cholesky | Vector and multi-RHS `solve`/`solveInto`; transpose is identical by symmetry | Pure Kotlin buffers; no symbolic lifecycle | `lowerFactor`, lower packed factor, inverse | No separate transpose solve or symbolic analysis |
+| Dense LDL | Vector and multi-RHS `solve`/`solveInto`; transpose is identical by symmetry | Pure Kotlin buffers; no symbolic lifecycle | `packedFactor`, `pivotBlocks`, singularity | Bunch-Kaufman packing has no independent unpermuted `L`/diagonal `D` snapshot |
+| Dense QR / pivoted QR | Q application, least-squares solve and `solveInto`; pivoted QR reports rank | Workspace reuses solve/Q scratch; pure Kotlin buffers do not close | `explicitQ`, `explicitR`, pivoted `columnOrder`, rank | No inverse or square-system transpose solve for rectangular QR |
+| Triangular inversion | `trsv`/`trsm` supply vector and multi-RHS normal/transpose solves | Stateless; no factor or lifecycle | `trtri` returns the selected inverse triangle | No retained factorization or symbolic phase |
+| Sparse LU | Vector and multi-RHS `solve`/`solveInto`, including transpose and alias-safe defaults | Native factors close; repeated-pattern LU has `analyze`/`refactor` | L/U, orderings, scaling, off-diagonal, fill, pivot quality, singularity where providers can expose them | No general sparse inverse or determinant API |
+| Sparse Cholesky / LDL | Vector and multi-RHS factor solves; transpose is identical by symmetry | Native factors close; portable factors close as no-ops | L/order; LDL D/inertia | No separate transpose solve or dense inverse |
+| Sparse QR | `applyQ`/`applyQInto`, vector and multi-RHS least-squares solve | Native factor lifecycle; workspace block staging | R, column order, rank and fill | Q remains an operator; explicit Q/inverse is generally dense and is intentionally not materialized |
+| Basis factorizations / solvers | Basis factors inherit LU solves; solvers provide FTRAN/BTRAN | Column replacement, refactorization, update count, and close where native-owned | Basis factor exposes normal LU inspection; solver reports dimension/fill/updates/singularity | No matrix inverse, determinant, or generic multi-RHS API for hypersparse indexed-vector workflows |
+
 ## Native options and threading
 
 Library paths belong to provider configuration types, while numerical and dispatch policy belongs to reusable
