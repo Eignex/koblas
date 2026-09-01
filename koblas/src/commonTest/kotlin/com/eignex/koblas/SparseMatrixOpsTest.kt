@@ -87,7 +87,11 @@ class SparseMatrixOpsTest {
         assertTrue(poisoned.norm1().isNaN())
         assertTrue(poisoned.normInf().isNaN())
         assertTrue(poisoned.normFro().isNaN())
-        assertEquals(5e200, F64SparseMatrix.ofTriplets(1, 2, intArrayOf(0, 0), intArrayOf(0, 1), doubleArrayOf(3e200, 4e200)).normFro(), 1e188)
+        assertEquals(
+            5e200,
+            F64SparseMatrix.ofTriplets(1, 2, intArrayOf(0, 0), intArrayOf(0, 1), doubleArrayOf(3e200, 4e200)).normFro(),
+            1e188,
+        )
     }
 
     @Test
