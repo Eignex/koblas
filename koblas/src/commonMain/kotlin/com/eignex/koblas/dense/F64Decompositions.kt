@@ -11,14 +11,15 @@ public interface F64Decompositions : Backend {
     /** The vector kernels this half's inherited routines run on; the installed ones by default. */
     public val kernels: F64Kernels get() = koblas.kernels
 
-    /** LU factorization with partial pivoting of a square [a] (LAPACK `dgetrf`). [a] is not modified. */
+    /** LU factorization with partial pivoting of any `m×n` [a] (LAPACK `dgetrf`). [a] is not modified. */
     public fun factor(a: F64DenseMatrix): F64LuDecomposition
 
-    /** Refactorize [a] into [out]'s existing buffers, returning [out]. [out] must have [a]'s dimension and
+    /** Refactorize [a] into [out]'s existing buffers, returning [out]. [out] must have [a]'s shape and
      *  its previous contents are discarded. */
     public fun factorInto(a: F64DenseMatrix, out: F64LuDecomposition): F64LuDecomposition {
-        requireShape(a.rows == a.cols) { "factor: matrix must be square, got ${a.rows}x${a.cols}" }
-        requireShape(out.n == a.rows) { "factorInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}" }
+        requireShape(out.rows == a.rows && out.cols == a.cols) {
+            "factorInto: out is ${out.rows}x${out.cols}, expected ${a.rows}x${a.cols}"
+        }
         val fresh = factor(a)
         fresh.lu.copyInto(out.lu)
         fresh.mutablePivots.copyInto(out.mutablePivots)
@@ -26,9 +27,10 @@ public interface F64Decompositions : Backend {
         return out
     }
 
-    /** Solve `A · x = b`, or `Aᵀ · x = b` when [transpose], for the factorization [lu] (LAPACK `dgetrs`). */
+    /** Solve `A · x = b`, or `Aᵀ · x = b` when [transpose], for a square factorization [lu] (LAPACK `dgetrs`).
+     *  @throws com.eignex.koblas.DimensionMismatch if [lu] is rectangular. */
     public fun solve(lu: F64LuDecomposition, b: DoubleArray, transpose: Boolean = false): DoubleArray =
-        solveInto(lu, b, DoubleArray(lu.n), transpose)
+        solveInto(lu, b, DoubleArray(lu.rows), transpose)
 
     /** Solve `A · x = b`, or `Aᵀ · x = b` when [transpose], into [out], which is returned. [out] may be [b],
      *  and a [workspace] lends the transposed direction's staging buffer. */
@@ -42,7 +44,8 @@ public interface F64Decompositions : Backend {
     ): DoubleArray
 
     /** Solve `A · X = B`, or `Aᵀ · X = B` when [transpose], for all right-hand-side columns of [b] at once
-     *  (LAPACK `dgetrs` with `nrhs`). */
+     *  against a square factorization [lu] (LAPACK `dgetrs` with `nrhs`).
+     *  @throws com.eignex.koblas.DimensionMismatch if [lu] is rectangular. */
     public fun solve(lu: F64LuDecomposition, b: F64DenseMatrix, transpose: Boolean = false): F64DenseMatrix =
         solveInto(lu, b, F64DenseMatrix(b.rows, b.cols), transpose)
 
@@ -57,27 +60,58 @@ public interface F64Decompositions : Backend {
         workspace: Workspace? = null,
     ): F64DenseMatrix
 
-    /** Symmetric indefinite factorization `A = L·D·Lᵀ` with Bunch-Kaufman pivoting (LAPACK `dsytrf`, lower).
-     *  Reads only the lower triangle of [a], so an upper-only matrix factors to silent nonsense. */
-    public fun ldl(a: F64DenseMatrix, workspace: Workspace? = null): F64LdlDecomposition
+    /**
+     * Bunch-Kaufman numerically pivoted symmetric-indefinite factorization (LAPACK `dsytrf`, lower).
+     *
+     * It reads only [a]'s lower triangle. This is deliberately distinct from sparse
+     * quasi-definite LDL: its pivots are selected from the numeric values for stability, not only from a
+     * fill-reducing ordering.
+     */
+    public fun pivotedSymmetricIndefinite(
+        a: F64DenseMatrix,
+        workspace: Workspace? = null,
+    ): F64PivotedSymmetricIndefiniteDecomposition
 
-    /** Solve `A · x = b` for a symmetric indefinite factorization [ldl] (LAPACK `dsytrs`). */
-    public fun solve(ldl: F64LdlDecomposition, b: DoubleArray): DoubleArray = solveInto(ldl, b, DoubleArray(ldl.n))
+    /** Solve `A · x = b` for [factor] (LAPACK `dsytrs`). */
+    public fun solve(factor: F64PivotedSymmetricIndefiniteDecomposition, b: DoubleArray): DoubleArray =
+        solveInto(factor, b, DoubleArray(factor.n))
+
+    /** Refactorize [a] into [out]'s existing buffers, returning [out]. [out] must have [a]'s dimension and
+     *  its previous contents are discarded. Reads only the lower triangle of [a]. */
+    public fun pivotedSymmetricIndefiniteInto(
+        a: F64DenseMatrix,
+        out: F64PivotedSymmetricIndefiniteDecomposition,
+        workspace: Workspace? = null,
+    ): F64PivotedSymmetricIndefiniteDecomposition {
+        requireShape(a.rows == a.cols) { "pivotedSymmetricIndefinite: matrix must be square, got ${a.rows}x${a.cols}" }
+        requireShape(out.n == a.rows) {
+            "pivotedSymmetricIndefiniteInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}"
+        }
+        val fresh = pivotedSymmetricIndefinite(a, workspace)
+        fresh.ldl.copyInto(out.ldl)
+        fresh.rawLapackIpiv.copyInto(out.rawLapackIpiv)
+        out.failedAt = fresh.failedAt
+        return out
+    }
 
     /** Solve `A · x = b` into [out], which is returned. [out] may be [b]. */
-    public fun solveInto(ldl: F64LdlDecomposition, b: DoubleArray, out: DoubleArray): DoubleArray
+    public fun solveInto(
+        factor: F64PivotedSymmetricIndefiniteDecomposition,
+        b: DoubleArray,
+        out: DoubleArray,
+    ): DoubleArray
 
     /** Solve `A · X = B` for all right-hand-side columns of [b] at once against a symmetric indefinite
      *  factorization (LAPACK `dsytrs` with `nrhs`). */
-    public fun solve(ldl: F64LdlDecomposition, b: F64DenseMatrix): F64DenseMatrix = solveInto(
-        ldl,
+    public fun solve(factor: F64PivotedSymmetricIndefiniteDecomposition, b: F64DenseMatrix): F64DenseMatrix = solveInto(
+        factor,
         b,
         F64DenseMatrix(b.rows, b.cols),
     )
 
     /** Solve `A · X = B` into [out], which is returned. [out] may be [b]. */
     public fun solveInto(
-        ldl: F64LdlDecomposition,
+        factor: F64PivotedSymmetricIndefiniteDecomposition,
         b: F64DenseMatrix,
         out: F64DenseMatrix,
         workspace: Workspace? = null,
@@ -86,6 +120,18 @@ public interface F64Decompositions : Backend {
     /** QR factorization `A = Q·R` of an `m×n` [a] via Householder reflections (LAPACK `dgeqrf`). [a] is not
      *  modified, any shape is accepted, and rank deficiency is not detected. */
     public fun qr(a: F64DenseMatrix, workspace: Workspace? = null): F64QrDecomposition
+
+    /** Refactorize [a] into [out]'s existing buffers, returning [out]. [out] must have [a]'s shape and its
+     *  previous contents are discarded. */
+    public fun qrInto(a: F64DenseMatrix, out: F64QrDecomposition, workspace: Workspace? = null): F64QrDecomposition {
+        requireShape(out.m == a.rows && out.n == a.cols) {
+            "qrInto: out is ${out.m}x${out.n}, expected ${a.rows}x${a.cols}"
+        }
+        val fresh = qr(a, workspace)
+        fresh.qr.copyInto(out.qr)
+        fresh.tau.copyInto(out.tau)
+        return out
+    }
 
     /** QR with column pivoting, `A·P = Q·R` (LAPACK `dgeqp3`), reporting [F64PivotedQrDecomposition.rank] as the
      *  count of leading diagonal entries with `|R_kk| > tolerance · |R₀₀|`. [tolerance] is a fraction of
@@ -145,8 +191,10 @@ public interface F64Decompositions : Backend {
         workspace: Workspace? = null,
     ): DoubleArray
 
-    /** Order-of-magnitude estimate of `1 / (anorm · est(‖A⁻¹‖₁))` (LAPACK `dgecon`), where [anorm] is the
-     *  1-norm of the unfactored matrix (see [norm1]). Returns `1.0` when `n == 0` and `0.0` when singular. */
+    /** Order-of-magnitude estimate of `1 / (anorm · est(‖A⁻¹‖₁))` (LAPACK `dgecon`) for a square factor, where
+     *  [anorm] is the 1-norm of the unfactored matrix (see [norm1]). Returns `1.0` when `n == 0` and `0.0`
+     *  when singular.
+     *  @throws com.eignex.koblas.DimensionMismatch if [lu] is rectangular. */
     public fun rcond(lu: F64LuDecomposition, anorm: Double, workspace: Workspace? = null): Double
 
     /** Cholesky factorization `A = L·Lᵀ` of a symmetric positive-definite [a] (`dpotrf` with `uplo = 'L'`).
@@ -154,6 +202,22 @@ public interface F64Decompositions : Backend {
      *  @throws com.eignex.koblas.NotPositiveDefinite at the first non-positive pivot unless [policy] allows it.
      */
     public fun cholesky(a: F64DenseMatrix, policy: CholeskyPolicy = CholeskyPolicy.Strict): F64CholeskyDecomposition
+
+    /** Refactorize [a] into [out]'s existing buffer, returning [out]. [out] must have [a]'s dimension and its
+     *  previous contents are discarded. Reads only the lower triangle of [a].
+     *  @throws com.eignex.koblas.NotPositiveDefinite at the first non-positive pivot unless [policy] allows it.
+     */
+    public fun choleskyInto(
+        a: F64DenseMatrix,
+        out: F64CholeskyDecomposition,
+        policy: CholeskyPolicy = CholeskyPolicy.Strict,
+    ): F64CholeskyDecomposition {
+        requireShape(a.rows == a.cols) { "cholesky: matrix must be square, got ${a.rows}x${a.cols}" }
+        requireShape(out.n == a.rows) { "choleskyInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}" }
+        val fresh = cholesky(a, policy)
+        fresh.l.data.copyInto(out.l.data)
+        return out
+    }
 
     /** Solve `A · x = b` for [chol] into a fresh vector (LAPACK `dpotrs`). */
     public fun solve(chol: F64CholeskyDecomposition, b: DoubleArray): DoubleArray =
@@ -189,9 +253,10 @@ public interface F64Decompositions : Backend {
         }
     }
 
-    /** Invert a general matrix from its LU factorization, returning `A⁻¹` given `P·A = L·U` (LAPACK `dgetri`).
+    /** Invert a square matrix from its LU factorization, returning `A⁻¹` given `P·A = L·U` (LAPACK `dgetri`).
      *  Prefer [solve] to apply `A⁻¹`, which costs less and is more accurate.
      *  @throws com.eignex.koblas.SingularMatrix if [lu] is singular; the position is [F64LuDecomposition.failedAt].
+     *  @throws com.eignex.koblas.DimensionMismatch if [lu] is rectangular.
      */
     public fun invert(lu: F64LuDecomposition, workspace: Workspace? = null): F64DenseMatrix
 

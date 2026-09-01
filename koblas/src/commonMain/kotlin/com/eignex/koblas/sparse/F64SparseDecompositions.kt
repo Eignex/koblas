@@ -54,14 +54,14 @@ public interface F64SparseDecompositions : Backend {
      * factorization reporting `singular` at that column, the way [factor] reports one, rather than raising
      * the way [cholesky] does; a negative pivot is not a failure at all.
      *
-     * Not the sparse counterpart of the dense [com.eignex.koblas.dense.F64Decompositions.ldl], whatever the
-     * shared name suggests. That one pivots for stability, and neither this nor any library behind this seam
-     * does: the permutation is chosen to limit fill and nothing reorders on the numbers. So this is the
-     * factorization for a matrix that is quasi-definite, which is what an interior point method's KKT system
-     * is, and it can be arbitrarily ill conditioned on a general indefinite one. A caller that cannot promise
-     * quasi-definiteness wants [factor], whose pivoting is numerical.
+     * Unlike dense [com.eignex.koblas.dense.F64Decompositions.pivotedSymmetricIndefinite], neither this nor
+     * any library behind this seam selects numerical pivots: the permutation is chosen to limit fill and
+     * nothing reorders on the numbers. So this is the factorization for a matrix that is quasi-definite,
+     * which is what an interior point method's KKT system is, and it can be arbitrarily ill conditioned on a
+     * general indefinite one. A caller that cannot promise quasi-definiteness wants [factor], whose pivoting
+     * is numerical.
      */
-    public fun ldl(a: F64SparseMatrix): F64SparseLdlFactorization
+    public fun quasiDefiniteLdl(a: F64SparseMatrix): F64QuasiDefiniteLdlFactorization
 
     /**
      * QR factorization of a tall or square [a], for the least-squares solve `min ‖A·x − b‖₂`. Its factor is

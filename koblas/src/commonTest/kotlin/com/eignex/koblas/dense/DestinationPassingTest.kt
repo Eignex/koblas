@@ -43,7 +43,7 @@ class DestinationPassingTest {
         val rng = Random(20260732)
         for (n in intArrayOf(1, 2, 9)) {
             val (a, _) = poisonedIndefinite(rng, n)
-            val f = koblas.ldl(a)
+            val f = koblas.pivotedSymmetricIndefinite(a)
             val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
             val expected = koblas.solve(f, b)
             assertClose(expected, koblas.solveInto(f, b, DoubleArray(n)), "ldl n=$n")
@@ -115,7 +115,7 @@ class DestinationPassingTest {
         val rng = Random(20260751)
         val n = 8
         val (a, _) = poisonedIndefinite(rng, n)
-        val f = koblas.ldl(a)
+        val f = koblas.pivotedSymmetricIndefinite(a)
         for (nrhs in intArrayOf(1, 3, 40)) {
             val b = F64DenseMatrix(n, nrhs)
             for (i in 0 until n) for (j in 0 until nrhs) b[i, j] = rng.nextDouble(-1.0, 1.0)
@@ -154,6 +154,99 @@ class DestinationPassingTest {
                 "min norm ${m}x$n",
             )
         }
+    }
+
+    @Test
+    fun `LU decomposition-receiver solveInto matches the koblas dispatch form aliased or not`() {
+        val rng = Random(20260760)
+        val n = 11
+        val lu = wellConditioned(n, rng).lu()
+        val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
+        for (transpose in booleanArrayOf(false, true)) {
+            val expected = koblas.solve(lu, b, transpose)
+            assertClose(expected, lu.solveInto(b, DoubleArray(n), transpose), "lu receiver n=$n t=$transpose")
+            val aliased = b.copyOf()
+            lu.solveInto(aliased, aliased, transpose)
+            assertClose(expected, aliased, "lu receiver aliased t=$transpose")
+        }
+        val ws = Workspace()
+        val nrhs = 3
+        val block = F64DenseMatrix(n, nrhs)
+        for (i in 0 until n) for (j in 0 until nrhs) block[i, j] = rng.nextDouble(-1.0, 1.0)
+        val expectedBlock = koblas.solve(lu, block)
+        val out = F64DenseMatrix(n, nrhs)
+        assertSame(out, lu.solveInto(block, out, workspace = ws), "lu receiver block must return its destination")
+        assertClose(expectedBlock.data, out.data, "lu receiver block")
+        val aliasedBlock = F64DenseMatrix(n, nrhs, block.data.copyOf())
+        lu.solveInto(aliasedBlock, aliasedBlock, workspace = ws)
+        assertClose(expectedBlock.data, aliasedBlock.data, "lu receiver block aliased")
+    }
+
+    @Test
+    fun `LDL decomposition-receiver solveInto matches the koblas dispatch form aliased or not`() {
+        val rng = Random(20260761)
+        val n = 9
+        val (a, _) = poisonedIndefinite(rng, n)
+        val f = koblas.pivotedSymmetricIndefinite(a)
+        val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
+        val expected = koblas.solve(f, b)
+        assertClose(expected, f.solveInto(b, DoubleArray(n)), "ldl receiver n=$n")
+        val aliased = b.copyOf()
+        f.solveInto(aliased, aliased)
+        assertClose(expected, aliased, "ldl receiver aliased n=$n")
+
+        val nrhs = 3
+        val block = F64DenseMatrix(n, nrhs)
+        for (i in 0 until n) for (j in 0 until nrhs) block[i, j] = rng.nextDouble(-1.0, 1.0)
+        val expectedBlock = koblas.solve(f, block)
+        val out = F64DenseMatrix(n, nrhs)
+        assertSame(out, f.solveInto(block, out), "ldl receiver block must return its destination")
+        assertClose(expectedBlock.data, out.data, "ldl receiver block")
+    }
+
+    @Test
+    fun `Cholesky decomposition-receiver solveInto matches the koblas dispatch form aliased or not`() {
+        val rng = Random(20260762)
+        val n = 8
+        val chol = wellConditioned(n, rng).cholesky()
+        val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
+        val expected = koblas.solve(chol, b)
+        assertClose(expected, chol.solveInto(b, DoubleArray(n)), "cholesky receiver n=$n")
+        val aliased = b.copyOf()
+        chol.solveInto(aliased, aliased)
+        assertClose(expected, aliased, "cholesky receiver aliased n=$n")
+
+        val nrhs = 3
+        val block = F64DenseMatrix(n, nrhs)
+        for (i in 0 until n) for (j in 0 until nrhs) block[i, j] = rng.nextDouble(-1.0, 1.0)
+        val expectedBlock = koblas.solve(chol, block)
+        val out = F64DenseMatrix(n, nrhs)
+        assertSame(out, chol.solveInto(block, out), "cholesky receiver block must return its destination")
+        assertClose(expectedBlock.data, out.data, "cholesky receiver block")
+    }
+
+    @Test
+    fun `QR decomposition-receiver applyQInto and solveInto match the koblas dispatch form`() {
+        val rng = Random(20260763)
+        val m = 7
+        val n = 4
+        val a = F64DenseMatrix(m, n)
+        for (i in 0 until m) for (j in 0 until n) a[i, j] = rng.nextDouble(-1.0, 1.0)
+        val f = koblas.qr(a)
+        val y = DoubleArray(m) { rng.nextDouble(-1.0, 1.0) }
+        for (transpose in booleanArrayOf(false, true)) {
+            val expected = koblas.applyQ(f, y, transpose)
+            assertClose(expected, f.applyQInto(y, DoubleArray(m), transpose), "qr receiver applyQ t=$transpose")
+            val aliased = y.copyOf()
+            f.applyQInto(aliased, aliased, transpose)
+            assertClose(expected, aliased, "qr receiver applyQ aliased t=$transpose")
+        }
+        val expectedSolve = koblas.solve(f, y)
+        assertClose(expectedSolve, f.solveInto(y, DoubleArray(n)), "qr receiver solveInto")
+
+        val pivoted = a.qrPivoted()
+        val expectedPivoted = koblas.solve(pivoted, y)
+        assertClose(expectedPivoted, pivoted.solveInto(y, DoubleArray(n)), "pivoted qr receiver solveInto")
     }
 
     @Test

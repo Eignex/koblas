@@ -74,9 +74,9 @@ public class F64ContextBuilder private constructor(
         val sparseReference = F64ReferenceSparseBackend(kernels)
         val generalLu = resolved.semanticGeneralLu(sparseReference)
         val cholesky = resolved.semanticCholesky(sparseReference)
-        val ldl = resolved.semanticLdl(sparseReference)
+        val quasiDefiniteLdl = resolved.semanticQuasiDefiniteLdl(sparseReference)
         val qr = resolved.semanticQr(sparseReference)
-        val sparseRoles = F64SparseDecompositionRoles(generalLu, cholesky, ldl, qr)
+        val sparseRoles = F64SparseDecompositionRoles(generalLu, cholesky, quasiDefiniteLdl, qr)
         val repeated = resolved[BackendRole.SPARSE_REPEATED_LU] as? F64RepeatedSparseLu
         val basisFactorizations = resolved.semanticBasisFactorizations(sparseReference)
         return F64Context(
@@ -96,7 +96,7 @@ public class F64ContextBuilder private constructor(
             generalSparseLu = generalLu,
             repeatedSparseLu = repeated,
             sparseCholesky = cholesky,
-            sparseLdl = ldl,
+            quasiDefiniteLdl = quasiDefiniteLdl,
             sparseQr = qr,
             basisFactorizations = basisFactorizations,
         )
@@ -133,7 +133,7 @@ private fun portableSelections(): Map<BackendRole, Backend> = mapOf(
     BackendRole.SPARSE_GENERAL_LU to F64ReferenceSparseLinearAlgebra,
     BackendRole.SPARSE_REPEATED_LU to MissingRepeatedSparseLu,
     BackendRole.SPARSE_CHOLESKY to F64ReferenceSparseLinearAlgebra,
-    BackendRole.SPARSE_LDL to F64ReferenceSparseLinearAlgebra,
+    BackendRole.SPARSE_QUASI_DEFINITE_LDL to F64ReferenceSparseLinearAlgebra,
     BackendRole.SPARSE_QR to F64ReferenceSparseLinearAlgebra,
     BackendRole.BASIS_FACTORIZATIONS to F64ReferenceSparseLinearAlgebra,
     BackendRole.BASIS_SOLVERS to F64ReferenceSparseLinearAlgebra,
@@ -148,7 +148,7 @@ private fun BackendRole.accepts(backend: Backend): Boolean = when (this) {
     BackendRole.SPARSE_GENERAL_LU -> backend is F64GeneralSparseLu
     BackendRole.SPARSE_REPEATED_LU -> backend is F64RepeatedSparseLu
     BackendRole.SPARSE_CHOLESKY -> backend is F64SparseCholesky
-    BackendRole.SPARSE_LDL -> backend is F64SparseLdl
+    BackendRole.SPARSE_QUASI_DEFINITE_LDL -> backend is F64QuasiDefiniteLdl
     BackendRole.SPARSE_QR -> backend is F64SparseQr
     BackendRole.BASIS_FACTORIZATIONS -> backend is F64BasisFactorizations
     BackendRole.BASIS_SOLVERS -> backend is F64BasisSolvers
@@ -168,12 +168,13 @@ private fun Map<BackendRole, Backend>.semanticCholesky(reference: F64ReferenceSp
         else -> error("${backend.name} does not implement sparse Cholesky")
     }
 
-private fun Map<BackendRole, Backend>.semanticLdl(reference: F64ReferenceSparseBackend): F64SparseLdl =
-    when (val backend = getValue(BackendRole.SPARSE_LDL)) {
-        F64ReferenceSparseLinearAlgebra -> reference
-        is F64SparseLdl -> backend
-        else -> error("${backend.name} does not implement sparse LDL")
-    }
+private fun Map<BackendRole, Backend>.semanticQuasiDefiniteLdl(
+    reference: F64ReferenceSparseBackend,
+): F64QuasiDefiniteLdl = when (val backend = getValue(BackendRole.SPARSE_QUASI_DEFINITE_LDL)) {
+    F64ReferenceSparseLinearAlgebra -> reference
+    is F64QuasiDefiniteLdl -> backend
+    else -> error("${backend.name} does not implement sparse quasi-definite LDL")
+}
 
 private fun Map<BackendRole, Backend>.semanticQr(reference: F64ReferenceSparseBackend): F64SparseQr =
     when (val backend = getValue(BackendRole.SPARSE_QR)) {

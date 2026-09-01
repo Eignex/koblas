@@ -1,34 +1,30 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
+import com.eignex.koblas.core.F64DenseMatrix
 
 /**
  * A general LU factorization with partial pivoting, `P·A = L·U`, packed column-major with `L` below the
  * diagonal and `U` on and above. [lu] is a live buffer, not a copy, so treat it as read-only.
  *
- * @property n the matrix dimension.
- * @property lu the packed `L`\`U` factors, column-major, length `n * n`.
- * @param piv the live 0-based final row permutation; kept for source compatibility and exposed as the
+ * @property rows the factored matrix's row count.
+ * @property cols the factored matrix's column count.
+ * @property lu the packed `L`\`U` factors, column-major, length `rows * cols`.
+ * @param piv the live normalized 0-based row permutation; kept for source compatibility and exposed as the
  * deprecated [piv] property. Prefer [rowPermutation] or [rowAt].
  * @param failedAt the position of the zero pivot, or [NOT_SINGULAR]; readable afterwards through [failedAt].
  */
 public class F64LuDecomposition @UnsafeKoblasApi constructor(
-    public val n: Int,
+    public val rows: Int,
+    public val cols: Int,
     @property:UnsafeKoblasApi public val lu: DoubleArray,
-    /**
-     * The live, 0-based final row permutation. Prefer [rowPermutation] or [rowAt] so callers cannot mutate
-     * the factorization.
-     *
-     * This property is deprecated. Use [rowPermutation] for a copy or [rowAt] for one position. This live
-     * buffer remains only for source compatibility.
-     */
     piv: IntArray,
     failedAt: Int = NOT_SINGULAR,
 ) {
     private val pivotBuffer: IntArray = piv
 
     /**
-     * The live, 0-based final row permutation.
+     * The live, normalized 0-based row permutation.
      *
      * This property is deprecated. Use [rowPermutation] for a copy or [rowAt] for one position. This live
      * buffer remains only for source compatibility.
@@ -40,6 +36,35 @@ public class F64LuDecomposition @UnsafeKoblasApi constructor(
     @UnsafeKoblasApi
     public val piv: IntArray get() = pivotBuffer
 
+    /** Compatibility name for the number of DGETRF pivot steps, [order]. */
+    public val n: Int get() = order
+
+    /** Number of packed diagonal entries and DGETRF pivot steps. */
+    public val order: Int get() = minOf(rows, cols)
+
+    /** Whether the source matrix was square. Square-only operations require this. */
+    public val square: Boolean get() = rows == cols
+
+    /** Number of nonzero diagonal entries in the computed factors. DGETRF is not rank-revealing. */
+    public val rank: Int get() = (0 until order).count { lu[it + it * rows] != 0.0 }
+
+    /** Whether the diagonal-pivot [rank] is below [order]. */
+    public val rankDeficient: Boolean get() = rank < order
+
+    /**
+     * Legacy spelling for [rankDeficient], read straight off [failedAt] rather than rescanning the diagonal
+     * so hot paths like [F64Decompositions.rcond] stay allocation-free. For a rectangular factor this means
+     * a zero DGETRF pivot, not that the rectangular matrix lacks a two-sided inverse.
+     */
+    public val singular: Boolean get() = failedAt != NOT_SINGULAR
+
+    /**
+     * Compatibility constructor for square factors. New code should provide [rows] and [cols] explicitly.
+     */
+    @UnsafeKoblasApi
+    public constructor(n: Int, lu: DoubleArray, piv: IntArray, failedAt: Int = NOT_SINGULAR) :
+        this(n, n, lu, piv, failedAt)
+
     /**
      * The position k whose pivot U(k, k) was exactly zero, or [NOT_SINGULAR]. This is `dgetrf`'s positive
      * `info` made 0-based.
@@ -47,28 +72,44 @@ public class F64LuDecomposition @UnsafeKoblasApi constructor(
     public var failedAt: Int = failedAt
         internal set
 
-    /**
-     * Whether a zero pivot was encountered. [F64LinearAlgebra.solve] then throws
-     * [com.eignex.koblas.SingularMatrix] rather than dividing by it.
-     */
-    public val singular: Boolean get() = failedAt != NOT_SINGULAR
+    init {
+        requireShape(lu.size == rows * cols) { "lu length ${lu.size} != ${rows * cols}" }
+        requireShape(pivotBuffer.size == rows) { "piv length ${pivotBuffer.size} != $rows" }
+    }
 
-    /** A 0-based copy of the final row permutation: element k is the original row now at factor row k. */
-    public val rowPermutation: IntArray get() = pivotBuffer.copyOf()
+    /** Extracts the `rows × order` unit-lower trapezoid `L` as an independent matrix. */
+    public fun lower(): F64DenseMatrix = F64DenseMatrix(rows, order).also { lower ->
+        for (j in 0 until order) {
+            lower[j, j] = 1.0
+            for (i in j + 1 until rows) lower[i, j] = lu[i + j * rows]
+        }
+    }
+
+    /** Extracts the `order × cols` upper trapezoid `U` as an independent matrix. */
+    public fun upper(): F64DenseMatrix = F64DenseMatrix(order, cols).also { upper ->
+        for (j in 0 until cols) for (i in 0..minOf(j, order - 1)) upper[i, j] = lu[i + j * rows]
+    }
+
+    /** A safe extracted copy of the lower trapezoid; shorthand for [lower]. */
+    public val l: F64DenseMatrix get() = lower()
+
+    /** A safe extracted copy of the upper trapezoid; shorthand for [upper]. */
+    public val u: F64DenseMatrix get() = upper()
+
+    /** Returns a safe copy of the normalized row permutation represented by [piv]. */
+    public fun permutation(): IntArray = pivotBuffer.copyOf()
+
+    /** A safe snapshot of the original row at every current row position; shorthand for [permutation]. */
+    public val rowPermutation: IntArray get() = permutation()
 
     /** The original 0-based row now at factor row [position]. */
     public fun rowAt(position: Int): Int {
-        requireInBounds(position, n)
+        requireInBounds(position, rows)
         return pivotBuffer[position]
     }
 
     /** The mutable factorization buffer for internal implementations. */
     internal val mutablePivots: IntArray get() = pivotBuffer
-
-    init {
-        requireShape(lu.size == n * n) { "lu length ${lu.size} != ${n * n}" }
-        requireShape(pivotBuffer.size == n) { "piv length ${pivotBuffer.size} != $n" }
-    }
 }
 
 /**
@@ -81,10 +122,16 @@ public class F64LuDecomposition @UnsafeKoblasApi constructor(
  * is; that is what LAPACK offers too, which ships `dgecon` and no determinant routine at all.
  */
 public fun F64LuDecomposition.determinant(): Double {
+    requireLuSquare(this, "determinant")
     if (singular) return 0.0
     var d = permutationSign(mutablePivots)
-    for (k in 0 until n) d *= lu[k * n + k]
+    for (k in 0 until order) d *= lu[k + k * rows]
     return d
+}
+
+/** Rejects a square-only LU operation before it consults a rectangular factor's pivots or diagonal. */
+internal fun requireLuSquare(lu: F64LuDecomposition, routine: String) {
+    requireShape(lu.square) { "$routine requires a square LU factorization; got ${lu.rows}x${lu.cols}" }
 }
 
 /** Sign of the permutation [p], where p(k) is the original index at position k. */

@@ -18,6 +18,14 @@ public enum class BasisUpdate {
     SINGULAR,
 }
 
+/** Numerically scaled residual information for one basis solve. */
+public data class F64BasisSolveQuality(
+    /** `max |B·x - b|`, or `max |Bᵀ·x - b|` for a transposed solve. */
+    public val residualInfinityNorm: Double,
+    /** The residual divided by `max(1, max(|B·x|, |b|))`. */
+    public val relativeResidual: Double,
+)
+
 /**
  * The factorization of a simplex basis, held across pivots.
  *
@@ -54,6 +62,13 @@ public interface F64BasisSolver : AutoCloseable {
     public val singular: Boolean
 
     /**
+     * A pivot-spread indicator for the current factors. It is zero for a singular basis; a small positive
+     * result warns that the basis may need reinversion. This is not a reciprocal condition-number estimate.
+     * A native provider may materialize factor metadata to answer it, so sample it rather than polling it.
+     */
+    public val rcond: Double
+
+    /**
      * Factorizes the basis of [basicIndex], whose length must be [n] and whose entries name columns of `A`,
      * and drops any updates. Returns false when the basis is singular, which leaves the solver unusable
      * until a later call succeeds.
@@ -71,6 +86,17 @@ public interface F64BasisSolver : AutoCloseable {
 
     /** Solve `Bᵀ x = b` in place, the transposed counterpart of [ftran]. */
     public fun btran(x: F64IndexedVector, expectedDensity: Double = 1.0)
+
+    /**
+     * Measures the residual of a completed solve against an unmodified copy of its right-hand side.
+     * This deliberately does a sparse matrix-vector product, so use it for numerical checks and rebuild
+     * decisions rather than on every iteration.
+     */
+    public fun solveQuality(
+        rhs: DoubleArray,
+        solution: F64IndexedVector,
+        transpose: Boolean = false,
+    ): F64BasisSolveQuality
 
     /**
      * Replace the basis column at slot [pivotRow] with column [entering] of `A`.

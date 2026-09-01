@@ -102,8 +102,8 @@ void scatterColumn(Handle* h, HVector& v, HighsInt column) {
 extern "C" {
 
 /* The constraint matrix in CSC, whose columns every later basis is drawn from. */
-KOBLAS_HFACTOR_EXPORT Handle* koblas_hfactor_create(int32_t num_row, int32_t num_col, const int32_t* start, const int32_t* index,
-                              const double* value) {
+KOBLAS_HFACTOR_EXPORT Handle* koblas_hfactor_create_v2(int32_t num_row, int32_t num_col, const int32_t* start, const int32_t* index,
+                              const double* value, double pivot_threshold, double pivot_tolerance, int32_t update_method) {
     if (num_row < 0 || num_col < num_row) return nullptr;
     Handle* h = new (std::nothrow) Handle();
     if (h == nullptr) return nullptr;
@@ -119,8 +119,8 @@ KOBLAS_HFACTOR_EXPORT Handle* koblas_hfactor_create(int32_t num_row, int32_t num
     for (HighsInt t = 0; t < num_row; t++) h->to_native[t] = h->to_caller[t] = t;
     h->slot_of_column.assign(num_col, 0);
     /* HFactor retains the pointer, so basic_index is sized once here and never resized. */
-    h->factor.setup(num_col, num_row, h->start.data(), h->index.data(), h->value.data(),
-                    h->basic_index.data());
+    h->factor.setup(num_col, num_row, h->start.data(), h->index.data(), h->value.data(), h->basic_index.data(),
+                    pivot_threshold, pivot_tolerance, kHighsDebugLevelMin, nullptr, true, update_method);
     h->aq.setup(num_row);
     h->ep.setup(num_row);
     return h;

@@ -33,7 +33,8 @@ class LinearAlgebraLdlPivotingTest {
     }
 
     /** How many 2x2 blocks the factorization chose, so a test can assert it exercised that path. */
-    private fun twoByTwoBlocks(blocks: List<F64LdlPivotBlock>): Int = blocks.count { it is F64LdlPivotBlock.TwoByTwo }
+    private fun twoByTwoBlocks(blocks: List<F64PivotedSymmetricIndefinitePivotBlock>): Int =
+        blocks.count { it is F64PivotedSymmetricIndefinitePivotBlock.TwoByTwo }
 
     private fun residual(a: F64DenseMatrix, x: DoubleArray, b: DoubleArray): Double {
         val ax = koblas.gemv(a, x)
@@ -52,7 +53,7 @@ class LinearAlgebraLdlPivotingTest {
         var blocksSeen = 0
         for (n in intArrayOf(2, 3, 4, 5, 8, 13, 20)) {
             val (full, lowerOnly) = poisoned(rng, n, diagonalScale = 0.0)
-            val f = koblas.ldl(lowerOnly)
+            val f = koblas.pivotedSymmetricIndefinite(lowerOnly)
             assertTrue(!f.singular, "n=$n flagged singular")
             blocksSeen += twoByTwoBlocks(f.pivotBlocks)
             val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
@@ -77,7 +78,7 @@ class LinearAlgebraLdlPivotingTest {
             val rng = Random(20260818 + seed)
             val n = 4 + seed % 9
             val (full, lowerOnly) = poisoned(rng, n, diagonalScale = 0.05)
-            val f = koblas.ldl(lowerOnly)
+            val f = koblas.pivotedSymmetricIndefinite(lowerOnly)
             if (f.singular) continue
             blocksSeen += twoByTwoBlocks(f.pivotBlocks)
             interchanges += f.pivotBlocks.count { it.interchangePosition != it.interchangedWith }
@@ -112,7 +113,7 @@ class LinearAlgebraLdlPivotingTest {
                 if (i != j) lowerOnly[j, i] = Double.NaN
             }
         }
-        val f = koblas.ldl(lowerOnly)
+        val f = koblas.pivotedSymmetricIndefinite(lowerOnly)
         assertTrue(!f.singular, "the interchange case flagged singular")
         val b = DoubleArray(n) { 1.0 + it }
         val x = koblas.solve(f, b)
@@ -136,7 +137,7 @@ class LinearAlgebraLdlPivotingTest {
         lowerOnly[1, 0] = tiny
         lowerOnly[1, 1] = 1.0
         lowerOnly[0, 1] = Double.NaN
-        val f = F64ReferenceLinearAlgebra.ldl(lowerOnly)
+        val f = F64ReferenceLinearAlgebra.pivotedSymmetricIndefinite(lowerOnly)
         assertTrue(!f.singular, "a subnormal pivot is not a zero pivot")
         assertEquals(
             1.0,
@@ -160,7 +161,7 @@ class LinearAlgebraLdlPivotingTest {
         val n = 7
         val nrhs = 3
         val (_, lowerOnly) = poisoned(rng, n, diagonalScale = 0.0)
-        val f = koblas.ldl(lowerOnly)
+        val f = koblas.pivotedSymmetricIndefinite(lowerOnly)
         assertTrue(twoByTwoBlocks(f.pivotBlocks) > 0, "expected a 2x2 block")
         val b = F64DenseMatrix(n, nrhs)
         for (idx in b.data.indices) b.data[idx] = rng.nextDouble(-1.0, 1.0)

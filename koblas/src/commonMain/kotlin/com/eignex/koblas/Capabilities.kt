@@ -30,10 +30,10 @@ public object F64Capabilities {
         named = BackendRegistry::sparseCholeskyNamed,
     )
 
-    /** Sparse `L * D * L^T`. */
-    public val sparseLdl: F64Capability<F64SparseLdl> = F64Capability(
-        select = { it.sparseLdl },
-        named = BackendRegistry::sparseLdlNamed,
+    /** Sparse quasi-definite, numerically unpivoted `L * D * L^T`. */
+    public val quasiDefiniteLdl: F64Capability<F64QuasiDefiniteLdl> = F64Capability(
+        select = { it.quasiDefiniteLdl },
+        named = BackendRegistry::quasiDefiniteLdlNamed,
     )
 
     /** Sparse QR for least-squares solves. */
