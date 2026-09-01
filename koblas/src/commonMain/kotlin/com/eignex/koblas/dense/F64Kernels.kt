@@ -105,10 +105,10 @@ internal expect object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
 }
 
 /**
- * Uses a registered host backend when present. The `alpha` guards live here, so `axpy` by zero and `scale`
- * by one are no-ops whichever kernel runs.
+ * Uses a registered host backend when present, above its per-operation crossover. The `alpha` guards live
+ * here, so `axpy` by zero and `scale` by one are no-ops whichever kernel runs.
  *
- * @property host a registered backend; null uses the compiled-in kernels.
+ * @property host a registered backend; null uses the compiled-in kernels, as does a run below the crossover.
  */
 internal class F64RoutedKernels(internal val host: F64Kernels?) :
     F64Kernels,
@@ -116,9 +116,10 @@ internal class F64RoutedKernels(internal val host: F64Kernels?) :
     override val name: String
         get() = if (host == null) F64PlatformKernels.name else "${F64PlatformKernels.name}+${host.name}"
 
-    // Routing is all this class does, so what it reports about itself is what it routes to. Left to the
-    // Backend defaults these describe the wrapper instead, which reads as an unaccelerated priority-0 half
-    // whatever it holds, and [F64Context] composes all three from its halves.
+    // These describe the host this class was given, not what any one call routes to below its crossover:
+    // a run under the crossover still executes on the compiled-in kernels even when host is non-null. Left
+    // to the Backend defaults these describe the wrapper instead, which reads as an unaccelerated
+    // priority-0 half whatever it holds, and [F64Context] composes all three from its halves.
     override val isPortable: Boolean get() = host?.isPortable ?: F64PlatformKernels.isPortable
 
     override val isAvailable: Boolean get() = host?.isAvailable ?: F64PlatformKernels.isAvailable
