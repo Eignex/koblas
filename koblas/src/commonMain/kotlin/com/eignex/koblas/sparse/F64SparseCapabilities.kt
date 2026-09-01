@@ -116,7 +116,7 @@ public interface F64SparseQr : Backend {
 }
 
 /**
- * Unpivoted numerically sparse `L * D * L^T` factorization for quasi-definite systems.
+ * Numerically unpivoted sparse `L * D * L^T` factorization for quasi-definite systems.
  *
  * The ordering may reduce fill, but no numerical pivoting occurs. Use [F64GeneralSparseLu] for a general
  * indefinite system that needs numerical pivoting.
@@ -125,16 +125,6 @@ public interface F64QuasiDefiniteLdl : Backend {
     /** Factorizes [a]'s lower triangle as quasi-definite `L * D * L^T`. */
     public fun quasiDefiniteLdl(a: F64SparseMatrix): F64QuasiDefiniteLdlFactorization
 }
-
-/**
- * @deprecated Sparse LDL is specifically quasi-definite and numerically unpivoted. Use
- * [F64QuasiDefiniteLdl].
- */
-@Deprecated(
-    "Sparse LDL is quasi-definite and numerically unpivoted; use F64QuasiDefiniteLdl.",
-    ReplaceWith("F64QuasiDefiniteLdl"),
-)
-public typealias F64SparseLdl = F64QuasiDefiniteLdl
 
 /** Sparse factorization of a simplex basis that supports column replacement. */
 public interface F64BasisFactorizations : Backend {
@@ -161,7 +151,12 @@ internal class F64SparseDecompositionRoles(
             .distinct()
             .joinToString("+")
     override val priority: Int
-        get() = maxOf(generalLu.priority, choleskyProvider.priority, quasiDefiniteLdlProvider.priority, qrProvider.priority)
+        get() = maxOf(
+            generalLu.priority,
+            choleskyProvider.priority,
+            quasiDefiniteLdlProvider.priority,
+            qrProvider.priority,
+        )
     override val isPortable: Boolean
         get() = generalLu.isPortable && choleskyProvider.isPortable && quasiDefiniteLdlProvider.isPortable &&
             qrProvider.isPortable

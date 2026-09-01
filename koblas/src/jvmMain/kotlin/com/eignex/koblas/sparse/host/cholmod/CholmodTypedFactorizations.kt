@@ -1,9 +1,9 @@
 package com.eignex.koblas.sparse.host.cholmod
 
 import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.sparse.F64QuasiDefiniteLdlFactorization
 import com.eignex.koblas.sparse.F64SparseCholeskyFactorization
 import com.eignex.koblas.sparse.F64SparseFactorization
-import com.eignex.koblas.sparse.F64QuasiDefiniteLdlFactorization
 import com.eignex.koblas.sparse.FactorizationInertia
 
 /*

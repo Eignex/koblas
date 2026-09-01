@@ -2,8 +2,8 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
 import com.eignex.koblas.core.*
-import com.eignex.koblas.sparse.F64SparseCholeskyFactorization
 import com.eignex.koblas.sparse.F64QuasiDefiniteLdlFactorization
+import com.eignex.koblas.sparse.F64SparseCholeskyFactorization
 import com.eignex.koblas.sparse.F64SparseLuFactorization
 import kotlin.test.*
 
@@ -232,7 +232,7 @@ class SparseSeamTest {
         assertEquals(1, decompositions.ldls, "F64SparseMatrix.quasiDefiniteLdl should forward to the seam")
 
         @Suppress("DEPRECATION")
-        a.ldl()
+        a.quasiDefiniteLdl()
         assertEquals(2, decompositions.ldls, "the LDL alias should remain compatible")
     }
 

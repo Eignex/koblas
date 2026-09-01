@@ -26,7 +26,7 @@ internal fun referenceLdl(
     a: F64DenseMatrix,
     workspace: Workspace?,
 ): F64PivotedSymmetricIndefiniteDecomposition {
-    requireShape(a.rows == a.cols) { "ldl: matrix must be square, got ${a.rows}x${a.cols}" }
+    requireShape(a.rows == a.cols) { "pivotedSymmetricIndefinite: matrix must be square, got ${a.rows}x${a.cols}" }
     val n = a.rows
     val w = a.data.copyOf()
     val ipiv = IntArray(n)

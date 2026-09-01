@@ -244,7 +244,7 @@ internal fun assertNativeFactorCloseContract(factorization: F64SparseFactorizati
             assertFailsWith<IllegalStateException> { factorization.order }
         }
 
-        is F64SparseLdlFactorization -> {
+        is F64QuasiDefiniteLdlFactorization -> {
             assertFailsWith<IllegalStateException> { factorization.l }
             assertFailsWith<IllegalStateException> { factorization.d }
             assertFailsWith<IllegalStateException> { factorization.order }

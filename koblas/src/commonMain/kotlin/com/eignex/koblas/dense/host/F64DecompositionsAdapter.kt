@@ -297,8 +297,7 @@ public abstract class F64DecompositionsAdapter internal constructor(
         factor: F64PivotedSymmetricIndefiniteDecomposition,
         b: DoubleArray,
         out: DoubleArray,
-    ): DoubleArray =
-        portable.solveInto(factor, b, out)
+    ): DoubleArray = portable.solveInto(factor, b, out)
 
     /** Solves several right-hand sides with the host factorization. */
     override fun solveInto(

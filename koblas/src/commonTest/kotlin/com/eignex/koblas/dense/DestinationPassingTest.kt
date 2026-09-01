@@ -43,7 +43,7 @@ class DestinationPassingTest {
         val rng = Random(20260732)
         for (n in intArrayOf(1, 2, 9)) {
             val (a, _) = poisonedIndefinite(rng, n)
-            val f = koblas.ldl(a)
+            val f = koblas.pivotedSymmetricIndefinite(a)
             val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
             val expected = koblas.solve(f, b)
             assertClose(expected, koblas.solveInto(f, b, DoubleArray(n)), "ldl n=$n")
@@ -115,7 +115,7 @@ class DestinationPassingTest {
         val rng = Random(20260751)
         val n = 8
         val (a, _) = poisonedIndefinite(rng, n)
-        val f = koblas.ldl(a)
+        val f = koblas.pivotedSymmetricIndefinite(a)
         for (nrhs in intArrayOf(1, 3, 40)) {
             val b = F64DenseMatrix(n, nrhs)
             for (i in 0 until n) for (j in 0 until nrhs) b[i, j] = rng.nextDouble(-1.0, 1.0)

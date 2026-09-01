@@ -40,7 +40,7 @@ class CholmodFactorsTest {
         for (n in intArrayOf(4, 20, 80)) {
             val a = spdLowerTriangle(n, rng)
 
-            assertNotNull(cholmod.factorLdl(a)).use { factorization ->
+            assertNotNull(cholmod.factorQuasiDefiniteLdl(a)).use { factorization ->
                 assertLdlFactorsReproduce(a, factorization, "n=$n")
             }
         }
@@ -50,7 +50,7 @@ class CholmodFactorsTest {
     fun `a singular LDL factorization has no factors to give`() {
         requireCholmod()
         val a = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), emptyList()))
-        val factorization = assertNotNull(cholmod.factorLdl(a))
+        val factorization = assertNotNull(cholmod.factorQuasiDefiniteLdl(a))
 
         assertFailsWith<com.eignex.koblas.SingularMatrix> { factorization.l }
         assertFailsWith<com.eignex.koblas.SingularMatrix> { factorization.d }

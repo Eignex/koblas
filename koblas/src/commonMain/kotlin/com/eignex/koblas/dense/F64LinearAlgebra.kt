@@ -27,16 +27,6 @@ public fun F64DenseMatrix.pivotedSymmetricIndefinite(
     workspace,
 )
 
-/**
- * @deprecated Dense LDL is Bunch-Kaufman pivoted. Use [pivotedSymmetricIndefinite].
- */
-@Deprecated(
-    "Dense LDL is Bunch-Kaufman pivoted; use pivotedSymmetricIndefinite.",
-    ReplaceWith("pivotedSymmetricIndefinite(workspace, lower)"),
-)
-public fun F64DenseMatrix.ldl(workspace: Workspace? = null, lower: Boolean = true): F64PivotedSymmetricIndefiniteDecomposition =
-    pivotedSymmetricIndefinite(workspace, lower)
-
 /** QR factorization `A = Q·R` with the active backend; see [F64Decompositions.qr]. */
 public fun F64DenseMatrix.qr(workspace: Workspace? = null): F64QrDecomposition = koblas.qr(this, workspace)
 

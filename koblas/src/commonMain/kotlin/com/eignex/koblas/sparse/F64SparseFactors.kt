@@ -97,13 +97,3 @@ public interface F64QuasiDefiniteLdlFactorization : F64SparseFactorization {
     /** The original row and column at each position of [l], the same permutation for both by symmetry. */
     public val order: IntArray
 }
-
-/**
- * @deprecated Sparse LDL is specifically quasi-definite and unpivoted numerically. Use
- * [F64QuasiDefiniteLdlFactorization].
- */
-@Deprecated(
-    "Sparse LDL is quasi-definite and numerically unpivoted; use F64QuasiDefiniteLdlFactorization.",
-    ReplaceWith("F64QuasiDefiniteLdlFactorization"),
-)
-public typealias F64SparseLdlFactorization = F64QuasiDefiniteLdlFactorization

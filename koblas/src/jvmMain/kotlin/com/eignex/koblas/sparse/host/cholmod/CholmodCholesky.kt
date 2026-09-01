@@ -3,8 +3,8 @@ package com.eignex.koblas.sparse.host.cholmod
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.NotPositiveDefinite
 import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.sparse.F64SparseCholeskyFactorization
 import com.eignex.koblas.sparse.F64QuasiDefiniteLdlFactorization
+import com.eignex.koblas.sparse.F64SparseCholeskyFactorization
 
 /**
  * CHOLMOD's sparse Cholesky, as the routine a SuiteSparse backend fills its Cholesky half with.

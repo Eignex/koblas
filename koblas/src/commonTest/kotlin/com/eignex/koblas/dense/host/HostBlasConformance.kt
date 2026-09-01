@@ -291,7 +291,7 @@ internal fun assertSymvRefusesNonSquare(blas: F64Blas) {
  * multi-right-hand-side path takes over.
  */
 internal fun assertSingularLdlIsRefused(decompositions: F64Decompositions, nrhs: Int = 4) {
-    val ldl = decompositions.ldl(F64DenseMatrix.zero(3, 3))
+    val ldl = decompositions.pivotedSymmetricIndefinite(F64DenseMatrix.zero(3, 3))
     assertTrue(ldl.singular, "a zero matrix factors to a singular LDL")
     assertFailsWith<SingularMatrix>("vector solve") { decompositions.solve(ldl, DoubleArray(3)) }
     assertFailsWith<SingularMatrix>(
@@ -607,8 +607,8 @@ internal fun assertLdlBlockSolveAgreesWithReference(decompositions: F64Decomposi
     val rng = Random(20260952)
     val b = randomMatrix(n, nrhs, rng)
     val (_, a) = poisonedIndefinite(rng, n)
-    val expected = reference.solve(reference.ldl(a), b)
-    val actual = decompositions.solve(decompositions.ldl(a), b)
+    val expected = reference.solve(reference.pivotedSymmetricIndefinite(a), b)
+    val actual = decompositions.solve(decompositions.pivotedSymmetricIndefinite(a), b)
     assertClose(expected.data, actual.data, "ldl block n=$n nrhs=$nrhs", tolerance = 1e-9)
 }
 
@@ -617,8 +617,8 @@ internal fun assertLdlFactorsInterchange(decompositions: F64Decompositions, size
     for (n in sizes) {
         val (_, a) = poisonedIndefinite(rng, n)
         val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
-        val fReference = reference.ldl(a)
-        val fHost = decompositions.ldl(a)
+        val fReference = reference.pivotedSymmetricIndefinite(a)
+        val fHost = decompositions.pivotedSymmetricIndefinite(a)
         val xs = listOf(
             reference.solve(fReference, b),
             reference.solve(fHost, b),
@@ -629,9 +629,12 @@ internal fun assertLdlFactorsInterchange(decompositions: F64Decompositions, size
             assertClose(xs[0], x, "ldl interchange n=$n variant $i", tolerance = 1e-9)
         }
     }
-    assertTrue(decompositions.ldl(F64DenseMatrix(3, 3)).singular, "a zero matrix factors to a singular LDL")
     assertTrue(
-        decompositions.solve(decompositions.ldl(F64DenseMatrix(0, 0)), DoubleArray(0)).isEmpty(),
+        decompositions.pivotedSymmetricIndefinite(F64DenseMatrix(3, 3)).singular,
+        "a zero matrix factors to a singular LDL",
+    )
+    assertTrue(
+        decompositions.solve(decompositions.pivotedSymmetricIndefinite(F64DenseMatrix(0, 0)), DoubleArray(0)).isEmpty(),
         "an empty solve is empty",
     )
 }

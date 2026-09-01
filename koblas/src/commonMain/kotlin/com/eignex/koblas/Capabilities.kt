@@ -36,16 +36,6 @@ public object F64Capabilities {
         named = BackendRegistry::quasiDefiniteLdlNamed,
     )
 
-    /**
-     * @deprecated Sparse LDL is specifically quasi-definite and numerically unpivoted. Use
-     * [quasiDefiniteLdl].
-     */
-    @Deprecated(
-        "Sparse LDL is quasi-definite and numerically unpivoted; use quasiDefiniteLdl.",
-        ReplaceWith("quasiDefiniteLdl"),
-    )
-    public val sparseLdl: F64Capability<F64QuasiDefiniteLdl> get() = quasiDefiniteLdl
-
     /** Sparse QR for least-squares solves. */
     public val sparseQr: F64Capability<F64SparseQr> = F64Capability(
         select = { it.sparseQr },
