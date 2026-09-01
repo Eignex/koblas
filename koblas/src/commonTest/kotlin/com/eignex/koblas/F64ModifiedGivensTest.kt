@@ -68,6 +68,32 @@ class F64ModifiedGivensTest {
     }
 
     @Test
+    fun `rotm on aliased dense vectors keeps the final write from y`() {
+        val buffer = doubleArrayOf(2.0, -1.0)
+        val x = F64DenseVector.wrap(buffer)
+        val y = F64DenseVector.wrap(buffer)
+        val transformation = rotmg(1.0, 1.0, 2.0, 1.0)
+        val expected = DoubleArray(buffer.size) {
+            transformation.h21 * buffer[it] + transformation.h22 * buffer[it]
+        }
+
+        rotm(x, y, transformation)
+
+        assertContentEquals(expected, buffer)
+        assertContentEquals(expected, x.data)
+        assertContentEquals(expected, y.data)
+    }
+
+    @Test
+    fun `rotmg terminates for a non finite d1`() {
+        // The point of this test is that it returns at all: the GAM rescaling loop cannot bring an
+        // infinite d1 back into range, so it must stop on non-finiteness rather than spin forever.
+        val transformation = rotmg(Double.POSITIVE_INFINITY, 1.0, 1.0, 1.0)
+
+        assertEquals(listOf(-2.0, -1.0, 0.0, 1.0).contains(transformation.flag), true)
+    }
+
+    @Test
     fun `rotm snapshots overlapping strided inputs`() {
         val buffer = doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0)
         val x = F64StridedVectorView(buffer, offset = 0, size = 3)
