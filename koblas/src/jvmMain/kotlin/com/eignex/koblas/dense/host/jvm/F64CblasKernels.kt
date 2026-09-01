@@ -24,7 +24,7 @@ public class F64CblasKernels internal constructor(
         java.lang.foreign.MemorySegment.ofArray(values).asSlice(offset.toLong() * Double.SIZE_BYTES)
 
     private fun blasOffset(offset: Int, stride: Int, len: Int): Int =
-        if (stride < 0) offset + (len - 1) * stride else offset
+        if (stride < 0) (offset.toLong() + (len - 1).toLong() * stride).toInt() else offset
 
     override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
         if (len == 0) 0.0 else calls.ddot.invokeExact(len, segment(a, aOff), 1, segment(b, bOff), 1) as Double

@@ -35,7 +35,7 @@ public class F64CblasKernels internal constructor(
     }
 
     private fun blasOffset(offset: Int, stride: Int, len: Int): Int =
-        if (stride < 0) offset + (len - 1) * stride else offset
+        if (stride < 0) (offset.toLong() + (len - 1).toLong() * stride).toInt() else offset
 
     override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
         if (len == 0) return 0.0
