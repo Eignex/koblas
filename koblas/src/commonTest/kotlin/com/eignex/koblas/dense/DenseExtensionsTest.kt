@@ -108,7 +108,7 @@ class DenseExtensionsTest {
 
     @Test
     fun `ldl solveInto retains its destination and agrees with the seam`() {
-        val ldl = square.ldl()
+        val ldl = square.pivotedSymmetricIndefinite()
         val out = DoubleArray(ldl.n)
         assertSame(out, ldl.solveInto(b3, out), "vector destination")
         assertClose(koblas.solve(ldl, b3), out, "vector solve")
@@ -171,14 +171,18 @@ class DenseExtensionsTest {
 
     @Test
     fun `an LDL refactors through its factor owned reusable buffers`() {
-        val factor = square.ldl()
+        val factor = square.pivotedSymmetricIndefinite()
         val factors = factor.ldl
         val pivots = factor.ipiv
 
         assertSame(factor, factor.refactorInto(squareNext), "refactor destination")
         assertSame(factors, factor.ldl, "refactor factor buffer")
         assertSame(pivots, factor.ipiv, "refactor pivot buffer")
-        assertClose(koblas.solve(koblas.ldl(squareNext), b3), factor.solve(b3), "refactored solve")
+        assertClose(
+            koblas.solve(koblas.pivotedSymmetricIndefinite(squareNext), b3),
+            factor.solve(b3),
+            "refactored solve",
+        )
     }
 
     @Test
