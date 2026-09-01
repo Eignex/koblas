@@ -1176,13 +1176,27 @@ public final class com/eignex/koblas/dense/F64LinearAlgebraKt {
 }
 
 public final class com/eignex/koblas/dense/F64LuDecomposition {
+	public fun <init> (II[D[II)V
+	public synthetic fun <init> (II[D[IIILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun <init> (I[D[II)V
 	public synthetic fun <init> (I[D[IIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getCols ()I
 	public final fun getFailedAt ()I
+	public final fun getL ()Lcom/eignex/koblas/core/F64DenseMatrix;
 	public final fun getLu ()[D
 	public final fun getN ()I
+	public final fun getOrder ()I
 	public final fun getPiv ()[I
+	public final fun getRank ()I
+	public final fun getRankDeficient ()Z
+	public final fun getRowPermutation ()[I
+	public final fun getRows ()I
 	public final fun getSingular ()Z
+	public final fun getSquare ()Z
+	public final fun getU ()Lcom/eignex/koblas/core/F64DenseMatrix;
+	public final fun lower ()Lcom/eignex/koblas/core/F64DenseMatrix;
+	public final fun permutation ()[I
+	public final fun upper ()Lcom/eignex/koblas/core/F64DenseMatrix;
 }
 
 public final class com/eignex/koblas/dense/F64LuDecompositionKt {

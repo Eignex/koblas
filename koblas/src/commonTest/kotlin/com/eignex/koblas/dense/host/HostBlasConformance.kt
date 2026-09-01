@@ -333,6 +333,30 @@ internal fun assertFactorIntoUsesItsDestination(decompositions: F64Decomposition
     assertEquals(fresh.failedAt, returned.failedAt, "factorInto must clear a stale singular verdict")
 }
 
+/** DGETRF accepts any shape; compare native packed factors and normalized row permutations with the portable form. */
+internal fun assertRectangularLuAgreesWithReference(decompositions: F64Decompositions) {
+    val cases = listOf(
+        F64DenseMatrix.of(arrayOf(doubleArrayOf(0.0, 2.0), doubleArrayOf(3.0, 4.0), doubleArrayOf(5.0, 6.0))),
+        F64DenseMatrix.of(arrayOf(doubleArrayOf(0.0, 2.0, 7.0), doubleArrayOf(3.0, 4.0, 8.0))),
+        F64DenseMatrix(3, 0),
+        F64DenseMatrix(0, 3),
+        F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0, 3.0), doubleArrayOf(2.0, 4.0, 6.0))),
+    )
+    for (a in cases) {
+        val expected = F64ReferenceLinearAlgebra.factor(a)
+        val actual = decompositions.factor(a)
+        assertEquals(expected.rows, actual.rows, "rows ${a.rows}x${a.cols}")
+        assertEquals(expected.cols, actual.cols, "cols ${a.rows}x${a.cols}")
+        assertClose(expected.lu, actual.lu, "factors ${a.rows}x${a.cols}", tolerance = 1e-12)
+        assertEquals(expected.piv.toList(), actual.piv.toList(), "pivots ${a.rows}x${a.cols}")
+        assertEquals(expected.failedAt, actual.failedAt, "singularity ${a.rows}x${a.cols}")
+        val reused = decompositions.factor(a)
+        val buffer = reused.lu
+        assertSame(reused, decompositions.factorInto(a, reused))
+        assertSame(buffer, reused.lu, "factorInto keeps rectangular factors ${a.rows}x${a.cols}")
+    }
+}
+
 /** The destination starts as NaN wherever beta is zero, so a backend that reads it instead of writing it fails. */
 internal fun assertGemvAgreesWithReference(blas: F64Blas, sizes: IntArray) {
     val rng = Random(20260727)
