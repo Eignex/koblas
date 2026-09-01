@@ -19,8 +19,25 @@ public fun F64DenseMatrix.cholesky(
 /** Solve `A · x = b` for this factorization with the active backend; see [F64Decompositions.solve]. */
 public fun F64CholeskyDecomposition.solve(b: DoubleArray): DoubleArray = koblas.solve(this, b)
 
+/** Solve into [out], which may alias [b], retaining the caller's destination buffer. */
+public fun F64CholeskyDecomposition.solveInto(b: DoubleArray, out: DoubleArray): DoubleArray = koblas.solveInto(
+    this,
+    b,
+    out,
+)
+
 /** Solve `A · X = B` for this factorization with the active backend; see [F64Decompositions.solve]. */
 public fun F64CholeskyDecomposition.solve(b: F64DenseMatrix): F64DenseMatrix = koblas.solve(this, b)
+
+/**
+ * Solve every column of [b] into [out], which may be [b]. [workspace] provides staging for providers that
+ * solve one right-hand side at a time.
+ */
+public fun F64CholeskyDecomposition.solveInto(
+    b: F64DenseMatrix,
+    out: F64DenseMatrix,
+    workspace: Workspace? = null,
+): F64DenseMatrix = koblas.solveInto(this, b, out, workspace)
 
 /** `A⁻¹` from this factorization with the active backend; see [F64Decompositions.invert]. */
 public fun F64CholeskyDecomposition.invert(workspace: Workspace? = null): F64DenseMatrix = koblas.invert(

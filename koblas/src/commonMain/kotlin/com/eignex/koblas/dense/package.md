@@ -26,6 +26,14 @@ Dense linear algebra: the three swappable seams and the routines behind them.
   dense Bunch-Kaufman chooses numerical pivots for stability, while sparse quasi-definite LDL preserves its
   fill-reducing ordering.
 
+Dense decomposition objects own only Kotlin arrays. They deliberately are not `AutoCloseable`: there is no native
+factor handle or symbolic analysis to release. Retain a factor to solve repeated right-hand sides, and use
+[F64LuDecomposition.refactorInto] to reuse an LU's existing factor buffers for a same-sized matrix; dense
+factorizations have no `prepare` or symbolic-analysis counterpart because neither adds reusable work beyond those
+buffers. Every factor-owned operation delegates through the active [com.eignex.koblas.koblas] context, including
+the `Into` forms that retain caller-owned destinations and accept a [com.eignex.koblas.Workspace] where staging is
+needed.
+
 [F64StridedMatrixView][com.eignex.koblas.core.F64StridedMatrixView] and
 [F64StridedVectorView][com.eignex.koblas.core.F64StridedVectorView] are live zero-copy views. Panels retain
 their parent's column-major leading dimension; their [row][com.eignex.koblas.core.F64StridedMatrixView.row]
