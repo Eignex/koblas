@@ -28,7 +28,10 @@ class Level1Benchmark {
         val rng = benchRng()
         x = F64DenseVector.of(randomVector(len, rng))
         y = F64DenseVector.of(randomVector(len, rng))
-        modifiedRotation = rotmg(1.0, 1.0, 2.0, 1.0)
+        // Near-identity, like NEAR_UNIT_SCALE: rotmBench applies this every invocation with no per-call
+        // reset, so a transformation with eigenvalues away from unit magnitude would blow x/y up to
+        // Infinity/NaN partway through a trial.
+        modifiedRotation = rotmg(1.0, 1.0, 1.0, NEAR_UNIT_SCALE - 1.0)
         quad = randomVector(4 * len, rng)
     }
 
