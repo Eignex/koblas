@@ -1343,6 +1343,24 @@ public final class com/eignex/koblas/dense/F64ReferenceBackendKt {
 	public static final fun getF64ReferenceLinearAlgebra ()Lcom/eignex/koblas/dense/F64ReferenceBackend;
 }
 
+public final class com/eignex/koblas/dense/FactorSnapshotsKt {
+	public static final fun columnOrder (Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;)[I
+	public static final fun determinantSign (Lcom/eignex/koblas/dense/F64LuDecomposition;)I
+	public static final fun explicitQ (Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
+	public static final fun explicitQ (Lcom/eignex/koblas/dense/F64QrDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
+	public static synthetic fun explicitQ$default (Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/core/F64DenseMatrix;
+	public static synthetic fun explicitQ$default (Lcom/eignex/koblas/dense/F64QrDecomposition;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/core/F64DenseMatrix;
+	public static final fun explicitR (Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;)Lcom/eignex/koblas/core/F64DenseMatrix;
+	public static final fun explicitR (Lcom/eignex/koblas/dense/F64QrDecomposition;)Lcom/eignex/koblas/core/F64DenseMatrix;
+	public static final fun logAbsDeterminant (Lcom/eignex/koblas/dense/F64LuDecomposition;)D
+	public static final fun lowerFactor (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;)Lcom/eignex/koblas/core/F64DenseMatrix;
+	public static final fun lowerFactor (Lcom/eignex/koblas/dense/F64LuDecomposition;)Lcom/eignex/koblas/core/F64DenseMatrix;
+	public static final fun packedFactor (Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;)Lcom/eignex/koblas/core/F64DenseMatrix;
+	public static final fun pivotBlocks (Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;)[I
+	public static final fun rowOrder (Lcom/eignex/koblas/dense/F64LuDecomposition;)[I
+	public static final fun upperFactor (Lcom/eignex/koblas/dense/F64LuDecomposition;)Lcom/eignex/koblas/core/F64DenseMatrix;
+}
+
 public final class com/eignex/koblas/dense/TriangularKt {
 	public static final fun trmm (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZZZZD)V
 	public static synthetic fun trmm$default (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZZZZDILjava/lang/Object;)V

@@ -82,13 +82,14 @@ public fun F64CholeskyDecomposition.lowerFactor(): F64DenseMatrix = F64DenseMatr
  * Bunch-Kaufman interleaves the `D` blocks, multipliers, and pivoting in this representation, so it has no
  * independent conventional `L` and diagonal `D` matrix to expose without changing its numerical contract.
  * Unlike [F64LuDecomposition.lowerFactor] or [F64CholeskyDecomposition.lowerFactor], the strict upper
- * triangle here is not zeroed: [ldl] never writes above the diagonal, so those entries are whatever the
+ * triangle here is not zeroed: `dsytrf` never writes above the diagonal, so those entries are whatever the
  * factored matrix held there, not factorization data.
  */
-public fun F64LdlDecomposition.packedFactor(): F64DenseMatrix = F64DenseMatrix(n, n, ldl.copyOf())
+public fun F64PivotedSymmetricIndefiniteDecomposition.packedFactor(): F64DenseMatrix =
+    F64DenseMatrix(n, n, ldl.copyOf())
 
 /** A defensive copy of this factorization's LAPACK `dsytrf` pivot description. */
-public fun F64LdlDecomposition.pivotBlocks(): IntArray = ipiv.copyOf()
+public fun F64PivotedSymmetricIndefiniteDecomposition.pivotBlocks(): IntArray = ipiv.copyOf()
 
 /**
  * The explicit orthogonal `m×m` matrix `Q` represented by this factorization.

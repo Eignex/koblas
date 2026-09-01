@@ -79,7 +79,7 @@ class FactorSnapshotsTest {
         lower[0, 0] = 99.0
         assertFalse(chol.lowerFactor()[0, 0] == 99.0)
 
-        val ldl = a.ldl()
+        val ldl = a.pivotedSymmetricIndefinite()
         val packed = ldl.packedFactor()
         val pivots = ldl.pivotBlocks()
         packed[0, 0] = 99.0
