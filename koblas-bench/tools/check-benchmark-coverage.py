@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Validate reviewed benchmark coverage against the public numerical operation surface."""
+"""Validate reviewed benchmark coverage against the public numerical operation surface, optionally against
+benchmark JSON reports."""
 import csv
 import json
 import pathlib
@@ -13,7 +14,9 @@ INVENTORY = ROOT / "public-numerical-api.tsv"
 MODIFIER = r"(?:public|internal|private|protected|open|override|suspend|inline)"
 BENCHMARK = re.compile(rf"@Benchmark(?:\([^)]*\))?\s*(?:{MODIFIER}\s+)*fun\s+(\w+)")
 CLASS = re.compile(r"class\s+(\w+Benchmark)\b")
-PUBLIC_FUNCTION = re.compile(r"public\s+(?:[A-Za-z]+\s+)*fun\s+(?:[A-Za-z0-9_<>?.]+\s*\.)?(\w+)\s*\(")
+PUBLIC_FUNCTION = re.compile(
+    r"public\s+(?:[A-Za-z]+\s+)*fun\s+(?:<[^>]*>\s+)?(?:[A-Za-z0-9_<>?.]+\s*\.)?(\w+)\s*\("
+)
 
 # These are the public operation facades. Storage construction, backend configuration, and lifecycle methods are
 # intentionally not numerical operations. Keep this list alongside a new facade so the inventory remains complete.
@@ -25,12 +28,15 @@ PUBLIC_NUMERICAL_SOURCES = (
     "dense/Cholesky.kt",
     "dense/F64Blas.kt",
     "dense/F64Decompositions.kt",
+    "dense/F64Kernels.kt",
     "dense/F64LinearAlgebra.kt",
     "dense/F64LuDecomposition.kt",
+    "dense/FactorSnapshots.kt",
     "dense/Triangular.kt",
     "sparse/F64SparseBlas.kt",
     "sparse/F64SparseDecompositions.kt",
     "sparse/F64SparseFactorization.kt",
+    "sparse/F64SparseKernels.kt",
     "sparse/F64SparseQrFactorization.kt",
     "sparse/SparseOps.kt",
     "sparse/basis/F64BasisSolver.kt",
