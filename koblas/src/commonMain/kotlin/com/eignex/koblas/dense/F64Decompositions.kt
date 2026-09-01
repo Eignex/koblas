@@ -21,7 +21,7 @@ public interface F64Decompositions : Backend {
         requireShape(out.n == a.rows) { "factorInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}" }
         val fresh = factor(a)
         fresh.lu.copyInto(out.lu)
-        fresh.piv.copyInto(out.piv)
+        fresh.mutablePivots.copyInto(out.mutablePivots)
         out.failedAt = fresh.failedAt
         return out
     }

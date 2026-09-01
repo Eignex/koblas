@@ -33,19 +33,7 @@ class LinearAlgebraLdlPivotingTest {
     }
 
     /** How many 2x2 blocks the factorization chose, so a test can assert it exercised that path. */
-    private fun twoByTwoBlocks(ipiv: IntArray): Int {
-        var blocks = 0
-        var k = 0
-        while (k < ipiv.size) {
-            if (ipiv[k] < 0) {
-                blocks++
-                k += 2
-            } else {
-                k += 1
-            }
-        }
-        return blocks
-    }
+    private fun twoByTwoBlocks(blocks: List<F64LdlPivotBlock>): Int = blocks.count { it is F64LdlPivotBlock.TwoByTwo }
 
     private fun residual(a: F64DenseMatrix, x: DoubleArray, b: DoubleArray): Double {
         val ax = koblas.gemv(a, x)
@@ -66,7 +54,7 @@ class LinearAlgebraLdlPivotingTest {
             val (full, lowerOnly) = poisoned(rng, n, diagonalScale = 0.0)
             val f = koblas.ldl(lowerOnly)
             assertTrue(!f.singular, "n=$n flagged singular")
-            blocksSeen += twoByTwoBlocks(f.ipiv)
+            blocksSeen += twoByTwoBlocks(f.pivotBlocks)
             val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
             val x = koblas.solve(f, b)
             assertTrue(
@@ -91,8 +79,8 @@ class LinearAlgebraLdlPivotingTest {
             val (full, lowerOnly) = poisoned(rng, n, diagonalScale = 0.05)
             val f = koblas.ldl(lowerOnly)
             if (f.singular) continue
-            blocksSeen += twoByTwoBlocks(f.ipiv)
-            for (k in 0 until n) if (abs(f.ipiv[k]) - 1 != k) interchanges++
+            blocksSeen += twoByTwoBlocks(f.pivotBlocks)
+            interchanges += f.pivotBlocks.count { it.interchangePosition != it.interchangedWith }
             val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
             val x = koblas.solve(f, b)
             assertTrue(residual(full, x, b) <= 1e-7, "seed=$seed n=$n residual ${residual(full, x, b)}")
@@ -173,7 +161,7 @@ class LinearAlgebraLdlPivotingTest {
         val nrhs = 3
         val (_, lowerOnly) = poisoned(rng, n, diagonalScale = 0.0)
         val f = koblas.ldl(lowerOnly)
-        assertTrue(twoByTwoBlocks(f.ipiv) > 0, "expected a 2x2 block")
+        assertTrue(twoByTwoBlocks(f.pivotBlocks) > 0, "expected a 2x2 block")
         val b = F64DenseMatrix(n, nrhs)
         for (idx in b.data.indices) b.data[idx] = rng.nextDouble(-1.0, 1.0)
         val block = koblas.solve(f, b)

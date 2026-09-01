@@ -57,6 +57,17 @@ class LinearAlgebraTest {
     }
 
     @Test
+    fun `LU exposes a zero based defensive row permutation`() {
+        val factor = F64DenseMatrix.of(arrayOf(doubleArrayOf(0.0, 1.0), doubleArrayOf(1.0, 0.0))).lu()
+
+        assertContentEquals(intArrayOf(1, 0), factor.rowPermutation)
+        assertEquals(1, factor.rowAt(0))
+        val copy = factor.rowPermutation
+        copy[0] = 0
+        assertEquals(1, factor.rowAt(0), "changing the returned permutation must not alter the factor")
+    }
+
+    @Test
     fun `lapackFailedAt converts an info return`() {
         assertEquals(NOT_SINGULAR, lapackFailedAt(0))
         assertEquals(0, lapackFailedAt(1))

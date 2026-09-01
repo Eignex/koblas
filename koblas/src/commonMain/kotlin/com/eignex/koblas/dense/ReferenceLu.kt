@@ -21,7 +21,7 @@ internal fun referenceLuFactorInto(
     val n = out.n
     val lu = out.lu
     a.data.copyInto(lu)
-    val piv = out.piv
+    val piv = out.mutablePivots
     for (i in 0 until n) piv[i] = i
     var failedAt = NOT_SINGULAR
     for (k in 0 until n) {
@@ -76,7 +76,7 @@ internal fun referenceLuSolveInto(
     requireShape(b.size == n) { "solve: b length ${b.size} != $n" }
     requireShape(out.size == n) { "solve: out length ${out.size} != $n" }
     val a = lu.lu
-    val piv = lu.piv
+    val piv = lu.mutablePivots
     return if (transpose) {
         solveTranspose(kernels, n, a, piv, b, out, workspace)
     } else {
@@ -149,7 +149,7 @@ internal fun referenceLuSolveInto(
             b.data.copyInto(y)
             trsmCore(kernels, f, n, y, nrhs, lower = false, transpose = true, unitDiag = false)
             trsmCore(kernels, f, n, y, nrhs, lower = true, transpose = true, unitDiag = true)
-            permuteRows(y, out.data, n, nrhs, lu.piv, gather = false)
+            permuteRows(y, out.data, n, nrhs, lu.mutablePivots, gather = false)
         }
         out
     } else {
@@ -157,11 +157,11 @@ internal fun referenceLuSolveInto(
         // matrices can be distinct objects over one array, so the test is on the storage.
         if (out.data === b.data) {
             workspace.borrow(n * nrhs) { staged ->
-                permuteRows(b.data, staged, n, nrhs, lu.piv, gather = true)
+                permuteRows(b.data, staged, n, nrhs, lu.mutablePivots, gather = true)
                 staged.copyInto(out.data)
             }
         } else {
-            permuteRows(b.data, out.data, n, nrhs, lu.piv, gather = true)
+            permuteRows(b.data, out.data, n, nrhs, lu.mutablePivots, gather = true)
         }
         trsmCore(kernels, f, n, out.data, nrhs, lower = true, transpose = false, unitDiag = true)
         trsmCore(kernels, f, n, out.data, nrhs, lower = false, transpose = false, unitDiag = false)

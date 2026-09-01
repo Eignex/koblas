@@ -194,7 +194,7 @@ public final class com/eignex/koblas/CapabilitiesKt {
 	public static final fun capability (Lcom/eignex/koblas/F64Context;Lcom/eignex/koblas/F64Capability;)Lcom/eignex/koblas/Backend;
 }
 
-public final class com/eignex/koblas/DimensionMismatch : com/eignex/koblas/KoblasException {
+public final class com/eignex/koblas/DimensionMismatch : java/lang/IllegalArgumentException {
 	public fun <init> (Ljava/lang/String;)V
 }
 
@@ -550,7 +550,7 @@ public final class com/eignex/koblas/FactorizationKt {
 	public static final field SINGULAR_POSITION_UNKNOWN I
 }
 
-public abstract class com/eignex/koblas/KoblasException : java/lang/IllegalArgumentException {
+public abstract class com/eignex/koblas/KoblasException : java/lang/ArithmeticException {
 	public synthetic fun <init> (Ljava/lang/String;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
 
@@ -1117,7 +1117,43 @@ public final class com/eignex/koblas/dense/F64LdlDecomposition {
 	public final fun getIpiv ()[I
 	public final fun getLdl ()[D
 	public final fun getN ()I
+	public final fun getPivotBlocks ()Ljava/util/List;
+	public final fun getRawLapackIpiv ()[I
 	public final fun getSingular ()Z
+}
+
+public abstract interface class com/eignex/koblas/dense/F64LdlPivotBlock {
+	public abstract fun getInterchangePosition ()I
+	public abstract fun getInterchangedWith ()I
+	public abstract fun getPosition ()I
+}
+
+public final class com/eignex/koblas/dense/F64LdlPivotBlock$OneByOne : com/eignex/koblas/dense/F64LdlPivotBlock {
+	public fun <init> (II)V
+	public final fun component1 ()I
+	public final fun component2 ()I
+	public final fun copy (II)Lcom/eignex/koblas/dense/F64LdlPivotBlock$OneByOne;
+	public static synthetic fun copy$default (Lcom/eignex/koblas/dense/F64LdlPivotBlock$OneByOne;IIILjava/lang/Object;)Lcom/eignex/koblas/dense/F64LdlPivotBlock$OneByOne;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getInterchangePosition ()I
+	public fun getInterchangedWith ()I
+	public fun getPosition ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/eignex/koblas/dense/F64LdlPivotBlock$TwoByTwo : com/eignex/koblas/dense/F64LdlPivotBlock {
+	public fun <init> (II)V
+	public final fun component1 ()I
+	public final fun component2 ()I
+	public final fun copy (II)Lcom/eignex/koblas/dense/F64LdlPivotBlock$TwoByTwo;
+	public static synthetic fun copy$default (Lcom/eignex/koblas/dense/F64LdlPivotBlock$TwoByTwo;IIILjava/lang/Object;)Lcom/eignex/koblas/dense/F64LdlPivotBlock$TwoByTwo;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getInterchangePosition ()I
+	public fun getInterchangedWith ()I
+	public fun getPosition ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
 }
 
 public abstract interface class com/eignex/koblas/dense/F64LinearAlgebra : com/eignex/koblas/dense/F64Blas, com/eignex/koblas/dense/F64Decompositions {
@@ -1182,7 +1218,9 @@ public final class com/eignex/koblas/dense/F64LuDecomposition {
 	public final fun getLu ()[D
 	public final fun getN ()I
 	public final fun getPiv ()[I
+	public final fun getRowPermutation ()[I
 	public final fun getSingular ()Z
+	public final fun rowAt (I)I
 }
 
 public final class com/eignex/koblas/dense/F64LuDecompositionKt {

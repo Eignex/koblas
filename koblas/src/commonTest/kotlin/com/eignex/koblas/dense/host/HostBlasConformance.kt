@@ -266,7 +266,7 @@ internal fun assertNonPositiveDefiniteFallsBack(decompositions: F64Decomposition
         decompositions.cholesky(bad, policy).l[n - 1, n - 1],
         1e-15,
     )
-    assertFailsWith<IllegalArgumentException> { decompositions.cholesky(bad) }
+    assertFailsWith<NotPositiveDefinite> { decompositions.cholesky(bad) }
 }
 
 /**
@@ -314,15 +314,15 @@ internal fun assertFactorIntoUsesItsDestination(decompositions: F64Decomposition
 
     val out = decompositions.factor(first)
     val luBuffer = out.lu
-    val pivBuffer = out.piv
+    val pivBuffer = out.mutablePivots
     val returned = decompositions.factorInto(second, out)
     assertSame(out, returned, "factorInto must return its destination")
     assertSame(luBuffer, returned.lu, "factorInto must keep the destination's factor buffer")
-    assertSame(pivBuffer, returned.piv, "factorInto must keep the destination's pivot buffer")
+    assertSame(pivBuffer, returned.mutablePivots, "factorInto must keep the destination's pivot buffer")
 
     val fresh = decompositions.factor(second)
     assertClose(fresh.lu, returned.lu, "factorInto factors n=$n", tolerance = 1e-12)
-    assertEquals(fresh.piv.toList(), returned.piv.toList(), "factorInto pivots n=$n")
+    assertEquals(fresh.rowPermutation.toList(), returned.rowPermutation.toList(), "factorInto pivots n=$n")
     assertEquals(fresh.failedAt, returned.failedAt, "factorInto singularity n=$n")
 
     // A singular matrix must update failedAt, not keep the previous factorization's verdict.

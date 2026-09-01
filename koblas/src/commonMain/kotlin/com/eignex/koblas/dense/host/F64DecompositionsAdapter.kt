@@ -60,7 +60,7 @@ public abstract class F64DecompositionsAdapter internal constructor(
         val n = lu.n
         if (n == 0) return F64DenseMatrix(0, 0)
         val inv = F64DenseMatrix(n, n, lu.lu.copyOf())
-        val info = f.dgetri(COL_MAJOR, n, inv.data, n, lapackPivots(lu.piv, n))
+        val info = f.dgetri(COL_MAJOR, n, inv.data, n, lapackPivots(lu.mutablePivots, n))
         check(info >= 0) { "dgetri: illegal argument ${-info}" }
         // A zero pivot is dgetri's error and the reference's division by zero, and the factorization is the
         // caller's to hold. The reference answers with infinities, so this half answers the same way.
@@ -172,7 +172,7 @@ public abstract class F64DecompositionsAdapter internal constructor(
         requireShape(out.n == a.rows) { "factorInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}" }
         val n = out.n
         a.data.copyInto(out.lu)
-        val piv = out.piv
+        val piv = out.mutablePivots
         for (i in 0 until n) piv[i] = i
         out.failedAt = NOT_SINGULAR
         if (n == 0) return out
@@ -245,7 +245,7 @@ public abstract class F64DecompositionsAdapter internal constructor(
                 b.data.copyInto(y)
                 trsmLeft(factor, n, y, nrhs, UPPER, TRANS, NON_UNIT)
                 trsmLeft(factor, n, y, nrhs, LOWER, TRANS, UNIT)
-                permuteRows(y, out.data, n, nrhs, lu.piv, gather = false)
+                permuteRows(y, out.data, n, nrhs, lu.mutablePivots, gather = false)
             } finally {
                 workspace?.release(y)
             }
@@ -253,13 +253,13 @@ public abstract class F64DecompositionsAdapter internal constructor(
             if (out.data === b.data) {
                 val staged = workspace?.take(n * nrhs) ?: DoubleArray(n * nrhs)
                 try {
-                    permuteRows(b.data, staged, n, nrhs, lu.piv, gather = true)
+                    permuteRows(b.data, staged, n, nrhs, lu.mutablePivots, gather = true)
                     staged.copyInto(out.data)
                 } finally {
                     workspace?.release(staged)
                 }
             } else {
-                permuteRows(b.data, out.data, n, nrhs, lu.piv, gather = true)
+                permuteRows(b.data, out.data, n, nrhs, lu.mutablePivots, gather = true)
             }
             trsmLeft(factor, n, out.data, nrhs, LOWER, NO_TRANS, UNIT)
             trsmLeft(factor, n, out.data, nrhs, UPPER, NO_TRANS, NON_UNIT)
@@ -302,7 +302,7 @@ public abstract class F64DecompositionsAdapter internal constructor(
         val x = out.data
         if (out !== b) b.data.copyInto(x)
         if (n == 0 || nrhs == 0) return out
-        val info = f.dsytrs(COL_MAJOR, LOWER_UPLO, n, nrhs, ldl.ldl, n, ldl.ipiv, x, n)
+        val info = f.dsytrs(COL_MAJOR, LOWER_UPLO, n, nrhs, ldl.ldl, n, ldl.rawLapackIpiv, x, n)
         check(info == 0) { "dsytrs: illegal argument ${-info}" }
         return out
     }
