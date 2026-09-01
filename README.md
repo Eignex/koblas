@@ -119,6 +119,25 @@ Views are not serializable because they do not own their buffers. Strided BLAS p
 leading dimensions to a selected host backend without packing. Disjoint views may share a backing buffer, but
 a strided destination must not overlap an input.
 
+## Numerical routine coverage
+
+Koblas deliberately exposes the following double-precision subset. The routine names identify the corresponding
+BLAS, LAPACK, or Sparse BLAS operation where one exists; the portable backend defines the same semantics when a
+host provider does not. Routines not listed here are not part of the supported numerical subset.
+
+| Family | Koblas operations | Standard routines |
+|--------|-------------------|-------------------|
+| BLAS level 1 | `dot`, `axpy`, `scale`, `asum`, `iamax`, `copy`, `swap`, `rotg`, `rot` | `ddot`, `daxpy`, `dscal`, `dasum`, `idamax`, `dcopy`, `dswap`, `drotg`, `drot` |
+| BLAS level 2 | `gemv`, `symv`, `ger`, `syr`, `syr2`, `trsv`, `trmv` | `dgemv`, `dsymv`, `dger`, `dsyr`, `dsyr2`, `dtrsv`, `dtrmv` |
+| BLAS level 3 | `gemm`, `symm`, `syrk`, `syr2k`, `trsm`, `trmm` | `dgemm`, `dsymm`, `dsyrk`, `dsyr2k`, `dtrsm`, `dtrmm` |
+| Dense utility | `transpose`, `norm1`, `normInf`, `normFro`, row/column scaling | No direct BLAS routine |
+| Dense LAPACK | LU (`factor`, `solve`, `invert`, `rcond`), pivoted LDL, QR and pivoted QR, Cholesky, triangular inverse | `dgetrf`, `dgetrs`, `dgetri`, `dgecon`, `dsytrf`, `dsytrs`, `dgeqrf`, `dgeqp3`, `dormqr`, `dpotrf`, `dpotrs`, `dpotri`, `dtrtri` |
+| Sparse BLAS | CSC `gemv`, triangular `trsv`/`trsm`, sparse–dense `gemm`, sparse–sparse product, `transpose`, prepared repeated products | Sparse BLAS `usmv`, `ussv`, `ussm`, `usmm`; product and preparation are Koblas operations |
+| Sparse factorizations | General LU, repeated-pattern LU, Cholesky, LDL, QR, and simplex basis operations | Provider-specific SuiteSparse, BASICLU, and HFactor capabilities |
+
+This table documents the subset, not a roadmap. In particular, it does not imply support for the other routines in
+the BLAS, LAPACK, or Sparse BLAS specifications.
+
 ## Allocation and workspaces
 
 BLAS-style and Into-suffixed overloads write into caller-owned destinations. A Workspace grows automatically

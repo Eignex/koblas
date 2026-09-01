@@ -2,7 +2,7 @@
 
 The containers every part of koblas speaks, and the free-function arithmetic over them. The routines
 themselves live one package down, split by storage: `com.eignex.koblas.dense` and
-`com.eignex.koblas.sparse`. See the README's "BLAS coverage" table for the routine-by-routine mapping to
+`com.eignex.koblas.sparse`. See the README's "Numerical routine coverage" table for the routine-by-routine mapping to
 BLAS/LAPACK and the deliberate deviations.
 
 - Containers: [F64MatrixStorage][com.eignex.koblas.core.F64MatrixStorage] / [F64DenseMatrix][com.eignex.koblas.core.F64DenseMatrix]
