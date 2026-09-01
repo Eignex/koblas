@@ -97,6 +97,41 @@ class SparseSymmetricRankUpdateTest {
     }
 
     @Test
+    fun `sparse syr excludes an explicitly stored zero in a sparse operand from its fill support`() {
+        val source = F64SparseMatrix.ofColumns(3, 3, listOf(emptyList(), emptyList(), emptyList()))
+        val x = F64SparseVector.of(3, intArrayOf(0, 1, 2), doubleArrayOf(1.0, 0.0, 2.0))
+
+        for (lower in booleanArrayOf(true, false)) {
+            val expected = denseCopy(source)
+            F64ReferenceLinearAlgebra.syr(1.0, x, expected, lower)
+
+            val actual = source.syr(1.0, x, lower)
+
+            assertMatrixEquals(expected, actual, "lower=$lower")
+            assertCanonical(actual)
+            assertEquals(3, actual.nnz, "lower=$lower a stored zero must not seed spurious fill")
+        }
+    }
+
+    @Test
+    fun `sparse syr2 excludes an explicitly stored zero in a sparse operand from its fill support`() {
+        val source = F64SparseMatrix.ofColumns(3, 3, listOf(emptyList(), emptyList(), emptyList()))
+        val x = F64SparseVector.of(3, intArrayOf(0, 1, 2), doubleArrayOf(1.0, 0.0, 2.0))
+        val y = F64SparseVector.of(3, intArrayOf(0, 2), doubleArrayOf(-3.0, 4.0))
+
+        for (lower in booleanArrayOf(true, false)) {
+            val expected = denseCopy(source)
+            F64ReferenceLinearAlgebra.syr2(1.0, x, y, expected, lower)
+
+            val actual = source.syr2(1.0, x, y, lower)
+
+            assertMatrixEquals(expected, actual, "lower=$lower")
+            assertCanonical(actual)
+            assertEquals(3, actual.nnz, "lower=$lower a stored zero must not seed spurious fill")
+        }
+    }
+
+    @Test
     fun `sparse syr keeps a positive sign on an underflowing pure fill entry`() {
         val alpha = 1e-200
         val x = F64DenseVector.of(doubleArrayOf(-1e-200, 1.0))

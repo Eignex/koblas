@@ -57,7 +57,7 @@ public fun F64SparseMatrix.syr(alpha: Double, x: F64VectorLike, lower: Boolean =
     val xs = x.toDoubleArray()
     if (alpha == 0.0) return sparseCopy()
     if (!alpha.isFinite() || xs.any { !it.isFinite() }) return syrWithNonFinite(alpha, xs, lower)
-    return syrFinite(alpha, xs, lower)
+    return syrFinite(alpha, xs, x.nonzeroSupport(xs), lower)
 }
 
 /**
@@ -84,7 +84,7 @@ public fun F64SparseMatrix.syr2(
     if (!alpha.isFinite() || xs.any { !it.isFinite() } || ys.any { !it.isFinite() }) {
         return syr2WithNonFinite(alpha, xs, ys, lower)
     }
-    return syr2Finite(alpha, xs, ys, lower)
+    return syr2Finite(alpha, xs, x.nonzeroSupport(xs), ys, y.nonzeroSupport(ys), lower)
 }
 
 /**
@@ -213,8 +213,12 @@ private fun F64SparseMatrix.sparseCopy(): F64SparseMatrix = F64SparseMatrix.wrap
     values.copyOf(),
 )
 
-private fun F64SparseMatrix.syrFinite(alpha: Double, x: DoubleArray, lower: Boolean): F64SparseMatrix {
-    val support = nonzeroIndices(x)
+private fun F64SparseMatrix.syrFinite(
+    alpha: Double,
+    x: DoubleArray,
+    support: IntArray,
+    lower: Boolean,
+): F64SparseMatrix {
     val out = SparseRankMatrixBuilder(rows, cols, nnz)
     for (j in 0 until cols) {
         out.beginColumn(j)
@@ -252,11 +256,11 @@ private fun F64SparseMatrix.syrFinite(alpha: Double, x: DoubleArray, lower: Bool
 private fun F64SparseMatrix.syr2Finite(
     alpha: Double,
     x: DoubleArray,
+    xSupport: IntArray,
     y: DoubleArray,
+    ySupport: IntArray,
     lower: Boolean,
 ): F64SparseMatrix {
-    val xSupport = nonzeroIndices(x)
-    val ySupport = nonzeroIndices(y)
     val out = SparseRankMatrixBuilder(rows, cols, nnz)
     for (j in 0 until cols) {
         out.beginColumn(j)
@@ -297,17 +301,21 @@ private fun F64SparseMatrix.syr2Finite(
 }
 
 /* Non-finite operands need the dense BLAS visitation order: zero times infinity can itself introduce NaN fill. */
-private fun F64SparseMatrix.syrWithNonFinite(alpha: Double, x: DoubleArray, lower: Boolean): F64SparseMatrix {
+private inline fun F64SparseMatrix.scanTriangleWithFallback(
+    lower: Boolean,
+    active: (column: Int) -> Boolean,
+    contribution: (row: Int, column: Int, current: Double) -> Double,
+): F64SparseMatrix {
     val out = SparseRankMatrixBuilder(rows, cols, nnz)
     for (j in 0 until cols) {
         out.beginColumn(j)
         var source = colPtr[j]
-        val active = x[j] != 0.0
+        val columnActive = active(j)
         for (i in 0 until rows) {
             val stored = source < colPtr[j + 1] && rowIdx[source] == i
             val selected = if (lower) i >= j else i <= j
-            if (selected && active) {
-                out.add(i, (if (stored) values[source] else 0.0) + (alpha * x[j]) * x[i])
+            if (selected && columnActive) {
+                out.add(i, contribution(i, j, if (stored) values[source] else 0.0))
                 if (stored) source++
             } else if (stored) {
                 out.add(i, values[source])
@@ -318,33 +326,44 @@ private fun F64SparseMatrix.syrWithNonFinite(alpha: Double, x: DoubleArray, lowe
     return out.build()
 }
 
+private fun F64SparseMatrix.syrWithNonFinite(alpha: Double, x: DoubleArray, lower: Boolean): F64SparseMatrix =
+    scanTriangleWithFallback(lower, active = { j -> x[j] != 0.0 }) { i, j, current ->
+        current + (alpha * x[j]) * x[i]
+    }
+
 private fun F64SparseMatrix.syr2WithNonFinite(
     alpha: Double,
     x: DoubleArray,
     y: DoubleArray,
     lower: Boolean,
-): F64SparseMatrix {
-    val out = SparseRankMatrixBuilder(rows, cols, nnz)
-    for (j in 0 until cols) {
-        out.beginColumn(j)
-        var source = colPtr[j]
-        val active = x[j] != 0.0 || y[j] != 0.0
-        for (i in 0 until rows) {
-            val stored = source < colPtr[j + 1] && rowIdx[source] == i
-            val selected = if (lower) i >= j else i <= j
-            if (selected && active) {
-                var value = if (stored) values[source] else 0.0
-                value += (alpha * y[j]) * x[i]
-                value += (alpha * x[j]) * y[i]
-                out.add(i, value)
-                if (stored) source++
-            } else if (stored) {
-                out.add(i, values[source])
-                source++
-            }
-        }
-    }
-    return out.build()
+): F64SparseMatrix = scanTriangleWithFallback(lower, active = { j -> x[j] != 0.0 || y[j] != 0.0 }) { i, j, current ->
+    var value = current
+    value += (alpha * y[j]) * x[i]
+    value += (alpha * x[j]) * y[i]
+    value
+}
+
+/**
+ * Ascending indices where this vector is genuinely nonzero, for driving the sparse `syr`/`syr2` merge. A
+ * [F64SparseVector] already knows its stored positions, so it filters those instead of paying to rediscover
+ * them by rescanning [dense], the already-materialized copy of this vector. [filterNonzero] only reads
+ * [F64SparseVector.indices], and hands the same live array back unchanged when nothing needs filtering, so
+ * the common case of a sparse vector with no explicit zeros costs no copy at all.
+ */
+@OptIn(UnsafeKoblasApi::class)
+private fun F64VectorLike.nonzeroSupport(dense: DoubleArray): IntArray = when (this) {
+    is F64SparseVector -> filterNonzero(indices, values)
+    else -> nonzeroIndices(dense)
+}
+
+private fun filterNonzero(indices: IntArray, values: DoubleArray): IntArray {
+    var count = 0
+    for (value in values) if (value != 0.0) count++
+    if (count == values.size) return indices
+    val out = IntArray(count)
+    var at = 0
+    for (k in values.indices) if (values[k] != 0.0) out[at++] = indices[k]
+    return out
 }
 
 private fun nonzeroIndices(values: DoubleArray): IntArray {
