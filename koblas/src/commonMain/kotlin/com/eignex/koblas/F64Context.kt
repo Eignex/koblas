@@ -358,8 +358,9 @@ public class F64Context(
             requireShape(a.rows == a.cols) { "trsv: matrix must be square, got ${a.rows}x${a.cols}" }
             requireShape(x.size == a.rows) { "trsv: x length ${x.size} != ${a.rows}" }
             beforeDispatch(
-                F64RouteQuery.SparseTriangularSolve(
+                F64RouteQuery.SparseTriangular(
                     a.nnz,
+                    kind = SparseTriangularKind.SOLVE,
                     lower = lower,
                     transpose = transpose,
                     unitDiagonal = unitDiag,
@@ -374,8 +375,9 @@ public class F64Context(
             requireShape(a.rows == a.cols) { "trmv: matrix must be square, got ${a.rows}x${a.cols}" }
             requireShape(x.size == a.rows) { "trmv: x length ${x.size} != ${a.rows}" }
             beforeDispatch(
-                F64RouteQuery.SparseTriangularMultiply(
+                F64RouteQuery.SparseTriangular(
                     a.nnz,
+                    kind = SparseTriangularKind.MULTIPLY,
                     lower = lower,
                     transpose = transpose,
                     unitDiagonal = unitDiag,
@@ -404,7 +406,15 @@ public class F64Context(
             }
             val rightHandSides = if (right) b.rows else b.cols
             beforeDispatch(
-                F64RouteQuery.SparseTriangularSolve(a.nnz, rightHandSides, lower, right, transpose, unitDiag),
+                F64RouteQuery.SparseTriangular(
+                    a.nnz,
+                    kind = SparseTriangularKind.SOLVE,
+                    rightHandSides = rightHandSides,
+                    lower = lower,
+                    right = right,
+                    transpose = transpose,
+                    unitDiagonal = unitDiag,
+                ),
             )
         }
         sparseBlas.trsm(a, b, lower, transpose, unitDiag, right, alpha)
@@ -428,13 +438,14 @@ public class F64Context(
                 requireShape(b.rows == a.rows) { "trmm: B has ${b.rows} rows, expected ${a.rows}" }
             }
             beforeDispatch(
-                F64RouteQuery.SparseTriangularMultiply(
+                F64RouteQuery.SparseTriangular(
                     a.nnz,
-                    if (right) b.rows else b.cols,
-                    lower,
-                    right,
-                    transpose,
-                    unitDiag,
+                    kind = SparseTriangularKind.MULTIPLY,
+                    rightHandSides = if (right) b.rows else b.cols,
+                    lower = lower,
+                    right = right,
+                    transpose = transpose,
+                    unitDiagonal = unitDiag,
                 ),
             )
         }

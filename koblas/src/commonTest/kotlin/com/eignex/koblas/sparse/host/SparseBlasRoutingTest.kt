@@ -59,7 +59,9 @@ class SparseBlasRoutingTest {
     fun `triangular solves report the portable implementation`() {
         val adapter = RecordingAdapter()
 
-        val route = adapter.route(F64RouteQuery.SparseTriangularSolve(100, rightHandSides = 4))!!
+        val route = adapter.route(
+            F64RouteQuery.SparseTriangular(100, kind = SparseTriangularKind.SOLVE, rightHandSides = 4),
+        )!!
 
         assertEquals(BackendExecution.PORTABLE, route.execution)
         assertEquals(BackendRouteReason.UNSUPPORTED_OPERATION, route.reason)
@@ -71,7 +73,9 @@ class SparseBlasRoutingTest {
     fun `triangular multiplication reports the portable implementation`() {
         val adapter = RecordingAdapter()
 
-        val route = adapter.route(F64RouteQuery.SparseTriangularMultiply(100, rightHandSides = 4))!!
+        val route = adapter.route(
+            F64RouteQuery.SparseTriangular(100, kind = SparseTriangularKind.MULTIPLY, rightHandSides = 4),
+        )!!
 
         assertEquals(BackendExecution.PORTABLE, route.execution)
         assertEquals(BackendRouteReason.UNSUPPORTED_OPERATION, route.reason)
@@ -85,7 +89,7 @@ class SparseBlasRoutingTest {
         var matrixCalls = 0
         val adapter = object : RecordingAdapter() {
             override fun route(query: F64RouteQuery): BackendRoute? =
-                if (query is F64RouteQuery.SparseTriangularSolve) {
+                if (query is F64RouteQuery.SparseTriangular && query.kind == SparseTriangularKind.SOLVE) {
                     triangularRoute(query, supported = query.rightHandSides == 1)
                 } else {
                     super.route(query)
@@ -137,11 +141,87 @@ class SparseBlasRoutingTest {
         assertContentEquals(doubleArrayOf(0.5, 0.0, 0.0, 0.25), matrix.data)
         assertEquals(
             BackendExecution.NATIVE,
-            adapter.route(F64RouteQuery.SparseTriangularSolve(2))!!.execution,
+            adapter.route(F64RouteQuery.SparseTriangular(2, kind = SparseTriangularKind.SOLVE))!!.execution,
         )
         assertEquals(
             BackendRouteReason.UNSUPPORTED_ARGUMENTS,
-            adapter.route(F64RouteQuery.SparseTriangularSolve(2, rightHandSides = 2))!!.reason,
+            adapter.route(
+                F64RouteQuery.SparseTriangular(2, kind = SparseTriangularKind.SOLVE, rightHandSides = 2),
+            )!!.reason,
+        )
+        // The multiply kind is untouched by this adapter's solve-only override, so it still falls through
+        // to the portable default rather than being picked up by the solve specialization above.
+        assertEquals(
+            BackendRouteReason.UNSUPPORTED_OPERATION,
+            adapter.route(F64RouteQuery.SparseTriangular(2, kind = SparseTriangularKind.MULTIPLY))!!.reason,
+        )
+    }
+
+    @Test
+    fun `a sparse adapter can specialize triangular multiplication independently`() {
+        var vectorCalls = 0
+        var matrixCalls = 0
+        val adapter = object : RecordingAdapter() {
+            override fun route(query: F64RouteQuery): BackendRoute? =
+                if (query is F64RouteQuery.SparseTriangular && query.kind == SparseTriangularKind.MULTIPLY) {
+                    triangularRoute(query, supported = query.rightHandSides == 1)
+                } else {
+                    super.route(query)
+                }
+
+            override fun trmv(
+                a: F64SparseMatrix,
+                x: DoubleArray,
+                lower: Boolean,
+                transpose: Boolean,
+                unitDiag: Boolean,
+            ) {
+                vectorCalls++
+                portable.trmv(a, x, lower, transpose, unitDiag)
+            }
+
+            @Suppress("LongParameterList")
+            override fun trmm(
+                a: F64SparseMatrix,
+                b: F64DenseMatrix,
+                lower: Boolean,
+                transpose: Boolean,
+                unitDiag: Boolean,
+                right: Boolean,
+                alpha: Double,
+            ) {
+                matrixCalls++
+                portable.trmm(a, b, lower, transpose, unitDiag, right, alpha)
+            }
+        }
+        val triangle = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 4.0)))
+        val vector = doubleArrayOf(2.0, 4.0)
+        val matrix = F64DenseMatrix.diagonal(2)
+
+        adapter.trmv(triangle, vector, lower = true, transpose = false, unitDiag = false)
+        adapter.trmm(
+            triangle,
+            matrix,
+            lower = true,
+            transpose = false,
+            unitDiag = false,
+            right = false,
+            alpha = 1.0,
+        )
+
+        assertEquals(1, vectorCalls)
+        assertEquals(1, matrixCalls)
+        assertContentEquals(doubleArrayOf(4.0, 16.0), vector)
+        assertContentEquals(doubleArrayOf(2.0, 0.0, 0.0, 4.0), matrix.data)
+        assertEquals(
+            BackendExecution.NATIVE,
+            adapter.route(F64RouteQuery.SparseTriangular(2, kind = SparseTriangularKind.MULTIPLY))!!.execution,
+        )
+        assertEquals(
+            BackendRouteReason.UNSUPPORTED_ARGUMENTS,
+            adapter.route(
+                F64RouteQuery.SparseTriangular(2, kind = SparseTriangularKind.MULTIPLY, rightHandSides = 2),
+            )!!.reason,
         )
     }
 
@@ -159,7 +239,8 @@ class SparseBlasRoutingTest {
             context.trsv(triangle, vector, lower = true)
         }
 
-        assertIs<F64RouteQuery.SparseTriangularSolve>(failure.route.query)
+        assertIs<F64RouteQuery.SparseTriangular>(failure.route.query)
+        assertEquals(SparseTriangularKind.SOLVE, (failure.route.query as F64RouteQuery.SparseTriangular).kind)
         assertEquals(BackendRouteReason.UNSUPPORTED_OPERATION, failure.route.reason)
         assertContentEquals(doubleArrayOf(2.0, 4.0), vector)
     }

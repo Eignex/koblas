@@ -115,33 +115,34 @@ class SparseTriangularTest {
     @Test
     fun `every matrix multiplication direction agrees with dense triangular multiplication`() {
         val rng = Random(20260902)
-        val n = 6
         val rightHandSides = REFERENCE_SPARSE_RHS_WIDTH + 1
-        for (lower in booleanArrayOf(true, false)) {
-            for (transpose in booleanArrayOf(false, true)) {
-                for (unitDiag in booleanArrayOf(false, true)) {
-                    for (right in booleanArrayOf(false, true)) {
-                        val (sparse, dense) = triangle(n, lower, rng)
-                        val b = if (right) {
-                            randomMatrix(
-                                rightHandSides,
-                                n,
-                                rng,
-                            )
-                        } else {
-                            randomMatrix(n, rightHandSides, rng)
-                        }
-                        val expected = F64DenseMatrix.wrap(b.rows, b.cols, b.data.copyOf())
-                        dense.trmm(expected, lower, transpose, unitDiag, right, alpha = -0.75)
-                        val actual = F64DenseMatrix.wrap(b.rows, b.cols, b.data.copyOf())
-                        sparse.trmm(actual, lower, transpose, unitDiag, right, alpha = -0.75)
+        for (n in intArrayOf(0, 1, 2, 6, 11)) {
+            for (lower in booleanArrayOf(true, false)) {
+                for (transpose in booleanArrayOf(false, true)) {
+                    for (unitDiag in booleanArrayOf(false, true)) {
+                        for (right in booleanArrayOf(false, true)) {
+                            val (sparse, dense) = triangle(n, lower, rng)
+                            val b = if (right) {
+                                randomMatrix(
+                                    rightHandSides,
+                                    n,
+                                    rng,
+                                )
+                            } else {
+                                randomMatrix(n, rightHandSides, rng)
+                            }
+                            val expected = F64DenseMatrix.wrap(b.rows, b.cols, b.data.copyOf())
+                            dense.trmm(expected, lower, transpose, unitDiag, right, alpha = -0.75)
+                            val actual = F64DenseMatrix.wrap(b.rows, b.cols, b.data.copyOf())
+                            sparse.trmm(actual, lower, transpose, unitDiag, right, alpha = -0.75)
 
-                        assertClose(
-                            expected,
-                            actual,
-                            "lower=$lower transpose=$transpose unit=$unitDiag right=$right",
-                            tolerance = 1e-9,
-                        )
+                            assertClose(
+                                expected,
+                                actual,
+                                "n=$n lower=$lower transpose=$transpose unit=$unitDiag right=$right",
+                                tolerance = 1e-9,
+                            )
+                        }
                     }
                 }
             }

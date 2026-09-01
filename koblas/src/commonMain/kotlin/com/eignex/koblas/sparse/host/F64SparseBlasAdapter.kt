@@ -27,7 +27,7 @@ public abstract class F64SparseBlasAdapter protected constructor() :
     override val isPortable: Boolean get() = false
 
     override fun route(query: F64RouteQuery): BackendRoute? {
-        if (query is F64RouteQuery.SparseTriangularSolve || query is F64RouteQuery.SparseTriangularMultiply) {
+        if (query is F64RouteQuery.SparseTriangular) {
             return portableRoute(query, this, portable.name, BackendRouteReason.UNSUPPORTED_OPERATION)
         }
         if (query !is F64RouteQuery.SparseDenseGemm) return null
@@ -43,24 +43,13 @@ public abstract class F64SparseBlasAdapter protected constructor() :
     }
 
     /**
-     * Builds the route for a specialized sparse triangular solve.
+     * Builds the route for a specialized sparse triangular solve or multiply.
      *
      * [supported] describes argument forms the provider cannot execute, independently of the crossover.
-     * Subclasses overriding [trsv] or [trsm] should return this from [route] for the matching queries.
+     * Subclasses overriding [trsv], [trmv], [trsm], or [trmm] should return this from [route] for the
+     * matching queries, checking [F64RouteQuery.SparseTriangular.kind] where solve and multiply differ.
      */
-    protected fun triangularRoute(
-        query: F64RouteQuery.SparseTriangularSolve,
-        supported: Boolean = true,
-    ): BackendRoute = specializedTriangularRoute(query, supported)
-
-    /** The multiply counterpart of [triangularRoute], independently specialized by providers that support it. */
-    protected fun triangularMultiplyRoute(
-        query: F64RouteQuery.SparseTriangularMultiply,
-        supported: Boolean = true,
-    ): BackendRoute = specializedTriangularRoute(query, supported)
-
-    /** The fallback shape [triangularRoute] and [triangularMultiplyRoute] both build for their query. */
-    private fun specializedTriangularRoute(query: F64RouteQuery, supported: Boolean): BackendRoute {
+    protected fun triangularRoute(query: F64RouteQuery.SparseTriangular, supported: Boolean = true): BackendRoute {
         val native = nativeRoute(query, this, portable.name)
         if (supported || native.execution != BackendExecution.NATIVE) return native
         return native.copy(

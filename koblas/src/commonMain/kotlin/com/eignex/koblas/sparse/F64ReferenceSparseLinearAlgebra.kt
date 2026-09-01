@@ -278,24 +278,103 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         // Read once for every right-hand side rather than once per triangularMultiply call, as trsm does.
         val diagonal = if (unitDiag) null else DoubleArray(n) { triangle[it, it] }
         if (right) {
-            for (row in 0 until b.rows) {
-                // A row times op(T) is op(T)ᵀ times its column-shaped view.
-                triangularMultiply(
-                    triangle,
-                    b.data,
-                    row,
-                    b.rows,
-                    lower,
-                    !transpose,
-                    unitDiag,
-                    diagonal,
-                    guardZeroInput = false,
-                    guardZeroMatrix = true,
-                )
-            }
+            trmmRightCore(triangle, b, lower, transpose, unitDiag, diagonal)
         } else {
-            for (column in 0 until b.cols) {
-                triangularMultiply(triangle, b.data, column * n, 1, lower, transpose, unitDiag, diagonal)
+            trmmLeftCore(triangle, b, lower, transpose, unitDiag, diagonal)
+        }
+    }
+
+    /** Sparse triangular multiply over RHS panels, so values and indices are read once for several dense columns. */
+    private fun trmmLeftCore(
+        a: F64SparseMatrix,
+        b: F64DenseMatrix,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+        diagonal: DoubleArray?,
+    ) {
+        val n = a.rows
+        val bd = b.data
+        val work = DoubleArray(REFERENCE_SPARSE_RHS_WIDTH)
+        val order = if (lower != transpose) n - 1 downTo 0 else 0 until n
+        forEachRhsPanel(b.cols) { columnStart, width ->
+            for (j in order) {
+                val dj = diagonal?.get(j) ?: 1.0
+                if (!transpose) {
+                    // A stored zero source lane is skipped entirely, mirroring triangularMultiply's
+                    // guardZeroInput default: it keeps a zero lane out of both the diagonal write and
+                    // the scatter, so a NaN/Inf coefficient elsewhere in the column never reaches it.
+                    var active = 0
+                    for (rhs in 0 until width) {
+                        val at = (columnStart + rhs) * n + j
+                        val xj = bd[at]
+                        work[rhs] = xj
+                        if (xj != 0.0) {
+                            active = active or (1 shl rhs)
+                            bd[at] = if (unitDiag) xj else dj * xj
+                        }
+                    }
+                    a.forEachInColumn(j) { i, v ->
+                        if (if (lower) i > j else i < j) {
+                            for (rhs in 0 until width) {
+                                if (active and (1 shl rhs) != 0) bd[(columnStart + rhs) * n + i] += v * work[rhs]
+                            }
+                        }
+                    }
+                } else {
+                    for (rhs in 0 until width) {
+                        val at = (columnStart + rhs) * n + j
+                        work[rhs] = if (unitDiag) bd[at] else dj * bd[at]
+                    }
+                    a.forEachInColumn(j) { i, v ->
+                        if (if (lower) i > j else i < j) {
+                            for (rhs in 0 until width) work[rhs] += v * bd[(columnStart + rhs) * n + i]
+                        }
+                    }
+                    for (rhs in 0 until width) bd[(columnStart + rhs) * n + j] = work[rhs]
+                }
+            }
+        }
+    }
+
+    /**
+     * Right multiply over contiguous dense columns, which turns every sparse update into a Level 1 operation,
+     * the same trade [trsmRightCore] makes. A row times op(T) is op(T)ᵀ times its column-shaped view, so this
+     * walks the triangle exactly as [trmmLeftCore] does with the transpose flag flipped, only every scalar lane
+     * of that algorithm is a whole column of [b] here instead of one right-hand side in a panel.
+     */
+    private fun trmmRightCore(
+        a: F64SparseMatrix,
+        b: F64DenseMatrix,
+        lower: Boolean,
+        transpose: Boolean,
+        unitDiag: Boolean,
+        diagonal: DoubleArray?,
+    ) {
+        val rows = b.rows
+        if (rows == 0) return
+        val bd = b.data
+        val n = a.rows
+        val gather = !transpose
+        val order = if (lower != gather) n - 1 downTo 0 else 0 until n
+        for (l in order) {
+            val lOff = l * rows
+            if (gather) {
+                if (!unitDiag) denseKernels.scale(bd, lOff, diagonal!![l], rows)
+                a.forEachInColumn(l) { i, v ->
+                    if (v != 0.0 && (if (lower) i > l else i < l)) {
+                        denseKernels.axpy(bd, lOff, v, bd, i * rows, rows)
+                    }
+                }
+            } else {
+                // The diagonal write must follow the scatter: it overwrites this column's own slot, which
+                // the scatter below still needs to read at its pre-multiply value.
+                a.forEachInColumn(l) { i, v ->
+                    if (v != 0.0 && (if (lower) i > l else i < l)) {
+                        denseKernels.axpy(bd, i * rows, v, bd, lOff, rows)
+                    }
+                }
+                if (!unitDiag) denseKernels.scale(bd, lOff, diagonal!![l], rows)
             }
         }
     }
