@@ -3,6 +3,7 @@ package com.eignex.koblas.dense.host.jvm
 import com.eignex.koblas.F64ModifiedGivens
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.dense.F64Kernels
+import com.eignex.koblas.dense.host.blasOffset
 import com.eignex.koblas.dense.host.cblas.HostBlasConfig
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.portableRotmg
@@ -22,9 +23,6 @@ public class F64CblasKernels internal constructor(
 
     private fun segment(values: DoubleArray, offset: Int) =
         java.lang.foreign.MemorySegment.ofArray(values).asSlice(offset.toLong() * Double.SIZE_BYTES)
-
-    private fun blasOffset(offset: Int, stride: Int, len: Int): Int =
-        if (stride < 0) (offset.toLong() + (len - 1).toLong() * stride).toInt() else offset
 
     override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
         if (len == 0) 0.0 else calls.ddot.invokeExact(len, segment(a, aOff), 1, segment(b, bOff), 1) as Double

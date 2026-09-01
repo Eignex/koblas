@@ -5,6 +5,7 @@ package com.eignex.koblas.dense.host.cblas
 import com.eignex.koblas.F64ModifiedGivens
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.dense.F64Kernels
+import com.eignex.koblas.dense.host.blasOffset
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.portableRotmg
 import com.eignex.koblas.toBlasParameters
@@ -33,9 +34,6 @@ public class F64CblasKernels internal constructor(
     private val f = requireNotNull(loader.cblas) {
         "OpenBLAS is not available on this host; koblas keeps its built-in level-1 kernels"
     }
-
-    private fun blasOffset(offset: Int, stride: Int, len: Int): Int =
-        if (stride < 0) (offset.toLong() + (len - 1).toLong() * stride).toInt() else offset
 
     override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
         if (len == 0) return 0.0
