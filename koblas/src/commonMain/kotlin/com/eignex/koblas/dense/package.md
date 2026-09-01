@@ -10,7 +10,9 @@ Dense linear algebra: the three swappable seams and the routines behind them.
   solves [trsv] / [trsm] and their multiply counterparts. Named Boolean parameters select the triangle,
   transpose, diagonal, and side.
 - [F64Decompositions] — the factorizations and the solves built on them: LU ([F64Decompositions.factor] / [F64Decompositions.solve],
-  with [F64LuDecomposition] and [determinant]), symmetric indefinite [F64LdlDecomposition], [F64QrDecomposition]
+  with [F64LuDecomposition] and [determinant]), Bunch-Kaufman numerically pivoted symmetric-indefinite
+  [F64PivotedSymmetricIndefiniteDecomposition] through [F64Decompositions.pivotedSymmetricIndefinite],
+  [F64QrDecomposition]
   with the least-squares and minimum-norm solves, [F64PivotedQrDecomposition] when the rank is the question
   rather than the solve, the condition estimate, and the SPD suite
   [cholesky] and the [F64CholeskyDecomposition] solve and invert.
@@ -19,7 +21,10 @@ Dense linear algebra: the three swappable seams and the routines behind them.
   [com.eignex.koblas.registerBackend], forced with [com.eignex.koblas.installBackends], resolved as
   [com.eignex.koblas.koblas]. [F64ReferenceLinearAlgebra]
   is the portable implementation every backend is validated against.
-- Ergonomic entry points: [lu] and Kotlin arithmetic operators.
+- Ergonomic entry points: [lu], [pivotedSymmetricIndefinite], and Kotlin arithmetic operators. The dense
+  factorization deliberately has a different name from sparse [com.eignex.koblas.sparse.quasiDefiniteLdl]:
+  dense Bunch-Kaufman chooses numerical pivots for stability, while sparse quasi-definite LDL preserves its
+  fill-reducing ordering.
 
 [F64StridedMatrixView][com.eignex.koblas.core.F64StridedMatrixView] and
 [F64StridedVectorView][com.eignex.koblas.core.F64StridedVectorView] are live zero-copy views. Panels retain

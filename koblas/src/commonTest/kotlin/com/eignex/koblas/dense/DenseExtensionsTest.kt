@@ -25,7 +25,10 @@ class DenseExtensionsTest {
     @Test
     fun `every factorize extension agrees with the member`() {
         assertEquals(koblas.factor(square).n, square.lu().n)
-        assertEquals(koblas.ldl(square).n, square.ldl().n)
+        assertEquals(
+            koblas.pivotedSymmetricIndefinite(square).n,
+            square.pivotedSymmetricIndefinite().n,
+        )
         assertEquals(koblas.qr(tall).n, tall.qr().n)
         assertEquals(koblas.qrPivoted(tall).rank, tall.qrPivoted().rank)
     }
@@ -52,9 +55,12 @@ class DenseExtensionsTest {
     }
 
     @Test
-    fun `the LDL and QR families solve through the extensions`() {
-        val ldl = square.ldl()
-        assertClose(koblas.solve(ldl, b3), ldl.solve(b3), "ldl solve")
+    fun `the pivoted symmetric indefinite and QR families solve through the extensions`() {
+        val factor = square.pivotedSymmetricIndefinite()
+        assertClose(koblas.solve(factor, b3), factor.solve(b3), "pivoted symmetric indefinite solve")
+
+        @Suppress("DEPRECATION")
+        assertEquals(square.pivotedSymmetricIndefinite().n, square.ldl().n, "the LDL alias stays compatible")
 
         val qr = tall.qr()
         assertClose(koblas.solve(qr, b3), qr.solve(b3), "qr least squares")

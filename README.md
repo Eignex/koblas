@@ -148,7 +148,8 @@ BLAS options use named Boolean parameters such as lower, transpose, unitDiag, an
 
 Every operation runs through an F64Context. Top-level functions use the process-wide koblas context, whose
 registry selects providers independently by semantic role. General sparse LU, repeated-pattern LU, Cholesky,
-LDL, QR, basis factorization, and basis solving are separate choices rather than one interchangeable sparse backend.
+quasi-definite LDL, QR, basis factorization, and basis solving are separate choices rather than one
+interchangeable sparse backend.
 
 Selected providers execute their native implementations at every size. They fall back only for unavailable
 libraries, unsupported arguments, or operations they do not implement. Inspect status for the selected providers
@@ -210,14 +211,15 @@ Choose a semantic capability based on the matrix sequence and numerical structur
 | Unrelated general systems | generalSparseLu | UMFPACK | Numerical pivoting; stable ordinary-LU role. |
 | Same CSC pattern, changing values | repeatedSparseLu | KLU | Analyze once; ordered CSC pattern must match exactly. |
 | Symmetric positive-definite systems | sparseCholesky | CHOLMOD | Reads the lower triangle and rejects a non-positive pivot. |
-| Quasi-definite KKT systems | sparseLdl | CHOLMOD | Numerically unpivoted; use general LU for arbitrary indefinite matrices. |
+| Quasi-definite KKT systems | quasiDefiniteLdl | CHOLMOD | Numerically unpivoted; use general LU for arbitrary indefinite matrices. |
 | Overdetermined least-squares systems | sparseQr | SPQR | Requires at least as many rows as columns. |
 | Simplex basis column replacement | basisFactorizations | BASICLU | Each update supersedes the preceding factor. |
 | Stateful simplex solve/update loop | basisSolvers | HFactor | Own and close the solver; use typed ftran, btran, and update. |
 
 Each sparse factorization returns the factor type its own kind names, and each exposes its factors: an LU
-carries L, U, the two orderings and the row scaling; a Cholesky and an LDL carry L, their ordering and, for
-the LDL, D; a QR carries R, the column ordering, the estimated rank and Q as an operator through applyQInto.
+carries L, U, the two orderings and the row scaling; a Cholesky and quasi-definite LDL carry L, their ordering
+and, for quasi-definite LDL, D; a QR carries R, the column ordering, the estimated rank and Q as an operator
+through applyQInto.
 Sparse QR is the one whose factor is not an F64SparseFactorization, because an m-by-n factorization takes a
 right-hand side of length m and answers one of length n.
 
@@ -256,7 +258,9 @@ a.prepare().use { prepared ->
 ```
 
 Prepared handles and sparse factors are AutoCloseable. Native block solves accept a column-major dense matrix
-of right-hand sides. Sparse LDL factors expose their pivot-sign inertia directly.
+of right-hand sides. Sparse quasi-definite LDL factors expose their pivot-sign inertia directly. Dense
+`pivotedSymmetricIndefinite` is Bunch-Kaufman numerically pivoted for stability; it is not interchangeable
+with sparse `quasiDefiniteLdl`, whose ordering controls fill.
 
 ## Native options and threading
 

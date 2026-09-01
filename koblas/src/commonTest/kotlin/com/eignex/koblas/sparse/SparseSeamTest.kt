@@ -3,7 +3,7 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.*
 import com.eignex.koblas.core.*
 import com.eignex.koblas.sparse.F64SparseCholeskyFactorization
-import com.eignex.koblas.sparse.F64SparseLdlFactorization
+import com.eignex.koblas.sparse.F64QuasiDefiniteLdlFactorization
 import com.eignex.koblas.sparse.F64SparseLuFactorization
 import kotlin.test.*
 
@@ -127,7 +127,7 @@ class SparseSeamTest {
         F64SparseDecompositions,
         F64GeneralSparseLu,
         F64SparseCholesky,
-        F64SparseLdl,
+        F64QuasiDefiniteLdl,
         F64SparseQr {
         override val name: String get() = "counting-decompositions"
         var factors = 0
@@ -145,9 +145,9 @@ class SparseSeamTest {
             return F64ReferenceSparseLinearAlgebra.cholesky(a)
         }
 
-        override fun ldl(a: F64SparseMatrix): F64SparseLdlFactorization {
+        override fun quasiDefiniteLdl(a: F64SparseMatrix): F64QuasiDefiniteLdlFactorization {
             ldls++
-            return F64ReferenceSparseLinearAlgebra.ldl(a)
+            return F64ReferenceSparseLinearAlgebra.quasiDefiniteLdl(a)
         }
 
         override fun qr(a: F64SparseMatrix): F64SparseQrFactorization {
@@ -228,8 +228,12 @@ class SparseSeamTest {
         a.cholesky()
         assertEquals(1, decompositions.choleskys, "F64SparseMatrix.cholesky should forward to the seam")
 
+        a.quasiDefiniteLdl()
+        assertEquals(1, decompositions.ldls, "F64SparseMatrix.quasiDefiniteLdl should forward to the seam")
+
+        @Suppress("DEPRECATION")
         a.ldl()
-        assertEquals(1, decompositions.ldls, "F64SparseMatrix.ldl should forward to the seam")
+        assertEquals(2, decompositions.ldls, "the LDL alias should remain compatible")
     }
 
     /**

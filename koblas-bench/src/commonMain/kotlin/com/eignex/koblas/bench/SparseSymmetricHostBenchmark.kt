@@ -34,15 +34,15 @@ class SparseSymmetricHostBenchmark {
     fun cholesky(): F64SparseFactorization = a.cholesky()
 
     @Benchmark
-    fun ldl(): F64SparseFactorization = a.ldl()
+    fun quasiDefiniteLdl(): F64SparseFactorization = a.quasiDefiniteLdl()
 
     // Reading the factors converts a copy of the factor, so it is its own row rather than part of the two
-    // above. `choleskyFactors` and `ldlFactors` sort beside their factorizations, before the control.
+    // above. `choleskyFactors` and `quasiDefiniteLdlFactors` sort beside their factorizations, before the control.
     @Benchmark
     fun choleskyFactors(): Int = a.cholesky().use { it.l.nnz }
 
     @Benchmark
-    fun ldlFactors(): Int = a.ldl().use { it.l.nnz + it.d.size }
+    fun quasiDefiniteLdlFactors(): Int = a.quasiDefiniteLdl().use { it.l.nnz + it.d.size }
 
     @Benchmark
     fun transpose(): F64SparseMatrix = a.transpose()

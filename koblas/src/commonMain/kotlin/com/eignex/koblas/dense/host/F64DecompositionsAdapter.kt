@@ -273,36 +273,45 @@ public abstract class F64DecompositionsAdapter internal constructor(
         blas.dtrsm(COL_MAJOR, LEFT, uplo, trans, diag, n, nrhs, 1.0, factor, n, x, n)
     }
 
-    override fun ldl(a: F64DenseMatrix, workspace: Workspace?): F64LdlDecomposition {
-        requireShape(a.rows == a.cols) { "ldl: matrix must be square, got ${a.rows}x${a.cols}" }
+    override fun pivotedSymmetricIndefinite(
+        a: F64DenseMatrix,
+        workspace: Workspace?,
+    ): F64PivotedSymmetricIndefiniteDecomposition {
+        requireShape(a.rows == a.cols) {
+            "pivotedSymmetricIndefinite: matrix must be square, got ${a.rows}x${a.cols}"
+        }
         val n = a.rows
         val buf = a.data.copyOf()
         val ipiv = IntArray(n)
-        if (n == 0) return F64LdlDecomposition(0, buf, ipiv)
+        if (n == 0) return F64PivotedSymmetricIndefiniteDecomposition(0, buf, ipiv)
         val info = f.dsytrf(COL_MAJOR, LOWER_UPLO, n, buf, n, ipiv)
         check(info >= 0) { "dsytrf: illegal argument ${-info}" }
-        return F64LdlDecomposition(n, buf, ipiv, lapackFailedAt(info))
+        return F64PivotedSymmetricIndefiniteDecomposition(n, buf, ipiv, lapackFailedAt(info))
     }
 
     /** The vector solve stays portable on both bindings: one `dsytrs` call does not cover its own cost. */
-    override fun solveInto(ldl: F64LdlDecomposition, b: DoubleArray, out: DoubleArray): DoubleArray =
-        portable.solveInto(ldl, b, out)
+    override fun solveInto(
+        factor: F64PivotedSymmetricIndefiniteDecomposition,
+        b: DoubleArray,
+        out: DoubleArray,
+    ): DoubleArray =
+        portable.solveInto(factor, b, out)
 
     /** Solves several right-hand sides with the host factorization. */
     override fun solveInto(
-        ldl: F64LdlDecomposition,
+        factor: F64PivotedSymmetricIndefiniteDecomposition,
         b: F64DenseMatrix,
         out: F64DenseMatrix,
         workspace: Workspace?,
     ): F64DenseMatrix {
-        requireFactored(ldl.failedAt, "solve")
-        val n = ldl.n
+        requireFactored(factor.failedAt, "solve")
+        val n = factor.n
         val nrhs = b.cols
         requireSolveShapes(n, b, out)
         val x = out.data
         if (out !== b) b.data.copyInto(x)
         if (n == 0 || nrhs == 0) return out
-        val info = f.dsytrs(COL_MAJOR, LOWER_UPLO, n, nrhs, ldl.ldl, n, ldl.ipiv, x, n)
+        val info = f.dsytrs(COL_MAJOR, LOWER_UPLO, n, nrhs, factor.ldl, n, factor.ipiv, x, n)
         check(info == 0) { "dsytrs: illegal argument ${-info}" }
         return out
     }

@@ -45,8 +45,8 @@ internal enum class BackendSlot(
     /** Sparse Cholesky. */
     F64SparseCholesky({ it.sparseCholesky }, sparse = true),
 
-    /** Sparse LDL. */
-    F64SparseLdl({ it.sparseLdl }, sparse = true),
+    /** Sparse quasi-definite LDL. */
+    F64QuasiDefiniteLdl({ it.quasiDefiniteLdl }, sparse = true),
 
     /** Sparse QR. */
     F64SparseQr({ it.sparseQr }, sparse = true),

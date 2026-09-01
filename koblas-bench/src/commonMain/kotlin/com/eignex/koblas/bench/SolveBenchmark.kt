@@ -18,7 +18,7 @@ class SolveBenchmark {
 
     private lateinit var a: F64DenseMatrix
     private lateinit var factored: F64LuDecomposition
-    private lateinit var indefinite: F64LdlDecomposition
+    private lateinit var indefinite: F64PivotedSymmetricIndefiniteDecomposition
     private lateinit var rhs: DoubleArray
     private lateinit var x: DoubleArray
 
@@ -33,7 +33,7 @@ class SolveBenchmark {
         val rng = benchRng()
         a = dominantMatrix(n, rng)
         factored = a.lu()
-        indefinite = koblas.ldl(indefiniteMatrix(n, rng))
+        indefinite = koblas.pivotedSymmetricIndefinite(indefiniteMatrix(n, rng))
         rhs = randomVector(n, rng)
         x = DoubleArray(n)
         reusable = a.lu()
@@ -61,7 +61,8 @@ class SolveBenchmark {
     fun luFactorInto(): F64LuDecomposition = koblas.factorInto(a, reusable)
 
     @Benchmark
-    fun ldlFactor(): F64LdlDecomposition = koblas.ldl(sym)
+    fun pivotedSymmetricIndefiniteFactor(): F64PivotedSymmetricIndefiniteDecomposition =
+        koblas.pivotedSymmetricIndefinite(sym)
 
     @Benchmark
     fun rcond(): Double = koblas.rcond(factored, anorm)
