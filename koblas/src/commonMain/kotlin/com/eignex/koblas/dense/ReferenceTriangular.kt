@@ -282,32 +282,22 @@ internal fun triangularMatrix(
         if (alpha != 1.0) k.scale(b.data, 0, alpha, b.data.size)
     }
     if (a.rows == 0) return
-    if (right) {
-        workspace.borrow(a.rows) { row ->
-            if (solve) {
-                blockedTriangularSolve(k, a.data, a.rows, b, lower, transpose, unitDiag, right, row, null)
-            } else {
-                blockedTriangularMultiply(k, a.data, a.rows, b, lower, transpose, unitDiag, right, row, null)
-            }
-        }
-    } else if (transpose) {
-        workspace.borrow(4) { sums ->
-            if (solve) {
-                blockedTriangularSolve(k, a.data, a.rows, b, lower, transpose, unitDiag, right, null, sums)
-            } else {
-                blockedTriangularMultiply(k, a.data, a.rows, b, lower, transpose, unitDiag, right, null, sums)
-            }
-        }
-    } else {
+    fun dispatch(scratch: DoubleArray?) {
         if (solve) {
-            blockedTriangularSolve(k, a.data, a.rows, b, lower, transpose, unitDiag, right, null, null)
+            blockedTriangularSolve(k, a.data, a.rows, b, lower, transpose, unitDiag, right, scratch)
         } else {
-            blockedTriangularMultiply(k, a.data, a.rows, b, lower, transpose, unitDiag, right, null, null)
+            blockedTriangularMultiply(k, a.data, a.rows, b, lower, transpose, unitDiag, right, scratch)
         }
+    }
+    when {
+        right -> workspace.borrow(a.rows) { row -> dispatch(row) }
+        transpose -> workspace.borrow(4) { sums -> dispatch(sums) }
+        else -> dispatch(null)
     }
 }
 
-/** Blocked TRSM over a column-major triangle. */
+/** Blocked TRSM over a column-major triangle. [scratch] is the row buffer when [right], the transposed-update
+ *  sums buffer otherwise (or null when the left, non-transposed path needs no scratch at all). */
 private fun blockedTriangularSolve(
     k: F64Kernels,
     triangle: DoubleArray,
@@ -317,13 +307,12 @@ private fun blockedTriangularSolve(
     transpose: Boolean,
     unitDiag: Boolean,
     right: Boolean,
-    row: DoubleArray?,
-    sums: DoubleArray?,
+    scratch: DoubleArray?,
 ) {
     if (right) {
-        blockedRightSolve(k, triangle, n, b, lower, transpose, unitDiag, requireNotNull(row))
+        blockedRightSolve(k, triangle, n, b, lower, transpose, unitDiag, requireNotNull(scratch))
     } else {
-        blockedLeftSolve(k, triangle, n, b, lower, transpose, unitDiag, sums)
+        blockedLeftSolve(k, triangle, n, b, lower, transpose, unitDiag, scratch)
     }
 }
 
@@ -460,7 +449,8 @@ private fun blockedRightSolve(
     }
 }
 
-/** Blocked TRMM over a column-major triangle. */
+/** Blocked TRMM over a column-major triangle. [scratch] is the row buffer when [right], the transposed-update
+ *  sums buffer otherwise (or null when the left, non-transposed path needs no scratch at all). */
 private fun blockedTriangularMultiply(
     k: F64Kernels,
     triangle: DoubleArray,
@@ -470,13 +460,12 @@ private fun blockedTriangularMultiply(
     transpose: Boolean,
     unitDiag: Boolean,
     right: Boolean,
-    row: DoubleArray?,
-    sums: DoubleArray?,
+    scratch: DoubleArray?,
 ) {
     if (right) {
-        blockedRightMultiply(k, triangle, n, b, lower, transpose, unitDiag, requireNotNull(row))
+        blockedRightMultiply(k, triangle, n, b, lower, transpose, unitDiag, requireNotNull(scratch))
     } else {
-        blockedLeftMultiply(k, triangle, n, b, lower, transpose, unitDiag, sums)
+        blockedLeftMultiply(k, triangle, n, b, lower, transpose, unitDiag, scratch)
     }
 }
 
