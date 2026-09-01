@@ -20,6 +20,7 @@ internal object JvmCKernelBindings {
         "koblas_dense_asum",
         "koblas_dense_swap",
         "koblas_dense_dot4",
+        "koblas_dense_rotm",
         "koblas_sparse_dot_dense",
         "koblas_sparse_dot_sparse",
         "koblas_sparse_axpy",
@@ -79,6 +80,24 @@ internal object JvmCKernelBindings {
         requiredLibrary().handle(
             "koblas_dense_dot4",
             FfmLibrary.voidOf(ADDRESS, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT),
+        )
+    }
+    private val denseRotm by lazy {
+        requiredLibrary().handle(
+            "koblas_dense_rotm",
+            FfmLibrary.voidOf(
+                ADDRESS,
+                JAVA_INT,
+                JAVA_INT,
+                ADDRESS,
+                JAVA_INT,
+                JAVA_INT,
+                JAVA_INT,
+                JAVA_DOUBLE,
+                JAVA_DOUBLE,
+                JAVA_DOUBLE,
+                JAVA_DOUBLE,
+            ),
         )
     }
     private val sparseDotDense by lazy {
@@ -177,6 +196,35 @@ internal object JvmCKernelBindings {
             len,
             MemorySegment.ofArray(out),
             outOff,
+        ) as Unit
+    }
+
+    @Suppress("LongParameterList")
+    fun denseRotm(
+        x: DoubleArray,
+        xOff: Int,
+        xStride: Int,
+        y: DoubleArray,
+        yOff: Int,
+        yStride: Int,
+        len: Int,
+        h11: Double,
+        h12: Double,
+        h21: Double,
+        h22: Double,
+    ) {
+        denseRotm.invokeExact(
+            MemorySegment.ofArray(x),
+            xOff,
+            xStride,
+            MemorySegment.ofArray(y),
+            yOff,
+            yStride,
+            len,
+            h11,
+            h12,
+            h21,
+            h22,
         ) as Unit
     }
 

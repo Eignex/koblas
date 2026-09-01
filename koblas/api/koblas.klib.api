@@ -320,6 +320,8 @@ abstract interface com.eignex.koblas.dense/F64Kernels : com.eignex.koblas/Backen
     abstract fun nrm2(kotlin/DoubleArray, kotlin/Int, kotlin/Int): kotlin/Double // com.eignex.koblas.dense/F64Kernels.nrm2|nrm2(kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
     abstract fun scale(kotlin/DoubleArray, kotlin/Int, kotlin/Double, kotlin/Int) // com.eignex.koblas.dense/F64Kernels.scale|scale(kotlin.DoubleArray;kotlin.Int;kotlin.Double;kotlin.Int){}[0]
     open fun dot4(kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/DoubleArray, kotlin/Int) // com.eignex.koblas.dense/F64Kernels.dot4|dot4(kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.DoubleArray;kotlin.Int){}[0]
+    open fun rotm(kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/Int, com.eignex.koblas/F64ModifiedGivens) // com.eignex.koblas.dense/F64Kernels.rotm|rotm(kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.Int;com.eignex.koblas.F64ModifiedGivens){}[0]
+    open fun rotmg(kotlin/Double, kotlin/Double, kotlin/Double, kotlin/Double): com.eignex.koblas/F64ModifiedGivens // com.eignex.koblas.dense/F64Kernels.rotmg|rotmg(kotlin.Double;kotlin.Double;kotlin.Double;kotlin.Double){}[0]
     open fun swap(kotlin/DoubleArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int) // com.eignex.koblas.dense/F64Kernels.swap|swap(kotlin.DoubleArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
 }
 
@@ -1156,6 +1158,8 @@ final class com.eignex.koblas.dense.host.cblas/F64CblasKernels : com.eignex.kobl
     final fun axpy(kotlin/DoubleArray, kotlin/Int, kotlin/Double, kotlin/DoubleArray, kotlin/Int, kotlin/Int) // com.eignex.koblas.dense.host.cblas/F64CblasKernels.axpy|axpy(kotlin.DoubleArray;kotlin.Int;kotlin.Double;kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
     final fun dot(kotlin/DoubleArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int): kotlin/Double // com.eignex.koblas.dense.host.cblas/F64CblasKernels.dot|dot(kotlin.DoubleArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
     final fun nrm2(kotlin/DoubleArray, kotlin/Int, kotlin/Int): kotlin/Double // com.eignex.koblas.dense.host.cblas/F64CblasKernels.nrm2|nrm2(kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
+    final fun rotm(kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/Int, com.eignex.koblas/F64ModifiedGivens) // com.eignex.koblas.dense.host.cblas/F64CblasKernels.rotm|rotm(kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.Int;com.eignex.koblas.F64ModifiedGivens){}[0]
+    final fun rotmg(kotlin/Double, kotlin/Double, kotlin/Double, kotlin/Double): com.eignex.koblas/F64ModifiedGivens // com.eignex.koblas.dense.host.cblas/F64CblasKernels.rotmg|rotmg(kotlin.Double;kotlin.Double;kotlin.Double;kotlin.Double){}[0]
     final fun scale(kotlin/DoubleArray, kotlin/Int, kotlin/Double, kotlin/Int) // com.eignex.koblas.dense.host.cblas/F64CblasKernels.scale|scale(kotlin.DoubleArray;kotlin.Int;kotlin.Double;kotlin.Int){}[0]
     final fun swap(kotlin/DoubleArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int) // com.eignex.koblas.dense.host.cblas/F64CblasKernels.swap|swap(kotlin.DoubleArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
 }
@@ -2371,6 +2375,25 @@ final class com.eignex.koblas/F64Givens { // com.eignex.koblas/F64Givens|null[0]
         final fun <get-s>(): kotlin/Double // com.eignex.koblas/F64Givens.s.<get-s>|<get-s>(){}[0]
 }
 
+final class com.eignex.koblas/F64ModifiedGivens { // com.eignex.koblas/F64ModifiedGivens|null[0]
+    final val d1 // com.eignex.koblas/F64ModifiedGivens.d1|{}d1[0]
+        final fun <get-d1>(): kotlin/Double // com.eignex.koblas/F64ModifiedGivens.d1.<get-d1>|<get-d1>(){}[0]
+    final val d2 // com.eignex.koblas/F64ModifiedGivens.d2|{}d2[0]
+        final fun <get-d2>(): kotlin/Double // com.eignex.koblas/F64ModifiedGivens.d2.<get-d2>|<get-d2>(){}[0]
+    final val flag // com.eignex.koblas/F64ModifiedGivens.flag|{}flag[0]
+        final fun <get-flag>(): kotlin/Double // com.eignex.koblas/F64ModifiedGivens.flag.<get-flag>|<get-flag>(){}[0]
+    final val h11 // com.eignex.koblas/F64ModifiedGivens.h11|{}h11[0]
+        final fun <get-h11>(): kotlin/Double // com.eignex.koblas/F64ModifiedGivens.h11.<get-h11>|<get-h11>(){}[0]
+    final val h12 // com.eignex.koblas/F64ModifiedGivens.h12|{}h12[0]
+        final fun <get-h12>(): kotlin/Double // com.eignex.koblas/F64ModifiedGivens.h12.<get-h12>|<get-h12>(){}[0]
+    final val h21 // com.eignex.koblas/F64ModifiedGivens.h21|{}h21[0]
+        final fun <get-h21>(): kotlin/Double // com.eignex.koblas/F64ModifiedGivens.h21.<get-h21>|<get-h21>(){}[0]
+    final val h22 // com.eignex.koblas/F64ModifiedGivens.h22|{}h22[0]
+        final fun <get-h22>(): kotlin/Double // com.eignex.koblas/F64ModifiedGivens.h22.<get-h22>|<get-h22>(){}[0]
+    final val x1 // com.eignex.koblas/F64ModifiedGivens.x1|{}x1[0]
+        final fun <get-x1>(): kotlin/Double // com.eignex.koblas/F64ModifiedGivens.x1.<get-x1>|<get-x1>(){}[0]
+}
+
 final class com.eignex.koblas/F64RoutePlan { // com.eignex.koblas/F64RoutePlan|null[0]
     constructor <init>(com.eignex.koblas/BackendRoute, com.eignex.koblas/BackendPolicyDecision) // com.eignex.koblas/F64RoutePlan.<init>|<init>(com.eignex.koblas.BackendRoute;com.eignex.koblas.BackendPolicyDecision){}[0]
 
@@ -2767,6 +2790,9 @@ final fun com.eignex.koblas/registerBackend(com.eignex.koblas/Backend) // com.ei
 final fun com.eignex.koblas/registeredBackendNames(com.eignex.koblas/BackendRole): kotlin.collections/List<kotlin/String> // com.eignex.koblas/registeredBackendNames|registeredBackendNames(com.eignex.koblas.BackendRole){}[0]
 final fun com.eignex.koblas/rot(com.eignex.koblas.core/F64DenseVector, com.eignex.koblas.core/F64DenseVector, com.eignex.koblas/F64Givens) // com.eignex.koblas/rot|rot(com.eignex.koblas.core.F64DenseVector;com.eignex.koblas.core.F64DenseVector;com.eignex.koblas.F64Givens){}[0]
 final fun com.eignex.koblas/rotg(kotlin/Double, kotlin/Double): com.eignex.koblas/F64Givens // com.eignex.koblas/rotg|rotg(kotlin.Double;kotlin.Double){}[0]
+final fun com.eignex.koblas/rotm(com.eignex.koblas.core/F64DenseVector, com.eignex.koblas.core/F64DenseVector, com.eignex.koblas/F64ModifiedGivens) // com.eignex.koblas/rotm|rotm(com.eignex.koblas.core.F64DenseVector;com.eignex.koblas.core.F64DenseVector;com.eignex.koblas.F64ModifiedGivens){}[0]
+final fun com.eignex.koblas/rotm(com.eignex.koblas.core/F64StridedVectorView, com.eignex.koblas.core/F64StridedVectorView, com.eignex.koblas/F64ModifiedGivens) // com.eignex.koblas/rotm|rotm(com.eignex.koblas.core.F64StridedVectorView;com.eignex.koblas.core.F64StridedVectorView;com.eignex.koblas.F64ModifiedGivens){}[0]
+final fun com.eignex.koblas/rotmg(kotlin/Double, kotlin/Double, kotlin/Double, kotlin/Double): com.eignex.koblas/F64ModifiedGivens // com.eignex.koblas/rotmg|rotmg(kotlin.Double;kotlin.Double;kotlin.Double;kotlin.Double){}[0]
 final fun com.eignex.koblas/swap(com.eignex.koblas.core/F64DenseVector, com.eignex.koblas.core/F64DenseVector) // com.eignex.koblas/swap|swap(com.eignex.koblas.core.F64DenseVector;com.eignex.koblas.core.F64DenseVector){}[0]
 final fun com.eignex.koblas/swap(com.eignex.koblas.core/F64StridedVectorView, com.eignex.koblas.core/F64StridedVectorView) // com.eignex.koblas/swap|swap(com.eignex.koblas.core.F64StridedVectorView;com.eignex.koblas.core.F64StridedVectorView){}[0]
 final inline fun (com.eignex.koblas.core/F64VectorLike).com.eignex.koblas/forEachStored(kotlin/Function2<kotlin/Int, kotlin/Double, kotlin/Unit>) // com.eignex.koblas/forEachStored|forEachStored@com.eignex.koblas.core.F64VectorLike(kotlin.Function2<kotlin.Int,kotlin.Double,kotlin.Unit>){}[0]

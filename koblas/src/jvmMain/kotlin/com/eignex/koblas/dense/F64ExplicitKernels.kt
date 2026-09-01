@@ -1,5 +1,7 @@
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.F64ModifiedGivens
+import com.eignex.koblas.applyModifiedGivens
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.kernels.JvmCKernelBindings
 import com.eignex.koblas.internal.numeric.*
@@ -43,6 +45,33 @@ internal object F64CKernels : F64Kernels, F64ArithmeticKernels {
         out: DoubleArray,
         outOff: Int,
     ) = JvmCKernelBindings.denseDot4(a, aOff, stride, b, bOff, len, out, outOff)
+
+    @Suppress("LongParameterList")
+    override fun rotm(
+        x: DoubleArray,
+        xOff: Int,
+        xStride: Int,
+        y: DoubleArray,
+        yOff: Int,
+        yStride: Int,
+        len: Int,
+        transformation: F64ModifiedGivens,
+    ) {
+        if (transformation.flag == -2.0) return
+        JvmCKernelBindings.denseRotm(
+            x,
+            xOff,
+            xStride,
+            y,
+            yOff,
+            yStride,
+            len,
+            transformation.h11,
+            transformation.h12,
+            transformation.h21,
+            transformation.h22,
+        )
+    }
 }
 
 /** The JVM Vector API kernels without automatic C selection. */
@@ -106,6 +135,35 @@ internal object F64SimdKernels : F64Kernels, F64ArithmeticKernels {
             Simd.dot4(a, aOff, stride, b, bOff, len, out, outOff)
         } else {
             scalarDot4(a, aOff, stride, b, bOff, len, out, outOff)
+        }
+    }
+
+    @Suppress("LongParameterList")
+    override fun rotm(
+        x: DoubleArray,
+        xOff: Int,
+        xStride: Int,
+        y: DoubleArray,
+        yOff: Int,
+        yStride: Int,
+        len: Int,
+        transformation: F64ModifiedGivens,
+    ) {
+        if (transformation.flag == -2.0) return
+        if (vectorizes(len) && xStride == 1 && yStride == 1) {
+            Simd.rotm(
+                x,
+                xOff,
+                y,
+                yOff,
+                len,
+                transformation.h11,
+                transformation.h12,
+                transformation.h21,
+                transformation.h22,
+            )
+        } else {
+            applyModifiedGivens(x, xOff, xStride, y, yOff, yStride, len, transformation)
         }
     }
 }

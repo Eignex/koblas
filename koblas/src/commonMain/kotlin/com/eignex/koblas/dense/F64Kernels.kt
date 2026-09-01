@@ -1,6 +1,9 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.Backend
+import com.eignex.koblas.F64ModifiedGivens
+import com.eignex.koblas.portableRotm
+import com.eignex.koblas.portableRotmg
 
 /**
  * The vector-vector routines as a backend half, alongside [F64Blas] and [F64Decompositions]. Implementations must
@@ -33,6 +36,28 @@ public interface F64Kernels : Backend {
 
     /** Sum of the absolute values of the [len] entries from vOff (BLAS `dasum`); `0` for an empty run. */
     public fun asum(v: DoubleArray, vOff: Int, len: Int): Double
+
+    /** Construct a modified Givens transformation (BLAS `drotmg`). */
+    public fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64ModifiedGivens = portableRotmg(d1, d2, x1, y1)
+
+    /**
+     * Apply a modified Givens [transformation] (BLAS `drotm`) to [len] entries with independent offsets
+     * and strides. Each pair is loaded before either result is stored; callers whose runs overlap must
+     * snapshot them before calling this backend primitive.
+     */
+    @Suppress("LongParameterList")
+    public fun rotm(
+        x: DoubleArray,
+        xOff: Int,
+        xStride: Int,
+        y: DoubleArray,
+        yOff: Int,
+        yStride: Int,
+        len: Int,
+        transformation: F64ModifiedGivens,
+    ) {
+        portableRotm(x, xOff, xStride, y, yOff, yStride, len, transformation)
+    }
 
     /**
      * Exchange the two runs (BLAS `dswap`). Two loads and two stores an element, so an implementation is
@@ -91,6 +116,20 @@ internal expect object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
 
     override fun asum(v: DoubleArray, vOff: Int, len: Int): Double
 
+    override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64ModifiedGivens
+
+    @Suppress("LongParameterList")
+    override fun rotm(
+        x: DoubleArray,
+        xOff: Int,
+        xStride: Int,
+        y: DoubleArray,
+        yOff: Int,
+        yStride: Int,
+        len: Int,
+        transformation: F64ModifiedGivens,
+    )
+
     @Suppress("LongParameterList") // four column offsets plus the shared operand
     override fun dot4(
         a: DoubleArray,
@@ -144,6 +183,11 @@ internal class F64RoutedKernels(internal val host: F64Kernels?) :
     private fun selected(len: Int, crossover: Int): F64Kernels =
         if (len < crossover) F64PlatformKernels else host ?: F64PlatformKernels
 
+    // rotmg has no len to threshold on, and rotm has no measured host crossover yet (unlike the routines
+    // above, none of which cite a rotm-specific Level1Benchmark run), so both route unconditionally: host
+    // when present, compiled-in otherwise.
+    private fun hostOrPlatform(): F64Kernels = host ?: F64PlatformKernels
+
     override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
         selected(len, DOT_HOST_CROSSOVER).dot(a, aOff, b, bOff, len)
 
@@ -165,6 +209,21 @@ internal class F64RoutedKernels(internal val host: F64Kernels?) :
 
     override fun asum(v: DoubleArray, vOff: Int, len: Int): Double =
         selected(len, ASUM_HOST_CROSSOVER).asum(v, vOff, len)
+
+    override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64ModifiedGivens =
+        hostOrPlatform().rotmg(d1, d2, x1, y1)
+
+    @Suppress("LongParameterList")
+    override fun rotm(
+        x: DoubleArray,
+        xOff: Int,
+        xStride: Int,
+        y: DoubleArray,
+        yOff: Int,
+        yStride: Int,
+        len: Int,
+        transformation: F64ModifiedGivens,
+    ) = hostOrPlatform().rotm(x, xOff, xStride, y, yOff, yStride, len, transformation)
 
     /** Not routed, unlike every other routine here: only the compiled-in kernels fuse the four dots into
      *  one pass, and a host cannot, since its dot computes one at a time. */

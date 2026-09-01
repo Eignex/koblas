@@ -401,6 +401,23 @@ public final class com/eignex/koblas/F64GivensKt {
 	public static final fun rotg (DD)Lcom/eignex/koblas/F64Givens;
 }
 
+public final class com/eignex/koblas/F64ModifiedGivens {
+	public final fun getD1 ()D
+	public final fun getD2 ()D
+	public final fun getFlag ()D
+	public final fun getH11 ()D
+	public final fun getH12 ()D
+	public final fun getH21 ()D
+	public final fun getH22 ()D
+	public final fun getX1 ()D
+}
+
+public final class com/eignex/koblas/F64ModifiedGivensKt {
+	public static final fun rotm (Lcom/eignex/koblas/core/F64DenseVector;Lcom/eignex/koblas/core/F64DenseVector;Lcom/eignex/koblas/F64ModifiedGivens;)V
+	public static final fun rotm (Lcom/eignex/koblas/core/F64StridedVectorView;Lcom/eignex/koblas/core/F64StridedVectorView;Lcom/eignex/koblas/F64ModifiedGivens;)V
+	public static final fun rotmg (DDDD)Lcom/eignex/koblas/F64ModifiedGivens;
+}
+
 public final class com/eignex/koblas/F64RoutePlan {
 	public fun <init> (Lcom/eignex/koblas/BackendRoute;Lcom/eignex/koblas/BackendPolicyDecision;)V
 	public final fun component1 ()Lcom/eignex/koblas/BackendRoute;
@@ -1131,6 +1148,8 @@ public abstract interface class com/eignex/koblas/dense/F64Kernels : com/eignex/
 	public abstract fun dot ([DI[DII)D
 	public fun dot4 ([DII[DII[DI)V
 	public abstract fun nrm2 ([DII)D
+	public fun rotm ([DII[DIIILcom/eignex/koblas/F64ModifiedGivens;)V
+	public fun rotmg (DDDD)Lcom/eignex/koblas/F64ModifiedGivens;
 	public abstract fun scale ([DIDI)V
 	public fun swap ([DI[DII)V
 }
@@ -1140,6 +1159,8 @@ public final class com/eignex/koblas/dense/F64Kernels$DefaultImpls {
 	public static fun getPriority (Lcom/eignex/koblas/dense/F64Kernels;)I
 	public static fun isAvailable (Lcom/eignex/koblas/dense/F64Kernels;)Z
 	public static fun isPortable (Lcom/eignex/koblas/dense/F64Kernels;)Z
+	public static fun rotm (Lcom/eignex/koblas/dense/F64Kernels;[DII[DIIILcom/eignex/koblas/F64ModifiedGivens;)V
+	public static fun rotmg (Lcom/eignex/koblas/dense/F64Kernels;DDDD)Lcom/eignex/koblas/F64ModifiedGivens;
 	public static fun swap (Lcom/eignex/koblas/dense/F64Kernels;[DI[DII)V
 }
 
@@ -1547,6 +1568,8 @@ public final class com/eignex/koblas/dense/host/jvm/F64CblasKernels : com/eignex
 	public fun isAvailable ()Z
 	public fun isPortable ()Z
 	public fun nrm2 ([DII)D
+	public fun rotm ([DII[DIIILcom/eignex/koblas/F64ModifiedGivens;)V
+	public fun rotmg (DDDD)Lcom/eignex/koblas/F64ModifiedGivens;
 	public fun scale ([DIDI)V
 	public fun swap ([DI[DII)V
 }

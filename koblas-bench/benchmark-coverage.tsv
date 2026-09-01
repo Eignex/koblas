@@ -39,6 +39,8 @@ F64Kernels.asum(DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatc
 F64Kernels.axpy(DoubleArray,Int,Double,DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.axpy facade.
 F64Kernels.dot(DoubleArray,Int,DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.dot facade.
 F64Kernels.nrm2(DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.norm2 facade.
+F64Kernels.rotm(DoubleArray,Int,Int,DoubleArray,Int,Int,Int,F64ModifiedGivens)		excluded	The raw kernel shares the dispatch path benchmarked through the public rotm facade.
+F64Kernels.rotmg(Double,Double,Double,Double)		excluded	The raw kernel shares the dispatch path benchmarked through the public rotmg facade.
 F64Kernels.scale(DoubleArray,Int,Double,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.scale facade.
 F64Kernels.swap(DoubleArray,Int,DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public swap facade.
 F64SparseKernels.asum(SparseVector)		excluded	The raw kernel shares the dispatch path benchmarked through the public SparseVector.asum facade.
@@ -68,6 +70,8 @@ Vector.norm2()	com.eignex.koblas.bench.Level1Benchmark.nrm2	benchmarked
 Vector.asum()	com.eignex.koblas.bench.Level1Benchmark.asumBench	benchmarked	
 Vector.iamax()	com.eignex.koblas.bench.Level1Benchmark.iamaxBench	benchmarked	
 swap(Vector,Vector)	com.eignex.koblas.bench.Level1Benchmark.swapBench	benchmarked	
+rotmg(Double,Double,Double,Double)	com.eignex.koblas.bench.Level1Benchmark.rotmgBench	benchmarked	portable Level 1
+rotm(DenseVector,DenseVector,F64ModifiedGivens)	com.eignex.koblas.bench.Level1Benchmark.rotmBench	benchmarked	portable Level 1
 F64Kernels.dot4(DoubleArray,Int,Int,DoubleArray,Int,Int,DoubleArray,Int)	com.eignex.koblas.bench.Level1Benchmark.dot4	benchmarked	
 F64Blas.gemv(F64DenseMatrix,transpose=false)	com.eignex.koblas.bench.Level2Benchmark.gemv	benchmarked	
 F64Blas.gemv(F64DenseMatrix,transpose=true)	com.eignex.koblas.bench.Level2Benchmark.gemvTransposed	benchmarked	

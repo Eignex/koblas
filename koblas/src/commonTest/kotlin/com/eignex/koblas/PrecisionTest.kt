@@ -45,6 +45,7 @@ class PrecisionTest {
             alias<DenseMatrix, F64DenseMatrix>("DenseMatrix"),
             alias<SparseMatrix, F64SparseMatrix>("SparseMatrix"),
             alias<Givens, F64Givens>("Givens"),
+            alias<ModifiedGivens, F64ModifiedGivens>("ModifiedGivens"),
             alias<KoblasContext, F64Context>("KoblasContext"),
             alias<Kernels, F64Kernels>("Kernels"),
             alias<Blas, F64Blas>("Blas"),
