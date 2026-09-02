@@ -229,8 +229,8 @@ jobs:
       - name: Publish the macOS Native snapshot
         if: matrix.platform == 'macosx-arm64' && env.IS_SNAPSHOT == 'true'
         env:
-          ORG_GRADLE_PROJECT_sonatypeSnapshotsUsername: ${{ secrets.CENTRAL_PORTAL_USER }}
-          ORG_GRADLE_PROJECT_sonatypeSnapshotsPassword: ${{ secrets.CENTRAL_PORTAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.CENTRAL_PORTAL_USER }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.CENTRAL_PORTAL_PASSWORD }}
           ORG_GRADLE_PROJECT_signingKey: ${{ secrets.SIGNING_KEY }}
           ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SIGNING_PASSWORD }}
         run: >-
