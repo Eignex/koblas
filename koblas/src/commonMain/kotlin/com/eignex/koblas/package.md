@@ -12,8 +12,8 @@ BLAS/LAPACK and the deliberate deviations.
   concrete storage a closed set and lets a snapshot round-trip with its type preserved — and is why the
   containers stay in one package rather than splitting with the operations that consume them.
 - Free-function arithmetic over the read-only contracts, dispatching dense or sparse by operand type: [dot], [axpy],
-  [scale], [norm2], [asum], [iamax], [copy], [swap], [ger], [times], [transpose], [forEachStored], and
-  the matrix 1-norm [norm1].
+  [scale], [norm2], [asum], [iamax], [copy], [swap], [ger], [times], the destination-passing
+  [gemvInto] and [symvInto], [transpose], [forEachStored], and the matrix 1-norm [norm1].
 - Shared machinery: [Backend] (what every backend of every tier reports about itself), structured
   [F64Context.status][com.eignex.koblas.status] snapshots, operation-level
   [F64Context.route][com.eignex.koblas.route] diagnostics, the typed [Workspace] buffer pool,
