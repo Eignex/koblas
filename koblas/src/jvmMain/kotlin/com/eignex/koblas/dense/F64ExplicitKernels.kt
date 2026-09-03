@@ -6,6 +6,7 @@ import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.kernels.JvmCKernelBindings
 import com.eignex.koblas.internal.numeric.*
 import com.eignex.koblas.portableRot
+import com.eignex.koblas.portableRotm
 import com.eignex.koblas.portableRotmg
 import kotlin.math.sqrt
 
@@ -35,6 +36,15 @@ internal object F64CKernels : F64Kernels, F64ArithmeticKernels {
     private const val NRM2_C_CROSSOVER = 128
     private const val ASUM_C_CROSSOVER = 128
     private const val SWAP_C_CROSSOVER = 128
+    private const val ROT_C_CROSSOVER = 128
+    private const val ROTM_C_CROSSOVER = 128
+
+    /**
+     * Half the others, because one call does four runs of this length rather than one, so the same work per
+     * foreign call is reached at a quarter of the length. 64 is the nearest of the two crossovers the library
+     * already uses, and it errs on the side of crossing later than the arithmetic alone would ask.
+     */
+    private const val DOT4_C_CROSSOVER = 64
 
     override val name: String get() = BackendNames.C
 
@@ -106,7 +116,11 @@ internal object F64CKernels : F64Kernels, F64ArithmeticKernels {
         len: Int,
         out: DoubleArray,
         outOff: Int,
-    ) = JvmCKernelBindings.denseDot4(a, aOff, stride, b, bOff, len, out, outOff)
+    ) = if (len < DOT4_C_CROSSOVER) {
+        scalarDot4(a, aOff, stride, b, bOff, len, out, outOff)
+    } else {
+        JvmCKernelBindings.denseDot4(a, aOff, stride, b, bOff, len, out, outOff)
+    }
 
     @Suppress("LongParameterList")
     override fun rotm(
@@ -120,6 +134,10 @@ internal object F64CKernels : F64Kernels, F64ArithmeticKernels {
         transformation: F64ModifiedGivens,
     ) {
         if (transformation.flag == -2.0) return
+        if (len < ROTM_C_CROSSOVER) {
+            portableRotm(x, xOff, xStride, y, yOff, yStride, len, transformation)
+            return
+        }
         JvmCKernelBindings.denseRotm(
             x,
             xOff,
@@ -138,7 +156,11 @@ internal object F64CKernels : F64Kernels, F64ArithmeticKernels {
     // A plane rotation is the modified Givens transformation (c, s, -s, c), so it goes to the same kernel.
     @Suppress("LongParameterList")
     override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) =
-        JvmCKernelBindings.denseRotm(x, xOff, 1, y, yOff, 1, len, c, s, -s, c)
+        if (len < ROT_C_CROSSOVER) {
+            portableRot(x, xOff, y, yOff, len, c, s)
+        } else {
+            JvmCKernelBindings.denseRotm(x, xOff, 1, y, yOff, 1, len, c, s, -s, c)
+        }
 }
 
 /** The JVM Vector API kernels without automatic C selection. */

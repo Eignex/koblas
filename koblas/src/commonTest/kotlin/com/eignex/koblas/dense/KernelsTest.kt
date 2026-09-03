@@ -153,10 +153,15 @@ class KernelsTest {
 
         rotm(x, y, transformation)
 
+        // rotmg takes four scalars and has no length to gate on, so it routes whatever the caller does next.
         assertEquals(1, recording.rotmgs, "rotmg did not route")
-        assertEquals(1, recording.rotms, "rotm did not route")
+        assertEquals(0, recording.rotms, "a two-element run belongs on the compiled-in kernels")
         assertContentEquals(doubleArrayOf(2.0, 3.5), x.data)
         assertContentEquals(doubleArrayOf(-1.5, 3.0), y.data)
+
+        // 64 is the routed crossover, and the comparison is inclusive, so this one reaches the backend.
+        rotm(F64DenseVector.of(DoubleArray(64) { 1.0 }), F64DenseVector.of(DoubleArray(64) { 2.0 }), transformation)
+        assertEquals(1, recording.rotms, "a run at the crossover did not route")
     }
 
     @Test
@@ -169,9 +174,13 @@ class KernelsTest {
 
         rot(x, y, rotation)
 
-        assertEquals(1, recording.rots, "rot did not route, so the router is missing an override")
+        assertEquals(0, recording.rots, "a two-element run belongs on the compiled-in kernels")
         assertEquals(5.0, x.data[0], 1e-12, "the rotation should carry the pair's norm into x")
         assertEquals(0.0, y.data[0], 1e-12, "the rotation should eliminate y")
+
+        // 64 is the routed crossover, and the comparison is inclusive, so this one reaches the backend.
+        rot(F64DenseVector.of(DoubleArray(64) { 3.0 }), F64DenseVector.of(DoubleArray(64) { 4.0 }), rotation)
+        assertEquals(1, recording.rots, "a run at the crossover did not route, so the router lost an override")
     }
 
     @Test

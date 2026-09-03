@@ -216,14 +216,16 @@ internal class F64RoutedKernels(internal val host: F64Kernels?) :
         const val NRM2_HOST_CROSSOVER = 64
         const val ASUM_HOST_CROSSOVER = 64
         const val SWAP_HOST_CROSSOVER = 64
+        const val ROT_HOST_CROSSOVER = 64
+        const val ROTM_HOST_CROSSOVER = 64
     }
 
     private fun selected(len: Int, crossover: Int): F64Kernels =
         if (len < crossover) F64PlatformKernels else host ?: F64PlatformKernels
 
-    // rotmg has no len to threshold on, and rotm has no measured host crossover yet (unlike the routines
-    // above, none of which cite a rotm-specific Level1Benchmark run), so both route unconditionally: host
-    // when present, compiled-in otherwise.
+    // rotmg takes four scalars and has no len to threshold on, so it alone routes unconditionally: host when
+    // present, compiled-in otherwise. Every routine with a length is gated, including the two rotations,
+    // which used to reach the host at any length through this.
     private fun hostOrPlatform(): F64Kernels = host ?: F64PlatformKernels
 
     override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
@@ -261,11 +263,11 @@ internal class F64RoutedKernels(internal val host: F64Kernels?) :
         yStride: Int,
         len: Int,
         transformation: F64ModifiedGivens,
-    ) = hostOrPlatform().rotm(x, xOff, xStride, y, yOff, yStride, len, transformation)
+    ) = selected(len, ROTM_HOST_CROSSOVER).rotm(x, xOff, xStride, y, yOff, yStride, len, transformation)
 
     @Suppress("LongParameterList")
     override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) =
-        hostOrPlatform().rot(x, xOff, y, yOff, len, c, s)
+        selected(len, ROT_HOST_CROSSOVER).rot(x, xOff, y, yOff, len, c, s)
 
     /** Not routed, unlike every other routine here: only the compiled-in kernels fuse the four dots into
      *  one pass, and a host cannot, since its dot computes one at a time. */
