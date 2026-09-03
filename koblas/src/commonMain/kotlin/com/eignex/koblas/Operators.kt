@@ -22,38 +22,12 @@ public operator fun F64SparseMatrix.times(other: F64SparseMatrix): F64SparseMatr
 
 /**
  * Matrix-vector product into a fresh dense result for any [F64MatrixLike] against any [F64VectorLike].
- * gemv provide transpose and destination-buffer variants.
+ * [gemvInto] writes into a destination the caller owns, and provides the alpha and beta scalars.
  */
 public operator fun F64MatrixLike.times(x: F64VectorLike): F64DenseVector {
-    val a = this
-    requireShape(a.cols == x.size) { "times shape mismatch: A is ${a.rows}x${a.cols}, x size ${x.size}" }
-    if (a is F64DenseMatrix && x is F64DenseVector) return F64DenseVector.wrap(koblas.gemv(a, x.data))
-    if (a is F64SparseMatrix && x is F64DenseVector) return F64DenseVector.wrap(koblas.gemv(a, x.data))
-    val out = F64DenseVector(a.rows)
-    val od = out.data
-    when (a) {
-        is F64DenseMatrix -> {
-            val ad = a.data
-            val rows = a.rows
-            x.forEachStored { j, v ->
-                if (v != 0.0) koblas.kernels.axpy(od, 0, v, ad, j * rows, rows)
-            }
-        }
-
-        is F64SparseMatrix -> {
-            x.forEachStored { j, v ->
-                if (v != 0.0) a.forEachInColumn(j) { i, aij -> od[i] += aij * v }
-            }
-        }
-
-        else -> {
-            for (i in 0 until a.rows) {
-                var sum = 0.0
-                x.forEachStored { j, v -> sum += a[i, j] * v }
-                od[i] = sum
-            }
-        }
-    }
+    requireShape(cols == x.size) { "times shape mismatch: A is ${rows}x$cols, x size ${x.size}" }
+    val out = F64DenseVector(rows)
+    gemvInto(x, out.data)
     return out
 }
 
