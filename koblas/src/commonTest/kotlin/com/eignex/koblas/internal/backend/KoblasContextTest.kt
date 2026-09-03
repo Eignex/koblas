@@ -6,7 +6,9 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.internal.numeric.absoluteSum
 import com.eignex.koblas.internal.numeric.euclideanNorm
+import com.eignex.koblas.sparse.F64ReferenceSparseDecompositions
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
+import com.eignex.koblas.sparse.F64SparseDecompositions
 import com.eignex.koblas.sparse.F64SparseLinearAlgebra
 import kotlin.test.*
 
@@ -91,6 +93,55 @@ class KoblasContextTest {
         assertContentClose(x, a.lu().solve(doubleArrayOf(3.0, 5.0)))
         val s = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 4.0)))
         assertContentClose(doubleArrayOf(2.0, 8.0), koblas.gemv(s, doubleArrayOf(1.0, 2.0)))
+    }
+
+    /** The roles are read out of a composition once, so a new one has to be read and the old one kept. */
+    @Test
+    fun `with rereads the factorization roles only from a new composition`() {
+        val base = koblas
+        val replacement = F64ReferenceSparseDecompositions(equilibrate = true)
+
+        val rederived = base.with(sparseDecompositions = replacement)
+        val kept = base.with(kernels = Counting())
+
+        assertSame(replacement, rederived.generalSparseLu)
+        assertSame(replacement, rederived.sparseCholesky)
+        assertSame(replacement, rederived.quasiDefiniteLdl)
+        assertSame(replacement, rederived.sparseQr)
+        assertSame(base.generalSparseLu, kept.generalSparseLu)
+        assertSame(base.sparseQr, kept.sparseQr)
+    }
+
+    /** A composition filling none of the basis half leaves that role to koblas's own. */
+    @Test
+    fun `a composition that fills no basis role falls back to the reference`() {
+        val replacement = F64ReferenceSparseDecompositions()
+
+        val context = koblas.with(sparseDecompositions = replacement)
+
+        assertSame(F64ReferenceSparseLinearAlgebra, context.basisFactorizations)
+    }
+
+    /** Reading roles out of a composition is the one place a partial one is caught, and it says which role. */
+    @Test
+    fun `a composition filling no QR role is rejected at construction`() {
+        val partial = object : F64SparseDecompositions by F64ReferenceSparseLinearAlgebra {
+            override val name: String get() = "partial"
+        }
+
+        val failure = assertFailsWith<IllegalStateException> {
+            F64Context(
+                kernels = koblas.kernels,
+                blas = F64ReferenceLinearAlgebra,
+                decompositions = F64ReferenceLinearAlgebra,
+                sparseKernels = F64ReferenceSparseLinearAlgebra,
+                sparseBlas = F64ReferenceSparseLinearAlgebra,
+                sparseDecompositions = partial,
+                basisSolvers = F64ReferenceSparseLinearAlgebra,
+            )
+        }
+
+        assertEquals("partial fills no general sparse LU role", failure.message)
     }
 
     @Test
