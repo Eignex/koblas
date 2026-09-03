@@ -154,6 +154,23 @@ KOBLAS_KERNEL double koblas_dense_nrm2(const double *v, int32_t v_off, int32_t l
     return maximum * sqrt(scaled_squares);
 }
 
+KOBLAS_KERNEL double koblas_dense_sum(const double *v, int32_t v_off, int32_t len) {
+    double s0 = 0.0;
+    double s1 = 0.0;
+    double s2 = 0.0;
+    double s3 = 0.0;
+    int32_t i = 0;
+    if (len >= KOBLAS_UNROLL_MIN) for (; i + 4 <= len; i += 4) {
+        s0 += v[v_off + i];
+        s1 += v[v_off + i + 1];
+        s2 += v[v_off + i + 2];
+        s3 += v[v_off + i + 3];
+    }
+    double sum = (s0 + s1) + (s2 + s3);
+    for (; i < len; i++) sum += v[v_off + i];
+    return sum;
+}
+
 KOBLAS_KERNEL double koblas_dense_asum(const double *v, int32_t v_off, int32_t len) {
     double s0 = 0.0;
     double s1 = 0.0;

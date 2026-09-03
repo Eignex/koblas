@@ -6,7 +6,9 @@ import com.eignex.koblas.core.F64DenseVector
 import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.core.F64StridedVectorView
 import com.eignex.koblas.core.F64VectorLike
+import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.internal.numeric.euclideanNorm
+import com.eignex.koblas.internal.numeric.neumaierSum
 import com.eignex.koblas.sparse.F64SparseKernels
 import kotlin.math.abs
 
@@ -59,6 +61,53 @@ public fun F64VectorLike.norm2(): Double = when (this) {
     is F64SparseVector -> koblas.sparseKernels.nrm2(this)
     is F64StridedVectorView -> stridedNorm2(this)
     else -> euclideanNorm(toDoubleArray(), 0, size)
+}
+
+/**
+ * Plain sum of the entries. Distinct from [asum], which sums their absolute values.
+ *
+ * A dense operand reaches [F64Kernels.sum]; any other storage sums its stored entries, since the ones it
+ * does not store are zero and contribute nothing. Use [compensatedSum] where the length is large enough
+ * that the rounding error of a naive sum matters.
+ */
+public fun F64VectorLike.sum(): Double = when (this) {
+    is F64DenseVector -> koblas.kernels.sum(data, 0, size)
+
+    else -> {
+        var s = 0.0
+        forEachStored { _, x -> s += x }
+        s
+    }
+}
+
+/**
+ * Sum of the entries with Neumaier's compensation, holding to within one rounding of the exact sum whatever
+ * the length or the ordering.
+ *
+ * A naive sum of `n` terms carries an error that grows with `n`, so over a long run the total says less than
+ * its digits suggest. This tracks the low-order bits each addition drops and adds them back at the end, for
+ * about twice the arithmetic of [sum].
+ *
+ * Deliberately not on the kernel seam and deliberately not vectorised: the error bound is the whole point,
+ * and a compensator split across vector lanes has a different bound from one carried in order. A lane-wise
+ * form is a different routine and would need its own analysis before it could take this name.
+ *
+ * This is the batch form, over entries that already exist. An accumulator fed one value at a time needs its
+ * compensator in its own state, which no vector routine can supply.
+ */
+public fun F64VectorLike.compensatedSum(): Double = when (this) {
+    is F64DenseVector -> neumaierSum(data, 0, size)
+
+    else -> {
+        var s = 0.0
+        var compensation = 0.0
+        forEachStored { _, x ->
+            val t = s + x
+            compensation += if (abs(s) >= abs(x)) (s - t) + x else (x - t) + s
+            s = t
+        }
+        s + compensation
+    }
 }
 
 /** Sum of absolute values (BLAS `dasum`). Sparse vectors sum over stored entries only. */

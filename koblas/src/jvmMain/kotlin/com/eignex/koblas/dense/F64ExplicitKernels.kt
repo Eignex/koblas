@@ -28,6 +28,7 @@ internal object F64CKernels : F64Kernels, F64ArithmeticKernels {
      * [F64RoutedKernels]'s host crossovers are, so a later measurement can move one alone.
      */
     private const val DOT_C_CROSSOVER = 128
+    private const val SUM_C_CROSSOVER = 128
     private const val SSQD_C_CROSSOVER = 128
     private const val AXPY_C_CROSSOVER = 128
     private const val SCALE_C_CROSSOVER = 128
@@ -47,6 +48,9 @@ internal object F64CKernels : F64Kernels, F64ArithmeticKernels {
         } else {
             JvmCKernelBindings.denseDot(a, aOff, b, bOff, len)
         }
+
+    override fun sum(v: DoubleArray, vOff: Int, len: Int): Double =
+        if (len < SUM_C_CROSSOVER) scalarSum(v, vOff, len) else JvmCKernelBindings.denseSum(v, vOff, len)
 
     override fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
         if (len < SSQD_C_CROSSOVER) {
@@ -151,6 +155,9 @@ internal object F64SimdKernels : F64Kernels, F64ArithmeticKernels {
 
     override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
         if (vectorizes(len)) Simd.dot(a, aOff, b, bOff, len) else scalarDot(a, aOff, b, bOff, len)
+
+    override fun sum(v: DoubleArray, vOff: Int, len: Int): Double =
+        if (vectorizes(len)) Simd.sum(v, vOff, len) else scalarSum(v, vOff, len)
 
     override fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double = if (vectorizes(len)) {
         Simd.ssqd(a, aOff, b, bOff, len)

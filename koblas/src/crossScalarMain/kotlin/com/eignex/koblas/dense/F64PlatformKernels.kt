@@ -51,6 +51,8 @@ internal actual object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
     actual override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) =
         scalarSwap(a, aOff, b, bOff, len)
 
+    actual override fun sum(v: DoubleArray, vOff: Int, len: Int): Double = scalarSum(v, vOff, len)
+
     actual override fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
         scalarSsqd(a, aOff, b, bOff, len)
 

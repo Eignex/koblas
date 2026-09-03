@@ -97,6 +97,15 @@ public interface F64Kernels : Backend {
     }
 
     /**
+     * Plain sum over the run, `0` for an empty one.
+     *
+     * Not a BLAS routine: `dasum` sums absolute values, which is a different quantity. Compensated
+     * summation is deliberately not this routine, since a compensator split across vector lanes has a
+     * different error bound from one carried in order; the public `compensatedSum` holds that contract.
+     */
+    public fun sum(v: DoubleArray, vOff: Int, len: Int): Double
+
+    /**
      * Sum of squares of the differences, `sum (a(aOff + i) - b(bOff + i))^2`, in one pass over both runs;
      * `0` for an empty run. This is the squared euclidean distance between them.
      *
@@ -137,6 +146,8 @@ internal expect object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
     override fun asum(v: DoubleArray, vOff: Int, len: Int): Double
 
     override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int)
+
+    override fun sum(v: DoubleArray, vOff: Int, len: Int): Double
 
     override fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double
 
@@ -272,6 +283,10 @@ internal class F64RoutedKernels(internal val host: F64Kernels?) :
 
     override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) =
         selected(len, SWAP_HOST_CROSSOVER).swap(a, aOff, b, bOff, len)
+
+    /** Not routed, as [dot4] is not: no host BLAS has a plain sum, so this always runs the compiled-in
+     *  kernels. */
+    override fun sum(v: DoubleArray, vOff: Int, len: Int): Double = F64PlatformKernels.sum(v, vOff, len)
 
     /** Not routed, as [dot4] is not: no host BLAS fuses a squared distance, so this always runs the
      *  compiled-in kernels. */

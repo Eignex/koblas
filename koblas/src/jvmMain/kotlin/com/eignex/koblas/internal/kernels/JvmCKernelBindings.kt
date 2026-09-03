@@ -18,6 +18,7 @@ internal object JvmCKernelBindings {
         "koblas_dense_axpy_arithmetic",
         "koblas_dense_scale",
         "koblas_dense_nrm2",
+        "koblas_dense_sum",
         "koblas_dense_asum",
         "koblas_dense_swap",
         "koblas_dense_dot4",
@@ -70,6 +71,9 @@ internal object JvmCKernelBindings {
             "koblas_dense_nrm2",
             FfmLibrary.doubleOf(ADDRESS, JAVA_INT, JAVA_INT),
         )
+    }
+    private val denseSum by lazy {
+        requiredLibrary().handle("koblas_dense_sum", FfmLibrary.doubleOf(ADDRESS, JAVA_INT, JAVA_INT))
     }
     private val denseAsum by lazy {
         requiredLibrary().handle(
@@ -183,6 +187,9 @@ internal object JvmCKernelBindings {
 
     fun denseNrm2(v: DoubleArray, vOff: Int, len: Int): Double =
         denseNrm2.invokeExact(MemorySegment.ofArray(v), vOff, len) as Double
+
+    fun denseSum(v: DoubleArray, vOff: Int, len: Int): Double =
+        denseSum.invokeExact(MemorySegment.ofArray(v), vOff, len) as Double
 
     fun denseAsum(v: DoubleArray, vOff: Int, len: Int): Double =
         denseAsum.invokeExact(MemorySegment.ofArray(v), vOff, len) as Double

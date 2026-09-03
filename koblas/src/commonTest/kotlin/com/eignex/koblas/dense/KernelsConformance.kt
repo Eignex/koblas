@@ -195,6 +195,13 @@ internal fun assertReductionsAgreeWithScalar(kernels: F64Kernels) {
                 doubleArrayOf(kernels.nrm2(v, pad, len)),
                 context = "nrm2 $ctx",
             )
+            var expectedSum = 0.0
+            for (i in 0 until len) expectedSum += v[pad + i]
+            assertClose(
+                doubleArrayOf(expectedSum),
+                doubleArrayOf(kernels.sum(v, pad, len)),
+                context = "sum $ctx",
+            )
             var expectedAsum = 0.0
             for (i in 0 until len) expectedAsum += abs(v[pad + i])
             assertClose(

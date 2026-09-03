@@ -32,6 +32,9 @@ public class F64CblasKernels internal constructor(
         if (len != 0) calls.daxpy.invokeExact(len, alpha, segment(x, xOff), 1, segment(y, yOff), 1) as Unit
     }
 
+    /** OpenBLAS has no plain sum, only `dasum` over absolute values, so this runs the compiled-in kernel. */
+    override fun sum(v: DoubleArray, vOff: Int, len: Int): Double = F64PlatformKernels.sum(v, vOff, len)
+
     /**
      * OpenBLAS has no fused sum of squared differences, and the only way to build one from the routines it
      * does have is `a.a - 2a.b + b.b`, whose cancellation ruins exactly the small values this is for. So
