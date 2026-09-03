@@ -51,8 +51,11 @@ internal actual object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
 
     actual override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double = selected.nrm2(v, vOff, len)
 
-    override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) =
+    actual override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) =
         selected.swap(a, aOff, b, bOff, len)
+
+    actual override fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
+        selected.ssqd(a, aOff, b, bOff, len)
 
     actual override fun asum(v: DoubleArray, vOff: Int, len: Int): Double = selected.asum(v, vOff, len)
 
@@ -152,6 +155,61 @@ internal object Simd {
         // What the unroll leaves over is under one unroll width, which is what the single chain is for.
         val head = s0.add(s1).add(s2.add(s3)).reduceLanes(VectorOperators.ADD)
         return head + dotOneChain(a, aOff + unrolled, b, bOff + unrolled, len - unrolled)
+    }
+
+    /**
+     * [dot]'s load pattern with a subtract fused in, so it inherits the same accumulator reasoning and the
+     * same [UNROLL_MIN]. That threshold is [dot]'s measurement adopted by analogy, not one of its own: the
+     * loop differs from dot's by one vector subtract against identical loads.
+     */
+    fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double = if (len >= UNROLL_MIN) {
+        ssqdUnrolled(a, aOff, b, bOff, len)
+    } else {
+        ssqdOneChain(a, aOff, b, bOff, len)
+    }
+
+    private fun ssqdOneChain(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
+        var i = 0
+        val bound = SPECIES.loopBound(len)
+        var sum = DoubleVector.zero(SPECIES)
+        while (i < bound) {
+            val d = DoubleVector.fromArray(SPECIES, a, aOff + i).sub(DoubleVector.fromArray(SPECIES, b, bOff + i))
+            sum = d.fma(d, sum)
+            i += LANE
+        }
+        var s = sum.reduceLanes(VectorOperators.ADD)
+        while (i < len) {
+            val d = a[aOff + i] - b[bOff + i]
+            s += d * d
+            i++
+        }
+        return s
+    }
+
+    /** [ssqd] past [UNROLL_MIN], where the four chains pay for the reduce that combines them. */
+    private fun ssqdUnrolled(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
+        var s0 = DoubleVector.zero(SPECIES)
+        var s1 = DoubleVector.zero(SPECIES)
+        var s2 = DoubleVector.zero(SPECIES)
+        var s3 = DoubleVector.zero(SPECIES)
+        var i = 0
+        val unrolled = len - len % (4 * LANE)
+        while (i < unrolled) {
+            val d0 = DoubleVector.fromArray(SPECIES, a, aOff + i).sub(DoubleVector.fromArray(SPECIES, b, bOff + i))
+            s0 = d0.fma(d0, s0)
+            val d1 = DoubleVector.fromArray(SPECIES, a, aOff + i + LANE)
+                .sub(DoubleVector.fromArray(SPECIES, b, bOff + i + LANE))
+            s1 = d1.fma(d1, s1)
+            val d2 = DoubleVector.fromArray(SPECIES, a, aOff + i + 2 * LANE)
+                .sub(DoubleVector.fromArray(SPECIES, b, bOff + i + 2 * LANE))
+            s2 = d2.fma(d2, s2)
+            val d3 = DoubleVector.fromArray(SPECIES, a, aOff + i + 3 * LANE)
+                .sub(DoubleVector.fromArray(SPECIES, b, bOff + i + 3 * LANE))
+            s3 = d3.fma(d3, s3)
+            i += 4 * LANE
+        }
+        val head = s0.add(s1).add(s2.add(s3)).reduceLanes(VectorOperators.ADD)
+        return head + ssqdOneChain(a, aOff + unrolled, b, bOff + unrolled, len - unrolled)
     }
 
     /**

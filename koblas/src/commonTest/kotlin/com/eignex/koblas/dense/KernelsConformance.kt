@@ -30,6 +30,16 @@ internal fun assertLevel1KernelsAgreeWithScalar(kernels: F64Kernels) {
             doubleArrayOf(kernels.dot(a, pad, b, 0, len)),
             context = "dot len=$len",
         )
+        var expectedSsqd = 0.0
+        for (i in 0 until len) {
+            val d = a[pad + i] - b[i]
+            expectedSsqd += d * d
+        }
+        assertClose(
+            doubleArrayOf(expectedSsqd),
+            doubleArrayOf(kernels.ssqd(a, pad, b, 0, len)),
+            context = "ssqd len=$len",
+        )
         val expectedAxpy = b.copyOf()
         for (i in 0 until len) expectedAxpy[i] += 0.75 * a[pad + i]
         val actualAxpy = b.copyOf()

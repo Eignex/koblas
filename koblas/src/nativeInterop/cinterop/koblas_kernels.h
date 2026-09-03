@@ -18,6 +18,17 @@ KOBLAS_KERNEL double koblas_dense_dot(
     return sum;
 }
 
+KOBLAS_KERNEL double koblas_dense_ssqd(
+    const double *a, int32_t a_off, const double *b, int32_t b_off, int32_t len
+) {
+    double sum = 0.0;
+    for (int32_t i = 0; i < len; i++) {
+        const double d = a[a_off + i] - b[b_off + i];
+        sum += d * d;
+    }
+    return sum;
+}
+
 static inline void koblas_dense_axpy_loop(
     double *y, int32_t y_off, double alpha, const double *x, int32_t x_off, int32_t len
 ) {

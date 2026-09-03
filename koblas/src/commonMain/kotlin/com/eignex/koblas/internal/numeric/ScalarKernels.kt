@@ -7,6 +7,25 @@ internal fun scalarDot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len
     return s
 }
 
+/** Exchange the two runs over [len] elements. */
+internal fun scalarSwap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) {
+    for (i in 0 until len) {
+        val t = a[aOff + i]
+        a[aOff + i] = b[bOff + i]
+        b[bOff + i] = t
+    }
+}
+
+/** `sum (a - b)^2` over [len] elements, without materialising the difference. */
+internal fun scalarSsqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
+    var s = 0.0
+    for (i in 0 until len) {
+        val d = a[aOff + i] - b[bOff + i]
+        s += d * d
+    }
+    return s
+}
+
 /** `y += alpha * x` over [len] elements. A zero [alpha] leaves y alone rather than adding zeroes. */
 internal fun scalarAxpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
     if (alpha == 0.0) return
