@@ -28,7 +28,14 @@ public fun discoverBackends() {
 
 /**
  * The basis solvers registered under [name], looked up the way the semantic capabilities are.
+ *
+ * A door of its own for one of the capabilities, which [backendNamed] covers for all of them. Kept for one
+ * release so a caller pinning a basis solver by name has somewhere to move to.
  */
+@Deprecated(
+    "One capability's own lookup; backendNamed covers every capability.",
+    ReplaceWith("backendNamed(name, F64Capabilities.basisSolvers)"),
+)
 public fun basisSolversNamed(name: String): F64BasisSolvers? = backendNamed(name, F64Capabilities.basisSolvers)
 
 /** The backends registered for [role], strongest first. */
