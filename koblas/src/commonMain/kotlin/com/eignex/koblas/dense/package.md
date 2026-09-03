@@ -15,7 +15,8 @@ Dense linear algebra: the three swappable seams and the routines behind them.
   [F64QrDecomposition]
   with the least-squares and minimum-norm solves, [F64PivotedQrDecomposition] when the rank is the question
   rather than the solve, the condition estimate, and the SPD suite
-  [cholesky] and the [F64CholeskyDecomposition] solve and invert.
+  [cholesky] and the [F64CholeskyDecomposition] solve, invert and in-place
+  [F64CholeskyDecomposition.rankUpdate].
 - [F64LinearAlgebra] pairs [F64Blas] and [F64Decompositions]; the two are ranked and selected independently, so a host
   providing one library and not the other still accelerates what it can. Offered through
   [com.eignex.koblas.registerBackend], forced with [com.eignex.koblas.installBackends], resolved as

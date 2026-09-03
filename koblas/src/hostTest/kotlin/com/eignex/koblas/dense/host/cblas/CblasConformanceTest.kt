@@ -119,6 +119,9 @@ class CblasConformanceTest {
     fun `the SPD suite matches reference`() = assertSpdSuiteAgreesWithReference(cblas, intArrayOf(1, 4, 9, 33))
 
     @Test
+    fun `cholesky rank updates match reference`() = assertCholeskyUpdateAgreesWithReference(cblas, intArrayOf(4, 33))
+
+    @Test
     fun `a non positive definite input falls back to the portable path`() =
         assertNonPositiveDefiniteFallsBack(cblas, n = 2)
 

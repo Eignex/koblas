@@ -110,3 +110,48 @@ internal fun referenceSpdInvert(
     }
     return out
 }
+
+/**
+ * Rank-k update of a Cholesky factorization in place, `A + sigma·V·Vᵀ = L̃·L̃ᵀ`, returning [chol] with its
+ * factor buffer rewritten. [v] holds the update vectors as [columns] consecutive runs of `n` and is not
+ * modified.
+ *
+ * One plane rotation per row: at step k the rotation that zeroes the working vector's entry k against the
+ * diagonal is applied to the column tail below it. Every rotation is orthogonal, so this needs no
+ * positive-definiteness check, since `A + sigma·V·Vᵀ` is positive-definite whenever `A` is and [sigma] is
+ * not negative. [rotg] rather than the `(l + s·x)/c` recurrence, which divides by the diagonal entry and so
+ * cannot answer for a factor carrying a zero there.
+ */
+@Suppress("LongParameterList") // the factor, the update block and its width, the scale, and scratch
+internal fun referenceCholeskyRankUpdate(
+    kernels: F64Kernels,
+    chol: F64CholeskyDecomposition,
+    v: DoubleArray,
+    columns: Int,
+    sigma: Double,
+    workspace: Workspace?,
+): F64CholeskyDecomposition {
+    val n = chol.n
+    if (n == 0 || columns == 0 || sigma == 0.0) return chol
+    val ld = chol.l.data
+    val scale = sqrt(sigma)
+    workspace.borrow(n) { x ->
+        for (column in 0 until columns) {
+            v.copyInto(x, 0, column * n, (column + 1) * n)
+            if (scale != 1.0) kernels.scale(x, 0, scale, n)
+            for (k in 0 until n) {
+                val base = k + k * n
+                val rotation = rotg(ld[base], x[k])
+                // Netlib's sign convention takes r from whichever input dominates, so a working entry that
+                // is larger and negative would put a negative number on the diagonal. Negating the whole
+                // rotation restores the positive diagonal a factor is expected to carry, and negating a
+                // column of L leaves L·Lᵀ alone.
+                val flip = if (rotation.r < 0.0) -1.0 else 1.0
+                ld[base] = flip * rotation.r
+                val len = n - k - 1
+                if (len > 0) kernels.rot(ld, base + 1, x, k + 1, len, flip * rotation.c, flip * rotation.s)
+            }
+        }
+    }
+    return chol
+}

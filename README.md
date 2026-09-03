@@ -131,7 +131,7 @@ host provider does not. Routines not listed here are not part of the supported n
 | BLAS level 2 | `gemv`, `symv`, `ger`, `syr`, `syr2`, `trsv`, `trmv` | `dgemv`, `dsymv`, `dger`, `dsyr`, `dsyr2`, `dtrsv`, `dtrmv` |
 | BLAS level 3 | `gemm`, `symm`, `syrk`, `syr2k`, `trsm`, `trmm` | `dgemm`, `dsymm`, `dsyrk`, `dsyr2k`, `dtrsm`, `dtrmm` |
 | Dense utility | `transpose`, `norm1`, `normInf`, `normFro`, row/column scaling | No direct BLAS routine |
-| Dense LAPACK | LU (`factor`, `solve`, `invert`, `rcond`), pivoted LDL, QR and pivoted QR, Cholesky, triangular inverse | `dgetrf`, `dgetrs`, `dgetri`, `dgecon`, `dsytrf`, `dsytrs`, `dgeqrf`, `dgeqp3`, `dormqr`, `dpotrf`, `dpotrs`, `dpotri`, `dtrtri` |
+| Dense LAPACK | LU (`factor`, `solve`, `invert`, `rcond`), pivoted LDL, QR and pivoted QR, Cholesky with in-place rank updates, triangular inverse | `dgetrf`, `dgetrs`, `dgetri`, `dgecon`, `dsytrf`, `dsytrs`, `dgeqrf`, `dgeqp3`, `dormqr`, `dpotrf`, `dpotrs`, `dpotri`, `dtpqrt`, `dtrtri` |
 | Sparse BLAS | CSC `gemv`, triangular `trsv`/`trsm` and `trmv`/`trmm`, sparse–dense `gemm`, sparse–sparse product, `transpose`, prepared repeated products | Sparse BLAS `usmv`, `ussv`, `ussm`, `usmm`; triangular multiply is `usmv`/`usmm` over a triangle, and product and preparation are Koblas operations |
 | Sparse factorizations | General LU, repeated-pattern LU, Cholesky, LDL, QR, and simplex basis operations | Provider-specific SuiteSparse, BASICLU, and HFactor capabilities |
 
@@ -295,7 +295,7 @@ and ownership determine what is useful rather than forcing every factor into one
 | Family | Solve / transpose / blocks | Reuse and lifecycle | Safe factor inspection | Deliberate non-applicability |
 |--------|----------------------------|---------------------|------------------------|------------------------------|
 | Dense LU | Vector and column-major multi-RHS `solve`/`solveInto`, including transpose | `factorInto` reuses packed buffers; Kotlin-owned factors do not close | `lowerFactor`, `upperFactor`, `rowOrder`, singularity, determinant/sign/log-absolute determinant, inverse and `rcond` | — |
-| Dense Cholesky | Vector and multi-RHS `solve`/`solveInto`; transpose is identical by symmetry | Pure Kotlin buffers; no symbolic lifecycle | `lowerFactor`, lower packed factor, inverse | No separate transpose solve or symbolic analysis |
+| Dense Cholesky | Vector and multi-RHS `solve`/`solveInto`; transpose is identical by symmetry | Pure Kotlin buffers; no symbolic lifecycle | `lowerFactor`, lower packed factor, inverse, in-place `rankUpdate` | No downdate, separate transpose solve, or symbolic analysis |
 | Dense LDL | Vector and multi-RHS `solve`/`solveInto`; transpose is identical by symmetry | Pure Kotlin buffers; no symbolic lifecycle | `packedFactor`, `pivotBlocks`, singularity | Bunch-Kaufman packing has no independent unpermuted `L`/diagonal `D` snapshot |
 | Dense QR / pivoted QR | Q application, least-squares solve and `solveInto`; pivoted QR reports rank | Workspace reuses solve/Q scratch; pure Kotlin buffers do not close | `explicitQ`, `explicitR`, pivoted `columnOrder`, rank | No inverse or square-system transpose solve for rectangular QR |
 | Triangular inversion | `trsv`/`trsm` supply vector and multi-RHS normal/transpose solves | Stateless; no factor or lifecycle | `trtri` returns the selected inverse triangle | No retained factorization or symbolic phase |

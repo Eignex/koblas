@@ -27,6 +27,26 @@ public fun F64CholeskyDecomposition.refactorInto(
     policy: CholeskyPolicy = CholeskyPolicy.Strict,
 ): F64CholeskyDecomposition = koblas.choleskyInto(a, this, policy)
 
+/**
+ * Rank-1 update `A + sigma·v·vᵀ` of this factorization in place, returning this decomposition with its
+ * factor buffer rewritten. [v] is not modified; see [F64Decompositions.choleskyRankUpdate].
+ */
+public fun F64CholeskyDecomposition.rankUpdate(
+    v: DoubleArray,
+    sigma: Double = 1.0,
+    workspace: Workspace? = null,
+): F64CholeskyDecomposition = koblas.choleskyRankUpdate(this, v, sigma, workspace)
+
+/**
+ * Rank-k update `A + sigma·V·Vᵀ` in place, the columns of [v] being the update vectors; see
+ * [F64Decompositions.choleskyRankUpdate].
+ */
+public fun F64CholeskyDecomposition.rankUpdate(
+    v: F64DenseMatrix,
+    sigma: Double = 1.0,
+    workspace: Workspace? = null,
+): F64CholeskyDecomposition = koblas.choleskyRankUpdate(this, v, sigma, workspace)
+
 /** Solve `A · x = b` for this factorization with the active backend; see [F64Decompositions.solve]. */
 public fun F64CholeskyDecomposition.solve(b: DoubleArray): DoubleArray = koblas.solve(this, b)
 

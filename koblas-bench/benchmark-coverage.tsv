@@ -4,6 +4,8 @@ F64BasisSolver.pivots()	com.eignex.koblas.bench.BasisBenchmark.pivots	benchmarke
 F64CholeskyDecomposition.refactorInto(F64DenseMatrix)		excluded	Refactorization shares the benchmarked Cholesky factorization kernel and is covered by buffer-reuse tests.
 F64CholeskyDecomposition.solveInto(DoubleArray,DoubleArray)		excluded	The destination-passing variant shares the benchmarked Cholesky solve kernel and is covered by aliasing tests.
 F64Decompositions.choleskyInto(F64DenseMatrix,F64CholeskyDecomposition)		excluded	The backend destination-passing variant shares the benchmarked Cholesky factorization kernel.
+F64Decompositions.choleskyRankUpdate(F64CholeskyDecomposition,DoubleArray)		excluded	The backend entry point shares the benchmarked rank-1 update kernel the extension reaches.
+F64Decompositions.choleskyRankUpdate(F64CholeskyDecomposition,F64DenseMatrix)		excluded	The backend entry point shares the benchmarked rank-k update kernel the extension reaches.
 F64Decompositions.pivotedSymmetricIndefiniteInto(F64DenseMatrix,F64PivotedSymmetricIndefiniteDecomposition)		excluded	The backend destination-passing variant shares the benchmarked pivoted symmetric-indefinite factorization kernel.
 F64Decompositions.qrInto(F64DenseMatrix,F64QrDecomposition)		excluded	The backend destination-passing variant shares the benchmarked QR factorization kernel.
 F64QrDecomposition.applyQInto(DoubleArray,DoubleArray)		excluded	The destination-passing variant shares the benchmarked applyQ kernel and is covered by aliasing tests.
@@ -94,6 +96,8 @@ F64LuDecomposition.solve(DoubleArray)	com.eignex.koblas.bench.BlockSolveBenchmar
 F64DenseMatrix.cholesky()	com.eignex.koblas.bench.CholeskyBenchmark.cholesky	benchmarked	
 F64CholeskyDecomposition.solve(DoubleArray)	com.eignex.koblas.bench.CholeskyBenchmark.solveSpd	benchmarked	
 F64CholeskyDecomposition.invert()	com.eignex.koblas.bench.CholeskyBenchmark.invertSpd	benchmarked	
+F64CholeskyDecomposition.rankUpdate(DoubleArray)	com.eignex.koblas.bench.CholeskyUpdateBenchmark.rankUpdate	benchmarked	
+F64CholeskyDecomposition.rankUpdate(F64DenseMatrix)	com.eignex.koblas.bench.CholeskyUpdateBenchmark.rankUpdateBlock	benchmarked	
 F64CholeskyDecomposition.invertInto(F64DenseMatrix)		excluded	The destination-passing variant shares the benchmarked Cholesky inverse kernel, which now runs through it, and is covered by shape and aliasing tests.
 Vector.dot(Vector)	com.eignex.koblas.bench.Level1Benchmark.dot	benchmarked	
 Vector.axpy(Double,Vector)	com.eignex.koblas.bench.Level1Benchmark.axpyBench	benchmarked	

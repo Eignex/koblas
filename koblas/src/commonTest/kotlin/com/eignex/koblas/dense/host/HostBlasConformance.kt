@@ -216,6 +216,34 @@ private fun triangleOf(a: F64DenseMatrix, lower: Boolean, unitDiag: Boolean): F6
     return t
 }
 
+/**
+ * Cholesky rank updates against the portable sweep, at a rank on each side of the host half's routing
+ * threshold. The rank-1 case is expected to route portable and the wide one to reach `dtpqrt`, so this
+ * catches a native path that disagrees and a threshold that sends the wrong width to it.
+ */
+internal fun assertCholeskyUpdateAgreesWithReference(decompositions: F64Decompositions, sizes: IntArray) {
+    val rng = Random(20260903)
+    for (n in sizes) {
+        val a = poisonedSpd(n, rng)
+        for (k in intArrayOf(1, 64)) {
+            val v = randomMatrix(n, k, rng)
+            val expected = reference.choleskyRankUpdate(reference.cholesky(a), v, sigma = 1.5)
+            val actual = decompositions.choleskyRankUpdate(decompositions.cholesky(a), v, sigma = 1.5)
+            assertClose(expected.l, actual.l, "rank update n=$n k=$k", tolerance = 1e-8)
+            for (i in 0 until n) {
+                assertTrue(actual.l[i, i] > 0.0, "rank update n=$n k=$k left ${actual.l[i, i]} on the diagonal")
+                for (j in i + 1 until n) {
+                    assertEquals(
+                        0.0,
+                        actual.l[i, j],
+                        "rank update n=$n k=$k wrote ${actual.l[i, j]} above the diagonal",
+                    )
+                }
+            }
+        }
+    }
+}
+
 internal fun assertSpdSuiteAgreesWithReference(decompositions: F64Decompositions, sizes: IntArray) {
     val rng = Random(20260803)
     for (n in sizes) {
