@@ -5,6 +5,8 @@ package com.eignex.koblas
 import com.eignex.koblas.core.*
 import com.eignex.koblas.dense.F64Blas
 import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
+import com.eignex.koblas.dense.cholesky
+import com.eignex.koblas.dense.lowerFactor
 import kotlin.math.abs
 import kotlin.math.sqrt
 import kotlin.random.Random
@@ -468,6 +470,72 @@ class OpsTest {
             F64DenseMatrix(2, 2).ger(1.0, dense(1.0, 2.0, 3.0), dense(1.0, 2.0))
         }
         assertFailsWith<IllegalArgumentException> { F64DenseMatrix(2, 3) * dense(1.0, 2.0) }
+    }
+
+    @Test
+    fun `zeroStrictUpper clears above the diagonal and keeps the rest`() {
+        val M = F64DenseMatrix.of(
+            arrayOf(
+                doubleArrayOf(1.0, 2.0, 3.0),
+                doubleArrayOf(4.0, 5.0, 6.0),
+                doubleArrayOf(7.0, 8.0, 9.0),
+            ),
+        )
+        M.zeroStrictUpper()
+        for (i in 0 until 3) {
+            for (j in 0 until 3) {
+                val expected = if (i < j) 0.0 else (i * 3 + j + 1).toDouble()
+                assertEquals(expected, M[i, j], "($i,$j)")
+            }
+        }
+        // Column-major, so the cleared entries are the leading run of each column after the first.
+        assertClose(
+            doubleArrayOf(1.0, 4.0, 7.0, 0.0, 5.0, 8.0, 0.0, 0.0, 9.0),
+            M.data,
+            "backing buffer",
+        )
+    }
+
+    @Test
+    fun `zeroStrictUpper zeroes whole columns past the last row`() {
+        val wide = F64DenseMatrix.wrap(2, 4, DoubleArray(8) { it + 1.0 })
+        wide.zeroStrictUpper()
+        for (j in 0 until 4) {
+            for (i in 0 until 2) {
+                val expected = if (i < j) 0.0 else (j * 2 + i + 1).toDouble()
+                assertEquals(expected, wide[i, j], "($i,$j)")
+            }
+        }
+    }
+
+    @Test
+    fun `zeroStrictUpper keeps a tall matrix intact below the diagonal`() {
+        val tall = F64DenseMatrix.wrap(4, 2, DoubleArray(8) { it + 1.0 })
+        val before = tall.data.copyOf()
+        tall.zeroStrictUpper()
+        // Only (0,1) sits above the diagonal here, so every other entry survives.
+        assertEquals(0.0, tall[0, 1], "(0,1)")
+        for (j in 0 until 2) {
+            for (i in 0 until 4) {
+                if (i < j) continue
+                assertEquals(before[i + j * 4], tall[i, j], "($i,$j)")
+            }
+        }
+    }
+
+    @Test
+    fun `zeroStrictUpper matches the copy that lowerFactor makes`() {
+        val spd = F64DenseMatrix.of(
+            arrayOf(
+                doubleArrayOf(4.0, 2.0, 0.0),
+                doubleArrayOf(2.0, 5.0, 1.0),
+                doubleArrayOf(0.0, 1.0, 3.0),
+            ),
+        )
+        val chol = spd.cholesky()
+        val copied = chol.lowerFactor()
+        chol.l.zeroStrictUpper()
+        assertClose(copied, chol.l, "cleaned in place versus copied")
     }
 
     @Test

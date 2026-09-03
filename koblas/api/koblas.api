@@ -617,6 +617,7 @@ public final class com/eignex/koblas/MatrixOpsKt {
 	public static final fun transpose (Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public static final fun transpose (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/core/F64SparseMatrix;
 	public static final fun withColumn (Lcom/eignex/koblas/core/F64SparseMatrix;ILcom/eignex/koblas/core/F64SparseVector;)Lcom/eignex/koblas/core/F64SparseMatrix;
+	public static final fun zeroStrictUpper (Lcom/eignex/koblas/core/F64DenseMatrix;)V
 }
 
 public final class com/eignex/koblas/NotPositiveDefinite : com/eignex/koblas/KoblasException {

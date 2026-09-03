@@ -72,6 +72,7 @@ F64DenseMatrix.times(F64SparseMatrix)		excluded	A dense left operand is the righ
 F64CholeskyDecomposition.solve(F64DenseMatrix)		excluded	The multi-right-hand-side solve repeats the benchmarked Cholesky solve kernel over the columns of B.
 F64CholeskyDecomposition.solveInto(F64DenseMatrix,F64DenseMatrix)		excluded	The destination-passing multi-right-hand-side solve shares the benchmarked Cholesky solve kernel.
 F64CholeskyDecomposition.lowerFactor()		excluded	Extracting a factor snapshot is inspection work rather than a dispatched numerical kernel.
+F64DenseMatrix.zeroStrictUpper()		excluded	Cleaning one triangle in place is the same inspection work as the lowerFactor copy it replaces, with no dispatch of its own: a bounded fill per column, covered by tests.
 F64LinearAlgebra.solveInto(F64LuDecomposition,F64DenseMatrix,F64DenseMatrix)		excluded	The destination-passing block solve shares the benchmarked LU block solve kernel.
 F64QrDecomposition.solveInto(DoubleArray,DoubleArray)		excluded	The destination-passing variant shares the benchmarked least-squares kernel and is covered by aliasing tests.
 F64PivotedQrDecomposition.solveInto(DoubleArray,DoubleArray)		excluded	The destination-passing variant shares the benchmarked pivoted least-squares kernel and is covered by aliasing tests.
