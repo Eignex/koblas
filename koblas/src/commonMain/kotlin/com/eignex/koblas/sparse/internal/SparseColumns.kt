@@ -1,5 +1,6 @@
 package com.eignex.koblas.sparse.internal
 
+import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.forEachStored
@@ -14,6 +15,7 @@ import com.eignex.koblas.forEachStored
  *
  * Each entering vector must have as many entries as [a] has rows, which is what its column will hold.
  */
+@OptIn(UnsafeKoblasApi::class)
 internal fun replaceColumns(a: F64SparseMatrix, replacements: Map<Int, F64SparseVector>): F64SparseMatrix {
     if (replacements.isEmpty()) return a
     val colPtr = IntArray(a.cols + 1)
@@ -21,7 +23,7 @@ internal fun replaceColumns(a: F64SparseMatrix, replacements: Map<Int, F64Sparse
         var entries = 0
         val entering = replacements[j]
         if (entering == null) {
-            a.forEachInColumn(j) { _, _ -> entries++ }
+            entries = a.colPtr[j + 1] - a.colPtr[j]
         } else {
             entering.forEachStored { _, _ -> entries++ }
         }
