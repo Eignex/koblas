@@ -4,12 +4,12 @@ import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
+import com.eignex.koblas.internal.host.keepingReachable
 import com.eignex.koblas.internal.host.nativeCleaner
 import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.FactorsNotExposed
 import com.eignex.koblas.sparse.requireBlockSolveShapes
 import com.eignex.koblas.sparse.requireSolveShapes
-import java.lang.ref.Reference
 import kotlin.math.sqrt
 
 /** A CHOLMOD factorization with deterministic close and cleaner fallback for its native factor. */
@@ -114,10 +114,8 @@ public class CholmodFactorization internal constructor(
         if (singular) {
             0
         } else {
-            try {
+            keepingReachable(this) {
                 factor.nzmax
-            } finally {
-                Reference.reachabilityFence(this)
             }
         }
     }
@@ -131,11 +129,9 @@ public class CholmodFactorization internal constructor(
         if (singular) {
             0.0
         } else {
-            try {
+            keepingReachable(this) {
                 val estimate = calls.rcond(factor)
                 if (factor.isLl) sqrt(estimate) else estimate
-            } finally {
-                Reference.reachabilityFence(this)
             }
         }
     }
@@ -145,12 +141,10 @@ public class CholmodFactorization internal constructor(
             if (singular) throw singularFailure(failedAt, "solve")
             requireSolveShapes(n, b, out)
             if (out !== b) b.copyInto(out)
-            try {
+            keepingReachable(this) {
                 check(calls.solve(factor, out, solveWorkspace)) {
                     "cholmod_solve failed on a factorization it produced"
                 }
-            } finally {
-                Reference.reachabilityFence(this)
             }
             out
         }
@@ -165,14 +159,12 @@ public class CholmodFactorization internal constructor(
         requireBlockSolveShapes(n, b, out)
         if (b.cols == 0) return@withResource out
         if (out.data !== b.data) b.data.copyInto(out.data)
-        try {
+        keepingReachable(this) {
             CholmodSolveWorkspace(n, b.cols).use { blockWorkspace ->
                 check(calls.solve(factor, out.data, blockWorkspace)) {
                     "cholmod_solve failed on a factorization it produced"
                 }
             }
-        } finally {
-            Reference.reachabilityFence(this)
         }
         out
     }

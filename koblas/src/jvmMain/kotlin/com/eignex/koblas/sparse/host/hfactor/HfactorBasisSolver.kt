@@ -5,6 +5,7 @@ import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
+import com.eignex.koblas.internal.host.keepingReachable
 import com.eignex.koblas.internal.host.nativeCleaner
 import com.eignex.koblas.requireInBounds
 import com.eignex.koblas.requireShape
@@ -14,7 +15,6 @@ import com.eignex.koblas.sparse.basis.F64BasisSolver
 import com.eignex.koblas.sparse.basis.F64IndexedVector
 import com.eignex.koblas.sparse.basis.basisSolveQuality
 import java.lang.foreign.MemorySegment
-import java.lang.ref.Reference
 
 /**
  * A simplex basis held by HiGHS's HFactor: Markowitz factors, hypersparse solves that fall back to
@@ -59,37 +59,29 @@ public class HfactorBasisSolver internal constructor(
 
     override val rcond: Double get() = lifecycle.withResource {
         if (!factorized || singular) return@withResource 0.0
-        try {
+        keepingReachable(this) {
             calls.pivotRange(handle, pivotRange)
             if (pivotRange[1] == 0.0) 0.0 else pivotRange[0] / pivotRange[1]
-        } finally {
-            Reference.reachabilityFence(this)
         }
     }
 
     override val updateCount: Int get() = lifecycle.withResource {
-        try {
+        keepingReachable(this) {
             if (factorized) calls.updateCount(handle) else 0
-        } finally {
-            Reference.reachabilityFence(this)
         }
     }
 
     override val nnz: Int get() = lifecycle.withResource {
-        try {
+        keepingReachable(this) {
             if (factorized) calls.fill(handle) else 0
-        } finally {
-            Reference.reachabilityFence(this)
         }
     }
 
     override fun refactorize(basicIndex: IntArray): Boolean = lifecycle.withResource {
         requireShape(basicIndex.size == n) { "refactorize: basicIndex size ${basicIndex.size} != $n" }
         for (t in 0 until n) requireInBounds(basicIndex[t], columns)
-        val deficiency = try {
+        val deficiency = keepingReachable(this) {
             calls.build(handle, basicIndex)
-        } finally {
-            Reference.reachabilityFence(this)
         }
         basicIndex.copyInto(this.basicIndex)
         forgetSolves()
@@ -136,10 +128,8 @@ public class HfactorBasisSolver internal constructor(
          */
         val pivot = spike[pivotRow]
         if (pivot == 0.0 || !pivot.isFinite()) return@withResource BasisUpdate.SINGULAR
-        val advice = try {
+        val advice = keepingReachable(this) {
             calls.update(handle, pivotRow, entering, spike === lastFtran, pivotEta != null && pivotEta === lastBtran)
-        } finally {
-            Reference.reachabilityFence(this)
         }
         // The update consumes both native vectors, so neither answers for a caller's vector afterwards.
         forgetSolves()
@@ -156,10 +146,8 @@ public class HfactorBasisSolver internal constructor(
     private fun solveNative(x: F64IndexedVector, expectedDensity: Double, transpose: Boolean) {
         checkSolvable()
         requireShape(x.size == n) { "solve: x size ${x.size} != $n" }
-        x.count = try {
+        x.count = keepingReachable(this) {
             calls.solve(handle, x.count, x.indices, x.values, expectedDensity, transpose)
-        } finally {
-            Reference.reachabilityFence(this)
         }
     }
 
