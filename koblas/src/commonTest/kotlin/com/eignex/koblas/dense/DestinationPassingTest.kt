@@ -309,4 +309,35 @@ class DestinationPassingTest {
             }
         }
     }
+
+    @Test
+    fun `choleskyInto tolerates the destination sharing the input buffer`() {
+        val rng = Random(20260805)
+        for (n in intArrayOf(1, 7, 16)) {
+            val a = wellConditioned(n, rng)
+            val expected = a.cholesky()
+            // One buffer behind both the input and the factor, which is the in-place dpotrf call shape.
+            val shared = a.data.copyOf()
+            val input = F64DenseMatrix.wrap(n, n, shared)
+            val destination = F64CholeskyDecomposition(F64DenseMatrix.wrap(n, n, shared))
+            assertSame(destination, koblas.choleskyInto(input, destination), "choleskyInto returns its destination")
+            assertClose(expected.l.data, destination.l.data, "aliased choleskyInto n=$n")
+        }
+    }
+
+    @Test
+    fun `qrInto tolerates the destination sharing the input buffer`() {
+        val rng = Random(20260806)
+        val m = 9
+        val n = 5
+        val a = F64DenseMatrix(m, n)
+        for (i in 0 until m) for (j in 0 until n) a[i, j] = rng.nextDouble(-1.0, 1.0)
+        val expected = koblas.qr(a)
+        val shared = a.data.copyOf()
+        val input = F64DenseMatrix.wrap(m, n, shared)
+        val destination = F64QrDecomposition(m, n, shared, DoubleArray(minOf(m, n)))
+        assertSame(destination, koblas.qrInto(input, destination), "qrInto returns its destination")
+        assertClose(expected.qr, destination.qr, "aliased qrInto")
+        assertClose(expected.tau, destination.tau, "aliased qrInto tau")
+    }
 }

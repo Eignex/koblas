@@ -99,6 +99,41 @@ class AllocationFreeTest {
     }
 
     @Test
+    fun `refactorizing a cholesky in place allocates nothing per iteration`() {
+        val n = 48
+        val rng = Random(20260739)
+        val a = F64DenseMatrix(n, n)
+        for (j in 0 until n) {
+            for (i in j until n) {
+                val entry = if (i == j) n + 2.0 else rng.nextDouble(-1.0, 1.0)
+                a[i, j] = entry
+                a[j, i] = entry
+            }
+        }
+        val reused = a.cholesky()
+
+        val allocating = bytesPerIteration(300) { a.cholesky() }
+        val into = bytesPerIteration(300) { reused.refactorInto(a) }
+        assertTrue(allocating > n * n * Double.SIZE_BYTES * 0.5, "expected a factor copy, saw $allocating B")
+        assertPooled(into, allocating, "choleskyInto")
+    }
+
+    @Test
+    fun `refactorizing a qr in place allocates nothing per iteration`() {
+        val m = 96
+        val n = 48
+        val rng = Random(20260740)
+        val a = F64DenseMatrix(m, n)
+        for (i in 0 until m) for (j in 0 until n) a[i, j] = rng.nextDouble(-1.0, 1.0)
+        val reused = koblas.qr(a)
+
+        val allocating = bytesPerIteration(300) { koblas.qr(a) }
+        val into = bytesPerIteration(300) { reused.refactorInto(a) }
+        assertTrue(allocating > m * n * Double.SIZE_BYTES * 0.5, "expected a factor copy, saw $allocating B")
+        assertPooled(into, allocating, "qrInto")
+    }
+
+    @Test
     fun `a block solve loop allocates nothing per iteration`() {
         val n = 48
         val nrhs = 40 // above the crossover, so the blocked path runs rather than column-by-column

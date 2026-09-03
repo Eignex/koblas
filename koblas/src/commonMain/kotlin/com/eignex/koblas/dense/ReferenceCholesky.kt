@@ -20,12 +20,35 @@ internal fun referenceCholesky(
     kernels: F64Kernels,
     a: F64DenseMatrix,
     policy: CholeskyPolicy,
+): F64CholeskyDecomposition = referenceCholeskyInto(
+    kernels,
+    a,
+    F64CholeskyDecomposition(F64DenseMatrix(a.rows, a.rows)),
+    policy,
+)
+
+/**
+ * [referenceCholesky] into [out]'s existing factor buffer instead of a fresh one, discarding what [out] held.
+ * [out] may be backed by [a]'s own buffer, which makes the gather below a no-op over the triangle it reads.
+ *
+ * @throws com.eignex.koblas.NotPositiveDefinite at the first non-positive pivot unless [policy] allows it.
+ */
+internal fun referenceCholeskyInto(
+    kernels: F64Kernels,
+    a: F64DenseMatrix,
+    out: F64CholeskyDecomposition,
+    policy: CholeskyPolicy,
 ): F64CholeskyDecomposition {
     requireShape(a.rows == a.cols) { "cholesky requires a square matrix; got ${a.rows}x${a.cols}" }
+    requireShape(out.n == a.rows) { "choleskyInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}" }
     val n = a.rows
-    val l = F64DenseMatrix(n, n)
-    val ld = l.data
-    for (j in 0 until n) a.data.copyInto(ld, j + j * n, j + j * n, (j + 1) * n)
+    val ld = out.l.data
+    // A reused destination arrives holding the previous factor where a fresh one arrives zeroed, so the
+    // strict upper triangle is cleared rather than inherited.
+    for (j in 0 until n) {
+        ld.fill(0.0, j * n, j * n + j)
+        a.data.copyInto(ld, j + j * n, j + j * n, (j + 1) * n)
+    }
     // Left-looking column Cholesky: column j gathers what every column before it owes, rather than
     // each column pushing its contribution out to the ones after it.
     for (j in 0 until n) {
@@ -52,7 +75,7 @@ internal fun referenceCholesky(
         val diag = ld[base]
         for (i in base + 1 until base + len) ld[i] = ld[i] / diag
     }
-    return F64CholeskyDecomposition(l)
+    return out
 }
 
 /** Invert an SPD matrix from its Cholesky factorization, returning `A⁻¹` given [chol] (LAPACK `dpotri`). */
