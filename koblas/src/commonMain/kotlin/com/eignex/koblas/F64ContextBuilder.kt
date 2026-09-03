@@ -99,12 +99,14 @@ public class F64ContextBuilder private constructor(
             dispatchPolicy = dispatchPolicy,
             fallbackPolicy = fallbackPolicy,
             fallbackWarning = fallbackWarning ?: {},
-            generalSparseLu = generalLu,
-            repeatedSparseLu = repeated,
-            sparseCholesky = cholesky,
-            quasiDefiniteLdl = quasiDefiniteLdl,
-            sparseQr = qr,
-            basisFactorizations = basisFactorizations,
+            roles = SparseRoles(
+                generalLu = generalLu,
+                repeatedLu = repeated,
+                cholesky = cholesky,
+                quasiDefiniteLdl = quasiDefiniteLdl,
+                qr = qr,
+                basisFactorizations = basisFactorizations,
+            ),
         )
     }
 

@@ -5,6 +5,7 @@ import com.eignex.koblas.BackendRole
 import com.eignex.koblas.F64Context
 import com.eignex.koblas.F64DispatchPolicy
 import com.eignex.koblas.F64FallbackPolicy
+import com.eignex.koblas.SparseRoles
 import com.eignex.koblas.dense.F64Blas
 import com.eignex.koblas.dense.F64Decompositions
 import com.eignex.koblas.dense.F64Kernels
@@ -131,12 +132,14 @@ internal class F64Registry {
             dispatchPolicy = F64DispatchPolicy.AUTO,
             fallbackPolicy = F64FallbackPolicy.ALLOW,
             fallbackWarning = {},
-            generalSparseLu = general,
-            repeatedSparseLu = strongest<F64RepeatedSparseLu>(BackendSlot.F64RepeatedSparseLu),
-            sparseCholesky = cholesky,
-            quasiDefiniteLdl = quasiDefiniteLdl,
-            sparseQr = qr,
-            basisFactorizations = resolved<F64BasisFactorizations>(BackendSlot.F64BasisFactorizations),
+            roles = SparseRoles(
+                generalLu = general,
+                repeatedLu = strongest<F64RepeatedSparseLu>(BackendSlot.F64RepeatedSparseLu),
+                cholesky = cholesky,
+                quasiDefiniteLdl = quasiDefiniteLdl,
+                qr = qr,
+                basisFactorizations = resolved<F64BasisFactorizations>(BackendSlot.F64BasisFactorizations),
+            ),
         )
     }
 
