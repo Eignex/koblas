@@ -1,12 +1,29 @@
 package com.eignex.koblas.internal.backend
 
 import com.eignex.koblas.Backend
+import com.eignex.koblas.BackendRole
 import com.eignex.koblas.F64Context
-import com.eignex.koblas.dense.*
-import com.eignex.koblas.sparse.*
+import com.eignex.koblas.F64DispatchPolicy
+import com.eignex.koblas.F64FallbackPolicy
+import com.eignex.koblas.dense.F64Blas
+import com.eignex.koblas.dense.F64Decompositions
+import com.eignex.koblas.dense.F64Kernels
+import com.eignex.koblas.dense.F64RoutedKernels
+import com.eignex.koblas.sparse.F64BasisFactorizations
+import com.eignex.koblas.sparse.F64GeneralSparseLu
+import com.eignex.koblas.sparse.F64QuasiDefiniteLdl
+import com.eignex.koblas.sparse.F64RepeatedSparseLu
+import com.eignex.koblas.sparse.F64SparseBlas
+import com.eignex.koblas.sparse.F64SparseCholesky
+import com.eignex.koblas.sparse.F64SparseDecompositionRoles
+import com.eignex.koblas.sparse.F64SparseKernels
+import com.eignex.koblas.sparse.F64SparseQr
 import com.eignex.koblas.sparse.basis.F64BasisSolvers
 import kotlin.concurrent.Volatile
-import kotlin.concurrent.atomics.*
+import kotlin.concurrent.atomics.AtomicInt
+import kotlin.concurrent.atomics.AtomicReference
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
+import kotlin.concurrent.atomics.incrementAndFetch
 
 /**
  * The double-precision seams and the context they compose. One element type's registrations live in one
@@ -16,28 +33,17 @@ import kotlin.concurrent.atomics.*
  */
 @OptIn(ExperimentalAtomicApi::class)
 internal class F64Registry {
-    private val vectorKernelSeam = Seam<F64Kernels>(::recompose)
-    private val blasSeam = Seam<F64Blas>(::recompose)
-    private val decompositionsSeam = Seam<F64Decompositions>(::recompose)
-    private val sparseVectorKernelSeam = Seam<F64SparseKernels>(::recompose)
-    private val sparseBlasSeam = Seam<F64SparseBlas>(::recompose)
-    private val generalSparseLuSeam = Seam<F64GeneralSparseLu>(::recompose)
-    private val repeatedSparseLuSeam = Seam<F64RepeatedSparseLu>(::recompose)
-    private val sparseCholeskySeam = Seam<F64SparseCholesky>(::recompose)
-    private val quasiDefiniteLdlSeam = Seam<F64QuasiDefiniteLdl>(::recompose)
-    private val sparseQrSeam = Seam<F64SparseQr>(::recompose)
-    private val basisFactorizationsSeam = Seam<F64BasisFactorizations>(::recompose)
-    private val basisSolverSeam = Seam<F64BasisSolvers>(::recompose)
-
     /**
-     * One seam paired with the cast that recognises its half. The cast is written out rather than reflected,
-     * since [BackendSlot] names an interface and only the compiler can turn that name into a type test.
+     * One seam paired with the slot deciding what may go into it. A seam holds only what its slot accepted,
+     * so reading one back as the half's own interface is a cast that cannot fail.
      */
-    private class Half<T : Backend>(val seam: Seam<T>, private val cast: (Backend) -> T?) {
-        /** Offers [backend] to this seam if it implements this half, and reports whether it did. */
+    private class Half(private val slot: BackendSlot, onChange: () -> Unit) {
+        val seam = Seam<Backend>(onChange)
+
+        /** Offers [backend] to this seam if this half takes it, and reports whether it did. */
         fun offer(backend: Backend, explicit: Boolean): Boolean {
-            val half = cast(backend) ?: return false
-            seam.register(half, explicit)
+            if (!slot.acceptsOffer(backend)) return false
+            seam.register(backend, explicit)
             return true
         }
 
@@ -46,32 +52,10 @@ internal class F64Registry {
     }
 
     /**
-     * Every half this registry has a seam for, by slot. Keyed rather than listed so a [BackendSlot] added
-     * without a seam beside it fails here, at construction, rather than by registering nothing at all.
+     * Every half this registry has a seam for. Derived from [BackendSlot] rather than listed again, so a
+     * half added there arrives here with its type test, its portable default and its keys already attached.
      */
-    private val halves: Map<BackendSlot, Half<*>> = mapOf(
-        BackendSlot.F64Kernels to Half(vectorKernelSeam) { it as? F64Kernels },
-        BackendSlot.F64Blas to Half(blasSeam) { it as? F64Blas },
-        BackendSlot.F64Decompositions to Half(decompositionsSeam) { it as? F64Decompositions },
-        BackendSlot.F64SparseKernels to Half(sparseVectorKernelSeam) { it as? F64SparseKernels },
-        BackendSlot.F64SparseBlas to Half(sparseBlasSeam) { it as? F64SparseBlas },
-        BackendSlot.F64GeneralSparseLu to Half(generalSparseLuSeam) {
-            it.takeUnless { backend -> backend is F64RepeatedSparseLu || backend is F64BasisFactorizations }
-                as? F64GeneralSparseLu
-        },
-        BackendSlot.F64RepeatedSparseLu to Half(repeatedSparseLuSeam) { it as? F64RepeatedSparseLu },
-        BackendSlot.F64SparseCholesky to Half(sparseCholeskySeam) { it as? F64SparseCholesky },
-        BackendSlot.F64QuasiDefiniteLdl to Half(quasiDefiniteLdlSeam) { it as? F64QuasiDefiniteLdl },
-        BackendSlot.F64SparseQr to Half(sparseQrSeam) { it as? F64SparseQr },
-        BackendSlot.F64BasisFactorizations to Half(basisFactorizationsSeam) { it as? F64BasisFactorizations },
-        BackendSlot.F64BasisSolvers to Half(basisSolverSeam) { it as? F64BasisSolvers },
-    )
-
-    init {
-        check(halves.keys == BackendSlot.entries.toSet()) {
-            "every BackendSlot needs a seam: ${BackendSlot.entries - halves.keys} have none"
-        }
-    }
+    private val halves: Map<BackendSlot, Half> = BackendSlot.entries.associateWith { Half(it, ::recompose) }
 
     @Volatile
     private var installed: F64Context? = null
@@ -125,32 +109,14 @@ internal class F64Registry {
         return offered > 0
     }
 
-    /** The general sparse LU registered under [name], or null when nothing did. */
-    fun generalSparseLuNamed(name: String): F64GeneralSparseLu? = generalSparseLuSeam.named(name)
-
-    /** The repeated-pattern sparse LU registered under [name], or null when nothing did. */
-    fun repeatedSparseLuNamed(name: String): F64RepeatedSparseLu? = repeatedSparseLuSeam.named(name)
-
-    /** The sparse Cholesky provider registered under [name], or null when nothing did. */
-    fun sparseCholeskyNamed(name: String): F64SparseCholesky? = sparseCholeskySeam.named(name)
-
-    /** The sparse quasi-definite LDL provider registered under [name], or null when nothing did. */
-    fun quasiDefiniteLdlNamed(name: String): F64QuasiDefiniteLdl? = quasiDefiniteLdlSeam.named(name)
-
-    /** The sparse QR provider registered under [name], or null when nothing did. */
-    fun sparseQrNamed(name: String): F64SparseQr? = sparseQrSeam.named(name)
-
-    /** The basis factorization provider registered under [name], or null when nothing did. */
-    fun basisFactorizationsNamed(name: String): F64BasisFactorizations? = basisFactorizationsSeam.named(name)
-
-    /** The basis solvers registered under [name], or null when nothing did. */
-    fun basisSolversNamed(name: String): F64BasisSolvers? = basisSolverSeam.named(name)
+    /** The backend registered for [slot] under [name], or null when nothing did. */
+    fun named(slot: BackendSlot, name: String): Backend? = halves.getValue(slot).seam.named(name)
 
     /** The names registered for [slot], strongest first. */
     fun namesFor(slot: BackendSlot): List<String> = halves.getValue(slot).names
 
     /** Names offered for a public semantic [role], strongest first. */
-    fun namesFor(role: com.eignex.koblas.BackendRole): List<String> = namesFor(role.slot)
+    fun namesFor(role: BackendRole): List<String> = namesFor(role.slot)
 
     /** Clears the override and every registration, leaving the portable fallbacks. */
     fun reset() {
@@ -160,48 +126,40 @@ internal class F64Registry {
 
     /** Builds a context from the currently registered halves, falling back to the portable reference. */
     private fun assemble(): F64Context {
-        val reference = F64ReferenceSparseLinearAlgebra
-        val general = generalSparseLuSeam.active ?: reference
-        val cholesky = sparseCholeskySeam.active ?: reference
-        val quasiDefiniteLdl = quasiDefiniteLdlSeam.active ?: reference
-        val qr = sparseQrSeam.active ?: reference
-        val roles = F64SparseDecompositionRoles(general, cholesky, quasiDefiniteLdl, qr)
+        val general = resolved<F64GeneralSparseLu>(BackendSlot.F64GeneralSparseLu)
+        val cholesky = resolved<F64SparseCholesky>(BackendSlot.F64SparseCholesky)
+        val quasiDefiniteLdl = resolved<F64QuasiDefiniteLdl>(BackendSlot.F64QuasiDefiniteLdl)
+        val qr = resolved<F64SparseQr>(BackendSlot.F64SparseQr)
         return F64Context(
-            kernels = F64RoutedKernels(vectorKernelSeam.active),
-            blas = blasSeam.active ?: F64ReferenceLinearAlgebra,
-            decompositions = decompositionsSeam.active ?: F64ReferenceLinearAlgebra,
-            sparseKernels = sparseVectorKernelSeam.active ?: F64PlatformSparseKernels,
-            sparseBlas = sparseBlasSeam.active ?: F64ReferenceSparseLinearAlgebra,
-            sparseDecompositions = roles,
-            basisSolvers = basisSolverSeam.active ?: F64ReferenceSparseLinearAlgebra,
-            dispatchPolicy = com.eignex.koblas.F64DispatchPolicy.AUTO,
-            fallbackPolicy = com.eignex.koblas.F64FallbackPolicy.ALLOW,
+            // The routed kernels wrap whatever host registered rather than replacing the compiled-in ones,
+            // so this half composes its offer instead of falling back to a portable default.
+            kernels = F64RoutedKernels(active<F64Kernels>(BackendSlot.F64Kernels)),
+            blas = resolved<F64Blas>(BackendSlot.F64Blas),
+            decompositions = resolved<F64Decompositions>(BackendSlot.F64Decompositions),
+            sparseKernels = resolved<F64SparseKernels>(BackendSlot.F64SparseKernels),
+            sparseBlas = resolved<F64SparseBlas>(BackendSlot.F64SparseBlas),
+            sparseDecompositions = F64SparseDecompositionRoles(general, cholesky, quasiDefiniteLdl, qr),
+            basisSolvers = resolved<F64BasisSolvers>(BackendSlot.F64BasisSolvers),
+            dispatchPolicy = F64DispatchPolicy.AUTO,
+            fallbackPolicy = F64FallbackPolicy.ALLOW,
             fallbackWarning = {},
             generalSparseLu = general,
-            repeatedSparseLu = repeatedSparseLuSeam.active,
+            repeatedSparseLu = active<F64RepeatedSparseLu>(BackendSlot.F64RepeatedSparseLu),
             sparseCholesky = cholesky,
             quasiDefiniteLdl = quasiDefiniteLdl,
-            basisFactorizations = basisFactorizationsSeam.active ?: reference,
+            sparseQr = qr,
+            basisFactorizations = resolved<F64BasisFactorizations>(BackendSlot.F64BasisFactorizations),
         )
     }
+
+    /** The strongest offer for [slot], or null when nothing registered one. */
+    private inline fun <reified T : Backend> active(slot: BackendSlot): T? = halves.getValue(slot).seam.active as? T
+
+    /** The strongest offer for [slot], or koblas's own implementation of the half when there is none. */
+    private inline fun <reified T : Backend> resolved(slot: BackendSlot): T =
+        active<T>(slot) ?: slot.portableDefault() as T
 
     private fun recompose() {
         changes.incrementAndFetch()
     }
 }
-
-private val com.eignex.koblas.BackendRole.slot: BackendSlot
-    get() = when (this) {
-        com.eignex.koblas.BackendRole.DENSE_KERNELS -> BackendSlot.F64Kernels
-        com.eignex.koblas.BackendRole.DENSE_BLAS -> BackendSlot.F64Blas
-        com.eignex.koblas.BackendRole.DENSE_DECOMPOSITIONS -> BackendSlot.F64Decompositions
-        com.eignex.koblas.BackendRole.SPARSE_KERNELS -> BackendSlot.F64SparseKernels
-        com.eignex.koblas.BackendRole.SPARSE_BLAS -> BackendSlot.F64SparseBlas
-        com.eignex.koblas.BackendRole.SPARSE_GENERAL_LU -> BackendSlot.F64GeneralSparseLu
-        com.eignex.koblas.BackendRole.SPARSE_REPEATED_LU -> BackendSlot.F64RepeatedSparseLu
-        com.eignex.koblas.BackendRole.SPARSE_CHOLESKY -> BackendSlot.F64SparseCholesky
-        com.eignex.koblas.BackendRole.SPARSE_QUASI_DEFINITE_LDL -> BackendSlot.F64QuasiDefiniteLdl
-        com.eignex.koblas.BackendRole.SPARSE_QR -> BackendSlot.F64SparseQr
-        com.eignex.koblas.BackendRole.BASIS_FACTORIZATIONS -> BackendSlot.F64BasisFactorizations
-        com.eignex.koblas.BackendRole.BASIS_SOLVERS -> BackendSlot.F64BasisSolvers
-    }

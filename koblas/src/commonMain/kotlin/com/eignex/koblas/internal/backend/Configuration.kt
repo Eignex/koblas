@@ -19,8 +19,9 @@ internal fun requestedBackend(property: String, environment: String): String? =
     pinnedBackend(systemPropertyOrNull(property), environmentVariableOrNull(environment))
 
 /** The backend pins for every semantic role, read independently. */
-internal fun requestedBackends(): Map<BackendSlot, String?> =
-    ConfigurationKeys.BACKENDS.mapValues { (_, keys) -> requestedBackend(keys.property, keys.environment) }
+internal fun requestedBackends(): Map<BackendSlot, String?> = BackendSlot.entries.associateWith { slot ->
+    requestedBackend(slot.selectionKeys.property, slot.selectionKeys.environment)
+}
 
 /**
  * Whether a configured path is absolute. This is the shape the keys accept rather than full path semantics:

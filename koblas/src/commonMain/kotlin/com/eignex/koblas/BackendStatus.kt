@@ -1,6 +1,7 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.dense.F64RoutedKernels
+import com.eignex.koblas.internal.backend.slot
 
 /** A public role in an [F64Context], independent of the registry's internal seam representation. */
 public enum class BackendRole {
@@ -82,20 +83,7 @@ public data class F64ContextStatus(val backends: List<BackendStatus>) {
 }
 
 /** The backend installed for [role]. */
-public fun F64Context.backendFor(role: BackendRole): Backend = when (role) {
-    BackendRole.DENSE_KERNELS -> kernels
-    BackendRole.DENSE_BLAS -> blas
-    BackendRole.DENSE_DECOMPOSITIONS -> decompositions
-    BackendRole.SPARSE_KERNELS -> sparseKernels
-    BackendRole.SPARSE_BLAS -> sparseBlas
-    BackendRole.SPARSE_GENERAL_LU -> generalSparseLu
-    BackendRole.SPARSE_REPEATED_LU -> repeatedSparseLu ?: MissingRepeatedSparseLu
-    BackendRole.SPARSE_CHOLESKY -> sparseCholesky
-    BackendRole.SPARSE_QUASI_DEFINITE_LDL -> quasiDefiniteLdl
-    BackendRole.SPARSE_QR -> sparseQr
-    BackendRole.BASIS_FACTORIZATIONS -> basisFactorizations
-    BackendRole.BASIS_SOLVERS -> basisSolvers
-}
+public fun F64Context.backendFor(role: BackendRole): Backend = role.slot.from(this)
 
 /**
  * Whether [role] is filled by something other than koblas's own portable implementation.

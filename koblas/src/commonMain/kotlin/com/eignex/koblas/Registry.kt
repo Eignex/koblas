@@ -29,7 +29,7 @@ public fun discoverBackends() {
 /**
  * The basis solvers registered under [name], looked up the way the semantic capabilities are.
  */
-public fun basisSolversNamed(name: String): F64BasisSolvers? = BackendRegistry.basisSolversNamed(name)
+public fun basisSolversNamed(name: String): F64BasisSolvers? = backendNamed(name, F64Capabilities.basisSolvers)
 
 /** The backends registered for [role], strongest first. */
 public fun registeredBackendNames(role: BackendRole): List<String> = BackendRegistry.namesFor(role)
