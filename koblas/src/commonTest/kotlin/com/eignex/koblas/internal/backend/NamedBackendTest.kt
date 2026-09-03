@@ -64,6 +64,16 @@ class NamedBackendTest {
     fun `a basis solver is reachable by name`() = withCleanBackends {
         registerBackend(FakeBasisSolvers("basis", priority = 10))
 
+        assertEquals("basis", backendNamed("basis", F64Capabilities.basisSolvers)?.name)
+        assertNull(backendNamed("absent", F64Capabilities.basisSolvers))
+    }
+
+    /** The deprecated door onto the same lookup, kept working until the release that removes it. */
+    @Test
+    @Suppress("DEPRECATION")
+    fun `the basis solver lookup of its own still answers`() = withCleanBackends {
+        registerBackend(FakeBasisSolvers("basis", priority = 10))
+
         assertEquals("basis", basisSolversNamed("basis")?.name)
         assertNull(basisSolversNamed("absent"))
     }
