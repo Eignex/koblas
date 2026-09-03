@@ -128,7 +128,7 @@ internal fun blockedGemmUpdate(
     m: Int,
     n: Int,
     depth: Int,
-    skipZeroCoefficient: Boolean = true,
+    skipZeroCoefficient: Boolean,
 ) {
     if (!transposeB) {
         blockedAxpyUpdate(

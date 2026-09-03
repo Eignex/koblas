@@ -355,6 +355,3 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
     ) =
         triangularMatrix(kernels, a, b, lower, transpose, unitDiag, right, alpha, solve = false, workspace = workspace)
 }
-
-/** Square transpose tile, small enough to keep source and destination working sets in L1 cache. */
-private const val TRANSPOSE_TILE = 32

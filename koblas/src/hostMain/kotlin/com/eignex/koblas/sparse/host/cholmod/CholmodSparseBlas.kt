@@ -49,9 +49,6 @@ public open class CholmodSparseBlas(
             describeGeneral(snapshot),
             functions,
             shared,
-            nativeGemv = true,
-            nativeGemm = true,
-            nativeSparseProduct = true,
         )
     }
 
@@ -80,9 +77,6 @@ private class CholmodPreparedSparseMatrix(
     private val sparse: CPointer<ByteVar>,
     private val functions: CholmodFunctions,
     private val common: CPointer<ByteVar>,
-    private val nativeGemv: Boolean,
-    private val nativeGemm: Boolean,
-    private val nativeSparseProduct: Boolean,
 ) : F64PreparedSparseMatrix {
     private val lifecycle = NativeResourceLifecycle("prepared CHOLMOD matrix") { freeMatrix(sparse) }
 
@@ -99,7 +93,7 @@ private class CholmodPreparedSparseMatrix(
         requireShape(x.size == xRows) { "gemv: x length ${x.size} != $xRows" }
         requireShape(y.size == yRows) { "gemv: y length ${y.size} != $yRows" }
         lifecycle.withResource {
-            if (!nativeGemv || !multiply(alpha, transpose, x, beta, y, 1, xRows, yRows)) {
+            if (!multiply(alpha, transpose, x, beta, y, 1, xRows, yRows)) {
                 F64ReferenceSparseLinearAlgebra.gemv(alpha, snapshot, x, beta, y, transpose)
             }
         }
@@ -120,7 +114,7 @@ private class CholmodPreparedSparseMatrix(
             "gemm: C is ${c.rows}x${c.cols}, expected ${m}x${b.cols}"
         }
         lifecycle.withResource {
-            if (!nativeGemm || !multiply(alpha, transposeA, b.data, beta, c.data, b.cols, b.rows, c.rows)) {
+            if (!multiply(alpha, transposeA, b.data, beta, c.data, b.cols, b.rows, c.rows)) {
                 F64ReferenceSparseLinearAlgebra.gemm(
                     alpha,
                     snapshot,
@@ -136,15 +130,11 @@ private class CholmodPreparedSparseMatrix(
     }
 
     override fun gemm(b: F64SparseMatrix): F64SparseMatrix = lifecycle.withResource {
-        if (!nativeSparseProduct) {
-            F64ReferenceSparseLinearAlgebra.gemm(snapshot, b)
-        } else {
-            val right = describeGeneral(b)
-            try {
-                sparseProduct(right) ?: F64ReferenceSparseLinearAlgebra.gemm(snapshot, b)
-            } finally {
-                freeMatrix(right)
-            }
+        val right = describeGeneral(b)
+        try {
+            sparseProduct(right) ?: F64ReferenceSparseLinearAlgebra.gemm(snapshot, b)
+        } finally {
+            freeMatrix(right)
         }
     }
 

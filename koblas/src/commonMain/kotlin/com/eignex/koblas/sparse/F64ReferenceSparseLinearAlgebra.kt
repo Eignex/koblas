@@ -95,7 +95,7 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         requireSquare(a, "trsv")
         val n = a.rows
         requireShape(x.size == n) { "trsv: x length ${x.size} != $n" }
-        trsvCore(a, x, 0, lower, transpose, unitDiag)
+        trsvCore(a, x, lower, transpose, unitDiag)
     }
 
     override fun trmv(a: F64SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
@@ -566,12 +566,11 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         }
     }
 
-    /** [trsv] over the `n` entries of [x] from [offset], the columns of a right-hand side matrix being those. */
-    @Suppress("LongParameterList") // the three BLAS triangle flags plus the segment
+    /** [trsv] over the `n` entries of [x], with the triangle flags resolved once by the caller. */
+    @Suppress("LongParameterList") // the three BLAS triangle flags
     private fun trsvCore(
         a: F64SparseMatrix,
         x: DoubleArray,
-        offset: Int,
         lower: Boolean,
         transpose: Boolean,
         unitDiag: Boolean,
@@ -581,19 +580,19 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         val order = if (lower != transpose) 0 until n else n - 1 downTo 0
         for (j in order) {
             if (!transpose) {
-                val raw = x[offset + j]
+                val raw = x[j]
                 if (raw == 0.0) continue
                 val xj = if (unitDiag) raw else raw / a[j, j]
-                x[offset + j] = xj
+                x[j] = xj
                 a.forEachInColumn(j) { i, v ->
-                    if (if (lower) i > j else i < j) x[offset + i] -= v * xj
+                    if (if (lower) i > j else i < j) x[i] -= v * xj
                 }
             } else {
-                var s = x[offset + j]
+                var s = x[j]
                 a.forEachInColumn(j) { i, v ->
-                    if (if (lower) i > j else i < j) s -= v * x[offset + i]
+                    if (if (lower) i > j else i < j) s -= v * x[i]
                 }
-                x[offset + j] = if (unitDiag) s else s / a[j, j]
+                x[j] = if (unitDiag) s else s / a[j, j]
             }
         }
     }

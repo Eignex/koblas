@@ -1,10 +1,5 @@
 package com.eignex.koblas.dense
 
-/** Accumulate [value] at `(i, j)` in the selected triangle, where `i >= j`. */
-internal fun addTriangle(cd: DoubleArray, n: Int, i: Int, j: Int, value: Double, lower: Boolean) {
-    if (lower) cd[i + j * n] += value else cd[j + i * n] += value
-}
-
 /** `v = beta * v` over the [len] entries from [off], honoring the `beta == 0` overwrite convention. */
 internal fun applyBeta(k: F64Kernels, v: DoubleArray, off: Int, len: Int, beta: Double) {
     when {

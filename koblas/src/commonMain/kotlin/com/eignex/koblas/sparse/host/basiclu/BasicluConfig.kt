@@ -50,5 +50,4 @@ internal object BasicluStore {
 /** The status codes this binding distinguishes; every other value is a failure it refactorizes past. */
 internal object BasicluStatus {
     const val OK = 0L
-    const val SINGULAR_MATRIX = 2L
 }
