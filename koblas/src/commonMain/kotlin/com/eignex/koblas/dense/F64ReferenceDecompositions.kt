@@ -32,6 +32,9 @@ internal class F64ReferenceDecompositions(private val configured: F64Kernels? = 
 
     override fun qr(a: F64DenseMatrix, workspace: Workspace?): F64QrDecomposition = referenceQr(kernels, a)
 
+    override fun qrInto(a: F64DenseMatrix, out: F64QrDecomposition, workspace: Workspace?): F64QrDecomposition =
+        referenceQrInto(kernels, a, out)
+
     override fun qrPivoted(a: F64DenseMatrix, tolerance: Double, workspace: Workspace?): F64PivotedQrDecomposition =
         referenceQrPivoted(kernels, a, tolerance)
 
@@ -124,6 +127,12 @@ internal class F64ReferenceDecompositions(private val configured: F64Kernels? = 
 
     override fun cholesky(a: F64DenseMatrix, policy: CholeskyPolicy): F64CholeskyDecomposition =
         referenceCholesky(kernels, a, policy)
+
+    override fun choleskyInto(
+        a: F64DenseMatrix,
+        out: F64CholeskyDecomposition,
+        policy: CholeskyPolicy,
+    ): F64CholeskyDecomposition = referenceCholeskyInto(kernels, a, out, policy)
 
     /** Invert a general matrix from its LU factorization, returning `A⁻¹` given `P·A = L·U` (LAPACK `dgetri`).
      *  Prefer [solve] to apply `A⁻¹`, which costs less and is more accurate.

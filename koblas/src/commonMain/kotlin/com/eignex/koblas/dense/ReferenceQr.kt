@@ -13,17 +13,32 @@ import kotlin.math.sqrt
  * [F64ReferenceDecompositions] is the F64Decompositions surface over it.
  */
 
-internal fun referenceQr(kernels: F64Kernels, a: F64DenseMatrix): F64QrDecomposition {
+internal fun referenceQr(kernels: F64Kernels, a: F64DenseMatrix): F64QrDecomposition = referenceQrInto(
+    kernels,
+    a,
+    F64QrDecomposition(a.rows, a.cols, DoubleArray(a.data.size), DoubleArray(minOf(a.rows, a.cols))),
+)
+
+/**
+ * [referenceQr] into [out]'s existing buffers instead of fresh ones, discarding what [out] held. [out] may be
+ * backed by [a]'s own buffer, which makes the copy below a no-op.
+ */
+internal fun referenceQrInto(kernels: F64Kernels, a: F64DenseMatrix, out: F64QrDecomposition): F64QrDecomposition {
+    requireShape(out.m == a.rows && out.n == a.cols) {
+        "qrInto: out is ${out.m}x${out.n}, expected ${a.rows}x${a.cols}"
+    }
     val m = a.rows
     val n = a.cols
     val k = minOf(m, n)
-    val buf = a.data.copyOf()
-    val tau = DoubleArray(k)
+    val buf = out.qr
+    val tau = out.tau
+    a.data.copyInto(buf)
+    // Every tau entry below is written, so none of [out]'s previous reflectors survive.
     for (col in 0 until k) {
         tau[col] = householderColumn(kernels, buf, m, col)
         applyReflectorToTrailing(kernels, buf, m, n, col, tau[col])
     }
-    return F64QrDecomposition(m, n, buf, tau)
+    return out
 }
 
 internal fun referenceQrPivoted(kernels: F64Kernels, a: F64DenseMatrix, tolerance: Double): F64PivotedQrDecomposition {
