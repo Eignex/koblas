@@ -34,6 +34,7 @@ F64BasisSolver.ftran(F64IndexedVector)		excluded	Basis-solver state and sparsity
 F64BasisSolver.update(Int,Int,F64IndexedVector)		excluded	Basis updates require a meaningful simplex sequence rather than an isolated call.
 F64BasisSolvers.basisSolver(F64SparseMatrix)		excluded	Constructing a basis solver is setup work; refactorization is the reviewed numerical benchmark.
 F64Kernels.asum(DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.asum facade.
+F64Kernels.sum(DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.sum facade.
 F64Kernels.axpy(DoubleArray,Int,Double,DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.axpy facade.
 F64Kernels.dot(DoubleArray,Int,DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.dot facade.
 F64Kernels.nrm2(DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.norm2 facade.
@@ -105,6 +106,8 @@ Vector.axpy(Double,Vector)	com.eignex.koblas.bench.Level1Benchmark.axpyBench	ben
 Vector.scale(Double)	com.eignex.koblas.bench.Level1Benchmark.scaleBench	benchmarked	
 Vector.norm2()	com.eignex.koblas.bench.Level1Benchmark.nrm2	benchmarked	
 Vector.asum()	com.eignex.koblas.bench.Level1Benchmark.asumBench	benchmarked	
+Vector.sum()	com.eignex.koblas.bench.Level1Benchmark.sumBench	benchmarked	
+Vector.compensatedSum()	com.eignex.koblas.bench.Level1Benchmark.compensatedSumBench	benchmarked	
 Vector.iamax()	com.eignex.koblas.bench.Level1Benchmark.iamaxBench	benchmarked	
 swap(Vector,Vector)	com.eignex.koblas.bench.Level1Benchmark.swapBench	benchmarked	
 rotmg(Double,Double,Double,Double)	com.eignex.koblas.bench.Level1Benchmark.rotmgBench	benchmarked	portable Level 1

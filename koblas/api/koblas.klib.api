@@ -337,6 +337,7 @@ abstract interface com.eignex.koblas.dense/F64Kernels : com.eignex.koblas/Backen
     abstract fun rotmg(kotlin/Double, kotlin/Double, kotlin/Double, kotlin/Double): com.eignex.koblas/F64ModifiedGivens // com.eignex.koblas.dense/F64Kernels.rotmg|rotmg(kotlin.Double;kotlin.Double;kotlin.Double;kotlin.Double){}[0]
     abstract fun scale(kotlin/DoubleArray, kotlin/Int, kotlin/Double, kotlin/Int) // com.eignex.koblas.dense/F64Kernels.scale|scale(kotlin.DoubleArray;kotlin.Int;kotlin.Double;kotlin.Int){}[0]
     abstract fun ssqd(kotlin/DoubleArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int): kotlin/Double // com.eignex.koblas.dense/F64Kernels.ssqd|ssqd(kotlin.DoubleArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
+    abstract fun sum(kotlin/DoubleArray, kotlin/Int, kotlin/Int): kotlin/Double // com.eignex.koblas.dense/F64Kernels.sum|sum(kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
     abstract fun swap(kotlin/DoubleArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int) // com.eignex.koblas.dense/F64Kernels.swap|swap(kotlin.DoubleArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
     open fun dot4(kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/DoubleArray, kotlin/Int) // com.eignex.koblas.dense/F64Kernels.dot4|dot4(kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.DoubleArray;kotlin.Int){}[0]
 }
@@ -1192,6 +1193,7 @@ final class com.eignex.koblas.dense.host.cblas/F64CblasKernels : com.eignex.kobl
     final fun rotmg(kotlin/Double, kotlin/Double, kotlin/Double, kotlin/Double): com.eignex.koblas/F64ModifiedGivens // com.eignex.koblas.dense.host.cblas/F64CblasKernels.rotmg|rotmg(kotlin.Double;kotlin.Double;kotlin.Double;kotlin.Double){}[0]
     final fun scale(kotlin/DoubleArray, kotlin/Int, kotlin/Double, kotlin/Int) // com.eignex.koblas.dense.host.cblas/F64CblasKernels.scale|scale(kotlin.DoubleArray;kotlin.Int;kotlin.Double;kotlin.Int){}[0]
     final fun ssqd(kotlin/DoubleArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int): kotlin/Double // com.eignex.koblas.dense.host.cblas/F64CblasKernels.ssqd|ssqd(kotlin.DoubleArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
+    final fun sum(kotlin/DoubleArray, kotlin/Int, kotlin/Int): kotlin/Double // com.eignex.koblas.dense.host.cblas/F64CblasKernels.sum|sum(kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
     final fun swap(kotlin/DoubleArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int) // com.eignex.koblas.dense.host.cblas/F64CblasKernels.swap|swap(kotlin.DoubleArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
 }
 
@@ -2768,9 +2770,11 @@ final fun (com.eignex.koblas.core/F64StridedVectorView).com.eignex.koblas.core/o
 final fun (com.eignex.koblas.core/F64StridedVectorView).com.eignex.koblas/axpy(kotlin/Double, com.eignex.koblas.core/F64VectorLike) // com.eignex.koblas/axpy|axpy@com.eignex.koblas.core.F64StridedVectorView(kotlin.Double;com.eignex.koblas.core.F64VectorLike){}[0]
 final fun (com.eignex.koblas.core/F64StridedVectorView).com.eignex.koblas/scale(kotlin/Double) // com.eignex.koblas/scale|scale@com.eignex.koblas.core.F64StridedVectorView(kotlin.Double){}[0]
 final fun (com.eignex.koblas.core/F64VectorLike).com.eignex.koblas/asum(): kotlin/Double // com.eignex.koblas/asum|asum@com.eignex.koblas.core.F64VectorLike(){}[0]
+final fun (com.eignex.koblas.core/F64VectorLike).com.eignex.koblas/compensatedSum(): kotlin/Double // com.eignex.koblas/compensatedSum|compensatedSum@com.eignex.koblas.core.F64VectorLike(){}[0]
 final fun (com.eignex.koblas.core/F64VectorLike).com.eignex.koblas/dot(com.eignex.koblas.core/F64VectorLike): kotlin/Double // com.eignex.koblas/dot|dot@com.eignex.koblas.core.F64VectorLike(com.eignex.koblas.core.F64VectorLike){}[0]
 final fun (com.eignex.koblas.core/F64VectorLike).com.eignex.koblas/iamax(): kotlin/Int // com.eignex.koblas/iamax|iamax@com.eignex.koblas.core.F64VectorLike(){}[0]
 final fun (com.eignex.koblas.core/F64VectorLike).com.eignex.koblas/norm2(): kotlin/Double // com.eignex.koblas/norm2|norm2@com.eignex.koblas.core.F64VectorLike(){}[0]
+final fun (com.eignex.koblas.core/F64VectorLike).com.eignex.koblas/sum(): kotlin/Double // com.eignex.koblas/sum|sum@com.eignex.koblas.core.F64VectorLike(){}[0]
 final fun (com.eignex.koblas.dense/F64CholeskyDecomposition).com.eignex.koblas.dense/invert(com.eignex.koblas/Workspace? = ...): com.eignex.koblas.core/F64DenseMatrix // com.eignex.koblas.dense/invert|invert@com.eignex.koblas.dense.F64CholeskyDecomposition(com.eignex.koblas.Workspace?){}[0]
 final fun (com.eignex.koblas.dense/F64CholeskyDecomposition).com.eignex.koblas.dense/invertInto(com.eignex.koblas.core/F64DenseMatrix, com.eignex.koblas/Workspace? = ...): com.eignex.koblas.core/F64DenseMatrix // com.eignex.koblas.dense/invertInto|invertInto@com.eignex.koblas.dense.F64CholeskyDecomposition(com.eignex.koblas.core.F64DenseMatrix;com.eignex.koblas.Workspace?){}[0]
 final fun (com.eignex.koblas.dense/F64CholeskyDecomposition).com.eignex.koblas.dense/logAbsDeterminant(): kotlin/Double // com.eignex.koblas.dense/logAbsDeterminant|logAbsDeterminant@com.eignex.koblas.dense.F64CholeskyDecomposition(){}[0]

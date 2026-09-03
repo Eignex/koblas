@@ -718,6 +718,7 @@ public final class com/eignex/koblas/VectorOpsKt {
 	public static final fun asum (Lcom/eignex/koblas/core/F64VectorLike;)D
 	public static final fun axpy (Lcom/eignex/koblas/core/F64DenseVector;DLcom/eignex/koblas/core/F64VectorLike;)V
 	public static final fun axpy (Lcom/eignex/koblas/core/F64StridedVectorView;DLcom/eignex/koblas/core/F64VectorLike;)V
+	public static final fun compensatedSum (Lcom/eignex/koblas/core/F64VectorLike;)D
 	public static final fun copy (Lcom/eignex/koblas/core/F64VectorLike;Lcom/eignex/koblas/core/F64DenseVector;)V
 	public static final fun copy (Lcom/eignex/koblas/core/F64VectorLike;Lcom/eignex/koblas/core/F64StridedVectorView;)V
 	public static final fun dot (Lcom/eignex/koblas/core/F64VectorLike;Lcom/eignex/koblas/core/F64VectorLike;)D
@@ -728,6 +729,7 @@ public final class com/eignex/koblas/VectorOpsKt {
 	public static final fun norm2 (Lcom/eignex/koblas/core/F64VectorLike;)D
 	public static final fun scale (Lcom/eignex/koblas/core/F64DenseVector;D)V
 	public static final fun scale (Lcom/eignex/koblas/core/F64StridedVectorView;D)V
+	public static final fun sum (Lcom/eignex/koblas/core/F64VectorLike;)D
 	public static final fun swap (Lcom/eignex/koblas/core/F64DenseVector;Lcom/eignex/koblas/core/F64DenseVector;)V
 	public static final fun swap (Lcom/eignex/koblas/core/F64StridedVectorView;Lcom/eignex/koblas/core/F64StridedVectorView;)V
 }
@@ -1191,6 +1193,7 @@ public abstract interface class com/eignex/koblas/dense/F64Kernels : com/eignex/
 	public abstract fun rotmg (DDDD)Lcom/eignex/koblas/F64ModifiedGivens;
 	public abstract fun scale ([DIDI)V
 	public abstract fun ssqd ([DI[DII)D
+	public abstract fun sum ([DII)D
 	public abstract fun swap ([DI[DII)V
 }
 
@@ -1611,6 +1614,7 @@ public final class com/eignex/koblas/dense/host/jvm/F64CblasKernels : com/eignex
 	public fun rotmg (DDDD)Lcom/eignex/koblas/F64ModifiedGivens;
 	public fun scale ([DIDI)V
 	public fun ssqd ([DI[DII)D
+	public fun sum ([DII)D
 	public fun swap ([DI[DII)V
 }
 

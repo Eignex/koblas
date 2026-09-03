@@ -93,6 +93,9 @@ internal actual object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
         }
     }
 
+    actual override fun sum(v: DoubleArray, vOff: Int, len: Int): Double =
+        if (len == 0) 0.0 else v.usePinned { p -> koblas_dense_sum(p.addressOf(0), vOff, len) }
+
     actual override fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double = if (len == 0) {
         0.0
     } else {

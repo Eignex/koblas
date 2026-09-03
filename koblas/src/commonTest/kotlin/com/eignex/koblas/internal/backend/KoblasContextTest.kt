@@ -37,6 +37,12 @@ class KoblasContextTest {
 
         override fun asum(v: DoubleArray, vOff: Int, len: Int): Double = absoluteSum(v, vOff, len)
 
+        override fun sum(v: DoubleArray, vOff: Int, len: Int): Double {
+            var s = 0.0
+            for (i in 0 until len) s += v[vOff + i]
+            return s
+        }
+
         override fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
             var s = 0.0
             for (i in 0 until len) {

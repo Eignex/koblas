@@ -28,6 +28,8 @@ internal object F64ScalarKernels : F64Kernels, F64ArithmeticKernels {
 
     override fun asum(v: DoubleArray, vOff: Int, len: Int): Double = absoluteSum(v, vOff, len)
 
+    override fun sum(v: DoubleArray, vOff: Int, len: Int): Double = scalarSum(v, vOff, len)
+
     override fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
         scalarSsqd(a, aOff, b, bOff, len)
 

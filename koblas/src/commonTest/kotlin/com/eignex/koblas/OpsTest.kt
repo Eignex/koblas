@@ -85,6 +85,42 @@ class OpsTest {
     }
 
     @Test
+    fun `sum adds the entries for any storage`() {
+        val values = doubleArrayOf(2.0, -3.5, 0.0, 4.25, -1.0, 0.5)
+        val expected = values.sum()
+        val strided = F64StridedVectorView(DoubleArray(12) { values[it / 2] }, 0, 6, 2)
+        assertEquals(expected, F64DenseVector.of(values).sum(), 1e-12, "dense")
+        assertEquals(expected, strided.sum(), 1e-12, "strided")
+        assertEquals(-1.0, sparse.sum(), 1e-12, "sparse stores 2 and -3")
+        assertEquals(0.0, F64DenseVector.of(DoubleArray(0)).sum(), "empty")
+    }
+
+    @Test
+    fun `sum and asum differ once a sign does`() {
+        val mixed = dense(3.0, -4.0)
+        assertEquals(-1.0, mixed.sum(), 1e-12, "sum")
+        assertEquals(7.0, mixed.asum(), 1e-12, "asum")
+    }
+
+    @Test
+    fun `compensatedSum recovers what a naive sum loses`() {
+        // The exact total is 2. A naive left-to-right sum drops both ones against the large terms and
+        // answers 0, whichever order the large terms come in.
+        val values = doubleArrayOf(1.0, 1e100, 1.0, -1e100)
+        assertEquals(0.0, values.sum(), "the naive sum is the thing being fixed")
+        assertEquals(2.0, F64DenseVector.of(values).compensatedSum(), "dense")
+        val strided = F64StridedVectorView(DoubleArray(8) { values[it / 2] }, 0, 4, 2)
+        assertEquals(2.0, strided.compensatedSum(), "strided takes the same path as any generic storage")
+    }
+
+    @Test
+    fun `compensatedSum agrees with sum on benign input`() {
+        val rng = Random(20260903)
+        val v = F64DenseVector.of(randomVector(500, rng))
+        assertEquals(v.sum(), v.compensatedSum(), 1e-9, "no drift on well-scaled input")
+    }
+
+    @Test
     fun `asum matches the hand value on dense and sparse`() {
         assertEquals(7.0, F64DenseVector.of(doubleArrayOf(3.0, 0.0, -4.0)).asum())
         assertEquals(5.0, sparse.asum())

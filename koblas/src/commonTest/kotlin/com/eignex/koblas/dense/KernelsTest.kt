@@ -40,6 +40,7 @@ class KernelsTest {
         var nrm2s = 0
         var asums = 0
         var swaps = 0
+        var sums = 0
         var ssqds = 0
         var rotmgs = 0
         var rotms = 0
@@ -65,6 +66,13 @@ class KernelsTest {
             asums++
             var s = 0.0
             for (i in 0 until len) s += abs(v[vOff + i])
+            return s
+        }
+
+        override fun sum(v: DoubleArray, vOff: Int, len: Int): Double {
+            sums++
+            var s = 0.0
+            for (i in 0 until len) s += v[vOff + i]
             return s
         }
 

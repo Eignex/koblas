@@ -60,6 +60,12 @@ class Level1Benchmark {
     fun nrm2(): Double = x.norm2()
 
     @Benchmark
+    fun sumBench(): Double = x.sum()
+
+    @Benchmark
+    fun compensatedSumBench(): Double = x.compensatedSum()
+
+    @Benchmark
     fun asumBench(): Double = x.asum()
 
     @Benchmark

@@ -54,6 +54,8 @@ internal actual object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
     actual override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) =
         selected.swap(a, aOff, b, bOff, len)
 
+    actual override fun sum(v: DoubleArray, vOff: Int, len: Int): Double = selected.sum(v, vOff, len)
+
     actual override fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
         selected.ssqd(a, aOff, b, bOff, len)
 
@@ -159,6 +161,27 @@ internal object Simd {
         // What the unroll leaves over is under one unroll width, which is what the single chain is for.
         val head = s0.add(s1).add(s2.add(s3)).reduceLanes(VectorOperators.ADD)
         return head + dotOneChain(a, aOff + unrolled, b, bOff + unrolled, len - unrolled)
+    }
+
+    /**
+     * One vector accumulator and a scalar tail. Deliberately not the four-chain form [dot] takes above
+     * [UNROLL_MIN]: that threshold was measured for dot, and nothing here has measured where a sum's own
+     * crossover sits.
+     */
+    fun sum(v: DoubleArray, vOff: Int, len: Int): Double {
+        var i = 0
+        val bound = SPECIES.loopBound(len)
+        var total = DoubleVector.zero(SPECIES)
+        while (i < bound) {
+            total = total.add(DoubleVector.fromArray(SPECIES, v, vOff + i))
+            i += LANE
+        }
+        var s = total.reduceLanes(VectorOperators.ADD)
+        while (i < len) {
+            s += v[vOff + i]
+            i++
+        }
+        return s
     }
 
     /**
