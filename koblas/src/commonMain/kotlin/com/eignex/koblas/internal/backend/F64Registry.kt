@@ -34,28 +34,14 @@ import kotlin.concurrent.atomics.incrementAndFetch
 @OptIn(ExperimentalAtomicApi::class)
 internal class F64Registry {
     /**
-     * One seam paired with the slot deciding what may go into it. A seam holds only what its slot accepted,
-     * so reading one back as the half's own interface is a cast that cannot fail.
+     * One seam per half, derived from [BackendSlot] rather than listed again, so a half added there arrives
+     * here with its type test, its portable default and its keys already attached.
+     *
+     * A seam takes only what its slot accepted, which is what makes reading one back as the half's own
+     * interface a cast that cannot fail.
      */
-    private class Half(private val slot: BackendSlot, onChange: () -> Unit) {
-        val seam = Seam<Backend>(onChange)
-
-        /** Offers [backend] to this seam if this half takes it, and reports whether it did. */
-        fun offer(backend: Backend, explicit: Boolean): Boolean {
-            if (!slot.acceptsOffer(backend)) return false
-            seam.register(backend, explicit)
-            return true
-        }
-
-        /** The names offered for this half, strongest first. */
-        val names: List<String> get() = seam.all.map { it.name }
-    }
-
-    /**
-     * Every half this registry has a seam for. Derived from [BackendSlot] rather than listed again, so a
-     * half added there arrives here with its type test, its portable default and its keys already attached.
-     */
-    private val halves: Map<BackendSlot, Half> = BackendSlot.entries.associateWith { Half(it, ::recompose) }
+    private val halves: Map<BackendSlot, Seam<Backend>> =
+        BackendSlot.entries.associateWith { Seam<Backend>(::recompose) }
 
     @Volatile
     private var installed: F64Context? = null
@@ -102,18 +88,20 @@ internal class F64Registry {
     fun offer(backend: Backend, explicit: Boolean, only: Set<BackendSlot>? = null): Boolean {
         // Counted rather than short-circuited: an object implementing several halves is offered to all of them.
         var offered = 0
-        for ((slot, half) in halves) {
+        for ((slot, seam) in halves) {
             if (only != null && slot !in only) continue
-            if (half.offer(backend, explicit)) offered++
+            if (!slot.acceptsOffer(backend)) continue
+            seam.register(backend, explicit)
+            offered++
         }
         return offered > 0
     }
 
     /** The backend registered for [slot] under [name], or null when nothing did. */
-    fun named(slot: BackendSlot, name: String): Backend? = halves.getValue(slot).seam.named(name)
+    fun named(slot: BackendSlot, name: String): Backend? = halves.getValue(slot).named(name)
 
     /** The names registered for [slot], strongest first. */
-    fun namesFor(slot: BackendSlot): List<String> = halves.getValue(slot).names
+    fun namesFor(slot: BackendSlot): List<String> = halves.getValue(slot).all.map { it.name }
 
     /** Names offered for a public semantic [role], strongest first. */
     fun namesFor(role: BackendRole): List<String> = namesFor(role.slot)
@@ -121,7 +109,7 @@ internal class F64Registry {
     /** Clears the override and every registration, leaving the portable fallbacks. */
     fun reset() {
         installed = null
-        halves.values.forEach { it.seam.reset() }
+        halves.values.forEach { it.reset() }
     }
 
     /** Builds a context from the currently registered halves, falling back to the portable reference. */
@@ -133,7 +121,7 @@ internal class F64Registry {
         return F64Context(
             // The routed kernels wrap whatever host registered rather than replacing the compiled-in ones,
             // so this half composes its offer instead of falling back to a portable default.
-            kernels = F64RoutedKernels(active<F64Kernels>(BackendSlot.F64Kernels)),
+            kernels = F64RoutedKernels(strongest<F64Kernels>(BackendSlot.F64Kernels)),
             blas = resolved<F64Blas>(BackendSlot.F64Blas),
             decompositions = resolved<F64Decompositions>(BackendSlot.F64Decompositions),
             sparseKernels = resolved<F64SparseKernels>(BackendSlot.F64SparseKernels),
@@ -144,7 +132,7 @@ internal class F64Registry {
             fallbackPolicy = F64FallbackPolicy.ALLOW,
             fallbackWarning = {},
             generalSparseLu = general,
-            repeatedSparseLu = active<F64RepeatedSparseLu>(BackendSlot.F64RepeatedSparseLu),
+            repeatedSparseLu = strongest<F64RepeatedSparseLu>(BackendSlot.F64RepeatedSparseLu),
             sparseCholesky = cholesky,
             quasiDefiniteLdl = quasiDefiniteLdl,
             sparseQr = qr,
@@ -153,11 +141,17 @@ internal class F64Registry {
     }
 
     /** The strongest offer for [slot], or null when nothing registered one. */
-    private inline fun <reified T : Backend> active(slot: BackendSlot): T? = halves.getValue(slot).seam.active as? T
+    private inline fun <reified T : Backend> strongest(slot: BackendSlot): T? = halves.getValue(slot).active as? T
 
-    /** The strongest offer for [slot], or koblas's own implementation of the half when there is none. */
-    private inline fun <reified T : Backend> resolved(slot: BackendSlot): T =
-        active<T>(slot) ?: slot.portableDefault() as T
+    /**
+     * The strongest offer for [slot], or koblas's own implementation of the half when there is none.
+     *
+     * Only for a half [BackendSlot.required] marks: an optional half stands in a placeholder its own
+     * interface does not accept, so the error names the slot rather than arriving as a bare cast failure.
+     */
+    private inline fun <reified T : Backend> resolved(slot: BackendSlot): T = strongest<T>(slot)
+        ?: slot.portableDefault() as? T
+        ?: error("${slot.name} has no portable default of its own half's type")
 
     private fun recompose() {
         changes.incrementAndFetch()
