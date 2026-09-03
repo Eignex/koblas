@@ -74,6 +74,32 @@ class CholeskyTest {
     }
 
     @Test
+    fun `logAbsDeterminant matches the LU form on the same matrix`() {
+        val A = spdExample()
+        // 4*(5*3 - 1) - 2*(2*3) = 44
+        assertEquals(kotlin.math.ln(44.0), A.cholesky().logAbsDeterminant(), 1e-10, "log det")
+        assertEquals(A.lu().logAbsDeterminant(), A.cholesky().logAbsDeterminant(), 1e-10, "against LU")
+    }
+
+    @Test
+    fun `logAbsDeterminant survives a matrix whose determinant would overflow`() {
+        // A product of diagonals would leave the double range long before this many terms.
+        val n = 400
+        val scaled = F64DenseMatrix.zero(n, n)
+        for (k in 0 until n) scaled[k, k] = 1e30
+        val logDet = scaled.cholesky().logAbsDeterminant()
+        assertEquals(n * kotlin.math.ln(1e30), logDet, 1e-6, "log det of the scaled identity")
+        assertTrue(logDet.isFinite(), "the accumulated form stays finite")
+    }
+
+    @Test
+    fun `logAbsDeterminant reports a zero diagonal as negative infinity`() {
+        val chol = spdExample().cholesky()
+        chol.l[1, 1] = 0.0
+        assertEquals(Double.NEGATIVE_INFINITY, chol.logAbsDeterminant(), "a zero diagonal")
+    }
+
+    @Test
     fun `invertInto fills the caller's matrix and returns it`() {
         val A = spdExample()
         val chol = A.cholesky()

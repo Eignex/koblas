@@ -161,6 +161,7 @@ dense/F64LinearAlgebra.kt:F64QrDecomposition.solve(DoubleArray,Boolean,Workspace
 dense/F64LinearAlgebra.kt:F64QrDecomposition.solveInto(DoubleArray,DoubleArray,Boolean,Workspace?)	F64QrDecomposition.solveInto(DoubleArray,DoubleArray)
 dense/F64LuDecomposition.kt:F64LuDecomposition.determinant()	F64LuDecomposition.determinant()
 dense/F64LuDecomposition.kt:F64LuDecomposition.rowAt(Int)	F64LuDecomposition.rowAt(Int)
+dense/FactorSnapshots.kt:F64CholeskyDecomposition.logAbsDeterminant()	F64CholeskyDecomposition.logAbsDeterminant()
 dense/FactorSnapshots.kt:F64CholeskyDecomposition.lowerFactor()	F64CholeskyDecomposition.lowerFactor()
 dense/FactorSnapshots.kt:F64LuDecomposition.determinantSign()	F64LuDecomposition.determinantSign()
 dense/FactorSnapshots.kt:F64LuDecomposition.logAbsDeterminant()	F64LuDecomposition.logAbsDeterminant()

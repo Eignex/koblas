@@ -48,6 +48,7 @@ F64SparseKernels.dot(SparseVector,DoubleArray)		excluded	The raw kernel shares t
 F64SparseKernels.nrm2(SparseVector)		excluded	The raw kernel shares the dispatch path benchmarked through the public SparseVector.norm2 facade.
 F64LuDecomposition.determinantSign()		excluded	Determinant sign is a linear scan over existing LU factors.
 F64LuDecomposition.logAbsDeterminant()		excluded	Log-absolute determinant is a linear scan over existing LU factors.
+F64CholeskyDecomposition.logAbsDeterminant()		excluded	Log-absolute determinant is a linear scan over an existing Cholesky factor's diagonal.
 F64LuDecomposition.lowerFactor()		excluded	Extracting a factor snapshot is inspection work rather than a dispatched numerical kernel.
 F64LuDecomposition.rowOrder()		excluded	Copying the row order is inspection work rather than a dispatched numerical kernel.
 F64LuDecomposition.upperFactor()		excluded	Extracting a factor snapshot is inspection work rather than a dispatched numerical kernel.

@@ -72,6 +72,26 @@ public fun F64LuDecomposition.logAbsDeterminant(): Double {
 }
 
 /**
+ * `log(det(A))` for the SPD matrix this factors, accumulated rather than taken from a product of diagonal
+ * entries, which overflows for a matrix of any size.
+ *
+ * Twice the sum of the logs of the factor's diagonal, since `det(A)` is `det(L)` squared. Named after the
+ * LU form's [F64LuDecomposition.logAbsDeterminant] that it mirrors, although the absolute value is
+ * redundant here: an SPD matrix has a positive determinant and its factor a positive diagonal. A zero on
+ * the diagonal, which a regularised or semidefinite factor can hold, gives
+ * [Double.NEGATIVE_INFINITY] as the LU form does.
+ */
+public fun F64CholeskyDecomposition.logAbsDeterminant(): Double {
+    var logAbs = 0.0
+    for (k in 0 until n) {
+        val diagonal = l[k, k]
+        if (diagonal == 0.0) return Double.NEGATIVE_INFINITY
+        logAbs += kotlin.math.ln(kotlin.math.abs(diagonal))
+    }
+    return 2.0 * logAbs
+}
+
+/**
  * A standalone lower-triangular `L` from this Cholesky factorization `A = L·Lᵀ`.
  *
  * The returned matrix is a copy and its strict upper triangle is zeroed.

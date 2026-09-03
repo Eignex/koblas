@@ -1445,6 +1445,7 @@ public final class com/eignex/koblas/dense/FactorSnapshotsKt {
 	public static synthetic fun explicitQ$default (Lcom/eignex/koblas/dense/F64QrDecomposition;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public static final fun explicitR (Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public static final fun explicitR (Lcom/eignex/koblas/dense/F64QrDecomposition;)Lcom/eignex/koblas/core/F64DenseMatrix;
+	public static final fun logAbsDeterminant (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;)D
 	public static final fun logAbsDeterminant (Lcom/eignex/koblas/dense/F64LuDecomposition;)D
 	public static final fun lowerFactor (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public static final fun lowerFactor (Lcom/eignex/koblas/dense/F64LuDecomposition;)Lcom/eignex/koblas/core/F64DenseMatrix;
