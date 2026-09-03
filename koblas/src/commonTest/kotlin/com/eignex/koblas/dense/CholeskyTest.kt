@@ -2,6 +2,7 @@
 
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.DimensionMismatch
 import com.eignex.koblas.NotPositiveDefinite
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.koblas
@@ -70,6 +71,43 @@ class CholeskyTest {
         assertEquals(0, koblas.solve(factor, F64DenseMatrix(3, 0)).cols)
         assertFailsWith<IllegalArgumentException> { koblas.solveInto(factor, DoubleArray(2), DoubleArray(3)) }
         assertFailsWith<IllegalArgumentException> { koblas.solveInto(factor, F64DenseMatrix(2, 1), out) }
+    }
+
+    @Test
+    fun `invertInto fills the caller's matrix and returns it`() {
+        val A = spdExample()
+        val chol = A.cholesky()
+        val allocated = chol.invert()
+        // Poisoned, because every entry is written and nothing may survive from before.
+        val out = F64DenseMatrix.wrap(3, 3, DoubleArray(9) { Double.NaN })
+        val returned = chol.invertInto(out)
+        assertSame(out, returned, "the destination is returned")
+        for (i in 0 until 3) {
+            for (j in 0 until 3) {
+                assertEquals(allocated[i, j], out[i, j], 1e-12, "($i,$j)")
+            }
+        }
+    }
+
+    @Test
+    fun `invertInto rejects a destination of the wrong shape`() {
+        val chol = spdExample().cholesky()
+        assertFailsWith<DimensionMismatch> { chol.invertInto(F64DenseMatrix.zero(2, 2)) }
+        assertFailsWith<DimensionMismatch> { chol.invertInto(F64DenseMatrix.zero(3, 4)) }
+    }
+
+    @Test
+    fun `invertInto rejects the factor's own matrix`() {
+        val chol = spdExample().cholesky()
+        // Both halves read the factor while writing the inverse, so this would give a wrong answer quietly.
+        assertFailsWith<IllegalArgumentException> { chol.invertInto(chol.l) }
+    }
+
+    @Test
+    fun `invertInto handles an empty factorization`() {
+        val chol = F64DenseMatrix.zero(0, 0).cholesky()
+        val out = F64DenseMatrix.zero(0, 0)
+        assertSame(out, chol.invertInto(out), "the empty destination is returned")
     }
 
     @Test

@@ -82,12 +82,12 @@ internal fun referenceCholeskyInto(
 internal fun referenceSpdInvert(
     kernels: F64Kernels,
     chol: F64CholeskyDecomposition,
+    out: F64DenseMatrix,
     workspace: Workspace?,
 ): F64DenseMatrix {
     val n = chol.n
     val ld = chol.l.data
-    val inv = F64DenseMatrix(n, n)
-    val invd = inv.data
+    val invd = out.data
     workspace.borrow(n) { y ->
         for (j in 0 until n) {
             y.fill(0.0, j, n)
@@ -108,5 +108,5 @@ internal fun referenceSpdInvert(
             }
         }
     }
-    return inv
+    return out
 }
