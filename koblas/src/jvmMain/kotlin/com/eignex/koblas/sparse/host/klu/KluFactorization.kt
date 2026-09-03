@@ -4,12 +4,12 @@ import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
+import com.eignex.koblas.internal.host.keepingReachable
 import com.eignex.koblas.internal.host.nativeCleaner
 import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.FactorsNotExposed
 import com.eignex.koblas.sparse.requireBlockSolveShapes
 import com.eignex.koblas.sparse.requireSolveShapes
-import java.lang.ref.Reference
 
 /** A KLU factorization with deterministic close and cleaner fallback for its symbolic and numeric objects. */
 public class KluFactorization internal constructor(
@@ -68,10 +68,8 @@ public class KluFactorization internal constructor(
 
     /** Reads KLU's numeric object, so the fence holds this factorization past the read. */
     override val nnz: Int get() = lifecycle.withResource {
-        try {
+        keepingReachable(this) {
             factor.nnz
-        } finally {
-            Reference.reachabilityFence(this)
         }
     }
 
@@ -82,7 +80,7 @@ public class KluFactorization internal constructor(
         if (!a.colPtr.contentEquals(factor.colPtr) || !a.rowIdx.contentEquals(factor.rowIdx)) {
             return@withResource KluRefactorResult.Incompatible
         }
-        try {
+        keepingReachable(this) {
             val succeeded = calls.refactor(factor, a.colPtr, a.rowIdx, a.values, equilibrate)
             extracted = freshExtraction()
             if (succeeded) {
@@ -92,8 +90,6 @@ public class KluFactorization internal constructor(
                 failedAt = SINGULAR_POSITION_UNKNOWN
                 KluRefactorResult.Singular
             }
-        } finally {
-            Reference.reachabilityFence(this)
         }
     }
 
@@ -102,10 +98,8 @@ public class KluFactorization internal constructor(
             requireFactored(failedAt, "solve")
             requireSolveShapes(n, b, out)
             if (out !== b) b.copyInto(out)
-            try {
+            keepingReachable(this) {
                 calls.solve(factor, out, transpose)
-            } finally {
-                Reference.reachabilityFence(this)
             }
             out
         }
@@ -120,10 +114,8 @@ public class KluFactorization internal constructor(
         requireBlockSolveShapes(n, b, out)
         if (b.cols == 0) return@withResource out
         if (out.data !== b.data) b.data.copyInto(out.data)
-        try {
+        keepingReachable(this) {
             calls.solve(factor, out.data, transpose, b.cols)
-        } finally {
-            Reference.reachabilityFence(this)
         }
         out
     }

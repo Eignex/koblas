@@ -1,6 +1,7 @@
 package com.eignex.koblas.internal.host
 
 import java.lang.ref.Cleaner
+import java.lang.ref.Reference
 
 /**
  * The cleaner every koblas binding registers a native free with, one for the whole process.
@@ -17,3 +18,13 @@ import java.lang.ref.Cleaner
  * while the call is still in flight.
  */
 internal val nativeCleaner: Cleaner = Cleaner.create()
+
+/**
+ * Runs [block] with [owner] strongly reachable until it returns, which every accessor dereferencing a
+ * native handle needs once a free is registered for it.
+ */
+internal inline fun <T> keepingReachable(owner: Any, block: () -> T): T = try {
+    block()
+} finally {
+    Reference.reachabilityFence(owner)
+}

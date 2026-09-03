@@ -4,6 +4,7 @@ import com.eignex.koblas.*
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
+import com.eignex.koblas.internal.host.keepingReachable
 import com.eignex.koblas.internal.host.nativeCleaner
 import com.eignex.koblas.sparse.F64BasisFactorization
 import com.eignex.koblas.sparse.F64SparseLuFactorization
@@ -12,7 +13,6 @@ import com.eignex.koblas.sparse.host.applyF64Equilibration
 import com.eignex.koblas.sparse.internal.replaceColumns
 import com.eignex.koblas.sparse.internal.snapshot
 import com.eignex.koblas.sparse.requireSolveShapes
-import java.lang.ref.Reference
 import kotlin.math.abs
 
 /** A host BASICLU factorization with deterministic close and cleaner fallback for its native object. */
@@ -80,10 +80,8 @@ public open class BasicluFactorization internal constructor(
         }
 
     internal fun <T> withNativeFactor(block: () -> T): T = lifecycle.withResource {
-        try {
+        keepingReachable(this) {
             block()
-        } finally {
-            Reference.reachabilityFence(this)
         }
     }
 

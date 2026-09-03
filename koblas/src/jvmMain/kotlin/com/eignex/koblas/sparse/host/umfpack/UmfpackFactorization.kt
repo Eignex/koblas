@@ -3,6 +3,7 @@ package com.eignex.koblas.sparse.host.umfpack
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
+import com.eignex.koblas.internal.host.keepingReachable
 import com.eignex.koblas.internal.host.nativeCleaner
 import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.FactorsNotExposed
@@ -11,7 +12,6 @@ import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout.ADDRESS
 import java.lang.foreign.ValueLayout.JAVA_DOUBLE
-import java.lang.ref.Reference
 
 /**
  * Holds [matrix] alive because umfpack_di_solve takes Ap, Ai and Ax alongside the factors, and releases the
@@ -109,7 +109,7 @@ public class UmfpackFactorization internal constructor(
     private fun solveDistinct(b: DoubleArray, out: DoubleArray, transpose: Boolean): DoubleArray {
         // The factors are reached as a raw address, so nothing the call holds keeps this factorization
         // reachable and the cleaner is free to run mid-call. The fence is what holds it to the return.
-        try {
+        keepingReachable(this) {
             val status = calls.solve(
                 if (transpose) SYS_AT else SYS_A,
                 MemorySegment.ofArray(matrix.colPtr),
@@ -122,8 +122,6 @@ public class UmfpackFactorization internal constructor(
                 solveInfo,
             )
             check(status == OK) { "umfpack_di_solve failed with status $status" }
-        } finally {
-            Reference.reachabilityFence(this)
         }
         return out
     }

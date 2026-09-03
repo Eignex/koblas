@@ -3,13 +3,13 @@ package com.eignex.koblas.sparse.host.hfactor
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
+import com.eignex.koblas.internal.host.keepingReachable
 import com.eignex.koblas.internal.host.nativeCleaner
 import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.FactorsNotExposed
 import com.eignex.koblas.sparse.basis.F64IndexedVector
 import com.eignex.koblas.sparse.requireSolveShapes
 import java.lang.foreign.MemorySegment
-import java.lang.ref.Reference
 
 /**
  * A general square matrix factored by HFactor, which takes it as a basis of its own columns.
@@ -53,20 +53,16 @@ public class HfactorFactorization internal constructor(
     override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability = noManagedAllocation
 
     override val nnz: Int get() = lifecycle.withResource {
-        try {
+        keepingReachable(this) {
             calls.fill(handle)
-        } finally {
-            Reference.reachabilityFence(this)
         }
     }
 
     /** Reaching the pivots copies the whole factorization, so this is sampled rather than polled. */
     override val rcond: Double get() = lifecycle.withResource {
-        try {
+        keepingReachable(this) {
             calls.pivotRange(handle, pivotRange)
             if (pivotRange[1] == 0.0) 0.0 else pivotRange[0] / pivotRange[1]
-        } finally {
-            Reference.reachabilityFence(this)
         }
     }
 
@@ -74,10 +70,8 @@ public class HfactorFactorization internal constructor(
         lifecycle.withResource {
             requireSolveShapes(n, b, out)
             carrier.scatter(b)
-            carrier.count = try {
+            carrier.count = keepingReachable(this) {
                 calls.solve(handle, carrier.count, carrier.indices, carrier.values, DENSE, transpose)
-            } finally {
-                Reference.reachabilityFence(this)
             }
             carrier.gather(out)
         }
