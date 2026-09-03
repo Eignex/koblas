@@ -246,6 +246,17 @@ public fun F64Context.route(query: F64RouteQuery): BackendRoute {
     )
 }
 
+/** What [backend] reports for [query]'s half, as every route records it. */
+private fun selectedStatus(query: F64RouteQuery, backend: Backend): BackendStatus = BackendStatus(
+    query.role,
+    backend.name,
+    backend.priority,
+    backend.isAvailable,
+    backend.isPortable,
+    accelerated = !backend.isPortable,
+    (backend as? BackendMetadataProvider)?.backendMetadata ?: BackendMetadata(),
+)
+
 /** Builds the native route or unavailable fallback shared by the host adapters. */
 internal fun nativeRoute(
     query: F64RouteQuery,
@@ -253,15 +264,7 @@ internal fun nativeRoute(
     portableExecutor: String = "reference",
     fallbackWhenUnavailable: Boolean = true,
 ): BackendRoute {
-    val selected = BackendStatus(
-        query.role,
-        backend.name,
-        backend.priority,
-        backend.isAvailable,
-        backend.isPortable,
-        accelerated = !backend.isPortable,
-        (backend as? BackendMetadataProvider)?.backendMetadata ?: BackendMetadata(),
-    )
+    val selected = selectedStatus(query, backend)
     return when {
         !backend.isAvailable && fallbackWhenUnavailable -> BackendRoute(
             query,
@@ -297,15 +300,7 @@ internal fun portableRoute(
     reason: BackendRouteReason,
 ): BackendRoute = BackendRoute(
     query,
-    BackendStatus(
-        query.role,
-        backend.name,
-        backend.priority,
-        backend.isAvailable,
-        backend.isPortable,
-        accelerated = !backend.isPortable,
-        (backend as? BackendMetadataProvider)?.backendMetadata ?: BackendMetadata(),
-    ),
+    selectedStatus(query, backend),
     BackendExecution.PORTABLE,
     portableExecutor,
     reason,

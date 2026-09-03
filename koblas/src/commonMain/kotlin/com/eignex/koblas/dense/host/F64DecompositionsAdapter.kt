@@ -107,7 +107,7 @@ public abstract class F64DecompositionsAdapter internal constructor(
     }
 
     override fun trtri(a: F64DenseMatrix, lower: Boolean, unitDiag: Boolean): F64DenseMatrix {
-        requireShape(a.rows == a.cols) { "trtri requires a square matrix; got ${a.rows}x${a.cols}" }
+        requireSquare(a, "trtri")
         val n = a.rows
         if (n == 0) return F64DenseMatrix(0, 0)
         if (!unitDiag) {

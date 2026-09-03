@@ -8,6 +8,8 @@ import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.borrow
 import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.dense.F64_MACHINE_EPSILON
+import com.eignex.koblas.internal.numeric.euclideanNorm
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.sparse.F64SparseQrFactorization
 import com.eignex.koblas.sparse.requireLeastSquaresShapes
@@ -137,7 +139,7 @@ public class F64SparseHouseholderQr internal constructor(
 private fun numericalRank(m: Int, n: Int, colPtr: IntArray, values: DoubleArray): Int {
     var maximum = 0.0
     for (k in 0 until n) maximum = maxOf(maximum, abs(values[colPtr[k + 1] - 1]))
-    val tolerance = maxOf(m, n) * 2.220446049250313e-16 * maximum
+    val tolerance = maxOf(m, n) * F64_MACHINE_EPSILON * maximum
     return (0 until n).count { abs(values[colPtr[it + 1] - 1]) > tolerance }
 }
 
@@ -237,8 +239,7 @@ private fun householder(v: DoubleArray, offset: Int, length: Int, beta: DoubleAr
         beta[k] = 0.0
         return 0.0
     }
-    var tailNorm = 0.0
-    for (i in offset + 1 until offset + length) tailNorm = hypot(tailNorm, v[i])
+    val tailNorm = euclideanNorm(v, offset + 1, length - 1)
     val head = v[offset]
     if (tailNorm == 0.0) {
         beta[k] = 0.0
