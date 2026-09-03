@@ -4,6 +4,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
+import kotlin.math.hypot
 import kotlin.math.sqrt
 
 /*
@@ -119,8 +120,9 @@ internal fun referenceSpdInvert(
  * One plane rotation per row: at step k the rotation that zeroes the working vector's entry k against the
  * diagonal is applied to the column tail below it. Every rotation is orthogonal, so this needs no
  * positive-definiteness check, since `A + sigma·V·Vᵀ` is positive-definite whenever `A` is and [sigma] is
- * not negative. [rotg] rather than the `(l + s·x)/c` recurrence, which divides by the diagonal entry and so
- * cannot answer for a factor carrying a zero there.
+ * not negative. A rotation rather than the `(l + s·x)/c` recurrence, which divides by the diagonal entry and
+ * so cannot answer for a factor carrying a zero there. The rotation is [rotg]'s, computed in the loop rather
+ * than called, for the reason given there.
  */
 @Suppress("LongParameterList") // the factor, the update block and its width, the scale, and scratch
 internal fun referenceCholeskyRankUpdate(
@@ -141,15 +143,21 @@ internal fun referenceCholeskyRankUpdate(
             if (scale != 1.0) kernels.scale(x, 0, scale, n)
             for (k in 0 until n) {
                 val base = k + k * n
-                val rotation = rotg(ld[base], x[k])
-                // Netlib's sign convention takes r from whichever input dominates, so a working entry that
-                // is larger and negative would put a negative number on the diagonal. Negating the whole
-                // rotation restores the positive diagonal a factor is expected to carry, and negating a
-                // column of L leaves L·Lᵀ alone.
-                val flip = if (rotation.r < 0.0) -1.0 else 1.0
-                ld[base] = flip * rotation.r
-                val len = n - k - 1
-                if (len > 0) kernels.rot(ld, base + 1, x, k + 1, len, flip * rotation.c, flip * rotation.s)
+                val diagonal = ld[base]
+                // The rotation is computed here rather than through the public rotg, which returns an
+                // F64Givens and would allocate one per column, n of them for a rank-1 update and n·k for a
+                // rank-k one. Taking r as a hypot also makes the positive diagonal a property of the
+                // construction: netlib's convention takes r's sign from whichever input dominates, so a
+                // larger negative working entry would put a negative number on the diagonal, and this r is
+                // that one's absolute value. The quotients below are therefore already the sign-corrected
+                // pair, which is why nothing is negated afterwards. hypot keeps rotg's behaviour for
+                // magnitudes whose squares would overflow or vanish.
+                val r = hypot(diagonal, x[k])
+                if (r != 0.0) {
+                    ld[base] = r
+                    val len = n - k - 1
+                    if (len > 0) kernels.rot(ld, base + 1, x, k + 1, len, diagonal / r, x[k] / r)
+                }
             }
         }
     }
