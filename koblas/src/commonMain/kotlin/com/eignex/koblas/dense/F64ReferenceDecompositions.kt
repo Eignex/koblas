@@ -176,7 +176,7 @@ internal class F64ReferenceDecompositions(private val configured: F64Kernels? = 
      *  @throws com.eignex.koblas.SingularMatrix naming the first zero diagonal position.
      */
     override fun trtri(a: F64DenseMatrix, lower: Boolean, unitDiag: Boolean): F64DenseMatrix {
-        requireShape(a.rows == a.cols) { "trtri requires a square matrix; got ${a.rows}x${a.cols}" }
+        requireSquare(a, "trtri")
         val n = a.rows
         if (!unitDiag) {
             for (i in 0 until n) {

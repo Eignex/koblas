@@ -40,7 +40,7 @@ internal fun referenceCholeskyInto(
     out: F64CholeskyDecomposition,
     policy: CholeskyPolicy,
 ): F64CholeskyDecomposition {
-    requireShape(a.rows == a.cols) { "cholesky requires a square matrix; got ${a.rows}x${a.cols}" }
+    requireSquare(a, "cholesky")
     requireShape(out.n == a.rows) { "choleskyInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}" }
     val n = a.rows
     val ld = out.l.data

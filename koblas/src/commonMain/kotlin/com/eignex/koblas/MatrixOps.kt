@@ -4,6 +4,7 @@ package com.eignex.koblas
 
 import com.eignex.koblas.core.*
 import com.eignex.koblas.dense.F64Blas
+import com.eignex.koblas.dense.applyBeta
 import com.eignex.koblas.internal.numeric.absoluteSum
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import kotlin.math.abs
@@ -91,7 +92,7 @@ public fun F64DenseMatrix.symvInto(
     destination: DoubleArray,
     lower: Boolean = true,
 ) {
-    requireShape(rows == cols) { "symvInto requires a square matrix; got ${rows}x$cols" }
+    requireSquare(this, "symvInto")
     requireShape(cols == x.size) { "symvInto shape mismatch: A is ${rows}x$cols, x size ${x.size}" }
     requireShape(destination.size == rows) { "symvInto: destination size ${destination.size} != rows $rows" }
     require(!x.sharesStorage(destination) && !sharesStorage(destination)) {
@@ -120,13 +121,7 @@ public fun F64DenseMatrix.symvInto(x: F64VectorLike, destination: DoubleArray, l
 
 /** The `beta * y` half of a matvec. A zero [beta] overwrites without reading, as BLAS specifies, so the
  *  destination's previous contents cannot poison the result. */
-private fun DoubleArray.prescale(beta: Double) {
-    when (beta) {
-        0.0 -> fill(0.0)
-        1.0 -> Unit
-        else -> koblas.kernels.scale(this, 0, beta, size)
-    }
-}
+private fun DoubleArray.prescale(beta: Double) = applyBeta(koblas.kernels, this, 0, size, beta)
 
 /** Whether [destination] is the very array this vector is stored in. */
 private fun F64VectorLike.sharesStorage(destination: DoubleArray): Boolean =
@@ -228,10 +223,7 @@ public fun F64DenseMatrix.norm1(): Double {
     val ad = data
     var m = 0.0
     for (j in 0 until cols) {
-        val base = j * rows
-        var s = 0.0
-        for (i in 0 until rows) s += abs(ad[base + i])
-        m = carryingMax(m, s)
+        m = carryingMax(m, absoluteSum(ad, j * rows, rows))
     }
     return m
 }
