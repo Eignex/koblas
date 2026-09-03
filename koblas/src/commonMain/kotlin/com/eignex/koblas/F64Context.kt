@@ -13,6 +13,7 @@ import com.eignex.koblas.internal.backend.BackendSlot
 import com.eignex.koblas.sparse.F64BasisFactorizations
 import com.eignex.koblas.sparse.F64GeneralSparseLu
 import com.eignex.koblas.sparse.F64QuasiDefiniteLdl
+import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.F64RepeatedSparseLu
 import com.eignex.koblas.sparse.F64SparseBlas
 import com.eignex.koblas.sparse.F64SparseCholesky
@@ -34,13 +35,15 @@ import com.eignex.koblas.sparse.basis.F64BasisSolvers
  * @property decompositions dense factorizations.
  * @property sparseKernels sparse vector-vector routines.
  * @property sparseBlas sparse matrix routines.
- * @param sparseDecompositions providers used to seed the derived compatibility composition.
+ * @param sparseDecompositions the composition to read the sparse factorization roles out of.
  * @property basisSolvers simplex basis solvers, a half of their own beside [sparseDecompositions].
+ * @param roles the sparse factorization providers selected, which the public constructor reads out of
+ *   [sparseDecompositions] and every path inside koblas resolves before building a context.
  *
- * [sparseDecompositions] is a derived compatibility composition of the selected general LU, Cholesky,
- * quasi-definite LDL, and QR roles.
+ * The six sparse factorization roles are what this holds; the [sparseDecompositions] property is a
+ * compatibility composition derived from the selected general LU, Cholesky, quasi-definite LDL and QR.
  */
-public class F64Context(
+public class F64Context internal constructor(
     override val kernels: F64Kernels,
     public val blas: F64Blas,
     public val decompositions: F64Decompositions,
@@ -48,6 +51,7 @@ public class F64Context(
     public val sparseBlas: F64SparseBlas,
     sparseDecompositions: F64SparseDecompositions,
     public val basisSolvers: F64BasisSolvers,
+    private val roles: SparseRoles,
 ) : F64LinearAlgebra,
     F64Blas by blas,
     F64Decompositions by decompositions,
@@ -67,43 +71,53 @@ public class F64Context(
     internal var fallbackWarning: (BackendRoute) -> Unit = {}
         private set
 
-    private var selectedGeneralSparseLu: F64GeneralSparseLu = sparseDecompositions.generalLuCapability()
+    /**
+     * Reads the sparse factorization roles out of [sparseDecompositions], for a caller composing a context
+     * by hand. Every path inside koblas resolves the roles first and hands them straight in.
+     */
+    public constructor(
+        kernels: F64Kernels,
+        blas: F64Blas,
+        decompositions: F64Decompositions,
+        sparseKernels: F64SparseKernels,
+        sparseBlas: F64SparseBlas,
+        sparseDecompositions: F64SparseDecompositions,
+        basisSolvers: F64BasisSolvers,
+    ) : this(
+        kernels,
+        blas,
+        decompositions,
+        sparseKernels,
+        sparseBlas,
+        sparseDecompositions,
+        basisSolvers,
+        SparseRoles(sparseDecompositions),
+    )
 
     /** Provider selected for ordinary sparse LU. */
-    public val generalSparseLu: F64GeneralSparseLu get() = selectedGeneralSparseLu
-
-    private var selectedRepeatedSparseLu: F64RepeatedSparseLu? = sparseDecompositions as? F64RepeatedSparseLu
+    public val generalSparseLu: F64GeneralSparseLu get() = roles.generalLu
 
     /** Provider selected for repeated-pattern LU, or null when none was selected. */
-    public val repeatedSparseLu: F64RepeatedSparseLu? get() = selectedRepeatedSparseLu
-
-    private var selectedSparseCholesky: F64SparseCholesky = sparseDecompositions.choleskyCapability()
+    public val repeatedSparseLu: F64RepeatedSparseLu? get() = roles.repeatedLu
 
     /** Provider selected for sparse Cholesky. */
-    public val sparseCholesky: F64SparseCholesky get() = selectedSparseCholesky
-
-    private var selectedQuasiDefiniteLdl: F64QuasiDefiniteLdl = sparseDecompositions.quasiDefiniteLdlCapability()
+    public val sparseCholesky: F64SparseCholesky get() = roles.cholesky
 
     /** Provider selected for sparse quasi-definite, numerically unpivoted `L * D * L^T`. */
-    public val quasiDefiniteLdl: F64QuasiDefiniteLdl get() = selectedQuasiDefiniteLdl
-
-    private var selectedSparseQr: F64SparseQr = sparseDecompositions.qrCapability()
+    public val quasiDefiniteLdl: F64QuasiDefiniteLdl get() = roles.quasiDefiniteLdl
 
     /** Provider selected for sparse QR. */
-    public val sparseQr: F64SparseQr get() = selectedSparseQr
+    public val sparseQr: F64SparseQr get() = roles.qr
+
+    /** Provider selected for basis factorizations with column replacement. */
+    public val basisFactorizations: F64BasisFactorizations get() = roles.basisFactorizations
 
     /** A compatibility operation surface derived from the four selected sparse factorization providers. */
     public val sparseDecompositions: F64SparseDecompositions by lazy {
         F64SparseDecompositionRoles(generalSparseLu, sparseCholesky, quasiDefiniteLdl, sparseQr)
     }
 
-    private var selectedBasisFactorizations: F64BasisFactorizations =
-        (sparseDecompositions as? F64BasisFactorizations) ?: com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
-
-    /** Provider selected for basis factorizations with column replacement. */
-    public val basisFactorizations: F64BasisFactorizations get() = selectedBasisFactorizations
-
-    @Suppress("LongParameterList") // the seven backend roles plus their execution policy
+    @Suppress("LongParameterList") // the seven backend halves, the resolved roles, and the execution policy
     internal constructor(
         kernels: F64Kernels,
         blas: F64Blas,
@@ -112,27 +126,23 @@ public class F64Context(
         sparseBlas: F64SparseBlas,
         sparseDecompositions: F64SparseDecompositions,
         basisSolvers: F64BasisSolvers,
+        roles: SparseRoles,
         dispatchPolicy: F64DispatchPolicy,
         fallbackPolicy: F64FallbackPolicy,
         fallbackWarning: (BackendRoute) -> Unit,
-        generalSparseLu: F64GeneralSparseLu = sparseDecompositions.generalLuCapability(),
-        repeatedSparseLu: F64RepeatedSparseLu? = sparseDecompositions as? F64RepeatedSparseLu,
-        sparseCholesky: F64SparseCholesky = sparseDecompositions.choleskyCapability(),
-        quasiDefiniteLdl: F64QuasiDefiniteLdl = sparseDecompositions.quasiDefiniteLdlCapability(),
-        sparseQr: F64SparseQr = sparseDecompositions.qrCapability(),
-        basisFactorizations: F64BasisFactorizations =
-            (sparseDecompositions as? F64BasisFactorizations)
-                ?: com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra,
-    ) : this(kernels, blas, decompositions, sparseKernels, sparseBlas, sparseDecompositions, basisSolvers) {
+    ) : this(
+        kernels,
+        blas,
+        decompositions,
+        sparseKernels,
+        sparseBlas,
+        sparseDecompositions,
+        basisSolvers,
+        roles,
+    ) {
         this.dispatchPolicy = dispatchPolicy
         this.fallbackPolicy = fallbackPolicy
         this.fallbackWarning = fallbackWarning
-        selectedGeneralSparseLu = generalSparseLu
-        selectedRepeatedSparseLu = repeatedSparseLu
-        selectedSparseCholesky = sparseCholesky
-        selectedQuasiDefiniteLdl = quasiDefiniteLdl
-        selectedSparseQr = sparseQr
-        selectedBasisFactorizations = basisFactorizations
     }
 
     /**
@@ -164,49 +174,24 @@ public class F64Context(
         sparseBlas: F64SparseBlas = this.sparseBlas,
         sparseDecompositions: F64SparseDecompositions = this.sparseDecompositions,
         basisSolvers: F64BasisSolvers = this.basisSolvers,
-    ): F64Context = F64Context(
-        kernels = kernels,
-        blas = blas,
-        decompositions = decompositions,
-        sparseKernels = sparseKernels,
-        sparseBlas = sparseBlas,
-        sparseDecompositions = sparseDecompositions,
-        basisSolvers = basisSolvers,
-        dispatchPolicy = dispatchPolicy,
-        fallbackPolicy = fallbackPolicy,
-        fallbackWarning = fallbackWarning,
-        generalSparseLu = if (sparseDecompositions === this.sparseDecompositions) {
-            generalSparseLu
-        } else {
-            sparseDecompositions.generalLuCapability()
-        },
-        repeatedSparseLu = if (sparseDecompositions === this.sparseDecompositions) {
-            repeatedSparseLu
-        } else {
-            sparseDecompositions as? F64RepeatedSparseLu
-        },
-        sparseCholesky = if (sparseDecompositions === this.sparseDecompositions) {
-            sparseCholesky
-        } else {
-            sparseDecompositions.choleskyCapability()
-        },
-        quasiDefiniteLdl = if (sparseDecompositions === this.sparseDecompositions) {
-            quasiDefiniteLdl
-        } else {
-            sparseDecompositions.quasiDefiniteLdlCapability()
-        },
-        sparseQr = if (sparseDecompositions === this.sparseDecompositions) {
-            sparseQr
-        } else {
-            sparseDecompositions.qrCapability()
-        },
-        basisFactorizations = if (sparseDecompositions === this.sparseDecompositions) {
-            basisFactorizations
-        } else {
-            (sparseDecompositions as? F64BasisFactorizations)
-                ?: com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
-        },
-    )
+    ): F64Context {
+        // A composition this context did not derive its own roles from is one to derive them from again.
+        val selected =
+            if (sparseDecompositions === this.sparseDecompositions) roles else SparseRoles(sparseDecompositions)
+        return F64Context(
+            kernels = kernels,
+            blas = blas,
+            decompositions = decompositions,
+            sparseKernels = sparseKernels,
+            sparseBlas = sparseBlas,
+            sparseDecompositions = sparseDecompositions,
+            basisSolvers = basisSolvers,
+            dispatchPolicy = dispatchPolicy,
+            fallbackPolicy = fallbackPolicy,
+            fallbackWarning = fallbackWarning,
+            roles = selected,
+        )
+    }
 
     override fun gemv(
         alpha: Double,
@@ -472,6 +457,34 @@ public class F64Context(
     }
 
     override fun toString(): String = "F64Context($name)"
+}
+
+/**
+ * The six sparse factorization providers a context selects, held together because they are selected
+ * together. Derived once, at whichever constructor the context came in through: the internal one is handed
+ * roles its caller resolved from the registry or a builder, and the public one is handed a composition to
+ * read them out of.
+ *
+ * This is the representation, and [F64Context.sparseDecompositions] is a compatibility surface derived from
+ * it. The reverse, reading roles back out of a composition, is what the `*Capability` readers below are for,
+ * and they run only where a caller hands in a composition rather than roles.
+ */
+internal class SparseRoles(
+    val generalLu: F64GeneralSparseLu,
+    val repeatedLu: F64RepeatedSparseLu?,
+    val cholesky: F64SparseCholesky,
+    val quasiDefiniteLdl: F64QuasiDefiniteLdl,
+    val qr: F64SparseQr,
+    val basisFactorizations: F64BasisFactorizations,
+) {
+    constructor(composition: F64SparseDecompositions) : this(
+        generalLu = composition.generalLuCapability(),
+        repeatedLu = composition as? F64RepeatedSparseLu,
+        cholesky = composition.choleskyCapability(),
+        quasiDefiniteLdl = composition.quasiDefiniteLdlCapability(),
+        qr = composition.qrCapability(),
+        basisFactorizations = (composition as? F64BasisFactorizations) ?: F64ReferenceSparseLinearAlgebra,
+    )
 }
 
 private fun F64SparseDecompositions.generalLuCapability(): F64GeneralSparseLu =
