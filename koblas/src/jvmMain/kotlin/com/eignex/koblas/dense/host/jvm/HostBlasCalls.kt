@@ -48,9 +48,10 @@ internal class HostBlasCalls(internal val config: HostBlasConfig) {
         "cblas_dtrmv", "cblas_dtrsm", "cblas_dtrsv",
     )
 
-    /** The same for LAPACKE, less `LAPACKE_dgeqp3`, which [optionalHandle] already lets a host omit. */
+    /** The same for LAPACKE, whose whole set is required for the same reason. */
     private val requiredLapacke = listOf(
         "LAPACKE_dgecon",
+        "LAPACKE_dgeqp3",
         "LAPACKE_dgeqrf",
         "LAPACKE_dgetrf",
         "LAPACKE_dgetri",
@@ -59,6 +60,7 @@ internal class HostBlasCalls(internal val config: HostBlasConfig) {
         "LAPACKE_dpotri",
         "LAPACKE_dsytrf",
         "LAPACKE_dsytrs",
+        "LAPACKE_dtpqrt",
         "LAPACKE_dtrtri",
     )
 
@@ -126,10 +128,6 @@ internal class HostBlasCalls(internal val config: HostBlasConfig) {
     }
 
     private fun handle(name: String, descriptor: FunctionDescriptor): MethodHandle = library.handle(name, descriptor)
-
-    /** Looked up the same way as [handle] but tolerating absence, for a routine koblas can do without. */
-    private fun optionalHandle(name: String, descriptor: FunctionDescriptor): MethodHandle? =
-        library.handleOrNull(name, descriptor)
 
     // Enum arguments are int, their C ABI, and lapack_int is 32-bit, matching the default (non-INTERFACE64)
     // OpenBLAS build.
@@ -299,15 +297,21 @@ internal class HostBlasCalls(internal val config: HostBlasConfig) {
         handle("LAPACKE_dgeqrf", intOf(JAVA_INT, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS))
     }
 
-    /**
-     * int LAPACKE_dgeqp3(int layout, int m, int n, double* a, int lda, int* jpvt, double* tau)
-     *
-     * Optional, so a LAPACKE without it keeps the rest of the half rather than failing every call that
-     * reaches it. The pivoted QR is the only routine that needs it and koblas has a portable one, which is
-     * how the native binding treats it too.
-     */
-    val dgeqp3: MethodHandle? by lazy {
-        optionalHandle("LAPACKE_dgeqp3", intOf(JAVA_INT, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, ADDRESS))
+    // int LAPACKE_dgeqp3(int layout, int m, int n, double* a, int lda, int* jpvt, double* tau)
+    val dgeqp3: MethodHandle by lazy {
+        handle("LAPACKE_dgeqp3", intOf(JAVA_INT, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, ADDRESS))
+    }
+
+    // int LAPACKE_dtpqrt(int layout, int m, int n, int l, int nb, double* a, int lda, double* b, int ldb,
+    // double* t, int ldt)
+    val dtpqrt: MethodHandle by lazy {
+        handle(
+            "LAPACKE_dtpqrt",
+            intOf(
+                JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT, JAVA_INT,
+                ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, JAVA_INT,
+            ),
+        )
     }
 
     val dormqr: MethodHandle by lazy {

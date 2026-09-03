@@ -42,6 +42,25 @@ internal class JvmLapackeCalls(private val calls: HostBlasCalls) : LapackeCalls 
     override fun dpotrf(order: Int, uplo: Byte, n: Int, a: DoubleArray, lda: Int): Int =
         calls.dpotrf.invokeExact(order, uplo, n, seg(a), lda) as Int
 
+    override fun dgeqp3(order: Int, m: Int, n: Int, a: DoubleArray, lda: Int, jpvt: IntArray, tau: DoubleArray): Int =
+        calls.dgeqp3.invokeExact(order, m, n, seg(a), lda, seg(jpvt), seg(tau)) as Int
+
+    override fun dtpqrt(
+        order: Int,
+        m: Int,
+        n: Int,
+        l: Int,
+        nb: Int,
+        a: DoubleArray,
+        lda: Int,
+        b: DoubleArray,
+        ldb: Int,
+        t: DoubleArray,
+        ldt: Int,
+    ): Int = calls.dtpqrt.invokeExact(
+        order, m, n, l, nb, seg(a), lda, seg(b), ldb, seg(t), ldt,
+    ) as Int
+
     override fun dgetri(order: Int, n: Int, a: DoubleArray, lda: Int, ipiv: IntArray): Int =
         calls.dgetri.invokeExact(order, n, seg(a), lda, seg(ipiv)) as Int
 

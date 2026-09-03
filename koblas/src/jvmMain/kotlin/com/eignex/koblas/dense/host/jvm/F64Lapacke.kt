@@ -3,7 +3,6 @@ package com.eignex.koblas.dense.host.jvm
 import com.eignex.koblas.BackendMetadata
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.dense.host.F64DecompositionsAdapter
-import com.eignex.koblas.dense.host.cblas.Cblas.COL_MAJOR
 import com.eignex.koblas.dense.host.cblas.HostBlasConfig
 import com.eignex.koblas.dense.host.cblas.metadataOptions
 import com.eignex.koblas.internal.backend.BackendNames
@@ -29,17 +28,4 @@ public class F64Lapacke internal constructor(private val calls: HostBlasCalls, c
 
     /** LAPACKE resolves separately from CBLAS, either inside OpenBLAS or as its own library. */
     override val isAvailable: Boolean get() = calls.lapackAvailable
-
-    override fun dgeqp3(m: Int, n: Int, a: DoubleArray, jpvt: IntArray, tau: DoubleArray): Int? {
-        val dgeqp3 = calls.dgeqp3 ?: return null
-        return dgeqp3.invokeExact(
-            COL_MAJOR,
-            m,
-            n,
-            java.lang.foreign.MemorySegment.ofArray(a),
-            m,
-            java.lang.foreign.MemorySegment.ofArray(jpvt),
-            java.lang.foreign.MemorySegment.ofArray(tau),
-        ) as Int
-    }
 }
