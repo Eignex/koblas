@@ -20,6 +20,19 @@ class OpsTest {
     private fun sparse(size: Int, vararg pairs: Pair<Int, Double>) =
         F64SparseVector.of(size, pairs.map { it.first }.toIntArray(), pairs.map { it.second }.toDoubleArray())
 
+    /** A foreign matrix, so the product reaches the indexed fallback rather than dense or CSC storage. */
+    private class Spd(override val rows: Int) : F64MatrixLike {
+        override val cols: Int get() = rows
+        override fun get(i: Int, j: Int): Double = if (i == j) rows + 2.0 else 1.0 / (1 + i + j)
+        override fun toArray(): Array<DoubleArray> = Array(rows) { i -> DoubleArray(cols) { j -> this[i, j] } }
+    }
+
+    /** A foreign vector storage, which no fast path may special-case. */
+    private class Ramp(override val size: Int) : F64VectorLike {
+        override fun get(i: Int): Double = i * 0.5 - 1.0
+        override fun toDoubleArray(): DoubleArray = DoubleArray(size) { this[it] }
+    }
+
     @Test
     fun `dot is symmetric and sparsity-agnostic`() {
         val a = dense(1.0, 2.0, 3.0, 4.0)
@@ -174,6 +187,135 @@ class OpsTest {
         for (i in nz) xv[i] = rng.nextDouble(-1.0, 1.0)
         val xSparse = F64SparseVector.of(n, nz.toIntArray(), nz.map { xv[it] }.toDoubleArray())
         assertClose((A * F64DenseVector.of(xv)).data, (A * xSparse).data, "matrix vector dense vs sparse")
+    }
+
+    @Test
+    fun `gemvInto agrees with the allocating product over every storage pairing`() {
+        val rng = Random(11)
+        val n = 6
+        val dense = randomMatrix(n, n, rng)
+        val sparseMatrix = F64SparseMatrix.ofTriplets(
+            rows = n,
+            cols = n,
+            rowIdx = IntArray(n) { it },
+            colIdx = IntArray(n) { it },
+            values = DoubleArray(n) { it + 1.0 },
+        )
+        val values = randomVector(n, rng)
+        val xs = listOf<F64VectorLike>(
+            F64DenseVector.of(values),
+            F64SparseVector.of(n, intArrayOf(1, 4), doubleArrayOf(values[1], values[4])),
+            F64StridedVectorView(DoubleArray(2 * n) { values[it / 2] }, 0, n, 2),
+            Ramp(n),
+        )
+        for (A in listOf<F64MatrixLike>(dense, sparseMatrix, Spd(n))) {
+            for (x in xs) {
+                val out = DoubleArray(n)
+                A.gemvInto(x, out)
+                assertClose((A * x).data, out, "gemvInto ${A::class.simpleName} ${x::class.simpleName}")
+            }
+        }
+    }
+
+    @Test
+    fun `gemvInto applies alpha and beta like dgemv`() {
+        val A = F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
+        val xs = listOf<F64VectorLike>(dense(1.0, -1.0), sparse(2, 0 to 1.0, 1 to -1.0))
+        for (x in xs) {
+            val context = x::class.simpleName
+            // beta == 0 must overwrite rather than accumulate, so a poisoned destination stays clean.
+            val fresh = doubleArrayOf(Double.NaN, Double.NaN)
+            A.gemvInto(2.0, x, 0.0, fresh)
+            assertClose(doubleArrayOf(-2.0, -2.0), fresh, "alpha scaled, beta zero, $context")
+
+            val accumulated = doubleArrayOf(1.0, 1.0)
+            A.gemvInto(1.0, x, 2.0, accumulated)
+            assertClose(doubleArrayOf(1.0, 1.0), accumulated, "alpha one, beta two, $context")
+
+            val scaledOnly = doubleArrayOf(1.0, -2.0)
+            A.gemvInto(0.0, x, 3.0, scaledOnly)
+            assertClose(doubleArrayOf(3.0, -6.0), scaledOnly, "alpha zero leaves beta y, $context")
+        }
+    }
+
+    @Test
+    fun `symvInto reads only the selected triangle`() {
+        val n = 5
+        val rng = Random(13)
+        val full = randomMatrix(n, n, rng)
+        for (j in 0 until n) for (i in 0 until j) full[i, j] = full[j, i]
+        val values = randomVector(n, rng)
+        val xs = listOf<F64VectorLike>(
+            F64DenseVector.of(values),
+            F64SparseVector.of(n, intArrayOf(0, 3), doubleArrayOf(values[0], values[3])),
+        )
+        for (lower in listOf(true, false)) {
+            // Only the named triangle may be read, so the other one holds NaN: any read poisons the result.
+            val poisoned = F64DenseMatrix.wrap(n, n, full.data.copyOf())
+            for (j in 0 until n) {
+                for (i in 0 until n) {
+                    val unread = if (lower) i < j else i > j
+                    if (unread) poisoned[i, j] = Double.NaN
+                }
+            }
+            for (x in xs) {
+                val out = DoubleArray(n)
+                poisoned.symvInto(x, out, lower)
+                assertClose((full * x).data, out, "symvInto lower=$lower ${x::class.simpleName}")
+            }
+        }
+    }
+
+    @Test
+    fun `symvInto applies alpha and beta like dsymv`() {
+        val A = F64DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0)))
+        for (x in listOf<F64VectorLike>(dense(1.0, -1.0), sparse(2, 0 to 1.0, 1 to -1.0))) {
+            val context = x::class.simpleName
+            val fresh = doubleArrayOf(Double.NaN, Double.NaN)
+            A.symvInto(2.0, x, 0.0, fresh)
+            assertClose(doubleArrayOf(2.0, -4.0), fresh, "alpha scaled, beta zero, $context")
+
+            val accumulated = doubleArrayOf(1.0, 1.0)
+            A.symvInto(1.0, x, 2.0, accumulated)
+            assertClose(doubleArrayOf(3.0, 0.0), accumulated, "alpha one, beta two, $context")
+
+            val scaledOnly = doubleArrayOf(1.0, -2.0)
+            A.symvInto(0.0, x, 3.0, scaledOnly)
+            assertClose(doubleArrayOf(3.0, -6.0), scaledOnly, "alpha zero leaves beta y, $context")
+        }
+    }
+
+    @Test
+    fun `symvInto over one triangle agrees with the full ger sweep`() {
+        // The point of the routine: a caller can keep its matrix with syr, which writes one triangle, and
+        // still take products against it.
+        val n = 4
+        val rng = Random(17)
+        val x = randomVector(n, rng)
+        val viaSyr = F64DenseMatrix.zero(n, n)
+        viaSyr.syr(1.5, F64DenseVector.of(x))
+        val viaGer = F64DenseMatrix.zero(n, n)
+        viaGer.ger(1.5, F64DenseVector.of(x), F64DenseVector.of(x))
+        val probe = randomVector(n, rng)
+        val fromSyr = DoubleArray(n)
+        viaSyr.symvInto(F64DenseVector.of(probe), fromSyr)
+        assertClose((viaGer * F64DenseVector.of(probe)).data, fromSyr, "syr-maintained symv")
+    }
+
+    @Test
+    fun `the matvec destinations reject aliasing and mismatched shapes`() {
+        val A = F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
+        val x = dense(1.0, -1.0)
+        assertFailsWith<IllegalArgumentException> { A.gemvInto(x, x.data) }
+        assertFailsWith<IllegalArgumentException> { A.symvInto(x, x.data) }
+        val square = F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0)))
+        assertFailsWith<IllegalArgumentException> { square.gemvInto(dense(1.0), square.data) }
+        assertFailsWith<DimensionMismatch> { A.gemvInto(dense(1.0, 2.0, 3.0), DoubleArray(2)) }
+        assertFailsWith<DimensionMismatch> { A.gemvInto(x, DoubleArray(3)) }
+        assertFailsWith<DimensionMismatch> { A.symvInto(x, DoubleArray(3)) }
+        assertFailsWith<DimensionMismatch> {
+            F64DenseMatrix.zero(2, 3).symvInto(dense(1.0, 2.0, 3.0), DoubleArray(2))
+        }
     }
 
     @Test
