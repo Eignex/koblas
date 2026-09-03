@@ -3,17 +3,55 @@ package com.eignex.koblas.dense.host.jvm
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.host.*
+import com.eignex.koblas.dense.host.cblas.Cblas
 import com.eignex.koblas.dense.host.cblas.HostBlasConfig
 import com.eignex.koblas.dense.host.cblas.OPENBLAS_SONAMES
 import com.eignex.koblas.internal.host.FfmLibrary
 import com.eignex.koblas.testutil.host.HostLibraryTest
 import org.junit.Assume
 import org.junit.experimental.categories.Category
+import java.lang.foreign.MemorySegment
+import kotlin.math.abs
+import kotlin.math.sqrt
 import kotlin.random.Random
 import kotlin.test.*
 
 @Category(HostLibraryTest::class)
 class HostBlasConformanceTest {
+
+    /**
+     * A FunctionDescriptor that does not match the ABI fails on the first invocation and nowhere earlier,
+     * and this binding has no caller until the Cholesky rank update reaches for it. So it is exercised
+     * here on the smallest case with a known answer: the QR of `[2; 1]`, whose `R` is `sqrt(5)`.
+     *
+     * A host LAPACKE without the symbol leaves the whole half portable, so [HostLibraries.lapacke] is the
+     * only condition this needs.
+     */
+    @Test
+    fun `the dtpqrt binding matches its ABI on a one by one triangle`() {
+        Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
+        val dtpqrt = HostBlasCalls(HostBlasConfig()).dtpqrt
+        val a = doubleArrayOf(2.0)
+        val b = doubleArrayOf(1.0)
+        val t = DoubleArray(1)
+
+        val info = dtpqrt.invokeExact(
+            Cblas.COL_MAJOR,
+            1,
+            1,
+            0,
+            1,
+            MemorySegment.ofArray(a),
+            1,
+            MemorySegment.ofArray(b),
+            1,
+            MemorySegment.ofArray(t),
+            1,
+        ) as Int
+
+        assertEquals(0, info, "dtpqrt reported info $info")
+        assertEquals(sqrt(5.0), abs(a[0]), 1e-12, "the triangle should come back carrying the updated norm")
+    }
 
     @Test
     fun `the host BLAS consumes strided views in place`() {

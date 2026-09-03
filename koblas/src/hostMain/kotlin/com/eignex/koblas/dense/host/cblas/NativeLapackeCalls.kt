@@ -46,6 +46,33 @@ internal class NativeLapackeCalls(private val f: LapackeFunctions) : LapackeCall
         }
     }
 
+    override fun dgeqp3(order: Int, m: Int, n: Int, a: DoubleArray, lda: Int, jpvt: IntArray, tau: DoubleArray): Int =
+        a.usePinned { ap ->
+            jpvt.usePinned { jp ->
+                tau.usePinned { tp -> f.dgeqp3(order, m, n, ap.addressOf(0), lda, jp.addressOf(0), tp.addressOf(0)) }
+            }
+        }
+
+    override fun dtpqrt(
+        order: Int,
+        m: Int,
+        n: Int,
+        l: Int,
+        nb: Int,
+        a: DoubleArray,
+        lda: Int,
+        b: DoubleArray,
+        ldb: Int,
+        t: DoubleArray,
+        ldt: Int,
+    ): Int = a.usePinned { ap ->
+        b.usePinned { bp ->
+            t.usePinned { tp ->
+                f.dtpqrt(order, m, n, l, nb, ap.addressOf(0), lda, bp.addressOf(0), ldb, tp.addressOf(0), ldt)
+            }
+        }
+    }
+
     override fun dpotrf(order: Int, uplo: Byte, n: Int, a: DoubleArray, lda: Int): Int =
         a.usePinned { ap -> f.dpotrf(order, uplo, n, ap.addressOf(0), lda) }
 

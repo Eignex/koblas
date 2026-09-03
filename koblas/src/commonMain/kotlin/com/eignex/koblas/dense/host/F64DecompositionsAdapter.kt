@@ -143,9 +143,6 @@ public abstract class F64DecompositionsAdapter internal constructor(
         workspace: Workspace?,
     ): DoubleArray = portable.solveInto(qr, b, out, workspace)
 
-    /** Performs `dgeqp3`, or returns null when the binding does not expose it. */
-    protected open fun dgeqp3(m: Int, n: Int, a: DoubleArray, jpvt: IntArray, tau: DoubleArray): Int? = null
-
     override fun qrPivoted(a: F64DenseMatrix, tolerance: Double, workspace: Workspace?): F64PivotedQrDecomposition {
         requireRankTolerance(tolerance)
         if (a.rows == 0 || a.cols == 0) return portable.qrPivoted(a, tolerance, workspace)
@@ -154,7 +151,7 @@ public abstract class F64DecompositionsAdapter internal constructor(
         val buf = a.data.copyOf()
         val tau = DoubleArray(minOf(m, n))
         val jpvt = IntArray(n)
-        val info = dgeqp3(m, n, buf, jpvt, tau) ?: return portable.qrPivoted(a, tolerance, workspace)
+        val info = f.dgeqp3(COL_MAJOR, m, n, buf, m, jpvt, tau)
         check(info == 0) { "dgeqp3: illegal argument ${-info}" }
         val pivots = IntArray(n) { jpvt[it] - 1 }
         val rank = rankOfPivotedR(buf, m, n, minOf(m, n), tolerance)
