@@ -132,8 +132,10 @@ class CblasConformanceTest {
     fun `installed level-1 kernels agree with the scalar ones`() = assertLevel1KernelsAgreeWithScalar(F64CblasKernels())
 
     @Test
-    fun `installed modified Givens kernels agree with the portable ones`() =
+    fun `installed modified Givens kernels agree with the portable ones`() {
         assertModifiedGivensKernelsAgreeWithPortable(F64CblasKernels())
+        assertRotKernelAgreesWithPortable(F64CblasKernels())
+    }
 
     @Test
     fun `the routed reductions agree with the built-in ones`() = assertReductionsAgreeWithScalar(

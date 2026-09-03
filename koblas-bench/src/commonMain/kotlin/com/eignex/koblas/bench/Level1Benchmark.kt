@@ -18,6 +18,7 @@ class Level1Benchmark {
     private lateinit var x: F64DenseVector
     private lateinit var y: F64DenseVector
     private lateinit var modifiedRotation: F64ModifiedGivens
+    private lateinit var rotation: F64Givens
 
     private lateinit var quad: DoubleArray
     private val quadOut = DoubleArray(4)
@@ -33,6 +34,9 @@ class Level1Benchmark {
         // reset, so a transformation with eigenvalues away from unit magnitude would blow x/y up to
         // Infinity/NaN partway through a trial.
         modifiedRotation = rotmg(1.0, 1.0, 1.0, NEAR_UNIT_SCALE - 1.0)
+        // Any rotation is safe to reapply without a per-call reset, unlike the modified one above: a plane
+        // rotation is orthogonal, so repeated application preserves the magnitudes it started with.
+        rotation = rotg(3.0, 4.0)
         quad = randomVector(4 * len, rng)
     }
 
@@ -75,6 +79,11 @@ class Level1Benchmark {
     @Benchmark
     fun rotmBench() {
         rotm(x, y, modifiedRotation)
+    }
+
+    @Benchmark
+    fun rotBench() {
+        rot(x, y, rotation)
     }
 
     @Benchmark

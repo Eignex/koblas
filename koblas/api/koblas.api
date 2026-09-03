@@ -1166,6 +1166,7 @@ public abstract interface class com/eignex/koblas/dense/F64Kernels : com/eignex/
 	public abstract fun dot ([DI[DII)D
 	public fun dot4 ([DII[DII[DI)V
 	public abstract fun nrm2 ([DII)D
+	public abstract fun rot ([DI[DIIDD)V
 	public abstract fun rotm ([DII[DIIILcom/eignex/koblas/F64ModifiedGivens;)V
 	public abstract fun rotmg (DDDD)Lcom/eignex/koblas/F64ModifiedGivens;
 	public abstract fun scale ([DIDI)V
@@ -1578,6 +1579,7 @@ public final class com/eignex/koblas/dense/host/jvm/F64CblasKernels : com/eignex
 	public fun isAvailable ()Z
 	public fun isPortable ()Z
 	public fun nrm2 ([DII)D
+	public fun rot ([DI[DIIDD)V
 	public fun rotm ([DII[DIIILcom/eignex/koblas/F64ModifiedGivens;)V
 	public fun rotmg (DDDD)Lcom/eignex/koblas/F64ModifiedGivens;
 	public fun scale ([DIDI)V

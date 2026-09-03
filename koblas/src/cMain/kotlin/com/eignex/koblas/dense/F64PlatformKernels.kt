@@ -82,6 +82,17 @@ internal actual object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
         }
     }
 
+    // A plane rotation is the modified Givens transformation (c, s, -s, c), so it goes to the same kernel.
+    @Suppress("LongParameterList")
+    actual override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) {
+        if (len == 0) return
+        x.usePinned { xp ->
+            y.usePinned { yp ->
+                koblas_dense_rotm(xp.addressOf(0), xOff, 1, yp.addressOf(0), yOff, 1, len, c, s, -s, c)
+            }
+        }
+    }
+
     actual override fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double = if (len == 0) {
         0.0
     } else {

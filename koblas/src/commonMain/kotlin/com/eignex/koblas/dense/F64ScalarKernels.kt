@@ -3,6 +3,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.F64ModifiedGivens
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.numeric.*
+import com.eignex.koblas.portableRot
 import com.eignex.koblas.portableRotm
 import com.eignex.koblas.portableRotmg
 
@@ -47,6 +48,10 @@ internal object F64ScalarKernels : F64Kernels, F64ArithmeticKernels {
         len: Int,
         transformation: F64ModifiedGivens,
     ) = portableRotm(x, xOff, xStride, y, yOff, yStride, len, transformation)
+
+    @Suppress("LongParameterList")
+    override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) =
+        portableRot(x, xOff, y, yOff, len, c, s)
 
     @Suppress("LongParameterList")
     override fun dot4(
