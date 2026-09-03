@@ -5,6 +5,7 @@ import com.eignex.koblas.applyModifiedGivens
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.kernels.JvmCKernelBindings
 import com.eignex.koblas.internal.numeric.*
+import com.eignex.koblas.portableRotmg
 import kotlin.math.sqrt
 
 /** The bundled C kernels without automatic SIMD selection. */
@@ -17,6 +18,14 @@ internal object F64CKernels : F64Kernels, F64ArithmeticKernels {
 
     override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
         JvmCKernelBindings.denseDot(a, aOff, b, bOff, len)
+
+    override fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
+        JvmCKernelBindings.denseSsqd(a, aOff, b, bOff, len)
+
+    // No CBLAS or C routine generates the modified Givens transformation, so the portable one is the
+    // implementation rather than a fallback.
+    override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64ModifiedGivens =
+        portableRotmg(d1, d2, x1, y1)
 
     override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) =
         JvmCKernelBindings.denseAxpy(y, yOff, alpha, x, xOff, len)
@@ -89,6 +98,17 @@ internal object F64SimdKernels : F64Kernels, F64ArithmeticKernels {
     override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
         if (vectorizes(len)) Simd.dot(a, aOff, b, bOff, len) else scalarDot(a, aOff, b, bOff, len)
 
+    override fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double = if (vectorizes(len)) {
+        Simd.ssqd(a, aOff, b, bOff, len)
+    } else {
+        scalarSsqd(a, aOff, b, bOff, len)
+    }
+
+    // No CBLAS or C routine generates the modified Givens transformation, so the portable one is the
+    // implementation rather than a fallback.
+    override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64ModifiedGivens =
+        portableRotmg(d1, d2, x1, y1)
+
     override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
         if (vectorizes(len)) Simd.axpy(y, yOff, alpha, x, xOff, len) else scalarAxpy(y, yOff, alpha, x, xOff, len)
     }
@@ -117,7 +137,7 @@ internal object F64SimdKernels : F64Kernels, F64ArithmeticKernels {
         if (vectorizes(len)) Simd.asum(v, vOff, len) else absoluteSum(v, vOff, len)
 
     override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) {
-        if (vectorizes(len)) Simd.swap(a, aOff, b, bOff, len) else super.swap(a, aOff, b, bOff, len)
+        if (vectorizes(len)) Simd.swap(a, aOff, b, bOff, len) else scalarSwap(a, aOff, b, bOff, len)
     }
 
     @Suppress("LongParameterList")

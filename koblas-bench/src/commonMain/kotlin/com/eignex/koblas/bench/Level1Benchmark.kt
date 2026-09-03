@@ -40,6 +40,9 @@ class Level1Benchmark {
     fun dot(): Double = x dot y
 
     @Benchmark
+    fun ssqd(): Double = koblas.kernels.ssqd(x.data, 0, y.data, 0, len)
+
+    @Benchmark
     fun axpyBench() {
         y.axpy(NEAR_UNIT_SCALE, x)
     }

@@ -1166,10 +1166,11 @@ public abstract interface class com/eignex/koblas/dense/F64Kernels : com/eignex/
 	public abstract fun dot ([DI[DII)D
 	public fun dot4 ([DII[DII[DI)V
 	public abstract fun nrm2 ([DII)D
-	public fun rotm ([DII[DIIILcom/eignex/koblas/F64ModifiedGivens;)V
-	public fun rotmg (DDDD)Lcom/eignex/koblas/F64ModifiedGivens;
+	public abstract fun rotm ([DII[DIIILcom/eignex/koblas/F64ModifiedGivens;)V
+	public abstract fun rotmg (DDDD)Lcom/eignex/koblas/F64ModifiedGivens;
 	public abstract fun scale ([DIDI)V
-	public fun swap ([DI[DII)V
+	public abstract fun ssqd ([DI[DII)D
+	public abstract fun swap ([DI[DII)V
 }
 
 public final class com/eignex/koblas/dense/F64Kernels$DefaultImpls {
@@ -1177,9 +1178,6 @@ public final class com/eignex/koblas/dense/F64Kernels$DefaultImpls {
 	public static fun getPriority (Lcom/eignex/koblas/dense/F64Kernels;)I
 	public static fun isAvailable (Lcom/eignex/koblas/dense/F64Kernels;)Z
 	public static fun isPortable (Lcom/eignex/koblas/dense/F64Kernels;)Z
-	public static fun rotm (Lcom/eignex/koblas/dense/F64Kernels;[DII[DIIILcom/eignex/koblas/F64ModifiedGivens;)V
-	public static fun rotmg (Lcom/eignex/koblas/dense/F64Kernels;DDDD)Lcom/eignex/koblas/F64ModifiedGivens;
-	public static fun swap (Lcom/eignex/koblas/dense/F64Kernels;[DI[DII)V
 }
 
 public abstract interface class com/eignex/koblas/dense/F64LinearAlgebra : com/eignex/koblas/dense/F64Blas, com/eignex/koblas/dense/F64Decompositions {
@@ -1583,6 +1581,7 @@ public final class com/eignex/koblas/dense/host/jvm/F64CblasKernels : com/eignex
 	public fun rotm ([DII[DIIILcom/eignex/koblas/F64ModifiedGivens;)V
 	public fun rotmg (DDDD)Lcom/eignex/koblas/F64ModifiedGivens;
 	public fun scale ([DIDI)V
+	public fun ssqd ([DI[DII)D
 	public fun swap ([DI[DII)V
 }
 

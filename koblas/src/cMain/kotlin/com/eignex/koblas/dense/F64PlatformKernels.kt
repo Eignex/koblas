@@ -82,7 +82,17 @@ internal actual object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
         }
     }
 
-    override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) {
+    actual override fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double = if (len == 0) {
+        0.0
+    } else {
+        a.usePinned { ap ->
+            b.usePinned { bp ->
+                koblas_dense_ssqd(ap.addressOf(0), aOff, bp.addressOf(0), bOff, len)
+            }
+        }
+    }
+
+    actual override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) {
         if (len == 0) return
         a.usePinned { ap ->
             b.usePinned { bp -> koblas_dense_swap(ap.addressOf(0), aOff, bp.addressOf(0), bOff, len) }

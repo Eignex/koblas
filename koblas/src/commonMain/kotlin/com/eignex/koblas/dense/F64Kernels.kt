@@ -2,8 +2,6 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.Backend
 import com.eignex.koblas.F64ModifiedGivens
-import com.eignex.koblas.portableRotm
-import com.eignex.koblas.portableRotmg
 
 /**
  * The vector-vector routines as a backend half, alongside [F64Blas] and [F64Decompositions]. Implementations must
@@ -38,7 +36,7 @@ public interface F64Kernels : Backend {
     public fun asum(v: DoubleArray, vOff: Int, len: Int): Double
 
     /** Construct a modified Givens transformation (BLAS `drotmg`). */
-    public fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64ModifiedGivens = portableRotmg(d1, d2, x1, y1)
+    public fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64ModifiedGivens
 
     /**
      * Apply a modified Givens [transformation] (BLAS `drotm`) to [len] entries with independent offsets
@@ -55,26 +53,20 @@ public interface F64Kernels : Backend {
         yStride: Int,
         len: Int,
         transformation: F64ModifiedGivens,
-    ) {
-        portableRotm(x, xOff, xStride, y, yOff, yStride, len, transformation)
-    }
+    )
 
     /**
      * Exchange the two runs (BLAS `dswap`). Two loads and two stores an element, so an implementation is
-     * bound by memory rather than by issue rate; the default is the plain loop for that reason.
+     * bound by memory rather than by issue rate, and a leaf with nothing better says so by calling the
+     * portable loop itself.
      */
-    public fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) {
-        for (i in 0 until len) {
-            val t = a[aOff + i]
-            a[aOff + i] = b[bOff + i]
-            b[bOff + i] = t
-        }
-    }
+    public fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int)
 
     /**
      * Four dots against a shared right operand. For r in 0..3, out(outOff + r) is the dot of the run at
-     * aOff + r * stride with the run at bOff. Defaults to four [dot] calls, so an implementation that can
-     * read the shared operand once for all four should override it.
+     * aOff + r * stride with the run at bOff. Defaults to four [dot] calls, which is the one default here
+     * that costs nothing: each of the four reaches the same accelerated kernel a caller would have used.
+     * An implementation that can read the shared operand once for all four should still override it.
      */
     @Suppress("LongParameterList") // four column offsets plus the shared operand
     public fun dot4(
@@ -89,6 +81,20 @@ public interface F64Kernels : Backend {
     ) {
         for (r in 0 until 4) out[outOff + r] = dot(a, aOff + r * stride, b, bOff, len)
     }
+
+    /**
+     * Sum of squares of the differences, `sum (a(aOff + i) - b(bOff + i))^2`, in one pass over both runs;
+     * `0` for an empty run. This is the squared euclidean distance between them.
+     *
+     * Not a BLAS routine, and not a rescaling one either: unlike [nrm2] this overflows once a difference
+     * squares past the double range, which is what buys the single pass. It is also not `a.a - 2a.b + b.b`,
+     * whose cancellation ruins exactly the small distances a nearest-neighbour search compares.
+     *
+     * The load pattern is [dot]'s with one subtract fused in, which is where an implementation with vector
+     * units earns its keep. No BLAS library has this routine, so a leaf backed by one implements it over
+     * whichever kernels it does have rather than inheriting anything.
+     */
+    public fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double
 }
 
 /** Internal vector leaf for parent routines whose arithmetic does not have DAXPY's zero-scalar return. */
@@ -115,6 +121,10 @@ internal expect object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
     override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double
 
     override fun asum(v: DoubleArray, vOff: Int, len: Int): Double
+
+    override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int)
+
+    override fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double
 
     override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64ModifiedGivens
 
@@ -241,4 +251,9 @@ internal class F64RoutedKernels(internal val host: F64Kernels?) :
 
     override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) =
         selected(len, SWAP_HOST_CROSSOVER).swap(a, aOff, b, bOff, len)
+
+    /** Not routed, as [dot4] is not: no host BLAS fuses a squared distance, so this always runs the
+     *  compiled-in kernels. */
+    override fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
+        F64PlatformKernels.ssqd(a, aOff, b, bOff, len)
 }

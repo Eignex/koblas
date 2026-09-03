@@ -40,6 +40,7 @@ class KernelsTest {
         var nrm2s = 0
         var asums = 0
         var swaps = 0
+        var ssqds = 0
         var rotmgs = 0
         var rotms = 0
 
@@ -66,9 +67,19 @@ class KernelsTest {
             return s
         }
 
+        override fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
+            ssqds++
+            var s = 0.0
+            for (i in 0 until len) {
+                val d = a[aOff + i] - b[bOff + i]
+                s += d * d
+            }
+            return s
+        }
+
         override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64ModifiedGivens {
             rotmgs++
-            return super.rotmg(d1, d2, x1, y1)
+            return portableRotmg(d1, d2, x1, y1)
         }
 
         @Suppress("LongParameterList")
@@ -83,7 +94,7 @@ class KernelsTest {
             transformation: F64ModifiedGivens,
         ) {
             rotms++
-            super.rotm(x, xOff, xStride, y, yOff, yStride, len, transformation)
+            portableRotm(x, xOff, xStride, y, yOff, yStride, len, transformation)
         }
     }
 
@@ -410,6 +421,35 @@ class KernelsTest {
     @Test
     fun `the compiled-in level-1 kernels agree with the scalar loops`() =
         assertLevel1KernelsAgreeWithScalar(F64PlatformKernels)
+
+    @Test
+    fun `ssqd stays exact where the expanded form cancels`() {
+        // The identity sum(a - b)^2 == a.a - 2a.b + b.b holds in exact arithmetic and not in doubles: at
+        // this magnitude the three dots agree to fewer digits than the answer has, so an implementation
+        // that took the shortcut cannot return 1.0 here.
+        val a = doubleArrayOf(1e8, 1e8, 1e8)
+        val b = doubleArrayOf(1e8 + 1.0, 1e8, 1e8)
+        val expanded = F64PlatformKernels.dot(a, 0, a, 0, 3) -
+            2.0 * F64PlatformKernels.dot(a, 0, b, 0, 3) +
+            F64PlatformKernels.dot(b, 0, b, 0, 3)
+        assertEquals(1.0, F64PlatformKernels.ssqd(a, 0, b, 0, 3), "fused")
+        assertTrue(abs(expanded - 1.0) > 1e-3, "the expanded form should be the inexact one here: $expanded")
+    }
+
+    @Test
+    fun `ssqd is symmetric and zero on equal or empty runs`() {
+        val rng = Random(20260903)
+        for (len in intArrayOf(0, 1, 5, 64, 130)) {
+            val a = DoubleArray(len) { rng.nextDouble(-1.0, 1.0) }
+            val b = DoubleArray(len) { rng.nextDouble(-1.0, 1.0) }
+            assertEquals(
+                F64PlatformKernels.ssqd(a, 0, b, 0, len),
+                F64PlatformKernels.ssqd(b, 0, a, 0, len),
+                "symmetry len=$len",
+            )
+            assertEquals(0.0, F64PlatformKernels.ssqd(a, 0, a, 0, len), "equal runs len=$len")
+        }
+    }
 
     @Test
     fun `the compiled-in reductions agree with the scalar loops`() = assertReductionsAgreeWithScalar(F64PlatformKernels)
