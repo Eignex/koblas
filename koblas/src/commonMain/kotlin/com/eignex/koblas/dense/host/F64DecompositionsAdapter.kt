@@ -407,6 +407,20 @@ public abstract class F64DecompositionsAdapter internal constructor(
     }
 
     /**
+     * LAPACK reaches a rank-1 update through the QR of the factor with the row appended, which `dtpqrt`
+     * computes, but getting there needs the factor transposed into upper triangular form and back, and the
+     * Householder result needs its diagonal signs normalised before it is comparable. The portable sweep is
+     * already one rotation per column with a kernel call for each trailing run, and no measurement says the
+     * transposes earn that back, so this half runs it rather than guessing.
+     */
+    override fun choleskyRank1Update(
+        chol: F64CholeskyDecomposition,
+        v: DoubleArray,
+        sigma: Double,
+        workspace: Workspace?,
+    ): F64CholeskyDecomposition = portable.choleskyRank1Update(chol, v, sigma, workspace)
+
+    /**
      * dpotri writes only the triangle it is given, so the result is mirrored, and it overwrites the factor,
      * so the factor is copied first.
      */

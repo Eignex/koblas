@@ -185,6 +185,16 @@ internal class F64ReferenceDecompositions(private val configured: F64Kernels? = 
         return inv
     }
 
+    override fun choleskyRank1Update(
+        chol: F64CholeskyDecomposition,
+        v: DoubleArray,
+        sigma: Double,
+        workspace: Workspace?,
+    ): F64CholeskyDecomposition {
+        requireRank1Update(chol, v, sigma)
+        return referenceCholeskyRank1Update(kernels, chol, v, sigma, workspace)
+    }
+
     override fun invertInto(
         chol: F64CholeskyDecomposition,
         out: F64DenseMatrix,

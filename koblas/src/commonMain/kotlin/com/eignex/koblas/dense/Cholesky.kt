@@ -50,6 +50,16 @@ public fun F64CholeskyDecomposition.solveInto(
     workspace: Workspace? = null,
 ): F64DenseMatrix = koblas.solveInto(this, b, out, workspace)
 
+/**
+ * Update this factorization in place so it factors `A + sigma * v * vT`, returning it; see
+ * [F64Decompositions.choleskyRank1Update].
+ */
+public fun F64CholeskyDecomposition.rank1Update(
+    v: DoubleArray,
+    sigma: Double = 1.0,
+    workspace: Workspace? = null,
+): F64CholeskyDecomposition = koblas.choleskyRank1Update(this, v, sigma, workspace)
+
 /** `A⁻¹` from this factorization with the active backend; see [F64Decompositions.invert]. */
 public fun F64CholeskyDecomposition.invert(workspace: Workspace? = null): F64DenseMatrix = koblas.invert(
     this,

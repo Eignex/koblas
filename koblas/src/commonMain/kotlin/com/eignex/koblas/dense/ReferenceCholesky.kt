@@ -4,6 +4,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
+import kotlin.math.hypot
 import kotlin.math.sqrt
 
 /*
@@ -76,6 +77,48 @@ internal fun referenceCholeskyInto(
         for (i in base + 1 until base + len) ld[i] = ld[i] / diag
     }
     return out
+}
+
+/**
+ * Rank-1 update of a Cholesky factor in place: `L` becomes a factor of `A + sigma * v * vT`.
+ *
+ * One Givens rotation per column, each computed from the diagonal and the working vector directly rather
+ * than through the public rotg. Two reasons: rotg returns a transformation object, which would allocate once
+ * per column, and its netlib sign convention can return a negative `r`, which flips the sign of a whole
+ * column of the factor. Taking `r` as a hypot keeps every diagonal entry positive, so two equal matrices
+ * still give factors that agree entry for entry.
+ *
+ * The trailing subcolumn is contiguous in column-major storage, so each rotation is one kernel [F64Kernels.rot]
+ * over that run against the tail of the working vector.
+ */
+internal fun referenceCholeskyRank1Update(
+    kernels: F64Kernels,
+    chol: F64CholeskyDecomposition,
+    v: DoubleArray,
+    sigma: Double,
+    workspace: Workspace?,
+): F64CholeskyDecomposition {
+    val n = chol.n
+    if (n == 0 || sigma == 0.0) return chol
+    val ld = chol.l.data
+    workspace.borrow(n) { w ->
+        // The sweep consumes the working vector, so the caller's v is copied rather than scaled in place.
+        val scale = sqrt(sigma)
+        for (i in 0 until n) w[i] = scale * v[i]
+        for (k in 0 until n) {
+            val diagonal = k + k * n
+            val wk = w[k]
+            if (wk != 0.0) {
+                val r = hypot(ld[diagonal], wk)
+                val c = ld[diagonal] / r
+                val s = wk / r
+                ld[diagonal] = r
+                val tail = n - k - 1
+                if (tail > 0) kernels.rot(ld, diagonal + 1, w, k + 1, tail, c, s)
+            }
+        }
+    }
+    return chol
 }
 
 /** Invert an SPD matrix from its Cholesky factorization, returning `A⁻¹` given [chol] (LAPACK `dpotri`). */

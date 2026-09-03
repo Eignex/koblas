@@ -17,6 +17,7 @@ class CholeskyBenchmark {
     private lateinit var a: F64DenseMatrix
     private lateinit var factor: F64CholeskyDecomposition
     private lateinit var b: DoubleArray
+    private lateinit var update: DoubleArray
 
     @Setup
     fun setup() {
@@ -25,6 +26,7 @@ class CholeskyBenchmark {
         a = spdMatrix(n, rng)
         factor = a.cholesky()
         b = randomVector(n, rng)
+        update = randomVector(n, rng)
     }
 
     @Benchmark
@@ -35,4 +37,12 @@ class CholeskyBenchmark {
 
     @Benchmark
     fun invertSpd(): F64DenseMatrix = factor.invert()
+
+    /**
+     * The update mutates the factor it is given, so this drives it with a sigma small enough that a whole
+     * run's worth of updates cannot move the factored matrix enough to affect the timing. Copying the factor
+     * per invocation instead would measure an n by n copy alongside the update, which is the same order.
+     */
+    @Benchmark
+    fun rank1UpdateSpd(): F64CholeskyDecomposition = factor.rank1Update(update, 1e-12)
 }

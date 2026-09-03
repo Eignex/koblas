@@ -74,6 +74,72 @@ class CholeskyTest {
     }
 
     @Test
+    fun `rank1Update reproduces the updated matrix`() {
+        val A = spdExample()
+        val v = doubleArrayOf(0.5, -1.5, 2.0)
+        val sigma = 1.75
+        val updated = A.cholesky().rank1Update(v, sigma)
+        for (i in 0 until 3) {
+            for (j in 0 until 3) {
+                val expected = A[i, j] + sigma * v[i] * v[j]
+                assertEquals(expected, reconstruct(updated.l, i, j), 1e-10, "($i,$j)")
+            }
+        }
+    }
+
+    @Test
+    fun `rank1Update matches a fresh factorization entry for entry`() {
+        // The reason the diagonal has to stay positive: a caller that compares or serialises factors needs
+        // equal matrices to give equal factors, and only the positive-diagonal factor is unique.
+        val A = spdExample()
+        val v = doubleArrayOf(-0.75, 1.25, 0.5)
+        val direct = F64DenseMatrix.zero(3, 3)
+        for (i in 0 until 3) for (j in 0 until 3) direct[i, j] = A[i, j] + v[i] * v[j]
+        val fresh = direct.cholesky().l
+        val updated = A.cholesky().rank1Update(v).l
+        for (j in 0 until 3) {
+            for (i in j until 3) {
+                assertEquals(fresh[i, j], updated[i, j], 1e-10, "($i,$j)")
+            }
+        }
+    }
+
+    @Test
+    fun `rank1Update keeps every diagonal entry positive`() {
+        val A = spdExample()
+        // A vector large enough that a sign-flipping rotation would show, and one that is mostly zero.
+        for (v in listOf(doubleArrayOf(-40.0, 30.0, -20.0), doubleArrayOf(0.0, 0.0, -5.0))) {
+            val updated = A.cholesky().rank1Update(v, 2.0)
+            for (k in 0 until 3) {
+                assertTrue(updated.l[k, k] > 0.0, "diagonal $k of ${v.toList()} was ${updated.l[k, k]}")
+            }
+        }
+    }
+
+    @Test
+    fun `rank1Update leaves the caller's vector alone`() {
+        val v = doubleArrayOf(0.5, -1.5, 2.0)
+        val before = v.copyOf()
+        spdExample().cholesky().rank1Update(v, 3.0)
+        assertTrue(before.contentEquals(v), "v was consumed: ${v.toList()}")
+    }
+
+    @Test
+    fun `rank1Update with sigma zero leaves the factor unchanged`() {
+        val chol = spdExample().cholesky()
+        val before = chol.l.data.copyOf()
+        chol.rank1Update(doubleArrayOf(1.0, 2.0, 3.0), 0.0)
+        assertTrue(before.contentEquals(chol.l.data), "the factor changed")
+    }
+
+    @Test
+    fun `rank1Update rejects a negative sigma and a mismatched vector`() {
+        val chol = spdExample().cholesky()
+        assertFailsWith<IllegalArgumentException> { chol.rank1Update(doubleArrayOf(1.0, 1.0, 1.0), -1.0) }
+        assertFailsWith<DimensionMismatch> { chol.rank1Update(doubleArrayOf(1.0, 1.0)) }
+    }
+
+    @Test
     fun `invertInto fills the caller's matrix and returns it`() {
         val A = spdExample()
         val chol = A.cholesky()

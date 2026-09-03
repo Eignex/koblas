@@ -267,6 +267,25 @@ public interface F64Decompositions : Backend {
      */
     public fun trtri(a: F64DenseMatrix, lower: Boolean, unitDiag: Boolean = false): F64DenseMatrix
 
+    /**
+     * Update [chol] in place so that the matrix it factors becomes `A + sigma * v * vT`, returning it.
+     *
+     * Every diagonal entry of the updated factor is positive, which the Givens form guarantees rather than
+     * merely tending to produce: a factor that gets compared or serialized is only comparable if equal
+     * matrices give equal factors, and a rotation whose `r` came back negative would flip a whole column.
+     *
+     * [sigma] must not be negative. A downdate can take the matrix outside the positive definite cone, so it
+     * needs a caller-visible failure rather than a factor that is quietly no longer one.
+     *
+     * @throws com.eignex.koblas.DimensionMismatch if [v] is not length `n`.
+     */
+    public fun choleskyRank1Update(
+        chol: F64CholeskyDecomposition,
+        v: DoubleArray,
+        sigma: Double = 1.0,
+        workspace: Workspace? = null,
+    ): F64CholeskyDecomposition
+
     /** Invert an SPD matrix from its Cholesky factorization, returning `A⁻¹` given [chol] (LAPACK `dpotri`).
      *  Allocates the result; [invertInto] writes into a matrix the caller already owns. */
     public fun invert(chol: F64CholeskyDecomposition, workspace: Workspace? = null): F64DenseMatrix =
@@ -296,6 +315,14 @@ internal fun requireRcondAnorm(anorm: Double) {
 
 /** Sweep cap for the [F64Decompositions.rcond] estimator. */
 internal const val RCOND_MAX_SWEEPS = 5
+
+/** The rank-1 update input contract: [v] as long as the factor is wide, and a non-negative [sigma]. */
+internal fun requireRank1Update(chol: F64CholeskyDecomposition, v: DoubleArray, sigma: Double) {
+    requireShape(v.size == chol.n) { "choleskyRank1Update: v length ${v.size}, expected ${chol.n}" }
+    require(sigma >= 0.0) {
+        "choleskyRank1Update: sigma must not be negative, got $sigma; a downdate can leave the cone"
+    }
+}
 
 /**
  * The SPD inverse destination contract: square and `n` by `n`, and not the factor's own storage, which both
