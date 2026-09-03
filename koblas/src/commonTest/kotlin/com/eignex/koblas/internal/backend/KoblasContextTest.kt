@@ -68,6 +68,10 @@ class KoblasContextTest {
             len: Int,
             transformation: F64ModifiedGivens,
         ) = portableRotm(x, xOff, xStride, y, yOff, yStride, len, transformation)
+
+        @Suppress("LongParameterList")
+        override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) =
+            portableRot(x, xOff, y, yOff, len, c, s)
     }
 
     @AfterTest

@@ -56,6 +56,20 @@ public interface F64Kernels : Backend {
     )
 
     /**
+     * Apply a plane rotation (BLAS `drot`) to the [len] pairs from the two offsets, replacing
+     * `(x_i, y_i)` with `(c*x_i + s*y_i, c*y_i - s*x_i)`. Each pair is loaded before either result is
+     * stored, which is what lets one read of a pair produce both of its outputs; callers whose runs
+     * overlap must snapshot them before calling this backend primitive.
+     *
+     * Offsets and a length rather than strides, since the callers rotate contiguous runs.
+     *
+     * This is [rotm] at `(h11, h12, h21, h22) = (c, s, -s, c)`, so a leaf with a modified-Givens kernel
+     * already has this one and implements it there rather than falling back to a loop of its own.
+     */
+    @Suppress("LongParameterList")
+    public fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double)
+
+    /**
      * Exchange the two runs (BLAS `dswap`). Two loads and two stores an element, so an implementation is
      * bound by memory rather than by issue rate, and a leaf with nothing better says so by calling the
      * portable loop itself.
@@ -139,6 +153,9 @@ internal expect object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
         len: Int,
         transformation: F64ModifiedGivens,
     )
+
+    @Suppress("LongParameterList")
+    override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double)
 
     @Suppress("LongParameterList") // four column offsets plus the shared operand
     override fun dot4(
@@ -234,6 +251,10 @@ internal class F64RoutedKernels(internal val host: F64Kernels?) :
         len: Int,
         transformation: F64ModifiedGivens,
     ) = hostOrPlatform().rotm(x, xOff, xStride, y, yOff, yStride, len, transformation)
+
+    @Suppress("LongParameterList")
+    override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) =
+        hostOrPlatform().rot(x, xOff, y, yOff, len, c, s)
 
     /** Not routed, unlike every other routine here: only the compiled-in kernels fuse the four dots into
      *  one pass, and a host cannot, since its dot computes one at a time. */

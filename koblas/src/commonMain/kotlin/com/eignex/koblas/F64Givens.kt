@@ -37,15 +37,17 @@ public fun rotg(a: Double, b: Double): F64Givens {
  */
 public fun rot(x: F64DenseVector, y: F64DenseVector, rotation: F64Givens) {
     requireSameSize(x.size, y.size)
-    val c = rotation.c
-    val s = rotation.s
-    if (c == 1.0 && s == 0.0) return
-    val xd = x.data
-    val yd = y.data
-    for (i in xd.indices) {
-        val xi = xd[i]
-        val yi = yd[i]
-        xd[i] = c * xi + s * yi
-        yd[i] = c * yi - s * xi
+    if (rotation.c == 1.0 && rotation.s == 0.0) return
+    koblas.kernels.rot(x.data, 0, y.data, 0, x.size, rotation.c, rotation.s)
+}
+
+/** Portable backend implementation of plane rotation application. */
+@Suppress("LongParameterList")
+internal fun portableRot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) {
+    for (i in 0 until len) {
+        val xi = x[xOff + i]
+        val yi = y[yOff + i]
+        x[xOff + i] = c * xi + s * yi
+        y[yOff + i] = c * yi - s * xi
     }
 }

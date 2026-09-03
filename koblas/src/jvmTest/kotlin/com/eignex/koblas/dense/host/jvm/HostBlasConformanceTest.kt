@@ -220,6 +220,7 @@ class HostBlasConformanceTest {
         Assume.assumeTrue("host CBLAS did not bind its level-1 symbols", host.isAvailable)
         assertLevel1KernelsAgreeWithScalar(host)
         assertModifiedGivensKernelsAgreeWithPortable(host)
+        assertRotKernelAgreesWithPortable(host)
         assertReductionsAgreeWithScalar(host)
         assertSwapAgreesWithScalar(host)
     }

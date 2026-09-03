@@ -80,4 +80,10 @@ public class F64CblasKernels internal constructor(
             segment(parameters, 0),
         ) as Unit
     }
+
+    @Suppress("LongParameterList")
+    override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) {
+        if (len == 0) return
+        calls.drot.invokeExact(len, segment(x, xOff), 1, segment(y, yOff), 1, c, s) as Unit
+    }
 }

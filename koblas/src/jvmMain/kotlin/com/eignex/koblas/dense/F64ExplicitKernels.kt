@@ -5,6 +5,7 @@ import com.eignex.koblas.applyModifiedGivens
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.kernels.JvmCKernelBindings
 import com.eignex.koblas.internal.numeric.*
+import com.eignex.koblas.portableRot
 import com.eignex.koblas.portableRotmg
 import kotlin.math.sqrt
 
@@ -81,6 +82,11 @@ internal object F64CKernels : F64Kernels, F64ArithmeticKernels {
             transformation.h22,
         )
     }
+
+    // A plane rotation is the modified Givens transformation (c, s, -s, c), so it goes to the same kernel.
+    @Suppress("LongParameterList")
+    override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) =
+        JvmCKernelBindings.denseRotm(x, xOff, 1, y, yOff, 1, len, c, s, -s, c)
 }
 
 /** The JVM Vector API kernels without automatic C selection. */
@@ -184,6 +190,16 @@ internal object F64SimdKernels : F64Kernels, F64ArithmeticKernels {
             )
         } else {
             applyModifiedGivens(x, xOff, xStride, y, yOff, yStride, len, transformation)
+        }
+    }
+
+    // A plane rotation is the modified Givens transformation (c, s, -s, c), so it goes to the same kernel.
+    @Suppress("LongParameterList")
+    override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) {
+        if (vectorizes(len)) {
+            Simd.rotm(x, xOff, y, yOff, len, c, s, -s, c)
+        } else {
+            portableRot(x, xOff, y, yOff, len, c, s)
         }
     }
 }

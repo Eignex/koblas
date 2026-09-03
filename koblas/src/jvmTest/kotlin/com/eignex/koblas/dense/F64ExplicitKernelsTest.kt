@@ -12,11 +12,13 @@ class F64ExplicitKernelsTest {
     fun `the bundled C kernels modified Givens agrees with the portable one`() {
         if (!JvmCKernelBindings.isAvailable) return
         assertModifiedGivensKernelsAgreeWithPortable(F64CKernels)
+        assertRotKernelAgreesWithPortable(F64CKernels)
     }
 
     @Test
     fun `the SIMD kernels modified Givens agrees with the portable one`() {
         if (!simdAvailable) return
         assertModifiedGivensKernelsAgreeWithPortable(F64SimdKernels)
+        assertRotKernelAgreesWithPortable(F64SimdKernels)
     }
 }

@@ -74,6 +74,10 @@ internal actual object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
         transformation: F64ModifiedGivens,
     ) = selected.rotm(x, xOff, xStride, y, yOff, yStride, len, transformation)
 
+    @Suppress("LongParameterList")
+    actual override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) =
+        selected.rot(x, xOff, y, yOff, len, c, s)
+
     @Suppress("LongParameterList") // four column offsets plus the shared operand
     actual override fun dot4(
         a: DoubleArray,

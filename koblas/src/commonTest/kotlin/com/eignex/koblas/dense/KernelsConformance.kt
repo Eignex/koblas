@@ -2,6 +2,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.F64ModifiedGivens
 import com.eignex.koblas.assertClose
+import com.eignex.koblas.rotg
 import kotlin.math.abs
 import kotlin.math.sqrt
 import kotlin.random.Random
@@ -99,6 +100,28 @@ internal fun assertModifiedGivensKernelsAgreeWithPortable(kernels: F64Kernels) {
         )
         assertClose(expectedX, actualX, context = "rotm x len=$len")
         assertClose(expectedY, actualY, context = "rotm y len=$len")
+    }
+}
+
+/**
+ * Plane rotation against the portable kernel implementation. Every leaf gets this: a leaf that inherited a
+ * rotation instead of implementing one would pass, but there is no such leaf to inherit from, so the
+ * failure this catches is a leaf whose own rotation disagrees.
+ */
+internal fun assertRotKernelAgreesWithPortable(kernels: F64Kernels) {
+    val rotation = rotg(3.0, 4.0)
+    for (len in intArrayOf(0, 1, 7, 63, 64, 65, 200)) {
+        val pad = 3
+        val x = DoubleArray(len + 2 * pad) { it * 0.25 - 4.0 }
+        val y = DoubleArray(len + 2 * pad) { 3.0 - it * 0.125 }
+        val expectedX = x.copyOf()
+        val expectedY = y.copyOf()
+        val actualX = x.copyOf()
+        val actualY = y.copyOf()
+        F64ScalarKernels.rot(expectedX, pad, expectedY, pad, len, rotation.c, rotation.s)
+        kernels.rot(actualX, pad, actualY, pad, len, rotation.c, rotation.s)
+        assertClose(expectedX, actualX, context = "rot x len=$len")
+        assertClose(expectedY, actualY, context = "rot y len=$len")
     }
 }
 

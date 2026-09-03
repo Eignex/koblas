@@ -43,6 +43,7 @@ class KernelsTest {
         var ssqds = 0
         var rotmgs = 0
         var rotms = 0
+        var rots = 0
 
         override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) {
             swaps++
@@ -96,6 +97,12 @@ class KernelsTest {
             rotms++
             portableRotm(x, xOff, xStride, y, yOff, yStride, len, transformation)
         }
+
+        @Suppress("LongParameterList")
+        override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) {
+            rots++
+            portableRot(x, xOff, y, yOff, len, c, s)
+        }
     }
 
     @Test
@@ -142,6 +149,21 @@ class KernelsTest {
         assertEquals(1, recording.rotms, "rotm did not route")
         assertContentEquals(doubleArrayOf(2.0, 3.5), x.data)
         assertContentEquals(doubleArrayOf(-1.5, 3.0), y.data)
+    }
+
+    @Test
+    fun `a plane rotation routes to the selected backend`() = withCleanBackends {
+        val recording = Recording()
+        registerBackend(recording)
+        val rotation = rotg(3.0, 4.0)
+        val x = F64DenseVector.of(doubleArrayOf(3.0, 1.0))
+        val y = F64DenseVector.of(doubleArrayOf(4.0, -1.0))
+
+        rot(x, y, rotation)
+
+        assertEquals(1, recording.rots, "rot did not route, so the router is missing an override")
+        assertEquals(5.0, x.data[0], 1e-12, "the rotation should carry the pair's norm into x")
+        assertEquals(0.0, y.data[0], 1e-12, "the rotation should eliminate y")
     }
 
     @Test
@@ -249,12 +271,14 @@ class KernelsTest {
         routed.nrm2(a, 0, 64)
         routed.asum(a, 0, 64)
         routed.swap(a, 0, b, 0, 64)
+        routed.rot(a, 0, b, 0, 64, 0.6, 0.8)
         assertEquals(1, recording.dots, "dot did not reach the host")
         assertEquals(1, recording.axpys, "axpy did not reach the host")
         assertEquals(1, recording.scales, "scale did not reach the host")
         assertEquals(1, recording.nrm2s, "nrm2 did not reach the host")
         assertEquals(1, recording.asums, "asum did not reach the host")
         assertEquals(1, recording.swaps, "swap did not reach the host, so the router is missing an override")
+        assertEquals(1, recording.rots, "rot did not reach the host, so the router is missing an override")
     }
 
     @Test
@@ -458,6 +482,8 @@ class KernelsTest {
     fun `the compiled-in swap agrees with the scalar loop`() = assertSwapAgreesWithScalar(F64PlatformKernels)
 
     @Test
-    fun `the compiled-in modified Givens kernels agree with the portable ones`() =
+    fun `the compiled-in modified Givens kernels agree with the portable ones`() {
         assertModifiedGivensKernelsAgreeWithPortable(F64PlatformKernels)
+        assertRotKernelAgreesWithPortable(F64PlatformKernels)
+    }
 }
