@@ -15,6 +15,8 @@ internal interface LapackeCalls {
 
     fun dgeqrf(order: Int, m: Int, n: Int, a: DoubleArray, lda: Int, tau: DoubleArray): Int
 
+    fun dgeqp3(order: Int, m: Int, n: Int, a: DoubleArray, lda: Int, jpvt: IntArray, tau: DoubleArray): Int
+
     fun dormqr(
         order: Int,
         side: Byte,
@@ -27,6 +29,25 @@ internal interface LapackeCalls {
         tau: DoubleArray,
         c: DoubleArray,
         ldc: Int,
+    ): Int
+
+    /**
+     * The blocked QR of the triangular-pentagonal `[a; b]`. [a] is the `n` by `n` upper triangle and comes
+     * back as `R`; [b] is the `m` by `n` block below it, rectangular at `l = 0`, and comes back holding the
+     * reflectors; [t] is the `nb` by `n` block of triangular factors.
+     */
+    fun dtpqrt(
+        order: Int,
+        m: Int,
+        n: Int,
+        l: Int,
+        nb: Int,
+        a: DoubleArray,
+        lda: Int,
+        b: DoubleArray,
+        ldb: Int,
+        t: DoubleArray,
+        ldt: Int,
     ): Int
 
     fun dgetri(order: Int, n: Int, a: DoubleArray, lda: Int, ipiv: IntArray): Int

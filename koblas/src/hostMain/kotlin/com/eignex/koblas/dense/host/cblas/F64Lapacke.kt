@@ -5,7 +5,6 @@ package com.eignex.koblas.dense.host.cblas
 import com.eignex.koblas.BackendMetadata
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.dense.host.F64DecompositionsAdapter
-import com.eignex.koblas.dense.host.cblas.Cblas.COL_MAJOR
 import com.eignex.koblas.internal.backend.BackendNames
 import kotlinx.cinterop.*
 
@@ -15,7 +14,7 @@ import kotlinx.cinterop.*
  * JVM binding.
  */
 internal class F64Lapacke(
-    private val f: LapackeFunctions,
+    f: LapackeFunctions,
     blas: CblasFunctions,
     private val loader: OpenBlasLoader = OpenBlasLoader(),
     config: HostBlasConfig = HostBlasConfig(),
@@ -34,13 +33,4 @@ internal class F64Lapacke(
 
     /** LAPACKE calls into CBLAS, so this half needs both. */
     override val isAvailable: Boolean get() = loader.lapacke != null && loader.cblas != null
-
-    override fun dgeqp3(m: Int, n: Int, a: DoubleArray, jpvt: IntArray, tau: DoubleArray): Int? {
-        val dgeqp3 = f.dgeqp3 ?: return null
-        return a.usePinned { ap ->
-            jpvt.usePinned { jp ->
-                tau.usePinned { tp -> dgeqp3(COL_MAJOR, m, n, ap.addressOf(0), m, jp.addressOf(0), tp.addressOf(0)) }
-            }
-        }
-    }
 }
