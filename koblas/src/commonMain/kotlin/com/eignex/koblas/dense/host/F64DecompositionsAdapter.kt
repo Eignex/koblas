@@ -404,8 +404,8 @@ public abstract class F64DecompositionsAdapter internal constructor(
         val n = a.rows
         if (n == 0) return out
         val ld = out.l.data
-        // dpotrf overwrites the triangle it reads, so a destination backed by [a]'s own buffer keeps the
-        // copy the portable fallback needs, which factoring out of place used to provide for free.
+        // dpotrf overwrites the triangle it reads, so a destination backed by [a]'s own buffer needs a
+        // private copy for the portable fallback to factor.
         val source = if (ld === a.data) F64DenseMatrix(n, n, a.data.copyOf()) else a
         // One bulk copy per column of the lower triangle; dpotrf reads no further. The strict upper is
         // cleared because a reused destination arrives holding the previous factor.

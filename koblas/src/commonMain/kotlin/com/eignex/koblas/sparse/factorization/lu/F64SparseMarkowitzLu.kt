@@ -162,8 +162,8 @@ public class F64SparseMarkowitzLu private constructor(
      *
      * Inlined deliberately, and the direction is a flag rather than an `IntProgression` because a progression
      * parameter is a real object where a `for` over a range is a counted loop, which
-     * `AllocationFreeTest` catches. Every flag here is a constant at every call site, so each site keeps the
-     * inner loop it had when the four sweeps were written out.
+     * `AllocationFreeTest` catches. Every flag here is a constant at every call site, so each site compiles
+     * to the inner loop a hand-written sweep would.
      *
      * @param descending true to run from the last pivot position down, false to run up from the first.
      * @param idx the factor's index array per pivot position.
