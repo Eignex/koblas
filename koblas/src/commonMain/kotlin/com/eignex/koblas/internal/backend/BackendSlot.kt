@@ -116,10 +116,10 @@ internal enum class BackendSlot(
     /**
      * General pivoting sparse LU.
      *
-     * A provider that also refactors one pattern or factorizes simplex bases is specialized, and what it
+     * A host library that also refactors one pattern or factorizes simplex bases is specialized, and what it
      * offers for ordinary LU is that specialization's own factorization rather than a general one. So an
-     * offer of everything such a provider implements leaves this half to a general provider; a caller who
-     * wants it here anyway names this role for it.
+     * offer of everything such a library implements leaves this half to a general provider; a caller who
+     * wants it here anyway names this role for it. [acceptsOffer] says which providers that covers.
      */
     F64GeneralSparseLu(
         role = BackendRole.SPARSE_GENERAL_LU,
@@ -217,10 +217,15 @@ internal enum class BackendSlot(
     /**
      * Whether this half takes [backend] from an offer of every half it implements, which is both selection
      * paths' default. False for a half [supersededBy] something [backend] also implements, so a specialized
-     * provider keeps its own halves and leaves the general one alone.
+     * host library keeps its own halves and leaves the general one alone.
+     *
+     * koblas's own implementations are exempt, since [Backend.isPortable] is what tells a binding to a host
+     * library from an implementation written here. The portable reference fills the basis-factorization half
+     * beside a general LU that really is general, and dropping it from the general half would hand the role
+     * to a second copy of itself.
      */
-    internal fun acceptsOffer(backend: Backend): Boolean =
-        accepts(backend) && supersededBy.none { it.slot.accepts(backend) }
+    internal fun acceptsOffer(backend: Backend): Boolean = accepts(backend) &&
+        (backend.isPortable || supersededBy.none { it.slot.accepts(backend) })
 
     internal companion object {
         private val byRole: Map<BackendRole, BackendSlot> = entries.associateBy { it.role }
