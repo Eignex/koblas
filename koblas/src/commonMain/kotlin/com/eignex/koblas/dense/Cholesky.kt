@@ -55,3 +55,7 @@ public fun F64CholeskyDecomposition.invert(workspace: Workspace? = null): F64Den
     this,
     workspace,
 )
+
+/** `A⁻¹` into [out], which is returned, without allocating a result; see [F64Decompositions.invertInto]. */
+public fun F64CholeskyDecomposition.invertInto(out: F64DenseMatrix, workspace: Workspace? = null): F64DenseMatrix =
+    koblas.invertInto(this, out, workspace)

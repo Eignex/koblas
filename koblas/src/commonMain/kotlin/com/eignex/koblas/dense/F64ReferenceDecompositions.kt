@@ -185,6 +185,12 @@ internal class F64ReferenceDecompositions(private val configured: F64Kernels? = 
         return inv
     }
 
-    override fun invert(chol: F64CholeskyDecomposition, workspace: Workspace?): F64DenseMatrix =
-        referenceSpdInvert(kernels, chol, workspace)
+    override fun invertInto(
+        chol: F64CholeskyDecomposition,
+        out: F64DenseMatrix,
+        workspace: Workspace?,
+    ): F64DenseMatrix {
+        requireSpdInverseDestination(chol, out)
+        return referenceSpdInvert(kernels, chol, out, workspace)
+    }
 }

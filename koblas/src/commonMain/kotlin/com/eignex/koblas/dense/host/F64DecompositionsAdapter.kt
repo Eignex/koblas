@@ -410,22 +410,27 @@ public abstract class F64DecompositionsAdapter internal constructor(
      * dpotri writes only the triangle it is given, so the result is mirrored, and it overwrites the factor,
      * so the factor is copied first.
      */
-    override fun invert(chol: F64CholeskyDecomposition, workspace: Workspace?): F64DenseMatrix {
+    override fun invertInto(
+        chol: F64CholeskyDecomposition,
+        out: F64DenseMatrix,
+        workspace: Workspace?,
+    ): F64DenseMatrix {
+        requireSpdInverseDestination(chol, out)
         val n = chol.n
-        if (n == 0) return F64DenseMatrix(0, 0)
-        val inv = F64DenseMatrix(n, n, chol.l.data.copyOf())
-        val info = f.dpotri(COL_MAJOR, LOWER_UPLO, n, inv.data, n)
+        if (n == 0) return out
+        chol.l.data.copyInto(out.data)
+        val info = f.dpotri(COL_MAJOR, LOWER_UPLO, n, out.data, n)
         check(info >= 0) { "dpotri: illegal argument ${-info}" }
         // A zero on the diagonal is dpotri's error and the reference's division by zero, and the factor is
         // the caller's to construct over any square matrix. The reference answers with infinities, so this
         // half answers the same way rather than throwing where it would not.
-        if (info > 0) return portable.invert(chol, workspace)
+        if (info > 0) return portable.invertInto(chol, out, workspace)
         // Column i's upper entries are contiguous, so the mirror writes down a column and reads across.
-        val invd = inv.data
+        val invd = out.data
         for (i in 0 until n) {
-            val base = inv.colOffset(i)
+            val base = out.colOffset(i)
             for (j in 0 until i) invd[base + j] = invd[i + j * n]
         }
-        return inv
+        return out
     }
 }

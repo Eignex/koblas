@@ -94,6 +94,7 @@ F64LuDecomposition.solve(DoubleArray)	com.eignex.koblas.bench.BlockSolveBenchmar
 F64DenseMatrix.cholesky()	com.eignex.koblas.bench.CholeskyBenchmark.cholesky	benchmarked	
 F64CholeskyDecomposition.solve(DoubleArray)	com.eignex.koblas.bench.CholeskyBenchmark.solveSpd	benchmarked	
 F64CholeskyDecomposition.invert()	com.eignex.koblas.bench.CholeskyBenchmark.invertSpd	benchmarked	
+F64CholeskyDecomposition.invertInto(F64DenseMatrix)		excluded	The destination-passing variant shares the benchmarked Cholesky inverse kernel, which now runs through it, and is covered by shape and aliasing tests.
 Vector.dot(Vector)	com.eignex.koblas.bench.Level1Benchmark.dot	benchmarked	
 Vector.axpy(Double,Vector)	com.eignex.koblas.bench.Level1Benchmark.axpyBench	benchmarked	
 Vector.scale(Double)	com.eignex.koblas.bench.Level1Benchmark.scaleBench	benchmarked	

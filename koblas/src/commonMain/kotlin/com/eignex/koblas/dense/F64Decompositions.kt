@@ -267,8 +267,26 @@ public interface F64Decompositions : Backend {
      */
     public fun trtri(a: F64DenseMatrix, lower: Boolean, unitDiag: Boolean = false): F64DenseMatrix
 
-    /** Invert an SPD matrix from its Cholesky factorization, returning `A⁻¹` given [chol] (LAPACK `dpotri`). */
-    public fun invert(chol: F64CholeskyDecomposition, workspace: Workspace? = null): F64DenseMatrix
+    /** Invert an SPD matrix from its Cholesky factorization, returning `A⁻¹` given [chol] (LAPACK `dpotri`).
+     *  Allocates the result; [invertInto] writes into a matrix the caller already owns. */
+    public fun invert(chol: F64CholeskyDecomposition, workspace: Workspace? = null): F64DenseMatrix =
+        invertInto(chol, F64DenseMatrix.zero(chol.n), workspace)
+
+    /**
+     * [invert] into [out], which is returned, so a caller holding an `n` by `n` matrix does not pay a fresh
+     * one per inverse. Every entry of [out] is written, so whatever it held before does not matter.
+     *
+     * [out] must not be the matrix behind [F64CholeskyDecomposition.l]. Both halves read the factor while
+     * writing the inverse: the portable one throughout its sweep, and the host one because `dpotri`
+     * overwrites the triangle it is handed, which is why the factor is copied into [out] first.
+     *
+     * @throws com.eignex.koblas.DimensionMismatch if [out] is not `n` by `n`.
+     */
+    public fun invertInto(
+        chol: F64CholeskyDecomposition,
+        out: F64DenseMatrix,
+        workspace: Workspace? = null,
+    ): F64DenseMatrix
 }
 
 /** The [F64Decompositions.rcond] input contract shared by portable and LAPACKE implementations. */
@@ -278,6 +296,17 @@ internal fun requireRcondAnorm(anorm: Double) {
 
 /** Sweep cap for the [F64Decompositions.rcond] estimator. */
 internal const val RCOND_MAX_SWEEPS = 5
+
+/**
+ * The SPD inverse destination contract: square and `n` by `n`, and not the factor's own storage, which both
+ * implementations read while they write the inverse.
+ */
+internal fun requireSpdInverseDestination(chol: F64CholeskyDecomposition, out: F64DenseMatrix) {
+    requireShape(out.rows == chol.n && out.cols == chol.n) {
+        "invertInto: out is ${out.rows}x${out.cols}, expected ${chol.n}x${chol.n}"
+    }
+    require(out.data !== chol.l.data) { "invertInto: destination must not be the factor's own matrix" }
+}
 
 /** The shapes a multi-right-hand-side solve needs: [b] with [n] rows, and [out] matching it column for column. */
 internal fun requireSolveShapes(n: Int, b: F64DenseMatrix, out: F64DenseMatrix) {
