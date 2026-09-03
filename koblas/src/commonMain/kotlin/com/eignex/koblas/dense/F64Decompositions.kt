@@ -220,6 +220,43 @@ public interface F64Decompositions : Backend {
         return out
     }
 
+    /**
+     * Rank-1 update of a Cholesky factorization in place, `A + sigma·v·vᵀ = L̃·L̃ᵀ`, returning [chol] with
+     * its factor buffer rewritten. [v] is not modified and [sigma] scales the outer product, folding in as
+     * `sqrt(sigma)`.
+     *
+     * The result carries a positive diagonal, as a fresh [cholesky] does. There is no failure mode and so
+     * no [CholeskyPolicy]: `A + sigma·v·vᵀ` is positive-definite whenever `A` is and [sigma] is not
+     * negative. A factor that was not positive-definite to begin with updates to nonsense just as quietly
+     * as one built over an upper-only matrix does.
+     *
+     * @throws IllegalArgumentException if [sigma] is negative or non-finite.
+     */
+    public fun choleskyRankUpdate(
+        chol: F64CholeskyDecomposition,
+        v: DoubleArray,
+        sigma: Double = 1.0,
+        workspace: Workspace? = null,
+    ): F64CholeskyDecomposition
+
+    /**
+     * Rank-k update `A + sigma·V·Vᵀ = L̃·L̃ᵀ` in place, [v]'s columns being the update vectors, otherwise as
+     * the rank-1 [choleskyRankUpdate]. A zero-column [v] returns [chol] unchanged.
+     *
+     * The columns are read one at a time as the sweep proceeds, so a [v] that overlaps [chol]'s own factor
+     * storage sees whatever the earlier columns rewrote rather than the block it started as. The factor
+     * itself is the one overlap worth naming: passing it scales it by `sqrt(1 + sigma)`, since each column
+     * is read before its own rotation touches it.
+     *
+     * @throws IllegalArgumentException if [sigma] is negative or non-finite.
+     */
+    public fun choleskyRankUpdate(
+        chol: F64CholeskyDecomposition,
+        v: F64DenseMatrix,
+        sigma: Double = 1.0,
+        workspace: Workspace? = null,
+    ): F64CholeskyDecomposition
+
     /** Solve `A · x = b` for [chol] into a fresh vector (LAPACK `dpotrs`). */
     public fun solve(chol: F64CholeskyDecomposition, b: DoubleArray): DoubleArray =
         solveInto(chol, b, DoubleArray(chol.n))
@@ -306,6 +343,14 @@ internal fun requireSpdInverseDestination(chol: F64CholeskyDecomposition, out: F
         "invertInto: out is ${out.rows}x${out.cols}, expected ${chol.n}x${chol.n}"
     }
     require(out.data !== chol.l.data) { "invertInto: destination must not be the factor's own matrix" }
+}
+
+/** The update block a rank-k Cholesky update needs: [rows] per vector against a factor of dimension [n]. */
+internal fun requireRankUpdateShapes(n: Int, rows: Int, sigma: Double) {
+    requireShape(rows == n) { "choleskyRankUpdate: update vectors have $rows rows, expected $n" }
+    require(sigma >= 0.0 && sigma.isFinite()) {
+        "choleskyRankUpdate: sigma must be non-negative and finite, got $sigma"
+    }
 }
 
 /** The shapes a multi-right-hand-side solve needs: [b] with [n] rows, and [out] matching it column for column. */

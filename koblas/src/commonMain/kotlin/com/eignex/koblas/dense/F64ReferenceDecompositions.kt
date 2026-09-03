@@ -134,6 +134,26 @@ internal class F64ReferenceDecompositions(private val configured: F64Kernels? = 
         policy: CholeskyPolicy,
     ): F64CholeskyDecomposition = referenceCholeskyInto(kernels, a, out, policy)
 
+    override fun choleskyRankUpdate(
+        chol: F64CholeskyDecomposition,
+        v: DoubleArray,
+        sigma: Double,
+        workspace: Workspace?,
+    ): F64CholeskyDecomposition {
+        requireRankUpdateShapes(chol.n, v.size, sigma)
+        return referenceCholeskyRankUpdate(kernels, chol, v, 1, sigma, workspace)
+    }
+
+    override fun choleskyRankUpdate(
+        chol: F64CholeskyDecomposition,
+        v: F64DenseMatrix,
+        sigma: Double,
+        workspace: Workspace?,
+    ): F64CholeskyDecomposition {
+        requireRankUpdateShapes(chol.n, v.rows, sigma)
+        return referenceCholeskyRankUpdate(kernels, chol, v.data, v.cols, sigma, workspace)
+    }
+
     /** Invert a general matrix from its LU factorization, returning `A⁻¹` given `P·A = L·U` (LAPACK `dgetri`).
      *  Prefer [solve] to apply `A⁻¹`, which costs less and is more accurate.
      *  @throws com.eignex.koblas.SingularMatrix if [lu] is singular; the position is [F64LuDecomposition.failedAt].

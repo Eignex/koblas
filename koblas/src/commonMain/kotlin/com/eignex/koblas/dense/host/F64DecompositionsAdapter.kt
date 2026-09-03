@@ -13,6 +13,21 @@ import com.eignex.koblas.dense.host.cblas.Cblas.NO_TRANS
 import com.eignex.koblas.dense.host.cblas.Cblas.TRANS
 import com.eignex.koblas.dense.host.cblas.Cblas.UNIT
 import com.eignex.koblas.dense.host.cblas.Cblas.UPPER
+import kotlin.math.sqrt
+
+/**
+ * The fewest update vectors that make `dtpqrt` worth its transpose. Below this the portable rotation sweep
+ * is faster, so the host half defers to it.
+ *
+ * From `CholeskyUpdateBenchmark.rankUpdateBlock` at `n = 1024`, which put the native path behind the sweep
+ * at rank 16 and level with it at 32, and ahead only at 64. The scores carried error bars too wide to read
+ * a crossover off directly, so this takes the conservative end of them: the direction held across runs, the
+ * magnitude did not, and a threshold set too low costs every caller between it and the real crossover.
+ */
+private const val DTPQRT_MIN_RANK = 64
+
+/** The block size handed to `dtpqrt`, capped by the factor's dimension. */
+private const val DTPQRT_BLOCK = 32
 
 /** LAPACK's lower-triangle selector, which koblas asks for everywhere it has a choice. */
 private const val LOWER_UPLO: Byte = 'L'.code.toByte()
@@ -404,6 +419,67 @@ public abstract class F64DecompositionsAdapter internal constructor(
         // `dpotrf` with `uplo = L` leaves the strict upper triangle untouched, so the clear above is what
         // makes it the zero this returns.
         return out
+    }
+
+    /**
+     * A rank-1 update is below any block size worth reaching for: with one update row `dtpqrt`'s `nb`
+     * collapses to 1, so it degenerates to the unblocked routine, and the transpose alone costs more than
+     * the rotations it would replace. Straight to the portable sweep.
+     */
+    override fun choleskyRankUpdate(
+        chol: F64CholeskyDecomposition,
+        v: DoubleArray,
+        sigma: Double,
+        workspace: Workspace?,
+    ): F64CholeskyDecomposition {
+        requireRankUpdateShapes(chol.n, v.size, sigma)
+        return portable.choleskyRankUpdate(chol, v, sigma, workspace)
+    }
+
+    /**
+     * `A + sigma·V·Vᵀ = L̃·L̃ᵀ` is the QR of the triangular-pentagonal matrix holding `Lᵀ` above
+     * `sqrt(sigma)·Vᵀ`, which is what `dtpqrt` computes: the triangle comes back as `R̃ = L̃ᵀ`. Below
+     * [DTPQRT_MIN_RANK] update vectors the blocking has nothing to work with and the portable sweep wins.
+     *
+     * koblas stores `L` lower and `dtpqrt` wants the triangle upper, so the factor is transposed into
+     * borrowed scratch rather than reinterpreted: LAPACKE's row-major path would transpose the whole `n` by
+     * `n` block through its own allocation and drag the strict upper triangle's contents back with it.
+     */
+    override fun choleskyRankUpdate(
+        chol: F64CholeskyDecomposition,
+        v: F64DenseMatrix,
+        sigma: Double,
+        workspace: Workspace?,
+    ): F64CholeskyDecomposition {
+        requireRankUpdateShapes(chol.n, v.rows, sigma)
+        val n = chol.n
+        val k = v.cols
+        if (n == 0 || k == 0 || sigma == 0.0) return chol
+        if (k < DTPQRT_MIN_RANK) return portable.choleskyRankUpdate(chol, v, sigma, workspace)
+        val ld = chol.l.data
+        val scale = sqrt(sigma)
+        val nb = minOf(DTPQRT_BLOCK, n)
+        workspace.borrow(n * n) { upper ->
+            workspace.borrow(k * n) { block ->
+                workspace.borrow(nb * n) { reflectors ->
+                    // Zeroed rather than only the triangle filled, so nothing depends on how far into the
+                    // block the routine reads.
+                    upper.fill(0.0, 0, n * n)
+                    for (i in 0 until n) for (j in i until n) upper[i + j * n] = ld[j + i * n]
+                    for (i in 0 until k) for (j in 0 until n) block[i + j * k] = scale * v.data[j + i * n]
+                    val info = f.dtpqrt(COL_MAJOR, k, n, 0, nb, upper, n, block, k, reflectors, nb)
+                    check(info == 0) { "dtpqrt: illegal argument ${-info}" }
+                    // Householder QR does not promise a positive diagonal, so a row of R with a negative one
+                    // is negated on the way back. That is a column of L, and negating a column leaves L·Lᵀ
+                    // alone, so the factor keeps the positive diagonal a caller expects.
+                    for (i in 0 until n) {
+                        val sign = if (upper[i + i * n] < 0.0) -1.0 else 1.0
+                        for (j in i until n) ld[j + i * n] = sign * upper[i + j * n]
+                    }
+                }
+            }
+        }
+        return chol
     }
 
     /**

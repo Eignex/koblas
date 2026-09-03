@@ -146,6 +146,13 @@ class HostBlasConformanceTest {
         assertSpdSuiteAgreesWithReference(F64Lapacke(), intArrayOf(33, 256))
     }
 
+    /** Wide enough at k = 64 to clear the rank-update gate, so the dtpqrt path is the one under test. */
+    @Test
+    fun `cholesky rank updates match reference where the gate opens`() {
+        Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
+        assertCholeskyUpdateAgreesWithReference(F64Lapacke(), intArrayOf(33, 96))
+    }
+
     @Test
     fun `a non positive definite input falls back to the portable path`() {
         Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
