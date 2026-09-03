@@ -11,6 +11,30 @@ import kotlin.math.sqrt
 
 /** The bundled C kernels without automatic SIMD selection. */
 internal object F64CKernels : F64Kernels, F64ArithmeticKernels {
+    /**
+     * Run length from which crossing into the bundled library beats staying on the JVM. Every call here
+     * wraps each array in a MemorySegment and goes through invokeExact, which costs tens of nanoseconds
+     * whatever the length, so a short run pays for a foreign call to do work the JIT would have finished
+     * already.
+     *
+     * GemvIntoBenchmark shows what an ungated boundary costs a caller that drives one short run per stored
+     * entry: 515 ns against 60 ns at two rows. Level1Benchmark's c and scalar runs put the crossover
+     * between 64 and 128 elements, the scalar loop still winning at 64 for dot and nrm2 and the C kernel
+     * winning outright by 128, so these sit at 128. The asymmetry argues for the higher end: crossing too
+     * early costs 30 to 50 ns a call, staying too long costs about 10.
+     *
+     * This is a different number from [F64SimdKernels]'s lane check, which gates on vector width because
+     * its cost is vector width rather than a foreign call. Per-operation constants, as
+     * [F64RoutedKernels]'s host crossovers are, so a later measurement can move one alone.
+     */
+    private const val DOT_C_CROSSOVER = 128
+    private const val SSQD_C_CROSSOVER = 128
+    private const val AXPY_C_CROSSOVER = 128
+    private const val SCALE_C_CROSSOVER = 128
+    private const val NRM2_C_CROSSOVER = 128
+    private const val ASUM_C_CROSSOVER = 128
+    private const val SWAP_C_CROSSOVER = 128
+
     override val name: String get() = BackendNames.C
 
     override val isPortable: Boolean get() = true
@@ -18,10 +42,18 @@ internal object F64CKernels : F64Kernels, F64ArithmeticKernels {
     override val isAvailable: Boolean get() = JvmCKernelBindings.isAvailable
 
     override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
-        JvmCKernelBindings.denseDot(a, aOff, b, bOff, len)
+        if (len < DOT_C_CROSSOVER) {
+            scalarDot(a, aOff, b, bOff, len)
+        } else {
+            JvmCKernelBindings.denseDot(a, aOff, b, bOff, len)
+        }
 
     override fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
-        JvmCKernelBindings.denseSsqd(a, aOff, b, bOff, len)
+        if (len < SSQD_C_CROSSOVER) {
+            scalarSsqd(a, aOff, b, bOff, len)
+        } else {
+            JvmCKernelBindings.denseSsqd(a, aOff, b, bOff, len)
+        }
 
     // No CBLAS or C routine generates the modified Givens transformation, so the portable one is the
     // implementation rather than a fallback.
@@ -29,20 +61,36 @@ internal object F64CKernels : F64Kernels, F64ArithmeticKernels {
         portableRotmg(d1, d2, x1, y1)
 
     override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) =
-        JvmCKernelBindings.denseAxpy(y, yOff, alpha, x, xOff, len)
+        if (len < AXPY_C_CROSSOVER) {
+            scalarAxpy(y, yOff, alpha, x, xOff, len)
+        } else {
+            JvmCKernelBindings.denseAxpy(y, yOff, alpha, x, xOff, len)
+        }
 
     override fun axpyArithmetic(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) =
-        JvmCKernelBindings.denseAxpyArithmetic(y, yOff, alpha, x, xOff, len)
+        if (len < AXPY_C_CROSSOVER) {
+            scalarAxpyArithmetic(y, yOff, alpha, x, xOff, len)
+        } else {
+            JvmCKernelBindings.denseAxpyArithmetic(y, yOff, alpha, x, xOff, len)
+        }
 
-    override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) =
+    override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) = if (len < SCALE_C_CROSSOVER) {
+        scalarScale(v, vOff, alpha, len)
+    } else {
         JvmCKernelBindings.denseScale(v, vOff, alpha, len)
+    }
 
-    override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double = JvmCKernelBindings.denseNrm2(v, vOff, len)
+    override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double =
+        if (len < NRM2_C_CROSSOVER) euclideanNorm(v, vOff, len) else JvmCKernelBindings.denseNrm2(v, vOff, len)
 
-    override fun asum(v: DoubleArray, vOff: Int, len: Int): Double = JvmCKernelBindings.denseAsum(v, vOff, len)
+    override fun asum(v: DoubleArray, vOff: Int, len: Int): Double =
+        if (len < ASUM_C_CROSSOVER) absoluteSum(v, vOff, len) else JvmCKernelBindings.denseAsum(v, vOff, len)
 
-    override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) =
+    override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) = if (len < SWAP_C_CROSSOVER) {
+        scalarSwap(a, aOff, b, bOff, len)
+    } else {
         JvmCKernelBindings.denseSwap(a, aOff, b, bOff, len)
+    }
 
     @Suppress("LongParameterList")
     override fun dot4(
