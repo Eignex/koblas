@@ -20,6 +20,16 @@ class BackendSlotTest {
         BackendRole.entries.forEach { role -> assertEquals(role, role.slot.role, "$role reads back as itself") }
     }
 
+    /** A half added by copying a neighbouring entry would otherwise share the neighbour's pin. */
+    @Test
+    fun `every half has selection keys of its own`() {
+        val properties = BackendSlot.entries.map { it.selectionKeys.property }
+        val environments = BackendSlot.entries.map { it.selectionKeys.environment }
+
+        assertEquals(properties.distinct(), properties)
+        assertEquals(environments.distinct(), environments)
+    }
+
     @Test
     fun `every required half accepts its own portable default`() {
         BackendSlot.contextHalves.forEach { slot ->

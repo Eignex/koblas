@@ -34,7 +34,11 @@ public fun discoverBackends() {
  */
 @Deprecated(
     "One capability's own lookup; backendNamed covers every capability.",
-    ReplaceWith("backendNamed(name, F64Capabilities.basisSolvers)"),
+    ReplaceWith(
+        "backendNamed(name, F64Capabilities.basisSolvers)",
+        "com.eignex.koblas.F64Capabilities",
+        "com.eignex.koblas.backendNamed",
+    ),
 )
 public fun basisSolversNamed(name: String): F64BasisSolvers? = backendNamed(name, F64Capabilities.basisSolvers)
 

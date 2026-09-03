@@ -226,8 +226,14 @@ internal enum class BackendSlot(
         private val byRole: Map<BackendRole, BackendSlot> = entries.associateBy { it.role }
 
         init {
-            check(byRole.size == BackendRole.entries.size) {
+            check(byRole.keys == BackendRole.entries.toSet()) {
                 "every BackendRole needs a half: ${BackendRole.entries - byRole.keys} have none"
+            }
+            // Two halves claiming one role leave the loser unreachable through [slot], and the coverage
+            // check above cannot see it because the winner still answers for the role.
+            check(byRole.size == entries.size) {
+                "every BackendRole needs only one half: ${entries.filterNot { byRole[it.role] === it }} " +
+                    "share a role with an earlier half"
             }
         }
 
@@ -237,8 +243,10 @@ internal enum class BackendSlot(
         /** The halves a registry has seams for, as a diagnostic listing them the way a sentence would. */
         val names: String = entries.dropLast(1).joinToString(", ") { it.name } + " or " + entries.last().name
 
-        /** The halves that do the matrix work, the ones a context is named after. */
+        /** The halves a context always has one of, so the optional ones cannot speak for a whole context. */
         val contextHalves: List<BackendSlot> = entries.filter { it.required }
+
+        /** The halves that do the matrix work, the ones a context is named after. */
         val matrixHalves: List<BackendSlot> = contextHalves.filterNot { it.vectorHalf }
         val sparseHalves: Set<BackendSlot> = entries.filterTo(mutableSetOf()) { it.sparse }
     }

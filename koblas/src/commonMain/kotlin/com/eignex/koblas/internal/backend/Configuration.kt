@@ -15,13 +15,12 @@ internal fun libraryPath(keys: LibraryPathKeys): String? =
     (systemPropertyOrNull(keys.property) ?: environmentVariableOrNull(keys.environment))?.takeIf(::isAbsolutePath)
 
 /** The backend pin a deployment asked for, read the same way as a library path. */
-internal fun requestedBackend(property: String, environment: String): String? =
-    pinnedBackend(systemPropertyOrNull(property), environmentVariableOrNull(environment))
+internal fun requestedBackend(keys: BackendSelectionKeys): String? =
+    pinnedBackend(systemPropertyOrNull(keys.property), environmentVariableOrNull(keys.environment))
 
 /** The backend pins for every semantic role, read independently. */
-internal fun requestedBackends(): Map<BackendSlot, String?> = BackendSlot.entries.associateWith { slot ->
-    requestedBackend(slot.selectionKeys.property, slot.selectionKeys.environment)
-}
+internal fun requestedBackends(): Map<BackendSlot, String?> =
+    BackendSlot.entries.associateWith { requestedBackend(it.selectionKeys) }
 
 /**
  * Whether a configured path is absolute. This is the shape the keys accept rather than full path semantics:
