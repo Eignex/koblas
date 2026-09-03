@@ -110,4 +110,14 @@ public class F64CblasKernels internal constructor(
             }
         }
     }
+
+    @Suppress("LongParameterList")
+    override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) {
+        if (len == 0) return
+        x.usePinned { xp ->
+            y.usePinned { yp ->
+                f.drot(len, xp.addressOf(xOff), 1, yp.addressOf(yOff), 1, c, s)
+            }
+        }
+    }
 }

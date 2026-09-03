@@ -70,4 +70,25 @@ class GivensRotationTest {
         assertEquals(0.0, y[0], 1e-12, "the leading entry of y was not eliminated")
         assertEquals(5.0, x[0], 1e-12)
     }
+
+    @Test
+    fun `the rot kernel rotates the offset window and leaves the rest alone`() {
+        val rotation = rotg(3.0, 4.0)
+        val x = DoubleArray(7) { it + 1.0 }
+        val y = DoubleArray(7) { 10.0 * (it + 1) }
+        val expectedX = x.copyOf()
+        val expectedY = y.copyOf()
+        // The two runs start at different offsets, so x(2 + i) pairs with y(3 + i).
+        for (i in 0 until 3) {
+            expectedX[2 + i] = rotation.c * x[2 + i] + rotation.s * y[3 + i]
+            expectedY[3 + i] = rotation.c * y[3 + i] - rotation.s * x[2 + i]
+        }
+
+        koblas.kernels.rot(x, 2, y, 3, 3, rotation.c, rotation.s)
+
+        for (i in x.indices) {
+            assertEquals(expectedX[i], x[i], 1e-12, "x[$i]")
+            assertEquals(expectedY[i], y[i], 1e-12, "y[$i]")
+        }
+    }
 }

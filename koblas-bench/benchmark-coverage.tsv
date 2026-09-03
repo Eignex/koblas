@@ -10,7 +10,6 @@ F64QrDecomposition.applyQInto(DoubleArray,DoubleArray)		excluded	The destination
 F64Decomposition.refactorInto(F64DenseMatrix)		excluded	The family-specific refactorization extensions share their corresponding benchmarked factorization kernels.
 F64LuDecomposition.rowAt(Int)		excluded	Reading one permutation entry is inspection work rather than a dispatched numerical kernel.
 F64BasisSolver.solveQuality(DoubleArray,F64IndexedVector)		excluded	Residual diagnostics deliberately do extra sparse work and are intended for checks rather than hot loops.
-rot(F64DenseVector,F64DenseVector,F64Givens)		excluded	Plane rotation is a scalar helper rather than a backend-dispatch benchmark.
 rotg(Double,Double)		excluded	Plane rotation generation is a scalar helper rather than a backend-dispatch benchmark.
 F64DenseMatrix.column(Int)		excluded	Column extraction is a storage view helper, not a numerical kernel.
 F64DenseMatrix.row(Int)		excluded	Row extraction is a storage copy helper, not a numerical kernel.
@@ -36,6 +35,7 @@ F64Kernels.asum(DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatc
 F64Kernels.axpy(DoubleArray,Int,Double,DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.axpy facade.
 F64Kernels.dot(DoubleArray,Int,DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.dot facade.
 F64Kernels.nrm2(DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.norm2 facade.
+F64Kernels.rot(DoubleArray,Int,DoubleArray,Int,Int,Double,Double)		excluded	The raw kernel shares the dispatch path benchmarked through the public rot facade.
 F64Kernels.rotm(DoubleArray,Int,Int,DoubleArray,Int,Int,Int,F64ModifiedGivens)		excluded	The raw kernel shares the dispatch path benchmarked through the public rotm facade.
 F64Kernels.rotmg(Double,Double,Double,Double)		excluded	The raw kernel shares the dispatch path benchmarked through the public rotmg facade.
 F64Kernels.scale(DoubleArray,Int,Double,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.scale facade.
@@ -101,6 +101,7 @@ Vector.asum()	com.eignex.koblas.bench.Level1Benchmark.asumBench	benchmarked
 Vector.iamax()	com.eignex.koblas.bench.Level1Benchmark.iamaxBench	benchmarked	
 swap(Vector,Vector)	com.eignex.koblas.bench.Level1Benchmark.swapBench	benchmarked	
 rotmg(Double,Double,Double,Double)	com.eignex.koblas.bench.Level1Benchmark.rotmgBench	benchmarked	portable Level 1
+rot(F64DenseVector,F64DenseVector,F64Givens)	com.eignex.koblas.bench.Level1Benchmark.rotBench	benchmarked	portable Level 1
 rotm(DenseVector,DenseVector,F64ModifiedGivens)	com.eignex.koblas.bench.Level1Benchmark.rotmBench	benchmarked	portable Level 1
 F64Kernels.dot4(DoubleArray,Int,Int,DoubleArray,Int,Int,DoubleArray,Int)	com.eignex.koblas.bench.Level1Benchmark.dot4	benchmarked	
 F64Kernels.ssqd(DoubleArray,Int,DoubleArray,Int,Int)	com.eignex.koblas.bench.Level1Benchmark.ssqd	benchmarked	
