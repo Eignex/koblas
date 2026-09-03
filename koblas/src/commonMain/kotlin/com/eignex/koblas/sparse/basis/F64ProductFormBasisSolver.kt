@@ -2,6 +2,7 @@ package com.eignex.koblas.sparse.basis
 
 import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
 import com.eignex.koblas.SingularMatrix
+import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.requireInBounds
@@ -48,9 +49,11 @@ public class F64ProductFormBasisSolver(
     private var closed = false
 
     // The chain in update order, the pivot held apart from the spike so applying one is a loop over the
-    // off-pivot entries and a single divide.
-    private val etaPivotRow = ArrayList<Int>()
-    private val etaPivot = ArrayList<Double>()
+    // off-pivot entries and a single divide. The pivots sit in primitive arrays because every solve walks
+    // the whole chain, and a boxed list costs an unbox per eta on that path.
+    private var etaPivotRow = IntArray(etaLimit)
+    private var etaPivot = DoubleArray(etaLimit)
+    private var etaCount = 0
     private val etaIndices = ArrayList<IntArray>()
     private val etaValues = ArrayList<DoubleArray>()
 
@@ -59,7 +62,7 @@ public class F64ProductFormBasisSolver(
 
     override val updateCount: Int get() {
         checkOpen()
-        return etaPivotRow.size
+        return etaCount
     }
 
     override val singular: Boolean get() = base.let { it == null || it.singular }
@@ -70,8 +73,8 @@ public class F64ProductFormBasisSolver(
             val baseQuality = base?.rcond ?: return 0.0
             var smallest = 1.0
             var largest = 1.0
-            for (pivot in etaPivot) {
-                val magnitude = kotlin.math.abs(pivot)
+            for (j in 0 until etaCount) {
+                val magnitude = kotlin.math.abs(etaPivot[j])
                 smallest = minOf(smallest, magnitude)
                 largest = maxOf(largest, magnitude)
             }
@@ -107,7 +110,7 @@ public class F64ProductFormBasisSolver(
         val factors = solvable(x)
         x.gather(dense)
         factors.solveInto(dense, dense, transpose = false, workspace = workspace)
-        for (j in etaPivotRow.indices) applyEta(j)
+        for (j in 0 until etaCount) applyEta(j)
         x.scatter(dense)
     }
 
@@ -116,7 +119,7 @@ public class F64ProductFormBasisSolver(
         checkOpen()
         val factors = solvable(x)
         x.gather(dense)
-        for (j in etaPivotRow.indices.reversed()) applyEtaTransposed(j)
+        for (j in etaCount - 1 downTo 0) applyEtaTransposed(j)
         factors.solveInto(dense, dense, transpose = true, workspace = workspace)
         x.scatter(dense)
     }
@@ -153,8 +156,13 @@ public class F64ProductFormBasisSolver(
                 at++
             }
         }
-        etaPivotRow.add(pivotRow)
-        etaPivot.add(pivot)
+        if (etaCount == etaPivotRow.size) {
+            etaPivotRow = etaPivotRow.copyOf(etaCount * 2)
+            etaPivot = etaPivot.copyOf(etaCount * 2)
+        }
+        etaPivotRow[etaCount] = pivotRow
+        etaPivot[etaCount] = pivot
+        etaCount++
         etaIndices.add(indices)
         etaValues.add(values)
         basicIndex[pivotRow] = entering
@@ -184,12 +192,12 @@ public class F64ProductFormBasisSolver(
     }
 
     /** The basis of [basicIndex] in CSC, its columns copied from [a] as they lie. */
+    @OptIn(UnsafeKoblasApi::class)
     private fun basisMatrix(basicIndex: IntArray): F64SparseMatrix {
         val colPtr = IntArray(n + 1)
         for (t in 0 until n) {
-            var entries = 0
-            a.forEachInColumn(basicIndex[t]) { _, _ -> entries++ }
-            colPtr[t + 1] = colPtr[t] + entries
+            val j = basicIndex[t]
+            colPtr[t + 1] = colPtr[t] + (a.colPtr[j + 1] - a.colPtr[j])
         }
         val rowIdx = IntArray(colPtr[n])
         val values = DoubleArray(colPtr[n])
@@ -205,8 +213,7 @@ public class F64ProductFormBasisSolver(
     }
 
     private fun dropChain() {
-        etaPivotRow.clear()
-        etaPivot.clear()
+        etaCount = 0
         etaIndices.clear()
         etaValues.clear()
     }
