@@ -3,8 +3,6 @@ package com.eignex.koblas.internal.backend
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.internal.numeric.absoluteSum
-import com.eignex.koblas.internal.numeric.euclideanNorm
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.F64SparseKernels
 import kotlin.test.*
@@ -20,63 +18,9 @@ class AccelerationTest {
         override val kernels: F64Kernels get() = F64ReferenceLinearAlgebra.kernels
     }
 
-    private class FakeKernels(override val name: String = "fakeblas") : F64Kernels {
+    private class FakeKernels(override val name: String = "fakeblas") : F64Kernels by F64ScalarKernels {
         override val priority: Int get() = 100
-        override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
-            var s = 0.0
-            for (i in 0 until len) s += a[aOff + i] * b[bOff + i]
-            return s
-        }
-        override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
-            for (i in 0 until len) y[yOff + i] += alpha * x[xOff + i]
-        }
-        override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
-            for (i in 0 until len) v[vOff + i] *= alpha
-        }
-        override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double = euclideanNorm(v, vOff, len)
-        override fun asum(v: DoubleArray, vOff: Int, len: Int): Double = absoluteSum(v, vOff, len)
-
-        override fun sum(v: DoubleArray, vOff: Int, len: Int): Double {
-            var s = 0.0
-            for (i in 0 until len) s += v[vOff + i]
-            return s
-        }
-
-        override fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
-            var s = 0.0
-            for (i in 0 until len) {
-                val d = a[aOff + i] - b[bOff + i]
-                s += d * d
-            }
-            return s
-        }
-
-        override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) {
-            for (i in 0 until len) {
-                val t = a[aOff + i]
-                a[aOff + i] = b[bOff + i]
-                b[bOff + i] = t
-            }
-        }
-
-        override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64ModifiedGivens =
-            portableRotmg(d1, d2, x1, y1)
-
-        @Suppress("LongParameterList")
-        override fun rotm(
-            x: DoubleArray,
-            xOff: Int,
-            xStride: Int,
-            y: DoubleArray,
-            yOff: Int,
-            yStride: Int,
-            len: Int,
-            transformation: F64ModifiedGivens,
-        ) = portableRotm(x, xOff, xStride, y, yOff, yStride, len, transformation)
-
-        @Suppress("LongParameterList")
-        override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) =
-            portableRot(x, xOff, y, yOff, len, c, s)
+        override val isPortable: Boolean get() = false
     }
 
     private class RoutedHost :
