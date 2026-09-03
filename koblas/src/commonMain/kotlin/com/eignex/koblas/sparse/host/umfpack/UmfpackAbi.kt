@@ -43,14 +43,6 @@ internal const val WARNING_SINGULAR = 1
 /** The symbol whose presence stands for a usable UMFPACK. */
 internal const val KEY_SYMBOL = "umfpack_di_symbolic"
 
-/** Stable report name for a native scaling selector. */
-internal fun umfpackScalingName(value: Double?): String? = when (value) {
-    0.0 -> "none"
-    1.0 -> "sum"
-    2.0 -> "max"
-    else -> null
-}
-
 /** The SuiteSparse UMFPACK ABI 5 and 6 names koblas supports. */
 internal val UMFPACK_SONAMES = listOf(
     "libumfpack.so.6",

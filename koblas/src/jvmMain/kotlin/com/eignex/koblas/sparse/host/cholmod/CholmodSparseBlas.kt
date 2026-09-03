@@ -46,9 +46,6 @@ public open class CholmodSparseBlas(
             snapshot,
             CholmodMatrix.generalOf(snapshot),
             calls,
-            nativeGemv = true,
-            nativeGemm = true,
-            nativeSparseProduct = true,
         )
     }
 
@@ -78,9 +75,6 @@ private class CholmodPreparedSparseMatrix(
     private val snapshot: F64SparseMatrix,
     private val matrix: CholmodMatrix,
     private val calls: CholmodCalls,
-    private val nativeGemv: Boolean,
-    private val nativeGemm: Boolean,
-    private val nativeSparseProduct: Boolean,
 ) : F64PreparedSparseMatrix {
     private val lifecycle = NativeResourceLifecycle("prepared CHOLMOD matrix", matrix::close)
     private val cleanable = nativeCleaner.register(this, lifecycle)
@@ -95,7 +89,7 @@ private class CholmodPreparedSparseMatrix(
         requireShape(x.size == xRows) { "gemv: x length ${x.size} != $xRows" }
         requireShape(y.size == yRows) { "gemv: y length ${y.size} != $yRows" }
         lifecycle.withResource {
-            if (!nativeGemv || !calls.sdmult(matrix, transpose, alpha, x, beta, y, 1, xRows, yRows)) {
+            if (!calls.sdmult(matrix, transpose, alpha, x, beta, y, 1, xRows, yRows)) {
                 F64ReferenceSparseLinearAlgebra.gemv(alpha, snapshot, x, beta, y, transpose)
             }
         }
@@ -116,7 +110,7 @@ private class CholmodPreparedSparseMatrix(
             "gemm: C is ${c.rows}x${c.cols}, expected ${m}x${b.cols}"
         }
         lifecycle.withResource {
-            if (!nativeGemm || !calls.sdmult(matrix, transposeA, alpha, b.data, beta, c.data, b.cols, b.rows, c.rows)) {
+            if (!calls.sdmult(matrix, transposeA, alpha, b.data, beta, c.data, b.cols, b.rows, c.rows)) {
                 F64ReferenceSparseLinearAlgebra.gemm(
                     alpha,
                     snapshot,
@@ -132,12 +126,8 @@ private class CholmodPreparedSparseMatrix(
     }
 
     override fun gemm(b: F64SparseMatrix): F64SparseMatrix = lifecycle.withResource {
-        if (!nativeSparseProduct) {
-            F64ReferenceSparseLinearAlgebra.gemm(snapshot, b)
-        } else {
-            CholmodMatrix.generalOf(b).use { right ->
-                calls.ssmult(matrix, right) ?: F64ReferenceSparseLinearAlgebra.gemm(snapshot, b)
-            }
+        CholmodMatrix.generalOf(b).use { right ->
+            calls.ssmult(matrix, right) ?: F64ReferenceSparseLinearAlgebra.gemm(snapshot, b)
         }
     }
 
