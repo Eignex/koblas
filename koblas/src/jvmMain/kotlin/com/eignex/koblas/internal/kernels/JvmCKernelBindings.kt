@@ -13,6 +13,7 @@ import java.nio.file.attribute.PosixFilePermissions
 internal object JvmCKernelBindings {
     private val symbolNames = listOf(
         "koblas_dense_dot",
+        "koblas_dense_ssqd",
         "koblas_dense_axpy",
         "koblas_dense_axpy_arithmetic",
         "koblas_dense_scale",
@@ -37,6 +38,12 @@ internal object JvmCKernelBindings {
     private val denseDot by lazy {
         requiredLibrary().handle(
             "koblas_dense_dot",
+            FfmLibrary.doubleOf(ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT),
+        )
+    }
+    private val denseSsqd by lazy {
+        requiredLibrary().handle(
+            "koblas_dense_ssqd",
             FfmLibrary.doubleOf(ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT),
         )
     }
@@ -139,6 +146,14 @@ internal object JvmCKernelBindings {
 
     fun denseDot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
         denseDot.invokeExact(MemorySegment.ofArray(a), aOff, MemorySegment.ofArray(b), bOff, len) as Double
+
+    fun denseSsqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double = denseSsqd.invokeExact(
+        MemorySegment.ofArray(a),
+        aOff,
+        MemorySegment.ofArray(b),
+        bOff,
+        len,
+    ) as Double
 
     fun denseAxpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
         denseAxpy.invokeExact(

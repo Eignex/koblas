@@ -5,6 +5,7 @@ package com.eignex.koblas.dense.host.cblas
 import com.eignex.koblas.F64ModifiedGivens
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.dense.F64Kernels
+import com.eignex.koblas.dense.F64PlatformKernels
 import com.eignex.koblas.dense.host.blasOffset
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.portableRotmg
@@ -52,6 +53,14 @@ public class F64CblasKernels internal constructor(
             }
         }
     }
+
+    /**
+     * OpenBLAS has no fused sum of squared differences, and the only way to build one from the routines it
+     * does have is `a.a - 2a.b + b.b`, whose cancellation ruins exactly the small values this is for. So
+     * this one routine runs the compiled-in kernel instead of the host library.
+     */
+    override fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
+        F64PlatformKernels.ssqd(a, aOff, b, bOff, len)
 
     override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) {
         if (len == 0) return

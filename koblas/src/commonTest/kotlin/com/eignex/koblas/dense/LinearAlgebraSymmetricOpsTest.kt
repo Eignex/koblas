@@ -436,6 +436,38 @@ class LinearAlgebraSymmetricOpsTest {
         }
         override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double = euclideanNorm(v, vOff, len)
         override fun asum(v: DoubleArray, vOff: Int, len: Int): Double = absoluteSum(v, vOff, len)
+
+        override fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
+            var s = 0.0
+            for (i in 0 until len) {
+                val d = a[aOff + i] - b[bOff + i]
+                s += d * d
+            }
+            return s
+        }
+
+        override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) {
+            for (i in 0 until len) {
+                val t = a[aOff + i]
+                a[aOff + i] = b[bOff + i]
+                b[bOff + i] = t
+            }
+        }
+
+        override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64ModifiedGivens =
+            portableRotmg(d1, d2, x1, y1)
+
+        @Suppress("LongParameterList")
+        override fun rotm(
+            x: DoubleArray,
+            xOff: Int,
+            xStride: Int,
+            y: DoubleArray,
+            yOff: Int,
+            yStride: Int,
+            len: Int,
+            transformation: F64ModifiedGivens,
+        ) = portableRotm(x, xOff, xStride, y, yOff, yStride, len, transformation)
     }
 
     @Test

@@ -43,6 +43,12 @@ internal actual object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
     ) = portableRotm(x, xOff, xStride, y, yOff, yStride, len, transformation)
 
     @Suppress("LongParameterList")
+    actual override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) =
+        scalarSwap(a, aOff, b, bOff, len)
+
+    actual override fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
+        scalarSsqd(a, aOff, b, bOff, len)
+
     actual override fun dot4(
         a: DoubleArray,
         aOff: Int,

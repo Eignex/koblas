@@ -103,6 +103,7 @@ swap(Vector,Vector)	com.eignex.koblas.bench.Level1Benchmark.swapBench	benchmarke
 rotmg(Double,Double,Double,Double)	com.eignex.koblas.bench.Level1Benchmark.rotmgBench	benchmarked	portable Level 1
 rotm(DenseVector,DenseVector,F64ModifiedGivens)	com.eignex.koblas.bench.Level1Benchmark.rotmBench	benchmarked	portable Level 1
 F64Kernels.dot4(DoubleArray,Int,Int,DoubleArray,Int,Int,DoubleArray,Int)	com.eignex.koblas.bench.Level1Benchmark.dot4	benchmarked	
+F64Kernels.ssqd(DoubleArray,Int,DoubleArray,Int,Int)	com.eignex.koblas.bench.Level1Benchmark.ssqd	benchmarked	
 F64Blas.gemv(F64DenseMatrix,transpose=false)	com.eignex.koblas.bench.Level2Benchmark.gemv	benchmarked	
 F64Blas.gemv(F64DenseMatrix,transpose=true)	com.eignex.koblas.bench.Level2Benchmark.gemvTransposed	benchmarked	
 F64Blas.symv(F64DenseMatrix)	com.eignex.koblas.bench.Level2Benchmark.symv	benchmarked	
