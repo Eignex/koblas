@@ -38,6 +38,32 @@ class SparseSemanticRolesTest {
         F64QuasiDefiniteLdl,
         F64SparseQr
 
+    private class CholeskyOnly :
+        LegacyProvider("cholesky-only", priority = 10),
+        F64SparseCholesky
+
+    private class LdlOnly :
+        LegacyProvider("ldl-only", priority = 10),
+        F64QuasiDefiniteLdl
+
+    private class QrOnly :
+        LegacyProvider("qr-only", priority = 10),
+        F64SparseQr
+
+    /**
+     * Shaped like koblas's own reference: portable, and filling a specialized half beside a general LU that
+     * really is general. What makes a provider specialized is calling out to a library built for one job.
+     */
+    private class PortableComplete :
+        LegacyProvider("portable-complete", priority = 10),
+        F64GeneralSparseLu,
+        F64BasisFactorizations {
+        override val isPortable: Boolean get() = true
+
+        override fun factorBasis(basis: F64SparseMatrix): F64BasisFactorization =
+            F64ReferenceSparseLinearAlgebra.factorBasis(basis)
+    }
+
     @Test
     fun `specialized providers do not change general sparse LU`() = withCleanBackends {
         val general = General()
@@ -148,6 +174,45 @@ class SparseSemanticRolesTest {
         assertSame(repeated, context.repeatedSparseLu)
         assertSame(basis, context.basisFactorizations)
         assertEquals("reference", context.generalSparseLu.name)
+    }
+
+    /** Each half comes out of its own seam, which is what a resolved context wiring two of them alike loses. */
+    @Test
+    fun `each factorization role resolves the provider registered for it`() = withCleanBackends {
+        val cholesky = CholeskyOnly()
+        val ldl = LdlOnly()
+        val qr = QrOnly()
+
+        registerBackend(cholesky)
+        registerBackend(ldl)
+        registerBackend(qr)
+
+        assertSame(cholesky, koblas.sparseCholesky)
+        assertSame(ldl, koblas.quasiDefiniteLdl)
+        assertSame(qr, koblas.sparseQr)
+        assertEquals("reference", koblas.generalSparseLu.name, "nothing filled the general half")
+    }
+
+    @Test
+    fun `a portable provider filling a specialized half keeps general sparse LU`() = withCleanBackends {
+        val provider = PortableComplete()
+
+        registerBackend(provider)
+
+        assertSame(provider, koblas.generalSparseLu)
+        assertSame(provider, koblas.basisFactorizations)
+    }
+
+    @Test
+    fun `a portable provider filling a specialized half keeps general LU in an explicit context`() {
+        val provider = PortableComplete()
+
+        val context = F64ContextBuilder()
+            .withBackend(provider)
+            .resolve()
+
+        assertSame(provider, context.generalSparseLu)
+        assertSame(provider, context.basisFactorizations)
     }
 
     @Test
