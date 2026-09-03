@@ -4,60 +4,11 @@ package com.eignex.koblas.internal.backend
  * The system properties and environment variables koblas reads. Each is an external identifier a caller
  * types on a command line, so they are collected here rather than spelled out at the one place that reads
  * them. Which platform honors which is up to that platform: there are no system properties outside the JVM.
+ *
+ * The keys that pin one backend half sit on [BackendSlot] beside the half they select, so a half cannot be
+ * added without them.
  */
 internal object ConfigurationKeys {
-    /** Pins one semantic backend role to one [BackendNames] value instead of taking the highest offer. */
-    val BACKENDS: Map<BackendSlot, BackendSelectionKeys> = mapOf(
-        BackendSlot.F64Kernels to BackendSelectionKeys(
-            "koblas.backend.dense.kernels",
-            "KOBLAS_DENSE_KERNELS_BACKEND",
-        ),
-        BackendSlot.F64Blas to BackendSelectionKeys(
-            "koblas.backend.dense.blas",
-            "KOBLAS_DENSE_BLAS_BACKEND",
-        ),
-        BackendSlot.F64Decompositions to BackendSelectionKeys(
-            "koblas.backend.dense.decompositions",
-            "KOBLAS_DENSE_DECOMPOSITIONS_BACKEND",
-        ),
-        BackendSlot.F64SparseKernels to BackendSelectionKeys(
-            "koblas.backend.sparse.kernels",
-            "KOBLAS_SPARSE_KERNELS_BACKEND",
-        ),
-        BackendSlot.F64SparseBlas to BackendSelectionKeys(
-            "koblas.backend.sparse.blas",
-            "KOBLAS_SPARSE_BLAS_BACKEND",
-        ),
-        BackendSlot.F64GeneralSparseLu to BackendSelectionKeys(
-            "koblas.backend.sparse.general.lu",
-            "KOBLAS_SPARSE_GENERAL_LU_BACKEND",
-        ),
-        BackendSlot.F64RepeatedSparseLu to BackendSelectionKeys(
-            "koblas.backend.sparse.repeated.lu",
-            "KOBLAS_SPARSE_REPEATED_LU_BACKEND",
-        ),
-        BackendSlot.F64SparseCholesky to BackendSelectionKeys(
-            "koblas.backend.sparse.cholesky",
-            "KOBLAS_SPARSE_CHOLESKY_BACKEND",
-        ),
-        BackendSlot.F64QuasiDefiniteLdl to BackendSelectionKeys(
-            "koblas.backend.sparse.quasi-definite-ldl",
-            "KOBLAS_SPARSE_QUASI_DEFINITE_LDL_BACKEND",
-        ),
-        BackendSlot.F64SparseQr to BackendSelectionKeys(
-            "koblas.backend.sparse.qr",
-            "KOBLAS_SPARSE_QR_BACKEND",
-        ),
-        BackendSlot.F64BasisFactorizations to BackendSelectionKeys(
-            "koblas.backend.basis.factorizations",
-            "KOBLAS_BASIS_FACTORIZATIONS_BACKEND",
-        ),
-        BackendSlot.F64BasisSolvers to BackendSelectionKeys(
-            "koblas.backend.basis.solvers",
-            "KOBLAS_BASIS_SOLVERS_BACKEND",
-        ),
-    )
-
     /** Selects indexed JVM Vector API stores for sparse kernels. */
     val JVM_VECTOR_SCATTER = JvmVectorScatterKeys(
         "koblas.jvm.vector.scatter",

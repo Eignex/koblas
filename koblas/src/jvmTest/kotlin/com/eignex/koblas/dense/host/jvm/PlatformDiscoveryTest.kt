@@ -19,10 +19,10 @@ class PlatformDiscoveryTest {
 
     /** Runs [block] with every role property set to [value], or absent when null, then restores them. */
     private fun withRequestedBackend(value: String?, block: () -> Unit) {
-        val previous = ConfigurationKeys.BACKENDS.values.associate { keys ->
-            keys.property to System.getProperty(keys.property)
+        val previous = BackendSlot.entries.associate { slot ->
+            slot.selectionKeys.property to System.getProperty(slot.selectionKeys.property)
         }
-        ConfigurationKeys.BACKENDS.values.forEach { keys -> setRequestedBackend(keys.property, value) }
+        BackendSlot.entries.forEach { slot -> setRequestedBackend(slot.selectionKeys.property, value) }
         try {
             block()
         } finally {

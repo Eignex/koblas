@@ -134,6 +134,22 @@ class SparseSemanticRolesTest {
         assertEquals("general", context.sparseDecompositions.generalLuProviderName())
     }
 
+    /** The same choice registration makes, so a context resolved either way fills the role the same way. */
+    @Test
+    fun `specialized providers do not change general sparse LU in an explicit context`() {
+        val repeated = Repeated()
+        val basis = Basis()
+
+        val context = F64ContextBuilder()
+            .withBackend(repeated)
+            .withBackend(basis)
+            .resolve()
+
+        assertSame(repeated, context.repeatedSparseLu)
+        assertSame(basis, context.basisFactorizations)
+        assertEquals("reference", context.generalSparseLu.name)
+    }
+
     @Test
     fun `a specialized provider can be explicitly selected for general LU`() {
         val repeated = Repeated()

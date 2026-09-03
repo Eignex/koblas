@@ -1,6 +1,8 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.dense.*
+import com.eignex.koblas.internal.backend.BackendSlot
+import com.eignex.koblas.internal.backend.slot
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.sparse.basis.F64BasisSolvers
 
@@ -34,16 +36,18 @@ public class F64ContextBuilder private constructor(
 
     /** Selects [backend] for [role], without consulting global registration or priority. */
     public fun withBackend(role: BackendRole, backend: Backend): F64ContextBuilder {
-        require(role.accepts(backend)) { "${backend.name} does not implement $role" }
+        require(role.slot.accepts(backend)) { "${backend.name} does not implement $role" }
         return copy(selections = selections + (role to backend))
     }
 
     /**
      * Selects [backend] for every role it implements, without consulting global registration or priority.
-     * Prefer the role overload when a specialized provider should not also fill its general capabilities.
+     * A specialized provider keeps the roles that specialization is about and leaves the general ones it
+     * also implements to a general provider, which is what registration does with the same object. The role
+     * overload selects it for a general role anyway.
      */
     public fun withBackend(backend: Backend): F64ContextBuilder {
-        val roles = BackendRole.entries.filter { it.accepts(backend) }
+        val roles = BackendSlot.entries.filter { it.acceptsOffer(backend) }.map { it.role }
         require(roles.isNotEmpty()) { "${backend.name} implements no F64 backend role" }
         return copy(selections = selections + roles.associateWith { backend })
     }
@@ -72,13 +76,15 @@ public class F64ContextBuilder private constructor(
         val kernels = resolved.getValue(BackendRole.DENSE_KERNELS) as F64Kernels
         val denseReference = F64ReferenceBackend(kernels)
         val sparseReference = F64ReferenceSparseBackend(kernels)
-        val generalLu = resolved.semanticGeneralLu(sparseReference)
-        val cholesky = resolved.semanticCholesky(sparseReference)
-        val quasiDefiniteLdl = resolved.semanticQuasiDefiniteLdl(sparseReference)
-        val qr = resolved.semanticQr(sparseReference)
+        val generalLu = resolved.semantic<F64GeneralSparseLu>(BackendRole.SPARSE_GENERAL_LU, sparseReference)
+        val cholesky = resolved.semantic<F64SparseCholesky>(BackendRole.SPARSE_CHOLESKY, sparseReference)
+        val quasiDefiniteLdl =
+            resolved.semantic<F64QuasiDefiniteLdl>(BackendRole.SPARSE_QUASI_DEFINITE_LDL, sparseReference)
+        val qr = resolved.semantic<F64SparseQr>(BackendRole.SPARSE_QR, sparseReference)
         val sparseRoles = F64SparseDecompositionRoles(generalLu, cholesky, quasiDefiniteLdl, qr)
         val repeated = resolved[BackendRole.SPARSE_REPEATED_LU] as? F64RepeatedSparseLu
-        val basisFactorizations = resolved.semanticBasisFactorizations(sparseReference)
+        val basisFactorizations =
+            resolved.semantic<F64BasisFactorizations>(BackendRole.BASIS_FACTORIZATIONS, sparseReference)
         return F64Context(
             kernels = kernels,
             blas = resolved.boundReference(BackendRole.DENSE_BLAS, denseReference) as F64Blas,
@@ -124,69 +130,18 @@ private fun Map<BackendRole, Backend>.boundReference(role: BackendRole, configur
     }
 }
 
-private fun portableSelections(): Map<BackendRole, Backend> = mapOf(
-    BackendRole.DENSE_KERNELS to F64RoutedKernels(null),
-    BackendRole.DENSE_BLAS to F64ReferenceLinearAlgebra,
-    BackendRole.DENSE_DECOMPOSITIONS to F64ReferenceLinearAlgebra,
-    BackendRole.SPARSE_KERNELS to F64PlatformSparseKernels,
-    BackendRole.SPARSE_BLAS to F64ReferenceSparseLinearAlgebra,
-    BackendRole.SPARSE_GENERAL_LU to F64ReferenceSparseLinearAlgebra,
-    BackendRole.SPARSE_REPEATED_LU to MissingRepeatedSparseLu,
-    BackendRole.SPARSE_CHOLESKY to F64ReferenceSparseLinearAlgebra,
-    BackendRole.SPARSE_QUASI_DEFINITE_LDL to F64ReferenceSparseLinearAlgebra,
-    BackendRole.SPARSE_QR to F64ReferenceSparseLinearAlgebra,
-    BackendRole.BASIS_FACTORIZATIONS to F64ReferenceSparseLinearAlgebra,
-    BackendRole.BASIS_SOLVERS to F64ReferenceSparseLinearAlgebra,
-)
+private fun portableSelections(): Map<BackendRole, Backend> =
+    BackendSlot.entries.associate { it.role to it.portableDefault() }
 
-private fun BackendRole.accepts(backend: Backend): Boolean = when (this) {
-    BackendRole.DENSE_KERNELS -> backend is F64Kernels
-    BackendRole.DENSE_BLAS -> backend is F64Blas
-    BackendRole.DENSE_DECOMPOSITIONS -> backend is F64Decompositions
-    BackendRole.SPARSE_KERNELS -> backend is F64SparseKernels
-    BackendRole.SPARSE_BLAS -> backend is F64SparseBlas
-    BackendRole.SPARSE_GENERAL_LU -> backend is F64GeneralSparseLu
-    BackendRole.SPARSE_REPEATED_LU -> backend is F64RepeatedSparseLu
-    BackendRole.SPARSE_CHOLESKY -> backend is F64SparseCholesky
-    BackendRole.SPARSE_QUASI_DEFINITE_LDL -> backend is F64QuasiDefiniteLdl
-    BackendRole.SPARSE_QR -> backend is F64SparseQr
-    BackendRole.BASIS_FACTORIZATIONS -> backend is F64BasisFactorizations
-    BackendRole.BASIS_SOLVERS -> backend is F64BasisSolvers
-}
-
-private fun Map<BackendRole, Backend>.semanticGeneralLu(reference: F64ReferenceSparseBackend): F64GeneralSparseLu =
-    when (val backend = getValue(BackendRole.SPARSE_GENERAL_LU)) {
-        F64ReferenceSparseLinearAlgebra -> reference
-        is F64GeneralSparseLu -> backend
-        else -> error("${backend.name} does not implement general sparse LU")
-    }
-
-private fun Map<BackendRole, Backend>.semanticCholesky(reference: F64ReferenceSparseBackend): F64SparseCholesky =
-    when (val backend = getValue(BackendRole.SPARSE_CHOLESKY)) {
-        F64ReferenceSparseLinearAlgebra -> reference
-        is F64SparseCholesky -> backend
-        else -> error("${backend.name} does not implement sparse Cholesky")
-    }
-
-private fun Map<BackendRole, Backend>.semanticQuasiDefiniteLdl(
+/**
+ * The provider selected for [role], as the interface the role is defined by. The type holds because
+ * [F64ContextBuilder.withBackend] takes no selection its role does not accept, so the error is a guard on a
+ * selection map built some other way rather than something a caller can reach.
+ */
+private inline fun <reified T : Backend> Map<BackendRole, Backend>.semantic(
+    role: BackendRole,
     reference: F64ReferenceSparseBackend,
-): F64QuasiDefiniteLdl = when (val backend = getValue(BackendRole.SPARSE_QUASI_DEFINITE_LDL)) {
-    F64ReferenceSparseLinearAlgebra -> reference
-    is F64QuasiDefiniteLdl -> backend
-    else -> error("${backend.name} does not implement sparse quasi-definite LDL")
-}
-
-private fun Map<BackendRole, Backend>.semanticQr(reference: F64ReferenceSparseBackend): F64SparseQr =
-    when (val backend = getValue(BackendRole.SPARSE_QR)) {
-        F64ReferenceSparseLinearAlgebra -> reference
-        is F64SparseQr -> backend
-        else -> error("${backend.name} does not implement sparse QR")
-    }
-
-private fun Map<BackendRole, Backend>.semanticBasisFactorizations(
-    reference: F64ReferenceSparseBackend,
-): F64BasisFactorizations = when (val backend = getValue(BackendRole.BASIS_FACTORIZATIONS)) {
-    F64ReferenceSparseLinearAlgebra -> reference
-    is F64BasisFactorizations -> backend
-    else -> error("${backend.name} does not implement basis factorizations")
+): T {
+    val backend = boundReference(role, reference)
+    return backend as? T ?: error("${backend.name} does not implement $role")
 }

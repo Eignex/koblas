@@ -51,26 +51,11 @@ internal object BackendRegistry {
         offer(backend, explicit = true)
     }
 
-    /** The general sparse LU registered under [name], or null when nothing did. */
-    internal fun generalSparseLuNamed(name: String) = f64.generalSparseLuNamed(name)
-
-    /** The repeated-pattern sparse LU registered under [name], or null when nothing did. */
-    internal fun repeatedSparseLuNamed(name: String) = f64.repeatedSparseLuNamed(name)
-
-    /** The sparse Cholesky provider registered under [name], or null when nothing did. */
-    internal fun sparseCholeskyNamed(name: String) = f64.sparseCholeskyNamed(name)
-
-    /** The sparse quasi-definite LDL provider registered under [name], or null when nothing did. */
-    internal fun quasiDefiniteLdlNamed(name: String) = f64.quasiDefiniteLdlNamed(name)
-
-    /** The sparse QR provider registered under [name], or null when nothing did. */
-    internal fun sparseQrNamed(name: String) = f64.sparseQrNamed(name)
-
-    /** The basis factorization provider registered under [name], or null when nothing did. */
-    internal fun basisFactorizationsNamed(name: String) = f64.basisFactorizationsNamed(name)
-
-    /** The basis solvers registered under [name], or null when nothing did. */
-    internal fun basisSolversNamed(name: String) = f64.basisSolversNamed(name)
+    /**
+     * The backend registered for [slot] under [name], or null when nothing did. Typed by the caller from
+     * the same slot, since a seam holds only backends its half accepted.
+     */
+    internal fun named(slot: BackendSlot, name: String) = f64.named(slot, name)
 
     /** The names registered for [slot], strongest first. */
     internal fun namesFor(slot: BackendSlot) = f64.namesFor(slot)
