@@ -49,9 +49,8 @@ internal class ArrayPools<A : Any>(private val allocate: (Int) -> A, private val
     private fun pool(size: Int): Pool {
         findPool(size)?.let { return it }
         // Reclaimed until the new pool fits under the cap, rather than once when the table happens to be
-        // full. Tying the two together left the cap dormant until the next doubling, since the table doubles
-        // and a burst of borrows can push the count past the cap with nothing idle to give back. Stops early
-        // when every pool has a borrow out, because those have to stay releasable.
+        // full: the table doubles, so a burst of borrows can push the count past the cap with nothing idle to
+        // give back. Stops early when every pool has a borrow out, because those have to stay releasable.
         while (poolCount >= MAX_WIDTHS) {
             if (!dropColdestIdlePool()) break
         }

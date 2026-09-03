@@ -224,8 +224,7 @@ internal class F64RoutedKernels(internal val host: F64Kernels?) :
         if (len < crossover) F64PlatformKernels else host ?: F64PlatformKernels
 
     // rotmg takes four scalars and has no len to threshold on, so it alone routes unconditionally: host when
-    // present, compiled-in otherwise. Every routine with a length is gated, including the two rotations,
-    // which used to reach the host at any length through this.
+    // present, compiled-in otherwise. Every routine with a length is gated, including the two rotations.
     private fun hostOrPlatform(): F64Kernels = host ?: F64PlatformKernels
 
     override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double =
