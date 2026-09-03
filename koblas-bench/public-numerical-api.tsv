@@ -17,6 +17,7 @@ MatrixOps.kt:F64DenseMatrix.symvInto(F64VectorLike,DoubleArray,Boolean)	F64Dense
 MatrixOps.kt:F64DenseMatrix.syr(Double,F64VectorLike,Boolean)	F64Blas.syr(Double,Vector,F64DenseMatrix)
 MatrixOps.kt:F64DenseMatrix.syr2(Double,F64VectorLike,F64VectorLike,Boolean)	F64Blas.syr2(Double,Vector,Vector,F64DenseMatrix)
 MatrixOps.kt:F64DenseMatrix.transpose()	F64DenseMatrix.transpose()
+MatrixOps.kt:F64DenseMatrix.zeroStrictUpper()	F64DenseMatrix.zeroStrictUpper()
 MatrixOps.kt:F64MatrixLike.gemvInto(Double,F64VectorLike,Double,DoubleArray)	F64MatrixLike.gemvInto(F64VectorLike,DoubleArray)
 MatrixOps.kt:F64MatrixLike.gemvInto(F64VectorLike,DoubleArray)	F64MatrixLike.gemvInto(F64VectorLike,DoubleArray)
 MatrixOps.kt:F64SparseMatrix.column(Int)	F64SparseMatrix.column(Int)
