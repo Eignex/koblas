@@ -49,8 +49,10 @@ public fun F64MatrixLike.gemvInto(alpha: Double, x: F64VectorLike, beta: Double,
         is F64DenseMatrix -> {
             val ad = a.data
             val rows = a.rows
+            // Read the installed kernels once rather than per stored entry of x.
+            val kernels = koblas.kernels
             x.forEachStored { j, v ->
-                if (v != 0.0) koblas.kernels.axpy(destination, 0, alpha * v, ad, j * rows, rows)
+                if (v != 0.0) kernels.axpy(destination, 0, alpha * v, ad, j * rows, rows)
             }
         }
 

@@ -66,7 +66,7 @@ F64DenseVector.unaryMinus()		excluded	Elementwise arithmetic allocates a result 
 F64DenseVector.plus(F64DenseVector)		excluded	Elementwise arithmetic allocates a result and does not select a numerical backend.
 F64DenseVector.minus(F64DenseVector)		excluded	Elementwise arithmetic allocates a result and does not select a numerical backend.
 F64MatrixLike.times(F64VectorLike)		excluded	The operator form dispatches to the benchmarked dense and sparse gemv facades.
-F64MatrixLike.gemvInto(F64VectorLike,DoubleArray)		excluded	The destination-passing matvec reaches the same gemv facades as the benchmarked dense and sparse forms; the sparse and generic x paths are the operator's own accumulation loops, now shared with it.
+F64MatrixLike.gemvInto(F64VectorLike,DoubleArray)	com.eignex.koblas.bench.GemvIntoBenchmark.gemvIntoSparseX	benchmarked	
 F64DenseMatrix.symvInto(F64VectorLike,DoubleArray)		excluded	The destination-passing symmetric matvec reaches the benchmarked symv facade; the one-triangle read over sparse and generic x is covered by tests rather than a benchmark.
 F64DenseMatrix.times(F64SparseMatrix)		excluded	A dense left operand is the right = true arm of the benchmarked sparse gemm.
 F64CholeskyDecomposition.solve(F64DenseMatrix)		excluded	The multi-right-hand-side solve repeats the benchmarked Cholesky solve kernel over the columns of B.
