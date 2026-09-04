@@ -69,24 +69,52 @@ public class F64SparseMarkowitzLu private constructor(
         val rowIdx = IntArray(colPtr[m])
         val entries = DoubleArray(colPtr[m])
         for (k in 0 until m) {
-            val order = columns[k].indices.sortedBy { columns[k][it] }
+            val column = columns[k]
             var slot = colPtr[k]
             if (diagonalFirst) {
                 rowIdx[slot] = k
                 entries[slot] = diagonal(k)
                 slot++
             }
-            for (position in order) {
-                rowIdx[slot] = columns[k][position]
+            // Written into the destination and sorted there, rather than ordering the positions first: an
+            // ordering of the indices costs a comparator, a boxed list and an unboxing per entry, and these
+            // are get() properties, so a caller reading l twice pays for it twice. Insertion sort because a
+            // factor column is short and already nearly ordered.
+            val from = slot
+            for (position in column.indices) {
+                rowIdx[slot] = column[position]
                 entries[slot] = values[k][position]
                 slot++
             }
+            sortColumn(rowIdx, entries, from, slot)
             if (!diagonalFirst) {
                 rowIdx[slot] = k
                 entries[slot] = diagonal(k)
             }
         }
         return F64SparseMatrix.wrap(m, m, colPtr, rowIdx, entries)
+    }
+
+    /**
+     * Orders `[from, until)` of one column by row index, carrying each value with its index.
+     *
+     * Insertion sort rather than a library sort: what needs ordering is two parallel primitive arrays at
+     * once, which no sort here takes, and a factor column is short enough that the quadratic term does not
+     * bite.
+     */
+    private fun sortColumn(rowIdx: IntArray, entries: DoubleArray, from: Int, until: Int) {
+        for (i in from + 1 until until) {
+            val row = rowIdx[i]
+            val value = entries[i]
+            var j = i - 1
+            while (j >= from && rowIdx[j] > row) {
+                rowIdx[j + 1] = rowIdx[j]
+                entries[j + 1] = entries[j]
+                j--
+            }
+            rowIdx[j + 1] = row
+            entries[j + 1] = value
+        }
     }
 
     /** Always [NOT_SINGULAR]: a [F64SparseMarkowitzLu] only exists for a matrix that factored completely. */
