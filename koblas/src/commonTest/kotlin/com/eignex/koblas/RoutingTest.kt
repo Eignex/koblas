@@ -23,6 +23,9 @@ class RoutingTest {
             F64RouteQuery.SparseTriangular(1, kind = SparseTriangularKind.MULTIPLY, rightHandSides = -1)
         }
         assertFailsWith<IllegalArgumentException> { F64RouteQuery.SparseLu(-1) }
+        assertFailsWith<IllegalArgumentException> { F64RouteQuery.Level1(F64Level1Routine.DOT, -1) }
+        assertFailsWith<IllegalArgumentException> { F64RouteQuery.CholeskyRankUpdate(order = -1, rank = 1) }
+        assertFailsWith<IllegalArgumentException> { F64RouteQuery.CholeskyRankUpdate(order = 1, rank = -1) }
     }
 
     @Test

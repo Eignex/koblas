@@ -217,6 +217,7 @@ public final class com/eignex/koblas/DispatchMetric : java/lang/Enum {
 	public static final field DIMENSION Lcom/eignex/koblas/DispatchMetric;
 	public static final field LEVEL3_WORK Lcom/eignex/koblas/DispatchMetric;
 	public static final field STORED_ENTRIES Lcom/eignex/koblas/DispatchMetric;
+	public static final field VECTOR_LENGTH Lcom/eignex/koblas/DispatchMetric;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/DispatchMetric;
 	public static fun values ()[Lcom/eignex/koblas/DispatchMetric;
@@ -406,6 +407,21 @@ public final class com/eignex/koblas/F64GivensKt {
 	public static final fun rotg (DD)Lcom/eignex/koblas/F64Givens;
 }
 
+public final class com/eignex/koblas/F64Level1Routine : java/lang/Enum {
+	public static final field ASUM Lcom/eignex/koblas/F64Level1Routine;
+	public static final field AXPY Lcom/eignex/koblas/F64Level1Routine;
+	public static final field DOT Lcom/eignex/koblas/F64Level1Routine;
+	public static final field NRM2 Lcom/eignex/koblas/F64Level1Routine;
+	public static final field ROT Lcom/eignex/koblas/F64Level1Routine;
+	public static final field ROTM Lcom/eignex/koblas/F64Level1Routine;
+	public static final field ROTMG Lcom/eignex/koblas/F64Level1Routine;
+	public static final field SCALE Lcom/eignex/koblas/F64Level1Routine;
+	public static final field SWAP Lcom/eignex/koblas/F64Level1Routine;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/F64Level1Routine;
+	public static fun values ()[Lcom/eignex/koblas/F64Level1Routine;
+}
+
 public final class com/eignex/koblas/F64ModifiedGivens {
 	public final fun getD1 ()D
 	public final fun getD2 ()D
@@ -438,6 +454,20 @@ public final class com/eignex/koblas/F64RoutePlan {
 
 public abstract interface class com/eignex/koblas/F64RouteQuery {
 	public abstract fun getRole ()Lcom/eignex/koblas/BackendRole;
+}
+
+public final class com/eignex/koblas/F64RouteQuery$CholeskyRankUpdate : com/eignex/koblas/F64RouteQuery {
+	public fun <init> (II)V
+	public final fun component1 ()I
+	public final fun component2 ()I
+	public final fun copy (II)Lcom/eignex/koblas/F64RouteQuery$CholeskyRankUpdate;
+	public static synthetic fun copy$default (Lcom/eignex/koblas/F64RouteQuery$CholeskyRankUpdate;IIILjava/lang/Object;)Lcom/eignex/koblas/F64RouteQuery$CholeskyRankUpdate;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getOrder ()I
+	public final fun getRank ()I
+	public fun getRole ()Lcom/eignex/koblas/BackendRole;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
 }
 
 public final class com/eignex/koblas/F64RouteQuery$DenseGemm : com/eignex/koblas/F64RouteQuery {
@@ -478,6 +508,20 @@ public final class com/eignex/koblas/F64RouteQuery$DenseLu : com/eignex/koblas/F
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getOrder ()I
 	public fun getRole ()Lcom/eignex/koblas/BackendRole;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/eignex/koblas/F64RouteQuery$Level1 : com/eignex/koblas/F64RouteQuery {
+	public fun <init> (Lcom/eignex/koblas/F64Level1Routine;I)V
+	public final fun component1 ()Lcom/eignex/koblas/F64Level1Routine;
+	public final fun component2 ()I
+	public final fun copy (Lcom/eignex/koblas/F64Level1Routine;I)Lcom/eignex/koblas/F64RouteQuery$Level1;
+	public static synthetic fun copy$default (Lcom/eignex/koblas/F64RouteQuery$Level1;Lcom/eignex/koblas/F64Level1Routine;IILjava/lang/Object;)Lcom/eignex/koblas/F64RouteQuery$Level1;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getLength ()I
+	public fun getRole ()Lcom/eignex/koblas/BackendRole;
+	public final fun getRoutine ()Lcom/eignex/koblas/F64Level1Routine;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }

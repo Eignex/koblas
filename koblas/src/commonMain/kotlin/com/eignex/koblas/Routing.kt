@@ -1,5 +1,40 @@
 package com.eignex.koblas
 
+/**
+ * The level-1 routines a caller can ask about, each with a crossover of its own.
+ *
+ * [ROTMG] takes four scalars and has no length to compare, so it routes to a registered host whatever the
+ * problem size; every other routine here is gated.
+ */
+public enum class F64Level1Routine {
+    /** `xᵀ·y`. */
+    DOT,
+
+    /** `y += alpha·x`. */
+    AXPY,
+
+    /** `x *= alpha`. */
+    SCALE,
+
+    /** The Euclidean norm. */
+    NRM2,
+
+    /** The sum of absolute values. */
+    ASUM,
+
+    /** Exchanging two vectors. */
+    SWAP,
+
+    /** Applying a plane rotation. */
+    ROT,
+
+    /** Applying a modified plane rotation. */
+    ROTM,
+
+    /** Generating a modified rotation, which has no length to gate on. */
+    ROTMG,
+}
+
 /** An operation whose runtime route can be inspected before it is executed. */
 public sealed interface F64RouteQuery {
     /** The context role that owns this operation. */
@@ -23,6 +58,31 @@ public sealed interface F64RouteQuery {
             requireNonNegative(m, "m")
             requireNonNegative(n, "n")
             requireNonNegative(k, "k")
+        }
+    }
+
+    /**
+     * One level-1 [routine] over [length] elements, which the kernels route per call: a run below that
+     * routine's crossover executes on the compiled-in kernels even when a host is registered.
+     */
+    public data class Level1(val routine: F64Level1Routine, val length: Int) : F64RouteQuery {
+        override val role: BackendRole get() = BackendRole.DENSE_KERNELS
+
+        init {
+            requireNonNegative(length, "length")
+        }
+    }
+
+    /**
+     * A Cholesky rank update of an [order] factor by [rank] vectors. The host path blocks the update, which
+     * needs enough vectors to be worth the transpose it costs, so this one has a threshold of its own.
+     */
+    public data class CholeskyRankUpdate(val order: Int, val rank: Int) : F64RouteQuery {
+        override val role: BackendRole get() = BackendRole.DENSE_DECOMPOSITIONS
+
+        init {
+            requireNonNegative(order, "order")
+            requireNonNegative(rank, "rank")
         }
     }
 
@@ -184,6 +244,9 @@ public enum class DispatchMetric {
 
     /** Stored entries in a sparse matrix. */
     STORED_ENTRIES,
+
+    /** Elements in a level-1 operand. */
+    VECTOR_LENGTH,
 }
 
 /**
@@ -255,6 +318,26 @@ private fun selectedStatus(query: F64RouteQuery, backend: Backend): BackendStatu
     backend.isPortable,
     accelerated = !backend.isPortable,
     (backend as? BackendMetadataProvider)?.backendMetadata ?: BackendMetadata(),
+)
+
+/**
+ * The route for a problem under a backend's crossover, which executes on koblas's own implementation while
+ * the half stays the host's. [actual] and [minimum] are what the backend compared.
+ */
+internal fun belowThreshold(
+    query: F64RouteQuery,
+    backend: Backend,
+    metric: DispatchMetric,
+    actual: Int,
+    minimum: Int,
+    portableExecutor: String = "reference",
+): BackendRoute = BackendRoute(
+    query,
+    selectedStatus(query, backend),
+    BackendExecution.PORTABLE,
+    portableExecutor,
+    BackendRouteReason.BELOW_THRESHOLD,
+    DispatchGate(metric, actual.toLong(), minimum.toLong()),
 )
 
 /** Builds the native route or unavailable fallback shared by the host adapters. */
