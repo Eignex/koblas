@@ -6,16 +6,6 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.internal.transposeRaw
 import kotlinx.cinterop.*
 
-/** What KLU's extraction hands back, in CSC with the scaling normalised to a multiplier. */
-internal class KluFactors(
-    val lower: F64SparseMatrix,
-    val upper: F64SparseMatrix,
-    val offDiagonal: F64SparseMatrix,
-    val rowOrder: IntArray,
-    val columnOrder: IntArray,
-    val rowScaling: DoubleArray,
-)
-
 /**
  * The factors from a KLU numeric object, or null when this libklu lacks `klu_extract`.
  *

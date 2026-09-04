@@ -72,60 +72,26 @@ public class CholmodFactorization internal constructor(
 
     private val factors: CholmodFactors get() = anchoring { extracted }
 
-    /**
-     * The lower triangular factor, in the form each kind's interface documents: an `L·Lᵀ` keeps its real
-     * diagonal, and an `L·D·Lᵀ` drops the diagonal CHOLMOD stores `D` in, leaving it implicit.
-     */
+    /** The lower triangular factor, as [CholmodFactors.lower] documents it for each kind. */
     internal val lowerFactor: F64SparseMatrix
         get() {
-            requireFactors("l")
-            val held = factors
-            if (isLl) {
-                return F64SparseMatrix.wrap(
-                    held.order,
-                    held.order,
-                    held.colPtr.copyOf(),
-                    held.rowIdx.copyOf(),
-                    held.values.copyOf(),
-                )
-            }
-            // An `L·D·Lᵀ` keeps `D` on the diagonal CHOLMOD stores, and this seam holds it separately with
-            // the unit diagonal implicit, so that entry is dropped rather than replaced by a one.
-            val colPtr = IntArray(held.order + 1)
-            for (k in 0 until held.order) {
-                colPtr[k + 1] = colPtr[k] + (held.colPtr[k + 1] - held.colPtr[k] - 1)
-            }
-            val rows = IntArray(colPtr[held.order])
-            val entries = DoubleArray(colPtr[held.order])
-            for (k in 0 until held.order) {
-                var slot = colPtr[k]
-                for (q in held.colPtr[k] + 1 until held.colPtr[k + 1]) {
-                    rows[slot] = held.rowIdx[q]
-                    entries[slot] = held.values[q]
-                    slot++
-                }
-            }
-            return F64SparseMatrix.wrap(held.order, held.order, colPtr, rows, entries)
+            requireCholmodFactors("l")
+            return factors.lower(isLl)
         }
 
     /** The diagonal factor of an `L·D·Lᵀ`, which CHOLMOD stores as the diagonal of `L`. */
     internal val diagonalFactor: DoubleArray
         get() {
-            requireFactors("d")
-            val held = factors
-            return DoubleArray(held.order) { held.values[held.colPtr[it]] }
+            requireCholmodFactors("d")
+            return factors.diagonal()
         }
 
     /** The fill-reducing ordering CHOLMOD chose. */
     internal val ordering: IntArray
         get() {
-            requireFactors("order")
+            requireCholmodFactors("order")
             return factors.permutation.copyOf()
         }
-
-    private fun requireFactors(operation: String) {
-        if (singular) throw singularFailure(failedAt, operation)
-    }
 
     override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability = noManagedAllocation
 
