@@ -285,7 +285,7 @@ public interface F64Decompositions : Backend {
         out: F64DenseMatrix,
         workspace: Workspace? = null,
     ): F64DenseMatrix {
-        requireSolveShapes(chol.n, b, out)
+        requireSolveShapes(chol.n, chol.n, b, out)
         return solveColumnwise(b, out, chol.n, b.cols, workspace) { column, destination ->
             solveInto(chol, column, destination)
         }
@@ -350,14 +350,6 @@ internal fun requireRankUpdateShapes(n: Int, rows: Int, sigma: Double) {
     requireShape(rows == n) { "choleskyRankUpdate: update vectors have $rows rows, expected $n" }
     require(sigma >= 0.0 && sigma.isFinite()) {
         "choleskyRankUpdate: sigma must be non-negative and finite, got $sigma"
-    }
-}
-
-/** The shapes a multi-right-hand-side solve needs: [b] with [n] rows, and [out] matching it column for column. */
-internal fun requireSolveShapes(n: Int, b: F64DenseMatrix, out: F64DenseMatrix) {
-    requireShape(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
-    requireShape(out.rows == n && out.cols == b.cols) {
-        "solve: out is ${out.rows}x${out.cols}, expected ${n}x${b.cols}"
     }
 }
 

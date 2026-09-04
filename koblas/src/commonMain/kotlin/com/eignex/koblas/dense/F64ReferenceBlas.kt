@@ -30,10 +30,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         transpose: Boolean,
         workspace: Workspace?,
     ) {
-        val xLen = if (transpose) a.rows else a.cols
-        val yLen = if (transpose) a.cols else a.rows
-        requireShape(x.size == xLen) { "gemv: x length ${x.size} != $xLen" }
-        requireShape(y.size == yLen) { "gemv: y length ${y.size} != $yLen" }
+        requireGemvShape(a, transpose, x.size, y.size)
         if (a.rows == 0 || a.cols == 0) return
         applyBeta(kernels, y, 0, y.size, beta)
         if (alpha == 0.0) return
@@ -80,12 +77,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         c: F64DenseMatrix,
         workspace: Workspace?,
     ) {
-        val m = if (transposeA) a.cols else a.rows
-        val k = if (transposeA) a.rows else a.cols
-        val kB = if (transposeB) b.cols else b.rows
-        val n = if (transposeB) b.rows else b.cols
-        requireShape(k == kB) { "gemm: op(A) is ${m}x$k but op(B) is ${kB}x$n" }
-        requireShape(c.rows == m && c.cols == n) { "gemm: C is ${c.rows}x${c.cols}, expected ${m}x$n" }
+        val (m, k, n) = requireGemmShape(a, transposeA, b, transposeB, c)
         val cd = c.data
         applyBeta(kernels, cd, 0, cd.size, beta)
         if (alpha == 0.0 || m == 0 || n == 0 || k == 0) return

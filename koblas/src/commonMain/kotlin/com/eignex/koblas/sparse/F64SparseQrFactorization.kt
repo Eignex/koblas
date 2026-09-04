@@ -8,6 +8,7 @@ import com.eignex.koblas.borrow
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.requireShape
+import com.eignex.koblas.requireSolveShapes
 import com.eignex.koblas.unrestrictedAllocation
 
 /**
@@ -68,7 +69,7 @@ public interface F64SparseQrFactorization : AutoCloseable {
         workspace: Workspace? = null,
         allocationPolicy: AllocationPolicy,
     ): DoubleArray {
-        requireLeastSquaresShapes(m, n, b, out)
+        requireSolveShapes(m, n, b, out)
         val capability = solveAllocation()
         if (!capability.supports(allocationPolicy, workspace)) {
             throw AllocationPolicyRejectedException(allocationPolicy, capability)
@@ -78,7 +79,7 @@ public interface F64SparseQrFactorization : AutoCloseable {
 
     /** Solve every column of [b] into [out]. */
     public fun solveInto(b: F64DenseMatrix, out: F64DenseMatrix, workspace: Workspace? = null): F64DenseMatrix {
-        requireLeastSquaresBlockShapes(m, n, b, out)
+        requireSolveShapes(m, n, b, out)
         if (b.cols == 0) return out
         workspace.borrow(m) { rhs ->
             workspace.borrow(n) { solved ->
@@ -100,18 +101,4 @@ public interface F64SparseQrFactorization : AutoCloseable {
 
     /** Releases resources owned by this factorization. */
     override fun close() {}
-}
-
-/** The shapes a least-squares solve requires. */
-internal fun requireLeastSquaresShapes(m: Int, n: Int, b: DoubleArray, out: DoubleArray) {
-    requireShape(b.size == m) { "solve: b size ${b.size}, expected $m" }
-    requireShape(out.size == n) { "solve: out size ${out.size}, expected $n" }
-}
-
-/** The shapes a blocked least-squares solve requires. */
-internal fun requireLeastSquaresBlockShapes(m: Int, n: Int, b: F64DenseMatrix, out: F64DenseMatrix) {
-    requireShape(b.rows == m) { "solve: B has ${b.rows} rows, expected $m" }
-    requireShape(out.rows == n && out.cols == b.cols) {
-        "solve: out is ${out.rows}x${out.cols}, expected ${n}x${b.cols}"
-    }
 }

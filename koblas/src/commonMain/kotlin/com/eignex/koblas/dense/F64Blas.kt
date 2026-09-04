@@ -45,10 +45,7 @@ public interface F64Blas : Backend {
         y: F64StridedVectorView,
         transpose: Boolean = false,
     ) {
-        val xLength = if (transpose) a.rows else a.cols
-        val yLength = if (transpose) a.cols else a.rows
-        requireShape(x.size == xLength) { "gemv: x length ${x.size} != $xLength" }
-        requireShape(y.size == yLength) { "gemv: y length ${y.size} != $yLength" }
+        requireGemvShape(a, transpose, x.size, y.size)
         require(!y.overlaps(x) && !a.overlaps(y)) { "gemv: destination overlaps an input view" }
         if (a.rows == 0 || a.cols == 0) return
         for (i in 0 until y.size) {
@@ -124,12 +121,7 @@ public interface F64Blas : Backend {
         beta: Double,
         c: F64StridedMatrixView,
     ) {
-        val m = if (transposeA) a.cols else a.rows
-        val k = if (transposeA) a.rows else a.cols
-        val otherK = if (transposeB) b.cols else b.rows
-        val n = if (transposeB) b.rows else b.cols
-        requireShape(k == otherK) { "gemm: op(A) is ${m}x$k but op(B) is ${otherK}x$n" }
-        requireShape(c.rows == m && c.cols == n) { "gemm: C is ${c.rows}x${c.cols}, expected ${m}x$n" }
+        val (m, k, n) = requireGemmShape(a, transposeA, b, transposeB, c)
         require(!c.overlaps(a) && !c.overlaps(b)) { "gemm: destination overlaps an input view" }
         for (j in 0 until n) {
             for (i in 0 until m) {

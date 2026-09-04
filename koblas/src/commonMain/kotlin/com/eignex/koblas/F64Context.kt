@@ -203,10 +203,7 @@ public class F64Context internal constructor(
         workspace: Workspace?,
     ) {
         if (enforcesRoutingPolicy) {
-            val xLen = if (transpose) a.rows else a.cols
-            val yLen = if (transpose) a.cols else a.rows
-            requireShape(x.size == xLen) { "gemv: x length ${x.size} != $xLen" }
-            requireShape(y.size == yLen) { "gemv: y length ${y.size} != $yLen" }
+            requireGemvShape(a, transpose, x.size, y.size)
             beforeDispatch(F64RouteQuery.DenseGemv(a.rows, a.cols))
         }
         blas.gemv(alpha, a, x, beta, y, transpose, workspace)
@@ -222,10 +219,7 @@ public class F64Context internal constructor(
         transpose: Boolean,
     ) {
         if (enforcesRoutingPolicy) {
-            val xLength = if (transpose) a.rows else a.cols
-            val yLength = if (transpose) a.cols else a.rows
-            requireShape(x.size == xLength) { "gemv: x length ${x.size} != $xLength" }
-            requireShape(y.size == yLength) { "gemv: y length ${y.size} != $yLength" }
+            requireGemvShape(a, transpose, x.size, y.size)
             beforeDispatch(F64RouteQuery.DenseGemv(a.rows, a.cols))
         }
         blas.gemv(alpha, a, x, beta, y, transpose)
@@ -249,12 +243,7 @@ public class F64Context internal constructor(
         workspace: Workspace?,
     ) {
         if (enforcesRoutingPolicy) {
-            val m = if (transposeA) a.cols else a.rows
-            val k = if (transposeA) a.rows else a.cols
-            val kB = if (transposeB) b.cols else b.rows
-            val n = if (transposeB) b.rows else b.cols
-            requireShape(k == kB) { "gemm: op(A) is ${m}x$k but op(B) is ${kB}x$n" }
-            requireShape(c.rows == m && c.cols == n) { "gemm: C is ${c.rows}x${c.cols}, expected ${m}x$n" }
+            val (m, k, n) = requireGemmShape(a, transposeA, b, transposeB, c)
             beforeDispatch(F64RouteQuery.DenseGemm(m, n, k))
         }
         blas.gemm(alpha, a, transposeA, b, transposeB, beta, c, workspace)
@@ -277,12 +266,7 @@ public class F64Context internal constructor(
         c: F64StridedMatrixView,
     ) {
         if (enforcesRoutingPolicy) {
-            val m = if (transposeA) a.cols else a.rows
-            val k = if (transposeA) a.rows else a.cols
-            val otherK = if (transposeB) b.cols else b.rows
-            val n = if (transposeB) b.rows else b.cols
-            requireShape(k == otherK) { "gemm: op(A) is ${m}x$k but op(B) is ${otherK}x$n" }
-            requireShape(c.rows == m && c.cols == n) { "gemm: C is ${c.rows}x${c.cols}, expected ${m}x$n" }
+            val (m, k, n) = requireGemmShape(a, transposeA, b, transposeB, c)
             beforeDispatch(F64RouteQuery.DenseGemm(m, n, k))
         }
         blas.gemm(alpha, a, transposeA, b, transposeB, beta, c)
@@ -318,18 +302,13 @@ public class F64Context internal constructor(
         workspace: Workspace?,
     ) {
         if (enforcesRoutingPolicy) {
-            val aRows = if (transposeA) a.cols else a.rows
-            val aCols = if (transposeA) a.rows else a.cols
-            val bRows = if (transposeB) b.cols else b.rows
-            val bCols = if (transposeB) b.rows else b.cols
-            val m = if (right) bRows else aRows
-            val n = if (right) aCols else bCols
-            requireShape(if (right) bCols == aRows else aCols == bRows) {
-                val first = if (right) "${bRows}x$bCols" else "${aRows}x$aCols"
-                val second = if (right) "${aRows}x$aCols" else "${bRows}x$bCols"
-                "gemm: $first does not meet $second"
+            // Multiplying the dense operand by the sparse one from the right is this product with the
+            // operands the other way round, so the same derivation answers both.
+            if (right) {
+                requireGemmShape(b, transposeB, a, transposeA, c)
+            } else {
+                requireGemmShape(a, transposeA, b, transposeB, c)
             }
-            requireShape(c.rows == m && c.cols == n) { "gemm: C is ${c.rows}x${c.cols}, expected ${m}x$n" }
             beforeDispatch(F64RouteQuery.SparseDenseGemm(a.nnz, right, transposeB))
         }
         sparseBlas.gemm(alpha, a, transposeA, b, transposeB, beta, c, right, workspace)

@@ -11,8 +11,8 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.dense.F64_MACHINE_EPSILON
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import com.eignex.koblas.requireShape
+import com.eignex.koblas.requireSolveShapes
 import com.eignex.koblas.sparse.F64SparseQrFactorization
-import com.eignex.koblas.sparse.requireLeastSquaresShapes
 import kotlin.math.abs
 import kotlin.math.hypot
 
@@ -54,7 +54,7 @@ public class F64SparseHouseholderQr internal constructor(
     )
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, workspace: Workspace?): DoubleArray {
-        requireLeastSquaresShapes(m, n, b, out)
+        requireSolveShapes(m, n, b, out)
         if (rankDeficient) {
             throw SingularMatrix(rank, "solve: the QR factorization has rank $rank of $n columns")
         }

@@ -204,10 +204,7 @@ public abstract class F64BlasAdapter internal constructor(
         transpose: Boolean,
         workspace: Workspace?,
     ) {
-        val xLen = if (transpose) a.rows else a.cols
-        val yLen = if (transpose) a.cols else a.rows
-        requireShape(x.size == xLen) { "gemv: x length ${x.size} != $xLen" }
-        requireShape(y.size == yLen) { "gemv: y length ${y.size} != $yLen" }
+        requireGemvShape(a, transpose, x.size, y.size)
         if (a.rows == 0 || a.cols == 0) return
         if (alpha == 0.0) {
             scaleInPlace(y, beta)
@@ -225,10 +222,7 @@ public abstract class F64BlasAdapter internal constructor(
         y: F64StridedVectorView,
         transpose: Boolean,
     ) {
-        val xLength = if (transpose) a.rows else a.cols
-        val yLength = if (transpose) a.cols else a.rows
-        requireShape(x.size == xLength) { "gemv: x length ${x.size} != $xLength" }
-        requireShape(y.size == yLength) { "gemv: y length ${y.size} != $yLength" }
+        requireGemvShape(a, transpose, x.size, y.size)
         require(!y.overlaps(x) && !a.overlaps(y)) { "gemv: destination overlaps an input view" }
         if (x.stride < 0 || y.stride < 0) {
             return super<F64Blas>.gemv(alpha, a, x, beta, y, transpose)
@@ -267,12 +261,7 @@ public abstract class F64BlasAdapter internal constructor(
         c: F64DenseMatrix,
         workspace: Workspace?,
     ) {
-        val m = if (transposeA) a.cols else a.rows
-        val k = if (transposeA) a.rows else a.cols
-        val kB = if (transposeB) b.cols else b.rows
-        val n = if (transposeB) b.rows else b.cols
-        requireShape(k == kB) { "gemm: op(A) is ${m}x$k but op(B) is ${kB}x$n" }
-        requireShape(c.rows == m && c.cols == n) { "gemm: C is ${c.rows}x${c.cols}, expected ${m}x$n" }
+        val (m, k, n) = requireGemmShape(a, transposeA, b, transposeB, c)
         if (alpha == 0.0 || k == 0) {
             scaleInPlace(c.data, beta)
             return
@@ -294,12 +283,7 @@ public abstract class F64BlasAdapter internal constructor(
         beta: Double,
         c: F64StridedMatrixView,
     ) {
-        val m = if (transposeA) a.cols else a.rows
-        val k = if (transposeA) a.rows else a.cols
-        val otherK = if (transposeB) b.cols else b.rows
-        val n = if (transposeB) b.rows else b.cols
-        requireShape(k == otherK) { "gemm: op(A) is ${m}x$k but op(B) is ${otherK}x$n" }
-        requireShape(c.rows == m && c.cols == n) { "gemm: C is ${c.rows}x${c.cols}, expected ${m}x$n" }
+        val (m, k, n) = requireGemmShape(a, transposeA, b, transposeB, c)
         require(!c.overlaps(a) && !c.overlaps(b)) { "gemm: destination overlaps an input view" }
         if (alpha == 0.0 || k == 0) {
             scaleInPlace(c, beta)

@@ -6,10 +6,9 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.internal.host.keepingReachable
 import com.eignex.koblas.internal.host.nativeCleaner
+import com.eignex.koblas.requireSolveShapes
 import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.FactorsNotExposed
-import com.eignex.koblas.sparse.requireBlockSolveShapes
-import com.eignex.koblas.sparse.requireSolveShapes
 import kotlin.math.sqrt
 
 /** A CHOLMOD factorization with deterministic close and cleaner fallback for its native factor. */
@@ -105,7 +104,7 @@ public class CholmodFactorization internal constructor(
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray =
         lifecycle.withResource {
             if (singular) throw singularFailure(failedAt, "solve")
-            requireSolveShapes(n, b, out)
+            requireSolveShapes(n, n, b, out)
             if (out !== b) b.copyInto(out)
             keepingReachable(this) {
                 check(calls.solve(factor, out, solveWorkspace)) {
@@ -122,7 +121,7 @@ public class CholmodFactorization internal constructor(
         workspace: Workspace?,
     ): F64DenseMatrix = lifecycle.withResource {
         if (singular) throw singularFailure(failedAt, "solve")
-        requireBlockSolveShapes(n, b, out)
+        requireSolveShapes(n, n, b, out)
         if (b.cols == 0) return@withResource out
         if (out.data !== b.data) b.data.copyInto(out.data)
         keepingReachable(this) {

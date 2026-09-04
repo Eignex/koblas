@@ -145,7 +145,7 @@ internal fun referenceLuSolveInto(
     requireFactored(lu.failedAt, "solve")
     val n = lu.n
     val nrhs = b.cols
-    requireSolveShapes(n, b, out)
+    requireSolveShapes(n, n, b, out)
     if (nrhs == 0) return out
     val f = lu.lu
     return if (transpose) {

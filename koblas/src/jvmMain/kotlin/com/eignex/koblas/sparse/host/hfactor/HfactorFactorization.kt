@@ -5,10 +5,10 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.internal.host.keepingReachable
 import com.eignex.koblas.internal.host.nativeCleaner
+import com.eignex.koblas.requireSolveShapes
 import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.FactorsNotExposed
 import com.eignex.koblas.sparse.basis.F64IndexedVector
-import com.eignex.koblas.sparse.requireSolveShapes
 import java.lang.foreign.MemorySegment
 
 /**
@@ -68,7 +68,7 @@ public class HfactorFactorization internal constructor(
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray =
         lifecycle.withResource {
-            requireSolveShapes(n, b, out)
+            requireSolveShapes(n, n, b, out)
             carrier.scatter(b)
             carrier.count = keepingReachable(this) {
                 calls.solve(handle, carrier.count, carrier.indices, carrier.values, DENSE, transpose)

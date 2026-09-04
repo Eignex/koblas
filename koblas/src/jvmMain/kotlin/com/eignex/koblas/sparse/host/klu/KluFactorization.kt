@@ -6,10 +6,9 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.internal.host.keepingReachable
 import com.eignex.koblas.internal.host.nativeCleaner
+import com.eignex.koblas.requireSolveShapes
 import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.FactorsNotExposed
-import com.eignex.koblas.sparse.requireBlockSolveShapes
-import com.eignex.koblas.sparse.requireSolveShapes
 
 /** A KLU factorization with deterministic close and cleaner fallback for its symbolic and numeric objects. */
 public class KluFactorization internal constructor(
@@ -96,7 +95,7 @@ public class KluFactorization internal constructor(
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray =
         lifecycle.withResource {
             requireFactored(failedAt, "solve")
-            requireSolveShapes(n, b, out)
+            requireSolveShapes(n, n, b, out)
             if (out !== b) b.copyInto(out)
             keepingReachable(this) {
                 calls.solve(factor, out, transpose)
@@ -111,7 +110,7 @@ public class KluFactorization internal constructor(
         workspace: Workspace?,
     ): F64DenseMatrix = lifecycle.withResource {
         requireFactored(failedAt, "solve")
-        requireBlockSolveShapes(n, b, out)
+        requireSolveShapes(n, n, b, out)
         if (b.cols == 0) return@withResource out
         if (out.data !== b.data) b.data.copyInto(out.data)
         keepingReachable(this) {

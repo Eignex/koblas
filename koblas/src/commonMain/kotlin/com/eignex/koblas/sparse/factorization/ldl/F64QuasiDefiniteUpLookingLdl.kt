@@ -5,6 +5,7 @@ import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.noManagedOrNativeAllocation
+import com.eignex.koblas.requireSolveShapes
 import com.eignex.koblas.requireSquare
 import com.eignex.koblas.singularFailure
 import com.eignex.koblas.sparse.F64QuasiDefiniteLdlFactorization
@@ -13,7 +14,6 @@ import com.eignex.koblas.sparse.factorization.columnPointers
 import com.eignex.koblas.sparse.factorization.eliminationTree
 import com.eignex.koblas.sparse.factorization.ereach
 import com.eignex.koblas.sparse.internal.transposeCsc
-import com.eignex.koblas.sparse.requireSolveShapes
 import kotlin.math.abs
 
 /**
@@ -104,7 +104,7 @@ public class F64QuasiDefiniteUpLookingLdl internal constructor(
      */
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray {
         if (singular) throw singularFailure(failedAt, "solve")
-        requireSolveShapes(n, b, out)
+        requireSolveShapes(n, n, b, out)
         if (out !== b) b.copyInto(out)
         // L y = b, forward, with the unit diagonal leaving each entry final as it is reached.
         for (k in 0 until n) {

@@ -11,10 +11,9 @@ import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.requireFactored
+import com.eignex.koblas.requireSolveShapes
 import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.FactorsNotExposed
-import com.eignex.koblas.sparse.requireBlockSolveShapes
-import com.eignex.koblas.sparse.requireSolveShapes
 import kotlinx.cinterop.*
 import kotlin.experimental.ExperimentalNativeApi
 import kotlin.native.concurrent.ThreadLocal
@@ -98,7 +97,7 @@ public class KluFactorization internal constructor(
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray {
         requireFactored(failedAt, "solve")
-        requireSolveShapes(n, b, out)
+        requireSolveShapes(n, n, b, out)
         // KLU solves in place over the right-hand side it is given, so the destination carries it in.
         if (out !== b) b.copyInto(out)
         val solve = if (transpose) functions.transposedSolve else functions.solve
@@ -125,7 +124,7 @@ public class KluFactorization internal constructor(
         workspace: Workspace?,
     ): F64DenseMatrix {
         requireFactored(failedAt, "solve")
-        requireBlockSolveShapes(n, b, out)
+        requireSolveShapes(n, n, b, out)
         if (b.cols == 0) return out
         if (out.data !== b.data) b.data.copyInto(out.data)
         val solve = if (transpose) functions.transposedSolve else functions.solve
