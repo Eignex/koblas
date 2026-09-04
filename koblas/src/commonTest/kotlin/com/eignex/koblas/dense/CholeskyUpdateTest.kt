@@ -78,6 +78,41 @@ class CholeskyUpdateTest {
         }
     }
 
+    /**
+     * The rotation takes its length in a scaled form, so a pair whose squares would overflow still rotates.
+     * A one by one factor is the whole rotation: the updated diagonal is exactly `hypot(l, v)`.
+     */
+    @Test
+    fun `an update whose squares would overflow keeps its magnitude`() {
+        val huge = 1e200
+        val chol = F64CholeskyDecomposition(F64DenseMatrix(1, 1, doubleArrayOf(huge)))
+
+        val updated = chol.rankUpdate(doubleArrayOf(huge))
+
+        assertEquals(sqrt(2.0) * huge, updated.l[0, 0], huge * 1e-12, "squaring 1e200 would overflow")
+    }
+
+    /** And a pair whose squares would vanish keeps it, rather than collapsing the diagonal to zero. */
+    @Test
+    fun `an update whose squares would vanish keeps its magnitude`() {
+        val tiny = 1e-200
+        val chol = F64CholeskyDecomposition(F64DenseMatrix(1, 1, doubleArrayOf(tiny)))
+
+        val updated = chol.rankUpdate(doubleArrayOf(tiny))
+
+        assertEquals(sqrt(2.0) * tiny, updated.l[0, 0], tiny * 1e-12, "squaring 1e-200 would vanish")
+    }
+
+    /** The diagonal stays positive by construction, which is what lets the factor skip a sign correction. */
+    @Test
+    fun `an update by a larger negative vector keeps a positive diagonal`() {
+        val chol = F64CholeskyDecomposition(F64DenseMatrix(1, 1, doubleArrayOf(1.0)))
+
+        val updated = chol.rankUpdate(doubleArrayOf(-8.0))
+
+        assertEquals(sqrt(65.0), updated.l[0, 0], 1e-12)
+    }
+
     @Test
     fun `a rank-1 update reconstructs the updated matrix`() {
         val rng = Random(20260903)

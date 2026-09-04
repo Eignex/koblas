@@ -146,17 +146,26 @@ internal fun referenceCholeskyRankUpdate(
                 val diagonal = ld[base]
                 // The rotation is computed here rather than through the public rotg, which returns an
                 // F64Givens and would allocate one per column, n of them for a rank-1 update and n·k for a
-                // rank-k one. Taking r as a hypot also makes the positive diagonal a property of the
+                // rank-k one. Taking r as a magnitude also makes the positive diagonal a property of the
                 // construction: netlib's convention takes r's sign from whichever input dominates, so a
                 // larger negative working entry would put a negative number on the diagonal, and this r is
                 // that one's absolute value. The quotients below are therefore already the sign-corrected
                 // pair, which is why nothing is negated afterwards. hypot keeps rotg's behaviour for
                 // magnitudes whose squares would overflow or vanish.
-                val r = hypot(diagonal, x[k])
+                //
+                // rotg's own scaled form gives the same two guarantees, and measuring it here made this
+                // slower rather than faster: the two divisions it needs cost more than the correctly
+                // rounded call they replace. CholeskyUpdateBenchmark.rankUpdate at n = 256 on the reference
+                // backend read 15.0 and 15.1 us/op with hypot against 17.5 and 16.9 scaled, over two runs
+                // of each with the benchmark pinned to two cores; rankUpdateBlock could not separate them.
+                val entry = x[k]
+                val r = hypot(diagonal, entry)
                 if (r != 0.0) {
                     ld[base] = r
                     val len = n - k - 1
-                    if (len > 0) kernels.rot(ld, base + 1, x, k + 1, len, diagonal / r, x[k] / r)
+                    // Two divisions rather than a reciprocal and two multiplies: this rotation sets the
+                    // factor's numerical quality, and an extra rounding per entry compounds across n of them.
+                    if (len > 0) kernels.rot(ld, base + 1, x, k + 1, len, diagonal / r, entry / r)
                 }
             }
         }
