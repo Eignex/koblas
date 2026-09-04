@@ -82,7 +82,7 @@ internal class F64ReferenceDecompositions(private val configured: F64Kernels? = 
         requireFactored(factor.failedAt, "solve")
         val n = factor.n
         val nrhs = b.cols
-        requireSolveShapes(n, b, out)
+        requireSolveShapes(n, n, b, out)
         return solveColumnwise(b, out, n, nrhs, workspace) { col, dst -> solveInto(factor, col, dst) }
     }
 

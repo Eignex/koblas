@@ -6,13 +6,13 @@ import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
 import com.eignex.koblas.internal.host.keepingReachable
 import com.eignex.koblas.internal.host.nativeCleaner
+import com.eignex.koblas.requireSolveShapes
 import com.eignex.koblas.sparse.F64BasisFactorization
 import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.FactorsNotExposed
 import com.eignex.koblas.sparse.host.applyF64Equilibration
 import com.eignex.koblas.sparse.internal.replaceColumns
 import com.eignex.koblas.sparse.internal.snapshot
-import com.eignex.koblas.sparse.requireSolveShapes
 import kotlin.math.abs
 
 /** A host BASICLU factorization with deterministic close and cleaner fallback for its native object. */
@@ -68,7 +68,7 @@ public open class BasicluFactorization internal constructor(
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray =
         withNativeFactor {
-            requireSolveShapes(n, b, out)
+            requireSolveShapes(n, n, b, out)
             // BASICLU solves through its own buffer, so the destination carries the right-hand side in.
             if (out !== b) b.copyInto(out)
             // The factors are of E·B, so a forward solve scales what goes in and a transposed one what comes out.

@@ -5,9 +5,9 @@ package com.eignex.koblas.sparse.host.umfpack
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
+import com.eignex.koblas.requireSolveShapes
 import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.FactorsNotExposed
-import com.eignex.koblas.sparse.requireSolveShapes
 import kotlinx.cinterop.*
 import kotlin.experimental.ExperimentalNativeApi
 import kotlin.native.concurrent.ThreadLocal
@@ -87,7 +87,7 @@ public class UmfpackFactorization internal constructor(
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray {
         requireFactored(failedAt, "solve")
-        requireSolveShapes(n, b, out)
+        requireSolveShapes(n, n, b, out)
         // umfpack_di_solve declares X an output and B an input and says nothing about them overlapping, so an
         // aliased pair needs a separate right-hand side, borrowed when there is a workspace to lend it.
         if (out !== b) return solveDistinct(b, out, transpose)

@@ -236,7 +236,7 @@ public abstract class F64DecompositionsAdapter internal constructor(
         requireFactored(lu.failedAt, "solve")
         val n = lu.n
         val nrhs = b.cols
-        requireSolveShapes(n, b, out)
+        requireSolveShapes(n, n, b, out)
         if (n == 0 || nrhs == 0) return out
         return nativeSolve(lu, b, out, transpose, workspace)
     }
@@ -321,7 +321,7 @@ public abstract class F64DecompositionsAdapter internal constructor(
         requireFactored(factor.failedAt, "solve")
         val n = factor.n
         val nrhs = b.cols
-        requireSolveShapes(n, b, out)
+        requireSolveShapes(n, n, b, out)
         val x = out.data
         if (out !== b) b.data.copyInto(x)
         if (n == 0 || nrhs == 0) return out

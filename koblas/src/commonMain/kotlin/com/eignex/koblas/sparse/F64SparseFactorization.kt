@@ -74,7 +74,7 @@ public interface F64SparseFactorization : AutoCloseable {
         transpose: Boolean = false,
         workspace: Workspace? = null,
     ): F64DenseMatrix {
-        requireBlockSolveShapes(n, b, out)
+        requireSolveShapes(n, n, b, out)
         if (b.cols == 0) return out
         workspace.borrow(n) { rhs ->
             workspace.borrow(n) { solved ->
@@ -99,7 +99,7 @@ public interface F64SparseFactorization : AutoCloseable {
         workspace: Workspace? = null,
         allocationPolicy: AllocationPolicy,
     ): DoubleArray {
-        requireSolveShapes(n, b, out)
+        requireSolveShapes(n, n, b, out)
         val capability = solveAllocation(b === out, transpose)
         if (!capability.supports(allocationPolicy, workspace)) {
             throw AllocationPolicyRejectedException(allocationPolicy, capability)
@@ -163,20 +163,6 @@ public class F64SingularSparseFactorization(override val n: Int, override val fa
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray =
         throw singularFailure(failedAt, "solve")
-}
-
-/** The shapes [F64SparseFactorization.solveInto] requires of its right-hand side and its destination. */
-internal fun requireSolveShapes(n: Int, b: DoubleArray, out: DoubleArray) {
-    requireShape(b.size == n) { "solve: b size ${b.size}, expected $n" }
-    requireShape(out.size == n) { "solve: out size ${out.size}, expected $n" }
-}
-
-/** The shapes required by a sparse block solve. */
-internal fun requireBlockSolveShapes(n: Int, b: F64DenseMatrix, out: F64DenseMatrix) {
-    requireShape(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
-    requireShape(out.rows == n && out.cols == b.cols) {
-        "solve: out is ${out.rows}x${out.cols}, expected ${n}x${b.cols}"
-    }
 }
 
 /**

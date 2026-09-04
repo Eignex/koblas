@@ -6,10 +6,9 @@ import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.NativeResourceLifecycle
+import com.eignex.koblas.requireSolveShapes
 import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.FactorsNotExposed
-import com.eignex.koblas.sparse.requireBlockSolveShapes
-import com.eignex.koblas.sparse.requireSolveShapes
 import kotlinx.cinterop.*
 import kotlin.experimental.ExperimentalNativeApi
 import kotlin.math.sqrt
@@ -119,7 +118,7 @@ public class CholmodFactorization internal constructor(
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray {
         if (singular) throw singularFailure(failedAt, "solve")
-        requireSolveShapes(n, b, out)
+        requireSolveShapes(n, n, b, out)
         if (out !== b) b.copyInto(out)
         anchoring {
             for (i in 0 until n) handle.solveRhs[i] = out[i]
@@ -142,7 +141,7 @@ public class CholmodFactorization internal constructor(
         workspace: Workspace?,
     ): F64DenseMatrix {
         if (singular) throw singularFailure(failedAt, "solve")
-        requireBlockSolveShapes(n, b, out)
+        requireSolveShapes(n, n, b, out)
         if (b.cols == 0) return out
         if (out.data !== b.data) b.data.copyInto(out.data)
         anchoring {

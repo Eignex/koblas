@@ -6,13 +6,13 @@ import com.eignex.koblas.NotPositiveDefinite
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.noManagedOrNativeAllocation
+import com.eignex.koblas.requireSolveShapes
 import com.eignex.koblas.requireSquare
 import com.eignex.koblas.sparse.F64SparseCholeskyFactorization
 import com.eignex.koblas.sparse.factorization.columnPointers
 import com.eignex.koblas.sparse.factorization.eliminationTree
 import com.eignex.koblas.sparse.factorization.ereach
 import com.eignex.koblas.sparse.internal.transposeCsc
-import com.eignex.koblas.sparse.requireSolveShapes
 import kotlin.math.abs
 import kotlin.math.sqrt
 
@@ -67,7 +67,7 @@ public class F64SparseUpLookingCholesky internal constructor(
      * both sweeps run in the destination.
      */
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray {
-        requireSolveShapes(n, b, out)
+        requireSolveShapes(n, n, b, out)
         if (out !== b) b.copyInto(out)
         // L y = b, forward over the columns.
         for (k in 0 until n) {

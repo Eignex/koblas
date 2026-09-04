@@ -59,12 +59,7 @@ public open class CholmodSparseBlas(
         c: F64DenseMatrix,
         workspace: Workspace?,
     ) {
-        val m = if (transposeA) a.cols else a.rows
-        val k = if (transposeA) a.rows else a.cols
-        requireShape(k == b.rows) { "gemm: op(A) is ${m}x$k but B has ${b.rows} rows" }
-        requireShape(c.rows == m && c.cols == b.cols) {
-            "gemm: C is ${c.rows}x${c.cols}, expected ${m}x${b.cols}"
-        }
+        requireGemmShape(a.rows, a.cols, transposeA, b, transposeB = false, c = c)
         prepare(a).use { prepared ->
             prepared.gemm(alpha, transposeA, b, beta, c, workspace)
         }
@@ -84,12 +79,9 @@ private class CholmodPreparedSparseMatrix(
     override val nnz: Int get() = snapshot.nnz
 
     override fun gemv(alpha: Double, x: DoubleArray, beta: Double, y: DoubleArray, transpose: Boolean) {
-        val xRows = if (transpose) rows else cols
-        val yRows = if (transpose) cols else rows
-        requireShape(x.size == xRows) { "gemv: x length ${x.size} != $xRows" }
-        requireShape(y.size == yRows) { "gemv: y length ${y.size} != $yRows" }
+        val shape = requireGemvShape(rows, cols, transpose, x.size, y.size)
         lifecycle.withResource {
-            if (!calls.sdmult(matrix, transpose, alpha, x, beta, y, 1, xRows, yRows)) {
+            if (!calls.sdmult(matrix, transpose, alpha, x, beta, y, 1, shape.inputs, shape.outputs)) {
                 F64ReferenceSparseLinearAlgebra.gemv(alpha, snapshot, x, beta, y, transpose)
             }
         }
@@ -103,12 +95,7 @@ private class CholmodPreparedSparseMatrix(
         c: F64DenseMatrix,
         workspace: Workspace?,
     ) {
-        val m = if (transposeA) cols else rows
-        val k = if (transposeA) rows else cols
-        requireShape(k == b.rows) { "gemm: op(A) is ${m}x$k but B has ${b.rows} rows" }
-        requireShape(c.rows == m && c.cols == b.cols) {
-            "gemm: C is ${c.rows}x${c.cols}, expected ${m}x${b.cols}"
-        }
+        requireGemmShape(rows, cols, transposeA, b, transposeB = false, c = c)
         lifecycle.withResource {
             if (!calls.sdmult(matrix, transposeA, alpha, b.data, beta, c.data, b.cols, b.rows, c.rows)) {
                 F64ReferenceSparseLinearAlgebra.gemm(

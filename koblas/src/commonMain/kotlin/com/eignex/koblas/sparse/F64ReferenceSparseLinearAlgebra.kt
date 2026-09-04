@@ -68,10 +68,7 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         y: DoubleArray,
         transpose: Boolean,
     ) {
-        val xLen = if (transpose) a.rows else a.cols
-        val yLen = if (transpose) a.cols else a.rows
-        requireShape(x.size == xLen) { "gemv: x length ${x.size} != $xLen" }
-        requireShape(y.size == yLen) { "gemv: y length ${y.size} != $yLen" }
+        requireGemvShape(a, transpose, x.size, y.size)
         if (a.rows == 0 || a.cols == 0) return
         applyBeta(denseKernels, y, 0, y.size, beta)
         if (alpha == 0.0) return
@@ -117,24 +114,19 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         right: Boolean,
         workspace: Workspace?,
     ) {
-        val aRows = if (transposeA) a.cols else a.rows
-        val aCols = if (transposeA) a.rows else a.cols
-        val bRows = if (transposeB) b.cols else b.rows
-        val bCols = if (transposeB) b.rows else b.cols
-        val m = if (right) bRows else aRows
-        val n = if (right) aCols else bCols
-        requireShape(if (right) bCols == aRows else aCols == bRows) {
-            val first = if (right) "${bRows}x$bCols" else "${aRows}x$aCols"
-            val second = if (right) "${aRows}x$aCols" else "${bRows}x$bCols"
-            "gemm: $first does not meet $second"
+        // Multiplying the dense operand by the sparse one from the right is this product with the operands
+        // the other way round, so the same derivation answers both.
+        val (m, k, n) = if (right) {
+            requireGemmShape(b, transposeB, a, transposeA, c)
+        } else {
+            requireGemmShape(a, transposeA, b, transposeB, c)
         }
-        requireShape(c.rows == m && c.cols == n) { "gemm: C is ${c.rows}x${c.cols}, expected ${m}x$n" }
         applyBeta(denseKernels, c.data, 0, c.data.size, beta)
         if (alpha == 0.0) return
         if (right) {
             multiplyFromTheRight(alpha, a, transposeA, b, transposeB, c, m, workspace)
         } else {
-            multiplyFromTheLeft(alpha, a, transposeA, b, transposeB, c, m, n, aCols, workspace)
+            multiplyFromTheLeft(alpha, a, transposeA, b, transposeB, c, m, n, k, workspace)
         }
     }
 

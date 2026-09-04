@@ -9,8 +9,8 @@ import com.eignex.koblas.Workspace
 import com.eignex.koblas.borrow
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.requireShape
+import com.eignex.koblas.requireSolveShapes
 import com.eignex.koblas.sparse.F64SparseQrFactorization
-import com.eignex.koblas.sparse.requireLeastSquaresShapes
 import com.eignex.koblas.sparse.sparseSnapshotOf
 
 internal class SpqrFactorData(
@@ -65,7 +65,7 @@ public class SpqrQrFactorization internal constructor(
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, workspace: Workspace?): DoubleArray {
         checkOpen()
-        requireLeastSquaresShapes(m, n, b, out)
+        requireSolveShapes(m, n, b, out)
         if (rankDeficient) {
             throw SingularMatrix(rank, "solve: the QR factorization has rank $rank of $n columns")
         }
