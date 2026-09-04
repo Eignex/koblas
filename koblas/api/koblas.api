@@ -657,7 +657,6 @@ public final class com/eignex/koblas/PreparedSparseProductKind : java/lang/Enum 
 }
 
 public final class com/eignex/koblas/RegistryKt {
-	public static final fun basisSolversNamed (Ljava/lang/String;)Lcom/eignex/koblas/sparse/basis/F64BasisSolvers;
 	public static final fun discoverBackends ()V
 	public static final fun getKoblas ()Lcom/eignex/koblas/F64Context;
 	public static final fun getKoblasInfo ()Ljava/lang/String;

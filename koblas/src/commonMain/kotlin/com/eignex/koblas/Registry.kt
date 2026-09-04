@@ -2,7 +2,6 @@ package com.eignex.koblas
 
 import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.internal.backend.BackendRegistry
-import com.eignex.koblas.sparse.basis.F64BasisSolvers
 
 /**
  * The process-wide default context: an [installBackends] override when set, else registered backends, else
@@ -25,22 +24,6 @@ public fun registerBackend(backend: Backend) {
 public fun discoverBackends() {
     BackendRegistry.discover()
 }
-
-/**
- * The basis solvers registered under [name], looked up the way the semantic capabilities are.
- *
- * A door of its own for one of the capabilities, which [backendNamed] covers for all of them. Kept for one
- * release so a caller pinning a basis solver by name has somewhere to move to.
- */
-@Deprecated(
-    "One capability's own lookup; backendNamed covers every capability.",
-    ReplaceWith(
-        "backendNamed(name, F64Capabilities.basisSolvers)",
-        "com.eignex.koblas.F64Capabilities",
-        "com.eignex.koblas.backendNamed",
-    ),
-)
-public fun basisSolversNamed(name: String): F64BasisSolvers? = backendNamed(name, F64Capabilities.basisSolvers)
 
 /** The backends registered for [role], strongest first. */
 public fun registeredBackendNames(role: BackendRole): List<String> = BackendRegistry.namesFor(role)
