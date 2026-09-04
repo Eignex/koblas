@@ -187,20 +187,7 @@ internal class CholmodCalls(private val config: CholmodConfig) {
         if (product.address() == 0L) return null
         return Arena.ofConfined().use { arena ->
             try {
-                val descriptor = product.reinterpret(CHOLMOD_SPARSE_BYTES)
-                val rows = descriptor.get(JAVA_LONG, CHOLMOD_SPARSE_NROW).toInt()
-                val cols = descriptor.get(JAVA_LONG, CHOLMOD_SPARSE_NCOL).toInt()
-                val colPtr = IntArray(cols + 1)
-                val p = descriptor.get(ADDRESS, CHOLMOD_SPARSE_P).reinterpret((cols + 1L) * Int.SIZE_BYTES)
-                MemorySegment.copy(p, JAVA_INT, 0L, colPtr, 0, colPtr.size)
-                val nnz = colPtr[cols]
-                val rowIdx = IntArray(nnz)
-                val values = DoubleArray(nnz)
-                val i = descriptor.get(ADDRESS, CHOLMOD_SPARSE_I).reinterpret(nnz.toLong() * Int.SIZE_BYTES)
-                val x = descriptor.get(ADDRESS, CHOLMOD_SPARSE_X).reinterpret(nnz.toLong() * Double.SIZE_BYTES)
-                MemorySegment.copy(i, JAVA_INT, 0L, rowIdx, 0, nnz)
-                MemorySegment.copy(x, JAVA_DOUBLE, 0L, values, 0, nnz)
-                F64SparseMatrix.wrap(rows, cols, colPtr, rowIdx, values)
+                readCholmodSparse(product)
             } finally {
                 val slot = arena.allocate(ADDRESS)
                 slot.set(ADDRESS, 0L, product)
@@ -254,34 +241,9 @@ internal class CholmodCalls(private val config: CholmodConfig) {
         ) as Int
         if (converted != CHOLMOD_TRUE) return null
         val order = block.get(JAVA_LONG, CHOLMOD_FACTOR_N).toInt()
-        val colPtr = IntArray(order + 1)
-        MemorySegment.copy(
-            block.get(ADDRESS, CHOLMOD_FACTOR_P).reinterpret((order + 1L) * Int.SIZE_BYTES),
-            JAVA_INT,
-            0L,
-            colPtr,
-            0,
-            colPtr.size,
-        )
-        val nonzeros = colPtr[order]
-        val rowIdx = IntArray(nonzeros)
-        val values = DoubleArray(nonzeros)
-        if (nonzeros > 0) {
-            val indices = block.get(ADDRESS, CHOLMOD_FACTOR_I).reinterpret(nonzeros.toLong() * Int.SIZE_BYTES)
-            val entries = block.get(ADDRESS, CHOLMOD_FACTOR_X).reinterpret(nonzeros.toLong() * Double.SIZE_BYTES)
-            MemorySegment.copy(indices, JAVA_INT, 0L, rowIdx, 0, nonzeros)
-            MemorySegment.copy(entries, JAVA_DOUBLE, 0L, values, 0, nonzeros)
-        }
-        return CholmodFactors(order, colPtr, rowIdx, values, permutation(block, order))
-    }
-
-    /** The fill-reducing ordering, or the identity where CHOLMOD did not reorder. */
-    private fun permutation(block: MemorySegment, order: Int): IntArray {
-        val perm = block.get(ADDRESS, CHOLMOD_FACTOR_PERM)
-        if (perm.address() == 0L) return IntArray(order) { it }
-        val out = IntArray(order)
-        MemorySegment.copy(perm.reinterpret(order.toLong() * Int.SIZE_BYTES), JAVA_INT, 0L, out, 0, order)
-        return out
+        val csc = readCholmodCsc(block, order, CHOLMOD_FACTOR_P, CHOLMOD_FACTOR_I, CHOLMOD_FACTOR_X)
+        val permutation = readCholmodPermutation(block.get(ADDRESS, CHOLMOD_FACTOR_PERM), order)
+        return CholmodFactors(order, csc.colPtr, csc.rowIdx, csc.values, permutation)
     }
 
     /** CHOLMOD's own reciprocal condition estimate for [factor]. */

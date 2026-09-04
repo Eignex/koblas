@@ -52,20 +52,26 @@ private class AutomaticHostConfiguration {
     val hfactor = HfactorConfig(libraryPath(ConfigurationKeys.HFACTOR_PATH))
     val cholmod = CholmodConfig(libraryPath = libraryPath(ConfigurationKeys.CHOLMOD_PATH))
 
-    fun overrides(provider: Backend): Boolean = when (provider.name.removeSuffix("-bundled")) {
-        BackendNames.OPENBLAS -> provider.name.endsWith("-bundled") &&
-            (openBlas.libraryPath != null || openBlas.lapackeLibraryPath != null)
+    /**
+     * What a deployment pointed at a library of its own, by the name the provider answers to. Keyed rather
+     * than branched, so a bundled library added without an entry here cannot silently keep its place in
+     * front of a configured one; CHOLMOD had no branch when this was a `when`.
+     */
+    private val configuredPaths: Map<String, List<String?>> = mapOf(
+        BackendNames.OPENBLAS to listOf(openBlas.libraryPath, openBlas.lapackeLibraryPath),
+        BackendNames.KLU to listOf(klu.libraryPath),
+        BackendNames.UMFPACK to listOf(umfpack.libraryPath),
+        BackendNames.BASICLU to listOf(basiclu.libraryPath),
+        BackendNames.HFACTOR to listOf(hfactor.libraryPath),
+        BackendNames.CHOLMOD to listOf(cholmod.libraryPath),
+    )
 
-        BackendNames.KLU -> provider.name.endsWith("-bundled") && klu.libraryPath != null
-
-        BackendNames.UMFPACK -> provider.name.endsWith("-bundled") && umfpack.libraryPath != null
-
-        BackendNames.BASICLU -> provider.name.endsWith("-bundled") && basiclu.libraryPath != null
-
-        BackendNames.HFACTOR -> provider.name.endsWith("-bundled") && hfactor.libraryPath != null
-
-        else -> false
-    }
+    /**
+     * Whether a configured library supersedes [provider]. Only a bundled provider steps aside: a configured
+     * one is what it would step aside for.
+     */
+    fun overrides(provider: Backend): Boolean = provider.name.endsWith("-bundled") &&
+        configuredPaths[provider.name.removeSuffix("-bundled")].orEmpty().any { it != null }
 }
 
 /**
