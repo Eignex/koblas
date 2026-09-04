@@ -19,19 +19,19 @@ import com.eignex.koblas.sparse.host.cholmod.sizeAt
 import kotlinx.cinterop.*
 
 /** SPQR's sparse QR through the 32-bit-index SuiteSparse C interface. */
-public class SpqrQr(config: SpqrConfig = SpqrConfig()) {
+public actual class SpqrQr actual constructor(config: SpqrConfig) {
     private val loader = SpqrLoader(config)
     private val ordering = config.options.ordering
     private val tolerance = config.options.rankTolerance
 
     /** Whether both libraries opened and every symbol resolved. */
-    public val isAvailable: Boolean get() = loader.available
+    public actual val isAvailable: Boolean get() = loader.available
 
     /** Why SPQR is unusable, or null when it is usable. */
-    public val unavailableReason: String? get() = loader.unavailableReason
+    public actual val unavailableReason: String? get() = loader.unavailableReason
 
     /** Factor [a], or null when the library is unusable. */
-    public fun factor(a: F64SparseMatrix): F64SparseQrFactorization? {
+    public actual fun factor(a: F64SparseMatrix): F64SparseQrFactorization? {
         requireShape(a.rows >= a.cols) {
             "qr: A is ${a.rows}x${a.cols}, which is wider than it is tall; factor its transpose instead"
         }
@@ -142,8 +142,3 @@ private fun freeDense(functions: SpqrFunctions, slot: COpaquePointerVar, common:
 private fun freePermutation(functions: SpqrFunctions, slot: COpaquePointerVar, size: Int, common: CPointer<ByteVar>) {
     slot.value?.let { functions.free(size.toLong(), Int.SIZE_BYTES.toLong(), it, common) }
 }
-
-internal fun suiteSparseQr(libraryPath: String?): SpqrQr =
-    SpqrQr(SpqrConfig(searchDirectory = libraryPath?.parentDirectory()))
-
-private fun String.parentDirectory(): String? = substringBeforeLast('/', missingDelimiterValue = "").ifEmpty { null }

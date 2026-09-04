@@ -16,11 +16,11 @@ import kotlinx.cinterop.*
  * take the seam from one that offers all of it; the SuiteSparse bindings hold this instead, so the
  * collection answers both routines natively however the seam resolves.
  */
-public class CholmodCholesky(config: CholmodConfig = CholmodConfig()) {
+public actual class CholmodCholesky actual constructor(config: CholmodConfig) {
     private val loader = CholmodLoader(config)
 
     /** Whether libcholmod opened and every symbol this needs resolved. */
-    public val isAvailable: Boolean get() = loader.available
+    public actual val isAvailable: Boolean get() = loader.available
 
     /**
      * Factor [a]'s lower triangle, or null when the library is unusable, which lets the caller fall back
@@ -28,7 +28,7 @@ public class CholmodCholesky(config: CholmodConfig = CholmodConfig()) {
      *
      * @throws NotPositiveDefinite at the column CHOLMOD stopped at, matching the portable Cholesky.
      */
-    public fun factor(a: F64SparseMatrix): F64SparseCholeskyFactorization? = build(a, CHOLMOD_TRUE) { minor, n ->
+    public actual fun factor(a: F64SparseMatrix): F64SparseCholeskyFactorization? = build(a, CHOLMOD_TRUE) { minor, n ->
         if (minor < n) {
             throw NotPositiveDefinite(minor, 0.0, "cholesky: CHOLMOD stopped at column $minor, which is not positive")
         }
@@ -42,7 +42,7 @@ public class CholmodCholesky(config: CholmodConfig = CholmodConfig()) {
      * since an `L·D·Lᵀ` failing means the matrix is singular where an `L·Lᵀ` failing only means it was not
      * positive definite.
      */
-    public fun factorQuasiDefiniteLdl(a: F64SparseMatrix): F64QuasiDefiniteLdlFactorization? =
+    public actual fun factorQuasiDefiniteLdl(a: F64SparseMatrix): F64QuasiDefiniteLdlFactorization? =
         build(a, finalLl = 0) { minor, n -> if (minor < n) minor else NOT_SINGULAR }
             ?.let(::CholmodLdlFactorization)
 
@@ -79,10 +79,3 @@ public class CholmodCholesky(config: CholmodConfig = CholmodConfig()) {
         return CholmodFactorization(handle, functions, n, failedAt)
     }
 }
-
-/** The CHOLMOD that ships beside a SuiteSparse library already loaded from [libraryPath]. */
-internal fun suiteSparseCholesky(libraryPath: String?): CholmodCholesky =
-    CholmodCholesky(CholmodConfig(searchDirectory = libraryPath?.parentDirectory()))
-
-/** The directory part of a path, or null when it names no directory to look in. */
-private fun String.parentDirectory(): String? = substringBeforeLast('/', missingDelimiterValue = "").ifEmpty { null }
