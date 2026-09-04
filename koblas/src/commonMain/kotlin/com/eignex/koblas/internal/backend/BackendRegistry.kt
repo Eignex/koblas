@@ -64,18 +64,18 @@ internal object BackendRegistry {
     internal fun namesFor(role: BackendRole) = f64.namesFor(role)
 
     /**
-     * Offers one automatically discovered backend without recursively starting discovery. [only] narrows the
-     * offer to those halves, for a deployment that pinned one half to another backend and said nothing about
-     * the rest of what this one carries.
+     * Offers one automatically discovered backend without recursively starting discovery. [offered] narrows
+     * the offer to the halves a deployment left this backend, for one that pinned another half elsewhere and
+     * said nothing about the rest of what this one carries, and says which halves it asked for by name.
      */
-    internal fun registerAutomatic(backend: Backend, only: Set<BackendSlot>? = null) {
-        offer(backend, explicit = false, only = only)
+    internal fun registerAutomatic(backend: Backend, offered: BackendOffer? = null) {
+        offer(backend, explicit = false, offered = offered)
     }
 
-    private fun offer(backend: Backend, explicit: Boolean, only: Set<BackendSlot>? = null) {
-        val offered = f64.offer(backend, explicit, only)
+    private fun offer(backend: Backend, explicit: Boolean, offered: BackendOffer? = null) {
+        val taken = f64.offer(backend, explicit, offered)
         // A narrowed offer matching nothing is the caller's own doing, not a backend with no half at all.
-        require(offered || only != null) {
+        require(taken || offered != null) {
             "${backend.name} implements none of ${BackendSlot.names}, so there is nothing to register it as"
         }
     }

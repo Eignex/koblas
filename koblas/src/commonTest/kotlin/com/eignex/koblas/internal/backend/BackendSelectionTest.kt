@@ -83,7 +83,10 @@ class BackendSelectionTest {
     @Test
     fun `an offer narrowed to some halves leaves the rest of the registry alone`() {
         withCleanBackends {
-            BackendRegistry.registerAutomatic(FakeBoth("both-halves", 100), BackendSlot.sparseHalves)
+            BackendRegistry.registerAutomatic(
+                FakeBoth("both-halves", 100),
+                BackendOffer(BackendSlot.sparseHalves, named = emptySet()),
+            )
 
             assertTrue("both-halves" in BackendRegistry.namesFor(BackendSlot.F64SparseBlas), "the sparse half")
             assertFalse("both-halves" in BackendRegistry.namesFor(BackendSlot.F64Blas), "the dense half")
