@@ -1,6 +1,5 @@
 package com.eignex.koblas.internal.backend
 
-import com.eignex.koblas.Backend
 import com.eignex.koblas.dense.host.cblas.*
 import com.eignex.koblas.sparse.host.F64SparseBackends
 import com.eignex.koblas.sparse.host.basiclu.BasicluConfig
@@ -45,21 +44,12 @@ private fun registerHostBlas(requested: Map<BackendSlot, String?>) {
  */
 private fun registerSparse(requested: Map<BackendSlot, String?>) {
     val sparse = F64SparseBackends(
-        umfpackConfig = UmfpackConfig(libraryPath = libraryPath(ConfigurationKeys.UMFPACK_PATH)),
         kluConfig = KluConfig(libraryPath(ConfigurationKeys.KLU_PATH)),
+        umfpackConfig = UmfpackConfig(libraryPath = libraryPath(ConfigurationKeys.UMFPACK_PATH)),
         basicluConfig = BasicluConfig(libraryPath(ConfigurationKeys.BASICLU_PATH)),
         cholmodConfig = CholmodConfig(libraryPath = libraryPath(ConfigurationKeys.CHOLMOD_PATH)),
     )
     for (backend in listOf(sparse.umfpack, sparse.klu, sparse.basiclu, sparse.cholmod)) {
         registerIfOffered(backend, requested)
     }
-}
-
-/** Whether [backend] is what the deployment asked for, or asked for nothing in particular. */
-private fun registerIfOffered(backend: Backend, requested: Map<BackendSlot, String?>) {
-    if (!backend.isAvailable) return
-    val offered = BackendSlot.entries.filterTo(mutableSetOf()) { slot ->
-        requested.getValue(slot)?.let { matchesRequested(backend.name, it) } ?: true
-    }
-    if (offered.isNotEmpty()) BackendRegistry.registerAutomatic(backend, offered)
 }
