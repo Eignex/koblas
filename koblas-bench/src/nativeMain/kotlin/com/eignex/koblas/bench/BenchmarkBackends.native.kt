@@ -26,7 +26,7 @@ internal actual fun useSparseProduct(): Boolean {
 }
 
 internal actual fun useSparseLu(): Boolean {
-    val umfpack = F64SparseBackends(UmfpackConfig()).umfpack
+    val umfpack = F64SparseBackends(umfpackConfig = UmfpackConfig()).umfpack
     if (!umfpack.isAvailable) return false
     installBackends(koblas.with(sparseDecompositions = umfpack))
     return true

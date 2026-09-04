@@ -2012,7 +2012,7 @@ final class com.eignex.koblas.sparse.host.umfpack/UmfpackOptions { // com.eignex
 }
 
 final class com.eignex.koblas.sparse.host/F64SparseBackends { // com.eignex.koblas.sparse.host/F64SparseBackends|null[0]
-    constructor <init>(com.eignex.koblas.sparse.host.umfpack/UmfpackConfig = ..., com.eignex.koblas.sparse.host.klu/KluConfig = ..., com.eignex.koblas.sparse.host.basiclu/BasicluConfig = ..., com.eignex.koblas.sparse.host.cholmod/CholmodConfig = ...) // com.eignex.koblas.sparse.host/F64SparseBackends.<init>|<init>(com.eignex.koblas.sparse.host.umfpack.UmfpackConfig;com.eignex.koblas.sparse.host.klu.KluConfig;com.eignex.koblas.sparse.host.basiclu.BasicluConfig;com.eignex.koblas.sparse.host.cholmod.CholmodConfig){}[0]
+    constructor <init>(com.eignex.koblas.sparse.host.klu/KluConfig = ..., com.eignex.koblas.sparse.host.umfpack/UmfpackConfig = ..., com.eignex.koblas.sparse.host.basiclu/BasicluConfig = ..., com.eignex.koblas.sparse.host.cholmod/CholmodConfig = ...) // com.eignex.koblas.sparse.host/F64SparseBackends.<init>|<init>(com.eignex.koblas.sparse.host.klu.KluConfig;com.eignex.koblas.sparse.host.umfpack.UmfpackConfig;com.eignex.koblas.sparse.host.basiclu.BasicluConfig;com.eignex.koblas.sparse.host.cholmod.CholmodConfig){}[0]
 
     final val basiclu // com.eignex.koblas.sparse.host/F64SparseBackends.basiclu|{}basiclu[0]
         final fun <get-basiclu>(): com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu // com.eignex.koblas.sparse.host/F64SparseBackends.basiclu.<get-basiclu>|<get-basiclu>(){}[0]

@@ -32,14 +32,6 @@ internal actual fun registerPlatformBackends() {
     registerBuiltins(automatic, requested)
 }
 
-/**
- * The roles the provider named [name] may fill under the deployment's independent role pins.
- */
-internal fun offeredHalves(name: String, requested: Map<BackendSlot, String?>): Set<BackendSlot> =
-    BackendSlot.entries.filterTo(mutableSetOf()) { slot ->
-        requested.getValue(slot)?.let { matchesRequested(name, it) } ?: true
-    }
-
 /** Deployment overrides are read only while automatic discovery chooses its candidates. */
 private class AutomaticHostConfiguration {
     val openBlas = HostBlasConfig(
@@ -101,15 +93,6 @@ private fun registerBuiltins(automatic: AutomaticHostConfiguration, requested: M
     // Fills the sparse matrix half rather than the factorization one, so it takes nothing from the four
     // above and they take nothing from it.
     registerIfOffered(sparse.cholmod, requested)
-}
-
-/**
- * Registers [backend]'s roles when its library loaded and the deployment did not pin those roles elsewhere.
- */
-private fun registerIfOffered(backend: Backend, requested: Map<BackendSlot, String?>) {
-    if (!backend.isAvailable) return
-    val offered = offeredHalves(backend.name, requested)
-    if (offered.isNotEmpty()) BackendRegistry.registerAutomatic(backend, offered)
 }
 
 /** Instantiate all registered providers, dropping any whose construction fails. */
