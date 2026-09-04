@@ -2,6 +2,8 @@ package com.eignex.koblas.sparse.host.umfpack
 
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.FfmLibrary
+import com.eignex.koblas.sparse.host.readDoubles
+import com.eignex.koblas.sparse.host.readInts
 import com.eignex.koblas.sparse.internal.transposeRaw
 import java.lang.foreign.*
 import java.lang.foreign.ValueLayout.*
@@ -159,9 +161,9 @@ internal class UmfpackCalls(private val config: UmfpackConfig) {
             UmfpackFactors(
                 lower = read(lRowPtr, lColIdx, lValues, order, lNonzeros, transposed = true),
                 upper = read(uColPtr, uRowIdx, uValues, order, uNonzeros, transposed = false),
-                rowOrder = ints(rowPerm, order),
-                columnOrder = ints(colPerm, order),
-                rowScaling = doubles(scaling, order).let { scale ->
+                rowOrder = readInts(rowPerm, order),
+                columnOrder = readInts(colPerm, order),
+                rowScaling = readDoubles(scaling, order).let { scale ->
                     // do_recip false means UMFPACK divided by these, so the multiplier is the reciprocal.
                     if (reciprocal.getAtIndex(JAVA_INT, 0) != 0) scale else DoubleArray(order) { 1.0 / scale[it] }
                 },
@@ -177,9 +179,9 @@ internal class UmfpackCalls(private val config: UmfpackConfig) {
         nonzeros: Int,
         transposed: Boolean,
     ): F64SparseMatrix {
-        val ptr = ints(pointers, order + 1)
-        val idx = ints(indices, nonzeros)
-        val entries = doubles(values, nonzeros)
+        val ptr = readInts(pointers, order + 1)
+        val idx = readInts(indices, nonzeros)
+        val entries = readDoubles(values, nonzeros)
         // Row form is the transpose in CSC, and transposing sorts the rows a library need not have sorted.
         return if (transposed) {
             transposeRaw(order, order, ptr, idx, entries)
@@ -192,18 +194,6 @@ internal class UmfpackCalls(private val config: UmfpackConfig) {
                 entries,
             ).let { transposeRaw(order, order, it.colPtr, it.rowIdx, it.values) }
         }
-    }
-
-    private fun ints(segment: MemorySegment, count: Int): IntArray {
-        val out = IntArray(count)
-        MemorySegment.copy(segment, JAVA_INT, 0L, out, 0, count)
-        return out
-    }
-
-    private fun doubles(segment: MemorySegment, count: Int): DoubleArray {
-        val out = DoubleArray(count)
-        MemorySegment.copy(segment, JAVA_DOUBLE, 0L, out, 0, count)
-        return out
     }
 
     private fun handlesOrThrow(): Handles =

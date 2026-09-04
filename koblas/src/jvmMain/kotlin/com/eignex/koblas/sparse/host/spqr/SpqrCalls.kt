@@ -1,6 +1,5 @@
 package com.eignex.koblas.sparse.host.spqr
 
-import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.FfmLibrary
 import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_COMMON_BYTES
 import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_COMMON_PRINT
@@ -8,14 +7,10 @@ import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_DENSE_BYTES
 import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_DENSE_NCOL
 import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_DENSE_X
 import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_SONAMES
-import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_SPARSE_BYTES
-import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_SPARSE_I
-import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_SPARSE_NCOL
-import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_SPARSE_NROW
-import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_SPARSE_P
-import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_SPARSE_X
 import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_TRUE
 import com.eignex.koblas.sparse.host.cholmod.CholmodMatrix
+import com.eignex.koblas.sparse.host.cholmod.readCholmodPermutation
+import com.eignex.koblas.sparse.host.cholmod.readCholmodSparse
 import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout.ADDRESS
@@ -139,10 +134,10 @@ internal class SpqrCalls(private val config: SpqrConfig) {
                     if (rank < 0 || r.address() == 0L || h.address() == 0L || tau.address() == 0L) return@use null
                     SpqrFactorData(
                         rank,
-                        readSparse(r),
-                        readPermutation(eSlot.get(ADDRESS, 0L), cols),
-                        readSparse(h),
-                        readPermutation(hpSlot.get(ADDRESS, 0L), rows),
+                        readCholmodSparse(r),
+                        readCholmodPermutation(eSlot.get(ADDRESS, 0L), cols),
+                        readCholmodSparse(h),
+                        readCholmodPermutation(hpSlot.get(ADDRESS, 0L), rows),
                         readDense(tau),
                     )
                 } finally {
@@ -160,32 +155,6 @@ internal class SpqrCalls(private val config: SpqrConfig) {
 
     private fun pointerSlot(arena: Arena): MemorySegment = arena.allocate(ADDRESS).also {
         it.set(ADDRESS, 0L, MemorySegment.NULL)
-    }
-
-    private fun readPermutation(pointer: MemorySegment, size: Int): IntArray {
-        if (pointer.address() == 0L) return IntArray(size) { it }
-        val out = IntArray(size)
-        MemorySegment.copy(pointer.reinterpret(size.toLong() * Int.SIZE_BYTES), JAVA_INT, 0L, out, 0, size)
-        return out
-    }
-
-    private fun readSparse(sparse: MemorySegment): F64SparseMatrix {
-        val descriptor = sparse.reinterpret(CHOLMOD_SPARSE_BYTES)
-        val rows = descriptor.get(JAVA_LONG, CHOLMOD_SPARSE_NROW).toInt()
-        val cols = descriptor.get(JAVA_LONG, CHOLMOD_SPARSE_NCOL).toInt()
-        val colPtr = IntArray(cols + 1)
-        val p = descriptor.get(ADDRESS, CHOLMOD_SPARSE_P).reinterpret((cols + 1L) * Int.SIZE_BYTES)
-        MemorySegment.copy(p, JAVA_INT, 0L, colPtr, 0, colPtr.size)
-        val nnz = colPtr[cols]
-        val rowIdx = IntArray(nnz)
-        val values = DoubleArray(nnz)
-        if (nnz > 0) {
-            val i = descriptor.get(ADDRESS, CHOLMOD_SPARSE_I).reinterpret(nnz.toLong() * Int.SIZE_BYTES)
-            val x = descriptor.get(ADDRESS, CHOLMOD_SPARSE_X).reinterpret(nnz.toLong() * Double.SIZE_BYTES)
-            MemorySegment.copy(i, JAVA_INT, 0L, rowIdx, 0, nnz)
-            MemorySegment.copy(x, JAVA_DOUBLE, 0L, values, 0, nnz)
-        }
-        return F64SparseMatrix.wrap(rows, cols, colPtr, rowIdx, values)
     }
 
     private fun readDense(dense: MemorySegment): DoubleArray {

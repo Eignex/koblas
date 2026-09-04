@@ -4,6 +4,8 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.FfmLibrary
 import com.eignex.koblas.internal.host.FfmLibrary.Companion.intOf
 import com.eignex.koblas.internal.host.FfmLibrary.Companion.pointerOf
+import com.eignex.koblas.sparse.host.readDoubles
+import com.eignex.koblas.sparse.host.readInts
 import com.eignex.koblas.sparse.internal.transposeRaw
 import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
@@ -117,18 +119,6 @@ internal class KluCalls(private val config: KluConfig) {
         val entries = readDoubles(values, nonzeros)
         val once = transposeRaw(order, order, ptr, idx, entries)
         return transposeRaw(order, order, once.colPtr, once.rowIdx, once.values)
-    }
-
-    private fun readInts(segment: MemorySegment, count: Int): IntArray {
-        val out = IntArray(count)
-        if (count > 0) MemorySegment.copy(segment, JAVA_INT, 0L, out, 0, count)
-        return out
-    }
-
-    private fun readDoubles(segment: MemorySegment, count: Int): DoubleArray {
-        val out = DoubleArray(count)
-        if (count > 0) MemorySegment.copy(segment, JAVA_DOUBLE, 0L, out, 0, count)
-        return out
     }
 
     private fun handlesOrThrow(): Handles = checkNotNull(handles) { "KLU 2 is not available" }
