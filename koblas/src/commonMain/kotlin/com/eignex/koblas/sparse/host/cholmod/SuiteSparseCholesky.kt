@@ -1,6 +1,6 @@
 package com.eignex.koblas.sparse.host.cholmod
 
-import java.io.File
+import com.eignex.koblas.sparse.host.parentDirectory
 
 /**
  * The CHOLMOD that ships beside a SuiteSparse library already loaded from [libraryPath], for a binding
@@ -11,4 +11,4 @@ import java.io.File
  * finds whatever SuiteSparse the machine has.
  */
 internal fun suiteSparseCholesky(libraryPath: String?): CholmodCholesky =
-    CholmodCholesky(CholmodConfig(searchDirectory = libraryPath?.let { File(it).parent }))
+    CholmodCholesky(CholmodConfig(searchDirectory = libraryPath?.let(::parentDirectory)))

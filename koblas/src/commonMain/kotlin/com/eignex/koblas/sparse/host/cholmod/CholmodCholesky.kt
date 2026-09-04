@@ -1,6 +1,5 @@
 package com.eignex.koblas.sparse.host.cholmod
 
-import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.NotPositiveDefinite
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.F64QuasiDefiniteLdlFactorization
@@ -12,15 +11,15 @@ import com.eignex.koblas.sparse.F64SparseCholeskyFactorization
  * Not a backend itself. CHOLMOD has no LU, and a backend offering only half of what the seam carries would
  * take the seam from one that offers all of it; the SuiteSparse bindings hold this instead, so the
  * collection answers both routines natively however the seam resolves.
+ *
+ * Each target binds CHOLMOD its own way, through `java.lang.foreign` or through cinterop, and what they
+ * agree on is declared here so a caller and the bindings that hold one see the same routine either way.
+ *
+ * @param config policy for this instance, including where to look for the library.
  */
-public actual class CholmodCholesky actual constructor(config: CholmodConfig) {
-    private val calls = CholmodCalls(config)
-
+public expect class CholmodCholesky(config: CholmodConfig = CholmodConfig()) {
     /** Whether libcholmod opened and every symbol this needs bound. */
-    public actual val isAvailable: Boolean get() = calls.available
-
-    /** Why CHOLMOD is unusable, or null when it is usable. For diagnostics, not control flow. */
-    public val unavailableReason: String? get() = calls.unavailableReason
+    public val isAvailable: Boolean
 
     /**
      * Factor [a]'s lower triangle, or null when the library is unusable, which lets the caller fall back
@@ -28,15 +27,7 @@ public actual class CholmodCholesky actual constructor(config: CholmodConfig) {
      *
      * @throws NotPositiveDefinite at the column CHOLMOD stopped at, matching the portable Cholesky.
      */
-    public actual fun factor(a: F64SparseMatrix): F64SparseCholeskyFactorization? {
-        val factor = CholmodMatrix.lowerTriangleOf(a).use { calls.factorize(it) } ?: return null
-        if (factor.minor < factor.n) {
-            val column = factor.minor
-            calls.free(factor)
-            throw NotPositiveDefinite(column, 0.0, "cholesky: CHOLMOD stopped at column $column, which is not positive")
-        }
-        return CholmodCholeskyFactorization(CholmodFactorization(factor, calls))
-    }
+    public fun factor(a: F64SparseMatrix): F64SparseCholeskyFactorization?
 
     /**
      * Factor [a]'s lower triangle into `L·D·Lᵀ`, or null when the library is unusable.
@@ -45,9 +36,5 @@ public actual class CholmodCholesky actual constructor(config: CholmodConfig) {
      * since an `L·D·Lᵀ` failing means the matrix is singular where an `L·Lᵀ` failing only means it was not
      * positive definite.
      */
-    public actual fun factorQuasiDefiniteLdl(a: F64SparseMatrix): F64QuasiDefiniteLdlFactorization? {
-        val factor = CholmodMatrix.lowerTriangleOf(a).use { calls.factorize(it, ldl = true) } ?: return null
-        val failedAt = if (factor.minor < factor.n) factor.minor else NOT_SINGULAR
-        return CholmodLdlFactorization(CholmodFactorization(factor, calls, failedAt))
-    }
+    public fun factorQuasiDefiniteLdl(a: F64SparseMatrix): F64QuasiDefiniteLdlFactorization?
 }

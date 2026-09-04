@@ -2383,6 +2383,14 @@ public abstract class com/eignex/koblas/sparse/host/F64SparseDecompositionsAdapt
 	public fun solveInto (Lcom/eignex/koblas/sparse/F64SparseFactorization;[D[DZLcom/eignex/koblas/Workspace;)[D
 }
 
+public abstract class com/eignex/koblas/sparse/host/SuiteSparseDecompositionsAdapter : com/eignex/koblas/sparse/host/F64SparseDecompositionsAdapter {
+	protected fun <init> (Ljava/lang/String;ZLcom/eignex/koblas/BackendMetadata;)V
+	public synthetic fun <init> (Ljava/lang/String;ZLcom/eignex/koblas/BackendMetadata;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	protected final fun choleskyNative (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseCholeskyFactorization;
+	protected final fun qrNative (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseQrFactorization;
+	protected final fun quasiDefiniteLdlNative (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64QuasiDefiniteLdlFactorization;
+}
+
 public final class com/eignex/koblas/sparse/host/basiclu/BasicluBasisFactorization : com/eignex/koblas/sparse/host/basiclu/BasicluFactorization, com/eignex/koblas/sparse/F64BasisFactorization {
 	public fun getBasis ()Lcom/eignex/koblas/core/F64SparseMatrix;
 	public fun replaceColumn (ILcom/eignex/koblas/core/F64SparseVector;)Lcom/eignex/koblas/sparse/F64BasisFactorization;
@@ -2748,19 +2756,16 @@ public final class com/eignex/koblas/sparse/host/klu/KluScaling : java/lang/Enum
 	public static fun values ()[Lcom/eignex/koblas/sparse/host/klu/KluScaling;
 }
 
-public class com/eignex/koblas/sparse/host/klu/KluSparseLu : com/eignex/koblas/sparse/host/F64SparseDecompositionsAdapter, com/eignex/koblas/sparse/F64GeneralSparseLu, com/eignex/koblas/sparse/F64QuasiDefiniteLdl, com/eignex/koblas/sparse/F64RepeatedSparseLu, com/eignex/koblas/sparse/F64SparseCholesky, com/eignex/koblas/sparse/F64SparseQr {
+public class com/eignex/koblas/sparse/host/klu/KluSparseLu : com/eignex/koblas/sparse/host/SuiteSparseDecompositionsAdapter, com/eignex/koblas/sparse/F64GeneralSparseLu, com/eignex/koblas/sparse/F64QuasiDefiniteLdl, com/eignex/koblas/sparse/F64RepeatedSparseLu, com/eignex/koblas/sparse/F64SparseCholesky, com/eignex/koblas/sparse/F64SparseQr {
 	public fun <init> ()V
 	public fun <init> (Lcom/eignex/koblas/sparse/host/klu/KluConfig;)V
 	public synthetic fun <init> (Lcom/eignex/koblas/sparse/host/klu/KluConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun analyze (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseLuAnalysis;
-	protected final fun choleskyNative (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseCholeskyFactorization;
 	protected final fun factorNative (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseLuFactorization;
 	public final fun getConfig ()Lcom/eignex/koblas/sparse/host/klu/KluConfig;
 	public fun getName ()Ljava/lang/String;
 	protected final fun getNativeAvailable ()Z
 	public fun getPriority ()I
-	protected final fun qrNative (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseQrFactorization;
-	protected final fun quasiDefiniteLdlNative (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64QuasiDefiniteLdlFactorization;
 	public final fun refactor (Lcom/eignex/koblas/sparse/F64SparseLuFactorization;Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseLuFactorization;
 }
 
@@ -2905,17 +2910,14 @@ public final class com/eignex/koblas/sparse/host/umfpack/UmfpackScaling : java/l
 	public static fun values ()[Lcom/eignex/koblas/sparse/host/umfpack/UmfpackScaling;
 }
 
-public class com/eignex/koblas/sparse/host/umfpack/UmfpackSparseLu : com/eignex/koblas/sparse/host/F64SparseDecompositionsAdapter, com/eignex/koblas/sparse/F64GeneralSparseLu, com/eignex/koblas/sparse/F64QuasiDefiniteLdl, com/eignex/koblas/sparse/F64SparseCholesky, com/eignex/koblas/sparse/F64SparseQr {
+public class com/eignex/koblas/sparse/host/umfpack/UmfpackSparseLu : com/eignex/koblas/sparse/host/SuiteSparseDecompositionsAdapter, com/eignex/koblas/sparse/F64GeneralSparseLu, com/eignex/koblas/sparse/F64QuasiDefiniteLdl, com/eignex/koblas/sparse/F64SparseCholesky, com/eignex/koblas/sparse/F64SparseQr {
 	public fun <init> ()V
 	public fun <init> (Lcom/eignex/koblas/sparse/host/umfpack/UmfpackConfig;)V
 	public synthetic fun <init> (Lcom/eignex/koblas/sparse/host/umfpack/UmfpackConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	protected final fun choleskyNative (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseCholeskyFactorization;
 	protected final fun factorNative (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseLuFactorization;
 	public final fun getConfig ()Lcom/eignex/koblas/sparse/host/umfpack/UmfpackConfig;
 	public fun getName ()Ljava/lang/String;
 	protected final fun getNativeAvailable ()Z
 	public fun getPriority ()I
-	protected final fun qrNative (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseQrFactorization;
-	protected final fun quasiDefiniteLdlNative (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64QuasiDefiniteLdlFactorization;
 }
 

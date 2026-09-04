@@ -3,14 +3,9 @@ package com.eignex.koblas.sparse.host.umfpack
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.backend.BackendNames
-import com.eignex.koblas.sparse.F64QuasiDefiniteLdlFactorization
 import com.eignex.koblas.sparse.F64SingularSparseFactorization
-import com.eignex.koblas.sparse.F64SparseCholeskyFactorization
 import com.eignex.koblas.sparse.F64SparseLuFactorization
-import com.eignex.koblas.sparse.F64SparseQrFactorization
-import com.eignex.koblas.sparse.host.F64SparseDecompositionsAdapter
-import com.eignex.koblas.sparse.host.cholmod.suiteSparseCholesky
-import com.eignex.koblas.sparse.host.spqr.suiteSparseQr
+import com.eignex.koblas.sparse.host.SuiteSparseDecompositionsAdapter
 import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout.ADDRESS
@@ -26,7 +21,8 @@ import java.lang.foreign.ValueLayout.JAVA_DOUBLE
 public open class UmfpackSparseLu(
     /** Policy for this backend instance and the factors it produces. */
     public val config: UmfpackConfig = UmfpackConfig(),
-) : F64SparseDecompositionsAdapter(
+) : SuiteSparseDecompositionsAdapter(
+    libraryPath = config.libraryPath,
     equilibrate = config.equilibrate,
     metadata = BackendMetadata(options = config.options.metadataOptions()),
 ),
@@ -42,27 +38,6 @@ public open class UmfpackSparseLu(
 
     /** UMFPACK ships separately from OpenBLAS, so a host can have one without the other. */
     final override val nativeAvailable: Boolean get() = calls.available
-
-    private val cholmod by lazy { suiteSparseCholesky(config.libraryPath) }
-
-    private val spqr by lazy { suiteSparseQr(config.libraryPath) }
-
-    /**
-     * CHOLMOD ships beside UMFPACK in the same collection, so this backend answers the seam's Cholesky
-     * natively too rather than leaving it to the portable factorization. A machine carrying UMFPACK without
-     * CHOLMOD falls back, which is what the null answer is for.
-     */
-    final override fun choleskyNative(a: F64SparseMatrix): F64SparseCholeskyFactorization =
-        cholmod.factor(a) ?: portable.cholesky(a)
-
-    /** CHOLMOD's quasi-definite factorization, retaining the fill-reducing ordering. */
-    final override fun quasiDefiniteLdlNative(a: F64SparseMatrix): F64QuasiDefiniteLdlFactorization =
-        cholmod.factorQuasiDefiniteLdl(
-            a,
-        ) ?: portable.quasiDefiniteLdl(a)
-
-    /** SPQR ships in the same collection, so the seam's QR is answered natively too where it is installed. */
-    final override fun qrNative(a: F64SparseMatrix): F64SparseQrFactorization = spqr.factor(a) ?: portable.qr(a)
 
     internal val refinementSteps: Double? get() = calls.refinementSteps
 
