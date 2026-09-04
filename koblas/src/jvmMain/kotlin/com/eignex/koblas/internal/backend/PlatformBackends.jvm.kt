@@ -22,9 +22,9 @@ internal actual fun registerPlatformBackends() {
     val automatic = AutomaticHostConfiguration()
     for (provider in loadProviders().sortedByDescending { it.priority }) {
         if (automatic.overrides(provider)) continue
-        val offered = offeredHalves(provider.name, requested)
-        if (offered.isEmpty()) continue
-        if (!probe(provider, offered)) continue
+        val offered = offerFor(provider.name, requested)
+        if (offered.isEmpty) continue
+        if (!probe(provider, offered.halves)) continue
         // Once, not per half, since registerBackend offers the object as every half it implements, less
         // whatever a pin on one half left out.
         BackendRegistry.registerAutomatic(provider, offered)

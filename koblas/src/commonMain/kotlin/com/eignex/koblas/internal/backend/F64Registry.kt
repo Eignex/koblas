@@ -81,21 +81,25 @@ internal class F64Registry {
     /**
      * Offers [backend] to every seam whose half it implements, and reports whether any took it. Explicit
      * offers outrank automatic ones. A caller that gets false has offered something this element type has no
-     * seam for, or nothing but halves [only] left out.
+     * seam for, or nothing but halves [offered] left out.
      *
-     * [only] narrows the offer to those halves, for a caller that will take some of what a backend carries
-     * and not the rest. Null offers every half, which is what a caller with no reason to choose wants.
+     * [offered] narrows the offer, for a caller that will take some of what a backend carries and not the
+     * rest, and names the halves a deployment asked this backend for. Null offers every half through the
+     * specialization policy, which is what a caller with no reason to choose wants.
      */
-    fun offer(backend: Backend, explicit: Boolean, only: Set<BackendSlot>? = null): Boolean {
+    fun offer(backend: Backend, explicit: Boolean, offered: BackendOffer? = null): Boolean {
         // Counted rather than short-circuited: an object implementing several halves is offered to all of them.
-        var offered = 0
+        var taken = 0
         for ((slot, seam) in halves) {
-            if (only != null && slot !in only) continue
-            if (!slot.acceptsOffer(backend)) continue
+            if (offered != null && slot !in offered.halves) continue
+            // A half named for this backend was asked for, so only the type test stands between them.
+            val takes =
+                if (offered?.wasNamed(slot) == true) slot.accepts(backend) else slot.acceptsOffer(backend)
+            if (!takes) continue
             seam.register(backend, explicit)
-            offered++
+            taken++
         }
-        return offered > 0
+        return taken > 0
     }
 
     /** The backend registered for [slot] under [name], or null when nothing did. */
