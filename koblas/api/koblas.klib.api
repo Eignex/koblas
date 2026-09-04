@@ -177,6 +177,7 @@ final enum class com.eignex.koblas/DispatchMetric : kotlin/Enum<com.eignex.kobla
     enum entry DIMENSION // com.eignex.koblas/DispatchMetric.DIMENSION|null[0]
     enum entry LEVEL3_WORK // com.eignex.koblas/DispatchMetric.LEVEL3_WORK|null[0]
     enum entry STORED_ENTRIES // com.eignex.koblas/DispatchMetric.STORED_ENTRIES|null[0]
+    enum entry VECTOR_LENGTH // com.eignex.koblas/DispatchMetric.VECTOR_LENGTH|null[0]
 
     final val entries // com.eignex.koblas/DispatchMetric.entries|#static{}entries[0]
         final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas/DispatchMetric> // com.eignex.koblas/DispatchMetric.entries.<get-entries>|<get-entries>#static(){}[0]
@@ -207,6 +208,24 @@ final enum class com.eignex.koblas/F64FallbackPolicy : kotlin/Enum<com.eignex.ko
 
     final fun valueOf(kotlin/String): com.eignex.koblas/F64FallbackPolicy // com.eignex.koblas/F64FallbackPolicy.valueOf|valueOf#static(kotlin.String){}[0]
     final fun values(): kotlin/Array<com.eignex.koblas/F64FallbackPolicy> // com.eignex.koblas/F64FallbackPolicy.values|values#static(){}[0]
+}
+
+final enum class com.eignex.koblas/F64Level1Routine : kotlin/Enum<com.eignex.koblas/F64Level1Routine> { // com.eignex.koblas/F64Level1Routine|null[0]
+    enum entry ASUM // com.eignex.koblas/F64Level1Routine.ASUM|null[0]
+    enum entry AXPY // com.eignex.koblas/F64Level1Routine.AXPY|null[0]
+    enum entry DOT // com.eignex.koblas/F64Level1Routine.DOT|null[0]
+    enum entry NRM2 // com.eignex.koblas/F64Level1Routine.NRM2|null[0]
+    enum entry ROT // com.eignex.koblas/F64Level1Routine.ROT|null[0]
+    enum entry ROTM // com.eignex.koblas/F64Level1Routine.ROTM|null[0]
+    enum entry ROTMG // com.eignex.koblas/F64Level1Routine.ROTMG|null[0]
+    enum entry SCALE // com.eignex.koblas/F64Level1Routine.SCALE|null[0]
+    enum entry SWAP // com.eignex.koblas/F64Level1Routine.SWAP|null[0]
+
+    final val entries // com.eignex.koblas/F64Level1Routine.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas/F64Level1Routine> // com.eignex.koblas/F64Level1Routine.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): com.eignex.koblas/F64Level1Routine // com.eignex.koblas/F64Level1Routine.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<com.eignex.koblas/F64Level1Routine> // com.eignex.koblas/F64Level1Routine.values|values#static(){}[0]
 }
 
 final enum class com.eignex.koblas/PreparedSparseProductKind : kotlin/Enum<com.eignex.koblas/PreparedSparseProductKind> { // com.eignex.koblas/PreparedSparseProductKind|null[0]
@@ -650,6 +669,24 @@ sealed interface com.eignex.koblas/F64RouteQuery { // com.eignex.koblas/F64Route
     abstract val role // com.eignex.koblas/F64RouteQuery.role|{}role[0]
         abstract fun <get-role>(): com.eignex.koblas/BackendRole // com.eignex.koblas/F64RouteQuery.role.<get-role>|<get-role>(){}[0]
 
+    final class CholeskyRankUpdate : com.eignex.koblas/F64RouteQuery { // com.eignex.koblas/F64RouteQuery.CholeskyRankUpdate|null[0]
+        constructor <init>(kotlin/Int, kotlin/Int) // com.eignex.koblas/F64RouteQuery.CholeskyRankUpdate.<init>|<init>(kotlin.Int;kotlin.Int){}[0]
+
+        final val order // com.eignex.koblas/F64RouteQuery.CholeskyRankUpdate.order|{}order[0]
+            final fun <get-order>(): kotlin/Int // com.eignex.koblas/F64RouteQuery.CholeskyRankUpdate.order.<get-order>|<get-order>(){}[0]
+        final val rank // com.eignex.koblas/F64RouteQuery.CholeskyRankUpdate.rank|{}rank[0]
+            final fun <get-rank>(): kotlin/Int // com.eignex.koblas/F64RouteQuery.CholeskyRankUpdate.rank.<get-rank>|<get-rank>(){}[0]
+        final val role // com.eignex.koblas/F64RouteQuery.CholeskyRankUpdate.role|{}role[0]
+            final fun <get-role>(): com.eignex.koblas/BackendRole // com.eignex.koblas/F64RouteQuery.CholeskyRankUpdate.role.<get-role>|<get-role>(){}[0]
+
+        final fun component1(): kotlin/Int // com.eignex.koblas/F64RouteQuery.CholeskyRankUpdate.component1|component1(){}[0]
+        final fun component2(): kotlin/Int // com.eignex.koblas/F64RouteQuery.CholeskyRankUpdate.component2|component2(){}[0]
+        final fun copy(kotlin/Int = ..., kotlin/Int = ...): com.eignex.koblas/F64RouteQuery.CholeskyRankUpdate // com.eignex.koblas/F64RouteQuery.CholeskyRankUpdate.copy|copy(kotlin.Int;kotlin.Int){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas/F64RouteQuery.CholeskyRankUpdate.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // com.eignex.koblas/F64RouteQuery.CholeskyRankUpdate.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // com.eignex.koblas/F64RouteQuery.CholeskyRankUpdate.toString|toString(){}[0]
+    }
+
     final class DenseGemm : com.eignex.koblas/F64RouteQuery { // com.eignex.koblas/F64RouteQuery.DenseGemm|null[0]
         constructor <init>(kotlin/Int, kotlin/Int, kotlin/Int) // com.eignex.koblas/F64RouteQuery.DenseGemm.<init>|<init>(kotlin.Int;kotlin.Int;kotlin.Int){}[0]
 
@@ -702,6 +739,24 @@ sealed interface com.eignex.koblas/F64RouteQuery { // com.eignex.koblas/F64Route
         final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas/F64RouteQuery.DenseLu.equals|equals(kotlin.Any?){}[0]
         final fun hashCode(): kotlin/Int // com.eignex.koblas/F64RouteQuery.DenseLu.hashCode|hashCode(){}[0]
         final fun toString(): kotlin/String // com.eignex.koblas/F64RouteQuery.DenseLu.toString|toString(){}[0]
+    }
+
+    final class Level1 : com.eignex.koblas/F64RouteQuery { // com.eignex.koblas/F64RouteQuery.Level1|null[0]
+        constructor <init>(com.eignex.koblas/F64Level1Routine, kotlin/Int) // com.eignex.koblas/F64RouteQuery.Level1.<init>|<init>(com.eignex.koblas.F64Level1Routine;kotlin.Int){}[0]
+
+        final val length // com.eignex.koblas/F64RouteQuery.Level1.length|{}length[0]
+            final fun <get-length>(): kotlin/Int // com.eignex.koblas/F64RouteQuery.Level1.length.<get-length>|<get-length>(){}[0]
+        final val role // com.eignex.koblas/F64RouteQuery.Level1.role|{}role[0]
+            final fun <get-role>(): com.eignex.koblas/BackendRole // com.eignex.koblas/F64RouteQuery.Level1.role.<get-role>|<get-role>(){}[0]
+        final val routine // com.eignex.koblas/F64RouteQuery.Level1.routine|{}routine[0]
+            final fun <get-routine>(): com.eignex.koblas/F64Level1Routine // com.eignex.koblas/F64RouteQuery.Level1.routine.<get-routine>|<get-routine>(){}[0]
+
+        final fun component1(): com.eignex.koblas/F64Level1Routine // com.eignex.koblas/F64RouteQuery.Level1.component1|component1(){}[0]
+        final fun component2(): kotlin/Int // com.eignex.koblas/F64RouteQuery.Level1.component2|component2(){}[0]
+        final fun copy(com.eignex.koblas/F64Level1Routine = ..., kotlin/Int = ...): com.eignex.koblas/F64RouteQuery.Level1 // com.eignex.koblas/F64RouteQuery.Level1.copy|copy(com.eignex.koblas.F64Level1Routine;kotlin.Int){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas/F64RouteQuery.Level1.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // com.eignex.koblas/F64RouteQuery.Level1.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // com.eignex.koblas/F64RouteQuery.Level1.toString|toString(){}[0]
     }
 
     final class PreparedSparseProduct : com.eignex.koblas/F64RouteQuery { // com.eignex.koblas/F64RouteQuery.PreparedSparseProduct|null[0]

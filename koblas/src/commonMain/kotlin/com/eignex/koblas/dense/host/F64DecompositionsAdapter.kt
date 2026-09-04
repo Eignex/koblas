@@ -59,6 +59,18 @@ public abstract class F64DecompositionsAdapter internal constructor(
 
     override fun route(query: F64RouteQuery): BackendRoute? = when (query) {
         is F64RouteQuery.DenseLu -> nativeRoute(query, this, fallbackWhenUnavailable = false)
+
+        // Below the blocking's minimum rank this half defers to the portable sweep, which is what the
+        // reported gate says: the update is the one factorization routine with a threshold of its own.
+        is F64RouteQuery.CholeskyRankUpdate -> when {
+            !isAvailable -> nativeRoute(query, this)
+
+            query.rank < DTPQRT_MIN_RANK ->
+                belowThreshold(query, this, DispatchMetric.DIMENSION, query.rank, DTPQRT_MIN_RANK)
+
+            else -> nativeRoute(query, this)
+        }
+
         else -> null
     }
 

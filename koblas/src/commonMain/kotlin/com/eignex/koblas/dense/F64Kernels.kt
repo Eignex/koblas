@@ -1,7 +1,15 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.Backend
+import com.eignex.koblas.BackendRoute
+import com.eignex.koblas.BackendRouteReason
+import com.eignex.koblas.DispatchMetric
+import com.eignex.koblas.F64Level1Routine
 import com.eignex.koblas.F64ModifiedGivens
+import com.eignex.koblas.F64RouteQuery
+import com.eignex.koblas.F64RoutingBackend
+import com.eignex.koblas.belowThreshold
+import com.eignex.koblas.nativeRoute
 
 /**
  * The vector-vector routines as a backend half, alongside [F64Blas] and [F64Decompositions]. Implementations must
@@ -189,7 +197,8 @@ internal expect object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
  */
 internal class F64RoutedKernels(internal val host: F64Kernels?) :
     F64Kernels,
-    F64ArithmeticKernels {
+    F64ArithmeticKernels,
+    F64RoutingBackend {
     override val name: String
         get() = if (host == null) F64PlatformKernels.name else "${F64PlatformKernels.name}+${host.name}"
 
@@ -218,6 +227,44 @@ internal class F64RoutedKernels(internal val host: F64Kernels?) :
         const val SWAP_HOST_CROSSOVER = 64
         const val ROT_HOST_CROSSOVER = 64
         const val ROTM_HOST_CROSSOVER = 64
+    }
+
+    /**
+     * Where a level-1 call of that length runs, which is the same comparison the routines below make.
+     *
+     * Reported rather than left implicit because the crossovers are the one measured threshold the dense
+     * halves apply per call: a context with a host registered still runs a short vector on the compiled-in
+     * kernels, and [BackendRouteReason.BELOW_THRESHOLD] is how a caller sees that without timing it.
+     */
+    override fun route(query: F64RouteQuery): BackendRoute? {
+        if (query !is F64RouteQuery.Level1) return null
+        val available = host ?: return null
+        val crossover = crossoverOf(query.routine) ?: return nativeRoute(query, available, F64PlatformKernels.name)
+        return if (query.length < crossover) {
+            belowThreshold(
+                query,
+                available,
+                DispatchMetric.VECTOR_LENGTH,
+                query.length,
+                crossover,
+                F64PlatformKernels.name,
+            )
+        } else {
+            nativeRoute(query, available, F64PlatformKernels.name)
+        }
+    }
+
+    /** The crossover [routine] compares its length with, or null for the one routine with no length. */
+    private fun crossoverOf(routine: F64Level1Routine): Int? = when (routine) {
+        F64Level1Routine.DOT -> DOT_HOST_CROSSOVER
+        F64Level1Routine.AXPY -> AXPY_HOST_CROSSOVER
+        F64Level1Routine.SCALE -> SCALE_HOST_CROSSOVER
+        F64Level1Routine.NRM2 -> NRM2_HOST_CROSSOVER
+        F64Level1Routine.ASUM -> ASUM_HOST_CROSSOVER
+        F64Level1Routine.SWAP -> SWAP_HOST_CROSSOVER
+        F64Level1Routine.ROT -> ROT_HOST_CROSSOVER
+        F64Level1Routine.ROTM -> ROTM_HOST_CROSSOVER
+        F64Level1Routine.ROTMG -> null
     }
 
     private fun selected(len: Int, crossover: Int): F64Kernels =
