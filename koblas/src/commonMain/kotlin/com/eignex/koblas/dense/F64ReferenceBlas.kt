@@ -34,6 +34,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         if (a.rows == 0 || a.cols == 0) return
         applyBeta(kernels, y, 0, y.size, beta)
         if (alpha == 0.0) return
+        val kernels = kernels
         val ad = a.data
         val rows = a.rows
         if (!transpose) {
@@ -231,6 +232,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         requireShape(a.rows == a.cols) { "syr: matrix must be square, got ${a.rows}x${a.cols}" }
         requireShape(x.size == a.rows) { "syr: x length ${x.size} != ${a.rows}" }
         if (alpha == 0.0) return
+        val kernels = kernels
         val n = a.rows
         val ad = a.data
         val xs = rankUpdateData(x)
@@ -254,6 +256,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
             "syr2: operand lengths ${x.size} and ${y.size} must both be ${a.rows}"
         }
         if (alpha == 0.0) return
+        val kernels = kernels
         val n = a.rows
         val ad = a.data
         val xs = rankUpdateData(x)
