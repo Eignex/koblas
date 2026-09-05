@@ -6,13 +6,12 @@ import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.backend.BackendNames
-import com.eignex.koblas.internal.host.NativeResourceLifecycle
+import com.eignex.koblas.internal.host.NativeOwnership
 import com.eignex.koblas.sparse.F64PreparedSparseMatrix
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.host.F64SparseBlasAdapter
 import com.eignex.koblas.sparse.sparseSnapshotOf
 import kotlinx.cinterop.*
-import kotlin.native.ref.createCleaner
 
 /** Sparse-times-dense products backed by CHOLMOD's `cholmod_sdmult`. */
 public open class CholmodSparseBlas(
@@ -73,10 +72,7 @@ private class CholmodPreparedSparseMatrix(
     private val functions: CholmodFunctions,
     private val common: CPointer<ByteVar>,
 ) : F64PreparedSparseMatrix {
-    private val lifecycle = NativeResourceLifecycle("prepared CHOLMOD matrix") { freeMatrix(sparse) }
-
-    @Suppress("unused")
-    private val cleaner = createCleaner(lifecycle) { it.close() }
+    private val ownership = NativeOwnership(this, "prepared CHOLMOD matrix") { freeMatrix(sparse) }
 
     override val rows: Int get() = snapshot.rows
     override val cols: Int get() = snapshot.cols
@@ -84,7 +80,7 @@ private class CholmodPreparedSparseMatrix(
 
     override fun gemv(alpha: Double, x: DoubleArray, beta: Double, y: DoubleArray, transpose: Boolean) {
         val shape = requireGemvShape(rows, cols, transpose, x.size, y.size)
-        lifecycle.withResource {
+        anchoring {
             if (!multiply(alpha, transpose, x, beta, y, 1, shape.inputs, shape.outputs)) {
                 F64ReferenceSparseLinearAlgebra.gemv(alpha, snapshot, x, beta, y, transpose)
             }
@@ -100,7 +96,7 @@ private class CholmodPreparedSparseMatrix(
         workspace: Workspace?,
     ) {
         requireGemmShape(rows, cols, transposeA, b, transposeB = false, c = c)
-        lifecycle.withResource {
+        anchoring {
             if (!multiply(alpha, transposeA, b.data, beta, c.data, b.cols, b.rows, c.rows)) {
                 F64ReferenceSparseLinearAlgebra.gemm(
                     alpha,
@@ -116,7 +112,7 @@ private class CholmodPreparedSparseMatrix(
         }
     }
 
-    override fun gemm(b: F64SparseMatrix): F64SparseMatrix = lifecycle.withResource {
+    override fun gemm(b: F64SparseMatrix): F64SparseMatrix = anchoring {
         val right = describeGeneral(b)
         try {
             sparseProduct(right) ?: F64ReferenceSparseLinearAlgebra.gemm(snapshot, b)
@@ -125,7 +121,10 @@ private class CholmodPreparedSparseMatrix(
         }
     }
 
-    override fun close(): Unit = lifecycle.close()
+    override fun close(): Unit = ownership.close()
+
+    /** Every native call goes through here; [NativeOwnership] says what that guarantees. */
+    private fun <R> anchoring(body: () -> R): R = ownership.anchoring(body)
 
     @Suppress("LongParameterList")
     private fun multiply(

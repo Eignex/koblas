@@ -3,9 +3,7 @@ package com.eignex.koblas.sparse.host.cholmod
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.internal.host.NativeResourceLifecycle
-import com.eignex.koblas.internal.host.keepingReachable
-import com.eignex.koblas.internal.host.nativeCleaner
+import com.eignex.koblas.internal.host.NativeOwnership
 import com.eignex.koblas.requireSolveShapes
 import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.FactorsNotExposed
@@ -34,11 +32,8 @@ public class CholmodFactorization internal constructor(
     private val isLl: Boolean = factor.isLl
 
     private val solveWorkspace = CholmodSolveWorkspace(factor.n)
-    private val lifecycle = NativeResourceLifecycle(
-        "CHOLMOD factorization",
-        Release(calls, factor, solveWorkspace)::release,
-    )
-    private val cleanable = nativeCleaner.register(this, lifecycle)
+    private val ownership =
+        NativeOwnership(this, "CHOLMOD factorization", Release(calls, factor, solveWorkspace)::release)
 
     override val n: Int = factor.n
 
@@ -50,7 +45,7 @@ public class CholmodFactorization internal constructor(
         calls.extractFactor(factor, asLl = isLl) ?: throw FactorsNotExposed("native factors")
     }
 
-    private val factors: CholmodFactors get() = lifecycle.withResource { extracted }
+    private val factors: CholmodFactors get() = ownership.anchoring { extracted }
 
     /** The lower triangular factor, as [CholmodFactors.lower] documents it for each kind. */
     internal val lowerFactor: F64SparseMatrix
@@ -75,13 +70,11 @@ public class CholmodFactorization internal constructor(
 
     override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability = noManagedAllocation
 
-    override val nnz: Int get() = lifecycle.withResource {
+    override val nnz: Int get() = ownership.anchoring {
         if (singular) {
             0
         } else {
-            keepingReachable(this) {
-                factor.nzmax
-            }
+            factor.nzmax
         }
     }
 
@@ -90,27 +83,24 @@ public class CholmodFactorization internal constructor(
      * an `L·Lᵀ`. The square root brings it back to the ratio this seam documents, so the number means the
      * same thing whichever backend produced it.
      */
-    override val rcond: Double get() = lifecycle.withResource {
+    override val rcond: Double get() = ownership.anchoring {
         if (singular) {
             0.0
         } else {
-            keepingReachable(this) {
-                val estimate = calls.rcond(factor)
-                if (factor.isLl) sqrt(estimate) else estimate
-            }
+            val estimate = calls.rcond(factor)
+            if (factor.isLl) sqrt(estimate) else estimate
         }
     }
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray =
-        lifecycle.withResource {
+        ownership.anchoring {
             if (singular) throw singularFailure(failedAt, "solve")
             requireSolveShapes(n, n, b, out)
             if (out !== b) b.copyInto(out)
-            keepingReachable(this) {
-                check(calls.solve(factor, out, solveWorkspace)) {
-                    "cholmod_solve failed on a factorization it produced"
-                }
+            check(calls.solve(factor, out, solveWorkspace)) {
+                "cholmod_solve failed on a factorization it produced"
             }
+
             out
         }
 
@@ -119,20 +109,19 @@ public class CholmodFactorization internal constructor(
         out: F64DenseMatrix,
         transpose: Boolean,
         workspace: Workspace?,
-    ): F64DenseMatrix = lifecycle.withResource {
+    ): F64DenseMatrix = ownership.anchoring {
         if (singular) throw singularFailure(failedAt, "solve")
         requireSolveShapes(n, n, b, out)
-        if (b.cols == 0) return@withResource out
+        if (b.cols == 0) return@anchoring out
         if (out.data !== b.data) b.data.copyInto(out.data)
-        keepingReachable(this) {
-            CholmodSolveWorkspace(n, b.cols).use { blockWorkspace ->
-                check(calls.solve(factor, out.data, blockWorkspace)) {
-                    "cholmod_solve failed on a factorization it produced"
-                }
+        CholmodSolveWorkspace(n, b.cols).use { blockWorkspace ->
+            check(calls.solve(factor, out.data, blockWorkspace)) {
+                "cholmod_solve failed on a factorization it produced"
             }
         }
+
         out
     }
 
-    override fun close(): Unit = cleanable.clean()
+    override fun close(): Unit = ownership.close()
 }

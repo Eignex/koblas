@@ -4,14 +4,12 @@ package com.eignex.koblas.sparse.host.umfpack
 
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.internal.host.NativeResourceLifecycle
+import com.eignex.koblas.internal.host.NativeOwnership
 import com.eignex.koblas.requireSolveShapes
 import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.FactorsNotExposed
 import kotlinx.cinterop.*
 import kotlin.experimental.ExperimentalNativeApi
-import kotlin.native.concurrent.ThreadLocal
-import kotlin.native.ref.createCleaner
 
 /**
  * UMFPACK's numeric factors behind koblas's [F64SparseLuFactorization]. Holds its [matrix] alive because
@@ -33,14 +31,14 @@ public class UmfpackFactorization internal constructor(
         }
     }
 
-    private val lifecycle = NativeResourceLifecycle("UMFPACK factorization", handle::release)
+    private val ownership = NativeOwnership(this, "UMFPACK factorization", handle::release)
 
     /** The factors, extracted on the first read; UMFPACK copies both out of its numeric object. */
     private val extracted: UmfpackFactors by lazy {
         extractUmfpackFactors(f, handle.pointer.pointed.value, matrix.rows) ?: throw FactorsNotExposed("native factors")
     }
 
-    private val factors: UmfpackFactors get() = lifecycle.withResource { extracted }
+    private val factors: UmfpackFactors get() = ownership.anchoring { extracted }
 
     override val l: F64SparseMatrix get() = factors.lower
 
@@ -58,10 +56,6 @@ public class UmfpackFactorization internal constructor(
 
     override val offDiagonal: F64SparseMatrix get() = anchoring { emptyOffDiagonal }
 
-    /** Frees the factors once this object goes away; [AnchoredFactorization] covers the calls in flight. */
-    @Suppress("unused") // the cleaner runs when this property becomes unreachable, which is the point
-    private val cleaner = createCleaner(lifecycle) { it.close() }
-
     override val n: Int get() = matrix.rows
 
     override val nnz: Int get() = anchoring { lnz + unz }
@@ -75,7 +69,7 @@ public class UmfpackFactorization internal constructor(
         get() = anchoring { field }
         internal set
 
-    /** Reused because factors are externally serialized; see the public sparse-factor lifecycle contract. */
+    /** Reused because a caller sharing a factorization serializes its calls; see [NativeOwnership]. */
     private val solveInfo = DoubleArray(INFO)
     private val aliasedSolveAllocation = AllocationCapability(
         AllocationGuarantee.NO_MANAGED,
@@ -131,21 +125,10 @@ public class UmfpackFactorization internal constructor(
         return out
     }
 
-    override fun close(): Unit = lifecycle.close()
+    override fun close(): Unit = ownership.close()
 
-    /**
-     * Runs [body] with this factorization reachable from a global, so the cleaner cannot free the factors
-     * while the native call inside it is reading them. See [AnchoredFactorization].
-     */
-    private fun <R> anchoring(body: () -> R): R = lifecycle.withResource {
-        val previous = AnchoredFactorization.held
-        AnchoredFactorization.held = this
-        try {
-            body()
-        } finally {
-            AnchoredFactorization.held = previous
-        }
-    }
+    /** Every native call goes through here; [NativeOwnership] says what that guarantees. */
+    private fun <R> anchoring(body: () -> R): R = ownership.anchoring(body)
 
     internal companion object {
         /**
@@ -166,23 +149,6 @@ public class UmfpackFactorization internal constructor(
 
         fun rcondOf(info: DoubleArray): Double = info[INFO_RCOND]
     }
-}
-
-/**
- * Keeps a factorization reachable from a global while its own native call runs.
- *
- * The calls in [UmfpackFactorization] reach the factors as a raw address, and the cleaner that frees them is
- * one of its own fields, so a receiver nothing else refers to can have its factors freed underneath a call in
- * flight. `koblas.factor(a).solve(b)` is that shape. The JVM binding uses `Reference.reachabilityFence`;
- * Kotlin/Native has no equivalent, and pinning the handle is no substitute, since the cleaner fires on its own
- * unreachability rather than the resource's. Global variables are GC roots, which is what makes this a fence.
- *
- * One slot per thread, since a solve does not re-enter another. Saved and restored rather than cleared, so a
- * nested call could not strand the outer one.
- */
-@ThreadLocal
-internal object AnchoredFactorization {
-    var held: UmfpackFactorization? = null
 }
 
 /** Runs [body] with a pointer to [control], or with null, which means UMFPACK's own defaults. */

@@ -5,20 +5,18 @@ package com.eignex.koblas.sparse.host.basiclu
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.core.F64SparseVector
-import com.eignex.koblas.internal.host.NativeResourceLifecycle
+import com.eignex.koblas.internal.host.NativeOwnership
 import com.eignex.koblas.requireSolveShapes
 import com.eignex.koblas.sparse.F64BasisFactorization
 import com.eignex.koblas.sparse.F64SparseLuFactorization
-import com.eignex.koblas.sparse.FactorsNotExposed
 import com.eignex.koblas.sparse.host.applyF64Equilibration
+import com.eignex.koblas.sparse.host.factorNotExposed
 import com.eignex.koblas.sparse.internal.replaceColumns
 import com.eignex.koblas.sparse.internal.snapshot
 import com.eignex.koblas.withColumn
 import kotlinx.cinterop.*
 import kotlin.experimental.ExperimentalNativeApi
 import kotlin.math.abs
-import kotlin.native.concurrent.ThreadLocal
-import kotlin.native.ref.createCleaner
 
 /** A host BASICLU factorization with deterministic close and cleaner fallback for its native object. */
 public open class BasicluFactorization internal constructor(
@@ -37,10 +35,8 @@ public open class BasicluFactorization internal constructor(
         }
     }
 
-    private val lifecycle = NativeResourceLifecycle("BASICLU factorization", handle::release)
+    private val ownership = NativeOwnership(this, "BASICLU factorization", handle::release)
 
-    @Suppress("unused") // the cleaner runs when this property becomes unreachable, which is the point
-    private val cleaner = createCleaner(lifecycle) { it.close() }
     private val scratchSolveAllocation = AllocationCapability(
         AllocationGuarantee.NO_MANAGED,
         listOf(ScratchRequirement(ScratchKind.F64, n)),
@@ -60,7 +56,7 @@ public open class BasicluFactorization internal constructor(
 
     override val offDiagonal: F64SparseMatrix get() = factorNotExposed("offDiagonal")
 
-    private fun factorNotExposed(factor: String): Nothing = anchoring { throw FactorsNotExposed(factor) }
+    private fun factorNotExposed(factor: String): Nothing = ownership.factorNotExposed(factor)
 
     override val nnz: Int get() = anchoring {
         (basicluStatistic(handle.obj, BasicluStore.LNZ) + basicluStatistic(handle.obj, BasicluStore.UNZ)).toInt()
@@ -104,21 +100,10 @@ public open class BasicluFactorization internal constructor(
         return out
     }
 
-    override fun close(): Unit = lifecycle.close()
+    override fun close(): Unit = ownership.close()
 
-    /**
-     * Runs [body] with this factorization reachable from a global, so the cleaner cannot free the object
-     * while the native call inside it is reading it.
-     */
-    internal fun <R> anchoring(body: () -> R): R = lifecycle.withResource {
-        val previous = AnchoredBasiclu.held
-        AnchoredBasiclu.held = this
-        try {
-            body()
-        } finally {
-            AnchoredBasiclu.held = previous
-        }
-    }
+    /** Every native call goes through here; [NativeOwnership] says what that guarantees. */
+    internal fun <R> anchoring(body: () -> R): R = ownership.anchoring(body)
 }
 
 /** A host BASICLU basis whose factors follow a column replacement until BASICLU declines the update. */
@@ -203,10 +188,4 @@ internal class BasicluSingularBasisFactorization(
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray =
         throw SingularMatrix(failedAt, "solve: the factorization is singular")
-}
-
-/** Holds the factorization a native call is reading, the counterpart of UMFPACK's own anchor. */
-@ThreadLocal
-internal object AnchoredBasiclu {
-    var held: BasicluFactorization? = null
 }

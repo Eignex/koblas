@@ -3,9 +3,7 @@ package com.eignex.koblas.sparse.host.klu
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.internal.host.NativeResourceLifecycle
-import com.eignex.koblas.internal.host.keepingReachable
-import com.eignex.koblas.internal.host.nativeCleaner
+import com.eignex.koblas.internal.host.NativeOwnership
 import com.eignex.koblas.requireSolveShapes
 import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.FactorsNotExposed
@@ -29,8 +27,7 @@ public class KluFactorization internal constructor(
         }
     }
 
-    private val lifecycle = NativeResourceLifecycle("KLU factorization", Release(calls, factor)::release)
-    private val cleanable = nativeCleaner.register(this, lifecycle)
+    private val ownership = NativeOwnership(this, "KLU factorization", Release(calls, factor)::release)
 
     override val n: Int get() = factor.n
 
@@ -45,7 +42,7 @@ public class KluFactorization internal constructor(
     }
 
     private val factors: KluFactors
-        get() = lifecycle.withResource {
+        get() = ownership.anchoring {
             requireFactored(failedAt, "factors")
             extracted.value
         }
@@ -66,42 +63,37 @@ public class KluFactorization internal constructor(
         noSizeDependentManagedAllocation
 
     /** Reads KLU's numeric object, so the fence holds this factorization past the read. */
-    override val nnz: Int get() = lifecycle.withResource {
-        keepingReachable(this) {
-            factor.nnz
-        }
+    override val nnz: Int get() = ownership.anchoring {
+        factor.nnz
     }
 
-    override val rcond: Double get() = lifecycle.withResource { factor.rcond }
+    override val rcond: Double get() = ownership.anchoring { factor.rcond }
 
-    internal fun refactor(a: F64SparseMatrix, equilibrate: Boolean): KluRefactorResult = lifecycle.withResource {
+    internal fun refactor(a: F64SparseMatrix, equilibrate: Boolean): KluRefactorResult = ownership.anchoring {
         // A different order is reported rather than raised, the same as a different pattern of the same
         // order: refactor already answers a foreign `previous` by factoring afresh, so a caller holding a
         // reusable analysis for the wrong matrix gets one answer whichever way it fails to match.
         if (a.rows != n || !a.colPtr.contentEquals(factor.colPtr) || !a.rowIdx.contentEquals(factor.rowIdx)) {
-            return@withResource KluRefactorResult.Incompatible
+            return@anchoring KluRefactorResult.Incompatible
         }
-        keepingReachable(this) {
-            val succeeded = calls.refactor(factor, a.colPtr, a.rowIdx, a.values, equilibrate)
-            extracted = freshExtraction()
-            if (succeeded) {
-                failedAt = NOT_SINGULAR
-                KluRefactorResult.Success
-            } else {
-                failedAt = SINGULAR_POSITION_UNKNOWN
-                KluRefactorResult.Singular
-            }
+        val succeeded = calls.refactor(factor, a.colPtr, a.rowIdx, a.values, equilibrate)
+        extracted = freshExtraction()
+        if (succeeded) {
+            failedAt = NOT_SINGULAR
+            KluRefactorResult.Success
+        } else {
+            failedAt = SINGULAR_POSITION_UNKNOWN
+            KluRefactorResult.Singular
         }
     }
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray =
-        lifecycle.withResource {
+        ownership.anchoring {
             requireFactored(failedAt, "solve")
             requireSolveShapes(n, n, b, out)
             if (out !== b) b.copyInto(out)
-            keepingReachable(this) {
-                calls.solve(factor, out, transpose)
-            }
+            calls.solve(factor, out, transpose)
+
             out
         }
 
@@ -110,16 +102,15 @@ public class KluFactorization internal constructor(
         out: F64DenseMatrix,
         transpose: Boolean,
         workspace: Workspace?,
-    ): F64DenseMatrix = lifecycle.withResource {
+    ): F64DenseMatrix = ownership.anchoring {
         requireFactored(failedAt, "solve")
         requireSolveShapes(n, n, b, out)
-        if (b.cols == 0) return@withResource out
+        if (b.cols == 0) return@anchoring out
         if (out.data !== b.data) b.data.copyInto(out.data)
-        keepingReachable(this) {
-            calls.solve(factor, out.data, transpose, b.cols)
-        }
+        calls.solve(factor, out.data, transpose, b.cols)
+
         out
     }
 
-    override fun close(): Unit = cleanable.clean()
+    override fun close(): Unit = ownership.close()
 }

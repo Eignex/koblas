@@ -19,12 +19,13 @@ import java.lang.ref.Reference
  */
 internal val nativeCleaner: Cleaner = Cleaner.create()
 
-/**
- * Runs [block] with [owner] strongly reachable until it returns, which every accessor dereferencing a
- * native handle needs once a free is registered for it.
- */
-internal inline fun <T> keepingReachable(owner: Any, block: () -> T): T = try {
+internal actual fun <T> keepingReachable(owner: Any, block: () -> T): T = try {
     block()
 } finally {
     Reference.reachabilityFence(owner)
+}
+
+internal actual fun registerNativeCleanup(owner: Any, lifecycle: NativeResourceLifecycle): NativeCleanup {
+    val cleanable = nativeCleaner.register(owner, lifecycle)
+    return NativeCleanup { cleanable.clean() }
 }
