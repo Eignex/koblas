@@ -75,31 +75,47 @@ internal class SparsePattern private constructor(
     }
 }
 
-private class RefactoringSparseLuAnalysis(private val provider: F64RepeatedSparseLu, a: F64SparseMatrix) :
-    F64SparseLuAnalysis {
+/**
+ * The lifecycle both analyses owe their caller: one immutable pattern, one closed flag, and the guard every
+ * call passes before it reaches the numeric half.
+ *
+ * Written once because the promise is one promise. [what] names the analysis in the failure, which is the
+ * only part the two kinds do not share.
+ */
+private class AnalysisGuard(a: F64SparseMatrix, private val what: String) {
     private val pattern: SparsePattern = SparsePattern.of(a)
     private var closed = false
 
-    override fun factor(a: F64SparseMatrix): F64SparseLuFactorization {
-        checkOpen()
+    /** Rejects a call after [close], then a matrix of another pattern. */
+    fun admit(a: F64SparseMatrix) {
+        check(!closed) { "$what is closed" }
         pattern.requireMatch(a)
+    }
+
+    /** Idempotent, as the analysis contract promises. */
+    fun close() {
+        closed = true
+    }
+}
+
+private class RefactoringSparseLuAnalysis(private val provider: F64RepeatedSparseLu, a: F64SparseMatrix) :
+    F64SparseLuAnalysis {
+    private val guard = AnalysisGuard(a, "sparse LU analysis")
+
+    override fun factor(a: F64SparseMatrix): F64SparseLuFactorization {
+        guard.admit(a)
         return provider.factor(a)
     }
 
     override fun refactor(previous: F64SparseLuFactorization, a: F64SparseMatrix): F64SparseLuFactorization {
-        checkOpen()
-        pattern.requireMatch(a)
+        guard.admit(a)
         val next = provider.refactor(previous, a)
         if (next !== previous) previous.close()
         return next
     }
 
     override fun close() {
-        closed = true
-    }
-
-    private fun checkOpen() {
-        check(!closed) { "sparse LU analysis is closed" }
+        guard.close()
     }
 }
 
@@ -141,17 +157,15 @@ internal class PatternOnlyAnalysis<F : AutoCloseable>(
     a: F64SparseMatrix,
     private val numeric: (F64SparseMatrix) -> F,
 ) : F64SparseSymbolicAnalysis<F> {
-    private val pattern: SparsePattern = SparsePattern.of(a)
-    private var closed = false
+    private val guard = AnalysisGuard(a, "sparse symbolic analysis")
 
     override fun factor(a: F64SparseMatrix): F {
-        check(!closed) { "sparse symbolic analysis is closed" }
-        pattern.requireMatch(a)
+        guard.admit(a)
         return numeric(a)
     }
 
     override fun close() {
-        closed = true
+        guard.close()
     }
 }
 

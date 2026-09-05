@@ -111,18 +111,26 @@ internal val NO_METADATA: BackendMetadata = BackendMetadata()
  * Reading a single role off [status] would build all twelve, which is what a routed dispatch used to do on
  * every operation it inspected.
  */
-internal fun F64Context.statusFor(role: BackendRole): BackendStatus {
-    val backend = backendFor(role)
-    return BackendStatus(
-        role = role,
-        provider = backend.name,
-        priority = backend.priority,
-        available = backend.isAvailable,
-        portable = backend.isPortable,
-        accelerated = isAccelerated(role),
-        metadata = (backend as? BackendMetadataProvider)?.backendMetadata ?: NO_METADATA,
-    )
-}
+internal fun F64Context.statusFor(role: BackendRole): BackendStatus =
+    backendStatus(role, backendFor(role), accelerated = isAccelerated(role))
+
+/**
+ * A status for [role] read off [backend].
+ *
+ * [accelerated] is the one field a backend cannot answer for itself: whether the half it fills counts as
+ * accelerated is a fact about the context that selected it. A caller holding a context passes
+ * [F64Context.isAccelerated]; one reporting its own route has only the backend, and answers from whether it
+ * is portable.
+ */
+internal fun backendStatus(role: BackendRole, backend: Backend, accelerated: Boolean): BackendStatus = BackendStatus(
+    role = role,
+    provider = backend.name,
+    priority = backend.priority,
+    available = backend.isAvailable,
+    portable = backend.isPortable,
+    accelerated = accelerated,
+    metadata = (backend as? BackendMetadataProvider)?.backendMetadata ?: NO_METADATA,
+)
 
 /** A structured snapshot of every selected backend half. */
 public val F64Context.status: F64ContextStatus
