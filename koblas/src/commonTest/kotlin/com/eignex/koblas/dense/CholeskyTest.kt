@@ -175,6 +175,58 @@ class CholeskyTest {
     }
 
     @Test
+    fun `regularizing keeps the factor near the input instead of inflating it`() {
+        // Substituting the floor alone divided this column's tail by 1e-5, so the trailing entry came back
+        // as 6.25e10 against an input of 9. Raising the pivot to bound the column leaves every entry but the
+        // regularized diagonal reproduced exactly.
+        val a = F64DenseMatrix.of(
+            arrayOf(
+                doubleArrayOf(4.0, 2.0, 1.0),
+                doubleArrayOf(2.0, 1.0, 3.0),
+                doubleArrayOf(1.0, 3.0, 9.0),
+            ),
+        )
+
+        val l = a.cholesky(CholeskyPolicy.Regularize()).l
+
+        val reconstructed = { i: Int, j: Int -> (0 until 3).sumOf { k -> l[i, k] * l[j, k] } }
+        for (i in 0 until 3) {
+            for (j in 0 until 3) {
+                if (i == 1 && j == 1) continue
+                assertEquals(a[i, j], reconstructed(i, j), 1e-12, "L·Lᵀ[$i,$j] should reproduce the input")
+            }
+        }
+        assertTrue(reconstructed(1, 1) < 100.0, "the regularized diagonal inflated to ${reconstructed(1, 1)}")
+    }
+
+    @Test
+    fun `the regularization floor lifts a tiny positive pivot`() {
+        // The near-singular case is the common one, and it used to pass straight through because the clamp
+        // only looked at non-positive pivots.
+        val a = F64DenseMatrix.of(arrayOf(doubleArrayOf(1e-300, 0.0), doubleArrayOf(0.0, 1.0)))
+
+        val l = a.cholesky(CholeskyPolicy.Regularize()).l
+
+        assertEquals(1e-5, l[0, 0], 1e-18, "the floor should have lifted a 1e-300 pivot")
+    }
+
+    @Test
+    fun `a NaN pivot is refused even when regularizing`() {
+        // Regularizing overwrote the diagonal and left the column below it NaN, so the factor read as finite
+        // while being nonsense. A NaN is corrupt input rather than indefiniteness.
+        val a = F64DenseMatrix.of(
+            arrayOf(
+                doubleArrayOf(1.0, 0.0, 0.0),
+                doubleArrayOf(0.0, 1.0, 0.0),
+                doubleArrayOf(Double.NaN, 0.0, 1.0),
+            ),
+        )
+
+        assertFailsWith<NotPositiveDefinite> { a.cholesky(CholeskyPolicy.Regularize()) }
+        assertFailsWith<NotPositiveDefinite> { a.cholesky() }
+    }
+
+    @Test
     fun `the regularization floor must be positive`() {
         assertFailsWith<IllegalArgumentException> { CholeskyPolicy.Regularize(minimumPivot = 0.0) }
         assertFailsWith<IllegalArgumentException> { CholeskyPolicy.Regularize(minimumPivot = -1.0) }
