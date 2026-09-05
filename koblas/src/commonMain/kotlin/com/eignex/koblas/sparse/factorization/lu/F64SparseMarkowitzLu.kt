@@ -238,7 +238,11 @@ public class F64SparseMarkowitzLu private constructor(
             dropTolerance: Double = NO_DROP,
         ): F64SparseLuFactorization {
             requireSquare(a, "F64SparseMarkowitzLu")
-            val rows = Array(a.rows) { MutableIntDoubleMap() }
+            // Sized from the matrix so no row map rehashes on the way in: the default holds nine entries,
+            // and every row past that reallocated its table and both parallel arrays.
+            val rowCount = IntArray(a.rows)
+            for (j in 0 until a.cols) a.forEachInColumn(j) { i, _ -> rowCount[i]++ }
+            val rows = Array(a.rows) { MutableIntDoubleMap(rowCount[it]) }
             for (j in 0 until a.cols) a.forEachInColumn(j) { i, v -> rows[i].put(j, v) }
             return factorize(rows, a.rows, equilibrate, dropTolerance)
         }
@@ -355,13 +359,22 @@ public class F64SparseMarkowitzLu private constructor(
             invPerm: IntArray,
             m: Int,
         ): Pair<Array<IntArray>, Array<DoubleArray>> {
-            val rowMap = Array(m) { MutableIntDoubleMap() }
+            // A counting transpose rather than a map per row. Step j contributes to row invPerm[origRow]
+            // and j runs ascending, so each row receives its steps already in order: building a hash map
+            // to sort the keys back into that order and then probe once more for every value is three
+            // passes spent recovering what the input already had, plus m maps and m sorts.
+            val counts = IntArray(m)
+            for (j in 0 until m) lAtStep[j].forEach { origRow, _ -> counts[invPerm[origRow]]++ }
+            val idx = Array(m) { IntArray(counts[it]) }
+            val values = Array(m) { DoubleArray(counts[it]) }
+            val filled = IntArray(m)
             for (j in 0 until m) {
-                lAtStep[j].forEach { origRow, f -> rowMap[invPerm[origRow]].put(j, f) }
-            }
-            val idx = Array(m) { k -> sortedKeysOf(rowMap[k]) { it } }
-            val values = Array(m) { k ->
-                DoubleArray(idx[k].size) { t -> rowMap[k].getOrDefault(idx[k][t], 0.0) }
+                lAtStep[j].forEach { origRow, f ->
+                    val k = invPerm[origRow]
+                    val slot = filled[k]++
+                    idx[k][slot] = j
+                    values[k][slot] = f
+                }
             }
             return idx to values
         }

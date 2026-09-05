@@ -208,6 +208,37 @@ class SparseLuTest {
         for (i in rhs.indices) worst = maxOf(worst, abs(residual[i] - rhs[i]))
         return worst
     }
+
+    @Test
+    fun `L rows stay ordered when the pivot order permutes them`() {
+        // lRowsOf transposes the per-step multipliers into row space by counting rather than by hashing and
+        // sorting, which relies on the step loop running ascending. A permuting pivot order is what tells a
+        // correct transpose from one that only looks right when invPerm is the identity.
+        val rng = Random(20260960)
+        val n = 40
+        val columns = List(n) { j ->
+            val rows = (listOf((j + n / 2) % n, j) + List(3) { rng.nextInt(n) }).distinct().sorted()
+            rows.map { i -> i to if (i == (j + n / 2) % n) 8.0 + rng.nextDouble() else rng.nextDouble(-1.0, 1.0) }
+        }
+        val a = F64SparseMatrix.ofColumns(n, n, columns)
+        val factorization = F64SparseMarkowitzLu.factorCsc(a)
+        assertTrue(!factorization.singular, "the fixture should factor")
+
+        // Building `l` validates CSC, so an out-of-order transpose cannot survive this.
+        val l = factorization.l
+        for (j in 0 until l.cols) {
+            var previous = -1
+            l.forEachInColumn(j) { i, _ ->
+                assertTrue(i > previous, "column $j of L has row $i after $previous")
+                previous = i
+            }
+        }
+        val expected = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
+        val b = DoubleArray(n)
+        for (j in 0 until n) a.forEachInColumn(j) { i, v -> b[i] += v * expected[j] }
+
+        assertClose(expected, factorization.solve(b), "permuted solve", tolerance = 1e-8)
+    }
 }
 
 /** 2^-60 and 2^60, exact in floating point and far enough from 1 to expose an absolute tolerance. */
