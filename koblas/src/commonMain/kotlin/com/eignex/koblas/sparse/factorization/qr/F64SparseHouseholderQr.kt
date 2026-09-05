@@ -45,7 +45,13 @@ public class F64SparseHouseholderQr internal constructor(
 
     override val r: F64SparseMatrix get() = sortedCsc(n, n, rColPtr, rRowIdx, rValues)
 
-    /** Where row `i` of `A` sits, for the first [m] rows. */
+    /**
+     * Where row `i` of `A` sits, for the first [m] rows.
+     *
+     * These index the factorization's own row space, which the symbolic analysis widens past [m] whenever a
+     * column has no row left to pivot on, so an entry may be [m] or larger and must not be used to index a
+     * caller's length-[m] array.
+     */
     public val rowOrder: IntArray get() = rowPermutation.copyOf(m)
 
     override fun solveAllocation(): AllocationCapability = AllocationCapability(
@@ -78,6 +84,18 @@ public class F64SparseHouseholderQr internal constructor(
     override fun applyQInto(y: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray {
         requireShape(y.size == m) { "applyQ: y size ${y.size}, expected $m" }
         requireShape(out.size == m) { "applyQ: out size ${out.size}, expected $m" }
+        // The symbolic analysis appends a pivot row for every column that has none, so the reflections act
+        // on `rows` dimensions rather than m, and Q stops being an operator on R^m: real rows then sit at
+        // permuted positions at or past m, where truncating to m would drop them and read fictitious ones
+        // in their place. Refused rather than approximated, the way solveInto refuses a rank-deficient
+        // solve. solveInto itself stays valid because it only ever reads back the leading n entries.
+        if (rows != m) {
+            throw SingularMatrix(
+                rank,
+                "applyQ: the factorization spans $rows rows for a matrix of $m, so Q is not an operator " +
+                    "on $m entries; its rank is $rank of $n columns",
+            )
+        }
         workspace.borrow(rows) { x ->
             x.fill(0.0, 0, rows)
             if (transpose) {

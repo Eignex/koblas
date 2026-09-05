@@ -4,6 +4,7 @@ import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.core.F64SparseMatrix
 import kotlin.math.abs
+import kotlin.math.sqrt
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -116,6 +117,40 @@ class F64SparseHouseholderQrTest {
         assertEquals(1, qr.rank)
         assertEquals(3, qr.m)
         assertEquals(2, qr.n)
+    }
+
+    @Test
+    fun `applying Q is refused when the analysis adds a fictitious pivot row`() {
+        // Column 1 has no row to pivot on, so the symbolic analysis widens the row space past m and Q stops
+        // being an operator on three entries. Answering anyway returned a vector that was neither
+        // orthogonal nor norm preserving, silently.
+        val a = F64SparseMatrix.ofColumns(3, 2, listOf(listOf(0 to 1.0, 2 to 2.0), emptyList()))
+        val qr = F64SparseHouseholderQr.factor(a)
+
+        assertFailsWith<SingularMatrix> { qr.applyQ(doubleArrayOf(1.0, 2.0, 3.0), transpose = true) }
+        assertFailsWith<SingularMatrix> { qr.applyQ(doubleArrayOf(1.0, 2.0, 3.0), transpose = false) }
+    }
+
+    @Test
+    fun `applying Q round trips and preserves the norm at full rank`() {
+        val a = F64SparseMatrix.ofColumns(
+            3,
+            2,
+            listOf(listOf(0 to 1.0, 2 to 2.0), listOf(1 to 3.0, 2 to 1.0)),
+        )
+        val qr = F64SparseHouseholderQr.factor(a)
+        val y = doubleArrayOf(1.0, 2.0, 3.0)
+
+        val transposed = qr.applyQ(y, transpose = true)
+        val restored = qr.applyQ(transposed, transpose = false)
+
+        assertClose(y, restored, "Q of Q transpose y", tolerance = 1e-12)
+        assertClose(
+            sqrt(y.sumOf { it * it }),
+            sqrt(transposed.sumOf { it * it }),
+            "norm under Q transpose",
+            tolerance = 1e-12,
+        )
     }
 
     @Test
