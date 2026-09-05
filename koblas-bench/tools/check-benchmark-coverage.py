@@ -26,7 +26,10 @@ HEADER_END = re.compile(r"\b(?:fun|class|interface|object|typealias|val|var)\b")
 PUBLIC_NUMERICAL_SOURCES = (
     "F64Givens.kt",
     "F64ModifiedGivens.kt",
+    "MatrixNorms.kt",
     "MatrixOps.kt",
+    "MatrixScaling.kt",
+    "MatrixSlices.kt",
     "Operators.kt",
     "VectorOps.kt",
     "dense/Cholesky.kt",
