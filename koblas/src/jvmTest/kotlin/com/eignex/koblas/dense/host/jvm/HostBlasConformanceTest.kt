@@ -269,4 +269,18 @@ class HostBlasConformanceTest {
         assertReductionsAgreeWithScalar(host)
         assertSwapAgreesWithScalar(host)
     }
+
+    /**
+     * Both bindings share one constructor contract: naming a library that is not there is answered by
+     * `isAvailable`, not by a raise, since a caller installing a backend explicitly has to be able to ask.
+     */
+    @Test
+    fun `level-1 kernels construct and report unavailable without the library`() {
+        val kernels = F64CblasKernels(HostBlasConfig(libraryPath = MISSING_LIBRARY))
+        assertFalse(kernels.isAvailable, "a library that is not on this host cannot be available")
+    }
+
+    private companion object {
+        const val MISSING_LIBRARY = "/nonexistent/libopenblas-koblas-test.so.0"
+    }
 }
