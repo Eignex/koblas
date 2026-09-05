@@ -54,15 +54,26 @@ public actual class CholmodCholesky actual constructor(config: CholmodConfig) {
         val functions = loader.functions ?: return null
         val common = loader.common(finalLl)
         val sparse = describeLowerTriangle(a)
+        // The factorize return separates a matrix CHOLMOD could not factor from one it factored and found
+        // indefinite: a non-positive pivot still returns TRUE and shows up in `minor`, where running out of
+        // memory returns FALSE over a pattern-only factor that `minor` reports as complete. Discarded, the
+        // second came back as a successful factorization.
+        var factored = true
         val factor = try {
-            functions.analyze(
-                sparse,
-                common,
-            ).also { if (it != null) functions.factorize(sparse, it.reinterpret(), common) }
+            functions.analyze(sparse, common).also { analyzed ->
+                if (analyzed != null) {
+                    factored = functions.factorize(sparse, analyzed.reinterpret(), common) == CHOLMOD_TRUE
+                }
+            }
         } finally {
             freeMatrix(sparse)
         }
+        if (factor != null && !factored) {
+            releaseFactor(functions, factor, common)
+            return null
+        }
         if (factor == null) {
+            functions.finish(common)
             nativeHeap.free(common)
             return null
         }
@@ -78,4 +89,15 @@ public actual class CholmodCholesky actual constructor(config: CholmodConfig) {
         }
         return CholmodFactorization(handle, functions, n, failedAt)
     }
+}
+
+/** Frees a factor CHOLMOD produced but could not finish, along with the common it was built against. */
+private fun releaseFactor(functions: CholmodFunctions, factor: COpaquePointer, common: CPointer<ByteVar>) {
+    memScoped {
+        val slot = alloc<COpaquePointerVar>()
+        slot.value = factor
+        functions.freeFactor(slot.ptr, common)
+    }
+    functions.finish(common)
+    nativeHeap.free(common)
 }

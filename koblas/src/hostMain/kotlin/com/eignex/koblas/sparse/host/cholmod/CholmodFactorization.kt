@@ -52,6 +52,7 @@ public class CholmodFactorization internal constructor(
             nativeHeap.free(solveSlot)
             nativeHeap.free(solveDense)
             nativeHeap.free(solveRhs)
+            functions.finish(common)
             nativeHeap.free(common)
         }
     }
