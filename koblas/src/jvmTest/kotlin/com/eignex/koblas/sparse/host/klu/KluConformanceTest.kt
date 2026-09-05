@@ -1,5 +1,6 @@
 package com.eignex.koblas.sparse.host.klu
 
+import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.testutil.host.HostLibraryTest
 import org.junit.Assume
@@ -37,5 +38,24 @@ class KluConformanceTest {
         Assume.assumeTrue("KLU is not installed; conformance cannot run", klu.isAvailable)
 
         assertSymbolicAnalysisReuses(klu)
+    }
+
+    @Test
+    fun `a structurally singular matrix factors as singular every time`() {
+        Assume.assumeTrue("KLU is not installed; conformance cannot run", klu.isAvailable)
+        // Column 1 is empty, so no pivot exists for it. This is the path that returns before the factor
+        // is handed over, and it runs often enough in a circuit or simplex loop that anything it fails to
+        // release accumulates.
+        val singular = F64SparseMatrix.ofColumns(
+            3,
+            3,
+            listOf(listOf(0 to 1.0), emptyList(), listOf(2 to 1.0)),
+        )
+
+        repeat(64) {
+            val factorization = klu.factor(singular)
+
+            assertTrue(factorization.singular, "a matrix with an empty column factored as non-singular")
+        }
     }
 }

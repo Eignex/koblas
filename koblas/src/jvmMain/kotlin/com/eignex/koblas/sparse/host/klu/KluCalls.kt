@@ -129,6 +129,7 @@ internal class KluCalls(private val config: KluConfig) {
         val common = arena.allocate(KLU_COMMON_BYTES)
         val symbolicHolder = arena.allocate(ADDRESS)
         val numericHolder = arena.allocate(ADDRESS)
+        var handedOff = false
         try {
             check((h.defaults.invokeExact(common) as Int) != 0) { "klu_defaults failed" }
             applyConfig(common, equilibrate)
@@ -166,10 +167,18 @@ internal class KluCalls(private val config: KluConfig) {
                 common.get(JAVA_DOUBLE, KLU_COMMON_RCOND),
                 colPtr.copyOf(),
                 rowIdx.copyOf(),
-            )
-        } catch (@Suppress("TooGenericExceptionCaught") t: Throwable) {
-            free(KluFactor(a, arena, common, symbolicHolder, numericHolder, 0.0, colPtr.copyOf(), rowIdx.copyOf()))
-            throw t
+            ).also { handedOff = true }
+        } finally {
+            // Every exit that does not hand the factor to the caller still owns the native analysis and
+            // the arena behind it. That includes the singular return, which leaves klu_analyze's result
+            // live, so releasing only on the throwing paths would leak it on every singular matrix.
+            if (!handedOff) {
+                try {
+                    freeHandles(symbolicHolder, numericHolder, common)
+                } finally {
+                    arena.close()
+                }
+            }
         }
     }
 
@@ -233,22 +242,23 @@ internal class KluCalls(private val config: KluConfig) {
     }
 
     fun free(factor: KluFactor) {
+        freeHandles(factor.symbolicHolder, factor.numericHolder, factor.common)
+    }
+
+    /** Releases whichever of the two KLU objects the holders still point at, in dependency order. */
+    private fun freeHandles(
+        symbolicHolder: MemorySegment,
+        numericHolder: MemorySegment,
+        common: MemorySegment,
+    ) {
         val h = handles ?: return
-        if (factor.numericHolder.get(
-                ADDRESS,
-                0,
-            ).address() != 0L
-        ) {
+        if (numericHolder.get(ADDRESS, 0).address() != 0L) {
             // The cast is the descriptor, not a use of the status: klu_free_numeric returns int, and
             // without it Kotlin infers Unit here and emits a void call the handle will not accept.
-            h.freeNumeric.invokeExact(factor.numericHolder, factor.common) as Int
+            h.freeNumeric.invokeExact(numericHolder, common) as Int
         }
-        if (factor.symbolicHolder.get(
-                ADDRESS,
-                0,
-            ).address() != 0L
-        ) {
-            h.freeSymbolic.invokeExact(factor.symbolicHolder, factor.common) as Int // as above
+        if (symbolicHolder.get(ADDRESS, 0).address() != 0L) {
+            h.freeSymbolic.invokeExact(symbolicHolder, common) as Int // as above
         }
     }
 }
