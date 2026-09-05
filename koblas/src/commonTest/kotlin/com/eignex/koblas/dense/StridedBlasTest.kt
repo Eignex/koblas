@@ -6,6 +6,45 @@ import kotlin.test.*
 
 class StridedBlasTest {
     @Test
+    fun `norm2 over a strided view propagates a NaN entry`() {
+        // A NaN never raises the running scale, so reading the zero case off the scale alone would report a
+        // clean norm for a corrupt vector. The dense path and dnrm2 both answer NaN.
+        val allNaN = F64StridedVectorView(doubleArrayOf(Double.NaN), 0, 1)
+        val zerosAndNaN = F64StridedVectorView(doubleArrayOf(0.0, Double.NaN, 0.0), 0, 3)
+
+        assertTrue(allNaN.norm2().isNaN(), "an all-NaN view reported ${allNaN.norm2()}")
+        assertTrue(zerosAndNaN.norm2().isNaN(), "zeros with a NaN reported ${zerosAndNaN.norm2()}")
+        assertEquals(0.0, F64StridedVectorView(doubleArrayOf(0.0, 0.0), 0, 2).norm2(), "an all-zero view")
+    }
+
+    @Test
+    fun `strided gemv forms zero products from nonzero alpha`() {
+        // The dense reference routes this through axpy so 0 times Infinity stays NaN, and
+        // BlasConformanceTest pins it there. The strided default has to agree, not least because the host
+        // adapter falls back to it for negative strides.
+        val a = F64DenseMatrix(2, 2, doubleArrayOf(Double.POSITIVE_INFINITY, 1.0, 2.0, 3.0)).asView()
+        val x = F64StridedVectorView(doubleArrayOf(0.0, 1.0), 0, 2)
+        val storage = doubleArrayOf(0.0, 0.0)
+        val y = F64StridedVectorView(storage, 0, 2)
+
+        koblas.blas.gemv(1.0, a, x, 0.0, y)
+
+        assertTrue(storage[0].isNaN(), "the infinite coefficient was skipped, giving ${storage[0]}")
+    }
+
+    @Test
+    fun `strided gemm scales without forming products when alpha is zero`() {
+        val a = F64DenseMatrix(1, 1, doubleArrayOf(Double.POSITIVE_INFINITY)).asView()
+        val b = F64DenseMatrix(1, 1, doubleArrayOf(1.0)).asView()
+        val storage = doubleArrayOf(5.0)
+        val c = F64DenseMatrix.wrap(1, 1, storage).asView()
+
+        koblas.blas.gemm(0.0, a, false, b, false, 0.0, c)
+
+        assertEquals(0.0, storage[0], "alpha zero let an infinite operand reach the destination")
+    }
+
+    @Test
     fun `gemv reads a panel and strided vectors without copies`() {
         val storage = F64DenseMatrix.of(
             arrayOf(

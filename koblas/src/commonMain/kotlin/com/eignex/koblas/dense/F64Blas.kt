@@ -64,8 +64,10 @@ public interface F64Blas : Backend {
             }
         } else {
             for (j in 0 until a.cols) {
+                // Formed even when the multiplier is zero, so an infinite coefficient still yields NaN the
+                // way the dense reference and netlib do. Skipping the column would hide it.
                 val multiplier = alpha * x[j]
-                if (multiplier != 0.0) for (i in 0 until a.rows) y[i] += multiplier * a[i, j]
+                for (i in 0 until a.rows) y[i] += multiplier * a[i, j]
             }
         }
     }
@@ -123,6 +125,20 @@ public interface F64Blas : Backend {
     ) {
         val (m, k, n) = requireGemmShape(a, transposeA, b, transposeB, c)
         require(!c.overlaps(a) && !c.overlaps(b)) { "gemm: destination overlaps an input view" }
+        if (alpha == 0.0 || k == 0) {
+            // Scale and stop, as the dense reference and the host adapter do. Running the sum instead would
+            // let an infinite operand reach `alpha * sum` and write NaN where the answer is beta times C.
+            for (j in 0 until n) {
+                for (i in 0 until m) {
+                    c[i, j] = when (beta) {
+                        0.0 -> 0.0
+                        1.0 -> c[i, j]
+                        else -> beta * c[i, j]
+                    }
+                }
+            }
+            return
+        }
         for (j in 0 until n) {
             for (i in 0 until m) {
                 var sum = 0.0

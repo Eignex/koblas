@@ -650,4 +650,27 @@ class OpsTest {
         assertEquals(expected, sparse dot dense)
         assertEquals(expected, dense dot sparse)
     }
+
+    @Test
+    fun `gemvInto honours beta on a matrix with no columns`() {
+        // The seams quick-return on a zero-extent operand before scaling, so the dense fast path used to
+        // leave the destination untouched while a generic F64MatrixLike of the same shape returned zeros.
+        val dense = F64DenseMatrix.zero(3, 0)
+        val destination = doubleArrayOf(Double.NaN, Double.NaN, Double.NaN)
+
+        dense.gemvInto(1.0, F64DenseVector(DoubleArray(0)), 0.0, destination)
+
+        assertContentEquals(doubleArrayOf(0.0, 0.0, 0.0), destination)
+    }
+
+    @Test
+    fun `gemvInto scales by beta on a sparse matrix with no columns`() {
+        val sparse = F64SparseMatrix.ofColumns(3, 0, emptyList())
+        val destination = doubleArrayOf(2.0, 4.0, 6.0)
+
+        sparse.gemvInto(1.0, F64DenseVector(DoubleArray(0)), 0.5, destination)
+
+        assertContentEquals(doubleArrayOf(1.0, 2.0, 3.0), destination)
+    }
+
 }
