@@ -176,4 +176,33 @@ class CholmodConformanceTest {
 
         assertTrue(fill >= n, "a factor covers at least its own diagonal, got $fill")
     }
+
+    @Test
+    fun `concurrent factorizations do not corrupt one another`() {
+        requireCholmod()
+        // A cholmod_common carries Flag, Head, Iwork and Xwork, which analyze and factorize write. Two
+        // threads sharing this binding's common interleaved over that scratch, so each could see the
+        // other's. Every result here has to match what the same matrix gives on its own.
+        // One binding for every thread, which is how the registry hands it out: the SuiteSparse adapter
+        // holds a singleton, so a fresh instance per thread would share nothing and prove nothing.
+        val shared = CholmodCholesky()
+        val systems = List(4) { spd(24, 20260940 + it) }
+        val expected = systems.map { shared.factor(it)!!.l }
+
+        val failures = java.util.concurrent.ConcurrentLinkedQueue<String>()
+        val start = java.util.concurrent.CountDownLatch(1)
+        val threads = systems.indices.map { index ->
+            Thread {
+                start.await()
+                repeat(25) {
+                    val actual = shared.factor(systems[index])!!.l
+                    if (actual != expected[index]) failures.add("system $index diverged under contention")
+                }
+            }.also { it.start() }
+        }
+        start.countDown()
+        threads.forEach { it.join() }
+
+        assertTrue(failures.isEmpty(), failures.joinToString().ifEmpty { "none" })
+    }
 }
