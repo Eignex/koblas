@@ -8,6 +8,7 @@ import kotlin.math.min
 internal const val REFERENCE_MC: Int = 256
 internal const val REFERENCE_NC: Int = 8
 internal const val REFERENCE_KC: Int = 128
+
 /**
  * Diagonal block width for the blocked triangular routines.
  *

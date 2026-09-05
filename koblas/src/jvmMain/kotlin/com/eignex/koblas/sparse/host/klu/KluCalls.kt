@@ -246,11 +246,7 @@ internal class KluCalls(private val config: KluConfig) {
     }
 
     /** Releases whichever of the two KLU objects the holders still point at, in dependency order. */
-    private fun freeHandles(
-        symbolicHolder: MemorySegment,
-        numericHolder: MemorySegment,
-        common: MemorySegment,
-    ) {
+    private fun freeHandles(symbolicHolder: MemorySegment, numericHolder: MemorySegment, common: MemorySegment) {
         val h = handles ?: return
         if (numericHolder.get(ADDRESS, 0).address() != 0L) {
             // The cast is the descriptor, not a use of the status: klu_free_numeric returns int, and

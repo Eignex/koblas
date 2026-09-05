@@ -42,17 +42,14 @@ internal class CholmodMatrix private constructor(val segment: MemorySegment, pri
          * [generalOf] for a descriptor that outlives the call that built it. The caller may hand it to a
          * cleaner, which releases it on its own thread, so this one is held in a shared arena.
          */
-        fun retainedGeneralOf(a: F64SparseMatrix): CholmodMatrix =
-            of(a, CHOLMOD_STYPE_GENERAL, Arena.ofShared())
+        fun retainedGeneralOf(a: F64SparseMatrix): CholmodMatrix = of(a, CHOLMOD_STYPE_GENERAL, Arena.ofShared())
 
-        private fun of(a: F64SparseMatrix, stype: Int, arena: Arena): CholmodMatrix {
-            return try {
-                CholmodMatrix(describe(a, arena, stype), arena)
-            } catch (@Suppress("TooGenericExceptionCaught") failure: Throwable) {
-                // Rethrown, and the arena has no other owner yet, so nothing else would close it.
-                arena.close()
-                throw failure
-            }
+        private fun of(a: F64SparseMatrix, stype: Int, arena: Arena): CholmodMatrix = try {
+            CholmodMatrix(describe(a, arena, stype), arena)
+        } catch (@Suppress("TooGenericExceptionCaught") failure: Throwable) {
+            // Rethrown, and the arena has no other owner yet, so nothing else would close it.
+            arena.close()
+            throw failure
         }
 
         private fun describe(a: F64SparseMatrix, arena: Arena, stype: Int): MemorySegment {

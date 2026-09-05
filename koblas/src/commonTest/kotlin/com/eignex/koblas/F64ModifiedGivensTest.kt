@@ -60,9 +60,10 @@ class F64ModifiedGivensTest {
         )
 
         for (input in inputs) {
-            val (d1, d2, x1, y1) = input
-            val h = rotmg(d1, d2, x1, y1)
-            val label = "d1=$d1 d2=$d2 x1=$x1 y1=$y1"
+            val x1 = input[2]
+            val y1 = input[3]
+            val h = rotmg(input[0], input[1], x1, y1)
+            val label = "d1=${input[0]} d2=${input[1]} x1=$x1 y1=$y1"
 
             val eliminated = h.h21 * x1 + h.h22 * y1
             val eliminatedScale = maxOf(kotlin.math.abs(h.h21 * x1), kotlin.math.abs(h.h22 * y1))
