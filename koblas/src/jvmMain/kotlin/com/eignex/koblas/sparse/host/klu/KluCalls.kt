@@ -32,7 +32,6 @@ internal class KluCalls(private val config: KluConfig) {
         val extract: MethodHandle?,
     )
 
-    val libraryPresent: Boolean get() = library.present
     val available: Boolean get() = handles != null
 
     private fun bindAll(): Handles? {
@@ -62,7 +61,14 @@ internal class KluCalls(private val config: KluConfig) {
         )
     }
 
-    /** [extractFactors]'s implementation, which needs the bound handles. */
+    /**
+     * `L`, `U`, the off-diagonal blocks, the two permutations and the scaling from [factor], or null when
+     * this libklu lacks `klu_extract`.
+     *
+     * KLU permutes to block triangular form and factors the blocks, so the entries outside them are in
+     * neither `L` nor `U` and come back as `F`. Its scaling divides, so it is inverted here to the
+     * multiplier the factor interface documents.
+     */
     internal fun extract(factor: KluFactor): KluFactors? {
         val bound = handles ?: return null
         val extract = bound.extract ?: return null
@@ -274,16 +280,6 @@ internal class KluCalls(private val config: KluConfig) {
         }
     }
 }
-
-/**
- * `L`, `U`, the off-diagonal blocks, the two permutations and the scaling from [factor], or null when this
- * libklu lacks `klu_extract`.
- *
- * KLU permutes to block triangular form and factors the blocks, so the entries outside them are in neither
- * `L` nor `U` and come back as `F`. Its scaling divides, so it is inverted here to the multiplier the
- * factor interface documents.
- */
-internal fun KluCalls.extractFactors(factor: KluFactor): KluFactors? = extract(factor)
 
 internal class KluFactor(
     val n: Int,

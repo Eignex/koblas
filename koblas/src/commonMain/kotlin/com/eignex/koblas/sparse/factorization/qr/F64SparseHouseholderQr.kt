@@ -13,6 +13,8 @@ import com.eignex.koblas.internal.numeric.euclideanNorm
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.requireSolveShapes
 import com.eignex.koblas.sparse.F64SparseQrFactorization
+import com.eignex.koblas.sparse.internal.transposeCsc
+import com.eignex.koblas.sparse.internal.transposeRaw
 import kotlin.math.abs
 import kotlin.math.hypot
 
@@ -43,7 +45,10 @@ public class F64SparseHouseholderQr internal constructor(
 
     override val columnOrder: IntArray get() = IntArray(n) { it }
 
-    override val r: F64SparseMatrix get() = sortedCsc(n, n, rColPtr, rRowIdx, rValues)
+    // R comes out of the numeric pass in elimination-path order, so its columns need sorting. A double
+    // transpose is what sorts a CSC matrix, and that is exactly what transposeRaw does, twice.
+    override val r: F64SparseMatrix
+        get() = transposeCsc(transposeRaw(n, n, rColPtr, rRowIdx, rValues))
 
     /**
      * Where row `i` of `A` sits, for the first [m] rows.
@@ -271,34 +276,4 @@ private fun householder(v: DoubleArray, offset: Int, length: Int, beta: DoubleAr
     for (i in offset + 1 until offset + length) v[i] /= leading
     beta[k] = (diagonal - head) / diagonal
     return diagonal
-}
-
-private fun sortedCsc(rows: Int, cols: Int, colPtr: IntArray, rowIdx: IntArray, values: DoubleArray): F64SparseMatrix {
-    var currentRows = rows
-    var currentCols = cols
-    var currentPtr = colPtr
-    var currentIdx = rowIdx
-    var currentValues = values
-    repeat(2) {
-        val outPtr = IntArray(currentRows + 1)
-        for (k in currentIdx.indices) outPtr[currentIdx[k] + 1]++
-        for (i in 0 until currentRows) outPtr[i + 1] += outPtr[i]
-        val outIdx = IntArray(currentValues.size)
-        val outValues = DoubleArray(currentValues.size)
-        val next = outPtr.copyOf()
-        for (j in 0 until currentCols) {
-            for (k in currentPtr[j] until currentPtr[j + 1]) {
-                val slot = next[currentIdx[k]]++
-                outIdx[slot] = j
-                outValues[slot] = currentValues[k]
-            }
-        }
-        val swap = currentRows
-        currentRows = currentCols
-        currentCols = swap
-        currentPtr = outPtr
-        currentIdx = outIdx
-        currentValues = outValues
-    }
-    return F64SparseMatrix.wrap(currentRows, currentCols, currentPtr, currentIdx, currentValues)
 }

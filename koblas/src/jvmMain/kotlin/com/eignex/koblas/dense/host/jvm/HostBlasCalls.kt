@@ -342,10 +342,4 @@ internal class HostBlasCalls(internal val config: HostBlasConfig) {
         /** Read to find which of the two libraries LAPACKE lives in. */
         const val KEY_LAPACKE_SYMBOL = "LAPACKE_dgetrf"
     }
-
-    /** Pins [values] for the call. Nothing is copied, and the address is valid only for that call. */
-    fun seg(values: DoubleArray): MemorySegment = MemorySegment.ofArray(values)
-
-    /** Pins [values] for the call. */
-    fun seg(values: IntArray): MemorySegment = MemorySegment.ofArray(values)
 }

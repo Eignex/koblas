@@ -99,7 +99,7 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         requireSquare(a, "trmv")
         val n = a.rows
         requireShape(x.size == n) { "trmv: x length ${x.size} != $n" }
-        triangularMultiply(a.stableFor(x), x, 0, 1, lower, transpose, unitDiag)
+        trmvCore(a.stableFor(x), x, lower, transpose, unitDiag)
     }
 
     @Suppress("LongParameterList") // the BLAS dgemm signature, plus the side the sparse operand sits on
@@ -308,7 +308,7 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         }
         val triangle = a.stableFor(b.data)
         if (alpha != 1.0) denseKernels.scale(b.data, 0, alpha, b.data.size)
-        // Read once for every right-hand side rather than once per triangularMultiply call, as trsm does.
+        // Read once for every right-hand side rather than once per trmvCore call, as trsm does.
         val diagonal = if (unitDiag) null else DoubleArray(n) { triangle[it, it] }
         if (right) {
             trmmRightCore(triangle, b, lower, transpose, unitDiag, diagonal)
@@ -334,8 +334,8 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
             for (j in order) {
                 val dj = diagonal?.get(j) ?: 1.0
                 if (!transpose) {
-                    // A stored zero source lane is skipped entirely, mirroring triangularMultiply's
-                    // guardZeroInput default: it keeps a zero lane out of both the diagonal write and
+                    // A stored zero source lane is skipped entirely, as trmvCore does: it keeps a zero
+                    // lane out of both the diagonal write and
                     // the scatter, so a NaN/Inf coefficient elsewhere in the column never reaches it.
                     var active = 0
                     for (rhs in 0 until width) {
@@ -413,37 +413,23 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
     }
 
     /**
-     * Sparse dtrmv over a strided vector. Direction preserves each source before its destination is written,
-     * so no work buffer is needed for the ordinary in-place case.
+     * Sparse dtrmv. Direction preserves each source before its destination is written, so no work buffer is
+     * needed for the ordinary in-place case.
      *
-     * [diagonal], when given, is read instead of probing [a] for `a[j, j]`; callers that walk several
-     * right-hand sides against the same triangle (see [trmm]) precompute it once rather than paying a
-     * binary search per column per call.
+     * The diagonal is probed as `a[j, j]`, a binary search per column. That is [trmv]'s to pay: [trmm] walks
+     * several right-hand sides against one triangle and precomputes the diagonal for itself instead.
      */
-    @Suppress("LongParameterList") // the strided vector and BLAS triangle selectors
-    private fun triangularMultiply(
-        a: F64SparseMatrix,
-        x: DoubleArray,
-        offset: Int,
-        stride: Int,
-        lower: Boolean,
-        transpose: Boolean,
-        unitDiag: Boolean,
-        diagonal: DoubleArray? = null,
-        guardZeroInput: Boolean = true,
-        guardZeroMatrix: Boolean = false,
-    ) {
+    private fun trmvCore(a: F64SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
         val n = a.rows
         if (!transpose) {
             val order = if (lower) n - 1 downTo 0 else 0 until n
             for (j in order) {
-                val xj = x[offset + j * stride]
-                if (!guardZeroInput || xj != 0.0) {
-                    x[offset + j * stride] = if (unitDiag) xj else (diagonal?.get(j) ?: a[j, j]) * xj
+                val xj = x[j]
+                if (xj != 0.0) {
+                    x[j] = if (unitDiag) xj else a[j, j] * xj
                     a.forEachInColumn(j) { i, v ->
-                        if ((if (lower) i > j else i < j) && (!guardZeroMatrix || v != 0.0)) {
-                            val at = offset + i * stride
-                            x[at] += v * xj
+                        if ((if (lower) i > j else i < j)) {
+                            x[i] += v * xj
                         }
                     }
                 }
@@ -452,23 +438,23 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
             val order = if (lower) 0 until n else n - 1 downTo 0
             for (j in order) {
                 var sum = if (unitDiag) {
-                    x[offset + j * stride]
+                    x[j]
                 } else {
-                    (diagonal?.get(j) ?: a[j, j]) * x[offset + j * stride]
+                    a[j, j] * x[j]
                 }
                 a.forEachInColumn(j) { i, v ->
-                    if ((if (lower) i > j else i < j) && (!guardZeroMatrix || v != 0.0)) {
-                        sum += v * x[offset + i * stride]
+                    if ((if (lower) i > j else i < j)) {
+                        sum += v * x[i]
                     }
                 }
-                x[offset + j * stride] = sum
+                x[j] = sum
             }
         }
     }
 
     /**
      * Snapshots the coefficient array only when the in-place destination aliases this matrix's live values.
-     * The column pointers and row indices are shared live rather than copied: [triangularMultiply] never
+     * The column pointers and row indices are shared live rather than copied: [trmvCore] never
      * mutates them, and they are documented immutable for the life of a [F64SparseMatrix].
      */
     @OptIn(UnsafeKoblasApi::class)

@@ -149,31 +149,28 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         requireShape(y.size == n) { "symv: y length ${y.size} != $n" }
         applyBeta(kernels, y, 0, n, beta)
         if (alpha == 0.0) return
-        symvAccumulate(alpha, a.data, n, x, 0, y, 0, lower)
+        symvAccumulate(alpha, a.data, n, x, y, lower)
     }
 
     /** Accumulates alpha times A times x into y for the symmetric `n×n` [ad], reading only the [lower] or
      *  upper triangle. */
-    @Suppress("LongParameterList") // two buffers with offsets plus the triangle flag
     private fun symvAccumulate(
         alpha: Double,
         ad: DoubleArray,
         n: Int,
         x: DoubleArray,
-        xOff: Int,
         y: DoubleArray,
-        yOff: Int,
         lower: Boolean,
     ) {
         val kernels = kernels
         for (j in 0 until n) {
             val base = j + j * n
-            val xj = alpha * x[xOff + j]
+            val xj = alpha * x[j]
             val runOff = if (lower) j + 1 else 0
             val len = if (lower) n - j - 1 else j
-            y[yOff + j] += xj * ad[base]
-            axpyArithmetic(kernels, y, yOff + runOff, xj, ad, runOff + j * n, len)
-            y[yOff + j] += alpha * kernels.dot(ad, runOff + j * n, x, xOff + runOff, len)
+            y[j] += xj * ad[base]
+            axpyArithmetic(kernels, y, runOff, xj, ad, runOff + j * n, len)
+            y[j] += alpha * kernels.dot(ad, runOff + j * n, x, runOff, len)
         }
     }
 
