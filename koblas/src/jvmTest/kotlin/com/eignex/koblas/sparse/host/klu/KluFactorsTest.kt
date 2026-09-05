@@ -2,6 +2,7 @@ package com.eignex.koblas.sparse.host.klu
 
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.assertLuFactorsReproduce
+import com.eignex.koblas.sparse.sparseDominantSystem
 import com.eignex.koblas.testutil.host.HostLibraryTest
 import org.junit.Assume
 import org.junit.experimental.categories.Category
@@ -22,7 +23,7 @@ class KluFactorsTest {
         requireKlu()
         val rng = Random(20260827)
         for (n in intArrayOf(4, 16, 64)) {
-            val a = dominant(n, rng)
+            val a = sparseDominantSystem(n, rng)
 
             klu.factor(a).use { factorization ->
                 assertEquals(n, factorization.rowOrder.size, "n=$n rowOrder")
@@ -43,18 +44,4 @@ class KluFactorsTest {
 
         assertLuFactorsReproduce(second, refactored, "refactorized")
     }
-}
-
-private fun dominant(n: Int, rng: Random): F64SparseMatrix {
-    val columns = List(n) { j ->
-        val entries = ArrayList<Pair<Int, Double>>()
-        for (i in 0 until n) {
-            when {
-                i == j -> entries.add(i to (n + rng.nextDouble()))
-                rng.nextDouble() < 0.15 -> entries.add(i to rng.nextDouble(-1.0, 1.0))
-            }
-        }
-        entries
-    }
-    return F64SparseMatrix.ofColumns(n, n, columns)
 }

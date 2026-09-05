@@ -11,7 +11,7 @@ class PortableSparseFactorsTest {
     fun `the LU factors reproduce the permuted matrix`() {
         val rng = Random(20260827)
         for (n in intArrayOf(1, 5, 24, 60)) {
-            val a = dominant(n, rng)
+            val a = sparseDominantSystem(n, rng)
 
             assertLuFactorsReproduce(a, F64ReferenceSparseLinearAlgebra.factor(a), "n=$n")
         }
@@ -20,7 +20,7 @@ class PortableSparseFactorsTest {
     @Test
     fun `an equilibrating LU reports the scaling its factors are of`() {
         val rng = Random(20260901)
-        val a = dominant(30, rng)
+        val a = sparseDominantSystem(30, rng)
 
         val lu = F64ReferenceSparseDecompositions(equilibrate = true).factor(a)
 
@@ -71,18 +71,4 @@ class PortableSparseFactorsTest {
         assertFailsWith<com.eignex.koblas.SingularMatrix> { ldl.d }
         assertFailsWith<com.eignex.koblas.SingularMatrix> { ldl.order }
     }
-}
-
-private fun dominant(n: Int, rng: Random): F64SparseMatrix {
-    val columns = List(n) { j ->
-        val entries = ArrayList<Pair<Int, Double>>()
-        for (i in 0 until n) {
-            when {
-                i == j -> entries.add(i to (n + rng.nextDouble()))
-                rng.nextDouble() < 0.15 -> entries.add(i to rng.nextDouble(-1.0, 1.0))
-            }
-        }
-        entries
-    }
-    return F64SparseMatrix.ofColumns(n, n, columns)
 }
