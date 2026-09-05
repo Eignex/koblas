@@ -128,6 +128,50 @@ internal fun requireGemmShape(
     return GemmShape(m, k, n)
 }
 
+/** The order and depth a `syrk` or `syr2k` works over, after checking C against them. */
+internal data class SyrkShape(val order: Int, val depth: Int)
+
+/** [SyrkShape] for [a] under [transpose], having checked that C is square and matches the order. */
+internal fun requireSyrkShape(a: F64DenseMatrix, transpose: Boolean, c: F64DenseMatrix, what: String): SyrkShape {
+    val n = if (transpose) a.cols else a.rows
+    val k = if (transpose) a.rows else a.cols
+    requireShape(c.rows == n && c.cols == n) { "$what: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
+    return SyrkShape(n, k)
+}
+
+/** Checks a symmetric matrix against the two vectors of a `symv`, returning its dimension. */
+internal fun requireSymvShape(a: F64DenseMatrix, x: Int, y: Int): Int {
+    requireSquare(a, "symv")
+    val n = a.rows
+    requireShape(x == n) { "symv: x length $x != $n" }
+    requireShape(y == n) { "symv: y length $y != $n" }
+    return n
+}
+
+/** Checks the operands of a `symm`, returning the symmetric matrix's dimension. */
+internal fun requireSymmShape(a: F64DenseMatrix, b: F64DenseMatrix, c: F64DenseMatrix, right: Boolean): Int {
+    requireSquare(a, "symm")
+    val m = a.rows
+    requireShape(c.rows == b.rows && c.cols == b.cols) {
+        "symm: C is ${c.rows}x${c.cols} but B is ${b.rows}x${b.cols}"
+    }
+    requireShape((if (right) b.cols else b.rows) == m) {
+        "symm: B is ${b.rows}x${b.cols}, expected dimension $m on the ${if (right) "cols" else "rows"} side"
+    }
+    return m
+}
+
+/** Checks the triangle and the block of a `trsm` or `trmm`, returning the triangle's dimension. */
+internal fun requireTriangularMatrixShape(a: F64DenseMatrix, b: F64DenseMatrix, right: Boolean, what: String): Int {
+    requireSquare(a, what)
+    if (right) {
+        requireShape(b.cols == a.rows) { "$what right: B has ${b.cols} cols, expected ${a.rows}" }
+    } else {
+        requireShape(b.rows == a.rows) { "$what: B has ${b.rows} rows, expected ${a.rows}" }
+    }
+    return a.rows
+}
+
 /** Rejects a shape no storage can hold, before an allocation turns it into an arithmetic error. */
 internal fun requireNonNegativeShape(rows: Int, cols: Int) {
     requireShape(rows >= 0 && cols >= 0) { "negative shape: ${rows}x$cols" }

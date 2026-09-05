@@ -181,12 +181,7 @@ public abstract class F64BlasAdapter internal constructor(
         solve: Boolean,
     ) {
         val what = if (solve) "trsm" else "trmm"
-        requireSquare(a, what)
-        if (right) {
-            requireShape(b.cols == a.rows) { "$what right: B has ${b.cols} cols, expected ${a.rows}" }
-        } else {
-            requireShape(b.rows == a.rows) { "$what: B has ${b.rows} rows, expected ${a.rows}" }
-        }
+        requireTriangularMatrixShape(a, b, right, what)
         if (a.rows == 0 || b.rows == 0 || b.cols == 0) return
         val call = if (solve) f::dtrsm else f::dtrmm
         call(
@@ -343,9 +338,7 @@ public abstract class F64BlasAdapter internal constructor(
         lower: Boolean,
         workspace: Workspace?,
     ) {
-        val n = if (transpose) a.cols else a.rows
-        val k = if (transpose) a.rows else a.cols
-        requireShape(c.rows == n && c.cols == n) { "syrk: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
+        val (n, k) = requireSyrkShape(a, transpose, c, "syrk")
         if (alpha == 0.0 || k == 0) {
             scaleTriangle(kernels, c.data, n, beta, lower)
             return
@@ -360,10 +353,7 @@ public abstract class F64BlasAdapter internal constructor(
      * non-square matrix would have it read `n²` entries from a shorter array, past the end of the buffer.
      */
     override fun symv(alpha: Double, a: F64DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) {
-        requireShape(a.rows == a.cols) { "symv: matrix must be square, got ${a.rows}x${a.cols}" }
-        val n = a.rows
-        requireShape(x.size == n) { "symv: x length ${x.size} != $n" }
-        requireShape(y.size == n) { "symv: y length ${y.size} != $n" }
+        val n = requireSymvShape(a, x.size, y.size)
         if (alpha == 0.0 || n == 0) {
             scaleInPlace(y, beta)
             return
@@ -381,14 +371,7 @@ public abstract class F64BlasAdapter internal constructor(
         right: Boolean,
         workspace: Workspace?,
     ) {
-        requireShape(a.rows == a.cols) { "symm: matrix must be square, got ${a.rows}x${a.cols}" }
-        val m = a.rows
-        requireShape(c.rows == b.rows && c.cols == b.cols) {
-            "symm: C is ${c.rows}x${c.cols} but B is ${b.rows}x${b.cols}"
-        }
-        requireShape((if (right) b.cols else b.rows) == m) {
-            "symm: B is ${b.rows}x${b.cols}, expected dimension $m on the ${if (right) "cols" else "rows"} side"
-        }
+        val m = requireSymmShape(a, b, c, right)
         if (alpha == 0.0) {
             scaleInPlace(c.data, beta)
             return
