@@ -5,6 +5,7 @@ import com.eignex.koblas.core.F64SparseMatrix
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
@@ -109,4 +110,21 @@ internal fun indefiniteConformanceSystem(n: Int, rng: Random): F64SparseMatrix {
         columns.add(column)
     }
     return F64SparseMatrix.ofColumns(n, n, columns)
+}
+
+/**
+ * The Cholesky analysis of a provider against its own ordinary factorization. Every provider owes the same
+ * two promises whether or not it holds a symbolic pass of its own: the same factor a fresh call gives, and a
+ * refusal of a pattern it did not analyze.
+ */
+internal fun assertCholeskyAnalysisReuses(provider: F64SparseCholesky) {
+    val a = sparseSymmetricConformanceSystem(21, Random(20260935))
+    val other = sparseSymmetricConformanceSystem(21, Random(20260936))
+    val b = DoubleArray(21) { it * 0.125 - 1.0 }
+    val expected = provider.cholesky(a).use { it.solve(b) }
+
+    provider.analyzeCholesky(a).use { analysis ->
+        analysis.factor(a).use { assertClose(expected, it.solve(b), "analyzed solve", tolerance = 1e-12) }
+        assertFailsWith<IllegalArgumentException> { analysis.factor(other) }
+    }
 }

@@ -103,16 +103,76 @@ private class RefactoringSparseLuAnalysis(private val provider: F64RepeatedSpars
     }
 }
 
+/**
+ * A caller-owned symbolic analysis of one sparse pattern, reusable across numeric factorizations of it.
+ *
+ * The symmetric factorizations and the QR each begin by deriving an elimination structure from the pattern
+ * alone. A caller refactorizing one structure with new values, which is what an interior-point or a
+ * sequential-QP iteration does, pays for that derivation on every call unless it is held here.
+ *
+ * What the reuse is worth follows the fill, since the derivation costs a pass over the pattern whatever the
+ * numeric half then does with it. `SparseRefactorBenchmark` measures 1.4x on a banded pattern from order 256
+ * to 4096, where there is almost no fill; `SparseSymmetricHostBenchmark` measures nothing outside its error
+ * bars on a pattern of one percent density, where the numeric sweep is doing far more work than the analysis.
+ *
+ * [factor] rejects a matrix of another pattern rather than filling the factor from the wrong bounds. Numeric
+ * factors are owned by the caller and must be closed before this analysis. Calls after [close] throw
+ * [IllegalStateException]; close is idempotent. A caller sharing an analysis between threads must serialize
+ * its calls.
+ *
+ * @param F the kind of factorization this analysis produces.
+ */
+public interface F64SparseSymbolicAnalysis<out F : AutoCloseable> : AutoCloseable {
+    /** Numerically factorizes [a], which must have the analyzed pattern.
+     *  @throws IllegalArgumentException when [a] does not have the analyzed structure. */
+    public fun factor(a: F64SparseMatrix): F
+
+    /** Releases this symbolic analysis. */
+    override fun close()
+}
+
+/**
+ * The pattern check every [F64SparseSymbolicAnalysis] owes its caller, over whatever numeric half it holds.
+ *
+ * A provider whose analysis is nothing but the check passes its ordinary factorization as [numeric], which is
+ * what a binding that keeps no reusable structure of its own does. A provider that has one closes over it.
+ */
+internal class PatternOnlyAnalysis<F : AutoCloseable>(
+    a: F64SparseMatrix,
+    private val numeric: (F64SparseMatrix) -> F,
+) : F64SparseSymbolicAnalysis<F> {
+    private val pattern: SparsePattern = SparsePattern.of(a)
+    private var closed = false
+
+    override fun factor(a: F64SparseMatrix): F {
+        check(!closed) { "sparse symbolic analysis is closed" }
+        pattern.requireMatch(a)
+        return numeric(a)
+    }
+
+    override fun close() {
+        closed = true
+    }
+}
+
 /** Symmetric positive-definite sparse Cholesky factorization. */
 public interface F64SparseCholesky : Backend {
     /** Factorizes the lower triangle of [a] as `L * L^T`. */
     public fun cholesky(a: F64SparseMatrix): F64SparseCholeskyFactorization
+
+    /** Analyzes the pattern of [a] for repeated factorizations of that structure. */
+    public fun analyzeCholesky(a: F64SparseMatrix): F64SparseSymbolicAnalysis<F64SparseCholeskyFactorization> =
+        PatternOnlyAnalysis(a) { cholesky(it) }
 }
 
 /** Sparse QR factorization of a tall or square matrix, for least-squares solves. */
 public interface F64SparseQr : Backend {
     /** Factorizes [a], which must have at least as many rows as columns, as `Q * R`. */
     public fun qr(a: F64SparseMatrix): F64SparseQrFactorization
+
+    /** Analyzes the pattern of [a] for repeated factorizations of that structure. */
+    public fun analyzeQr(a: F64SparseMatrix): F64SparseSymbolicAnalysis<F64SparseQrFactorization> =
+        PatternOnlyAnalysis(a) { qr(it) }
 }
 
 /**
@@ -124,6 +184,11 @@ public interface F64SparseQr : Backend {
 public interface F64QuasiDefiniteLdl : Backend {
     /** Factorizes [a]'s lower triangle as quasi-definite `L * D * L^T`. */
     public fun quasiDefiniteLdl(a: F64SparseMatrix): F64QuasiDefiniteLdlFactorization
+
+    /** Analyzes the pattern of [a] for repeated factorizations of that structure. */
+    public fun analyzeQuasiDefiniteLdl(
+        a: F64SparseMatrix,
+    ): F64SparseSymbolicAnalysis<F64QuasiDefiniteLdlFactorization> = PatternOnlyAnalysis(a) { quasiDefiniteLdl(it) }
 }
 
 /** Sparse factorization of a simplex basis that supports column replacement. */

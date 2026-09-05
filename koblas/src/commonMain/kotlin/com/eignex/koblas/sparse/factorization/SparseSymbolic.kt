@@ -79,3 +79,19 @@ internal fun columnPointers(
     for (k in 0 until n) colPtr[k + 1] = colPtr[k] + counts[k]
     return colPtr
 }
+
+/**
+ * The pattern-only half of an up-looking symmetric factorization, which depends on nothing but the structure
+ * and so survives a change of values.
+ *
+ * @property n the order of the analyzed matrix.
+ * @property parent the elimination tree.
+ * @property colPtr the column bounds of `L`, so the numeric pass never grows its arrays.
+ */
+internal class UpLookingSymbolic(val n: Int, val parent: IntArray, val colPtr: IntArray)
+
+/** [UpLookingSymbolic] of the matrix whose transposed lower triangle is [upper]. */
+internal fun analyzeUpLooking(n: Int, upper: F64SparseMatrix, storesDiagonal: Boolean): UpLookingSymbolic {
+    val parent = eliminationTree(n, upper)
+    return UpLookingSymbolic(n, parent, columnPointers(n, upper, parent, storesDiagonal))
+}

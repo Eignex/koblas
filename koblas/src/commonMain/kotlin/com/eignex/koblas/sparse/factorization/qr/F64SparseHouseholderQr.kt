@@ -130,12 +130,23 @@ public class F64SparseHouseholderQr internal constructor(
     /** Factories. */
     public companion object {
         /** Factor [a], which must have at least as many rows as columns. */
-        public fun factor(a: F64SparseMatrix): F64SparseHouseholderQr {
+        public fun factor(a: F64SparseMatrix): F64SparseHouseholderQr = factor(a, analyze(a))
+
+        /** The pattern-only half of [factor], for a caller that will factor this structure again. */
+        internal fun analyze(a: F64SparseMatrix): SparseQrSymbolic {
             requireShape(a.rows >= a.cols) {
                 "qr: A is ${a.rows}x${a.cols}, which is wider than it is tall; factor its transpose instead"
             }
             val symbolic = analyzeQr(a)
-            val upperNonzeros = countUpperNonzeros(a, symbolic)
+            // The count of R's entries follows from the pattern too, so it is settled here rather than per
+            // factorization: it is a second walk of the elimination paths, as costly as the tree itself.
+            symbolic.upperNonzeros = countUpperNonzeros(a, symbolic)
+            return symbolic
+        }
+
+        /** [factor] against an analysis of the same pattern, which the caller has already checked. */
+        internal fun factor(a: F64SparseMatrix, symbolic: SparseQrSymbolic): F64SparseHouseholderQr {
+            val upperNonzeros = symbolic.upperNonzeros
             val n = a.cols
             val vColPtr = IntArray(n + 1)
             val vRowIdx = IntArray(symbolic.householderNonzeros)

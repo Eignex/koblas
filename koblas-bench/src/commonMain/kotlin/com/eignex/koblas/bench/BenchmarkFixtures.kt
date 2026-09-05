@@ -94,6 +94,24 @@ internal fun sparseSpdMatrix(n: Int, rng: Random): F64SparseMatrix {
     )
 }
 
+/**
+ * A banded symmetric positive-definite matrix, as the lower triangle a Cholesky reads.
+ *
+ * The band keeps the entries per column fixed as `n` grows, where [sparseSpdMatrix] keeps their density
+ * fixed and so grows them. That is what separates a factorization the numeric sweep dominates from one the
+ * symbolic pass does, and a symbolic analysis held across refactorizations is worth having only in the
+ * second.
+ */
+internal fun sparseBandedSpdMatrix(n: Int, bandwidth: Int, rng: Random): F64SparseMatrix = F64SparseMatrix.ofColumns(
+    n,
+    n,
+    List(n) { j ->
+        val below = (j + 1..minOf(j + bandwidth, n - 1)).map { it to rng.nextDouble(-1.0, 1.0) }
+        // Dominant over both triangles: a column carries its own band below and its mirror above.
+        listOf(j to 2.0 * bandwidth + 1.0) + below
+    },
+)
+
 /** A tall sparse matrix with full column rank, the shape a least-squares QR is for. */
 internal fun sparseTallMatrix(rows: Int, cols: Int, rng: Random): F64SparseMatrix {
     val columns = List(cols) { j ->

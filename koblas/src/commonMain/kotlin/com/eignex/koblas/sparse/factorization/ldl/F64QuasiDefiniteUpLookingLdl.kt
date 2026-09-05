@@ -10,8 +10,8 @@ import com.eignex.koblas.requireSquare
 import com.eignex.koblas.singularFailure
 import com.eignex.koblas.sparse.F64QuasiDefiniteLdlFactorization
 import com.eignex.koblas.sparse.FactorizationInertia
-import com.eignex.koblas.sparse.factorization.columnPointers
-import com.eignex.koblas.sparse.factorization.eliminationTree
+import com.eignex.koblas.sparse.factorization.UpLookingSymbolic
+import com.eignex.koblas.sparse.factorization.analyzeUpLooking
 import com.eignex.koblas.sparse.factorization.ereach
 import com.eignex.koblas.sparse.internal.transposeCsc
 import kotlin.math.abs
@@ -133,15 +133,31 @@ public class F64QuasiDefiniteUpLookingLdl internal constructor(
          */
         public fun factorLower(a: F64SparseMatrix): F64QuasiDefiniteUpLookingLdl {
             requireSquare(a, "quasiDefiniteLdl")
-            val n = a.rows
             // The up-looking sweep reads row k of A left of the diagonal, and CSC stores columns.
             val upper = transposeCsc(a)
-            val parent = eliminationTree(n, upper)
-            val colPtr = columnPointers(n, upper, parent, storesDiagonal = false)
+            return factorTransposed(upper, analyzeUpLooking(a.rows, upper, storesDiagonal = false))
+        }
+
+        /** The pattern-only half of [factorLower], for a caller that will factor this structure again. */
+        internal fun analyzeLower(a: F64SparseMatrix): UpLookingSymbolic {
+            requireSquare(a, "quasiDefiniteLdl")
+            return analyzeUpLooking(a.rows, transposeCsc(a), storesDiagonal = false)
+        }
+
+        /** [factorLower] against an analysis of the same pattern, which the caller has already checked. */
+        internal fun factorLower(a: F64SparseMatrix, symbolic: UpLookingSymbolic): F64QuasiDefiniteUpLookingLdl =
+            factorTransposed(transposeCsc(a), symbolic)
+
+        private fun factorTransposed(
+            upper: F64SparseMatrix,
+            symbolic: UpLookingSymbolic,
+        ): F64QuasiDefiniteUpLookingLdl {
+            val n = symbolic.n
+            val colPtr = symbolic.colPtr
             val rowIdx = IntArray(colPtr[n])
             val values = DoubleArray(colPtr[n])
             val diagonal = DoubleArray(n)
-            val failedAt = factorNumeric(n, upper, parent, colPtr, rowIdx, values, diagonal)
+            val failedAt = factorNumeric(n, upper, symbolic.parent, colPtr, rowIdx, values, diagonal)
             return F64QuasiDefiniteUpLookingLdl(n, colPtr, rowIdx, values, diagonal, failedAt)
         }
     }
