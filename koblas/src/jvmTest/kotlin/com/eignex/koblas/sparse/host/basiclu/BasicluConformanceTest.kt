@@ -4,8 +4,12 @@ import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.core.F64SparseVector
+import com.eignex.koblas.internal.backend.BackendNames
+import com.eignex.koblas.koblas
+import com.eignex.koblas.registerBackend
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.testutil.host.HostLibraryTest
+import com.eignex.koblas.withCleanBackends
 import com.eignex.koblas.withColumn
 import org.junit.Assume
 import org.junit.experimental.categories.Category
@@ -188,9 +192,22 @@ class BasicluConformanceTest {
         assertFalse(BasicluSparseLu(BasicluConfig(highs.path)).isAvailable)
     }
 
+    /**
+     * BASICLU factorizes simplex bases, and [com.eignex.koblas.internal.backend.BackendSlot.F64GeneralSparseLu]
+     * declines an offer from a library specialised that way: what it has for ordinary LU is that
+     * specialization's own factorization rather than a general one. So the half it wins is the basis one, and
+     * general LU stays with whoever is general.
+     */
     @Test
-    fun `it registers as the sparse LU half`() {
+    fun `it registers as the basis half and leaves general LU to a general provider`() {
         requireBasiclu()
-        assertRegistersAsTheSparseLuHalf(basiclu, n = 20)
+
+        withCleanBackends {
+            registerBackend(basiclu)
+
+            assertEquals(BackendNames.BASICLU, koblas.basisFactorizations.name)
+            assertEquals(BackendNames.REFERENCE, koblas.generalSparseLu.name)
+            assertEquals(BackendNames.REFERENCE, koblas.sparseBlas.name)
+        }
     }
 }
