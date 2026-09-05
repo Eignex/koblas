@@ -345,4 +345,24 @@ class AllocationFreeTest {
 
         assertTrue(bytes <= FLOOR_BYTES, "left sparse trsm allocated $bytes B per call")
     }
+
+    @Test
+    fun `inspecting a route reads one role rather than the whole snapshot`() {
+        // route() took the whole twelve-role status to read one entry, so every operation under a strict
+        // dispatch policy built twelve BackendStatus objects, up to twelve BackendMetadata, a list and two
+        // sets. Nothing in this suite covered it: the other cases all run the default AUTO context, where
+        // the policy path never executes.
+        val query = F64RouteQuery.DenseGemv(64, 64)
+
+        val single = bytesPerIteration(2000) { koblas.route(query) }
+        val whole = bytesPerIteration(2000) { koblas.status }
+
+        // Not allocation-free, and cannot be: route returns a BackendRoute over a BackendStatus, so one of
+        // each is the floor. What it must not do is build the other eleven roles to get there.
+        assertTrue(whole > FLOOR_BYTES, "expected the full snapshot to allocate, saw $whole B")
+        assertTrue(
+            single * 4 < whole,
+            "route allocated $single B against the full snapshot's $whole B, so it is still building all of it",
+        )
+    }
 }
