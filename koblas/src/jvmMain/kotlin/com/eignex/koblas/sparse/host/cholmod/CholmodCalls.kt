@@ -1,7 +1,9 @@
 package com.eignex.koblas.sparse.host.cholmod
 
 import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.internal.host.ArenaBlocks
 import com.eignex.koblas.internal.host.FfmLibrary
+import com.eignex.koblas.internal.host.NativeBlock
 import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout.ADDRESS
@@ -204,7 +206,7 @@ internal class CholmodCalls(private val config: CholmodConfig) {
         if (product.address() == 0L) return null
         return Arena.ofConfined().use { arena ->
             try {
-                readCholmodSparse(product)
+                NativeBlock(product).readCholmodSparse()
             } finally {
                 val slot = arena.allocate(ADDRESS)
                 slot.set(ADDRESS, 0L, product)
@@ -247,20 +249,20 @@ internal class CholmodCalls(private val config: CholmodConfig) {
         common: MemorySegment,
         asLl: Boolean,
     ): CholmodFactors? {
-        val block = duplicate.reinterpret(CHOLMOD_FACTOR_BYTES)
+        val block = NativeBlock(duplicate).sized(CHOLMOD_FACTOR_BYTES)
         val converted = change.invokeExact(
             CHOLMOD_REAL_XTYPE,
             if (asLl) CHOLMOD_TRUE else 0,
             0,
             CHOLMOD_TRUE,
             CHOLMOD_TRUE,
-            block,
+            block.segment,
             common,
         ) as Int
         if (converted != CHOLMOD_TRUE) return null
-        val order = block.get(JAVA_LONG, CHOLMOD_FACTOR_N).toInt()
-        val csc = readCholmodCsc(block, order, CHOLMOD_FACTOR_P, CHOLMOD_FACTOR_I, CHOLMOD_FACTOR_X)
-        val permutation = readCholmodPermutation(block.get(ADDRESS, CHOLMOD_FACTOR_PERM), order)
+        val order = block.getSize(CHOLMOD_FACTOR_N).toInt()
+        val csc = block.readCholmodCsc(order, CHOLMOD_FACTOR_P, CHOLMOD_FACTOR_I, CHOLMOD_FACTOR_X)
+        val permutation = block.readCholmodPermutation(CHOLMOD_FACTOR_PERM, order)
         return CholmodFactors(order, csc.colPtr, csc.rowIdx, csc.values, permutation)
     }
 
@@ -299,17 +301,9 @@ internal class CholmodCalls(private val config: CholmodConfig) {
             MemorySegment.copy(x, 0, xBlock, JAVA_DOUBLE, 0L, x.size)
             val yBlock = arena.allocate(JAVA_DOUBLE, y.size.toLong())
             MemorySegment.copy(y, 0, yBlock, JAVA_DOUBLE, 0L, y.size)
-            val dense = { rows: Int, block: MemorySegment ->
-                arena.allocate(CHOLMOD_DENSE_BYTES).also {
-                    it.set(JAVA_LONG, CHOLMOD_DENSE_NROW, rows.toLong())
-                    it.set(JAVA_LONG, CHOLMOD_DENSE_NCOL, columns.toLong())
-                    it.set(JAVA_LONG, CHOLMOD_DENSE_NZMAX, rows.toLong() * columns)
-                    it.set(JAVA_LONG, CHOLMOD_DENSE_D, rows.toLong())
-                    it.set(ADDRESS, CHOLMOD_DENSE_X, block)
-                    it.set(ADDRESS, CHOLMOD_DENSE_Z, MemorySegment.NULL)
-                    it.set(JAVA_INT, CHOLMOD_DENSE_XTYPE, CHOLMOD_REAL)
-                    it.set(JAVA_INT, CHOLMOD_DENSE_DTYPE, CHOLMOD_DOUBLE)
-                }
+            val blocks = ArenaBlocks(arena)
+            val dense = { rows: Int, values: MemorySegment ->
+                blocks.block(CHOLMOD_DENSE_BYTES).asCholmodDense(NativeBlock(values), rows, columns).segment
             }
             val xDense = dense(xRows, xBlock)
             val yDense = dense(yRows, yBlock)
@@ -349,14 +343,7 @@ internal class CholmodSolveWorkspace(n: Int, columns: Int = 1) : AutoCloseable {
     val slot: MemorySegment = arena.allocate(ADDRESS)
 
     init {
-        dense.set(JAVA_LONG, CHOLMOD_DENSE_NROW, n.toLong())
-        dense.set(JAVA_LONG, CHOLMOD_DENSE_NCOL, columns.toLong())
-        dense.set(JAVA_LONG, CHOLMOD_DENSE_NZMAX, n.toLong() * columns)
-        dense.set(JAVA_LONG, CHOLMOD_DENSE_D, n.toLong())
-        dense.set(ADDRESS, CHOLMOD_DENSE_X, rhs)
-        dense.set(ADDRESS, CHOLMOD_DENSE_Z, MemorySegment.NULL)
-        dense.set(JAVA_INT, CHOLMOD_DENSE_XTYPE, CHOLMOD_REAL)
-        dense.set(JAVA_INT, CHOLMOD_DENSE_DTYPE, CHOLMOD_DOUBLE)
+        NativeBlock(dense).asCholmodDense(NativeBlock(rhs), n, columns)
     }
 
     override fun close(): Unit = arena.close()

@@ -2,12 +2,12 @@
 
 package com.eignex.koblas.sparse.host.spqr
 
+import com.eignex.koblas.internal.host.NativeBlock
 import com.eignex.koblas.internal.host.openNativeLibrary
 import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_COMMON_BYTES
 import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_COMMON_PRINT
 import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_SONAMES
 import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_TRUE
-import com.eignex.koblas.sparse.host.cholmod.intAt
 import kotlinx.cinterop.*
 import platform.posix.dlsym
 
@@ -95,7 +95,7 @@ internal class SpqrLoader(private val config: SpqrConfig) {
             nativeHeap.free(common)
             error("cholmod_start failed")
         }
-        intAt(common, CHOLMOD_COMMON_PRINT, 0)
+        NativeBlock(common).putInt(CHOLMOD_COMMON_PRINT, 0)
         return common
     }
 }

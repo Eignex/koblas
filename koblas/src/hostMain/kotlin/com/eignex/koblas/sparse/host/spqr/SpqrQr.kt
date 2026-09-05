@@ -3,19 +3,14 @@
 package com.eignex.koblas.sparse.host.spqr
 
 import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.internal.host.NativeBlock
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.sparse.F64SparseQrFactorization
 import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_DENSE_NCOL
 import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_DENSE_X
-import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_SPARSE_I
-import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_SPARSE_NCOL
-import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_SPARSE_NROW
-import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_SPARSE_P
-import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_SPARSE_X
 import com.eignex.koblas.sparse.host.cholmod.describeGeneral
 import com.eignex.koblas.sparse.host.cholmod.freeMatrix
-import com.eignex.koblas.sparse.host.cholmod.pointerAt
-import com.eignex.koblas.sparse.host.cholmod.sizeAt
+import com.eignex.koblas.sparse.host.cholmod.readCholmodSparse
 import kotlinx.cinterop.*
 
 /** SPQR's sparse QR through the 32-bit-index SuiteSparse C interface. */
@@ -70,9 +65,9 @@ public actual class SpqrQr actual constructor(config: SpqrConfig) {
                     SpqrQrFactorization(
                         SpqrFactorData(
                             rank,
-                            readSparse(r.reinterpret()),
+                            NativeBlock(r.reinterpret()).readCholmodSparse(),
                             readPermutation(eSlot.value, a.cols),
-                            readSparse(h.reinterpret()),
+                            NativeBlock(h.reinterpret()).readCholmodSparse(),
                             readPermutation(hpSlot.value, a.rows),
                             readDense(tau.reinterpret()),
                         ),
@@ -102,33 +97,14 @@ private fun MemScope.pointerSlot(): COpaquePointerVar = alloc<COpaquePointerVar>
 
 private fun readPermutation(pointer: COpaquePointer?, size: Int): IntArray {
     if (pointer == null) return IntArray(size) { it }
-    val entries = pointer.reinterpret<IntVar>()
-    return IntArray(size) { entries[it] }
-}
-
-private fun readSparse(sparse: CPointer<ByteVar>): F64SparseMatrix {
-    val rows = sizeAt(sparse, CHOLMOD_SPARSE_NROW).toInt()
-    val cols = sizeAt(sparse, CHOLMOD_SPARSE_NCOL).toInt()
-    val p = pointerAt(sparse, CHOLMOD_SPARSE_P)!!.reinterpret<IntVar>()
-    val colPtr = IntArray(cols + 1) { p[it] }
-    val nnz = colPtr[cols]
-    val rowIdx = IntArray(nnz)
-    val values = DoubleArray(nnz)
-    if (nnz > 0) {
-        val i = pointerAt(sparse, CHOLMOD_SPARSE_I)!!.reinterpret<IntVar>()
-        val x = pointerAt(sparse, CHOLMOD_SPARSE_X)!!.reinterpret<DoubleVar>()
-        for (k in 0 until nnz) {
-            rowIdx[k] = i[k]
-            values[k] = x[k]
-        }
-    }
-    return F64SparseMatrix.wrap(rows, cols, colPtr, rowIdx, values)
+    return NativeBlock(pointer.reinterpret()).readInts(size)
 }
 
 private fun readDense(dense: CPointer<ByteVar>): DoubleArray {
-    val size = sizeAt(dense, CHOLMOD_DENSE_NCOL).toInt()
-    val values = pointerAt(dense, CHOLMOD_DENSE_X)!!.reinterpret<DoubleVar>()
-    return DoubleArray(size) { values[it] }
+    val descriptor = NativeBlock(dense)
+    val size = descriptor.getSize(CHOLMOD_DENSE_NCOL).toInt()
+    val values = checkNotNull(descriptor.getPointer(CHOLMOD_DENSE_X, size.toLong() * Double.SIZE_BYTES))
+    return values.readDoubles(size)
 }
 
 private fun freeSparse(functions: SpqrFunctions, slot: COpaquePointerVar, common: CPointer<ByteVar>) {

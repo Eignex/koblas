@@ -2,6 +2,7 @@
 
 package com.eignex.koblas.sparse.host.cholmod
 
+import com.eignex.koblas.internal.host.NativeBlock
 import kotlinx.cinterop.*
 
 /**
@@ -45,21 +46,9 @@ internal fun extractCholmodFactor(
 }
 
 private fun read(block: CPointer<ByteVar>): CholmodFactors {
-    val order = sizeAt(block, CHOLMOD_FACTOR_N).toInt()
-    val pointers = pointerAt(block, CHOLMOD_FACTOR_P)!!.reinterpret<IntVar>()
-    val colPtr = IntArray(order + 1) { pointers[it] }
-    val nonzeros = colPtr[order]
-    val rowIdx = IntArray(nonzeros)
-    val values = DoubleArray(nonzeros)
-    if (nonzeros > 0) {
-        val indices = pointerAt(block, CHOLMOD_FACTOR_I)!!.reinterpret<IntVar>()
-        val entries = pointerAt(block, CHOLMOD_FACTOR_X)!!.reinterpret<DoubleVar>()
-        for (k in 0 until nonzeros) {
-            rowIdx[k] = indices[k]
-            values[k] = entries[k]
-        }
-    }
-    val perm = pointerAt(block, CHOLMOD_FACTOR_PERM)?.reinterpret<IntVar>()
-    val permutation = if (perm == null) IntArray(order) { it } else IntArray(order) { perm[it] }
-    return CholmodFactors(order, colPtr, rowIdx, values, permutation)
+    val descriptor = NativeBlock(block)
+    val order = descriptor.getSize(CHOLMOD_FACTOR_N).toInt()
+    val csc = descriptor.readCholmodCsc(order, CHOLMOD_FACTOR_P, CHOLMOD_FACTOR_I, CHOLMOD_FACTOR_X)
+    val permutation = descriptor.readCholmodPermutation(CHOLMOD_FACTOR_PERM, order)
+    return CholmodFactors(order, csc.colPtr, csc.rowIdx, csc.values, permutation)
 }

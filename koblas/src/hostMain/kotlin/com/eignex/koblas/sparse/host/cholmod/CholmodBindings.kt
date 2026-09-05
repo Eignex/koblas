@@ -3,6 +3,8 @@
 package com.eignex.koblas.sparse.host.cholmod
 
 import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.internal.host.HeapBlocks
+import com.eignex.koblas.internal.host.NativeBlock
 import com.eignex.koblas.internal.host.openNativeLibrary
 import kotlinx.cinterop.*
 import platform.posix.dlsym
@@ -81,37 +83,11 @@ internal class CholmodLoader(private val config: CholmodConfig) {
         val resolved = checkNotNull(functions) { "CHOLMOD is not available" }
         val common = nativeHeap.allocArray<ByteVar>(CHOLMOD_COMMON_BYTES)
         check(resolved.start(common) == CHOLMOD_TRUE) { "cholmod_start failed" }
-        intAt(common, CHOLMOD_COMMON_FINAL_LL, finalLl)
-        intAt(common, CHOLMOD_COMMON_PRINT, 0)
+        NativeBlock(common).putInt(CHOLMOD_COMMON_FINAL_LL, finalLl)
+        NativeBlock(common).putInt(CHOLMOD_COMMON_PRINT, 0)
         return common
     }
 }
-
-/** Writes one int into a `cholmod_*` block. */
-internal fun intAt(block: CPointer<ByteVar>, offset: Long, value: Int) {
-    (block + offset)!!.reinterpret<IntVar>().pointed.value = value
-}
-
-/** Reads one int out of a `cholmod_*` block. */
-internal fun intAt(block: CPointer<ByteVar>, offset: Long): Int = (block + offset)!!.reinterpret<IntVar>().pointed.value
-
-/** Writes one `size_t` into a `cholmod_*` block. */
-internal fun sizeAt(block: CPointer<ByteVar>, offset: Long, value: Long) {
-    (block + offset)!!.reinterpret<LongVar>().pointed.value = value
-}
-
-/** Reads one `size_t` out of a `cholmod_*` block. */
-internal fun sizeAt(block: CPointer<ByteVar>, offset: Long): Long =
-    (block + offset)!!.reinterpret<LongVar>().pointed.value
-
-/** Writes one pointer into a `cholmod_*` block. */
-internal fun pointerAt(block: CPointer<ByteVar>, offset: Long, value: COpaquePointer?) {
-    (block + offset)!!.reinterpret<COpaquePointerVar>().pointed.value = value
-}
-
-/** Reads one pointer out of a `cholmod_*` block. */
-internal fun pointerAt(block: CPointer<ByteVar>, offset: Long): COpaquePointer? =
-    (block + offset)!!.reinterpret<COpaquePointerVar>().pointed.value
 
 /**
  * [a]'s lower triangle as a `cholmod_sparse` over a native copy, which the caller frees with [freeMatrix].
@@ -119,44 +95,19 @@ internal fun pointerAt(block: CPointer<ByteVar>, offset: Long): COpaquePointer? 
  * The copy is what taking operands as a struct costs: a struct field holds an address, and a Kotlin array
  * pinned for the length of one call has none to leave behind.
  */
-internal fun describeLowerTriangle(a: F64SparseMatrix): CPointer<ByteVar> = describeMatrix(a, CHOLMOD_STYPE_LOWER)
+internal fun describeLowerTriangle(a: F64SparseMatrix): CPointer<ByteVar> =
+    HeapBlocks.describeCholmodSparse(a, CHOLMOD_STYPE_LOWER).pointer
 
 /** [a] as a general `cholmod_sparse`, including every stored entry. */
-internal fun describeGeneral(a: F64SparseMatrix): CPointer<ByteVar> = describeMatrix(a, CHOLMOD_STYPE_GENERAL)
-
-private fun describeMatrix(a: F64SparseMatrix, stype: Int): CPointer<ByteVar> {
-    val nnz = maxOf(a.nnz, 1)
-    val columnPointers = nativeHeap.allocArray<IntVar>(a.cols + 1)
-    for (j in 0..a.cols) columnPointers[j] = a.colPtr[j]
-    val rowIndices = nativeHeap.allocArray<IntVar>(nnz)
-    for (k in 0 until a.nnz) rowIndices[k] = a.rowIdx[k]
-    val values = nativeHeap.allocArray<DoubleVar>(nnz)
-    for (k in 0 until a.nnz) values[k] = a.values[k]
-
-    val sparse = nativeHeap.allocArray<ByteVar>(CHOLMOD_SPARSE_BYTES)
-    sizeAt(sparse, CHOLMOD_SPARSE_NROW, a.rows.toLong())
-    sizeAt(sparse, CHOLMOD_SPARSE_NCOL, a.cols.toLong())
-    sizeAt(sparse, CHOLMOD_SPARSE_NZMAX, a.nnz.toLong())
-    pointerAt(sparse, CHOLMOD_SPARSE_P, columnPointers)
-    pointerAt(sparse, CHOLMOD_SPARSE_I, rowIndices)
-    // Null because the columns are packed, so their lengths come from the pointers alone.
-    pointerAt(sparse, CHOLMOD_SPARSE_NZ, null)
-    pointerAt(sparse, CHOLMOD_SPARSE_X, values)
-    pointerAt(sparse, CHOLMOD_SPARSE_Z, null)
-    intAt(sparse, CHOLMOD_SPARSE_STYPE, stype)
-    intAt(sparse, CHOLMOD_SPARSE_ITYPE, CHOLMOD_INT)
-    intAt(sparse, CHOLMOD_SPARSE_XTYPE, CHOLMOD_REAL)
-    intAt(sparse, CHOLMOD_SPARSE_DTYPE, CHOLMOD_DOUBLE)
-    // koblas keeps rows strictly ascending within a column, which is what sorted claims.
-    intAt(sparse, CHOLMOD_SPARSE_SORTED, CHOLMOD_TRUE)
-    intAt(sparse, CHOLMOD_SPARSE_PACKED, CHOLMOD_TRUE)
-    return sparse
-}
+internal fun describeGeneral(a: F64SparseMatrix): CPointer<ByteVar> =
+    HeapBlocks.describeCholmodSparse(a, CHOLMOD_STYPE_GENERAL).pointer
 
 /** Frees a matrix built by [describeLowerTriangle], arrays included. */
 internal fun freeMatrix(sparse: CPointer<ByteVar>) {
-    pointerAt(sparse, CHOLMOD_SPARSE_P)?.let { nativeHeap.free(it) }
-    pointerAt(sparse, CHOLMOD_SPARSE_I)?.let { nativeHeap.free(it) }
-    pointerAt(sparse, CHOLMOD_SPARSE_X)?.let { nativeHeap.free(it) }
+    val descriptor = NativeBlock(sparse)
+    // The arrays are freed rather than read, so the span asked for here does not matter.
+    for (field in longArrayOf(CHOLMOD_SPARSE_P, CHOLMOD_SPARSE_I, CHOLMOD_SPARSE_X)) {
+        descriptor.getPointer(field, 0L)?.let { nativeHeap.free(it.pointer) }
+    }
     nativeHeap.free(sparse)
 }

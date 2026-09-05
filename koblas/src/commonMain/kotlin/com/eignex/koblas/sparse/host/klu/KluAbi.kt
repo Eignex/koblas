@@ -1,5 +1,7 @@
 package com.eignex.koblas.sparse.host.klu
 
+import com.eignex.koblas.internal.host.NativeBlock
+
 /**
  * KLU 2's ABI as offsets and codes, shared by the bindings that reach it: the JVM reads a `MemorySegment`
  * at these offsets and the native targets read a pointer. Both hold the `klu_common` and `klu_numeric`
@@ -53,3 +55,23 @@ internal val KluScaling.nativeValue: Int
         KluScaling.SUM -> 1
         KluScaling.MAX -> KLU_SCALE_MAX
     }
+
+/**
+ * Writes [config] into a `klu_common` KLU has already filled with its own defaults, leaving every field the
+ * configuration says nothing about as KLU set it.
+ *
+ * [equilibrate] is the backend's policy rather than the configuration's, so the scaling it selects is the
+ * one field written unconditionally: KLU's default scales, and a backend that does not equilibrate has to
+ * say so.
+ */
+internal fun NativeBlock.applyKluConfig(config: KluConfig, equilibrate: Boolean) {
+    config.pivotTolerance?.let { putDouble(KLU_COMMON_TOL, it) }
+    config.memoryGrowth?.let { putDouble(KLU_COMMON_MEMGROW, it) }
+    config.amdInitialMemoryFactor?.let { putDouble(KLU_COMMON_INITMEM_AMD, it) }
+    config.initialMemoryFactor?.let { putDouble(KLU_COMMON_INITMEM, it) }
+    config.maxBtfWork?.let { putDouble(KLU_COMMON_MAXWORK, it) }
+    config.useBtf?.let { putInt(KLU_COMMON_BTF, it.asNativeKluBoolean()) }
+    config.ordering?.let { putInt(KLU_COMMON_ORDERING, it.nativeValue) }
+    config.haltIfSingular?.let { putInt(KLU_COMMON_HALT_IF_SINGULAR, it.asNativeKluBoolean()) }
+    putInt(KLU_COMMON_SCALE, if (equilibrate) config.equilibratedScaling.nativeValue else KLU_SCALE_NONE)
+}

@@ -5,6 +5,7 @@ package com.eignex.koblas.sparse.host.cholmod
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.NotPositiveDefinite
 import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.internal.host.NativeBlock
 import com.eignex.koblas.sparse.F64QuasiDefiniteLdlFactorization
 import com.eignex.koblas.sparse.F64SparseCholeskyFactorization
 import kotlinx.cinterop.*
@@ -77,9 +78,9 @@ public actual class CholmodCholesky actual constructor(config: CholmodConfig) {
             nativeHeap.free(common)
             return null
         }
-        val block = factor.reinterpret<ByteVar>()
-        val n = sizeAt(block, CHOLMOD_FACTOR_N).toInt()
-        val minor = sizeAt(block, CHOLMOD_FACTOR_MINOR).toInt()
+        val block = NativeBlock(factor.reinterpret())
+        val n = block.getSize(CHOLMOD_FACTOR_N).toInt()
+        val minor = block.getSize(CHOLMOD_FACTOR_MINOR).toInt()
         val handle = CholmodFactorization.CholmodHandle(factor, common, functions, n)
         val failedAt = try {
             verdict(minor, n)

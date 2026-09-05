@@ -1,6 +1,7 @@
 package com.eignex.koblas.sparse.host.spqr
 
 import com.eignex.koblas.internal.host.FfmLibrary
+import com.eignex.koblas.internal.host.NativeBlock
 import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_COMMON_BYTES
 import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_COMMON_PRINT
 import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_DENSE_BYTES
@@ -134,10 +135,10 @@ internal class SpqrCalls(private val config: SpqrConfig) {
                     if (rank < 0 || r.address() == 0L || h.address() == 0L || tau.address() == 0L) return@use null
                     SpqrFactorData(
                         rank,
-                        readCholmodSparse(r),
-                        readCholmodPermutation(eSlot.get(ADDRESS, 0L), cols),
-                        readCholmodSparse(h),
-                        readCholmodPermutation(hpSlot.get(ADDRESS, 0L), rows),
+                        NativeBlock(r).readCholmodSparse(),
+                        NativeBlock(eSlot).readCholmodPermutation(0L, cols),
+                        NativeBlock(h).readCholmodSparse(),
+                        NativeBlock(hpSlot).readCholmodPermutation(0L, rows),
                         readDense(tau),
                     )
                 } finally {
