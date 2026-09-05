@@ -1,5 +1,7 @@
 package com.eignex.koblas
 
+import com.eignex.koblas.internal.backend.BackendNames
+
 /**
  * The level-1 routines a caller can ask about, each with a crossover of its own.
  *
@@ -317,7 +319,7 @@ private fun selectedStatus(query: F64RouteQuery, backend: Backend): BackendStatu
     backend.isAvailable,
     backend.isPortable,
     accelerated = !backend.isPortable,
-    (backend as? BackendMetadataProvider)?.backendMetadata ?: BackendMetadata(),
+    (backend as? BackendMetadataProvider)?.backendMetadata ?: NO_METADATA,
 )
 
 /**
@@ -330,7 +332,7 @@ internal fun belowThreshold(
     metric: DispatchMetric,
     actual: Int,
     minimum: Int,
-    portableExecutor: String = "reference",
+    portableExecutor: String = BackendNames.REFERENCE,
 ): BackendRoute = BackendRoute(
     query,
     selectedStatus(query, backend),
@@ -344,7 +346,7 @@ internal fun belowThreshold(
 internal fun nativeRoute(
     query: F64RouteQuery,
     backend: Backend,
-    portableExecutor: String = "reference",
+    portableExecutor: String = BackendNames.REFERENCE,
     fallbackWhenUnavailable: Boolean = true,
 ): BackendRoute {
     val selected = selectedStatus(query, backend)

@@ -103,7 +103,7 @@ public fun F64Context.isAccelerated(role: BackendRole): Boolean = when (val back
 }
 
 /** Shared by every half that reports no metadata of its own, so reading a status allocates none. */
-private val NO_METADATA = BackendMetadata()
+internal val NO_METADATA: BackendMetadata = BackendMetadata()
 
 /**
  * The selected backend for one [role].

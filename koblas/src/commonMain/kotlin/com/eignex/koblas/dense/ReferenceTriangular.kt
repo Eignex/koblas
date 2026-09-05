@@ -279,19 +279,11 @@ internal fun triangularMatrix(
 ) {
     val what = if (solve) "trsm" else "trmm"
     requireTriangularMatrixShape(a, b, right, what)
-    if (right) {
-        if (alpha == 0.0) {
-            b.data.fill(0.0)
-            return
-        }
-        if (alpha != 1.0) k.scale(b.data, 0, alpha, b.data.size)
-    } else {
-        if (alpha == 0.0) {
-            b.data.fill(0.0)
-            return
-        }
-        if (alpha != 1.0) k.scale(b.data, 0, alpha, b.data.size)
+    if (alpha == 0.0) {
+        b.data.fill(0.0)
+        return
     }
+    if (alpha != 1.0) k.scale(b.data, 0, alpha, b.data.size)
     if (a.rows == 0) return
     fun dispatch(scratch: DoubleArray?) {
         if (solve) {
@@ -340,54 +332,34 @@ private fun blockedLeftSolve(
     val bd = b.data
     val nrhs = b.cols
     val effectiveLower = if (transpose) !lower else lower
-    if (effectiveLower) {
-        var start = 0
-        while (start < n) {
-            val end = min(start + REFERENCE_TRIANGULAR_BLOCK, n)
-            val size = end - start
-            var zeroCoefficientMasks: LongArray? = null
-            for (column in 0 until nrhs) {
-                val mask = trsvCore(
-                    k, triangle, size, bd, start + start * n, column * n + start, n,
-                    lower, transpose, unitDiag,
-                )
-                if (mask != 0L) {
-                    val masks = zeroCoefficientMasks ?: LongArray(nrhs).also { zeroCoefficientMasks = it }
-                    masks[column] = mask
-                }
+    var boundary = if (effectiveLower) 0 else n
+    while (if (effectiveLower) boundary < n else boundary > 0) {
+        val start = if (effectiveLower) boundary else max(0, boundary - REFERENCE_TRIANGULAR_BLOCK)
+        val end = if (effectiveLower) min(boundary + REFERENCE_TRIANGULAR_BLOCK, n) else boundary
+        val size = end - start
+        var zeroCoefficientMasks: LongArray? = null
+        for (column in 0 until nrhs) {
+            val mask = trsvCore(
+                k, triangle, size, bd, start + start * n, column * n + start, n,
+                lower, transpose, unitDiag,
+            )
+            if (mask != 0L) {
+                val masks = zeroCoefficientMasks ?: LongArray(nrhs).also { zeroCoefficientMasks = it }
+                masks[column] = mask
             }
-            if (end < n) {
-                blockedLeftTriangularUpdate(
-                    k, -1.0, triangle, n, transpose, bd, end, n - end, start, size, nrhs,
-                    zeroCoefficientMasks, sums,
-                )
-            }
-            start = end
         }
-    } else {
-        var end = n
-        while (end > 0) {
-            val start = max(0, end - REFERENCE_TRIANGULAR_BLOCK)
-            val size = end - start
-            var zeroCoefficientMasks: LongArray? = null
-            for (column in 0 until nrhs) {
-                val mask = trsvCore(
-                    k, triangle, size, bd, start + start * n, column * n + start, n,
-                    lower, transpose, unitDiag,
-                )
-                if (mask != 0L) {
-                    val masks = zeroCoefficientMasks ?: LongArray(nrhs).also { zeroCoefficientMasks = it }
-                    masks[column] = mask
-                }
-            }
-            if (start > 0) {
-                blockedLeftTriangularUpdate(
-                    k, -1.0, triangle, n, transpose, bd, 0, start, start, size, nrhs,
-                    zeroCoefficientMasks, sums,
-                )
-            }
-            end = start
+        if (effectiveLower && end < n) {
+            blockedLeftTriangularUpdate(
+                k, -1.0, triangle, n, transpose, bd, end, n - end, start, size, nrhs,
+                zeroCoefficientMasks, sums,
+            )
+        } else if (!effectiveLower && start > 0) {
+            blockedLeftTriangularUpdate(
+                k, -1.0, triangle, n, transpose, bd, 0, start, start, size, nrhs,
+                zeroCoefficientMasks, sums,
+            )
         }
+        boundary = if (effectiveLower) end else start
     }
 }
 

@@ -31,11 +31,22 @@ public abstract class F64SparseBlasAdapter protected constructor() :
             return portableRoute(query, this, portable.name, BackendRouteReason.UNSUPPORTED_OPERATION)
         }
         if (query !is F64RouteQuery.SparseDenseGemm) return null
-        val native = nativeRoute(query, this, portable.name)
-        if (native.execution != BackendExecution.NATIVE || (!query.right && !query.transposeDense)) {
-            return native
-        }
-        return native.copy(
+        return nativeRoute(query, this, portable.name)
+            .downgradedUnless(supportsNativeGemm(query.right, query.transposeDense))
+    }
+
+    /**
+     * Whether the library takes this product's argument form. The libraries here read the sparse operand on
+     * the left and a dense operand as it stands, so a product from the right or against a transposed dense
+     * operand is answered portably. [route] and [gemm] read the same answer, so what a caller is told and
+     * what runs cannot drift apart.
+     */
+    private fun supportsNativeGemm(right: Boolean, transposeDense: Boolean): Boolean = !right && !transposeDense
+
+    /** The same route answered portably when the provider cannot take the argument form. */
+    private fun BackendRoute.downgradedUnless(supported: Boolean): BackendRoute {
+        if (supported || execution != BackendExecution.NATIVE) return this
+        return copy(
             execution = BackendExecution.PORTABLE,
             executor = portable.name,
             reason = BackendRouteReason.UNSUPPORTED_ARGUMENTS,
@@ -49,15 +60,8 @@ public abstract class F64SparseBlasAdapter protected constructor() :
      * Subclasses overriding [trsv], [trmv], [trsm], or [trmm] should return this from [route] for the
      * matching queries, checking [F64RouteQuery.SparseTriangular.kind] where solve and multiply differ.
      */
-    protected fun triangularRoute(query: F64RouteQuery.SparseTriangular, supported: Boolean = true): BackendRoute {
-        val native = nativeRoute(query, this, portable.name)
-        if (supported || native.execution != BackendExecution.NATIVE) return native
-        return native.copy(
-            execution = BackendExecution.PORTABLE,
-            executor = portable.name,
-            reason = BackendRouteReason.UNSUPPORTED_ARGUMENTS,
-        )
-    }
+    protected fun triangularRoute(query: F64RouteQuery.SparseTriangular, supported: Boolean = true): BackendRoute =
+        nativeRoute(query, this, portable.name).downgradedUnless(supported)
 
     /**
      * Portable, deliberately. The libraries here multiply a sparse matrix by a dense one of any column count,
@@ -87,9 +91,7 @@ public abstract class F64SparseBlasAdapter protected constructor() :
         right: Boolean,
         workspace: Workspace?,
     ) {
-        // The libraries take the sparse operand on the left and a dense operand it can read as it stands, so
-        // a product from the right or against a transposed dense operand is answered portably.
-        if (!nativeAvailable || right || transposeB) {
+        if (!nativeAvailable || !supportsNativeGemm(right, transposeB)) {
             return portable.gemm(alpha, a, transposeA, b, transposeB, beta, c, right, workspace)
         }
         gemmNative(alpha, a, transposeA, b, beta, c, workspace)
