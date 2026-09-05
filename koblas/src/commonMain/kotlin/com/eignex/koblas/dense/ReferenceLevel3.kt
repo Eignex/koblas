@@ -4,7 +4,16 @@ import com.eignex.koblas.Workspace
 import com.eignex.koblas.borrow
 import kotlin.math.min
 
-/** Cache tiles for the portable level-3 routines. They are deliberately target-neutral starting values. */
+/*
+ * Cache tiles for the portable level-3 routines: a block of the product is `MC` rows by `NC` columns and is
+ * accumulated over `KC` of the shared dimension at a time.
+ *
+ * `NC` is small because of the shape of the innermost loop rather than in spite of it. One A column is read
+ * across the `NC` columns of C the block covers, so the live piece of C is `MC x NC` doubles, 16 KB at these
+ * values, which is what fits beside the A column in a first-level cache. `Level3Benchmark.gemm` at order
+ * 1024 measures 32, 64, 128 and 256 in turn at 1.3x, 1.3x, 1.3x and 2.5x the time this one takes, so the
+ * temptation to widen it for reuse of the A panel has been tried and is a loss.
+ */
 internal const val REFERENCE_MC: Int = 256
 internal const val REFERENCE_NC: Int = 8
 internal const val REFERENCE_KC: Int = 128
@@ -115,21 +124,24 @@ private inline fun blockedAxpyUpdate(
         var inner = 0
         while (inner < depth) {
             val innerEnd = min(inner + REFERENCE_KC, depth)
-            for (p in inner until innerEnd) {
-                for (j in column until columnEnd) {
-                    val value = coefficient(p, j)
-                    val forcedZero = zeroCoefficientMasks != null && zeroCoefficientMasks[j] and (1L shl p) != 0L
-                    if (!skipZeroCoefficient || value != 0.0 || forcedZero) {
-                        val multiplier = alpha * value
-                        var row = 0
-                        while (row < m) {
-                            val length = min(row + REFERENCE_MC, m) - row
-                            val source = aOff + row + p * lda
-                            axpyArithmetic(kernels, c, cOff + row + j * ldc, multiplier, a, source, length)
-                            row += length
+            // The row block is outside the two operand loops, which is what makes it a block: everything
+            // below it touches A's rows `row until row + length` and C's, and nothing else. With the row
+            // loop innermost the live piece of C was the whole of `m x NC` however small the tile was, so
+            // the tile bounded no working set and only chopped one axpy into several.
+            var row = 0
+            while (row < m) {
+                val length = min(row + REFERENCE_MC, m) - row
+                for (p in inner until innerEnd) {
+                    val source = aOff + row + p * lda
+                    for (j in column until columnEnd) {
+                        val value = coefficient(p, j)
+                        val forcedZero = zeroCoefficientMasks != null && zeroCoefficientMasks[j] and (1L shl p) != 0L
+                        if (!skipZeroCoefficient || value != 0.0 || forcedZero) {
+                            axpyArithmetic(kernels, c, cOff + row + j * ldc, alpha * value, a, source, length)
                         }
                     }
                 }
+                row += length
             }
             inner = innerEnd
         }

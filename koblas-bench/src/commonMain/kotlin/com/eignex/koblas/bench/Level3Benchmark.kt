@@ -9,7 +9,9 @@ import kotlinx.benchmark.*
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(BenchmarkTimeUnit.MICROSECONDS)
 class Level3Benchmark {
-    @Param("4", "16", "32", "64", "128", "256")
+    // Through 256 the operands stay in L2, where the cache tiles cannot show; 512 and 1024 are where
+    // blocking either works or does not.
+    @Param("4", "16", "32", "64", "128", "256", "512", "1024")
     var n: Int = 0
 
     @Param(REFERENCE_BACKEND, HOST_BACKEND)

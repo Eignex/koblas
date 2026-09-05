@@ -105,9 +105,32 @@ public class F64StridedMatrixView(
         return F64StridedVectorView(data, offset + i, cols, leadingDimension)
     }
 
-    /** Whether this matrix and [other] address at least one common buffer entry. */
+    /**
+     * Whether this matrix and [other] address at least one common buffer entry.
+     *
+     * Every strided product checks this before it runs, so the cheap answers come first: a different buffer,
+     * then physical spans that do not meet, then, where the two lie on one grid of columns, a rectangle
+     * intersection. Only views whose leading dimensions differ, or whose columns wrap across that grid, are
+     * walked entry by entry.
+     */
     public fun overlaps(other: F64StridedMatrixView): Boolean {
-        if (data !== other.data) return false
+        if (data !== other.data || physicalSpan == 0 || other.physicalSpan == 0) return false
+        if (offset + physicalSpan <= other.offset || other.offset + other.physicalSpan <= offset) return false
+        if (leadingDimension == other.leadingDimension) {
+            val origin = minOf(offset, other.offset)
+            val here = offset - origin
+            val there = other.offset - origin
+            val row = here % leadingDimension
+            val otherRow = there % leadingDimension
+            // A column that runs past the end of its grid column continues in the next one, which is not a
+            // rectangle any more, so those fall through to the walk below.
+            if (row + rows <= leadingDimension && otherRow + other.rows <= leadingDimension) {
+                val column = here / leadingDimension
+                val otherColumn = there / leadingDimension
+                return row < otherRow + other.rows && otherRow < row + rows &&
+                    column < otherColumn + other.cols && otherColumn < column + cols
+            }
+        }
         val first = if (rows.toLong() * cols <= other.rows.toLong() * other.cols) this else other
         val second = if (first === this) other else this
         for (j in 0 until first.cols) {
@@ -120,10 +143,18 @@ public class F64StridedMatrixView(
 
     /** Whether this matrix and [other] address at least one common buffer entry. */
     public fun overlaps(other: F64StridedVectorView): Boolean {
-        if (data !== other.data) return false
+        if (data !== other.data || physicalSpan == 0 || other.size == 0) return false
+        val reach = (other.size - 1).toLong() * other.stride
+        val low = if (other.stride > 0) other.offset.toLong() else other.offset + reach
+        val high = if (other.stride > 0) other.offset + reach else other.offset.toLong()
+        if (offset + physicalSpan <= low || high < offset) return false
         for (i in 0 until other.size) if (containsPhysicalIndex(other.offset + i * other.stride)) return true
         return false
     }
+
+    /** Buffer entries from [offset] to the last one this view can reach, the last included. */
+    private val physicalSpan: Int
+        get() = if (rows == 0 || cols == 0) 0 else (cols - 1) * leadingDimension + rows
 
     private fun containsPhysicalIndex(index: Int): Boolean {
         val relative = index - offset
