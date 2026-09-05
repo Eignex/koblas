@@ -146,7 +146,17 @@ internal class CholmodCalls(private val config: CholmodConfig) {
         val factor = bound.analyze.invokeExact(a.segment, shared) as MemorySegment
         if (factor.address() == 0L) return null
         val reinterpreted = factor.reinterpret(CHOLMOD_FACTOR_BYTES)
-        bound.factorize.invokeExact(a.segment, reinterpreted, shared) as Int
+        // The return is what separates a matrix CHOLMOD could not factor from one it factored and found
+        // indefinite: a non-positive pivot still returns TRUE and is read off `minor`, where running out of
+        // memory returns FALSE and leaves a pattern-only factor that `minor` reports as complete. Discarding
+        // it turned the second into a successful factorization whose solve failed later for no stated reason.
+        // Read from the return rather than `common.status`, which sits deep in a struct whose layout these
+        // bindings do not otherwise depend on.
+        val factored = bound.factorize.invokeExact(a.segment, reinterpreted, shared) as Int
+        if (factored != CHOLMOD_TRUE) {
+            free(CholmodFactor(reinterpreted, shared))
+            return null
+        }
         return CholmodFactor(reinterpreted, shared)
     }
 

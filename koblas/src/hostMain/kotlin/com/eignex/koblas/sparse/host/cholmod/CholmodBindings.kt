@@ -18,6 +18,14 @@ internal class CholmodFunctions(private val lib: COpaquePointer) {
 
     val start = required("cholmod_start").reinterpret<CFunction<(Block) -> Int>>()
 
+    /**
+     * Releases the workspace `cholmod_start` left NULL and the routines then filled in.
+     *
+     * Freeing the common block alone leaks it: `analyze` and `factorize` allocate `Flag`, `Head`, `Iwork`
+     * and `Xwork` inside the struct, roughly 40 bytes per row, and nothing else ever frees them.
+     */
+    val finish = required("cholmod_finish").reinterpret<CFunction<(Block) -> Int>>()
+
     val analyze = required("cholmod_analyze").reinterpret<CFunction<(Block, Block) -> Handle>>()
 
     val factorize = required("cholmod_factorize").reinterpret<CFunction<(Block, Block, Block) -> Int>>()
