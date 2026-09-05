@@ -180,7 +180,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         right: Boolean,
         workspace: Workspace?,
     ) {
-        requireShape(a.rows == a.cols) { "symm: matrix must be square, got ${a.rows}x${a.cols}" }
+        requireSquare(a, "symm")
         val m = a.rows
         requireShape(c.rows == b.rows && c.cols == b.cols) {
             "symm: C is ${c.rows}x${c.cols} but B is ${b.rows}x${b.cols}"

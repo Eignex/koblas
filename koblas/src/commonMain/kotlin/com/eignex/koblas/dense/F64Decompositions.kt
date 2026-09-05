@@ -83,7 +83,7 @@ public interface F64Decompositions : Backend {
         out: F64PivotedSymmetricIndefiniteDecomposition,
         workspace: Workspace? = null,
     ): F64PivotedSymmetricIndefiniteDecomposition {
-        requireShape(a.rows == a.cols) { "pivotedSymmetricIndefinite: matrix must be square, got ${a.rows}x${a.cols}" }
+        requireSquare(a, "pivotedSymmetricIndefinite")
         requireShape(out.n == a.rows) {
             "pivotedSymmetricIndefiniteInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}"
         }
@@ -213,7 +213,7 @@ public interface F64Decompositions : Backend {
         out: F64CholeskyDecomposition,
         policy: CholeskyPolicy = CholeskyPolicy.Strict,
     ): F64CholeskyDecomposition {
-        requireShape(a.rows == a.cols) { "cholesky: matrix must be square, got ${a.rows}x${a.cols}" }
+        requireSquare(a, "cholesky")
         requireShape(out.n == a.rows) { "choleskyInto: out is ${out.n}x${out.n}, expected ${a.rows}x${a.rows}" }
         val fresh = cholesky(a, policy)
         fresh.l.data.copyInto(out.l.data)
@@ -264,8 +264,7 @@ public interface F64Decompositions : Backend {
     /** Solve `A · x = b` for [chol] into [out], which is returned. [out] may be [b]. */
     public fun solveInto(chol: F64CholeskyDecomposition, b: DoubleArray, out: DoubleArray): DoubleArray {
         val n = chol.n
-        requireShape(b.size == n) { "solve: b size ${b.size}, expected $n" }
-        requireShape(out.size == n) { "solve: out size ${out.size}, expected $n" }
+        requireSolveShapes(n, n, b, out)
         if (out !== b) b.copyInto(out)
         val ld = chol.l.data
         trsvCore(kernels, ld, n, out, lower = true, transpose = false, unitDiag = false)

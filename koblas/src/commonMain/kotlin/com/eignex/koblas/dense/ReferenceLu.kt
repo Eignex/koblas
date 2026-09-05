@@ -76,8 +76,7 @@ internal fun referenceLuSolveInto(
     requireLuSquare(lu, "solve")
     requireFactored(lu.failedAt, "solve")
     val n = lu.order
-    requireShape(b.size == n) { "solve: b length ${b.size} != $n" }
-    requireShape(out.size == n) { "solve: out length ${out.size} != $n" }
+    requireSolveShapes(n, n, b, out)
     val a = lu.lu
     val piv = lu.mutablePivots
     return if (transpose) {
