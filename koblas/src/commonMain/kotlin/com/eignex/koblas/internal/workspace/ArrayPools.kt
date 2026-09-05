@@ -122,6 +122,10 @@ internal class ArrayPools<A : Any>(private val allocate: (Int) -> A, private val
         fun release(buffer: A) {
             for (i in buffers.indices) {
                 if (buffers[i] === buffer) {
+                    // A buffer already back in the pool means a second, stale release. Clearing the flag
+                    // again would let the next take hand it out while the current holder still owns it,
+                    // and two routines would then scribble over one another's scratch.
+                    if (!lent[i]) alreadyReturned(size)
                     lent[i] = false
                     return
                 }
@@ -155,3 +159,7 @@ internal class ArrayPools<A : Any>(private val allocate: (Int) -> A, private val
 
 /** Reports a buffer handed back to a workspace that never lent it, whether or not a pool of its width exists. */
 private fun notLent(size: Int): Nothing = error("released a buffer of size $size that this workspace did not lend")
+
+/** Reports a second release of a buffer already back in its pool, which would let it serve two borrows. */
+private fun alreadyReturned(size: Int): Nothing =
+    error("released a buffer of size $size that is already back in this workspace")
