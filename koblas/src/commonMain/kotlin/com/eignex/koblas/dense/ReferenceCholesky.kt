@@ -4,6 +4,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
+import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.math.sqrt
 
@@ -60,8 +61,14 @@ internal fun referenceCholeskyInto(
             if (f != 0.0) kernels.axpy(ld, base, -f, ld, j + p * n, len)
         }
         val pivot = ld[base]
-        if (pivot <= 0.0 || pivot.isNaN()) {
-            if (policy !is CholeskyPolicy.Regularize) {
+        // A NaN is corrupt input, not indefiniteness, and no floor repairs it: the tail stays NaN while the
+        // diagonal reads clean, so the factor looks finite to logAbsDeterminant. Refused under every policy.
+        if (pivot.isNaN()) {
+            throw NotPositiveDefinite(j, pivot, "matrix has a NaN pivot at $j, so it cannot be factored")
+        }
+        val floor = (policy as? CholeskyPolicy.Regularize)?.minimumPivot
+        if (floor == null) {
+            if (pivot <= 0.0) {
                 throw NotPositiveDefinite(
                     j,
                     pivot,
@@ -69,14 +76,33 @@ internal fun referenceCholeskyInto(
                         "CholeskyPolicy.Regularize to factor a nearby matrix instead",
                 )
             }
-            ld[base] = sqrt(policy.minimumPivot)
-        } else {
             ld[base] = sqrt(pivot)
+        } else {
+            ld[base] = sqrt(if (pivot < floor) regularizedPivot(ld, base, len, floor) else pivot)
         }
         val diag = ld[base]
         for (i in base + 1 until base + len) ld[i] = ld[i] / diag
     }
     return out
+}
+
+/**
+ * Replacement for a pivot below the regularization floor, raised far enough to bound the column it scales.
+ *
+ * Substituting the floor alone still divides the tail by its square root, which scales this column's
+ * multipliers by `1/sqrt(floor)` and the trailing Schur complement by `1/floor`, a factor of `1e10` at the
+ * default. The result is a genuine factor of a matrix nowhere near the input, which is the opposite of what
+ * regularizing is for. Taking the largest tail entry into account instead holds every multiplier this
+ * column writes at or below one. That is the Gill and Murray bound, applied only to columns the
+ * factorization is already altering so a healthy pivot is never perturbed.
+ */
+private fun regularizedPivot(ld: DoubleArray, base: Int, len: Int, floor: Double): Double {
+    var largest = 0.0
+    for (i in base + 1 until base + len) {
+        val magnitude = abs(ld[i])
+        if (magnitude > largest) largest = magnitude
+    }
+    return maxOf(floor, largest * largest)
 }
 
 /** Invert an SPD matrix from its Cholesky factorization, returning `A⁻¹` given [chol] (LAPACK `dpotri`). */
