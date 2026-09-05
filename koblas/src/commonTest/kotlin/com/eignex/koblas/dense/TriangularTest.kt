@@ -8,6 +8,13 @@ import kotlin.test.*
 
 class TriangularTest {
 
+    @Test
+    fun `the triangular block width fits the zero-pivot mask`() {
+        // Retuning REFERENCE_TRIANGULAR_BLOCK above 64 wraps the mask shift instead of failing, and the
+        // underflow tests below would still pass at n = 65 while being wrong at larger n.
+        requireTriangularBlockFitsMask()
+    }
+
     /** `op(explicit) x` by definition, so the solve checks do not depend on the library's own kernels. */
     private fun naiveMultiply(explicit: F64DenseMatrix, transpose: Boolean, x: DoubleArray): DoubleArray {
         val n = explicit.rows

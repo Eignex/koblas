@@ -8,8 +8,29 @@ import kotlin.math.min
 internal const val REFERENCE_MC: Int = 256
 internal const val REFERENCE_NC: Int = 8
 internal const val REFERENCE_KC: Int = 128
+/**
+ * Diagonal block width for the blocked triangular routines.
+ *
+ * Not free to retune: the trsm zero-pivot guard carries one bit per row of a block in a `Long` mask, and
+ * Kotlin's `shl` reads only the low six bits of its operand, so a width above [Long.SIZE_BITS] would wrap
+ * row `j` onto bit `j % 64` and mask the wrong rows. [requireTriangularBlockFitsMask] holds that link.
+ */
 internal const val REFERENCE_TRIANGULAR_BLOCK: Int = 64
 private const val REFERENCE_TRANSPOSE_BLOCK: Int = 32
+
+/**
+ * Fails when [REFERENCE_TRIANGULAR_BLOCK] outgrows the zero-pivot mask that indexes it.
+ *
+ * A wrapped shift would not throw or read out of bounds. It would quietly retain the products of one row
+ * against the mask bit of another, which only shows up as a wrong answer on a matrix whose quotient
+ * underflows, so the check has to be explicit rather than left to a test to notice.
+ */
+internal fun requireTriangularBlockFitsMask() {
+    require(REFERENCE_TRIANGULAR_BLOCK <= Long.SIZE_BITS) {
+        "REFERENCE_TRIANGULAR_BLOCK is $REFERENCE_TRIANGULAR_BLOCK, above the ${Long.SIZE_BITS} rows a " +
+            "Long zero-pivot mask can index"
+    }
+}
 
 /** Transposes a column-major matrix into another column-major buffer using cache-sized square tiles. */
 internal fun transposeBlocked(src: DoubleArray, rows: Int, cols: Int, dst: DoubleArray) {
