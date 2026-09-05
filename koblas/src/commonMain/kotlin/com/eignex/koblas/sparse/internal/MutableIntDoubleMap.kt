@@ -182,8 +182,20 @@ internal fun openAddressingCapacity(initialCapacity: Int): Int {
 /** Members a table of [tableCapacity] holds before growth, which triggers just past half full. */
 private fun entryCapacityFor(tableCapacity: Int): Int = tableCapacity / 2 + 1
 
-/** Fibonacci-multiplicative hash, which distributes sequential int keys well. */
-internal fun mixIntKey(x: Int): Int = x * -0x61c88647
+/**
+ * Fibonacci-multiplicative hash, folded so the callers' `and mask` sees mixed bits.
+ *
+ * The multiply spreads structure into the high bits, but every caller keeps the low ones. An odd
+ * multiplier is a bijection on the low `k` bits, so masking the product straight away would return
+ * exactly `x and mask` and hash nothing: column indices on a power-of-two stride, which is what
+ * block-structured and grid patterns produce, would all land on one slot. The fold brings the high
+ * bits down first, which holds the mean probe length near 1.1 where masking alone reaches the
+ * table size.
+ */
+internal fun mixIntKey(x: Int): Int {
+    val h = x * -0x61c88647
+    return h xor (h ushr 16)
+}
 
 /**
  * Backward-shift deletion predicate. With a hole at [i] and the next occupied slot at [j], an entry whose
