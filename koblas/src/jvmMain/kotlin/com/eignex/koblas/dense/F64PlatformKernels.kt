@@ -163,19 +163,39 @@ internal object Simd {
     }
 
     /**
-     * One vector accumulator and a scalar tail. Deliberately not the four-chain form [dot] takes above
-     * [UNROLL_MIN]: that threshold was measured for dot, and nothing here has measured where a sum's own
-     * crossover sits.
+     * Four chains above [UNROLL_MIN], one accumulator below it, and a scalar tail.
+     *
+     * A single accumulator runs the whole reduction at floating-point add latency, which is what the four
+     * chains break. Measured on `Level1Benchmark.sumBench`: 35.9 ns against 79.2 at len 1024 and 147.0
+     * against 400.7 at 4096, both with clear error bars, and unchanged at 64 where the short arm still runs.
+     * Reassociating is sound here for the same reason it is in [dot], and a caller who needs the ordering
+     * held has `compensatedSum` instead.
      */
     fun sum(v: DoubleArray, vOff: Int, len: Int): Double {
         var i = 0
+        var s = 0.0
+        if (len >= UNROLL_MIN) {
+            val quadBound = len - (len % (4 * LANE))
+            var a = DoubleVector.zero(SPECIES)
+            var b = DoubleVector.zero(SPECIES)
+            var c = DoubleVector.zero(SPECIES)
+            var d = DoubleVector.zero(SPECIES)
+            while (i < quadBound) {
+                a = a.add(DoubleVector.fromArray(SPECIES, v, vOff + i))
+                b = b.add(DoubleVector.fromArray(SPECIES, v, vOff + i + LANE))
+                c = c.add(DoubleVector.fromArray(SPECIES, v, vOff + i + 2 * LANE))
+                d = d.add(DoubleVector.fromArray(SPECIES, v, vOff + i + 3 * LANE))
+                i += 4 * LANE
+            }
+            s = a.add(b).add(c.add(d)).reduceLanes(VectorOperators.ADD)
+        }
         val bound = SPECIES.loopBound(len)
         var total = DoubleVector.zero(SPECIES)
         while (i < bound) {
             total = total.add(DoubleVector.fromArray(SPECIES, v, vOff + i))
             i += LANE
         }
-        var s = total.reduceLanes(VectorOperators.ADD)
+        s += total.reduceLanes(VectorOperators.ADD)
         while (i < len) {
             s += v[vOff + i]
             i++

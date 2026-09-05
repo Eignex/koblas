@@ -59,10 +59,13 @@ public class F64SparseHouseholderQr internal constructor(
      */
     public val rowOrder: IntArray get() = rowPermutation.copyOf(m)
 
-    override fun solveAllocation(): AllocationCapability = AllocationCapability(
+    /** Built once, as the Markowitz LU does: a caller reaches the strict solve to avoid allocating. */
+    private val solveAllocation = AllocationCapability(
         AllocationGuarantee.NO_MANAGED,
         listOf(ScratchRequirement(ScratchKind.F64, rows)),
     )
+
+    override fun solveAllocation(): AllocationCapability = solveAllocation
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, workspace: Workspace?): DoubleArray {
         requireSolveShapes(m, n, b, out)

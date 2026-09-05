@@ -4,6 +4,8 @@ import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.forEachStored
+import com.eignex.koblas.requireIndex
+import com.eignex.koblas.requireShape
 
 /**
  * [a] with every column [replacements] names replaced by the vector it maps to, in one pass.
@@ -18,10 +20,21 @@ import com.eignex.koblas.forEachStored
 @OptIn(UnsafeKoblasApi::class)
 internal fun replaceColumns(a: F64SparseMatrix, replacements: Map<Int, F64SparseVector>): F64SparseMatrix {
     if (replacements.isEmpty()) return a
+    // Scattered once rather than probed per column. `replacements[j]` boxes its key on every lookup above
+    // the Integer cache, and both passes below would run one lookup for each of `a.cols` columns to find
+    // the handful that are actually replaced.
+    val entering = arrayOfNulls<F64SparseVector>(a.cols)
+    for ((column, vector) in replacements) {
+        requireIndex(column in 0 until a.cols) { "replaceColumns: column $column is outside 0..${a.cols - 1}" }
+        requireShape(vector.size == a.rows) {
+            "replaceColumns: entering column $column has ${vector.size} entries, expected ${a.rows}"
+        }
+        entering[column] = vector
+    }
     val colPtr = IntArray(a.cols + 1)
     for (j in 0 until a.cols) {
         var entries = 0
-        val entering = replacements[j]
+        val entering = entering[j]
         if (entering == null) {
             entries = a.colPtr[j + 1] - a.colPtr[j]
         } else {
@@ -33,7 +46,7 @@ internal fun replaceColumns(a: F64SparseMatrix, replacements: Map<Int, F64Sparse
     val values = DoubleArray(colPtr[a.cols])
     var at = 0
     for (j in 0 until a.cols) {
-        val entering = replacements[j]
+        val entering = entering[j]
         if (entering == null) {
             a.forEachInColumn(j) { i, v ->
                 rowIdx[at] = i
