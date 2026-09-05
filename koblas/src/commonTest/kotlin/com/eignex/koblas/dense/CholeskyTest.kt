@@ -246,17 +246,8 @@ class CholeskyTest {
 
     @Test
     fun `the factorization crosses its block boundary and still reproduces the matrix`() {
-        // Every fixture above fits inside one block column, so the level-3 gather between blocks never ran.
         val n = 100
-        val rng = kotlin.random.Random(20260970)
-        val a = F64DenseMatrix(n)
-        for (j in 0 until n) {
-            for (i in j until n) {
-                val v = if (i == j) n + rng.nextDouble() else rng.nextDouble(-1.0, 1.0)
-                a[i, j] = v
-                a[j, i] = v
-            }
-        }
+        val a = blockCrossingSpd(n)
 
         val l = a.cholesky().l
 
@@ -269,6 +260,37 @@ class CholeskyTest {
             }
         }
         assertTrue(worst < 1e-9, "L·Lᵀ differs from the input by $worst")
+    }
+
+    /**
+     * The gather between block columns is a product over the whole diagonal block, and the sweep that
+     * follows owns only its lower half. What the product left in the other half has to be cleared, or the
+     * factor is not triangular.
+     */
+    @Test
+    fun `the factorization leaves nothing above the diagonal across block boundaries`() {
+        val n = 100
+        val a = blockCrossingSpd(n)
+
+        val l = a.cholesky().l
+
+        for (j in 1 until n) {
+            for (i in 0 until j) assertEquals(0.0, l[i, j], "L($i, $j) is above the diagonal")
+        }
+    }
+
+    /** Diagonally dominant and wider than one block column, so the level-3 gather between blocks runs. */
+    private fun blockCrossingSpd(n: Int): F64DenseMatrix {
+        val rng = kotlin.random.Random(20260970)
+        val a = F64DenseMatrix(n)
+        for (j in 0 until n) {
+            for (i in j until n) {
+                val v = if (i == j) n + rng.nextDouble() else rng.nextDouble(-1.0, 1.0)
+                a[i, j] = v
+                a[j, i] = v
+            }
+        }
+        return a
     }
 
     private fun notPositiveDefinite() = F64DenseMatrix.of(

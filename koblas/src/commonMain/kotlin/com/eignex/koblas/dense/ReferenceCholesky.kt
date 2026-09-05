@@ -99,6 +99,12 @@ private fun gatherEarlierBlocks(
         ld, start + start * n, n,
         height, width, start,
     )
+    // The product covers the whole diagonal block, including the strict upper half of it that the column
+    // sweep neither writes nor reads. Left there it would surface as a nonzero above the factor's diagonal.
+    for (t in 1 until width) {
+        val column = start + t
+        ld.fill(0.0, start + column * n, column + column * n)
+    }
 }
 
 /** The unblocked left-looking sweep over one block column, gathering only from inside the block. */
