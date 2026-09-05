@@ -5,6 +5,7 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.core.F64StridedMatrixView
 import com.eignex.koblas.core.F64StridedVectorView
 import com.eignex.koblas.dense.F64Blas
+import com.eignex.koblas.dense.F64CholeskyDecomposition
 import com.eignex.koblas.dense.F64Decompositions
 import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.dense.F64LinearAlgebra
@@ -287,6 +288,26 @@ public class F64Context internal constructor(
             beforeDispatch(F64RouteQuery.DenseLu(minOf(a.rows, a.cols)))
         }
         return decompositions.factorInto(a, out)
+    }
+
+    override fun choleskyRankUpdate(
+        chol: F64CholeskyDecomposition,
+        v: DoubleArray,
+        sigma: Double,
+        workspace: Workspace?,
+    ): F64CholeskyDecomposition {
+        if (enforcesRoutingPolicy) beforeDispatch(F64RouteQuery.CholeskyRankUpdate(chol.n, rank = 1))
+        return decompositions.choleskyRankUpdate(chol, v, sigma, workspace)
+    }
+
+    override fun choleskyRankUpdate(
+        chol: F64CholeskyDecomposition,
+        v: F64DenseMatrix,
+        sigma: Double,
+        workspace: Workspace?,
+    ): F64CholeskyDecomposition {
+        if (enforcesRoutingPolicy) beforeDispatch(F64RouteQuery.CholeskyRankUpdate(chol.n, v.cols))
+        return decompositions.choleskyRankUpdate(chol, v, sigma, workspace)
     }
 
     @Suppress("LongParameterList")
