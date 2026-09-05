@@ -261,9 +261,10 @@ public fun F64DenseMatrix.scaleRows(d: DoubleArray) {
 /** Scale column `j` by d(j) in place, the product `A * D` for the diagonal D with entries d(j). */
 public fun F64DenseMatrix.scaleColumns(d: DoubleArray) {
     requireShape(d.size == cols) { "scaleColumns: d length ${d.size} != $cols columns" }
+    val kernels = koblas.kernels
     for (j in 0 until cols) {
         val f = d[j]
-        if (f != 1.0) koblas.kernels.scale(data, j * rows, f, rows)
+        if (f != 1.0) kernels.scale(data, j * rows, f, rows)
     }
 }
 
