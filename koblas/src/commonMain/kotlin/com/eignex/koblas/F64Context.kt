@@ -40,10 +40,14 @@ import com.eignex.koblas.sparse.basis.F64BasisSolvers
  * @property basisSolvers simplex basis solvers, a half of their own beside [sparseDecompositions].
  * @param roles the sparse factorization providers selected, which the public constructor reads out of
  *   [sparseDecompositions] and every path inside koblas resolves before building a context.
+ * @property dispatchPolicy the operation-level dispatch requirement for routes this context can inspect.
+ * @property fallbackPolicy the action taken for non-native inspected routes in automatic mode.
+ * @property fallbackWarning notified for each fallback under [F64FallbackPolicy.WARN].
  *
  * The six sparse factorization roles are what this holds; the [sparseDecompositions] property is a
  * compatibility composition derived from the selected general LU, Cholesky, quasi-definite LDL and QR.
  */
+@Suppress("LongParameterList") // the seven backend halves, the resolved roles, and the execution policy
 public class F64Context internal constructor(
     override val kernels: F64Kernels,
     public val blas: F64Blas,
@@ -53,6 +57,9 @@ public class F64Context internal constructor(
     sparseDecompositions: F64SparseDecompositions,
     public val basisSolvers: F64BasisSolvers,
     private val roles: SparseRoles,
+    public val dispatchPolicy: F64DispatchPolicy = F64DispatchPolicy.AUTO,
+    public val fallbackPolicy: F64FallbackPolicy = F64FallbackPolicy.ALLOW,
+    internal val fallbackWarning: (BackendRoute) -> Unit = {},
 ) : F64LinearAlgebra,
     F64Blas by blas,
     F64Decompositions by decompositions,
@@ -60,17 +67,6 @@ public class F64Context internal constructor(
     F64SparseBlas by sparseBlas,
     F64SparseDecompositions by sparseDecompositions,
     F64BasisSolvers by basisSolvers {
-
-    /** The operation-level dispatch requirement for routes this context can inspect. */
-    public var dispatchPolicy: F64DispatchPolicy = F64DispatchPolicy.AUTO
-        private set
-
-    /** The action this context takes for non-native inspected routes in automatic mode. */
-    public var fallbackPolicy: F64FallbackPolicy = F64FallbackPolicy.ALLOW
-        private set
-
-    internal var fallbackWarning: (BackendRoute) -> Unit = {}
-        private set
 
     /**
      * Reads the sparse factorization roles out of [sparseDecompositions], for a caller composing a context
@@ -116,34 +112,6 @@ public class F64Context internal constructor(
     /** A compatibility operation surface derived from the four selected sparse factorization providers. */
     public val sparseDecompositions: F64SparseDecompositions by lazy {
         F64SparseDecompositionRoles(generalSparseLu, sparseCholesky, quasiDefiniteLdl, sparseQr)
-    }
-
-    @Suppress("LongParameterList") // the seven backend halves, the resolved roles, and the execution policy
-    internal constructor(
-        kernels: F64Kernels,
-        blas: F64Blas,
-        decompositions: F64Decompositions,
-        sparseKernels: F64SparseKernels,
-        sparseBlas: F64SparseBlas,
-        sparseDecompositions: F64SparseDecompositions,
-        basisSolvers: F64BasisSolvers,
-        roles: SparseRoles,
-        dispatchPolicy: F64DispatchPolicy,
-        fallbackPolicy: F64FallbackPolicy,
-        fallbackWarning: (BackendRoute) -> Unit,
-    ) : this(
-        kernels,
-        blas,
-        decompositions,
-        sparseKernels,
-        sparseBlas,
-        sparseDecompositions,
-        basisSolvers,
-        roles,
-    ) {
-        this.dispatchPolicy = dispatchPolicy
-        this.fallbackPolicy = fallbackPolicy
-        this.fallbackWarning = fallbackWarning
     }
 
     /**

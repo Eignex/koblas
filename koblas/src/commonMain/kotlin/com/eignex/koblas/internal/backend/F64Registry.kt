@@ -66,11 +66,19 @@ internal class F64Registry {
      */
     val active: F64Context get() {
         installed?.let { return it }
-        val at = changes.load()
-        resolution.load()?.let { if (it.at == at) return it.context }
-        val fresh = Resolution(at, assemble())
-        resolution.store(fresh)
-        return fresh.context
+        while (true) {
+            val at = changes.load()
+            resolution.load()?.let { if (it.at == at) return it.context }
+            val fresh = Resolution(at, assemble())
+            // Published only when no registration overtook the assembly. A backend filling several halves
+            // registers into them one at a time, so an assembly that started between two of them sees it in
+            // one seam and not the other; caching that would hand the same half-applied context to every
+            // later reader until the next change. Re-reading the count is what separates the two cases.
+            if (changes.load() == at) {
+                resolution.store(fresh)
+                return fresh.context
+            }
+        }
     }
 
     /** Overrides [active] wholesale; null restores automatic selection. */
