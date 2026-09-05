@@ -25,6 +25,25 @@ internal fun sparseConformanceSystem(n: Int, rng: Random): F64SparseMatrix {
     return F64SparseMatrix.ofColumns(n, n, columns)
 }
 
+/**
+ * A diagonally dominant system with a randomised diagonal and roughly a sixth of the off-diagonal entries
+ * filled, which is what the factor-reading suites want: sparser than [sparseConformanceSystem] and with no
+ * two pivots the same size.
+ */
+internal fun sparseDominantSystem(n: Int, rng: Random): F64SparseMatrix {
+    val columns = List(n) { j ->
+        val entries = ArrayList<Pair<Int, Double>>()
+        for (i in 0 until n) {
+            when {
+                i == j -> entries.add(i to (n + rng.nextDouble()))
+                rng.nextDouble() < 0.15 -> entries.add(i to rng.nextDouble(-1.0, 1.0))
+            }
+        }
+        entries
+    }
+    return F64SparseMatrix.ofColumns(n, n, columns)
+}
+
 /** A·x computed straight from the CSC arrays, so no seam is involved in checking a seam. */
 internal fun multiply(a: F64SparseMatrix, x: DoubleArray): DoubleArray {
     val y = DoubleArray(a.rows)

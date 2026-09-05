@@ -11,11 +11,15 @@ import kotlin.test.*
 
 @Category(HostLibraryTest::class)
 class KluConformanceTest {
+
+    private fun requireKlu() {
+        Assume.assumeTrue("KLU is not installed; conformance cannot run", klu.isAvailable)
+    }
     private val klu = KluSparseLu(KluConfig())
 
     @Test
     fun `a native factor closes deterministically`() {
-        Assume.assumeTrue("KLU is not installed; conformance cannot run", klu.isAvailable)
+        requireKlu()
         val factorization = klu.factor(sparseConformanceSystem(8, Random(20261005)))
         assertIs<KluFactorization>(factorization)
 
@@ -24,26 +28,26 @@ class KluConformanceTest {
 
     @Test
     fun `repeated solves declare a strict allocation contract`() {
-        Assume.assumeTrue("KLU is not installed; conformance cannot run", klu.isAvailable)
+        requireKlu()
         assertStrictNativeSolveAllocationContract(klu)
     }
 
     @Test
     fun `multiple right hand sides use the KLU block solve`() {
-        Assume.assumeTrue("KLU is not installed; conformance cannot run", klu.isAvailable)
+        requireKlu()
         assertBlockSolvesAgreeWithReference(klu)
     }
 
     @Test
     fun `a symbolic analysis refactors compatible values`() {
-        Assume.assumeTrue("KLU is not installed; conformance cannot run", klu.isAvailable)
+        requireKlu()
 
         assertSymbolicAnalysisReuses(klu)
     }
 
     @Test
     fun `refactoring onto a different order factors afresh rather than raising`() {
-        Assume.assumeTrue("KLU is not installed; conformance cannot run", klu.isAvailable)
+        requireKlu()
         // A mismatched order is reported the way a mismatched pattern of the same order already was, so a
         // caller reusing an analysis for the wrong matrix gets one answer either way. The JVM binding used
         // to raise here while the native one re-factored.
@@ -64,7 +68,7 @@ class KluConformanceTest {
 
     @Test
     fun `a structurally singular matrix factors as singular every time`() {
-        Assume.assumeTrue("KLU is not installed; conformance cannot run", klu.isAvailable)
+        requireKlu()
         // Column 1 is empty, so no pivot exists for it. This is the path that returns before the factor
         // is handed over, and it runs often enough in a circuit or simplex loop that anything it fails to
         // release accumulates.
