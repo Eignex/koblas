@@ -46,6 +46,13 @@ internal class CholmodCalls(private val config: CholmodConfig) {
     /**
      * The library's own `cholmod_common`, started once and shared by every factorization this binding makes.
      *
+     * Every routine that takes one is [Synchronized] on this binding, because a `cholmod_common` is not
+     * parameters alone: analyze, factorize, solve and ssmult allocate and write `Flag`, `Head`, `Iwork` and
+     * `Xwork` inside it, and CHOLMOD asks for one per thread. Two threads sharing this would interleave over
+     * one scratch area and corrupt each other's factors. Serializing costs an uncontended monitor against a
+     * call measured in microseconds; the alternative, a common per factorization as the native binding does,
+     * would also have to answer for the sdmult and ssmult paths, which carry no factor to own one.
+     *
      * Shared rather than per factorization because starting one is what CHOLMOD charges for its workspace,
      * and because a factor has to be freed against the same one it was made with. It is never finished: the
      * factors outlive any scope this could close in, and the process exiting reclaims it.
@@ -140,6 +147,7 @@ internal class CholmodCalls(private val config: CholmodConfig) {
      * Analyze and factorize [a]'s lower triangle into `L·Lᵀ`, or into `L·D·Lᵀ` when [ldl], or null when the
      * library is unusable. The caller owns the returned factor and frees it with [free].
      */
+    @Synchronized
     fun factorize(a: CholmodMatrix, ldl: Boolean = false): CholmodFactor? {
         val bound = handles ?: return null
         val shared = (if (ldl) commonLdl else common) ?: return null
@@ -161,6 +169,7 @@ internal class CholmodCalls(private val config: CholmodConfig) {
     }
 
     /** Solves `A x = b` in place over [x], using caller-retained native [workspace]. */
+    @Synchronized
     fun solve(factor: CholmodFactor, x: DoubleArray, workspace: CholmodSolveWorkspace): Boolean {
         val bound = handles ?: return false
         MemorySegment.copy(x, 0, workspace.rhs, JAVA_DOUBLE, 0L, x.size)
@@ -180,6 +189,7 @@ internal class CholmodCalls(private val config: CholmodConfig) {
     }
 
     /** Multiplies two prepared general sparse descriptors and copies the CSC result back. */
+    @Synchronized
     fun ssmult(a: CholmodMatrix, b: CholmodMatrix): F64SparseMatrix? {
         val bound = handles ?: return null
         val shared = common ?: return null
@@ -213,6 +223,7 @@ internal class CholmodCalls(private val config: CholmodConfig) {
      * [asLl] picks which factorization to read: `L·Lᵀ` keeps the real diagonal, and `L·D·Lᵀ` puts `D` on the
      * diagonal of `L`, which the caller splits out.
      */
+    @Synchronized
     fun extractFactor(factor: CholmodFactor, asLl: Boolean): CholmodFactors? {
         val bound = handles ?: return null
         val copy = bound.copyFactor ?: return null
@@ -254,6 +265,7 @@ internal class CholmodCalls(private val config: CholmodConfig) {
     }
 
     /** CHOLMOD's own reciprocal condition estimate for [factor]. */
+    @Synchronized
     fun rcond(factor: CholmodFactor): Double {
         val bound = handles ?: return 0.0
         return bound.rcond.invokeExact(factor.segment, factor.common) as Double
@@ -266,6 +278,7 @@ internal class CholmodCalls(private val config: CholmodConfig) {
      * for a real matrix.
      */
     @Suppress("LongParameterList") // the routine's own signature, plus the shape the two dense blocks share
+    @Synchronized
     fun sdmult(
         a: CholmodMatrix,
         transpose: Boolean,
@@ -317,6 +330,7 @@ internal class CholmodCalls(private val config: CholmodConfig) {
     }
 
     /** Frees the native factor. */
+    @Synchronized
     fun free(factor: CholmodFactor) {
         val bound = handles ?: return
         Arena.ofConfined().use { arena ->
