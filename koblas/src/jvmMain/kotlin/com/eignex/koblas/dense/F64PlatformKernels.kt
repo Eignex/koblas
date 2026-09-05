@@ -1,7 +1,6 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.F64ModifiedGivens
-import com.eignex.koblas.dense.Simd.UNROLL_MIN
 import com.eignex.koblas.internal.kernels.JvmCKernelBindings
 import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators

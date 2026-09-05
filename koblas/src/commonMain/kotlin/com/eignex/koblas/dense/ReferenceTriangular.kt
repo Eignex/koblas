@@ -35,7 +35,7 @@ internal inline fun forEachRow(
     n: Int,
     b: F64DenseMatrix,
     row: DoubleArray,
-    columnOffset: Int = 0,
+    columnOffset: Int,
     op: (DoubleArray) -> Unit,
 ) {
     if (n == 0) return

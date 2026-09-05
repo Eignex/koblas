@@ -43,13 +43,8 @@ public class F64ModifiedGivens internal constructor(
  * [d1] clears the returned state, and `d2 * y1 == 0.0` returns the identity (`flag == -2.0`) without changing
  * that state.
  */
-@Suppress("CyclomaticComplexMethod") // literal translation of the four Netlib DROTMG cases
-public fun rotmg(
-    d1: Double,
-    d2: Double,
-    x1: Double,
-    y1: Double,
-): F64ModifiedGivens = koblas.kernels.rotmg(d1, d2, x1, y1)
+public fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64ModifiedGivens =
+    koblas.kernels.rotmg(d1, d2, x1, y1)
 
 /** Portable Netlib-reference implementation used by the scalar and fallback kernel backends. */
 @Suppress("CyclomaticComplexMethod") // literal translation of the four Netlib DROTMG cases

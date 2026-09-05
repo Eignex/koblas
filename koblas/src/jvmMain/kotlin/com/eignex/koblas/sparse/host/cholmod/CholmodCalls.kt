@@ -59,9 +59,6 @@ internal class CholmodCalls(private val config: CholmodConfig) {
      */
     private val commonLdl: MemorySegment? by lazy { startCommon(0) }
 
-    /** Whether a libcholmod carrying the 32-bit family opened, which creates no downcall handle. */
-    val libraryPresent: Boolean get() = library.present
-
     /** Whether the library opened, its symbols bound, and a common started. Reading this binds the handles. */
     val available: Boolean get() = common != null
 

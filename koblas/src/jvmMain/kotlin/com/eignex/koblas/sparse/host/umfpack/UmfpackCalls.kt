@@ -66,9 +66,6 @@ internal class UmfpackCalls(private val config: UmfpackConfig) {
         return control
     }
 
-    /** Whether a libumfpack carrying the di family opened, which creates no downcall handle. */
-    val libraryPresent: Boolean get() = library.present
-
     /** Whether the library opened and its symbols bound. Reading this binds the handles. */
     val available: Boolean get() = handles != null
 
