@@ -2,6 +2,7 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
+import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.*
 
@@ -105,6 +106,40 @@ class LinearAlgebraMultiRhsSolveTest {
         }
         for (buffer in listOf(ws.take(n), ws.take(n))) {
             assertTrue(buffer === lent[0] || buffer === lent[1], "the failed solve kept a borrow")
+        }
+    }
+
+    @Test
+    fun `the blocked and column solve paths agree across the panel threshold`() {
+        // The existing coverage sits entirely below both gates, so the blocked walk was never reached. This
+        // order clears the one that turns blocking on, and the widths straddle the panel. The factors are
+        // written rather than computed: an n this size spends most of a factorization's time somewhere the
+        // solve paths under test never reach.
+        val rng = Random(20260951)
+        val n = 512
+        // Off-diagonals stay small: at this order a unit-lower factor with entries near one amplifies the
+        // forward substitution far enough that the two orderings disagree on rounding alone, which would
+        // measure the fixture rather than the paths.
+        val packed = DoubleArray(n * n) { rng.nextDouble(-1.0, 1.0) / n }
+        for (i in 0 until n) packed[i + i * n] = 1.0
+        @OptIn(UnsafeKoblasApi::class)
+        val lu = F64LuDecomposition(n, packed, IntArray(n) { it })
+
+        val nrhs = 8
+        val b = F64DenseMatrix(n, nrhs)
+        for (i in 0 until n) for (j in 0 until nrhs) b[i, j] = rng.nextDouble(-1.0, 1.0)
+        for (transpose in booleanArrayOf(false, true)) {
+            val block = koblas.solve(lu, b, transpose)
+
+            for (c in 0 until nrhs) {
+                val expected = koblas.solve(lu, DoubleArray(n) { b[it, c] }, transpose)
+                // One assertion per column rather than per entry: at this order the interpolated message
+                // would otherwise be built tens of thousands of times and dominate the test.
+                var worst = 0.0
+                for (i in 0 until n) worst = maxOf(worst, abs(expected[i] - block[i, c]))
+
+                assertTrue(worst <= 1e-9, "transpose=$transpose column $c differs from the column solve by $worst")
+            }
         }
     }
 }

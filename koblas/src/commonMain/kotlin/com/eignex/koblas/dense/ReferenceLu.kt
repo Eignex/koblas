@@ -151,8 +151,8 @@ internal fun referenceLuSolveInto(
     return if (transpose) {
         workspace.borrow(n * nrhs) { y ->
             b.data.copyInto(y)
-            trsmCore(kernels, f, n, y, nrhs, lower = false, transpose = true, unitDiag = false)
-            trsmCore(kernels, f, n, y, nrhs, lower = true, transpose = true, unitDiag = true)
+            trsmCore(kernels, f, n, y, nrhs, lower = false, transpose = true, unitDiag = false, workspace = workspace)
+            trsmCore(kernels, f, n, y, nrhs, lower = true, transpose = true, unitDiag = true, workspace = workspace)
             permuteRows(y, out.data, n, nrhs, lu.mutablePivots, gather = false)
         }
         out
@@ -167,8 +167,14 @@ internal fun referenceLuSolveInto(
         } else {
             permuteRows(b.data, out.data, n, nrhs, lu.mutablePivots, gather = true)
         }
-        trsmCore(kernels, f, n, out.data, nrhs, lower = true, transpose = false, unitDiag = true)
-        trsmCore(kernels, f, n, out.data, nrhs, lower = false, transpose = false, unitDiag = false)
+        trsmCore(
+            kernels, f, n, out.data, nrhs,
+            lower = true, transpose = false, unitDiag = true, workspace = workspace,
+        )
+        trsmCore(
+            kernels, f, n, out.data, nrhs,
+            lower = false, transpose = false, unitDiag = false, workspace = workspace,
+        )
         out
     }
 }

@@ -10,6 +10,18 @@ import com.eignex.koblas.requireSquare
 import kotlin.math.max
 import kotlin.math.min
 
+/**
+ * The order at or above which a multi-column triangular solve blocks instead of walking its columns.
+ *
+ * From `BlockSolveBenchmark.blockSolve` on the reference backend at `nrhs = 32`, blocked against the column
+ * loop: `n = 384` was a wash at 727 us against 709 with the error bars overlapping, `n = 512` ran 1.22x
+ * faster at 1265 us against 1546, and `n = 1024` 1.29x faster at 5211 us against 6730, the last two with
+ * error bars clear of one another. Below the crossover the triangle still fits in cache, so re-reading it
+ * per column costs little and the blocking only adds its bookkeeping. This takes the conservative end of
+ * the measured range.
+ */
+private const val TRSM_BLOCKED_MIN_ORDER = 512
+
 /*
  * The portable triangular kernels, netlib dtrsv, dtrsm, dtrmv and dtrmm over a flat column-major buffer.
  * These are the semantic definition a native triangular routine is validated against, and what
@@ -539,7 +551,17 @@ private fun blockedRightMultiply(
     }
 }
 
-/** Applies [trsvCore] to contiguous columns held by decomposition storage that contains both triangles. */
+/**
+ * Solves a triangle against [nrhs] contiguous right-hand sides held by decomposition storage that contains
+ * both triangles.
+ *
+ * One column at a time re-reads the whole triangle per right-hand side, which is `nrhs · n²/2` of traffic
+ * against `nrhs · n²` flops and leaves the solve bandwidth-bound. The blocked form reads it once per panel
+ * instead, so a panel's worth of right-hand sides at or above [TRSM_BLOCKED_MIN_ORDER] goes through
+ * [blockedLeftSolve]. Narrower than a panel the blocked walk would run a single partial one and add only
+ * its bookkeeping, and smaller than the crossover the triangle still fits in cache, so the column loop
+ * stays for both.
+ */
 @Suppress("LongParameterList")
 internal fun trsmCore(
     k: F64Kernels,
@@ -550,8 +572,18 @@ internal fun trsmCore(
     lower: Boolean,
     transpose: Boolean,
     unitDiag: Boolean,
+    workspace: Workspace? = null,
 ) {
-    for (column in 0 until nrhs) {
-        trsvCore(k, a, n, b, xOff = column * n, lower = lower, transpose = transpose, unitDiag = unitDiag)
+    if (nrhs < REFERENCE_NC || n < TRSM_BLOCKED_MIN_ORDER) {
+        for (column in 0 until nrhs) {
+            trsvCore(k, a, n, b, xOff = column * n, lower = lower, transpose = transpose, unitDiag = unitDiag)
+        }
+        return
+    }
+    val panel = F64DenseMatrix.wrap(n, nrhs, b)
+    if (transpose) {
+        workspace.borrow(4) { sums -> blockedLeftSolve(k, a, n, panel, lower, transpose, unitDiag, sums) }
+    } else {
+        blockedLeftSolve(k, a, n, panel, lower, transpose, unitDiag, null)
     }
 }
