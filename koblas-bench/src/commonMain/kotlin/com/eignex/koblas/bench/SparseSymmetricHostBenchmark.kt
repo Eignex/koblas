@@ -20,6 +20,9 @@ class SparseSymmetricHostBenchmark {
     var backend: String = REFERENCE_BACKEND
 
     private lateinit var a: F64SparseMatrix
+    private lateinit var choleskyFactor: F64SparseCholeskyFactorization
+    private lateinit var rhs: DoubleArray
+    private lateinit var solution: DoubleArray
     private lateinit var choleskyAnalysis: F64SparseSymbolicAnalysis<F64SparseCholeskyFactorization>
     private lateinit var ldlAnalysis: F64SparseSymbolicAnalysis<F64QuasiDefiniteLdlFactorization>
 
@@ -28,6 +31,9 @@ class SparseSymmetricHostBenchmark {
         installSparseDecompositionBackend(backend)
         val rng = benchRng()
         a = sparseSpdMatrix(n, rng)
+        choleskyFactor = a.cholesky()
+        rhs = DoubleArray(n) { it * 0.125 - 1.0 }
+        solution = DoubleArray(n)
         choleskyAnalysis = koblas.sparseCholesky.analyzeCholesky(a)
         ldlAnalysis = koblas.quasiDefiniteLdl.analyzeQuasiDefiniteLdl(a)
         val half = koblas.sparseDecompositions.name
@@ -36,6 +42,7 @@ class SparseSymmetricHostBenchmark {
 
     @TearDown
     fun tearDown() {
+        choleskyFactor.close()
         choleskyAnalysis.close()
         ldlAnalysis.close()
     }
@@ -45,6 +52,11 @@ class SparseSymmetricHostBenchmark {
 
     @Benchmark
     fun quasiDefiniteLdl(): F64SparseFactorization = a.quasiDefiniteLdl()
+
+    // The solve against a factor built once, which is where a repeated right-hand side spends its time and
+    // where a binding holding a native descriptor across calls is measured.
+    @Benchmark
+    fun choleskySolve(): DoubleArray = choleskyFactor.solveInto(rhs, solution)
 
     // Against the two above: the same numeric sweep with the pattern already analyzed, so the pair measures
     // what a caller refactorizing one structure saves.

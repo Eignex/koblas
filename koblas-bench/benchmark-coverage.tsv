@@ -62,8 +62,8 @@ F64StridedVectorView.axpy(Double,F64VectorLike)		excluded	The strided-view overl
 F64StridedVectorView.scale(Double)		excluded	The strided-view overload reaches the same scale kernel as the benchmarked dense facade.
 swap(F64StridedVectorView,F64StridedVectorView)		excluded	The strided-view overload reaches the same swap kernel as the benchmarked dense facade.
 copy(F64VectorLike,F64StridedVectorView)		excluded	Copy is a storage transfer rather than a numerical operation dispatched by a backend.
-F64Blas.gemm(F64StridedMatrixView,F64StridedMatrixView)		excluded	The strided-view overloads reach the same gemm kernel as the benchmarked dense facade.
-F64Blas.gemv(F64StridedMatrixView,F64StridedVectorView)		excluded	The strided-view overloads reach the same gemv kernel as the benchmarked dense facade.
+F64Blas.gemm(F64StridedMatrixView,F64StridedMatrixView)		excluded	The host adapter routes strided panels into the same dgemm the benchmarked dense facade reaches; the portable backend does not override the seam and runs its element-by-element default, which is a correctness fallback rather than a kernel worth a row.
+F64Blas.gemv(F64StridedMatrixView,F64StridedVectorView)		excluded	The host adapter routes strided panels into the same dgemv the benchmarked dense facade reaches; the portable backend does not override the seam and runs its element-by-element default, which is a correctness fallback rather than a kernel worth a row.
 F64DenseMatrix.times(Double)		excluded	Scalar multiplication copies the operand and then runs the benchmarked scale kernel.
 F64DenseVector.times(Double)		excluded	Scalar multiplication copies the operand and then runs the benchmarked scale kernel.
 F64DenseVector.unaryMinus()		excluded	Elementwise arithmetic allocates a result and does not select a numerical backend.
@@ -209,6 +209,7 @@ F64SparseQrFactorization.factors()	com.eignex.koblas.bench.SparseQrHostBenchmark
 F64SparseQrFactorization.solve(DoubleArray)	com.eignex.koblas.bench.SparseQrHostBenchmark.qrSolve	benchmarked	
 F64SparseMatrix.transpose(qr arm)	com.eignex.koblas.bench.SparseQrHostBenchmark.transpose	benchmarked	
 F64SparseMatrix.cholesky()	com.eignex.koblas.bench.SparseSymmetricHostBenchmark.cholesky	benchmarked	
+F64SparseCholeskyFactorization.solveInto(DoubleArray,DoubleArray)	com.eignex.koblas.bench.SparseSymmetricHostBenchmark.choleskySolve	benchmarked	
 F64SparseCholesky.analyzeCholesky(F64SparseMatrix)	com.eignex.koblas.bench.SparseSymmetricHostBenchmark.choleskyRefactor	benchmarked	
 F64SparseCholesky.cholesky(F64SparseMatrix) banded	com.eignex.koblas.bench.SparseRefactorBenchmark.bandedCholesky	benchmarked	
 F64SparseCholesky.analyzeCholesky(F64SparseMatrix) banded	com.eignex.koblas.bench.SparseRefactorBenchmark.bandedCholeskyRefactor	benchmarked	
