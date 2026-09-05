@@ -44,7 +44,7 @@ public open class CholmodSparseBlas(
         val snapshot = sparseSnapshotOf(a)
         return CholmodPreparedSparseMatrix(
             snapshot,
-            CholmodMatrix.generalOf(snapshot),
+            CholmodMatrix.retainedGeneralOf(snapshot),
             calls,
         )
     }

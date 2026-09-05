@@ -10,6 +10,7 @@ import org.junit.experimental.categories.Category
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 @Category(HostLibraryTest::class)
@@ -116,6 +117,21 @@ class CholmodSparseBlasTest {
         kotlin.test.assertFailsWith<IllegalStateException> {
             prepared.gemv(1.0, DoubleArray(5), 0.0, DoubleArray(8))
         }
+    }
+
+    @Test
+    fun `a prepared descriptor releases from a thread that did not build it`() {
+        requireCholmod()
+        val prepared = cholmod.prepare(sparse(6, 6, Random(20260905)))
+
+        // A caller who drops a prepared matrix without closing it leaves the cleaner to reclaim it, and
+        // the cleaner runs on its own thread. Closing off-thread here is that path made deterministic.
+        var failure: Throwable? = null
+        val closer = Thread { runCatching { prepared.close() }.onFailure { failure = it } }
+        closer.start()
+        closer.join()
+
+        assertNull(failure, "releasing the prepared descriptor off-thread failed with $failure")
     }
 
     /** The routine takes the sparse operand on the left, so the other side has to stay portable and agree. */

@@ -14,6 +14,11 @@ import java.lang.foreign.ValueLayout.JAVA_LONG
  * The copy is what taking operands as a struct costs. The other bindings hand their arrays straight to the
  * call, where a critical downcall pins them in place; a struct field has to hold an address, and an on-heap
  * array has none to give.
+ *
+ * Whoever closes the descriptor decides which arena it needs. A confined arena rejects a close from any
+ * thread but the one that opened it, so it fits a descriptor a single call opens and closes and costs
+ * nothing to release; one that outlives its call and may be reclaimed by the cleaner thread needs a shared
+ * arena instead. The two factories below say which is which.
  */
 internal class CholmodMatrix private constructor(val segment: MemorySegment, private val arena: Arena) :
     AutoCloseable {
@@ -25,16 +30,22 @@ internal class CholmodMatrix private constructor(val segment: MemorySegment, pri
          * [a]'s lower triangle as a `cholmod_sparse`, with `stype` saying so, which is what makes CHOLMOD
          * read that triangle and ignore whatever is stored above the diagonal.
          */
-        fun lowerTriangleOf(a: F64SparseMatrix): CholmodMatrix = of(a, CHOLMOD_STYPE_LOWER)
+        fun lowerTriangleOf(a: F64SparseMatrix): CholmodMatrix = of(a, CHOLMOD_STYPE_LOWER, Arena.ofConfined())
 
         /**
          * [a] as a `cholmod_sparse` holding every entry it stores, which is what a routine reading the whole
          * matrix rather than a symmetric half of it needs.
          */
-        fun generalOf(a: F64SparseMatrix): CholmodMatrix = of(a, CHOLMOD_STYPE_GENERAL)
+        fun generalOf(a: F64SparseMatrix): CholmodMatrix = of(a, CHOLMOD_STYPE_GENERAL, Arena.ofConfined())
 
-        private fun of(a: F64SparseMatrix, stype: Int): CholmodMatrix {
-            val arena = Arena.ofConfined()
+        /**
+         * [generalOf] for a descriptor that outlives the call that built it. The caller may hand it to a
+         * cleaner, which releases it on its own thread, so this one is held in a shared arena.
+         */
+        fun retainedGeneralOf(a: F64SparseMatrix): CholmodMatrix =
+            of(a, CHOLMOD_STYPE_GENERAL, Arena.ofShared())
+
+        private fun of(a: F64SparseMatrix, stype: Int, arena: Arena): CholmodMatrix {
             return try {
                 CholmodMatrix(describe(a, arena, stype), arena)
             } catch (@Suppress("TooGenericExceptionCaught") failure: Throwable) {
