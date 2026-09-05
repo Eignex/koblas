@@ -423,6 +423,25 @@ private fun blockedLeftTriangularUpdate(
     }
 }
 
+/**
+ * Whether the `size x size` diagonal block at [offset] in a column-major [triangle] of leading dimension
+ * [lda] stores an exact zero in the triangle [lower] selects.
+ *
+ * The zero guard exists so a zero coefficient never forms `0 * Infinity`, and with no zero present the
+ * guarded and unguarded walks are bit-identical. Answering it once per block, rather than letting the
+ * guarded kernel rescan for every right-hand side, is what keeps a scalar pass off the front of each
+ * vector one: the triangle does not change while the rows stream past it.
+ */
+private fun triangleHasZero(triangle: DoubleArray, offset: Int, size: Int, lda: Int, lower: Boolean): Boolean {
+    for (j in 0 until size) {
+        val from = if (lower) j else 0
+        val to = if (lower) size else j + 1
+        val base = offset + j * lda
+        for (i in from until to) if (triangle[base + i] == 0.0) return true
+    }
+    return false
+}
+
 private fun blockedRightSolve(
     k: F64Kernels,
     triangle: DoubleArray,
@@ -441,11 +460,12 @@ private fun blockedRightSolve(
         val start = if (effectiveLower) max(0, boundary - REFERENCE_TRIANGULAR_BLOCK) else boundary
         val end = if (effectiveLower) boundary else min(boundary + REFERENCE_TRIANGULAR_BLOCK, n)
         val size = end - start
+        val guardZeros = triangleHasZero(triangle, start + start * n, size, n, lower)
         forEachRow(size, b, row, start) { row ->
             trsvCore(
                 k, triangle, size, row, start + start * n, 0, n, lower, !transpose, unitDiag,
                 guardZeroPivot = false,
-                guardZeroMatrix = true,
+                guardZeroMatrix = guardZeros,
             )
         }
         if (effectiveLower && start > 0) {
@@ -533,11 +553,12 @@ private fun blockedRightMultiply(
         val start = if (effectiveLower) boundary else max(0, boundary - REFERENCE_TRIANGULAR_BLOCK)
         val end = if (effectiveLower) min(boundary + REFERENCE_TRIANGULAR_BLOCK, n) else boundary
         val size = end - start
+        val guardZeros = triangleHasZero(triangle, start + start * n, size, n, lower)
         forEachRow(size, b, row, start) { row ->
             trmvCore(
                 k, triangle, size, row, start + start * n, 0, n, lower, !transpose, unitDiag,
                 guardZeroInput = false,
-                guardZeroMatrix = true,
+                guardZeroMatrix = guardZeros,
             )
         }
         if (effectiveLower && end < n) {

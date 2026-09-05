@@ -38,6 +38,13 @@ class Level3Benchmark {
     @Benchmark
     fun gemm(): F64DenseMatrix = a * b
 
+    /** The transposed-left panel update, which the plain [gemm] above never reaches. */
+    @Benchmark
+    fun gemmTransposedA(): F64DenseMatrix {
+        koblas.gemm(1.0, a, transposeA = true, b = b, transposeB = false, beta = 0.0, c = c)
+        return c
+    }
+
     @Benchmark
     fun syrk(): F64DenseMatrix {
         koblas.syrk(1.0, a, transpose = false, beta = 0.0, c = c)
