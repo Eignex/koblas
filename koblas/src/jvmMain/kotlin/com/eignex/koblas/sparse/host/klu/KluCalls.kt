@@ -7,7 +7,7 @@ import com.eignex.koblas.internal.host.FfmLibrary.Companion.pointerOf
 import com.eignex.koblas.internal.host.NativeBlock
 import com.eignex.koblas.sparse.host.readDoubles
 import com.eignex.koblas.sparse.host.readInts
-import com.eignex.koblas.sparse.internal.transposeRaw
+import com.eignex.koblas.sparse.internal.sortedCsc
 import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout.*
@@ -124,8 +124,7 @@ internal class KluCalls(private val config: KluConfig) {
         val ptr = readInts(pointers, order + 1)
         val idx = readInts(indices, nonzeros)
         val entries = readDoubles(values, nonzeros)
-        val once = transposeRaw(order, order, ptr, idx, entries)
-        return transposeRaw(order, order, once.colPtr, once.rowIdx, once.values)
+        return sortedCsc(order, order, ptr, idx, entries)
     }
 
     private fun handlesOrThrow(): Handles = checkNotNull(handles) { "KLU 2 is not available" }

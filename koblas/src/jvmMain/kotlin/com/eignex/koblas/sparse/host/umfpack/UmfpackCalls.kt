@@ -4,7 +4,7 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.FfmLibrary
 import com.eignex.koblas.sparse.host.readDoubles
 import com.eignex.koblas.sparse.host.readInts
-import com.eignex.koblas.sparse.internal.transposeRaw
+import com.eignex.koblas.sparse.internal.sortedCsc
 import java.lang.foreign.*
 import java.lang.foreign.ValueLayout.*
 import java.lang.invoke.MethodHandle
@@ -179,18 +179,7 @@ internal class UmfpackCalls(private val config: UmfpackConfig) {
         val ptr = readInts(pointers, order + 1)
         val idx = readInts(indices, nonzeros)
         val entries = readDoubles(values, nonzeros)
-        // Row form is the transpose in CSC, and transposing sorts the rows a library need not have sorted.
-        return if (transposed) {
-            transposeRaw(order, order, ptr, idx, entries)
-        } else {
-            transposeRaw(
-                order,
-                order,
-                ptr,
-                idx,
-                entries,
-            ).let { transposeRaw(order, order, it.colPtr, it.rowIdx, it.values) }
-        }
+        return sortedCsc(order, order, ptr, idx, entries, transposed)
     }
 
     private fun handlesOrThrow(): Handles =

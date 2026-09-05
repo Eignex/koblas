@@ -1,7 +1,6 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.core.F64SparseMatrix
-import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -32,7 +31,7 @@ class PortableSparseFactorsTest {
     fun `the Cholesky factor reproduces the matrix`() {
         val rng = Random(20260902)
         for (n in intArrayOf(1, 6, 30)) {
-            val a = spdLowerTriangle(n, rng)
+            val a = sparseSymmetricConformanceSystem(n, rng)
 
             assertCholeskyFactorReproduces(a, F64ReferenceSparseLinearAlgebra.cholesky(a), "n=$n")
         }
@@ -42,7 +41,7 @@ class PortableSparseFactorsTest {
     fun `the LDL factors reproduce the matrix`() {
         val rng = Random(20260903)
         for (n in intArrayOf(1, 6, 30)) {
-            val a = spdLowerTriangle(n, rng)
+            val a = sparseSymmetricConformanceSystem(n, rng)
 
             assertLdlFactorsReproduce(a, F64ReferenceSparseLinearAlgebra.quasiDefiniteLdl(a), "n=$n")
         }
@@ -86,28 +85,4 @@ private fun dominant(n: Int, rng: Random): F64SparseMatrix {
         entries
     }
     return F64SparseMatrix.ofColumns(n, n, columns)
-}
-
-private fun spdLowerTriangle(n: Int, rng: Random): F64SparseMatrix {
-    val below = List(n) { HashMap<Int, Double>() }
-    val weight = DoubleArray(n)
-    for (j in 0 until n) {
-        for (i in j + 1 until n) {
-            if (rng.nextDouble() >= 0.25) continue
-            val v = rng.nextDouble(-1.0, 1.0)
-            below[j][i] = v
-            weight[i] += abs(v)
-            weight[j] += abs(v)
-        }
-    }
-    return F64SparseMatrix.ofColumns(
-        n,
-        n,
-        List(n) { j ->
-            val column = ArrayList<Pair<Int, Double>>()
-            column.add(j to weight[j] + 1.0)
-            for (i in j + 1 until n) below[j][i]?.let { column.add(i to it) }
-            column
-        },
-    )
 }

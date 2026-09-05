@@ -1,35 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-usage() { echo "usage: $0 --platform <platform> --output <directory>" >&2; exit 2; }
-platform=""; output=""
-while (($#)); do
-    case "$1" in
-        --platform) platform="${2:-}"; shift 2 ;;
-        --output) output="${2:-}"; shift 2 ;;
-        *) usage ;;
-    esac
-done
-[[ -n "$platform" && -n "$output" ]] || usage
-
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$root/scripts/native-build-common.sh"
 source "$root/scripts/third-party-notices.sh"
-lock="$root/koblas-basiclu/basiclu.lock"
-version="$(sed -n 's/^version=//p' "$lock")"
-url="$(sed -n 's/^url=//p' "$lock")"
-expected="$(sed -n 's/^sha256=//p' "$lock")"
-cache="$output/../downloads/basiclu-$version.tar.gz"
-mkdir -p "$(dirname "$cache")"
-if [[ ! -f "$cache" ]]; then curl --fail --location --silent --show-error "$url" -o "$cache"; fi
-actual="$(sha256sum "$cache" | awk '{print $1}')"
-[[ "$actual" == "$expected" ]] || { echo "BASICLU source checksum mismatch" >&2; exit 1; }
 
-case "$platform" in
-    linux-x86_64) [[ "$(uname -s)" == Linux ]] || { echo "linux-x86_64 requires Linux" >&2; exit 1; } ;;
-    linux-arm64) [[ "$(uname -s)" == Linux ]] || { echo "linux-arm64 requires Linux" >&2; exit 1; } ;;
-    macosx-arm64) [[ "$(uname -s)" == Darwin ]] || { echo "macosx-arm64 requires macOS" >&2; exit 1; } ;;
-    *) echo "unsupported BASICLU platform $platform" >&2; exit 1 ;;
-esac
+parse_native_build_args "usage: $0 --platform <platform> --output <directory>" "$@"
+read_native_lock "$root/koblas-basiclu/basiclu.lock"
+cache="$output/../downloads/basiclu-$version.tar.gz"
+fetch_verified_archive "$url" "$cache" "$expected" BASICLU
+require_platform_host "$platform" BASICLU
 
 work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
 tar -xzf "$cache" -C "$work"

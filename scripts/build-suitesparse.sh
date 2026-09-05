@@ -1,37 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-usage() { echo "usage: $0 --platform <platform> --output <directory> --blas <library>" >&2; exit 2; }
-platform=""; output=""; blas=""
-while (($#)); do
-    case "$1" in
-        --platform) platform="${2:-}"; shift 2 ;;
-        --output) output="${2:-}"; shift 2 ;;
-        --blas) blas="${2:-}"; shift 2 ;;
-        *) usage ;;
-    esac
-done
-[[ -n "$platform" && -n "$output" && -n "$blas" ]] || usage
-
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$root/scripts/native-build-common.sh"
 source "$root/scripts/third-party-notices.sh"
-lock="$root/koblas-suitesparse/suitesparse.lock"
-version="$(sed -n 's/^version=//p' "$lock")"
-url="$(sed -n 's/^url=//p' "$lock")"
-expected="$(sed -n 's/^sha256=//p' "$lock")"
+
+accepts_blas=1
+parse_native_build_args "usage: $0 --platform <platform> --output <directory> --blas <library>" "$@"
+read_native_lock "$root/koblas-suitesparse/suitesparse.lock"
 cache="$output/../downloads/suitesparse-$version.tar.gz"
 cache_dir="$(dirname "$cache")"
-mkdir -p "$cache_dir"
-if [[ ! -f "$cache" ]]; then curl --fail --location --silent --show-error "$url" -o "$cache"; fi
-actual="$(sha256sum "$cache" | awk '{print $1}')"
-[[ "$actual" == "$expected" ]] || { echo "SuiteSparse source checksum mismatch" >&2; exit 1; }
-
-case "$platform" in
-    linux-x86_64) [[ "$(uname -s)" == Linux ]] || { echo "linux-x86_64 requires Linux" >&2; exit 1; } ;;
-    linux-arm64) [[ "$(uname -s)" == Linux ]] || { echo "linux-arm64 requires Linux" >&2; exit 1; } ;;
-    macosx-arm64) [[ "$(uname -s)" == Darwin ]] || { echo "macosx-arm64 requires macOS" >&2; exit 1; } ;;
-    *) echo "unsupported SuiteSparse platform $platform" >&2; exit 1 ;;
-esac
+fetch_verified_archive "$url" "$cache" "$expected" SuiteSparse
+require_platform_host "$platform" SuiteSparse
 
 work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
 tar -xzf "$cache" -C "$work"

@@ -184,8 +184,7 @@ public fun F64DenseMatrix.syr2(alpha: Double, x: F64VectorLike, y: F64VectorLike
  * The result owns independent structural and value arrays, and its rows ascend within every column.
  */
 public fun F64SparseMatrix.syr(alpha: Double, x: F64VectorLike, lower: Boolean = true): F64SparseMatrix {
-    requireShape(rows == cols) { "syr: matrix must be square, got ${rows}x$cols" }
-    requireShape(x.size == rows) { "syr: x length ${x.size} != $rows" }
+    requireSyrShape(this, x.size, "syr")
     return sparseSyr(this, alpha, x, lower)
 }
 
@@ -203,9 +202,6 @@ public fun F64SparseMatrix.syr2(
     y: F64VectorLike,
     lower: Boolean = true,
 ): F64SparseMatrix {
-    requireShape(rows == cols) { "syr2: matrix must be square, got ${rows}x$cols" }
-    requireShape(x.size == rows && y.size == rows) {
-        "syr2: operand lengths ${x.size} and ${y.size} must both be $rows"
-    }
+    requireSyr2Shape(this, x.size, y.size, "syr2")
     return sparseSyr2(this, alpha, x, y, lower)
 }

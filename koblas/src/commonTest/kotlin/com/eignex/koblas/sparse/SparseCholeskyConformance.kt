@@ -13,12 +13,17 @@ import kotlin.test.assertTrue
  * factors without an ordering. The off-diagonal pattern is symmetric by construction, which is what makes
  * the stored triangle describe a symmetric matrix at all.
  */
-internal fun sparseSymmetricConformanceSystem(n: Int, rng: Random): F64SparseMatrix {
+internal fun sparseSymmetricConformanceSystem(
+    n: Int,
+    rng: Random,
+    density: Double = 0.25,
+    diagonal: (Int, Double) -> Double = { _, weight -> weight + 1.0 },
+): F64SparseMatrix {
     val below = Array(n) { HashMap<Int, Double>() }
     val weight = DoubleArray(n)
     for (j in 0 until n) {
         for (i in j + 1 until n) {
-            if (rng.nextDouble() >= 0.25) continue
+            if (rng.nextDouble() >= density) continue
             val v = rng.nextDouble(-1.0, 1.0)
             below[j][i] = v
             weight[i] += abs(v)
@@ -28,7 +33,7 @@ internal fun sparseSymmetricConformanceSystem(n: Int, rng: Random): F64SparseMat
     val columns = ArrayList<List<Pair<Int, Double>>>(n)
     for (j in 0 until n) {
         val column = ArrayList<Pair<Int, Double>>()
-        column.add(j to weight[j] + 1.0)
+        column.add(j to diagonal(j, weight[j]))
         for (i in j + 1 until n) below[j][i]?.let { column.add(i to it) }
         columns.add(column)
     }
@@ -90,27 +95,10 @@ internal fun assertLdlAgreesWithReference(decompositions: F64SparseDecomposition
  * invertible and its factorization is well behaved, with the sign of the diagonal alternating so it is not
  * positive definite and a Cholesky would refuse it.
  */
-internal fun indefiniteConformanceSystem(n: Int, rng: Random): F64SparseMatrix {
-    val below = Array(n) { HashMap<Int, Double>() }
-    val weight = DoubleArray(n)
-    for (j in 0 until n) {
-        for (i in j + 1 until n) {
-            if (rng.nextDouble() >= 0.25) continue
-            val v = rng.nextDouble(-1.0, 1.0)
-            below[j][i] = v
-            weight[i] += abs(v)
-            weight[j] += abs(v)
-        }
+internal fun indefiniteConformanceSystem(n: Int, rng: Random): F64SparseMatrix =
+    sparseSymmetricConformanceSystem(n, rng) { j, weight ->
+        if (j % 2 == 0) weight + 1.0 else -(weight + 1.0)
     }
-    val columns = ArrayList<List<Pair<Int, Double>>>(n)
-    for (j in 0 until n) {
-        val column = ArrayList<Pair<Int, Double>>()
-        column.add(j to if (j % 2 == 0) weight[j] + 1.0 else -(weight[j] + 1.0))
-        for (i in j + 1 until n) below[j][i]?.let { column.add(i to it) }
-        columns.add(column)
-    }
-    return F64SparseMatrix.ofColumns(n, n, columns)
-}
 
 /**
  * The Cholesky analysis of a provider against its own ordinary factorization. Every provider owes the same

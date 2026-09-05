@@ -139,6 +139,36 @@ internal fun requireSyrkShape(a: F64DenseMatrix, transpose: Boolean, c: F64Dense
     return SyrkShape(n, k)
 }
 
+/** [SyrkShape] for a `syr2k`, having checked B against A and C against the order. */
+internal fun requireSyr2kShape(
+    a: F64DenseMatrix,
+    b: F64DenseMatrix,
+    transpose: Boolean,
+    c: F64DenseMatrix,
+    what: String,
+): SyrkShape {
+    requireShape(b.rows == a.rows && b.cols == a.cols) {
+        "$what: B is ${b.rows}x${b.cols}, expected ${a.rows}x${a.cols} to match A"
+    }
+    return requireSyrkShape(a, transpose, c, what)
+}
+
+/** Checks the symmetric matrix of a `syr` against its vector, returning its dimension. */
+internal fun requireSyrShape(a: F64MatrixLike, x: Int, what: String): Int {
+    requireSquare(a, what)
+    val n = a.rows
+    requireShape(x == n) { "$what: x length $x != $n" }
+    return n
+}
+
+/** Checks the symmetric matrix of a `syr2` against both vectors, returning its dimension. */
+internal fun requireSyr2Shape(a: F64MatrixLike, x: Int, y: Int, what: String): Int {
+    requireSquare(a, what)
+    val n = a.rows
+    requireShape(x == n && y == n) { "$what: operand lengths $x and $y must both be $n" }
+    return n
+}
+
 /** Checks a symmetric matrix against the two vectors of a `symv`, returning its dimension. */
 internal fun requireSymvShape(a: F64DenseMatrix, x: Int, y: Int): Int {
     requireSquare(a, "symv")

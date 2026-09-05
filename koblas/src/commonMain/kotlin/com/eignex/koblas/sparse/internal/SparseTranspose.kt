@@ -40,3 +40,24 @@ internal fun transposeRaw(
     }
     return F64SparseMatrix.wrap(cols, rows, outPtr, outIdx, outVal)
 }
+
+/**
+ * A validated CSC matrix over the loose arrays a native binding gets back, whose rows the library need not
+ * have sorted within a column.
+ *
+ * Transposing sorts them, so transposing twice both sorts the pattern and returns it to the orientation it
+ * came in. [transposed] keeps the single transpose instead, which is what a library handing back a row form
+ * wants: that form is already the transpose in CSC, so one pass both converts and sorts.
+ */
+internal fun sortedCsc(
+    rows: Int,
+    cols: Int,
+    colPtr: IntArray,
+    rowIdx: IntArray,
+    values: DoubleArray,
+    transposed: Boolean = false,
+): F64SparseMatrix {
+    val once = transposeRaw(rows, cols, colPtr, rowIdx, values)
+    if (transposed) return once
+    return transposeRaw(once.rows, once.cols, once.colPtr, once.rowIdx, once.values)
+}

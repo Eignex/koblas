@@ -130,10 +130,21 @@ public class F64ContextBuilder private constructor(
 
 private fun Map<BackendRole, Backend>.boundReference(role: BackendRole, configured: Backend): Backend {
     val selected = getValue(role)
-    return when (selected) {
-        F64ReferenceLinearAlgebra, F64ReferenceSparseLinearAlgebra -> configured
-        else -> selected
-    }
+    return if (selected.followsProcessKernels()) configured else selected
+}
+
+/**
+ * Whether this selection is a stock portable backend carrying no kernels of its own, which the builder
+ * rebinds onto the kernels the context was built with.
+ *
+ * A property of the backend rather than an identity check against the shared singletons: both reference
+ * backends have a public constructor, so a caller who builds their own would otherwise keep reading the
+ * process default instead of the context's kernels.
+ */
+private fun Backend.followsProcessKernels(): Boolean = when (this) {
+    is F64ReferenceBackend -> kernels === koblas.kernels
+    is F64ReferenceSparseBackend -> configuredKernels == null
+    else -> false
 }
 
 private fun portableSelections(): Map<BackendRole, Backend> =

@@ -221,8 +221,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
      * Non-dense vectors are staged once so the rank update itself is a sequence of contiguous Level 1 calls.
      */
     override fun syr(alpha: Double, x: F64VectorLike, a: F64DenseMatrix, lower: Boolean) {
-        requireShape(a.rows == a.cols) { "syr: matrix must be square, got ${a.rows}x${a.cols}" }
-        requireShape(x.size == a.rows) { "syr: x length ${x.size} != ${a.rows}" }
+        requireSyrShape(a, x.size, "syr")
         if (alpha == 0.0) return
         val kernels = kernels
         val n = a.rows
@@ -243,10 +242,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
      * Non-dense operands are staged once so the rank update itself is a sequence of contiguous Level 1 calls.
      */
     override fun syr2(alpha: Double, x: F64VectorLike, y: F64VectorLike, a: F64DenseMatrix, lower: Boolean) {
-        requireShape(a.rows == a.cols) { "syr2: matrix must be square, got ${a.rows}x${a.cols}" }
-        requireShape(x.size == a.rows && y.size == a.rows) {
-            "syr2: operand lengths ${x.size} and ${y.size} must both be ${a.rows}"
-        }
+        requireSyr2Shape(a, x.size, y.size, "syr2")
         if (alpha == 0.0) return
         val kernels = kernels
         val n = a.rows
@@ -282,12 +278,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         lower: Boolean,
         workspace: Workspace?,
     ) {
-        val n = if (transpose) a.cols else a.rows
-        val k = if (transpose) a.rows else a.cols
-        requireShape(b.rows == a.rows && b.cols == a.cols) {
-            "syr2k: B is ${b.rows}x${b.cols}, expected ${a.rows}x${a.cols} to match A"
-        }
-        requireShape(c.rows == n && c.cols == n) { "syr2k: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
+        val (n, k) = requireSyr2kShape(a, b, transpose, c, "syr2k")
         scaleTriangle(kernels, c.data, n, beta, lower)
         if (alpha == 0.0 || n == 0 || k == 0) return
         if (!transpose) {
