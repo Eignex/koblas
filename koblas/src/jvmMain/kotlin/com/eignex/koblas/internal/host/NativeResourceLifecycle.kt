@@ -3,13 +3,16 @@ package com.eignex.koblas.internal.host
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
-/** Serializes explicit or cleaner-driven release against calls using one native resource. */
-internal class NativeResourceLifecycle(private val description: String, private val release: () -> Unit) : Runnable {
+/** [Runnable] as well, since that is what `Cleaner.register` takes as the action. */
+internal actual class NativeResourceLifecycle actual constructor(
+    private val description: String,
+    private val release: () -> Unit,
+) : Runnable {
     private val activeCalls = AtomicInteger()
     private val closing = AtomicBoolean()
     private val released = AtomicBoolean()
 
-    fun <T> withResource(block: () -> T): T {
+    actual fun <T> withResource(block: () -> T): T {
         while (true) {
             check(!closing.get()) { "$description is closed" }
             val active = activeCalls.get()
@@ -26,9 +29,11 @@ internal class NativeResourceLifecycle(private val description: String, private 
         }
     }
 
-    override fun run() {
+    actual fun close() {
         closing.set(true)
         while (activeCalls.get() != 0) Thread.onSpinWait()
         if (released.compareAndSet(false, true)) release()
     }
+
+    override fun run(): Unit = close()
 }

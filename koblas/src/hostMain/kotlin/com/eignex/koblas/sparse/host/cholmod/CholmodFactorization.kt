@@ -5,15 +5,13 @@ package com.eignex.koblas.sparse.host.cholmod
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.internal.host.NativeResourceLifecycle
+import com.eignex.koblas.internal.host.NativeOwnership
 import com.eignex.koblas.requireSolveShapes
 import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.FactorsNotExposed
 import kotlinx.cinterop.*
 import kotlin.experimental.ExperimentalNativeApi
 import kotlin.math.sqrt
-import kotlin.native.concurrent.ThreadLocal
-import kotlin.native.ref.createCleaner
 
 /** A CHOLMOD factorization with deterministic close and cleaner fallback for its native factor. */
 public class CholmodFactorization internal constructor(
@@ -60,10 +58,7 @@ public class CholmodFactorization internal constructor(
     /** Which factorization this holds, so converting a copy asks for the same one. */
     private val isLl: Boolean = intAt(handle.factor.reinterpret(), CHOLMOD_FACTOR_IS_LL) == CHOLMOD_TRUE
 
-    private val lifecycle = NativeResourceLifecycle("CHOLMOD factorization", handle::release)
-
-    @Suppress("unused") // the cleaner runs when this property becomes unreachable, which is the point
-    private val cleaner = createCleaner(lifecycle) { it.close() }
+    private val ownership = NativeOwnership(this, "CHOLMOD factorization", handle::release)
 
     /** `L` and the ordering, converted on the first read; CHOLMOD copies the factor to convert it. */
     private val extracted: CholmodFactors by lazy {
@@ -176,24 +171,8 @@ public class CholmodFactorization internal constructor(
         return out
     }
 
-    override fun close(): Unit = lifecycle.close()
+    override fun close(): Unit = ownership.close()
 
-    /**
-     * Holds this factorization in a thread-local for the length of a native call, so the cleaner cannot run
-     * against the factor a call still has a pointer to. The same fence the other native bindings take.
-     */
-    private fun <R> anchoring(body: () -> R): R = lifecycle.withResource {
-        val previous = AnchoredCholmod.held
-        AnchoredCholmod.held = this
-        try {
-            body()
-        } finally {
-            AnchoredCholmod.held = previous
-        }
-    }
-}
-
-@ThreadLocal
-private object AnchoredCholmod {
-    var held: CholmodFactorization? = null
+    /** Every native call goes through here; [NativeOwnership] says what that guarantees. */
+    private fun <R> anchoring(body: () -> R): R = ownership.anchoring(body)
 }

@@ -3,14 +3,12 @@ package com.eignex.koblas.sparse.host.basiclu
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.core.F64SparseVector
-import com.eignex.koblas.internal.host.NativeResourceLifecycle
-import com.eignex.koblas.internal.host.keepingReachable
-import com.eignex.koblas.internal.host.nativeCleaner
+import com.eignex.koblas.internal.host.NativeOwnership
 import com.eignex.koblas.requireSolveShapes
 import com.eignex.koblas.sparse.F64BasisFactorization
 import com.eignex.koblas.sparse.F64SparseLuFactorization
-import com.eignex.koblas.sparse.FactorsNotExposed
 import com.eignex.koblas.sparse.host.applyF64Equilibration
+import com.eignex.koblas.sparse.host.factorNotExposed
 import com.eignex.koblas.sparse.internal.replaceColumns
 import com.eignex.koblas.sparse.internal.snapshot
 import kotlin.math.abs
@@ -32,8 +30,7 @@ public open class BasicluFactorization internal constructor(
         }
     }
 
-    private val lifecycle = NativeResourceLifecycle("BASICLU factorization", Release(calls, target)::release)
-    private val cleanable = nativeCleaner.register(this, lifecycle)
+    private val ownership = NativeOwnership(this, "BASICLU factorization", Release(calls, target)::release)
 
     override val n: Int get() = target.n
 
@@ -51,7 +48,7 @@ public open class BasicluFactorization internal constructor(
 
     override val offDiagonal: F64SparseMatrix get() = factorNotExposed("offDiagonal")
 
-    private fun factorNotExposed(factor: String): Nothing = withNativeFactor { throw FactorsNotExposed(factor) }
+    private fun factorNotExposed(factor: String): Nothing = ownership.factorNotExposed(factor)
 
     override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability =
         noSizeDependentManagedAllocation
@@ -79,13 +76,9 @@ public open class BasicluFactorization internal constructor(
             out
         }
 
-    internal fun <T> withNativeFactor(block: () -> T): T = lifecycle.withResource {
-        keepingReachable(this) {
-            block()
-        }
-    }
+    internal fun <T> withNativeFactor(block: () -> T): T = ownership.anchoring(block)
 
-    override fun close(): Unit = cleanable.clean()
+    override fun close(): Unit = ownership.close()
 }
 
 /** A host BASICLU basis whose factors follow a column replacement until BASICLU declines the update. */

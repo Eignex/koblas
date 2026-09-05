@@ -2,13 +2,11 @@ package com.eignex.koblas.sparse.host.hfactor
 
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.internal.host.NativeResourceLifecycle
-import com.eignex.koblas.internal.host.keepingReachable
-import com.eignex.koblas.internal.host.nativeCleaner
+import com.eignex.koblas.internal.host.NativeOwnership
 import com.eignex.koblas.requireSolveShapes
 import com.eignex.koblas.sparse.F64SparseLuFactorization
-import com.eignex.koblas.sparse.FactorsNotExposed
 import com.eignex.koblas.sparse.basis.F64IndexedVector
+import com.eignex.koblas.sparse.host.factorNotExposed
 import java.lang.foreign.MemorySegment
 
 /**
@@ -27,8 +25,7 @@ public class HfactorFactorization internal constructor(
         fun release(): Unit = calls.free(handle)
     }
 
-    private val lifecycle = NativeResourceLifecycle("HFactor factorization", Release(calls, handle)::release)
-    private val cleanable = nativeCleaner.register(this, lifecycle)
+    private val ownership = NativeOwnership(this, "HFactor factorization", Release(calls, handle)::release)
 
     private val carrier = F64IndexedVector(n)
     private val pivotRange = DoubleArray(2)
@@ -48,35 +45,29 @@ public class HfactorFactorization internal constructor(
 
     override val offDiagonal: F64SparseMatrix get() = factorNotExposed("offDiagonal")
 
-    private fun factorNotExposed(factor: String): Nothing = lifecycle.withResource { throw FactorsNotExposed(factor) }
+    private fun factorNotExposed(factor: String): Nothing = ownership.factorNotExposed(factor)
 
     override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability = noManagedAllocation
 
-    override val nnz: Int get() = lifecycle.withResource {
-        keepingReachable(this) {
-            calls.fill(handle)
-        }
+    override val nnz: Int get() = ownership.anchoring {
+        calls.fill(handle)
     }
 
     /** Reaching the pivots copies the whole factorization, so this is sampled rather than polled. */
-    override val rcond: Double get() = lifecycle.withResource {
-        keepingReachable(this) {
-            calls.pivotRange(handle, pivotRange)
-            if (pivotRange[1] == 0.0) 0.0 else pivotRange[0] / pivotRange[1]
-        }
+    override val rcond: Double get() = ownership.anchoring {
+        calls.pivotRange(handle, pivotRange)
+        if (pivotRange[1] == 0.0) 0.0 else pivotRange[0] / pivotRange[1]
     }
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray =
-        lifecycle.withResource {
+        ownership.anchoring {
             requireSolveShapes(n, n, b, out)
             carrier.scatter(b)
-            carrier.count = keepingReachable(this) {
-                calls.solve(handle, carrier.count, carrier.indices, carrier.values, DENSE, transpose)
-            }
+            carrier.count = calls.solve(handle, carrier.count, carrier.indices, carrier.values, DENSE, transpose)
             carrier.gather(out)
         }
 
-    override fun close(): Unit = cleanable.clean()
+    override fun close(): Unit = ownership.close()
 
     private companion object {
         /** A dense right-hand side is what a general solve is handed, so the sweeps are chosen for one. */

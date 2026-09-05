@@ -6,6 +6,7 @@ package com.eignex.koblas.sparse.host.umfpack
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.NotPositiveDefinite
 import com.eignex.koblas.discoverBackends
+import com.eignex.koblas.internal.host.NativeAnchor
 import com.eignex.koblas.koblas
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.sparse.host.F64SparseBackends
@@ -177,9 +178,9 @@ class UmfpackNativeConformanceTest {
     fun `the call anchor is released once the call returns`() {
         val a = sparseConformanceSystem(12, Random(20260922))
         val f = umfpack.factor(a)
-        assertNull(AnchoredFactorization.held, "nothing should be anchored before a call")
+        assertNull(NativeAnchor.held, "nothing should be anchored before a call")
         f.solve(DoubleArray(12) { 1.0 })
-        assertNull(AnchoredFactorization.held, "solve left its factorization anchored")
+        assertNull(NativeAnchor.held, "solve left its factorization anchored")
     }
 
     @Test

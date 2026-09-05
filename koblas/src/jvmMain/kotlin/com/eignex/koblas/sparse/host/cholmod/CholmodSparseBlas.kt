@@ -4,8 +4,7 @@ import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.backend.BackendNames
-import com.eignex.koblas.internal.host.NativeResourceLifecycle
-import com.eignex.koblas.internal.host.nativeCleaner
+import com.eignex.koblas.internal.host.NativeOwnership
 import com.eignex.koblas.sparse.F64PreparedSparseMatrix
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.host.F64SparseBlasAdapter
@@ -77,8 +76,7 @@ private class CholmodPreparedSparseMatrix(
     private val matrix: CholmodMatrix,
     private val calls: CholmodCalls,
 ) : F64PreparedSparseMatrix {
-    private val lifecycle = NativeResourceLifecycle("prepared CHOLMOD matrix", matrix::close)
-    private val cleanable = nativeCleaner.register(this, lifecycle)
+    private val ownership = NativeOwnership(this, "prepared CHOLMOD matrix", matrix::close)
 
     override val rows: Int get() = snapshot.rows
     override val cols: Int get() = snapshot.cols
@@ -86,7 +84,7 @@ private class CholmodPreparedSparseMatrix(
 
     override fun gemv(alpha: Double, x: DoubleArray, beta: Double, y: DoubleArray, transpose: Boolean) {
         val shape = requireGemvShape(rows, cols, transpose, x.size, y.size)
-        lifecycle.withResource {
+        anchoring {
             if (!calls.sdmult(matrix, transpose, alpha, x, beta, y, 1, shape.inputs, shape.outputs)) {
                 F64ReferenceSparseLinearAlgebra.gemv(alpha, snapshot, x, beta, y, transpose)
             }
@@ -102,7 +100,7 @@ private class CholmodPreparedSparseMatrix(
         workspace: Workspace?,
     ) {
         requireGemmShape(rows, cols, transposeA, b, transposeB = false, c = c)
-        lifecycle.withResource {
+        anchoring {
             if (!calls.sdmult(matrix, transposeA, alpha, b.data, beta, c.data, b.cols, b.rows, c.rows)) {
                 F64ReferenceSparseLinearAlgebra.gemm(
                     alpha,
@@ -118,11 +116,14 @@ private class CholmodPreparedSparseMatrix(
         }
     }
 
-    override fun gemm(b: F64SparseMatrix): F64SparseMatrix = lifecycle.withResource {
+    override fun gemm(b: F64SparseMatrix): F64SparseMatrix = anchoring {
         CholmodMatrix.generalOf(b).use { right ->
             calls.ssmult(matrix, right) ?: F64ReferenceSparseLinearAlgebra.gemm(snapshot, b)
         }
     }
 
-    override fun close(): Unit = cleanable.clean()
+    override fun close(): Unit = ownership.close()
+
+    /** Every native call goes through here; [NativeOwnership] says what that guarantees. */
+    private fun <R> anchoring(body: () -> R): R = ownership.anchoring(body)
 }

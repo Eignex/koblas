@@ -9,15 +9,13 @@ package com.eignex.koblas.sparse.host.klu
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.internal.host.NativeResourceLifecycle
+import com.eignex.koblas.internal.host.NativeOwnership
 import com.eignex.koblas.requireFactored
 import com.eignex.koblas.requireSolveShapes
 import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.FactorsNotExposed
 import kotlinx.cinterop.*
 import kotlin.experimental.ExperimentalNativeApi
-import kotlin.native.concurrent.ThreadLocal
-import kotlin.native.ref.createCleaner
 
 /** KLU's symbolic and numeric objects behind koblas's [F64SparseLuFactorization]. */
 public class KluFactorization internal constructor(
@@ -46,7 +44,7 @@ public class KluFactorization internal constructor(
         }
     }
 
-    private val lifecycle = NativeResourceLifecycle("KLU factorization", handle::release)
+    private val ownership = NativeOwnership(this, "KLU factorization", handle::release)
 
     /** The factors, extracted on the first read; KLU copies them out of its numeric object. */
     private var extracted: Lazy<KluFactors> = freshExtraction()
@@ -78,9 +76,6 @@ public class KluFactorization internal constructor(
     override val columnOrder: IntArray get() = factors.columnOrder.copyOf()
 
     override val rowScaling: DoubleArray get() = factors.rowScaling.copyOf()
-
-    @Suppress("unused") // the cleaner runs when this property becomes unreachable, which is the point
-    private val cleaner = createCleaner(lifecycle) { it.close() }
 
     override var failedAt: Int = NOT_SINGULAR
         internal set
@@ -173,25 +168,8 @@ public class KluFactorization internal constructor(
         }
     }
 
-    override fun close(): Unit = lifecycle.close()
+    override fun close(): Unit = ownership.close()
 
-    /**
-     * Runs [body] with this factorization reachable from a global, so the cleaner cannot free the objects
-     * while the native call inside it is reading them.
-     */
-    private fun <R> anchoring(body: () -> R): R = lifecycle.withResource {
-        val previous = AnchoredKlu.held
-        AnchoredKlu.held = this
-        try {
-            body()
-        } finally {
-            AnchoredKlu.held = previous
-        }
-    }
-}
-
-/** Holds the factorization a native call is reading, the counterpart of UMFPACK's own anchor. */
-@ThreadLocal
-internal object AnchoredKlu {
-    var held: KluFactorization? = null
+    /** Every native call goes through here; [NativeOwnership] says what that guarantees. */
+    private fun <R> anchoring(body: () -> R): R = ownership.anchoring(body)
 }

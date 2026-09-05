@@ -4,9 +4,7 @@ import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
 import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.internal.host.NativeResourceLifecycle
-import com.eignex.koblas.internal.host.keepingReachable
-import com.eignex.koblas.internal.host.nativeCleaner
+import com.eignex.koblas.internal.host.NativeOwnership
 import com.eignex.koblas.requireInBounds
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.sparse.basis.BasisUpdate
@@ -42,8 +40,7 @@ public class HfactorBasisSolver internal constructor(
         fun release(): Unit = calls.free(handle)
     }
 
-    private val lifecycle = NativeResourceLifecycle("HFactor basis solver", Release(calls, handle)::release)
-    private val cleanable = nativeCleaner.register(this, lifecycle)
+    private val ownership = NativeOwnership(this, "HFactor basis solver", Release(calls, handle)::release)
 
     override val n: Int = a.rows
 
@@ -57,32 +54,25 @@ public class HfactorBasisSolver internal constructor(
     override var singular: Boolean = true
         private set
 
-    override val rcond: Double get() = lifecycle.withResource {
-        if (!factorized || singular) return@withResource 0.0
-        keepingReachable(this) {
-            calls.pivotRange(handle, pivotRange)
-            if (pivotRange[1] == 0.0) 0.0 else pivotRange[0] / pivotRange[1]
-        }
+    override val rcond: Double get() = ownership.anchoring {
+        if (!factorized || singular) return@anchoring 0.0
+        calls.pivotRange(handle, pivotRange)
+        if (pivotRange[1] == 0.0) 0.0 else pivotRange[0] / pivotRange[1]
     }
 
-    override val updateCount: Int get() = lifecycle.withResource {
-        keepingReachable(this) {
-            if (factorized) calls.updateCount(handle) else 0
-        }
+    override val updateCount: Int get() = ownership.anchoring {
+        if (factorized) calls.updateCount(handle) else 0
     }
 
-    override val nnz: Int get() = lifecycle.withResource {
-        keepingReachable(this) {
-            if (factorized) calls.fill(handle) else 0
-        }
+    override val nnz: Int get() = ownership.anchoring {
+        if (factorized) calls.fill(handle) else 0
     }
 
-    override fun refactorize(basicIndex: IntArray): Boolean = lifecycle.withResource {
+    override fun refactorize(basicIndex: IntArray): Boolean = ownership.anchoring {
         requireShape(basicIndex.size == n) { "refactorize: basicIndex size ${basicIndex.size} != $n" }
         for (t in 0 until n) requireInBounds(basicIndex[t], columns)
-        val deficiency = keepingReachable(this) {
-            calls.build(handle, basicIndex)
-        }
+        val deficiency = calls.build(handle, basicIndex)
+
         basicIndex.copyInto(this.basicIndex)
         forgetSolves()
         factorized = true
@@ -95,18 +85,18 @@ public class HfactorBasisSolver internal constructor(
         !singular
     }
 
-    override fun ftran(x: F64IndexedVector, expectedDensity: Double): Unit = lifecycle.withResource {
+    override fun ftran(x: F64IndexedVector, expectedDensity: Double): Unit = ownership.anchoring {
         solveNative(x, expectedDensity, transpose = false)
         lastFtran = x
     }
 
-    override fun btran(x: F64IndexedVector, expectedDensity: Double): Unit = lifecycle.withResource {
+    override fun btran(x: F64IndexedVector, expectedDensity: Double): Unit = ownership.anchoring {
         solveNative(x, expectedDensity, transpose = true)
         lastBtran = x
     }
 
     override fun solveQuality(rhs: DoubleArray, solution: F64IndexedVector, transpose: Boolean): F64BasisSolveQuality =
-        lifecycle.withResource {
+        ownership.anchoring {
             checkSolvable()
             basisSolveQuality(a, basicIndex, rhs, solution, transpose)
         }
@@ -116,21 +106,21 @@ public class HfactorBasisSolver internal constructor(
         entering: Int,
         spike: F64IndexedVector,
         pivotEta: F64IndexedVector?,
-    ): BasisUpdate = lifecycle.withResource {
+    ): BasisUpdate = ownership.anchoring {
         requireInBounds(pivotRow, n)
         requireInBounds(entering, columns)
         requireShape(spike.size == n) { "update: spike size ${spike.size} != $n" }
-        if (!factorized || singular) return@withResource BasisUpdate.SINGULAR
+        if (!factorized || singular) return@anchoring BasisUpdate.SINGULAR
         /*
          * Judged on the spike the caller passed rather than on the one HFactor may be about to recompute,
          * so an update is refused for the same inputs the portable solver refuses it for. The bridge checks
          * again on whatever it ends up with.
          */
         val pivot = spike[pivotRow]
-        if (pivot == 0.0 || !pivot.isFinite()) return@withResource BasisUpdate.SINGULAR
-        val advice = keepingReachable(this) {
+        if (pivot == 0.0 || !pivot.isFinite()) return@anchoring BasisUpdate.SINGULAR
+        val advice =
             calls.update(handle, pivotRow, entering, spike === lastFtran, pivotEta != null && pivotEta === lastBtran)
-        }
+
         // The update consumes both native vectors, so neither answers for a caller's vector afterwards.
         forgetSolves()
         when (advice) {
@@ -146,9 +136,7 @@ public class HfactorBasisSolver internal constructor(
     private fun solveNative(x: F64IndexedVector, expectedDensity: Double, transpose: Boolean) {
         checkSolvable()
         requireShape(x.size == n) { "solve: x size ${x.size} != $n" }
-        x.count = keepingReachable(this) {
-            calls.solve(handle, x.count, x.indices, x.values, expectedDensity, transpose)
-        }
+        x.count = calls.solve(handle, x.count, x.indices, x.values, expectedDensity, transpose)
     }
 
     private fun checkSolvable() {
@@ -161,5 +149,5 @@ public class HfactorBasisSolver internal constructor(
         lastBtran = null
     }
 
-    override fun close(): Unit = cleanable.clean()
+    override fun close(): Unit = ownership.close()
 }
