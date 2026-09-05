@@ -108,7 +108,7 @@ internal class F64ReferenceDecompositions(private val configured: F64Kernels? = 
     override fun rcond(lu: F64LuDecomposition, anorm: Double, workspace: Workspace?): Double {
         requireLuSquare(lu, "rcond")
         requireRcondAnorm(anorm)
-        val n = lu.n
+        val n = lu.order
         if (n == 0) return 1.0
         if (lu.singular || anorm == 0.0) return 0.0
         val x = workspace?.take(n) ?: DoubleArray(n)
@@ -166,7 +166,7 @@ internal class F64ReferenceDecompositions(private val configured: F64Kernels? = 
                 "invert: factorization is singular at pivot ${lu.failedAt}, so the inverse does not exist",
             )
         }
-        val n = lu.n
+        val n = lu.order
         val inv = F64DenseMatrix.diagonal(n)
         return solveInto(lu, inv, inv, transpose = false, workspace = workspace)
     }

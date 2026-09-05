@@ -93,7 +93,7 @@ public abstract class F64DecompositionsAdapter internal constructor(
                 "invert: factorization is singular at pivot ${lu.failedAt}, so the inverse does not exist",
             )
         }
-        val n = lu.n
+        val n = lu.order
         if (n == 0) return F64DenseMatrix(0, 0)
         val inv = F64DenseMatrix(n, n, lu.lu.copyOf())
         val info = f.dgetri(COL_MAJOR, n, inv.data, n, lapackPivots(lu.mutablePivots, n))
@@ -236,7 +236,7 @@ public abstract class F64DecompositionsAdapter internal constructor(
     ): DoubleArray {
         requireLuSquare(lu, "solve")
         requireFactored(lu.failedAt, "solve")
-        val n = lu.n
+        val n = lu.order
         requireShape(b.size == n) { "solve: b length ${b.size} != $n" }
         requireShape(out.size == n) { "solve: out length ${out.size} != $n" }
         if (n == 0) return out
@@ -254,7 +254,7 @@ public abstract class F64DecompositionsAdapter internal constructor(
     ): F64DenseMatrix {
         requireLuSquare(lu, "solve")
         requireFactored(lu.failedAt, "solve")
-        val n = lu.n
+        val n = lu.order
         val nrhs = b.cols
         requireSolveShapes(n, n, b, out)
         if (n == 0 || nrhs == 0) return out
@@ -270,7 +270,7 @@ public abstract class F64DecompositionsAdapter internal constructor(
         transpose: Boolean,
         workspace: Workspace?,
     ): F64DenseMatrix {
-        val n = lu.n
+        val n = lu.order
         val nrhs = b.cols
         val factor = lu.lu
         if (transpose) {
@@ -393,7 +393,7 @@ public abstract class F64DecompositionsAdapter internal constructor(
     override fun rcond(lu: F64LuDecomposition, anorm: Double, workspace: Workspace?): Double {
         requireLuSquare(lu, "rcond")
         requireRcondAnorm(anorm)
-        val n = lu.n
+        val n = lu.order
         if (n == 0) return 1.0
         if (lu.singular || anorm == 0.0) return 0.0
         val out = DoubleArray(1)

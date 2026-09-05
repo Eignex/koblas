@@ -19,4 +19,15 @@ public class F64CholeskyDecomposition @UnsafeKoblasApi constructor(
 
     /** The dimension of the factored matrix. */
     public val n: Int get() = l.rows
+
+    /**
+     * How many pivots [CholeskyPolicy.Regularize] replaced, or zero for a factorization of the input itself.
+     *
+     * A regularized factor is a genuine Cholesky of a nearby matrix rather than of the one handed in, and
+     * without this there is no way to ask whether that happened: the policy raises nothing, and the factor it
+     * returns looks like any other. A caller reading [logAbsDeterminant] off a factor with a nonzero count is
+     * reading the perturbed matrix's determinant.
+     */
+    public var regularizations: Int = 0
+        internal set
 }

@@ -22,7 +22,13 @@ public class F64LuDecomposition @UnsafeKoblasApi constructor(
     /** The mutable factorization buffer for internal implementations. */
     internal val mutablePivots: IntArray = piv
 
-    /** Compatibility name for the number of DGETRF pivot steps, [order]. */
+    /**
+     * Compatibility name for the number of DGETRF pivot steps, [order].
+     *
+     * Deprecated because `n` names three different quantities across the decomposition types: the column
+     * count on a QR, the dimension on a Cholesky, and `min(rows, cols)` here. [order] says which.
+     */
+    @Deprecated("Ambiguous across the decomposition types.", ReplaceWith("order"))
     public val n: Int get() = order
 
     /** Number of packed diagonal entries and DGETRF pivot steps. */
