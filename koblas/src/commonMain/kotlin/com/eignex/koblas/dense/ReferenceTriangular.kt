@@ -7,6 +7,7 @@ import com.eignex.koblas.borrow
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.requireSquare
+import com.eignex.koblas.requireTriangularMatrixShape
 import kotlin.math.max
 import kotlin.math.min
 
@@ -277,16 +278,14 @@ internal fun triangularMatrix(
     workspace: Workspace? = null,
 ) {
     val what = if (solve) "trsm" else "trmm"
-    requireSquare(a, what)
+    requireTriangularMatrixShape(a, b, right, what)
     if (right) {
-        requireShape(b.cols == a.rows) { "$what right: B has ${b.cols} cols, expected ${a.rows}" }
         if (alpha == 0.0) {
             b.data.fill(0.0)
             return
         }
         if (alpha != 1.0) k.scale(b.data, 0, alpha, b.data.size)
     } else {
-        requireShape(b.rows == a.rows) { "$what: B has ${b.rows} rows, expected ${a.rows}" }
         if (alpha == 0.0) {
             b.data.fill(0.0)
             return

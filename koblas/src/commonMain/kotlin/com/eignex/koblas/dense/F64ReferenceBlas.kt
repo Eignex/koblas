@@ -126,9 +126,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         lower: Boolean,
         workspace: Workspace?,
     ) {
-        val n = if (transpose) a.cols else a.rows
-        val k = if (transpose) a.rows else a.cols
-        requireShape(c.rows == n && c.cols == n) { "syrk: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
+        val (n, k) = requireSyrkShape(a, transpose, c, "syrk")
         val cd = c.data
         scaleTriangle(kernels, cd, n, beta, lower)
         if (alpha == 0.0 || n == 0 || k == 0) return
@@ -143,10 +141,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
 
     @Suppress("LongParameterList") // the BLAS dsymv signature
     override fun symv(alpha: Double, a: F64DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) {
-        requireShape(a.rows == a.cols) { "symv: matrix must be square, got ${a.rows}x${a.cols}" }
-        val n = a.rows
-        requireShape(x.size == n) { "symv: x length ${x.size} != $n" }
-        requireShape(y.size == n) { "symv: y length ${y.size} != $n" }
+        val n = requireSymvShape(a, x.size, y.size)
         applyBeta(kernels, y, 0, n, beta)
         if (alpha == 0.0) return
         symvAccumulate(alpha, a.data, n, x, y, lower)
