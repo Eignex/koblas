@@ -195,9 +195,12 @@ internal fun blockedTransposedLeftUpdate(
         var row = 0
         while (row < m) {
             val rowEnd = min(row + REFERENCE_MC, m)
-            for (j in column until columnEnd) {
-                var i = row
-                while (i + 4 <= rowEnd) {
+            // The row quad is the outer of the two, so the four A columns it reads stay in L1 while the
+            // column block's B streams past them. With the columns outside instead, each of them re-read
+            // the whole row panel, which is REFERENCE_NC passes over it rather than one.
+            var i = row
+            while (i + 4 <= rowEnd) {
+                for (j in column until columnEnd) {
                     var inner = 0
                     while (inner < depth) {
                         val length = min(inner + REFERENCE_KC, depth) - inner
@@ -214,9 +217,11 @@ internal fun blockedTransposedLeftUpdate(
                         for (r in 0 until 4) c[cOff + i + r + j * ldc] += alpha * sums[r]
                         inner += length
                     }
-                    i += 4
                 }
-                while (i < rowEnd) {
+                i += 4
+            }
+            while (i < rowEnd) {
+                for (j in column until columnEnd) {
                     var inner = 0
                     while (inner < depth) {
                         val length = min(inner + REFERENCE_KC, depth) - inner
@@ -229,8 +234,8 @@ internal fun blockedTransposedLeftUpdate(
                         )
                         inner += length
                     }
-                    i++
                 }
+                i++
             }
             row = rowEnd
         }
