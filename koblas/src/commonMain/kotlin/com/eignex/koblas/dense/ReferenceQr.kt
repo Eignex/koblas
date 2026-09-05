@@ -5,6 +5,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import kotlin.math.abs
+import kotlin.math.hypot
 import kotlin.math.sqrt
 
 /*
@@ -149,8 +150,11 @@ private fun householderColumn(kernels: F64Kernels, buf: DoubleArray, m: Int, col
     // triangular form, which is valid but puts a sign in R that LAPACK does not, and the last column of
     // every square matrix takes that path.
     val alpha = buf[base]
-    if (kernels.nrm2(buf, base + 1, len - 1) == 0.0) return 0.0
-    val norm = kernels.nrm2(buf, base, len)
+    val tailNorm = kernels.nrm2(buf, base + 1, len - 1)
+    if (tailNorm == 0.0) return 0.0
+    // hypot rather than a second nrm2 over the whole column: the tail is already measured, and nrm2 is a
+    // single-accumulator reduction running at add latency, so the second pass costs what the first did.
+    val norm = hypot(alpha, tailNorm)
     val beta = if (alpha >= 0.0) -norm else norm
     // Division keeps a subnormal v0 from becoming an infinity.
     val v0 = alpha - beta

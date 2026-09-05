@@ -119,7 +119,9 @@ public fun F64PivotedSymmetricIndefiniteDecomposition.packedFactor(): F64DenseMa
  * Householder kernel. Supplying [workspace] reuses two length-`m` staging vectors across all columns.
  */
 public fun F64QrDecomposition.explicitQ(workspace: Workspace? = null): F64DenseMatrix {
-    val q = F64DenseMatrix.diagonal(m)
+    // Not diagonal(m): every entry is overwritten by the column writes below, so writing the identity
+    // first is m of them thrown away.
+    val q = F64DenseMatrix(m, m)
     workspace.borrow(m) { input ->
         workspace.borrow(m) { output ->
             for (column in 0 until m) {

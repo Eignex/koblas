@@ -63,10 +63,14 @@ public data class AllocationCapability(
     public val scratch: List<ScratchRequirement> = emptyList(),
 ) {
     init {
-        val keys = HashSet<Pair<ScratchKind, Int>>()
-        for ((kind, size) in scratch) {
-            require(keys.add(kind to size)) {
-                "duplicate $kind scratch requirement of size $size"
+        // Scanned rather than hashed. The list is a handful of entries at most, and a set would cost a
+        // HashSet plus a Pair and a boxed Int per requirement on a type that operations build to promise
+        // they will not allocate.
+        for (i in scratch.indices) {
+            for (j in 0 until i) {
+                require(scratch[j].kind != scratch[i].kind || scratch[j].size != scratch[i].size) {
+                    "duplicate ${scratch[i].kind} scratch requirement of size ${scratch[i].size}"
+                }
             }
         }
     }
