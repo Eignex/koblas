@@ -99,10 +99,19 @@ internal class BasicluCalls(private val config: BasicluConfig) {
     fun factorize(target: BasicluObject, colPtr: IntArray, rowIdx: IntArray, values: DoubleArray): Long {
         val h = handlesOrThrow()
         return Arena.ofConfined().use { arena ->
-            val begin = arena.allocateFrom(JAVA_LONG, *LongArray(target.n) { colPtr[it].toLong() })
-            val end = arena.allocateFrom(JAVA_LONG, *LongArray(target.n) { colPtr[it + 1].toLong() })
-            val rows = arena.allocateFrom(JAVA_LONG, *LongArray(rowIdx.size) { rowIdx[it].toLong() })
-            val entries = arena.allocateFrom(JAVA_DOUBLE, *values)
+            // Widened straight into the arena. `allocateFrom(layout, vararg)` reached through a spread
+            // built the widened array on the heap, copied it again for the varargs and a third time into
+            // the arena, so each index array cost three passes and two pieces of garbage.
+            val begin = arena.allocate(JAVA_LONG, target.n.toLong())
+            val end = arena.allocate(JAVA_LONG, target.n.toLong())
+            for (j in 0 until target.n) {
+                begin.setAtIndex(JAVA_LONG, j.toLong(), colPtr[j].toLong())
+                end.setAtIndex(JAVA_LONG, j.toLong(), colPtr[j + 1].toLong())
+            }
+            val rows = arena.allocate(JAVA_LONG, rowIdx.size.toLong())
+            for (k in rowIdx.indices) rows.setAtIndex(JAVA_LONG, k.toLong(), rowIdx[k].toLong())
+            val entries = arena.allocate(JAVA_DOUBLE, values.size.toLong())
+            MemorySegment.copy(values, 0, entries, JAVA_DOUBLE, 0L, values.size)
             h.factorize.invokeExact(target.obj, begin, end, rows, entries) as Long
         }
     }

@@ -1,9 +1,12 @@
+@file:OptIn(UnsafeKoblasApi::class)
+
 package com.eignex.koblas.sparse.host.basiclu
 
 import com.eignex.koblas.BackendMetadata
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
 import com.eignex.koblas.SingularMatrix
+import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.core.F64SparseVector
@@ -51,7 +54,11 @@ public open class BasicluSparseLu(
      * undone in the solves, by the same power-of-two factors the portable factorization uses.
      */
     final override fun factorNative(a: F64SparseMatrix): F64SparseLuFactorization {
-        val rowIdx = a.copyRowIndices()
+        // Read, never written: f64EquilibrationScale and f64ScaledValues only index these, and
+        // calls.factorize hands them straight to a library that reads them. Copying cost an
+        // O(nnz) and an O(n) pass per factorization for nothing, where the KLU binding beside it
+        // already passes the live arrays.
+        val rowIdx = a.rowIdx
         val scale = if (equilibrate) f64EquilibrationScale(a.rows, rowIdx, a.values) else null
         val values = if (scale == null) a.values else f64ScaledValues(rowIdx, a.values, scale)
         val target = factored(a, rowIdx, values)
@@ -70,7 +77,7 @@ public open class BasicluSparseLu(
     final override fun factorBasis(basis: F64SparseMatrix): F64BasisFactorization {
         requireSquare(basis, "factorBasis")
         if (!nativeAvailable) return F64RefactoringBasisFactorization(this, basis, factor(basis))
-        val target = factored(basis, basis.copyRowIndices(), basis.values)
+        val target = factored(basis, basis.rowIdx, basis.values)
             ?: return F64SingularBasisFactorization(this, basis)
         return BasicluBasisFactorization(this, basis, target, calls)
     }
@@ -81,7 +88,7 @@ public open class BasicluSparseLu(
      */
     private fun factored(a: F64SparseMatrix, rowIdx: IntArray, values: DoubleArray): BasicluObject? {
         val target = calls.create(a.rows) ?: return null
-        val status = calls.factorize(target, a.copyColumnPointers(), rowIdx, values)
+        val status = calls.factorize(target, a.colPtr, rowIdx, values)
         if (status == BasicluStatus.OK) return target
         calls.free(target)
         target.arena.close()
