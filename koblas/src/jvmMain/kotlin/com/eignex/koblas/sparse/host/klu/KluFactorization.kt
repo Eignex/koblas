@@ -75,8 +75,10 @@ public class KluFactorization internal constructor(
     override val rcond: Double get() = lifecycle.withResource { factor.rcond }
 
     internal fun refactor(a: F64SparseMatrix, equilibrate: Boolean): KluRefactorResult = lifecycle.withResource {
-        requireShape(a.rows == n) { "refactor: matrix size ${a.rows}, expected $n" }
-        if (!a.colPtr.contentEquals(factor.colPtr) || !a.rowIdx.contentEquals(factor.rowIdx)) {
+        // A different order is reported rather than raised, the same as a different pattern of the same
+        // order: refactor already answers a foreign `previous` by factoring afresh, so a caller holding a
+        // reusable analysis for the wrong matrix gets one answer whichever way it fails to match.
+        if (a.rows != n || !a.colPtr.contentEquals(factor.colPtr) || !a.rowIdx.contentEquals(factor.rowIdx)) {
             return@withResource KluRefactorResult.Incompatible
         }
         keepingReachable(this) {

@@ -29,6 +29,14 @@ private const val DTPQRT_MIN_RANK = 64
 /** The block size handed to `dtpqrt`, capped by the factor's dimension. */
 private const val DTPQRT_BLOCK = 32
 
+/**
+ * Position of the matrix in `LAPACKE_dpotrf`, counting its layout argument first.
+ *
+ * LAPACKE reports a NaN it finds while checking an input array as the negation of that array's position,
+ * so this is what a NaN matrix comes back as.
+ */
+private const val DPOTRF_MATRIX_ARGUMENT = 4
+
 /** LAPACK's lower-triangle selector, which koblas asks for everywhere it has a choice. */
 private const val LOWER_UPLO: Byte = 'L'.code.toByte()
 private const val UPPER_UPLO: Byte = 'U'.code.toByte()
@@ -419,6 +427,10 @@ public abstract class F64DecompositionsAdapter internal constructor(
         // dpotrf overwrites the triangle it reads, so a destination backed by [a]'s own buffer needs a
         // private copy for the portable fallback to factor.
         val source = if (ld === a.data) F64DenseMatrix(n, n, a.data.copyOf()) else a
+        // dpotrf implements no part of a regularizing policy: it has no floor to raise a pivot to, and a
+        // small positive pivot is a success as far as it is concerned, so it would return a factor the
+        // policy was meant to bound. The portable factorization defines what regularizing means.
+        if (policy !is CholeskyPolicy.Strict) return portable.choleskyInto(source, out, policy)
         // One bulk copy per column of the lower triangle; dpotrf reads no further. The strict upper is
         // cleared because a reused destination arrives holding the previous factor.
         for (j in 0 until n) {
@@ -426,8 +438,21 @@ public abstract class F64DecompositionsAdapter internal constructor(
             a.data.copyInto(ld, j + j * n, j + j * n, (j + 1) * n)
         }
         val info = f.dpotrf(COL_MAJOR, LOWER_UPLO, n, ld, n)
+        // LAPACKE nan-checks the arrays it is handed and reports the offending position as a negative info,
+        // so a NaN in the matrix arrives as "illegal argument 4" rather than as a failed pivot. Every other
+        // argument is filled here, so the matrix is the only one a caller can make illegal: the portable
+        // factorization defines what a NaN pivot means and names its position. A different negative info is
+        // a binding bug and stays an error.
+        if (info == -DPOTRF_MATRIX_ARGUMENT) return portable.choleskyInto(source, out, policy)
         check(info >= 0) { "dpotrf: illegal argument ${-info}" }
         if (info > 0) return portable.choleskyInto(source, out, policy)
+        // A clean info is the host library's own verdict, and an optimized dpotrf need not test its pivots
+        // the way netlib's does: a NaN compares false against zero, so it can return success over a factor
+        // that is not one. Refactoring portably is what names the position the reference would have raised.
+        for (j in 0 until n) {
+            val diagonal = ld[j + j * n]
+            if (!(diagonal > 0.0)) return portable.choleskyInto(source, out, policy)
+        }
         // `dpotrf` with `uplo = L` leaves the strict upper triangle untouched, so the clear above is what
         // makes it the zero this returns.
         return out

@@ -150,3 +150,30 @@ internal fun KluOptions.metadataOptions(): Map<String, String> = buildMap {
 
 /** Outcome shared by the JVM and Kotlin/Native same-pattern KLU paths. */
 internal enum class KluRefactorResult { Success, Incompatible, Singular }
+
+/** What a KLU factorization attempt produced. */
+internal sealed interface KluFactorOutcome {
+    /** Both phases returned an object. */
+    data object Factored : KluFactorOutcome
+
+    /** KLU reported a singular matrix, which the seam answers rather than raises. */
+    data object Singular : KluFactorOutcome
+
+    /** KLU failed for a reason that is not singularity, which the seam raises. */
+    data class Failed(val message: String) : KluFactorOutcome
+}
+
+/**
+ * Reads a factorization attempt off the two null checks and `klu_common.status`.
+ *
+ * A null return does not say why on its own: KLU answers a singular matrix and an out-of-memory the same
+ * way, and only the status separates them. Deciding it here keeps the two bindings from disagreeing, which
+ * they did, one raising where the other reported every failure as a singular matrix.
+ */
+internal fun kluFactorOutcome(symbolicNull: Boolean, numericNull: Boolean, status: Int): KluFactorOutcome = when {
+    symbolicNull && status == KLU_SINGULAR -> KluFactorOutcome.Singular
+    symbolicNull -> KluFactorOutcome.Failed("klu_analyze failed with status $status")
+    numericNull && status == KLU_SINGULAR -> KluFactorOutcome.Singular
+    numericNull -> KluFactorOutcome.Failed("klu_factor failed with status $status")
+    else -> KluFactorOutcome.Factored
+}

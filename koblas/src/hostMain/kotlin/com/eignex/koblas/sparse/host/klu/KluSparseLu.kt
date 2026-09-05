@@ -76,8 +76,9 @@ public open class KluSparseLu(
             rowIdx.usePinned { ai -> functions.analyze(a.rows, ap.addressOf(0), ai.addressOf(0), common) }
         }
         if (symbolic.value == null) {
+            val outcome = kluFactorOutcome(true, true, intAt(common, KLU_COMMON_STATUS))
             release(functions, symbolic, numeric, common)
-            return F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
+            return singularOrThrow(outcome, a.rows)
         }
 
         numeric.value = colPtr.usePinned { ap ->
@@ -88,8 +89,9 @@ public open class KluSparseLu(
             }
         }
         if (numeric.value == null) {
+            val outcome = kluFactorOutcome(false, true, intAt(common, KLU_COMMON_STATUS))
             release(functions, symbolic, numeric, common)
-            return F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
+            return singularOrThrow(outcome, a.rows)
         }
         return KluFactorization(
             KluFactorization.KluHandle(symbolic.ptr, numeric.ptr, common, functions),
@@ -98,6 +100,18 @@ public open class KluSparseLu(
             colPtr,
             rowIdx,
         )
+    }
+
+    /**
+     * A singular matrix is an answer the seam carries; anything else KLU refused is a failure.
+     *
+     * Reporting both as singular, which this path used to, tells a caller their well-formed matrix is
+     * singular when KLU actually ran out of memory or rejected the input.
+     */
+    private fun singularOrThrow(outcome: KluFactorOutcome, n: Int): F64SparseLuFactorization = when (outcome) {
+        KluFactorOutcome.Singular -> F64SingularSparseFactorization(n, SINGULAR_POSITION_UNKNOWN)
+        is KluFactorOutcome.Failed -> error(outcome.message)
+        KluFactorOutcome.Factored -> error("kluFactorOutcome reported a factor where the pointer was null")
     }
 
     /** Frees what a failed factorization allocated, since no cleaner has been attached to it yet. */
