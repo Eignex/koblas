@@ -306,25 +306,23 @@ public abstract class F64BlasAdapter internal constructor(
         )
     }
 
+    // Scaling by one leaves the destination alone rather than writing every element back unchanged, and the
+    // beta test is answered once for the whole view rather than per element.
     private fun scaleInPlace(view: F64StridedVectorView, beta: Double) {
-        for (i in 0 until view.size) {
-            view[i] = when (beta) {
-                0.0 -> 0.0
-                1.0 -> view[i]
-                else -> beta * view[i]
-            }
+        if (beta == 1.0) return
+        if (beta == 0.0) {
+            for (i in 0 until view.size) view[i] = 0.0
+        } else {
+            for (i in 0 until view.size) view[i] = beta * view[i]
         }
     }
 
     private fun scaleInPlace(view: F64StridedMatrixView, beta: Double) {
-        for (j in 0 until view.cols) {
-            for (i in 0 until view.rows) {
-                view[i, j] = when (beta) {
-                    0.0 -> 0.0
-                    1.0 -> view[i, j]
-                    else -> beta * view[i, j]
-                }
-            }
+        if (beta == 1.0) return
+        if (beta == 0.0) {
+            for (j in 0 until view.cols) for (i in 0 until view.rows) view[i, j] = 0.0
+        } else {
+            for (j in 0 until view.cols) for (i in 0 until view.rows) view[i, j] = beta * view[i, j]
         }
     }
 
