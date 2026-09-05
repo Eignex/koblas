@@ -121,6 +121,26 @@ class WorkspaceTest {
     }
 
     @Test
+    fun `releasing a buffer twice is an error`() {
+        val ws = Workspace()
+        val first = ws.take(4)
+        ws.release(first)
+
+        assertFailsWith<IllegalStateException> { ws.release(first) }
+    }
+
+    @Test
+    fun `a double release leaves the remaining borrows distinct`() {
+        val ws = Workspace()
+        val held = ws.take(4)
+        val returned = ws.take(4)
+        ws.release(returned)
+
+        assertFailsWith<IllegalStateException> { ws.release(returned) }
+        assertAllDistinct(listOf(held, ws.take(4), ws.take(4)), "after a rejected double release")
+    }
+
+    @Test
     fun `negative sizes and counts are rejected`() {
         val ws = Workspace()
         assertFailsWith<IllegalArgumentException> { ws.take(-1) }
