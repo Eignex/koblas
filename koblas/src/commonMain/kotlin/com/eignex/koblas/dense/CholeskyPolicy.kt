@@ -12,8 +12,9 @@ public sealed interface CholeskyPolicy {
      * The floor applies to any pivot beneath it, not only a non-positive one: a tiny positive pivot is the
      * near-singular case regularizing exists for, and leaving it alone would overflow the column it scales.
      * A raised pivot is lifted further where the column below it demands, so the multipliers it writes stay
-     * at or below one and the trailing submatrix is not inflated by `1/minimumPivot`. Which pivots were
-     * altered is not currently reported.
+     * at or below one and the trailing submatrix is not inflated by `1/minimumPivot`. How many pivots were
+     * altered comes back as [com.eignex.koblas.dense.F64CholeskyDecomposition.regularizations]; which ones
+     * they were is not currently reported.
      *
      * A NaN pivot is refused under this policy too. It is corrupt input rather than indefiniteness, and no
      * floor repairs it: the column below stays NaN while the diagonal reads clean.

@@ -44,6 +44,11 @@ internal actual class NativeBlock(val pointer: CPointer<ByteVar>) {
         return DoubleArray(count) { doubles[it] }
     }
 
+    actual fun readDoublesInto(destination: DoubleArray, count: Int) {
+        val doubles = pointer.reinterpret<DoubleVar>()
+        for (i in 0 until count) destination[i] = doubles[i]
+    }
+
     actual fun writeDoubles(source: DoubleArray, count: Int) {
         val doubles = pointer.reinterpret<DoubleVar>()
         for (i in 0 until count) doubles[i] = source[i]

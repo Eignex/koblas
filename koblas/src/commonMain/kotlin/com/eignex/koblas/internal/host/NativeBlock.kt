@@ -47,6 +47,9 @@ internal expect class NativeBlock {
     /** The first [count] doubles this block holds. */
     fun readDoubles(count: Int): DoubleArray
 
+    /** The first [count] doubles this block holds, into [destination], allocating nothing. */
+    fun readDoublesInto(destination: DoubleArray, count: Int)
+
     /** Writes [count] doubles from [source] into this block. */
     fun writeDoubles(source: DoubleArray, count: Int)
 }

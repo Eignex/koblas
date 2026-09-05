@@ -327,7 +327,6 @@ internal fun multiplyFromTheLeft(
     val ld = b.rows
     workspace.borrow(REFERENCE_SPARSE_RHS_WIDTH) { work ->
         forEachRhsPanel(n) { columnStart, width ->
-            val columnEnd = columnStart + width
             if (transposeA) {
                 for (i in 0 until m) {
                     work.fill(0.0, 0, width)

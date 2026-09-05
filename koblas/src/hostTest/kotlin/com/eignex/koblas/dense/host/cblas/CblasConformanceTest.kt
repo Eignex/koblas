@@ -126,6 +126,10 @@ class CblasConformanceTest {
         assertNonPositiveDefiniteFallsBack(cblas, n = 2)
 
     @Test
+    fun `a reused Cholesky destination reports the count of the factorization now in it`() =
+        assertReusedCholeskyDestinationReportsItsOwnCount(cblas)
+
+    @Test
     fun `ger matches reference`() = assertGerAgreesWithReference(cblas)
 
     @Test

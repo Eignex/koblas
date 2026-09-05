@@ -8,10 +8,9 @@ internal class SparseQrSymbolic(
     val rowPermutation: IntArray,
     val rows: Int,
     val householderNonzeros: Int,
-) {
-    /** Entries `R` will hold, filled in by the analysis once [countUpperNonzeros] has walked the paths. */
-    var upperNonzeros: Int = 0
-}
+    /** Entries `R` will hold, which the numeric pass sizes its arrays from. */
+    val upperNonzeros: Int,
+)
 
 internal fun columnEliminationTree(a: F64SparseMatrix): IntArray {
     val parent = IntArray(a.cols) { -1 }
@@ -73,22 +72,33 @@ internal fun analyzeQr(a: F64SparseMatrix): SparseQrSymbolic {
     }
     var free = n
     for (i in 0 until m) if (permutation[i] < 0) permutation[i] = free++
-    return SparseQrSymbolic(parent, leftmost, permutation, rows, householderNonzeros)
+    return SparseQrSymbolic(
+        parent,
+        leftmost,
+        permutation,
+        rows,
+        householderNonzeros,
+        countUpperNonzeros(a, parent, leftmost, rows),
+    )
 }
 
-internal fun countUpperNonzeros(a: F64SparseMatrix, symbolic: SparseQrSymbolic): Int {
+/**
+ * Entries `R` will hold, from a second walk of the elimination paths. Counted here rather than by the
+ * numeric pass, which has to size its arrays before it can fill them.
+ */
+private fun countUpperNonzeros(a: F64SparseMatrix, parent: IntArray, leftmost: IntArray, rows: Int): Int {
     val n = a.cols
-    val mark = IntArray(maxOf(symbolic.rows, n)) { -1 }
+    val mark = IntArray(maxOf(rows, n)) { -1 }
     var total = 0
     for (k in 0 until n) {
         mark[k] = k
         var reached = 0
         a.forEachInColumn(k) { row, _ ->
-            var i = symbolic.leftmost[row]
+            var i = leftmost[row]
             while (i != -1 && mark[i] != k) {
                 mark[i] = k
                 reached++
-                i = symbolic.parent[i]
+                i = parent[i]
             }
         }
         // The path union, plus the diagonal the pass stops short of.
