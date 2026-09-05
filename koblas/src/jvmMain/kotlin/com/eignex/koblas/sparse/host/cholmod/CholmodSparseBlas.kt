@@ -60,8 +60,14 @@ public open class CholmodSparseBlas(
         workspace: Workspace?,
     ) {
         requireGemmShape(a.rows, a.cols, transposeA, b, transposeB = false, c = c)
-        prepare(a).use { prepared ->
-            prepared.gemm(alpha, transposeA, b, beta, c, workspace)
+        // Built and closed inside this call, so nothing here outlives it: no snapshot of the caller's
+        // arrays, which cannot change under a descriptor with this lifetime; a confined arena rather than
+        // the shared one prepare needs, whose close costs a thread handshake; and no cleaner registration
+        // for an object that cannot escape. Going through prepare paid all three on every product.
+        CholmodMatrix.generalOf(a).use { matrix ->
+            if (!calls.sdmult(matrix, transposeA, alpha, b.data, beta, c.data, b.cols, b.rows, c.rows)) {
+                F64ReferenceSparseLinearAlgebra.gemm(alpha, a, transposeA, b, false, beta, c, workspace = workspace)
+            }
         }
     }
 }

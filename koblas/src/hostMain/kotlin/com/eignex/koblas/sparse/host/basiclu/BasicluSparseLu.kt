@@ -49,7 +49,11 @@ public open class BasicluSparseLu(
      * undone in the solves, by the same power-of-two factors the portable factorization uses.
      */
     final override fun factorNative(a: F64SparseMatrix): F64SparseLuFactorization {
-        val rowIdx = a.copyRowIndices()
+        // Read, never written: f64EquilibrationScale and f64ScaledValues only index these, and
+        // calls.factorize hands them straight to a library that reads them. Copying cost an
+        // O(nnz) and an O(n) pass per factorization for nothing, where the KLU binding beside it
+        // already passes the live arrays.
+        val rowIdx = a.rowIdx
         val scale = if (equilibrate) f64EquilibrationScale(a.rows, rowIdx, a.values) else null
         val values = if (scale == null) a.values else f64ScaledValues(rowIdx, a.values, scale)
         val functions = loader.functions ?: error("BASICLU is not available")
@@ -70,7 +74,7 @@ public open class BasicluSparseLu(
         requireSquare(basis, "factorBasis")
         val functions = loader.functions.takeIf { nativeAvailable }
             ?: return F64RefactoringBasisFactorization(this, basis, factor(basis))
-        val handle = factored(basis, basis.copyRowIndices(), basis.values, functions)
+        val handle = factored(basis, basis.rowIdx, basis.values, functions)
             ?: return BasicluSingularBasisFactorization(this, basis)
         return BasicluBasisFactorization(this, basis, handle, functions)
     }
@@ -88,7 +92,7 @@ public open class BasicluSparseLu(
             nativeHeap.free(obj)
             return null
         }
-        val colPtr = a.copyColumnPointers()
+        val colPtr = a.colPtr
         val status = LongArray(a.cols) { colPtr[it].toLong() }.usePinned { begin ->
             LongArray(a.cols) { colPtr[it + 1].toLong() }.usePinned { end ->
                 LongArray(rowIdx.size) { rowIdx[it].toLong() }.usePinned { rows ->
