@@ -1586,6 +1586,24 @@ public abstract class com/eignex/koblas/dense/host/F64DecompositionsAdapter : co
 	public fun trtri (Lcom/eignex/koblas/core/F64DenseMatrix;ZZ)Lcom/eignex/koblas/core/F64DenseMatrix;
 }
 
+public abstract class com/eignex/koblas/dense/host/F64KernelsAdapter : com/eignex/koblas/dense/F64Kernels {
+	public fun asum ([DII)D
+	public fun axpy ([DID[DII)V
+	public fun dot ([DI[DII)D
+	public fun dot4 ([DII[DII[DI)V
+	public fun getPriority ()I
+	public fun isAvailable ()Z
+	public fun isPortable ()Z
+	public fun nrm2 ([DII)D
+	public fun rot ([DI[DIIDD)V
+	public fun rotm ([DII[DIIILcom/eignex/koblas/F64ModifiedGivens;)V
+	public fun rotmg (DDDD)Lcom/eignex/koblas/F64ModifiedGivens;
+	public fun scale ([DIDI)V
+	public fun ssqd ([DI[DII)D
+	public fun sum ([DII)D
+	public fun swap ([DI[DII)V
+}
+
 public final class com/eignex/koblas/dense/host/cblas/HostBlasConfig {
 	public fun <init> ()V
 	public fun <init> (Lcom/eignex/koblas/dense/host/cblas/OpenBlasOptions;)V
@@ -1640,26 +1658,12 @@ public final class com/eignex/koblas/dense/host/jvm/F64Cblas : com/eignex/koblas
 	public fun isAvailable ()Z
 }
 
-public final class com/eignex/koblas/dense/host/jvm/F64CblasKernels : com/eignex/koblas/dense/F64Kernels {
+public final class com/eignex/koblas/dense/host/jvm/F64CblasKernels : com/eignex/koblas/dense/host/F64KernelsAdapter {
 	public fun <init> (Lcom/eignex/koblas/dense/host/cblas/HostBlasConfig;)V
 	public synthetic fun <init> (Lcom/eignex/koblas/dense/host/cblas/HostBlasConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public fun asum ([DII)D
-	public fun axpy ([DID[DII)V
-	public fun dot ([DI[DII)D
-	public fun dot4 ([DII[DII[DI)V
 	public final fun getConfig ()Lcom/eignex/koblas/dense/host/cblas/HostBlasConfig;
 	public fun getName ()Ljava/lang/String;
-	public fun getPriority ()I
 	public fun isAvailable ()Z
-	public fun isPortable ()Z
-	public fun nrm2 ([DII)D
-	public fun rot ([DI[DIIDD)V
-	public fun rotm ([DII[DIIILcom/eignex/koblas/F64ModifiedGivens;)V
-	public fun rotmg (DDDD)Lcom/eignex/koblas/F64ModifiedGivens;
-	public fun scale ([DIDI)V
-	public fun ssqd ([DI[DII)D
-	public fun sum ([DII)D
-	public fun swap ([DI[DII)V
 }
 
 public final class com/eignex/koblas/dense/host/jvm/F64Lapacke : com/eignex/koblas/dense/host/F64DecompositionsAdapter {
