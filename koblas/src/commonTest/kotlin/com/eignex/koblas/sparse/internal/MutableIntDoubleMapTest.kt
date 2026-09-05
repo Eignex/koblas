@@ -6,6 +6,24 @@ import kotlin.test.*
 class MutableIntDoubleMapTest {
 
     @Test
+    fun `mixIntKey spreads keys that share a power-of-two stride`() {
+        // Masking an odd multiplicative product straight away is a bijection on the low bits, so it
+        // would return the key itself and put every strided key on one slot. Block-structured and grid
+        // matrices produce exactly these column patterns.
+        for (mask in listOf(63, 255, 1023)) {
+            val keys = mask / 2 + 1
+            for (stride in listOf(64, 256, 1024, 4096)) {
+                val slots = (0 until keys).map { mixIntKey(it * stride) and mask }.toSet()
+
+                assertTrue(
+                    slots.size * 2 > keys,
+                    "stride $stride under mask $mask collapsed $keys keys onto ${slots.size} slots",
+                )
+            }
+        }
+    }
+
+    @Test
     fun `put overwrites an existing key without growing the map`() {
         val m = MutableIntDoubleMap()
         assertEquals(0, m.size)
