@@ -12,6 +12,7 @@ import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_TRUE
 import com.eignex.koblas.sparse.host.cholmod.CholmodMatrix
 import com.eignex.koblas.sparse.host.cholmod.readCholmodPermutation
 import com.eignex.koblas.sparse.host.cholmod.readCholmodSparse
+import com.eignex.koblas.sparse.host.hostLibraryCandidates
 import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout.ADDRESS
@@ -22,11 +23,19 @@ import java.lang.invoke.MethodHandle
 
 internal class SpqrCalls(private val config: SpqrConfig) {
     private val spqr: FfmLibrary by lazy {
-        FfmLibrary.open(candidates(SPQR_SONAMES, config.libraryPath), "SuiteSparseQR_i_C", "libspqr")
+        FfmLibrary.open(
+            hostLibraryCandidates(SPQR_SONAMES, config.libraryPath, config.searchDirectory),
+            "SuiteSparseQR_i_C",
+            "libspqr",
+        )
     }
 
     private val cholmod: FfmLibrary by lazy {
-        FfmLibrary.open(candidates(CHOLMOD_SONAMES, null), "cholmod_start", "libcholmod")
+        FfmLibrary.open(
+            hostLibraryCandidates(CHOLMOD_SONAMES, null, config.searchDirectory),
+            "cholmod_start",
+            "libcholmod",
+        )
     }
 
     @Volatile
@@ -52,14 +61,6 @@ internal class SpqrCalls(private val config: SpqrConfig) {
             handles == null -> "libspqr opened but its symbols did not bind: ${bindingFailure ?: "unknown"}"
             else -> null
         }
-
-    private fun candidates(sonames: List<String>, explicit: String?): List<String> = buildList {
-        explicit?.let(::add)
-        config.searchDirectory?.let { directory ->
-            for (soname in sonames) if ('/' !in soname) add("$directory/$soname")
-        }
-        addAll(sonames)
-    }
 
     private fun bindAll(): Handles? = try {
         Handles(

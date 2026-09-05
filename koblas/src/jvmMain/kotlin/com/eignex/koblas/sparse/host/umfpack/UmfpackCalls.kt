@@ -2,8 +2,7 @@ package com.eignex.koblas.sparse.host.umfpack
 
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.FfmLibrary
-import com.eignex.koblas.sparse.host.readDoubles
-import com.eignex.koblas.sparse.host.readInts
+import com.eignex.koblas.internal.host.NativeBlock
 import com.eignex.koblas.sparse.internal.sortedCsc
 import java.lang.foreign.*
 import java.lang.foreign.ValueLayout.*
@@ -158,9 +157,9 @@ internal class UmfpackCalls(private val config: UmfpackConfig) {
             UmfpackFactors(
                 lower = read(lRowPtr, lColIdx, lValues, order, lNonzeros, transposed = true),
                 upper = read(uColPtr, uRowIdx, uValues, order, uNonzeros, transposed = false),
-                rowOrder = readInts(rowPerm, order),
-                columnOrder = readInts(colPerm, order),
-                rowScaling = readDoubles(scaling, order).let { scale ->
+                rowOrder = NativeBlock(rowPerm).readInts(order),
+                columnOrder = NativeBlock(colPerm).readInts(order),
+                rowScaling = NativeBlock(scaling).readDoubles(order).let { scale ->
                     // do_recip false means UMFPACK divided by these, so the multiplier is the reciprocal.
                     if (reciprocal.getAtIndex(JAVA_INT, 0) != 0) scale else DoubleArray(order) { 1.0 / scale[it] }
                 },
@@ -176,9 +175,9 @@ internal class UmfpackCalls(private val config: UmfpackConfig) {
         nonzeros: Int,
         transposed: Boolean,
     ): F64SparseMatrix {
-        val ptr = readInts(pointers, order + 1)
-        val idx = readInts(indices, nonzeros)
-        val entries = readDoubles(values, nonzeros)
+        val ptr = NativeBlock(pointers).readInts(order + 1)
+        val idx = NativeBlock(indices).readInts(nonzeros)
+        val entries = NativeBlock(values).readDoubles(nonzeros)
         return sortedCsc(order, order, ptr, idx, entries, transposed)
     }
 

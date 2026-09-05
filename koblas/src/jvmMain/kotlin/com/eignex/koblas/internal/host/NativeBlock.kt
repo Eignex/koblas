@@ -39,15 +39,17 @@ internal actual class NativeBlock(val segment: MemorySegment) {
         return if (target.address() == 0L) null else NativeBlock(target.reinterpret(bytes))
     }
 
+    // An empty read copies nothing rather than asking the segment for zero elements, since a library with
+    // nothing to hand back may leave the pointer null.
     actual fun readInts(count: Int): IntArray {
         val out = IntArray(count)
-        MemorySegment.copy(segment, JAVA_INT, 0L, out, 0, count)
+        if (count > 0) MemorySegment.copy(segment, JAVA_INT, 0L, out, 0, count)
         return out
     }
 
     actual fun readDoubles(count: Int): DoubleArray {
         val out = DoubleArray(count)
-        MemorySegment.copy(segment, JAVA_DOUBLE, 0L, out, 0, count)
+        if (count > 0) MemorySegment.copy(segment, JAVA_DOUBLE, 0L, out, 0, count)
         return out
     }
 

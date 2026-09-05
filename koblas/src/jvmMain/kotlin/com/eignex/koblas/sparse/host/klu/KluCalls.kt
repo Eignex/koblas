@@ -5,8 +5,6 @@ import com.eignex.koblas.internal.host.FfmLibrary
 import com.eignex.koblas.internal.host.FfmLibrary.Companion.intOf
 import com.eignex.koblas.internal.host.FfmLibrary.Companion.pointerOf
 import com.eignex.koblas.internal.host.NativeBlock
-import com.eignex.koblas.sparse.host.readDoubles
-import com.eignex.koblas.sparse.host.readInts
 import com.eignex.koblas.sparse.internal.sortedCsc
 import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
@@ -103,9 +101,9 @@ internal class KluCalls(private val config: KluConfig) {
                 lower = matrix(order, lPtr, lIdx, lVal, lNonzeros),
                 upper = matrix(order, uPtr, uIdx, uVal, uNonzeros),
                 offDiagonal = matrix(order, fPtr, fIdx, fVal, offNonzeros),
-                rowOrder = readInts(rowPerm, order),
-                columnOrder = readInts(colPerm, order),
-                rowScaling = readDoubles(scaling, order).let { scale ->
+                rowOrder = NativeBlock(rowPerm).readInts(order),
+                columnOrder = NativeBlock(colPerm).readInts(order),
+                rowScaling = NativeBlock(scaling).readDoubles(order).let { scale ->
                     // KLU divides rows by these, so the multiplier the interface documents is the reciprocal.
                     DoubleArray(order) { if (scale[it] == 0.0) 1.0 else 1.0 / scale[it] }
                 },
@@ -121,9 +119,9 @@ internal class KluCalls(private val config: KluConfig) {
         values: MemorySegment,
         nonzeros: Int,
     ): F64SparseMatrix {
-        val ptr = readInts(pointers, order + 1)
-        val idx = readInts(indices, nonzeros)
-        val entries = readDoubles(values, nonzeros)
+        val ptr = NativeBlock(pointers).readInts(order + 1)
+        val idx = NativeBlock(indices).readInts(nonzeros)
+        val entries = NativeBlock(values).readDoubles(nonzeros)
         return sortedCsc(order, order, ptr, idx, entries)
     }
 

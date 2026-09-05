@@ -6,6 +6,7 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.HeapBlocks
 import com.eignex.koblas.internal.host.NativeBlock
 import com.eignex.koblas.internal.host.openNativeLibrary
+import com.eignex.koblas.sparse.host.hostLibraryCandidates
 import kotlinx.cinterop.*
 import platform.posix.dlsym
 
@@ -59,19 +60,16 @@ internal class CholmodFunctions(private val lib: COpaquePointer) {
 
 /** Opens the host CHOLMOD and reports whether every routine these bindings need resolved. */
 internal class CholmodLoader(private val config: CholmodConfig) {
-    private val library: COpaquePointer? by lazy { openNativeLibrary(candidates(), "cholmod_start") }
+    private val library: COpaquePointer? by lazy {
+        openNativeLibrary(
+            hostLibraryCandidates(CHOLMOD_SONAMES, config.libraryPath, config.searchDirectory),
+            "cholmod_start",
+        )
+    }
 
     val functions: CholmodFunctions? by lazy { library?.let(::CholmodFunctions) }
 
     val available: Boolean by lazy { functions != null }
-
-    private fun candidates(): List<String> = buildList {
-        config.libraryPath?.let(::add)
-        config.searchDirectory?.let { directory ->
-            for (soname in CHOLMOD_SONAMES) if ('/' !in soname) add("$directory/$soname")
-        }
-        addAll(CHOLMOD_SONAMES)
-    }
 
     /**
      * A started `cholmod_common`, asking for silence and for the factorization [finalLl] names. The seam's
