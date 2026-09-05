@@ -1,5 +1,6 @@
 package com.eignex.koblas.sparse.host.klu
 
+import com.eignex.koblas.assertClose
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.testutil.host.HostLibraryTest
@@ -38,6 +39,27 @@ class KluConformanceTest {
         Assume.assumeTrue("KLU is not installed; conformance cannot run", klu.isAvailable)
 
         assertSymbolicAnalysisReuses(klu)
+    }
+
+    @Test
+    fun `refactoring onto a different order factors afresh rather than raising`() {
+        Assume.assumeTrue("KLU is not installed; conformance cannot run", klu.isAvailable)
+        // A mismatched order is reported the way a mismatched pattern of the same order already was, so a
+        // caller reusing an analysis for the wrong matrix gets one answer either way. The JVM binding used
+        // to raise here while the native one re-factored.
+        val first = klu.factor(sparseConformanceSystem(6, Random(20260906)))
+        val different = sparseConformanceSystem(8, Random(20260907))
+
+        val refactored = klu.refactor(first, different)
+
+        assertEquals(8, refactored.n, "refactor onto a different order should have factored the new matrix")
+        val b = DoubleArray(8) { 1.0 }
+        assertClose(
+            F64ReferenceSparseLinearAlgebra.gemv(different, refactored.solve(b)),
+            b,
+            "refactored solve",
+            tolerance = 1e-8,
+        )
     }
 
     @Test

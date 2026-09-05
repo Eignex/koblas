@@ -123,6 +123,13 @@ internal class KluCalls(private val config: KluConfig) {
 
     private fun handlesOrThrow(): Handles = checkNotNull(handles) { "KLU 2 is not available" }
 
+    /** Null for a singular matrix, which the seam answers, and an error for anything else KLU refused. */
+    private fun outcomeOrNull(outcome: KluFactorOutcome): KluFactor? = when (outcome) {
+        KluFactorOutcome.Singular -> null
+        is KluFactorOutcome.Failed -> error(outcome.message)
+        KluFactorOutcome.Factored -> error("kluFactorOutcome reported a factor where the pointer was null")
+    }
+
     fun factorize(a: Int, colPtr: IntArray, rowIdx: IntArray, values: DoubleArray, equilibrate: Boolean): KluFactor? {
         val h = handlesOrThrow()
         val arena = Arena.ofShared()
@@ -140,8 +147,12 @@ internal class KluCalls(private val config: KluConfig) {
                 common,
             ) as MemorySegment
             if (symbolic.address() == 0L) {
-                error(
-                    "klu_analyze failed with status ${common.get(JAVA_INT, KLU_COMMON_STATUS)}",
+                return@factorize outcomeOrNull(
+                    kluFactorOutcome(
+                        symbolicNull = true,
+                        numericNull = true,
+                        status = common.get(JAVA_INT, KLU_COMMON_STATUS),
+                    ),
                 )
             }
             symbolicHolder.set(ADDRESS, 0, symbolic)
@@ -153,8 +164,13 @@ internal class KluCalls(private val config: KluConfig) {
                 common,
             ) as MemorySegment
             if (numeric.address() == 0L) {
-                if (common.get(JAVA_INT, KLU_COMMON_STATUS) == KLU_SINGULAR) return null
-                error("klu_factor failed with status ${common.get(JAVA_INT, KLU_COMMON_STATUS)}")
+                return@factorize outcomeOrNull(
+                    kluFactorOutcome(
+                        symbolicNull = false,
+                        numericNull = true,
+                        status = common.get(JAVA_INT, KLU_COMMON_STATUS),
+                    ),
+                )
             }
             numericHolder.set(ADDRESS, 0, numeric)
             check((h.rcond.invokeExact(symbolic, numeric, common) as Int) != 0) { "klu_rcond failed" }
