@@ -2,6 +2,7 @@
 
 package com.eignex.koblas.sparse.host.klu
 
+import com.eignex.koblas.internal.host.NativeBlock
 import com.eignex.koblas.internal.host.openNativeLibrary
 import kotlinx.cinterop.*
 import platform.posix.dlsym
@@ -60,20 +61,7 @@ internal class KluLoader(private val config: KluConfig) {
         val common = nativeHeap.allocArray<ByteVar>(KLU_COMMON_BYTES)
         memset(common, 0, KLU_COMMON_BYTES.convert())
         check(functions.defaults(common) == 1) { "klu_defaults failed" }
-        config.pivotTolerance?.let { (common + KLU_COMMON_TOL)!!.reinterpret<DoubleVar>().pointed.value = it }
-        config.memoryGrowth?.let { (common + KLU_COMMON_MEMGROW)!!.reinterpret<DoubleVar>().pointed.value = it }
-        config.amdInitialMemoryFactor?.let {
-            (common + KLU_COMMON_INITMEM_AMD)!!.reinterpret<DoubleVar>().pointed.value = it
-        }
-        config.initialMemoryFactor?.let { (common + KLU_COMMON_INITMEM)!!.reinterpret<DoubleVar>().pointed.value = it }
-        config.maxBtfWork?.let { (common + KLU_COMMON_MAXWORK)!!.reinterpret<DoubleVar>().pointed.value = it }
-        config.useBtf?.let { (common + KLU_COMMON_BTF)!!.reinterpret<IntVar>().pointed.value = it.asNativeKluBoolean() }
-        config.ordering?.let { (common + KLU_COMMON_ORDERING)!!.reinterpret<IntVar>().pointed.value = it.nativeValue }
-        config.haltIfSingular?.let {
-            (common + KLU_COMMON_HALT_IF_SINGULAR)!!.reinterpret<IntVar>().pointed.value = it.asNativeKluBoolean()
-        }
-        val scaling = if (equilibrate) config.equilibratedScaling.nativeValue else KLU_SCALE_NONE
-        (common + KLU_COMMON_SCALE)!!.reinterpret<IntVar>().pointed.value = scaling
+        NativeBlock(common).applyKluConfig(config, equilibrate)
         return common
     }
 }

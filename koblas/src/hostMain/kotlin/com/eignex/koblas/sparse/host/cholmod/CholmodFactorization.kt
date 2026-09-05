@@ -5,6 +5,7 @@ package com.eignex.koblas.sparse.host.cholmod
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.internal.host.NativeBlock
 import com.eignex.koblas.internal.host.NativeOwnership
 import com.eignex.koblas.requireSolveShapes
 import com.eignex.koblas.sparse.F64SparseFactorization
@@ -34,14 +35,7 @@ public class CholmodFactorization internal constructor(
         val solveSlot: COpaquePointerVar = nativeHeap.alloc()
 
         init {
-            sizeAt(solveDense, CHOLMOD_DENSE_NROW, n.toLong())
-            sizeAt(solveDense, CHOLMOD_DENSE_NCOL, 1L)
-            sizeAt(solveDense, CHOLMOD_DENSE_NZMAX, n.toLong())
-            sizeAt(solveDense, CHOLMOD_DENSE_D, n.toLong())
-            pointerAt(solveDense, CHOLMOD_DENSE_X, solveRhs)
-            pointerAt(solveDense, CHOLMOD_DENSE_Z, null)
-            intAt(solveDense, CHOLMOD_DENSE_XTYPE, CHOLMOD_REAL)
-            intAt(solveDense, CHOLMOD_DENSE_DTYPE, CHOLMOD_DOUBLE)
+            NativeBlock(solveDense).asCholmodDense(NativeBlock(solveRhs.reinterpret()), n, 1)
         }
 
         fun release() {
@@ -56,7 +50,8 @@ public class CholmodFactorization internal constructor(
     }
 
     /** Which factorization this holds, so converting a copy asks for the same one. */
-    private val isLl: Boolean = intAt(handle.factor.reinterpret(), CHOLMOD_FACTOR_IS_LL) == CHOLMOD_TRUE
+    private val isLl: Boolean =
+        NativeBlock(handle.factor.reinterpret()).getInt(CHOLMOD_FACTOR_IS_LL) == CHOLMOD_TRUE
 
     private val ownership = NativeOwnership(this, "CHOLMOD factorization", handle::release)
 
@@ -94,7 +89,7 @@ public class CholmodFactorization internal constructor(
         if (singular) {
             0
         } else {
-            sizeAt(handle.factor.reinterpret(), CHOLMOD_FACTOR_NZMAX).toInt()
+            NativeBlock(handle.factor.reinterpret()).getSize(CHOLMOD_FACTOR_NZMAX).toInt()
         }
     }
 
@@ -108,7 +103,7 @@ public class CholmodFactorization internal constructor(
             0.0
         } else {
             val estimate = functions.rcond(handle.factor.reinterpret(), handle.common)
-            if (intAt(handle.factor.reinterpret(), CHOLMOD_FACTOR_IS_LL) == CHOLMOD_TRUE) sqrt(estimate) else estimate
+            if (isLl) sqrt(estimate) else estimate
         }
     }
 
@@ -121,9 +116,11 @@ public class CholmodFactorization internal constructor(
 
             val solved = functions.solve(CHOLMOD_A, handle.factor.reinterpret(), handle.solveDense, handle.common)
             check(solved != null) { "cholmod_solve failed on a factorization it produced" }
-            val answer = solved.reinterpret<ByteVar>()
-            val values = pointerAt(answer, CHOLMOD_DENSE_X)!!.reinterpret<DoubleVar>()
-            for (i in 0 until n) out[i] = values[i]
+            val answer = NativeBlock(solved.reinterpret())
+            val values = checkNotNull(answer.getPointer(CHOLMOD_DENSE_X, n.toLong() * Double.SIZE_BYTES)) {
+                "cholmod_solve answered with a dense block holding no values"
+            }
+            values.readDoubles(n).copyInto(out)
             handle.solveSlot.value = solved
             functions.freeDense(handle.solveSlot.ptr, handle.common)
         }
@@ -146,22 +143,17 @@ public class CholmodFactorization internal constructor(
                 val rhs = allocArray<DoubleVar>(maxOf(entryCount, 1))
                 val dense = allocArray<ByteVar>(CHOLMOD_DENSE_BYTES)
                 val slot = alloc<COpaquePointerVar>()
-                sizeAt(dense, CHOLMOD_DENSE_NROW, n.toLong())
-                sizeAt(dense, CHOLMOD_DENSE_NCOL, b.cols.toLong())
-                sizeAt(dense, CHOLMOD_DENSE_NZMAX, entryCount.toLong())
-                sizeAt(dense, CHOLMOD_DENSE_D, n.toLong())
-                pointerAt(dense, CHOLMOD_DENSE_X, rhs)
-                pointerAt(dense, CHOLMOD_DENSE_Z, null)
-                intAt(dense, CHOLMOD_DENSE_XTYPE, CHOLMOD_REAL)
-                intAt(dense, CHOLMOD_DENSE_DTYPE, CHOLMOD_DOUBLE)
+                NativeBlock(dense).asCholmodDense(NativeBlock(rhs.reinterpret()), n, b.cols)
                 for (i in 0 until entryCount) rhs[i] = out.data[i]
 
                 val solved = functions.solve(CHOLMOD_A, handle.factor.reinterpret(), dense, handle.common)
                 check(solved != null) { "cholmod_solve failed on a factorization it produced" }
                 try {
-                    val answer = solved.reinterpret<ByteVar>()
-                    val values = pointerAt(answer, CHOLMOD_DENSE_X)!!.reinterpret<DoubleVar>()
-                    for (i in 0 until entryCount) out.data[i] = values[i]
+                    val answer = NativeBlock(solved.reinterpret())
+                    val values = checkNotNull(
+                        answer.getPointer(CHOLMOD_DENSE_X, entryCount.toLong() * Double.SIZE_BYTES),
+                    ) { "cholmod_solve answered with a dense block holding no values" }
+                    values.readDoubles(entryCount).copyInto(out.data)
                 } finally {
                     slot.value = solved
                     functions.freeDense(slot.ptr, handle.common)

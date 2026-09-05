@@ -4,6 +4,7 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.FfmLibrary
 import com.eignex.koblas.internal.host.FfmLibrary.Companion.intOf
 import com.eignex.koblas.internal.host.FfmLibrary.Companion.pointerOf
+import com.eignex.koblas.internal.host.NativeBlock
 import com.eignex.koblas.sparse.host.readDoubles
 import com.eignex.koblas.sparse.host.readInts
 import com.eignex.koblas.sparse.internal.transposeRaw
@@ -205,16 +206,7 @@ internal class KluCalls(private val config: KluConfig) {
     }
 
     private fun applyConfig(common: MemorySegment, equilibrate: Boolean) {
-        config.pivotTolerance?.let { common.set(JAVA_DOUBLE, KLU_COMMON_TOL, it) }
-        config.memoryGrowth?.let { common.set(JAVA_DOUBLE, KLU_COMMON_MEMGROW, it) }
-        config.amdInitialMemoryFactor?.let { common.set(JAVA_DOUBLE, KLU_COMMON_INITMEM_AMD, it) }
-        config.initialMemoryFactor?.let { common.set(JAVA_DOUBLE, KLU_COMMON_INITMEM, it) }
-        config.maxBtfWork?.let { common.set(JAVA_DOUBLE, KLU_COMMON_MAXWORK, it) }
-        config.useBtf?.let { common.set(JAVA_INT, KLU_COMMON_BTF, it.asNativeKluBoolean()) }
-        config.ordering?.let { common.set(JAVA_INT, KLU_COMMON_ORDERING, it.nativeValue) }
-        config.haltIfSingular?.let { common.set(JAVA_INT, KLU_COMMON_HALT_IF_SINGULAR, it.asNativeKluBoolean()) }
-        val scaling = if (equilibrate) config.equilibratedScaling.nativeValue else KLU_SCALE_NONE
-        common.set(JAVA_INT, KLU_COMMON_SCALE, scaling)
+        NativeBlock(common).applyKluConfig(config, equilibrate)
     }
 
     fun solve(factor: KluFactor, rhs: DoubleArray, transpose: Boolean, rightHandSides: Int = 1) {

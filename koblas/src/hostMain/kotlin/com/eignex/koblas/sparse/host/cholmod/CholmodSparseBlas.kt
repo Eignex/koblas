@@ -6,7 +6,9 @@ import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.backend.BackendNames
+import com.eignex.koblas.internal.host.NativeBlock
 import com.eignex.koblas.internal.host.NativeOwnership
+import com.eignex.koblas.internal.host.ScopedBlocks
 import com.eignex.koblas.sparse.F64PreparedSparseMatrix
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.host.F64SparseBlasAdapter
@@ -169,21 +171,7 @@ private class CholmodPreparedSparseMatrix(
             common,
         ) ?: return null
         try {
-            val descriptor = product.reinterpret<ByteVar>()
-            val rows = sizeAt(descriptor, CHOLMOD_SPARSE_NROW).toInt()
-            val cols = sizeAt(descriptor, CHOLMOD_SPARSE_NCOL).toInt()
-            val p = checkNotNull(pointerAt(descriptor, CHOLMOD_SPARSE_P)).reinterpret<IntVar>()
-            val colPtr = IntArray(cols + 1) { p[it] }
-            val nnz = colPtr[cols]
-            val i = checkNotNull(pointerAt(descriptor, CHOLMOD_SPARSE_I)).reinterpret<IntVar>()
-            val x = checkNotNull(pointerAt(descriptor, CHOLMOD_SPARSE_X)).reinterpret<DoubleVar>()
-            return F64SparseMatrix.wrap(
-                rows,
-                cols,
-                colPtr,
-                IntArray(nnz) { i[it] },
-                DoubleArray(nnz) { x[it] },
-            )
+            return NativeBlock(product.reinterpret()).readCholmodSparse()
         } finally {
             memScoped {
                 val slot = alloc<COpaquePointerVar>()
@@ -194,14 +182,7 @@ private class CholmodPreparedSparseMatrix(
     }
 
     private fun MemScope.dense(rows: Int, columns: Int, values: CPointer<DoubleVar>): CPointer<ByteVar> =
-        allocArray<ByteVar>(CHOLMOD_DENSE_BYTES).also { dense ->
-            sizeAt(dense, CHOLMOD_DENSE_NROW, rows.toLong())
-            sizeAt(dense, CHOLMOD_DENSE_NCOL, columns.toLong())
-            sizeAt(dense, CHOLMOD_DENSE_NZMAX, rows.toLong() * columns)
-            sizeAt(dense, CHOLMOD_DENSE_D, rows.toLong())
-            pointerAt(dense, CHOLMOD_DENSE_X, values)
-            pointerAt(dense, CHOLMOD_DENSE_Z, null)
-            intAt(dense, CHOLMOD_DENSE_XTYPE, CHOLMOD_REAL)
-            intAt(dense, CHOLMOD_DENSE_DTYPE, CHOLMOD_DOUBLE)
-        }
+        ScopedBlocks(this).block(CHOLMOD_DENSE_BYTES)
+            .asCholmodDense(NativeBlock(values.reinterpret()), rows, columns)
+            .pointer
 }
