@@ -233,6 +233,33 @@ class CholeskyTest {
         assertFailsWith<IllegalArgumentException> { CholeskyPolicy.Regularize(minimumPivot = Double.NaN) }
     }
 
+    @Test
+    fun `the factorization crosses its block boundary and still reproduces the matrix`() {
+        // Every fixture above fits inside one block column, so the level-3 gather between blocks never ran.
+        val n = 100
+        val rng = kotlin.random.Random(20260970)
+        val a = F64DenseMatrix(n)
+        for (j in 0 until n) {
+            for (i in j until n) {
+                val v = if (i == j) n + rng.nextDouble() else rng.nextDouble(-1.0, 1.0)
+                a[i, j] = v
+                a[j, i] = v
+            }
+        }
+
+        val l = a.cholesky().l
+
+        var worst = 0.0
+        for (i in 0 until n) {
+            for (j in 0..i) {
+                var sum = 0.0
+                for (k in 0..j) sum += l[i, k] * l[j, k]
+                worst = maxOf(worst, kotlin.math.abs(sum - a[i, j]))
+            }
+        }
+        assertTrue(worst < 1e-9, "L·Lᵀ differs from the input by $worst")
+    }
+
     private fun notPositiveDefinite() = F64DenseMatrix.of(
         arrayOf(
             doubleArrayOf(1.0, 0.0),
