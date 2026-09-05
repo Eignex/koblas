@@ -159,6 +159,20 @@ class F64ContextBuilderTest {
     }
 
     @Test
+    fun `a resolved context carries its policy in final state`() {
+        // The three policy fields were vars assigned after construction, in a class documented immutable, so
+        // a reader reached through a plain field could observe the AUTO and ALLOW defaults and skip the
+        // enforcement the caller configured. Constructor properties give them the final-field freeze.
+        val context = F64ContextBuilder()
+            .withDispatchPolicy(F64DispatchPolicy.NATIVE_ONLY)
+            .withFallbackPolicy(F64FallbackPolicy.THROW)
+            .resolve()
+
+        assertEquals(F64DispatchPolicy.NATIVE_ONLY, context.dispatchPolicy)
+        assertEquals(F64FallbackPolicy.THROW, context.fallbackPolicy)
+    }
+
+    @Test
     fun `native only rejects a threshold fallback before invoking the backend`() {
         val routed = RoutedBlas(nativeMin = 2)
         val context = F64ContextBuilder()

@@ -73,6 +73,10 @@ public class F64ContextBuilder private constructor(
             "WARN fallback policy requires an onFallback handler"
         }
         val resolved = if (dispatchPolicy == F64DispatchPolicy.PORTABLE_ONLY) portableSelections() else selections
+        // Taken exactly as chosen, deliberately unlike the registry, which wraps its winner in
+        // F64RoutedKernels so a host half is only reached past its measured crossover. A caller naming a
+        // kernels backend here is answering that question themselves, and `portable halves retain their
+        // contexts selected dense kernels` pins that even a one-element operation reaches it.
         val kernels = resolved.getValue(BackendRole.DENSE_KERNELS) as F64Kernels
         val denseReference = F64ReferenceBackend(kernels)
         val sparseReference = F64ReferenceSparseBackend(kernels)

@@ -2319,6 +2319,10 @@ final class com.eignex.koblas/F64Context : com.eignex.koblas.dense/F64Blas, com.
         final fun <get-blas>(): com.eignex.koblas.dense/F64Blas // com.eignex.koblas/F64Context.blas.<get-blas>|<get-blas>(){}[0]
     final val decompositions // com.eignex.koblas/F64Context.decompositions|{}decompositions[0]
         final fun <get-decompositions>(): com.eignex.koblas.dense/F64Decompositions // com.eignex.koblas/F64Context.decompositions.<get-decompositions>|<get-decompositions>(){}[0]
+    final val dispatchPolicy // com.eignex.koblas/F64Context.dispatchPolicy|{}dispatchPolicy[0]
+        final fun <get-dispatchPolicy>(): com.eignex.koblas/F64DispatchPolicy // com.eignex.koblas/F64Context.dispatchPolicy.<get-dispatchPolicy>|<get-dispatchPolicy>(){}[0]
+    final val fallbackPolicy // com.eignex.koblas/F64Context.fallbackPolicy|{}fallbackPolicy[0]
+        final fun <get-fallbackPolicy>(): com.eignex.koblas/F64FallbackPolicy // com.eignex.koblas/F64Context.fallbackPolicy.<get-fallbackPolicy>|<get-fallbackPolicy>(){}[0]
     final val generalSparseLu // com.eignex.koblas/F64Context.generalSparseLu|{}generalSparseLu[0]
         final fun <get-generalSparseLu>(): com.eignex.koblas.sparse/F64GeneralSparseLu // com.eignex.koblas/F64Context.generalSparseLu.<get-generalSparseLu>|<get-generalSparseLu>(){}[0]
     final val isAvailable // com.eignex.koblas/F64Context.isAvailable|{}isAvailable[0]
@@ -2345,11 +2349,6 @@ final class com.eignex.koblas/F64Context : com.eignex.koblas.dense/F64Blas, com.
         final fun <get-sparseKernels>(): com.eignex.koblas.sparse/F64SparseKernels // com.eignex.koblas/F64Context.sparseKernels.<get-sparseKernels>|<get-sparseKernels>(){}[0]
     final val sparseQr // com.eignex.koblas/F64Context.sparseQr|{}sparseQr[0]
         final fun <get-sparseQr>(): com.eignex.koblas.sparse/F64SparseQr // com.eignex.koblas/F64Context.sparseQr.<get-sparseQr>|<get-sparseQr>(){}[0]
-
-    final var dispatchPolicy // com.eignex.koblas/F64Context.dispatchPolicy|{}dispatchPolicy[0]
-        final fun <get-dispatchPolicy>(): com.eignex.koblas/F64DispatchPolicy // com.eignex.koblas/F64Context.dispatchPolicy.<get-dispatchPolicy>|<get-dispatchPolicy>(){}[0]
-    final var fallbackPolicy // com.eignex.koblas/F64Context.fallbackPolicy|{}fallbackPolicy[0]
-        final fun <get-fallbackPolicy>(): com.eignex.koblas/F64FallbackPolicy // com.eignex.koblas/F64Context.fallbackPolicy.<get-fallbackPolicy>|<get-fallbackPolicy>(){}[0]
 
     final fun applyQ(com.eignex.koblas.dense/F64QrDecomposition, kotlin/DoubleArray, kotlin/Boolean): kotlin/DoubleArray // com.eignex.koblas/F64Context.applyQ|applyQ(com.eignex.koblas.dense.F64QrDecomposition;kotlin.DoubleArray;kotlin.Boolean){}[0]
     final fun applyQInto(com.eignex.koblas.dense/F64QrDecomposition, kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean): kotlin/DoubleArray // com.eignex.koblas/F64Context.applyQInto|applyQInto(com.eignex.koblas.dense.F64QrDecomposition;kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean){}[0]
