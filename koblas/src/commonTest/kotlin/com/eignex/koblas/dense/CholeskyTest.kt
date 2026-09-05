@@ -227,6 +227,17 @@ class CholeskyTest {
     }
 
     @Test
+    fun `a regularized factorization reports how many pivots it replaced`() {
+        // Regularize raises nothing and returns a factor that looks like any other, so without a count there
+        // is no way to ask whether the factor describes the input or a nearby matrix.
+        val untouched = F64DenseMatrix.of(arrayOf(doubleArrayOf(4.0, 2.0), doubleArrayOf(2.0, 5.0)))
+        assertEquals(0, untouched.cholesky(CholeskyPolicy.Regularize()).regularizations)
+        assertEquals(0, untouched.cholesky().regularizations)
+
+        assertEquals(1, notPositiveDefinite().cholesky(CholeskyPolicy.Regularize()).regularizations)
+    }
+
+    @Test
     fun `the regularization floor must be positive`() {
         assertFailsWith<IllegalArgumentException> { CholeskyPolicy.Regularize(minimumPivot = 0.0) }
         assertFailsWith<IllegalArgumentException> { CholeskyPolicy.Regularize(minimumPivot = -1.0) }

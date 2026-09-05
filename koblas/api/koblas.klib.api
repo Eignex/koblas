@@ -1303,6 +1303,9 @@ final class com.eignex.koblas.dense/F64CholeskyDecomposition { // com.eignex.kob
         final fun <get-l>(): com.eignex.koblas.core/F64DenseMatrix // com.eignex.koblas.dense/F64CholeskyDecomposition.l.<get-l>|<get-l>(){}[0]
     final val n // com.eignex.koblas.dense/F64CholeskyDecomposition.n|{}n[0]
         final fun <get-n>(): kotlin/Int // com.eignex.koblas.dense/F64CholeskyDecomposition.n.<get-n>|<get-n>(){}[0]
+
+    final var regularizations // com.eignex.koblas.dense/F64CholeskyDecomposition.regularizations|{}regularizations[0]
+        final fun <get-regularizations>(): kotlin/Int // com.eignex.koblas.dense/F64CholeskyDecomposition.regularizations.<get-regularizations>|<get-regularizations>(){}[0]
 }
 
 final class com.eignex.koblas.dense/F64LuDecomposition { // com.eignex.koblas.dense/F64LuDecomposition|null[0]

@@ -10,9 +10,11 @@ import com.eignex.koblas.core.F64SparseMatrix
  * produce: a Cholesky has no separate `U`, an `L·D·Lᵀ` has a `D` instead, and a QR is `m×n` and holds `Q` as
  * an operator. A single `l`/`u` pair would be null half the time.
  *
- * Every accessor here is materialised on first read. A native binding pays a copy for it, and SPQR pays more
- * than that, so a caller who only solves never pays at all. Reads go through the same lifecycle as a solve,
- * so a closed factorization refuses them, and a singular factorization has no factors to give.
+ * Every accessor here materialises its factor on EVERY read, not once: the portable factorizations rebuild
+ * the CSC arrays each time, and a native binding copies out of the library each time. A caller who only
+ * solves therefore pays nothing, and a caller that reads `l` twice pays twice, so bind it to a local rather
+ * than reading it in a loop. Reads go through the same lifecycle as a solve, so a closed factorization
+ * refuses them, and a singular factorization has no factors to give.
  *
  * A provider whose factors are not a matrix it can hand back raises [FactorsNotExposed] rather than
  * inventing one. BASICLU and HFactor do: they keep a basis representation for updating rather than an `L` and

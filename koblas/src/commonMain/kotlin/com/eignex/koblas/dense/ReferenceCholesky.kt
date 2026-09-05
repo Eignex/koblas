@@ -59,6 +59,7 @@ internal fun referenceCholeskyInto(
     // One pack buffer for the whole factorization rather than one per block column. The seam takes no
     // workspace, and a matrix that fits in a single block never gathers at all.
     val packed = if (n > REFERENCE_TRIANGULAR_BLOCK) DoubleArray(REFERENCE_TRIANGULAR_BLOCK * n) else null
+    out.regularizations = 0
     var blockStart = 0
     while (blockStart < n) {
         val width = min(REFERENCE_TRIANGULAR_BLOCK, n - blockStart)
@@ -66,7 +67,7 @@ internal fun referenceCholeskyInto(
         if (blockStart > 0) {
             gatherEarlierBlocks(kernels, ld, n, blockStart, width, height, packed!!)
         }
-        factorBlockColumn(kernels, ld, n, blockStart, width, policy)
+        out.regularizations += factorBlockColumn(kernels, ld, n, blockStart, width, policy)
         blockStart += width
     }
     return out
@@ -108,7 +109,8 @@ private fun factorBlockColumn(
     start: Int,
     width: Int,
     policy: CholeskyPolicy,
-) {
+): Int {
+    var regularized = 0
     for (j in start until start + width) {
         val base = j + j * n
         val len = n - j
@@ -133,12 +135,16 @@ private fun factorBlockColumn(
                 )
             }
             ld[base] = sqrt(pivot)
+        } else if (pivot < floor) {
+            ld[base] = sqrt(regularizedPivot(ld, base, len, floor))
+            regularized++
         } else {
-            ld[base] = sqrt(if (pivot < floor) regularizedPivot(ld, base, len, floor) else pivot)
+            ld[base] = sqrt(pivot)
         }
         val diag = ld[base]
         for (i in base + 1 until base + len) ld[i] = ld[i] / diag
     }
+    return regularized
 }
 
 /**

@@ -75,7 +75,7 @@ internal fun referenceLuSolveInto(
 ): DoubleArray {
     requireLuSquare(lu, "solve")
     requireFactored(lu.failedAt, "solve")
-    val n = lu.n
+    val n = lu.order
     requireShape(b.size == n) { "solve: b length ${b.size} != $n" }
     requireShape(out.size == n) { "solve: out length ${out.size} != $n" }
     val a = lu.lu
@@ -143,7 +143,7 @@ internal fun referenceLuSolveInto(
 ): F64DenseMatrix {
     requireLuSquare(lu, "solve")
     requireFactored(lu.failedAt, "solve")
-    val n = lu.n
+    val n = lu.order
     val nrhs = b.cols
     requireSolveShapes(n, n, b, out)
     if (nrhs == 0) return out

@@ -43,8 +43,8 @@ public fun F64LuDecomposition.determinantSign(): Int {
     requireLuSquare(this, "determinantSign")
     if (singular) return 0
     var sign = if (permutationSign(mutablePivots) > 0.0) 1 else -1
-    for (k in 0 until n) {
-        val diagonal = lu[k + k * n]
+    for (k in 0 until order) {
+        val diagonal = lu[k + k * rows]
         when {
             diagonal.isNaN() || diagonal == 0.0 -> return 0
             diagonal < 0.0 -> sign = -sign
@@ -63,8 +63,8 @@ public fun F64LuDecomposition.logAbsDeterminant(): Double {
     requireLuSquare(this, "logAbsDeterminant")
     if (singular) return Double.NEGATIVE_INFINITY
     var logAbs = 0.0
-    for (k in 0 until n) {
-        val diagonal = lu[k + k * n]
+    for (k in 0 until order) {
+        val diagonal = lu[k + k * rows]
         if (diagonal == 0.0) return Double.NEGATIVE_INFINITY
         logAbs += kotlin.math.ln(kotlin.math.abs(diagonal))
     }

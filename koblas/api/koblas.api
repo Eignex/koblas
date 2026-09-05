@@ -1110,6 +1110,7 @@ public final class com/eignex/koblas/dense/F64CholeskyDecomposition {
 	public fun <init> (Lcom/eignex/koblas/core/F64DenseMatrix;)V
 	public final fun getL ()Lcom/eignex/koblas/core/F64DenseMatrix;
 	public final fun getN ()I
+	public final fun getRegularizations ()I
 }
 
 public abstract interface class com/eignex/koblas/dense/F64Decompositions : com/eignex/koblas/Backend {
