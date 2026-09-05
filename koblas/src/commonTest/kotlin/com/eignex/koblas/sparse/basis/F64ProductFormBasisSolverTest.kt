@@ -313,4 +313,53 @@ class F64ProductFormBasisSolverTest {
             delegate.close()
         }
     }
+
+    @Test
+    fun `the reachable ftran agrees with the dense sweep across densities`() {
+        // The reachable path only runs below the density gate, so the two sweeps have to be compared by
+        // driving the same right-hand side through both. A hypersparse rhs is the case it exists for, and a
+        // dense one is the case that must still fall back.
+        val rng = Random(20260980)
+        val n = 60
+        val columns = List(n) { j ->
+            val rows = (listOf(j) + List(3) { rng.nextInt(n) }).distinct().sorted()
+            rows.map { i -> i to if (i == j) 6.0 + rng.nextDouble() else rng.nextDouble(-1.0, 1.0) }
+        }
+        val a = F64SparseMatrix.ofColumns(n, n, columns)
+        val solver = F64ProductFormBasisSolver(a, F64ReferenceSparseLinearAlgebra)
+        assertTrue(solver.refactorize(IntArray(n) { it }), "the fixture should factorize")
+
+        // Pivoted first, so the eta chain is non-empty: the reachable sweep has to carry the pattern
+        // through the etas as well as the factors, and an eta can name a position the factors' reach did not.
+        for (slot in 0 until 4) {
+            val spike = F64IndexedVector(n).also { it.scatterColumn(a, slot) }
+            solver.ftran(spike, spike.density)
+            val eta = F64IndexedVector(n).also { it.unit(slot) }
+            solver.btran(eta, eta.density)
+            assertTrue(solver.update(slot, slot, spike, eta) != BasisUpdate.SINGULAR, "pivot $slot was refused")
+        }
+
+        for (nonzeros in intArrayOf(1, 2, 5, 40)) {
+            val positions = (0 until n).shuffled(rng).take(nonzeros).sorted()
+            val values = positions.associateWith { rng.nextDouble(-1.0, 1.0) }
+
+            val rhs = DoubleArray(n)
+            for ((i, v) in values) rhs[i] = v
+
+            val reachable = F64IndexedVector(n).also { it.scatter(rhs) }
+            solver.ftran(reachable, expectedDensity = 0.0)
+
+            val densePath = F64IndexedVector(n).also { it.scatter(rhs) }
+            solver.ftran(densePath, expectedDensity = 1.0)
+
+            for (i in 0 until n) {
+                assertClose(
+                    densePath[i],
+                    reachable[i],
+                    "nonzeros=$nonzeros entry $i",
+                    tolerance = 1e-9,
+                )
+            }
+        }
+    }
 }

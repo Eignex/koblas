@@ -162,6 +162,72 @@ public class F64SparseMarkowitzLu private constructor(
         return out
     }
 
+    /**
+     * FTRAN over only the positions the right-hand side can reach, for a caller that knows its pattern.
+     *
+     * [dense] holds the right-hand side at original row positions and is overwritten with the solution;
+     * every position outside [pattern] must already be zero, and every position this writes is reported back
+     * so the caller can clear exactly those. The dense sweeps in [solveInto] cost `O(m)` whatever the
+     * right-hand side looks like, which is the whole cost for the single-nonzero solves a simplex runs.
+     *
+     * @return the number of original row indices written to [result].
+     */
+    @Suppress("LongParameterList") // the vector, its pattern, the scratch, and the result pattern
+    internal fun ftranReachable(
+        dense: DoubleArray,
+        pattern: IntArray,
+        patternCount: Int,
+        scratch: ReachableSolveScratch,
+        pivotPattern: IntArray,
+        result: IntArray,
+    ): Int {
+        // Into pivot space, applying the row equilibration on the way in.
+        val invPerm = scratch.invPerm(perm)
+        for (s in 0 until patternCount) {
+            val row = pattern[s]
+            pivotPattern[s] = invPerm[row]
+        }
+        for (s in 0 until patternCount) {
+            val row = pattern[s]
+            val k = pivotPattern[s]
+            scratch.values[k] = dense[row] * rowScale[row]
+        }
+
+        // L y = P E b, forward over the reachable columns of L.
+        var count = reachableOrder(lColIdx, pivotPattern, patternCount, scratch)
+        var touched = scratch.copyOrder(count)
+        for (t in 0 until count) {
+            val k = touched[t]
+            val yk = scratch.values[k]
+            if (yk == 0.0) continue
+            val idx = lColIdx[k]
+            val vals = lColVal[k]
+            for (e in idx.indices) scratch.values[idx[e]] -= vals[e] * yk
+        }
+
+        // U x' = y, back over the reachable columns of U, seeded by everything L produced.
+        count = reachableOrder(uColIdx, touched, count, scratch)
+        touched = scratch.copyOrder(count)
+        for (t in 0 until count) {
+            val k = touched[t]
+            val xk = scratch.values[k] / uDiag[k]
+            scratch.values[k] = xk
+            if (xk == 0.0) continue
+            val idx = uColIdx[k]
+            val vals = uColVal[k]
+            for (e in idx.indices) scratch.values[idx[e]] -= vals[e] * xk
+        }
+
+        // Out of pivot-column space, clearing the scratch as it is read.
+        for (t in 0 until count) {
+            val k = touched[t]
+            result[t] = colPerm[k]
+            dense[colPerm[k]] = scratch.values[k]
+            scratch.values[k] = 0.0
+        }
+        return count
+    }
+
     /** The transposed sweep of [solveInto]: `Uᵀ Lᵀ (P x) = Q b`. `b` is indexed by original column, the
      *  result by original row. */
     private fun btranInto(b: DoubleArray, out: DoubleArray, workspace: Workspace? = null): DoubleArray {

@@ -9,6 +9,8 @@ import com.eignex.koblas.requireInBounds
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.sparse.F64SparseDecompositions
 import com.eignex.koblas.sparse.F64SparseFactorization
+import com.eignex.koblas.sparse.factorization.lu.F64SparseMarkowitzLu
+import com.eignex.koblas.sparse.factorization.lu.ReachableSolveScratch
 
 /** Updates a portable solver folds in before advising a rebuild; past this the chain costs more than it saves. */
 public const val DEFAULT_ETA_LIMIT: Int = 50
@@ -32,6 +34,7 @@ public const val DEFAULT_ETA_LIMIT: Int = 50
  * @param lu the factorization backend the rebuilds go through.
  * @param etaLimit updates folded in before [update] starts asking for a rebuild.
  */
+
 public class F64ProductFormBasisSolver(
     private val a: F64SparseMatrix,
     private val lu: F64SparseDecompositions,
@@ -58,6 +61,13 @@ public class F64ProductFormBasisSolver(
     private val etaValues = ArrayList<DoubleArray>()
 
     private val dense = DoubleArray(n)
+
+    /** Scratch for the reachability-limited forward solve, allocated once so a solve allocates nothing. */
+    private val reachScratch = ReachableSolveScratch(n)
+    private val reachPivots = IntArray(n)
+    private val reachResult = IntArray(n)
+    private val reachSeen = IntArray(n) { -1 }
+    private var reachStamp = 0
     private val workspace = Workspace().apply { reserve(n, count = 3) }
 
     override val updateCount: Int get() {
@@ -104,14 +114,74 @@ public class F64ProductFormBasisSolver(
         return !factors.singular
     }
 
-    /** [expectedDensity] is not read: there is one sweep here to choose from, for the reason the class says. */
+    /**
+     * [expectedDensity] chooses the sweep: below [REACHABLE_FTRAN_MAX_DENSITY] the solve visits only the
+     * positions the right-hand side can reach, above it the dense sweep is cheaper than tracking which.
+     */
+    @OptIn(UnsafeKoblasApi::class)
     override fun ftran(x: F64IndexedVector, expectedDensity: Double) {
         checkOpen()
         val factors = solvable(x)
+        if (expectedDensity < REACHABLE_FTRAN_MAX_DENSITY && factors is F64SparseMarkowitzLu) {
+            for (t in 0 until x.count) dense[x.indices[t]] = x.values[x.indices[t]]
+            var produced = factors.ftranReachable(dense, x.indices, x.count, reachScratch, reachPivots, reachResult)
+            produced = applyEtasTracking(produced)
+            // Filled past the seam, which is what the count setter exists for: clear the old pattern, then
+            // write the reachable one and take the values straight out of the dense buffer, clearing it as
+            // it is read so neither side pays a pass over n.
+            x.clear()
+            for (t in 0 until produced) {
+                val i = reachResult[t]
+                x.indices[t] = i
+                x.values[i] = dense[i]
+                dense[i] = 0.0
+            }
+            x.count = produced
+            return
+        }
         x.gather(dense)
         factors.solveInto(dense, dense, transpose = false, workspace = workspace)
         for (j in 0 until etaCount) applyEta(j)
         x.scatter(dense)
+    }
+
+    /**
+     * Applies the eta chain to [dense] while extending the result pattern, which [reachResult] carries in.
+     *
+     * Each eta is already sparse in its own right, but it can write positions the factorization's reach did
+     * not name, so the pattern has to grow with it or those entries would be dropped on the way out. A stamp
+     * array does the membership test in constant time per touched position.
+     *
+     * @return the number of positions [reachResult] now names.
+     */
+    private fun applyEtasTracking(reached: Int): Int {
+        if (etaCount == 0) return reached
+        val seen = reachSeen
+        val stamp = ++reachStamp
+        var count = reached
+        for (t in 0 until reached) seen[reachResult[t]] = stamp
+        for (j in 0 until etaCount) {
+            val pivotRow = etaPivotRow[j]
+            val scaled = dense[pivotRow] / etaPivot[j]
+            if (scaled != 0.0) {
+                val indices = etaIndices[j]
+                val values = etaValues[j]
+                for (k in indices.indices) {
+                    val i = indices[k]
+                    dense[i] -= scaled * values[k]
+                    if (seen[i] != stamp) {
+                        seen[i] = stamp
+                        reachResult[count++] = i
+                    }
+                }
+            }
+            dense[pivotRow] = scaled
+            if (seen[pivotRow] != stamp) {
+                seen[pivotRow] = stamp
+                reachResult[count++] = pivotRow
+            }
+        }
+        return count
     }
 
     /** [expectedDensity] is not read, as in [ftran]. */
@@ -235,3 +305,9 @@ public class F64ProductFormBasisSolver(
         check(!closed) { "product-form basis solver is closed" }
     }
 }
+
+/**
+ * Above this the dense sweep wins: tracking which positions a solve reaches costs a depth-first pass over
+ * the factor's column graph, which only pays while the reachable set stays well under `m`.
+ */
+private const val REACHABLE_FTRAN_MAX_DENSITY = 0.1
