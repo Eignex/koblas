@@ -8,7 +8,10 @@ internal class SparseQrSymbolic(
     val rowPermutation: IntArray,
     val rows: Int,
     val householderNonzeros: Int,
-)
+) {
+    /** Entries `R` will hold, filled in by the analysis once [countUpperNonzeros] has walked the paths. */
+    var upperNonzeros: Int = 0
+}
 
 internal fun columnEliminationTree(a: F64SparseMatrix): IntArray {
     val parent = IntArray(a.cols) { -1 }

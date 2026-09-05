@@ -51,6 +51,29 @@ public open class F64ReferenceSparseDecompositions(
     /** Nor do they reach this one: equilibration would change the least-squares problem being solved. */
     override fun qr(a: F64SparseMatrix): F64SparseQrFactorization = F64SparseHouseholderQr.factor(a)
 
+    /**
+     * The elimination tree and the column counts of `L`, held so that refactorizing this pattern reaches the
+     * numeric sweep directly. The transposed triangle the sweep reads carries values, so it is not kept.
+     */
+    override fun analyzeCholesky(a: F64SparseMatrix): F64SparseSymbolicAnalysis<F64SparseCholeskyFactorization> {
+        val symbolic = F64SparseUpLookingCholesky.analyzeLower(a)
+        return PatternOnlyAnalysis(a) { F64SparseUpLookingCholesky.factorLower(it, symbolic) }
+    }
+
+    /** The same structure the Cholesky analyzes, over a diagonal this one stores separately. */
+    override fun analyzeQuasiDefiniteLdl(
+        a: F64SparseMatrix,
+    ): F64SparseSymbolicAnalysis<F64QuasiDefiniteLdlFactorization> {
+        val symbolic = F64QuasiDefiniteUpLookingLdl.analyzeLower(a)
+        return PatternOnlyAnalysis(a) { F64QuasiDefiniteUpLookingLdl.factorLower(it, symbolic) }
+    }
+
+    /** The column elimination tree, the row permutation, and both factors' entry counts. */
+    override fun analyzeQr(a: F64SparseMatrix): F64SparseSymbolicAnalysis<F64SparseQrFactorization> {
+        val symbolic = F64SparseHouseholderQr.analyze(a)
+        return PatternOnlyAnalysis(a) { F64SparseHouseholderQr.factor(it, symbolic) }
+    }
+
     /** No scaling and no drop tolerance, so `F64ReferenceSparseDecompositions.factor(a)` reads as the plain routine. */
     public companion object Default : F64ReferenceSparseDecompositions()
 }

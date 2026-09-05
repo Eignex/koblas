@@ -181,4 +181,7 @@ class UmfpackNativeConformanceTest {
         f.solve(DoubleArray(12) { 1.0 })
         assertNull(AnchoredFactorization.held, "solve left its factorization anchored")
     }
+
+    @Test
+    fun `a Cholesky analysis refactors compatible values and refuses the rest`() = assertCholeskyAnalysisReuses(umfpack)
 }

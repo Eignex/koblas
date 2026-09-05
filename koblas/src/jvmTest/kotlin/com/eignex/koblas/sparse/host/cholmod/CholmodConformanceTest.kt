@@ -5,6 +5,7 @@ import com.eignex.koblas.assertClose
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.assertCholeskyAgreesWithReference
+import com.eignex.koblas.sparse.assertCholeskyAnalysisReuses
 import com.eignex.koblas.sparse.assertLdlAgreesWithReference
 import com.eignex.koblas.sparse.assertNativeBlockFactorSolvesAgreeWithReference
 import com.eignex.koblas.sparse.assertNativeFactorCloseContract
@@ -97,6 +98,13 @@ class CholmodConformanceTest {
         requireCholmod()
         Assume.assumeTrue("SuiteSparse is not installed", umfpack.isAvailable)
         assertCholeskyAgreesWithReference(umfpack)
+    }
+
+    @Test
+    fun `a symbolic analysis refactors compatible values and refuses the rest`() {
+        requireCholmod()
+        Assume.assumeTrue("SuiteSparse is not installed", umfpack.isAvailable)
+        assertCholeskyAnalysisReuses(umfpack)
     }
 
     @Test

@@ -9,8 +9,8 @@ import com.eignex.koblas.noManagedOrNativeAllocation
 import com.eignex.koblas.requireSolveShapes
 import com.eignex.koblas.requireSquare
 import com.eignex.koblas.sparse.F64SparseCholeskyFactorization
-import com.eignex.koblas.sparse.factorization.columnPointers
-import com.eignex.koblas.sparse.factorization.eliminationTree
+import com.eignex.koblas.sparse.factorization.UpLookingSymbolic
+import com.eignex.koblas.sparse.factorization.analyzeUpLooking
 import com.eignex.koblas.sparse.factorization.ereach
 import com.eignex.koblas.sparse.internal.transposeCsc
 import kotlin.math.abs
@@ -97,15 +97,28 @@ public class F64SparseUpLookingCholesky internal constructor(
          */
         public fun factorLower(a: F64SparseMatrix): F64SparseUpLookingCholesky {
             requireSquare(a, "cholesky")
-            val n = a.rows
             // The up-looking sweep reads row k of A left of the diagonal, and CSC stores columns. Transposing
             // the lower triangle once turns each of those rows into a column, and costs one pass over A.
             val upper = transposeCsc(a)
-            val parent = eliminationTree(n, upper)
-            val colPtr = columnPointers(n, upper, parent)
+            return factorTransposed(upper, analyzeUpLooking(a.rows, upper, storesDiagonal = true))
+        }
+
+        /** The pattern-only half of [factorLower], for a caller that will factor this structure again. */
+        internal fun analyzeLower(a: F64SparseMatrix): UpLookingSymbolic {
+            requireSquare(a, "cholesky")
+            return analyzeUpLooking(a.rows, transposeCsc(a), storesDiagonal = true)
+        }
+
+        /** [factorLower] against an analysis of the same pattern, which the caller has already checked. */
+        internal fun factorLower(a: F64SparseMatrix, symbolic: UpLookingSymbolic): F64SparseUpLookingCholesky =
+            factorTransposed(transposeCsc(a), symbolic)
+
+        private fun factorTransposed(upper: F64SparseMatrix, symbolic: UpLookingSymbolic): F64SparseUpLookingCholesky {
+            val n = symbolic.n
+            val colPtr = symbolic.colPtr
             val rowIdx = IntArray(colPtr[n])
             val values = DoubleArray(colPtr[n])
-            factorNumeric(n, upper, parent, colPtr, rowIdx, values)
+            factorNumeric(n, upper, symbolic.parent, colPtr, rowIdx, values)
             return F64SparseUpLookingCholesky(n, colPtr, rowIdx, values)
         }
     }

@@ -216,6 +216,17 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
 
     override fun qr(a: F64SparseMatrix): F64SparseQrFactorization = F64ReferenceSparseDecompositions.qr(a)
 
+    override fun analyzeCholesky(a: F64SparseMatrix): F64SparseSymbolicAnalysis<F64SparseCholeskyFactorization> =
+        F64ReferenceSparseDecompositions.analyzeCholesky(a)
+
+    override fun analyzeQuasiDefiniteLdl(
+        a: F64SparseMatrix,
+    ): F64SparseSymbolicAnalysis<F64QuasiDefiniteLdlFactorization> =
+        F64ReferenceSparseDecompositions.analyzeQuasiDefiniteLdl(a)
+
+    override fun analyzeQr(a: F64SparseMatrix): F64SparseSymbolicAnalysis<F64SparseQrFactorization> =
+        F64ReferenceSparseDecompositions.analyzeQr(a)
+
     override fun dot(x: F64SparseVector, y: DoubleArray): Double {
         requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
         var s = 0.0

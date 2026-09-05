@@ -20,14 +20,24 @@ class SparseSymmetricHostBenchmark {
     var backend: String = REFERENCE_BACKEND
 
     private lateinit var a: F64SparseMatrix
+    private lateinit var choleskyAnalysis: F64SparseSymbolicAnalysis<F64SparseCholeskyFactorization>
+    private lateinit var ldlAnalysis: F64SparseSymbolicAnalysis<F64QuasiDefiniteLdlFactorization>
 
     @Setup
     fun setup() {
         installSparseDecompositionBackend(backend)
         val rng = benchRng()
         a = sparseSpdMatrix(n, rng)
+        choleskyAnalysis = koblas.sparseCholesky.analyzeCholesky(a)
+        ldlAnalysis = koblas.quasiDefiniteLdl.analyzeQuasiDefiniteLdl(a)
         val half = koblas.sparseDecompositions.name
         println("resolved: sparseDecompositions=$half n=$n nnz(A)=${a.nnz}")
+    }
+
+    @TearDown
+    fun tearDown() {
+        choleskyAnalysis.close()
+        ldlAnalysis.close()
     }
 
     @Benchmark
@@ -35,6 +45,14 @@ class SparseSymmetricHostBenchmark {
 
     @Benchmark
     fun quasiDefiniteLdl(): F64SparseFactorization = a.quasiDefiniteLdl()
+
+    // Against the two above: the same numeric sweep with the pattern already analyzed, so the pair measures
+    // what a caller refactorizing one structure saves.
+    @Benchmark
+    fun choleskyRefactor(): F64SparseFactorization = choleskyAnalysis.factor(a)
+
+    @Benchmark
+    fun quasiDefiniteLdlRefactor(): F64SparseFactorization = ldlAnalysis.factor(a)
 
     // Reading the factors converts a copy of the factor, so it is its own row rather than part of the two
     // above. `choleskyFactors` and `quasiDefiniteLdlFactors` sort beside their factorizations, before the control.
