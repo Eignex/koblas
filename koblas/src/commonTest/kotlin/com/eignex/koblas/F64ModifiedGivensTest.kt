@@ -30,18 +30,46 @@ class F64ModifiedGivensTest {
             Case(
                 1e-20, 1e-20, 2.0, 1.0,
                 2.2517998136852478e-6, 2.2517998136852478e-6, 1.4901161193847656e-7,
-                -1.0, 5.9604644775390625e-8, -2.44140625e-4, 1.0,
-                5.9604644775390625e-8,
+                -1.0, 5.960464477539063e-8, -2.9802322387695312e-8, 2.9802322387695312e-8,
+                5.960464477539063e-8,
             ),
             Case(
                 1e20, 1e20, 2.0, 1.0,
                 284217.09430404007, 284217.09430404007, 41943040.0,
-                -1.0, 16777216.0, -4096.0, 1.0, 16777216.0,
+                -1.0, 16777216.0, -8388608.0, 8388608.0, 16777216.0,
             ),
         )
 
         for (case in cases) {
             assertModifiedGivensEquals(case, rotmg(case.inputD1, case.inputD2, case.inputX1, case.y1))
+        }
+    }
+
+    @Test
+    fun `rotmg eliminates the second component across every rescaling path`() {
+        // The defining property, stated without hand-written constants so it holds however the
+        // rescaling loops are reorganized: H maps the unscaled pair to the returned x1 and a zero.
+        val inputs = listOf(
+            doubleArrayOf(1.0, 1.0, 2.0, 1.0),
+            doubleArrayOf(1.0, 1.0, 1.0, 2.0),
+            doubleArrayOf(1e-9, 1e-9, 1.0, 2.0),
+            doubleArrayOf(1e-20, 1e-20, 2.0, 1.0),
+            doubleArrayOf(1e20, 1e20, 2.0, 1.0),
+            doubleArrayOf(1e20, 1e-20, 2.0, 1.0),
+            doubleArrayOf(1e-20, 1e20, 2.0, 1.0),
+        )
+
+        for (input in inputs) {
+            val (d1, d2, x1, y1) = input
+            val h = rotmg(d1, d2, x1, y1)
+            val label = "d1=$d1 d2=$d2 x1=$x1 y1=$y1"
+
+            val eliminated = h.h21 * x1 + h.h22 * y1
+            val eliminatedScale = maxOf(kotlin.math.abs(h.h21 * x1), kotlin.math.abs(h.h22 * y1))
+            assertEquals(0.0, eliminated, eliminatedScale * 1e-13, "second component for $label")
+
+            val carried = h.h11 * x1 + h.h12 * y1
+            assertEquals(h.x1, carried, tolerance(h.x1), "first component for $label")
         }
     }
 
