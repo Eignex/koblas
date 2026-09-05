@@ -137,11 +137,7 @@ public class F64SparseHouseholderQr internal constructor(
             requireShape(a.rows >= a.cols) {
                 "qr: A is ${a.rows}x${a.cols}, which is wider than it is tall; factor its transpose instead"
             }
-            val symbolic = analyzeQr(a)
-            // The count of R's entries follows from the pattern too, so it is settled here rather than per
-            // factorization: it is a second walk of the elimination paths, as costly as the tree itself.
-            symbolic.upperNonzeros = countUpperNonzeros(a, symbolic)
-            return symbolic
+            return analyzeQr(a)
         }
 
         /** [factor] against an analysis of the same pattern, which the caller has already checked. */

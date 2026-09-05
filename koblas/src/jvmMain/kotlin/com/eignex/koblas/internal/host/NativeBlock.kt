@@ -51,6 +51,10 @@ internal actual class NativeBlock(val segment: MemorySegment) {
         return out
     }
 
+    actual fun readDoublesInto(destination: DoubleArray, count: Int) {
+        MemorySegment.copy(segment, JAVA_DOUBLE, 0L, destination, 0, count)
+    }
+
     actual fun writeDoubles(source: DoubleArray, count: Int) {
         MemorySegment.copy(source, 0, segment, JAVA_DOUBLE, 0L, count)
     }

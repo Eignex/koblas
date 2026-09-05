@@ -248,6 +248,12 @@ class HostBlasConformanceTest {
     }
 
     @Test
+    fun `a reused Cholesky destination reports the count of the factorization now in it`() {
+        Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
+        assertReusedCholeskyDestinationReportsItsOwnCount(F64Lapacke())
+    }
+
+    @Test
     fun `an empty factorization solves an empty right-hand side`() {
         Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
         assertAnEmptyFactorizationSolvesEmpty(F64Lapacke())

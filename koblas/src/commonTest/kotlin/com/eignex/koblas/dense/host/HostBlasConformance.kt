@@ -298,6 +298,41 @@ internal fun assertNonPositiveDefiniteFallsBack(decompositions: F64Decomposition
 }
 
 /**
+ * A destination reused across policies reports the count of the factorization now in it.
+ *
+ * `regularizations` is how a caller asks whether the factor describes the matrix it handed over or a nearby
+ * one, so a strict factorization writing into a destination a regularized one left behind has to clear it.
+ * The host adapter answers strict Cholesky from `dpotrf`, which regularizes nothing and knows nothing about
+ * the property, so the reset is the adapter's to make.
+ */
+internal fun assertReusedCholeskyDestinationReportsItsOwnCount(decompositions: F64Decompositions) {
+    val n = 3
+    // Positive definite through column 1, then a diagonal too small to carry column 2.
+    val perturbed = F64DenseMatrix.of(
+        arrayOf(
+            doubleArrayOf(4.0, 1.0, 0.0),
+            doubleArrayOf(1.0, 4.0, 0.0),
+            doubleArrayOf(0.0, 0.0, -1.0),
+        ),
+    )
+    val healthy = F64DenseMatrix.of(
+        arrayOf(
+            doubleArrayOf(4.0, 1.0, 0.0),
+            doubleArrayOf(1.0, 4.0, 0.0),
+            doubleArrayOf(0.0, 0.0, 9.0),
+        ),
+    )
+    val destination = F64CholeskyDecomposition(F64DenseMatrix.zero(n, n))
+
+    decompositions.choleskyInto(perturbed, destination, CholeskyPolicy.Regularize())
+    assertTrue(destination.regularizations > 0, "the perturbed matrix should have had a pivot replaced")
+
+    decompositions.choleskyInto(healthy, destination)
+
+    assertEquals(0, destination.regularizations, "a strict factorization replaced no pivot")
+}
+
+/**
  * `dsymv` derives its extent from one dimension and a leading dimension, so a non-square matrix has it read
  * `n²` entries from a shorter array, past the end of a pinned buffer that carries no bounds check. The shape
  * must be rejected whichever side of the level-2 gate the call lands on.

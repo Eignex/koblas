@@ -431,6 +431,9 @@ public abstract class F64DecompositionsAdapter internal constructor(
         // small positive pivot is a success as far as it is concerned, so it would return a factor the
         // policy was meant to bound. The portable factorization defines what regularizing means.
         if (policy !is CholeskyPolicy.Strict) return portable.choleskyInto(source, out, policy)
+        // A reused destination arrives carrying the previous factorization's count, and dpotrf regularizes
+        // nothing, so this path owes the zero the portable one writes for itself.
+        out.regularizations = 0
         // One bulk copy per column of the lower triangle; dpotrf reads no further. The strict upper is
         // cleared because a reused destination arrives holding the previous factor.
         for (j in 0 until n) {

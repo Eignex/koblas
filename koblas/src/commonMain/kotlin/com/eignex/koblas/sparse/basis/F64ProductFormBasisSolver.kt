@@ -62,6 +62,17 @@ public class F64ProductFormBasisSolver(
 
     private val dense = DoubleArray(n)
 
+    /**
+     * Whether [dense] still holds a solution the dense sweeps left behind.
+     *
+     * The reachable sweep reads and writes only the positions it names, so it needs every other position at
+     * zero and clears the ones it touched on the way out. The dense sweeps leave the whole buffer holding
+     * their answer, which the next reachable sweep would then read as fill the right-hand side never had.
+     * Cleared where the reachable sweep starts rather than where a dense one finishes, so a run of dense
+     * solves pays for one pass instead of one each.
+     */
+    private var denseDirty = false
+
     /** Scratch for the reachability-limited forward solve, allocated once so a solve allocates nothing. */
     private val reachScratch = ReachableSolveScratch(n)
     private val reachPivots = IntArray(n)
@@ -123,6 +134,10 @@ public class F64ProductFormBasisSolver(
         checkOpen()
         val factors = solvable(x)
         if (expectedDensity < REACHABLE_FTRAN_MAX_DENSITY && factors is F64SparseMarkowitzLu) {
+            if (denseDirty) {
+                dense.fill(0.0)
+                denseDirty = false
+            }
             for (t in 0 until x.count) dense[x.indices[t]] = x.values[x.indices[t]]
             var produced = factors.ftranReachable(dense, x.indices, x.count, reachScratch, reachPivots, reachResult)
             produced = applyEtasTracking(produced)
@@ -143,6 +158,7 @@ public class F64ProductFormBasisSolver(
         factors.solveInto(dense, dense, transpose = false, workspace = workspace)
         for (j in 0 until etaCount) applyEta(j)
         x.scatter(dense)
+        denseDirty = true
     }
 
     /**
@@ -157,6 +173,12 @@ public class F64ProductFormBasisSolver(
     private fun applyEtasTracking(reached: Int): Int {
         if (etaCount == 0) return reached
         val seen = reachSeen
+        // Wrapping would land the stamp on the -1 the array starts at, and every untouched position would
+        // then read as already in the pattern, which drops it from the result.
+        if (reachStamp == Int.MAX_VALUE) {
+            reachSeen.fill(-1)
+            reachStamp = 0
+        }
         val stamp = ++reachStamp
         var count = reached
         for (t in 0 until reached) seen[reachResult[t]] = stamp
@@ -192,6 +214,7 @@ public class F64ProductFormBasisSolver(
         for (j in etaCount - 1 downTo 0) applyEtaTransposed(j)
         factors.solveInto(dense, dense, transpose = true, workspace = workspace)
         x.scatter(dense)
+        denseDirty = true
     }
 
     override fun solveQuality(rhs: DoubleArray, solution: F64IndexedVector, transpose: Boolean): F64BasisSolveQuality {

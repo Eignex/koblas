@@ -362,4 +362,76 @@ class F64ProductFormBasisSolverTest {
             }
         }
     }
+
+    /**
+     * The reachable sweep reads and writes only the positions it names, so it needs the rest of the shared
+     * buffer at zero. A dense sweep leaves the whole buffer holding its answer, and the eta chain reads a
+     * pivot row the reach need never name, so a reachable solve following a dense one would carry the
+     * previous solution into this one.
+     */
+    @Test
+    fun `a reachable ftran after a dense one answers the same system`() {
+        val n = 12
+        // Nearly diagonal, so a one-entry right-hand side reaches almost nothing.
+        val a = F64SparseMatrix.ofColumns(n, n, List(n) { j -> listOf(j to (2.0 + j)) })
+        val solver = F64ProductFormBasisSolver(a, F64ReferenceSparseLinearAlgebra)
+        assertTrue(solver.refactorize(IntArray(n) { it }))
+
+        // One pivot, so the eta chain names a row a distant right-hand side cannot reach.
+        val spike = F64IndexedVector(n).also { it.scatterColumn(a, 3) }
+        solver.ftran(spike, spike.density)
+        val eta = F64IndexedVector(n).also { it.unit(3) }
+        solver.btran(eta, eta.density)
+        assertTrue(solver.update(3, 3, spike, eta) != BasisUpdate.SINGULAR)
+
+        // A dense solve whose answer is nonzero at the eta's pivot row, which it leaves in the buffer.
+        val atPivot = F64IndexedVector(n).also { it.store(3, 7.0) }
+        solver.ftran(atPivot, expectedDensity = 1.0)
+
+        // A right-hand side elsewhere, whose reach does not name that row.
+        val rhs = DoubleArray(n).also { it[9] = 5.0 }
+        val reachable = F64IndexedVector(n).also { it.scatter(rhs) }
+        solver.ftran(reachable, expectedDensity = 0.0)
+
+        val densePath = F64IndexedVector(n).also { it.scatter(rhs) }
+        solver.ftran(densePath, expectedDensity = 1.0)
+
+        for (i in 0 until n) assertClose(densePath[i], reachable[i], "entry $i", tolerance = 1e-12)
+    }
+
+    /**
+     * One solver holds one reachability scratch across every basis it factorizes, and each factorization
+     * pivots to an order of its own. The scratch caches the inverse of that order, so a refactorization has
+     * to invalidate it or the next reachable solve maps the right-hand side into the previous basis's pivot
+     * positions and answers with numbers nothing raised on.
+     */
+    @Test
+    fun `a reachable ftran after a refactorization uses the new pivot order`() {
+        val rng = Random(20260991)
+        val n = 24
+        val a = F64SparseMatrix.ofColumns(
+            n,
+            n,
+            List(n) { j ->
+                val rows = (listOf(j) + List(2) { rng.nextInt(n) }).distinct().sorted()
+                rows.map { i -> i to if (i == j) 4.0 + rng.nextDouble() else rng.nextDouble(-1.0, 1.0) }
+            },
+        )
+        val solver = F64ProductFormBasisSolver(a, F64ReferenceSparseLinearAlgebra)
+        assertTrue(solver.refactorize(IntArray(n) { it }))
+        // A reachable solve first, so the scratch has this factorization's inverse permutation cached.
+        solver.ftran(F64IndexedVector(n).also { it.store(1, 1.0) }, expectedDensity = 0.0)
+        // A second basis over the same columns in another order, which pivots to a different permutation.
+        val reordered = IntArray(n) { (it * 7 + 3) % n }
+        assertTrue(solver.refactorize(reordered))
+
+        val rhs = DoubleArray(n).also { it[5] = 3.0 }
+        val reachable = F64IndexedVector(n).also { it.scatter(rhs) }
+        solver.ftran(reachable, expectedDensity = 0.0)
+
+        val densePath = F64IndexedVector(n).also { it.scatter(rhs) }
+        solver.ftran(densePath, expectedDensity = 1.0)
+
+        for (i in 0 until n) assertClose(densePath[i], reachable[i], "entry $i", tolerance = 1e-9)
+    }
 }

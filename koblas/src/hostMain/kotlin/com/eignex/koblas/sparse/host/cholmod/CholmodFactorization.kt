@@ -120,7 +120,7 @@ public class CholmodFactorization internal constructor(
             val values = checkNotNull(answer.getPointer(CHOLMOD_DENSE_X, n.toLong() * Double.SIZE_BYTES)) {
                 "cholmod_solve answered with a dense block holding no values"
             }
-            values.readDoubles(n).copyInto(out)
+            values.readDoublesInto(out, n)
             handle.solveSlot.value = solved
             functions.freeDense(handle.solveSlot.ptr, handle.common)
         }
@@ -153,7 +153,7 @@ public class CholmodFactorization internal constructor(
                     val values = checkNotNull(
                         answer.getPointer(CHOLMOD_DENSE_X, entryCount.toLong() * Double.SIZE_BYTES),
                     ) { "cholmod_solve answered with a dense block holding no values" }
-                    values.readDoubles(entryCount).copyInto(out.data)
+                    values.readDoublesInto(out.data, entryCount)
                 } finally {
                     slot.value = solved
                     functions.freeDense(slot.ptr, handle.common)

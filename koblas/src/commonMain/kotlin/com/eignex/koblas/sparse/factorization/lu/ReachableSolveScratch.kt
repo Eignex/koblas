@@ -18,15 +18,24 @@ internal class ReachableSolveScratch(m: Int) {
 
     private val orderCopy: IntArray = IntArray(m)
     private var inverse: IntArray? = null
+    private var inverseOf: IntArray? = null
     private var stamp: Int = 0
 
     /**
-     * The inverse of [perm], built once. The forward solve needs original-row to pivot-position, which the
-     * factorization stores the other way round.
+     * The inverse of [perm], built once per permutation. The forward solve needs original-row to
+     * pivot-position, which the factorization stores the other way round.
+     *
+     * Keyed on the array itself rather than cached outright: a caller holds one scratch across the life of a
+     * solver and refactorizes under it, and each factorization pivots to its own order, so an unconditional
+     * cache would answer every later solve with the first factorization's permutation.
      */
-    fun invPerm(perm: IntArray): IntArray = inverse ?: IntArray(perm.size).also { inv ->
+    fun invPerm(perm: IntArray): IntArray {
+        inverse?.let { if (inverseOf === perm) return it }
+        val inv = IntArray(perm.size)
         for (k in perm.indices) inv[perm[k]] = k
         inverse = inv
+        inverseOf = perm
+        return inv
     }
 
     /**
