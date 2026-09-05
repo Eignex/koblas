@@ -4,6 +4,7 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.ArenaBlocks
 import com.eignex.koblas.internal.host.FfmLibrary
 import com.eignex.koblas.internal.host.NativeBlock
+import com.eignex.koblas.sparse.host.hostLibraryCandidates
 import java.lang.foreign.Arena
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout.ADDRESS
@@ -20,7 +21,11 @@ internal class CholmodCalls(private val config: CholmodConfig) {
 
     /** Opened lazily, since a binding constructed during discovery must not load a library to exist. */
     private val library: FfmLibrary by lazy {
-        FfmLibrary.open(candidates(), "cholmod_start", "libcholmod")
+        FfmLibrary.open(
+            hostLibraryCandidates(CHOLMOD_SONAMES, config.libraryPath, config.searchDirectory),
+            "cholmod_start",
+            "libcholmod",
+        )
     }
 
     @Volatile
@@ -79,14 +84,6 @@ internal class CholmodCalls(private val config: CholmodConfig) {
             common == null -> "libcholmod opened but cholmod_start failed"
             else -> null
         }
-
-    private fun candidates(): List<String> = buildList {
-        config.libraryPath?.let(::add)
-        config.searchDirectory?.let { directory ->
-            for (soname in CHOLMOD_SONAMES) if ('/' !in soname) add("$directory/$soname")
-        }
-        addAll(CHOLMOD_SONAMES)
-    }
 
     private fun bindAll(): Handles? = try {
         Handles(

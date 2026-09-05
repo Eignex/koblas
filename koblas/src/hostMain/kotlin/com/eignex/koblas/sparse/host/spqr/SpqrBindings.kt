@@ -8,6 +8,7 @@ import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_COMMON_BYTES
 import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_COMMON_PRINT
 import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_SONAMES
 import com.eignex.koblas.sparse.host.cholmod.CHOLMOD_TRUE
+import com.eignex.koblas.sparse.host.hostLibraryCandidates
 import kotlinx.cinterop.*
 import platform.posix.dlsym
 
@@ -57,11 +58,14 @@ internal class SpqrFunctions(spqr: COpaquePointer, cholmod: COpaquePointer) {
 
 internal class SpqrLoader(private val config: SpqrConfig) {
     private val spqrLibrary: COpaquePointer? by lazy {
-        openNativeLibrary(candidates(SPQR_SONAMES, config.libraryPath), "SuiteSparseQR_i_C")
+        openNativeLibrary(
+            hostLibraryCandidates(SPQR_SONAMES, config.libraryPath, config.searchDirectory),
+            "SuiteSparseQR_i_C",
+        )
     }
 
     private val cholmodLibrary: COpaquePointer? by lazy {
-        openNativeLibrary(candidates(CHOLMOD_SONAMES, null), "cholmod_start")
+        openNativeLibrary(hostLibraryCandidates(CHOLMOD_SONAMES, null, config.searchDirectory), "cholmod_start")
     }
 
     val functions: SpqrFunctions? by lazy {
@@ -79,14 +83,6 @@ internal class SpqrLoader(private val config: SpqrConfig) {
             functions == null -> "libspqr opened but its symbols did not resolve"
             else -> null
         }
-
-    private fun candidates(sonames: List<String>, explicit: String?): List<String> = buildList {
-        explicit?.let(::add)
-        config.searchDirectory?.let { directory ->
-            for (soname in sonames) if ('/' !in soname) add("$directory/$soname")
-        }
-        addAll(sonames)
-    }
 
     fun common(): CPointer<ByteVar> {
         val resolved = checkNotNull(functions) { "SPQR is not available" }

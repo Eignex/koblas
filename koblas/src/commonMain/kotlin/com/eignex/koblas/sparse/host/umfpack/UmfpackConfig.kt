@@ -64,8 +64,8 @@ public data class UmfpackConfig(
         )
 
     init {
-        require(iterativeRefinementSteps >= 0) { "iterativeRefinementSteps must not be negative" }
-        require(pivotTolerance in 0.0..1.0) { "pivotTolerance must be between zero and one" }
+        // The bounds live on the options type, so the direct constructor cannot admit what it would reject.
+        options
     }
 }
 

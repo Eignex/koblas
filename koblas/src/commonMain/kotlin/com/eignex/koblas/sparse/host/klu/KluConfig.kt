@@ -121,17 +121,8 @@ public data class KluConfig(
         )
 
     init {
-        require(pivotTolerance == null || pivotTolerance in 0.0..1.0) {
-            "pivotTolerance must be between zero and one"
-        }
-        require(memoryGrowth == null || memoryGrowth > 0.0) { "memoryGrowth must be positive" }
-        require(amdInitialMemoryFactor == null || amdInitialMemoryFactor > 0.0) {
-            "amdInitialMemoryFactor must be positive"
-        }
-        require(initialMemoryFactor == null || initialMemoryFactor > 0.0) {
-            "initialMemoryFactor must be positive"
-        }
-        require(maxBtfWork == null || maxBtfWork.isFinite()) { "maxBtfWork must be finite" }
+        // The bounds live on the options type, so the direct constructor cannot admit what it would reject.
+        options
     }
 }
 
