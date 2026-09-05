@@ -135,7 +135,7 @@ public class BasicluBasisFactorization internal constructor(
         // BASICLU wants the entering column solved for and then the leaving row named through a transposed
         // solve, both before the update itself.
         val status = anchoring {
-            val prepared = entering.indices.map(Int::toLong).toLongArray().usePinned { rows ->
+            val prepared = LongArray(entering.indices.size) { entering.indices[it].toLong() }.usePinned { rows ->
                 entering.values.usePinned { values ->
                     functions.solveForUpdate(
                         handle.obj,

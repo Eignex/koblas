@@ -95,28 +95,6 @@ public class F64SparseMarkowitzLu private constructor(
         return F64SparseMatrix.wrap(m, m, colPtr, rowIdx, entries)
     }
 
-    /**
-     * Orders `[from, until)` of one column by row index, carrying each value with its index.
-     *
-     * Insertion sort rather than a library sort: what needs ordering is two parallel primitive arrays at
-     * once, which no sort here takes, and a factor column is short enough that the quadratic term does not
-     * bite.
-     */
-    private fun sortColumn(rowIdx: IntArray, entries: DoubleArray, from: Int, until: Int) {
-        for (i in from + 1 until until) {
-            val row = rowIdx[i]
-            val value = entries[i]
-            var j = i - 1
-            while (j >= from && rowIdx[j] > row) {
-                rowIdx[j + 1] = rowIdx[j]
-                entries[j + 1] = entries[j]
-                j--
-            }
-            rowIdx[j + 1] = row
-            entries[j + 1] = value
-        }
-    }
-
     /** Always [NOT_SINGULAR]: a [F64SparseMarkowitzLu] only exists for a matrix that factored completely. */
     override val failedAt: Int get() = NOT_SINGULAR
 
@@ -293,6 +271,27 @@ public class F64SparseMarkowitzLu private constructor(
 
     /** Entry points for factorizing. */
     public companion object {
+        /**
+         * Orders `[from, until)` of one column by row index, carrying each value with its index.
+         *
+         * Insertion sort rather than a library sort: what needs ordering is two parallel primitive arrays
+         * at once, which no sort here takes, and a factor column is short enough that the quadratic term
+         * does not bite.
+         */
+        private fun sortColumn(rowIdx: IntArray, entries: DoubleArray, from: Int, until: Int) {
+            for (i in from + 1 until until) {
+                val row = rowIdx[i]
+                val value = entries[i]
+                var j = i - 1
+                while (j >= from && rowIdx[j] > row) {
+                    rowIdx[j + 1] = rowIdx[j]
+                    entries[j + 1] = entries[j]
+                    j--
+                }
+                rowIdx[j + 1] = row
+                entries[j + 1] = value
+            }
+        }
 
         /**
          * Factorize the square [a], the implementation behind [F64SparseDecompositions.factor]. Returns a
@@ -365,15 +364,6 @@ public class F64SparseMarkowitzLu private constructor(
             return freeze(u, lAtStep, perm, colPerm, m, rowScale)
         }
 
-        /** The keys of [map] passed through [transform], sorted ascending. */
-        private inline fun sortedKeysOf(map: MutableIntDoubleMap, transform: (Int) -> Int): IntArray {
-            val out = IntArray(map.size)
-            var t = 0
-            map.forEach { key, _ -> out[t++] = transform(key) }
-            out.sort()
-            return out
-        }
-
         @Suppress("LongParameterList")
         private fun freeze(
             u: Array<MutableIntDoubleMap>,
@@ -386,7 +376,7 @@ public class F64SparseMarkowitzLu private constructor(
             val invPerm = inverseOf(perm)
             val invColPerm = inverseOf(colPerm)
             val uDiag = DoubleArray(m) { k -> u[perm[k]].getOrDefault(colPerm[k], 0.0) }
-            val (uRowIdx, uRowVal) = uRowsOf(u, perm, colPerm, invColPerm, m)
+            val (uRowIdx, uRowVal) = uRowsOf(u, perm, invColPerm, m)
             val (lRowIdx, lRowVal) = lRowsOf(lAtStep, invPerm, m)
             // Column orientations in pivot space, U strictly upper and L entire.
             val uCol = columnOrientation(m, uRowIdx, uRowVal, strictlyAbovePivot = true)
@@ -407,16 +397,30 @@ public class F64SparseMarkowitzLu private constructor(
         private fun uRowsOf(
             u: Array<MutableIntDoubleMap>,
             perm: IntArray,
-            colPerm: IntArray,
             invColPerm: IntArray,
             m: Int,
         ): Pair<Array<IntArray>, Array<DoubleArray>> {
-            val idx = Array(m) { k -> sortedKeysOf(u[perm[k]]) { invColPerm[it] } }
-            val values = Array(m) { k ->
+            // One pass per row, carrying each value out beside its key. Sorting the keys alone and then
+            // probing the map back for every value would spend a second hash lookup per stored entry
+            // recovering what the walk had already read.
+            val idx = arrayOfNulls<IntArray>(m)
+            val values = arrayOfNulls<DoubleArray>(m)
+            for (k in 0 until m) {
                 val row = u[perm[k]]
-                DoubleArray(idx[k].size) { t -> row.getOrDefault(colPerm[idx[k][t]], 0.0) }
+                val keys = IntArray(row.size)
+                val entries = DoubleArray(row.size)
+                var t = 0
+                row.forEach { key, value ->
+                    keys[t] = invColPerm[key]
+                    entries[t] = value
+                    t++
+                }
+                sortColumn(keys, entries, 0, t)
+                idx[k] = keys
+                values[k] = entries
             }
-            return idx to values
+            @Suppress("UNCHECKED_CAST")
+            return (idx as Array<IntArray>) to (values as Array<DoubleArray>)
         }
 
         /** L's rows in pivot space: row k holds the multipliers from each step j < k that eliminated it. */

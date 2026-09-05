@@ -38,7 +38,12 @@ public class F64LuDecomposition @UnsafeKoblasApi constructor(
     public val square: Boolean get() = rows == cols
 
     /** Number of nonzero diagonal entries in the computed factors. DGETRF is not rank-revealing. */
-    public val rank: Int get() = (0 until order).count { lu[it + it * rows] != 0.0 }
+    public val rank: Int
+        get() {
+            var nonzero = 0
+            for (k in 0 until order) if (lu[k + k * rows] != 0.0) nonzero++
+            return nonzero
+        }
 
     /** Whether the diagonal-pivot [rank] is below [order]. */
     public val rankDeficient: Boolean get() = rank < order

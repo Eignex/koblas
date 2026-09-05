@@ -46,9 +46,19 @@ public class F64SparseHouseholderQr internal constructor(
     override val columnOrder: IntArray get() = IntArray(n) { it }
 
     // R comes out of the numeric pass in elimination-path order, so its columns need sorting. A double
-    // transpose is what sorts a CSC matrix, and that is exactly what transposeRaw does, twice.
+    // transpose is what sorts a CSC matrix, and that is exactly what transposeRaw does, twice. The order is
+    // a property of the numeric pass rather than of the caller, so it is settled once and not per read.
+    private val sortedR: F64SparseMatrix by lazy { transposeCsc(transposeRaw(n, n, rColPtr, rRowIdx, rValues)) }
+
+    // Fresh arrays per read, since a caller may write through F64SparseMatrix.values.
     override val r: F64SparseMatrix
-        get() = transposeCsc(transposeRaw(n, n, rColPtr, rRowIdx, rValues))
+        get() = F64SparseMatrix.wrap(
+            n,
+            n,
+            sortedR.copyColumnPointers(),
+            sortedR.copyRowIndices(),
+            sortedR.values.copyOf(),
+        )
 
     /**
      * Where row `i` of `A` sits, for the first [m] rows.
@@ -173,7 +183,9 @@ private fun numericalRank(m: Int, n: Int, colPtr: IntArray, values: DoubleArray)
     var maximum = 0.0
     for (k in 0 until n) maximum = maxOf(maximum, abs(values[colPtr[k + 1] - 1]))
     val tolerance = maxOf(m, n) * F64_MACHINE_EPSILON * maximum
-    return (0 until n).count { abs(values[colPtr[it + 1] - 1]) > tolerance }
+    var rank = 0
+    for (k in 0 until n) if (abs(values[colPtr[k + 1] - 1]) > tolerance) rank++
+    return rank
 }
 
 /**
