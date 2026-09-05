@@ -311,16 +311,9 @@ public fun F64Context.route(query: F64RouteQuery): BackendRoute {
     )
 }
 
-/** What [backend] reports for [query]'s half, as every route records it. */
-private fun selectedStatus(query: F64RouteQuery, backend: Backend): BackendStatus = BackendStatus(
-    query.role,
-    backend.name,
-    backend.priority,
-    backend.isAvailable,
-    backend.isPortable,
-    accelerated = !backend.isPortable,
-    (backend as? BackendMetadataProvider)?.backendMetadata ?: NO_METADATA,
-)
+/** What [backend] reports for [query]'s half, as every route a backend builds for itself records it. */
+private fun selectedStatus(query: F64RouteQuery, backend: Backend): BackendStatus =
+    backendStatus(query.role, backend, accelerated = !backend.isPortable)
 
 /**
  * The route for a problem under a backend's crossover, which executes on koblas's own implementation while

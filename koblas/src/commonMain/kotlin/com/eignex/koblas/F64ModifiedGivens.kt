@@ -109,23 +109,29 @@ internal fun portableRotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64M
             dx1 = y1 * u
         }
 
-        if (dd1 != 0.0) {
-            // Scaling by GAM/GAMSQ never brings an infinite dd1 back into range, so require finiteness too;
-            // otherwise a non-finite d1 or d2 input spins this loop forever instead of returning.
+        // Scaling by GAM/GAMSQ never brings an infinite dd1 back into range, so require finiteness too;
+        // otherwise a non-finite d1 or d2 input spins these loops forever instead of returning. Neither
+        // loop touches the other's scale factor, so both answers hold for the pair.
+        val rescalesD1 = dd1 != 0.0 && dd1.isFinite() && (dd1 <= R_GAMSQ || dd1 >= GAMSQ)
+        val rescalesD2 = dd2 != 0.0 && dd2.isFinite() && (abs(dd2) <= R_GAMSQ || abs(dd2) >= GAMSQ)
+
+        // Netlib guards FIX-H on a non-negative flag, and clears the flag once it has fired, so this
+        // happens at most once however many rescaling steps follow. Once the flag is -1 the implied entries
+        // have already been materialized and carry scaled values, so writing the literals again would
+        // discard every rescaling step but the last.
+        if ((rescalesD1 || rescalesD2) && flag >= 0.0) {
+            if (flag == 0.0) {
+                h11 = 1.0
+                h22 = 1.0
+            } else {
+                h21 = -1.0
+                h12 = 1.0
+            }
+            flag = -1.0
+        }
+
+        if (rescalesD1) {
             while (dd1.isFinite() && (dd1 <= R_GAMSQ || dd1 >= GAMSQ)) {
-                // Netlib guards FIX-H on a non-negative flag. Once the flag is -1 the implied entries have
-                // already been materialized and carry scaled values, so writing the literals again would
-                // discard every rescaling step but the last.
-                if (flag >= 0.0) {
-                    if (flag == 0.0) {
-                        h11 = 1.0
-                        h22 = 1.0
-                    } else {
-                        h21 = -1.0
-                        h12 = 1.0
-                    }
-                    flag = -1.0
-                }
                 if (dd1 <= R_GAMSQ) {
                     dd1 *= GAMSQ
                     dx1 /= GAM
@@ -139,18 +145,8 @@ internal fun portableRotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64M
                 }
             }
         }
-        if (dd2 != 0.0) {
+        if (rescalesD2) {
             while (dd2.isFinite() && (abs(dd2) <= R_GAMSQ || abs(dd2) >= GAMSQ)) {
-                if (flag >= 0.0) {
-                    if (flag == 0.0) {
-                        h11 = 1.0
-                        h22 = 1.0
-                    } else {
-                        h21 = -1.0
-                        h12 = 1.0
-                    }
-                    flag = -1.0
-                }
                 if (abs(dd2) <= R_GAMSQ) {
                     dd2 *= GAMSQ
                     h21 /= GAM

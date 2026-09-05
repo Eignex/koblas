@@ -56,9 +56,11 @@ public class F64ProductFormBasisSolver(
     // the whole chain, and a boxed list costs an unbox per eta on that path.
     private var etaPivotRow = IntArray(etaLimit)
     private var etaPivot = DoubleArray(etaLimit)
-    private var etaCount = 0
     private val etaIndices = ArrayList<IntArray>()
     private val etaValues = ArrayList<DoubleArray>()
+
+    /** Read off the chain rather than counted alongside it, so the four containers cannot fall out of step. */
+    private val etaCount: Int get() = etaIndices.size
 
     private val dense = DoubleArray(n)
 
@@ -249,13 +251,13 @@ public class F64ProductFormBasisSolver(
                 at++
             }
         }
-        if (etaCount == etaPivotRow.size) {
-            etaPivotRow = etaPivotRow.copyOf(etaCount * 2)
-            etaPivot = etaPivot.copyOf(etaCount * 2)
+        val slot = etaCount
+        if (slot == etaPivotRow.size) {
+            etaPivotRow = etaPivotRow.copyOf(slot * 2)
+            etaPivot = etaPivot.copyOf(slot * 2)
         }
-        etaPivotRow[etaCount] = pivotRow
-        etaPivot[etaCount] = pivot
-        etaCount++
+        etaPivotRow[slot] = pivotRow
+        etaPivot[slot] = pivot
         etaIndices.add(indices)
         etaValues.add(values)
         basicIndex[pivotRow] = entering
@@ -306,7 +308,6 @@ public class F64ProductFormBasisSolver(
     }
 
     private fun dropChain() {
-        etaCount = 0
         etaIndices.clear()
         etaValues.clear()
     }
