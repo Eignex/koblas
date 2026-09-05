@@ -70,16 +70,21 @@ public data class BackendStatus(
  */
 public data class F64ContextStatus(val backends: List<BackendStatus>) {
     init {
-        require(
-            backends.size == BackendRole.entries.size &&
-                backends.map { it.role }.toSet() == BackendRole.entries.toSet(),
-        ) {
+        // Checked position by position rather than through two sets: the producers all build this in
+        // declaration order, and comparing sets allocated a list and two of them on a type diagnostics read
+        // in a loop. Holding the order is also what lets [get] index instead of scan.
+        require(backends.size == BackendRole.entries.size) {
             "context status must contain every backend role exactly once"
+        }
+        for (i in backends.indices) {
+            require(backends[i].role == BackendRole.entries[i]) {
+                "context status must list the roles in declaration order"
+            }
         }
     }
 
     /** The selected backend status for [role]. */
-    public operator fun get(role: BackendRole): BackendStatus = backends.first { it.role == role }
+    public operator fun get(role: BackendRole): BackendStatus = backends[role.ordinal]
 }
 
 /** The backend installed for [role]. */
@@ -97,22 +102,31 @@ public fun F64Context.isAccelerated(role: BackendRole): Boolean = when (val back
     else -> !backend.isPortable
 }
 
+/** Shared by every half that reports no metadata of its own, so reading a status allocates none. */
+private val NO_METADATA = BackendMetadata()
+
+/**
+ * The selected backend for one [role].
+ *
+ * Reading a single role off [status] would build all twelve, which is what a routed dispatch used to do on
+ * every operation it inspected.
+ */
+internal fun F64Context.statusFor(role: BackendRole): BackendStatus {
+    val backend = backendFor(role)
+    return BackendStatus(
+        role = role,
+        provider = backend.name,
+        priority = backend.priority,
+        available = backend.isAvailable,
+        portable = backend.isPortable,
+        accelerated = isAccelerated(role),
+        metadata = (backend as? BackendMetadataProvider)?.backendMetadata ?: NO_METADATA,
+    )
+}
+
 /** A structured snapshot of every selected backend half. */
 public val F64Context.status: F64ContextStatus
-    get() = F64ContextStatus(
-        BackendRole.entries.map { role ->
-            val backend = backendFor(role)
-            BackendStatus(
-                role = role,
-                provider = backend.name,
-                priority = backend.priority,
-                available = backend.isAvailable,
-                portable = backend.isPortable,
-                accelerated = isAccelerated(role),
-                metadata = (backend as? BackendMetadataProvider)?.backendMetadata ?: BackendMetadata(),
-            )
-        },
-    )
+    get() = F64ContextStatus(BackendRole.entries.map { statusFor(it) })
 
 /** The roles still running koblas's own portable implementation, in declaration order. */
 public val F64Context.portableRoles: Set<BackendRole>
