@@ -243,5 +243,9 @@ private fun stridedNorm2(vector: F64StridedVectorView): Double {
             }
         }
     }
-    return if (scale == 0.0) 0.0 else scale * kotlin.math.sqrt(sumSquares)
+    // A NaN entry never raises `scale`, since `0.0 < NaN` is false, but it does reach `sumSquares`. Reading
+    // the zero case off `scale` alone would then discard it and report a clean norm for a corrupt vector,
+    // where dnrm2 and the dense path both propagate the NaN.
+    if (scale == 0.0) return if (sumSquares.isNaN()) Double.NaN else 0.0
+    return scale * kotlin.math.sqrt(sumSquares)
 }

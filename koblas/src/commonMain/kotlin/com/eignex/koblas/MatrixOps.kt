@@ -36,6 +36,14 @@ public fun F64MatrixLike.gemvInto(alpha: Double, x: F64VectorLike, beta: Double,
     require(!x.sharesStorage(destination) && !a.sharesStorage(destination)) {
         "gemvInto: destination overlaps an input"
     }
+    // The seams quick-return on a zero-extent operand before scaling, which is netlib's rule for gemv but
+    // not the contract above: this one promises that `beta == 0.0` overwrites a destination that may arrive
+    // holding NaN. Settling it here keeps every storage combination answering the same way, where otherwise
+    // a dense 3x0 left the NaN in place and a generic one returned zeros.
+    if (a.cols == 0) {
+        destination.prescale(beta)
+        return
+    }
     if (x is F64DenseVector && a is F64DenseMatrix) {
         koblas.gemv(alpha, a, x.data, beta, destination)
         return
