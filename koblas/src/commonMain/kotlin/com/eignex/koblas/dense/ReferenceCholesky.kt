@@ -6,6 +6,7 @@ import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import kotlin.math.abs
 import kotlin.math.hypot
+import kotlin.math.min
 import kotlin.math.sqrt
 
 /*
@@ -51,12 +52,67 @@ internal fun referenceCholeskyInto(
         ld.fill(0.0, j * n, j * n + j)
         a.data.copyInto(ld, j + j * n, j + j * n, (j + 1) * n)
     }
-    // Left-looking column Cholesky: column j gathers what every column before it owes, rather than
-    // each column pushing its contribution out to the ones after it.
-    for (j in 0 until n) {
+    // Left-looking blocked Cholesky. Each block column first takes what every earlier block owes it as one
+    // level-3 product, then finishes column by column against the few columns inside the block. Gathering
+    // one column at a time instead is a level-1 axpy per (column, earlier column) pair, which streams
+    // n^3/6 doubles for n^3/3 flops and leaves the factorization bandwidth-bound.
+    // One pack buffer for the whole factorization rather than one per block column. The seam takes no
+    // workspace, and a matrix that fits in a single block never gathers at all.
+    val packed = if (n > REFERENCE_TRIANGULAR_BLOCK) DoubleArray(REFERENCE_TRIANGULAR_BLOCK * n) else null
+    var blockStart = 0
+    while (blockStart < n) {
+        val width = min(REFERENCE_TRIANGULAR_BLOCK, n - blockStart)
+        val height = n - blockStart
+        if (blockStart > 0) {
+            gatherEarlierBlocks(kernels, ld, n, blockStart, width, height, packed!!)
+        }
+        factorBlockColumn(kernels, ld, n, blockStart, width, policy)
+        blockStart += width
+    }
+    return out
+}
+
+/**
+ * Subtracts `L[rows, 0 until start] · L[block, 0 until start]ᵀ` from the block column at [start].
+ *
+ * The right operand is packed transposed into scratch because the product needs `A · Bᵀ` over panels with a
+ * leading dimension, which [blockedUpdate] does not take directly.
+ */
+@Suppress("LongParameterList") // the factor, its shape, the block being gathered into, and scratch
+private fun gatherEarlierBlocks(
+    kernels: F64Kernels,
+    ld: DoubleArray,
+    n: Int,
+    start: Int,
+    width: Int,
+    height: Int,
+    packed: DoubleArray,
+) {
+    for (t in 0 until width) {
+        for (p in 0 until start) packed[p + t * start] = ld[start + t + p * n]
+    }
+    blockedUpdate(
+        kernels, -1.0,
+        ld, start, n,
+        packed, 0, start,
+        ld, start + start * n, n,
+        height, width, start,
+    )
+}
+
+/** The unblocked left-looking sweep over one block column, gathering only from inside the block. */
+private fun factorBlockColumn(
+    kernels: F64Kernels,
+    ld: DoubleArray,
+    n: Int,
+    start: Int,
+    width: Int,
+    policy: CholeskyPolicy,
+) {
+    for (j in start until start + width) {
         val base = j + j * n
         val len = n - j
-        for (p in 0 until j) {
+        for (p in start until j) {
             val f = ld[j + p * n]
             if (f != 0.0) kernels.axpy(ld, base, -f, ld, j + p * n, len)
         }
@@ -83,7 +139,6 @@ internal fun referenceCholeskyInto(
         val diag = ld[base]
         for (i in base + 1 until base + len) ld[i] = ld[i] / diag
     }
-    return out
 }
 
 /**
