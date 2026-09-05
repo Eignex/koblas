@@ -3,7 +3,7 @@
 package com.eignex.koblas.sparse.host.klu
 
 import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.sparse.internal.transposeRaw
+import com.eignex.koblas.sparse.internal.sortedCsc
 import kotlinx.cinterop.*
 
 /**
@@ -70,6 +70,5 @@ private fun csc(
     val ptr = IntArray(order + 1) { pointers[it] }
     val idx = IntArray(nonzeros) { indices[it] }
     val entries = DoubleArray(nonzeros) { values[it] }
-    val once = transposeRaw(order, order, ptr, idx, entries)
-    return transposeRaw(order, order, once.colPtr, once.rowIdx, once.values)
+    return sortedCsc(order, order, ptr, idx, entries)
 }

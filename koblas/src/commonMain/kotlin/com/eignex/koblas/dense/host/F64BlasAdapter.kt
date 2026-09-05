@@ -52,13 +52,13 @@ public abstract class F64BlasAdapter internal constructor(
 
     override fun syr(alpha: Double, x: F64VectorLike, a: F64DenseMatrix, lower: Boolean) {
         if (x !is F64DenseVector) return portable.syr(alpha, x, a, lower)
-        requireShape(a.rows == a.cols && x.size == a.rows) { "syr shape mismatch" }
+        requireSyrShape(a, x.size, "syr")
         if (alpha != 0.0 && a.rows != 0) f.dsyr(COL_MAJOR, uploOf(lower), a.rows, alpha, x.data, 1, a.data, a.rows)
     }
 
     override fun syr2(alpha: Double, x: F64VectorLike, y: F64VectorLike, a: F64DenseMatrix, lower: Boolean) {
         if (x !is F64DenseVector || y !is F64DenseVector) return portable.syr2(alpha, x, y, a, lower)
-        requireShape(a.rows == a.cols && x.size == a.rows && y.size == a.rows) { "syr2 shape mismatch" }
+        requireSyr2Shape(a, x.size, y.size, "syr2")
         if (alpha != 0.0 && a.rows != 0) {
             f.dsyr2(
                 COL_MAJOR,
@@ -81,12 +81,7 @@ public abstract class F64BlasAdapter internal constructor(
         lower: Boolean,
         workspace: Workspace?,
     ) {
-        val n = if (transpose) a.cols else a.rows
-        val k = if (transpose) a.rows else a.cols
-        requireShape(b.rows == a.rows && b.cols == a.cols) {
-            "syr2k: B is ${b.rows}x${b.cols}, expected ${a.rows}x${a.cols} to match A"
-        }
-        requireShape(c.rows == n && c.cols == n) { "syr2k: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
+        val (n, k) = requireSyr2kShape(a, b, transpose, c, "syr2k")
         if (alpha == 0.0 || k == 0) {
             scaleTriangle(kernels, c.data, n, beta, lower)
             return
