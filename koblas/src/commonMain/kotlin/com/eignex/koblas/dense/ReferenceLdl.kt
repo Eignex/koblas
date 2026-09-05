@@ -26,7 +26,7 @@ internal fun referenceLdl(
     a: F64DenseMatrix,
     workspace: Workspace?,
 ): F64PivotedSymmetricIndefiniteDecomposition {
-    requireShape(a.rows == a.cols) { "pivotedSymmetricIndefinite: matrix must be square, got ${a.rows}x${a.cols}" }
+    requireSquare(a, "pivotedSymmetricIndefinite")
     val n = a.rows
     val w = a.data.copyOf()
     val ipiv = IntArray(n)
@@ -177,8 +177,7 @@ internal fun referenceLdlSolveInto(
 ): DoubleArray {
     requireFactored(ldl.failedAt, "solve")
     val n = ldl.n
-    requireShape(b.size == n) { "solve: b length ${b.size} != $n" }
-    requireShape(out.size == n) { "solve: out length ${out.size} != $n" }
+    requireSolveShapes(n, n, b, out)
     val w = ldl.ldl
     val ipiv = ldl.rawLapackIpiv
     val x = out

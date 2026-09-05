@@ -199,8 +199,7 @@ internal fun referencePivotedLeastSquaresInto(
     out: DoubleArray,
     workspace: Workspace?,
 ): DoubleArray {
-    requireShape(b.size == qr.m) { "solve: b length ${b.size} != ${qr.m}" }
-    requireShape(out.size == qr.n) { "solve: out length ${out.size} != ${qr.n}" }
+    requireSolveShapes(qr.m, qr.n, b, out)
     val rank = qr.rank
     workspace.borrow(qr.m) { y ->
         referenceApplyQInto(kernels, qr.factorization, b, y, transpose = true)
@@ -230,8 +229,7 @@ internal fun referenceLeastSquaresInto(
     workspace: Workspace?,
 ): DoubleArray {
     requireShape(qr.m >= qr.n) { "solve requires m >= n, got ${qr.m}x${qr.n}" }
-    requireShape(b.size == qr.m) { "solve: b length ${b.size} != ${qr.m}" }
-    requireShape(out.size == qr.n) { "solve: out length ${out.size} != ${qr.n}" }
+    requireSolveShapes(qr.m, qr.n, b, out)
     workspace.borrow(qr.m) { y ->
         referenceApplyQInto(kernels, qr, b, y, transpose = true)
         y.copyInto(out, 0, 0, qr.n)

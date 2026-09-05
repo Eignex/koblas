@@ -145,13 +145,7 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         alpha: Double,
         workspace: Workspace?,
     ) {
-        requireSquare(a, "trsm")
-        val n = a.rows
-        if (right) {
-            requireShape(b.cols == n) { "trsm right: B has ${b.cols} cols, expected $n" }
-        } else {
-            requireShape(b.rows == n) { "trsm: B has ${b.rows} rows, expected $n" }
-        }
+        val n = requireTriangularMatrixShape(a, b, right, "trsm")
         if (alpha == 0.0) {
             b.data.fill(0.0)
             return
@@ -183,13 +177,7 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         right: Boolean,
         alpha: Double,
     ) {
-        requireSquare(a, "trmm")
-        val n = a.rows
-        if (right) {
-            requireShape(b.cols == n) { "trmm right: B has ${b.cols} cols, expected $n" }
-        } else {
-            requireShape(b.rows == n) { "trmm: B has ${b.rows} rows, expected $n" }
-        }
+        val n = requireTriangularMatrixShape(a, b, right, "trmm")
         if (alpha == 0.0) {
             b.data.fill(0.0)
             return

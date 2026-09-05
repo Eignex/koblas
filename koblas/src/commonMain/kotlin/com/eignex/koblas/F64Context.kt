@@ -311,7 +311,7 @@ public class F64Context internal constructor(
 
     override fun trsv(a: F64SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
         if (enforcesRoutingPolicy) {
-            requireShape(a.rows == a.cols) { "trsv: matrix must be square, got ${a.rows}x${a.cols}" }
+            requireSquare(a, "trsv")
             requireShape(x.size == a.rows) { "trsv: x length ${x.size} != ${a.rows}" }
             beforeDispatch(
                 F64RouteQuery.SparseTriangular(
@@ -328,7 +328,7 @@ public class F64Context internal constructor(
 
     override fun trmv(a: F64SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
         if (enforcesRoutingPolicy) {
-            requireShape(a.rows == a.cols) { "trmv: matrix must be square, got ${a.rows}x${a.cols}" }
+            requireSquare(a, "trmv")
             requireShape(x.size == a.rows) { "trmv: x length ${x.size} != ${a.rows}" }
             beforeDispatch(
                 F64RouteQuery.SparseTriangular(
@@ -355,12 +355,7 @@ public class F64Context internal constructor(
         workspace: Workspace?,
     ) {
         if (enforcesRoutingPolicy) {
-            requireShape(a.rows == a.cols) { "trsm: matrix must be square, got ${a.rows}x${a.cols}" }
-            if (right) {
-                requireShape(b.cols == a.rows) { "trsm right: B has ${b.cols} cols, expected ${a.rows}" }
-            } else {
-                requireShape(b.rows == a.rows) { "trsm: B has ${b.rows} rows, expected ${a.rows}" }
-            }
+            requireTriangularMatrixShape(a, b, right, "trsm")
             val rightHandSides = if (right) b.rows else b.cols
             beforeDispatch(
                 F64RouteQuery.SparseTriangular(
@@ -388,12 +383,7 @@ public class F64Context internal constructor(
         alpha: Double,
     ) {
         if (enforcesRoutingPolicy) {
-            requireShape(a.rows == a.cols) { "trmm: matrix must be square, got ${a.rows}x${a.cols}" }
-            if (right) {
-                requireShape(b.cols == a.rows) { "trmm right: B has ${b.cols} cols, expected ${a.rows}" }
-            } else {
-                requireShape(b.rows == a.rows) { "trmm: B has ${b.rows} rows, expected ${a.rows}" }
-            }
+            requireTriangularMatrixShape(a, b, right, "trmm")
             beforeDispatch(
                 F64RouteQuery.SparseTriangular(
                     a.nnz,

@@ -237,8 +237,7 @@ public abstract class F64DecompositionsAdapter internal constructor(
         requireLuSquare(lu, "solve")
         requireFactored(lu.failedAt, "solve")
         val n = lu.order
-        requireShape(b.size == n) { "solve: b length ${b.size} != $n" }
-        requireShape(out.size == n) { "solve: out length ${out.size} != $n" }
+        requireSolveShapes(n, n, b, out)
         if (n == 0) return out
         nativeSolve(lu, F64DenseMatrix.wrap(n, 1, b), F64DenseMatrix.wrap(n, 1, out), transpose, workspace)
         return out
@@ -312,9 +311,7 @@ public abstract class F64DecompositionsAdapter internal constructor(
         a: F64DenseMatrix,
         workspace: Workspace?,
     ): F64PivotedSymmetricIndefiniteDecomposition {
-        requireShape(a.rows == a.cols) {
-            "pivotedSymmetricIndefinite: matrix must be square, got ${a.rows}x${a.cols}"
-        }
+        requireSquare(a, "pivotedSymmetricIndefinite")
         val n = a.rows
         val buf = a.data.copyOf()
         val ipiv = IntArray(n)

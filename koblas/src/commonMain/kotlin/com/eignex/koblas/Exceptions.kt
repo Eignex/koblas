@@ -192,7 +192,7 @@ internal fun requireSymmShape(a: F64DenseMatrix, b: F64DenseMatrix, c: F64DenseM
 }
 
 /** Checks the triangle and the block of a `trsm` or `trmm`, returning the triangle's dimension. */
-internal fun requireTriangularMatrixShape(a: F64DenseMatrix, b: F64DenseMatrix, right: Boolean, what: String): Int {
+internal fun requireTriangularMatrixShape(a: F64MatrixLike, b: F64DenseMatrix, right: Boolean, what: String): Int {
     requireSquare(a, what)
     if (right) {
         requireShape(b.cols == a.rows) { "$what right: B has ${b.cols} cols, expected ${a.rows}" }
