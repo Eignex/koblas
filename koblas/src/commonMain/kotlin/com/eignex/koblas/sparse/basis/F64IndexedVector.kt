@@ -108,12 +108,17 @@ public class F64IndexedVector(public val size: Int) {
     public fun gather(out: DoubleArray): DoubleArray {
         requireShape(out.size == size) { "gather: out size ${out.size} != $size" }
         out.fill(0.0)
+        return scatterInto(out)
+    }
+
+    /** Stored positions into [out], which the caller has already zeroed. */
+    private fun scatterInto(out: DoubleArray): DoubleArray {
         for (k in 0 until count) out[indices[k]] = values[indices[k]]
         return out
     }
 
-    /** This vector densely in a fresh array. */
-    public fun toDoubleArray(): DoubleArray = gather(DoubleArray(size))
+    /** This vector densely in a fresh array, which arrives zeroed and needs no second pass. */
+    public fun toDoubleArray(): DoubleArray = scatterInto(DoubleArray(size))
 
     /**
      * Drops stored positions whose magnitude is at or below [tolerance], so the index set holds only
