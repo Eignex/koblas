@@ -39,6 +39,9 @@ internal class HfactorCalls(private val config: HfactorConfig) {
          * and simply reports no diagnostics, rather than losing the binding to a missing symbol.
          */
         val buildRepairing: MethodHandle?,
+        val snapshot: MethodHandle?,
+        val restore: MethodHandle?,
+        val snapshotFree: MethodHandle?,
         val refactorizeReason: MethodHandle?,
         val kernel: MethodHandle?,
     )
@@ -77,6 +80,9 @@ internal class HfactorCalls(private val config: HfactorConfig) {
                 "koblas_hfactor_build_repairing",
                 intOf(ADDRESS, ADDRESS, ADDRESS),
             ),
+            snapshot = library.handleOrNull("koblas_hfactor_snapshot", pointerOf(ADDRESS)),
+            restore = library.handleOrNull("koblas_hfactor_restore", intOf(ADDRESS, ADDRESS)),
+            snapshotFree = library.handleOrNull("koblas_hfactor_snapshot_free", voidOf(ADDRESS)),
             refactorizeReason = library.handleOrNull("koblas_hfactor_refactorize_reason", intOf(ADDRESS)),
             kernel = library.handleOrNull("koblas_hfactor_kernel", voidOf(ADDRESS, ADDRESS, ADDRESS)),
         )
@@ -163,6 +169,23 @@ internal class HfactorCalls(private val config: HfactorConfig) {
             MemorySegment.copy(settled, JAVA_INT, 0L, repaired, 0, repaired.size)
             return deficiency
         }
+    }
+
+    /** The current factorization set aside, or null where the shim cannot or the allocation failed. */
+    fun snapshot(handle: MemorySegment): MemorySegment? {
+        val taker = handlesOrThrow().snapshot ?: return null
+        val taken = taker.invokeExact(handle) as MemorySegment
+        return if (taken.address() == 0L) null else taken
+    }
+
+    /** Whether [snapshot] went back; false where the shim cannot or it does not fit this handle. */
+    fun restore(handle: MemorySegment, snapshot: MemorySegment): Boolean {
+        val restorer = handlesOrThrow().restore ?: return false
+        return restorer.invokeExact(handle, snapshot) as Int == 0
+    }
+
+    fun freeSnapshot(snapshot: MemorySegment) {
+        handlesOrThrow().snapshotFree?.invokeExact(snapshot)
     }
 
     /** Which rule advised the last rebuild: 0 none, 1 the factorization's own, 2 the synthetic clock. */

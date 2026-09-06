@@ -10,6 +10,7 @@ import com.eignex.koblas.requireShape
 import com.eignex.koblas.sparse.basis.BasisUpdate
 import com.eignex.koblas.sparse.basis.F64BasisKernel
 import com.eignex.koblas.sparse.basis.F64BasisRepair
+import com.eignex.koblas.sparse.basis.F64BasisSnapshot
 import com.eignex.koblas.sparse.basis.F64BasisSolveQuality
 import com.eignex.koblas.sparse.basis.F64BasisSolver
 import com.eignex.koblas.sparse.basis.F64IndexedVector
@@ -227,5 +228,47 @@ public class HfactorBasisSolver internal constructor(
         lastBtran = null
     }
 
-    override fun close(): Unit = ownership.close()
+    /**
+     * A factorization HFactor set aside, with the two things its own representation does not carry: the
+     * basis this binding reports and which of its slots a repair filled with unit columns.
+     */
+    private inner class NativeSnapshot(val pointer: MemorySegment, val basis: IntArray, val repair: IntArray?) :
+        F64BasisSnapshot {
+        private var released = false
+
+        override fun close() {
+            if (released) return
+            released = true
+            live.remove(this)
+            calls.freeSnapshot(pointer)
+        }
+    }
+
+    /** Snapshots this solver handed out and still owns, so closing it releases what a caller did not. */
+    private val live = mutableSetOf<NativeSnapshot>()
+
+    override fun snapshot(): F64BasisSnapshot? = ownership.anchoring {
+        if (!factorized || singular) return@anchoring null
+        val taken = calls.snapshot(handle) ?: return@anchoring null
+        NativeSnapshot(taken, basicIndex.copyOf(), unitRows?.copyOf()).also { live.add(it) }
+    }
+
+    override fun restore(snapshot: F64BasisSnapshot): Boolean = ownership.anchoring {
+        // Identity against this solver's own live set, so a snapshot from another solver or one already
+        // closed is refused rather than handed to a factorization it does not describe.
+        val native = snapshot as? NativeSnapshot ?: return@anchoring false
+        if (native !in live) return@anchoring false
+        if (!calls.restore(handle, native.pointer)) return@anchoring false
+        native.basis.copyInto(basicIndex)
+        unitRows = native.repair?.copyOf()
+        forgetSolves()
+        factorized = true
+        singular = false
+        true
+    }
+
+    override fun close() {
+        for (snapshot in live.toList()) snapshot.close()
+        ownership.close()
+    }
 }

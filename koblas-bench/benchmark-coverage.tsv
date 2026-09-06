@@ -1,6 +1,8 @@
 api_signature	benchmark_id	status	notes
 F64BasisSolver.refactorize(F64SparseMatrix)	com.eignex.koblas.bench.BasisBenchmark.refactorize	benchmarked	
 F64BasisSolver.refactorizeRepairing(F64SparseMatrix)		excluded	Shares the benchmarked refactorize build; it differs only in keeping the repair rather than refusing it.
+F64BasisSolver.snapshot()		excluded	Copies the factors HFactor already holds and runs no numerical work; what it is worth is the rebuild it saves, which refactorize already measures.
+F64BasisSolver.restore(F64BasisSnapshot)		excluded	Puts back a copy and runs no numerical work; the comparison a caller wants is against refactorize, which is benchmarked.
 F64BasisSolver.pivots()	com.eignex.koblas.bench.BasisBenchmark.pivots	benchmarked	
 F64CholeskyDecomposition.refactorInto(F64DenseMatrix)		excluded	Refactorization shares the benchmarked Cholesky factorization kernel and is covered by buffer-reuse tests.
 F64CholeskyDecomposition.solveInto(DoubleArray,DoubleArray)		excluded	The destination-passing variant shares the benchmarked Cholesky solve kernel and is covered by aliasing tests.

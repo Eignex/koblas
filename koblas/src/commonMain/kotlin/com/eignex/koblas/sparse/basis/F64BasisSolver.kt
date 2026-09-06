@@ -73,6 +73,15 @@ public class F64BasisRepair(public val columns: IntArray, public val unitRows: I
     public val replacedSlots: Int get() = unitRows.count { it >= 0 }
 }
 
+/**
+ * A factorization a solver set aside, to be put back later.
+ *
+ * Held by the solver it came from and only meaningful there. Closing one releases what it holds; closing
+ * the solver releases any it still owns, so a caller that drops a search node need not unwind its snapshots
+ * by hand.
+ */
+public interface F64BasisSnapshot : AutoCloseable
+
 /** Numerically scaled residual information for one basis solve. */
 public data class F64BasisSolveQuality(
     /** `max |B·x - b|`, or `max |Bᵀ·x - b|` for a transposed solve. */
@@ -159,10 +168,32 @@ public interface F64BasisSolver : AutoCloseable {
      * A repaired basis is generally not in the order it was given, so a caller adopting one reads its slots
      * from the result rather than from the array it passed.
      */
+
     public fun refactorizeRepairing(basicIndex: IntArray): F64BasisRepair? {
         if (!refactorize(basicIndex)) return null
         return F64BasisRepair(basicIndex.copyOf(), IntArray(basicIndex.size) { -1 })
     }
+
+    /**
+     * Sets the current factorization aside so a later [restore] can put it back, or null where the solver
+     * cannot hold one.
+     *
+     * What this saves is a rebuild. A search that descends, solves, and comes back up otherwise has one way
+     * to recover the basis it left: factorize it again from scratch. The snapshot carries the factors and
+     * the basis they invert, so returning to a node costs a copy rather than an elimination.
+     *
+     * The solver keeps solving against its current factors; taking a snapshot changes nothing about them.
+     */
+    public fun snapshot(): F64BasisSnapshot? = null
+
+    /**
+     * Puts [snapshot] back, returning whether it was taken. A snapshot from another solver, or from one of
+     * another dimension, is refused rather than adopted.
+     *
+     * The solver afterwards holds the factors and the basis the snapshot was taken from, and its update
+     * count and fill read as they did then.
+     */
+    public fun restore(snapshot: F64BasisSnapshot): Boolean = false
 
     /**
      * Solve `B x = b` in place: [x] carries `b` in and `x` out.

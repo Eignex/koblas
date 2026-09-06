@@ -524,6 +524,80 @@ class BundledHfactorTest {
         assertContentEquals(logicalBasis(n), repair.columns)
     }
 
+    /**
+     * The point of a snapshot: descend, pivot away from the basis, come back, and get the factors that were
+     * there without factorizing again. What proves it is that the restored solver answers what the original
+     * did, on a basis the pivots have since left behind.
+     */
+    @Test
+    fun `a restored snapshot solves as the factorization it was taken from`() {
+        val n = 12
+        val rng = Random(20260924)
+        val a = simplexMatrix(n, rng)
+        val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
+        val solver = backend.basisSolver(a)
+        assertTrue(solver.refactorize(logicalBasis(n)))
+
+        val expectedFtran = solved(solver, b, transpose = false)
+        val expectedBtran = solved(solver, b, transpose = true)
+        val held = assertNotNull(solver.snapshot(), "HFactor can hand its factorization out")
+
+        pivot(solver, a, IntArray(6) { it }, rebuildAt = -1, basis = logicalBasis(n))
+        assertNotEquals(0, solver.updateCount, "the solver has moved off the basis it snapshotted")
+
+        assertTrue(solver.restore(held))
+
+        assertEquals(0, solver.updateCount, "restoring puts the counters back with the factors")
+        assertContentEquals(expectedFtran, solved(solver, b, transpose = false))
+        assertContentEquals(expectedBtran, solved(solver, b, transpose = true))
+        held.close()
+    }
+
+    /** A snapshot belongs to the solver that took it, and one from elsewhere is refused rather than adopted. */
+    @Test
+    fun `a snapshot from another solver is refused`() {
+        val n = 8
+        val a = simplexMatrix(n, Random(20260925))
+        val one = backend.basisSolver(a)
+        val other = backend.basisSolver(a)
+        assertTrue(one.refactorize(logicalBasis(n)))
+        assertTrue(other.refactorize(logicalBasis(n)))
+
+        val held = assertNotNull(one.snapshot())
+
+        assertFalse(other.restore(held), "a snapshot describes the factors of the solver that took it")
+        held.close()
+    }
+
+    /** Closing a snapshot releases it, and restoring a released one is refused rather than reaching freed memory. */
+    @Test
+    fun `a closed snapshot is refused`() {
+        val n = 6
+        val a = simplexMatrix(n, Random(20260926))
+        val solver = backend.basisSolver(a)
+        assertTrue(solver.refactorize(logicalBasis(n)))
+        val held = assertNotNull(solver.snapshot())
+
+        held.close()
+        held.close()
+
+        assertFalse(solver.restore(held))
+    }
+
+    /** Closing the solver releases the snapshots a caller left behind, so a dropped node leaks nothing. */
+    @Test
+    fun `closing the solver releases the snapshots it still owns`() {
+        val n = 6
+        val a = simplexMatrix(n, Random(20260927))
+        val solver = backend.basisSolver(a)
+        assertTrue(solver.refactorize(logicalBasis(n)))
+        assertNotNull(solver.snapshot())
+
+        solver.close()
+
+        assertFailsWith<IllegalStateException> { solver.nnz }
+    }
+
     @Test
     fun `the bundled HFactor solves sparse systems in both directions`() {
         val matrix = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(1 to 2.0), listOf(0 to 3.0)))

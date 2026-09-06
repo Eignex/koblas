@@ -380,6 +380,8 @@ abstract interface com.eignex.koblas.dense/F64LinearAlgebra : com.eignex.koblas.
         open fun <get-kernels>(): com.eignex.koblas.dense/F64Kernels // com.eignex.koblas.dense/F64LinearAlgebra.kernels.<get-kernels>|<get-kernels>(){}[0]
 }
 
+abstract interface com.eignex.koblas.sparse.basis/F64BasisSnapshot : kotlin/AutoCloseable // com.eignex.koblas.sparse.basis/F64BasisSnapshot|null[0]
+
 abstract interface com.eignex.koblas.sparse.basis/F64BasisSolver : kotlin/AutoCloseable { // com.eignex.koblas.sparse.basis/F64BasisSolver|null[0]
     abstract val n // com.eignex.koblas.sparse.basis/F64BasisSolver.n|{}n[0]
         abstract fun <get-n>(): kotlin/Int // com.eignex.koblas.sparse.basis/F64BasisSolver.n.<get-n>|<get-n>(){}[0]
@@ -403,6 +405,8 @@ abstract interface com.eignex.koblas.sparse.basis/F64BasisSolver : kotlin/AutoCl
     abstract fun update(kotlin/Int, kotlin/Int, com.eignex.koblas.sparse.basis/F64IndexedVector, com.eignex.koblas.sparse.basis/F64IndexedVector? = ...): com.eignex.koblas.sparse.basis/BasisUpdate // com.eignex.koblas.sparse.basis/F64BasisSolver.update|update(kotlin.Int;kotlin.Int;com.eignex.koblas.sparse.basis.F64IndexedVector;com.eignex.koblas.sparse.basis.F64IndexedVector?){}[0]
     open fun close() // com.eignex.koblas.sparse.basis/F64BasisSolver.close|close(){}[0]
     open fun refactorizeRepairing(kotlin/IntArray): com.eignex.koblas.sparse.basis/F64BasisRepair? // com.eignex.koblas.sparse.basis/F64BasisSolver.refactorizeRepairing|refactorizeRepairing(kotlin.IntArray){}[0]
+    open fun restore(com.eignex.koblas.sparse.basis/F64BasisSnapshot): kotlin/Boolean // com.eignex.koblas.sparse.basis/F64BasisSolver.restore|restore(com.eignex.koblas.sparse.basis.F64BasisSnapshot){}[0]
+    open fun snapshot(): com.eignex.koblas.sparse.basis/F64BasisSnapshot? // com.eignex.koblas.sparse.basis/F64BasisSolver.snapshot|snapshot(){}[0]
 }
 
 abstract interface com.eignex.koblas.sparse.basis/F64BasisSolvers : com.eignex.koblas/Backend { // com.eignex.koblas.sparse.basis/F64BasisSolvers|null[0]
