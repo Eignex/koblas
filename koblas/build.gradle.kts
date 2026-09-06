@@ -2,7 +2,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 
 plugins {
-    id("com.eignex.kmp") version "1.3.2"
+    id("com.eignex.kmp") version "1.3.3"
     kotlin("plugin.serialization") version "2.4.10"
 }
 

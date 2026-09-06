@@ -1,5 +1,5 @@
 plugins {
-    id("com.eignex.jvm") version "1.3.2"
+    id("com.eignex.jvm") version "1.3.3"
     id("koblas.native-library")
 }
 
