@@ -241,6 +241,17 @@ public final class com/eignex/koblas/F64BuiltinKernels {
 	public final fun getSimd ()Lcom/eignex/koblas/F64BuiltinKernelProvider;
 }
 
+public abstract interface class com/eignex/koblas/F64BundledBackend : com/eignex/koblas/Backend {
+	public abstract fun getCanonicalName ()Ljava/lang/String;
+}
+
+public final class com/eignex/koblas/F64BundledBackend$DefaultImpls {
+	public static fun getPriority (Lcom/eignex/koblas/F64BundledBackend;)I
+	public static fun getUnavailableReason (Lcom/eignex/koblas/F64BundledBackend;)Ljava/lang/String;
+	public static fun isAvailable (Lcom/eignex/koblas/F64BundledBackend;)Z
+	public static fun isPortable (Lcom/eignex/koblas/F64BundledBackend;)Z
+}
+
 public final class com/eignex/koblas/F64Capabilities {
 	public static final field INSTANCE Lcom/eignex/koblas/F64Capabilities;
 	public final fun getBasisFactorizations ()Lcom/eignex/koblas/F64Capability;
@@ -2479,6 +2490,7 @@ public abstract class com/eignex/koblas/sparse/host/F64SparseDecompositionsAdapt
 	public fun getUnavailableReason ()Ljava/lang/String;
 	public fun isAvailable ()Z
 	public fun isPortable ()Z
+	protected fun nativeAvailableFor (Lcom/eignex/koblas/F64RouteQuery;)Z
 	public final fun qr (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseQrFactorization;
 	protected fun qrNative (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseQrFactorization;
 	public final fun quasiDefiniteLdl (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64QuasiDefiniteLdlFactorization;
@@ -2494,6 +2506,7 @@ public abstract class com/eignex/koblas/sparse/host/SuiteSparseDecompositionsAda
 	protected fun <init> (Ljava/lang/String;ZLcom/eignex/koblas/BackendMetadata;)V
 	public synthetic fun <init> (Ljava/lang/String;ZLcom/eignex/koblas/BackendMetadata;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	protected final fun choleskyNative (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseCholeskyFactorization;
+	protected final fun nativeAvailableFor (Lcom/eignex/koblas/F64RouteQuery;)Z
 	protected final fun qrNative (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseQrFactorization;
 	protected final fun quasiDefiniteLdlNative (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64QuasiDefiniteLdlFactorization;
 }

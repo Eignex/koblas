@@ -80,3 +80,15 @@ public interface F64RebindableBackend : Backend {
     /** Whether this backend carries kernels of its own, which a context must leave alone. */
     public val hasOwnKernels: Boolean
 }
+
+/**
+ * A provider carrying a bundled build of a library koblas also binds.
+ *
+ * Such a provider answers to two names: its own, which says where the library came from, and the
+ * [canonicalName] a deployment configures. Declaring the second is what lets the registry match a pin and
+ * let a configured library take precedence, rather than reading the distinction out of the provider's name.
+ */
+public interface F64BundledBackend : Backend {
+    /** The name a caller configures this library under, which this provider also answers to. */
+    public val canonicalName: String
+}

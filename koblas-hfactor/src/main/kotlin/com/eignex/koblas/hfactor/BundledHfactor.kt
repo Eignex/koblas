@@ -1,5 +1,6 @@
 package com.eignex.koblas.hfactor
 
+import com.eignex.koblas.F64BundledBackend
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.sparse.host.hfactor.HfactorConfig
 import com.eignex.koblas.sparse.host.hfactor.HfactorOptions
@@ -13,7 +14,9 @@ import com.eignex.koblas.sparse.host.hfactor.HfactorSparseLu
  * One of [HfactorSparseLu] rather than a wrapper around one, which is how the bundled providers reach the
  * routines their bindings carry outside a seam.
  */
-class BundledHfactor private constructor(config: HfactorConfig) : HfactorSparseLu(config) {
+class BundledHfactor private constructor(config: HfactorConfig) :
+    HfactorSparseLu(config),
+    F64BundledBackend {
     /** Creates bundled HFactor with default options. */
     constructor() : this(HfactorOptions())
 
@@ -23,6 +26,9 @@ class BundledHfactor private constructor(config: HfactorConfig) : HfactorSparseL
     )
 
     override val name: String get() = "hfactor-bundled"
+
+    /** The name a deployment configures this library under, whichever build provides it. */
+    override val canonicalName: String get() = "hfactor"
     override val priority: Int get() = HOST_BACKEND_PRIORITY - 1
 }
 

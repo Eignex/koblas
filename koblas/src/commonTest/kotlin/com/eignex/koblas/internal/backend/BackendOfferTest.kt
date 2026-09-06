@@ -71,7 +71,7 @@ class BackendOfferTest {
 
     @Test
     fun `an offer names only the halves the pin named`() {
-        val offered = offerFor("klu", unpinned() + (BackendSlot.F64GeneralSparseLu to "klu"))
+        val offered = offerFor(namedProvider("klu"), unpinned() + (BackendSlot.F64GeneralSparseLu to "klu"))
 
         assertEquals(setOf(BackendSlot.F64GeneralSparseLu), offered.named)
         assertEquals(BackendSlot.entries.toSet(), offered.halves, "the rest were left to it")

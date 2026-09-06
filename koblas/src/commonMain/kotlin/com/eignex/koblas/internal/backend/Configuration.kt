@@ -1,5 +1,8 @@
 package com.eignex.koblas.internal.backend
 
+import com.eignex.koblas.Backend
+import com.eignex.koblas.F64BundledBackend
+
 /** One JVM system property, or null off the JVM, where there are none. */
 internal expect fun systemPropertyOrNull(name: String): String?
 
@@ -29,6 +32,6 @@ internal fun requestedBackends(): Map<BackendSlot, String?> =
 internal fun isAbsolutePath(path: String): Boolean = path.startsWith('/') || path.startsWith('\\') ||
     (path.length >= 3 && path[1] == ':' && (path[2] == '/' || path[2] == '\\'))
 
-/** Bundled providers add a diagnostic suffix while retaining the canonical name callers configure. */
-internal fun matchesRequested(name: String, requested: String): Boolean =
-    name == requested || name.removeSuffix("-bundled") == requested
+/** Whether [provider] answers to [requested], by its own name or by the one a bundled build is configured under. */
+internal fun matchesRequested(provider: Backend, requested: String): Boolean =
+    provider.name == requested || (provider as? F64BundledBackend)?.canonicalName == requested

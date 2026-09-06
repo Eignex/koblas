@@ -12,32 +12,38 @@ class BackendPinTest {
 
     @Test
     fun `an unpinned deployment takes every half a provider carries`() {
-        assertEquals(BackendSlot.entries.toSet(), offerFor("umfpack", unpinned()).halves)
+        assertEquals(BackendSlot.entries.toSet(), offerFor(namedProvider("umfpack"), unpinned()).halves)
     }
 
     @Test
     fun `a role pin naming another backend leaves every other role`() {
         val requested = unpinned() + (BackendSlot.F64Blas to "openblas")
-        assertEquals(BackendSlot.entries.toSet() - BackendSlot.F64Blas, offerFor("umfpack", requested).halves)
+        assertEquals(
+            BackendSlot.entries.toSet() - BackendSlot.F64Blas,
+            offerFor(namedProvider("umfpack"), requested).halves,
+        )
     }
 
     @Test
     fun `a role pin takes the backend it names`() {
         val requested = BackendSlot.entries.associateWith { "reference" } + (BackendSlot.F64SparseBlas to "umfpack")
-        assertEquals(setOf(BackendSlot.F64SparseBlas), offerFor("umfpack", requested).halves)
+        assertEquals(setOf(BackendSlot.F64SparseBlas), offerFor(namedProvider("umfpack"), requested).halves)
     }
 
     @Test
     fun `a provider no role pin names is offered nothing`() {
         val requested = BackendSlot.entries.associateWith { "openblas" }
-        assertTrue(offerFor("superlu", requested).isEmpty)
+        assertTrue(offerFor(namedProvider("superlu"), requested).isEmpty)
     }
 
     @Test
     fun `a bundled provider answers to its canonical name`() {
         val requested = BackendSlot.entries.associateWith { "umfpack" }
         // A bundled provider answers to the plain name, as the selection everywhere else does.
-        assertEquals(BackendSlot.entries.toSet(), offerFor("umfpack-bundled", requested).halves)
+        assertEquals(
+            BackendSlot.entries.toSet(),
+            offerFor(bundledProvider("umfpack-bundled", "umfpack"), requested).halves,
+        )
     }
 
     private fun unpinned(): Map<BackendSlot, String?> = BackendSlot.entries.associateWith { null }

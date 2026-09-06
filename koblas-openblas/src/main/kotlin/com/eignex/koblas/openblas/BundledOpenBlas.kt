@@ -1,6 +1,7 @@
 package com.eignex.koblas.openblas
 
 import com.eignex.koblas.*
+import com.eignex.koblas.F64BundledBackend
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.host.cblas.HostBlasConfig
 import com.eignex.koblas.dense.host.cblas.OpenBlasOptions
@@ -10,6 +11,7 @@ import java.nio.file.Path
 /** OpenBLAS backend bundled in Maven-native resources. */
 class BundledOpenBlas private constructor(private val blas: F64Cblas, private val decompositions: F64Lapacke) :
     F64LinearAlgebra,
+    F64BundledBackend,
     F64Blas by blas,
     F64Decompositions by decompositions,
     F64RoutingBackend,
@@ -24,6 +26,9 @@ class BundledOpenBlas private constructor(private val blas: F64Cblas, private va
     private constructor(backends: F64Backends) : this(backends.blas, backends.decompositions)
 
     override val name: String get() = "openblas-bundled"
+
+    /** The name a deployment configures this library under, whichever build provides it. */
+    override val canonicalName: String get() = "openblas"
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 1
     override val isAvailable: Boolean get() = blas.isAvailable && decompositions.isAvailable
     override val unavailableReason: String? get() = blas.unavailableReason ?: decompositions.unavailableReason

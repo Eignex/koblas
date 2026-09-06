@@ -1,6 +1,7 @@
 package com.eignex.koblas.sparse.host
 
 import com.eignex.koblas.BackendMetadata
+import com.eignex.koblas.F64RouteQuery
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.F64QuasiDefiniteLdlFactorization
 import com.eignex.koblas.sparse.F64SparseCholeskyFactorization
@@ -43,4 +44,12 @@ public abstract class SuiteSparseDecompositionsAdapter protected constructor(
 
     /** SPQR's QR, answered natively wherever that library is installed beside this one. */
     final override fun qrNative(a: F64SparseMatrix): F64SparseQrFactorization = spqr.factor(a) ?: portable.qr(a)
+
+    /**
+     * The QR comes from SPQR rather than from the LU library this backend is named for, and a host can
+     * carry one without the other. Reporting the LU's availability for a QR told a caller it would run
+     * natively on a machine where it falls back, which a native-only dispatch policy then accepted.
+     */
+    final override fun nativeAvailableFor(query: F64RouteQuery): Boolean =
+        if (query is F64RouteQuery.SparseQr) spqr.isAvailable else super.nativeAvailableFor(query)
 }

@@ -1,5 +1,6 @@
 package com.eignex.koblas.basiclu
 
+import com.eignex.koblas.F64BundledBackend
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.sparse.host.basiclu.BasicluConfig
 import com.eignex.koblas.sparse.host.basiclu.BasicluOptions
@@ -14,7 +15,9 @@ import com.eignex.koblas.sparse.host.basiclu.BasicluSparseLu
  * than on a seam, so a caller reaching it through [com.eignex.koblas.backendNamed] can only
  * use them if the bundled provider and the configured binding are the same type.
  */
-class BundledBasiclu private constructor(config: BasicluConfig) : BasicluSparseLu(config) {
+class BundledBasiclu private constructor(config: BasicluConfig) :
+    BasicluSparseLu(config),
+    F64BundledBackend {
     /** Creates bundled BASICLU with default options. */
     constructor() : this(BasicluOptions())
 
@@ -24,6 +27,9 @@ class BundledBasiclu private constructor(config: BasicluConfig) : BasicluSparseL
     )
 
     override val name: String get() = "basiclu-bundled"
+
+    /** The name a deployment configures this library under, whichever build provides it. */
+    override val canonicalName: String get() = "basiclu"
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 3
 }
 

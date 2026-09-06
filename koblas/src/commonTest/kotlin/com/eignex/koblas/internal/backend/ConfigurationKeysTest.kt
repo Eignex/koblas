@@ -45,8 +45,13 @@ class ConfigurationKeysTest {
 
     @Test
     fun `a pin matches a bundled provider by its canonical name`() {
-        assertTrue(matchesRequested("openblas-bundled", "openblas"))
-        assertTrue(matchesRequested("openblas", "openblas"))
-        assertFalse(matchesRequested("openblas", "cblas"))
+        assertTrue(matchesRequested(bundledProvider("openblas-bundled", "openblas"), "openblas"))
+        assertTrue(matchesRequested(bundledProvider("openblas-bundled", "openblas"), "openblas-bundled"))
+        assertTrue(matchesRequested(namedProvider("openblas"), "openblas"))
+        assertFalse(matchesRequested(namedProvider("openblas"), "cblas"))
+        assertFalse(
+            matchesRequested(namedProvider("openblas-bundled"), "openblas"),
+            "the name no longer carries the meaning; a provider declares what it bundles",
+        )
     }
 }

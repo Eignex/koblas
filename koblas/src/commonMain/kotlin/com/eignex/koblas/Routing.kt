@@ -335,10 +335,11 @@ internal fun nativeRoute(
     backend: Backend,
     portableExecutor: String = BackendNames.REFERENCE,
     fallbackWhenUnavailable: Boolean = true,
+    available: Boolean = backend.isAvailable,
 ): BackendRoute {
     val selected = selectedStatus(query, backend)
     return when {
-        !backend.isAvailable && fallbackWhenUnavailable -> BackendRoute(
+        !available && fallbackWhenUnavailable -> BackendRoute(
             query,
             selected,
             BackendExecution.PORTABLE,
@@ -346,7 +347,7 @@ internal fun nativeRoute(
             BackendRouteReason.BACKEND_UNAVAILABLE,
         )
 
-        !backend.isAvailable -> BackendRoute(
+        !available -> BackendRoute(
             query,
             selected,
             BackendExecution.UNAVAILABLE,
