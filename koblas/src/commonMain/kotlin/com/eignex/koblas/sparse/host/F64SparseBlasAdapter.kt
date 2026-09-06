@@ -99,8 +99,16 @@ public abstract class F64SparseBlasAdapter protected constructor() :
         gemmNative(alpha, a, transposeA, b, beta, c, workspace)
     }
 
-    /** `C = alpha · op(A) · B + beta · C` through the native library, with `B` read as it stands. [workspace]
-     *  reuses portable staging on the software fallback the native call keeps for itself. */
+    /**
+     * `C = alpha · op(A) · B + beta · C` through the native library, with `B` read as it stands. [workspace]
+     * reuses portable staging on the software fallback the native call keeps for itself.
+     *
+     * One product, so an implementation should build its descriptor inside the call and free it there rather
+     * than reaching this through [prepare]. Nothing built here outlives the call: the caller's arrays cannot
+     * change underneath a descriptor with this lifetime, so it needs no snapshot of them, and an object that
+     * cannot escape needs no cleaner registered for it. [prepare] pays both because it is retained, and a
+     * product routed through it pays them again on every call.
+     */
     @Suppress("LongParameterList") // the BLAS dgemm signature less the flags this one does not take
     protected abstract fun gemmNative(
         alpha: Double,

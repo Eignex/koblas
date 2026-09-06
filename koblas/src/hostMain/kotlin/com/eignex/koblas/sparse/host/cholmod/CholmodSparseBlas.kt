@@ -53,7 +53,7 @@ public open class CholmodSparseBlas(
         )
     }
 
-    @Suppress("LongParameterList")
+    @Suppress("LongParameterList") // the BLAS dgemm signature less the flags this one does not take
     final override fun gemmNative(
         alpha: Double,
         a: F64SparseMatrix,
@@ -64,7 +64,21 @@ public open class CholmodSparseBlas(
         workspace: Workspace?,
     ) {
         requireGemmShape(a.rows, a.cols, transposeA, b, transposeB = false, c = c)
-        prepare(a).use { it.gemm(alpha, transposeA, b, beta, c, workspace) }
+        val functions = loader.functions
+        val shared = common
+        val taken = if (functions == null || shared == null) {
+            false
+        } else {
+            val matrix = describeGeneral(a)
+            try {
+                functions.multiply(shared, matrix, alpha, transposeA, b.data, beta, c.data, b.cols, b.rows, c.rows)
+            } finally {
+                freeMatrix(matrix)
+            }
+        }
+        if (!taken) {
+            F64ReferenceSparseLinearAlgebra.gemm(alpha, a, transposeA, b, false, beta, c, workspace = workspace)
+        }
     }
 }
 
@@ -83,7 +97,7 @@ private class CholmodPreparedSparseMatrix(
     override fun gemv(alpha: Double, x: DoubleArray, beta: Double, y: DoubleArray, transpose: Boolean) {
         val shape = requireGemvShape(rows, cols, transpose, x.size, y.size)
         anchoring {
-            if (!multiply(alpha, transpose, x, beta, y, 1, shape.inputs, shape.outputs)) {
+            if (!functions.multiply(common, sparse, alpha, transpose, x, beta, y, 1, shape.inputs, shape.outputs)) {
                 F64ReferenceSparseLinearAlgebra.gemv(alpha, snapshot, x, beta, y, transpose)
             }
         }
@@ -99,7 +113,7 @@ private class CholmodPreparedSparseMatrix(
     ) {
         requireGemmShape(rows, cols, transposeA, b, transposeB = false, c = c)
         anchoring {
-            if (!multiply(alpha, transposeA, b.data, beta, c.data, b.cols, b.rows, c.rows)) {
+            if (!functions.multiply(common, sparse, alpha, transposeA, b.data, beta, c.data, b.cols, b.rows, c.rows)) {
                 F64ReferenceSparseLinearAlgebra.gemm(
                     alpha,
                     snapshot,
@@ -125,42 +139,6 @@ private class CholmodPreparedSparseMatrix(
 
     override fun close(): Unit = ownership.close()
 
-    /** Every native call goes through here; [NativeOwnership] says what that guarantees. */
-    private fun <R> anchoring(body: () -> R): R = ownership.anchoring(body)
-
-    @Suppress("LongParameterList")
-    private fun multiply(
-        alpha: Double,
-        transpose: Boolean,
-        xValues: DoubleArray,
-        beta: Double,
-        yValues: DoubleArray,
-        columns: Int,
-        xRows: Int,
-        yRows: Int,
-    ): Boolean = memScoped {
-        val alphaPair = allocArray<DoubleVar>(2).also {
-            it[0] = alpha
-            it[1] = 0.0
-        }
-        val betaPair = allocArray<DoubleVar>(2).also {
-            it[0] = beta
-            it[1] = 0.0
-        }
-        val x = allocArray<DoubleVar>(maxOf(xValues.size, 1))
-        for (index in xValues.indices) x[index] = xValues[index]
-        val y = allocArray<DoubleVar>(maxOf(yValues.size, 1))
-        for (index in yValues.indices) y[index] = yValues[index]
-        val xDense = dense(xRows, columns, x)
-        val yDense = dense(yRows, columns, y)
-        val flag = if (transpose) CHOLMOD_TRUE else 0
-        if (functions.sdmult(sparse, flag, alphaPair, betaPair, xDense, yDense, common) != CHOLMOD_TRUE) {
-            return@memScoped false
-        }
-        for (index in yValues.indices) yValues[index] = y[index]
-        true
-    }
-
     private fun sparseProduct(right: CPointer<ByteVar>): F64SparseMatrix? {
         val product = functions.ssmult(
             sparse,
@@ -181,8 +159,52 @@ private class CholmodPreparedSparseMatrix(
         }
     }
 
-    private fun MemScope.dense(rows: Int, columns: Int, values: CPointer<DoubleVar>): CPointer<ByteVar> =
-        ScopedBlocks(this).block(CHOLMOD_DENSE_BYTES)
-            .asCholmodDense(NativeBlock(values.reinterpret()), rows, columns)
-            .pointer
+    /** Every native call goes through here; [NativeOwnership] says what that guarantees. */
+    private fun <R> anchoring(body: () -> R): R = ownership.anchoring(body)
 }
+
+/**
+ * `y = alpha · op(A) · x + beta · y` through `cholmod_sdmult`, reporting whether the library took it.
+ *
+ * Free of the caller and of the descriptor's lifetime, so a retained matrix and a one-shot product spend the
+ * same call rather than the second reaching it through the first.
+ */
+@Suppress("LongParameterList")
+private fun CholmodFunctions.multiply(
+    common: CPointer<ByteVar>,
+    sparse: CPointer<ByteVar>,
+    alpha: Double,
+    transpose: Boolean,
+    xValues: DoubleArray,
+    beta: Double,
+    yValues: DoubleArray,
+    columns: Int,
+    xRows: Int,
+    yRows: Int,
+): Boolean = memScoped {
+    val alphaPair = allocArray<DoubleVar>(2).also {
+        it[0] = alpha
+        it[1] = 0.0
+    }
+    val betaPair = allocArray<DoubleVar>(2).also {
+        it[0] = beta
+        it[1] = 0.0
+    }
+    val x = allocArray<DoubleVar>(maxOf(xValues.size, 1))
+    for (index in xValues.indices) x[index] = xValues[index]
+    val y = allocArray<DoubleVar>(maxOf(yValues.size, 1))
+    for (index in yValues.indices) y[index] = yValues[index]
+    val xDense = dense(xRows, columns, x)
+    val yDense = dense(yRows, columns, y)
+    val flag = if (transpose) CHOLMOD_TRUE else 0
+    if (sdmult(sparse, flag, alphaPair, betaPair, xDense, yDense, common) != CHOLMOD_TRUE) {
+        return@memScoped false
+    }
+    for (index in yValues.indices) yValues[index] = y[index]
+    true
+}
+
+private fun MemScope.dense(rows: Int, columns: Int, values: CPointer<DoubleVar>): CPointer<ByteVar> =
+    ScopedBlocks(this).block(CHOLMOD_DENSE_BYTES)
+        .asCholmodDense(NativeBlock(values.reinterpret()), rows, columns)
+        .pointer
