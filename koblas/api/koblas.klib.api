@@ -1742,22 +1742,6 @@ final class com.eignex.koblas.sparse.host.cholmod/CholmodConfig { // com.eignex.
     final fun toString(): kotlin/String // com.eignex.koblas.sparse.host.cholmod/CholmodConfig.toString|toString(){}[0]
 }
 
-final class com.eignex.koblas.sparse.host.cholmod/CholmodFactorization : com.eignex.koblas.sparse/F64SparseFactorization { // com.eignex.koblas.sparse.host.cholmod/CholmodFactorization|null[0]
-    final val failedAt // com.eignex.koblas.sparse.host.cholmod/CholmodFactorization.failedAt|{}failedAt[0]
-        final fun <get-failedAt>(): kotlin/Int // com.eignex.koblas.sparse.host.cholmod/CholmodFactorization.failedAt.<get-failedAt>|<get-failedAt>(){}[0]
-    final val n // com.eignex.koblas.sparse.host.cholmod/CholmodFactorization.n|{}n[0]
-        final fun <get-n>(): kotlin/Int // com.eignex.koblas.sparse.host.cholmod/CholmodFactorization.n.<get-n>|<get-n>(){}[0]
-    final val nnz // com.eignex.koblas.sparse.host.cholmod/CholmodFactorization.nnz|{}nnz[0]
-        final fun <get-nnz>(): kotlin/Int // com.eignex.koblas.sparse.host.cholmod/CholmodFactorization.nnz.<get-nnz>|<get-nnz>(){}[0]
-    final val rcond // com.eignex.koblas.sparse.host.cholmod/CholmodFactorization.rcond|{}rcond[0]
-        final fun <get-rcond>(): kotlin/Double // com.eignex.koblas.sparse.host.cholmod/CholmodFactorization.rcond.<get-rcond>|<get-rcond>(){}[0]
-
-    final fun close() // com.eignex.koblas.sparse.host.cholmod/CholmodFactorization.close|close(){}[0]
-    final fun solveAllocation(kotlin/Boolean, kotlin/Boolean): com.eignex.koblas/AllocationCapability // com.eignex.koblas.sparse.host.cholmod/CholmodFactorization.solveAllocation|solveAllocation(kotlin.Boolean;kotlin.Boolean){}[0]
-    final fun solveInto(com.eignex.koblas.core/F64DenseMatrix, com.eignex.koblas.core/F64DenseMatrix, kotlin/Boolean, com.eignex.koblas/Workspace?): com.eignex.koblas.core/F64DenseMatrix // com.eignex.koblas.sparse.host.cholmod/CholmodFactorization.solveInto|solveInto(com.eignex.koblas.core.F64DenseMatrix;com.eignex.koblas.core.F64DenseMatrix;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
-    final fun solveInto(kotlin/DoubleArray, kotlin/DoubleArray, kotlin/Boolean, com.eignex.koblas/Workspace?): kotlin/DoubleArray // com.eignex.koblas.sparse.host.cholmod/CholmodFactorization.solveInto|solveInto(kotlin.DoubleArray;kotlin.DoubleArray;kotlin.Boolean;com.eignex.koblas.Workspace?){}[0]
-}
-
 final class com.eignex.koblas.sparse.host.cholmod/CholmodLdlFactorization : com.eignex.koblas.sparse/F64QuasiDefiniteLdlFactorization, com.eignex.koblas.sparse/F64SparseFactorization { // com.eignex.koblas.sparse.host.cholmod/CholmodLdlFactorization|null[0]
     final val d // com.eignex.koblas.sparse.host.cholmod/CholmodLdlFactorization.d|{}d[0]
         final fun <get-d>(): kotlin/DoubleArray // com.eignex.koblas.sparse.host.cholmod/CholmodLdlFactorization.d.<get-d>|<get-d>(){}[0]

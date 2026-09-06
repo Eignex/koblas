@@ -2623,21 +2623,6 @@ public final class com/eignex/koblas/sparse/host/cholmod/CholmodConfig {
 	public fun toString ()Ljava/lang/String;
 }
 
-public final class com/eignex/koblas/sparse/host/cholmod/CholmodFactorization : com/eignex/koblas/sparse/F64SparseFactorization {
-	public fun close ()V
-	public fun getFailedAt ()I
-	public fun getN ()I
-	public fun getNnz ()I
-	public fun getRcond ()D
-	public fun getSingular ()Z
-	public fun solve (Lcom/eignex/koblas/core/F64DenseMatrix;Z)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public fun solve ([DZ)[D
-	public fun solveAllocation (ZZ)Lcom/eignex/koblas/AllocationCapability;
-	public fun solveInto (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public fun solveInto ([D[DZLcom/eignex/koblas/Workspace;)[D
-	public fun solveInto ([D[DZLcom/eignex/koblas/Workspace;Lcom/eignex/koblas/AllocationPolicy;)[D
-}
-
 public final class com/eignex/koblas/sparse/host/cholmod/CholmodLdlFactorization : com/eignex/koblas/sparse/F64QuasiDefiniteLdlFactorization, com/eignex/koblas/sparse/F64SparseFactorization {
 	public fun close ()V
 	public fun getD ()[D
