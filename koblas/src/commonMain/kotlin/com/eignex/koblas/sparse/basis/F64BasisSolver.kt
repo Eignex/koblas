@@ -51,6 +51,28 @@ public enum class F64RefactorizeReason {
  */
 public class F64BasisKernel(public val dimension: Int, public val entries: Int)
 
+/**
+ * The basis a solver settled on, where it was allowed to repair one it could not invert as given.
+ *
+ * A rank-deficient basis has slots whose columns are linearly dependent. A provider that repairs one fills
+ * those slots with unit columns, which are not columns of `A` at all: they are the slacks a simplex would
+ * hold there. So a repaired basis is reported slot by slot rather than as column indices, since some slots
+ * name nothing in the caller's matrix.
+ *
+ * A caller adopting one takes both arrays as its new basis. Declining it means factorizing something else;
+ * the solver holds the repaired basis either way until the next rebuild.
+ *
+ * @property columns the column of `A` in each slot, or -1 where the slot holds a unit column.
+ * @property unitRows the row each unit column stands for, or -1 where the slot holds a column of `A`.
+ */
+public class F64BasisRepair(public val columns: IntArray, public val unitRows: IntArray) {
+    /** Whether anything was replaced. False means the basis factorized exactly as it was given. */
+    public val repaired: Boolean get() = unitRows.any { it >= 0 }
+
+    /** How many slots were replaced. */
+    public val replacedSlots: Int get() = unitRows.count { it >= 0 }
+}
+
 /** Numerically scaled residual information for one basis solve. */
 public data class F64BasisSolveQuality(
     /** `max |B·x - b|`, or `max |Bᵀ·x - b|` for a transposed solve. */
@@ -121,6 +143,26 @@ public interface F64BasisSolver : AutoCloseable {
      * until a later call succeeds.
      */
     public fun refactorize(basicIndex: IntArray): Boolean
+
+    /**
+     * Factorizes the basis of [basicIndex] as [refactorize] does, but keeps a repair where the provider can
+     * make one, rather than reporting the basis singular and leaving the solver unusable.
+     *
+     * Returns what was factorized, or null where even a repaired basis could not be. A provider that cannot
+     * repair answers exactly as [refactorize] did, so a caller may always ask.
+     *
+     * This exists because refusing a repair costs the caller its warm start: a search whose basis comes back
+     * rank deficient after a bound change would otherwise restart from scratch, where adopting a few
+     * substituted columns carries on. [refactorize] keeps its own contract for a caller that wants the
+     * basis it named or nothing.
+     *
+     * A repaired basis is generally not in the order it was given, so a caller adopting one reads its slots
+     * from the result rather than from the array it passed.
+     */
+    public fun refactorizeRepairing(basicIndex: IntArray): F64BasisRepair? {
+        if (!refactorize(basicIndex)) return null
+        return F64BasisRepair(basicIndex.copyOf(), IntArray(basicIndex.size) { -1 })
+    }
 
     /**
      * Solve `B x = b` in place: [x] carries `b` in and `x` out.

@@ -38,6 +38,7 @@ internal class HfactorCalls(private val config: HfactorConfig) {
          * Optional, so a deployment pointing at a shim built before these existed keeps its factorization
          * and simply reports no diagnostics, rather than losing the binding to a missing symbol.
          */
+        val buildRepairing: MethodHandle?,
         val refactorizeReason: MethodHandle?,
         val kernel: MethodHandle?,
     )
@@ -72,6 +73,10 @@ internal class HfactorCalls(private val config: HfactorConfig) {
                 "koblas_hfactor_pivot_range",
                 voidOf(ADDRESS, ADDRESS, ADDRESS),
             ) ?: return null,
+            buildRepairing = library.handleOrNull(
+                "koblas_hfactor_build_repairing",
+                intOf(ADDRESS, ADDRESS, ADDRESS),
+            ),
             refactorizeReason = library.handleOrNull("koblas_hfactor_refactorize_reason", intOf(ADDRESS)),
             kernel = library.handleOrNull("koblas_hfactor_kernel", voidOf(ADDRESS, ADDRESS, ADDRESS)),
         )
@@ -144,6 +149,21 @@ internal class HfactorCalls(private val config: HfactorConfig) {
 
     /** The fill the bridge tracks, which reads a counter and so is fit to be read every iteration. */
     fun fill(handle: MemorySegment): Int = handlesOrThrow().fill.invokeExact(handle) as Int
+
+    /**
+     * Factorizes keeping HFactor's repair, writing the basis it settled on into [repaired] and returning the
+     * rank deficiency, or null where the shim predates this entry point.
+     */
+    fun buildRepairing(handle: MemorySegment, basicIndex: IntArray, repaired: IntArray): Int? {
+        val builder = handlesOrThrow().buildRepairing ?: return null
+        Arena.ofConfined().use { arena ->
+            val given = arena.allocateFrom(JAVA_INT, *basicIndex)
+            val settled = arena.allocate(JAVA_INT, basicIndex.size.toLong())
+            val deficiency = builder.invokeExact(handle, given, settled) as Int
+            MemorySegment.copy(settled, JAVA_INT, 0L, repaired, 0, repaired.size)
+            return deficiency
+        }
+    }
 
     /** Which rule advised the last rebuild: 0 none, 1 the factorization's own, 2 the synthetic clock. */
     fun refactorizeReason(handle: MemorySegment): Int =

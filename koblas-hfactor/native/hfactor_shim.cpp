@@ -178,6 +178,34 @@ KOBLAS_HFACTOR_EXPORT int32_t koblas_hfactor_build(Handle* h, const int32_t* bas
     return 0;
 }
 
+/*
+ * Factorizes like koblas_hfactor_build, but keeps the repair rather than refusing it.
+ *
+ * HFactor completes a rank-deficient factorization with unit pivots for the rows it found no pivot for, so
+ * the factors it leaves are invertible; what they invert is a basis the caller did not ask for. That basis
+ * is written to [repaired], one entry per slot: a column of the caller's matrix, or num_col + row for a
+ * slot HFactor filled with the unit column of that row, which is not a column of the matrix at all.
+ *
+ * There is no permutation of the caller's basis to recover once slots have been replaced, so the caller's
+ * slots become HFactor's and [repaired] is what says where everything sits. Returns the rank deficiency, or
+ * 0 when the basis factorized as given and [repaired] is the caller's own basis unchanged.
+ */
+KOBLAS_HFACTOR_EXPORT int32_t koblas_hfactor_build_repairing(Handle* h, const int32_t* basic_index,
+                                                             int32_t* repaired) {
+    const int32_t deficiency = koblas_hfactor_build(h, basic_index);
+    if (deficiency == 0) {
+        for (HighsInt t = 0; t < h->num_row; t++) repaired[t] = basic_index[t];
+        return 0;
+    }
+    for (HighsInt t = 0; t < h->num_row; t++) {
+        h->to_native[t] = t;
+        h->to_caller[t] = t;
+        repaired[t] = h->basic_index[t];
+    }
+    h->mapped = true;
+    return deficiency;
+}
+
 /* Solves B x = b in place over the caller's vector. Returns the solution's nonzero count. */
 KOBLAS_HFACTOR_EXPORT int32_t koblas_hfactor_ftran(Handle* h, int32_t count, int32_t* index, double* array,
                                                    double expected_density) {

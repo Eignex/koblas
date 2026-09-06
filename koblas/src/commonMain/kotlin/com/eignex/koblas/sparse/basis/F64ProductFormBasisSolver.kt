@@ -230,7 +230,7 @@ public class F64ProductFormBasisSolver(
     override fun solveQuality(rhs: DoubleArray, solution: F64IndexedVector, transpose: Boolean): F64BasisSolveQuality {
         checkOpen()
         check(!singular) { "solveQuality: the basis is singular" }
-        return basisSolveQuality(a, basicIndex, rhs, solution, transpose)
+        return basisSolveQuality(a, basicIndex, unitRows = null, rhs, solution, transpose)
     }
 
     override fun update(
