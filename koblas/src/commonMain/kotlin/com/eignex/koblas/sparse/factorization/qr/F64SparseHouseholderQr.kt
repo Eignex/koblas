@@ -13,8 +13,7 @@ import com.eignex.koblas.internal.numeric.euclideanNorm
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.requireSolveShapes
 import com.eignex.koblas.sparse.F64SparseQrFactorization
-import com.eignex.koblas.sparse.internal.transposeCsc
-import com.eignex.koblas.sparse.internal.transposeRaw
+import com.eignex.koblas.sparse.internal.sortedCsc
 import kotlin.math.abs
 import kotlin.math.hypot
 
@@ -45,10 +44,10 @@ public class F64SparseHouseholderQr internal constructor(
 
     override val columnOrder: IntArray get() = IntArray(n) { it }
 
-    // R comes out of the numeric pass in elimination-path order, so its columns need sorting. A double
-    // transpose is what sorts a CSC matrix, and that is exactly what transposeRaw does, twice. The order is
-    // a property of the numeric pass rather than of the caller, so it is settled once and not per read.
-    private val sortedR: F64SparseMatrix by lazy { transposeCsc(transposeRaw(n, n, rColPtr, rRowIdx, rValues)) }
+    // R comes out of the numeric pass in elimination-path order, so its columns need sorting, which is what
+    // sortedCsc does. The order is a property of the numeric pass rather than of the caller, so it is
+    // settled once and not per read.
+    private val sortedR: F64SparseMatrix by lazy { sortedCsc(n, n, rColPtr, rRowIdx, rValues) }
 
     // Fresh arrays per read, since a caller may write through F64SparseMatrix.values.
     override val r: F64SparseMatrix
