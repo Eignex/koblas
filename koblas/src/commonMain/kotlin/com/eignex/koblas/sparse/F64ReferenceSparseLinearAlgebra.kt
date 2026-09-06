@@ -36,6 +36,7 @@ internal const val REFERENCE_SPARSE_RHS_WIDTH: Int = 4
 @Suppress("TooManyFunctions") // the sparse surface a backend half covers
 public open class F64ReferenceSparseBackend(public val configuredKernels: F64Kernels? = null) :
     F64SparseLinearAlgebra,
+    F64RebindableBackend,
     F64SparseKernels,
     F64GeneralSparseLu,
     F64SparseCholesky,
@@ -45,6 +46,8 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
     override val name: String get() = BackendNames.REFERENCE
 
     override val isPortable: Boolean get() = true
+
+    override val hasOwnKernels: Boolean get() = configuredKernels != null
 
     private val denseKernels: F64Kernels get() = configuredKernels ?: koblas.kernels
 

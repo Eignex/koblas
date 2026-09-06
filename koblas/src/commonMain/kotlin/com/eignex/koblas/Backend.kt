@@ -56,3 +56,17 @@ public interface BackendMetadataProvider {
  * OpenBLAS exports identical symbols while computing wrong answers, caught by reading `openblas_get_config`.
  */
 public const val HOST_BACKEND_PRIORITY: Int = 100
+
+/**
+ * A portable backend whose kernels a context may replace.
+ *
+ * The reference backends read the process default kernels when constructed without kernels of their own, so
+ * a context built with different ones rebinds them onto its own. Being rebindable is a property of the type
+ * rather than an identity against the shared singletons, so a caller who constructs their own stock portable
+ * backend gets the context's kernels too, and a portable default added later joins in without the builder
+ * having to learn about it.
+ */
+public interface F64RebindableBackend : Backend {
+    /** Whether this backend carries kernels of its own, which a context must leave alone. */
+    public val hasOwnKernels: Boolean
+}

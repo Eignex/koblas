@@ -40,8 +40,10 @@ public abstract class F64SparseBlasAdapter protected constructor() :
      * the left and a dense operand as it stands, so a product from the right or against a transposed dense
      * operand is answered portably. [route] and [gemm] read the same answer, so what a caller is told and
      * what runs cannot drift apart.
+     *
+     * A provider that takes more overrides this and [gemmNative] together.
      */
-    private fun supportsNativeGemm(right: Boolean, transposeDense: Boolean): Boolean = !right && !transposeDense
+    protected open fun supportsNativeGemm(right: Boolean, transposeDense: Boolean): Boolean = !right && !transposeDense
 
     /** The same route answered portably when the provider cannot take the argument form. */
     private fun BackendRoute.downgradedUnless(supported: Boolean): BackendRoute {

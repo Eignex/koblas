@@ -589,6 +589,11 @@ abstract interface com.eignex.koblas/BackendMetadataProvider { // com.eignex.kob
         abstract fun <get-backendMetadata>(): com.eignex.koblas/BackendMetadata // com.eignex.koblas/BackendMetadataProvider.backendMetadata.<get-backendMetadata>|<get-backendMetadata>(){}[0]
 }
 
+abstract interface com.eignex.koblas/F64RebindableBackend : com.eignex.koblas/Backend { // com.eignex.koblas/F64RebindableBackend|null[0]
+    abstract val hasOwnKernels // com.eignex.koblas/F64RebindableBackend.hasOwnKernels|{}hasOwnKernels[0]
+        abstract fun <get-hasOwnKernels>(): kotlin/Boolean // com.eignex.koblas/F64RebindableBackend.hasOwnKernels.<get-hasOwnKernels>|<get-hasOwnKernels>(){}[0]
+}
+
 abstract interface com.eignex.koblas/F64RoutingBackend : com.eignex.koblas/Backend { // com.eignex.koblas/F64RoutingBackend|null[0]
     abstract fun route(com.eignex.koblas/F64RouteQuery): com.eignex.koblas/BackendRoute? // com.eignex.koblas/F64RoutingBackend.route|route(com.eignex.koblas.F64RouteQuery){}[0]
 }
@@ -961,6 +966,7 @@ abstract class com.eignex.koblas.sparse.host/F64SparseBlasAdapter : com.eignex.k
     final fun transpose(com.eignex.koblas.core/F64SparseMatrix): com.eignex.koblas.core/F64SparseMatrix // com.eignex.koblas.sparse.host/F64SparseBlasAdapter.transpose|transpose(com.eignex.koblas.core.F64SparseMatrix){}[0]
     final fun triangularRoute(com.eignex.koblas/F64RouteQuery.SparseTriangular, kotlin/Boolean = ...): com.eignex.koblas/BackendRoute // com.eignex.koblas.sparse.host/F64SparseBlasAdapter.triangularRoute|triangularRoute(com.eignex.koblas.F64RouteQuery.SparseTriangular;kotlin.Boolean){}[0]
     open fun route(com.eignex.koblas/F64RouteQuery): com.eignex.koblas/BackendRoute? // com.eignex.koblas.sparse.host/F64SparseBlasAdapter.route|route(com.eignex.koblas.F64RouteQuery){}[0]
+    open fun supportsNativeGemm(kotlin/Boolean, kotlin/Boolean): kotlin/Boolean // com.eignex.koblas.sparse.host/F64SparseBlasAdapter.supportsNativeGemm|supportsNativeGemm(kotlin.Boolean;kotlin.Boolean){}[0]
     open fun trmm(com.eignex.koblas.core/F64SparseMatrix, com.eignex.koblas.core/F64DenseMatrix, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Double) // com.eignex.koblas.sparse.host/F64SparseBlasAdapter.trmm|trmm(com.eignex.koblas.core.F64SparseMatrix;com.eignex.koblas.core.F64DenseMatrix;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Double){}[0]
     open fun trmv(com.eignex.koblas.core/F64SparseMatrix, kotlin/DoubleArray, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean) // com.eignex.koblas.sparse.host/F64SparseBlasAdapter.trmv|trmv(com.eignex.koblas.core.F64SparseMatrix;kotlin.DoubleArray;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean){}[0]
     open fun trsm(com.eignex.koblas.core/F64SparseMatrix, com.eignex.koblas.core/F64DenseMatrix, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Boolean, kotlin/Double, com.eignex.koblas/Workspace?) // com.eignex.koblas.sparse.host/F64SparseBlasAdapter.trsm|trsm(com.eignex.koblas.core.F64SparseMatrix;com.eignex.koblas.core.F64DenseMatrix;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Boolean;kotlin.Double;com.eignex.koblas.Workspace?){}[0]
@@ -1396,9 +1402,11 @@ final class com.eignex.koblas.dense/F64QrDecomposition { // com.eignex.koblas.de
         final fun <get-tau>(): kotlin/DoubleArray // com.eignex.koblas.dense/F64QrDecomposition.tau.<get-tau>|<get-tau>(){}[0]
 }
 
-final class com.eignex.koblas.dense/F64ReferenceBackend : com.eignex.koblas.dense/F64Blas, com.eignex.koblas.dense/F64Decompositions, com.eignex.koblas.dense/F64LinearAlgebra { // com.eignex.koblas.dense/F64ReferenceBackend|null[0]
+final class com.eignex.koblas.dense/F64ReferenceBackend : com.eignex.koblas.dense/F64Blas, com.eignex.koblas.dense/F64Decompositions, com.eignex.koblas.dense/F64LinearAlgebra, com.eignex.koblas/F64RebindableBackend { // com.eignex.koblas.dense/F64ReferenceBackend|null[0]
     constructor <init>(com.eignex.koblas.dense/F64Kernels? = ...) // com.eignex.koblas.dense/F64ReferenceBackend.<init>|<init>(com.eignex.koblas.dense.F64Kernels?){}[0]
 
+    final val hasOwnKernels // com.eignex.koblas.dense/F64ReferenceBackend.hasOwnKernels|{}hasOwnKernels[0]
+        final fun <get-hasOwnKernels>(): kotlin/Boolean // com.eignex.koblas.dense/F64ReferenceBackend.hasOwnKernels.<get-hasOwnKernels>|<get-hasOwnKernels>(){}[0]
     final val isAvailable // com.eignex.koblas.dense/F64ReferenceBackend.isAvailable|{}isAvailable[0]
         final fun <get-isAvailable>(): kotlin/Boolean // com.eignex.koblas.dense/F64ReferenceBackend.isAvailable.<get-isAvailable>|<get-isAvailable>(){}[0]
     final val isPortable // com.eignex.koblas.dense/F64ReferenceBackend.isPortable|{}isPortable[0]
@@ -2661,11 +2669,13 @@ open class com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu : com.eignex.ko
     final fun factorNative(com.eignex.koblas.core/F64SparseMatrix): com.eignex.koblas.sparse/F64SparseLuFactorization // com.eignex.koblas.sparse.host.umfpack/UmfpackSparseLu.factorNative|factorNative(com.eignex.koblas.core.F64SparseMatrix){}[0]
 }
 
-open class com.eignex.koblas.sparse/F64ReferenceSparseBackend : com.eignex.koblas.sparse/F64BasisFactorizations, com.eignex.koblas.sparse/F64GeneralSparseLu, com.eignex.koblas.sparse/F64QuasiDefiniteLdl, com.eignex.koblas.sparse/F64SparseCholesky, com.eignex.koblas.sparse/F64SparseKernels, com.eignex.koblas.sparse/F64SparseLinearAlgebra, com.eignex.koblas.sparse/F64SparseQr { // com.eignex.koblas.sparse/F64ReferenceSparseBackend|null[0]
+open class com.eignex.koblas.sparse/F64ReferenceSparseBackend : com.eignex.koblas.sparse/F64BasisFactorizations, com.eignex.koblas.sparse/F64GeneralSparseLu, com.eignex.koblas.sparse/F64QuasiDefiniteLdl, com.eignex.koblas.sparse/F64SparseCholesky, com.eignex.koblas.sparse/F64SparseKernels, com.eignex.koblas.sparse/F64SparseLinearAlgebra, com.eignex.koblas.sparse/F64SparseQr, com.eignex.koblas/F64RebindableBackend { // com.eignex.koblas.sparse/F64ReferenceSparseBackend|null[0]
     constructor <init>(com.eignex.koblas.dense/F64Kernels? = ...) // com.eignex.koblas.sparse/F64ReferenceSparseBackend.<init>|<init>(com.eignex.koblas.dense.F64Kernels?){}[0]
 
     final val configuredKernels // com.eignex.koblas.sparse/F64ReferenceSparseBackend.configuredKernels|{}configuredKernels[0]
         final fun <get-configuredKernels>(): com.eignex.koblas.dense/F64Kernels? // com.eignex.koblas.sparse/F64ReferenceSparseBackend.configuredKernels.<get-configuredKernels>|<get-configuredKernels>(){}[0]
+    open val hasOwnKernels // com.eignex.koblas.sparse/F64ReferenceSparseBackend.hasOwnKernels|{}hasOwnKernels[0]
+        open fun <get-hasOwnKernels>(): kotlin/Boolean // com.eignex.koblas.sparse/F64ReferenceSparseBackend.hasOwnKernels.<get-hasOwnKernels>|<get-hasOwnKernels>(){}[0]
     open val isPortable // com.eignex.koblas.sparse/F64ReferenceSparseBackend.isPortable|{}isPortable[0]
         open fun <get-isPortable>(): kotlin/Boolean // com.eignex.koblas.sparse/F64ReferenceSparseBackend.isPortable.<get-isPortable>|<get-isPortable>(){}[0]
     open val name // com.eignex.koblas.sparse/F64ReferenceSparseBackend.name|{}name[0]

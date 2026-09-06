@@ -1,6 +1,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.F64Context
+import com.eignex.koblas.F64RebindableBackend
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.koblas
 
@@ -13,8 +14,11 @@ import com.eignex.koblas.koblas
  */
 public class F64ReferenceBackend(private val configured: F64Kernels? = null) :
     F64LinearAlgebra,
+    F64RebindableBackend,
     F64Blas by F64ReferenceBlas(configured),
     F64Decompositions by F64ReferenceDecompositions(configured) {
+    override val hasOwnKernels: Boolean get() = configured != null
+
     override val name: String get() = BackendNames.REFERENCE
 
     override val isPortable: Boolean get() = true
