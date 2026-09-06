@@ -993,6 +993,8 @@ abstract class com.eignex.koblas.sparse.host/F64SparseDecompositionsAdapter : co
         open fun <get-isAvailable>(): kotlin/Boolean // com.eignex.koblas.sparse.host/F64SparseDecompositionsAdapter.isAvailable.<get-isAvailable>|<get-isAvailable>(){}[0]
     open val isPortable // com.eignex.koblas.sparse.host/F64SparseDecompositionsAdapter.isPortable|{}isPortable[0]
         open fun <get-isPortable>(): kotlin/Boolean // com.eignex.koblas.sparse.host/F64SparseDecompositionsAdapter.isPortable.<get-isPortable>|<get-isPortable>(){}[0]
+    open val libraryScalesRows // com.eignex.koblas.sparse.host/F64SparseDecompositionsAdapter.libraryScalesRows|{}libraryScalesRows[0]
+        open fun <get-libraryScalesRows>(): kotlin/Boolean // com.eignex.koblas.sparse.host/F64SparseDecompositionsAdapter.libraryScalesRows.<get-libraryScalesRows>|<get-libraryScalesRows>(){}[0]
 
     abstract fun factorNative(com.eignex.koblas.core/F64SparseMatrix): com.eignex.koblas.sparse/F64SparseLuFactorization // com.eignex.koblas.sparse.host/F64SparseDecompositionsAdapter.factorNative|factorNative(com.eignex.koblas.core.F64SparseMatrix){}[0]
     final fun cholesky(com.eignex.koblas.core/F64SparseMatrix): com.eignex.koblas.sparse/F64SparseCholeskyFactorization // com.eignex.koblas.sparse.host/F64SparseDecompositionsAdapter.cholesky|cholesky(com.eignex.koblas.core.F64SparseMatrix){}[0]
@@ -2602,6 +2604,8 @@ open class com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu : com.eignex.ko
 
     final val config // com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu.config|{}config[0]
         final fun <get-config>(): com.eignex.koblas.sparse.host.basiclu/BasicluConfig // com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu.config.<get-config>|<get-config>(){}[0]
+    final val libraryScalesRows // com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu.libraryScalesRows|{}libraryScalesRows[0]
+        final fun <get-libraryScalesRows>(): kotlin/Boolean // com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu.libraryScalesRows.<get-libraryScalesRows>|<get-libraryScalesRows>(){}[0]
     final val nativeAvailable // com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu.nativeAvailable|{}nativeAvailable[0]
         final fun <get-nativeAvailable>(): kotlin/Boolean // com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu.nativeAvailable.<get-nativeAvailable>|<get-nativeAvailable>(){}[0]
     final val supportsBasisUpdates // com.eignex.koblas.sparse.host.basiclu/BasicluSparseLu.supportsBasisUpdates|{}supportsBasisUpdates[0]

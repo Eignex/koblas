@@ -11,8 +11,6 @@ import com.eignex.koblas.requireSquare
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.host.F64SparseDecompositionsAdapter
-import com.eignex.koblas.sparse.host.f64EquilibrationScale
-import com.eignex.koblas.sparse.host.f64ScaledValues
 import kotlinx.cinterop.*
 
 /**
@@ -35,6 +33,8 @@ public open class BasicluSparseLu(
 
     override val name: String get() = BackendNames.BASICLU
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 2
+    final override val libraryScalesRows: Boolean get() = false
+
     final override val nativeAvailable: Boolean get() = loader.available
 
     /**
@@ -44,22 +44,14 @@ public open class BasicluSparseLu(
      */
     public val supportsBasisUpdates: Boolean get() = nativeAvailable
 
-    /**
-     * BASICLU offers no row scaling of its own, so equilibration is applied to the values handed over and
-     * undone in the solves, by the same power-of-two factors the portable factorization uses.
-     */
+    /** BASICLU offers no row scaling of its own; [libraryScalesRows] is what says so. */
     final override fun factorNative(a: F64SparseMatrix): F64SparseLuFactorization {
-        // Read, never written: f64EquilibrationScale and f64ScaledValues only index these, and
-        // calls.factorize hands them straight to a library that reads them. Copying cost an
-        // O(nnz) and an O(n) pass per factorization for nothing, where the KLU binding beside it
-        // already passes the live arrays.
-        val rowIdx = a.rowIdx
-        val scale = if (equilibrate) f64EquilibrationScale(a.rows, rowIdx, a.values) else null
-        val values = if (scale == null) a.values else f64ScaledValues(rowIdx, a.values, scale)
         val functions = loader.functions ?: error("BASICLU is not available")
-        val handle = factored(a, rowIdx, values, functions)
+        // Read, never written: factorize hands these straight to a library that reads them, and copying
+        // cost an O(nnz) and an O(n) pass per factorization for nothing.
+        val handle = factored(a, functions)
             ?: return F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
-        return BasicluFactorization(handle, functions, a.rows, scale)
+        return BasicluFactorization(handle, functions, a.rows)
     }
 
     /**
@@ -74,18 +66,13 @@ public open class BasicluSparseLu(
         requireSquare(basis, "factorBasis")
         val functions = loader.functions.takeIf { nativeAvailable }
             ?: return F64RefactoringBasisFactorization(this, basis, factor(basis))
-        val handle = factored(basis, basis.rowIdx, basis.values, functions)
+        val handle = factored(basis, functions)
             ?: return BasicluSingularBasisFactorization(this, basis)
         return BasicluBasisFactorization(this, basis, handle, functions)
     }
 
-    /** An initialized object carrying the factors of [a]'s pattern with [values], or null if it would not. */
-    private fun factored(
-        a: F64SparseMatrix,
-        rowIdx: IntArray,
-        values: DoubleArray,
-        functions: BasicluFunctions,
-    ): BasicluFactorization.BasicluObjectHandle? {
+    /** An initialized object carrying the factors of [a], or null where BASICLU would not produce them. */
+    private fun factored(a: F64SparseMatrix, functions: BasicluFunctions): BasicluFactorization.BasicluObjectHandle? {
         val obj = allocateBasicluObject()
         if (functions.initialize(obj, a.rows.toLong()) != BasicluStatus.OK) {
             functions.free(obj)
@@ -95,8 +82,8 @@ public open class BasicluSparseLu(
         val colPtr = a.colPtr
         val status = LongArray(a.cols) { colPtr[it].toLong() }.usePinned { begin ->
             LongArray(a.cols) { colPtr[it + 1].toLong() }.usePinned { end ->
-                LongArray(rowIdx.size) { rowIdx[it].toLong() }.usePinned { rows ->
-                    values.usePinned { entries ->
+                LongArray(a.rowIdx.size) { a.rowIdx[it].toLong() }.usePinned { rows ->
+                    a.values.usePinned { entries ->
                         functions.factorize(
                             obj,
                             begin.addressOf(0),
