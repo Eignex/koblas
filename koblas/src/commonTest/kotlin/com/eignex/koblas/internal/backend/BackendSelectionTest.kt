@@ -25,6 +25,7 @@ class BackendSelectionTest {
         F64SparseBlas by F64ReferenceSparseLinearAlgebra {
         override val isAvailable: Boolean get() = true
         override val isPortable: Boolean get() = false
+        override val unavailableReason: String? get() = null
     }
 
     @Test

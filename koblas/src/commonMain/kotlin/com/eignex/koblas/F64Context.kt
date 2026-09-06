@@ -130,6 +130,10 @@ public class F64Context internal constructor(
     /** The strongest half's priority, so a context is at least as preferred as the best thing in it. */
     override val priority: Int get() = BackendSlot.contextHalves.maxOf { it.from(this).priority }
 
+    /** The first half that says why it cannot run, since a context is unusable as soon as one of them is. */
+    override val unavailableReason: String?
+        get() = BackendSlot.contextHalves.firstNotNullOfOrNull { it.from(this).unavailableReason }
+
     /**
      * A copy with the named halves replaced and the rest kept. A replaced [kernels] reaches the
      * inherited routines of halves that follow the installed context, which requires [installBackends];

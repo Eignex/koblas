@@ -31,6 +31,16 @@ public interface Backend {
      * Read it to report what a host offers, or before installing one explicitly.
      */
     public val isAvailable: Boolean get() = true
+
+    /**
+     * Why this backend is unavailable, or null when it is available or cannot say.
+     *
+     * A binding that failed to resolve knows something a caller cannot recover from [isAvailable] alone: the
+     * library was missing, or it loaded but a symbol was not there. Reporting it here rather than on each
+     * concrete binding is what lets a caller ask any half the same question instead of downcasting to the
+     * one type that happens to answer it.
+     */
+    public val unavailableReason: String? get() = null
 }
 
 /** Runtime facts a backend can report without requiring callers to parse [Backend.name]. */

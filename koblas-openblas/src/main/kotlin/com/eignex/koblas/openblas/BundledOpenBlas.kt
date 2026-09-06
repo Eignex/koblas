@@ -26,6 +26,7 @@ class BundledOpenBlas private constructor(private val blas: F64Cblas, private va
     override val name: String get() = "openblas-bundled"
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 1
     override val isAvailable: Boolean get() = blas.isAvailable && decompositions.isAvailable
+    override val unavailableReason: String? get() = blas.unavailableReason ?: decompositions.unavailableReason
     override val isPortable: Boolean get() = false
     override val kernels: F64Kernels get() = blas.kernels
     override val backendMetadata: BackendMetadata get() = blas.backendMetadata

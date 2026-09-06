@@ -241,12 +241,6 @@ public enum class DispatchMetric {
     /** A matrix dimension. */
     DIMENSION,
 
-    /** The `m * n * k` work estimate of a level-3 operation. */
-    LEVEL3_WORK,
-
-    /** Stored entries in a sparse matrix. */
-    STORED_ENTRIES,
-
     /** Elements in a level-1 operand. */
     VECTOR_LENGTH,
 }
@@ -383,14 +377,6 @@ internal fun portableRoute(
     portableExecutor,
     reason,
 )
-
-/** Saturates a displayed work estimate instead of overflowing it. */
-internal fun saturatedProduct(a: Int, b: Int, c: Int): Long {
-    if (a == 0 || b == 0 || c == 0) return 0
-    val ab = a.toLong() * b
-    if (ab > Long.MAX_VALUE / c) return Long.MAX_VALUE
-    return ab * c
-}
 
 private fun requireNonNegative(value: Int, name: String) {
     require(value >= 0) { "$name must not be negative" }

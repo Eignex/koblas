@@ -30,7 +30,7 @@ public open class CholmodSparseBlas(
     final override val nativeAvailable: Boolean get() = calls.available
 
     /** Why CHOLMOD is unusable, or null when it is usable. For diagnostics, not control flow. */
-    public val unavailableReason: String? get() = calls.unavailableReason
+    override val unavailableReason: String? get() = calls.unavailableReason
 
     final override fun route(query: F64RouteQuery): BackendRoute? {
         if (query !is F64RouteQuery.PreparedSparseProduct) return super.route(query)

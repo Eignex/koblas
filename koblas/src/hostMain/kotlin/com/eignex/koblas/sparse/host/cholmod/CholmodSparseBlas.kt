@@ -28,7 +28,7 @@ public open class CholmodSparseBlas(
     final override val nativeAvailable: Boolean get() = common != null
 
     /** Why CHOLMOD is unusable, or null when it is usable. For diagnostics, not control flow. */
-    public val unavailableReason: String?
+    override val unavailableReason: String?
         get() = if (nativeAvailable) {
             null
         } else {

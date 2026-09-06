@@ -15,6 +15,7 @@ class AccelerationTest {
         override val priority: Int get() = 100
         override val isPortable: Boolean get() = false
         override val isAvailable: Boolean get() = true
+        override val unavailableReason: String? get() = null
         override val kernels: F64Kernels get() = F64ReferenceLinearAlgebra.kernels
     }
 
