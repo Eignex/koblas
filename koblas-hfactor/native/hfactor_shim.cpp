@@ -111,6 +111,28 @@ void scatterColumn(Handle* h, HVector& v, HighsInt column) {
     }
 }
 
+/*
+ * A factorization set aside, with the bookkeeping that gives it meaning.
+ *
+ * HFactor's own representation carries L, U and the product-form arrays, which is everything needed to put
+ * the factors back. It is not everything needed to put the solver back: the basis those factors invert, the
+ * two orderings a solve maps through, and the counters that pace rebuilds all live here rather than in
+ * HFactor, and a restored factorization solving into the wrong slots is exactly what dropping them costs.
+ */
+struct Snapshot {
+    InvertibleRepresentation invert;
+    std::vector<HighsInt> basic_index;
+    std::vector<HighsInt> to_native;
+    std::vector<HighsInt> to_caller;
+    bool mapped = false;
+    double build_synthetic_tick = 0.0;
+    double total_synthetic_tick = 0.0;
+    HighsInt update_count = 0;
+    HighsInt fill = 0;
+    HighsInt kernel_dim = 0;
+    HighsInt kernel_num_el = 0;
+};
+
 } // namespace
 
 /*
@@ -278,6 +300,52 @@ KOBLAS_HFACTOR_EXPORT int32_t koblas_hfactor_update(Handle* h, int32_t pivot_row
     h->refactorize_reason = rebuild ? 2 : 0;
     return rebuild ? 1 : 0;
 }
+
+/*
+ * Sets the current factorization aside, or null if it cannot be allocated. A handle may hold any number of
+ * these; each owns its own copy and outlives nothing but the handle it came from.
+ */
+KOBLAS_HFACTOR_EXPORT Snapshot* koblas_hfactor_snapshot(const Handle* h) {
+    Snapshot* s = new (std::nothrow) Snapshot();
+    if (s == nullptr) return nullptr;
+    s->invert = h->factor.getInvert();
+    s->basic_index = h->basic_index;
+    s->to_native = h->to_native;
+    s->to_caller = h->to_caller;
+    s->mapped = h->mapped;
+    s->build_synthetic_tick = h->build_synthetic_tick;
+    s->total_synthetic_tick = h->total_synthetic_tick;
+    s->update_count = h->update_count;
+    s->fill = h->fill;
+    s->kernel_dim = h->kernel_dim;
+    s->kernel_num_el = h->kernel_num_el;
+    return s;
+}
+
+/*
+ * Puts a snapshot back, factors and bookkeeping together. Returns 0, or -1 where the snapshot was taken
+ * from a handle of another dimension and its slots would mean nothing here.
+ */
+KOBLAS_HFACTOR_EXPORT int32_t koblas_hfactor_restore(Handle* h, const Snapshot* s) {
+    if (static_cast<HighsInt>(s->basic_index.size()) != h->num_row) return -1;
+    h->factor.setInvert(s->invert);
+    h->basic_index = s->basic_index;
+    h->to_native = s->to_native;
+    h->to_caller = s->to_caller;
+    h->mapped = s->mapped;
+    h->build_synthetic_tick = s->build_synthetic_tick;
+    h->total_synthetic_tick = s->total_synthetic_tick;
+    h->update_count = s->update_count;
+    h->fill = s->fill;
+    h->kernel_dim = s->kernel_dim;
+    h->kernel_num_el = s->kernel_num_el;
+    /* The factors moved, so what the last ones said about themselves no longer describes these. */
+    h->refactorize_reason = 0;
+    h->pivot_range_known = false;
+    return 0;
+}
+
+KOBLAS_HFACTOR_EXPORT void koblas_hfactor_snapshot_free(Snapshot* s) { delete s; }
 
 /* Which of the two rules the last update's advisory came from, so a caller can tell them apart. */
 KOBLAS_HFACTOR_EXPORT int32_t koblas_hfactor_refactorize_reason(const Handle* h) { return h->refactorize_reason; }

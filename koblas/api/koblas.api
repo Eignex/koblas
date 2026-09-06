@@ -2259,6 +2259,9 @@ public final class com/eignex/koblas/sparse/basis/F64BasisRepair {
 	public final fun getUnitRows ()[I
 }
 
+public abstract interface class com/eignex/koblas/sparse/basis/F64BasisSnapshot : java/lang/AutoCloseable {
+}
+
 public final class com/eignex/koblas/sparse/basis/F64BasisSolveQuality {
 	public fun <init> (DD)V
 	public final fun component1 ()D
@@ -2287,6 +2290,8 @@ public abstract interface class com/eignex/koblas/sparse/basis/F64BasisSolver : 
 	public abstract fun getUpdateCount ()I
 	public abstract fun refactorize ([I)Z
 	public fun refactorizeRepairing ([I)Lcom/eignex/koblas/sparse/basis/F64BasisRepair;
+	public fun restore (Lcom/eignex/koblas/sparse/basis/F64BasisSnapshot;)Z
+	public fun snapshot ()Lcom/eignex/koblas/sparse/basis/F64BasisSnapshot;
 	public abstract fun solveQuality ([DLcom/eignex/koblas/sparse/basis/F64IndexedVector;Z)Lcom/eignex/koblas/sparse/basis/F64BasisSolveQuality;
 	public static synthetic fun solveQuality$default (Lcom/eignex/koblas/sparse/basis/F64BasisSolver;[DLcom/eignex/koblas/sparse/basis/F64IndexedVector;ZILjava/lang/Object;)Lcom/eignex/koblas/sparse/basis/F64BasisSolveQuality;
 	public abstract fun update (IILcom/eignex/koblas/sparse/basis/F64IndexedVector;Lcom/eignex/koblas/sparse/basis/F64IndexedVector;)Lcom/eignex/koblas/sparse/basis/BasisUpdate;
@@ -2300,6 +2305,8 @@ public final class com/eignex/koblas/sparse/basis/F64BasisSolver$DefaultImpls {
 	public static fun getKernel (Lcom/eignex/koblas/sparse/basis/F64BasisSolver;)Lcom/eignex/koblas/sparse/basis/F64BasisKernel;
 	public static fun getRefactorizeReason (Lcom/eignex/koblas/sparse/basis/F64BasisSolver;)Lcom/eignex/koblas/sparse/basis/F64RefactorizeReason;
 	public static fun refactorizeRepairing (Lcom/eignex/koblas/sparse/basis/F64BasisSolver;[I)Lcom/eignex/koblas/sparse/basis/F64BasisRepair;
+	public static fun restore (Lcom/eignex/koblas/sparse/basis/F64BasisSolver;Lcom/eignex/koblas/sparse/basis/F64BasisSnapshot;)Z
+	public static fun snapshot (Lcom/eignex/koblas/sparse/basis/F64BasisSolver;)Lcom/eignex/koblas/sparse/basis/F64BasisSnapshot;
 	public static synthetic fun solveQuality$default (Lcom/eignex/koblas/sparse/basis/F64BasisSolver;[DLcom/eignex/koblas/sparse/basis/F64IndexedVector;ZILjava/lang/Object;)Lcom/eignex/koblas/sparse/basis/F64BasisSolveQuality;
 	public static synthetic fun update$default (Lcom/eignex/koblas/sparse/basis/F64BasisSolver;IILcom/eignex/koblas/sparse/basis/F64IndexedVector;Lcom/eignex/koblas/sparse/basis/F64IndexedVector;ILjava/lang/Object;)Lcom/eignex/koblas/sparse/basis/BasisUpdate;
 }
@@ -2352,6 +2359,8 @@ public final class com/eignex/koblas/sparse/basis/F64ProductFormBasisSolver : co
 	public fun getUpdateCount ()I
 	public fun refactorize ([I)Z
 	public fun refactorizeRepairing ([I)Lcom/eignex/koblas/sparse/basis/F64BasisRepair;
+	public fun restore (Lcom/eignex/koblas/sparse/basis/F64BasisSnapshot;)Z
+	public fun snapshot ()Lcom/eignex/koblas/sparse/basis/F64BasisSnapshot;
 	public fun solveQuality ([DLcom/eignex/koblas/sparse/basis/F64IndexedVector;Z)Lcom/eignex/koblas/sparse/basis/F64BasisSolveQuality;
 	public fun update (IILcom/eignex/koblas/sparse/basis/F64IndexedVector;Lcom/eignex/koblas/sparse/basis/F64IndexedVector;)Lcom/eignex/koblas/sparse/basis/BasisUpdate;
 }
@@ -2701,6 +2710,8 @@ public final class com/eignex/koblas/sparse/host/hfactor/HfactorBasisSolver : co
 	public fun getUpdateCount ()I
 	public fun refactorize ([I)Z
 	public fun refactorizeRepairing ([I)Lcom/eignex/koblas/sparse/basis/F64BasisRepair;
+	public fun restore (Lcom/eignex/koblas/sparse/basis/F64BasisSnapshot;)Z
+	public fun snapshot ()Lcom/eignex/koblas/sparse/basis/F64BasisSnapshot;
 	public fun solveQuality ([DLcom/eignex/koblas/sparse/basis/F64IndexedVector;Z)Lcom/eignex/koblas/sparse/basis/F64BasisSolveQuality;
 	public fun update (IILcom/eignex/koblas/sparse/basis/F64IndexedVector;Lcom/eignex/koblas/sparse/basis/F64IndexedVector;)Lcom/eignex/koblas/sparse/basis/BasisUpdate;
 }
