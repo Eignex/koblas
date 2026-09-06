@@ -159,6 +159,49 @@ class F64ContextBuilderTest {
     }
 
     @Test
+    fun `a caller built portable backend takes its contexts dense kernels`() = withCleanBackends {
+        val kernels = CountingKernels()
+        val context = F64ContextBuilder()
+            .withBackend(BackendRole.DENSE_KERNELS, kernels)
+            .withBackend(BackendRole.DENSE_BLAS, F64ReferenceBackend())
+            .resolve()
+
+        context.gemv(F64DenseMatrix(1, 1, doubleArrayOf(2.0)), doubleArrayOf(3.0))
+
+        assertEquals(1, kernels.axpys, "a stock portable backend follows the context whoever constructed it")
+    }
+
+    @Test
+    fun `a portable backend constructed with kernels keeps them`() = withCleanBackends {
+        val chosen = CountingKernels()
+        val ignored = CountingKernels()
+        val context = F64ContextBuilder()
+            .withBackend(BackendRole.DENSE_KERNELS, ignored)
+            .withBackend(BackendRole.DENSE_BLAS, F64ReferenceBackend(chosen))
+            .resolve()
+
+        context.gemv(F64DenseMatrix(1, 1, doubleArrayOf(2.0)), doubleArrayOf(3.0))
+
+        assertEquals(1, chosen.axpys)
+        assertEquals(0, ignored.axpys, "kernels a caller gave a backend outrank the context's")
+    }
+
+    @Test
+    fun `a portable backend given the process default kernels keeps them`() = withCleanBackends {
+        // The sharp case: a caller who passes the process default explicitly has still chosen it, so the
+        // context must not treat that backend as one of its own to rebind.
+        val contextKernels = CountingKernels()
+        val context = F64ContextBuilder()
+            .withBackend(BackendRole.DENSE_KERNELS, contextKernels)
+            .withBackend(BackendRole.DENSE_BLAS, F64ReferenceBackend(koblas.kernels))
+            .resolve()
+
+        context.gemv(F64DenseMatrix(1, 1, doubleArrayOf(2.0)), doubleArrayOf(3.0))
+
+        assertEquals(0, contextKernels.axpys, "an explicit choice of the process default is still a choice")
+    }
+
+    @Test
     fun `a resolved context carries its policy in final state`() {
         // The three policy fields were vars assigned after construction, in a class documented immutable, so
         // a reader reached through a plain field could observe the AUTO and ALLOW defaults and skip the
