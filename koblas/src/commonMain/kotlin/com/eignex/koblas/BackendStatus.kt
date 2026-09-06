@@ -52,6 +52,8 @@ public enum class BackendRole {
  * @property portable whether this is koblas's own implementation.
  * @property accelerated whether this role contains an external provider.
  * @property metadata optional structured runtime facts reported by the provider.
+ * @property unavailableReason why the provider cannot run, when it says. Null when it is available or
+ * reports no reason.
  */
 public data class BackendStatus(
     val role: BackendRole,
@@ -61,6 +63,7 @@ public data class BackendStatus(
     val portable: Boolean,
     val accelerated: Boolean,
     val metadata: BackendMetadata,
+    val unavailableReason: String? = null,
 )
 
 /**
@@ -130,6 +133,7 @@ internal fun backendStatus(role: BackendRole, backend: Backend, accelerated: Boo
     portable = backend.isPortable,
     accelerated = accelerated,
     metadata = (backend as? BackendMetadataProvider)?.backendMetadata ?: NO_METADATA,
+    unavailableReason = backend.unavailableReason,
 )
 
 /** A structured snapshot of every selected backend half. */

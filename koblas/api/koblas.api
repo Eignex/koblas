@@ -43,12 +43,14 @@ public final class com/eignex/koblas/AllocationPolicyRejectedException : java/la
 public abstract interface class com/eignex/koblas/Backend {
 	public abstract fun getName ()Ljava/lang/String;
 	public fun getPriority ()I
+	public fun getUnavailableReason ()Ljava/lang/String;
 	public fun isAvailable ()Z
 	public fun isPortable ()Z
 }
 
 public final class com/eignex/koblas/Backend$DefaultImpls {
 	public static fun getPriority (Lcom/eignex/koblas/Backend;)I
+	public static fun getUnavailableReason (Lcom/eignex/koblas/Backend;)Ljava/lang/String;
 	public static fun isAvailable (Lcom/eignex/koblas/Backend;)Z
 	public static fun isPortable (Lcom/eignex/koblas/Backend;)Z
 }
@@ -159,7 +161,8 @@ public final class com/eignex/koblas/BackendRouteRejectedException : java/lang/I
 }
 
 public final class com/eignex/koblas/BackendStatus {
-	public fun <init> (Lcom/eignex/koblas/BackendRole;Ljava/lang/String;IZZZLcom/eignex/koblas/BackendMetadata;)V
+	public fun <init> (Lcom/eignex/koblas/BackendRole;Ljava/lang/String;IZZZLcom/eignex/koblas/BackendMetadata;Ljava/lang/String;)V
+	public synthetic fun <init> (Lcom/eignex/koblas/BackendRole;Ljava/lang/String;IZZZLcom/eignex/koblas/BackendMetadata;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Lcom/eignex/koblas/BackendRole;
 	public final fun component2 ()Ljava/lang/String;
 	public final fun component3 ()I
@@ -167,8 +170,9 @@ public final class com/eignex/koblas/BackendStatus {
 	public final fun component5 ()Z
 	public final fun component6 ()Z
 	public final fun component7 ()Lcom/eignex/koblas/BackendMetadata;
-	public final fun copy (Lcom/eignex/koblas/BackendRole;Ljava/lang/String;IZZZLcom/eignex/koblas/BackendMetadata;)Lcom/eignex/koblas/BackendStatus;
-	public static synthetic fun copy$default (Lcom/eignex/koblas/BackendStatus;Lcom/eignex/koblas/BackendRole;Ljava/lang/String;IZZZLcom/eignex/koblas/BackendMetadata;ILjava/lang/Object;)Lcom/eignex/koblas/BackendStatus;
+	public final fun component8 ()Ljava/lang/String;
+	public final fun copy (Lcom/eignex/koblas/BackendRole;Ljava/lang/String;IZZZLcom/eignex/koblas/BackendMetadata;Ljava/lang/String;)Lcom/eignex/koblas/BackendStatus;
+	public static synthetic fun copy$default (Lcom/eignex/koblas/BackendStatus;Lcom/eignex/koblas/BackendRole;Ljava/lang/String;IZZZLcom/eignex/koblas/BackendMetadata;Ljava/lang/String;ILjava/lang/Object;)Lcom/eignex/koblas/BackendStatus;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAccelerated ()Z
 	public final fun getAvailable ()Z
@@ -177,6 +181,7 @@ public final class com/eignex/koblas/BackendStatus {
 	public final fun getPriority ()I
 	public final fun getProvider ()Ljava/lang/String;
 	public final fun getRole ()Lcom/eignex/koblas/BackendRole;
+	public final fun getUnavailableReason ()Ljava/lang/String;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
@@ -215,8 +220,6 @@ public final class com/eignex/koblas/DispatchGate {
 
 public final class com/eignex/koblas/DispatchMetric : java/lang/Enum {
 	public static final field DIMENSION Lcom/eignex/koblas/DispatchMetric;
-	public static final field LEVEL3_WORK Lcom/eignex/koblas/DispatchMetric;
-	public static final field STORED_ENTRIES Lcom/eignex/koblas/DispatchMetric;
 	public static final field VECTOR_LENGTH Lcom/eignex/koblas/DispatchMetric;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/DispatchMetric;
@@ -296,6 +299,7 @@ public final class com/eignex/koblas/F64Context : com/eignex/koblas/dense/F64Bla
 	public final fun getSparseDecompositions ()Lcom/eignex/koblas/sparse/F64SparseDecompositions;
 	public fun getSparseKernels ()Lcom/eignex/koblas/sparse/F64SparseKernels;
 	public final fun getSparseQr ()Lcom/eignex/koblas/sparse/F64SparseQr;
+	public fun getUnavailableReason ()Ljava/lang/String;
 	public fun invert (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public fun invert (Lcom/eignex/koblas/dense/F64LuDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public fun invertInto (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
@@ -445,6 +449,7 @@ public abstract interface class com/eignex/koblas/F64RebindableBackend : com/eig
 
 public final class com/eignex/koblas/F64RebindableBackend$DefaultImpls {
 	public static fun getPriority (Lcom/eignex/koblas/F64RebindableBackend;)I
+	public static fun getUnavailableReason (Lcom/eignex/koblas/F64RebindableBackend;)Ljava/lang/String;
 	public static fun isAvailable (Lcom/eignex/koblas/F64RebindableBackend;)Z
 	public static fun isPortable (Lcom/eignex/koblas/F64RebindableBackend;)Z
 }
@@ -622,6 +627,7 @@ public abstract interface class com/eignex/koblas/F64RoutingBackend : com/eignex
 
 public final class com/eignex/koblas/F64RoutingBackend$DefaultImpls {
 	public static fun getPriority (Lcom/eignex/koblas/F64RoutingBackend;)I
+	public static fun getUnavailableReason (Lcom/eignex/koblas/F64RoutingBackend;)Ljava/lang/String;
 	public static fun isAvailable (Lcom/eignex/koblas/F64RoutingBackend;)Z
 	public static fun isPortable (Lcom/eignex/koblas/F64RoutingBackend;)Z
 }
@@ -1102,6 +1108,7 @@ public final class com/eignex/koblas/dense/F64Blas$DefaultImpls {
 	public static synthetic fun gemv$default (Lcom/eignex/koblas/dense/F64Blas;Lcom/eignex/koblas/core/F64StridedMatrixView;Lcom/eignex/koblas/core/F64StridedVectorView;ZILjava/lang/Object;)[D
 	public static fun getKernels (Lcom/eignex/koblas/dense/F64Blas;)Lcom/eignex/koblas/dense/F64Kernels;
 	public static fun getPriority (Lcom/eignex/koblas/dense/F64Blas;)I
+	public static fun getUnavailableReason (Lcom/eignex/koblas/dense/F64Blas;)Ljava/lang/String;
 	public static fun isAvailable (Lcom/eignex/koblas/dense/F64Blas;)Z
 	public static fun isPortable (Lcom/eignex/koblas/dense/F64Blas;)Z
 	public static synthetic fun symm$default (Lcom/eignex/koblas/dense/F64Blas;DLcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/core/F64DenseMatrix;ZZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
@@ -1199,6 +1206,7 @@ public final class com/eignex/koblas/dense/F64Decompositions$DefaultImpls {
 	public static fun factorInto (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/F64LuDecomposition;)Lcom/eignex/koblas/dense/F64LuDecomposition;
 	public static fun getKernels (Lcom/eignex/koblas/dense/F64Decompositions;)Lcom/eignex/koblas/dense/F64Kernels;
 	public static fun getPriority (Lcom/eignex/koblas/dense/F64Decompositions;)I
+	public static fun getUnavailableReason (Lcom/eignex/koblas/dense/F64Decompositions;)Ljava/lang/String;
 	public static fun invert (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public static synthetic fun invert$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public static synthetic fun invert$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64LuDecomposition;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/core/F64DenseMatrix;
@@ -1254,6 +1262,7 @@ public abstract interface class com/eignex/koblas/dense/F64Kernels : com/eignex/
 public final class com/eignex/koblas/dense/F64Kernels$DefaultImpls {
 	public static fun dot4 (Lcom/eignex/koblas/dense/F64Kernels;[DII[DII[DI)V
 	public static fun getPriority (Lcom/eignex/koblas/dense/F64Kernels;)I
+	public static fun getUnavailableReason (Lcom/eignex/koblas/dense/F64Kernels;)Ljava/lang/String;
 	public static fun isAvailable (Lcom/eignex/koblas/dense/F64Kernels;)Z
 	public static fun isPortable (Lcom/eignex/koblas/dense/F64Kernels;)Z
 }
@@ -1274,6 +1283,7 @@ public final class com/eignex/koblas/dense/F64LinearAlgebra$DefaultImpls {
 	public static fun gemv (Lcom/eignex/koblas/dense/F64LinearAlgebra;Lcom/eignex/koblas/core/F64StridedMatrixView;Lcom/eignex/koblas/core/F64StridedVectorView;Z)[D
 	public static fun getKernels (Lcom/eignex/koblas/dense/F64LinearAlgebra;)Lcom/eignex/koblas/dense/F64Kernels;
 	public static fun getPriority (Lcom/eignex/koblas/dense/F64LinearAlgebra;)I
+	public static fun getUnavailableReason (Lcom/eignex/koblas/dense/F64LinearAlgebra;)Ljava/lang/String;
 	public static fun invert (Lcom/eignex/koblas/dense/F64LinearAlgebra;Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public static fun isAvailable (Lcom/eignex/koblas/dense/F64LinearAlgebra;)Z
 	public static fun isPortable (Lcom/eignex/koblas/dense/F64LinearAlgebra;)Z
@@ -1449,6 +1459,7 @@ public final class com/eignex/koblas/dense/F64ReferenceBackend : com/eignex/kobl
 	public fun getKernels ()Lcom/eignex/koblas/dense/F64Kernels;
 	public fun getName ()Ljava/lang/String;
 	public fun getPriority ()I
+	public fun getUnavailableReason ()Ljava/lang/String;
 	public fun invert (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public fun invert (Lcom/eignex/koblas/dense/F64LuDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public fun invertInto (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
@@ -1538,6 +1549,7 @@ public abstract class com/eignex/koblas/dense/host/F64BlasAdapter : com/eignex/k
 	public fun getBackendMetadata ()Lcom/eignex/koblas/BackendMetadata;
 	public fun getKernels ()Lcom/eignex/koblas/dense/F64Kernels;
 	public fun getPriority ()I
+	public fun getUnavailableReason ()Ljava/lang/String;
 	public fun isAvailable ()Z
 	public fun isPortable ()Z
 	public fun route (Lcom/eignex/koblas/F64RouteQuery;)Lcom/eignex/koblas/BackendRoute;
@@ -1566,6 +1578,7 @@ public abstract class com/eignex/koblas/dense/host/F64DecompositionsAdapter : co
 	public fun getBackendMetadata ()Lcom/eignex/koblas/BackendMetadata;
 	public fun getKernels ()Lcom/eignex/koblas/dense/F64Kernels;
 	public fun getPriority ()I
+	public fun getUnavailableReason ()Ljava/lang/String;
 	public fun invert (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public fun invert (Lcom/eignex/koblas/dense/F64LuDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public fun invertInto (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
@@ -1603,6 +1616,7 @@ public abstract class com/eignex/koblas/dense/host/F64KernelsAdapter : com/eigne
 	public fun dot ([DI[DII)D
 	public fun dot4 ([DII[DII[DI)V
 	public fun getPriority ()I
+	public fun getUnavailableReason ()Ljava/lang/String;
 	public fun isAvailable ()Z
 	public fun isPortable ()Z
 	public fun nrm2 ([DII)D
@@ -1712,6 +1726,7 @@ public abstract interface class com/eignex/koblas/sparse/F64BasisFactorizations 
 
 public final class com/eignex/koblas/sparse/F64BasisFactorizations$DefaultImpls {
 	public static fun getPriority (Lcom/eignex/koblas/sparse/F64BasisFactorizations;)I
+	public static fun getUnavailableReason (Lcom/eignex/koblas/sparse/F64BasisFactorizations;)Ljava/lang/String;
 	public static fun isAvailable (Lcom/eignex/koblas/sparse/F64BasisFactorizations;)Z
 	public static fun isPortable (Lcom/eignex/koblas/sparse/F64BasisFactorizations;)Z
 }
@@ -1722,6 +1737,7 @@ public abstract interface class com/eignex/koblas/sparse/F64GeneralSparseLu : co
 
 public final class com/eignex/koblas/sparse/F64GeneralSparseLu$DefaultImpls {
 	public static fun getPriority (Lcom/eignex/koblas/sparse/F64GeneralSparseLu;)I
+	public static fun getUnavailableReason (Lcom/eignex/koblas/sparse/F64GeneralSparseLu;)Ljava/lang/String;
 	public static fun isAvailable (Lcom/eignex/koblas/sparse/F64GeneralSparseLu;)Z
 	public static fun isPortable (Lcom/eignex/koblas/sparse/F64GeneralSparseLu;)Z
 }
@@ -1751,6 +1767,7 @@ public abstract interface class com/eignex/koblas/sparse/F64QuasiDefiniteLdl : c
 public final class com/eignex/koblas/sparse/F64QuasiDefiniteLdl$DefaultImpls {
 	public static fun analyzeQuasiDefiniteLdl (Lcom/eignex/koblas/sparse/F64QuasiDefiniteLdl;Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseSymbolicAnalysis;
 	public static fun getPriority (Lcom/eignex/koblas/sparse/F64QuasiDefiniteLdl;)I
+	public static fun getUnavailableReason (Lcom/eignex/koblas/sparse/F64QuasiDefiniteLdl;)Ljava/lang/String;
 	public static fun isAvailable (Lcom/eignex/koblas/sparse/F64QuasiDefiniteLdl;)Z
 	public static fun isPortable (Lcom/eignex/koblas/sparse/F64QuasiDefiniteLdl;)Z
 }
@@ -1823,6 +1840,7 @@ public class com/eignex/koblas/sparse/F64ReferenceSparseBackend : com/eignex/kob
 	public fun getName ()Ljava/lang/String;
 	public fun getPriority ()I
 	public fun getSparseKernels ()Lcom/eignex/koblas/sparse/F64SparseKernels;
+	public fun getUnavailableReason ()Ljava/lang/String;
 	public fun isAvailable ()Z
 	public fun isPortable ()Z
 	public fun nrm2 (Lcom/eignex/koblas/core/F64SparseVector;)D
@@ -1855,6 +1873,7 @@ public class com/eignex/koblas/sparse/F64ReferenceSparseDecompositions : com/eig
 	public final fun getEquilibrate ()Z
 	public fun getName ()Ljava/lang/String;
 	public fun getPriority ()I
+	public fun getUnavailableReason ()Ljava/lang/String;
 	public fun isAvailable ()Z
 	public fun isPortable ()Z
 	public fun qr (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseQrFactorization;
@@ -1881,6 +1900,7 @@ public abstract interface class com/eignex/koblas/sparse/F64RepeatedSparseLu : c
 public final class com/eignex/koblas/sparse/F64RepeatedSparseLu$DefaultImpls {
 	public static fun analyze (Lcom/eignex/koblas/sparse/F64RepeatedSparseLu;Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseLuAnalysis;
 	public static fun getPriority (Lcom/eignex/koblas/sparse/F64RepeatedSparseLu;)I
+	public static fun getUnavailableReason (Lcom/eignex/koblas/sparse/F64RepeatedSparseLu;)Ljava/lang/String;
 	public static fun isAvailable (Lcom/eignex/koblas/sparse/F64RepeatedSparseLu;)Z
 	public static fun isPortable (Lcom/eignex/koblas/sparse/F64RepeatedSparseLu;)Z
 }
@@ -1935,6 +1955,7 @@ public final class com/eignex/koblas/sparse/F64SparseBlas$DefaultImpls {
 	public static synthetic fun gemv$default (Lcom/eignex/koblas/sparse/F64SparseBlas;DLcom/eignex/koblas/core/F64SparseMatrix;[DD[DZILjava/lang/Object;)V
 	public static synthetic fun gemv$default (Lcom/eignex/koblas/sparse/F64SparseBlas;Lcom/eignex/koblas/core/F64SparseMatrix;[DZILjava/lang/Object;)[D
 	public static fun getPriority (Lcom/eignex/koblas/sparse/F64SparseBlas;)I
+	public static fun getUnavailableReason (Lcom/eignex/koblas/sparse/F64SparseBlas;)Ljava/lang/String;
 	public static fun isAvailable (Lcom/eignex/koblas/sparse/F64SparseBlas;)Z
 	public static fun isPortable (Lcom/eignex/koblas/sparse/F64SparseBlas;)Z
 	public static fun prepare (Lcom/eignex/koblas/sparse/F64SparseBlas;Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64PreparedSparseMatrix;
@@ -1952,6 +1973,7 @@ public abstract interface class com/eignex/koblas/sparse/F64SparseCholesky : com
 public final class com/eignex/koblas/sparse/F64SparseCholesky$DefaultImpls {
 	public static fun analyzeCholesky (Lcom/eignex/koblas/sparse/F64SparseCholesky;Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseSymbolicAnalysis;
 	public static fun getPriority (Lcom/eignex/koblas/sparse/F64SparseCholesky;)I
+	public static fun getUnavailableReason (Lcom/eignex/koblas/sparse/F64SparseCholesky;)Ljava/lang/String;
 	public static fun isAvailable (Lcom/eignex/koblas/sparse/F64SparseCholesky;)Z
 	public static fun isPortable (Lcom/eignex/koblas/sparse/F64SparseCholesky;)Z
 }
@@ -1988,6 +2010,7 @@ public abstract interface class com/eignex/koblas/sparse/F64SparseDecompositions
 
 public final class com/eignex/koblas/sparse/F64SparseDecompositions$DefaultImpls {
 	public static fun getPriority (Lcom/eignex/koblas/sparse/F64SparseDecompositions;)I
+	public static fun getUnavailableReason (Lcom/eignex/koblas/sparse/F64SparseDecompositions;)Ljava/lang/String;
 	public static fun isAvailable (Lcom/eignex/koblas/sparse/F64SparseDecompositions;)Z
 	public static fun isPortable (Lcom/eignex/koblas/sparse/F64SparseDecompositions;)Z
 	public static fun solve (Lcom/eignex/koblas/sparse/F64SparseDecompositions;Lcom/eignex/koblas/sparse/F64SparseFactorization;Lcom/eignex/koblas/core/F64DenseMatrix;ZLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
@@ -2050,6 +2073,7 @@ public abstract interface class com/eignex/koblas/sparse/F64SparseKernels : com/
 
 public final class com/eignex/koblas/sparse/F64SparseKernels$DefaultImpls {
 	public static fun getPriority (Lcom/eignex/koblas/sparse/F64SparseKernels;)I
+	public static fun getUnavailableReason (Lcom/eignex/koblas/sparse/F64SparseKernels;)Ljava/lang/String;
 	public static fun isAvailable (Lcom/eignex/koblas/sparse/F64SparseKernels;)Z
 	public static fun isPortable (Lcom/eignex/koblas/sparse/F64SparseKernels;)Z
 }
@@ -2063,6 +2087,7 @@ public final class com/eignex/koblas/sparse/F64SparseLinearAlgebra$DefaultImpls 
 	public static fun gemv (Lcom/eignex/koblas/sparse/F64SparseLinearAlgebra;Lcom/eignex/koblas/core/F64SparseMatrix;[DZ)[D
 	public static fun getPriority (Lcom/eignex/koblas/sparse/F64SparseLinearAlgebra;)I
 	public static fun getSparseKernels (Lcom/eignex/koblas/sparse/F64SparseLinearAlgebra;)Lcom/eignex/koblas/sparse/F64SparseKernels;
+	public static fun getUnavailableReason (Lcom/eignex/koblas/sparse/F64SparseLinearAlgebra;)Ljava/lang/String;
 	public static fun isAvailable (Lcom/eignex/koblas/sparse/F64SparseLinearAlgebra;)Z
 	public static fun isPortable (Lcom/eignex/koblas/sparse/F64SparseLinearAlgebra;)Z
 	public static fun prepare (Lcom/eignex/koblas/sparse/F64SparseLinearAlgebra;Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64PreparedSparseMatrix;
@@ -2111,6 +2136,7 @@ public abstract interface class com/eignex/koblas/sparse/F64SparseQr : com/eigne
 public final class com/eignex/koblas/sparse/F64SparseQr$DefaultImpls {
 	public static fun analyzeQr (Lcom/eignex/koblas/sparse/F64SparseQr;Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseSymbolicAnalysis;
 	public static fun getPriority (Lcom/eignex/koblas/sparse/F64SparseQr;)I
+	public static fun getUnavailableReason (Lcom/eignex/koblas/sparse/F64SparseQr;)Ljava/lang/String;
 	public static fun isAvailable (Lcom/eignex/koblas/sparse/F64SparseQr;)Z
 	public static fun isPortable (Lcom/eignex/koblas/sparse/F64SparseQr;)Z
 }
@@ -2253,6 +2279,7 @@ public abstract interface class com/eignex/koblas/sparse/basis/F64BasisSolvers :
 
 public final class com/eignex/koblas/sparse/basis/F64BasisSolvers$DefaultImpls {
 	public static fun getPriority (Lcom/eignex/koblas/sparse/basis/F64BasisSolvers;)I
+	public static fun getUnavailableReason (Lcom/eignex/koblas/sparse/basis/F64BasisSolvers;)Ljava/lang/String;
 	public static fun isAvailable (Lcom/eignex/koblas/sparse/basis/F64BasisSolvers;)Z
 	public static fun isPortable (Lcom/eignex/koblas/sparse/basis/F64BasisSolvers;)Z
 }
@@ -2421,6 +2448,7 @@ public abstract class com/eignex/koblas/sparse/host/F64SparseBlasAdapter : com/e
 	protected abstract fun getNativeAvailable ()Z
 	protected final fun getPortable ()Lcom/eignex/koblas/sparse/F64SparseBlas;
 	public fun getPriority ()I
+	public fun getUnavailableReason ()Ljava/lang/String;
 	public fun isAvailable ()Z
 	public fun isPortable ()Z
 	public fun prepare (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64PreparedSparseMatrix;
@@ -2448,6 +2476,7 @@ public abstract class com/eignex/koblas/sparse/host/F64SparseDecompositionsAdapt
 	protected abstract fun getNativeAvailable ()Z
 	protected final fun getPortable ()Lcom/eignex/koblas/sparse/F64ReferenceSparseDecompositions;
 	public fun getPriority ()I
+	public fun getUnavailableReason ()Ljava/lang/String;
 	public fun isAvailable ()Z
 	public fun isPortable ()Z
 	public final fun qr (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseQrFactorization;
@@ -2624,7 +2653,7 @@ public class com/eignex/koblas/sparse/host/cholmod/CholmodSparseBlas : com/eigne
 	public fun getName ()Ljava/lang/String;
 	protected final fun getNativeAvailable ()Z
 	public fun getPriority ()I
-	public final fun getUnavailableReason ()Ljava/lang/String;
+	public fun getUnavailableReason ()Ljava/lang/String;
 	public final fun prepare (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64PreparedSparseMatrix;
 	public final fun route (Lcom/eignex/koblas/F64RouteQuery;)Lcom/eignex/koblas/BackendRoute;
 }

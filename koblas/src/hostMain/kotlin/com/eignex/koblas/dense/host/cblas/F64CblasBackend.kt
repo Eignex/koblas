@@ -32,6 +32,9 @@ public class F64CblasBackend private constructor(private val blas: F64Cblas, pri
     /** Both halves, since this type is the pair. Either half alone is reachable through the registry. */
     override val isAvailable: Boolean get() = blas.isAvailable && decompositions.isAvailable
 
+    /** Whichever half failed first, since the pair is unusable as soon as one of them is. */
+    override val unavailableReason: String? get() = blas.unavailableReason ?: decompositions.unavailableReason
+
     /** The BLAS half's kernels, so both halves' inherited routines agree. */
     override val kernels: F64Kernels get() = blas.kernels
 

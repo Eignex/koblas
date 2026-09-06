@@ -19,6 +19,7 @@ class ProbeReentrantProvider :
     F64LinearAlgebra,
     F64Blas by F64ReferenceLinearAlgebra,
     F64Decompositions by F64ReferenceLinearAlgebra {
+    override val unavailableReason: String? get() = null
 
     init {
         instantiations.incrementAndGet()

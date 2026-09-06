@@ -27,11 +27,4 @@ class RoutingTest {
         assertFailsWith<IllegalArgumentException> { F64RouteQuery.CholeskyRankUpdate(order = -1, rank = 1) }
         assertFailsWith<IllegalArgumentException> { F64RouteQuery.CholeskyRankUpdate(order = 1, rank = -1) }
     }
-
-    @Test
-    fun `displayed products saturate instead of overflowing`() {
-        assertEquals(Long.MAX_VALUE, saturatedProduct(Int.MAX_VALUE, Int.MAX_VALUE, Int.MAX_VALUE))
-        assertEquals(24, saturatedProduct(2, 3, 4))
-        assertEquals(0, saturatedProduct(0, Int.MAX_VALUE, Int.MAX_VALUE))
-    }
 }

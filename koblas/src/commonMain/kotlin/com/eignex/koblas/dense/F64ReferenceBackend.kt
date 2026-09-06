@@ -23,6 +23,8 @@ public class F64ReferenceBackend(private val configured: F64Kernels? = null) :
 
     override val isPortable: Boolean get() = true
 
+    override val unavailableReason: String? get() = null
+
     /** koblas's own implementation, so it runs anywhere koblas does. */
     override val isAvailable: Boolean get() = true
 
