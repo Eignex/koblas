@@ -35,6 +35,22 @@ internal object ConfigurationKeys {
 
     /** An absolute path to a build of koblas's HFactor bridge, ahead of the bundled one. */
     val HFACTOR_PATH = LibraryPathKeys("koblas.hfactor.path", "KOBLAS_HFACTOR_PATH")
+
+    /**
+     * The keys a deployment points at each library, by the name its provider is configured under.
+     *
+     * Declared beside the keys so a library added here joins discovery's configured-path precedence without
+     * a second table to remember: a bundled provider whose library a deployment configured steps aside, and
+     * one missing from this map silently would not.
+     */
+    val LIBRARY_PATHS: Map<String, List<LibraryPathKeys>> = mapOf(
+        BackendNames.OPENBLAS to listOf(CBLAS_PATH, LAPACKE_PATH),
+        BackendNames.KLU to listOf(KLU_PATH),
+        BackendNames.UMFPACK to listOf(UMFPACK_PATH),
+        BackendNames.BASICLU to listOf(BASICLU_PATH),
+        BackendNames.HFACTOR to listOf(HFACTOR_PATH),
+        BackendNames.CHOLMOD to listOf(CHOLMOD_PATH),
+    )
 }
 
 /** The system property and the environment variable a deployment can point one library path at. */

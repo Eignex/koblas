@@ -45,19 +45,9 @@ private class AutomaticHostConfiguration {
     val hfactor = HfactorConfig(libraryPath(ConfigurationKeys.HFACTOR_PATH))
     val cholmod = CholmodConfig(libraryPath = libraryPath(ConfigurationKeys.CHOLMOD_PATH))
 
-    /**
-     * What a deployment pointed at a library of its own, by the name the provider answers to. Keyed rather
-     * than branched, so a bundled library added without an entry here cannot silently keep its place in
-     * front of a configured one; CHOLMOD had no branch when this was a `when`.
-     */
-    private val configuredPaths: Map<String, List<String?>> = mapOf(
-        BackendNames.OPENBLAS to listOf(openBlas.libraryPath, openBlas.lapackeLibraryPath),
-        BackendNames.KLU to listOf(klu.libraryPath),
-        BackendNames.UMFPACK to listOf(umfpack.libraryPath),
-        BackendNames.BASICLU to listOf(basiclu.libraryPath),
-        BackendNames.HFACTOR to listOf(hfactor.libraryPath),
-        BackendNames.CHOLMOD to listOf(cholmod.libraryPath),
-    )
+    /** What a deployment pointed at a library of its own, read once off [ConfigurationKeys.LIBRARY_PATHS]. */
+    private val configuredPaths: Map<String, List<String?>> =
+        ConfigurationKeys.LIBRARY_PATHS.mapValues { (_, keys) -> keys.map(::libraryPath) }
 
     /**
      * Whether a configured library supersedes [provider]. Only a bundled provider steps aside: a configured
