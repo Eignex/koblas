@@ -3,7 +3,7 @@ package com.eignex.koblas.sparse.factorization.qr
 import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.core.F64SparseMatrix
-import kotlin.math.abs
+import com.eignex.koblas.sparse.columnDot
 import kotlin.math.sqrt
 import kotlin.random.Random
 import kotlin.test.Test
@@ -192,12 +192,4 @@ private fun transposeMultiply(a: F64SparseMatrix, x: DoubleArray): DoubleArray {
     val y = DoubleArray(a.cols)
     for (j in 0 until a.cols) a.forEachInColumn(j) { row, value -> y[j] += value * x[row] }
     return y
-}
-
-private fun columnDot(a: F64SparseMatrix, i: Int, j: Int): Double {
-    val column = HashMap<Int, Double>()
-    a.forEachInColumn(i) { row, value -> column[row] = value }
-    var sum = 0.0
-    a.forEachInColumn(j) { row, value -> column[row]?.let { sum += it * value } }
-    return if (abs(sum) < 1e-300) 0.0 else sum
 }

@@ -30,7 +30,7 @@ internal fun assertQrAgreesWithReference(decompositions: F64SparseDecompositions
             }
             assertClose(
                 transposeTimes(a, b),
-                transposeTimes(a, times(a, x)),
+                transposeTimes(a, multiply(a, x)),
                 "${m}x$n normal equations",
                 tolerance = 1e-7,
             )
@@ -78,7 +78,8 @@ private fun assertOrthogonalOperator(qr: F64SparseQrFactorization, context: Stri
     assertClose(y, roundTrip, "$context Q round trip", tolerance = 1e-8)
 }
 
-private fun columnDot(a: F64SparseMatrix, i: Int, j: Int): Double {
+/** `A(:, i)ᵀ · A(:, j)`, so an orthogonality check reads one Gram entry without forming the product. */
+internal fun columnDot(a: F64SparseMatrix, i: Int, j: Int): Double {
     val column = HashMap<Int, Double>()
     a.forEachInColumn(i) { row, value -> column[row] = value }
     var sum = 0.0
@@ -86,13 +87,8 @@ private fun columnDot(a: F64SparseMatrix, i: Int, j: Int): Double {
     return sum
 }
 
-private fun times(a: F64SparseMatrix, x: DoubleArray): DoubleArray {
-    val y = DoubleArray(a.rows)
-    for (j in 0 until a.cols) a.forEachInColumn(j) { row, value -> y[row] += value * x[j] }
-    return y
-}
-
-private fun transposeTimes(a: F64SparseMatrix, x: DoubleArray): DoubleArray {
+/** `Aᵀ · x` straight from the CSC arrays, so no seam is involved in checking a seam. */
+internal fun transposeTimes(a: F64SparseMatrix, x: DoubleArray): DoubleArray {
     val y = DoubleArray(a.cols)
     for (j in 0 until a.cols) a.forEachInColumn(j) { row, value -> y[j] += value * x[row] }
     return y

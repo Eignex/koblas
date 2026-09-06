@@ -7,6 +7,9 @@ import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
+import com.eignex.koblas.sparse.columnDot
+import com.eignex.koblas.sparse.multiply
+import com.eignex.koblas.sparse.transposeTimes
 import kotlin.random.Random
 import kotlin.test.*
 
@@ -40,7 +43,7 @@ class SpqrQrNativeTest {
 
         val x = assertNotNull(spqr.factor(a)).use { it.solve(b) }
 
-        assertClose(transposeTimes(a, b), transposeTimes(a, times(a, x)), "normal equations", tolerance = 1e-7)
+        assertClose(transposeTimes(a, b), transposeTimes(a, multiply(a, x)), "normal equations", tolerance = 1e-7)
     }
 
     @Test
@@ -128,24 +131,4 @@ private fun tall(m: Int, n: Int, rng: Random): F64SparseMatrix {
         columns.add(rows.map { row -> row to if (row == j) 2.0 + rng.nextDouble() else rng.nextDouble(-1.0, 1.0) })
     }
     return F64SparseMatrix.ofColumns(m, n, columns)
-}
-
-private fun times(a: F64SparseMatrix, x: DoubleArray): DoubleArray {
-    val y = DoubleArray(a.rows)
-    for (j in 0 until a.cols) a.forEachInColumn(j) { row, value -> y[row] += value * x[j] }
-    return y
-}
-
-private fun columnDot(a: F64SparseMatrix, i: Int, j: Int): Double {
-    val column = HashMap<Int, Double>()
-    a.forEachInColumn(i) { row, value -> column[row] = value }
-    var sum = 0.0
-    a.forEachInColumn(j) { row, value -> column[row]?.let { sum += it * value } }
-    return sum
-}
-
-private fun transposeTimes(a: F64SparseMatrix, x: DoubleArray): DoubleArray {
-    val y = DoubleArray(a.cols)
-    for (j in 0 until a.cols) a.forEachInColumn(j) { row, value -> y[j] += value * x[row] }
-    return y
 }

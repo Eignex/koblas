@@ -98,7 +98,6 @@ public class F64ContextBuilder private constructor(
             ) as F64Decompositions,
             sparseKernels = resolved.getValue(BackendRole.SPARSE_KERNELS) as F64SparseKernels,
             sparseBlas = resolved.boundReference(BackendRole.SPARSE_BLAS, sparseReference) as F64SparseBlas,
-            sparseDecompositions = sparseRoles,
             basisSolvers = resolved.boundReference(BackendRole.BASIS_SOLVERS, sparseReference) as F64BasisSolvers,
             dispatchPolicy = dispatchPolicy,
             fallbackPolicy = fallbackPolicy,

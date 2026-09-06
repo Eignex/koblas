@@ -14,10 +14,12 @@ import com.eignex.koblas.internal.backend.BackendSlot
 import com.eignex.koblas.sparse.F64BasisFactorizations
 import com.eignex.koblas.sparse.F64GeneralSparseLu
 import com.eignex.koblas.sparse.F64QuasiDefiniteLdl
+import com.eignex.koblas.sparse.F64QuasiDefiniteLdlFactorization
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.F64RepeatedSparseLu
 import com.eignex.koblas.sparse.F64SparseBlas
 import com.eignex.koblas.sparse.F64SparseCholesky
+import com.eignex.koblas.sparse.F64SparseCholeskyFactorization
 import com.eignex.koblas.sparse.F64SparseDecompositionRoles
 import com.eignex.koblas.sparse.F64SparseDecompositions
 import com.eignex.koblas.sparse.F64SparseKernels
@@ -36,7 +38,6 @@ import com.eignex.koblas.sparse.basis.F64BasisSolvers
  * @property decompositions dense factorizations.
  * @property sparseKernels sparse vector-vector routines.
  * @property sparseBlas sparse matrix routines.
- * @param sparseDecompositions the composition to read the sparse factorization roles out of.
  * @property basisSolvers simplex basis solvers, a half of their own beside [sparseDecompositions].
  * @param roles the sparse factorization providers selected, which the public constructor reads out of
  *   [sparseDecompositions] and every path inside koblas resolves before building a context.
@@ -54,7 +55,6 @@ public class F64Context internal constructor(
     public val decompositions: F64Decompositions,
     override val sparseKernels: F64SparseKernels,
     public val sparseBlas: F64SparseBlas,
-    sparseDecompositions: F64SparseDecompositions,
     public val basisSolvers: F64BasisSolvers,
     private val roles: SparseRoles,
     public val dispatchPolicy: F64DispatchPolicy = F64DispatchPolicy.AUTO,
@@ -65,7 +65,7 @@ public class F64Context internal constructor(
     F64Decompositions by decompositions,
     F64SparseLinearAlgebra,
     F64SparseBlas by sparseBlas,
-    F64SparseDecompositions by sparseDecompositions,
+    F64SparseDecompositions,
     F64BasisSolvers by basisSolvers {
 
     /**
@@ -86,10 +86,21 @@ public class F64Context internal constructor(
         decompositions,
         sparseKernels,
         sparseBlas,
-        sparseDecompositions,
         basisSolvers,
         SparseRoles(sparseDecompositions),
     )
+
+    /**
+     * The Cholesky and quasi-definite halves, which route no further than the provider filling each.
+     *
+     * Written out rather than delegated: the roles are this context's one representation of what it
+     * selected, and delegating to the composition they were derived from left two objects answering the
+     * same interface on one instance.
+     */
+    override fun cholesky(a: F64SparseMatrix): F64SparseCholeskyFactorization = roles.cholesky.cholesky(a)
+
+    override fun quasiDefiniteLdl(a: F64SparseMatrix): F64QuasiDefiniteLdlFactorization =
+        roles.quasiDefiniteLdl.quasiDefiniteLdl(a)
 
     /** Provider selected for ordinary sparse LU. */
     public val generalSparseLu: F64GeneralSparseLu get() = roles.generalLu
@@ -157,7 +168,6 @@ public class F64Context internal constructor(
             decompositions = decompositions,
             sparseKernels = sparseKernels,
             sparseBlas = sparseBlas,
-            sparseDecompositions = sparseDecompositions,
             basisSolvers = basisSolvers,
             dispatchPolicy = dispatchPolicy,
             fallbackPolicy = fallbackPolicy,

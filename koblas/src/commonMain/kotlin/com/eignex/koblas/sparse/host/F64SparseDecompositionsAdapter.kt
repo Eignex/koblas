@@ -31,9 +31,20 @@ public abstract class F64SparseDecompositionsAdapter protected constructor(
     override val backendMetadata: BackendMetadata get() = metadata
 
     override fun route(query: F64RouteQuery): BackendRoute? = when (query) {
-        is F64RouteQuery.SparseLu, is F64RouteQuery.SparseQr -> nativeRoute(query, this, portable.name)
+        is F64RouteQuery.SparseLu, is F64RouteQuery.SparseQr ->
+            nativeRoute(query, this, portable.name, available = nativeAvailableFor(query))
+
         else -> null
     }
+
+    /**
+     * Whether the library that answers [query] resolved.
+     *
+     * [nativeAvailable] is this backend's own library, which is the right answer wherever one library
+     * carries every routine. A backend drawing a routine from a sibling overrides this, so a route names the
+     * library that will actually run rather than the one the backend is named for.
+     */
+    protected open fun nativeAvailableFor(query: F64RouteQuery): Boolean = nativeAvailable
 
     final override fun factor(a: F64SparseMatrix): F64SparseLuFactorization {
         requireSquare(a, "factor")

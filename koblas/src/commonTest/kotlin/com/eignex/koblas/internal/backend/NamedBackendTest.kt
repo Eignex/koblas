@@ -1,6 +1,7 @@
 package com.eignex.koblas.internal.backend
 
 import com.eignex.koblas.*
+import com.eignex.koblas.F64BundledBackend
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.F64GeneralSparseLu
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
@@ -20,6 +21,17 @@ class NamedBackendTest {
     private class FakeSparseLu(override val name: String, override val priority: Int) :
         F64SparseDecompositions by F64ReferenceSparseLinearAlgebra,
         F64GeneralSparseLu {
+        override fun factor(a: F64SparseMatrix): F64SparseLuFactorization = F64ReferenceSparseLinearAlgebra.factor(a)
+    }
+
+    /** The same carrying a bundled build of [canonicalName], which is how a deployment configures it. */
+    private class FakeBundledSparseLu(
+        override val name: String,
+        override val canonicalName: String,
+        override val priority: Int,
+    ) : F64SparseDecompositions by F64ReferenceSparseLinearAlgebra,
+        F64GeneralSparseLu,
+        F64BundledBackend {
         override fun factor(a: F64SparseMatrix): F64SparseLuFactorization = F64ReferenceSparseLinearAlgebra.factor(a)
     }
 
@@ -75,12 +87,21 @@ class NamedBackendTest {
         assertTrue(koblas.isAvailable)
     }
 
-    /** Bundled providers add a suffix and still answer to the name a deployment configures. */
+    /** A bundled provider answers to the name a deployment configures as well as to its own. */
     @Test
-    fun `a bundled provider answers to its plain name`() = withCleanBackends {
-        registerBackend(FakeSparseLu("umfpack-bundled", priority = 10))
+    fun `a bundled provider answers to the name it was configured under`() = withCleanBackends {
+        registerBackend(FakeBundledSparseLu("umfpack-bundled", canonicalName = "umfpack", priority = 10))
 
         assertEquals("umfpack-bundled", backendNamed("umfpack", F64Capabilities.generalSparseLu)?.name)
+        assertEquals("umfpack-bundled", backendNamed("umfpack-bundled", F64Capabilities.generalSparseLu)?.name)
+    }
+
+    /** The suffix is a diagnostic, not a rule: what a provider bundles is something it declares. */
+    @Test
+    fun `a provider merely named like a bundled one does not answer for it`() = withCleanBackends {
+        registerBackend(FakeSparseLu("umfpack-bundled", priority = 10))
+
+        assertNull(backendNamed("umfpack", F64Capabilities.generalSparseLu))
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.eignex.koblas.internal.backend
 
 import com.eignex.koblas.Backend
+import com.eignex.koblas.F64BundledBackend
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.F64Blas
 import com.eignex.koblas.dense.host.cblas.HostBlasConfig
@@ -22,7 +23,7 @@ internal actual fun registerPlatformBackends() {
     val automatic = AutomaticHostConfiguration()
     for (provider in loadProviders().sortedByDescending { it.priority }) {
         if (automatic.overrides(provider)) continue
-        val offered = offerFor(provider.name, requested)
+        val offered = offerFor(provider, requested)
         if (offered.isEmpty) continue
         if (!probe(provider, offered.halves)) continue
         // Once, not per half, since registerBackend offers the object as every half it implements, less
@@ -62,8 +63,8 @@ private class AutomaticHostConfiguration {
      * Whether a configured library supersedes [provider]. Only a bundled provider steps aside: a configured
      * one is what it would step aside for.
      */
-    fun overrides(provider: Backend): Boolean = provider.name.endsWith("-bundled") &&
-        configuredPaths[provider.name.removeSuffix("-bundled")].orEmpty().any { it != null }
+    fun overrides(provider: Backend): Boolean = provider is F64BundledBackend &&
+        configuredPaths[provider.canonicalName].orEmpty().any { it != null }
 }
 
 /**

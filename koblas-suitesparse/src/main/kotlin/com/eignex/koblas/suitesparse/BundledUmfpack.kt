@@ -1,5 +1,6 @@
 package com.eignex.koblas.suitesparse
 
+import com.eignex.koblas.F64BundledBackend
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.openblas.BundledOpenBlas
 import com.eignex.koblas.sparse.host.umfpack.UmfpackConfig
@@ -12,7 +13,9 @@ import com.eignex.koblas.sparse.host.umfpack.UmfpackSparseLu
  * One of [UmfpackSparseLu] rather than a wrapper around one, so the bundled providers all answer to
  * [com.eignex.koblas.backendNamed] as the type their binding is.
  */
-class BundledUmfpack private constructor(config: UmfpackConfig) : UmfpackSparseLu(config) {
+class BundledUmfpack private constructor(config: UmfpackConfig) :
+    UmfpackSparseLu(config),
+    F64BundledBackend {
     /** Creates bundled UMFPACK with default options. */
     constructor() : this(UmfpackOptions())
 
@@ -20,6 +23,9 @@ class BundledUmfpack private constructor(config: UmfpackConfig) : UmfpackSparseL
     constructor(options: UmfpackOptions) : this(bundledConfig(options))
 
     override val name: String get() = "umfpack-bundled"
+
+    /** The name a deployment configures this library under, whichever build provides it. */
+    override val canonicalName: String get() = "umfpack"
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 1
 }
 

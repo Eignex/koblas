@@ -16,7 +16,6 @@ import com.eignex.koblas.sparse.F64QuasiDefiniteLdl
 import com.eignex.koblas.sparse.F64RepeatedSparseLu
 import com.eignex.koblas.sparse.F64SparseBlas
 import com.eignex.koblas.sparse.F64SparseCholesky
-import com.eignex.koblas.sparse.F64SparseDecompositionRoles
 import com.eignex.koblas.sparse.F64SparseKernels
 import com.eignex.koblas.sparse.F64SparseQr
 import com.eignex.koblas.sparse.basis.F64BasisSolvers
@@ -139,7 +138,6 @@ internal class F64Registry {
             decompositions = resolved<F64Decompositions>(BackendSlot.F64Decompositions),
             sparseKernels = resolved<F64SparseKernels>(BackendSlot.F64SparseKernels),
             sparseBlas = resolved<F64SparseBlas>(BackendSlot.F64SparseBlas),
-            sparseDecompositions = F64SparseDecompositionRoles(general, cholesky, quasiDefiniteLdl, qr),
             basisSolvers = resolved<F64BasisSolvers>(BackendSlot.F64BasisSolvers),
             dispatchPolicy = F64DispatchPolicy.AUTO,
             fallbackPolicy = F64FallbackPolicy.ALLOW,

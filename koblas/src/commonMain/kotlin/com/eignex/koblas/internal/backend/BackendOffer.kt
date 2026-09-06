@@ -27,8 +27,8 @@ internal class BackendOffer(val halves: Set<BackendSlot>, val named: Set<Backend
     fun wasNamed(slot: BackendSlot): Boolean = slot in named
 }
 
-/** What the provider named [name] may fill under the deployment's independent role pins. */
-internal fun offerFor(name: String, requested: Map<BackendSlot, String?>): BackendOffer {
+/** What [provider] may fill under the deployment's independent role pins. */
+internal fun offerFor(provider: Backend, requested: Map<BackendSlot, String?>): BackendOffer {
     val halves = mutableSetOf<BackendSlot>()
     val named = mutableSetOf<BackendSlot>()
     for (slot in BackendSlot.entries) {
@@ -36,7 +36,7 @@ internal fun offerFor(name: String, requested: Map<BackendSlot, String?>): Backe
         when {
             pin == null -> halves += slot
 
-            matchesRequested(name, pin) -> {
+            matchesRequested(provider, pin) -> {
                 halves += slot
                 named += slot
             }
@@ -48,6 +48,6 @@ internal fun offerFor(name: String, requested: Map<BackendSlot, String?>): Backe
 /** Registers [backend]'s halves when its library loaded and the deployment did not pin those elsewhere. */
 internal fun registerIfOffered(backend: Backend, requested: Map<BackendSlot, String?>) {
     if (!backend.isAvailable) return
-    val offered = offerFor(backend.name, requested)
+    val offered = offerFor(backend, requested)
     if (!offered.isEmpty) BackendRegistry.registerAutomatic(backend, offered)
 }

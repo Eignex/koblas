@@ -36,7 +36,7 @@ internal class Seam<T : Backend>(private val onChange: () -> Unit = {}) {
      * The offer registered under [name], strongest first where a bundled provider and a configured one
      * both answer to it. Null when nothing registered under that name.
      */
-    fun named(name: String): T? = all.firstOrNull { matchesRequested(it.name, name) }
+    fun named(name: String): T? = all.firstOrNull { matchesRequested(it, name) }
 
     /**
      * Records [backend] as an offer for this half. An offer of the same name supersedes an earlier one only
