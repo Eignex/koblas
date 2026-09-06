@@ -461,6 +461,69 @@ class BundledHfactorTest {
         assertNotNull(solver.kernel)
     }
 
+    /**
+     * The basis of a duplicated column is rank deficient. [F64BasisSolver.refactorize] refuses it to match
+     * the portable solver; the repairing rebuild keeps what HFactor made of it, which is what saves a warm
+     * start from becoming a cold one.
+     */
+    @Test
+    fun `a rank deficient basis is repaired rather than refused`() {
+        val n = 3
+        val a = F64SparseMatrix.ofColumns(n, n, listOf(listOf(0 to 1.0), listOf(0 to 2.0), listOf(2 to 1.0)))
+        val solver = backend.basisSolver(a)
+
+        assertFalse(solver.refactorize(IntArray(n) { it }), "refactorize keeps refusing a deficient basis")
+
+        val repair = assertNotNull(solver.refactorizeRepairing(IntArray(n) { it }), "HFactor repairs this one")
+
+        assertTrue(repair.repaired, "the basis it settled on is not the one it was given")
+        assertTrue(repair.replacedSlots > 0)
+        assertFalse(solver.singular, "a repaired basis is invertible, which is the point of keeping it")
+        for (slot in 0 until n) {
+            val column = repair.columns[slot]
+            val row = repair.unitRows[slot]
+            assertTrue(
+                (column >= 0) != (row >= 0),
+                "slot $slot holds a column of A or a unit column, never both or neither",
+            )
+            if (column >= 0) assertTrue(column < a.cols)
+            if (row >= 0) assertTrue(row < n)
+        }
+    }
+
+    /** A repaired basis still solves, and the residual check reads its unit columns rather than A's. */
+    @Test
+    fun `a repaired basis solves against what it actually holds`() {
+        val n = 3
+        val a = F64SparseMatrix.ofColumns(n, n, listOf(listOf(0 to 1.0), listOf(0 to 2.0), listOf(2 to 1.0)))
+        val solver = backend.basisSolver(a)
+        assertNotNull(solver.refactorizeRepairing(IntArray(n) { it }))
+
+        val rhs = doubleArrayOf(1.0, 2.0, 3.0)
+        val solution = F64IndexedVector(n)
+        solution.scatter(rhs)
+        solver.ftran(solution)
+
+        assertTrue(
+            solver.solveQuality(rhs, solution).relativeResidual <= 1e-12,
+            "the repaired basis inverts what it holds",
+        )
+    }
+
+    /** A basis that needs no repair comes back as the one it was given, in the order it was given. */
+    @Test
+    fun `a sound basis is returned unrepaired`() {
+        val n = 8
+        val a = simplexMatrix(n, Random(20260923))
+        val solver = backend.basisSolver(a)
+
+        val repair = assertNotNull(solver.refactorizeRepairing(logicalBasis(n)))
+
+        assertFalse(repair.repaired)
+        assertEquals(0, repair.replacedSlots)
+        assertContentEquals(logicalBasis(n), repair.columns)
+    }
+
     @Test
     fun `the bundled HFactor solves sparse systems in both directions`() {
         val matrix = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(1 to 2.0), listOf(0 to 3.0)))

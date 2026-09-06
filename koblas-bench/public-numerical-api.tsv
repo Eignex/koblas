@@ -239,6 +239,7 @@ sparse/SparseOps.kt:F64SparseMatrix.trsv(DoubleArray,Boolean,Boolean,Boolean)	F6
 sparse/basis/F64BasisSolver.kt:F64BasisSolver.btran(F64IndexedVector,Double)	F64BasisSolver.btran(F64IndexedVector)
 sparse/basis/F64BasisSolver.kt:F64BasisSolver.ftran(F64IndexedVector,Double)	F64BasisSolver.ftran(F64IndexedVector)
 sparse/basis/F64BasisSolver.kt:F64BasisSolver.refactorize(IntArray)	F64BasisSolver.refactorize(F64SparseMatrix)
+sparse/basis/F64BasisSolver.kt:F64BasisSolver.refactorizeRepairing(IntArray)	F64BasisSolver.refactorizeRepairing(F64SparseMatrix)
 sparse/basis/F64BasisSolver.kt:F64BasisSolver.solveQuality(DoubleArray,F64IndexedVector,Boolean)	F64BasisSolver.solveQuality(DoubleArray,F64IndexedVector)
 sparse/basis/F64BasisSolver.kt:F64BasisSolver.update(Int,Int,F64IndexedVector,F64IndexedVector?)	F64BasisSolver.update(Int,Int,F64IndexedVector)
 sparse/basis/F64BasisSolvers.kt:F64BasisSolvers.basisSolver(F64SparseMatrix)	F64BasisSolvers.basisSolver(F64SparseMatrix)

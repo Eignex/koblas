@@ -402,6 +402,7 @@ abstract interface com.eignex.koblas.sparse.basis/F64BasisSolver : kotlin/AutoCl
     abstract fun solveQuality(kotlin/DoubleArray, com.eignex.koblas.sparse.basis/F64IndexedVector, kotlin/Boolean = ...): com.eignex.koblas.sparse.basis/F64BasisSolveQuality // com.eignex.koblas.sparse.basis/F64BasisSolver.solveQuality|solveQuality(kotlin.DoubleArray;com.eignex.koblas.sparse.basis.F64IndexedVector;kotlin.Boolean){}[0]
     abstract fun update(kotlin/Int, kotlin/Int, com.eignex.koblas.sparse.basis/F64IndexedVector, com.eignex.koblas.sparse.basis/F64IndexedVector? = ...): com.eignex.koblas.sparse.basis/BasisUpdate // com.eignex.koblas.sparse.basis/F64BasisSolver.update|update(kotlin.Int;kotlin.Int;com.eignex.koblas.sparse.basis.F64IndexedVector;com.eignex.koblas.sparse.basis.F64IndexedVector?){}[0]
     open fun close() // com.eignex.koblas.sparse.basis/F64BasisSolver.close|close(){}[0]
+    open fun refactorizeRepairing(kotlin/IntArray): com.eignex.koblas.sparse.basis/F64BasisRepair? // com.eignex.koblas.sparse.basis/F64BasisSolver.refactorizeRepairing|refactorizeRepairing(kotlin.IntArray){}[0]
 }
 
 abstract interface com.eignex.koblas.sparse.basis/F64BasisSolvers : com.eignex.koblas/Backend { // com.eignex.koblas.sparse.basis/F64BasisSolvers|null[0]
@@ -1509,6 +1510,19 @@ final class com.eignex.koblas.sparse.basis/F64BasisKernel { // com.eignex.koblas
         final fun <get-dimension>(): kotlin/Int // com.eignex.koblas.sparse.basis/F64BasisKernel.dimension.<get-dimension>|<get-dimension>(){}[0]
     final val entries // com.eignex.koblas.sparse.basis/F64BasisKernel.entries|{}entries[0]
         final fun <get-entries>(): kotlin/Int // com.eignex.koblas.sparse.basis/F64BasisKernel.entries.<get-entries>|<get-entries>(){}[0]
+}
+
+final class com.eignex.koblas.sparse.basis/F64BasisRepair { // com.eignex.koblas.sparse.basis/F64BasisRepair|null[0]
+    constructor <init>(kotlin/IntArray, kotlin/IntArray) // com.eignex.koblas.sparse.basis/F64BasisRepair.<init>|<init>(kotlin.IntArray;kotlin.IntArray){}[0]
+
+    final val columns // com.eignex.koblas.sparse.basis/F64BasisRepair.columns|{}columns[0]
+        final fun <get-columns>(): kotlin/IntArray // com.eignex.koblas.sparse.basis/F64BasisRepair.columns.<get-columns>|<get-columns>(){}[0]
+    final val repaired // com.eignex.koblas.sparse.basis/F64BasisRepair.repaired|{}repaired[0]
+        final fun <get-repaired>(): kotlin/Boolean // com.eignex.koblas.sparse.basis/F64BasisRepair.repaired.<get-repaired>|<get-repaired>(){}[0]
+    final val replacedSlots // com.eignex.koblas.sparse.basis/F64BasisRepair.replacedSlots|{}replacedSlots[0]
+        final fun <get-replacedSlots>(): kotlin/Int // com.eignex.koblas.sparse.basis/F64BasisRepair.replacedSlots.<get-replacedSlots>|<get-replacedSlots>(){}[0]
+    final val unitRows // com.eignex.koblas.sparse.basis/F64BasisRepair.unitRows|{}unitRows[0]
+        final fun <get-unitRows>(): kotlin/IntArray // com.eignex.koblas.sparse.basis/F64BasisRepair.unitRows.<get-unitRows>|<get-unitRows>(){}[0]
 }
 
 final class com.eignex.koblas.sparse.basis/F64BasisSolveQuality { // com.eignex.koblas.sparse.basis/F64BasisSolveQuality|null[0]

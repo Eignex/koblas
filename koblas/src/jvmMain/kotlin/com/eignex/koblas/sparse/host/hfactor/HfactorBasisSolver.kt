@@ -9,6 +9,7 @@ import com.eignex.koblas.requireInBounds
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.sparse.basis.BasisUpdate
 import com.eignex.koblas.sparse.basis.F64BasisKernel
+import com.eignex.koblas.sparse.basis.F64BasisRepair
 import com.eignex.koblas.sparse.basis.F64BasisSolveQuality
 import com.eignex.koblas.sparse.basis.F64BasisSolver
 import com.eignex.koblas.sparse.basis.F64IndexedVector
@@ -51,6 +52,12 @@ public class HfactorBasisSolver internal constructor(
     private val basicIndex = IntArray(n)
     private val pivotRange = DoubleArray(2)
     private var factorized = false
+
+    /**
+     * Which slots a repair filled with unit columns, or null while the basis is entirely columns of `A`.
+     * [basicIndex] names nothing at those slots, so the residual check reads them from here instead.
+     */
+    private var unitRows: IntArray? = null
     private var lastFtran: F64IndexedVector? = null
     private var lastBtran: F64IndexedVector? = null
 
@@ -94,15 +101,43 @@ public class HfactorBasisSolver internal constructor(
         val deficiency = calls.build(handle, basicIndex)
 
         basicIndex.copyInto(this.basicIndex)
+        unitRows = null
         forgetSolves()
         factorized = true
         /*
          * HFactor repairs a rank-deficient basis by substituting logicals for the dependent columns, which
-         * is not a basis the caller asked for. It is reported as singular instead, matching the portable
-         * solver, and the repair goes unused.
+         * is not a basis the caller asked for. It is reported as singular here, matching the portable
+         * solver; [refactorizeRepairing] is where a caller asks to keep the repair instead.
          */
         singular = deficiency != 0
         !singular
+    }
+
+    /**
+     * HFactor completes a rank-deficient factorization with unit pivots rather than abandoning it, so the
+     * factors it leaves invert a basis of its own choosing. [refactorize] refuses that basis to match the
+     * portable solver; this one keeps it and says what it is.
+     *
+     * The columns HFactor substitutes are numbered past the constraint matrix, since they are the slacks a
+     * simplex would hold and not columns of `A`. They are translated to the seam's own reading here: the
+     * slot names no column and carries the row its unit column stands for.
+     */
+    override fun refactorizeRepairing(basicIndex: IntArray): F64BasisRepair? = ownership.anchoring {
+        requireShape(basicIndex.size == n) { "refactorize: basicIndex size ${basicIndex.size} != $n" }
+        for (t in 0 until n) requireInBounds(basicIndex[t], columns)
+        val settled = IntArray(n)
+        val deficiency = calls.buildRepairing(handle, basicIndex, settled)
+            ?: return@anchoring super.refactorizeRepairing(basicIndex)
+
+        settled.copyInto(this.basicIndex)
+        unitRows = if (deficiency == 0) null else rowsOfUnitColumns(settled)
+        forgetSolves()
+        factorized = true
+        // A repaired basis is invertible, which is the whole point of keeping it.
+        singular = false
+        val rowsOf = unitRows ?: IntArray(n) { -1 }
+        check(deficiency == 0 || rowsOf.any { it >= 0 }) { "HFactor reported a repair it did not make" }
+        F64BasisRepair(IntArray(n) { if (rowsOf[it] >= 0) -1 else settled[it] }, rowsOf)
     }
 
     /**
@@ -137,7 +172,7 @@ public class HfactorBasisSolver internal constructor(
     override fun solveQuality(rhs: DoubleArray, solution: F64IndexedVector, transpose: Boolean): F64BasisSolveQuality =
         ownership.anchoring {
             checkSolvable()
-            basisSolveQuality(a, basicIndex, rhs, solution, transpose)
+            basisSolveQuality(a, basicIndex, unitRows, rhs, solution, transpose)
         }
 
     override fun update(
@@ -171,6 +206,10 @@ public class HfactorBasisSolver internal constructor(
             }
         }
     }
+
+    /** HFactor numbers a substituted column past the matrix, which is how a unit column is spotted. */
+    private fun rowsOfUnitColumns(settled: IntArray): IntArray =
+        IntArray(n) { if (settled[it] < columns) -1 else settled[it] - columns }
 
     private fun solveNative(x: F64IndexedVector, expectedDensity: Double, transpose: Boolean) {
         checkSolvable()
