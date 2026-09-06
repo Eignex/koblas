@@ -45,24 +45,24 @@ public open class HfactorSparseLu(
      * need to outrank them to win the half it is here for: no other backend offers [basisSolver].
      */
     override val priority: Int get() = HOST_BACKEND_PRIORITY - 2
+    final override val libraryScalesRows: Boolean get() = false
+
     final override val nativeAvailable: Boolean get() = calls.available
 
     /**
-     * HFactor offers no row scaling of its own. HiGHS scales the model before the simplex ever reaches
-     * HFactor and hands it an already-scaled matrix, so koblas does the same here: equilibration is applied
-     * to the values handed over and undone in the solves, by the same power-of-two factors the portable
-     * factorization uses. Every call reaches HFactor whatever the flag says.
+     * HFactor offers no row scaling of its own, which [libraryScalesRows] is what says: HiGHS scales the
+     * model before the simplex ever reaches HFactor and hands it an already-scaled matrix, and the adapter
+     * does the same here. Every call reaches HFactor whatever the flag says.
      */
     final override fun factorNative(a: F64SparseMatrix): F64SparseLuFactorization {
-        val scale = equilibrationOf(a)
-        val handle = calls.create(a.rows, a.cols, a.copyColumnPointers(), a.copyRowIndices(), scaledValues(a, scale))
+        val handle = calls.create(a.rows, a.cols, a.copyColumnPointers(), a.copyRowIndices(), a.values)
             ?: return F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
         // A square matrix is its own basis, slot t holding column t.
         if (calls.build(handle, IntArray(a.rows) { it }) != 0) {
             calls.free(handle)
             return F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
         }
-        return HfactorFactorization(a.rows, calls, handle, scale)
+        return HfactorFactorization(a.rows, calls, handle)
     }
 
     /** The row factors this backend equilibrates with, or null when it was not asked to. */

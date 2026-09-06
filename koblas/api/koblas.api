@@ -2484,6 +2484,7 @@ public abstract class com/eignex/koblas/sparse/host/F64SparseDecompositionsAdapt
 	protected abstract fun factorNative (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseLuFactorization;
 	public fun getBackendMetadata ()Lcom/eignex/koblas/BackendMetadata;
 	protected final fun getEquilibrate ()Z
+	protected fun getLibraryScalesRows ()Z
 	protected abstract fun getNativeAvailable ()Z
 	protected final fun getPortable ()Lcom/eignex/koblas/sparse/F64ReferenceSparseDecompositions;
 	public fun getPriority ()I
@@ -2741,6 +2742,7 @@ public class com/eignex/koblas/sparse/host/hfactor/HfactorSparseLu : com/eignex/
 	public fun basisSolver (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/basis/F64BasisSolver;
 	protected final fun factorNative (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseLuFactorization;
 	public final fun getConfig ()Lcom/eignex/koblas/sparse/host/hfactor/HfactorConfig;
+	protected final fun getLibraryScalesRows ()Z
 	public fun getName ()Ljava/lang/String;
 	protected final fun getNativeAvailable ()Z
 	public fun getPriority ()I

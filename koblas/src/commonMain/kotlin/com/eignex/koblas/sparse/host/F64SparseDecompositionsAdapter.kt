@@ -53,8 +53,29 @@ public abstract class F64SparseDecompositionsAdapter protected constructor(
         if (!nativeAvailable) {
             return portable.factor(a)
         }
-        return factorNative(a)
+        if (!equilibrate || libraryScalesRows) return factorNative(a)
+        val scale = f64EquilibrationScale(a.rows, a.rowIdx, a.values)
+        return EquilibratedSparseLu(factorNative(scaledBy(a, scale)), scale)
     }
+
+    /**
+     * Whether the library equilibrates for itself when [equilibrate] is set.
+     *
+     * KLU takes the flag and UMFPACK a control entry, so those scale inside the library. A binding whose
+     * library offers no scaling sets this false and is handed values already scaled, with the solves undone
+     * around it here rather than in each binding.
+     */
+    protected open val libraryScalesRows: Boolean get() = true
+
+    /** [a] with its values scaled, sharing the pattern it was already validated against. */
+    @OptIn(UnsafeKoblasApi::class)
+    private fun scaledBy(a: F64SparseMatrix, scale: DoubleArray): F64SparseMatrix = F64SparseMatrix.wrapTrusted(
+        a.rows,
+        a.cols,
+        a.colPtr,
+        a.rowIdx,
+        f64ScaledValues(a.rowIdx, a.values, scale),
+    )
 
     /** Factorizes a matrix through the native library, equilibrating when this backend is set to. */
     protected abstract fun factorNative(a: F64SparseMatrix): F64SparseLuFactorization

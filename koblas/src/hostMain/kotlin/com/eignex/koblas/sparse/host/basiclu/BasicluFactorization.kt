@@ -9,7 +9,6 @@ import com.eignex.koblas.internal.host.NativeOwnership
 import com.eignex.koblas.requireSolveShapes
 import com.eignex.koblas.sparse.F64BasisFactorization
 import com.eignex.koblas.sparse.F64SparseLuFactorization
-import com.eignex.koblas.sparse.host.applyF64Equilibration
 import com.eignex.koblas.sparse.host.factorNotExposed
 import com.eignex.koblas.sparse.internal.replaceColumns
 import com.eignex.koblas.sparse.internal.snapshot
@@ -23,8 +22,6 @@ public open class BasicluFactorization internal constructor(
     internal val handle: BasicluObjectHandle,
     internal val functions: BasicluFunctions,
     override val n: Int,
-    /** The equilibration the values were scaled by before factorization, or null when there was none. */
-    private val rowScale: DoubleArray? = null,
 ) : F64SparseLuFactorization {
 
     /** The object and the call that frees it, its own class so the cleaner captures it and not this. */
@@ -68,7 +65,7 @@ public open class BasicluFactorization internal constructor(
     }
 
     override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability {
-        val needsRhs = aliasing || (rowScale != null && !transpose)
+        val needsRhs = aliasing
         return if (needsRhs) scratchSolveAllocation else noManagedAllocation
     }
 
@@ -76,10 +73,9 @@ public open class BasicluFactorization internal constructor(
         requireSolveShapes(n, n, b, out)
         // BASICLU reads the right-hand side and writes the destination, and a forward solve scales what goes
         // in, neither of which may touch the caller's array.
-        if (out === b || (rowScale != null && !transpose)) {
+        if (out === b) {
             return workspace.borrow(n) { rhs ->
                 b.copyInto(rhs)
-                if (rowScale != null && !transpose) applyF64Equilibration(rhs, rowScale)
                 solveDistinct(rhs, out, transpose)
             }
         }
@@ -96,7 +92,6 @@ public open class BasicluFactorization internal constructor(
             }
         }
         check(status == BasicluStatus.OK) { "basiclu_obj_solve_dense failed with status $status" }
-        if (rowScale != null && transpose) applyF64Equilibration(out, rowScale)
         return out
     }
 
