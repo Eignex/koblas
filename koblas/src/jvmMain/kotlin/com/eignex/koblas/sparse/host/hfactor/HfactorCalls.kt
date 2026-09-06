@@ -34,6 +34,12 @@ internal class HfactorCalls(private val config: HfactorConfig) {
         val updateCount: MethodHandle,
         val fill: MethodHandle,
         val pivotRange: MethodHandle,
+        /*
+         * Optional, so a deployment pointing at a shim built before these existed keeps its factorization
+         * and simply reports no diagnostics, rather than losing the binding to a missing symbol.
+         */
+        val refactorizeReason: MethodHandle?,
+        val kernel: MethodHandle?,
     )
 
     /** Whether the library resolved and exports every entry point this binding calls. */
@@ -66,6 +72,8 @@ internal class HfactorCalls(private val config: HfactorConfig) {
                 "koblas_hfactor_pivot_range",
                 voidOf(ADDRESS, ADDRESS, ADDRESS),
             ) ?: return null,
+            refactorizeReason = library.handleOrNull("koblas_hfactor_refactorize_reason", intOf(ADDRESS)),
+            kernel = library.handleOrNull("koblas_hfactor_kernel", voidOf(ADDRESS, ADDRESS, ADDRESS)),
         )
     }
 
@@ -136,6 +144,23 @@ internal class HfactorCalls(private val config: HfactorConfig) {
 
     /** The fill the bridge tracks, which reads a counter and so is fit to be read every iteration. */
     fun fill(handle: MemorySegment): Int = handlesOrThrow().fill.invokeExact(handle) as Int
+
+    /** Which rule advised the last rebuild: 0 none, 1 the factorization's own, 2 the synthetic clock. */
+    fun refactorizeReason(handle: MemorySegment): Int =
+        handlesOrThrow().refactorizeReason?.let { it.invokeExact(handle) as Int } ?: 0
+
+    /** The kernel's dimension and stored entries into [out], or false where the shim does not report them. */
+    fun kernel(handle: MemorySegment, out: IntArray): Boolean {
+        val reader = handlesOrThrow().kernel ?: return false
+        Arena.ofConfined().use { arena ->
+            val dimension = arena.allocate(JAVA_INT)
+            val entries = arena.allocate(JAVA_INT)
+            reader.invokeExact(handle, dimension, entries)
+            out[0] = dimension.get(JAVA_INT, 0L)
+            out[1] = entries.get(JAVA_INT, 0L)
+        }
+        return true
+    }
 
     /**
      * The pivot magnitudes into [range] as smallest then largest. HFactor hands its factors out only by

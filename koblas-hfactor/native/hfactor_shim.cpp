@@ -35,8 +35,28 @@ struct Handle {
     HVector aq;
     HVector ep;
     double build_synthetic_tick = 0.0;
+    /*
+     * Every solve crossing this seam adds to the clock. HiGHS instead accumulates only its own iteration's
+     * solves, so a caller doing extra solves per iteration wears this clock down faster than the same
+     * workload would there, and kSyntheticTickReinversionMinUpdateCount counts against a different
+     * denominator. A seam cannot know which solves are "the iteration's", so this is the honest reading of
+     * the rule rather than HiGHS's, and a caller tuning against HiGHS's published behaviour should know it.
+     */
     double total_synthetic_tick = 0.0;
     HighsInt update_count = 0;
+    /* What the last update advised rebuilding for: 0 nothing, 1 HFactor's own hint, 2 the clock above. */
+    int32_t refactorize_reason = 0;
+    /* How much of the basis survived triangularization into the Markowitz kernel, as build left it. */
+    HighsInt kernel_dim = 0;
+    HighsInt kernel_num_el = 0;
+    /*
+     * The pivot range, filled on the first read after the factors change rather than on every read. Reading
+     * it copies the whole factorization, so a caller that never asks pays nothing and one that asks twice
+     * between updates pays once.
+     */
+    bool pivot_range_known = false;
+    double smallest_pivot = 0.0;
+    double largest_pivot = 0.0;
     /*
      * Fill, tracked rather than read back. HFactor hands its factors out only by copy, so asking it costs a
      * duplicate of every L and U array, and fill is what a caller reads once an iteration to pace its
@@ -135,6 +155,10 @@ KOBLAS_HFACTOR_EXPORT int32_t koblas_hfactor_build(Handle* h, const int32_t* bas
     h->build_synthetic_tick = h->factor.build_synthetic_tick;
     h->total_synthetic_tick = 0.0;
     h->update_count = 0;
+    h->refactorize_reason = 0;
+    h->pivot_range_known = false;
+    h->kernel_dim = h->factor.kernel_dim;
+    h->kernel_num_el = h->factor.kernel_num_el;
     h->fill = h->factor.invert_num_el;
     /*
      * build reorders basic_index into its own pivot order, so a caller's slot and HFactor's stop agreeing
@@ -211,14 +235,33 @@ KOBLAS_HFACTOR_EXPORT int32_t koblas_hfactor_update(Handle* h, int32_t pivot_row
     h->basic_index[slot] = entering;
     h->update_count++;
     h->fill += h->aq.packCount;
+    h->pivot_range_known = false;
 
     /*
      * The Forrest-Tomlin path leaves hint alone, so the advice comes from HiGHS's own synthetic clock rule:
      * rebuild once the updates have cost what the factorization did, and not before a floor of them.
      */
-    if (hint != 0) return 1;
+    if (hint != 0) {
+        h->refactorize_reason = 1;
+        return 1;
+    }
     const bool worn = h->total_synthetic_tick >= h->build_synthetic_tick;
-    return (worn && h->update_count >= kSyntheticTickReinversionMinUpdateCount) ? 1 : 0;
+    const bool rebuild = worn && h->update_count >= kSyntheticTickReinversionMinUpdateCount;
+    h->refactorize_reason = rebuild ? 2 : 0;
+    return rebuild ? 1 : 0;
+}
+
+/* Which of the two rules the last update's advisory came from, so a caller can tell them apart. */
+KOBLAS_HFACTOR_EXPORT int32_t koblas_hfactor_refactorize_reason(const Handle* h) { return h->refactorize_reason; }
+
+/*
+ * The kernel build left behind: its dimension and its stored entries. Both are counted during the
+ * factorization and read here, so this says how much of the basis triangularization peeled off before
+ * Markowitz had to choose pivots, which a fill count alone does not.
+ */
+KOBLAS_HFACTOR_EXPORT void koblas_hfactor_kernel(const Handle* h, int32_t* dimension, int32_t* entries) {
+    *dimension = h->kernel_dim;
+    *entries = h->kernel_num_el;
 }
 
 KOBLAS_HFACTOR_EXPORT int32_t koblas_hfactor_update_count(const Handle* h) { return h->update_count; }
@@ -227,22 +270,28 @@ KOBLAS_HFACTOR_EXPORT int32_t koblas_hfactor_update_count(const Handle* h) { ret
 KOBLAS_HFACTOR_EXPORT int32_t koblas_hfactor_fill(const Handle* h) { return h->fill; }
 
 /*
- * The pivot magnitudes, apart from the fill because this is the expensive half: reaching the pivots means
- * a copy of the whole factorization, so a caller pays it only when asking what the factors are worth.
+ * The pivot magnitudes, apart from the fill because this is the expensive half: reaching the pivots means a
+ * copy of the whole factorization. Held until the factors move, so asking twice between updates costs one
+ * copy and never asking costs none.
  */
-KOBLAS_HFACTOR_EXPORT void koblas_hfactor_pivot_range(const Handle* h, double* smallest_pivot,
+KOBLAS_HFACTOR_EXPORT void koblas_hfactor_pivot_range(Handle* h, double* smallest_pivot,
                                                       double* largest_pivot) {
-    const InvertibleRepresentation invert = h->factor.getInvert();
-    double smallest = 0.0;
-    double largest = 0.0;
-    bool first = true;
-    for (const double pivot : invert.u_pivot_value) {
-        const double magnitude = std::fabs(pivot);
-        if (first || magnitude < smallest) smallest = magnitude;
-        if (magnitude > largest) largest = magnitude;
-        first = false;
+    if (!h->pivot_range_known) {
+        const InvertibleRepresentation invert = h->factor.getInvert();
+        double smallest = 0.0;
+        double largest = 0.0;
+        bool first = true;
+        for (const double pivot : invert.u_pivot_value) {
+            const double magnitude = std::fabs(pivot);
+            if (first || magnitude < smallest) smallest = magnitude;
+            if (magnitude > largest) largest = magnitude;
+            first = false;
+        }
+        h->smallest_pivot = smallest;
+        h->largest_pivot = largest;
+        h->pivot_range_known = true;
     }
-    *smallest_pivot = smallest;
-    *largest_pivot = largest;
+    *smallest_pivot = h->smallest_pivot;
+    *largest_pivot = h->largest_pivot;
 }
 }

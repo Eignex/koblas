@@ -8,9 +8,11 @@ import com.eignex.koblas.internal.host.NativeOwnership
 import com.eignex.koblas.requireInBounds
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.sparse.basis.BasisUpdate
+import com.eignex.koblas.sparse.basis.F64BasisKernel
 import com.eignex.koblas.sparse.basis.F64BasisSolveQuality
 import com.eignex.koblas.sparse.basis.F64BasisSolver
 import com.eignex.koblas.sparse.basis.F64IndexedVector
+import com.eignex.koblas.sparse.basis.F64RefactorizeReason
 import com.eignex.koblas.sparse.basis.basisSolveQuality
 import java.lang.foreign.MemorySegment
 
@@ -67,6 +69,23 @@ public class HfactorBasisSolver internal constructor(
 
     override val nnz: Int get() = ownership.anchoring {
         if (factorized) calls.fill(handle) else 0
+    }
+
+    /** HFactor distinguishes its own refusal from the synthetic clock, and the shim carries which it was. */
+    override val refactorizeReason: F64RefactorizeReason? get() = ownership.anchoring {
+        when (calls.refactorizeReason(handle)) {
+            1 -> F64RefactorizeReason.FACTOR_ASKED
+            2 -> F64RefactorizeReason.UPDATES_WORN
+            else -> null
+        }
+    }
+
+    /** Counted during the factorization, so this costs two field reads rather than a copy of the factors. */
+    override val kernel: F64BasisKernel? get() = ownership.anchoring {
+        if (!factorized) return@anchoring null
+        val sizes = IntArray(2)
+        if (!calls.kernel(handle, sizes)) return@anchoring null
+        F64BasisKernel(sizes[0], sizes[1])
     }
 
     override fun refactorize(basicIndex: IntArray): Boolean = ownership.anchoring {

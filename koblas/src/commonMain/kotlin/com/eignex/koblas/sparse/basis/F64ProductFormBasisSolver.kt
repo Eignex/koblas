@@ -62,6 +62,14 @@ public class F64ProductFormBasisSolver(
     /** Read off the chain rather than counted alongside it, so the four containers cannot fall out of step. */
     private val etaCount: Int get() = etaIndices.size
 
+    /**
+     * This solver only ever advises on length: an unusable pivot is refused outright rather than folded in
+     * and complained about, so [F64RefactorizeReason.FACTOR_ASKED] is not a cause it can report.
+     */
+    private var advisedReason: F64RefactorizeReason? = null
+
+    override val refactorizeReason: F64RefactorizeReason? get() = advisedReason
+
     private val dense = DoubleArray(n)
 
     /**
@@ -261,7 +269,8 @@ public class F64ProductFormBasisSolver(
         etaIndices.add(indices)
         etaValues.add(values)
         basicIndex[pivotRow] = entering
-        return if (updateCount >= etaLimit) BasisUpdate.REFACTORIZE else BasisUpdate.APPLIED
+        advisedReason = if (updateCount >= etaLimit) F64RefactorizeReason.UPDATES_WORN else null
+        return if (advisedReason == null) BasisUpdate.APPLIED else BasisUpdate.REFACTORIZE
     }
 
     /** The forward transform: divide at the pivot, then eliminate the spike's other entries. */
@@ -311,6 +320,7 @@ public class F64ProductFormBasisSolver(
     private fun dropChain() {
         etaIndices.clear()
         etaValues.clear()
+        advisedReason = null
     }
 
     private fun solvable(x: F64IndexedVector): F64SparseFactorization {
