@@ -36,6 +36,9 @@ internal class CholmodMatrix private constructor(private val block: NativeBlock,
         /**
          * [a] as a `cholmod_sparse` holding every entry it stores, which is what a routine reading the whole
          * matrix rather than a symmetric half of it needs.
+         *
+         * Confined, so closing it is free where closing the shared arena [retainedGeneralOf] needs costs a
+         * thread handshake. A descriptor that does not outlive the call that built it should come from here.
          */
         fun generalOf(a: F64SparseMatrix): CholmodMatrix = of(a, CHOLMOD_STYPE_GENERAL, Arena.ofConfined())
 
