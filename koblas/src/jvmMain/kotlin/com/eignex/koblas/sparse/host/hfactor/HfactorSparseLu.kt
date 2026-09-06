@@ -3,6 +3,7 @@ package com.eignex.koblas.sparse.host.hfactor
 import com.eignex.koblas.BackendMetadata
 import com.eignex.koblas.HOST_BACKEND_PRIORITY
 import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
+import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.requireShape
@@ -13,6 +14,8 @@ import com.eignex.koblas.sparse.basis.F64BasisSolver
 import com.eignex.koblas.sparse.basis.F64BasisSolvers
 import com.eignex.koblas.sparse.basis.F64ProductFormBasisSolver
 import com.eignex.koblas.sparse.host.F64SparseDecompositionsAdapter
+import com.eignex.koblas.sparse.host.f64EquilibrationScale
+import com.eignex.koblas.sparse.host.f64ScaledValues
 
 /**
  * Sparse LU, hypersparse solves, and Forrest-Tomlin basis updates backed by HiGHS's HFactor.
@@ -45,20 +48,32 @@ public open class HfactorSparseLu(
     final override val nativeAvailable: Boolean get() = calls.available
 
     /**
-     * HFactor offers no row scaling, so a backend set to equilibrate stays with the portable factorization
-     * rather than reproducing it here by scaling the values on the way in.
+     * HFactor offers no row scaling of its own. HiGHS scales the model before the simplex ever reaches
+     * HFactor and hands it an already-scaled matrix, so koblas does the same here: equilibration is applied
+     * to the values handed over and undone in the solves, by the same power-of-two factors the portable
+     * factorization uses. Every call reaches HFactor whatever the flag says.
      */
     final override fun factorNative(a: F64SparseMatrix): F64SparseLuFactorization {
-        if (equilibrate) return portable.factor(a)
-        val handle = calls.create(a.rows, a.cols, a.copyColumnPointers(), a.copyRowIndices(), a.values)
+        val scale = equilibrationOf(a)
+        val handle = calls.create(a.rows, a.cols, a.copyColumnPointers(), a.copyRowIndices(), scaledValues(a, scale))
             ?: return F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
         // A square matrix is its own basis, slot t holding column t.
         if (calls.build(handle, IntArray(a.rows) { it }) != 0) {
             calls.free(handle)
             return F64SingularSparseFactorization(a.rows, SINGULAR_POSITION_UNKNOWN)
         }
-        return HfactorFactorization(a.rows, calls, handle)
+        return HfactorFactorization(a.rows, calls, handle, scale)
     }
+
+    /** The row factors this backend equilibrates with, or null when it was not asked to. */
+    @OptIn(UnsafeKoblasApi::class)
+    private fun equilibrationOf(a: F64SparseMatrix): DoubleArray? =
+        if (equilibrate) f64EquilibrationScale(a.rows, a.rowIdx, a.values) else null
+
+    /** [a]'s values under [scale], or its own array when there is nothing to apply. */
+    @OptIn(UnsafeKoblasApi::class)
+    private fun scaledValues(a: F64SparseMatrix, scale: DoubleArray?): DoubleArray =
+        if (scale == null) a.values else f64ScaledValues(a.rowIdx, a.values, scale)
 
     /**
      * A basis solver over the columns of [a], at any size: the gate the general factorization answers to
@@ -68,8 +83,9 @@ public open class HfactorSparseLu(
     override fun basisSolver(a: F64SparseMatrix): F64BasisSolver {
         requireShape(a.rows <= a.cols) { "a basis needs ${a.rows} columns to choose from; a has ${a.cols}" }
         if (!nativeAvailable) return F64ProductFormBasisSolver(a, this)
-        val handle = calls.create(a.rows, a.cols, a.copyColumnPointers(), a.copyRowIndices(), a.values)
+        val scale = equilibrationOf(a)
+        val handle = calls.create(a.rows, a.cols, a.copyColumnPointers(), a.copyRowIndices(), scaledValues(a, scale))
             ?: return F64ProductFormBasisSolver(a, this)
-        return HfactorBasisSolver(a, calls, handle)
+        return HfactorBasisSolver(a, calls, handle, scale)
     }
 }

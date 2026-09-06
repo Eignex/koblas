@@ -6,13 +6,13 @@ import com.eignex.koblas.sparse.basis.BasisUpdate
 import com.eignex.koblas.sparse.basis.F64BasisSolver
 import com.eignex.koblas.sparse.basis.F64IndexedVector
 import com.eignex.koblas.sparse.basis.F64ProductFormBasisSolver
-import com.eignex.koblas.sparse.factorization.lu.F64SparseMarkowitzLu
 import com.eignex.koblas.sparse.host.hfactor.HfactorBasisSolver
 import com.eignex.koblas.sparse.host.hfactor.HfactorFactorization
 import com.eignex.koblas.sparse.host.hfactor.HfactorOptions
 import com.eignex.koblas.sparse.host.hfactor.HfactorSparseLu
 import com.eignex.koblas.sparse.host.hfactor.HfactorUpdateMethod
 import kotlin.math.abs
+import kotlin.math.pow
 import kotlin.random.Random
 import kotlin.test.*
 
@@ -89,13 +89,20 @@ class BundledHfactorTest {
         return copy
     }
 
-    private fun assertAgreesWithPortable(n: Int, seed: Int, pivots: Int, rebuildAt: Int = -1, reuse: Boolean = true) {
+    private fun assertAgreesWithPortable(
+        n: Int,
+        seed: Int,
+        pivots: Int,
+        rebuildAt: Int = -1,
+        reuse: Boolean = true,
+        using: HfactorSparseLu = backend,
+    ) {
         val rng = Random(seed)
         val a = simplexMatrix(n, rng)
         val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
         val slots = IntArray(pivots) { it }
 
-        val host = backend.basisSolver(a)
+        val host = using.basisSolver(a)
         val reference = portable(a)
         assertTrue(host.refactorize(logicalBasis(n)), "the host called a logical basis singular")
         assertTrue(reference.refactorize(logicalBasis(n)), "the reference called a logical basis singular")
@@ -120,7 +127,7 @@ class BundledHfactorTest {
     }
 
     @Test
-    fun `shared equilibration option reaches the bundled fallback policy`() {
+    fun `shared equilibration option reaches the binding without leaving HFactor`() {
         val equilibrated = BundledHfactor(
             HfactorOptions(
                 equilibrate = true,
@@ -133,7 +140,7 @@ class BundledHfactorTest {
 
         val factorization = equilibrated.factor(matrix)
 
-        assertIs<F64SparseMarkowitzLu>(factorization)
+        assertIs<HfactorFactorization>(factorization, "equilibration no longer diverts to the portable factorization")
         assertEquals("true", equilibrated.backendMetadata.options["equilibrate"])
         assertEquals("0.2", equilibrated.backendMetadata.options["pivotThreshold"])
         assertEquals("1.0E-8", equilibrated.backendMetadata.options["pivotTolerance"])
@@ -332,6 +339,72 @@ class BundledHfactorTest {
         solver.refactorize(logicalBasis(n))
 
         assertEquals(factored, solver.nnz)
+    }
+
+    /** Rows spanning many binary exponents, which is the shape equilibration exists for. */
+    private fun badlyScaled(n: Int, rng: Random): F64SparseMatrix {
+        val columns = List(n) { j ->
+            val entries = ArrayList<Pair<Int, Double>>()
+            for (i in 0 until n) {
+                val v = when {
+                    i == j -> n + 10.0
+                    rng.nextDouble() < 0.3 -> rng.nextDouble(-1.0, 1.0)
+                    else -> 0.0
+                }
+                if (v != 0.0) entries.add(i to v * 2.0.pow(6 * (i % 5) - 12))
+            }
+            entries
+        }
+        return F64SparseMatrix.ofColumns(n, n, columns)
+    }
+
+    /**
+     * Equilibration is applied to the values handed to HFactor and undone in the solves, so it changes the
+     * conditioning of what HFactor sees and nothing about the answer a caller gets back.
+     */
+    @Test
+    fun `an equilibrated factorization solves as the unscaled one does`() {
+        val equilibrated = BundledHfactor(HfactorOptions(equilibrate = true))
+        val n = 8
+        val a = badlyScaled(n, Random(20260906))
+        val b = DoubleArray(n) { (it + 1).toDouble() }
+
+        for (transpose in booleanArrayOf(false, true)) {
+            val expected = backend.factor(a).solve(b, transpose = transpose)
+            val actual = equilibrated.factor(a).solve(b, transpose = transpose)
+            for (i in 0 until n) {
+                assertTrue(
+                    abs(expected[i] - actual[i]) <= 1e-9 * maxOf(1.0, abs(expected[i])),
+                    "transpose=$transpose index $i: expected ${expected[i]} actual ${actual[i]}",
+                )
+            }
+        }
+    }
+
+    /**
+     * That the values reach HFactor scaled, rather than the flag being read and dropped. Over rows spanning
+     * many binary exponents the pivot ratio HFactor reports is orders of magnitude better equilibrated:
+     * around 2e-5 unscaled against 1.0 scaled on this matrix.
+     */
+    @Test
+    fun `equilibration reaches HFactor rather than being read and dropped`() {
+        val a = badlyScaled(8, Random(20260906))
+
+        val unscaled = backend.factor(a).rcond
+        val scaled = BundledHfactor(HfactorOptions(equilibrate = true)).factor(a).rcond
+
+        assertTrue(scaled > unscaled * 100.0, "pivot ratio $unscaled unscaled against $scaled equilibrated")
+    }
+
+    /** The basis surface honours the flag too, rather than reading it and going on unscaled. */
+    @Test
+    fun `an equilibrated basis solver solves as the portable one does`() {
+        assertAgreesWithPortable(
+            n = 12,
+            seed = 20260919,
+            pivots = 12,
+            using = BundledHfactor(HfactorOptions(equilibrate = true)),
+        )
     }
 
     @Test

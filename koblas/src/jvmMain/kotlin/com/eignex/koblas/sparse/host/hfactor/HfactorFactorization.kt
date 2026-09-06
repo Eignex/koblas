@@ -6,6 +6,7 @@ import com.eignex.koblas.internal.host.NativeOwnership
 import com.eignex.koblas.requireSolveShapes
 import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.basis.F64IndexedVector
+import com.eignex.koblas.sparse.host.applyF64Equilibration
 import com.eignex.koblas.sparse.host.factorNotExposed
 import java.lang.foreign.MemorySegment
 
@@ -20,6 +21,7 @@ public class HfactorFactorization internal constructor(
     override val n: Int,
     private val calls: HfactorCalls,
     private val handle: MemorySegment,
+    private val rowScale: DoubleArray? = null,
 ) : F64SparseLuFactorization {
     private class Release(private val calls: HfactorCalls, private val handle: MemorySegment) {
         fun release(): Unit = calls.free(handle)
@@ -62,9 +64,19 @@ public class HfactorFactorization internal constructor(
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray =
         ownership.anchoring {
             requireSolveShapes(n, n, b, out)
-            carrier.scatter(b)
+            // The factors are of E·A, so a forward solve scales what goes in and a transposed one what comes
+            // out. The destination carries the scaled right-hand side, which it is free to do since the
+            // solve overwrites it anyway and reads each position before writing it when the two alias.
+            if (rowScale != null && !transpose) {
+                for (i in 0 until n) out[i] = b[i] * rowScale[i]
+                carrier.scatter(out)
+            } else {
+                carrier.scatter(b)
+            }
             carrier.count = calls.solve(handle, carrier.count, carrier.indices, carrier.values, DENSE, transpose)
             carrier.gather(out)
+            if (rowScale != null && transpose) applyF64Equilibration(out, rowScale)
+            out
         }
 
     override fun close(): Unit = ownership.close()

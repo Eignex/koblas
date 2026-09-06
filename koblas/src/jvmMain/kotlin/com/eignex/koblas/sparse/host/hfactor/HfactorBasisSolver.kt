@@ -35,6 +35,7 @@ public class HfactorBasisSolver internal constructor(
     private val a: F64SparseMatrix,
     private val calls: HfactorCalls,
     private val handle: MemorySegment,
+    private val rowScale: DoubleArray? = null,
 ) : F64BasisSolver {
     private class Release(private val calls: HfactorCalls, private val handle: MemorySegment) {
         fun release(): Unit = calls.free(handle)
@@ -85,14 +86,33 @@ public class HfactorBasisSolver internal constructor(
         !singular
     }
 
+    /**
+     * The factors are of `E·A`, so a forward solve scales what goes in: `(E·B)` applied to `E·x` is `B` applied
+     * to `x`, and the answer comes back in the caller's own numbers.
+     */
     override fun ftran(x: F64IndexedVector, expectedDensity: Double): Unit = ownership.anchoring {
+        if (rowScale != null) scaleStored(x)
         solveNative(x, expectedDensity, transpose = false)
         lastFtran = x
     }
 
+    /**
+     * The transposed counterpart, which scales its result instead. HFactor's own vector keeps the answer in
+     * the scaled space it factored, which is what [update] needs back from it, so only the caller's copy moves.
+     */
     override fun btran(x: F64IndexedVector, expectedDensity: Double): Unit = ownership.anchoring {
         solveNative(x, expectedDensity, transpose = true)
+        if (rowScale != null) scaleStored(x)
         lastBtran = x
+    }
+
+    /** Multiplies the stored positions of [x] by their row's factor, leaving the pattern alone. */
+    private fun scaleStored(x: F64IndexedVector) {
+        val scale = rowScale ?: return
+        for (k in 0 until x.count) {
+            val row = x.indices[k]
+            x.values[row] *= scale[row]
+        }
     }
 
     override fun solveQuality(rhs: DoubleArray, solution: F64IndexedVector, transpose: Boolean): F64BasisSolveQuality =
