@@ -411,6 +411,56 @@ class BundledHfactorTest {
         )
     }
 
+    /**
+     * The kernel is what triangularization could not peel off. A logical basis is the identity, so nothing
+     * survives into it; a structural one does, which is the signal a fill count alone does not carry.
+     */
+    @Test
+    fun `the kernel it reports separates a triangular basis from a structural one`() {
+        val n = 10
+        val a = simplexMatrix(n, Random(20260920))
+        val solver = backend.basisSolver(a)
+
+        assertTrue(solver.refactorize(logicalBasis(n)))
+        val logical = assertNotNull(solver.kernel, "HFactor counts its kernel during the build")
+        assertEquals(0, logical.dimension, "an identity basis is wholly triangular")
+
+        assertTrue(solver.refactorize(IntArray(n) { it }))
+        val structural = assertNotNull(solver.kernel)
+
+        assertTrue(structural.dimension > 0, "a structural basis leaves Markowitz something to choose from")
+        assertTrue(structural.entries >= structural.dimension, "the kernel stores at least its diagonal")
+    }
+
+    /** The advisory is one answer reached two ways, and a caller pacing rebuilds wants to know which. */
+    @Test
+    fun `no rebuild advice means no reason to report`() {
+        val n = 8
+        val a = simplexMatrix(n, Random(20260921))
+        val solver = backend.basisSolver(a)
+        assertTrue(solver.refactorize(logicalBasis(n)))
+
+        val spike = F64IndexedVector(n)
+        spike.scatterColumn(a, 0)
+        solver.ftran(spike)
+        assertEquals(BasisUpdate.APPLIED, solver.update(0, 0, spike))
+
+        assertNull(solver.refactorizeReason, "an applied update advises nothing")
+    }
+
+    /** A rebuild clears what the previous factors said about themselves. */
+    @Test
+    fun `a rebuild forgets the previous advice`() {
+        val n = 8
+        val a = simplexMatrix(n, Random(20260922))
+        val solver = backend.basisSolver(a)
+
+        assertTrue(solver.refactorize(logicalBasis(n)))
+
+        assertNull(solver.refactorizeReason)
+        assertNotNull(solver.kernel)
+    }
+
     @Test
     fun `the bundled HFactor solves sparse systems in both directions`() {
         val matrix = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(1 to 2.0), listOf(0 to 3.0)))

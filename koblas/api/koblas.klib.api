@@ -26,6 +26,17 @@ final enum class com.eignex.koblas.sparse.basis/BasisUpdate : kotlin/Enum<com.ei
     final fun values(): kotlin/Array<com.eignex.koblas.sparse.basis/BasisUpdate> // com.eignex.koblas.sparse.basis/BasisUpdate.values|values#static(){}[0]
 }
 
+final enum class com.eignex.koblas.sparse.basis/F64RefactorizeReason : kotlin/Enum<com.eignex.koblas.sparse.basis/F64RefactorizeReason> { // com.eignex.koblas.sparse.basis/F64RefactorizeReason|null[0]
+    enum entry FACTOR_ASKED // com.eignex.koblas.sparse.basis/F64RefactorizeReason.FACTOR_ASKED|null[0]
+    enum entry UPDATES_WORN // com.eignex.koblas.sparse.basis/F64RefactorizeReason.UPDATES_WORN|null[0]
+
+    final val entries // com.eignex.koblas.sparse.basis/F64RefactorizeReason.entries|#static{}entries[0]
+        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas.sparse.basis/F64RefactorizeReason> // com.eignex.koblas.sparse.basis/F64RefactorizeReason.entries.<get-entries>|<get-entries>#static(){}[0]
+
+    final fun valueOf(kotlin/String): com.eignex.koblas.sparse.basis/F64RefactorizeReason // com.eignex.koblas.sparse.basis/F64RefactorizeReason.valueOf|valueOf#static(kotlin.String){}[0]
+    final fun values(): kotlin/Array<com.eignex.koblas.sparse.basis/F64RefactorizeReason> // com.eignex.koblas.sparse.basis/F64RefactorizeReason.values|values#static(){}[0]
+}
+
 final enum class com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod : kotlin/Enum<com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod> { // com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod|null[0]
     enum entry ALTERNATE_PRODUCT_FORM // com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod.ALTERNATE_PRODUCT_FORM|null[0]
     enum entry FORREST_TOMLIN // com.eignex.koblas.sparse.host.hfactor/HfactorUpdateMethod.FORREST_TOMLIN|null[0]
@@ -380,6 +391,10 @@ abstract interface com.eignex.koblas.sparse.basis/F64BasisSolver : kotlin/AutoCl
         abstract fun <get-singular>(): kotlin/Boolean // com.eignex.koblas.sparse.basis/F64BasisSolver.singular.<get-singular>|<get-singular>(){}[0]
     abstract val updateCount // com.eignex.koblas.sparse.basis/F64BasisSolver.updateCount|{}updateCount[0]
         abstract fun <get-updateCount>(): kotlin/Int // com.eignex.koblas.sparse.basis/F64BasisSolver.updateCount.<get-updateCount>|<get-updateCount>(){}[0]
+    open val kernel // com.eignex.koblas.sparse.basis/F64BasisSolver.kernel|{}kernel[0]
+        open fun <get-kernel>(): com.eignex.koblas.sparse.basis/F64BasisKernel? // com.eignex.koblas.sparse.basis/F64BasisSolver.kernel.<get-kernel>|<get-kernel>(){}[0]
+    open val refactorizeReason // com.eignex.koblas.sparse.basis/F64BasisSolver.refactorizeReason|{}refactorizeReason[0]
+        open fun <get-refactorizeReason>(): com.eignex.koblas.sparse.basis/F64RefactorizeReason? // com.eignex.koblas.sparse.basis/F64BasisSolver.refactorizeReason.<get-refactorizeReason>|<get-refactorizeReason>(){}[0]
 
     abstract fun btran(com.eignex.koblas.sparse.basis/F64IndexedVector, kotlin/Double = ...) // com.eignex.koblas.sparse.basis/F64BasisSolver.btran|btran(com.eignex.koblas.sparse.basis.F64IndexedVector;kotlin.Double){}[0]
     abstract fun ftran(com.eignex.koblas.sparse.basis/F64IndexedVector, kotlin/Double = ...) // com.eignex.koblas.sparse.basis/F64BasisSolver.ftran|ftran(com.eignex.koblas.sparse.basis.F64IndexedVector;kotlin.Double){}[0]
@@ -1487,6 +1502,15 @@ final class com.eignex.koblas.dense/F64ReferenceBackend : com.eignex.koblas.dens
     final fun trtri(com.eignex.koblas.core/F64DenseMatrix, kotlin/Boolean, kotlin/Boolean): com.eignex.koblas.core/F64DenseMatrix // com.eignex.koblas.dense/F64ReferenceBackend.trtri|trtri(com.eignex.koblas.core.F64DenseMatrix;kotlin.Boolean;kotlin.Boolean){}[0]
 }
 
+final class com.eignex.koblas.sparse.basis/F64BasisKernel { // com.eignex.koblas.sparse.basis/F64BasisKernel|null[0]
+    constructor <init>(kotlin/Int, kotlin/Int) // com.eignex.koblas.sparse.basis/F64BasisKernel.<init>|<init>(kotlin.Int;kotlin.Int){}[0]
+
+    final val dimension // com.eignex.koblas.sparse.basis/F64BasisKernel.dimension|{}dimension[0]
+        final fun <get-dimension>(): kotlin/Int // com.eignex.koblas.sparse.basis/F64BasisKernel.dimension.<get-dimension>|<get-dimension>(){}[0]
+    final val entries // com.eignex.koblas.sparse.basis/F64BasisKernel.entries|{}entries[0]
+        final fun <get-entries>(): kotlin/Int // com.eignex.koblas.sparse.basis/F64BasisKernel.entries.<get-entries>|<get-entries>(){}[0]
+}
+
 final class com.eignex.koblas.sparse.basis/F64BasisSolveQuality { // com.eignex.koblas.sparse.basis/F64BasisSolveQuality|null[0]
     constructor <init>(kotlin/Double, kotlin/Double) // com.eignex.koblas.sparse.basis/F64BasisSolveQuality.<init>|<init>(kotlin.Double;kotlin.Double){}[0]
 
@@ -1541,6 +1565,8 @@ final class com.eignex.koblas.sparse.basis/F64ProductFormBasisSolver : com.eigne
         final fun <get-nnz>(): kotlin/Int // com.eignex.koblas.sparse.basis/F64ProductFormBasisSolver.nnz.<get-nnz>|<get-nnz>(){}[0]
     final val rcond // com.eignex.koblas.sparse.basis/F64ProductFormBasisSolver.rcond|{}rcond[0]
         final fun <get-rcond>(): kotlin/Double // com.eignex.koblas.sparse.basis/F64ProductFormBasisSolver.rcond.<get-rcond>|<get-rcond>(){}[0]
+    final val refactorizeReason // com.eignex.koblas.sparse.basis/F64ProductFormBasisSolver.refactorizeReason|{}refactorizeReason[0]
+        final fun <get-refactorizeReason>(): com.eignex.koblas.sparse.basis/F64RefactorizeReason? // com.eignex.koblas.sparse.basis/F64ProductFormBasisSolver.refactorizeReason.<get-refactorizeReason>|<get-refactorizeReason>(){}[0]
     final val singular // com.eignex.koblas.sparse.basis/F64ProductFormBasisSolver.singular|{}singular[0]
         final fun <get-singular>(): kotlin/Boolean // com.eignex.koblas.sparse.basis/F64ProductFormBasisSolver.singular.<get-singular>|<get-singular>(){}[0]
     final val updateCount // com.eignex.koblas.sparse.basis/F64ProductFormBasisSolver.updateCount|{}updateCount[0]

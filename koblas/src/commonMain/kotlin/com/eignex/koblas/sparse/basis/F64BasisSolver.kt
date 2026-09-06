@@ -18,6 +18,39 @@ public enum class BasisUpdate {
     SINGULAR,
 }
 
+/**
+ * Why a solver advised [BasisUpdate.REFACTORIZE], for a caller pacing its rebuilds.
+ *
+ * The advisory is one answer reached two ways, and which one it was is what tells a worn factorization from
+ * a numerically unhappy one. A caller logging these can read the difference off a histogram rather than
+ * guessing at it.
+ */
+public enum class F64RefactorizeReason {
+    /**
+     * The factorization itself asked, having found the update it just took unfit to build on. This is the
+     * numerical cause: the factors have lost accuracy rather than merely grown.
+     */
+    FACTOR_ASKED,
+
+    /**
+     * The updates have cost what the factorization did, so rebuilding is now the cheaper path. This is the
+     * economic cause and says nothing about accuracy.
+     */
+    UPDATES_WORN,
+}
+
+/**
+ * How much of a basis survived triangularization into the elimination kernel.
+ *
+ * A factorization peels off the rows and columns it can order triangularly before choosing pivots for what
+ * is left. What is left is the kernel, and its size against the basis dimension says whether a caller's
+ * bases are staying mostly triangular, which a fill count alone does not.
+ *
+ * @property dimension the kernel's order, at most the basis dimension.
+ * @property entries the stored entries in it.
+ */
+public class F64BasisKernel(public val dimension: Int, public val entries: Int)
+
 /** Numerically scaled residual information for one basis solve. */
 public data class F64BasisSolveQuality(
     /** `max |B·x - b|`, or `max |Bᵀ·x - b|` for a transposed solve. */
@@ -67,6 +100,20 @@ public interface F64BasisSolver : AutoCloseable {
      * A native provider may materialize factor metadata to answer it, so sample it rather than polling it.
      */
     public val rcond: Double
+
+    /**
+     * Why the last [update] advised [BasisUpdate.REFACTORIZE], or null where it did not or the solver does
+     * not say. Reading it after any other outcome answers null.
+     */
+    public val refactorizeReason: F64RefactorizeReason? get() = null
+
+    /**
+     * The elimination kernel the last [refactorize] left, or null where the solver does not report one.
+     *
+     * A solver whose factorization has no such pass has nothing to say here, which is why this is optional
+     * rather than a number every provider has to invent.
+     */
+    public val kernel: F64BasisKernel? get() = null
 
     /**
      * Factorizes the basis of [basicIndex], whose length must be [n] and whose entries name columns of `A`,
