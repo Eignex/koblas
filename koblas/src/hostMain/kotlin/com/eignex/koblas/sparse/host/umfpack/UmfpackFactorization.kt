@@ -77,7 +77,7 @@ public class UmfpackFactorization internal constructor(
     )
 
     override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability =
-        if (aliasing) aliasedSolveAllocation else noManagedAllocation
+        if (aliasing) aliasedSolveAllocation else noSizeDependentManagedAllocation
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray {
         requireFactored(failedAt, "solve")

@@ -47,7 +47,8 @@ public class HfactorFactorization internal constructor(
 
     private fun factorNotExposed(factor: String): Nothing = ownership.factorNotExposed(factor)
 
-    override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability = noManagedAllocation
+    override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability =
+        noSizeDependentManagedAllocation
 
     override val nnz: Int get() = ownership.anchoring {
         calls.fill(handle)

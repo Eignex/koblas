@@ -26,7 +26,8 @@ public class KluFactorization internal constructor(
     private val rowIndices: IntArray,
 ) : F64SparseLuFactorization {
 
-    override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability = noManagedAllocation
+    override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability =
+        noSizeDependentManagedAllocation
 
     /** The two holders and the common block, one object so the cleaner captures it and not the factorization. */
     internal class KluHandle(

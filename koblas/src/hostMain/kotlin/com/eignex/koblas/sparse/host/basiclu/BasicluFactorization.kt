@@ -66,7 +66,7 @@ public open class BasicluFactorization internal constructor(
 
     override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability {
         val needsRhs = aliasing
-        return if (needsRhs) scratchSolveAllocation else noManagedAllocation
+        return if (needsRhs) scratchSolveAllocation else noSizeDependentManagedAllocation
     }
 
     override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray {

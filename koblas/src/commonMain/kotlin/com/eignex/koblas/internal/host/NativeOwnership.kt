@@ -17,7 +17,13 @@ internal class NativeOwnership(private val owner: Any, description: String, rele
     private val lifecycle = NativeResourceLifecycle(description, release)
     private val cleanup = registerNativeCleanup(owner, lifecycle)
 
-    /** Runs [body] with the resource held open and [owner] fenced against its own cleaner. */
+    /**
+     * Runs [body] with the resource held open and [owner] fenced against its own cleaner.
+     *
+     * The two lambdas cost a few managed bytes per call that escape analysis does not always remove. The cost
+     * is constant rather than growing with the problem, which is why a binding's solve reports the
+     * size-independent guarantee instead of promising no managed allocation at all.
+     */
     fun <R> anchoring(body: () -> R): R = lifecycle.withResource { keepingReachable(owner, body) }
 
     /** Releases the resource, waiting for the calls in flight. Idempotent. */
