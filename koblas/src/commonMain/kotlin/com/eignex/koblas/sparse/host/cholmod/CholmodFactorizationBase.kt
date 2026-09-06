@@ -3,7 +3,7 @@ package com.eignex.koblas.sparse.host.cholmod
 import com.eignex.koblas.AllocationCapability
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.NativeOwnership
-import com.eignex.koblas.noManagedAllocation
+import com.eignex.koblas.noSizeDependentManagedAllocation
 import com.eignex.koblas.sparse.F64SparseFactorization
 import com.eignex.koblas.sparse.FactorsNotExposed
 import kotlin.math.sqrt
@@ -62,7 +62,8 @@ internal abstract class CholmodFactorizationBase : F64SparseFactorization {
             return factors.permutation.copyOf()
         }
 
-    override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability = noManagedAllocation
+    override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability =
+        noSizeDependentManagedAllocation
 
     override val nnz: Int get() = ownership.anchoring { if (singular) 0 else readNzmax() }
 
