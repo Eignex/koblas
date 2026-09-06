@@ -9,6 +9,44 @@ import kotlin.test.*
 
 class LinearAlgebraSymmetricOpsTest {
 
+    /**
+     * The same check as the sibling above, at sizes that reach the blocked path.
+     *
+     * That one runs to order 12, which is inside a single tile: `REFERENCE_KC` is 128 and `REFERENCE_MC` is
+     * 256, so it never packs a panel whose row block starts away from zero, and never crosses from one tile
+     * to the next. The packing that feeds a blocked `symm` reads one side of the diagonal down a stored
+     * column and the other along a stored row, and which is which flips with the triangle and with the side
+     * `B` sits on, so the interesting cases are exactly the ones a small matrix cannot reach.
+     *
+     * Checked against `gemm` on the full matrix, which does not share the packing, rather than against
+     * another `symm`.
+     */
+    @Test
+    fun `symm matches gemm on the full matrix across block boundaries`() {
+        val rng = Random(20260928)
+        val reference = F64ReferenceLinearAlgebra
+        for (lower in booleanArrayOf(true, false)) {
+            for (right in booleanArrayOf(false, true)) {
+                for (n in intArrayOf(1, 2, 7, 129, 257, 300)) {
+                    val (full, poisoned) = poisonedSymmetric(rng, n, lower)
+                    val b = if (right) randomMatrix(3, n, rng) else randomMatrix(n, 3, rng)
+                    val expected = if (right) F64DenseMatrix(3, n) else F64DenseMatrix(n, 3)
+                    val actual = if (right) F64DenseMatrix(3, n) else F64DenseMatrix(n, 3)
+
+                    if (right) {
+                        reference.gemm(0.75, b, false, full, false, 0.0, expected)
+                    } else {
+                        reference.gemm(0.75, full, false, b, false, 0.0, expected)
+                    }
+                    reference.symm(0.75, poisoned, b, 0.0, actual, lower, right)
+
+                    val where = "lower=$lower right=$right n=$n"
+                    assertClose(expected.data, actual.data, where, tolerance = 1e-9)
+                }
+            }
+        }
+    }
+
     @Test
     fun `symv matches gemv on the full matrix and reads only the selected triangle`() {
         val rng = Random(20260910)
