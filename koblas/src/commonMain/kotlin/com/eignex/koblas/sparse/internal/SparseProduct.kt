@@ -59,5 +59,6 @@ internal fun multiplySparse(a: F64SparseMatrix, b: F64SparseMatrix): F64SparseMa
         }
         colPtr[j + 1] = count
     }
-    return F64SparseMatrix.wrap(rows, b.cols, colPtr, outIdx.copyOf(count), outVal.copyOf(count))
+    // Each column's rows were sorted where they were collected, and a scatter list holds each row once.
+    return F64SparseMatrix.wrapTrusted(rows, b.cols, colPtr, outIdx.copyOf(count), outVal.copyOf(count))
 }

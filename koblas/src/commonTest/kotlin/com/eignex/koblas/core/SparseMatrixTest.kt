@@ -173,6 +173,23 @@ class SparseMatrixTest {
         }
     }
 
+    /**
+     * The pattern scan is how a CSC from outside koblas is admitted at all, a native library's above all, so
+     * it stays on the path those arrive by even though producers that own the invariant now skip it.
+     */
+    @Test
+    fun `wrap still rejects a pattern it cannot vouch for`() {
+        assertFailsWith<IllegalArgumentException>("rows that descend") {
+            F64SparseMatrix.wrap(3, 1, intArrayOf(0, 2), intArrayOf(2, 0), doubleArrayOf(1.0, 2.0))
+        }
+        assertFailsWith<IllegalArgumentException>("a row stored twice") {
+            F64SparseMatrix.wrap(3, 1, intArrayOf(0, 2), intArrayOf(1, 1), doubleArrayOf(1.0, 2.0))
+        }
+        assertFailsWith<IllegalArgumentException>("a row outside the matrix") {
+            F64SparseMatrix.wrap(2, 1, intArrayOf(0, 1), intArrayOf(5), doubleArrayOf(1.0))
+        }
+    }
+
     @Test
     fun `the transpose round-trips and preserves stored zeros`() {
         val a = F64SparseMatrix.ofColumns(

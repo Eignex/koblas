@@ -11,7 +11,7 @@ import com.eignex.koblas.core.F64SparseMatrix
  * backend happens to be registered.
  */
 internal fun transposeCsc(a: F64SparseMatrix): F64SparseMatrix =
-    transposeRaw(a.rows, a.cols, a.colPtr, a.rowIdx, a.values)
+    transposeOf(a.rows, a.cols, a.colPtr, a.rowIdx, a.values, trusted = true)
 
 /**
  * The same over loose arrays, which is what a native binding has: a library hands back column pointers and
@@ -24,6 +24,22 @@ internal fun transposeRaw(
     colPtr: IntArray,
     rowIdx: IntArray,
     values: DoubleArray,
+): F64SparseMatrix = transposeOf(rows, cols, colPtr, rowIdx, values, trusted = false)
+
+/**
+ * The transpose itself. [trusted] says the input already holds the CSC invariant, which makes the output
+ * hold it too: this walks the columns in order, so each output column collects its entries by ascending
+ * source column, and an input with no repeated coordinate yields no repeated row. An input that has not been
+ * checked is exactly the one whose transpose has to be, so a raw transpose validates its result.
+ */
+@Suppress("LongParameterList") // the CSC triple plus its extents
+private fun transposeOf(
+    rows: Int,
+    cols: Int,
+    colPtr: IntArray,
+    rowIdx: IntArray,
+    values: DoubleArray,
+    trusted: Boolean,
 ): F64SparseMatrix {
     val outPtr = IntArray(rows + 1)
     for (k in rowIdx.indices) outPtr[rowIdx[k] + 1]++
@@ -38,7 +54,11 @@ internal fun transposeRaw(
             outVal[slot] = values[k]
         }
     }
-    return F64SparseMatrix.wrap(cols, rows, outPtr, outIdx, outVal)
+    return if (trusted) {
+        F64SparseMatrix.wrapTrusted(cols, rows, outPtr, outIdx, outVal)
+    } else {
+        F64SparseMatrix.wrap(cols, rows, outPtr, outIdx, outVal)
+    }
 }
 
 /**
@@ -59,5 +79,5 @@ internal fun sortedCsc(
 ): F64SparseMatrix {
     val once = transposeRaw(rows, cols, colPtr, rowIdx, values)
     if (transposed) return once
-    return transposeRaw(once.rows, once.cols, once.colPtr, once.rowIdx, once.values)
+    return transposeCsc(once)
 }
