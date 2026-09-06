@@ -304,7 +304,8 @@ public class F64ProductFormBasisSolver(
                 at++
             }
         }
-        return F64SparseMatrix.wrap(n, n, colPtr, rowIdx, values)
+        // Every column is one of [a]'s copied as it lies, so the ascent comes with it.
+        return F64SparseMatrix.wrapTrusted(n, n, colPtr, rowIdx, values)
     }
 
     private fun dropChain() {

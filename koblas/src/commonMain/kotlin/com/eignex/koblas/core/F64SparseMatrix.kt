@@ -3,6 +3,7 @@ package com.eignex.koblas.core
 import com.eignex.koblas.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 
 /**
  * Compressed-sparse-column form: column j occupies colPtr(j) until colPtr(j + 1) of [rowIdx] and [values],
@@ -27,6 +28,7 @@ public class F64SparseMatrix internal constructor(
     @property:UnsafeKoblasApi public val colPtr: IntArray,
     @property:UnsafeKoblasApi public val rowIdx: IntArray,
     public val values: DoubleArray,
+    @Transient private val trustedPattern: Boolean = false,
 ) : F64MatrixStorage {
     init {
         requireNonNegativeShape(rows, cols)
@@ -35,13 +37,20 @@ public class F64SparseMatrix internal constructor(
         requireShape(colPtr[0] == 0) { "colPtr[0] ${colPtr[0]} != 0" }
         requireShape(colPtr[cols] == values.size) { "colPtr[cols] ${colPtr[cols]} != nnz ${values.size}" }
         for (j in 0 until cols) requireShape(colPtr[j] <= colPtr[j + 1]) { "colPtr not monotonic at $j" }
-        for (k in rowIdx.indices) requireShape(rowIdx[k] in 0 until rows) { "rowIdx[$k]=${rowIdx[k]} out of [0,$rows)" }
-        // Rows must ascend strictly, or the binary search in get reports a stored entry as absent.
-        for (j in 0 until cols) {
-            for (k in colPtr[j] + 1 until colPtr[j + 1]) {
-                require(rowIdx[k - 1] < rowIdx[k]) {
-                    "rows must be strictly ascending within a column; column $j has " +
-                        "${rowIdx[k - 1]} then ${rowIdx[k]}"
+        // The two passes over rowIdx, which is where an O(nnz) construction spends its checking. A producer
+        // deriving this from a matrix that already holds the invariant skips them through [wrapTrusted];
+        // everything reaching koblas from outside, a native library above all, still comes through here.
+        if (!trustedPattern) {
+            for (k in rowIdx.indices) {
+                requireShape(rowIdx[k] in 0 until rows) { "rowIdx[$k]=${rowIdx[k]} out of [0,$rows)" }
+            }
+            // Rows must ascend strictly, or the binary search in get reports a stored entry as absent.
+            for (j in 0 until cols) {
+                for (k in colPtr[j] + 1 until colPtr[j + 1]) {
+                    require(rowIdx[k - 1] < rowIdx[k]) {
+                        "rows must be strictly ascending within a column; column $j has " +
+                            "${rowIdx[k - 1]} then ${rowIdx[k]}"
+                    }
                 }
             }
         }
@@ -221,5 +230,21 @@ public class F64SparseMatrix internal constructor(
             rowIdx: IntArray,
             values: DoubleArray,
         ): F64SparseMatrix = F64SparseMatrix(rows, cols, colPtr, rowIdx, values)
+
+        /**
+         * The same without the two passes over [rowIdx], for a producer whose output holds the pattern
+         * invariant by construction.
+         *
+         * Only for arrays derived from a matrix that already holds it: a column copied from one, or a
+         * pattern this library sorted itself. Arrays reaching koblas from outside go through [wrap], which
+         * is what admits an unsorted CSC at all. The shape and pointer checks are cheap and still run.
+         */
+        internal fun wrapTrusted(
+            rows: Int,
+            cols: Int,
+            colPtr: IntArray,
+            rowIdx: IntArray,
+            values: DoubleArray,
+        ): F64SparseMatrix = F64SparseMatrix(rows, cols, colPtr, rowIdx, values, trustedPattern = true)
     }
 }
