@@ -13,38 +13,39 @@ import kotlin.math.sqrt
 /** The bundled C kernels without automatic SIMD selection. */
 internal object F64CKernels : F64Kernels, F64ArithmeticKernels {
     /**
-     * Run length from which crossing into the bundled library beats staying on the JVM. Every call here
-     * wraps each array in a MemorySegment and goes through invokeExact, which costs tens of nanoseconds
-     * whatever the length, so a short run pays for a foreign call to do work the JIT would have finished
-     * already.
+     * Run length from which crossing into the bundled library beats staying on the JVM, for the routines
+     * that cross at all. Every call here wraps each array in a MemorySegment and goes through invokeExact,
+     * which costs tens of nanoseconds whatever the length, so a short run pays for a foreign call to do
+     * work the JIT would have finished already.
      *
-     * GemvIntoBenchmark shows what an ungated boundary costs a caller that drives one short run per stored
-     * entry: 515 ns against 60 ns at two rows. Level1Benchmark's c and scalar runs put the crossover
-     * between 64 and 128 elements, the scalar loop still winning at 64 for dot and nrm2 and the C kernel
-     * winning outright by 128, so these sit at 128. The asymmetry argues for the higher end: crossing too
-     * early costs 30 to 50 ns a call, staying too long costs about 10.
+     * Measured on `Level1Benchmark` with these constants temporarily set to zero, so the C arm really
+     * crosses rather than falling back to the same portable code the scalar arm runs. Each is the shortest
+     * measured length where the C kernel leads beyond both error bars: nrm2 at 64, sum and asum at 96, dot
+     * at 128, ssqd at 256, dot4 at 512. Past its crossover each pulls away, the plain reductions reaching
+     * 2.8x to 4.1x by 2048 and dot4 holding about 1.45x from 256 upward.
      *
-     * This is a different number from [F64SimdKernels]'s lane check, which gates on vector width because
-     * its cost is vector width rather than a foreign call. Per-operation constants, as
-     * [F64RoutedKernels]'s host crossovers are, so a later measurement can move one alone.
+     * Only reductions appear here. HotSpot will not vectorise a floating-point reduction, since splitting
+     * the sum across lanes reorders the additions and changes the result, so those loops run an element at
+     * a time however hot they get and the C kernel has something to beat. That is the whole of what the
+     * bundled library wins on this platform, and [scale] covers the elementwise routines that never cross.
+     *
+     * Per-operation constants, as the host crossovers in [F64RoutedKernels] are, so a later measurement can
+     * move one alone. [F64SimdKernels] gates on vector width instead, because its cost is a vector rather
+     * than a foreign call.
      */
     private const val DOT_C_CROSSOVER = 128
-    private const val SUM_C_CROSSOVER = 128
-    private const val SSQD_C_CROSSOVER = 128
-    private const val AXPY_C_CROSSOVER = 128
-    private const val SCALE_C_CROSSOVER = 128
-    private const val NRM2_C_CROSSOVER = 128
-    private const val ASUM_C_CROSSOVER = 128
-    private const val SWAP_C_CROSSOVER = 128
-    private const val ROT_C_CROSSOVER = 128
-    private const val ROTM_C_CROSSOVER = 128
+    private const val SUM_C_CROSSOVER = 96
+    private const val SSQD_C_CROSSOVER = 256
+    private const val NRM2_C_CROSSOVER = 64
+    private const val ASUM_C_CROSSOVER = 96
 
     /**
-     * Half the others, because one call does four runs of this length rather than one, so the same work per
-     * foreign call is reached at a quarter of the length. 64 is the nearest of the two crossovers the library
-     * already uses, and it errs on the side of crossing later than the arithmetic alone would ask.
+     * Four dots share one pass over the shared operand, so the same foreign call covers four runs of this
+     * length. The point estimate leads from 96 upward and holds about 1.45x, but the JIT arm varies enough
+     * that 512 is the shortest length where the two separate beyond their error bars, which is the same
+     * criterion the other crossovers use.
      */
-    private const val DOT4_C_CROSSOVER = 64
+    private const val DOT4_C_CROSSOVER = 512
 
     override val name: String get() = BackendNames.C
 
@@ -75,24 +76,22 @@ internal object F64CKernels : F64Kernels, F64ArithmeticKernels {
         portableRotmg(d1, d2, x1, y1)
 
     override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) =
-        if (len < AXPY_C_CROSSOVER) {
-            scalarAxpy(y, yOff, alpha, x, xOff, len)
-        } else {
-            JvmCKernelBindings.denseAxpy(y, yOff, alpha, x, xOff, len)
-        }
+        scalarAxpy(y, yOff, alpha, x, xOff, len)
 
     override fun axpyArithmetic(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) =
-        if (len < AXPY_C_CROSSOVER) {
-            scalarAxpyArithmetic(y, yOff, alpha, x, xOff, len)
-        } else {
-            JvmCKernelBindings.denseAxpyArithmetic(y, yOff, alpha, x, xOff, len)
-        }
+        scalarAxpyArithmetic(y, yOff, alpha, x, xOff, len)
 
-    override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) = if (len < SCALE_C_CROSSOVER) {
-        scalarScale(v, vOff, alpha, len)
-    } else {
-        JvmCKernelBindings.denseScale(v, vOff, alpha, len)
-    }
+    /**
+     * Portable at every length rather than past a crossover, as [axpy], [swap], [rot] and [rotm] are.
+     *
+     * None of them carries a reduction, so HotSpot vectorises them on its own, and the loop it produces is
+     * wider than the one in the bundled library: that is compiled without a target flag and emits two-wide
+     * SSE2 where the JIT emits four-wide AVX2. `Level1Benchmark` with the crossovers set to zero puts the C
+     * kernel behind at every length from 16 to 2048, still 1.7x to 3x behind at the top and not
+     * converging, so no length would repay the crossing and there is no constant to measure. Building the
+     * C for a wider instruction set would change that and would have to be measured again.
+     */
+    override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) = scalarScale(v, vOff, alpha, len)
 
     override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double =
         if (len < NRM2_C_CROSSOVER) euclideanNorm(v, vOff, len) else JvmCKernelBindings.denseNrm2(v, vOff, len)
@@ -100,11 +99,8 @@ internal object F64CKernels : F64Kernels, F64ArithmeticKernels {
     override fun asum(v: DoubleArray, vOff: Int, len: Int): Double =
         if (len < ASUM_C_CROSSOVER) absoluteSum(v, vOff, len) else JvmCKernelBindings.denseAsum(v, vOff, len)
 
-    override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) = if (len < SWAP_C_CROSSOVER) {
+    override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) =
         scalarSwap(a, aOff, b, bOff, len)
-    } else {
-        JvmCKernelBindings.denseSwap(a, aOff, b, bOff, len)
-    }
 
     @Suppress("LongParameterList")
     override fun dot4(
@@ -132,35 +128,11 @@ internal object F64CKernels : F64Kernels, F64ArithmeticKernels {
         yStride: Int,
         len: Int,
         transformation: F64ModifiedGivens,
-    ) {
-        if (transformation.flag == -2.0) return
-        if (len < ROTM_C_CROSSOVER) {
-            portableRotm(x, xOff, xStride, y, yOff, yStride, len, transformation)
-            return
-        }
-        JvmCKernelBindings.denseRotm(
-            x,
-            xOff,
-            xStride,
-            y,
-            yOff,
-            yStride,
-            len,
-            transformation.h11,
-            transformation.h12,
-            transformation.h21,
-            transformation.h22,
-        )
-    }
+    ) = portableRotm(x, xOff, xStride, y, yOff, yStride, len, transformation)
 
-    // A plane rotation is the modified Givens transformation (c, s, -s, c), so it goes to the same kernel.
     @Suppress("LongParameterList")
     override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) =
-        if (len < ROT_C_CROSSOVER) {
-            portableRot(x, xOff, y, yOff, len, c, s)
-        } else {
-            JvmCKernelBindings.denseRotm(x, xOff, 1, y, yOff, 1, len, c, s, -s, c)
-        }
+        portableRot(x, xOff, y, yOff, len, c, s)
 }
 
 /** The JVM Vector API kernels without automatic C selection. */
