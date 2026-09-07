@@ -18,11 +18,11 @@ mirror the dense ones.
   to hand in before the multiplication has run and no `beta · C` to accumulate into. Everything else on this
   seam keeps the BLAS shape, where the caller owns the memory.
 
-  [F64SparseBlas.prepare] takes an immutable CSC snapshot for repeated products. A CHOLMOD implementation
-  retains its native descriptor until the returned [F64PreparedSparseMatrix] is closed, so iterative methods
-  do not recopy column pointers, row indices, and values on every multiply. The prepared-operation gates are
-  separate from the setup-inclusive one-shot gate. Handles reject calls after close and require external
-  serialization when shared between threads.
+  [F64SparseBlas.prepare] takes an immutable CSC snapshot for repeated products, so a provider that builds a
+  descriptor of its own can retain it until the returned [F64PreparedSparseMatrix] is closed and iterative
+  methods do not recopy column pointers, row indices, and values on every multiply. The prepared-operation
+  gates are separate from the setup-inclusive one-shot gate. Handles reject calls after close and require
+  external serialization when shared between threads.
 
   Its transpose, triangle, diagonal, and side choices use the same named Boolean parameters as dense BLAS.
 - [F64SparseDecompositions] — the compatibility composition of the selected general LU, Cholesky,
@@ -54,10 +54,9 @@ mirror the dense ones.
 
   `Q` is an operator rather than a matrix. It is `m×m` and dense in general even where `A` and `R` are
   sparse, and libraries hold it as the Householder vectors that build it, so `applyQInto` is the form every
-  implementation can answer without materialising something larger than the problem. The SPQR binding asks
-  its expert entry point for `R`, the sparse Householder vectors, their coefficients and both permutations in
-  one factorization. Those coherent factors outlive the native call as ordinary koblas storage, so applying
-  `Q`, reading diagnostics and solving never refactor the input or retain a `cholmod_common`.
+  implementation can answer without materialising something larger than the problem. A binding holds `R`,
+  the sparse Householder vectors, their coefficients and both permutations from one factorization as ordinary
+  koblas storage, so applying `Q`, reading diagnostics and solving never refactor the input.
 
   Each kind returns the factor type its own contract names, and every one of them exposes its factors:
   [F64SparseLuFactorization] carries `l`, `u`, the two orderings and the row scaling it was factored under,
@@ -68,11 +67,11 @@ mirror the dense ones.
 
   Reading them is materialised on first access and costs a copy out of the library, so a caller who only
   solves never pays. A backend that keeps its factors in a form it cannot hand back raises
-  [FactorsNotExposed]; BASICLU and HFactor do, since a basis representation for updating is what they are for.
+  [FactorsNotExposed]; HFactor does, since a basis representation for updating is what it is for.
 
   Every [F64SparseFactorization] solves either one vector or all columns of a caller-owned dense RHS block.
-  The default block path preserves aliasing by staging a column; KLU and CHOLMOD specialize it through one
-  native call. An [F64QuasiDefiniteLdlFactorization] additionally exposes its pivot-sign [FactorizationInertia].
+  The default block path preserves aliasing by staging a column; a native provider may specialize it through
+  one call. An [F64QuasiDefiniteLdlFactorization] additionally exposes its pivot-sign [FactorizationInertia].
 
   Sparse [F64SparseDecompositions.quasiDefiniteLdl] is intentionally not the dense
   [com.eignex.koblas.dense.F64Decompositions.pivotedSymmetricIndefinite]. Dense Bunch-Kaufman pivots for
@@ -81,29 +80,29 @@ mirror the dense ones.
   KKT system is; a caller who cannot promise that wants [F64SparseDecompositions.factor], whose pivoting is
   numerical.
 - [F64BasisFactorization] — a sparse LU factorization of a simplex basis. It retains the basis matrix and
-  can produce the factorization after one column replacement, which may be any column at all. BASICLU
-  answers it; [F64RefactoringBasisFactorization] wraps any other backend at the cost of a factorization per
-  replacement. A caller pivoting a basis named by index into a fixed matrix wants
+  can produce the factorization after one column replacement, which may be any column at all.
+  [F64RefactoringBasisFactorization] wraps any LU backend at the cost of a factorization per replacement. A
+  caller pivoting a basis named by index into a fixed matrix wants
   [F64BasisSolver][com.eignex.koblas.sparse.basis.F64BasisSolver] instead, on its own backend half.
 - [F64SparseLinearAlgebra] pairs the matrix seams and exposes the sparse-vector kernels alongside them.
   Backends may implement either matrix half; [com.eignex.koblas.registerBackend] ranks each independently,
   while [com.eignex.koblas.installBackends] supplies all three through [com.eignex.koblas.koblas].
 
-Sparse libraries are specialized: KLU wants a circuit pattern it can factor repeatedly, UMFPACK an
-unstructured system, BASICLU a basis whose columns are replaced one at a time, and
+Sparse libraries are specialized: one wants a pattern it can factor repeatedly, another an unstructured
+system, another a basis whose columns are replaced one at a time, and
 [com.eignex.koblas.sparse.basis.F64BasisSolver] a basis pivoted thousands of times. The registry therefore
 ranks providers only within semantic roles. [F64GeneralSparseLu] is ordinary pivoting LU,
 [F64RepeatedSparseLu] adds same-pattern refactorization, [F64SparseCholesky] and [F64QuasiDefiniteLdl] are symmetric
 roles, [F64SparseQr] is least-squares QR, and [F64BasisFactorizations] owns column-replaceable basis factors.
-Adding a repeated-pattern or basis provider cannot change the automatic general-LU selection; UMFPACK remains
-the accelerated general default when it is available, otherwise the portable implementation does.
+Adding a repeated-pattern or basis provider cannot change the automatic general-LU selection, which the
+portable implementation fills unless a provider registers for that role.
 
 [F64RepeatedSparseLu.analyze] returns an explicitly owned [F64SparseLuAnalysis] for one matrix structure. The
 analysis privately copies column pointers and row indices, not values, so coefficient arrays can change between
 numeric factorizations. A different structure raises [IllegalArgumentException] before refactoring; this is
 distinct from numerical singularity. Numeric factors stay caller-owned and must be closed before the analysis.
-KLU reuses the symbolic ordering through this typed capability, so a same-pattern loop needs no concrete backend
-cast.
+A provider reuses its symbolic ordering through this typed capability, so a same-pattern loop needs no concrete
+backend cast.
 
 An explicit [com.eignex.koblas.F64ContextBuilder] can select any provider for any role it implements. Use
 [com.eignex.koblas.F64Capabilities] with [com.eignex.koblas.backendNamed] to retrieve an exact discovered
@@ -120,9 +119,8 @@ these are unsymmetric LU and nothing else. Such a binding answers the rest porta
 [F64SparseDecompositionsAdapter][com.eignex.koblas.sparse.host.F64SparseDecompositionsAdapter], which is the
 same portable implementation it uses for unsupported operations.
 
-CHOLMOD supplies the symmetric routines used by the SuiteSparse providers, and SPQR the QR. Those
-capabilities compete only with other providers of the same role, independently of which provider fills
-general or repeated-pattern LU.
+The symmetric and QR capabilities compete only with other providers of the same role, independently of
+which provider fills general or repeated-pattern LU.
 
 - LU: [F64SparseMarkowitzLu][com.eignex.koblas.sparse.factorization.lu.F64SparseMarkowitzLu], a
   Markowitz threshold-pivoting `P·B·Q = L·U` that keeps the factors sparse instead of filling toward `O(m²)`.
@@ -135,8 +133,8 @@ general or repeated-pattern LU.
 
 [F64SparseFactorization] is an interface rather than a class, which is the one place this deviates from the
 dense shape. LAPACK's packed formats are a standard, so a dense [com.eignex.koblas.dense.F64LuDecomposition]
-travels between backends; no sparse solver describes its factors — UMFPACK hands back a `void *`, KLU and
-CHOLMOD their own structs — so a seam demanding a concrete type could never admit one.
+travels between backends; no sparse solver describes its factors, since each library hands back an opaque
+pointer or a struct of its own, so a seam demanding a concrete type could never admit one.
 
 It is also [AutoCloseable][kotlin.AutoCloseable]. A native factor owns the opaque objects the library handed
 back and should be held in `use` or closed explicitly after its final solve. Close is idempotent and waits for

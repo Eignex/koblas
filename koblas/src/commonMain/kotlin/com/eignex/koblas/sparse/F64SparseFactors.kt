@@ -17,8 +17,8 @@ import com.eignex.koblas.core.F64SparseMatrix
  * refuses them, and a singular factorization has no factors to give.
  *
  * A provider whose factors are not a matrix it can hand back raises [FactorsNotExposed] rather than
- * inventing one. BASICLU and HFactor do: they keep a basis representation for updating rather than an `L` and
- * a `U`, which is what they are for.
+ * inventing one. HFactor does: it keeps a basis representation for updating rather than an `L` and a `U`,
+ * which is what it is for.
  */
 
 /** Raised by a factorization whose provider keeps its factors in a form it cannot hand back. */
@@ -34,8 +34,7 @@ public class FactorsNotExposed(factor: String) :
  *
  * `F` is empty for a factorization that eliminates over the whole matrix at once, which is most of them, and
  * the identity then reads as the `L·U` one would expect. It is there for a provider that permutes to block
- * triangular form first and factors the blocks: KLU does, and its off-diagonal blocks are neither in `L` nor
- * in `U`.
+ * triangular form first and factors the blocks, whose off-diagonal blocks are neither in `L` nor in `U`.
  */
 public interface F64SparseLuFactorization : F64SparseFactorization {
     /** Unit lower triangular, its diagonal stored. */

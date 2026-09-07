@@ -171,7 +171,7 @@ public class F64SingularSparseFactorization(override val n: Int, override val fa
  * per replacement.
  *
  * Public because it is what a caller wanting a basis factorization from a backend that does not offer one
- * builds it from. BASICLU offers one; nothing else koblas binds does.
+ * builds it from. Nothing koblas binds offers one natively.
  */
 public class F64RefactoringBasisFactorization(
     private val lu: F64SparseDecompositions,

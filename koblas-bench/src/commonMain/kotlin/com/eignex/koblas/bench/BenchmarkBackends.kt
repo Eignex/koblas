@@ -14,10 +14,6 @@ internal const val SIMD_KERNELS = "simd"
 
 internal expect fun useHost(): Boolean
 
-internal expect fun useSparseLu(): Boolean
-
-internal expect fun useSparseProduct(): Boolean
-
 internal fun installDenseBackend(backend: String) {
     installBackends(null)
     when (backend) {
@@ -32,23 +28,28 @@ internal fun installDenseBackend(backend: String) {
     println("resolved: $koblasInfo")
 }
 
+/**
+ * The sparse factorization half has no host provider in koblas-bench, so `automatic` and `reference` are the
+ * two arms and a request for `host` fails rather than silently measuring the portable code.
+ */
 internal fun installSparseDecompositionBackend(backend: String) {
     installBackends(null)
     when (backend) {
         AUTOMATIC_BACKEND -> discoverBackends()
         REFERENCE_BACKEND -> installBackends(koblas.with(sparseDecompositions = F64ReferenceSparseLinearAlgebra))
-        HOST_BACKEND -> check(useSparseLu()) { "the host sparse decomposition backend is unavailable" }
+        HOST_BACKEND -> error("the host sparse decomposition backend is unavailable")
         else -> error("unknown backend: $backend")
     }
     println("resolved: sparseDecompositions=${koblas.sparseDecompositions.name}")
 }
 
+/** The sparse BLAS half has no host provider either, so this mirrors [installSparseDecompositionBackend]. */
 internal fun installSparseBlasBackend(backend: String) {
     installBackends(null)
     when (backend) {
         AUTOMATIC_BACKEND -> discoverBackends()
         REFERENCE_BACKEND -> Unit
-        HOST_BACKEND -> check(useSparseProduct()) { "the host sparse BLAS backend is unavailable" }
+        HOST_BACKEND -> error("the host sparse BLAS backend is unavailable")
         else -> error("unknown backend: $backend")
     }
     println("resolved: sparseBlas=${koblas.sparseBlas.name}")

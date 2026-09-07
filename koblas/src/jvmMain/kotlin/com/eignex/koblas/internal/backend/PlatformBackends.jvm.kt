@@ -7,11 +7,7 @@ import com.eignex.koblas.dense.F64Blas
 import com.eignex.koblas.dense.host.cblas.HostBlasConfig
 import com.eignex.koblas.dense.host.jvm.F64Backends
 import com.eignex.koblas.sparse.host.F64SparseBackends
-import com.eignex.koblas.sparse.host.basiclu.BasicluConfig
-import com.eignex.koblas.sparse.host.cholmod.CholmodConfig
 import com.eignex.koblas.sparse.host.hfactor.HfactorConfig
-import com.eignex.koblas.sparse.host.klu.KluConfig
-import com.eignex.koblas.sparse.host.umfpack.UmfpackConfig
 import java.util.ServiceLoader
 
 /**
@@ -39,11 +35,7 @@ private class AutomaticHostConfiguration {
         libraryPath = libraryPath(ConfigurationKeys.CBLAS_PATH),
         lapackeLibraryPath = libraryPath(ConfigurationKeys.LAPACKE_PATH),
     )
-    val klu = KluConfig(libraryPath(ConfigurationKeys.KLU_PATH))
-    val umfpack = UmfpackConfig(libraryPath = libraryPath(ConfigurationKeys.UMFPACK_PATH))
-    val basiclu = BasicluConfig(libraryPath(ConfigurationKeys.BASICLU_PATH))
     val hfactor = HfactorConfig(libraryPath(ConfigurationKeys.HFACTOR_PATH))
-    val cholmod = CholmodConfig(libraryPath = libraryPath(ConfigurationKeys.CHOLMOD_PATH))
 
     /** What a deployment pointed at a library of its own, read once off [ConfigurationKeys.LIBRARY_PATHS]. */
     private val configuredPaths: Map<String, List<String?>> =
@@ -70,20 +62,7 @@ private fun registerBuiltins(automatic: AutomaticHostConfiguration, requested: M
     registerIfOffered(dense.blas, requested)
     registerIfOffered(dense.kernels, requested)
     dense.decompositions.takeIf { it.isAvailable }?.let { registerIfOffered(it, requested) }
-    val sparse = F64SparseBackends(
-        kluConfig = automatic.klu,
-        umfpackConfig = automatic.umfpack,
-        basicluConfig = automatic.basiclu,
-        hfactorConfig = automatic.hfactor,
-        cholmodConfig = automatic.cholmod,
-    )
-    registerIfOffered(sparse.klu, requested)
-    registerIfOffered(sparse.umfpack, requested)
-    registerIfOffered(sparse.basiclu, requested)
-    registerIfOffered(sparse.hfactor, requested)
-    // Fills the sparse matrix half rather than the factorization one, so it takes nothing from the four
-    // above and they take nothing from it.
-    registerIfOffered(sparse.cholmod, requested)
+    registerIfOffered(F64SparseBackends(hfactorConfig = automatic.hfactor).hfactor, requested)
 }
 
 /** Instantiate all registered providers, dropping any whose construction fails. */
@@ -91,7 +70,7 @@ private fun loadProviders(): List<Backend> {
     val providers = ArrayList<Backend>()
     loadProviders(Backend::class.java, providers)
     // The dense service type was the original public SPI. Keep it while providers migrate to [Backend],
-    // which also permits sparse-only add-ons such as UMFPACK.
+    // which also permits sparse-only add-ons such as HFactor.
     loadProviders(com.eignex.koblas.dense.F64LinearAlgebra::class.java, providers)
     return providers.distinctBy { it::class.java.name }
 }

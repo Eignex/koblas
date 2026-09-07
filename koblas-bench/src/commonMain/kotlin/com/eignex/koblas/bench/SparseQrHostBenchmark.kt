@@ -7,7 +7,7 @@ import com.eignex.koblas.sparse.*
 import com.eignex.koblas.transpose
 import kotlinx.benchmark.*
 
-/** Sparse QR operations on portable and explicitly selected host decompositions. */
+/** Sparse QR operations on the portable and the automatically discovered decompositions. */
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(BenchmarkTimeUnit.MICROSECONDS)
@@ -15,7 +15,7 @@ class SparseQrHostBenchmark {
     @Param("128", "256", "512", "1024")
     var n: Int = 0
 
-    @Param(AUTOMATIC_BACKEND, REFERENCE_BACKEND, HOST_BACKEND)
+    @Param(AUTOMATIC_BACKEND, REFERENCE_BACKEND)
     var backend: String = REFERENCE_BACKEND
 
     private lateinit var a: F64SparseMatrix

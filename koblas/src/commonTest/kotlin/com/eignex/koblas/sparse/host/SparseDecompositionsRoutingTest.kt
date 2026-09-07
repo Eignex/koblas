@@ -8,8 +8,7 @@ import kotlin.test.*
 class SparseDecompositionsRoutingTest {
 
     /**
-     * A backend whose QR comes from a sibling library, which is the shape the SuiteSparse adapter has: its
-     * LU is KLU or UMFPACK and its QR is SPQR, and a host can carry one without the other.
+     * A backend whose QR comes from a sibling library, so a host can carry its LU without its QR.
      */
     private class SplitLibraryAdapter(override val nativeAvailable: Boolean, private val qrAvailable: Boolean) :
         F64SparseDecompositionsAdapter() {

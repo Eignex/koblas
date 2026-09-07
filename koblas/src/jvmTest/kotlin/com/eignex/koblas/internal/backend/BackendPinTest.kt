@@ -12,7 +12,7 @@ class BackendPinTest {
 
     @Test
     fun `an unpinned deployment takes every half a provider carries`() {
-        assertEquals(BackendSlot.entries.toSet(), offerFor(namedProvider("umfpack"), unpinned()).halves)
+        assertEquals(BackendSlot.entries.toSet(), offerFor(namedProvider("vendor"), unpinned()).halves)
     }
 
     @Test
@@ -20,14 +20,14 @@ class BackendPinTest {
         val requested = unpinned() + (BackendSlot.F64Blas to "openblas")
         assertEquals(
             BackendSlot.entries.toSet() - BackendSlot.F64Blas,
-            offerFor(namedProvider("umfpack"), requested).halves,
+            offerFor(namedProvider("vendor"), requested).halves,
         )
     }
 
     @Test
     fun `a role pin takes the backend it names`() {
-        val requested = BackendSlot.entries.associateWith { "reference" } + (BackendSlot.F64SparseBlas to "umfpack")
-        assertEquals(setOf(BackendSlot.F64SparseBlas), offerFor(namedProvider("umfpack"), requested).halves)
+        val requested = BackendSlot.entries.associateWith { "reference" } + (BackendSlot.F64SparseBlas to "vendor")
+        assertEquals(setOf(BackendSlot.F64SparseBlas), offerFor(namedProvider("vendor"), requested).halves)
     }
 
     @Test
@@ -38,11 +38,11 @@ class BackendPinTest {
 
     @Test
     fun `a bundled provider answers to its canonical name`() {
-        val requested = BackendSlot.entries.associateWith { "umfpack" }
+        val requested = BackendSlot.entries.associateWith { "vendor" }
         // A bundled provider answers to the plain name, as the selection everywhere else does.
         assertEquals(
             BackendSlot.entries.toSet(),
-            offerFor(bundledProvider("umfpack-bundled", "umfpack"), requested).halves,
+            offerFor(bundledProvider("vendor-bundled", "vendor"), requested).halves,
         )
     }
 

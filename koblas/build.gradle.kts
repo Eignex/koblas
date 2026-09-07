@@ -49,8 +49,8 @@ kotlin {
         linuxMain.get().dependsOn(cMain)
         macosMain.get().dependsOn(if (nativeHostIsMacos) cMain else crossScalarMain)
 
-        // Every supported Native target can resolve OpenBLAS and SuiteSparse independently, so either
-        // library may still be absent at runtime and fall back to scalar code.
+        // Every supported Native target resolves OpenBLAS at runtime, so the library may still be absent
+        // and fall back to scalar code.
         val hostMain = create("hostMain") { dependsOn(nativeMain.get()) }
         linuxMain.get().dependsOn(hostMain)
         macosMain.get().dependsOn(hostMain)
@@ -162,9 +162,9 @@ tasks.withType<Test>().configureEach {
     if (project.findProperty("koblas.noSimd") != "true") {
         jvmArgs("--add-modules=jdk.incubator.vector")
     }
-    // Tests marked @Category(HostLibraryTest) need a real OpenBLAS or SuiteSparse, so they are out of the
+    // Tests marked @Category(HostLibraryTest) need a real OpenBLAS or HFactor, so they are out of the
     // default run and opted into with -Pkoblas.hostTests=true. They measure the machine as much as the library,
-    // so including them would make the everyday result mean different things on a box with SuiteSparse and one
+    // so including them would make the everyday result mean different things on a box with OpenBLAS and one
     // without. Excluding them and pinning every backend role to `reference` keeps that out; the opt-in
     // run accepts the noise in exchange for exercising the bindings, and reports coverage like any other run.
     if (project.findProperty("koblas.hostTests") == "true") return@configureEach

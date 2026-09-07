@@ -16,7 +16,7 @@
 [![License](https://img.shields.io/github/license/eignex/koblas)](https://github.com/eignex/koblas/blob/main/LICENSE)
 
 Dense and sparse double-precision linear algebra for JVM and Kotlin/Native compute hosts. Koblas provides
-BLAS/LAPACK operations, factorizations, and optional OpenBLAS, SuiteSparse, BASICLU, or HFactor acceleration.
+BLAS/LAPACK operations, factorizations, and optional OpenBLAS or HFactor acceleration.
 
 Koblas is a low-level building block for numerical and optimization software that owns its data and algorithms.
 It exposes storage, allocation, workspace, backend, and lifecycle decisions instead of hiding them behind a
@@ -31,17 +31,13 @@ Windows Native, and Apple mobile targets are not published.
 |--------|-------------------|---------|
 | koblas | JVM, Linux x64/arm64, macOS arm64 | Dense and sparse API with a portable reference backend. |
 | koblas-openblas | JVM | Bundled OpenBLAS and LAPACKE. |
-| koblas-suitesparse | JVM | Bundled SuiteSparse and its OpenBLAS dependency. |
-| koblas-basiclu | JVM | Bundled BASICLU for simplex-basis factorization. |
 | koblas-hfactor | JVM | Bundled HFactor for hypersparse simplex workflows. |
 
-On JVM, add `--add-modules=jdk.incubator.vector` to enable the built-in SIMD kernels. Host OpenBLAS and
-SuiteSparse libraries are discovered when installed; the bundled modules take precedence on JVM Linux
-x64/arm64 and macOS arm64. When an accelerated provider is unavailable, koblas retains the same semantics
-through its portable implementation.
+On JVM, add `--add-modules=jdk.incubator.vector` to enable the built-in SIMD kernels. A host OpenBLAS is
+discovered when installed; the bundled modules take precedence on JVM Linux x64/arm64 and macOS arm64. When
+an accelerated provider is unavailable, koblas retains the same semantics through its portable implementation.
 
-Bundled modules carry their own third-party notices. In particular, koblas-suitesparse includes GPL-licensed
-SuiteSparse packages and is therefore effectively GPL-3.0.
+Bundled modules carry their own third-party notices.
 
 ## Quick start
 
@@ -91,7 +87,7 @@ while unqualified aliases such as `DenseMatrix` and `SparseMatrix` name the F64 
 | F64 | Kotlin Double | F64DenseVector, F64DenseMatrix, strided views | F64SparseVector, CSC F64SparseMatrix | Kotlin Int |
 
 Compatible DoubleArray and CSC buffers can be wrapped without copying. Dense matrices are column-major, and
-native SuiteSparse bindings use 32-bit-index entry points so sparse indices do not need widening copies.
+native sparse bindings use 32-bit-index entry points so sparse indices do not need widening copies.
 
 Owned dense containers can expose live borrowed panels, columns, and strided rows. A view retains its physical
 offset, leading dimension, and increment:
@@ -133,7 +129,7 @@ host provider does not. Routines not listed here are not part of the supported n
 | Dense utility | `transpose`, `norm1`, `normInf`, `normFro`, row/column scaling | No direct BLAS routine |
 | Dense LAPACK | LU (`factor`, `solve`, `invert`, `rcond`), pivoted LDL, QR and pivoted QR, Cholesky with in-place rank updates, triangular inverse | `dgetrf`, `dgetrs`, `dgetri`, `dgecon`, `dsytrf`, `dsytrs`, `dgeqrf`, `dgeqp3`, `dormqr`, `dpotrf`, `dpotrs`, `dpotri`, `dtpqrt`, `dtrtri` |
 | Sparse BLAS | CSC `gemv`, triangular `trsv`/`trsm` and `trmv`/`trmm`, sparse–dense `gemm`, sparse–sparse product, `transpose`, prepared repeated products | Sparse BLAS `usmv`, `ussv`, `ussm`, `usmm`; triangular multiply is `usmv`/`usmm` over a triangle, and product and preparation are Koblas operations |
-| Sparse factorizations | General LU, repeated-pattern LU, Cholesky, LDL, QR, and simplex basis operations | Provider-specific SuiteSparse, BASICLU, and HFactor capabilities |
+| Sparse factorizations | General LU, repeated-pattern LU, Cholesky, LDL, QR, and simplex basis operations | Provider-specific HFactor capabilities |
 
 This table documents the subset, not a roadmap. In particular, it does not imply support for the other routines in
 the BLAS, LAPACK, or Sparse BLAS specifications.
@@ -215,8 +211,8 @@ providers without route diagnostics report UNKNOWN rather than being assumed nat
 
 On JVM, a system property takes precedence over the corresponding environment variable. Kotlin/Native reads
 the environment variable. Override a library path with the JVM property `koblas.<library>.path` or environment
-variable `KOBLAS_<LIBRARY>_PATH`. Supported library identifiers are cblas, lapacke, klu, umfpack, cholmod,
-basiclu, and hfactor. The JVM-only `koblas.jvm.vector.scatter` setting (or
+variable `KOBLAS_<LIBRARY>_PATH`. Supported library identifiers are cblas, lapacke, and hfactor. The
+JVM-only `koblas.jvm.vector.scatter` setting (or
 `KOBLAS_JVM_VECTOR_SCATTER`) selects indexed Vector API stores for sparse kernels: auto (the default) makes a
 conservative guess from a 512-bit x86 preferred species. Use on when you know the deployment has a profitable
 AVX-512 path; it forces indexed stores when the Vector API module is present. Off retains scalar indexed
@@ -231,14 +227,14 @@ with `koblas.backend.sparse.general.lu` or `KOBLAS_SPARSE_GENERAL_LU_BACKEND`.
 
 Choose a semantic capability based on the matrix sequence and numerical structure:
 
-| Workload | Capability | Typical provider | Constraint |
-|----------|------------|------------------|------------|
-| Unrelated general systems | generalSparseLu | UMFPACK | Numerical pivoting; stable ordinary-LU role. |
-| Same CSC pattern, changing values | repeatedSparseLu | KLU | Analyze once; ordered CSC pattern must match exactly. |
-| Symmetric positive-definite systems | sparseCholesky | CHOLMOD | Reads the lower triangle and rejects a non-positive pivot. |
-| Quasi-definite KKT systems | quasiDefiniteLdl | CHOLMOD | Numerically unpivoted; use general LU for arbitrary indefinite matrices. |
-| Overdetermined least-squares systems | sparseQr | SPQR | Requires at least as many rows as columns. |
-| Simplex basis column replacement | basisFactorizations | BASICLU | Each update supersedes the preceding factor. |
+| Workload | Capability | Provider | Constraint |
+|----------|------------|----------|------------|
+| Unrelated general systems | generalSparseLu | portable Markowitz LU | Numerical pivoting; stable ordinary-LU role. |
+| Same CSC pattern, changing values | repeatedSparseLu | portable | Analyze once; ordered CSC pattern must match exactly. |
+| Symmetric positive-definite systems | sparseCholesky | portable up-looking Cholesky | Reads the lower triangle and rejects a non-positive pivot. |
+| Quasi-definite KKT systems | quasiDefiniteLdl | portable | Numerically unpivoted; use general LU for arbitrary indefinite matrices. |
+| Overdetermined least-squares systems | sparseQr | portable Householder QR | Requires at least as many rows as columns. |
+| Simplex basis column replacement | basisFactorizations | portable, refactoring per replacement | Each update supersedes the preceding factor. |
 | Stateful simplex solve/update loop | basisSolvers | HFactor | Own and close the solver; use typed ftran, btran, and update. |
 
 Each sparse factorization returns the factor type its own kind names, and each exposes its factors: an LU
@@ -323,8 +319,8 @@ registerBackend(F64Backends(HostBlasConfig(OpenBlasOptions(threadCount = 8))))
 ```
 
 Threaded LAPACK on JVM also needs `-Xss16m`; an insufficient Java thread stack can crash the process. OpenBLAS
-thread configuration is process-wide. Bundled OpenBLAS is built without threading, KLU is single-threaded, and
-a host UMFPACK can use threads only through the BLAS against which it was built.
+thread configuration is process-wide. Bundled OpenBLAS is built without threading, and HFactor is
+single-threaded.
 
 ## Ownership and concurrency
 

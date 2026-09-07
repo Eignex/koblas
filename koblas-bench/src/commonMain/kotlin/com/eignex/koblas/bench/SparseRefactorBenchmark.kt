@@ -23,7 +23,7 @@ class SparseRefactorBenchmark {
     @Param("256", "1024", "4096")
     var n: Int = 0
 
-    @Param(AUTOMATIC_BACKEND, REFERENCE_BACKEND, HOST_BACKEND)
+    @Param(AUTOMATIC_BACKEND, REFERENCE_BACKEND)
     var backend: String = REFERENCE_BACKEND
 
     private lateinit var a: F64SparseMatrix

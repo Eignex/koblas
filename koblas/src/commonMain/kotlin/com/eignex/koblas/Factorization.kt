@@ -4,8 +4,8 @@ package com.eignex.koblas
 public const val NOT_SINGULAR: Int = -1
 
 /**
- * A `failedAt` meaning "singular, but this backend cannot say where". Exists so a host solver like UMFPACK,
- * which counts zero pivots without locating them, need not invent a position or report [NOT_SINGULAR].
+ * A `failedAt` meaning "singular, but this backend cannot say where". Exists so a host solver that counts
+ * zero pivots without locating them need not invent a position or report [NOT_SINGULAR].
  */
 public const val SINGULAR_POSITION_UNKNOWN: Int = -2
 

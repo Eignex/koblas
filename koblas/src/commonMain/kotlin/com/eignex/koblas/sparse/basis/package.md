@@ -22,8 +22,8 @@ The simplex basis seam: a factorization held across pivots rather than one taken
 This is the counterpart of [com.eignex.koblas.sparse.F64BasisFactorization], which factors a basis a caller
 hands over whole and answers a column replacement with a superseding factorization. The difference is not
 that one supersedes the other. That one takes *any* entering column, so it wants a backend carrying the
-basis independently of a matrix, which is BASICLU and is what an interior point method's basis
-preconditioner asks for. This one names the entering column by index into a matrix fixed for the solver's
+basis independently of a matrix, which is what an interior point method's basis preconditioner asks for.
+This one names the entering column by index into a matrix fixed for the solver's
 lifetime, which is what lets a backend keep the factors where the columns lie and solve hypersparsely, and
 is what a simplex pivoting through thousands of bases asks for. A backend reading its columns out of a
 matrix by index cannot answer the first: the update would go through, but the refactorization behind it

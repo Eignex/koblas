@@ -239,10 +239,8 @@ class KoblasNativeLibraryPlugin : Plugin<Project> {
 class KoblasBuildScriptStructurePlugin : Plugin<Project> {
     override fun apply(project: Project) {
         val scripts = listOf(
-            "koblas-basiclu/build.gradle.kts",
             "koblas-hfactor/build.gradle.kts",
             "koblas-openblas/build.gradle.kts",
-            "koblas-suitesparse/build.gradle.kts",
         ).map { project.layout.projectDirectory.file(it).asFile }
         project.tasks.register<CheckKoblasBuildScriptStructureTask>("checkBuildScriptStructure") {
             group = "verification"

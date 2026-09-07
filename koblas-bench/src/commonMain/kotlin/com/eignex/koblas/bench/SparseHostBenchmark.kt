@@ -16,7 +16,7 @@ class SparseHostBenchmark {
     @Param(BASIS_SHAPE, RANDOM_SHAPE)
     var shape: String = BASIS_SHAPE
 
-    @Param(AUTOMATIC_BACKEND, REFERENCE_BACKEND, HOST_BACKEND)
+    @Param(AUTOMATIC_BACKEND, REFERENCE_BACKEND)
     var backend: String = REFERENCE_BACKEND
 
     private lateinit var a: F64SparseMatrix

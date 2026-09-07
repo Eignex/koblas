@@ -11,9 +11,10 @@ import com.eignex.koblas.core.F64SparseMatrix
  * kind, so a library offering two of them fills one half instead of competing with itself for two.
  *
  * Only what a factorization of that kind universally does is here. The libraries behind this seam are
- * specialised rather than interchangeable, and each carries state the others do not: KLU reuses a symbolic
- * analysis across matrices of one pattern, BASICLU keeps a basis through a sequence of column replacements,
- * HFactor holds factors over a matrix that outlives them. Each of those had exactly one implementer when it
+ * specialised rather than interchangeable, and each carries state the others do not: a repeated-pattern
+ * solver reuses a symbolic analysis across matrices of one pattern, a basis solver keeps a basis through a
+ * sequence of column replacements, HFactor holds factors over a matrix that outlives them. Each of those had
+ * exactly one implementer when it
  * sat here, which makes it a concrete routine on the backend that has it rather than a method every other
  * backend inherits and declines. What a factorization is allowed to do to the matrix on the way in — row
  * equilibration, a drop tolerance — is policy for the backend's own constructor, beside the settings that
