@@ -90,6 +90,22 @@ internal actual object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
         out: DoubleArray,
         outOff: Int,
     ) = selected.dot4(a, aOff, stride, b, bOff, len, out, outOff)
+
+    override val gemmTileRows: Int get() = selected.gemmTileRows
+
+    override val gemmTileCols: Int get() = selected.gemmTileCols
+
+    @Suppress("LongParameterList")
+    override fun gemmTile(
+        depth: Int,
+        packedA: DoubleArray,
+        aOff: Int,
+        packedB: DoubleArray,
+        bOff: Int,
+        c: DoubleArray,
+        cOff: Int,
+        ldc: Int,
+    ) = selected.gemmTile(depth, packedA, aOff, packedB, bOff, c, cOff, ldc)
 }
 
 internal object Simd {
@@ -389,6 +405,73 @@ internal object Simd {
             b[bOff + i] = t
             i++
         }
+    }
+
+    /** Rows of C the tile covers: two vectors deep, which is the widest that still leaves the loop registers. */
+    val tileRows: Int = 2 * LANE
+
+    /**
+     * Columns of C the tile covers. Four accumulator pairs, one broadcast and two operand vectors is
+     * fifteen live vectors at four lanes, which is what the register file holds.
+     */
+    const val TILE_COLS: Int = 4
+
+    /**
+     * Accumulates [depth] steps of a packed product in registers and adds the result into C once.
+     *
+     * The eight accumulators are separate locals rather than an array because an array would live in
+     * memory and defeat the whole point. Each step loads two vectors of the left panel and broadcasts four
+     * coefficients from the right, for eight fused multiply-adds against thirty-two lanes of arithmetic.
+     */
+    @Suppress("LongParameterList")
+    fun gemmTile(
+        depth: Int,
+        packedA: DoubleArray,
+        aOff: Int,
+        packedB: DoubleArray,
+        bOff: Int,
+        c: DoubleArray,
+        cOff: Int,
+        ldc: Int,
+    ) {
+        var c00 = DoubleVector.zero(SPECIES)
+        var c10 = DoubleVector.zero(SPECIES)
+        var c01 = DoubleVector.zero(SPECIES)
+        var c11 = DoubleVector.zero(SPECIES)
+        var c02 = DoubleVector.zero(SPECIES)
+        var c12 = DoubleVector.zero(SPECIES)
+        var c03 = DoubleVector.zero(SPECIES)
+        var c13 = DoubleVector.zero(SPECIES)
+        var ap = aOff
+        var bp = bOff
+        for (p in 0 until depth) {
+            val a0 = DoubleVector.fromArray(SPECIES, packedA, ap)
+            val a1 = DoubleVector.fromArray(SPECIES, packedA, ap + LANE)
+            var coefficient = DoubleVector.broadcast(SPECIES, packedB[bp])
+            c00 = a0.fma(coefficient, c00)
+            c10 = a1.fma(coefficient, c10)
+            coefficient = DoubleVector.broadcast(SPECIES, packedB[bp + 1])
+            c01 = a0.fma(coefficient, c01)
+            c11 = a1.fma(coefficient, c11)
+            coefficient = DoubleVector.broadcast(SPECIES, packedB[bp + 2])
+            c02 = a0.fma(coefficient, c02)
+            c12 = a1.fma(coefficient, c12)
+            coefficient = DoubleVector.broadcast(SPECIES, packedB[bp + 3])
+            c03 = a0.fma(coefficient, c03)
+            c13 = a1.fma(coefficient, c13)
+            ap += tileRows
+            bp += TILE_COLS
+        }
+        addColumn(c, cOff, ldc, 0, c00, c10)
+        addColumn(c, cOff, ldc, 1, c01, c11)
+        addColumn(c, cOff, ldc, 2, c02, c12)
+        addColumn(c, cOff, ldc, 3, c03, c13)
+    }
+
+    private fun addColumn(c: DoubleArray, cOff: Int, ldc: Int, column: Int, low: DoubleVector, high: DoubleVector) {
+        val base = cOff + column * ldc
+        DoubleVector.fromArray(SPECIES, c, base).add(low).intoArray(c, base)
+        DoubleVector.fromArray(SPECIES, c, base + LANE).add(high).intoArray(c, base + LANE)
     }
 
     fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {

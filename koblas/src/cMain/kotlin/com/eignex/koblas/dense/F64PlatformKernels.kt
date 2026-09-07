@@ -25,6 +25,45 @@ internal actual object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
 
     override val isPortable: Boolean get() = true
 
+    /**
+     * The matrix-product tile, in C for the same reason every other kernel here is: a loop written in
+     * Kotlin keeps a safepoint poll and two bounds checks per element and vectorises to nothing on this
+     * target, where the same loop in C compiles to packed arithmetic.
+     *
+     * Unlike the level-1 kernels this needs no short-run guard. One call carries the whole depth of a
+     * block, so it is thousands of multiply-adds behind a single crossing, and the pinning that dominates a
+     * short vector call disappears into it.
+     */
+    @Suppress("LongParameterList")
+    override fun gemmTile(
+        depth: Int,
+        packedA: DoubleArray,
+        aOff: Int,
+        packedB: DoubleArray,
+        bOff: Int,
+        c: DoubleArray,
+        cOff: Int,
+        ldc: Int,
+    ) {
+        if (depth == 0) return
+        packedA.usePinned { ap ->
+            packedB.usePinned { bp ->
+                c.usePinned { cp ->
+                    koblas_dense_gemm_tile(
+                        depth,
+                        ap.addressOf(0),
+                        aOff,
+                        bp.addressOf(0),
+                        bOff,
+                        cp.addressOf(0),
+                        cOff,
+                        ldc,
+                    )
+                }
+            }
+        }
+    }
+
     actual override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double = if (
         len < C_HOST_MIN_LENGTH
     ) {
