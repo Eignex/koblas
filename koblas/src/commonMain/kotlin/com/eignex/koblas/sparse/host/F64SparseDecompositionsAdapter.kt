@@ -61,9 +61,9 @@ public abstract class F64SparseDecompositionsAdapter protected constructor(
     /**
      * Whether the library equilibrates for itself when [equilibrate] is set.
      *
-     * KLU takes the flag and UMFPACK a control entry, so those scale inside the library. A binding whose
-     * library offers no scaling sets this false and is handed values already scaled, with the solves undone
-     * around it here rather than in each binding.
+     * A library that takes a scaling flag or control entry scales inside itself. A binding whose library
+     * offers no scaling sets this false and is handed values already scaled, with the solves undone around
+     * it here rather than in each binding.
      */
     protected open val libraryScalesRows: Boolean get() = true
 
@@ -117,6 +117,6 @@ public abstract class F64SparseDecompositionsAdapter protected constructor(
         return qrNative(a)
     }
 
-    /** Factorizes into `Q·R` natively, portably by default: SPQR is the one library here with a sparse QR. */
+    /** Factorizes into `Q·R` natively, portably by default for a library without a sparse QR. */
     protected open fun qrNative(a: F64SparseMatrix): F64SparseQrFactorization = portable.qr(a)
 }

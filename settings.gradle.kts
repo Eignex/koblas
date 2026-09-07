@@ -16,9 +16,7 @@ plugins {
 
 include(
     ":koblas",
-    ":koblas-basiclu",
     ":koblas-bench",
     ":koblas-hfactor",
     ":koblas-openblas",
-    ":koblas-suitesparse",
 )

@@ -20,8 +20,8 @@ import kotlin.test.assertSame
  */
 class BackendOfferTest {
 
-    /** Shaped like KLU: a host library whose ordinary LU is its repeated-pattern specialization's. */
-    private class Specialized(override val name: String = "klu") :
+    /** A host library whose ordinary LU is its repeated-pattern specialization's. */
+    private class Specialized(override val name: String = "specialized") :
         F64SparseDecompositions by F64ReferenceSparseLinearAlgebra,
         F64GeneralSparseLu,
         F64RepeatedSparseLu {
@@ -37,33 +37,33 @@ class BackendOfferTest {
 
     @Test
     fun `a half pinned to a specialized provider is filled by it`() = withCleanBackends {
-        val klu = Specialized()
-        val pinned = unpinned() + (BackendSlot.F64GeneralSparseLu to "klu")
+        val specialized = Specialized()
+        val pinned = unpinned() + (BackendSlot.F64GeneralSparseLu to "specialized")
 
-        registerIfOffered(klu, pinned)
+        registerIfOffered(specialized, pinned)
 
-        assertSame(klu, koblas.generalSparseLu, "the deployment asked for it here")
-        assertEquals(listOf("klu"), registeredBackendNames(BackendRole.SPARSE_GENERAL_LU))
+        assertSame(specialized, koblas.generalSparseLu, "the deployment asked for it here")
+        assertEquals(listOf("specialized"), registeredBackendNames(BackendRole.SPARSE_GENERAL_LU))
     }
 
     /** Naming a half is the only thing that sets the policy aside, so an unpinned pass still applies it. */
     @Test
     fun `an unpinned specialized provider leaves the general half alone`() = withCleanBackends {
-        val klu = Specialized()
+        val specialized = Specialized()
 
-        registerIfOffered(klu, unpinned())
+        registerIfOffered(specialized, unpinned())
 
         assertEquals("reference", koblas.generalSparseLu.name)
-        assertSame(klu, koblas.repeatedSparseLu, "its own half is still filled")
+        assertSame(specialized, koblas.repeatedSparseLu, "its own half is still filled")
     }
 
     /** A pin is not a cast: a backend named for a half it does not implement still does not fill it. */
     @Test
     fun `a half pinned to a backend that does not implement it stays unfilled`() = withCleanBackends {
-        val klu = Specialized()
-        val pinned = unpinned() + (BackendSlot.F64SparseCholesky to "klu")
+        val specialized = Specialized()
+        val pinned = unpinned() + (BackendSlot.F64SparseCholesky to "specialized")
 
-        registerIfOffered(klu, pinned)
+        registerIfOffered(specialized, pinned)
 
         assertEquals("reference", koblas.sparseCholesky.name)
         assertEquals(emptyList(), registeredBackendNames(BackendRole.SPARSE_CHOLESKY))
@@ -71,7 +71,10 @@ class BackendOfferTest {
 
     @Test
     fun `an offer names only the halves the pin named`() {
-        val offered = offerFor(namedProvider("klu"), unpinned() + (BackendSlot.F64GeneralSparseLu to "klu"))
+        val offered = offerFor(
+            namedProvider("specialized"),
+            unpinned() + (BackendSlot.F64GeneralSparseLu to "specialized"),
+        )
 
         assertEquals(setOf(BackendSlot.F64GeneralSparseLu), offered.named)
         assertEquals(BackendSlot.entries.toSet(), offered.halves, "the rest were left to it")

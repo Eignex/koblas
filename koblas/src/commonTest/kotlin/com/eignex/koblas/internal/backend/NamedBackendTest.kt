@@ -90,18 +90,18 @@ class NamedBackendTest {
     /** A bundled provider answers to the name a deployment configures as well as to its own. */
     @Test
     fun `a bundled provider answers to the name it was configured under`() = withCleanBackends {
-        registerBackend(FakeBundledSparseLu("umfpack-bundled", canonicalName = "umfpack", priority = 10))
+        registerBackend(FakeBundledSparseLu("vendor-bundled", canonicalName = "vendor", priority = 10))
 
-        assertEquals("umfpack-bundled", backendNamed("umfpack", F64Capabilities.generalSparseLu)?.name)
-        assertEquals("umfpack-bundled", backendNamed("umfpack-bundled", F64Capabilities.generalSparseLu)?.name)
+        assertEquals("vendor-bundled", backendNamed("vendor", F64Capabilities.generalSparseLu)?.name)
+        assertEquals("vendor-bundled", backendNamed("vendor-bundled", F64Capabilities.generalSparseLu)?.name)
     }
 
     /** The suffix is a diagnostic, not a rule: what a provider bundles is something it declares. */
     @Test
     fun `a provider merely named like a bundled one does not answer for it`() = withCleanBackends {
-        registerBackend(FakeSparseLu("umfpack-bundled", priority = 10))
+        registerBackend(FakeSparseLu("vendor-bundled", priority = 10))
 
-        assertNull(backendNamed("umfpack", F64Capabilities.generalSparseLu))
+        assertNull(backendNamed("vendor", F64Capabilities.generalSparseLu))
     }
 
     @Test

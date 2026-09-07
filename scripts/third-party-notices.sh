@@ -72,21 +72,3 @@ notices_append_gcc_runtime_licenses() {
         "https://raw.githubusercontent.com/gcc-mirror/gcc/releases/gcc-15.2.0/COPYING.LIB" \
         "$lgpl"
 }
-
-notices_append_suite_sparse_config() {
-    local output="$1"
-    local source_root="$2"
-    local work_dir="$3"
-    local notice="$work_dir/suitesparse-config-notice.txt"
-
-    {
-        sed -n '4,8p' "$source_root/SuiteSparse_config/SuiteSparse_config.c"
-        printf '\nThe BSD-3-Clause terms are reproduced below.\n\n'
-        sed -n '8,$p' "$source_root/AMD/Doc/License.txt"
-    } > "$notice"
-    notices_append_file \
-        "$output" \
-        "SuiteSparse_config — BSD-3-Clause" \
-        "SuiteSparse_config/SuiteSparse_config.c and SuiteSparse/AMD/Doc/License.txt" \
-        "$notice"
-}

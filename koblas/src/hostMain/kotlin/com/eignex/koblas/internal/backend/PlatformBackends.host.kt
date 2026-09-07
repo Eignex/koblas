@@ -1,23 +1,17 @@
 package com.eignex.koblas.internal.backend
 
 import com.eignex.koblas.dense.host.cblas.*
-import com.eignex.koblas.sparse.host.F64SparseBackends
-import com.eignex.koblas.sparse.host.basiclu.BasicluConfig
-import com.eignex.koblas.sparse.host.cholmod.CholmodConfig
-import com.eignex.koblas.sparse.host.klu.KluConfig
-import com.eignex.koblas.sparse.host.umfpack.UmfpackConfig
 
 /**
  * Backend discovery on the native targets that can reach a host library, run once on the first
  * [com.eignex.koblas.koblas] read. A resolved key symbol counts as installed, nothing is computed.
  *
  * Configuration comes from the environment, since Kotlin/Native has no system properties: the same variables
- * the JVM honours name a library path or pin a half to one backend.
+ * the JVM honours name a library path or pin a half to one backend. The sparse halves stay portable here,
+ * since the one sparse binding koblas carries has no native target.
  */
 internal actual fun registerPlatformBackends() {
-    val requested = requestedBackends()
-    registerHostBlas(requested)
-    registerSparse(requested)
+    registerHostBlas(requestedBackends())
 }
 
 /** koblas's CBLAS binding, when this host has OpenBLAS and the deployment did not pin another backend. */
@@ -35,21 +29,4 @@ private fun registerHostBlas(requested: Map<BackendSlot, String?>) {
     // Without LAPACKE the factorizations stay portable while everything above keeps the host BLAS.
     val lapacke = loader.lapacke ?: return
     registerIfOffered(F64Lapacke(lapacke, cblas, loader, config), requested)
-}
-
-/**
- * koblas's sparse bindings, each independent of the BLAS half and of each other: a host can have SuiteSparse
- * without BASICLU, or one of KLU and UMFPACK without the other. Priority picks the winner among those that
- * resolve, and only BASICLU offers basis updates whatever the priorities say.
- */
-private fun registerSparse(requested: Map<BackendSlot, String?>) {
-    val sparse = F64SparseBackends(
-        kluConfig = KluConfig(libraryPath(ConfigurationKeys.KLU_PATH)),
-        umfpackConfig = UmfpackConfig(libraryPath = libraryPath(ConfigurationKeys.UMFPACK_PATH)),
-        basicluConfig = BasicluConfig(libraryPath(ConfigurationKeys.BASICLU_PATH)),
-        cholmodConfig = CholmodConfig(libraryPath = libraryPath(ConfigurationKeys.CHOLMOD_PATH)),
-    )
-    for (backend in listOf(sparse.umfpack, sparse.klu, sparse.basiclu, sparse.cholmod)) {
-        registerIfOffered(backend, requested)
-    }
 }

@@ -16,20 +16,8 @@ internal object BackendNames {
     /** The Kotlin/Native `dlopen` binding to a host OpenBLAS. */
     const val CBLAS = "cblas"
 
-    /** The binding to SuiteSparse's UMFPACK. */
-    const val UMFPACK = "umfpack"
-
-    /** The binding to SuiteSparse's KLU. */
-    const val KLU = "klu"
-
-    /** The binding to BASICLU, whose basis updates no other sparse backend offers. */
-    const val BASICLU = "basiclu"
-
     /** The binding to HiGHS's HFactor, which solves a simplex basis hypersparsely and updates it. */
     const val HFACTOR = "hfactor"
-
-    /** SuiteSparse CHOLMOD, which fills the sparse matrix products. */
-    const val CHOLMOD = "cholmod"
 
     /** The compiled-in C kernels used by Native and by a JVM without the Vector API. */
     const val C = "c"

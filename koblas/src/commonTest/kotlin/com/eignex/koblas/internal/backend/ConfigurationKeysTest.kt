@@ -16,7 +16,7 @@ class ConfigurationKeysTest {
 
     @Test
     fun `a surrounding space does not become part of the name`() {
-        assertEquals("klu", pinnedBackend(null, " klu\n"))
+        assertEquals("hfactor", pinnedBackend(null, " hfactor\n"))
     }
 
     @Test

@@ -21,18 +21,6 @@ internal object ConfigurationKeys {
     /** An absolute path to the library exporting `LAPACKE_*`, for a host that keeps it outside its CBLAS. */
     val LAPACKE_PATH = LibraryPathKeys("koblas.lapacke.path", "KOBLAS_LAPACKE_PATH")
 
-    /** An absolute path to the host KLU. */
-    val KLU_PATH = LibraryPathKeys("koblas.klu.path", "KOBLAS_KLU_PATH")
-
-    /** An absolute path to the host UMFPACK. */
-    val UMFPACK_PATH = LibraryPathKeys("koblas.umfpack.path", "KOBLAS_UMFPACK_PATH")
-
-    /** An absolute path to the host CHOLMOD. */
-    val CHOLMOD_PATH = LibraryPathKeys("koblas.cholmod.path", "KOBLAS_CHOLMOD_PATH")
-
-    /** An absolute path to a BASICLU exporting koblas's bridge entry points, ahead of the bundled build. */
-    val BASICLU_PATH = LibraryPathKeys("koblas.basiclu.path", "KOBLAS_BASICLU_PATH")
-
     /** An absolute path to a build of koblas's HFactor bridge, ahead of the bundled one. */
     val HFACTOR_PATH = LibraryPathKeys("koblas.hfactor.path", "KOBLAS_HFACTOR_PATH")
 
@@ -45,11 +33,7 @@ internal object ConfigurationKeys {
      */
     val LIBRARY_PATHS: Map<String, List<LibraryPathKeys>> = mapOf(
         BackendNames.OPENBLAS to listOf(CBLAS_PATH, LAPACKE_PATH),
-        BackendNames.KLU to listOf(KLU_PATH),
-        BackendNames.UMFPACK to listOf(UMFPACK_PATH),
-        BackendNames.BASICLU to listOf(BASICLU_PATH),
         BackendNames.HFACTOR to listOf(HFACTOR_PATH),
-        BackendNames.CHOLMOD to listOf(CHOLMOD_PATH),
     )
 }
 

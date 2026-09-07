@@ -127,8 +127,8 @@ class SparseLuTest {
             assertEquals(0.0, f.rcond)
             assertFailsWith<SingularMatrix> { f.solve(doubleArrayOf(1.0, 2.0)) }
         }
-        // The failing pivot position is koblas's own, so this uses the portable factorization. UMFPACK reports only
-        // that the matrix is singular, so asserting a position against an installed backend would assert the machine.
+        // The failing pivot position is koblas's own, so this uses the portable factorization. A host backend may
+        // report only that the matrix is singular, so asserting a position against one would assert the machine.
         val singular = F64ReferenceSparseLinearAlgebra.factor(
             F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf())),
         )
@@ -147,7 +147,7 @@ class SparseLuTest {
         val rng = Random(20260807)
         val base = randomSparseSquare(6, rng, dominance = 1.5)
         val rhs = randomVector(6, rng)
-        // These are koblas's own tolerances, so this uses the portable factorization rather than an installed UMFPACK.
+        // These are koblas's own tolerances, so this uses the portable factorization rather than an installed backend.
         val reference = F64ReferenceSparseLinearAlgebra.factor(base)
         for (scale in doubleArrayOf(POW_2_MINUS_60, POW_2_60)) {
             val scaled = F64SparseMatrix.ofColumns(
