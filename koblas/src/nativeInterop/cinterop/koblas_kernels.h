@@ -17,11 +17,11 @@
  * holds the same four accumulators in one place instead of two. A result therefore does not depend on which
  * clone the machine resolved to.
  *
- * KOBLAS_KERNEL_BASELINE opts a kernel out. Only koblas_dense_dot4 uses it: timed against its own baseline
- * at 512 and 2048 elements the AVX2 clone runs 1.7 times slower, the one kernel here that the wider
- * registers hurt. It carries five live streams, four strided rows against one shared operand, and at twice
- * the register width they no longer fit. Every other kernel gains or is unchanged, so the exception is
- * per-kernel rather than a reason to drop the clones.
+ * KOBLAS_KERNEL_BASELINE opts a kernel out of the clones. Nothing uses it at present. It existed for
+ * koblas_dense_dot4, whose scalar form was the one kernel the wider registers made slower, by 1.7 times,
+ * because five live streams of hand-unrolled scalars stopped fitting. Written at vector width instead, the
+ * shared operand is one register rather than four, and the exclusion is no longer needed. The macro stays
+ * because the next kernel with that shape will want it.
  *
  * Only x86-64 ELF takes the clones. Aarch64 has no equivalent split, since NEON is baseline there and the
  * next step up is SVE, which needs different code rather than the same code widened. Mach-O has no ifunc.
@@ -30,15 +30,21 @@
  * artifacts to a newer instruction set than they target today.
  */
 #if defined(KOBLAS_KERNELS_IMPLEMENTATION)
+/*
+ * Exported through a pragma rather than an attribute per function, because clang refuses to accept a
+ * visibility attribute on the same declaration as target_clones and Kotlin/Native compiles this header
+ * with clang. The pragma is honoured by both compilers, survives the hidden default the shared library is
+ * built with, and leaves the clone attribute alone. It is popped at the end of the header.
+ */
+#pragma GCC visibility push(default)
 #if defined(__x86_64__) && defined(__ELF__) && \
     ((defined(__clang__) && __clang_major__ >= 14) || \
      (defined(__GNUC__) && !defined(__clang__) && __GNUC__ >= 6))
-#define KOBLAS_KERNEL \
-    __attribute__((visibility("default"))) __attribute__((target_clones("avx2", "default")))
+#define KOBLAS_KERNEL __attribute__((target_clones("avx2", "default")))
 #else
-#define KOBLAS_KERNEL __attribute__((visibility("default")))
+#define KOBLAS_KERNEL
 #endif
-#define KOBLAS_KERNEL_BASELINE __attribute__((visibility("default")))
+#define KOBLAS_KERNEL_BASELINE
 #else
 #define KOBLAS_KERNEL static inline
 #define KOBLAS_KERNEL_BASELINE static inline
@@ -67,65 +73,99 @@
 #define KOBLAS_UNROLL_MIN 32
 
 /*
- * How many independent accumulator chains a reduction carries, and the machinery that writes them out.
+ * The reductions are written at vector width rather than as scalars the compiler is expected to widen.
  *
- * The chains have to be named locals. An array of them, even fully unrolled with constant indices and an
- * unroll pragma, stays in memory: measured on a dot at length 1024 and 4096 the array form takes 1362 to
- * 5503 ns where the named form takes 74 to 425, so it is ten to thirteen times worse. Rather than hand
- * write eight chains in each of five kernels, KOBLAS_REPEAT applies a macro to each index and each kernel
- * supplies the three bodies it needs: one to declare a chain, one to advance it, one to fold it in.
+ * That expectation held for one compiler and not the other. GCC widens eight hand-unrolled scalar chains
+ * to 256-bit registers; the clang Kotlin/Native compiles with refuses to, even when the instruction set is
+ * enabled explicitly and even with the operands marked as not aliasing, and emits 128-bit throughout. So
+ * on Native every reduction ran at half width, which is most of why that target trailed a host BLAS by
+ * two to two and a half times on dot and the absolute sum.
  *
- * Eight rather than four, which is what these carried before: on a dot at 1024 eight takes 74 ns against
- * 125, and on an absolute sum at 4096 233 against 387. Sixteen is worse on AVX2 at both lengths and only
- * marginally better at the baseline, so it does not pay for a second shape.
+ * A vector type says the width instead of hoping for it. Each target then spends its own registers on the
+ * same source: 128-bit pairs at the x86 baseline, one 256-bit register in the AVX2 clone, and a pair of
+ * NEON registers loaded with `ldp` on aarch64, where it is already full width and there are no clones.
+ * Measured against a single-threaded OpenBLAS with this compiler, dot goes from 2.25x behind to 0.96x,
+ * 1.00x and 1.05x at lengths 256, 1024 and 4096, and the absolute sum from 2.56x behind to 0.49x, 0.92x
+ * and 1.10x.
  *
- * The count is one number rather than one derived from the vector width, and it has to be. KOBLAS_KERNEL
- * asks the compiler for a baseline clone and an AVX2 clone of the same preprocessed source, so __AVX2__
- * and __AVX512F__ are not defined while either is generated and a width-derived count would silently
- * resolve to the baseline in both. Eight is the value that measured best under each clone. Per-clone counts
- * would need the kernels compiled once per instruction set behind a runtime resolver, which is a different
- * build from this one.
+ * Four accumulators of four lanes, so sixteen doubles a step. Two accumulators leave the absolute sum at
+ * 1.43x rather than 1.10x, so the count matters as much as the width. This is also the shape OpenBLAS
+ * uses, arrived at here by measuring rather than by copying.
+ *
+ * Vector types are a GNU extension rather than standard C, supported by both compilers koblas builds with.
+ * One rule comes with them: a vector must not cross a function boundary, because returning one from a
+ * helper is an ABI error under clang in the clone that does not have the wider instruction set enabled.
+ * Everything below keeps them inside a function body. `__builtin_memcpy` is the load, which assumes no
+ * alignment and compiles to a plain unaligned move.
  */
-#define KOBLAS_ACCUMULATORS 8
+#define KOBLAS_LANES 4
+#define KOBLAS_VECTOR_STEP 16
 
+typedef double koblas_v4d __attribute__((vector_size(KOBLAS_LANES * sizeof(double))));
+typedef long long koblas_v4i __attribute__((vector_size(KOBLAS_LANES * sizeof(double))));
+
+#define KOBLAS_LOAD(dst, ptr) __builtin_memcpy(&(dst), (ptr), sizeof(koblas_v4d))
+#define KOBLAS_ZERO {0.0, 0.0, 0.0, 0.0}
+
+/* Folds four lanes and four accumulators as a tree rather than a chain. */
+#define KOBLAS_HORIZONTAL(t) (((t)[0] + (t)[1]) + ((t)[2] + (t)[3]))
+#define KOBLAS_COMBINE(s0, s1, s2, s3) KOBLAS_HORIZONTAL((((s0) + (s1)) + ((s2) + (s3))))
+
+/* The sparse dot keeps scalar chains: its loads are scattered, so there is no contiguous vector to form. */
 #define KOBLAS_REPEAT_4(M) M(0) M(1) M(2) M(3)
 #define KOBLAS_REPEAT(M) KOBLAS_REPEAT_4(M) M(4) M(5) M(6) M(7)
-
-/* Folds the chains in pairs rather than in sequence, so the combine is a tree and not a dependency chain. */
+#define KOBLAS_ACCUMULATORS 8
 #define KOBLAS_GATHER(s0, s1, s2, s3, s4, s5, s6, s7) \
     (((s0) + (s1)) + ((s2) + (s3))) + (((s4) + (s5)) + ((s6) + (s7)))
 
 KOBLAS_KERNEL double koblas_dense_dot(
     const double *a, int32_t a_off, const double *b, int32_t b_off, int32_t len
-) {
-#define KOBLAS_DOT_DECLARE(q) double s##q = 0.0;
-#define KOBLAS_DOT_STEP(q) s##q += a[a_off + i + q] * b[b_off + i + q];
-    KOBLAS_REPEAT(KOBLAS_DOT_DECLARE)
+) {    koblas_v4d s0 = KOBLAS_ZERO, s1 = KOBLAS_ZERO, s2 = KOBLAS_ZERO, s3 = KOBLAS_ZERO;
     int32_t i = 0;
-    if (len >= KOBLAS_UNROLL_MIN) {
-        for (; i + KOBLAS_ACCUMULATORS <= len; i += KOBLAS_ACCUMULATORS) { KOBLAS_REPEAT(KOBLAS_DOT_STEP) }
+    for (; i + KOBLAS_VECTOR_STEP <= len; i += KOBLAS_VECTOR_STEP) {
+        koblas_v4d x0, x1, x2, x3, y0, y1, y2, y3;
+        KOBLAS_LOAD(x0, a + a_off + i);
+        KOBLAS_LOAD(y0, b + b_off + i);
+        KOBLAS_LOAD(x1, a + a_off + i + KOBLAS_LANES);
+        KOBLAS_LOAD(y1, b + b_off + i + KOBLAS_LANES);
+        KOBLAS_LOAD(x2, a + a_off + i + 2 * KOBLAS_LANES);
+        KOBLAS_LOAD(y2, b + b_off + i + 2 * KOBLAS_LANES);
+        KOBLAS_LOAD(x3, a + a_off + i + 3 * KOBLAS_LANES);
+        KOBLAS_LOAD(y3, b + b_off + i + 3 * KOBLAS_LANES);
+        s0 += x0 * y0;
+        s1 += x1 * y1;
+        s2 += x2 * y2;
+        s3 += x3 * y3;
     }
-    double sum = KOBLAS_GATHER(s0, s1, s2, s3, s4, s5, s6, s7);
+    double sum = KOBLAS_COMBINE(s0, s1, s2, s3);
     for (; i < len; i++) sum += a[a_off + i] * b[b_off + i];
     return sum;
-#undef KOBLAS_DOT_DECLARE
-#undef KOBLAS_DOT_STEP
 }
 
 KOBLAS_KERNEL double koblas_dense_ssqd(
     const double *a, int32_t a_off, const double *b, int32_t b_off, int32_t len
-) {
-#define KOBLAS_SSQD_DECLARE(q) double s##q = 0.0;
-#define KOBLAS_SSQD_STEP(q) \
-    { const double d = a[a_off + i + q] - b[b_off + i + q]; s##q += d * d; }
-    KOBLAS_REPEAT(KOBLAS_SSQD_DECLARE)
+) {    koblas_v4d s0 = KOBLAS_ZERO, s1 = KOBLAS_ZERO, s2 = KOBLAS_ZERO, s3 = KOBLAS_ZERO;
     int32_t i = 0;
-    if (len >= KOBLAS_UNROLL_MIN) {
-        for (; i + KOBLAS_ACCUMULATORS <= len; i += KOBLAS_ACCUMULATORS) { KOBLAS_REPEAT(KOBLAS_SSQD_STEP) }
+    for (; i + KOBLAS_VECTOR_STEP <= len; i += KOBLAS_VECTOR_STEP) {
+        koblas_v4d x0, x1, x2, x3, y0, y1, y2, y3;
+        KOBLAS_LOAD(x0, a + a_off + i);
+        KOBLAS_LOAD(y0, b + b_off + i);
+        KOBLAS_LOAD(x1, a + a_off + i + KOBLAS_LANES);
+        KOBLAS_LOAD(y1, b + b_off + i + KOBLAS_LANES);
+        KOBLAS_LOAD(x2, a + a_off + i + 2 * KOBLAS_LANES);
+        KOBLAS_LOAD(y2, b + b_off + i + 2 * KOBLAS_LANES);
+        KOBLAS_LOAD(x3, a + a_off + i + 3 * KOBLAS_LANES);
+        KOBLAS_LOAD(y3, b + b_off + i + 3 * KOBLAS_LANES);
+        x0 -= y0;
+        x1 -= y1;
+        x2 -= y2;
+        x3 -= y3;
+        s0 += x0 * x0;
+        s1 += x1 * x1;
+        s2 += x2 * x2;
+        s3 += x3 * x3;
     }
-    double sum = KOBLAS_GATHER(s0, s1, s2, s3, s4, s5, s6, s7);
-#undef KOBLAS_SSQD_DECLARE
-#undef KOBLAS_SSQD_STEP
+    double sum = KOBLAS_COMBINE(s0, s1, s2, s3);
     for (; i < len; i++) {
         const double d = a[a_off + i] - b[b_off + i];
         sum += d * d;
@@ -200,34 +240,61 @@ KOBLAS_KERNEL double koblas_dense_nrm2(const double *v, int32_t v_off, int32_t l
     return maximum * sqrt(scaled_squares);
 }
 
-KOBLAS_KERNEL double koblas_dense_sum(const double *v, int32_t v_off, int32_t len) {
-#define KOBLAS_SUM_DECLARE(q) double s##q = 0.0;
-#define KOBLAS_SUM_STEP(q) s##q += v[v_off + i + q];
-    KOBLAS_REPEAT(KOBLAS_SUM_DECLARE)
+KOBLAS_KERNEL double koblas_dense_sum(const double *v, int32_t v_off, int32_t len) {    koblas_v4d s0 = KOBLAS_ZERO, s1 = KOBLAS_ZERO, s2 = KOBLAS_ZERO, s3 = KOBLAS_ZERO;
     int32_t i = 0;
-    if (len >= KOBLAS_UNROLL_MIN) {
-        for (; i + KOBLAS_ACCUMULATORS <= len; i += KOBLAS_ACCUMULATORS) { KOBLAS_REPEAT(KOBLAS_SUM_STEP) }
+    for (; i + KOBLAS_VECTOR_STEP <= len; i += KOBLAS_VECTOR_STEP) {
+        koblas_v4d x0, x1, x2, x3;
+        KOBLAS_LOAD(x0, v + v_off + i);
+        KOBLAS_LOAD(x1, v + v_off + i + KOBLAS_LANES);
+        KOBLAS_LOAD(x2, v + v_off + i + 2 * KOBLAS_LANES);
+        KOBLAS_LOAD(x3, v + v_off + i + 3 * KOBLAS_LANES);
+        s0 += x0;
+        s1 += x1;
+        s2 += x2;
+        s3 += x3;
     }
-    double sum = KOBLAS_GATHER(s0, s1, s2, s3, s4, s5, s6, s7);
+    double sum = KOBLAS_COMBINE(s0, s1, s2, s3);
     for (; i < len; i++) sum += v[v_off + i];
     return sum;
-#undef KOBLAS_SUM_DECLARE
-#undef KOBLAS_SUM_STEP
 }
 
-KOBLAS_KERNEL double koblas_dense_asum(const double *v, int32_t v_off, int32_t len) {
-#define KOBLAS_ASUM_DECLARE(q) double s##q = 0.0;
-#define KOBLAS_ASUM_STEP(q) s##q += fabs(v[v_off + i + q]);
-    KOBLAS_REPEAT(KOBLAS_ASUM_DECLARE)
+KOBLAS_KERNEL double koblas_dense_asum(const double *v, int32_t v_off, int32_t len) {    /*
+     * The sign bit is cleared with an integer AND rather than fabs. The same substitution on the JVM's
+     * vector path was worth 1.47x to 1.76x, and it is what lets this match a host BLAS rather than trail
+     * it. Clearing the sign bit is what an absolute value is, so infinities, NaN and negative zero all
+     * come out as fabs would leave them.
+     */
+    const koblas_v4i sign = {0x7fffffffffffffffLL, 0x7fffffffffffffffLL,
+                             0x7fffffffffffffffLL, 0x7fffffffffffffffLL};
+    koblas_v4d s0 = KOBLAS_ZERO, s1 = KOBLAS_ZERO, s2 = KOBLAS_ZERO, s3 = KOBLAS_ZERO;
     int32_t i = 0;
-    if (len >= KOBLAS_UNROLL_MIN) {
-        for (; i + KOBLAS_ACCUMULATORS <= len; i += KOBLAS_ACCUMULATORS) { KOBLAS_REPEAT(KOBLAS_ASUM_STEP) }
+    for (; i + KOBLAS_VECTOR_STEP <= len; i += KOBLAS_VECTOR_STEP) {
+        koblas_v4d x0, x1, x2, x3;
+        koblas_v4i b0, b1, b2, b3;
+        KOBLAS_LOAD(x0, v + v_off + i);
+        KOBLAS_LOAD(x1, v + v_off + i + KOBLAS_LANES);
+        KOBLAS_LOAD(x2, v + v_off + i + 2 * KOBLAS_LANES);
+        KOBLAS_LOAD(x3, v + v_off + i + 3 * KOBLAS_LANES);
+        __builtin_memcpy(&b0, &x0, sizeof b0);
+        __builtin_memcpy(&b1, &x1, sizeof b1);
+        __builtin_memcpy(&b2, &x2, sizeof b2);
+        __builtin_memcpy(&b3, &x3, sizeof b3);
+        b0 &= sign;
+        b1 &= sign;
+        b2 &= sign;
+        b3 &= sign;
+        __builtin_memcpy(&x0, &b0, sizeof x0);
+        __builtin_memcpy(&x1, &b1, sizeof x1);
+        __builtin_memcpy(&x2, &b2, sizeof x2);
+        __builtin_memcpy(&x3, &b3, sizeof x3);
+        s0 += x0;
+        s1 += x1;
+        s2 += x2;
+        s3 += x3;
     }
-    double sum = KOBLAS_GATHER(s0, s1, s2, s3, s4, s5, s6, s7);
+    double sum = KOBLAS_COMBINE(s0, s1, s2, s3);
     for (; i < len; i++) sum += fabs(v[v_off + i]);
     return sum;
-#undef KOBLAS_ASUM_DECLARE
-#undef KOBLAS_ASUM_STEP
 }
 
 /*
@@ -316,25 +383,43 @@ KOBLAS_KERNEL void koblas_dense_swap(
     }
 }
 
-KOBLAS_KERNEL_BASELINE void koblas_dense_dot4(
+KOBLAS_KERNEL void koblas_dense_dot4(
     const double *a, int32_t a_off, int32_t stride, const double *b, int32_t b_off,
     int32_t len, double *out, int32_t out_off
 ) {
-    double r0 = 0.0;
-    double r1 = 0.0;
-    double r2 = 0.0;
-    double r3 = 0.0;
-    for (int32_t i = 0; i < len; i++) {
-        const double bi = b[b_off + i];
-        r0 += a[a_off + i] * bi;
-        r1 += a[a_off + stride + i] * bi;
-        r2 += a[a_off + 2 * stride + i] * bi;
-        r3 += a[a_off + 3 * stride + i] * bi;
+    koblas_v4d s0 = KOBLAS_ZERO, s1 = KOBLAS_ZERO, s2 = KOBLAS_ZERO, s3 = KOBLAS_ZERO;
+    const double *r0 = a + a_off;
+    const double *r1 = r0 + stride;
+    const double *r2 = r1 + stride;
+    const double *r3 = r2 + stride;
+    int32_t i = 0;
+    for (; i + KOBLAS_LANES <= len; i += KOBLAS_LANES) {
+        koblas_v4d shared, x0, x1, x2, x3;
+        KOBLAS_LOAD(shared, b + b_off + i);
+        KOBLAS_LOAD(x0, r0 + i);
+        KOBLAS_LOAD(x1, r1 + i);
+        KOBLAS_LOAD(x2, r2 + i);
+        KOBLAS_LOAD(x3, r3 + i);
+        s0 += x0 * shared;
+        s1 += x1 * shared;
+        s2 += x2 * shared;
+        s3 += x3 * shared;
     }
-    out[out_off] = r0;
-    out[out_off + 1] = r1;
-    out[out_off + 2] = r2;
-    out[out_off + 3] = r3;
+    double t0 = KOBLAS_HORIZONTAL(s0);
+    double t1 = KOBLAS_HORIZONTAL(s1);
+    double t2 = KOBLAS_HORIZONTAL(s2);
+    double t3 = KOBLAS_HORIZONTAL(s3);
+    for (; i < len; i++) {
+        const double shared = b[b_off + i];
+        t0 += r0[i] * shared;
+        t1 += r1[i] * shared;
+        t2 += r2[i] * shared;
+        t3 += r3[i] * shared;
+    }
+    out[out_off] = t0;
+    out[out_off + 1] = t1;
+    out[out_off + 2] = t2;
+    out[out_off + 3] = t3;
 }
 
 /* Strided on both operands, which may also overlap, so neither the loads nor the stores can pack. */
@@ -424,4 +509,8 @@ KOBLAS_KERNEL void koblas_sparse_gather_zero(
 }
 
 #undef KOBLAS_KERNEL
+#if defined(KOBLAS_KERNELS_IMPLEMENTATION)
+#pragma GCC visibility pop
+#endif
+
 #endif
