@@ -54,6 +54,22 @@ internal object DenseTuning {
      */
     val triangularBlock: Int = tuned("triangular.block", default = 64, maximum = Long.SIZE_BITS)
 
+    /**
+     * Steps of the shared dimension the packed matrix product accumulates before it touches C again.
+     *
+     * This sets the working set, since both packed panels are sized from it: a panel of this depth by
+     * [packedBlockColumns] and one of [packedBlockRows] by this depth are live at once. The tile of C
+     * stays in registers for the whole of it, so a larger value means fewer passes over C and a larger
+     * pair of panels to keep resident.
+     */
+    val packedBlockDepth: Int = tuned("packed.block.depth", default = 256)
+
+    /** Rows of the left operand the packed matrix product copies into panels at a time. */
+    val packedBlockRows: Int = tuned("packed.block.rows", default = 128)
+
+    /** Columns of the right operand the packed matrix product copies into panels at a time. */
+    val packedBlockColumns: Int = tuned("packed.block.columns", default = 256)
+
     /** Side of the square tile the blocked transpose moves at a time. */
     val transposeBlock: Int = tuned("transpose.block", default = 32)
 

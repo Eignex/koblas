@@ -175,6 +175,28 @@ internal object F64SimdKernels : F64Kernels, F64ArithmeticKernels {
     }
 
     @Suppress("LongParameterList")
+    override val gemmTileRows: Int get() = if (simdAvailable) Simd.tileRows else super.gemmTileRows
+
+    override val gemmTileCols: Int get() = if (simdAvailable) Simd.TILE_COLS else super.gemmTileCols
+
+    @Suppress("LongParameterList")
+    override fun gemmTile(
+        depth: Int,
+        packedA: DoubleArray,
+        aOff: Int,
+        packedB: DoubleArray,
+        bOff: Int,
+        c: DoubleArray,
+        cOff: Int,
+        ldc: Int,
+    ) {
+        if (simdAvailable) {
+            Simd.gemmTile(depth, packedA, aOff, packedB, bOff, c, cOff, ldc)
+        } else {
+            super.gemmTile(depth, packedA, aOff, packedB, bOff, c, cOff, ldc)
+        }
+    }
+
     override fun dot4(
         a: DoubleArray,
         aOff: Int,

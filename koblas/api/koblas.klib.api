@@ -315,6 +315,11 @@ abstract interface com.eignex.koblas.dense/F64Decompositions : com.eignex.koblas
 }
 
 abstract interface com.eignex.koblas.dense/F64Kernels : com.eignex.koblas/Backend { // com.eignex.koblas.dense/F64Kernels|null[0]
+    open val gemmTileCols // com.eignex.koblas.dense/F64Kernels.gemmTileCols|{}gemmTileCols[0]
+        open fun <get-gemmTileCols>(): kotlin/Int // com.eignex.koblas.dense/F64Kernels.gemmTileCols.<get-gemmTileCols>|<get-gemmTileCols>(){}[0]
+    open val gemmTileRows // com.eignex.koblas.dense/F64Kernels.gemmTileRows|{}gemmTileRows[0]
+        open fun <get-gemmTileRows>(): kotlin/Int // com.eignex.koblas.dense/F64Kernels.gemmTileRows.<get-gemmTileRows>|<get-gemmTileRows>(){}[0]
+
     abstract fun asum(kotlin/DoubleArray, kotlin/Int, kotlin/Int): kotlin/Double // com.eignex.koblas.dense/F64Kernels.asum|asum(kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
     abstract fun axpy(kotlin/DoubleArray, kotlin/Int, kotlin/Double, kotlin/DoubleArray, kotlin/Int, kotlin/Int) // com.eignex.koblas.dense/F64Kernels.axpy|axpy(kotlin.DoubleArray;kotlin.Int;kotlin.Double;kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
     abstract fun dot(kotlin/DoubleArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int): kotlin/Double // com.eignex.koblas.dense/F64Kernels.dot|dot(kotlin.DoubleArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
@@ -327,6 +332,7 @@ abstract interface com.eignex.koblas.dense/F64Kernels : com.eignex.koblas/Backen
     abstract fun sum(kotlin/DoubleArray, kotlin/Int, kotlin/Int): kotlin/Double // com.eignex.koblas.dense/F64Kernels.sum|sum(kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
     abstract fun swap(kotlin/DoubleArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int) // com.eignex.koblas.dense/F64Kernels.swap|swap(kotlin.DoubleArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
     open fun dot4(kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/DoubleArray, kotlin/Int) // com.eignex.koblas.dense/F64Kernels.dot4|dot4(kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.DoubleArray;kotlin.Int){}[0]
+    open fun gemmTile(kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int) // com.eignex.koblas.dense/F64Kernels.gemmTile|gemmTile(kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int){}[0]
 }
 
 abstract interface com.eignex.koblas.dense/F64LinearAlgebra : com.eignex.koblas.dense/F64Blas, com.eignex.koblas.dense/F64Decompositions { // com.eignex.koblas.dense/F64LinearAlgebra|null[0]

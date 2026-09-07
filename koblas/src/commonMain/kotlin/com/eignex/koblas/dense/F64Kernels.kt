@@ -126,6 +126,45 @@ public interface F64Kernels : Backend {
      * whichever kernels it does have rather than inheriting anything.
      */
     public fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double
+
+    /**
+     * Rows of C the matrix-product tile covers, which is how many contiguous doubles each step of the left
+     * panel holds in [gemmTile]. Must be positive, and is fixed for the life of the backend, because the
+     * caller packs its panels to this shape before calling.
+     */
+    public val gemmTileRows: Int get() = PORTABLE_TILE
+
+    /** Columns of C the matrix-product tile covers, the width of each step of the right panel. */
+    public val gemmTileCols: Int get() = PORTABLE_TILE
+
+    /**
+     * Adds one packed matrix product into a [gemmTileRows] by [gemmTileCols] tile of C.
+     *
+     * [packedA] holds [depth] groups of [gemmTileRows] contiguous doubles from [aOff], one group per step
+     * of the shared dimension, and [packedB] holds [depth] groups of [gemmTileCols] from [bOff]. The tile
+     * of C starts at [cOff] and its columns are [ldc] apart. Every group is full: the caller pads a short
+     * edge with zeroes and discards what it did not want, so an implementation never sees a partial tile.
+     *
+     * This is the two-dimensional counterpart of [dot4]. Holding a tile rather than a row is the point: C
+     * stays in registers across the whole of [depth], so it is read and written once per tile instead of
+     * once per step, which is the difference between a product bounded by cache traffic and one bounded by
+     * arithmetic. The default below is a plain four by four written out in scalars, which is correct
+     * everywhere and is what a target without vector registers runs; every target that has them overrides
+     * this with its own tile, and that override is the only place the matrix product varies by platform.
+     */
+    @Suppress("LongParameterList") // two packed panels, a destination tile, and the shared depth
+    public fun gemmTile(
+        depth: Int,
+        packedA: DoubleArray,
+        aOff: Int,
+        packedB: DoubleArray,
+        bOff: Int,
+        c: DoubleArray,
+        cOff: Int,
+        ldc: Int,
+    ) {
+        portableGemmTile(depth, packedA, aOff, packedB, bOff, c, cOff, ldc)
+    }
 }
 
 /** Internal vector leaf for parent routines whose arithmetic does not have DAXPY's zero-scalar return. */
@@ -193,10 +232,17 @@ internal expect object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
  * Uses a registered host backend when present, above its per-operation crossover. The `alpha` guards live
  * here, so `axpy` by zero and `scale` by one are no-ops whichever kernel runs.
  *
+ * Anything this class does not route explicitly is delegated to [F64PlatformKernels], which is both the
+ * right default and the reason the delegation is written this way rather than as one override per routine.
+ * A routine added to [F64Kernels] and forgotten here would otherwise fall through to the interface default,
+ * which is a correct implementation and a slow one, so the mistake would show up as a performance
+ * regression rather than a failure. That happened once with [gemmTile], where the compiled-in tile was
+ * ready and the wrapper handed out the portable one instead, costing six times.
+ *
  * @property host a registered backend; null uses the compiled-in kernels, as does a run below the crossover.
  */
 internal class F64RoutedKernels(internal val host: F64Kernels?) :
-    F64Kernels,
+    F64Kernels by F64PlatformKernels,
     F64ArithmeticKernels,
     F64RoutingBackend {
     override val name: String

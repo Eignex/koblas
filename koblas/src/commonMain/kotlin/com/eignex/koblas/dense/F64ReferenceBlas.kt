@@ -67,7 +67,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         return t
     }
 
-    @Suppress("LongParameterList", "CyclomaticComplexMethod")
+    @Suppress("LongParameterList")
     override fun gemm(
         alpha: Double,
         a: F64DenseMatrix,
@@ -82,38 +82,12 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         val cd = c.data
         applyBeta(kernels, cd, 0, cd.size, beta)
         if (alpha == 0.0 || m == 0 || n == 0 || k == 0) return
-        val kernels = kernels
-        when {
-            !transposeA -> blockedGemmUpdate(
-                kernels, alpha, a.data, b.data, b.rows, transposeB, cd, m, n, k,
-                skipZeroCoefficient = false,
-            )
-
-            !transposeB -> workspace.borrow(4) { sums ->
-                blockedTransposedLeftUpdate(
-                    kernels, alpha, a.data, 0, a.rows, b.data, 0, b.rows, cd, 0, m, m, n, k, sums,
-                )
-            }
-
-            b.data.size <= a.data.size -> {
-                workspace.borrowTransposed(b.data, b.rows, b.cols) { packedB ->
-                    workspace.borrow(4) { sums ->
-                        blockedTransposedLeftUpdate(
-                            kernels, alpha, a.data, 0, a.rows, packedB, 0, k, cd, 0, m, m, n, k, sums,
-                        )
-                    }
-                }
-            }
-
-            else -> {
-                workspace.borrowTransposed(a.data, a.rows, a.cols) { packedA ->
-                    blockedGemmUpdate(
-                        kernels, alpha, packedA, b.data, b.rows, true, cd, m, n, k,
-                        skipZeroCoefficient = false,
-                    )
-                }
-            }
-        }
+        // One product for every shape and every target. The four transpositions differ only in how the
+        // operands are read while they are packed, which is inside the packing rather than a path of its
+        // own, and the only thing that varies by target is the tile the kernels supply.
+        packedGemm(
+            kernels, alpha, a.data, a.rows, transposeA, b.data, b.rows, transposeB, cd, m, n, k, workspace,
+        )
     }
 
     @Suppress("LongParameterList") // the BLAS dsyrk signature plus optional scratch

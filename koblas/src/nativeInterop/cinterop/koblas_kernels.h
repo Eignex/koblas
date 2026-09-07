@@ -222,6 +222,82 @@ KOBLAS_KERNEL double koblas_dense_asum(const double *v, int32_t v_off, int32_t l
     return sum;
 }
 
+/*
+ * The matrix-product tile. koblas packs both operands into panels laid out in the order read here, and this
+ * accumulates KOBLAS_GEMM_TILE rows by KOBLAS_GEMM_TILE columns of C over the whole of depth before touching
+ * C at all, which is the point: C is read and written once per tile rather than once per step.
+ *
+ * Sixteen accumulators in named locals, four rows by four columns. Four rows is two SSE2 registers or one
+ * AVX2 register, so the tile occupies eight vector registers at the baseline and four when a wider clone
+ * runs, either of which leaves room for the operand loads. A wider tile would hold more of C per pass and
+ * spill at the baseline, which is the trade this shape settles on the narrow side because the same source
+ * has to compile well both ways.
+ *
+ * One call covers depth times sixteen multiply-adds, so the cost of reaching it from a managed caller is
+ * spread over thousands of operations. That is what makes a tile the right unit to put behind a foreign
+ * call, where a single vector operation is not.
+ */
+#define KOBLAS_GEMM_TILE 4
+
+KOBLAS_KERNEL void koblas_dense_gemm_tile(
+    int32_t depth,
+    const double *packed_a, int32_t a_off,
+    const double *packed_b, int32_t b_off,
+    double *c, int32_t c_off, int32_t ldc
+) {
+    double c00 = 0.0, c10 = 0.0, c20 = 0.0, c30 = 0.0;
+    double c01 = 0.0, c11 = 0.0, c21 = 0.0, c31 = 0.0;
+    double c02 = 0.0, c12 = 0.0, c22 = 0.0, c32 = 0.0;
+    double c03 = 0.0, c13 = 0.0, c23 = 0.0, c33 = 0.0;
+    const double *ap = packed_a + a_off;
+    const double *bp = packed_b + b_off;
+    for (int32_t p = 0; p < depth; p++) {
+        const double a0 = ap[0];
+        const double a1 = ap[1];
+        const double a2 = ap[2];
+        const double a3 = ap[3];
+        double coefficient = bp[0];
+        c00 += a0 * coefficient;
+        c10 += a1 * coefficient;
+        c20 += a2 * coefficient;
+        c30 += a3 * coefficient;
+        coefficient = bp[1];
+        c01 += a0 * coefficient;
+        c11 += a1 * coefficient;
+        c21 += a2 * coefficient;
+        c31 += a3 * coefficient;
+        coefficient = bp[2];
+        c02 += a0 * coefficient;
+        c12 += a1 * coefficient;
+        c22 += a2 * coefficient;
+        c32 += a3 * coefficient;
+        coefficient = bp[3];
+        c03 += a0 * coefficient;
+        c13 += a1 * coefficient;
+        c23 += a2 * coefficient;
+        c33 += a3 * coefficient;
+        ap += KOBLAS_GEMM_TILE;
+        bp += KOBLAS_GEMM_TILE;
+    }
+    double *out = c + c_off;
+    out[0] += c00;
+    out[1] += c10;
+    out[2] += c20;
+    out[3] += c30;
+    out[ldc] += c01;
+    out[ldc + 1] += c11;
+    out[ldc + 2] += c21;
+    out[ldc + 3] += c31;
+    out[2 * ldc] += c02;
+    out[2 * ldc + 1] += c12;
+    out[2 * ldc + 2] += c22;
+    out[2 * ldc + 3] += c32;
+    out[3 * ldc] += c03;
+    out[3 * ldc + 1] += c13;
+    out[3 * ldc + 2] += c23;
+    out[3 * ldc + 3] += c33;
+}
+
 KOBLAS_KERNEL void koblas_dense_swap(
     double *a, int32_t a_off, double *b, int32_t b_off, int32_t len
 ) {

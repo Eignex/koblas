@@ -1260,6 +1260,9 @@ public abstract interface class com/eignex/koblas/dense/F64Kernels : com/eignex/
 	public abstract fun axpy ([DID[DII)V
 	public abstract fun dot ([DI[DII)D
 	public fun dot4 ([DII[DII[DI)V
+	public fun gemmTile (I[DI[DI[DII)V
+	public fun getGemmTileCols ()I
+	public fun getGemmTileRows ()I
 	public abstract fun nrm2 ([DII)D
 	public abstract fun rot ([DI[DIIDD)V
 	public abstract fun rotm ([DII[DIIILcom/eignex/koblas/F64ModifiedGivens;)V
@@ -1272,6 +1275,9 @@ public abstract interface class com/eignex/koblas/dense/F64Kernels : com/eignex/
 
 public final class com/eignex/koblas/dense/F64Kernels$DefaultImpls {
 	public static fun dot4 (Lcom/eignex/koblas/dense/F64Kernels;[DII[DII[DI)V
+	public static fun gemmTile (Lcom/eignex/koblas/dense/F64Kernels;I[DI[DI[DII)V
+	public static fun getGemmTileCols (Lcom/eignex/koblas/dense/F64Kernels;)I
+	public static fun getGemmTileRows (Lcom/eignex/koblas/dense/F64Kernels;)I
 	public static fun getPriority (Lcom/eignex/koblas/dense/F64Kernels;)I
 	public static fun getUnavailableReason (Lcom/eignex/koblas/dense/F64Kernels;)Ljava/lang/String;
 	public static fun isAvailable (Lcom/eignex/koblas/dense/F64Kernels;)Z
@@ -1626,6 +1632,9 @@ public abstract class com/eignex/koblas/dense/host/F64KernelsAdapter : com/eigne
 	public fun axpy ([DID[DII)V
 	public fun dot ([DI[DII)D
 	public fun dot4 ([DII[DII[DI)V
+	public fun gemmTile (I[DI[DI[DII)V
+	public fun getGemmTileCols ()I
+	public fun getGemmTileRows ()I
 	public fun getPriority ()I
 	public fun getUnavailableReason ()Ljava/lang/String;
 	public fun isAvailable ()Z
