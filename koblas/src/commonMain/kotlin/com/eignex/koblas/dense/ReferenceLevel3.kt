@@ -6,27 +6,17 @@ import kotlin.math.min
 
 /*
  * Cache tiles for the portable level-3 routines: a block of the product is `MC` rows by `NC` columns and is
- * accumulated over `KC` of the shared dimension at a time.
- *
- * `NC` is small because of the shape of the innermost loop rather than in spite of it. One A column is read
- * across the `NC` columns of C the block covers, so the live piece of C is `MC x NC` doubles, 16 KB at these
- * values, which is what fits beside the A column in a first-level cache. `Level3Benchmark.gemm` at order
- * 1024 measures 32, 64, 128 and 256 in turn at 1.3x, 1.3x, 1.3x and 2.5x the time this one takes, so the
- * temptation to widen it for reuse of the A panel has been tried and is a loss.
+ * accumulated over `KC` of the shared dimension at a time. Why each has the value it has, and how to change
+ * one without rebuilding, is on the entry in [DenseTuning]. They are bound to names here because that is
+ * what the loops below read, and binding them once keeps the read off the block loops.
  */
-internal const val REFERENCE_MC: Int = 256
-internal const val REFERENCE_NC: Int = 8
-internal const val REFERENCE_KC: Int = 128
+internal val REFERENCE_MC: Int = DenseTuning.level3BlockRows
+internal val REFERENCE_NC: Int = DenseTuning.level3BlockColumns
+internal val REFERENCE_KC: Int = DenseTuning.level3BlockDepth
 
-/**
- * Diagonal block width for the blocked triangular routines.
- *
- * Not free to retune: the trsm zero-pivot guard carries one bit per row of a block in a `Long` mask, and
- * Kotlin's `shl` reads only the low six bits of its operand, so a width above [Long.SIZE_BITS] would wrap
- * row `j` onto bit `j % 64` and mask the wrong rows. [requireTriangularBlockFitsMask] holds that link.
- */
-internal const val REFERENCE_TRIANGULAR_BLOCK: Int = 64
-private const val REFERENCE_TRANSPOSE_BLOCK: Int = 32
+/** Diagonal block width for the blocked triangular routines, bounded by the mask that indexes it. */
+internal val REFERENCE_TRIANGULAR_BLOCK: Int = DenseTuning.triangularBlock
+private val REFERENCE_TRANSPOSE_BLOCK: Int = DenseTuning.transposeBlock
 
 /**
  * Fails when [REFERENCE_TRIANGULAR_BLOCK] outgrows the zero-pivot mask that indexes it.

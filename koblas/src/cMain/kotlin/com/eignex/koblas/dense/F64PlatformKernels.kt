@@ -14,18 +14,10 @@ import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 
 /**
- * The shortest run for which crossing into the C kernels pays on Kotlin/Native.
- *
- * Every call here pins its arrays and crosses a foreign boundary, and below `KOBLAS_UNROLL_MIN` the C
- * kernel runs the same plain loop the scalar helper would, so a short run buys the overhead and nothing
- * else. Measured on `Level1Benchmark` for linuxX64, C against scalar: at len 2 dot is 40.7 ns against 19.2
- * and at 8 it is 39.8 against 22.4, both losses; at 32 they are level (43.4 against 40.2); at 48 C is ahead
- * on all three measured routines (dot 47.7 against 51.3, axpy 39.2 against 49.2, nrm2 34.5 against 41.8)
- * and pulls away from there, reaching 2x by 128. This takes the conservative end of that range.
- *
- * The JVM half already gates this way, at its own measured 128 in `F64CKernels`.
+ * The shortest run for which crossing into the C kernels pays on Kotlin/Native. The measurement behind it
+ * is on [DenseTuning.nativeCMinLength]. The JVM half gates the same way at its own measured length.
  */
-private const val C_HOST_MIN_LENGTH = 48
+private val C_HOST_MIN_LENGTH = DenseTuning.nativeCMinLength
 
 /** The C level-1 kernels compiled into each Kotlin/Native host artifact. */
 internal actual object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {

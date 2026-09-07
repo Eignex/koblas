@@ -12,16 +12,10 @@ import kotlin.math.max
 import kotlin.math.min
 
 /**
- * The order at or above which a multi-column triangular solve blocks instead of walking its columns.
- *
- * From `BlockSolveBenchmark.blockSolve` on the reference backend at `nrhs = 32`, blocked against the column
- * loop: `n = 384` was a wash at 727 us against 709 with the error bars overlapping, `n = 512` ran 1.22x
- * faster at 1265 us against 1546, and `n = 1024` 1.29x faster at 5211 us against 6730, the last two with
- * error bars clear of one another. Below the crossover the triangle still fits in cache, so re-reading it
- * per column costs little and the blocking only adds its bookkeeping. This takes the conservative end of
- * the measured range.
+ * The order at or above which a multi-column triangular solve blocks instead of walking its columns. The
+ * measurement behind the value is on [DenseTuning.trsmBlockedMinOrder].
  */
-private const val TRSM_BLOCKED_MIN_ORDER = 512
+private val TRSM_BLOCKED_MIN_ORDER = DenseTuning.trsmBlockedMinOrder
 
 /*
  * The portable triangular kernels, netlib dtrsv, dtrsm, dtrmv and dtrmm over a flat column-major buffer.

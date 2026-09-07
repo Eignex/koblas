@@ -9,6 +9,7 @@ import com.eignex.koblas.requireInBounds
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.sparse.F64SparseDecompositions
 import com.eignex.koblas.sparse.F64SparseFactorization
+import com.eignex.koblas.sparse.SparseTuning
 import com.eignex.koblas.sparse.factorization.lu.F64SparseMarkowitzLu
 import com.eignex.koblas.sparse.factorization.lu.ReachableSolveScratch
 
@@ -343,6 +344,7 @@ public class F64ProductFormBasisSolver(
 
 /**
  * Above this the dense sweep wins: tracking which positions a solve reaches costs a depth-first pass over
- * the factor's column graph, which only pays while the reachable set stays well under `m`.
+ * the factor's column graph, which only pays while the reachable set stays well under `m`. Settable through
+ * [SparseTuning.reachableFtranMaxDensity].
  */
-private const val REACHABLE_FTRAN_MAX_DENSITY = 0.1
+private val REACHABLE_FTRAN_MAX_DENSITY = SparseTuning.reachableFtranMaxDensity

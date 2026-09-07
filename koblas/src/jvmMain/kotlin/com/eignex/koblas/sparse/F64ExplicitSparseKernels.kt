@@ -24,13 +24,11 @@ import com.eignex.koblas.requireShape
  */
 internal object F64CSparseKernels : F64SparseKernels {
     /**
-     * Stored entries from which the dot against a dense vector repays its foreign call.
-     *
-     * Measured twice on `SparseLevel1Benchmark`. At 163 stored entries the two are level, at 245 the C
-     * leads by point estimate, and at 409 it leads beyond both error bars and holds 1.2x to 1.4x from
-     * there to six thousand. This takes the length where the estimates turn.
+     * Stored entries from which the dot against a dense vector repays its foreign call. The measurement
+     * behind the value is on [SparseTuning.dotDenseCCrossover]; it is bound to a field of this object so
+     * the comparison does not reach through the tuning object on every call.
      */
-    private const val DOT_DENSE_C_CROSSOVER = 256
+    private val DOT_DENSE_C_CROSSOVER = SparseTuning.dotDenseCCrossover
 
     override val name: String get() = BackendNames.C_SPARSE
 
