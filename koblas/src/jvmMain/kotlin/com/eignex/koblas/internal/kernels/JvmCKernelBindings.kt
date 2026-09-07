@@ -14,15 +14,10 @@ internal object JvmCKernelBindings {
     private val symbolNames = listOf(
         "koblas_dense_dot",
         "koblas_dense_ssqd",
-        "koblas_dense_axpy",
-        "koblas_dense_axpy_arithmetic",
-        "koblas_dense_scale",
         "koblas_dense_nrm2",
         "koblas_dense_sum",
         "koblas_dense_asum",
-        "koblas_dense_swap",
         "koblas_dense_dot4",
-        "koblas_dense_rotm",
         "koblas_sparse_dot_dense",
         "koblas_sparse_dot_sparse",
         "koblas_sparse_axpy",
@@ -48,24 +43,6 @@ internal object JvmCKernelBindings {
             FfmLibrary.doubleOf(ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT),
         )
     }
-    private val denseAxpy by lazy {
-        requiredLibrary().handle(
-            "koblas_dense_axpy",
-            FfmLibrary.voidOf(ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT, JAVA_INT),
-        )
-    }
-    private val denseAxpyArithmetic by lazy {
-        requiredLibrary().handle(
-            "koblas_dense_axpy_arithmetic",
-            FfmLibrary.voidOf(ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS, JAVA_INT, JAVA_INT),
-        )
-    }
-    private val denseScale by lazy {
-        requiredLibrary().handle(
-            "koblas_dense_scale",
-            FfmLibrary.voidOf(ADDRESS, JAVA_INT, JAVA_DOUBLE, JAVA_INT),
-        )
-    }
     private val denseNrm2 by lazy {
         requiredLibrary().handle(
             "koblas_dense_nrm2",
@@ -81,34 +58,10 @@ internal object JvmCKernelBindings {
             FfmLibrary.doubleOf(ADDRESS, JAVA_INT, JAVA_INT),
         )
     }
-    private val denseSwap by lazy {
-        requiredLibrary().handle(
-            "koblas_dense_swap",
-            FfmLibrary.voidOf(ADDRESS, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT),
-        )
-    }
     private val denseDot4 by lazy {
         requiredLibrary().handle(
             "koblas_dense_dot4",
             FfmLibrary.voidOf(ADDRESS, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, ADDRESS, JAVA_INT),
-        )
-    }
-    private val denseRotm by lazy {
-        requiredLibrary().handle(
-            "koblas_dense_rotm",
-            FfmLibrary.voidOf(
-                ADDRESS,
-                JAVA_INT,
-                JAVA_INT,
-                ADDRESS,
-                JAVA_INT,
-                JAVA_INT,
-                JAVA_INT,
-                JAVA_DOUBLE,
-                JAVA_DOUBLE,
-                JAVA_DOUBLE,
-                JAVA_DOUBLE,
-            ),
         )
     }
     private val sparseDotDense by lazy {
@@ -159,32 +112,6 @@ internal object JvmCKernelBindings {
         len,
     ) as Double
 
-    fun denseAxpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
-        denseAxpy.invokeExact(
-            MemorySegment.ofArray(y),
-            yOff,
-            alpha,
-            MemorySegment.ofArray(x),
-            xOff,
-            len,
-        ) as Unit
-    }
-
-    fun denseAxpyArithmetic(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
-        denseAxpyArithmetic.invokeExact(
-            MemorySegment.ofArray(y),
-            yOff,
-            alpha,
-            MemorySegment.ofArray(x),
-            xOff,
-            len,
-        ) as Unit
-    }
-
-    fun denseScale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
-        denseScale.invokeExact(MemorySegment.ofArray(v), vOff, alpha, len) as Unit
-    }
-
     fun denseNrm2(v: DoubleArray, vOff: Int, len: Int): Double =
         denseNrm2.invokeExact(MemorySegment.ofArray(v), vOff, len) as Double
 
@@ -193,10 +120,6 @@ internal object JvmCKernelBindings {
 
     fun denseAsum(v: DoubleArray, vOff: Int, len: Int): Double =
         denseAsum.invokeExact(MemorySegment.ofArray(v), vOff, len) as Double
-
-    fun denseSwap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) {
-        denseSwap.invokeExact(MemorySegment.ofArray(a), aOff, MemorySegment.ofArray(b), bOff, len) as Unit
-    }
 
     @Suppress("LongParameterList")
     fun denseDot4(
@@ -222,34 +145,6 @@ internal object JvmCKernelBindings {
     }
 
     @Suppress("LongParameterList")
-    fun denseRotm(
-        x: DoubleArray,
-        xOff: Int,
-        xStride: Int,
-        y: DoubleArray,
-        yOff: Int,
-        yStride: Int,
-        len: Int,
-        h11: Double,
-        h12: Double,
-        h21: Double,
-        h22: Double,
-    ) {
-        denseRotm.invokeExact(
-            MemorySegment.ofArray(x),
-            xOff,
-            xStride,
-            MemorySegment.ofArray(y),
-            yOff,
-            yStride,
-            len,
-            h11,
-            h12,
-            h21,
-            h22,
-        ) as Unit
-    }
-
     fun sparseDotDense(indices: IntArray, values: DoubleArray, dense: DoubleArray): Double = sparseDotDense.invokeExact(
         MemorySegment.ofArray(indices),
         MemorySegment.ofArray(values),
