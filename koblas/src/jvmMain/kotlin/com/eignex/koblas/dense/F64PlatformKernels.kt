@@ -100,14 +100,10 @@ internal object Simd {
 
     /**
      * Run length from which four accumulators beat one, as a multiple of the lane width because the reduce
-     * that combines them is a fixed cost against a per-vector saving.
-     *
-     * Set where `jvmLevel1Benchmark` shows the win without argument rather than at the crossover: on four
-     * lanes the unrolled form runs about 2x to 3x at 1024 and 4096, while unrolling every length is slower
-     * than not unrolling below 32 elements. The `LANE` scaling is reasoning, not measurement: only four
-     * lanes were measured.
+     * that combines them is a fixed cost against a per-vector saving. The measurement behind the multiplier
+     * is on [DenseTuning.simdUnrollMinVectors]; the lane count is the machine's and is applied here.
      */
-    private val UNROLL_MIN = 32 * LANE
+    private val UNROLL_MIN = DenseTuning.simdUnrollMinVectors * LANE
 
     /**
      * One accumulator chains every multiply-add on the previous one's result, and an FMA's latency is

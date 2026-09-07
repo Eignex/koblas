@@ -6,7 +6,9 @@ package com.eignex.koblas.internal.backend
  * them. Which platform honors which is up to that platform: there are no system properties outside the JVM.
  *
  * The keys that pin one backend half sit on [BackendSlot] beside the half they select, so a half cannot be
- * added without them.
+ * added without them. The dense cache block sizes and dispatch crossovers are keyed the same way and sit on
+ * their entries in `DenseTuning`, where each key belongs beside the default it overrides and the
+ * measurement that chose that default.
  */
 internal object ConfigurationKeys {
     /** Selects indexed JVM Vector API stores for sparse kernels. */

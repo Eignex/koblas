@@ -213,20 +213,20 @@ internal class F64RoutedKernels(internal val host: F64Kernels?) :
     override val priority: Int get() = host?.priority ?: F64PlatformKernels.priority
 
     /**
-     * Crossing the host boundary costs more than the Level-1 work below this size. The Level1Benchmark
-     * scalar/host runs at 63, 64, and 65 elements put the crossover at 64 for every routed primitive.
-     * Keep these per-operation constants: a future measurement can move one without silently changing the
-     * others.
+     * Crossing the host boundary costs more than the Level-1 work below this size, per operation so that a
+     * future measurement can move one without silently changing the others. The measurement behind them is
+     * on [DenseTuning.hostDotCrossover]; they are bound here so the comparison each routine makes reads a
+     * field of this class rather than reaching through the tuning object on every call.
      */
     private companion object {
-        const val DOT_HOST_CROSSOVER = 64
-        const val AXPY_HOST_CROSSOVER = 64
-        const val SCALE_HOST_CROSSOVER = 64
-        const val NRM2_HOST_CROSSOVER = 64
-        const val ASUM_HOST_CROSSOVER = 64
-        const val SWAP_HOST_CROSSOVER = 64
-        const val ROT_HOST_CROSSOVER = 64
-        const val ROTM_HOST_CROSSOVER = 64
+        val DOT_HOST_CROSSOVER = DenseTuning.hostDotCrossover
+        val AXPY_HOST_CROSSOVER = DenseTuning.hostAxpyCrossover
+        val SCALE_HOST_CROSSOVER = DenseTuning.hostScaleCrossover
+        val NRM2_HOST_CROSSOVER = DenseTuning.hostNrm2Crossover
+        val ASUM_HOST_CROSSOVER = DenseTuning.hostAsumCrossover
+        val SWAP_HOST_CROSSOVER = DenseTuning.hostSwapCrossover
+        val ROT_HOST_CROSSOVER = DenseTuning.hostRotCrossover
+        val ROTM_HOST_CROSSOVER = DenseTuning.hostRotmCrossover
     }
 
     /**

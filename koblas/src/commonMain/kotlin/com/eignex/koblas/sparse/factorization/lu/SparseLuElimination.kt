@@ -1,6 +1,7 @@
 package com.eignex.koblas.sparse.factorization.lu
 
 import com.eignex.koblas.sparse.F64SparseDecompositions
+import com.eignex.koblas.sparse.SparseTuning
 import com.eignex.koblas.sparse.internal.*
 import kotlin.math.abs
 
@@ -27,8 +28,11 @@ internal fun largestMagnitude(rows: Array<MutableIntDoubleMap>): Double {
  *  sacrifices numerical stability. */
 internal const val PIVOT_THRESHOLD = 0.1
 
-/** Candidate-bearing columns to examine before settling for the best pivot found (Suhl and Suhl). */
-internal const val MAX_CANDIDATE_COLS = 4
+/**
+ * Candidate-bearing columns to examine before settling for the best pivot found (Suhl and Suhl). What the
+ * width trades against what is on [SparseTuning.luMaxCandidateColumns].
+ */
+internal val MAX_CANDIDATE_COLS = SparseTuning.luMaxCandidateColumns
 
 /**
  * @param u the row maps being eliminated.
