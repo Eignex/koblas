@@ -1,6 +1,7 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.core.*
+import kotlin.jvm.JvmInline
 
 /** Operands whose shapes do not fit the routine. */
 public class DimensionMismatch(message: String) : IllegalArgumentException(message)
@@ -67,8 +68,29 @@ internal fun requireSolveShapes(rows: Int, cols: Int, b: F64DenseMatrix, out: F6
     }
 }
 
-/** The lengths a gemv's operands must have, for a caller that needs them after the check. */
-internal class GemvShape(val inputs: Int, val outputs: Int)
+/**
+ * The lengths a gemv's operands must have, for a caller that needs them after the check.
+ *
+ * Both extents ride in one `Long` so the check hands them back without a heap object. A record here would
+ * be allocated on every gemv, which the JVM removes only once the caller has reached the top compilation
+ * tier and Kotlin/Native never removes.
+ */
+@JvmInline
+internal value class GemvShape(private val packed: Long) {
+    constructor(inputs: Int, outputs: Int) : this(packExtents(inputs, outputs))
+
+    val inputs: Int get() = firstExtent(packed)
+    val outputs: Int get() = secondExtent(packed)
+}
+
+private fun packExtents(first: Int, second: Int): Long =
+    (first.toLong() shl Int.SIZE_BITS) or (second.toLong() and INT_MASK)
+
+private fun firstExtent(packed: Long): Int = (packed ushr Int.SIZE_BITS).toInt()
+
+private fun secondExtent(packed: Long): Int = packed.toInt()
+
+private const val INT_MASK = 0xFFFF_FFFFL
 
 /**
  * The operand lengths a gemv of a [rows] by [cols] matrix implies, checked against the [x] and [y] given.
@@ -88,7 +110,11 @@ internal fun requireGemvShape(rows: Int, cols: Int, transpose: Boolean, x: Int, 
 internal fun requireGemvShape(a: F64MatrixLike, transpose: Boolean, x: Int, y: Int): GemvShape =
     requireGemvShape(a.rows, a.cols, transpose, x, y)
 
-/** The extents a gemm derives from its operands: `op(A)` is [m] by [k] and `op(B)` is [k] by [n]. */
+/**
+ * The extents a gemm derives from its operands: `op(A)` is [m] by [k] and `op(B)` is [k] by [n].
+ *
+ * Three extents do not fit one `Long` the way [GemvShape] packs two, and a gemm's work dwarfs one record.
+ */
 internal data class GemmShape(val m: Int, val k: Int, val n: Int)
 
 /**
@@ -128,8 +154,21 @@ internal fun requireGemmShape(
     return GemmShape(m, k, n)
 }
 
-/** The order and depth a `syrk` or `syr2k` works over, after checking C against them. */
-internal data class SyrkShape(val order: Int, val depth: Int)
+/**
+ * The order and depth a `syrk` or `syr2k` works over, after checking C against them.
+ *
+ * Packed into one `Long` for the same reason as [GemvShape]: a syrk sits on per-observation update paths.
+ */
+@JvmInline
+internal value class SyrkShape(private val packed: Long) {
+    constructor(order: Int, depth: Int) : this(packExtents(order, depth))
+
+    val order: Int get() = firstExtent(packed)
+    val depth: Int get() = secondExtent(packed)
+
+    operator fun component1(): Int = order
+    operator fun component2(): Int = depth
+}
 
 /** [SyrkShape] for [a] under [transpose], having checked that C is square and matches the order. */
 internal fun requireSyrkShape(a: F64DenseMatrix, transpose: Boolean, c: F64DenseMatrix, what: String): SyrkShape {
