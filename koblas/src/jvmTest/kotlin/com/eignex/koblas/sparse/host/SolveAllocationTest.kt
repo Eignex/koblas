@@ -98,10 +98,14 @@ class SolveAllocationTest {
         const val SMALL = 64
         const val LARGE = 512
 
-        /** Enough for the counter to settle without making a measurement of five bindings a slow suite. */
         const val ITERATIONS = 2000
-        const val WARMUP = 500
         const val WINDOWS = 3
+
+        /**
+         * Tiered compilation reaches the top tier somewhere around ten thousand invocations, and a figure
+         * read below that is of code still on its way there rather than of the code a caller runs.
+         */
+        const val WARMUP = 20_000
 
         /** Comfortably above the few hundred bytes a wrapper costs, and far below anything tracking [LARGE]. */
         const val CEILING = 1024.0
