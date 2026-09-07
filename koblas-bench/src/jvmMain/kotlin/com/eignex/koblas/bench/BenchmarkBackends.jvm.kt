@@ -9,6 +9,10 @@ import com.eignex.koblas.koblas
 // back and every half is installed explicitly.
 internal actual fun useHost(): Boolean = installHost(HostBlasConfig())
 
+// Read from the binding rather than written out, so the name an arm is checked against is the one the
+// backend reports.
+internal actual val hostBackendName: String get() = F64Backends(HostBlasConfig()).blas.name
+
 private fun installHost(config: HostBlasConfig): Boolean {
     val backends = F64Backends(config)
     if (!backends.blas.isAvailable) return false
