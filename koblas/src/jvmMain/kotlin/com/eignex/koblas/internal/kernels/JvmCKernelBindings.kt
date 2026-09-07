@@ -3,7 +3,6 @@ package com.eignex.koblas.internal.kernels
 import com.eignex.koblas.internal.host.FfmLibrary
 import java.lang.foreign.MemorySegment
 import java.lang.foreign.ValueLayout.ADDRESS
-import java.lang.foreign.ValueLayout.JAVA_DOUBLE
 import java.lang.foreign.ValueLayout.JAVA_INT
 import java.nio.file.Files
 import java.nio.file.Path
@@ -19,11 +18,6 @@ internal object JvmCKernelBindings {
         "koblas_dense_asum",
         "koblas_dense_dot4",
         "koblas_sparse_dot_dense",
-        "koblas_sparse_dot_sparse",
-        "koblas_sparse_axpy",
-        "koblas_sparse_scatter",
-        "koblas_sparse_gather",
-        "koblas_sparse_gather_zero",
     )
     private val library: FfmLibrary? = loadLibraryOrNull()
 
@@ -68,36 +62,6 @@ internal object JvmCKernelBindings {
         requiredLibrary().handle(
             "koblas_sparse_dot_dense",
             FfmLibrary.doubleOf(ADDRESS, ADDRESS, JAVA_INT, ADDRESS),
-        )
-    }
-    private val sparseDotSparse by lazy {
-        requiredLibrary().handle(
-            "koblas_sparse_dot_sparse",
-            FfmLibrary.doubleOf(ADDRESS, ADDRESS, JAVA_INT, ADDRESS, ADDRESS, JAVA_INT),
-        )
-    }
-    private val sparseAxpy by lazy {
-        requiredLibrary().handle(
-            "koblas_sparse_axpy",
-            FfmLibrary.voidOf(ADDRESS, ADDRESS, JAVA_INT, JAVA_DOUBLE, ADDRESS),
-        )
-    }
-    private val sparseScatter by lazy {
-        requiredLibrary().handle(
-            "koblas_sparse_scatter",
-            FfmLibrary.voidOf(ADDRESS, ADDRESS, JAVA_INT, ADDRESS),
-        )
-    }
-    private val sparseGather by lazy {
-        requiredLibrary().handle(
-            "koblas_sparse_gather",
-            FfmLibrary.voidOf(ADDRESS, ADDRESS, JAVA_INT, ADDRESS),
-        )
-    }
-    private val sparseGatherZero by lazy {
-        requiredLibrary().handle(
-            "koblas_sparse_gather_zero",
-            FfmLibrary.voidOf(ADDRESS, ADDRESS, JAVA_INT, ADDRESS),
         )
     }
 
@@ -151,53 +115,6 @@ internal object JvmCKernelBindings {
         indices.size,
         MemorySegment.ofArray(dense),
     ) as Double
-
-    fun sparseDotSparse(aIndices: IntArray, aValues: DoubleArray, bIndices: IntArray, bValues: DoubleArray): Double =
-        sparseDotSparse.invokeExact(
-            MemorySegment.ofArray(aIndices),
-            MemorySegment.ofArray(aValues),
-            aIndices.size,
-            MemorySegment.ofArray(bIndices),
-            MemorySegment.ofArray(bValues),
-            bIndices.size,
-        ) as Double
-
-    fun sparseAxpy(indices: IntArray, values: DoubleArray, alpha: Double, dense: DoubleArray) {
-        sparseAxpy.invokeExact(
-            MemorySegment.ofArray(indices),
-            MemorySegment.ofArray(values),
-            indices.size,
-            alpha,
-            MemorySegment.ofArray(dense),
-        ) as Unit
-    }
-
-    fun sparseScatter(indices: IntArray, values: DoubleArray, dense: DoubleArray) {
-        sparseScatter.invokeExact(
-            MemorySegment.ofArray(indices),
-            MemorySegment.ofArray(values),
-            indices.size,
-            MemorySegment.ofArray(dense),
-        ) as Unit
-    }
-
-    fun sparseGather(indices: IntArray, values: DoubleArray, dense: DoubleArray) {
-        sparseGather.invokeExact(
-            MemorySegment.ofArray(indices),
-            MemorySegment.ofArray(values),
-            indices.size,
-            MemorySegment.ofArray(dense),
-        ) as Unit
-    }
-
-    fun sparseGatherZero(indices: IntArray, values: DoubleArray, dense: DoubleArray) {
-        sparseGatherZero.invokeExact(
-            MemorySegment.ofArray(indices),
-            MemorySegment.ofArray(values),
-            indices.size,
-            MemorySegment.ofArray(dense),
-        ) as Unit
-    }
 
     private fun loadLibraryOrNull(): FfmLibrary? = try {
         val extractedLibrary = extractLibrary()
