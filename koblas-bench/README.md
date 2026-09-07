@@ -26,10 +26,30 @@ For local A/B work:
   -Pbench.param.backend=reference,host
 ```
 
-`automatic` measures normal production discovery, `reference` installs the
-portable implementation, and `host` explicitly installs a host backend and
-fails if unavailable. The report profile compares `automatic` with `reference`
-for backend benchmarks and with `scalar` for kernel benchmarks.
+### Arms
+
+`automatic` measures normal production discovery. On a machine with a host
+library installed, discovery selects it, so `automatic` **is** the host backend
+and is never the portable arm. Reading it as the portable side of a comparison
+puts the same library on both sides and produces a table that means nothing.
+
+The arms that pin an implementation are `reference` for the portable matrix
+routines, `scalar`, `c` and `simd` for a single built-in kernel provider, and
+`host` for the host binding. A comparison of portable against host has to pin
+both sides: `-Pbench.param.backend=reference,host` for matrix routines and
+`-Pbench.param.kernels=simd,host` for kernels.
+
+`simd` is absent from every `@Param` list because Kotlin/Native has no such
+provider and a benchmark configuration covers every target, so a full native
+run would ask for one that cannot exist. Pass it explicitly on the JVM.
+
+Every arm checks what it actually resolved to and fails when that is not what
+the arm names, so a run cannot quietly credit an implementation that never
+executed. Each install prints one `resolved: arm=...` line naming the arm and
+the halves behind it, and `report.sh` collects those lines into the report.
+
+The report profile compares `automatic` with `reference` for backend benchmarks
+and with `scalar` for kernel benchmarks.
 
 ## Troubleshooting and maintenance
 
