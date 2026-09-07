@@ -19,10 +19,9 @@ internal object F64CKernels : F64Kernels, F64ArithmeticKernels {
      * work the JIT would have finished already.
      *
      * Measured on `Level1Benchmark` with these constants temporarily set to zero, so the C arm really
-     * crosses rather than falling back to the same portable code the scalar arm runs. Each is the shortest
-     * measured length where the C kernel leads beyond both error bars: nrm2 at 64, sum and asum at 96, dot
-     * at 128, ssqd at 256, dot4 at 512. Past its crossover each pulls away, the plain reductions reaching
-     * 2.8x to 4.1x by 2048 and dot4 holding about 1.45x from 256 upward.
+     * crosses rather than falling back to the same portable code the scalar arm runs. Across three runs the
+     * four plain reductions are level or behind at 64 and ahead at 128, and ssqd, which reads two operands,
+     * only separates at 256. Past its crossover each pulls away, reaching 2.8x to 4.1x by 2048.
      *
      * Only reductions appear here. HotSpot will not vectorise a floating-point reduction, since splitting
      * the sum across lanes reorders the additions and changes the result, so those loops run an element at
@@ -34,16 +33,19 @@ internal object F64CKernels : F64Kernels, F64ArithmeticKernels {
      * than a foreign call.
      */
     private const val DOT_C_CROSSOVER = 128
-    private const val SUM_C_CROSSOVER = 96
+    private const val SUM_C_CROSSOVER = 128
     private const val SSQD_C_CROSSOVER = 256
-    private const val NRM2_C_CROSSOVER = 64
-    private const val ASUM_C_CROSSOVER = 96
+    private const val NRM2_C_CROSSOVER = 128
+    private const val ASUM_C_CROSSOVER = 128
 
     /**
      * Four dots share one pass over the shared operand, so the same foreign call covers four runs of this
-     * length. The point estimate leads from 96 upward and holds about 1.45x, but the JIT arm varies enough
+     * length. The point estimate leads from 256 upward and holds about 1.4x, but the JIT arm varies enough
      * that 512 is the shortest length where the two separate beyond their error bars, which is the same
      * criterion the other crossovers use.
+     *
+     * This is the one kernel the AVX2 clones in `koblas_kernels.h` leave alone, since the wider registers
+     * cost it 1.7x, so what it crosses into here is the baseline build.
      */
     private const val DOT4_C_CROSSOVER = 512
 

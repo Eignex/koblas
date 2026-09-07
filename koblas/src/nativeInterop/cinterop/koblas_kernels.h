@@ -4,10 +4,44 @@
 #include <math.h>
 #include <stdint.h>
 
+/*
+ * The shared library the JVM loads is built once and shipped to unknown machines, so it cannot be compiled
+ * for a wide instruction set outright. Without a target flag the compiler assumes only the x86-64 baseline,
+ * which is SSE2, and every loop here vectorises two doubles at a time while the JIT it competes against
+ * emits four. target_clones resolves that: the compiler emits a baseline version and an AVX2 version of
+ * each kernel and picks between them once, through an ifunc resolver, the first time the symbol is called.
+ * A machine without AVX2 runs exactly what it ran before.
+ *
+ * Both clones return the same bits. The accumulator structure below is written out in the source, so which
+ * additions are grouped together is fixed there rather than chosen by the vectoriser, and a wider register
+ * holds the same four accumulators in one place instead of two. A result therefore does not depend on which
+ * clone the machine resolved to.
+ *
+ * KOBLAS_KERNEL_BASELINE opts a kernel out. Only koblas_dense_dot4 uses it: timed against its own baseline
+ * at 512 and 2048 elements the AVX2 clone runs 1.7 times slower, the one kernel here that the wider
+ * registers hurt. It carries five live streams, four strided rows against one shared operand, and at twice
+ * the register width they no longer fit. Every other kernel gains or is unchanged, so the exception is
+ * per-kernel rather than a reason to drop the clones.
+ *
+ * Only x86-64 ELF takes the clones. Aarch64 has no equivalent split, since NEON is baseline there and the
+ * next step up is SVE, which needs different code rather than the same code widened. Mach-O has no ifunc.
+ * Kotlin/Native compiles this header as static inline through its own toolchain rather than linking the
+ * shared library, so it stays on the baseline: widening it would mean pinning the published Native
+ * artifacts to a newer instruction set than they target today.
+ */
 #if defined(KOBLAS_KERNELS_IMPLEMENTATION)
+#if defined(__x86_64__) && defined(__ELF__) && \
+    ((defined(__clang__) && __clang_major__ >= 14) || \
+     (defined(__GNUC__) && !defined(__clang__) && __GNUC__ >= 6))
+#define KOBLAS_KERNEL \
+    __attribute__((visibility("default"))) __attribute__((target_clones("avx2", "default")))
+#else
 #define KOBLAS_KERNEL __attribute__((visibility("default")))
+#endif
+#define KOBLAS_KERNEL_BASELINE __attribute__((visibility("default")))
 #else
 #define KOBLAS_KERNEL static inline
+#define KOBLAS_KERNEL_BASELINE static inline
 #endif
 
 /*
@@ -198,7 +232,7 @@ KOBLAS_KERNEL void koblas_dense_swap(
     }
 }
 
-KOBLAS_KERNEL void koblas_dense_dot4(
+KOBLAS_KERNEL_BASELINE void koblas_dense_dot4(
     const double *a, int32_t a_off, int32_t stride, const double *b, int32_t b_off,
     int32_t len, double *out, int32_t out_off
 ) {
