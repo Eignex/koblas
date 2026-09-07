@@ -7,6 +7,7 @@ import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
+import com.eignex.koblas.testutil.allocation.bytesPerIteration
 import com.eignex.koblas.testutil.host.HostLibraryTest
 import org.junit.Assume
 import org.junit.experimental.categories.Category
@@ -123,6 +124,30 @@ class SpqrQrTest {
                 workspace,
                 allocationPolicy = AllocationPolicy.REQUIRE_NO_MANAGED,
             )
+        }
+    }
+
+    /**
+     * The contract test above reads what the factorization declares. This reads what it does, which is the
+     * only thing that makes [AllocationGuarantee.NO_MANAGED] a claim rather than an assertion: SPQR solves
+     * in Kotlin over the factor data it retained, so with the scratch reserved there is nothing left to
+     * allocate and the figure is zero rather than merely bounded.
+     */
+    @Test
+    fun `a solve with reserved scratch allocates nothing`() {
+        requireSpqr()
+        val a = tall(240, 80, Random(20260908))
+        val b = DoubleArray(240) { it.toDouble() }
+
+        assertNotNull(spqr.factor(a)).use { qr ->
+            val workspace = Workspace().also { ws -> qr.solveAllocation().scratch.forEach(ws::reserve) }
+            val out = DoubleArray(80)
+
+            val bytes = bytesPerIteration(iterations = 2000, warmup = 500, windows = 3) {
+                qr.solveInto(b, out, workspace)
+            }
+
+            assertEquals(0.0, bytes, "a declared NO_MANAGED solve measured $bytes bytes a call")
         }
     }
 
