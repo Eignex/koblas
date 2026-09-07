@@ -95,20 +95,6 @@ jobs:
           path: koblas-openblas/build/openblas
           key: release-openblas-${{ runner.os }}-${{ runner.arch }}-${{ matrix.platform }}-${{ hashFiles('koblas-openblas/openblas.lock', 'scripts/build-openblas.sh', 'scripts/third-party-notices.sh') }}
 
-      - name: Cache bundled SuiteSparse resources
-        id: cache-suitesparse
-        uses: actions/cache@v5
-        with:
-          path: koblas-suitesparse/build/suitesparse
-          key: release-suitesparse-${{ runner.os }}-${{ runner.arch }}-${{ matrix.platform }}-${{ hashFiles('koblas-suitesparse/suitesparse.lock', 'scripts/build-suitesparse.sh', 'koblas-openblas/openblas.lock', 'scripts/build-openblas.sh', 'scripts/third-party-notices.sh') }}
-
-      - name: Cache bundled BASICLU resources
-        id: cache-basiclu
-        uses: actions/cache@v5
-        with:
-          path: koblas-basiclu/build/basiclu
-          key: release-basiclu-${{ runner.os }}-${{ runner.arch }}-${{ matrix.platform }}-${{ hashFiles('koblas-basiclu/basiclu.lock', 'koblas-basiclu/native/basiclu_shim.c', 'scripts/build-basiclu.sh', 'scripts/third-party-notices.sh') }}
-
       - name: Cache bundled HFactor resources
         id: cache-hfactor
         uses: actions/cache@v5
@@ -127,43 +113,6 @@ jobs:
         with:
           name: openblas-${{ matrix.platform }}
           path: koblas-openblas/build/openblas/resources
-          include-hidden-files: true
-          if-no-files-found: error
-
-      - name: Build bundled SuiteSparse
-        if: steps.cache-suitesparse.outputs.cache-hit != 'true' && steps.cache-openblas.outputs.cache-hit == 'true'
-        run: >-
-          ./gradlew --no-build-cache --no-configuration-cache --rerun-tasks
-          :koblas-suitesparse:buildSuiteSparse -x :koblas-openblas:buildOpenBlas
-          -Pkoblas.suitesparse.platform=${{ matrix.platform }}
-          -Pkoblas.openblas.platform=${{ matrix.platform }}
-
-      - name: Build bundled SuiteSparse with OpenBLAS
-        if: steps.cache-suitesparse.outputs.cache-hit != 'true' && steps.cache-openblas.outputs.cache-hit != 'true'
-        run: >-
-          ./gradlew --no-build-cache --no-configuration-cache --rerun-tasks
-          :koblas-suitesparse:buildSuiteSparse -Pkoblas.suitesparse.platform=${{ matrix.platform }}
-          -Pkoblas.openblas.platform=${{ matrix.platform }}
-
-      - name: Upload bundled SuiteSparse resources
-        uses: actions/upload-artifact@v7
-        with:
-          name: suitesparse-${{ matrix.platform }}
-          path: koblas-suitesparse/build/suitesparse/resources
-          include-hidden-files: true
-          if-no-files-found: error
-
-      - name: Build bundled BASICLU
-        if: steps.cache-basiclu.outputs.cache-hit != 'true'
-        run: >-
-          ./gradlew --no-build-cache --no-configuration-cache --rerun-tasks
-          :koblas-basiclu:buildBasiclu -Pkoblas.basiclu.platform=${{ matrix.platform }}
-
-      - name: Upload bundled BASICLU resources
-        uses: actions/upload-artifact@v7
-        with:
-          name: basiclu-${{ matrix.platform }}
-          path: koblas-basiclu/build/basiclu/resources
           include-hidden-files: true
           if-no-files-found: error
 
@@ -276,20 +225,6 @@ jobs:
           path: koblas-openblas/build/openblas/resources
           merge-multiple: true
 
-      - name: Download bundled SuiteSparse resources
-        uses: actions/download-artifact@v8
-        with:
-          pattern: suitesparse-*
-          path: koblas-suitesparse/build/suitesparse/resources
-          merge-multiple: true
-
-      - name: Download bundled BASICLU resources
-        uses: actions/download-artifact@v8
-        with:
-          pattern: basiclu-*
-          path: koblas-basiclu/build/basiclu/resources
-          merge-multiple: true
-
       - name: Download bundled HFactor resources
         uses: actions/download-artifact@v8
         with:
@@ -342,11 +277,8 @@ jobs:
 
       - name: Verify bundled native resources
         run: >-
-          ./gradlew :koblas-openblas:verifyOpenBlasResources
-          :koblas-suitesparse:verifySuiteSparseResources :koblas-basiclu:verifyBasicluResources
-          :koblas-hfactor:verifyHfactorResources
-          -x :koblas-openblas:buildOpenBlas -x :koblas-suitesparse:buildSuiteSparse
-          -x :koblas-basiclu:buildBasiclu -x :koblas-hfactor:buildHfactor
+          ./gradlew :koblas-openblas:verifyOpenBlasResources :koblas-hfactor:verifyHfactorResources
+          -x :koblas-openblas:buildOpenBlas -x :koblas-hfactor:buildHfactor
 
       - name: Verify core JVM kernels
         run: ./gradlew :koblas:verifyJvmKernelResources -Pkoblas.kernels.prebuilt=true
@@ -356,8 +288,7 @@ jobs:
         run: >-
           ./gradlew build -PciVersion=${{ env.RELEASE_VERSION }}
           -Pkoblas.kernels.prebuilt=true
-          -x :koblas-openblas:buildOpenBlas -x :koblas-suitesparse:buildSuiteSparse
-          -x :koblas-basiclu:buildBasiclu -x :koblas-hfactor:buildHfactor
+          -x :koblas-openblas:buildOpenBlas -x :koblas-hfactor:buildHfactor
 
       - name: Upload test reports
         if: always() && env.IS_SNAPSHOT == 'false'
@@ -379,8 +310,7 @@ jobs:
         run: >-
           ./gradlew publishAllPublicationsToMavenCentralStagingRepository
           -PciVersion=${{ env.RELEASE_VERSION }} -Pkoblas.kernels.prebuilt=true
-          -x :koblas-openblas:buildOpenBlas -x :koblas-suitesparse:buildSuiteSparse
-          -x :koblas-basiclu:buildBasiclu -x :koblas-hfactor:buildHfactor
+          -x :koblas-openblas:buildOpenBlas -x :koblas-hfactor:buildHfactor
 
       - name: Substitute the host-built macOS Native publication
         if: env.IS_SNAPSHOT == 'false' && env.DRY_RUN != 'true'
@@ -403,8 +333,7 @@ jobs:
         run: >-
           ./gradlew publishAllPublicationsToSonatypeSnapshotsRepository -PciVersion=${{ env.RELEASE_VERSION }}
           -Pkoblas.kernels.prebuilt=true
-          -x :koblas-openblas:buildOpenBlas -x :koblas-suitesparse:buildSuiteSparse
-          -x :koblas-basiclu:buildBasiclu -x :koblas-hfactor:buildHfactor
+          -x :koblas-openblas:buildOpenBlas -x :koblas-hfactor:buildHfactor
           -x :koblas:publishMacosArm64PublicationToSonatypeSnapshotsRepository
 
       - name: Detect pre-release

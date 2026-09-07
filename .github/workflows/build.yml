@@ -51,11 +51,11 @@ jobs:
 
       # linuxX64Test is excluded so this job needs no host libraries at all. Its native suites are the only
       # thing here that would touch them: the JVM side pins `koblas.backend=reference` and filters the
-      # HostLibraryTest category out, and CblasConformanceTest and UmfpackNativeConformanceTest both require
-      # their library rather than skipping, since Kotlin/Native has no Assume and a skipped suite reads as
-      # green. test-host-libraries already runs linuxX64Test with the libraries installed, so nothing is
-      # lost, and Kover measures the JVM only so coverage is unaffected. Not installing them keeps a slow
-      # package mirror from being able to stall this job.
+      # HostLibraryTest category out, and CblasConformanceTest requires its library rather than skipping,
+      # since Kotlin/Native has no Assume and a skipped suite reads as green. test-host-libraries already
+      # runs linuxX64Test with the library installed, so nothing is lost, and Kover measures the JVM only so
+      # coverage is unaffected. Not installing it keeps a slow package mirror from being able to stall this
+      # job.
       - name: Run tests with coverage
         run: ./gradlew :koblas:check :koblas-bench:check :koblas:koverXmlReport -x :koblas:linuxX64Test
 
@@ -117,8 +117,7 @@ jobs:
 
       - name: Build and test the bundled native packages
         run: >-
-          ./gradlew :koblas-basiclu:check :koblas-hfactor:check
-          :koblas-openblas:check :koblas-suitesparse:check
+          ./gradlew :koblas-hfactor:check :koblas-openblas:check
 
       - name: Upload test reports
         if: always()
@@ -126,26 +125,22 @@ jobs:
         with:
           name: test-reports-bundled-native
           path: |
-            koblas-basiclu/build/reports/tests/
-            koblas-basiclu/build/test-results/
             koblas-hfactor/build/reports/tests/
             koblas-hfactor/build/test-results/
             koblas-openblas/build/reports/tests/
             koblas-openblas/build/test-results/
-            koblas-suitesparse/build/reports/tests/
-            koblas-suitesparse/build/test-results/
           if-no-files-found: ignore
 
   # The default job pins `koblas.backend=reference` and filters the HostLibraryTest category out, so the
-  # OpenBLAS and SuiteSparse bindings — which auto-register in any JVM/Linux consumer process — are never
-  # exercised there. This job is the one that runs them.
+  # OpenBLAS bindings, which auto-register in any JVM/Linux consumer process, are never exercised there.
+  # This job is the one that runs them.
   #
   # Kept separate rather than folded into `test` because these measure the machine as much as the library,
-  # so a box without SuiteSparse would report a different everyday result. Coverage is collected here too and
+  # so a box without OpenBLAS would report a different everyday result. Coverage is collected here too and
   # uploaded under its own flags; codecov takes the union across a commit's uploads, which is what makes the
   # bindings count. Both configurations upload, since the SIMD one cannot reach the level-2 bindings at all.
   test-host-libraries:
-    name: Run tests against the host BLAS and SuiteSparse
+    name: Run tests against the host BLAS
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -177,8 +172,7 @@ jobs:
       - name: Grant execute permission for Gradle
         run: chmod +x gradlew
 
-      # Both backends dlopen by soname, so the runtime libraries are what matter. libsuitesparse-dev is
-      # named the same across releases where the versioned runtime package (libumfpack5/6) is not.
+      # The binding dlopens by soname, so the runtime libraries are what matter.
       #
       # Cached as .deb files, so a hit installs with no mirror access at all. Keyed on the image as well as
       # the package list: ubuntu-latest moves between releases, and unpacking one release's debs on another
@@ -188,7 +182,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/host-packages
-          key: host-packages-${{ runner.os }}-${{ env.ImageOS }}-openblas-lapacke-suitesparse-v1
+          key: host-packages-${{ runner.os }}-${{ env.ImageOS }}-openblas-lapacke-v1
 
       # Generous on purpose: a slow mirror should cost time, never a red build. Observed downloads run 11 to
       # 18 seconds normally, 117 to 156 seconds on a degraded mirror that still works, and sometimes hang
@@ -198,11 +192,11 @@ jobs:
       #
       # Only the download is bounded and retried. Unpacking is local and cannot hang on the network, and on a
       # cache hit nothing is downloaded at all.
-      - name: Install OpenBLAS and SuiteSparse
+      - name: Install OpenBLAS
         timeout-minutes: 30
         run: |
           set -eu
-          packages="libopenblas0 liblapacke libsuitesparse-dev"
+          packages="libopenblas0 liblapacke"
           cache="$HOME/host-packages"
           # The runner's mirrorlist leads with azure.archive.ubuntu.com, which has been unreachable: apt waits
           # on it for every index file, logs Ign, and only then falls back to archive.ubuntu.com, which answers
@@ -244,10 +238,10 @@ jobs:
 
       # Fail here rather than let the tests pass over an absent library: the native tests return early
       # when dlopen finds nothing, which is indistinguishable from success in a report.
-      - name: Verify the sonames the bindings look for
+      - name: Verify the soname the binding looks for
         run: |
           set -eu
-          for soname in libopenblas.so.0 libumfpack.so; do
+          for soname in libopenblas.so.0; do
             if ! ldconfig -p | grep -q "$soname"; then
               echo "::error::$soname is not on the loader path; the bindings would silently fall back"
               exit 1
@@ -289,7 +283,7 @@ jobs:
         if: always()
         run: |
           set -eu
-          files=$(find koblas/build/test-results -name 'TEST-*.xml' | grep -Ei 'umfpack|cblas|hostblas' || true)
+          files=$(find koblas/build/test-results -name 'TEST-*.xml' | grep -Ei 'cblas|hostblas' || true)
           if [ -z "$files" ]; then
             echo "::error::no host-library test results were produced"
             exit 1
@@ -369,10 +363,10 @@ jobs:
       - name: Run the Maven OpenBLAS bundle tests without host libraries
         run: ./gradlew :koblas-openblas:test
 
-      # macosTest depends on hostSparseTest as well as hostBlasTest, so this job runs the UMFPACK suite
-      # too — and that suite requires its library rather than skipping without it.
-      - name: Install OpenBLAS and SuiteSparse
-        run: brew install openblas suite-sparse
+      # macosTest runs hostBlasTest, whose CblasConformanceTest requires its library rather than skipping
+      # without it.
+      - name: Install OpenBLAS
+        run: brew install openblas
 
       - name: Run native tests
         run: ./gradlew :koblas:macosArm64Test
