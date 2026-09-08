@@ -565,6 +565,8 @@ KOBLAS_KERNEL void koblas_sparse_gather_zero(
     }
 }
 
+#include "koblas_packed_trsm.h"
+
 #undef KOBLAS_KERNEL
 #if defined(KOBLAS_KERNELS_IMPLEMENTATION)
 #pragma GCC visibility pop
