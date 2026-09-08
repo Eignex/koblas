@@ -102,15 +102,48 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
     ) {
         val (n, k) = requireSyrkShape(a, transpose, c, "syrk")
         val cd = c.data
+        if (alpha == 0.0 || n == 0 || k == 0) {
+            scaleTriangle(kernels, cd, n, beta, lower)
+            return
+        }
+        val ad = a.data
+        if (ad === cd) {
+            workspace.borrow(ad.size) { copy ->
+                ad.copyInto(copy)
+                syrkFrom(alpha, copy, a.rows, transpose, beta, cd, n, k, lower, workspace)
+            }
+            return
+        }
+        syrkFrom(alpha, ad, a.rows, transpose, beta, cd, n, k, lower, workspace)
+    }
+
+    /** Implements [syrk] after an aliased operand has been snapshotted, if necessary. */
+    @Suppress("LongParameterList")
+    private fun syrkFrom(
+        alpha: Double,
+        ad: DoubleArray,
+        lda: Int,
+        transpose: Boolean,
+        beta: Double,
+        cd: DoubleArray,
+        n: Int,
+        k: Int,
+        lower: Boolean,
+        workspace: Workspace?,
+    ) {
         scaleTriangle(kernels, cd, n, beta, lower)
         if (alpha == 0.0 || n == 0 || k == 0) return
-        if (!transpose) {
-            blockedSyrkUpdate(kernels, alpha, a.data, cd, n, k, lower)
-        } else {
-            workspace.borrowTransposed(a.data, a.rows, a.cols) { packed ->
-                blockedSyrkUpdate(kernels, alpha, packed, cd, n, k, lower, guardZeroColumns = false)
-            }
+        // Netlib's non-transposed traversal skips a raw zero multiplier. With a non-finite value elsewhere
+        // in that rank-one column this is observable: the skipped zero does not multiply an infinity. A
+        // packed tile evaluates every pair, so retain the established outer-product traversal in precisely
+        // the cases where the distinction can matter. The transposed dot form has never had that guard.
+        if (!transpose && (!alpha.isFinite() || !ad.all { it.isFinite() })) {
+            blockedSyrkUpdate(kernels, alpha, ad, cd, n, k, lower)
+            return
         }
+        packedTriangularGemm(
+            kernels, alpha, ad, lda, transpose, ad, lda, !transpose, cd, n, k, lower, workspace,
+        )
     }
 
     @Suppress("LongParameterList") // the BLAS dsymv signature

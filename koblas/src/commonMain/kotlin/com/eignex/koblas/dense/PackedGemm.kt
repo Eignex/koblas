@@ -57,6 +57,55 @@ internal fun packedGemm(
     workspace: Workspace?,
     symmetricA: Boolean? = null,
     symmetricB: Boolean? = null,
+): Unit = packedProduct(
+    kernels, alpha, a, lda, transposeA, b, ldb, transposeB, c, m, n, k, workspace,
+    symmetricA, symmetricB, triangle = null,
+)
+
+/**
+ * Adds `alpha * op(A) * op(B)` into one triangle of [c], using the same packed panels as [packedGemm].
+ * Tiles outside the triangle are skipped, interior tiles write C directly, and diagonal tiles pass through
+ * scratch so only their selected entries are copied back.
+ */
+@Suppress("LongParameterList") // both operands, both transpose flags, three dimensions and the scratch
+internal fun packedTriangularGemm(
+    kernels: F64Kernels,
+    alpha: Double,
+    a: DoubleArray,
+    lda: Int,
+    transposeA: Boolean,
+    b: DoubleArray,
+    ldb: Int,
+    transposeB: Boolean,
+    c: DoubleArray,
+    order: Int,
+    k: Int,
+    lower: Boolean,
+    workspace: Workspace?,
+): Unit = packedProduct(
+    kernels, alpha, a, lda, transposeA, b, ldb, transposeB, c, order, order, k, workspace,
+    symmetricA = null, symmetricB = null, triangle = lower,
+)
+
+/** Shared blocking for rectangular and triangular packed products. */
+@Suppress("LongParameterList") // both operands, both transpose flags, three dimensions and the scratch
+private fun packedProduct(
+    kernels: F64Kernels,
+    alpha: Double,
+    a: DoubleArray,
+    lda: Int,
+    transposeA: Boolean,
+    b: DoubleArray,
+    ldb: Int,
+    transposeB: Boolean,
+    c: DoubleArray,
+    m: Int,
+    n: Int,
+    k: Int,
+    workspace: Workspace?,
+    symmetricA: Boolean?,
+    symmetricB: Boolean?,
+    triangle: Boolean?,
 ) {
     val rows = kernels.gemmTileRows
     val cols = kernels.gemmTileCols
@@ -87,7 +136,7 @@ internal fun packedGemm(
                             )
                             macroKernel(
                                 kernels, packedA, packedB, c, m,
-                                rowBlock, rowCount, columnBlock, columns, depth, tile,
+                                rowBlock, rowCount, columnBlock, columns, depth, tile, triangle,
                             )
                             rowBlock += rowCount
                         }
@@ -190,9 +239,9 @@ private fun packB(
 }
 
 /**
- * Walks the packed panels tile by tile. A full tile is accumulated straight into C; a short edge goes
- * through [tile] first, because the kernel writes its whole shape and the edge has fewer rows or columns
- * than that.
+ * Walks the packed panels tile by tile. A full selected tile is accumulated straight into C; a short edge
+ * or a tile crossing [triangle]'s diagonal goes through [tile] first, because the kernel writes its whole
+ * shape and the caller must discard either padding or entries from the unselected triangle.
  */
 @Suppress("LongParameterList") // both panels, the destination with its window, and the scratch tile
 private fun macroKernel(
@@ -207,6 +256,7 @@ private fun macroKernel(
     columns: Int,
     depth: Int,
     tile: DoubleArray,
+    triangle: Boolean?,
 ) {
     val rows = kernels.gemmTileRows
     val cols = kernels.gemmTileCols
@@ -218,8 +268,18 @@ private fun macroKernel(
         while (row < rowCount) {
             val presentRows = min(rows, rowCount - row)
             val aPanel = (row / rows) * depth * rows
-            val target = rowBlock + row + (columnBlock + column) * ldc
-            if (presentRows == rows && presentColumns == cols) {
+            val targetRow = rowBlock + row
+            val targetColumn = columnBlock + column
+            val lastRow = targetRow + presentRows - 1
+            val lastColumn = targetColumn + presentColumns - 1
+            val outside = triangle != null && if (triangle) lastRow < targetColumn else targetRow > lastColumn
+            if (outside) {
+                row += presentRows
+                continue
+            }
+            val inside = triangle == null || if (triangle) targetRow >= lastColumn else lastRow <= targetColumn
+            val target = targetRow + targetColumn * ldc
+            if (inside && presentRows == rows && presentColumns == cols) {
                 kernels.gemmTile(depth, packedA, aPanel, packedB, bPanel, c, target, ldc)
             } else {
                 tile.fill(0.0, 0, rows * cols)
@@ -227,7 +287,14 @@ private fun macroKernel(
                 for (q in 0 until presentColumns) {
                     val source = q * rows
                     val destination = target + q * ldc
-                    for (r in 0 until presentRows) c[destination + r] += tile[source + r]
+                    for (r in 0 until presentRows) {
+                        val selected = triangle == null || if (triangle) {
+                            targetRow + r >= targetColumn + q
+                        } else {
+                            targetRow + r <= targetColumn + q
+                        }
+                        if (selected) c[destination + r] += tile[source + r]
+                    }
                 }
             }
             row += presentRows
