@@ -92,8 +92,15 @@ class SparseLevel1ComparisonBenchmark {
         val identity = oneMkl?.identity ?: "built-in/${builtIn!!.name}"
         check(identity.startsWith(sparseArm)) { "sparse level-1 arm $sparseArm resolved $identity" }
         println("resolved: arm=$sparseArm sparseLevel1=$identity threading=${oneMkl?.threading ?: "single calling thread"}")
-        verifyNearZeroManagedAllocation("sparse-level1/$sparseArm/dot") {
-            oneMkl?.dot(sparse, dense.data) ?: builtIn!!.dot(sparse, dense.data)
+        if (oneMkl == null) {
+            verifyNearZeroManagedAllocation("sparse-level1/$sparseArm/dot") {
+                builtIn!!.dot(sparse, dense.data)
+            }
+        } else {
+            reportAllocatingWorkload(
+                "sparse-level1/$sparseArm/ffi",
+                "benchmark foreign-function boundary wrappers",
+            )
         }
     }
 

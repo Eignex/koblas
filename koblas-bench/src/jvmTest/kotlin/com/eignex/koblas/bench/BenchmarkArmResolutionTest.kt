@@ -91,6 +91,14 @@ class BenchmarkArmResolutionTest {
     }
 
     @Test
+    fun `the onemkl dense arm is benchmark owned and single threaded when available`() {
+        val comparator = oneMklDenseComparator() ?: return
+        assertTrue(comparator.identity.startsWith(ONEMKL_BACKEND))
+        assertEquals("1 thread", comparator.threading)
+        assertTrue(comparator !== koblas.blas)
+    }
+
+    @Test
     fun `external dense level one agrees with built in`() {
         val external = openBlasComparator() ?: return
         val context = explicitBuiltInContext()

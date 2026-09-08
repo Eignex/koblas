@@ -267,8 +267,8 @@ private class JvmCblasComparator private constructor(
                 listOf("libmkl_rt.so.2", "libmkl_rt.so", "libmkl_rt.dylib", "mkl_rt.2.dll", "mkl_rt.dll"),
                 "cblas_dgemm",
             )
-            return if (library.present && library.containsAll(required + "mkl_set_num_threads")) {
-                JvmCblasComparator(library, "onemkl/cblas", "mkl_set_num_threads")
+            return if (library.present && library.containsAll(required + "MKL_Set_Num_Threads")) {
+                JvmCblasComparator(library, "onemkl/cblas", "MKL_Set_Num_Threads")
             } else null
         }
     }
