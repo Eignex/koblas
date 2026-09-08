@@ -271,6 +271,59 @@ class LinearAlgebraSymmetricOpsTest {
         }
     }
 
+    @Test
+    fun `syrk preserves the netlib zero multiplier rule with infinities`() {
+        val blas = F64ReferenceBlas(F64ScalarKernels)
+        for (lower in booleanArrayOf(true, false)) {
+            val values = if (lower) {
+                doubleArrayOf(0.0, Double.POSITIVE_INFINITY)
+            } else {
+                doubleArrayOf(Double.POSITIVE_INFINITY, 0.0)
+            }
+            val row = if (lower) 1 else 0
+            val column = if (lower) 0 else 1
+
+            val outer = F64DenseMatrix(2, 2)
+            blas.syrk(1.0, F64DenseMatrix(2, 1, values.copyOf()), false, 0.0, outer, lower)
+            assertEquals(
+                0.0,
+                outer[row, column],
+                "lower=$lower non-transposed syrk multiplied a skipped zero by infinity",
+            )
+
+            val dot = F64DenseMatrix(2, 2)
+            blas.syrk(1.0, F64DenseMatrix(1, 2, values.copyOf()), true, 0.0, dot, lower)
+            assertTrue(dot[row, column].isNaN(), "lower=$lower transposed syrk skipped zero times infinity")
+        }
+    }
+
+    @Test
+    fun `syrk snapshots an aliased destination`() {
+        val rng = Random(20260908)
+        val blas = F64ReferenceBlas(F64ScalarKernels)
+        for (transpose in booleanArrayOf(false, true)) {
+            for (lower in booleanArrayOf(false, true)) {
+                val original = DoubleArray(25) { rng.nextDouble(-1.0, 1.0) }
+                val source = F64DenseMatrix(5, 5, original.copyOf())
+                val expected = F64DenseMatrix(5, 5, original.copyOf())
+                blas.syrk(0.75, source, transpose, -0.5, expected, lower)
+
+                val shared = original.copyOf()
+                blas.syrk(
+                    0.75,
+                    F64DenseMatrix.wrap(5, 5, shared),
+                    transpose,
+                    -0.5,
+                    F64DenseMatrix.wrap(5, 5, shared),
+                    lower,
+                    Workspace(),
+                )
+
+                assertClose(expected.data, shared, "transpose=$transpose lower=$lower aliased destination")
+            }
+        }
+    }
+
     /** The `dsyr2k` sum for one entry, over whichever orientation [transpose] selects. */
     private fun syr2kEntry(a: F64DenseMatrix, b: F64DenseMatrix, transpose: Boolean, k: Int, i: Int, j: Int): Double {
         var s = 0.0
@@ -466,15 +519,31 @@ class LinearAlgebraSymmetricOpsTest {
             error("kernel failed")
     }
 
+    /** Kernels whose packed tile fails after all of its scratch buffers have been borrowed. */
+    private class FailingTile : F64Kernels by F64ScalarKernels {
+        override val name: String get() = "failing-tile"
+        override val isPortable: Boolean get() = false
+
+        override fun gemmTile(
+            depth: Int,
+            packedA: DoubleArray,
+            aOff: Int,
+            packedB: DoubleArray,
+            bOff: Int,
+            c: DoubleArray,
+            cOff: Int,
+            ldc: Int,
+        ) = error("kernel failed")
+    }
+
     @Test
     fun `syrk gives its workspace buffer back when the inner loop throws`() {
         val n = 4
         val k = 3
         val ws = Workspace()
-        // Park one buffer of the staging width in the pool, so syrk borrows this exact instance.
-        val parked = ws.take(n * k)
-        ws.release(parked)
-        val blas = F64ReferenceBlas(FailingAxpy())
+        ws.reserve(n * k, 2)
+        ws.reserve(PORTABLE_TILE * PORTABLE_TILE, 1)
+        val blas = F64ReferenceBlas(FailingTile())
         assertFailsWith<IllegalStateException> {
             blas.syrk(
                 1.0,
@@ -485,7 +554,8 @@ class LinearAlgebraSymmetricOpsTest {
                 workspace = ws,
             )
         }
-        assertSame(parked, ws.take(n * k), "syrk kept its workspace buffer after the inner loop threw")
+        assertEquals(2, ws.available(ScratchRequirement(ScratchKind.F64, n * k)))
+        assertEquals(1, ws.available(ScratchRequirement(ScratchKind.F64, PORTABLE_TILE * PORTABLE_TILE)))
     }
 
     @Test

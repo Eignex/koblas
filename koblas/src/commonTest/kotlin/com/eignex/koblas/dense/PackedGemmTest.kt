@@ -3,6 +3,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.assertClose
 import kotlin.random.Random
 import kotlin.test.Test
+import kotlin.test.assertEquals
 
 /**
  * The packed product against a written-out one, driven directly so the shapes here are exercised whatever
@@ -61,5 +62,38 @@ class PackedGemmTest {
     @Test
     fun `the packed product on the compiled in kernels agrees with a written out product`() {
         assertPackedGemmAgreesWithWrittenOutProduct(F64PlatformKernels)
+    }
+
+    @Test
+    fun `the triangular tile walk skips the opposite half`() {
+        for (lower in booleanArrayOf(true, false)) {
+            var calls = 0
+            val recording = object : F64Kernels by F64ScalarKernels {
+                override fun gemmTile(
+                    depth: Int,
+                    packedA: DoubleArray,
+                    aOff: Int,
+                    packedB: DoubleArray,
+                    bOff: Int,
+                    c: DoubleArray,
+                    cOff: Int,
+                    ldc: Int,
+                ) {
+                    calls++
+                    F64ScalarKernels.gemmTile(depth, packedA, aOff, packedB, bOff, c, cOff, ldc)
+                }
+            }
+            val order = 16
+            val depth = 3
+            val a = DoubleArray(order * depth) { (it + 1).toDouble() }
+            val c = DoubleArray(order * order)
+
+            packedTriangularGemm(
+                recording, 1.0, a, order, false, a, order, true, c, order, depth, lower, null,
+            )
+
+            // Four tiles per side: only the diagonal and the six tiles in the selected half are evaluated.
+            assertEquals(10, calls, "lower=$lower")
+        }
     }
 }

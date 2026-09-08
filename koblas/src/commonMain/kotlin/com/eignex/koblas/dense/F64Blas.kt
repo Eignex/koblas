@@ -167,7 +167,9 @@ public interface F64Blas : Backend {
      * `C = alpha · A·Aᵀ + beta · C`, or `alpha · Aᵀ·A + beta · C` when [transpose] (BLAS `dsyrk`).
      * Only the [lower] or upper triangle is written; `beta == 0.0` overwrites it without reading.
      *
-     * A transposed operand is packed into scratch, so pass a [workspace] to reuse its `n·k` doubles.
+     * In the non-transposed form, a zero entry used as the rank-one multiplier is skipped before it can
+     * multiply an infinity, following Netlib `dsyrk`; the transposed dot-product form evaluates that product.
+     * Pass a [workspace] to reuse the packed panels and diagonal tile.
      */
     @Suppress("LongParameterList") // the BLAS dsyrk signature plus optional scratch
     public fun syrk(
