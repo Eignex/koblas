@@ -22,7 +22,14 @@ class PackedTrsmTest {
                             for (row in 0 until validRows) expected[row + column * tileRows] = rng.nextDouble(-2.0, 2.0)
                         }
                         val actual = rightProduct(
-                            tileRows, tileColumns, validRows, order, triangle, lower, unitDiag, expected,
+                            tileRows,
+                            tileColumns,
+                            validRows,
+                            order,
+                            triangle,
+                            lower,
+                            unitDiag,
+                            expected,
                         )
 
                         portableTrsmTile(
