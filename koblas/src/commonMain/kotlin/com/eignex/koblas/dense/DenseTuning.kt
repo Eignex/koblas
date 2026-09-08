@@ -85,11 +85,21 @@ internal object DenseTuning {
      */
     val trsmBlockedMinOrder: Int = tuned("trsm.blocked.min.order", default = 512)
 
-    /** Smallest triangular order whose repeated packed updates repay packing both operands. */
+    /**
+     * Smallest triangular order whose repeated packed updates repay packing both operands.
+     *
+     * End-to-end `TrsmBenchmark.denseTrsm` comparisons with packing forced on and off put order 15 ahead
+     * for a 64-row panel, but retain 16 as the conservative tile-aligned boundary.
+     */
     val trsmPackedMinOrder: Int = tuned("trsm.packed.min.order", default = 16)
 
-    /** Smallest normalized right-hand-side row count sent through packed TRSM tiles. */
-    val trsmPackedMinRows: Int = tuned("trsm.packed.min.rows", default = 8)
+    /**
+     * Smallest normalized right-hand-side row count sent through packed TRSM tiles.
+     *
+     * Forced packed/scalar comparisons at order 32 lose below 16 rows, overlap through 31, and put packed
+     * 1.12x to 1.59x ahead at 32 and 33 rows across the right-transposed and left-transposed orientations.
+     */
+    val trsmPackedMinRows: Int = tuned("trsm.packed.min.rows", default = 32)
 
     /**
      * Run length from which crossing into the bundled C library beats staying on the JVM.
