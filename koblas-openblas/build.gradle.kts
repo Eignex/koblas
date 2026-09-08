@@ -4,7 +4,7 @@ plugins {
 }
 
 eignexPublish {
-    description.set("Maven-hosted OpenBLAS and LAPACKE loader for koblas on the JVM.")
+    description.set("Maven-hosted CBLAS loader for koblas on the JVM.")
     githubRepo.set("Eignex/koblas")
 }
 
@@ -22,15 +22,11 @@ koblasNativeLibrary {
     platformProperty = "koblas.openblas.platform"
     supportedPlatforms = nativePlatforms
     requiredResources = mapOf(
-        "linux-x86_64" to listOf("libopenblas.so.0", "libgfortran.so.5", "libquadmath.so.0", "libgcc_s.so.1"),
-        "linux-arm64" to listOf("libopenblas.so.0", "libgfortran.so.5", "libgcc_s.so.1"),
-        "macosx-arm64" to listOf(
-            "libopenblas.0.dylib", "libgfortran.dylib", "libgfortran.5.dylib",
-            "libquadmath.0.dylib", "libgcc_s.1.1.dylib",
-        ),
+        "linux-x86_64" to listOf("libopenblas.so.0"),
+        "linux-arm64" to listOf("libopenblas.so.0"),
+        "macosx-arm64" to listOf("libopenblas.0.dylib"),
     ).mapValues { (platform, resources) -> resources + ".openblas-source-sha256" + ".openblas-build-options" }
     compiler("CC", "cc")
-    compiler("FC", "gfortran")
     tool("make", "make")
     testJvmArgs = listOf("--add-modules=jdk.incubator.vector")
 }

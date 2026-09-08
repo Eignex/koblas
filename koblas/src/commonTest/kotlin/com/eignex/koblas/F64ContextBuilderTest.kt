@@ -38,7 +38,7 @@ class F64ContextBuilderTest {
         }
     }
 
-    /** Reports the rank update as portable below [nativeMin] columns, the way the LAPACKE adapter gates it. */
+    /** Reports the rank update as portable below [nativeMin] columns to exercise route policy. */
     private class RoutedDecompositions(private val nativeMin: Int) :
         F64Decompositions by F64ReferenceLinearAlgebra,
         F64RoutingBackend {

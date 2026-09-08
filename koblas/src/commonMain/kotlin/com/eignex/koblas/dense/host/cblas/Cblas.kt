@@ -1,8 +1,7 @@
 package com.eignex.koblas.dense.host.cblas
 
 /**
- * The CBLAS enums and the LAPACKE layout macro by their ABI integer values. Both host bindings pass these
- * straight through as plain ints, so they are declared once rather than per binding.
+ * The CBLAS enums by their ABI integer values. Host bindings pass these straight through as plain ints.
  */
 internal object Cblas {
     const val COL_MAJOR = 102

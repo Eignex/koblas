@@ -13,7 +13,7 @@ class SolveBenchmark {
     @Param("16", "32", "64", "128", "256")
     var n: Int = 0
 
-    @Param(REFERENCE_BACKEND, HOST_BACKEND)
+    @Param(REFERENCE_BACKEND)
     var backend: String = REFERENCE_BACKEND
 
     private lateinit var a: F64DenseMatrix

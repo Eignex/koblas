@@ -312,9 +312,8 @@ public interface F64Decompositions : Backend {
      * [invert] into [out], which is returned, so a caller holding an `n` by `n` matrix does not pay a fresh
      * one per inverse. Every entry of [out] is written, so whatever it held before does not matter.
      *
-     * [out] must not be the matrix behind [F64CholeskyDecomposition.l]. Both halves read the factor while
-     * writing the inverse: the portable one throughout its sweep, and the host one because `dpotri`
-     * overwrites the triangle it is handed, which is why the factor is copied into [out] first.
+     * [out] must not be the matrix behind [F64CholeskyDecomposition.l], because the implementation reads the
+     * factor while writing the inverse.
      *
      * @throws com.eignex.koblas.DimensionMismatch if [out] is not `n` by `n`.
      */
@@ -325,7 +324,7 @@ public interface F64Decompositions : Backend {
     ): F64DenseMatrix
 }
 
-/** The [F64Decompositions.rcond] input contract shared by portable and LAPACKE implementations. */
+/** The [F64Decompositions.rcond] input contract. */
 internal fun requireRcondAnorm(anorm: Double) {
     require(anorm >= 0.0 && anorm.isFinite()) { "rcond: anorm must be finite and non-negative, got $anorm" }
 }

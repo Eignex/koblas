@@ -3,7 +3,7 @@
 
 package com.eignex.koblas.dense.host.cblas
 
-import com.eignex.koblas.dense.*
+import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
 import com.eignex.koblas.dense.host.*
 import com.eignex.koblas.installBackends
 import com.eignex.koblas.koblas
@@ -11,26 +11,25 @@ import kotlin.test.*
 
 /** Checks the CBLAS backend against the reference implementation. */
 class CblasConformanceTest {
-
     private val cblas = F64CblasBackend()
 
     @Test
-    fun `the native BLAS consumes strided views in place`() = assertStridedProductsAgreeWithReference(
-        F64CblasBackend(HostBlasConfig()),
-    )
+    fun `the native BLAS consumes strided views in place`() =
+        assertStridedProductsAgreeWithReference(F64CblasBackend(HostBlasConfig()))
 
     @Test
-    fun `discovery registers the backend and install overrides it`() {
+    fun `discovery registers BLAS and install overrides it`() {
         assertTrue(F64CblasBackend.isAvailable(), "host OpenBLAS expected in the test environment")
         assertEquals("cblas", koblas.blas.name)
+        assertEquals("reference", koblas.decompositions.name)
         try {
-            installBackends(koblas.with(blas = F64ReferenceLinearAlgebra, decompositions = F64ReferenceLinearAlgebra))
+            installBackends(koblas.with(blas = F64ReferenceLinearAlgebra))
             assertEquals("reference", koblas.blas.name)
-            assertEquals("reference", koblas.decompositions.name)
         } finally {
-            installBackends(null) // restores automatic selection
+            installBackends(null)
         }
         assertEquals("cblas", koblas.blas.name)
+        assertEquals("reference", koblas.decompositions.name)
     }
 
     @Test
@@ -59,54 +58,8 @@ class CblasConformanceTest {
     fun `symv refuses a non-square matrix`() = assertSymvRefusesNonSquare(cblas)
 
     @Test
-    fun `the LU family matches reference in both directions and for a block`() =
-        assertLuAgreesWithReference(cblas, intArrayOf(1, 3, 8, 33))
-
-    @Test
-    fun `factorInto refactorizes into the destination it was given`() =
-        assertFactorIntoUsesItsDestination(cblas, n = 24)
-
-    @Test
-    fun `rectangular LU matches the portable DGETRF form`() = assertRectangularLuAgreesWithReference(cblas)
-
-    @Test
-    fun `the determinant matches reference`() = assertDeterminantAgreesWithReference(cblas, intArrayOf(1, 3, 8, 33))
-
-    @Test
-    fun `ldl block solves match reference`() = assertLdlBlockSolveAgreesWithReference(cblas, n = 9, nrhs = 4)
-
-    @Test
-    fun `a singular LDL is refused at every width`() = assertSingularLdlIsRefused(cblas)
-
-    @Test
-    fun `factorizations interchange between backends`() = assertLuFactorsInterchange(cblas, n = 12)
-
-    @Test
-    fun `rcond agrees with the reference estimator in magnitude`() =
-        assertRcondAgreesWithReference(cblas, intArrayOf(1, 6, 24))
-
-    /** Native binds dgeqp3 optionally, so this is a real comparison only where the host provides it. */
-    @Test
-    fun `pivoted QR matches reference in rank and reconstruction`() =
-        assertPivotedQrAgreesWithReference(cblas, m = 40, cols = 24, ranks = intArrayOf(24, 12))
-
-    @Test
-    fun `qr factorizations interchange between backends`() = assertQrFactorsInterchange(cblas, listOf(6 to 6, 10 to 4))
-
-    @Test
-    fun `ldl factorizations match and interchange between backends`() =
-        assertLdlFactorsInterchange(cblas, intArrayOf(1, 2, 5, 14, 33))
-
-    @Test
-    fun `singular matrix sets the flag and zero determinant`() = assertSingularLuIsFlagged(cblas)
-
-    @Test
     fun `degenerate shapes follow BLAS quick returns`() = assertDegenerateShapesFollowBlasQuickReturns(cblas)
 
-    @Test
-    fun `an empty factorization solves an empty right-hand side`() = assertAnEmptyFactorizationSolvesEmpty(cblas)
-
-    /** The rest of the suite stays below 50, where OpenBLAS is serial and unblocked. 64 and 256 cross into both. */
     @Test
     fun `level 3 agrees with the reference at blocked sizes`() =
         assertLevel3AgreesWithReference(cblas, intArrayOf(64, 256))
@@ -114,24 +67,4 @@ class CblasConformanceTest {
     @Test
     fun `triangular routines match reference across all flag combinations`() =
         assertTriangularAgreesWithReference(cblas, intArrayOf(1, 5, 12, 24))
-
-    @Test
-    fun `the SPD suite matches reference`() = assertSpdSuiteAgreesWithReference(cblas, intArrayOf(1, 4, 9, 33))
-
-    @Test
-    fun `cholesky rank updates match reference`() = assertCholeskyUpdateAgreesWithReference(cblas, intArrayOf(4, 33))
-
-    @Test
-    fun `a non positive definite input falls back to the portable path`() =
-        assertNonPositiveDefiniteFallsBack(cblas, n = 2)
-
-    @Test
-    fun `a reused Cholesky destination reports the count of the factorization now in it`() =
-        assertReusedCholeskyDestinationReportsItsOwnCount(cblas)
-
-    @Test
-    fun `ger matches reference`() = assertGerAgreesWithReference(cblas)
-
-    @Test
-    fun `syr and syr2 match reference`() = assertSyrAgreesWithReference(cblas)
 }

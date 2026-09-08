@@ -1,78 +1,28 @@
 package com.eignex.koblas.dense.host.jvm
 
-import com.eignex.koblas.*
-import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.host.*
-import com.eignex.koblas.dense.host.cblas.Cblas
 import com.eignex.koblas.dense.host.cblas.HostBlasConfig
 import com.eignex.koblas.dense.host.cblas.OPENBLAS_SONAMES
+import com.eignex.koblas.discoverBackends
 import com.eignex.koblas.internal.host.FfmLibrary
+import com.eignex.koblas.koblasInfo
 import com.eignex.koblas.testutil.host.HostLibraryTest
 import org.junit.Assume
 import org.junit.experimental.categories.Category
-import java.lang.foreign.MemorySegment
-import kotlin.math.abs
-import kotlin.math.sqrt
-import kotlin.random.Random
 import kotlin.test.*
 
 @Category(HostLibraryTest::class)
 class HostBlasConformanceTest {
-
     private fun requireCblas() {
         Assume.assumeTrue("host CBLAS is not installed", HostLibraries.cblas)
-    }
-
-    private fun requireLapacke() {
-        Assume.assumeTrue("host LAPACKE is not installed", HostLibraries.lapacke)
-    }
-
-    /**
-     * A FunctionDescriptor that does not match the ABI fails on the first invocation and nowhere earlier,
-     * and this binding has no caller until the Cholesky rank update reaches for it. So it is exercised
-     * here on the smallest case with a known answer: the QR of `[2; 1]`, whose `R` is `sqrt(5)`.
-     *
-     * A host LAPACKE without the symbol leaves the whole half portable, so [HostLibraries.lapacke] is the
-     * only condition this needs.
-     */
-    @Test
-    fun `the dtpqrt binding matches its ABI on a one by one triangle`() {
-        requireLapacke()
-        val dtpqrt = HostBlasCalls(HostBlasConfig()).dtpqrt
-        val a = doubleArrayOf(2.0)
-        val b = doubleArrayOf(1.0)
-        val t = DoubleArray(1)
-
-        val info = dtpqrt.invokeExact(
-            Cblas.COL_MAJOR,
-            1,
-            1,
-            0,
-            1,
-            MemorySegment.ofArray(a),
-            1,
-            MemorySegment.ofArray(b),
-            1,
-            MemorySegment.ofArray(t),
-            1,
-        ) as Int
-
-        assertEquals(0, info, "dtpqrt reported info $info")
-        assertEquals(sqrt(5.0), abs(a[0]), 1e-12, "the triangle should come back carrying the updated norm")
     }
 
     @Test
     fun `the host BLAS consumes strided views in place`() {
         requireCblas()
-        assertStridedProductsAgreeWithReference(
-            F64Cblas(HostBlasConfig()),
-        )
+        assertStridedProductsAgreeWithReference(F64Cblas(HostBlasConfig()))
     }
 
-    /**
-     * Discovery is what registers a host binding, and reading the context does not start it, so the test
-     * that asserts the outcome is the one that has to ask for it.
-     */
     @Test
     fun `the host backend resolves when the machine has OpenBLAS`() {
         requireCblas()
@@ -80,32 +30,13 @@ class HostBlasConformanceTest {
         assertTrue(koblasInfo.contains("openblas"), koblasInfo)
     }
 
-    /**
-     * The hosts this suite runs on ship the LP64 build, so a rejection here is the width probe misfiring
-     * rather than a host it was right to turn away.
-     */
     @Test
-    fun `an LP64 host is not turned away by the pivot-width probe`() {
+    fun `an LP64 host is not turned away by the width check`() {
         val library = FfmLibrary.open(OPENBLAS_SONAMES, "cblas_dgemm", "the host OpenBLAS")
         Assume.assumeTrue("host CBLAS is not installed", library.present)
-        assertTrue(HostBlasCalls(HostBlasConfig()).available, "the host OpenBLAS was judged ILP64")
+        assertTrue(HostBlasCalls(HostBlasConfig()).available, "the host OpenBLAS was not recognized as LP64")
     }
 
-    /** A factorization at a size that engages OpenBLAS's parallel path. */
-    @Test
-    fun `a large factorization does not take the process down`() {
-        requireLapacke()
-        val n = 512
-        val rng = Random(20260807)
-        val a = wellConditioned(n, rng)
-        val host = F64Lapacke()
-        repeat(4) {
-            val lu = host.factor(a)
-            assertEquals(n, lu.n)
-        }
-    }
-
-    /** The level-2 half runs portable here whatever the size; the no-SIMD host pass is what reaches it. */
     @Test
     fun `the gated level 2 and 3 routines match reference`() {
         requireCblas()
@@ -115,20 +46,6 @@ class HostBlasConformanceTest {
         assertSyr2kAgreesWithReference(F64Cblas(), intArrayOf(1, 5, 12, 24))
     }
 
-    /** Lowering the gates is the only way the native solve runs; the shipped values keep it portable. */
-    @Test
-    fun `the host solves match reference once their gates admit them`() {
-        requireLapacke()
-        assertLuAgreesWithReference(F64Lapacke(HostBlasConfig()), intArrayOf(33, 256))
-    }
-
-    /** Both inverses read the level-3 gate, so lowering that is what reaches them at every size here. */
-    @Test
-    fun `the host inverses match reference once their gate admits them`() {
-        requireLapacke()
-        assertInversesAgreeWithReference(F64Lapacke(HostBlasConfig()), intArrayOf(7, 33, 128))
-    }
-
     @Test
     fun `symv refuses a non-square matrix`() {
         requireCblas()
@@ -136,60 +53,9 @@ class HostBlasConformanceTest {
     }
 
     @Test
-    fun `a singular LDL is refused at every width`() {
-        requireLapacke()
-        assertSingularLdlIsRefused(F64Lapacke())
-    }
-
-    @Test
     fun `level 3 matches reference at blocked sizes`() {
         requireCblas()
         assertLevel3AgreesWithReference(F64Cblas(), intArrayOf(7, 64, 256))
-    }
-
-    /** Above cholesky's gate of 32 and invertSpd's of 16, so the host path is the one under test. */
-    @Test
-    fun `the SPD suite matches reference where the gates open`() {
-        requireLapacke()
-        assertSpdSuiteAgreesWithReference(F64Lapacke(), intArrayOf(33, 256))
-    }
-
-    /** Wide enough at k = 64 to clear the rank-update gate, so the dtpqrt path is the one under test. */
-    @Test
-    fun `cholesky rank updates match reference where the gate opens`() {
-        requireLapacke()
-        assertCholeskyUpdateAgreesWithReference(F64Lapacke(), intArrayOf(33, 96))
-    }
-
-    @Test
-    fun `a non positive definite input falls back to the portable path`() {
-        requireLapacke()
-        assertNonPositiveDefiniteFallsBack(F64Lapacke(), n = 256)
-    }
-
-    @Test
-    fun `pivoted QR matches reference in rank and reconstruction`() {
-        requireLapacke()
-        assertPivotedQrAgreesWithReference(F64Lapacke(), m = 96, cols = 64, ranks = intArrayOf(64, 40))
-    }
-
-    /** Above the LAPACK gate, so the host path is the one under test rather than the portable fallback. */
-    @Test
-    fun `factorInto refactorizes into the destination it was given`() {
-        requireLapacke()
-        assertFactorIntoUsesItsDestination(F64Lapacke(), n = 96)
-    }
-
-    @Test
-    fun `rectangular LU matches the portable DGETRF form`() {
-        requireLapacke()
-        assertRectangularLuAgreesWithReference(F64Lapacke())
-    }
-
-    @Test
-    fun `the factorizations match reference at blocked sizes`() {
-        requireLapacke()
-        assertLuAgreesWithReference(F64Lapacke(), intArrayOf(7, 64, 256))
     }
 
     @Test
@@ -204,7 +70,6 @@ class HostBlasConformanceTest {
         assertSymmetricProductsAgreeWithReference(host, intArrayOf(18, 64))
     }
 
-    /** The same properties at sizes under every gate, where the portable fallback answers instead. */
     @Test
     fun `the level 2 and 3 products match reference at small sizes`() {
         requireCblas()
@@ -223,58 +88,10 @@ class HostBlasConformanceTest {
         assertDegenerateShapesFollowBlasQuickReturns(F64Cblas())
     }
 
-    /** Above the LAPACK gate of 64, so the host factorizations are the ones under test. */
-    @Test
-    fun `the factorization family matches reference at moderate sizes`() {
-        requireLapacke()
-        val host = F64Lapacke()
-        assertDeterminantAgreesWithReference(host, intArrayOf(64, 96))
-        assertLuFactorsInterchange(host, n = 96)
-        assertRcondAgreesWithReference(host, intArrayOf(64, 96))
-        assertLdlBlockSolveAgreesWithReference(host, n = 96, nrhs = 4)
-        assertLdlFactorsInterchange(host, intArrayOf(64, 96))
-        assertQrFactorsInterchange(host, listOf(96 to 96, 128 to 64, 512 to 16))
-    }
-
-    /** The same properties at sizes under the gate, where the portable fallback answers instead. */
-    @Test
-    fun `the factorization family matches reference at small sizes`() {
-        requireLapacke()
-        val host = F64Lapacke()
-        assertDeterminantAgreesWithReference(host, intArrayOf(1, 3, 8, 33))
-        assertLuFactorsInterchange(host, n = 12)
-        assertRcondAgreesWithReference(host, intArrayOf(1, 6, 24))
-        assertLdlBlockSolveAgreesWithReference(host, n = 9, nrhs = 4)
-        assertLdlFactorsInterchange(host, intArrayOf(1, 2, 5, 14, 33))
-        assertQrFactorsInterchange(host, listOf(6 to 6, 10 to 4))
-    }
-
-    @Test
-    fun `a singular matrix sets the flag and a zero determinant`() {
-        requireLapacke()
-        assertSingularLuIsFlagged(F64Lapacke())
-    }
-
-    @Test
-    fun `a reused Cholesky destination reports the count of the factorization now in it`() {
-        requireLapacke()
-        assertReusedCholeskyDestinationReportsItsOwnCount(F64Lapacke())
-    }
-
-    @Test
-    fun `an empty factorization solves an empty right-hand side`() {
-        requireLapacke()
-        assertAnEmptyFactorizationSolvesEmpty(F64Lapacke())
-    }
-
-    /**
-     * Naming a library that is not there is answered by `isAvailable`, not by a raise, since a caller
-     * installing a backend explicitly has to be able to ask.
-     */
     @Test
     fun `the binding constructs and reports unavailable without the library`() {
-        val backends = F64Backends(HostBlasConfig(libraryPath = MISSING_LIBRARY))
-        assertFalse(backends.blas.isAvailable, "a library that is not on this host cannot be available")
+        val backend = F64Cblas(HostBlasConfig(libraryPath = MISSING_LIBRARY))
+        assertFalse(backend.isAvailable, "a library that is not on this host cannot be available")
     }
 
     private companion object {

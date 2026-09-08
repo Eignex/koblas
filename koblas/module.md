@@ -30,7 +30,7 @@ The heavier level-2/3 and factorization work — [gemv][com.eignex.koblas.dense.
 [gemm][com.eignex.koblas.dense.F64LinearAlgebra.gemm] and a general LU
 [factor][com.eignex.koblas.dense.F64LinearAlgebra.factor] / [solve][com.eignex.koblas.dense.F64LinearAlgebra.solve] — sits
 behind the runtime-swappable [F64LinearAlgebra][com.eignex.koblas.dense.F64LinearAlgebra] backend so a native
-BLAS/LAPACK implementation can replace it without changing callers. [koblas][com.eignex.koblas.koblas]
+BLAS or factorization implementation can replace it without changing callers. [koblas][com.eignex.koblas.koblas]
 resolves to an [installBackends][com.eignex.koblas.installBackends] override when set, else
 the platform backend when present, else the pure-Kotlin
 [F64ReferenceLinearAlgebra][com.eignex.koblas.dense.F64ReferenceLinearAlgebra]. Ergonomic entry points

@@ -5,8 +5,7 @@ import com.eignex.koblas.*
 /**
  * A symmetric indefinite factorization `A = L·D·Lᵀ` in LAPACK `dsytrf` lower packed form. [ldl] is a live
  * buffer, not a copy, so treat it as read-only. Use [pivotBlocks] for the factorization's 0-based pivot
- * structure; [rawLapackIpiv] exposes the raw signed, 1-based buffer that both koblas's own portable solve
- * and a native LAPACK binding read directly.
+ * structure; [rawLapackIpiv] exposes the raw signed, 1-based buffer that koblas's portable solve reads.
  *
  * @property n the matrix dimension.
  * @property ldl the packed factors, column-major, length `n * n`; only the lower triangle is meaningful.
@@ -21,8 +20,8 @@ public class F64PivotedSymmetricIndefiniteDecomposition @UnsafeKoblasApi constru
     failedAt: Int = NOT_SINGULAR,
 ) {
     /**
-     * The live signed, 1-based LAPACK `dsytrf` `IPIV` buffer. koblas's own portable solve reads this
-     * directly, not just a native LAPACK binding, so treat "raw" as "LAPACK's encoding," not "external only."
+     * The live signed, 1-based LAPACK `dsytrf` `IPIV` buffer. koblas's portable solve reads this directly;
+     * "raw" names LAPACK's encoding, not external ownership.
      */
     @UnsafeKoblasApi
     public val rawLapackIpiv: IntArray = ipiv

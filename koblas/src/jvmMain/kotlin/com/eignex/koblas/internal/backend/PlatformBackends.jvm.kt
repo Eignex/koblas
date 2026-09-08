@@ -5,7 +5,7 @@ import com.eignex.koblas.F64BundledBackend
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.F64Blas
 import com.eignex.koblas.dense.host.cblas.HostBlasConfig
-import com.eignex.koblas.dense.host.jvm.F64Backends
+import com.eignex.koblas.dense.host.jvm.F64Cblas
 import com.eignex.koblas.sparse.host.F64SparseBackends
 import com.eignex.koblas.sparse.host.hfactor.HfactorConfig
 import java.util.ServiceLoader
@@ -33,7 +33,6 @@ internal actual fun registerPlatformBackends() {
 private class AutomaticHostConfiguration {
     val openBlas = HostBlasConfig(
         libraryPath = libraryPath(ConfigurationKeys.CBLAS_PATH),
-        lapackeLibraryPath = libraryPath(ConfigurationKeys.LAPACKE_PATH),
     )
     val hfactor = HfactorConfig(libraryPath(ConfigurationKeys.HFACTOR_PATH))
 
@@ -58,9 +57,7 @@ private class AutomaticHostConfiguration {
  * constructing them twice would open the library twice.
  */
 private fun registerBuiltins(automatic: AutomaticHostConfiguration, requested: Map<BackendSlot, String?>) {
-    val dense = F64Backends(automatic.openBlas)
-    registerIfOffered(dense.blas, requested)
-    dense.decompositions.takeIf { it.isAvailable }?.let { registerIfOffered(it, requested) }
+    registerIfOffered(F64Cblas(automatic.openBlas), requested)
     registerIfOffered(F64SparseBackends(hfactorConfig = automatic.hfactor).hfactor, requested)
 }
 

@@ -10,7 +10,7 @@ class BundledOpenBlasTest {
     fun `registers through the backend service`() {
         discoverBackends()
         assertEquals("openblas-bundled", koblas.blas.name)
-        assertEquals("openblas-bundled", koblas.decompositions.name)
+        assertEquals("reference", koblas.decompositions.name)
     }
 
     @Test

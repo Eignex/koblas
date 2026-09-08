@@ -83,14 +83,6 @@ class LinearAlgebraTest {
     }
 
     @Test
-    fun `lapackFailedAt converts an info return`() {
-        assertEquals(NOT_SINGULAR, lapackFailedAt(0))
-        assertEquals(0, lapackFailedAt(1))
-        assertEquals(4, lapackFailedAt(5))
-        assertEquals(NOT_SINGULAR, lapackFailedAt(-3), "an illegal-argument report is not a singularity")
-    }
-
-    @Test
     fun `1x1 solve and transpose-solve`() {
         val a = F64DenseMatrix.of(arrayOf(doubleArrayOf(4.0)))
         assertEquals(0.5, a.lu().solve(doubleArrayOf(2.0))[0], 1e-12)

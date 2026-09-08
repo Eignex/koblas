@@ -2,18 +2,17 @@ package com.eignex.koblas.openblas
 
 import com.eignex.koblas.*
 import com.eignex.koblas.F64BundledBackend
-import com.eignex.koblas.dense.*
+import com.eignex.koblas.dense.F64Blas
+import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.dense.host.cblas.HostBlasConfig
 import com.eignex.koblas.dense.host.cblas.OpenBlasOptions
 import com.eignex.koblas.dense.host.jvm.*
 import java.nio.file.Path
 
-/** OpenBLAS backend bundled in Maven-native resources. */
-class BundledOpenBlas private constructor(private val blas: F64Cblas, private val decompositions: F64Lapacke) :
-    F64LinearAlgebra,
+/** CBLAS backend bundled in Maven-native resources. */
+class BundledOpenBlas private constructor(private val blas: F64Cblas) :
     F64BundledBackend,
     F64Blas by blas,
-    F64Decompositions by decompositions,
     F64RoutingBackend,
     BackendMetadataProvider {
 
@@ -21,34 +20,25 @@ class BundledOpenBlas private constructor(private val blas: F64Cblas, private va
     constructor() : this(OpenBlasOptions())
 
     /** Creates an OpenBLAS backend from bundled native resources with shared [options]. */
-    constructor(options: OpenBlasOptions) : this(loadHostBackends(options))
-
-    private constructor(backends: F64Backends) : this(backends.blas, backends.decompositions)
+    constructor(options: OpenBlasOptions) : this(loadHostBackend(options))
 
     override val name: String get() = "openblas-bundled"
 
     /** The name a deployment configures this library under, whichever build provides it. */
     override val canonicalName: String get() = "openblas"
     override val priority: Int get() = HOST_BACKEND_PRIORITY + 1
-    override val isAvailable: Boolean get() = blas.isAvailable && decompositions.isAvailable
-    override val unavailableReason: String? get() = blas.unavailableReason ?: decompositions.unavailableReason
+    override val isAvailable: Boolean get() = blas.isAvailable
+    override val unavailableReason: String? get() = blas.unavailableReason
     override val isPortable: Boolean get() = false
     override val kernels: F64Kernels get() = blas.kernels
     override val backendMetadata: BackendMetadata get() = blas.backendMetadata
 
-    override fun route(query: F64RouteQuery): BackendRoute? = when (query.role) {
-        BackendRole.DENSE_BLAS -> blas.route(query)
-        BackendRole.DENSE_DECOMPOSITIONS -> decompositions.route(query)
-        else -> null
-    }?.let { if (it.execution == BackendExecution.NATIVE) it.copy(executor = name) else it }
+    override fun route(query: F64RouteQuery): BackendRoute? = blas.route(query)
+        ?.let { if (it.execution == BackendExecution.NATIVE) it.copy(executor = name) else it }
 }
 
-internal data class OpenBlasPaths(val openblas: Path, val lapacke: Path?)
-
-private fun loadHostBackends(options: OpenBlasOptions): F64Backends {
-    val paths = OpenBlasResources.extract()
-    return F64Backends(HostBlasConfig(paths.openblas.toString(), paths.lapacke?.toString(), options))
-}
+private fun loadHostBackend(options: OpenBlasOptions): F64Cblas =
+    F64Cblas(HostBlasConfig(OpenBlasResources.extract().toString(), options))
 
 internal object OpenBlasResources {
     private val platform: String = BundledNativeResources.supportedPlatform { os, architecture ->
@@ -62,15 +52,12 @@ internal object OpenBlasResources {
         libraryDescription = "OpenBLAS",
     )
 
-    private val extracted: OpenBlasPaths by lazy {
+    private val extracted: Path by lazy {
         val copied = resources.extract(libraries)
-        OpenBlasPaths(
-            checkNotNull(copied[openblasLibrary]) { "OpenBLAS resource is absent for $platform" },
-            lapackeLibrary?.let(copied::get),
-        )
+        checkNotNull(copied[openblasLibrary]) { "OpenBLAS resource is absent for $platform" }
     }
 
-    fun extract(): OpenBlasPaths = extracted
+    fun extract(): Path = extracted
 
     private val openblasLibrary: String = when (platform) {
         "linux-x86_64", "linux-arm64" -> "libopenblas.so.0"
@@ -78,26 +65,5 @@ internal object OpenBlasResources {
         else -> error("unsupported OpenBLAS platform $platform")
     }
 
-    private val lapackeLibrary: String? = null
-
-    private val libraries: List<String> = when (platform) {
-        "linux-x86_64" -> listOf(
-            openblasLibrary,
-            "libgfortran.so.5",
-            "libquadmath.so.0",
-            "libgcc_s.so.1",
-        )
-
-        "linux-arm64" -> listOf(openblasLibrary, "libgfortran.so.5", "libgcc_s.so.1")
-
-        "macosx-arm64" -> listOf(
-            openblasLibrary,
-            "libgfortran.dylib",
-            "libgfortran.5.dylib",
-            "libquadmath.0.dylib",
-            "libgcc_s.1.1.dylib",
-        )
-
-        else -> error("unsupported OpenBLAS platform $platform")
-    }
+    private val libraries: List<String> = listOf(openblasLibrary)
 }

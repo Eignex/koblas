@@ -18,7 +18,7 @@ import java.lang.invoke.MethodHandle
  *
  * It is not free, and it is not what the option was written for. The linker reserves it for a function that
  * returns almost immediately, because a thread inside one never transitions to native and so holds off a
- * safepoint until the call returns: a large factorization keeps a collection waiting for as long as it runs.
+ * safepoint until the call returns: a large BLAS operation keeps a collection waiting for as long as it runs.
  * koblas takes that latency for the copies it saves. What the option genuinely forbids is a call back into
  * the JVM, and what it cannot survive is a call that blocks with no bound on when it returns; those pass
  * `critical = false` and pay the copy.
@@ -73,13 +73,6 @@ internal class FfmLibrary private constructor(
     public fun handle(name: String, descriptor: FunctionDescriptor, critical: Boolean = true): MethodHandle =
         checkNotNull(handleOrNull(name, descriptor, critical)) { "$description is present but lacks $name" }
 
-    /**
-     * This library, then [other], searched in that order. For a host that splits one binding's symbols
-     * across two libraries, as a build shipping LAPACKE outside its OpenBLAS does.
-     */
-    public fun withFallback(other: FfmLibrary?): FfmLibrary =
-        if (other == null) this else FfmLibrary(linker, lookups + other.lookups, description)
-
     private fun address(name: String): MemorySegment? = lookups.firstNotNullOfOrNull { it.find(name).orElse(null) }
 
     /** Opening a library, and the function descriptors a prototype is written with. */
@@ -119,9 +112,6 @@ internal class FfmLibrary private constructor(
         /** `double f(...)`. */
         public fun doubleOf(vararg layouts: MemoryLayout): FunctionDescriptor =
             FunctionDescriptor.of(JAVA_DOUBLE, *layouts)
-
-        /** `int64_t f(...)`. */
-        public fun longOf(vararg layouts: MemoryLayout): FunctionDescriptor = FunctionDescriptor.of(JAVA_LONG, *layouts)
 
         /** `void *f(...)`. */
         public fun pointerOf(vararg layouts: MemoryLayout): FunctionDescriptor = FunctionDescriptor.of(

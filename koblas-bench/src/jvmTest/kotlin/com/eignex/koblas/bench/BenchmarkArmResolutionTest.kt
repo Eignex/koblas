@@ -18,13 +18,6 @@ import kotlin.test.assertTrue
  */
 @OptIn(ExperimentalKoblasApi::class)
 class BenchmarkArmResolutionTest {
-    private fun installedOrSkipped(install: () -> Unit): Boolean = try {
-        install()
-        true
-    } catch (_: IllegalStateException) {
-        false
-    }
-
     @Test
     fun `each pinned kernel arm resolves to the provider it names`() {
         val pinned = buildList {
@@ -66,12 +59,6 @@ class BenchmarkArmResolutionTest {
         installDenseBackend(REFERENCE_BACKEND)
         assertEquals(REFERENCE_BACKEND, koblas.blas.name)
         assertEquals(REFERENCE_BACKEND, koblas.decompositions.name)
-    }
-
-    @Test
-    fun `the host arm resolves to the host binding when one is installed`() {
-        if (!installedOrSkipped { installDenseBackend(HOST_BACKEND) }) return
-        assertEquals(hostBackendName, koblas.blas.name)
     }
 
     @Test

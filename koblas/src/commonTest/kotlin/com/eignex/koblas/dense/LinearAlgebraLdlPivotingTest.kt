@@ -126,8 +126,7 @@ class LinearAlgebraLdlPivotingTest {
      * The multiplier is what discriminates: `a(1,0) / a(0,0)` is exactly 1 for this matrix, where scaling by
      * the reciprocal gives an infinity and skipping the scaling altogether leaves the raw entry behind.
      *
-     * Against the reference by name, not the installed backend. This is the one place the reference departs
-     * from `dsytf2`, so a host LAPACKE answers it with an infinity, and only the JVM pins the backend.
+     * Against the reference by name to document the deliberate departure from `dsytf2`.
      */
     @Test
     fun `a subnormal pivot divides the column instead of scaling it`() {
