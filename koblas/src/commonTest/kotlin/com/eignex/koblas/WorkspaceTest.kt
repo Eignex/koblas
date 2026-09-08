@@ -145,6 +145,29 @@ class WorkspaceTest {
         assertFailsWith<IllegalArgumentException> { ws.reserve(4, count = -1) }
     }
 
+    @Test
+    fun `changing sizes does not retain every buffer`() {
+        val ws = Workspace()
+        for (width in 1..300) {
+            ws.release(ws.take(width))
+            ws.release(ws.takeI32(width))
+        }
+
+        assertTrue(ws.pooledWidths <= 64, "300 double sizes left ${ws.pooledWidths} sizes retained")
+        assertTrue(ws.pooledI32Widths <= 64, "300 index sizes left ${ws.pooledI32Widths} sizes retained")
+    }
+
+    @Test
+    fun `the retained size cap survives a burst of active borrows`() {
+        val ws = Workspace()
+        val held = (1..64).map { ws.take(it) }
+        ws.release(ws.take(65))
+        held.forEach { ws.release(it) }
+        for (width in 66..140) ws.release(ws.take(width))
+
+        assertTrue(ws.pooledWidths <= 64, "the burst left ${ws.pooledWidths} sizes retained")
+    }
+
     /** Buffers lent out are never reclaimed, however many other widths pass through afterwards. */
     @Test
     fun `an outstanding borrow survives churn through other widths`() {

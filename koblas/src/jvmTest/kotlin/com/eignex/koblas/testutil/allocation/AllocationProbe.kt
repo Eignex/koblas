@@ -9,6 +9,14 @@ private val bean = ManagementFactory.getThreadMXBean() as ThreadMXBean
 /** Holds each block's result so escape analysis cannot delete the allocation being measured. */
 internal var allocationSink: Any? = null
 
+/** Bytes allocated by one invocation of [block]. */
+internal fun allocatedBytes(block: () -> Any?): Long {
+    val id = Thread.currentThread().threadId()
+    val before = bean.getThreadAllocatedBytes(id)
+    allocationSink = block()
+    return bean.getThreadAllocatedBytes(id) - before
+}
+
 /**
  * Bytes [block] allocates per call, as the smallest of [windows] measurement windows of [iterations] calls.
  * The minimum is what the loop costs once the JIT has settled; the other windows carry runtime noise.

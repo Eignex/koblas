@@ -6,6 +6,7 @@ import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.REFERENCE_SPARSE_RHS_WIDTH
 import com.eignex.koblas.sparse.lu
 import com.eignex.koblas.sparse.sparseConformanceSystem
+import com.eignex.koblas.testutil.allocation.allocatedBytes
 import com.eignex.koblas.testutil.allocation.bytesPerIteration
 import kotlin.random.Random
 import kotlin.test.*
@@ -45,6 +46,60 @@ class AllocationFreeTest {
         assertTrue(
             pooled < budget,
             "$what allocated $pooled B per iteration against a $budget B budget (allocating form: $allocating B)",
+        )
+    }
+
+    @Test
+    fun `reserved workspace allocates nothing on first borrows`() {
+        val count = 16
+        val warm = Workspace().apply {
+            reserve(8, count)
+            reserveI32(8, count)
+        }
+        val warmDoubles = arrayOfNulls<DoubleArray>(count)
+        val warmIndices = arrayOfNulls<IntArray>(count)
+        repeat(200) {
+            for (i in 0 until count) warmDoubles[i] = warm.take(8)
+            for (i in 0 until count) warmIndices[i] = warm.takeI32(8)
+            for (i in 0 until count) warm.release(requireNotNull(warmDoubles[i]))
+            for (i in 0 until count) warm.release(requireNotNull(warmIndices[i]))
+        }
+
+        val smallCount = 2
+        val smallWorkspace = Workspace().apply {
+            reserve(8, smallCount)
+            reserveI32(8, smallCount)
+        }
+        val smallDoubles = arrayOfNulls<DoubleArray>(smallCount)
+        val smallIndices = arrayOfNulls<IntArray>(smallCount)
+        val measurementFloor = allocatedBytes { Unit }
+        val smallBytes = allocatedBytes {
+            for (i in 0 until smallCount) smallDoubles[i] = smallWorkspace.take(8)
+            for (i in 0 until smallCount) smallIndices[i] = smallWorkspace.takeI32(8)
+            for (i in 0 until smallCount) smallWorkspace.release(requireNotNull(smallDoubles[i]))
+            for (i in 0 until smallCount) smallWorkspace.release(requireNotNull(smallIndices[i]))
+        }
+
+        val workspace = Workspace().apply {
+            reserve(8, count)
+            reserveI32(8, count)
+        }
+        val doubles = arrayOfNulls<DoubleArray>(count)
+        val indices = arrayOfNulls<IntArray>(count)
+        val bytes = allocatedBytes {
+            for (i in 0 until count) doubles[i] = workspace.take(8)
+            for (i in 0 until count) indices[i] = workspace.takeI32(8)
+            for (i in 0 until count) workspace.release(requireNotNull(doubles[i]))
+            for (i in 0 until count) workspace.release(requireNotNull(indices[i]))
+        }
+
+        assertTrue(
+            smallBytes <= measurementFloor,
+            "small reserved first borrows allocated $smallBytes bytes against a $measurementFloor byte floor",
+        )
+        assertTrue(
+            bytes <= measurementFloor,
+            "reserved first borrows allocated $bytes bytes against a $measurementFloor byte measurement floor",
         )
     }
 

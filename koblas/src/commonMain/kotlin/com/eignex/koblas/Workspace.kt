@@ -2,11 +2,19 @@ package com.eignex.koblas
 
 /**
  * Reusable floating-point and index scratch. Each active borrow gets its own buffer, so nested borrows are
- * safe. A workspace is deliberately not thread-safe.
+ * safe. Idle buffers are retained for at most 64 distinct sizes per element type, so changing problem sizes
+ * do not make a long-lived workspace retain every array it has used. A workspace is deliberately not
+ * thread-safe.
  */
 public class Workspace {
     private val doubles = DoubleBuffers()
     private val indices = IntBuffers()
+
+    /** How many floating-point sizes are retained. A test hook for otherwise invisible reclamation. */
+    internal val pooledWidths: Int get() = doubles.pooledWidths
+
+    /** How many index sizes are retained. A test hook for otherwise invisible reclamation. */
+    internal val pooledI32Widths: Int get() = indices.pooledWidths
 
     @PublishedApi
     internal fun take(size: Int): DoubleArray = doubles.take(size)
@@ -37,8 +45,7 @@ public class Workspace {
  * Borrows a vector of [size] for [block], allocating one when there is no workspace to lend it.
  *
  * Handed back in a finally, so a routine whose kernels throw does not strand the borrow. A buffer never
- * returned is one its pool can neither lend again nor reclaim, which pins that width for the life of the
- * workspace.
+ * returned remains active, so the workspace can neither lend nor reclaim it.
  *
  * The receiver is nullable because a workspace is optional everywhere it is taken, and Kotlin cannot carry
  * both receivers under one name: nullability is not part of a JVM signature.
@@ -64,7 +71,9 @@ public inline fun <T> Workspace?.borrowI32(size: Int, block: (IntArray) -> T): T
 
 private class DoubleBuffers {
     private val idle = ArrayList<DoubleArray>()
-    private val lent = ArrayList<DoubleArray>()
+    private val lent = ArrayList<DoubleArray>(INITIAL_LENT_CAPACITY)
+
+    val pooledWidths: Int get() = idleWidthCount()
 
     fun take(size: Int): DoubleArray {
         require(size >= 0) { "buffer size must not be negative, got $size" }
@@ -77,13 +86,17 @@ private class DoubleBuffers {
     fun release(buffer: DoubleArray) {
         val index = lentBuffer(buffer)
         check(index >= 0) { "released a buffer this workspace did not lend" }
+        makeRoomFor(buffer.size)
         idle += lent.removeAt(index)
     }
 
     fun reserve(size: Int, count: Int) {
         require(size >= 0) { "buffer size must not be negative, got $size" }
         require(count >= 0) { "reserve count must not be negative, got $count" }
-        repeat((count - available(size)).coerceAtLeast(0)) { idle += DoubleArray(size) }
+        lent.ensureCapacity(lent.size + count)
+        val missing = (count - available(size)).coerceAtLeast(0)
+        if (missing > 0) makeRoomFor(size)
+        repeat(missing) { idle += DoubleArray(size) }
     }
 
     fun available(size: Int): Int {
@@ -101,11 +114,34 @@ private class DoubleBuffers {
         for (i in lent.indices) if (lent[i] === buffer) return i
         return -1
     }
+
+    private fun makeRoomFor(size: Int) {
+        if (idleWithSize(size) >= 0 || idleWidthCount() < MAX_IDLE_WIDTHS) return
+        val oldestSize = idle[0].size
+        for (i in idle.lastIndex downTo 0) if (idle[i].size == oldestSize) idle.removeAt(i)
+    }
+
+    private fun idleWidthCount(): Int {
+        var count = 0
+        for (i in idle.indices) {
+            var seen = false
+            for (j in 0 until i) {
+                if (idle[j].size == idle[i].size) {
+                    seen = true
+                    break
+                }
+            }
+            if (!seen) count++
+        }
+        return count
+    }
 }
 
 private class IntBuffers {
     private val idle = ArrayList<IntArray>()
-    private val lent = ArrayList<IntArray>()
+    private val lent = ArrayList<IntArray>(INITIAL_LENT_CAPACITY)
+
+    val pooledWidths: Int get() = idleWidthCount()
 
     fun take(size: Int): IntArray {
         require(size >= 0) { "buffer size must not be negative, got $size" }
@@ -118,15 +154,19 @@ private class IntBuffers {
     fun release(buffer: IntArray) {
         val index = lentBuffer(buffer)
         check(index >= 0) { "released an index buffer this workspace did not lend" }
+        makeRoomFor(buffer.size)
         idle += lent.removeAt(index)
     }
 
     fun reserve(size: Int, count: Int) {
         require(size >= 0) { "buffer size must not be negative, got $size" }
         require(count >= 0) { "reserve count must not be negative, got $count" }
+        lent.ensureCapacity(lent.size + count)
         var idleCount = 0
         for (i in idle.indices) if (idle[i].size == size) idleCount++
-        repeat((count - idleCount).coerceAtLeast(0)) { idle += IntArray(size) }
+        val missing = (count - idleCount).coerceAtLeast(0)
+        if (missing > 0) makeRoomFor(size)
+        repeat(missing) { idle += IntArray(size) }
     }
 
     private fun idleWithSize(size: Int): Int {
@@ -138,4 +178,31 @@ private class IntBuffers {
         for (i in lent.indices) if (lent[i] === buffer) return i
         return -1
     }
+
+    private fun makeRoomFor(size: Int) {
+        if (idleWithSize(size) >= 0 || idleWidthCount() < MAX_IDLE_WIDTHS) return
+        val oldestSize = idle[0].size
+        for (i in idle.lastIndex downTo 0) if (idle[i].size == oldestSize) idle.removeAt(i)
+    }
+
+    private fun idleWidthCount(): Int {
+        var count = 0
+        for (i in idle.indices) {
+            var seen = false
+            for (j in 0 until i) {
+                if (idle[j].size == idle[i].size) {
+                    seen = true
+                    break
+                }
+            }
+            if (!seen) count++
+        }
+        return count
+    }
 }
+
+/** Distinct idle sizes retained per primitive element type. */
+private const val MAX_IDLE_WIDTHS = 64
+
+/** Small reservations must have bookkeeping storage before their first borrow too. */
+private const val INITIAL_LENT_CAPACITY = 4
