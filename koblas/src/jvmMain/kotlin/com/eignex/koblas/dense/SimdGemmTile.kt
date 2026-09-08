@@ -59,6 +59,51 @@ internal object SimdGemmTile {
         addColumn(c, cOff, ldc, 3, c03, c13)
     }
 
+    /** Subtracts a full packed product from C while keeping every intermediate tile value in registers. */
+    @Suppress("LongParameterList")
+    fun subtractProduct(
+        depth: Int,
+        packedA: DoubleArray,
+        aOff: Int,
+        packedB: DoubleArray,
+        bOff: Int,
+        c: DoubleArray,
+        cOff: Int,
+    ) {
+        var c00 = DoubleVector.fromArray(species, c, cOff)
+        var c10 = DoubleVector.fromArray(species, c, cOff + lanes)
+        var c01 = DoubleVector.fromArray(species, c, cOff + rows)
+        var c11 = DoubleVector.fromArray(species, c, cOff + rows + lanes)
+        var c02 = DoubleVector.fromArray(species, c, cOff + 2 * rows)
+        var c12 = DoubleVector.fromArray(species, c, cOff + 2 * rows + lanes)
+        var c03 = DoubleVector.fromArray(species, c, cOff + 3 * rows)
+        var c13 = DoubleVector.fromArray(species, c, cOff + 3 * rows + lanes)
+        var ap = aOff
+        var bp = bOff
+        for (p in 0 until depth) {
+            val a0 = DoubleVector.fromArray(species, packedA, ap)
+            val a1 = DoubleVector.fromArray(species, packedA, ap + lanes)
+            var coefficient = DoubleVector.broadcast(species, -packedB[bp])
+            c00 = a0.fma(coefficient, c00)
+            c10 = a1.fma(coefficient, c10)
+            coefficient = DoubleVector.broadcast(species, -packedB[bp + 1])
+            c01 = a0.fma(coefficient, c01)
+            c11 = a1.fma(coefficient, c11)
+            coefficient = DoubleVector.broadcast(species, -packedB[bp + 2])
+            c02 = a0.fma(coefficient, c02)
+            c12 = a1.fma(coefficient, c12)
+            coefficient = DoubleVector.broadcast(species, -packedB[bp + 3])
+            c03 = a0.fma(coefficient, c03)
+            c13 = a1.fma(coefficient, c13)
+            ap += rows
+            bp += COLUMNS
+        }
+        storeColumn(c, cOff, 0, c00, c10)
+        storeColumn(c, cOff, 1, c01, c11)
+        storeColumn(c, cOff, 2, c02, c12)
+        storeColumn(c, cOff, 3, c03, c13)
+    }
+
     // The vectors must stay in the caller so a small-depth tile does not materialize them on the heap.
     @Suppress("NOTHING_TO_INLINE")
     private inline fun addColumn(
@@ -72,5 +117,19 @@ internal object SimdGemmTile {
         val base = cOff + column * ldc
         DoubleVector.fromArray(species, c, base).add(low).intoArray(c, base)
         DoubleVector.fromArray(species, c, base + lanes).add(high).intoArray(c, base + lanes)
+    }
+
+    // The vectors must stay in the caller so a small-depth fused tile does not materialize them on the heap.
+    @Suppress("NOTHING_TO_INLINE")
+    private inline fun storeColumn(
+        c: DoubleArray,
+        cOff: Int,
+        column: Int,
+        low: DoubleVector,
+        high: DoubleVector,
+    ) {
+        val base = cOff + column * rows
+        low.intoArray(c, base)
+        high.intoArray(c, base + lanes)
     }
 }
