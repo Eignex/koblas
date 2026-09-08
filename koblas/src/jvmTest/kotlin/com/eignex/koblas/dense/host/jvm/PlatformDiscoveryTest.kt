@@ -1,8 +1,8 @@
 package com.eignex.koblas.dense.host.jvm
 
 import com.eignex.koblas.*
-import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.dense.F64Blas
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.dense.Blas
 import com.eignex.koblas.dense.F64ReferenceBlas
 import com.eignex.koblas.internal.backend.*
 import com.eignex.koblas.testutil.host.HostLibraryTest
@@ -70,7 +70,7 @@ class PlatformDiscoveryTest {
             assertEquals(
                 HostLibraries.cblas,
                 koblas.isAccelerated(BackendRole.DENSE_BLAS),
-                "the F64Blas slot should be accelerated exactly when a host CBLAS resolved",
+                "the Blas slot should be accelerated exactly when a host CBLAS resolved",
             )
             assertFalse(
                 koblas.isAccelerated(BackendRole.DENSE_KERNELS),
@@ -125,20 +125,19 @@ class PlatformDiscoveryTest {
     }
 
     /** A backend whose gemm is [gemm]; every other routine is the reference's. */
-    private class GemmBackend(
-        private val gemm: (a: F64DenseMatrix, reference: () -> Unit, c: F64DenseMatrix) -> Unit,
-    ) : F64Blas by F64ReferenceBlas {
+    private class GemmBackend(private val gemm: (a: DenseMatrix, reference: () -> Unit, c: DenseMatrix) -> Unit) :
+        Blas by F64ReferenceBlas {
         override val name: String get() = "fake"
 
         @Suppress("LongParameterList") // the BLAS dgemm signature
         override fun gemm(
             alpha: Double,
-            a: F64DenseMatrix,
+            a: DenseMatrix,
             transposeA: Boolean,
-            b: F64DenseMatrix,
+            b: DenseMatrix,
             transposeB: Boolean,
             beta: Double,
-            c: F64DenseMatrix,
+            c: DenseMatrix,
             workspace: Workspace?,
         ) = gemm(
             a,

@@ -3,7 +3,6 @@
 package com.eignex.koblas.dense.host
 
 import com.eignex.koblas.*
-import com.eignex.koblas.core.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.dense.host.cblas.Cblas.COL_MAJOR
 import com.eignex.koblas.dense.host.cblas.Cblas.diagOf
@@ -18,9 +17,9 @@ import com.eignex.koblas.dense.host.cblas.Cblas.uploOf
 @Suppress("TooManyFunctions") // the BLAS surface a host library covers
 public abstract class F64BlasAdapter internal constructor(
     private val f: CblasCalls,
-    private val portable: F64ReferenceBackend = F64ReferenceBackend(),
+    private val portable: ReferenceBackend = ReferenceBackend(),
     private val metadata: BackendMetadata = BackendMetadata(integerAbi = "LP64"),
-) : F64Blas,
+) : Blas,
     F64RoutingBackend,
     BackendMetadataProvider {
 
@@ -48,16 +47,16 @@ public abstract class F64BlasAdapter internal constructor(
     // run-to-run spread whichever way the shape runs, since a transpose that size is bound by memory rather
     // than by the loop. The advantage therefore shrinks with size instead of growing, leaving no dimension
     // from which the call starts paying.
-    override fun transpose(a: F64DenseMatrix): F64DenseMatrix = portable.transpose(a)
+    override fun transpose(a: DenseMatrix): DenseMatrix = portable.transpose(a)
 
-    override fun syr(alpha: Double, x: F64VectorLike, a: F64DenseMatrix, lower: Boolean) {
-        if (x !is F64DenseVector) return portable.syr(alpha, x, a, lower)
+    override fun syr(alpha: Double, x: VectorLike, a: DenseMatrix, lower: Boolean) {
+        if (x !is DenseVector) return portable.syr(alpha, x, a, lower)
         requireSyrShape(a, x.size, "syr")
         if (alpha != 0.0 && a.rows != 0) f.dsyr(COL_MAJOR, uploOf(lower), a.rows, alpha, x.data, 1, a.data, a.rows)
     }
 
-    override fun syr2(alpha: Double, x: F64VectorLike, y: F64VectorLike, a: F64DenseMatrix, lower: Boolean) {
-        if (x !is F64DenseVector || y !is F64DenseVector) return portable.syr2(alpha, x, y, a, lower)
+    override fun syr2(alpha: Double, x: VectorLike, y: VectorLike, a: DenseMatrix, lower: Boolean) {
+        if (x !is DenseVector || y !is DenseVector) return portable.syr2(alpha, x, y, a, lower)
         requireSyr2Shape(a, x.size, y.size, "syr2")
         if (alpha != 0.0 && a.rows != 0) {
             f.dsyr2(
@@ -73,11 +72,11 @@ public abstract class F64BlasAdapter internal constructor(
     @Suppress("LongParameterList", "ReturnCount") // dsyr2k's arguments plus scratch; guard-clause style
     override fun syr2k(
         alpha: Double,
-        a: F64DenseMatrix,
-        b: F64DenseMatrix,
+        a: DenseMatrix,
+        b: DenseMatrix,
         transpose: Boolean,
         beta: Double,
-        c: F64DenseMatrix,
+        c: DenseMatrix,
         lower: Boolean,
         workspace: Workspace?,
     ) {
@@ -101,7 +100,7 @@ public abstract class F64BlasAdapter internal constructor(
         }
     }
 
-    override fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: F64DenseMatrix) {
+    override fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix) {
         requireShape(a.rows == x.size && a.cols == y.size) {
             "ger shape mismatch: A is ${a.rows}x${a.cols}, x ${x.size}, y ${y.size}"
         }
@@ -109,18 +108,18 @@ public abstract class F64BlasAdapter internal constructor(
         f.dger(COL_MAJOR, a.rows, a.cols, alpha, x, 1, y, 1, a.data, a.rows)
     }
 
-    override fun trsv(a: F64DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
+    override fun trsv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
         nativeTriangularVector(a, x, lower, transpose, unitDiag, solve = true)
     }
 
-    override fun trmv(a: F64DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
+    override fun trmv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
         nativeTriangularVector(a, x, lower, transpose, unitDiag, solve = false)
     }
 
     /** dtrsv and dtrmv take the same arguments and differ only in the entry point, as dtrsm and dtrmm do. */
     @Suppress("LongParameterList") // the shared BLAS signature plus the entry-point flag
     private fun nativeTriangularVector(
-        a: F64DenseMatrix,
+        a: DenseMatrix,
         x: DoubleArray,
         lower: Boolean,
         transpose: Boolean,
@@ -137,8 +136,8 @@ public abstract class F64BlasAdapter internal constructor(
 
     @Suppress("LongParameterList") // the BLAS dtrsm signature
     override fun trsm(
-        a: F64DenseMatrix,
-        b: F64DenseMatrix,
+        a: DenseMatrix,
+        b: DenseMatrix,
         lower: Boolean,
         transpose: Boolean,
         unitDiag: Boolean,
@@ -151,8 +150,8 @@ public abstract class F64BlasAdapter internal constructor(
 
     @Suppress("LongParameterList") // the BLAS dtrmm signature
     override fun trmm(
-        a: F64DenseMatrix,
-        b: F64DenseMatrix,
+        a: DenseMatrix,
+        b: DenseMatrix,
         lower: Boolean,
         transpose: Boolean,
         unitDiag: Boolean,
@@ -166,8 +165,8 @@ public abstract class F64BlasAdapter internal constructor(
     /** dtrsm and dtrmm take the same arguments and differ only in the entry point. */
     @Suppress("LongParameterList") // the shared BLAS signature plus the entry-point flag
     private fun nativeTriangularMatrix(
-        a: F64DenseMatrix,
-        b: F64DenseMatrix,
+        a: DenseMatrix,
+        b: DenseMatrix,
         lower: Boolean,
         transpose: Boolean,
         unitDiag: Boolean,
@@ -187,7 +186,7 @@ public abstract class F64BlasAdapter internal constructor(
 
     override fun gemv(
         alpha: Double,
-        a: F64DenseMatrix,
+        a: DenseMatrix,
         x: DoubleArray,
         beta: Double,
         y: DoubleArray,
@@ -207,15 +206,15 @@ public abstract class F64BlasAdapter internal constructor(
     override fun gemv(
         alpha: Double,
         a: F64StridedMatrixView,
-        x: F64StridedVectorView,
+        x: StridedVectorView,
         beta: Double,
-        y: F64StridedVectorView,
+        y: StridedVectorView,
         transpose: Boolean,
     ) {
         requireGemvShape(a, transpose, x.size, y.size)
         require(!y.overlaps(x) && !a.overlaps(y)) { "gemv: destination overlaps an input view" }
         if (x.stride < 0 || y.stride < 0) {
-            return super<F64Blas>.gemv(alpha, a, x, beta, y, transpose)
+            return super<Blas>.gemv(alpha, a, x, beta, y, transpose)
         }
         if (a.rows == 0 || a.cols == 0) return
         if (alpha == 0.0) {
@@ -243,12 +242,12 @@ public abstract class F64BlasAdapter internal constructor(
 
     override fun gemm(
         alpha: Double,
-        a: F64DenseMatrix,
+        a: DenseMatrix,
         transposeA: Boolean,
-        b: F64DenseMatrix,
+        b: DenseMatrix,
         transposeB: Boolean,
         beta: Double,
-        c: F64DenseMatrix,
+        c: DenseMatrix,
         workspace: Workspace?,
     ) {
         val (m, k, n) = requireGemmShape(a, transposeA, b, transposeB, c)
@@ -303,7 +302,7 @@ public abstract class F64BlasAdapter internal constructor(
 
     // Scaling by one leaves the destination alone rather than writing every element back unchanged, and the
     // beta test is answered once for the whole view rather than per element.
-    private fun scaleInPlace(view: F64StridedVectorView, beta: Double) {
+    private fun scaleInPlace(view: StridedVectorView, beta: Double) {
         if (beta == 1.0) return
         if (beta == 0.0) {
             for (i in 0 until view.size) view[i] = 0.0
@@ -324,10 +323,10 @@ public abstract class F64BlasAdapter internal constructor(
     @Suppress("LongParameterList", "ReturnCount") // dsyrk's arguments plus scratch; guard-clause style
     override fun syrk(
         alpha: Double,
-        a: F64DenseMatrix,
+        a: DenseMatrix,
         transpose: Boolean,
         beta: Double,
-        c: F64DenseMatrix,
+        c: DenseMatrix,
         lower: Boolean,
         workspace: Workspace?,
     ) {
@@ -345,7 +344,7 @@ public abstract class F64BlasAdapter internal constructor(
      * The shape is checked ahead of the gate: `dsymv` takes one dimension and a leading dimension, so a
      * non-square matrix would have it read `n²` entries from a shorter array, past the end of the buffer.
      */
-    override fun symv(alpha: Double, a: F64DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) {
+    override fun symv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) {
         val n = requireSymvShape(a, x.size, y.size)
         if (alpha == 0.0 || n == 0) {
             scaleInPlace(y, beta)
@@ -356,10 +355,10 @@ public abstract class F64BlasAdapter internal constructor(
 
     override fun symm(
         alpha: Double,
-        a: F64DenseMatrix,
-        b: F64DenseMatrix,
+        a: DenseMatrix,
+        b: DenseMatrix,
         beta: Double,
-        c: F64DenseMatrix,
+        c: DenseMatrix,
         lower: Boolean,
         right: Boolean,
         workspace: Workspace?,

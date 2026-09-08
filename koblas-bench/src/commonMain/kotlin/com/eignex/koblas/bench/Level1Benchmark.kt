@@ -1,7 +1,7 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.*
-import com.eignex.koblas.core.F64DenseVector
+import com.eignex.koblas.DenseVector
 import kotlinx.benchmark.*
 
 @State(Scope.Benchmark)
@@ -15,10 +15,10 @@ class Level1Benchmark {
     @Param(AUTOMATIC_KERNELS, SCALAR_KERNELS, C_KERNELS)
     var kernels: String = AUTOMATIC_KERNELS
 
-    private lateinit var x: F64DenseVector
-    private lateinit var y: F64DenseVector
-    private lateinit var modifiedRotation: F64ModifiedGivens
-    private lateinit var rotation: F64Givens
+    private lateinit var x: DenseVector
+    private lateinit var y: DenseVector
+    private lateinit var modifiedRotation: ModifiedGivens
+    private lateinit var rotation: Givens
 
     private lateinit var quad: DoubleArray
     private val quadOut = DoubleArray(4)
@@ -28,8 +28,8 @@ class Level1Benchmark {
         installKernelProvider(kernels)
         println("resolved: primitives=$mathBackend")
         val rng = benchRng()
-        x = F64DenseVector.of(randomVector(len, rng))
-        y = F64DenseVector.of(randomVector(len, rng))
+        x = DenseVector.of(randomVector(len, rng))
+        y = DenseVector.of(randomVector(len, rng))
         // Near-identity, like NEAR_UNIT_SCALE: rotmBench applies this every invocation with no per-call
         // reset, so a transformation with eigenvalues away from unit magnitude would blow x/y up to
         // Infinity/NaN partway through a trial.
@@ -85,7 +85,7 @@ class Level1Benchmark {
     }
 
     @Benchmark
-    fun rotmgBench(): F64ModifiedGivens = rotmg(1.0, 1.0, 2.0, 1.0)
+    fun rotmgBench(): ModifiedGivens = rotmg(1.0, 1.0, 2.0, 1.0)
 
     @Benchmark
     fun rotmBench() {

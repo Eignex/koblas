@@ -16,7 +16,7 @@ class NamedSparseBackendTest {
     fun `HFactor by name carries the basis solver it is here for`() = withCleanBackends {
         registerBackend(HfactorSparseLu())
 
-        val found = backendNamed("hfactor", F64Capabilities.basisSolvers)
+        val found = backendNamed("hfactor", Capabilities.basisSolvers)
 
         assertIs<F64BasisSolvers>(found)
     }

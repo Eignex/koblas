@@ -1,6 +1,6 @@
 package com.eignex.koblas.sparse.internal
 
-import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.SparseMatrix
 
 /**
  * `A · B` for two CSC operands, by Gustavson's method: one column of the result at a time, accumulated in a
@@ -15,7 +15,7 @@ import com.eignex.koblas.core.F64SparseMatrix
  * entry, so the result stores what the two patterns meet at, as an entry the arithmetic cancels to zero is
  * also kept.
  */
-internal fun multiplySparse(a: F64SparseMatrix, b: F64SparseMatrix): F64SparseMatrix {
+internal fun multiplySparse(a: SparseMatrix, b: SparseMatrix): SparseMatrix {
     val rows = a.rows
     val values = DoubleArray(rows)
     // The column each row was last touched in, so a first touch is told from a repeat without clearing.
@@ -60,5 +60,5 @@ internal fun multiplySparse(a: F64SparseMatrix, b: F64SparseMatrix): F64SparseMa
         colPtr[j + 1] = count
     }
     // Each column's rows were sorted where they were collected, and a scatter list holds each row once.
-    return F64SparseMatrix.wrapTrusted(rows, b.cols, colPtr, outIdx.copyOf(count), outVal.copyOf(count))
+    return SparseMatrix.wrapTrusted(rows, b.cols, colPtr, outIdx.copyOf(count), outVal.copyOf(count))
 }

@@ -1,7 +1,7 @@
 package com.eignex.koblas.sparse
 
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.core.F64SparseMatrix
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.assertEquals
@@ -18,7 +18,7 @@ internal fun sparseSymmetricConformanceSystem(
     rng: Random,
     density: Double = 0.25,
     diagonal: (Int, Double) -> Double = { _, weight -> weight + 1.0 },
-): F64SparseMatrix {
+): SparseMatrix {
     val below = Array(n) { HashMap<Int, Double>() }
     val weight = DoubleArray(n)
     for (j in 0 until n) {
@@ -37,7 +37,7 @@ internal fun sparseSymmetricConformanceSystem(
         for (i in j + 1 until n) below[j][i]?.let { column.add(i to it) }
         columns.add(column)
     }
-    return F64SparseMatrix.ofColumns(n, n, columns)
+    return SparseMatrix.ofColumns(n, n, columns)
 }
 
 /**
@@ -45,7 +45,7 @@ internal fun sparseSymmetricConformanceSystem(
  * the adapter's fallback, which is what this checks for it; one that has its own is checked against the
  * definition the same way its factorization already is.
  */
-internal fun assertCholeskyAgreesWithReference(decompositions: F64SparseDecompositions) {
+internal fun assertCholeskyAgreesWithReference(decompositions: SparseLapack) {
     val rng = Random(20260911)
     for (n in intArrayOf(1, 2, 7, 23)) {
         val a = sparseSymmetricConformanceSystem(n, rng)
@@ -61,7 +61,7 @@ internal fun assertCholeskyAgreesWithReference(decompositions: F64SparseDecompos
 }
 
 /** The full symmetric matrix a stored lower triangle stands for, so a residual can be taken against it. */
-private fun F64SparseMatrix.symmetrized(): F64SparseMatrix {
+private fun SparseMatrix.symmetrized(): SparseMatrix {
     val columns = List(cols) { ArrayList<Pair<Int, Double>>() }
     for (j in 0 until cols) {
         forEachInColumn(j) { i, v ->
@@ -69,14 +69,14 @@ private fun F64SparseMatrix.symmetrized(): F64SparseMatrix {
             if (i != j) columns[i].add(j to v)
         }
     }
-    return F64SparseMatrix.ofColumns(rows, cols, columns.map { it.sortedBy(Pair<Int, Double>::first) })
+    return SparseMatrix.ofColumns(rows, cols, columns.map { it.sortedBy(Pair<Int, Double>::first) })
 }
 
 /**
  * The `L·D·Lᵀ` half of a backend against the portable one, on a matrix that is indefinite, since agreeing on
  * a positive definite one would not tell this factorization apart from a Cholesky.
  */
-internal fun assertLdlAgreesWithReference(decompositions: F64SparseDecompositions) {
+internal fun assertLdlAgreesWithReference(decompositions: SparseLapack) {
     val rng = Random(20260927)
     for (n in intArrayOf(2, 8, 21)) {
         val a = indefiniteConformanceSystem(n, rng)
@@ -95,7 +95,7 @@ internal fun assertLdlAgreesWithReference(decompositions: F64SparseDecomposition
  * invertible and its factorization is well behaved, with the sign of the diagonal alternating so it is not
  * positive definite and a Cholesky would refuse it.
  */
-internal fun indefiniteConformanceSystem(n: Int, rng: Random): F64SparseMatrix =
+internal fun indefiniteConformanceSystem(n: Int, rng: Random): SparseMatrix =
     sparseSymmetricConformanceSystem(n, rng) { j, weight ->
         if (j % 2 == 0) weight + 1.0 else -(weight + 1.0)
     }

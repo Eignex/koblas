@@ -2,11 +2,11 @@ package com.eignex.koblas.sparse.basis
 
 import com.eignex.koblas.DimensionMismatch
 import com.eignex.koblas.SingularMatrix
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
-import com.eignex.koblas.sparse.F64SparseDecompositions
 import com.eignex.koblas.sparse.F64SparseLuFactorization
+import com.eignex.koblas.sparse.SparseLapack
 import com.eignex.koblas.sparse.sparseConformanceSystem
 import kotlin.random.Random
 import kotlin.test.*
@@ -15,7 +15,7 @@ class F64ProductFormBasisSolverTest {
     private val reference = F64ReferenceSparseLinearAlgebra
 
     /** `[S | I]`, the shape a simplex hands over: structural columns and then the logical ones. */
-    private fun simplexMatrix(n: Int, rng: Random): F64SparseMatrix {
+    private fun simplexMatrix(n: Int, rng: Random): SparseMatrix {
         val structural = sparseConformanceSystem(n, rng)
         val columns = ArrayList<List<Pair<Int, Double>>>(2 * n)
         for (j in 0 until n) {
@@ -24,23 +24,23 @@ class F64ProductFormBasisSolverTest {
             columns.add(column)
         }
         for (i in 0 until n) columns.add(listOf(i to 1.0))
-        return F64SparseMatrix.ofColumns(n, 2 * n, columns)
+        return SparseMatrix.ofColumns(n, 2 * n, columns)
     }
 
     private fun logicalBasis(n: Int) = IntArray(n) { n + it }
 
     /** The basis of [basicIndex] as a standalone matrix, so a check never goes through the seam. */
-    private fun basisOf(a: F64SparseMatrix, basicIndex: IntArray): F64SparseMatrix {
+    private fun basisOf(a: SparseMatrix, basicIndex: IntArray): SparseMatrix {
         val columns = basicIndex.map { j ->
             val column = ArrayList<Pair<Int, Double>>()
             a.forEachInColumn(j) { i, v -> column.add(i to v) }
             column
         }
-        return F64SparseMatrix.ofColumns(a.rows, basicIndex.size, columns)
+        return SparseMatrix.ofColumns(a.rows, basicIndex.size, columns)
     }
 
-    private fun solved(solver: F64BasisSolver, b: DoubleArray, transpose: Boolean): DoubleArray {
-        val x = F64IndexedVector(b.size)
+    private fun solved(solver: BasisSolver, b: DoubleArray, transpose: Boolean): DoubleArray {
+        val x = IndexedVector(b.size)
         x.scatter(b)
         if (transpose) solver.btran(x) else solver.ftran(x)
         return x.toDoubleArray()
@@ -69,7 +69,7 @@ class F64ProductFormBasisSolverTest {
         val a = simplexMatrix(n, Random(20261101))
         val basicIndex = IntArray(n) { it }
         val rhs = DoubleArray(n) { (it - 3).toDouble() }
-        val solution = F64IndexedVector(n)
+        val solution = IndexedVector(n)
         val solver = reference.basisSolver(a)
 
         assertTrue(solver.refactorize(basicIndex))
@@ -90,7 +90,7 @@ class F64ProductFormBasisSolverTest {
         val solver = reference.basisSolver(a)
         solver.refactorize(basicIndex)
 
-        val spike = F64IndexedVector(n)
+        val spike = IndexedVector(n)
         spike.scatterColumn(a, 4)
         solver.ftran(spike)
         assertEquals(BasisUpdate.APPLIED, solver.update(4, 4, spike))
@@ -112,7 +112,7 @@ class F64ProductFormBasisSolverTest {
         val solver = reference.basisSolver(a)
         solver.refactorize(basicIndex)
 
-        val spike = F64IndexedVector(n)
+        val spike = IndexedVector(n)
         for (slot in 0 until n) {
             spike.scatterColumn(a, slot)
             solver.ftran(spike)
@@ -135,7 +135,7 @@ class F64ProductFormBasisSolverTest {
         val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
         val solver = reference.basisSolver(a)
         solver.refactorize(basicIndex)
-        val spike = F64IndexedVector(n)
+        val spike = IndexedVector(n)
         for (slot in 0 until n step 2) {
             spike.scatterColumn(a, slot)
             solver.ftran(spike)
@@ -159,7 +159,7 @@ class F64ProductFormBasisSolverTest {
         solver.refactorize(logicalBasis(n))
 
         val outcomes = (0 until 3).map { slot ->
-            val spike = F64IndexedVector(n)
+            val spike = IndexedVector(n)
             spike.scatterColumn(a, slot)
             solver.ftran(spike)
             solver.update(slot, slot, spike)
@@ -175,7 +175,7 @@ class F64ProductFormBasisSolverTest {
         val a = simplexMatrix(n, rng)
         val solver = reference.basisSolver(a)
         solver.refactorize(logicalBasis(n))
-        val spike = F64IndexedVector(n)
+        val spike = IndexedVector(n)
         spike.store(2, 1.0)
 
         assertEquals(BasisUpdate.SINGULAR, solver.update(0, 0, spike))
@@ -185,7 +185,7 @@ class F64ProductFormBasisSolverTest {
     @Test
     fun `a singular basis is reported rather than solved against`() {
         val n = 3
-        val a = F64SparseMatrix.ofColumns(n, n, listOf(listOf(0 to 1.0), listOf(0 to 2.0), listOf(2 to 1.0)))
+        val a = SparseMatrix.ofColumns(n, n, listOf(listOf(0 to 1.0), listOf(0 to 2.0), listOf(2 to 1.0)))
         val solver = reference.basisSolver(a)
 
         assertFalse(solver.refactorize(IntArray(n) { it }))
@@ -216,7 +216,7 @@ class F64ProductFormBasisSolverTest {
         val rng = Random(20260910)
         val n = 5
         val solver = reference.basisSolver(simplexMatrix(n, rng))
-        val spike = F64IndexedVector(n)
+        val spike = IndexedVector(n)
         spike.store(0, 1.0)
 
         assertEquals(BasisUpdate.SINGULAR, solver.update(0, 0, spike))
@@ -226,21 +226,20 @@ class F64ProductFormBasisSolverTest {
     @Test
     fun `an update on a singular basis is refused`() {
         val n = 3
-        val a = F64SparseMatrix.ofColumns(n, n, listOf(listOf(0 to 1.0), listOf(0 to 2.0), listOf(2 to 1.0)))
+        val a = SparseMatrix.ofColumns(n, n, listOf(listOf(0 to 1.0), listOf(0 to 2.0), listOf(2 to 1.0)))
         val solver = reference.basisSolver(a)
         assertFalse(solver.refactorize(IntArray(n) { it }))
-        val spike = F64IndexedVector(n)
+        val spike = IndexedVector(n)
         spike.store(0, 1.0)
 
         assertEquals(BasisUpdate.SINGULAR, solver.update(0, 0, spike))
     }
 
     /** A backend that gives up outright rather than answering singular, which a rebuild must survive. */
-    private class GivingUpSparseLu(private val delegate: F64SparseDecompositions) :
-        F64SparseDecompositions by delegate {
+    private class GivingUpSparseLu(private val delegate: SparseLapack) : SparseLapack by delegate {
         var refuse: Boolean = false
 
-        override fun factor(a: F64SparseMatrix): F64SparseLuFactorization {
+        override fun factor(a: SparseMatrix): F64SparseLuFactorization {
             check(!refuse) { "the library gave up" }
             return delegate.factor(a)
         }
@@ -272,7 +271,7 @@ class F64ProductFormBasisSolverTest {
         solver.refactorize(logicalBasis(n))
         val factored = solver.nnz
 
-        val spike = F64IndexedVector(n)
+        val spike = IndexedVector(n)
         spike.scatterColumn(a, 0)
         solver.ftran(spike)
         solver.update(0, 0, spike)
@@ -295,11 +294,10 @@ class F64ProductFormBasisSolverTest {
         assertFailsWith<IllegalStateException> { solver.refactorize(logicalBasis(n)) }
     }
 
-    private class TrackingSparseLu(private val delegate: F64SparseDecompositions) :
-        F64SparseDecompositions by delegate {
+    private class TrackingSparseLu(private val delegate: SparseLapack) : SparseLapack by delegate {
         val factors = ArrayList<TrackingFactor>()
 
-        override fun factor(a: F64SparseMatrix): F64SparseLuFactorization =
+        override fun factor(a: SparseMatrix): F64SparseLuFactorization =
             TrackingFactor(delegate.factor(a)).also(factors::add)
     }
 
@@ -325,16 +323,16 @@ class F64ProductFormBasisSolverTest {
             val rows = (listOf(j) + List(3) { rng.nextInt(n) }).distinct().sorted()
             rows.map { i -> i to if (i == j) 6.0 + rng.nextDouble() else rng.nextDouble(-1.0, 1.0) }
         }
-        val a = F64SparseMatrix.ofColumns(n, n, columns)
+        val a = SparseMatrix.ofColumns(n, n, columns)
         val solver = F64ProductFormBasisSolver(a, F64ReferenceSparseLinearAlgebra)
         assertTrue(solver.refactorize(IntArray(n) { it }), "the fixture should factorize")
 
         // Pivoted first, so the eta chain is non-empty: the reachable sweep has to carry the pattern
         // through the etas as well as the factors, and an eta can name a position the factors' reach did not.
         for (slot in 0 until 4) {
-            val spike = F64IndexedVector(n).also { it.scatterColumn(a, slot) }
+            val spike = IndexedVector(n).also { it.scatterColumn(a, slot) }
             solver.ftran(spike, spike.density)
-            val eta = F64IndexedVector(n).also { it.unit(slot) }
+            val eta = IndexedVector(n).also { it.unit(slot) }
             solver.btran(eta, eta.density)
             assertTrue(solver.update(slot, slot, spike, eta) != BasisUpdate.SINGULAR, "pivot $slot was refused")
         }
@@ -346,10 +344,10 @@ class F64ProductFormBasisSolverTest {
             val rhs = DoubleArray(n)
             for ((i, v) in values) rhs[i] = v
 
-            val reachable = F64IndexedVector(n).also { it.scatter(rhs) }
+            val reachable = IndexedVector(n).also { it.scatter(rhs) }
             solver.ftran(reachable, expectedDensity = 0.0)
 
-            val densePath = F64IndexedVector(n).also { it.scatter(rhs) }
+            val densePath = IndexedVector(n).also { it.scatter(rhs) }
             solver.ftran(densePath, expectedDensity = 1.0)
 
             for (i in 0 until n) {
@@ -373,27 +371,27 @@ class F64ProductFormBasisSolverTest {
     fun `a reachable ftran after a dense one answers the same system`() {
         val n = 12
         // Nearly diagonal, so a one-entry right-hand side reaches almost nothing.
-        val a = F64SparseMatrix.ofColumns(n, n, List(n) { j -> listOf(j to (2.0 + j)) })
+        val a = SparseMatrix.ofColumns(n, n, List(n) { j -> listOf(j to (2.0 + j)) })
         val solver = F64ProductFormBasisSolver(a, F64ReferenceSparseLinearAlgebra)
         assertTrue(solver.refactorize(IntArray(n) { it }))
 
         // One pivot, so the eta chain names a row a distant right-hand side cannot reach.
-        val spike = F64IndexedVector(n).also { it.scatterColumn(a, 3) }
+        val spike = IndexedVector(n).also { it.scatterColumn(a, 3) }
         solver.ftran(spike, spike.density)
-        val eta = F64IndexedVector(n).also { it.unit(3) }
+        val eta = IndexedVector(n).also { it.unit(3) }
         solver.btran(eta, eta.density)
         assertTrue(solver.update(3, 3, spike, eta) != BasisUpdate.SINGULAR)
 
         // A dense solve whose answer is nonzero at the eta's pivot row, which it leaves in the buffer.
-        val atPivot = F64IndexedVector(n).also { it.store(3, 7.0) }
+        val atPivot = IndexedVector(n).also { it.store(3, 7.0) }
         solver.ftran(atPivot, expectedDensity = 1.0)
 
         // A right-hand side elsewhere, whose reach does not name that row.
         val rhs = DoubleArray(n).also { it[9] = 5.0 }
-        val reachable = F64IndexedVector(n).also { it.scatter(rhs) }
+        val reachable = IndexedVector(n).also { it.scatter(rhs) }
         solver.ftran(reachable, expectedDensity = 0.0)
 
-        val densePath = F64IndexedVector(n).also { it.scatter(rhs) }
+        val densePath = IndexedVector(n).also { it.scatter(rhs) }
         solver.ftran(densePath, expectedDensity = 1.0)
 
         for (i in 0 until n) assertClose(densePath[i], reachable[i], "entry $i", tolerance = 1e-12)
@@ -409,7 +407,7 @@ class F64ProductFormBasisSolverTest {
     fun `a reachable ftran after a refactorization uses the new pivot order`() {
         val rng = Random(20260991)
         val n = 24
-        val a = F64SparseMatrix.ofColumns(
+        val a = SparseMatrix.ofColumns(
             n,
             n,
             List(n) { j ->
@@ -420,16 +418,16 @@ class F64ProductFormBasisSolverTest {
         val solver = F64ProductFormBasisSolver(a, F64ReferenceSparseLinearAlgebra)
         assertTrue(solver.refactorize(IntArray(n) { it }))
         // A reachable solve first, so the scratch has this factorization's inverse permutation cached.
-        solver.ftran(F64IndexedVector(n).also { it.store(1, 1.0) }, expectedDensity = 0.0)
+        solver.ftran(IndexedVector(n).also { it.store(1, 1.0) }, expectedDensity = 0.0)
         // A second basis over the same columns in another order, which pivots to a different permutation.
         val reordered = IntArray(n) { (it * 7 + 3) % n }
         assertTrue(solver.refactorize(reordered))
 
         val rhs = DoubleArray(n).also { it[5] = 3.0 }
-        val reachable = F64IndexedVector(n).also { it.scatter(rhs) }
+        val reachable = IndexedVector(n).also { it.scatter(rhs) }
         solver.ftran(reachable, expectedDensity = 0.0)
 
-        val densePath = F64IndexedVector(n).also { it.scatter(rhs) }
+        val densePath = IndexedVector(n).also { it.scatter(rhs) }
         solver.ftran(densePath, expectedDensity = 1.0)
 
         for (i in 0 until n) assertClose(densePath[i], reachable[i], "entry $i", tolerance = 1e-9)

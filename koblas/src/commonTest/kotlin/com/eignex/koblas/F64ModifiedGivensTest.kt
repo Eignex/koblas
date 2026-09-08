@@ -1,7 +1,7 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.core.F64DenseVector
-import com.eignex.koblas.core.F64StridedVectorView
+import com.eignex.koblas.DenseVector
+import com.eignex.koblas.StridedVectorView
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -84,8 +84,8 @@ class F64ModifiedGivensTest {
         )
 
         for ((transformation, values) in cases) {
-            val x = F64DenseVector.of(values.copyOfRange(0, 2))
-            val y = F64DenseVector.of(values.copyOfRange(2, 4))
+            val x = DenseVector.of(values.copyOfRange(0, 2))
+            val y = DenseVector.of(values.copyOfRange(2, 4))
             val expectedX = DoubleArray(x.size) { transformation.h11 * x[it] + transformation.h12 * y[it] }
             val expectedY = DoubleArray(y.size) { transformation.h21 * x[it] + transformation.h22 * y[it] }
 
@@ -99,8 +99,8 @@ class F64ModifiedGivensTest {
     @Test
     fun `rotm on aliased dense vectors keeps the final write from y`() {
         val buffer = doubleArrayOf(2.0, -1.0)
-        val x = F64DenseVector.wrap(buffer)
-        val y = F64DenseVector.wrap(buffer)
+        val x = DenseVector.wrap(buffer)
+        val y = DenseVector.wrap(buffer)
         val transformation = rotmg(1.0, 1.0, 2.0, 1.0)
         val expected = DoubleArray(buffer.size) {
             transformation.h21 * buffer[it] + transformation.h22 * buffer[it]
@@ -125,8 +125,8 @@ class F64ModifiedGivensTest {
     @Test
     fun `rotm snapshots overlapping strided inputs`() {
         val buffer = doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0)
-        val x = F64StridedVectorView(buffer, offset = 0, size = 3)
-        val y = F64StridedVectorView(buffer, offset = 1, size = 3)
+        val x = StridedVectorView(buffer, offset = 0, size = 3)
+        val y = StridedVectorView(buffer, offset = 1, size = 3)
         val transformation = rotmg(1.0, 1.0, 2.0, 1.0)
 
         rotm(x, y, transformation)
@@ -138,8 +138,8 @@ class F64ModifiedGivensTest {
     fun `rotm supports negative strided views`() {
         val xData = doubleArrayOf(1.0, -1.0, 2.0, -2.0, 3.0)
         val yData = doubleArrayOf(4.0, -4.0, 5.0, -5.0, 6.0)
-        val x = F64StridedVectorView(xData, offset = 4, size = 3, stride = -2)
-        val y = F64StridedVectorView(yData, offset = 4, size = 3, stride = -2)
+        val x = StridedVectorView(xData, offset = 4, size = 3, stride = -2)
+        val y = StridedVectorView(yData, offset = 4, size = 3, stride = -2)
         val transformation = rotmg(1.0, 1.0, 1.0, 2.0)
 
         rotm(x, y, transformation)
@@ -148,7 +148,7 @@ class F64ModifiedGivensTest {
         assertContentEquals(doubleArrayOf(1.0, -4.0, 0.5, -5.0, 0.0), yData)
     }
 
-    private fun assertModifiedGivensEquals(expected: Case, actual: F64ModifiedGivens) {
+    private fun assertModifiedGivensEquals(expected: Case, actual: ModifiedGivens) {
         assertEquals(expected.d1, actual.d1, tolerance(expected.d1), "d1")
         assertEquals(expected.d2, actual.d2, tolerance(expected.d2), "d2")
         assertEquals(expected.x1, actual.x1, tolerance(expected.x1), "x1")

@@ -1,7 +1,6 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
-import com.eignex.koblas.core.*
 import com.eignex.koblas.sparse.F64QuasiDefiniteLdlFactorization
 import com.eignex.koblas.sparse.F64SparseCholeskyFactorization
 import com.eignex.koblas.sparse.F64SparseLuFactorization
@@ -9,7 +8,7 @@ import kotlin.test.*
 
 class SparseSeamTest {
 
-    private class CountingKernels(override val priority: Int = 50) : F64SparseKernels {
+    private class CountingKernels(override val priority: Int = 50) : SparseKernels {
         override val name: String get() = "counting"
         var dots = 0
         var axpys = 0
@@ -18,48 +17,48 @@ class SparseSeamTest {
         var nrm2s = 0
         var asums = 0
 
-        override fun dot(x: F64SparseVector, y: DoubleArray): Double {
+        override fun dot(x: SparseVector, y: DoubleArray): Double {
             dots++
             return F64ReferenceSparseLinearAlgebra.dot(x, y)
         }
 
-        override fun dot(x: F64SparseVector, y: F64SparseVector): Double {
+        override fun dot(x: SparseVector, y: SparseVector): Double {
             dots++
             return F64ReferenceSparseLinearAlgebra.dot(x, y)
         }
 
-        override fun axpy(y: DoubleArray, alpha: Double, x: F64SparseVector) {
+        override fun axpy(y: DoubleArray, alpha: Double, x: SparseVector) {
             axpys++
             F64ReferenceSparseLinearAlgebra.axpy(y, alpha, x)
         }
 
-        override fun scatter(x: F64SparseVector, out: DoubleArray) {
+        override fun scatter(x: SparseVector, out: DoubleArray) {
             scatters++
             F64ReferenceSparseLinearAlgebra.scatter(x, out)
         }
 
-        override fun gather(x: F64SparseVector, from: DoubleArray) {
+        override fun gather(x: SparseVector, from: DoubleArray) {
             gathers++
             F64ReferenceSparseLinearAlgebra.gather(x, from)
         }
 
-        override fun gatherZero(x: F64SparseVector, from: DoubleArray) {
+        override fun gatherZero(x: SparseVector, from: DoubleArray) {
             gathers++
             F64ReferenceSparseLinearAlgebra.gatherZero(x, from)
         }
 
-        override fun nrm2(x: F64SparseVector): Double {
+        override fun nrm2(x: SparseVector): Double {
             nrm2s++
             return F64ReferenceSparseLinearAlgebra.nrm2(x)
         }
 
-        override fun asum(x: F64SparseVector): Double {
+        override fun asum(x: SparseVector): Double {
             asums++
             return F64ReferenceSparseLinearAlgebra.asum(x)
         }
     }
 
-    private class CountingSparseBlas(override val priority: Int = 50) : F64SparseBlas {
+    private class CountingSparseBlas(override val priority: Int = 50) : SparseBlas {
         override val name: String get() = "counting-blas"
         var gemvs = 0
         var gemms = 0
@@ -71,7 +70,7 @@ class SparseSeamTest {
         @Suppress("LongParameterList")
         override fun gemv(
             alpha: Double,
-            a: F64SparseMatrix,
+            a: SparseMatrix,
             x: DoubleArray,
             beta: Double,
             y: DoubleArray,
@@ -81,13 +80,13 @@ class SparseSeamTest {
             F64ReferenceSparseLinearAlgebra.gemv(alpha, a, x, beta, y, transpose)
         }
 
-        override fun trsv(a: F64SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) =
+        override fun trsv(a: SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) =
             F64ReferenceSparseLinearAlgebra.trsv(a, x, lower, transpose, unitDiag)
 
-        override fun trmv(a: F64SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) =
+        override fun trmv(a: SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) =
             F64ReferenceSparseLinearAlgebra.trmv(a, x, lower, transpose, unitDiag)
 
-        override fun transpose(a: F64SparseMatrix): F64SparseMatrix {
+        override fun transpose(a: SparseMatrix): SparseMatrix {
             transposes++
             return F64ReferenceSparseLinearAlgebra.transpose(a)
         }
@@ -95,12 +94,12 @@ class SparseSeamTest {
         @Suppress("LongParameterList")
         override fun gemm(
             alpha: Double,
-            a: F64SparseMatrix,
+            a: SparseMatrix,
             transposeA: Boolean,
-            b: F64DenseMatrix,
+            b: DenseMatrix,
             transposeB: Boolean,
             beta: Double,
-            c: F64DenseMatrix,
+            c: DenseMatrix,
             right: Boolean,
             workspace: Workspace?,
         ) {
@@ -108,15 +107,15 @@ class SparseSeamTest {
             F64ReferenceSparseLinearAlgebra.gemm(alpha, a, transposeA, b, transposeB, beta, c, right, workspace)
         }
 
-        override fun gemm(a: F64SparseMatrix, b: F64SparseMatrix): F64SparseMatrix {
+        override fun gemm(a: SparseMatrix, b: SparseMatrix): SparseMatrix {
             sparseProducts++
             return F64ReferenceSparseLinearAlgebra.gemm(a, b)
         }
 
         @Suppress("LongParameterList")
         override fun trsm(
-            a: F64SparseMatrix,
-            b: F64DenseMatrix,
+            a: SparseMatrix,
+            b: DenseMatrix,
             lower: Boolean,
             transpose: Boolean,
             unitDiag: Boolean,
@@ -130,8 +129,8 @@ class SparseSeamTest {
 
         @Suppress("LongParameterList")
         override fun trmm(
-            a: F64SparseMatrix,
-            b: F64DenseMatrix,
+            a: SparseMatrix,
+            b: DenseMatrix,
             lower: Boolean,
             transpose: Boolean,
             unitDiag: Boolean,
@@ -144,7 +143,7 @@ class SparseSeamTest {
     }
 
     private class CountingSparseLu(override val priority: Int = 50) :
-        F64SparseDecompositions,
+        SparseLapack,
         F64GeneralSparseLu,
         F64SparseCholesky,
         F64QuasiDefiniteLdl,
@@ -155,49 +154,49 @@ class SparseSeamTest {
         var ldls = 0
         var qrs = 0
 
-        override fun factor(a: F64SparseMatrix): F64SparseLuFactorization {
+        override fun factor(a: SparseMatrix): F64SparseLuFactorization {
             factors++
             return F64ReferenceSparseLinearAlgebra.factor(a)
         }
 
-        override fun cholesky(a: F64SparseMatrix): F64SparseCholeskyFactorization {
+        override fun cholesky(a: SparseMatrix): F64SparseCholeskyFactorization {
             choleskys++
             return F64ReferenceSparseLinearAlgebra.cholesky(a)
         }
 
-        override fun quasiDefiniteLdl(a: F64SparseMatrix): F64QuasiDefiniteLdlFactorization {
+        override fun quasiDefiniteLdl(a: SparseMatrix): F64QuasiDefiniteLdlFactorization {
             ldls++
             return F64ReferenceSparseLinearAlgebra.quasiDefiniteLdl(a)
         }
 
-        override fun qr(a: F64SparseMatrix): F64SparseQrFactorization {
+        override fun qr(a: SparseMatrix): F64SparseQrFactorization {
             qrs++
             return F64ReferenceSparseLinearAlgebra.qr(a)
         }
     }
 
-    private fun sparse() = F64SparseVector.of(6, intArrayOf(1, 4), doubleArrayOf(2.0, -3.0))
+    private fun sparse() = SparseVector.of(6, intArrayOf(1, 4), doubleArrayOf(2.0, -3.0))
 
     @Test
     fun `every public sparse vector operation reaches the registered kernels`() = withCleanBackends {
         val kernels = CountingKernels()
         registerBackend(kernels)
         val x = sparse()
-        val dense = F64DenseVector.of(DoubleArray(6) { it + 1.0 })
+        val dense = DenseVector.of(DoubleArray(6) { it + 1.0 })
 
         assertEquals(2.0 * 2.0 + -3.0 * 5.0, x dot dense)
         assertEquals(2.0 * 2.0 + -3.0 * 5.0, dense dot x)
         assertEquals(4.0 + 9.0, x dot x)
         assertEquals(3, kernels.dots, "all three dot combinations should route")
 
-        F64DenseVector.of(DoubleArray(6)).axpy(2.0, x)
+        DenseVector.of(DoubleArray(6)).axpy(2.0, x)
         assertEquals(1, kernels.axpys)
 
-        copy(x, F64DenseVector.of(DoubleArray(6)))
+        copy(x, DenseVector.of(DoubleArray(6)))
         assertEquals(1, kernels.scatters, "copy from a sparse source is a scatter")
 
         gather(sparse(), dense)
-        gatherZero(sparse(), F64DenseVector.of(DoubleArray(6)))
+        gatherZero(sparse(), DenseVector.of(DoubleArray(6)))
         assertEquals(2, kernels.gathers, "both gathers should route")
 
         x.norm2()
@@ -210,8 +209,8 @@ class SparseSeamTest {
     fun `a dense-only operation does not reach the sparse kernels`() = withCleanBackends {
         val kernels = CountingKernels()
         registerBackend(kernels)
-        val a = F64DenseVector.of(doubleArrayOf(1.0, 2.0))
-        val b = F64DenseVector.of(doubleArrayOf(3.0, 4.0))
+        val a = DenseVector.of(doubleArrayOf(1.0, 2.0))
+        val b = DenseVector.of(doubleArrayOf(3.0, 4.0))
         assertEquals(11.0, a dot b)
         a.norm2()
         a.asum()
@@ -224,35 +223,35 @@ class SparseSeamTest {
         val decompositions = CountingSparseLu()
         registerBackend(blas)
         registerBackend(decompositions)
-        val a = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 4.0)))
+        val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 4.0)))
 
         assertTrue(doubleArrayOf(2.0, 8.0).contentEquals(koblas.gemv(a, doubleArrayOf(1.0, 2.0))))
         assertEquals(1, blas.gemvs, "the context gemv should forward to the seam")
 
-        a * F64DenseMatrix.diagonal(2)
+        a * DenseMatrix.diagonal(2)
         assertEquals(1, blas.gemms, "the product operator should forward to the seam")
 
-        a.trsm(F64DenseMatrix.diagonal(2), lower = true)
-        assertEquals(1, blas.trsms, "F64SparseMatrix.trsm should forward to the seam")
+        a.trsm(DenseMatrix.diagonal(2), lower = true)
+        assertEquals(1, blas.trsms, "SparseMatrix.trsm should forward to the seam")
 
-        a.trmm(F64DenseMatrix.diagonal(2), lower = true)
-        assertEquals(1, blas.trmms, "F64SparseMatrix.trmm should forward to the seam")
+        a.trmm(DenseMatrix.diagonal(2), lower = true)
+        assertEquals(1, blas.trmms, "SparseMatrix.trmm should forward to the seam")
 
         a.transpose()
-        assertEquals(1, blas.transposes, "F64SparseMatrix.transpose should forward to the seam")
+        assertEquals(1, blas.transposes, "SparseMatrix.transpose should forward to the seam")
 
         a * a
         assertEquals(1, blas.sparseProducts, "the sparse product should forward to the seam")
 
         val f = a.lu()
-        assertEquals(1, decompositions.factors, "F64SparseMatrix.lu should forward to the seam")
+        assertEquals(1, decompositions.factors, "SparseMatrix.lu should forward to the seam")
         assertTrue(!f.singular)
 
         a.cholesky()
-        assertEquals(1, decompositions.choleskys, "F64SparseMatrix.cholesky should forward to the seam")
+        assertEquals(1, decompositions.choleskys, "SparseMatrix.cholesky should forward to the seam")
 
         a.quasiDefiniteLdl()
-        assertEquals(1, decompositions.ldls, "F64SparseMatrix.quasiDefiniteLdl should forward to the seam")
+        assertEquals(1, decompositions.ldls, "SparseMatrix.quasiDefiniteLdl should forward to the seam")
 
         @Suppress("DEPRECATION")
         a.quasiDefiniteLdl()
@@ -268,7 +267,7 @@ class SparseSeamTest {
     fun `the portable Cholesky transposes without reaching the seam`() = withCleanBackends {
         val blas = CountingSparseBlas()
         registerBackend(blas)
-        val spd = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(1 to 9.0)))
+        val spd = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(1 to 9.0)))
 
         F64ReferenceSparseLinearAlgebra.cholesky(spd)
 

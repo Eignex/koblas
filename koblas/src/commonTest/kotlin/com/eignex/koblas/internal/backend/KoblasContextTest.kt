@@ -1,20 +1,20 @@
 package com.eignex.koblas.internal.backend
 
 import com.eignex.koblas.*
-import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.internal.numeric.absoluteSum
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import com.eignex.koblas.sparse.F64ReferenceSparseDecompositions
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
-import com.eignex.koblas.sparse.F64SparseDecompositions
-import com.eignex.koblas.sparse.F64SparseLinearAlgebra
+import com.eignex.koblas.sparse.SparseLapack
+import com.eignex.koblas.sparse.SparseLinearAlgebra
 import kotlin.test.*
 
 class KoblasContextTest {
 
-    private class Counting(override val name: String = "counting") : F64Kernels {
+    private class Counting(override val name: String = "counting") : Kernels {
         override val priority: Int get() = 0
         var dots = 0
         var axpys = 0
@@ -62,7 +62,7 @@ class KoblasContextTest {
             }
         }
 
-        override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64ModifiedGivens =
+        override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens =
             portableRotmg(d1, d2, x1, y1)
 
         @Suppress("LongParameterList")
@@ -74,7 +74,7 @@ class KoblasContextTest {
             yOff: Int,
             yStride: Int,
             len: Int,
-            transformation: F64ModifiedGivens,
+            transformation: ModifiedGivens,
         ) = portableRotm(x, xOff, xStride, y, yOff, yStride, len, transformation)
 
         @Suppress("LongParameterList")
@@ -87,9 +87,9 @@ class KoblasContextTest {
 
     @Test
     fun `a context is usable as a backend`() {
-        val a = F64DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0)))
+        val a = DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0)))
         assertContentClose(doubleArrayOf(4.0, 7.0), koblas.gemv(a, doubleArrayOf(1.0, 2.0)))
-        val s = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 4.0)))
+        val s = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 4.0)))
         assertContentClose(doubleArrayOf(2.0, 8.0), koblas.gemv(s, doubleArrayOf(1.0, 2.0)))
     }
 
@@ -123,12 +123,12 @@ class KoblasContextTest {
     /** Reading roles out of a composition is the one place a partial one is caught, and it says which role. */
     @Test
     fun `a composition filling no QR role is rejected at construction`() {
-        val partial = object : F64SparseDecompositions by F64ReferenceSparseLinearAlgebra {
+        val partial = object : SparseLapack by F64ReferenceSparseLinearAlgebra {
             override val name: String get() = "partial"
         }
 
         val failure = assertFailsWith<IllegalStateException> {
-            F64Context(
+            KoblasContext(
                 kernels = koblas.kernels,
                 blas = F64ReferenceBlas,
                 sparseKernels = F64ReferenceSparseLinearAlgebra,
@@ -156,7 +156,7 @@ class KoblasContextTest {
 
     @Test
     fun `sparse linear algebra exposes its vector kernels`() {
-        val context: F64SparseLinearAlgebra = koblas
+        val context: SparseLinearAlgebra = koblas
 
         assertSame(koblas.sparseKernels, context.sparseKernels)
     }
@@ -164,8 +164,8 @@ class KoblasContextTest {
     @Test
     fun `the inherited routines run on the kernels their backend was built with`() {
         val mine = Counting()
-        val backend = F64ReferenceBackend(mine)
-        val l = F64DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 0.0), doubleArrayOf(1.0, 3.0)))
+        val backend = ReferenceBackend(mine)
+        val l = DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 0.0), doubleArrayOf(1.0, 3.0)))
         val x = doubleArrayOf(2.0, 5.0)
 
         backend.trsv(l, x, lower = true)
@@ -176,8 +176,8 @@ class KoblasContextTest {
     @Test
     fun `a contexts own kernels reach the reference inner loops`() {
         val mine = Counting()
-        val portable: F64Blas = F64ReferenceBackend(mine)
-        val a = F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
+        val portable: Blas = ReferenceBackend(mine)
+        val a = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
 
         portable.gemv(a, doubleArrayOf(1.0, 1.0))
         assertTrue(mine.axpys > 0, "a non-transposed gemv sweeps columns with axpy")
@@ -191,9 +191,9 @@ class KoblasContextTest {
     fun `the shared reference follows the process default kernels`() {
         val mine = Counting("installed")
         installBackends(koblas.with(kernels = mine))
-        val blas: F64Blas = F64ReferenceBlas
+        val blas: Blas = F64ReferenceBlas
         blas.gemv(
-            F64DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0))),
+            DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0))),
             doubleArrayOf(1.0, 1.0),
         )
         assertTrue(mine.axpys > 0, "F64ReferenceBlas must pick up an installed context's kernels")
@@ -215,7 +215,7 @@ class KoblasContextTest {
     /** A context is at least as preferred as the strongest half in it, and names what it is made of. */
     @Test
     fun `a context reports the strongest half's priority and names its backends`() {
-        val reference = F64Context(
+        val reference = KoblasContext(
             kernels = Counting(),
             blas = F64ReferenceBlas,
             sparseKernels = F64ReferenceSparseLinearAlgebra,
@@ -225,9 +225,9 @@ class KoblasContextTest {
         )
         assertEquals(0, reference.priority, "every reference half has priority 0")
         assertEquals("reference", reference.name, "one distinct backend name should not repeat")
-        assertEquals("F64Context(reference)", reference.toString())
+        assertEquals("KoblasContext(reference)", reference.toString())
 
-        val strong = object : F64Blas by F64ReferenceBlas {
+        val strong = object : Blas by F64ReferenceBlas {
             override val name: String get() = "strong"
             override val priority: Int get() = 42
         }

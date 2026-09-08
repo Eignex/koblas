@@ -1,6 +1,6 @@
 package com.eignex.koblas.sparse.basis
 
-import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.requireShape
 import kotlin.math.abs
 import kotlin.math.max
@@ -14,11 +14,11 @@ import kotlin.math.max
  */
 @Suppress("LongParameterList") // the basis in two arrays, its operands, and the direction
 internal fun basisSolveQuality(
-    a: F64SparseMatrix,
+    a: SparseMatrix,
     basicIndex: IntArray,
     unitRows: IntArray?,
     rhs: DoubleArray,
-    solution: F64IndexedVector,
+    solution: IndexedVector,
     transpose: Boolean,
 ): F64BasisSolveQuality {
     val n = a.rows

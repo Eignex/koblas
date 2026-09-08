@@ -1,15 +1,15 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.dense.F64Kernels
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.dense.F64PlatformKernels
+import com.eignex.koblas.dense.Kernels
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
 class SparseLevelOneReuseTest {
 
-    private class RecordingKernels : F64Kernels by F64PlatformKernels {
+    private class RecordingKernels : Kernels by F64PlatformKernels {
         var axpys = 0
         var scales = 0
 
@@ -24,7 +24,7 @@ class SparseLevelOneReuseTest {
         }
     }
 
-    private val lower = F64SparseMatrix.ofColumns(
+    private val lower = SparseMatrix.ofColumns(
         3,
         3,
         listOf(
@@ -40,12 +40,12 @@ class SparseLevelOneReuseTest {
             val kernels = RecordingKernels()
             val backend = F64ReferenceSparseBackend(kernels)
             val b = if (transposeB) {
-                F64DenseMatrix(3, 5, DoubleArray(15) { (it + 1).toDouble() })
+                DenseMatrix(3, 5, DoubleArray(15) { (it + 1).toDouble() })
             } else {
-                F64DenseMatrix(5, 3, DoubleArray(15) { (it + 1).toDouble() })
+                DenseMatrix(5, 3, DoubleArray(15) { (it + 1).toDouble() })
             }
 
-            backend.gemm(0.75, lower, false, b, transposeB, 0.0, F64DenseMatrix.zero(5, 3), right = true)
+            backend.gemm(0.75, lower, false, b, transposeB, 0.0, DenseMatrix.zero(5, 3), right = true)
 
             assertTrue(kernels.axpys > 0, "right gemm transposeB=$transposeB did not use dense axpy")
         }
@@ -55,7 +55,7 @@ class SparseLevelOneReuseTest {
     fun `right solve sends dense column work through level one kernels`() {
         val kernels = RecordingKernels()
         val backend = F64ReferenceSparseBackend(kernels)
-        val b = F64DenseMatrix(5, 3, DoubleArray(15) { (it + 1).toDouble() })
+        val b = DenseMatrix(5, 3, DoubleArray(15) { (it + 1).toDouble() })
 
         backend.trsm(lower, b, lower = true, transpose = false, unitDiag = false, right = true, alpha = 1.0)
 

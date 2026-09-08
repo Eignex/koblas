@@ -1,6 +1,6 @@
 package com.eignex.koblas.sparse.factorization.qr
 
-import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.SparseMatrix
 
 internal class SparseQrSymbolic(
     val parent: IntArray,
@@ -12,7 +12,7 @@ internal class SparseQrSymbolic(
     val upperNonzeros: Int,
 )
 
-internal fun columnEliminationTree(a: F64SparseMatrix): IntArray {
+internal fun columnEliminationTree(a: SparseMatrix): IntArray {
     val parent = IntArray(a.cols) { -1 }
     val ancestor = IntArray(a.cols) { -1 }
     val lastColumn = IntArray(a.rows) { -1 }
@@ -31,7 +31,7 @@ internal fun columnEliminationTree(a: F64SparseMatrix): IntArray {
     return parent
 }
 
-internal fun analyzeQr(a: F64SparseMatrix): SparseQrSymbolic {
+internal fun analyzeQr(a: SparseMatrix): SparseQrSymbolic {
     val m = a.rows
     val n = a.cols
     val parent = columnEliminationTree(a)
@@ -86,7 +86,7 @@ internal fun analyzeQr(a: F64SparseMatrix): SparseQrSymbolic {
  * Entries `R` will hold, from a second walk of the elimination paths. Counted here rather than by the
  * numeric pass, which has to size its arrays before it can fill them.
  */
-private fun countUpperNonzeros(a: F64SparseMatrix, parent: IntArray, leftmost: IntArray, rows: Int): Int {
+private fun countUpperNonzeros(a: SparseMatrix, parent: IntArray, leftmost: IntArray, rows: Int): Int {
     val n = a.cols
     val mark = IntArray(maxOf(rows, n)) { -1 }
     var total = 0

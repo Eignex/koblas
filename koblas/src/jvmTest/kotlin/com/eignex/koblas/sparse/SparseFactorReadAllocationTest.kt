@@ -1,6 +1,6 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.testutil.allocation.bytesPerIteration
 import kotlin.random.Random
 import kotlin.test.Test
@@ -41,8 +41,8 @@ class SparseFactorReadAllocationTest {
     }
 
     private fun readBoth(lu: F64SparseLuFactorization): Int {
-        val l: F64SparseMatrix = lu.l
-        val u: F64SparseMatrix = lu.u
+        val l: SparseMatrix = lu.l
+        val u: SparseMatrix = lu.u
         return l.nnz + u.nnz
     }
 }

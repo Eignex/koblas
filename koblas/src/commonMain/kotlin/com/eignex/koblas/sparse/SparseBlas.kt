@@ -3,19 +3,19 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.Backend
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
-import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.dense.*
 
 /** Sparse matrix routines as a backend half. */
-public interface F64SparseBlas : Backend {
+public interface SparseBlas : Backend {
     /**
      * Prepares an immutable snapshot of [a] for repeated products. The caller owns the returned resource and
      * should close it with `use`. Portable backends retain an ordinary CSC copy; native backends may retain
      * native descriptors and buffers.
      */
-    public fun prepare(a: F64SparseMatrix): F64PreparedSparseMatrix = ReferencePreparedSparseMatrix(a)
+    public fun prepare(a: SparseMatrix): F64PreparedSparseMatrix = ReferencePreparedSparseMatrix(a)
 
     /**
      * In-place `y = alpha · op(A) · x + beta · y`, where `op(A)` is `Aᵀ` when [transpose]. Per BLAS
@@ -24,7 +24,7 @@ public interface F64SparseBlas : Backend {
     @Suppress("LongParameterList") // the BLAS dgemv signature
     public fun gemv(
         alpha: Double,
-        a: F64SparseMatrix,
+        a: SparseMatrix,
         x: DoubleArray,
         beta: Double,
         y: DoubleArray,
@@ -34,13 +34,13 @@ public interface F64SparseBlas : Backend {
     /**
      * Solve `op(T) · x = b` in place, `op` transposing when [transpose]. [x] holds the right-hand side on
      * entry and the solution on return. Only the [lower] or upper triangle of [a] is read, and [unitDiag]
-     * takes the diagonal as 1 without reading it, as the dense [com.eignex.koblas.dense.F64Blas.trsv] does.
+     * takes the diagonal as 1 without reading it, as the dense [com.eignex.koblas.dense.Blas.trsv] does.
      *
      * A missing diagonal entry is the sparse representation of zero. As in dense `dtrsv`, singularity is
      * not reported: division by a zero diagonal follows IEEE 754 arithmetic when that diagonal is reached.
      */
     public fun trsv(
-        a: F64SparseMatrix,
+        a: SparseMatrix,
         x: DoubleArray,
         lower: Boolean,
         transpose: Boolean = false,
@@ -55,7 +55,7 @@ public interface F64SparseBlas : Backend {
      * is simply zero. The destination may share [a]'s value buffer.
      */
     public fun trmv(
-        a: F64SparseMatrix,
+        a: SparseMatrix,
         x: DoubleArray,
         lower: Boolean,
         transpose: Boolean = false,
@@ -80,12 +80,12 @@ public interface F64SparseBlas : Backend {
     @Suppress("LongParameterList") // the BLAS dgemm signature, plus the side the sparse operand sits on
     public fun gemm(
         alpha: Double,
-        a: F64SparseMatrix,
+        a: SparseMatrix,
         transposeA: Boolean,
-        b: F64DenseMatrix,
+        b: DenseMatrix,
         transposeB: Boolean,
         beta: Double,
-        c: F64DenseMatrix,
+        c: DenseMatrix,
         right: Boolean = false,
         workspace: Workspace? = null,
     )
@@ -101,7 +101,7 @@ public interface F64SparseBlas : Backend {
      * `A.cols` must equal `B.rows`. An entry the arithmetic cancels to zero is kept, as a structural
      * operation keeps one.
      */
-    public fun gemm(a: F64SparseMatrix, b: F64SparseMatrix): F64SparseMatrix
+    public fun gemm(a: SparseMatrix, b: SparseMatrix): SparseMatrix
 
     /**
      * `B = alpha · op(T)⁻¹ · B` in place, or `B = alpha · B · op(T)⁻¹` when [right] (Sparse BLAS `ussm`).
@@ -111,8 +111,8 @@ public interface F64SparseBlas : Backend {
      */
     @Suppress("LongParameterList") // the BLAS dtrsm signature
     public fun trsm(
-        a: F64SparseMatrix,
-        b: F64DenseMatrix,
+        a: SparseMatrix,
+        b: DenseMatrix,
         lower: Boolean,
         transpose: Boolean = false,
         unitDiag: Boolean = false,
@@ -128,8 +128,8 @@ public interface F64SparseBlas : Backend {
      */
     @Suppress("LongParameterList") // the BLAS dtrmm signature
     public fun trmm(
-        a: F64SparseMatrix,
-        b: F64DenseMatrix,
+        a: SparseMatrix,
+        b: DenseMatrix,
         lower: Boolean,
         transpose: Boolean = false,
         unitDiag: Boolean = false,
@@ -145,18 +145,18 @@ public interface F64SparseBlas : Backend {
      * library has its own routine for, and because the two directions of [gemv] leave a caller with no
      * reason to materialize a transpose unless it means to hold it.
      */
-    public fun transpose(a: F64SparseMatrix): F64SparseMatrix
+    public fun transpose(a: SparseMatrix): SparseMatrix
 
     /** `A · x`, or `Aᵀ · x` when [transpose], into a fresh result. */
-    public fun gemv(a: F64SparseMatrix, x: DoubleArray, transpose: Boolean = false): DoubleArray {
+    public fun gemv(a: SparseMatrix, x: DoubleArray, transpose: Boolean = false): DoubleArray {
         val y = DoubleArray(if (transpose) a.cols else a.rows)
         gemv(1.0, a, x, 0.0, y, transpose)
         return y
     }
 
     /** [gemm] with `alpha = 1, beta = 0`, into a fresh matrix. `A.cols` must equal `B.rows`. */
-    public fun gemm(a: F64SparseMatrix, b: F64DenseMatrix): F64DenseMatrix {
-        val c = F64DenseMatrix.zero(a.rows, b.cols)
+    public fun gemm(a: SparseMatrix, b: DenseMatrix): DenseMatrix {
+        val c = DenseMatrix.zero(a.rows, b.cols)
         gemm(1.0, a, transposeA = false, b, transposeB = false, beta = 0.0, c = c)
         return c
     }
@@ -165,7 +165,7 @@ public interface F64SparseBlas : Backend {
 /**
  * An explicitly owned immutable snapshot of one sparse matrix, prepared for repeated products.
  *
- * Changes to the matrix passed to [F64SparseBlas.prepare] after preparation do not affect this snapshot.
+ * Changes to the matrix passed to [SparseBlas.prepare] after preparation do not affect this snapshot.
  * Calls after [close] throw [IllegalStateException], and close is idempotent. A handle and close must not be
  * used concurrently; callers that share a handle between threads must serialize its operations.
  */
@@ -189,20 +189,20 @@ public interface F64PreparedSparseMatrix : AutoCloseable {
     public fun gemm(
         alpha: Double,
         transposeA: Boolean,
-        b: F64DenseMatrix,
+        b: DenseMatrix,
         beta: Double,
-        c: F64DenseMatrix,
+        c: DenseMatrix,
         workspace: Workspace? = null,
     )
 
     /** `A · B` against the prepared `A`, into a fresh sparse matrix. */
-    public fun gemm(b: F64SparseMatrix): F64SparseMatrix
+    public fun gemm(b: SparseMatrix): SparseMatrix
 
     /** Releases resources owned by this prepared snapshot. */
     override fun close()
 }
 
-private class ReferencePreparedSparseMatrix(a: F64SparseMatrix) : F64PreparedSparseMatrix {
+private class ReferencePreparedSparseMatrix(a: SparseMatrix) : F64PreparedSparseMatrix {
     private val snapshot = sparseSnapshotOf(a)
     private var closed = false
 
@@ -218,16 +218,16 @@ private class ReferencePreparedSparseMatrix(a: F64SparseMatrix) : F64PreparedSpa
     override fun gemm(
         alpha: Double,
         transposeA: Boolean,
-        b: F64DenseMatrix,
+        b: DenseMatrix,
         beta: Double,
-        c: F64DenseMatrix,
+        c: DenseMatrix,
         workspace: Workspace?,
     ) {
         checkOpen()
         F64ReferenceSparseLinearAlgebra.gemm(alpha, snapshot, transposeA, b, false, beta, c, workspace = workspace)
     }
 
-    override fun gemm(b: F64SparseMatrix): F64SparseMatrix {
+    override fun gemm(b: SparseMatrix): SparseMatrix {
         checkOpen()
         return F64ReferenceSparseLinearAlgebra.gemm(snapshot, b)
     }
@@ -242,7 +242,7 @@ private class ReferencePreparedSparseMatrix(a: F64SparseMatrix) : F64PreparedSpa
 }
 
 /** Copies a validated CSC matrix so later mutation through its expert escape hatches cannot stale a handle. */
-internal fun sparseSnapshotOf(a: F64SparseMatrix): F64SparseMatrix = F64SparseMatrix.wrap(
+internal fun sparseSnapshotOf(a: SparseMatrix): SparseMatrix = SparseMatrix.wrap(
     a.rows,
     a.cols,
     a.copyColumnPointers(),

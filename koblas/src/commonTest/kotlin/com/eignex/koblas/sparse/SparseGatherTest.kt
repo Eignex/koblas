@@ -1,8 +1,8 @@
 package com.eignex.koblas.sparse
 
+import com.eignex.koblas.DenseVector
 import com.eignex.koblas.DimensionMismatch
-import com.eignex.koblas.core.F64DenseVector
-import com.eignex.koblas.core.F64SparseVector
+import com.eignex.koblas.SparseVector
 import com.eignex.koblas.gather
 import com.eignex.koblas.gatherZero
 import kotlin.test.Test
@@ -11,7 +11,7 @@ import kotlin.test.assertTrue
 
 class SparseGatherTest {
 
-    private fun pattern() = F64SparseVector.of(6, intArrayOf(1, 4), doubleArrayOf(9.0, 9.0))
+    private fun pattern() = SparseVector.of(6, intArrayOf(1, 4), doubleArrayOf(9.0, 9.0))
 
     private fun dense() = doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0)
 
@@ -64,7 +64,7 @@ class SparseGatherTest {
 
     @Test
     fun `gather undoes a scatter over the stored pattern`() {
-        val x = F64SparseVector.of(6, intArrayOf(0, 3, 5), doubleArrayOf(-1.5, 2.5, 7.0))
+        val x = SparseVector.of(6, intArrayOf(0, 3, 5), doubleArrayOf(-1.5, 2.5, 7.0))
         val expected = x.values.copyOf()
         val dense = DoubleArray(6)
         F64ReferenceSparseLinearAlgebra.scatter(x, dense)
@@ -76,11 +76,11 @@ class SparseGatherTest {
 
     @Test
     fun `gather rejects a dense vector of another length`() {
-        assertFailsWith<DimensionMismatch> { gather(pattern(), F64DenseVector.of(DoubleArray(7))) }
+        assertFailsWith<DimensionMismatch> { gather(pattern(), DenseVector.of(DoubleArray(7))) }
     }
 
     @Test
     fun `gatherZero rejects a dense vector of another length`() {
-        assertFailsWith<DimensionMismatch> { gatherZero(pattern(), F64DenseVector.of(DoubleArray(7))) }
+        assertFailsWith<DimensionMismatch> { gatherZero(pattern(), DenseVector.of(DoubleArray(7))) }
     }
 }

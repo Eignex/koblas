@@ -2,13 +2,13 @@ package com.eignex.koblas.sparse.basis
 
 import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
 import com.eignex.koblas.SingularMatrix
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.Workspace
-import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.requireInBounds
 import com.eignex.koblas.requireShape
-import com.eignex.koblas.sparse.F64SparseDecompositions
 import com.eignex.koblas.sparse.F64SparseFactorization
+import com.eignex.koblas.sparse.SparseLapack
 import com.eignex.koblas.sparse.SparseTuning
 import com.eignex.koblas.sparse.factorization.lu.F64SparseMarkowitzLu
 import com.eignex.koblas.sparse.factorization.lu.ReachableSolveScratch
@@ -17,7 +17,7 @@ import com.eignex.koblas.sparse.factorization.lu.ReachableSolveScratch
 public const val DEFAULT_ETA_LIMIT: Int = 50
 
 /**
- * The portable [F64BasisSolver]: a sparse LU of the basis at the last [refactorize], plus a chain of
+ * The portable [BasisSolver]: a sparse LU of the basis at the last [refactorize], plus a chain of
  * elementary transforms, one per [update].
  *
  * This is the product form of the inverse. Replacing basis slot `p` with a column whose spike is `η` makes
@@ -37,10 +37,10 @@ public const val DEFAULT_ETA_LIMIT: Int = 50
  */
 
 public class F64ProductFormBasisSolver(
-    private val a: F64SparseMatrix,
-    private val lu: F64SparseDecompositions,
+    private val a: SparseMatrix,
+    private val lu: SparseLapack,
     private val etaLimit: Int = DEFAULT_ETA_LIMIT,
-) : F64BasisSolver {
+) : BasisSolver {
     init {
         requireShape(a.rows <= a.cols) { "a basis needs ${a.rows} columns to choose from; a has ${a.cols}" }
         require(etaLimit > 0) { "etaLimit must be positive: $etaLimit" }
@@ -141,7 +141,7 @@ public class F64ProductFormBasisSolver(
      * positions the right-hand side can reach, above it the dense sweep is cheaper than tracking which.
      */
     @OptIn(UnsafeKoblasApi::class)
-    override fun ftran(x: F64IndexedVector, expectedDensity: Double) {
+    override fun ftran(x: IndexedVector, expectedDensity: Double) {
         checkOpen()
         val factors = solvable(x)
         if (expectedDensity < REACHABLE_FTRAN_MAX_DENSITY && factors is F64SparseMarkowitzLu) {
@@ -218,7 +218,7 @@ public class F64ProductFormBasisSolver(
     }
 
     /** [expectedDensity] is not read, as in [ftran]. */
-    override fun btran(x: F64IndexedVector, expectedDensity: Double) {
+    override fun btran(x: IndexedVector, expectedDensity: Double) {
         checkOpen()
         val factors = solvable(x)
         x.gather(dense)
@@ -228,18 +228,13 @@ public class F64ProductFormBasisSolver(
         denseDirty = true
     }
 
-    override fun solveQuality(rhs: DoubleArray, solution: F64IndexedVector, transpose: Boolean): F64BasisSolveQuality {
+    override fun solveQuality(rhs: DoubleArray, solution: IndexedVector, transpose: Boolean): F64BasisSolveQuality {
         checkOpen()
         check(!singular) { "solveQuality: the basis is singular" }
         return basisSolveQuality(a, basicIndex, unitRows = null, rhs, solution, transpose)
     }
 
-    override fun update(
-        pivotRow: Int,
-        entering: Int,
-        spike: F64IndexedVector,
-        pivotEta: F64IndexedVector?,
-    ): BasisUpdate {
+    override fun update(pivotRow: Int, entering: Int, spike: IndexedVector, pivotEta: IndexedVector?): BasisUpdate {
         checkOpen()
         requireInBounds(pivotRow, n)
         requireInBounds(entering, a.cols)
@@ -298,7 +293,7 @@ public class F64ProductFormBasisSolver(
 
     /** The basis of [basicIndex] in CSC, its columns copied from [a] as they lie. */
     @OptIn(UnsafeKoblasApi::class)
-    private fun basisMatrix(basicIndex: IntArray): F64SparseMatrix {
+    private fun basisMatrix(basicIndex: IntArray): SparseMatrix {
         val colPtr = IntArray(n + 1)
         for (t in 0 until n) {
             val j = basicIndex[t]
@@ -315,7 +310,7 @@ public class F64ProductFormBasisSolver(
             }
         }
         // Every column is one of [a]'s copied as it lies, so the ascent comes with it.
-        return F64SparseMatrix.wrapTrusted(n, n, colPtr, rowIdx, values)
+        return SparseMatrix.wrapTrusted(n, n, colPtr, rowIdx, values)
     }
 
     private fun dropChain() {
@@ -324,7 +319,7 @@ public class F64ProductFormBasisSolver(
         advisedReason = null
     }
 
-    private fun solvable(x: F64IndexedVector): F64SparseFactorization {
+    private fun solvable(x: IndexedVector): F64SparseFactorization {
         requireShape(x.size == n) { "solve: x size ${x.size} != $n" }
         val factors = base ?: throw SingularMatrix(SINGULAR_POSITION_UNKNOWN, "solve: no basis has been factorized")
         if (factors.singular) throw SingularMatrix(factors.failedAt, "solve: the basis is singular")

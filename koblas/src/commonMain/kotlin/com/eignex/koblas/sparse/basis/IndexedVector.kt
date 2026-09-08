@@ -1,7 +1,7 @@
 package com.eignex.koblas.sparse.basis
 
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.UnsafeKoblasApi
-import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.requireInBounds
 import com.eignex.koblas.requireShape
 import kotlin.math.abs
@@ -22,7 +22,7 @@ import kotlin.math.abs
  * @property size the logical length, counting the unstored zeros.
  */
 @OptIn(UnsafeKoblasApi::class)
-public class F64IndexedVector(public val size: Int) {
+public class IndexedVector(public val size: Int) {
     init {
         requireShape(size >= 0) { "negative size: $size" }
     }
@@ -90,7 +90,7 @@ public class F64IndexedVector(public val size: Int) {
     }
 
     /** Empties this vector and stores the nonzeros of column [j] of [a], whose rows must be [size]. */
-    public fun scatterColumn(a: F64SparseMatrix, j: Int) {
+    public fun scatterColumn(a: SparseMatrix, j: Int) {
         requireShape(a.rows == size) { "scatterColumn: rows ${a.rows} != $size" }
         requireInBounds(j, a.cols)
         clear()
@@ -148,5 +148,5 @@ public class F64IndexedVector(public val size: Int) {
         for (i in 0 until size) if (values[i] != 0.0) store(i, values[i])
     }
 
-    override fun toString(): String = "F64IndexedVector(size=$size, count=$count)"
+    override fun toString(): String = "IndexedVector(size=$size, count=$count)"
 }

@@ -2,7 +2,7 @@ package com.eignex.koblas
 
 import com.eignex.koblas.internal.backend.slot
 
-/** A public role in an [F64Context], independent of the registry's internal seam representation. */
+/** A public role in an [KoblasContext], independent of the registry's internal seam representation. */
 public enum class BackendRole {
     /** Dense vector-vector kernels. */
     DENSE_KERNELS,
@@ -63,7 +63,7 @@ public data class BackendStatus(
 )
 
 /**
- * A stable, structured snapshot of every backend selected in an [F64Context].
+ * A stable, structured snapshot of every backend selected in an [KoblasContext].
  *
  * @property backends one entry for every [BackendRole], in declaration order.
  */
@@ -87,10 +87,10 @@ public data class F64ContextStatus(val backends: List<BackendStatus>) {
 }
 
 /** The backend installed for [role]. */
-public fun F64Context.backendFor(role: BackendRole): Backend = role.slot.from(this)
+public fun KoblasContext.backendFor(role: BackendRole): Backend = role.slot.from(this)
 
 /** Whether [role] is filled by something other than koblas's own portable implementation. */
-public fun F64Context.isAccelerated(role: BackendRole): Boolean = !backendFor(role).isPortable
+public fun KoblasContext.isAccelerated(role: BackendRole): Boolean = !backendFor(role).isPortable
 
 /** Shared by every half that reports no metadata of its own, so reading a status allocates none. */
 internal val NO_METADATA: BackendMetadata = BackendMetadata()
@@ -101,7 +101,7 @@ internal val NO_METADATA: BackendMetadata = BackendMetadata()
  * Reading a single role off [status] would build every role, which is what a routed dispatch used to do on
  * every operation it inspected.
  */
-internal fun F64Context.statusFor(role: BackendRole): BackendStatus =
+internal fun KoblasContext.statusFor(role: BackendRole): BackendStatus =
     backendStatus(role, backendFor(role), accelerated = isAccelerated(role))
 
 /**
@@ -109,7 +109,7 @@ internal fun F64Context.statusFor(role: BackendRole): BackendStatus =
  *
  * [accelerated] is the one field a backend cannot answer for itself: whether the half it fills counts as
  * accelerated is a fact about the context that selected it. A caller holding a context passes
- * [F64Context.isAccelerated]; one reporting its own route has only the backend, and answers from whether it
+ * [KoblasContext.isAccelerated]; one reporting its own route has only the backend, and answers from whether it
  * is portable.
  */
 internal fun backendStatus(role: BackendRole, backend: Backend, accelerated: Boolean): BackendStatus = BackendStatus(
@@ -124,15 +124,15 @@ internal fun backendStatus(role: BackendRole, backend: Backend, accelerated: Boo
 )
 
 /** A structured snapshot of every selected backend half. */
-public val F64Context.status: F64ContextStatus
+public val KoblasContext.status: F64ContextStatus
     get() = F64ContextStatus(BackendRole.entries.map { statusFor(it) })
 
 /** The roles still running koblas's own portable implementation, in declaration order. */
-public val F64Context.portableRoles: Set<BackendRole>
+public val KoblasContext.portableRoles: Set<BackendRole>
     get() = BackendRole.entries.filterNot { isAccelerated(it) }.toSet()
 
 /** Throws unless [role] and every one of [otherRoles] is filled by an accelerated backend. */
-public fun F64Context.requireAccelerated(role: BackendRole, vararg otherRoles: BackendRole) {
+public fun KoblasContext.requireAccelerated(role: BackendRole, vararg otherRoles: BackendRole) {
     val roles = listOf(role, *otherRoles)
     val fallen = roles.filterNot { isAccelerated(it) }
     check(fallen.isEmpty()) {
@@ -141,7 +141,7 @@ public fun F64Context.requireAccelerated(role: BackendRole, vararg otherRoles: B
     }
 }
 
-private fun F64Context.accelerationFailure(detail: String): String =
+private fun KoblasContext.accelerationFailure(detail: String): String =
     "koblas fell back to portable implementations for: $detail. " +
         "Either the host library is missing (libopenblas on Linux, brew install openblas on " +
         "macOS), the backend artifact is not on the classpath, or nothing has been registered for that " +

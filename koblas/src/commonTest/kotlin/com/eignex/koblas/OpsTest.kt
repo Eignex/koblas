@@ -2,8 +2,8 @@
 
 package com.eignex.koblas
 
-import com.eignex.koblas.core.*
-import com.eignex.koblas.dense.F64Blas
+import com.eignex.koblas.*
+import com.eignex.koblas.dense.Blas
 import com.eignex.koblas.dense.F64ReferenceBlas
 import kotlin.math.abs
 import kotlin.math.sqrt
@@ -13,22 +13,22 @@ import kotlin.test.*
 @Suppress("VariableNaming") // single-letter matrix/vector names track math conventions
 class OpsTest {
 
-    private val sparse = F64SparseVector.of(6, intArrayOf(4, 1), doubleArrayOf(-3.0, 2.0))
-    private val denseOfSparse = F64DenseVector.of(doubleArrayOf(0.0, 2.0, 0.0, 0.0, -3.0, 0.0))
+    private val sparse = SparseVector.of(6, intArrayOf(4, 1), doubleArrayOf(-3.0, 2.0))
+    private val denseOfSparse = DenseVector.of(doubleArrayOf(0.0, 2.0, 0.0, 0.0, -3.0, 0.0))
 
-    private fun dense(vararg v: Double) = F64DenseVector.of(v)
+    private fun dense(vararg v: Double) = DenseVector.of(v)
     private fun sparse(size: Int, vararg pairs: Pair<Int, Double>) =
-        F64SparseVector.of(size, pairs.map { it.first }.toIntArray(), pairs.map { it.second }.toDoubleArray())
+        SparseVector.of(size, pairs.map { it.first }.toIntArray(), pairs.map { it.second }.toDoubleArray())
 
     /** A foreign matrix, so the product reaches the indexed fallback rather than dense or CSC storage. */
-    private class Spd(override val rows: Int) : F64MatrixLike {
+    private class Spd(override val rows: Int) : MatrixLike {
         override val cols: Int get() = rows
         override fun get(i: Int, j: Int): Double = if (i == j) rows + 2.0 else 1.0 / (1 + i + j)
         override fun toArray(): Array<DoubleArray> = Array(rows) { i -> DoubleArray(cols) { j -> this[i, j] } }
     }
 
     /** A foreign vector storage, which no fast path may special-case. */
-    private class Ramp(override val size: Int) : F64VectorLike {
+    private class Ramp(override val size: Int) : VectorLike {
         override fun get(i: Int): Double = i * 0.5 - 1.0
         override fun toDoubleArray(): DoubleArray = DoubleArray(size) { this[it] }
     }
@@ -48,14 +48,14 @@ class OpsTest {
 
     @Test
     fun `axpy adds alpha-scaled x to y for any sparsity`() {
-        val y = F64DenseVector.of(doubleArrayOf(1.0, 2.0, 3.0))
+        val y = DenseVector.of(doubleArrayOf(1.0, 2.0, 3.0))
         y.axpy(2.0, sparse(3, 0 to 1.0, 2 to -1.0))
         assertEquals(dense(3.0, 2.0, 1.0), y)
     }
 
     @Test
     fun `scale mutates in place and respects identity`() {
-        val v = F64DenseVector.of(doubleArrayOf(1.0, -2.0, 3.0))
+        val v = DenseVector.of(doubleArrayOf(1.0, -2.0, 3.0))
         v.scale(0.5)
         assertEquals(dense(0.5, -1.0, 1.5), v)
         v.scale(1.0) // no-op
@@ -64,33 +64,33 @@ class OpsTest {
 
     @Test
     fun `norm2 matches the hand value on dense and sparse`() {
-        assertEquals(5.0, F64DenseVector.of(doubleArrayOf(3.0, 0.0, -4.0)).norm2())
+        assertEquals(5.0, DenseVector.of(doubleArrayOf(3.0, 0.0, -4.0)).norm2())
         assertEquals(sqrt(13.0), sparse.norm2(), 1e-15)
-        assertEquals(0.0, F64DenseVector.zero(4).norm2())
-        assertEquals(0.0, F64DenseVector.zero(0).norm2())
+        assertEquals(0.0, DenseVector.zero(4).norm2())
+        assertEquals(0.0, DenseVector.zero(0).norm2())
     }
 
     @Test
     fun `norm2 survives overflow and underflow via the rescale fallback`() {
-        assertEquals(5.0e200, F64DenseVector.of(doubleArrayOf(3.0e200, 0.0, -4.0e200)).norm2(), 1e186)
-        assertEquals(5.0e-200, F64DenseVector.of(doubleArrayOf(3.0e-200, 4.0e-200)).norm2(), 1e-214)
-        assertEquals(1.0e-300, F64DenseVector.of(doubleArrayOf(1.0e-300)).norm2(), 1e-314)
-        val sparseHuge = F64SparseVector.of(5, intArrayOf(0, 3), doubleArrayOf(3.0e200, 4.0e200))
+        assertEquals(5.0e200, DenseVector.of(doubleArrayOf(3.0e200, 0.0, -4.0e200)).norm2(), 1e186)
+        assertEquals(5.0e-200, DenseVector.of(doubleArrayOf(3.0e-200, 4.0e-200)).norm2(), 1e-214)
+        assertEquals(1.0e-300, DenseVector.of(doubleArrayOf(1.0e-300)).norm2(), 1e-314)
+        val sparseHuge = SparseVector.of(5, intArrayOf(0, 3), doubleArrayOf(3.0e200, 4.0e200))
         assertEquals(5.0e200, sparseHuge.norm2(), 1e186)
-        assertTrue(F64DenseVector.of(doubleArrayOf(1.0, Double.NaN)).norm2().isNaN())
-        assertTrue(F64DenseVector.of(doubleArrayOf(1.0e200, Double.NaN)).norm2().isNaN())
-        assertEquals(Double.POSITIVE_INFINITY, F64DenseVector.of(doubleArrayOf(1.0, Double.NEGATIVE_INFINITY)).norm2())
+        assertTrue(DenseVector.of(doubleArrayOf(1.0, Double.NaN)).norm2().isNaN())
+        assertTrue(DenseVector.of(doubleArrayOf(1.0e200, Double.NaN)).norm2().isNaN())
+        assertEquals(Double.POSITIVE_INFINITY, DenseVector.of(doubleArrayOf(1.0, Double.NEGATIVE_INFINITY)).norm2())
     }
 
     @Test
     fun `sum adds the entries for any storage`() {
         val values = doubleArrayOf(2.0, -3.5, 0.0, 4.25, -1.0, 0.5)
         val expected = values.sum()
-        val strided = F64StridedVectorView(DoubleArray(12) { values[it / 2] }, 0, 6, 2)
-        assertEquals(expected, F64DenseVector.of(values).sum(), 1e-12, "dense")
+        val strided = StridedVectorView(DoubleArray(12) { values[it / 2] }, 0, 6, 2)
+        assertEquals(expected, DenseVector.of(values).sum(), 1e-12, "dense")
         assertEquals(expected, strided.sum(), 1e-12, "strided")
         assertEquals(-1.0, sparse.sum(), 1e-12, "sparse stores 2 and -3")
-        assertEquals(0.0, F64DenseVector.of(DoubleArray(0)).sum(), "empty")
+        assertEquals(0.0, DenseVector.of(DoubleArray(0)).sum(), "empty")
     }
 
     @Test
@@ -106,74 +106,74 @@ class OpsTest {
         // answers 0, whichever order the large terms come in.
         val values = doubleArrayOf(1.0, 1e100, 1.0, -1e100)
         assertEquals(0.0, values.sum(), "the naive sum is the thing being fixed")
-        assertEquals(2.0, F64DenseVector.of(values).compensatedSum(), "dense")
-        val strided = F64StridedVectorView(DoubleArray(8) { values[it / 2] }, 0, 4, 2)
+        assertEquals(2.0, DenseVector.of(values).compensatedSum(), "dense")
+        val strided = StridedVectorView(DoubleArray(8) { values[it / 2] }, 0, 4, 2)
         assertEquals(2.0, strided.compensatedSum(), "strided takes the same path as any generic storage")
     }
 
     @Test
     fun `compensatedSum agrees with sum on benign input`() {
         val rng = Random(20260903)
-        val v = F64DenseVector.of(randomVector(500, rng))
+        val v = DenseVector.of(randomVector(500, rng))
         assertEquals(v.sum(), v.compensatedSum(), 1e-9, "no drift on well-scaled input")
     }
 
     @Test
     fun `asum matches the hand value on dense and sparse`() {
-        assertEquals(7.0, F64DenseVector.of(doubleArrayOf(3.0, 0.0, -4.0)).asum())
+        assertEquals(7.0, DenseVector.of(doubleArrayOf(3.0, 0.0, -4.0)).asum())
         assertEquals(5.0, sparse.asum())
-        assertEquals(0.0, F64DenseVector.zero(0).asum())
+        assertEquals(0.0, DenseVector.zero(0).asum())
     }
 
     @Test
     fun `norm1 is the maximum absolute column sum`() {
-        val a = F64DenseMatrix.of(
+        val a = DenseMatrix.of(
             arrayOf(
                 doubleArrayOf(1.0, -2.0, 3.0),
                 doubleArrayOf(-4.0, 5.0, -6.0),
             ),
         )
         assertEquals(9.0, a.norm1()) // columns sum to 5, 7, 9
-        assertEquals(0.0, F64DenseMatrix(0, 3).norm1())
-        assertEquals(0.0, F64DenseMatrix(3, 0).norm1())
+        assertEquals(0.0, DenseMatrix(0, 3).norm1())
+        assertEquals(0.0, DenseMatrix(3, 0).norm1())
     }
 
     @Test
     fun `iamax returns the first maximal index and handles edge cases`() {
-        assertEquals(2, F64DenseVector.of(doubleArrayOf(1.0, -2.0, 5.0, -5.0)).iamax())
-        assertEquals(1, F64DenseVector.of(doubleArrayOf(1.0, -5.0, 5.0)).iamax()) // tie: first wins
+        assertEquals(2, DenseVector.of(doubleArrayOf(1.0, -2.0, 5.0, -5.0)).iamax())
+        assertEquals(1, DenseVector.of(doubleArrayOf(1.0, -5.0, 5.0)).iamax()) // tie: first wins
         assertEquals(4, sparse.iamax())
-        assertEquals(0, F64DenseVector.zero(3).iamax()) // zero vector: first element
-        assertEquals(0, F64SparseVector.of(3, IntArray(0), DoubleArray(0)).iamax()) // all-unstored: same
-        assertEquals(-1, F64DenseVector.zero(0).iamax())
+        assertEquals(0, DenseVector.zero(3).iamax()) // zero vector: first element
+        assertEquals(0, SparseVector.of(3, IntArray(0), DoubleArray(0)).iamax()) // all-unstored: same
+        assertEquals(-1, DenseVector.zero(0).iamax())
     }
 
     @Test
     fun `iamax reads a stored zero as the zero it is`() {
-        assertEquals(0, F64SparseVector.of(5, intArrayOf(3), doubleArrayOf(0.0)).iamax())
-        assertEquals(0, F64SparseVector.of(5, intArrayOf(1, 3), doubleArrayOf(0.0, -0.0)).iamax())
-        assertEquals(F64DenseVector.zero(5).iamax(), F64SparseVector.of(5, intArrayOf(3), doubleArrayOf(0.0)).iamax())
-        assertEquals(4, F64SparseVector.of(5, intArrayOf(1, 4), doubleArrayOf(0.0, -2.0)).iamax())
+        assertEquals(0, SparseVector.of(5, intArrayOf(3), doubleArrayOf(0.0)).iamax())
+        assertEquals(0, SparseVector.of(5, intArrayOf(1, 3), doubleArrayOf(0.0, -0.0)).iamax())
+        assertEquals(DenseVector.zero(5).iamax(), SparseVector.of(5, intArrayOf(3), doubleArrayOf(0.0)).iamax())
+        assertEquals(4, SparseVector.of(5, intArrayOf(1, 4), doubleArrayOf(0.0, -2.0)).iamax())
     }
 
     @Test
     fun `copy replicates dense and sparse sources and rejects size mismatch`() {
-        val dst = F64DenseVector.of(doubleArrayOf(9.0, 9.0, 9.0, 9.0, 9.0, 9.0))
+        val dst = DenseVector.of(doubleArrayOf(9.0, 9.0, 9.0, 9.0, 9.0, 9.0))
         copy(sparse, dst) // sparse: must zero-fill the unstored slots
         assertContentEquals(denseOfSparse.data, dst.data)
-        copy(F64DenseVector.of(doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0)), dst)
+        copy(DenseVector.of(doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0)), dst)
         assertContentEquals(doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0), dst.data)
-        assertFailsWith<IllegalArgumentException> { copy(F64DenseVector.zero(2), F64DenseVector.zero(3)) }
+        assertFailsWith<IllegalArgumentException> { copy(DenseVector.zero(2), DenseVector.zero(3)) }
     }
 
     @Test
     fun `swap exchanges contents and rejects size mismatch`() {
-        val a = F64DenseVector.of(doubleArrayOf(1.0, 2.0))
-        val b = F64DenseVector.of(doubleArrayOf(3.0, 4.0))
+        val a = DenseVector.of(doubleArrayOf(1.0, 2.0))
+        val b = DenseVector.of(doubleArrayOf(3.0, 4.0))
         swap(a, b)
         assertContentEquals(doubleArrayOf(3.0, 4.0), a.data)
         assertContentEquals(doubleArrayOf(1.0, 2.0), b.data)
-        assertFailsWith<IllegalArgumentException> { swap(F64DenseVector.zero(2), F64DenseVector.zero(3)) }
+        assertFailsWith<IllegalArgumentException> { swap(DenseVector.zero(2), DenseVector.zero(3)) }
     }
 
     @Test
@@ -182,7 +182,7 @@ class OpsTest {
         repeat(20) {
             val n = rng.nextInt(1, 200)
             val data = DoubleArray(n) { rng.nextDouble(-100.0, 100.0) }
-            val v = F64DenseVector.of(data)
+            val v = DenseVector.of(data)
             var sumSq = 0.0
             var sumAbs = 0.0
             var maxIdx = 0
@@ -199,7 +199,7 @@ class OpsTest {
 
     @Test
     fun `the gemv overload computes A x for dense and sparse x`() {
-        val A = F64DenseMatrix.of(
+        val A = DenseMatrix.of(
             arrayOf(
                 doubleArrayOf(1.0, 2.0),
                 doubleArrayOf(3.0, 4.0),
@@ -221,8 +221,8 @@ class OpsTest {
         val nz = (0 until n).filter { rng.nextBoolean() }
         val xv = DoubleArray(n)
         for (i in nz) xv[i] = rng.nextDouble(-1.0, 1.0)
-        val xSparse = F64SparseVector.of(n, nz.toIntArray(), nz.map { xv[it] }.toDoubleArray())
-        assertClose((A * F64DenseVector.of(xv)).data, (A * xSparse).data, "matrix vector dense vs sparse")
+        val xSparse = SparseVector.of(n, nz.toIntArray(), nz.map { xv[it] }.toDoubleArray())
+        assertClose((A * DenseVector.of(xv)).data, (A * xSparse).data, "matrix vector dense vs sparse")
     }
 
     @Test
@@ -230,7 +230,7 @@ class OpsTest {
         val rng = Random(11)
         val n = 6
         val dense = randomMatrix(n, n, rng)
-        val sparseMatrix = F64SparseMatrix.ofTriplets(
+        val sparseMatrix = SparseMatrix.ofTriplets(
             rows = n,
             cols = n,
             rowIdx = IntArray(n) { it },
@@ -238,13 +238,13 @@ class OpsTest {
             values = DoubleArray(n) { it + 1.0 },
         )
         val values = randomVector(n, rng)
-        val xs = listOf<F64VectorLike>(
-            F64DenseVector.of(values),
-            F64SparseVector.of(n, intArrayOf(1, 4), doubleArrayOf(values[1], values[4])),
-            F64StridedVectorView(DoubleArray(2 * n) { values[it / 2] }, 0, n, 2),
+        val xs = listOf<VectorLike>(
+            DenseVector.of(values),
+            SparseVector.of(n, intArrayOf(1, 4), doubleArrayOf(values[1], values[4])),
+            StridedVectorView(DoubleArray(2 * n) { values[it / 2] }, 0, n, 2),
             Ramp(n),
         )
-        for (A in listOf<F64MatrixLike>(dense, sparseMatrix, Spd(n))) {
+        for (A in listOf<MatrixLike>(dense, sparseMatrix, Spd(n))) {
             for (x in xs) {
                 val out = DoubleArray(n)
                 A.gemvInto(x, out)
@@ -255,8 +255,8 @@ class OpsTest {
 
     @Test
     fun `gemvInto applies alpha and beta like dgemv`() {
-        val A = F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
-        val xs = listOf<F64VectorLike>(dense(1.0, -1.0), sparse(2, 0 to 1.0, 1 to -1.0))
+        val A = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
+        val xs = listOf<VectorLike>(dense(1.0, -1.0), sparse(2, 0 to 1.0, 1 to -1.0))
         for (x in xs) {
             val context = x::class.simpleName
             // beta == 0 must overwrite rather than accumulate, so a poisoned destination stays clean.
@@ -281,13 +281,13 @@ class OpsTest {
         val full = randomMatrix(n, n, rng)
         for (j in 0 until n) for (i in 0 until j) full[i, j] = full[j, i]
         val values = randomVector(n, rng)
-        val xs = listOf<F64VectorLike>(
-            F64DenseVector.of(values),
-            F64SparseVector.of(n, intArrayOf(0, 3), doubleArrayOf(values[0], values[3])),
+        val xs = listOf<VectorLike>(
+            DenseVector.of(values),
+            SparseVector.of(n, intArrayOf(0, 3), doubleArrayOf(values[0], values[3])),
         )
         for (lower in listOf(true, false)) {
             // Only the named triangle may be read, so the other one holds NaN: any read poisons the result.
-            val poisoned = F64DenseMatrix.wrap(n, n, full.data.copyOf())
+            val poisoned = DenseMatrix.wrap(n, n, full.data.copyOf())
             for (j in 0 until n) {
                 for (i in 0 until n) {
                     val unread = if (lower) i < j else i > j
@@ -304,8 +304,8 @@ class OpsTest {
 
     @Test
     fun `symvInto applies alpha and beta like dsymv`() {
-        val A = F64DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0)))
-        for (x in listOf<F64VectorLike>(dense(1.0, -1.0), sparse(2, 0 to 1.0, 1 to -1.0))) {
+        val A = DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0)))
+        for (x in listOf<VectorLike>(dense(1.0, -1.0), sparse(2, 0 to 1.0, 1 to -1.0))) {
             val context = x::class.simpleName
             val fresh = doubleArrayOf(Double.NaN, Double.NaN)
             A.symvInto(2.0, x, 0.0, fresh)
@@ -328,35 +328,35 @@ class OpsTest {
         val n = 4
         val rng = Random(17)
         val x = randomVector(n, rng)
-        val viaSyr = F64DenseMatrix.zero(n, n)
-        viaSyr.syr(1.5, F64DenseVector.of(x))
-        val viaGer = F64DenseMatrix.zero(n, n)
-        viaGer.ger(1.5, F64DenseVector.of(x), F64DenseVector.of(x))
+        val viaSyr = DenseMatrix.zero(n, n)
+        viaSyr.syr(1.5, DenseVector.of(x))
+        val viaGer = DenseMatrix.zero(n, n)
+        viaGer.ger(1.5, DenseVector.of(x), DenseVector.of(x))
         val probe = randomVector(n, rng)
         val fromSyr = DoubleArray(n)
-        viaSyr.symvInto(F64DenseVector.of(probe), fromSyr)
-        assertClose((viaGer * F64DenseVector.of(probe)).data, fromSyr, "syr-maintained symv")
+        viaSyr.symvInto(DenseVector.of(probe), fromSyr)
+        assertClose((viaGer * DenseVector.of(probe)).data, fromSyr, "syr-maintained symv")
     }
 
     @Test
     fun `the matvec destinations reject aliasing and mismatched shapes`() {
-        val A = F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
+        val A = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0), doubleArrayOf(3.0, 4.0)))
         val x = dense(1.0, -1.0)
         assertFailsWith<IllegalArgumentException> { A.gemvInto(x, x.data) }
         assertFailsWith<IllegalArgumentException> { A.symvInto(x, x.data) }
-        val square = F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0)))
+        val square = DenseMatrix.of(arrayOf(doubleArrayOf(1.0)))
         assertFailsWith<IllegalArgumentException> { square.gemvInto(dense(1.0), square.data) }
         assertFailsWith<DimensionMismatch> { A.gemvInto(dense(1.0, 2.0, 3.0), DoubleArray(2)) }
         assertFailsWith<DimensionMismatch> { A.gemvInto(x, DoubleArray(3)) }
         assertFailsWith<DimensionMismatch> { A.symvInto(x, DoubleArray(3)) }
         assertFailsWith<DimensionMismatch> {
-            F64DenseMatrix.zero(2, 3).symvInto(dense(1.0, 2.0, 3.0), DoubleArray(2))
+            DenseMatrix.zero(2, 3).symvInto(dense(1.0, 2.0, 3.0), DoubleArray(2))
         }
     }
 
     @Test
     fun `ger updates a matrix with alpha x y_transpose`() {
-        val M = F64DenseMatrix.diagonal(2, 1.0)
+        val M = DenseMatrix.diagonal(2, 1.0)
         M.ger(0.5, dense(1.0, 2.0), dense(3.0, 4.0))
         assertEquals(1.0 + 0.5 * 3, M[0, 0], 1e-12)
         assertEquals(0.5 * 4, M[0, 1], 1e-12)
@@ -366,7 +366,7 @@ class OpsTest {
 
     @Test
     fun `ger with sparse operands only touches nonzero rows and cols`() {
-        val M = F64DenseMatrix.diagonal(3, 0.0)
+        val M = DenseMatrix.diagonal(3, 0.0)
         M.ger(1.0, sparse(3, 1 to 2.0), sparse(3, 0 to 3.0, 2 to 4.0))
         for (i in 0 until 3) {
             for (j in 0 until 3) {
@@ -382,11 +382,11 @@ class OpsTest {
 
     @Test
     fun `alpha zero makes axpy and ger no-ops`() {
-        val y = F64DenseVector.of(doubleArrayOf(1.0, 2.0, 3.0))
-        y.axpy(0.0, F64DenseVector.of(doubleArrayOf(9.0, 9.0, 9.0)))
+        val y = DenseVector.of(doubleArrayOf(1.0, 2.0, 3.0))
+        y.axpy(0.0, DenseVector.of(doubleArrayOf(9.0, 9.0, 9.0)))
         assertTrue(y.toDoubleArray().contentEquals(doubleArrayOf(1.0, 2.0, 3.0)))
-        val M = F64DenseMatrix.diagonal(2, 1.0)
-        M.ger(0.0, F64DenseVector.of(doubleArrayOf(1.0, 1.0)), F64DenseVector.of(doubleArrayOf(1.0, 1.0)))
+        val M = DenseMatrix.diagonal(2, 1.0)
+        M.ger(0.0, DenseVector.of(doubleArrayOf(1.0, 1.0)), DenseVector.of(doubleArrayOf(1.0, 1.0)))
         for (i in 0 until 2) {
             for (j in 0 until 2) assertEquals(if (i == j) 1.0 else 0.0, M[i, j])
         }
@@ -394,12 +394,12 @@ class OpsTest {
 
     @Test
     fun `ger skips zero entries on both carriers`() {
-        val dense = F64DenseMatrix.diagonal(3, 0.0)
+        val dense = DenseMatrix.diagonal(3, 0.0)
         dense.ger(1.0, dense(0.0, 2.0, 0.0), dense(1.0, 1.0, 1.0))
         for (i in 0 until 3) {
             for (j in 0 until 3) assertEquals(if (i == 1) 2.0 else 0.0, dense[i, j], 1e-12, "dense[$i,$j]")
         }
-        val sparse = F64DenseMatrix.diagonal(3, 0.0)
+        val sparse = DenseMatrix.diagonal(3, 0.0)
         sparse.ger(1.0, sparse(3, 0 to 0.0, 1 to 1.0), sparse(3, 2 to 5.0))
         for (i in 0 until 3) {
             for (j in 0 until 3) {
@@ -412,18 +412,18 @@ class OpsTest {
     fun `syr and syr2 match the equivalent ger sweeps`() {
         val rng = Random(20260807)
         val n = 6
-        val x = F64DenseVector.of(randomVector(n, rng))
-        val y = F64DenseVector.of(randomVector(n, rng))
+        val x = DenseVector.of(randomVector(n, rng))
+        val y = DenseVector.of(randomVector(n, rng))
 
-        val viaSyr = F64DenseMatrix(n, n)
+        val viaSyr = DenseMatrix(n, n)
         viaSyr.syr(1.5, x)
-        val viaGer = F64DenseMatrix(n, n)
+        val viaGer = DenseMatrix(n, n)
         viaGer.ger(1.5, x, x)
         assertLowerTriangleClose(viaGer, viaSyr, "syr against ger")
 
-        val viaSyr2 = F64DenseMatrix(n, n)
+        val viaSyr2 = DenseMatrix(n, n)
         viaSyr2.syr2(-0.75, x, y)
-        val viaGer2 = F64DenseMatrix(n, n)
+        val viaGer2 = DenseMatrix(n, n)
         viaGer2.ger(-0.75, x, y)
         viaGer2.ger(-0.75, y, x)
         assertLowerTriangleClose(viaGer2, viaSyr2, "syr2 against two gers")
@@ -438,21 +438,21 @@ class OpsTest {
         val n = 8
         val xSparse = sparse(n, 1 to 2.0, 4 to -3.0, 7 to 0.5)
         val ySparse = sparse(n, 0 to 1.5, 4 to 2.5)
-        val xDense = F64DenseVector.of(xSparse.toDoubleArray())
-        val yDense = F64DenseVector.of(ySparse.toDoubleArray())
+        val xDense = DenseVector.of(xSparse.toDoubleArray())
+        val yDense = DenseVector.of(ySparse.toDoubleArray())
 
         for (lower in booleanArrayOf(true, false)) {
-            val sparseSyr = F64DenseMatrix(n, n)
+            val sparseSyr = DenseMatrix(n, n)
             sparseSyr.syr(1.5, xSparse, lower)
-            val denseSyr = F64DenseMatrix(n, n)
+            val denseSyr = DenseMatrix(n, n)
             denseSyr.syr(1.5, xDense, lower)
             assertClose(denseSyr, sparseSyr, "syr lower=$lower")
 
             // Mixed storages as well, since only one operand of syr2 need be sparse.
             for (pair in listOf(xSparse to ySparse, xSparse to yDense, xDense to ySparse)) {
-                val sparseSyr2 = F64DenseMatrix(n, n)
+                val sparseSyr2 = DenseMatrix(n, n)
                 sparseSyr2.syr2(-0.75, pair.first, pair.second, lower)
-                val denseSyr2 = F64DenseMatrix(n, n)
+                val denseSyr2 = DenseMatrix(n, n)
                 denseSyr2.syr2(-0.75, xDense, yDense, lower)
                 assertClose(denseSyr2, sparseSyr2, "syr2 lower=$lower")
             }
@@ -463,12 +463,12 @@ class OpsTest {
     @Test
     fun `syr over a sparse operand storing a zero matches the dense update`() {
         val n = 5
-        val stored = F64SparseVector.of(n, intArrayOf(0, 2, 3), doubleArrayOf(2.0, 0.0, -1.0))
-        val densified = F64DenseVector.of(stored.toDoubleArray())
+        val stored = SparseVector.of(n, intArrayOf(0, 2, 3), doubleArrayOf(2.0, 0.0, -1.0))
+        val densified = DenseVector.of(stored.toDoubleArray())
 
-        val fromSparse = F64DenseMatrix(n, n)
+        val fromSparse = DenseMatrix(n, n)
         fromSparse.syr(1.0, stored)
-        val fromDense = F64DenseMatrix(n, n)
+        val fromDense = DenseMatrix(n, n)
         fromDense.syr(1.0, densified)
 
         assertClose(fromDense, fromSparse, "syr over a stored zero")
@@ -478,9 +478,9 @@ class OpsTest {
     fun `the symmetric updates write only the selected triangle`() {
         val rng = Random(20260808)
         val n = 5
-        val x = F64DenseVector.of(randomVector(n, rng))
+        val x = DenseVector.of(randomVector(n, rng))
 
-        val lower = F64DenseMatrix(n, n)
+        val lower = DenseMatrix(n, n)
         lower.syr(1.0, x, lower = true)
         for (i in 0 until n) {
             for (j in 0 until n) {
@@ -490,7 +490,7 @@ class OpsTest {
         }
     }
 
-    private fun assertLowerTriangleClose(expected: F64DenseMatrix, actual: F64DenseMatrix, context: String) {
+    private fun assertLowerTriangleClose(expected: DenseMatrix, actual: DenseMatrix, context: String) {
         for (j in 0 until expected.cols) {
             for (i in j until expected.rows) assertEquals(expected[i, j], actual[i, j], 1e-12, context)
         }
@@ -501,14 +501,14 @@ class OpsTest {
         assertFailsWith<IllegalArgumentException> { dense(1.0) dot dense(1.0, 2.0) }
         assertFailsWith<IllegalArgumentException> { dense(1.0).axpy(1.0, dense(1.0, 2.0)) }
         assertFailsWith<IllegalArgumentException> {
-            F64DenseMatrix(2, 2).ger(1.0, dense(1.0, 2.0, 3.0), dense(1.0, 2.0))
+            DenseMatrix(2, 2).ger(1.0, dense(1.0, 2.0, 3.0), dense(1.0, 2.0))
         }
-        assertFailsWith<IllegalArgumentException> { F64DenseMatrix(2, 3) * dense(1.0, 2.0) }
+        assertFailsWith<IllegalArgumentException> { DenseMatrix(2, 3) * dense(1.0, 2.0) }
     }
 
     @Test
     fun `zeroStrictUpper clears above the diagonal and keeps the rest`() {
-        val M = F64DenseMatrix.of(
+        val M = DenseMatrix.of(
             arrayOf(
                 doubleArrayOf(1.0, 2.0, 3.0),
                 doubleArrayOf(4.0, 5.0, 6.0),
@@ -532,7 +532,7 @@ class OpsTest {
 
     @Test
     fun `zeroStrictUpper zeroes whole columns past the last row`() {
-        val wide = F64DenseMatrix.wrap(2, 4, DoubleArray(8) { it + 1.0 })
+        val wide = DenseMatrix.wrap(2, 4, DoubleArray(8) { it + 1.0 })
         wide.zeroStrictUpper()
         for (j in 0 until 4) {
             for (i in 0 until 2) {
@@ -544,7 +544,7 @@ class OpsTest {
 
     @Test
     fun `zeroStrictUpper keeps a tall matrix intact below the diagonal`() {
-        val tall = F64DenseMatrix.wrap(4, 2, DoubleArray(8) { it + 1.0 })
+        val tall = DenseMatrix.wrap(4, 2, DoubleArray(8) { it + 1.0 })
         val before = tall.data.copyOf()
         tall.zeroStrictUpper()
         // Only (0,1) sits above the diagonal here, so every other entry survives.
@@ -559,7 +559,7 @@ class OpsTest {
 
     @Test
     fun `transpose round-trips and maps entries`() {
-        val a = F64DenseMatrix.of(
+        val a = DenseMatrix.of(
             arrayOf(
                 doubleArrayOf(1.0, 2.0, 3.0),
                 doubleArrayOf(4.0, 5.0, 6.0),
@@ -570,25 +570,25 @@ class OpsTest {
         assertEquals(2, t.cols)
         for (i in 0 until a.rows) for (j in 0 until a.cols) assertEquals(a[i, j], t[j, i])
         assertEquals(a, t.transpose())
-        assertEquals(F64DenseMatrix(0, 0), F64DenseMatrix(0, 0).transpose())
-        assertEquals(0, F64DenseMatrix(0, 5).transpose().cols)
-        assertEquals(5, F64DenseMatrix(0, 5).transpose().rows)
+        assertEquals(DenseMatrix(0, 0), DenseMatrix(0, 0).transpose())
+        assertEquals(0, DenseMatrix(0, 5).transpose().cols)
+        assertEquals(5, DenseMatrix(0, 5).transpose().rows)
     }
 
     @Test
     fun `transpose reaches the registered backend`() = withCleanBackends {
         var calls = 0
-        val counting = object : F64Blas by F64ReferenceBlas {
+        val counting = object : Blas by F64ReferenceBlas {
             override val name: String get() = "counting"
             override val priority: Int get() = 50
-            override fun transpose(a: F64DenseMatrix): F64DenseMatrix {
+            override fun transpose(a: DenseMatrix): DenseMatrix {
                 calls++
                 return F64ReferenceBlas.transpose(a)
             }
         }
         registerBackend(counting)
 
-        F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0))).transpose()
+        DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 2.0))).transpose()
 
         assertEquals(1, calls, "the extension must forward to the seam")
     }
@@ -599,7 +599,7 @@ class OpsTest {
         val a = randomMatrix(4, 6, rng)
         val b = randomMatrix(4, 3, rng)
         val viaMaterialized = a.transpose() * b
-        val viaFlag = F64DenseMatrix(6, 3)
+        val viaFlag = DenseMatrix(6, 3)
         koblas.gemm(1.0, a, true, b, false, 0.0, viaFlag)
         assertClose(viaMaterialized, viaFlag, "transpose flag vs materialized")
     }
@@ -617,9 +617,9 @@ class OpsTest {
             IntArray(0) to IntArray(0),
         )
         for ((ia, ib) in patterns) {
-            val a = F64SparseVector.of(n, ia, DoubleArray(ia.size) { it + 1.5 })
-            val b = F64SparseVector.of(n, ib, DoubleArray(ib.size) { it + 2.5 })
-            val expected = F64DenseVector.of(a.toDoubleArray()) dot F64DenseVector.of(b.toDoubleArray())
+            val a = SparseVector.of(n, ia, DoubleArray(ia.size) { it + 1.5 })
+            val b = SparseVector.of(n, ib, DoubleArray(ib.size) { it + 2.5 })
+            val expected = DenseVector.of(a.toDoubleArray()) dot DenseVector.of(b.toDoubleArray())
             assertEquals(expected, a dot b, "pattern ${ia.toList()} vs ${ib.toList()}")
             assertEquals(expected, b dot a, "dot should be symmetric for ${ia.toList()} vs ${ib.toList()}")
         }
@@ -627,8 +627,8 @@ class OpsTest {
 
     @Test
     fun `mixed sparse and dense dot agrees in both operand orders`() {
-        val sparse = F64SparseVector.of(6, intArrayOf(1, 4), doubleArrayOf(2.0, -3.0))
-        val dense = F64DenseVector.of(doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0))
+        val sparse = SparseVector.of(6, intArrayOf(1, 4), doubleArrayOf(2.0, -3.0))
+        val dense = DenseVector.of(doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0))
         val expected = 2.0 * 2.0 + -3.0 * 5.0
         assertEquals(expected, sparse dot dense)
         assertEquals(expected, dense dot sparse)
@@ -637,21 +637,21 @@ class OpsTest {
     @Test
     fun `gemvInto honours beta on a matrix with no columns`() {
         // The seams quick-return on a zero-extent operand before scaling, so the dense fast path used to
-        // leave the destination untouched while a generic F64MatrixLike of the same shape returned zeros.
-        val dense = F64DenseMatrix.zero(3, 0)
+        // leave the destination untouched while a generic MatrixLike of the same shape returned zeros.
+        val dense = DenseMatrix.zero(3, 0)
         val destination = doubleArrayOf(Double.NaN, Double.NaN, Double.NaN)
 
-        dense.gemvInto(1.0, F64DenseVector(DoubleArray(0)), 0.0, destination)
+        dense.gemvInto(1.0, DenseVector(DoubleArray(0)), 0.0, destination)
 
         assertContentEquals(doubleArrayOf(0.0, 0.0, 0.0), destination)
     }
 
     @Test
     fun `gemvInto scales by beta on a sparse matrix with no columns`() {
-        val sparse = F64SparseMatrix.ofColumns(3, 0, emptyList())
+        val sparse = SparseMatrix.ofColumns(3, 0, emptyList())
         val destination = doubleArrayOf(2.0, 4.0, 6.0)
 
-        sparse.gemvInto(1.0, F64DenseVector(DoubleArray(0)), 0.5, destination)
+        sparse.gemvInto(1.0, DenseVector(DoubleArray(0)), 0.5, destination)
 
         assertContentEquals(doubleArrayOf(1.0, 2.0, 3.0), destination)
     }

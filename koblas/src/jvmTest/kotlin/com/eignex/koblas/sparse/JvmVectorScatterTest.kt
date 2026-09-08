@@ -1,7 +1,7 @@
 package com.eignex.koblas.sparse
 
+import com.eignex.koblas.SparseVector
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.dense.simdAvailable
 import org.junit.Assume
 import kotlin.random.Random
@@ -100,10 +100,10 @@ class JvmVectorScatterTest {
     @Test
     fun `indexed gather agrees with the portable implementation`() {
         forEachPattern { x, dense ->
-            val expected = F64SparseVector.wrap(x.size, x.indices.copyOf(), x.values.copyOf())
+            val expected = SparseVector.wrap(x.size, x.indices.copyOf(), x.values.copyOf())
             F64ReferenceSparseLinearAlgebra.gather(expected, dense.copyOf())
 
-            val actual = F64SparseVector.wrap(x.size, x.indices.copyOf(), x.values.copyOf())
+            val actual = SparseVector.wrap(x.size, x.indices.copyOf(), x.values.copyOf())
             SparseSimd.gather(actual.indices, actual.values, dense.copyOf())
 
             assertClose(expected.values, actual.values, "gather nnz=${x.values.size}")
@@ -113,11 +113,11 @@ class JvmVectorScatterTest {
     @Test
     fun `indexed gather zero agrees with the portable implementation`() {
         forEachPattern { x, dense ->
-            val expectedX = F64SparseVector.wrap(x.size, x.indices.copyOf(), x.values.copyOf())
+            val expectedX = SparseVector.wrap(x.size, x.indices.copyOf(), x.values.copyOf())
             val expectedDense = dense.copyOf()
             F64ReferenceSparseLinearAlgebra.gatherZero(expectedX, expectedDense)
 
-            val actualX = F64SparseVector.wrap(x.size, x.indices.copyOf(), x.values.copyOf())
+            val actualX = SparseVector.wrap(x.size, x.indices.copyOf(), x.values.copyOf())
             val actualDense = dense.copyOf()
             SparseSimd.gatherZero(actualX.indices, actualX.values, actualDense)
 
@@ -139,12 +139,12 @@ class JvmVectorScatterTest {
         }
     }
 
-    private fun forEachPattern(block: (F64SparseVector, DoubleArray) -> Unit) {
+    private fun forEachPattern(block: (SparseVector, DoubleArray) -> Unit) {
         Assume.assumeTrue("the Vector API module is unavailable", simdAvailable)
         for (nnz in intArrayOf(1, 2, 3, 4, 5, 7, 8, 9)) {
             val random = Random(nnz)
             val size = 2 * nnz + 1
-            val x = F64SparseVector.wrap(
+            val x = SparseVector.wrap(
                 size,
                 IntArray(nnz) { 2 * it + 1 },
                 DoubleArray(nnz) { random.nextDouble(-1.0, 1.0) },

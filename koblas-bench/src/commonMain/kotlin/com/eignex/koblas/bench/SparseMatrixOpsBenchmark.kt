@@ -1,8 +1,8 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.*
-import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.core.F64SparseVector
+import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.SparseVector
 import kotlinx.benchmark.*
 
 @State(Scope.Benchmark)
@@ -12,7 +12,7 @@ class SparseMatrixOpsBenchmark {
     @Param("64", "256", "1024")
     var n: Int = 0
 
-    private lateinit var a: F64SparseMatrix
+    private lateinit var a: SparseMatrix
     private lateinit var factors: DoubleArray
 
     @Setup
@@ -32,20 +32,20 @@ class SparseMatrixOpsBenchmark {
     fun normFro(): Double = a.normFro()
 
     @Benchmark
-    fun scaleRowsBench(): F64SparseMatrix {
+    fun scaleRowsBench(): SparseMatrix {
         a.scaleRows(factors)
         return a
     }
 
     @Benchmark
-    fun scaleColumnsBench(): F64SparseMatrix {
+    fun scaleColumnsBench(): SparseMatrix {
         a.scaleColumns(factors)
         return a
     }
 
     @Benchmark
-    fun column(): F64SparseVector = a.column(n / 2)
+    fun column(): SparseVector = a.column(n / 2)
 
     @Benchmark
-    fun row(): F64SparseVector = a.row(n / 2)
+    fun row(): SparseVector = a.row(n / 2)
 }

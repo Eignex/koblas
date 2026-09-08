@@ -1,14 +1,14 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
-import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.core.F64SparseVector
-import com.eignex.koblas.dense.F64Kernels
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.SparseVector
+import com.eignex.koblas.dense.Kernels
 import com.eignex.koblas.dense.applyBeta
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.numeric.euclideanNorm
-import com.eignex.koblas.sparse.basis.F64BasisSolver
+import com.eignex.koblas.sparse.basis.BasisSolver
 import com.eignex.koblas.sparse.basis.F64ProductFormBasisSolver
 import com.eignex.koblas.sparse.internal.multiplyFromTheLeft
 import com.eignex.koblas.sparse.internal.multiplyFromTheRight
@@ -34,10 +34,10 @@ internal const val REFERENCE_SPARSE_RHS_WIDTH: Int = 4
  * @property configuredKernels dense vector kernels used by sparse matrix scaling, or null to follow [koblas].
  */
 @Suppress("TooManyFunctions") // the sparse surface a backend half covers
-public open class F64ReferenceSparseBackend(public val configuredKernels: F64Kernels? = null) :
-    F64SparseLinearAlgebra,
+public open class F64ReferenceSparseBackend(public val configuredKernels: Kernels? = null) :
+    SparseLinearAlgebra,
     F64RebindableBackend,
-    F64SparseKernels,
+    SparseKernels,
     F64GeneralSparseLu,
     F64SparseCholesky,
     F64QuasiDefiniteLdl,
@@ -49,12 +49,12 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
 
     override val hasOwnKernels: Boolean get() = configuredKernels != null
 
-    private val denseKernels: F64Kernels get() = configuredKernels ?: koblas.kernels
+    private val denseKernels: Kernels get() = configuredKernels ?: koblas.kernels
 
     /** The product form over this backend's own factorization, so the portable half stays portable. */
-    override fun basisSolver(a: F64SparseMatrix): F64BasisSolver = F64ProductFormBasisSolver(a, this)
+    override fun basisSolver(a: SparseMatrix): BasisSolver = F64ProductFormBasisSolver(a, this)
 
-    override fun factorBasis(basis: F64SparseMatrix): F64BasisFactorization {
+    override fun factorBasis(basis: SparseMatrix): F64BasisFactorization {
         requireSquare(basis, "factorBasis")
         return F64RefactoringBasisFactorization(this, basis, factor(basis))
     }
@@ -62,7 +62,7 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
     @Suppress("LongParameterList") // the BLAS dgemv signature
     override fun gemv(
         alpha: Double,
-        a: F64SparseMatrix,
+        a: SparseMatrix,
         x: DoubleArray,
         beta: Double,
         y: DoubleArray,
@@ -86,16 +86,16 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         }
     }
 
-    override fun transpose(a: F64SparseMatrix): F64SparseMatrix = transposeCsc(a)
+    override fun transpose(a: SparseMatrix): SparseMatrix = transposeCsc(a)
 
-    override fun trsv(a: F64SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
+    override fun trsv(a: SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
         requireSquare(a, "trsv")
         val n = a.rows
         requireShape(x.size == n) { "trsv: x length ${x.size} != $n" }
         trsvCore(a, x, lower, transpose, unitDiag)
     }
 
-    override fun trmv(a: F64SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
+    override fun trmv(a: SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
         requireSquare(a, "trmv")
         val n = a.rows
         requireShape(x.size == n) { "trmv: x length ${x.size} != $n" }
@@ -105,12 +105,12 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
     @Suppress("LongParameterList") // the BLAS dgemm signature, plus the side the sparse operand sits on
     override fun gemm(
         alpha: Double,
-        a: F64SparseMatrix,
+        a: SparseMatrix,
         transposeA: Boolean,
-        b: F64DenseMatrix,
+        b: DenseMatrix,
         transposeB: Boolean,
         beta: Double,
-        c: F64DenseMatrix,
+        c: DenseMatrix,
         right: Boolean,
         workspace: Workspace?,
     ) {
@@ -132,15 +132,15 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
 
     /** `C += alpha · op(A) · op(B)`, reusing each walk of the sparse operand over a small RHS panel. */
 
-    override fun gemm(a: F64SparseMatrix, b: F64SparseMatrix): F64SparseMatrix {
+    override fun gemm(a: SparseMatrix, b: SparseMatrix): SparseMatrix {
         requireShape(a.cols == b.rows) { "gemm: ${a.rows}x${a.cols} does not meet ${b.rows}x${b.cols}" }
         return multiplySparse(a, b)
     }
 
     @Suppress("LongParameterList") // the BLAS dtrsm signature
     override fun trsm(
-        a: F64SparseMatrix,
-        b: F64DenseMatrix,
+        a: SparseMatrix,
+        b: DenseMatrix,
         lower: Boolean,
         transpose: Boolean,
         unitDiag: Boolean,
@@ -172,8 +172,8 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
 
     @Suppress("LongParameterList") // the BLAS dtrmm signature
     override fun trmm(
-        a: F64SparseMatrix,
-        b: F64DenseMatrix,
+        a: SparseMatrix,
+        b: DenseMatrix,
         lower: Boolean,
         transpose: Boolean,
         unitDiag: Boolean,
@@ -197,28 +197,28 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
     }
 
     /** The portable factorization at its default policy; [F64ReferenceSparseDecompositions] carries the knobs. */
-    override fun factor(a: F64SparseMatrix): F64SparseLuFactorization = F64ReferenceSparseDecompositions.factor(a)
+    override fun factor(a: SparseMatrix): F64SparseLuFactorization = F64ReferenceSparseDecompositions.factor(a)
 
-    override fun cholesky(a: F64SparseMatrix): F64SparseCholeskyFactorization =
+    override fun cholesky(a: SparseMatrix): F64SparseCholeskyFactorization =
         F64ReferenceSparseDecompositions.cholesky(a)
 
-    override fun quasiDefiniteLdl(a: F64SparseMatrix): F64QuasiDefiniteLdlFactorization =
+    override fun quasiDefiniteLdl(a: SparseMatrix): F64QuasiDefiniteLdlFactorization =
         F64ReferenceSparseDecompositions.quasiDefiniteLdl(a)
 
-    override fun qr(a: F64SparseMatrix): F64SparseQrFactorization = F64ReferenceSparseDecompositions.qr(a)
+    override fun qr(a: SparseMatrix): F64SparseQrFactorization = F64ReferenceSparseDecompositions.qr(a)
 
-    override fun analyzeCholesky(a: F64SparseMatrix): F64SparseSymbolicAnalysis<F64SparseCholeskyFactorization> =
+    override fun analyzeCholesky(a: SparseMatrix): F64SparseSymbolicAnalysis<F64SparseCholeskyFactorization> =
         F64ReferenceSparseDecompositions.analyzeCholesky(a)
 
     override fun analyzeQuasiDefiniteLdl(
-        a: F64SparseMatrix,
+        a: SparseMatrix,
     ): F64SparseSymbolicAnalysis<F64QuasiDefiniteLdlFactorization> =
         F64ReferenceSparseDecompositions.analyzeQuasiDefiniteLdl(a)
 
-    override fun analyzeQr(a: F64SparseMatrix): F64SparseSymbolicAnalysis<F64SparseQrFactorization> =
+    override fun analyzeQr(a: SparseMatrix): F64SparseSymbolicAnalysis<F64SparseQrFactorization> =
         F64ReferenceSparseDecompositions.analyzeQr(a)
 
-    override fun dot(x: F64SparseVector, y: DoubleArray): Double {
+    override fun dot(x: SparseVector, y: DoubleArray): Double {
         requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
         var s = 0.0
         val idx = x.indices
@@ -227,7 +227,7 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         return s
     }
 
-    override fun dot(x: F64SparseVector, y: F64SparseVector): Double {
+    override fun dot(x: SparseVector, y: SparseVector): Double {
         requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
         var s = 0.0
         var a = 0
@@ -250,7 +250,7 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         return s
     }
 
-    override fun axpy(y: DoubleArray, alpha: Double, x: F64SparseVector) {
+    override fun axpy(y: DoubleArray, alpha: Double, x: SparseVector) {
         requireShape(x.size == y.size) { "axpy: sizes differ, ${x.size} vs ${y.size}" }
         if (alpha == 0.0) return
         val idx = x.indices
@@ -258,21 +258,21 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         for (k in idx.indices) y[idx[k]] += alpha * vals[k]
     }
 
-    override fun scatter(x: F64SparseVector, out: DoubleArray) {
+    override fun scatter(x: SparseVector, out: DoubleArray) {
         requireShape(x.size == out.size) { "scatter: sizes differ, ${x.size} vs ${out.size}" }
         val idx = x.indices
         val vals = x.values
         for (k in idx.indices) out[idx[k]] = vals[k]
     }
 
-    override fun gather(x: F64SparseVector, from: DoubleArray) {
+    override fun gather(x: SparseVector, from: DoubleArray) {
         requireShape(x.size == from.size) { "gather: sizes differ, ${x.size} vs ${from.size}" }
         val idx = x.indices
         val vals = x.values
         for (k in idx.indices) vals[k] = from[idx[k]]
     }
 
-    override fun gatherZero(x: F64SparseVector, from: DoubleArray) {
+    override fun gatherZero(x: SparseVector, from: DoubleArray) {
         requireShape(x.size == from.size) { "gatherZero: sizes differ, ${x.size} vs ${from.size}" }
         val idx = x.indices
         val vals = x.values
@@ -283,9 +283,9 @@ public open class F64ReferenceSparseBackend(public val configuredKernels: F64Ker
         }
     }
 
-    override fun nrm2(x: F64SparseVector): Double = euclideanNorm(x.values, 0, x.values.size)
+    override fun nrm2(x: SparseVector): Double = euclideanNorm(x.values, 0, x.values.size)
 
-    override fun asum(x: F64SparseVector): Double {
+    override fun asum(x: SparseVector): Double {
         var s = 0.0
         for (v in x.values) s += abs(v)
         return s

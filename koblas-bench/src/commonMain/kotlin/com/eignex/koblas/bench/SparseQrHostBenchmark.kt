@@ -1,7 +1,7 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.koblas
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.transpose
@@ -18,9 +18,9 @@ class SparseQrHostBenchmark {
     @Param(AUTOMATIC_BACKEND, REFERENCE_BACKEND)
     var backend: String = REFERENCE_BACKEND
 
-    private lateinit var a: F64SparseMatrix
+    private lateinit var a: SparseMatrix
     private lateinit var b: DoubleArray
-    private lateinit var block: F64DenseMatrix
+    private lateinit var block: DenseMatrix
     private lateinit var factored: F64SparseQrFactorization
 
     @Setup
@@ -45,7 +45,7 @@ class SparseQrHostBenchmark {
     fun qrApplyQ(): DoubleArray = factored.applyQ(b, transpose = true)
 
     @Benchmark
-    fun qrBlockSolve(): F64DenseMatrix = factored.solve(block)
+    fun qrBlockSolve(): DenseMatrix = factored.solve(block)
 
     // Separate from [qr] because a native binding materialises the factors through a second factorization,
     // which a combined row would charge to the first.
@@ -56,7 +56,7 @@ class SparseQrHostBenchmark {
     fun qrSolve(): DoubleArray = a.qr().use { it.solve(b) }
 
     @Benchmark
-    fun transpose(): F64SparseMatrix = a.transpose()
+    fun transpose(): SparseMatrix = a.transpose()
 }
 
 /** Right-hand sides in the blocked solve, matching the count the other block suites use. */

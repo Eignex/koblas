@@ -1,7 +1,7 @@
 package com.eignex.koblas.sparse.factorization.lu
 
 import com.eignex.koblas.*
-import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.sparse.*
 import kotlin.math.abs
 import kotlin.random.Random
@@ -9,30 +9,25 @@ import kotlin.test.*
 
 class SparseLuTest {
 
-    private fun square(vararg rows: DoubleArray): F64SparseMatrix {
+    private fun square(vararg rows: DoubleArray): SparseMatrix {
         val n = rows.size
         val cols = List(n) { j -> (0 until n).mapNotNull { i -> if (rows[i][j] != 0.0) i to rows[i][j] else null } }
-        return F64SparseMatrix.ofColumns(n, n, cols)
+        return SparseMatrix.ofColumns(n, n, cols)
     }
 
-    private fun randomSparseSquare(
-        n: Int,
-        rng: Random,
-        density: Double = 0.3,
-        dominance: Double = 5.0,
-    ): F64SparseMatrix {
+    private fun randomSparseSquare(n: Int, rng: Random, density: Double = 0.3, dominance: Double = 5.0): SparseMatrix {
         val columns = List(n) { j ->
             val entries = ArrayList<Pair<Int, Double>>()
             entries.add(j to (rng.nextDouble(-2.0, 2.0) + n * dominance))
             for (i in 0 until n) if (i != j && rng.nextDouble() < density) entries.add(i to rng.nextDouble(-2.0, 2.0))
             entries
         }
-        return F64SparseMatrix.ofColumns(n, n, columns)
+        return SparseMatrix.ofColumns(n, n, columns)
     }
 
     @Test
     fun `the seam solves from a factorization`() {
-        val a = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0, 1 to 1.0), listOf(0 to 1.0, 1 to 3.0)))
+        val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0, 1 to 1.0), listOf(0 to 1.0, 1 to 3.0)))
         val f = a.lu()
         val b = doubleArrayOf(3.0, 4.0)
         assertClose(f.solve(b), koblas.solve(f, b), "seam solve", tolerance = 1e-12)
@@ -42,7 +37,7 @@ class SparseLuTest {
 
     @Test
     fun `a singular factor refuses to solve`() {
-        val a = F64SparseMatrix.ofTriplets(
+        val a = SparseMatrix.ofTriplets(
             rows = 2,
             cols = 2,
             rowIdx = intArrayOf(0, 1, 0, 1),
@@ -69,7 +64,7 @@ class SparseLuTest {
                 }
             }
         }
-        val factor = F64SparseMatrix.ofColumns(n, n, columns).lu()
+        val factor = SparseMatrix.ofColumns(n, n, columns).lu()
         val b = randomVector(n, rng)
         val workspace = Workspace()
 
@@ -133,7 +128,7 @@ class SparseLuTest {
 
     @Test
     fun `equilibration leaves a row it cannot scale into range alone`() {
-        val a = F64SparseMatrix(2, 2, intArrayOf(0, 1, 2), intArrayOf(0, 1), doubleArrayOf(1e-320, 2e-320))
+        val a = SparseMatrix(2, 2, intArrayOf(0, 1, 2), intArrayOf(0, 1), doubleArrayOf(1e-320, 2e-320))
         val plain = assertNotNull(F64ReferenceSparseDecompositions().factor(a))
         val equilibrated = assertNotNull(F64ReferenceSparseDecompositions(equilibrate = true).factor(a))
         assertEquals(plain.singular, equilibrated.singular, "equilibration changed the singularity verdict")
@@ -163,7 +158,7 @@ class SparseLuTest {
     fun `a singular matrix factors to a singular factorization`() {
         // A column of zeros and a duplicated column, neither with a full set of acceptable pivots.
         for (a in listOf(
-            F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf())),
+            SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf())),
             square(doubleArrayOf(1.0, 1.0), doubleArrayOf(2.0, 2.0)),
         )) {
             val f = a.lu()
@@ -176,7 +171,7 @@ class SparseLuTest {
         // The failing pivot position is koblas's own, so this uses the portable factorization. A host backend may
         // report only that the matrix is singular, so asserting a position against one would assert the machine.
         val singular = F64ReferenceSparseLinearAlgebra.factor(
-            F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf())),
+            SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf())),
         )
         assertTrue(singular is F64SingularSparseFactorization)
         assertEquals(1, singular.failedAt, "the second pivot is the one with no candidate")
@@ -184,7 +179,7 @@ class SparseLuTest {
 
     @Test
     fun `factorize rejects a non-square matrix`() {
-        val a = F64SparseMatrix.ofColumns(2, 3, listOf(listOf(0 to 1.0), listOf(1 to 1.0), listOf(0 to 1.0)))
+        val a = SparseMatrix.ofColumns(2, 3, listOf(listOf(0 to 1.0), listOf(1 to 1.0), listOf(0 to 1.0)))
         assertFailsWith<IllegalArgumentException> { a.lu() }
     }
 
@@ -196,7 +191,7 @@ class SparseLuTest {
         // These are koblas's own tolerances, so this uses the portable factorization rather than an installed backend.
         val reference = F64ReferenceSparseLinearAlgebra.factor(base)
         for (scale in doubleArrayOf(POW_2_MINUS_60, POW_2_60)) {
-            val scaled = F64SparseMatrix.ofColumns(
+            val scaled = SparseMatrix.ofColumns(
                 6,
                 6,
                 List(6) { j -> buildList { base.forEachInColumn(j) { i, v -> add(i to v * scale) } } },
@@ -248,7 +243,7 @@ class SparseLuTest {
         assertClose(doubleArrayOf(1.0, 2.0, 3.0), lu.solve(koblas.gemv(a, doubleArrayOf(1.0, 2.0, 3.0))), "solve")
     }
 
-    private fun residualOf(a: F64SparseMatrix, f: F64SparseFactorization, rhs: DoubleArray): Double {
+    private fun residualOf(a: SparseMatrix, f: F64SparseFactorization, rhs: DoubleArray): Double {
         val residual = koblas.gemv(a, f.solve(rhs))
         var worst = 0.0
         for (i in rhs.indices) worst = maxOf(worst, abs(residual[i] - rhs[i]))
@@ -266,7 +261,7 @@ class SparseLuTest {
             val rows = (listOf((j + n / 2) % n, j) + List(3) { rng.nextInt(n) }).distinct().sorted()
             rows.map { i -> i to if (i == (j + n / 2) % n) 8.0 + rng.nextDouble() else rng.nextDouble(-1.0, 1.0) }
         }
-        val a = F64SparseMatrix.ofColumns(n, n, columns)
+        val a = SparseMatrix.ofColumns(n, n, columns)
         val factorization = F64SparseMarkowitzLu.factorCsc(a)
         assertTrue(!factorization.singular, "the fixture should factor")
 

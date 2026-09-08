@@ -2,9 +2,9 @@
 
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.borrow
-import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.requireSquare
 import com.eignex.koblas.requireTriangularMatrixShape
@@ -28,7 +28,7 @@ private val TRSM_BLOCKED_MIN_ORDER = DenseTuning.trsmBlockedMinOrder
  *  flipped. */
 internal inline fun forEachRow(
     n: Int,
-    b: F64DenseMatrix,
+    b: DenseMatrix,
     row: DoubleArray,
     columnOffset: Int,
     op: (DoubleArray) -> Unit,
@@ -45,7 +45,7 @@ internal inline fun forEachRow(
 
 /** Adds only runs whose source coefficients are nonzero, retaining vector kernels for every nonzero run. */
 private fun axpySkippingZeroSource(
-    k: F64Kernels,
+    k: Kernels,
     y: DoubleArray,
     yOff: Int,
     alpha: Double,
@@ -63,14 +63,7 @@ private fun axpySkippingZeroSource(
 }
 
 /** Dots only runs whose matrix coefficients are nonzero, retaining vector kernels for every nonzero run. */
-private fun dotSkippingZeroMatrix(
-    k: F64Kernels,
-    a: DoubleArray,
-    aOff: Int,
-    x: DoubleArray,
-    xOff: Int,
-    len: Int,
-): Double {
+private fun dotSkippingZeroMatrix(k: Kernels, a: DoubleArray, aOff: Int, x: DoubleArray, xOff: Int, len: Int): Double {
     var sum = 0.0
     var at = 0
     while (at < len) {
@@ -88,7 +81,7 @@ private fun dotSkippingZeroMatrix(
  */
 @Suppress("LongParameterList") // the shape, the leading dimension and the three BLAS flags
 internal fun trmvCore(
-    k: F64Kernels,
+    k: Kernels,
     a: DoubleArray,
     n: Int,
     x: DoubleArray,
@@ -158,7 +151,7 @@ internal fun trmvCore(
  *  x(xOff until xOff + n). The diagonal is not checked, so a singular triangle yields infinities or NaNs. */
 @Suppress("LongParameterList") // the shape, the leading dimension and the three BLAS flags
 internal fun trsvCore(
-    k: F64Kernels,
+    k: Kernels,
     a: DoubleArray,
     n: Int,
     x: DoubleArray,
@@ -227,15 +220,15 @@ internal fun trsvCore(
 }
 
 /**
- * The body [F64Blas.trsv] and [F64Blas.trmv] share. The two BLAS routines take the same arguments and differ only
+ * The body [Blas.trsv] and [Blas.trmv] share. The two BLAS routines take the same arguments and differ only
  * in which core runs, which [solve] selects.
  *
  * The selection is a flag rather than a passed-in core so the call stays direct.
  */
 @Suppress("LongParameterList") // the shared BLAS signature plus the entry-point flag
 internal fun triangularVector(
-    k: F64Kernels,
-    a: F64DenseMatrix,
+    k: Kernels,
+    a: DenseMatrix,
     x: DoubleArray,
     lower: Boolean,
     transpose: Boolean,
@@ -253,16 +246,16 @@ internal fun triangularVector(
 }
 
 /**
- * The body [F64Blas.trsm] and [F64Blas.trmm] share, with [solve] selecting the core as in [triangularVector].
+ * The body [Blas.trsm] and [Blas.trmm] share, with [solve] selecting the core as in [triangularVector].
  *
  * Matrix operations solve or multiply diagonal blocks with the vector cores and send off-diagonal updates
  * through shared blocked level-3 kernels. A transposed triangle is read in its original storage orientation.
  */
 @Suppress("LongParameterList") // the shared BLAS signature plus the entry-point flag
 internal fun triangularMatrix(
-    k: F64Kernels,
-    a: F64DenseMatrix,
-    b: F64DenseMatrix,
+    k: Kernels,
+    a: DenseMatrix,
+    b: DenseMatrix,
     lower: Boolean,
     transpose: Boolean,
     unitDiag: Boolean,
@@ -305,10 +298,10 @@ internal fun triangularMatrix(
 }
 
 private fun blockedLeftSolve(
-    k: F64Kernels,
+    k: Kernels,
     triangle: DoubleArray,
     n: Int,
-    b: F64DenseMatrix,
+    b: DenseMatrix,
     lower: Boolean,
     transpose: Boolean,
     unitDiag: Boolean,
@@ -350,7 +343,7 @@ private fun blockedLeftSolve(
 
 @Suppress("LongParameterList")
 private fun blockedLeftTriangularUpdate(
-    k: F64Kernels,
+    k: Kernels,
     alpha: Double,
     triangle: DoubleArray,
     n: Int,
@@ -399,10 +392,10 @@ private fun triangleHasZero(triangle: DoubleArray, offset: Int, size: Int, lda: 
 }
 
 private fun blockedRightSolve(
-    k: F64Kernels,
+    k: Kernels,
     triangle: DoubleArray,
     n: Int,
-    b: F64DenseMatrix,
+    b: DenseMatrix,
     lower: Boolean,
     transpose: Boolean,
     unitDiag: Boolean,
@@ -438,10 +431,10 @@ private fun blockedRightSolve(
 }
 
 private fun blockedLeftMultiply(
-    k: F64Kernels,
+    k: Kernels,
     triangle: DoubleArray,
     n: Int,
-    b: F64DenseMatrix,
+    b: DenseMatrix,
     lower: Boolean,
     transpose: Boolean,
     unitDiag: Boolean,
@@ -473,10 +466,10 @@ private fun blockedLeftMultiply(
 }
 
 private fun blockedRightMultiply(
-    k: F64Kernels,
+    k: Kernels,
     triangle: DoubleArray,
     n: Int,
-    b: F64DenseMatrix,
+    b: DenseMatrix,
     lower: Boolean,
     transpose: Boolean,
     unitDiag: Boolean,
@@ -521,7 +514,7 @@ private fun blockedRightMultiply(
  */
 @Suppress("LongParameterList")
 internal fun trsmCore(
-    k: F64Kernels,
+    k: Kernels,
     a: DoubleArray,
     n: Int,
     b: DoubleArray,
@@ -537,7 +530,7 @@ internal fun trsmCore(
         }
         return
     }
-    val panel = F64DenseMatrix.wrap(n, nrhs, b)
+    val panel = DenseMatrix.wrap(n, nrhs, b)
     if (transpose) {
         workspace.borrow(4) { sums -> blockedLeftSolve(k, a, n, panel, lower, transpose, unitDiag, sums) }
     } else {

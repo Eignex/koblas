@@ -1,6 +1,6 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.F64ModifiedGivens
+import com.eignex.koblas.ModifiedGivens
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.numeric.*
 import com.eignex.koblas.portableRot
@@ -8,7 +8,7 @@ import com.eignex.koblas.portableRotm
 import com.eignex.koblas.portableRotmg
 
 /** Pure Kotlin scalar kernels retained as the portable fallback and semantic reference for compiled leaves. */
-internal object F64ScalarKernels : F64Kernels, F64ArithmeticKernels {
+internal object F64ScalarKernels : Kernels, F64ArithmeticKernels {
     override val name: String get() = BackendNames.SCALAR
 
     override val isPortable: Boolean get() = true
@@ -36,8 +36,7 @@ internal object F64ScalarKernels : F64Kernels, F64ArithmeticKernels {
     override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) =
         scalarSwap(a, aOff, b, bOff, len)
 
-    override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64ModifiedGivens =
-        portableRotmg(d1, d2, x1, y1)
+    override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens = portableRotmg(d1, d2, x1, y1)
 
     @Suppress("LongParameterList")
     override fun rotm(
@@ -48,7 +47,7 @@ internal object F64ScalarKernels : F64Kernels, F64ArithmeticKernels {
         yOff: Int,
         yStride: Int,
         len: Int,
-        transformation: F64ModifiedGivens,
+        transformation: ModifiedGivens,
     ) = portableRotm(x, xOff, xStride, y, yOff, yStride, len, transformation)
 
     @Suppress("LongParameterList")

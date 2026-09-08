@@ -211,7 +211,7 @@ public interface F64RoutingBackend : Backend {
 }
 
 /** Predicts where [query] will execute without performing the operation. */
-public fun F64Context.route(query: F64RouteQuery): BackendRoute {
+public fun KoblasContext.route(query: F64RouteQuery): BackendRoute {
     val backend = backendFor(query.role)
     val selected = statusFor(query.role)
     if (backend.isPortable) {

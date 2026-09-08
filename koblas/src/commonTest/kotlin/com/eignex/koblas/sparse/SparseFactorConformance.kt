@@ -1,7 +1,7 @@
 package com.eignex.koblas.sparse
 
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.core.F64SparseMatrix
 import kotlin.test.assertEquals
 
 /*
@@ -11,7 +11,7 @@ import kotlin.test.assertEquals
  */
 
 /** `L·U + F = P·diag(rowScaling)·A·Q`, the identity an LU reports its factors against. */
-internal fun assertLuFactorsReproduce(a: F64SparseMatrix, lu: F64SparseLuFactorization, context: String) {
+internal fun assertLuFactorsReproduce(a: SparseMatrix, lu: F64SparseLuFactorization, context: String) {
     val n = a.rows
     val position = IntArray(n)
     for (k in 0 until n) position[lu.rowOrder[k]] = k
@@ -26,7 +26,7 @@ internal fun assertLuFactorsReproduce(a: F64SparseMatrix, lu: F64SparseLuFactori
 
 /** `L·Lᵀ = P·A·Pᵀ`, over the full matrix the stored lower triangle stands for. */
 internal fun assertCholeskyFactorReproduces(
-    a: F64SparseMatrix,
+    a: SparseMatrix,
     cholesky: F64SparseCholeskyFactorization,
     context: String,
 ) {
@@ -44,7 +44,7 @@ internal fun assertCholeskyFactorReproduces(
  * `L`'s unit diagonal is implicit, so it is supplied here rather than read; that is the whole difference
  * between this and the Cholesky identity above.
  */
-internal fun assertLdlFactorsReproduce(a: F64SparseMatrix, ldl: F64QuasiDefiniteLdlFactorization, context: String) {
+internal fun assertLdlFactorsReproduce(a: SparseMatrix, ldl: F64QuasiDefiniteLdlFactorization, context: String) {
     val d = ldl.d
     assertEquals(
         FactorizationInertia(
@@ -64,7 +64,7 @@ internal fun assertLdlFactorsReproduce(a: F64SparseMatrix, ldl: F64QuasiDefinite
 }
 
 /** [l] with the unit diagonal an `L·D·Lᵀ` keeps implicit put back, so one product formula serves both kinds. */
-private fun withUnitDiagonal(l: F64SparseMatrix): F64SparseMatrix {
+private fun withUnitDiagonal(l: SparseMatrix): SparseMatrix {
     val n = l.rows
     val colPtr = IntArray(n + 1)
     val columns = List(n) { j ->
@@ -74,11 +74,11 @@ private fun withUnitDiagonal(l: F64SparseMatrix): F64SparseMatrix {
         entries
     }
     for (k in 0 until n) colPtr[k + 1] = colPtr[k] + columns[k].size
-    return F64SparseMatrix.ofColumns(n, n, columns)
+    return SparseMatrix.ofColumns(n, n, columns)
 }
 
 /** The full symmetric matrix a stored lower triangle stands for, dense and column-major. */
-private fun symmetrized(a: F64SparseMatrix): DoubleArray {
+private fun symmetrized(a: SparseMatrix): DoubleArray {
     val n = a.rows
     val out = DoubleArray(n * n)
     for (j in 0 until n) {
@@ -102,7 +102,7 @@ private fun permuted(full: DoubleArray, order: IntArray): DoubleArray {
 }
 
 /** `L·diag(scale)·Lᵀ`, dense and column-major. */
-private inline fun gram(l: F64SparseMatrix, scale: (Int) -> Double): DoubleArray {
+private inline fun gram(l: SparseMatrix, scale: (Int) -> Double): DoubleArray {
     val n = l.rows
     val out = DoubleArray(n * n)
     for (k in 0 until n) {
@@ -114,7 +114,7 @@ private inline fun gram(l: F64SparseMatrix, scale: (Int) -> Double): DoubleArray
     return out
 }
 
-private fun product(l: F64SparseMatrix, u: F64SparseMatrix): DoubleArray {
+private fun product(l: SparseMatrix, u: SparseMatrix): DoubleArray {
     val n = l.rows
     val out = DoubleArray(n * n)
     for (j in 0 until n) {
@@ -123,7 +123,7 @@ private fun product(l: F64SparseMatrix, u: F64SparseMatrix): DoubleArray {
     return out
 }
 
-private fun dense(a: F64SparseMatrix): DoubleArray {
+private fun dense(a: SparseMatrix): DoubleArray {
     val out = DoubleArray(a.rows * a.cols)
     for (j in 0 until a.cols) a.forEachInColumn(j) { i, v -> out[i + j * a.rows] = v }
     return out

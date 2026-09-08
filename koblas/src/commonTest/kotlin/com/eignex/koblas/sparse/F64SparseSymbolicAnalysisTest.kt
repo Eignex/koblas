@@ -1,8 +1,8 @@
 package com.eignex.koblas.sparse
 
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.core.F64SparseMatrix
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -124,7 +124,7 @@ class F64SparseSymbolicAnalysisTest {
             override val name: String get() = "counting"
             var factorizations = 0
 
-            override fun cholesky(a: F64SparseMatrix): F64SparseCholeskyFactorization {
+            override fun cholesky(a: SparseMatrix): F64SparseCholeskyFactorization {
                 factorizations++
                 return portable.cholesky(a)
             }
@@ -157,7 +157,7 @@ class F64SparseSymbolicAnalysisTest {
     }
 
     /** Same structure, different numbers: a diagonal grown and off-diagonals shrunk stay factorable. */
-    private fun withRescaledValues(a: F64SparseMatrix, offDiagonal: Double, diagonal: Double): F64SparseMatrix {
+    private fun withRescaledValues(a: SparseMatrix, offDiagonal: Double, diagonal: Double): SparseMatrix {
         val colPtr = a.copyColumnPointers()
         val rowIdx = a.copyRowIndices()
         val values = DoubleArray(rowIdx.size)
@@ -166,6 +166,6 @@ class F64SparseSymbolicAnalysisTest {
                 values[p] = a.values[p] * if (rowIdx[p] == j) diagonal else offDiagonal
             }
         }
-        return F64SparseMatrix.wrap(a.rows, a.cols, colPtr, rowIdx, values)
+        return SparseMatrix.wrap(a.rows, a.cols, colPtr, rowIdx, values)
     }
 }

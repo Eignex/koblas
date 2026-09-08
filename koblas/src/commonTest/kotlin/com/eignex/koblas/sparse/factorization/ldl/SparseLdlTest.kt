@@ -1,8 +1,8 @@
 package com.eignex.koblas.sparse.factorization.ldl
 
 import com.eignex.koblas.SingularMatrix
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.randomVector
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.sparseSymmetricConformanceSystem
@@ -14,10 +14,10 @@ import kotlin.test.assertTrue
 
 class SparseLdlTest {
 
-    private fun ldl(a: F64SparseMatrix) = F64QuasiDefiniteUpLookingLdl.factorLower(a)
+    private fun ldl(a: SparseMatrix) = F64QuasiDefiniteUpLookingLdl.factorLower(a)
 
     /** The full symmetric matrix a stored lower triangle stands for, for taking a residual against. */
-    private fun multiplySymmetric(a: F64SparseMatrix, x: DoubleArray): DoubleArray {
+    private fun multiplySymmetric(a: SparseMatrix, x: DoubleArray): DoubleArray {
         val y = DoubleArray(a.rows)
         for (j in 0 until a.cols) {
             a.forEachInColumn(j) { i, v ->
@@ -58,7 +58,7 @@ class SparseLdlTest {
     @Test
     fun `an indefinite matrix factors where a Cholesky would not`() {
         // Determinant is negative, so the matrix is symmetric and indefinite.
-        val indefinite = F64SparseMatrix.ofColumns(
+        val indefinite = SparseMatrix.ofColumns(
             3,
             3,
             listOf(listOf(0 to 4.0, 2 to 3.0), listOf(1 to 4.0), listOf(2 to 2.0)),
@@ -75,7 +75,7 @@ class SparseLdlTest {
     @Test
     fun `a zero pivot is reported singular at its column`() {
         // Column 1 is empty off the diagonal and its diagonal is zero, so the pivot there is exactly zero.
-        val singular = F64SparseMatrix.ofColumns(
+        val singular = SparseMatrix.ofColumns(
             3,
             3,
             listOf(listOf(0 to 2.0), listOf(1 to 0.0), listOf(2 to 2.0)),
@@ -107,7 +107,7 @@ class SparseLdlTest {
     @Test
     fun `an identity factors to a unit L and a unit D`() {
         val n = 5
-        val identity = F64SparseMatrix.ofColumns(n, n, List(n) { j -> listOf(j to 1.0) })
+        val identity = SparseMatrix.ofColumns(n, n, List(n) { j -> listOf(j to 1.0) })
 
         val f = ldl(identity)
 

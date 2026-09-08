@@ -1,7 +1,7 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.core.F64DenseVector
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DenseVector
 import kotlinx.benchmark.*
 
 @State(Scope.Benchmark)
@@ -16,17 +16,17 @@ class Level2Benchmark {
 
     private lateinit var arm: DenseBenchmarkArm
 
-    private lateinit var a: F64DenseMatrix
-    private lateinit var sym: F64DenseMatrix
+    private lateinit var a: DenseMatrix
+    private lateinit var sym: DenseMatrix
     private lateinit var x: DoubleArray
     private lateinit var y: DoubleArray
 
     private lateinit var y2: DoubleArray
-    private lateinit var target: F64DenseMatrix
-    private lateinit var xv: F64DenseVector
-    private lateinit var yv: F64DenseVector
+    private lateinit var target: DenseMatrix
+    private lateinit var xv: DenseVector
+    private lateinit var yv: DenseVector
 
-    private lateinit var triangular: F64DenseMatrix
+    private lateinit var triangular: DenseMatrix
     private lateinit var rhs: DoubleArray
 
     @Setup
@@ -39,8 +39,8 @@ class Level2Benchmark {
         y = DoubleArray(n)
         y2 = randomVector(n, rng)
         target = randomMatrix(n, n, rng)
-        xv = F64DenseVector.of(x)
-        yv = F64DenseVector.of(y2)
+        xv = DenseVector.of(x)
+        yv = DenseVector.of(y2)
         triangular = dominantMatrix(n, rng)
         rhs = DoubleArray(n)
     }

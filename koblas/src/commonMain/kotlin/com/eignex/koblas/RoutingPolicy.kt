@@ -1,6 +1,6 @@
 package com.eignex.koblas
 
-/** How an explicit [F64Context] constrains operation-level dispatch. */
+/** How an explicit [KoblasContext] constrains operation-level dispatch. */
 public enum class F64DispatchPolicy {
     /** Use the selected provider's measured routing behavior. */
     AUTO,
@@ -51,7 +51,7 @@ public class BackendRouteRejectedException(public val route: BackendRoute) :
     )
 
 /** Applies this context's dispatch and fallback policy to [query] without executing it. */
-public fun F64Context.plan(query: F64RouteQuery): F64RoutePlan {
+public fun KoblasContext.plan(query: F64RouteQuery): F64RoutePlan {
     val route = route(query)
     val decision = when (dispatchPolicy) {
         F64DispatchPolicy.NATIVE_ONLY -> if (route.execution == BackendExecution.NATIVE) {
@@ -76,10 +76,10 @@ public fun F64Context.plan(query: F64RouteQuery): F64RoutePlan {
     return F64RoutePlan(route, decision)
 }
 
-internal val F64Context.enforcesRoutingPolicy: Boolean
+internal val KoblasContext.enforcesRoutingPolicy: Boolean
     get() = dispatchPolicy != F64DispatchPolicy.AUTO || fallbackPolicy != F64FallbackPolicy.ALLOW
 
-internal fun F64Context.beforeDispatch(query: F64RouteQuery) {
+internal fun KoblasContext.beforeDispatch(query: F64RouteQuery) {
     val plan = plan(query)
     when (plan.decision) {
         BackendPolicyDecision.EXECUTE -> Unit

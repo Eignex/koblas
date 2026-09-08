@@ -1,7 +1,7 @@
 package com.eignex.koblas.internal.backend
 
+import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.Workspace
-import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.discoverBackends
 import com.eignex.koblas.koblas
@@ -12,10 +12,10 @@ import kotlin.test.*
 
 /**
  * A provider whose `gemv` runs its inner loop on the installed kernels, which is what a host backend does
- * and what the discovery probe calls. It does not override [F64Blas.kernels], so that read resolves
+ * and what the discovery probe calls. It does not override [Blas.kernels], so that read resolves
  * through [koblas]: a read of the very value discovery is computing.
  */
-class ProbeReentrantProvider : F64Blas by F64ReferenceBlas {
+class ProbeReentrantProvider : Blas by F64ReferenceBlas {
     override val unavailableReason: String? get() = null
 
     init {
@@ -28,14 +28,14 @@ class ProbeReentrantProvider : F64Blas by F64ReferenceBlas {
     override val isAvailable: Boolean get() = true
 
     /** The kernels used by the delegated BLAS surface. */
-    override val kernels: F64Kernels get() = koblas.kernels
+    override val kernels: Kernels get() = koblas.kernels
 
     /**
-     * What the probe actually calls. Spelled out because delegating [F64Blas] generates a forwarder for
+     * What the probe actually calls. Spelled out because delegating [Blas] generates a forwarder for
      * every member including this one, which would send the probe to the delegate rather than here. A real
      * provider implements its own routines and inherits this default, which lands on the override below.
      */
-    override fun gemv(a: F64DenseMatrix, x: DoubleArray, transpose: Boolean): DoubleArray {
+    override fun gemv(a: DenseMatrix, x: DoubleArray, transpose: Boolean): DoubleArray {
         val y = DoubleArray(if (transpose) a.cols else a.rows)
         gemv(1.0, a, x, 0.0, y, transpose)
         return y
@@ -43,7 +43,7 @@ class ProbeReentrantProvider : F64Blas by F64ReferenceBlas {
 
     override fun gemv(
         alpha: Double,
-        a: F64DenseMatrix,
+        a: DenseMatrix,
         x: DoubleArray,
         beta: Double,
         y: DoubleArray,
@@ -70,7 +70,7 @@ fun main() {
 
 /**
  * Discovery probes every ServiceLoader provider by running a small gemv on it, and a provider that has not
- * overridden [F64Blas.kernels] reads [koblas] to get them. Nothing stopped that read from restarting
+ * overridden [Blas.kernels] reads [koblas] to get them. Nothing stopped that read from restarting
  * discovery, so it recursed until the stack ran out.
  *
  * The provider has to arrive through a real [java.util.ServiceLoader] lookup in a fresh process, since

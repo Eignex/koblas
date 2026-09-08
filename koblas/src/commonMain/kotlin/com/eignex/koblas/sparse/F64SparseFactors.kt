@@ -1,6 +1,6 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.SparseMatrix
 
 /*
  * The factors each kind of sparse factorization produces, on the interface rather than on whichever concrete
@@ -38,10 +38,10 @@ public class FactorsNotExposed(factor: String) :
  */
 public interface F64SparseLuFactorization : F64SparseFactorization {
     /** Unit lower triangular, its diagonal stored. */
-    public val l: F64SparseMatrix get() = throw FactorsNotExposed("l")
+    public val l: SparseMatrix get() = throw FactorsNotExposed("l")
 
     /** Upper triangular, its diagonal stored. */
-    public val u: F64SparseMatrix get() = throw FactorsNotExposed("u")
+    public val u: SparseMatrix get() = throw FactorsNotExposed("u")
 
     /** The original row now at each pivot position, the `P` above. */
     public val rowOrder: IntArray get() = throw FactorsNotExposed("rowOrder")
@@ -59,14 +59,14 @@ public interface F64SparseLuFactorization : F64SparseFactorization {
      * The entries outside the diagonal blocks, `F` in the identity above. Empty unless the provider factored
      * a block triangular form, which is the unusual case.
      */
-    public val offDiagonal: F64SparseMatrix
-        get() = F64SparseMatrix.wrap(n, n, IntArray(n + 1), IntArray(0), DoubleArray(0))
+    public val offDiagonal: SparseMatrix
+        get() = SparseMatrix.wrap(n, n, IntArray(n + 1), IntArray(0), DoubleArray(0))
 }
 
 /** The `A = L·Lᵀ` a sparse Cholesky produces. */
 public interface F64SparseCholeskyFactorization : F64SparseFactorization {
     /** Lower triangular, its diagonal stored. */
-    public val l: F64SparseMatrix
+    public val l: SparseMatrix
 
     /** The original row and column at each position of [l], the same permutation for both by symmetry. */
     public val order: IntArray
@@ -87,7 +87,7 @@ public interface F64QuasiDefiniteLdlFactorization : F64SparseFactorization {
      * Unlike the `L` of an [F64SparseLuFactorization], whose diagonal is stored because the libraries hand it
      * back that way.
      */
-    public val l: F64SparseMatrix
+    public val l: SparseMatrix
 
     /** The diagonal factor, one entry per column of [l]. */
     public val d: DoubleArray

@@ -1,11 +1,11 @@
-package com.eignex.koblas.core
+package com.eignex.koblas
 
 import com.eignex.koblas.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /** Read-only vector contract. Anything that only reads a vector should take this. */
-public interface F64VectorLike {
+public interface VectorLike {
     /** Number of entries, counting the unstored zeros of a sparse vector. */
     public val size: Int
 
@@ -16,17 +16,17 @@ public interface F64VectorLike {
     public fun toDoubleArray(): DoubleArray
 }
 
-/** The vector storages koblas itself defines, [F64DenseVector] and [F64SparseVector]. */
+/** The vector storages koblas itself defines, [DenseVector] and [SparseVector]. */
 @Serializable
-public sealed interface F64VectorStorage : F64VectorLike
+public sealed interface VectorStorage : VectorLike
 
 /**
  * @property data the flat backing array. The vector is mutable through it and [set]; do not use the vector as
  *   a hash-map key while mutating it.
  */
 @Serializable
-@SerialName("F64DenseVector")
-public class F64DenseVector internal constructor(public val data: DoubleArray) : F64VectorStorage {
+@SerialName("DenseVector")
+public class DenseVector internal constructor(public val data: DoubleArray) : VectorStorage {
     internal constructor(size: Int) : this(DoubleArray(size))
 
     override val size: Int get() = data.size
@@ -45,23 +45,23 @@ public class F64DenseVector internal constructor(public val data: DoubleArray) :
     }
 
     override fun equals(other: Any?): Boolean =
-        this === other || (other is F64DenseVector && data.contentEquals(other.data))
+        this === other || (other is DenseVector && data.contentEquals(other.data))
     override fun hashCode(): Int = data.contentHashCode()
-    override fun toString(): String = "F64DenseVector(size=$size)"
+    override fun toString(): String = "DenseVector(size=$size)"
 
     /** Factories for dense vectors. */
     public companion object {
         /** Copy a `DoubleArray` into a fresh dense vector. */
-        public fun of(values: DoubleArray): F64DenseVector = F64DenseVector(values.copyOf())
+        public fun of(values: DoubleArray): DenseVector = DenseVector(values.copyOf())
 
         /** A dense vector of [size] zeros. */
-        public fun zero(size: Int): F64DenseVector {
+        public fun zero(size: Int): DenseVector {
             requireShape(size >= 0) { "negative size: $size" }
-            return F64DenseVector(size)
+            return DenseVector(size)
         }
 
         /** Wrap an existing `DoubleArray` without copying; mutations remain visible through both references. */
-        public fun wrap(data: DoubleArray): F64DenseVector = F64DenseVector(data)
+        public fun wrap(data: DoubleArray): DenseVector = DenseVector(data)
     }
 }
 
@@ -78,12 +78,12 @@ public class F64DenseVector internal constructor(public val data: DoubleArray) :
  * @property values the stored entry values, parallel to the stored positions.
  */
 @Serializable
-@SerialName("F64SparseVector")
-public class F64SparseVector internal constructor(
+@SerialName("SparseVector")
+public class SparseVector internal constructor(
     override val size: Int,
     @property:UnsafeKoblasApi public val indices: IntArray,
     public val values: DoubleArray,
-) : F64VectorStorage {
+) : VectorStorage {
 
     init {
         requireShape(size >= 0) { "negative size: $size" }
@@ -126,7 +126,7 @@ public class F64SparseVector internal constructor(
 
     override fun equals(other: Any?): Boolean = this === other ||
         (
-            other is F64SparseVector && size == other.size &&
+            other is SparseVector && size == other.size &&
                 indices.contentEquals(other.indices) && values.contentEquals(other.values)
             )
     override fun hashCode(): Int {
@@ -135,12 +135,12 @@ public class F64SparseVector internal constructor(
         h = 31 * h + values.contentHashCode()
         return h
     }
-    override fun toString(): String = "F64SparseVector(size=$size, nnz=${indices.size})"
+    override fun toString(): String = "SparseVector(size=$size, nnz=${indices.size})"
 
     /** Factories for sparse vectors. */
     public companion object {
         /** Build a sparse vector, sorting by index and summing duplicates. Copies its inputs. */
-        public fun of(size: Int, indices: IntArray, values: DoubleArray): F64SparseVector {
+        public fun of(size: Int, indices: IntArray, values: DoubleArray): SparseVector {
             requireShape(indices.size == values.size) {
                 "indices/values must align: ${indices.size} vs ${values.size}"
             }
@@ -161,14 +161,14 @@ public class F64SparseVector internal constructor(
                     n++
                 }
             }
-            return F64SparseVector(size, idx.copyOf(n), vals.copyOf(n))
+            return SparseVector(size, idx.copyOf(n), vals.copyOf(n))
         }
 
         /**
          * Wrap existing arrays without copying, taking ownership; [indices] must already be strictly
          * ascending and in range. The structural indices cannot be recovered for mutation afterwards.
          */
-        public fun wrap(size: Int, indices: IntArray, values: DoubleArray): F64SparseVector = F64SparseVector(
+        public fun wrap(size: Int, indices: IntArray, values: DoubleArray): SparseVector = SparseVector(
             size,
             indices,
             values,

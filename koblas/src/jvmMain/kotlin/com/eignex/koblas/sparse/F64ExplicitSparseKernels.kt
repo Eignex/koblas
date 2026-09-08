@@ -1,7 +1,7 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.BackendMetadataProvider
-import com.eignex.koblas.core.F64SparseVector
+import com.eignex.koblas.SparseVector
 import com.eignex.koblas.dense.F64CKernels
 import com.eignex.koblas.dense.F64SimdKernels
 import com.eignex.koblas.internal.backend.BackendNames
@@ -22,7 +22,7 @@ import com.eignex.koblas.requireShape
  * The names stay honest by measurement rather than by origin: this is the C provider, and the routines it
  * does not route into C are the ones where crossing was measured to cost more than it returns.
  */
-internal object F64CSparseKernels : F64SparseKernels {
+internal object F64CSparseKernels : SparseKernels {
     /**
      * Stored entries from which the dot against a dense vector repays its foreign call. The measurement
      * behind the value is on [SparseTuning.dotDenseCCrossover]; it is bound to a field of this object so
@@ -36,7 +36,7 @@ internal object F64CSparseKernels : F64SparseKernels {
 
     override val isAvailable: Boolean get() = JvmCKernelBindings.isAvailable
 
-    override fun dot(x: F64SparseVector, y: DoubleArray): Double {
+    override fun dot(x: SparseVector, y: DoubleArray): Double {
         requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
         return if (x.indices.size < DOT_DENSE_C_CROSSOVER) {
             F64ReferenceSparseLinearAlgebra.dot(x, y)
@@ -45,24 +45,24 @@ internal object F64CSparseKernels : F64SparseKernels {
         }
     }
 
-    override fun dot(x: F64SparseVector, y: F64SparseVector): Double = F64ReferenceSparseLinearAlgebra.dot(x, y)
+    override fun dot(x: SparseVector, y: SparseVector): Double = F64ReferenceSparseLinearAlgebra.dot(x, y)
 
-    override fun axpy(y: DoubleArray, alpha: Double, x: F64SparseVector) =
+    override fun axpy(y: DoubleArray, alpha: Double, x: SparseVector) =
         F64ReferenceSparseLinearAlgebra.axpy(y, alpha, x)
 
-    override fun scatter(x: F64SparseVector, out: DoubleArray) = F64ReferenceSparseLinearAlgebra.scatter(x, out)
+    override fun scatter(x: SparseVector, out: DoubleArray) = F64ReferenceSparseLinearAlgebra.scatter(x, out)
 
-    override fun gather(x: F64SparseVector, from: DoubleArray) = F64ReferenceSparseLinearAlgebra.gather(x, from)
+    override fun gather(x: SparseVector, from: DoubleArray) = F64ReferenceSparseLinearAlgebra.gather(x, from)
 
-    override fun gatherZero(x: F64SparseVector, from: DoubleArray) = F64ReferenceSparseLinearAlgebra.gatherZero(x, from)
+    override fun gatherZero(x: SparseVector, from: DoubleArray) = F64ReferenceSparseLinearAlgebra.gatherZero(x, from)
 
-    override fun nrm2(x: F64SparseVector): Double = F64CKernels.nrm2(x.values, 0, x.values.size)
+    override fun nrm2(x: SparseVector): Double = F64CKernels.nrm2(x.values, 0, x.values.size)
 
-    override fun asum(x: F64SparseVector): Double = F64CKernels.asum(x.values, 0, x.values.size)
+    override fun asum(x: SparseVector): Double = F64CKernels.asum(x.values, 0, x.values.size)
 }
 
 /** The JVM Vector API sparse kernels without automatic C selection. */
-internal object F64SimdSparseKernels : F64SparseKernels, BackendMetadataProvider {
+internal object F64SimdSparseKernels : SparseKernels, BackendMetadataProvider {
     private val scatter = JvmVectorScatter.configured()
 
     override val name: String get() = BackendNames.SIMD_SPARSE
@@ -73,14 +73,14 @@ internal object F64SimdSparseKernels : F64SparseKernels, BackendMetadataProvider
 
     override val backendMetadata get() = scatter.metadata
 
-    override fun dot(x: F64SparseVector, y: DoubleArray): Double {
+    override fun dot(x: SparseVector, y: DoubleArray): Double {
         requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
         return SparseSimd.dot(x.indices, x.values, y)
     }
 
-    override fun dot(x: F64SparseVector, y: F64SparseVector): Double = F64ReferenceSparseLinearAlgebra.dot(x, y)
+    override fun dot(x: SparseVector, y: SparseVector): Double = F64ReferenceSparseLinearAlgebra.dot(x, y)
 
-    override fun axpy(y: DoubleArray, alpha: Double, x: F64SparseVector) {
+    override fun axpy(y: DoubleArray, alpha: Double, x: SparseVector) {
         requireShape(y.size == x.size) { "axpy: sizes differ, ${y.size} vs ${x.size}" }
         if (alpha == 0.0) return
         if (scatter.enabled) {
@@ -90,7 +90,7 @@ internal object F64SimdSparseKernels : F64SparseKernels, BackendMetadataProvider
         }
     }
 
-    override fun scatter(x: F64SparseVector, out: DoubleArray) {
+    override fun scatter(x: SparseVector, out: DoubleArray) {
         requireShape(out.size == x.size) { "scatter: sizes differ, ${out.size} vs ${x.size}" }
         if (scatter.enabled) {
             SparseSimd.scatter(x.indices, x.values, out)
@@ -99,12 +99,12 @@ internal object F64SimdSparseKernels : F64SparseKernels, BackendMetadataProvider
         }
     }
 
-    override fun gather(x: F64SparseVector, from: DoubleArray) {
+    override fun gather(x: SparseVector, from: DoubleArray) {
         requireShape(from.size == x.size) { "gather: sizes differ, ${from.size} vs ${x.size}" }
         SparseSimd.gather(x.indices, x.values, from)
     }
 
-    override fun gatherZero(x: F64SparseVector, from: DoubleArray) {
+    override fun gatherZero(x: SparseVector, from: DoubleArray) {
         requireShape(from.size == x.size) { "gatherZero: sizes differ, ${from.size} vs ${x.size}" }
         if (scatter.enabled) {
             SparseSimd.gatherZero(x.indices, x.values, from)
@@ -113,7 +113,7 @@ internal object F64SimdSparseKernels : F64SparseKernels, BackendMetadataProvider
         }
     }
 
-    override fun nrm2(x: F64SparseVector): Double = F64SimdKernels.nrm2(x.values, 0, x.values.size)
+    override fun nrm2(x: SparseVector): Double = F64SimdKernels.nrm2(x.values, 0, x.values.size)
 
-    override fun asum(x: F64SparseVector): Double = F64SimdKernels.asum(x.values, 0, x.values.size)
+    override fun asum(x: SparseVector): Double = F64SimdKernels.asum(x.values, 0, x.values.size)
 }

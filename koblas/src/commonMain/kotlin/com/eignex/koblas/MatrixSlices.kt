@@ -7,22 +7,22 @@ package com.eignex.koblas
 // Part of the MatrixOpsKt facade. Splitting the file would otherwise rename the class JVM callers
 // compiled against, so the four parts are joined back into one rather than becoming four.
 
-import com.eignex.koblas.core.*
-import com.eignex.koblas.dense.F64Blas
+import com.eignex.koblas.*
+import com.eignex.koblas.dense.Blas
 
 /** Column `j` as a fresh vector, copied rather than viewed. */
-public fun F64DenseMatrix.column(j: Int): F64DenseVector {
+public fun DenseMatrix.column(j: Int): DenseVector {
     requireIndex(j in 0 until cols) { "column $j outside [0,$cols)" }
     val start = j * rows
-    return F64DenseVector.wrap(data.copyOfRange(start, start + rows))
+    return DenseVector.wrap(data.copyOfRange(start, start + rows))
 }
 
 /** Row `i` as a fresh vector, gathered across the backing. Prefer [column] where the algorithm allows. */
-public fun F64DenseMatrix.row(i: Int): F64DenseVector {
+public fun DenseMatrix.row(i: Int): DenseVector {
     requireIndex(i in 0 until rows) { "row $i outside [0,$rows)" }
     val out = DoubleArray(cols)
     for (j in 0 until cols) out[j] = data[i + j * rows]
-    return F64DenseVector.wrap(out)
+    return DenseVector.wrap(out)
 }
 
 /**
@@ -30,11 +30,11 @@ public fun F64DenseMatrix.row(i: Int): F64DenseVector {
  * values, so later mutations to the returned vector's indices or values cannot affect this matrix. Explicitly
  * stored zeros are preserved.
  */
-public fun F64SparseMatrix.column(j: Int): F64SparseVector {
+public fun SparseMatrix.column(j: Int): SparseVector {
     requireIndex(j in 0 until cols) { "column $j outside [0,$cols)" }
     val start = colPtr[j]
     val end = colPtr[j + 1]
-    return F64SparseVector.wrap(rows, rowIdx.copyOfRange(start, end), values.copyOfRange(start, end))
+    return SparseVector.wrap(rows, rowIdx.copyOfRange(start, end), values.copyOfRange(start, end))
 }
 
 /**
@@ -45,7 +45,7 @@ public fun F64SparseMatrix.column(j: Int): F64SparseVector {
  * Extracting every row this way costs `O(nnz * rows)`; use [transpose] once and read its columns instead when
  * the algorithm needs many rows.
  */
-public fun F64SparseMatrix.row(i: Int): F64SparseVector {
+public fun SparseMatrix.row(i: Int): SparseVector {
     requireIndex(i in 0 until rows) { "row $i outside [0,$rows)" }
     var count = 0
     for (j in 0 until cols) {
@@ -63,26 +63,26 @@ public fun F64SparseMatrix.row(i: Int): F64SparseVector {
             }
         }
     }
-    return F64SparseVector.wrap(cols, indices, out)
+    return SparseVector.wrap(cols, indices, out)
 }
 
 /**
  * Fresh transposed matrix, with the active backend ([koblas]). For products, prefer the transpose flags on
- * gemv and gemm, which read the original storage without copying. See [F64Blas.transpose].
+ * gemv and gemm, which read the original storage without copying. See [Blas.transpose].
  */
-public fun F64DenseMatrix.transpose(): F64DenseMatrix = koblas.blas.transpose(this)
+public fun DenseMatrix.transpose(): DenseMatrix = koblas.blas.transpose(this)
 
 /**
  * Fresh transposed matrix, still CSC, which makes this the CSC-to-CSR conversion as well, with the active
- * backend ([koblas]). See [com.eignex.koblas.sparse.F64SparseBlas.transpose].
+ * backend ([koblas]). See [com.eignex.koblas.sparse.SparseBlas.transpose].
  */
-public fun F64SparseMatrix.transpose(): F64SparseMatrix = koblas.sparseBlas.transpose(this)
+public fun SparseMatrix.transpose(): SparseMatrix = koblas.sparseBlas.transpose(this)
 
 /**
  * Fresh matrix with column [column] replaced by [entering], still CSC. The replacement is structural, so an
  * explicitly stored zero in [entering] survives as one.
  */
-public fun F64SparseMatrix.withColumn(column: Int, entering: F64SparseVector): F64SparseMatrix {
+public fun SparseMatrix.withColumn(column: Int, entering: SparseVector): SparseMatrix {
     requireIndex(column in 0 until cols) { "withColumn: column $column outside [0,$cols)" }
     requireShape(entering.size == rows) { "withColumn: entering size ${entering.size}, expected $rows" }
     val start = colPtr[column]
@@ -97,5 +97,5 @@ public fun F64SparseMatrix.withColumn(column: Int, entering: F64SparseVector): F
     entering.values.copyInto(outVal, start)
     rowIdx.copyInto(outIdx, start + entering.indices.size, end)
     values.copyInto(outVal, start + entering.indices.size, end)
-    return F64SparseMatrix(rows, cols, pointers, outIdx, outVal)
+    return SparseMatrix(rows, cols, pointers, outIdx, outVal)
 }

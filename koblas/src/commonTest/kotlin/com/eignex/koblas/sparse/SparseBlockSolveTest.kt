@@ -1,9 +1,9 @@
 package com.eignex.koblas.sparse
 
+import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DimensionMismatch
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
-import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.factorization.ldl.F64QuasiDefiniteUpLookingLdl
 import kotlin.test.*
 
@@ -16,11 +16,11 @@ class SparseBlockSolveTest {
         var receivedWorkspace: Workspace? = null
 
         override fun solveInto(
-            b: F64DenseMatrix,
-            out: F64DenseMatrix,
+            b: DenseMatrix,
+            out: DenseMatrix,
             transpose: Boolean,
             workspace: Workspace?,
-        ): F64DenseMatrix {
+        ): DenseMatrix {
             calls++
             this.transpose = transpose
             receivedWorkspace = workspace
@@ -46,7 +46,7 @@ class SparseBlockSolveTest {
     fun `the sparse decomposition seam delegates block solves directly`() {
         val tracking = BlockTrackingFactor(F64ReferenceSparseLinearAlgebra.factor(matrix()))
         val rhs = rightHandSides()
-        val out = F64DenseMatrix(3, rhs.cols)
+        val out = DenseMatrix(3, rhs.cols)
         val workspace = Workspace()
 
         assertSame(out, F64ReferenceSparseLinearAlgebra.solveInto(tracking, rhs, out, transpose = true, workspace))
@@ -69,16 +69,16 @@ class SparseBlockSolveTest {
     @Test
     fun `block solve validates both matrix shapes before mutation`() {
         val factor = F64ReferenceSparseLinearAlgebra.factor(matrix())
-        val out = F64DenseMatrix(3, 2, DoubleArray(6) { 7.0 })
+        val out = DenseMatrix(3, 2, DoubleArray(6) { 7.0 })
 
-        assertFailsWith<DimensionMismatch> { factor.solveInto(F64DenseMatrix(2, 2), out) }
+        assertFailsWith<DimensionMismatch> { factor.solveInto(DenseMatrix(2, 2), out) }
 
         assertContentEquals(DoubleArray(6) { 7.0 }, out.data)
     }
 
     @Test
     fun `ldl exposes pivot inertia`() {
-        val diagonal = F64SparseMatrix.ofColumns(
+        val diagonal = SparseMatrix.ofColumns(
             3,
             3,
             listOf(listOf(0 to 2.0), listOf(1 to -3.0), listOf(2 to 4.0)),
@@ -88,7 +88,7 @@ class SparseBlockSolveTest {
         assertEquals(FactorizationInertia(positive = 2, negative = 1, zero = 0), factor.inertia)
     }
 
-    private fun matrix() = F64SparseMatrix.ofColumns(
+    private fun matrix() = SparseMatrix.ofColumns(
         3,
         3,
         listOf(
@@ -98,7 +98,7 @@ class SparseBlockSolveTest {
         ),
     )
 
-    private fun rightHandSides(): F64DenseMatrix = F64DenseMatrix(
+    private fun rightHandSides(): DenseMatrix = DenseMatrix(
         3,
         3,
         doubleArrayOf(1.0, 2.0, 3.0, -1.0, 4.0, 2.0, 0.5, -2.0, 1.0),

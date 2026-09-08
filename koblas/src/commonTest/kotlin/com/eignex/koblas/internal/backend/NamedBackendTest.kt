@@ -2,11 +2,11 @@ package com.eignex.koblas.internal.backend
 
 import com.eignex.koblas.*
 import com.eignex.koblas.F64BundledBackend
-import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.sparse.F64GeneralSparseLu
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
-import com.eignex.koblas.sparse.F64SparseDecompositions
 import com.eignex.koblas.sparse.F64SparseLuFactorization
+import com.eignex.koblas.sparse.SparseLapack
 import com.eignex.koblas.sparse.basis.F64BasisSolvers
 import kotlin.test.*
 
@@ -19,9 +19,9 @@ class NamedBackendTest {
 
     /** Fills the general-LU role, which is what a backend offers now that the wide seam alone offers nothing. */
     private class FakeSparseLu(override val name: String, override val priority: Int) :
-        F64SparseDecompositions by F64ReferenceSparseLinearAlgebra,
+        SparseLapack by F64ReferenceSparseLinearAlgebra,
         F64GeneralSparseLu {
-        override fun factor(a: F64SparseMatrix): F64SparseLuFactorization = F64ReferenceSparseLinearAlgebra.factor(a)
+        override fun factor(a: SparseMatrix): F64SparseLuFactorization = F64ReferenceSparseLinearAlgebra.factor(a)
     }
 
     /** The same carrying a bundled build of [canonicalName], which is how a deployment configures it. */
@@ -29,14 +29,14 @@ class NamedBackendTest {
         override val name: String,
         override val canonicalName: String,
         override val priority: Int,
-    ) : F64SparseDecompositions by F64ReferenceSparseLinearAlgebra,
+    ) : SparseLapack by F64ReferenceSparseLinearAlgebra,
         F64GeneralSparseLu,
         F64BundledBackend {
-        override fun factor(a: F64SparseMatrix): F64SparseLuFactorization = F64ReferenceSparseLinearAlgebra.factor(a)
+        override fun factor(a: SparseMatrix): F64SparseLuFactorization = F64ReferenceSparseLinearAlgebra.factor(a)
     }
 
     private class FakeBasisSolvers(override val name: String, override val priority: Int) : F64BasisSolvers {
-        override fun basisSolver(a: F64SparseMatrix) = F64ReferenceSparseLinearAlgebra.basisSolver(a)
+        override fun basisSolver(a: SparseMatrix) = F64ReferenceSparseLinearAlgebra.basisSolver(a)
     }
 
     @Test
@@ -47,7 +47,7 @@ class NamedBackendTest {
         assertEquals("stronger", koblas.generalSparseLu.name, "the role still goes to the strongest")
         assertEquals(
             "weaker",
-            backendNamed("weaker", F64Capabilities.generalSparseLu)?.name,
+            backendNamed("weaker", Capabilities.generalSparseLu)?.name,
             "and the other is still there to ask for",
         )
     }
@@ -57,8 +57,8 @@ class NamedBackendTest {
         registerBackend(FakeSparseLu("basis-shaped", priority = 20))
         registerBackend(FakeSparseLu("pattern-shaped", priority = 10))
 
-        val forBases = backendNamed("basis-shaped", F64Capabilities.generalSparseLu)
-        val forPatterns = backendNamed("pattern-shaped", F64Capabilities.generalSparseLu)
+        val forBases = backendNamed("basis-shaped", Capabilities.generalSparseLu)
+        val forPatterns = backendNamed("pattern-shaped", Capabilities.generalSparseLu)
 
         assertNotNull(forBases)
         assertNotNull(forPatterns)
@@ -69,15 +69,15 @@ class NamedBackendTest {
     fun `an unregistered name resolves to nothing`() = withCleanBackends {
         registerBackend(FakeSparseLu("present", priority = 10))
 
-        assertNull(backendNamed("absent", F64Capabilities.generalSparseLu))
+        assertNull(backendNamed("absent", Capabilities.generalSparseLu))
     }
 
     @Test
     fun `a basis solver is reachable by name`() = withCleanBackends {
         registerBackend(FakeBasisSolvers("basis", priority = 10))
 
-        assertEquals("basis", backendNamed("basis", F64Capabilities.basisSolvers)?.name)
-        assertNull(backendNamed("absent", F64Capabilities.basisSolvers))
+        assertEquals("basis", backendNamed("basis", Capabilities.basisSolvers)?.name)
+        assertNull(backendNamed("absent", Capabilities.basisSolvers))
     }
 
     @Test
@@ -92,8 +92,8 @@ class NamedBackendTest {
     fun `a bundled provider answers to the name it was configured under`() = withCleanBackends {
         registerBackend(FakeBundledSparseLu("vendor-bundled", canonicalName = "vendor", priority = 10))
 
-        assertEquals("vendor-bundled", backendNamed("vendor", F64Capabilities.generalSparseLu)?.name)
-        assertEquals("vendor-bundled", backendNamed("vendor-bundled", F64Capabilities.generalSparseLu)?.name)
+        assertEquals("vendor-bundled", backendNamed("vendor", Capabilities.generalSparseLu)?.name)
+        assertEquals("vendor-bundled", backendNamed("vendor-bundled", Capabilities.generalSparseLu)?.name)
     }
 
     /** The suffix is a diagnostic, not a rule: what a provider bundles is something it declares. */
@@ -101,7 +101,7 @@ class NamedBackendTest {
     fun `a provider merely named like a bundled one does not answer for it`() = withCleanBackends {
         registerBackend(FakeSparseLu("vendor-bundled", priority = 10))
 
-        assertNull(backendNamed("vendor", F64Capabilities.generalSparseLu))
+        assertNull(backendNamed("vendor", Capabilities.generalSparseLu))
     }
 
     @Test
@@ -118,7 +118,7 @@ class NamedBackendTest {
         registerBackend(FakeSparseLu("same", priority = 30))
 
         assertEquals(listOf("same"), registeredBackendNames(BackendRole.SPARSE_GENERAL_LU))
-        assertEquals(30, backendNamed("same", F64Capabilities.generalSparseLu)?.priority)
+        assertEquals(30, backendNamed("same", Capabilities.generalSparseLu)?.priority)
     }
 
     /** Keeping one entry per name must not let a later weaker offer of that name take the half. */
@@ -127,7 +127,7 @@ class NamedBackendTest {
         registerBackend(FakeSparseLu("same", priority = 30))
         registerBackend(FakeSparseLu("same", priority = 10))
 
-        assertEquals(30, backendNamed("same", F64Capabilities.generalSparseLu)?.priority)
+        assertEquals(30, backendNamed("same", Capabilities.generalSparseLu)?.priority)
         assertEquals(30, koblas.sparseDecompositions.priority)
     }
 
@@ -144,7 +144,7 @@ class NamedBackendTest {
         registerBackend(FakeSparseLu("present", priority = 10))
         resetBackends()
 
-        assertNull(backendNamed("present", F64Capabilities.generalSparseLu))
+        assertNull(backendNamed("present", Capabilities.generalSparseLu))
         assertEquals(emptyList(), registeredBackendNames(BackendRole.SPARSE_GENERAL_LU))
     }
 
@@ -152,7 +152,7 @@ class NamedBackendTest {
     fun `the portable fallback is not a registration a name can find`() = withCleanBackends {
         assertEquals(BackendNames.REFERENCE, koblas.generalSparseLu.name)
         assertNull(
-            backendNamed(BackendNames.REFERENCE, F64Capabilities.generalSparseLu),
+            backendNamed(BackendNames.REFERENCE, Capabilities.generalSparseLu),
             "nothing registered it; it is the fallback",
         )
     }
@@ -164,7 +164,7 @@ class NamedBackendTest {
         registerBackend(FakeSparseLu("configured", priority = 10))
 
         assertEquals("configured", koblas.generalSparseLu.name, "the explicit offer holds the role")
-        val discovered = backendNamed("discovered", F64Capabilities.generalSparseLu)
+        val discovered = backendNamed("discovered", Capabilities.generalSparseLu)
         assertEquals("discovered", discovered?.name, "and the discovered one is still there")
     }
 
@@ -183,6 +183,6 @@ class NamedBackendTest {
         BackendRegistry.registerAutomatic(FakeSparseLu("discovered", priority = 30))
 
         assertEquals("configured", koblas.generalSparseLu.name)
-        assertEquals("discovered", backendNamed("discovered", F64Capabilities.generalSparseLu)?.name)
+        assertEquals("discovered", backendNamed("discovered", Capabilities.generalSparseLu)?.name)
     }
 }

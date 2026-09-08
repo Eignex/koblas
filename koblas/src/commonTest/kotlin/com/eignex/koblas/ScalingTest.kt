@@ -1,12 +1,12 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.SparseMatrix
 import kotlin.test.*
 
 class ScalingTest {
 
-    private fun example() = F64DenseMatrix.of(
+    private fun example() = DenseMatrix.of(
         arrayOf(
             doubleArrayOf(1.0, 2.0, 3.0),
             doubleArrayOf(4.0, 5.0, 6.0),
@@ -18,7 +18,7 @@ class ScalingTest {
         val d = doubleArrayOf(2.0, -1.0)
         val actual = example()
         actual.scaleRows(d)
-        val expected = F64DenseMatrix.diagonal(d) * example()
+        val expected = DenseMatrix.diagonal(d) * example()
         assertEquals(expected, actual)
     }
 
@@ -27,7 +27,7 @@ class ScalingTest {
         val d = doubleArrayOf(2.0, -1.0, 0.5)
         val actual = example()
         actual.scaleColumns(d)
-        val expected = example() * F64DenseMatrix.diagonal(d)
+        val expected = example() * DenseMatrix.diagonal(d)
         assertEquals(expected, actual)
     }
 
@@ -38,13 +38,13 @@ class ScalingTest {
         val actual = example()
         actual.scaleRows(rowScale)
         actual.scaleColumns(colScale)
-        val expected = F64DenseMatrix.diagonal(rowScale) * example() * F64DenseMatrix.diagonal(colScale)
+        val expected = DenseMatrix.diagonal(rowScale) * example() * DenseMatrix.diagonal(colScale)
         assertEquals(expected, actual)
     }
 
     @Test
     fun `scaleColumns on CSC agrees with the dense result and keeps the pattern`() {
-        val s = F64SparseMatrix.ofTriplets(
+        val s = SparseMatrix.ofTriplets(
             rows = 2,
             cols = 3,
             rowIdx = intArrayOf(0, 1, 0),
@@ -55,7 +55,7 @@ class ScalingTest {
         val nnzBefore = s.nnz
         s.scaleColumns(d)
 
-        val dense = F64DenseMatrix.of(
+        val dense = DenseMatrix.of(
             arrayOf(doubleArrayOf(1.0, 0.0, 3.0), doubleArrayOf(0.0, 5.0, 0.0)),
         )
         dense.scaleColumns(d)
@@ -79,7 +79,7 @@ class ScalingTest {
         assertFailsWith<DimensionMismatch> { example().scaleRows(DoubleArray(3)) }
         assertFailsWith<DimensionMismatch> { example().scaleColumns(DoubleArray(2)) }
         assertFailsWith<DimensionMismatch> {
-            F64SparseMatrix.ofTriplets(2, 2, IntArray(0), IntArray(0), DoubleArray(0)).scaleColumns(DoubleArray(3))
+            SparseMatrix.ofTriplets(2, 2, IntArray(0), IntArray(0), DoubleArray(0)).scaleColumns(DoubleArray(3))
         }
     }
 }

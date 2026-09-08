@@ -2,20 +2,20 @@
 
 The simplex basis seam: a factorization held across pivots rather than one taken of a matrix.
 
-- [F64BasisSolver] — the seam. A basis is a choice of columns of a matrix fixed for the solver's lifetime,
+- [BasisSolver] — the seam. A basis is a choice of columns of a matrix fixed for the solver's lifetime,
   named by index, so neither side assembles a square basis per refactorization and a backend that factors
   those columns where they lie never has one to read. It divides the work: the solver owns the factors, the
   pivot order, and the updates, and reports when they are wearing out; a simplex owns pricing, the ratio
   tests, and the refactorization policy that reads those reports. It is [AutoCloseable][kotlin.AutoCloseable],
   so a native solver is closed when the simplex finishes; portable solvers have no external resource.
-- [F64IndexedVector] — the carrier the solves read and write, dense values alongside the positions of the
+- [IndexedVector] — the carrier the solves read and write, dense values alongside the positions of the
   nonzeros. A simplex iteration on a large model touches a few positions, and a `DoubleArray` would spend
   `O(n)` clearing and rescanning around work that is `O(1)` in the model's size.
 - [F64ProductFormBasisSolver] — the portable answer, a sparse LU plus one elementary transform per pivot.
-  Its solves run densely between the seam and [com.eignex.koblas.sparse.F64SparseDecompositions]; the seam stays indexed
+  Its solves run densely between the seam and [com.eignex.koblas.sparse.SparseLapack]; the seam stays indexed
   so a host binding that solves hypersparsely has nothing to undo.
 
-- [F64BasisSolvers] — the backend half. It is separate from [com.eignex.koblas.sparse.F64SparseDecompositions] because
+- [F64BasisSolvers] — the backend half. It is separate from [com.eignex.koblas.sparse.SparseLapack] because
   the two basis contracts want different libraries, and held in one seam the strongest at either would take
   the other from whoever was strongest there.
 

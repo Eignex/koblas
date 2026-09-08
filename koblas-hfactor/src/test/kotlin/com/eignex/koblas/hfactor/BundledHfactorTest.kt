@@ -1,11 +1,11 @@
 package com.eignex.koblas.hfactor
 
-import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
+import com.eignex.koblas.sparse.basis.BasisSolver
 import com.eignex.koblas.sparse.basis.BasisUpdate
-import com.eignex.koblas.sparse.basis.F64BasisSolver
-import com.eignex.koblas.sparse.basis.F64IndexedVector
 import com.eignex.koblas.sparse.basis.F64ProductFormBasisSolver
+import com.eignex.koblas.sparse.basis.IndexedVector
 import com.eignex.koblas.sparse.factorization.lu.F64SparseMarkowitzLu
 import com.eignex.koblas.sparse.host.hfactor.HfactorBasisSolver
 import com.eignex.koblas.sparse.host.hfactor.HfactorFactorization
@@ -21,7 +21,7 @@ class BundledHfactorTest {
     private val backend = BundledHfactor()
 
     /** `[S | I]`, the shape a simplex hands over: structural columns and then the logical ones. */
-    private fun simplexMatrix(n: Int, rng: Random): F64SparseMatrix {
+    private fun simplexMatrix(n: Int, rng: Random): SparseMatrix {
         val columns = ArrayList<List<Pair<Int, Double>>>(2 * n)
         for (j in 0 until n) {
             val column = ArrayList<Pair<Int, Double>>()
@@ -36,15 +36,15 @@ class BundledHfactorTest {
             columns.add(column)
         }
         for (i in 0 until n) columns.add(listOf(i to 1.0))
-        return F64SparseMatrix.ofColumns(n, 2 * n, columns)
+        return SparseMatrix.ofColumns(n, 2 * n, columns)
     }
 
     private fun logicalBasis(n: Int) = IntArray(n) { n + it }
 
-    private fun portable(a: F64SparseMatrix) = F64ProductFormBasisSolver(a, F64ReferenceSparseLinearAlgebra)
+    private fun portable(a: SparseMatrix) = F64ProductFormBasisSolver(a, F64ReferenceSparseLinearAlgebra)
 
-    private fun solved(solver: F64BasisSolver, b: DoubleArray, transpose: Boolean): DoubleArray {
-        val x = F64IndexedVector(b.size)
+    private fun solved(solver: BasisSolver, b: DoubleArray, transpose: Boolean): DoubleArray {
+        val x = IndexedVector(b.size)
         x.scatter(b)
         if (transpose) solver.btran(x) else solver.ftran(x)
         return x.toDoubleArray()
@@ -58,15 +58,15 @@ class BundledHfactorTest {
      * some other way, and a backend reusing its own solves has to recompute them instead.
      */
     private fun pivot(
-        solver: F64BasisSolver,
-        a: F64SparseMatrix,
+        solver: BasisSolver,
+        a: SparseMatrix,
         slots: IntArray,
         rebuildAt: Int,
         basis: IntArray,
         reuse: Boolean = true,
     ) {
-        val spike = F64IndexedVector(solver.n)
-        val eta = F64IndexedVector(solver.n)
+        val spike = IndexedVector(solver.n)
+        val eta = IndexedVector(solver.n)
         for ((taken, slot) in slots.withIndex()) {
             if (taken == rebuildAt) solver.refactorize(basis)
             spike.scatterColumn(a, slot)
@@ -84,8 +84,8 @@ class BundledHfactorTest {
     }
 
     /** The same vector by value and a different one by identity, which is all a reuse check goes on. */
-    private fun handedOver(v: F64IndexedVector): F64IndexedVector {
-        val copy = F64IndexedVector(v.size)
+    private fun handedOver(v: IndexedVector): IndexedVector {
+        val copy = IndexedVector(v.size)
         copy.scatter(v.toDoubleArray())
         return copy
     }
@@ -137,7 +137,7 @@ class BundledHfactorTest {
                 updateMethod = HfactorUpdateMethod.MIDDLE_PRODUCT_FORM,
             ),
         )
-        val matrix = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(1 to 8.0)))
+        val matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(1 to 8.0)))
 
         val factorization = equilibrated.factor(matrix)
 
@@ -156,7 +156,7 @@ class BundledHfactorTest {
         val n = 8
         val matrix = simplexMatrix(n, Random(20261102))
         val rhs = DoubleArray(n) { (it - 2).toDouble() }
-        val solution = F64IndexedVector(n)
+        val solution = IndexedVector(n)
         val solver = backend.basisSolver(matrix)
 
         assertTrue(solver.refactorize(logicalBasis(n)))
@@ -185,7 +185,7 @@ class BundledHfactorTest {
 
     @Test
     fun `a native factor closes deterministically`() {
-        val matrix = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(1 to 8.0)))
+        val matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(1 to 8.0)))
         val factorization = backend.factor(matrix)
         assertIs<HfactorFactorization>(factorization)
         val n = factorization.n
@@ -262,7 +262,7 @@ class BundledHfactorTest {
         val a = simplexMatrix(n, rng)
         val solver = backend.basisSolver(a)
         solver.refactorize(logicalBasis(n))
-        val spike = F64IndexedVector(n)
+        val spike = IndexedVector(n)
         spike.store(2, 1.0)
 
         assertEquals(BasisUpdate.SINGULAR, solver.update(0, 0, spike))
@@ -271,7 +271,7 @@ class BundledHfactorTest {
     @Test
     fun `a singular basis is reported rather than solved against`() {
         val n = 3
-        val a = F64SparseMatrix.ofColumns(n, n, listOf(listOf(0 to 1.0), listOf(0 to 2.0), listOf(2 to 1.0)))
+        val a = SparseMatrix.ofColumns(n, n, listOf(listOf(0 to 1.0), listOf(0 to 2.0), listOf(2 to 1.0)))
         val solver = backend.basisSolver(a)
 
         assertFalse(solver.refactorize(IntArray(n) { it }))
@@ -283,7 +283,7 @@ class BundledHfactorTest {
         val rng = Random(20260918)
         val n = 5
         val solver = backend.basisSolver(simplexMatrix(n, rng))
-        val spike = F64IndexedVector(n)
+        val spike = IndexedVector(n)
         spike.store(0, 1.0)
 
         assertEquals(BasisUpdate.SINGULAR, solver.update(0, 0, spike))
@@ -292,10 +292,10 @@ class BundledHfactorTest {
     @Test
     fun `an update on a singular basis is refused`() {
         val n = 3
-        val a = F64SparseMatrix.ofColumns(n, n, listOf(listOf(0 to 1.0), listOf(0 to 2.0), listOf(2 to 1.0)))
+        val a = SparseMatrix.ofColumns(n, n, listOf(listOf(0 to 1.0), listOf(0 to 2.0), listOf(2 to 1.0)))
         val solver = backend.basisSolver(a)
         assertFalse(solver.refactorize(IntArray(n) { it }))
-        val spike = F64IndexedVector(n)
+        val spike = IndexedVector(n)
         spike.store(0, 1.0)
 
         assertEquals(BasisUpdate.SINGULAR, solver.update(0, 0, spike))
@@ -346,7 +346,7 @@ class BundledHfactorTest {
     }
 
     /** Rows spanning many binary exponents, which is the shape equilibration exists for. */
-    private fun badlyScaled(n: Int, rng: Random): F64SparseMatrix {
+    private fun badlyScaled(n: Int, rng: Random): SparseMatrix {
         val columns = List(n) { j ->
             val entries = ArrayList<Pair<Int, Double>>()
             for (i in 0 until n) {
@@ -359,7 +359,7 @@ class BundledHfactorTest {
             }
             entries
         }
-        return F64SparseMatrix.ofColumns(n, n, columns)
+        return SparseMatrix.ofColumns(n, n, columns)
     }
 
     /**
@@ -440,7 +440,7 @@ class BundledHfactorTest {
         val solver = backend.basisSolver(a)
         assertTrue(solver.refactorize(logicalBasis(n)))
 
-        val spike = F64IndexedVector(n)
+        val spike = IndexedVector(n)
         spike.scatterColumn(a, 0)
         solver.ftran(spike)
         assertEquals(BasisUpdate.APPLIED, solver.update(0, 0, spike))
@@ -462,14 +462,14 @@ class BundledHfactorTest {
     }
 
     /**
-     * The basis of a duplicated column is rank deficient. [F64BasisSolver.refactorize] refuses it to match
+     * The basis of a duplicated column is rank deficient. [BasisSolver.refactorize] refuses it to match
      * the portable solver; the repairing rebuild keeps what HFactor made of it, which is what saves a warm
      * start from becoming a cold one.
      */
     @Test
     fun `a rank deficient basis is repaired rather than refused`() {
         val n = 3
-        val a = F64SparseMatrix.ofColumns(n, n, listOf(listOf(0 to 1.0), listOf(0 to 2.0), listOf(2 to 1.0)))
+        val a = SparseMatrix.ofColumns(n, n, listOf(listOf(0 to 1.0), listOf(0 to 2.0), listOf(2 to 1.0)))
         val solver = backend.basisSolver(a)
 
         assertFalse(solver.refactorize(IntArray(n) { it }), "refactorize keeps refusing a deficient basis")
@@ -495,12 +495,12 @@ class BundledHfactorTest {
     @Test
     fun `a repaired basis solves against what it actually holds`() {
         val n = 3
-        val a = F64SparseMatrix.ofColumns(n, n, listOf(listOf(0 to 1.0), listOf(0 to 2.0), listOf(2 to 1.0)))
+        val a = SparseMatrix.ofColumns(n, n, listOf(listOf(0 to 1.0), listOf(0 to 2.0), listOf(2 to 1.0)))
         val solver = backend.basisSolver(a)
         assertNotNull(solver.refactorizeRepairing(IntArray(n) { it }))
 
         val rhs = doubleArrayOf(1.0, 2.0, 3.0)
-        val solution = F64IndexedVector(n)
+        val solution = IndexedVector(n)
         solution.scatter(rhs)
         solver.ftran(solution)
 
@@ -600,7 +600,7 @@ class BundledHfactorTest {
 
     @Test
     fun `the bundled HFactor solves sparse systems in both directions`() {
-        val matrix = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(1 to 2.0), listOf(0 to 3.0)))
+        val matrix = SparseMatrix.ofColumns(2, 2, listOf(listOf(1 to 2.0), listOf(0 to 3.0)))
         val factorization = backend.factor(matrix)
 
         assertContentEquals(doubleArrayOf(2.0, 3.0), factorization.solve(doubleArrayOf(9.0, 4.0)))
@@ -609,7 +609,7 @@ class BundledHfactorTest {
 
     @Test
     fun `the bundled HFactor reports its fill and pivot ratio`() {
-        val matrix = F64SparseMatrix.ofColumns(
+        val matrix = SparseMatrix.ofColumns(
             2,
             2,
             listOf(listOf(0 to 2.0, 1 to 1.0), listOf(0 to 1.0, 1 to 3.0)),

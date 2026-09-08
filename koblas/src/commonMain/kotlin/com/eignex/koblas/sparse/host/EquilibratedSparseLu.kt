@@ -1,8 +1,8 @@
 package com.eignex.koblas.sparse.host
 
 import com.eignex.koblas.AllocationCapability
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
-import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.F64SparseLuFactorization
 
 /**
@@ -23,11 +23,11 @@ internal class EquilibratedSparseLu(private val inner: F64SparseLuFactorization,
     override val nnz: Int get() = inner.nnz
     override val rcond: Double get() = inner.rcond
 
-    override val l: F64SparseMatrix get() = inner.l
-    override val u: F64SparseMatrix get() = inner.u
+    override val l: SparseMatrix get() = inner.l
+    override val u: SparseMatrix get() = inner.u
     override val rowOrder: IntArray get() = inner.rowOrder
     override val columnOrder: IntArray get() = inner.columnOrder
-    override val offDiagonal: F64SparseMatrix get() = inner.offDiagonal
+    override val offDiagonal: SparseMatrix get() = inner.offDiagonal
 
     /** The factors are of `E·A`, and these are that `E`. */
     override val rowScaling: DoubleArray get() = scale.copyOf()

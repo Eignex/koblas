@@ -1,6 +1,6 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.core.F64DenseMatrix
+import com.eignex.koblas.DenseMatrix
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.assertEquals
@@ -31,8 +31,8 @@ internal fun assertClose(
 }
 
 internal fun assertClose(
-    expected: F64DenseMatrix,
-    actual: F64DenseMatrix,
+    expected: DenseMatrix,
+    actual: DenseMatrix,
     context: String,
     tolerance: Double = TIGHT_TOLERANCE,
 ) {
@@ -45,19 +45,19 @@ internal fun assertClose(
 
 internal fun randomVector(n: Int, rng: Random): DoubleArray = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
 
-internal fun randomMatrix(rows: Int, cols: Int, rng: Random): F64DenseMatrix =
-    F64DenseMatrix.wrap(rows, cols, DoubleArray(rows * cols) { rng.nextDouble(-1.0, 1.0) })
+internal fun randomMatrix(rows: Int, cols: Int, rng: Random): DenseMatrix =
+    DenseMatrix.wrap(rows, cols, DoubleArray(rows * cols) { rng.nextDouble(-1.0, 1.0) })
 
-internal fun wellConditioned(n: Int, rng: Random): F64DenseMatrix {
+internal fun wellConditioned(n: Int, rng: Random): DenseMatrix {
     val a = randomMatrix(n, n, rng)
     for (i in 0 until n) a[i, i] = a[i, i] + n
     return a
 }
 
 /** `(full, poisoned)`, where the poisoned copy holds only the triangle selected by [lower], NaN off it. */
-internal fun poisonedSymmetric(rng: Random, n: Int, lower: Boolean): Pair<F64DenseMatrix, F64DenseMatrix> {
-    val full = F64DenseMatrix(n)
-    val poisoned = F64DenseMatrix(n)
+internal fun poisonedSymmetric(rng: Random, n: Int, lower: Boolean): Pair<DenseMatrix, DenseMatrix> {
+    val full = DenseMatrix(n)
+    val poisoned = DenseMatrix(n)
     for (i in 0 until n) {
         for (j in 0..i) {
             val v = rng.nextDouble(-1.0, 1.0)
@@ -71,9 +71,9 @@ internal fun poisonedSymmetric(rng: Random, n: Int, lower: Boolean): Pair<F64Den
 }
 
 /** A random symmetric indefinite matrix as `(full, poisoned)`, whose mixed-sign pivots force 2x2 blocks. */
-internal fun poisonedIndefinite(rng: Random, n: Int): Pair<F64DenseMatrix, F64DenseMatrix> {
-    val full = F64DenseMatrix(n)
-    val poisoned = F64DenseMatrix(n)
+internal fun poisonedIndefinite(rng: Random, n: Int): Pair<DenseMatrix, DenseMatrix> {
+    val full = DenseMatrix(n)
+    val poisoned = DenseMatrix(n)
     for (i in 0 until n) {
         for (j in 0..i) {
             var v = rng.nextDouble(-1.0, 1.0)
@@ -88,14 +88,9 @@ internal fun poisonedIndefinite(rng: Random, n: Int): Pair<F64DenseMatrix, F64De
 }
 
 /** `(poisoned, explicit)`, poisoned outside the [lower] triangle and on an implicit unit diagonal. */
-internal fun poisonedTriangle(
-    rng: Random,
-    n: Int,
-    lower: Boolean,
-    unitDiag: Boolean,
-): Pair<F64DenseMatrix, F64DenseMatrix> {
-    val poisoned = F64DenseMatrix(n)
-    val explicit = F64DenseMatrix(n)
+internal fun poisonedTriangle(rng: Random, n: Int, lower: Boolean, unitDiag: Boolean): Pair<DenseMatrix, DenseMatrix> {
+    val poisoned = DenseMatrix(n)
+    val explicit = DenseMatrix(n)
     for (i in 0 until n) {
         for (j in 0 until n) {
             val strict = if (lower) j < i else j > i
@@ -142,7 +137,7 @@ internal fun withCleanBackends(block: () -> Unit) {
 
 /** A dense-only offer at [priority], for tests that just need to rank offers against each other. */
 internal class RankedBlas(override val name: String, override val priority: Int) :
-    com.eignex.koblas.dense.F64Blas by com.eignex.koblas.dense.F64ReferenceBlas {
+    com.eignex.koblas.dense.Blas by com.eignex.koblas.dense.F64ReferenceBlas {
     override val isAvailable: Boolean get() = true
     override val isPortable: Boolean get() = false
 }

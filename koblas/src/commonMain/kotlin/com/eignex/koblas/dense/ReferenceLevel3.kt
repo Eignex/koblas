@@ -68,7 +68,7 @@ internal inline fun <T> Workspace?.borrowTransposed(
  */
 @Suppress("LongParameterList")
 internal fun blockedUpdate(
-    kernels: F64Kernels,
+    kernels: Kernels,
     alpha: Double,
     a: DoubleArray,
     aOff: Int,
@@ -93,7 +93,7 @@ internal fun blockedUpdate(
 /** Shared cache traversal for products whose left operand has contiguous columns. */
 @Suppress("LongParameterList")
 private inline fun blockedAxpyUpdate(
-    kernels: F64Kernels,
+    kernels: Kernels,
     alpha: Double,
     a: DoubleArray,
     aOff: Int,
@@ -142,7 +142,7 @@ private inline fun blockedAxpyUpdate(
 /** GEMM's blocked update, accepting a transposed B without materialising it. A is always stored `m x depth`. */
 @Suppress("LongParameterList")
 internal fun blockedGemmUpdate(
-    kernels: F64Kernels,
+    kernels: Kernels,
     alpha: Double,
     a: DoubleArray,
     b: DoubleArray,
@@ -171,11 +171,11 @@ internal fun blockedGemmUpdate(
 
 /**
  * Adds `alpha * A transpose * B` to C without packing A. Columns of A and B are contiguous dot operands;
- * four output rows share each B column through [F64Kernels.dot4].
+ * four output rows share each B column through [Kernels.dot4].
  */
 @Suppress("LongParameterList")
 internal fun blockedTransposedLeftUpdate(
-    kernels: F64Kernels,
+    kernels: Kernels,
     alpha: Double,
     a: DoubleArray,
     aOff: Int,
@@ -248,7 +248,7 @@ internal fun blockedTransposedLeftUpdate(
 /** Adds a right-side triangular panel product, reading `op(T)` without packing a transposed triangle. */
 @Suppress("LongParameterList")
 internal fun blockedRightTriangularUpdate(
-    kernels: F64Kernels,
+    kernels: Kernels,
     alpha: Double,
     b: DoubleArray,
     rows: Int,
@@ -285,7 +285,7 @@ internal fun blockedRightTriangularUpdate(
 /** Adds a symmetric rank-k product from an `n x depth` column-major operand to one triangle of C. */
 @Suppress("LongParameterList")
 internal fun blockedSyrkUpdate(
-    kernels: F64Kernels,
+    kernels: Kernels,
     alpha: Double,
     a: DoubleArray,
     c: DoubleArray,
@@ -298,7 +298,7 @@ internal fun blockedSyrkUpdate(
 /** Adds a symmetric rank-2k product from two `n x depth` column-major operands to one triangle of C. */
 @Suppress("LongParameterList")
 internal fun blockedSyr2kUpdate(
-    kernels: F64Kernels,
+    kernels: Kernels,
     alpha: Double,
     a: DoubleArray,
     b: DoubleArray,
@@ -312,7 +312,7 @@ internal fun blockedSyr2kUpdate(
 /** Shared cache traversal for rank-k and rank-2k updates. */
 @Suppress("LongParameterList")
 private fun blockedSymmetricRankUpdate(
-    kernels: F64Kernels,
+    kernels: Kernels,
     alpha: Double,
     a: DoubleArray,
     b: DoubleArray?,

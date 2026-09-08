@@ -1,6 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.koblas
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.transpose
@@ -19,7 +19,7 @@ class SparseHostBenchmark {
     @Param(AUTOMATIC_BACKEND, REFERENCE_BACKEND)
     var backend: String = REFERENCE_BACKEND
 
-    private lateinit var a: F64SparseMatrix
+    private lateinit var a: SparseMatrix
     private lateinit var rhs: DoubleArray
     private lateinit var factored: F64SparseFactorization
 
@@ -47,5 +47,5 @@ class SparseHostBenchmark {
     fun solveTransposed(): DoubleArray = factored.solve(rhs, transpose = true)
 
     @Benchmark
-    fun transpose(): F64SparseMatrix = a.transpose()
+    fun transpose(): SparseMatrix = a.transpose()
 }

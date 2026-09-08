@@ -1,6 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.koblas
 import com.eignex.koblas.sparse.*
 import kotlinx.benchmark.*
@@ -26,7 +26,7 @@ class SparseRefactorBenchmark {
     @Param(AUTOMATIC_BACKEND, REFERENCE_BACKEND)
     var backend: String = REFERENCE_BACKEND
 
-    private lateinit var a: F64SparseMatrix
+    private lateinit var a: SparseMatrix
     private lateinit var analysis: F64SparseSymbolicAnalysis<F64SparseCholeskyFactorization>
 
     @Setup

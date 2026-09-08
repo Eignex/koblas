@@ -7,10 +7,10 @@ import com.eignex.koblas.sparse.*
 import com.eignex.koblas.sparse.basis.F64BasisSolvers
 
 /**
- * An immutable resolver for an explicit [F64Context], initially containing only portable implementations.
+ * An immutable resolver for an explicit [KoblasContext], initially containing only portable implementations.
  * Every `with` method returns a new builder, so configurations can be safely retained and shared.
  */
-public class F64ContextBuilder private constructor(
+public class ContextBuilder private constructor(
     private val selections: Map<BackendRole, Backend>,
     /** The operation-level dispatch requirement of the resolved context. */
     public val dispatchPolicy: F64DispatchPolicy,
@@ -27,7 +27,7 @@ public class F64ContextBuilder private constructor(
     )
 
     /** Returns a resolver seeded from the exact role selections and policies of [context]. */
-    public constructor(context: F64Context) : this(
+    public constructor(context: KoblasContext) : this(
         BackendRole.entries.associateWith(context::backendFor),
         context.dispatchPolicy,
         context.fallbackPolicy,
@@ -35,7 +35,7 @@ public class F64ContextBuilder private constructor(
     )
 
     /** Selects [backend] for [role], without consulting global registration or priority. */
-    public fun withBackend(role: BackendRole, backend: Backend): F64ContextBuilder {
+    public fun withBackend(role: BackendRole, backend: Backend): ContextBuilder {
         require(role.slot.accepts(backend)) { "${backend.name} does not implement $role" }
         return copy(selections = selections + (role to backend))
     }
@@ -46,7 +46,7 @@ public class F64ContextBuilder private constructor(
      * also implements to a general provider, which is what registration does with the same object. The role
      * overload selects it for a general role anyway.
      */
-    public fun withBackend(backend: Backend): F64ContextBuilder {
+    public fun withBackend(backend: Backend): ContextBuilder {
         val roles = BackendSlot.entries.filter { it.acceptsOffer(backend) }.map { it.role }
         require(roles.isNotEmpty()) { "${backend.name} implements no F64 backend role" }
         return copy(selections = selections + roles.associateWith { backend })
@@ -54,29 +54,29 @@ public class F64ContextBuilder private constructor(
 
     /** Selects both level-1 halves from an exact built-in [provider]. */
     @ExperimentalKoblasApi
-    public fun withBuiltinKernels(provider: F64BuiltinKernelProvider): F64ContextBuilder =
+    public fun withBuiltinKernels(provider: F64BuiltinKernelProvider): ContextBuilder =
         withBackend(BackendRole.DENSE_KERNELS, provider.kernels)
             .withBackend(BackendRole.SPARSE_KERNELS, provider.sparseKernels)
 
     /** Returns a resolver using [policy] for operation-level dispatch. */
-    public fun withDispatchPolicy(policy: F64DispatchPolicy): F64ContextBuilder = copy(dispatchPolicy = policy)
+    public fun withDispatchPolicy(policy: F64DispatchPolicy): ContextBuilder = copy(dispatchPolicy = policy)
 
     /** Returns a resolver using [policy] for automatic fallbacks. */
-    public fun withFallbackPolicy(policy: F64FallbackPolicy): F64ContextBuilder = copy(fallbackPolicy = policy)
+    public fun withFallbackPolicy(policy: F64FallbackPolicy): ContextBuilder = copy(fallbackPolicy = policy)
 
     /** Returns a resolver that sends warning routes to [handler]. */
-    public fun onFallback(handler: (BackendRoute) -> Unit): F64ContextBuilder = copy(fallbackWarning = handler)
+    public fun onFallback(handler: (BackendRoute) -> Unit): ContextBuilder = copy(fallbackWarning = handler)
 
     /** Resolves a new immutable context without reading or mutating the process-wide registry. */
-    public fun resolve(): F64Context {
+    public fun resolve(): KoblasContext {
         require(fallbackPolicy != F64FallbackPolicy.WARN || fallbackWarning != null) {
             "WARN fallback policy requires an onFallback handler"
         }
         val resolved = if (dispatchPolicy == F64DispatchPolicy.PORTABLE_ONLY) portableSelections() else selections
         // Taken exactly as chosen, and `portable halves retain their contexts selected dense kernels`
         // pins that even a one-element operation reaches it.
-        val kernels = resolved.getValue(BackendRole.DENSE_KERNELS) as F64Kernels
-        val denseReference = F64ReferenceBackend(kernels)
+        val kernels = resolved.getValue(BackendRole.DENSE_KERNELS) as Kernels
+        val denseReference = ReferenceBackend(kernels)
         val sparseReference = F64ReferenceSparseBackend(kernels)
         val generalLu = resolved.semantic<F64GeneralSparseLu>(BackendRole.SPARSE_GENERAL_LU, sparseReference)
         val cholesky = resolved.semantic<F64SparseCholesky>(BackendRole.SPARSE_CHOLESKY, sparseReference)
@@ -87,11 +87,11 @@ public class F64ContextBuilder private constructor(
         val repeated = resolved[BackendRole.SPARSE_REPEATED_LU] as? F64RepeatedSparseLu
         val basisFactorizations =
             resolved.semantic<F64BasisFactorizations>(BackendRole.BASIS_FACTORIZATIONS, sparseReference)
-        return F64Context(
+        return KoblasContext(
             kernels = kernels,
-            blas = resolved.boundReference(BackendRole.DENSE_BLAS, denseReference) as F64Blas,
-            sparseKernels = resolved.getValue(BackendRole.SPARSE_KERNELS) as F64SparseKernels,
-            sparseBlas = resolved.boundReference(BackendRole.SPARSE_BLAS, sparseReference) as F64SparseBlas,
+            blas = resolved.boundReference(BackendRole.DENSE_BLAS, denseReference) as Blas,
+            sparseKernels = resolved.getValue(BackendRole.SPARSE_KERNELS) as SparseKernels,
+            sparseBlas = resolved.boundReference(BackendRole.SPARSE_BLAS, sparseReference) as SparseBlas,
             basisSolvers = resolved.boundReference(BackendRole.BASIS_SOLVERS, sparseReference) as F64BasisSolvers,
             dispatchPolicy = dispatchPolicy,
             fallbackPolicy = fallbackPolicy,
@@ -113,7 +113,7 @@ public class F64ContextBuilder private constructor(
         dispatchPolicy: F64DispatchPolicy = this.dispatchPolicy,
         fallbackPolicy: F64FallbackPolicy = this.fallbackPolicy,
         fallbackWarning: ((BackendRoute) -> Unit)? = this.fallbackWarning,
-    ): F64ContextBuilder = F64ContextBuilder(
+    ): ContextBuilder = ContextBuilder(
         selections.toMap(),
         dispatchPolicy,
         fallbackPolicy,
@@ -131,7 +131,7 @@ private fun portableSelections(): Map<BackendRole, Backend> =
 
 /**
  * The provider selected for [role], as the interface the role is defined by. The type holds because
- * [F64ContextBuilder.withBackend] takes no selection its role does not accept, so the error is a guard on a
+ * [ContextBuilder.withBackend] takes no selection its role does not accept, so the error is a guard on a
  * selection map built some other way rather than something a caller can reach.
  */
 private inline fun <reified T : Backend> Map<BackendRole, Backend>.semantic(

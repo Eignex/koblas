@@ -1,6 +1,6 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.sparse.factorization.cholesky.F64SparseUpLookingCholesky
 import com.eignex.koblas.sparse.factorization.ldl.F64QuasiDefiniteUpLookingLdl
@@ -22,7 +22,7 @@ import com.eignex.koblas.sparse.factorization.qr.F64SparseHouseholderQr
 public open class F64ReferenceSparseDecompositions(
     public val equilibrate: Boolean = false,
     public val dropTolerance: Double = NO_DROP,
-) : F64SparseDecompositions,
+) : SparseLapack,
     F64GeneralSparseLu,
     F64SparseCholesky,
     F64QuasiDefiniteLdl,
@@ -35,41 +35,41 @@ public open class F64ReferenceSparseDecompositions(
 
     override val isPortable: Boolean get() = true
 
-    override fun factor(a: F64SparseMatrix): F64SparseLuFactorization =
+    override fun factor(a: SparseMatrix): F64SparseLuFactorization =
         F64SparseMarkowitzLu.factorCsc(a, equilibrate, dropTolerance)
 
     /** Neither knob reaches here: equilibration would break the symmetry, and a drop tolerance would leave
      *  an incomplete factor, which is a preconditioner rather than the factorization this promises. */
-    override fun cholesky(a: F64SparseMatrix): F64SparseCholeskyFactorization = F64SparseUpLookingCholesky.factorLower(
+    override fun cholesky(a: SparseMatrix): F64SparseCholeskyFactorization = F64SparseUpLookingCholesky.factorLower(
         a,
     )
 
     /** The knobs stay out of this one too, for the reason above. */
-    override fun quasiDefiniteLdl(a: F64SparseMatrix): F64QuasiDefiniteLdlFactorization =
+    override fun quasiDefiniteLdl(a: SparseMatrix): F64QuasiDefiniteLdlFactorization =
         F64QuasiDefiniteUpLookingLdl.factorLower(a)
 
     /** Nor do they reach this one: equilibration would change the least-squares problem being solved. */
-    override fun qr(a: F64SparseMatrix): F64SparseQrFactorization = F64SparseHouseholderQr.factor(a)
+    override fun qr(a: SparseMatrix): F64SparseQrFactorization = F64SparseHouseholderQr.factor(a)
 
     /**
      * The elimination tree and the column counts of `L`, held so that refactorizing this pattern reaches the
      * numeric sweep directly. The transposed triangle the sweep reads carries values, so it is not kept.
      */
-    override fun analyzeCholesky(a: F64SparseMatrix): F64SparseSymbolicAnalysis<F64SparseCholeskyFactorization> {
+    override fun analyzeCholesky(a: SparseMatrix): F64SparseSymbolicAnalysis<F64SparseCholeskyFactorization> {
         val symbolic = F64SparseUpLookingCholesky.analyzeLower(a)
         return PatternOnlyAnalysis(a) { F64SparseUpLookingCholesky.factorLower(it, symbolic) }
     }
 
     /** The same structure the Cholesky analyzes, over a diagonal this one stores separately. */
     override fun analyzeQuasiDefiniteLdl(
-        a: F64SparseMatrix,
+        a: SparseMatrix,
     ): F64SparseSymbolicAnalysis<F64QuasiDefiniteLdlFactorization> {
         val symbolic = F64QuasiDefiniteUpLookingLdl.analyzeLower(a)
         return PatternOnlyAnalysis(a) { F64QuasiDefiniteUpLookingLdl.factorLower(it, symbolic) }
     }
 
     /** The column elimination tree, the row permutation, and both factors' entry counts. */
-    override fun analyzeQr(a: F64SparseMatrix): F64SparseSymbolicAnalysis<F64SparseQrFactorization> {
+    override fun analyzeQr(a: SparseMatrix): F64SparseSymbolicAnalysis<F64SparseQrFactorization> {
         val symbolic = F64SparseHouseholderQr.analyze(a)
         return PatternOnlyAnalysis(a) { F64SparseHouseholderQr.factor(it, symbolic) }
     }

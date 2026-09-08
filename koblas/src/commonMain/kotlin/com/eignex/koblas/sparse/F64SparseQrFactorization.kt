@@ -3,10 +3,10 @@ package com.eignex.koblas.sparse
 import com.eignex.koblas.AllocationCapability
 import com.eignex.koblas.AllocationPolicy
 import com.eignex.koblas.AllocationPolicyRejectedException
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.borrow
-import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.requireShape
 import com.eignex.koblas.requireSolveShapes
 import com.eignex.koblas.unrestrictedAllocation
@@ -35,7 +35,7 @@ public interface F64SparseQrFactorization : AutoCloseable {
 
     /** A defensive snapshot of the upper triangular `n×n` factor, in this factorization's column ordering.
      *  Mutating the returned matrix cannot affect this factorization or later reads of this property. */
-    public val r: F64SparseMatrix
+    public val r: SparseMatrix
 
     /** The column of `A` that is column `k` here. */
     public val columnOrder: IntArray
@@ -78,7 +78,7 @@ public interface F64SparseQrFactorization : AutoCloseable {
     }
 
     /** Solve every column of [b] into [out]. */
-    public fun solveInto(b: F64DenseMatrix, out: F64DenseMatrix, workspace: Workspace? = null): F64DenseMatrix {
+    public fun solveInto(b: DenseMatrix, out: DenseMatrix, workspace: Workspace? = null): DenseMatrix {
         requireSolveShapes(m, n, b, out)
         if (b.cols == 0) return out
         workspace.borrow(m) { rhs ->
@@ -94,9 +94,9 @@ public interface F64SparseQrFactorization : AutoCloseable {
     }
 
     /** Solve every column of [b] into a fresh dense result. */
-    public fun solve(b: F64DenseMatrix, workspace: Workspace? = null): F64DenseMatrix {
+    public fun solve(b: DenseMatrix, workspace: Workspace? = null): DenseMatrix {
         requireShape(b.rows == m) { "solve: B has ${b.rows} rows, expected $m" }
-        return solveInto(b, F64DenseMatrix(n, b.cols), workspace)
+        return solveInto(b, DenseMatrix(n, b.cols), workspace)
     }
 
     /** Releases resources owned by this factorization. */

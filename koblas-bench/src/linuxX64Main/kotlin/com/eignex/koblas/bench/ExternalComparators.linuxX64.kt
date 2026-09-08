@@ -2,8 +2,8 @@
 
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.F64ModifiedGivens
-import com.eignex.koblas.core.F64DenseMatrix
+import com.eignex.koblas.ModifiedGivens
+import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.bench.openblas.*
 import kotlinx.cinterop.*
 
@@ -28,7 +28,7 @@ private object NativeOpenBlas : DenseComparator {
     override fun asum(x: DoubleArray): Double = if (x.isEmpty()) 0.0 else x.withPtr { cblas_dasum(x.size, it, 1) }
     override fun swap(x: DoubleArray, y: DoubleArray) = both(x, y) { xp, yp -> cblas_dswap(x.size, xp, 1, yp, 1) }
 
-    override fun rotm(x: DoubleArray, y: DoubleArray, transformation: F64ModifiedGivens) {
+    override fun rotm(x: DoubleArray, y: DoubleArray, transformation: ModifiedGivens) {
         if (x.isEmpty() || transformation.flag == -2.0) return
         val p = when (transformation.flag) {
             -1.0 -> doubleArrayOf(-1.0, transformation.h11, transformation.h21, transformation.h12, transformation.h22)
@@ -41,46 +41,46 @@ private object NativeOpenBlas : DenseComparator {
     override fun rot(x: DoubleArray, y: DoubleArray, c: Double, s: Double) =
         both(x, y) { xp, yp -> cblas_drot(x.size, xp, 1, yp, 1, c, s) }
 
-    override fun gemv(alpha: Double, a: F64DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, transpose: Boolean) {
+    override fun gemv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, transpose: Boolean) {
         three(a.data, x, y) { ap, xp, yp -> cblas_dgemv(COL, trans(transpose), a.rows, a.cols, alpha, ap, a.rows, xp, 1, beta, yp, 1) }
     }
-    override fun symv(alpha: Double, a: F64DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) {
+    override fun symv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) {
         three(a.data, x, y) { ap, xp, yp -> cblas_dsymv(COL, uplo(lower), a.rows, alpha, ap, a.rows, xp, 1, beta, yp, 1) }
     }
-    override fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: F64DenseMatrix) {
+    override fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix) {
         three(x, y, a.data) { xp, yp, ap -> cblas_dger(COL, a.rows, a.cols, alpha, xp, 1, yp, 1, ap, a.rows) }
     }
-    override fun syr(alpha: Double, x: DoubleArray, a: F64DenseMatrix, lower: Boolean) {
+    override fun syr(alpha: Double, x: DoubleArray, a: DenseMatrix, lower: Boolean) {
         both(x, a.data) { xp, ap -> cblas_dsyr(COL, uplo(lower), a.rows, alpha, xp, 1, ap, a.rows) }
     }
-    override fun syr2(alpha: Double, x: DoubleArray, y: DoubleArray, a: F64DenseMatrix, lower: Boolean) {
+    override fun syr2(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix, lower: Boolean) {
         three(x, y, a.data) { xp, yp, ap -> cblas_dsyr2(COL, uplo(lower), a.rows, alpha, xp, 1, yp, 1, ap, a.rows) }
     }
-    override fun trsv(a: F64DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
+    override fun trsv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
         both(a.data, x) { ap, xp -> cblas_dtrsv(COL, uplo(lower), trans(transpose), diag(unitDiag), a.rows, ap, a.rows, xp, 1) }
     }
-    override fun trmv(a: F64DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
+    override fun trmv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
         both(a.data, x) { ap, xp -> cblas_dtrmv(COL, uplo(lower), trans(transpose), diag(unitDiag), a.rows, ap, a.rows, xp, 1) }
     }
-    override fun gemm(alpha: Double, a: F64DenseMatrix, transposeA: Boolean, b: F64DenseMatrix, transposeB: Boolean, beta: Double, c: F64DenseMatrix) {
+    override fun gemm(alpha: Double, a: DenseMatrix, transposeA: Boolean, b: DenseMatrix, transposeB: Boolean, beta: Double, c: DenseMatrix) {
         val m = if (transposeA) a.cols else a.rows
         val k = if (transposeA) a.rows else a.cols
         val n = if (transposeB) b.rows else b.cols
         three(a.data, b.data, c.data) { ap, bp, cp -> cblas_dgemm(COL, trans(transposeA), trans(transposeB), m, n, k, alpha, ap, a.rows, bp, b.rows, beta, cp, c.rows) }
     }
-    override fun syrk(alpha: Double, a: F64DenseMatrix, transpose: Boolean, beta: Double, c: F64DenseMatrix, lower: Boolean) {
+    override fun syrk(alpha: Double, a: DenseMatrix, transpose: Boolean, beta: Double, c: DenseMatrix, lower: Boolean) {
         both(a.data, c.data) { ap, cp -> cblas_dsyrk(COL, uplo(lower), trans(transpose), c.rows, if (transpose) a.rows else a.cols, alpha, ap, a.rows, beta, cp, c.rows) }
     }
-    override fun syr2k(alpha: Double, a: F64DenseMatrix, b: F64DenseMatrix, transpose: Boolean, beta: Double, c: F64DenseMatrix, lower: Boolean) {
+    override fun syr2k(alpha: Double, a: DenseMatrix, b: DenseMatrix, transpose: Boolean, beta: Double, c: DenseMatrix, lower: Boolean) {
         three(a.data, b.data, c.data) { ap, bp, cp -> cblas_dsyr2k(COL, uplo(lower), trans(transpose), c.rows, if (transpose) a.rows else a.cols, alpha, ap, a.rows, bp, b.rows, beta, cp, c.rows) }
     }
-    override fun symm(alpha: Double, a: F64DenseMatrix, b: F64DenseMatrix, beta: Double, c: F64DenseMatrix, lower: Boolean, right: Boolean) {
+    override fun symm(alpha: Double, a: DenseMatrix, b: DenseMatrix, beta: Double, c: DenseMatrix, lower: Boolean, right: Boolean) {
         three(a.data, b.data, c.data) { ap, bp, cp -> cblas_dsymm(COL, side(right), uplo(lower), c.rows, c.cols, alpha, ap, a.rows, bp, b.rows, beta, cp, c.rows) }
     }
-    override fun trsm(a: F64DenseMatrix, b: F64DenseMatrix, lower: Boolean, transpose: Boolean, unitDiag: Boolean, right: Boolean, alpha: Double) {
+    override fun trsm(a: DenseMatrix, b: DenseMatrix, lower: Boolean, transpose: Boolean, unitDiag: Boolean, right: Boolean, alpha: Double) {
         both(a.data, b.data) { ap, bp -> cblas_dtrsm(COL, side(right), uplo(lower), trans(transpose), diag(unitDiag), b.rows, b.cols, alpha, ap, a.rows, bp, b.rows) }
     }
-    override fun trmm(a: F64DenseMatrix, b: F64DenseMatrix, lower: Boolean, transpose: Boolean, unitDiag: Boolean, right: Boolean, alpha: Double) {
+    override fun trmm(a: DenseMatrix, b: DenseMatrix, lower: Boolean, transpose: Boolean, unitDiag: Boolean, right: Boolean, alpha: Double) {
         both(a.data, b.data) { ap, bp -> cblas_dtrmm(COL, side(right), uplo(lower), trans(transpose), diag(unitDiag), b.rows, b.cols, alpha, ap, a.rows, bp, b.rows) }
     }
 }

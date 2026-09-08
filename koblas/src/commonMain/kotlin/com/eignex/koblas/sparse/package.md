@@ -1,43 +1,43 @@
 # Package com.eignex.koblas.sparse
 
-Sparse linear algebra over the CSC [com.eignex.koblas.core.F64SparseMatrix], behind three swappable seams that
+Sparse linear algebra over the CSC [com.eignex.koblas.SparseMatrix], behind three swappable seams that
 mirror the dense ones.
 
-- [F64SparseKernels] — the sparse level-1 tier: a sparse vector against a dense one (`usdot`, `usaxpy`
+- [SparseKernels] — the sparse level-1 tier: a sparse vector against a dense one (`usdot`, `usaxpy`
   in Sparse BLAS terms) or against another sparse one, the scatter and gather pair (`ussc`, `usga`, `usgz`)
   that moves entries between the two representations, and the reductions. Unlike the dense
-  `F64Kernels` there is no length threshold, because the fallback here is an object rather than a
+  `Kernels` there is no length threshold, because the fallback here is an object rather than a
   compiled-in primitive and there is no compile-time kernel to protect.
-- [F64SparseBlas] — the sparse matrix routines. `gemv`, `trsv`, and `trmv` in both directions, walking columns,
+- [SparseBlas] — the sparse matrix routines. `gemv`, `trsv`, and `trmv` in both directions, walking columns,
   which is what CSC stores; `gemm`, `trsm`, and `trmm` over several right-hand sides at once, from either side; the
   sparse-times-sparse product; and `transpose`, which is also the CSC-to-CSR conversion.
 
   The product of two sparse matrices and the transpose are the two routines here that return their result
-  instead of filling a destination. Not for want of a type, since [com.eignex.koblas.core.F64SparseMatrix] is
+  instead of filling a destination. Not for want of a type, since [com.eignex.koblas.SparseMatrix] is
   the type either would fill: what a sparse product discovers is its own pattern, so there is no destination
   to hand in before the multiplication has run and no `beta · C` to accumulate into. Everything else on this
   seam keeps the BLAS shape, where the caller owns the memory.
 
-  [F64SparseBlas.prepare] takes an immutable CSC snapshot for repeated products, so a provider that builds a
+  [SparseBlas.prepare] takes an immutable CSC snapshot for repeated products, so a provider that builds a
   descriptor of its own can retain it until the returned [F64PreparedSparseMatrix] is closed and iterative
   methods do not recopy column pointers, row indices, and values on every multiply. The prepared-operation
   gates are separate from the setup-inclusive one-shot gate. Handles reject calls after close and require
   external serialization when shared between threads.
 
   Its transpose, triangle, diagonal, and side choices use the same named Boolean parameters as dense BLAS.
-- [F64SparseDecompositions] — the compatibility composition of the selected general LU, Cholesky,
+- [SparseLapack] — the compatibility composition of the selected general LU, Cholesky,
   quasi-definite LDL, and QR
-  roles. [F64SparseDecompositions.factor] is the general LU and
+  roles. [SparseLapack.factor] is the general LU and
   returns [F64SparseFactorization], never null: a singular matrix yields a factorization reporting
-  `singular`. [F64SparseDecompositions.cholesky] is `A = L·Lᵀ` for a symmetric
+  `singular`. [SparseLapack.cholesky] is `A = L·Lᵀ` for a symmetric
   positive-definite matrix, reading only the lower triangle, and raises where the LU reports, because a
   non-positive pivot says the matrix was not the one the caller described.
-  [F64SparseDecompositions.quasiDefiniteLdl] is unpivoted numerically `A = L·D·Lᵀ` for a quasi-definite
+  [SparseLapack.quasiDefiniteLdl] is unpivoted numerically `A = L·D·Lᵀ` for a quasi-definite
   symmetric matrix, and reports
   a zero pivot as singular the way the LU does, a negative one being no failure at all. All three solve in the
   ordinary and the transposed direction, which for the two symmetric ones is the same direction twice.
 
-  [F64SparseDecompositions.qr] is `A = Q·R` of a tall or square matrix, for the least-squares solve
+  [SparseLapack.qr] is `A = Q·R` of a tall or square matrix, for the least-squares solve
   `min ‖A·x − b‖₂`. It is the one factorization on this seam whose factor is not an [F64SparseFactorization]:
   that type carries a single order and solves between two vectors of it, where an `m×n` QR takes a
   right-hand side of length `m` and answers one of length `n`. [F64SparseQrFactorization] is that type. A
@@ -73,22 +73,22 @@ mirror the dense ones.
   The default block path preserves aliasing by staging a column; a native provider may specialize it through
   one call. An [F64QuasiDefiniteLdlFactorization] additionally exposes its pivot-sign [FactorizationInertia].
 
-  Sparse [F64SparseDecompositions.quasiDefiniteLdl] does not numerically pivot, because its permutation is selected
+  Sparse [SparseLapack.quasiDefiniteLdl] does not numerically pivot, because its permutation is selected
   to limit fill. It is the factorization for a quasi-definite matrix, which is what an interior point method's
-  KKT system is; a caller who cannot promise that wants [F64SparseDecompositions.factor], whose pivoting is
+  KKT system is; a caller who cannot promise that wants [SparseLapack.factor], whose pivoting is
   numerical.
 - [F64BasisFactorization] — a sparse LU factorization of a simplex basis. It retains the basis matrix and
   can produce the factorization after one column replacement, which may be any column at all.
   [F64RefactoringBasisFactorization] wraps any LU backend at the cost of a factorization per replacement. A
   caller pivoting a basis named by index into a fixed matrix wants
-  [F64BasisSolver][com.eignex.koblas.sparse.basis.F64BasisSolver] instead, on its own backend half.
-- [F64SparseLinearAlgebra] pairs the matrix seams and exposes the sparse-vector kernels alongside them.
+  [BasisSolver][com.eignex.koblas.sparse.basis.BasisSolver] instead, on its own backend half.
+- [SparseLinearAlgebra] pairs the matrix seams and exposes the sparse-vector kernels alongside them.
   Backends may implement either matrix half; [com.eignex.koblas.registerBackend] ranks each independently,
   while [com.eignex.koblas.installBackends] supplies all three through [com.eignex.koblas.koblas].
 
 Sparse libraries are specialized: one wants a pattern it can factor repeatedly, another an unstructured
 system, another a basis whose columns are replaced one at a time, and
-[com.eignex.koblas.sparse.basis.F64BasisSolver] a basis pivoted thousands of times. The registry therefore
+[com.eignex.koblas.sparse.basis.BasisSolver] a basis pivoted thousands of times. The registry therefore
 ranks providers only within semantic roles. [F64GeneralSparseLu] is ordinary pivoting LU,
 [F64RepeatedSparseLu] adds same-pattern refactorization, [F64SparseCholesky] and [F64QuasiDefiniteLdl] are symmetric
 roles, [F64SparseQr] is least-squares QR, and [F64BasisFactorizations] owns column-replaceable basis factors.
@@ -102,8 +102,8 @@ distinct from numerical singularity. Numeric factors stay caller-owned and must 
 A provider reuses its symbolic ordering through this typed capability, so a same-pattern loop needs no concrete
 backend cast.
 
-An explicit [com.eignex.koblas.F64ContextBuilder] can select any provider for any role it implements. Use
-[com.eignex.koblas.F64Capabilities] with [com.eignex.koblas.backendNamed] to retrieve an exact discovered
+An explicit [com.eignex.koblas.ContextBuilder] can select any provider for any role it implements. Use
+[com.eignex.koblas.Capabilities] with [com.eignex.koblas.backendNamed] to retrieve an exact discovered
 provider without a concrete implementation cast, and [com.eignex.koblas.capability] to retrieve
 the provider held by a context. A backend is reached by name through the capability it fills; there is no
 untyped lookup, because a backend now offers the roles it implements rather than the seam it happens to

@@ -1,20 +1,20 @@
 package com.eignex.koblas.sparse
 
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.core.F64SparseMatrix
 import kotlin.random.Random
 import kotlin.test.assertEquals
 
-internal fun sparseQrConformanceSystem(m: Int, n: Int, rng: Random): F64SparseMatrix {
+internal fun sparseQrConformanceSystem(m: Int, n: Int, rng: Random): SparseMatrix {
     val columns = ArrayList<List<Pair<Int, Double>>>(n)
     for (j in 0 until n) {
         val rows = (listOf(j) + List(3) { rng.nextInt(m) }).distinct().sorted()
         columns.add(rows.map { row -> row to if (row == j) 2.0 + rng.nextDouble() else rng.nextDouble(-1.0, 1.0) })
     }
-    return F64SparseMatrix.ofColumns(m, n, columns)
+    return SparseMatrix.ofColumns(m, n, columns)
 }
 
-internal fun assertQrAgreesWithReference(decompositions: F64SparseDecompositions) {
+internal fun assertQrAgreesWithReference(decompositions: SparseLapack) {
     val rng = Random(20260827)
     for ((m, n) in listOf(1 to 1, 9 to 4, 60 to 25, 140 to 90)) {
         val a = sparseQrConformanceSystem(m, n, rng)
@@ -41,7 +41,7 @@ internal fun assertQrAgreesWithReference(decompositions: F64SparseDecompositions
     }
 }
 
-private fun assertFactorizationIdentity(a: F64SparseMatrix, qr: F64SparseQrFactorization, context: String) {
+private fun assertFactorizationIdentity(a: SparseMatrix, qr: F64SparseQrFactorization, context: String) {
     val order = qr.columnOrder
     for (j in 0 until qr.n) {
         val embedded = DoubleArray(qr.m)
@@ -53,7 +53,7 @@ private fun assertFactorizationIdentity(a: F64SparseMatrix, qr: F64SparseQrFacto
     }
 }
 
-private fun assertUpperTriangularFactor(a: F64SparseMatrix, qr: F64SparseQrFactorization, context: String) {
+private fun assertUpperTriangularFactor(a: SparseMatrix, qr: F64SparseQrFactorization, context: String) {
     val r = qr.r
     val order = qr.columnOrder
     assertEquals(qr.n, r.cols, "$context R has the wrong column count")
@@ -79,7 +79,7 @@ private fun assertOrthogonalOperator(qr: F64SparseQrFactorization, context: Stri
 }
 
 /** `A(:, i)ᵀ · A(:, j)`, so an orthogonality check reads one Gram entry without forming the product. */
-internal fun columnDot(a: F64SparseMatrix, i: Int, j: Int): Double {
+internal fun columnDot(a: SparseMatrix, i: Int, j: Int): Double {
     val column = HashMap<Int, Double>()
     a.forEachInColumn(i) { row, value -> column[row] = value }
     var sum = 0.0
@@ -88,7 +88,7 @@ internal fun columnDot(a: F64SparseMatrix, i: Int, j: Int): Double {
 }
 
 /** `Aᵀ · x` straight from the CSC arrays, so no seam is involved in checking a seam. */
-internal fun transposeTimes(a: F64SparseMatrix, x: DoubleArray): DoubleArray {
+internal fun transposeTimes(a: SparseMatrix, x: DoubleArray): DoubleArray {
     val y = DoubleArray(a.cols)
     for (j in 0 until a.cols) a.forEachInColumn(j) { row, value -> y[j] += value * x[row] }
     return y

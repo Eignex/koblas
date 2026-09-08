@@ -10,14 +10,14 @@ import com.eignex.koblas.sparse.F64SparseCholesky
 import com.eignex.koblas.sparse.F64SparseQr
 import com.eignex.koblas.sparse.basis.F64BasisSolvers
 
-/** A typed key for one optional or independently selected capability in an [F64Context]. */
+/** A typed key for one optional or independently selected capability in an [KoblasContext]. */
 public class F64Capability<T : Backend> internal constructor(
-    internal val select: (F64Context) -> T?,
+    internal val select: (KoblasContext) -> T?,
     internal val named: (String) -> T?,
 )
 
 /** Typed capability keys, avoiding provider-specific casts in solver code. */
-public object F64Capabilities {
+public object Capabilities {
     /** General pivoting sparse LU. */
     public val generalSparseLu: F64Capability<F64GeneralSparseLu> = slotCapability(BackendSlot.F64GeneralSparseLu)
 
@@ -53,7 +53,7 @@ private inline fun <reified T : Backend> slotCapability(slot: BackendSlot): F64C
 )
 
 /** Returns the provider selected for [capability], or null when the capability is optional and absent. */
-public fun <T : Backend> F64Context.capability(capability: F64Capability<T>): T? = capability.select(this)
+public fun <T : Backend> KoblasContext.capability(capability: F64Capability<T>): T? = capability.select(this)
 
 /** Returns the registered provider named [name] for [capability], without a provider-specific cast. */
 public fun <T : Backend> backendNamed(name: String, capability: F64Capability<T>): T? = capability.named(name)

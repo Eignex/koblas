@@ -2,7 +2,7 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.ExperimentalKoblasApi
 import com.eignex.koblas.F64BuiltinKernels
-import com.eignex.koblas.core.F64DenseMatrix
+import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.koblas
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -96,8 +96,8 @@ class BenchmarkArmResolutionTest {
         val rng = benchRng()
         val a = randomMatrix(7, 5, rng)
         val b = randomMatrix(5, 3, rng)
-        val expected = F64DenseMatrix.zero(7, 3)
-        val actual = F64DenseMatrix.zero(7, 3)
+        val expected = DenseMatrix.zero(7, 3)
+        val actual = DenseMatrix.zero(7, 3)
         context.gemm(1.25, a, false, b, false, 0.0, expected)
         external.gemm(1.25, a, false, b, false, 0.0, actual)
         for (i in actual.data.indices) assertEquals(expected.data[i], actual.data[i], 1e-11, "entry $i")
@@ -174,7 +174,7 @@ class BenchmarkArmResolutionTest {
         for (i in expected.indices) assertEquals(expected[i], actual[i], 1e-10, "$context entry $i")
     }
 
-    private fun assertMatrixNear(expected: F64DenseMatrix, actual: F64DenseMatrix, context: String) {
+    private fun assertMatrixNear(expected: DenseMatrix, actual: DenseMatrix, context: String) {
         assertEquals(expected.rows, actual.rows, "$context rows")
         assertEquals(expected.cols, actual.cols, "$context cols")
         for (i in expected.data.indices) assertEquals(expected.data[i], actual.data[i], 1e-10, "$context entry $i")

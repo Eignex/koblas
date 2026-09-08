@@ -1,6 +1,6 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.core.F64DenseVector
+import com.eignex.koblas.DenseVector
 import kotlin.math.abs
 import kotlin.math.sqrt
 import kotlin.random.Random
@@ -43,8 +43,8 @@ class GivensRotationTest {
     fun `rot applies the rotation elementwise and preserves length`() {
         val rng = Random(20260810)
         val n = 7
-        val x = F64DenseVector.of(randomVector(n, rng))
-        val y = F64DenseVector.of(randomVector(n, rng))
+        val x = DenseVector.of(randomVector(n, rng))
+        val y = DenseVector.of(randomVector(n, rng))
         val x0 = x.data.copyOf()
         val y0 = y.data.copyOf()
         val g = rotg(2.0, 1.0)
@@ -63,8 +63,8 @@ class GivensRotationTest {
 
     @Test
     fun `rotg and rot together zero the target entry`() {
-        val x = F64DenseVector.of(doubleArrayOf(3.0, 1.0, 2.0))
-        val y = F64DenseVector.of(doubleArrayOf(4.0, -1.0, 0.5))
+        val x = DenseVector.of(doubleArrayOf(3.0, 1.0, 2.0))
+        val y = DenseVector.of(doubleArrayOf(4.0, -1.0, 0.5))
         val g = rotg(x[0], y[0])
         rot(x, y, g)
         assertEquals(0.0, y[0], 1e-12, "the leading entry of y was not eliminated")

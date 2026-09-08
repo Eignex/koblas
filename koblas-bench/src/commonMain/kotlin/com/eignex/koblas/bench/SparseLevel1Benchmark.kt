@@ -1,8 +1,8 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.*
-import com.eignex.koblas.core.F64DenseVector
-import com.eignex.koblas.core.F64SparseVector
+import com.eignex.koblas.DenseVector
+import com.eignex.koblas.SparseVector
 import kotlinx.benchmark.*
 
 @State(Scope.Benchmark)
@@ -18,9 +18,9 @@ class SparseLevel1Benchmark {
     @Param(AUTOMATIC_KERNELS, SCALAR_KERNELS, C_KERNELS)
     var kernels: String = AUTOMATIC_KERNELS
 
-    private lateinit var sparse: F64SparseVector
-    private lateinit var other: F64SparseVector
-    private lateinit var dense: F64DenseVector
+    private lateinit var sparse: SparseVector
+    private lateinit var other: SparseVector
+    private lateinit var dense: DenseVector
 
     @Setup
     fun setup() {
@@ -29,7 +29,7 @@ class SparseLevel1Benchmark {
         val rng = benchRng()
         sparse = randomSparseVector(len, density, rng)
         other = randomSparseVector(len, density, rng)
-        dense = F64DenseVector.of(randomVector(len, rng))
+        dense = DenseVector.of(randomVector(len, rng))
     }
 
     @Benchmark
@@ -74,17 +74,17 @@ class SparseLevel1ComparisonBenchmark {
     @Param(BUILTIN_BACKEND, ONEMKL_BACKEND)
     var sparseArm: String = BUILTIN_BACKEND
 
-    private lateinit var sparse: F64SparseVector
-    private lateinit var dense: F64DenseVector
+    private lateinit var sparse: SparseVector
+    private lateinit var dense: DenseVector
     private lateinit var gathered: DoubleArray
-    private var builtIn: com.eignex.koblas.sparse.F64SparseKernels? = null
+    private var builtIn: com.eignex.koblas.sparse.SparseKernels? = null
     private var oneMkl: SparseComparator? = null
 
     @Setup
     fun setup() {
         val rng = benchRng()
         sparse = randomSparseVector(len, density, rng)
-        dense = F64DenseVector.of(randomVector(len, rng))
+        dense = DenseVector.of(randomVector(len, rng))
         gathered = DoubleArray(sparse.values.size)
         if (sparseArm == BUILTIN_BACKEND) builtIn = explicitBuiltInContext().sparseKernels else {
             oneMkl = checkNotNull(oneMklSparseComparator()) { "the benchmark-only oneMKL sparse comparator is unavailable" }

@@ -1,10 +1,10 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.koblas
 import com.eignex.koblas.sparse.basis.BasisUpdate
-import com.eignex.koblas.sparse.basis.F64BasisSolver
-import com.eignex.koblas.sparse.basis.F64IndexedVector
+import com.eignex.koblas.sparse.basis.BasisSolver
+import com.eignex.koblas.sparse.basis.IndexedVector
 import kotlinx.benchmark.*
 
 /**
@@ -36,11 +36,11 @@ class BasisBenchmark {
     @Param(AUTOMATIC_BACKEND, REFERENCE_BACKEND, HOST_BACKEND)
     var backend: String = REFERENCE_BACKEND
 
-    private lateinit var a: F64SparseMatrix
-    private lateinit var solver: F64BasisSolver
+    private lateinit var a: SparseMatrix
+    private lateinit var solver: BasisSolver
     private lateinit var logical: IntArray
-    private lateinit var spike: F64IndexedVector
-    private lateinit var eta: F64IndexedVector
+    private lateinit var spike: IndexedVector
+    private lateinit var eta: IndexedVector
 
     @Setup
     fun setup() {
@@ -49,8 +49,8 @@ class BasisBenchmark {
         a = simplexProblem(n, rng, spikeFraction = if (basisShape == SPIKED_COLUMNS) 0.5 else 0.0)
         logical = IntArray(n) { n + it }
         solver = koblas.basisSolvers.basisSolver(a)
-        spike = F64IndexedVector(n)
-        eta = F64IndexedVector(n)
+        spike = IndexedVector(n)
+        eta = IndexedVector(n)
         check(solver.refactorize(logical)) { "the logical basis did not factor" }
         println(
             "resolved: basisSolvers=${koblas.basisSolvers.name} shape=$basisShape nnz(A)=${a.nnz} fill=${solver.nnz}",

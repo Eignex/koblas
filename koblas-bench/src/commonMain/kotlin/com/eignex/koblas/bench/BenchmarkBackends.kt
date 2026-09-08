@@ -78,7 +78,7 @@ internal fun installSparseBlasBackend(backend: String) {
     installBackends(null)
     when (backend) {
         AUTOMATIC_BACKEND -> discoverBackends()
-        REFERENCE_BACKEND -> installBackends(F64ContextBuilder().resolve())
+        REFERENCE_BACKEND -> installBackends(ContextBuilder().resolve())
         HOST_BACKEND -> error("the host sparse BLAS backend is unavailable")
         else -> error("unknown backend: $backend")
     }
@@ -96,7 +96,7 @@ internal fun installBasisSolverBackend(backend: String) {
     installBackends(null)
     when (backend) {
         AUTOMATIC_BACKEND -> discoverBackends()
-        REFERENCE_BACKEND -> installBackends(F64ContextBuilder().resolve())
+        REFERENCE_BACKEND -> installBackends(ContextBuilder().resolve())
         HOST_BACKEND -> {
             discoverBackends()
             check(koblas.basisSolvers.name != REFERENCE_BACKEND) { "the host basis solver backend is unavailable" }
@@ -131,7 +131,7 @@ internal fun installKernelProvider(provider: String) {
                 else -> error("unknown kernel provider: $provider")
             }
             checkNotNull(builtIn) { "the $provider kernel provider is unavailable on this platform" }
-            installBackends(F64ContextBuilder().withBuiltinKernels(builtIn).resolve())
+            installBackends(ContextBuilder().withBuiltinKernels(builtIn).resolve())
         }
     }
     val kernels = koblas.kernels.name

@@ -8,7 +8,7 @@ class F64BuiltinKernelsTest {
     @Test
     fun `the scalar provider resolves an exact context`() {
         val provider = F64BuiltinKernels.scalar
-        val context = F64ContextBuilder()
+        val context = ContextBuilder()
             .withBuiltinKernels(provider)
             .resolve()
 

@@ -1,6 +1,6 @@
 package com.eignex.koblas.sparse.factorization
 
-import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.SparseMatrix
 
 /*
  * The symbolic half the symmetric factorizations share. `A = L·Lᵀ` and `A = L·D·Lᵀ` differ in what they
@@ -13,7 +13,7 @@ import com.eignex.koblas.core.F64SparseMatrix
  * first subdiagonal entry of column `i` of `L` and `-1` for a root. Path compression through `ancestor`
  * keeps this near linear in the stored entries.
  */
-internal fun eliminationTree(n: Int, upper: F64SparseMatrix): IntArray {
+internal fun eliminationTree(n: Int, upper: SparseMatrix): IntArray {
     val parent = IntArray(n) { -1 }
     val ancestor = IntArray(n) { -1 }
     for (k in 0 until n) {
@@ -35,7 +35,7 @@ internal fun eliminationTree(n: Int, upper: F64SparseMatrix): IntArray {
  * where a column comes before its ancestors. [mark] carries the stamp of the row already visited, so the
  * traversal never walks a subtree twice.
  */
-internal fun ereach(upper: F64SparseMatrix, k: Int, parent: IntArray, stack: IntArray, mark: IntArray): Int {
+internal fun ereach(upper: SparseMatrix, k: Int, parent: IntArray, stack: IntArray, mark: IntArray): Int {
     val n = stack.size
     var top = n
     mark[k] = k
@@ -61,12 +61,7 @@ internal fun ereach(upper: F64SparseMatrix, k: Int, parent: IntArray, stack: Int
  * [storesDiagonal] is what separates the two factorizations here: `L·Lᵀ` keeps the diagonal of `L` and puts
  * it first in each column, where `L·D·Lᵀ` holds a unit diagonal it does not store and a `D` of its own.
  */
-internal fun columnPointers(
-    n: Int,
-    upper: F64SparseMatrix,
-    parent: IntArray,
-    storesDiagonal: Boolean = true,
-): IntArray {
+internal fun columnPointers(n: Int, upper: SparseMatrix, parent: IntArray, storesDiagonal: Boolean = true): IntArray {
     val counts = IntArray(n)
     val stack = IntArray(n)
     val mark = IntArray(n) { -1 }
@@ -91,7 +86,7 @@ internal fun columnPointers(
 internal class UpLookingSymbolic(val n: Int, val parent: IntArray, val colPtr: IntArray)
 
 /** [UpLookingSymbolic] of the matrix whose transposed lower triangle is [upper]. */
-internal fun analyzeUpLooking(n: Int, upper: F64SparseMatrix, storesDiagonal: Boolean): UpLookingSymbolic {
+internal fun analyzeUpLooking(n: Int, upper: SparseMatrix, storesDiagonal: Boolean): UpLookingSymbolic {
     val parent = eliminationTree(n, upper)
     return UpLookingSymbolic(n, parent, columnPointers(n, upper, parent, storesDiagonal))
 }

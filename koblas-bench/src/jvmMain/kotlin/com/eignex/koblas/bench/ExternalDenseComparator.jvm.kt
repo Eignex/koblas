@@ -1,15 +1,15 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.*
-import com.eignex.koblas.core.F64DenseMatrix
+import com.eignex.koblas.DenseMatrix
 import java.lang.foreign.*
 import java.lang.foreign.ValueLayout.*
 import java.lang.invoke.MethodHandle
 
 @OptIn(ExperimentalKoblasApi::class)
-internal actual fun explicitBuiltInContext(): F64Context {
+internal actual fun explicitBuiltInContext(): KoblasContext {
     val provider = F64BuiltinKernels.simd ?: F64BuiltinKernels.c ?: F64BuiltinKernels.scalar
-    return F64ContextBuilder().withBuiltinKernels(provider).resolve()
+    return ContextBuilder().withBuiltinKernels(provider).resolve()
 }
 
 internal actual fun openBlasComparator(): DenseComparator? = JvmCblasComparator.openOpenBlas()
@@ -160,7 +160,7 @@ private class JvmCblasComparator private constructor(
         if (x.isNotEmpty()) dswap.invokeExact(x.size, seg(x), 1, seg(y), 1) as Unit
     }
 
-    override fun rotm(x: DoubleArray, y: DoubleArray, transformation: F64ModifiedGivens) {
+    override fun rotm(x: DoubleArray, y: DoubleArray, transformation: ModifiedGivens) {
         if (x.isEmpty() || transformation.flag == -2.0) return
         val p = when (transformation.flag) {
             -1.0 -> doubleArrayOf(-1.0, transformation.h11, transformation.h21, transformation.h12, transformation.h22)
@@ -176,7 +176,7 @@ private class JvmCblasComparator private constructor(
 
     override fun gemv(
         alpha: Double,
-        a: F64DenseMatrix,
+        a: DenseMatrix,
         x: DoubleArray,
         beta: Double,
         y: DoubleArray,
@@ -189,7 +189,7 @@ private class JvmCblasComparator private constructor(
 
     override fun symv(
         alpha: Double,
-        a: F64DenseMatrix,
+        a: DenseMatrix,
         x: DoubleArray,
         beta: Double,
         y: DoubleArray,
@@ -198,52 +198,52 @@ private class JvmCblasComparator private constructor(
         if (a.rows != 0) dsymv.invokeExact(COL_MAJOR, uplo(lower), a.rows, alpha, seg(a.data), a.rows, seg(x), 1, beta, seg(y), 1) as Unit
     }
 
-    override fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: F64DenseMatrix) {
+    override fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix) {
         if (a.rows != 0 && a.cols != 0) dger.invokeExact(COL_MAJOR, a.rows, a.cols, alpha, seg(x), 1, seg(y), 1, seg(a.data), a.rows) as Unit
     }
 
-    override fun syr(alpha: Double, x: DoubleArray, a: F64DenseMatrix, lower: Boolean) {
+    override fun syr(alpha: Double, x: DoubleArray, a: DenseMatrix, lower: Boolean) {
         if (a.rows != 0) dsyr.invokeExact(COL_MAJOR, uplo(lower), a.rows, alpha, seg(x), 1, seg(a.data), a.rows) as Unit
     }
 
-    override fun syr2(alpha: Double, x: DoubleArray, y: DoubleArray, a: F64DenseMatrix, lower: Boolean) {
+    override fun syr2(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix, lower: Boolean) {
         if (a.rows != 0) dsyr2.invokeExact(COL_MAJOR, uplo(lower), a.rows, alpha, seg(x), 1, seg(y), 1, seg(a.data), a.rows) as Unit
     }
 
-    override fun trsv(a: F64DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
+    override fun trsv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
         if (a.rows != 0) dtrsv.invokeExact(COL_MAJOR, uplo(lower), trans(transpose), diag(unitDiag), a.rows, seg(a.data), a.rows, seg(x), 1) as Unit
     }
 
-    override fun trmv(a: F64DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
+    override fun trmv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
         if (a.rows != 0) dtrmv.invokeExact(COL_MAJOR, uplo(lower), trans(transpose), diag(unitDiag), a.rows, seg(a.data), a.rows, seg(x), 1) as Unit
     }
 
-    override fun gemm(alpha: Double, a: F64DenseMatrix, transposeA: Boolean, b: F64DenseMatrix, transposeB: Boolean, beta: Double, c: F64DenseMatrix) {
+    override fun gemm(alpha: Double, a: DenseMatrix, transposeA: Boolean, b: DenseMatrix, transposeB: Boolean, beta: Double, c: DenseMatrix) {
         val m = if (transposeA) a.cols else a.rows
         val k = if (transposeA) a.rows else a.cols
         val n = if (transposeB) b.rows else b.cols
         if (m != 0 && n != 0) dgemm.invokeExact(COL_MAJOR, trans(transposeA), trans(transposeB), m, n, k, alpha, seg(a.data), a.rows, seg(b.data), b.rows, beta, seg(c.data), c.rows) as Unit
     }
 
-    override fun syrk(alpha: Double, a: F64DenseMatrix, transpose: Boolean, beta: Double, c: F64DenseMatrix, lower: Boolean) {
+    override fun syrk(alpha: Double, a: DenseMatrix, transpose: Boolean, beta: Double, c: DenseMatrix, lower: Boolean) {
         val k = if (transpose) a.rows else a.cols
         if (c.rows != 0) dsyrk.invokeExact(COL_MAJOR, uplo(lower), trans(transpose), c.rows, k, alpha, seg(a.data), a.rows, beta, seg(c.data), c.rows) as Unit
     }
 
-    override fun syr2k(alpha: Double, a: F64DenseMatrix, b: F64DenseMatrix, transpose: Boolean, beta: Double, c: F64DenseMatrix, lower: Boolean) {
+    override fun syr2k(alpha: Double, a: DenseMatrix, b: DenseMatrix, transpose: Boolean, beta: Double, c: DenseMatrix, lower: Boolean) {
         val k = if (transpose) a.rows else a.cols
         if (c.rows != 0) dsyr2k.invokeExact(COL_MAJOR, uplo(lower), trans(transpose), c.rows, k, alpha, seg(a.data), a.rows, seg(b.data), b.rows, beta, seg(c.data), c.rows) as Unit
     }
 
-    override fun symm(alpha: Double, a: F64DenseMatrix, b: F64DenseMatrix, beta: Double, c: F64DenseMatrix, lower: Boolean, right: Boolean) {
+    override fun symm(alpha: Double, a: DenseMatrix, b: DenseMatrix, beta: Double, c: DenseMatrix, lower: Boolean, right: Boolean) {
         if (c.rows != 0 && c.cols != 0) dsymm.invokeExact(COL_MAJOR, side(right), uplo(lower), c.rows, c.cols, alpha, seg(a.data), a.rows, seg(b.data), b.rows, beta, seg(c.data), c.rows) as Unit
     }
 
-    override fun trsm(a: F64DenseMatrix, b: F64DenseMatrix, lower: Boolean, transpose: Boolean, unitDiag: Boolean, right: Boolean, alpha: Double) {
+    override fun trsm(a: DenseMatrix, b: DenseMatrix, lower: Boolean, transpose: Boolean, unitDiag: Boolean, right: Boolean, alpha: Double) {
         if (b.rows != 0 && b.cols != 0) dtrsm.invokeExact(COL_MAJOR, side(right), uplo(lower), trans(transpose), diag(unitDiag), b.rows, b.cols, alpha, seg(a.data), a.rows, seg(b.data), b.rows) as Unit
     }
 
-    override fun trmm(a: F64DenseMatrix, b: F64DenseMatrix, lower: Boolean, transpose: Boolean, unitDiag: Boolean, right: Boolean, alpha: Double) {
+    override fun trmm(a: DenseMatrix, b: DenseMatrix, lower: Boolean, transpose: Boolean, unitDiag: Boolean, right: Boolean, alpha: Double) {
         if (b.rows != 0 && b.cols != 0) dtrmm.invokeExact(COL_MAJOR, side(right), uplo(lower), trans(transpose), diag(unitDiag), b.rows, b.cols, alpha, seg(a.data), a.rows, seg(b.data), b.rows) as Unit
     }
 

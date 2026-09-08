@@ -1,8 +1,8 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.core.F64DenseVector
-import com.eignex.koblas.core.F64SparseVector
+import com.eignex.koblas.DenseVector
+import com.eignex.koblas.SparseVector
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import kotlin.math.abs
 import kotlin.math.sqrt
@@ -11,7 +11,7 @@ import kotlin.test.*
 
 class KernelsTest {
 
-    private class Recording(override val priority: Int = 90) : F64Kernels {
+    private class Recording(override val priority: Int = 90) : Kernels {
         override var name: String = "recording"
             private set
 
@@ -86,7 +86,7 @@ class KernelsTest {
             return s
         }
 
-        override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64ModifiedGivens {
+        override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens {
             rotmgs++
             return portableRotmg(d1, d2, x1, y1)
         }
@@ -100,7 +100,7 @@ class KernelsTest {
             yOff: Int,
             yStride: Int,
             len: Int,
-            transformation: F64ModifiedGivens,
+            transformation: ModifiedGivens,
         ) {
             rotms++
             portableRotm(x, xOff, xStride, y, yOff, yStride, len, transformation)
@@ -117,12 +117,12 @@ class KernelsTest {
     fun `a registered backend handles vector runs of every length`() = withCleanBackends {
         val recording = Recording()
         registerBackend(recording)
-        val short1 = F64DenseVector.of(doubleArrayOf(3.0))
-        val short2 = F64DenseVector.of(doubleArrayOf(4.0))
+        val short1 = DenseVector.of(doubleArrayOf(3.0))
+        val short2 = DenseVector.of(doubleArrayOf(4.0))
         assertEquals(12.0, short1 dot short2)
         assertEquals(1, recording.dots, "a length-1 dot did not reach the selected backend")
-        val x = F64DenseVector.of(DoubleArray(16) { 1.0 })
-        val y = F64DenseVector.of(DoubleArray(16) { 2.0 })
+        val x = DenseVector.of(DoubleArray(16) { 1.0 })
+        val y = DenseVector.of(DoubleArray(16) { 2.0 })
         assertEquals(32.0, x dot y)
         assertEquals(2, recording.dots, "a length-16 dot did not reach the selected backend")
     }
@@ -131,8 +131,8 @@ class KernelsTest {
     fun `axpy and scale route to the selected backend`() = withCleanBackends {
         val recording = Recording()
         registerBackend(recording)
-        val v = F64DenseVector.of(DoubleArray(64) { 1.0 })
-        val x = F64DenseVector.of(DoubleArray(64) { 2.0 })
+        val v = DenseVector.of(DoubleArray(64) { 1.0 })
+        val x = DenseVector.of(DoubleArray(64) { 2.0 })
         v.axpy(3.0, x)
         v.scale(0.5)
         assertEquals(1, recording.axpys, "axpy did not route")
@@ -145,8 +145,8 @@ class KernelsTest {
         val recording = Recording()
         registerBackend(recording)
         val transformation = rotmg(1.0, 1.0, 1.0, 2.0)
-        val x = F64DenseVector.of(doubleArrayOf(2.0, -1.0))
-        val y = F64DenseVector.of(doubleArrayOf(1.0, 4.0))
+        val x = DenseVector.of(doubleArrayOf(2.0, -1.0))
+        val y = DenseVector.of(doubleArrayOf(1.0, 4.0))
 
         rotm(x, y, transformation)
 
@@ -161,8 +161,8 @@ class KernelsTest {
         val recording = Recording()
         registerBackend(recording)
         val rotation = rotg(3.0, 4.0)
-        val x = F64DenseVector.of(doubleArrayOf(3.0, 1.0))
-        val y = F64DenseVector.of(doubleArrayOf(4.0, -1.0))
+        val x = DenseVector.of(doubleArrayOf(3.0, 1.0))
+        val y = DenseVector.of(doubleArrayOf(4.0, -1.0))
 
         rot(x, y, rotation)
 
@@ -185,12 +185,12 @@ class KernelsTest {
     fun `the dense reductions route but the sparse ones cannot`() = withCleanBackends {
         val recording = Recording()
         registerBackend(recording)
-        val dense = F64DenseVector.of(DoubleArray(64) { 3.0 })
+        val dense = DenseVector.of(DoubleArray(64) { 3.0 })
         dense.norm2()
         dense.asum()
         assertEquals(1, recording.nrm2s, "norm2 on a dense vector did not route")
         assertEquals(1, recording.asums, "asum on a dense vector did not route")
-        val sparse = F64SparseVector(8, IntArray(8) { it }, DoubleArray(8) { 3.0 })
+        val sparse = SparseVector(8, IntArray(8) { it }, DoubleArray(8) { 3.0 })
         sparse.norm2()
         sparse.asum()
         assertEquals(1, recording.nrm2s, "norm2 routed a sparse vector")
@@ -203,7 +203,7 @@ class KernelsTest {
         val recording = Recording()
         registerBackend(recording)
         val len = 16
-        val v = F64DenseVector.of(DoubleArray(len) { if (it == 7) -9.0 else 1.0 })
+        val v = DenseVector.of(DoubleArray(len) { if (it == 7) -9.0 else 1.0 })
         assertEquals(7, v.iamax())
         assertEquals(0, recording.dots + recording.nrm2s + recording.asums, "iamax reached the seam")
     }
@@ -224,8 +224,8 @@ class KernelsTest {
     }
 
     @Test
-    fun `the compiled-in kernels satisfy the F64Kernels contract`() {
-        val k: F64Kernels = F64PlatformKernels
+    fun `the compiled-in kernels satisfy the Kernels contract`() {
+        val k: Kernels = F64PlatformKernels
         assertTrue(k.name.isNotEmpty(), "the kernels must name themselves; mathBackend reports it")
 
         val a = DoubleArray(40) { it * 0.5 - 3.0 }

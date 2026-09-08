@@ -1,6 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.F64ModifiedGivens
+import com.eignex.koblas.ModifiedGivens
 import com.eignex.koblas.rotg
 import com.eignex.koblas.rotmg
 import kotlinx.benchmark.*
@@ -19,7 +19,7 @@ class ExternalDenseLevel1Benchmark {
     private lateinit var openblas: DenseComparator
     private lateinit var x: DoubleArray
     private lateinit var y: DoubleArray
-    private lateinit var modifiedRotation: F64ModifiedGivens
+    private lateinit var modifiedRotation: ModifiedGivens
     private var c: Double = 0.0
     private var s: Double = 0.0
 

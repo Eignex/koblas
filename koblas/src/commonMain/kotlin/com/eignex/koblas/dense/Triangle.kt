@@ -1,7 +1,7 @@
 package com.eignex.koblas.dense
 
 /** `v = beta * v` over the [len] entries from [off], honoring the `beta == 0` overwrite convention. */
-internal fun applyBeta(k: F64Kernels, v: DoubleArray, off: Int, len: Int, beta: Double) {
+internal fun applyBeta(k: Kernels, v: DoubleArray, off: Int, len: Int, beta: Double) {
     when {
         beta == 0.0 -> v.fill(0.0, off, off + len)
         beta != 1.0 -> k.scale(v, off, beta, len)
@@ -14,7 +14,7 @@ internal fun applyBeta(k: F64Kernels, v: DoubleArray, off: Int, len: Int, beta: 
  * `0 * infinity` remains a NaN as it is in the reference parent routine.
  */
 internal fun axpyArithmetic(
-    k: F64Kernels,
+    k: Kernels,
     y: DoubleArray,
     yOff: Int,
     alpha: Double,
@@ -32,7 +32,7 @@ internal fun axpyArithmetic(
 }
 
 /** Scale the selected triangle by [beta], honoring the `beta == 0` overwrite convention. */
-internal fun scaleTriangle(k: F64Kernels, cd: DoubleArray, n: Int, beta: Double, lower: Boolean) {
+internal fun scaleTriangle(k: Kernels, cd: DoubleArray, n: Int, beta: Double, lower: Boolean) {
     if (beta == 1.0) return
     for (j in 0 until n) {
         val from = if (lower) j + j * n else j * n

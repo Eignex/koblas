@@ -1,142 +1,142 @@
 api_signature	benchmark_id	status	notes
-F64BasisSolver.btran(F64IndexedVector)		excluded	Basis-solver state and sparsity evolve across calls, so a standalone benchmark would not be representative.
-F64BasisSolver.ftran(F64IndexedVector)		excluded	Basis-solver state and sparsity evolve across calls, so a standalone benchmark would not be representative.
-F64BasisSolver.pivots()	com.eignex.koblas.bench.BasisBenchmark.pivots	benchmarked	
-F64BasisSolver.refactorize(F64SparseMatrix)	com.eignex.koblas.bench.BasisBenchmark.refactorize	benchmarked	
-F64BasisSolver.refactorizeRepairing(F64SparseMatrix)		excluded	Shares the benchmarked refactorize build; it differs only in keeping the repair rather than refusing it.
-F64BasisSolver.restore(F64BasisSnapshot)		excluded	Puts back a copy and runs no numerical work; the comparison a caller wants is against refactorize, which is benchmarked.
-F64BasisSolver.snapshot()		excluded	Copies the factors HFactor already holds and runs no numerical work; what it is worth is the rebuild it saves, which refactorize already measures.
-F64BasisSolver.solveQuality(DoubleArray,F64IndexedVector)		excluded	Residual diagnostics deliberately do extra sparse work and are intended for checks rather than hot loops.
-F64BasisSolver.update(Int,Int,F64IndexedVector)		excluded	Basis updates require a meaningful simplex sequence rather than an isolated call.
-F64BasisSolvers.basisSolver(F64SparseMatrix)		excluded	Constructing a basis solver is setup work; refactorization is the reviewed numerical benchmark.
-F64Blas.gemm(F64DenseMatrix,transposeA=true)	com.eignex.koblas.bench.Level3Benchmark.gemmTransposedA	benchmarked	
-F64Blas.gemm(F64StridedMatrixView,F64StridedMatrixView)		excluded	The host adapter routes strided panels into the same dgemm the benchmarked dense facade reaches; the portable backend does not override the seam and runs its element-by-element default, which is a correctness fallback rather than a kernel worth a row.
-F64Blas.gemv(F64DenseMatrix,transpose=false)	com.eignex.koblas.bench.Level2Benchmark.gemv	benchmarked	
-F64Blas.gemv(F64DenseMatrix,transpose=true)	com.eignex.koblas.bench.Level2Benchmark.gemvTransposed	benchmarked	
-F64Blas.gemv(F64StridedMatrixView,F64StridedVectorView)		excluded	The host adapter routes strided panels into the same dgemv the benchmarked dense facade reaches; the portable backend does not override the seam and runs its element-by-element default, which is a correctness fallback rather than a kernel worth a row.
-F64Blas.ger(Double,Vector,Vector,F64DenseMatrix)	com.eignex.koblas.bench.Level2Benchmark.ger	benchmarked	
-F64Blas.symm(F64DenseMatrix,right=false)	com.eignex.koblas.bench.Level3Benchmark.symm	benchmarked	
-F64Blas.symm(F64DenseMatrix,right=true)	com.eignex.koblas.bench.Level3Benchmark.symmRight	benchmarked	
-F64Blas.symv(F64DenseMatrix)	com.eignex.koblas.bench.Level2Benchmark.symv	benchmarked	
-F64Blas.syr(Double,Vector,F64DenseMatrix)	com.eignex.koblas.bench.Level2Benchmark.syr	benchmarked	
-F64Blas.syr2(Double,Vector,Vector,F64DenseMatrix)	com.eignex.koblas.bench.Level2Benchmark.syr2	benchmarked	
-F64Blas.syr2k(F64DenseMatrix,F64DenseMatrix,transpose=false)	com.eignex.koblas.bench.Syr2kBenchmark.syr2k	benchmarked	dedicated rank and tile-boundary shape matrix
-F64Blas.syrk(F64DenseMatrix,transpose=false)	com.eignex.koblas.bench.SyrkBenchmark.syrk	benchmarked	dedicated rank and tile-boundary shape matrix
-F64Blas.trmm(F64DenseMatrix,right=false)	com.eignex.koblas.bench.Level3Benchmark.trmm	benchmarked	
-F64Blas.trmm(F64DenseMatrix,right=true)	com.eignex.koblas.bench.Level3Benchmark.trmmRight	benchmarked	
-F64Blas.trmv(F64DenseMatrix,DoubleArray)	com.eignex.koblas.bench.Level2Benchmark.trmv	benchmarked	
-F64Blas.trsm(F64DenseMatrix,right=false)	com.eignex.koblas.bench.Level3Benchmark.trsm	benchmarked	
-F64Blas.trsm(F64DenseMatrix,right=true)	com.eignex.koblas.bench.Level3Benchmark.trsmRight	benchmarked	
-F64Blas.trsv(F64DenseMatrix,DoubleArray)	com.eignex.koblas.bench.Level2Benchmark.trsv	benchmarked	
+BasisSolver.btran(IndexedVector)		excluded	Basis-solver state and sparsity evolve across calls, so a standalone benchmark would not be representative.
+BasisSolver.ftran(IndexedVector)		excluded	Basis-solver state and sparsity evolve across calls, so a standalone benchmark would not be representative.
+BasisSolver.pivots()	com.eignex.koblas.bench.BasisBenchmark.pivots	benchmarked	
+BasisSolver.refactorize(SparseMatrix)	com.eignex.koblas.bench.BasisBenchmark.refactorize	benchmarked	
+BasisSolver.refactorizeRepairing(SparseMatrix)		excluded	Shares the benchmarked refactorize build; it differs only in keeping the repair rather than refusing it.
+BasisSolver.restore(F64BasisSnapshot)		excluded	Puts back a copy and runs no numerical work; the comparison a caller wants is against refactorize, which is benchmarked.
+BasisSolver.snapshot()		excluded	Copies the factors HFactor already holds and runs no numerical work; what it is worth is the rebuild it saves, which refactorize already measures.
+BasisSolver.solveQuality(DoubleArray,IndexedVector)		excluded	Residual diagnostics deliberately do extra sparse work and are intended for checks rather than hot loops.
+BasisSolver.update(Int,Int,IndexedVector)		excluded	Basis updates require a meaningful simplex sequence rather than an isolated call.
+F64BasisSolvers.basisSolver(SparseMatrix)		excluded	Constructing a basis solver is setup work; refactorization is the reviewed numerical benchmark.
+Blas.gemm(DenseMatrix,transposeA=true)	com.eignex.koblas.bench.Level3Benchmark.gemmTransposedA	benchmarked	
+Blas.gemm(F64StridedMatrixView,F64StridedMatrixView)		excluded	The host adapter routes strided panels into the same dgemm the benchmarked dense facade reaches; the portable backend does not override the seam and runs its element-by-element default, which is a correctness fallback rather than a kernel worth a row.
+Blas.gemv(DenseMatrix,transpose=false)	com.eignex.koblas.bench.Level2Benchmark.gemv	benchmarked	
+Blas.gemv(DenseMatrix,transpose=true)	com.eignex.koblas.bench.Level2Benchmark.gemvTransposed	benchmarked	
+Blas.gemv(F64StridedMatrixView,StridedVectorView)		excluded	The host adapter routes strided panels into the same dgemv the benchmarked dense facade reaches; the portable backend does not override the seam and runs its element-by-element default, which is a correctness fallback rather than a kernel worth a row.
+Blas.ger(Double,Vector,Vector,DenseMatrix)	com.eignex.koblas.bench.Level2Benchmark.ger	benchmarked	
+Blas.symm(DenseMatrix,right=false)	com.eignex.koblas.bench.Level3Benchmark.symm	benchmarked	
+Blas.symm(DenseMatrix,right=true)	com.eignex.koblas.bench.Level3Benchmark.symmRight	benchmarked	
+Blas.symv(DenseMatrix)	com.eignex.koblas.bench.Level2Benchmark.symv	benchmarked	
+Blas.syr(Double,Vector,DenseMatrix)	com.eignex.koblas.bench.Level2Benchmark.syr	benchmarked	
+Blas.syr2(Double,Vector,Vector,DenseMatrix)	com.eignex.koblas.bench.Level2Benchmark.syr2	benchmarked	
+Blas.syr2k(DenseMatrix,DenseMatrix,transpose=false)	com.eignex.koblas.bench.Syr2kBenchmark.syr2k	benchmarked	dedicated rank and tile-boundary shape matrix
+Blas.syrk(DenseMatrix,transpose=false)	com.eignex.koblas.bench.SyrkBenchmark.syrk	benchmarked	dedicated rank and tile-boundary shape matrix
+Blas.trmm(DenseMatrix,right=false)	com.eignex.koblas.bench.Level3Benchmark.trmm	benchmarked	
+Blas.trmm(DenseMatrix,right=true)	com.eignex.koblas.bench.Level3Benchmark.trmmRight	benchmarked	
+Blas.trmv(DenseMatrix,DoubleArray)	com.eignex.koblas.bench.Level2Benchmark.trmv	benchmarked	
+Blas.trsm(DenseMatrix,right=false)	com.eignex.koblas.bench.Level3Benchmark.trsm	benchmarked	
+Blas.trsm(DenseMatrix,right=true)	com.eignex.koblas.bench.Level3Benchmark.trsmRight	benchmarked	
+Blas.trsv(DenseMatrix,DoubleArray)	com.eignex.koblas.bench.Level2Benchmark.trsv	benchmarked	
 F64CholeskySparseFactorization.factors()	com.eignex.koblas.bench.SparseSymmetricHostBenchmark.choleskyFactors	benchmarked	
-F64DenseMatrix.column(Int)		excluded	Column extraction is a storage view helper, not a numerical kernel.
-F64DenseMatrix.minus(F64DenseMatrix)		excluded	Elementwise arithmetic allocates a result and does not select a numerical backend.
-F64DenseMatrix.norm1()	com.eignex.koblas.bench.MatrixOpsBenchmark.norm1	benchmarked	
-F64DenseMatrix.normFro()	com.eignex.koblas.bench.MatrixOpsBenchmark.normFro	benchmarked	
-F64DenseMatrix.normInf()	com.eignex.koblas.bench.MatrixOpsBenchmark.normInf	benchmarked	
-F64DenseMatrix.plus(F64DenseMatrix)		excluded	Elementwise arithmetic allocates a result and does not select a numerical backend.
-F64DenseMatrix.row(Int)		excluded	Row extraction is a storage copy helper, not a numerical kernel.
-F64DenseMatrix.scaleColumns(DoubleArray)	com.eignex.koblas.bench.MatrixOpsBenchmark.scaleColumnsBench	benchmarked	
-F64DenseMatrix.scaleRows(DoubleArray)	com.eignex.koblas.bench.MatrixOpsBenchmark.scaleRowsBench	benchmarked	
-F64DenseMatrix.symvInto(F64VectorLike,DoubleArray)		excluded	The destination-passing symmetric matvec reaches the benchmarked symv facade; the one-triangle read over sparse and generic x is covered by tests rather than a benchmark.
-F64DenseMatrix.times(Double)		excluded	Scalar multiplication copies the operand and then runs the benchmarked scale kernel.
-F64DenseMatrix.times(F64DenseMatrix)	com.eignex.koblas.bench.Level3Benchmark.gemm	benchmarked	
-F64DenseMatrix.times(F64SparseMatrix)		excluded	A dense left operand is the right = true arm of the benchmarked sparse gemm.
-F64DenseMatrix.transpose()	com.eignex.koblas.bench.MatrixOpsBenchmark.transposeDense	benchmarked	
-F64DenseMatrix.unaryMinus()		excluded	Elementwise arithmetic allocates a result and does not select a numerical backend.
-F64DenseMatrix.zeroStrictUpper()		excluded	Cleaning one triangle in place is the same inspection work as the lowerFactor copy it replaces, with no dispatch of its own: a bounded fill per column, covered by tests.
-F64DenseVector.minus(F64DenseVector)		excluded	Elementwise arithmetic allocates a result and does not select a numerical backend.
-F64DenseVector.plus(F64DenseVector)		excluded	Elementwise arithmetic allocates a result and does not select a numerical backend.
-F64DenseVector.times(Double)		excluded	Scalar multiplication copies the operand and then runs the benchmarked scale kernel.
-F64DenseVector.unaryMinus()		excluded	Elementwise arithmetic allocates a result and does not select a numerical backend.
-F64EquilibratingSparseLu.factor(F64SparseMatrix)	com.eignex.koblas.bench.SparseBenchmark.sparseLuFactorEquilibrated	benchmarked	
-F64EquilibratingSparseLu.factor(F64SparseMatrix).solve(DoubleArray)	com.eignex.koblas.bench.SparseBenchmark.sparseLuSolve	benchmarked	
-F64Kernels.asum(DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.asum facade.
-F64Kernels.axpy(DoubleArray,Int,Double,DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.axpy facade.
-F64Kernels.dot(DoubleArray,Int,DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.dot facade.
-F64Kernels.dot4(DoubleArray,Int,Int,DoubleArray,Int,Int,DoubleArray,Int)	com.eignex.koblas.bench.Level1Benchmark.dot4	benchmarked	
-F64Kernels.gemmTile(Int,DoubleArray,Int,DoubleArray,Int,DoubleArray,Int,Int)	com.eignex.koblas.bench.Level3Benchmark.gemm	benchmarked	
-F64Kernels.nrm2(DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.norm2 facade.
-F64Kernels.rot(DoubleArray,Int,DoubleArray,Int,Int,Double,Double)		excluded	The raw kernel shares the dispatch path benchmarked through the public rot facade.
-F64Kernels.rotm(DoubleArray,Int,Int,DoubleArray,Int,Int,Int,F64ModifiedGivens)		excluded	The raw kernel shares the dispatch path benchmarked through the public rotm facade.
-F64Kernels.rotmg(Double,Double,Double,Double)		excluded	The raw kernel shares the dispatch path benchmarked through the public rotmg facade.
-F64Kernels.scale(DoubleArray,Int,Double,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.scale facade.
-F64Kernels.ssqd(DoubleArray,Int,DoubleArray,Int,Int)	com.eignex.koblas.bench.Level1Benchmark.ssqd	benchmarked	
-F64Kernels.sum(DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.sum facade.
-F64Kernels.swap(DoubleArray,Int,DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public swap facade.
-F64MatrixLike.gemvInto(F64VectorLike,DoubleArray)	com.eignex.koblas.bench.GemvIntoBenchmark.gemvIntoSparseX	benchmarked	
-F64MatrixLike.times(F64VectorLike)		excluded	The operator form dispatches to the benchmarked dense and sparse gemv facades.
-F64PreparedSparseMatrix.gemm(F64DenseMatrix)	com.eignex.koblas.bench.SparseProductHostBenchmark.preparedGemm	benchmarked	
-F64PreparedSparseMatrix.gemm(F64SparseMatrix)	com.eignex.koblas.bench.SparseProductHostBenchmark.preparedSparseProduct	benchmarked	
+DenseMatrix.column(Int)		excluded	Column extraction is a storage view helper, not a numerical kernel.
+DenseMatrix.minus(DenseMatrix)		excluded	Elementwise arithmetic allocates a result and does not select a numerical backend.
+DenseMatrix.norm1()	com.eignex.koblas.bench.MatrixOpsBenchmark.norm1	benchmarked	
+DenseMatrix.normFro()	com.eignex.koblas.bench.MatrixOpsBenchmark.normFro	benchmarked	
+DenseMatrix.normInf()	com.eignex.koblas.bench.MatrixOpsBenchmark.normInf	benchmarked	
+DenseMatrix.plus(DenseMatrix)		excluded	Elementwise arithmetic allocates a result and does not select a numerical backend.
+DenseMatrix.row(Int)		excluded	Row extraction is a storage copy helper, not a numerical kernel.
+DenseMatrix.scaleColumns(DoubleArray)	com.eignex.koblas.bench.MatrixOpsBenchmark.scaleColumnsBench	benchmarked	
+DenseMatrix.scaleRows(DoubleArray)	com.eignex.koblas.bench.MatrixOpsBenchmark.scaleRowsBench	benchmarked	
+DenseMatrix.symvInto(VectorLike,DoubleArray)		excluded	The destination-passing symmetric matvec reaches the benchmarked symv facade; the one-triangle read over sparse and generic x is covered by tests rather than a benchmark.
+DenseMatrix.times(Double)		excluded	Scalar multiplication copies the operand and then runs the benchmarked scale kernel.
+DenseMatrix.times(DenseMatrix)	com.eignex.koblas.bench.Level3Benchmark.gemm	benchmarked	
+DenseMatrix.times(SparseMatrix)		excluded	A dense left operand is the right = true arm of the benchmarked sparse gemm.
+DenseMatrix.transpose()	com.eignex.koblas.bench.MatrixOpsBenchmark.transposeDense	benchmarked	
+DenseMatrix.unaryMinus()		excluded	Elementwise arithmetic allocates a result and does not select a numerical backend.
+DenseMatrix.zeroStrictUpper()		excluded	Cleaning one triangle in place is the same inspection work as the lowerFactor copy it replaces, with no dispatch of its own: a bounded fill per column, covered by tests.
+DenseVector.minus(DenseVector)		excluded	Elementwise arithmetic allocates a result and does not select a numerical backend.
+DenseVector.plus(DenseVector)		excluded	Elementwise arithmetic allocates a result and does not select a numerical backend.
+DenseVector.times(Double)		excluded	Scalar multiplication copies the operand and then runs the benchmarked scale kernel.
+DenseVector.unaryMinus()		excluded	Elementwise arithmetic allocates a result and does not select a numerical backend.
+F64EquilibratingSparseLu.factor(SparseMatrix)	com.eignex.koblas.bench.SparseBenchmark.sparseLuFactorEquilibrated	benchmarked	
+F64EquilibratingSparseLu.factor(SparseMatrix).solve(DoubleArray)	com.eignex.koblas.bench.SparseBenchmark.sparseLuSolve	benchmarked	
+Kernels.asum(DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.asum facade.
+Kernels.axpy(DoubleArray,Int,Double,DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.axpy facade.
+Kernels.dot(DoubleArray,Int,DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.dot facade.
+Kernels.dot4(DoubleArray,Int,Int,DoubleArray,Int,Int,DoubleArray,Int)	com.eignex.koblas.bench.Level1Benchmark.dot4	benchmarked	
+Kernels.gemmTile(Int,DoubleArray,Int,DoubleArray,Int,DoubleArray,Int,Int)	com.eignex.koblas.bench.Level3Benchmark.gemm	benchmarked	
+Kernels.nrm2(DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.norm2 facade.
+Kernels.rot(DoubleArray,Int,DoubleArray,Int,Int,Double,Double)		excluded	The raw kernel shares the dispatch path benchmarked through the public rot facade.
+Kernels.rotm(DoubleArray,Int,Int,DoubleArray,Int,Int,Int,ModifiedGivens)		excluded	The raw kernel shares the dispatch path benchmarked through the public rotm facade.
+Kernels.rotmg(Double,Double,Double,Double)		excluded	The raw kernel shares the dispatch path benchmarked through the public rotmg facade.
+Kernels.scale(DoubleArray,Int,Double,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.scale facade.
+Kernels.ssqd(DoubleArray,Int,DoubleArray,Int,Int)	com.eignex.koblas.bench.Level1Benchmark.ssqd	benchmarked	
+Kernels.sum(DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.sum facade.
+Kernels.swap(DoubleArray,Int,DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public swap facade.
+MatrixLike.gemvInto(VectorLike,DoubleArray)	com.eignex.koblas.bench.GemvIntoBenchmark.gemvIntoSparseX	benchmarked	
+MatrixLike.times(VectorLike)		excluded	The operator form dispatches to the benchmarked dense and sparse gemv facades.
+F64PreparedSparseMatrix.gemm(DenseMatrix)	com.eignex.koblas.bench.SparseProductHostBenchmark.preparedGemm	benchmarked	
+F64PreparedSparseMatrix.gemm(SparseMatrix)	com.eignex.koblas.bench.SparseProductHostBenchmark.preparedSparseProduct	benchmarked	
 F64PreparedSparseMatrix.gemv(DoubleArray)	com.eignex.koblas.bench.SparseProductHostBenchmark.preparedGemv	benchmarked	
-F64QuasiDefiniteLdl.analyzeQuasiDefiniteLdl(F64SparseMatrix)	com.eignex.koblas.bench.SparseSymmetricHostBenchmark.quasiDefiniteLdlRefactor	benchmarked	
+F64QuasiDefiniteLdl.analyzeQuasiDefiniteLdl(SparseMatrix)	com.eignex.koblas.bench.SparseSymmetricHostBenchmark.quasiDefiniteLdlRefactor	benchmarked	
 F64QuasiDefiniteLdlFactorization.factors()	com.eignex.koblas.bench.SparseSymmetricHostBenchmark.quasiDefiniteLdlFactors	benchmarked	
-F64SparseBlas.gemm(F64SparseMatrix,F64DenseMatrix)	com.eignex.koblas.bench.SparseProductHostBenchmark.gemm	benchmarked	
-F64SparseBlas.gemm(F64SparseMatrix,F64DenseMatrix,singleColumn)	com.eignex.koblas.bench.SparseProductHostBenchmark.gemmSingle	benchmarked	
-F64SparseBlas.gemm(F64SparseMatrix,F64SparseMatrix)	com.eignex.koblas.bench.SparseProductHostBenchmark.sparseProduct	benchmarked	
-F64SparseBlas.gemv(F64SparseMatrix,DoubleArray)	com.eignex.koblas.bench.SparseProductHostBenchmark.gemv	benchmarked	
-F64SparseBlas.trmm(F64SparseMatrix,F64DenseMatrix)	com.eignex.koblas.bench.SparseProductHostBenchmark.trmm	benchmarked	portable host fallback
-F64SparseBlas.trmm(F64SparseMatrix,F64DenseMatrix,right=true)	com.eignex.koblas.bench.SparseProductHostBenchmark.trmmRight	benchmarked	portable host fallback
-F64SparseBlas.trmv(F64SparseMatrix,DoubleArray)	com.eignex.koblas.bench.SparseBenchmark.sparseTrmv	benchmarked	portable
-F64SparseBlas.trmv(F64SparseMatrix,DoubleArray,host)	com.eignex.koblas.bench.SparseProductHostBenchmark.trmv	benchmarked	portable host fallback
-F64SparseBlas.trsm(F64SparseMatrix,F64DenseMatrix)	com.eignex.koblas.bench.SparseProductHostBenchmark.trsm	benchmarked	Direct oneMKL sparse triangular solve comparison.
-F64SparseBlas.trsv(F64SparseMatrix,DoubleArray)	com.eignex.koblas.bench.SparseBenchmark.sparseTrsv	benchmarked	
-F64SparseBlas.trsv(F64SparseMatrix,DoubleArray,host)	com.eignex.koblas.bench.SparseProductHostBenchmark.trsv	benchmarked	
-F64SparseCholesky.analyzeCholesky(F64SparseMatrix)	com.eignex.koblas.bench.SparseSymmetricHostBenchmark.choleskyRefactor	benchmarked	
-F64SparseCholesky.analyzeCholesky(F64SparseMatrix) banded	com.eignex.koblas.bench.SparseRefactorBenchmark.bandedCholeskyRefactor	benchmarked	
-F64SparseCholesky.cholesky(F64SparseMatrix) banded	com.eignex.koblas.bench.SparseRefactorBenchmark.bandedCholesky	benchmarked	
+SparseBlas.gemm(SparseMatrix,DenseMatrix)	com.eignex.koblas.bench.SparseProductHostBenchmark.gemm	benchmarked	
+SparseBlas.gemm(SparseMatrix,DenseMatrix,singleColumn)	com.eignex.koblas.bench.SparseProductHostBenchmark.gemmSingle	benchmarked	
+SparseBlas.gemm(SparseMatrix,SparseMatrix)	com.eignex.koblas.bench.SparseProductHostBenchmark.sparseProduct	benchmarked	
+SparseBlas.gemv(SparseMatrix,DoubleArray)	com.eignex.koblas.bench.SparseProductHostBenchmark.gemv	benchmarked	
+SparseBlas.trmm(SparseMatrix,DenseMatrix)	com.eignex.koblas.bench.SparseProductHostBenchmark.trmm	benchmarked	portable host fallback
+SparseBlas.trmm(SparseMatrix,DenseMatrix,right=true)	com.eignex.koblas.bench.SparseProductHostBenchmark.trmmRight	benchmarked	portable host fallback
+SparseBlas.trmv(SparseMatrix,DoubleArray)	com.eignex.koblas.bench.SparseBenchmark.sparseTrmv	benchmarked	portable
+SparseBlas.trmv(SparseMatrix,DoubleArray,host)	com.eignex.koblas.bench.SparseProductHostBenchmark.trmv	benchmarked	portable host fallback
+SparseBlas.trsm(SparseMatrix,DenseMatrix)	com.eignex.koblas.bench.SparseProductHostBenchmark.trsm	benchmarked	Direct oneMKL sparse triangular solve comparison.
+SparseBlas.trsv(SparseMatrix,DoubleArray)	com.eignex.koblas.bench.SparseBenchmark.sparseTrsv	benchmarked	
+SparseBlas.trsv(SparseMatrix,DoubleArray,host)	com.eignex.koblas.bench.SparseProductHostBenchmark.trsv	benchmarked	
+F64SparseCholesky.analyzeCholesky(SparseMatrix)	com.eignex.koblas.bench.SparseSymmetricHostBenchmark.choleskyRefactor	benchmarked	
+F64SparseCholesky.analyzeCholesky(SparseMatrix) banded	com.eignex.koblas.bench.SparseRefactorBenchmark.bandedCholeskyRefactor	benchmarked	
+F64SparseCholesky.cholesky(SparseMatrix) banded	com.eignex.koblas.bench.SparseRefactorBenchmark.bandedCholesky	benchmarked	
 F64SparseCholeskyFactorization.solveInto(DoubleArray,DoubleArray)	com.eignex.koblas.bench.SparseSymmetricHostBenchmark.choleskySolve	benchmarked	
 F64SparseFactorization.factors()	com.eignex.koblas.bench.SparseHostBenchmark.factors	benchmarked	
-F64SparseFactorization.replaceColumn(Int,F64SparseVector)		excluded	Column replacement is an optional factorization inspection capability, not a solve kernel.
+F64SparseFactorization.replaceColumn(Int,SparseVector)		excluded	Column replacement is an optional factorization inspection capability, not a solve kernel.
 F64SparseFactorization.solve(DoubleArray)	com.eignex.koblas.bench.SparseHostBenchmark.solve	benchmarked	
 F64SparseFactorization.solve(DoubleArray,transpose=true)	com.eignex.koblas.bench.SparseHostBenchmark.solveTransposed	benchmarked	
-F64SparseFactorization.solve(F64DenseMatrix)		excluded	The multi-right-hand-side sparse solve repeats the benchmarked sparse solve kernel over the columns of B.
+F64SparseFactorization.solve(DenseMatrix)		excluded	The multi-right-hand-side sparse solve repeats the benchmarked sparse solve kernel over the columns of B.
 F64SparseFactorization.solveAllocation(Boolean,Boolean)		excluded	Allocation reporting is metadata and performs no numerical work.
 F64SparseFactorization.solveInto(DoubleArray,DoubleArray,AllocationPolicy)		excluded	The strict overload adds an allocation-contract check around the benchmarked sparse solve.
 F64SparseFactorization.solveInto(DoubleArray,transpose=false)	com.eignex.koblas.bench.SparseBenchmark.sparseLuFtran	benchmarked	
 F64SparseFactorization.solveInto(DoubleArray,transpose=true)	com.eignex.koblas.bench.SparseBenchmark.sparseLuBtran	benchmarked	
-F64SparseFactorization.solveInto(F64DenseMatrix,F64DenseMatrix)		excluded	The destination-passing multi-right-hand-side sparse solve shares the benchmarked sparse solve kernel.
-F64SparseKernels.asum(SparseVector)		excluded	The raw kernel shares the dispatch path benchmarked through the public SparseVector.asum facade.
-F64SparseKernels.axpy(DoubleArray,Double,SparseVector)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.axpy(SparseVector) facade.
-F64SparseKernels.dot(SparseVector,DoubleArray)		excluded	The raw kernel shares the dispatch path benchmarked through the public SparseVector.dot facades.
-F64SparseKernels.dot(SparseVector,SparseVector)		excluded	The raw kernel shares the dispatch path benchmarked through the public SparseVector.dot facades.
-F64SparseKernels.gather(SparseVector,DoubleArray)	com.eignex.koblas.bench.SparseLevel1ComparisonBenchmark.sparseGather	benchmarked	Direct oneMKL legacy sparse BLAS comparison.
-F64SparseKernels.gatherZero(SparseVector,DoubleArray)	com.eignex.koblas.bench.SparseLevel1ComparisonBenchmark.sparseGatherZero	benchmarked	Direct oneMKL legacy sparse BLAS comparison.
-F64SparseKernels.nrm2(SparseVector)		excluded	The raw kernel shares the dispatch path benchmarked through the public SparseVector.norm2 facade.
-F64SparseKernels.scatter(SparseVector,DoubleArray)	com.eignex.koblas.bench.SparseLevel1ComparisonBenchmark.sparseScatter	benchmarked	Direct oneMKL legacy sparse BLAS comparison.
-F64SparseLinearAlgebra.gemv(F64SparseMatrix,transpose=false)	com.eignex.koblas.bench.SparseBenchmark.sparseGemv	benchmarked	
-F64SparseLinearAlgebra.gemv(F64SparseMatrix,transpose=true)	com.eignex.koblas.bench.SparseBenchmark.sparseGemvTransposed	benchmarked	
-F64SparseMatrix.cholesky()	com.eignex.koblas.bench.SparseSymmetricHostBenchmark.cholesky	benchmarked	
-F64SparseMatrix.column(Int)	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.column	benchmarked	
-F64SparseMatrix.lu()	com.eignex.koblas.bench.SparseBenchmark.sparseLuFactor	benchmarked	
-F64SparseMatrix.lu(host)	com.eignex.koblas.bench.SparseHostBenchmark.factor	benchmarked	
-F64SparseMatrix.norm1()	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.norm1	benchmarked	
-F64SparseMatrix.normFro()	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.normFro	benchmarked	
-F64SparseMatrix.normInf()	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.normInf	benchmarked	
-F64SparseMatrix.qr()	com.eignex.koblas.bench.SparseQrHostBenchmark.qr	benchmarked	
-F64SparseMatrix.quasiDefiniteLdl()	com.eignex.koblas.bench.SparseSymmetricHostBenchmark.quasiDefiniteLdl	benchmarked	
-F64SparseMatrix.row(Int)	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.row	benchmarked	
-F64SparseMatrix.scaleColumns(DoubleArray)	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.scaleColumnsBench	benchmarked	
-F64SparseMatrix.scaleRows(DoubleArray)	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.scaleRowsBench	benchmarked	
-F64SparseMatrix.syr(Double,Vector)	com.eignex.koblas.bench.SparseBenchmark.sparseSyr	benchmarked	fresh structural result
-F64SparseMatrix.syr2(Double,Vector,Vector)	com.eignex.koblas.bench.SparseBenchmark.sparseSyr2	benchmarked	fresh structural result
-F64SparseMatrix.transpose()	com.eignex.koblas.bench.SparseBenchmark.sparseTranspose	benchmarked	
-F64SparseMatrix.transpose(host arm)	com.eignex.koblas.bench.SparseHostBenchmark.transpose	benchmarked	
-F64SparseMatrix.transpose(qr arm)	com.eignex.koblas.bench.SparseQrHostBenchmark.transpose	benchmarked	
-F64SparseMatrix.transpose(symmetric arm)	com.eignex.koblas.bench.SparseSymmetricHostBenchmark.transpose	benchmarked	
-F64SparseMatrix.withColumn(Int,F64SparseVector)		excluded	Column replacement constructs a CSC value and is covered by sparse correctness tests.
+F64SparseFactorization.solveInto(DenseMatrix,DenseMatrix)		excluded	The destination-passing multi-right-hand-side sparse solve shares the benchmarked sparse solve kernel.
+SparseKernels.asum(SparseVector)		excluded	The raw kernel shares the dispatch path benchmarked through the public SparseVector.asum facade.
+SparseKernels.axpy(DoubleArray,Double,SparseVector)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.axpy(SparseVector) facade.
+SparseKernels.dot(SparseVector,DoubleArray)		excluded	The raw kernel shares the dispatch path benchmarked through the public SparseVector.dot facades.
+SparseKernels.dot(SparseVector,SparseVector)		excluded	The raw kernel shares the dispatch path benchmarked through the public SparseVector.dot facades.
+SparseKernels.gather(SparseVector,DoubleArray)	com.eignex.koblas.bench.SparseLevel1ComparisonBenchmark.sparseGather	benchmarked	Direct oneMKL legacy sparse BLAS comparison.
+SparseKernels.gatherZero(SparseVector,DoubleArray)	com.eignex.koblas.bench.SparseLevel1ComparisonBenchmark.sparseGatherZero	benchmarked	Direct oneMKL legacy sparse BLAS comparison.
+SparseKernels.nrm2(SparseVector)		excluded	The raw kernel shares the dispatch path benchmarked through the public SparseVector.norm2 facade.
+SparseKernels.scatter(SparseVector,DoubleArray)	com.eignex.koblas.bench.SparseLevel1ComparisonBenchmark.sparseScatter	benchmarked	Direct oneMKL legacy sparse BLAS comparison.
+F64SparseLinearAlgebra.gemv(SparseMatrix,transpose=false)	com.eignex.koblas.bench.SparseBenchmark.sparseGemv	benchmarked	
+F64SparseLinearAlgebra.gemv(SparseMatrix,transpose=true)	com.eignex.koblas.bench.SparseBenchmark.sparseGemvTransposed	benchmarked	
+SparseMatrix.cholesky()	com.eignex.koblas.bench.SparseSymmetricHostBenchmark.cholesky	benchmarked	
+SparseMatrix.column(Int)	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.column	benchmarked	
+SparseMatrix.lu()	com.eignex.koblas.bench.SparseBenchmark.sparseLuFactor	benchmarked	
+SparseMatrix.lu(host)	com.eignex.koblas.bench.SparseHostBenchmark.factor	benchmarked	
+SparseMatrix.norm1()	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.norm1	benchmarked	
+SparseMatrix.normFro()	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.normFro	benchmarked	
+SparseMatrix.normInf()	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.normInf	benchmarked	
+SparseMatrix.qr()	com.eignex.koblas.bench.SparseQrHostBenchmark.qr	benchmarked	
+SparseMatrix.quasiDefiniteLdl()	com.eignex.koblas.bench.SparseSymmetricHostBenchmark.quasiDefiniteLdl	benchmarked	
+SparseMatrix.row(Int)	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.row	benchmarked	
+SparseMatrix.scaleColumns(DoubleArray)	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.scaleColumnsBench	benchmarked	
+SparseMatrix.scaleRows(DoubleArray)	com.eignex.koblas.bench.SparseMatrixOpsBenchmark.scaleRowsBench	benchmarked	
+SparseMatrix.syr(Double,Vector)	com.eignex.koblas.bench.SparseBenchmark.sparseSyr	benchmarked	fresh structural result
+SparseMatrix.syr2(Double,Vector,Vector)	com.eignex.koblas.bench.SparseBenchmark.sparseSyr2	benchmarked	fresh structural result
+SparseMatrix.transpose()	com.eignex.koblas.bench.SparseBenchmark.sparseTranspose	benchmarked	
+SparseMatrix.transpose(host arm)	com.eignex.koblas.bench.SparseHostBenchmark.transpose	benchmarked	
+SparseMatrix.transpose(qr arm)	com.eignex.koblas.bench.SparseQrHostBenchmark.transpose	benchmarked	
+SparseMatrix.transpose(symmetric arm)	com.eignex.koblas.bench.SparseSymmetricHostBenchmark.transpose	benchmarked	
+SparseMatrix.withColumn(Int,SparseVector)		excluded	Column replacement constructs a CSC value and is covered by sparse correctness tests.
 F64SparseQrFactorization.applyQ(DoubleArray,transpose=true)	com.eignex.koblas.bench.SparseQrHostBenchmark.qrApplyQ	benchmarked	
 F64SparseQrFactorization.applyQInto(DoubleArray,DoubleArray)		excluded	The destination-passing variant shares the benchmarked sparse QR applyQ kernel and is covered by aliasing tests.
 F64SparseQrFactorization.factors()	com.eignex.koblas.bench.SparseQrHostBenchmark.qrFactors	benchmarked	
 F64SparseQrFactorization.solve(DoubleArray)	com.eignex.koblas.bench.SparseQrHostBenchmark.qrSolve	benchmarked	
-F64SparseQrFactorization.solve(F64DenseMatrix)	com.eignex.koblas.bench.SparseQrHostBenchmark.qrBlockSolve	benchmarked	
+F64SparseQrFactorization.solve(DenseMatrix)	com.eignex.koblas.bench.SparseQrHostBenchmark.qrBlockSolve	benchmarked	
 F64SparseQrFactorization.solveAllocation(Boolean)		excluded	Allocation reporting is metadata and performs no numerical work.
 F64SparseQrFactorization.solveInto(DoubleArray,DoubleArray)		excluded	The destination-passing variant shares the benchmarked sparse QR solve kernel and is covered by aliasing tests.
 F64SparseQrFactorization.solveInto(DoubleArray,DoubleArray,AllocationPolicy)		excluded	The strict overload adds an allocation-contract check around the benchmarked sparse QR solve.
-F64SparseQrFactorization.solveInto(F64DenseMatrix,F64DenseMatrix)		excluded	The destination-passing block solve shares the benchmarked sparse QR block solve kernel.
-F64StridedVectorView.axpy(Double,F64VectorLike)		excluded	The strided-view overload reaches the same axpy kernel as the benchmarked dense facade.
-F64StridedVectorView.scale(Double)		excluded	The strided-view overload reaches the same scale kernel as the benchmarked dense facade.
-F64VectorLike.forEachStored((Int,Double)->Unit)		excluded	Stored-entry iteration is a traversal helper and depends on caller work.
+F64SparseQrFactorization.solveInto(DenseMatrix,DenseMatrix)		excluded	The destination-passing block solve shares the benchmarked sparse QR block solve kernel.
+StridedVectorView.axpy(Double,VectorLike)		excluded	The strided-view overload reaches the same axpy kernel as the benchmarked dense facade.
+StridedVectorView.scale(Double)		excluded	The strided-view overload reaches the same scale kernel as the benchmarked dense facade.
+VectorLike.forEachStored((Int,Double)->Unit)		excluded	Stored-entry iteration is a traversal helper and depends on caller work.
 SparseVector.asum()	com.eignex.koblas.bench.SparseLevel1Benchmark.sparseAsum	benchmarked	
 SparseVector.dot(SparseVector)	com.eignex.koblas.bench.SparseLevel1Benchmark.sparseDotSparse	benchmarked	
 SparseVector.dot(Vector)	com.eignex.koblas.bench.SparseLevel1ComparisonBenchmark.sparseDotDense	benchmarked	Direct oneMKL legacy sparse BLAS comparison.
@@ -150,14 +150,14 @@ Vector.iamax()	com.eignex.koblas.bench.Level1Benchmark.iamaxBench	benchmarked
 Vector.norm2()	com.eignex.koblas.bench.Level1Benchmark.nrm2	benchmarked	
 Vector.scale(Double)	com.eignex.koblas.bench.Level1Benchmark.scaleBench	benchmarked	
 Vector.sum()	com.eignex.koblas.bench.Level1Benchmark.sumBench	benchmarked	
-copy(F64VectorLike,F64DenseVector)		excluded	Copy is a storage transfer rather than a numerical operation dispatched by a backend.
-copy(F64VectorLike,F64StridedVectorView)		excluded	Copy is a storage transfer rather than a numerical operation dispatched by a backend.
-gather(F64SparseVector,F64DenseVector)	com.eignex.koblas.bench.SparseLevel1ComparisonBenchmark.sparseGather	benchmarked	Direct oneMKL legacy sparse BLAS comparison.
-gatherZero(F64SparseVector,F64DenseVector)	com.eignex.koblas.bench.SparseLevel1ComparisonBenchmark.sparseGatherZero	benchmarked	Direct oneMKL legacy sparse BLAS comparison.
-rot(F64DenseVector,F64DenseVector,F64Givens)	com.eignex.koblas.bench.Level1Benchmark.rotBench	benchmarked	portable Level 1
+copy(VectorLike,DenseVector)		excluded	Copy is a storage transfer rather than a numerical operation dispatched by a backend.
+copy(VectorLike,StridedVectorView)		excluded	Copy is a storage transfer rather than a numerical operation dispatched by a backend.
+gather(SparseVector,DenseVector)	com.eignex.koblas.bench.SparseLevel1ComparisonBenchmark.sparseGather	benchmarked	Direct oneMKL legacy sparse BLAS comparison.
+gatherZero(SparseVector,DenseVector)	com.eignex.koblas.bench.SparseLevel1ComparisonBenchmark.sparseGatherZero	benchmarked	Direct oneMKL legacy sparse BLAS comparison.
+rot(DenseVector,DenseVector,Givens)	com.eignex.koblas.bench.Level1Benchmark.rotBench	benchmarked	portable Level 1
 rotg(Double,Double)		excluded	Plane rotation generation is a scalar helper rather than a backend-dispatch benchmark.
-rotm(DenseVector,DenseVector,F64ModifiedGivens)	com.eignex.koblas.bench.Level1Benchmark.rotmBench	benchmarked	portable Level 1
-rotm(StridedVectorView,StridedVectorView,F64ModifiedGivens)		excluded	The strided-view overload reaches the same rotm kernel as the benchmarked dense facade.
+rotm(DenseVector,DenseVector,ModifiedGivens)	com.eignex.koblas.bench.Level1Benchmark.rotmBench	benchmarked	portable Level 1
+rotm(StridedVectorView,StridedVectorView,ModifiedGivens)		excluded	The strided-view overload reaches the same rotm kernel as the benchmarked dense facade.
 rotmg(Double,Double,Double,Double)	com.eignex.koblas.bench.Level1Benchmark.rotmgBench	benchmarked	portable Level 1
-swap(F64StridedVectorView,F64StridedVectorView)		excluded	The strided-view overload reaches the same swap kernel as the benchmarked dense facade.
+swap(StridedVectorView,StridedVectorView)		excluded	The strided-view overload reaches the same swap kernel as the benchmarked dense facade.
 swap(Vector,Vector)	com.eignex.koblas.bench.Level1Benchmark.swapBench	benchmarked	

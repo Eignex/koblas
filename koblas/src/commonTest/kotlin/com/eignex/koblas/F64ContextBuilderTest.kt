@@ -1,6 +1,6 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.core.*
+import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.sparse.*
 import kotlin.test.*
@@ -8,7 +8,7 @@ import kotlin.test.*
 class F64ContextBuilderTest {
 
     private class TrackingSparseDecompositions :
-        F64SparseDecompositions by F64ReferenceSparseLinearAlgebra,
+        SparseLapack by F64ReferenceSparseLinearAlgebra,
         F64GeneralSparseLu,
         F64SparseCholesky,
         F64QuasiDefiniteLdl,
@@ -16,13 +16,13 @@ class F64ContextBuilderTest {
         override val name: String get() = "tracking sparse decompositions"
         var qrCalls: Int = 0
 
-        override fun qr(a: F64SparseMatrix): F64SparseQrFactorization {
+        override fun qr(a: SparseMatrix): F64SparseQrFactorization {
             qrCalls++
             return F64ReferenceSparseLinearAlgebra.qr(a)
         }
     }
 
-    private class CountingKernels : F64Kernels by F64PlatformKernels {
+    private class CountingKernels : Kernels by F64PlatformKernels {
         var axpys: Int = 0
         var scales: Int = 0
         override val name: String get() = "counting"
@@ -39,7 +39,7 @@ class F64ContextBuilderTest {
     }
 
     private class RoutedBlas(private val nativeMin: Int) :
-        F64Blas by F64ReferenceBlas,
+        Blas by F64ReferenceBlas,
         F64RoutingBackend {
         var calls: Int = 0
         override val name: String get() = "routed"
@@ -69,7 +69,7 @@ class F64ContextBuilderTest {
 
         override fun gemv(
             alpha: Double,
-            a: F64DenseMatrix,
+            a: DenseMatrix,
             x: DoubleArray,
             beta: Double,
             y: DoubleArray,
@@ -84,13 +84,13 @@ class F64ContextBuilderTest {
     @Test
     fun `builders retain independent exact selections without global mutation`() = withCleanBackends {
         val global = koblas
-        val base = F64ContextBuilder()
+        val base = ContextBuilder()
         val routed = RoutedBlas(nativeMin = 0)
 
         val portable = base.resolve()
         val native = base.withBackend(BackendRole.DENSE_BLAS, routed).resolve()
 
-        assertIs<F64ReferenceBackend>(portable.blas)
+        assertIs<ReferenceBackend>(portable.blas)
         assertSame(routed, native.blas)
         assertNotSame(portable, native)
         assertSame(global, koblas)
@@ -99,14 +99,14 @@ class F64ContextBuilderTest {
     @Test
     fun `portable halves retain their contexts selected dense kernels`() = withCleanBackends {
         val kernels = CountingKernels()
-        val context = F64ContextBuilder()
+        val context = ContextBuilder()
             .withBackend(BackendRole.DENSE_KERNELS, kernels)
             .resolve()
 
-        context.gemv(F64DenseMatrix(1, 1, doubleArrayOf(2.0)), doubleArrayOf(3.0))
+        context.gemv(DenseMatrix(1, 1, doubleArrayOf(2.0)), doubleArrayOf(3.0))
         context.sparseBlas.gemv(
             0.0,
-            F64SparseMatrix.ofTriplets(1, 1, intArrayOf(), intArrayOf(), doubleArrayOf()),
+            SparseMatrix.ofTriplets(1, 1, intArrayOf(), intArrayOf(), doubleArrayOf()),
             doubleArrayOf(0.0),
             2.0,
             doubleArrayOf(1.0),
@@ -120,12 +120,12 @@ class F64ContextBuilderTest {
     @Test
     fun `a caller built portable backend takes its contexts dense kernels`() = withCleanBackends {
         val kernels = CountingKernels()
-        val context = F64ContextBuilder()
+        val context = ContextBuilder()
             .withBackend(BackendRole.DENSE_KERNELS, kernels)
-            .withBackend(BackendRole.DENSE_BLAS, F64ReferenceBackend())
+            .withBackend(BackendRole.DENSE_BLAS, ReferenceBackend())
             .resolve()
 
-        context.gemv(F64DenseMatrix(1, 1, doubleArrayOf(2.0)), doubleArrayOf(3.0))
+        context.gemv(DenseMatrix(1, 1, doubleArrayOf(2.0)), doubleArrayOf(3.0))
 
         assertEquals(1, kernels.axpys, "a stock portable backend follows the context whoever constructed it")
     }
@@ -134,12 +134,12 @@ class F64ContextBuilderTest {
     fun `a portable backend constructed with kernels keeps them`() = withCleanBackends {
         val chosen = CountingKernels()
         val ignored = CountingKernels()
-        val context = F64ContextBuilder()
+        val context = ContextBuilder()
             .withBackend(BackendRole.DENSE_KERNELS, ignored)
-            .withBackend(BackendRole.DENSE_BLAS, F64ReferenceBackend(chosen))
+            .withBackend(BackendRole.DENSE_BLAS, ReferenceBackend(chosen))
             .resolve()
 
-        context.gemv(F64DenseMatrix(1, 1, doubleArrayOf(2.0)), doubleArrayOf(3.0))
+        context.gemv(DenseMatrix(1, 1, doubleArrayOf(2.0)), doubleArrayOf(3.0))
 
         assertEquals(1, chosen.axpys)
         assertEquals(0, ignored.axpys, "kernels a caller gave a backend outrank the context's")
@@ -150,12 +150,12 @@ class F64ContextBuilderTest {
         // The sharp case: a caller who passes the process default explicitly has still chosen it, so the
         // context must not treat that backend as one of its own to rebind.
         val contextKernels = CountingKernels()
-        val context = F64ContextBuilder()
+        val context = ContextBuilder()
             .withBackend(BackendRole.DENSE_KERNELS, contextKernels)
-            .withBackend(BackendRole.DENSE_BLAS, F64ReferenceBackend(koblas.kernels))
+            .withBackend(BackendRole.DENSE_BLAS, ReferenceBackend(koblas.kernels))
             .resolve()
 
-        context.gemv(F64DenseMatrix(1, 1, doubleArrayOf(2.0)), doubleArrayOf(3.0))
+        context.gemv(DenseMatrix(1, 1, doubleArrayOf(2.0)), doubleArrayOf(3.0))
 
         assertEquals(0, contextKernels.axpys, "an explicit choice of the process default is still a choice")
     }
@@ -165,7 +165,7 @@ class F64ContextBuilderTest {
         // The three policy fields were vars assigned after construction, in a class documented immutable, so
         // a reader reached through a plain field could observe the AUTO and ALLOW defaults and skip the
         // enforcement the caller configured. Constructor properties give them the final-field freeze.
-        val context = F64ContextBuilder()
+        val context = ContextBuilder()
             .withDispatchPolicy(F64DispatchPolicy.NATIVE_ONLY)
             .withFallbackPolicy(F64FallbackPolicy.THROW)
             .resolve()
@@ -177,11 +177,11 @@ class F64ContextBuilderTest {
     @Test
     fun `native only rejects a threshold fallback before invoking the backend`() {
         val routed = RoutedBlas(nativeMin = 2)
-        val context = F64ContextBuilder()
+        val context = ContextBuilder()
             .withBackend(BackendRole.DENSE_BLAS, routed)
             .withDispatchPolicy(F64DispatchPolicy.NATIVE_ONLY)
             .resolve()
-        val a = F64DenseMatrix(1, 1, doubleArrayOf(2.0))
+        val a = DenseMatrix(1, 1, doubleArrayOf(2.0))
         val y = doubleArrayOf(7.0)
 
         val failure = assertFailsWith<BackendRouteRejectedException> {
@@ -197,14 +197,14 @@ class F64ContextBuilderTest {
     @Test
     fun `native only applies the same route to borrowed views`() {
         val routed = RoutedBlas(nativeMin = 2)
-        val context = F64ContextBuilder()
+        val context = ContextBuilder()
             .withBackend(BackendRole.DENSE_BLAS, routed)
             .withDispatchPolicy(F64DispatchPolicy.NATIVE_ONLY)
             .resolve()
-        val matrix = F64DenseMatrix(1, 1, doubleArrayOf(2.0)).asView()
-        val x = F64DenseVector(doubleArrayOf(3.0)).asView()
+        val matrix = DenseMatrix(1, 1, doubleArrayOf(2.0)).asView()
+        val x = DenseVector(doubleArrayOf(3.0)).asView()
         val outputStorage = doubleArrayOf(7.0, 11.0)
-        val y = F64StridedVectorView(outputStorage, offset = 0, size = 1)
+        val y = StridedVectorView(outputStorage, offset = 0, size = 1)
 
         assertFailsWith<BackendRouteRejectedException> {
             context.gemv(1.0, matrix, x, 0.0, y)
@@ -217,11 +217,11 @@ class F64ContextBuilderTest {
     @Test
     fun `native only executes a known native route`() {
         val routed = RoutedBlas(nativeMin = 2)
-        val context = F64ContextBuilder()
+        val context = ContextBuilder()
             .withBackend(routed)
             .withDispatchPolicy(F64DispatchPolicy.NATIVE_ONLY)
             .resolve()
-        val a = F64DenseMatrix(2, 2, doubleArrayOf(1.0, 0.0, 0.0, 1.0))
+        val a = DenseMatrix(2, 2, doubleArrayOf(1.0, 0.0, 0.0, 1.0))
 
         val y = context.gemv(a, doubleArrayOf(3.0, 4.0))
 
@@ -231,37 +231,37 @@ class F64ContextBuilderTest {
 
     @Test
     fun `strict routing preserves argument validation precedence`() {
-        val context = F64ContextBuilder()
+        val context = ContextBuilder()
             .withBackend(RoutedBlas(nativeMin = 100))
             .withDispatchPolicy(F64DispatchPolicy.NATIVE_ONLY)
             .resolve()
 
         assertFailsWith<DimensionMismatch> {
-            context.gemv(F64DenseMatrix(1, 2), doubleArrayOf(1.0))
+            context.gemv(DenseMatrix(1, 2), doubleArrayOf(1.0))
         }
     }
 
     @Test
     fun `portable only discards external selections`() {
-        val context = F64ContextBuilder()
+        val context = ContextBuilder()
             .withBackend(RoutedBlas(nativeMin = 0))
             .withDispatchPolicy(F64DispatchPolicy.PORTABLE_ONLY)
             .resolve()
 
-        assertIs<F64ReferenceBackend>(context.blas)
+        assertIs<ReferenceBackend>(context.blas)
         assertEquals(BackendPolicyDecision.EXECUTE, context.plan(F64RouteQuery.DenseGemv(100, 100)).decision)
     }
 
     @Test
     fun `warn reports a fallback to the context handler`() {
         val warnings = mutableListOf<BackendRoute>()
-        val context = F64ContextBuilder()
+        val context = ContextBuilder()
             .withBackend(RoutedBlas(nativeMin = 4))
             .withFallbackPolicy(F64FallbackPolicy.WARN)
             .onFallback(warnings::add)
             .resolve()
 
-        context.gemv(F64DenseMatrix(1, 1, doubleArrayOf(2.0)), doubleArrayOf(3.0))
+        context.gemv(DenseMatrix(1, 1, doubleArrayOf(2.0)), doubleArrayOf(3.0))
 
         assertEquals(1, warnings.size)
         assertEquals(BackendRouteReason.BELOW_THRESHOLD, warnings.single().reason)
@@ -269,7 +269,7 @@ class F64ContextBuilderTest {
 
     @Test
     fun `warn requires an explicit handler`() {
-        val builder = F64ContextBuilder().withFallbackPolicy(F64FallbackPolicy.WARN)
+        val builder = ContextBuilder().withFallbackPolicy(F64FallbackPolicy.WARN)
 
         assertFailsWith<IllegalArgumentException> { builder.resolve() }
     }
@@ -277,13 +277,13 @@ class F64ContextBuilderTest {
     @Test
     fun `throw rejects an automatic fallback`() {
         val routed = RoutedBlas(nativeMin = 4)
-        val context = F64ContextBuilder()
+        val context = ContextBuilder()
             .withBackend(routed)
             .withFallbackPolicy(F64FallbackPolicy.THROW)
             .resolve()
 
         assertFailsWith<BackendRouteRejectedException> {
-            context.gemv(F64DenseMatrix(1, 1), doubleArrayOf(1.0))
+            context.gemv(DenseMatrix(1, 1), doubleArrayOf(1.0))
         }
         assertEquals(0, routed.calls)
     }
@@ -293,17 +293,17 @@ class F64ContextBuilderTest {
         val routed = RoutedBlas(nativeMin = 0)
 
         assertFailsWith<IllegalArgumentException> {
-            F64ContextBuilder().withBackend(BackendRole.SPARSE_BLAS, routed)
+            ContextBuilder().withBackend(BackendRole.SPARSE_BLAS, routed)
         }
     }
 
     @Test
     fun `a complete sparse backend selects QR with the other decomposition roles`() {
         val backend = TrackingSparseDecompositions()
-        val context = F64ContextBuilder()
+        val context = ContextBuilder()
             .withBackend(backend)
             .resolve()
-        val matrix = F64SparseMatrix.ofColumns(2, 1, listOf(listOf(0 to 1.0, 1 to 1.0)))
+        val matrix = SparseMatrix.ofColumns(2, 1, listOf(listOf(0 to 1.0, 1 to 1.0)))
 
         context.qr(matrix).close()
 

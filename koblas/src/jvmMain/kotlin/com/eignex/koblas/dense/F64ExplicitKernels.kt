@@ -1,6 +1,6 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.F64ModifiedGivens
+import com.eignex.koblas.ModifiedGivens
 import com.eignex.koblas.applyModifiedGivens
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.kernels.JvmCKernelBindings
@@ -11,7 +11,7 @@ import com.eignex.koblas.portableRotmg
 import kotlin.math.sqrt
 
 /** The bundled C kernels without automatic SIMD selection. */
-internal object F64CKernels : F64Kernels, F64ArithmeticKernels {
+internal object F64CKernels : Kernels, F64ArithmeticKernels {
     /**
      * Run length from which crossing into the bundled library beats staying on the JVM, for the routines
      * that cross at all. What was measured, and why only reductions appear here, is on
@@ -51,8 +51,7 @@ internal object F64CKernels : F64Kernels, F64ArithmeticKernels {
 
     // No CBLAS or C routine generates the modified Givens transformation, so the portable one is the
     // implementation rather than a fallback.
-    override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64ModifiedGivens =
-        portableRotmg(d1, d2, x1, y1)
+    override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens = portableRotmg(d1, d2, x1, y1)
 
     override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) =
         scalarAxpy(y, yOff, alpha, x, xOff, len)
@@ -106,7 +105,7 @@ internal object F64CKernels : F64Kernels, F64ArithmeticKernels {
         yOff: Int,
         yStride: Int,
         len: Int,
-        transformation: F64ModifiedGivens,
+        transformation: ModifiedGivens,
     ) = portableRotm(x, xOff, xStride, y, yOff, yStride, len, transformation)
 
     @Suppress("LongParameterList")
@@ -115,7 +114,7 @@ internal object F64CKernels : F64Kernels, F64ArithmeticKernels {
 }
 
 /** The JVM Vector API kernels without automatic C selection. */
-internal object F64SimdKernels : F64Kernels, F64ArithmeticKernels {
+internal object F64SimdKernels : Kernels, F64ArithmeticKernels {
     private val lanes: Int = if (simdAvailable) Simd.lanes() else 0
 
     override val name: String get() = "${BackendNames.SIMD}($lanes lanes)"
@@ -140,8 +139,7 @@ internal object F64SimdKernels : F64Kernels, F64ArithmeticKernels {
 
     // No CBLAS or C routine generates the modified Givens transformation, so the portable one is the
     // implementation rather than a fallback.
-    override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64ModifiedGivens =
-        portableRotmg(d1, d2, x1, y1)
+    override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens = portableRotmg(d1, d2, x1, y1)
 
     override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
         if (vectorizes(len)) Simd.axpy(y, yOff, alpha, x, xOff, len) else scalarAxpy(y, yOff, alpha, x, xOff, len)
@@ -223,7 +221,7 @@ internal object F64SimdKernels : F64Kernels, F64ArithmeticKernels {
         yOff: Int,
         yStride: Int,
         len: Int,
-        transformation: F64ModifiedGivens,
+        transformation: ModifiedGivens,
     ) {
         if (transformation.flag == -2.0) return
         if (vectorizes(len) && xStride == 1 && yStride == 1) {

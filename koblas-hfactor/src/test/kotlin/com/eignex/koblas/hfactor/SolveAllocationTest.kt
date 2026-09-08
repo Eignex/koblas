@@ -1,7 +1,7 @@
 package com.eignex.koblas.hfactor
 
 import com.eignex.koblas.AllocationGuarantee
-import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.SparseMatrix
 import com.sun.management.ThreadMXBean
 import java.lang.management.ManagementFactory
 import kotlin.test.*
@@ -18,7 +18,7 @@ class SolveAllocationTest {
     private var sink: Any? = null
 
     private fun bytesPerSolve(n: Int): Double {
-        val diagonal = F64SparseMatrix.ofColumns(n, n, (0 until n).map { j -> listOf(j to (n + 10.0)) })
+        val diagonal = SparseMatrix.ofColumns(n, n, (0 until n).map { j -> listOf(j to (n + 10.0)) })
         val factorization = BundledHfactor().factor(diagonal)
         val b = DoubleArray(n) { 1.0 + it }
         val out = DoubleArray(n)
@@ -54,7 +54,7 @@ class SolveAllocationTest {
     @Test
     fun `a solve declares the guarantee it keeps`() {
         val n = 64
-        val diagonal = F64SparseMatrix.ofColumns(n, n, (0 until n).map { j -> listOf(j to (n + 10.0)) })
+        val diagonal = SparseMatrix.ofColumns(n, n, (0 until n).map { j -> listOf(j to (n + 10.0)) })
         val declared = BundledHfactor().factor(diagonal).solveAllocation(aliasing = false, transpose = false)
 
         assertEquals(
