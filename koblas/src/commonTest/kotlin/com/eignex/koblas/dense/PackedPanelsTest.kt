@@ -292,7 +292,11 @@ class PackedPanelsTest {
             val packedTriangle = DoubleArray(PackedPanels.rightSize(order, order))
             val packedRightHandSide = DoubleArray(PackedPanels.leftSize(rows, order))
             PackedPanels.packTriangularRight(
-                triangle, packedTriangle, order, order, lower = lower,
+                triangle,
+                packedTriangle,
+                order,
+                order,
+                lower = lower,
             )
             PackedPanels.packLeft(rightHandSide, packedRightHandSide, rows, order)
 
@@ -329,7 +333,14 @@ class PackedPanelsTest {
         PackedPanels.packLeft(initial, packedInitial, rows, order)
 
         PackedPanels.gemmTrsm(
-            packedLeft, packedRight, packedTriangle, packedInitial, rows, order, depth, lower = true,
+            packedLeft,
+            packedRight,
+            packedTriangle,
+            packedInitial,
+            rows,
+            order,
+            depth,
+            lower = true,
         )
 
         val actual = DenseMatrix.zero(rows, order)
@@ -349,7 +360,11 @@ class PackedPanelsTest {
         val shared = DoubleArray(triangleSize + rightHandSideSize)
         PackedPanels.packTriangularRight(triangle, shared, order, order, lower = true)
         PackedPanels.packLeft(
-            rightHandSide, shared, rows, order, destinationOffset = triangleSize,
+            rightHandSide,
+            shared,
+            rows,
+            order,
+            destinationOffset = triangleSize,
         )
         val workspace = Workspace().also { it.reserve(shared.size, 1) }
 
