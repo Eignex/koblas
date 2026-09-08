@@ -341,6 +341,7 @@ internal expect object PlatformKernels : Kernels, ArithmeticKernels {
         xOff: Int,
         len: Int,
     ): Double
+
     @Suppress("LongParameterList")
     override fun trsmTile(
         validRows: Int,

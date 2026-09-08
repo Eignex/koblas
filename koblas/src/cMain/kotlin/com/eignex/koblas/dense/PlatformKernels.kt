@@ -255,6 +255,7 @@ internal actual object PlatformKernels : Kernels, ArithmeticKernels {
             }
         }
     }
+
     @Suppress("LongParameterList")
     actual override fun trsmTile(
         validRows: Int,
