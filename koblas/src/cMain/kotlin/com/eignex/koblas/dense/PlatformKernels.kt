@@ -255,4 +255,35 @@ internal actual object PlatformKernels : Kernels, ArithmeticKernels {
             }
         }
     }
+    @Suppress("LongParameterList")
+    actual override fun trsmTile(
+        validRows: Int,
+        order: Int,
+        packedTriangle: DoubleArray,
+        triangleOff: Int,
+        lower: Boolean,
+        unitDiag: Boolean,
+        x: DoubleArray,
+        xOff: Int,
+    ) = super.trsmTile(validRows, order, packedTriangle, triangleOff, lower, unitDiag, x, xOff)
+
+    @Suppress("LongParameterList")
+    actual override fun gemmTrsmTile(
+        depth: Int,
+        validRows: Int,
+        order: Int,
+        packedA: DoubleArray,
+        aOff: Int,
+        packedB: DoubleArray,
+        bOff: Int,
+        packedTriangle: DoubleArray,
+        triangleOff: Int,
+        lower: Boolean,
+        unitDiag: Boolean,
+        x: DoubleArray,
+        xOff: Int,
+    ) = super.gemmTrsmTile(
+        depth, validRows, order, packedA, aOff, packedB, bOff,
+        packedTriangle, triangleOff, lower, unitDiag, x, xOff,
+    )
 }

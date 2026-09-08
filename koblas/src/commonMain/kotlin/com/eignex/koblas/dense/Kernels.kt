@@ -205,6 +205,52 @@ public interface Kernels : Backend {
     ) {
         portableGemmTile(depth, packedA, aOff, packedB, bOff, c, cOff, ldc)
     }
+
+    /**
+     * Solves `X * T = B` in place for one packed tile. [packedTriangle] stores the effective triangle with
+     * physical row stride [gemmTileCols], and [x] stores columns with physical stride [gemmTileRows]. Only
+     * [validRows] rows and [order] columns are logical; both may be zero. A unit diagonal is never read.
+     */
+    @Suppress("LongParameterList") // packed triangle and right-hand side plus logical edge sizes and flags
+    public fun trsmTile(
+        validRows: Int,
+        order: Int,
+        packedTriangle: DoubleArray,
+        triangleOff: Int,
+        lower: Boolean,
+        unitDiag: Boolean,
+        x: DoubleArray,
+        xOff: Int,
+    ) {
+        portableTrsmTile(
+            gemmTileRows, gemmTileCols, validRows, order,
+            packedTriangle, triangleOff, lower, unitDiag, x, xOff,
+        )
+    }
+
+    /**
+     * Adds one packed product into [x], then solves the resulting tile through [trsmTile]. The product uses
+     * the same layouts as [gemmTile], and the solve uses the logical [validRows] by [order] edge of [x].
+     */
+    @Suppress("LongParameterList") // packed product and triangle operands plus logical edge sizes and flags
+    public fun gemmTrsmTile(
+        depth: Int,
+        validRows: Int,
+        order: Int,
+        packedA: DoubleArray,
+        aOff: Int,
+        packedB: DoubleArray,
+        bOff: Int,
+        packedTriangle: DoubleArray,
+        triangleOff: Int,
+        lower: Boolean,
+        unitDiag: Boolean,
+        x: DoubleArray,
+        xOff: Int,
+    ) {
+        gemmTile(depth, packedA, aOff, packedB, bOff, x, xOff, gemmTileRows)
+        trsmTile(validRows, order, packedTriangle, triangleOff, lower, unitDiag, x, xOff)
+    }
 }
 
 /** Internal vector leaf for parent routines whose arithmetic does not have DAXPY's zero-scalar return. */
@@ -292,4 +338,32 @@ internal expect object PlatformKernels : Kernels, ArithmeticKernels {
         xOff: Int,
         len: Int,
     ): Double
+    @Suppress("LongParameterList")
+    override fun trsmTile(
+        validRows: Int,
+        order: Int,
+        packedTriangle: DoubleArray,
+        triangleOff: Int,
+        lower: Boolean,
+        unitDiag: Boolean,
+        x: DoubleArray,
+        xOff: Int,
+    )
+
+    @Suppress("LongParameterList")
+    override fun gemmTrsmTile(
+        depth: Int,
+        validRows: Int,
+        order: Int,
+        packedA: DoubleArray,
+        aOff: Int,
+        packedB: DoubleArray,
+        bOff: Int,
+        packedTriangle: DoubleArray,
+        triangleOff: Int,
+        lower: Boolean,
+        unitDiag: Boolean,
+        x: DoubleArray,
+        xOff: Int,
+    )
 }
