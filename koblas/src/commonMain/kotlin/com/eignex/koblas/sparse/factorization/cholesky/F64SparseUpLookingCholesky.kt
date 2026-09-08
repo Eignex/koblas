@@ -3,8 +3,8 @@ package com.eignex.koblas.sparse.factorization.cholesky
 import com.eignex.koblas.AllocationCapability
 import com.eignex.koblas.NOT_SINGULAR
 import com.eignex.koblas.NotPositiveDefinite
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
-import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.noManagedOrNativeAllocation
 import com.eignex.koblas.requireSolveShapes
 import com.eignex.koblas.requireSquare
@@ -32,8 +32,8 @@ public class F64SparseUpLookingCholesky internal constructor(
     private val values: DoubleArray,
 ) : F64SparseCholeskyFactorization {
 
-    override val l: F64SparseMatrix
-        get() = F64SparseMatrix.wrap(n, n, colPtr.copyOf(), rowIdx.copyOf(), values.copyOf())
+    override val l: SparseMatrix
+        get() = SparseMatrix.wrap(n, n, colPtr.copyOf(), rowIdx.copyOf(), values.copyOf())
 
     /** The identity: this factorization reorders nothing, for the reason its own documentation gives. */
     override val order: IntArray get() = IntArray(n) { it }
@@ -95,7 +95,7 @@ public class F64SparseUpLookingCholesky internal constructor(
          *
          * @throws NotPositiveDefinite at the first column whose pivot is not positive.
          */
-        public fun factorLower(a: F64SparseMatrix): F64SparseUpLookingCholesky {
+        public fun factorLower(a: SparseMatrix): F64SparseUpLookingCholesky {
             requireSquare(a, "cholesky")
             // The up-looking sweep reads row k of A left of the diagonal, and CSC stores columns. Transposing
             // the lower triangle once turns each of those rows into a column, and costs one pass over A.
@@ -104,16 +104,16 @@ public class F64SparseUpLookingCholesky internal constructor(
         }
 
         /** The pattern-only half of [factorLower], for a caller that will factor this structure again. */
-        internal fun analyzeLower(a: F64SparseMatrix): UpLookingSymbolic {
+        internal fun analyzeLower(a: SparseMatrix): UpLookingSymbolic {
             requireSquare(a, "cholesky")
             return analyzeUpLooking(a.rows, transposeCsc(a), storesDiagonal = true)
         }
 
         /** [factorLower] against an analysis of the same pattern, which the caller has already checked. */
-        internal fun factorLower(a: F64SparseMatrix, symbolic: UpLookingSymbolic): F64SparseUpLookingCholesky =
+        internal fun factorLower(a: SparseMatrix, symbolic: UpLookingSymbolic): F64SparseUpLookingCholesky =
             factorTransposed(transposeCsc(a), symbolic)
 
-        private fun factorTransposed(upper: F64SparseMatrix, symbolic: UpLookingSymbolic): F64SparseUpLookingCholesky {
+        private fun factorTransposed(upper: SparseMatrix, symbolic: UpLookingSymbolic): F64SparseUpLookingCholesky {
             val n = symbolic.n
             val colPtr = symbolic.colPtr
             val rowIdx = IntArray(colPtr[n])
@@ -131,7 +131,7 @@ public class F64SparseUpLookingCholesky internal constructor(
 @Suppress("LongParameterList") // the shape, the tree and the three factor arrays being filled
 private fun factorNumeric(
     n: Int,
-    upper: F64SparseMatrix,
+    upper: SparseMatrix,
     parent: IntArray,
     colPtr: IntArray,
     rowIdx: IntArray,

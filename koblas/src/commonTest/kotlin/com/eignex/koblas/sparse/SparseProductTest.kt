@@ -1,10 +1,10 @@
 package com.eignex.koblas.sparse
 
+import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DimensionMismatch
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.koblas
 import com.eignex.koblas.randomMatrix
 import com.eignex.koblas.randomVector
@@ -22,8 +22,8 @@ class SparseProductTest {
         cols: Int,
         rng: Random,
         density: Double = 0.35,
-    ): Pair<F64SparseMatrix, F64DenseMatrix> {
-        val dense = F64DenseMatrix.zero(rows, cols)
+    ): Pair<SparseMatrix, DenseMatrix> {
+        val dense = DenseMatrix.zero(rows, cols)
         val columns = ArrayList<List<Pair<Int, Double>>>(cols)
         for (j in 0 until cols) {
             val column = ArrayList<Pair<Int, Double>>()
@@ -35,10 +35,10 @@ class SparseProductTest {
             }
             columns.add(column)
         }
-        return F64SparseMatrix.ofColumns(rows, cols, columns) to dense
+        return SparseMatrix.ofColumns(rows, cols, columns) to dense
     }
 
-    private fun copyOf(m: F64DenseMatrix) = F64DenseMatrix.wrap(m.rows, m.cols, m.data.copyOf())
+    private fun copyOf(m: DenseMatrix) = DenseMatrix.wrap(m.rows, m.cols, m.data.copyOf())
 
     @Test
     fun `every transpose combination agrees with the dense product`() {
@@ -76,16 +76,16 @@ class SparseProductTest {
         val rng = Random(20260827)
         val (sparse, _) = sparseAndDense(6, 4, rng)
         val x = randomVector(4, rng)
-        val c = F64DenseMatrix.zero(6, 1)
+        val c = DenseMatrix.zero(6, 1)
 
-        koblas.sparseBlas.gemm(1.0, sparse, false, F64DenseMatrix.wrap(4, 1, x.copyOf()), false, 0.0, c)
+        koblas.sparseBlas.gemm(1.0, sparse, false, DenseMatrix.wrap(4, 1, x.copyOf()), false, 0.0, c)
 
         assertClose(koblas.gemv(sparse, x), c.data, "gemm over one column is gemv")
     }
 
     @Test
     fun `gemv forms zero products for stored entries only`() {
-        val a = F64SparseMatrix.ofColumns(2, 1, listOf(listOf(0 to Double.POSITIVE_INFINITY)))
+        val a = SparseMatrix.ofColumns(2, 1, listOf(listOf(0 to Double.POSITIVE_INFINITY)))
         val y = DoubleArray(2)
 
         F64ReferenceSparseLinearAlgebra.gemv(1.0, a, doubleArrayOf(0.0), 0.0, y)
@@ -96,19 +96,19 @@ class SparseProductTest {
 
     @Test
     fun `left sparse gemm forms zero products for stored entries`() {
-        val a = F64SparseMatrix.ofColumns(1, 1, listOf(listOf(0 to Double.POSITIVE_INFINITY)))
-        val c = F64DenseMatrix(1, 1)
+        val a = SparseMatrix.ofColumns(1, 1, listOf(listOf(0 to Double.POSITIVE_INFINITY)))
+        val c = DenseMatrix(1, 1)
 
-        F64ReferenceSparseLinearAlgebra.gemm(1.0, a, false, F64DenseMatrix(1, 1), false, 0.0, c)
+        F64ReferenceSparseLinearAlgebra.gemm(1.0, a, false, DenseMatrix(1, 1), false, 0.0, c)
 
         assertTrue(c[0, 0].isNaN())
     }
 
     @Test
     fun `right sparse gemm forms zero products for stored entries`() {
-        val a = F64SparseMatrix.ofColumns(1, 1, listOf(listOf(0 to 0.0)))
-        val b = F64DenseMatrix(1, 1, doubleArrayOf(Double.POSITIVE_INFINITY))
-        val c = F64DenseMatrix(1, 1)
+        val a = SparseMatrix.ofColumns(1, 1, listOf(listOf(0 to 0.0)))
+        val b = DenseMatrix(1, 1, doubleArrayOf(Double.POSITIVE_INFINITY))
+        val c = DenseMatrix(1, 1)
 
         F64ReferenceSparseLinearAlgebra.gemm(1.0, a, false, b, false, 0.0, c, right = true)
 
@@ -120,7 +120,7 @@ class SparseProductTest {
         val rng = Random(20260828)
         val (sparse, _) = sparseAndDense(4, 3, rng)
         val b = randomMatrix(3, 2, rng)
-        val c = F64DenseMatrix.wrap(4, 2, DoubleArray(8) { Double.NaN })
+        val c = DenseMatrix.wrap(4, 2, DoubleArray(8) { Double.NaN })
 
         koblas.sparseBlas.gemm(1.0, sparse, false, b, false, 0.0, c)
 
@@ -133,7 +133,7 @@ class SparseProductTest {
         val (sparse, _) = sparseAndDense(4, 3, rng)
         val b = randomMatrix(3, 2, rng)
         val c = randomMatrix(4, 2, rng)
-        val expected = F64DenseMatrix.wrap(4, 2, DoubleArray(8) { c.data[it] * 2.0 })
+        val expected = DenseMatrix.wrap(4, 2, DoubleArray(8) { c.data[it] * 2.0 })
 
         val actual = copyOf(c)
         koblas.sparseBlas.gemm(0.0, sparse, false, b, false, 2.0, actual)
@@ -146,7 +146,7 @@ class SparseProductTest {
         val rng = Random(20260830)
         val (sparse, dense) = sparseAndDense(5, 4, rng)
 
-        assertClose(dense, sparse * F64DenseMatrix.diagonal(4), "A times I")
+        assertClose(dense, sparse * DenseMatrix.diagonal(4), "A times I")
     }
 
     @Test
@@ -198,7 +198,7 @@ class SparseProductTest {
                 randomMatrix(3, 3, rng),
                 false,
                 0.0,
-                F64DenseMatrix.zero(3, 4),
+                DenseMatrix.zero(3, 4),
                 right = true,
             )
         }
@@ -243,7 +243,7 @@ class SparseProductTest {
     fun `a sparse matrix times a sparse identity is the matrix`() {
         val rng = Random(20260921)
         val (a, _) = sparseAndDense(6, 5, rng)
-        val identity = F64SparseMatrix.ofColumns(5, 5, List(5) { j -> listOf(j to 1.0) })
+        val identity = SparseMatrix.ofColumns(5, 5, List(5) { j -> listOf(j to 1.0) })
 
         assertEquals(a, a * (identity), "A times I should give A back")
     }
@@ -255,8 +255,8 @@ class SparseProductTest {
      */
     @Test
     fun `the sparse product keeps a stored zero of either operand`() {
-        val one = F64SparseMatrix.ofColumns(1, 1, listOf(listOf(0 to 1.0)))
-        val zero = F64SparseMatrix.ofColumns(1, 1, listOf(listOf(0 to 0.0)))
+        val one = SparseMatrix.ofColumns(1, 1, listOf(listOf(0 to 1.0)))
+        val zero = SparseMatrix.ofColumns(1, 1, listOf(listOf(0 to 0.0)))
         assertEquals(1, zero.nnz, "the operand itself has to store the zero for this to say anything")
 
         assertEquals(1, (one * zero).nnz, "a stored zero in the second operand was dropped")
@@ -266,8 +266,8 @@ class SparseProductTest {
     @Test
     fun `the sparse product keeps an entry the arithmetic cancels to zero`() {
         // The single entry of the product is 1 * 1 + 1 * -1, a position the patterns meet at all the same.
-        val a = F64SparseMatrix.ofColumns(1, 2, listOf(listOf(0 to 1.0), listOf(0 to 1.0)))
-        val b = F64SparseMatrix.ofColumns(2, 1, listOf(listOf(0 to 1.0, 1 to -1.0)))
+        val a = SparseMatrix.ofColumns(1, 2, listOf(listOf(0 to 1.0), listOf(0 to 1.0)))
+        val b = SparseMatrix.ofColumns(2, 1, listOf(listOf(0 to 1.0, 1 to -1.0)))
 
         val product = a * (b)
 
@@ -291,7 +291,7 @@ class SparseProductTest {
         val b = randomMatrix(4, 3, rng)
 
         assertFailsWith<DimensionMismatch> {
-            koblas.sparseBlas.gemm(1.0, sparse, false, b, false, 0.0, F64DenseMatrix.zero(5, 2))
+            koblas.sparseBlas.gemm(1.0, sparse, false, b, false, 0.0, DenseMatrix.zero(5, 2))
         }
     }
 

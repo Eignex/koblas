@@ -2,19 +2,19 @@ package com.eignex.koblas.sparse.host.hfactor
 
 import com.eignex.koblas.SINGULAR_POSITION_UNKNOWN
 import com.eignex.koblas.SingularMatrix
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.UnsafeKoblasApi
-import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.internal.host.NativeOwnership
 import com.eignex.koblas.requireInBounds
 import com.eignex.koblas.requireShape
+import com.eignex.koblas.sparse.basis.BasisSolver
 import com.eignex.koblas.sparse.basis.BasisUpdate
 import com.eignex.koblas.sparse.basis.F64BasisKernel
 import com.eignex.koblas.sparse.basis.F64BasisRepair
 import com.eignex.koblas.sparse.basis.F64BasisSnapshot
 import com.eignex.koblas.sparse.basis.F64BasisSolveQuality
-import com.eignex.koblas.sparse.basis.F64BasisSolver
-import com.eignex.koblas.sparse.basis.F64IndexedVector
 import com.eignex.koblas.sparse.basis.F64RefactorizeReason
+import com.eignex.koblas.sparse.basis.IndexedVector
 import com.eignex.koblas.sparse.basis.basisSolveQuality
 import java.lang.foreign.MemorySegment
 
@@ -22,7 +22,7 @@ import java.lang.foreign.MemorySegment
  * A simplex basis held by HiGHS's HFactor: Markowitz factors, hypersparse solves that fall back to
  * conventional ones as the vectors fill, and Forrest-Tomlin updates.
  *
- * A solve crosses the seam without copying. [F64IndexedVector] stores what HFactor's own vector does, dense
+ * A solve crosses the seam without copying. [IndexedVector] stores what HFactor's own vector does, dense
  * values with the positions of the nonzeros beside them, so the call is handed those two arrays as they lie
  * and writes the result back over them.
  *
@@ -31,16 +31,16 @@ import java.lang.foreign.MemorySegment
  * tracks which vector each of its solves last filled and reuses the native one where the caller hands the
  * same vector back. A caller solving in some other order is still correct; it pays the solve again.
  *
- * The tracking is by identity, which is what [F64BasisSolver.update] asks a caller for: a vector edited
+ * The tracking is by identity, which is what [BasisSolver.update] asks a caller for: a vector edited
  * between its solve and the update is read here as the solve left it, not as it now stands.
  */
 @OptIn(UnsafeKoblasApi::class)
 public class HfactorBasisSolver internal constructor(
-    private val a: F64SparseMatrix,
+    private val a: SparseMatrix,
     private val calls: HfactorCalls,
     private val handle: MemorySegment,
     private val rowScale: DoubleArray? = null,
-) : F64BasisSolver {
+) : BasisSolver {
     private class Release(private val calls: HfactorCalls, private val handle: MemorySegment) {
         fun release(): Unit = calls.free(handle)
     }
@@ -59,8 +59,8 @@ public class HfactorBasisSolver internal constructor(
      * [basicIndex] names nothing at those slots, so the residual check reads them from here instead.
      */
     private var unitRows: IntArray? = null
-    private var lastFtran: F64IndexedVector? = null
-    private var lastBtran: F64IndexedVector? = null
+    private var lastFtran: IndexedVector? = null
+    private var lastBtran: IndexedVector? = null
 
     override var singular: Boolean = true
         private set
@@ -145,7 +145,7 @@ public class HfactorBasisSolver internal constructor(
      * The factors are of `E·A`, so a forward solve scales what goes in: `(E·B)` applied to `E·x` is `B` applied
      * to `x`, and the answer comes back in the caller's own numbers.
      */
-    override fun ftran(x: F64IndexedVector, expectedDensity: Double): Unit = ownership.anchoring {
+    override fun ftran(x: IndexedVector, expectedDensity: Double): Unit = ownership.anchoring {
         if (rowScale != null) scaleStored(x)
         solveNative(x, expectedDensity, transpose = false)
         lastFtran = x
@@ -155,14 +155,14 @@ public class HfactorBasisSolver internal constructor(
      * The transposed counterpart, which scales its result instead. HFactor's own vector keeps the answer in
      * the scaled space it factored, which is what [update] needs back from it, so only the caller's copy moves.
      */
-    override fun btran(x: F64IndexedVector, expectedDensity: Double): Unit = ownership.anchoring {
+    override fun btran(x: IndexedVector, expectedDensity: Double): Unit = ownership.anchoring {
         solveNative(x, expectedDensity, transpose = true)
         if (rowScale != null) scaleStored(x)
         lastBtran = x
     }
 
     /** Multiplies the stored positions of [x] by their row's factor, leaving the pattern alone. */
-    private fun scaleStored(x: F64IndexedVector) {
+    private fun scaleStored(x: IndexedVector) {
         val scale = rowScale ?: return
         for (k in 0 until x.count) {
             val row = x.indices[k]
@@ -170,49 +170,51 @@ public class HfactorBasisSolver internal constructor(
         }
     }
 
-    override fun solveQuality(rhs: DoubleArray, solution: F64IndexedVector, transpose: Boolean): F64BasisSolveQuality =
+    override fun solveQuality(rhs: DoubleArray, solution: IndexedVector, transpose: Boolean): F64BasisSolveQuality =
         ownership.anchoring {
             checkSolvable()
             basisSolveQuality(a, basicIndex, unitRows, rhs, solution, transpose)
         }
 
-    override fun update(
-        pivotRow: Int,
-        entering: Int,
-        spike: F64IndexedVector,
-        pivotEta: F64IndexedVector?,
-    ): BasisUpdate = ownership.anchoring {
-        requireInBounds(pivotRow, n)
-        requireInBounds(entering, columns)
-        requireShape(spike.size == n) { "update: spike size ${spike.size} != $n" }
-        if (!factorized || singular) return@anchoring BasisUpdate.SINGULAR
+    override fun update(pivotRow: Int, entering: Int, spike: IndexedVector, pivotEta: IndexedVector?): BasisUpdate =
+        ownership.anchoring {
+            requireInBounds(pivotRow, n)
+            requireInBounds(entering, columns)
+            requireShape(spike.size == n) { "update: spike size ${spike.size} != $n" }
+            if (!factorized || singular) return@anchoring BasisUpdate.SINGULAR
         /*
          * Judged on the spike the caller passed rather than on the one HFactor may be about to recompute,
          * so an update is refused for the same inputs the portable solver refuses it for. The bridge checks
          * again on whatever it ends up with.
          */
-        val pivot = spike[pivotRow]
-        if (pivot == 0.0 || !pivot.isFinite()) return@anchoring BasisUpdate.SINGULAR
-        val advice =
-            calls.update(handle, pivotRow, entering, spike === lastFtran, pivotEta != null && pivotEta === lastBtran)
+            val pivot = spike[pivotRow]
+            if (pivot == 0.0 || !pivot.isFinite()) return@anchoring BasisUpdate.SINGULAR
+            val advice =
+                calls.update(
+                    handle,
+                    pivotRow,
+                    entering,
+                    spike === lastFtran,
+                    pivotEta != null && pivotEta === lastBtran,
+                )
 
-        // The update consumes both native vectors, so neither answers for a caller's vector afterwards.
-        forgetSolves()
-        when (advice) {
-            HfactorUpdate.REFUSED -> BasisUpdate.SINGULAR
+            // The update consumes both native vectors, so neither answers for a caller's vector afterwards.
+            forgetSolves()
+            when (advice) {
+                HfactorUpdate.REFUSED -> BasisUpdate.SINGULAR
 
-            else -> {
-                basicIndex[pivotRow] = entering
-                if (advice == HfactorUpdate.REFACTORIZE) BasisUpdate.REFACTORIZE else BasisUpdate.APPLIED
+                else -> {
+                    basicIndex[pivotRow] = entering
+                    if (advice == HfactorUpdate.REFACTORIZE) BasisUpdate.REFACTORIZE else BasisUpdate.APPLIED
+                }
             }
         }
-    }
 
     /** HFactor numbers a substituted column past the matrix, which is how a unit column is spotted. */
     private fun rowsOfUnitColumns(settled: IntArray): IntArray =
         IntArray(n) { if (settled[it] < columns) -1 else settled[it] - columns }
 
-    private fun solveNative(x: F64IndexedVector, expectedDensity: Double, transpose: Boolean) {
+    private fun solveNative(x: IndexedVector, expectedDensity: Double, transpose: Boolean) {
         checkSolvable()
         requireShape(x.size == n) { "solve: x size ${x.size} != $n" }
         x.count = calls.solve(handle, x.count, x.indices, x.values, expectedDensity, transpose)

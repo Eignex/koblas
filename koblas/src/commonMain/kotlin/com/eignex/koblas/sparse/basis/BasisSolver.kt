@@ -13,7 +13,7 @@ public enum class BasisUpdate {
 
     /**
      * The pivot was not usable and the factors are unchanged, so the basis and the solver have parted
-     * company. Only [F64BasisSolver.refactorize] recovers.
+     * company. Only [BasisSolver.refactorize] recovers.
      */
     SINGULAR,
 }
@@ -99,7 +99,7 @@ public data class F64BasisSolveQuality(
  * has one to read. `A` carries the logical columns explicitly, so a basis slot naming a logical is an
  * ordinary column rather than a case for the solver to know about.
  *
- * Solves go through [F64IndexedVector] rather than `DoubleArray` so a result that is sparse stays sparse
+ * Solves go through [IndexedVector] rather than `DoubleArray` so a result that is sparse stays sparse
  * across the seam. On a large model a simplex iteration touches a few positions, and a dense carrier would
  * spend `O(n)` clearing and rescanning around work that is `O(1)` in the model's size.
  *
@@ -112,7 +112,7 @@ public data class F64BasisSolveQuality(
  * external resource and use the default no-op [close]. A native solver keeps [n] and [singular] readable
  * after close and rejects factor reports and operations with [IllegalStateException].
  */
-public interface F64BasisSolver : AutoCloseable {
+public interface BasisSolver : AutoCloseable {
     /** The dimension of the basis, the row count of `A`. */
     public val n: Int
 
@@ -202,10 +202,10 @@ public interface F64BasisSolver : AutoCloseable {
      * iterations produced. It steers the choice of sweep and nothing else, so a caller with no estimate
      * passes the default and gets a correct answer by the route that suits a dense one.
      */
-    public fun ftran(x: F64IndexedVector, expectedDensity: Double = 1.0)
+    public fun ftran(x: IndexedVector, expectedDensity: Double = 1.0)
 
     /** Solve `Bᵀ x = b` in place, the transposed counterpart of [ftran]. */
-    public fun btran(x: F64IndexedVector, expectedDensity: Double = 1.0)
+    public fun btran(x: IndexedVector, expectedDensity: Double = 1.0)
 
     /**
      * Measures the residual of a completed solve against an unmodified copy of its right-hand side.
@@ -214,7 +214,7 @@ public interface F64BasisSolver : AutoCloseable {
      */
     public fun solveQuality(
         rhs: DoubleArray,
-        solution: F64IndexedVector,
+        solution: IndexedVector,
         transpose: Boolean = false,
     ): F64BasisSolveQuality
 
@@ -239,12 +239,7 @@ public interface F64BasisSolver : AutoCloseable {
      * factorized, or one whose last [refactorize] failed, answers the same: there is nothing to fold into,
      * and the answer says what the caller owes it either way.
      */
-    public fun update(
-        pivotRow: Int,
-        entering: Int,
-        spike: F64IndexedVector,
-        pivotEta: F64IndexedVector? = null,
-    ): BasisUpdate
+    public fun update(pivotRow: Int, entering: Int, spike: IndexedVector, pivotEta: IndexedVector? = null): BasisUpdate
 
     /** Releases resources owned by this solver. Portable implementations have nothing to release. */
     override fun close() {}

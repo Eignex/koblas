@@ -1,7 +1,7 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
-import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.sparse.factorization.cholesky.F64SparseUpLookingCholesky
 import kotlin.test.*
 
@@ -90,7 +90,7 @@ class SparseAllocationContractTest {
         assertContentEquals(doubleArrayOf(5.0), out)
     }
 
-    private fun matrix(): F64SparseMatrix = F64SparseMatrix.ofTriplets(
+    private fun matrix(): SparseMatrix = SparseMatrix.ofTriplets(
         2,
         2,
         intArrayOf(0, 1, 0, 1),

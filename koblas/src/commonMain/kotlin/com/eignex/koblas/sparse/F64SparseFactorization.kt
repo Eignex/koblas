@@ -1,9 +1,9 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
-import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.core.F64SparseVector
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.SparseVector
 import com.eignex.koblas.requireSquare
 
 /**
@@ -59,9 +59,9 @@ public interface F64SparseFactorization : AutoCloseable {
     ): DoubleArray
 
     /** Solve every column of [b] into a fresh dense result. */
-    public fun solve(b: F64DenseMatrix, transpose: Boolean = false): F64DenseMatrix {
+    public fun solve(b: DenseMatrix, transpose: Boolean = false): DenseMatrix {
         requireShape(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
-        return solveInto(b, F64DenseMatrix(n, b.cols), transpose)
+        return solveInto(b, DenseMatrix(n, b.cols), transpose)
     }
 
     /**
@@ -69,11 +69,11 @@ public interface F64SparseFactorization : AutoCloseable {
      * solve once per column; providers with a block ABI override it with one foreign call.
      */
     public fun solveInto(
-        b: F64DenseMatrix,
-        out: F64DenseMatrix,
+        b: DenseMatrix,
+        out: DenseMatrix,
         transpose: Boolean = false,
         workspace: Workspace? = null,
-    ): F64DenseMatrix {
+    ): DenseMatrix {
         requireSolveShapes(n, n, b, out)
         if (b.cols == 0) return out
         workspace.borrow(n) { rhs ->
@@ -123,7 +123,7 @@ public interface F64SparseFactorization : AutoCloseable {
  */
 public interface F64BasisFactorization : F64SparseLuFactorization {
     /** The square basis matrix represented by this factorization. */
-    public val basis: F64SparseMatrix
+    public val basis: SparseMatrix
 
     /**
      * Replace [column] of [basis] with [entering] and return the factorization of the resulting basis, which
@@ -131,20 +131,20 @@ public interface F64BasisFactorization : F64SparseLuFactorization {
      *
      * [column] must name a column of [basis], and [entering] must have length [n].
      */
-    public fun replaceColumn(column: Int, entering: F64SparseVector): F64BasisFactorization
+    public fun replaceColumn(column: Int, entering: SparseVector): F64BasisFactorization
 }
 
 /**
- * What [F64SparseDecompositions.factor] returns when no numerically acceptable pivot remains.
+ * What [SparseLapack.factor] returns when no numerically acceptable pivot remains.
  *
  * It fills the LU shape so a caller need not branch on the type, and raises on every factor: elimination
  * stopped before producing them, so there is nothing to hand back.
  */
 public class F64SingularSparseFactorization(override val n: Int, override val failedAt: Int) :
     F64SparseLuFactorization {
-    override val l: F64SparseMatrix get() = throw singularFailure(failedAt, "l")
+    override val l: SparseMatrix get() = throw singularFailure(failedAt, "l")
 
-    override val u: F64SparseMatrix get() = throw singularFailure(failedAt, "u")
+    override val u: SparseMatrix get() = throw singularFailure(failedAt, "u")
 
     override val rowOrder: IntArray get() = throw singularFailure(failedAt, "rowOrder")
 
@@ -152,7 +152,7 @@ public class F64SingularSparseFactorization(override val n: Int, override val fa
 
     override val rowScaling: DoubleArray get() = throw singularFailure(failedAt, "rowScaling")
 
-    override val offDiagonal: F64SparseMatrix get() = throw singularFailure(failedAt, "offDiagonal")
+    override val offDiagonal: SparseMatrix get() = throw singularFailure(failedAt, "offDiagonal")
 
     override val nnz: Int get() = 0
 
@@ -166,7 +166,7 @@ public class F64SingularSparseFactorization(override val n: Int, override val fa
 }
 
 /**
- * A basis factorization over any [F64SparseDecompositions], for a backend that cannot update its own factors. A
+ * A basis factorization over any [SparseLapack], for a backend that cannot update its own factors. A
  * replacement refactorizes the basis it produces, so the factors stay exact at the cost of a factorization
  * per replacement.
  *
@@ -174,8 +174,8 @@ public class F64SingularSparseFactorization(override val n: Int, override val fa
  * builds it from. Nothing koblas binds offers one natively.
  */
 public class F64RefactoringBasisFactorization(
-    private val lu: F64SparseDecompositions,
-    override val basis: F64SparseMatrix,
+    private val lu: SparseLapack,
+    override val basis: SparseMatrix,
     private val factors: F64SparseLuFactorization,
 ) : F64BasisFactorization {
     private var closed = false
@@ -188,13 +188,13 @@ public class F64RefactoringBasisFactorization(
 
     override val failedAt: Int get() = factors.failedAt
 
-    override val l: F64SparseMatrix
+    override val l: SparseMatrix
         get() {
             checkOpen()
             return factors.l
         }
 
-    override val u: F64SparseMatrix
+    override val u: SparseMatrix
         get() {
             checkOpen()
             return factors.u
@@ -218,7 +218,7 @@ public class F64RefactoringBasisFactorization(
             return factors.rowScaling
         }
 
-    override val offDiagonal: F64SparseMatrix
+    override val offDiagonal: SparseMatrix
         get() {
             checkOpen()
             return factors.offDiagonal
@@ -239,7 +239,7 @@ public class F64RefactoringBasisFactorization(
         return factors.solveAllocation(aliasing, transpose)
     }
 
-    override fun replaceColumn(column: Int, entering: F64SparseVector): F64BasisFactorization {
+    override fun replaceColumn(column: Int, entering: SparseVector): F64BasisFactorization {
         checkOpen()
         val next = basis.withColumn(column, entering)
         val replacement = F64RefactoringBasisFactorization(lu, next, lu.factor(next))

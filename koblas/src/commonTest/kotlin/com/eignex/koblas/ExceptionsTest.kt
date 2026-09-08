@@ -1,6 +1,6 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.core.*
+import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.sparse.F64SingularSparseFactorization
 import kotlin.test.*
@@ -9,9 +9,9 @@ class ExceptionsTest {
 
     @Test
     fun `a shape mismatch is a DimensionMismatch`() {
-        val a = F64DenseMatrix.zero(2, 3)
-        assertFailsWith<DimensionMismatch> { F64DenseVector.zero(2) dot F64DenseVector.zero(3) }
-        assertFailsWith<DimensionMismatch> { koblas.gemm(a, F64DenseMatrix.zero(2, 2)) }
+        val a = DenseMatrix.zero(2, 3)
+        assertFailsWith<DimensionMismatch> { DenseVector.zero(2) dot DenseVector.zero(3) }
+        assertFailsWith<DimensionMismatch> { koblas.gemm(a, DenseMatrix.zero(2, 2)) }
     }
 
     @Test

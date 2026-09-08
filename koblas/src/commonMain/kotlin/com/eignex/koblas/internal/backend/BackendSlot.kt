@@ -2,22 +2,22 @@ package com.eignex.koblas.internal.backend
 
 import com.eignex.koblas.Backend
 import com.eignex.koblas.BackendRole
-import com.eignex.koblas.F64Context
+import com.eignex.koblas.KoblasContext
 import com.eignex.koblas.MissingRepeatedSparseLu
-import com.eignex.koblas.dense.F64Blas
-import com.eignex.koblas.dense.F64Kernels
+import com.eignex.koblas.dense.Blas
 import com.eignex.koblas.dense.F64PlatformKernels
 import com.eignex.koblas.dense.F64ReferenceBlas
+import com.eignex.koblas.dense.Kernels
 import com.eignex.koblas.sparse.F64BasisFactorizations
 import com.eignex.koblas.sparse.F64GeneralSparseLu
 import com.eignex.koblas.sparse.F64PlatformSparseKernels
 import com.eignex.koblas.sparse.F64QuasiDefiniteLdl
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.F64RepeatedSparseLu
-import com.eignex.koblas.sparse.F64SparseBlas
 import com.eignex.koblas.sparse.F64SparseCholesky
-import com.eignex.koblas.sparse.F64SparseKernels
 import com.eignex.koblas.sparse.F64SparseQr
+import com.eignex.koblas.sparse.SparseBlas
+import com.eignex.koblas.sparse.SparseKernels
 import com.eignex.koblas.sparse.basis.F64BasisSolvers
 
 /**
@@ -25,7 +25,7 @@ import com.eignex.koblas.sparse.basis.F64BasisSolvers
  * one: which interface fills it, how to read it out of a context, what koblas's own implementation is, the
  * keys a deployment pins it with, and whether a specialized provider should leave it alone.
  *
- * One entry per half rather than one table per question. The registry and [com.eignex.koblas.F64ContextBuilder]
+ * One entry per half rather than one table per question. The registry and [com.eignex.koblas.ContextBuilder]
  * both select backends, and a half described in two places is a half the two paths can answer differently.
  * The constant names are the interface names, which is what makes them usable in a diagnostic. A vector half
  * is one sitting below the matrix routines, as the vector-vector kernels do.
@@ -37,7 +37,7 @@ internal enum class BackendSlot(
     /** Whether a backend implements this half, which is the type test only the compiler can write. */
     internal val accepts: (Backend) -> Boolean,
     /** Reads this half out of a resolved context. */
-    internal val from: (F64Context) -> Backend,
+    internal val from: (KoblasContext) -> Backend,
     /** koblas's own implementation, for a selection that names nothing for this half. */
     internal val portableDefault: () -> Backend,
     /** The system property and environment variable a deployment pins this half with. */
@@ -49,9 +49,9 @@ internal enum class BackendSlot(
     internal val required: Boolean = true,
 ) {
     /** Dense vector-vector routines. */
-    F64Kernels(
+    Kernels(
         role = BackendRole.DENSE_KERNELS,
-        accepts = { it is F64Kernels },
+        accepts = { it is Kernels },
         from = { it.kernels },
         portableDefault = { F64PlatformKernels },
         selectionKeys = BackendSelectionKeys(
@@ -62,9 +62,9 @@ internal enum class BackendSlot(
     ),
 
     /** Dense matrix routines. */
-    F64Blas(
+    Blas(
         role = BackendRole.DENSE_BLAS,
-        accepts = { it is F64Blas },
+        accepts = { it is Blas },
         from = { it.blas },
         portableDefault = { F64ReferenceBlas },
         selectionKeys = BackendSelectionKeys(
@@ -74,9 +74,9 @@ internal enum class BackendSlot(
     ),
 
     /** Sparse vector-vector routines. */
-    F64SparseKernels(
+    SparseKernels(
         role = BackendRole.SPARSE_KERNELS,
-        accepts = { it is F64SparseKernels },
+        accepts = { it is SparseKernels },
         from = { it.sparseKernels },
         portableDefault = { F64PlatformSparseKernels },
         selectionKeys = BackendSelectionKeys(
@@ -88,9 +88,9 @@ internal enum class BackendSlot(
     ),
 
     /** Sparse matrix routines. */
-    F64SparseBlas(
+    SparseBlas(
         role = BackendRole.SPARSE_BLAS,
-        accepts = { it is F64SparseBlas },
+        accepts = { it is SparseBlas },
         from = { it.sparseBlas },
         portableDefault = { F64ReferenceSparseLinearAlgebra },
         selectionKeys = BackendSelectionKeys(

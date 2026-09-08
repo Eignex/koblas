@@ -1,13 +1,13 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.Backend
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.UnsafeKoblasApi
-import com.eignex.koblas.core.F64SparseMatrix
 
 /** General pivoting sparse LU for unrelated matrix patterns. */
 public interface F64GeneralSparseLu : Backend {
     /** Factorizes the square [a] for general solves. */
-    public fun factor(a: F64SparseMatrix): F64SparseLuFactorization
+    public fun factor(a: SparseMatrix): F64SparseLuFactorization
 }
 
 /** Sparse LU optimized for repeated numeric factorizations of one structural pattern. */
@@ -16,13 +16,13 @@ public interface F64RepeatedSparseLu : Backend {
      * Analyzes the structure of [a] for repeated numeric factorizations. The caller owns the returned
      * analysis and must close it after every factor produced from it has been closed.
      */
-    public fun analyze(a: F64SparseMatrix): F64SparseLuAnalysis = RefactoringSparseLuAnalysis(this, a)
+    public fun analyze(a: SparseMatrix): F64SparseLuAnalysis = RefactoringSparseLuAnalysis(this, a)
 
     /** Creates the initial factorization of [a]. */
-    public fun factor(a: F64SparseMatrix): F64SparseLuFactorization
+    public fun factor(a: SparseMatrix): F64SparseLuFactorization
 
     /** Refactorizes [a], reusing [previous] when its structure is compatible. */
-    public fun refactor(previous: F64SparseLuFactorization, a: F64SparseMatrix): F64SparseLuFactorization
+    public fun refactor(previous: F64SparseLuFactorization, a: SparseMatrix): F64SparseLuFactorization
 }
 
 /**
@@ -37,11 +37,11 @@ public interface F64RepeatedSparseLu : Backend {
 public interface F64SparseLuAnalysis : AutoCloseable {
     /** Creates numeric factors for [a].
      *  @throws IllegalArgumentException when [a] does not have the analyzed structure. */
-    public fun factor(a: F64SparseMatrix): F64SparseLuFactorization
+    public fun factor(a: SparseMatrix): F64SparseLuFactorization
 
     /** Refactorizes [a] through this analysis, superseding [previous].
      *  @throws IllegalArgumentException when [a] does not have the analyzed structure. */
-    public fun refactor(previous: F64SparseLuFactorization, a: F64SparseMatrix): F64SparseLuFactorization
+    public fun refactor(previous: F64SparseLuFactorization, a: SparseMatrix): F64SparseLuFactorization
 
     /** Releases this symbolic analysis. */
     override fun close()
@@ -55,10 +55,10 @@ internal class SparsePattern private constructor(
     private val rowIndices: IntArray,
 ) {
     @OptIn(UnsafeKoblasApi::class)
-    private fun matches(a: F64SparseMatrix): Boolean = rows == a.rows && cols == a.cols &&
+    private fun matches(a: SparseMatrix): Boolean = rows == a.rows && cols == a.cols &&
         columnPointers.contentEquals(a.colPtr) && rowIndices.contentEquals(a.rowIdx)
 
-    fun requireMatch(a: F64SparseMatrix) {
+    fun requireMatch(a: SparseMatrix) {
         require(matches(a)) {
             "sparse pattern ${a.rows}x${a.cols} with ${a.nnz} entries does not match " +
                 "${rows}x$cols with ${rowIndices.size} entries"
@@ -66,7 +66,7 @@ internal class SparsePattern private constructor(
     }
 
     companion object {
-        fun of(a: F64SparseMatrix): SparsePattern = SparsePattern(
+        fun of(a: SparseMatrix): SparsePattern = SparsePattern(
             a.rows,
             a.cols,
             a.copyColumnPointers(),
@@ -82,12 +82,12 @@ internal class SparsePattern private constructor(
  * Written once because the promise is one promise. [what] names the analysis in the failure, which is the
  * only part the two kinds do not share.
  */
-private class AnalysisGuard(a: F64SparseMatrix, private val what: String) {
+private class AnalysisGuard(a: SparseMatrix, private val what: String) {
     private val pattern: SparsePattern = SparsePattern.of(a)
     private var closed = false
 
     /** Rejects a call after [close], then a matrix of another pattern. */
-    fun admit(a: F64SparseMatrix) {
+    fun admit(a: SparseMatrix) {
         check(!closed) { "$what is closed" }
         pattern.requireMatch(a)
     }
@@ -98,16 +98,16 @@ private class AnalysisGuard(a: F64SparseMatrix, private val what: String) {
     }
 }
 
-private class RefactoringSparseLuAnalysis(private val provider: F64RepeatedSparseLu, a: F64SparseMatrix) :
+private class RefactoringSparseLuAnalysis(private val provider: F64RepeatedSparseLu, a: SparseMatrix) :
     F64SparseLuAnalysis {
     private val guard = AnalysisGuard(a, "sparse LU analysis")
 
-    override fun factor(a: F64SparseMatrix): F64SparseLuFactorization {
+    override fun factor(a: SparseMatrix): F64SparseLuFactorization {
         guard.admit(a)
         return provider.factor(a)
     }
 
-    override fun refactor(previous: F64SparseLuFactorization, a: F64SparseMatrix): F64SparseLuFactorization {
+    override fun refactor(previous: F64SparseLuFactorization, a: SparseMatrix): F64SparseLuFactorization {
         guard.admit(a)
         val next = provider.refactor(previous, a)
         if (next !== previous) previous.close()
@@ -141,7 +141,7 @@ private class RefactoringSparseLuAnalysis(private val provider: F64RepeatedSpars
 public interface F64SparseSymbolicAnalysis<out F : AutoCloseable> : AutoCloseable {
     /** Numerically factorizes [a], which must have the analyzed pattern.
      *  @throws IllegalArgumentException when [a] does not have the analyzed structure. */
-    public fun factor(a: F64SparseMatrix): F
+    public fun factor(a: SparseMatrix): F
 
     /** Releases this symbolic analysis. */
     override fun close()
@@ -153,13 +153,11 @@ public interface F64SparseSymbolicAnalysis<out F : AutoCloseable> : AutoCloseabl
  * A provider whose analysis is nothing but the check passes its ordinary factorization as [numeric], which is
  * what a binding that keeps no reusable structure of its own does. A provider that has one closes over it.
  */
-internal class PatternOnlyAnalysis<F : AutoCloseable>(
-    a: F64SparseMatrix,
-    private val numeric: (F64SparseMatrix) -> F,
-) : F64SparseSymbolicAnalysis<F> {
+internal class PatternOnlyAnalysis<F : AutoCloseable>(a: SparseMatrix, private val numeric: (SparseMatrix) -> F) :
+    F64SparseSymbolicAnalysis<F> {
     private val guard = AnalysisGuard(a, "sparse symbolic analysis")
 
-    override fun factor(a: F64SparseMatrix): F {
+    override fun factor(a: SparseMatrix): F {
         guard.admit(a)
         return numeric(a)
     }
@@ -172,20 +170,20 @@ internal class PatternOnlyAnalysis<F : AutoCloseable>(
 /** Symmetric positive-definite sparse Cholesky factorization. */
 public interface F64SparseCholesky : Backend {
     /** Factorizes the lower triangle of [a] as `L * L^T`. */
-    public fun cholesky(a: F64SparseMatrix): F64SparseCholeskyFactorization
+    public fun cholesky(a: SparseMatrix): F64SparseCholeskyFactorization
 
     /** Analyzes the pattern of [a] for repeated factorizations of that structure. */
-    public fun analyzeCholesky(a: F64SparseMatrix): F64SparseSymbolicAnalysis<F64SparseCholeskyFactorization> =
+    public fun analyzeCholesky(a: SparseMatrix): F64SparseSymbolicAnalysis<F64SparseCholeskyFactorization> =
         PatternOnlyAnalysis(a) { cholesky(it) }
 }
 
 /** Sparse QR factorization of a tall or square matrix, for least-squares solves. */
 public interface F64SparseQr : Backend {
     /** Factorizes [a], which must have at least as many rows as columns, as `Q * R`. */
-    public fun qr(a: F64SparseMatrix): F64SparseQrFactorization
+    public fun qr(a: SparseMatrix): F64SparseQrFactorization
 
     /** Analyzes the pattern of [a] for repeated factorizations of that structure. */
-    public fun analyzeQr(a: F64SparseMatrix): F64SparseSymbolicAnalysis<F64SparseQrFactorization> =
+    public fun analyzeQr(a: SparseMatrix): F64SparseSymbolicAnalysis<F64SparseQrFactorization> =
         PatternOnlyAnalysis(a) { qr(it) }
 }
 
@@ -197,18 +195,17 @@ public interface F64SparseQr : Backend {
  */
 public interface F64QuasiDefiniteLdl : Backend {
     /** Factorizes [a]'s lower triangle as quasi-definite `L * D * L^T`. */
-    public fun quasiDefiniteLdl(a: F64SparseMatrix): F64QuasiDefiniteLdlFactorization
+    public fun quasiDefiniteLdl(a: SparseMatrix): F64QuasiDefiniteLdlFactorization
 
     /** Analyzes the pattern of [a] for repeated factorizations of that structure. */
-    public fun analyzeQuasiDefiniteLdl(
-        a: F64SparseMatrix,
-    ): F64SparseSymbolicAnalysis<F64QuasiDefiniteLdlFactorization> = PatternOnlyAnalysis(a) { quasiDefiniteLdl(it) }
+    public fun analyzeQuasiDefiniteLdl(a: SparseMatrix): F64SparseSymbolicAnalysis<F64QuasiDefiniteLdlFactorization> =
+        PatternOnlyAnalysis(a) { quasiDefiniteLdl(it) }
 }
 
 /** Sparse factorization of a simplex basis that supports column replacement. */
 public interface F64BasisFactorizations : Backend {
     /** Factorizes [basis] for subsequent column replacements. */
-    public fun factorBasis(basis: F64SparseMatrix): F64BasisFactorization
+    public fun factorBasis(basis: SparseMatrix): F64BasisFactorization
 }
 
 /**
@@ -224,7 +221,7 @@ internal class F64SparseDecompositionRoles(
     val choleskyProvider: F64SparseCholesky,
     val quasiDefiniteLdlProvider: F64QuasiDefiniteLdl,
     val qrProvider: F64SparseQr,
-) : F64SparseDecompositions {
+) : SparseLapack {
     override val name: String
         get() = listOf(generalLu.name, choleskyProvider.name, quasiDefiniteLdlProvider.name, qrProvider.name)
             .distinct()
@@ -243,9 +240,9 @@ internal class F64SparseDecompositionRoles(
         get() = generalLu.isAvailable && choleskyProvider.isAvailable && quasiDefiniteLdlProvider.isAvailable &&
             qrProvider.isAvailable
 
-    override fun factor(a: F64SparseMatrix): F64SparseLuFactorization = generalLu.factor(a)
-    override fun cholesky(a: F64SparseMatrix): F64SparseCholeskyFactorization = choleskyProvider.cholesky(a)
-    override fun quasiDefiniteLdl(a: F64SparseMatrix): F64QuasiDefiniteLdlFactorization =
+    override fun factor(a: SparseMatrix): F64SparseLuFactorization = generalLu.factor(a)
+    override fun cholesky(a: SparseMatrix): F64SparseCholeskyFactorization = choleskyProvider.cholesky(a)
+    override fun quasiDefiniteLdl(a: SparseMatrix): F64QuasiDefiniteLdlFactorization =
         quasiDefiniteLdlProvider.quasiDefiniteLdl(a)
-    override fun qr(a: F64SparseMatrix): F64SparseQrFactorization = qrProvider.qr(a)
+    override fun qr(a: SparseMatrix): F64SparseQrFactorization = qrProvider.qr(a)
 }

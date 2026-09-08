@@ -82,7 +82,7 @@ while unqualified aliases such as `DenseMatrix` and `SparseMatrix` name the F64 
 
 | Family | Scalar | Dense storage | Sparse storage | Sparse index |
 |--------|--------|---------------|----------------|--------------|
-| F64 | Kotlin Double | F64DenseVector, F64DenseMatrix, strided views | F64SparseVector, CSC F64SparseMatrix | Kotlin Int |
+| F64 | Kotlin Double | DenseVector, DenseMatrix, strided views | SparseVector, CSC SparseMatrix | Kotlin Int |
 
 Compatible DoubleArray and CSC buffers can be wrapped without copying. Dense matrices are column-major, and
 native sparse bindings use 32-bit-index entry points so sparse indices do not need widening copies.
@@ -158,7 +158,7 @@ BLAS options use named Boolean parameters such as lower, transpose, unitDiag, an
 
 ## Backends and routing
 
-Every operation runs through an F64Context. Top-level functions use the process-wide koblas context, whose
+Every operation runs through an KoblasContext. Top-level functions use the process-wide koblas context, whose
 registry selects providers independently by semantic role. General sparse LU, repeated-pattern LU, Cholesky,
 quasi-definite LDL, QR, basis factorization, and basis solving are separate choices rather than one
 interchangeable sparse backend.
@@ -182,10 +182,10 @@ check(route.execution == BackendExecution.NATIVE) {
 
 The `registerBackend(...)` function adds a provider explicitly. The `installBackends(...)` function replaces the
 process-wide context; passing null restores registry selection. For locally scoped control, use an immutable
-F64ContextBuilder:
+ContextBuilder:
 
 ```kotlin
-val strictBlas = F64ContextBuilder()
+val strictBlas = ContextBuilder()
     .withBackend(BackendRole.DENSE_BLAS, selectedBlas)
     .withDispatchPolicy(F64DispatchPolicy.NATIVE_ONLY)
     .resolve()
@@ -308,7 +308,7 @@ single-threaded.
 
 | Object | Contract |
 |--------|----------|
-| F64Context, status, and route values | Immutable after resolution and safe to share. |
+| KoblasContext, status, and route values | Immutable after resolution and safe to share. |
 | Global backend registry | Configure during startup; process-wide selection is intentionally global. |
 | Owned dense and sparse containers | Mutable and unsynchronized; concurrent reads require no reachable writer. |
 | Strided views | Borrow live storage; the owner must outlive every use. |

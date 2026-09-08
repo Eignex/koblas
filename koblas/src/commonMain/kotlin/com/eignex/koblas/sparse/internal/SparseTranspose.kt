@@ -1,6 +1,6 @@
 package com.eignex.koblas.sparse.internal
 
-import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.SparseMatrix
 
 /**
  * The CSC transpose, which is also the CSC-to-CSR conversion. Explicitly stored zeros survive, since the
@@ -10,7 +10,7 @@ import com.eignex.koblas.core.F64SparseMatrix
  * transpose too, and reaching the seam for it would route the definition of a routine through whichever
  * backend happens to be registered.
  */
-internal fun transposeCsc(a: F64SparseMatrix): F64SparseMatrix =
+internal fun transposeCsc(a: SparseMatrix): SparseMatrix =
     transposeOf(a.rows, a.cols, a.colPtr, a.rowIdx, a.values, trusted = true)
 
 /**
@@ -24,7 +24,7 @@ internal fun transposeRaw(
     colPtr: IntArray,
     rowIdx: IntArray,
     values: DoubleArray,
-): F64SparseMatrix = transposeOf(rows, cols, colPtr, rowIdx, values, trusted = false)
+): SparseMatrix = transposeOf(rows, cols, colPtr, rowIdx, values, trusted = false)
 
 /**
  * The transpose itself. [trusted] says the input already holds the CSC invariant, which makes the output
@@ -40,7 +40,7 @@ private fun transposeOf(
     rowIdx: IntArray,
     values: DoubleArray,
     trusted: Boolean,
-): F64SparseMatrix {
+): SparseMatrix {
     val outPtr = IntArray(rows + 1)
     for (k in rowIdx.indices) outPtr[rowIdx[k] + 1]++
     for (i in 0 until rows) outPtr[i + 1] += outPtr[i]
@@ -55,9 +55,9 @@ private fun transposeOf(
         }
     }
     return if (trusted) {
-        F64SparseMatrix.wrapTrusted(cols, rows, outPtr, outIdx, outVal)
+        SparseMatrix.wrapTrusted(cols, rows, outPtr, outIdx, outVal)
     } else {
-        F64SparseMatrix.wrap(cols, rows, outPtr, outIdx, outVal)
+        SparseMatrix.wrap(cols, rows, outPtr, outIdx, outVal)
     }
 }
 
@@ -76,7 +76,7 @@ internal fun sortedCsc(
     rowIdx: IntArray,
     values: DoubleArray,
     transposed: Boolean = false,
-): F64SparseMatrix {
+): SparseMatrix {
     val once = transposeRaw(rows, cols, colPtr, rowIdx, values)
     if (transposed) return once
     return transposeCsc(once)

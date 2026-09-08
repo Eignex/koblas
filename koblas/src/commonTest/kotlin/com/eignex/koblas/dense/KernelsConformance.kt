@@ -1,6 +1,6 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.F64ModifiedGivens
+import com.eignex.koblas.ModifiedGivens
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.rotg
 import kotlin.math.abs
@@ -8,7 +8,7 @@ import kotlin.math.sqrt
 import kotlin.random.Random
 import kotlin.test.assertEquals
 
-// The F64Kernels contract, over any implementation. The compiled-in kernels and a host binding must both
+// The Kernels contract, over any implementation. The compiled-in kernels and a host binding must both
 // satisfy it, and a host kernels class exists only on the native targets, so the assertions live here rather
 // than beside either caller.
 
@@ -19,7 +19,7 @@ import kotlin.test.assertEquals
  * 600 clears any unrolled body a wide-lane host takes, whose own threshold scales with the lane count and so
  * sits above the shorter lengths here.
  */
-internal fun assertLevel1KernelsAgreeWithScalar(kernels: F64Kernels) {
+internal fun assertLevel1KernelsAgreeWithScalar(kernels: Kernels) {
     val rng = Random(20260731)
     for (len in intArrayOf(1, 7, 31, 32, 63, 64, 65, 200, 600)) {
         val pad = 3
@@ -56,7 +56,7 @@ internal fun assertLevel1KernelsAgreeWithScalar(kernels: F64Kernels) {
 }
 
 /** Modified Givens construction and strided application against the portable kernel implementation. */
-internal fun assertModifiedGivensKernelsAgreeWithPortable(kernels: F64Kernels) {
+internal fun assertModifiedGivensKernelsAgreeWithPortable(kernels: Kernels) {
     val inputs = listOf(
         doubleArrayOf(-1.0, 3.0, 2.0, 4.0),
         doubleArrayOf(1.0, 0.0, 2.0, 4.0),
@@ -109,7 +109,7 @@ internal fun assertModifiedGivensKernelsAgreeWithPortable(kernels: F64Kernels) {
  * rotation instead of implementing one would pass, but there is no such leaf to inherit from, so the
  * failure this catches is a leaf whose own rotation disagrees.
  */
-internal fun assertRotKernelAgreesWithPortable(kernels: F64Kernels) {
+internal fun assertRotKernelAgreesWithPortable(kernels: Kernels) {
     val rotation = rotg(3.0, 4.0)
     for (len in intArrayOf(0, 1, 7, 63, 64, 65, 200)) {
         val pad = 3
@@ -126,7 +126,7 @@ internal fun assertRotKernelAgreesWithPortable(kernels: F64Kernels) {
     }
 }
 
-private fun assertModifiedGivensClose(expected: F64ModifiedGivens, actual: F64ModifiedGivens, context: String) {
+private fun assertModifiedGivensClose(expected: ModifiedGivens, actual: ModifiedGivens, context: String) {
     assertClose(
         doubleArrayOf(
             expected.d1,
@@ -156,7 +156,7 @@ private fun assertModifiedGivensClose(expected: F64ModifiedGivens, actual: F64Mo
  * Exchange, at a non-zero offset in both operands and at lengths that straddle a lane boundary, so a kernel
  * that swaps whole vectors is checked for leaving the padding either side untouched.
  */
-internal fun assertSwapAgreesWithScalar(kernels: F64Kernels) {
+internal fun assertSwapAgreesWithScalar(kernels: Kernels) {
     val rng = Random(20260826)
     for (len in intArrayOf(1, 7, 63, 64, 65, 200, 600)) {
         val pad = 3
@@ -183,7 +183,7 @@ internal fun assertSwapAgreesWithScalar(kernels: F64Kernels) {
  * The reductions at scales whose squares leave the exponent range, which is what forces `nrm2` to rescale
  * rather than sum squares directly, plus the zero run both must report as zero exactly.
  */
-internal fun assertReductionsAgreeWithScalar(kernels: F64Kernels) {
+internal fun assertReductionsAgreeWithScalar(kernels: Kernels) {
     val rng = Random(20260951)
     for (scale in doubleArrayOf(1.0, 1e200, 1e-200)) {
         for (len in intArrayOf(1, 31, 32, 63, 64, 200, 600)) {

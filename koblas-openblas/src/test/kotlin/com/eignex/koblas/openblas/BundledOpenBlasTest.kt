@@ -1,7 +1,7 @@
 package com.eignex.koblas.openblas
 
 import com.eignex.koblas.*
-import com.eignex.koblas.core.F64DenseMatrix
+import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.dense.host.cblas.OpenBlasOptions
 import kotlin.test.*
 
@@ -17,8 +17,8 @@ class BundledOpenBlasTest {
         val backend = BundledOpenBlas()
 
         assertTrue(backend.isAvailable)
-        val a = F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 3.0), doubleArrayOf(2.0, 4.0)))
-        val out = F64DenseMatrix.zero(2)
+        val a = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 3.0), doubleArrayOf(2.0, 4.0)))
+        val out = DenseMatrix.zero(2)
         backend.gemm(1.0, a, false, a, false, 0.0, out)
 
         assertEquals(listOf(7.0, 10.0, 15.0, 22.0), out.data.toList())

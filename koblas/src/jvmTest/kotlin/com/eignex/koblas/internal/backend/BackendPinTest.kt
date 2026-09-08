@@ -17,17 +17,17 @@ class BackendPinTest {
 
     @Test
     fun `a role pin naming another backend leaves every other role`() {
-        val requested = unpinned() + (BackendSlot.F64Blas to "openblas")
+        val requested = unpinned() + (BackendSlot.Blas to "openblas")
         assertEquals(
-            BackendSlot.entries.toSet() - BackendSlot.F64Blas,
+            BackendSlot.entries.toSet() - BackendSlot.Blas,
             offerFor(namedProvider("vendor"), requested).halves,
         )
     }
 
     @Test
     fun `a role pin takes the backend it names`() {
-        val requested = BackendSlot.entries.associateWith { "reference" } + (BackendSlot.F64SparseBlas to "vendor")
-        assertEquals(setOf(BackendSlot.F64SparseBlas), offerFor(namedProvider("vendor"), requested).halves)
+        val requested = BackendSlot.entries.associateWith { "reference" } + (BackendSlot.SparseBlas to "vendor")
+        assertEquals(setOf(BackendSlot.SparseBlas), offerFor(namedProvider("vendor"), requested).halves)
     }
 
     @Test

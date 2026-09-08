@@ -25,24 +25,24 @@ HEADER_END = re.compile(r"\b(?:fun|class|interface|object|typealias|val|var)\b")
 # These are the public operation facades. Storage construction, backend configuration, and lifecycle methods are
 # intentionally not numerical operations. Keep this list alongside a new facade so the inventory remains complete.
 PUBLIC_NUMERICAL_SOURCES = (
-    "F64Givens.kt",
-    "F64ModifiedGivens.kt",
+    "Givens.kt",
+    "ModifiedGivens.kt",
     "MatrixNorms.kt",
     "MatrixOps.kt",
     "MatrixScaling.kt",
     "MatrixSlices.kt",
     "Operators.kt",
     "VectorOps.kt",
-    "dense/F64Blas.kt",
-    "dense/F64Kernels.kt",
+    "dense/Blas.kt",
+    "dense/Kernels.kt",
     "dense/Triangular.kt",
-    "sparse/F64SparseBlas.kt",
-    "sparse/F64SparseDecompositions.kt",
+    "sparse/SparseBlas.kt",
+    "sparse/SparseLapack.kt",
     "sparse/F64SparseFactorization.kt",
-    "sparse/F64SparseKernels.kt",
+    "sparse/SparseKernels.kt",
     "sparse/F64SparseQrFactorization.kt",
     "sparse/SparseOps.kt",
-    "sparse/basis/F64BasisSolver.kt",
+    "sparse/basis/BasisSolver.kt",
     "sparse/basis/F64BasisSolvers.kt",
 )
 

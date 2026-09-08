@@ -1,8 +1,8 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
-import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.dense.trmm
 import com.eignex.koblas.dense.trmv
 import com.eignex.koblas.dense.trsm
@@ -13,13 +13,8 @@ import kotlin.test.*
 
 class SparseTriangularTest {
 
-    private fun triangle(
-        n: Int,
-        lower: Boolean,
-        rng: Random,
-        density: Double = 0.4,
-    ): Pair<F64SparseMatrix, F64DenseMatrix> {
-        val dense = F64DenseMatrix(n, n)
+    private fun triangle(n: Int, lower: Boolean, rng: Random, density: Double = 0.4): Pair<SparseMatrix, DenseMatrix> {
+        val dense = DenseMatrix(n, n)
         val columns = ArrayList<List<Pair<Int, Double>>>(n)
         for (j in 0 until n) {
             val column = ArrayList<Pair<Int, Double>>()
@@ -38,7 +33,7 @@ class SparseTriangularTest {
             }
             columns.add(column)
         }
-        return F64SparseMatrix.ofColumns(n, n, columns) to dense
+        return SparseMatrix.ofColumns(n, n, columns) to dense
     }
 
     @Test
@@ -96,9 +91,9 @@ class SparseTriangularTest {
                     val (sparse, dense) = triangle(n, lower, rng)
                     val b = if (right) randomMatrix(rightHandSides, n, rng) else randomMatrix(n, rightHandSides, rng)
 
-                    val fromDense = F64DenseMatrix.wrap(b.rows, b.cols, b.data.copyOf())
+                    val fromDense = DenseMatrix.wrap(b.rows, b.cols, b.data.copyOf())
                     dense.trsm(fromDense, lower, transpose, right = right)
-                    val fromSparse = F64DenseMatrix.wrap(b.rows, b.cols, b.data.copyOf())
+                    val fromSparse = DenseMatrix.wrap(b.rows, b.cols, b.data.copyOf())
                     sparse.trsm(fromSparse, lower, transpose, right = right, workspace = Workspace())
 
                     assertClose(
@@ -131,9 +126,9 @@ class SparseTriangularTest {
                             } else {
                                 randomMatrix(n, rightHandSides, rng)
                             }
-                            val expected = F64DenseMatrix.wrap(b.rows, b.cols, b.data.copyOf())
+                            val expected = DenseMatrix.wrap(b.rows, b.cols, b.data.copyOf())
                             dense.trmm(expected, lower, transpose, unitDiag, right, alpha = -0.75)
-                            val actual = F64DenseMatrix.wrap(b.rows, b.cols, b.data.copyOf())
+                            val actual = DenseMatrix.wrap(b.rows, b.cols, b.data.copyOf())
                             sparse.trmm(actual, lower, transpose, unitDiag, right, alpha = -0.75)
 
                             assertClose(
@@ -151,7 +146,7 @@ class SparseTriangularTest {
 
     @Test
     fun `triangular multiplication treats a missing diagonal as zero without division`() {
-        val triangle = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0, 1 to 3.0), listOf()))
+        val triangle = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0, 1 to 3.0), listOf()))
         val vector = doubleArrayOf(2.0, 4.0)
         triangle.trmv(vector, lower = true)
 
@@ -160,12 +155,12 @@ class SparseTriangularTest {
 
     @Test
     fun `triangular multiplication snapshots an aliased triangular value buffer`() {
-        val triangle = F64SparseMatrix.ofColumns(
+        val triangle = SparseMatrix.ofColumns(
             2,
             2,
             listOf(listOf(0 to 2.0, 1 to 3.0), listOf(0 to 0.0, 1 to 4.0)),
         )
-        val b = F64DenseMatrix.wrap(2, 2, triangle.values)
+        val b = DenseMatrix.wrap(2, 2, triangle.values)
 
         triangle.trmm(b, lower = true)
 
@@ -174,8 +169,8 @@ class SparseTriangularTest {
 
     @Test
     fun `an alpha of zero empties a multiply destination without reading the triangle`() {
-        val poisoned = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to Double.NaN), listOf(1 to Double.NaN)))
-        val b = F64DenseMatrix.wrap(2, 1, doubleArrayOf(1.0, 1.0))
+        val poisoned = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to Double.NaN), listOf(1 to Double.NaN)))
+        val b = DenseMatrix.wrap(2, 1, doubleArrayOf(1.0, 1.0))
 
         poisoned.trmm(b, lower = true, alpha = 0.0)
 
@@ -189,7 +184,7 @@ class SparseTriangularTest {
         val (sparse, _) = triangle(n, lower = true, rng)
         val b = randomMatrix(n, 3, rng)
 
-        val fromTrsm = F64DenseMatrix.wrap(n, 3, b.data.copyOf())
+        val fromTrsm = DenseMatrix.wrap(n, 3, b.data.copyOf())
         sparse.trsm(fromTrsm, lower = true)
 
         for (j in 0 until 3) {
@@ -206,9 +201,9 @@ class SparseTriangularTest {
         val (sparse, _) = triangle(n, lower = true, rng)
         val b = randomMatrix(n, 2, rng)
 
-        val scaled = F64DenseMatrix.wrap(n, 2, DoubleArray(b.data.size) { 2.5 * b.data[it] })
+        val scaled = DenseMatrix.wrap(n, 2, DoubleArray(b.data.size) { 2.5 * b.data[it] })
         sparse.trsm(scaled, lower = true)
-        val withAlpha = F64DenseMatrix.wrap(n, 2, b.data.copyOf())
+        val withAlpha = DenseMatrix.wrap(n, 2, b.data.copyOf())
         sparse.trsm(withAlpha, lower = true, alpha = 2.5)
 
         assertClose(scaled, withAlpha, "alpha must scale B", tolerance = 1e-9)
@@ -218,8 +213,8 @@ class SparseTriangularTest {
     fun `an alpha of zero empties the right-hand side without solving`() {
         val n = 3
         // A NaN diagonal, which a solve would spread through the answer.
-        val poisoned = F64SparseMatrix.ofColumns(n, n, List(n) { j -> listOf(j to Double.NaN) })
-        val b = F64DenseMatrix.wrap(n, 2, DoubleArray(n * 2) { 1.0 })
+        val poisoned = SparseMatrix.ofColumns(n, n, List(n) { j -> listOf(j to Double.NaN) })
+        val b = DenseMatrix.wrap(n, 2, DoubleArray(n * 2) { 1.0 })
 
         poisoned.trsm(b, lower = true, alpha = 0.0)
 
@@ -271,18 +266,18 @@ class SparseTriangularTest {
         }
         val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
         val fromClean = b.copyOf().also { clean.trsv(it, lower = true) }
-        val fromPoisoned = b.copyOf().also { F64SparseMatrix.ofColumns(n, n, poisoned).trsv(it, lower = true) }
+        val fromPoisoned = b.copyOf().also { SparseMatrix.ofColumns(n, n, poisoned).trsv(it, lower = true) }
         assertClose(fromClean, fromPoisoned, "a NaN in the unread triangle changed the answer", tolerance = 0.0)
     }
 
     @Test
     fun `a missing or zero diagonal follows IEEE division`() {
-        val missing = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf()))
+        val missing = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf()))
         val absent = doubleArrayOf(0.0, 1.0)
         missing.trsv(absent, lower = true)
         assertEquals(Double.POSITIVE_INFINITY, absent[1])
 
-        val zeroed = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 0.0)))
+        val zeroed = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 0.0)))
         val explicit = doubleArrayOf(0.0, -1.0)
         zeroed.trsv(explicit, lower = true)
         assertEquals(Double.NEGATIVE_INFINITY, explicit[1])
@@ -290,12 +285,12 @@ class SparseTriangularTest {
 
     @Test
     fun `sparse trsm retains stored products after a quotient underflows`() {
-        val triangle = F64SparseMatrix.ofColumns(
+        val triangle = SparseMatrix.ofColumns(
             2,
             2,
             listOf(listOf(0 to Double.POSITIVE_INFINITY, 1 to Double.POSITIVE_INFINITY), listOf(1 to 1.0)),
         )
-        val b = F64DenseMatrix(2, 2, doubleArrayOf(Double.MIN_VALUE, 0.0, 0.0, 0.0))
+        val b = DenseMatrix(2, 2, doubleArrayOf(Double.MIN_VALUE, 0.0, 0.0, 0.0))
 
         triangle.trsm(b, lower = true)
 
@@ -305,12 +300,12 @@ class SparseTriangularTest {
 
     @Test
     fun `right sparse trsm skips explicit zero triangle coefficients`() {
-        val triangle = F64SparseMatrix.ofColumns(
+        val triangle = SparseMatrix.ofColumns(
             2,
             2,
             listOf(listOf(0 to 1.0, 1 to 0.0), listOf(1 to 1.0)),
         )
-        val b = F64DenseMatrix(1, 2, doubleArrayOf(Double.POSITIVE_INFINITY, 1.0))
+        val b = DenseMatrix(1, 2, doubleArrayOf(Double.POSITIVE_INFINITY, 1.0))
 
         triangle.trsm(b, lower = true, right = true)
 
@@ -320,12 +315,12 @@ class SparseTriangularTest {
 
     @Test
     fun `a singular left block solve follows IEEE division`() {
-        val singular = F64SparseMatrix.ofColumns(
+        val singular = SparseMatrix.ofColumns(
             3,
             3,
             listOf(listOf(0 to 2.0, 1 to 1.0), listOf(), listOf(2 to 4.0)),
         )
-        val left = F64DenseMatrix(3, 2, doubleArrayOf(2.0, 6.0, 8.0, 4.0, 10.0, 12.0))
+        val left = DenseMatrix(3, 2, doubleArrayOf(2.0, 6.0, 8.0, 4.0, 10.0, 12.0))
         singular.trsm(left, lower = true)
         assertContentEquals(
             doubleArrayOf(1.0, Double.POSITIVE_INFINITY, 2.0, 2.0, Double.POSITIVE_INFINITY, 3.0),
@@ -335,12 +330,12 @@ class SparseTriangularTest {
 
     @Test
     fun `a singular right block solve follows IEEE division`() {
-        val singular = F64SparseMatrix.ofColumns(
+        val singular = SparseMatrix.ofColumns(
             3,
             3,
             listOf(listOf(0 to 2.0, 1 to 1.0), listOf(), listOf(2 to 4.0)),
         )
-        val right = F64DenseMatrix(2, 3, doubleArrayOf(2.0, 4.0, 6.0, 10.0, 8.0, 12.0))
+        val right = DenseMatrix(2, 3, doubleArrayOf(2.0, 4.0, 6.0, 10.0, 8.0, 12.0))
         singular.trsm(right, lower = true, right = true)
         assertContentEquals(
             doubleArrayOf(
@@ -358,7 +353,7 @@ class SparseTriangularTest {
     @Test
     fun `unitDiag takes the diagonal as one without reading it`() {
         // A diagonal of 5.0 that must be ignored, and a NaN one that must not even be looked at.
-        val lower = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 5.0, 1 to 3.0), listOf(1 to Double.NaN)))
+        val lower = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 5.0, 1 to 3.0), listOf(1 to Double.NaN)))
         val x = doubleArrayOf(1.0, 2.0)
         lower.trsv(x, lower = true, unitDiag = true)
         assertEquals(1.0, x[0])
@@ -374,26 +369,14 @@ class SparseTriangularTest {
     fun `it reaches the registered backend`() = withCleanBackends {
         var solveCalls = 0
         var multiplyCalls = 0
-        val counting = object : F64SparseBlas {
+        val counting = object : SparseBlas {
             override val name: String get() = "counting"
-            override fun trsv(
-                a: F64SparseMatrix,
-                x: DoubleArray,
-                lower: Boolean,
-                transpose: Boolean,
-                unitDiag: Boolean,
-            ) {
+            override fun trsv(a: SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
                 solveCalls++
                 F64ReferenceSparseLinearAlgebra.trsv(a, x, lower, transpose, unitDiag)
             }
 
-            override fun trmv(
-                a: F64SparseMatrix,
-                x: DoubleArray,
-                lower: Boolean,
-                transpose: Boolean,
-                unitDiag: Boolean,
-            ) {
+            override fun trmv(a: SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
                 multiplyCalls++
                 F64ReferenceSparseLinearAlgebra.trmv(a, x, lower, transpose, unitDiag)
             }
@@ -401,34 +384,34 @@ class SparseTriangularTest {
             @Suppress("LongParameterList")
             override fun gemv(
                 alpha: Double,
-                a: F64SparseMatrix,
+                a: SparseMatrix,
                 x: DoubleArray,
                 beta: Double,
                 y: DoubleArray,
                 transpose: Boolean,
             ) = F64ReferenceSparseLinearAlgebra.gemv(alpha, a, x, beta, y, transpose)
 
-            override fun transpose(a: F64SparseMatrix) = F64ReferenceSparseLinearAlgebra.transpose(a)
+            override fun transpose(a: SparseMatrix) = F64ReferenceSparseLinearAlgebra.transpose(a)
 
             @Suppress("LongParameterList")
             override fun gemm(
                 alpha: Double,
-                a: F64SparseMatrix,
+                a: SparseMatrix,
                 transposeA: Boolean,
-                b: F64DenseMatrix,
+                b: DenseMatrix,
                 transposeB: Boolean,
                 beta: Double,
-                c: F64DenseMatrix,
+                c: DenseMatrix,
                 right: Boolean,
                 workspace: Workspace?,
             ) = F64ReferenceSparseLinearAlgebra.gemm(alpha, a, transposeA, b, transposeB, beta, c, right, workspace)
 
-            override fun gemm(a: F64SparseMatrix, b: F64SparseMatrix) = F64ReferenceSparseLinearAlgebra.gemm(a, b)
+            override fun gemm(a: SparseMatrix, b: SparseMatrix) = F64ReferenceSparseLinearAlgebra.gemm(a, b)
 
             @Suppress("LongParameterList")
             override fun trsm(
-                a: F64SparseMatrix,
-                b: F64DenseMatrix,
+                a: SparseMatrix,
+                b: DenseMatrix,
                 lower: Boolean,
                 transpose: Boolean,
                 unitDiag: Boolean,
@@ -439,8 +422,8 @@ class SparseTriangularTest {
 
             @Suppress("LongParameterList")
             override fun trmm(
-                a: F64SparseMatrix,
-                b: F64DenseMatrix,
+                a: SparseMatrix,
+                b: DenseMatrix,
                 lower: Boolean,
                 transpose: Boolean,
                 unitDiag: Boolean,
@@ -449,7 +432,7 @@ class SparseTriangularTest {
             ) = F64ReferenceSparseLinearAlgebra.trmm(a, b, lower, transpose, unitDiag, right, alpha)
         }
         registerBackend(counting)
-        val t = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 4.0)))
+        val t = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 4.0)))
         t.trsv(doubleArrayOf(2.0, 4.0), lower = true)
         t.trmv(doubleArrayOf(2.0, 4.0), lower = true)
         assertEquals(1, solveCalls, "the solve extension must forward to the seam")

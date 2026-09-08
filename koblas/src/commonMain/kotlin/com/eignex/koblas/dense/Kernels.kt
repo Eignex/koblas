@@ -1,10 +1,10 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.Backend
-import com.eignex.koblas.F64ModifiedGivens
+import com.eignex.koblas.ModifiedGivens
 
 /**
- * The vector-vector routines as a backend half beneath [F64Blas]. Implementations must
+ * The vector-vector routines as a backend half beneath [Blas]. Implementations must
  * agree with [F64PlatformKernels] to within rounding and read nothing outside the (offset, length)
  * window.
  *
@@ -16,7 +16,7 @@ import com.eignex.koblas.F64ModifiedGivens
  * A length of zero is legal everywhere and does nothing: the triangular and Householder kernels reach the
  * last row with an empty tail, so every routine here is called that way.
  */
-public interface F64Kernels : Backend {
+public interface Kernels : Backend {
     /** Sum of a(aOff + i) * b(bOff + i) over the first [len] entries; `0` for an empty run. */
     public fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double
 
@@ -36,7 +36,7 @@ public interface F64Kernels : Backend {
     public fun asum(v: DoubleArray, vOff: Int, len: Int): Double
 
     /** Construct a modified Givens transformation (BLAS `drotmg`). */
-    public fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64ModifiedGivens
+    public fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens
 
     /**
      * Apply a modified Givens [transformation] (BLAS `drotm`) to [len] entries with independent offsets
@@ -52,7 +52,7 @@ public interface F64Kernels : Backend {
         yOff: Int,
         yStride: Int,
         len: Int,
-        transformation: F64ModifiedGivens,
+        transformation: ModifiedGivens,
     )
 
     /**
@@ -169,7 +169,7 @@ internal interface F64ArithmeticKernels {
  * The kernels compiled into this target: C on Native and on a JVM without `jdk.incubator.vector`, SIMD on
  * a JVM with the module. Its [Backend.name] is what `mathBackend` reports.
  */
-internal expect object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
+internal expect object F64PlatformKernels : Kernels, F64ArithmeticKernels {
     override val name: String
 
     override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double
@@ -190,7 +190,7 @@ internal expect object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
 
     override fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double
 
-    override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64ModifiedGivens
+    override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens
 
     @Suppress("LongParameterList")
     override fun rotm(
@@ -201,7 +201,7 @@ internal expect object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
         yOff: Int,
         yStride: Int,
         len: Int,
-        transformation: F64ModifiedGivens,
+        transformation: ModifiedGivens,
     )
 
     @Suppress("LongParameterList")

@@ -1,8 +1,8 @@
 package com.eignex.koblas.sparse.factorization.qr
 
 import com.eignex.koblas.SingularMatrix
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.sparse.columnDot
 import kotlin.math.sqrt
 import kotlin.random.Random
@@ -84,7 +84,7 @@ class F64SparseHouseholderQrTest {
     @Test
     fun `a rank deficient matrix is reported rather than solved`() {
         // Column 2 repeats column 0, so R(2, 2) is zero and the minimizer is a line rather than a point.
-        val a = F64SparseMatrix.ofColumns(
+        val a = SparseMatrix.ofColumns(
             4,
             3,
             listOf(
@@ -103,14 +103,14 @@ class F64SparseHouseholderQrTest {
 
     @Test
     fun `a wider than tall matrix is rejected`() {
-        val a = F64SparseMatrix.ofColumns(2, 3, listOf(listOf(0 to 1.0), listOf(1 to 1.0), listOf(0 to 1.0)))
+        val a = SparseMatrix.ofColumns(2, 3, listOf(listOf(0 to 1.0), listOf(1 to 1.0), listOf(0 to 1.0)))
 
         assertFailsWith<IllegalArgumentException> { F64SparseHouseholderQr.factor(a) }
     }
 
     @Test
     fun `an empty column leaves the factorization rank deficient`() {
-        val a = F64SparseMatrix.ofColumns(3, 2, listOf(listOf(0 to 1.0, 2 to 2.0), emptyList()))
+        val a = SparseMatrix.ofColumns(3, 2, listOf(listOf(0 to 1.0, 2 to 2.0), emptyList()))
 
         val qr = F64SparseHouseholderQr.factor(a)
 
@@ -124,7 +124,7 @@ class F64SparseHouseholderQrTest {
         // Column 1 has no row to pivot on, so the symbolic analysis widens the row space past m and Q stops
         // being an operator on three entries. Answering anyway returned a vector that was neither
         // orthogonal nor norm preserving, silently.
-        val a = F64SparseMatrix.ofColumns(3, 2, listOf(listOf(0 to 1.0, 2 to 2.0), emptyList()))
+        val a = SparseMatrix.ofColumns(3, 2, listOf(listOf(0 to 1.0, 2 to 2.0), emptyList()))
         val qr = F64SparseHouseholderQr.factor(a)
 
         assertFailsWith<SingularMatrix> { qr.applyQ(doubleArrayOf(1.0, 2.0, 3.0), transpose = true) }
@@ -133,7 +133,7 @@ class F64SparseHouseholderQrTest {
 
     @Test
     fun `applying Q round trips and preserves the norm at full rank`() {
-        val a = F64SparseMatrix.ofColumns(
+        val a = SparseMatrix.ofColumns(
             3,
             2,
             listOf(listOf(0 to 1.0, 2 to 2.0), listOf(1 to 3.0, 2 to 1.0)),
@@ -155,7 +155,7 @@ class F64SparseHouseholderQrTest {
 
     @Test
     fun `large finite values do not overflow the reflector`() {
-        val a = F64SparseMatrix.ofColumns(2, 1, listOf(listOf(0 to 1e200, 1 to 1e200)))
+        val a = SparseMatrix.ofColumns(2, 1, listOf(listOf(0 to 1e200, 1 to 1e200)))
 
         val x = F64SparseHouseholderQr.factor(a).solve(doubleArrayOf(1e200, 1e200))
 
@@ -165,7 +165,7 @@ class F64SparseHouseholderQrTest {
 
     @Test
     fun `small finite values do not lose the reflector tail`() {
-        val a = F64SparseMatrix.ofColumns(2, 1, listOf(listOf(0 to 1e-200, 1 to 1e-200)))
+        val a = SparseMatrix.ofColumns(2, 1, listOf(listOf(0 to 1e-200, 1 to 1e-200)))
 
         val x = F64SparseHouseholderQr.factor(a).solve(doubleArrayOf(0.0, 1e-200))
 
@@ -173,22 +173,22 @@ class F64SparseHouseholderQrTest {
     }
 }
 
-private fun tallSparseMatrix(m: Int, n: Int, rng: Random): F64SparseMatrix {
+private fun tallSparseMatrix(m: Int, n: Int, rng: Random): SparseMatrix {
     val columns = ArrayList<List<Pair<Int, Double>>>(n)
     for (j in 0 until n) {
         val rows = (listOf(j) + List(3) { rng.nextInt(m) }).distinct().sorted()
         columns.add(rows.map { row -> row to if (row == j) 2.0 + rng.nextDouble() else rng.nextDouble(-1.0, 1.0) })
     }
-    return F64SparseMatrix.ofColumns(m, n, columns)
+    return SparseMatrix.ofColumns(m, n, columns)
 }
 
-private fun multiply(a: F64SparseMatrix, x: DoubleArray): DoubleArray {
+private fun multiply(a: SparseMatrix, x: DoubleArray): DoubleArray {
     val y = DoubleArray(a.rows)
     for (j in 0 until a.cols) a.forEachInColumn(j) { row, value -> y[row] += value * x[j] }
     return y
 }
 
-private fun transposeMultiply(a: F64SparseMatrix, x: DoubleArray): DoubleArray {
+private fun transposeMultiply(a: SparseMatrix, x: DoubleArray): DoubleArray {
     val y = DoubleArray(a.cols)
     for (j in 0 until a.cols) a.forEachInColumn(j) { row, value -> y[j] += value * x[row] }
     return y

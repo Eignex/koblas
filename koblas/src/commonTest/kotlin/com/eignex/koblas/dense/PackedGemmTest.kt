@@ -13,7 +13,7 @@ import kotlin.test.assertEquals
  * row tile, and 300 crosses the depth block so more than one packed panel is accumulated into the same
  * tile of C.
  */
-internal fun assertPackedGemmAgreesWithWrittenOutProduct(kernels: F64Kernels) {
+internal fun assertPackedGemmAgreesWithWrittenOutProduct(kernels: Kernels) {
     val rng = Random(20260907)
     val alpha = -0.75
     val sizes = intArrayOf(1, 2, 7, 8, 9, 16, 33)
@@ -68,7 +68,7 @@ class PackedGemmTest {
     fun `the triangular tile walk skips the opposite half`() {
         for (lower in booleanArrayOf(true, false)) {
             var calls = 0
-            val recording = object : F64Kernels by F64ScalarKernels {
+            val recording = object : Kernels by F64ScalarKernels {
                 override fun gemmTile(
                     depth: Int,
                     packedA: DoubleArray,

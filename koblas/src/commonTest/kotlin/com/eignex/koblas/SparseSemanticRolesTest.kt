@@ -1,13 +1,13 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.sparse.*
 import kotlin.test.*
 
 class SparseSemanticRolesTest {
 
     private open class LegacyProvider(override val name: String, override val priority: Int) :
-        F64SparseDecompositions by F64ReferenceSparseLinearAlgebra {
+        SparseLapack by F64ReferenceSparseLinearAlgebra {
         override val isPortable: Boolean get() = false
     }
 
@@ -19,15 +19,14 @@ class SparseSemanticRolesTest {
         LegacyProvider(name, priority),
         F64GeneralSparseLu,
         F64RepeatedSparseLu {
-        override fun refactor(previous: F64SparseLuFactorization, a: F64SparseMatrix): F64SparseLuFactorization =
-            factor(a)
+        override fun refactor(previous: F64SparseLuFactorization, a: SparseMatrix): F64SparseLuFactorization = factor(a)
     }
 
     private class Basis(name: String = "basis", priority: Int = 200) :
         LegacyProvider(name, priority),
         F64GeneralSparseLu,
         F64BasisFactorizations {
-        override fun factorBasis(basis: F64SparseMatrix): F64BasisFactorization =
+        override fun factorBasis(basis: SparseMatrix): F64BasisFactorization =
             F64ReferenceSparseLinearAlgebra.factorBasis(basis)
     }
 
@@ -60,7 +59,7 @@ class SparseSemanticRolesTest {
         F64BasisFactorizations {
         override val isPortable: Boolean get() = true
 
-        override fun factorBasis(basis: F64SparseMatrix): F64BasisFactorization =
+        override fun factorBasis(basis: SparseMatrix): F64BasisFactorization =
             F64ReferenceSparseLinearAlgebra.factorBasis(basis)
     }
 
@@ -77,12 +76,12 @@ class SparseSemanticRolesTest {
         assertSame(general, koblas.generalSparseLu)
         assertSame(repeated, koblas.repeatedSparseLu)
         assertSame(basis, koblas.basisFactorizations)
-        assertSame(repeated, koblas.capability(F64Capabilities.repeatedSparseLu))
-        assertSame(basis, koblas.capability(F64Capabilities.basisFactorizations))
-        assertSame(repeated, backendNamed("repeated", F64Capabilities.repeatedSparseLu))
-        assertSame(basis, backendNamed("basis", F64Capabilities.basisFactorizations))
-        assertNull(backendNamed("repeated", F64Capabilities.generalSparseLu))
-        assertNull(backendNamed("basis", F64Capabilities.generalSparseLu))
+        assertSame(repeated, koblas.capability(Capabilities.repeatedSparseLu))
+        assertSame(basis, koblas.capability(Capabilities.basisFactorizations))
+        assertSame(repeated, backendNamed("repeated", Capabilities.repeatedSparseLu))
+        assertSame(basis, backendNamed("basis", Capabilities.basisFactorizations))
+        assertNull(backendNamed("repeated", Capabilities.generalSparseLu))
+        assertNull(backendNamed("basis", Capabilities.generalSparseLu))
         assertEquals(listOf("general"), registeredBackendNames(BackendRole.SPARSE_GENERAL_LU))
         assertEquals(listOf("repeated"), registeredBackendNames(BackendRole.SPARSE_REPEATED_LU))
         assertEquals(listOf("basis"), registeredBackendNames(BackendRole.BASIS_FACTORIZATIONS))
@@ -109,7 +108,7 @@ class SparseSemanticRolesTest {
         val provider = LegacyProvider("third-party", priority = 50)
 
         assertFailsWith<IllegalArgumentException> {
-            F64ContextBuilder().withBackend(BackendRole.SPARSE_GENERAL_LU, provider)
+            ContextBuilder().withBackend(BackendRole.SPARSE_GENERAL_LU, provider)
         }
     }
 
@@ -117,7 +116,7 @@ class SparseSemanticRolesTest {
     fun `a complete backend selects all four factorization providers`() {
         val provider = Complete()
 
-        val context = F64ContextBuilder()
+        val context = ContextBuilder()
             .withBackend(provider)
             .resolve()
 
@@ -132,7 +131,7 @@ class SparseSemanticRolesTest {
     fun `a configured portable decomposition fills every factorization role`() {
         val provider = F64ReferenceSparseDecompositions(equilibrate = true)
 
-        val context = F64ContextBuilder()
+        val context = ContextBuilder()
             .withBackend(provider)
             .resolve()
 
@@ -148,7 +147,7 @@ class SparseSemanticRolesTest {
         val repeated = Repeated()
         val basis = Basis()
 
-        val context = F64ContextBuilder()
+        val context = ContextBuilder()
             .withBackend(BackendRole.SPARSE_GENERAL_LU, general)
             .withBackend(BackendRole.SPARSE_REPEATED_LU, repeated)
             .withBackend(BackendRole.BASIS_FACTORIZATIONS, basis)
@@ -166,7 +165,7 @@ class SparseSemanticRolesTest {
         val repeated = Repeated()
         val basis = Basis()
 
-        val context = F64ContextBuilder()
+        val context = ContextBuilder()
             .withBackend(repeated)
             .withBackend(basis)
             .resolve()
@@ -207,7 +206,7 @@ class SparseSemanticRolesTest {
     fun `a portable provider filling a specialized half keeps general LU in an explicit context`() {
         val provider = PortableComplete()
 
-        val context = F64ContextBuilder()
+        val context = ContextBuilder()
             .withBackend(provider)
             .resolve()
 
@@ -219,7 +218,7 @@ class SparseSemanticRolesTest {
     fun `a specialized provider can be explicitly selected for general LU`() {
         val repeated = Repeated()
 
-        val context = F64ContextBuilder()
+        val context = ContextBuilder()
             .withBackend(BackendRole.SPARSE_GENERAL_LU, repeated)
             .resolve()
 
@@ -235,5 +234,4 @@ class SparseSemanticRolesTest {
     }
 }
 
-private fun F64SparseDecompositions.generalLuProviderName(): String =
-    (this as F64SparseDecompositionRoles).generalLu.name
+private fun SparseLapack.generalLuProviderName(): String = (this as F64SparseDecompositionRoles).generalLu.name

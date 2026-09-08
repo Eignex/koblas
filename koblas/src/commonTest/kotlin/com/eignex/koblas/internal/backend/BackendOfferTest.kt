@@ -1,14 +1,14 @@
 package com.eignex.koblas.internal.backend
 
 import com.eignex.koblas.BackendRole
-import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.koblas
 import com.eignex.koblas.registeredBackendNames
 import com.eignex.koblas.sparse.F64GeneralSparseLu
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.F64RepeatedSparseLu
-import com.eignex.koblas.sparse.F64SparseDecompositions
 import com.eignex.koblas.sparse.F64SparseLuFactorization
+import com.eignex.koblas.sparse.SparseLapack
 import com.eignex.koblas.withCleanBackends
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -22,15 +22,14 @@ class BackendOfferTest {
 
     /** A host library whose ordinary LU is its repeated-pattern specialization's. */
     private class Specialized(override val name: String = "specialized") :
-        F64SparseDecompositions by F64ReferenceSparseLinearAlgebra,
+        SparseLapack by F64ReferenceSparseLinearAlgebra,
         F64GeneralSparseLu,
         F64RepeatedSparseLu {
         override val priority: Int get() = 50
         override val isPortable: Boolean get() = false
         override val isAvailable: Boolean get() = true
 
-        override fun refactor(previous: F64SparseLuFactorization, a: F64SparseMatrix): F64SparseLuFactorization =
-            factor(a)
+        override fun refactor(previous: F64SparseLuFactorization, a: SparseMatrix): F64SparseLuFactorization = factor(a)
     }
 
     private fun unpinned(): Map<BackendSlot, String?> = BackendSlot.entries.associateWith { null }

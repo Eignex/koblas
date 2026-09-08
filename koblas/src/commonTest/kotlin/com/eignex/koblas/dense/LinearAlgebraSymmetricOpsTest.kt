@@ -1,9 +1,9 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.core.F64DenseVector
-import com.eignex.koblas.core.F64SparseVector
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DenseVector
+import com.eignex.koblas.SparseVector
 import kotlin.random.Random
 import kotlin.test.*
 
@@ -30,8 +30,8 @@ class LinearAlgebraSymmetricOpsTest {
                 for (n in intArrayOf(1, 2, 7, 129, 257, 300)) {
                     val (full, poisoned) = poisonedSymmetric(rng, n, lower)
                     val b = if (right) randomMatrix(3, n, rng) else randomMatrix(n, 3, rng)
-                    val expected = if (right) F64DenseMatrix(3, n) else F64DenseMatrix(n, 3)
-                    val actual = if (right) F64DenseMatrix(3, n) else F64DenseMatrix(n, 3)
+                    val expected = if (right) DenseMatrix(3, n) else DenseMatrix(n, 3)
+                    val actual = if (right) DenseMatrix(3, n) else DenseMatrix(n, 3)
 
                     if (right) {
                         reference.gemm(0.75, b, false, full, false, 0.0, expected)
@@ -88,7 +88,7 @@ class LinearAlgebraSymmetricOpsTest {
     @Test
     fun `reference symv evaluates its diagonal product for a zero multiplier`() {
         for (lower in booleanArrayOf(true, false)) {
-            val a = F64DenseMatrix.diagonal(3)
+            val a = DenseMatrix.diagonal(3)
             a[1, 1] = Double.POSITIVE_INFINITY
             val x = doubleArrayOf(2.0, 0.0, -3.0)
             val actual = DoubleArray(3)
@@ -104,12 +104,12 @@ class LinearAlgebraSymmetricOpsTest {
     @Test
     fun `sparse syr follows dense BLAS arithmetic for implicit zeros`() {
         val values = doubleArrayOf(Double.POSITIVE_INFINITY, 0.0, 2.0)
-        val sparse = F64SparseVector.of(3, intArrayOf(0, 2), doubleArrayOf(values[0], values[2]))
+        val sparse = SparseVector.of(3, intArrayOf(0, 2), doubleArrayOf(values[0], values[2]))
         for (lower in booleanArrayOf(true, false)) {
-            val expected = F64DenseMatrix(3, 3)
-            val actual = F64DenseMatrix(3, 3)
+            val expected = DenseMatrix(3, 3)
+            val actual = DenseMatrix(3, 3)
 
-            F64ReferenceBlas.syr(1.0, F64DenseVector.wrap(values), expected, lower)
+            F64ReferenceBlas.syr(1.0, DenseVector.wrap(values), expected, lower)
             F64ReferenceBlas.syr(1.0, sparse, actual, lower)
 
             assertContentEquals(expected.data, actual.data, "lower=$lower")
@@ -120,16 +120,16 @@ class LinearAlgebraSymmetricOpsTest {
     fun `sparse syr2 follows dense BLAS arithmetic for implicit zeros`() {
         val xValues = doubleArrayOf(Double.POSITIVE_INFINITY, 0.0, 0.0)
         val yValues = doubleArrayOf(0.0, 0.0, 2.0)
-        val sparseX = F64SparseVector.of(3, intArrayOf(0), doubleArrayOf(xValues[0]))
-        val sparseY = F64SparseVector.of(3, intArrayOf(2), doubleArrayOf(yValues[2]))
+        val sparseX = SparseVector.of(3, intArrayOf(0), doubleArrayOf(xValues[0]))
+        val sparseY = SparseVector.of(3, intArrayOf(2), doubleArrayOf(yValues[2]))
         for (lower in booleanArrayOf(true, false)) {
-            val expected = F64DenseMatrix(3, 3)
-            val actual = F64DenseMatrix(3, 3)
+            val expected = DenseMatrix(3, 3)
+            val actual = DenseMatrix(3, 3)
 
             F64ReferenceBlas.syr2(
                 1.0,
-                F64DenseVector.wrap(xValues),
-                F64DenseVector.wrap(yValues),
+                DenseVector.wrap(xValues),
+                DenseVector.wrap(yValues),
                 expected,
                 lower,
             )
@@ -146,8 +146,8 @@ class LinearAlgebraSymmetricOpsTest {
     @Test
     fun `symv refuses a non-square matrix at every size`() {
         for (n in intArrayOf(2, 17, 64, 129)) {
-            val wide = F64DenseMatrix.zero(n, n + 1)
-            val tall = F64DenseMatrix.zero(n + 1, n)
+            val wide = DenseMatrix.zero(n, n + 1)
+            val tall = DenseMatrix.zero(n + 1, n)
             assertFailsWith<DimensionMismatch>("symv ${n}x${n + 1}") {
                 koblas.symv(1.0, wide, DoubleArray(n), 0.0, DoubleArray(n))
             }
@@ -168,9 +168,9 @@ class LinearAlgebraSymmetricOpsTest {
                         val (full, poisoned) = poisonedSymmetric(rng, n, lower)
                         val b = randomMatrix(n, p, rng)
                         val c0 = DoubleArray(n * p) { if (beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0) }
-                        val expected = F64DenseMatrix(n, p, c0.copyOf())
+                        val expected = DenseMatrix(n, p, c0.copyOf())
                         koblas.gemm(alpha, full, transposeA = false, b, transposeB = false, beta, expected)
-                        val actual = F64DenseMatrix(n, p, c0.copyOf())
+                        val actual = DenseMatrix(n, p, c0.copyOf())
                         koblas.symm(alpha, poisoned, b, beta, actual, lower, workspace = Workspace())
                         assertClose(expected, actual, "symm n=$n a=$alpha b=$beta lower=$lower")
                     }
@@ -190,9 +190,9 @@ class LinearAlgebraSymmetricOpsTest {
                     val (full, poisoned) = poisonedSymmetric(rng, n, lower)
                     val b = randomMatrix(rows, n, rng)
                     val c0 = DoubleArray(rows * n) { if (beta == 0.0) Double.NaN else rng.nextDouble(-1.0, 1.0) }
-                    val expected = F64DenseMatrix.wrap(rows, n, c0.copyOf())
+                    val expected = DenseMatrix.wrap(rows, n, c0.copyOf())
                     koblas.gemm(alpha, b, false, full, false, beta, expected)
-                    val actual = F64DenseMatrix.wrap(rows, n, c0.copyOf())
+                    val actual = DenseMatrix.wrap(rows, n, c0.copyOf())
                     koblas.symm(alpha, poisoned, b, beta, actual, lower, right = true, workspace = Workspace())
                     assertClose(expected, actual, "symm right l=$lower a=$alpha b=$beta", tolerance = 1e-11)
                 }
@@ -218,11 +218,11 @@ class LinearAlgebraSymmetricOpsTest {
     private fun checkSyrk(rng: Random, lower: Boolean, transpose: Boolean, alpha: Double, beta: Double) {
         val a = randomMatrix(6, 4, rng)
         val n = if (transpose) a.cols else a.rows
-        val term = F64DenseMatrix(n, n)
+        val term = DenseMatrix(n, n)
         koblas.syrk(1.0, a, transpose, 0.0, term, lower = lower)
         // The output is NaN where beta == 0 must overwrite without reading, and the unselected triangle stays NaN.
-        val c = F64DenseMatrix(n, n)
-        val c0 = F64DenseMatrix(n, n)
+        val c = DenseMatrix(n, n)
+        val c0 = DenseMatrix(n, n)
         for (i in 0 until n) {
             for (j in 0 until n) {
                 val selected = if (lower) j <= i else j >= i
@@ -254,11 +254,11 @@ class LinearAlgebraSymmetricOpsTest {
         val ws = Workspace()
         for (lower in booleanArrayOf(true, false)) {
             val a = randomMatrix(n, k, rng)
-            val first = F64DenseMatrix(n, n)
+            val first = DenseMatrix(n, n)
             koblas.syrk(0.75, a, transpose = false, beta = 0.0, c = first, lower = lower, workspace = ws)
-            val second = F64DenseMatrix(n, n)
+            val second = DenseMatrix(n, n)
             koblas.syrk(0.75, a, transpose = false, beta = 0.0, c = second, lower = lower, workspace = ws)
-            val fresh = F64DenseMatrix(n, n)
+            val fresh = DenseMatrix(n, n)
             koblas.syrk(0.75, a, transpose = false, beta = 0.0, c = fresh, lower = lower)
             for (i in 0 until n) {
                 for (j in 0 until n) {
@@ -273,7 +273,7 @@ class LinearAlgebraSymmetricOpsTest {
 
     @Test
     fun `syrk preserves the netlib zero multiplier rule with infinities`() {
-        val blas = F64ReferenceBackend(F64ScalarKernels)
+        val blas = ReferenceBackend(F64ScalarKernels)
         for (lower in booleanArrayOf(true, false)) {
             val values = if (lower) {
                 doubleArrayOf(0.0, Double.POSITIVE_INFINITY)
@@ -283,23 +283,23 @@ class LinearAlgebraSymmetricOpsTest {
             val row = if (lower) 1 else 0
             val column = if (lower) 0 else 1
 
-            val outer = F64DenseMatrix(2, 2)
-            blas.syrk(1.0, F64DenseMatrix(2, 1, values.copyOf()), false, 0.0, outer, lower)
+            val outer = DenseMatrix(2, 2)
+            blas.syrk(1.0, DenseMatrix(2, 1, values.copyOf()), false, 0.0, outer, lower)
             assertEquals(
                 0.0,
                 outer[row, column],
                 "lower=$lower non-transposed syrk multiplied a skipped zero by infinity",
             )
 
-            val dot = F64DenseMatrix(2, 2)
-            blas.syrk(1.0, F64DenseMatrix(1, 2, values.copyOf()), true, 0.0, dot, lower)
+            val dot = DenseMatrix(2, 2)
+            blas.syrk(1.0, DenseMatrix(1, 2, values.copyOf()), true, 0.0, dot, lower)
             assertTrue(dot[row, column].isNaN(), "lower=$lower transposed syrk skipped zero times infinity")
         }
     }
 
     @Test
     fun `syrk preserves the netlib zero multiplier rule when finite scaling overflows`() {
-        val blas = F64ReferenceBackend(F64ScalarKernels)
+        val blas = ReferenceBackend(F64ScalarKernels)
         for (lower in booleanArrayOf(true, false)) {
             val values = if (lower) {
                 doubleArrayOf(0.0, Double.MAX_VALUE)
@@ -308,9 +308,9 @@ class LinearAlgebraSymmetricOpsTest {
             }
             val row = if (lower) 1 else 0
             val column = if (lower) 0 else 1
-            val result = F64DenseMatrix(2, 2)
+            val result = DenseMatrix(2, 2)
 
-            blas.syrk(2.0, F64DenseMatrix(2, 1, values), false, 0.0, result, lower)
+            blas.syrk(2.0, DenseMatrix(2, 1, values), false, 0.0, result, lower)
 
             assertEquals(
                 0.0,
@@ -318,8 +318,8 @@ class LinearAlgebraSymmetricOpsTest {
                 "lower=$lower non-transposed syrk multiplied a skipped zero by a scaling overflow",
             )
 
-            val transposed = F64DenseMatrix(2, 2)
-            blas.syrk(2.0, F64DenseMatrix(1, 2, values.copyOf()), true, 0.0, transposed, lower)
+            val transposed = DenseMatrix(2, 2)
+            blas.syrk(2.0, DenseMatrix(1, 2, values.copyOf()), true, 0.0, transposed, lower)
             assertEquals(
                 0.0,
                 transposed[row, column],
@@ -331,21 +331,21 @@ class LinearAlgebraSymmetricOpsTest {
     @Test
     fun `syrk snapshots an aliased destination`() {
         val rng = Random(20260908)
-        val blas = F64ReferenceBackend(F64ScalarKernels)
+        val blas = ReferenceBackend(F64ScalarKernels)
         for (transpose in booleanArrayOf(false, true)) {
             for (lower in booleanArrayOf(false, true)) {
                 val original = DoubleArray(25) { rng.nextDouble(-1.0, 1.0) }
-                val source = F64DenseMatrix(5, 5, original.copyOf())
-                val expected = F64DenseMatrix(5, 5, original.copyOf())
+                val source = DenseMatrix(5, 5, original.copyOf())
+                val expected = DenseMatrix(5, 5, original.copyOf())
                 blas.syrk(0.75, source, transpose, -0.5, expected, lower)
 
                 val shared = original.copyOf()
                 blas.syrk(
                     0.75,
-                    F64DenseMatrix.wrap(5, 5, shared),
+                    DenseMatrix.wrap(5, 5, shared),
                     transpose,
                     -0.5,
-                    F64DenseMatrix.wrap(5, 5, shared),
+                    DenseMatrix.wrap(5, 5, shared),
                     lower,
                     Workspace(),
                 )
@@ -356,7 +356,7 @@ class LinearAlgebraSymmetricOpsTest {
     }
 
     /** The `dsyr2k` sum for one entry, over whichever orientation [transpose] selects. */
-    private fun syr2kEntry(a: F64DenseMatrix, b: F64DenseMatrix, transpose: Boolean, k: Int, i: Int, j: Int): Double {
+    private fun syr2kEntry(a: DenseMatrix, b: DenseMatrix, transpose: Boolean, k: Int, i: Int, j: Int): Double {
         var s = 0.0
         for (p in 0 until k) {
             val ai = if (transpose) a[p, i] else a[i, p]
@@ -383,7 +383,7 @@ class LinearAlgebraSymmetricOpsTest {
                 val a = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
                 val b = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
                 val before = randomMatrix(n, n, rng)
-                val c = F64DenseMatrix.wrap(n, n, before.data.copyOf())
+                val c = DenseMatrix.wrap(n, n, before.data.copyOf())
                 koblas.syr2k(0.5, a, b, transpose, beta = 2.0, c = c, lower = lower)
                 for (i in 0 until n) {
                     for (j in 0 until n) {
@@ -408,7 +408,7 @@ class LinearAlgebraSymmetricOpsTest {
             val k = 3
             val a = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
             val b = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
-            val c = F64DenseMatrix(n, n)
+            val c = DenseMatrix(n, n)
             koblas.syr2k(0.5, a, b, transpose, 0.0, c)
             for (j in 0 until n) {
                 for (i in j until n) {
@@ -424,7 +424,7 @@ class LinearAlgebraSymmetricOpsTest {
 
     @Test
     fun `syr2k preserves exceptional rank two evaluation`() {
-        val blas = F64ReferenceBackend(F64ScalarKernels)
+        val blas = ReferenceBackend(F64ScalarKernels)
         for (lower in booleanArrayOf(true, false)) {
             val infinityA = if (lower) {
                 doubleArrayOf(1.0, Double.POSITIVE_INFINITY)
@@ -439,13 +439,13 @@ class LinearAlgebraSymmetricOpsTest {
             val row = if (lower) 1 else 0
             val column = if (lower) 0 else 1
             for (transpose in booleanArrayOf(false, true)) {
-                fun operand(values: DoubleArray): F64DenseMatrix = if (transpose) {
-                    F64DenseMatrix(1, 2, values.copyOf())
+                fun operand(values: DoubleArray): DenseMatrix = if (transpose) {
+                    DenseMatrix(1, 2, values.copyOf())
                 } else {
-                    F64DenseMatrix(2, 1, values.copyOf())
+                    DenseMatrix(2, 1, values.copyOf())
                 }
 
-                val infinity = F64DenseMatrix(2, 2)
+                val infinity = DenseMatrix(2, 2)
                 blas.syr2k(
                     1.0,
                     operand(infinityA),
@@ -460,7 +460,7 @@ class LinearAlgebraSymmetricOpsTest {
                     "lower=$lower transpose=$transpose independently skipped a zero coefficient",
                 )
 
-                val overflow = F64DenseMatrix(2, 2)
+                val overflow = DenseMatrix(2, 2)
                 blas.syr2k(
                     2.0,
                     operand(overflowA),
@@ -481,16 +481,16 @@ class LinearAlgebraSymmetricOpsTest {
 
     @Test
     fun `syr2k interleaves cross products before accumulation overflow`() {
-        val blas = F64ReferenceBackend(F64ScalarKernels)
+        val blas = ReferenceBackend(F64ScalarKernels)
         val magnitude = 1e154
         val normalA = doubleArrayOf(magnitude, magnitude, magnitude, magnitude)
         val normalB = doubleArrayOf(magnitude, -magnitude, magnitude, -magnitude)
         val transposedB = doubleArrayOf(magnitude, magnitude, -magnitude, -magnitude)
         for (transpose in booleanArrayOf(false, true)) {
-            val a = F64DenseMatrix(2, 2, normalA.copyOf())
-            val b = F64DenseMatrix(2, 2, if (transpose) transposedB.copyOf() else normalB.copyOf())
+            val a = DenseMatrix(2, 2, normalA.copyOf())
+            val b = DenseMatrix(2, 2, if (transpose) transposedB.copyOf() else normalB.copyOf())
             for (lower in booleanArrayOf(true, false)) {
-                val c = F64DenseMatrix(2, 2)
+                val c = DenseMatrix(2, 2)
                 blas.syr2k(1.0, a, b, transpose, 0.0, c, lower)
                 val row = if (lower) 1 else 0
                 val column = if (lower) 0 else 1
@@ -506,21 +506,21 @@ class LinearAlgebraSymmetricOpsTest {
     @Test
     fun `syr2k snapshots either aliased input`() {
         val rng = Random(20260909)
-        val blas = F64ReferenceBackend(F64ScalarKernels)
+        val blas = ReferenceBackend(F64ScalarKernels)
         for (transpose in booleanArrayOf(false, true)) {
             for (lower in booleanArrayOf(false, true)) {
                 for (aliased in 0..2) {
                     val original = DoubleArray(25) { rng.nextDouble(-1.0, 1.0) }
                     val other = DoubleArray(25) { rng.nextDouble(-1.0, 1.0) }
-                    val expected = F64DenseMatrix(5, 5, original.copyOf())
-                    val expectedA = F64DenseMatrix(5, 5, if (aliased == 1) other.copyOf() else original.copyOf())
-                    val expectedB = F64DenseMatrix(5, 5, if (aliased == 0) other.copyOf() else original.copyOf())
+                    val expected = DenseMatrix(5, 5, original.copyOf())
+                    val expectedA = DenseMatrix(5, 5, if (aliased == 1) other.copyOf() else original.copyOf())
+                    val expectedB = DenseMatrix(5, 5, if (aliased == 0) other.copyOf() else original.copyOf())
                     blas.syr2k(0.75, expectedA, expectedB, transpose, -0.5, expected, lower)
 
                     val shared = original.copyOf()
-                    val sharedMatrix = F64DenseMatrix.wrap(5, 5, shared)
-                    val actualA = if (aliased == 1) F64DenseMatrix(5, 5, other.copyOf()) else sharedMatrix
-                    val actualB = if (aliased == 0) F64DenseMatrix(5, 5, other.copyOf()) else sharedMatrix
+                    val sharedMatrix = DenseMatrix.wrap(5, 5, shared)
+                    val actualA = if (aliased == 1) DenseMatrix(5, 5, other.copyOf()) else sharedMatrix
+                    val actualB = if (aliased == 0) DenseMatrix(5, 5, other.copyOf()) else sharedMatrix
                     blas.syr2k(0.75, actualA, actualB, transpose, -0.5, sharedMatrix, lower, Workspace())
 
                     assertClose(
@@ -540,7 +540,7 @@ class LinearAlgebraSymmetricOpsTest {
             for (transpose in booleanArrayOf(false, true)) {
                 val a = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
                 for (lower in booleanArrayOf(false, true)) {
-                    val rankOne = F64DenseMatrix(n, n)
+                    val rankOne = DenseMatrix(n, n)
                     F64ReferenceBlas.syrk(0.75, a, transpose, 0.0, rankOne, lower)
                     for (j in 0 until n) {
                         val range = if (lower) j until n else 0..j
@@ -606,7 +606,7 @@ class LinearAlgebraSymmetricOpsTest {
                     b.data
                 }
                 for (lower in booleanArrayOf(false, true)) {
-                    val expected = F64DenseMatrix(n, n)
+                    val expected = DenseMatrix(n, n)
                     blockedSyr2kUpdate(
                         F64PlatformKernels,
                         0.75,
@@ -618,7 +618,7 @@ class LinearAlgebraSymmetricOpsTest {
                         lower,
                         guardZeroColumns = !transpose,
                     )
-                    val actual = F64DenseMatrix(n, n)
+                    val actual = DenseMatrix(n, n)
                     F64ReferenceBlas.syr2k(0.75, a, b, transpose, 0.0, actual, lower)
                     assertClose(expected.data, actual.data, "syr2k n=$n t=$transpose l=$lower", tolerance = 1e-9)
                 }
@@ -634,9 +634,9 @@ class LinearAlgebraSymmetricOpsTest {
         for (lower in booleanArrayOf(false, true)) {
             val (full, selected) = poisonedSymmetric(rng, n, lower)
             val b = randomMatrix(n, columns, rng)
-            val expected = F64DenseMatrix(n, columns)
+            val expected = DenseMatrix(n, columns)
             F64ReferenceBlas.gemm(0.75, full, false, b, false, 0.0, expected)
-            val actual = F64DenseMatrix(n, columns)
+            val actual = DenseMatrix(n, columns)
             F64ReferenceBlas.symm(0.75, selected, b, 0.0, actual, lower)
             assertClose(expected, actual, "symm n=$n lower=$lower", tolerance = 1e-10)
         }
@@ -650,9 +650,9 @@ class LinearAlgebraSymmetricOpsTest {
         for (lower in booleanArrayOf(false, true)) {
             val (full, selected) = poisonedSymmetric(rng, n, lower)
             val b = randomMatrix(rows, n, rng)
-            val expected = F64DenseMatrix(rows, n)
+            val expected = DenseMatrix(rows, n)
             F64ReferenceBlas.gemm(0.75, b, false, full, false, 0.0, expected)
-            val actual = F64DenseMatrix(rows, n)
+            val actual = DenseMatrix(rows, n)
             F64ReferenceBlas.symm(0.75, selected, b, 0.0, actual, lower, right = true)
             assertClose(expected, actual, "right symm n=$n lower=$lower", tolerance = 1e-10)
         }
@@ -660,15 +660,15 @@ class LinearAlgebraSymmetricOpsTest {
 
     @Test
     fun `symm handles empty shapes`() {
-        koblas.symm(1.0, F64DenseMatrix(0, 0), F64DenseMatrix(0, 3), 0.0, F64DenseMatrix(0, 3))
-        val c = F64DenseMatrix(2, 0)
-        koblas.symm(1.0, F64DenseMatrix(2, 2), F64DenseMatrix(2, 0), 0.0, c)
+        koblas.symm(1.0, DenseMatrix(0, 0), DenseMatrix(0, 3), 0.0, DenseMatrix(0, 3))
+        val c = DenseMatrix(2, 0)
+        koblas.symm(1.0, DenseMatrix(2, 2), DenseMatrix(2, 0), 0.0, c)
     }
 
     @Test
     fun `symv with zero alpha overwrites the destination`() {
         val y = DoubleArray(2) { Double.NaN }
-        koblas.symv(0.0, F64DenseMatrix(2, 2), DoubleArray(2), 0.0, y)
+        koblas.symv(0.0, DenseMatrix(2, 2), DoubleArray(2), 0.0, y)
         assertTrue(y.all { it == 0.0 }, "symv alpha=0 beta=0 left ${y.toList()}")
     }
 
@@ -679,9 +679,9 @@ class LinearAlgebraSymmetricOpsTest {
             for (beta in doubleArrayOf(0.0, 2.0)) {
                 // C matches B, so the shape that fails is A against B: too few columns from the right,
                 // too few rows from the left.
-                val a = F64DenseMatrix.diagonal(if (right) 2 else 3)
-                val b = F64DenseMatrix(2, 3)
-                val c = F64DenseMatrix(2, 3)
+                val a = DenseMatrix.diagonal(if (right) 2 else 3)
+                val b = DenseMatrix(2, 3)
+                val c = DenseMatrix(2, 3)
                 c.data.fill(7.0)
                 assertFailsWith<DimensionMismatch>("symm right=$right beta=$beta should reject these shapes") {
                     koblas.symm(1.0, a, b, beta, c, lower = true, right = right)
@@ -695,7 +695,7 @@ class LinearAlgebraSymmetricOpsTest {
     }
 
     /** Kernels whose `axpy` fails, standing in for a backend that cannot complete a blocked update. */
-    private class FailingAxpy : F64Kernels by F64ScalarKernels {
+    private class FailingAxpy : Kernels by F64ScalarKernels {
         override val name: String get() = "failing-axpy"
         override val isPortable: Boolean get() = false
 
@@ -704,7 +704,7 @@ class LinearAlgebraSymmetricOpsTest {
     }
 
     /** Kernels whose packed tile fails after all of its scratch buffers have been borrowed. */
-    private class FailingTile : F64Kernels by F64ScalarKernels {
+    private class FailingTile : Kernels by F64ScalarKernels {
         override val name: String get() = "failing-tile"
         override val isPortable: Boolean get() = false
 
@@ -727,14 +727,14 @@ class LinearAlgebraSymmetricOpsTest {
         val ws = Workspace()
         ws.reserve(n * k, 2)
         ws.reserve(PORTABLE_TILE * PORTABLE_TILE, 1)
-        val blas = F64ReferenceBackend(FailingTile())
+        val blas = ReferenceBackend(FailingTile())
         assertFailsWith<IllegalStateException> {
             blas.syrk(
                 1.0,
-                F64DenseMatrix(k, n, DoubleArray(k * n).also { it.fill(1.0) }),
+                DenseMatrix(k, n, DoubleArray(k * n).also { it.fill(1.0) }),
                 transpose = true,
                 beta = 0.0,
-                c = F64DenseMatrix(n, n),
+                c = DenseMatrix(n, n),
                 workspace = ws,
             )
         }
@@ -753,12 +753,12 @@ class LinearAlgebraSymmetricOpsTest {
             val b = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
             // Two staging buffers of one width, so a routine that borrowed the same one twice would hold
             // one operand where the other belongs and both dots would read it.
-            val pooled = F64DenseMatrix(n, n)
+            val pooled = DenseMatrix(n, n)
             koblas.syr2k(0.75, a, b, transpose, beta = 0.0, c = pooled, lower = true, workspace = ws)
-            val fresh = F64DenseMatrix(n, n)
+            val fresh = DenseMatrix(n, n)
             koblas.syr2k(0.75, a, b, transpose, beta = 0.0, c = fresh, lower = true)
             assertClose(fresh.data, pooled.data, "transpose=$transpose against the unpooled result")
-            val again = F64DenseMatrix(n, n)
+            val again = DenseMatrix(n, n)
             koblas.syr2k(0.75, a, b, transpose, beta = 0.0, c = again, lower = true, workspace = ws)
             assertClose(fresh.data, again.data, "transpose=$transpose on the second pooled call")
         }
@@ -771,15 +771,15 @@ class LinearAlgebraSymmetricOpsTest {
         val ws = Workspace()
         val parked = listOf(ws.take(n * k), ws.take(n * k))
         parked.forEach { ws.release(it) }
-        val blas = F64ReferenceBackend(FailingTile())
+        val blas = ReferenceBackend(FailingTile())
         assertFailsWith<IllegalStateException> {
             blas.syr2k(
                 1.0,
-                F64DenseMatrix(k, n, DoubleArray(k * n).also { it.fill(1.0) }),
-                F64DenseMatrix(k, n, DoubleArray(k * n).also { it.fill(1.0) }),
+                DenseMatrix(k, n, DoubleArray(k * n).also { it.fill(1.0) }),
+                DenseMatrix(k, n, DoubleArray(k * n).also { it.fill(1.0) }),
                 transpose = true,
                 beta = 0.0,
-                c = F64DenseMatrix(n, n),
+                c = DenseMatrix(n, n),
                 workspace = ws,
             )
         }
@@ -801,16 +801,16 @@ class LinearAlgebraSymmetricOpsTest {
             it.fill(1.0)
             it[0] = Double.POSITIVE_INFINITY
         }
-        val blas = F64ReferenceBackend(FailingAxpy())
+        val blas = ReferenceBackend(FailingAxpy())
 
         assertFailsWith<IllegalStateException> {
             blas.syr2k(
                 1.0,
-                F64DenseMatrix(k, n, a),
-                F64DenseMatrix(k, n, DoubleArray(k * n).also { it.fill(1.0) }),
+                DenseMatrix(k, n, a),
+                DenseMatrix(k, n, DoubleArray(k * n).also { it.fill(1.0) }),
                 transpose = true,
                 beta = 0.0,
-                c = F64DenseMatrix(n, n),
+                c = DenseMatrix(n, n),
                 workspace = ws,
             )
         }

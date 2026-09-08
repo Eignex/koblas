@@ -1,11 +1,11 @@
 package com.eignex.koblas.sparse.host.hfactor
 
 import com.eignex.koblas.*
-import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.internal.host.NativeOwnership
 import com.eignex.koblas.requireSolveShapes
 import com.eignex.koblas.sparse.F64SparseLuFactorization
-import com.eignex.koblas.sparse.basis.F64IndexedVector
+import com.eignex.koblas.sparse.basis.IndexedVector
 import com.eignex.koblas.sparse.host.factorNotExposed
 import java.lang.foreign.MemorySegment
 
@@ -27,15 +27,15 @@ public class HfactorFactorization internal constructor(
 
     private val ownership = NativeOwnership(this, "HFactor factorization", Release(calls, handle)::release)
 
-    private val carrier = F64IndexedVector(n)
+    private val carrier = IndexedVector(n)
     private val pivotRange = DoubleArray(2)
 
     /** Always [NOT_SINGULAR]: this exists only for a matrix HFactor factored at full rank. */
     override val failedAt: Int get() = NOT_SINGULAR
 
-    override val l: F64SparseMatrix get() = factorNotExposed("l")
+    override val l: SparseMatrix get() = factorNotExposed("l")
 
-    override val u: F64SparseMatrix get() = factorNotExposed("u")
+    override val u: SparseMatrix get() = factorNotExposed("u")
 
     override val rowOrder: IntArray get() = factorNotExposed("rowOrder")
 
@@ -43,7 +43,7 @@ public class HfactorFactorization internal constructor(
 
     override val rowScaling: DoubleArray get() = factorNotExposed("rowScaling")
 
-    override val offDiagonal: F64SparseMatrix get() = factorNotExposed("offDiagonal")
+    override val offDiagonal: SparseMatrix get() = factorNotExposed("offDiagonal")
 
     private fun factorNotExposed(factor: String): Nothing = ownership.factorNotExposed(factor)
 

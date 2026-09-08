@@ -1,7 +1,7 @@
 package com.eignex.koblas.sparse.host
 
 import com.eignex.koblas.*
-import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.sparse.*
 
 /**
@@ -14,7 +14,7 @@ import com.eignex.koblas.sparse.*
 public abstract class F64SparseDecompositionsAdapter protected constructor(
     protected val equilibrate: Boolean = false,
     private val metadata: BackendMetadata = BackendMetadata(),
-) : F64SparseDecompositions,
+) : SparseLapack,
     F64RoutingBackend,
     BackendMetadataProvider {
     /** Whether the binding resolved every symbol needed to factor and solve. */
@@ -46,7 +46,7 @@ public abstract class F64SparseDecompositionsAdapter protected constructor(
      */
     protected open fun nativeAvailableFor(query: F64RouteQuery): Boolean = nativeAvailable
 
-    final override fun factor(a: F64SparseMatrix): F64SparseLuFactorization {
+    final override fun factor(a: SparseMatrix): F64SparseLuFactorization {
         requireSquare(a, "factor")
         // A binding whose library is absent answers portably rather than throwing, so a caller reaching a
         // configured backend on a host without it gets the portable answer instead of an error.
@@ -69,7 +69,7 @@ public abstract class F64SparseDecompositionsAdapter protected constructor(
 
     /** [a] with its values scaled, sharing the pattern it was already validated against. */
     @OptIn(UnsafeKoblasApi::class)
-    private fun scaledBy(a: F64SparseMatrix, scale: DoubleArray): F64SparseMatrix = F64SparseMatrix.wrapTrusted(
+    private fun scaledBy(a: SparseMatrix, scale: DoubleArray): SparseMatrix = SparseMatrix.wrapTrusted(
         a.rows,
         a.cols,
         a.colPtr,
@@ -78,9 +78,9 @@ public abstract class F64SparseDecompositionsAdapter protected constructor(
     )
 
     /** Factorizes a matrix through the native library, equilibrating when this backend is set to. */
-    protected abstract fun factorNative(a: F64SparseMatrix): F64SparseLuFactorization
+    protected abstract fun factorNative(a: SparseMatrix): F64SparseLuFactorization
 
-    final override fun cholesky(a: F64SparseMatrix): F64SparseCholeskyFactorization {
+    final override fun cholesky(a: SparseMatrix): F64SparseCholeskyFactorization {
         requireSquare(a, "cholesky")
         if (!nativeAvailable) {
             return portable.cholesky(a)
@@ -93,9 +93,9 @@ public abstract class F64SparseDecompositionsAdapter protected constructor(
      * unsymmetric LU and have none, so the default is the portable factorization: the seam carries every
      * sparse factorization, and a binding filling one half of it does not have to offer the rest.
      */
-    protected open fun choleskyNative(a: F64SparseMatrix): F64SparseCholeskyFactorization = portable.cholesky(a)
+    protected open fun choleskyNative(a: SparseMatrix): F64SparseCholeskyFactorization = portable.cholesky(a)
 
-    final override fun quasiDefiniteLdl(a: F64SparseMatrix): F64QuasiDefiniteLdlFactorization {
+    final override fun quasiDefiniteLdl(a: SparseMatrix): F64QuasiDefiniteLdlFactorization {
         requireSquare(a, "quasiDefiniteLdl")
         if (!nativeAvailable) {
             return portable.quasiDefiniteLdl(a)
@@ -104,10 +104,10 @@ public abstract class F64SparseDecompositionsAdapter protected constructor(
     }
 
     /** Factorizes a symmetric matrix into `L·D·Lᵀ` through the native library, portably by default. */
-    protected open fun quasiDefiniteLdlNative(a: F64SparseMatrix): F64QuasiDefiniteLdlFactorization =
+    protected open fun quasiDefiniteLdlNative(a: SparseMatrix): F64QuasiDefiniteLdlFactorization =
         portable.quasiDefiniteLdl(a)
 
-    final override fun qr(a: F64SparseMatrix): F64SparseQrFactorization {
+    final override fun qr(a: SparseMatrix): F64SparseQrFactorization {
         requireShape(a.rows >= a.cols) {
             "qr: A is ${a.rows}x${a.cols}, which is wider than it is tall; factor its transpose instead"
         }
@@ -118,5 +118,5 @@ public abstract class F64SparseDecompositionsAdapter protected constructor(
     }
 
     /** Factorizes into `Q·R` natively, portably by default for a library without a sparse QR. */
-    protected open fun qrNative(a: F64SparseMatrix): F64SparseQrFactorization = portable.qr(a)
+    protected open fun qrNative(a: SparseMatrix): F64SparseQrFactorization = portable.qr(a)
 }

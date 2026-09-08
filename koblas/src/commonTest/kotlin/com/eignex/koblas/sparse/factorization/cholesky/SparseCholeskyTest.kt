@@ -1,9 +1,9 @@
 package com.eignex.koblas.sparse.factorization.cholesky
 
+import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.NotPositiveDefinite
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.koblas
 import com.eignex.koblas.randomVector
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
@@ -20,8 +20,8 @@ class SparseCholeskyTest {
      * A symmetric positive-definite matrix as its stored lower triangle and as the full dense twin. Made
      * diagonally dominant, which is sufficient for positive definiteness and keeps the pattern sparse.
      */
-    private fun spd(n: Int, rng: Random, density: Double = 0.3): Pair<F64SparseMatrix, F64DenseMatrix> {
-        val dense = F64DenseMatrix.zero(n, n)
+    private fun spd(n: Int, rng: Random, density: Double = 0.3): Pair<SparseMatrix, DenseMatrix> {
+        val dense = DenseMatrix.zero(n, n)
         val offDiagonal = Array(n) { HashMap<Int, Double>() }
         for (j in 0 until n) {
             for (i in j + 1 until n) {
@@ -43,7 +43,7 @@ class SparseCholeskyTest {
             for (i in j + 1 until n) offDiagonal[j][i]?.let { column.add(i to it) }
             columns.add(column)
         }
-        return F64SparseMatrix.ofColumns(n, n, columns) to dense
+        return SparseMatrix.ofColumns(n, n, columns) to dense
     }
 
     @Test
@@ -104,7 +104,7 @@ class SparseCholeskyTest {
         }
         val b = randomVector(n, Random(20260908))
 
-        val fromPoisoned = F64SparseMatrix.ofColumns(n, n, poisoned).cholesky().solve(b)
+        val fromPoisoned = SparseMatrix.ofColumns(n, n, poisoned).cholesky().solve(b)
 
         assertClose(lowerOnly.cholesky().solve(b), fromPoisoned, "the upper triangle reached the answer", 0.0)
     }
@@ -112,7 +112,7 @@ class SparseCholeskyTest {
     @Test
     fun `a matrix that is not positive definite names the column that failed`() {
         // Positive definite through column 1, then a diagonal too small to carry column 2.
-        val a = F64SparseMatrix.ofColumns(
+        val a = SparseMatrix.ofColumns(
             3,
             3,
             listOf(
@@ -130,7 +130,7 @@ class SparseCholeskyTest {
     @Test
     fun `an identity factors to itself`() {
         val n = 5
-        val identity = F64SparseMatrix.ofColumns(n, n, List(n) { j -> listOf(j to 1.0) })
+        val identity = SparseMatrix.ofColumns(n, n, List(n) { j -> listOf(j to 1.0) })
 
         val f = F64ReferenceSparseLinearAlgebra.cholesky(identity)
 
@@ -173,7 +173,7 @@ class SparseCholeskyTest {
         val columns = List(n) { j ->
             if (j == n - 1) listOf(j to n.toDouble()) else listOf(j to 4.0, n - 1 to 1.0)
         }
-        val arrow = F64SparseMatrix.ofColumns(n, n, columns)
+        val arrow = SparseMatrix.ofColumns(n, n, columns)
 
         val f = F64ReferenceSparseLinearAlgebra.cholesky(arrow)
 

@@ -2,15 +2,15 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.BackendMetadata
 import com.eignex.koblas.BackendMetadataProvider
-import com.eignex.koblas.core.F64SparseVector
+import com.eignex.koblas.SparseVector
 import com.eignex.koblas.dense.cKernelsAvailable
 import com.eignex.koblas.dense.simdAvailable
 import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
 
 /** Sparse SIMD kernels where the Vector API is present, the bundled C kernels otherwise. */
-internal actual object F64PlatformSparseKernels : F64SparseKernels, BackendMetadataProvider {
-    private val selected: F64SparseKernels = when {
+internal actual object F64PlatformSparseKernels : SparseKernels, BackendMetadataProvider {
+    private val selected: SparseKernels = when {
         simdAvailable -> F64SimdSparseKernels
         cKernelsAvailable -> F64CSparseKernels
         else -> F64ReferenceSparseLinearAlgebra
@@ -23,21 +23,21 @@ internal actual object F64PlatformSparseKernels : F64SparseKernels, BackendMetad
     override val backendMetadata: BackendMetadata
         get() = (selected as? BackendMetadataProvider)?.backendMetadata ?: BackendMetadata()
 
-    actual override fun dot(x: F64SparseVector, y: DoubleArray): Double = selected.dot(x, y)
+    actual override fun dot(x: SparseVector, y: DoubleArray): Double = selected.dot(x, y)
 
-    actual override fun dot(x: F64SparseVector, y: F64SparseVector): Double = selected.dot(x, y)
+    actual override fun dot(x: SparseVector, y: SparseVector): Double = selected.dot(x, y)
 
-    actual override fun axpy(y: DoubleArray, alpha: Double, x: F64SparseVector) = selected.axpy(y, alpha, x)
+    actual override fun axpy(y: DoubleArray, alpha: Double, x: SparseVector) = selected.axpy(y, alpha, x)
 
-    actual override fun scatter(x: F64SparseVector, out: DoubleArray) = selected.scatter(x, out)
+    actual override fun scatter(x: SparseVector, out: DoubleArray) = selected.scatter(x, out)
 
-    actual override fun gather(x: F64SparseVector, from: DoubleArray) = selected.gather(x, from)
+    actual override fun gather(x: SparseVector, from: DoubleArray) = selected.gather(x, from)
 
-    actual override fun gatherZero(x: F64SparseVector, from: DoubleArray) = selected.gatherZero(x, from)
+    actual override fun gatherZero(x: SparseVector, from: DoubleArray) = selected.gatherZero(x, from)
 
-    actual override fun nrm2(x: F64SparseVector): Double = selected.nrm2(x)
+    actual override fun nrm2(x: SparseVector): Double = selected.nrm2(x)
 
-    actual override fun asum(x: F64SparseVector): Double = selected.asum(x)
+    actual override fun asum(x: SparseVector): Double = selected.asum(x)
 }
 
 /** Its own object so the initializer, which touches DoubleVector, runs only once the module is present. */

@@ -1,7 +1,7 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.sparse.*
 import kotlinx.benchmark.*
 
@@ -24,25 +24,25 @@ class SparseProductHostBenchmark {
     @Param("regular", "banded", "skewed")
     var productShape: String = "regular"
 
-    private var builtIn: F64SparseBlas? = null
+    private var builtIn: SparseBlas? = null
     private var external: SparseComparator? = null
 
-    private lateinit var a: F64SparseMatrix
-    private lateinit var square: F64SparseMatrix
+    private lateinit var a: SparseMatrix
+    private lateinit var square: SparseMatrix
     private lateinit var x: DoubleArray
     private lateinit var y: DoubleArray
-    private lateinit var dense: F64DenseMatrix
-    private lateinit var product: F64DenseMatrix
-    private lateinit var denseSingle: F64DenseMatrix
-    private lateinit var productSingle: F64DenseMatrix
-    private lateinit var triangle: F64SparseMatrix
+    private lateinit var dense: DenseMatrix
+    private lateinit var product: DenseMatrix
+    private lateinit var denseSingle: DenseMatrix
+    private lateinit var productSingle: DenseMatrix
+    private lateinit var triangle: SparseMatrix
     private lateinit var triangularVector: DoubleArray
-    private lateinit var triangularDense: F64DenseMatrix
-    private lateinit var triangularDenseRight: F64DenseMatrix
+    private lateinit var triangularDense: DenseMatrix
+    private lateinit var triangularDenseRight: DenseMatrix
     private lateinit var scratch: DoubleArray
-    private lateinit var triangularProduct: F64DenseMatrix
-    private lateinit var triangularSolve: F64DenseMatrix
-    private lateinit var triangularProductRight: F64DenseMatrix
+    private lateinit var triangularProduct: DenseMatrix
+    private lateinit var triangularSolve: DenseMatrix
+    private lateinit var triangularProductRight: DenseMatrix
     private lateinit var prepared: F64PreparedSparseMatrix
     private var externalPrepared: PreparedSparseComparator? = null
     private var externalPreparedSquare: PreparedSparseComparator? = null
@@ -74,9 +74,9 @@ class SparseProductHostBenchmark {
         triangularDense = randomMatrix(n, RIGHT_HAND_SIDES, rng)
         triangularDenseRight = randomMatrix(RIGHT_HAND_SIDES, n, rng)
         scratch = DoubleArray(n)
-        triangularProduct = F64DenseMatrix.zero(n, RIGHT_HAND_SIDES)
-        triangularSolve = F64DenseMatrix.zero(n, RIGHT_HAND_SIDES)
-        triangularProductRight = F64DenseMatrix.zero(RIGHT_HAND_SIDES, n)
+        triangularProduct = DenseMatrix.zero(n, RIGHT_HAND_SIDES)
+        triangularSolve = DenseMatrix.zero(n, RIGHT_HAND_SIDES)
+        triangularProductRight = DenseMatrix.zero(RIGHT_HAND_SIDES, n)
         if (builtIn != null) {
             prepared = builtIn!!.prepare(a)
         } else {
@@ -104,7 +104,7 @@ class SparseProductHostBenchmark {
     }
 
     @Benchmark
-    fun gemm(): F64DenseMatrix {
+    fun gemm(): DenseMatrix {
         if (external != null) {
             external!!.prepare(a).use { it.gemm(1.0, dense, 0.0, product) }
         } else {
@@ -115,7 +115,7 @@ class SparseProductHostBenchmark {
 
     /** The same native operation over one dense column, to expose whether its fixed marshalling cost pays. */
     @Benchmark
-    fun gemmSingle(): F64DenseMatrix {
+    fun gemmSingle(): DenseMatrix {
         if (external != null) {
             external!!.prepare(a).use { it.gemm(1.0, denseSingle, 0.0, productSingle) }
         } else {
@@ -125,7 +125,7 @@ class SparseProductHostBenchmark {
     }
 
     @Benchmark
-    fun preparedGemm(): F64DenseMatrix {
+    fun preparedGemm(): DenseMatrix {
         externalPrepared?.gemm(1.0, dense, 0.0, product) ?: prepared.gemm(1.0, false, dense, 0.0, product)
         return product
     }
@@ -138,7 +138,7 @@ class SparseProductHostBenchmark {
 
     /** Reuses every operand handle the selected implementation can prepare; result export remains timed. */
     @Benchmark
-    fun preparedSparseProduct(): F64SparseMatrix =
+    fun preparedSparseProduct(): SparseMatrix =
         externalPrepared?.sparseProduct(checkNotNull(externalPreparedSquare)) ?: prepared.gemm(square)
 
     @Benchmark
@@ -153,7 +153,7 @@ class SparseProductHostBenchmark {
 
     /** Includes operand preparation and representation conversion as a separately labelled one-shot row. */
     @Benchmark
-    fun sparseProduct(): F64SparseMatrix = external?.sparseProduct(a, square) ?: builtIn!!.gemm(a, square)
+    fun sparseProduct(): SparseMatrix = external?.sparseProduct(a, square) ?: builtIn!!.gemm(a, square)
 
     @Benchmark
     fun trsv(): DoubleArray {
@@ -172,7 +172,7 @@ class SparseProductHostBenchmark {
     }
 
     @Benchmark
-    fun trmm(): F64DenseMatrix {
+    fun trmm(): DenseMatrix {
         triangularDense.data.copyInto(triangularProduct.data)
         val comparator = externalTriangle
         if (comparator != null) comparator.trmm(triangularDense, triangularProduct) else builtIn!!.trmm(triangle, triangularProduct, lower = false)
@@ -180,7 +180,7 @@ class SparseProductHostBenchmark {
     }
 
     @Benchmark
-    fun trsm(): F64DenseMatrix {
+    fun trsm(): DenseMatrix {
         triangularDense.data.copyInto(triangularSolve.data)
         val comparator = externalTriangle
         if (comparator != null) {
@@ -192,14 +192,14 @@ class SparseProductHostBenchmark {
     }
 
     @Benchmark
-    fun trmmRight(): F64DenseMatrix {
+    fun trmmRight(): DenseMatrix {
         triangularDenseRight.data.copyInto(triangularProductRight.data)
         if (external != null) {
             // oneMKL has no right-side sparse triangular multiply. This row is intentionally a composition
             // and is excluded from direct parity: B*A = transpose(A^T*transpose(B)).
-            val transposedInput = F64DenseMatrix.wrap(n, RIGHT_HAND_SIDES, DoubleArray(n * RIGHT_HAND_SIDES))
+            val transposedInput = DenseMatrix.wrap(n, RIGHT_HAND_SIDES, DoubleArray(n * RIGHT_HAND_SIDES))
             for (j in 0 until n) for (i in 0 until RIGHT_HAND_SIDES) transposedInput[j, i] = triangularProductRight[i, j]
-            val transposedOut = F64DenseMatrix.zero(n, RIGHT_HAND_SIDES)
+            val transposedOut = DenseMatrix.zero(n, RIGHT_HAND_SIDES)
             externalTriangle!!.trmm(transposedInput, transposedOut, transpose = true)
             for (j in 0 until n) for (i in 0 until RIGHT_HAND_SIDES) triangularProductRight[i, j] = transposedOut[j, i]
         } else {

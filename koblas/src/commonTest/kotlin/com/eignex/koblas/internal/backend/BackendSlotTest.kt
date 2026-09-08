@@ -1,7 +1,7 @@
 package com.eignex.koblas.internal.backend
 
 import com.eignex.koblas.BackendRole
-import com.eignex.koblas.F64ContextBuilder
+import com.eignex.koblas.ContextBuilder
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -40,7 +40,7 @@ class BackendSlotTest {
 
     @Test
     fun `every required half reads back something it accepts`() {
-        val context = F64ContextBuilder().resolve()
+        val context = ContextBuilder().resolve()
 
         BackendSlot.contextHalves.forEach { slot ->
             val selected = slot.from(context)

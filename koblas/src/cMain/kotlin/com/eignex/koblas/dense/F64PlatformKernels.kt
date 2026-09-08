@@ -2,7 +2,7 @@
 
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.F64ModifiedGivens
+import com.eignex.koblas.ModifiedGivens
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.numeric.scalarAxpy
@@ -20,7 +20,7 @@ import kotlinx.cinterop.usePinned
 private val C_HOST_MIN_LENGTH = DenseTuning.nativeCMinLength
 
 /** The C level-1 kernels compiled into each Kotlin/Native host artifact. */
-internal actual object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
+internal actual object F64PlatformKernels : Kernels, F64ArithmeticKernels {
     actual override val name: String get() = BackendNames.C
 
     override val isPortable: Boolean get() = true
@@ -101,7 +101,7 @@ internal actual object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
     actual override fun asum(v: DoubleArray, vOff: Int, len: Int): Double =
         if (len == 0) 0.0 else v.usePinned { vp -> koblas_dense_asum(vp.addressOf(0), vOff, len) }
 
-    actual override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64ModifiedGivens =
+    actual override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens =
         portableRotmg(d1, d2, x1, y1)
 
     @Suppress("LongParameterList")
@@ -113,7 +113,7 @@ internal actual object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
         yOff: Int,
         yStride: Int,
         len: Int,
-        transformation: F64ModifiedGivens,
+        transformation: ModifiedGivens,
     ) {
         if (transformation.flag == -2.0 || len == 0) return
         x.usePinned { xp ->

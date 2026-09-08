@@ -1,7 +1,7 @@
 package com.eignex.koblas.sparse.host
 
 import com.eignex.koblas.*
-import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.sparse.F64SparseLuFactorization
 import kotlin.test.*
 
@@ -14,7 +14,7 @@ class SparseDecompositionsRoutingTest {
         F64SparseDecompositionsAdapter() {
         override val name: String get() = "split"
 
-        override fun factorNative(a: F64SparseMatrix): F64SparseLuFactorization =
+        override fun factorNative(a: SparseMatrix): F64SparseLuFactorization =
             error("not reached by routing diagnostics")
 
         override fun nativeAvailableFor(query: F64RouteQuery): Boolean =

@@ -1,6 +1,6 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.core.*
+import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.REFERENCE_SPARSE_RHS_WIDTH
@@ -120,7 +120,7 @@ class AllocationFreeTest {
             for (i in 0 until m) if (i != j && rng.nextDouble() < 0.05) entries.add(i to rng.nextDouble(-1.0, 1.0))
             entries
         }
-        val basis = F64SparseMatrix.ofColumns(m, m, columns).lu()
+        val basis = SparseMatrix.ofColumns(m, m, columns).lu()
         val b = DoubleArray(m) { rng.nextDouble(-1.0, 1.0) }
         val x = DoubleArray(m)
         val y = DoubleArray(m)
@@ -159,7 +159,7 @@ class AllocationFreeTest {
     }
 
     /**
-     * The symmetric rank-one and rank-two updates take a [F64VectorLike], and densifying a dense operand to
+     * The symmetric rank-one and rank-two updates take a [VectorLike], and densifying a dense operand to
      * read it copies the whole vector on every call. They are the innermost step of a covariance or a
      * quasi-Newton update, so a copy per call is a copy per iteration of the caller's loop.
      */
@@ -167,9 +167,9 @@ class AllocationFreeTest {
     fun `a symmetric rank update loop allocates nothing per iteration`() {
         val n = 96
         val rng = Random(20260824)
-        val a = F64DenseMatrix.zero(n, n)
-        val x = F64DenseVector.wrap(DoubleArray(n) { rng.nextDouble(-1.0, 1.0) })
-        val y = F64DenseVector.wrap(DoubleArray(n) { rng.nextDouble(-1.0, 1.0) })
+        val a = DenseMatrix.zero(n, n)
+        val x = DenseVector.wrap(DoubleArray(n) { rng.nextDouble(-1.0, 1.0) })
+        val y = DenseVector.wrap(DoubleArray(n) { rng.nextDouble(-1.0, 1.0) })
         val syr = bytesPerIteration(500) { koblas.syr(1e-12, x, a, lower = true) }
         val syr2 = bytesPerIteration(500) { koblas.syr2(1e-12, x, y, a, lower = true) }
         assertTrue(syr < FLOOR_BYTES, "syr allocated $syr B per call for a dense operand it can read in place")
@@ -180,7 +180,7 @@ class AllocationFreeTest {
     fun `a transposed dense gemv workspace is allocation neutral`() {
         val rows = 64
         val columns = 72
-        val a = F64DenseMatrix(rows, columns)
+        val a = DenseMatrix(rows, columns)
         val x = DoubleArray(rows) { it * 0.01 }
         val y = DoubleArray(columns)
         val workspace = Workspace().apply { reserve(4, count = 1) }
@@ -198,9 +198,9 @@ class AllocationFreeTest {
         val m = 32
         val k = 48
         val n = 24
-        val a = F64DenseMatrix(k, m)
-        val b = F64DenseMatrix(n, k)
-        val c = F64DenseMatrix(m, n)
+        val a = DenseMatrix(k, m)
+        val b = DenseMatrix(n, k)
+        val c = DenseMatrix(m, n)
         val workspace = Workspace().apply {
             reserve(k * n, count = 1)
             reserve(4, count = 1)
@@ -218,10 +218,10 @@ class AllocationFreeTest {
     fun `symmetric matrix workspace is allocation neutral on both sides`() {
         val n = 96
         val width = 12
-        val a = F64DenseMatrix.diagonal(n)
+        val a = DenseMatrix.diagonal(n)
         for (right in booleanArrayOf(false, true)) {
-            val b = if (right) F64DenseMatrix(width, n) else F64DenseMatrix(n, width)
-            val c = F64DenseMatrix(b.rows, b.cols)
+            val b = if (right) DenseMatrix(width, n) else DenseMatrix(n, width)
+            val c = DenseMatrix(b.rows, b.cols)
             val workspace = Workspace()
 
             val bytes = bytesPerIteration(300) {
@@ -236,8 +236,8 @@ class AllocationFreeTest {
     @Test
     fun `right dense triangular solve workspace is allocation neutral`() {
         val n = 80
-        val triangle = F64DenseMatrix.diagonal(n)
-        val b = F64DenseMatrix(20, n)
+        val triangle = DenseMatrix.diagonal(n)
+        val b = DenseMatrix(20, n)
         val workspace = Workspace().apply { reserve(n, count = 1) }
 
         val bytes = bytesPerIteration(500) {
@@ -252,9 +252,9 @@ class AllocationFreeTest {
     fun `sparse dense product workspace is allocation neutral`() {
         val n = 64
         val rows = 16
-        val sparse = F64SparseMatrix.ofColumns(n, n, List(n) { j -> listOf(j to 1.0) })
-        val b = F64DenseMatrix(n, rows)
-        val c = F64DenseMatrix(rows, n)
+        val sparse = SparseMatrix.ofColumns(n, n, List(n) { j -> listOf(j to 1.0) })
+        val b = DenseMatrix(n, rows)
+        val c = DenseMatrix(rows, n)
         val workspace = Workspace().apply { reserve(b.data.size, count = 1) }
 
         val bytes = bytesPerIteration(300) {
@@ -268,8 +268,8 @@ class AllocationFreeTest {
     @Test
     fun `left sparse triangular solve workspace is allocation neutral`() {
         val n = 64
-        val sparse = F64SparseMatrix.ofColumns(n, n, List(n) { j -> listOf(j to 1.0) })
-        val b = F64DenseMatrix(n, 12)
+        val sparse = SparseMatrix.ofColumns(n, n, List(n) { j -> listOf(j to 1.0) })
+        val b = DenseMatrix(n, 12)
         val workspace = Workspace().apply {
             reserve(n, count = 1)
             reserve(REFERENCE_SPARSE_RHS_WIDTH, count = 1)

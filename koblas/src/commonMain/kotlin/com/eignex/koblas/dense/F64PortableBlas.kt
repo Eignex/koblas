@@ -3,28 +3,28 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.core.F64DenseVector
-import com.eignex.koblas.core.F64VectorLike
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DenseVector
+import com.eignex.koblas.VectorLike
 import com.eignex.koblas.internal.backend.BackendNames
 import kotlin.math.abs
 
 /**
- * The portable dense matrix routines, the semantic reference a native [F64Blas] is validated against.
+ * The portable dense matrix routines, the semantic reference a native [Blas] is validated against.
  *
- * @param configured the kernels the inner loops use, or null to follow the [F64Context] default.
+ * @param configured the kernels the inner loops use, or null to follow the [KoblasContext] default.
  */
-internal class F64PortableBlas(private val configured: F64Kernels? = null) : F64Blas {
+internal class F64PortableBlas(private val configured: Kernels? = null) : Blas {
     override val name: String get() = BackendNames.REFERENCE
 
     override val isPortable: Boolean get() = true
 
     /** These routines' kernels, or the process default when they were given none. */
-    override val kernels: F64Kernels get() = configured ?: koblas.kernels
+    override val kernels: Kernels get() = configured ?: koblas.kernels
 
     override fun gemv(
         alpha: Double,
-        a: F64DenseMatrix,
+        a: DenseMatrix,
         x: DoubleArray,
         beta: Double,
         y: DoubleArray,
@@ -62,8 +62,8 @@ internal class F64PortableBlas(private val configured: F64Kernels? = null) : F64
         }
     }
 
-    override fun transpose(a: F64DenseMatrix): F64DenseMatrix {
-        val t = F64DenseMatrix(a.cols, a.rows)
+    override fun transpose(a: DenseMatrix): DenseMatrix {
+        val t = DenseMatrix(a.cols, a.rows)
         transposeBlocked(a.data, a.rows, a.cols, t.data)
         return t
     }
@@ -71,12 +71,12 @@ internal class F64PortableBlas(private val configured: F64Kernels? = null) : F64
     @Suppress("LongParameterList")
     override fun gemm(
         alpha: Double,
-        a: F64DenseMatrix,
+        a: DenseMatrix,
         transposeA: Boolean,
-        b: F64DenseMatrix,
+        b: DenseMatrix,
         transposeB: Boolean,
         beta: Double,
-        c: F64DenseMatrix,
+        c: DenseMatrix,
         workspace: Workspace?,
     ) {
         val (m, k, n) = requireGemmShape(a, transposeA, b, transposeB, c)
@@ -94,10 +94,10 @@ internal class F64PortableBlas(private val configured: F64Kernels? = null) : F64
     @Suppress("LongParameterList") // the BLAS dsyrk signature plus optional scratch
     override fun syrk(
         alpha: Double,
-        a: F64DenseMatrix,
+        a: DenseMatrix,
         transpose: Boolean,
         beta: Double,
-        c: F64DenseMatrix,
+        c: DenseMatrix,
         lower: Boolean,
         workspace: Workspace?,
     ) {
@@ -162,7 +162,7 @@ internal class F64PortableBlas(private val configured: F64Kernels? = null) : F64
     }
 
     @Suppress("LongParameterList") // the BLAS dsymv signature
-    override fun symv(alpha: Double, a: F64DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) {
+    override fun symv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) {
         val n = requireSymvShape(a, x.size, y.size)
         applyBeta(kernels, y, 0, n, beta)
         if (alpha == 0.0) return
@@ -194,10 +194,10 @@ internal class F64PortableBlas(private val configured: F64Kernels? = null) : F64
     @Suppress("LongParameterList", "CyclomaticComplexMethod") // the BLAS dsymm signature
     override fun symm(
         alpha: Double,
-        a: F64DenseMatrix,
-        b: F64DenseMatrix,
+        a: DenseMatrix,
+        b: DenseMatrix,
         beta: Double,
-        c: F64DenseMatrix,
+        c: DenseMatrix,
         lower: Boolean,
         right: Boolean,
         workspace: Workspace?,
@@ -233,7 +233,7 @@ internal class F64PortableBlas(private val configured: F64Kernels? = null) : F64
         }
     }
 
-    override fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: F64DenseMatrix) {
+    override fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix) {
         requireShape(a.rows == x.size && a.cols == y.size) {
             "ger shape mismatch: A is ${a.rows}x${a.cols}, x ${x.size}, y ${y.size}"
         }
@@ -249,7 +249,7 @@ internal class F64PortableBlas(private val configured: F64Kernels? = null) : F64
      *
      * Non-dense vectors are staged once so the rank update itself is a sequence of contiguous Level 1 calls.
      */
-    override fun syr(alpha: Double, x: F64VectorLike, a: F64DenseMatrix, lower: Boolean) {
+    override fun syr(alpha: Double, x: VectorLike, a: DenseMatrix, lower: Boolean) {
         requireSyrShape(a, x.size, "syr")
         if (alpha == 0.0) return
         val kernels = kernels
@@ -270,7 +270,7 @@ internal class F64PortableBlas(private val configured: F64Kernels? = null) : F64
      *
      * Non-dense operands are staged once so the rank update itself is a sequence of contiguous Level 1 calls.
      */
-    override fun syr2(alpha: Double, x: F64VectorLike, y: F64VectorLike, a: F64DenseMatrix, lower: Boolean) {
+    override fun syr2(alpha: Double, x: VectorLike, y: VectorLike, a: DenseMatrix, lower: Boolean) {
         requireSyr2Shape(a, x.size, y.size, "syr2")
         if (alpha == 0.0) return
         val kernels = kernels
@@ -289,9 +289,9 @@ internal class F64PortableBlas(private val configured: F64Kernels? = null) : F64
     }
 
     /** Returns contiguous rank-update operands; sparse copies use the registered sparse Level 1 scatter. */
-    private fun rankUpdateData(x: F64VectorLike): DoubleArray = when (x) {
-        is F64DenseVector -> x.data
-        else -> DoubleArray(x.size).also { copy(x, F64DenseVector.wrap(it)) }
+    private fun rankUpdateData(x: VectorLike): DoubleArray = when (x) {
+        is DenseVector -> x.data
+        else -> DoubleArray(x.size).also { copy(x, DenseVector.wrap(it)) }
     }
 
     /** `C = alpha · (op(A) · op(B)ᵀ + op(B) · op(A)ᵀ) + beta · C` (BLAS `dsyr2k`), where `op` transposes when
@@ -299,11 +299,11 @@ internal class F64PortableBlas(private val configured: F64Kernels? = null) : F64
     @Suppress("LongParameterList", "ReturnCount") // the BLAS dsyr2k signature plus scratch; alias guards
     override fun syr2k(
         alpha: Double,
-        a: F64DenseMatrix,
-        b: F64DenseMatrix,
+        a: DenseMatrix,
+        b: DenseMatrix,
         transpose: Boolean,
         beta: Double,
-        c: F64DenseMatrix,
+        c: DenseMatrix,
         lower: Boolean,
         workspace: Workspace?,
     ) {
@@ -453,15 +453,15 @@ internal class F64PortableBlas(private val configured: F64Kernels? = null) : F64
 
     /** Solve `op(T) · x = b` in place (BLAS `dtrsv`) for the [lower] or upper triangle of the square [a],
      *  `op` transposing when [transpose] and [unitDiag] taking the diagonal as 1. [x] carries b in and x out. */
-    override fun trsv(a: F64DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) =
+    override fun trsv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) =
         triangularVector(kernels, a, x, lower, transpose, unitDiag, solve = true)
 
     /** Solve `op(T) · X = B` in place, or `X · op(T) = B` when [right] (BLAS `dtrsm`). Flags follow [trsv];
      *  the right-hand sides are the columns of [b] from the left and its rows from the right. */
     @Suppress("LongParameterList") // the BLAS dtrsm signature
     override fun trsm(
-        a: F64DenseMatrix,
-        b: F64DenseMatrix,
+        a: DenseMatrix,
+        b: DenseMatrix,
         lower: Boolean,
         transpose: Boolean,
         unitDiag: Boolean,
@@ -472,14 +472,14 @@ internal class F64PortableBlas(private val configured: F64Kernels? = null) : F64
         triangularMatrix(kernels, a, b, lower, transpose, unitDiag, right, alpha, solve = true, workspace = workspace)
 
     /** `x = op(T) · x` in place (BLAS `dtrmv`), the product counterpart of [trsv]. */
-    override fun trmv(a: F64DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) =
+    override fun trmv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) =
         triangularVector(kernels, a, x, lower, transpose, unitDiag, solve = false)
 
     /** `B = op(T) · B`, or `B = B · op(T)` when [right] (BLAS `dtrmm`), the counterpart of [trsm]. */
     @Suppress("LongParameterList") // the BLAS dtrmm signature
     override fun trmm(
-        a: F64DenseMatrix,
-        b: F64DenseMatrix,
+        a: DenseMatrix,
+        b: DenseMatrix,
         lower: Boolean,
         transpose: Boolean,
         unitDiag: Boolean,

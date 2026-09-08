@@ -1,7 +1,7 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.core.F64SparseVector
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.SparseVector
 import com.eignex.koblas.gemvInto
 import kotlinx.benchmark.*
 
@@ -23,8 +23,8 @@ class GemvIntoBenchmark {
     @Param(AUTOMATIC_KERNELS, SCALAR_KERNELS, C_KERNELS)
     var kernels: String = AUTOMATIC_KERNELS
 
-    private lateinit var a: F64DenseMatrix
-    private lateinit var sparseX: F64SparseVector
+    private lateinit var a: DenseMatrix
+    private lateinit var sparseX: SparseVector
     private lateinit var out: DoubleArray
 
     @Setup

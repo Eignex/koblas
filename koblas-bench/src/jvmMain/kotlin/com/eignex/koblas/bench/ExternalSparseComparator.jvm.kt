@@ -1,9 +1,9 @@
 package com.eignex.koblas.bench
 
 import com.eignex.koblas.UnsafeKoblasApi
-import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.core.F64SparseVector
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.SparseVector
 import java.lang.foreign.*
 import java.lang.foreign.ValueLayout.*
 import java.lang.invoke.MethodHandle
@@ -66,34 +66,34 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
         library.handleOrNull("MKL_Set_Dynamic", voidOf(JAVA_INT), critical = false)?.let { it.invokeExact(0) as Unit }
     }
 
-    override fun prepare(a: F64SparseMatrix, triangular: Boolean, lower: Boolean, unitDiag: Boolean): PreparedSparseComparator =
+    override fun prepare(a: SparseMatrix, triangular: Boolean, lower: Boolean, unitDiag: Boolean): PreparedSparseComparator =
         Prepared(this, a, triangular, lower, unitDiag)
 
     @OptIn(UnsafeKoblasApi::class)
-    override fun dot(x: F64SparseVector, y: DoubleArray): Double =
+    override fun dot(x: SparseVector, y: DoubleArray): Double =
         if (x.values.isEmpty()) 0.0 else ddoti.invokeExact(x.values.size, seg(x.values), seg(x.indices), seg(y)) as Double
 
     @OptIn(UnsafeKoblasApi::class)
-    override fun axpy(alpha: Double, x: F64SparseVector, y: DoubleArray) {
+    override fun axpy(alpha: Double, x: SparseVector, y: DoubleArray) {
         if (x.values.isNotEmpty()) daxpyi.invokeExact(x.values.size, alpha, seg(x.values), seg(x.indices), seg(y)) as Unit
     }
 
     @OptIn(UnsafeKoblasApi::class)
-    override fun scatter(x: F64SparseVector, y: DoubleArray) {
+    override fun scatter(x: SparseVector, y: DoubleArray) {
         if (x.values.isNotEmpty()) dsctr.invokeExact(x.values.size, seg(x.values), seg(x.indices), seg(y)) as Unit
     }
 
     @OptIn(UnsafeKoblasApi::class)
-    override fun gather(x: F64SparseVector, from: DoubleArray, out: DoubleArray) {
+    override fun gather(x: SparseVector, from: DoubleArray, out: DoubleArray) {
         if (x.values.isNotEmpty()) dgthr.invokeExact(x.values.size, seg(from), seg(out), seg(x.indices)) as Unit
     }
 
     @OptIn(UnsafeKoblasApi::class)
-    override fun gatherZero(x: F64SparseVector, from: DoubleArray, out: DoubleArray) {
+    override fun gatherZero(x: SparseVector, from: DoubleArray, out: DoubleArray) {
         if (x.values.isNotEmpty()) dgthrz.invokeExact(x.values.size, seg(from), seg(out), seg(x.indices)) as Unit
     }
 
-    override fun sparseProduct(a: F64SparseMatrix, b: F64SparseMatrix): F64SparseMatrix {
+    override fun sparseProduct(a: SparseMatrix, b: SparseMatrix): SparseMatrix {
         Prepared(this, a, false, true, false).use { left ->
             Prepared(this, b, false, true, false).use { right ->
                 return left.sparseProduct(right)
@@ -101,7 +101,7 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
         }
     }
 
-    private fun multiply(left: MemorySegment, right: MemorySegment): F64SparseMatrix = Arena.ofConfined().use { arena ->
+    private fun multiply(left: MemorySegment, right: MemorySegment): SparseMatrix = Arena.ofConfined().use { arena ->
         val outSlot = arena.allocate(ADDRESS)
         checkStatus(spmm.invokeExact(NON_TRANSPOSE, left, right, outSlot) as Int, "mkl_sparse_spmm")
         val out = outSlot.get(ADDRESS, 0)
@@ -112,7 +112,7 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
         }
     }
 
-    private fun export(matrix: MemorySegment): F64SparseMatrix = Arena.ofConfined().use { arena ->
+    private fun export(matrix: MemorySegment): SparseMatrix = Arena.ofConfined().use { arena ->
         val indexing = arena.allocate(JAVA_INT)
         val rows = arena.allocate(JAVA_INT)
         val cols = arena.allocate(JAVA_INT)
@@ -141,7 +141,7 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
         for (i in 0 until m) for (p in rowPtr[i] until rowPtr[i + 1]) rowIdx[p] = i
         val colIdx = IntArray(nnz) { columnPtr.getAtIndex(JAVA_INT, it.toLong()) }
         val outValues = DoubleArray(nnz) { valuePtr.getAtIndex(JAVA_DOUBLE, it.toLong()) }
-        F64SparseMatrix.ofTriplets(m, n, rowIdx, colIdx, outValues)
+        SparseMatrix.ofTriplets(m, n, rowIdx, colIdx, outValues)
     }
 
     private fun handle(name: String, descriptor: FunctionDescriptor): MethodHandle = library.handle(name, descriptor)
@@ -151,7 +151,7 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
     @OptIn(UnsafeKoblasApi::class)
     private class Prepared(
         private val owner: JvmOneMklSparse,
-        a: F64SparseMatrix,
+        a: SparseMatrix,
         triangular: Boolean,
         lower: Boolean,
         unitDiag: Boolean,
@@ -194,7 +194,7 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
             )
         }
 
-        override fun gemm(alpha: Double, b: F64DenseMatrix, beta: Double, c: F64DenseMatrix, transpose: Boolean) {
+        override fun gemm(alpha: Double, b: DenseMatrix, beta: Double, c: DenseMatrix, transpose: Boolean) {
             val inner = if (transpose) rows else cols
             val outputRows = if (transpose) cols else rows
             require(b.rows == inner && c.rows == outputRows && c.cols == b.cols) {
@@ -229,7 +229,7 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
             )
         }
 
-        override fun trsm(b: F64DenseMatrix, out: F64DenseMatrix, transpose: Boolean) {
+        override fun trsm(b: DenseMatrix, out: DenseMatrix, transpose: Boolean) {
             require(rows == cols && b.rows == rows && out.rows == rows && out.cols == b.cols) {
                 "oneMKL sparse trsm requires B and output with $rows rows and equal column counts"
             }
@@ -242,7 +242,7 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
             )
         }
 
-        override fun trmm(b: F64DenseMatrix, out: F64DenseMatrix, transpose: Boolean) {
+        override fun trmm(b: DenseMatrix, out: DenseMatrix, transpose: Boolean) {
             require(rows == cols && b.rows == rows && out.rows == rows && out.cols == b.cols) {
                 "oneMKL sparse trmm requires B and output with $rows rows and equal column counts"
             }
@@ -255,7 +255,7 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
             )
         }
 
-        override fun sparseProduct(right: PreparedSparseComparator): F64SparseMatrix {
+        override fun sparseProduct(right: PreparedSparseComparator): SparseMatrix {
             require(right is Prepared) { "oneMKL sparse product requires two oneMKL prepared operands" }
             require(cols == right.rows) { "oneMKL sparse product inner dimensions differ: $cols and ${right.rows}" }
             return owner.multiply(matrix, right.matrix)
@@ -288,7 +288,7 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
 }
 
 @OptIn(UnsafeKoblasApi::class)
-private fun csrOf(a: F64SparseMatrix): CsrArrays {
+private fun csrOf(a: SparseMatrix): CsrArrays {
     val rowPtr = IntArray(a.rows + 1)
     for (row in a.rowIdx) rowPtr[row + 1]++
     for (i in 0 until a.rows) rowPtr[i + 1] += rowPtr[i]

@@ -1,7 +1,7 @@
 package com.eignex.koblas.sparse.factorization.lu
 
 import com.eignex.koblas.*
-import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.sparse.*
 import com.eignex.koblas.sparse.internal.MutableIntDoubleMap
 import kotlin.math.*
@@ -41,11 +41,11 @@ public class F64SparseMarkowitzLu private constructor(
      * Unit lower triangular, built from the by-column factors this holds. The diagonal is implicit in the
      * factorization and stored here, so `P·A·Q = L·U` reads without a special case for it.
      */
-    override val l: F64SparseMatrix
+    override val l: SparseMatrix
         get() = triangular(lColIdx, lColVal, diagonalFirst = true) { 1.0 }
 
     /** Upper triangular, the diagonal taken from the pivots. */
-    override val u: F64SparseMatrix
+    override val u: SparseMatrix
         get() = triangular(uColIdx, uColVal, diagonalFirst = false) { uDiag[it] }
 
     override val rowOrder: IntArray get() = perm.copyOf()
@@ -63,7 +63,7 @@ public class F64SparseMarkowitzLu private constructor(
         values: Array<DoubleArray>,
         diagonalFirst: Boolean,
         diagonal: (Int) -> Double,
-    ): F64SparseMatrix {
+    ): SparseMatrix {
         val colPtr = IntArray(m + 1)
         for (k in 0 until m) colPtr[k + 1] = colPtr[k] + columns[k].size + 1
         val rowIdx = IntArray(colPtr[m])
@@ -92,7 +92,7 @@ public class F64SparseMarkowitzLu private constructor(
                 entries[slot] = diagonal(k)
             }
         }
-        return F64SparseMatrix.wrap(m, m, colPtr, rowIdx, entries)
+        return SparseMatrix.wrap(m, m, colPtr, rowIdx, entries)
     }
 
     /** Always [NOT_SINGULAR]: a [F64SparseMarkowitzLu] only exists for a matrix that factored completely. */
@@ -294,11 +294,11 @@ public class F64SparseMarkowitzLu private constructor(
         }
 
         /**
-         * Factorize the square [a], the implementation behind [F64SparseDecompositions.factor]. Returns a
+         * Factorize the square [a], the implementation behind [SparseLapack.factor]. Returns a
          * [F64SingularSparseFactorization] when no acceptable pivot remains.
          */
         internal fun factorCsc(
-            a: F64SparseMatrix,
+            a: SparseMatrix,
             equilibrate: Boolean = false,
             dropTolerance: Double = NO_DROP,
         ): F64SparseLuFactorization {

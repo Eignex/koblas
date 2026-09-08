@@ -3,19 +3,18 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
-import com.eignex.koblas.core.*
 
 /** Dense matrix routines as a backend half. */
-public interface F64Blas : Backend {
+public interface Blas : Backend {
 
     /** The vector kernels this half's inherited routines run on; the installed ones by default. */
-    public val kernels: F64Kernels get() = koblas.kernels
+    public val kernels: Kernels get() = koblas.kernels
 
     /** `y = alpha · op(A) · x + beta · y` (BLAS `dgemv`), with `op(A)` being `Aᵀ` when [transpose].
      *  `beta == 0.0` overwrites [y] without reading it. Supply [workspace] to reuse transposed dot scratch. */
     public fun gemv(
         alpha: Double,
-        a: F64DenseMatrix,
+        a: DenseMatrix,
         x: DoubleArray,
         beta: Double,
         y: DoubleArray,
@@ -24,7 +23,7 @@ public interface F64Blas : Backend {
     )
 
     /** [gemv] with `alpha = 1, beta = 0`, into a fresh result. */
-    public fun gemv(a: F64DenseMatrix, x: DoubleArray, transpose: Boolean = false): DoubleArray {
+    public fun gemv(a: DenseMatrix, x: DoubleArray, transpose: Boolean = false): DoubleArray {
         val y = DoubleArray(if (transpose) a.cols else a.rows)
         gemv(1.0, a, x, 0.0, y, transpose)
         return y
@@ -40,9 +39,9 @@ public interface F64Blas : Backend {
     public fun gemv(
         alpha: Double,
         a: F64StridedMatrixView,
-        x: F64StridedVectorView,
+        x: StridedVectorView,
         beta: Double,
-        y: F64StridedVectorView,
+        y: StridedVectorView,
         transpose: Boolean = false,
     ) {
         requireGemvShape(a, transpose, x.size, y.size)
@@ -73,9 +72,9 @@ public interface F64Blas : Backend {
     }
 
     /** [gemv] over borrowed storage into a fresh owned array. */
-    public fun gemv(a: F64StridedMatrixView, x: F64StridedVectorView, transpose: Boolean = false): DoubleArray {
+    public fun gemv(a: F64StridedMatrixView, x: StridedVectorView, transpose: Boolean = false): DoubleArray {
         val result = DoubleArray(if (transpose) a.cols else a.rows)
-        gemv(1.0, a, x, 0.0, F64StridedVectorView(result, 0, result.size), transpose)
+        gemv(1.0, a, x, 0.0, StridedVectorView(result, 0, result.size), transpose)
         return result
     }
 
@@ -86,25 +85,25 @@ public interface F64Blas : Backend {
      * On the seam rather than beside the other whole-matrix operations because a library has its own routine
      * for it, `omatcopy` in the BLAS-like extensions, where the standard has none.
      */
-    public fun transpose(a: F64DenseMatrix): F64DenseMatrix
+    public fun transpose(a: DenseMatrix): DenseMatrix
 
     /** `C = alpha · op(A) · op(B) + beta · C` (BLAS `dgemm`), with shapes `op(A): m×k`, `op(B): k×n`, `C: m×n`.
      *  `beta == 0.0` overwrites [c] without reading it. [workspace] reuses any needed transpose packing. */
     @Suppress("LongParameterList") // the BLAS dgemm signature
     public fun gemm(
         alpha: Double,
-        a: F64DenseMatrix,
+        a: DenseMatrix,
         transposeA: Boolean,
-        b: F64DenseMatrix,
+        b: DenseMatrix,
         transposeB: Boolean,
         beta: Double,
-        c: F64DenseMatrix,
+        c: DenseMatrix,
         workspace: Workspace? = null,
     )
 
     /** [gemm] with `alpha = 1, beta = 0`, into a fresh matrix. `A.cols` must equal `B.rows`. */
-    public fun gemm(a: F64DenseMatrix, b: F64DenseMatrix): F64DenseMatrix {
-        val c = F64DenseMatrix(a.rows, b.cols)
+    public fun gemm(a: DenseMatrix, b: DenseMatrix): DenseMatrix {
+        val c = DenseMatrix(a.rows, b.cols)
         gemm(1.0, a, transposeA = false, b, transposeB = false, beta = 0.0, c = c)
         return c
     }
@@ -157,8 +156,8 @@ public interface F64Blas : Backend {
     }
 
     /** [gemm] over borrowed panels into a fresh owned matrix. */
-    public fun gemm(a: F64StridedMatrixView, b: F64StridedMatrixView): F64DenseMatrix {
-        val result = F64DenseMatrix.zero(a.rows, b.cols)
+    public fun gemm(a: F64StridedMatrixView, b: F64StridedMatrixView): DenseMatrix {
+        val result = DenseMatrix.zero(a.rows, b.cols)
         gemm(1.0, a, false, b, false, 0.0, result.asView())
         return result
     }
@@ -174,10 +173,10 @@ public interface F64Blas : Backend {
     @Suppress("LongParameterList") // the BLAS dsyrk signature plus optional scratch
     public fun syrk(
         alpha: Double,
-        a: F64DenseMatrix,
+        a: DenseMatrix,
         transpose: Boolean,
         beta: Double,
-        c: F64DenseMatrix,
+        c: DenseMatrix,
         lower: Boolean = true,
         workspace: Workspace? = null,
     )
@@ -187,7 +186,7 @@ public interface F64Blas : Backend {
     @Suppress("LongParameterList") // the BLAS dsymv signature
     public fun symv(
         alpha: Double,
-        a: F64DenseMatrix,
+        a: DenseMatrix,
         x: DoubleArray,
         beta: Double,
         y: DoubleArray,
@@ -200,24 +199,24 @@ public interface F64Blas : Backend {
     @Suppress("LongParameterList") // the BLAS dsymm signature
     public fun symm(
         alpha: Double,
-        a: F64DenseMatrix,
-        b: F64DenseMatrix,
+        a: DenseMatrix,
+        b: DenseMatrix,
         beta: Double,
-        c: F64DenseMatrix,
+        c: DenseMatrix,
         lower: Boolean = true,
         right: Boolean = false,
         workspace: Workspace? = null,
     )
 
     /** `A = A + alpha · x · yᵀ` (BLAS `dger`), the dense form a backend can dispatch. The free `ger` accepts
-     *  [F64VectorStorage] operands and takes a sparse fast path. */
-    public fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: F64DenseMatrix)
+     *  [VectorStorage] operands and takes a sparse fast path. */
+    public fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix)
 
     /** `A += alpha · x · xᵀ` (BLAS `dsyr`), writing only the [lower] or upper triangle. */
-    public fun syr(alpha: Double, x: F64VectorLike, a: F64DenseMatrix, lower: Boolean = true)
+    public fun syr(alpha: Double, x: VectorLike, a: DenseMatrix, lower: Boolean = true)
 
     /** `A += alpha · (x · yᵀ + y · xᵀ)` (BLAS `dsyr2`), writing only the [lower] or upper triangle. */
-    public fun syr2(alpha: Double, x: F64VectorLike, y: F64VectorLike, a: F64DenseMatrix, lower: Boolean = true)
+    public fun syr2(alpha: Double, x: VectorLike, y: VectorLike, a: DenseMatrix, lower: Boolean = true)
 
     /**
      * `C = alpha · (op(A) · op(B)ᵀ + op(B) · op(A)ᵀ) + beta · C` (BLAS `dsyr2k`), where `op` transposes when
@@ -230,11 +229,11 @@ public interface F64Blas : Backend {
     @Suppress("LongParameterList") // the BLAS dsyr2k signature plus optional scratch
     public fun syr2k(
         alpha: Double,
-        a: F64DenseMatrix,
-        b: F64DenseMatrix,
+        a: DenseMatrix,
+        b: DenseMatrix,
         transpose: Boolean,
         beta: Double,
-        c: F64DenseMatrix,
+        c: DenseMatrix,
         lower: Boolean = true,
         workspace: Workspace? = null,
     )
@@ -245,10 +244,10 @@ public interface F64Blas : Backend {
      *
      * The diagonal is divided by, not tested: `dtrsv` carries no `info` and reports nothing, so a singular
      * triangle yields infinities or NaNs and the caller who needs the distinction tests the diagonal first.
-     * The sparse [com.eignex.koblas.sparse.F64SparseBlas.trsv] follows the same rule.
+     * The sparse [com.eignex.koblas.sparse.SparseBlas.trsv] follows the same rule.
      */
     public fun trsv(
-        a: F64DenseMatrix,
+        a: DenseMatrix,
         x: DoubleArray,
         lower: Boolean,
         transpose: Boolean = false,
@@ -260,8 +259,8 @@ public interface F64Blas : Backend {
      *  [workspace] reuses portable staging. */
     @Suppress("LongParameterList") // the BLAS dtrsm signature
     public fun trsm(
-        a: F64DenseMatrix,
-        b: F64DenseMatrix,
+        a: DenseMatrix,
+        b: DenseMatrix,
         lower: Boolean,
         transpose: Boolean = false,
         unitDiag: Boolean = false,
@@ -272,7 +271,7 @@ public interface F64Blas : Backend {
 
     /** `x = op(T) · x` in place (BLAS `dtrmv`), the product counterpart of [trsv]. */
     public fun trmv(
-        a: F64DenseMatrix,
+        a: DenseMatrix,
         x: DoubleArray,
         lower: Boolean,
         transpose: Boolean = false,
@@ -283,8 +282,8 @@ public interface F64Blas : Backend {
      *  [trsm]. [workspace] reuses portable staging. */
     @Suppress("LongParameterList") // the BLAS dtrmm signature
     public fun trmm(
-        a: F64DenseMatrix,
-        b: F64DenseMatrix,
+        a: DenseMatrix,
+        b: DenseMatrix,
         lower: Boolean,
         transpose: Boolean = false,
         unitDiag: Boolean = false,

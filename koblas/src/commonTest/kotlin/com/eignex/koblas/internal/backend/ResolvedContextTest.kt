@@ -13,7 +13,7 @@ import kotlin.test.assertNotNull
  */
 class ResolvedContextTest {
 
-    private class BlasHalf(override val name: String) : F64Blas by F64ReferenceBlas {
+    private class BlasHalf(override val name: String) : Blas by F64ReferenceBlas {
         override val priority: Int get() = 40
         override val isPortable: Boolean get() = false
         override val isAvailable: Boolean get() = true
@@ -34,7 +34,7 @@ class ResolvedContextTest {
         // the two paths can answer differently. Adding one and editing only the other compiles fine, so this
         // is what fails instead.
         val fromRegistry = koblas
-        val fromBuilder = F64ContextBuilder().resolve()
+        val fromBuilder = ContextBuilder().resolve()
 
         for (role in BackendRole.entries) {
             assertNotNull(fromRegistry.backendFor(role), "the registry left $role unfilled")

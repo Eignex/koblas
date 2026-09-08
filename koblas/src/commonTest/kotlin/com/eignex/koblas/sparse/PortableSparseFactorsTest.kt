@@ -1,6 +1,6 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.SparseMatrix
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -50,7 +50,7 @@ class PortableSparseFactorsTest {
     @Test
     fun `a singular factorization has no factors to give`() {
         // Column 1 repeats column 0, so no acceptable pivot remains at the second step.
-        val a = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0, 1 to 2.0), listOf(0 to 1.0, 1 to 2.0)))
+        val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0, 1 to 2.0), listOf(0 to 1.0, 1 to 2.0)))
 
         val lu = F64ReferenceSparseLinearAlgebra.factor(a)
 
@@ -62,7 +62,7 @@ class PortableSparseFactorsTest {
 
     @Test
     fun `a singular LDL factorization has no factors to give`() {
-        val a = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), emptyList()))
+        val a = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), emptyList()))
 
         val ldl = F64ReferenceSparseLinearAlgebra.quasiDefiniteLdl(a)
 

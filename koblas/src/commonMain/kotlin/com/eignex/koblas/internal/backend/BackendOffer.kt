@@ -12,7 +12,7 @@ import com.eignex.koblas.Backend
  *
  * The two are different requests. A half nobody named is one this backend may fill if it is the right kind
  * of provider for it, so the specialization policy applies. A [named] half is a deployment asking for this
- * backend there, which is the same thing [com.eignex.koblas.F64ContextBuilder.withBackend] expresses by
+ * backend there, which is the same thing [com.eignex.koblas.ContextBuilder.withBackend] expresses by
  * naming a role, and it is answered by the type test alone.
  */
 internal class BackendOffer(val halves: Set<BackendSlot>, val named: Set<BackendSlot>) {

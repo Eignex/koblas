@@ -2,9 +2,9 @@ package com.eignex.koblas.internal.backend
 
 import com.eignex.koblas.Backend
 import com.eignex.koblas.BackendRole
-import com.eignex.koblas.F64Context
-import com.eignex.koblas.dense.F64Kernels
+import com.eignex.koblas.KoblasContext
 import com.eignex.koblas.dense.F64PlatformKernels
+import com.eignex.koblas.dense.Kernels
 
 internal object BackendRegistry {
 
@@ -28,7 +28,7 @@ internal object BackendRegistry {
      * The process-wide default context: an explicit override when set, else whatever registered
      * itself, else the portable reference implementations. Every free function in koblas uses this.
      */
-    internal val activeContext: F64Context
+    internal val activeContext: KoblasContext
         get() {
             return f64.active
         }
@@ -84,7 +84,7 @@ internal object BackendRegistry {
      * Overrides the process-wide context; null restores registrations. Not synchronized with
      * operations in flight, so install during startup, before other threads run.
      */
-    internal fun install(context: F64Context?) {
+    internal fun install(context: KoblasContext?) {
         f64.install(context)
     }
 
@@ -104,5 +104,5 @@ internal object BackendRegistry {
     }
 
     /** The kernels the compiled-in path uses when nothing is registered, for tests that need to name them. */
-    internal val platformKernels: F64Kernels get() = F64PlatformKernels
+    internal val platformKernels: Kernels get() = F64PlatformKernels
 }

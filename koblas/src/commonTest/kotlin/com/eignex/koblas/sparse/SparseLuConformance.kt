@@ -1,14 +1,14 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.*
-import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.SparseMatrix
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.*
 
 /** A diagonally dominant system with roughly a quarter of the off-diagonal entries filled. */
-internal fun sparseConformanceSystem(n: Int, rng: Random): F64SparseMatrix {
+internal fun sparseConformanceSystem(n: Int, rng: Random): SparseMatrix {
     val columns = ArrayList<List<Pair<Int, Double>>>(n)
     for (j in 0 until n) {
         val column = ArrayList<Pair<Int, Double>>()
@@ -22,7 +22,7 @@ internal fun sparseConformanceSystem(n: Int, rng: Random): F64SparseMatrix {
         }
         columns.add(column)
     }
-    return F64SparseMatrix.ofColumns(n, n, columns)
+    return SparseMatrix.ofColumns(n, n, columns)
 }
 
 /**
@@ -30,7 +30,7 @@ internal fun sparseConformanceSystem(n: Int, rng: Random): F64SparseMatrix {
  * filled, which is what the factor-reading suites want: sparser than [sparseConformanceSystem] and with no
  * two pivots the same size.
  */
-internal fun sparseDominantSystem(n: Int, rng: Random): F64SparseMatrix {
+internal fun sparseDominantSystem(n: Int, rng: Random): SparseMatrix {
     val columns = List(n) { j ->
         val entries = ArrayList<Pair<Int, Double>>()
         for (i in 0 until n) {
@@ -41,17 +41,17 @@ internal fun sparseDominantSystem(n: Int, rng: Random): F64SparseMatrix {
         }
         entries
     }
-    return F64SparseMatrix.ofColumns(n, n, columns)
+    return SparseMatrix.ofColumns(n, n, columns)
 }
 
 /** A·x computed straight from the CSC arrays, so no seam is involved in checking a seam. */
-internal fun multiply(a: F64SparseMatrix, x: DoubleArray): DoubleArray {
+internal fun multiply(a: SparseMatrix, x: DoubleArray): DoubleArray {
     val y = DoubleArray(a.rows)
     for (j in 0 until a.cols) a.forEachInColumn(j) { i, v -> y[i] += v * x[j] }
     return y
 }
 
-internal fun assertSolvesAgreeWithReference(decompositions: F64SparseDecompositions) {
+internal fun assertSolvesAgreeWithReference(decompositions: SparseLapack) {
     val rng = Random(20260815)
     for (n in intArrayOf(1, 2, 7, 23, 60)) {
         val a = sparseConformanceSystem(n, rng)
@@ -71,7 +71,7 @@ internal fun assertSolvesAgreeWithReference(decompositions: F64SparseDecompositi
     }
 }
 
-internal fun assertAliasedDestinationSolves(decompositions: F64SparseDecompositions) {
+internal fun assertAliasedDestinationSolves(decompositions: SparseLapack) {
     val rng = Random(20260816)
     val n = 12
     val a = sparseConformanceSystem(n, rng)
@@ -84,7 +84,7 @@ internal fun assertAliasedDestinationSolves(decompositions: F64SparseDecompositi
 }
 
 /** A host factor declares and executes at least a size-independent-managed solve without hidden fallback. */
-internal fun assertStrictNativeSolveAllocationContract(decompositions: F64SparseDecompositions) {
+internal fun assertStrictNativeSolveAllocationContract(decompositions: SparseLapack) {
     val rng = Random(20260827)
     val n = 16
     val a = sparseConformanceSystem(n, rng)
@@ -111,13 +111,13 @@ internal fun assertStrictNativeSolveAllocationContract(decompositions: F64Sparse
 }
 
 /** A provider's block solve agrees column-for-column and preserves its in-place contract. */
-internal fun assertBlockSolvesAgreeWithReference(decompositions: F64SparseDecompositions) {
+internal fun assertBlockSolvesAgreeWithReference(decompositions: SparseLapack) {
     val rng = Random(20260830)
     val n = 12
     val a = sparseConformanceSystem(n, rng)
     val factor = decompositions.factor(a)
     val portable = F64ReferenceSparseLinearAlgebra.factor(a)
-    val b = F64DenseMatrix(n, 4, DoubleArray(n * 4) { rng.nextDouble(-1.0, 1.0) })
+    val b = DenseMatrix(n, 4, DoubleArray(n * 4) { rng.nextDouble(-1.0, 1.0) })
     assertTrue(factor.nnz >= n)
     assertTrue(factor.rcond > 0.0)
     for (transpose in booleanArrayOf(false, true)) {
@@ -125,7 +125,7 @@ internal fun assertBlockSolvesAgreeWithReference(decompositions: F64SparseDecomp
         val actual = factor.solve(b, transpose)
         assertClose(expected.data, actual.data, "block transpose=$transpose", tolerance = 1e-9)
 
-        val aliased = F64DenseMatrix.wrap(n, b.cols, b.data.copyOf())
+        val aliased = DenseMatrix.wrap(n, b.cols, b.data.copyOf())
         factor.solveInto(aliased, aliased, transpose)
         assertClose(expected.data, aliased.data, "aliased block transpose=$transpose", tolerance = 1e-9)
     }
@@ -137,13 +137,13 @@ internal fun assertNativeBlockFactorSolvesAgreeWithReference(
     portable: F64SparseFactorization,
 ) {
     val rng = Random(20260831)
-    val b = F64DenseMatrix(factor.n, 4, DoubleArray(factor.n * 4) { rng.nextDouble(-1.0, 1.0) })
+    val b = DenseMatrix(factor.n, 4, DoubleArray(factor.n * 4) { rng.nextDouble(-1.0, 1.0) })
     for (transpose in booleanArrayOf(false, true)) {
         val expected = portable.solve(b, transpose)
         val actual = factor.solve(b, transpose)
         assertClose(expected.data, actual.data, "symmetric block transpose=$transpose", tolerance = 1e-9)
 
-        val aliased = F64DenseMatrix.wrap(factor.n, b.cols, b.data.copyOf())
+        val aliased = DenseMatrix.wrap(factor.n, b.cols, b.data.copyOf())
         factor.solveInto(aliased, aliased, transpose)
         assertClose(expected.data, aliased.data, "aliased symmetric block transpose=$transpose", tolerance = 1e-9)
     }
@@ -167,8 +167,8 @@ internal fun assertStrictNativeSolveAllocationContract(factor: F64SparseFactoriz
     assertClose(expected, out, "strict native symmetric solve", tolerance = 1e-12)
 }
 
-internal fun assertReciprocalPivotConditionEstimateIsBounded(decompositions: F64SparseDecompositions) {
-    val identity = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 1.0)))
+internal fun assertReciprocalPivotConditionEstimateIsBounded(decompositions: SparseLapack) {
+    val identity = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf(1 to 1.0)))
     assertEquals(1.0, decompositions.factor(identity).rcond)
 
     val estimate = decompositions.factor(sparseConformanceSystem(12, Random(20260824))).rcond
@@ -176,8 +176,8 @@ internal fun assertReciprocalPivotConditionEstimateIsBounded(decompositions: F64
 }
 
 /** A host that cannot name the failing pivot must say so rather than invent a position. */
-internal fun assertSingularIsReportedWithUnknownPosition(decompositions: F64SparseDecompositions) {
-    val rank1 = F64SparseMatrix.ofColumns(
+internal fun assertSingularIsReportedWithUnknownPosition(decompositions: SparseLapack) {
+    val rank1 = SparseMatrix.ofColumns(
         2,
         2,
         listOf(listOf(0 to 1.0, 1 to 2.0), listOf(0 to 2.0, 1 to 4.0)),
@@ -194,7 +194,7 @@ internal fun assertSingularIsReportedWithUnknownPosition(decompositions: F64Spar
  * A host sparse factorization wins only its own half of the registry, so the sparse BLAS stays with the
  * reference. [n] sets the size of the system whose fill is reported.
  */
-internal fun assertRegistersAsTheSparseLuHalf(decompositions: F64SparseDecompositions, n: Int) {
+internal fun assertRegistersAsTheSparseLuHalf(decompositions: SparseLapack, n: Int) {
     withCleanBackends {
         registerBackend(decompositions)
         assertEquals(
@@ -212,7 +212,7 @@ internal fun assertRegistersAsTheSparseLuHalf(decompositions: F64SparseDecomposi
 
 /** A backend set to equilibrate scales natively and still solves the system it was given. */
 internal fun assertNativeEquilibration(
-    decompositions: F64SparseDecompositions,
+    decompositions: SparseLapack,
     hostFactorization: (F64SparseFactorization) -> Boolean,
 ) {
     val rng = Random(20260818)
@@ -224,7 +224,7 @@ internal fun assertNativeEquilibration(
 }
 
 /** Native handles are freed per factorization, so a long loop must not grow without bound. */
-internal fun assertRepeatedFactorizationsSurvive(decompositions: F64SparseDecompositions) {
+internal fun assertRepeatedFactorizationsSurvive(decompositions: SparseLapack) {
     val rng = Random(20260820)
     val a = sparseConformanceSystem(120, rng)
     var checksum = 0.0

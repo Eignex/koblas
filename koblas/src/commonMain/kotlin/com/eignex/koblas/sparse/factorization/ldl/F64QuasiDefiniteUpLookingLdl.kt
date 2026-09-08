@@ -2,8 +2,8 @@ package com.eignex.koblas.sparse.factorization.ldl
 
 import com.eignex.koblas.AllocationCapability
 import com.eignex.koblas.NOT_SINGULAR
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
-import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.noManagedOrNativeAllocation
 import com.eignex.koblas.requireSolveShapes
 import com.eignex.koblas.requireSquare
@@ -36,10 +36,10 @@ public class F64QuasiDefiniteUpLookingLdl internal constructor(
     override val failedAt: Int,
 ) : F64QuasiDefiniteLdlFactorization {
 
-    override val l: F64SparseMatrix
+    override val l: SparseMatrix
         get() {
             requireFactors("l")
-            return F64SparseMatrix.wrap(
+            return SparseMatrix.wrap(
                 n,
                 n,
                 colPtr.copyOf(),
@@ -131,7 +131,7 @@ public class F64QuasiDefiniteUpLookingLdl internal constructor(
          * A zero pivot comes back as a factorization reporting `singular` at that column, as the sparse LU
          * does. A negative one does not: it is what an indefinite matrix is expected to produce.
          */
-        public fun factorLower(a: F64SparseMatrix): F64QuasiDefiniteUpLookingLdl {
+        public fun factorLower(a: SparseMatrix): F64QuasiDefiniteUpLookingLdl {
             requireSquare(a, "quasiDefiniteLdl")
             // The up-looking sweep reads row k of A left of the diagonal, and CSC stores columns.
             val upper = transposeCsc(a)
@@ -139,19 +139,16 @@ public class F64QuasiDefiniteUpLookingLdl internal constructor(
         }
 
         /** The pattern-only half of [factorLower], for a caller that will factor this structure again. */
-        internal fun analyzeLower(a: F64SparseMatrix): UpLookingSymbolic {
+        internal fun analyzeLower(a: SparseMatrix): UpLookingSymbolic {
             requireSquare(a, "quasiDefiniteLdl")
             return analyzeUpLooking(a.rows, transposeCsc(a), storesDiagonal = false)
         }
 
         /** [factorLower] against an analysis of the same pattern, which the caller has already checked. */
-        internal fun factorLower(a: F64SparseMatrix, symbolic: UpLookingSymbolic): F64QuasiDefiniteUpLookingLdl =
+        internal fun factorLower(a: SparseMatrix, symbolic: UpLookingSymbolic): F64QuasiDefiniteUpLookingLdl =
             factorTransposed(transposeCsc(a), symbolic)
 
-        private fun factorTransposed(
-            upper: F64SparseMatrix,
-            symbolic: UpLookingSymbolic,
-        ): F64QuasiDefiniteUpLookingLdl {
+        private fun factorTransposed(upper: SparseMatrix, symbolic: UpLookingSymbolic): F64QuasiDefiniteUpLookingLdl {
             val n = symbolic.n
             val colPtr = symbolic.colPtr
             val rowIdx = IntArray(colPtr[n])
@@ -171,7 +168,7 @@ public class F64QuasiDefiniteUpLookingLdl internal constructor(
 @Suppress("LongParameterList") // the shape, the tree, and the three factor arrays being filled beside D
 private fun factorNumeric(
     n: Int,
-    upper: F64SparseMatrix,
+    upper: SparseMatrix,
     parent: IntArray,
     colPtr: IntArray,
     rowIdx: IntArray,

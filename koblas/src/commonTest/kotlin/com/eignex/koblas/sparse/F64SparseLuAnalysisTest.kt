@@ -1,6 +1,6 @@
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.SparseMatrix
 import kotlin.test.*
 
 class F64SparseLuAnalysisTest {
@@ -9,12 +9,12 @@ class F64SparseLuAnalysisTest {
         var factors = 0
         var refactors = 0
 
-        override fun factor(a: F64SparseMatrix): F64SparseLuFactorization {
+        override fun factor(a: SparseMatrix): F64SparseLuFactorization {
             factors++
             return F64ReferenceSparseLinearAlgebra.factor(a)
         }
 
-        override fun refactor(previous: F64SparseLuFactorization, a: F64SparseMatrix): F64SparseLuFactorization {
+        override fun refactor(previous: F64SparseLuFactorization, a: SparseMatrix): F64SparseLuFactorization {
             refactors++
             previous.close()
             return F64ReferenceSparseLinearAlgebra.factor(a)
@@ -45,7 +45,7 @@ class F64SparseLuAnalysisTest {
     fun `analysis rejects another pattern before numeric work`() {
         val provider = RepeatedProvider()
         val first = matrix(doubleArrayOf(4.0, 1.0, 3.0))
-        val changed = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(1 to 3.0)))
+        val changed = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(1 to 3.0)))
         val analysis = provider.analyze(first)
 
         val failure = assertFailsWith<IllegalArgumentException> { analysis.factor(changed) }
@@ -67,7 +67,7 @@ class F64SparseLuAnalysisTest {
         assertFailsWith<IllegalStateException> { analysis.factor(matrix) }
     }
 
-    private fun matrix(values: DoubleArray): F64SparseMatrix = F64SparseMatrix.ofColumns(
+    private fun matrix(values: DoubleArray): SparseMatrix = SparseMatrix.ofColumns(
         2,
         2,
         listOf(listOf(0 to values[0], 1 to values[1]), listOf(1 to values[2])),
@@ -75,17 +75,17 @@ class F64SparseLuAnalysisTest {
 }
 
 internal fun assertSymbolicAnalysisReuses(provider: F64RepeatedSparseLu) {
-    val first = F64SparseMatrix.ofColumns(
+    val first = SparseMatrix.ofColumns(
         2,
         2,
         listOf(listOf(0 to 2.0, 1 to 1.0), listOf(1 to 3.0)),
     )
-    val changed = F64SparseMatrix.ofColumns(
+    val changed = SparseMatrix.ofColumns(
         2,
         2,
         listOf(listOf(0 to 4.0, 1 to 2.0), listOf(1 to 5.0)),
     )
-    val incompatible = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(1 to 5.0)))
+    val incompatible = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 4.0), listOf(1 to 5.0)))
 
     provider.analyze(first).use { analysis ->
         var factor = analysis.factor(first)

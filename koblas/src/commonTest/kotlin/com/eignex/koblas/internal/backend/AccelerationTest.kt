@@ -1,29 +1,29 @@
 package com.eignex.koblas.internal.backend
 
 import com.eignex.koblas.*
-import com.eignex.koblas.core.F64SparseVector
+import com.eignex.koblas.SparseVector
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
-import com.eignex.koblas.sparse.F64SparseKernels
+import com.eignex.koblas.sparse.SparseKernels
 import kotlin.test.*
 
 class AccelerationTest {
 
-    private class FakeHost(override val name: String) : F64Blas by F64ReferenceBlas {
+    private class FakeHost(override val name: String) : Blas by F64ReferenceBlas {
         override val priority: Int get() = 100
         override val isPortable: Boolean get() = false
         override val isAvailable: Boolean get() = true
         override val unavailableReason: String? get() = null
-        override val kernels: F64Kernels get() = F64ReferenceBlas.kernels
+        override val kernels: Kernels get() = F64ReferenceBlas.kernels
     }
 
-    private class FakeKernels(override val name: String = "fakeblas") : F64Kernels by F64ScalarKernels {
+    private class FakeKernels(override val name: String = "fakeblas") : Kernels by F64ScalarKernels {
         override val priority: Int get() = 100
         override val isPortable: Boolean get() = false
     }
 
     private class RoutedHost :
-        F64Blas by F64ReferenceBlas,
+        Blas by F64ReferenceBlas,
         F64RoutingBackend {
         override val name: String get() = "routed"
         override val priority: Int get() = 100
@@ -170,18 +170,18 @@ class AccelerationTest {
     }
 
     /** A sparse-kernel half at the default priority, which is what most registrations use. */
-    private class PlainSparseKernels : F64SparseKernels {
+    private class PlainSparseKernels : SparseKernels {
         override val name: String get() = "plain-sparse"
-        override fun dot(x: F64SparseVector, y: DoubleArray): Double = F64ReferenceSparseLinearAlgebra.dot(x, y)
-        override fun dot(x: F64SparseVector, y: F64SparseVector): Double = F64ReferenceSparseLinearAlgebra.dot(x, y)
-        override fun axpy(y: DoubleArray, alpha: Double, x: F64SparseVector) =
+        override fun dot(x: SparseVector, y: DoubleArray): Double = F64ReferenceSparseLinearAlgebra.dot(x, y)
+        override fun dot(x: SparseVector, y: SparseVector): Double = F64ReferenceSparseLinearAlgebra.dot(x, y)
+        override fun axpy(y: DoubleArray, alpha: Double, x: SparseVector) =
             F64ReferenceSparseLinearAlgebra.axpy(y, alpha, x)
-        override fun scatter(x: F64SparseVector, out: DoubleArray) = F64ReferenceSparseLinearAlgebra.scatter(x, out)
-        override fun gather(x: F64SparseVector, from: DoubleArray) = F64ReferenceSparseLinearAlgebra.gather(x, from)
-        override fun gatherZero(x: F64SparseVector, from: DoubleArray) =
+        override fun scatter(x: SparseVector, out: DoubleArray) = F64ReferenceSparseLinearAlgebra.scatter(x, out)
+        override fun gather(x: SparseVector, from: DoubleArray) = F64ReferenceSparseLinearAlgebra.gather(x, from)
+        override fun gatherZero(x: SparseVector, from: DoubleArray) =
             F64ReferenceSparseLinearAlgebra.gatherZero(x, from)
-        override fun nrm2(x: F64SparseVector): Double = F64ReferenceSparseLinearAlgebra.nrm2(x)
-        override fun asum(x: F64SparseVector): Double = F64ReferenceSparseLinearAlgebra.asum(x)
+        override fun nrm2(x: SparseVector): Double = F64ReferenceSparseLinearAlgebra.nrm2(x)
+        override fun asum(x: SparseVector): Double = F64ReferenceSparseLinearAlgebra.asum(x)
     }
 
     /**

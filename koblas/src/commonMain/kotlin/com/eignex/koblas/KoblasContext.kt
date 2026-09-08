@@ -1,11 +1,11 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.core.F64StridedMatrixView
-import com.eignex.koblas.core.F64StridedVectorView
-import com.eignex.koblas.dense.F64Blas
-import com.eignex.koblas.dense.F64Kernels
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.F64StridedMatrixView
+import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.StridedVectorView
+import com.eignex.koblas.dense.Blas
+import com.eignex.koblas.dense.Kernels
 import com.eignex.koblas.internal.backend.BackendSlot
 import com.eignex.koblas.sparse.F64BasisFactorizations
 import com.eignex.koblas.sparse.F64GeneralSparseLu
@@ -13,21 +13,21 @@ import com.eignex.koblas.sparse.F64QuasiDefiniteLdl
 import com.eignex.koblas.sparse.F64QuasiDefiniteLdlFactorization
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.F64RepeatedSparseLu
-import com.eignex.koblas.sparse.F64SparseBlas
 import com.eignex.koblas.sparse.F64SparseCholesky
 import com.eignex.koblas.sparse.F64SparseCholeskyFactorization
 import com.eignex.koblas.sparse.F64SparseDecompositionRoles
-import com.eignex.koblas.sparse.F64SparseDecompositions
-import com.eignex.koblas.sparse.F64SparseKernels
-import com.eignex.koblas.sparse.F64SparseLinearAlgebra
 import com.eignex.koblas.sparse.F64SparseLuFactorization
 import com.eignex.koblas.sparse.F64SparseQr
 import com.eignex.koblas.sparse.F64SparseQrFactorization
+import com.eignex.koblas.sparse.SparseBlas
+import com.eignex.koblas.sparse.SparseKernels
+import com.eignex.koblas.sparse.SparseLapack
+import com.eignex.koblas.sparse.SparseLinearAlgebra
 import com.eignex.koblas.sparse.basis.F64BasisSolvers
 
 /**
  * Every backend koblas will use for a piece of work, in one object you can hold. Immutable, and itself a
- * [F64Blas] and a [F64SparseLinearAlgebra] by delegation.
+ * [Blas] and a [SparseLinearAlgebra] by delegation.
  *
  * @property kernels dense vector-vector routines; every dense inner loop bottoms out here.
  * @property blas dense matrix routines.
@@ -44,20 +44,20 @@ import com.eignex.koblas.sparse.basis.F64BasisSolvers
  * compatibility composition derived from the selected general LU, Cholesky, quasi-definite LDL and QR.
  */
 @Suppress("LongParameterList") // the backend halves, resolved roles, and execution policy
-public class F64Context internal constructor(
-    override val kernels: F64Kernels,
-    public val blas: F64Blas,
-    override val sparseKernels: F64SparseKernels,
-    public val sparseBlas: F64SparseBlas,
+public class KoblasContext internal constructor(
+    override val kernels: Kernels,
+    public val blas: Blas,
+    override val sparseKernels: SparseKernels,
+    public val sparseBlas: SparseBlas,
     public val basisSolvers: F64BasisSolvers,
     private val roles: SparseRoles,
     public val dispatchPolicy: F64DispatchPolicy = F64DispatchPolicy.AUTO,
     public val fallbackPolicy: F64FallbackPolicy = F64FallbackPolicy.ALLOW,
     internal val fallbackWarning: (BackendRoute) -> Unit = {},
-) : F64Blas by blas,
-    F64SparseLinearAlgebra,
-    F64SparseBlas by sparseBlas,
-    F64SparseDecompositions,
+) : Blas by blas,
+    SparseLinearAlgebra,
+    SparseBlas by sparseBlas,
+    SparseLapack,
     F64BasisSolvers by basisSolvers {
 
     /**
@@ -65,11 +65,11 @@ public class F64Context internal constructor(
      * by hand. Every path inside koblas resolves the roles first and hands them straight in.
      */
     public constructor(
-        kernels: F64Kernels,
-        blas: F64Blas,
-        sparseKernels: F64SparseKernels,
-        sparseBlas: F64SparseBlas,
-        sparseDecompositions: F64SparseDecompositions,
+        kernels: Kernels,
+        blas: Blas,
+        sparseKernels: SparseKernels,
+        sparseBlas: SparseBlas,
+        sparseDecompositions: SparseLapack,
         basisSolvers: F64BasisSolvers,
     ) : this(
         kernels,
@@ -87,9 +87,9 @@ public class F64Context internal constructor(
      * selected, and delegating to the composition they were derived from left two objects answering the
      * same interface on one instance.
      */
-    override fun cholesky(a: F64SparseMatrix): F64SparseCholeskyFactorization = roles.cholesky.cholesky(a)
+    override fun cholesky(a: SparseMatrix): F64SparseCholeskyFactorization = roles.cholesky.cholesky(a)
 
-    override fun quasiDefiniteLdl(a: F64SparseMatrix): F64QuasiDefiniteLdlFactorization =
+    override fun quasiDefiniteLdl(a: SparseMatrix): F64QuasiDefiniteLdlFactorization =
         roles.quasiDefiniteLdl.quasiDefiniteLdl(a)
 
     /** Provider selected for ordinary sparse LU. */
@@ -111,7 +111,7 @@ public class F64Context internal constructor(
     public val basisFactorizations: F64BasisFactorizations get() = roles.basisFactorizations
 
     /** A compatibility operation surface derived from the four selected sparse factorization providers. */
-    public val sparseDecompositions: F64SparseDecompositions by lazy {
+    public val sparseDecompositions: SparseLapack by lazy {
         F64SparseDecompositionRoles(generalSparseLu, sparseCholesky, quasiDefiniteLdl, sparseQr)
     }
 
@@ -141,17 +141,17 @@ public class F64Context internal constructor(
      * a half built around kernels of its own always keeps them.
      */
     public fun with(
-        kernels: F64Kernels = this.kernels,
-        blas: F64Blas = this.blas,
-        sparseKernels: F64SparseKernels = this.sparseKernels,
-        sparseBlas: F64SparseBlas = this.sparseBlas,
-        sparseDecompositions: F64SparseDecompositions = this.sparseDecompositions,
+        kernels: Kernels = this.kernels,
+        blas: Blas = this.blas,
+        sparseKernels: SparseKernels = this.sparseKernels,
+        sparseBlas: SparseBlas = this.sparseBlas,
+        sparseDecompositions: SparseLapack = this.sparseDecompositions,
         basisSolvers: F64BasisSolvers = this.basisSolvers,
-    ): F64Context {
+    ): KoblasContext {
         // A composition this context did not derive its own roles from is one to derive them from again.
         val selected =
             if (sparseDecompositions === this.sparseDecompositions) roles else SparseRoles(sparseDecompositions)
-        return F64Context(
+        return KoblasContext(
             kernels = kernels,
             blas = blas,
             sparseKernels = sparseKernels,
@@ -166,7 +166,7 @@ public class F64Context internal constructor(
 
     override fun gemv(
         alpha: Double,
-        a: F64DenseMatrix,
+        a: DenseMatrix,
         x: DoubleArray,
         beta: Double,
         y: DoubleArray,
@@ -184,9 +184,9 @@ public class F64Context internal constructor(
     override fun gemv(
         alpha: Double,
         a: F64StridedMatrixView,
-        x: F64StridedVectorView,
+        x: StridedVectorView,
         beta: Double,
-        y: F64StridedVectorView,
+        y: StridedVectorView,
         transpose: Boolean,
     ) {
         if (enforcesRoutingPolicy) {
@@ -196,7 +196,7 @@ public class F64Context internal constructor(
         blas.gemv(alpha, a, x, beta, y, transpose)
     }
 
-    override fun gemv(a: F64DenseMatrix, x: DoubleArray, transpose: Boolean): DoubleArray {
+    override fun gemv(a: DenseMatrix, x: DoubleArray, transpose: Boolean): DoubleArray {
         val y = DoubleArray(if (transpose) a.cols else a.rows)
         gemv(1.0, a, x, 0.0, y, transpose)
         return y
@@ -205,12 +205,12 @@ public class F64Context internal constructor(
     @Suppress("LongParameterList")
     override fun gemm(
         alpha: Double,
-        a: F64DenseMatrix,
+        a: DenseMatrix,
         transposeA: Boolean,
-        b: F64DenseMatrix,
+        b: DenseMatrix,
         transposeB: Boolean,
         beta: Double,
-        c: F64DenseMatrix,
+        c: DenseMatrix,
         workspace: Workspace?,
     ) {
         if (enforcesRoutingPolicy) {
@@ -220,8 +220,8 @@ public class F64Context internal constructor(
         blas.gemm(alpha, a, transposeA, b, transposeB, beta, c, workspace)
     }
 
-    override fun gemm(a: F64DenseMatrix, b: F64DenseMatrix): F64DenseMatrix {
-        val c = F64DenseMatrix(a.rows, b.cols)
+    override fun gemm(a: DenseMatrix, b: DenseMatrix): DenseMatrix {
+        val c = DenseMatrix(a.rows, b.cols)
         gemm(1.0, a, false, b, false, 0.0, c)
         return c
     }
@@ -246,12 +246,12 @@ public class F64Context internal constructor(
     @Suppress("LongParameterList")
     override fun gemm(
         alpha: Double,
-        a: F64SparseMatrix,
+        a: SparseMatrix,
         transposeA: Boolean,
-        b: F64DenseMatrix,
+        b: DenseMatrix,
         transposeB: Boolean,
         beta: Double,
-        c: F64DenseMatrix,
+        c: DenseMatrix,
         right: Boolean,
         workspace: Workspace?,
     ) {
@@ -268,13 +268,13 @@ public class F64Context internal constructor(
         sparseBlas.gemm(alpha, a, transposeA, b, transposeB, beta, c, right, workspace)
     }
 
-    override fun gemm(a: F64SparseMatrix, b: F64DenseMatrix): F64DenseMatrix {
-        val c = F64DenseMatrix.zero(a.rows, b.cols)
+    override fun gemm(a: SparseMatrix, b: DenseMatrix): DenseMatrix {
+        val c = DenseMatrix.zero(a.rows, b.cols)
         gemm(1.0, a, false, b, false, 0.0, c, false)
         return c
     }
 
-    override fun trsv(a: F64SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
+    override fun trsv(a: SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
         if (enforcesRoutingPolicy) {
             requireSquare(a, "trsv")
             requireShape(x.size == a.rows) { "trsv: x length ${x.size} != ${a.rows}" }
@@ -291,7 +291,7 @@ public class F64Context internal constructor(
         sparseBlas.trsv(a, x, lower, transpose, unitDiag)
     }
 
-    override fun trmv(a: F64SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
+    override fun trmv(a: SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
         if (enforcesRoutingPolicy) {
             requireSquare(a, "trmv")
             requireShape(x.size == a.rows) { "trmv: x length ${x.size} != ${a.rows}" }
@@ -310,8 +310,8 @@ public class F64Context internal constructor(
 
     @Suppress("LongParameterList") // the BLAS dtrsm signature
     override fun trsm(
-        a: F64SparseMatrix,
-        b: F64DenseMatrix,
+        a: SparseMatrix,
+        b: DenseMatrix,
         lower: Boolean,
         transpose: Boolean,
         unitDiag: Boolean,
@@ -339,8 +339,8 @@ public class F64Context internal constructor(
 
     @Suppress("LongParameterList") // the BLAS dtrmm signature
     override fun trmm(
-        a: F64SparseMatrix,
-        b: F64DenseMatrix,
+        a: SparseMatrix,
+        b: DenseMatrix,
         lower: Boolean,
         transpose: Boolean,
         unitDiag: Boolean,
@@ -364,7 +364,7 @@ public class F64Context internal constructor(
         sparseBlas.trmm(a, b, lower, transpose, unitDiag, right, alpha)
     }
 
-    override fun factor(a: F64SparseMatrix): F64SparseLuFactorization {
+    override fun factor(a: SparseMatrix): F64SparseLuFactorization {
         if (enforcesRoutingPolicy) {
             requireSquare(a, "factor")
             beforeDispatch(F64RouteQuery.SparseLu(a.nnz))
@@ -372,14 +372,14 @@ public class F64Context internal constructor(
         return sparseDecompositions.factor(a)
     }
 
-    override fun qr(a: F64SparseMatrix): F64SparseQrFactorization {
+    override fun qr(a: SparseMatrix): F64SparseQrFactorization {
         if (enforcesRoutingPolicy) {
             beforeDispatch(F64RouteQuery.SparseQr(a.nnz))
         }
         return sparseDecompositions.qr(a)
     }
 
-    override fun toString(): String = "F64Context($name)"
+    override fun toString(): String = "KoblasContext($name)"
 }
 
 /**
@@ -388,7 +388,7 @@ public class F64Context internal constructor(
  * roles its caller resolved from the registry or a builder, and the public one is handed a composition to
  * read them out of.
  *
- * This is the representation, and [F64Context.sparseDecompositions] is a compatibility surface derived from
+ * This is the representation, and [KoblasContext.sparseDecompositions] is a compatibility surface derived from
  * it. The reverse, reading roles back out of a composition, is what the `*Capability` readers below are for,
  * and they run only where a caller hands in a composition rather than roles.
  */
@@ -400,7 +400,7 @@ internal class SparseRoles(
     val qr: F64SparseQr,
     val basisFactorizations: F64BasisFactorizations,
 ) {
-    constructor(composition: F64SparseDecompositions) : this(
+    constructor(composition: SparseLapack) : this(
         generalLu = composition.generalLuCapability(),
         repeatedLu = composition as? F64RepeatedSparseLu,
         cholesky = composition.choleskyCapability(),
@@ -410,21 +410,20 @@ internal class SparseRoles(
     )
 }
 
-private fun F64SparseDecompositions.generalLuCapability(): F64GeneralSparseLu =
-    (this as? F64SparseDecompositionRoles)?.generalLu
-        ?: (this as? F64GeneralSparseLu)
-        ?: error("$name fills no general sparse LU role")
+private fun SparseLapack.generalLuCapability(): F64GeneralSparseLu = (this as? F64SparseDecompositionRoles)?.generalLu
+    ?: (this as? F64GeneralSparseLu)
+    ?: error("$name fills no general sparse LU role")
 
-private fun F64SparseDecompositions.choleskyCapability(): F64SparseCholesky =
+private fun SparseLapack.choleskyCapability(): F64SparseCholesky =
     (this as? F64SparseDecompositionRoles)?.choleskyProvider
         ?: (this as? F64SparseCholesky)
         ?: error("$name fills no sparse Cholesky role")
 
-private fun F64SparseDecompositions.quasiDefiniteLdlCapability(): F64QuasiDefiniteLdl =
+private fun SparseLapack.quasiDefiniteLdlCapability(): F64QuasiDefiniteLdl =
     (this as? F64SparseDecompositionRoles)?.quasiDefiniteLdlProvider
         ?: (this as? F64QuasiDefiniteLdl)
         ?: error("$name fills no sparse quasi-definite LDL role")
 
-private fun F64SparseDecompositions.qrCapability(): F64SparseQr = (this as? F64SparseDecompositionRoles)?.qrProvider
+private fun SparseLapack.qrCapability(): F64SparseQr = (this as? F64SparseDecompositionRoles)?.qrProvider
     ?: (this as? F64SparseQr)
     ?: error("$name fills no sparse QR role")

@@ -1,6 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.core.F64DenseMatrix
+import com.eignex.koblas.DenseMatrix
 import kotlinx.benchmark.*
 
 /** Dedicated rank-2k matrix for triangle, transpose, tile-edge, and rectangular-depth comparisons. */
@@ -24,9 +24,9 @@ class Syr2kBenchmark {
     var denseArm: String = BUILTIN_BACKEND
 
     private lateinit var arm: DenseBenchmarkArm
-    private lateinit var a: F64DenseMatrix
-    private lateinit var b: F64DenseMatrix
-    private lateinit var c: F64DenseMatrix
+    private lateinit var a: DenseMatrix
+    private lateinit var b: DenseMatrix
+    private lateinit var c: DenseMatrix
 
     @Setup
     fun setup() {
@@ -37,7 +37,7 @@ class Syr2kBenchmark {
         val rng = benchRng()
         a = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
         b = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
-        c = F64DenseMatrix.zero(n, n)
+        c = DenseMatrix.zero(n, n)
         val allocationReason = if (arm.external == null) {
             "built-in packed workspace"
         } else {
@@ -47,7 +47,7 @@ class Syr2kBenchmark {
     }
 
     @Benchmark
-    fun syr2k(): F64DenseMatrix {
+    fun syr2k(): DenseMatrix {
         arm.external?.syr2k(1.0, a, b, transpose, 0.0, c, lower) ?: arm.context!!.syr2k(
             1.0,
             a,

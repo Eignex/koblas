@@ -1,9 +1,9 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.core.F64DenseVector
-import com.eignex.koblas.core.F64StridedVectorView
-import com.eignex.koblas.core.asView
-import com.eignex.koblas.core.overlaps
+import com.eignex.koblas.DenseVector
+import com.eignex.koblas.StridedVectorView
+import com.eignex.koblas.asView
+import com.eignex.koblas.overlaps
 import kotlin.math.abs
 
 /**
@@ -23,7 +23,7 @@ import kotlin.math.abs
  * @property h12 first-row, second-column entry of the transformation.
  * @property h22 second-row, second-column entry of the transformation.
  */
-public class F64ModifiedGivens internal constructor(
+public class ModifiedGivens internal constructor(
     public val d1: Double,
     public val d2: Double,
     public val x1: Double,
@@ -36,19 +36,18 @@ public class F64ModifiedGivens internal constructor(
 
 /**
  * Construct a modified Givens transformation (BLAS `drotmg`) that eliminates the second component of
- * `(sqrt(d1) * x1, sqrt(d2) * y1)`. The returned [F64ModifiedGivens] carries both BLAS's updated
+ * `(sqrt(d1) * x1, sqrt(d2) * y1)`. The returned [ModifiedGivens] carries both BLAS's updated
  * `d1`, `d2`, `x1` state and the matrix for [rotm].
  *
  * The scaling constants and branch conditions are the Netlib reference algorithm. In particular, a negative
  * [d1] clears the returned state, and `d2 * y1 == 0.0` returns the identity (`flag == -2.0`) without changing
  * that state.
  */
-public fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64ModifiedGivens =
-    koblas.kernels.rotmg(d1, d2, x1, y1)
+public fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens = koblas.kernels.rotmg(d1, d2, x1, y1)
 
 /** Portable Netlib-reference implementation used by the scalar and fallback kernel backends. */
 @Suppress("CyclomaticComplexMethod") // literal translation of the four Netlib DROTMG cases
-internal fun portableRotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64ModifiedGivens {
+internal fun portableRotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens {
     var dd1 = d1
     var dd2 = d2
     var dx1 = x1
@@ -65,7 +64,7 @@ internal fun portableRotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64M
         dx1 = 0.0
     } else {
         val p2 = dd2 * y1
-        if (p2 == 0.0) return F64ModifiedGivens(dd1, dd2, dx1, -2.0, 1.0, 0.0, 0.0, 1.0)
+        if (p2 == 0.0) return ModifiedGivens(dd1, dd2, dx1, -2.0, 1.0, 0.0, 0.0, 1.0)
 
         val p1 = dd1 * dx1
         val q2 = p2 * y1
@@ -165,10 +164,10 @@ internal fun portableRotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64M
 
 /**
  * Apply a modified Givens [transformation] to each pair in [x] and [y] (BLAS `drotm`). Both vectors are
- * overwritten in place; when they share a backing array, the [F64StridedVectorView] overload's overlap
+ * overwritten in place; when they share a backing array, the [StridedVectorView] overload's overlap
  * handling applies, so at a shared physical entry the final write is from [y].
  */
-public fun rotm(x: F64DenseVector, y: F64DenseVector, transformation: F64ModifiedGivens) {
+public fun rotm(x: DenseVector, y: DenseVector, transformation: ModifiedGivens) {
     rotm(x.asView(), y.asView(), transformation)
 }
 
@@ -176,7 +175,7 @@ public fun rotm(x: F64DenseVector, y: F64DenseVector, transformation: F64Modifie
  * [rotm] over borrowed strided storage. Negative strides are supported. If the views overlap, both logical
  * input sequences are snapshotted before writing; at a shared physical entry the final write is from [y].
  */
-public fun rotm(x: F64StridedVectorView, y: F64StridedVectorView, transformation: F64ModifiedGivens) {
+public fun rotm(x: StridedVectorView, y: StridedVectorView, transformation: ModifiedGivens) {
     requireSameSize(x.size, y.size)
     if (transformation.flag == -2.0) return
     if (x.overlaps(y)) {
@@ -200,7 +199,7 @@ public fun rotm(x: F64StridedVectorView, y: F64StridedVectorView, transformation
 }
 
 /** Convert the materialized matrix back to BLAS's flag-dependent `dparam` layout. */
-internal fun F64ModifiedGivens.toBlasParameters(): DoubleArray = DoubleArray(5).also { parameters ->
+internal fun ModifiedGivens.toBlasParameters(): DoubleArray = DoubleArray(5).also { parameters ->
     parameters[0] = flag
     when (flag) {
         -2.0 -> {
@@ -237,15 +236,15 @@ private fun modifiedGivens(
     h21: Double,
     h12: Double,
     h22: Double,
-): F64ModifiedGivens = when (flag) {
+): ModifiedGivens = when (flag) {
     // portableRotmg returns the -2.0 identity directly, before reaching this factory.
-    -1.0 -> F64ModifiedGivens(d1, d2, x1, flag, h11, h21, h12, h22)
+    -1.0 -> ModifiedGivens(d1, d2, x1, flag, h11, h21, h12, h22)
 
     // BLAS fixes these off-diagonal entries at 1.0/-1.0 for flag 0/1; h21/h12 (flag 0) and h11/h22
     // (flag 1) are the only entries flag leaves for the caller to have computed.
-    0.0 -> F64ModifiedGivens(d1, d2, x1, flag, 1.0, h21, h12, 1.0)
+    0.0 -> ModifiedGivens(d1, d2, x1, flag, 1.0, h21, h12, 1.0)
 
-    1.0 -> F64ModifiedGivens(d1, d2, x1, flag, h11, -1.0, 1.0, h22)
+    1.0 -> ModifiedGivens(d1, d2, x1, flag, h11, -1.0, 1.0, h22)
 
     else -> error("unexpected modified Givens flag $flag")
 }
@@ -260,7 +259,7 @@ internal fun portableRotm(
     yOff: Int,
     yStride: Int,
     len: Int,
-    transformation: F64ModifiedGivens,
+    transformation: ModifiedGivens,
 ) {
     if (transformation.flag == -2.0) return
     applyModifiedGivens(x, xOff, xStride, y, yOff, yStride, len, transformation)
@@ -279,7 +278,7 @@ internal fun applyModifiedGivens(
     yOffset: Int,
     yStride: Int,
     len: Int,
-    transformation: F64ModifiedGivens,
+    transformation: ModifiedGivens,
 ) {
     val h11 = transformation.h11
     val h12 = transformation.h12

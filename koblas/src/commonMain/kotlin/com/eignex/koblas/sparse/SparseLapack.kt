@@ -1,9 +1,9 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.Backend
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
-import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.core.F64SparseMatrix
 
 /**
  * Sparse factorizations as a backend surface, carrying every factorization of a sparse matrix.
@@ -21,14 +21,14 @@ import com.eignex.koblas.core.F64SparseMatrix
  * A caller wanting one of those reaches the backend by name through
  * [com.eignex.koblas.backendNamed] with the capability it fills, rather than through the seam.
  */
-public interface F64SparseDecompositions : Backend {
+public interface SparseLapack : Backend {
     /**
      * Factorize the square [a] into something solvable. A singular matrix comes back as a factorization
      * reporting `singular` rather than as an exception, with a `failedAt` counting elimination steps rather
      * than naming a column: the step that fails is the one with no acceptable pivot left, so there is no
      * column of [a] to attribute it to.
      */
-    public fun factor(a: F64SparseMatrix): F64SparseLuFactorization
+    public fun factor(a: SparseMatrix): F64SparseLuFactorization
 
     /**
      * Cholesky factorization `A = L·Lᵀ` of a symmetric positive-definite [a]. Only the lower triangle is
@@ -41,7 +41,7 @@ public interface F64SparseDecompositions : Backend {
      *
      * @throws com.eignex.koblas.NotPositiveDefinite at the first column whose pivot is not positive.
      */
-    public fun cholesky(a: F64SparseMatrix): F64SparseCholeskyFactorization
+    public fun cholesky(a: SparseMatrix): F64SparseCholeskyFactorization
 
     /**
      * Factorization `A = L·D·Lᵀ` of a symmetric [a], with `L` unit lower triangular. Only the lower triangle
@@ -58,7 +58,7 @@ public interface F64SparseDecompositions : Backend {
      * general indefinite one. A caller that cannot promise quasi-definiteness wants [factor], whose pivoting
      * is numerical.
      */
-    public fun quasiDefiniteLdl(a: F64SparseMatrix): F64QuasiDefiniteLdlFactorization
+    public fun quasiDefiniteLdl(a: SparseMatrix): F64QuasiDefiniteLdlFactorization
 
     /**
      * QR factorization of a tall or square [a], for the least-squares solve `min ‖A·x − b‖₂`. Its factor is
@@ -66,7 +66,7 @@ public interface F64SparseDecompositions : Backend {
      *
      * @throws IllegalArgumentException if [a] has fewer rows than columns.
      */
-    public fun qr(a: F64SparseMatrix): F64SparseQrFactorization
+    public fun qr(a: SparseMatrix): F64SparseQrFactorization
 
     /**
      * Solve `A·x = b` from [f] into [out], `Aᵀ·x = b` when [transpose]. The work belongs to the
@@ -87,12 +87,12 @@ public interface F64SparseDecompositions : Backend {
     /** Solve `A · X = B` from [f] into a fresh dense result. */
     public fun solve(
         f: F64SparseFactorization,
-        b: F64DenseMatrix,
+        b: DenseMatrix,
         transpose: Boolean = false,
         workspace: Workspace? = null,
-    ): F64DenseMatrix = f.solveInto(
+    ): DenseMatrix = f.solveInto(
         b,
-        F64DenseMatrix(if (transpose) f.n else f.n, b.cols),
+        DenseMatrix(if (transpose) f.n else f.n, b.cols),
         transpose,
         workspace,
     )
@@ -100,9 +100,9 @@ public interface F64SparseDecompositions : Backend {
     /** Solve `A · X = B` from [f] into [out], which is returned. [out] may be [b]. */
     public fun solveInto(
         f: F64SparseFactorization,
-        b: F64DenseMatrix,
-        out: F64DenseMatrix,
+        b: DenseMatrix,
+        out: DenseMatrix,
         transpose: Boolean = false,
         workspace: Workspace? = null,
-    ): F64DenseMatrix = f.solveInto(b, out, transpose, workspace)
+    ): DenseMatrix = f.solveInto(b, out, transpose, workspace)
 }

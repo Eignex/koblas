@@ -1,7 +1,7 @@
 package com.eignex.koblas.sparse
 
+import com.eignex.koblas.SparseVector
 import com.eignex.koblas.assertClose
-import com.eignex.koblas.core.F64SparseVector
 import com.eignex.koblas.randomVector
 import kotlin.math.abs
 import kotlin.random.Random
@@ -11,10 +11,10 @@ import kotlin.test.assertTrue
 
 class PlatformSparseKernelsTest {
 
-    private fun sparse(size: Int, nnz: Int, rng: Random): F64SparseVector {
+    private fun sparse(size: Int, nnz: Int, rng: Random): SparseVector {
         val stride = size / nnz
         val indices = IntArray(nnz) { k -> k * stride + rng.nextInt(stride) }
-        return F64SparseVector.of(size, indices, DoubleArray(nnz) { rng.nextDouble(-1.0, 1.0) })
+        return SparseVector.of(size, indices, DoubleArray(nnz) { rng.nextDouble(-1.0, 1.0) })
     }
 
     @Test
@@ -82,8 +82,8 @@ class PlatformSparseKernelsTest {
         val rng = Random(20260902)
         for (nnz in listOf(1, 7, 32, 129, 512)) {
             val pattern = sparse(nnz * 8, nnz, rng)
-            val expected = F64SparseVector.of(pattern.size, pattern.indices, pattern.values)
-            val actual = F64SparseVector.of(pattern.size, pattern.indices, pattern.values)
+            val expected = SparseVector.of(pattern.size, pattern.indices, pattern.values)
+            val actual = SparseVector.of(pattern.size, pattern.indices, pattern.values)
             val from = randomVector(pattern.size, rng)
             F64ReferenceSparseLinearAlgebra.gather(expected, from)
             F64PlatformSparseKernels.gather(actual, from)
@@ -96,8 +96,8 @@ class PlatformSparseKernelsTest {
         val rng = Random(20260903)
         for (nnz in listOf(1, 7, 32, 129, 512)) {
             val pattern = sparse(nnz * 8, nnz, rng)
-            val expected = F64SparseVector.of(pattern.size, pattern.indices, pattern.values)
-            val actual = F64SparseVector.of(pattern.size, pattern.indices, pattern.values)
+            val expected = SparseVector.of(pattern.size, pattern.indices, pattern.values)
+            val actual = SparseVector.of(pattern.size, pattern.indices, pattern.values)
             val expectedFrom = randomVector(pattern.size, rng)
             val actualFrom = expectedFrom.copyOf()
             F64ReferenceSparseLinearAlgebra.gatherZero(expected, expectedFrom)
@@ -137,7 +137,7 @@ class PlatformSparseKernelsTest {
             val rng = Random(20260825)
             val nnz = 64
             val values = DoubleArray(nnz) { rng.nextDouble(0.5, 1.0) * scale }
-            val x = F64SparseVector.of(nnz * 4, IntArray(nnz) { it * 4 }, values)
+            val x = SparseVector.of(nnz * 4, IntArray(nnz) { it * 4 }, values)
             val expectedNrm2 = F64ReferenceSparseLinearAlgebra.nrm2(x)
             val actualNrm2 = F64PlatformSparseKernels.nrm2(x)
             assertTrue(actualNrm2.isFinite() && actualNrm2 > 0.0, "nrm2 at scale $scale is $actualNrm2")

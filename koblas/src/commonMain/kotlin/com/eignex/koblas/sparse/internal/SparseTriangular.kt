@@ -2,12 +2,12 @@
 
 package com.eignex.koblas.sparse.internal
 
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.UnsafeKoblasApi
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.borrow
-import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.dense.F64Kernels
+import com.eignex.koblas.dense.Kernels
 import com.eignex.koblas.dense.axpyArithmetic
 import com.eignex.koblas.dense.borrowTransposed
 import com.eignex.koblas.sparse.REFERENCE_SPARSE_RHS_WIDTH
@@ -33,7 +33,7 @@ private inline fun forEachRhsPanel(columns: Int, action: (start: Int, width: Int
 
 /** Runs [block] with the diagonal of [a] borrowed from [workspace], or null when [unitDiag] takes it as 1. */
 internal inline fun withExplicitDiagonal(
-    a: F64SparseMatrix,
+    a: SparseMatrix,
     n: Int,
     unitDiag: Boolean,
     workspace: Workspace?,
@@ -51,8 +51,8 @@ internal inline fun withExplicitDiagonal(
 
 /** Sparse triangular multiply over RHS panels, so values and indices are read once for several dense columns. */
 internal fun trmmLeftCore(
-    a: F64SparseMatrix,
-    b: F64DenseMatrix,
+    a: SparseMatrix,
+    b: DenseMatrix,
     lower: Boolean,
     transpose: Boolean,
     unitDiag: Boolean,
@@ -109,9 +109,9 @@ internal fun trmmLeftCore(
  * of that algorithm is a whole column of [b] here instead of one right-hand side in a panel.
  */
 internal fun trmmRightCore(
-    kernels: F64Kernels,
-    a: F64SparseMatrix,
-    b: F64DenseMatrix,
+    kernels: Kernels,
+    a: SparseMatrix,
+    b: DenseMatrix,
     lower: Boolean,
     transpose: Boolean,
     unitDiag: Boolean,
@@ -152,7 +152,7 @@ internal fun trmmRightCore(
  * The diagonal is probed as `a[j, j]`, a binary search per column. That is `trmv`'s to pay: `trmm` walks
  * several right-hand sides against one triangle and precomputes the diagonal for itself instead.
  */
-internal fun trmvCore(a: F64SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
+internal fun trmvCore(a: SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
     val n = a.rows
     if (!transpose) {
         val order = if (lower) n - 1 downTo 0 else 0 until n
@@ -188,19 +188,19 @@ internal fun trmvCore(a: F64SparseMatrix, x: DoubleArray, lower: Boolean, transp
 /**
  * Snapshots the coefficient array only when the in-place destination aliases this matrix's live values.
  * The column pointers and row indices are shared live rather than copied: [trmvCore] never
- * mutates them, and they are documented immutable for the life of a [F64SparseMatrix].
+ * mutates them, and they are documented immutable for the life of a [SparseMatrix].
  */
 @OptIn(UnsafeKoblasApi::class)
-internal fun F64SparseMatrix.stableFor(destination: DoubleArray): F64SparseMatrix = if (values === destination) {
-    F64SparseMatrix.wrap(rows, cols, colPtr, rowIdx, values.copyOf())
+internal fun SparseMatrix.stableFor(destination: DoubleArray): SparseMatrix = if (values === destination) {
+    SparseMatrix.wrap(rows, cols, colPtr, rowIdx, values.copyOf())
 } else {
     this
 }
 
 /** Sparse substitution over RHS panels, so values and indices are read once for several dense columns. */
 internal fun trsmLeftCore(
-    a: F64SparseMatrix,
-    b: F64DenseMatrix,
+    a: SparseMatrix,
+    b: DenseMatrix,
     lower: Boolean,
     transpose: Boolean,
     diagonal: DoubleArray?,
@@ -247,9 +247,9 @@ internal fun trsmLeftCore(
 
 /** Right solve over contiguous dense columns, which turns every sparse update into a Level 1 operation. */
 internal fun trsmRightCore(
-    kernels: F64Kernels,
-    a: F64SparseMatrix,
-    b: F64DenseMatrix,
+    kernels: Kernels,
+    a: SparseMatrix,
+    b: DenseMatrix,
     lower: Boolean,
     transpose: Boolean,
     diagonal: DoubleArray?,
@@ -281,7 +281,7 @@ internal fun trsmRightCore(
 /** `trsv` over the `n` entries of [x], with the triangle flags resolved once by the caller. */
 @Suppress("LongParameterList") // the three BLAS triangle flags
 internal fun trsvCore(
-    a: F64SparseMatrix,
+    a: SparseMatrix,
     x: DoubleArray,
     lower: Boolean,
     transpose: Boolean,
@@ -312,11 +312,11 @@ internal fun trsvCore(
 @Suppress("LongParameterList") // the operands, their flags, and the shape already worked out
 internal fun multiplyFromTheLeft(
     alpha: Double,
-    a: F64SparseMatrix,
+    a: SparseMatrix,
     transposeA: Boolean,
-    b: F64DenseMatrix,
+    b: DenseMatrix,
     transposeB: Boolean,
-    c: F64DenseMatrix,
+    c: DenseMatrix,
     m: Int,
     n: Int,
     k: Int,
@@ -363,13 +363,13 @@ internal fun multiplyFromTheLeft(
  */
 @Suppress("LongParameterList") // the operands, their flags, and the shape already worked out
 internal fun multiplyFromTheRight(
-    kernels: F64Kernels,
+    kernels: Kernels,
     alpha: Double,
-    a: F64SparseMatrix,
+    a: SparseMatrix,
     transposeA: Boolean,
-    b: F64DenseMatrix,
+    b: DenseMatrix,
     transposeB: Boolean,
-    c: F64DenseMatrix,
+    c: DenseMatrix,
     m: Int,
     workspace: Workspace?,
 ) {
@@ -384,9 +384,9 @@ internal fun multiplyFromTheRight(
 }
 
 internal fun multiplyFromTheRightColumns(
-    kernels: F64Kernels,
+    kernels: Kernels,
     alpha: Double,
-    a: F64SparseMatrix,
+    a: SparseMatrix,
     transposeA: Boolean,
     c: DoubleArray,
     b: DoubleArray,

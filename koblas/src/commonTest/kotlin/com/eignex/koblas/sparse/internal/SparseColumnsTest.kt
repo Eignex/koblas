@@ -1,14 +1,14 @@
 package com.eignex.koblas.sparse.internal
 
-import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.core.F64SparseVector
+import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.SparseVector
 import com.eignex.koblas.withColumn
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class SparseColumnsTest {
 
-    private val a = F64SparseMatrix.ofColumns(
+    private val a = SparseMatrix.ofColumns(
         rows = 4,
         cols = 3,
         columns = listOf(
@@ -19,7 +19,7 @@ class SparseColumnsTest {
     )
 
     private fun column(vararg pairs: Pair<Int, Double>) =
-        F64SparseVector.of(4, pairs.map { it.first }.toIntArray(), pairs.map { it.second }.toDoubleArray())
+        SparseVector.of(4, pairs.map { it.first }.toIntArray(), pairs.map { it.second }.toDoubleArray())
 
     @Test
     fun `replacing columns in one pass matches replacing them one at a time`() {
@@ -36,7 +36,7 @@ class SparseColumnsTest {
     fun `the last replacement of a column is the one that lands`() {
         val early = column(1 to 7.0)
         val late = column(2 to -5.0, 3 to 6.0)
-        val pending = LinkedHashMap<Int, F64SparseVector>()
+        val pending = LinkedHashMap<Int, SparseVector>()
         pending[1] = early
         pending[1] = late
 

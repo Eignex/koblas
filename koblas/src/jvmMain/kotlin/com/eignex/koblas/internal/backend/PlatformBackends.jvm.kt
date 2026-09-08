@@ -1,9 +1,9 @@
 package com.eignex.koblas.internal.backend
 
 import com.eignex.koblas.Backend
+import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.F64BundledBackend
-import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.dense.F64Blas
+import com.eignex.koblas.dense.Blas
 import com.eignex.koblas.dense.host.cblas.HostBlasConfig
 import com.eignex.koblas.dense.host.jvm.F64Cblas
 import com.eignex.koblas.sparse.host.F64SparseBackends
@@ -92,12 +92,12 @@ private fun <T : Backend> loadProviders(type: Class<T>, providers: MutableList<B
  * would be asked to compute is the half a pin already turned away.
  */
 internal fun probe(backend: Backend, offered: Set<BackendSlot> = BackendSlot.entries.toSet()): Boolean {
-    if (backend !is F64Blas || BackendSlot.F64Blas !in offered) return backend.isAvailable
+    if (backend !is Blas || BackendSlot.Blas !in offered) return backend.isAvailable
     val n = 1
     @Suppress("TooGenericExceptionCaught") // native load failures surface as UnsatisfiedLinkError
     return try {
-        val a = F64DenseMatrix(n, n, DoubleArray(n * n) { 2.0 })
-        val c = F64DenseMatrix(n, n)
+        val a = DenseMatrix(n, n, DoubleArray(n * n) { 2.0 })
+        val c = DenseMatrix(n, n)
         backend.gemm(1.0, a, transposeA = false, a, transposeB = false, beta = 0.0, c = c)
         val expected = 4.0 * n
         c.data.all { it == expected }

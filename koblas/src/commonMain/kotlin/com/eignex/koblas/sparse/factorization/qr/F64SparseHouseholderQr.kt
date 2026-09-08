@@ -4,9 +4,9 @@ import com.eignex.koblas.AllocationCapability
 import com.eignex.koblas.AllocationGuarantee
 import com.eignex.koblas.ScratchRequirement
 import com.eignex.koblas.SingularMatrix
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.borrow
-import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.dense.F64_MACHINE_EPSILON
 import com.eignex.koblas.internal.numeric.euclideanNorm
 import com.eignex.koblas.requireShape
@@ -46,11 +46,11 @@ public class F64SparseHouseholderQr internal constructor(
     // R comes out of the numeric pass in elimination-path order, so its columns need sorting, which is what
     // sortedCsc does. The order is a property of the numeric pass rather than of the caller, so it is
     // settled once and not per read.
-    private val sortedR: F64SparseMatrix by lazy { sortedCsc(n, n, rColPtr, rRowIdx, rValues) }
+    private val sortedR: SparseMatrix by lazy { sortedCsc(n, n, rColPtr, rRowIdx, rValues) }
 
-    // Fresh arrays per read, since a caller may write through F64SparseMatrix.values.
-    override val r: F64SparseMatrix
-        get() = F64SparseMatrix.wrap(
+    // Fresh arrays per read, since a caller may write through SparseMatrix.values.
+    override val r: SparseMatrix
+        get() = SparseMatrix.wrap(
             n,
             n,
             sortedR.copyColumnPointers(),
@@ -138,10 +138,10 @@ public class F64SparseHouseholderQr internal constructor(
     /** Factories. */
     public companion object {
         /** Factor [a], which must have at least as many rows as columns. */
-        public fun factor(a: F64SparseMatrix): F64SparseHouseholderQr = factor(a, analyze(a))
+        public fun factor(a: SparseMatrix): F64SparseHouseholderQr = factor(a, analyze(a))
 
         /** The pattern-only half of [factor], for a caller that will factor this structure again. */
-        internal fun analyze(a: F64SparseMatrix): SparseQrSymbolic {
+        internal fun analyze(a: SparseMatrix): SparseQrSymbolic {
             requireShape(a.rows >= a.cols) {
                 "qr: A is ${a.rows}x${a.cols}, which is wider than it is tall; factor its transpose instead"
             }
@@ -149,7 +149,7 @@ public class F64SparseHouseholderQr internal constructor(
         }
 
         /** [factor] against an analysis of the same pattern, which the caller has already checked. */
-        internal fun factor(a: F64SparseMatrix, symbolic: SparseQrSymbolic): F64SparseHouseholderQr {
+        internal fun factor(a: SparseMatrix, symbolic: SparseQrSymbolic): F64SparseHouseholderQr {
             val upperNonzeros = symbolic.upperNonzeros
             val n = a.cols
             val vColPtr = IntArray(n + 1)
@@ -192,7 +192,7 @@ private fun numericalRank(m: Int, n: Int, colPtr: IntArray, values: DoubleArray)
  */
 @Suppress("LongParameterList", "CyclomaticComplexMethod") // the two factors being filled entry by entry
 private fun factorNumeric(
-    a: F64SparseMatrix,
+    a: SparseMatrix,
     symbolic: SparseQrSymbolic,
     vColPtr: IntArray,
     vRowIdx: IntArray,

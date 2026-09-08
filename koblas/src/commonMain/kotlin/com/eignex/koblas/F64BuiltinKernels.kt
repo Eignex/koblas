@@ -1,19 +1,19 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.F64Kernels
-import com.eignex.koblas.sparse.F64SparseKernels
+import com.eignex.koblas.dense.Kernels
+import com.eignex.koblas.sparse.SparseKernels
 
 /** An exact built-in dense and sparse level-1 implementation pair. */
 @ExperimentalKoblasApi
 public class F64BuiltinKernelProvider internal constructor(
     /** Dense level-1 kernels. */
-    public val kernels: F64Kernels,
+    public val kernels: Kernels,
     /** Sparse level-1 kernels. */
-    public val sparseKernels: F64SparseKernels,
+    public val sparseKernels: SparseKernels,
 )
 
 /**
- * Built-in level-1 providers for explicit [F64Context] configuration and implementation comparisons.
+ * Built-in level-1 providers for explicit [KoblasContext] configuration and implementation comparisons.
  * A platform-specific provider is null when that implementation cannot run in the current process.
  */
 @ExperimentalKoblasApi

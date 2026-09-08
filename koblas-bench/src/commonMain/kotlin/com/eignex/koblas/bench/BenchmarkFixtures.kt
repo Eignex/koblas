@@ -1,6 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.core.*
+import com.eignex.koblas.*
 import kotlin.math.abs
 import kotlin.random.Random
 
@@ -18,28 +18,28 @@ internal const val RANDOM_SHAPE = "random"
 
 internal fun benchRng(): Random = Random(BENCH_SEED)
 
-internal fun randomMatrix(rows: Int, cols: Int, rng: Random): F64DenseMatrix =
-    F64DenseMatrix.wrap(rows, cols, DoubleArray(rows * cols) { rng.nextDouble(-1.0, 1.0) })
+internal fun randomMatrix(rows: Int, cols: Int, rng: Random): DenseMatrix =
+    DenseMatrix.wrap(rows, cols, DoubleArray(rows * cols) { rng.nextDouble(-1.0, 1.0) })
 
-internal fun dominantMatrix(n: Int, rng: Random): F64DenseMatrix {
+internal fun dominantMatrix(n: Int, rng: Random): DenseMatrix {
     val a = randomMatrix(n, n, rng)
     for (i in 0 until n) a[i, i] = a[i, i] + n
     return a
 }
 
-internal fun lowerSymmetricMatrix(n: Int, rng: Random): F64DenseMatrix {
-    val a = F64DenseMatrix.zero(n, n)
+internal fun lowerSymmetricMatrix(n: Int, rng: Random): DenseMatrix {
+    val a = DenseMatrix.zero(n, n)
     for (i in 0 until n) for (j in 0..i) a[i, j] = rng.nextDouble(-1.0, 1.0)
     return a
 }
 
-internal fun indefiniteMatrix(n: Int, rng: Random): F64DenseMatrix =
+internal fun indefiniteMatrix(n: Int, rng: Random): DenseMatrix =
     symmetricMatrix(n, rng) { i -> if (i % 2 == 0) n.toDouble() else -n.toDouble() }
 
-internal fun spdMatrix(n: Int, rng: Random): F64DenseMatrix = symmetricMatrix(n, rng) { n.toDouble() }
+internal fun spdMatrix(n: Int, rng: Random): DenseMatrix = symmetricMatrix(n, rng) { n.toDouble() }
 
-private inline fun symmetricMatrix(n: Int, rng: Random, shift: (Int) -> Double): F64DenseMatrix {
-    val a = F64DenseMatrix.zero(n, n)
+private inline fun symmetricMatrix(n: Int, rng: Random, shift: (Int) -> Double): DenseMatrix {
+    val a = DenseMatrix.zero(n, n)
     for (i in 0 until n) {
         for (j in 0..i) {
             val v = rng.nextDouble(-1.0, 1.0)
@@ -53,7 +53,7 @@ private inline fun symmetricMatrix(n: Int, rng: Random, shift: (Int) -> Double):
 
 internal fun randomVector(n: Int, rng: Random): DoubleArray = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
 
-internal fun sparseDominantMatrix(n: Int, rng: Random): F64SparseMatrix {
+internal fun sparseDominantMatrix(n: Int, rng: Random): SparseMatrix {
     val columns = List(n) { j ->
         val entries = ArrayList<Pair<Int, Double>>()
         entries.add(j to (rng.nextDouble(-1.0, 1.0) + n))
@@ -62,15 +62,15 @@ internal fun sparseDominantMatrix(n: Int, rng: Random): F64SparseMatrix {
         }
         entries
     }
-    return F64SparseMatrix.ofColumns(n, n, columns)
+    return SparseMatrix.ofColumns(n, n, columns)
 }
 
 /** Sparse parity shapes: regular random, fixed band, and a few unusually long columns. */
-internal fun sparseComparisonMatrix(n: Int, density: Double, shape: String, rng: Random): F64SparseMatrix {
+internal fun sparseComparisonMatrix(n: Int, density: Double, shape: String, rng: Random): SparseMatrix {
     return sparseComparisonMatrix(n, n, density, shape, rng)
 }
 
-internal fun sparseComparisonMatrix(rows: Int, cols: Int, density: Double, shape: String, rng: Random): F64SparseMatrix {
+internal fun sparseComparisonMatrix(rows: Int, cols: Int, density: Double, shape: String, rng: Random): SparseMatrix {
     val columns = List(cols) { j ->
         val entries = ArrayList<Pair<Int, Double>>()
         if (j < rows) entries.add(j to (maxOf(rows, cols) + 1.0))
@@ -95,7 +95,7 @@ internal fun sparseComparisonMatrix(rows: Int, cols: Int, density: Double, shape
         }
         entries
     }
-    return F64SparseMatrix.ofColumns(rows, cols, columns)
+    return SparseMatrix.ofColumns(rows, cols, columns)
 }
 
 /**
@@ -103,7 +103,7 @@ internal fun sparseComparisonMatrix(rows: Int, cols: Int, density: Double, shape
  * it factors without an ordering. The off-diagonal pattern is symmetric by construction, which is what makes
  * the stored triangle describe a symmetric matrix at all.
  */
-internal fun sparseSpdMatrix(n: Int, rng: Random): F64SparseMatrix {
+internal fun sparseSpdMatrix(n: Int, rng: Random): SparseMatrix {
     val below = List(n) { HashMap<Int, Double>() }
     val weight = DoubleArray(n)
     for (j in 0 until n) {
@@ -115,7 +115,7 @@ internal fun sparseSpdMatrix(n: Int, rng: Random): F64SparseMatrix {
             weight[j] += abs(v)
         }
     }
-    return F64SparseMatrix.ofColumns(
+    return SparseMatrix.ofColumns(
         n,
         n,
         List(n) { j ->
@@ -135,7 +135,7 @@ internal fun sparseSpdMatrix(n: Int, rng: Random): F64SparseMatrix {
  * symbolic pass does, and a symbolic analysis held across refactorizations is worth having only in the
  * second.
  */
-internal fun sparseBandedSpdMatrix(n: Int, bandwidth: Int, rng: Random): F64SparseMatrix = F64SparseMatrix.ofColumns(
+internal fun sparseBandedSpdMatrix(n: Int, bandwidth: Int, rng: Random): SparseMatrix = SparseMatrix.ofColumns(
     n,
     n,
     List(n) { j ->
@@ -146,7 +146,7 @@ internal fun sparseBandedSpdMatrix(n: Int, bandwidth: Int, rng: Random): F64Spar
 )
 
 /** A tall sparse matrix with full column rank, the shape a least-squares QR is for. */
-internal fun sparseTallMatrix(rows: Int, cols: Int, rng: Random): F64SparseMatrix {
+internal fun sparseTallMatrix(rows: Int, cols: Int, rng: Random): SparseMatrix {
     val columns = List(cols) { j ->
         val entries = ArrayList<Pair<Int, Double>>()
         for (i in 0 until rows) {
@@ -157,10 +157,10 @@ internal fun sparseTallMatrix(rows: Int, cols: Int, rng: Random): F64SparseMatri
         }
         entries
     }
-    return F64SparseMatrix.ofColumns(rows, cols, columns)
+    return SparseMatrix.ofColumns(rows, cols, columns)
 }
 
-internal fun randomSparseVector(n: Int, density: Double, rng: Random): F64SparseVector {
+internal fun randomSparseVector(n: Int, density: Double, rng: Random): SparseVector {
     val indices = ArrayList<Int>()
     val values = ArrayList<Double>()
     for (i in 0 until n) {
@@ -169,7 +169,7 @@ internal fun randomSparseVector(n: Int, density: Double, rng: Random): F64Sparse
             values.add(rng.nextDouble(-1.0, 1.0))
         }
     }
-    return F64SparseVector.wrap(n, indices.toIntArray(), values.toDoubleArray())
+    return SparseVector.wrap(n, indices.toIntArray(), values.toDoubleArray())
 }
 
 internal fun simplexBasis(
@@ -178,7 +178,7 @@ internal fun simplexBasis(
     slackFraction: Double = 0.55,
     spikeFraction: Double = 0.08,
     columnNonzeros: Int = 6,
-): F64SparseMatrix {
+): SparseMatrix {
     val slacks = (n * slackFraction).toInt()
     val spikes = (n * spikeFraction).toInt()
     val isSpike = BooleanArray(n)
@@ -204,14 +204,14 @@ internal fun simplexBasis(
         }
         entries
     }
-    return F64SparseMatrix.ofColumns(n, n, columns)
+    return SparseMatrix.ofColumns(n, n, columns)
 }
 
 /**
  * `[B | I]`, the shape a basis solver draws from: the structural columns of [simplexBasis] and then the
  * logical ones, so a basis is a choice among `2n` columns and a pivot swaps one for another.
  */
-internal fun simplexProblem(n: Int, rng: Random, spikeFraction: Double = 0.08): F64SparseMatrix {
+internal fun simplexProblem(n: Int, rng: Random, spikeFraction: Double = 0.08): SparseMatrix {
     val structural = simplexBasis(n, rng, spikeFraction = spikeFraction)
     val columns = List(2 * n) { j ->
         if (j >= n) {
@@ -222,10 +222,10 @@ internal fun simplexProblem(n: Int, rng: Random, spikeFraction: Double = 0.08): 
             entries
         }
     }
-    return F64SparseMatrix.ofColumns(n, 2 * n, columns)
+    return SparseMatrix.ofColumns(n, 2 * n, columns)
 }
 
-internal fun bandUpperTriangle(n: Int): F64SparseMatrix {
+internal fun bandUpperTriangle(n: Int): SparseMatrix {
     val rowIdx = IntArray(2 * n - 1)
     val colIdx = IntArray(2 * n - 1)
     val values = DoubleArray(2 * n - 1)
@@ -242,5 +242,5 @@ internal fun bandUpperTriangle(n: Int): F64SparseMatrix {
         values[k] = 4.0
         k++
     }
-    return F64SparseMatrix.ofTriplets(n, n, rowIdx, colIdx, values)
+    return SparseMatrix.ofTriplets(n, n, rowIdx, colIdx, values)
 }

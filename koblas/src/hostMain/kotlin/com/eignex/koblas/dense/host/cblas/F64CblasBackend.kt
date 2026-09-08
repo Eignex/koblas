@@ -5,10 +5,10 @@ import com.eignex.koblas.dense.*
 import com.eignex.koblas.internal.backend.BackendNames
 
 /**
- * [F64Blas] backed by the host's OpenBLAS through CBLAS, resolved with `dlopen` on first use.
+ * [Blas] backed by the host's OpenBLAS through CBLAS, resolved with `dlopen` on first use.
  */
 public class F64CblasBackend private constructor(private val blas: F64Cblas) :
-    F64Blas by blas,
+    Blas by blas,
     F64RoutingBackend,
     BackendMetadataProvider {
 
@@ -29,7 +29,7 @@ public class F64CblasBackend private constructor(private val blas: F64Cblas) :
 
     override val unavailableReason: String? get() = blas.unavailableReason
 
-    override val kernels: F64Kernels get() = blas.kernels
+    override val kernels: Kernels get() = blas.kernels
 
     override val backendMetadata: BackendMetadata get() = blas.backendMetadata
 

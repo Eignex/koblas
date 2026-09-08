@@ -6,7 +6,7 @@ import kotlin.math.min
 
 /*
  * The packed matrix product: both operands are copied into panels laid out in the order the kernel reads
- * them, and a tile of C is accumulated in [F64Kernels.gemmTile].
+ * them, and a tile of C is accumulated in [Kernels.gemmTile].
  *
  * This is the whole of the matrix product, for every shape and every target. What it replaced was built
  * out of AXPY calls, so a block of C was read and written once for every step of the shared dimension.
@@ -42,7 +42,7 @@ internal const val PORTABLE_TILE: Int = 4
  */
 @Suppress("LongParameterList") // both operands, both transpose flags, three dimensions and the scratch
 internal fun packedGemm(
-    kernels: F64Kernels,
+    kernels: Kernels,
     alpha: Double,
     a: DoubleArray,
     lda: Int,
@@ -69,7 +69,7 @@ internal fun packedGemm(
  */
 @Suppress("LongParameterList") // both operands, both transpose flags, three dimensions and the scratch
 internal fun packedTriangularGemm(
-    kernels: F64Kernels,
+    kernels: Kernels,
     alpha: Double,
     a: DoubleArray,
     lda: Int,
@@ -90,7 +90,7 @@ internal fun packedTriangularGemm(
 /** Shared blocking for rectangular and triangular packed products. */
 @Suppress("LongParameterList") // both operands, both transpose flags, three dimensions and the scratch
 private fun packedProduct(
-    kernels: F64Kernels,
+    kernels: Kernels,
     alpha: Double,
     a: DoubleArray,
     lda: Int,
@@ -252,7 +252,7 @@ private fun packB(
  */
 @Suppress("LongParameterList") // both panels, the destination with its window, and the scratch tile
 private fun macroKernel(
-    kernels: F64Kernels,
+    kernels: Kernels,
     packedA: DoubleArray,
     packedB: DoubleArray,
     c: DoubleArray,
@@ -313,7 +313,7 @@ private fun macroKernel(
 /**
  * The portable tile: four rows by four columns held in sixteen scalar accumulators.
  *
- * This is what [F64Kernels.gemmTile] runs where a target has nothing better. The accumulators are separate
+ * This is what [Kernels.gemmTile] runs where a target has nothing better. The accumulators are separate
  * locals rather than an array so that a compiler with registers to spare can keep them there, which is the
  * whole reason the tile exists; an array would put them back in memory and leave the product bounded by
  * cache traffic again.

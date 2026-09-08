@@ -8,18 +8,18 @@ import kotlin.test.*
 class BackendAvailabilityTest {
 
     /** A half that reports itself unusable, which is what a binding does when its library did not resolve. */
-    private class UnavailableHost(override val name: String) : F64Blas by F64ReferenceBlas {
+    private class UnavailableHost(override val name: String) : Blas by F64ReferenceBlas {
         override val priority: Int get() = HOST_BACKEND_PRIORITY
         override val isPortable: Boolean get() = false
         override val isAvailable: Boolean get() = false
         override val unavailableReason: String? get() = "$name did not resolve"
-        override val kernels: F64Kernels get() = F64ReferenceBlas.kernels
+        override val kernels: Kernels get() = F64ReferenceBlas.kernels
     }
 
     @Test
     fun `the built-in backends report themselves available`() {
         assertTrue(F64ReferenceBlas.isAvailable)
-        assertTrue(F64ReferenceBackend().isAvailable)
+        assertTrue(ReferenceBackend().isAvailable)
         assertTrue(F64ReferenceSparseLinearAlgebra.isAvailable)
         assertTrue(F64ReferenceBlas.kernels.isAvailable, "the compiled-in kernels always run")
     }

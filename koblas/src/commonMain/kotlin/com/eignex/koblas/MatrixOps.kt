@@ -7,27 +7,27 @@ package com.eignex.koblas
 // Part of the MatrixOpsKt facade. Splitting the file would otherwise rename the class JVM callers
 // compiled against, so the four parts are joined back into one rather than becoming four.
 
-import com.eignex.koblas.core.*
-import com.eignex.koblas.dense.F64Blas
+import com.eignex.koblas.*
+import com.eignex.koblas.dense.Blas
 import com.eignex.koblas.dense.applyBeta
 import com.eignex.koblas.sparse.internal.sparseSyr
 import com.eignex.koblas.sparse.internal.sparseSyr2
 
 /**
- * `y = alpha * A * x + beta * y` (BLAS `dgemv`) into [destination], for any [F64MatrixLike] against any
- * [F64VectorLike]. `beta == 0.0` overwrites [destination] without reading it, so a destination left holding
+ * `y = alpha * A * x + beta * y` (BLAS `dgemv`) into [destination], for any [MatrixLike] against any
+ * [VectorLike]. `beta == 0.0` overwrites [destination] without reading it, so a destination left holding
  * NaN still yields a clean product.
  *
  * A sparse or generic [x] is never materialised as a dense array: a dense `A` takes one column axpy per
  * stored entry of [x], a sparse `A` walks the stored entries of each such column, and any other
- * [F64MatrixLike] falls back to indexed reads. Dense storage on both sides dispatches straight to the
- * backend, either [F64Blas.gemv] or [com.eignex.koblas.sparse.F64SparseBlas.gemv].
+ * [MatrixLike] falls back to indexed reads. Dense storage on both sides dispatches straight to the
+ * backend, either [Blas.gemv] or [com.eignex.koblas.sparse.SparseBlas.gemv].
  *
- * [destination] must not be the backing array of [x] or of a dense `A`, as for [F64Blas.gemv] over strided
+ * [destination] must not be the backing array of [x] or of a dense `A`, as for [Blas.gemv] over strided
  * views: the product reads every operand entry while writing, so an aliased destination would feed partial
  * results back into the sum.
  */
-public fun F64MatrixLike.gemvInto(alpha: Double, x: F64VectorLike, beta: Double, destination: DoubleArray) {
+public fun MatrixLike.gemvInto(alpha: Double, x: VectorLike, beta: Double, destination: DoubleArray) {
     val a = this
     requireShape(a.cols == x.size) { "gemvInto shape mismatch: A is ${a.rows}x${a.cols}, x size ${x.size}" }
     requireShape(destination.size == a.rows) {
@@ -44,18 +44,18 @@ public fun F64MatrixLike.gemvInto(alpha: Double, x: F64VectorLike, beta: Double,
         destination.prescale(beta)
         return
     }
-    if (x is F64DenseVector && a is F64DenseMatrix) {
+    if (x is DenseVector && a is DenseMatrix) {
         koblas.gemv(alpha, a, x.data, beta, destination)
         return
     }
-    if (x is F64DenseVector && a is F64SparseMatrix) {
+    if (x is DenseVector && a is SparseMatrix) {
         koblas.sparseBlas.gemv(alpha, a, x.data, beta, destination)
         return
     }
     destination.prescale(beta)
     if (alpha == 0.0) return
     when (a) {
-        is F64DenseMatrix -> {
+        is DenseMatrix -> {
             val ad = a.data
             val rows = a.rows
             // Read the installed kernels once rather than per stored entry of x.
@@ -65,7 +65,7 @@ public fun F64MatrixLike.gemvInto(alpha: Double, x: F64VectorLike, beta: Double,
             }
         }
 
-        is F64SparseMatrix -> x.forEachStored { j, v ->
+        is SparseMatrix -> x.forEachStored { j, v ->
             if (v != 0.0) {
                 val scaled = alpha * v
                 a.forEachInColumn(j) { i, aij -> destination[i] += aij * scaled }
@@ -81,21 +81,21 @@ public fun F64MatrixLike.gemvInto(alpha: Double, x: F64VectorLike, beta: Double,
 }
 
 /** [gemvInto] with `alpha = 1, beta = 0`, so `destination` receives `A * x`. */
-public fun F64MatrixLike.gemvInto(x: F64VectorLike, destination: DoubleArray): Unit = gemvInto(1.0, x, 0.0, destination)
+public fun MatrixLike.gemvInto(x: VectorLike, destination: DoubleArray): Unit = gemvInto(1.0, x, 0.0, destination)
 
 /**
  * `y = alpha * A * x + beta * y` for a symmetric `A` (BLAS `dsymv`) into [destination], accepting any
- * [F64VectorLike] for [x]. Only the [lower] triangle is read, diagonal included, and `beta == 0.0`
+ * [VectorLike] for [x]. Only the [lower] triangle is read, diagonal included, and `beta == 0.0`
  * overwrites [destination] without reading it.
  *
- * Reading one triangle is what lets a caller maintain its symmetric matrix with [F64DenseMatrix.syr], which
- * touches half the entries, rather than the full-matrix [F64DenseMatrix.ger]. Outside the stored triangle
+ * Reading one triangle is what lets a caller maintain its symmetric matrix with [DenseMatrix.syr], which
+ * touches half the entries, rather than the full-matrix [DenseMatrix.ger]. Outside the stored triangle
  * each entry is taken from its mirror, so the other half may hold anything.
  */
 @Suppress("LongParameterList") // the BLAS dsymv signature
-public fun F64DenseMatrix.symvInto(
+public fun DenseMatrix.symvInto(
     alpha: Double,
-    x: F64VectorLike,
+    x: VectorLike,
     beta: Double,
     destination: DoubleArray,
     lower: Boolean = true,
@@ -106,7 +106,7 @@ public fun F64DenseMatrix.symvInto(
     require(!x.sharesStorage(destination) && !sharesStorage(destination)) {
         "symvInto: destination overlaps an input"
     }
-    if (x is F64DenseVector) {
+    if (x is DenseVector) {
         koblas.symv(alpha, this, x.data, beta, destination, lower)
         return
     }
@@ -124,7 +124,7 @@ public fun F64DenseMatrix.symvInto(
 }
 
 /** [symvInto] with `alpha = 1, beta = 0`, so `destination` receives `A * x`. */
-public fun F64DenseMatrix.symvInto(x: F64VectorLike, destination: DoubleArray, lower: Boolean = true): Unit =
+public fun DenseMatrix.symvInto(x: VectorLike, destination: DoubleArray, lower: Boolean = true): Unit =
     symvInto(1.0, x, 0.0, destination, lower)
 
 /** The `beta * y` half of a matvec. A zero [beta] overwrites without reading, as BLAS specifies, so the
@@ -132,23 +132,21 @@ public fun F64DenseMatrix.symvInto(x: F64VectorLike, destination: DoubleArray, l
 private fun DoubleArray.prescale(beta: Double) = applyBeta(koblas.kernels, this, 0, size, beta)
 
 /** Whether [destination] is the very array this vector is stored in. */
-private fun F64VectorLike.sharesStorage(destination: DoubleArray): Boolean =
-    this is F64DenseVector && data === destination
+private fun VectorLike.sharesStorage(destination: DoubleArray): Boolean = this is DenseVector && data === destination
 
 /** Whether [destination] is the very array this matrix is stored in. */
-private fun F64MatrixLike.sharesStorage(destination: DoubleArray): Boolean =
-    this is F64DenseMatrix && data === destination
+private fun MatrixLike.sharesStorage(destination: DoubleArray): Boolean = this is DenseMatrix && data === destination
 
 /**
  * Rank-one update `A = A + alpha * x * yT` (BLAS `dger`) in place. Subtract by passing
  * `alpha = -1.0`.
  */
-public fun F64DenseMatrix.ger(alpha: Double, x: F64VectorLike, y: F64VectorLike) {
+public fun DenseMatrix.ger(alpha: Double, x: VectorLike, y: VectorLike) {
     requireShape(rows == x.size && cols == y.size) {
         "ger shape mismatch: A is ${rows}x$cols, x ${x.size}, y ${y.size}"
     }
     if (alpha == 0.0) return
-    if (x is F64DenseVector && y is F64DenseVector) {
+    if (x is DenseVector && y is DenseVector) {
         koblas.ger(alpha, x.data, y.data, this)
         return
     }
@@ -162,46 +160,41 @@ public fun F64DenseMatrix.ger(alpha: Double, x: F64VectorLike, y: F64VectorLike)
     }
 }
 
-/** Symmetric rank-1 update `A += alpha * x * xT` (BLAS `dsyr`) in place. See [F64Blas.syr]. */
-public fun F64DenseMatrix.syr(alpha: Double, x: F64VectorLike, lower: Boolean = true): Unit = koblas.syr(
+/** Symmetric rank-1 update `A += alpha * x * xT` (BLAS `dsyr`) in place. See [Blas.syr]. */
+public fun DenseMatrix.syr(alpha: Double, x: VectorLike, lower: Boolean = true): Unit = koblas.syr(
     alpha,
     x,
     this,
     lower,
 )
 
-/** Symmetric rank-2 update `A += alpha * (x * yT + y * xT)` (BLAS `dsyr2`) in place. See [F64Blas.syr2]. */
-public fun F64DenseMatrix.syr2(alpha: Double, x: F64VectorLike, y: F64VectorLike, lower: Boolean = true): Unit =
+/** Symmetric rank-2 update `A += alpha * (x * yT + y * xT)` (BLAS `dsyr2`) in place. See [Blas.syr2]. */
+public fun DenseMatrix.syr2(alpha: Double, x: VectorLike, y: VectorLike, lower: Boolean = true): Unit =
     koblas.syr2(alpha, x, y, this, lower)
 
 /**
  * Fresh CSC matrix holding `A + alpha * x * xT` in its [lower] or upper triangle. The other triangle is
- * copied unchanged. Unlike dense [F64DenseMatrix.syr], this is not in place: a rank update can introduce
+ * copied unchanged. Unlike dense [DenseMatrix.syr], this is not in place: a rank update can introduce
  * entries that the source CSC pattern has no room to store.
  *
  * Existing explicit zeros survive. A coordinate reached by nonzero vector support is stored even when its
  * arithmetic cancels or underflows to zero, so the returned matrix never silently drops discovered fill.
  * The result owns independent structural and value arrays, and its rows ascend within every column.
  */
-public fun F64SparseMatrix.syr(alpha: Double, x: F64VectorLike, lower: Boolean = true): F64SparseMatrix {
+public fun SparseMatrix.syr(alpha: Double, x: VectorLike, lower: Boolean = true): SparseMatrix {
     requireSyrShape(this, x.size, "syr")
     return sparseSyr(this, alpha, x, lower)
 }
 
 /**
  * Fresh CSC matrix holding `A + alpha * (x * yT + y * xT)` in its [lower] or upper triangle. The other
- * triangle is copied unchanged. This structural counterpart of dense [F64DenseMatrix.syr2] never mutates
+ * triangle is copied unchanged. This structural counterpart of dense [DenseMatrix.syr2] never mutates
  * its source, because newly nonzero entries may require CSC fill.
  *
  * Existing explicit zeros survive. A coordinate reached by nonzero vector support is stored even when its
  * two terms cancel or underflow to zero. The result has independent arrays and canonical ascending CSC rows.
  */
-public fun F64SparseMatrix.syr2(
-    alpha: Double,
-    x: F64VectorLike,
-    y: F64VectorLike,
-    lower: Boolean = true,
-): F64SparseMatrix {
+public fun SparseMatrix.syr2(alpha: Double, x: VectorLike, y: VectorLike, lower: Boolean = true): SparseMatrix {
     requireSyr2Shape(this, x.size, y.size, "syr2")
     return sparseSyr2(this, alpha, x, y, lower)
 }

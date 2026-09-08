@@ -1,7 +1,7 @@
 package com.eignex.koblas.sparse.basis
 
 import com.eignex.koblas.Backend
-import com.eignex.koblas.core.F64SparseMatrix
+import com.eignex.koblas.SparseMatrix
 
 /**
  * Basis solvers as a backend half of its own, separate from the sparse LU beside it.
@@ -23,5 +23,5 @@ public interface F64BasisSolvers : Backend {
      * [a] carries the logical columns explicitly, so a basis slot naming one is an ordinary column rather
      * than a case for the solver to know about, and it must have at least as many columns as rows.
      */
-    public fun basisSolver(a: F64SparseMatrix): F64BasisSolver
+    public fun basisSolver(a: SparseMatrix): BasisSolver
 }

@@ -1,6 +1,6 @@
 package com.eignex.koblas.dense
 
-import com.eignex.koblas.F64ModifiedGivens
+import com.eignex.koblas.ModifiedGivens
 import com.eignex.koblas.internal.kernels.JvmCKernelBindings
 import jdk.incubator.vector.DoubleVector
 import jdk.incubator.vector.VectorOperators
@@ -20,8 +20,8 @@ internal val simdAvailable: Boolean = try {
 
 internal val cKernelsAvailable: Boolean = !simdAvailable && JvmCKernelBindings.isAvailable
 
-internal actual object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
-    private val selected: F64Kernels = when {
+internal actual object F64PlatformKernels : Kernels, F64ArithmeticKernels {
+    private val selected: Kernels = when {
         simdAvailable -> F64SimdKernels
         cKernelsAvailable -> F64CKernels
         else -> F64ScalarKernels
@@ -60,7 +60,7 @@ internal actual object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
 
     actual override fun asum(v: DoubleArray, vOff: Int, len: Int): Double = selected.asum(v, vOff, len)
 
-    actual override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): F64ModifiedGivens =
+    actual override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens =
         selected.rotmg(d1, d2, x1, y1)
 
     @Suppress("LongParameterList")
@@ -72,7 +72,7 @@ internal actual object F64PlatformKernels : F64Kernels, F64ArithmeticKernels {
         yOff: Int,
         yStride: Int,
         len: Int,
-        transformation: F64ModifiedGivens,
+        transformation: ModifiedGivens,
     ) = selected.rotm(x, xOff, xStride, y, yOff, yStride, len, transformation)
 
     @Suppress("LongParameterList")
@@ -275,7 +275,7 @@ internal object Simd {
 
     /**
      * Four rows against one shared vector, each b segment loaded once into four independent
-     * accumulators. [F64Blas.gemv] wants this over four [dot] calls and their four reductions.
+     * accumulators. [Blas.gemv] wants this over four [dot] calls and their four reductions.
      */
     @Suppress("LongParameterList") // four row offsets plus the shared operand
     fun dot4(

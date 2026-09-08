@@ -1,6 +1,6 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.core.F64DenseMatrix
+import com.eignex.koblas.DenseMatrix
 import kotlinx.benchmark.*
 
 @State(Scope.Benchmark)
@@ -17,16 +17,17 @@ class Level3Benchmark {
 
     private lateinit var arm: DenseBenchmarkArm
 
-    private lateinit var a: F64DenseMatrix
-    private lateinit var transposedA: F64DenseMatrix
-    private lateinit var b: F64DenseMatrix
-    private lateinit var c: F64DenseMatrix
+    private lateinit var a: DenseMatrix
+    private lateinit var transposedA: DenseMatrix
+    private lateinit var b: DenseMatrix
+    private lateinit var c: DenseMatrix
 
-    private lateinit var squareB: F64DenseMatrix
+    private lateinit var squareA: DenseMatrix
+    private lateinit var squareB: DenseMatrix
 
-    private lateinit var sym: F64DenseMatrix
-    private lateinit var triangular: F64DenseMatrix
-    private lateinit var rhs: F64DenseMatrix
+    private lateinit var sym: DenseMatrix
+    private lateinit var triangular: DenseMatrix
+    private lateinit var rhs: DenseMatrix
 
     @Setup
     fun setup() {
@@ -36,62 +37,63 @@ class Level3Benchmark {
         a = randomMatrix(n + 1, n - 1, rng)
         transposedA = randomMatrix(n - 1, n + 1, rng)
         b = randomMatrix(n - 1, n + 3, rng)
-        c = F64DenseMatrix.zero(n + 1, n + 3)
+        c = DenseMatrix.zero(n + 1, n + 3)
+        squareA = randomMatrix(n, n, rng)
         squareB = randomMatrix(n, n, rng)
         sym = lowerSymmetricMatrix(n, rng)
         triangular = dominantMatrix(n, rng)
-        rhs = F64DenseMatrix.zero(n, n)
+        rhs = DenseMatrix.zero(n, n)
         reportAllocatingWorkload("level3/$denseArm/gemm", "built-in packing workspace or fresh result construction")
     }
 
     @Benchmark
-    fun gemm(): F64DenseMatrix {
+    fun gemm(): DenseMatrix {
         arm.external?.gemm(1.0, a, false, b, false, 0.0, c) ?: arm.context!!.gemm(1.0, a, false, b, false, 0.0, c)
         return c
     }
 
     /** The transposed-left panel update, which the plain [gemm] above never reaches. */
     @Benchmark
-    fun gemmTransposedA(): F64DenseMatrix {
+    fun gemmTransposedA(): DenseMatrix {
         arm.external?.gemm(1.0, transposedA, true, b, false, 0.0, c) ?: arm.context!!.gemm(1.0, transposedA, true, b, false, 0.0, c)
         return c
     }
 
     @Benchmark
-    fun symm(): F64DenseMatrix {
+    fun symm(): DenseMatrix {
         arm.external?.symm(1.0, sym, squareB, 0.0, rhs, true, false) ?: arm.context!!.symm(1.0, sym, squareB, 0.0, rhs)
         return rhs
     }
 
     @Benchmark
-    fun symmRight(): F64DenseMatrix {
+    fun symmRight(): DenseMatrix {
         arm.external?.symm(1.0, sym, squareB, 0.0, rhs, true, true) ?: arm.context!!.symm(1.0, sym, squareB, 0.0, rhs, right = true)
         return rhs
     }
 
     @Benchmark
-    fun trsm(): F64DenseMatrix {
+    fun trsm(): DenseMatrix {
         squareB.data.copyInto(rhs.data)
         arm.external?.trsm(triangular, rhs, true, false, false, false, 1.0) ?: arm.context!!.trsm(triangular, rhs, lower = true)
         return rhs
     }
 
     @Benchmark
-    fun trmm(): F64DenseMatrix {
+    fun trmm(): DenseMatrix {
         squareB.data.copyInto(rhs.data)
         arm.external?.trmm(triangular, rhs, true, false, false, false, 1.0) ?: arm.context!!.trmm(triangular, rhs, lower = true)
         return rhs
     }
 
     @Benchmark
-    fun trsmRight(): F64DenseMatrix {
+    fun trsmRight(): DenseMatrix {
         squareB.data.copyInto(rhs.data)
         arm.external?.trsm(triangular, rhs, true, false, false, true, 1.0) ?: arm.context!!.trsm(triangular, rhs, lower = true, right = true)
         return rhs
     }
 
     @Benchmark
-    fun trmmRight(): F64DenseMatrix {
+    fun trmmRight(): DenseMatrix {
         squareB.data.copyInto(rhs.data)
         arm.external?.trmm(triangular, rhs, true, false, false, true, 1.0) ?: arm.context!!.trmm(triangular, rhs, lower = true, right = true)
         return rhs

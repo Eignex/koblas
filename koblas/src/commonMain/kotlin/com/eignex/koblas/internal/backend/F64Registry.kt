@@ -2,20 +2,20 @@ package com.eignex.koblas.internal.backend
 
 import com.eignex.koblas.Backend
 import com.eignex.koblas.BackendRole
-import com.eignex.koblas.F64Context
 import com.eignex.koblas.F64DispatchPolicy
 import com.eignex.koblas.F64FallbackPolicy
+import com.eignex.koblas.KoblasContext
 import com.eignex.koblas.SparseRoles
-import com.eignex.koblas.dense.F64Blas
-import com.eignex.koblas.dense.F64Kernels
+import com.eignex.koblas.dense.Blas
+import com.eignex.koblas.dense.Kernels
 import com.eignex.koblas.sparse.F64BasisFactorizations
 import com.eignex.koblas.sparse.F64GeneralSparseLu
 import com.eignex.koblas.sparse.F64QuasiDefiniteLdl
 import com.eignex.koblas.sparse.F64RepeatedSparseLu
-import com.eignex.koblas.sparse.F64SparseBlas
 import com.eignex.koblas.sparse.F64SparseCholesky
-import com.eignex.koblas.sparse.F64SparseKernels
 import com.eignex.koblas.sparse.F64SparseQr
+import com.eignex.koblas.sparse.SparseBlas
+import com.eignex.koblas.sparse.SparseKernels
 import com.eignex.koblas.sparse.basis.F64BasisSolvers
 import kotlin.concurrent.Volatile
 import kotlin.concurrent.atomics.AtomicInt
@@ -42,10 +42,10 @@ internal class F64Registry {
         BackendSlot.entries.associateWith { Seam<Backend>(::recompose) }
 
     @Volatile
-    private var installed: F64Context? = null
+    private var installed: KoblasContext? = null
 
     /** A context and the [changes] count it was assembled at, published as one so neither can be read alone. */
-    private class Resolution(val at: Int, val context: F64Context)
+    private class Resolution(val at: Int, val context: KoblasContext)
 
     /** Bumped by every seam change, so a stale [resolution] can be told from a current one. */
     private val changes = AtomicInt(0)
@@ -61,7 +61,7 @@ internal class F64Registry {
      * count before assembling means a stamp that still matches cannot have missed a change, and a stamp
      * that no longer matches costs a rebuild rather than a wrong answer.
      */
-    val active: F64Context get() {
+    val active: KoblasContext get() {
         installed?.let { return it }
         while (true) {
             val at = changes.load()
@@ -79,7 +79,7 @@ internal class F64Registry {
     }
 
     /** Overrides [active] wholesale; null restores automatic selection. */
-    fun install(context: F64Context?) {
+    fun install(context: KoblasContext?) {
         installed = context
     }
 
@@ -123,16 +123,16 @@ internal class F64Registry {
     }
 
     /** Builds a context from the currently registered halves, falling back to the portable reference. */
-    private fun assemble(): F64Context {
+    private fun assemble(): KoblasContext {
         val general = resolved<F64GeneralSparseLu>(BackendSlot.F64GeneralSparseLu)
         val cholesky = resolved<F64SparseCholesky>(BackendSlot.F64SparseCholesky)
         val quasiDefiniteLdl = resolved<F64QuasiDefiniteLdl>(BackendSlot.F64QuasiDefiniteLdl)
         val qr = resolved<F64SparseQr>(BackendSlot.F64SparseQr)
-        return F64Context(
-            kernels = resolved<F64Kernels>(BackendSlot.F64Kernels),
-            blas = resolved<F64Blas>(BackendSlot.F64Blas),
-            sparseKernels = resolved<F64SparseKernels>(BackendSlot.F64SparseKernels),
-            sparseBlas = resolved<F64SparseBlas>(BackendSlot.F64SparseBlas),
+        return KoblasContext(
+            kernels = resolved<Kernels>(BackendSlot.Kernels),
+            blas = resolved<Blas>(BackendSlot.Blas),
+            sparseKernels = resolved<SparseKernels>(BackendSlot.SparseKernels),
+            sparseBlas = resolved<SparseBlas>(BackendSlot.SparseBlas),
             basisSolvers = resolved<F64BasisSolvers>(BackendSlot.F64BasisSolvers),
             dispatchPolicy = F64DispatchPolicy.AUTO,
             fallbackPolicy = F64FallbackPolicy.ALLOW,

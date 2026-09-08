@@ -1,4 +1,4 @@
-package com.eignex.koblas.core
+package com.eignex.koblas
 
 import kotlin.random.Random
 import kotlin.test.Test
@@ -108,8 +108,8 @@ class F64StridedViewOverlapTest {
     fun `a vector overlaps the matrix rows it runs through`() {
         val whole = F64StridedMatrixView(8, 8, buffer, 0, 8)
         val block = whole.view(0, 4, 0, 4)
-        val insideRow = F64StridedVectorView(buffer, 1, 4, 8)
-        val elsewhere = F64StridedVectorView(buffer, 36, 4, 8)
+        val insideRow = StridedVectorView(buffer, 1, 4, 8)
+        val elsewhere = StridedVectorView(buffer, 36, 4, 8)
 
         assertTrue(block.overlaps(insideRow))
         assertFalse(block.overlaps(elsewhere))
@@ -120,11 +120,11 @@ class F64StridedViewOverlapTest {
         val whole = F64StridedMatrixView(8, 8, buffer, 0, 8)
         val block = whole.view(0, 4, 4, 4)
         // 35 down to 32, which is column 4 of the block read from the bottom up.
-        val descending = F64StridedVectorView(buffer, 35, 4, -1)
+        val descending = StridedVectorView(buffer, 35, 4, -1)
 
         assertTrue(block.overlaps(descending))
         // 39 down to 15, which passes the block's span without landing in any of its rows.
-        assertFalse(block.overlaps(F64StridedVectorView(buffer, 39, 4, -8)))
+        assertFalse(block.overlaps(StridedVectorView(buffer, 39, 4, -8)))
     }
 
     private fun randomView(rng: Random, leadingDimension: Int): F64StridedMatrixView {

@@ -1,8 +1,8 @@
 package com.eignex.koblas.bench
 
-import com.eignex.koblas.F64Context
-import com.eignex.koblas.F64ModifiedGivens
-import com.eignex.koblas.core.F64DenseMatrix
+import com.eignex.koblas.KoblasContext
+import com.eignex.koblas.ModifiedGivens
+import com.eignex.koblas.DenseMatrix
 
 internal const val BUILTIN_BACKEND = "built-in"
 internal const val OPENBLAS_BACKEND = "openblas"
@@ -19,51 +19,51 @@ internal interface DenseComparator {
     fun nrm2(x: DoubleArray): Double
     fun asum(x: DoubleArray): Double
     fun swap(x: DoubleArray, y: DoubleArray)
-    fun rotm(x: DoubleArray, y: DoubleArray, transformation: F64ModifiedGivens)
+    fun rotm(x: DoubleArray, y: DoubleArray, transformation: ModifiedGivens)
     fun rot(x: DoubleArray, y: DoubleArray, c: Double, s: Double)
 
-    fun gemv(alpha: Double, a: F64DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, transpose: Boolean)
-    fun symv(alpha: Double, a: F64DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean)
-    fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: F64DenseMatrix)
-    fun syr(alpha: Double, x: DoubleArray, a: F64DenseMatrix, lower: Boolean)
-    fun syr2(alpha: Double, x: DoubleArray, y: DoubleArray, a: F64DenseMatrix, lower: Boolean)
-    fun trsv(a: F64DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean)
-    fun trmv(a: F64DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean)
+    fun gemv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, transpose: Boolean)
+    fun symv(alpha: Double, a: DenseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean)
+    fun ger(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix)
+    fun syr(alpha: Double, x: DoubleArray, a: DenseMatrix, lower: Boolean)
+    fun syr2(alpha: Double, x: DoubleArray, y: DoubleArray, a: DenseMatrix, lower: Boolean)
+    fun trsv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean)
+    fun trmv(a: DenseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean)
 
     fun gemm(
         alpha: Double,
-        a: F64DenseMatrix,
+        a: DenseMatrix,
         transposeA: Boolean,
-        b: F64DenseMatrix,
+        b: DenseMatrix,
         transposeB: Boolean,
         beta: Double,
-        c: F64DenseMatrix,
+        c: DenseMatrix,
     )
 
-    fun syrk(alpha: Double, a: F64DenseMatrix, transpose: Boolean, beta: Double, c: F64DenseMatrix, lower: Boolean)
+    fun syrk(alpha: Double, a: DenseMatrix, transpose: Boolean, beta: Double, c: DenseMatrix, lower: Boolean)
     fun syr2k(
         alpha: Double,
-        a: F64DenseMatrix,
-        b: F64DenseMatrix,
+        a: DenseMatrix,
+        b: DenseMatrix,
         transpose: Boolean,
         beta: Double,
-        c: F64DenseMatrix,
+        c: DenseMatrix,
         lower: Boolean,
     )
 
     fun symm(
         alpha: Double,
-        a: F64DenseMatrix,
-        b: F64DenseMatrix,
+        a: DenseMatrix,
+        b: DenseMatrix,
         beta: Double,
-        c: F64DenseMatrix,
+        c: DenseMatrix,
         lower: Boolean,
         right: Boolean,
     )
 
     fun trsm(
-        a: F64DenseMatrix,
-        b: F64DenseMatrix,
+        a: DenseMatrix,
+        b: DenseMatrix,
         lower: Boolean,
         transpose: Boolean,
         unitDiag: Boolean,
@@ -72,8 +72,8 @@ internal interface DenseComparator {
     )
 
     fun trmm(
-        a: F64DenseMatrix,
-        b: F64DenseMatrix,
+        a: DenseMatrix,
+        b: DenseMatrix,
         lower: Boolean,
         transpose: Boolean,
         unitDiag: Boolean,
@@ -82,12 +82,12 @@ internal interface DenseComparator {
     )
 }
 
-internal expect fun explicitBuiltInContext(): F64Context
+internal expect fun explicitBuiltInContext(): KoblasContext
 internal expect fun openBlasComparator(): DenseComparator?
 internal expect fun oneMklDenseComparator(): DenseComparator?
 
 internal class DenseBenchmarkArm private constructor(
-    val context: F64Context?,
+    val context: KoblasContext?,
     val external: DenseComparator?,
 ) {
     val identity: String get() = external?.identity ?: "built-in/${context!!.blas.name}/${context.kernels.name}"

@@ -1,4 +1,4 @@
-package com.eignex.koblas.core
+package com.eignex.koblas
 
 import com.eignex.koblas.requireInBounds
 import com.eignex.koblas.requireNonNegativeShape
@@ -9,12 +9,12 @@ import com.eignex.koblas.requireShape
  * Negative stride is supported when both ends remain in the buffer. The view never copies [data], so mutations
  * through the view or any other reference to the array are visible to each other.
  */
-public class F64StridedVectorView(
+public class StridedVectorView(
     public val data: DoubleArray,
     public val offset: Int,
     override val size: Int,
     public val stride: Int = 1,
-) : F64VectorLike {
+) : VectorLike {
     init {
         requireShape(size >= 0) { "negative size: $size" }
         require(stride != 0) { "stride must not be zero" }
@@ -34,7 +34,7 @@ public class F64StridedVectorView(
 
     override fun toDoubleArray(): DoubleArray = DoubleArray(size) { get(it) }
 
-    override fun toString(): String = "F64StridedVectorView(size=$size, offset=$offset, stride=$stride)"
+    override fun toString(): String = "StridedVectorView(size=$size, offset=$offset, stride=$stride)"
 }
 
 /**
@@ -51,7 +51,7 @@ public class F64StridedMatrixView(
     public val offset: Int = 0,
     /** Physical distance between the starts of adjacent columns. */
     public val leadingDimension: Int = maxOf(1, rows),
-) : F64MatrixLike {
+) : MatrixLike {
     init {
         requireNonNegativeShape(rows, cols)
         require(leadingDimension >= maxOf(1, rows)) {
@@ -94,15 +94,15 @@ public class F64StridedMatrixView(
     }
 
     /** Live column [j], contiguous even when this view is a panel. */
-    public fun column(j: Int): F64StridedVectorView {
+    public fun column(j: Int): StridedVectorView {
         requireInBounds(j, cols)
-        return F64StridedVectorView(data, offset + j * leadingDimension, rows)
+        return StridedVectorView(data, offset + j * leadingDimension, rows)
     }
 
     /** Live row [i], strided by [leadingDimension]. */
-    public fun row(i: Int): F64StridedVectorView {
+    public fun row(i: Int): StridedVectorView {
         requireInBounds(i, rows)
-        return F64StridedVectorView(data, offset + i, cols, leadingDimension)
+        return StridedVectorView(data, offset + i, cols, leadingDimension)
     }
 
     /**
@@ -142,7 +142,7 @@ public class F64StridedMatrixView(
     }
 
     /** Whether this matrix and [other] address at least one common buffer entry. */
-    public fun overlaps(other: F64StridedVectorView): Boolean {
+    public fun overlaps(other: StridedVectorView): Boolean {
         if (data !== other.data || physicalSpan == 0 || other.size == 0) return false
         val reach = (other.size - 1).toLong() * other.stride
         val low = if (other.stride > 0) other.offset.toLong() else other.offset + reach
@@ -169,7 +169,7 @@ public class F64StridedMatrixView(
 }
 
 /** Whether these vectors address at least one common buffer entry. */
-public fun F64StridedVectorView.overlaps(other: F64StridedVectorView): Boolean {
+public fun StridedVectorView.overlaps(other: StridedVectorView): Boolean {
     if (data !== other.data) return false
     val first = if (size <= other.size) this else other
     val second = if (first === this) other else this
@@ -182,18 +182,18 @@ public fun F64StridedVectorView.overlaps(other: F64StridedVectorView): Boolean {
 }
 
 /** A borrowed view over this entire owned matrix. */
-public fun F64DenseMatrix.asView(): F64StridedMatrixView = F64StridedMatrixView(rows, cols, data)
+public fun DenseMatrix.asView(): F64StridedMatrixView = F64StridedMatrixView(rows, cols, data)
 
 /** A borrowed panel of this owned matrix. */
-public fun F64DenseMatrix.view(row: Int, rows: Int, column: Int, cols: Int): F64StridedMatrixView =
+public fun DenseMatrix.view(row: Int, rows: Int, column: Int, cols: Int): F64StridedMatrixView =
     asView().view(row, rows, column, cols)
 
 /** A borrowed view over this entire owned vector. */
-public fun F64DenseVector.asView(): F64StridedVectorView = F64StridedVectorView(data, 0, size)
+public fun DenseVector.asView(): StridedVectorView = StridedVectorView(data, 0, size)
 
 /** A borrowed strided slice of this owned vector. */
-public fun F64DenseVector.view(offset: Int, size: Int, stride: Int = 1): F64StridedVectorView =
-    F64StridedVectorView(data, offset, size, stride)
+public fun DenseVector.view(offset: Int, size: Int, stride: Int = 1): StridedVectorView =
+    StridedVectorView(data, offset, size, stride)
 
 private fun requireViewBounds(bufferSize: Int, offset: Int, size: Int, stride: Int, description: String) {
     if (size == 0) {

@@ -1,13 +1,13 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.core.F64SparseVector
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.SparseVector
 import kotlin.test.*
 
 class SparseMatrixOpsTest {
 
-    private fun example(): F64SparseMatrix = F64SparseMatrix.ofTriplets(
+    private fun example(): SparseMatrix = SparseMatrix.ofTriplets(
         rows = 3,
         cols = 4,
         rowIdx = intArrayOf(0, 2, 1, 0, 2),
@@ -15,7 +15,7 @@ class SparseMatrixOpsTest {
         values = doubleArrayOf(1.0, -2.0, 3.0, 0.0, -4.0),
     )
 
-    private fun dense(a: F64SparseMatrix): F64DenseMatrix = F64DenseMatrix.of(a.toArray())
+    private fun dense(a: SparseMatrix): DenseMatrix = DenseMatrix.of(a.toArray())
 
     @Test
     fun `sparse norm1 agrees with dense reference`() {
@@ -82,7 +82,7 @@ class SparseMatrixOpsTest {
         val column = sparse.column(3)
         val row = sparse.row(0)
 
-        assertIs<F64SparseVector>(column)
+        assertIs<SparseVector>(column)
         assertContentEquals(intArrayOf(0, 2), column.copyIndices())
         assertContentEquals(doubleArrayOf(0.0, -4.0), column.values)
         assertContentEquals(intArrayOf(0, 3), row.copyIndices())
@@ -96,7 +96,7 @@ class SparseMatrixOpsTest {
 
     @Test
     fun `row and column return no stored entries for a row or column with none`() {
-        val sparse = F64SparseMatrix.ofTriplets(
+        val sparse = SparseMatrix.ofTriplets(
             rows = 4,
             cols = 3,
             rowIdx = intArrayOf(0, 3),
@@ -116,7 +116,7 @@ class SparseMatrixOpsTest {
     @Test
     fun `sparse norms are zero for empty shapes`() {
         for ((rows, cols) in listOf(0 to 0, 0 to 3, 4 to 0)) {
-            val empty = F64SparseMatrix.ofTriplets(rows, cols, IntArray(0), IntArray(0), DoubleArray(0))
+            val empty = SparseMatrix.ofTriplets(rows, cols, IntArray(0), IntArray(0), DoubleArray(0))
             assertEquals(0.0, empty.norm1())
             assertEquals(0.0, empty.normInf())
             assertEquals(0.0, empty.normFro())
@@ -125,18 +125,18 @@ class SparseMatrixOpsTest {
 
     @Test
     fun `row and column and scaleRows handle empty shapes`() {
-        val noRows = F64SparseMatrix.ofTriplets(0, 3, IntArray(0), IntArray(0), DoubleArray(0))
+        val noRows = SparseMatrix.ofTriplets(0, 3, IntArray(0), IntArray(0), DoubleArray(0))
         noRows.scaleRows(DoubleArray(0))
         for (j in 0 until noRows.cols) assertContentEquals(DoubleArray(0), noRows.column(j).toDoubleArray())
 
-        val noCols = F64SparseMatrix.ofTriplets(4, 0, IntArray(0), IntArray(0), DoubleArray(0))
+        val noCols = SparseMatrix.ofTriplets(4, 0, IntArray(0), IntArray(0), DoubleArray(0))
         noCols.scaleRows(DoubleArray(4))
         for (i in 0 until noCols.rows) assertContentEquals(DoubleArray(0), noCols.row(i).toDoubleArray())
     }
 
     @Test
     fun `sparse norm1 and normInf and normFro carry a NaN through`() {
-        val poisoned = F64SparseMatrix.ofTriplets(
+        val poisoned = SparseMatrix.ofTriplets(
             2,
             2,
             intArrayOf(0, 1),
@@ -150,7 +150,7 @@ class SparseMatrixOpsTest {
 
     @Test
     fun `sparse normFro survives entries that square out of range`() {
-        val big = F64SparseMatrix.ofTriplets(1, 2, intArrayOf(0, 0), intArrayOf(0, 1), doubleArrayOf(3e200, 4e200))
+        val big = SparseMatrix.ofTriplets(1, 2, intArrayOf(0, 0), intArrayOf(0, 1), doubleArrayOf(3e200, 4e200))
         assertEquals(5e200, big.normFro(), 1e188)
     }
 

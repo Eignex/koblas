@@ -3,19 +3,19 @@ package com.eignex.koblas.internal.backend
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
-import com.eignex.koblas.sparse.F64SparseBlas
+import com.eignex.koblas.sparse.SparseBlas
 import kotlin.test.*
 
 class BackendSelectionTest {
 
-    private class FakeBlas(override val name: String, override val priority: Int) : F64Blas by F64ReferenceBlas
+    private class FakeBlas(override val name: String, override val priority: Int) : Blas by F64ReferenceBlas
 
     private class NotABackend(override val name: String = "nothing") : Backend
 
     /** A provider carrying a dense half and a sparse one, as an add-on binding a whole library can. */
     private class FakeBoth(override val name: String, override val priority: Int) :
-        F64Blas by F64ReferenceBlas,
-        F64SparseBlas by F64ReferenceSparseLinearAlgebra {
+        Blas by F64ReferenceBlas,
+        SparseBlas by F64ReferenceSparseLinearAlgebra {
         override val isAvailable: Boolean get() = true
         override val isPortable: Boolean get() = false
         override val unavailableReason: String? get() = null
@@ -80,8 +80,8 @@ class BackendSelectionTest {
                 BackendOffer(BackendSlot.sparseHalves, named = emptySet()),
             )
 
-            assertTrue("both-halves" in BackendRegistry.namesFor(BackendSlot.F64SparseBlas), "the sparse half")
-            assertFalse("both-halves" in BackendRegistry.namesFor(BackendSlot.F64Blas), "the dense half")
+            assertTrue("both-halves" in BackendRegistry.namesFor(BackendSlot.SparseBlas), "the sparse half")
+            assertFalse("both-halves" in BackendRegistry.namesFor(BackendSlot.Blas), "the dense half")
             assertSame(F64ReferenceBlas, koblas.blas)
         }
     }

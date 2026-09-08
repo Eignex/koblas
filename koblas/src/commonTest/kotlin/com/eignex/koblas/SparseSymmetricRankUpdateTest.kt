@@ -1,9 +1,9 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.core.F64DenseVector
-import com.eignex.koblas.core.F64SparseMatrix
-import com.eignex.koblas.core.F64SparseVector
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DenseVector
+import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.SparseVector
 import com.eignex.koblas.dense.F64ReferenceBlas
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -15,7 +15,7 @@ class SparseSymmetricRankUpdateTest {
 
     @Test
     fun `sparse syr agrees with the dense reference and preserves CSC`() {
-        val source = F64SparseMatrix.ofColumns(
+        val source = SparseMatrix.ofColumns(
             4,
             4,
             listOf(
@@ -25,7 +25,7 @@ class SparseSymmetricRankUpdateTest {
                 listOf(1 to 7.0),
             ),
         )
-        val x = F64SparseVector.of(4, intArrayOf(3, 0, 3, 2), doubleArrayOf(2.0, -1.0, 1.0, 4.0))
+        val x = SparseVector.of(4, intArrayOf(3, 0, 3, 2), doubleArrayOf(2.0, -1.0, 1.0, 4.0))
 
         for (lower in booleanArrayOf(true, false)) {
             val expected = denseCopy(source)
@@ -41,13 +41,13 @@ class SparseSymmetricRankUpdateTest {
 
     @Test
     fun `sparse syr2 accepts dense and sparse vectors and agrees with the dense reference`() {
-        val source = F64SparseMatrix.ofColumns(
+        val source = SparseMatrix.ofColumns(
             4,
             4,
             listOf(listOf(0 to 1.0), listOf(3 to -2.0), listOf(1 to 3.0), emptyList()),
         )
-        val x = F64DenseVector.of(doubleArrayOf(2.0, 0.0, -1.0, 3.0))
-        val y = F64SparseVector.of(4, intArrayOf(3, 0, 3, 1), doubleArrayOf(-1.0, 4.0, 2.0, 5.0))
+        val x = DenseVector.of(doubleArrayOf(2.0, 0.0, -1.0, 3.0))
+        val y = SparseVector.of(4, intArrayOf(3, 0, 3, 1), doubleArrayOf(-1.0, 4.0, 2.0, 5.0))
 
         for (lower in booleanArrayOf(true, false)) {
             val expected = denseCopy(source)
@@ -62,9 +62,9 @@ class SparseSymmetricRankUpdateTest {
 
     @Test
     fun `sparse rank updates retain cancelled fill and do not alias their inputs`() {
-        val source = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 0.0), emptyList()))
-        val x = F64DenseVector.wrap(doubleArrayOf(1.0, 1.0))
-        val y = F64SparseVector.of(2, intArrayOf(0, 1), doubleArrayOf(1.0, -1.0))
+        val source = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 0.0), emptyList()))
+        val x = DenseVector.wrap(doubleArrayOf(1.0, 1.0))
+        val y = SparseVector.of(2, intArrayOf(0, 1), doubleArrayOf(1.0, -1.0))
 
         val rankOne = source.syr(0.0, x)
         val rankTwo = source.syr2(1.0, x, y)
@@ -82,9 +82,9 @@ class SparseSymmetricRankUpdateTest {
 
     @Test
     fun `sparse rank updates match dense IEEE arithmetic for implicit zeros`() {
-        val source = F64SparseMatrix.ofColumns(3, 3, listOf(emptyList(), emptyList(), emptyList()))
-        val x = F64SparseVector.of(3, intArrayOf(0), doubleArrayOf(Double.POSITIVE_INFINITY))
-        val y = F64SparseVector.of(3, intArrayOf(2), doubleArrayOf(2.0))
+        val source = SparseMatrix.ofColumns(3, 3, listOf(emptyList(), emptyList(), emptyList()))
+        val x = SparseVector.of(3, intArrayOf(0), doubleArrayOf(Double.POSITIVE_INFINITY))
+        val y = SparseVector.of(3, intArrayOf(2), doubleArrayOf(2.0))
 
         for (lower in booleanArrayOf(true, false)) {
             val expected = denseCopy(source)
@@ -98,8 +98,8 @@ class SparseSymmetricRankUpdateTest {
 
     @Test
     fun `sparse syr excludes an explicitly stored zero in a sparse operand from its fill support`() {
-        val source = F64SparseMatrix.ofColumns(3, 3, listOf(emptyList(), emptyList(), emptyList()))
-        val x = F64SparseVector.of(3, intArrayOf(0, 1, 2), doubleArrayOf(1.0, 0.0, 2.0))
+        val source = SparseMatrix.ofColumns(3, 3, listOf(emptyList(), emptyList(), emptyList()))
+        val x = SparseVector.of(3, intArrayOf(0, 1, 2), doubleArrayOf(1.0, 0.0, 2.0))
 
         for (lower in booleanArrayOf(true, false)) {
             val expected = denseCopy(source)
@@ -115,9 +115,9 @@ class SparseSymmetricRankUpdateTest {
 
     @Test
     fun `sparse syr2 excludes an explicitly stored zero in a sparse operand from its fill support`() {
-        val source = F64SparseMatrix.ofColumns(3, 3, listOf(emptyList(), emptyList(), emptyList()))
-        val x = F64SparseVector.of(3, intArrayOf(0, 1, 2), doubleArrayOf(1.0, 0.0, 2.0))
-        val y = F64SparseVector.of(3, intArrayOf(0, 2), doubleArrayOf(-3.0, 4.0))
+        val source = SparseMatrix.ofColumns(3, 3, listOf(emptyList(), emptyList(), emptyList()))
+        val x = SparseVector.of(3, intArrayOf(0, 1, 2), doubleArrayOf(1.0, 0.0, 2.0))
+        val y = SparseVector.of(3, intArrayOf(0, 2), doubleArrayOf(-3.0, 4.0))
 
         for (lower in booleanArrayOf(true, false)) {
             val expected = denseCopy(source)
@@ -134,55 +134,55 @@ class SparseSymmetricRankUpdateTest {
     @Test
     fun `sparse syr keeps a positive sign on an underflowing pure fill entry`() {
         val alpha = 1e-200
-        val x = F64DenseVector.of(doubleArrayOf(-1e-200, 1.0))
-        val source = F64SparseMatrix.ofColumns(2, 2, listOf(emptyList(), emptyList()))
+        val x = DenseVector.of(doubleArrayOf(-1e-200, 1.0))
+        val source = SparseMatrix.ofColumns(2, 2, listOf(emptyList(), emptyList()))
 
         val actual = source.syr(alpha, x, lower = true)
 
-        val expected = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 0.0, 1 to 0.0), listOf(1 to alpha)))
+        val expected = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 0.0, 1 to 0.0), listOf(1 to alpha)))
         assertEquals(expected, actual, "underflowing fill must land on +0.0, not -0.0")
     }
 
     @Test
     fun `sparse rank updates support empty shapes and reject incompatible operands`() {
-        val empty = F64SparseMatrix.ofColumns(0, 0, emptyList())
+        val empty = SparseMatrix.ofColumns(0, 0, emptyList())
 
-        assertEquals(empty, empty.syr(1.0, F64DenseVector.zero(0)))
+        assertEquals(empty, empty.syr(1.0, DenseVector.zero(0)))
         assertEquals(
             empty,
             empty.syr2(
                 1.0,
-                F64DenseVector.zero(0),
-                F64SparseVector.of(0, IntArray(0), DoubleArray(0)),
+                DenseVector.zero(0),
+                SparseVector.of(0, IntArray(0), DoubleArray(0)),
             ),
         )
 
-        val rectangular = F64SparseMatrix.ofColumns(
+        val rectangular = SparseMatrix.ofColumns(
             2,
             3,
             listOf(emptyList(), emptyList(), emptyList()),
         )
-        assertFailsWith<DimensionMismatch> { rectangular.syr(1.0, F64DenseVector.zero(2)) }
+        assertFailsWith<DimensionMismatch> { rectangular.syr(1.0, DenseVector.zero(2)) }
         assertFailsWith<DimensionMismatch> {
-            F64SparseMatrix.ofColumns(2, 2, listOf(emptyList(), emptyList())).syr(1.0, F64DenseVector.zero(3))
+            SparseMatrix.ofColumns(2, 2, listOf(emptyList(), emptyList())).syr(1.0, DenseVector.zero(3))
         }
         assertFailsWith<DimensionMismatch> {
-            F64SparseMatrix.ofColumns(2, 2, listOf(emptyList(), emptyList())).syr2(
+            SparseMatrix.ofColumns(2, 2, listOf(emptyList(), emptyList())).syr2(
                 1.0,
-                F64DenseVector.zero(2),
-                F64DenseVector.zero(3),
+                DenseVector.zero(2),
+                DenseVector.zero(3),
             )
         }
     }
 
-    private fun denseCopy(source: F64SparseMatrix): F64DenseMatrix = F64DenseMatrix(
+    private fun denseCopy(source: SparseMatrix): DenseMatrix = DenseMatrix(
         source.rows,
         source.cols,
     ).also { out ->
         for (j in 0 until source.cols) source.forEachInColumn(j) { i, value -> out[i, j] = value }
     }
 
-    private fun assertMatrixEquals(expected: F64DenseMatrix, actual: F64SparseMatrix, context: String) {
+    private fun assertMatrixEquals(expected: DenseMatrix, actual: SparseMatrix, context: String) {
         for (j in 0 until expected.cols) {
             for (i in 0 until expected.rows) {
                 val expectedValue = expected[i, j]
@@ -195,7 +195,7 @@ class SparseSymmetricRankUpdateTest {
         }
     }
 
-    private fun assertCanonical(matrix: F64SparseMatrix) {
+    private fun assertCanonical(matrix: SparseMatrix) {
         val pointers = matrix.copyColumnPointers()
         val rows = matrix.copyRowIndices()
         for (j in 0 until matrix.cols) {

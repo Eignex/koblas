@@ -1,36 +1,36 @@
 package com.eignex.koblas.sparse
 
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
-import com.eignex.koblas.core.F64DenseMatrix
-import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.koblas
 
-/** Factorize this sparse matrix with the active backend ([koblas]), the counterpart of `F64DenseMatrix.lu`. */
-public fun F64SparseMatrix.lu(): F64SparseLuFactorization = koblas.factor(this)
+/** Factorize this sparse matrix with the active backend ([koblas]), the counterpart of `DenseMatrix.lu`. */
+public fun SparseMatrix.lu(): F64SparseLuFactorization = koblas.factor(this)
 
 /**
  * Cholesky-factorize this symmetric positive-definite matrix with the active backend ([koblas]), reading
- * only its lower triangle. See [F64SparseDecompositions.cholesky].
+ * only its lower triangle. See [SparseLapack.cholesky].
  */
-public fun F64SparseMatrix.cholesky(): F64SparseCholeskyFactorization = koblas.cholesky(this)
+public fun SparseMatrix.cholesky(): F64SparseCholeskyFactorization = koblas.cholesky(this)
 
 /**
  * Factorize this symmetric matrix into `L·D·Lᵀ` with the active backend ([koblas]), reading only its lower
- * triangle. See [F64SparseDecompositions.quasiDefiniteLdl], which says what it does and does not promise.
+ * triangle. See [SparseLapack.quasiDefiniteLdl], which says what it does and does not promise.
  */
-public fun F64SparseMatrix.quasiDefiniteLdl(): F64QuasiDefiniteLdlFactorization = koblas.quasiDefiniteLdl(this)
+public fun SparseMatrix.quasiDefiniteLdl(): F64QuasiDefiniteLdlFactorization = koblas.quasiDefiniteLdl(this)
 
 /**
  * QR-factorize this tall or square matrix with the active backend ([koblas]), for the least-squares solve
- * `min ‖A·x − b‖₂`. See [F64SparseDecompositions.qr].
+ * `min ‖A·x − b‖₂`. See [SparseLapack.qr].
  */
-public fun F64SparseMatrix.qr(): F64SparseQrFactorization = koblas.qr(this)
+public fun SparseMatrix.qr(): F64SparseQrFactorization = koblas.qr(this)
 
 /**
  * Solve `op(T) · x = b` in place against this matrix's [lower] or upper triangle, with the active backend
- * ([koblas]). See [F64SparseBlas.trsv].
+ * ([koblas]). See [SparseBlas.trsv].
  */
-public fun F64SparseMatrix.trsv(
+public fun SparseMatrix.trsv(
     x: DoubleArray,
     lower: Boolean,
     transpose: Boolean = false,
@@ -38,7 +38,7 @@ public fun F64SparseMatrix.trsv(
 ): Unit = koblas.trsv(this, x, lower, transpose, unitDiag)
 
 /** Multiply `x = op(T) · x` in place against this matrix's selected triangle with the active backend ([koblas]). */
-public fun F64SparseMatrix.trmv(
+public fun SparseMatrix.trmv(
     x: DoubleArray,
     lower: Boolean,
     transpose: Boolean = false,
@@ -46,15 +46,15 @@ public fun F64SparseMatrix.trmv(
 ): Unit = koblas.trmv(this, x, lower, transpose, unitDiag)
 
 /** Prepares an immutable snapshot of this matrix for repeated products with the active backend. */
-public fun F64SparseMatrix.prepare(): F64PreparedSparseMatrix = koblas.sparseBlas.prepare(this)
+public fun SparseMatrix.prepare(): F64PreparedSparseMatrix = koblas.sparseBlas.prepare(this)
 
 /**
  * Solve `op(T) · X = B` in place against this matrix's [lower] or upper triangle, for every column of [b] at
- * once, with the active backend ([koblas]). See [F64SparseBlas.trsm].
+ * once, with the active backend ([koblas]). See [SparseBlas.trsm].
  */
 @Suppress("LongParameterList") // the BLAS dtrsm signature
-public fun F64SparseMatrix.trsm(
-    b: F64DenseMatrix,
+public fun SparseMatrix.trsm(
+    b: DenseMatrix,
     lower: Boolean,
     transpose: Boolean = false,
     unitDiag: Boolean = false,
@@ -65,8 +65,8 @@ public fun F64SparseMatrix.trsm(
 
 /** `B = alpha · op(T) · B`, or `B = alpha · B · op(T)` when [right], in place with the active backend ([koblas]). */
 @Suppress("LongParameterList") // the BLAS dtrmm signature
-public fun F64SparseMatrix.trmm(
-    b: F64DenseMatrix,
+public fun SparseMatrix.trmm(
+    b: DenseMatrix,
     lower: Boolean,
     transpose: Boolean = false,
     unitDiag: Boolean = false,

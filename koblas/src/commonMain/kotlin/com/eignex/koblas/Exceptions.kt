@@ -1,6 +1,6 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.core.*
+import com.eignex.koblas.*
 import kotlin.jvm.JvmInline
 
 /** Operands whose shapes do not fit the routine. */
@@ -40,7 +40,7 @@ internal inline fun requireIndex(condition: Boolean, message: () -> String) {
 }
 
 /** The shape every factorization and triangular routine needs, naming [what] so the message says which one. */
-internal fun requireSquare(a: F64MatrixLike, what: String) {
+internal fun requireSquare(a: MatrixLike, what: String) {
     requireShape(a.rows == a.cols) { "$what requires a square matrix; got ${a.rows}x${a.cols}" }
 }
 
@@ -61,7 +61,7 @@ internal fun requireSolveShapes(rows: Int, cols: Int, b: DoubleArray, out: Doubl
 }
 
 /** The same shapes for a solve over a panel of right-hand sides, which keeps its columns. */
-internal fun requireSolveShapes(rows: Int, cols: Int, b: F64DenseMatrix, out: F64DenseMatrix) {
+internal fun requireSolveShapes(rows: Int, cols: Int, b: DenseMatrix, out: DenseMatrix) {
     requireShape(b.rows == rows) { "solve: B has ${b.rows} rows, expected $rows" }
     requireShape(out.rows == cols && out.cols == b.cols) {
         "solve: out is ${out.rows}x${out.cols}, expected ${cols}x${b.cols}"
@@ -107,7 +107,7 @@ internal fun requireGemvShape(rows: Int, cols: Int, transpose: Boolean, x: Int, 
 }
 
 /** The same check for a caller holding the operand rather than its extents. */
-internal fun requireGemvShape(a: F64MatrixLike, transpose: Boolean, x: Int, y: Int): GemvShape =
+internal fun requireGemvShape(a: MatrixLike, transpose: Boolean, x: Int, y: Int): GemvShape =
     requireGemvShape(a.rows, a.cols, transpose, x, y)
 
 /**
@@ -125,11 +125,11 @@ internal data class GemmShape(val m: Int, val k: Int, val n: Int)
  * that product is this one with the operands swapped.
  */
 internal fun requireGemmShape(
-    a: F64MatrixLike,
+    a: MatrixLike,
     transposeA: Boolean,
-    b: F64MatrixLike,
+    b: MatrixLike,
     transposeB: Boolean,
-    c: F64MatrixLike,
+    c: MatrixLike,
 ): GemmShape = requireGemmShape(a.rows, a.cols, transposeA, b, transposeB, c)
 
 /**
@@ -141,9 +141,9 @@ internal fun requireGemmShape(
     aRows: Int,
     aCols: Int,
     transposeA: Boolean,
-    b: F64MatrixLike,
+    b: MatrixLike,
     transposeB: Boolean,
-    c: F64MatrixLike,
+    c: MatrixLike,
 ): GemmShape {
     val m = if (transposeA) aCols else aRows
     val k = if (transposeA) aRows else aCols
@@ -171,7 +171,7 @@ internal value class SyrkShape(private val packed: Long) {
 }
 
 /** [SyrkShape] for [a] under [transpose], having checked that C is square and matches the order. */
-internal fun requireSyrkShape(a: F64DenseMatrix, transpose: Boolean, c: F64DenseMatrix, what: String): SyrkShape {
+internal fun requireSyrkShape(a: DenseMatrix, transpose: Boolean, c: DenseMatrix, what: String): SyrkShape {
     val n = if (transpose) a.cols else a.rows
     val k = if (transpose) a.rows else a.cols
     requireShape(c.rows == n && c.cols == n) { "$what: C is ${c.rows}x${c.cols}, expected ${n}x$n" }
@@ -180,10 +180,10 @@ internal fun requireSyrkShape(a: F64DenseMatrix, transpose: Boolean, c: F64Dense
 
 /** [SyrkShape] for a `syr2k`, having checked B against A and C against the order. */
 internal fun requireSyr2kShape(
-    a: F64DenseMatrix,
-    b: F64DenseMatrix,
+    a: DenseMatrix,
+    b: DenseMatrix,
     transpose: Boolean,
-    c: F64DenseMatrix,
+    c: DenseMatrix,
     what: String,
 ): SyrkShape {
     requireShape(b.rows == a.rows && b.cols == a.cols) {
@@ -193,7 +193,7 @@ internal fun requireSyr2kShape(
 }
 
 /** Checks the symmetric matrix of a `syr` against its vector, returning its dimension. */
-internal fun requireSyrShape(a: F64MatrixLike, x: Int, what: String): Int {
+internal fun requireSyrShape(a: MatrixLike, x: Int, what: String): Int {
     requireSquare(a, what)
     val n = a.rows
     requireShape(x == n) { "$what: x length $x != $n" }
@@ -201,7 +201,7 @@ internal fun requireSyrShape(a: F64MatrixLike, x: Int, what: String): Int {
 }
 
 /** Checks the symmetric matrix of a `syr2` against both vectors, returning its dimension. */
-internal fun requireSyr2Shape(a: F64MatrixLike, x: Int, y: Int, what: String): Int {
+internal fun requireSyr2Shape(a: MatrixLike, x: Int, y: Int, what: String): Int {
     requireSquare(a, what)
     val n = a.rows
     requireShape(x == n && y == n) { "$what: operand lengths $x and $y must both be $n" }
@@ -209,7 +209,7 @@ internal fun requireSyr2Shape(a: F64MatrixLike, x: Int, y: Int, what: String): I
 }
 
 /** Checks a symmetric matrix against the two vectors of a `symv`, returning its dimension. */
-internal fun requireSymvShape(a: F64DenseMatrix, x: Int, y: Int): Int {
+internal fun requireSymvShape(a: DenseMatrix, x: Int, y: Int): Int {
     requireSquare(a, "symv")
     val n = a.rows
     requireShape(x == n) { "symv: x length $x != $n" }
@@ -218,7 +218,7 @@ internal fun requireSymvShape(a: F64DenseMatrix, x: Int, y: Int): Int {
 }
 
 /** Checks the operands of a `symm`, returning the symmetric matrix's dimension. */
-internal fun requireSymmShape(a: F64DenseMatrix, b: F64DenseMatrix, c: F64DenseMatrix, right: Boolean): Int {
+internal fun requireSymmShape(a: DenseMatrix, b: DenseMatrix, c: DenseMatrix, right: Boolean): Int {
     requireSquare(a, "symm")
     val m = a.rows
     requireShape(c.rows == b.rows && c.cols == b.cols) {
@@ -231,7 +231,7 @@ internal fun requireSymmShape(a: F64DenseMatrix, b: F64DenseMatrix, c: F64DenseM
 }
 
 /** Checks the triangle and the block of a `trsm` or `trmm`, returning the triangle's dimension. */
-internal fun requireTriangularMatrixShape(a: F64MatrixLike, b: F64DenseMatrix, right: Boolean, what: String): Int {
+internal fun requireTriangularMatrixShape(a: MatrixLike, b: DenseMatrix, right: Boolean, what: String): Int {
     requireSquare(a, what)
     if (right) {
         requireShape(b.cols == a.rows) { "$what right: B has ${b.cols} cols, expected ${a.rows}" }

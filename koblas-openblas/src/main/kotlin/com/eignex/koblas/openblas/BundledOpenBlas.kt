@@ -2,8 +2,8 @@ package com.eignex.koblas.openblas
 
 import com.eignex.koblas.*
 import com.eignex.koblas.F64BundledBackend
-import com.eignex.koblas.dense.F64Blas
-import com.eignex.koblas.dense.F64Kernels
+import com.eignex.koblas.dense.Blas
+import com.eignex.koblas.dense.Kernels
 import com.eignex.koblas.dense.host.cblas.HostBlasConfig
 import com.eignex.koblas.dense.host.cblas.OpenBlasOptions
 import com.eignex.koblas.dense.host.jvm.*
@@ -12,7 +12,7 @@ import java.nio.file.Path
 /** CBLAS backend bundled in Maven-native resources. */
 class BundledOpenBlas private constructor(private val blas: F64Cblas) :
     F64BundledBackend,
-    F64Blas by blas,
+    Blas by blas,
     F64RoutingBackend,
     BackendMetadataProvider {
 
@@ -30,7 +30,7 @@ class BundledOpenBlas private constructor(private val blas: F64Cblas) :
     override val isAvailable: Boolean get() = blas.isAvailable
     override val unavailableReason: String? get() = blas.unavailableReason
     override val isPortable: Boolean get() = false
-    override val kernels: F64Kernels get() = blas.kernels
+    override val kernels: Kernels get() = blas.kernels
     override val backendMetadata: BackendMetadata get() = blas.backendMetadata
 
     override fun route(query: F64RouteQuery): BackendRoute? = blas.route(query)

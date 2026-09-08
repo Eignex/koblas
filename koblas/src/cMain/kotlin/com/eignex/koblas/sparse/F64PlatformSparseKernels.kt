@@ -2,7 +2,7 @@
 
 package com.eignex.koblas.sparse
 
-import com.eignex.koblas.core.F64SparseVector
+import com.eignex.koblas.SparseVector
 import com.eignex.koblas.dense.F64PlatformKernels
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.kernels.*
@@ -11,12 +11,12 @@ import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 
 /** The C sparse level-1 kernels compiled into each Kotlin/Native host artifact. */
-internal actual object F64PlatformSparseKernels : F64SparseKernels {
+internal actual object F64PlatformSparseKernels : SparseKernels {
     actual override val name: String get() = BackendNames.C_SPARSE
 
     override val isPortable: Boolean get() = true
 
-    actual override fun dot(x: F64SparseVector, y: DoubleArray): Double {
+    actual override fun dot(x: SparseVector, y: DoubleArray): Double {
         requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
         if (x.values.isEmpty()) return 0.0
         return x.indices.usePinned { ip ->
@@ -28,7 +28,7 @@ internal actual object F64PlatformSparseKernels : F64SparseKernels {
         }
     }
 
-    actual override fun dot(x: F64SparseVector, y: F64SparseVector): Double {
+    actual override fun dot(x: SparseVector, y: SparseVector): Double {
         requireShape(x.size == y.size) { "dot: sizes differ, ${x.size} vs ${y.size}" }
         if (x.values.isEmpty() || y.values.isEmpty()) return 0.0
         return x.indices.usePinned { xip ->
@@ -49,7 +49,7 @@ internal actual object F64PlatformSparseKernels : F64SparseKernels {
         }
     }
 
-    actual override fun axpy(y: DoubleArray, alpha: Double, x: F64SparseVector) {
+    actual override fun axpy(y: DoubleArray, alpha: Double, x: SparseVector) {
         requireShape(y.size == x.size) { "axpy: sizes differ, ${y.size} vs ${x.size}" }
         if (x.values.isEmpty() || alpha == 0.0) return
         x.indices.usePinned { ip ->
@@ -61,7 +61,7 @@ internal actual object F64PlatformSparseKernels : F64SparseKernels {
         }
     }
 
-    actual override fun scatter(x: F64SparseVector, out: DoubleArray) {
+    actual override fun scatter(x: SparseVector, out: DoubleArray) {
         requireShape(out.size == x.size) { "scatter: sizes differ, ${out.size} vs ${x.size}" }
         if (x.values.isEmpty()) return
         x.indices.usePinned { ip ->
@@ -73,7 +73,7 @@ internal actual object F64PlatformSparseKernels : F64SparseKernels {
         }
     }
 
-    actual override fun gather(x: F64SparseVector, from: DoubleArray) {
+    actual override fun gather(x: SparseVector, from: DoubleArray) {
         requireShape(from.size == x.size) { "gather: sizes differ, ${from.size} vs ${x.size}" }
         if (x.values.isEmpty()) return
         x.indices.usePinned { ip ->
@@ -85,7 +85,7 @@ internal actual object F64PlatformSparseKernels : F64SparseKernels {
         }
     }
 
-    actual override fun gatherZero(x: F64SparseVector, from: DoubleArray) {
+    actual override fun gatherZero(x: SparseVector, from: DoubleArray) {
         requireShape(from.size == x.size) { "gatherZero: sizes differ, ${from.size} vs ${x.size}" }
         if (x.values.isEmpty()) return
         x.indices.usePinned { ip ->
@@ -97,7 +97,7 @@ internal actual object F64PlatformSparseKernels : F64SparseKernels {
         }
     }
 
-    actual override fun nrm2(x: F64SparseVector): Double = F64PlatformKernels.nrm2(x.values, 0, x.values.size)
+    actual override fun nrm2(x: SparseVector): Double = F64PlatformKernels.nrm2(x.values, 0, x.values.size)
 
-    actual override fun asum(x: F64SparseVector): Double = F64PlatformKernels.asum(x.values, 0, x.values.size)
+    actual override fun asum(x: SparseVector): Double = F64PlatformKernels.asum(x.values, 0, x.values.size)
 }
