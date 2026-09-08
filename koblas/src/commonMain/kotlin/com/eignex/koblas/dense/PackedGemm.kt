@@ -130,14 +130,21 @@ private fun packedProduct(
                         var rowBlock = 0
                         while (rowBlock < m) {
                             val rowCount = min(mc, m - rowBlock)
-                            packA(
-                                a, lda, transposeA, symmetricA, alpha, packedA,
-                                rows, rowBlock, rowCount, depthBlock, depth,
-                            )
-                            macroKernel(
-                                kernels, packedA, packedB, c, m,
-                                rowBlock, rowCount, columnBlock, columns, depth, tile, triangle,
-                            )
+                            val outside = triangle != null && if (triangle) {
+                                rowBlock + rowCount - 1 < columnBlock
+                            } else {
+                                rowBlock > columnBlock + columns - 1
+                            }
+                            if (!outside) {
+                                packA(
+                                    a, lda, transposeA, symmetricA, alpha, packedA,
+                                    rows, rowBlock, rowCount, depthBlock, depth,
+                                )
+                                macroKernel(
+                                    kernels, packedA, packedB, c, m,
+                                    rowBlock, rowCount, columnBlock, columns, depth, tile, triangle,
+                                )
+                            }
                             rowBlock += rowCount
                         }
                         depthBlock += depth
