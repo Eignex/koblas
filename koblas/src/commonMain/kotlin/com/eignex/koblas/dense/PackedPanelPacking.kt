@@ -283,7 +283,7 @@ private fun requireMatrixWindow(row: Int, column: Int, rows: Int, columns: Int, 
     }
 }
 
-private fun requireArrayWindow(array: DoubleArray, offset: Int, size: Int, what: String) {
+internal fun requireArrayWindow(array: DoubleArray, offset: Int, size: Int, what: String) {
     requireIndex(offset >= 0 && offset.toLong() + size <= array.size) {
         "$what [$offset, ${offset.toLong() + size}) exceeds array length ${array.size}"
     }
@@ -348,7 +348,7 @@ private fun writeLogical(
     destination.data[row + column * destination.rows] = value
 }
 
-private inline fun withStableSource(
+internal inline fun withStableSource(
     source: DoubleArray,
     destination: DoubleArray,
     workspace: Workspace?,

@@ -72,23 +72,9 @@ class Level3Benchmark {
     }
 
     @Benchmark
-    fun trsm(): DenseMatrix {
-        squareB.data.copyInto(rhs.data)
-        arm.external?.trsm(triangular, rhs, true, false, false, false, 1.0) ?: arm.context!!.trsm(triangular, rhs, lower = true)
-        return rhs
-    }
-
-    @Benchmark
     fun trmm(): DenseMatrix {
         squareB.data.copyInto(rhs.data)
         arm.external?.trmm(triangular, rhs, true, false, false, false, 1.0) ?: arm.context!!.trmm(triangular, rhs, lower = true)
-        return rhs
-    }
-
-    @Benchmark
-    fun trsmRight(): DenseMatrix {
-        squareB.data.copyInto(rhs.data)
-        arm.external?.trsm(triangular, rhs, true, false, false, true, 1.0) ?: arm.context!!.trsm(triangular, rhs, lower = true, right = true)
         return rhs
     }
 

@@ -272,6 +272,16 @@ internal fun triangularMatrix(
     }
     if (alpha != 1.0) k.scale(b.data, 0, alpha, b.data.size)
     if (a.rows == 0) return
+    val normalizedRows = if (right) b.rows else b.cols
+    if (
+        solve &&
+        a.rows >= DenseTuning.trsmPackedMinOrder &&
+        normalizedRows >= DenseTuning.trsmPackedMinRows &&
+        packedTrsmSupports(a, b, lower, unitDiag)
+    ) {
+        packedTrsmCore(k, a, b, lower, transpose, unitDiag, right, workspace)
+        return
+    }
     /*
      * The four blocked walks, chosen in one place. [scratch] is the row buffer a right-side walk reads
      * through, the transposed update's sums buffer otherwise, and nothing at all where the left,

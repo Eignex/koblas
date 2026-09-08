@@ -48,6 +48,41 @@ internal fun portableTrsmTile(
     }
 }
 
+/** Reference composition for a packed update followed by [portableTrsmTile], restricted to its logical edge. */
+@Suppress("LongParameterList") // three packed operands, their windows, the logical edge and triangular flags
+internal fun portableGemmTrsmTile(
+    tileRows: Int,
+    tileColumns: Int,
+    depth: Int,
+    validRows: Int,
+    order: Int,
+    packedA: DoubleArray,
+    aOff: Int,
+    packedB: DoubleArray,
+    bOff: Int,
+    packedTriangle: DoubleArray,
+    triangleOff: Int,
+    lower: Boolean,
+    unitDiag: Boolean,
+    x: DoubleArray,
+    xOff: Int,
+) {
+    for (step in 0 until depth) {
+        for (column in 0 until order) {
+            val target = xOff + column * tileRows
+            val coefficient = packedB[bOff + step * tileColumns + column]
+            for (row in 0 until validRows) {
+                x[target + row] -=
+                    packedA[aOff + step * tileRows + row] * coefficient
+            }
+        }
+    }
+    portableTrsmTile(
+        tileRows, tileColumns, validRows, order,
+        packedTriangle, triangleOff, lower, unitDiag, x, xOff,
+    )
+}
+
 @Suppress("LongParameterList") // physical tile shapes plus the source and destination windows
 private fun dividePackedColumn(
     tileRows: Int,
