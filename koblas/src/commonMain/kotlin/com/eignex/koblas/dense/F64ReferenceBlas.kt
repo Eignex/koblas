@@ -295,7 +295,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
 
     /** `C = alpha · (op(A) · op(B)ᵀ + op(B) · op(A)ᵀ) + beta · C` (BLAS `dsyr2k`), where `op` transposes when
      *  [transpose]. Writes only the [lower] or upper triangle. */
-    @Suppress("LongParameterList") // the BLAS dsyr2k signature plus optional scratch
+    @Suppress("LongParameterList", "ReturnCount") // the BLAS dsyr2k signature plus scratch; alias guards
     override fun syr2k(
         alpha: Double,
         a: F64DenseMatrix,
@@ -307,20 +307,85 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         workspace: Workspace?,
     ) {
         val (n, k) = requireSyr2kShape(a, b, transpose, c, "syr2k")
-        scaleTriangle(kernels, c.data, n, beta, lower)
-        if (alpha == 0.0 || n == 0 || k == 0) return
-        if (!transpose) {
-            blockedSyr2kUpdate(kernels, alpha, a.data, b.data, c.data, n, k, lower)
-        } else {
-            workspace.borrowTransposed(a.data, a.rows, a.cols) { packedA ->
-                workspace.borrowTransposed(b.data, b.rows, b.cols) { packedB ->
-                    blockedSyr2kUpdate(
-                        kernels, alpha, packedA, packedB, c.data, n, k, lower,
-                        guardZeroColumns = false,
-                    )
+        val cd = c.data
+        if (alpha == 0.0 || n == 0 || k == 0) {
+            scaleTriangle(kernels, cd, n, beta, lower)
+            return
+        }
+        val ad = a.data
+        val bd = b.data
+        if (ad === cd) {
+            workspace.borrow(ad.size) { copyA ->
+                ad.copyInto(copyA)
+                if (bd === cd) {
+                    syr2kFrom(alpha, copyA, a.rows, copyA, b.rows, transpose, beta, cd, n, k, lower, workspace)
+                } else {
+                    syr2kFrom(alpha, copyA, a.rows, bd, b.rows, transpose, beta, cd, n, k, lower, workspace)
                 }
             }
+            return
         }
+        if (bd === cd) {
+            workspace.borrow(bd.size) { copyB ->
+                bd.copyInto(copyB)
+                syr2kFrom(alpha, ad, a.rows, copyB, b.rows, transpose, beta, cd, n, k, lower, workspace)
+            }
+            return
+        }
+        syr2kFrom(alpha, ad, a.rows, bd, b.rows, transpose, beta, cd, n, k, lower, workspace)
+    }
+
+    /** Implements [syr2k] after aliased operands have been snapshotted, if necessary. */
+    @Suppress("LongParameterList")
+    private fun syr2kFrom(
+        alpha: Double,
+        ad: DoubleArray,
+        lda: Int,
+        bd: DoubleArray,
+        ldb: Int,
+        transpose: Boolean,
+        beta: Double,
+        cd: DoubleArray,
+        n: Int,
+        k: Int,
+        lower: Boolean,
+        workspace: Workspace?,
+    ) {
+        scaleTriangle(kernels, cd, n, beta, lower)
+        // The retained traversal scales the output-column coefficient of each cross-product and skips only
+        // when both raw coefficients are zero. Moving alpha to the packed row factor changes exceptional
+        // arithmetic, so preserve the old evaluation order whenever a value is non-finite or scaling a
+        // finite value would overflow.
+        val exceptional = packedSyr2kChangesExceptionalArithmetic(alpha, ad, bd)
+        if (exceptional) {
+            if (!transpose) {
+                blockedSyr2kUpdate(kernels, alpha, ad, bd, cd, n, k, lower)
+            } else {
+                workspace.borrowTransposed(ad, lda, n) { packedA ->
+                    workspace.borrowTransposed(bd, ldb, n) { packedB ->
+                        blockedSyr2kUpdate(
+                            kernels, alpha, packedA, packedB, cd, n, k, lower,
+                            guardZeroColumns = false,
+                        )
+                    }
+                }
+            }
+            return
+        }
+        packedTriangularGemm(
+            kernels, alpha, ad, lda, transpose, bd, ldb, !transpose, cd, n, k, lower, workspace,
+        )
+        packedTriangularGemm(
+            kernels, alpha, bd, ldb, transpose, ad, lda, !transpose, cd, n, k, lower, workspace,
+        )
+    }
+
+    /** Whether packed row-side scaling can differ from the retained rank-2k evaluation order. */
+    private fun packedSyr2kChangesExceptionalArithmetic(alpha: Double, a: DoubleArray, b: DoubleArray): Boolean {
+        if (!alpha.isFinite()) return true
+        val scalingCanOverflow = alpha !in -1.0..1.0
+        return a.any { !it.isFinite() || (scalingCanOverflow && !(alpha * it).isFinite()) } ||
+            b.any { !it.isFinite() || (scalingCanOverflow && !(alpha * it).isFinite()) }
     }
 
     /** Solve `op(T) · x = b` in place (BLAS `dtrsv`) for the [lower] or upper triangle of the square [a],
