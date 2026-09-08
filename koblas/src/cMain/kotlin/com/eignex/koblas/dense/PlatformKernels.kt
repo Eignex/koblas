@@ -298,6 +298,10 @@ internal actual object PlatformKernels : Kernels, ArithmeticKernels {
         x: DoubleArray,
         xOff: Int,
     ) {
+        if (depth == 0) {
+            trsmTile(validRows, order, packedTriangle, triangleOff, lower, unitDiag, x, xOff)
+            return
+        }
         packedA.usePinned { left ->
             packedB.usePinned { right ->
                 packedTriangle.usePinned { triangle ->
