@@ -18,6 +18,7 @@ class Level2Benchmark {
 
     private lateinit var a: DenseMatrix
     private lateinit var sym: DenseMatrix
+    private lateinit var symUpper: DenseMatrix
     private lateinit var x: DoubleArray
     private lateinit var y: DoubleArray
 
@@ -35,6 +36,8 @@ class Level2Benchmark {
         val rng = benchRng()
         a = randomMatrix(n, n, rng)
         sym = lowerSymmetricMatrix(n, rng)
+        symUpper = DenseMatrix.zero(n, n)
+        for (j in 0 until n) for (i in 0..j) symUpper[i, j] = sym[j, i]
         x = randomVector(n, rng)
         y = DoubleArray(n)
         y2 = randomVector(n, rng)
@@ -43,6 +46,18 @@ class Level2Benchmark {
         yv = DenseVector.of(y2)
         triangular = dominantMatrix(n, rng)
         rhs = DoubleArray(n)
+        if (denseArm == BUILTIN_BACKEND && n <= 64) {
+            verifyNearZeroManagedAllocation("level2/gemv/$n") { arm.context!!.gemv(1.0, a, x, 0.0, y) }
+            verifyNearZeroManagedAllocation("level2/gemv-transposed/$n") {
+                arm.context!!.gemv(1.0, a, x, 0.0, y, transpose = true)
+            }
+            verifyNearZeroManagedAllocation("level2/symv-lower/$n") {
+                arm.context!!.symv(1.0, sym, x, 0.0, y)
+            }
+            verifyNearZeroManagedAllocation("level2/symv-upper/$n") {
+                arm.context!!.symv(1.0, symUpper, x, 0.0, y, lower = false)
+            }
+        }
     }
 
     @Benchmark
@@ -58,6 +73,12 @@ class Level2Benchmark {
     @Benchmark
     fun symv() {
         arm.external?.symv(1.0, sym, x, 0.0, y, true) ?: arm.context!!.symv(1.0, sym, x, 0.0, y)
+    }
+
+    @Benchmark
+    fun symvUpper() {
+        arm.external?.symv(1.0, symUpper, x, 0.0, y, false)
+            ?: arm.context!!.symv(1.0, symUpper, x, 0.0, y, lower = false)
     }
 
     @Benchmark

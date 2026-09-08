@@ -53,8 +53,10 @@ F64EquilibratingSparseLu.factor(SparseMatrix)	com.eignex.koblas.bench.SparseBenc
 F64EquilibratingSparseLu.factor(SparseMatrix).solve(DoubleArray)	com.eignex.koblas.bench.SparseBenchmark.sparseLuSolve	benchmarked	
 Kernels.asum(DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.asum facade.
 Kernels.axpy(DoubleArray,Int,Double,DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.axpy facade.
+Kernels.axpy4(DoubleArray,Int,DoubleArray,Int,Int,Double,Double,Double,Double,Int)	com.eignex.koblas.bench.Level1Benchmark.axpy4	benchmarked	Fused four-column update is compared with four unfused axpy calls.
 Kernels.dot(DoubleArray,Int,DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.dot facade.
 Kernels.dot4(DoubleArray,Int,Int,DoubleArray,Int,Int,DoubleArray,Int)	com.eignex.koblas.bench.Level1Benchmark.dot4	benchmarked	
+Kernels.dotAxpy(DoubleArray,Int,Double,DoubleArray,Int,DoubleArray,Int,Int)	com.eignex.koblas.bench.Level1Benchmark.dotAxpy	benchmarked	Fused symmetric update is compared with separate dot and axpy calls.
 Kernels.gemmTile(Int,DoubleArray,Int,DoubleArray,Int,DoubleArray,Int,Int)	com.eignex.koblas.bench.PackedPanelExecutionBenchmark.reusedPanelProduct	benchmarked	Retained-panel execution is measured separately from packing.
 Kernels.nrm2(DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.norm2 facade.
 Kernels.rot(DoubleArray,Int,DoubleArray,Int,Int,Double,Double)		excluded	The raw kernel shares the dispatch path benchmarked through the public rot facade.

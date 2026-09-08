@@ -50,3 +50,35 @@ tar -xzf koblas-bench/results/packed-panels-6fff651a-jvm-20260909.tar.gz
 ```
 
 Expected SHA-256: `737baf460d7c7f06d3fe70f3c799f4f4b06aac279ed0e93dd0aa86517efbaa30`.
+
+## Fused level-2 kernels
+
+`fused-level2-20260909.tar.gz` contains the raw JMH JSON for the fused `axpy4` and `dotAxpy` kernels
+and their GEMV/SYMV callers in this change. It includes:
+
+- two JVM Vector API microbenchmark passes with the unfused compositions;
+- two square GEMV/SYMV passes against single-threaded OpenBLAS and oneMKL;
+- one tall, wide, and remainder-heavy GEMV pass against both comparators; and
+- one Kotlin/Native pass comparing the compiled-in vectorized C kernels with the scalar reference.
+
+The runs used an Intel Core i9-12900H with CPU affinity `0,2,4,6`. Other builds and benchmarks remained
+active on the shared machine, so the error bars are part of the result rather than an idle-host claim. JMH's
+lock check was disabled where another benchmark process already held the global lock. OpenBLAS and oneMKL
+were fixed to one thread; oneMKL used its sequential threading layer.
+
+The JVM allocation probes measured 0 B/call for both new Vector API kernels. Across the two square passes,
+the built-in 1024-order SYMV took 151--155 us for the lower triangle, against 98--99 us for OpenBLAS and
+83--108 us for oneMKL. This leaves a visible comparator gap, but replaces the roughly 571 us prior built-in
+measurement. Rectangular GEMV was at or near comparator time within the observed noise. On Kotlin/Native,
+the vectorized C `axpy4` took 163 ns at length 256 and 447 ns at 1024, while four C AXPYs took 342 ns and
+1094 ns; `dotAxpy` took 113 ns and 278 ns, versus 161 ns and 403 ns for separate C dot and AXPY calls.
+
+Verify and inspect the archive with:
+
+```bash
+sha256sum koblas-bench/results/fused-level2-20260909.tar.gz
+tar -xzf koblas-bench/results/fused-level2-20260909.tar.gz
+```
+
+Expected SHA-256:
+`3c975c291509dfc9dce8e4e7846a75864d10d560b6a227ed0f0a789d65cbe950`.
