@@ -29,7 +29,7 @@ Windows Native, and Apple mobile targets are not published.
 
 | Module | Published targets | Purpose |
 |--------|-------------------|---------|
-| koblas | JVM, Linux x64/arm64, macOS arm64 | Dense and sparse API with a portable reference backend. |
+| koblas | JVM, Linux x64/arm64, macOS arm64 | Dense BLAS and sparse linear algebra with portable references. |
 | koblas-openblas | JVM | Bundled CBLAS-only OpenBLAS. |
 | koblas-hfactor | JVM | Bundled HFactor for hypersparse simplex workflows. |
 
@@ -41,8 +41,7 @@ Bundled modules carry their own third-party notices.
 
 ## Quick start
 
-Dense containers use column-major storage. Operators cover ordinary arithmetic and products, while typed
-factorizations expose solve operations:
+Dense containers use column-major storage. Operators cover ordinary arithmetic and BLAS-backed products:
 
 ```kotlin
 import com.eignex.koblas.*
@@ -57,11 +56,10 @@ val x = DenseVector.of(doubleArrayOf(3.0, 5.0))
 
 val product = a * b
 val y = a * x
-val solution = a.cholesky().solve(x.data)
 ```
 
-Sparse matrices are validated CSC with ascending row indices in each column. Construct them from columns or
-coordinate triplets and close native-backed factors deterministically:
+Sparse matrices are validated CSC with ascending row indices in each column. Their typed factorizations expose
+solve operations. Construct matrices from columns or coordinate triplets and close factors deterministically:
 
 ```kotlin
 import com.eignex.koblas.SparseMatrix
@@ -183,16 +181,16 @@ check(route.execution == BackendExecution.NATIVE) {
 ```
 
 The `registerBackend(...)` function adds a provider explicitly. The `installBackends(...)` function replaces the
-process-wide context; passing null restores registry selection. For solver-local control, use an immutable
+process-wide context; passing null restores registry selection. For locally scoped control, use an immutable
 F64ContextBuilder:
 
 ```kotlin
-val strictDense = F64ContextBuilder()
+val strictBlas = F64ContextBuilder()
     .withBackend(BackendRole.DENSE_BLAS, selectedBlas)
     .withDispatchPolicy(F64DispatchPolicy.NATIVE_ONLY)
     .resolve()
 
-val c = strictDense.gemm(a, b)
+val c = strictBlas.gemm(a, b)
 ```
 
 NATIVE_ONLY rejects a known fallback before backend invocation. PORTABLE_ONLY resolves every role to the
@@ -273,7 +271,7 @@ a.prepare().use { prepared ->
 Prepared handles and sparse factors are AutoCloseable. Native block solves accept a column-major dense matrix
 of right-hand sides. Sparse quasi-definite LDL factors expose their pivot-sign inertia directly.
 
-## Factorization coverage
+## Sparse factorization coverage
 
 The implemented factor families deliberately have different capabilities: matrix shape, numerical meaning,
 and ownership determine what is useful rather than forcing every factor into one interface.
@@ -281,7 +279,7 @@ and ownership determine what is useful rather than forcing every factor into one
 | Family | Solve / transpose / blocks | Reuse and lifecycle | Safe factor inspection | Deliberate non-applicability |
 |--------|----------------------------|---------------------|------------------------|------------------------------|
 | Sparse LU | Vector and multi-RHS `solve`/`solveInto`, including transpose and alias-safe defaults | Native factors close; repeated-pattern LU has `analyze`/`refactor` | L/U, orderings, scaling, off-diagonal, fill, pivot quality, singularity where providers can expose them | No general sparse inverse or determinant API |
-| Sparse Cholesky / LDL | Vector and multi-RHS factor solves; transpose is identical by symmetry | Native factors close; portable factors close as no-ops | L/order; LDL D/inertia | No separate transpose solve or dense inverse |
+| Sparse Cholesky / LDL | Vector and multi-RHS factor solves; transpose is identical by symmetry | Native factors close; portable factors close as no-ops | L/order; LDL D/inertia | No separate transpose solve or inverse |
 | Sparse QR | `applyQ`/`applyQInto`, vector and multi-RHS least-squares solve | Native factor lifecycle; workspace block staging | R, column order, rank and fill | Q remains an operator; explicit Q/inverse is generally dense and is intentionally not materialized |
 | Basis factorizations / solvers | Basis factors inherit LU solves; solvers provide FTRAN/BTRAN | Column replacement, refactorization, update count, and close where native-owned | Basis factor exposes normal LU inspection; solver reports dimension/fill/updates/singularity | No matrix inverse, determinant, or generic multi-RHS API for hypersparse indexed-vector workflows |
 
