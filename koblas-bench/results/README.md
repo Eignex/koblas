@@ -82,3 +82,13 @@ tar -xzf koblas-bench/results/fused-level2-20260909.tar.gz
 
 Expected SHA-256:
 `3c975c291509dfc9dce8e4e7846a75864d10d560b6a227ed0f0a789d65cbe950`.
+
+## Packed triangular solve
+
+`packed-trsm-20260909.tar.gz` retains raw JVM and Kotlin/Native JSON for packed TRSM and fused GEMM-TRSM,
+forced packed/scalar crossover runs, and single-threaded OpenBLAS and oneMKL comparisons. Its notes record
+allocation probes, implementation identities, the measured thresholds, and variability from the busy shared
+host.
+
+Expected SHA-256:
+`00978425a758cf1608727482f3401fa64dfe8279d024d30533ce5db27e21249c`.
