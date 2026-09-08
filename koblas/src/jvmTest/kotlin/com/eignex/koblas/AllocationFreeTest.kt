@@ -281,19 +281,22 @@ class AllocationFreeTest {
     }
 
     @Test
-    fun `left symmetric matrix workspace is allocation neutral`() {
+    fun `symmetric matrix workspace is allocation neutral on both sides`() {
         val n = 96
+        val width = 12
         val a = F64DenseMatrix.diagonal(n)
-        val b = F64DenseMatrix(n, 12)
-        val c = F64DenseMatrix(n, 12)
-        val workspace = Workspace().apply { reserve(n * n, count = 1) }
+        for (right in booleanArrayOf(false, true)) {
+            val b = if (right) F64DenseMatrix(width, n) else F64DenseMatrix(n, width)
+            val c = F64DenseMatrix(b.rows, b.cols)
+            val workspace = Workspace()
 
-        val bytes = bytesPerIteration(300) {
-            koblas.symm(1e-8, a, b, 1.0, c, workspace = workspace)
-            c
+            val bytes = bytesPerIteration(300) {
+                koblas.symm(1e-8, a, b, 1.0, c, right = right, workspace = workspace)
+                c
+            }
+
+            assertTrue(bytes <= FLOOR_BYTES, "symm right=$right allocated $bytes B per call")
         }
-
-        assertTrue(bytes <= FLOOR_BYTES, "left symm allocated $bytes B per call")
     }
 
     @Test

@@ -193,8 +193,8 @@ public interface F64Blas : Backend {
     )
 
     /** `C = alpha · A · B + beta · C`, or `C = alpha · B · A + beta · C` when [right] (BLAS `dsymm`). Only the
-     *  [lower] triangle of [a] is read; `beta == 0.0` overwrites [c] without reading it. [workspace] reuses the
-     *  left-side symmetric panel. */
+     *  [lower] triangle of [a] is read; `beta == 0.0` overwrites [c] without reading it. [workspace] reuses
+     *  the packed operand panels and edge tile. */
     @Suppress("LongParameterList") // the BLAS dsymm signature
     public fun symm(
         alpha: Double,
