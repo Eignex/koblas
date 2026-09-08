@@ -52,18 +52,18 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
         "mkl_sparse_d_export_csc",
         FunctionDescriptor.of(JAVA_INT, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
     )
-    private val ddoti = handle("mkl_ddoti", FunctionDescriptor.of(JAVA_DOUBLE, JAVA_INT, ADDRESS, ADDRESS, ADDRESS))
-    private val daxpyi = handle("mkl_daxpyi", voidOf(JAVA_INT, JAVA_DOUBLE, ADDRESS, ADDRESS, ADDRESS))
-    private val dsctr = handle("mkl_dsctr", voidOf(JAVA_INT, ADDRESS, ADDRESS, ADDRESS))
-    private val dgthr = handle("mkl_dgthr", voidOf(JAVA_INT, ADDRESS, ADDRESS, ADDRESS))
-    private val dgthrz = handle("mkl_dgthrz", voidOf(JAVA_INT, ADDRESS, ADDRESS, ADDRESS))
+    private val ddoti = handle("cblas_ddoti", FunctionDescriptor.of(JAVA_DOUBLE, JAVA_INT, ADDRESS, ADDRESS, ADDRESS))
+    private val daxpyi = handle("cblas_daxpyi", voidOf(JAVA_INT, JAVA_DOUBLE, ADDRESS, ADDRESS, ADDRESS))
+    private val dsctr = handle("cblas_dsctr", voidOf(JAVA_INT, ADDRESS, ADDRESS, ADDRESS))
+    private val dgthr = handle("cblas_dgthr", voidOf(JAVA_INT, ADDRESS, ADDRESS, ADDRESS))
+    private val dgthrz = handle("cblas_dgthrz", voidOf(JAVA_INT, ADDRESS, ADDRESS, ADDRESS))
 
     init {
         val setThreads = checkNotNull(
-            library.handleOrNull("mkl_set_num_threads", voidOf(JAVA_INT), critical = false),
-        ) { "oneMKL lacks mkl_set_num_threads" }
+            library.handleOrNull("MKL_Set_Num_Threads", voidOf(JAVA_INT), critical = false),
+        ) { "oneMKL lacks MKL_Set_Num_Threads" }
         setThreads.invokeExact(1) as Unit
-        library.handleOrNull("mkl_set_dynamic", voidOf(JAVA_INT), critical = false)?.let { it.invokeExact(0) as Unit }
+        library.handleOrNull("MKL_Set_Dynamic", voidOf(JAVA_INT), critical = false)?.let { it.invokeExact(0) as Unit }
     }
 
     override fun prepare(a: F64SparseMatrix, triangular: Boolean, lower: Boolean, unitDiag: Boolean): PreparedSparseComparator =
@@ -238,10 +238,10 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
 
     companion object {
         private val required = listOf(
-            "mkl_set_num_threads", "mkl_sparse_d_create_csc", "mkl_sparse_destroy", "mkl_sparse_optimize",
+            "MKL_Set_Num_Threads", "mkl_sparse_d_create_csc", "mkl_sparse_destroy", "mkl_sparse_optimize",
             "mkl_sparse_d_mv", "mkl_sparse_d_mm", "mkl_sparse_d_trsv", "mkl_sparse_d_trsm",
             "mkl_sparse_spmm", "mkl_sparse_d_export_csc",
-            "mkl_ddoti", "mkl_daxpyi", "mkl_dsctr", "mkl_dgthr", "mkl_dgthrz",
+            "cblas_ddoti", "cblas_daxpyi", "cblas_dsctr", "cblas_dgthr", "cblas_dgthrz",
         )
 
         fun open(): JvmOneMklSparse? {
