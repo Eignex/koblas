@@ -133,11 +133,12 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
     ) {
         scaleTriangle(kernels, cd, n, beta, lower)
         if (alpha == 0.0 || n == 0 || k == 0) return
-        // Netlib's non-transposed traversal skips a raw zero multiplier. With a non-finite value elsewhere
-        // in that rank-one column this is observable: the skipped zero does not multiply an infinity. A
-        // packed tile evaluates every pair, so retain the established outer-product traversal in precisely
-        // the cases where the distinction can matter. The transposed dot form has never had that guard.
-        if (!transpose && (!alpha.isFinite() || !ad.all { it.isFinite() })) {
+        // Netlib's non-transposed traversal skips a raw zero multiplier. This is observable when another
+        // value in the rank-one column is already non-finite or becomes non-finite when alpha scales it:
+        // the skipped zero does not multiply that infinity. A packed tile evaluates every pair, so retain
+        // the established outer-product traversal in precisely the cases where the distinction can matter.
+        // The transposed form has never had that guard and deliberately keeps its dot-product semantics.
+        if (!transpose && (!alpha.isFinite() || ad.any { !it.isFinite() || !(alpha * it).isFinite() })) {
             blockedSyrkUpdate(kernels, alpha, ad, cd, n, k, lower)
             return
         }

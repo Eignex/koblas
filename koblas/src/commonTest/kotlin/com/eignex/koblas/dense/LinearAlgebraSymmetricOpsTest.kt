@@ -298,6 +298,36 @@ class LinearAlgebraSymmetricOpsTest {
     }
 
     @Test
+    fun `syrk preserves the netlib zero multiplier rule when finite scaling overflows`() {
+        val blas = F64ReferenceBlas(F64ScalarKernels)
+        for (lower in booleanArrayOf(true, false)) {
+            val values = if (lower) {
+                doubleArrayOf(0.0, Double.MAX_VALUE)
+            } else {
+                doubleArrayOf(Double.MAX_VALUE, 0.0)
+            }
+            val row = if (lower) 1 else 0
+            val column = if (lower) 0 else 1
+            val result = F64DenseMatrix(2, 2)
+
+            blas.syrk(2.0, F64DenseMatrix(2, 1, values), false, 0.0, result, lower)
+
+            assertEquals(
+                0.0,
+                result[row, column],
+                "lower=$lower non-transposed syrk multiplied a skipped zero by a scaling overflow",
+            )
+
+            val transposed = F64DenseMatrix(2, 2)
+            blas.syrk(2.0, F64DenseMatrix(1, 2, values.copyOf()), true, 0.0, transposed, lower)
+            assertTrue(
+                transposed[row, column].isNaN(),
+                "lower=$lower transposed syrk changed its scaling-overflow dot semantics",
+            )
+        }
+    }
+
+    @Test
     fun `syrk snapshots an aliased destination`() {
         val rng = Random(20260908)
         val blas = F64ReferenceBlas(F64ScalarKernels)
