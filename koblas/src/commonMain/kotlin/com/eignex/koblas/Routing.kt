@@ -29,28 +29,6 @@ public sealed interface F64RouteQuery {
     }
 
     /**
-     * A Cholesky rank update of an [order] factor by [rank] vectors. The host path blocks the update, which
-     * needs enough vectors to be worth the transpose it costs, so this one has a threshold of its own.
-     */
-    public data class CholeskyRankUpdate(val order: Int, val rank: Int) : F64RouteQuery {
-        override val role: BackendRole get() = BackendRole.DENSE_DECOMPOSITIONS
-
-        init {
-            requireNonNegative(order, "order")
-            requireNonNegative(rank, "rank")
-        }
-    }
-
-    /** A dense LU factorization with [order] DGETRF pivot steps. */
-    public data class DenseLu(val order: Int) : F64RouteQuery {
-        override val role: BackendRole get() = BackendRole.DENSE_DECOMPOSITIONS
-
-        init {
-            requireNonNegative(order, "order")
-        }
-    }
-
-    /**
      * A sparse-times-dense product whose sparse operand has [storedEntries]. [right] puts it on the right;
      * [transposeDense] transposes the dense operand.
      */

@@ -7,7 +7,6 @@ import com.eignex.koblas.F64DispatchPolicy
 import com.eignex.koblas.F64FallbackPolicy
 import com.eignex.koblas.SparseRoles
 import com.eignex.koblas.dense.F64Blas
-import com.eignex.koblas.dense.F64Decompositions
 import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.sparse.F64BasisFactorizations
 import com.eignex.koblas.sparse.F64GeneralSparseLu
@@ -132,7 +131,6 @@ internal class F64Registry {
         return F64Context(
             kernels = resolved<F64Kernels>(BackendSlot.F64Kernels),
             blas = resolved<F64Blas>(BackendSlot.F64Blas),
-            decompositions = resolved<F64Decompositions>(BackendSlot.F64Decompositions),
             sparseKernels = resolved<F64SparseKernels>(BackendSlot.F64SparseKernels),
             sparseBlas = resolved<F64SparseBlas>(BackendSlot.F64SparseBlas),
             basisSolvers = resolved<F64BasisSolvers>(BackendSlot.F64BasisSolvers),

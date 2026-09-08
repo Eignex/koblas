@@ -69,7 +69,7 @@ class BlasConformanceTest {
                 F64ScalarKernels.axpy(y, yOff, alpha, x, xOff, len)
             }
         }
-        val blas = F64ReferenceBlas(recording)
+        val blas = F64ReferenceBackend(recording)
         val x = F64DenseVector.wrap(doubleArrayOf(2.0, -3.0, 5.0, 7.0))
 
         val lower = F64DenseMatrix(4, 4)
@@ -93,7 +93,7 @@ class BlasConformanceTest {
             }
         }
         val upper = F64DenseMatrix(2, 2)
-        F64ReferenceBlas(recording).syr(
+        F64ReferenceBackend(recording).syr(
             1.0,
             F64DenseVector.wrap(doubleArrayOf(2.0, 3.0)),
             upper,
@@ -121,7 +121,7 @@ class BlasConformanceTest {
         val a = F64DenseMatrix(3, 3, doubleArrayOf(2.0, 3.0, 5.0, 0.0, 7.0, 11.0, 0.0, 0.0, 13.0))
         val y = DoubleArray(3)
 
-        F64ReferenceBlas(recording).symv(1.0, a, doubleArrayOf(17.0, 19.0, 23.0), 0.0, y, lower = true)
+        F64ReferenceBackend(recording).symv(1.0, a, doubleArrayOf(17.0, 19.0, 23.0), 0.0, y, lower = true)
 
         assertEquals(3, dots)
         assertEquals(3, axpys)
@@ -138,7 +138,7 @@ class BlasConformanceTest {
             }
         }
 
-        F64ReferenceBlas(recording).syr2(
+        F64ReferenceBackend(recording).syr2(
             1.0,
             F64DenseVector.wrap(doubleArrayOf(2.0, 3.0, 5.0)),
             F64DenseVector.wrap(doubleArrayOf(7.0, 11.0, 13.0)),
@@ -146,56 +146,6 @@ class BlasConformanceTest {
         )
 
         assertEquals(6, axpys)
-    }
-
-    @Test
-    fun `dense LU solve has a small residual on the standard test matrices`() {
-        val rng = Random(20260716)
-        for (n in intArrayOf(1, 2, 5, 12, 40)) {
-            val matrices = listOf(
-                "identity" to F64DenseMatrix.diagonal(n),
-                "diagonal" to diagonal(n, rng),
-                "hilbert" to hilbert(n),
-                "random" to wellConditioned(n, rng),
-                "spd" to spd(n, rng),
-            )
-            for ((label, a) in matrices) {
-                val xTrue = DoubleArray(n) { rng.nextDouble(-2.0, 2.0) }
-                val b = koblas.gemv(a, xTrue)
-                val lu = a.lu()
-                if (lu.singular) continue
-                val x = lu.solve(b)
-                assertSolveResidual(a, x, b, "LU/$label/n=$n")
-            }
-        }
-    }
-
-    @Test
-    fun `dense LU transpose-solve has a small residual`() {
-        val rng = Random(99)
-        for (n in intArrayOf(2, 7, 25)) {
-            val a = wellConditioned(n, rng)
-            val xTrue = DoubleArray(n) { rng.nextDouble(-2.0, 2.0) }
-            val b = koblas.gemv(a, xTrue, transpose = true)
-            val x = a.lu().solve(b, transpose = true)
-            val atx = koblas.gemv(a, x, transpose = true)
-            val residual = DoubleArray(n) { atx[it] - b[it] }
-            val bound = 100.0 * n * eps * (infNorm(a) * infNorm(x) + infNorm(b))
-            assertTrue(infNorm(residual) <= bound + 1e-12, "transpose-solve n=$n: ${infNorm(residual)} > $bound")
-        }
-    }
-
-    @Test
-    fun `cholesky solve has a small residual on SPD matrices`() {
-        val rng = Random(7)
-        for (n in intArrayOf(1, 3, 10, 30)) {
-            val a = spd(n, rng)
-            val xTrue = DoubleArray(n) { rng.nextDouble(-2.0, 2.0) }
-            val b = koblas.gemv(a, xTrue)
-            val l = a.cholesky()
-            val x = l.solve(b)
-            assertSolveResidual(a, x, b, "cholesky/n=$n")
-        }
     }
 
     @Test
@@ -237,28 +187,10 @@ class BlasConformanceTest {
         val a = F64DenseMatrix(2, 2, doubleArrayOf(Double.POSITIVE_INFINITY, 1.0, 2.0, 3.0))
         val y = DoubleArray(2)
 
-        F64ReferenceLinearAlgebra.gemv(1.0, a, doubleArrayOf(0.0, 1.0), 0.0, y)
+        F64ReferenceBlas.gemv(1.0, a, doubleArrayOf(0.0, 1.0), 0.0, y)
 
         assertTrue(y[0].isNaN(), "zero times infinity was ${y[0]}")
         assertEquals(3.0, y[1])
-    }
-
-    @Test
-    fun `invertSpd produces an inverse with a small identity residual`() {
-        val rng = Random(20260805)
-        for (n in intArrayOf(1, 3, 10, 30)) {
-            val a = spd(n, rng)
-            val inv = a.cholesky().invert()
-            val prod = a * inv
-            var maxOffIdentity = 0.0
-            for (i in 0 until n) {
-                for (j in 0 until n) {
-                    maxOffIdentity = maxOf(maxOffIdentity, abs(prod[i, j] - if (i == j) 1.0 else 0.0))
-                }
-            }
-            val bound = 100.0 * n * eps * infNorm(a) * infNorm(inv)
-            assertTrue(maxOffIdentity <= bound + 1e-12, "invertSpd n=$n: $maxOffIdentity > $bound")
-        }
     }
 
     @Test
@@ -287,7 +219,7 @@ class BlasConformanceTest {
             for (transposeB in booleanArrayOf(false, true)) {
                 val c = F64DenseMatrix(2, 2)
 
-                F64ReferenceLinearAlgebra.gemm(1.0, a, transposeA, b, transposeB, 0.0, c)
+                F64ReferenceBlas.gemm(1.0, a, transposeA, b, transposeB, 0.0, c)
 
                 assertTrue(c[0, 0].isNaN(), "transposeA=$transposeA transposeB=$transposeB produced ${c[0, 0]}")
             }
@@ -327,7 +259,7 @@ class BlasConformanceTest {
                     }
                 }
                 val actual = F64DenseMatrix(m, n)
-                F64ReferenceLinearAlgebra.gemm(
+                F64ReferenceBlas.gemm(
                     1.0,
                     a,
                     transposeA,
@@ -376,7 +308,7 @@ class BlasConformanceTest {
                     F64DenseMatrix(k, n, DoubleArray(k * n) { (it + 1).toDouble() })
                 }
 
-                F64ReferenceBlas(recording).gemm(1.0, a, transposeA, b, transposeB, 0.0, F64DenseMatrix(m, n))
+                F64ReferenceBackend(recording).gemm(1.0, a, transposeA, b, transposeB, 0.0, F64DenseMatrix(m, n))
 
                 assertTrue(tiles > 0, "tA=$transposeA tB=$transposeB did not reach the tile kernel")
             }

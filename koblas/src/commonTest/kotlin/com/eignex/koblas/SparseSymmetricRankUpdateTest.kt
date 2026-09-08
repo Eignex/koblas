@@ -4,7 +4,7 @@ import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64DenseVector
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.core.F64SparseVector
-import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
+import com.eignex.koblas.dense.F64ReferenceBlas
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -29,7 +29,7 @@ class SparseSymmetricRankUpdateTest {
 
         for (lower in booleanArrayOf(true, false)) {
             val expected = denseCopy(source)
-            F64ReferenceLinearAlgebra.syr(0.5, x, expected, lower)
+            F64ReferenceBlas.syr(0.5, x, expected, lower)
 
             val actual = source.syr(0.5, x, lower)
 
@@ -51,7 +51,7 @@ class SparseSymmetricRankUpdateTest {
 
         for (lower in booleanArrayOf(true, false)) {
             val expected = denseCopy(source)
-            F64ReferenceLinearAlgebra.syr2(-0.75, x, y, expected, lower)
+            F64ReferenceBlas.syr2(-0.75, x, y, expected, lower)
 
             val actual = source.syr2(-0.75, x, y, lower)
 
@@ -88,7 +88,7 @@ class SparseSymmetricRankUpdateTest {
 
         for (lower in booleanArrayOf(true, false)) {
             val expected = denseCopy(source)
-            F64ReferenceLinearAlgebra.syr2(1.0, x, y, expected, lower)
+            F64ReferenceBlas.syr2(1.0, x, y, expected, lower)
 
             val actual = source.syr2(1.0, x, y, lower)
 
@@ -103,7 +103,7 @@ class SparseSymmetricRankUpdateTest {
 
         for (lower in booleanArrayOf(true, false)) {
             val expected = denseCopy(source)
-            F64ReferenceLinearAlgebra.syr(1.0, x, expected, lower)
+            F64ReferenceBlas.syr(1.0, x, expected, lower)
 
             val actual = source.syr(1.0, x, lower)
 
@@ -121,7 +121,7 @@ class SparseSymmetricRankUpdateTest {
 
         for (lower in booleanArrayOf(true, false)) {
             val expected = denseCopy(source)
-            F64ReferenceLinearAlgebra.syr2(1.0, x, y, expected, lower)
+            F64ReferenceBlas.syr2(1.0, x, y, expected, lower)
 
             val actual = source.syr2(1.0, x, y, lower)
 

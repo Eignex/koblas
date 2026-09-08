@@ -3,7 +3,7 @@
 
 package com.eignex.koblas.dense.host.cblas
 
-import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
+import com.eignex.koblas.dense.F64ReferenceBlas
 import com.eignex.koblas.dense.host.*
 import com.eignex.koblas.installBackends
 import com.eignex.koblas.koblas
@@ -21,15 +21,13 @@ class CblasConformanceTest {
     fun `discovery registers BLAS and install overrides it`() {
         assertTrue(F64CblasBackend.isAvailable(), "host OpenBLAS expected in the test environment")
         assertEquals("cblas", koblas.blas.name)
-        assertEquals("reference", koblas.decompositions.name)
         try {
-            installBackends(koblas.with(blas = F64ReferenceLinearAlgebra))
+            installBackends(koblas.with(blas = F64ReferenceBlas))
             assertEquals("reference", koblas.blas.name)
         } finally {
             installBackends(null)
         }
         assertEquals("cblas", koblas.blas.name)
-        assertEquals("reference", koblas.decompositions.name)
     }
 
     @Test

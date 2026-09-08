@@ -3,7 +3,7 @@ package com.eignex.koblas.dense.host.jvm
 import com.eignex.koblas.*
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.dense.F64Blas
-import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
+import com.eignex.koblas.dense.F64ReferenceBlas
 import com.eignex.koblas.internal.backend.*
 import com.eignex.koblas.testutil.host.HostLibraryTest
 import org.junit.experimental.categories.Category
@@ -72,7 +72,6 @@ class PlatformDiscoveryTest {
                 koblas.isAccelerated(BackendRole.DENSE_BLAS),
                 "the F64Blas slot should be accelerated exactly when a host CBLAS resolved",
             )
-            assertFalse(koblas.isAccelerated(BackendRole.DENSE_DECOMPOSITIONS))
             assertFalse(
                 koblas.isAccelerated(BackendRole.DENSE_KERNELS),
                 "no host provides vector-vector kernels, so that slot stays on the compiled-in ones " +
@@ -88,7 +87,6 @@ class PlatformDiscoveryTest {
 
         assertEquals(backend.isAvailable, koblas.isAccelerated(BackendRole.DENSE_BLAS), "BLAS")
         assertFalse(koblas.isAccelerated(BackendRole.DENSE_KERNELS), "kernels")
-        assertFalse(koblas.isAccelerated(BackendRole.DENSE_DECOMPOSITIONS), "decompositions")
     }
 
     /**
@@ -102,7 +100,7 @@ class PlatformDiscoveryTest {
      */
     @Test
     fun `the probe accepts a working backend and rejects every broken one`() {
-        assertTrue(probe(F64ReferenceLinearAlgebra), "the reference backend should pass its own probe")
+        assertTrue(probe(F64ReferenceBlas), "the reference backend should pass its own probe")
 
         assertTrue(
             !probe(GemmBackend { _, _, c -> c.data.fill(0.0) }),
@@ -129,7 +127,7 @@ class PlatformDiscoveryTest {
     /** A backend whose gemm is [gemm]; every other routine is the reference's. */
     private class GemmBackend(
         private val gemm: (a: F64DenseMatrix, reference: () -> Unit, c: F64DenseMatrix) -> Unit,
-    ) : F64Blas by F64ReferenceLinearAlgebra {
+    ) : F64Blas by F64ReferenceBlas {
         override val name: String get() = "fake"
 
         @Suppress("LongParameterList") // the BLAS dgemm signature
@@ -144,7 +142,7 @@ class PlatformDiscoveryTest {
             workspace: Workspace?,
         ) = gemm(
             a,
-            { F64ReferenceLinearAlgebra.gemm(alpha, a, transposeA, b, transposeB, beta, c, workspace) },
+            { F64ReferenceBlas.gemm(alpha, a, transposeA, b, transposeB, beta, c, workspace) },
             c,
         )
     }

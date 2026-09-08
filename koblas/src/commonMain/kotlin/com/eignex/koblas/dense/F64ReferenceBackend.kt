@@ -7,16 +7,13 @@ import com.eignex.koblas.koblas
 
 /**
  * Portable pure-Kotlin backend, correct on every target with no native dependency, and the semantic
- * reference a native backend is validated against. The routines themselves live in [F64ReferenceBlas] and
- * [F64ReferenceDecompositions]; this composes them so one object satisfies the whole dense seam.
+ * reference a native backend is validated against. The routines themselves live in [F64PortableBlas].
  *
  * @param configured the kernels the inner loops use, or null to follow the [F64Context] default.
  */
 public class F64ReferenceBackend(private val configured: F64Kernels? = null) :
-    F64LinearAlgebra,
     F64RebindableBackend,
-    F64Blas by F64ReferenceBlas(configured),
-    F64Decompositions by F64ReferenceDecompositions(configured) {
+    F64Blas by F64PortableBlas(configured) {
     override val hasOwnKernels: Boolean get() = configured != null
 
     override val name: String get() = BackendNames.REFERENCE
@@ -35,4 +32,4 @@ public class F64ReferenceBackend(private val configured: F64Kernels? = null) :
 }
 
 /** The shared portable backend, the fallback every seam resolves to when nothing else is registered. */
-public val F64ReferenceLinearAlgebra: F64ReferenceBackend = F64ReferenceBackend()
+public val F64ReferenceBlas: F64ReferenceBackend = F64ReferenceBackend()

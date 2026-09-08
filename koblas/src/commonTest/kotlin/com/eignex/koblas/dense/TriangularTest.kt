@@ -240,48 +240,10 @@ class TriangularTest {
     }
 
     @Test
-    fun `trtri inverts a triangle in both orientations`() {
-        val rng = Random(20260806)
-        for (n in intArrayOf(1, 4, 7)) {
-            for (lower in booleanArrayOf(true, false)) {
-                val t = F64DenseMatrix(n, n)
-                for (j in 0 until n) {
-                    for (i in 0 until n) {
-                        val inTriangle = if (lower) i >= j else i <= j
-                        if (inTriangle) t[i, j] = if (i == j) 2.0 + j else rng.nextDouble(-1.0, 1.0)
-                    }
-                }
-                val inv = t.trtri(lower)
-                for (i in 0 until n) {
-                    for (j in 0 until n) {
-                        var s = 0.0
-                        for (k in 0 until n) s += t[i, k] * inv[k, j]
-                        assertClose(if (i == j) 1.0 else 0.0, s, "n=$n lower=$lower at [$i,$j]", tolerance = 1e-9)
-                    }
-                    for (j in 0 until n) {
-                        val outside = if (lower) i < j else i > j
-                        if (outside) {
-                            assertClose(0.0, inv[i, j], "n=$n lower=$lower leaked at [$i,$j]", tolerance = 0.0)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    @Test
-    fun `trtri rejects a zero on the diagonal`() {
-        val singular = F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 0.0), doubleArrayOf(3.0, 0.0)))
-        val failure = assertFailsWith<SingularMatrix> { singular.trtri(lower = true) }
-        assertTrue("entry 1" in failure.message!!, "should name the zero position: ${failure.message}")
-        singular.trtri(lower = true, unitDiag = true)
-    }
-
-    @Test
     fun `trsv divides by a zero diagonal instead of reporting it`() {
         val singular = F64DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 0.0), doubleArrayOf(3.0, 0.0)))
         val x = doubleArrayOf(1.0, 1.0)
-        F64ReferenceLinearAlgebra.trsv(singular, x, lower = true)
+        F64ReferenceBlas.trsv(singular, x, lower = true)
         assertTrue(!x[1].isFinite(), "expected a non-finite entry from the zero pivot, got ${x[1]}")
     }
 
@@ -290,7 +252,7 @@ class TriangularTest {
         val singular = F64DenseMatrix.of(arrayOf(doubleArrayOf(0.0, 0.0), doubleArrayOf(Double.NaN, 1.0)))
         val x = DoubleArray(2)
 
-        F64ReferenceLinearAlgebra.trsv(singular, x, lower = true)
+        F64ReferenceBlas.trsv(singular, x, lower = true)
 
         assertContentEquals(DoubleArray(2), x)
     }
@@ -300,7 +262,7 @@ class TriangularTest {
         val singular = F64DenseMatrix.of(arrayOf(doubleArrayOf(0.0, 0.0), doubleArrayOf(0.0, 1.0)))
         val x = DoubleArray(2)
 
-        F64ReferenceLinearAlgebra.trsv(singular, x, lower = true, transpose = true)
+        F64ReferenceBlas.trsv(singular, x, lower = true, transpose = true)
 
         assertTrue(x[0].isNaN())
     }
@@ -310,7 +272,7 @@ class TriangularTest {
         val triangle = F64DenseMatrix.diagonal(2)
         val x = doubleArrayOf(0.0, Double.POSITIVE_INFINITY)
 
-        F64ReferenceLinearAlgebra.trsv(triangle, x, lower = true, transpose = true)
+        F64ReferenceBlas.trsv(triangle, x, lower = true, transpose = true)
 
         assertTrue(x[0].isNaN())
     }
@@ -320,7 +282,7 @@ class TriangularTest {
         val triangle = F64DenseMatrix.diagonal(2)
         val b = F64DenseMatrix(1, 2, doubleArrayOf(Double.POSITIVE_INFINITY, 1.0))
 
-        F64ReferenceLinearAlgebra.trsm(triangle, b, lower = true, right = true)
+        F64ReferenceBlas.trsm(triangle, b, lower = true, right = true)
 
         assertEquals(Double.POSITIVE_INFINITY, b[0, 0])
         assertEquals(1.0, b[0, 1])
@@ -331,7 +293,7 @@ class TriangularTest {
         val triangle = F64DenseMatrix.diagonal(2)
         val b = F64DenseMatrix(1, 2, doubleArrayOf(Double.POSITIVE_INFINITY, 1.0))
 
-        F64ReferenceLinearAlgebra.trmm(triangle, b, lower = true, right = true)
+        F64ReferenceBlas.trmm(triangle, b, lower = true, right = true)
 
         assertEquals(Double.POSITIVE_INFINITY, b[0, 0])
         assertEquals(1.0, b[0, 1])
@@ -345,7 +307,7 @@ class TriangularTest {
         triangle[n - 1, 0] = Double.POSITIVE_INFINITY
         val b = F64DenseMatrix(n, 1).also { it[0, 0] = Double.MIN_VALUE }
 
-        F64ReferenceLinearAlgebra.trsm(triangle, b, lower = true)
+        F64ReferenceBlas.trsm(triangle, b, lower = true)
 
         assertTrue(b[n - 1, 0].isNaN(), "underflowed pivot did not form the cross-block product")
     }

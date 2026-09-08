@@ -29,7 +29,7 @@ mirror the dense ones.
   quasi-definite LDL, and QR
   roles. [F64SparseDecompositions.factor] is the general LU and
   returns [F64SparseFactorization], never null: a singular matrix yields a factorization reporting
-  `singular`, matching the dense contract. [F64SparseDecompositions.cholesky] is `A = L·Lᵀ` for a symmetric
+  `singular`. [F64SparseDecompositions.cholesky] is `A = L·Lᵀ` for a symmetric
   positive-definite matrix, reading only the lower triangle, and raises where the LU reports, because a
   non-positive pivot says the matrix was not the one the caller described.
   [F64SparseDecompositions.quasiDefiniteLdl] is unpivoted numerically `A = L·D·Lᵀ` for a quasi-definite
@@ -73,10 +73,8 @@ mirror the dense ones.
   The default block path preserves aliasing by staging a column; a native provider may specialize it through
   one call. An [F64QuasiDefiniteLdlFactorization] additionally exposes its pivot-sign [FactorizationInertia].
 
-  Sparse [F64SparseDecompositions.quasiDefiniteLdl] is intentionally not the dense
-  [com.eignex.koblas.dense.F64Decompositions.pivotedSymmetricIndefinite]. Dense Bunch-Kaufman pivots for
-  stability; sparse quasi-definite LDL does not numerically pivot, because its permutation is selected to
-  limit fill. It is the factorization for a quasi-definite matrix, which is what an interior point method's
+  Sparse [F64SparseDecompositions.quasiDefiniteLdl] does not numerically pivot, because its permutation is selected
+  to limit fill. It is the factorization for a quasi-definite matrix, which is what an interior point method's
   KKT system is; a caller who cannot promise that wants [F64SparseDecompositions.factor], whose pivoting is
   numerical.
 - [F64BasisFactorization] — a sparse LU factorization of a simplex basis. It retains the basis matrix and
@@ -131,10 +129,9 @@ which provider fills general or repeated-pattern LU.
   reflections over the elimination tree of `AᵀA`, in the ordering the matrix arrives in. `Q` is held as the
   reflections rather than formed, since it is `m×m` and dense in general where `A` and `R` are sparse.
 
-[F64SparseFactorization] is an interface rather than a class, which is the one place this deviates from the
-dense shape. LAPACK's packed formats are a standard, so a dense [com.eignex.koblas.dense.F64LuDecomposition]
-travels between backends; no sparse solver describes its factors, since each library hands back an opaque
-pointer or a struct of its own, so a seam demanding a concrete type could never admit one.
+[F64SparseFactorization] is an interface rather than a class because no sparse solver shares one standard factor
+representation. Each library hands back an opaque pointer or a struct of its own, so a seam demanding a concrete
+type could never admit one.
 
 It is also [AutoCloseable][kotlin.AutoCloseable]. A native factor owns the opaque objects the library handed
 back and should be held in `use` or closed explicitly after its final solve. Close is idempotent and waits for

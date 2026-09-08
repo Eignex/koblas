@@ -1,9 +1,6 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.core.*
-import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
-import com.eignex.koblas.dense.lu
-import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.*
 
@@ -12,37 +9,6 @@ import kotlin.test.*
  * the generic entry points dispatch on, and each rejection the container constructors make.
  */
 class BranchCoverageTest {
-
-    @Test
-    fun `an LU solve into its own right-hand side matches one into a fresh vector`() {
-        val rng = Random(20260820)
-        for (n in intArrayOf(1, 2, 6, 11)) {
-            val lu = wellConditioned(n, rng).lu()
-            for (transpose in booleanArrayOf(false, true)) {
-                val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
-                val fresh = koblas.solveInto(lu, b, DoubleArray(n), transpose)
-                val aliased = b.copyOf()
-                koblas.solveInto(lu, aliased, aliased, transpose)
-                assertClose(fresh, aliased, "aliased LU solve n=$n t=$transpose", tolerance = 1e-12)
-            }
-        }
-    }
-
-    @Test
-    fun `a blocked LU solve into its own right-hand side matches one into a fresh matrix`() {
-        val rng = Random(20260821)
-        val n = 6
-        for (nrhs in intArrayOf(1, 5)) {
-            val lu = wellConditioned(n, rng).lu()
-            for (transpose in booleanArrayOf(false, true)) {
-                val b = F64DenseMatrix(n, nrhs, DoubleArray(n * nrhs) { rng.nextDouble(-1.0, 1.0) })
-                val fresh = koblas.solveInto(lu, b, F64DenseMatrix.zero(n, nrhs), transpose)
-                val aliased = F64DenseMatrix(n, nrhs, b.data.copyOf())
-                koblas.solveInto(lu, aliased, aliased, transpose)
-                assertClose(fresh, aliased, "aliased blocked solve nrhs=$nrhs t=$transpose", tolerance = 1e-12)
-            }
-        }
-    }
 
     /** The transposed sparse product and the beta scalings, which the untransposed suites never select. */
     @Test
@@ -172,35 +138,5 @@ class BranchCoverageTest {
         assertEquals(listOf(2.0, 1.5), v.values.toList())
         assertEquals(0.0, v[1], "an unstored position reads as zero")
         assertFailsWith<IllegalArgumentException> { F64SparseVector.of(4, intArrayOf(0), doubleArrayOf(1.0, 2.0)) }
-    }
-
-    /** The condition estimate's sweeps, including the ill-conditioned case its safeguard exists for. */
-    @Test
-    fun `rcond spans well and ill conditioned matrices`() {
-        val identity = F64DenseMatrix.diagonal(6)
-        assertTrue(
-            abs(koblas.rcond(identity.lu(), identity.norm1()) - 1.0) < 1e-9,
-            "the identity should estimate a reciprocal condition of 1",
-        )
-        // A Hilbert-like matrix, ill conditioned enough that the estimate has to iterate.
-        val n = 8
-        val hilbert = F64DenseMatrix(n, n)
-        for (i in 0 until n) for (j in 0 until n) hilbert[i, j] = 1.0 / (i + j + 1.0)
-        val estimate = koblas.rcond(hilbert.lu(), hilbert.norm1())
-        assertTrue(estimate > 0.0 && estimate < 1e-6, "an ill-conditioned estimate should be tiny, got $estimate")
-        // A zero matrix is singular, and a zero norm reports zero instead of dividing.
-        assertEquals(0.0, koblas.rcond(F64DenseMatrix.zero(3, 3).lu(), 0.0))
-        assertEquals(1.0, koblas.rcond(F64DenseMatrix.zero(0, 0).lu(), 0.0), "an empty matrix is perfectly conditioned")
-    }
-
-    @Test
-    fun `rcond rejects a non finite or negative matrix norm`() {
-        val lu = F64ReferenceLinearAlgebra.factor(F64DenseMatrix.diagonal(1))
-
-        for (anorm in doubleArrayOf(-1.0, Double.NaN, Double.POSITIVE_INFINITY)) {
-            assertFailsWith<IllegalArgumentException>("anorm=$anorm") {
-                F64ReferenceLinearAlgebra.rcond(lu, anorm)
-            }
-        }
     }
 }

@@ -1,8 +1,6 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.core.*
-import com.eignex.koblas.dense.cholesky
-import com.eignex.koblas.dense.solve
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -27,19 +25,6 @@ class AdapterTest {
         val viaStorage = F64DenseMatrix.of(a.toArray()) * F64DenseVector.of(x.toDoubleArray())
         for (i in 0 until 5) {
             assertEquals(viaStorage[i], viaAdapter[i], 1e-12, "row $i")
-        }
-    }
-
-    @Test
-    fun `cholesky and the SPD solve accept a foreign matrix once it is materialised`() {
-        val a = Spd(4)
-        val l = F64DenseMatrix.of(a.toArray()).cholesky()
-        val b = doubleArrayOf(1.0, 2.0, 3.0, 4.0)
-        val x = l.solve(b)
-        for (i in 0 until 4) {
-            var s = 0.0
-            for (j in 0 until 4) s += a[i, j] * x[j]
-            assertEquals(b[i], s, 1e-9, "residual at $i")
         }
     }
 

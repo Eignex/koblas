@@ -10,9 +10,6 @@ public enum class BackendRole {
     /** Dense matrix operations. */
     DENSE_BLAS,
 
-    /** Dense factorizations and their solves. */
-    DENSE_DECOMPOSITIONS,
-
     /** Sparse vector-vector kernels. */
     SPARSE_KERNELS,
 
@@ -101,7 +98,7 @@ internal val NO_METADATA: BackendMetadata = BackendMetadata()
 /**
  * The selected backend for one [role].
  *
- * Reading a single role off [status] would build all twelve, which is what a routed dispatch used to do on
+ * Reading a single role off [status] would build every role, which is what a routed dispatch used to do on
  * every operation it inspected.
  */
 internal fun F64Context.statusFor(role: BackendRole): BackendStatus =

@@ -41,7 +41,7 @@ class BenchmarkArmResolutionTest {
         val arm = if (provider === F64BuiltinKernels.simd) SIMD_KERNELS else C_KERNELS
         // Discovery first, which is what a benchmark process does before any arm asks for a pinned
         // provider, and what put a host half underneath the pinned arms.
-        installDenseBackend(AUTOMATIC_BACKEND)
+        installKernelProvider(AUTOMATIC_KERNELS)
         installKernelProvider(arm)
         assertTrue(
             '+' !in koblas.kernels.name,
@@ -52,13 +52,6 @@ class BenchmarkArmResolutionTest {
             koblas.blas.name,
             "the $arm arm left a non-portable matrix half installed, so a level-2 routine would not measure it",
         )
-    }
-
-    @Test
-    fun `the reference dense arm is portable in every half it reaches`() {
-        installDenseBackend(REFERENCE_BACKEND)
-        assertEquals(REFERENCE_BACKEND, koblas.blas.name)
-        assertEquals(REFERENCE_BACKEND, koblas.decompositions.name)
     }
 
     @Test
@@ -166,7 +159,6 @@ class BenchmarkArmResolutionTest {
     @Test
     fun `an unknown arm is rejected rather than quietly measuring the installed one`() {
         assertFailsWith<IllegalStateException> { installKernelProvider("vectorised") }
-        assertFailsWith<IllegalStateException> { installDenseBackend("fastest") }
     }
 
     private fun sparseProductBenchmark(arm: String): SparseProductHostBenchmark = SparseProductHostBenchmark().also {

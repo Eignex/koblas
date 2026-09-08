@@ -5,11 +5,7 @@ import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.core.F64StridedMatrixView
 import com.eignex.koblas.core.F64StridedVectorView
 import com.eignex.koblas.dense.F64Blas
-import com.eignex.koblas.dense.F64CholeskyDecomposition
-import com.eignex.koblas.dense.F64Decompositions
 import com.eignex.koblas.dense.F64Kernels
-import com.eignex.koblas.dense.F64LinearAlgebra
-import com.eignex.koblas.dense.F64LuDecomposition
 import com.eignex.koblas.internal.backend.BackendSlot
 import com.eignex.koblas.sparse.F64BasisFactorizations
 import com.eignex.koblas.sparse.F64GeneralSparseLu
@@ -31,11 +27,10 @@ import com.eignex.koblas.sparse.basis.F64BasisSolvers
 
 /**
  * Every backend koblas will use for a piece of work, in one object you can hold. Immutable, and itself a
- * [F64LinearAlgebra] and a [F64SparseLinearAlgebra] by delegation.
+ * [F64Blas] and a [F64SparseLinearAlgebra] by delegation.
  *
  * @property kernels dense vector-vector routines; every dense inner loop bottoms out here.
  * @property blas dense matrix routines.
- * @property decompositions dense factorizations.
  * @property sparseKernels sparse vector-vector routines.
  * @property sparseBlas sparse matrix routines.
  * @property basisSolvers simplex basis solvers, a half of their own beside [sparseDecompositions].
@@ -48,11 +43,10 @@ import com.eignex.koblas.sparse.basis.F64BasisSolvers
  * The six sparse factorization roles are what this holds; the [sparseDecompositions] property is a
  * compatibility composition derived from the selected general LU, Cholesky, quasi-definite LDL and QR.
  */
-@Suppress("LongParameterList") // the seven backend halves, the resolved roles, and the execution policy
+@Suppress("LongParameterList") // the backend halves, resolved roles, and execution policy
 public class F64Context internal constructor(
     override val kernels: F64Kernels,
     public val blas: F64Blas,
-    public val decompositions: F64Decompositions,
     override val sparseKernels: F64SparseKernels,
     public val sparseBlas: F64SparseBlas,
     public val basisSolvers: F64BasisSolvers,
@@ -60,9 +54,7 @@ public class F64Context internal constructor(
     public val dispatchPolicy: F64DispatchPolicy = F64DispatchPolicy.AUTO,
     public val fallbackPolicy: F64FallbackPolicy = F64FallbackPolicy.ALLOW,
     internal val fallbackWarning: (BackendRoute) -> Unit = {},
-) : F64LinearAlgebra,
-    F64Blas by blas,
-    F64Decompositions by decompositions,
+) : F64Blas by blas,
     F64SparseLinearAlgebra,
     F64SparseBlas by sparseBlas,
     F64SparseDecompositions,
@@ -75,7 +67,6 @@ public class F64Context internal constructor(
     public constructor(
         kernels: F64Kernels,
         blas: F64Blas,
-        decompositions: F64Decompositions,
         sparseKernels: F64SparseKernels,
         sparseBlas: F64SparseBlas,
         sparseDecompositions: F64SparseDecompositions,
@@ -83,7 +74,6 @@ public class F64Context internal constructor(
     ) : this(
         kernels,
         blas,
-        decompositions,
         sparseKernels,
         sparseBlas,
         basisSolvers,
@@ -153,7 +143,6 @@ public class F64Context internal constructor(
     public fun with(
         kernels: F64Kernels = this.kernels,
         blas: F64Blas = this.blas,
-        decompositions: F64Decompositions = this.decompositions,
         sparseKernels: F64SparseKernels = this.sparseKernels,
         sparseBlas: F64SparseBlas = this.sparseBlas,
         sparseDecompositions: F64SparseDecompositions = this.sparseDecompositions,
@@ -165,7 +154,6 @@ public class F64Context internal constructor(
         return F64Context(
             kernels = kernels,
             blas = blas,
-            decompositions = decompositions,
             sparseKernels = sparseKernels,
             sparseBlas = sparseBlas,
             basisSolvers = basisSolvers,
@@ -253,43 +241,6 @@ public class F64Context internal constructor(
             beforeDispatch(F64RouteQuery.DenseGemm(m, n, k))
         }
         blas.gemm(alpha, a, transposeA, b, transposeB, beta, c)
-    }
-
-    override fun factor(a: F64DenseMatrix): F64LuDecomposition {
-        if (enforcesRoutingPolicy) {
-            beforeDispatch(F64RouteQuery.DenseLu(minOf(a.rows, a.cols)))
-        }
-        return decompositions.factor(a)
-    }
-
-    override fun factorInto(a: F64DenseMatrix, out: F64LuDecomposition): F64LuDecomposition {
-        if (enforcesRoutingPolicy) {
-            requireShape(out.rows == a.rows && out.cols == a.cols) {
-                "factorInto: out is ${out.rows}x${out.cols}, expected ${a.rows}x${a.cols}"
-            }
-            beforeDispatch(F64RouteQuery.DenseLu(minOf(a.rows, a.cols)))
-        }
-        return decompositions.factorInto(a, out)
-    }
-
-    override fun choleskyRankUpdate(
-        chol: F64CholeskyDecomposition,
-        v: DoubleArray,
-        sigma: Double,
-        workspace: Workspace?,
-    ): F64CholeskyDecomposition {
-        if (enforcesRoutingPolicy) beforeDispatch(F64RouteQuery.CholeskyRankUpdate(chol.n, rank = 1))
-        return decompositions.choleskyRankUpdate(chol, v, sigma, workspace)
-    }
-
-    override fun choleskyRankUpdate(
-        chol: F64CholeskyDecomposition,
-        v: F64DenseMatrix,
-        sigma: Double,
-        workspace: Workspace?,
-    ): F64CholeskyDecomposition {
-        if (enforcesRoutingPolicy) beforeDispatch(F64RouteQuery.CholeskyRankUpdate(chol.n, v.cols))
-        return decompositions.choleskyRankUpdate(chol, v, sigma, workspace)
     }
 
     @Suppress("LongParameterList")

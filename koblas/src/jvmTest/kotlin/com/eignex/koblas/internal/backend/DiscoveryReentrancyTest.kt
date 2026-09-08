@@ -15,10 +15,7 @@ import kotlin.test.*
  * and what the discovery probe calls. It does not override [F64Blas.kernels], so that read resolves
  * through [koblas]: a read of the very value discovery is computing.
  */
-class ProbeReentrantProvider :
-    F64LinearAlgebra,
-    F64Blas by F64ReferenceLinearAlgebra,
-    F64Decompositions by F64ReferenceLinearAlgebra {
+class ProbeReentrantProvider : F64Blas by F64ReferenceBlas {
     override val unavailableReason: String? get() = null
 
     init {
@@ -30,7 +27,7 @@ class ProbeReentrantProvider :
     override val isPortable: Boolean get() = false
     override val isAvailable: Boolean get() = true
 
-    /** What [F64LinearAlgebra] resolves to by default, spelled out because the delegations declare it too. */
+    /** The kernels used by the delegated BLAS surface. */
     override val kernels: F64Kernels get() = koblas.kernels
 
     /**
@@ -105,7 +102,7 @@ class DiscoveryReentrancyTest {
         val registrations = services.resolve("META-INF/services")
         Files.createDirectories(registrations)
         Files.writeString(
-            registrations.resolve("com.eignex.koblas.dense.F64LinearAlgebra"),
+            registrations.resolve("com.eignex.koblas.Backend"),
             registration,
         )
         val separator = File.pathSeparator

@@ -24,7 +24,7 @@ class LinearAlgebraSymmetricOpsTest {
     @Test
     fun `symm matches gemm on the full matrix across block boundaries`() {
         val rng = Random(20260928)
-        val reference = F64ReferenceLinearAlgebra
+        val reference = F64ReferenceBlas
         for (lower in booleanArrayOf(true, false)) {
             for (right in booleanArrayOf(false, true)) {
                 for (n in intArrayOf(1, 2, 7, 129, 257, 300)) {
@@ -93,7 +93,7 @@ class LinearAlgebraSymmetricOpsTest {
             val x = doubleArrayOf(2.0, 0.0, -3.0)
             val actual = DoubleArray(3)
 
-            F64ReferenceLinearAlgebra.symv(1.0, a, x, 0.0, actual, lower)
+            F64ReferenceBlas.symv(1.0, a, x, 0.0, actual, lower)
 
             assertEquals(2.0, actual[0], "lower=$lower first diagonal")
             assertTrue(actual[1].isNaN(), "lower=$lower middle diagonal was ${actual[1]}")
@@ -109,8 +109,8 @@ class LinearAlgebraSymmetricOpsTest {
             val expected = F64DenseMatrix(3, 3)
             val actual = F64DenseMatrix(3, 3)
 
-            F64ReferenceLinearAlgebra.syr(1.0, F64DenseVector.wrap(values), expected, lower)
-            F64ReferenceLinearAlgebra.syr(1.0, sparse, actual, lower)
+            F64ReferenceBlas.syr(1.0, F64DenseVector.wrap(values), expected, lower)
+            F64ReferenceBlas.syr(1.0, sparse, actual, lower)
 
             assertContentEquals(expected.data, actual.data, "lower=$lower")
         }
@@ -126,14 +126,14 @@ class LinearAlgebraSymmetricOpsTest {
             val expected = F64DenseMatrix(3, 3)
             val actual = F64DenseMatrix(3, 3)
 
-            F64ReferenceLinearAlgebra.syr2(
+            F64ReferenceBlas.syr2(
                 1.0,
                 F64DenseVector.wrap(xValues),
                 F64DenseVector.wrap(yValues),
                 expected,
                 lower,
             )
-            F64ReferenceLinearAlgebra.syr2(1.0, sparseX, sparseY, actual, lower)
+            F64ReferenceBlas.syr2(1.0, sparseX, sparseY, actual, lower)
 
             assertContentEquals(expected.data, actual.data, "lower=$lower")
         }
@@ -273,7 +273,7 @@ class LinearAlgebraSymmetricOpsTest {
 
     @Test
     fun `syrk preserves the netlib zero multiplier rule with infinities`() {
-        val blas = F64ReferenceBlas(F64ScalarKernels)
+        val blas = F64ReferenceBackend(F64ScalarKernels)
         for (lower in booleanArrayOf(true, false)) {
             val values = if (lower) {
                 doubleArrayOf(0.0, Double.POSITIVE_INFINITY)
@@ -299,7 +299,7 @@ class LinearAlgebraSymmetricOpsTest {
 
     @Test
     fun `syrk preserves the netlib zero multiplier rule when finite scaling overflows`() {
-        val blas = F64ReferenceBlas(F64ScalarKernels)
+        val blas = F64ReferenceBackend(F64ScalarKernels)
         for (lower in booleanArrayOf(true, false)) {
             val values = if (lower) {
                 doubleArrayOf(0.0, Double.MAX_VALUE)
@@ -331,7 +331,7 @@ class LinearAlgebraSymmetricOpsTest {
     @Test
     fun `syrk snapshots an aliased destination`() {
         val rng = Random(20260908)
-        val blas = F64ReferenceBlas(F64ScalarKernels)
+        val blas = F64ReferenceBackend(F64ScalarKernels)
         for (transpose in booleanArrayOf(false, true)) {
             for (lower in booleanArrayOf(false, true)) {
                 val original = DoubleArray(25) { rng.nextDouble(-1.0, 1.0) }
@@ -424,7 +424,7 @@ class LinearAlgebraSymmetricOpsTest {
 
     @Test
     fun `syr2k preserves exceptional rank two evaluation`() {
-        val blas = F64ReferenceBlas(F64ScalarKernels)
+        val blas = F64ReferenceBackend(F64ScalarKernels)
         for (lower in booleanArrayOf(true, false)) {
             val infinityA = if (lower) {
                 doubleArrayOf(1.0, Double.POSITIVE_INFINITY)
@@ -481,7 +481,7 @@ class LinearAlgebraSymmetricOpsTest {
 
     @Test
     fun `syr2k interleaves cross products before accumulation overflow`() {
-        val blas = F64ReferenceBlas(F64ScalarKernels)
+        val blas = F64ReferenceBackend(F64ScalarKernels)
         val magnitude = 1e154
         val normalA = doubleArrayOf(magnitude, magnitude, magnitude, magnitude)
         val normalB = doubleArrayOf(magnitude, -magnitude, magnitude, -magnitude)
@@ -506,7 +506,7 @@ class LinearAlgebraSymmetricOpsTest {
     @Test
     fun `syr2k snapshots either aliased input`() {
         val rng = Random(20260909)
-        val blas = F64ReferenceBlas(F64ScalarKernels)
+        val blas = F64ReferenceBackend(F64ScalarKernels)
         for (transpose in booleanArrayOf(false, true)) {
             for (lower in booleanArrayOf(false, true)) {
                 for (aliased in 0..2) {
@@ -541,7 +541,7 @@ class LinearAlgebraSymmetricOpsTest {
                 val a = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
                 for (lower in booleanArrayOf(false, true)) {
                     val rankOne = F64DenseMatrix(n, n)
-                    F64ReferenceLinearAlgebra.syrk(0.75, a, transpose, 0.0, rankOne, lower)
+                    F64ReferenceBlas.syrk(0.75, a, transpose, 0.0, rankOne, lower)
                     for (j in 0 until n) {
                         val range = if (lower) j until n else 0..j
                         for (i in range) {
@@ -619,7 +619,7 @@ class LinearAlgebraSymmetricOpsTest {
                         guardZeroColumns = !transpose,
                     )
                     val actual = F64DenseMatrix(n, n)
-                    F64ReferenceLinearAlgebra.syr2k(0.75, a, b, transpose, 0.0, actual, lower)
+                    F64ReferenceBlas.syr2k(0.75, a, b, transpose, 0.0, actual, lower)
                     assertClose(expected.data, actual.data, "syr2k n=$n t=$transpose l=$lower", tolerance = 1e-9)
                 }
             }
@@ -635,9 +635,9 @@ class LinearAlgebraSymmetricOpsTest {
             val (full, selected) = poisonedSymmetric(rng, n, lower)
             val b = randomMatrix(n, columns, rng)
             val expected = F64DenseMatrix(n, columns)
-            F64ReferenceLinearAlgebra.gemm(0.75, full, false, b, false, 0.0, expected)
+            F64ReferenceBlas.gemm(0.75, full, false, b, false, 0.0, expected)
             val actual = F64DenseMatrix(n, columns)
-            F64ReferenceLinearAlgebra.symm(0.75, selected, b, 0.0, actual, lower)
+            F64ReferenceBlas.symm(0.75, selected, b, 0.0, actual, lower)
             assertClose(expected, actual, "symm n=$n lower=$lower", tolerance = 1e-10)
         }
     }
@@ -651,9 +651,9 @@ class LinearAlgebraSymmetricOpsTest {
             val (full, selected) = poisonedSymmetric(rng, n, lower)
             val b = randomMatrix(rows, n, rng)
             val expected = F64DenseMatrix(rows, n)
-            F64ReferenceLinearAlgebra.gemm(0.75, b, false, full, false, 0.0, expected)
+            F64ReferenceBlas.gemm(0.75, b, false, full, false, 0.0, expected)
             val actual = F64DenseMatrix(rows, n)
-            F64ReferenceLinearAlgebra.symm(0.75, selected, b, 0.0, actual, lower, right = true)
+            F64ReferenceBlas.symm(0.75, selected, b, 0.0, actual, lower, right = true)
             assertClose(expected, actual, "right symm n=$n lower=$lower", tolerance = 1e-10)
         }
     }
@@ -727,7 +727,7 @@ class LinearAlgebraSymmetricOpsTest {
         val ws = Workspace()
         ws.reserve(n * k, 2)
         ws.reserve(PORTABLE_TILE * PORTABLE_TILE, 1)
-        val blas = F64ReferenceBlas(FailingTile())
+        val blas = F64ReferenceBackend(FailingTile())
         assertFailsWith<IllegalStateException> {
             blas.syrk(
                 1.0,
@@ -771,7 +771,7 @@ class LinearAlgebraSymmetricOpsTest {
         val ws = Workspace()
         val parked = listOf(ws.take(n * k), ws.take(n * k))
         parked.forEach { ws.release(it) }
-        val blas = F64ReferenceBlas(FailingTile())
+        val blas = F64ReferenceBackend(FailingTile())
         assertFailsWith<IllegalStateException> {
             blas.syr2k(
                 1.0,
@@ -801,7 +801,7 @@ class LinearAlgebraSymmetricOpsTest {
             it.fill(1.0)
             it[0] = Double.POSITIVE_INFINITY
         }
-        val blas = F64ReferenceBlas(FailingAxpy())
+        val blas = F64ReferenceBackend(FailingAxpy())
 
         assertFailsWith<IllegalStateException> {
             blas.syr2k(

@@ -170,7 +170,6 @@ tasks.withType<Test>().configureEach {
     if (project.findProperty("koblas.hostTests") == "true") return@configureEach
     systemProperty("koblas.backend.dense.kernels", "reference")
     systemProperty("koblas.backend.dense.blas", "reference")
-    systemProperty("koblas.backend.dense.decompositions", "reference")
     systemProperty("koblas.backend.sparse.kernels", "reference")
     systemProperty("koblas.backend.sparse.blas", "reference")
     systemProperty("koblas.backend.sparse.general.lu", "reference")

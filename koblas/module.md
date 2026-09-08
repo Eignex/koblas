@@ -15,24 +15,19 @@ sparse backings —
 `kotlinx.serialization` with their concrete storage preserved.
 
 Light arithmetic lives as free functions over the views: BLAS-1/2 (`dot`, `axpy`, `scale`, `ger`,
-`gemv`, `forEachStored`) and an SPD suite (`cholesky`, then `solve`, `invert` and `rankUpdate` on the returned
-[F64CholeskyDecomposition][com.eignex.koblas.dense.F64CholeskyDecomposition]). Their inner loops route through an `expect`/`actual` primitive seam that uses SIMD
+`gemv`, `forEachStored`). Their inner loops route through an `expect`/`actual` primitive seam that uses SIMD
 (`jdk.incubator.vector`) on the JVM when present and compiled C kernels on Native and non-SIMD JVMs.
 
 Sparse linear algebra is a first-class peer: a CSC [F64SparseMatrix][com.eignex.koblas.core.F64SparseMatrix]
 with matrix-vector and matrix-matrix products, general and repeated-pattern LU, Cholesky, quasi-definite LDL,
-and distinct simplex-basis capabilities. Dense symmetric-indefinite factorization is Bunch-Kaufman numerically
-pivoted; sparse quasi-definite LDL instead preserves a fill-reducing ordering. Sparse factors provide vector and
+and distinct simplex-basis capabilities. Sparse factors provide vector and
 block solves, deterministic lifecycle, allocation contracts, and typed factor access. The README's "Numerical
 routine coverage" and "Sparse workflows" sections map these semantic roles to portable and native providers.
 
-The heavier level-2/3 and factorization work — [gemv][com.eignex.koblas.dense.F64LinearAlgebra.gemv],
-[gemm][com.eignex.koblas.dense.F64LinearAlgebra.gemm] and a general LU
-[factor][com.eignex.koblas.dense.F64LinearAlgebra.factor] / [solve][com.eignex.koblas.dense.F64LinearAlgebra.solve] — sits
-behind the runtime-swappable [F64LinearAlgebra][com.eignex.koblas.dense.F64LinearAlgebra] backend so a native
-BLAS or factorization implementation can replace it without changing callers. [koblas][com.eignex.koblas.koblas]
+The level-2/3 dense work sits behind the runtime-swappable
+[F64Blas][com.eignex.koblas.dense.F64Blas] backend so a native BLAS implementation can replace it without
+changing callers. [koblas][com.eignex.koblas.koblas]
 resolves to an [installBackends][com.eignex.koblas.installBackends] override when set, else
 the platform backend when present, else the pure-Kotlin
-[F64ReferenceLinearAlgebra][com.eignex.koblas.dense.F64ReferenceLinearAlgebra]. Ergonomic entry points
-[lu][com.eignex.koblas.dense.lu] / [F64LuDecomposition.solve][com.eignex.koblas.dense.solve]
+[F64ReferenceBlas][com.eignex.koblas.dense.F64ReferenceBlas]. Dense matrix products and triangular operations
 delegate to the active backend.

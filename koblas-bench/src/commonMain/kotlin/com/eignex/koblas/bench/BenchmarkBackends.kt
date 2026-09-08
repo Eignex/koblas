@@ -57,37 +57,6 @@ private fun reportResolution(arm: String, vararg halves: Pair<String, String>) {
 }
 
 /**
- * Installs the dense arm named by [backend].
- *
- * `reference` builds a wholly portable context rather than overriding two halves of the installed one. The
- * halves it would otherwise inherit include the level-1 kernels, which discovery routes to a host above
- * each measured crossover, so a `reference` matrix routine was calling a host library underneath itself.
- */
-internal fun installDenseBackend(backend: String) {
-    installBackends(null)
-    when (backend) {
-        AUTOMATIC_BACKEND -> discoverBackends()
-        REFERENCE_BACKEND -> installBackends(F64ContextBuilder().resolve())
-        HOST_BACKEND -> error("the host dense factorization backend is unavailable")
-        else -> error("unknown backend: $backend")
-    }
-    val blas = koblas.blas.name
-    val decompositions = koblas.decompositions.name
-    val kernels = koblas.kernels.name
-    when (backend) {
-        REFERENCE_BACKEND -> {
-            requireResolved(backend, "blas", blas, REFERENCE_BACKEND)
-            requireResolved(backend, "decompositions", decompositions, REFERENCE_BACKEND)
-            check(!kernels.contains('+')) {
-                "benchmark arm 'reference' resolved kernels to '$kernels', which routes to a host half " +
-                    "above its crossover. The portable arm would call the host library underneath itself."
-            }
-        }
-    }
-    reportResolution(backend, "blas" to blas, "decompositions" to decompositions, "kernels" to kernels)
-}
-
-/**
  * The sparse factorization half has no host provider in koblas-bench, so `automatic` and `reference` are the
  * two arms and a request for `host` fails rather than silently measuring the portable code.
  */

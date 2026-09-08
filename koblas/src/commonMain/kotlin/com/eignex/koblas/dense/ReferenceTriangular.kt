@@ -20,8 +20,8 @@ private val TRSM_BLOCKED_MIN_ORDER = DenseTuning.trsmBlockedMinOrder
 /*
  * The portable triangular kernels, netlib dtrsv, dtrsm, dtrmv and dtrmm over a flat column-major buffer.
  * These are the semantic definition a native triangular routine is validated against, and what
- * [F64ReferenceBlas], [F64ReferenceDecompositions] and the host adapters' fallbacks call. `Triangular.kt` is the
- * public facade that routes through the installed context instead.
+ * [F64ReferenceBlas] and the host adapters' fallbacks call. `Triangular.kt` is the public facade that routes
+ * through the installed context instead.
  */
 
 /** Stages each row of [b] through a scratch vector and applies [op] to it, with the transpose flag

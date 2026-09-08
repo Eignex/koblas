@@ -4,7 +4,7 @@ import com.eignex.koblas.Backend
 import com.eignex.koblas.F64ModifiedGivens
 
 /**
- * The vector-vector routines as a backend half, alongside [F64Blas] and [F64Decompositions]. Implementations must
+ * The vector-vector routines as a backend half beneath [F64Blas]. Implementations must
  * agree with [F64PlatformKernels] to within rounding and read nothing outside the (offset, length)
  * window.
  *

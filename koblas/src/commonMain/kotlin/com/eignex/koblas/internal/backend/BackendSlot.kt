@@ -5,10 +5,9 @@ import com.eignex.koblas.BackendRole
 import com.eignex.koblas.F64Context
 import com.eignex.koblas.MissingRepeatedSparseLu
 import com.eignex.koblas.dense.F64Blas
-import com.eignex.koblas.dense.F64Decompositions
 import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.dense.F64PlatformKernels
-import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
+import com.eignex.koblas.dense.F64ReferenceBlas
 import com.eignex.koblas.sparse.F64BasisFactorizations
 import com.eignex.koblas.sparse.F64GeneralSparseLu
 import com.eignex.koblas.sparse.F64PlatformSparseKernels
@@ -67,22 +66,10 @@ internal enum class BackendSlot(
         role = BackendRole.DENSE_BLAS,
         accepts = { it is F64Blas },
         from = { it.blas },
-        portableDefault = { F64ReferenceLinearAlgebra },
+        portableDefault = { F64ReferenceBlas },
         selectionKeys = BackendSelectionKeys(
             "koblas.backend.dense.blas",
             "KOBLAS_DENSE_BLAS_BACKEND",
-        ),
-    ),
-
-    /** Dense factorizations. */
-    F64Decompositions(
-        role = BackendRole.DENSE_DECOMPOSITIONS,
-        accepts = { it is F64Decompositions },
-        from = { it.decompositions },
-        portableDefault = { F64ReferenceLinearAlgebra },
-        selectionKeys = BackendSelectionKeys(
-            "koblas.backend.dense.decompositions",
-            "KOBLAS_DENSE_DECOMPOSITIONS_BACKEND",
         ),
     ),
 

@@ -16,7 +16,7 @@
 [![License](https://img.shields.io/github/license/eignex/koblas)](https://github.com/eignex/koblas/blob/main/LICENSE)
 
 Dense and sparse double-precision linear algebra for JVM and Kotlin/Native compute hosts. Koblas provides
-BLAS operations, portable factorizations, and optional OpenBLAS or HFactor acceleration.
+dense and sparse BLAS operations, sparse factorizations, and optional OpenBLAS or HFactor acceleration.
 
 Koblas is a low-level building block for numerical and optimization software that owns its data and algorithms.
 It exposes storage, allocation, workspace, backend, and lifecycle decisions instead of hiding them behind a
@@ -118,8 +118,8 @@ a strided destination must not overlap an input.
 ## Numerical routine coverage
 
 Koblas deliberately exposes the following double-precision subset. The routine names identify the corresponding
-BLAS, LAPACK, or Sparse BLAS operation where one exists. Dense factorizations are portable; host acceleration
-is limited to BLAS. Routines not listed here are not part of the supported numerical subset.
+BLAS or Sparse BLAS operation where one exists. Routines not listed here are not part of the supported numerical
+subset.
 
 | Family | Koblas operations | Standard routines |
 |--------|-------------------|-------------------|
@@ -127,12 +127,11 @@ is limited to BLAS. Routines not listed here are not part of the supported numer
 | BLAS level 2 | `gemv`, `symv`, `ger`, `syr`, `syr2`, `trsv`, `trmv` | `dgemv`, `dsymv`, `dger`, `dsyr`, `dsyr2`, `dtrsv`, `dtrmv` |
 | BLAS level 3 | `gemm`, `symm`, `syrk`, `syr2k`, `trsm`, `trmm` | `dgemm`, `dsymm`, `dsyrk`, `dsyr2k`, `dtrsm`, `dtrmm` |
 | Dense utility | `transpose`, `norm1`, `normInf`, `normFro`, row/column scaling | No direct BLAS routine |
-| Portable dense factorizations | LU (`factor`, `solve`, `invert`, `rcond`), pivoted LDL, QR and pivoted QR, Cholesky with in-place rank updates, triangular inverse | LAPACK-compatible semantics |
 | Sparse BLAS | CSC `gemv`, triangular `trsv`/`trsm` and `trmv`/`trmm`, sparse–dense `gemm`, sparse–sparse product, `transpose`, prepared repeated products | Sparse BLAS `usmv`, `ussv`, `ussm`, `usmm`; triangular multiply is `usmv`/`usmm` over a triangle, and product and preparation are Koblas operations |
 | Sparse factorizations | General LU, repeated-pattern LU, Cholesky, LDL, QR, and simplex basis operations | Provider-specific HFactor capabilities |
 
 This table documents the subset, not a roadmap. In particular, it does not imply support for the other routines in
-the BLAS, LAPACK, or Sparse BLAS specifications.
+the BLAS or Sparse BLAS specifications.
 
 ## Allocation and workspaces
 
@@ -142,13 +141,13 @@ and retains temporary storage for reuse:
 ```kotlin
 import com.eignex.koblas.*
 
-val factor = koblas.factor(a)
-val rhs = doubleArrayOf(3.0, 5.0)
-val out = DoubleArray(2)
+val a = DenseMatrix.zero(64, 32)
+val x = DoubleArray(a.rows)
+val out = DoubleArray(a.cols)
 val workspace = Workspace()
 
 repeat(1_000) {
-    koblas.solveInto(factor, rhs, out, workspace = workspace)
+    koblas.gemv(1.0, a, x, 0.0, out, transpose = true, workspace = workspace)
 }
 ```
 
@@ -156,12 +155,6 @@ Sparse factors report their exact scratch requirement through `solveAllocation(a
 those buffers and select an AllocationPolicy when the guarantee should be enforced before destination
 mutation. REQUIRE_NO_SIZE_DEPENDENT_MANAGED permits fixed JVM/FFM overhead; stronger policies are reported
 only where koblas controls the corresponding allocation source.
-
-Dense decompositions hold only Kotlin arrays, so they have no `close()`, native resource lifecycle, symbolic
-analysis, or prepared-handle API. Reuse a dense factor for repeated right-hand sides; for same-sized changing
-matrices, refactor it in place with `factor.refactorInto(nextMatrix)`. The dense `solveInto` extensions retain
-the destination you pass and accept a Workspace whenever their backend needs staging, but do not advertise a
-cross-backend allocation guarantee.
 
 BLAS options use named Boolean parameters such as lower, transpose, unitDiag, and right.
 
@@ -196,7 +189,6 @@ F64ContextBuilder:
 ```kotlin
 val strictDense = F64ContextBuilder()
     .withBackend(BackendRole.DENSE_BLAS, selectedBlas)
-    .withBackend(BackendRole.DENSE_DECOMPOSITIONS, selectedLapack)
     .withDispatchPolicy(F64DispatchPolicy.NATIVE_ONLY)
     .resolve()
 
@@ -279,9 +271,7 @@ a.prepare().use { prepared ->
 ```
 
 Prepared handles and sparse factors are AutoCloseable. Native block solves accept a column-major dense matrix
-of right-hand sides. Sparse quasi-definite LDL factors expose their pivot-sign inertia directly. Dense
-`pivotedSymmetricIndefinite` is Bunch-Kaufman numerically pivoted for stability; it is not interchangeable
-with sparse `quasiDefiniteLdl`, whose ordering controls fill.
+of right-hand sides. Sparse quasi-definite LDL factors expose their pivot-sign inertia directly.
 
 ## Factorization coverage
 
@@ -290,11 +280,6 @@ and ownership determine what is useful rather than forcing every factor into one
 
 | Family | Solve / transpose / blocks | Reuse and lifecycle | Safe factor inspection | Deliberate non-applicability |
 |--------|----------------------------|---------------------|------------------------|------------------------------|
-| Dense LU | Vector and column-major multi-RHS `solve`/`solveInto`, including transpose | `factorInto` reuses packed buffers; Kotlin-owned factors do not close | `lowerFactor`, `upperFactor`, `rowOrder`, singularity, determinant/sign/log-absolute determinant, inverse and `rcond` | — |
-| Dense Cholesky | Vector and multi-RHS `solve`/`solveInto`; transpose is identical by symmetry | Pure Kotlin buffers; no symbolic lifecycle | `lowerFactor`, lower packed factor, inverse, in-place `rankUpdate` | No downdate, separate transpose solve, or symbolic analysis |
-| Dense LDL | Vector and multi-RHS `solve`/`solveInto`; transpose is identical by symmetry | Pure Kotlin buffers; no symbolic lifecycle | `packedFactor`, `pivotBlocks`, singularity | Bunch-Kaufman packing has no independent unpermuted `L`/diagonal `D` snapshot |
-| Dense QR / pivoted QR | Q application, least-squares solve and `solveInto`; pivoted QR reports rank | Workspace reuses solve/Q scratch; pure Kotlin buffers do not close | `explicitQ`, `explicitR`, pivoted `columnOrder`, rank | No inverse or square-system transpose solve for rectangular QR |
-| Triangular inversion | `trsv`/`trsm` supply vector and multi-RHS normal/transpose solves | Stateless; no factor or lifecycle | `trtri` returns the selected inverse triangle | No retained factorization or symbolic phase |
 | Sparse LU | Vector and multi-RHS `solve`/`solveInto`, including transpose and alias-safe defaults | Native factors close; repeated-pattern LU has `analyze`/`refactor` | L/U, orderings, scaling, off-diagonal, fill, pivot quality, singularity where providers can expose them | No general sparse inverse or determinant API |
 | Sparse Cholesky / LDL | Vector and multi-RHS factor solves; transpose is identical by symmetry | Native factors close; portable factors close as no-ops | L/order; LDL D/inertia | No separate transpose solve or dense inverse |
 | Sparse QR | `applyQ`/`applyQInto`, vector and multi-RHS least-squares solve | Native factor lifecycle; workspace block staging | R, column order, rank and fill | Q remains an operator; explicit Q/inverse is generally dense and is intentionally not materialized |

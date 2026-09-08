@@ -33,12 +33,8 @@ public fun F64DenseMatrix.scaleColumns(d: DoubleArray) {
 /**
  * Zero the strict upper triangle in place, leaving the diagonal and everything below it untouched.
  *
- * A factorization promises nothing above its diagonal: the matrix behind
- * [com.eignex.koblas.dense.F64CholeskyDecomposition.l] holds whatever the backend happened to write there,
- * which is not factorization data and differs from one backend to the next. A factor that gets compared,
- * hashed or serialized has to be cleaned first, so that two mathematically equal factors agree entry for
- * entry. The `lowerFactor` of [com.eignex.koblas.dense.F64CholeskyDecomposition] answers the same need by
- * copying; this keeps the matrix the caller already holds.
+ * This is useful when only the lower triangle of a symmetric matrix should remain authoritative before the
+ * matrix is compared, hashed, or serialized.
  *
  * Each column's strict upper entries are contiguous in column-major storage, so this is one fill per column
  * rather than an indexed walk. In a matrix wider than it is tall, every column past the last row lies

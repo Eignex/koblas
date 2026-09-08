@@ -105,7 +105,6 @@ public final class com/eignex/koblas/BackendRole : java/lang/Enum {
 	public static final field BASIS_FACTORIZATIONS Lcom/eignex/koblas/BackendRole;
 	public static final field BASIS_SOLVERS Lcom/eignex/koblas/BackendRole;
 	public static final field DENSE_BLAS Lcom/eignex/koblas/BackendRole;
-	public static final field DENSE_DECOMPOSITIONS Lcom/eignex/koblas/BackendRole;
 	public static final field DENSE_KERNELS Lcom/eignex/koblas/BackendRole;
 	public static final field SPARSE_BLAS Lcom/eignex/koblas/BackendRole;
 	public static final field SPARSE_CHOLESKY Lcom/eignex/koblas/BackendRole;
@@ -265,19 +264,11 @@ public final class com/eignex/koblas/F64Capabilities {
 public final class com/eignex/koblas/F64Capability {
 }
 
-public final class com/eignex/koblas/F64Context : com/eignex/koblas/dense/F64Blas, com/eignex/koblas/dense/F64Decompositions, com/eignex/koblas/dense/F64LinearAlgebra, com/eignex/koblas/sparse/F64SparseBlas, com/eignex/koblas/sparse/F64SparseDecompositions, com/eignex/koblas/sparse/F64SparseLinearAlgebra, com/eignex/koblas/sparse/basis/F64BasisSolvers {
-	public fun <init> (Lcom/eignex/koblas/dense/F64Kernels;Lcom/eignex/koblas/dense/F64Blas;Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/sparse/F64SparseKernels;Lcom/eignex/koblas/sparse/F64SparseBlas;Lcom/eignex/koblas/sparse/F64SparseDecompositions;Lcom/eignex/koblas/sparse/basis/F64BasisSolvers;)V
-	public fun applyQ (Lcom/eignex/koblas/dense/F64QrDecomposition;[DZ)[D
-	public fun applyQInto (Lcom/eignex/koblas/dense/F64QrDecomposition;[D[DZ)[D
+public final class com/eignex/koblas/F64Context : com/eignex/koblas/dense/F64Blas, com/eignex/koblas/sparse/F64SparseBlas, com/eignex/koblas/sparse/F64SparseDecompositions, com/eignex/koblas/sparse/F64SparseLinearAlgebra, com/eignex/koblas/sparse/basis/F64BasisSolvers {
+	public fun <init> (Lcom/eignex/koblas/dense/F64Kernels;Lcom/eignex/koblas/dense/F64Blas;Lcom/eignex/koblas/sparse/F64SparseKernels;Lcom/eignex/koblas/sparse/F64SparseBlas;Lcom/eignex/koblas/sparse/F64SparseDecompositions;Lcom/eignex/koblas/sparse/basis/F64BasisSolvers;)V
 	public fun basisSolver (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/basis/F64BasisSolver;
-	public fun cholesky (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/CholeskyPolicy;)Lcom/eignex/koblas/dense/F64CholeskyDecomposition;
 	public fun cholesky (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseCholeskyFactorization;
-	public fun choleskyInto (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/dense/CholeskyPolicy;)Lcom/eignex/koblas/dense/F64CholeskyDecomposition;
-	public fun choleskyRankUpdate (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64CholeskyDecomposition;
-	public fun choleskyRankUpdate (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;[DDLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64CholeskyDecomposition;
-	public fun factor (Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/dense/F64LuDecomposition;
 	public fun factor (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseLuFactorization;
-	public fun factorInto (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/F64LuDecomposition;)Lcom/eignex/koblas/dense/F64LuDecomposition;
 	public fun gemm (DLcom/eignex/koblas/core/F64DenseMatrix;ZLcom/eignex/koblas/core/F64DenseMatrix;ZDLcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)V
 	public fun gemm (DLcom/eignex/koblas/core/F64SparseMatrix;ZLcom/eignex/koblas/core/F64DenseMatrix;ZDLcom/eignex/koblas/core/F64DenseMatrix;ZLcom/eignex/koblas/Workspace;)V
 	public fun gemm (DLcom/eignex/koblas/core/F64StridedMatrixView;ZLcom/eignex/koblas/core/F64StridedMatrixView;ZDLcom/eignex/koblas/core/F64StridedMatrixView;)V
@@ -295,7 +286,6 @@ public final class com/eignex/koblas/F64Context : com/eignex/koblas/dense/F64Bla
 	public final fun getBasisFactorizations ()Lcom/eignex/koblas/sparse/F64BasisFactorizations;
 	public final fun getBasisSolvers ()Lcom/eignex/koblas/sparse/basis/F64BasisSolvers;
 	public final fun getBlas ()Lcom/eignex/koblas/dense/F64Blas;
-	public final fun getDecompositions ()Lcom/eignex/koblas/dense/F64Decompositions;
 	public final fun getDispatchPolicy ()Lcom/eignex/koblas/F64DispatchPolicy;
 	public final fun getFallbackPolicy ()Lcom/eignex/koblas/F64FallbackPolicy;
 	public final fun getGeneralSparseLu ()Lcom/eignex/koblas/sparse/F64GeneralSparseLu;
@@ -310,38 +300,13 @@ public final class com/eignex/koblas/F64Context : com/eignex/koblas/dense/F64Bla
 	public fun getSparseKernels ()Lcom/eignex/koblas/sparse/F64SparseKernels;
 	public final fun getSparseQr ()Lcom/eignex/koblas/sparse/F64SparseQr;
 	public fun getUnavailableReason ()Ljava/lang/String;
-	public fun invert (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public fun invert (Lcom/eignex/koblas/dense/F64LuDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public fun invertInto (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public fun isAvailable ()Z
 	public fun isPortable ()Z
-	public fun pivotedSymmetricIndefinite (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;
-	public fun pivotedSymmetricIndefiniteInto (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;
 	public fun prepare (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64PreparedSparseMatrix;
-	public fun qr (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64QrDecomposition;
 	public fun qr (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64SparseQrFactorization;
-	public fun qrInto (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/F64QrDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64QrDecomposition;
-	public fun qrPivoted (Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;
 	public fun quasiDefiniteLdl (Lcom/eignex/koblas/core/F64SparseMatrix;)Lcom/eignex/koblas/sparse/F64QuasiDefiniteLdlFactorization;
-	public fun rcond (Lcom/eignex/koblas/dense/F64LuDecomposition;DLcom/eignex/koblas/Workspace;)D
-	public fun solve (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public fun solve (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;[D)[D
-	public fun solve (Lcom/eignex/koblas/dense/F64LuDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Z)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public fun solve (Lcom/eignex/koblas/dense/F64LuDecomposition;[DZ)[D
-	public fun solve (Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;[DLcom/eignex/koblas/Workspace;)[D
-	public fun solve (Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public fun solve (Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;[D)[D
-	public fun solve (Lcom/eignex/koblas/dense/F64QrDecomposition;[DZLcom/eignex/koblas/Workspace;)[D
 	public fun solve (Lcom/eignex/koblas/sparse/F64SparseFactorization;Lcom/eignex/koblas/core/F64DenseMatrix;ZLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public fun solve (Lcom/eignex/koblas/sparse/F64SparseFactorization;[DZ)[D
-	public fun solveInto (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public fun solveInto (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;[D[D)[D
-	public fun solveInto (Lcom/eignex/koblas/dense/F64LuDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public fun solveInto (Lcom/eignex/koblas/dense/F64LuDecomposition;[D[DZLcom/eignex/koblas/Workspace;)[D
-	public fun solveInto (Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;[D[DLcom/eignex/koblas/Workspace;)[D
-	public fun solveInto (Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public fun solveInto (Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;[D[D)[D
-	public fun solveInto (Lcom/eignex/koblas/dense/F64QrDecomposition;[D[DZLcom/eignex/koblas/Workspace;)[D
 	public fun solveInto (Lcom/eignex/koblas/sparse/F64SparseFactorization;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public fun solveInto (Lcom/eignex/koblas/sparse/F64SparseFactorization;[D[DZLcom/eignex/koblas/Workspace;)[D
 	public fun symm (DLcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/core/F64DenseMatrix;ZZLcom/eignex/koblas/Workspace;)V
@@ -361,9 +326,8 @@ public final class com/eignex/koblas/F64Context : com/eignex/koblas/dense/F64Bla
 	public fun trsm (Lcom/eignex/koblas/core/F64SparseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZZZZDLcom/eignex/koblas/Workspace;)V
 	public fun trsv (Lcom/eignex/koblas/core/F64DenseMatrix;[DZZZ)V
 	public fun trsv (Lcom/eignex/koblas/core/F64SparseMatrix;[DZZZ)V
-	public fun trtri (Lcom/eignex/koblas/core/F64DenseMatrix;ZZ)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public final fun with (Lcom/eignex/koblas/dense/F64Kernels;Lcom/eignex/koblas/dense/F64Blas;Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/sparse/F64SparseKernels;Lcom/eignex/koblas/sparse/F64SparseBlas;Lcom/eignex/koblas/sparse/F64SparseDecompositions;Lcom/eignex/koblas/sparse/basis/F64BasisSolvers;)Lcom/eignex/koblas/F64Context;
-	public static synthetic fun with$default (Lcom/eignex/koblas/F64Context;Lcom/eignex/koblas/dense/F64Kernels;Lcom/eignex/koblas/dense/F64Blas;Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/sparse/F64SparseKernels;Lcom/eignex/koblas/sparse/F64SparseBlas;Lcom/eignex/koblas/sparse/F64SparseDecompositions;Lcom/eignex/koblas/sparse/basis/F64BasisSolvers;ILjava/lang/Object;)Lcom/eignex/koblas/F64Context;
+	public final fun with (Lcom/eignex/koblas/dense/F64Kernels;Lcom/eignex/koblas/dense/F64Blas;Lcom/eignex/koblas/sparse/F64SparseKernels;Lcom/eignex/koblas/sparse/F64SparseBlas;Lcom/eignex/koblas/sparse/F64SparseDecompositions;Lcom/eignex/koblas/sparse/basis/F64BasisSolvers;)Lcom/eignex/koblas/F64Context;
+	public static synthetic fun with$default (Lcom/eignex/koblas/F64Context;Lcom/eignex/koblas/dense/F64Kernels;Lcom/eignex/koblas/dense/F64Blas;Lcom/eignex/koblas/sparse/F64SparseKernels;Lcom/eignex/koblas/sparse/F64SparseBlas;Lcom/eignex/koblas/sparse/F64SparseDecompositions;Lcom/eignex/koblas/sparse/basis/F64BasisSolvers;ILjava/lang/Object;)Lcom/eignex/koblas/F64Context;
 }
 
 public final class com/eignex/koblas/F64ContextBuilder {
@@ -466,20 +430,6 @@ public abstract interface class com/eignex/koblas/F64RouteQuery {
 	public abstract fun getRole ()Lcom/eignex/koblas/BackendRole;
 }
 
-public final class com/eignex/koblas/F64RouteQuery$CholeskyRankUpdate : com/eignex/koblas/F64RouteQuery {
-	public fun <init> (II)V
-	public final fun component1 ()I
-	public final fun component2 ()I
-	public final fun copy (II)Lcom/eignex/koblas/F64RouteQuery$CholeskyRankUpdate;
-	public static synthetic fun copy$default (Lcom/eignex/koblas/F64RouteQuery$CholeskyRankUpdate;IIILjava/lang/Object;)Lcom/eignex/koblas/F64RouteQuery$CholeskyRankUpdate;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getOrder ()I
-	public final fun getRank ()I
-	public fun getRole ()Lcom/eignex/koblas/BackendRole;
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
-}
-
 public final class com/eignex/koblas/F64RouteQuery$DenseGemm : com/eignex/koblas/F64RouteQuery {
 	public fun <init> (III)V
 	public final fun component1 ()I
@@ -506,18 +456,6 @@ public final class com/eignex/koblas/F64RouteQuery$DenseGemv : com/eignex/koblas
 	public final fun getCols ()I
 	public fun getRole ()Lcom/eignex/koblas/BackendRole;
 	public final fun getRows ()I
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class com/eignex/koblas/F64RouteQuery$DenseLu : com/eignex/koblas/F64RouteQuery {
-	public fun <init> (I)V
-	public final fun component1 ()I
-	public final fun copy (I)Lcom/eignex/koblas/F64RouteQuery$DenseLu;
-	public static synthetic fun copy$default (Lcom/eignex/koblas/F64RouteQuery$DenseLu;IILjava/lang/Object;)Lcom/eignex/koblas/F64RouteQuery$DenseLu;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getOrder ()I
-	public fun getRole ()Lcom/eignex/koblas/BackendRole;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
@@ -983,49 +921,6 @@ public final class com/eignex/koblas/core/F64VectorStorage$Companion {
 	public final fun serializer ()Lkotlinx/serialization/KSerializer;
 }
 
-public final class com/eignex/koblas/dense/CholeskyKt {
-	public static final fun cholesky (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/CholeskyPolicy;Z)Lcom/eignex/koblas/dense/F64CholeskyDecomposition;
-	public static synthetic fun cholesky$default (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/CholeskyPolicy;ZILjava/lang/Object;)Lcom/eignex/koblas/dense/F64CholeskyDecomposition;
-	public static final fun invert (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static synthetic fun invert$default (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static final fun invertInto (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static synthetic fun invertInto$default (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static final fun rankUpdate (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64CholeskyDecomposition;
-	public static final fun rankUpdate (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;[DDLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64CholeskyDecomposition;
-	public static synthetic fun rankUpdate$default (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/dense/F64CholeskyDecomposition;
-	public static synthetic fun rankUpdate$default (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;[DDLcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/dense/F64CholeskyDecomposition;
-	public static final fun refactorInto (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/CholeskyPolicy;)Lcom/eignex/koblas/dense/F64CholeskyDecomposition;
-	public static synthetic fun refactorInto$default (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/CholeskyPolicy;ILjava/lang/Object;)Lcom/eignex/koblas/dense/F64CholeskyDecomposition;
-	public static final fun solve (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static final fun solve (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;[D)[D
-	public static final fun solveInto (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static final fun solveInto (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;[D[D)[D
-	public static synthetic fun solveInto$default (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/core/F64DenseMatrix;
-}
-
-public abstract interface class com/eignex/koblas/dense/CholeskyPolicy {
-}
-
-public final class com/eignex/koblas/dense/CholeskyPolicy$Regularize : com/eignex/koblas/dense/CholeskyPolicy {
-	public fun <init> ()V
-	public fun <init> (D)V
-	public synthetic fun <init> (DILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1 ()D
-	public final fun copy (D)Lcom/eignex/koblas/dense/CholeskyPolicy$Regularize;
-	public static synthetic fun copy$default (Lcom/eignex/koblas/dense/CholeskyPolicy$Regularize;DILjava/lang/Object;)Lcom/eignex/koblas/dense/CholeskyPolicy$Regularize;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getMinimumPivot ()D
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class com/eignex/koblas/dense/CholeskyPolicy$Strict : com/eignex/koblas/dense/CholeskyPolicy {
-	public static final field INSTANCE Lcom/eignex/koblas/dense/CholeskyPolicy$Strict;
-	public fun equals (Ljava/lang/Object;)Z
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
-}
-
 public abstract interface class com/eignex/koblas/dense/F64Blas : com/eignex/koblas/Backend {
 	public abstract fun gemm (DLcom/eignex/koblas/core/F64DenseMatrix;ZLcom/eignex/koblas/core/F64DenseMatrix;ZDLcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)V
 	public fun gemm (DLcom/eignex/koblas/core/F64StridedMatrixView;ZLcom/eignex/koblas/core/F64StridedMatrixView;ZDLcom/eignex/koblas/core/F64StridedMatrixView;)V
@@ -1094,127 +989,6 @@ public final class com/eignex/koblas/dense/F64Blas$DefaultImpls {
 	public static synthetic fun trsv$default (Lcom/eignex/koblas/dense/F64Blas;Lcom/eignex/koblas/core/F64DenseMatrix;[DZZZILjava/lang/Object;)V
 }
 
-public final class com/eignex/koblas/dense/F64CholeskyDecomposition {
-	public fun <init> (Lcom/eignex/koblas/core/F64DenseMatrix;)V
-	public final fun getL ()Lcom/eignex/koblas/core/F64DenseMatrix;
-	public final fun getN ()I
-	public final fun getRegularizations ()I
-}
-
-public abstract interface class com/eignex/koblas/dense/F64Decompositions : com/eignex/koblas/Backend {
-	public fun applyQ (Lcom/eignex/koblas/dense/F64QrDecomposition;[DZ)[D
-	public static synthetic fun applyQ$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64QrDecomposition;[DZILjava/lang/Object;)[D
-	public abstract fun applyQInto (Lcom/eignex/koblas/dense/F64QrDecomposition;[D[DZ)[D
-	public static synthetic fun applyQInto$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64QrDecomposition;[D[DZILjava/lang/Object;)[D
-	public abstract fun cholesky (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/CholeskyPolicy;)Lcom/eignex/koblas/dense/F64CholeskyDecomposition;
-	public static synthetic fun cholesky$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/CholeskyPolicy;ILjava/lang/Object;)Lcom/eignex/koblas/dense/F64CholeskyDecomposition;
-	public fun choleskyInto (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/dense/CholeskyPolicy;)Lcom/eignex/koblas/dense/F64CholeskyDecomposition;
-	public static synthetic fun choleskyInto$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/dense/CholeskyPolicy;ILjava/lang/Object;)Lcom/eignex/koblas/dense/F64CholeskyDecomposition;
-	public abstract fun choleskyRankUpdate (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64CholeskyDecomposition;
-	public abstract fun choleskyRankUpdate (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;[DDLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64CholeskyDecomposition;
-	public static synthetic fun choleskyRankUpdate$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/dense/F64CholeskyDecomposition;
-	public static synthetic fun choleskyRankUpdate$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64CholeskyDecomposition;[DDLcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/dense/F64CholeskyDecomposition;
-	public abstract fun factor (Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/dense/F64LuDecomposition;
-	public fun factorInto (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/F64LuDecomposition;)Lcom/eignex/koblas/dense/F64LuDecomposition;
-	public fun getKernels ()Lcom/eignex/koblas/dense/F64Kernels;
-	public fun invert (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public abstract fun invert (Lcom/eignex/koblas/dense/F64LuDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static synthetic fun invert$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static synthetic fun invert$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64LuDecomposition;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public abstract fun invertInto (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static synthetic fun invertInto$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public abstract fun pivotedSymmetricIndefinite (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;
-	public static synthetic fun pivotedSymmetricIndefinite$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;
-	public fun pivotedSymmetricIndefiniteInto (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;
-	public static synthetic fun pivotedSymmetricIndefiniteInto$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;
-	public abstract fun qr (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64QrDecomposition;
-	public static synthetic fun qr$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/dense/F64QrDecomposition;
-	public fun qrInto (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/F64QrDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64QrDecomposition;
-	public static synthetic fun qrInto$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/F64QrDecomposition;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/dense/F64QrDecomposition;
-	public abstract fun qrPivoted (Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;
-	public static synthetic fun qrPivoted$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;
-	public abstract fun rcond (Lcom/eignex/koblas/dense/F64LuDecomposition;DLcom/eignex/koblas/Workspace;)D
-	public static synthetic fun rcond$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64LuDecomposition;DLcom/eignex/koblas/Workspace;ILjava/lang/Object;)D
-	public fun solve (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public fun solve (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;[D)[D
-	public fun solve (Lcom/eignex/koblas/dense/F64LuDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Z)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public fun solve (Lcom/eignex/koblas/dense/F64LuDecomposition;[DZ)[D
-	public fun solve (Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;[DLcom/eignex/koblas/Workspace;)[D
-	public fun solve (Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public fun solve (Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;[D)[D
-	public fun solve (Lcom/eignex/koblas/dense/F64QrDecomposition;[DZLcom/eignex/koblas/Workspace;)[D
-	public static synthetic fun solve$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64LuDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;ZILjava/lang/Object;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static synthetic fun solve$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64LuDecomposition;[DZILjava/lang/Object;)[D
-	public static synthetic fun solve$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;[DLcom/eignex/koblas/Workspace;ILjava/lang/Object;)[D
-	public static synthetic fun solve$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64QrDecomposition;[DZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)[D
-	public fun solveInto (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public fun solveInto (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;[D[D)[D
-	public abstract fun solveInto (Lcom/eignex/koblas/dense/F64LuDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public abstract fun solveInto (Lcom/eignex/koblas/dense/F64LuDecomposition;[D[DZLcom/eignex/koblas/Workspace;)[D
-	public abstract fun solveInto (Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;[D[DLcom/eignex/koblas/Workspace;)[D
-	public abstract fun solveInto (Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public abstract fun solveInto (Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;[D[D)[D
-	public abstract fun solveInto (Lcom/eignex/koblas/dense/F64QrDecomposition;[D[DZLcom/eignex/koblas/Workspace;)[D
-	public static synthetic fun solveInto$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static synthetic fun solveInto$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64LuDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static synthetic fun solveInto$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64LuDecomposition;[D[DZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)[D
-	public static synthetic fun solveInto$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;[D[DLcom/eignex/koblas/Workspace;ILjava/lang/Object;)[D
-	public static synthetic fun solveInto$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static synthetic fun solveInto$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64QrDecomposition;[D[DZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)[D
-	public abstract fun trtri (Lcom/eignex/koblas/core/F64DenseMatrix;ZZ)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static synthetic fun trtri$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/core/F64DenseMatrix;ZZILjava/lang/Object;)Lcom/eignex/koblas/core/F64DenseMatrix;
-}
-
-public final class com/eignex/koblas/dense/F64Decompositions$DefaultImpls {
-	public static fun applyQ (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64QrDecomposition;[DZ)[D
-	public static synthetic fun applyQ$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64QrDecomposition;[DZILjava/lang/Object;)[D
-	public static synthetic fun applyQInto$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64QrDecomposition;[D[DZILjava/lang/Object;)[D
-	public static synthetic fun cholesky$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/CholeskyPolicy;ILjava/lang/Object;)Lcom/eignex/koblas/dense/F64CholeskyDecomposition;
-	public static fun choleskyInto (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/dense/CholeskyPolicy;)Lcom/eignex/koblas/dense/F64CholeskyDecomposition;
-	public static synthetic fun choleskyInto$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/dense/CholeskyPolicy;ILjava/lang/Object;)Lcom/eignex/koblas/dense/F64CholeskyDecomposition;
-	public static synthetic fun choleskyRankUpdate$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/dense/F64CholeskyDecomposition;
-	public static synthetic fun choleskyRankUpdate$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64CholeskyDecomposition;[DDLcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/dense/F64CholeskyDecomposition;
-	public static fun factorInto (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/F64LuDecomposition;)Lcom/eignex/koblas/dense/F64LuDecomposition;
-	public static fun getKernels (Lcom/eignex/koblas/dense/F64Decompositions;)Lcom/eignex/koblas/dense/F64Kernels;
-	public static fun getPriority (Lcom/eignex/koblas/dense/F64Decompositions;)I
-	public static fun getUnavailableReason (Lcom/eignex/koblas/dense/F64Decompositions;)Ljava/lang/String;
-	public static fun invert (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static synthetic fun invert$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static synthetic fun invert$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64LuDecomposition;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static synthetic fun invertInto$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static fun isAvailable (Lcom/eignex/koblas/dense/F64Decompositions;)Z
-	public static fun isPortable (Lcom/eignex/koblas/dense/F64Decompositions;)Z
-	public static synthetic fun pivotedSymmetricIndefinite$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;
-	public static fun pivotedSymmetricIndefiniteInto (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;
-	public static synthetic fun pivotedSymmetricIndefiniteInto$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;
-	public static synthetic fun qr$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/dense/F64QrDecomposition;
-	public static fun qrInto (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/F64QrDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64QrDecomposition;
-	public static synthetic fun qrInto$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/F64QrDecomposition;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/dense/F64QrDecomposition;
-	public static synthetic fun qrPivoted$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;
-	public static synthetic fun rcond$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64LuDecomposition;DLcom/eignex/koblas/Workspace;ILjava/lang/Object;)D
-	public static fun solve (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static fun solve (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64CholeskyDecomposition;[D)[D
-	public static fun solve (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64LuDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Z)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static fun solve (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64LuDecomposition;[DZ)[D
-	public static fun solve (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;[DLcom/eignex/koblas/Workspace;)[D
-	public static fun solve (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static fun solve (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;[D)[D
-	public static fun solve (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64QrDecomposition;[DZLcom/eignex/koblas/Workspace;)[D
-	public static synthetic fun solve$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64LuDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;ZILjava/lang/Object;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static synthetic fun solve$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64LuDecomposition;[DZILjava/lang/Object;)[D
-	public static synthetic fun solve$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;[DLcom/eignex/koblas/Workspace;ILjava/lang/Object;)[D
-	public static synthetic fun solve$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64QrDecomposition;[DZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)[D
-	public static fun solveInto (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static fun solveInto (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64CholeskyDecomposition;[D[D)[D
-	public static synthetic fun solveInto$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static synthetic fun solveInto$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64LuDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static synthetic fun solveInto$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64LuDecomposition;[D[DZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)[D
-	public static synthetic fun solveInto$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;[D[DLcom/eignex/koblas/Workspace;ILjava/lang/Object;)[D
-	public static synthetic fun solveInto$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static synthetic fun solveInto$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/dense/F64QrDecomposition;[D[DZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)[D
-	public static synthetic fun trtri$default (Lcom/eignex/koblas/dense/F64Decompositions;Lcom/eignex/koblas/core/F64DenseMatrix;ZZILjava/lang/Object;)Lcom/eignex/koblas/core/F64DenseMatrix;
-}
-
 public abstract interface class com/eignex/koblas/dense/F64Kernels : com/eignex/koblas/Backend {
 	public abstract fun asum ([DII)D
 	public abstract fun axpy ([DID[DII)V
@@ -1244,185 +1018,10 @@ public final class com/eignex/koblas/dense/F64Kernels$DefaultImpls {
 	public static fun isPortable (Lcom/eignex/koblas/dense/F64Kernels;)Z
 }
 
-public abstract interface class com/eignex/koblas/dense/F64LinearAlgebra : com/eignex/koblas/dense/F64Blas, com/eignex/koblas/dense/F64Decompositions {
-	public fun getKernels ()Lcom/eignex/koblas/dense/F64Kernels;
-}
-
-public final class com/eignex/koblas/dense/F64LinearAlgebra$DefaultImpls {
-	public static fun applyQ (Lcom/eignex/koblas/dense/F64LinearAlgebra;Lcom/eignex/koblas/dense/F64QrDecomposition;[DZ)[D
-	public static fun choleskyInto (Lcom/eignex/koblas/dense/F64LinearAlgebra;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/dense/CholeskyPolicy;)Lcom/eignex/koblas/dense/F64CholeskyDecomposition;
-	public static fun factorInto (Lcom/eignex/koblas/dense/F64LinearAlgebra;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/F64LuDecomposition;)Lcom/eignex/koblas/dense/F64LuDecomposition;
-	public static fun gemm (Lcom/eignex/koblas/dense/F64LinearAlgebra;DLcom/eignex/koblas/core/F64StridedMatrixView;ZLcom/eignex/koblas/core/F64StridedMatrixView;ZDLcom/eignex/koblas/core/F64StridedMatrixView;)V
-	public static fun gemm (Lcom/eignex/koblas/dense/F64LinearAlgebra;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static fun gemm (Lcom/eignex/koblas/dense/F64LinearAlgebra;Lcom/eignex/koblas/core/F64StridedMatrixView;Lcom/eignex/koblas/core/F64StridedMatrixView;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static fun gemv (Lcom/eignex/koblas/dense/F64LinearAlgebra;DLcom/eignex/koblas/core/F64StridedMatrixView;Lcom/eignex/koblas/core/F64StridedVectorView;DLcom/eignex/koblas/core/F64StridedVectorView;Z)V
-	public static fun gemv (Lcom/eignex/koblas/dense/F64LinearAlgebra;Lcom/eignex/koblas/core/F64DenseMatrix;[DZ)[D
-	public static fun gemv (Lcom/eignex/koblas/dense/F64LinearAlgebra;Lcom/eignex/koblas/core/F64StridedMatrixView;Lcom/eignex/koblas/core/F64StridedVectorView;Z)[D
-	public static fun getKernels (Lcom/eignex/koblas/dense/F64LinearAlgebra;)Lcom/eignex/koblas/dense/F64Kernels;
-	public static fun getPriority (Lcom/eignex/koblas/dense/F64LinearAlgebra;)I
-	public static fun getUnavailableReason (Lcom/eignex/koblas/dense/F64LinearAlgebra;)Ljava/lang/String;
-	public static fun invert (Lcom/eignex/koblas/dense/F64LinearAlgebra;Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static fun isAvailable (Lcom/eignex/koblas/dense/F64LinearAlgebra;)Z
-	public static fun isPortable (Lcom/eignex/koblas/dense/F64LinearAlgebra;)Z
-	public static fun pivotedSymmetricIndefiniteInto (Lcom/eignex/koblas/dense/F64LinearAlgebra;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;
-	public static fun qrInto (Lcom/eignex/koblas/dense/F64LinearAlgebra;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/F64QrDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64QrDecomposition;
-	public static fun solve (Lcom/eignex/koblas/dense/F64LinearAlgebra;Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static fun solve (Lcom/eignex/koblas/dense/F64LinearAlgebra;Lcom/eignex/koblas/dense/F64CholeskyDecomposition;[D)[D
-	public static fun solve (Lcom/eignex/koblas/dense/F64LinearAlgebra;Lcom/eignex/koblas/dense/F64LuDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Z)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static fun solve (Lcom/eignex/koblas/dense/F64LinearAlgebra;Lcom/eignex/koblas/dense/F64LuDecomposition;[DZ)[D
-	public static fun solve (Lcom/eignex/koblas/dense/F64LinearAlgebra;Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;[DLcom/eignex/koblas/Workspace;)[D
-	public static fun solve (Lcom/eignex/koblas/dense/F64LinearAlgebra;Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static fun solve (Lcom/eignex/koblas/dense/F64LinearAlgebra;Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;[D)[D
-	public static fun solve (Lcom/eignex/koblas/dense/F64LinearAlgebra;Lcom/eignex/koblas/dense/F64QrDecomposition;[DZLcom/eignex/koblas/Workspace;)[D
-	public static fun solveInto (Lcom/eignex/koblas/dense/F64LinearAlgebra;Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static fun solveInto (Lcom/eignex/koblas/dense/F64LinearAlgebra;Lcom/eignex/koblas/dense/F64CholeskyDecomposition;[D[D)[D
-}
-
-public final class com/eignex/koblas/dense/F64LinearAlgebraKt {
-	public static final fun applyQ (Lcom/eignex/koblas/dense/F64QrDecomposition;[DZ)[D
-	public static synthetic fun applyQ$default (Lcom/eignex/koblas/dense/F64QrDecomposition;[DZILjava/lang/Object;)[D
-	public static final fun applyQInto (Lcom/eignex/koblas/dense/F64QrDecomposition;[D[DZ)[D
-	public static synthetic fun applyQInto$default (Lcom/eignex/koblas/dense/F64QrDecomposition;[D[DZILjava/lang/Object;)[D
-	public static final fun invert (Lcom/eignex/koblas/dense/F64LuDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static synthetic fun invert$default (Lcom/eignex/koblas/dense/F64LuDecomposition;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static final fun lu (Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/dense/F64LuDecomposition;
-	public static final fun pivotedSymmetricIndefinite (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;Z)Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;
-	public static synthetic fun pivotedSymmetricIndefinite$default (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;ZILjava/lang/Object;)Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;
-	public static final fun qr (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64QrDecomposition;
-	public static synthetic fun qr$default (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/dense/F64QrDecomposition;
-	public static final fun qrPivoted (Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;
-	public static synthetic fun qrPivoted$default (Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;
-	public static final fun rcond (Lcom/eignex/koblas/dense/F64LuDecomposition;DLcom/eignex/koblas/Workspace;)D
-	public static synthetic fun rcond$default (Lcom/eignex/koblas/dense/F64LuDecomposition;DLcom/eignex/koblas/Workspace;ILjava/lang/Object;)D
-	public static final fun refactorInto (Lcom/eignex/koblas/dense/F64LuDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/dense/F64LuDecomposition;
-	public static final fun refactorInto (Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;
-	public static final fun refactorInto (Lcom/eignex/koblas/dense/F64QrDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64QrDecomposition;
-	public static synthetic fun refactorInto$default (Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;
-	public static synthetic fun refactorInto$default (Lcom/eignex/koblas/dense/F64QrDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/dense/F64QrDecomposition;
-	public static final fun solve (Lcom/eignex/koblas/dense/F64LuDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Z)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static final fun solve (Lcom/eignex/koblas/dense/F64LuDecomposition;[DZ)[D
-	public static final fun solve (Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;[DLcom/eignex/koblas/Workspace;)[D
-	public static final fun solve (Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static final fun solve (Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;[D)[D
-	public static final fun solve (Lcom/eignex/koblas/dense/F64QrDecomposition;[DZLcom/eignex/koblas/Workspace;)[D
-	public static synthetic fun solve$default (Lcom/eignex/koblas/dense/F64LuDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;ZILjava/lang/Object;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static synthetic fun solve$default (Lcom/eignex/koblas/dense/F64LuDecomposition;[DZILjava/lang/Object;)[D
-	public static synthetic fun solve$default (Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;[DLcom/eignex/koblas/Workspace;ILjava/lang/Object;)[D
-	public static synthetic fun solve$default (Lcom/eignex/koblas/dense/F64QrDecomposition;[DZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)[D
-	public static final fun solveInto (Lcom/eignex/koblas/dense/F64LuDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static final fun solveInto (Lcom/eignex/koblas/dense/F64LuDecomposition;[D[DZLcom/eignex/koblas/Workspace;)[D
-	public static final fun solveInto (Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;[D[DLcom/eignex/koblas/Workspace;)[D
-	public static final fun solveInto (Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static final fun solveInto (Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;[D[D)[D
-	public static final fun solveInto (Lcom/eignex/koblas/dense/F64QrDecomposition;[D[DZLcom/eignex/koblas/Workspace;)[D
-	public static synthetic fun solveInto$default (Lcom/eignex/koblas/dense/F64LuDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static synthetic fun solveInto$default (Lcom/eignex/koblas/dense/F64LuDecomposition;[D[DZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)[D
-	public static synthetic fun solveInto$default (Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;[D[DLcom/eignex/koblas/Workspace;ILjava/lang/Object;)[D
-	public static synthetic fun solveInto$default (Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static synthetic fun solveInto$default (Lcom/eignex/koblas/dense/F64QrDecomposition;[D[DZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)[D
-}
-
-public final class com/eignex/koblas/dense/F64LuDecomposition {
-	public fun <init> (II[D[II)V
-	public synthetic fun <init> (II[D[IIILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public fun <init> (I[D[II)V
-	public synthetic fun <init> (I[D[IIILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun getCols ()I
-	public final fun getFailedAt ()I
-	public final fun getLu ()[D
-	public final fun getN ()I
-	public final fun getOrder ()I
-	public final fun getRank ()I
-	public final fun getRankDeficient ()Z
-	public final fun getRows ()I
-	public final fun getSingular ()Z
-	public final fun getSquare ()Z
-	public final fun rowAt (I)I
-}
-
-public final class com/eignex/koblas/dense/F64LuDecompositionKt {
-	public static final fun determinant (Lcom/eignex/koblas/dense/F64LuDecomposition;)D
-}
-
-public final class com/eignex/koblas/dense/F64PivotedQrDecomposition {
-	public fun <init> (Lcom/eignex/koblas/dense/F64QrDecomposition;[II)V
-	public final fun getFactorization ()Lcom/eignex/koblas/dense/F64QrDecomposition;
-	public final fun getM ()I
-	public final fun getN ()I
-	public final fun getPivots ()[I
-	public final fun getRank ()I
-	public final fun getRankDeficient ()Z
-}
-
-public final class com/eignex/koblas/dense/F64PivotedQrDecompositionKt {
-	public static final field AUTOMATIC_RANK_TOLERANCE D
-}
-
-public final class com/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition {
-	public fun <init> (I[D[II)V
-	public synthetic fun <init> (I[D[IIILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun getFailedAt ()I
-	public final fun getLdl ()[D
-	public final fun getN ()I
-	public final fun getPivotBlocks ()Ljava/util/List;
-	public final fun getRawLapackIpiv ()[I
-	public final fun getSingular ()Z
-}
-
-public abstract interface class com/eignex/koblas/dense/F64PivotedSymmetricIndefinitePivotBlock {
-	public abstract fun getInterchangePosition ()I
-	public abstract fun getInterchangedWith ()I
-	public abstract fun getPosition ()I
-}
-
-public final class com/eignex/koblas/dense/F64PivotedSymmetricIndefinitePivotBlock$OneByOne : com/eignex/koblas/dense/F64PivotedSymmetricIndefinitePivotBlock {
-	public fun <init> (II)V
-	public final fun component1 ()I
-	public final fun component2 ()I
-	public final fun copy (II)Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefinitePivotBlock$OneByOne;
-	public static synthetic fun copy$default (Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefinitePivotBlock$OneByOne;IIILjava/lang/Object;)Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefinitePivotBlock$OneByOne;
-	public fun equals (Ljava/lang/Object;)Z
-	public fun getInterchangePosition ()I
-	public fun getInterchangedWith ()I
-	public fun getPosition ()I
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class com/eignex/koblas/dense/F64PivotedSymmetricIndefinitePivotBlock$TwoByTwo : com/eignex/koblas/dense/F64PivotedSymmetricIndefinitePivotBlock {
-	public fun <init> (II)V
-	public final fun component1 ()I
-	public final fun component2 ()I
-	public final fun copy (II)Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefinitePivotBlock$TwoByTwo;
-	public static synthetic fun copy$default (Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefinitePivotBlock$TwoByTwo;IIILjava/lang/Object;)Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefinitePivotBlock$TwoByTwo;
-	public fun equals (Ljava/lang/Object;)Z
-	public fun getInterchangePosition ()I
-	public fun getInterchangedWith ()I
-	public fun getPosition ()I
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class com/eignex/koblas/dense/F64QrDecomposition {
-	public fun <init> (II[D[D)V
-	public final fun getM ()I
-	public final fun getN ()I
-	public final fun getQr ()[D
-	public final fun getTau ()[D
-}
-
-public final class com/eignex/koblas/dense/F64ReferenceBackend : com/eignex/koblas/F64RebindableBackend, com/eignex/koblas/dense/F64Blas, com/eignex/koblas/dense/F64Decompositions, com/eignex/koblas/dense/F64LinearAlgebra {
+public final class com/eignex/koblas/dense/F64ReferenceBackend : com/eignex/koblas/F64RebindableBackend, com/eignex/koblas/dense/F64Blas {
 	public fun <init> ()V
 	public fun <init> (Lcom/eignex/koblas/dense/F64Kernels;)V
 	public synthetic fun <init> (Lcom/eignex/koblas/dense/F64Kernels;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public fun applyQ (Lcom/eignex/koblas/dense/F64QrDecomposition;[DZ)[D
-	public fun applyQInto (Lcom/eignex/koblas/dense/F64QrDecomposition;[D[DZ)[D
-	public fun cholesky (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/CholeskyPolicy;)Lcom/eignex/koblas/dense/F64CholeskyDecomposition;
-	public fun choleskyInto (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/dense/CholeskyPolicy;)Lcom/eignex/koblas/dense/F64CholeskyDecomposition;
-	public fun choleskyRankUpdate (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64CholeskyDecomposition;
-	public fun choleskyRankUpdate (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;[DDLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64CholeskyDecomposition;
-	public fun factor (Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/dense/F64LuDecomposition;
-	public fun factorInto (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/F64LuDecomposition;)Lcom/eignex/koblas/dense/F64LuDecomposition;
 	public fun gemm (DLcom/eignex/koblas/core/F64DenseMatrix;ZLcom/eignex/koblas/core/F64DenseMatrix;ZDLcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)V
 	public fun gemm (DLcom/eignex/koblas/core/F64StridedMatrixView;ZLcom/eignex/koblas/core/F64StridedMatrixView;ZDLcom/eignex/koblas/core/F64StridedMatrixView;)V
 	public fun gemm (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/core/F64DenseMatrix;
@@ -1437,33 +1036,8 @@ public final class com/eignex/koblas/dense/F64ReferenceBackend : com/eignex/kobl
 	public fun getName ()Ljava/lang/String;
 	public fun getPriority ()I
 	public fun getUnavailableReason ()Ljava/lang/String;
-	public fun invert (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public fun invert (Lcom/eignex/koblas/dense/F64LuDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public fun invertInto (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
 	public fun isAvailable ()Z
 	public fun isPortable ()Z
-	public fun pivotedSymmetricIndefinite (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;
-	public fun pivotedSymmetricIndefiniteInto (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;
-	public fun qr (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64QrDecomposition;
-	public fun qrInto (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/dense/F64QrDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64QrDecomposition;
-	public fun qrPivoted (Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;
-	public fun rcond (Lcom/eignex/koblas/dense/F64LuDecomposition;DLcom/eignex/koblas/Workspace;)D
-	public fun solve (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public fun solve (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;[D)[D
-	public fun solve (Lcom/eignex/koblas/dense/F64LuDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Z)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public fun solve (Lcom/eignex/koblas/dense/F64LuDecomposition;[DZ)[D
-	public fun solve (Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;[DLcom/eignex/koblas/Workspace;)[D
-	public fun solve (Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public fun solve (Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;[D)[D
-	public fun solve (Lcom/eignex/koblas/dense/F64QrDecomposition;[DZLcom/eignex/koblas/Workspace;)[D
-	public fun solveInto (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public fun solveInto (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;[D[D)[D
-	public fun solveInto (Lcom/eignex/koblas/dense/F64LuDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZLcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public fun solveInto (Lcom/eignex/koblas/dense/F64LuDecomposition;[D[DZLcom/eignex/koblas/Workspace;)[D
-	public fun solveInto (Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;[D[DLcom/eignex/koblas/Workspace;)[D
-	public fun solveInto (Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public fun solveInto (Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;[D[D)[D
-	public fun solveInto (Lcom/eignex/koblas/dense/F64QrDecomposition;[D[DZLcom/eignex/koblas/Workspace;)[D
 	public fun symm (DLcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;DLcom/eignex/koblas/core/F64DenseMatrix;ZZLcom/eignex/koblas/Workspace;)V
 	public fun symv (DLcom/eignex/koblas/core/F64DenseMatrix;[DD[DZ)V
 	public fun syr (DLcom/eignex/koblas/core/F64VectorLike;Lcom/eignex/koblas/core/F64DenseMatrix;Z)V
@@ -1475,29 +1049,10 @@ public final class com/eignex/koblas/dense/F64ReferenceBackend : com/eignex/kobl
 	public fun trmv (Lcom/eignex/koblas/core/F64DenseMatrix;[DZZZ)V
 	public fun trsm (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZZZZDLcom/eignex/koblas/Workspace;)V
 	public fun trsv (Lcom/eignex/koblas/core/F64DenseMatrix;[DZZZ)V
-	public fun trtri (Lcom/eignex/koblas/core/F64DenseMatrix;ZZ)Lcom/eignex/koblas/core/F64DenseMatrix;
 }
 
 public final class com/eignex/koblas/dense/F64ReferenceBackendKt {
-	public static final fun getF64ReferenceLinearAlgebra ()Lcom/eignex/koblas/dense/F64ReferenceBackend;
-}
-
-public final class com/eignex/koblas/dense/FactorSnapshotsKt {
-	public static final fun columnOrder (Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;)[I
-	public static final fun determinantSign (Lcom/eignex/koblas/dense/F64LuDecomposition;)I
-	public static final fun explicitQ (Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static final fun explicitQ (Lcom/eignex/koblas/dense/F64QrDecomposition;Lcom/eignex/koblas/Workspace;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static synthetic fun explicitQ$default (Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static synthetic fun explicitQ$default (Lcom/eignex/koblas/dense/F64QrDecomposition;Lcom/eignex/koblas/Workspace;ILjava/lang/Object;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static final fun explicitR (Lcom/eignex/koblas/dense/F64PivotedQrDecomposition;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static final fun explicitR (Lcom/eignex/koblas/dense/F64QrDecomposition;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static final fun logAbsDeterminant (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;)D
-	public static final fun logAbsDeterminant (Lcom/eignex/koblas/dense/F64LuDecomposition;)D
-	public static final fun lowerFactor (Lcom/eignex/koblas/dense/F64CholeskyDecomposition;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static final fun lowerFactor (Lcom/eignex/koblas/dense/F64LuDecomposition;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static final fun packedFactor (Lcom/eignex/koblas/dense/F64PivotedSymmetricIndefiniteDecomposition;)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static final fun rowOrder (Lcom/eignex/koblas/dense/F64LuDecomposition;)[I
-	public static final fun upperFactor (Lcom/eignex/koblas/dense/F64LuDecomposition;)Lcom/eignex/koblas/core/F64DenseMatrix;
+	public static final fun getF64ReferenceBlas ()Lcom/eignex/koblas/dense/F64ReferenceBackend;
 }
 
 public final class com/eignex/koblas/dense/TriangularKt {
@@ -1509,8 +1064,6 @@ public final class com/eignex/koblas/dense/TriangularKt {
 	public static synthetic fun trsm$default (Lcom/eignex/koblas/core/F64DenseMatrix;Lcom/eignex/koblas/core/F64DenseMatrix;ZZZZDLcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
 	public static final fun trsv (Lcom/eignex/koblas/core/F64DenseMatrix;[DZZZ)V
 	public static synthetic fun trsv$default (Lcom/eignex/koblas/core/F64DenseMatrix;[DZZZILjava/lang/Object;)V
-	public static final fun trtri (Lcom/eignex/koblas/core/F64DenseMatrix;ZZ)Lcom/eignex/koblas/core/F64DenseMatrix;
-	public static synthetic fun trtri$default (Lcom/eignex/koblas/core/F64DenseMatrix;ZZILjava/lang/Object;)Lcom/eignex/koblas/core/F64DenseMatrix;
 }
 
 public abstract class com/eignex/koblas/dense/host/F64BlasAdapter : com/eignex/koblas/BackendMetadataProvider, com/eignex/koblas/F64RoutingBackend, com/eignex/koblas/dense/F64Blas {

@@ -28,39 +28,13 @@ F64Blas.trmv(F64DenseMatrix,DoubleArray)	com.eignex.koblas.bench.Level2Benchmark
 F64Blas.trsm(F64DenseMatrix,right=false)	com.eignex.koblas.bench.Level3Benchmark.trsm	benchmarked	
 F64Blas.trsm(F64DenseMatrix,right=true)	com.eignex.koblas.bench.Level3Benchmark.trsmRight	benchmarked	
 F64Blas.trsv(F64DenseMatrix,DoubleArray)	com.eignex.koblas.bench.Level2Benchmark.trsv	benchmarked	
-F64CholeskyDecomposition.invert()	com.eignex.koblas.bench.CholeskyBenchmark.invertSpd	benchmarked	
-F64CholeskyDecomposition.invertInto(F64DenseMatrix)		excluded	The destination-passing variant shares the benchmarked Cholesky inverse kernel, which now runs through it, and is covered by shape and aliasing tests.
-F64CholeskyDecomposition.logAbsDeterminant()		excluded	Log-absolute determinant is a linear scan over an existing Cholesky factor's diagonal.
-F64CholeskyDecomposition.lowerFactor()		excluded	Extracting a factor snapshot is inspection work rather than a dispatched numerical kernel.
-F64CholeskyDecomposition.rankUpdate(DoubleArray)	com.eignex.koblas.bench.CholeskyUpdateBenchmark.rankUpdate	benchmarked	
-F64CholeskyDecomposition.rankUpdate(F64DenseMatrix)	com.eignex.koblas.bench.CholeskyUpdateBenchmark.rankUpdateBlock	benchmarked	
-F64CholeskyDecomposition.refactorInto(F64DenseMatrix)		excluded	Refactorization shares the benchmarked Cholesky factorization kernel and is covered by buffer-reuse tests.
-F64CholeskyDecomposition.solve(DoubleArray)	com.eignex.koblas.bench.CholeskyBenchmark.solveSpd	benchmarked	
-F64CholeskyDecomposition.solve(F64DenseMatrix)		excluded	The multi-right-hand-side solve repeats the benchmarked Cholesky solve kernel over the columns of B.
-F64CholeskyDecomposition.solveInto(DoubleArray,DoubleArray)		excluded	The destination-passing variant shares the benchmarked Cholesky solve kernel and is covered by aliasing tests.
-F64CholeskyDecomposition.solveInto(F64DenseMatrix,F64DenseMatrix)		excluded	The destination-passing multi-right-hand-side solve shares the benchmarked Cholesky solve kernel.
 F64CholeskySparseFactorization.factors()	com.eignex.koblas.bench.SparseSymmetricHostBenchmark.choleskyFactors	benchmarked	
-F64Decomposition.refactorInto(F64DenseMatrix)		excluded	The family-specific refactorization extensions share their corresponding benchmarked factorization kernels.
-F64Decompositions.applyQInto(F64QrDecomposition,DoubleArray,DoubleArray)		excluded	The destination-passing variant shares the benchmarked applyQ kernel and is covered by aliasing tests.
-F64Decompositions.choleskyInto(F64DenseMatrix,F64CholeskyDecomposition)		excluded	The backend destination-passing variant shares the benchmarked Cholesky factorization kernel.
-F64Decompositions.choleskyRankUpdate(F64CholeskyDecomposition,DoubleArray)		excluded	The backend entry point shares the benchmarked rank-1 update kernel the extension reaches.
-F64Decompositions.choleskyRankUpdate(F64CholeskyDecomposition,F64DenseMatrix)		excluded	The backend entry point shares the benchmarked rank-k update kernel the extension reaches.
-F64Decompositions.pivotedSymmetricIndefiniteInto(F64DenseMatrix,F64PivotedSymmetricIndefiniteDecomposition)		excluded	The backend destination-passing variant shares the benchmarked pivoted symmetric-indefinite factorization kernel.
-F64Decompositions.qrInto(F64DenseMatrix,F64QrDecomposition)		excluded	The backend destination-passing variant shares the benchmarked QR factorization kernel.
-F64DenseMatrix.cholesky()	com.eignex.koblas.bench.CholeskyBenchmark.cholesky	benchmarked	
 F64DenseMatrix.column(Int)		excluded	Column extraction is a storage view helper, not a numerical kernel.
-F64DenseMatrix.lu()	com.eignex.koblas.bench.SolveBenchmark.luFactor	benchmarked	
-F64DenseMatrix.lu().solve(DoubleArray)	com.eignex.koblas.bench.SolveBenchmark.luFactorAndSolve	benchmarked	
-F64DenseMatrix.lu(rectangular)	com.eignex.koblas.bench.SolveBenchmark.rectangularLuFactor	benchmarked	
 F64DenseMatrix.minus(F64DenseMatrix)		excluded	Elementwise arithmetic allocates a result and does not select a numerical backend.
 F64DenseMatrix.norm1()	com.eignex.koblas.bench.MatrixOpsBenchmark.norm1	benchmarked	
 F64DenseMatrix.normFro()	com.eignex.koblas.bench.MatrixOpsBenchmark.normFro	benchmarked	
 F64DenseMatrix.normInf()	com.eignex.koblas.bench.MatrixOpsBenchmark.normInf	benchmarked	
 F64DenseMatrix.plus(F64DenseMatrix)		excluded	Elementwise arithmetic allocates a result and does not select a numerical backend.
-F64DenseMatrix.qr()	com.eignex.koblas.bench.QrBenchmark.qrSquare	benchmarked	
-F64DenseMatrix.qr(tall)	com.eignex.koblas.bench.QrBenchmark.qrTall	benchmarked	
-F64DenseMatrix.qrPivoted(square)	com.eignex.koblas.bench.QrBenchmark.qrPivotedSquare	benchmarked	
-F64DenseMatrix.qrPivoted(tall)	com.eignex.koblas.bench.QrBenchmark.qrPivotedTall	benchmarked	
 F64DenseMatrix.row(Int)		excluded	Row extraction is a storage copy helper, not a numerical kernel.
 F64DenseMatrix.scaleColumns(DoubleArray)	com.eignex.koblas.bench.MatrixOpsBenchmark.scaleColumnsBench	benchmarked	
 F64DenseMatrix.scaleRows(DoubleArray)	com.eignex.koblas.bench.MatrixOpsBenchmark.scaleRowsBench	benchmarked	
@@ -69,7 +43,6 @@ F64DenseMatrix.times(Double)		excluded	Scalar multiplication copies the operand 
 F64DenseMatrix.times(F64DenseMatrix)	com.eignex.koblas.bench.Level3Benchmark.gemm	benchmarked	
 F64DenseMatrix.times(F64SparseMatrix)		excluded	A dense left operand is the right = true arm of the benchmarked sparse gemm.
 F64DenseMatrix.transpose()	com.eignex.koblas.bench.MatrixOpsBenchmark.transposeDense	benchmarked	
-F64DenseMatrix.trtri(lower=true)	com.eignex.koblas.bench.SolveBenchmark.trtri	benchmarked	
 F64DenseMatrix.unaryMinus()		excluded	Elementwise arithmetic allocates a result and does not select a numerical backend.
 F64DenseMatrix.zeroStrictUpper()		excluded	Cleaning one triangle in place is the same inspection work as the lowerFactor copy it replaces, with no dispatch of its own: a bounded fill per column, covered by tests.
 F64DenseVector.minus(F64DenseVector)		excluded	Elementwise arithmetic allocates a result and does not select a numerical backend.
@@ -91,45 +64,11 @@ F64Kernels.scale(DoubleArray,Int,Double,Int)		excluded	The raw kernel shares the
 F64Kernels.ssqd(DoubleArray,Int,DoubleArray,Int,Int)	com.eignex.koblas.bench.Level1Benchmark.ssqd	benchmarked	
 F64Kernels.sum(DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.sum facade.
 F64Kernels.swap(DoubleArray,Int,DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public swap facade.
-F64LinearAlgebra.applyQ(F64QrDecomposition,transpose=false)	com.eignex.koblas.bench.QrBenchmark.applyQ	benchmarked	
-F64LinearAlgebra.applyQ(F64QrDecomposition,transpose=true)	com.eignex.koblas.bench.QrBenchmark.applyQTransposed	benchmarked	
-F64LinearAlgebra.factorInto(F64DenseMatrix,F64LuDecomposition)	com.eignex.koblas.bench.SolveBenchmark.luFactorInto	benchmarked	
-F64LinearAlgebra.invert(F64LuDecomposition)	com.eignex.koblas.bench.SolveBenchmark.invertLu	benchmarked	
-F64LinearAlgebra.pivotedSymmetricIndefinite(F64DenseMatrix)	com.eignex.koblas.bench.SolveBenchmark.pivotedSymmetricIndefiniteFactor	benchmarked	
-F64LinearAlgebra.rcond(F64LuDecomposition,Double)	com.eignex.koblas.bench.SolveBenchmark.rcond	benchmarked	
-F64LinearAlgebra.solve(F64DenseMatrix,minimumNorm=true)	com.eignex.koblas.bench.QrBenchmark.minimumNorm	benchmarked	
-F64LinearAlgebra.solve(F64LuDecomposition,DoubleArray)	com.eignex.koblas.bench.SolveBenchmark.luSolve	benchmarked	
-F64LinearAlgebra.solve(F64LuDecomposition,F64DenseMatrix)	com.eignex.koblas.bench.BlockSolveBenchmark.blockSolve	benchmarked	
-F64LinearAlgebra.solveInto(F64LuDecomposition,DoubleArray,DoubleArray)	com.eignex.koblas.bench.SolveBenchmark.luSolveInto	benchmarked	
-F64LinearAlgebra.solveInto(F64LuDecomposition,F64DenseMatrix,F64DenseMatrix)		excluded	The destination-passing block solve shares the benchmarked LU block solve kernel.
-F64LinearAlgebra.solveInto(F64PivotedSymmetricIndefiniteDecomposition,DoubleArray,DoubleArray)	com.eignex.koblas.bench.SolveBenchmark.ldlSolveInto	benchmarked	
-F64LuDecomposition.determinant()		excluded	Determinant is a linear scan over existing LU factors.
-F64LuDecomposition.determinantSign()		excluded	Determinant sign is a linear scan over existing LU factors.
-F64LuDecomposition.logAbsDeterminant()		excluded	Log-absolute determinant is a linear scan over existing LU factors.
-F64LuDecomposition.lowerFactor()		excluded	Extracting a factor snapshot is inspection work rather than a dispatched numerical kernel.
-F64LuDecomposition.rowAt(Int)		excluded	Reading one permutation entry is inspection work rather than a dispatched numerical kernel.
-F64LuDecomposition.rowOrder()		excluded	Copying the row order is inspection work rather than a dispatched numerical kernel.
-F64LuDecomposition.solve(DoubleArray)	com.eignex.koblas.bench.BlockSolveBenchmark.columnSolves	benchmarked	
-F64LuDecomposition.upperFactor()		excluded	Extracting a factor snapshot is inspection work rather than a dispatched numerical kernel.
 F64MatrixLike.gemvInto(F64VectorLike,DoubleArray)	com.eignex.koblas.bench.GemvIntoBenchmark.gemvIntoSparseX	benchmarked	
 F64MatrixLike.times(F64VectorLike)		excluded	The operator form dispatches to the benchmarked dense and sparse gemv facades.
-F64PivotedQrDecomposition.columnOrder()		excluded	Copying the column order is inspection work rather than a dispatched numerical kernel.
-F64PivotedQrDecomposition.explicitQ()		excluded	Materializing Q from the packed factors is inspection work rather than a dispatched numerical kernel.
-F64PivotedQrDecomposition.explicitR()		excluded	Extracting a factor snapshot is inspection work rather than a dispatched numerical kernel.
-F64PivotedQrDecomposition.solve(DoubleArray)	com.eignex.koblas.bench.QrBenchmark.pivotedLeastSquares	benchmarked	
-F64PivotedQrDecomposition.solveInto(DoubleArray,DoubleArray)		excluded	The destination-passing variant shares the benchmarked pivoted least-squares kernel and is covered by aliasing tests.
-F64PivotedSymmetricIndefiniteDecomposition.packedFactor()		excluded	Extracting a factor snapshot is inspection work rather than a dispatched numerical kernel.
-F64PivotedSymmetricIndefiniteDecomposition.solve(DoubleArray)		excluded	The allocating solve wraps the benchmarked LDL destination-passing solve.
-F64PivotedSymmetricIndefiniteDecomposition.solve(F64DenseMatrix)		excluded	The multi-right-hand-side solve repeats the benchmarked LDL solve kernel over the columns of B.
-F64PivotedSymmetricIndefiniteDecomposition.solveInto(F64DenseMatrix,F64DenseMatrix)		excluded	The destination-passing multi-right-hand-side solve shares the benchmarked LDL solve kernel.
 F64PreparedSparseMatrix.gemm(F64DenseMatrix)	com.eignex.koblas.bench.SparseProductHostBenchmark.preparedGemm	benchmarked	
 F64PreparedSparseMatrix.gemm(F64SparseMatrix)	com.eignex.koblas.bench.SparseProductHostBenchmark.preparedSparseProduct	benchmarked	
 F64PreparedSparseMatrix.gemv(DoubleArray)	com.eignex.koblas.bench.SparseProductHostBenchmark.preparedGemv	benchmarked	
-F64QrDecomposition.applyQInto(DoubleArray,DoubleArray)		excluded	The destination-passing variant shares the benchmarked applyQ kernel and is covered by aliasing tests.
-F64QrDecomposition.explicitQ()		excluded	Materializing Q from the packed factors is inspection work rather than a dispatched numerical kernel.
-F64QrDecomposition.explicitR()		excluded	Extracting a factor snapshot is inspection work rather than a dispatched numerical kernel.
-F64QrDecomposition.solve(DoubleArray)	com.eignex.koblas.bench.QrBenchmark.leastSquares	benchmarked	
-F64QrDecomposition.solveInto(DoubleArray,DoubleArray)		excluded	The destination-passing variant shares the benchmarked least-squares kernel and is covered by aliasing tests.
 F64QuasiDefiniteLdl.analyzeQuasiDefiniteLdl(F64SparseMatrix)	com.eignex.koblas.bench.SparseSymmetricHostBenchmark.quasiDefiniteLdlRefactor	benchmarked	
 F64QuasiDefiniteLdlFactorization.factors()	com.eignex.koblas.bench.SparseSymmetricHostBenchmark.quasiDefiniteLdlFactors	benchmarked	
 F64SparseBlas.gemm(F64SparseMatrix,F64DenseMatrix)	com.eignex.koblas.bench.SparseProductHostBenchmark.gemm	benchmarked	

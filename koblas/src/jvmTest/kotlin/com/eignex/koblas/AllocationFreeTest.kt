@@ -27,8 +27,7 @@ class AllocationFreeTest {
         installBackends(
             koblas.with(
                 kernels = F64ScalarKernels,
-                blas = F64ReferenceLinearAlgebra,
-                decompositions = F64ReferenceLinearAlgebra,
+                blas = F64ReferenceBlas,
                 sparseBlas = F64ReferenceSparseLinearAlgebra,
                 sparseDecompositions = F64ReferenceSparseLinearAlgebra,
                 sparseKernels = F64ReferenceSparseLinearAlgebra,
@@ -101,126 +100,6 @@ class AllocationFreeTest {
             bytes <= measurementFloor,
             "reserved first borrows allocated $bytes bytes against a $measurementFloor byte measurement floor",
         )
-    }
-
-    @Test
-    fun `a dense solve loop allocates nothing per iteration`() {
-        val n = 64
-        val rng = Random(20260736)
-        val lu = wellConditioned(n, rng).lu()
-        val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
-        val x = DoubleArray(n)
-
-        val allocating = bytesPerIteration(2000) { koblas.solve(lu, b) }
-        val into = bytesPerIteration(2000) { lu.solveInto(b, x) }
-        assertTrue(
-            allocating > n * Double.SIZE_BYTES * 0.5,
-            "expected the allocating form to allocate, saw $allocating B",
-        )
-        assertPooled(into, allocating, "solveInto")
-    }
-
-    @Test
-    fun `a condition estimate with a workspace allocates nothing per iteration`() {
-        val n = 48
-        val rng = Random(20260737)
-        val a = wellConditioned(n, rng)
-        val anorm = a.norm1()
-        val lu = a.lu()
-        val ws = Workspace()
-
-        val allocating = bytesPerIteration(500) { koblas.rcond(lu, anorm) }
-        val pooled = bytesPerIteration(500) { koblas.rcond(lu, anorm, ws) }
-        assertTrue(allocating > n * Double.SIZE_BYTES * 2.0, "expected allocation, saw $allocating B")
-        assertPooled(pooled, allocating, "rcond")
-    }
-
-    @Test
-    fun `refactorizing in place allocates nothing per iteration`() {
-        val n = 48
-        val rng = Random(20260738)
-        val a = F64DenseMatrix(2 * n, n)
-        for (j in 0 until n) {
-            for (i in 0 until 2 * n) {
-                a[i, j] = if (i == j) 2.0 else rng.nextDouble(-1.0, 1.0)
-            }
-        }
-        val reused = koblas.factor(a)
-
-        val allocating = bytesPerIteration(300) { koblas.factor(a) }
-        val into = bytesPerIteration(300) { reused.refactorInto(a) }
-        assertTrue(allocating > n * n * Double.SIZE_BYTES, "expected a rectangular factor copy, saw $allocating B")
-        assertPooled(into, allocating, "factorInto")
-    }
-
-    @Test
-    fun `refactorizing a cholesky in place allocates nothing per iteration`() {
-        val n = 48
-        val rng = Random(20260739)
-        val a = F64DenseMatrix(n, n)
-        for (j in 0 until n) {
-            for (i in j until n) {
-                val entry = if (i == j) n + 2.0 else rng.nextDouble(-1.0, 1.0)
-                a[i, j] = entry
-                a[j, i] = entry
-            }
-        }
-        val reused = a.cholesky()
-
-        val allocating = bytesPerIteration(300) { a.cholesky() }
-        val into = bytesPerIteration(300) { reused.refactorInto(a) }
-        assertTrue(allocating > n * n * Double.SIZE_BYTES * 0.5, "expected a factor copy, saw $allocating B")
-        assertPooled(into, allocating, "choleskyInto")
-    }
-
-    @Test
-    fun `refactorizing a qr in place allocates nothing per iteration`() {
-        val m = 96
-        val n = 48
-        val rng = Random(20260740)
-        val a = F64DenseMatrix(m, n)
-        for (i in 0 until m) for (j in 0 until n) a[i, j] = rng.nextDouble(-1.0, 1.0)
-        val reused = koblas.qr(a)
-
-        val allocating = bytesPerIteration(300) { koblas.qr(a) }
-        val into = bytesPerIteration(300) { reused.refactorInto(a) }
-        assertTrue(allocating > m * n * Double.SIZE_BYTES * 0.5, "expected a factor copy, saw $allocating B")
-        assertPooled(into, allocating, "qrInto")
-    }
-
-    @Test
-    fun `a block solve loop allocates nothing per iteration`() {
-        val n = 48
-        val nrhs = 40 // above the crossover, so the blocked path runs rather than column-by-column
-        val rng = Random(20260743)
-        val lu = wellConditioned(n, rng).lu()
-        val b = F64DenseMatrix(n, nrhs)
-        for (i in 0 until n) for (j in 0 until nrhs) b[i, j] = rng.nextDouble(-1.0, 1.0)
-        val out = F64DenseMatrix(n, nrhs)
-        val ws = Workspace().apply { reserve(n * nrhs, count = 1) }
-
-        val allocating = bytesPerIteration(200) { koblas.solve(lu, b) }
-        val into = bytesPerIteration(200) { lu.solveInto(b, out, workspace = ws) }
-        assertTrue(allocating > n * nrhs * Double.SIZE_BYTES * 0.5, "expected allocation, saw $allocating B")
-        assertPooled(into, allocating, "block solveInto")
-    }
-
-    @Test
-    fun `a least-squares loop allocates nothing per iteration`() {
-        val m = 64
-        val n = 16
-        val rng = Random(20260744)
-        val a = F64DenseMatrix(m, n)
-        for (i in 0 until m) for (j in 0 until n) a[i, j] = rng.nextDouble(-1.0, 1.0)
-        val f = koblas.qr(a)
-        val b = DoubleArray(m) { rng.nextDouble(-1.0, 1.0) }
-        val x = DoubleArray(n)
-        val ws = Workspace().apply { reserve(m, count = 1) }
-
-        val allocating = bytesPerIteration(500) { koblas.solve(f, b) }
-        val into = bytesPerIteration(500) { f.solveInto(b, x, workspace = ws) }
-        assertTrue(allocating > m * Double.SIZE_BYTES * 0.5, "expected allocation, saw $allocating B")
-        assertPooled(into, allocating, "least squares")
     }
 
     @Test

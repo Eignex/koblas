@@ -49,9 +49,8 @@ Dense parity uses `denseArm=built-in,openblas,onemkl`; retained sparse BLAS uses
 `sparseArm=built-in,onemkl`. These arms construct the built-in implementation or open a benchmark-owned external
 binding directly. They never use production discovery, and every setup asserts and reports its resolved identity.
 
-The older `automatic` and `reference` backend parameters remain only for factorization suites during the later
-consumer-coordinated removal phase; dense factorization suites expose only the portable reference arm. They are
-not external parity evidence. Kernel microbenchmarks retain `scalar`,
+The older `automatic` and `reference` backend parameters remain for sparse suites. They are not external parity
+evidence. Kernel microbenchmarks retain `scalar`,
 `c`, and `simd` pins, while `built-in` selects SIMD, then bundled C, then scalar without consulting the registry.
 
 Benchmark-owned level-1 CBLAS calls cover dot, axpy, scale, norm, absolute sum, swap, and rotations for both dense
