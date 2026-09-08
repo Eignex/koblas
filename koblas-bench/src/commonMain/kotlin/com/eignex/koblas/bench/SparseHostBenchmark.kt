@@ -14,7 +14,7 @@ class SparseHostBenchmark {
     var n: Int = 0
 
     @Param(BASIS_SHAPE, RANDOM_SHAPE)
-    var shape: String = BASIS_SHAPE
+    var factorShape: String = BASIS_SHAPE
 
     @Param(AUTOMATIC_BACKEND, REFERENCE_BACKEND)
     var backend: String = REFERENCE_BACKEND
@@ -27,10 +27,10 @@ class SparseHostBenchmark {
     fun setup() {
         installSparseDecompositionBackend(backend)
         val rng = benchRng()
-        a = if (shape == BASIS_SHAPE) simplexBasis(n, rng) else sparseDominantMatrix(n, rng)
+        a = if (factorShape == BASIS_SHAPE) simplexBasis(n, rng) else sparseDominantMatrix(n, rng)
         rhs = randomVector(n, rng)
         factored = a.lu()
-        println("resolved: sparseDecompositions=${koblas.sparseDecompositions.name} shape=$shape nnz(A)=${a.nnz} fill=${factored.nnz}")
+        println("resolved: sparseDecompositions=${koblas.sparseDecompositions.name} shape=$factorShape nnz(A)=${a.nnz} fill=${factored.nnz}")
     }
 
     @Benchmark

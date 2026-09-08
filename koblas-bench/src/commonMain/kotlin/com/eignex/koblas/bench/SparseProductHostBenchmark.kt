@@ -22,7 +22,7 @@ class SparseProductHostBenchmark {
     var density: Double = 0.0
 
     @Param("regular", "banded", "skewed")
-    var shape: String = "regular"
+    var productShape: String = "regular"
 
     private var builtIn: F64SparseBlas? = null
     private var external: SparseComparator? = null
@@ -36,12 +36,16 @@ class SparseProductHostBenchmark {
     private lateinit var denseSingle: F64DenseMatrix
     private lateinit var productSingle: F64DenseMatrix
     private lateinit var triangle: F64SparseMatrix
+    private lateinit var triangularVector: DoubleArray
+    private lateinit var triangularDense: F64DenseMatrix
+    private lateinit var triangularDenseRight: F64DenseMatrix
     private lateinit var scratch: DoubleArray
     private lateinit var triangularProduct: F64DenseMatrix
     private lateinit var triangularSolve: F64DenseMatrix
     private lateinit var triangularProductRight: F64DenseMatrix
     private lateinit var prepared: F64PreparedSparseMatrix
     private var externalPrepared: PreparedSparseComparator? = null
+    private var externalPreparedSquare: PreparedSparseComparator? = null
     private var externalTriangle: PreparedSparseComparator? = null
 
     @Setup
@@ -57,8 +61,8 @@ class SparseProductHostBenchmark {
             check(external!!.identity == "onemkl/sparse-blas" && external!!.threading == "1 thread")
             println("resolved: arm=$sparseArm sparse=${external!!.identity} threading=${external!!.threading}")
         }
-        a = sparseComparisonMatrix(n + 1, n - 1, density, shape, rng)
-        square = sparseComparisonMatrix(n - 1, n + 2, density, shape, rng)
+        a = sparseComparisonMatrix(n + 1, n - 1, density, productShape, rng)
+        square = sparseComparisonMatrix(n - 1, n + 2, density, productShape, rng)
         x = randomVector(n - 1, rng)
         y = randomVector(n + 1, rng)
         dense = randomMatrix(n - 1, RIGHT_HAND_SIDES, rng)
@@ -66,20 +70,36 @@ class SparseProductHostBenchmark {
         denseSingle = randomMatrix(n - 1, 1, rng)
         productSingle = randomMatrix(n + 1, 1, rng)
         triangle = bandUpperTriangle(n)
-        scratch = randomVector(n, rng)
-        triangularProduct = randomMatrix(n, RIGHT_HAND_SIDES, rng)
-        triangularSolve = randomMatrix(n, RIGHT_HAND_SIDES, rng)
-        triangularProductRight = randomMatrix(RIGHT_HAND_SIDES, n, rng)
-        if (builtIn != null) prepared = builtIn!!.prepare(a) else externalPrepared = external!!.prepare(a)
+        triangularVector = randomVector(n, rng)
+        triangularDense = randomMatrix(n, RIGHT_HAND_SIDES, rng)
+        triangularDenseRight = randomMatrix(RIGHT_HAND_SIDES, n, rng)
+        scratch = DoubleArray(n)
+        triangularProduct = F64DenseMatrix.zero(n, RIGHT_HAND_SIDES)
+        triangularSolve = F64DenseMatrix.zero(n, RIGHT_HAND_SIDES)
+        triangularProductRight = F64DenseMatrix.zero(RIGHT_HAND_SIDES, n)
+        if (builtIn != null) {
+            prepared = builtIn!!.prepare(a)
+        } else {
+            externalPrepared = external!!.prepare(a)
+            externalPreparedSquare = external!!.prepare(square)
+        }
         externalTriangle = external?.prepare(triangle, triangular = true, lower = false)
-        println("workload: n=$n density=$density shape=$shape nnz(A)=${a.nnz}")
-        reportAllocatingWorkload("sparse/$sparseArm/product", "fresh sparse result and output-pattern construction")
+        println("workload: n=$n density=$density shape=$productShape nnz(A)=${a.nnz}")
+        reportAllocatingWorkload(
+            "sparse/$sparseArm/prepared-product",
+            "reusable operand preparation is outside the measured row; fresh result construction remains timed",
+        )
+        reportAllocatingWorkload(
+            "sparse/$sparseArm/one-shot-product",
+            "operand preparation or conversion plus fresh sparse result construction",
+        )
     }
 
     @TearDown
     fun tearDown() {
         if (::prepared.isInitialized) prepared.close()
         externalPrepared?.close()
+        externalPreparedSquare?.close()
         externalTriangle?.close()
     }
 
@@ -116,8 +136,10 @@ class SparseProductHostBenchmark {
         return y
     }
 
+    /** Reuses every operand handle the selected implementation can prepare; result export remains timed. */
     @Benchmark
-    fun preparedSparseProduct(): F64SparseMatrix = external?.sparseProduct(a, square) ?: prepared.gemm(square)
+    fun preparedSparseProduct(): F64SparseMatrix =
+        externalPrepared?.sparseProduct(checkNotNull(externalPreparedSquare)) ?: prepared.gemm(square)
 
     @Benchmark
     fun gemv(): DoubleArray {
@@ -129,40 +151,41 @@ class SparseProductHostBenchmark {
         return y
     }
 
+    /** Includes operand preparation and representation conversion as a separately labelled one-shot row. */
     @Benchmark
     fun sparseProduct(): F64SparseMatrix = external?.sparseProduct(a, square) ?: builtIn!!.gemm(a, square)
 
     @Benchmark
     fun trsv(): DoubleArray {
-        x.copyInto(scratch)
+        triangularVector.copyInto(scratch)
         val comparator = externalTriangle
-        if (comparator != null) comparator.trsv(x, scratch) else builtIn!!.trsv(triangle, scratch, lower = false)
+        if (comparator != null) comparator.trsv(triangularVector, scratch) else builtIn!!.trsv(triangle, scratch, lower = false)
         return scratch
     }
 
     @Benchmark
     fun trmv(): DoubleArray {
-        x.copyInto(scratch)
+        triangularVector.copyInto(scratch)
         val comparator = externalTriangle
-        if (comparator != null) comparator.trmv(x, scratch) else builtIn!!.trmv(triangle, scratch, lower = false)
+        if (comparator != null) comparator.trmv(triangularVector, scratch) else builtIn!!.trmv(triangle, scratch, lower = false)
         return scratch
     }
 
     @Benchmark
     fun trmm(): F64DenseMatrix {
-        dense.data.copyInto(triangularProduct.data)
+        triangularDense.data.copyInto(triangularProduct.data)
         val comparator = externalTriangle
-        if (comparator != null) comparator.trmm(dense, triangularProduct) else builtIn!!.trmm(triangle, triangularProduct, lower = false)
+        if (comparator != null) comparator.trmm(triangularDense, triangularProduct) else builtIn!!.trmm(triangle, triangularProduct, lower = false)
         return triangularProduct
     }
 
     @Benchmark
     fun trsm(): F64DenseMatrix {
+        triangularDense.data.copyInto(triangularSolve.data)
         val comparator = externalTriangle
         if (comparator != null) {
-            comparator.trsm(dense, triangularSolve)
+            comparator.trsm(triangularDense, triangularSolve)
         } else {
-            dense.data.copyInto(triangularSolve.data)
             builtIn!!.trsm(triangle, triangularSolve, lower = false)
         }
         return triangularSolve
@@ -170,7 +193,7 @@ class SparseProductHostBenchmark {
 
     @Benchmark
     fun trmmRight(): F64DenseMatrix {
-        triangularProductRight.data.fill(1.0)
+        triangularDenseRight.data.copyInto(triangularProductRight.data)
         if (external != null) {
             // oneMKL has no right-side sparse triangular multiply. This row is intentionally a composition
             // and is excluded from direct parity: B*A = transpose(A^T*transpose(B)).

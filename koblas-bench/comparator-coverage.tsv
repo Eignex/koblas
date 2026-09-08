@@ -24,12 +24,12 @@ dense-3	syr2k	direct	direct	CBLAS dsyr2k
 dense-3	symm	direct	direct	CBLAS dsymm
 dense-3	trsm	direct	direct	CBLAS dtrsm
 dense-3	trmm	direct	direct	CBLAS dtrmm
-sparse-1	dot sparse-dense	missing	direct	oneMKL legacy mkl_ddoti
+sparse-1	dot sparse-dense	missing	direct	oneMKL sparse CBLAS cblas_ddoti
 sparse-1	dot sparse-sparse	missing	missing	Requires an index merge; no direct comparator
-sparse-1	axpy	missing	direct	oneMKL legacy mkl_daxpyi
+sparse-1	axpy	missing	direct	oneMKL sparse CBLAS cblas_daxpyi
 sparse-1	nrm2	missing	missing	Neither comparator exposes koblas sparse-vector kernels
 sparse-1	asum	missing	missing	Neither comparator exposes koblas sparse-vector kernels
-sparse-1	scatter-gather	missing	direct	oneMKL legacy mkl_dsctr, mkl_dgthr, and mkl_dgthrz
+sparse-1	scatter-gather	missing	direct	oneMKL sparse CBLAS cblas_dsctr, cblas_dgthr, and cblas_dgthrz
 sparse-2	gemv	missing	direct	oneMKL inspector-executor mkl_sparse_d_mv
 sparse-2	trsv	missing	direct	oneMKL mkl_sparse_d_trsv
 sparse-2	trmv	missing	direct	oneMKL triangular descriptor with mkl_sparse_d_mv

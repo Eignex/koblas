@@ -15,8 +15,8 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
     override val identity: String = "onemkl/sparse-blas"
     override val threading: String = "1 thread"
 
-    private val createCsc = handle(
-        "mkl_sparse_d_create_csc",
+    private val createCsr = handle(
+        "mkl_sparse_d_create_csr",
         FunctionDescriptor.of(JAVA_INT, ADDRESS, JAVA_INT, JAVA_INT, JAVA_INT, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
     )
     private val destroy = handle("mkl_sparse_destroy", FunctionDescriptor.of(JAVA_INT, ADDRESS))
@@ -48,8 +48,8 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
         "mkl_sparse_spmm",
         FunctionDescriptor.of(JAVA_INT, JAVA_INT, ADDRESS, ADDRESS, ADDRESS),
     )
-    private val exportCsc = handle(
-        "mkl_sparse_d_export_csc",
+    private val exportCsr = handle(
+        "mkl_sparse_d_export_csr",
         FunctionDescriptor.of(JAVA_INT, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS, ADDRESS),
     )
     private val ddoti = handle("cblas_ddoti", FunctionDescriptor.of(JAVA_DOUBLE, JAVA_INT, ADDRESS, ADDRESS, ADDRESS))
@@ -96,17 +96,19 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
     override fun sparseProduct(a: F64SparseMatrix, b: F64SparseMatrix): F64SparseMatrix {
         Prepared(this, a, false, true, false).use { left ->
             Prepared(this, b, false, true, false).use { right ->
-                Arena.ofConfined().use { arena ->
-                    val outSlot = arena.allocate(ADDRESS)
-                    checkStatus(spmm.invokeExact(NON_TRANSPOSE, left.matrix, right.matrix, outSlot) as Int, "mkl_sparse_spmm")
-                    val out = outSlot.get(ADDRESS, 0)
-                    try {
-                        return export(out)
-                    } finally {
-                        checkStatus(destroy.invokeExact(out) as Int, "mkl_sparse_destroy")
-                    }
-                }
+                return left.sparseProduct(right)
             }
+        }
+    }
+
+    private fun multiply(left: MemorySegment, right: MemorySegment): F64SparseMatrix = Arena.ofConfined().use { arena ->
+        val outSlot = arena.allocate(ADDRESS)
+        checkStatus(spmm.invokeExact(NON_TRANSPOSE, left, right, outSlot) as Int, "mkl_sparse_spmm")
+        val out = outSlot.get(ADDRESS, 0)
+        try {
+            export(out)
+        } finally {
+            checkStatus(destroy.invokeExact(out) as Int, "mkl_sparse_destroy")
         }
     }
 
@@ -119,25 +121,27 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
         val indices = arena.allocate(ADDRESS)
         val values = arena.allocate(ADDRESS)
         checkStatus(
-            exportCsc.invokeExact(matrix, indexing, rows, cols, starts, ends, indices, values) as Int,
-            "mkl_sparse_d_export_csc",
+            exportCsr.invokeExact(matrix, indexing, rows, cols, starts, ends, indices, values) as Int,
+            "mkl_sparse_d_export_csr",
         )
-        check(indexing.get(JAVA_INT, 0) == INDEX_ZERO) { "oneMKL returned non-zero-based CSC" }
+        check(indexing.get(JAVA_INT, 0) == INDEX_ZERO) { "oneMKL returned non-zero-based CSR" }
         val m = rows.get(JAVA_INT, 0)
         val n = cols.get(JAVA_INT, 0)
-        val startPtr = starts.get(ADDRESS, 0).reinterpret(n.toLong() * Int.SIZE_BYTES)
-        val endPtr = ends.get(ADDRESS, 0).reinterpret(n.toLong() * Int.SIZE_BYTES)
-        val colPtr = IntArray(n + 1)
-        for (j in 0 until n) {
-            colPtr[j] = startPtr.getAtIndex(JAVA_INT, j.toLong())
-            colPtr[j + 1] = endPtr.getAtIndex(JAVA_INT, j.toLong())
+        val startPtr = starts.get(ADDRESS, 0).reinterpret(m.toLong() * Int.SIZE_BYTES)
+        val endPtr = ends.get(ADDRESS, 0).reinterpret(m.toLong() * Int.SIZE_BYTES)
+        val rowPtr = IntArray(m + 1)
+        for (i in 0 until m) {
+            rowPtr[i] = startPtr.getAtIndex(JAVA_INT, i.toLong())
+            rowPtr[i + 1] = endPtr.getAtIndex(JAVA_INT, i.toLong())
         }
-        val nnz = colPtr[n]
-        val indexPtr = indices.get(ADDRESS, 0).reinterpret(nnz.toLong() * Int.SIZE_BYTES)
+        val nnz = rowPtr[m]
+        val columnPtr = indices.get(ADDRESS, 0).reinterpret(nnz.toLong() * Int.SIZE_BYTES)
         val valuePtr = values.get(ADDRESS, 0).reinterpret(nnz.toLong() * Double.SIZE_BYTES)
-        val rowIdx = IntArray(nnz) { indexPtr.getAtIndex(JAVA_INT, it.toLong()) }
+        val rowIdx = IntArray(nnz)
+        for (i in 0 until m) for (p in rowPtr[i] until rowPtr[i + 1]) rowIdx[p] = i
+        val colIdx = IntArray(nnz) { columnPtr.getAtIndex(JAVA_INT, it.toLong()) }
         val outValues = DoubleArray(nnz) { valuePtr.getAtIndex(JAVA_DOUBLE, it.toLong()) }
-        F64SparseMatrix.wrap(m, n, colPtr, rowIdx, outValues)
+        F64SparseMatrix.ofTriplets(m, n, rowIdx, colIdx, outValues)
     }
 
     private fun handle(name: String, descriptor: FunctionDescriptor): MethodHandle = library.handle(name, descriptor)
@@ -155,20 +159,21 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
         private val arena = Arena.ofShared()
         private val rows = a.rows
         private val cols = a.cols
-        private val starts = arena.allocateFrom(JAVA_INT, *a.colPtr.copyOfRange(0, a.cols))
-        private val ends = arena.allocateFrom(JAVA_INT, *a.colPtr.copyOfRange(1, a.cols + 1))
-        private val rowIdx = arena.allocateFrom(JAVA_INT, *a.rowIdx)
-        private val values = arena.allocateFrom(JAVA_DOUBLE, *a.values)
+        private val csr = csrOf(a)
+        private val starts = arena.allocateFrom(JAVA_INT, *csr.rowPtr.copyOfRange(0, rows))
+        private val ends = arena.allocateFrom(JAVA_INT, *csr.rowPtr.copyOfRange(1, rows + 1))
+        private val columnIdx = arena.allocateFrom(JAVA_INT, *csr.colIdx)
+        private val values = arena.allocateFrom(JAVA_DOUBLE, *csr.values)
         private val matrixSlot = arena.allocate(ADDRESS)
         val matrix: MemorySegment
         private val descriptor = arena.allocate(DESCRIPTOR)
 
         init {
             checkStatus(
-                owner.createCsc.invokeExact(
-                    matrixSlot, INDEX_ZERO, rows, cols, starts, ends, rowIdx, values,
+                owner.createCsr.invokeExact(
+                    matrixSlot, INDEX_ZERO, rows, cols, starts, ends, columnIdx, values,
                 ) as Int,
-                "mkl_sparse_d_create_csc",
+                "mkl_sparse_d_create_csr",
             )
             matrix = matrixSlot.get(ADDRESS, 0)
             descriptor.set(JAVA_INT, 0, if (triangular) TYPE_TRIANGULAR else TYPE_GENERAL)
@@ -178,6 +183,11 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
         }
 
         override fun gemv(alpha: Double, x: DoubleArray, beta: Double, y: DoubleArray, transpose: Boolean) {
+            val inputSize = if (transpose) rows else cols
+            val outputSize = if (transpose) cols else rows
+            require(x.size == inputSize && y.size == outputSize) {
+                "oneMKL sparse gemv dimensions require x=$inputSize and y=$outputSize, got ${x.size} and ${y.size}"
+            }
             checkStatus(
                 owner.mv.invokeExact(operation(transpose), alpha, matrix, descriptor, seg(x), beta, seg(y)) as Int,
                 "mkl_sparse_d_mv",
@@ -185,6 +195,11 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
         }
 
         override fun gemm(alpha: Double, b: F64DenseMatrix, beta: Double, c: F64DenseMatrix, transpose: Boolean) {
+            val inner = if (transpose) rows else cols
+            val outputRows = if (transpose) cols else rows
+            require(b.rows == inner && c.rows == outputRows && c.cols == b.cols) {
+                "oneMKL sparse gemm dimensions require B=${inner}xk and C=${outputRows}xk"
+            }
             checkStatus(
                 owner.mm.invokeExact(
                     operation(transpose), alpha, matrix, descriptor, COLUMN_MAJOR, seg(b.data), b.cols, b.rows,
@@ -195,6 +210,9 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
         }
 
         override fun trsv(x: DoubleArray, out: DoubleArray, transpose: Boolean) {
+            require(rows == cols && x.size == rows && out.size == rows) {
+                "oneMKL sparse trsv requires a square matrix and vectors of length $rows"
+            }
             checkStatus(
                 owner.trsv.invokeExact(operation(transpose), 1.0, matrix, descriptor, seg(x), seg(out)) as Int,
                 "mkl_sparse_d_trsv",
@@ -202,6 +220,9 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
         }
 
         override fun trmv(x: DoubleArray, out: DoubleArray, transpose: Boolean) {
+            require(rows == cols && x.size == rows && out.size == rows) {
+                "oneMKL sparse trmv requires a square matrix and vectors of length $rows"
+            }
             checkStatus(
                 owner.mv.invokeExact(operation(transpose), 1.0, matrix, descriptor, seg(x), 0.0, seg(out)) as Int,
                 "mkl_sparse_d_mv triangular",
@@ -209,6 +230,9 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
         }
 
         override fun trsm(b: F64DenseMatrix, out: F64DenseMatrix, transpose: Boolean) {
+            require(rows == cols && b.rows == rows && out.rows == rows && out.cols == b.cols) {
+                "oneMKL sparse trsm requires B and output with $rows rows and equal column counts"
+            }
             checkStatus(
                 owner.trsm.invokeExact(
                     operation(transpose), 1.0, matrix, descriptor, COLUMN_MAJOR,
@@ -219,6 +243,9 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
         }
 
         override fun trmm(b: F64DenseMatrix, out: F64DenseMatrix, transpose: Boolean) {
+            require(rows == cols && b.rows == rows && out.rows == rows && out.cols == b.cols) {
+                "oneMKL sparse trmm requires B and output with $rows rows and equal column counts"
+            }
             checkStatus(
                 owner.mm.invokeExact(
                     operation(transpose), 1.0, matrix, descriptor, COLUMN_MAJOR, seg(b.data), b.cols, b.rows,
@@ -226,6 +253,12 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
                 ) as Int,
                 "mkl_sparse_d_mm triangular",
             )
+        }
+
+        override fun sparseProduct(right: PreparedSparseComparator): F64SparseMatrix {
+            require(right is Prepared) { "oneMKL sparse product requires two oneMKL prepared operands" }
+            require(cols == right.rows) { "oneMKL sparse product inner dimensions differ: $cols and ${right.rows}" }
+            return owner.multiply(matrix, right.matrix)
         }
 
         override fun close() {
@@ -238,21 +271,41 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
 
     companion object {
         private val required = listOf(
-            "MKL_Set_Num_Threads", "mkl_sparse_d_create_csc", "mkl_sparse_destroy", "mkl_sparse_optimize",
+            "MKL_Set_Num_Threads", "mkl_sparse_d_create_csr", "mkl_sparse_destroy", "mkl_sparse_optimize",
             "mkl_sparse_d_mv", "mkl_sparse_d_mm", "mkl_sparse_d_trsv", "mkl_sparse_d_trsm",
-            "mkl_sparse_spmm", "mkl_sparse_d_export_csc",
+            "mkl_sparse_spmm", "mkl_sparse_d_export_csr",
             "cblas_ddoti", "cblas_daxpyi", "cblas_dsctr", "cblas_dgthr", "cblas_dgthrz",
         )
 
         fun open(): JvmOneMklSparse? {
             val library = BenchFfmLibrary.open(
                 listOf("libmkl_rt.so.2", "libmkl_rt.so", "libmkl_rt.dylib", "mkl_rt.2.dll", "mkl_rt.dll"),
-                "mkl_sparse_d_create_csc",
+                "mkl_sparse_d_create_csr",
             )
             return if (library.present && library.containsAll(required)) JvmOneMklSparse(library) else null
         }
     }
 }
+
+@OptIn(UnsafeKoblasApi::class)
+private fun csrOf(a: F64SparseMatrix): CsrArrays {
+    val rowPtr = IntArray(a.rows + 1)
+    for (row in a.rowIdx) rowPtr[row + 1]++
+    for (i in 0 until a.rows) rowPtr[i + 1] += rowPtr[i]
+    val cursor = rowPtr.copyOf()
+    val colIdx = IntArray(a.nnz)
+    val values = DoubleArray(a.nnz)
+    for (j in 0 until a.cols) {
+        for (p in a.colPtr[j] until a.colPtr[j + 1]) {
+            val target = cursor[a.rowIdx[p]]++
+            colIdx[target] = j
+            values[target] = a.values[p]
+        }
+    }
+    return CsrArrays(rowPtr, colIdx, values)
+}
+
+private class CsrArrays(val rowPtr: IntArray, val colIdx: IntArray, val values: DoubleArray)
 
 private val DESCRIPTOR: StructLayout = MemoryLayout.structLayout(
     JAVA_INT.withName("type"), JAVA_INT.withName("mode"), JAVA_INT.withName("diag"),
