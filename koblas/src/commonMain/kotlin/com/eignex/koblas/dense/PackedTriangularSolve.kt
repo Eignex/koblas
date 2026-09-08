@@ -15,7 +15,7 @@ internal fun packedTrsmSupports(a: DenseMatrix, b: DenseMatrix, lower: Boolean, 
         for (row in from until to) {
             if (unitDiag && row == column) continue
             val value = a.data[row + column * n]
-            if (!value.isFinite() || row != column && value == 0.0) return false
+            if (!value.isFinite() || (row != column && value == 0.0)) return false
         }
     }
     return true

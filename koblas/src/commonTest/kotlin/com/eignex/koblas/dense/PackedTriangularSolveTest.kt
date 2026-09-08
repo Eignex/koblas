@@ -41,7 +41,8 @@ class PackedTriangularSolveTest {
                                 assertClose(
                                     expected,
                                     rightHandSide,
-                                    "n=$order other=$other lower=$lower transpose=$transpose unit=$unitDiag right=$right",
+                                    "n=$order other=$other lower=$lower transpose=$transpose " +
+                                        "unit=$unitDiag right=$right",
                                     tolerance = 1e-9,
                                 )
                             }
@@ -69,7 +70,14 @@ class PackedTriangularSolveTest {
             ) {
                 solves++
                 ScalarKernels.trsmTile(
-                    validRows, order, packedTriangle, triangleOff, lower, unitDiag, x, xOff,
+                    validRows,
+                    order,
+                    packedTriangle,
+                    triangleOff,
+                    lower,
+                    unitDiag,
+                    x,
+                    xOff,
                 )
             }
 
