@@ -13,26 +13,10 @@ import kotlin.test.assertNotNull
  */
 class ResolvedContextTest {
 
-    private class BlasHalf(override val name: String) : F64Blas by F64ReferenceLinearAlgebra {
+    private class BlasHalf(override val name: String) : F64Blas by F64ReferenceBlas {
         override val priority: Int get() = 40
         override val isPortable: Boolean get() = false
         override val isAvailable: Boolean get() = true
-    }
-
-    private class LapackHalf(override val name: String) : F64Decompositions by F64ReferenceLinearAlgebra {
-        override val priority: Int get() = 40
-        override val isPortable: Boolean get() = false
-        override val isAvailable: Boolean get() = true
-    }
-
-    @Test
-    fun `a registration is visible after the context has already been read`() = withCleanBackends {
-        registerBackend(BlasHalf("someblas"))
-        assertEquals("someblas", koblas.blas.name)
-        // Reading it above caches a context. The next registration has to be seen through that cache.
-        registerBackend(LapackHalf("somelapack"))
-        assertEquals("somelapack", koblas.decompositions.name, "the cached context hid a later registration")
-        assertEquals("someblas", koblas.blas.name, "rebuilding the context dropped the earlier half")
     }
 
     @Test
@@ -45,7 +29,7 @@ class ResolvedContextTest {
 
     @Test
     fun `both assembly paths fill every backend role`() {
-        // The registry and the builder each enumerate the seven halves and the six sparse roles
+        // The registry and the builder each enumerate the backend halves and sparse roles
         // independently, which BackendSlot's own KDoc warns about: a half described in two places is a half
         // the two paths can answer differently. Adding one and editing only the other compiles fine, so this
         // is what fails instead.

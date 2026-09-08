@@ -12,13 +12,13 @@ public sealed class KoblasException(message: String) : ArithmeticException(messa
 /**
  * A factorization met an exactly zero pivot, so the matrix it came from has no inverse.
  *
- * @property position the 0-based pivot index where the factorization failed, LAPACK's `info` less one.
+ * @property position the 0-based pivot index where the factorization failed.
  * @param message what failed, naming the routine and the position.
  */
 public class SingularMatrix(public val position: Int, message: String) : KoblasException(message)
 
 /**
- * A Cholesky or a strict `L·D·Lᵀ` met a pivot that was zero, negative or NaN.
+ * A sparse Cholesky or a strict `L·D·Lᵀ` met a pivot that was zero, negative or NaN.
  *
  * @property position the 0-based column whose pivot failed.
  * @property pivot the offending diagonal value.

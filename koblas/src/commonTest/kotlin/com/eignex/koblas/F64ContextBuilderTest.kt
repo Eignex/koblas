@@ -38,49 +38,8 @@ class F64ContextBuilderTest {
         }
     }
 
-    /** Reports the rank update as portable below [nativeMin] columns to exercise route policy. */
-    private class RoutedDecompositions(private val nativeMin: Int) :
-        F64Decompositions by F64ReferenceLinearAlgebra,
-        F64RoutingBackend {
-        var updates: Int = 0
-        override val name: String get() = "routed-decompositions"
-        override val priority: Int get() = 100
-        override val isPortable: Boolean get() = false
-
-        override fun route(query: F64RouteQuery): BackendRoute? {
-            if (query !is F64RouteQuery.CholeskyRankUpdate) return null
-            val native = query.rank >= nativeMin
-            return BackendRoute(
-                query,
-                BackendStatus(
-                    BackendRole.DENSE_DECOMPOSITIONS,
-                    name,
-                    priority,
-                    available = true,
-                    portable = false,
-                    accelerated = true,
-                    BackendMetadata(),
-                ),
-                if (native) BackendExecution.NATIVE else BackendExecution.PORTABLE,
-                if (native) name else F64ReferenceLinearAlgebra.name,
-                if (native) BackendRouteReason.NATIVE_ROUTE else BackendRouteReason.BELOW_THRESHOLD,
-                DispatchGate(DispatchMetric.DIMENSION, query.rank.toLong(), nativeMin.toLong()),
-            )
-        }
-
-        override fun choleskyRankUpdate(
-            chol: F64CholeskyDecomposition,
-            v: F64DenseMatrix,
-            sigma: Double,
-            workspace: Workspace?,
-        ): F64CholeskyDecomposition {
-            updates++
-            return F64ReferenceLinearAlgebra.choleskyRankUpdate(chol, v, sigma, workspace)
-        }
-    }
-
     private class RoutedBlas(private val nativeMin: Int) :
-        F64Blas by F64ReferenceLinearAlgebra,
+        F64Blas by F64ReferenceBlas,
         F64RoutingBackend {
         var calls: Int = 0
         override val name: String get() = "routed"
@@ -102,7 +61,7 @@ class F64ContextBuilderTest {
                     BackendMetadata(),
                 ),
                 if (actual >= nativeMin) BackendExecution.NATIVE else BackendExecution.PORTABLE,
-                if (actual >= nativeMin) name else F64ReferenceLinearAlgebra.name,
+                if (actual >= nativeMin) name else F64ReferenceBlas.name,
                 if (actual >= nativeMin) BackendRouteReason.NATIVE_ROUTE else BackendRouteReason.BELOW_THRESHOLD,
                 DispatchGate(DispatchMetric.DIMENSION, actual.toLong(), nativeMin.toLong()),
             )
@@ -118,7 +77,7 @@ class F64ContextBuilderTest {
             workspace: Workspace?,
         ) {
             calls++
-            F64ReferenceLinearAlgebra.gemv(alpha, a, x, beta, y, transpose, workspace)
+            F64ReferenceBlas.gemv(alpha, a, x, beta, y, transpose, workspace)
         }
     }
 
@@ -233,27 +192,6 @@ class F64ContextBuilderTest {
         assertEquals(BackendPolicyDecision.REJECT, context.plan(failure.route.query).decision)
         assertEquals(0, routed.calls)
         assertContentEquals(doubleArrayOf(7.0), y)
-    }
-
-    @Test
-    fun `native only rejects a rank update the backend would run portably`() {
-        val routed = RoutedDecompositions(nativeMin = 4)
-        val context = F64ContextBuilder()
-            .withBackend(BackendRole.DENSE_DECOMPOSITIONS, routed)
-            .withDispatchPolicy(F64DispatchPolicy.NATIVE_ONLY)
-            .resolve()
-        val chol = context.cholesky(F64DenseMatrix(2, 2, doubleArrayOf(4.0, 2.0, 2.0, 5.0)))
-        val factor = chol.l.data.copyOf()
-        val v = F64DenseMatrix(2, 1, doubleArrayOf(1.0, 1.0))
-
-        val failure = assertFailsWith<BackendRouteRejectedException> {
-            context.choleskyRankUpdate(chol, v)
-        }
-
-        assertEquals(BackendExecution.PORTABLE, failure.route.execution)
-        assertEquals(BackendPolicyDecision.REJECT, context.plan(failure.route.query).decision)
-        assertEquals(0, routed.updates, "the backend ran despite a rejected route")
-        assertContentEquals(factor, chol.l.data, "the rejected update still rewrote the factor")
     }
 
     @Test

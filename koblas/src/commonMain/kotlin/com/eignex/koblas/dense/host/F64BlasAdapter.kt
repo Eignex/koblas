@@ -18,7 +18,7 @@ import com.eignex.koblas.dense.host.cblas.Cblas.uploOf
 @Suppress("TooManyFunctions") // the BLAS surface a host library covers
 public abstract class F64BlasAdapter internal constructor(
     private val f: CblasCalls,
-    private val portable: F64ReferenceBlas = F64ReferenceBlas(),
+    private val portable: F64ReferenceBackend = F64ReferenceBackend(),
     private val metadata: BackendMetadata = BackendMetadata(integerAbi = "LP64"),
 ) : F64Blas,
     F64RoutingBackend,

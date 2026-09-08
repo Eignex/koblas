@@ -241,7 +241,7 @@ class SparseSeamTest {
         a.transpose()
         assertEquals(1, blas.transposes, "F64SparseMatrix.transpose should forward to the seam")
 
-        a * (a)
+        a * a
         assertEquals(1, blas.sparseProducts, "the sparse product should forward to the seam")
 
         val f = a.lu()

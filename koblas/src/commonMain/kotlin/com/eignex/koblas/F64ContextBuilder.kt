@@ -90,10 +90,6 @@ public class F64ContextBuilder private constructor(
         return F64Context(
             kernels = kernels,
             blas = resolved.boundReference(BackendRole.DENSE_BLAS, denseReference) as F64Blas,
-            decompositions = resolved.boundReference(
-                BackendRole.DENSE_DECOMPOSITIONS,
-                denseReference,
-            ) as F64Decompositions,
             sparseKernels = resolved.getValue(BackendRole.SPARSE_KERNELS) as F64SparseKernels,
             sparseBlas = resolved.boundReference(BackendRole.SPARSE_BLAS, sparseReference) as F64SparseBlas,
             basisSolvers = resolved.boundReference(BackendRole.BASIS_SOLVERS, sparseReference) as F64BasisSolvers,

@@ -1,6 +1,6 @@
 package com.eignex.koblas
 
-/** The `failedAt` value of a factorization that succeeded, dense or sparse. */
+/** The `failedAt` value of a sparse factorization that succeeded. */
 public const val NOT_SINGULAR: Int = -1
 
 /**

@@ -6,9 +6,7 @@ import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64SparseMatrix
 
 /**
- * Sparse factorizations as a backend half, the counterpart of the dense [com.eignex.koblas.dense
- * .F64Decompositions]: one seam carrying every factorization of a sparse matrix rather than one seam per
- * kind, so a library offering two of them fills one half instead of competing with itself for two.
+ * Sparse factorizations as a backend surface, carrying every factorization of a sparse matrix.
  *
  * Only what a factorization of that kind universally does is here. The libraries behind this seam are
  * specialised rather than interchangeable, and each carries state the others do not: a repeated-pattern
@@ -34,8 +32,7 @@ public interface F64SparseDecompositions : Backend {
 
     /**
      * Cholesky factorization `A = L·Lᵀ` of a symmetric positive-definite [a]. Only the lower triangle is
-     * read, as the dense [com.eignex.koblas.dense.F64Decompositions.cholesky] does, so anything stored above
-     * the diagonal is ignored rather than checked against its mirror.
+     * read, so anything stored above the diagonal is ignored rather than checked against its mirror.
      *
      * Unlike [factor] this raises rather than reports. A missing LU pivot means the matrix is singular, which
      * the factorization can carry as a state; a non-positive Cholesky pivot means the matrix was not what the
@@ -55,9 +52,8 @@ public interface F64SparseDecompositions : Backend {
      * factorization reporting `singular` at that column, the way [factor] reports one, rather than raising
      * the way [cholesky] does; a negative pivot is not a failure at all.
      *
-     * Unlike dense [com.eignex.koblas.dense.F64Decompositions.pivotedSymmetricIndefinite], neither this nor
-     * any library behind this seam selects numerical pivots: the permutation is chosen to limit fill and
-     * nothing reorders on the numbers. So this is the factorization for a matrix that is quasi-definite,
+     * Neither this nor any library behind this seam selects numerical pivots: the permutation is chosen to
+     * limit fill and nothing reorders on the numbers. So this is the factorization for a quasi-definite matrix,
      * which is what an interior point method's KKT system is, and it can be arbitrarily ill conditioned on a
      * general indefinite one. A caller that cannot promise quasi-definiteness wants [factor], whose pivoting
      * is numerical.
@@ -74,8 +70,7 @@ public interface F64SparseDecompositions : Backend {
 
     /**
      * Solve `A·x = b` from [f] into [out], `Aᵀ·x = b` when [transpose]. The work belongs to the
-     * factorization; this is here so the seam reads the same from the sparse side as [com.eignex.koblas
-     * .dense.F64Decompositions.solveInto] does from the dense one.
+     * factorization; this convenience keeps callers on the sparse backend surface.
      */
     public fun solveInto(
         f: F64SparseFactorization,

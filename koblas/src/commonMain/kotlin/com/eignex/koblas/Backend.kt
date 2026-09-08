@@ -1,7 +1,6 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.dense.F64Blas
-import com.eignex.koblas.dense.F64Decompositions
 import com.eignex.koblas.dense.F64Kernels
 
 /** What every backend reports about itself. */
@@ -10,7 +9,7 @@ public interface Backend {
     public val name: String
 
     /**
-     * Relative preference among the backends offered for one half ([F64Blas], [F64Decompositions], [F64Kernels] or a
+     * Relative preference among the backends offered for one half ([F64Blas], [F64Kernels] or a
      * sparse counterpart). [registerBackend] picks the highest; the portable reference is 0.
      */
     public val priority: Int get() = 0

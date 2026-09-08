@@ -14,7 +14,7 @@ import kotlin.math.abs
  *
  * @param configured the kernels the inner loops use, or null to follow the [F64Context] default.
  */
-internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F64Blas {
+internal class F64PortableBlas(private val configured: F64Kernels? = null) : F64Blas {
     override val name: String get() = BackendNames.REFERENCE
 
     override val isPortable: Boolean get() = true

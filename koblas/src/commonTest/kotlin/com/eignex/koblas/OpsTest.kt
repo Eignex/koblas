@@ -4,9 +4,7 @@ package com.eignex.koblas
 
 import com.eignex.koblas.core.*
 import com.eignex.koblas.dense.F64Blas
-import com.eignex.koblas.dense.F64ReferenceLinearAlgebra
-import com.eignex.koblas.dense.cholesky
-import com.eignex.koblas.dense.lowerFactor
+import com.eignex.koblas.dense.F64ReferenceBlas
 import kotlin.math.abs
 import kotlin.math.sqrt
 import kotlin.random.Random
@@ -560,21 +558,6 @@ class OpsTest {
     }
 
     @Test
-    fun `zeroStrictUpper matches the copy that lowerFactor makes`() {
-        val spd = F64DenseMatrix.of(
-            arrayOf(
-                doubleArrayOf(4.0, 2.0, 0.0),
-                doubleArrayOf(2.0, 5.0, 1.0),
-                doubleArrayOf(0.0, 1.0, 3.0),
-            ),
-        )
-        val chol = spd.cholesky()
-        val copied = chol.lowerFactor()
-        chol.l.zeroStrictUpper()
-        assertClose(copied, chol.l, "cleaned in place versus copied")
-    }
-
-    @Test
     fun `transpose round-trips and maps entries`() {
         val a = F64DenseMatrix.of(
             arrayOf(
@@ -595,12 +578,12 @@ class OpsTest {
     @Test
     fun `transpose reaches the registered backend`() = withCleanBackends {
         var calls = 0
-        val counting = object : F64Blas by F64ReferenceLinearAlgebra {
+        val counting = object : F64Blas by F64ReferenceBlas {
             override val name: String get() = "counting"
             override val priority: Int get() = 50
             override fun transpose(a: F64DenseMatrix): F64DenseMatrix {
                 calls++
-                return F64ReferenceLinearAlgebra.transpose(a)
+                return F64ReferenceBlas.transpose(a)
             }
         }
         registerBackend(counting)

@@ -31,13 +31,59 @@ class SparseLuTest {
     }
 
     @Test
-    fun `the seam solves from a factorization the way the dense side does`() {
+    fun `the seam solves from a factorization`() {
         val a = F64SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0, 1 to 1.0), listOf(0 to 1.0, 1 to 3.0)))
         val f = a.lu()
         val b = doubleArrayOf(3.0, 4.0)
         assertClose(f.solve(b), koblas.solve(f, b), "seam solve", tolerance = 1e-12)
         val out = DoubleArray(2)
         assertClose(f.solve(b), koblas.solveInto(f, b, out), "seam solveInto", tolerance = 1e-12)
+    }
+
+    @Test
+    fun `a singular factor refuses to solve`() {
+        val a = F64SparseMatrix.ofTriplets(
+            rows = 2,
+            cols = 2,
+            rowIdx = intArrayOf(0, 1, 0, 1),
+            colIdx = intArrayOf(0, 0, 1, 1),
+            values = doubleArrayOf(1.0, 2.0, 2.0, 4.0),
+        )
+        val factor = a.lu()
+
+        assertTrue(factor.singular)
+        assertFailsWith<SingularMatrix> { factor.solve(doubleArrayOf(1.0, 1.0)) }
+    }
+
+    @Test
+    fun `solves into caller destinations across orientations`() {
+        val rng = Random(20260735)
+        val n = 14
+        val columns = List(n) { j ->
+            buildList {
+                add(j to (rng.nextDouble(-1.0, 1.0) + n))
+                for (i in 0 until n) {
+                    if (i != j && rng.nextDouble() < 0.15) {
+                        add(i to rng.nextDouble(-1.0, 1.0))
+                    }
+                }
+            }
+        }
+        val factor = F64SparseMatrix.ofColumns(n, n, columns).lu()
+        val b = randomVector(n, rng)
+        val workspace = Workspace()
+
+        assertClose(factor.solve(b), factor.solveInto(b, DoubleArray(n), workspace = workspace), "forward solve")
+        assertClose(
+            factor.solve(b, transpose = true),
+            factor.solveInto(b, DoubleArray(n), transpose = true, workspace = workspace),
+            "transposed solve",
+        )
+        assertClose(
+            factor.solve(b),
+            factor.solveInto(b, DoubleArray(n), workspace = workspace),
+            "forward solve after a transposed one",
+        )
     }
 
     @Test

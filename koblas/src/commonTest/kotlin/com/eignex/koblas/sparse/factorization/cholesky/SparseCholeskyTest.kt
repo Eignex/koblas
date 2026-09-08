@@ -59,20 +59,6 @@ class SparseCholeskyTest {
     }
 
     @Test
-    fun `every solve agrees with the dense Cholesky`() {
-        val rng = Random(20260904)
-        for (n in intArrayOf(1, 2, 5, 13)) {
-            val (sparse, dense) = spd(n, rng)
-            val b = randomVector(n, rng)
-
-            val fromDense = koblas.solve(koblas.cholesky(dense), b)
-            val fromSparse = sparse.cholesky().solve(b)
-
-            assertClose(fromDense, fromSparse, "n=$n", tolerance = 1e-9)
-        }
-    }
-
-    @Test
     fun `the factor times its transpose is the matrix it came from`() {
         val rng = Random(20260905)
         val n = 9

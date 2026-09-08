@@ -65,9 +65,6 @@ private fun registerBuiltins(automatic: AutomaticHostConfiguration, requested: M
 private fun loadProviders(): List<Backend> {
     val providers = ArrayList<Backend>()
     loadProviders(Backend::class.java, providers)
-    // The dense service type was the original public SPI. Keep it while providers migrate to [Backend],
-    // which also permits sparse-only add-ons such as HFactor.
-    loadProviders(com.eignex.koblas.dense.F64LinearAlgebra::class.java, providers)
     return providers.distinctBy { it::class.java.name }
 }
 
