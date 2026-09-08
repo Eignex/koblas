@@ -90,6 +90,45 @@ internal object SimdKernels : Kernels, ArithmeticKernels {
         }
     }
 
+    @Suppress("LongParameterList")
+    override fun gemmTrsmTile(
+        depth: Int,
+        validRows: Int,
+        order: Int,
+        packedA: DoubleArray,
+        aOff: Int,
+        packedB: DoubleArray,
+        bOff: Int,
+        packedTriangle: DoubleArray,
+        triangleOff: Int,
+        lower: Boolean,
+        unitDiag: Boolean,
+        x: DoubleArray,
+        xOff: Int,
+    ) {
+        if (!simdAvailable) {
+            super.gemmTrsmTile(
+                depth, validRows, order, packedA, aOff, packedB, bOff,
+                packedTriangle, triangleOff, lower, unitDiag, x, xOff,
+            )
+            return
+        }
+        if (validRows == gemmTileRows && order == gemmTileCols) {
+            SimdGemmTile.subtractProduct(depth, packedA, aOff, packedB, bOff, x, xOff)
+        } else {
+            portableGemmTrsmTile(
+                gemmTileRows, gemmTileCols, depth, validRows, order,
+                packedA, aOff, packedB, bOff, packedTriangle, triangleOff,
+                lower, unitDiag, x, xOff,
+            )
+            return
+        }
+        portableTrsmTile(
+            gemmTileRows, gemmTileCols, validRows, order,
+            packedTriangle, triangleOff, lower, unitDiag, x, xOff,
+        )
+    }
+
     override fun dot4(
         a: DoubleArray,
         aOff: Int,
