@@ -33,6 +33,12 @@ internal const val PORTABLE_TILE: Int = 4
  *
  * [a] is `m x k` before its transpose flag, [b] is `k x n` before its, and [c] is `m x n` with rows
  * contiguous. Beta is the caller's business and has already been applied.
+ *
+ * [symmetricA] and [symmetricB] describe an operand held as one triangle of a symmetric matrix: true for a
+ * lower triangle, false for an upper one, null for an ordinary matrix. Packing then mirrors across the
+ * diagonal as it copies, which is the whole of what a symmetric product needs. Reading the triangle here
+ * rather than materialising the full matrix first means the copy the packing already performs does the
+ * mirroring for free, and the kernel never learns that anything was symmetric.
  */
 @Suppress("LongParameterList") // both operands, both transpose flags, three dimensions and the scratch
 internal fun packedGemm(
@@ -49,6 +55,8 @@ internal fun packedGemm(
     n: Int,
     k: Int,
     workspace: Workspace?,
+    symmetricA: Boolean? = null,
+    symmetricB: Boolean? = null,
 ) {
     val rows = kernels.gemmTileRows
     val cols = kernels.gemmTileCols
@@ -69,11 +77,14 @@ internal fun packedGemm(
                     var depthBlock = 0
                     while (depthBlock < k) {
                         val depth = min(kc, k - depthBlock)
-                        packB(b, ldb, transposeB, packedB, cols, depthBlock, depth, columnBlock, columns)
+                        packB(b, ldb, transposeB, symmetricB, packedB, cols, depthBlock, depth, columnBlock, columns)
                         var rowBlock = 0
                         while (rowBlock < m) {
                             val rowCount = min(mc, m - rowBlock)
-                            packA(a, lda, transposeA, alpha, packedA, rows, rowBlock, rowCount, depthBlock, depth)
+                            packA(
+                                a, lda, transposeA, symmetricA, alpha, packedA,
+                                rows, rowBlock, rowCount, depthBlock, depth,
+                            )
                             macroKernel(
                                 kernels, packedA, packedB, c, m,
                                 rowBlock, rowCount, columnBlock, columns, depth, tile,
@@ -102,6 +113,7 @@ private fun packA(
     a: DoubleArray,
     lda: Int,
     transposeA: Boolean,
+    symmetric: Boolean?,
     alpha: Double,
     packed: DoubleArray,
     rows: Int,
@@ -117,7 +129,15 @@ private fun packA(
         for (step in 0 until depth) {
             val i = rowBlock + row
             val p = depthBlock + step
-            if (transposeA) {
+            if (symmetric != null) {
+                // A symmetric operand is its own transpose, so the flag says nothing here; what matters is
+                // which side of the diagonal holds the value.
+                for (r in 0 until present) {
+                    val stored = if (symmetric) i + r >= p else i + r <= p
+                    packed[target + r] =
+                        alpha * if (stored) a[i + r + p * lda] else a[p + (i + r) * lda]
+                }
+            } else if (transposeA) {
                 for (r in 0 until present) packed[target + r] = alpha * a[p + (i + r) * lda]
             } else {
                 val source = i + p * lda
@@ -136,6 +156,7 @@ private fun packB(
     b: DoubleArray,
     ldb: Int,
     transposeB: Boolean,
+    symmetric: Boolean?,
     packed: DoubleArray,
     cols: Int,
     depthBlock: Int,
@@ -150,7 +171,12 @@ private fun packB(
         for (step in 0 until depth) {
             val p = depthBlock + step
             val j = columnBlock + column
-            if (transposeB) {
+            if (symmetric != null) {
+                for (q in 0 until present) {
+                    val stored = if (symmetric) p >= j + q else p <= j + q
+                    packed[target + q] = if (stored) b[p + (j + q) * ldb] else b[j + q + p * ldb]
+                }
+            } else if (transposeB) {
                 val source = j + p * ldb
                 for (q in 0 until present) packed[target + q] = b[source + q]
             } else {
