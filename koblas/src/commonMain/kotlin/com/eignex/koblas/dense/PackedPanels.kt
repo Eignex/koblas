@@ -239,4 +239,109 @@ public object PackedPanels {
     public fun clearRightPadding(panel: DoubleArray, depth: Int, columns: Int, panelOffset: Int = 0) {
         clearRightPanelPadding(panel, depth, columns, panelOffset, tileColumns)
     }
+
+    /**
+     * Solves the normalized packed system X * T = B in place.
+     *
+     * [triangle] is one right-format square panel containing the effective, non-transposed triangle.
+     * [rightHandSide] is one left-format [rows] by [order] panel and is overwritten by X. Thus [rows] must
+     * not exceed [tileRows] and [order] must not exceed [tileColumns]. [unitDiagonal] never reads the stored
+     * diagonal, division occurs directly at each pivot, and exact-zero off-diagonal coefficients are skipped.
+     *
+     * The two arrays may be the same. Such aliasing is staged through [workspace], or through a temporary
+     * allocation when no workspace is supplied.
+     */
+    @Suppress("LongParameterList") // packed source and destination windows plus triangular flags
+    public fun trsm(
+        triangle: DoubleArray,
+        rightHandSide: DoubleArray,
+        rows: Int,
+        order: Int,
+        lower: Boolean,
+        unitDiagonal: Boolean = false,
+        triangleOffset: Int = 0,
+        rightHandSideOffset: Int = 0,
+        workspace: Workspace? = null,
+    ) {
+        requireSolveShape(rows, order)
+        requireArrayWindow(triangle, triangleOffset, rightSize(order, order), "packed triangle")
+        requireArrayWindow(rightHandSide, rightHandSideOffset, leftSize(rows, order), "packed right-hand side")
+        if (rows == 0 || order == 0) return
+        withStableSource(triangle, rightHandSide, workspace) { stableTriangle ->
+            PlatformKernels.trsmTile(
+                rows,
+                order,
+                stableTriangle,
+                triangleOffset,
+                lower,
+                unitDiagonal,
+                rightHandSide,
+                rightHandSideOffset,
+            )
+        }
+    }
+
+    /**
+     * Subtracts packedLeft * packedRight from [rightHandSide], then solves the normalized packed system
+     * X * T = B without an intermediate panel write on implementations with a beneficial fused leaf.
+     *
+     * The product inputs use the ordinary left/right layouts with shared dimension [depth]. The triangle
+     * and overwritten right-hand side have the same layouts and bounds as [trsm]. Scaling belongs in
+     * [packLeft]'s alpha, so callers can reverse or otherwise scale the update without another kernel parameter.
+     *
+     * Any read-only input may share its backing array with [rightHandSide]. Aliased inputs are staged through
+     * [workspace], or through temporary allocations when no workspace is supplied.
+     */
+    @Suppress("LongParameterList") // three packed source windows, one destination window and triangular flags
+    public fun gemmTrsm(
+        packedLeft: DoubleArray,
+        packedRight: DoubleArray,
+        triangle: DoubleArray,
+        rightHandSide: DoubleArray,
+        rows: Int,
+        order: Int,
+        depth: Int,
+        lower: Boolean,
+        unitDiagonal: Boolean = false,
+        leftOffset: Int = 0,
+        rightOffset: Int = 0,
+        triangleOffset: Int = 0,
+        rightHandSideOffset: Int = 0,
+        workspace: Workspace? = null,
+    ) {
+        requireSolveShape(rows, order)
+        require(depth >= 0) { "packed update depth must be non-negative, got $depth" }
+        requireArrayWindow(packedLeft, leftOffset, leftSize(rows, depth), "packed left update")
+        requireArrayWindow(packedRight, rightOffset, rightSize(depth, order), "packed right update")
+        requireArrayWindow(triangle, triangleOffset, rightSize(order, order), "packed triangle")
+        requireArrayWindow(rightHandSide, rightHandSideOffset, leftSize(rows, order), "packed right-hand side")
+        if (rows == 0 || order == 0) return
+        withStableSource(packedLeft, rightHandSide, workspace) { stableLeft ->
+            withStableSource(packedRight, rightHandSide, workspace) { stableRight ->
+                withStableSource(triangle, rightHandSide, workspace) { stableTriangle ->
+                    PlatformKernels.gemmTrsmTile(
+                        depth,
+                        rows,
+                        order,
+                        stableLeft,
+                        leftOffset,
+                        stableRight,
+                        rightOffset,
+                        stableTriangle,
+                        triangleOffset,
+                        lower,
+                        unitDiagonal,
+                        rightHandSide,
+                        rightHandSideOffset,
+                    )
+                }
+            }
+        }
+    }
+
+    private fun requireSolveShape(rows: Int, order: Int) {
+        require(rows in 0..tileRows) { "packed solve rows $rows exceed tileRows $tileRows" }
+        require(order in 0..tileColumns) { "packed solve order $order exceeds tileColumns $tileColumns" }
+    }
+
 }

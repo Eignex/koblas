@@ -3,6 +3,7 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.ExperimentalKoblasApi
 import com.eignex.koblas.Workspace
+import com.eignex.koblas.assertClose
 import kotlin.math.min
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -281,6 +282,93 @@ class PackedPanelsTest {
     }
 
     @Test
+    fun `packed trsm solves partial tiles in both directions`() {
+        val rows = maxOf(1, PackedPanels.tileRows - 1)
+        val order = maxOf(1, PackedPanels.tileColumns - 1)
+        for (lower in booleanArrayOf(false, true)) {
+            val triangle = triangle(order, lower)
+            val expected = matrix(rows, order)
+            val rightHandSide = rightProduct(expected, triangle)
+            val packedTriangle = DoubleArray(PackedPanels.rightSize(order, order))
+            val packedRightHandSide = DoubleArray(PackedPanels.leftSize(rows, order))
+            PackedPanels.packTriangularRight(
+                triangle, packedTriangle, order, order, lower = lower,
+            )
+            PackedPanels.packLeft(rightHandSide, packedRightHandSide, rows, order)
+
+            PackedPanels.trsm(packedTriangle, packedRightHandSide, rows, order, lower)
+
+            val actual = DenseMatrix.zero(rows, order)
+            PackedPanels.writeLeft(packedRightHandSide, actual, rows, order)
+            assertClose(expected, actual, "lower=$lower partial packed solve")
+        }
+    }
+
+    @Test
+    fun `packed gemm trsm accepts exact edge buffers`() {
+        val rows = maxOf(1, PackedPanels.tileRows - 1)
+        val order = maxOf(1, PackedPanels.tileColumns - 1)
+        val depth = 3
+        val triangle = triangle(order, lower = true)
+        val expected = matrix(rows, order)
+        val left = matrix(rows, depth)
+        val right = matrix(depth, order)
+        val initial = rightProduct(expected, triangle)
+        for (column in 0 until order) {
+            for (step in 0 until depth) {
+                for (row in 0 until rows) initial[row, column] += left[row, step] * right[step, column]
+            }
+        }
+        val packedLeft = DoubleArray(PackedPanels.leftSize(rows, depth))
+        val packedRight = DoubleArray(PackedPanels.rightSize(depth, order))
+        val packedTriangle = DoubleArray(PackedPanels.rightSize(order, order))
+        val packedInitial = DoubleArray(PackedPanels.leftSize(rows, order))
+        PackedPanels.packLeft(left, packedLeft, rows, depth)
+        PackedPanels.packRight(right, packedRight, depth, order)
+        PackedPanels.packTriangularRight(triangle, packedTriangle, order, order, lower = true)
+        PackedPanels.packLeft(initial, packedInitial, rows, order)
+
+        PackedPanels.gemmTrsm(
+            packedLeft, packedRight, packedTriangle, packedInitial, rows, order, depth, lower = true,
+        )
+
+        val actual = DenseMatrix.zero(rows, order)
+        PackedPanels.writeLeft(packedInitial, actual, rows, order)
+        assertClose(expected, actual, "partial fused packed solve", tolerance = 1e-9)
+    }
+
+    @Test
+    fun `packed trsm stages an aliased triangle`() {
+        val rows = min(PackedPanels.tileRows, 2)
+        val order = min(PackedPanels.tileColumns, 2)
+        val triangle = triangle(order, lower = true)
+        val expected = matrix(rows, order)
+        val rightHandSide = rightProduct(expected, triangle)
+        val triangleSize = PackedPanels.rightSize(order, order)
+        val rightHandSideSize = PackedPanels.leftSize(rows, order)
+        val shared = DoubleArray(triangleSize + rightHandSideSize)
+        PackedPanels.packTriangularRight(triangle, shared, order, order, lower = true)
+        PackedPanels.packLeft(
+            rightHandSide, shared, rows, order, destinationOffset = triangleSize,
+        )
+        val workspace = Workspace().also { it.reserve(shared.size, 1) }
+
+        PackedPanels.trsm(
+            shared,
+            shared,
+            rows,
+            order,
+            lower = true,
+            rightHandSideOffset = triangleSize,
+            workspace = workspace,
+        )
+
+        val actual = DenseMatrix.zero(rows, order)
+        PackedPanels.writeLeft(shared, actual, rows, order, sourceOffset = triangleSize)
+        assertClose(expected, actual, "aliased packed triangle")
+    }
+
+    @Test
     fun `panel sizes reject impossible arrays`() {
         assertFailsWith<IllegalArgumentException> { PackedPanels.leftSize(-1, 2) }
         assertFailsWith<IllegalArgumentException> { PackedPanels.rightSize(Int.MAX_VALUE, Int.MAX_VALUE) }
@@ -289,6 +377,30 @@ class PackedPanelsTest {
     private fun matrix(rows: Int, columns: Int): DenseMatrix = DenseMatrix.ofColumns(
         Array(columns) { j -> DoubleArray(rows) { i -> 100.0 * j + i + 1.0 } },
     )
+
+    private fun triangle(order: Int, lower: Boolean): DenseMatrix = DenseMatrix.zero(order).also { matrix ->
+        for (column in 0 until order) {
+            for (row in 0 until order) {
+                if (if (lower) row >= column else row <= column) {
+                    matrix[row, column] = if (row == column) row + 2.0 else 0.1 * (row + column + 1.0)
+                } else {
+                    matrix[row, column] = Double.NaN
+                }
+            }
+        }
+    }
+
+    private fun rightProduct(left: DenseMatrix, triangle: DenseMatrix): DenseMatrix =
+        DenseMatrix.zero(left.rows, triangle.cols).also { product ->
+            for (column in 0 until triangle.cols) {
+                for (inner in 0 until triangle.rows) {
+                    val coefficient = triangle[inner, column]
+                    if (!coefficient.isNaN()) {
+                        for (row in 0 until left.rows) product[row, column] += left[row, inner] * coefficient
+                    }
+                }
+            }
+        }
 
     private fun assertPositiveZero(value: Double) {
         assertEquals(0.0.toBits(), value.toBits())

@@ -85,6 +85,12 @@ internal object DenseTuning {
      */
     val trsmBlockedMinOrder: Int = tuned("trsm.blocked.min.order", default = 512)
 
+    /** Smallest triangular order whose repeated packed updates repay packing both operands. */
+    val trsmPackedMinOrder: Int = tuned("trsm.packed.min.order", default = 16)
+
+    /** Smallest normalized right-hand-side row count sent through packed TRSM tiles. */
+    val trsmPackedMinRows: Int = tuned("trsm.packed.min.rows", default = 8)
+
     /**
      * Run length from which crossing into the bundled C library beats staying on the JVM.
      *

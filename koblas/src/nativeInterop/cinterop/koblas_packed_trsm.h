@@ -64,33 +64,43 @@ KOBLAS_KERNEL void koblas_dense_gemm_trsm_tile(
     double *x, int32_t x_off
 ) {
     if (valid_rows != KOBLAS_GEMM_TILE || order != KOBLAS_GEMM_TILE) {
-        koblas_dense_gemm_tile(depth, packed_a, a_off, packed_b, b_off, x, x_off, KOBLAS_GEMM_TILE);
+        const double *edge_a = packed_a + a_off;
+        const double *edge_b = packed_b + b_off;
+        double *edge_x = x + x_off;
+        for (int32_t column = 0; column < order; column++) {
+            for (int32_t row = 0; row < valid_rows; row++) {
+                for (int32_t p = 0; p < depth; p++) {
+                    edge_x[column * KOBLAS_GEMM_TILE + row] -=
+                        edge_a[p * KOBLAS_GEMM_TILE + row] *
+                        edge_b[p * KOBLAS_GEMM_TILE + column];
+                }
+            }
+        }
         koblas_dense_trsm_tile(
             valid_rows, order, packed_triangle, triangle_off, lower, unit_diag, x, x_off
         );
         return;
     }
 
-    double tile[KOBLAS_GEMM_TILE][KOBLAS_GEMM_TILE] = {{0.0}};
+    double *out = x + x_off;
+    double tile[KOBLAS_GEMM_TILE][KOBLAS_GEMM_TILE];
+    for (int32_t column = 0; column < KOBLAS_GEMM_TILE; column++) {
+        for (int32_t row = 0; row < KOBLAS_GEMM_TILE; row++) {
+            tile[column][row] = out[column * KOBLAS_GEMM_TILE + row];
+        }
+    }
     const double *ap = packed_a + a_off;
     const double *bp = packed_b + b_off;
     for (int32_t p = 0; p < depth; p++) {
         for (int32_t column = 0; column < KOBLAS_GEMM_TILE; column++) {
             const double coefficient = bp[column];
             for (int32_t row = 0; row < KOBLAS_GEMM_TILE; row++) {
-                tile[column][row] += ap[row] * coefficient;
+                tile[column][row] -= ap[row] * coefficient;
             }
         }
         ap += KOBLAS_GEMM_TILE;
         bp += KOBLAS_GEMM_TILE;
     }
-    double *out = x + x_off;
-    for (int32_t column = 0; column < KOBLAS_GEMM_TILE; column++) {
-        for (int32_t row = 0; row < KOBLAS_GEMM_TILE; row++) {
-            tile[column][row] += out[column * KOBLAS_GEMM_TILE + row];
-        }
-    }
-
     const double *triangle = packed_triangle + triangle_off;
     if (lower) {
         for (int32_t j = KOBLAS_GEMM_TILE - 1; j >= 0; j--) {

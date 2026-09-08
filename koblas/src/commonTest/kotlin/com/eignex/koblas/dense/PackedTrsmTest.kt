@@ -86,7 +86,7 @@ class PackedTrsmTest {
 
     @Test
     fun `the compiled in packed kernels agree with their reference composition`() {
-        val kernels = F64PlatformKernels
+        val kernels = PlatformKernels
         val rows = kernels.gemmTileRows
         val columns = kernels.gemmTileCols
         val rng = Random(20260911)
@@ -99,8 +99,11 @@ class PackedTrsmTest {
                         val triangle = packedTriangle(columns, order, lower, unitDiag = false, rng)
                         val expected = DoubleArray(rows * columns) { rng.nextDouble(-1.0, 1.0) }
                         val actual = expected.copyOf()
-                        kernels.gemmTile(depth, packedA, 0, packedB, 0, expected, 0, rows)
-                        kernels.trsmTile(validRows, order, triangle, 0, lower, false, expected, 0)
+                        portableGemmTrsmTile(
+                            rows, columns, depth, validRows, order,
+                            packedA, 0, packedB, 0, triangle, 0,
+                            lower, false, expected, 0,
+                        )
 
                         kernels.gemmTrsmTile(
                             depth, validRows, order, packedA, 0, packedB, 0,

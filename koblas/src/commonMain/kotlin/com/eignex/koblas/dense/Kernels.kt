@@ -229,7 +229,7 @@ public interface Kernels : Backend {
     }
 
     /**
-     * Adds one packed product into [x], then solves the resulting tile through [trsmTile]. The product uses
+     * Subtracts one packed product from [x], then solves the resulting tile through [trsmTile]. The product uses
      * the same layouts as [gemmTile], and the solve uses the logical [validRows] by [order] edge of [x].
      */
     @Suppress("LongParameterList") // packed product and triangle operands plus logical edge sizes and flags
@@ -248,8 +248,11 @@ public interface Kernels : Backend {
         x: DoubleArray,
         xOff: Int,
     ) {
-        gemmTile(depth, packedA, aOff, packedB, bOff, x, xOff, gemmTileRows)
-        trsmTile(validRows, order, packedTriangle, triangleOff, lower, unitDiag, x, xOff)
+        portableGemmTrsmTile(
+            gemmTileRows, gemmTileCols, depth, validRows, order,
+            packedA, aOff, packedB, bOff, packedTriangle, triangleOff,
+            lower, unitDiag, x, xOff,
+        )
     }
 }
 

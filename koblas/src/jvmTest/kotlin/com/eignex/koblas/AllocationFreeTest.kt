@@ -248,6 +248,56 @@ class AllocationFreeTest {
         assertTrue(bytes <= FLOOR_BYTES, "right dense trsm allocated $bytes B per call")
     }
 
+    @OptIn(ExperimentalKoblasApi::class)
+    @Test
+    fun `packed solve kernels allocate nothing`() {
+        val rows = PackedPanels.tileRows
+        val order = PackedPanels.tileColumns
+        val depth = 32
+        val left = DoubleArray(PackedPanels.leftSize(rows, depth)) { 0.01 * (it + 1) }
+        val right = DoubleArray(PackedPanels.rightSize(depth, order)) { 0.005 * (it + 1) }
+        val triangle = DoubleArray(PackedPanels.rightSize(order, order))
+        for (i in 0 until order) {
+            for (j in 0..i) triangle[i * order + j] = if (i == j) 2.0 else 0.1
+        }
+        val x = DoubleArray(PackedPanels.leftSize(rows, order)) { 1.0 }
+
+        val solveBytes = bytesPerIteration(1000) {
+            PackedPanels.trsm(triangle, x, rows, order, lower = true)
+            x
+        }
+        val fusedBytes = bytesPerIteration(1000) {
+            PackedPanels.gemmTrsm(left, right, triangle, x, rows, order, depth, lower = true)
+            x
+        }
+
+        assertTrue(solveBytes <= FLOOR_BYTES, "packed trsm allocated $solveBytes B per call")
+        assertTrue(fusedBytes <= FLOOR_BYTES, "packed gemm trsm allocated $fusedBytes B per call")
+    }
+
+    @Test
+    fun `ordinary packed trsm allocates nothing with reserved workspace`() {
+        val order = DenseTuning.trsmPackedMinOrder
+        val rows = DenseTuning.trsmPackedMinRows
+        val triangle = DenseMatrix.zero(order)
+        for (column in 0 until order) {
+            for (row in column until order) triangle[row, column] = if (row == column) 1.0 else 1e-12
+        }
+        val rightHandSide = DenseMatrix.zero(rows, order)
+        val packedTriangleSize = packedRightSize(order, order, ScalarKernels.gemmTileCols)
+        val packedRightHandSideSize = packedLeftSize(rows, order, ScalarKernels.gemmTileRows)
+        val workspace = Workspace().apply {
+            reserve(maxOf(packedTriangleSize, packedRightHandSideSize), count = 2)
+        }
+
+        val bytes = bytesPerIteration(500) {
+            triangle.trsm(rightHandSide, lower = true, right = true, workspace = workspace)
+            rightHandSide
+        }
+
+        assertTrue(bytes <= FLOOR_BYTES, "ordinary packed trsm allocated $bytes B per call")
+    }
+
     @Test
     fun `sparse dense product workspace is allocation neutral`() {
         val n = 64
