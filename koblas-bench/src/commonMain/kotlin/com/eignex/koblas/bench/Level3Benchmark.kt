@@ -60,12 +60,6 @@ class Level3Benchmark {
     }
 
     @Benchmark
-    fun syrk(): F64DenseMatrix {
-        arm.external?.syrk(1.0, squareA, false, 0.0, rhs, true) ?: arm.context!!.syrk(1.0, squareA, false, 0.0, rhs)
-        return rhs
-    }
-
-    @Benchmark
     fun syr2k(): F64DenseMatrix {
         arm.external?.syr2k(1.0, squareA, squareB, false, 0.0, rhs, true) ?: arm.context!!.syr2k(1.0, squareA, squareB, false, 0.0, rhs, lower = true)
         return rhs
