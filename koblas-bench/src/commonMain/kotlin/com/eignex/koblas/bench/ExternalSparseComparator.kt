@@ -23,6 +23,7 @@ internal interface PreparedSparseComparator : AutoCloseable {
     fun trmv(x: DoubleArray, out: DoubleArray, transpose: Boolean = false)
     fun trsm(b: F64DenseMatrix, out: F64DenseMatrix, transpose: Boolean = false)
     fun trmm(b: F64DenseMatrix, out: F64DenseMatrix, transpose: Boolean = false)
+    fun sparseProduct(right: PreparedSparseComparator): F64SparseMatrix
 }
 
 internal expect fun oneMklSparseComparator(): SparseComparator?

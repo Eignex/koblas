@@ -31,7 +31,7 @@ class BasisBenchmark {
     var n: Int = 0
 
     @Param(SPARSE_COLUMNS, SPIKED_COLUMNS)
-    var shape: String = SPARSE_COLUMNS
+    var basisShape: String = SPARSE_COLUMNS
 
     @Param(AUTOMATIC_BACKEND, REFERENCE_BACKEND, HOST_BACKEND)
     var backend: String = REFERENCE_BACKEND
@@ -46,14 +46,14 @@ class BasisBenchmark {
     fun setup() {
         installBasisSolverBackend(backend)
         val rng = benchRng()
-        a = simplexProblem(n, rng, spikeFraction = if (shape == SPIKED_COLUMNS) 0.5 else 0.0)
+        a = simplexProblem(n, rng, spikeFraction = if (basisShape == SPIKED_COLUMNS) 0.5 else 0.0)
         logical = IntArray(n) { n + it }
         solver = koblas.basisSolvers.basisSolver(a)
         spike = F64IndexedVector(n)
         eta = F64IndexedVector(n)
         check(solver.refactorize(logical)) { "the logical basis did not factor" }
         println(
-            "resolved: basisSolvers=${koblas.basisSolvers.name} shape=$shape nnz(A)=${a.nnz} fill=${solver.nnz}",
+            "resolved: basisSolvers=${koblas.basisSolvers.name} shape=$basisShape nnz(A)=${a.nnz} fill=${solver.nnz}",
         )
     }
 

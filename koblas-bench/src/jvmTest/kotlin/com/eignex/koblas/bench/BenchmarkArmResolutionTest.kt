@@ -137,8 +137,67 @@ class BenchmarkArmResolutionTest {
     }
 
     @Test
+    fun `onemkl triangular benchmark rows agree with built in across repeated calls`() {
+        if (oneMklSparseComparator() == null) return
+        val builtIn = sparseProductBenchmark(BUILTIN_BACKEND)
+        val oneMkl = sparseProductBenchmark(ONEMKL_BACKEND)
+        try {
+            repeat(2) { invocation ->
+                assertVectorNear(builtIn.trsv(), oneMkl.trsv(), "trsv invocation $invocation")
+                assertVectorNear(builtIn.trmv(), oneMkl.trmv(), "trmv invocation $invocation")
+                assertMatrixNear(builtIn.trsm(), oneMkl.trsm(), "trsm invocation $invocation")
+                assertMatrixNear(builtIn.trmm(), oneMkl.trmm(), "trmm invocation $invocation")
+                assertMatrixNear(builtIn.trmmRight(), oneMkl.trmmRight(), "trmm right invocation $invocation")
+            }
+        } finally {
+            builtIn.tearDown()
+            oneMkl.tearDown()
+        }
+    }
+
+    @Test
+    fun `onemkl prepared sparse product agrees with built in across repeated calls`() {
+        if (oneMklSparseComparator() == null) return
+        val builtIn = sparseProductBenchmark(BUILTIN_BACKEND)
+        val oneMkl = sparseProductBenchmark(ONEMKL_BACKEND)
+        try {
+            repeat(2) { invocation ->
+                val expected = builtIn.preparedSparseProduct()
+                val actual = oneMkl.preparedSparseProduct()
+                assertEquals(expected.rows, actual.rows, "rows invocation $invocation")
+                assertEquals(expected.cols, actual.cols, "cols invocation $invocation")
+                for (j in 0 until expected.cols) for (i in 0 until expected.rows) {
+                    assertEquals(expected[i, j], actual[i, j], 1e-10, "entry ($i, $j) invocation $invocation")
+                }
+            }
+        } finally {
+            builtIn.tearDown()
+            oneMkl.tearDown()
+        }
+    }
+
+    @Test
     fun `an unknown arm is rejected rather than quietly measuring the installed one`() {
         assertFailsWith<IllegalStateException> { installKernelProvider("vectorised") }
         assertFailsWith<IllegalStateException> { installDenseBackend("fastest") }
+    }
+
+    private fun sparseProductBenchmark(arm: String): SparseProductHostBenchmark = SparseProductHostBenchmark().also {
+        it.n = 31
+        it.sparseArm = arm
+        it.density = 0.1
+        it.productShape = "regular"
+        it.setup()
+    }
+
+    private fun assertVectorNear(expected: DoubleArray, actual: DoubleArray, context: String) {
+        assertEquals(expected.size, actual.size, "$context size")
+        for (i in expected.indices) assertEquals(expected[i], actual[i], 1e-10, "$context entry $i")
+    }
+
+    private fun assertMatrixNear(expected: F64DenseMatrix, actual: F64DenseMatrix, context: String) {
+        assertEquals(expected.rows, actual.rows, "$context rows")
+        assertEquals(expected.cols, actual.cols, "$context cols")
+        for (i in expected.data.indices) assertEquals(expected.data[i], actual.data[i], 1e-10, "$context entry $i")
     }
 }
