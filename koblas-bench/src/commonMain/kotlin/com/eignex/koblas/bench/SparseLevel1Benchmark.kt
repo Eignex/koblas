@@ -35,10 +35,8 @@ class SparseLevel1Benchmark {
     @Benchmark
     fun sparseDotSparse(): Double = sparse dot other
 
-    @Benchmark
     fun sparseDotDense(): Double = sparse dot dense
 
-    @Benchmark
     fun sparseAxpy() {
         dense.axpy(NEAR_UNIT_SCALE, sparse)
     }
@@ -49,18 +47,76 @@ class SparseLevel1Benchmark {
     @Benchmark
     fun sparseAsum(): Double = sparse.asum()
 
-    @Benchmark
     fun sparseScatter() {
         koblas.sparseKernels.scatter(sparse, dense.data)
     }
 
-    @Benchmark
     fun sparseGather() {
         koblas.sparseKernels.gather(sparse, dense.data)
     }
 
-    @Benchmark
     fun sparseGatherZero() {
         koblas.sparseKernels.gatherZero(sparse, dense.data)
+    }
+}
+
+/** Direct oneMKL legacy sparse-BLAS counterparts and the same explicitly selected built-in kernels. */
+@State(Scope.Benchmark)
+@BenchmarkMode(Mode.AverageTime)
+@OutputTimeUnit(BenchmarkTimeUnit.NANOSECONDS)
+class SparseLevel1ComparisonBenchmark {
+    @Param("256", "4096", "65536")
+    var len: Int = 0
+
+    @Param("0.001", "0.01", "0.1")
+    var density: Double = 0.0
+
+    @Param(BUILTIN_BACKEND, ONEMKL_BACKEND)
+    var sparseArm: String = BUILTIN_BACKEND
+
+    private lateinit var sparse: F64SparseVector
+    private lateinit var dense: F64DenseVector
+    private lateinit var gathered: DoubleArray
+    private var builtIn: com.eignex.koblas.sparse.F64SparseKernels? = null
+    private var oneMkl: SparseComparator? = null
+
+    @Setup
+    fun setup() {
+        val rng = benchRng()
+        sparse = randomSparseVector(len, density, rng)
+        dense = F64DenseVector.of(randomVector(len, rng))
+        gathered = DoubleArray(sparse.values.size)
+        if (sparseArm == BUILTIN_BACKEND) builtIn = explicitBuiltInContext().sparseKernels else {
+            oneMkl = checkNotNull(oneMklSparseComparator()) { "the benchmark-only oneMKL sparse comparator is unavailable" }
+        }
+        val identity = oneMkl?.identity ?: "built-in/${builtIn!!.name}"
+        check(identity.startsWith(sparseArm)) { "sparse level-1 arm $sparseArm resolved $identity" }
+        println("resolved: arm=$sparseArm sparseLevel1=$identity threading=${oneMkl?.threading ?: "single calling thread"}")
+        verifyNearZeroManagedAllocation("sparse-level1/$sparseArm/dot") {
+            oneMkl?.dot(sparse, dense.data) ?: builtIn!!.dot(sparse, dense.data)
+        }
+    }
+
+    @Benchmark
+    fun sparseDotDense(): Double = oneMkl?.dot(sparse, dense.data) ?: builtIn!!.dot(sparse, dense.data)
+
+    @Benchmark
+    fun sparseAxpy() {
+        oneMkl?.axpy(NEAR_UNIT_SCALE, sparse, dense.data) ?: builtIn!!.axpy(dense.data, NEAR_UNIT_SCALE, sparse)
+    }
+
+    @Benchmark
+    fun sparseScatter() {
+        oneMkl?.scatter(sparse, dense.data) ?: builtIn!!.scatter(sparse, dense.data)
+    }
+
+    @Benchmark
+    fun sparseGather() {
+        oneMkl?.gather(sparse, dense.data, gathered) ?: builtIn!!.gather(sparse, dense.data)
+    }
+
+    @Benchmark
+    fun sparseGatherZero() {
+        oneMkl?.gatherZero(sparse, dense.data, gathered) ?: builtIn!!.gatherZero(sparse, dense.data)
     }
 }

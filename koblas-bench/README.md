@@ -7,9 +7,21 @@ Development benchmarks for every reviewed public numerical operation in koblas. 
 ```bash
 koblas-bench/report.sh jvm
 koblas-bench/report.sh native
+koblas-bench/report.sh jvm openblas
+koblas-bench/report.sh jvm oneMkl
 ```
 
-The command creates one archive containing fresh raw JSON, the benchmark log, metadata, and the coverage manifest. Metadata includes the UTC timestamp, commit and dirty status, OS, architecture, CPU model/count, Gradle/JVM versions, target, command, affinity, and resolved backend output. Inspect the archive before sending it: these details can identify your machine and checkout.
+The command creates one archive containing two independently executed raw JSON passes, both benchmark logs,
+metadata, and both coverage manifests. It rejects stale or byte-identical passes and requires exactly one fresh
+result from each process. Metadata includes the UTC timestamp, commit and dirty status, OS, architecture, CPU
+model/count, Gradle/JVM versions, target, command, affinity, allocation expectations, and resolved implementation
+output. Inspect the archive before sending it: these details can identify your machine and checkout.
+
+`report` is the complete built-in inventory. `openblas` is the dense OpenBLAS comparison and `oneMkl` is the
+dense and sparse oneMKL comparison. Each external profile runs in separate benchmark processes so their global
+symbols and thread controls cannot interfere. OpenBLAS and oneMKL are both forced to one thread. The bindings use
+libraries installed on the development machine; absence fails an explicitly requested external profile instead
+of falling back to koblas.
 
 ## Run benchmarks
 
@@ -23,24 +35,23 @@ For local A/B work:
 ./gradlew :koblas-bench:jvmSelectedBenchmark \\
   -Pbench.include='Level3Benchmark.gemm|Level3Benchmark.syrk' \\
   -Pbench.param.n=256 \\
-  -Pbench.param.backend=reference,host
+  -Pbench.param.denseArm=built-in,openblas
 ```
 
 ### Arms
 
-`automatic` measures normal production discovery. On a machine with a host
-library installed, discovery selects it, so `automatic` **is** the host backend
-and is never the portable arm. Reading it as the portable side of a comparison
-puts the same library on both sides and produces a table that means nothing.
+Dense parity uses `denseArm=built-in,openblas,onemkl`; retained sparse BLAS uses
+`sparseArm=built-in,onemkl`. These arms construct the built-in implementation or open a benchmark-owned external
+binding directly. They never use production discovery, and every setup asserts and reports its resolved identity.
 
-The arms that pin an implementation are `reference` for the portable matrix
-routines, `scalar`, `c` and `simd` for a single built-in kernel provider, and
-`host` for the host binding. A comparison of portable against host has to pin
-both sides: `-Pbench.param.backend=reference,host`.
+The older `automatic` and `reference` backend parameters remain only for factorization suites during the later
+consumer-coordinated removal phase. They are not external parity evidence. Kernel microbenchmarks retain `scalar`,
+`c`, and `simd` pins, while `built-in` selects SIMD, then bundled C, then scalar without consulting the registry.
 
-There is no `host` arm for the `kernels` parameter. koblas carries no level-1
-host binding any more, so a level-1 run can only name its own providers and
-cannot be compared against a host library from here.
+Benchmark-owned level-1 CBLAS calls cover dot, axpy, scale, norm, absolute sum, swap, and rotations for both dense
+comparators. `sum` and fused squared distance have no CBLAS counterpart. Four-way dot is labeled as a composition
+of four calls, never direct kernel parity. See `comparator-coverage.tsv` for the same direct/composition/missing
+classification across dense and sparse operations.
 
 `simd` is absent from every `@Param` list because Kotlin/Native has no such
 provider and a benchmark configuration covers every target, so a full native
@@ -51,8 +62,10 @@ the arm names, so a run cannot quietly credit an implementation that never
 executed. Each install prints one `resolved: arm=...` line naming the arm and
 the halves behind it, and `report.sh` collects those lines into the report.
 
-The report profile compares `automatic` with `reference` for backend benchmarks
-and with `scalar` for kernel benchmarks.
+Sparse one-shot rows include oneMKL CSC conversion and destruction. Prepared rows retain the inspector-executor
+handle across invocations. Fresh sparse results and packing are reported with workload-dependent allocation
+expectations; allocation-free JVM kernels are probed in every fork and invalidate it if managed allocation exceeds
+the near-zero allowance.
 
 ## Troubleshooting and maintenance
 

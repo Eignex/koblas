@@ -14,7 +14,20 @@ kotlin {
     jvmToolchain(25)
     compilerOptions { freeCompilerArgs.add("-Xexpect-actual-classes") }
     jvm()
-    linuxX64()
+    linuxX64 {
+        compilations.getByName("main").cinterops.create("benchOpenBlas") {
+            definitionFile.set(project.file("src/nativeInterop/cinterop/benchOpenBlas.def"))
+            includeDirs(project.file("src/nativeInterop/cinterop"))
+        }
+        compilations.configureEach {
+            if (name.contains("benchmark", ignoreCase = true)) {
+                cinterops.create("benchOpenBlasBenchmark") {
+                    definitionFile.set(project.file("src/nativeInterop/cinterop/benchOpenBlas.def"))
+                    includeDirs(project.file("src/nativeInterop/cinterop"))
+                }
+            }
+        }
+    }
     macosArm64()
     sourceSets {
         commonMain.dependencies {
@@ -50,7 +63,7 @@ benchmark {
             iterationTime = 300
             iterationTimeUnit = "ms"
             advanced("jvmForks", "1")
-            include(".*")
+            include("^(?!.*ExternalDenseLevel1).*")
             param("n", "256")
             param("len", "4096")
             param("nrhs", "8")
@@ -58,6 +71,22 @@ benchmark {
             param("shape", "random")
             param("backend", "automatic", "reference")
             param("kernels", "automatic", "scalar")
+            param("denseArm", "built-in")
+            param("sparseArm", "built-in")
+            param("comparator", "openblas")
+        }
+        register("openblas") {
+            defaults()
+            include(".*(?:ExternalDenseLevel1Benchmark|ExternalDenseLevel1CompositionBenchmark|Level2Benchmark|Level3Benchmark).*")
+            param("denseArm", "openblas")
+            param("comparator", "openblas")
+        }
+        register("oneMkl") {
+            defaults()
+            include(".*(?:ExternalDenseLevel1Benchmark|ExternalDenseLevel1CompositionBenchmark|Level2Benchmark|Level3Benchmark|SparseLevel1ComparisonBenchmark|SparseProductHostBenchmark).*")
+            param("denseArm", "onemkl")
+            param("sparseArm", "onemkl")
+            param("comparator", "onemkl")
         }
         register("full") {
             defaults()
@@ -80,6 +109,7 @@ val checkBenchmarkCoverage = tasks.register<Exec>("checkBenchmarkCoverage") {
     group = "verification"
     description = "Validates the reviewed benchmark coverage manifest."
     inputs.file("benchmark-coverage.tsv")
+    inputs.file("comparator-coverage.tsv")
     inputs.file("public-numerical-api.tsv")
     inputs.dir("src/commonMain")
     inputs.dir("../koblas/src/commonMain")
@@ -101,7 +131,7 @@ tasks.withType<KotlinJvmCompile>().configureEach {
     compilerOptions.freeCompilerArgs.add("-Xadd-modules=jdk.incubator.vector")
 }
 tasks.withType<Test>().configureEach {
-    jvmArgs("--add-modules=jdk.incubator.vector")
+    jvmArgs("--add-modules=jdk.incubator.vector", "--enable-native-access=ALL-UNNAMED")
 }
 tasks.withType<JavaExec>().configureEach {
     jvmArgs("--add-modules=jdk.incubator.vector", "--enable-native-access=ALL-UNNAMED")

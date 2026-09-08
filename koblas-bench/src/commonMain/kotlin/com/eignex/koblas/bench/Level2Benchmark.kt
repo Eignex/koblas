@@ -2,7 +2,6 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64DenseVector
-import com.eignex.koblas.koblas
 import kotlinx.benchmark.*
 
 @State(Scope.Benchmark)
@@ -12,8 +11,10 @@ class Level2Benchmark {
     @Param("16", "64", "256", "1024", "2048")
     var n: Int = 0
 
-    @Param(REFERENCE_BACKEND, HOST_BACKEND)
-    var backend: String = REFERENCE_BACKEND
+    @Param(BUILTIN_BACKEND, OPENBLAS_BACKEND, ONEMKL_BACKEND)
+    var denseArm: String = BUILTIN_BACKEND
+
+    private lateinit var arm: DenseBenchmarkArm
 
     private lateinit var a: F64DenseMatrix
     private lateinit var sym: F64DenseMatrix
@@ -30,7 +31,7 @@ class Level2Benchmark {
 
     @Setup
     fun setup() {
-        installDenseBackend(backend)
+        arm = DenseBenchmarkArm.resolve(denseArm)
         val rng = benchRng()
         a = randomMatrix(n, n, rng)
         sym = lowerSymmetricMatrix(n, rng)
@@ -46,43 +47,43 @@ class Level2Benchmark {
 
     @Benchmark
     fun gemv() {
-        koblas.gemv(1.0, a, x, 0.0, y)
+        arm.external?.gemv(1.0, a, x, 0.0, y, false) ?: arm.context!!.gemv(1.0, a, x, 0.0, y)
     }
 
     @Benchmark
     fun gemvTransposed() {
-        koblas.gemv(1.0, a, x, 0.0, y, transpose = true)
+        arm.external?.gemv(1.0, a, x, 0.0, y, true) ?: arm.context!!.gemv(1.0, a, x, 0.0, y, transpose = true)
     }
 
     @Benchmark
     fun symv() {
-        koblas.symv(1.0, sym, x, 0.0, y)
+        arm.external?.symv(1.0, sym, x, 0.0, y, true) ?: arm.context!!.symv(1.0, sym, x, 0.0, y)
     }
 
     @Benchmark
     fun ger() {
-        koblas.ger(NEAR_UNIT_SCALE, x, y2, target)
+        arm.external?.ger(NEAR_UNIT_SCALE, x, y2, target) ?: arm.context!!.ger(NEAR_UNIT_SCALE, x, y2, target)
     }
 
     @Benchmark
     fun syr() {
-        koblas.syr(NEAR_UNIT_SCALE, xv, target)
+        arm.external?.syr(NEAR_UNIT_SCALE, x, target, true) ?: arm.context!!.syr(NEAR_UNIT_SCALE, xv, target)
     }
 
     @Benchmark
     fun syr2() {
-        koblas.syr2(NEAR_UNIT_SCALE, xv, yv, target)
+        arm.external?.syr2(NEAR_UNIT_SCALE, x, y2, target, true) ?: arm.context!!.syr2(NEAR_UNIT_SCALE, xv, yv, target)
     }
 
     @Benchmark
     fun trsv() {
         x.copyInto(rhs)
-        koblas.trsv(triangular, rhs, lower = true)
+        arm.external?.trsv(triangular, rhs, true, false, false) ?: arm.context!!.trsv(triangular, rhs, lower = true)
     }
 
     @Benchmark
     fun trmv() {
         x.copyInto(rhs)
-        koblas.trmv(triangular, rhs, lower = true)
+        arm.external?.trmv(triangular, rhs, true, false, false) ?: arm.context!!.trmv(triangular, rhs, lower = true)
     }
 }

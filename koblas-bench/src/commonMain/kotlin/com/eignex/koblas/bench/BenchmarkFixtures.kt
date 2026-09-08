@@ -65,6 +65,39 @@ internal fun sparseDominantMatrix(n: Int, rng: Random): F64SparseMatrix {
     return F64SparseMatrix.ofColumns(n, n, columns)
 }
 
+/** Sparse parity shapes: regular random, fixed band, and a few unusually long columns. */
+internal fun sparseComparisonMatrix(n: Int, density: Double, shape: String, rng: Random): F64SparseMatrix {
+    return sparseComparisonMatrix(n, n, density, shape, rng)
+}
+
+internal fun sparseComparisonMatrix(rows: Int, cols: Int, density: Double, shape: String, rng: Random): F64SparseMatrix {
+    val columns = List(cols) { j ->
+        val entries = ArrayList<Pair<Int, Double>>()
+        if (j < rows) entries.add(j to (maxOf(rows, cols) + 1.0))
+        when (shape) {
+            "regular" -> for (i in 0 until rows) {
+                if (i != j && rng.nextDouble() < density) entries.add(i to rng.nextDouble(-1.0, 1.0))
+            }
+            "banded" -> for (i in maxOf(0, j - 3)..minOf(rows - 1, j + 3)) {
+                if (i != j) entries.add(i to rng.nextDouble(-1.0, 1.0))
+            }
+            "skewed" -> if (j % maxOf(1, cols / 16) == 0) {
+                for (i in 0 until rows) if (i != j && rng.nextDouble() < maxOf(density, 0.25)) {
+                    entries.add(i to rng.nextDouble(-1.0, 1.0))
+                }
+            } else {
+                repeat(maxOf(1, (rows * density / 4).toInt())) {
+                    val i = rng.nextInt(rows)
+                    if (i != j) entries.add(i to rng.nextDouble(-1.0, 1.0))
+                }
+            }
+            else -> error("unknown sparse benchmark shape: $shape")
+        }
+        entries
+    }
+    return F64SparseMatrix.ofColumns(rows, cols, columns)
+}
+
 /**
  * A sparse symmetric positive-definite matrix as the lower triangle a Cholesky reads, diagonally dominant so
  * it factors without an ordering. The off-diagonal pattern is symmetric by construction, which is what makes

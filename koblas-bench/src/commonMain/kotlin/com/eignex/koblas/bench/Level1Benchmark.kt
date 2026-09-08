@@ -38,6 +38,11 @@ class Level1Benchmark {
         // rotation is orthogonal, so repeated application preserves the magnitudes it started with.
         rotation = rotg(3.0, 4.0)
         quad = randomVector(4 * len, rng)
+        verifyNearZeroManagedAllocation("level1/$kernels/dot") { koblas.kernels.dot(x.data, 0, y.data, 0, len) }
+        verifyNearZeroManagedAllocation("level1/$kernels/ssqd") { koblas.kernels.ssqd(x.data, 0, y.data, 0, len) }
+        verifyNearZeroManagedAllocation("level1/$kernels/dot4") {
+            koblas.kernels.dot4(quad, 0, len, x.data, 0, len, quadOut, 0)
+        }
     }
 
     @Benchmark

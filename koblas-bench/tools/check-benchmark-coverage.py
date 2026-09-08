@@ -11,6 +11,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 BENCHMARK_SOURCE = ROOT / "src" / "commonMain"
 NUMERICAL_SOURCE = ROOT.parent / "koblas" / "src" / "commonMain" / "kotlin" / "com" / "eignex" / "koblas"
 INVENTORY = ROOT / "public-numerical-api.tsv"
+COMPARATOR_INVENTORY = ROOT / "comparator-coverage.tsv"
 MODIFIER = r"(?:public|internal|private|protected|open|override|suspend|inline)"
 BENCHMARK = re.compile(rf"@Benchmark(?:\([^)]*\))?\s*(?:{MODIFIER}\s+)*fun\s+(\w+)")
 CLASS = re.compile(r"class\s+(\w+Benchmark)\b")
@@ -222,6 +223,14 @@ def source_benchmarks(source_root=BENCHMARK_SOURCE):
                 found.add(f"com.eignex.koblas.bench.{class_match.group(1)}.{method}")
     return found
 
+def comparator_benchmarks(path=COMPARATOR_INVENTORY):
+    with path.open(encoding="utf-8", newline="") as file:
+        reader = csv.DictReader(file, delimiter="\t")
+        required = {"level", "operation", "openblas", "onemkl", "notes", "benchmark_id"}
+        if set(reader.fieldnames or ()) != required:
+            fail("comparator manifest header is malformed")
+        return {row.get("benchmark_id") or "" for row in reader} - {""}
+
 def report_benchmarks(paths):
     found = set()
     for path in paths:
@@ -242,7 +251,7 @@ def main(arguments):
     api_inventory(INVENTORY, signatures, public_numerical_operations())
     discovered = source_benchmarks()
     missing_methods = listed - discovered
-    unlisted_methods = discovered - listed
+    unlisted_methods = discovered - listed - comparator_benchmarks()
     if missing_methods:
         fail("manifest names nonexistent benchmark methods: " + ", ".join(sorted(missing_methods)))
     if unlisted_methods:
