@@ -114,6 +114,38 @@ internal actual object PlatformKernels : Kernels, ArithmeticKernels {
         len: Int,
     ): Double = selected.dotAxpy(y, yOff, alpha, a, aOff, x, xOff, len)
 
+    @Suppress("LongParameterList")
+    actual override fun trsmTile(
+        validRows: Int,
+        order: Int,
+        packedTriangle: DoubleArray,
+        triangleOff: Int,
+        lower: Boolean,
+        unitDiag: Boolean,
+        x: DoubleArray,
+        xOff: Int,
+    ) = selected.trsmTile(validRows, order, packedTriangle, triangleOff, lower, unitDiag, x, xOff)
+
+    @Suppress("LongParameterList")
+    actual override fun gemmTrsmTile(
+        depth: Int,
+        validRows: Int,
+        order: Int,
+        packedA: DoubleArray,
+        aOff: Int,
+        packedB: DoubleArray,
+        bOff: Int,
+        packedTriangle: DoubleArray,
+        triangleOff: Int,
+        lower: Boolean,
+        unitDiag: Boolean,
+        x: DoubleArray,
+        xOff: Int,
+    ) = selected.gemmTrsmTile(
+        depth, validRows, order, packedA, aOff, packedB, bOff,
+        packedTriangle, triangleOff, lower, unitDiag, x, xOff,
+    )
+
     override val gemmTileRows: Int get() = selected.gemmTileRows
 
     override val gemmTileCols: Int get() = selected.gemmTileCols
