@@ -220,7 +220,6 @@ public final class com/eignex/koblas/DispatchGate {
 
 public final class com/eignex/koblas/DispatchMetric : java/lang/Enum {
 	public static final field DIMENSION Lcom/eignex/koblas/DispatchMetric;
-	public static final field VECTOR_LENGTH Lcom/eignex/koblas/DispatchMetric;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/DispatchMetric;
 	public static fun values ()[Lcom/eignex/koblas/DispatchMetric;
@@ -422,21 +421,6 @@ public final class com/eignex/koblas/F64GivensKt {
 	public static final fun rotg (DD)Lcom/eignex/koblas/F64Givens;
 }
 
-public final class com/eignex/koblas/F64Level1Routine : java/lang/Enum {
-	public static final field ASUM Lcom/eignex/koblas/F64Level1Routine;
-	public static final field AXPY Lcom/eignex/koblas/F64Level1Routine;
-	public static final field DOT Lcom/eignex/koblas/F64Level1Routine;
-	public static final field NRM2 Lcom/eignex/koblas/F64Level1Routine;
-	public static final field ROT Lcom/eignex/koblas/F64Level1Routine;
-	public static final field ROTM Lcom/eignex/koblas/F64Level1Routine;
-	public static final field ROTMG Lcom/eignex/koblas/F64Level1Routine;
-	public static final field SCALE Lcom/eignex/koblas/F64Level1Routine;
-	public static final field SWAP Lcom/eignex/koblas/F64Level1Routine;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/F64Level1Routine;
-	public static fun values ()[Lcom/eignex/koblas/F64Level1Routine;
-}
-
 public final class com/eignex/koblas/F64ModifiedGivens {
 	public final fun getD1 ()D
 	public final fun getD2 ()D
@@ -534,20 +518,6 @@ public final class com/eignex/koblas/F64RouteQuery$DenseLu : com/eignex/koblas/F
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getOrder ()I
 	public fun getRole ()Lcom/eignex/koblas/BackendRole;
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class com/eignex/koblas/F64RouteQuery$Level1 : com/eignex/koblas/F64RouteQuery {
-	public fun <init> (Lcom/eignex/koblas/F64Level1Routine;I)V
-	public final fun component1 ()Lcom/eignex/koblas/F64Level1Routine;
-	public final fun component2 ()I
-	public final fun copy (Lcom/eignex/koblas/F64Level1Routine;I)Lcom/eignex/koblas/F64RouteQuery$Level1;
-	public static synthetic fun copy$default (Lcom/eignex/koblas/F64RouteQuery$Level1;Lcom/eignex/koblas/F64Level1Routine;IILjava/lang/Object;)Lcom/eignex/koblas/F64RouteQuery$Level1;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getLength ()I
-	public fun getRole ()Lcom/eignex/koblas/BackendRole;
-	public final fun getRoutine ()Lcom/eignex/koblas/F64Level1Routine;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
@@ -1627,28 +1597,6 @@ public abstract class com/eignex/koblas/dense/host/F64DecompositionsAdapter : co
 	public fun trtri (Lcom/eignex/koblas/core/F64DenseMatrix;ZZ)Lcom/eignex/koblas/core/F64DenseMatrix;
 }
 
-public abstract class com/eignex/koblas/dense/host/F64KernelsAdapter : com/eignex/koblas/dense/F64Kernels {
-	public fun asum ([DII)D
-	public fun axpy ([DID[DII)V
-	public fun dot ([DI[DII)D
-	public fun dot4 ([DII[DII[DI)V
-	public fun gemmTile (I[DI[DI[DII)V
-	public fun getGemmTileCols ()I
-	public fun getGemmTileRows ()I
-	public fun getPriority ()I
-	public fun getUnavailableReason ()Ljava/lang/String;
-	public fun isAvailable ()Z
-	public fun isPortable ()Z
-	public fun nrm2 ([DII)D
-	public fun rot ([DI[DIIDD)V
-	public fun rotm ([DII[DIIILcom/eignex/koblas/F64ModifiedGivens;)V
-	public fun rotmg (DDDD)Lcom/eignex/koblas/F64ModifiedGivens;
-	public fun scale ([DIDI)V
-	public fun ssqd ([DI[DII)D
-	public fun sum ([DII)D
-	public fun swap ([DI[DII)V
-}
-
 public final class com/eignex/koblas/dense/host/cblas/HostBlasConfig {
 	public fun <init> ()V
 	public fun <init> (Lcom/eignex/koblas/dense/host/cblas/OpenBlasOptions;)V
@@ -1688,7 +1636,6 @@ public final class com/eignex/koblas/dense/host/jvm/F64Backends {
 	public synthetic fun <init> (Lcom/eignex/koblas/dense/host/cblas/HostBlasConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun getBlas ()Lcom/eignex/koblas/dense/host/jvm/F64Cblas;
 	public final fun getDecompositions ()Lcom/eignex/koblas/dense/host/jvm/F64Lapacke;
-	public final fun getKernels ()Lcom/eignex/koblas/dense/host/jvm/F64CblasKernels;
 }
 
 public final class com/eignex/koblas/dense/host/jvm/F64BackendsKt {
@@ -1700,14 +1647,6 @@ public final class com/eignex/koblas/dense/host/jvm/F64Cblas : com/eignex/koblas
 	public synthetic fun <init> (Lcom/eignex/koblas/dense/host/cblas/HostBlasConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun getName ()Ljava/lang/String;
 	public fun getPriority ()I
-	public fun isAvailable ()Z
-}
-
-public final class com/eignex/koblas/dense/host/jvm/F64CblasKernels : com/eignex/koblas/dense/host/F64KernelsAdapter {
-	public fun <init> (Lcom/eignex/koblas/dense/host/cblas/HostBlasConfig;)V
-	public synthetic fun <init> (Lcom/eignex/koblas/dense/host/cblas/HostBlasConfig;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun getConfig ()Lcom/eignex/koblas/dense/host/cblas/HostBlasConfig;
-	public fun getName ()Ljava/lang/String;
 	public fun isAvailable ()Z
 }
 

@@ -23,22 +23,6 @@ class DenseTuningTest {
     }
 
     @Test
-    fun `every host crossover keeps its measured length`() {
-        val crossovers = listOf(
-            DenseTuning.hostDotCrossover,
-            DenseTuning.hostAxpyCrossover,
-            DenseTuning.hostScaleCrossover,
-            DenseTuning.hostNrm2Crossover,
-            DenseTuning.hostAsumCrossover,
-            DenseTuning.hostSwapCrossover,
-            DenseTuning.hostRotCrossover,
-            DenseTuning.hostRotmCrossover,
-        )
-
-        assertEquals(List(crossovers.size) { 64 }, crossovers)
-    }
-
-    @Test
     fun `every bundled C crossover keeps its measured length`() {
         assertEquals(128, DenseTuning.jvmCDotCrossover)
         assertEquals(128, DenseTuning.jvmCSumCrossover)

@@ -9,7 +9,6 @@ import com.eignex.koblas.SparseRoles
 import com.eignex.koblas.dense.F64Blas
 import com.eignex.koblas.dense.F64Decompositions
 import com.eignex.koblas.dense.F64Kernels
-import com.eignex.koblas.dense.F64RoutedKernels
 import com.eignex.koblas.sparse.F64BasisFactorizations
 import com.eignex.koblas.sparse.F64GeneralSparseLu
 import com.eignex.koblas.sparse.F64QuasiDefiniteLdl
@@ -131,9 +130,7 @@ internal class F64Registry {
         val quasiDefiniteLdl = resolved<F64QuasiDefiniteLdl>(BackendSlot.F64QuasiDefiniteLdl)
         val qr = resolved<F64SparseQr>(BackendSlot.F64SparseQr)
         return F64Context(
-            // The routed kernels wrap whatever host registered rather than replacing the compiled-in ones,
-            // so this half composes its offer instead of falling back to a portable default.
-            kernels = F64RoutedKernels(strongest<F64Kernels>(BackendSlot.F64Kernels)),
+            kernels = resolved<F64Kernels>(BackendSlot.F64Kernels),
             blas = resolved<F64Blas>(BackendSlot.F64Blas),
             decompositions = resolved<F64Decompositions>(BackendSlot.F64Decompositions),
             sparseKernels = resolved<F64SparseKernels>(BackendSlot.F64SparseKernels),

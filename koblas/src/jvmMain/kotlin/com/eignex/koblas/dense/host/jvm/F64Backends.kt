@@ -10,18 +10,12 @@ public class F64Backends(config: HostBlasConfig = HostBlasConfig()) {
     /** The CBLAS half. */
     public val blas: F64Cblas = F64Cblas(calls)
 
-    /** The level-1 CBLAS half. */
-    public val kernels: F64CblasKernels = F64CblasKernels(calls, config)
-
     /** The LAPACKE half. */
     public val decompositions: F64Lapacke = F64Lapacke(calls, config)
 }
 
 /** Offers every available half of [backends] to Koblas's process-wide backend registry. */
 public fun registerBackend(backends: F64Backends) {
-    if (backends.blas.isAvailable) {
-        registerBackend(backends.blas)
-        registerBackend(backends.kernels)
-    }
+    if (backends.blas.isAvailable) registerBackend(backends.blas)
     if (backends.decompositions.isAvailable) registerBackend(backends.decompositions)
 }

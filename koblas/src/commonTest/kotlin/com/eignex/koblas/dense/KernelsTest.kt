@@ -114,24 +114,21 @@ class KernelsTest {
     }
 
     @Test
-    fun `a registered backend handles vector runs at and above the crossover`() = withCleanBackends {
+    fun `a registered backend handles vector runs of every length`() = withCleanBackends {
         val recording = Recording()
         registerBackend(recording)
-        val x = F64DenseVector.of(DoubleArray(16) { 1.0 })
-        val y = F64DenseVector.of(DoubleArray(16) { 2.0 })
-        assertEquals(32.0, x dot y)
-        assertEquals(0, recording.dots, "a tiny dot must stay on compiled-in kernels")
         val short1 = F64DenseVector.of(doubleArrayOf(3.0))
         val short2 = F64DenseVector.of(doubleArrayOf(4.0))
         assertEquals(12.0, short1 dot short2)
-        assertEquals(0, recording.dots, "a length-1 dot must stay on compiled-in kernels")
-        val boundary = F64DenseVector.of(DoubleArray(64) { 1.0 })
-        assertEquals(64.0, boundary dot boundary)
-        assertEquals(1, recording.dots, "a length-64 dot did not reach the selected backend")
+        assertEquals(1, recording.dots, "a length-1 dot did not reach the selected backend")
+        val x = F64DenseVector.of(DoubleArray(16) { 1.0 })
+        val y = F64DenseVector.of(DoubleArray(16) { 2.0 })
+        assertEquals(32.0, x dot y)
+        assertEquals(2, recording.dots, "a length-16 dot did not reach the selected backend")
     }
 
     @Test
-    fun `axpy and scale route to the selected backend at the crossover`() = withCleanBackends {
+    fun `axpy and scale route to the selected backend`() = withCleanBackends {
         val recording = Recording()
         registerBackend(recording)
         val v = F64DenseVector.of(DoubleArray(64) { 1.0 })
@@ -153,15 +150,10 @@ class KernelsTest {
 
         rotm(x, y, transformation)
 
-        // rotmg takes four scalars and has no length to gate on, so it routes whatever the caller does next.
         assertEquals(1, recording.rotmgs, "rotmg did not route")
-        assertEquals(0, recording.rotms, "a two-element run belongs on the compiled-in kernels")
+        assertEquals(1, recording.rotms, "rotm did not route")
         assertContentEquals(doubleArrayOf(2.0, 3.5), x.data)
         assertContentEquals(doubleArrayOf(-1.5, 3.0), y.data)
-
-        // 64 is the routed crossover, and the comparison is inclusive, so this one reaches the backend.
-        rotm(F64DenseVector.of(DoubleArray(64) { 1.0 }), F64DenseVector.of(DoubleArray(64) { 2.0 }), transformation)
-        assertEquals(1, recording.rotms, "a run at the crossover did not route")
     }
 
     @Test
@@ -174,13 +166,9 @@ class KernelsTest {
 
         rot(x, y, rotation)
 
-        assertEquals(0, recording.rots, "a two-element run belongs on the compiled-in kernels")
+        assertEquals(1, recording.rots, "the rotation did not route")
         assertEquals(5.0, x.data[0], 1e-12, "the rotation should carry the pair's norm into x")
         assertEquals(0.0, y.data[0], 1e-12, "the rotation should eliminate y")
-
-        // 64 is the routed crossover, and the comparison is inclusive, so this one reaches the backend.
-        rot(F64DenseVector.of(DoubleArray(64) { 3.0 }), F64DenseVector.of(DoubleArray(64) { 4.0 }), rotation)
-        assertEquals(1, recording.rots, "a run at the crossover did not route, so the router lost an override")
     }
 
     @Test
@@ -225,12 +213,12 @@ class KernelsTest {
         val platform = koblas.kernels.name
         registerBackend(Recording(priority = 200).named("strong"))
         registerBackend(Recording(priority = 10).named("weak"))
-        assertEquals("$platform+strong", koblas.kernels.name, "a weaker registration displaced a stronger one")
+        assertEquals("strong", koblas.kernels.name, "a weaker registration displaced a stronger one")
         val override = Recording(priority = 0).named("override")
         installBackends(koblas.with(kernels = override))
         assertSame(override, koblas.kernels, "install must win regardless of priority, and unrouted")
         installBackends(null)
-        assertEquals("$platform+strong", koblas.kernels.name, "clearing the override falls back to registration")
+        assertEquals("strong", koblas.kernels.name, "clearing the override falls back to registration")
         resetBackends()
         assertEquals(platform, koblas.kernels.name, "a cleared registry leaves the compiled-in kernels")
     }
@@ -272,89 +260,14 @@ class KernelsTest {
         }
     }
 
-    /**
-     * The router carries one override per seam member it routes, and a member it forgets falls through to
-     * the interface default rather than reaching anything.
-     */
     @Test
-    fun `every routed kernel reaches the host it was given`() {
-        val recording = Recording()
-        val routed: F64Kernels = F64RoutedKernels(recording)
-        val a = DoubleArray(64) { it.toDouble() }
-        val b = DoubleArray(64) { 1.0 }
-        routed.dot(a, 0, b, 0, 64)
-        routed.axpy(a, 0, 2.0, b, 0, 64)
-        routed.scale(a, 0, 2.0, 64)
-        routed.nrm2(a, 0, 64)
-        routed.asum(a, 0, 64)
-        routed.swap(a, 0, b, 0, 64)
-        routed.rot(a, 0, b, 0, 64, 0.6, 0.8)
-        assertEquals(1, recording.dots, "dot did not reach the host")
-        assertEquals(1, recording.axpys, "axpy did not reach the host")
-        assertEquals(1, recording.scales, "scale did not reach the host")
-        assertEquals(1, recording.nrm2s, "nrm2 did not reach the host")
-        assertEquals(1, recording.asums, "asum did not reach the host")
-        assertEquals(1, recording.swaps, "swap did not reach the host, so the router is missing an override")
-        assertEquals(1, recording.rots, "rot did not reach the host, so the router is missing an override")
-    }
-
-    @Test
-    fun `routed kernels respect the crossover boundary`() {
-        val recording = Recording()
-        val routed: F64Kernels = F64RoutedKernels(recording)
-        val a = DoubleArray(65) { it.toDouble() }
-        val b = DoubleArray(65) { 1.0 }
-
-        routed.dot(a, 0, b, 0, 63)
-        routed.axpy(a, 0, 2.0, b, 0, 63)
-        routed.scale(a, 0, 2.0, 63)
-        routed.nrm2(a, 0, 63)
-        routed.asum(a, 0, 63)
-        routed.swap(a, 0, b, 0, 63)
-        assertEquals(
-            0,
-            recording.dots + recording.axpys + recording.scales + recording.nrm2s + recording.asums + recording.swaps,
-        )
-
-        routed.dot(a, 0, b, 0, 64)
-        routed.axpy(a, 0, 2.0, b, 0, 64)
-        routed.scale(a, 0, 2.0, 64)
-        routed.nrm2(a, 0, 64)
-        routed.asum(a, 0, 64)
-        routed.swap(a, 0, b, 0, 64)
-        assertEquals(1, recording.dots, "dot at the crossover did not reach the host")
-        assertEquals(1, recording.axpys, "axpy at the crossover did not reach the host")
-        assertEquals(1, recording.scales, "scale at the crossover did not reach the host")
-        assertEquals(1, recording.nrm2s, "nrm2 at the crossover did not reach the host")
-        assertEquals(1, recording.asums, "asum at the crossover did not reach the host")
-        assertEquals(1, recording.swaps, "swap at the crossover did not reach the host")
-
-        routed.dot(a, 0, b, 0, 65)
-        routed.axpy(a, 0, 2.0, b, 0, 65)
-        routed.scale(a, 0, 2.0, 65)
-        routed.nrm2(a, 0, 65)
-        routed.asum(a, 0, 65)
-        routed.swap(a, 0, b, 0, 65)
-        assertEquals(2, recording.dots, "dot above the crossover did not reach the host")
-        assertEquals(2, recording.axpys, "axpy above the crossover did not reach the host")
-        assertEquals(2, recording.scales, "scale above the crossover did not reach the host")
-        assertEquals(2, recording.nrm2s, "nrm2 above the crossover did not reach the host")
-        assertEquals(2, recording.asums, "asum above the crossover did not reach the host")
-        assertEquals(2, recording.swaps, "swap above the crossover did not reach the host")
-    }
-
-    @Test
-    fun `routed kernels keep public scale and axpy noops`() {
-        val recording = Recording()
-        val routed: F64Kernels = F64RoutedKernels(recording)
+    fun `the compiled-in kernels keep the public scale and axpy noops`() {
         val x = DoubleArray(64) { Double.POSITIVE_INFINITY }
         val y = DoubleArray(64)
 
-        routed.axpy(y, 0, 0.0, x, 0, 64)
-        routed.scale(x, 0, 1.0, 64)
+        F64PlatformKernels.axpy(y, 0, 0.0, x, 0, 64)
+        F64PlatformKernels.scale(x, 0, 1.0, 64)
 
-        assertEquals(0, recording.axpys, "zero axpy reached the host")
-        assertEquals(0, recording.scales, "unit scale reached the host")
         assertTrue(y.all { it == 0.0 }, "zero axpy must not evaluate infinity times zero")
         assertTrue(x.all { it == Double.POSITIVE_INFINITY }, "unit scale changed the vector")
     }
@@ -431,11 +344,11 @@ class KernelsTest {
     }
 
     @Test
-    fun `the routed kernels report the platform name and gain a suffix for a host`() = withCleanBackends {
+    fun `the context reports the selected kernels by name`() = withCleanBackends {
         assertEquals(F64PlatformKernels.name, koblas.kernels.name)
-        assertEquals(koblas.kernels.name, mathBackend, "mathBackend is the routed kernels' name")
+        assertEquals(koblas.kernels.name, mathBackend, "mathBackend is the selected kernels' name")
         registerBackend(Recording(priority = 90))
-        assertEquals("${F64PlatformKernels.name}+recording", koblas.kernels.name)
+        assertEquals("recording", koblas.kernels.name)
         resetBackends()
         assertEquals(F64PlatformKernels.name, koblas.kernels.name)
     }
