@@ -13,7 +13,7 @@ import com.eignex.koblas.core.F64DenseMatrix
  * compact column-major matrices: use [writeLeft] or [writeRight] to copy their valid entries back.
  *
  * All buffers belong to the caller and may be retained or reused across calls. Packing and writeback allocate
- * nothing when the matrix backing and packed buffer differ. When they are the same array, [workspace] lends a
+ * nothing when the matrix backing and packed buffer differ. When they are the same array, `workspace` lends a
  * staging copy so overlapping input and output are safe; omitting it allocates that staging copy.
  *
  * The normalized packed triangular solve is `X * T = B`: `T` is a single right-format square panel with order
@@ -181,7 +181,7 @@ public object F64PackedPanels {
     /**
      * Overwrites a destination window with the valid entries of a left panel. With [transpose], packed entry
      * `(i, p)` is written to destination entry `(p, i)`. Padding is ignored. Same-array overlap is safe through
-     * [workspace] staging.
+     * `workspace` staging.
      */
     @Suppress("LongParameterList") // source and destination windows plus the operation applied while copying
     public fun writeLeft(
@@ -204,7 +204,7 @@ public object F64PackedPanels {
     /**
      * Overwrites a destination window with the valid entries of a right panel. With [transpose], packed entry
      * `(p, j)` is written to destination entry `(j, p)`. Padding is ignored. Same-array overlap is safe through
-     * [workspace] staging.
+     * `workspace` staging.
      */
     @Suppress("LongParameterList") // source and destination windows plus the operation applied while copying
     public fun writeRight(

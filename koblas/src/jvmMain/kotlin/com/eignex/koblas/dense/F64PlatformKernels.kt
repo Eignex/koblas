@@ -496,7 +496,16 @@ internal object Simd {
         addColumn(c, cOff, ldc, 3, c03, c13)
     }
 
-    private fun addColumn(c: DoubleArray, cOff: Int, ldc: Int, column: Int, low: DoubleVector, high: DoubleVector) {
+    // The vectors must stay in the caller so a small-depth gemmTile does not materialize them on the heap.
+    @Suppress("NOTHING_TO_INLINE")
+    private inline fun addColumn(
+        c: DoubleArray,
+        cOff: Int,
+        ldc: Int,
+        column: Int,
+        low: DoubleVector,
+        high: DoubleVector,
+    ) {
         val base = cOff + column * ldc
         DoubleVector.fromArray(SPECIES, c, base).add(low).intoArray(c, base)
         DoubleVector.fromArray(SPECIES, c, base + LANE).add(high).intoArray(c, base + LANE)
