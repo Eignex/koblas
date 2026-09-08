@@ -7,8 +7,7 @@ import com.eignex.koblas.internal.backend.BackendNames
 
 /**
  * The host OpenBLAS through CBLAS, bound with cinterop. Every routine lives in [F64BlasAdapter]; this
- * supplies the native entry points and the backend's identity. Constructible whenever the host has
- * OpenBLAS, independently of LAPACKE.
+ * supplies the native entry points and the backend's identity.
  */
 internal class F64Cblas(
     f: CblasFunctions,
@@ -26,6 +25,6 @@ internal class F64Cblas(
 
     override val priority: Int get() = HOST_BACKEND_PRIORITY
 
-    /** The BLAS half needs only CBLAS, which a host can provide without LAPACKE. */
+    /** Whether the host provides the complete CBLAS subset. */
     override val isAvailable: Boolean get() = loader.cblas != null
 }

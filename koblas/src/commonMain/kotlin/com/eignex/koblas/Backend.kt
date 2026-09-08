@@ -25,8 +25,8 @@ public interface Backend {
      * Whether this backend can do work on this host. koblas's own implementations always can, so the default
      * is true; a binding reports whether the library it calls resolved.
      *
-     * Each half answers for itself, since a host can provide CBLAS without LAPACKE, or OpenBLAS without
-     * HFactor. Registration does not consult this: koblas registers a binding on a bare library lookup and
+     * Each half answers for itself, since a host can provide OpenBLAS without HFactor. Registration does not
+     * consult this: koblas registers a binding on a bare library lookup and
      * lets the binding fall back per call, so a registered backend may still report false here.
      * Read it to report what a host offers, or before installing one explicitly.
      */

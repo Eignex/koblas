@@ -17,14 +17,6 @@ internal const val C_KERNELS = "c"
  */
 internal const val SIMD_KERNELS = "simd"
 
-internal expect fun useHost(): Boolean
-
-/**
- * The name the platform's host binding reports. Read from the binding rather than written out here, so an
- * assertion cannot drift from what the backend actually calls itself.
- */
-internal expect val hostBackendName: String
-
 /**
  * Fails when an arm installed something other than what its name promises.
  *
@@ -76,7 +68,7 @@ internal fun installDenseBackend(backend: String) {
     when (backend) {
         AUTOMATIC_BACKEND -> discoverBackends()
         REFERENCE_BACKEND -> installBackends(F64ContextBuilder().resolve())
-        HOST_BACKEND -> check(useHost()) { "the host dense backend is unavailable" }
+        HOST_BACKEND -> error("the host dense factorization backend is unavailable")
         else -> error("unknown backend: $backend")
     }
     val blas = koblas.blas.name
@@ -90,10 +82,6 @@ internal fun installDenseBackend(backend: String) {
                 "benchmark arm 'reference' resolved kernels to '$kernels', which routes to a host half " +
                     "above its crossover. The portable arm would call the host library underneath itself."
             }
-        }
-        HOST_BACKEND -> {
-            requireResolved(backend, "blas", blas, hostBackendName)
-            requireResolved(backend, "decompositions", decompositions, hostBackendName)
         }
     }
     reportResolution(backend, "blas" to blas, "decompositions" to decompositions, "kernels" to kernels)

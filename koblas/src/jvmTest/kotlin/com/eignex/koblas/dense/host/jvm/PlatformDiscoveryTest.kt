@@ -72,11 +72,7 @@ class PlatformDiscoveryTest {
                 koblas.isAccelerated(BackendRole.DENSE_BLAS),
                 "the F64Blas slot should be accelerated exactly when a host CBLAS resolved",
             )
-            assertEquals(
-                HostLibraries.lapacke,
-                koblas.isAccelerated(BackendRole.DENSE_DECOMPOSITIONS),
-                "the F64Decompositions slot should be accelerated exactly when a host LAPACKE resolved",
-            )
+            assertFalse(koblas.isAccelerated(BackendRole.DENSE_DECOMPOSITIONS))
             assertFalse(
                 koblas.isAccelerated(BackendRole.DENSE_KERNELS),
                 "no host provides vector-vector kernels, so that slot stays on the compiled-in ones " +
@@ -86,17 +82,13 @@ class PlatformDiscoveryTest {
     }
 
     @Test
-    fun `registering OpenBLAS backends offers their available halves`() = withCleanBackends {
-        val backends = F64Backends()
-        registerBackend(backends)
+    fun `registering OpenBLAS offers only its BLAS half`() = withCleanBackends {
+        val backend = F64Cblas()
+        registerBackend(backend)
 
-        assertEquals(backends.blas.isAvailable, koblas.isAccelerated(BackendRole.DENSE_BLAS), "BLAS")
+        assertEquals(backend.isAvailable, koblas.isAccelerated(BackendRole.DENSE_BLAS), "BLAS")
         assertFalse(koblas.isAccelerated(BackendRole.DENSE_KERNELS), "kernels")
-        assertEquals(
-            backends.decompositions.isAvailable,
-            koblas.isAccelerated(BackendRole.DENSE_DECOMPOSITIONS),
-            "decompositions",
-        )
+        assertFalse(koblas.isAccelerated(BackendRole.DENSE_DECOMPOSITIONS), "decompositions")
     }
 
     /**

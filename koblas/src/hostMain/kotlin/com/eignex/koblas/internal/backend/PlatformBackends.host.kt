@@ -18,13 +18,9 @@ internal actual fun registerPlatformBackends() {
 private fun registerHostBlas(requested: Map<BackendSlot, String?>) {
     val config = HostBlasConfig(
         libraryPath = libraryPath(ConfigurationKeys.CBLAS_PATH),
-        lapackeLibraryPath = libraryPath(ConfigurationKeys.LAPACKE_PATH),
     )
     val loader = OpenBlasLoader(config)
     val cblas = loader.cblas ?: return
     val blas = F64Cblas(cblas, loader, config)
     registerIfOffered(blas, requested)
-    // Without LAPACKE the factorizations stay portable while everything above keeps the host BLAS.
-    val lapacke = loader.lapacke ?: return
-    registerIfOffered(F64Lapacke(lapacke, cblas, loader, config), requested)
 }

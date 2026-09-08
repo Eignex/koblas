@@ -36,7 +36,7 @@ class HostCoverageTest {
         assertEquals(
             emptyList(),
             resolvedHostLibraries(
-                blas = HostBlasConfig(libraryPath = nowhere, lapackeLibraryPath = nowhere),
+                blas = HostBlasConfig(libraryPath = nowhere),
                 hfactor = HfactorConfig(nowhere),
             ),
         )
@@ -46,7 +46,6 @@ class HostCoverageTest {
     private fun resolvedHostLibraries(
         blas: HostBlasConfig = HostBlasConfig(
             libraryPath = libraryPath(ConfigurationKeys.CBLAS_PATH),
-            lapackeLibraryPath = libraryPath(ConfigurationKeys.LAPACKE_PATH),
         ),
         hfactor: HfactorConfig = HfactorConfig(libraryPath(ConfigurationKeys.HFACTOR_PATH)),
     ): List<String> {
@@ -54,7 +53,6 @@ class HostCoverageTest {
         val sparse = F64SparseBackends(hfactor)
         return buildList {
             if (dense.available) add("cblas")
-            if (dense.lapackAvailable) add("lapacke")
             if (sparse.hfactor.isAvailable) add("hfactor")
         }
     }

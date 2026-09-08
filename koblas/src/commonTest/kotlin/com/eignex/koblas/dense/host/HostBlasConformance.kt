@@ -281,10 +281,7 @@ internal fun assertSpdSuiteAgreesWithReference(decompositions: F64Decompositions
     }
 }
 
-/**
- * A non-positive-definite input has no LAPACK equivalent, so the host hands the factorization back.
- * Uses a moderate [n] so the host path performs representative work.
- */
+/** A non-positive-definite input follows the same policy as the reference implementation. */
 internal fun assertNonPositiveDefiniteFallsBack(decompositions: F64Decompositions, n: Int) {
     val bad = poisonedSpd(n, Random(20260808))
     bad[n - 1, n - 1] = -1.0 // breaks positive definiteness at the last leading minor
@@ -302,8 +299,7 @@ internal fun assertNonPositiveDefiniteFallsBack(decompositions: F64Decomposition
  *
  * `regularizations` is how a caller asks whether the factor describes the matrix it handed over or a nearby
  * one, so a strict factorization writing into a destination a regularized one left behind has to clear it.
- * The host adapter answers strict Cholesky from `dpotrf`, which regularizes nothing and knows nothing about
- * the property, so the reset is the adapter's to make.
+ * The destination's old regularization count must not leak into the new factorization.
  */
 internal fun assertReusedCholeskyDestinationReportsItsOwnCount(decompositions: F64Decompositions) {
     val n = 3
@@ -709,8 +705,7 @@ internal fun assertLdlFactorsInterchange(decompositions: F64Decompositions, size
 /** Both least squares and the minimum-norm solve, across every pairing of the two backends' factors. */
 internal fun assertQrFactorsInterchange(decompositions: F64Decompositions, shapes: List<Pair<Int, Int>>) {
     // A column whose tail is already zero is where the two can differ without either being wrong: both
-    // factor it, and only a zero reflector leaves R's diagonal as it found it. Sized past the LAPACK
-    // size used by every binding conformance run.
+    // factor it, and only a zero reflector leaves R's diagonal as it found it.
     val triangular = F64DenseMatrix.diagonal(80)
     assertClose(reference.qr(triangular).tau, decompositions.qr(triangular).tau, "tau on a triangular operand")
     assertClose(reference.qr(triangular).qr, decompositions.qr(triangular).qr, "R on a triangular operand")

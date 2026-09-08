@@ -26,6 +26,6 @@ public class F64Cblas internal constructor(private val calls: HostBlasCalls) :
     /** Above the reference (0) and the native dlopen backend (90). */
     override val priority: Int get() = HOST_BACKEND_PRIORITY
 
-    /** The BLAS half needs only CBLAS, which a host can provide without LAPACKE. */
+    /** Whether the host provides the complete CBLAS subset. */
     override val isAvailable: Boolean get() = calls.available
 }

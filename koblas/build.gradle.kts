@@ -7,7 +7,7 @@ plugins {
 }
 
 eignexPublish {
-    description.set("Dense/sparse linear algebra for Kotlin/KMP with a pluggable BLAS/LAPACK backend seam.")
+    description.set("Dense/sparse linear algebra for Kotlin/KMP with pluggable BLAS and factorization seams.")
     githubRepo.set("Eignex/koblas")
 }
 

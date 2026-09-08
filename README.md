@@ -16,7 +16,7 @@
 [![License](https://img.shields.io/github/license/eignex/koblas)](https://github.com/eignex/koblas/blob/main/LICENSE)
 
 Dense and sparse double-precision linear algebra for JVM and Kotlin/Native compute hosts. Koblas provides
-BLAS/LAPACK operations, factorizations, and optional OpenBLAS or HFactor acceleration.
+BLAS operations, portable factorizations, and optional OpenBLAS or HFactor acceleration.
 
 Koblas is a low-level building block for numerical and optimization software that owns its data and algorithms.
 It exposes storage, allocation, workspace, backend, and lifecycle decisions instead of hiding them behind a
@@ -30,7 +30,7 @@ Windows Native, and Apple mobile targets are not published.
 | Module | Published targets | Purpose |
 |--------|-------------------|---------|
 | koblas | JVM, Linux x64/arm64, macOS arm64 | Dense and sparse API with a portable reference backend. |
-| koblas-openblas | JVM | Bundled OpenBLAS and LAPACKE. |
+| koblas-openblas | JVM | Bundled CBLAS-only OpenBLAS. |
 | koblas-hfactor | JVM | Bundled HFactor for hypersparse simplex workflows. |
 
 On JVM, add `--add-modules=jdk.incubator.vector` to enable the built-in SIMD kernels. A host OpenBLAS is
@@ -118,8 +118,8 @@ a strided destination must not overlap an input.
 ## Numerical routine coverage
 
 Koblas deliberately exposes the following double-precision subset. The routine names identify the corresponding
-BLAS, LAPACK, or Sparse BLAS operation where one exists; the portable backend defines the same semantics when a
-host provider does not. Routines not listed here are not part of the supported numerical subset.
+BLAS, LAPACK, or Sparse BLAS operation where one exists. Dense factorizations are portable; host acceleration
+is limited to BLAS. Routines not listed here are not part of the supported numerical subset.
 
 | Family | Koblas operations | Standard routines |
 |--------|-------------------|-------------------|
@@ -127,7 +127,7 @@ host provider does not. Routines not listed here are not part of the supported n
 | BLAS level 2 | `gemv`, `symv`, `ger`, `syr`, `syr2`, `trsv`, `trmv` | `dgemv`, `dsymv`, `dger`, `dsyr`, `dsyr2`, `dtrsv`, `dtrmv` |
 | BLAS level 3 | `gemm`, `symm`, `syrk`, `syr2k`, `trsm`, `trmm` | `dgemm`, `dsymm`, `dsyrk`, `dsyr2k`, `dtrsm`, `dtrmm` |
 | Dense utility | `transpose`, `norm1`, `normInf`, `normFro`, row/column scaling | No direct BLAS routine |
-| Dense LAPACK | LU (`factor`, `solve`, `invert`, `rcond`), pivoted LDL, QR and pivoted QR, Cholesky with in-place rank updates, triangular inverse | `dgetrf`, `dgetrs`, `dgetri`, `dgecon`, `dsytrf`, `dsytrs`, `dgeqrf`, `dgeqp3`, `dormqr`, `dpotrf`, `dpotrs`, `dpotri`, `dtpqrt`, `dtrtri` |
+| Portable dense factorizations | LU (`factor`, `solve`, `invert`, `rcond`), pivoted LDL, QR and pivoted QR, Cholesky with in-place rank updates, triangular inverse | LAPACK-compatible semantics |
 | Sparse BLAS | CSC `gemv`, triangular `trsv`/`trsm` and `trmv`/`trmm`, sparse–dense `gemm`, sparse–sparse product, `transpose`, prepared repeated products | Sparse BLAS `usmv`, `ussv`, `ussm`, `usmm`; triangular multiply is `usmv`/`usmm` over a triangle, and product and preparation are Koblas operations |
 | Sparse factorizations | General LU, repeated-pattern LU, Cholesky, LDL, QR, and simplex basis operations | Provider-specific HFactor capabilities |
 
@@ -161,7 +161,7 @@ Dense decompositions hold only Kotlin arrays, so they have no `close()`, native 
 analysis, or prepared-handle API. Reuse a dense factor for repeated right-hand sides; for same-sized changing
 matrices, refactor it in place with `factor.refactorInto(nextMatrix)`. The dense `solveInto` extensions retain
 the destination you pass and accept a Workspace whenever their backend needs staging, but do not advertise a
-cross-backend allocation guarantee: a selected native LAPACK provider may own additional temporary storage.
+cross-backend allocation guarantee.
 
 BLAS options use named Boolean parameters such as lower, transpose, unitDiag, and right.
 
@@ -211,7 +211,7 @@ providers without route diagnostics report UNKNOWN rather than being assumed nat
 
 On JVM, a system property takes precedence over the corresponding environment variable. Kotlin/Native reads
 the environment variable. Override a library path with the JVM property `koblas.<library>.path` or environment
-variable `KOBLAS_<LIBRARY>_PATH`. Supported library identifiers are cblas, lapacke, and hfactor. The
+variable `KOBLAS_<LIBRARY>_PATH`. Supported library identifiers are cblas and hfactor. The
 JVM-only `koblas.jvm.vector.scatter` setting (or
 `KOBLAS_JVM_VECTOR_SCATTER`) selects indexed Vector API stores for sparse kernels: auto (the default) makes a
 conservative guess from a 512-bit x86 preferred species. Use on when you know the deployment has a profitable
@@ -313,13 +313,12 @@ one thread; configure and register a host backend explicitly to request more:
 import com.eignex.koblas.registerBackend
 import com.eignex.koblas.dense.host.cblas.HostBlasConfig
 import com.eignex.koblas.dense.host.cblas.OpenBlasOptions
-import com.eignex.koblas.dense.host.jvm.F64Backends
+import com.eignex.koblas.dense.host.jvm.F64Cblas
 
-registerBackend(F64Backends(HostBlasConfig(OpenBlasOptions(threadCount = 8))))
+registerBackend(F64Cblas(HostBlasConfig(OpenBlasOptions(threadCount = 8))))
 ```
 
-Threaded LAPACK on JVM also needs `-Xss16m`; an insufficient Java thread stack can crash the process. OpenBLAS
-thread configuration is process-wide. Bundled OpenBLAS is built without threading, and HFactor is
+OpenBLAS thread configuration is process-wide. Bundled OpenBLAS is built without threading, and HFactor is
 single-threaded.
 
 ## Ownership and concurrency

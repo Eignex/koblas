@@ -7,39 +7,9 @@ package com.eignex.koblas.dense.host.cblas
 internal fun isIlp64OpenBlas(config: String): Boolean =
     config.split(' ', '\t', '\n').any { it == "USE64BITINT" || it == "INTERFACE64" }
 
-/**
- * Whether an OpenBLAS takes 64-bit integers, from its config string when that says so and from the pivots it
- * writes when it does not. [probePivots] answers with the first [PROBE_WORDS] words a probing
- * `LAPACKE_dgetrf` left, or null when the library carries no such routine to ask.
- *
- * Two questions rather than one because neither settles it alone: an ILP64 build exports the same unsuffixed
- * symbols as an LP64 one, so only the config string names it, and a vendor is free to report no config
- * string at all. A build that answers neither is taken as LP64, so an unrecognized library keeps working.
- */
-internal fun isIlp64Build(config: String, probePivots: () -> IntArray?): Boolean =
-    isIlp64OpenBlas(config) || isIlp64PivotWidth(probePivots() ?: IntArray(0))
-
-/**
- * Whether the pivots a probing `LAPACKE_dgetrf` wrote are 64 bits wide, read as the first three 32-bit
- * [words] of a zeroed buffer. The probe factorizes a 2x2 whose both pivots are row 2, so an LP64 build
- * leaves `2, 2` in the first two words and an ILP64 build spreads the same two pivots over four, putting a
- * zero where the second pivot would sit.
- *
- * A vendor that reports no `openblas_get_config` string is judged here instead, since ILP64 exports the same
- * unsuffixed symbols and the width of what it writes is the only evidence left. Anything but the exact ILP64
- * arrangement counts as LP64, so an unrecognized library keeps working rather than being turned away.
- */
-internal fun isIlp64PivotWidth(words: IntArray): Boolean =
-    words.size >= PROBE_WORDS && words[0] == PROBE_PIVOT && words[1] == 0 && words[2] == PROBE_PIVOT
-
-/** Words of the pivot buffer [isIlp64PivotWidth] reads, enough to cover two 64-bit pivots. */
-internal const val PROBE_WORDS: Int = 3
-
-/** The pivot both steps of the probe's 2x2 factorization select, in LAPACK's 1-based row numbering. */
-internal const val PROBE_PIVOT: Int = 2
-
-/** The order of the matrix the pivot-width probe factorizes. */
-internal const val PROBE_ORDER: Int = 2
+/** Whether [config] identifies an OpenBLAS build whose CBLAS integer ABI is the LP64 one koblas binds. */
+internal fun isLp64OpenBlas(config: String): Boolean =
+    config.split(' ', '\t', '\n').any { it == "OpenBLAS" } && !isIlp64OpenBlas(config)
 
 /** Names used by the platform loader to locate a host OpenBLAS. */
 internal val OPENBLAS_SONAMES = listOf(
@@ -49,16 +19,6 @@ internal val OPENBLAS_SONAMES = listOf(
     "/opt/homebrew/opt/openblas/lib/libopenblas.dylib",
     "/usr/local/opt/openblas/lib/libopenblas.dylib",
     "openblas.dll",
-)
-
-/** Names used when LAPACKE is not exported by OpenBLAS itself. */
-internal val LAPACKE_SONAMES = listOf(
-    "liblapacke.so.3",
-    "liblapacke.so",
-    "liblapacke.dylib",
-    "/opt/homebrew/opt/decompositions/lib/liblapacke.dylib",
-    "/usr/local/opt/decompositions/lib/liblapacke.dylib",
-    "lapacke.dll",
 )
 
 /** Numerical and execution policy shared by host and bundled OpenBLAS providers. */
@@ -71,26 +31,22 @@ public data class OpenBlasOptions(
     }
 }
 
-/** Policy for one OpenBLAS and optional LAPACKE backend instance. */
+/** Policy for one OpenBLAS backend instance. */
 public data class HostBlasConfig(
     /** An absolute OpenBLAS library path, or the deployment lookup chain when null. */
     val libraryPath: String? = null,
-    /** An absolute LAPACKE library path, or the deployment lookup chain when null. */
-    val lapackeLibraryPath: String? = null,
     /** OpenBLAS thread count; setting it, including to one, requires a higher JVM thread-memory cap. */
     val threadCount: Int? = 1,
 ) {
     /** Creates a deployment-discovered host configuration from shared [options]. */
-    public constructor(options: OpenBlasOptions) : this(null, null, options)
+    public constructor(options: OpenBlasOptions) : this(null, options.threadCount)
 
     /** Creates a host configuration from library locations and shared [options]. */
     public constructor(
         libraryPath: String?,
-        lapackeLibraryPath: String?,
         options: OpenBlasOptions,
     ) : this(
         libraryPath,
-        lapackeLibraryPath,
         options.threadCount,
     )
 

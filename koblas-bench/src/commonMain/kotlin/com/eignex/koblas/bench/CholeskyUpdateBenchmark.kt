@@ -7,11 +7,7 @@ import com.eignex.koblas.dense.cholesky
 import com.eignex.koblas.dense.rankUpdate
 import kotlinx.benchmark.*
 
-/**
- * Cholesky rank updates on either side of the host half's rank gate, which is what a report has to show to
- * justify where that gate sits: the portable sweep costs one pass over the triangle per vector, while
- * `dtpqrt` pays a transpose once and then blocks.
- */
+/** Portable Cholesky rank updates across vector and block widths retained for workload coverage. */
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(BenchmarkTimeUnit.MICROSECONDS)
@@ -22,7 +18,7 @@ class CholeskyUpdateBenchmark {
     @Param("1", "8", "16", "32", "64")
     var rank: Int = 0
 
-    @Param(REFERENCE_BACKEND, HOST_BACKEND)
+    @Param(REFERENCE_BACKEND)
     var backend: String = REFERENCE_BACKEND
 
     private lateinit var factor: F64CholeskyDecomposition

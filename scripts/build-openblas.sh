@@ -29,7 +29,6 @@ version=$(sed -n 's/^version=//p' "$lock_file")
 url=$(sed -n 's/^url=//p' "$lock_file")
 expected_sha=$(sed -n 's/^sha256=//p' "$lock_file")
 c_compiler="${CC:-cc}"
-fortran_compiler="${FC:-gfortran}"
 cache_dir="${OPENBLAS_DOWNLOAD_CACHE:-$project_dir/koblas-openblas/build/openblas/downloads}"
 archive="$cache_dir/openblas-$version.tar.gz"
 mkdir -p "$cache_dir"
@@ -69,12 +68,8 @@ esac
 
 resource_dir="$output/org/bytedeco/openblas/$platform"
 notices="$output/THIRD-PARTY-NOTICES.txt"
-build_options="USE_THREAD=0"
-case "$platform" in
-  linux-x86_64) required_files=("$library_name" libgfortran.so.5 libquadmath.so.0 libgcc_s.so.1) ;;
-  linux-arm64) required_files=("$library_name" libgfortran.so.5 libgcc_s.so.1) ;;
-  macosx-arm64) required_files=("$library_name" libgfortran.dylib libgfortran.5.dylib libquadmath.0.dylib libgcc_s.1.1.dylib) ;;
-esac
+build_options="USE_THREAD=0 ONLY_CBLAS=1"
+required_files=("$library_name")
 if [[ -f "$resource_dir/.openblas-source-sha256" ]] &&
   [[ "$(<"$resource_dir/.openblas-source-sha256")" == "$expected_sha" ]] &&
   [[ -f "$resource_dir/.openblas-build-options" ]] &&
@@ -91,12 +86,10 @@ work_dir=$(mktemp -d "${TMPDIR:-/tmp}/koblas-openblas.XXXXXX")
 trap 'rm -rf "$work_dir"' EXIT
 tar -xzf "$archive" -C "$work_dir"
 source_dir="$work_dir/OpenBLAS-$version"
-if [[ "$platform" == linux-* ]]; then
-  # The extracted Fortran runtimes live beside libopenblas, so the dynamic loader must search that directory
-  # before falling back to a host installation.
-  printf '%s\n' "EXTRALIB += -Wl,-rpath,'\$\$ORIGIN'" >> "$source_dir/Makefile.system"
-fi
-build_args=(shared NO_AFFINITY=1 USE_THREAD=0 USE_OPENMP=0 LAPACKE=1 CFLAGS=-w FFLAGS=-w "CC=$c_compiler" "FC=$fortran_compiler" "HOSTCC=${HOSTCC:-cc}")
+build_args=(
+  shared NO_AFFINITY=1 USE_THREAD=0 USE_OPENMP=0 ONLY_CBLAS=1 CFLAGS=-w
+  "CC=$c_compiler" "HOSTCC=${HOSTCC:-cc}"
+)
 if [[ "$platform" == linux-arm64 ]] && ! [[ "$(uname -m)" =~ ^(aarch64|arm64)$ ]]; then
   build_args+=(TARGET=ARMV8 DYNAMIC_ARCH=0)
 else
@@ -114,55 +107,10 @@ library=$(find "$source_dir" -type f \( -name 'libopenblas*.so' -o -name 'libope
 [[ -n "$library" ]] || { echo "OpenBLAS build did not produce a shared library" >&2; exit 1; }
 cp "$library" "$resource_dir/$library_name"
 
-if [[ "$platform" == linux-* ]]; then
-  runtimes=(
-    "$("$fortran_compiler" -print-file-name=libgfortran.so.5)"
-    "$("$c_compiler" -print-file-name=libgcc_s.so.1)"
-  )
-  if [[ "$platform" == linux-x86_64 ]]; then
-    runtimes+=("$("$fortran_compiler" -print-file-name=libquadmath.so.0)")
-  fi
-  for runtime in "${runtimes[@]}"; do
-    [[ -f "$runtime" ]] || { echo "missing Linux runtime $runtime" >&2; exit 1; }
-    cp "$runtime" "$resource_dir/$(basename "$runtime")"
-  done
-else
-  command -v install_name_tool >/dev/null || {
-    echo "install_name_tool is required to bundle macOS Fortran runtimes" >&2
-    exit 1
-  }
-  for runtime_name in libgfortran.5.dylib libquadmath.0.dylib libgcc_s.1.1.dylib; do
-    runtime=$("$fortran_compiler" -print-file-name="$runtime_name")
-    [[ -f "$runtime" ]] || { echo "missing macOS runtime $runtime_name" >&2; exit 1; }
-    destination="$resource_dir/$runtime_name"
-    [[ -e "$destination" ]] || cp "$runtime" "$destination"
-  done
-  while read -r dependency; do
-    destination="$resource_dir/$(basename "$dependency")"
-    if [[ -f "$dependency" && ! -e "$destination" ]]; then
-      cp "$dependency" "$destination"
-    fi
-    install_name_tool -change "$dependency" "@loader_path/$(basename "$dependency")" "$resource_dir/$library_name"
-  done < <(otool -L "$resource_dir/$library_name" | awk 'NR > 1 && /(@rpath\/|\/)(libgfortran|libquadmath|libgcc_s).*\.dylib/ { print $1 }')
-  for binary in "$resource_dir"/*.dylib; do
-    while read -r dependency; do
-      destination="$resource_dir/$(basename "$dependency")"
-      if [[ -f "$dependency" && ! -e "$destination" ]]; then
-        cp "$dependency" "$destination"
-      fi
-      install_name_tool -change "$dependency" "@loader_path/$(basename "$dependency")" "$binary"
-    done < <(otool -L "$binary" | awk 'NR > 1 && /(@rpath\/|\/)(libgfortran|libquadmath|libgcc_s).*\.dylib/ { print $1 }')
-  done
-  if [[ -f "$resource_dir/libgfortran.5.dylib" && ! -e "$resource_dir/libgfortran.dylib" ]]; then
-    cp "$resource_dir/libgfortran.5.dylib" "$resource_dir/libgfortran.dylib"
-  fi
-fi
-
 for file in "${required_files[@]}"; do
   [[ -s "$resource_dir/$file" ]] || { echo "missing bundled runtime $file" >&2; exit 1; }
 done
 notices_init "$notices" "koblas-openblas" "scripts/build-openblas.sh"
 notices_append_file "$notices" "OpenBLAS $version — BSD-3-Clause" "OpenBLAS/LICENSE" "$source_dir/LICENSE"
-notices_append_gcc_runtime_licenses "$notices" "$cache_dir"
 printf '%s\n' "$expected_sha" > "$resource_dir/.openblas-source-sha256"
 printf '%s\n' "$build_options" > "$resource_dir/.openblas-build-options"

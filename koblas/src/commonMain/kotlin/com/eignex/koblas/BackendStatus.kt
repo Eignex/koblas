@@ -146,6 +146,6 @@ public fun F64Context.requireAccelerated(role: BackendRole, vararg otherRoles: B
 
 private fun F64Context.accelerationFailure(detail: String): String =
     "koblas fell back to portable implementations for: $detail. " +
-        "Either the host library is missing (libopenblas/liblapacke on Linux, brew install openblas on " +
+        "Either the host library is missing (libopenblas on Linux, brew install openblas on " +
         "macOS), the backend artifact is not on the classpath, or nothing has been registered for that " +
         "role yet. Resolved: backend=$name, kernels=${kernels.name}"
