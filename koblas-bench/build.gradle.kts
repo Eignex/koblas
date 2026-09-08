@@ -79,13 +79,13 @@ benchmark {
         }
         register("openblas") {
             defaults()
-            include(".*(?:ExternalDenseLevel1Benchmark|ExternalDenseLevel1CompositionBenchmark|Level2Benchmark|Level3Benchmark).*")
+            include(".*(?:ExternalDenseLevel1Benchmark|ExternalDenseLevel1CompositionBenchmark|Level2Benchmark|Level3Benchmark|SyrkBenchmark).*")
             param("denseArm", "openblas")
             param("comparator", "openblas")
         }
         register("oneMkl") {
             defaults()
-            include(".*(?:ExternalDenseLevel1Benchmark|ExternalDenseLevel1CompositionBenchmark|Level2Benchmark|Level3Benchmark|SparseLevel1ComparisonBenchmark|SparseProductHostBenchmark).*")
+            include(".*(?:ExternalDenseLevel1Benchmark|ExternalDenseLevel1CompositionBenchmark|Level2Benchmark|Level3Benchmark|SyrkBenchmark|SparseLevel1ComparisonBenchmark|SparseProductHostBenchmark).*")
             param("denseArm", "onemkl")
             param("sparseArm", "onemkl")
             param("comparator", "onemkl")
