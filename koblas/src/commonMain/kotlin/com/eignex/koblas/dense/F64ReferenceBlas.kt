@@ -7,6 +7,7 @@ import com.eignex.koblas.core.F64DenseMatrix
 import com.eignex.koblas.core.F64DenseVector
 import com.eignex.koblas.core.F64VectorLike
 import com.eignex.koblas.internal.backend.BackendNames
+import kotlin.math.abs
 
 /**
  * The portable dense matrix routines, the semantic reference a native [F64Blas] is validated against.
@@ -356,7 +357,7 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         // when both raw coefficients are zero. Moving alpha to the packed row factor changes exceptional
         // arithmetic, so preserve the old evaluation order whenever a value is non-finite or scaling a
         // finite value would overflow.
-        val exceptional = packedSyr2kChangesExceptionalArithmetic(alpha, ad, bd)
+        val exceptional = packedSyr2kChangesExceptionalArithmetic(alpha, ad, bd, beta, cd, n, k, lower)
         if (exceptional) {
             if (!transpose) {
                 blockedSyr2kUpdate(kernels, alpha, ad, bd, cd, n, k, lower)
@@ -380,12 +381,74 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         )
     }
 
-    /** Whether packed row-side scaling can differ from the retained rank-2k evaluation order. */
-    private fun packedSyr2kChangesExceptionalArithmetic(alpha: Double, a: DoubleArray, b: DoubleArray): Boolean {
+    /** Whether separating the two cross-products can differ from the retained rank-2k evaluation order. */
+    @Suppress("LongParameterList")
+    private fun packedSyr2kChangesExceptionalArithmetic(
+        alpha: Double,
+        a: DoubleArray,
+        b: DoubleArray,
+        beta: Double,
+        c: DoubleArray,
+        n: Int,
+        k: Int,
+        lower: Boolean,
+    ): Boolean {
         if (!alpha.isFinite()) return true
         val scalingCanOverflow = alpha !in -1.0..1.0
-        return a.any { !it.isFinite() || (scalingCanOverflow && !(alpha * it).isFinite()) } ||
-            b.any { !it.isFinite() || (scalingCanOverflow && !(alpha * it).isFinite()) }
+        var maxA = 0.0
+        for (value in a) {
+            if (!value.isFinite() || (scalingCanOverflow && !(alpha * value).isFinite())) return true
+            maxA = maxOf(maxA, abs(value))
+        }
+        var maxB = 0.0
+        for (value in b) {
+            if (!value.isFinite() || (scalingCanOverflow && !(alpha * value).isFinite())) return true
+            maxB = maxOf(maxB, abs(value))
+        }
+        if (maxA == 0.0 || maxB == 0.0) return false
+
+        var maxC = 0.0
+        if (beta != 0.0) {
+            for (j in 0 until n) {
+                val from = if (lower) j else 0
+                val until = if (lower) n else j + 1
+                for (i in from until until) {
+                    val value = c[i + j * n]
+                    if (!value.isFinite()) return true
+                    maxC = maxOf(maxC, abs(value))
+                }
+            }
+        }
+
+        // Each packed call accumulates one cross-product before the other is added. An absolute bound on
+        // both products plus the scaled destination keeps every packed intermediate finite; otherwise the
+        // retained loop must interleave them rank by rank so opposite infinities do not manufacture NaN.
+        val productLimit = (Double.MAX_VALUE - maxC) / (2.0 * k)
+        return productExceeds(productLimit, abs(alpha), maxA, maxB)
+    }
+
+    /** Compares three positive finite factors with [limit] without overflowing the comparison itself. */
+    private fun productExceeds(limit: Double, first: Double, second: Double, third: Double): Boolean {
+        if (first == 0.0 || second == 0.0 || third == 0.0) return false
+        var largest = first
+        var middle = second
+        var smallest = third
+        if (largest < middle) {
+            val swap = largest
+            largest = middle
+            middle = swap
+        }
+        if (middle < smallest) {
+            val swap = middle
+            middle = smallest
+            smallest = swap
+        }
+        if (largest < middle) {
+            val swap = largest
+            largest = middle
+            middle = swap
+        }
+        return limit / largest / middle / smallest < 1.0
     }
 
     /** Solve `op(T) · x = b` in place (BLAS `dtrsv`) for the [lower] or upper triangle of the square [a],

@@ -480,6 +480,30 @@ class LinearAlgebraSymmetricOpsTest {
     }
 
     @Test
+    fun `syr2k interleaves cross products before accumulation overflow`() {
+        val blas = F64ReferenceBlas(F64ScalarKernels)
+        val magnitude = 1e154
+        val normalA = doubleArrayOf(magnitude, magnitude, magnitude, magnitude)
+        val normalB = doubleArrayOf(magnitude, -magnitude, magnitude, -magnitude)
+        val transposedB = doubleArrayOf(magnitude, magnitude, -magnitude, -magnitude)
+        for (transpose in booleanArrayOf(false, true)) {
+            val a = F64DenseMatrix(2, 2, normalA.copyOf())
+            val b = F64DenseMatrix(2, 2, if (transpose) transposedB.copyOf() else normalB.copyOf())
+            for (lower in booleanArrayOf(true, false)) {
+                val c = F64DenseMatrix(2, 2)
+                blas.syr2k(1.0, a, b, transpose, 0.0, c, lower)
+                val row = if (lower) 1 else 0
+                val column = if (lower) 0 else 1
+                assertEquals(
+                    0.0,
+                    c[row, column],
+                    "lower=$lower transpose=$transpose separated cancelling cross-products",
+                )
+            }
+        }
+    }
+
+    @Test
     fun `syr2k snapshots either aliased input`() {
         val rng = Random(20260909)
         val blas = F64ReferenceBlas(F64ScalarKernels)
