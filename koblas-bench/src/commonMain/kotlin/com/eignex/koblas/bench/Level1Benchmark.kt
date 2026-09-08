@@ -12,7 +12,7 @@ class Level1Benchmark {
     @Param("2", "4", "8", "16", "32", "63", "64", "65", "128", "256", "1024", "4096")
     var len: Int = 0
 
-    @Param(AUTOMATIC_KERNELS, SCALAR_KERNELS, C_KERNELS, HOST_BACKEND)
+    @Param(AUTOMATIC_KERNELS, SCALAR_KERNELS, C_KERNELS)
     var kernels: String = AUTOMATIC_KERNELS
 
     private lateinit var x: F64DenseVector

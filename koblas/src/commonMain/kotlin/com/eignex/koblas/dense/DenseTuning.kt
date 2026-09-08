@@ -86,36 +86,6 @@ internal object DenseTuning {
     val trsmBlockedMinOrder: Int = tuned("trsm.blocked.min.order", default = 512)
 
     /**
-     * Run length from which crossing into a registered host BLAS beats the compiled-in kernels.
-     *
-     * The `Level1Benchmark` scalar and host runs at 63, 64 and 65 elements put the crossover at 64 for
-     * every routed primitive. Kept per operation so a future measurement can move one without silently
-     * changing the others.
-     */
-    val hostDotCrossover: Int = tuned("host.dot.crossover", default = 64)
-
-    /** Host crossover for axpy, measured with [hostDotCrossover]. */
-    val hostAxpyCrossover: Int = tuned("host.axpy.crossover", default = 64)
-
-    /** Host crossover for scale, measured with [hostDotCrossover]. */
-    val hostScaleCrossover: Int = tuned("host.scale.crossover", default = 64)
-
-    /** Host crossover for the euclidean norm, measured with [hostDotCrossover]. */
-    val hostNrm2Crossover: Int = tuned("host.nrm2.crossover", default = 64)
-
-    /** Host crossover for the absolute sum, measured with [hostDotCrossover]. */
-    val hostAsumCrossover: Int = tuned("host.asum.crossover", default = 64)
-
-    /** Host crossover for swap, measured with [hostDotCrossover]. */
-    val hostSwapCrossover: Int = tuned("host.swap.crossover", default = 64)
-
-    /** Host crossover for the plane rotation, measured with [hostDotCrossover]. */
-    val hostRotCrossover: Int = tuned("host.rot.crossover", default = 64)
-
-    /** Host crossover for the modified Givens rotation, measured with [hostDotCrossover]. */
-    val hostRotmCrossover: Int = tuned("host.rotm.crossover", default = 64)
-
-    /**
      * Run length from which crossing into the bundled C library beats staying on the JVM.
      *
      * Every such call wraps each array in a MemorySegment and goes through invokeExact, which costs tens of

@@ -268,30 +268,13 @@ class HostBlasConformanceTest {
     }
 
     /**
-     * The level-1 gate is [Int.MAX_VALUE] while the compiled-in kernels are SIMD, so nothing otherwise calls
-     * OpenBLAS's ddot, dnrm2, dasum, daxpy or dscal. Configured to route from length zero, these are the
-     * only exercise those five downcalls get.
+     * Naming a library that is not there is answered by `isAvailable`, not by a raise, since a caller
+     * installing a backend explicitly has to be able to ask.
      */
     @Test
-    fun `the host level-1 kernels agree with the compiled-in ones`() {
-        requireCblas()
-        val host = F64CblasKernels(HostBlasConfig())
-        Assume.assumeTrue("host CBLAS did not bind its level-1 symbols", host.isAvailable)
-        assertLevel1KernelsAgreeWithScalar(host)
-        assertModifiedGivensKernelsAgreeWithPortable(host)
-        assertRotKernelAgreesWithPortable(host)
-        assertReductionsAgreeWithScalar(host)
-        assertSwapAgreesWithScalar(host)
-    }
-
-    /**
-     * Both bindings share one constructor contract: naming a library that is not there is answered by
-     * `isAvailable`, not by a raise, since a caller installing a backend explicitly has to be able to ask.
-     */
-    @Test
-    fun `level-1 kernels construct and report unavailable without the library`() {
-        val kernels = F64CblasKernels(HostBlasConfig(libraryPath = MISSING_LIBRARY))
-        assertFalse(kernels.isAvailable, "a library that is not on this host cannot be available")
+    fun `the binding constructs and reports unavailable without the library`() {
+        val backends = F64Backends(HostBlasConfig(libraryPath = MISSING_LIBRARY))
+        assertFalse(backends.blas.isAvailable, "a library that is not on this host cannot be available")
     }
 
     private companion object {

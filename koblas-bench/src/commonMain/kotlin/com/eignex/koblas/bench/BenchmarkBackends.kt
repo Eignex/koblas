@@ -156,14 +156,16 @@ internal fun installBasisSolverBackend(backend: String) {
  *
  * A pinned provider is resolved from a portable seed rather than from the installed context. Seeded from
  * the installed one it inherited whatever discovery had chosen for the matrix halves, so a level-2 routine
- * under a `scalar` arm still ran on a host library and the three kernel arms measured the same code.
+ * under a `scalar` arm still ran on a host library and the kernel arms measured the same code.
+ *
+ * There is no host arm here. koblas no longer carries a level-1 host binding, so the only kernels a run can
+ * name are its own, and a level-1 comparison against a host library is not something this module can make.
  */
 @OptIn(ExperimentalKoblasApi::class)
 internal fun installKernelProvider(provider: String) {
     installBackends(null)
     when (provider) {
         AUTOMATIC_KERNELS -> discoverBackends()
-        HOST_BACKEND -> check(useHost()) { "the host kernel provider is unavailable" }
         else -> {
             val builtIn = when (provider) {
                 SCALAR_KERNELS -> F64BuiltinKernels.scalar
@@ -183,7 +185,6 @@ internal fun installKernelProvider(provider: String) {
             // routine, which reaches the kernels only through the BLAS half above them.
             requireResolved(provider, "blas", koblas.blas.name, REFERENCE_BACKEND)
         }
-        HOST_BACKEND -> requireResolved(provider, "kernels", kernels, hostBackendName)
     }
     reportResolution(
         provider,

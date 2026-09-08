@@ -1,6 +1,5 @@
 package com.eignex.koblas
 
-import com.eignex.koblas.dense.F64RoutedKernels
 import com.eignex.koblas.internal.backend.slot
 
 /** A public role in an [F64Context], independent of the registry's internal seam representation. */
@@ -93,17 +92,8 @@ public data class F64ContextStatus(val backends: List<BackendStatus>) {
 /** The backend installed for [role]. */
 public fun F64Context.backendFor(role: BackendRole): Backend = role.slot.from(this)
 
-/**
- * Whether [role] is filled by something other than koblas's own portable implementation.
- *
- * For [BackendRole.DENSE_KERNELS] this reports whether a host is registered, not whether a given call
- * reaches it: a run below that operation's crossover still executes on the compiled-in kernels even when
- * this is true.
- */
-public fun F64Context.isAccelerated(role: BackendRole): Boolean = when (val backend = backendFor(role)) {
-    is F64RoutedKernels -> backend.host != null
-    else -> !backend.isPortable
-}
+/** Whether [role] is filled by something other than koblas's own portable implementation. */
+public fun F64Context.isAccelerated(role: BackendRole): Boolean = !backendFor(role).isPortable
 
 /** Shared by every half that reports no metadata of its own, so reading a status allocates none. */
 internal val NO_METADATA: BackendMetadata = BackendMetadata()

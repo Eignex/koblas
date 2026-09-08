@@ -3,7 +3,6 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.assertClose
 import kotlin.random.Random
 import kotlin.test.Test
-import kotlin.test.assertEquals
 
 /**
  * The packed product against a written-out one, driven directly so the shapes here are exercised whatever
@@ -62,29 +61,5 @@ class PackedGemmTest {
     @Test
     fun `the packed product on the compiled in kernels agrees with a written out product`() {
         assertPackedGemmAgreesWithWrittenOutProduct(F64PlatformKernels)
-    }
-}
-
-/**
- * The wrapper the registry composes must hand out the tile the compiled-in kernels implement. Falling back
- * to the interface default here is correct and slow, so nothing else would catch it.
- */
-class RoutedTileTest {
-    @Test
-    fun `the routed kernels expose the compiled in tile`() {
-        val routed: F64Kernels = F64RoutedKernels(null)
-        assertEquals(F64PlatformKernels.gemmTileRows, routed.gemmTileRows)
-        assertEquals(F64PlatformKernels.gemmTileCols, routed.gemmTileCols)
-
-        val depth = 3
-        val rows = routed.gemmTileRows
-        val cols = routed.gemmTileCols
-        val packedA = DoubleArray(depth * rows) { (it + 1).toDouble() / 7.0 }
-        val packedB = DoubleArray(depth * cols) { (it + 2).toDouble() / 11.0 }
-        val expected = DoubleArray(rows * cols)
-        val actual = DoubleArray(rows * cols)
-        F64PlatformKernels.gemmTile(depth, packedA, 0, packedB, 0, expected, 0, rows)
-        routed.gemmTile(depth, packedA, 0, packedB, 0, actual, 0, rows)
-        assertClose(expected, actual, context = "routed tile")
     }
 }

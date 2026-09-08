@@ -36,8 +36,11 @@ puts the same library on both sides and produces a table that means nothing.
 The arms that pin an implementation are `reference` for the portable matrix
 routines, `scalar`, `c` and `simd` for a single built-in kernel provider, and
 `host` for the host binding. A comparison of portable against host has to pin
-both sides: `-Pbench.param.backend=reference,host` for matrix routines and
-`-Pbench.param.kernels=simd,host` for kernels.
+both sides: `-Pbench.param.backend=reference,host`.
+
+There is no `host` arm for the `kernels` parameter. koblas carries no level-1
+host binding any more, so a level-1 run can only name its own providers and
+cannot be compared against a host library from here.
 
 `simd` is absent from every `@Param` list because Kotlin/Native has no such
 provider and a benchmark configuration covers every target, so a full native

@@ -2,41 +2,6 @@ package com.eignex.koblas
 
 import com.eignex.koblas.internal.backend.BackendNames
 
-/**
- * The level-1 routines a caller can ask about, each with a crossover of its own.
- *
- * [ROTMG] takes four scalars and has no length to compare, so it routes to a registered host whatever the
- * problem size; every other routine here is gated.
- */
-public enum class F64Level1Routine {
-    /** `xᵀ·y`. */
-    DOT,
-
-    /** `y += alpha·x`. */
-    AXPY,
-
-    /** `x *= alpha`. */
-    SCALE,
-
-    /** The Euclidean norm. */
-    NRM2,
-
-    /** The sum of absolute values. */
-    ASUM,
-
-    /** Exchanging two vectors. */
-    SWAP,
-
-    /** Applying a plane rotation. */
-    ROT,
-
-    /** Applying a modified plane rotation. */
-    ROTM,
-
-    /** Generating a modified rotation, which has no length to gate on. */
-    ROTMG,
-}
-
 /** An operation whose runtime route can be inspected before it is executed. */
 public sealed interface F64RouteQuery {
     /** The context role that owns this operation. */
@@ -60,18 +25,6 @@ public sealed interface F64RouteQuery {
             requireNonNegative(m, "m")
             requireNonNegative(n, "n")
             requireNonNegative(k, "k")
-        }
-    }
-
-    /**
-     * One level-1 [routine] over [length] elements, which the kernels route per call: a run below that
-     * routine's crossover executes on the compiled-in kernels even when a host is registered.
-     */
-    public data class Level1(val routine: F64Level1Routine, val length: Int) : F64RouteQuery {
-        override val role: BackendRole get() = BackendRole.DENSE_KERNELS
-
-        init {
-            requireNonNegative(length, "length")
         }
     }
 
@@ -240,9 +193,6 @@ public enum class BackendRouteReason {
 public enum class DispatchMetric {
     /** A matrix dimension. */
     DIMENSION,
-
-    /** Elements in a level-1 operand. */
-    VECTOR_LENGTH,
 }
 
 /**

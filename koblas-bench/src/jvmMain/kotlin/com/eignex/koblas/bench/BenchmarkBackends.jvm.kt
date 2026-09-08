@@ -16,12 +16,6 @@ internal actual val hostBackendName: String get() = F64Backends(HostBlasConfig()
 private fun installHost(config: HostBlasConfig): Boolean {
     val backends = F64Backends(config)
     if (!backends.blas.isAvailable) return false
-    installBackends(
-        koblas.with(
-            kernels = backends.kernels,
-            blas = backends.blas,
-            decompositions = backends.decompositions,
-        ),
-    )
+    installBackends(koblas.with(blas = backends.blas, decompositions = backends.decompositions))
     return true
 }

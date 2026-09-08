@@ -65,18 +65,12 @@ class BenchmarkArmResolutionTest {
         installDenseBackend(REFERENCE_BACKEND)
         assertEquals(REFERENCE_BACKEND, koblas.blas.name)
         assertEquals(REFERENCE_BACKEND, koblas.decompositions.name)
-        assertTrue(
-            '+' !in koblas.kernels.name,
-            "the reference arm resolved kernels to ${koblas.kernels.name}, which routes to a host half",
-        )
     }
 
     @Test
-    fun `the host arms resolve to the host binding when one is installed`() {
+    fun `the host arm resolves to the host binding when one is installed`() {
         if (!installedOrSkipped { installDenseBackend(HOST_BACKEND) }) return
         assertEquals(hostBackendName, koblas.blas.name)
-        installKernelProvider(HOST_BACKEND)
-        assertEquals(hostBackendName, koblas.kernels.name)
     }
 
     @Test

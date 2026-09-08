@@ -60,7 +60,6 @@ private class AutomaticHostConfiguration {
 private fun registerBuiltins(automatic: AutomaticHostConfiguration, requested: Map<BackendSlot, String?>) {
     val dense = F64Backends(automatic.openBlas)
     registerIfOffered(dense.blas, requested)
-    registerIfOffered(dense.kernels, requested)
     dense.decompositions.takeIf { it.isAvailable }?.let { registerIfOffered(it, requested) }
     registerIfOffered(F64SparseBackends(hfactorConfig = automatic.hfactor).hfactor, requested)
 }

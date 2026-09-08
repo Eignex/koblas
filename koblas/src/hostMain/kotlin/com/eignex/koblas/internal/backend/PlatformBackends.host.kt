@@ -24,8 +24,6 @@ private fun registerHostBlas(requested: Map<BackendSlot, String?>) {
     val cblas = loader.cblas ?: return
     val blas = F64Cblas(cblas, loader, config)
     registerIfOffered(blas, requested)
-    // The level-1 primitives sit below the F64Blas seam, so they register as their own half.
-    registerIfOffered(F64CblasKernels(loader, config), requested)
     // Without LAPACKE the factorizations stay portable while everything above keeps the host BLAS.
     val lapacke = loader.lapacke ?: return
     registerIfOffered(F64Lapacke(lapacke, cblas, loader, config), requested)
