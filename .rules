@@ -22,6 +22,7 @@ Kotlin Multiplatform BLAS and LAPACK.
 - The portable reference defines semantics. Host bindings use measured thresholds then fall back to it.
 - Backend seams retain the strongest per half; equal offers preserve first registration. Registration is CAS; call `installBackends` at startup.
 - `*Into` destinations may alias inputs; test the backing buffer.
+- A helper returning a `DoubleVector` must be `inline`. A vector returned from a call the JIT declines to inline becomes a heap object, so the loop allocates per operation and runs twenty to forty times slower, silently and only sometimes: the refusal depends on how close the whole compilation sits to its node budget, so a caller's size decides it. Suppress `NOTHING_TO_INLINE` and say why.
 
 ## Style and contributions
 
