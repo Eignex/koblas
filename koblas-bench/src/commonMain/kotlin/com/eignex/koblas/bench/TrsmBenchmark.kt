@@ -23,7 +23,10 @@ class TrsmBenchmark {
         "16x64",
         "17x64",
         "31x8",
+        "32x31",
         "32x64",
+        "32x32",
+        "32x33",
         "33x64",
         "63x128",
         "64x16",
@@ -77,7 +80,7 @@ class TrsmBenchmark {
     }
 
     @Benchmark
-    fun trsm(): DenseMatrix {
+    fun denseTrsm(): DenseMatrix {
         source.data.copyInto(result.data)
         arm.external?.trsm(
             triangle, result, lower, transpose, unitDiagonal, right, 1.0,
