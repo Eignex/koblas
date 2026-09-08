@@ -320,9 +320,10 @@ class LinearAlgebraSymmetricOpsTest {
 
             val transposed = F64DenseMatrix(2, 2)
             blas.syrk(2.0, F64DenseMatrix(1, 2, values.copyOf()), true, 0.0, transposed, lower)
-            assertTrue(
-                transposed[row, column].isNaN(),
-                "lower=$lower transposed syrk changed its scaling-overflow dot semantics",
+            assertEquals(
+                0.0,
+                transposed[row, column],
+                "lower=$lower transposed syrk introduced infinity before multiplying by zero",
             )
         }
     }

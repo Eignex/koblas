@@ -133,18 +133,31 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
     ) {
         scaleTriangle(kernels, cd, n, beta, lower)
         if (alpha == 0.0 || n == 0 || k == 0) return
+        val scalingOverflows = packingScaleOverflows(alpha, ad)
         // Netlib's non-transposed traversal skips a raw zero multiplier. This is observable when another
-        // value in the rank-one column is already non-finite or becomes non-finite when alpha scales it:
-        // the skipped zero does not multiply that infinity. A packed tile evaluates every pair, so retain
-        // the established outer-product traversal in precisely the cases where the distinction can matter.
-        // The transposed form has never had that guard and deliberately keeps its dot-product semantics.
-        if (!transpose && (!alpha.isFinite() || ad.any { !it.isFinite() || !(alpha * it).isFinite() })) {
+        // value in the rank-one column is already non-finite or becomes non-finite when alpha scales it.
+        if (!transpose && (!alpha.isFinite() || scalingOverflows || ad.any { !it.isFinite() })) {
             blockedSyrkUpdate(kernels, alpha, ad, cd, n, k, lower)
+            return
+        }
+        // The old transposed traversal did not skip zero multipliers, but it scaled the output column's
+        // coefficient rather than the other factor. Retain that order when packing would overflow a finite
+        // value; actual non-finite inputs continue through the packed path and keep zero-times-infinity NaNs.
+        if (transpose && scalingOverflows) {
+            workspace.borrowTransposed(ad, lda, n) { packed ->
+                blockedSyrkUpdate(kernels, alpha, packed, cd, n, k, lower, guardZeroColumns = false)
+            }
             return
         }
         packedTriangularGemm(
             kernels, alpha, ad, lda, transpose, ad, lda, !transpose, cd, n, k, lower, workspace,
         )
+    }
+
+    /** Whether packing would turn a finite entry non-finite by applying [alpha] before the tile product. */
+    private fun packingScaleOverflows(alpha: Double, values: DoubleArray): Boolean {
+        if (!alpha.isFinite() || alpha in -1.0..1.0) return false
+        return values.any { it.isFinite() && !(alpha * it).isFinite() }
     }
 
     @Suppress("LongParameterList") // the BLAS dsymv signature
