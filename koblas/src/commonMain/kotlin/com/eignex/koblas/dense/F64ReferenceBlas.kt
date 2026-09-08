@@ -169,12 +169,19 @@ internal class F64ReferenceBlas(private val configured: F64Kernels? = null) : F6
         val cd = c.data
         applyBeta(kernels, cd, 0, cd.size, beta)
         if (alpha == 0.0 || m == 0 || b.rows == 0 || b.cols == 0) return
+        // The same packed product the general case uses. A symmetric operand differs only in which side of
+        // the diagonal the packing reads each element from, so there is no separate implementation and no
+        // separate kernel: C = alpha * A * B on the left, C = alpha * B * A on the right.
         if (right) {
-            blockedSymmRightUpdate(kernels, alpha, a.data, b.data, cd, b.rows, m, lower)
+            packedGemm(
+                kernels, alpha, b.data, b.rows, false, a.data, m, false, cd,
+                b.rows, m, m, workspace, symmetricB = lower,
+            )
         } else {
-            workspace.borrow(minOf(REFERENCE_MC, m) * minOf(REFERENCE_KC, m)) { panel ->
-                blockedSymmLeftUpdate(kernels, alpha, a.data, b.data, cd, m, b.cols, lower, panel)
-            }
+            packedGemm(
+                kernels, alpha, a.data, m, false, b.data, b.rows, false, cd,
+                m, b.cols, m, workspace, symmetricA = lower,
+            )
         }
     }
 
