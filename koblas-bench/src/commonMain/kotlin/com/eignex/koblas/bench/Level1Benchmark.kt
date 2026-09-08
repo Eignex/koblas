@@ -38,6 +38,15 @@ class Level1Benchmark {
         // rotation is orthogonal, so repeated application preserves the magnitudes it started with.
         rotation = rotg(3.0, 4.0)
         quad = randomVector(4 * len, rng)
+        verifyNearZeroManagedAllocation("level1/$kernels/axpy4") {
+            koblas.kernels.axpy4(
+                y.data, 0, quad, 0, len,
+                NEAR_UNIT_SCALE, -NEAR_UNIT_SCALE, NEAR_UNIT_SCALE, -NEAR_UNIT_SCALE, len,
+            )
+        }
+        verifyNearZeroManagedAllocation("level1/$kernels/dotAxpy") {
+            koblas.kernels.dotAxpy(y.data, 0, NEAR_UNIT_SCALE, x.data, 0, quad, 0, len)
+        }
         verifyNearZeroManagedAllocation("level1/$kernels/dot") { koblas.kernels.dot(x.data, 0, y.data, 0, len) }
         verifyNearZeroManagedAllocation("level1/$kernels/ssqd") { koblas.kernels.ssqd(x.data, 0, y.data, 0, len) }
         verifyNearZeroManagedAllocation("level1/$kernels/dot4") {
@@ -101,5 +110,33 @@ class Level1Benchmark {
     fun dot4(): Double {
         koblas.kernels.dot4(quad, 0, len, x.data, 0, len, quadOut, 0)
         return quadOut[0]
+    }
+
+    @Benchmark
+    fun axpy4(): Double {
+        koblas.kernels.axpy4(
+            y.data, 0, quad, 0, len,
+            NEAR_UNIT_SCALE, -NEAR_UNIT_SCALE, NEAR_UNIT_SCALE, -NEAR_UNIT_SCALE, len,
+        )
+        return y.data[0]
+    }
+
+    @Benchmark
+    fun axpy4AsFourAxpy(): Double {
+        koblas.kernels.axpy(y.data, 0, NEAR_UNIT_SCALE, quad, 0, len)
+        koblas.kernels.axpy(y.data, 0, -NEAR_UNIT_SCALE, quad, len, len)
+        koblas.kernels.axpy(y.data, 0, NEAR_UNIT_SCALE, quad, 2 * len, len)
+        koblas.kernels.axpy(y.data, 0, -NEAR_UNIT_SCALE, quad, 3 * len, len)
+        return y.data[0]
+    }
+
+    @Benchmark
+    fun dotAxpy(): Double = koblas.kernels.dotAxpy(y.data, 0, NEAR_UNIT_SCALE, x.data, 0, quad, 0, len)
+
+    @Benchmark
+    fun dotAxpySeparate(): Double {
+        val result = koblas.kernels.dot(x.data, 0, quad, 0, len)
+        koblas.kernels.axpy(y.data, 0, NEAR_UNIT_SCALE, x.data, 0, len)
+        return result
     }
 }

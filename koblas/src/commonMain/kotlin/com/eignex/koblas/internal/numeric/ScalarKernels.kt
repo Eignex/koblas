@@ -85,3 +85,49 @@ internal fun scalarDot4(
     out[outOff + 2] = r2
     out[outOff + 3] = r3
 }
+
+/** Four equally spaced AXPY arithmetic runs fused around one load and store of the destination. */
+@Suppress("LongParameterList")
+internal fun scalarAxpy4(
+    y: DoubleArray,
+    yOff: Int,
+    a: DoubleArray,
+    aOff: Int,
+    stride: Int,
+    c0: Double,
+    c1: Double,
+    c2: Double,
+    c3: Double,
+    len: Int,
+) {
+    for (i in 0 until len) {
+        var value = y[yOff + i]
+        value += c0 * a[aOff + i]
+        value += c1 * a[aOff + stride + i]
+        value += c2 * a[aOff + 2 * stride + i]
+        value += c3 * a[aOff + 3 * stride + i]
+        y[yOff + i] = value
+    }
+}
+
+/** A dot product and arithmetic AXPY over the same left operand in one pass. */
+@Suppress("LongParameterList")
+internal fun scalarDotAxpy(
+    y: DoubleArray,
+    yOff: Int,
+    alpha: Double,
+    a: DoubleArray,
+    aOff: Int,
+    x: DoubleArray,
+    xOff: Int,
+    len: Int,
+): Double {
+    var sum = 0.0
+    for (i in 0 until len) {
+        val ai = a[aOff + i]
+        val xi = x[xOff + i]
+        sum += ai * xi
+        y[yOff + i] += alpha * ai
+    }
+    return sum
+}

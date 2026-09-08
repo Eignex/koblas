@@ -2,6 +2,8 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.Backend
 import com.eignex.koblas.ModifiedGivens
+import com.eignex.koblas.internal.numeric.scalarAxpy4
+import com.eignex.koblas.internal.numeric.scalarDotAxpy
 
 /**
  * The vector-vector routines as a backend half beneath [Blas]. Implementations must
@@ -95,6 +97,52 @@ public interface Kernels : Backend {
     ) {
         for (r in 0 until 4) out[outOff + r] = dot(a, aOff + r * stride, b, bOff, len)
     }
+
+    /**
+     * Adds four scaled, equally spaced runs of [a] into [y]. For every `i` in the run this performs
+     * `y[yOff + i] += c0*a[aOff + i] + c1*a[aOff + stride + i] + c2*a[aOff + 2*stride + i] +
+     * c3*a[aOff + 3*stride + i]`, in coefficient order.
+     *
+     * Unlike standalone [axpy], zero coefficients are evaluated. Matrix-vector multiplication requires
+     * `0 * infinity` to form NaN, and this kernel must preserve that arithmetic while reducing [y] to one
+     * load and one store for four matrix columns.
+     */
+    @Suppress("LongParameterList") // four coefficients plus the shared matrix and destination runs
+    public fun axpy4(
+        y: DoubleArray,
+        yOff: Int,
+        a: DoubleArray,
+        aOff: Int,
+        stride: Int,
+        c0: Double,
+        c1: Double,
+        c2: Double,
+        c3: Double,
+        len: Int,
+    ) {
+        scalarAxpy4(y, yOff, a, aOff, stride, c0, c1, c2, c3, len)
+    }
+
+    /**
+     * Returns the dot product of the [a] and [x] runs while adding `alpha * a` into [y] in the same pass.
+     * Each element of [x] is loaded before the corresponding destination is stored, so equal input and
+     * destination runs are safe; callers must otherwise avoid overlapping runs whose stores precede later
+     * input loads.
+     *
+     * Zero [alpha] is evaluated rather than skipped, as this is an arithmetic building block for symmetric
+     * matrix-vector multiplication rather than the standalone BLAS [axpy] operation.
+     */
+    @Suppress("LongParameterList") // three runs, their offsets, a scalar, and a length
+    public fun dotAxpy(
+        y: DoubleArray,
+        yOff: Int,
+        alpha: Double,
+        a: DoubleArray,
+        aOff: Int,
+        x: DoubleArray,
+        xOff: Int,
+        len: Int,
+    ): Double = scalarDotAxpy(y, yOff, alpha, a, aOff, x, xOff, len)
 
     /**
      * Plain sum over the run, `0` for an empty one.
@@ -218,4 +266,30 @@ internal expect object PlatformKernels : Kernels, ArithmeticKernels {
         out: DoubleArray,
         outOff: Int,
     )
+
+    @Suppress("LongParameterList")
+    override fun axpy4(
+        y: DoubleArray,
+        yOff: Int,
+        a: DoubleArray,
+        aOff: Int,
+        stride: Int,
+        c0: Double,
+        c1: Double,
+        c2: Double,
+        c3: Double,
+        len: Int,
+    )
+
+    @Suppress("LongParameterList")
+    override fun dotAxpy(
+        y: DoubleArray,
+        yOff: Int,
+        alpha: Double,
+        a: DoubleArray,
+        aOff: Int,
+        x: DoubleArray,
+        xOff: Int,
+        len: Int,
+    ): Double
 }

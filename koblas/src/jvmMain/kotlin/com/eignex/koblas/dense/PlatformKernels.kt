@@ -88,6 +88,32 @@ internal actual object PlatformKernels : Kernels, ArithmeticKernels {
         outOff: Int,
     ) = selected.dot4(a, aOff, stride, b, bOff, len, out, outOff)
 
+    @Suppress("LongParameterList")
+    actual override fun axpy4(
+        y: DoubleArray,
+        yOff: Int,
+        a: DoubleArray,
+        aOff: Int,
+        stride: Int,
+        c0: Double,
+        c1: Double,
+        c2: Double,
+        c3: Double,
+        len: Int,
+    ) = selected.axpy4(y, yOff, a, aOff, stride, c0, c1, c2, c3, len)
+
+    @Suppress("LongParameterList")
+    actual override fun dotAxpy(
+        y: DoubleArray,
+        yOff: Int,
+        alpha: Double,
+        a: DoubleArray,
+        aOff: Int,
+        x: DoubleArray,
+        xOff: Int,
+        len: Int,
+    ): Double = selected.dotAxpy(y, yOff, alpha, a, aOff, x, xOff, len)
+
     override val gemmTileRows: Int get() = selected.gemmTileRows
 
     override val gemmTileCols: Int get() = selected.gemmTileCols

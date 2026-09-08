@@ -422,6 +422,63 @@ KOBLAS_KERNEL void koblas_dense_dot4(
     out[out_off + 3] = t3;
 }
 
+KOBLAS_KERNEL void koblas_dense_axpy4(
+    double *y, int32_t y_off, const double *a, int32_t a_off, int32_t stride,
+    double c0, double c1, double c2, double c3, int32_t len
+) {
+    const double *r0 = a + a_off;
+    const double *r1 = r0 + stride;
+    const double *r2 = r1 + stride;
+    const double *r3 = r2 + stride;
+    int32_t i = 0;
+    for (; i + KOBLAS_LANES <= len; i += KOBLAS_LANES) {
+        koblas_v4d value, a0, a1, a2, a3;
+        KOBLAS_LOAD(value, y + y_off + i);
+        KOBLAS_LOAD(a0, r0 + i);
+        KOBLAS_LOAD(a1, r1 + i);
+        KOBLAS_LOAD(a2, r2 + i);
+        KOBLAS_LOAD(a3, r3 + i);
+        value += c0 * a0;
+        value += c1 * a1;
+        value += c2 * a2;
+        value += c3 * a3;
+        __builtin_memcpy(y + y_off + i, &value, sizeof value);
+    }
+    for (; i < len; i++) {
+        double value = y[y_off + i];
+        value += c0 * r0[i];
+        value += c1 * r1[i];
+        value += c2 * r2[i];
+        value += c3 * r3[i];
+        y[y_off + i] = value;
+    }
+}
+
+KOBLAS_KERNEL double koblas_dense_dot_axpy(
+    double *y, int32_t y_off, double alpha, const double *a, int32_t a_off,
+    const double *x, int32_t x_off, int32_t len
+) {
+    koblas_v4d sum = KOBLAS_ZERO;
+    int32_t i = 0;
+    for (; i + KOBLAS_LANES <= len; i += KOBLAS_LANES) {
+        koblas_v4d av, xv, yv;
+        KOBLAS_LOAD(av, a + a_off + i);
+        KOBLAS_LOAD(xv, x + x_off + i);
+        KOBLAS_LOAD(yv, y + y_off + i);
+        sum += av * xv;
+        yv += alpha * av;
+        __builtin_memcpy(y + y_off + i, &yv, sizeof yv);
+    }
+    double result = KOBLAS_HORIZONTAL(sum);
+    for (; i < len; i++) {
+        const double ai = a[a_off + i];
+        const double xi = x[x_off + i];
+        result += ai * xi;
+        y[y_off + i] += alpha * ai;
+    }
+    return result;
+}
+
 /* Strided on both operands, which may also overlap, so neither the loads nor the stores can pack. */
 KOBLAS_KERNEL void koblas_dense_rotm(
     double *x, int32_t x_off, int32_t x_stride, double *y, int32_t y_off, int32_t y_stride,

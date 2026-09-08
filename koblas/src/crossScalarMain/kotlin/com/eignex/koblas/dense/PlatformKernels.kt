@@ -66,4 +66,30 @@ internal actual object PlatformKernels : Kernels, ArithmeticKernels {
         out: DoubleArray,
         outOff: Int,
     ) = scalarDot4(a, aOff, stride, b, bOff, len, out, outOff)
+
+    @Suppress("LongParameterList")
+    actual override fun axpy4(
+        y: DoubleArray,
+        yOff: Int,
+        a: DoubleArray,
+        aOff: Int,
+        stride: Int,
+        c0: Double,
+        c1: Double,
+        c2: Double,
+        c3: Double,
+        len: Int,
+    ) = scalarAxpy4(y, yOff, a, aOff, stride, c0, c1, c2, c3, len)
+
+    @Suppress("LongParameterList")
+    actual override fun dotAxpy(
+        y: DoubleArray,
+        yOff: Int,
+        alpha: Double,
+        a: DoubleArray,
+        aOff: Int,
+        x: DoubleArray,
+        xOff: Int,
+        len: Int,
+    ): Double = scalarDotAxpy(y, yOff, alpha, a, aOff, x, xOff, len)
 }

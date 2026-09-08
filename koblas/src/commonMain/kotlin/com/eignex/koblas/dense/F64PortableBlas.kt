@@ -39,8 +39,18 @@ internal class F64PortableBlas(private val configured: Kernels? = null) : Blas {
         val ad = a.data
         val rows = a.rows
         if (!transpose) {
-            for (j in 0 until a.cols) {
+            var j = 0
+            val bound = a.cols - 3
+            while (j < bound) {
+                kernels.axpy4(
+                    y, 0, ad, j * rows, rows,
+                    alpha * x[j], alpha * x[j + 1], alpha * x[j + 2], alpha * x[j + 3], rows,
+                )
+                j += 4
+            }
+            while (j < a.cols) {
                 axpyArithmetic(kernels, y, 0, alpha * x[j], ad, j * rows, rows)
+                j++
             }
         } else {
             workspace.borrow(4) { quads ->
@@ -186,8 +196,7 @@ internal class F64PortableBlas(private val configured: Kernels? = null) : Blas {
             val runOff = if (lower) j + 1 else 0
             val len = if (lower) n - j - 1 else j
             y[j] += xj * ad[base]
-            axpyArithmetic(kernels, y, runOff, xj, ad, runOff + j * n, len)
-            y[j] += alpha * kernels.dot(ad, runOff + j * n, x, runOff, len)
+            y[j] += alpha * kernels.dotAxpy(y, runOff, xj, ad, runOff + j * n, x, runOff, len)
         }
     }
 

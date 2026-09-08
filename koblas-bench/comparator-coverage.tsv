@@ -10,9 +10,14 @@ dense-1	rot	direct	direct	CBLAS drot	com.eignex.koblas.bench.ExternalDenseLevel1
 dense-1	sum	missing	missing	No BLAS counterpart; never falls back to koblas
 dense-1	ssqd	missing	missing	No numerically equivalent BLAS counterpart; never falls back to koblas
 dense-1	dot4	composition	composition	Four ddot calls; excluded from direct parity	com.eignex.koblas.bench.ExternalDenseLevel1CompositionBenchmark.dot4AsFourDots
+dense-1	axpy4-as-four-axpy	composition	composition	Four kernel calls quantify the fused output-traffic alternative	com.eignex.koblas.bench.Level1Benchmark.axpy4AsFourAxpy
+dense-1	dot-axpy-separate	composition	composition	Separate dot and axpy calls quantify the fused input-traffic alternative	com.eignex.koblas.bench.Level1Benchmark.dotAxpySeparate
 dense-1	rotmg	missing	missing	koblas exposes richer returned state and keeps the Netlib semantics
 dense-2	gemv	direct	direct	CBLAS dgemv
+dense-2	gemv-rectangular	direct	direct	Rectangular CBLAS dgemv comparison	com.eignex.koblas.bench.GemvShapeBenchmark.gemv
+dense-2	gemv-transposed-rectangular	direct	direct	Rectangular transposed CBLAS dgemv comparison	com.eignex.koblas.bench.GemvShapeBenchmark.gemvTransposed
 dense-2	symv	direct	direct	CBLAS dsymv
+dense-2	symv-upper	direct	direct	Upper-triangle CBLAS dsymv comparison	com.eignex.koblas.bench.Level2Benchmark.symvUpper
 dense-2	ger	direct	direct	CBLAS dger
 dense-2	syr	direct	direct	CBLAS dsyr
 dense-2	syr2	direct	direct	CBLAS dsyr2

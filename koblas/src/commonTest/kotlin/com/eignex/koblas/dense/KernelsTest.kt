@@ -303,6 +303,71 @@ class KernelsTest {
     }
 
     @Test
+    fun `the axpy4 default and platform override agree`() {
+        val stride = 31
+        val a = DoubleArray(4 * stride) { it * 0.125 - 4.0 }
+        a[7] = Double.POSITIVE_INFINITY
+        val coefficients = doubleArrayOf(0.0, -2.0, 0.5, 3.0)
+        val initial = DoubleArray(35) { it * 0.25 }
+        val expected = initial.copyOf()
+        val off = 3
+        val len = 23
+        for (i in 0 until len) {
+            for (r in 0 until 4) expected[off + i] += coefficients[r] * a[r * stride + i]
+        }
+
+        val viaDefault = initial.copyOf()
+        Recording().axpy4(
+            viaDefault, off, a, 0, stride,
+            coefficients[0], coefficients[1], coefficients[2], coefficients[3], len,
+        )
+        val viaPlatform = initial.copyOf()
+        PlatformKernels.axpy4(
+            viaPlatform, off, a, 0, stride,
+            coefficients[0], coefficients[1], coefficients[2], coefficients[3], len,
+        )
+
+        for (i in expected.indices) {
+            if (expected[i].isNaN()) {
+                assertTrue(viaDefault[i].isNaN(), "default index $i")
+                assertTrue(viaPlatform[i].isNaN(), "platform index $i")
+            } else {
+                assertEquals(expected[i], viaDefault[i], absoluteTolerance = 1e-12, message = "default index $i")
+                assertEquals(expected[i], viaPlatform[i], absoluteTolerance = 1e-12, message = "platform index $i")
+            }
+        }
+    }
+
+    @Test
+    fun `the dotAxpy default and platform override agree with aliased runs`() {
+        val a = DoubleArray(37) { it * 0.2 - 2.5 }
+        val initial = DoubleArray(39) { 3.0 - it * 0.1 }
+        val off = 5
+        val len = 27
+        val alpha = -0.75
+        var expectedDot = 0.0
+        val expected = initial.copyOf()
+        for (i in 0 until len) {
+            val ai = a[2 + i]
+            val xi = initial[off + i]
+            expectedDot += ai * xi
+            expected[off + i] += alpha * ai
+        }
+
+        val viaDefault = initial.copyOf()
+        val defaultDot = Recording().dotAxpy(viaDefault, off, alpha, a, 2, viaDefault, off, len)
+        val viaPlatform = initial.copyOf()
+        val platformDot = PlatformKernels.dotAxpy(viaPlatform, off, alpha, a, 2, viaPlatform, off, len)
+
+        assertEquals(expectedDot, defaultDot, absoluteTolerance = 1e-12)
+        assertEquals(expectedDot, platformDot, absoluteTolerance = 1e-12)
+        assertContentEquals(expected, viaDefault)
+        for (i in expected.indices) {
+            assertEquals(expected[i], viaPlatform[i], absoluteTolerance = 1e-12, message = "platform index $i")
+        }
+    }
+
+    @Test
     fun `the compiled-in nrm2 survives components that square out of range`() {
         val big = doubleArrayOf(3e200, 4e200)
         assertEquals(5e200, PlatformKernels.nrm2(big, 0, 2), absoluteTolerance = 1e188)
@@ -370,6 +435,9 @@ class KernelsTest {
         val quads = DoubleArray(4)
         kernels.dot4(v, 3, 0, v, 3, 0, quads, 0)
         assertEquals(listOf(0.0, 0.0, 0.0, 0.0), quads.toList(), "dot4 over nothing")
+        kernels.axpy4(v, 3, v, 3, 0, 1.0, 2.0, 3.0, 4.0, 0)
+        assertEquals(0.0, kernels.dotAxpy(v, 3, 2.0, v, 3, v, 3, 0), "dotAxpy over nothing")
+        assertEquals(listOf(1.0, 2.0, 3.0), v.toList(), "a fused zero-length write touched the vector")
     }
 
     @Test

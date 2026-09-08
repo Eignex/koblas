@@ -104,18 +104,21 @@ class BlasConformanceTest {
     }
 
     @Test
-    fun `reference symv composes dot and axpy kernels`() {
-        var dots = 0
-        var axpys = 0
+    fun `reference symv traverses each stored column through one fused kernel`() {
+        var fused = 0
         val recording = object : Kernels by ScalarKernels {
-            override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
-                dots++
-                return ScalarKernels.dot(a, aOff, b, bOff, len)
-            }
-
-            override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
-                axpys++
-                ScalarKernels.axpy(y, yOff, alpha, x, xOff, len)
+            override fun dotAxpy(
+                y: DoubleArray,
+                yOff: Int,
+                alpha: Double,
+                a: DoubleArray,
+                aOff: Int,
+                x: DoubleArray,
+                xOff: Int,
+                len: Int,
+            ): Double {
+                fused++
+                return ScalarKernels.dotAxpy(y, yOff, alpha, a, aOff, x, xOff, len)
             }
         }
         val a = DenseMatrix(3, 3, doubleArrayOf(2.0, 3.0, 5.0, 0.0, 7.0, 11.0, 0.0, 0.0, 13.0))
@@ -123,8 +126,7 @@ class BlasConformanceTest {
 
         ReferenceBackend(recording).symv(1.0, a, doubleArrayOf(17.0, 19.0, 23.0), 0.0, y, lower = true)
 
-        assertEquals(3, dots)
-        assertEquals(3, axpys)
+        assertEquals(3, fused)
         assertEquals(doubleArrayOf(206.0, 437.0, 593.0).toList(), y.toList())
     }
 

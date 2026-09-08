@@ -219,6 +219,81 @@ internal object SimdOps {
         out[outOff + 3] = r3
     }
 
+    @Suppress("LongParameterList")
+    fun axpy4(
+        y: DoubleArray,
+        yOff: Int,
+        a: DoubleArray,
+        aOff: Int,
+        stride: Int,
+        c0: Double,
+        c1: Double,
+        c2: Double,
+        c3: Double,
+        len: Int,
+    ) {
+        val vc0 = DoubleVector.broadcast(SPECIES, c0)
+        val vc1 = DoubleVector.broadcast(SPECIES, c1)
+        val vc2 = DoubleVector.broadcast(SPECIES, c2)
+        val vc3 = DoubleVector.broadcast(SPECIES, c3)
+        val o1 = aOff + stride
+        val o2 = aOff + 2 * stride
+        val o3 = aOff + 3 * stride
+        var i = 0
+        val bound = SPECIES.loopBound(len)
+        while (i < bound) {
+            var value = DoubleVector.fromArray(SPECIES, y, yOff + i)
+            value = DoubleVector.fromArray(SPECIES, a, aOff + i).fma(vc0, value)
+            value = DoubleVector.fromArray(SPECIES, a, o1 + i).fma(vc1, value)
+            value = DoubleVector.fromArray(SPECIES, a, o2 + i).fma(vc2, value)
+            value = DoubleVector.fromArray(SPECIES, a, o3 + i).fma(vc3, value)
+            value.intoArray(y, yOff + i)
+            i += LANE
+        }
+        while (i < len) {
+            var value = y[yOff + i]
+            value += c0 * a[aOff + i]
+            value += c1 * a[o1 + i]
+            value += c2 * a[o2 + i]
+            value += c3 * a[o3 + i]
+            y[yOff + i] = value
+            i++
+        }
+    }
+
+    @Suppress("LongParameterList")
+    fun dotAxpy(
+        y: DoubleArray,
+        yOff: Int,
+        alpha: Double,
+        a: DoubleArray,
+        aOff: Int,
+        x: DoubleArray,
+        xOff: Int,
+        len: Int,
+    ): Double {
+        val alphaVector = DoubleVector.broadcast(SPECIES, alpha)
+        var sum = DoubleVector.zero(SPECIES)
+        var i = 0
+        val bound = SPECIES.loopBound(len)
+        while (i < bound) {
+            val va = DoubleVector.fromArray(SPECIES, a, aOff + i)
+            val vx = DoubleVector.fromArray(SPECIES, x, xOff + i)
+            sum = va.fma(vx, sum)
+            va.fma(alphaVector, DoubleVector.fromArray(SPECIES, y, yOff + i)).intoArray(y, yOff + i)
+            i += LANE
+        }
+        var result = sum.reduceLanes(VectorOperators.ADD)
+        while (i < len) {
+            val ai = a[aOff + i]
+            val xi = x[xOff + i]
+            result += ai * xi
+            y[yOff + i] += alpha * ai
+            i++
+        }
+        return result
+    }
+
     /**
      * A vector with every sign bit cleared, which is the absolute value of each lane.
      *

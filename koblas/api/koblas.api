@@ -992,8 +992,10 @@ public final class com/eignex/koblas/dense/Blas$DefaultImpls {
 public abstract interface class com/eignex/koblas/dense/Kernels : com/eignex/koblas/Backend {
 	public abstract fun asum ([DII)D
 	public abstract fun axpy ([DID[DII)V
+	public fun axpy4 ([DI[DIIDDDDI)V
 	public abstract fun dot ([DI[DII)D
 	public fun dot4 ([DII[DII[DI)V
+	public fun dotAxpy ([DID[DI[DII)D
 	public fun gemmTile (I[DI[DI[DII)V
 	public fun getGemmTileCols ()I
 	public fun getGemmTileRows ()I
@@ -1008,7 +1010,9 @@ public abstract interface class com/eignex/koblas/dense/Kernels : com/eignex/kob
 }
 
 public final class com/eignex/koblas/dense/Kernels$DefaultImpls {
+	public static fun axpy4 (Lcom/eignex/koblas/dense/Kernels;[DI[DIIDDDDI)V
 	public static fun dot4 (Lcom/eignex/koblas/dense/Kernels;[DII[DII[DI)V
+	public static fun dotAxpy (Lcom/eignex/koblas/dense/Kernels;[DID[DI[DII)D
 	public static fun gemmTile (Lcom/eignex/koblas/dense/Kernels;I[DI[DI[DII)V
 	public static fun getGemmTileCols (Lcom/eignex/koblas/dense/Kernels;)I
 	public static fun getGemmTileRows (Lcom/eignex/koblas/dense/Kernels;)I

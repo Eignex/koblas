@@ -6,8 +6,10 @@ import com.eignex.koblas.ModifiedGivens
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.internal.numeric.scalarAxpy
+import com.eignex.koblas.internal.numeric.scalarAxpy4
 import com.eignex.koblas.internal.numeric.scalarAxpyArithmetic
 import com.eignex.koblas.internal.numeric.scalarDot
+import com.eignex.koblas.internal.numeric.scalarDotAxpy
 import com.eignex.koblas.internal.numeric.scalarScale
 import com.eignex.koblas.portableRotmg
 import kotlinx.cinterop.addressOf
@@ -193,6 +195,61 @@ internal actual object PlatformKernels : Kernels, ArithmeticKernels {
                         len,
                         op.addressOf(0),
                         outOff,
+                    )
+                }
+            }
+        }
+    }
+
+    @Suppress("LongParameterList")
+    actual override fun axpy4(
+        y: DoubleArray,
+        yOff: Int,
+        a: DoubleArray,
+        aOff: Int,
+        stride: Int,
+        c0: Double,
+        c1: Double,
+        c2: Double,
+        c3: Double,
+        len: Int,
+    ) {
+        if (len < C_HOST_MIN_LENGTH) {
+            return scalarAxpy4(y, yOff, a, aOff, stride, c0, c1, c2, c3, len)
+        }
+        y.usePinned { yp ->
+            a.usePinned { ap ->
+                koblas_dense_axpy4(
+                    yp.addressOf(0), yOff, ap.addressOf(0), aOff, stride, c0, c1, c2, c3, len,
+                )
+            }
+        }
+    }
+
+    @Suppress("LongParameterList")
+    actual override fun dotAxpy(
+        y: DoubleArray,
+        yOff: Int,
+        alpha: Double,
+        a: DoubleArray,
+        aOff: Int,
+        x: DoubleArray,
+        xOff: Int,
+        len: Int,
+    ): Double {
+        if (len < C_HOST_MIN_LENGTH) return scalarDotAxpy(y, yOff, alpha, a, aOff, x, xOff, len)
+        return y.usePinned { yp ->
+            a.usePinned { ap ->
+                x.usePinned { xp ->
+                    koblas_dense_dot_axpy(
+                        yp.addressOf(0),
+                        yOff,
+                        alpha,
+                        ap.addressOf(0),
+                        aOff,
+                        xp.addressOf(0),
+                        xOff,
+                        len,
                     )
                 }
             }
