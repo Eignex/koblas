@@ -6,10 +6,12 @@ import com.eignex.koblas.core.F64MatrixLike
 import com.eignex.koblas.core.F64MatrixStorage
 import com.eignex.koblas.core.F64SparseMatrix
 import com.eignex.koblas.core.F64SparseVector
+import com.eignex.koblas.core.F64StridedVectorView
 import com.eignex.koblas.core.F64VectorLike
 import com.eignex.koblas.core.F64VectorStorage
 import com.eignex.koblas.dense.Blas
 import com.eignex.koblas.dense.F64Blas
+import com.eignex.koblas.dense.F64CholeskyDecomposition
 import com.eignex.koblas.dense.F64Decompositions
 import com.eignex.koblas.dense.F64Kernels
 import com.eignex.koblas.dense.F64LinearAlgebra
@@ -18,6 +20,11 @@ import com.eignex.koblas.dense.Kernels
 import com.eignex.koblas.dense.Lapack
 import com.eignex.koblas.dense.LinearAlgebra
 import com.eignex.koblas.dense.ReferenceBackend
+import com.eignex.koblas.dense.CholeskyDecomposition
+import com.eignex.koblas.sparse.basis.BasisSolver
+import com.eignex.koblas.sparse.basis.F64BasisSolver
+import com.eignex.koblas.sparse.basis.F64IndexedVector
+import com.eignex.koblas.sparse.basis.IndexedVector
 import com.eignex.koblas.sparse.F64SparseBlas
 import com.eignex.koblas.sparse.F64SparseDecompositions
 import com.eignex.koblas.sparse.F64SparseKernels
@@ -47,15 +54,21 @@ class PrecisionTest {
             alias<Givens, F64Givens>("Givens"),
             alias<ModifiedGivens, F64ModifiedGivens>("ModifiedGivens"),
             alias<KoblasContext, F64Context>("KoblasContext"),
+            alias<ContextBuilder, F64ContextBuilder>("ContextBuilder"),
+            alias<Capabilities, F64Capabilities>("Capabilities"),
+            alias<StridedVectorView, F64StridedVectorView>("StridedVectorView"),
             alias<Kernels, F64Kernels>("Kernels"),
             alias<Blas, F64Blas>("Blas"),
             alias<Lapack, F64Decompositions>("Lapack"),
             alias<LinearAlgebra, F64LinearAlgebra>("LinearAlgebra"),
             alias<ReferenceBackend, F64ReferenceBackend>("ReferenceBackend"),
+            alias<CholeskyDecomposition, F64CholeskyDecomposition>("CholeskyDecomposition"),
             alias<SparseKernels, F64SparseKernels>("SparseKernels"),
             alias<SparseBlas, F64SparseBlas>("SparseBlas"),
             alias<SparseLapack, F64SparseDecompositions>("SparseLapack"),
             alias<SparseLinearAlgebra, F64SparseLinearAlgebra>("SparseLinearAlgebra"),
+            alias<BasisSolver, F64BasisSolver>("BasisSolver"),
+            alias<IndexedVector, F64IndexedVector>("IndexedVector"),
         )
 
         for ((name, actual, expected) in aliases) {

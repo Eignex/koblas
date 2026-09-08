@@ -41,7 +41,7 @@ class SparseAllocationContractTest {
         )
 
         assertContentEquals(doubleArrayOf(0.0, 2.0), out)
-        assertEquals(2, workspace.available(ScratchRequirement(ScratchKind.F64, 2)))
+        assertEquals(2, workspace.available(ScratchRequirement(2)))
     }
 
     @Test

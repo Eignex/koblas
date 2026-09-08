@@ -14,3 +14,5 @@ public typealias LinearAlgebra = F64LinearAlgebra
 
 /** Double-precision [F64ReferenceBackend], the portable backend an unqualified `ReferenceBackend` means. */
 public typealias ReferenceBackend = F64ReferenceBackend
+
+public typealias CholeskyDecomposition = F64CholeskyDecomposition

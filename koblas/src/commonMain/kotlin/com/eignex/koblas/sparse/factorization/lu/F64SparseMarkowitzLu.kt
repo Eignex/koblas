@@ -32,7 +32,7 @@ public class F64SparseMarkowitzLu private constructor(
 
     private val solveAllocation = AllocationCapability(
         AllocationGuarantee.NO_MANAGED_OR_NATIVE,
-        listOf(ScratchRequirement(ScratchKind.F64, m, count = 2)),
+        listOf(ScratchRequirement(m, count = 2)),
     )
 
     override val n: Int get() = m

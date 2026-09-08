@@ -184,17 +184,6 @@ final enum class com.eignex.koblas/PreparedSparseProductKind : kotlin/Enum<com.e
     final fun values(): kotlin/Array<com.eignex.koblas/PreparedSparseProductKind> // com.eignex.koblas/PreparedSparseProductKind.values|values#static(){}[0]
 }
 
-final enum class com.eignex.koblas/ScratchKind : kotlin/Enum<com.eignex.koblas/ScratchKind> { // com.eignex.koblas/ScratchKind|null[0]
-    enum entry F64 // com.eignex.koblas/ScratchKind.F64|null[0]
-    enum entry I32 // com.eignex.koblas/ScratchKind.I32|null[0]
-
-    final val entries // com.eignex.koblas/ScratchKind.entries|#static{}entries[0]
-        final fun <get-entries>(): kotlin.enums/EnumEntries<com.eignex.koblas/ScratchKind> // com.eignex.koblas/ScratchKind.entries.<get-entries>|<get-entries>#static(){}[0]
-
-    final fun valueOf(kotlin/String): com.eignex.koblas/ScratchKind // com.eignex.koblas/ScratchKind.valueOf|valueOf#static(kotlin.String){}[0]
-    final fun values(): kotlin/Array<com.eignex.koblas/ScratchKind> // com.eignex.koblas/ScratchKind.values|values#static(){}[0]
-}
-
 final enum class com.eignex.koblas/SparseTriangularKind : kotlin/Enum<com.eignex.koblas/SparseTriangularKind> { // com.eignex.koblas/SparseTriangularKind|null[0]
     enum entry MULTIPLY // com.eignex.koblas/SparseTriangularKind.MULTIPLY|null[0]
     enum entry SOLVE // com.eignex.koblas/SparseTriangularKind.SOLVE|null[0]
@@ -2044,19 +2033,16 @@ final class com.eignex.koblas/NotPositiveDefinite : com.eignex.koblas/KoblasExce
 }
 
 final class com.eignex.koblas/ScratchRequirement { // com.eignex.koblas/ScratchRequirement|null[0]
-    constructor <init>(com.eignex.koblas/ScratchKind, kotlin/Int, kotlin/Int = ...) // com.eignex.koblas/ScratchRequirement.<init>|<init>(com.eignex.koblas.ScratchKind;kotlin.Int;kotlin.Int){}[0]
+    constructor <init>(kotlin/Int, kotlin/Int = ...) // com.eignex.koblas/ScratchRequirement.<init>|<init>(kotlin.Int;kotlin.Int){}[0]
 
     final val count // com.eignex.koblas/ScratchRequirement.count|{}count[0]
         final fun <get-count>(): kotlin/Int // com.eignex.koblas/ScratchRequirement.count.<get-count>|<get-count>(){}[0]
-    final val kind // com.eignex.koblas/ScratchRequirement.kind|{}kind[0]
-        final fun <get-kind>(): com.eignex.koblas/ScratchKind // com.eignex.koblas/ScratchRequirement.kind.<get-kind>|<get-kind>(){}[0]
     final val size // com.eignex.koblas/ScratchRequirement.size|{}size[0]
         final fun <get-size>(): kotlin/Int // com.eignex.koblas/ScratchRequirement.size.<get-size>|<get-size>(){}[0]
 
-    final fun component1(): com.eignex.koblas/ScratchKind // com.eignex.koblas/ScratchRequirement.component1|component1(){}[0]
+    final fun component1(): kotlin/Int // com.eignex.koblas/ScratchRequirement.component1|component1(){}[0]
     final fun component2(): kotlin/Int // com.eignex.koblas/ScratchRequirement.component2|component2(){}[0]
-    final fun component3(): kotlin/Int // com.eignex.koblas/ScratchRequirement.component3|component3(){}[0]
-    final fun copy(com.eignex.koblas/ScratchKind = ..., kotlin/Int = ..., kotlin/Int = ...): com.eignex.koblas/ScratchRequirement // com.eignex.koblas/ScratchRequirement.copy|copy(com.eignex.koblas.ScratchKind;kotlin.Int;kotlin.Int){}[0]
+    final fun copy(kotlin/Int = ..., kotlin/Int = ...): com.eignex.koblas/ScratchRequirement // com.eignex.koblas/ScratchRequirement.copy|copy(kotlin.Int;kotlin.Int){}[0]
     final fun equals(kotlin/Any?): kotlin/Boolean // com.eignex.koblas/ScratchRequirement.equals|equals(kotlin.Any?){}[0]
     final fun hashCode(): kotlin/Int // com.eignex.koblas/ScratchRequirement.hashCode|hashCode(){}[0]
     final fun toString(): kotlin/String // com.eignex.koblas/ScratchRequirement.toString|toString(){}[0]
