@@ -26,14 +26,17 @@ of falling back to koblas.
 ## Run benchmarks
 
 ```bash
-./gradlew :koblas-bench:jvmFullBenchmark
+./gradlew :koblas-bench:jvmReportBenchmark
 ```
+
+The `full` configuration expands every declared parameter, including optional external arms, and therefore requires
+all corresponding runtime libraries. Use `report` for the complete built-in inventory.
 
 For local A/B work:
 
 ```bash
 ./gradlew :koblas-bench:jvmSelectedBenchmark \\
-  -Pbench.include='Level3Benchmark.gemm|Level3Benchmark.syrk' \\
+  -Pbench.include='Level3Benchmark.gemm|SyrkBenchmark.syrk' \\
   -Pbench.param.n=256 \\
   -Pbench.param.denseArm=built-in,openblas
 ```

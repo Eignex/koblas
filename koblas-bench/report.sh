@@ -3,8 +3,20 @@ set -euo pipefail
 
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 target=${1:-jvm}
-profile=${2:-report}
-output=${3:-"$root/koblas-bench/build/reports/submissions"}
+profile=report
+output="$root/koblas-bench/build/reports/submissions"
+if (($# >= 2)); then
+    case $2 in
+        report|openblas|oneMkl)
+            profile=$2
+            output=${3:-$output}
+            ;;
+        *)
+            if (($# >= 3)); then echo "an output directory cannot be followed by another argument" >&2; exit 1; fi
+            output=$2
+            ;;
+    esac
+fi
 timestamp=$(date -u +%Y%m%dT%H%M%SZ)
 if [[ $target == native ]]; then
     case "$(uname -s):$(uname -m)" in
