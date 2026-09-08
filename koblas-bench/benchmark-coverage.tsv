@@ -20,7 +20,7 @@ F64Blas.symm(F64DenseMatrix,right=true)	com.eignex.koblas.bench.Level3Benchmark.
 F64Blas.symv(F64DenseMatrix)	com.eignex.koblas.bench.Level2Benchmark.symv	benchmarked	
 F64Blas.syr(Double,Vector,F64DenseMatrix)	com.eignex.koblas.bench.Level2Benchmark.syr	benchmarked	
 F64Blas.syr2(Double,Vector,Vector,F64DenseMatrix)	com.eignex.koblas.bench.Level2Benchmark.syr2	benchmarked	
-F64Blas.syr2k(F64DenseMatrix,F64DenseMatrix,transpose=false)	com.eignex.koblas.bench.Level3Benchmark.syr2k	benchmarked	
+F64Blas.syr2k(F64DenseMatrix,F64DenseMatrix,transpose=false)	com.eignex.koblas.bench.Syr2kBenchmark.syr2k	benchmarked	dedicated rank and tile-boundary shape matrix
 F64Blas.syrk(F64DenseMatrix,transpose=false)	com.eignex.koblas.bench.SyrkBenchmark.syrk	benchmarked	dedicated rank and tile-boundary shape matrix
 F64Blas.trmm(F64DenseMatrix,right=false)	com.eignex.koblas.bench.Level3Benchmark.trmm	benchmarked	
 F64Blas.trmm(F64DenseMatrix,right=true)	com.eignex.koblas.bench.Level3Benchmark.trmmRight	benchmarked	

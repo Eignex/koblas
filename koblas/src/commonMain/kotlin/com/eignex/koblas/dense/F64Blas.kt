@@ -221,10 +221,11 @@ public interface F64Blas : Backend {
 
     /**
      * `C = alpha · (op(A) · op(B)ᵀ + op(B) · op(A)ᵀ) + beta · C` (BLAS `dsyr2k`), where `op` transposes when
-     * [transpose]. Writes only the [lower] or upper triangle.
+     * [transpose]. Writes only the [lower] or upper triangle; `beta == 0.0` overwrites it without reading.
      *
-     * A transposed pair is packed into scratch first, so pass a [workspace] to keep a loop over this routine
-     * from allocating `2·n·k` doubles per call. [syrk] borrows the same way for its one operand.
+     * In the non-transposed form, a rank step is skipped only when both output-column coefficients are zero,
+     * following Netlib `dsyr2k`; the transposed form evaluates both products. Pass a [workspace] to reuse the
+     * packed panels and diagonal tile.
      */
     @Suppress("LongParameterList") // the BLAS dsyr2k signature plus optional scratch
     public fun syr2k(

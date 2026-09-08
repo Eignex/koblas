@@ -22,7 +22,6 @@ class Level3Benchmark {
     private lateinit var b: F64DenseMatrix
     private lateinit var c: F64DenseMatrix
 
-    private lateinit var squareA: F64DenseMatrix
     private lateinit var squareB: F64DenseMatrix
 
     private lateinit var sym: F64DenseMatrix
@@ -38,7 +37,6 @@ class Level3Benchmark {
         transposedA = randomMatrix(n - 1, n + 1, rng)
         b = randomMatrix(n - 1, n + 3, rng)
         c = F64DenseMatrix.zero(n + 1, n + 3)
-        squareA = randomMatrix(n, n, rng)
         squareB = randomMatrix(n, n, rng)
         sym = lowerSymmetricMatrix(n, rng)
         triangular = dominantMatrix(n, rng)
@@ -57,12 +55,6 @@ class Level3Benchmark {
     fun gemmTransposedA(): F64DenseMatrix {
         arm.external?.gemm(1.0, transposedA, true, b, false, 0.0, c) ?: arm.context!!.gemm(1.0, transposedA, true, b, false, 0.0, c)
         return c
-    }
-
-    @Benchmark
-    fun syr2k(): F64DenseMatrix {
-        arm.external?.syr2k(1.0, squareA, squareB, false, 0.0, rhs, true) ?: arm.context!!.syr2k(1.0, squareA, squareB, false, 0.0, rhs, lower = true)
-        return rhs
     }
 
     @Benchmark

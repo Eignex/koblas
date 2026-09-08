@@ -36,7 +36,7 @@ For local A/B work:
 
 ```bash
 ./gradlew :koblas-bench:jvmSelectedBenchmark \\
-  -Pbench.include='Level3Benchmark.gemm|SyrkBenchmark.syrk' \\
+  -Pbench.include='Level3Benchmark.gemm|SyrkBenchmark.syrk|Syr2kBenchmark.syr2k' \\
   -Pbench.param.n=256 \\
   -Pbench.param.denseArm=built-in,openblas
 ```
