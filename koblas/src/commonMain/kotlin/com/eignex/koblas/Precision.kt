@@ -39,3 +39,12 @@ public typealias ModifiedGivens = F64ModifiedGivens
 
 /** The double-precision [F64Context], the context an unqualified `KoblasContext` means. */
 public typealias KoblasContext = F64Context
+
+/** Double-precision [F64ContextBuilder], the context builder an unqualified `ContextBuilder` means. */
+public typealias ContextBuilder = F64ContextBuilder
+
+/** Double-precision [F64Capabilities], the capability registry an unqualified `Capabilities` means. */
+public typealias Capabilities = F64Capabilities
+
+/** Double-precision [F64StridedVectorView], the vector view an unqualified `StridedVectorView` means. */
+public typealias StridedVectorView = F64StridedVectorView

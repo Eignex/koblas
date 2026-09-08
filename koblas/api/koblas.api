@@ -714,25 +714,15 @@ public final class com/eignex/koblas/RoutingPolicyKt {
 	public static final fun plan (Lcom/eignex/koblas/F64Context;Lcom/eignex/koblas/F64RouteQuery;)Lcom/eignex/koblas/F64RoutePlan;
 }
 
-public final class com/eignex/koblas/ScratchKind : java/lang/Enum {
-	public static final field F64 Lcom/eignex/koblas/ScratchKind;
-	public static final field I32 Lcom/eignex/koblas/ScratchKind;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lcom/eignex/koblas/ScratchKind;
-	public static fun values ()[Lcom/eignex/koblas/ScratchKind;
-}
-
 public final class com/eignex/koblas/ScratchRequirement {
-	public fun <init> (Lcom/eignex/koblas/ScratchKind;II)V
-	public synthetic fun <init> (Lcom/eignex/koblas/ScratchKind;IIILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1 ()Lcom/eignex/koblas/ScratchKind;
+	public fun <init> (II)V
+	public synthetic fun <init> (IIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()I
 	public final fun component2 ()I
-	public final fun component3 ()I
-	public final fun copy (Lcom/eignex/koblas/ScratchKind;II)Lcom/eignex/koblas/ScratchRequirement;
-	public static synthetic fun copy$default (Lcom/eignex/koblas/ScratchRequirement;Lcom/eignex/koblas/ScratchKind;IIILjava/lang/Object;)Lcom/eignex/koblas/ScratchRequirement;
+	public final fun copy (II)Lcom/eignex/koblas/ScratchRequirement;
+	public static synthetic fun copy$default (Lcom/eignex/koblas/ScratchRequirement;IIILjava/lang/Object;)Lcom/eignex/koblas/ScratchRequirement;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getCount ()I
-	public final fun getKind ()Lcom/eignex/koblas/ScratchKind;
 	public final fun getSize ()I
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;

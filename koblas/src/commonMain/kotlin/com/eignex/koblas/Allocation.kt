@@ -1,18 +1,7 @@
 package com.eignex.koblas
 
-/** The primitive type of one reusable managed scratch buffer. */
-public enum class ScratchKind {
-    /** A [DoubleArray] buffer. */
-    F64,
-
-    /** An [IntArray] buffer. */
-    I32,
-}
-
-/** A reusable managed scratch requirement for one operation. */
+/** A reusable floating-point scratch requirement for one operation. */
 public data class ScratchRequirement(
-    /** Primitive buffer type. */
-    public val kind: ScratchKind,
     /** Entries in each buffer. */
     public val size: Int,
     /** Simultaneously idle buffers required. */
@@ -68,8 +57,8 @@ public data class AllocationCapability(
         // they will not allocate.
         for (i in scratch.indices) {
             for (j in 0 until i) {
-                require(scratch[j].kind != scratch[i].kind || scratch[j].size != scratch[i].size) {
-                    "duplicate ${scratch[i].kind} scratch requirement of size ${scratch[i].size}"
+                require(scratch[j].size != scratch[i].size) {
+                    "duplicate scratch requirement of size ${scratch[i].size}"
                 }
             }
         }

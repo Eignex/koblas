@@ -2,7 +2,6 @@ package com.eignex.koblas.sparse.factorization.qr
 
 import com.eignex.koblas.AllocationCapability
 import com.eignex.koblas.AllocationGuarantee
-import com.eignex.koblas.ScratchKind
 import com.eignex.koblas.ScratchRequirement
 import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.Workspace
@@ -71,7 +70,7 @@ public class F64SparseHouseholderQr internal constructor(
     /** Built once, as the Markowitz LU does: a caller reaches the strict solve to avoid allocating. */
     private val solveAllocation = AllocationCapability(
         AllocationGuarantee.NO_MANAGED,
-        listOf(ScratchRequirement(ScratchKind.F64, rows)),
+        listOf(ScratchRequirement(rows)),
     )
 
     override fun solveAllocation(): AllocationCapability = solveAllocation
