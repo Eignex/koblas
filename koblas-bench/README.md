@@ -17,6 +17,8 @@ result from each process. Metadata includes the UTC timestamp, commit and dirty 
 model/count, Gradle/JVM versions, target, command, affinity, allocation expectations, and resolved implementation
 output. Inspect the archive before sending it: these details can identify your machine and checkout.
 
+Reports retained as project evidence are listed in [`results/README.md`](results/README.md).
+
 `report` is the complete built-in inventory. `openblas` is the dense OpenBLAS comparison and `oneMkl` is the
 dense and sparse oneMKL comparison. Each external profile runs in separate benchmark processes so their global
 symbols and thread controls cannot interfere. OpenBLAS and oneMKL are both forced to one thread. The bindings use
