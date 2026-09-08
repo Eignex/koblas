@@ -331,8 +331,21 @@ internal object Simd {
      * faster over lengths 1024 to 16384, and it is the difference between trailing a single-threaded
      * OpenBLAS on this routine and matching it. The result is identical for every input, including
      * negative zero, infinities and NaN, since clearing the sign bit is what an absolute value is.
+     *
+     * The `inline` keyword is load-bearing and must stay. A function returning a vector is one the JIT has
+     * to inline for the value to live in a register; when it declines, the vector becomes a heap object and
+     * the loop allocates. Compilation logs of a slow benchmark fork show this exact call refused with
+     * NodeCountInliningCutoff, after which the routine ran twenty to forty times slower and collected
+     * garbage where it should allocate nothing. Whether the JIT declines depends on how close the calling
+     * compilation is to its node budget, so it varied run to run and looked like measurement noise.
+     * Inlining in Kotlin removes the call before the JIT can decide against it.
+     *
+     * The suppression is deliberate. Kotlin reports inlining a function with no functional parameters as
+     * having insignificant benefit, which is the usual case and wrong here: the benefit is not saving a
+     * call, it is keeping a vector out of the heap. Do not remove the keyword to silence the warning.
      */
-    private fun signStripped(v: DoubleVector): DoubleVector =
+    @Suppress("NOTHING_TO_INLINE")
+    private inline fun signStripped(v: DoubleVector): DoubleVector =
         v.reinterpretAsLongs().lanewise(VectorOperators.AND, SIGN_MASK).reinterpretAsDoubles()
 
     /**
