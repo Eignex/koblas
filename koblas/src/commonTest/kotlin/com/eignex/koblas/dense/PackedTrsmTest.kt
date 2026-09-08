@@ -84,6 +84,40 @@ class PackedTrsmTest {
         assertEquals(3.0, x[0])
     }
 
+    @Test
+    fun `the compiled in packed kernels agree with their reference composition`() {
+        val kernels = F64PlatformKernels
+        val rows = kernels.gemmTileRows
+        val columns = kernels.gemmTileCols
+        val rng = Random(20260911)
+        for (depth in intArrayOf(0, 1, 7)) {
+            for (validRows in intArrayOf(1, rows)) {
+                for (order in 1..columns) {
+                    for (lower in booleanArrayOf(false, true)) {
+                        val packedA = DoubleArray(depth * rows) { rng.nextDouble(-1.0, 1.0) }
+                        val packedB = DoubleArray(depth * columns) { rng.nextDouble(-1.0, 1.0) }
+                        val triangle = packedTriangle(columns, order, lower, unitDiag = false, rng)
+                        val expected = DoubleArray(rows * columns) { rng.nextDouble(-1.0, 1.0) }
+                        val actual = expected.copyOf()
+                        kernels.gemmTile(depth, packedA, 0, packedB, 0, expected, 0, rows)
+                        kernels.trsmTile(validRows, order, triangle, 0, lower, false, expected, 0)
+
+                        kernels.gemmTrsmTile(
+                            depth, validRows, order, packedA, 0, packedB, 0,
+                            triangle, 0, lower, false, actual, 0,
+                        )
+
+                        assertClose(
+                            expected,
+                            actual,
+                            "depth=$depth rows=$validRows order=$order lower=$lower",
+                        )
+                    }
+                }
+            }
+        }
+    }
+
     private fun packedTriangle(
         tileColumns: Int,
         order: Int,
