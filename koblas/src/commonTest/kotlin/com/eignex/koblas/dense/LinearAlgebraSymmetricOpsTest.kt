@@ -554,8 +554,8 @@ class LinearAlgebraSymmetricOpsTest {
                 workspace = ws,
             )
         }
-        assertEquals(2, ws.available(ScratchRequirement(ScratchKind.F64, n * k)))
-        assertEquals(1, ws.available(ScratchRequirement(ScratchKind.F64, PORTABLE_TILE * PORTABLE_TILE)))
+        assertEquals(2, ws.available(ScratchRequirement(n * k)))
+        assertEquals(1, ws.available(ScratchRequirement(PORTABLE_TILE * PORTABLE_TILE)))
     }
 
     @Test
