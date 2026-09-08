@@ -140,7 +140,7 @@ F64SparseBlas.trmm(F64SparseMatrix,F64DenseMatrix)	com.eignex.koblas.bench.Spars
 F64SparseBlas.trmm(F64SparseMatrix,F64DenseMatrix,right=true)	com.eignex.koblas.bench.SparseProductHostBenchmark.trmmRight	benchmarked	portable host fallback
 F64SparseBlas.trmv(F64SparseMatrix,DoubleArray)	com.eignex.koblas.bench.SparseBenchmark.sparseTrmv	benchmarked	portable
 F64SparseBlas.trmv(F64SparseMatrix,DoubleArray,host)	com.eignex.koblas.bench.SparseProductHostBenchmark.trmv	benchmarked	portable host fallback
-F64SparseBlas.trsm(F64SparseMatrix,F64DenseMatrix)		excluded	Sparse triangular block solve has no distinct host implementation and shares the triangular solve path.
+F64SparseBlas.trsm(F64SparseMatrix,F64DenseMatrix)	com.eignex.koblas.bench.SparseProductHostBenchmark.trsm	benchmarked	Direct oneMKL sparse triangular solve comparison.
 F64SparseBlas.trsv(F64SparseMatrix,DoubleArray)	com.eignex.koblas.bench.SparseBenchmark.sparseTrsv	benchmarked	
 F64SparseBlas.trsv(F64SparseMatrix,DoubleArray,host)	com.eignex.koblas.bench.SparseProductHostBenchmark.trsv	benchmarked	
 F64SparseCholesky.analyzeCholesky(F64SparseMatrix)	com.eignex.koblas.bench.SparseSymmetricHostBenchmark.choleskyRefactor	benchmarked	
@@ -161,10 +161,10 @@ F64SparseKernels.asum(SparseVector)		excluded	The raw kernel shares the dispatch
 F64SparseKernels.axpy(DoubleArray,Double,SparseVector)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.axpy(SparseVector) facade.
 F64SparseKernels.dot(SparseVector,DoubleArray)		excluded	The raw kernel shares the dispatch path benchmarked through the public SparseVector.dot facades.
 F64SparseKernels.dot(SparseVector,SparseVector)		excluded	The raw kernel shares the dispatch path benchmarked through the public SparseVector.dot facades.
-F64SparseKernels.gather(SparseVector,DoubleArray)	com.eignex.koblas.bench.SparseLevel1Benchmark.sparseGather	benchmarked	
-F64SparseKernels.gatherZero(SparseVector,DoubleArray)	com.eignex.koblas.bench.SparseLevel1Benchmark.sparseGatherZero	benchmarked	
+F64SparseKernels.gather(SparseVector,DoubleArray)	com.eignex.koblas.bench.SparseLevel1ComparisonBenchmark.sparseGather	benchmarked	Direct oneMKL legacy sparse BLAS comparison.
+F64SparseKernels.gatherZero(SparseVector,DoubleArray)	com.eignex.koblas.bench.SparseLevel1ComparisonBenchmark.sparseGatherZero	benchmarked	Direct oneMKL legacy sparse BLAS comparison.
 F64SparseKernels.nrm2(SparseVector)		excluded	The raw kernel shares the dispatch path benchmarked through the public SparseVector.norm2 facade.
-F64SparseKernels.scatter(SparseVector,DoubleArray)	com.eignex.koblas.bench.SparseLevel1Benchmark.sparseScatter	benchmarked	
+F64SparseKernels.scatter(SparseVector,DoubleArray)	com.eignex.koblas.bench.SparseLevel1ComparisonBenchmark.sparseScatter	benchmarked	Direct oneMKL legacy sparse BLAS comparison.
 F64SparseLinearAlgebra.gemv(F64SparseMatrix,transpose=false)	com.eignex.koblas.bench.SparseBenchmark.sparseGemv	benchmarked	
 F64SparseLinearAlgebra.gemv(F64SparseMatrix,transpose=true)	com.eignex.koblas.bench.SparseBenchmark.sparseGemvTransposed	benchmarked	
 F64SparseMatrix.cholesky()	com.eignex.koblas.bench.SparseSymmetricHostBenchmark.cholesky	benchmarked	
@@ -200,10 +200,10 @@ F64StridedVectorView.scale(Double)		excluded	The strided-view overload reaches t
 F64VectorLike.forEachStored((Int,Double)->Unit)		excluded	Stored-entry iteration is a traversal helper and depends on caller work.
 SparseVector.asum()	com.eignex.koblas.bench.SparseLevel1Benchmark.sparseAsum	benchmarked	
 SparseVector.dot(SparseVector)	com.eignex.koblas.bench.SparseLevel1Benchmark.sparseDotSparse	benchmarked	
-SparseVector.dot(Vector)	com.eignex.koblas.bench.SparseLevel1Benchmark.sparseDotDense	benchmarked	
+SparseVector.dot(Vector)	com.eignex.koblas.bench.SparseLevel1ComparisonBenchmark.sparseDotDense	benchmarked	Direct oneMKL legacy sparse BLAS comparison.
 SparseVector.norm2()	com.eignex.koblas.bench.SparseLevel1Benchmark.sparseNrm2	benchmarked	
 Vector.asum()	com.eignex.koblas.bench.Level1Benchmark.asumBench	benchmarked	
-Vector.axpy(Double,SparseVector)	com.eignex.koblas.bench.SparseLevel1Benchmark.sparseAxpy	benchmarked	
+Vector.axpy(Double,SparseVector)	com.eignex.koblas.bench.SparseLevel1ComparisonBenchmark.sparseAxpy	benchmarked	Direct oneMKL legacy sparse BLAS comparison.
 Vector.axpy(Double,Vector)	com.eignex.koblas.bench.Level1Benchmark.axpyBench	benchmarked	
 Vector.compensatedSum()	com.eignex.koblas.bench.Level1Benchmark.compensatedSumBench	benchmarked	
 Vector.dot(Vector)	com.eignex.koblas.bench.Level1Benchmark.dot	benchmarked	
@@ -213,8 +213,8 @@ Vector.scale(Double)	com.eignex.koblas.bench.Level1Benchmark.scaleBench	benchmar
 Vector.sum()	com.eignex.koblas.bench.Level1Benchmark.sumBench	benchmarked	
 copy(F64VectorLike,F64DenseVector)		excluded	Copy is a storage transfer rather than a numerical operation dispatched by a backend.
 copy(F64VectorLike,F64StridedVectorView)		excluded	Copy is a storage transfer rather than a numerical operation dispatched by a backend.
-gather(F64SparseVector,F64DenseVector)	com.eignex.koblas.bench.SparseLevel1Benchmark.sparseGather	benchmarked	Benchmarks the public sparse gather facade.
-gatherZero(F64SparseVector,F64DenseVector)	com.eignex.koblas.bench.SparseLevel1Benchmark.sparseGatherZero	benchmarked	Benchmarks the public sparse gather-and-zero facade.
+gather(F64SparseVector,F64DenseVector)	com.eignex.koblas.bench.SparseLevel1ComparisonBenchmark.sparseGather	benchmarked	Direct oneMKL legacy sparse BLAS comparison.
+gatherZero(F64SparseVector,F64DenseVector)	com.eignex.koblas.bench.SparseLevel1ComparisonBenchmark.sparseGatherZero	benchmarked	Direct oneMKL legacy sparse BLAS comparison.
 rot(F64DenseVector,F64DenseVector,F64Givens)	com.eignex.koblas.bench.Level1Benchmark.rotBench	benchmarked	portable Level 1
 rotg(Double,Double)		excluded	Plane rotation generation is a scalar helper rather than a backend-dispatch benchmark.
 rotm(DenseVector,DenseVector,F64ModifiedGivens)	com.eignex.koblas.bench.Level1Benchmark.rotmBench	benchmarked	portable Level 1

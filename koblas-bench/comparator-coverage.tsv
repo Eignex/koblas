@@ -1,0 +1,40 @@
+level	operation	openblas	onemkl	notes	benchmark_id
+dense-1	dot	direct	direct	CBLAS ddot	com.eignex.koblas.bench.ExternalDenseLevel1Benchmark.dot
+dense-1	axpy	direct	direct	CBLAS daxpy	com.eignex.koblas.bench.ExternalDenseLevel1Benchmark.axpy
+dense-1	scale	direct	direct	CBLAS dscal	com.eignex.koblas.bench.ExternalDenseLevel1Benchmark.scale
+dense-1	nrm2	direct	direct	CBLAS dnrm2	com.eignex.koblas.bench.ExternalDenseLevel1Benchmark.nrm2
+dense-1	asum	direct	direct	CBLAS dasum	com.eignex.koblas.bench.ExternalDenseLevel1Benchmark.asum
+dense-1	swap	direct	direct	CBLAS dswap	com.eignex.koblas.bench.ExternalDenseLevel1Benchmark.swap
+dense-1	rotm	direct	direct	CBLAS drotm; parameter-block construction is reported	com.eignex.koblas.bench.ExternalDenseLevel1Benchmark.rotm
+dense-1	rot	direct	direct	CBLAS drot	com.eignex.koblas.bench.ExternalDenseLevel1Benchmark.rot
+dense-1	sum	missing	missing	No BLAS counterpart; never falls back to koblas
+dense-1	ssqd	missing	missing	No numerically equivalent BLAS counterpart; never falls back to koblas
+dense-1	dot4	composition	composition	Four ddot calls; excluded from direct parity	com.eignex.koblas.bench.ExternalDenseLevel1CompositionBenchmark.dot4AsFourDots
+dense-1	rotmg	missing	missing	koblas exposes richer returned state and keeps the Netlib semantics
+dense-2	gemv	direct	direct	CBLAS dgemv
+dense-2	symv	direct	direct	CBLAS dsymv
+dense-2	ger	direct	direct	CBLAS dger
+dense-2	syr	direct	direct	CBLAS dsyr
+dense-2	syr2	direct	direct	CBLAS dsyr2
+dense-2	trsv	direct	direct	CBLAS dtrsv
+dense-2	trmv	direct	direct	CBLAS dtrmv
+dense-3	gemm	direct	direct	CBLAS dgemm
+dense-3	syrk	direct	direct	CBLAS dsyrk
+dense-3	syr2k	direct	direct	CBLAS dsyr2k
+dense-3	symm	direct	direct	CBLAS dsymm
+dense-3	trsm	direct	direct	CBLAS dtrsm
+dense-3	trmm	direct	direct	CBLAS dtrmm
+sparse-1	dot sparse-dense	missing	direct	oneMKL legacy mkl_ddoti
+sparse-1	dot sparse-sparse	missing	missing	Requires an index merge; no direct comparator
+sparse-1	axpy	missing	direct	oneMKL legacy mkl_daxpyi
+sparse-1	nrm2	missing	missing	Neither comparator exposes koblas sparse-vector kernels
+sparse-1	asum	missing	missing	Neither comparator exposes koblas sparse-vector kernels
+sparse-1	scatter-gather	missing	direct	oneMKL legacy mkl_dsctr, mkl_dgthr, and mkl_dgthrz
+sparse-2	gemv	missing	direct	oneMKL inspector-executor mkl_sparse_d_mv
+sparse-2	trsv	missing	direct	oneMKL mkl_sparse_d_trsv
+sparse-2	trmv	missing	direct	oneMKL triangular descriptor with mkl_sparse_d_mv
+sparse-3	sparse-dense gemm	missing	direct	oneMKL mkl_sparse_d_mm
+sparse-3	sparse-sparse gemm	missing	direct	oneMKL mkl_sparse_spmm; result export is included in one-shot cost
+sparse-3	trsm	missing	direct	oneMKL mkl_sparse_d_trsm
+sparse-3	trmm left	missing	direct	oneMKL triangular descriptor with mkl_sparse_d_mm
+sparse-3	trmm right	missing	composition	Transpose identity around mkl_sparse_d_mm; excluded from direct parity
