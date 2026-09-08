@@ -35,10 +35,12 @@ class SyrkBenchmark {
         val k = dimensions[1].toInt()
         a = if (transpose) randomMatrix(k, n, benchRng()) else randomMatrix(n, k, benchRng())
         c = F64DenseMatrix.zero(n, n)
-        reportAllocatingWorkload(
-            "syrk/$denseArm/$rankShape/t=$transpose/l=$lower",
-            "built-in packed workspace",
-        )
+        val allocationReason = if (arm.external == null) {
+            "built-in packed workspace"
+        } else {
+            "benchmark foreign-function boundary wrappers"
+        }
+        reportAllocatingWorkload("syrk/$denseArm/$rankShape/t=$transpose/l=$lower", allocationReason)
     }
 
     @Benchmark
