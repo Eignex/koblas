@@ -25,8 +25,8 @@ Blas.syrk(DenseMatrix,transpose=false)	com.eignex.koblas.bench.SyrkBenchmark.syr
 Blas.trmm(DenseMatrix,right=false)	com.eignex.koblas.bench.Level3Benchmark.trmm	benchmarked	
 Blas.trmm(DenseMatrix,right=true)	com.eignex.koblas.bench.Level3Benchmark.trmmRight	benchmarked	
 Blas.trmv(DenseMatrix,DoubleArray)	com.eignex.koblas.bench.Level2Benchmark.trmv	benchmarked	
-Blas.trsm(DenseMatrix,right=false)	com.eignex.koblas.bench.Level3Benchmark.trsm	benchmarked	
-Blas.trsm(DenseMatrix,right=true)	com.eignex.koblas.bench.Level3Benchmark.trsmRight	benchmarked	
+Blas.trsm(DenseMatrix,right=false)	com.eignex.koblas.bench.TrsmBenchmark.denseTrsm	benchmarked	Includes narrow and wide panels, packed boundaries, triangles and transpose variants.
+Blas.trsm(DenseMatrix,right=true)	com.eignex.koblas.bench.TrsmBenchmark.denseTrsm	benchmarked	Includes the Cholesky right-side transposed panel orientation.
 Blas.trsv(DenseMatrix,DoubleArray)	com.eignex.koblas.bench.Level2Benchmark.trsv	benchmarked	
 F64CholeskySparseFactorization.factors()	com.eignex.koblas.bench.SparseSymmetricHostBenchmark.choleskyFactors	benchmarked	
 DenseMatrix.column(Int)		excluded	Column extraction is a storage view helper, not a numerical kernel.
@@ -58,6 +58,7 @@ Kernels.dot(DoubleArray,Int,DoubleArray,Int,Int)		excluded	The raw kernel shares
 Kernels.dot4(DoubleArray,Int,Int,DoubleArray,Int,Int,DoubleArray,Int)	com.eignex.koblas.bench.Level1Benchmark.dot4	benchmarked	
 Kernels.dotAxpy(DoubleArray,Int,Double,DoubleArray,Int,DoubleArray,Int,Int)	com.eignex.koblas.bench.Level1Benchmark.dotAxpy	benchmarked	Fused symmetric update is compared with separate dot and axpy calls.
 Kernels.gemmTile(Int,DoubleArray,Int,DoubleArray,Int,DoubleArray,Int,Int)	com.eignex.koblas.bench.PackedPanelExecutionBenchmark.reusedPanelProduct	benchmarked	Retained-panel execution is measured separately from packing.
+Kernels.gemmTrsmTile(Int,Int,Int,DoubleArray,Int,DoubleArray,Int,DoubleArray,Int,Boolean,Boolean,DoubleArray,Int)	com.eignex.koblas.bench.PackedPanelExecutionBenchmark.packedGemmTrsm	benchmarked	Fused retained-panel update and solve over full and partial tiles.
 Kernels.nrm2(DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.norm2 facade.
 Kernels.rot(DoubleArray,Int,DoubleArray,Int,Int,Double,Double)		excluded	The raw kernel shares the dispatch path benchmarked through the public rot facade.
 Kernels.rotm(DoubleArray,Int,Int,DoubleArray,Int,Int,Int,ModifiedGivens)		excluded	The raw kernel shares the dispatch path benchmarked through the public rotm facade.
@@ -66,8 +67,10 @@ Kernels.scale(DoubleArray,Int,Double,Int)		excluded	The raw kernel shares the di
 Kernels.ssqd(DoubleArray,Int,DoubleArray,Int,Int)	com.eignex.koblas.bench.Level1Benchmark.ssqd	benchmarked	
 Kernels.sum(DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.sum facade.
 Kernels.swap(DoubleArray,Int,DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public swap facade.
+Kernels.trsmTile(Int,Int,DoubleArray,Int,Boolean,Boolean,DoubleArray,Int)	com.eignex.koblas.bench.PackedPanelExecutionBenchmark.separatePackedGemmAndTrsm	benchmarked	Unfused retained-panel baseline includes the packed diagonal solve.
 PackedPanels.clearLeftPadding(DoubleArray,Int,Int,Int)		excluded	Edge cleanup touches only the short physical tile padding and is covered by exact layout tests.
 PackedPanels.clearRightPadding(DoubleArray,Int,Int,Int)		excluded	Edge cleanup touches only the short physical tile padding and is covered by exact layout tests.
+PackedPanels.gemmTrsm(DoubleArray,DoubleArray,DoubleArray,DoubleArray,Int,Int,Int,Boolean,Boolean,Int,Int,Int,Int,Workspace?)	com.eignex.koblas.bench.PackedPanelExecutionBenchmark.packedGemmTrsm	benchmarked	Measures repeated execution separately from packing.
 PackedPanels.leftSize(Int,Int)		excluded	Buffer sizing is scalar metadata with overflow validation rather than a numerical workload.
 PackedPanels.packLeft(DenseMatrix,DoubleArray)	com.eignex.koblas.bench.PackedPanelBenchmark.packLeft	benchmarked	General setup cost over full and partial platform tiles.
 PackedPanels.packRight(DenseMatrix,DoubleArray)	com.eignex.koblas.bench.PackedPanelBenchmark.packRight	benchmarked	General setup cost over full and partial platform tiles.
@@ -76,6 +79,7 @@ PackedPanels.packSymmetricRight(DenseMatrix,DoubleArray)	com.eignex.koblas.bench
 PackedPanels.packTriangularLeft(DenseMatrix,DoubleArray)	com.eignex.koblas.bench.PackedPanelBenchmark.packLeft	benchmarked	Shares the left-panel traversal; structural and unit-diagonal semantics are tested.
 PackedPanels.packTriangularRight(DenseMatrix,DoubleArray)	com.eignex.koblas.bench.PackedPanelBenchmark.packRight	benchmarked	Shares the right-panel traversal; structural and unit-diagonal semantics are tested.
 PackedPanels.rightSize(Int,Int)		excluded	Buffer sizing is scalar metadata with overflow validation rather than a numerical workload.
+PackedPanels.trsm(DoubleArray,DoubleArray,Int,Int,Boolean,Boolean,Int,Int,Workspace?)	com.eignex.koblas.bench.PackedPanelExecutionBenchmark.packedTrsm	benchmarked	Measures repeated packed diagonal solves.
 PackedPanels.writeLeft(DoubleArray,DenseMatrix)	com.eignex.koblas.bench.PackedPanelBenchmark.writeLeft	benchmarked	Writeback cost over full and partial platform tiles.
 PackedPanels.writeRight(DoubleArray,DenseMatrix)	com.eignex.koblas.bench.PackedPanelBenchmark.writeRight	benchmarked	Writeback cost over full and partial platform tiles.
 MatrixLike.gemvInto(VectorLike,DoubleArray)	com.eignex.koblas.bench.GemvIntoBenchmark.gemvIntoSparseX	benchmarked	
