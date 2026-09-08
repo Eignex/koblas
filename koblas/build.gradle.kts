@@ -88,6 +88,7 @@ val buildJvmKernels = tasks.register<Exec>("buildJvmKernels") {
     inputs.files(
         "src/nativeInterop/cinterop/koblas_kernels.c",
         "src/nativeInterop/cinterop/koblas_kernels.h",
+        "src/nativeInterop/cinterop/koblas_packed_trsm.h",
         "../scripts/build-koblas-kernels.sh",
     )
     inputs.property("platform", jvmKernelsPlatform)

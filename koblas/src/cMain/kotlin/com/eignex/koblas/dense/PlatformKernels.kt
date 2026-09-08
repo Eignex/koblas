@@ -265,7 +265,22 @@ internal actual object PlatformKernels : Kernels, ArithmeticKernels {
         unitDiag: Boolean,
         x: DoubleArray,
         xOff: Int,
-    ) = super.trsmTile(validRows, order, packedTriangle, triangleOff, lower, unitDiag, x, xOff)
+    ) {
+        packedTriangle.usePinned { triangle ->
+            x.usePinned { result ->
+                koblas_dense_trsm_tile(
+                    validRows,
+                    order,
+                    triangle.addressOf(0),
+                    triangleOff,
+                    if (lower) 1 else 0,
+                    if (unitDiag) 1 else 0,
+                    result.addressOf(0),
+                    xOff,
+                )
+            }
+        }
+    }
 
     @Suppress("LongParameterList")
     actual override fun gemmTrsmTile(
@@ -282,8 +297,29 @@ internal actual object PlatformKernels : Kernels, ArithmeticKernels {
         unitDiag: Boolean,
         x: DoubleArray,
         xOff: Int,
-    ) = super.gemmTrsmTile(
-        depth, validRows, order, packedA, aOff, packedB, bOff,
-        packedTriangle, triangleOff, lower, unitDiag, x, xOff,
-    )
+    ) {
+        packedA.usePinned { left ->
+            packedB.usePinned { right ->
+                packedTriangle.usePinned { triangle ->
+                    x.usePinned { result ->
+                        koblas_dense_gemm_trsm_tile(
+                            depth,
+                            validRows,
+                            order,
+                            left.addressOf(0),
+                            aOff,
+                            right.addressOf(0),
+                            bOff,
+                            triangle.addressOf(0),
+                            triangleOff,
+                            if (lower) 1 else 0,
+                            if (unitDiag) 1 else 0,
+                            result.addressOf(0),
+                            xOff,
+                        )
+                    }
+                }
+            }
+        }
+    }
 }

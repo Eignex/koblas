@@ -34,7 +34,7 @@ class PackedTrsmSimdTest {
                             lower, unitDiag, expected, 0,
                         )
 
-                        simdTrsmTile(validRows, order, triangle, 0, lower, unitDiag, actual, 0)
+                        F64SimdKernels.trsmTile(validRows, order, triangle, 0, lower, unitDiag, actual, 0)
 
                         assertClose(
                             expected,
@@ -59,7 +59,7 @@ class PackedTrsmSimdTest {
         x[0] = Double.POSITIVE_INFINITY
         x[rows] = 1.0
 
-        simdTrsmTile(1, 2, triangle, 0, lower = true, unitDiag = false, x, 0)
+        F64SimdKernels.trsmTile(1, 2, triangle, 0, lower = true, unitDiag = false, x, 0)
 
         assertEquals(Double.POSITIVE_INFINITY, x[0])
         assertEquals(1.0, x[rows])
@@ -92,7 +92,7 @@ class PackedTrsmSimdTest {
                         Simd.gemmTile(depth, packedA, 0, packedB, 0, expected, 0, rows)
                         simdTrsmTile(validRows, order, triangle, 0, lower, false, expected, 0)
 
-                        simdGemmTrsmTile(
+                        F64SimdKernels.gemmTrsmTile(
                             depth, validRows, order, packedA, 0, packedB, 0,
                             triangle, 0, lower, false, actual, 0,
                         )
