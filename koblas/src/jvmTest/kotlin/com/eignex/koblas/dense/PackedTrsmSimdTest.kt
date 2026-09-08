@@ -64,4 +64,47 @@ class PackedTrsmSimdTest {
         assertEquals(Double.POSITIVE_INFINITY, x[0])
         assertEquals(1.0, x[rows])
     }
+
+    @Test
+    fun `the fused SIMD tile agrees with update then solve`() {
+        if (!simdAvailable) return
+        val rows = Simd.tileRows
+        val columns = Simd.TILE_COLS
+        val rng = Random(20260910)
+        for (depth in intArrayOf(0, 1, 9)) {
+            for (validRows in intArrayOf(1, rows - 1, rows)) {
+                for (order in 1..columns) {
+                    for (lower in booleanArrayOf(false, true)) {
+                        val packedA = DoubleArray(depth * rows) { rng.nextDouble(-1.0, 1.0) }
+                        val packedB = DoubleArray(depth * columns) { rng.nextDouble(-1.0, 1.0) }
+                        val triangle = DoubleArray(columns * columns) { index ->
+                            val row = index / columns
+                            val column = index % columns
+                            when {
+                                row == column -> rng.nextDouble(0.5, 2.0)
+                                lower && row > column -> rng.nextDouble(-1.0, 1.0)
+                                !lower && row < column -> rng.nextDouble(-1.0, 1.0)
+                                else -> 0.0
+                            }
+                        }
+                        val expected = DoubleArray(rows * columns) { rng.nextDouble(-1.0, 1.0) }
+                        val actual = expected.copyOf()
+                        Simd.gemmTile(depth, packedA, 0, packedB, 0, expected, 0, rows)
+                        simdTrsmTile(validRows, order, triangle, 0, lower, false, expected, 0)
+
+                        simdGemmTrsmTile(
+                            depth, validRows, order, packedA, 0, packedB, 0,
+                            triangle, 0, lower, false, actual, 0,
+                        )
+
+                        assertClose(
+                            expected,
+                            actual,
+                            "depth=$depth rows=$validRows order=$order lower=$lower",
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
