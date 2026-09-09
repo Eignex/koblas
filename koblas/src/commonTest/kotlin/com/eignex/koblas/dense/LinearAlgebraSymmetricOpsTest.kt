@@ -86,6 +86,56 @@ class LinearAlgebraSymmetricOpsTest {
     }
 
     @Test
+    fun `symv four column traversal agrees with the scalar reference`() {
+        val rng = Random(20260909)
+        val n = DenseTuning.symvFourColumnCrossover + 1
+        for (lower in booleanArrayOf(true, false)) {
+            val (_, selected) = poisonedSymmetric(rng, n, lower)
+            val x = DoubleArray(n) { if (it % 11 == 0) 0.0 else rng.nextDouble(-1.0, 1.0) }
+            val initial = randomVector(n, rng)
+            val expected = initial.copyOf()
+            val actual = initial.copyOf()
+
+            ReferenceBlas.symv(0.75, selected, x, -0.5, expected, lower)
+            koblas.symv(0.75, selected, x, -0.5, actual, lower)
+
+            assertClose(expected, actual, "four column symv lower=$lower", tolerance = 1e-10)
+        }
+    }
+
+    @Test
+    fun `symv four column traversal preserves selected exceptional arithmetic`() {
+        val n = DenseTuning.symvFourColumnCrossover
+        for (lower in booleanArrayOf(true, false)) {
+            val a = DenseMatrix(n, n, DoubleArray(n * n) { Double.NaN })
+            for (column in 0 until n) {
+                val rows = if (lower) column until n else 0..column
+                for (row in rows) a[row, column] = 0.0
+            }
+            val offDiagonalRow = if (lower) 300 else 7
+            val offDiagonalColumn = if (lower) 7 else 300
+            a[offDiagonalRow, offDiagonalColumn] = Double.POSITIVE_INFINITY
+            a[31, 31] = Double.NEGATIVE_INFINITY
+            val x = DoubleArray(n) { 1.0 }
+            x[offDiagonalColumn] = 0.0
+            x[31] = 0.0
+            val expected = DoubleArray(n)
+            val actual = DoubleArray(n)
+
+            ReferenceBlas.symv(1.0, a, x, 0.0, expected, lower)
+            koblas.symv(1.0, a, x, 0.0, actual, lower)
+
+            for (i in 0 until n) {
+                if (expected[i].isNaN()) {
+                    assertTrue(actual[i].isNaN(), "lower=$lower index=$i was ${actual[i]}")
+                } else {
+                    assertEquals(expected[i], actual[i], "lower=$lower index=$i")
+                }
+            }
+        }
+    }
+
+    @Test
     fun `reference symv evaluates its diagonal product for a zero multiplier`() {
         for (lower in booleanArrayOf(true, false)) {
             val a = DenseMatrix.diagonal(3)

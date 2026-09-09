@@ -40,6 +40,7 @@ class DenseTuningTest {
 
     @Test
     fun `the compiled in kernel thresholds keep their measured lengths`() {
+        assertEquals(512, DenseTuning.symvFourColumnCrossover)
         assertEquals(32, DenseTuning.simdUnrollMinVectors)
         assertEquals(48, DenseTuning.nativeCMinLength)
     }
