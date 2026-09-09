@@ -177,18 +177,24 @@ def jvm_metadata() -> dict[str, str]:
 
 
 def native_metadata() -> dict[str, str]:
-    candidates = sorted((Path.home() / ".konan").glob("kotlin-native-prebuilt-*/bin/konanc"))
-    if not candidates:
+    resolved = subprocess.run(
+        [str(ROOT / "gradlew"), "-q", ":koblas-bench:benchmarkNativeMetadata"],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+    )
+    if resolved.returncode != 0:
         return {"kind": "Kotlin/Native", "compiler": "unknown", "distribution": "unknown", "runtime": "native executable"}
-    compiler = candidates[-1]
-    result = subprocess.run([str(compiler), "-version"], cwd=ROOT, text=True, capture_output=True)
-    version = (result.stdout + result.stderr).strip().replace("\n", " ") or "unknown"
-    return {
-        "kind": "Kotlin/Native",
-        "compiler": version,
-        "distribution": compiler.parents[1].name,
-        "runtime": "native executable",
-    }
+    metadata = dict(line.split("=", 1) for line in resolved.stdout.splitlines() if "=" in line)
+    executable = metadata.pop("executable", "")
+    if not executable:
+        return {"kind": "Kotlin/Native", "compiler": "unknown", "distribution": metadata.get("distribution", "unknown"), "runtime": "native executable"}
+    try:
+        result = subprocess.run([executable, "-version"], cwd=ROOT, text=True, capture_output=True)
+        version = (result.stdout + result.stderr).strip().replace("\n", " ") if result.returncode == 0 else "unknown"
+    except OSError:
+        version = "unknown"
+    return {**metadata, "compiler": version}
 
 
 def preflight_data(target: str) -> dict[str, Any]:
@@ -212,7 +218,8 @@ def print_preflight(data: dict[str, Any]) -> None:
     print(f"target: {data['target']}")
     print(f"host: {data['host']['os']} {data['host']['architecture']} ({data['host']['cpu_model']})")
     runtime = data["runtime"]
-    print(f"benchmark runtime: {runtime.get('executable', runtime.get('kind', 'unknown'))} {runtime.get('runtime', 'unknown')}")
+    runtime_name = runtime.get("executable") or runtime.get("compiler") or runtime.get("kind", "unknown")
+    print(f"benchmark runtime: {runtime_name} {runtime.get('runtime', 'unknown')}")
     print("comparators:")
     for name, status in data["comparators"].items():
         print(f"  {name}: {status['availability']} ({status.get('version', 'unknown')})")
@@ -270,13 +277,17 @@ def metric(entry: dict[str, Any]) -> tuple[float, float | None, str, list[Any]]:
     return numeric_score, finite_error, unit, raw
 
 
-def load_pass(path: Path, arm: str, pass_number: int, profile_version: int) -> list[dict[str, Any]]:
+def raw_entries(path: Path) -> list[dict[str, Any]]:
     document = json.loads(path.read_text())
     entries = document if isinstance(document, list) else document.get("benchmarks", document.get("results", []))
     if not isinstance(entries, list):
         raise ReportError(f"unsupported benchmark JSON in {path.name}")
+    return entries
+
+
+def load_pass(path: Path, arm: str, pass_number: int, profile_version: int) -> list[dict[str, Any]]:
     rows = []
-    for entry in entries:
+    for entry in raw_entries(path):
         score, error, unit, raw = metric(entry)
         rows.append({
             "case_id": stable_case_id(entry, profile_version),
@@ -290,6 +301,34 @@ def load_pass(path: Path, arm: str, pass_number: int, profile_version: int) -> l
             "raw_samples": raw,
         })
     return rows
+
+
+def validate_raw_entry(entry: dict[str, Any], arm: str, settings: dict[str, Any], mode: str) -> None:
+    params = entry.get("params") or {}
+    selected_arms = {key: str(params[key]) for key in ARM_PARAMETERS if key in params}
+    if not selected_arms or set(selected_arms.values()) != {arm}:
+        raise ReportError(f"raw row {benchmark_name(entry)} does not select the declared {arm} arm")
+    expected = {
+        "warmupIterations": settings.get("warmups"),
+        "measurementIterations": settings.get("iterations"),
+        "warmupTime": f"{settings.get('iteration_time_ms')} ms",
+        "measurementTime": f"{settings.get('iteration_time_ms')} ms",
+    }
+    for field, value in expected.items():
+        if entry.get(field) != value:
+            raise ReportError(f"raw row {benchmark_name(entry)} has {field}={entry.get(field)!r}; expected {value!r}")
+    forks = entry.get("forks", (entry.get("advanced") or {}).get("jvmForks"))
+    if forks is not None and int(forks) != settings.get("forks"):
+        raise ReportError(f"raw row {benchmark_name(entry)} has forks={forks}; expected {settings.get('forks')}")
+    threads = entry.get("threads")
+    if threads is not None and int(threads) != settings.get("threads"):
+        raise ReportError(f"raw row {benchmark_name(entry)} has threads={threads}; expected {settings.get('threads')}")
+    configuration = entry.get("configurationName")
+    expected_configuration = "hardwareSmoke" if mode == "smoke" else "hardware"
+    if configuration is not None and configuration != expected_configuration:
+        raise ReportError(f"raw row {benchmark_name(entry)} uses configuration {configuration}; expected {expected_configuration}")
+    if entry.get("mode") != "avgt":
+        raise ReportError(f"raw row {benchmark_name(entry)} uses mode {entry.get('mode')}; expected avgt")
 
 
 def check_pass(rows: list[dict[str, Any]], arm: str, expected: int) -> set[str]:
@@ -450,12 +489,25 @@ def validate_directory(directory: Path) -> tuple[dict[str, Any], list[dict[str, 
         raise ReportError("bundle has no machine-readable rows")
     arms = metadata.get("arms")
     expected = metadata.get("expected_cases")
-    profile_version = metadata.get("workload", {}).get("version")
-    if not isinstance(arms, list) or not arms or not isinstance(expected, dict) or not isinstance(profile_version, int):
+    workload = metadata.get("workload", {})
+    profile_version = workload.get("version")
+    settings = workload.get("settings")
+    mode = metadata.get("mode")
+    required_settings = {"warmups", "iterations", "iteration_time_ms", "forks", "threads"}
+    if (
+        not isinstance(arms, list)
+        or not arms
+        or not isinstance(expected, dict)
+        or not isinstance(profile_version, int)
+        or not isinstance(settings, dict)
+        or not required_settings.issubset(settings)
+        or mode not in {"smoke", "standard"}
+    ):
         raise ReportError("bundle metadata is incomplete")
     row_arms = {row.get("arm") for row in rows}
     if row_arms != set(arms):
         raise ReportError("machine-readable row arms do not match metadata")
+    all_pass_rows: list[dict[str, Any]] = []
     for arm in arms:
         arm_rows = [row for row in rows if row.get("arm") == arm]
         arm_expected = expected.get(arm)
@@ -474,8 +526,12 @@ def validate_directory(directory: Path) -> tuple[dict[str, Any], list[dict[str, 
                 raise ReportError(f"bundle is missing raw {arm} pass {pass_number} log")
             if FAILURE_PATTERN.search(log.read_text(errors="replace")):
                 raise ReportError(f"bundle contains a benchmark fork failure for {arm} pass {pass_number}")
+            entries = raw_entries(raw)
+            for entry in entries:
+                validate_raw_entry(entry, arm, settings, mode)
             raw_rows = load_pass(raw, arm, pass_number, profile_version)
             pass_ids.append(check_pass(raw_rows, arm, arm_expected))
+            all_pass_rows.extend(raw_rows)
         if pass_ids[0] != pass_ids[1]:
             raise ReportError(f"{arm} raw passes do not contain identical case IDs")
         if pass_ids[0] != set(aggregate_ids):
@@ -490,6 +546,14 @@ def validate_directory(directory: Path) -> tuple[dict[str, Any], list[dict[str, 
                 value = row.get(field)
                 if not isinstance(value, (int, float)) or not math.isfinite(value):
                     raise ReportError(f"aggregate row {row.get('case_id')} has invalid {field}")
+    recomputed = aggregate_rows(all_pass_rows)
+    reported_by_key = {(row["arm"], row["case_id"]): row for row in rows}
+    recomputed_by_key = {(row["arm"], row["case_id"]): row for row in recomputed}
+    if reported_by_key.keys() != recomputed_by_key.keys():
+        raise ReportError("aggregate row keys do not match raw measurements")
+    for key, reported in reported_by_key.items():
+        if reported != recomputed_by_key[key]:
+            raise ReportError(f"aggregate row {key[1]} for {key[0]} does not match raw measurements")
     return metadata, rows
 
 

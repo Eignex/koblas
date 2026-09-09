@@ -4,6 +4,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 SCRIPT = Path(__file__).parents[1] / "hardware_report.py"
@@ -16,28 +17,64 @@ SPEC.loader.exec_module(report)
 def jmh_row(arm="built-in", score=2.0):
     return {
         "benchmark": "com.eignex.koblas.bench.Level3Benchmark.gemm",
+        "mode": "avgt",
+        "threads": 1,
+        "forks": 1,
+        "warmupIterations": 1,
+        "warmupTime": "200 ms",
+        "measurementIterations": 1,
+        "measurementTime": "200 ms",
         "params": {"denseArm": arm, "n": "64"},
         "primaryMetric": {"score": score, "scoreError": 0.2, "scoreUnit": "us/op", "rawData": [[score]]},
     }
 
 
-def write_bundle(root, *, log="ok", pass_two_rows=None):
-    raw = root / "raw" / "built-in"
+def write_bundle(root, *, arm="built-in", log="ok", pass_two_rows=None):
+    raw = root / "raw" / arm
     raw.mkdir(parents=True)
-    rows = [jmh_row()]
+    rows = [jmh_row(arm)]
     for number, pass_rows in ((1, rows), (2, pass_two_rows or rows)):
         (raw / f"pass-{number}.json").write_text(json.dumps(pass_rows))
         (raw / f"pass-{number}.log").write_text(log)
-    pass_rows = report.load_pass(raw / "pass-1.json", "built-in", 1, 1)
-    pass_rows.extend(report.load_pass(raw / "pass-1.json", "built-in", 2, 1))
+    pass_rows = report.load_pass(raw / "pass-1.json", arm, 1, 1)
+    pass_rows.extend(report.load_pass(raw / "pass-1.json", arm, 2, 1))
     aggregates = report.aggregate_rows(pass_rows)
     (root / "metadata.json").write_text(json.dumps({
         "schema_version": 1,
-        "arms": ["built-in"],
-        "expected_cases": {"built-in": 1},
-        "workload": {"version": 1},
+        "mode": "standard",
+        "arms": [arm],
+        "expected_cases": {arm: 1},
+        "workload": {
+            "version": 1,
+            "settings": {"warmups": 1, "iterations": 1, "iteration_time_ms": 200, "forks": 1, "threads": 1},
+        },
     }))
     report.write_rows(root, aggregates)
+    (root / "summary.txt").write_text("summary\n")
+    report.checksums(root)
+
+
+def write_matched_bundle(root):
+    all_pass_rows = []
+    for arm, score in (("built-in", 2.0), ("openblas", 1.0)):
+        raw = root / "raw" / arm
+        raw.mkdir(parents=True)
+        for number in (1, 2):
+            path = raw / f"pass-{number}.json"
+            path.write_text(json.dumps([jmh_row(arm, score)]))
+            (raw / f"pass-{number}.log").write_text("ok")
+            all_pass_rows.extend(report.load_pass(path, arm, number, 1))
+    (root / "metadata.json").write_text(json.dumps({
+        "schema_version": 1,
+        "mode": "standard",
+        "arms": ["built-in", "openblas"],
+        "expected_cases": {"built-in": 1, "openblas": 1},
+        "workload": {
+            "version": 1,
+            "settings": {"warmups": 1, "iterations": 1, "iteration_time_ms": 200, "forks": 1, "threads": 1},
+        },
+    }))
+    report.write_rows(root, report.aggregate_rows(all_pass_rows))
     (root / "summary.txt").write_text("summary\n")
     report.checksums(root)
 
@@ -129,6 +166,65 @@ class HardwareReportTest(unittest.TestCase):
 
             with self.assertRaisesRegex(report.ReportError, "does not cover"):
                 report.validate_directory(bundle)
+
+    def test_validator_recomputes_aggregate_rows_and_ratios(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            bundle = Path(temporary)
+            write_matched_bundle(bundle)
+            document = json.loads((bundle / "rows.json").read_text())
+            openblas = next(row for row in document["rows"] if row["arm"] == "openblas")
+            openblas["score"] = 123456789.0
+            openblas["pass_scores"] = [123456789.0, 123456789.0]
+            openblas["ratio_koblas_to_comparator"] = 0.000001
+            (bundle / "rows.json").write_text(json.dumps(document))
+            report.checksums(bundle)
+
+            with self.assertRaisesRegex(report.ReportError, "does not match raw measurements"):
+                report.validate_directory(bundle)
+
+    def test_validator_rejects_raw_arm_substitution(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            bundle = Path(temporary)
+            write_bundle(bundle, arm="openblas")
+            raw = bundle / "raw" / "openblas" / "pass-1.json"
+            document = json.loads(raw.read_text())
+            document[0]["params"]["denseArm"] = "built-in"
+            raw.write_text(json.dumps(document))
+            report.checksums(bundle)
+
+            with self.assertRaisesRegex(report.ReportError, "declared openblas arm"):
+                report.validate_directory(bundle)
+
+    def test_validator_rejects_raw_measurement_setting_change(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            bundle = Path(temporary)
+            write_bundle(bundle)
+            raw = bundle / "raw" / "built-in" / "pass-2.json"
+            document = json.loads(raw.read_text())
+            document[0]["measurementTime"] = "500 ms"
+            raw.write_text(json.dumps(document))
+            report.checksums(bundle)
+
+            with self.assertRaisesRegex(report.ReportError, "measurementTime"):
+                report.validate_directory(bundle)
+
+    @mock.patch.object(report.subprocess, "run")
+    def test_native_metadata_uses_gradle_resolved_compiler(self, run):
+        run.side_effect = [
+            report.subprocess.CompletedProcess(
+                [], 0,
+                "kind=Kotlin/Native\nexecutable=/custom/kotlin/bin/konanc\ndistribution=custom-kotlin\nruntime=native executable\n",
+                "",
+            ),
+            report.subprocess.CompletedProcess([], 0, "info: kotlinc-native 2.4.10\n", ""),
+        ]
+
+        metadata = report.native_metadata()
+
+        self.assertEqual(metadata["distribution"], "custom-kotlin")
+        self.assertEqual(metadata["compiler"], "info: kotlinc-native 2.4.10")
+        self.assertNotIn("executable", metadata)
+        self.assertEqual(run.call_args_list[1].args[0], ["/custom/kotlin/bin/konanc", "-version"])
 
 
 if __name__ == "__main__":
