@@ -69,7 +69,7 @@ PackedPanels.rightSize(Int,Int)		excluded	Buffer sizing is scalar metadata with 
 PackedPanels.trsm(DoubleArray,DoubleArray,Int,Int,Boolean,Boolean,Int,Int,Workspace?)	com.eignex.koblas.bench.PackedPanelExecutionBenchmark.packedTrsm	benchmarked	Measures repeated packed diagonal solves.
 PackedPanels.writeLeft(DoubleArray,DenseMatrix)	com.eignex.koblas.bench.PackedPanelBenchmark.writeLeft	benchmarked	Writeback cost over full and partial platform tiles.
 PackedPanels.writeRight(DoubleArray,DenseMatrix)	com.eignex.koblas.bench.PackedPanelBenchmark.writeRight	benchmarked	Writeback cost over full and partial platform tiles.
-MatrixLike.gemvInto(VectorLike,DoubleArray)	com.eignex.koblas.bench.GemvIntoBenchmark.gemvIntoSparseX	benchmarked	
+MatrixLike.gemvInto(VectorLike,DoubleArray)	com.eignex.koblas.bench.GemvIntoBenchmark.gemvIntoSparseX	benchmarked	Calls the public destination-passing operation with a sparse vector.
 MatrixLike.times(VectorLike)		excluded	The operator form dispatches to the benchmarked dense and sparse gemv facades.
 PreparedSparseMatrix.gemm(DenseMatrix)	com.eignex.koblas.bench.SparseProductHostBenchmark.preparedGemm	benchmarked	
 PreparedSparseMatrix.gemm(SparseMatrix)	com.eignex.koblas.bench.SparseProductHostBenchmark.preparedSparseProduct	benchmarked	
