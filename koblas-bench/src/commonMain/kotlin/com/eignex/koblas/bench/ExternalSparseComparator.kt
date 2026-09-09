@@ -12,6 +12,31 @@ internal interface SparseComparator {
     fun scatter(x: SparseVector, y: DoubleArray)
     fun gather(x: SparseVector, from: DoubleArray, out: DoubleArray)
     fun gatherZero(x: SparseVector, from: DoubleArray, out: DoubleArray)
+    fun indexedAxpy(
+        alpha: Double,
+        values: DoubleArray,
+        valueOffset: Int,
+        indices: IntArray,
+        indexOffset: Int,
+        count: Int,
+        accumulator: DoubleArray,
+    )
+    fun indexedGather(
+        indices: IntArray,
+        indexOffset: Int,
+        count: Int,
+        accumulator: DoubleArray,
+        outValues: DoubleArray,
+        outValueOffset: Int,
+    )
+    fun indexedGatherZero(
+        indices: IntArray,
+        indexOffset: Int,
+        count: Int,
+        accumulator: DoubleArray,
+        outValues: DoubleArray,
+        outValueOffset: Int,
+    )
     fun prepare(a: SparseMatrix, triangular: Boolean = false, lower: Boolean = true, unitDiag: Boolean = false): PreparedSparseComparator
     fun sparseProduct(a: SparseMatrix, b: SparseMatrix): SparseMatrix
 }
