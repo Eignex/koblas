@@ -109,3 +109,18 @@ eligible, while constructed structural-zero and overflow-bound inputs exercise t
 
 Expected SHA-256:
 `969aef36f3a630d2553616d7d1b85f557af36421bb32e3d242eafbcfcefa189a`.
+
+## Packed triangular multiply
+
+`packed-trmm-20260909.tar.gz` retains two independent JVM SIMD/OpenBLAS passes across five shapes and all
+six storage, transpose, unit-diagonal and side variants; forced packed/reference crossover sweeps; JVM
+without SIMD; and a Kotlin/Native C/OpenBLAS pass. The raw files and detailed notes preserve confidence
+intervals, resolved implementations, the busy-host variance, and the unavailable oneMKL comparator.
+
+The evidence supports order 16 and panel width 32 as conservative packed-dispatch boundaries. The 64x32
+region remains at parity within uncertainty, while the 128x256 packed path materially improves on the
+reference traversal. OpenBLAS remains faster on both JVM and Native, and the archive records that residual
+gap rather than presenting comparator parity.
+
+Expected SHA-256:
+`382da237112a3645a25489e7525f47ef116aac0bc28ff17abb559a64d5a0fc0c`.

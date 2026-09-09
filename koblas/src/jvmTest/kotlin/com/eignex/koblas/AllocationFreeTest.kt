@@ -249,6 +249,28 @@ class AllocationFreeTest {
     }
 
     @Test
+    fun `ordinary packed trmm allocates nothing with reserved workspace`() {
+        val order = DenseTuning.trmmPackedMinOrder
+        val panel = DenseTuning.trmmPackedMinRows
+        val triangle = DenseMatrix.diagonal(order)
+        val rightHandSide = DenseMatrix(panel, order, DoubleArray(panel * order) { 1e-4 * (it + 1) })
+        val largestPackedPanel = maxOf(
+            rightHandSide.data.size,
+            DenseTuning.packedBlockRows * minOf(DenseTuning.packedBlockDepth, order),
+            minOf(DenseTuning.packedBlockDepth, order) * DenseTuning.packedBlockColumns,
+            ScalarKernels.gemmTileRows * ScalarKernels.gemmTileCols,
+        )
+        val workspace = Workspace().apply { reserve(largestPackedPanel, count = 4) }
+
+        val bytes = bytesPerIteration(500) {
+            triangle.trmm(rightHandSide, lower = true, right = true, workspace = workspace)
+            rightHandSide
+        }
+
+        assertTrue(bytes <= FLOOR_BYTES, "ordinary packed trmm allocated $bytes B per call")
+    }
+
+    @Test
     fun `sparse dense product workspace is allocation neutral`() {
         val n = 64
         val rows = 16

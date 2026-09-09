@@ -22,8 +22,8 @@ Blas.syr(Double,Vector,DenseMatrix)	com.eignex.koblas.bench.Level2Benchmark.syr	
 Blas.syr2(Double,Vector,Vector,DenseMatrix)	com.eignex.koblas.bench.Level2Benchmark.syr2	benchmarked	
 Blas.syr2k(DenseMatrix,DenseMatrix,transpose=false)	com.eignex.koblas.bench.Syr2kBenchmark.syr2k	benchmarked	dedicated rank and tile-boundary shape matrix
 Blas.syrk(DenseMatrix,transpose=false)	com.eignex.koblas.bench.SyrkBenchmark.syrk	benchmarked	dedicated rank and tile-boundary shape matrix
-Blas.trmm(DenseMatrix,right=false)	com.eignex.koblas.bench.Level3Benchmark.trmm	benchmarked	
-Blas.trmm(DenseMatrix,right=true)	com.eignex.koblas.bench.Level3Benchmark.trmmRight	benchmarked	
+Blas.trmm(DenseMatrix,right=false)	com.eignex.koblas.bench.TrmmBenchmark.denseTrmm	benchmarked	end-to-end dispatch and packed boundaries; setup packing covered by PackedPanelBenchmark
+Blas.trmm(DenseMatrix,right=true)	com.eignex.koblas.bench.TrmmBenchmark.denseTrmm	benchmarked	end-to-end dispatch and packed boundaries; setup packing covered by PackedPanelBenchmark
 Blas.trmv(DenseMatrix,DoubleArray)	com.eignex.koblas.bench.Level2Benchmark.trmv	benchmarked	
 Blas.trsm(DenseMatrix,right=false)	com.eignex.koblas.bench.TrsmBenchmark.denseTrsm	benchmarked	Includes narrow and wide panels, packed boundaries, triangles and transpose variants.
 Blas.trsm(DenseMatrix,right=true)	com.eignex.koblas.bench.TrsmBenchmark.denseTrsm	benchmarked	Includes the Cholesky right-side transposed panel orientation.

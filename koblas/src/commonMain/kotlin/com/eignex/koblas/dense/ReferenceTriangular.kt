@@ -274,6 +274,15 @@ internal fun triangularMatrix(
     if (a.rows == 0) return
     val normalizedRows = if (right) b.rows else b.cols
     if (
+        !solve &&
+        a.rows >= DenseTuning.trmmPackedMinOrder &&
+        normalizedRows >= DenseTuning.trmmPackedMinRows &&
+        packedTrmmSupports(a, b, lower, unitDiag)
+    ) {
+        packedTrmmCore(k, a, b, lower, transpose, unitDiag, right, workspace)
+        return
+    }
+    if (
         solve &&
         a.rows >= DenseTuning.trsmPackedMinOrder &&
         normalizedRows >= DenseTuning.trsmPackedMinRows &&

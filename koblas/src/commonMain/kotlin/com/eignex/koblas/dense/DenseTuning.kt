@@ -102,6 +102,25 @@ internal object DenseTuning {
     val trsmPackedMinRows: Int = tuned("trsm.packed.min.rows", default = 32)
 
     /**
+     * Smallest triangular order sent through the packed matrix-product scheduler.
+     *
+     * Forced packed/reference sweeps around this boundary find no gain at order 15 with a 64-wide panel,
+     * while order 16 with 32 and 33 rows is the first tile-aligned crossover and order 17 is ahead. Order 64
+     * is at parity within the shared host's uncertainty, and a 256-wide order-128 product is about twice
+     * as fast.
+     */
+    val trmmPackedMinOrder: Int = tuned("trmm.packed.min.order", default = 16)
+
+    /**
+     * Smallest normalized panel width whose reuse repays packing both TRMM operands.
+     *
+     * At order 16, forcing packing at 31 rows is mixed or slower than the reference traversal. At 32 rows
+     * one orientation is level and the other is ahead, and both are ahead at 33, so 32 is the conservative
+     * tile-aligned edge shared by the left and right variants.
+     */
+    val trmmPackedMinRows: Int = tuned("trmm.packed.min.rows", default = 32)
+
+    /**
      * Run length from which crossing into the bundled C library beats staying on the JVM.
      *
      * Every such call looks up each array's cached MemorySegment and goes through invokeExact, which costs tens
