@@ -3,30 +3,14 @@ package com.eignex.koblas.dense
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.Workspace
 import com.eignex.koblas.borrow
-import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.nextDown
 
 /** Whether a packed traversal preserves this call's zero, non-finite and overflow behavior. */
 internal fun packedTrmmSupports(a: DenseMatrix, b: DenseMatrix, lower: Boolean, unitDiagonal: Boolean): Boolean {
-    var maximumSource = 0.0
-    for (value in b.data) {
-        if (!value.isFinite()) return false
-        maximumSource = maxOf(maximumSource, abs(value))
-    }
-
-    var maximumTriangle = if (unitDiagonal) 1.0 else 0.0
+    val maximumSource = finiteMaxAbs(b.data) ?: return false
     val order = a.rows
-    for (column in 0 until order) {
-        val from = if (lower) column else 0
-        val until = if (lower) order else column + 1
-        for (row in from until until) {
-            if (unitDiagonal && row == column) continue
-            val value = a.data[row + column * order]
-            if (!value.isFinite()) return false
-            maximumTriangle = maxOf(maximumTriangle, abs(value))
-        }
-    }
+    val maximumTriangle = triangularMultiplyMaxAbs(a.data, order, lower, unitDiagonal) ?: return false
     if (order == 0 || maximumSource == 0.0 || maximumTriangle == 0.0) return true
 
     // Every partial sum in either traversal is bounded by the sum of absolute products. Keeping that sum
