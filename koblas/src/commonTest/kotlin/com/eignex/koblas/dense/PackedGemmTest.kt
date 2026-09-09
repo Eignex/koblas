@@ -56,19 +56,19 @@ internal fun assertPackedGemmAgreesWithWrittenOutProduct(kernels: Kernels) {
 class PackedGemmTest {
     @Test
     fun `the packed product on the portable tile agrees with a written out product`() {
-        assertPackedGemmAgreesWithWrittenOutProduct(F64ScalarKernels)
+        assertPackedGemmAgreesWithWrittenOutProduct(ScalarKernels)
     }
 
     @Test
     fun `the packed product on the compiled in kernels agrees with a written out product`() {
-        assertPackedGemmAgreesWithWrittenOutProduct(F64PlatformKernels)
+        assertPackedGemmAgreesWithWrittenOutProduct(PlatformKernels)
     }
 
     @Test
     fun `the triangular tile walk skips the opposite half`() {
         for (lower in booleanArrayOf(true, false)) {
             var calls = 0
-            val recording = object : Kernels by F64ScalarKernels {
+            val recording = object : Kernels by ScalarKernels {
                 override fun gemmTile(
                     depth: Int,
                     packedA: DoubleArray,
@@ -80,7 +80,7 @@ class PackedGemmTest {
                     ldc: Int,
                 ) {
                     calls++
-                    F64ScalarKernels.gemmTile(depth, packedA, aOff, packedB, bOff, c, cOff, ldc)
+                    ScalarKernels.gemmTile(depth, packedA, aOff, packedB, bOff, c, cOff, ldc)
                 }
             }
             val order = 16

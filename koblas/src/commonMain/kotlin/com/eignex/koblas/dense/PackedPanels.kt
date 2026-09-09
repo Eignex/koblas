@@ -1,8 +1,8 @@
 package com.eignex.koblas.dense
 
+import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.ExperimentalKoblasApi
 import com.eignex.koblas.Workspace
-import com.eignex.koblas.core.F64DenseMatrix
 
 /**
  * Packing helpers for retaining matrix panels in the format consumed by koblas's built-in level-3 kernels.
@@ -18,16 +18,16 @@ import com.eignex.koblas.core.F64DenseMatrix
  *
  * The normalized packed triangular solve is `X * T = B`: `T` is a single right-format square panel with order
  * at most [tileColumns], while `B` and the overwritten `X` are a single left-format panel with at most [tileRows]
- * rows and the same depth as `T`. This is also the column-major tile written by [F64Kernels.gemmTile], so a
+ * rows and the same depth as `T`. This is also the column-major tile written by [Kernels.gemmTile], so a
  * solved panel can be retained for later packed updates without conversion.
  */
 @ExperimentalKoblasApi
-public object F64PackedPanels {
+public object PackedPanels {
     /** Number of contiguous values in each shared-dimension step of a left panel on this platform. */
-    public val tileRows: Int get() = F64PlatformKernels.gemmTileRows
+    public val tileRows: Int get() = PlatformKernels.gemmTileRows
 
     /** Number of contiguous values in each shared-dimension step of a right panel on this platform. */
-    public val tileColumns: Int get() = F64PlatformKernels.gemmTileCols
+    public val tileColumns: Int get() = PlatformKernels.gemmTileCols
 
     /** Exact number of doubles needed for a left panel representing a [rows] by [depth] logical matrix. */
     public fun leftSize(rows: Int, depth: Int): Int = packedLeftSize(rows, depth, tileRows)
@@ -42,7 +42,7 @@ public object F64PackedPanels {
      */
     @Suppress("LongParameterList") // source and destination windows plus the operation applied while copying
     public fun packLeft(
-        source: F64DenseMatrix,
+        source: DenseMatrix,
         destination: DoubleArray,
         rows: Int,
         depth: Int,
@@ -65,7 +65,7 @@ public object F64PackedPanels {
      */
     @Suppress("LongParameterList") // source and destination windows plus the structure applied while copying
     public fun packSymmetricLeft(
-        source: F64DenseMatrix,
+        source: DenseMatrix,
         destination: DoubleArray,
         rows: Int,
         depth: Int,
@@ -89,7 +89,7 @@ public object F64PackedPanels {
      */
     @Suppress("LongParameterList") // source and destination windows plus the structure applied while copying
     public fun packTriangularLeft(
-        source: F64DenseMatrix,
+        source: DenseMatrix,
         destination: DoubleArray,
         rows: Int,
         depth: Int,
@@ -115,7 +115,7 @@ public object F64PackedPanels {
      */
     @Suppress("LongParameterList") // source and destination windows plus the operation applied while copying
     public fun packRight(
-        source: F64DenseMatrix,
+        source: DenseMatrix,
         destination: DoubleArray,
         depth: Int,
         columns: Int,
@@ -137,7 +137,7 @@ public object F64PackedPanels {
      */
     @Suppress("LongParameterList") // source and destination windows plus the structure applied while copying
     public fun packSymmetricRight(
-        source: F64DenseMatrix,
+        source: DenseMatrix,
         destination: DoubleArray,
         depth: Int,
         columns: Int,
@@ -160,7 +160,7 @@ public object F64PackedPanels {
      */
     @Suppress("LongParameterList") // source and destination windows plus the structure applied while copying
     public fun packTriangularRight(
-        source: F64DenseMatrix,
+        source: DenseMatrix,
         destination: DoubleArray,
         depth: Int,
         columns: Int,
@@ -186,7 +186,7 @@ public object F64PackedPanels {
     @Suppress("LongParameterList") // source and destination windows plus the operation applied while copying
     public fun writeLeft(
         source: DoubleArray,
-        destination: F64DenseMatrix,
+        destination: DenseMatrix,
         rows: Int,
         depth: Int,
         sourceOffset: Int = 0,
@@ -209,7 +209,7 @@ public object F64PackedPanels {
     @Suppress("LongParameterList") // source and destination windows plus the operation applied while copying
     public fun writeRight(
         source: DoubleArray,
-        destination: F64DenseMatrix,
+        destination: DenseMatrix,
         depth: Int,
         columns: Int,
         sourceOffset: Int = 0,

@@ -63,10 +63,10 @@ class BlasConformanceTest {
     fun `dense lower syr uses contiguous axpy runs`() {
         data class AxpyCall(val yOff: Int, val xOff: Int, val len: Int)
         val calls = ArrayList<AxpyCall>()
-        val recording = object : Kernels by F64ScalarKernels {
+        val recording = object : Kernels by ScalarKernels {
             override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
                 calls.add(AxpyCall(yOff, xOff, len))
-                F64ScalarKernels.axpy(y, yOff, alpha, x, xOff, len)
+                ScalarKernels.axpy(y, yOff, alpha, x, xOff, len)
             }
         }
         val blas = ReferenceBackend(recording)
@@ -86,10 +86,10 @@ class BlasConformanceTest {
     fun `dense upper syr uses contiguous axpy runs`() {
         data class AxpyCall(val yOff: Int, val xOff: Int, val len: Int)
         val calls = ArrayList<AxpyCall>()
-        val recording = object : Kernels by F64ScalarKernels {
+        val recording = object : Kernels by ScalarKernels {
             override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
                 calls.add(AxpyCall(yOff, xOff, len))
-                F64ScalarKernels.axpy(y, yOff, alpha, x, xOff, len)
+                ScalarKernels.axpy(y, yOff, alpha, x, xOff, len)
             }
         }
         val upper = DenseMatrix(2, 2)
@@ -107,15 +107,15 @@ class BlasConformanceTest {
     fun `reference symv composes dot and axpy kernels`() {
         var dots = 0
         var axpys = 0
-        val recording = object : Kernels by F64ScalarKernels {
+        val recording = object : Kernels by ScalarKernels {
             override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
                 dots++
-                return F64ScalarKernels.dot(a, aOff, b, bOff, len)
+                return ScalarKernels.dot(a, aOff, b, bOff, len)
             }
 
             override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
                 axpys++
-                F64ScalarKernels.axpy(y, yOff, alpha, x, xOff, len)
+                ScalarKernels.axpy(y, yOff, alpha, x, xOff, len)
             }
         }
         val a = DenseMatrix(3, 3, doubleArrayOf(2.0, 3.0, 5.0, 0.0, 7.0, 11.0, 0.0, 0.0, 13.0))
@@ -131,10 +131,10 @@ class BlasConformanceTest {
     @Test
     fun `reference syr2 uses two axpy kernels per column`() {
         var axpys = 0
-        val recording = object : Kernels by F64ScalarKernels {
+        val recording = object : Kernels by ScalarKernels {
             override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
                 axpys++
-                F64ScalarKernels.axpy(y, yOff, alpha, x, xOff, len)
+                ScalarKernels.axpy(y, yOff, alpha, x, xOff, len)
             }
         }
 
@@ -279,7 +279,7 @@ class BlasConformanceTest {
         for (transposeA in booleanArrayOf(false, true)) {
             for (transposeB in booleanArrayOf(false, true)) {
                 var tiles = 0
-                val recording = object : Kernels by F64ScalarKernels {
+                val recording = object : Kernels by ScalarKernels {
                     override fun gemmTile(
                         depth: Int,
                         packedA: DoubleArray,
@@ -291,7 +291,7 @@ class BlasConformanceTest {
                         ldc: Int,
                     ) {
                         tiles++
-                        F64ScalarKernels.gemmTile(depth, packedA, aOff, packedB, bOff, c, cOff, ldc)
+                        ScalarKernels.gemmTile(depth, packedA, aOff, packedB, bOff, c, cOff, ldc)
                     }
                 }
                 val k = 5

@@ -1018,6 +1018,34 @@ public final class com/eignex/koblas/dense/Kernels$DefaultImpls {
 	public static fun isPortable (Lcom/eignex/koblas/dense/Kernels;)Z
 }
 
+public final class com/eignex/koblas/dense/PackedPanels {
+	public static final field INSTANCE Lcom/eignex/koblas/dense/PackedPanels;
+	public final fun clearLeftPadding ([DIII)V
+	public static synthetic fun clearLeftPadding$default (Lcom/eignex/koblas/dense/PackedPanels;[DIIIILjava/lang/Object;)V
+	public final fun clearRightPadding ([DIII)V
+	public static synthetic fun clearRightPadding$default (Lcom/eignex/koblas/dense/PackedPanels;[DIIIILjava/lang/Object;)V
+	public final fun getTileColumns ()I
+	public final fun getTileRows ()I
+	public final fun leftSize (II)I
+	public final fun packLeft (Lcom/eignex/koblas/DenseMatrix;[DIIIIZDILcom/eignex/koblas/Workspace;)V
+	public static synthetic fun packLeft$default (Lcom/eignex/koblas/dense/PackedPanels;Lcom/eignex/koblas/DenseMatrix;[DIIIIZDILcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
+	public final fun packRight (Lcom/eignex/koblas/DenseMatrix;[DIIIIZILcom/eignex/koblas/Workspace;)V
+	public static synthetic fun packRight$default (Lcom/eignex/koblas/dense/PackedPanels;Lcom/eignex/koblas/DenseMatrix;[DIIIIZILcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
+	public final fun packSymmetricLeft (Lcom/eignex/koblas/DenseMatrix;[DIIZIIDILcom/eignex/koblas/Workspace;)V
+	public static synthetic fun packSymmetricLeft$default (Lcom/eignex/koblas/dense/PackedPanels;Lcom/eignex/koblas/DenseMatrix;[DIIZIIDILcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
+	public final fun packSymmetricRight (Lcom/eignex/koblas/DenseMatrix;[DIIZIIILcom/eignex/koblas/Workspace;)V
+	public static synthetic fun packSymmetricRight$default (Lcom/eignex/koblas/dense/PackedPanels;Lcom/eignex/koblas/DenseMatrix;[DIIZIIILcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
+	public final fun packTriangularLeft (Lcom/eignex/koblas/DenseMatrix;[DIIZZZIIDILcom/eignex/koblas/Workspace;)V
+	public static synthetic fun packTriangularLeft$default (Lcom/eignex/koblas/dense/PackedPanels;Lcom/eignex/koblas/DenseMatrix;[DIIZZZIIDILcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
+	public final fun packTriangularRight (Lcom/eignex/koblas/DenseMatrix;[DIIZZZIIILcom/eignex/koblas/Workspace;)V
+	public static synthetic fun packTriangularRight$default (Lcom/eignex/koblas/dense/PackedPanels;Lcom/eignex/koblas/DenseMatrix;[DIIZZZIIILcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
+	public final fun rightSize (II)I
+	public final fun writeLeft ([DLcom/eignex/koblas/DenseMatrix;IIIIIZLcom/eignex/koblas/Workspace;)V
+	public static synthetic fun writeLeft$default (Lcom/eignex/koblas/dense/PackedPanels;[DLcom/eignex/koblas/DenseMatrix;IIIIIZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
+	public final fun writeRight ([DLcom/eignex/koblas/DenseMatrix;IIIIIZLcom/eignex/koblas/Workspace;)V
+	public static synthetic fun writeRight$default (Lcom/eignex/koblas/dense/PackedPanels;[DLcom/eignex/koblas/DenseMatrix;IIIIIZLcom/eignex/koblas/Workspace;ILjava/lang/Object;)V
+}
+
 public final class com/eignex/koblas/dense/ReferenceBackend : com/eignex/koblas/F64RebindableBackend, com/eignex/koblas/dense/Blas {
 	public fun <init> ()V
 	public fun <init> (Lcom/eignex/koblas/dense/Kernels;)V

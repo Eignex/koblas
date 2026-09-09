@@ -5,9 +5,9 @@ import com.eignex.koblas.BackendRole
 import com.eignex.koblas.KoblasContext
 import com.eignex.koblas.MissingRepeatedSparseLu
 import com.eignex.koblas.dense.Blas
-import com.eignex.koblas.dense.F64PlatformKernels
 import com.eignex.koblas.dense.F64ReferenceBlas
 import com.eignex.koblas.dense.Kernels
+import com.eignex.koblas.dense.PlatformKernels
 import com.eignex.koblas.sparse.F64BasisFactorizations
 import com.eignex.koblas.sparse.F64GeneralSparseLu
 import com.eignex.koblas.sparse.F64PlatformSparseKernels
@@ -53,7 +53,7 @@ internal enum class BackendSlot(
         role = BackendRole.DENSE_KERNELS,
         accepts = { it is Kernels },
         from = { it.kernels },
-        portableDefault = { F64PlatformKernels },
+        portableDefault = { PlatformKernels },
         selectionKeys = BackendSelectionKeys(
             "koblas.backend.dense.kernels",
             "KOBLAS_DENSE_KERNELS_BACKEND",

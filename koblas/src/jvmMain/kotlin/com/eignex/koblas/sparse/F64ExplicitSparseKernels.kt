@@ -2,8 +2,8 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.BackendMetadataProvider
 import com.eignex.koblas.SparseVector
-import com.eignex.koblas.dense.F64CKernels
-import com.eignex.koblas.dense.F64SimdKernels
+import com.eignex.koblas.dense.CKernels
+import com.eignex.koblas.dense.SimdKernels
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.kernels.JvmCKernelBindings
 import com.eignex.koblas.requireShape
@@ -56,9 +56,9 @@ internal object F64CSparseKernels : SparseKernels {
 
     override fun gatherZero(x: SparseVector, from: DoubleArray) = F64ReferenceSparseLinearAlgebra.gatherZero(x, from)
 
-    override fun nrm2(x: SparseVector): Double = F64CKernels.nrm2(x.values, 0, x.values.size)
+    override fun nrm2(x: SparseVector): Double = CKernels.nrm2(x.values, 0, x.values.size)
 
-    override fun asum(x: SparseVector): Double = F64CKernels.asum(x.values, 0, x.values.size)
+    override fun asum(x: SparseVector): Double = CKernels.asum(x.values, 0, x.values.size)
 }
 
 /** The JVM Vector API sparse kernels without automatic C selection. */
@@ -69,7 +69,7 @@ internal object F64SimdSparseKernels : SparseKernels, BackendMetadataProvider {
 
     override val isPortable: Boolean get() = true
 
-    override val isAvailable: Boolean get() = F64SimdKernels.isAvailable
+    override val isAvailable: Boolean get() = SimdKernels.isAvailable
 
     override val backendMetadata get() = scatter.metadata
 
@@ -113,7 +113,7 @@ internal object F64SimdSparseKernels : SparseKernels, BackendMetadataProvider {
         }
     }
 
-    override fun nrm2(x: SparseVector): Double = F64SimdKernels.nrm2(x.values, 0, x.values.size)
+    override fun nrm2(x: SparseVector): Double = SimdKernels.nrm2(x.values, 0, x.values.size)
 
-    override fun asum(x: SparseVector): Double = F64SimdKernels.asum(x.values, 0, x.values.size)
+    override fun asum(x: SparseVector): Double = SimdKernels.asum(x.values, 0, x.values.size)
 }

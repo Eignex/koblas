@@ -8,7 +8,7 @@ import com.eignex.koblas.portableRotm
 import com.eignex.koblas.portableRotmg
 
 /** Scalar leaves used only when cross-compiling a Native publication for a foreign host. */
-internal actual object F64PlatformKernels : Kernels, F64ArithmeticKernels {
+internal actual object PlatformKernels : Kernels, ArithmeticKernels {
     actual override val name: String get() = BackendNames.SCALAR
 
     override val isPortable: Boolean get() = true

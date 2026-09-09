@@ -65,12 +65,12 @@ internal fun assertModifiedGivensKernelsAgreeWithPortable(kernels: Kernels) {
         doubleArrayOf(1.0, -1.0, 1.0, 2.0),
     )
     for (input in inputs) {
-        val expected = F64ScalarKernels.rotmg(input[0], input[1], input[2], input[3])
+        val expected = ScalarKernels.rotmg(input[0], input[1], input[2], input[3])
         val actual = kernels.rotmg(input[0], input[1], input[2], input[3])
         assertModifiedGivensClose(expected, actual, "rotmg input=${input.toList()}")
     }
 
-    val transformation = F64ScalarKernels.rotmg(1.0, 1.0, 1.0, 2.0)
+    val transformation = ScalarKernels.rotmg(1.0, 1.0, 1.0, 2.0)
     for (len in intArrayOf(1, 7, 63, 64, 65, 200)) {
         val pad = 3
         val x = DoubleArray(2 * len + 2 * pad) { it * 0.25 - 4.0 }
@@ -79,7 +79,7 @@ internal fun assertModifiedGivensKernelsAgreeWithPortable(kernels: Kernels) {
         val expectedY = y.copyOf()
         val actualX = x.copyOf()
         val actualY = y.copyOf()
-        F64ScalarKernels.rotm(
+        ScalarKernels.rotm(
             expectedX,
             pad,
             2,
@@ -119,7 +119,7 @@ internal fun assertRotKernelAgreesWithPortable(kernels: Kernels) {
         val expectedY = y.copyOf()
         val actualX = x.copyOf()
         val actualY = y.copyOf()
-        F64ScalarKernels.rot(expectedX, pad, expectedY, pad, len, rotation.c, rotation.s)
+        ScalarKernels.rot(expectedX, pad, expectedY, pad, len, rotation.c, rotation.s)
         kernels.rot(actualX, pad, actualY, pad, len, rotation.c, rotation.s)
         assertClose(expectedX, actualX, context = "rot x len=$len")
         assertClose(expectedY, actualY, context = "rot y len=$len")

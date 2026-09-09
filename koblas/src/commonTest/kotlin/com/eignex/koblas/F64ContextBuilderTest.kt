@@ -22,19 +22,19 @@ class F64ContextBuilderTest {
         }
     }
 
-    private class CountingKernels : Kernels by F64PlatformKernels {
+    private class CountingKernels : Kernels by PlatformKernels {
         var axpys: Int = 0
         var scales: Int = 0
         override val name: String get() = "counting"
 
         override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
             axpys++
-            F64PlatformKernels.axpy(y, yOff, alpha, x, xOff, len)
+            PlatformKernels.axpy(y, yOff, alpha, x, xOff, len)
         }
 
         override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
             scales++
-            F64PlatformKernels.scale(v, vOff, alpha, len)
+            PlatformKernels.scale(v, vOff, alpha, len)
         }
     }
 

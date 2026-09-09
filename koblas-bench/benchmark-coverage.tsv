@@ -55,7 +55,7 @@ Kernels.asum(DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch p
 Kernels.axpy(DoubleArray,Int,Double,DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.axpy facade.
 Kernels.dot(DoubleArray,Int,DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.dot facade.
 Kernels.dot4(DoubleArray,Int,Int,DoubleArray,Int,Int,DoubleArray,Int)	com.eignex.koblas.bench.Level1Benchmark.dot4	benchmarked	
-Kernels.gemmTile(Int,DoubleArray,Int,DoubleArray,Int,DoubleArray,Int,Int)	com.eignex.koblas.bench.Level3Benchmark.gemm	benchmarked	
+Kernels.gemmTile(Int,DoubleArray,Int,DoubleArray,Int,DoubleArray,Int,Int)	com.eignex.koblas.bench.PackedPanelExecutionBenchmark.reusedPanelProduct	benchmarked	Retained-panel execution is measured separately from packing.
 Kernels.nrm2(DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.norm2 facade.
 Kernels.rot(DoubleArray,Int,DoubleArray,Int,Int,Double,Double)		excluded	The raw kernel shares the dispatch path benchmarked through the public rot facade.
 Kernels.rotm(DoubleArray,Int,Int,DoubleArray,Int,Int,Int,ModifiedGivens)		excluded	The raw kernel shares the dispatch path benchmarked through the public rotm facade.
@@ -64,6 +64,18 @@ Kernels.scale(DoubleArray,Int,Double,Int)		excluded	The raw kernel shares the di
 Kernels.ssqd(DoubleArray,Int,DoubleArray,Int,Int)	com.eignex.koblas.bench.Level1Benchmark.ssqd	benchmarked	
 Kernels.sum(DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.sum facade.
 Kernels.swap(DoubleArray,Int,DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public swap facade.
+PackedPanels.clearLeftPadding(DoubleArray,Int,Int,Int)		excluded	Edge cleanup touches only the short physical tile padding and is covered by exact layout tests.
+PackedPanels.clearRightPadding(DoubleArray,Int,Int,Int)		excluded	Edge cleanup touches only the short physical tile padding and is covered by exact layout tests.
+PackedPanels.leftSize(Int,Int)		excluded	Buffer sizing is scalar metadata with overflow validation rather than a numerical workload.
+PackedPanels.packLeft(DenseMatrix,DoubleArray)	com.eignex.koblas.bench.PackedPanelBenchmark.packLeft	benchmarked	General setup cost over full and partial platform tiles.
+PackedPanels.packRight(DenseMatrix,DoubleArray)	com.eignex.koblas.bench.PackedPanelBenchmark.packRight	benchmarked	General setup cost over full and partial platform tiles.
+PackedPanels.packSymmetricLeft(DenseMatrix,DoubleArray)	com.eignex.koblas.bench.PackedPanelBenchmark.packLeft	benchmarked	Shares the left-panel traversal; mirrored and poisoned-triangle semantics are tested.
+PackedPanels.packSymmetricRight(DenseMatrix,DoubleArray)	com.eignex.koblas.bench.PackedPanelBenchmark.packRight	benchmarked	Shares the right-panel traversal; mirrored and poisoned-triangle semantics are tested.
+PackedPanels.packTriangularLeft(DenseMatrix,DoubleArray)	com.eignex.koblas.bench.PackedPanelBenchmark.packLeft	benchmarked	Shares the left-panel traversal; structural and unit-diagonal semantics are tested.
+PackedPanels.packTriangularRight(DenseMatrix,DoubleArray)	com.eignex.koblas.bench.PackedPanelBenchmark.packRight	benchmarked	Shares the right-panel traversal; structural and unit-diagonal semantics are tested.
+PackedPanels.rightSize(Int,Int)		excluded	Buffer sizing is scalar metadata with overflow validation rather than a numerical workload.
+PackedPanels.writeLeft(DoubleArray,DenseMatrix)	com.eignex.koblas.bench.PackedPanelBenchmark.writeLeft	benchmarked	Writeback cost over full and partial platform tiles.
+PackedPanels.writeRight(DoubleArray,DenseMatrix)	com.eignex.koblas.bench.PackedPanelBenchmark.writeRight	benchmarked	Writeback cost over full and partial platform tiles.
 MatrixLike.gemvInto(VectorLike,DoubleArray)	com.eignex.koblas.bench.GemvIntoBenchmark.gemvIntoSparseX	benchmarked	
 MatrixLike.times(VectorLike)		excluded	The operator form dispatches to the benchmarked dense and sparse gemv facades.
 F64PreparedSparseMatrix.gemm(DenseMatrix)	com.eignex.koblas.bench.SparseProductHostBenchmark.preparedGemm	benchmarked	

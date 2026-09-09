@@ -3,8 +3,8 @@ package com.eignex.koblas.internal.backend
 import com.eignex.koblas.Backend
 import com.eignex.koblas.BackendRole
 import com.eignex.koblas.KoblasContext
-import com.eignex.koblas.dense.F64PlatformKernels
 import com.eignex.koblas.dense.Kernels
+import com.eignex.koblas.dense.PlatformKernels
 
 internal object BackendRegistry {
 
@@ -104,5 +104,5 @@ internal object BackendRegistry {
     }
 
     /** The kernels the compiled-in path uses when nothing is registered, for tests that need to name them. */
-    internal val platformKernels: Kernels get() = F64PlatformKernels
+    internal val platformKernels: Kernels get() = PlatformKernels
 }

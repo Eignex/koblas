@@ -8,7 +8,7 @@ import com.eignex.koblas.portableRotm
 import com.eignex.koblas.portableRotmg
 
 /** Pure Kotlin scalar kernels retained as the portable fallback and semantic reference for compiled leaves. */
-internal object F64ScalarKernels : Kernels, F64ArithmeticKernels {
+internal object ScalarKernels : Kernels, ArithmeticKernels {
     override val name: String get() = BackendNames.SCALAR
 
     override val isPortable: Boolean get() = true

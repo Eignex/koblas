@@ -3,7 +3,7 @@
 package com.eignex.koblas.sparse
 
 import com.eignex.koblas.SparseVector
-import com.eignex.koblas.dense.F64PlatformKernels
+import com.eignex.koblas.dense.PlatformKernels
 import com.eignex.koblas.internal.backend.BackendNames
 import com.eignex.koblas.internal.kernels.*
 import com.eignex.koblas.requireShape
@@ -97,7 +97,7 @@ internal actual object F64PlatformSparseKernels : SparseKernels {
         }
     }
 
-    actual override fun nrm2(x: SparseVector): Double = F64PlatformKernels.nrm2(x.values, 0, x.values.size)
+    actual override fun nrm2(x: SparseVector): Double = PlatformKernels.nrm2(x.values, 0, x.values.size)
 
-    actual override fun asum(x: SparseVector): Double = F64PlatformKernels.asum(x.values, 0, x.values.size)
+    actual override fun asum(x: SparseVector): Double = PlatformKernels.asum(x.values, 0, x.values.size)
 }

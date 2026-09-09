@@ -273,7 +273,7 @@ class LinearAlgebraSymmetricOpsTest {
 
     @Test
     fun `syrk preserves the netlib zero multiplier rule with infinities`() {
-        val blas = ReferenceBackend(F64ScalarKernels)
+        val blas = ReferenceBackend(ScalarKernels)
         for (lower in booleanArrayOf(true, false)) {
             val values = if (lower) {
                 doubleArrayOf(0.0, Double.POSITIVE_INFINITY)
@@ -299,7 +299,7 @@ class LinearAlgebraSymmetricOpsTest {
 
     @Test
     fun `syrk preserves the netlib zero multiplier rule when finite scaling overflows`() {
-        val blas = ReferenceBackend(F64ScalarKernels)
+        val blas = ReferenceBackend(ScalarKernels)
         for (lower in booleanArrayOf(true, false)) {
             val values = if (lower) {
                 doubleArrayOf(0.0, Double.MAX_VALUE)
@@ -331,7 +331,7 @@ class LinearAlgebraSymmetricOpsTest {
     @Test
     fun `syrk snapshots an aliased destination`() {
         val rng = Random(20260908)
-        val blas = ReferenceBackend(F64ScalarKernels)
+        val blas = ReferenceBackend(ScalarKernels)
         for (transpose in booleanArrayOf(false, true)) {
             for (lower in booleanArrayOf(false, true)) {
                 val original = DoubleArray(25) { rng.nextDouble(-1.0, 1.0) }
@@ -424,7 +424,7 @@ class LinearAlgebraSymmetricOpsTest {
 
     @Test
     fun `syr2k preserves exceptional rank two evaluation`() {
-        val blas = ReferenceBackend(F64ScalarKernels)
+        val blas = ReferenceBackend(ScalarKernels)
         for (lower in booleanArrayOf(true, false)) {
             val infinityA = if (lower) {
                 doubleArrayOf(1.0, Double.POSITIVE_INFINITY)
@@ -481,7 +481,7 @@ class LinearAlgebraSymmetricOpsTest {
 
     @Test
     fun `syr2k interleaves cross products before accumulation overflow`() {
-        val blas = ReferenceBackend(F64ScalarKernels)
+        val blas = ReferenceBackend(ScalarKernels)
         val magnitude = 1e154
         val normalA = doubleArrayOf(magnitude, magnitude, magnitude, magnitude)
         val normalB = doubleArrayOf(magnitude, -magnitude, magnitude, -magnitude)
@@ -506,7 +506,7 @@ class LinearAlgebraSymmetricOpsTest {
     @Test
     fun `syr2k snapshots either aliased input`() {
         val rng = Random(20260909)
-        val blas = ReferenceBackend(F64ScalarKernels)
+        val blas = ReferenceBackend(ScalarKernels)
         for (transpose in booleanArrayOf(false, true)) {
             for (lower in booleanArrayOf(false, true)) {
                 for (aliased in 0..2) {
@@ -608,7 +608,7 @@ class LinearAlgebraSymmetricOpsTest {
                 for (lower in booleanArrayOf(false, true)) {
                     val expected = DenseMatrix(n, n)
                     blockedSyr2kUpdate(
-                        F64PlatformKernels,
+                        PlatformKernels,
                         0.75,
                         normalizedA,
                         normalizedB,
@@ -695,7 +695,7 @@ class LinearAlgebraSymmetricOpsTest {
     }
 
     /** Kernels whose `axpy` fails, standing in for a backend that cannot complete a blocked update. */
-    private class FailingAxpy : Kernels by F64ScalarKernels {
+    private class FailingAxpy : Kernels by ScalarKernels {
         override val name: String get() = "failing-axpy"
         override val isPortable: Boolean get() = false
 
@@ -704,7 +704,7 @@ class LinearAlgebraSymmetricOpsTest {
     }
 
     /** Kernels whose packed tile fails after all of its scratch buffers have been borrowed. */
-    private class FailingTile : Kernels by F64ScalarKernels {
+    private class FailingTile : Kernels by ScalarKernels {
         override val name: String get() = "failing-tile"
         override val isPortable: Boolean get() = false
 
