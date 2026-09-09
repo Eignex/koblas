@@ -220,21 +220,60 @@ class SparseWorkspaceTest {
     }
 
     @Test
-    fun `invalid touched mark precedes mutation`() {
-        val accumulator = doubleArrayOf(1.0, 2.0)
-        val marks = intArrayOf(0, 8)
-        val touched = intArrayOf(1, -1)
+    fun `scatter updates existing support at full capacity`() {
+        val accumulator = doubleArrayOf(2.0, 0.0, -3.0)
+        val marks = intArrayOf(5, 0, 5)
+        val touched = intArrayOf(0, 2)
 
-        assertFailsWith<IllegalArgumentException> {
-            SparseWorkspace.scatterAxpy(
-                1.0, intArrayOf(0), 0, doubleArrayOf(3.0), 0, 1,
-                accumulator, marks, 7, touched, 0, 1,
-            )
-        }
+        val count = SparseWorkspace.scatterAxpy(
+            2.0, intArrayOf(2, 0), 0, doubleArrayOf(4.0, -1.0), 0, 2,
+            accumulator, marks, 5, touched, 0, 2,
+        )
 
-        assertContentEquals(doubleArrayOf(1.0, 2.0), accumulator)
-        assertContentEquals(intArrayOf(0, 8), marks)
-        assertContentEquals(intArrayOf(1, -1), touched)
+        assertEquals(2, count)
+        assertContentEquals(doubleArrayOf(0.0, 0.0, 5.0), accumulator)
+        assertContentEquals(intArrayOf(0, 2), touched)
+    }
+
+    @Test
+    fun `scatter reserves capacity for actual new touches`() {
+        val accumulator = doubleArrayOf(3.0, 0.0)
+        val marks = intArrayOf(6, 0)
+        val touched = intArrayOf(0, -1)
+
+        val count = SparseWorkspace.scatterAxpy(
+            1.0, intArrayOf(0, 1), 0, doubleArrayOf(2.0, 4.0), 0, 2,
+            accumulator, marks, 6, touched, 0, 1,
+        )
+
+        assertEquals(2, count)
+        assertContentEquals(doubleArrayOf(5.0, 4.0), accumulator)
+        assertContentEquals(intArrayOf(0, 1), touched)
+    }
+
+    @Test
+    fun `checked scatter latches nonfinite and nonzero product underflow`() {
+        val accumulator = DoubleArray(2)
+        val marks = IntArray(2)
+        val touched = IntArray(2)
+        val status = intArrayOf(0, 4)
+
+        var count = SparseWorkspace.scatterAxpyChecked(
+            Double.MIN_VALUE, intArrayOf(0), 0, doubleArrayOf(0.5), 0, 1,
+            accumulator, marks, 9, touched, 0, 0, status, 1,
+        )
+        count = SparseWorkspace.scatterAxpyChecked(
+            Double.MAX_VALUE, intArrayOf(1), 0, doubleArrayOf(2.0), 0, 1,
+            accumulator, marks, 9, touched, 0, count, status, 1,
+        )
+
+        assertEquals(2, count)
+        assertEquals(0.0, accumulator[0])
+        assertEquals(Double.POSITIVE_INFINITY, accumulator[1])
+        assertEquals(
+            4 or SparseWorkspace.SCATTER_NONFINITE or SparseWorkspace.SCATTER_NONZERO_PRODUCT_UNDERFLOW,
+            status[1],
+        )
     }
 
     @Test

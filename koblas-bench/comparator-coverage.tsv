@@ -39,6 +39,8 @@ sparse-1	nrm2	missing	missing	Neither comparator exposes koblas sparse-vector ke
 sparse-1	asum	missing	missing	Neither comparator exposes koblas sparse-vector kernels
 sparse-1	scatter-gather	missing	direct	oneMKL sparse CBLAS cblas_dsctr, cblas_dgthr, and cblas_dgthrz
 sparse-workspace	scatter first touch	missing	missing	Indexed AXPY plus epoch marking and first-touch support emission has no equivalent BLAS operation	com.eignex.koblas.bench.SparseWorkspaceBenchmark.scatterFirstTouch
+sparse-workspace	many short scatters into growing support	missing	missing	Repeated indexed AXPY grows caller-owned retained support without a BLAS equivalent	com.eignex.koblas.bench.SparseWorkspaceGrowingScatterBenchmark.manyShortScattersIntoGrowingSupport
+sparse-workspace	many short checked scatters into growing support	missing	missing	Arithmetic diagnostics plus growing caller-owned support have no BLAS equivalent	com.eignex.koblas.bench.SparseWorkspaceGrowingScatterBenchmark.manyShortCheckedScattersIntoGrowingSupport
 sparse-workspace	scatter existing support	missing	missing	Indexed AXPY retains caller marks and support; timed through the public API inventory
 sparse-workspace	gather touched	missing	missing	Ordered index and value emission differs from legacy sparse gather
 sparse-workspace	gather clear touched	missing	missing	Ordered emission plus accumulator and mark clearing has no equivalent BLAS operation

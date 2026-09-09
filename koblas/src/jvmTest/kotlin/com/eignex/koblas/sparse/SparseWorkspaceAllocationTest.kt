@@ -19,6 +19,7 @@ class SparseWorkspaceAllocationTest {
         val outIndices = IntArray(dimension)
         val outValues = DoubleArray(dimension)
         val active = BooleanArray(dimension) { it % 3 != 0 }
+        val arithmeticStatus = IntArray(1)
         var touchedCount = SparseWorkspace.scatterAxpy(
             1.0, indices, 0, values, 0, count,
             accumulator, marks, 11, touched, 0, 0,
@@ -32,6 +33,10 @@ class SparseWorkspaceAllocationTest {
             touchedCount = SparseWorkspace.scatterAxpy(
                 1e-12, indices, 0, values, 0, count,
                 accumulator, marks, 11, touched, 0, touchedCount,
+            )
+            SparseWorkspace.scatterAxpyChecked(
+                1e-12, indices, 0, values, 0, count,
+                accumulator, marks, 11, touched, 0, touchedCount, arithmeticStatus, 0,
             )
             SparseWorkspace.gatherTouched(
                 touched, 0, touchedCount, accumulator, outIndices, 0, outValues, 0, compactExactZeros = true,
@@ -51,6 +56,10 @@ class SparseWorkspaceAllocationTest {
             touchedCount = SparseWorkspace.scatterAxpy(
                 1e-12, indices, 0, values, 0, count,
                 accumulator, marks, 11, touched, 0, touchedCount,
+            )
+            SparseWorkspace.scatterAxpyChecked(
+                1e-12, indices, 0, values, 0, count,
+                accumulator, marks, 11, touched, 0, touchedCount, arithmeticStatus, 0,
             )
             SparseWorkspace.gatherTouched(
                 touched, 0, touchedCount, accumulator, outIndices, 0, outValues, 0, compactExactZeros = true,

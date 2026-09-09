@@ -151,6 +151,7 @@ sparse/SparseWorkspace.kt:SparseWorkspace.pivotCandidatePositions(IntArray,Int,D
 sparse/SparseWorkspace.kt:SparseWorkspace.gatherClearTouched(IntArray,Int,Int,DoubleArray,IntArray,IntArray,Int,DoubleArray,Int,Boolean)	SparseWorkspace.gatherClearTouched(IntArray,Int,Int,DoubleArray,IntArray,IntArray,Int,DoubleArray,Int,Boolean)
 sparse/SparseWorkspace.kt:SparseWorkspace.gatherTouched(IntArray,Int,Int,DoubleArray,IntArray,Int,DoubleArray,Int,Boolean)	SparseWorkspace.gatherTouched(IntArray,Int,Int,DoubleArray,IntArray,Int,DoubleArray,Int,Boolean)
 sparse/SparseWorkspace.kt:SparseWorkspace.scatterAxpy(Double,IntArray,Int,DoubleArray,Int,Int,DoubleArray,IntArray,Int,IntArray,Int,Int)	SparseWorkspace.scatterAxpy(Double,IntArray,Int,DoubleArray,Int,Int,DoubleArray,IntArray,Int,IntArray,Int,Int)
+sparse/SparseWorkspace.kt:SparseWorkspace.scatterAxpyChecked(Double,IntArray,Int,DoubleArray,Int,Int,DoubleArray,IntArray,Int,IntArray,Int,Int,IntArray,Int)	SparseWorkspace.scatterAxpyChecked(Double,IntArray,Int,DoubleArray,Int,Int,DoubleArray,IntArray,Int,IntArray,Int,Int,IntArray,Int)
 sparse/SparseOps.kt:SparseMatrix.prepare()	PreparedSparseMatrix.gemv(DoubleArray)
 sparse/SparseOps.kt:SparseMatrix.trmm(DenseMatrix,Boolean,Boolean,Boolean,Boolean,Double)	SparseBlas.trmm(SparseMatrix,DenseMatrix)
 sparse/SparseOps.kt:SparseMatrix.trmv(DoubleArray,Boolean,Boolean,Boolean)	SparseBlas.trmv(SparseMatrix,DoubleArray,host)

@@ -9,8 +9,9 @@ import kotlin.math.abs
  * The caller owns every buffer and retains it between calls. Input indices and touched indices must be unique
  * within their supplied slices. That uniqueness, and agreement between an active mark and the touched slice, are
  * caller preconditions: checking either without another workspace would require quadratic work or a full-dimension
- * scan. Bounds, windows, capacities, overlap, and scatter's supplied touched marks are validated before any
- * destination is mutated. Roles without two explicit comparable slices must use distinct arrays; explicit
+ * scan. Bounds, windows, capacities, overlap, and scatter's incoming indices are validated before any destination
+ * is mutated. The existing touched slice is trusted and is never scanned by scatter. Roles without two explicit
+ * comparable slices must use distinct arrays; explicit
  * `IntArray` slices may share an array only when their reserved windows do not overlap.
  *
  * These helpers manipulate arithmetic values and active support only. Pivot selection, merit calculations,
@@ -18,6 +19,12 @@ import kotlin.math.abs
  */
 @ExperimentalKoblasApi
 public object SparseWorkspace {
+    /** Bit reported by [scatterAxpyChecked] when a product or updated accumulator value is not finite. */
+    public const val SCATTER_NONFINITE: Int = 1
+
+    /** Bit reported by [scatterAxpyChecked] when nonzero operands produce a zero product. */
+    public const val SCATTER_NONZERO_PRODUCT_UNDERFLOW: Int = 2
+
     /**
      * Accumulates `alpha * values(k)` at `indices(k)` and returns the new total touched count.
      *
@@ -25,6 +32,8 @@ public object SparseWorkspace {
      * the index once in input order. Already touched entries keep their original position. Exact cancellation does
      * not remove support. [epoch] must be nonzero and is caller-managed; marks must be reset before epoch reuse or
      * wrap. The existing touched slice must contain every entry encountered here whose mark already equals [epoch].
+     * This is a trusted precondition: the existing touched slice and its marks are not scanned. Capacity is required
+     * only for indices whose mark does not yet equal [epoch].
      *
      * Zero [alpha] is evaluated, not treated as a no-op. Thus finite values still become touched and `0 * infinity`
      * produces NaN according to IEEE 754 arithmetic.
@@ -44,32 +53,10 @@ public object SparseWorkspace {
         touchedOffset: Int,
         touchedCount: Int,
     ): Int {
-        require(epoch != 0) { "scatter epoch must be nonzero" }
-        require(accumulator.size == marks.size) {
-            "accumulator and marks lengths differ: ${accumulator.size} vs ${marks.size}"
-        }
-        requireWindow(indices.size, indexOffset, count, "indices")
-        requireWindow(values.size, valueOffset, count, "values")
-        requireWindow(touched.size, touchedOffset, touchedCount, "touched")
-        requireWindow(touched.size, touchedOffset + touchedCount, count, "touched capacity")
-        requireDistinct(accumulator, values, "accumulator and values")
-        requireDistinct(marks, indices, "marks and indices")
-        requireDistinct(marks, touched, "marks and touched")
-        requireNonoverlap(
-            indices,
-            indexOffset,
-            count,
-            touched,
-            touchedOffset,
-            touchedCount + count,
-            "indices and touched",
+        validateScatter(
+            indices, indexOffset, values, valueOffset, count,
+            accumulator, marks, epoch, touched, touchedOffset, touchedCount,
         )
-        validateIndices(touched, touchedOffset, touchedCount, accumulator.size, "touched")
-        for (k in 0 until touchedCount) {
-            val index = touched[touchedOffset + k]
-            require(marks[index] == epoch) { "touched index $index is not marked with epoch $epoch" }
-        }
-        validateIndices(indices, indexOffset, count, accumulator.size, "indices")
 
         var total = touchedCount
         for (k in 0 until count) {
@@ -82,6 +69,63 @@ public object SparseWorkspace {
             }
             accumulator[index] += alpha * values[valueOffset + k]
         }
+        return total
+    }
+
+    /**
+     * Performs [scatterAxpy] while latching arithmetic diagnostics into [arithmeticStatus] at [statusOffset].
+     *
+     * [SCATTER_NONFINITE] is set when a multiplication or updated accumulator value is nonfinite.
+     * [SCATTER_NONZERO_PRODUCT_UNDERFLOW] is set when two nonzero operands produce a zero product. Existing bits in
+     * the status element are preserved, allowing one caller-owned element to collect diagnostics across repeated
+     * scatters. The IEEE result is always written, and each product and sum is evaluated exactly once.
+     */
+    @Suppress("LongParameterList") // parallel slices, caller-owned accumulator state, and diagnostic sink
+    public fun scatterAxpyChecked(
+        alpha: Double,
+        indices: IntArray,
+        indexOffset: Int,
+        values: DoubleArray,
+        valueOffset: Int,
+        count: Int,
+        accumulator: DoubleArray,
+        marks: IntArray,
+        epoch: Int,
+        touched: IntArray,
+        touchedOffset: Int,
+        touchedCount: Int,
+        arithmeticStatus: IntArray,
+        statusOffset: Int,
+    ): Int {
+        requireWindow(arithmeticStatus.size, statusOffset, 1, "arithmetic status")
+        requireDistinct(arithmeticStatus, indices, "arithmetic status and indices")
+        requireDistinct(arithmeticStatus, marks, "arithmetic status and marks")
+        requireDistinct(arithmeticStatus, touched, "arithmetic status and touched")
+        validateScatter(
+            indices, indexOffset, values, valueOffset, count,
+            accumulator, marks, epoch, touched, touchedOffset, touchedCount,
+        )
+
+        var flags = arithmeticStatus[statusOffset]
+        var total = touchedCount
+        for (k in 0 until count) {
+            val index = indices[indexOffset + k]
+            if (marks[index] != epoch) {
+                accumulator[index] = 0.0
+                marks[index] = epoch
+                touched[touchedOffset + total] = index
+                total++
+            }
+            val value = values[valueOffset + k]
+            val product = alpha * value
+            val updated = accumulator[index] + product
+            if (!product.isFinite() || !updated.isFinite()) flags = flags or SCATTER_NONFINITE
+            if (alpha != 0.0 && value != 0.0 && product == 0.0) {
+                flags = flags or SCATTER_NONZERO_PRODUCT_UNDERFLOW
+            }
+            accumulator[index] = updated
+        }
+        arithmeticStatus[statusOffset] = flags
         return total
     }
 
@@ -234,6 +278,48 @@ public object SparseWorkspace {
         }
         return written
     }
+}
+
+@Suppress("LongParameterList")
+private fun validateScatter(
+    indices: IntArray,
+    indexOffset: Int,
+    values: DoubleArray,
+    valueOffset: Int,
+    count: Int,
+    accumulator: DoubleArray,
+    marks: IntArray,
+    epoch: Int,
+    touched: IntArray,
+    touchedOffset: Int,
+    touchedCount: Int,
+) {
+    require(epoch != 0) { "scatter epoch must be nonzero" }
+    require(accumulator.size == marks.size) {
+        "accumulator and marks lengths differ: ${accumulator.size} vs ${marks.size}"
+    }
+    requireWindow(indices.size, indexOffset, count, "indices")
+    requireWindow(values.size, valueOffset, count, "values")
+    requireWindow(touched.size, touchedOffset, touchedCount, "touched")
+    requireDistinct(accumulator, values, "accumulator and values")
+    requireDistinct(marks, indices, "marks and indices")
+    requireDistinct(marks, touched, "marks and touched")
+    validateIndices(indices, indexOffset, count, accumulator.size, "indices")
+
+    var newTouches = 0
+    for (k in 0 until count) {
+        if (marks[indices[indexOffset + k]] != epoch) newTouches++
+    }
+    requireWindow(touched.size, touchedOffset + touchedCount, newTouches, "touched capacity")
+    requireNonoverlap(
+        indices,
+        indexOffset,
+        count,
+        touched,
+        touchedOffset,
+        touchedCount + newTouches,
+        "indices and touched",
+    )
 }
 
 @Suppress("LongParameterList")

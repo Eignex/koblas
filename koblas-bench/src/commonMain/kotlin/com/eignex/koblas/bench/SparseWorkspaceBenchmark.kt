@@ -131,3 +131,86 @@ class SparseWorkspaceBenchmark {
         indices, 0, values, 0, count, activeRows, maximum, 0.01, 0.1, outIndices, 0,
     )
 }
+
+/** Repeated short scatters whose retained support grows throughout each benchmark invocation. */
+@OptIn(ExperimentalKoblasApi::class)
+@State(Scope.Benchmark)
+@BenchmarkMode(Mode.AverageTime)
+@OutputTimeUnit(BenchmarkTimeUnit.NANOSECONDS)
+class SparseWorkspaceGrowingScatterBenchmark {
+    @Param("64", "512", "4096")
+    var supportSize: Int = 64
+
+    @Param("4", "8")
+    var scatterSize: Int = 4
+
+    private lateinit var indices: IntArray
+    private lateinit var values: DoubleArray
+    private lateinit var accumulator: DoubleArray
+    private lateinit var marks: IntArray
+    private lateinit var touched: IntArray
+    private lateinit var checkedAccumulator: DoubleArray
+    private lateinit var checkedMarks: IntArray
+    private lateinit var checkedTouched: IntArray
+    private lateinit var arithmeticStatus: IntArray
+    private var epoch: Int = 1
+
+    @Setup
+    fun setup() {
+        indices = IntArray(supportSize) { it }
+        values = DoubleArray(supportSize) { (it % 11 - 5) * 0.125 }
+        accumulator = DoubleArray(supportSize)
+        marks = IntArray(supportSize)
+        touched = IntArray(supportSize)
+        checkedAccumulator = DoubleArray(supportSize)
+        checkedMarks = IntArray(supportSize)
+        checkedTouched = IntArray(supportSize)
+        arithmeticStatus = IntArray(1)
+        println()
+        verifyNearZeroManagedAllocation("sparse-workspace/scatter-growing/$supportSize/$scatterSize") {
+            scatterGrowing()
+        }
+        verifyNearZeroManagedAllocation("sparse-workspace/scatter-growing-checked/$supportSize/$scatterSize") {
+            scatterGrowingChecked()
+        }
+        println("resolved: sparse-workspace-growing=portable support=$supportSize scatter=$scatterSize")
+    }
+
+    @Benchmark
+    fun manyShortScattersIntoGrowingSupport(): Int = scatterGrowing()
+
+    @Benchmark
+    fun manyShortCheckedScattersIntoGrowingSupport(): Int = scatterGrowingChecked()
+
+    private fun scatterGrowing(): Int {
+        epoch++
+        var touchedCount = 0
+        var offset = 0
+        while (offset < supportSize) {
+            val count = minOf(scatterSize, supportSize - offset)
+            touchedCount = SparseWorkspace.scatterAxpy(
+                1.0, indices, offset, values, offset, count,
+                accumulator, marks, epoch, touched, 0, touchedCount,
+            )
+            offset += count
+        }
+        return touchedCount
+    }
+
+    private fun scatterGrowingChecked(): Int {
+        epoch++
+        arithmeticStatus[0] = 0
+        var touchedCount = 0
+        var offset = 0
+        while (offset < supportSize) {
+            val count = minOf(scatterSize, supportSize - offset)
+            touchedCount = SparseWorkspace.scatterAxpyChecked(
+                1.0, indices, offset, values, offset, count,
+                checkedAccumulator, checkedMarks, epoch, checkedTouched, 0, touchedCount,
+                arithmeticStatus, 0,
+            )
+            offset += count
+        }
+        return touchedCount + arithmeticStatus[0]
+    }
+}
