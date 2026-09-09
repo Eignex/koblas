@@ -1328,6 +1328,20 @@ public final class com/eignex/koblas/sparse/SparseOpsKt {
 	public static synthetic fun trsv$default (Lcom/eignex/koblas/SparseMatrix;[DZZZILjava/lang/Object;)V
 }
 
+public final class com/eignex/koblas/sparse/SparseWorkspace {
+	public static final field INSTANCE Lcom/eignex/koblas/sparse/SparseWorkspace;
+	public static final field SCATTER_NONFINITE I
+	public static final field SCATTER_NONZERO_PRODUCT_UNDERFLOW I
+	public final fun activeColumnMaxAbs ([II[DII[Z)D
+	public final fun gatherClearTouched ([III[D[I[II[DIZ)I
+	public static synthetic fun gatherClearTouched$default (Lcom/eignex/koblas/sparse/SparseWorkspace;[III[D[I[II[DIZILjava/lang/Object;)I
+	public final fun gatherTouched ([III[D[II[DIZ)I
+	public static synthetic fun gatherTouched$default (Lcom/eignex/koblas/sparse/SparseWorkspace;[III[D[II[DIZILjava/lang/Object;)I
+	public final fun pivotCandidatePositions ([II[DII[ZDDD[II)I
+	public final fun scatterAxpy (D[II[DII[D[II[III)I
+	public final fun scatterAxpyChecked (D[II[DII[D[II[III[II)I
+}
+
 public final class com/eignex/koblas/sparse/basis/BasisKernel {
 	public fun <init> (II)V
 	public final fun getDimension ()I

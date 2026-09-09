@@ -69,14 +69,15 @@ internal fun portableGemmTrsmTile(
     xOff: Int,
 ) {
     if (validRows == 0 || order == 0) return
-    for (step in 0 until depth) {
-        for (column in 0 until order) {
-            val target = xOff + column * tileRows
-            val coefficient = packedB[bOff + step * tileColumns + column]
-            for (row in 0 until validRows) {
-                x[target + row] -=
-                    packedA[aOff + step * tileRows + row] * coefficient
+    for (column in 0 until order) {
+        val target = xOff + column * tileRows
+        for (row in 0 until validRows) {
+            var value = x[target + row]
+            for (step in 0 until depth) {
+                value -= packedA[aOff + step * tileRows + row] *
+                    packedB[bOff + step * tileColumns + column]
             }
+            x[target + row] = value
         }
     }
     portableTrsmTile(

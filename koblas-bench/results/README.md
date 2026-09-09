@@ -93,6 +93,23 @@ host.
 Expected SHA-256:
 `00978425a758cf1608727482f3401fa64dfe8279d024d30533ce5db27e21249c`.
 
+## Sparse workspace and C dispatch
+
+`sparse-workspace-dispatch-20260909.tar.gz` preserves two independent JVM sparse-workspace passes, two Native
+passes, two JVM-without-SIMD level-1 C crossover passes, raw and installed-policy packed tile measurements, two
+eligibility scans, and two repeated end-to-end JVM packed-TRSM passes. The archive includes raw JSON, complete
+console logs, resolved implementation identities, allocation probes, and notes describing the scenario-specific
+fallback outcomes.
+
+The runs used an Intel Core i9-12900H with CPU affinity `0,2,4,6` on a busy shared host. JVM allocation probes
+reported `0 B/call`. The retained evidence supports JVM C crossovers of 64 for `axpy4`, 256 for `dotAxpy`, and
+depth 16 for packed product and fused update/solve tiles. Standalone packed TRSM remains portable because its C
+leaf did not win consistently. The #494 eligibility predicate is unchanged: constructed dense-finite inputs stay
+eligible, while constructed structural-zero and overflow-bound inputs exercise the fallback.
+
+Expected SHA-256:
+`969aef36f3a630d2553616d7d1b85f557af36421bb32e3d242eafbcfcefa189a`.
+
 ## Packed triangular multiply
 
 `packed-trmm-20260909.tar.gz` retains two independent JVM SIMD/OpenBLAS passes across five shapes and all

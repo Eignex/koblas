@@ -12,6 +12,9 @@ dense-1	ssqd	missing	missing	No numerically equivalent BLAS counterpart; never f
 dense-1	dot4	composition	composition	Four ddot calls; excluded from direct parity	com.eignex.koblas.bench.ExternalDenseLevel1CompositionBenchmark.dot4AsFourDots
 dense-1	axpy4-as-four-axpy	composition	composition	Four kernel calls quantify the fused output-traffic alternative	com.eignex.koblas.bench.Level1Benchmark.axpy4AsFourAxpy
 dense-1	dot-axpy-separate	composition	composition	Separate dot and axpy calls quantify the fused input-traffic alternative	com.eignex.koblas.bench.Level1Benchmark.dotAxpySeparate
+packed-kernel	explicit trsm tile	missing	missing	Private packed leaf has no external panel-layout counterpart	com.eignex.koblas.bench.ExplicitPackedKernelBenchmark.trsmTile
+packed-kernel	explicit gemm trsm tile	missing	missing	Full C tile is register-resident fusion; portable fallback is the same logical composition	com.eignex.koblas.bench.ExplicitPackedKernelBenchmark.gemmTrsmTile
+packed-kernel	explicit separate gemm and trsm	missing	missing	Internal composition baseline over the same retained panels	com.eignex.koblas.bench.ExplicitPackedKernelBenchmark.separateGemmAndTrsm
 dense-1	rotmg	missing	missing	koblas exposes richer returned state and keeps the Netlib semantics
 dense-2	gemv	direct	direct	CBLAS dgemv
 dense-2	gemv-rectangular	direct	direct	Rectangular CBLAS dgemv comparison	com.eignex.koblas.bench.GemvShapeBenchmark.gemv
@@ -35,6 +38,16 @@ sparse-1	axpy	missing	direct	oneMKL sparse CBLAS cblas_daxpyi
 sparse-1	nrm2	missing	missing	Neither comparator exposes koblas sparse-vector kernels
 sparse-1	asum	missing	missing	Neither comparator exposes koblas sparse-vector kernels
 sparse-1	scatter-gather	missing	direct	oneMKL sparse CBLAS cblas_dsctr, cblas_dgthr, and cblas_dgthrz
+sparse-workspace	scatter first touch	missing	missing	Indexed AXPY plus epoch marking and first-touch support emission has no equivalent BLAS operation	com.eignex.koblas.bench.SparseWorkspaceBenchmark.scatterFirstTouch
+sparse-workspace	many short scatters into growing support	missing	missing	Repeated indexed AXPY grows caller-owned retained support without a BLAS equivalent	com.eignex.koblas.bench.SparseWorkspaceGrowingScatterBenchmark.manyShortScattersIntoGrowingSupport
+sparse-workspace	many short checked scatters into growing support	missing	missing	Arithmetic diagnostics plus growing caller-owned support have no BLAS equivalent	com.eignex.koblas.bench.SparseWorkspaceGrowingScatterBenchmark.manyShortCheckedScattersIntoGrowingSupport
+sparse-workspace	scatter existing support	missing	missing	Indexed AXPY retains caller marks and support; timed through the public API inventory
+sparse-workspace	gather touched	missing	missing	Ordered index and value emission differs from legacy sparse gather
+sparse-workspace	gather clear touched	missing	missing	Ordered emission plus accumulator and mark clearing has no equivalent BLAS operation
+sparse-workspace	active maximum	missing	missing	Activity-mask-aware nonfinite reduction has no equivalent BLAS operation
+sparse-workspace	candidate filtering	missing	missing	Caller thresholds and active support make this a custom arithmetic helper
+packed-kernel	gemm tile	missing	missing	Internal packed leaf measured explicitly to choose JVM C dispatch	com.eignex.koblas.bench.ExplicitPackedKernelBenchmark.gemmTile
+packed-trsm	selected-provider end to end	missing	missing	Selected scalar and bundled C providers expose packed eligibility and fallback cost	com.eignex.koblas.bench.ExplicitPackedTrsmBenchmark.denseTrsm
 sparse-2	gemv	missing	direct	oneMKL inspector-executor mkl_sparse_d_mv
 sparse-2	trsv	missing	direct	oneMKL mkl_sparse_d_trsv
 sparse-2	trmv	missing	direct	oneMKL triangular descriptor with mkl_sparse_d_mv
