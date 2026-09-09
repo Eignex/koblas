@@ -21,6 +21,12 @@ Correctness was separately checked against the explicit scalar engine for lower 
 zero vector entries, NaN/infinity arithmetic, poisoned unselected storage and the 512 boundary plus remainder.
 Existing alpha/beta and shape suites were also run with JVM SIMD and `-Pkoblas.noSimd=true`.
 
+A review follow-up added a cancellation case where a four-column lower-triangle group has `1e308`, `-1e308`
+before its common-tail `1e308`. Composing the common partial first overflowed even though the prior per-column
+traversal returned finite `1e308`. The grouped path now checks its four composed partial dots before mutation and
+uses the original fused per-column traversal for only a group whose partial result or alpha-scaled result is
+nonfinite. Explicit C and SIMD tests pin the finite result.
+
 ## Findings
 
 - Existing four-column GEMV is retained. In the initial rectangular JVM pass, built-in non-transposed GEMV was
@@ -47,6 +53,10 @@ Existing alpha/beta and shape suites were also run with JVM SIMD and `-Pkoblas.n
   921.4 to 818.5 at 2048. Upper changed from 48.8 to 35.4, 135.5 to 126.9 and 968.4 to 666.1. Native OpenBLAS
   varied between the adjacent passes; the post-change residual is roughly 1.2 to 1.6 times OpenBLAS at 1024 and
   2048, with the raw values retained.
+- The post-review finite-input JVM pass shows no material regression from the safety check. SIMD lower measured
+  30.2, 125.8 and 756.3 us/op at orders 512, 1024 and 2048; SIMD upper measured 34.5, 140.1 and 868.9. The 2048
+  lower and 1024 upper confidence intervals are wide, so they are retained as variability rather than stronger
+  claims.
 
 ## Raw files
 
@@ -59,6 +69,7 @@ Existing alpha/beta and shape suites were also run with JVM SIMD and `-Pkoblas.n
 - `jvm-gemv-allocation.json`: post-change order-64 run whose setup verified 0 B/call for all four dense Level 2
   allocation probes.
 - `linuxX64-baseline.json` and `linuxX64-symv4.json`: Native compiled-in C/OpenBLAS comparison.
+- `jvm-finite-fallback.json`: post-review explicit C/SIMD timing with the cancellation guard enabled.
 
 The benchmark output occasionally includes a decimal rendering of the setup checksum array. It is noisy console
 formatting only; the raw JSON rows and resolved arm assertions are unaffected.

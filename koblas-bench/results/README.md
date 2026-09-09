@@ -129,9 +129,10 @@ busy shared i9-12900H host. oneMKL, ARM and macOS are explicitly unmeasured.
 The evidence supports a four-column SYMV traversal from order 512. It also records the decision to retain the
 existing GEMV algorithm and the removal of its 48 B/call transposed scratch allocation. Large SYMV remains above
 the roughly 1.1 OpenBLAS objective on several cases; confidence intervals and the contention-dominated runs are
-kept in the archive.
+kept in the archive. The post-review evidence includes the bounded fallback that preserves a finite result when
+combining four-column partial dots would overflow.
 
-Expected SHA-256: `9e1f453498ac6da7c34cbb153039ecd531b9d6cdba7b381947e5292eb8d3346c`.
+Expected SHA-256: `a9f85bcd8a8cfc727b7114d9ce04c8fbeb0b18199469beaf316f6b81236127d4`.
 
 ## Packed triangular solve
 
