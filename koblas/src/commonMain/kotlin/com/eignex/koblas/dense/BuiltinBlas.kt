@@ -4,7 +4,6 @@ package com.eignex.koblas.dense
 
 import com.eignex.koblas.*
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.DenseVector
 import com.eignex.koblas.VectorLike
 
 /**
@@ -308,10 +307,7 @@ internal class BuiltinBlas(private val kernelFamilies: DenseKernelFamilies) : Bl
     }
 
     /** Returns contiguous rank-update operands; sparse copies use the selected sparse level-1 kernels. */
-    private fun rankUpdateData(x: VectorLike): DoubleArray = when (x) {
-        is DenseVector -> x.data
-        else -> DoubleArray(x.size).also { copy(x, DenseVector.wrap(it)) }
-    }
+    private fun rankUpdateData(x: VectorLike): DoubleArray = contiguousVectorData(x)
 
     /** `C = alpha · (op(A) · op(B)ᵀ + op(B) · op(A)ᵀ) + beta · C` (BLAS `dsyr2k`), where `op` transposes when
      *  [transpose]. Writes only the [lower] or upper triangle. */
