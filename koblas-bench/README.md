@@ -18,7 +18,7 @@ and prepared and one-shot sparse work. The runner prints the case count before i
 time when it finishes.
 
 As a calibration rather than a promise, the standard JVM workload plus the matched OpenBLAS arm completed in
-276.8 seconds on a 12th Gen Intel Core i9-12900H using four pinned logical CPUs. Host load, toolchain caches, and
+245.1 seconds on a 12th Gen Intel Core i9-12900H using four pinned logical CPUs. Host load, toolchain caches, and
 optional comparator availability can materially change that time.
 
 The default needs no external numerical library. Add an explicitly matched comparator or probe all optional
