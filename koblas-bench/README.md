@@ -44,8 +44,22 @@ can be supplied as `--tuning KOBLAS_DENSE_GEMM_SMALL=64`.
 | macOS Apple Silicon Native | yes | unsupported | unsupported |
 
 OpenBLAS needs a loader-visible `libopenblas.so.0`, `libopenblas.so`, or `libopenblas.dylib`. oneMKL needs a
-loader-visible `libmkl_rt`. The Linux Native binding opens OpenBLAS dynamically, so the built-in executable neither
-links nor requires it. Native oneMKL and macOS Native external bindings are not implemented.
+loader-visible `libmkl_rt.so.3`, `libmkl_rt.so.2`, `libmkl_rt.so`, `libmkl_rt.dylib`, or `mkl_rt.dll`. The Linux
+Native binding opens OpenBLAS dynamically, so the built-in executable neither links nor requires it. Native oneMKL
+and macOS Native external bindings are not implemented.
+
+On Linux, the Intel-maintained PyPI runtime can be kept isolated instead of changing the system loader:
+
+```bash
+python3 -m venv /path/to/onemkl-venv
+/path/to/onemkl-venv/bin/pip install mkl==2026.1.0
+LD_LIBRARY_PATH=/path/to/onemkl-venv/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH} \
+  MKL_NUM_THREADS=1 MKL_DYNAMIC=FALSE OMP_NUM_THREADS=1 \
+  koblas-bench/report.sh preflight jvm
+```
+
+Use the same scoped environment for the report. To make correctness validation fail rather than skip when oneMKL
+is unavailable or misidentified, run `./gradlew :koblas-bench:check -Pkoblas.oneMklTests=true`.
 
 Each invocation owns a UUID-named output tree and never deletes or scans another run's files. Gradle performs one
 build, then executes fresh passes into distinct directories. JMH's advisory process-lock rejection is disabled for
@@ -149,7 +163,8 @@ bound, while `ExplicitPackedTrsmBenchmark` keeps its outcome inside a repeated e
 Sparse one-shot rows include oneMKL CSC conversion and destruction. Prepared rows retain the inspector-executor
 handle across invocations. Fresh sparse results and packing are reported with workload-dependent allocation
 expectations; allocation-free JVM kernels are probed in every fork and invalidate it if managed allocation exceeds
-the near-zero allowance.
+the near-zero allowance. Repeated vendor workspace compositions that create one sparse-vector wrapper per short
+scatter are explicitly workload-dependent rather than claiming the built-in workspace's allocation contract.
 
 ## Troubleshooting and maintenance
 
