@@ -51,6 +51,8 @@ internal object SparseWorkspaceComparators {
         touchedOffset: Int,
         touchedCount: Int,
         accumulator: DoubleArray,
+        scratchValues: DoubleArray,
+        scratchOffset: Int,
         outIndices: IntArray,
         outIndexOffset: Int,
         outValues: DoubleArray,
@@ -61,9 +63,13 @@ internal object SparseWorkspaceComparators {
             touched, touchedOffset, touchedCount, accumulator,
             outIndices, outIndexOffset, outValues, outValueOffset,
         )
-        comparator.indexedGather(touched, touchedOffset, touchedCount, accumulator, outValues, outValueOffset)
+        requireWindow(scratchValues.size, scratchOffset, touchedCount, "gather scratch")
+        requireDistinct(accumulator, scratchValues, "accumulator and gather scratch")
+        requireDistinct(scratchValues, outValues, "gather scratch and output values")
+        comparator.indexedGather(touched, touchedOffset, touchedCount, accumulator, scratchValues, scratchOffset)
         return emitOrderedIndices(
-            touched, touchedOffset, touchedCount, outIndices, outIndexOffset, outValues, outValueOffset,
+            touched, touchedOffset, touchedCount, scratchValues, scratchOffset,
+            outIndices, outIndexOffset, outValues, outValueOffset,
             compactExactZeros,
         )
     }
@@ -76,6 +82,8 @@ internal object SparseWorkspaceComparators {
         touchedCount: Int,
         accumulator: DoubleArray,
         marks: IntArray,
+        scratchValues: DoubleArray,
+        scratchOffset: Int,
         outIndices: IntArray,
         outIndexOffset: Int,
         outValues: DoubleArray,
@@ -89,10 +97,14 @@ internal object SparseWorkspaceComparators {
         )
         requireDistinct(marks, touched, "marks and touched")
         requireDistinct(marks, outIndices, "marks and output indices")
-        comparator.indexedGatherZero(touched, touchedOffset, touchedCount, accumulator, outValues, outValueOffset)
+        requireWindow(scratchValues.size, scratchOffset, touchedCount, "gather scratch")
+        requireDistinct(accumulator, scratchValues, "accumulator and gather scratch")
+        requireDistinct(scratchValues, outValues, "gather scratch and output values")
+        comparator.indexedGatherZero(touched, touchedOffset, touchedCount, accumulator, scratchValues, scratchOffset)
         for (k in 0 until touchedCount) marks[touched[touchedOffset + k]] = 0
         return emitOrderedIndices(
-            touched, touchedOffset, touchedCount, outIndices, outIndexOffset, outValues, outValueOffset,
+            touched, touchedOffset, touchedCount, scratchValues, scratchOffset,
+            outIndices, outIndexOffset, outValues, outValueOffset,
             compactExactZeros,
         )
     }
@@ -206,6 +218,8 @@ internal object SparseWorkspaceComparators {
         touched: IntArray,
         touchedOffset: Int,
         touchedCount: Int,
+        gatheredValues: DoubleArray,
+        gatheredValueOffset: Int,
         outIndices: IntArray,
         outIndexOffset: Int,
         outValues: DoubleArray,
@@ -214,10 +228,10 @@ internal object SparseWorkspaceComparators {
     ): Int {
         var written = 0
         for (k in 0 until touchedCount) {
-            val value = outValues[outValueOffset + k]
+            val value = gatheredValues[gatheredValueOffset + k]
             if (compactExactZeros && value == 0.0) continue
             outIndices[outIndexOffset + written] = touched[touchedOffset + k]
-            if (written != k) outValues[outValueOffset + written] = value
+            outValues[outValueOffset + written] = value
             written++
         }
         return written

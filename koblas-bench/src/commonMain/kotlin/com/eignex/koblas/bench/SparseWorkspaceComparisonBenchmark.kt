@@ -42,6 +42,7 @@ class SparseWorkspaceOneMklComparisonBenchmark {
     private lateinit var gatherAccumulator: DoubleArray
     private lateinit var clearAccumulator: DoubleArray
     private lateinit var clearMarks: IntArray
+    private lateinit var gatherScratch: DoubleArray
     private lateinit var outIndices: IntArray
     private lateinit var outValues: DoubleArray
 
@@ -65,6 +66,7 @@ class SparseWorkspaceOneMklComparisonBenchmark {
         }
         clearAccumulator = gatherAccumulator.copyOf()
         clearMarks = IntArray(dimension)
+        gatherScratch = DoubleArray(count + 2)
         outIndices = IntArray(count + 4)
         outValues = DoubleArray(count + 4)
         external = when (sparseArm) {
@@ -86,6 +88,15 @@ class SparseWorkspaceOneMklComparisonBenchmark {
             }
             verifyNearZeroManagedAllocation("sparse-workspace-equivalent/$sparseArm/gather-clear") {
                 gatherClearTouchedEquivalent()
+            }
+            verifyNearZeroManagedAllocation("sparse-workspace-partial/$sparseArm/indexed-axpy") {
+                indexedAxpyPartialWork()
+            }
+            verifyNearZeroManagedAllocation("sparse-workspace-partial/$sparseArm/indexed-gather") {
+                indexedGatherPartialWork()
+            }
+            verifyNearZeroManagedAllocation("sparse-workspace-partial/$sparseArm/indexed-gather-zero") {
+                indexedGatherZeroPartialWork()
             }
         }
         println()
@@ -142,6 +153,35 @@ class SparseWorkspaceOneMklComparisonBenchmark {
         return accumulator[indices[1]]
     }
 
+    /** Indexed gather alone: partial work that excludes ordered index emission and compaction. */
+    @Benchmark
+    fun indexedGatherPartialWork(): Double {
+        val comparator = external
+        if (comparator == null) {
+            for (k in 0 until count) outValues[k + 2] = gatherAccumulator[indices[k + 1]]
+        } else {
+            comparator.indexedGather(indices, 1, count, gatherAccumulator, outValues, 2)
+        }
+        return outValues[2]
+    }
+
+    /** Indexed destructive gather alone; populated-state restoration is included and reported separately. */
+    @Benchmark
+    fun indexedGatherZeroPartialWork(): Double {
+        resetClear()
+        val comparator = external
+        if (comparator == null) {
+            for (k in 0 until count) {
+                val index = indices[k + 1]
+                outValues[k + 2] = clearAccumulator[index]
+                clearAccumulator[index] = 0.0
+            }
+        } else {
+            comparator.indexedGatherZero(indices, 1, count, clearAccumulator, outValues, 2)
+        }
+        return outValues[2]
+    }
+
     private fun scatter(): Int {
         val comparator = external
         return if (comparator == null) {
@@ -165,7 +205,8 @@ class SparseWorkspaceOneMklComparisonBenchmark {
             )
         } else {
             SparseWorkspaceComparators.gatherTouchedOneMkl(
-                comparator, indices, 1, count, gatherAccumulator, outIndices, 2, outValues, 2, compactExactZeros,
+                comparator, indices, 1, count, gatherAccumulator, gatherScratch, 1,
+                outIndices, 2, outValues, 2, compactExactZeros,
             )
         }
     }
@@ -179,7 +220,7 @@ class SparseWorkspaceOneMklComparisonBenchmark {
             )
         } else {
             SparseWorkspaceComparators.gatherClearTouchedOneMkl(
-                comparator, indices, 1, count, clearAccumulator, clearMarks,
+                comparator, indices, 1, count, clearAccumulator, clearMarks, gatherScratch, 1,
                 outIndices, 2, outValues, 2, compactExactZeros,
             )
         }
@@ -232,7 +273,8 @@ class SparseWorkspaceOneMklComparisonBenchmark {
                 indices, 1, count, gatherAccumulator, expectedIndices, 2, expectedValues, 2, compact,
             )
             val actualWritten = SparseWorkspaceComparators.gatherTouchedOneMkl(
-                comparator, indices, 1, count, gatherAccumulator, outIndices, 2, outValues, 2, compact,
+                comparator, indices, 1, count, gatherAccumulator, gatherScratch, 1,
+                outIndices, 2, outValues, 2, compact,
             )
             check(expectedWritten == actualWritten)
             check(expectedIndices.contentEquals(outIndices))
@@ -251,7 +293,7 @@ class SparseWorkspaceOneMklComparisonBenchmark {
                 expectedIndices, 2, expectedValues, 2, compact,
             )
             val actualClearWritten = SparseWorkspaceComparators.gatherClearTouchedOneMkl(
-                comparator, indices, 1, count, clearAccumulator, clearMarks,
+                comparator, indices, 1, count, clearAccumulator, clearMarks, gatherScratch, 1,
                 outIndices, 2, outValues, 2, compact,
             )
             check(expectedClearWritten == actualClearWritten)
