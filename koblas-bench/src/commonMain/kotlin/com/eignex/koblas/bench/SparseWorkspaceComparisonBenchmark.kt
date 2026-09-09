@@ -69,13 +69,7 @@ class SparseWorkspaceOneMklComparisonBenchmark {
         gatherScratch = DoubleArray(count + 2)
         outIndices = IntArray(count + 4)
         outValues = DoubleArray(count + 4)
-        external = when (sparseArm) {
-            BUILTIN_BACKEND -> null
-            ONEMKL_BACKEND -> checkNotNull(oneMklSparseComparator()) {
-                "the benchmark-only oneMKL sparse comparator is unavailable"
-            }
-            else -> error("unknown sparse workspace arm: $sparseArm")
-        }
+        external = externalSparseArm(sparseArm)
         resetScatter()
         resetClear()
         verifyEquivalentState()
@@ -353,13 +347,7 @@ class SparseWorkspaceGrowingComparisonBenchmark {
         accumulator = DoubleArray(supportSize)
         marks = IntArray(supportSize)
         touched = IntArray(supportSize)
-        external = when (sparseArm) {
-            BUILTIN_BACKEND -> null
-            ONEMKL_BACKEND -> checkNotNull(oneMklSparseComparator()) {
-                "the benchmark-only oneMKL sparse comparator is unavailable"
-            }
-            else -> error("unknown sparse workspace arm: $sparseArm")
-        }
+        external = externalSparseArm(sparseArm)
         if (supportSize == 512 && scatterSize == 4) {
             if (external == null) {
                 verifyNearZeroManagedAllocation("sparse-workspace-equivalent/$sparseArm/growing") {

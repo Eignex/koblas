@@ -77,8 +77,7 @@ class SparseLevel1ComparisonBenchmark {
     private lateinit var sparse: SparseVector
     private lateinit var dense: DenseVector
     private lateinit var gathered: DoubleArray
-    private var builtIn: com.eignex.koblas.sparse.SparseKernels? = null
-    private var oneMkl: SparseComparator? = null
+    private lateinit var arm: SparseBenchmarkArm
 
     @Setup
     fun setup() {
@@ -86,15 +85,10 @@ class SparseLevel1ComparisonBenchmark {
         sparse = randomSparseVector(len, density, rng)
         dense = DenseVector.of(randomVector(len, rng))
         gathered = DoubleArray(sparse.values.size)
-        if (sparseArm == BUILTIN_BACKEND) builtIn = explicitBuiltInContext().sparseKernels else {
-            oneMkl = checkNotNull(oneMklSparseComparator()) { "the benchmark-only oneMKL sparse comparator is unavailable" }
-        }
-        val identity = oneMkl?.identity ?: "built-in/${builtIn!!.name}"
-        check(identity.startsWith(sparseArm)) { "sparse level-1 arm $sparseArm resolved $identity" }
-        println("resolved: arm=$sparseArm sparseLevel1=$identity threading=${oneMkl?.threading ?: "single calling thread"}")
-        if (oneMkl == null) {
+        arm = SparseBenchmarkArm.resolve(sparseArm)
+        if (sparseArm == BUILTIN_BACKEND) {
             verifyNearZeroManagedAllocation("sparse-level1/$sparseArm/dot") {
-                builtIn!!.dot(sparse, dense.data)
+                arm.dot(sparse, dense.data)
             }
         } else {
             reportAllocatingWorkload(
@@ -105,25 +99,25 @@ class SparseLevel1ComparisonBenchmark {
     }
 
     @Benchmark
-    fun sparseDotDense(): Double = oneMkl?.dot(sparse, dense.data) ?: builtIn!!.dot(sparse, dense.data)
+    fun sparseDotDense(): Double = arm.dot(sparse, dense.data)
 
     @Benchmark
     fun sparseAxpy() {
-        oneMkl?.axpy(NEAR_UNIT_SCALE, sparse, dense.data) ?: builtIn!!.axpy(dense.data, NEAR_UNIT_SCALE, sparse)
+        arm.axpy(NEAR_UNIT_SCALE, sparse, dense.data)
     }
 
     @Benchmark
     fun sparseScatter() {
-        oneMkl?.scatter(sparse, dense.data) ?: builtIn!!.scatter(sparse, dense.data)
+        arm.scatter(sparse, dense.data)
     }
 
     @Benchmark
     fun sparseGather() {
-        oneMkl?.gather(sparse, dense.data, gathered) ?: builtIn!!.gather(sparse, dense.data)
+        arm.gather(sparse, dense.data, gathered)
     }
 
     @Benchmark
     fun sparseGatherZero() {
-        oneMkl?.gatherZero(sparse, dense.data, gathered) ?: builtIn!!.gatherZero(sparse, dense.data)
+        arm.gatherZero(sparse, dense.data, gathered)
     }
 }

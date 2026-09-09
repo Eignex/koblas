@@ -2,7 +2,6 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.sparse.*
 import kotlinx.benchmark.*
 
 /**
@@ -26,8 +25,8 @@ class SparseProductHostBenchmark {
 
     var triangleVariant: String = "upper-nontrans-nonunit"
 
-    private var builtIn: SparseBlas? = null
-    private var external: SparseComparator? = null
+    private lateinit var arm: SparseBenchmarkArm
+    private lateinit var resources: BenchmarkResources
 
     private lateinit var a: SparseMatrix
     private lateinit var square: SparseMatrix
@@ -45,10 +44,9 @@ class SparseProductHostBenchmark {
     private lateinit var triangularProduct: DenseMatrix
     private lateinit var triangularSolve: DenseMatrix
     private lateinit var triangularProductRight: DenseMatrix
-    private lateinit var prepared: PreparedSparseMatrix
-    private var externalPrepared: PreparedSparseComparator? = null
-    private var externalPreparedSquare: PreparedSparseComparator? = null
-    private var externalTriangle: PreparedSparseComparator? = null
+    private lateinit var prepared: PreparedSparseBenchmarkArm
+    private lateinit var preparedSquare: PreparedSparseBenchmarkArm
+    private lateinit var preparedTriangle: PreparedSparseBenchmarkArm
     private var triangleLower: Boolean = false
     private var triangleTranspose: Boolean = false
     private var triangleUnitDiag: Boolean = false
@@ -56,16 +54,8 @@ class SparseProductHostBenchmark {
     @Setup
     fun setup() {
         val rng = benchRng()
-        if (sparseArm == BUILTIN_BACKEND) {
-            val context = explicitBuiltInContext()
-            builtIn = context.sparseBlas
-            check(context.sparseBlas.name == BUILTIN_BACKEND) { "built-in sparse arm resolved ${context.sparseBlas.name}" }
-            println("resolved: arm=$sparseArm sparse=${context.sparseBlas.name}/${context.sparseKernels.name} threading=single calling thread")
-        } else {
-            external = checkNotNull(oneMklSparseComparator()) { "the benchmark-only oneMKL sparse comparator is unavailable" }
-            check(external!!.identity == "onemkl/sparse-blas" && external!!.threading == "1 thread")
-            println("resolved: arm=$sparseArm sparse=${external!!.identity} threading=${external!!.threading}")
-        }
+        arm = SparseBenchmarkArm.resolve(sparseArm)
+        resources = BenchmarkResources()
         a = sparseComparisonMatrix(n + 1, n - 1, density, productShape, rng)
         square = sparseComparisonMatrix(n - 1, n + 2, density, productShape, rng)
         x = randomVector(n - 1, rng)
@@ -99,18 +89,14 @@ class SparseProductHostBenchmark {
         triangularProduct = DenseMatrix.zero(n, RIGHT_HAND_SIDES)
         triangularSolve = DenseMatrix.zero(n, RIGHT_HAND_SIDES)
         triangularProductRight = DenseMatrix.zero(RIGHT_HAND_SIDES, n)
-        if (builtIn != null) {
-            prepared = builtIn!!.prepare(a)
-        } else {
-            externalPrepared = external!!.prepare(a)
-            externalPreparedSquare = external!!.prepare(square)
+        prepared = resources.acquire { arm.prepare(a) }
+        preparedSquare = resources.acquire { arm.prepareProductRight(square) }
+        preparedTriangle = resources.acquire {
+            arm.prepare(
+                triangle,
+                SparseDescriptor(triangular = true, lower = triangleLower, unitDiag = triangleUnitDiag),
+            )
         }
-        externalTriangle = external?.prepare(
-            triangle,
-            triangular = true,
-            lower = triangleLower,
-            unitDiag = triangleUnitDiag,
-        )
         println("workload: n=$n density=$density shape=$productShape nnz(A)=${a.nnz}")
         reportAllocatingWorkload(
             "sparse/$sparseArm/prepared-product",
@@ -124,124 +110,80 @@ class SparseProductHostBenchmark {
 
     @TearDown
     fun tearDown() {
-        if (::prepared.isInitialized) prepared.close()
-        externalPrepared?.close()
-        externalPreparedSquare?.close()
-        externalTriangle?.close()
+        resources.close()
     }
 
     @Benchmark
     fun gemm(): DenseMatrix {
-        if (external != null) {
-            external!!.prepare(a).use { it.gemm(1.0, dense, 0.0, product) }
-        } else {
-            builtIn!!.gemm(1.0, a, false, dense, false, 0.0, product)
-        }
+        arm.gemm(1.0, a, dense, 0.0, product)
         return product
     }
 
     /** The same native operation over one dense column, to expose whether its fixed marshalling cost pays. */
     @Benchmark
     fun gemmSingle(): DenseMatrix {
-        if (external != null) {
-            external!!.prepare(a).use { it.gemm(1.0, denseSingle, 0.0, productSingle) }
-        } else {
-            builtIn!!.gemm(1.0, a, false, denseSingle, false, 0.0, productSingle)
-        }
+        arm.gemm(1.0, a, denseSingle, 0.0, productSingle)
         return productSingle
     }
 
     @Benchmark
     fun preparedGemm(): DenseMatrix {
-        externalPrepared?.gemm(1.0, dense, 0.0, product) ?: prepared.gemm(1.0, false, dense, 0.0, product)
+        prepared.gemm(1.0, dense, 0.0, product)
         return product
     }
 
     @Benchmark
     fun preparedGemv(): DoubleArray {
-        externalPrepared?.gemv(1.0, x, 0.0, y) ?: prepared.gemv(1.0, x, 0.0, y)
+        prepared.gemv(1.0, x, 0.0, y)
         return y
     }
 
     /** Reuses every operand handle the selected implementation can prepare; result export remains timed. */
     @Benchmark
-    fun preparedSparseProduct(): SparseMatrix =
-        externalPrepared?.sparseProduct(checkNotNull(externalPreparedSquare)) ?: prepared.gemm(square)
+    fun preparedSparseProduct(): SparseMatrix = prepared.sparseProduct(preparedSquare)
 
     @Benchmark
     fun gemv(): DoubleArray {
-        if (external != null) {
-            external!!.prepare(a).use { it.gemv(1.0, x, 0.0, y) }
-        } else {
-            builtIn!!.gemv(1.0, a, x, 0.0, y)
-        }
+        arm.gemv(1.0, a, x, 0.0, y)
         return y
     }
 
     /** Includes operand preparation and representation conversion as a separately labelled one-shot row. */
     @Benchmark
-    fun sparseProduct(): SparseMatrix = external?.sparseProduct(a, square) ?: builtIn!!.gemm(a, square)
+    fun sparseProduct(): SparseMatrix = arm.sparseProduct(a, square)
 
     @Benchmark
     fun trsv(): DoubleArray {
         triangularVector.copyInto(scratch)
-        val comparator = externalTriangle
-        if (comparator != null) comparator.trsv(triangularVector, scratch, triangleTranspose)
-        else builtIn!!.trsv(triangle, scratch, triangleLower, triangleTranspose, triangleUnitDiag)
+        preparedTriangle.trsv(triangularVector, scratch, triangleTranspose)
         return scratch
     }
 
     @Benchmark
     fun trmv(): DoubleArray {
         triangularVector.copyInto(scratch)
-        val comparator = externalTriangle
-        if (comparator != null) comparator.trmv(triangularVector, scratch, triangleTranspose)
-        else builtIn!!.trmv(triangle, scratch, triangleLower, triangleTranspose, triangleUnitDiag)
+        preparedTriangle.trmv(triangularVector, scratch, triangleTranspose)
         return scratch
     }
 
     @Benchmark
     fun trmm(): DenseMatrix {
         triangularDense.data.copyInto(triangularProduct.data)
-        val comparator = externalTriangle
-        if (comparator != null) comparator.trmm(triangularDense, triangularProduct, triangleTranspose)
-        else builtIn!!.trmm(triangle, triangularProduct, triangleLower, triangleTranspose, triangleUnitDiag)
+        preparedTriangle.trmm(triangularDense, triangularProduct, triangleTranspose)
         return triangularProduct
     }
 
     @Benchmark
     fun trsm(): DenseMatrix {
         triangularDense.data.copyInto(triangularSolve.data)
-        val comparator = externalTriangle
-        if (comparator != null) {
-            comparator.trsm(triangularDense, triangularSolve, triangleTranspose)
-        } else {
-            builtIn!!.trsm(triangle, triangularSolve, triangleLower, triangleTranspose, triangleUnitDiag)
-        }
+        preparedTriangle.trsm(triangularDense, triangularSolve, triangleTranspose)
         return triangularSolve
     }
 
     @Benchmark
     fun trmmRight(): DenseMatrix {
         triangularDenseRight.data.copyInto(triangularProductRight.data)
-        if (external != null) {
-            // oneMKL has no right-side sparse triangular multiply. This row is intentionally a composition
-            // and is excluded from direct parity: B*A = transpose(A^T*transpose(B)).
-            val transposedInput = DenseMatrix.wrap(n, RIGHT_HAND_SIDES, DoubleArray(n * RIGHT_HAND_SIDES))
-            for (j in 0 until n) for (i in 0 until RIGHT_HAND_SIDES) transposedInput[j, i] = triangularProductRight[i, j]
-            val transposedOut = DenseMatrix.zero(n, RIGHT_HAND_SIDES)
-            externalTriangle!!.trmm(transposedInput, transposedOut, transpose = !triangleTranspose)
-            for (j in 0 until n) for (i in 0 until RIGHT_HAND_SIDES) triangularProductRight[i, j] = transposedOut[j, i]
-        } else {
-            builtIn!!.trmm(
-                triangle,
-                triangularProductRight,
-                triangleLower,
-                triangleTranspose,
-                triangleUnitDiag,
-                right = true,
-            )
-        }
+        preparedTriangle.trmm(triangularDenseRight, triangularProductRight, triangleTranspose, right = true)
         return triangularProductRight
     }
 
@@ -300,8 +242,8 @@ class SparseRightTriangularBenchmark {
     private lateinit var triangle: SparseMatrix
     private lateinit var input: DenseMatrix
     private lateinit var output: DenseMatrix
-    private var builtIn: SparseBlas? = null
-    private var externalTriangle: PreparedSparseComparator? = null
+    private lateinit var resources: BenchmarkResources
+    private lateinit var preparedTriangle: PreparedSparseBenchmarkArm
     private var lower = false
     private var transpose = false
     private var unitDiag = false
@@ -328,15 +270,10 @@ class SparseRightTriangularBenchmark {
         triangle = bandTriangle(n, lower)
         input = randomMatrix(RIGHT_HAND_SIDES, n, benchRng())
         output = DenseMatrix.zero(RIGHT_HAND_SIDES, n)
-        if (sparseArm == BUILTIN_BACKEND) {
-            builtIn = explicitBuiltInContext().sparseBlas
-            println("resolved: arm=$sparseArm sparse=${builtIn!!.name} threading=single calling thread")
-        } else {
-            val external = checkNotNull(oneMklSparseComparator()) {
-                "the benchmark-only oneMKL sparse comparator is unavailable"
-            }
-            externalTriangle = external.prepare(triangle, triangular = true, lower = lower, unitDiag = unitDiag)
-            println("resolved: arm=$sparseArm sparse=${external.identity} threading=${external.threading}")
+        val arm = SparseBenchmarkArm.resolve(sparseArm)
+        resources = BenchmarkResources()
+        preparedTriangle = resources.acquire {
+            arm.prepare(triangle, SparseDescriptor(triangular = true, lower = lower, unitDiag = unitDiag))
         }
         reportAllocatingWorkload(
             "sparse/$sparseArm/trsm-right-composition",
@@ -346,23 +283,13 @@ class SparseRightTriangularBenchmark {
 
     @TearDown
     fun tearDown() {
-        externalTriangle?.close()
+        resources.close()
     }
 
     @Benchmark
     fun trsmRight(): DenseMatrix {
         input.data.copyInto(output.data)
-        val external = externalTriangle
-        if (external == null) {
-            builtIn!!.trsm(triangle, output, lower, transpose, unitDiag, right = true)
-            return output
-        }
-        // B*op(A)^-1 = transpose(op(A)^-T*transpose(B)); oneMKL only exposes a left-side solve.
-        val transposedInput = DenseMatrix.wrap(n, RIGHT_HAND_SIDES, DoubleArray(n * RIGHT_HAND_SIDES))
-        for (j in 0 until n) for (i in 0 until RIGHT_HAND_SIDES) transposedInput[j, i] = output[i, j]
-        val transposedOut = DenseMatrix.zero(n, RIGHT_HAND_SIDES)
-        external.trsm(transposedInput, transposedOut, transpose = !transpose)
-        for (j in 0 until n) for (i in 0 until RIGHT_HAND_SIDES) output[i, j] = transposedOut[j, i]
+        preparedTriangle.trsm(input, output, transpose, right = true)
         return output
     }
 }
