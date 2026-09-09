@@ -1,5 +1,6 @@
 import kotlinx.benchmark.gradle.BenchmarkConfiguration
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
+import org.gradle.jvm.toolchain.JavaLanguageVersion
 
 plugins {
     kotlin("multiplatform") version "2.4.10"
@@ -51,12 +52,54 @@ private fun BenchmarkConfiguration.defaults() {
 }
 
 benchmark {
+    reportsDir = providers.gradleProperty("bench.reportsDir").orElse("reports/benchmarks").get()
+    benchsDescriptionDir = providers.gradleProperty("bench.descriptionsDir").orElse("benchsDescription").get()
     targets {
         register("jvm")
         register("linuxX64")
         register("macosArm64")
     }
     configurations {
+        fun BenchmarkConfiguration.hardwareDefaults(smoke: Boolean) {
+            warmups = if (smoke) 0 else 1
+            iterations = 1
+            iterationTime = if (smoke) 20 else 200
+            iterationTimeUnit = "ms"
+            advanced("jvmForks", "1")
+            advanced("jmhIgnoreLock", true)
+
+            val comparator = providers.gradleProperty("bench.hardwareComparator").orElse("built-in").get()
+            val denseArm = if (comparator == "built-in") "built-in" else comparator
+            val sparseArm = if (comparator == "onemkl") "onemkl" else "built-in"
+            when (comparator) {
+                "built-in" -> include(if (smoke) ".*(?:Level3Benchmark.gemm|SparseProductHostBenchmark.preparedGemv)$" else ".*(?:Level2Benchmark|GemvShapeBenchmark|Level3Benchmark|SyrkBenchmark|Syr2kBenchmark|TrmmBenchmark|TrsmBenchmark|SparseLevel1ComparisonBenchmark|SparseProductHostBenchmark).*")
+                "openblas" -> include(if (smoke) ".*Level3Benchmark.gemm$" else ".*(?:Level2Benchmark|GemvShapeBenchmark|Level3Benchmark|SyrkBenchmark|Syr2kBenchmark|TrmmBenchmark|TrsmBenchmark).*")
+                "onemkl" -> include(if (smoke) ".*(?:Level3Benchmark.gemm|SparseProductHostBenchmark.preparedGemv)$" else ".*(?:Level2Benchmark|GemvShapeBenchmark|Level3Benchmark|SyrkBenchmark|Syr2kBenchmark|TrmmBenchmark|TrsmBenchmark|SparseLevel1ComparisonBenchmark|SparseProductHostBenchmark).*")
+                else -> error("unknown hardware comparator: $comparator")
+            }
+            param("denseArm", denseArm)
+            param("sparseArm", sparseArm)
+            if (smoke) {
+                param("n", "32")
+                param("shape", "16x32")
+                param("rankShape", "8x5")
+                param("transpose", "false")
+                param("lower", "true")
+                param("variant", "right-lower-transposed")
+            } else {
+                param("n", "64", "257")
+                param("shape", "16x32", "129x31")
+                param("rankShape", "8x5", "129x257")
+                param("transpose", "false", "true")
+                param("lower", "true", "false")
+                param("variant", "right-lower-transposed", "left-upper-transposed")
+            }
+            param("len", "4096")
+            param("density", "0.01")
+            param("productShape", "regular")
+        }
+        register("hardware") { hardwareDefaults(smoke = false) }
+        register("hardwareSmoke") { hardwareDefaults(smoke = true) }
         register("report") {
             warmups = 1
             iterations = 3
@@ -126,6 +169,18 @@ val testBenchmarkCoverageChecker = tasks.register<Exec>("testBenchmarkCoverageCh
     inputs.dir("tools/test")
     environment("PYTHONDONTWRITEBYTECODE", "1")
     commandLine("python3", "-m", "unittest", "discover", "-s", "tools/test")
+}
+val benchmarkJvmMetadata = tasks.register("benchmarkJvmMetadata") {
+    group = "benchmark"
+    description = "Prints metadata for the Java launcher used by JVM benchmarks."
+    val launcher = javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(25)) }
+    doLast {
+        val metadata = launcher.get().metadata
+        println("executable=${launcher.get().executablePath.asFile.absolutePath}")
+        println("version=${metadata.languageVersion}")
+        println("vendor=${metadata.vendor}")
+        println("runtime=${metadata.jvmVersion}")
+    }
 }
 tasks.named("check") { dependsOn(checkBenchmarkCoverage, testBenchmarkCoverageChecker) }
 
