@@ -1789,6 +1789,14 @@ final object com.eignex.koblas.dense/PackedPanels { // com.eignex.koblas.dense/P
 
 final object com.eignex.koblas.sparse/ReferenceSparseLinearAlgebra : com.eignex.koblas.sparse/ReferenceSparseBackend // com.eignex.koblas.sparse/ReferenceSparseLinearAlgebra|null[0]
 
+final object com.eignex.koblas.sparse/SparseWorkspace { // com.eignex.koblas.sparse/SparseWorkspace|null[0]
+    final fun activeColumnMaxAbs(kotlin/IntArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/BooleanArray): kotlin/Double // com.eignex.koblas.sparse/SparseWorkspace.activeColumnMaxAbs|activeColumnMaxAbs(kotlin.IntArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.BooleanArray){}[0]
+    final fun gatherClearTouched(kotlin/IntArray, kotlin/Int, kotlin/Int, kotlin/DoubleArray, kotlin/IntArray, kotlin/IntArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Boolean = ...): kotlin/Int // com.eignex.koblas.sparse/SparseWorkspace.gatherClearTouched|gatherClearTouched(kotlin.IntArray;kotlin.Int;kotlin.Int;kotlin.DoubleArray;kotlin.IntArray;kotlin.IntArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Boolean){}[0]
+    final fun gatherTouched(kotlin/IntArray, kotlin/Int, kotlin/Int, kotlin/DoubleArray, kotlin/IntArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Boolean = ...): kotlin/Int // com.eignex.koblas.sparse/SparseWorkspace.gatherTouched|gatherTouched(kotlin.IntArray;kotlin.Int;kotlin.Int;kotlin.DoubleArray;kotlin.IntArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Boolean){}[0]
+    final fun pivotCandidatePositions(kotlin/IntArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/BooleanArray, kotlin/Double, kotlin/Double, kotlin/Double, kotlin/IntArray, kotlin/Int): kotlin/Int // com.eignex.koblas.sparse/SparseWorkspace.pivotCandidatePositions|pivotCandidatePositions(kotlin.IntArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.BooleanArray;kotlin.Double;kotlin.Double;kotlin.Double;kotlin.IntArray;kotlin.Int){}[0]
+    final fun scatterAxpy(kotlin/Double, kotlin/IntArray, kotlin/Int, kotlin/DoubleArray, kotlin/Int, kotlin/Int, kotlin/DoubleArray, kotlin/IntArray, kotlin/Int, kotlin/IntArray, kotlin/Int, kotlin/Int): kotlin/Int // com.eignex.koblas.sparse/SparseWorkspace.scatterAxpy|scatterAxpy(kotlin.Double;kotlin.IntArray;kotlin.Int;kotlin.DoubleArray;kotlin.Int;kotlin.Int;kotlin.DoubleArray;kotlin.IntArray;kotlin.Int;kotlin.IntArray;kotlin.Int;kotlin.Int){}[0]
+}
+
 final object com.eignex.koblas/BuiltinKernels { // com.eignex.koblas/BuiltinKernels|null[0]
     final val c // com.eignex.koblas/BuiltinKernels.c|{}c[0]
         final fun <get-c>(): com.eignex.koblas/BuiltinKernelProvider? // com.eignex.koblas/BuiltinKernels.c.<get-c>|<get-c>(){}[0]

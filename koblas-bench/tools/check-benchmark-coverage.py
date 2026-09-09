@@ -42,6 +42,7 @@ PUBLIC_NUMERICAL_SOURCES = (
     "sparse/SparseFactorization.kt",
     "sparse/SparseKernels.kt",
     "sparse/SparseQrFactorization.kt",
+    "sparse/SparseWorkspace.kt",
     "sparse/SparseOps.kt",
     "sparse/basis/BasisSolver.kt",
     "sparse/basis/BasisSolvers.kt",
