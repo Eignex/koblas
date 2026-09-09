@@ -54,7 +54,7 @@ DenseVector.times(Double)		excluded	Scalar multiplication copies the operand and
 DenseVector.unaryMinus()		excluded	Elementwise arithmetic allocates a result and does not select a numerical backend.
 DensePanelKernels.axpy4(DoubleArray,Int,DoubleArray,Int,Int,Double,Double,Double,Double,Int)	com.eignex.koblas.bench.Level1Benchmark.axpy4	benchmarked	Fused four-column update is compared with four unfused axpy calls.
 DensePanelKernels.axpyArithmetic(DoubleArray,Int,Double,DoubleArray,Int,Int)		excluded	Arithmetic zero-multiplier semantics are exercised through matrix algorithms and covered by conformance tests.
-DensePanelKernels.dot4(DoubleArray,Int,Int,DoubleArray,Int,Int,DoubleArray,Int)	com.eignex.koblas.bench.Level1Benchmark.dot4	benchmarked
+DensePanelKernels.dot4(DoubleArray,Int,Int,DoubleArray,Int,Int,DoubleArray,Int)	com.eignex.koblas.bench.Level1Benchmark.dot4	benchmarked	""
 DensePanelKernels.dotAxpy(DoubleArray,Int,Double,DoubleArray,Int,DoubleArray,Int,Int)	com.eignex.koblas.bench.Level1Benchmark.dotAxpy	benchmarked	Fused symmetric update is compared with separate dot and axpy calls.
 DenseVectorKernels.asum(DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.asum facade.
 DenseVectorKernels.axpy(DoubleArray,Int,Double,DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.axpy facade.
@@ -64,7 +64,7 @@ DenseVectorKernels.rot(DoubleArray,Int,DoubleArray,Int,Int,Double,Double)		exclu
 DenseVectorKernels.rotm(DoubleArray,Int,Int,DoubleArray,Int,Int,Int,ModifiedGivens)		excluded	The raw kernel shares the dispatch path benchmarked through the public rotm facade.
 DenseVectorKernels.rotmg(Double,Double,Double,Double)		excluded	The raw kernel shares the dispatch path benchmarked through the public rotmg facade.
 DenseVectorKernels.scale(DoubleArray,Int,Double,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.scale facade.
-DenseVectorKernels.ssqd(DoubleArray,Int,DoubleArray,Int,Int)	com.eignex.koblas.bench.Level1Benchmark.ssqd	benchmarked
+DenseVectorKernels.ssqd(DoubleArray,Int,DoubleArray,Int,Int)	com.eignex.koblas.bench.Level1Benchmark.ssqd	benchmarked	""
 DenseVectorKernels.sum(DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.sum facade.
 DenseVectorKernels.swap(DoubleArray,Int,DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public swap facade.
 PackedKernels.gemmTile(Int,DoubleArray,Int,DoubleArray,Int,DoubleArray,Int,Int)	com.eignex.koblas.bench.PackedPanelExecutionBenchmark.reusedPanelProduct	benchmarked	Retained-panel execution is measured separately from packing.
