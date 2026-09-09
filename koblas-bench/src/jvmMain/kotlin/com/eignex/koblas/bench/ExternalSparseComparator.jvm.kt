@@ -423,7 +423,7 @@ private class JvmOneMklSparse private constructor(private val library: BenchFfmL
 
         fun open(): JvmOneMklSparse? {
             val library = BenchFfmLibrary.open(
-                listOf("libmkl_rt.so.2", "libmkl_rt.so", "libmkl_rt.dylib", "mkl_rt.2.dll", "mkl_rt.dll"),
+                ONE_MKL_LIBRARY_CANDIDATES,
                 "mkl_sparse_d_create_csr",
             )
             return if (library.present && library.containsAll(required)) JvmOneMklSparse(library) else null

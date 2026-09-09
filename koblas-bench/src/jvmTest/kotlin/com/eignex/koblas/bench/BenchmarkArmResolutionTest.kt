@@ -19,6 +19,11 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalKoblasApi::class)
 class BenchmarkArmResolutionTest {
     @Test
+    fun `the current onemkl runtime soname is probed`() {
+        assertTrue("libmkl_rt.so.3" in ONE_MKL_LIBRARY_CANDIDATES)
+    }
+
+    @Test
     fun `each pinned kernel arm resolves to the provider it names`() {
         val pinned = buildList {
             add(SCALAR_KERNELS to BuiltinKernels.scalar)
@@ -169,19 +174,38 @@ class BenchmarkArmResolutionTest {
     @Test
     fun `onemkl triangular benchmark rows agree with built in across repeated calls`() {
         if (oneMklSparseComparator() == null) return
-        val builtIn = sparseProductBenchmark(BUILTIN_BACKEND)
-        val oneMkl = sparseProductBenchmark(ONEMKL_BACKEND)
-        try {
-            repeat(2) { invocation ->
-                assertVectorNear(builtIn.trsv(), oneMkl.trsv(), "trsv invocation $invocation")
-                assertVectorNear(builtIn.trmv(), oneMkl.trmv(), "trmv invocation $invocation")
-                assertMatrixNear(builtIn.trsm(), oneMkl.trsm(), "trsm invocation $invocation")
-                assertMatrixNear(builtIn.trmm(), oneMkl.trmm(), "trmm invocation $invocation")
-                assertMatrixNear(builtIn.trmmRight(), oneMkl.trmmRight(), "trmm right invocation $invocation")
+        for (variant in listOf("upper-nontrans-nonunit", "lower-trans-nonunit", "upper-trans-unit")) {
+            val builtIn = sparseProductBenchmark(BUILTIN_BACKEND, variant)
+            val oneMkl = sparseProductBenchmark(ONEMKL_BACKEND, variant)
+            try {
+                repeat(2) { invocation ->
+                    assertVectorNear(builtIn.trsv(), oneMkl.trsv(), "$variant trsv invocation $invocation")
+                    assertVectorNear(builtIn.trmv(), oneMkl.trmv(), "$variant trmv invocation $invocation")
+                    assertMatrixNear(builtIn.trsm(), oneMkl.trsm(), "$variant trsm invocation $invocation")
+                    assertMatrixNear(builtIn.trmm(), oneMkl.trmm(), "$variant trmm invocation $invocation")
+                    assertMatrixNear(builtIn.trmmRight(), oneMkl.trmmRight(), "$variant trmm right invocation $invocation")
+                    assertMatrixNear(builtIn.trsmRight(), oneMkl.trsmRight(), "$variant trsm right invocation $invocation")
+                }
+            } finally {
+                builtIn.tearDown()
+                oneMkl.tearDown()
             }
-        } finally {
-            builtIn.tearDown()
-            oneMkl.tearDown()
+        }
+    }
+
+    @Test
+    fun `onemkl symmetric side compositions agree with built in`() {
+        if (oneMklSparseComparator() == null) return
+        for (lower in booleanArrayOf(false, true)) for (side in listOf("left", "right")) {
+            val builtIn = sparseCompletionBenchmark(BUILTIN_BACKEND, lower, side)
+            val oneMkl = sparseCompletionBenchmark(ONEMKL_BACKEND, lower, side)
+            try {
+                assertMatrixNear(builtIn.symm(), oneMkl.symm(), "symm lower=$lower side=$side")
+                assertMatrixNear(builtIn.preparedSymm(), oneMkl.preparedSymm(), "prepared symm lower=$lower side=$side")
+            } finally {
+                builtIn.tearDown()
+                oneMkl.tearDown()
+            }
         }
     }
 
@@ -211,13 +235,27 @@ class BenchmarkArmResolutionTest {
         assertFailsWith<IllegalStateException> { kernelEngine("vectorised") }
     }
 
-    private fun sparseProductBenchmark(arm: String): SparseProductHostBenchmark = SparseProductHostBenchmark().also {
+    private fun sparseProductBenchmark(
+        arm: String,
+        triangleVariant: String = "upper-nontrans-nonunit",
+    ): SparseProductHostBenchmark = SparseProductHostBenchmark().also {
         it.n = 31
         it.sparseArm = arm
         it.density = 0.1
         it.productShape = "regular"
+        it.triangleVariant = triangleVariant
         it.setup()
     }
+
+    private fun sparseCompletionBenchmark(arm: String, lower: Boolean, side: String): SparseCompletionBenchmark =
+        SparseCompletionBenchmark().also {
+            it.n = 17
+            it.density = 0.15
+            it.lower = lower
+            it.side = side
+            it.sparseArm = arm
+            it.setup()
+        }
 
     private fun assertVectorNear(expected: DoubleArray, actual: DoubleArray, context: String) {
         assertEquals(expected.size, actual.size, "$context size")

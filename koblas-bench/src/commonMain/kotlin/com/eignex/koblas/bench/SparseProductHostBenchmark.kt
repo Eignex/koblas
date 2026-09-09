@@ -24,6 +24,9 @@ class SparseProductHostBenchmark {
     @Param("regular", "banded", "skewed")
     var productShape: String = "regular"
 
+    @Param("upper-nontrans-nonunit")
+    var triangleVariant: String = "upper-nontrans-nonunit"
+
     private var builtIn: SparseBlas? = null
     private var external: SparseComparator? = null
 
@@ -43,10 +46,14 @@ class SparseProductHostBenchmark {
     private lateinit var triangularProduct: DenseMatrix
     private lateinit var triangularSolve: DenseMatrix
     private lateinit var triangularProductRight: DenseMatrix
+    private lateinit var triangularSolveRight: DenseMatrix
     private lateinit var prepared: PreparedSparseMatrix
     private var externalPrepared: PreparedSparseComparator? = null
     private var externalPreparedSquare: PreparedSparseComparator? = null
     private var externalTriangle: PreparedSparseComparator? = null
+    private var triangleLower: Boolean = false
+    private var triangleTranspose: Boolean = false
+    private var triangleUnitDiag: Boolean = false
 
     @Setup
     fun setup() {
@@ -69,7 +76,24 @@ class SparseProductHostBenchmark {
         product = randomMatrix(n + 1, RIGHT_HAND_SIDES, rng)
         denseSingle = randomMatrix(n - 1, 1, rng)
         productSingle = randomMatrix(n + 1, 1, rng)
-        triangle = bandUpperTriangle(n)
+        val triangleParts = triangleVariant.split('-')
+        check(triangleParts.size == 3) { "unknown triangular variant: $triangleVariant" }
+        triangleLower = when (triangleParts[0]) {
+            "lower" -> true
+            "upper" -> false
+            else -> error("unknown triangle: ${triangleParts[0]}")
+        }
+        triangleTranspose = when (triangleParts[1]) {
+            "trans" -> true
+            "nontrans" -> false
+            else -> error("unknown transpose: ${triangleParts[1]}")
+        }
+        triangleUnitDiag = when (triangleParts[2]) {
+            "unit" -> true
+            "nonunit" -> false
+            else -> error("unknown diagonal: ${triangleParts[2]}")
+        }
+        triangle = bandTriangle(n, triangleLower)
         triangularVector = randomVector(n, rng)
         triangularDense = randomMatrix(n, RIGHT_HAND_SIDES, rng)
         triangularDenseRight = randomMatrix(RIGHT_HAND_SIDES, n, rng)
@@ -77,13 +101,19 @@ class SparseProductHostBenchmark {
         triangularProduct = DenseMatrix.zero(n, RIGHT_HAND_SIDES)
         triangularSolve = DenseMatrix.zero(n, RIGHT_HAND_SIDES)
         triangularProductRight = DenseMatrix.zero(RIGHT_HAND_SIDES, n)
+        triangularSolveRight = DenseMatrix.zero(RIGHT_HAND_SIDES, n)
         if (builtIn != null) {
             prepared = builtIn!!.prepare(a)
         } else {
             externalPrepared = external!!.prepare(a)
             externalPreparedSquare = external!!.prepare(square)
         }
-        externalTriangle = external?.prepare(triangle, triangular = true, lower = false)
+        externalTriangle = external?.prepare(
+            triangle,
+            triangular = true,
+            lower = triangleLower,
+            unitDiag = triangleUnitDiag,
+        )
         println("workload: n=$n density=$density shape=$productShape nnz(A)=${a.nnz}")
         reportAllocatingWorkload(
             "sparse/$sparseArm/prepared-product",
@@ -159,7 +189,8 @@ class SparseProductHostBenchmark {
     fun trsv(): DoubleArray {
         triangularVector.copyInto(scratch)
         val comparator = externalTriangle
-        if (comparator != null) comparator.trsv(triangularVector, scratch) else builtIn!!.trsv(triangle, scratch, lower = false)
+        if (comparator != null) comparator.trsv(triangularVector, scratch, triangleTranspose)
+        else builtIn!!.trsv(triangle, scratch, triangleLower, triangleTranspose, triangleUnitDiag)
         return scratch
     }
 
@@ -167,7 +198,8 @@ class SparseProductHostBenchmark {
     fun trmv(): DoubleArray {
         triangularVector.copyInto(scratch)
         val comparator = externalTriangle
-        if (comparator != null) comparator.trmv(triangularVector, scratch) else builtIn!!.trmv(triangle, scratch, lower = false)
+        if (comparator != null) comparator.trmv(triangularVector, scratch, triangleTranspose)
+        else builtIn!!.trmv(triangle, scratch, triangleLower, triangleTranspose, triangleUnitDiag)
         return scratch
     }
 
@@ -175,7 +207,8 @@ class SparseProductHostBenchmark {
     fun trmm(): DenseMatrix {
         triangularDense.data.copyInto(triangularProduct.data)
         val comparator = externalTriangle
-        if (comparator != null) comparator.trmm(triangularDense, triangularProduct) else builtIn!!.trmm(triangle, triangularProduct, lower = false)
+        if (comparator != null) comparator.trmm(triangularDense, triangularProduct, triangleTranspose)
+        else builtIn!!.trmm(triangle, triangularProduct, triangleLower, triangleTranspose, triangleUnitDiag)
         return triangularProduct
     }
 
@@ -184,9 +217,9 @@ class SparseProductHostBenchmark {
         triangularDense.data.copyInto(triangularSolve.data)
         val comparator = externalTriangle
         if (comparator != null) {
-            comparator.trsm(triangularDense, triangularSolve)
+            comparator.trsm(triangularDense, triangularSolve, triangleTranspose)
         } else {
-            builtIn!!.trsm(triangle, triangularSolve, lower = false)
+            builtIn!!.trsm(triangle, triangularSolve, triangleLower, triangleTranspose, triangleUnitDiag)
         }
         return triangularSolve
     }
@@ -200,12 +233,42 @@ class SparseProductHostBenchmark {
             val transposedInput = DenseMatrix.wrap(n, RIGHT_HAND_SIDES, DoubleArray(n * RIGHT_HAND_SIDES))
             for (j in 0 until n) for (i in 0 until RIGHT_HAND_SIDES) transposedInput[j, i] = triangularProductRight[i, j]
             val transposedOut = DenseMatrix.zero(n, RIGHT_HAND_SIDES)
-            externalTriangle!!.trmm(transposedInput, transposedOut, transpose = true)
+            externalTriangle!!.trmm(transposedInput, transposedOut, transpose = !triangleTranspose)
             for (j in 0 until n) for (i in 0 until RIGHT_HAND_SIDES) triangularProductRight[i, j] = transposedOut[j, i]
         } else {
-            builtIn!!.trmm(triangle, triangularProductRight, lower = false, right = true)
+            builtIn!!.trmm(
+                triangle,
+                triangularProductRight,
+                triangleLower,
+                triangleTranspose,
+                triangleUnitDiag,
+                right = true,
+            )
         }
         return triangularProductRight
+    }
+
+    @Benchmark
+    fun trsmRight(): DenseMatrix {
+        triangularDenseRight.data.copyInto(triangularSolveRight.data)
+        if (external != null) {
+            // B*op(A)^-1 = transpose(op(A)^-T*transpose(B)); oneMKL only exposes a left-side solve.
+            val transposedInput = DenseMatrix.wrap(n, RIGHT_HAND_SIDES, DoubleArray(n * RIGHT_HAND_SIDES))
+            for (j in 0 until n) for (i in 0 until RIGHT_HAND_SIDES) transposedInput[j, i] = triangularSolveRight[i, j]
+            val transposedOut = DenseMatrix.zero(n, RIGHT_HAND_SIDES)
+            externalTriangle!!.trsm(transposedInput, transposedOut, transpose = !triangleTranspose)
+            for (j in 0 until n) for (i in 0 until RIGHT_HAND_SIDES) triangularSolveRight[i, j] = transposedOut[j, i]
+        } else {
+            builtIn!!.trsm(
+                triangle,
+                triangularSolveRight,
+                triangleLower,
+                triangleTranspose,
+                triangleUnitDiag,
+                right = true,
+            )
+        }
+        return triangularSolveRight
     }
 }
 

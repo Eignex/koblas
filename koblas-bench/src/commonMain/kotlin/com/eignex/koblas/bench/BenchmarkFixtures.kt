@@ -225,14 +225,17 @@ internal fun simplexProblem(n: Int, rng: Random, spikeFraction: Double = 0.08): 
     return SparseMatrix.ofColumns(n, 2 * n, columns)
 }
 
-internal fun bandUpperTriangle(n: Int): SparseMatrix {
+internal fun bandUpperTriangle(n: Int): SparseMatrix = bandTriangle(n, lower = false)
+
+internal fun bandTriangle(n: Int, lower: Boolean): SparseMatrix {
     val rowIdx = IntArray(2 * n - 1)
     val colIdx = IntArray(2 * n - 1)
     val values = DoubleArray(2 * n - 1)
     var k = 0
     for (j in 0 until n) {
-        if (j > 0) {
-            rowIdx[k] = j - 1
+        val offDiagonal = if (lower) j + 1 else j - 1
+        if (offDiagonal in 0 until n) {
+            rowIdx[k] = offDiagonal
             colIdx[k] = j
             values[k] = -1.0
             k++

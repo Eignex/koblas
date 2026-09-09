@@ -80,6 +80,9 @@ def write_matched_bundle(root):
 
 
 class HardwareReportTest(unittest.TestCase):
+    def test_current_onemkl_runtime_soname_is_probed(self):
+        self.assertIn("libmkl_rt.so.3", report.COMPARATOR_LIBRARY_CANDIDATES["onemkl"])
+
     def test_case_id_excludes_arm(self):
         built_in = report.stable_case_id(jmh_row(), 1)
         openblas = report.stable_case_id(jmh_row("openblas"), 1)
