@@ -148,6 +148,24 @@ class AllocationFreeTest {
     }
 
     @Test
+    fun `triangular result gemm workspace is allocation neutral`() {
+        val n = 64
+        val k = 47
+        val a = DenseMatrix(n, k)
+        val b = DenseMatrix(k, n)
+        val c = DenseMatrix(n)
+        val workspace = Workspace()
+        engine.gemmt(1e-8, a, false, b, false, 1.0, c, workspace = workspace)
+
+        val bytes = bytesPerIteration(300) {
+            engine.gemmt(1e-8, a, false, b, false, 1.0, c, workspace = workspace)
+            c
+        }
+
+        assertTrue(bytes <= FLOOR_BYTES, "gemmt allocated $bytes B per call")
+    }
+
+    @Test
     fun `symmetric matrix workspace is allocation neutral on both sides`() {
         val n = 96
         val width = 12
@@ -268,6 +286,38 @@ class AllocationFreeTest {
         }
 
         assertTrue(bytes <= FLOOR_BYTES, "right transposed sparse gemm allocated $bytes B per call")
+    }
+
+    @Test
+    fun `new sparse dense destinations reuse workspace`() {
+        val n = 64
+        val sparse = SparseMatrix.ofColumns(n, n, List(n) { j -> listOf(j to (j + 1.0)) })
+        val identity = SparseMatrix.ofColumns(n, n, List(n) { j -> listOf(j to 1.0) })
+        val rhs = DenseMatrix(n, 8)
+        val product = DenseMatrix(n)
+        val symmetricProduct = DenseMatrix(n, 8)
+        val workspace = Workspace().apply {
+            reserve(n, count = 1)
+            reserveI32(n, count = 2)
+        }
+        engine.sparseBlas.syrk(1e-12, sparse, false, 1.0, product, workspace = workspace)
+
+        val syrkBytes = bytesPerIteration(300) {
+            engine.sparseBlas.syrk(1e-12, sparse, false, 1.0, product, workspace = workspace)
+            product
+        }
+        val symmBytes = bytesPerIteration(300) {
+            engine.sparseBlas.symm(1e-12, sparse, rhs, 1.0, symmetricProduct, workspace = workspace)
+            symmetricProduct
+        }
+        val gemmBytes = bytesPerIteration(300) {
+            engine.sparseBlas.gemm(1e-12, sparse, false, identity, false, 1.0, product, workspace)
+            product
+        }
+
+        assertTrue(syrkBytes <= FLOOR_BYTES, "sparse syrk allocated $syrkBytes B per call")
+        assertTrue(symmBytes <= FLOOR_BYTES, "sparse symm allocated $symmBytes B per call")
+        assertTrue(gemmBytes <= FLOOR_BYTES, "direct sparse dense gemm allocated $gemmBytes B per call")
     }
 
     @Test

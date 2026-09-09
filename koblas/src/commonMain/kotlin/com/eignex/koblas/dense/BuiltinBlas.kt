@@ -120,9 +120,15 @@ internal class BuiltinBlas(override val kernels: Kernels) : Blas {
             workspace.borrow(ad.size) { copyA ->
                 ad.copyInto(copyA)
                 if (bd === cd) {
-                    gemmtFrom(alpha, copyA, a.rows, transposeA, copyA, b.rows, transposeB, beta, cd, n, k, lower, workspace)
+                    gemmtFrom(
+                        alpha, copyA, a.rows, transposeA, copyA, b.rows, transposeB,
+                        beta, cd, n, k, lower, workspace,
+                    )
                 } else {
-                    gemmtFrom(alpha, copyA, a.rows, transposeA, bd, b.rows, transposeB, beta, cd, n, k, lower, workspace)
+                    gemmtFrom(
+                        alpha, copyA, a.rows, transposeA, bd, b.rows, transposeB,
+                        beta, cd, n, k, lower, workspace,
+                    )
                 }
             }
             return

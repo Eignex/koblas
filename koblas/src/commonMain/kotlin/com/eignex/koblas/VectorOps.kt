@@ -124,10 +124,6 @@ public fun VectorLike.asum(): Double = when (this) {
 }
 
 /**
- * Index of the entry with maximal absolute value (BLAS `idamax`), -1 for a zero-length vector.
- * Ties resolve to the lowest index, and a vector with no stored entries returns 0.
- */
-/**
  * Zero-based logical index of the first maximum absolute value (BLAS `idamax`), or `-1` when empty.
  * NaNs are ignored by the strict comparison; a later finite or infinite magnitude can therefore win after
  * a leading NaN. All-zero and all-NaN nonempty inputs return `0`, as do sparse inputs whose maximum is an

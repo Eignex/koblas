@@ -14,6 +14,8 @@ import com.eignex.koblas.sparse.internal.multiplySparseInto
 import com.eignex.koblas.sparse.internal.stableFor
 import com.eignex.koblas.sparse.internal.symmetricMultiplyMatrix
 import com.eignex.koblas.sparse.internal.symmetricMultiplyVector
+import com.eignex.koblas.sparse.internal.symmetricRankInto
+import com.eignex.koblas.sparse.internal.symmetricRankProduct
 import com.eignex.koblas.sparse.internal.transposeCsc
 import com.eignex.koblas.sparse.internal.trmmLeftCore
 import com.eignex.koblas.sparse.internal.trmmRightCore
@@ -66,14 +68,7 @@ internal class SparseAlgorithms(private val denseKernels: Kernels) : SparseBlas 
 
     override fun transpose(a: SparseMatrix): SparseMatrix = transposeCsc(a)
 
-    override fun symv(
-        alpha: Double,
-        a: SparseMatrix,
-        x: DoubleArray,
-        beta: Double,
-        y: DoubleArray,
-        lower: Boolean,
-    ) {
+    override fun symv(alpha: Double, a: SparseMatrix, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) {
         requireSquare(a, "symv")
         requireShape(x.size == a.rows) { "symv: x length ${x.size} != ${a.rows}" }
         requireShape(y.size == a.rows) { "symv: y length ${y.size} != ${a.rows}" }
@@ -102,8 +97,11 @@ internal class SparseAlgorithms(private val denseKernels: Kernels) : SparseBlas 
         requireShape(c.rows == b.rows && c.cols == b.cols) {
             "symm: C is ${c.rows}x${c.cols} but B is ${b.rows}x${b.cols}"
         }
-        if (right) requireShape(b.cols == a.rows) { "symm right: B has ${b.cols} cols, expected ${a.rows}" }
-        else requireShape(b.rows == a.rows) { "symm: B has ${b.rows} rows, expected ${a.rows}" }
+        if (right) {
+            requireShape(b.cols == a.rows) { "symm right: B has ${b.cols} cols, expected ${a.rows}" }
+        } else {
+            requireShape(b.rows == a.rows) { "symm: B has ${b.rows} rows, expected ${a.rows}" }
+        }
         if (alpha == 0.0) {
             applyBeta(denseKernels, c.data, 0, c.data.size, beta)
             return
@@ -227,17 +225,19 @@ internal class SparseAlgorithms(private val denseKernels: Kernels) : SparseBlas 
             return
         }
         withStableSparse(a, c.data, workspace) { stableA ->
-            val op = oriented(stableA, transpose, true)
-            val opT = transposeCsc(op)
             scaleTriangle(denseKernels, c.data, n, beta, lower)
-            multiplySparseInto(alpha, op, opT, c, lower)
+            workspace.borrow(n) { sums ->
+                workspace.borrowI32(n) { touchedAt ->
+                    workspace.borrowI32(n) { touched ->
+                        symmetricRankInto(alpha, stableA, transpose, c, lower, sums, touchedAt, touched)
+                    }
+                }
+            }
         }
     }
 
-    override fun syrk(a: SparseMatrix, transpose: Boolean, lower: Boolean): SparseMatrix {
-        val op = oriented(a, transpose, true)
-        return multiplySparse(op, transposeCsc(op), lower = lower)
-    }
+    override fun syrk(a: SparseMatrix, transpose: Boolean, lower: Boolean): SparseMatrix =
+        symmetricRankProduct(a, transpose, lower)
 
     override fun addScaled(alpha: Double, a: SparseMatrix, transposeA: Boolean, b: SparseMatrix): SparseMatrix {
         val rows = if (transposeA) a.cols else a.rows
@@ -311,7 +311,11 @@ internal class SparseAlgorithms(private val denseKernels: Kernels) : SparseBlas 
         if (!transpose) return a
         if (readValues) return transposeCsc(a)
         val patternOnly = SparseMatrix.wrapTrusted(
-            a.rows, a.cols, a.copyColumnPointers(), a.copyRowIndices(), DoubleArray(a.nnz),
+            a.rows,
+            a.cols,
+            a.copyColumnPointers(),
+            a.copyRowIndices(),
+            DoubleArray(a.nnz),
         )
         return transposeCsc(patternOnly)
     }

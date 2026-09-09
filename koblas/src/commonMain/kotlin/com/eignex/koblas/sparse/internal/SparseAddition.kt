@@ -22,11 +22,13 @@ internal fun addScaledCsc(alpha: Double, a: SparseMatrix, b: SparseMatrix): Spar
                     values[count] = if (alpha == 0.0) alpha else alpha * a.values[ap]
                     ap++
                 }
+
                 br < ar -> {
                     rows[count] = br
                     values[count] = b.values[bp]
                     bp++
                 }
+
                 else -> {
                     rows[count] = ar
                     values[count] = if (alpha == 0.0) b.values[bp] else alpha * a.values[ap] + b.values[bp]

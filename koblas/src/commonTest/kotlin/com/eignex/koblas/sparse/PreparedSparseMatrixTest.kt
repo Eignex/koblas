@@ -41,7 +41,14 @@ class PreparedSparseMatrixTest {
             val transposedDense = DenseMatrix.wrap(2, 3, doubleArrayOf(1.0, 2.0, 3.0, 4.0, 5.0, 6.0))
             val expectedTransposed = DenseMatrix.zero(2, 2)
             ReferenceSparseLinearAlgebra.gemm(
-                1.0, source, true, transposedDense, true, 0.0, expectedTransposed, right = false,
+                1.0,
+                source,
+                true,
+                transposedDense,
+                true,
+                0.0,
+                expectedTransposed,
+                right = false,
             )
             val actualTransposed = DenseMatrix.zero(2, 2)
             prepared.gemm(1.0, true, transposedDense, true, 0.0, actualTransposed, false)
