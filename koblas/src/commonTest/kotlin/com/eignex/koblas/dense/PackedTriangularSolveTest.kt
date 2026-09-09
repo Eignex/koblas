@@ -29,7 +29,7 @@ class PackedTriangularSolveTest {
                                 val rightHandSide = multiply(explicit, expected, transpose, right)
 
                                 packedTrsmCore(
-                                    ScalarKernels,
+                                    PortablePackedKernels,
                                     triangle,
                                     rightHandSide,
                                     lower,
@@ -58,7 +58,7 @@ class PackedTriangularSolveTest {
     fun `ordinary trsm reaches packed update and solve kernels`() {
         var solves = 0
         var fused = 0
-        val recording = object : Kernels by ScalarKernels {
+        val recording = object : PackedKernels by PortablePackedKernels {
             override fun trsmTile(
                 validRows: Int,
                 order: Int,
@@ -70,7 +70,7 @@ class PackedTriangularSolveTest {
                 xOff: Int,
             ) {
                 solves++
-                ScalarKernels.trsmTile(
+                PortablePackedKernels.trsmTile(
                     validRows,
                     order,
                     packedTriangle,
@@ -98,7 +98,7 @@ class PackedTriangularSolveTest {
                 xOff: Int,
             ) {
                 fused++
-                ScalarKernels.gemmTrsmTile(
+                PortablePackedKernels.gemmTrsmTile(
                     depth, validRows, order, packedA, aOff, packedB, bOff,
                     packedTriangle, triangleOff, lower, unitDiag, x, xOff,
                 )
@@ -111,8 +111,9 @@ class PackedTriangularSolveTest {
         val expected = randomMatrix(rows, order, rng)
         val rightHandSide = multiply(explicit, expected, transpose = true, right = true)
 
+        val families = testDenseKernelFamilies(packed = recording)
         triangularMatrix(
-            recording, triangle, rightHandSide,
+            families.vector, families.panel, families.packed, triangle, rightHandSide,
             lower = true, transpose = true, unitDiag = false, right = true,
             alpha = 1.0, solve = true, workspace = Workspace(),
         )
@@ -125,7 +126,7 @@ class PackedTriangularSolveTest {
     @Test
     fun `ordinary left solve preserves singular zero pivot semantics`() {
         val order = 16
-        for (kernels in listOf(ScalarKernels, PlatformKernels)) {
+        for (families in listOf(scalarDenseKernelFamilies, platformDenseKernelFamilies)) {
             for (lower in booleanArrayOf(false, true)) {
                 val triangle = DenseMatrix.zero(order)
                 for (column in 0 until order) {
@@ -138,7 +139,7 @@ class PackedTriangularSolveTest {
                     }
                 }
                 assertWideTrsmAgreesWithReference(
-                    kernels,
+                    families,
                     triangle,
                     DenseMatrix.zero(order, 32),
                     lower,
@@ -152,7 +153,7 @@ class PackedTriangularSolveTest {
     @Test
     fun `ordinary solve preserves overflow and cancellation semantics`() {
         val order = 16
-        for (kernels in listOf(ScalarKernels, PlatformKernels)) {
+        for (families in listOf(scalarDenseKernelFamilies, platformDenseKernelFamilies)) {
             for (lower in booleanArrayOf(false, true)) {
                 for (right in booleanArrayOf(false, true)) {
                     val triangle = DenseMatrix.zero(order)
@@ -179,7 +180,7 @@ class PackedTriangularSolveTest {
                                 if (right) source[panel, i] = rhs[i] else source[i, panel] = rhs[i]
                             }
                         }
-                        assertWideTrsmAgreesWithReference(kernels, triangle, source, lower, transpose = !right, right)
+                        assertWideTrsmAgreesWithReference(families, triangle, source, lower, transpose = !right, right)
                     }
                 }
             }
@@ -188,14 +189,14 @@ class PackedTriangularSolveTest {
 
     @Suppress("LongParameterList")
     private fun assertWideTrsmAgreesWithReference(
-        kernels: Kernels,
+        families: DenseKernelFamilies,
         triangle: DenseMatrix,
         source: DenseMatrix,
         lower: Boolean,
         transpose: Boolean,
         right: Boolean,
     ) {
-        val reference = BuiltinBlas(kernels)
+        val reference = BuiltinBlas(families)
         val order = triangle.rows
         val panels = if (right) source.rows else source.cols
         val expected = DenseMatrix.wrap(source.rows, source.cols, source.data.copyOf())
@@ -215,7 +216,7 @@ class PackedTriangularSolveTest {
         assertContentEquals(
             expected.data,
             actual.data,
-            "${kernels.name} lower=$lower transpose=$transpose right=$right",
+            "${families.vector.name} lower=$lower transpose=$transpose right=$right",
         )
     }
 

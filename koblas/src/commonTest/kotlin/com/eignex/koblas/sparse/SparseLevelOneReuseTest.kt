@@ -2,25 +2,34 @@ package com.eignex.koblas.sparse
 
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.dense.Kernels
-import com.eignex.koblas.dense.PlatformKernels
+import com.eignex.koblas.dense.DensePanelKernels
+import com.eignex.koblas.dense.DenseVectorKernels
+import com.eignex.koblas.dense.PlatformVectorKernels
+import com.eignex.koblas.dense.platformDenseKernelFamilies
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
 class SparseLevelOneReuseTest {
 
-    private class RecordingKernels : Kernels by PlatformKernels {
+    private class RecordingKernels :
+        DenseVectorKernels by PlatformVectorKernels,
+        DensePanelKernels by platformDenseKernelFamilies.panel {
         var axpys = 0
         var scales = 0
 
+        override fun axpyArithmetic(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
+            axpys++
+            platformDenseKernelFamilies.panel.axpyArithmetic(y, yOff, alpha, x, xOff, len)
+        }
+
         override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
             axpys++
-            PlatformKernels.axpy(y, yOff, alpha, x, xOff, len)
+            PlatformVectorKernels.axpy(y, yOff, alpha, x, xOff, len)
         }
 
         override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
             scales++
-            PlatformKernels.scale(v, vOff, alpha, len)
+            PlatformVectorKernels.scale(v, vOff, alpha, len)
         }
     }
 
@@ -38,7 +47,7 @@ class SparseLevelOneReuseTest {
     fun `right products send contiguous dense columns through axpy`() {
         for (transposeB in booleanArrayOf(false, true)) {
             val kernels = RecordingKernels()
-            val backend = SparseAlgorithms(kernels)
+            val backend = SparseAlgorithms(kernels, kernels)
             val b = if (transposeB) {
                 DenseMatrix(3, 5, DoubleArray(15) { (it + 1).toDouble() })
             } else {
@@ -54,7 +63,7 @@ class SparseLevelOneReuseTest {
     @Test
     fun `right solve sends dense column work through level one kernels`() {
         val kernels = RecordingKernels()
-        val backend = SparseAlgorithms(kernels)
+        val backend = SparseAlgorithms(kernels, kernels)
         val b = DenseMatrix(5, 3, DoubleArray(15) { (it + 1).toDouble() })
 
         backend.trsm(lower, b, lower = true, transpose = false, unitDiag = false, right = true, alpha = 1.0)

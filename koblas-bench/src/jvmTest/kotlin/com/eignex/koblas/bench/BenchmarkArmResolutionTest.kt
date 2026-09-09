@@ -29,8 +29,8 @@ class BenchmarkArmResolutionTest {
             if (provider == null) continue
             val context = kernelEngine(arm)
             assertTrue(
-                context.kernels.name.startsWith(arm),
-                "the $arm arm resolved kernels to ${context.kernels.name}",
+                context.vectorKernels.name.startsWith(arm),
+                "the $arm arm resolved kernels to ${context.vectorKernels.name}",
             )
         }
     }
@@ -44,8 +44,8 @@ class BenchmarkArmResolutionTest {
         kernelEngine(BUILTIN_KERNELS)
         val context = kernelEngine(arm)
         assertTrue(
-            '+' !in context.kernels.name,
-            "the $arm arm resolved kernels to ${context.kernels.name}, which joins a host half",
+            '+' !in context.vectorKernels.name,
+            "the $arm arm resolved kernels to ${context.vectorKernels.name}, which joins a host half",
         )
         assertEquals(
             BUILTIN_BACKEND,
@@ -84,9 +84,9 @@ class BenchmarkArmResolutionTest {
         val context = explicitBuiltInContext()
         val x = doubleArrayOf(0.25, -2.0, 3.5, 0.0, 8.0)
         val y = doubleArrayOf(-4.0, 1.5, 2.0, -7.0, 0.125)
-        assertEquals(context.kernels.dot(x, 0, y, 0, x.size), external.dot(x, y), 1e-12)
-        assertEquals(context.kernels.nrm2(x, 0, x.size), external.nrm2(x), 1e-12)
-        assertEquals(context.kernels.asum(x, 0, x.size), external.asum(x), 1e-12)
+        assertEquals(context.vectorKernels.dot(x, 0, y, 0, x.size), external.dot(x, y), 1e-12)
+        assertEquals(context.vectorKernels.nrm2(x, 0, x.size), external.nrm2(x), 1e-12)
+        assertEquals(context.vectorKernels.asum(x, 0, x.size), external.asum(x), 1e-12)
     }
 
     @Test

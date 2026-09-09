@@ -52,23 +52,24 @@ DenseVector.minus(DenseVector)		excluded	Elementwise arithmetic allocates a resu
 DenseVector.plus(DenseVector)		excluded	Elementwise arithmetic allocates a result and does not select a numerical backend.
 DenseVector.times(Double)		excluded	Scalar multiplication copies the operand and then runs the benchmarked scale kernel.
 DenseVector.unaryMinus()		excluded	Elementwise arithmetic allocates a result and does not select a numerical backend.
-Kernels.asum(DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.asum facade.
-Kernels.axpy(DoubleArray,Int,Double,DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.axpy facade.
-Kernels.axpy4(DoubleArray,Int,DoubleArray,Int,Int,Double,Double,Double,Double,Int)	com.eignex.koblas.bench.Level1Benchmark.axpy4	benchmarked	Fused four-column update is compared with four unfused axpy calls.
-Kernels.dot(DoubleArray,Int,DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.dot facade.
-Kernels.dot4(DoubleArray,Int,Int,DoubleArray,Int,Int,DoubleArray,Int)	com.eignex.koblas.bench.Level1Benchmark.dot4	benchmarked	
-Kernels.dotAxpy(DoubleArray,Int,Double,DoubleArray,Int,DoubleArray,Int,Int)	com.eignex.koblas.bench.Level1Benchmark.dotAxpy	benchmarked	Fused symmetric update is compared with separate dot and axpy calls.
-Kernels.gemmTile(Int,DoubleArray,Int,DoubleArray,Int,DoubleArray,Int,Int)	com.eignex.koblas.bench.PackedPanelExecutionBenchmark.reusedPanelProduct	benchmarked	Retained-panel execution is measured separately from packing.
-Kernels.gemmTrsmTile(Int,Int,Int,DoubleArray,Int,DoubleArray,Int,DoubleArray,Int,Boolean,Boolean,DoubleArray,Int)	com.eignex.koblas.bench.PackedPanelExecutionBenchmark.packedGemmTrsm	benchmarked	Fused retained-panel update and solve over full and partial tiles.
-Kernels.nrm2(DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.norm2 facade.
-Kernels.rot(DoubleArray,Int,DoubleArray,Int,Int,Double,Double)		excluded	The raw kernel shares the dispatch path benchmarked through the public rot facade.
-Kernels.rotm(DoubleArray,Int,Int,DoubleArray,Int,Int,Int,ModifiedGivens)		excluded	The raw kernel shares the dispatch path benchmarked through the public rotm facade.
-Kernels.rotmg(Double,Double,Double,Double)		excluded	The raw kernel shares the dispatch path benchmarked through the public rotmg facade.
-Kernels.scale(DoubleArray,Int,Double,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.scale facade.
-Kernels.ssqd(DoubleArray,Int,DoubleArray,Int,Int)	com.eignex.koblas.bench.Level1Benchmark.ssqd	benchmarked	
-Kernels.sum(DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.sum facade.
-Kernels.swap(DoubleArray,Int,DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public swap facade.
-Kernels.trsmTile(Int,Int,DoubleArray,Int,Boolean,Boolean,DoubleArray,Int)	com.eignex.koblas.bench.PackedPanelExecutionBenchmark.separatePackedGemmAndTrsm	benchmarked	Unfused retained-panel baseline includes the packed diagonal solve.
+DensePanelKernels.axpy4(DoubleArray,Int,DoubleArray,Int,Int,Double,Double,Double,Double,Int)	com.eignex.koblas.bench.Level1Benchmark.axpy4	benchmarked	Fused four-column update is compared with four unfused axpy calls.
+DensePanelKernels.axpyArithmetic(DoubleArray,Int,Double,DoubleArray,Int,Int)		excluded	Arithmetic zero-multiplier semantics are exercised through matrix algorithms and covered by conformance tests.
+DensePanelKernels.dot4(DoubleArray,Int,Int,DoubleArray,Int,Int,DoubleArray,Int)	com.eignex.koblas.bench.Level1Benchmark.dot4	benchmarked
+DensePanelKernels.dotAxpy(DoubleArray,Int,Double,DoubleArray,Int,DoubleArray,Int,Int)	com.eignex.koblas.bench.Level1Benchmark.dotAxpy	benchmarked	Fused symmetric update is compared with separate dot and axpy calls.
+DenseVectorKernels.asum(DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.asum facade.
+DenseVectorKernels.axpy(DoubleArray,Int,Double,DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.axpy facade.
+DenseVectorKernels.dot(DoubleArray,Int,DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.dot facade.
+DenseVectorKernels.nrm2(DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.norm2 facade.
+DenseVectorKernels.rot(DoubleArray,Int,DoubleArray,Int,Int,Double,Double)		excluded	The raw kernel shares the dispatch path benchmarked through the public rot facade.
+DenseVectorKernels.rotm(DoubleArray,Int,Int,DoubleArray,Int,Int,Int,ModifiedGivens)		excluded	The raw kernel shares the dispatch path benchmarked through the public rotm facade.
+DenseVectorKernels.rotmg(Double,Double,Double,Double)		excluded	The raw kernel shares the dispatch path benchmarked through the public rotmg facade.
+DenseVectorKernels.scale(DoubleArray,Int,Double,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.scale facade.
+DenseVectorKernels.ssqd(DoubleArray,Int,DoubleArray,Int,Int)	com.eignex.koblas.bench.Level1Benchmark.ssqd	benchmarked
+DenseVectorKernels.sum(DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public Vector.sum facade.
+DenseVectorKernels.swap(DoubleArray,Int,DoubleArray,Int,Int)		excluded	The raw kernel shares the dispatch path benchmarked through the public swap facade.
+PackedKernels.gemmTile(Int,DoubleArray,Int,DoubleArray,Int,DoubleArray,Int,Int)	com.eignex.koblas.bench.PackedPanelExecutionBenchmark.reusedPanelProduct	benchmarked	Retained-panel execution is measured separately from packing.
+PackedKernels.gemmTrsmTile(Int,Int,Int,DoubleArray,Int,DoubleArray,Int,DoubleArray,Int,Boolean,Boolean,DoubleArray,Int)	com.eignex.koblas.bench.PackedPanelExecutionBenchmark.packedGemmTrsm	benchmarked	Fused retained-panel update and solve over full and partial tiles.
+PackedKernels.trsmTile(Int,Int,DoubleArray,Int,Boolean,Boolean,DoubleArray,Int)	com.eignex.koblas.bench.PackedPanelExecutionBenchmark.separatePackedGemmAndTrsm	benchmarked	Unfused retained-panel baseline includes the packed diagonal solve.
 PackedPanels.clearLeftPadding(DoubleArray,Int,Int,Int)		excluded	Edge cleanup touches only the short physical tile padding and is covered by exact layout tests.
 PackedPanels.clearRightPadding(DoubleArray,Int,Int,Int)		excluded	Edge cleanup touches only the short physical tile padding and is covered by exact layout tests.
 PackedPanels.gemmTrsm(DoubleArray,DoubleArray,DoubleArray,DoubleArray,Int,Int,Int,Boolean,Boolean,Int,Int,Int,Int,Workspace?)	com.eignex.koblas.bench.PackedPanelExecutionBenchmark.packedGemmTrsm	benchmarked	Measures repeated execution separately from packing.

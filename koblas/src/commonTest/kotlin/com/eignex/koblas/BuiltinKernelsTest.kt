@@ -10,7 +10,7 @@ class BuiltinKernelsTest {
         val provider = BuiltinKernels.scalar
         val context = provider.engine()
 
-        assertSame(provider.kernels, context.kernels)
+        assertSame(provider.vectorKernels, context.vectorKernels)
         assertSame(provider.sparseKernels, context.sparseKernels)
     }
 }

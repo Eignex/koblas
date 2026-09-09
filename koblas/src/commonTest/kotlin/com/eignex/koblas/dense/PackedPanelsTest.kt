@@ -261,7 +261,7 @@ class PackedPanelsTest {
 
         PackedPanels.packLeft(a, packedA, rows, depth)
         PackedPanels.packRight(b, packedB, depth, columns)
-        PlatformKernels.gemmTile(
+        platformDenseKernelFamilies.packed.gemmTile(
             depth,
             packedA,
             0,

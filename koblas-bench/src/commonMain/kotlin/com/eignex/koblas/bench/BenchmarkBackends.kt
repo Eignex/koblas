@@ -14,7 +14,7 @@ internal const val SIMD_KERNELS = "simd"
 private fun reportResolution(arm: String, context: KoblasContext) {
     println()
     println(
-        "resolved: arm=$arm kernels=${context.kernels.name} " +
+        "resolved: arm=$arm vectorKernels=${context.vectorKernels.name} " +
             "sparseKernels=${context.sparseKernels.name} blas=${context.blas.name}",
     )
 }
@@ -34,8 +34,8 @@ internal fun kernelEngine(arm: String): KoblasContext {
         }
     }
     if (arm != BUILTIN_KERNELS) {
-        check(context.kernels.name.startsWith(arm)) {
-            "benchmark arm '$arm' resolved kernels to '${context.kernels.name}'"
+        check(context.vectorKernels.name.startsWith(arm)) {
+            "benchmark arm '$arm' resolved vector kernels to '${context.vectorKernels.name}'"
         }
     }
     reportResolution(arm, context)

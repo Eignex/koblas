@@ -235,8 +235,8 @@ class AllocationFreeTest {
             for (row in column until order) triangle[row, column] = if (row == column) 1.0 else 1e-12
         }
         val rightHandSide = DenseMatrix.zero(rows, order)
-        val packedTriangleSize = packedRightSize(order, order, ScalarKernels.gemmTileCols)
-        val packedRightHandSideSize = packedLeftSize(rows, order, ScalarKernels.gemmTileRows)
+        val packedTriangleSize = packedRightSize(order, order, PortablePackedKernels.gemmTileCols)
+        val packedRightHandSideSize = packedLeftSize(rows, order, PortablePackedKernels.gemmTileRows)
         val workspace = Workspace().apply {
             reserve(maxOf(packedTriangleSize, packedRightHandSideSize), count = 2)
         }
@@ -259,7 +259,7 @@ class AllocationFreeTest {
             rightHandSide.data.size,
             DenseTuning.packedBlockRows * minOf(DenseTuning.packedBlockDepth, order),
             minOf(DenseTuning.packedBlockDepth, order) * DenseTuning.packedBlockColumns,
-            ScalarKernels.gemmTileRows * ScalarKernels.gemmTileCols,
+            PortablePackedKernels.gemmTileRows * PortablePackedKernels.gemmTileCols,
         )
         val workspace = Workspace().apply { reserve(largestPackedPanel, count = 4) }
 

@@ -2,7 +2,7 @@ package com.eignex.koblas.bench
 
 import com.eignex.koblas.ExperimentalKoblasApi
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.dense.Kernels
+import com.eignex.koblas.dense.PackedKernels
 import com.eignex.koblas.dense.PackedPanels
 import kotlinx.benchmark.*
 
@@ -95,7 +95,7 @@ class PackedPanelExecutionBenchmark {
     @Param("full", "partial")
     var edge: String = "full"
 
-    private lateinit var kernels: Kernels
+    private lateinit var kernels: PackedKernels
     private lateinit var packedA: DoubleArray
     private lateinit var packedNegativeA: DoubleArray
     private lateinit var packedB: DoubleArray
@@ -107,7 +107,7 @@ class PackedPanelExecutionBenchmark {
 
     @Setup
     fun setup() {
-        kernels = explicitBuiltInContext().kernels
+        kernels = explicitBuiltInContext().packedKernels
         check(kernels.gemmTileRows == PackedPanels.tileRows)
         check(kernels.gemmTileCols == PackedPanels.tileColumns)
         rows = if (edge == "full") PackedPanels.tileRows else PackedPanels.tileRows - 1
@@ -146,7 +146,7 @@ class PackedPanelExecutionBenchmark {
             )
         }
         println(
-            "resolved: packed-panels kernels=${kernels.name} rows=${PackedPanels.tileRows} " +
+            "resolved: packed-panels rows=${PackedPanels.tileRows} " +
                 "columns=${PackedPanels.tileColumns}",
         )
     }

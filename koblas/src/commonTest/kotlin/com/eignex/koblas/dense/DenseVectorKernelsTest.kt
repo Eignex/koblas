@@ -7,122 +7,21 @@ import kotlin.math.sqrt
 import kotlin.random.Random
 import kotlin.test.*
 
-class KernelsTest {
-
-    private class Recording : Kernels {
-        override var name: String = "recording"
-            private set
-
-        var dots = 0
-        var axpys = 0
-        var scales = 0
-
-        override fun dot(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
-            dots++
-            var s = 0.0
-            for (i in 0 until len) s += a[aOff + i] * b[bOff + i]
-            return s
-        }
-
-        override fun axpy(y: DoubleArray, yOff: Int, alpha: Double, x: DoubleArray, xOff: Int, len: Int) {
-            axpys++
-            for (i in 0 until len) y[yOff + i] += alpha * x[xOff + i]
-        }
-
-        override fun scale(v: DoubleArray, vOff: Int, alpha: Double, len: Int) {
-            scales++
-            for (i in 0 until len) v[vOff + i] *= alpha
-        }
-
-        var nrm2s = 0
-        var asums = 0
-        var swaps = 0
-        var sums = 0
-        var ssqds = 0
-        var rotmgs = 0
-        var rotms = 0
-        var rots = 0
-
-        override fun swap(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int) {
-            swaps++
-            for (i in 0 until len) {
-                val t = a[aOff + i]
-                a[aOff + i] = b[bOff + i]
-                b[bOff + i] = t
-            }
-        }
-
-        override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double {
-            nrm2s++
-            var s = 0.0
-            for (i in 0 until len) s += v[vOff + i] * v[vOff + i]
-            return sqrt(s)
-        }
-
-        override fun asum(v: DoubleArray, vOff: Int, len: Int): Double {
-            asums++
-            var s = 0.0
-            for (i in 0 until len) s += abs(v[vOff + i])
-            return s
-        }
-
-        override fun sum(v: DoubleArray, vOff: Int, len: Int): Double {
-            sums++
-            var s = 0.0
-            for (i in 0 until len) s += v[vOff + i]
-            return s
-        }
-
-        override fun ssqd(a: DoubleArray, aOff: Int, b: DoubleArray, bOff: Int, len: Int): Double {
-            ssqds++
-            var s = 0.0
-            for (i in 0 until len) {
-                val d = a[aOff + i] - b[bOff + i]
-                s += d * d
-            }
-            return s
-        }
-
-        override fun rotmg(d1: Double, d2: Double, x1: Double, y1: Double): ModifiedGivens {
-            rotmgs++
-            return portableRotmg(d1, d2, x1, y1)
-        }
-
-        @Suppress("LongParameterList")
-        override fun rotm(
-            x: DoubleArray,
-            xOff: Int,
-            xStride: Int,
-            y: DoubleArray,
-            yOff: Int,
-            yStride: Int,
-            len: Int,
-            transformation: ModifiedGivens,
-        ) {
-            rotms++
-            portableRotm(x, xOff, xStride, y, yOff, yStride, len, transformation)
-        }
-
-        @Suppress("LongParameterList")
-        override fun rot(x: DoubleArray, xOff: Int, y: DoubleArray, yOff: Int, len: Int, c: Double, s: Double) {
-            rots++
-            portableRot(x, xOff, y, yOff, len, c, s)
-        }
-    }
+class DenseVectorKernelsTest {
 
     @Test
     fun `the platform arithmetic axpy does not take the DAXPY zero return`() {
         val x = DoubleArray(64).also { it[17] = Double.POSITIVE_INFINITY }
         val y = DoubleArray(64)
 
-        axpyArithmetic(PlatformKernels, y, 0, 0.0, x, 0, x.size)
+        axpyArithmetic(platformDenseKernelFamilies.panel, y, 0, 0.0, x, 0, x.size)
 
         assertTrue(y[17].isNaN())
     }
 
     @Test
-    fun `the compiled-in kernels satisfy the Kernels contract`() {
-        val k: Kernels = PlatformKernels
+    fun `the compiled-in kernels satisfy the dense vector contract`() {
+        val k: DenseVectorKernels = PlatformVectorKernels
         assertTrue(k.name.isNotEmpty(), "the kernels must name themselves; mathBackend reports it")
 
         val a = DoubleArray(40) { it * 0.5 - 3.0 }
@@ -162,15 +61,15 @@ class KernelsTest {
         val x = DoubleArray(64) { Double.POSITIVE_INFINITY }
         val y = DoubleArray(64)
 
-        PlatformKernels.axpy(y, 0, 0.0, x, 0, 64)
-        PlatformKernels.scale(x, 0, 1.0, 64)
+        PlatformVectorKernels.axpy(y, 0, 0.0, x, 0, 64)
+        PlatformVectorKernels.scale(x, 0, 1.0, 64)
 
         assertTrue(y.all { it == 0.0 }, "zero axpy must not evaluate infinity times zero")
         assertTrue(x.all { it == Double.POSITIVE_INFINITY }, "unit scale changed the vector")
     }
 
     @Test
-    fun `the dot4 default and the platform override agree`() {
+    fun `the scalar and platform dot4 kernels agree`() {
         val a = DoubleArray(4 * 30) { it * 0.25 - 5.0 }
         val b = DoubleArray(30) { 2.0 - it * 0.1 }
         val stride = 30
@@ -183,24 +82,20 @@ class KernelsTest {
             expected[r] = s
         }
 
-        // Recording omits dot4, so this measures the interface default. Delegating with `by PlatformKernels`
-        // would forward the defaulted member and silently test the override twice.
-        val inherited = Recording()
-        val viaDefault = DoubleArray(4)
-        inherited.dot4(a, 0, stride, b, 0, len, viaDefault, 0)
-        assertEquals(4, inherited.dots, "the default must reach dot once per column")
+        val viaScalar = DoubleArray(4)
+        ScalarPanelKernels.dot4(a, 0, stride, b, 0, len, viaScalar, 0)
 
         val viaPlatform = DoubleArray(4)
-        PlatformKernels.dot4(a, 0, stride, b, 0, len, viaPlatform, 0)
+        platformDenseKernelFamilies.panel.dot4(a, 0, stride, b, 0, len, viaPlatform, 0)
 
         for (r in 0 until 4) {
-            assertEquals(expected[r], viaDefault[r], absoluteTolerance = 1e-12, message = "default row $r")
+            assertEquals(expected[r], viaScalar[r], absoluteTolerance = 1e-12, message = "scalar row $r")
             assertEquals(expected[r], viaPlatform[r], absoluteTolerance = 1e-12, message = "platform row $r")
         }
     }
 
     @Test
-    fun `the axpy4 default and platform override agree`() {
+    fun `the scalar and platform axpy4 kernels agree`() {
         val stride = 31
         val a = DoubleArray(4 * stride) { it * 0.125 - 4.0 }
         a[7] = Double.POSITIVE_INFINITY
@@ -213,30 +108,30 @@ class KernelsTest {
             for (r in 0 until 4) expected[off + i] += coefficients[r] * a[r * stride + i]
         }
 
-        val viaDefault = initial.copyOf()
-        Recording().axpy4(
-            viaDefault, off, a, 0, stride,
+        val viaScalar = initial.copyOf()
+        ScalarPanelKernels.axpy4(
+            viaScalar, off, a, 0, stride,
             coefficients[0], coefficients[1], coefficients[2], coefficients[3], len,
         )
         val viaPlatform = initial.copyOf()
-        PlatformKernels.axpy4(
+        platformDenseKernelFamilies.panel.axpy4(
             viaPlatform, off, a, 0, stride,
             coefficients[0], coefficients[1], coefficients[2], coefficients[3], len,
         )
 
         for (i in expected.indices) {
             if (expected[i].isNaN()) {
-                assertTrue(viaDefault[i].isNaN(), "default index $i")
+                assertTrue(viaScalar[i].isNaN(), "scalar index $i")
                 assertTrue(viaPlatform[i].isNaN(), "platform index $i")
             } else {
-                assertEquals(expected[i], viaDefault[i], absoluteTolerance = 1e-12, message = "default index $i")
+                assertEquals(expected[i], viaScalar[i], absoluteTolerance = 1e-12, message = "scalar index $i")
                 assertEquals(expected[i], viaPlatform[i], absoluteTolerance = 1e-12, message = "platform index $i")
             }
         }
     }
 
     @Test
-    fun `the dotAxpy default and platform override agree with aliased runs`() {
+    fun `the scalar and platform dotAxpy kernels agree with aliased runs`() {
         val a = DoubleArray(37) { it * 0.2 - 2.5 }
         val initial = DoubleArray(39) { 3.0 - it * 0.1 }
         val off = 5
@@ -251,14 +146,23 @@ class KernelsTest {
             expected[off + i] += alpha * ai
         }
 
-        val viaDefault = initial.copyOf()
-        val defaultDot = Recording().dotAxpy(viaDefault, off, alpha, a, 2, viaDefault, off, len)
+        val viaScalar = initial.copyOf()
+        val scalarDot = ScalarPanelKernels.dotAxpy(viaScalar, off, alpha, a, 2, viaScalar, off, len)
         val viaPlatform = initial.copyOf()
-        val platformDot = PlatformKernels.dotAxpy(viaPlatform, off, alpha, a, 2, viaPlatform, off, len)
+        val platformDot = platformDenseKernelFamilies.panel.dotAxpy(
+            viaPlatform,
+            off,
+            alpha,
+            a,
+            2,
+            viaPlatform,
+            off,
+            len,
+        )
 
-        assertEquals(expectedDot, defaultDot, absoluteTolerance = 1e-12)
+        assertEquals(expectedDot, scalarDot, absoluteTolerance = 1e-12)
         assertEquals(expectedDot, platformDot, absoluteTolerance = 1e-12)
-        assertContentEquals(expected, viaDefault)
+        assertContentEquals(expected, viaScalar)
         for (i in expected.indices) {
             assertEquals(expected[i], viaPlatform[i], absoluteTolerance = 1e-12, message = "platform index $i")
         }
@@ -267,9 +171,9 @@ class KernelsTest {
     @Test
     fun `the compiled-in nrm2 survives components that square out of range`() {
         val big = doubleArrayOf(3e200, 4e200)
-        assertEquals(5e200, PlatformKernels.nrm2(big, 0, 2), absoluteTolerance = 1e188)
+        assertEquals(5e200, PlatformVectorKernels.nrm2(big, 0, 2), absoluteTolerance = 1e188)
         val tiny = doubleArrayOf(3e-200, 4e-200)
-        assertEquals(5e-200, PlatformKernels.nrm2(tiny, 0, 2), absoluteTolerance = 1e-212)
+        assertEquals(5e-200, PlatformVectorKernels.nrm2(tiny, 0, 2), absoluteTolerance = 1e-212)
     }
 
     @Test
@@ -277,12 +181,12 @@ class KernelsTest {
         for (len in intArrayOf(16, 33, 64)) {
             val big = DoubleArray(len) { 1e200 }
             val expected = sqrt(len.toDouble()) * 1e200
-            assertEquals(expected, PlatformKernels.nrm2(big, 0, len), absoluteTolerance = expected * 1e-12)
+            assertEquals(expected, PlatformVectorKernels.nrm2(big, 0, len), absoluteTolerance = expected * 1e-12)
             val tiny = DoubleArray(len) { 1e-200 }
             val expectedTiny = sqrt(len.toDouble()) * 1e-200
             assertEquals(
                 expectedTiny,
-                PlatformKernels.nrm2(tiny, 0, len),
+                PlatformVectorKernels.nrm2(tiny, 0, len),
                 absoluteTolerance = expectedTiny * 1e-12,
             )
         }
@@ -297,7 +201,7 @@ class KernelsTest {
                 val expected = euclideanNorm(v, off, len)
                 assertEquals(
                     expected,
-                    PlatformKernels.nrm2(v, off, len),
+                    PlatformVectorKernels.nrm2(v, off, len),
                     absoluteTolerance = 1e-12 * (expected + 1.0),
                     message = "off $off len $len",
                 )
@@ -307,8 +211,8 @@ class KernelsTest {
 
     @Test
     fun `the context reports the selected kernels by name`() {
-        assertEquals(PlatformKernels.name, koblas.kernels.name)
-        assertEquals(koblas.kernels.name, mathBackend, "mathBackend is the selected kernels' name")
+        assertEquals(PlatformVectorKernels.name, koblas.vectorKernels.name)
+        assertEquals(koblas.vectorKernels.name, mathBackend, "mathBackend is the selected kernels' name")
     }
 
     /**
@@ -317,25 +221,26 @@ class KernelsTest {
      */
     @Test
     fun `every kernel accepts a zero length run`() {
-        val kernels = platformKernels
+        val vectorKernels = PlatformVectorKernels
+        val panelKernels = platformDenseKernelFamilies.panel
         val v = doubleArrayOf(1.0, 2.0, 3.0)
-        assertEquals(0.0, kernels.dot(v, 3, v, 3, 0), "dot over nothing")
-        assertEquals(0.0, kernels.nrm2(v, 3, 0), "nrm2 over nothing")
-        assertEquals(0.0, kernels.asum(v, 3, 0), "asum over nothing")
-        kernels.axpy(v, 3, 2.0, v, 3, 0)
-        kernels.scale(v, 3, 2.0, 0)
+        assertEquals(0.0, vectorKernels.dot(v, 3, v, 3, 0), "dot over nothing")
+        assertEquals(0.0, vectorKernels.nrm2(v, 3, 0), "nrm2 over nothing")
+        assertEquals(0.0, vectorKernels.asum(v, 3, 0), "asum over nothing")
+        vectorKernels.axpy(v, 3, 2.0, v, 3, 0)
+        vectorKernels.scale(v, 3, 2.0, 0)
         assertEquals(listOf(1.0, 2.0, 3.0), v.toList(), "a zero-length write touched the vector")
         val quads = DoubleArray(4)
-        kernels.dot4(v, 3, 0, v, 3, 0, quads, 0)
+        panelKernels.dot4(v, 3, 0, v, 3, 0, quads, 0)
         assertEquals(listOf(0.0, 0.0, 0.0, 0.0), quads.toList(), "dot4 over nothing")
-        kernels.axpy4(v, 3, v, 3, 0, 1.0, 2.0, 3.0, 4.0, 0)
-        assertEquals(0.0, kernels.dotAxpy(v, 3, 2.0, v, 3, v, 3, 0), "dotAxpy over nothing")
+        panelKernels.axpy4(v, 3, v, 3, 0, 1.0, 2.0, 3.0, 4.0, 0)
+        assertEquals(0.0, panelKernels.dotAxpy(v, 3, 2.0, v, 3, v, 3, 0), "dotAxpy over nothing")
         assertEquals(listOf(1.0, 2.0, 3.0), v.toList(), "a fused zero-length write touched the vector")
     }
 
     @Test
     fun `the compiled-in level-1 kernels agree with the scalar loops`() =
-        assertLevel1KernelsAgreeWithScalar(PlatformKernels)
+        assertLevel1KernelsAgreeWithScalar(PlatformVectorKernels)
 
     @Test
     fun `ssqd stays exact where the expanded form cancels`() {
@@ -344,10 +249,10 @@ class KernelsTest {
         // that took the shortcut cannot return 1.0 here.
         val a = doubleArrayOf(1e8, 1e8, 1e8)
         val b = doubleArrayOf(1e8 + 1.0, 1e8, 1e8)
-        val expanded = PlatformKernels.dot(a, 0, a, 0, 3) -
-            2.0 * PlatformKernels.dot(a, 0, b, 0, 3) +
-            PlatformKernels.dot(b, 0, b, 0, 3)
-        assertEquals(1.0, PlatformKernels.ssqd(a, 0, b, 0, 3), "fused")
+        val expanded = PlatformVectorKernels.dot(a, 0, a, 0, 3) -
+            2.0 * PlatformVectorKernels.dot(a, 0, b, 0, 3) +
+            PlatformVectorKernels.dot(b, 0, b, 0, 3)
+        assertEquals(1.0, PlatformVectorKernels.ssqd(a, 0, b, 0, 3), "fused")
         assertTrue(abs(expanded - 1.0) > 1e-3, "the expanded form should be the inexact one here: $expanded")
     }
 
@@ -358,23 +263,24 @@ class KernelsTest {
             val a = DoubleArray(len) { rng.nextDouble(-1.0, 1.0) }
             val b = DoubleArray(len) { rng.nextDouble(-1.0, 1.0) }
             assertEquals(
-                PlatformKernels.ssqd(a, 0, b, 0, len),
-                PlatformKernels.ssqd(b, 0, a, 0, len),
+                PlatformVectorKernels.ssqd(a, 0, b, 0, len),
+                PlatformVectorKernels.ssqd(b, 0, a, 0, len),
                 "symmetry len=$len",
             )
-            assertEquals(0.0, PlatformKernels.ssqd(a, 0, a, 0, len), "equal runs len=$len")
+            assertEquals(0.0, PlatformVectorKernels.ssqd(a, 0, a, 0, len), "equal runs len=$len")
         }
     }
 
     @Test
-    fun `the compiled-in reductions agree with the scalar loops`() = assertReductionsAgreeWithScalar(PlatformKernels)
+    fun `the compiled-in reductions agree with the scalar loops`() =
+        assertReductionsAgreeWithScalar(PlatformVectorKernels)
 
     @Test
-    fun `the compiled-in swap agrees with the scalar loop`() = assertSwapAgreesWithScalar(PlatformKernels)
+    fun `the compiled-in swap agrees with the scalar loop`() = assertSwapAgreesWithScalar(PlatformVectorKernels)
 
     @Test
     fun `the compiled-in modified Givens kernels agree with the portable ones`() {
-        assertModifiedGivensKernelsAgreeWithPortable(PlatformKernels)
-        assertRotKernelAgreesWithPortable(PlatformKernels)
+        assertModifiedGivensKernelsAgreeWithPortable(PlatformVectorKernels)
+        assertRotKernelAgreesWithPortable(PlatformVectorKernels)
     }
 }
