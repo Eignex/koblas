@@ -25,7 +25,7 @@ public enum class BasisUpdate {
  * a numerically unhappy one. A caller logging these can read the difference off a histogram rather than
  * guessing at it.
  */
-public enum class F64RefactorizeReason {
+public enum class RefactorizeReason {
     /**
      * The factorization itself asked, having found the update it just took unfit to build on. This is the
      * numerical cause: the factors have lost accuracy rather than merely grown.
@@ -49,7 +49,7 @@ public enum class F64RefactorizeReason {
  * @property dimension the kernel's order, at most the basis dimension.
  * @property entries the stored entries in it.
  */
-public class F64BasisKernel(public val dimension: Int, public val entries: Int)
+public class BasisKernel(public val dimension: Int, public val entries: Int)
 
 /**
  * The basis a solver settled on, where it was allowed to repair one it could not invert as given.
@@ -65,7 +65,7 @@ public class F64BasisKernel(public val dimension: Int, public val entries: Int)
  * @property columns the column of `A` in each slot, or -1 where the slot holds a unit column.
  * @property unitRows the row each unit column stands for, or -1 where the slot holds a column of `A`.
  */
-public class F64BasisRepair(public val columns: IntArray, public val unitRows: IntArray) {
+public class BasisRepair(public val columns: IntArray, public val unitRows: IntArray) {
     /** Whether anything was replaced. False means the basis factorized exactly as it was given. */
     public val repaired: Boolean get() = unitRows.any { it >= 0 }
 
@@ -80,10 +80,10 @@ public class F64BasisRepair(public val columns: IntArray, public val unitRows: I
  * the solver releases any it still owns, so a caller that drops a search node need not unwind its snapshots
  * by hand.
  */
-public interface F64BasisSnapshot : AutoCloseable
+public interface BasisSnapshot : AutoCloseable
 
 /** Numerically scaled residual information for one basis solve. */
-public data class F64BasisSolveQuality(
+public data class BasisSolveQuality(
     /** `max |B·x - b|`, or `max |Bᵀ·x - b|` for a transposed solve. */
     public val residualInfinityNorm: Double,
     /** The residual divided by `max(1, max(|B·x|, |b|))`. */
@@ -136,7 +136,7 @@ public interface BasisSolver : AutoCloseable {
      * Why the last [update] advised [BasisUpdate.REFACTORIZE], or null where it did not or the solver does
      * not say. Reading it after any other outcome answers null.
      */
-    public val refactorizeReason: F64RefactorizeReason? get() = null
+    public val refactorizeReason: RefactorizeReason? get() = null
 
     /**
      * The elimination kernel the last [refactorize] left, or null where the solver does not report one.
@@ -144,7 +144,7 @@ public interface BasisSolver : AutoCloseable {
      * A solver whose factorization has no such pass has nothing to say here, which is why this is optional
      * rather than a number every provider has to invent.
      */
-    public val kernel: F64BasisKernel? get() = null
+    public val kernel: BasisKernel? get() = null
 
     /**
      * Factorizes the basis of [basicIndex], whose length must be [n] and whose entries name columns of `A`,
@@ -169,9 +169,9 @@ public interface BasisSolver : AutoCloseable {
      * from the result rather than from the array it passed.
      */
 
-    public fun refactorizeRepairing(basicIndex: IntArray): F64BasisRepair? {
+    public fun refactorizeRepairing(basicIndex: IntArray): BasisRepair? {
         if (!refactorize(basicIndex)) return null
-        return F64BasisRepair(basicIndex.copyOf(), IntArray(basicIndex.size) { -1 })
+        return BasisRepair(basicIndex.copyOf(), IntArray(basicIndex.size) { -1 })
     }
 
     /**
@@ -184,7 +184,7 @@ public interface BasisSolver : AutoCloseable {
      *
      * The solver keeps solving against its current factors; taking a snapshot changes nothing about them.
      */
-    public fun snapshot(): F64BasisSnapshot? = null
+    public fun snapshot(): BasisSnapshot? = null
 
     /**
      * Puts [snapshot] back, returning whether it was taken. A snapshot from another solver, or from one of
@@ -193,7 +193,7 @@ public interface BasisSolver : AutoCloseable {
      * The solver afterwards holds the factors and the basis the snapshot was taken from, and its update
      * count and fill read as they did then.
      */
-    public fun restore(snapshot: F64BasisSnapshot): Boolean = false
+    public fun restore(snapshot: BasisSnapshot): Boolean = false
 
     /**
      * Solve `B x = b` in place: [x] carries `b` in and `x` out.
@@ -212,11 +212,7 @@ public interface BasisSolver : AutoCloseable {
      * This deliberately does a sparse matrix-vector product, so use it for numerical checks and rebuild
      * decisions rather than on every iteration.
      */
-    public fun solveQuality(
-        rhs: DoubleArray,
-        solution: IndexedVector,
-        transpose: Boolean = false,
-    ): F64BasisSolveQuality
+    public fun solveQuality(rhs: DoubleArray, solution: IndexedVector, transpose: Boolean = false): BasisSolveQuality
 
     /**
      * Replace the basis column at slot [pivotRow] with column [entering] of `A`.

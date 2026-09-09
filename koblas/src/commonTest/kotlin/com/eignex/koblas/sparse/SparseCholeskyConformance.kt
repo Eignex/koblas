@@ -52,7 +52,7 @@ internal fun assertCholeskyAgreesWithReference(decompositions: SparseLapack) {
         val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
 
         val host = decompositions.cholesky(a)
-        val portable = F64ReferenceSparseLinearAlgebra.cholesky(a)
+        val portable = ReferenceSparseLinearAlgebra.cholesky(a)
         assertEquals(n, host.n, "n=$n the factorization reports the wrong dimension")
         assertTrue(!host.singular, "n=$n a positive-definite system came back singular")
         assertClose(portable.solve(b), host.solve(b), "n=$n", tolerance = 1e-9)
@@ -83,7 +83,7 @@ internal fun assertLdlAgreesWithReference(decompositions: SparseLapack) {
         val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
 
         val host = decompositions.quasiDefiniteLdl(a)
-        val portable = F64ReferenceSparseLinearAlgebra.quasiDefiniteLdl(a)
+        val portable = ReferenceSparseLinearAlgebra.quasiDefiniteLdl(a)
         assertTrue(!host.singular, "n=$n an invertible system came back singular")
         assertClose(b, multiply(a.symmetrized(), host.solve(b)), "n=$n residual", tolerance = 1e-8)
         assertClose(portable.solve(b), host.solve(b), "n=$n", tolerance = 1e-8)
@@ -105,7 +105,7 @@ internal fun indefiniteConformanceSystem(n: Int, rng: Random): SparseMatrix =
  * two promises whether or not it holds a symbolic pass of its own: the same factor a fresh call gives, and a
  * refusal of a pattern it did not analyze.
  */
-internal fun assertCholeskyAnalysisReuses(provider: F64SparseCholesky) {
+internal fun assertCholeskyAnalysisReuses(provider: SparseCholesky) {
     val a = sparseSymmetricConformanceSystem(21, Random(20260935))
     val other = sparseSymmetricConformanceSystem(21, Random(20260936))
     val b = DoubleArray(21) { it * 0.125 - 1.0 }

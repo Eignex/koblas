@@ -2,7 +2,7 @@ package com.eignex.koblas
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.sparse.F64SingularSparseFactorization
+import com.eignex.koblas.sparse.SingularSparseFactorization
 import kotlin.test.*
 
 class ExceptionsTest {
@@ -16,7 +16,7 @@ class ExceptionsTest {
 
     @Test
     fun `a factorization without a pivot position reports unknown singularity`() {
-        val factorization = F64SingularSparseFactorization(2, SINGULAR_POSITION_UNKNOWN)
+        val factorization = SingularSparseFactorization(2, SINGULAR_POSITION_UNKNOWN)
 
         val e = assertFailsWith<SingularMatrix> { factorization.solve(doubleArrayOf(1.0, 2.0)) }
 

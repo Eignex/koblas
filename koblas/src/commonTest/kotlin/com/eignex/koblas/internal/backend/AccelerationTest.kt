@@ -3,18 +3,18 @@ package com.eignex.koblas.internal.backend
 import com.eignex.koblas.*
 import com.eignex.koblas.SparseVector
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
+import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.SparseKernels
 import kotlin.test.*
 
 class AccelerationTest {
 
-    private class FakeHost(override val name: String) : Blas by F64ReferenceBlas {
+    private class FakeHost(override val name: String) : Blas by ReferenceBlas {
         override val priority: Int get() = 100
         override val isPortable: Boolean get() = false
         override val isAvailable: Boolean get() = true
         override val unavailableReason: String? get() = null
-        override val kernels: Kernels get() = F64ReferenceBlas.kernels
+        override val kernels: Kernels get() = ReferenceBlas.kernels
     }
 
     private class FakeKernels(override val name: String = "fakeblas") : Kernels by ScalarKernels {
@@ -23,14 +23,14 @@ class AccelerationTest {
     }
 
     private class RoutedHost :
-        Blas by F64ReferenceBlas,
-        F64RoutingBackend {
+        Blas by ReferenceBlas,
+        RoutingBackend {
         override val name: String get() = "routed"
         override val priority: Int get() = 100
         override val isPortable: Boolean get() = false
 
-        override fun route(query: F64RouteQuery): BackendRoute? {
-            if (query !is F64RouteQuery.DenseGemm) return null
+        override fun route(query: RouteQuery): BackendRoute? {
+            if (query !is RouteQuery.DenseGemm) return null
             return BackendRoute(
                 query,
                 BackendStatus(
@@ -104,7 +104,7 @@ class AccelerationTest {
     @Test
     fun `a context reports its own halves rather than the global registry`() = withCleanBackends {
         registerBackend(FakeHost("openblas"))
-        val portable = koblas.with(blas = F64ReferenceBlas)
+        val portable = koblas.with(blas = ReferenceBlas)
         assertFalse(portable.isAccelerated(BackendRole.DENSE_BLAS), "the context's own half is portable")
         assertTrue(koblas.isAccelerated(BackendRole.DENSE_BLAS), "the registry is still accelerated")
         assertFailsWith<IllegalStateException> { portable.requireAccelerated(BackendRole.DENSE_BLAS) }
@@ -136,7 +136,7 @@ class AccelerationTest {
 
     @Test
     fun `a portable context reports a portable operation route`() = withCleanBackends {
-        val query = F64RouteQuery.DenseGemm(64, 64, 64)
+        val query = RouteQuery.DenseGemm(64, 64, 64)
 
         val route = koblas.route(query)
 
@@ -150,7 +150,7 @@ class AccelerationTest {
     fun `a reporting backend supplies an operation route`() = withCleanBackends {
         registerBackend(RoutedHost())
 
-        val route = koblas.route(F64RouteQuery.DenseGemm(8, 16, 4))
+        val route = koblas.route(RouteQuery.DenseGemm(8, 16, 4))
 
         assertEquals(BackendExecution.NATIVE, route.execution)
         assertEquals("routed", route.selected.provider)
@@ -162,7 +162,7 @@ class AccelerationTest {
     fun `an unreporting backend leaves the route unknown`() = withCleanBackends {
         registerBackend(FakeHost("opaque"))
 
-        val route = koblas.route(F64RouteQuery.DenseGemm(8, 8, 8))
+        val route = koblas.route(RouteQuery.DenseGemm(8, 8, 8))
 
         assertEquals(BackendExecution.UNKNOWN, route.execution)
         assertEquals(BackendRouteReason.NOT_REPORTED, route.reason)
@@ -172,16 +172,15 @@ class AccelerationTest {
     /** A sparse-kernel half at the default priority, which is what most registrations use. */
     private class PlainSparseKernels : SparseKernels {
         override val name: String get() = "plain-sparse"
-        override fun dot(x: SparseVector, y: DoubleArray): Double = F64ReferenceSparseLinearAlgebra.dot(x, y)
-        override fun dot(x: SparseVector, y: SparseVector): Double = F64ReferenceSparseLinearAlgebra.dot(x, y)
+        override fun dot(x: SparseVector, y: DoubleArray): Double = ReferenceSparseLinearAlgebra.dot(x, y)
+        override fun dot(x: SparseVector, y: SparseVector): Double = ReferenceSparseLinearAlgebra.dot(x, y)
         override fun axpy(y: DoubleArray, alpha: Double, x: SparseVector) =
-            F64ReferenceSparseLinearAlgebra.axpy(y, alpha, x)
-        override fun scatter(x: SparseVector, out: DoubleArray) = F64ReferenceSparseLinearAlgebra.scatter(x, out)
-        override fun gather(x: SparseVector, from: DoubleArray) = F64ReferenceSparseLinearAlgebra.gather(x, from)
-        override fun gatherZero(x: SparseVector, from: DoubleArray) =
-            F64ReferenceSparseLinearAlgebra.gatherZero(x, from)
-        override fun nrm2(x: SparseVector): Double = F64ReferenceSparseLinearAlgebra.nrm2(x)
-        override fun asum(x: SparseVector): Double = F64ReferenceSparseLinearAlgebra.asum(x)
+            ReferenceSparseLinearAlgebra.axpy(y, alpha, x)
+        override fun scatter(x: SparseVector, out: DoubleArray) = ReferenceSparseLinearAlgebra.scatter(x, out)
+        override fun gather(x: SparseVector, from: DoubleArray) = ReferenceSparseLinearAlgebra.gather(x, from)
+        override fun gatherZero(x: SparseVector, from: DoubleArray) = ReferenceSparseLinearAlgebra.gatherZero(x, from)
+        override fun nrm2(x: SparseVector): Double = ReferenceSparseLinearAlgebra.nrm2(x)
+        override fun asum(x: SparseVector): Double = ReferenceSparseLinearAlgebra.asum(x)
     }
 
     /**

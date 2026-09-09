@@ -4,7 +4,7 @@ import com.eignex.koblas.*
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.internal.host.NativeOwnership
 import com.eignex.koblas.requireSolveShapes
-import com.eignex.koblas.sparse.F64SparseLuFactorization
+import com.eignex.koblas.sparse.SparseLuFactorization
 import com.eignex.koblas.sparse.basis.IndexedVector
 import com.eignex.koblas.sparse.host.factorNotExposed
 import java.lang.foreign.MemorySegment
@@ -20,7 +20,7 @@ public class HfactorFactorization internal constructor(
     override val n: Int,
     private val calls: HfactorCalls,
     private val handle: MemorySegment,
-) : F64SparseLuFactorization {
+) : SparseLuFactorization {
     private class Release(private val calls: HfactorCalls, private val handle: MemorySegment) {
         fun release(): Unit = calls.free(handle)
     }

@@ -1,29 +1,29 @@
 package com.eignex.koblas
 
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.F64StridedMatrixView
 import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.StridedMatrixView
 import com.eignex.koblas.StridedVectorView
 import com.eignex.koblas.dense.Blas
 import com.eignex.koblas.dense.Kernels
 import com.eignex.koblas.internal.backend.BackendSlot
-import com.eignex.koblas.sparse.F64BasisFactorizations
-import com.eignex.koblas.sparse.F64GeneralSparseLu
-import com.eignex.koblas.sparse.F64QuasiDefiniteLdl
-import com.eignex.koblas.sparse.F64QuasiDefiniteLdlFactorization
-import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
-import com.eignex.koblas.sparse.F64RepeatedSparseLu
-import com.eignex.koblas.sparse.F64SparseCholesky
-import com.eignex.koblas.sparse.F64SparseCholeskyFactorization
-import com.eignex.koblas.sparse.F64SparseDecompositionRoles
-import com.eignex.koblas.sparse.F64SparseLuFactorization
-import com.eignex.koblas.sparse.F64SparseQr
-import com.eignex.koblas.sparse.F64SparseQrFactorization
+import com.eignex.koblas.sparse.BasisFactorizations
+import com.eignex.koblas.sparse.GeneralSparseLu
+import com.eignex.koblas.sparse.QuasiDefiniteLdl
+import com.eignex.koblas.sparse.QuasiDefiniteLdlFactorization
+import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
+import com.eignex.koblas.sparse.RepeatedSparseLu
 import com.eignex.koblas.sparse.SparseBlas
+import com.eignex.koblas.sparse.SparseCholesky
+import com.eignex.koblas.sparse.SparseCholeskyFactorization
+import com.eignex.koblas.sparse.SparseDecompositionRoles
 import com.eignex.koblas.sparse.SparseKernels
 import com.eignex.koblas.sparse.SparseLapack
 import com.eignex.koblas.sparse.SparseLinearAlgebra
-import com.eignex.koblas.sparse.basis.F64BasisSolvers
+import com.eignex.koblas.sparse.SparseLuFactorization
+import com.eignex.koblas.sparse.SparseQr
+import com.eignex.koblas.sparse.SparseQrFactorization
+import com.eignex.koblas.sparse.basis.BasisSolvers
 
 /**
  * Every backend koblas will use for a piece of work, in one object you can hold. Immutable, and itself a
@@ -38,7 +38,7 @@ import com.eignex.koblas.sparse.basis.F64BasisSolvers
  *   [sparseDecompositions] and every path inside koblas resolves before building a context.
  * @property dispatchPolicy the operation-level dispatch requirement for routes this context can inspect.
  * @property fallbackPolicy the action taken for non-native inspected routes in automatic mode.
- * @property fallbackWarning notified for each fallback under [F64FallbackPolicy.WARN].
+ * @property fallbackWarning notified for each fallback under [FallbackPolicy.WARN].
  *
  * The six sparse factorization roles are what this holds; the [sparseDecompositions] property is a
  * compatibility composition derived from the selected general LU, Cholesky, quasi-definite LDL and QR.
@@ -49,16 +49,16 @@ public class KoblasContext internal constructor(
     public val blas: Blas,
     override val sparseKernels: SparseKernels,
     public val sparseBlas: SparseBlas,
-    public val basisSolvers: F64BasisSolvers,
+    public val basisSolvers: BasisSolvers,
     private val roles: SparseRoles,
-    public val dispatchPolicy: F64DispatchPolicy = F64DispatchPolicy.AUTO,
-    public val fallbackPolicy: F64FallbackPolicy = F64FallbackPolicy.ALLOW,
+    public val dispatchPolicy: DispatchPolicy = DispatchPolicy.AUTO,
+    public val fallbackPolicy: FallbackPolicy = FallbackPolicy.ALLOW,
     internal val fallbackWarning: (BackendRoute) -> Unit = {},
 ) : Blas by blas,
     SparseLinearAlgebra,
     SparseBlas by sparseBlas,
     SparseLapack,
-    F64BasisSolvers by basisSolvers {
+    BasisSolvers by basisSolvers {
 
     /**
      * Reads the sparse factorization roles out of [sparseDecompositions], for a caller composing a context
@@ -70,7 +70,7 @@ public class KoblasContext internal constructor(
         sparseKernels: SparseKernels,
         sparseBlas: SparseBlas,
         sparseDecompositions: SparseLapack,
-        basisSolvers: F64BasisSolvers,
+        basisSolvers: BasisSolvers,
     ) : this(
         kernels,
         blas,
@@ -87,32 +87,32 @@ public class KoblasContext internal constructor(
      * selected, and delegating to the composition they were derived from left two objects answering the
      * same interface on one instance.
      */
-    override fun cholesky(a: SparseMatrix): F64SparseCholeskyFactorization = roles.cholesky.cholesky(a)
+    override fun cholesky(a: SparseMatrix): SparseCholeskyFactorization = roles.cholesky.cholesky(a)
 
-    override fun quasiDefiniteLdl(a: SparseMatrix): F64QuasiDefiniteLdlFactorization =
+    override fun quasiDefiniteLdl(a: SparseMatrix): QuasiDefiniteLdlFactorization =
         roles.quasiDefiniteLdl.quasiDefiniteLdl(a)
 
     /** Provider selected for ordinary sparse LU. */
-    public val generalSparseLu: F64GeneralSparseLu get() = roles.generalLu
+    public val generalSparseLu: GeneralSparseLu get() = roles.generalLu
 
     /** Provider selected for repeated-pattern LU, or null when none was selected. */
-    public val repeatedSparseLu: F64RepeatedSparseLu? get() = roles.repeatedLu
+    public val repeatedSparseLu: RepeatedSparseLu? get() = roles.repeatedLu
 
     /** Provider selected for sparse Cholesky. */
-    public val sparseCholesky: F64SparseCholesky get() = roles.cholesky
+    public val sparseCholesky: SparseCholesky get() = roles.cholesky
 
     /** Provider selected for sparse quasi-definite, numerically unpivoted `L * D * L^T`. */
-    public val quasiDefiniteLdl: F64QuasiDefiniteLdl get() = roles.quasiDefiniteLdl
+    public val quasiDefiniteLdl: QuasiDefiniteLdl get() = roles.quasiDefiniteLdl
 
     /** Provider selected for sparse QR. */
-    public val sparseQr: F64SparseQr get() = roles.qr
+    public val sparseQr: SparseQr get() = roles.qr
 
     /** Provider selected for basis factorizations with column replacement. */
-    public val basisFactorizations: F64BasisFactorizations get() = roles.basisFactorizations
+    public val basisFactorizations: BasisFactorizations get() = roles.basisFactorizations
 
     /** A compatibility operation surface derived from the four selected sparse factorization providers. */
     public val sparseDecompositions: SparseLapack by lazy {
-        F64SparseDecompositionRoles(generalSparseLu, sparseCholesky, quasiDefiniteLdl, sparseQr)
+        SparseDecompositionRoles(generalSparseLu, sparseCholesky, quasiDefiniteLdl, sparseQr)
     }
 
     /**
@@ -146,7 +146,7 @@ public class KoblasContext internal constructor(
         sparseKernels: SparseKernels = this.sparseKernels,
         sparseBlas: SparseBlas = this.sparseBlas,
         sparseDecompositions: SparseLapack = this.sparseDecompositions,
-        basisSolvers: F64BasisSolvers = this.basisSolvers,
+        basisSolvers: BasisSolvers = this.basisSolvers,
     ): KoblasContext {
         // A composition this context did not derive its own roles from is one to derive them from again.
         val selected =
@@ -175,7 +175,7 @@ public class KoblasContext internal constructor(
     ) {
         if (enforcesRoutingPolicy) {
             requireGemvShape(a, transpose, x.size, y.size)
-            beforeDispatch(F64RouteQuery.DenseGemv(a.rows, a.cols))
+            beforeDispatch(RouteQuery.DenseGemv(a.rows, a.cols))
         }
         blas.gemv(alpha, a, x, beta, y, transpose, workspace)
     }
@@ -183,7 +183,7 @@ public class KoblasContext internal constructor(
     @Suppress("LongParameterList") // the BLAS dgemv signature
     override fun gemv(
         alpha: Double,
-        a: F64StridedMatrixView,
+        a: StridedMatrixView,
         x: StridedVectorView,
         beta: Double,
         y: StridedVectorView,
@@ -191,7 +191,7 @@ public class KoblasContext internal constructor(
     ) {
         if (enforcesRoutingPolicy) {
             requireGemvShape(a, transpose, x.size, y.size)
-            beforeDispatch(F64RouteQuery.DenseGemv(a.rows, a.cols))
+            beforeDispatch(RouteQuery.DenseGemv(a.rows, a.cols))
         }
         blas.gemv(alpha, a, x, beta, y, transpose)
     }
@@ -215,7 +215,7 @@ public class KoblasContext internal constructor(
     ) {
         if (enforcesRoutingPolicy) {
             val (m, k, n) = requireGemmShape(a, transposeA, b, transposeB, c)
-            beforeDispatch(F64RouteQuery.DenseGemm(m, n, k))
+            beforeDispatch(RouteQuery.DenseGemm(m, n, k))
         }
         blas.gemm(alpha, a, transposeA, b, transposeB, beta, c, workspace)
     }
@@ -229,16 +229,16 @@ public class KoblasContext internal constructor(
     @Suppress("LongParameterList") // the BLAS dgemm signature
     override fun gemm(
         alpha: Double,
-        a: F64StridedMatrixView,
+        a: StridedMatrixView,
         transposeA: Boolean,
-        b: F64StridedMatrixView,
+        b: StridedMatrixView,
         transposeB: Boolean,
         beta: Double,
-        c: F64StridedMatrixView,
+        c: StridedMatrixView,
     ) {
         if (enforcesRoutingPolicy) {
             val (m, k, n) = requireGemmShape(a, transposeA, b, transposeB, c)
-            beforeDispatch(F64RouteQuery.DenseGemm(m, n, k))
+            beforeDispatch(RouteQuery.DenseGemm(m, n, k))
         }
         blas.gemm(alpha, a, transposeA, b, transposeB, beta, c)
     }
@@ -263,7 +263,7 @@ public class KoblasContext internal constructor(
             } else {
                 requireGemmShape(a, transposeA, b, transposeB, c)
             }
-            beforeDispatch(F64RouteQuery.SparseDenseGemm(a.nnz, right, transposeB))
+            beforeDispatch(RouteQuery.SparseDenseGemm(a.nnz, right, transposeB))
         }
         sparseBlas.gemm(alpha, a, transposeA, b, transposeB, beta, c, right, workspace)
     }
@@ -279,7 +279,7 @@ public class KoblasContext internal constructor(
             requireSquare(a, "trsv")
             requireShape(x.size == a.rows) { "trsv: x length ${x.size} != ${a.rows}" }
             beforeDispatch(
-                F64RouteQuery.SparseTriangular(
+                RouteQuery.SparseTriangular(
                     a.nnz,
                     kind = SparseTriangularKind.SOLVE,
                     lower = lower,
@@ -296,7 +296,7 @@ public class KoblasContext internal constructor(
             requireSquare(a, "trmv")
             requireShape(x.size == a.rows) { "trmv: x length ${x.size} != ${a.rows}" }
             beforeDispatch(
-                F64RouteQuery.SparseTriangular(
+                RouteQuery.SparseTriangular(
                     a.nnz,
                     kind = SparseTriangularKind.MULTIPLY,
                     lower = lower,
@@ -323,7 +323,7 @@ public class KoblasContext internal constructor(
             requireTriangularMatrixShape(a, b, right, "trsm")
             val rightHandSides = if (right) b.rows else b.cols
             beforeDispatch(
-                F64RouteQuery.SparseTriangular(
+                RouteQuery.SparseTriangular(
                     a.nnz,
                     kind = SparseTriangularKind.SOLVE,
                     rightHandSides = rightHandSides,
@@ -350,7 +350,7 @@ public class KoblasContext internal constructor(
         if (enforcesRoutingPolicy) {
             requireTriangularMatrixShape(a, b, right, "trmm")
             beforeDispatch(
-                F64RouteQuery.SparseTriangular(
+                RouteQuery.SparseTriangular(
                     a.nnz,
                     kind = SparseTriangularKind.MULTIPLY,
                     rightHandSides = if (right) b.rows else b.cols,
@@ -364,17 +364,17 @@ public class KoblasContext internal constructor(
         sparseBlas.trmm(a, b, lower, transpose, unitDiag, right, alpha)
     }
 
-    override fun factor(a: SparseMatrix): F64SparseLuFactorization {
+    override fun factor(a: SparseMatrix): SparseLuFactorization {
         if (enforcesRoutingPolicy) {
             requireSquare(a, "factor")
-            beforeDispatch(F64RouteQuery.SparseLu(a.nnz))
+            beforeDispatch(RouteQuery.SparseLu(a.nnz))
         }
         return sparseDecompositions.factor(a)
     }
 
-    override fun qr(a: SparseMatrix): F64SparseQrFactorization {
+    override fun qr(a: SparseMatrix): SparseQrFactorization {
         if (enforcesRoutingPolicy) {
-            beforeDispatch(F64RouteQuery.SparseQr(a.nnz))
+            beforeDispatch(RouteQuery.SparseQr(a.nnz))
         }
         return sparseDecompositions.qr(a)
     }
@@ -393,37 +393,36 @@ public class KoblasContext internal constructor(
  * and they run only where a caller hands in a composition rather than roles.
  */
 internal class SparseRoles(
-    val generalLu: F64GeneralSparseLu,
-    val repeatedLu: F64RepeatedSparseLu?,
-    val cholesky: F64SparseCholesky,
-    val quasiDefiniteLdl: F64QuasiDefiniteLdl,
-    val qr: F64SparseQr,
-    val basisFactorizations: F64BasisFactorizations,
+    val generalLu: GeneralSparseLu,
+    val repeatedLu: RepeatedSparseLu?,
+    val cholesky: SparseCholesky,
+    val quasiDefiniteLdl: QuasiDefiniteLdl,
+    val qr: SparseQr,
+    val basisFactorizations: BasisFactorizations,
 ) {
     constructor(composition: SparseLapack) : this(
         generalLu = composition.generalLuCapability(),
-        repeatedLu = composition as? F64RepeatedSparseLu,
+        repeatedLu = composition as? RepeatedSparseLu,
         cholesky = composition.choleskyCapability(),
         quasiDefiniteLdl = composition.quasiDefiniteLdlCapability(),
         qr = composition.qrCapability(),
-        basisFactorizations = (composition as? F64BasisFactorizations) ?: F64ReferenceSparseLinearAlgebra,
+        basisFactorizations = (composition as? BasisFactorizations) ?: ReferenceSparseLinearAlgebra,
     )
 }
 
-private fun SparseLapack.generalLuCapability(): F64GeneralSparseLu = (this as? F64SparseDecompositionRoles)?.generalLu
-    ?: (this as? F64GeneralSparseLu)
+private fun SparseLapack.generalLuCapability(): GeneralSparseLu = (this as? SparseDecompositionRoles)?.generalLu
+    ?: (this as? GeneralSparseLu)
     ?: error("$name fills no general sparse LU role")
 
-private fun SparseLapack.choleskyCapability(): F64SparseCholesky =
-    (this as? F64SparseDecompositionRoles)?.choleskyProvider
-        ?: (this as? F64SparseCholesky)
-        ?: error("$name fills no sparse Cholesky role")
+private fun SparseLapack.choleskyCapability(): SparseCholesky = (this as? SparseDecompositionRoles)?.choleskyProvider
+    ?: (this as? SparseCholesky)
+    ?: error("$name fills no sparse Cholesky role")
 
-private fun SparseLapack.quasiDefiniteLdlCapability(): F64QuasiDefiniteLdl =
-    (this as? F64SparseDecompositionRoles)?.quasiDefiniteLdlProvider
-        ?: (this as? F64QuasiDefiniteLdl)
+private fun SparseLapack.quasiDefiniteLdlCapability(): QuasiDefiniteLdl =
+    (this as? SparseDecompositionRoles)?.quasiDefiniteLdlProvider
+        ?: (this as? QuasiDefiniteLdl)
         ?: error("$name fills no sparse quasi-definite LDL role")
 
-private fun SparseLapack.qrCapability(): F64SparseQr = (this as? F64SparseDecompositionRoles)?.qrProvider
-    ?: (this as? F64SparseQr)
+private fun SparseLapack.qrCapability(): SparseQr = (this as? SparseDecompositionRoles)?.qrProvider
+    ?: (this as? SparseQr)
     ?: error("$name fills no sparse QR role")

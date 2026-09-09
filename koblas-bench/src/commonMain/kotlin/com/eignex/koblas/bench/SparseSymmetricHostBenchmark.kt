@@ -20,11 +20,11 @@ class SparseSymmetricHostBenchmark {
     var backend: String = REFERENCE_BACKEND
 
     private lateinit var a: SparseMatrix
-    private lateinit var choleskyFactor: F64SparseCholeskyFactorization
+    private lateinit var choleskyFactor: SparseCholeskyFactorization
     private lateinit var rhs: DoubleArray
     private lateinit var solution: DoubleArray
-    private lateinit var choleskyAnalysis: F64SparseSymbolicAnalysis<F64SparseCholeskyFactorization>
-    private lateinit var ldlAnalysis: F64SparseSymbolicAnalysis<F64QuasiDefiniteLdlFactorization>
+    private lateinit var choleskyAnalysis: SparseSymbolicAnalysis<SparseCholeskyFactorization>
+    private lateinit var ldlAnalysis: SparseSymbolicAnalysis<QuasiDefiniteLdlFactorization>
 
     @Setup
     fun setup() {
@@ -48,10 +48,10 @@ class SparseSymmetricHostBenchmark {
     }
 
     @Benchmark
-    fun cholesky(): F64SparseFactorization = a.cholesky()
+    fun cholesky(): SparseFactorization = a.cholesky()
 
     @Benchmark
-    fun quasiDefiniteLdl(): F64SparseFactorization = a.quasiDefiniteLdl()
+    fun quasiDefiniteLdl(): SparseFactorization = a.quasiDefiniteLdl()
 
     // The solve against a factor built once, which is where a repeated right-hand side spends its time and
     // where a binding holding a native descriptor across calls is measured.
@@ -61,10 +61,10 @@ class SparseSymmetricHostBenchmark {
     // Against the two above: the same numeric sweep with the pattern already analyzed, so the pair measures
     // what a caller refactorizing one structure saves.
     @Benchmark
-    fun choleskyRefactor(): F64SparseFactorization = choleskyAnalysis.factor(a)
+    fun choleskyRefactor(): SparseFactorization = choleskyAnalysis.factor(a)
 
     @Benchmark
-    fun quasiDefiniteLdlRefactor(): F64SparseFactorization = ldlAnalysis.factor(a)
+    fun quasiDefiniteLdlRefactor(): SparseFactorization = ldlAnalysis.factor(a)
 
     // Reading the factors converts a copy of the factor, so it is its own row rather than part of the two
     // above. `choleskyFactors` and `quasiDefiniteLdlFactors` sort beside their factorizations, before the control.

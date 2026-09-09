@@ -88,7 +88,7 @@ class JvmVectorScatterTest {
     fun `indexed scatter agrees with the portable implementation`() {
         forEachPattern { x, dense ->
             val expected = dense.copyOf()
-            F64ReferenceSparseLinearAlgebra.scatter(x, expected)
+            ReferenceSparseLinearAlgebra.scatter(x, expected)
 
             val actual = dense.copyOf()
             SparseSimd.scatter(x.indices, x.values, actual)
@@ -101,7 +101,7 @@ class JvmVectorScatterTest {
     fun `indexed gather agrees with the portable implementation`() {
         forEachPattern { x, dense ->
             val expected = SparseVector.wrap(x.size, x.indices.copyOf(), x.values.copyOf())
-            F64ReferenceSparseLinearAlgebra.gather(expected, dense.copyOf())
+            ReferenceSparseLinearAlgebra.gather(expected, dense.copyOf())
 
             val actual = SparseVector.wrap(x.size, x.indices.copyOf(), x.values.copyOf())
             SparseSimd.gather(actual.indices, actual.values, dense.copyOf())
@@ -115,7 +115,7 @@ class JvmVectorScatterTest {
         forEachPattern { x, dense ->
             val expectedX = SparseVector.wrap(x.size, x.indices.copyOf(), x.values.copyOf())
             val expectedDense = dense.copyOf()
-            F64ReferenceSparseLinearAlgebra.gatherZero(expectedX, expectedDense)
+            ReferenceSparseLinearAlgebra.gatherZero(expectedX, expectedDense)
 
             val actualX = SparseVector.wrap(x.size, x.indices.copyOf(), x.values.copyOf())
             val actualDense = dense.copyOf()
@@ -130,7 +130,7 @@ class JvmVectorScatterTest {
     fun `indexed axpy agrees with the portable implementation`() {
         forEachPattern { x, dense ->
             val expected = dense.copyOf()
-            F64ReferenceSparseLinearAlgebra.axpy(expected, -0.75, x)
+            ReferenceSparseLinearAlgebra.axpy(expected, -0.75, x)
 
             val actual = dense.copyOf()
             SparseSimd.axpy(x.indices, x.values, actual, -0.75)

@@ -4,7 +4,7 @@ import com.eignex.koblas.*
 import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DenseVector
 import com.eignex.koblas.SparseMatrix
-import com.eignex.koblas.sparse.F64ReferenceSparseDecompositions
+import com.eignex.koblas.sparse.ReferenceSparseDecompositions
 import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.Test
@@ -189,7 +189,7 @@ class BlasConformanceTest {
         val a = DenseMatrix(2, 2, doubleArrayOf(Double.POSITIVE_INFINITY, 1.0, 2.0, 3.0))
         val y = DoubleArray(2)
 
-        F64ReferenceBlas.gemv(1.0, a, doubleArrayOf(0.0, 1.0), 0.0, y)
+        ReferenceBlas.gemv(1.0, a, doubleArrayOf(0.0, 1.0), 0.0, y)
 
         assertTrue(y[0].isNaN(), "zero times infinity was ${y[0]}")
         assertEquals(3.0, y[1])
@@ -221,7 +221,7 @@ class BlasConformanceTest {
             for (transposeB in booleanArrayOf(false, true)) {
                 val c = DenseMatrix(2, 2)
 
-                F64ReferenceBlas.gemm(1.0, a, transposeA, b, transposeB, 0.0, c)
+                ReferenceBlas.gemm(1.0, a, transposeA, b, transposeB, 0.0, c)
 
                 assertTrue(c[0, 0].isNaN(), "transposeA=$transposeA transposeB=$transposeB produced ${c[0, 0]}")
             }
@@ -261,7 +261,7 @@ class BlasConformanceTest {
                     }
                 }
                 val actual = DenseMatrix(m, n)
-                F64ReferenceBlas.gemm(
+                ReferenceBlas.gemm(
                     1.0,
                     a,
                     transposeA,
@@ -398,7 +398,7 @@ class BlasConformanceTest {
                 (0 until n).mapNotNull { i -> if (dense[i, j] != 0.0) i to dense[i, j] else null }
             }
             val sparse = SparseMatrix.ofColumns(n, n, cols)
-            val lu = F64ReferenceSparseDecompositions(equilibrate = true).factor(sparse)
+            val lu = ReferenceSparseDecompositions(equilibrate = true).factor(sparse)
             if (lu.singular) continue
             val xTrue = DoubleArray(n) { rng.nextDouble(-2.0, 2.0) }
             val b = koblas.gemv(sparse, xTrue)

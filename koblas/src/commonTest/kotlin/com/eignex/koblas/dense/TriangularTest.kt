@@ -243,7 +243,7 @@ class TriangularTest {
     fun `trsv divides by a zero diagonal instead of reporting it`() {
         val singular = DenseMatrix.of(arrayOf(doubleArrayOf(1.0, 0.0), doubleArrayOf(3.0, 0.0)))
         val x = doubleArrayOf(1.0, 1.0)
-        F64ReferenceBlas.trsv(singular, x, lower = true)
+        ReferenceBlas.trsv(singular, x, lower = true)
         assertTrue(!x[1].isFinite(), "expected a non-finite entry from the zero pivot, got ${x[1]}")
     }
 
@@ -252,7 +252,7 @@ class TriangularTest {
         val singular = DenseMatrix.of(arrayOf(doubleArrayOf(0.0, 0.0), doubleArrayOf(Double.NaN, 1.0)))
         val x = DoubleArray(2)
 
-        F64ReferenceBlas.trsv(singular, x, lower = true)
+        ReferenceBlas.trsv(singular, x, lower = true)
 
         assertContentEquals(DoubleArray(2), x)
     }
@@ -262,7 +262,7 @@ class TriangularTest {
         val singular = DenseMatrix.of(arrayOf(doubleArrayOf(0.0, 0.0), doubleArrayOf(0.0, 1.0)))
         val x = DoubleArray(2)
 
-        F64ReferenceBlas.trsv(singular, x, lower = true, transpose = true)
+        ReferenceBlas.trsv(singular, x, lower = true, transpose = true)
 
         assertTrue(x[0].isNaN())
     }
@@ -272,7 +272,7 @@ class TriangularTest {
         val triangle = DenseMatrix.diagonal(2)
         val x = doubleArrayOf(0.0, Double.POSITIVE_INFINITY)
 
-        F64ReferenceBlas.trsv(triangle, x, lower = true, transpose = true)
+        ReferenceBlas.trsv(triangle, x, lower = true, transpose = true)
 
         assertTrue(x[0].isNaN())
     }
@@ -282,7 +282,7 @@ class TriangularTest {
         val triangle = DenseMatrix.diagonal(2)
         val b = DenseMatrix(1, 2, doubleArrayOf(Double.POSITIVE_INFINITY, 1.0))
 
-        F64ReferenceBlas.trsm(triangle, b, lower = true, right = true)
+        ReferenceBlas.trsm(triangle, b, lower = true, right = true)
 
         assertEquals(Double.POSITIVE_INFINITY, b[0, 0])
         assertEquals(1.0, b[0, 1])
@@ -293,7 +293,7 @@ class TriangularTest {
         val triangle = DenseMatrix.diagonal(2)
         val b = DenseMatrix(1, 2, doubleArrayOf(Double.POSITIVE_INFINITY, 1.0))
 
-        F64ReferenceBlas.trmm(triangle, b, lower = true, right = true)
+        ReferenceBlas.trmm(triangle, b, lower = true, right = true)
 
         assertEquals(Double.POSITIVE_INFINITY, b[0, 0])
         assertEquals(1.0, b[0, 1])
@@ -307,7 +307,7 @@ class TriangularTest {
         triangle[n - 1, 0] = Double.POSITIVE_INFINITY
         val b = DenseMatrix(n, 1).also { it[0, 0] = Double.MIN_VALUE }
 
-        F64ReferenceBlas.trsm(triangle, b, lower = true)
+        ReferenceBlas.trsm(triangle, b, lower = true)
 
         assertTrue(b[n - 1, 0].isNaN(), "underflowed pivot did not form the cross-block product")
     }

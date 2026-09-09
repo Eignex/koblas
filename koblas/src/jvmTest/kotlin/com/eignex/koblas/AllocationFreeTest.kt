@@ -2,8 +2,8 @@ package com.eignex.koblas
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.*
-import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.REFERENCE_SPARSE_RHS_WIDTH
+import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.lu
 import com.eignex.koblas.sparse.sparseConformanceSystem
 import com.eignex.koblas.testutil.allocation.allocatedBytes
@@ -27,10 +27,10 @@ class AllocationFreeTest {
         installBackends(
             koblas.with(
                 kernels = ScalarKernels,
-                blas = F64ReferenceBlas,
-                sparseBlas = F64ReferenceSparseLinearAlgebra,
-                sparseDecompositions = F64ReferenceSparseLinearAlgebra,
-                sparseKernels = F64ReferenceSparseLinearAlgebra,
+                blas = ReferenceBlas,
+                sparseBlas = ReferenceSparseLinearAlgebra,
+                sparseDecompositions = ReferenceSparseLinearAlgebra,
+                sparseKernels = ReferenceSparseLinearAlgebra,
             ),
         )
     }
@@ -339,7 +339,7 @@ class AllocationFreeTest {
         // dispatch policy built twelve BackendStatus objects, up to twelve BackendMetadata, a list and two
         // sets. Nothing in this suite covered it: the other cases all run the default AUTO context, where
         // the policy path never executes.
-        val query = F64RouteQuery.DenseGemv(64, 64)
+        val query = RouteQuery.DenseGemv(64, 64)
 
         val single = bytesPerIteration(2000) { koblas.route(query) }
         val whole = bytesPerIteration(2000) { koblas.status }

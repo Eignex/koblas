@@ -25,10 +25,10 @@ class SparseBenchmark {
     private lateinit var rankX: SparseVector
     private lateinit var rankY: DenseVector
 
-    private lateinit var luFactored: F64SparseFactorization
+    private lateinit var luFactored: SparseFactorization
 
     /** The portable factorization set to scale rows, which is where equilibration lives now. */
-    private val equilibrating = F64ReferenceSparseDecompositions(equilibrate = true)
+    private val equilibrating = ReferenceSparseDecompositions(equilibrate = true)
 
     @Setup
     fun setup() {
@@ -63,10 +63,10 @@ class SparseBenchmark {
     fun sparseGemvTransposed(): DoubleArray = koblas.gemv(a, rhs, transpose = true)
 
     @Benchmark
-    fun sparseLuFactor(): F64SparseFactorization = a.lu()
+    fun sparseLuFactor(): SparseFactorization = a.lu()
 
     @Benchmark
-    fun sparseLuFactorEquilibrated(): F64SparseFactorization =
+    fun sparseLuFactorEquilibrated(): SparseFactorization =
         equilibrating.factor(a)
 
     @Benchmark

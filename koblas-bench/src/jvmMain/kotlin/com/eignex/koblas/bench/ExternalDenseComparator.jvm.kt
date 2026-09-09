@@ -8,7 +8,7 @@ import java.lang.invoke.MethodHandle
 
 @OptIn(ExperimentalKoblasApi::class)
 internal actual fun explicitBuiltInContext(): KoblasContext {
-    val provider = F64BuiltinKernels.simd ?: F64BuiltinKernels.c ?: F64BuiltinKernels.scalar
+    val provider = BuiltinKernels.simd ?: BuiltinKernels.c ?: BuiltinKernels.scalar
     return ContextBuilder().withBuiltinKernels(provider).resolve()
 }
 

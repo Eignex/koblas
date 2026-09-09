@@ -1,0 +1,263 @@
+package com.eignex.koblas.sparse
+
+import com.eignex.koblas.*
+import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.SparseMatrix
+import com.eignex.koblas.SparseVector
+import com.eignex.koblas.requireSquare
+
+/**
+ * A factorization held for reuse against further right-hand sides.
+ *
+ * Close a factorization when it is no longer needed. Portable implementations own no external resource and
+ * use the default no-op [close]. Native implementations release their factors deterministically; closing
+ * them is idempotent, and subsequent reads of [nnz] or [rcond] and calls to [solveInto] throw
+ * [IllegalStateException]. [n], [failedAt], and [singular] remain available after close.
+ */
+public interface SparseFactorization : AutoCloseable {
+    /** The dimension of the factored matrix. */
+    public val n: Int
+
+    /**
+     * The pivot position that had no numerically acceptable candidate, or [NOT_SINGULAR] when the
+     * factorization succeeded.
+     */
+    public val failedAt: Int
+
+    /**
+     * Whether the factorization failed for want of a numerically acceptable pivot. Solving against one
+     * throws [com.eignex.koblas.SingularMatrix] rather than answering with infinities.
+     */
+    public val singular: Boolean get() = failedAt != NOT_SINGULAR
+
+    /** Nonzeros in the factors, the fill. Zero for a singular factorization, which has none. */
+    public val nnz: Int
+
+    /**
+     * A cheap pivot-quality estimate: `min(abs(U(k, k))) / max(abs(U(k, k)))`. A small value warns that
+     * the factorization may be inaccurate; it is not a reciprocal condition-number estimate.
+     */
+    public val rcond: Double
+
+    /**
+     * Allocation behavior of [solveInto] for this factorization and argument shape. The default is
+     * conservative for third-party implementations that have not declared a contract.
+     */
+    public fun solveAllocation(aliasing: Boolean = true, transpose: Boolean = false): AllocationCapability =
+        unrestrictedAllocation
+
+    /**
+     * Solve `B x = b`, or `Bᵀ x = b` when [transpose], into [out], which is returned. [out] may be [b].
+     * [solveAllocation] reports the precise managed scratch and intrinsic allocation guarantee; use the
+     * strict overload below when the contract must be enforced before execution.
+     */
+    public fun solveInto(
+        b: DoubleArray,
+        out: DoubleArray,
+        transpose: Boolean = false,
+        workspace: Workspace? = null,
+    ): DoubleArray
+
+    /** Solve every column of [b] into a fresh dense result. */
+    public fun solve(b: DenseMatrix, transpose: Boolean = false): DenseMatrix {
+        requireShape(b.rows == n) { "solve: B has ${b.rows} rows, expected $n" }
+        return solveInto(b, DenseMatrix(n, b.cols), transpose)
+    }
+
+    /**
+     * Solve every right-hand-side column of [b] into [out]. The default is alias-safe and calls the vector
+     * solve once per column; providers with a block ABI override it with one foreign call.
+     */
+    public fun solveInto(
+        b: DenseMatrix,
+        out: DenseMatrix,
+        transpose: Boolean = false,
+        workspace: Workspace? = null,
+    ): DenseMatrix {
+        requireSolveShapes(n, n, b, out)
+        if (b.cols == 0) return out
+        workspace.borrow(n) { rhs ->
+            workspace.borrow(n) { solved ->
+                for (column in 0 until b.cols) {
+                    b.data.copyInto(rhs, 0, column * n, (column + 1) * n)
+                    solveInto(rhs, solved, transpose, workspace)
+                    solved.copyInto(out.data, column * n, 0, n)
+                }
+            }
+        }
+        return out
+    }
+
+    /**
+     * Strict form of [solveInto]. Rejects [allocationPolicy] before mutation when the declared capability or
+     * currently idle [workspace] buffers cannot honor it.
+     */
+    public fun solveInto(
+        b: DoubleArray,
+        out: DoubleArray,
+        transpose: Boolean = false,
+        workspace: Workspace? = null,
+        allocationPolicy: AllocationPolicy,
+    ): DoubleArray {
+        requireSolveShapes(n, n, b, out)
+        val capability = solveAllocation(b === out, transpose)
+        if (!capability.supports(allocationPolicy, workspace)) {
+            throw AllocationPolicyRejectedException(allocationPolicy, capability)
+        }
+        return solveInto(b, out, transpose, workspace)
+    }
+
+    /** Solve `B x = b`, or `Bᵀ x = b` when [transpose], into a fresh result. */
+    public fun solve(b: DoubleArray, transpose: Boolean = false): DoubleArray = solveInto(b, DoubleArray(n), transpose)
+
+    /** Releases resources owned by this factorization. Portable implementations have nothing to release. */
+    override fun close() {}
+}
+
+/**
+ * A sparse factorization of a simplex basis that can follow a replacement of one basis column.
+ *
+ * [replaceColumn] returns the factorization of the resulting basis, which supersedes this factorization. An
+ * implementation may update its factors directly or rebuild them when the replacement would be too dense or
+ * numerically unsafe to update.
+ */
+public interface BasisFactorization : SparseLuFactorization {
+    /** The square basis matrix represented by this factorization. */
+    public val basis: SparseMatrix
+
+    /**
+     * Replace [column] of [basis] with [entering] and return the factorization of the resulting basis, which
+     * supersedes this factorization.
+     *
+     * [column] must name a column of [basis], and [entering] must have length [n].
+     */
+    public fun replaceColumn(column: Int, entering: SparseVector): BasisFactorization
+}
+
+/**
+ * What [SparseLapack.factor] returns when no numerically acceptable pivot remains.
+ *
+ * It fills the LU shape so a caller need not branch on the type, and raises on every factor: elimination
+ * stopped before producing them, so there is nothing to hand back.
+ */
+public class SingularSparseFactorization(override val n: Int, override val failedAt: Int) : SparseLuFactorization {
+    override val l: SparseMatrix get() = throw singularFailure(failedAt, "l")
+
+    override val u: SparseMatrix get() = throw singularFailure(failedAt, "u")
+
+    override val rowOrder: IntArray get() = throw singularFailure(failedAt, "rowOrder")
+
+    override val columnOrder: IntArray get() = throw singularFailure(failedAt, "columnOrder")
+
+    override val rowScaling: DoubleArray get() = throw singularFailure(failedAt, "rowScaling")
+
+    override val offDiagonal: SparseMatrix get() = throw singularFailure(failedAt, "offDiagonal")
+
+    override val nnz: Int get() = 0
+
+    override val rcond: Double get() = 0.0
+
+    override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability =
+        noManagedOrNativeAllocation
+
+    override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray =
+        throw singularFailure(failedAt, "solve")
+}
+
+/**
+ * A basis factorization over any [SparseLapack], for a backend that cannot update its own factors. A
+ * replacement refactorizes the basis it produces, so the factors stay exact at the cost of a factorization
+ * per replacement.
+ *
+ * Public because it is what a caller wanting a basis factorization from a backend that does not offer one
+ * builds it from. Nothing koblas binds offers one natively.
+ */
+public class RefactoringBasisFactorization(
+    private val lu: SparseLapack,
+    override val basis: SparseMatrix,
+    private val factors: SparseLuFactorization,
+) : BasisFactorization {
+    private var closed = false
+
+    init {
+        requireSquare(basis, "factorBasis")
+    }
+
+    override val n: Int get() = factors.n
+
+    override val failedAt: Int get() = factors.failedAt
+
+    override val l: SparseMatrix
+        get() {
+            checkOpen()
+            return factors.l
+        }
+
+    override val u: SparseMatrix
+        get() {
+            checkOpen()
+            return factors.u
+        }
+
+    override val rowOrder: IntArray
+        get() {
+            checkOpen()
+            return factors.rowOrder
+        }
+
+    override val columnOrder: IntArray
+        get() {
+            checkOpen()
+            return factors.columnOrder
+        }
+
+    override val rowScaling: DoubleArray
+        get() {
+            checkOpen()
+            return factors.rowScaling
+        }
+
+    override val offDiagonal: SparseMatrix
+        get() {
+            checkOpen()
+            return factors.offDiagonal
+        }
+
+    override val nnz: Int get() {
+        checkOpen()
+        return factors.nnz
+    }
+
+    override val rcond: Double get() {
+        checkOpen()
+        return factors.rcond
+    }
+
+    override fun solveAllocation(aliasing: Boolean, transpose: Boolean): AllocationCapability {
+        checkOpen()
+        return factors.solveAllocation(aliasing, transpose)
+    }
+
+    override fun replaceColumn(column: Int, entering: SparseVector): BasisFactorization {
+        checkOpen()
+        val next = basis.withColumn(column, entering)
+        val replacement = RefactoringBasisFactorization(lu, next, lu.factor(next))
+        close()
+        return replacement
+    }
+
+    override fun solveInto(b: DoubleArray, out: DoubleArray, transpose: Boolean, workspace: Workspace?): DoubleArray {
+        checkOpen()
+        return factors.solveInto(b, out, transpose, workspace)
+    }
+
+    override fun close() {
+        if (closed) return
+        closed = true
+        factors.close()
+    }
+
+    private fun checkOpen() {
+        check(!closed) { "basis factorization is closed" }
+    }
+}

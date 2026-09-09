@@ -4,7 +4,7 @@ package com.eignex.koblas
 
 import com.eignex.koblas.*
 import com.eignex.koblas.dense.Blas
-import com.eignex.koblas.dense.F64ReferenceBlas
+import com.eignex.koblas.dense.ReferenceBlas
 import kotlin.math.abs
 import kotlin.math.sqrt
 import kotlin.random.Random
@@ -578,12 +578,12 @@ class OpsTest {
     @Test
     fun `transpose reaches the registered backend`() = withCleanBackends {
         var calls = 0
-        val counting = object : Blas by F64ReferenceBlas {
+        val counting = object : Blas by ReferenceBlas {
             override val name: String get() = "counting"
             override val priority: Int get() = 50
             override fun transpose(a: DenseMatrix): DenseMatrix {
                 calls++
-                return F64ReferenceBlas.transpose(a)
+                return ReferenceBlas.transpose(a)
             }
         }
         registerBackend(counting)

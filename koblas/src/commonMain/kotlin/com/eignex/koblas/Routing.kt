@@ -3,12 +3,12 @@ package com.eignex.koblas
 import com.eignex.koblas.internal.backend.BackendNames
 
 /** An operation whose runtime route can be inspected before it is executed. */
-public sealed interface F64RouteQuery {
+public sealed interface RouteQuery {
     /** The context role that owns this operation. */
     public val role: BackendRole
 
     /** A dense matrix-vector product over a matrix of [rows] by [cols]. */
-    public data class DenseGemv(val rows: Int, val cols: Int) : F64RouteQuery {
+    public data class DenseGemv(val rows: Int, val cols: Int) : RouteQuery {
         override val role: BackendRole get() = BackendRole.DENSE_BLAS
 
         init {
@@ -18,7 +18,7 @@ public sealed interface F64RouteQuery {
     }
 
     /** A dense product with result shape `[m] x [n]` and inner dimension [k]. */
-    public data class DenseGemm(val m: Int, val n: Int, val k: Int) : F64RouteQuery {
+    public data class DenseGemm(val m: Int, val n: Int, val k: Int) : RouteQuery {
         override val role: BackendRole get() = BackendRole.DENSE_BLAS
 
         init {
@@ -36,7 +36,7 @@ public sealed interface F64RouteQuery {
         val storedEntries: Int,
         val right: Boolean = false,
         val transposeDense: Boolean = false,
-    ) : F64RouteQuery {
+    ) : RouteQuery {
         override val role: BackendRole get() = BackendRole.SPARSE_BLAS
 
         init {
@@ -51,7 +51,7 @@ public sealed interface F64RouteQuery {
      * @property kind the product family whose amortized gate is inspected.
      */
     public data class PreparedSparseProduct(val storedEntries: Int, val kind: PreparedSparseProductKind) :
-        F64RouteQuery {
+        RouteQuery {
         override val role: BackendRole get() = BackendRole.SPARSE_BLAS
 
         init {
@@ -79,7 +79,7 @@ public sealed interface F64RouteQuery {
         val right: Boolean = false,
         val transpose: Boolean = false,
         val unitDiagonal: Boolean = false,
-    ) : F64RouteQuery {
+    ) : RouteQuery {
         override val role: BackendRole get() = BackendRole.SPARSE_BLAS
 
         init {
@@ -89,7 +89,7 @@ public sealed interface F64RouteQuery {
     }
 
     /** A sparse QR factorization of a matrix with [storedEntries] stored entries. */
-    public data class SparseQr(val storedEntries: Int) : F64RouteQuery {
+    public data class SparseQr(val storedEntries: Int) : RouteQuery {
         override val role: BackendRole get() = BackendRole.SPARSE_QR
 
         init {
@@ -98,7 +98,7 @@ public sealed interface F64RouteQuery {
     }
 
     /** A general sparse LU factorization of a matrix with [storedEntries] stored entries. */
-    public data class SparseLu(val storedEntries: Int) : F64RouteQuery {
+    public data class SparseLu(val storedEntries: Int) : RouteQuery {
         override val role: BackendRole get() = BackendRole.SPARSE_GENERAL_LU
 
         init {
@@ -119,7 +119,7 @@ public enum class PreparedSparseProductKind {
     SPARSE_GEMM,
 }
 
-/** Whether an [F64RouteQuery.SparseTriangular] eliminates the triangle or applies it directly. */
+/** Whether an [RouteQuery.SparseTriangular] eliminates the triangle or applies it directly. */
 public enum class SparseTriangularKind {
     /** The triangle is solved against, as in `trsv`/`trsm`. */
     SOLVE,
@@ -193,7 +193,7 @@ public data class DispatchGate(val metric: DispatchMetric, val actual: Long, val
  * @property gate a backend-specific threshold comparison, when one is reported.
  */
 public data class BackendRoute(
-    val query: F64RouteQuery,
+    val query: RouteQuery,
     val selected: BackendStatus,
     val execution: BackendExecution,
     val executor: String,
@@ -205,13 +205,13 @@ public data class BackendRoute(
 }
 
 /** Optional operation-level routing diagnostics implemented by backends that make per-call decisions. */
-public interface F64RoutingBackend : Backend {
+public interface RoutingBackend : Backend {
     /** The route for [query], or null when this backend does not report that operation. */
-    public fun route(query: F64RouteQuery): BackendRoute?
+    public fun route(query: RouteQuery): BackendRoute?
 }
 
 /** Predicts where [query] will execute without performing the operation. */
-public fun KoblasContext.route(query: F64RouteQuery): BackendRoute {
+public fun KoblasContext.route(query: RouteQuery): BackendRoute {
     val backend = backendFor(query.role)
     val selected = statusFor(query.role)
     if (backend.isPortable) {
@@ -223,7 +223,7 @@ public fun KoblasContext.route(query: F64RouteQuery): BackendRoute {
             BackendRouteReason.SELECTED_PORTABLE,
         )
     }
-    val reported = (backend as? F64RoutingBackend)?.route(query)
+    val reported = (backend as? RoutingBackend)?.route(query)
     return reported?.copy(selected = selected) ?: BackendRoute(
         query,
         selected,
@@ -234,7 +234,7 @@ public fun KoblasContext.route(query: F64RouteQuery): BackendRoute {
 }
 
 /** What [backend] reports for [query]'s half, as every route a backend builds for itself records it. */
-private fun selectedStatus(query: F64RouteQuery, backend: Backend): BackendStatus =
+private fun selectedStatus(query: RouteQuery, backend: Backend): BackendStatus =
     backendStatus(query.role, backend, accelerated = !backend.isPortable)
 
 /**
@@ -242,7 +242,7 @@ private fun selectedStatus(query: F64RouteQuery, backend: Backend): BackendStatu
  * the half stays the host's. [actual] and [minimum] are what the backend compared.
  */
 internal fun belowThreshold(
-    query: F64RouteQuery,
+    query: RouteQuery,
     backend: Backend,
     metric: DispatchMetric,
     actual: Int,
@@ -259,7 +259,7 @@ internal fun belowThreshold(
 
 /** Builds the native route or unavailable fallback shared by the host adapters. */
 internal fun nativeRoute(
-    query: F64RouteQuery,
+    query: RouteQuery,
     backend: Backend,
     portableExecutor: String = BackendNames.REFERENCE,
     fallbackWhenUnavailable: Boolean = true,
@@ -295,7 +295,7 @@ internal fun nativeRoute(
 
 /** Builds a reported portable route that does not depend on a threshold. */
 internal fun portableRoute(
-    query: F64RouteQuery,
+    query: RouteQuery,
     backend: Backend,
     portableExecutor: String,
     reason: BackendRouteReason,

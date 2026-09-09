@@ -11,7 +11,7 @@ import kotlin.test.assertEquals
  */
 
 /** `L·U + F = P·diag(rowScaling)·A·Q`, the identity an LU reports its factors against. */
-internal fun assertLuFactorsReproduce(a: SparseMatrix, lu: F64SparseLuFactorization, context: String) {
+internal fun assertLuFactorsReproduce(a: SparseMatrix, lu: SparseLuFactorization, context: String) {
     val n = a.rows
     val position = IntArray(n)
     for (k in 0 until n) position[lu.rowOrder[k]] = k
@@ -25,11 +25,7 @@ internal fun assertLuFactorsReproduce(a: SparseMatrix, lu: F64SparseLuFactorizat
 }
 
 /** `L·Lᵀ = P·A·Pᵀ`, over the full matrix the stored lower triangle stands for. */
-internal fun assertCholeskyFactorReproduces(
-    a: SparseMatrix,
-    cholesky: F64SparseCholeskyFactorization,
-    context: String,
-) {
+internal fun assertCholeskyFactorReproduces(a: SparseMatrix, cholesky: SparseCholeskyFactorization, context: String) {
     assertClose(
         permuted(symmetrized(a), cholesky.order),
         gram(cholesky.l) { 1.0 },
@@ -44,7 +40,7 @@ internal fun assertCholeskyFactorReproduces(
  * `L`'s unit diagonal is implicit, so it is supplied here rather than read; that is the whole difference
  * between this and the Cholesky identity above.
  */
-internal fun assertLdlFactorsReproduce(a: SparseMatrix, ldl: F64QuasiDefiniteLdlFactorization, context: String) {
+internal fun assertLdlFactorsReproduce(a: SparseMatrix, ldl: QuasiDefiniteLdlFactorization, context: String) {
     val d = ldl.d
     assertEquals(
         FactorizationInertia(

@@ -3,7 +3,7 @@
 
 package com.eignex.koblas.dense.host.cblas
 
-import com.eignex.koblas.dense.F64ReferenceBlas
+import com.eignex.koblas.dense.ReferenceBlas
 import com.eignex.koblas.dense.host.*
 import com.eignex.koblas.installBackends
 import com.eignex.koblas.koblas
@@ -11,18 +11,18 @@ import kotlin.test.*
 
 /** Checks the CBLAS backend against the reference implementation. */
 class CblasConformanceTest {
-    private val cblas = F64CblasBackend()
+    private val cblas = OpenBlasBackend()
 
     @Test
     fun `the native BLAS consumes strided views in place`() =
-        assertStridedProductsAgreeWithReference(F64CblasBackend(HostBlasConfig()))
+        assertStridedProductsAgreeWithReference(OpenBlasBackend(HostBlasConfig()))
 
     @Test
     fun `discovery registers BLAS and install overrides it`() {
-        assertTrue(F64CblasBackend.isAvailable(), "host OpenBLAS expected in the test environment")
+        assertTrue(OpenBlasBackend.isAvailable(), "host OpenBLAS expected in the test environment")
         assertEquals("cblas", koblas.blas.name)
         try {
-            installBackends(koblas.with(blas = F64ReferenceBlas))
+            installBackends(koblas.with(blas = ReferenceBlas))
             assertEquals("reference", koblas.blas.name)
         } finally {
             installBackends(null)

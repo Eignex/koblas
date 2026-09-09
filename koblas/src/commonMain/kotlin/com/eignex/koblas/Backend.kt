@@ -75,7 +75,7 @@ public const val HOST_BACKEND_PRIORITY: Int = 100
  * backend gets the context's kernels too, and a portable default added later joins in without the builder
  * having to learn about it.
  */
-public interface F64RebindableBackend : Backend {
+public interface RebindableBackend : Backend {
     /** Whether this backend carries kernels of its own, which a context must leave alone. */
     public val hasOwnKernels: Boolean
 }
@@ -87,7 +87,7 @@ public interface F64RebindableBackend : Backend {
  * [canonicalName] a deployment configures. Declaring the second is what lets the registry match a pin and
  * let a configured library take precedence, rather than reading the distinction out of the provider's name.
  */
-public interface F64BundledBackend : Backend {
+public interface BundledBackend : Backend {
     /** The name a caller configures this library under, which this provider also answers to. */
     public val canonicalName: String
 }

@@ -9,7 +9,7 @@ import com.eignex.koblas.dense.PlatformKernels
 internal object BackendRegistry {
 
     /** Where the double-precision registrations live; an element type added later gets a registry beside it. */
-    private val f64 = F64Registry()
+    private val f64 = Registry()
 
     /** The gate discovery runs behind, which is also what makes a second caller wait for it. */
     private val discovery = RunOnce()

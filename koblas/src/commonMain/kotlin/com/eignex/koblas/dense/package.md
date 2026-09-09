@@ -10,15 +10,15 @@ Dense linear algebra: the two swappable seams and the routines behind them.
   solves [trsv] / [trsm] and their multiply counterparts. Named Boolean parameters select the triangle,
   transpose, diagonal, and side.
 - [Blas] providers are offered through [com.eignex.koblas.registerBackend], forced with
-  [com.eignex.koblas.installBackends], and resolved as [com.eignex.koblas.koblas]. [F64ReferenceBlas]
+  [com.eignex.koblas.installBackends], and resolved as [com.eignex.koblas.koblas]. [ReferenceBlas]
   is the portable implementation every backend is validated against.
 - Ergonomic entry points cover Kotlin arithmetic operators, matrix products, symmetric updates, and triangular
   solve and multiply operations.
 
-[F64StridedMatrixView][com.eignex.koblas.F64StridedMatrixView] and
+[StridedMatrixView][com.eignex.koblas.StridedMatrixView] and
 [StridedVectorView][com.eignex.koblas.StridedVectorView] are live zero-copy views. Panels retain
-their parent's column-major leading dimension; their [row][com.eignex.koblas.F64StridedMatrixView.row]
-and [column][com.eignex.koblas.F64StridedMatrixView.column] views retain the corresponding stride.
+their parent's column-major leading dimension; their [row][com.eignex.koblas.StridedMatrixView.row]
+and [column][com.eignex.koblas.StridedMatrixView.column] views retain the corresponding stride.
 Mutations through a view or another reference to its backing array are visible to each other. View `gemv` and
 `gemm` preserve offsets and strides through JVM and Kotlin/Native CBLAS; negative
 vector strides use the portable loop. Output views may share a buffer with disjoint inputs, but an actual

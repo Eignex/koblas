@@ -21,6 +21,6 @@ private fun registerHostBlas(requested: Map<BackendSlot, String?>) {
     )
     val loader = OpenBlasLoader(config)
     val cblas = loader.cblas ?: return
-    val blas = F64Cblas(cblas, loader, config)
+    val blas = OpenBlas(cblas, loader, config)
     registerIfOffered(blas, requested)
 }

@@ -15,7 +15,7 @@ public interface SparseBlas : Backend {
      * should close it with `use`. Portable backends retain an ordinary CSC copy; native backends may retain
      * native descriptors and buffers.
      */
-    public fun prepare(a: SparseMatrix): F64PreparedSparseMatrix = ReferencePreparedSparseMatrix(a)
+    public fun prepare(a: SparseMatrix): PreparedSparseMatrix = ReferencePreparedSparseMatrix(a)
 
     /**
      * In-place `y = alpha · op(A) · x + beta · y`, where `op(A)` is `Aᵀ` when [transpose]. Per BLAS
@@ -169,7 +169,7 @@ public interface SparseBlas : Backend {
  * Calls after [close] throw [IllegalStateException], and close is idempotent. A handle and close must not be
  * used concurrently; callers that share a handle between threads must serialize its operations.
  */
-public interface F64PreparedSparseMatrix : AutoCloseable {
+public interface PreparedSparseMatrix : AutoCloseable {
     /** Rows in the prepared sparse matrix. */
     public val rows: Int
 
@@ -202,7 +202,7 @@ public interface F64PreparedSparseMatrix : AutoCloseable {
     override fun close()
 }
 
-private class ReferencePreparedSparseMatrix(a: SparseMatrix) : F64PreparedSparseMatrix {
+private class ReferencePreparedSparseMatrix(a: SparseMatrix) : PreparedSparseMatrix {
     private val snapshot = sparseSnapshotOf(a)
     private var closed = false
 
@@ -212,7 +212,7 @@ private class ReferencePreparedSparseMatrix(a: SparseMatrix) : F64PreparedSparse
 
     override fun gemv(alpha: Double, x: DoubleArray, beta: Double, y: DoubleArray, transpose: Boolean) {
         checkOpen()
-        F64ReferenceSparseLinearAlgebra.gemv(alpha, snapshot, x, beta, y, transpose)
+        ReferenceSparseLinearAlgebra.gemv(alpha, snapshot, x, beta, y, transpose)
     }
 
     override fun gemm(
@@ -224,12 +224,12 @@ private class ReferencePreparedSparseMatrix(a: SparseMatrix) : F64PreparedSparse
         workspace: Workspace?,
     ) {
         checkOpen()
-        F64ReferenceSparseLinearAlgebra.gemm(alpha, snapshot, transposeA, b, false, beta, c, workspace = workspace)
+        ReferenceSparseLinearAlgebra.gemm(alpha, snapshot, transposeA, b, false, beta, c, workspace = workspace)
     }
 
     override fun gemm(b: SparseMatrix): SparseMatrix {
         checkOpen()
-        return F64ReferenceSparseLinearAlgebra.gemm(snapshot, b)
+        return ReferenceSparseLinearAlgebra.gemm(snapshot, b)
     }
 
     override fun close() {

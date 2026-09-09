@@ -34,6 +34,6 @@ internal fun f64ScaledValues(rowIdx: IntArray, values: DoubleArray, scale: Doubl
  * Undoes the scaling [f64EquilibrationScale] applied, in place in [x]. The factors are of `E·B`, so a forward
  * solve scales its right-hand side going in and a transposed solve scales its result coming out.
  */
-internal fun applyF64Equilibration(x: DoubleArray, scale: DoubleArray) {
+internal fun applyEquilibration(x: DoubleArray, scale: DoubleArray) {
     for (i in x.indices) x[i] *= scale[i]
 }

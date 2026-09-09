@@ -373,12 +373,12 @@ class SparseTriangularTest {
             override val name: String get() = "counting"
             override fun trsv(a: SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
                 solveCalls++
-                F64ReferenceSparseLinearAlgebra.trsv(a, x, lower, transpose, unitDiag)
+                ReferenceSparseLinearAlgebra.trsv(a, x, lower, transpose, unitDiag)
             }
 
             override fun trmv(a: SparseMatrix, x: DoubleArray, lower: Boolean, transpose: Boolean, unitDiag: Boolean) {
                 multiplyCalls++
-                F64ReferenceSparseLinearAlgebra.trmv(a, x, lower, transpose, unitDiag)
+                ReferenceSparseLinearAlgebra.trmv(a, x, lower, transpose, unitDiag)
             }
 
             @Suppress("LongParameterList")
@@ -389,9 +389,9 @@ class SparseTriangularTest {
                 beta: Double,
                 y: DoubleArray,
                 transpose: Boolean,
-            ) = F64ReferenceSparseLinearAlgebra.gemv(alpha, a, x, beta, y, transpose)
+            ) = ReferenceSparseLinearAlgebra.gemv(alpha, a, x, beta, y, transpose)
 
-            override fun transpose(a: SparseMatrix) = F64ReferenceSparseLinearAlgebra.transpose(a)
+            override fun transpose(a: SparseMatrix) = ReferenceSparseLinearAlgebra.transpose(a)
 
             @Suppress("LongParameterList")
             override fun gemm(
@@ -404,9 +404,9 @@ class SparseTriangularTest {
                 c: DenseMatrix,
                 right: Boolean,
                 workspace: Workspace?,
-            ) = F64ReferenceSparseLinearAlgebra.gemm(alpha, a, transposeA, b, transposeB, beta, c, right, workspace)
+            ) = ReferenceSparseLinearAlgebra.gemm(alpha, a, transposeA, b, transposeB, beta, c, right, workspace)
 
-            override fun gemm(a: SparseMatrix, b: SparseMatrix) = F64ReferenceSparseLinearAlgebra.gemm(a, b)
+            override fun gemm(a: SparseMatrix, b: SparseMatrix) = ReferenceSparseLinearAlgebra.gemm(a, b)
 
             @Suppress("LongParameterList")
             override fun trsm(
@@ -418,7 +418,7 @@ class SparseTriangularTest {
                 right: Boolean,
                 alpha: Double,
                 workspace: Workspace?,
-            ) = F64ReferenceSparseLinearAlgebra.trsm(a, b, lower, transpose, unitDiag, right, alpha, workspace)
+            ) = ReferenceSparseLinearAlgebra.trsm(a, b, lower, transpose, unitDiag, right, alpha, workspace)
 
             @Suppress("LongParameterList")
             override fun trmm(
@@ -429,7 +429,7 @@ class SparseTriangularTest {
                 unitDiag: Boolean,
                 right: Boolean,
                 alpha: Double,
-            ) = F64ReferenceSparseLinearAlgebra.trmm(a, b, lower, transpose, unitDiag, right, alpha)
+            ) = ReferenceSparseLinearAlgebra.trmm(a, b, lower, transpose, unitDiag, right, alpha)
         }
         registerBackend(counting)
         val t = SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 2.0), listOf(1 to 4.0)))

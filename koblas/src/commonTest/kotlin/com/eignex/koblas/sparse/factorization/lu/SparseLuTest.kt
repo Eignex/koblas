@@ -89,7 +89,7 @@ class SparseLuTest {
             val a = randomSparseSquare(n, rng)
             // The reference explicitly: this is a test of its elimination, and the fill it is compared against
             // below is the reference's own. Through the seam a host backend would answer with different fill.
-            val lu = F64ReferenceSparseDecompositions(equilibrate = true).factor(a)
+            val lu = ReferenceSparseDecompositions(equilibrate = true).factor(a)
             val x = DoubleArray(n) { rng.nextDouble(-3.0, 3.0) }
             assertClose(x, lu.solve(koblas.gemv(a, x)), "forward solve n=$n", tolerance = 1e-7)
             assertClose(
@@ -108,7 +108,7 @@ class SparseLuTest {
         val a = randomSparseSquare(n, rng, density = 0.02, dominance = 1.0)
         // The reference explicitly: this is a test of its elimination, and the fill it is compared against
         // below is the reference's own. Through the seam a host backend would answer with different fill.
-        val lu = F64ReferenceSparseDecompositions(equilibrate = true).factor(a)
+        val lu = ReferenceSparseDecompositions(equilibrate = true).factor(a)
         val b = randomVector(n, rng)
         assertClose(b, koblas.gemv(a, lu.solve(b)), "ftran residual", tolerance = 1e-8)
         assertClose(
@@ -119,7 +119,7 @@ class SparseLuTest {
         )
         // The bound is loose because random sparsity gives the ordering no structure to exploit.
         assertTrue(lu.nnz < 15 * a.nnz, "fill blew up: factor nnz=${lu.nnz} vs input nnz=${a.nnz}")
-        val dropped = F64ReferenceSparseDecompositions(equilibrate = true, dropTolerance = 1e-9).factor(a)
+        val dropped = ReferenceSparseDecompositions(equilibrate = true, dropTolerance = 1e-9).factor(a)
         assertTrue(
             dropped.nnz < lu.nnz / 2,
             "the drop tolerance should cut fill sharply here: ${dropped.nnz} against ${lu.nnz}",
@@ -129,8 +129,8 @@ class SparseLuTest {
     @Test
     fun `equilibration leaves a row it cannot scale into range alone`() {
         val a = SparseMatrix(2, 2, intArrayOf(0, 1, 2), intArrayOf(0, 1), doubleArrayOf(1e-320, 2e-320))
-        val plain = assertNotNull(F64ReferenceSparseDecompositions().factor(a))
-        val equilibrated = assertNotNull(F64ReferenceSparseDecompositions(equilibrate = true).factor(a))
+        val plain = assertNotNull(ReferenceSparseDecompositions().factor(a))
+        val equilibrated = assertNotNull(ReferenceSparseDecompositions(equilibrate = true).factor(a))
         assertEquals(plain.singular, equilibrated.singular, "equilibration changed the singularity verdict")
         assertEquals(plain.failedAt, equilibrated.failedAt, "equilibration changed the reported position")
     }
@@ -141,7 +141,7 @@ class SparseLuTest {
         repeat(60) {
             val n = rng.nextInt(1, 8)
             val a = randomSparseSquare(n, rng, density = 1.0)
-            val lu = assertNotNull(F64ReferenceSparseDecompositions().factor(a))
+            val lu = assertNotNull(ReferenceSparseDecompositions().factor(a))
             val x = DoubleArray(n) { rng.nextDouble(-3.0, 3.0) }
             assertClose(x, lu.solve(koblas.gemv(a, x)), "unequilibrated n=$n", tolerance = 1e-7)
         }
@@ -151,7 +151,7 @@ class SparseLuTest {
     fun `the reciprocal pivot condition estimate reads the U diagonal range`() {
         val matrix = square(doubleArrayOf(1.0, 0.0), doubleArrayOf(0.0, 4.0))
 
-        assertEquals(0.25, F64ReferenceSparseLinearAlgebra.factor(matrix).rcond)
+        assertEquals(0.25, ReferenceSparseLinearAlgebra.factor(matrix).rcond)
     }
 
     @Test
@@ -170,10 +170,10 @@ class SparseLuTest {
         }
         // The failing pivot position is koblas's own, so this uses the portable factorization. A host backend may
         // report only that the matrix is singular, so asserting a position against one would assert the machine.
-        val singular = F64ReferenceSparseLinearAlgebra.factor(
+        val singular = ReferenceSparseLinearAlgebra.factor(
             SparseMatrix.ofColumns(2, 2, listOf(listOf(0 to 1.0), listOf())),
         )
-        assertTrue(singular is F64SingularSparseFactorization)
+        assertTrue(singular is SingularSparseFactorization)
         assertEquals(1, singular.failedAt, "the second pivot is the one with no candidate")
     }
 
@@ -189,14 +189,14 @@ class SparseLuTest {
         val base = randomSparseSquare(6, rng, dominance = 1.5)
         val rhs = randomVector(6, rng)
         // These are koblas's own tolerances, so this uses the portable factorization rather than an installed backend.
-        val reference = F64ReferenceSparseLinearAlgebra.factor(base)
+        val reference = ReferenceSparseLinearAlgebra.factor(base)
         for (scale in doubleArrayOf(POW_2_MINUS_60, POW_2_60)) {
             val scaled = SparseMatrix.ofColumns(
                 6,
                 6,
                 List(6) { j -> buildList { base.forEachInColumn(j) { i, v -> add(i to v * scale) } } },
             )
-            val f = F64ReferenceSparseLinearAlgebra.factor(scaled)
+            val f = ReferenceSparseLinearAlgebra.factor(scaled)
             assertTrue(!f.singular, "scaling by $scale must not make a matrix singular")
             assertEquals(reference.nnz, f.nnz, "scaling by $scale changed the fill")
             val expected = reference.solve(rhs)
@@ -211,8 +211,8 @@ class SparseLuTest {
         val a = randomSparseSquare(40, rng, density = 0.2, dominance = 1.0)
         val rhs = randomVector(40, rng)
         // A drop tolerance falls back to the portable path, so the baseline takes it too rather than a host backend.
-        val exact = F64ReferenceSparseLinearAlgebra.factor(a)
-        val dropped = F64ReferenceSparseDecompositions(dropTolerance = 1e-3).factor(a)
+        val exact = ReferenceSparseLinearAlgebra.factor(a)
+        val dropped = ReferenceSparseDecompositions(dropTolerance = 1e-3).factor(a)
         assertTrue(
             dropped.nnz < exact.nnz,
             "a drop tolerance must discard fill: ${dropped.nnz} against ${exact.nnz}",
@@ -227,7 +227,7 @@ class SparseLuTest {
     @Test
     fun `a negative drop tolerance is rejected`() {
         assertFailsWith<IllegalArgumentException> {
-            F64ReferenceSparseDecompositions(dropTolerance = -1e-9).factor(randomSparseSquare(3, Random(1)))
+            ReferenceSparseDecompositions(dropTolerance = -1e-9).factor(randomSparseSquare(3, Random(1)))
         }
     }
 
@@ -238,12 +238,12 @@ class SparseLuTest {
             doubleArrayOf(1.0, 1.0, 1.0),
             doubleArrayOf(0.0, 1.0, 1.0),
         )
-        val lu = F64ReferenceSparseLinearAlgebra.factor(a)
+        val lu = ReferenceSparseLinearAlgebra.factor(a)
         assertEquals(6, lu.nnz, "the cancelled entry must not be stored")
         assertClose(doubleArrayOf(1.0, 2.0, 3.0), lu.solve(koblas.gemv(a, doubleArrayOf(1.0, 2.0, 3.0))), "solve")
     }
 
-    private fun residualOf(a: SparseMatrix, f: F64SparseFactorization, rhs: DoubleArray): Double {
+    private fun residualOf(a: SparseMatrix, f: SparseFactorization, rhs: DoubleArray): Double {
         val residual = koblas.gemv(a, f.solve(rhs))
         var worst = 0.0
         for (i in rhs.indices) worst = maxOf(worst, abs(residual[i] - rhs[i]))
@@ -262,7 +262,7 @@ class SparseLuTest {
             rows.map { i -> i to if (i == (j + n / 2) % n) 8.0 + rng.nextDouble() else rng.nextDouble(-1.0, 1.0) }
         }
         val a = SparseMatrix.ofColumns(n, n, columns)
-        val factorization = F64SparseMarkowitzLu.factorCsc(a)
+        val factorization = SparseMarkowitzLu.factorCsc(a)
         assertTrue(!factorization.singular, "the fixture should factor")
 
         // Building `l` validates CSC, so an out-of-order transpose cannot survive this.

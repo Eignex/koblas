@@ -1,7 +1,7 @@
 package com.eignex.koblas.internal.backend
 
 import com.eignex.koblas.Backend
-import com.eignex.koblas.F64BundledBackend
+import com.eignex.koblas.BundledBackend
 
 /** One JVM system property, or null off the JVM, where there are none. */
 internal expect fun systemPropertyOrNull(name: String): String?
@@ -34,4 +34,4 @@ internal fun isAbsolutePath(path: String): Boolean = path.startsWith('/') || pat
 
 /** Whether [provider] answers to [requested], by its own name or by the one a bundled build is configured under. */
 internal fun matchesRequested(provider: Backend, requested: String): Boolean =
-    provider.name == requested || (provider as? F64BundledBackend)?.canonicalName == requested
+    provider.name == requested || (provider as? BundledBackend)?.canonicalName == requested

@@ -20,6 +20,6 @@ BLAS, sparse operations, and the deliberate deviations.
   [AllocationCapability] and strict [AllocationPolicy] contracts, and the [mathBackend] identifier. None of
   these is per element type.
 - Explicit solver configuration: [ContextBuilder] resolves independent immutable contexts with
-  [F64DispatchPolicy] and [F64FallbackPolicy], without changing the process-wide registry.
-- Koblas currently exposes its single F64 family directly through these root container names and the
+  [DispatchPolicy] and [FallbackPolicy], without changing the process-wide registry.
+- Koblas currently exposes its single  family directly through these root container names and the
   corresponding backend seams in the `dense` and `sparse` packages.

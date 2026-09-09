@@ -24,7 +24,7 @@ class LinearAlgebraSymmetricOpsTest {
     @Test
     fun `symm matches gemm on the full matrix across block boundaries`() {
         val rng = Random(20260928)
-        val reference = F64ReferenceBlas
+        val reference = ReferenceBlas
         for (lower in booleanArrayOf(true, false)) {
             for (right in booleanArrayOf(false, true)) {
                 for (n in intArrayOf(1, 2, 7, 129, 257, 300)) {
@@ -93,7 +93,7 @@ class LinearAlgebraSymmetricOpsTest {
             val x = doubleArrayOf(2.0, 0.0, -3.0)
             val actual = DoubleArray(3)
 
-            F64ReferenceBlas.symv(1.0, a, x, 0.0, actual, lower)
+            ReferenceBlas.symv(1.0, a, x, 0.0, actual, lower)
 
             assertEquals(2.0, actual[0], "lower=$lower first diagonal")
             assertTrue(actual[1].isNaN(), "lower=$lower middle diagonal was ${actual[1]}")
@@ -109,8 +109,8 @@ class LinearAlgebraSymmetricOpsTest {
             val expected = DenseMatrix(3, 3)
             val actual = DenseMatrix(3, 3)
 
-            F64ReferenceBlas.syr(1.0, DenseVector.wrap(values), expected, lower)
-            F64ReferenceBlas.syr(1.0, sparse, actual, lower)
+            ReferenceBlas.syr(1.0, DenseVector.wrap(values), expected, lower)
+            ReferenceBlas.syr(1.0, sparse, actual, lower)
 
             assertContentEquals(expected.data, actual.data, "lower=$lower")
         }
@@ -126,14 +126,14 @@ class LinearAlgebraSymmetricOpsTest {
             val expected = DenseMatrix(3, 3)
             val actual = DenseMatrix(3, 3)
 
-            F64ReferenceBlas.syr2(
+            ReferenceBlas.syr2(
                 1.0,
                 DenseVector.wrap(xValues),
                 DenseVector.wrap(yValues),
                 expected,
                 lower,
             )
-            F64ReferenceBlas.syr2(1.0, sparseX, sparseY, actual, lower)
+            ReferenceBlas.syr2(1.0, sparseX, sparseY, actual, lower)
 
             assertContentEquals(expected.data, actual.data, "lower=$lower")
         }
@@ -541,7 +541,7 @@ class LinearAlgebraSymmetricOpsTest {
                 val a = if (transpose) randomMatrix(k, n, rng) else randomMatrix(n, k, rng)
                 for (lower in booleanArrayOf(false, true)) {
                     val rankOne = DenseMatrix(n, n)
-                    F64ReferenceBlas.syrk(0.75, a, transpose, 0.0, rankOne, lower)
+                    ReferenceBlas.syrk(0.75, a, transpose, 0.0, rankOne, lower)
                     for (j in 0 until n) {
                         val range = if (lower) j until n else 0..j
                         for (i in range) {
@@ -619,7 +619,7 @@ class LinearAlgebraSymmetricOpsTest {
                         guardZeroColumns = !transpose,
                     )
                     val actual = DenseMatrix(n, n)
-                    F64ReferenceBlas.syr2k(0.75, a, b, transpose, 0.0, actual, lower)
+                    ReferenceBlas.syr2k(0.75, a, b, transpose, 0.0, actual, lower)
                     assertClose(expected.data, actual.data, "syr2k n=$n t=$transpose l=$lower", tolerance = 1e-9)
                 }
             }
@@ -635,9 +635,9 @@ class LinearAlgebraSymmetricOpsTest {
             val (full, selected) = poisonedSymmetric(rng, n, lower)
             val b = randomMatrix(n, columns, rng)
             val expected = DenseMatrix(n, columns)
-            F64ReferenceBlas.gemm(0.75, full, false, b, false, 0.0, expected)
+            ReferenceBlas.gemm(0.75, full, false, b, false, 0.0, expected)
             val actual = DenseMatrix(n, columns)
-            F64ReferenceBlas.symm(0.75, selected, b, 0.0, actual, lower)
+            ReferenceBlas.symm(0.75, selected, b, 0.0, actual, lower)
             assertClose(expected, actual, "symm n=$n lower=$lower", tolerance = 1e-10)
         }
     }
@@ -651,9 +651,9 @@ class LinearAlgebraSymmetricOpsTest {
             val (full, selected) = poisonedSymmetric(rng, n, lower)
             val b = randomMatrix(rows, n, rng)
             val expected = DenseMatrix(rows, n)
-            F64ReferenceBlas.gemm(0.75, b, false, full, false, 0.0, expected)
+            ReferenceBlas.gemm(0.75, b, false, full, false, 0.0, expected)
             val actual = DenseMatrix(rows, n)
-            F64ReferenceBlas.symm(0.75, selected, b, 0.0, actual, lower, right = true)
+            ReferenceBlas.symm(0.75, selected, b, 0.0, actual, lower, right = true)
             assertClose(expected, actual, "right symm n=$n lower=$lower", tolerance = 1e-10)
         }
     }

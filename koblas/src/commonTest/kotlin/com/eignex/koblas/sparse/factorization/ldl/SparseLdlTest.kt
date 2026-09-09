@@ -4,7 +4,7 @@ import com.eignex.koblas.SingularMatrix
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.assertClose
 import com.eignex.koblas.randomVector
-import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
+import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.sparseSymmetricConformanceSystem
 import kotlin.random.Random
 import kotlin.test.Test
@@ -14,7 +14,7 @@ import kotlin.test.assertTrue
 
 class SparseLdlTest {
 
-    private fun ldl(a: SparseMatrix) = F64QuasiDefiniteUpLookingLdl.factorLower(a)
+    private fun ldl(a: SparseMatrix) = QuasiDefiniteUpLookingLdl.factorLower(a)
 
     /** The full symmetric matrix a stored lower triangle stands for, for taking a residual against. */
     private fun multiplySymmetric(a: SparseMatrix, x: DoubleArray): DoubleArray {
@@ -48,7 +48,7 @@ class SparseLdlTest {
             val b = randomVector(n, rng)
 
             val fromLdl = ldl(a).solve(b)
-            val fromCholesky = F64ReferenceSparseLinearAlgebra.cholesky(a).solve(b)
+            val fromCholesky = ReferenceSparseLinearAlgebra.cholesky(a).solve(b)
 
             assertClose(fromCholesky, fromLdl, "n=$n", tolerance = 1e-9)
         }

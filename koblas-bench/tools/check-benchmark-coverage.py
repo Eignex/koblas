@@ -39,12 +39,12 @@ PUBLIC_NUMERICAL_SOURCES = (
     "dense/Triangular.kt",
     "sparse/SparseBlas.kt",
     "sparse/SparseLapack.kt",
-    "sparse/F64SparseFactorization.kt",
+    "sparse/SparseFactorization.kt",
     "sparse/SparseKernels.kt",
-    "sparse/F64SparseQrFactorization.kt",
+    "sparse/SparseQrFactorization.kt",
     "sparse/SparseOps.kt",
     "sparse/basis/BasisSolver.kt",
-    "sparse/basis/F64BasisSolvers.kt",
+    "sparse/basis/BasisSolvers.kt",
 )
 
 def fail(message):

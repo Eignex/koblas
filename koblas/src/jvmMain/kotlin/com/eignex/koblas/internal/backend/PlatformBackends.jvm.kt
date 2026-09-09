@@ -1,12 +1,12 @@
 package com.eignex.koblas.internal.backend
 
 import com.eignex.koblas.Backend
+import com.eignex.koblas.BundledBackend
 import com.eignex.koblas.DenseMatrix
-import com.eignex.koblas.F64BundledBackend
 import com.eignex.koblas.dense.Blas
 import com.eignex.koblas.dense.host.cblas.HostBlasConfig
-import com.eignex.koblas.dense.host.jvm.F64Cblas
-import com.eignex.koblas.sparse.host.F64SparseBackends
+import com.eignex.koblas.dense.host.jvm.OpenBlas
+import com.eignex.koblas.sparse.host.SparseBackends
 import com.eignex.koblas.sparse.host.hfactor.HfactorConfig
 import java.util.ServiceLoader
 
@@ -44,7 +44,7 @@ private class AutomaticHostConfiguration {
      * Whether a configured library supersedes [provider]. Only a bundled provider steps aside: a configured
      * one is what it would step aside for.
      */
-    fun overrides(provider: Backend): Boolean = provider is F64BundledBackend &&
+    fun overrides(provider: Backend): Boolean = provider is BundledBackend &&
         configuredPaths[provider.canonicalName].orEmpty().any { it != null }
 }
 
@@ -57,8 +57,8 @@ private class AutomaticHostConfiguration {
  * constructing them twice would open the library twice.
  */
 private fun registerBuiltins(automatic: AutomaticHostConfiguration, requested: Map<BackendSlot, String?>) {
-    registerIfOffered(F64Cblas(automatic.openBlas), requested)
-    registerIfOffered(F64SparseBackends(hfactorConfig = automatic.hfactor).hfactor, requested)
+    registerIfOffered(OpenBlas(automatic.openBlas), requested)
+    registerIfOffered(SparseBackends(hfactorConfig = automatic.hfactor).hfactor, requested)
 }
 
 /** Instantiate all registered providers, dropping any whose construction fails. */

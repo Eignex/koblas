@@ -4,13 +4,13 @@ import com.eignex.koblas.DenseMatrix
 import com.eignex.koblas.DimensionMismatch
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
-import com.eignex.koblas.sparse.factorization.ldl.F64QuasiDefiniteUpLookingLdl
+import com.eignex.koblas.sparse.factorization.ldl.QuasiDefiniteUpLookingLdl
 import kotlin.test.*
 
 class SparseBlockSolveTest {
 
-    private class BlockTrackingFactor(private val delegate: F64SparseFactorization) :
-        F64SparseFactorization by delegate {
+    private class BlockTrackingFactor(private val delegate: SparseFactorization) :
+        SparseFactorization by delegate {
         var calls: Int = 0
         var transpose: Boolean? = null
         var receivedWorkspace: Workspace? = null
@@ -30,7 +30,7 @@ class SparseBlockSolveTest {
 
     @Test
     fun `portable block solves agree with vector solves in both directions`() {
-        val factor = F64ReferenceSparseLinearAlgebra.factor(matrix())
+        val factor = ReferenceSparseLinearAlgebra.factor(matrix())
         val b = rightHandSides()
 
         for (transpose in booleanArrayOf(false, true)) {
@@ -44,12 +44,12 @@ class SparseBlockSolveTest {
 
     @Test
     fun `the sparse decomposition seam delegates block solves directly`() {
-        val tracking = BlockTrackingFactor(F64ReferenceSparseLinearAlgebra.factor(matrix()))
+        val tracking = BlockTrackingFactor(ReferenceSparseLinearAlgebra.factor(matrix()))
         val rhs = rightHandSides()
         val out = DenseMatrix(3, rhs.cols)
         val workspace = Workspace()
 
-        assertSame(out, F64ReferenceSparseLinearAlgebra.solveInto(tracking, rhs, out, transpose = true, workspace))
+        assertSame(out, ReferenceSparseLinearAlgebra.solveInto(tracking, rhs, out, transpose = true, workspace))
         assertEquals(1, tracking.calls)
         assertEquals(true, tracking.transpose)
         assertSame(workspace, tracking.receivedWorkspace)
@@ -57,7 +57,7 @@ class SparseBlockSolveTest {
 
     @Test
     fun `block destination may alias every right hand side`() {
-        val factor = F64ReferenceSparseLinearAlgebra.factor(matrix())
+        val factor = ReferenceSparseLinearAlgebra.factor(matrix())
         val aliased = rightHandSides()
         val expected = factor.solve(aliased)
 
@@ -68,7 +68,7 @@ class SparseBlockSolveTest {
 
     @Test
     fun `block solve validates both matrix shapes before mutation`() {
-        val factor = F64ReferenceSparseLinearAlgebra.factor(matrix())
+        val factor = ReferenceSparseLinearAlgebra.factor(matrix())
         val out = DenseMatrix(3, 2, DoubleArray(6) { 7.0 })
 
         assertFailsWith<DimensionMismatch> { factor.solveInto(DenseMatrix(2, 2), out) }
@@ -83,7 +83,7 @@ class SparseBlockSolveTest {
             3,
             listOf(listOf(0 to 2.0), listOf(1 to -3.0), listOf(2 to 4.0)),
         )
-        val factor = F64QuasiDefiniteUpLookingLdl.factorLower(diagonal)
+        val factor = QuasiDefiniteUpLookingLdl.factorLower(diagonal)
 
         assertEquals(FactorizationInertia(positive = 2, negative = 1, zero = 0), factor.inertia)
     }

@@ -58,7 +58,7 @@ internal fun assertSolvesAgreeWithReference(decompositions: SparseLapack) {
         val b = DoubleArray(n) { rng.nextDouble(-1.0, 1.0) }
 
         val host = decompositions.factor(a)
-        val portable = F64ReferenceSparseLinearAlgebra.factor(a)
+        val portable = ReferenceSparseLinearAlgebra.factor(a)
         assertTrue(!host.singular, "n=$n the host called a well-conditioned system singular")
         assertTrue(!portable.singular, "n=$n the reference called it singular")
 
@@ -103,7 +103,7 @@ internal fun assertStrictNativeSolveAllocationContract(decompositions: SparseLap
     )
 
     assertClose(
-        F64ReferenceSparseLinearAlgebra.factor(a).solve(b),
+        ReferenceSparseLinearAlgebra.factor(a).solve(b),
         out,
         "strict native allocation solve",
         tolerance = 1e-9,
@@ -116,7 +116,7 @@ internal fun assertBlockSolvesAgreeWithReference(decompositions: SparseLapack) {
     val n = 12
     val a = sparseConformanceSystem(n, rng)
     val factor = decompositions.factor(a)
-    val portable = F64ReferenceSparseLinearAlgebra.factor(a)
+    val portable = ReferenceSparseLinearAlgebra.factor(a)
     val b = DenseMatrix(n, 4, DoubleArray(n * 4) { rng.nextDouble(-1.0, 1.0) })
     assertTrue(factor.nnz >= n)
     assertTrue(factor.rcond > 0.0)
@@ -133,8 +133,8 @@ internal fun assertBlockSolvesAgreeWithReference(decompositions: SparseLapack) {
 
 /** A factor with a native block ABI agrees with a portable factor and preserves its in-place contract. */
 internal fun assertNativeBlockFactorSolvesAgreeWithReference(
-    factor: F64SparseFactorization,
-    portable: F64SparseFactorization,
+    factor: SparseFactorization,
+    portable: SparseFactorization,
 ) {
     val rng = Random(20260831)
     val b = DenseMatrix(factor.n, 4, DoubleArray(factor.n * 4) { rng.nextDouble(-1.0, 1.0) })
@@ -150,7 +150,7 @@ internal fun assertNativeBlockFactorSolvesAgreeWithReference(
 }
 
 /** Strict solve contract for a native symmetric factor reached through a different semantic seam. */
-internal fun assertStrictNativeSolveAllocationContract(factor: F64SparseFactorization, b: DoubleArray) {
+internal fun assertStrictNativeSolveAllocationContract(factor: SparseFactorization, b: DoubleArray) {
     val expected = factor.solve(b)
     val out = DoubleArray(factor.n)
     assertTrue(
@@ -213,7 +213,7 @@ internal fun assertRegistersAsTheSparseLuHalf(decompositions: SparseLapack, n: I
 /** A backend set to equilibrate scales natively and still solves the system it was given. */
 internal fun assertNativeEquilibration(
     decompositions: SparseLapack,
-    hostFactorization: (F64SparseFactorization) -> Boolean,
+    hostFactorization: (SparseFactorization) -> Boolean,
 ) {
     val rng = Random(20260818)
     val a = sparseConformanceSystem(6, rng)
@@ -236,7 +236,7 @@ internal fun assertRepeatedFactorizationsSurvive(decompositions: SparseLapack) {
 }
 
 /** A native factor releases idempotently, keeps stable facts, and rejects every resource-backed operation. */
-internal fun assertNativeFactorCloseContract(factorization: F64SparseFactorization) {
+internal fun assertNativeFactorCloseContract(factorization: SparseFactorization) {
     val n = factorization.n
     val failedAt = factorization.failedAt
 
@@ -249,7 +249,7 @@ internal fun assertNativeFactorCloseContract(factorization: F64SparseFactorizati
     assertFailsWith<IllegalStateException> { factorization.rcond }
     assertFailsWith<IllegalStateException> { factorization.solve(DoubleArray(n)) }
     when (factorization) {
-        is F64SparseLuFactorization -> {
+        is SparseLuFactorization -> {
             assertFailsWith<IllegalStateException> { factorization.l }
             assertFailsWith<IllegalStateException> { factorization.u }
             assertFailsWith<IllegalStateException> { factorization.rowOrder }
@@ -258,12 +258,12 @@ internal fun assertNativeFactorCloseContract(factorization: F64SparseFactorizati
             assertFailsWith<IllegalStateException> { factorization.offDiagonal }
         }
 
-        is F64SparseCholeskyFactorization -> {
+        is SparseCholeskyFactorization -> {
             assertFailsWith<IllegalStateException> { factorization.l }
             assertFailsWith<IllegalStateException> { factorization.order }
         }
 
-        is F64QuasiDefiniteLdlFactorization -> {
+        is QuasiDefiniteLdlFactorization -> {
             assertFailsWith<IllegalStateException> { factorization.l }
             assertFailsWith<IllegalStateException> { factorization.d }
             assertFailsWith<IllegalStateException> { factorization.order }
@@ -272,7 +272,7 @@ internal fun assertNativeFactorCloseContract(factorization: F64SparseFactorizati
 }
 
 /** [AutoCloseable.use] closes a native factor when its body returns and when its body throws. */
-internal fun assertNativeFactorUseContract(factory: () -> F64SparseFactorization) {
+internal fun assertNativeFactorUseContract(factory: () -> SparseFactorization) {
     val returned = factory()
     returned.use { assertTrue(it.nnz >= it.n) }
     assertFailsWith<IllegalStateException> { returned.nnz }

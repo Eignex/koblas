@@ -43,7 +43,7 @@ public class StridedVectorView(
  * The view never copies [data], so mutations through the view or any other reference to the array are visible
  * to each other.
  */
-public class F64StridedMatrixView(
+public class StridedMatrixView(
     override val rows: Int,
     override val cols: Int,
     public val data: DoubleArray,
@@ -77,14 +77,14 @@ public class F64StridedMatrixView(
     override fun toArray(): Array<DoubleArray> = Array(rows) { i -> DoubleArray(cols) { j -> get(i, j) } }
 
     /** A live submatrix retaining this view's physical [leadingDimension]. */
-    public fun view(row: Int, rows: Int, column: Int, cols: Int): F64StridedMatrixView {
+    public fun view(row: Int, rows: Int, column: Int, cols: Int): StridedMatrixView {
         requireShape(row >= 0 && rows >= 0 && row.toLong() + rows <= this.rows) {
             "row range [$row, ${row.toLong() + rows}) exceeds $this"
         }
         requireShape(column >= 0 && cols >= 0 && column.toLong() + cols <= this.cols) {
             "column range [$column, ${column.toLong() + cols}) exceeds $this"
         }
-        return F64StridedMatrixView(
+        return StridedMatrixView(
             rows,
             cols,
             data,
@@ -113,7 +113,7 @@ public class F64StridedMatrixView(
      * intersection. Only views whose leading dimensions differ, or whose columns wrap across that grid, are
      * walked entry by entry.
      */
-    public fun overlaps(other: F64StridedMatrixView): Boolean {
+    public fun overlaps(other: StridedMatrixView): Boolean {
         if (data !== other.data || physicalSpan == 0 || other.physicalSpan == 0) return false
         if (offset + physicalSpan <= other.offset || other.offset + other.physicalSpan <= offset) return false
         if (leadingDimension == other.leadingDimension) {
@@ -165,7 +165,7 @@ public class F64StridedMatrixView(
     }
 
     override fun toString(): String =
-        "F64StridedMatrixView(${rows}x$cols, offset=$offset, leadingDimension=$leadingDimension)"
+        "StridedMatrixView(${rows}x$cols, offset=$offset, leadingDimension=$leadingDimension)"
 }
 
 /** Whether these vectors address at least one common buffer entry. */
@@ -182,10 +182,10 @@ public fun StridedVectorView.overlaps(other: StridedVectorView): Boolean {
 }
 
 /** A borrowed view over this entire owned matrix. */
-public fun DenseMatrix.asView(): F64StridedMatrixView = F64StridedMatrixView(rows, cols, data)
+public fun DenseMatrix.asView(): StridedMatrixView = StridedMatrixView(rows, cols, data)
 
 /** A borrowed panel of this owned matrix. */
-public fun DenseMatrix.view(row: Int, rows: Int, column: Int, cols: Int): F64StridedMatrixView =
+public fun DenseMatrix.view(row: Int, rows: Int, column: Int, cols: Int): StridedMatrixView =
     asView().view(row, rows, column, cols)
 
 /** A borrowed view over this entire owned vector. */

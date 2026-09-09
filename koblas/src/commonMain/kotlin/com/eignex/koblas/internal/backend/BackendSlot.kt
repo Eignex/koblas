@@ -5,20 +5,20 @@ import com.eignex.koblas.BackendRole
 import com.eignex.koblas.KoblasContext
 import com.eignex.koblas.MissingRepeatedSparseLu
 import com.eignex.koblas.dense.Blas
-import com.eignex.koblas.dense.F64ReferenceBlas
 import com.eignex.koblas.dense.Kernels
 import com.eignex.koblas.dense.PlatformKernels
-import com.eignex.koblas.sparse.F64BasisFactorizations
-import com.eignex.koblas.sparse.F64GeneralSparseLu
-import com.eignex.koblas.sparse.F64PlatformSparseKernels
-import com.eignex.koblas.sparse.F64QuasiDefiniteLdl
-import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
-import com.eignex.koblas.sparse.F64RepeatedSparseLu
-import com.eignex.koblas.sparse.F64SparseCholesky
-import com.eignex.koblas.sparse.F64SparseQr
+import com.eignex.koblas.dense.ReferenceBlas
+import com.eignex.koblas.sparse.BasisFactorizations
+import com.eignex.koblas.sparse.GeneralSparseLu
+import com.eignex.koblas.sparse.PlatformSparseKernels
+import com.eignex.koblas.sparse.QuasiDefiniteLdl
+import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
+import com.eignex.koblas.sparse.RepeatedSparseLu
 import com.eignex.koblas.sparse.SparseBlas
+import com.eignex.koblas.sparse.SparseCholesky
 import com.eignex.koblas.sparse.SparseKernels
-import com.eignex.koblas.sparse.basis.F64BasisSolvers
+import com.eignex.koblas.sparse.SparseQr
+import com.eignex.koblas.sparse.basis.BasisSolvers
 
 /**
  * The halves of the seam a backend can implement, and everything either selection path needs to know about
@@ -66,7 +66,7 @@ internal enum class BackendSlot(
         role = BackendRole.DENSE_BLAS,
         accepts = { it is Blas },
         from = { it.blas },
-        portableDefault = { F64ReferenceBlas },
+        portableDefault = { ReferenceBlas },
         selectionKeys = BackendSelectionKeys(
             "koblas.backend.dense.blas",
             "KOBLAS_DENSE_BLAS_BACKEND",
@@ -78,7 +78,7 @@ internal enum class BackendSlot(
         role = BackendRole.SPARSE_KERNELS,
         accepts = { it is SparseKernels },
         from = { it.sparseKernels },
-        portableDefault = { F64PlatformSparseKernels },
+        portableDefault = { PlatformSparseKernels },
         selectionKeys = BackendSelectionKeys(
             "koblas.backend.sparse.kernels",
             "KOBLAS_SPARSE_KERNELS_BACKEND",
@@ -92,7 +92,7 @@ internal enum class BackendSlot(
         role = BackendRole.SPARSE_BLAS,
         accepts = { it is SparseBlas },
         from = { it.sparseBlas },
-        portableDefault = { F64ReferenceSparseLinearAlgebra },
+        portableDefault = { ReferenceSparseLinearAlgebra },
         selectionKeys = BackendSelectionKeys(
             "koblas.backend.sparse.blas",
             "KOBLAS_SPARSE_BLAS_BACKEND",
@@ -108,11 +108,11 @@ internal enum class BackendSlot(
      * offer of everything such a library implements leaves this half to a general provider; a caller who
      * wants it here anyway names this role for it. [acceptsOffer] says which providers that covers.
      */
-    F64GeneralSparseLu(
+    GeneralSparseLu(
         role = BackendRole.SPARSE_GENERAL_LU,
-        accepts = { it is F64GeneralSparseLu },
+        accepts = { it is GeneralSparseLu },
         from = { it.generalSparseLu },
-        portableDefault = { F64ReferenceSparseLinearAlgebra },
+        portableDefault = { ReferenceSparseLinearAlgebra },
         selectionKeys = BackendSelectionKeys(
             "koblas.backend.sparse.general.lu",
             "KOBLAS_SPARSE_GENERAL_LU_BACKEND",
@@ -122,9 +122,9 @@ internal enum class BackendSlot(
     ),
 
     /** Repeated-pattern sparse LU. */
-    F64RepeatedSparseLu(
+    RepeatedSparseLu(
         role = BackendRole.SPARSE_REPEATED_LU,
-        accepts = { it is F64RepeatedSparseLu },
+        accepts = { it is RepeatedSparseLu },
         from = { it.repeatedSparseLu ?: MissingRepeatedSparseLu },
         portableDefault = { MissingRepeatedSparseLu },
         selectionKeys = BackendSelectionKeys(
@@ -136,11 +136,11 @@ internal enum class BackendSlot(
     ),
 
     /** Sparse Cholesky. */
-    F64SparseCholesky(
+    SparseCholesky(
         role = BackendRole.SPARSE_CHOLESKY,
-        accepts = { it is F64SparseCholesky },
+        accepts = { it is SparseCholesky },
         from = { it.sparseCholesky },
-        portableDefault = { F64ReferenceSparseLinearAlgebra },
+        portableDefault = { ReferenceSparseLinearAlgebra },
         selectionKeys = BackendSelectionKeys(
             "koblas.backend.sparse.cholesky",
             "KOBLAS_SPARSE_CHOLESKY_BACKEND",
@@ -149,11 +149,11 @@ internal enum class BackendSlot(
     ),
 
     /** Sparse quasi-definite LDL. */
-    F64QuasiDefiniteLdl(
+    QuasiDefiniteLdl(
         role = BackendRole.SPARSE_QUASI_DEFINITE_LDL,
-        accepts = { it is F64QuasiDefiniteLdl },
+        accepts = { it is QuasiDefiniteLdl },
         from = { it.quasiDefiniteLdl },
-        portableDefault = { F64ReferenceSparseLinearAlgebra },
+        portableDefault = { ReferenceSparseLinearAlgebra },
         selectionKeys = BackendSelectionKeys(
             "koblas.backend.sparse.quasi-definite-ldl",
             "KOBLAS_SPARSE_QUASI_DEFINITE_LDL_BACKEND",
@@ -162,11 +162,11 @@ internal enum class BackendSlot(
     ),
 
     /** Sparse QR. */
-    F64SparseQr(
+    SparseQr(
         role = BackendRole.SPARSE_QR,
-        accepts = { it is F64SparseQr },
+        accepts = { it is SparseQr },
         from = { it.sparseQr },
-        portableDefault = { F64ReferenceSparseLinearAlgebra },
+        portableDefault = { ReferenceSparseLinearAlgebra },
         selectionKeys = BackendSelectionKeys(
             "koblas.backend.sparse.qr",
             "KOBLAS_SPARSE_QR_BACKEND",
@@ -175,11 +175,11 @@ internal enum class BackendSlot(
     ),
 
     /** Simplex basis factorizations. */
-    F64BasisFactorizations(
+    BasisFactorizations(
         role = BackendRole.BASIS_FACTORIZATIONS,
-        accepts = { it is F64BasisFactorizations },
+        accepts = { it is BasisFactorizations },
         from = { it.basisFactorizations },
-        portableDefault = { F64ReferenceSparseLinearAlgebra },
+        portableDefault = { ReferenceSparseLinearAlgebra },
         selectionKeys = BackendSelectionKeys(
             "koblas.backend.basis.factorizations",
             "KOBLAS_BASIS_FACTORIZATIONS_BACKEND",
@@ -188,11 +188,11 @@ internal enum class BackendSlot(
     ),
 
     /** Simplex basis solvers. */
-    F64BasisSolvers(
+    BasisSolvers(
         role = BackendRole.BASIS_SOLVERS,
-        accepts = { it is F64BasisSolvers },
+        accepts = { it is BasisSolvers },
         from = { it.basisSolvers },
-        portableDefault = { F64ReferenceSparseLinearAlgebra },
+        portableDefault = { ReferenceSparseLinearAlgebra },
         selectionKeys = BackendSelectionKeys(
             "koblas.backend.basis.solvers",
             "KOBLAS_BASIS_SOLVERS_BACKEND",

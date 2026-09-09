@@ -6,8 +6,8 @@ import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.dense.*
 import com.eignex.koblas.internal.numeric.absoluteSum
 import com.eignex.koblas.internal.numeric.euclideanNorm
-import com.eignex.koblas.sparse.F64ReferenceSparseDecompositions
-import com.eignex.koblas.sparse.F64ReferenceSparseLinearAlgebra
+import com.eignex.koblas.sparse.ReferenceSparseDecompositions
+import com.eignex.koblas.sparse.ReferenceSparseLinearAlgebra
 import com.eignex.koblas.sparse.SparseLapack
 import com.eignex.koblas.sparse.SparseLinearAlgebra
 import kotlin.test.*
@@ -97,7 +97,7 @@ class KoblasContextTest {
     @Test
     fun `with rereads the factorization roles only from a new composition`() {
         val base = koblas
-        val replacement = F64ReferenceSparseDecompositions(equilibrate = true)
+        val replacement = ReferenceSparseDecompositions(equilibrate = true)
 
         val rederived = base.with(sparseDecompositions = replacement)
         val kept = base.with(kernels = Counting())
@@ -113,28 +113,28 @@ class KoblasContextTest {
     /** A composition filling none of the basis half leaves that role to koblas's own. */
     @Test
     fun `a composition that fills no basis role falls back to the reference`() {
-        val replacement = F64ReferenceSparseDecompositions()
+        val replacement = ReferenceSparseDecompositions()
 
         val context = koblas.with(sparseDecompositions = replacement)
 
-        assertSame(F64ReferenceSparseLinearAlgebra, context.basisFactorizations)
+        assertSame(ReferenceSparseLinearAlgebra, context.basisFactorizations)
     }
 
     /** Reading roles out of a composition is the one place a partial one is caught, and it says which role. */
     @Test
     fun `a composition filling no QR role is rejected at construction`() {
-        val partial = object : SparseLapack by F64ReferenceSparseLinearAlgebra {
+        val partial = object : SparseLapack by ReferenceSparseLinearAlgebra {
             override val name: String get() = "partial"
         }
 
         val failure = assertFailsWith<IllegalStateException> {
             KoblasContext(
                 kernels = koblas.kernels,
-                blas = F64ReferenceBlas,
-                sparseKernels = F64ReferenceSparseLinearAlgebra,
-                sparseBlas = F64ReferenceSparseLinearAlgebra,
+                blas = ReferenceBlas,
+                sparseKernels = ReferenceSparseLinearAlgebra,
+                sparseBlas = ReferenceSparseLinearAlgebra,
                 sparseDecompositions = partial,
-                basisSolvers = F64ReferenceSparseLinearAlgebra,
+                basisSolvers = ReferenceSparseLinearAlgebra,
             )
         }
 
@@ -191,19 +191,19 @@ class KoblasContextTest {
     fun `the shared reference follows the process default kernels`() {
         val mine = Counting("installed")
         installBackends(koblas.with(kernels = mine))
-        val blas: Blas = F64ReferenceBlas
+        val blas: Blas = ReferenceBlas
         blas.gemv(
             DenseMatrix.of(arrayOf(doubleArrayOf(2.0, 1.0), doubleArrayOf(1.0, 3.0))),
             doubleArrayOf(1.0, 1.0),
         )
-        assertTrue(mine.axpys > 0, "F64ReferenceBlas must pick up an installed context's kernels")
+        assertTrue(mine.axpys > 0, "ReferenceBlas must pick up an installed context's kernels")
     }
 
     @Test
     fun `the name covers the matrix halves and not the kernels`() {
         val counting = Counting()
         assertEquals(koblas.name, koblas.with(kernels = counting).name, "kernels do not belong in the name")
-        val named = koblas.with(sparseBlas = F64ReferenceSparseLinearAlgebra).name.split("+")
+        val named = koblas.with(sparseBlas = ReferenceSparseLinearAlgebra).name.split("+")
         assertEquals(named.size, named.distinct().size, "the name repeated a backend")
     }
 
@@ -217,17 +217,17 @@ class KoblasContextTest {
     fun `a context reports the strongest half's priority and names its backends`() {
         val reference = KoblasContext(
             kernels = Counting(),
-            blas = F64ReferenceBlas,
-            sparseKernels = F64ReferenceSparseLinearAlgebra,
-            sparseBlas = F64ReferenceSparseLinearAlgebra,
-            sparseDecompositions = F64ReferenceSparseLinearAlgebra,
-            basisSolvers = F64ReferenceSparseLinearAlgebra,
+            blas = ReferenceBlas,
+            sparseKernels = ReferenceSparseLinearAlgebra,
+            sparseBlas = ReferenceSparseLinearAlgebra,
+            sparseDecompositions = ReferenceSparseLinearAlgebra,
+            basisSolvers = ReferenceSparseLinearAlgebra,
         )
         assertEquals(0, reference.priority, "every reference half has priority 0")
         assertEquals("reference", reference.name, "one distinct backend name should not repeat")
         assertEquals("KoblasContext(reference)", reference.toString())
 
-        val strong = object : Blas by F64ReferenceBlas {
+        val strong = object : Blas by ReferenceBlas {
             override val name: String get() = "strong"
             override val priority: Int get() = 42
         }

@@ -6,7 +6,7 @@ import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.test.*
 
-private val reference = F64ReferenceBlas
+private val reference = ReferenceBlas
 internal fun assertLevel3AgreesWithReference(blas: Blas, sizes: IntArray) {
     val rng = Random(20260729)
     for (n in sizes) {
@@ -329,7 +329,7 @@ internal fun assertDegenerateShapesFollowBlasQuickReturns(blas: Blas) {
     val stridedY = DoubleArray(3) { Double.NaN }
     blas.gemv(
         1.0,
-        F64StridedMatrixView(0, 3, DoubleArray(0)),
+        StridedMatrixView(0, 3, DoubleArray(0)),
         StridedVectorView(DoubleArray(0), 0, 0),
         0.0,
         StridedVectorView(stridedY, 2, 3, -1),
@@ -350,10 +350,10 @@ internal fun assertStridedProductsAgreeWithReference(blas: Blas) {
     val bData = DoubleArray(30) { -200.0 - it }
     val expectedData = DoubleArray(42) { -300.0 - it }
     val actualData = expectedData.copyOf()
-    val a = F64StridedMatrixView(3, 2, aData, offset = 2, leadingDimension = 6)
-    val b = F64StridedMatrixView(2, 4, bData, offset = 3, leadingDimension = 5)
-    val expected = F64StridedMatrixView(3, 4, expectedData, offset = 7, leadingDimension = 7)
-    val actual = F64StridedMatrixView(3, 4, actualData, offset = 7, leadingDimension = 7)
+    val a = StridedMatrixView(3, 2, aData, offset = 2, leadingDimension = 6)
+    val b = StridedMatrixView(2, 4, bData, offset = 3, leadingDimension = 5)
+    val expected = StridedMatrixView(3, 4, expectedData, offset = 7, leadingDimension = 7)
+    val actual = StridedMatrixView(3, 4, actualData, offset = 7, leadingDimension = 7)
     for (j in 0 until a.cols) for (i in 0 until a.rows) a[i, j] = 1.0 + i + 2.0 * j
     for (j in 0 until b.cols) for (i in 0 until b.rows) b[i, j] = 0.5 + i - j
 

@@ -59,7 +59,7 @@ class StridedBlasTest {
         val x = StridedVectorView(xBuffer, 0, 2, 2)
         val y = StridedVectorView(yBuffer, 0, 3, 2)
 
-        F64ReferenceBlas.gemv(2.0, a, x, 0.5, y)
+        ReferenceBlas.gemv(2.0, a, x, 0.5, y)
 
         assertContentEquals(doubleArrayOf(21.0, -99.0, 46.0, -99.0, 71.0), yBuffer)
     }
@@ -68,9 +68,9 @@ class StridedBlasTest {
     fun `strided gemv leaves its destination alone for an empty matrix`() {
         val yBuffer = DoubleArray(3) { Double.NaN }
 
-        F64ReferenceBlas.gemv(
+        ReferenceBlas.gemv(
             1.0,
-            F64StridedMatrixView(0, 3, DoubleArray(0)),
+            StridedMatrixView(0, 3, DoubleArray(0)),
             StridedVectorView(DoubleArray(0), 0, 0),
             0.0,
             StridedVectorView(yBuffer, 2, 3, -1),
@@ -98,7 +98,7 @@ class StridedBlasTest {
         )
         val output = DenseMatrix.of(Array(4) { DoubleArray(4) { -1.0 } })
 
-        F64ReferenceBlas.gemm(
+        ReferenceBlas.gemm(
             1.0,
             aOwner.view(0, 2, 0, 2),
             false,
@@ -124,10 +124,10 @@ class StridedBlasTest {
         val y = matrix.column(1)
 
         assertFailsWith<IllegalArgumentException> {
-            F64ReferenceBlas.gemv(1.0, matrix, x, 0.0, y)
+            ReferenceBlas.gemv(1.0, matrix, x, 0.0, y)
         }
         assertFailsWith<IllegalArgumentException> {
-            F64ReferenceBlas.gemm(1.0, matrix, false, matrix, false, 0.0, matrix)
+            ReferenceBlas.gemm(1.0, matrix, false, matrix, false, 0.0, matrix)
         }
     }
 

@@ -3,21 +3,21 @@ package com.eignex.koblas.sparse.host
 import com.eignex.koblas.AllocationCapability
 import com.eignex.koblas.SparseMatrix
 import com.eignex.koblas.Workspace
-import com.eignex.koblas.sparse.F64SparseLuFactorization
+import com.eignex.koblas.sparse.SparseLuFactorization
 
 /**
  * A native factorization of `E·A` presented as one of `A`.
  *
  * The library was handed row-scaled values, so a forward solve scales its right-hand side going in and a
- * transposed one scales its result coming out, by the reasoning [applyF64Equilibration] records. Everything
+ * transposed one scales its result coming out, by the reasoning [applyEquilibration] records. Everything
  * else is the library's own answer about the factors it holds.
  *
- * Written out rather than delegated with `by`: [F64SparseLuFactorization] gives its dense solves and its
+ * Written out rather than delegated with `by`: [SparseLuFactorization] gives its dense solves and its
  * `solve` overloads default bodies that call back into [solveInto], and a delegating class would send those
  * to the wrapped factorization, which would answer them without undoing the scaling.
  */
-internal class EquilibratedSparseLu(private val inner: F64SparseLuFactorization, private val scale: DoubleArray) :
-    F64SparseLuFactorization {
+internal class EquilibratedSparseLu(private val inner: SparseLuFactorization, private val scale: DoubleArray) :
+    SparseLuFactorization {
     override val n: Int get() = inner.n
     override val failedAt: Int get() = inner.failedAt
     override val nnz: Int get() = inner.nnz
@@ -48,7 +48,7 @@ internal class EquilibratedSparseLu(private val inner: F64SparseLuFactorization,
             return out
         }
         inner.solveInto(b, out, transpose = true, workspace = workspace)
-        applyF64Equilibration(out, scale)
+        applyEquilibration(out, scale)
         return out
     }
 

@@ -55,7 +55,7 @@ internal object SimdKernels : Kernels, ArithmeticKernels {
     override fun nrm2(v: DoubleArray, vOff: Int, len: Int): Double {
         if (vectorizes(len)) {
             val squares = SimdOps.dot(v, vOff, v, vOff, len)
-            if (squares.isFinite() && squares >= F64_MIN_NORMAL) return sqrt(squares)
+            if (squares.isFinite() && squares >= MIN_NORMAL) return sqrt(squares)
         }
         return euclideanNorm(v, vOff, len)
     }
