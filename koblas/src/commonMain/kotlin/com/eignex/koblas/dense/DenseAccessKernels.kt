@@ -3,6 +3,7 @@
 package com.eignex.koblas.dense
 
 import com.eignex.koblas.DenseMatrix
+import com.eignex.koblas.DenseVector
 import com.eignex.koblas.MatrixLike
 import com.eignex.koblas.StridedMatrixView
 import com.eignex.koblas.StridedVectorView
@@ -182,5 +183,13 @@ internal fun genericRankOneUpdate(alpha: Double, x: VectorLike, y: VectorLike, a
             val scaled = alpha * yj
             x.forEachStored { i, xi -> ad[column + i] += scaled * xi }
         }
+    }
+}
+
+/** Returns an existing contiguous dense buffer or stages represented entries into a fresh owned buffer. */
+internal fun contiguousVectorData(x: VectorLike): DoubleArray = when (x) {
+    is DenseVector -> x.data
+    else -> DoubleArray(x.size).also { destination ->
+        x.forEachStored { index, value -> destination[index] = value }
     }
 }
