@@ -229,7 +229,28 @@ internal class SparseAlgorithms(private val denseKernels: Kernels) : SparseBlas 
             workspace.borrow(n) { sums ->
                 workspace.borrowI32(n) { touchedAt ->
                     workspace.borrowI32(n) { touched ->
-                        symmetricRankInto(alpha, stableA, transpose, c, lower, sums, touchedAt, touched)
+                        workspace.borrowI32(stableA.rows + 1) { rowPointers ->
+                            workspace.borrowI32(stableA.nnz) { adjacentColumns ->
+                                workspace.borrowI32(stableA.nnz) { adjacentPositions ->
+                                    workspace.borrowI32(stableA.rows) { rowCursor ->
+                                        symmetricRankInto(
+                                            alpha,
+                                            stableA,
+                                            transpose,
+                                            c,
+                                            lower,
+                                            sums,
+                                            touchedAt,
+                                            touched,
+                                            rowPointers,
+                                            adjacentColumns,
+                                            adjacentPositions,
+                                            rowCursor,
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }

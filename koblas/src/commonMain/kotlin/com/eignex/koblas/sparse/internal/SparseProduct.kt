@@ -103,13 +103,17 @@ internal fun symmetricRankProduct(a: SparseMatrix, transpose: Boolean, lower: Bo
     val sums = DoubleArray(order)
     val touchedAt = IntArray(order) { -1 }
     val touched = IntArray(order)
+    val rowPointers = IntArray(a.rows + 1)
+    val adjacentColumns = IntArray(a.nnz)
+    val adjacentPositions = IntArray(a.nnz)
+    buildRowAdjacency(a, rowPointers, adjacentColumns, adjacentPositions, IntArray(a.rows))
     val pointers = IntArray(order + 1)
     var rows = IntArray(maxOf(1, a.nnz))
     var values = DoubleArray(rows.size)
     var count = 0
     for (j in 0 until order) {
         var used = 0
-        forEachRankContribution(a, transpose, j) { i, value ->
+        forEachRankContribution(a, transpose, j, rowPointers, adjacentColumns, adjacentPositions) { i, value ->
             if (if (lower) i >= j else i <= j) {
                 if (touchedAt[i] != j) {
                     touchedAt[i] = j
@@ -147,12 +151,17 @@ internal fun symmetricRankInto(
     sums: DoubleArray,
     touchedAt: IntArray,
     touched: IntArray,
+    rowPointers: IntArray,
+    adjacentColumns: IntArray,
+    adjacentPositions: IntArray,
+    rowCursor: IntArray,
 ) {
     val order = c.rows
     touchedAt.fill(-1)
+    buildRowAdjacency(a, rowPointers, adjacentColumns, adjacentPositions, rowCursor)
     for (j in 0 until order) {
         var used = 0
-        forEachRankContribution(a, transpose, j) { i, value ->
+        forEachRankContribution(a, transpose, j, rowPointers, adjacentColumns, adjacentPositions) { i, value ->
             if (if (lower) i >= j else i <= j) {
                 if (touchedAt[i] != j) {
                     touchedAt[i] = j
@@ -175,12 +184,15 @@ private inline fun forEachRankContribution(
     a: SparseMatrix,
     transpose: Boolean,
     j: Int,
+    rowPointers: IntArray,
+    adjacentColumns: IntArray,
+    adjacentPositions: IntArray,
     action: (row: Int, value: Double) -> Unit,
 ) {
     if (!transpose) {
-        for (p in 0 until a.cols) {
-            val jp = storedPosition(a, j, p)
-            if (jp < 0) continue
+        for (at in rowPointers[j] until rowPointers[j + 1]) {
+            val p = adjacentColumns[at]
+            val jp = adjacentPositions[at]
             val jv = a.values[jp]
             for (ip in a.colPtr[p] until a.colPtr[p + 1]) action(a.rowIdx[ip], a.values[ip] * jv)
         }
@@ -189,24 +201,31 @@ private inline fun forEachRankContribution(
     for (jp in a.colPtr[j] until a.colPtr[j + 1]) {
         val p = a.rowIdx[jp]
         val jv = a.values[jp]
-        for (i in 0 until a.cols) {
-            val ip = storedPosition(a, p, i)
-            if (ip >= 0) action(i, a.values[ip] * jv)
+        for (at in rowPointers[p] until rowPointers[p + 1]) {
+            val ip = adjacentPositions[at]
+            action(adjacentColumns[at], a.values[ip] * jv)
         }
     }
 }
 
-/** Stored-position lookup without turning an absent sparse entry into a numerical zero. */
-private fun storedPosition(a: SparseMatrix, row: Int, column: Int): Int {
-    var low = a.colPtr[column]
-    var high = a.colPtr[column + 1] - 1
-    while (low <= high) {
-        val middle = (low + high) ushr 1
-        when {
-            a.rowIdx[middle] < row -> low = middle + 1
-            a.rowIdx[middle] > row -> high = middle - 1
-            else -> return middle
+/** Builds row-to-stored-entry adjacency once, in ascending source-column order. */
+private fun buildRowAdjacency(
+    a: SparseMatrix,
+    rowPointers: IntArray,
+    adjacentColumns: IntArray,
+    adjacentPositions: IntArray,
+    rowCursor: IntArray,
+) {
+    rowPointers.fill(0)
+    for (position in a.rowIdx.indices) rowPointers[a.rowIdx[position] + 1]++
+    for (row in 0 until a.rows) rowPointers[row + 1] += rowPointers[row]
+    for (row in 0 until a.rows) rowCursor[row] = rowPointers[row]
+    for (column in 0 until a.cols) {
+        for (position in a.colPtr[column] until a.colPtr[column + 1]) {
+            val row = a.rowIdx[position]
+            val target = rowCursor[row]++
+            adjacentColumns[target] = column
+            adjacentPositions[target] = position
         }
     }
-    return -1
 }
