@@ -266,7 +266,7 @@ class AllocationFreeTest {
             PackedPanels.trsm(triangle, x, rows, order, lower = true)
             x
         }
-        val fusedBytes = bytesPerIteration(1000) {
+        val fusedBytes = bytesPerIteration(1000, warmup = 20_000) {
             PackedPanels.gemmTrsm(left, right, triangle, x, rows, order, depth, lower = true)
             x
         }
