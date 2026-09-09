@@ -3,6 +3,26 @@
 These archives preserve benchmark evidence that would otherwise be deleted with the Gradle build directory.
 They may contain machine and checkout details; inspect their metadata before sharing them outside the project.
 
+## Standard hardware profile
+
+`hardware-standard-18286e42-jvm-20260909.tar.gz` is the first complete version-1 contributor-profile report.
+It was produced from clean commit `18286e42bc6d9b39c0ca2d8513ce2433dc026ab4` on an Intel Core i9-12900H
+with affinity `0,2,4,6`. Two fresh built-in passes cover all 83 bounded dense and sparse cases, and two matched
+single-threaded OpenBLAS 0.3.30 passes cover the 54 cases with that comparator. The runner recorded 245.1 seconds
+elapsed on a shared host and did not detect another contributor-runner invocation; unrelated machine activity was
+not excluded. The archive includes the workload catalog, raw JSON and logs, stable aggregate rows, metadata,
+coverage manifests, a readable summary, and per-file checksums.
+
+Validate it offline with:
+
+```bash
+koblas-bench/report.sh validate koblas-bench/results/hardware-standard-18286e42-jvm-20260909.tar.gz
+koblas-bench/report.sh summarize koblas-bench/results/hardware-standard-18286e42-jvm-20260909.tar.gz
+```
+
+Expected SHA-256:
+`4e6f7108c0da746546aee883e56dbb4e4f70e7b0647b9c8ede1709f4eb761f48`.
+
 ## Packed syr2k
 
 `syr2k-a7272cee-jvm-20260908.tar.gz` contains the raw JMH JSON used to compare the packed built-in `syr2k`
