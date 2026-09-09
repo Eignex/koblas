@@ -46,28 +46,9 @@ public interface Blas {
         requireGemvShape(a, transpose, x.size, y.size)
         require(!y.overlaps(x) && !a.overlaps(y)) { "gemv: destination overlaps an input view" }
         if (a.rows == 0 || a.cols == 0) return
-        for (i in 0 until y.size) {
-            y[i] = when (beta) {
-                0.0 -> 0.0
-                1.0 -> y[i]
-                else -> beta * y[i]
-            }
-        }
+        scaleStrided(y, beta)
         if (alpha == 0.0) return
-        if (transpose) {
-            for (j in 0 until a.cols) {
-                var sum = 0.0
-                for (i in 0 until a.rows) sum += a[i, j] * x[i]
-                y[j] += alpha * sum
-            }
-        } else {
-            for (j in 0 until a.cols) {
-                // Formed even when the multiplier is zero, so an infinite coefficient still yields NaN the
-                // way the dense reference and netlib do. Skipping the column would hide it.
-                val multiplier = alpha * x[j]
-                for (i in 0 until a.rows) y[i] += multiplier * a[i, j]
-            }
-        }
+        stridedGemvUpdate(alpha, a, x, y, transpose)
     }
 
     /** [gemv] over borrowed storage into a fresh owned array. */
@@ -145,32 +126,10 @@ public interface Blas {
         if (alpha == 0.0 || k == 0) {
             // Scale and stop, as the dense reference and the host adapter do. Running the sum instead would
             // let an infinite operand reach `alpha * sum` and write NaN where the answer is beta times C.
-            for (j in 0 until n) {
-                for (i in 0 until m) {
-                    c[i, j] = when (beta) {
-                        0.0 -> 0.0
-                        1.0 -> c[i, j]
-                        else -> beta * c[i, j]
-                    }
-                }
-            }
+            scaleStrided(c, beta)
             return
         }
-        for (j in 0 until n) {
-            for (i in 0 until m) {
-                var sum = 0.0
-                for (p in 0 until k) {
-                    val av = if (transposeA) a[p, i] else a[i, p]
-                    val bv = if (transposeB) b[j, p] else b[p, j]
-                    sum += av * bv
-                }
-                c[i, j] = alpha * sum + when (beta) {
-                    0.0 -> 0.0
-                    1.0 -> c[i, j]
-                    else -> beta * c[i, j]
-                }
-            }
-        }
+        stridedGemmUpdate(alpha, a, transposeA, b, transposeB, beta, c, m, k, n)
     }
 
     /** [gemm] over borrowed panels into a fresh owned matrix. */
