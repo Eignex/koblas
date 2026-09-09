@@ -35,7 +35,11 @@ static inline const char *koblas_openblas_version(void) {
     return function == NULL ? "unknown" : function();
 }
 
-#define KOBLAS_RESOLVE(name, type) ((type)dlsym(koblas_openblas_handle(), #name))
+#define KOBLAS_RESOLVE(name, type) ({ \
+    static type function; \
+    if (function == NULL) function = (type)dlsym(koblas_openblas_handle(), #name); \
+    function; \
+})
 
 static inline double cblas_ddot(int n, const double *x, int ix, const double *y, int iy) {
     typedef double (*function_t)(int, const double *, int, const double *, int);

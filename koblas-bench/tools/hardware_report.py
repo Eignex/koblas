@@ -416,11 +416,31 @@ def validate_directory(directory: Path) -> tuple[dict[str, Any], list[dict[str, 
     missing = [name for name in required if not (directory / name).exists()]
     if missing:
         raise ReportError(f"bundle is missing: {', '.join(missing)}")
+    manifest: dict[str, str] = {}
     for line in (directory / "SHA256SUMS").read_text().splitlines():
-        digest, relative = line.split("  ", 1)
+        try:
+            digest, relative = line.split("  ", 1)
+        except ValueError as error:
+            raise ReportError("invalid checksum manifest") from error
+        relative_path = Path(relative)
+        if not re.fullmatch(r"[0-9a-f]{64}", digest) or relative_path.is_absolute() or ".." in relative_path.parts:
+            raise ReportError(f"invalid checksum entry: {relative}")
+        if relative in manifest:
+            raise ReportError(f"duplicate checksum entry: {relative}")
+        manifest[relative] = digest
         path = directory / relative
         if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != digest:
             raise ReportError(f"checksum mismatch: {relative}")
+    actual_files = {
+        path.relative_to(directory).as_posix()
+        for path in directory.rglob("*")
+        if path.is_file() and path.name != "SHA256SUMS"
+    }
+    if set(manifest) != actual_files:
+        omitted = sorted(actual_files - set(manifest))
+        unexpected = sorted(set(manifest) - actual_files)
+        details = ", ".join([*(f"unlisted {name}" for name in omitted), *(f"missing {name}" for name in unexpected)])
+        raise ReportError(f"checksum manifest does not cover the bundle: {details}")
     metadata = json.loads((directory / "metadata.json").read_text())
     row_document = json.loads((directory / "rows.json").read_text())
     if metadata.get("schema_version") != BUNDLE_SCHEMA or row_document.get("schema_version") != ROW_SCHEMA:
@@ -428,15 +448,48 @@ def validate_directory(directory: Path) -> tuple[dict[str, Any], list[dict[str, 
     rows = row_document.get("rows")
     if not isinstance(rows, list) or not rows:
         raise ReportError("bundle has no machine-readable rows")
-    expected = metadata.get("expected_cases", {})
-    for arm in metadata.get("arms", []):
+    arms = metadata.get("arms")
+    expected = metadata.get("expected_cases")
+    profile_version = metadata.get("workload", {}).get("version")
+    if not isinstance(arms, list) or not arms or not isinstance(expected, dict) or not isinstance(profile_version, int):
+        raise ReportError("bundle metadata is incomplete")
+    row_arms = {row.get("arm") for row in rows}
+    if row_arms != set(arms):
+        raise ReportError("machine-readable row arms do not match metadata")
+    for arm in arms:
         arm_rows = [row for row in rows if row.get("arm") == arm]
-        if len(arm_rows) != expected.get(arm):
-            raise ReportError(f"bundle has {len(arm_rows)} {arm} rows; expected {expected.get(arm)}")
+        arm_expected = expected.get(arm)
+        if not isinstance(arm_expected, int) or arm_expected < 1 or len(arm_rows) != arm_expected:
+            raise ReportError(f"bundle has {len(arm_rows)} {arm} rows; expected {arm_expected}")
+        aggregate_ids = [row.get("case_id") for row in arm_rows]
+        if len(set(aggregate_ids)) != len(aggregate_ids):
+            raise ReportError(f"bundle has duplicate aggregate case IDs for {arm}")
+        pass_ids: list[set[str]] = []
         for pass_number in (1, 2):
             raw = directory / "raw" / arm / f"pass-{pass_number}.json"
             if not raw.is_file():
                 raise ReportError(f"bundle is missing raw {arm} pass {pass_number}")
+            log = directory / "raw" / arm / f"pass-{pass_number}.log"
+            if not log.is_file():
+                raise ReportError(f"bundle is missing raw {arm} pass {pass_number} log")
+            if FAILURE_PATTERN.search(log.read_text(errors="replace")):
+                raise ReportError(f"bundle contains a benchmark fork failure for {arm} pass {pass_number}")
+            raw_rows = load_pass(raw, arm, pass_number, profile_version)
+            pass_ids.append(check_pass(raw_rows, arm, arm_expected))
+        if pass_ids[0] != pass_ids[1]:
+            raise ReportError(f"{arm} raw passes do not contain identical case IDs")
+        if pass_ids[0] != set(aggregate_ids):
+            raise ReportError(f"{arm} aggregate rows do not match raw case IDs")
+        for row in arm_rows:
+            if row.get("schema_version") != ROW_SCHEMA:
+                raise ReportError(f"unsupported row schema version for {row.get('case_id')}")
+            scores = row.get("pass_scores")
+            if not isinstance(scores, list) or len(scores) != 2 or not all(isinstance(value, (int, float)) and math.isfinite(value) for value in scores):
+                raise ReportError(f"aggregate row {row.get('case_id')} does not contain two finite pass scores")
+            for field in ("score", "uncertainty"):
+                value = row.get(field)
+                if not isinstance(value, (int, float)) or not math.isfinite(value):
+                    raise ReportError(f"aggregate row {row.get('case_id')} has invalid {field}")
     return metadata, rows
 
 

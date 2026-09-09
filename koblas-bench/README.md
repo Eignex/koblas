@@ -13,9 +13,13 @@ koblas-bench/report.sh standard jvm
 `preflight` reports the actual Gradle-selected benchmark runtime, host capabilities, and available comparator
 libraries without running measurements. `smoke` builds once and executes two short fresh passes over two setup
 cases; it validates the runner and implementation resolution but is not performance evidence. `standard` runs
-the versioned 81-case built-in workload twice. It includes small and rectangular dense work, packed tile edges,
+the versioned 83-case built-in workload twice. It includes small and rectangular dense work, packed tile edges,
 and prepared and one-shot sparse work. The runner prints the case count before it starts and the measured elapsed
 time when it finishes.
+
+As a calibration rather than a promise, the standard JVM workload plus the matched OpenBLAS arm completed in
+276.8 seconds on a 12th Gen Intel Core i9-12900H using four pinned logical CPUs. Host load, toolchain caches, and
+optional comparator availability can materially change that time.
 
 The default needs no external numerical library. Add an explicitly matched comparator or probe all optional
 comparators with:

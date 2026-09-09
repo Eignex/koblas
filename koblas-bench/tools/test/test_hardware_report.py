@@ -21,6 +21,27 @@ def jmh_row(arm="built-in", score=2.0):
     }
 
 
+def write_bundle(root, *, log="ok", pass_two_rows=None):
+    raw = root / "raw" / "built-in"
+    raw.mkdir(parents=True)
+    rows = [jmh_row()]
+    for number, pass_rows in ((1, rows), (2, pass_two_rows or rows)):
+        (raw / f"pass-{number}.json").write_text(json.dumps(pass_rows))
+        (raw / f"pass-{number}.log").write_text(log)
+    pass_rows = report.load_pass(raw / "pass-1.json", "built-in", 1, 1)
+    pass_rows.extend(report.load_pass(raw / "pass-1.json", "built-in", 2, 1))
+    aggregates = report.aggregate_rows(pass_rows)
+    (root / "metadata.json").write_text(json.dumps({
+        "schema_version": 1,
+        "arms": ["built-in"],
+        "expected_cases": {"built-in": 1},
+        "workload": {"version": 1},
+    }))
+    report.write_rows(root, aggregates)
+    (root / "summary.txt").write_text("summary\n")
+    report.checksums(root)
+
+
 class HardwareReportTest(unittest.TestCase):
     def test_case_id_excludes_arm(self):
         built_in = report.stable_case_id(jmh_row(), 1)
@@ -81,6 +102,33 @@ class HardwareReportTest(unittest.TestCase):
 
         with self.assertRaisesRegex(report.ReportError, "unsupported"):
             report.parse_comparators("openblas", status)
+
+    def test_validator_detects_fork_failure_in_raw_log(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            bundle = Path(temporary)
+            write_bundle(bundle, log="EXCEPTION: <ERROR> setup failed")
+
+            with self.assertRaisesRegex(report.ReportError, "fork failure"):
+                report.validate_directory(bundle)
+
+    def test_validator_detects_raw_case_mismatch(self):
+        changed = jmh_row()
+        changed["params"] = {"denseArm": "built-in", "n": "257"}
+        with tempfile.TemporaryDirectory() as temporary:
+            bundle = Path(temporary)
+            write_bundle(bundle, pass_two_rows=[changed])
+
+            with self.assertRaisesRegex(report.ReportError, "identical case IDs"):
+                report.validate_directory(bundle)
+
+    def test_validator_requires_checksum_for_every_file(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            bundle = Path(temporary)
+            write_bundle(bundle)
+            (bundle / "unlisted.txt").write_text("not checksummed")
+
+            with self.assertRaisesRegex(report.ReportError, "does not cover"):
+                report.validate_directory(bundle)
 
 
 if __name__ == "__main__":
