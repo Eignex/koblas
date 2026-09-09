@@ -34,6 +34,41 @@ public interface SparseBlas {
     )
 
     /**
+     * `y = alpha · A · x + beta · y` for a square sparse [a] interpreted as symmetric. Exactly the selected
+     * [lower] or upper stored triangle is read; the other triangle and implicit zeros are ignored. A stored
+     * off-diagonal entry contributes to both mirrored positions. `alpha == 0.0` reads neither [a] nor [x],
+     * and `beta == 0.0` overwrites [y] without reading it. Aliasing [x] with [y], or [a]'s values with [y],
+     * is supported through internal staging.
+     */
+    @Suppress("LongParameterList")
+    public fun symv(
+        alpha: Double,
+        a: SparseMatrix,
+        x: DoubleArray,
+        beta: Double,
+        y: DoubleArray,
+        lower: Boolean = true,
+    )
+
+    /**
+     * `C = alpha · A · B + beta · C`, or `C = alpha · B · A + beta · C` when [right], interpreting square
+     * sparse [a] as symmetric from exactly its selected [lower] or upper triangle. `alpha == 0.0` reads
+     * neither input; `beta == 0.0` does not read [c]. Shared input/destination buffers are staged, with
+     * [workspace] reused when supplied.
+     */
+    @Suppress("LongParameterList")
+    public fun symm(
+        alpha: Double,
+        a: SparseMatrix,
+        b: DenseMatrix,
+        beta: Double,
+        c: DenseMatrix,
+        lower: Boolean = true,
+        right: Boolean = false,
+        workspace: Workspace? = null,
+    )
+
+    /**
      * Solve `op(T) · x = b` in place, `op` transposing when [transpose]. [x] holds the right-hand side on
      * entry and the solution on return. Only the [lower] or upper triangle of [a] is read, and [unitDiag]
      * takes the diagonal as 1 without reading it, as the dense [com.eignex.koblas.dense.Blas.trsv] does.
@@ -103,7 +138,69 @@ public interface SparseBlas {
      * `A.cols` must equal `B.rows`. An entry the arithmetic cancels to zero is kept, as a structural
      * operation keeps one.
      */
-    public fun gemm(a: SparseMatrix, b: SparseMatrix): SparseMatrix
+    public fun gemm(a: SparseMatrix, b: SparseMatrix): SparseMatrix = gemm(1.0, a, false, b, false)
+
+    /**
+     * Fresh CSC `alpha · op(A) · op(B)`. Product support is discovered from stored positions, including
+     * explicit zeros, retained cancellations, and underflowed values; rows are sorted within every column
+     * and all result arrays are owned. When `alpha == 0.0`, the same structure is discovered without reading
+     * operand values and filled with alpha's signed zero.
+     */
+    @Suppress("LongParameterList")
+    public fun gemm(
+        alpha: Double,
+        a: SparseMatrix,
+        transposeA: Boolean,
+        b: SparseMatrix,
+        transposeB: Boolean,
+    ): SparseMatrix
+
+    /**
+     * Direct dense-destination `C = alpha · op(A) · op(B) + beta · C` for two sparse operands. No sparse
+     * intermediate is created and implicit sparse zeros are not evaluated. `alpha == 0.0` reads neither
+     * sparse operand's values; `beta == 0.0` does not read [c]. Sparse value buffers shared with [c] are
+     * staged using [workspace].
+     */
+    @Suppress("LongParameterList")
+    public fun gemm(
+        alpha: Double,
+        a: SparseMatrix,
+        transposeA: Boolean,
+        b: SparseMatrix,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        workspace: Workspace? = null,
+    )
+
+    /**
+     * Dense selected-triangle `C = alpha · op(A) · op(A)ᵀ + beta · C`. Only the selected [lower] or upper
+     * triangle of [c] is read or written, and products involving implicit sparse zeros are not evaluated.
+     */
+    @Suppress("LongParameterList")
+    public fun syrk(
+        alpha: Double,
+        a: SparseMatrix,
+        transpose: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        lower: Boolean = true,
+        workspace: Workspace? = null,
+    )
+
+    /**
+     * Fresh CSC selected triangle of `op(A) · op(A)ᵀ`. Stored-product support and cancellations are
+     * retained, rows are sorted, and result arrays are owned. The opposite triangle is absent rather than
+     * implicitly mirrored; consume the result with [symv] or [symm] when symmetric meaning is intended.
+     */
+    public fun syrk(a: SparseMatrix, transpose: Boolean = false, lower: Boolean = true): SparseMatrix
+
+    /**
+     * Fresh CSC `alpha · op(A) + B`. The structural union is retained, including explicit zeros,
+     * cancellations, and A-only positions when alpha is zero. Zero alpha does not read A's values; B values
+     * are copied. Output rows are strictly ascending and all arrays are independently owned.
+     */
+    public fun addScaled(alpha: Double, a: SparseMatrix, transposeA: Boolean, b: SparseMatrix): SparseMatrix
 
     /**
      * `B = alpha · op(T)⁻¹ · B` in place, or `B = alpha · B · op(T)⁻¹` when [right] (Sparse BLAS `ussm`).
@@ -185,6 +282,10 @@ public interface PreparedSparseMatrix : AutoCloseable {
     @Suppress("LongParameterList")
     public fun gemv(alpha: Double, x: DoubleArray, beta: Double, y: DoubleArray, transpose: Boolean = false)
 
+    /** Prepared selected-triangle symmetric matrix-vector product; semantics match [SparseBlas.symv]. */
+    @Suppress("LongParameterList")
+    public fun symv(alpha: Double, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean = true)
+
     /** `C = alpha · op(A) · B + beta · C` against the prepared `A`. [workspace] reuses portable staging on
      *  the software fallback a native binding keeps for itself. */
     @Suppress("LongParameterList")
@@ -197,8 +298,48 @@ public interface PreparedSparseMatrix : AutoCloseable {
         workspace: Workspace? = null,
     )
 
+    /** Full sparse-dense product contract, including dense transpose and sparse side selection. */
+    @Suppress("LongParameterList")
+    public fun gemm(
+        alpha: Double,
+        transposeA: Boolean,
+        b: DenseMatrix,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        right: Boolean,
+        workspace: Workspace? = null,
+    )
+
+    /** Prepared selected-triangle symmetric matrix-matrix product; semantics match [SparseBlas.symm]. */
+    @Suppress("LongParameterList")
+    public fun symm(
+        alpha: Double,
+        b: DenseMatrix,
+        beta: Double,
+        c: DenseMatrix,
+        lower: Boolean = true,
+        right: Boolean = false,
+        workspace: Workspace? = null,
+    )
+
     /** `A · B` against the prepared `A`, into a fresh sparse matrix. */
-    public fun gemm(b: SparseMatrix): SparseMatrix
+    public fun gemm(b: SparseMatrix): SparseMatrix = gemm(1.0, false, b, false)
+
+    /** Prepared sparse-result product with scaling and transpose controls. */
+    public fun gemm(alpha: Double, transposeA: Boolean, b: SparseMatrix, transposeB: Boolean): SparseMatrix
+
+    /** Prepared direct sparse-sparse-to-dense product. */
+    @Suppress("LongParameterList")
+    public fun gemm(
+        alpha: Double,
+        transposeA: Boolean,
+        b: SparseMatrix,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        workspace: Workspace? = null,
+    )
 
     /** Releases resources owned by this prepared snapshot. */
     override fun close()
@@ -207,6 +348,7 @@ public interface PreparedSparseMatrix : AutoCloseable {
 internal class ReferencePreparedSparseMatrix(a: SparseMatrix, private val algorithms: SparseBlas) :
     PreparedSparseMatrix {
     private val snapshot = sparseSnapshotOf(a)
+    private var transposedSnapshot: SparseMatrix? = null
     private var closed = false
 
     override val rows: Int get() = snapshot.rows
@@ -218,6 +360,11 @@ internal class ReferencePreparedSparseMatrix(a: SparseMatrix, private val algori
         algorithms.gemv(alpha, snapshot, x, beta, y, transpose)
     }
 
+    override fun symv(alpha: Double, x: DoubleArray, beta: Double, y: DoubleArray, lower: Boolean) {
+        checkOpen()
+        algorithms.symv(alpha, snapshot, x, beta, y, lower)
+    }
+
     override fun gemm(
         alpha: Double,
         transposeA: Boolean,
@@ -226,13 +373,52 @@ internal class ReferencePreparedSparseMatrix(a: SparseMatrix, private val algori
         c: DenseMatrix,
         workspace: Workspace?,
     ) {
-        checkOpen()
-        algorithms.gemm(alpha, snapshot, transposeA, b, false, beta, c, workspace = workspace)
+        gemm(alpha, transposeA, b, false, beta, c, false, workspace)
     }
 
-    override fun gemm(b: SparseMatrix): SparseMatrix {
+    override fun gemm(
+        alpha: Double,
+        transposeA: Boolean,
+        b: DenseMatrix,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        right: Boolean,
+        workspace: Workspace?,
+    ) {
         checkOpen()
-        return algorithms.gemm(snapshot, b)
+        algorithms.gemm(alpha, preparedOrientation(transposeA), false, b, transposeB, beta, c, right, workspace)
+    }
+
+    override fun symm(
+        alpha: Double,
+        b: DenseMatrix,
+        beta: Double,
+        c: DenseMatrix,
+        lower: Boolean,
+        right: Boolean,
+        workspace: Workspace?,
+    ) {
+        checkOpen()
+        algorithms.symm(alpha, snapshot, b, beta, c, lower, right, workspace)
+    }
+
+    override fun gemm(alpha: Double, transposeA: Boolean, b: SparseMatrix, transposeB: Boolean): SparseMatrix {
+        checkOpen()
+        return algorithms.gemm(alpha, preparedOrientation(transposeA), false, b, transposeB)
+    }
+
+    override fun gemm(
+        alpha: Double,
+        transposeA: Boolean,
+        b: SparseMatrix,
+        transposeB: Boolean,
+        beta: Double,
+        c: DenseMatrix,
+        workspace: Workspace?,
+    ) {
+        checkOpen()
+        algorithms.gemm(alpha, preparedOrientation(transposeA), false, b, transposeB, beta, c, workspace)
     }
 
     override fun close() {
@@ -241,6 +427,13 @@ internal class ReferencePreparedSparseMatrix(a: SparseMatrix, private val algori
 
     private fun checkOpen() {
         check(!closed) { "prepared sparse matrix is closed" }
+    }
+
+    private fun preparedOrientation(transpose: Boolean): SparseMatrix {
+        if (!transpose) return snapshot
+        val existing = transposedSnapshot
+        if (existing != null) return existing
+        return algorithms.transpose(snapshot).also { transposedSnapshot = it }
     }
 }
 
