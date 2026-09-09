@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "profile": "koblas-hardware-standard",
+  "profile_version": 1,
+  "seed": 20260730,
+  "passes": 2,
+  "settings": {
+    "warmups": 1,
+    "iterations": 1,
+    "iteration_time_ms": 200,
+    "forks": 1,
+    "threads": 1
+  },
+  "expected_cases": {
+    "standard": {
+      "built-in": 81,
+      "openblas": 54,
+      "onemkl": 81
+    },
+    "smoke": {
+      "built-in": 2,
+      "openblas": 1,
+      "onemkl": 2
+    }
+  },
+  "domains": {
+    "dense": [
+      "Level2Benchmark",
+      "GemvShapeBenchmark",
+      "Level3Benchmark",
+      "SyrkBenchmark",
+      "Syr2kBenchmark",
+      "TrmmBenchmark",
+      "TrsmBenchmark"
+    ],
+    "sparse": [
+      "SparseLevel1ComparisonBenchmark",
+      "SparseProductHostBenchmark"
+    ]
+  },
+  "parameters": {
+    "n": ["64", "257"],
+    "shape": ["16x32", "129x31"],
+    "rankShape": ["8x5", "129x257"],
+    "transpose": ["false", "true"],
+    "lower": ["true", "false"],
+    "variant": ["right-lower-transposed", "left-upper-transposed"],
+    "len": ["4096"],
+    "density": ["0.01"],
+    "productShape": ["regular"]
+  }
+}
